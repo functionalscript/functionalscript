@@ -28,6 +28,11 @@ A private key `d` is a random number in the range `(0; n)`.
 
 A public key is a point on a curve `Q = G * d`.
 
+A public key received from elsewhere is only a pair of numbers until
+`isPublicKey` validates it (SEC 1 §3.2.2.1): not the point at infinity,
+coordinates in `[0, p-1]`, on the curve, and `Q * n = O`. The curve formulas
+compute over any pair, but only these give results that mean anything.
+
 ## Benchmarks
 
 ```

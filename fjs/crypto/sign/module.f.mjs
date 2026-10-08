@@ -16,6 +16,7 @@ import { bitLength } from '../../types/bigint/module.f.mjs'
 import { empty, length, msb, repeat, unpack, vec8, wholeBytes } from '../../types/bit_vec/module.f.mjs'
 import { hmac } from '../hmac/module.f.mjs'
 import { computeSync } from '../sha2/module.f.mjs'
+import { isPublicKey } from '../secp/module.f.mjs'
 
 /**
  * Builds RFC6979 helper conversions for a subgroup order.
@@ -212,12 +213,13 @@ export const sign = c => hf => x => m => {
 export const verify = c => hf => u => m => ([r, s]) => {
     const { rfc6979: { q, bits2intModQ }, nf: { mul: mulQ, reciprocal }, mul, g } = fromCurve(c)
     const { add } = c
+    // `u` must be a valid public key: for any other point, such as the
+    // point at infinity or one off the curve, the equation below can be
+    // satisfied without a private key.
     // `r` and `s` are nonzero residues modulo `q`; anything else is refused.
-    // So is the point at infinity as `u`: `(r/s)u` would vanish, and
-    // `r = x((h/s)G)` would pass for any message without a private key.
     /** @type {(v: bigint) => boolean} */
     const inRange = v => 0n < v && v < q
-    if (u === null || !inRange(r) || !inRange(s)) {
+    if (!isPublicKey(c)(u) || !inRange(r) || !inRange(s)) {
         return false
     }
     // The same `h` as `sign` step 1.

@@ -1,13 +1,14 @@
 /**
  * @import { FixedArray } from '../../types/array/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
- * @import { Curve } from '../secp/types.ts'
+ * @import { Curve, Point } from '../secp/types.ts'
  * @import { Sha2 } from '../sha2/types.ts'
  */
 
 import { utf8 } from '../../text/module.f.mjs'
 import { empty, msb, repeat, vec, vec8 } from '../../types/bit_vec/module.f.mjs'
 import { hmac } from '../hmac/module.f.mjs'
+import { sqrt } from '../../types/prime_field/module.f.mjs'
 import { curve, secp192r1, secp256k1, secp256r1, secp384r1, secp521r1 } from '../secp/module.f.mjs'
 import { computeSync, sha224, sha256, sha384, sha512 } from '../sha2/module.f.mjs'
 import { all, computeK, fromCurve, sign, verify } from './module.f.mjs'
@@ -649,6 +650,17 @@ export const proof = {
         const h = all(q).bits2intModQ(computeSync(sha256)([sample]))
         const hg = assertNotNullish(c.mul(h)(g), 'hG === null')
         assertEq(v(null)(sample)([hg[0] % q, 1n]), false)
+        // a key off the curve, built for one message: with `[r, s] = [1, 1]`,
+        // `X = hG + u`, and `u = (2, y)` is chosen so that `X.x = 1`. The
+        // addition formulas do not check the curve, so only refusing `u`
+        // stops the forgery.
+        const { pf } = c
+        const [a, b] = hg
+        const t = assertNotNullish(sqrt(pf)(pf.add(1n)(pf.add(a)(2n))), 'no t')
+        /** @type {Point} */
+        const forged = [2n, pf.sub(b)(pf.mul(t)(pf.sub(a)(2n)))]
+        assertEq(assertNotNullish(c.add(hg)(forged), 'X === null')[0], 1n)
+        assertEq(v(forged)(sample)([1n, 1n]), false)
         // `(h/s)G + (r/s)U` is the point at infinity when `h + x*r = 0 mod q`:
         // with `r = 1`, the key `x = -h` gets there for any `s`.
         assertEq(v(c.mul(neg(h))(g))(sample)([1n, 1n]), false)

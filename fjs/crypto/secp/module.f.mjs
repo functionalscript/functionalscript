@@ -109,6 +109,25 @@ export const eq = a => b => {
 }
 
 /**
+ * Whether `u` is a valid public key of the curve `c`, as SEC 1 §3.2.2.1
+ * validates one: not the point at infinity, coordinates in `[0, p-1]`, on
+ * the curve, and in the subgroup of order `n` that `g` generates. Formulas
+ * over any other pair of coordinates still compute, but mean nothing, so a
+ * key from outside must pass this before it is used.
+ *
+ * @type {(c: Curve) => (u: Point) => boolean}
+ */
+export const isPublicKey = ({ pf: { p, pow2 }, nf: { p: n }, y2, mul }) => u => {
+    if (u === null) {
+        return false
+    }
+    const [x, y] = u
+    /** @type {(v: bigint) => boolean} */
+    const inField = v => 0n <= v && v < p
+    return inField(x) && inField(y) && pow2(y) === y2(x) && mul(n)(u) === null
+}
+
+/**
  * https://neuromancer.sk/std/secg/secp192r1
  * NIST P-192
  */

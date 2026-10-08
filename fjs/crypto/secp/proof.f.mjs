@@ -4,7 +4,7 @@
 
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 import { prime_field } from '../../types/prime_field/module.f.mjs'
-import { curve, secp256k1, secp192r1, secp256r1, eq, secp384r1, secp521r1 } from './module.f.mjs'
+import { curve, secp256k1, secp192r1, secp256r1, eq, isPublicKey, secp384r1, secp521r1 } from './module.f.mjs'
 
 /** @type {(param: Curve) => () => void} */
 const poker = param => () => {
@@ -140,5 +140,26 @@ export const proof = {
         assert(!eq(null)(c.g))
         assert(!eq(c.g)(null))
         assert(eq(c.add(c.g)(null))(c.g))
-    }
+    },
+    isPublicKey: () => {
+        const k = isPublicKey(secp256k1)
+        const { pf: { p }, g } = secp256k1
+        const [gx, gy] = assertNotNullish(g, 'g === null')
+        assert(k(g))
+        assert(k(secp256k1.mul(12345n)(g)))
+        // the point at infinity
+        assert(!k(null))
+        // coordinates outside `[0, p-1]`, though congruent to `g`'s
+        assert(!k([-1n, gy]))
+        assert(!k([gx + p, gy]))
+        assert(!k([gx, gy + p]))
+        // off the curve
+        assert(!k([gx, gy + 1n]))
+        // on the curve but outside the subgroup: `y^2 = x^3 + 1` over 7 has
+        // 12 points; `g = (0, 1)` generates a subgroup of order 3, which
+        // `(1, 3)` is not in.
+        const c = curve({ p: 7n, c: [1n, 0n], g: [0n, 1n], n: 3n })
+        assert(isPublicKey(c)([0n, 1n]))
+        assert(!isPublicKey(c)([1n, 3n]))
+    },
 }
