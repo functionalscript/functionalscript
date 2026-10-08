@@ -19,6 +19,13 @@ use crate::{
 use nanvm_lib::vm::{Any, Array, IVm, unstable::string_any};
 use std::io::{self, ErrorKind, Read, Write};
 
+/// `NodeOp`'s commands, printed from `nodeCommands` in
+/// `fjs/effects/node/module.f.mjs`: a command outside them is a malformed
+/// request, not a missing capability.
+#[path = "gen.commands.rs"]
+mod commands;
+use commands::COMMANDS;
+
 /// A host over `std`, reading console input from `R` and writing console
 /// output to `O` and `E`.
 #[derive(Debug)]
@@ -63,6 +70,10 @@ fn not_implemented<A: IVm>(command: &str) -> Any<A> {
         "error",
         encode_tuple("notImplemented", encode_string(command.to_string())),
     )
+}
+
+fn malformed_command<T>(command: &str) -> Result<T, Malformed> {
+    Err(Malformed(format!("`{command}` is not a command")))
 }
 
 /// An operation's answer as the language reads a `Result`: a failure is
@@ -181,7 +192,8 @@ impl<R: Read, O: Write, E: Write> Native<R, O, E> {
                 let path = decode_string(argument(payload, 0, "path")?)?;
                 Ok(answer(files::rm(&path), encode_nothing))
             }
-            _ => Ok(not_implemented(&command)),
+            _ if COMMANDS.contains(&command.as_str()) => Ok(not_implemented(&command)),
+            _ => malformed_command(&command),
         }
     }
 
@@ -223,7 +235,7 @@ mod test {
         naive::Naive,
         vm::{
             Nullish, Number, ToAny, ToArray, ToObject,
-            unstable::{bigint_any, string_key},
+            unstable::{bigint_any, bigint_any_words, string_key},
         },
     };
     use std::io::Cursor;
@@ -268,15 +280,52 @@ mod test {
         assert_eq!(ok(write(&mut h, "stderr")), Nullish::Undefined.to_any());
         assert_eq!(h.stdout().as_slice(), b"hi");
         assert_eq!(h.stderr().as_slice(), b"hi");
+        // the streams are told apart: one write reaches one stream only
+        ok(write(&mut h, "stdout"));
+        assert_eq!(h.stdout().as_slice(), b"hihi");
+        assert_eq!(h.stderr().as_slice(), b"hi");
+        h.stdout.clear();
         h.perform(
             string_any("write"),
             array([string_any("stdout"), bigint_any(0)]),
         )
         .unwrap();
-        assert_eq!(h.stdout().as_slice(), b"hi");
+        assert!(h.stdout().is_empty());
         let read = |h: &mut Host| ok(h.perform(string_any("read"), array([string_any("stdin")])));
         assert_eq!(read(&mut h), Number::from(97.0).to_any());
         assert_eq!(read(&mut h), Nullish::Null.to_any());
+    }
+
+    /// A trailing partial byte is zero-padded in its low bits, as `fromVec` does.
+    #[test]
+    fn partial_byte() {
+        let mut h = host(b"");
+        // `vec(1n)(1n)`: the one bit `1`
+        ok(h.perform(
+            string_any("write"),
+            array([string_any("stdout"), bigint_any(1)]),
+        ));
+        // `vec(9n)(0b1_0000_0001n)` shifted: nine bits, `1 0000 0001`
+        ok(h.perform(
+            string_any("write"),
+            array([string_any("stdout"), bigint_any(0b1_0000_0001)]),
+        ));
+        assert_eq!(h.stdout().as_slice(), [0x80, 0x80, 0x80]);
+    }
+
+    /// A vector of more than one word is read across its words, whole bytes or not.
+    #[test]
+    fn many_words() {
+        let mut h = host(b"");
+        let mut put = |v: V| ok(h.perform(string_any("write"), array([string_any("stdout"), v])));
+        // nine bytes `01 02 .. 09`: the first bit is `0`, so the value is negative
+        put(bigint_any_words(true, &[0x0203_0405_0607_0809, 0x81]));
+        // 65 one bits: the last byte is padded to `80`
+        put(bigint_any_words(false, &[u64::MAX, 1]));
+        let mut expected: Vec<u8> = (1..=9).collect();
+        expected.extend([0xff; 8]);
+        expected.push(0x80);
+        assert_eq!(h.stdout().as_slice(), expected);
     }
 
     /// A command the host lacks is answered through the continuation as
@@ -316,12 +365,12 @@ mod test {
             "`net` is not one of [\"stdout\", \"stderr\"]"
         );
         assert_eq!(
-            throws(w(), array([string_any("stdout"), bigint_any(0b1101)])),
-            "a bit vector that is not whole bytes"
-        );
-        assert_eq!(
             throws(w(), array([string_any("stdout"), string_any("hi")])),
             "not a bit vector"
+        );
+        assert_eq!(
+            throws(string_any("wirte"), array([])),
+            "`wirte` is not a command"
         );
         assert_eq!(
             throws(string_any("read"), array([string_any("stdout")])),

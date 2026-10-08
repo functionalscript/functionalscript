@@ -27,13 +27,13 @@ import { assoc, isArray } from '../../../types/array/module.f.mjs'
 import { error, mapOk, ok } from '../../../types/result/module.f.mjs'
 import { do_, pureOk } from '../../../effects/module.f.mjs'
 import { factoryStringify } from '../../../compiler/serializer/value/module.f.mjs'
-import { untagUndefined } from '../semantics/module.f.mjs'
+import { isFunction, untagUndefined } from '../semantics/module.f.mjs'
 
 /** Decode data while retaining all completed container identities. @type {(copies: _Copies, input: EdagValue) => _Converted} */
 const convert = (copies, input) => {
     const value = untagUndefined(input)
     if (!isArray(value)) { return ok([copies, value]) }
-    if (value[0] === '=>') { return error('callable materialization requires a target compile/load boundary') }
+    if (isFunction(value)) { return error('callable materialization requires a target compile/load boundary') }
     const known = assoc(value)(copies)
     if (known !== null) { return ok([copies, known]) }
     const children = value[0] === '[]' ? value[1] : value[1].map(([, , child]) => child)

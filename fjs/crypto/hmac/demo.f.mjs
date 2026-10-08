@@ -3,8 +3,6 @@
  * and see the hex authentication code of their UTF-8 bytes. Leading zeros
  * remain part of the code. A matching OpenSSL command quotes both inputs as
  * literal shell arguments, and both outputs use shared copyable code blocks.
- * Bold labels and captions distinguish controls and long output values while
- * scanning; the shared rollout is tracked in website/demo/todo/emphasize-labels-and-captions.md.
  *
  * @module
  *
@@ -15,7 +13,7 @@
 import { hmac } from './module.f.mjs'
 import { hexOf, hashAlgorithms, algorithmOf, algorithmOption, opensslVerification } from '../../website/demo/hash/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
-import { textField, inputField, fieldUpdate } from '../../website/demo/module.f.mjs'
+import { textField, inputField, fieldUpdate, caption } from '../../website/demo/module.f.mjs'
 import { codeBlock } from '../../website/demo/code/module.f.mjs'
 
 /** Bind the hash and its formatter once for each HMAC choice.
@@ -41,7 +39,7 @@ export const demo = {
     update: fieldUpdate,
     view: state => {
         const algorithm = selectedAlgorithm(state.algorithm)
-        return ['div', { 'data-hmac-demo': '' },
+        return ['div',
             ['p', 'HMAC uses a key to compute an authentication code for a message. Both inputs are encoded as UTF-8; the result is shown in hexadecimal.'],
             ['p',
                 ['label', { for: 'algorithm' }, 'Algorithm '],
@@ -50,7 +48,7 @@ export const demo = {
             ],
             inputField({ name: 'key', label: 'Key (UTF-8)' }, state.key),
             textField({ name: 'text', label: 'Message (UTF-8)' }, state.text),
-            ['p', `HMAC-${algorithm.name}, hex:`],
+            caption(`HMAC-${algorithm.name}, hex:`),
             codeBlock(algorithm.digest(state.key, state.text), 'Copy HMAC'),
             ...opensslVerification([state.text, state.key], ([text, key]) =>
                 `printf '%s' ${text} | openssl dgst -${algorithm.openssl} -hmac ${key}`),

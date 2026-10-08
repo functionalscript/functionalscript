@@ -13,13 +13,14 @@
  * @module
  *
  * @import { Effect, IoChannel } from '../types.ts'
- * @import { Handle, Headers, IoResult, Server as EffectServer, Module, NodeOp, RequestListener as Erl, NodeProgram, NodeProgramOptions, ServerResponse, WriteConsoles, TestContext, TestFn, } from './types.ts'
+ * @import { Child, ExitStatus, Handle, Headers, IoResult, Server as EffectServer, Module, NodeOp, RequestListener as Erl, NodeProgram, NodeProgramOptions, ServerResponse, WriteConsoles, TestContext, TestFn, } from './types.ts'
  * @import { _CloseRecord, _IncomingMessage, _Readable, _RequestBodyReader, _RequestListener, _Server, _ServerResponse } from './private.ts'
  * @import { Next } from '../list/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { FileHandle } from 'node:fs/promises'
+ * @import { ChildProcess } from 'node:child_process'
  */
 
 import http from 'node:http'
@@ -27,6 +28,7 @@ import childProcess from 'node:child_process'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
+import { relative, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import process from 'node:process'
 import zlib from 'node:zlib'
@@ -49,6 +51,7 @@ import { error, ok, unwrap } from '../../types/result/module.f.mjs'
 import { asyncTryCatch, tryCatch } from '../../types/result/module.mjs'
 import { fromVec, toVec } from '../../types/uint8array/module.f.mjs'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
+import { _orderDirents } from './virtual/readdir/module.f.mjs'
 
 /**
  * Narrowed structural view of `node:http`'s `createServer`. The official types
@@ -530,7 +533,19 @@ const failSafe = res => {
 
 const { mkdir, open, readFile, readdir, rename, writeFile, rm, rmdir, access, stat, lstat } = fs.promises
 
-const { exec } = childProcess
+const { exec, spawn } = childProcess
+
+/** The child a {@link Child} brands, as `asFileHandle` recovers a handle. @type {(child: Child) => ChildProcess} */
+const asChild = child => /** @type {ChildProcess} */ (asBase(child))
+
+/**
+ * How a child ended, from the pair Node reports on `'exit'` and keeps on the
+ * object: a signaled child has no code, so the signal is the status, and an
+ * exited one has the opposite — Node leaves exactly one of the two `null`.
+ *
+ * @type {(code: number | null, signal: string | null) => ExitStatus}
+ */
+const exitStatus = (code, signal) => code !== null ? ['exited', code] : ['signaled', /** @type {string} */ (signal)]
 
 const maxFileSizeBytes = Number(maxLengthBytes)
 
@@ -752,15 +767,20 @@ const runNodeEffect = asyncRun({
         }
         return toVec(await readFile(path))
     }),
-    readdir: (path, r) => io(async () =>
-        (await readdir(path, { ...r, withFileTypes: true }))
-        .map(v => ({
-            name: v.name,
-            parentPath: normalize(v.parentPath),
-            isFile: v.isFile(),
-            isDirectory: v.isDirectory()
-        }))
-    ),
+    // Windows scans need not be byte-sorted, and recursive order varies with
+    // Node versions. Sort the raw entries using physical parent components
+    // before normalize can turn a POSIX name's literal backslash into a separator.
+    // Leave native traversal, returned fields and failures untouched.
+    // See ./virtual/readdir/README.md.
+    readdir: (path, r) => io(async () => _orderDirents(
+        await readdir(path, { ...r, withFileTypes: true }),
+        v => relative(path, v.parentPath).split(sep).filter(part => part !== ''),
+    ).map(v => ({
+        name: v.name,
+        parentPath: normalize(v.parentPath),
+        isFile: v.isFile(),
+        isDirectory: v.isDirectory()
+    }))),
     // A `Vec` that is not whole bytes never reaches here: the effect in
     // `module.f.mjs` refuses it before the host is asked, since `fromVec` would
     // pad the last byte.
@@ -951,6 +971,30 @@ const runNodeEffect = asyncRun({
             resolve(e !== null ? error(toIoError(e)) : ok({ stdout, stderr }))
         )
         child.stdin?.end(stdin)
+    }),
+    // The subprocess slice of `./todo/spawn-effect.md`: a child on this process's
+    // terminal, waited for. The handle is the branded `ChildProcess` itself, as
+    // `createServer` brands its server below — no table. It is answered only
+    // once the child runs: a missing executable is an asynchronous `'error'`
+    // with no `'exit'` after it, so a handle minted before `'spawn'` could only
+    // hang its caller. `io` turns that `'error'`, and a host that refuses to
+    // spawn at all, into the operation's `IoError`.
+    spawn: (command, args, { stdio }) => io(() => new Promise((resolve, reject) => {
+        const child = spawn(command, args, { stdio })
+        child.once('spawn', () => resolve(/** @type {Child} */ (asNominal(child))))
+        child.once('error', reject)
+    })),
+    // Reads before it listens: a child may be gone before anyone waits on it, and
+    // an `'exit'` listener attached afterwards never fires. Node keeps the
+    // outcome on the object, so that is read first and `'exit'` awaited only
+    // while both halves are still `null`.
+    childWait: child => io(async () => {
+        const c = asChild(child)
+        if (c.exitCode !== null || c.signalCode !== null) {
+            return exitStatus(c.exitCode, c.signalCode)
+        }
+        const [code, signal] = await once(c, 'exit')
+        return exitStatus(code, signal)
     }),
     createServer: async requestListener => {
         const answer = answerRequest(/** @type {Erl<NodeOp>} */ (requestListener))

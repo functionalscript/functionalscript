@@ -15,7 +15,7 @@ import { toArray } from '../../../types/list/module.f.mjs'
 import { tokenize } from '../../tokenizer/module.f.mjs'
 import {
     _ordinaryTokenNames as names, access, array, attribute, block, body, circuitTail, conditionalTail, constStatement,
-    djsModule, func, group, identifier, importStatement, index, items, lastStatement, entry, member, object, parameters, paren, statement,
+    djsModule, func, group, identifier, importStatement, items, lastStatement, entry, member, object, parameters, paren, statement,
     parenGroup, parenthesized, primitive, sym, symbolOf, value,
 } from './module.f.mjs'
 
@@ -59,7 +59,6 @@ export const proof = {
         parser(identifier)
         parser(primitive)
         parser(/** @type {Rule} */ (member))
-        parser(index)
         parser(access)
         parser(/** @type {Rule} */ (entry))
         parser(/** @type {Rule} */ (value))
@@ -340,9 +339,14 @@ export const proof = {
         assertStructurallySame(read('export default { a: [1] }.a[0];'), ['ok'])
         assertStructurallySame(read('export default null.x;'), ['ok'])
         assertStructurallySame(read('export default 1.x;'), ['error', 'error'])
-        assertStructurallySame(read('const a = []; export default a[1n];'), ['error', 'bigint'])
-        assertStructurallySame(read('const a = []; export default a[b];'), ['error', 'b'])
+        // an index holds any value, which the fold judges: a constant or the
+        // conversion, `a[Number(b)]`, and every other value refused there
+        assertStructurallySame(read('const a = []; export default a[1n];'), ['ok'])
+        assertStructurallySame(read('const a = []; export default a[b];'), ['ok'])
+        assertStructurallySame(read('const a = []; export default a[Number(b)]?.[Number(c)];'), ['ok'])
+        assertStructurallySame(read('const a = []; export default a[b + 1 ? [c] : {}];'), ['ok'])
         assertStructurallySame(read('const a = []; export default a[];'), ['error', ']'])
+        assertStructurallySame(read('const a = []; export default a[b;'), ['error', ';'])
         assertStructurallySame(read('const a = {}; export default a.1;'), ['error', 'number'])
         assertStructurallySame(read('const a = {}; export default a.;'), ['error', ';'])
         assertStructurallySame(read('const a = {}; export default a."b";'), ['error', 'string'])
@@ -433,6 +437,27 @@ export const proof = {
         assertStructurallySame(read('export default -1();'), ['ok'])
         assertStructurallySame(read('export default 1();'), ['ok'])
     },
+    // The optional step, `?.` and then a name, `[key]` or `(args)`: one
+    // more step a value takes, as `.`, `[` and `(` are, so it stands where
+    // they stand and takes what they take.
+    optional: () => {
+        assertStructurallySame(read('const o = {}; export default o?.b;'), ['ok'])
+        assertStructurallySame(read('const o = {}; export default o?.["b"];'), ['ok'])
+        assertStructurallySame(read('const o = {}; export default o?.[0];'), ['ok'])
+        assertStructurallySame(read('const o = {}; export default o?.(1);'), ['ok'])
+        assertStructurallySame(read('const o = {}; export default o?.();'), ['ok'])
+        assertStructurallySame(read('const o = {}; export default o?.b.c(1)?.d?.(2)[0]?.["e"]();'), ['ok'])
+        assertStructurallySame(read('const o = {}; export default (o?.b).c;'), ['ok'])
+        assertStructurallySame(read('const o = {}; export default [1]?.length;'), ['ok'])
+        assertStructurallySame(read('const o = {}; export default o ?. b;'), ['ok'])
+        assertStructurallySame(read('const o = {}; export default (...a) => a?.[0];'), ['ok'])
+        // the `?.` wants its step: a name, a key or a call list
+        assertStructurallySame(read('const o = {}; export default o?.;'), ['error', ';'])
+        assertStructurallySame(read('const o = {}; export default o?.1;'), ['error', 'number'])
+        assertStructurallySame(read('const o = {}; export default o?.[];'), ['error', ']'])
+        assertStructurallySame(read('const o = {}; export default o?.(,);'), ['error', ','])
+        assertStructurallySame(read('const o = {}; export default o?.b?.;'), ['error', ';'])
+    },
     // Stage B of `spec/todo/2340-operators.md`: the lazy operators and the
     // conditional, above the eager ladder. `&&` and `||` chain as in
     // JavaScript, `??` chains with itself alone, and `?:` takes whole
@@ -490,6 +515,11 @@ export const proof = {
         assertStructurallySame(read('const a = 1; export default typeof a ? typeof 1 : typeof typeof a;'), ['ok'])
         assertStructurallySame(read('export default typeof 2 ** 2;'), ['error', '**'])
         assertStructurallySame(read('export default { typeof: 1 }.typeof;'), ['ok'])
+        // `instanceof` is a relational operator: its right operand is any
+        // value here, and which one the fold admits is the fold's
+        assertStructurallySame(read('const a = 1; export default a instanceof Array ? a instanceof (Array) : [] instanceof Map;'), ['ok'])
+        assertStructurallySame(read('export default { instanceof: 1 }.instanceof;'), ['ok'])
+        assertStructurallySame(read('export default instanceof;'), ['ok'])
         // the arms are values, not one of them a function's parameter
         // list or a hole; both are required, and the conditional is no
         // operand of the operators below it
@@ -499,7 +529,9 @@ export const proof = {
         assertStructurallySame(read('const a = 1; export default a ? 1 : 2 : 3;'), ['error', ':'])
         assertStructurallySame(read('const a = 1; export default a ? 1 : 2 + 3 && a ? 4 : 5;'), ['ok'])
         assertStructurallySame(read('const a = 1; export default -(a ? 1 : 2);'), ['ok'])
-        assertStructurallySame(read('const a = 1; export default a ?. 1 : 2;'), ['error', 'error'])
+        // `?.` is one token, the optional step's, so `a ?. 1 : 2` is no
+        // conditional: the step wants a name, `[` or `(` after it
+        assertStructurallySame(read('const a = 1; export default a ?. 1 : 2;'), ['error', 'number'])
     },
     // A statement ends at `;`, or at nothing: the grammar reads a module
     // whose statements omit it, however they stand, since `;` begins no

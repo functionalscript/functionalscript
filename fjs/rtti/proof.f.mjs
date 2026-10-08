@@ -205,12 +205,12 @@ const demoProof = /** @type {const} */ ({
         // `open` admits it.
         verdict: () => {
             const a = page('Closed vs open')
-            assert(a.includes('<p>parse · error</p><pre data-result="error">at the root: unexpected value</pre>'), a)
-            assert(a.includes('<p>validate · error</p>'), a)
+            assert(a.includes('<p data-caption="">parse · error</p><pre data-result="error">at the root: unexpected value</pre>'), a)
+            assert(a.includes('<p data-caption="">validate · error</p>'), a)
             assert(!a.includes('data-result="ok"'), a)
             const b = page('Closed vs open', 1)
-            assert(b.includes('<p>parse · ok</p><pre data-result="ok">export default {'), b)
-            assert(b.includes('<p>validate · ok</p>'), b)
+            assert(b.includes('<p data-caption="">parse · ok</p><pre data-result="ok">export default {'), b)
+            assert(b.includes('<p data-caption="">validate · ok</p>'), b)
             assert(!b.includes('data-result="error"'), b)
         },
         // The page reads schema, then its graph, then the value and the
@@ -238,18 +238,18 @@ const demoProof = /** @type {const} */ ({
         // block.
         notADocument: () => {
             const html = htmlToString(demo.view({ ...demo.init, text: '{"a":1}' }))
-            assert(html.includes('<p>DataJS · error</p><pre data-result="error">'), html)
+            assert(html.includes('<p data-caption="">DataJS · error</p><pre data-result="error">'), html)
             assert(!html.includes('parse ·'), html)
         },
         // Under the graph come the TypeScript type, the JSON Schema and the
         // folded canonical form, then the comparison, then the value.
         outputs: () => {
             const html = page('Dictionary')
-            assert(html.includes('<p>TypeScript:</p><pre data-code="">{readonly[k in string]?:number}</pre>'), html)
-            assert(html.includes('<p>JSON Schema:</p><pre data-code="">{&quot;type&quot;:&quot;object&quot;,&quot;additionalProperties&quot;:{&quot;type&quot;:&quot;number&quot;}}</pre>'), html)
+            assert(html.includes('<p data-caption="">TypeScript:</p><pre data-code="">{readonly[k in string]?:number}</pre>'), html)
+            assert(html.includes('<p data-caption="">JSON Schema:</p><pre data-code="">{&quot;type&quot;:&quot;object&quot;,&quot;additionalProperties&quot;:{&quot;type&quot;:&quot;number&quot;}}</pre>'), html)
             assert(html.includes('<details><summary>Canonical form (toData)</summary><pre data-code="">'), html)
             const at = (/** @type {string} */ needle) => html.indexOf(needle)
-            assert(at('<svg') < at('<p>TypeScript:</p>'), html)
+            assert(at('<svg') < at('<p data-caption="">TypeScript:</p>'), html)
             assert(at('<details>') < at('<label for="compare">'), html)
             assert(at('<label for="compare">') < at('<textarea'), html)
         },
@@ -274,8 +274,8 @@ const demoProof = /** @type {const} */ ({
         // the failing member marked; when it accepts, nothing is.
         where: () => {
             const a = page('Closed vs open')
-            assert(a.includes('<p>Where:</p><pre data-code=""><mark>{&quot;name&quot;:&quot;Alice&quot;,&quot;age&quot;:30,&quot;admin&quot;:true}</mark></pre>'), a)
-            assert(!page('Closed vs open', 1).includes('<p>Where:</p>'), 'no failure, no mark')
+            assert(a.includes('<p data-caption="">Where:</p><pre data-code=""><mark>{&quot;name&quot;:&quot;Alice&quot;,&quot;age&quot;:30,&quot;admin&quot;:true}</mark></pre>'), a)
+            assert(!page('Closed vs open', 1).includes('<p data-caption="">Where:</p>'), 'no failure, no mark')
         },
         // Every example draws every one of its schemas, and no edge passes
         // through a box.

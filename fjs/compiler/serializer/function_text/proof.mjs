@@ -27,8 +27,11 @@ export const proof = {
             [[',', []], undefined], [[',', [2]], 2], [[',', [1, 2]], 2],
             [['[]', [['...', 'ab'], [',', [1, 2]]]], ['a', 'b', 2]],
             [['.', ['[]', [8]], ['Number', '0']], 8],
-            [['own', ['{}', [[':', 'x', 3]]], 'x'], 3],
-            [['own', ['{}', []], 'toString'], undefined],
+            [['()', ['entry'], [['{}', [[':', 'x', 3]]], 'x']], 3],
+            [['()', ['entry'], [['{}', []], 'toString']], undefined],
+            [['()', ['entry'], [['[]', [7]], 0]], 7],
+            [['()', ['entry'], [['[]', [7]], 'length']], undefined],
+            [['.', ['entry'], 'length'], 2],
         ]
         for (const [body, expected] of cases) { assertStructurallySame(run(body), expected) }
         const object = /** @type {Record<string, unknown>} */ (run(['{}', [
@@ -37,8 +40,7 @@ export const proof = {
         assertEq(Object.getOwnPropertyDescriptor(object, '__proto__')?.value, 4)
         assertEq(object.k1, 5)
         assertEq(object.x, 6)
-        throws(() => run(['own', ['{}', []], 1]), e => e === undefined)
-        throws(() => run(['own', null, 'x']))
+        throws(() => run(['()', ['entry'], [null, 'x']]))
     },
     captures: () => {
         const captured = Object.freeze([9])

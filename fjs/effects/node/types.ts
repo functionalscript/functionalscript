@@ -191,6 +191,50 @@ export type ExecResult = {
 
 export type Exec = readonly['exec', (command: string, stdin?: string) => IoResult<ExecResult>]
 
+// spawn
+
+/**
+ * A child process the runner started, the handle {@link ChildWait} reads the
+ * outcome of. A {@link Nominal} for the reason {@link Server} is one: it stands
+ * for a host object the program may not look inside.
+ */
+export type Child =
+    Nominal<'child', `29e416808ddb6dbbde4879d1df5d25141f612a120c7d321e27cb78449ef420ce`, unknown>
+
+/**
+ * How a child is started. `stdio: 'inherit'` hands it this process's terminal,
+ * so what it writes reaches the reader as it is written and its two streams
+ * keep their order — what the `exec` capture cannot give.
+ *
+ * It is required rather than optional for now: a piped child has no reader
+ * until the rest of the family in
+ * [`todo/spawn-effect.md`](./todo/spawn-effect.md) lands, and a child whose
+ * pipes nobody drains blocks once they fill.
+ */
+export type SpawnOptions = { readonly stdio: 'inherit' }
+
+/**
+ * Starts `command` with `args` — an argument vector, no shell between them —
+ * and answers once the child is running. A command that cannot run at all,
+ * no such file or no permission, is an `IoError`, and no handle is minted
+ * for it.
+ */
+export type Spawn = readonly['spawn', (command: string, args: readonly string[], options: SpawnOptions) => IoResult<Child>]
+
+/**
+ * How a child ended: its exit code, or the signal that killed it. A signaled
+ * child has no code — Node reports `null` — so a number could not say it.
+ * Both are the `ok` branch: a child that exited non-zero or was killed still
+ * ran, which is all {@link Spawn} promised.
+ */
+export type ExitStatus = readonly['exited', number] | readonly['signaled', string]
+
+/** Waits for `child` to end and answers how; a child already gone answers at once. */
+export type ChildWait = readonly['childWait', (child: Child) => IoResult<ExitStatus>]
+
+/** The subprocess family, so far: start a child and wait for it. */
+export type Subprocess = Spawn | ChildWait
+
 // access
 
 export type Access = readonly['access', (path: string) => IoResult<void>]
@@ -867,6 +911,7 @@ export type NodeOp =
     | RandomInt
     | Read
     | Sandbox
+    | Subprocess
     | Write
     | Test
 

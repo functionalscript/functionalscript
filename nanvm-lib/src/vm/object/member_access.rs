@@ -13,10 +13,11 @@ impl<A: IVm> Object<A> {
     /// `Property<A>` (`vm/object/property.rs`) being `(String<A>, Any<A>)`,
     /// so `"0"` is exactly the key form any real `{0:'a'}` was already
     /// built with. Every other key is `None`, for the caller
-    /// (`Any::dot`) to turn into `undefined` — unlike `own`,
-    /// which instead requires a `String` key and errors on anything else:
-    /// `.`/`[]`'s key is a `number | string` by the EDAG's own schema, so
-    /// accepting both here is the contract, not a relaxation of `own`'s.
+    /// (`Any::dot`) to turn into `undefined`: `.`/`[]`'s key is a
+    /// `number | string` by the EDAG's own schema, so accepting both here
+    /// is the contract. `Any::entry` reaches `own_property` by another
+    /// road, converting any key to a `String` first, as
+    /// `Object.getOwnPropertyDescriptor` does.
     pub(crate) fn member_access(&self, key: Any<A>) -> Option<Any<A>> {
         match Unpacked::from(key) {
             Unpacked::Number(n) => self.own_property(&number_to_string(n)),

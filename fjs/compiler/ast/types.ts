@@ -6,6 +6,7 @@
  */
 
 import type { Assert } from '../../asserts/types.ts'
+import type { ConstructorId } from '../../edag/types.ts'
 import type { Primitive } from '../../media/datajs/types.ts'
 import type { Equal } from '../../types/ts/types.ts'
 import type { binaryTags } from './module.f.mjs'
@@ -31,8 +32,30 @@ export type AstImport = {
  */
 export type AstModule = readonly [readonly AstImport[], AstBody]
 
-/** A value in a module body: a primitive, a reference, an array, an object, a property access, a call, a negation, a bitwise not, a logical not, a `typeof`, the function's own `self`, a binary operator, a conditional, a function, a fixed parameter, a rest array, a slot of its frame — or a `throw`, which a body may end with in place of a value. */
-export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstCall|AstNeg|AstBitnot|AstNot|AstTypeof|AstSelf|AstBinary|AstConditional|AstFunction|AstRest|AstArg|AstFrameRef|AstThrow
+/** A value in a module body: a primitive, a reference, an array, an object, a property access, a call, a negation, a bitwise not, a logical not, a `typeof`, an `instanceof`, the `Number` conversion, the function's own `self`, a binary operator, a conditional, a function, the `entry` helper, a fixed parameter, a rest array, a slot of its frame — or a `throw`, which a body may end with in place of a value. */
+export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstGuardedAccess|AstCall|AstGuardedCall|AstNeg|AstBitnot|AstNot|AstTypeof|AstInstanceOf|AstNumber|AstSelf|AstBinary|AstConditional|AstFunction|AstEntryFunction|AstRest|AstArg|AstFrameRef|AstThrow
+
+/**
+ * The `entry` helper, which the parser recognizes whole
+ * ([spec: entry](../../../spec/README.md#reading-an-entry-at-run-time)):
+ *
+ * ```js
+ * (a, b) => {
+ *     const x = Object.getOwnPropertyDescriptor(a, b);
+ *     return x?.enumerable ? x.value : undefined;
+ * }
+ * ```
+ *
+ * under any names — the one function that reads a property named at run
+ * time, the enumerable own property the key names once converted as
+ * `Object.getOwnPropertyDescriptor` converts it. It is a function like
+ * any other: a value, of `length` `2`, capturing nothing, and a fresh
+ * identity wherever it is written, as every arrow is. The lowering spells
+ * it as the EDAG's own node for it, `['entry']`, which the source spells
+ * through this helper and no other way; the writer spells the node back
+ * as the helper.
+ */
+export type AstEntryFunction = readonly ['entry']
 
 /**
  * A `throw`, `throw v;`: the statement a function's block body, or a
@@ -160,10 +183,20 @@ export type AstEntry = AstMember | AstSpread
 export type AstObject = readonly ['object', readonly AstEntry[]]
 
 /**
+ * An access's key, the EDAG's `index`: the constant written, a string or a
+ * number from `[0]`, or the conversion of a key computed at run time,
+ * `a[Number(i)]` ([spec: property access](../../../spec/README.md#property-access)).
+ * A constant is the key as it is; the conversion is an operand, evaluated
+ * wherever the access is, in no promised order against its base
+ * ([spec: failure is one outcome](../../../spec/README.md#failure-is-one-outcome)).
+ */
+export type AstKey = string | number | AstNumber
+
+/**
  * A property access, `base.key` or `base[key]`: the base any value — a
- * reference, a literal, or an access — and the key the constant written,
- * a string, or a number from `[0]`. The EDAG's own form, `['.', object,
- * index]`, so the lowering carries it as it is. A key naming a property of
+ * reference, a literal, or an access — and the key, {@link AstKey}. The
+ * EDAG's own form, `['.', object, index]`, so the lowering carries it as it
+ * is, the conversion lowered as any operand is. A constant key naming a property of
  * a built-in prototype — every name `fjs/js/prototype` lists but `length`
  * — is refused by the parser where the access is read; where the access is
  * a call's callee the parser checks the key
@@ -171,7 +204,55 @@ export type AstObject = readonly ['object', readonly AstEntry[]]
  * function's name, `at` or `toString`. A numeric literal is an ordinary
  * base: `1 .x` is `['.', 1, 'x']`.
  */
-export type AstAccess = readonly ['.', AstConst, string | number]
+export type AstAccess =
+    | readonly ['.', AstConst, AstKey]
+    | readonly ['.', AstConst, AstKey, AstGuardedCallStep]
+
+/**
+ * A guarded access, `base?.key`: the EDAG's `['?.', object, index]`, and
+ * with a fourth element the steps the chain goes on with, {@link AstStep}
+ * — `a?.b.c` is `['?.', a, 'b', ['|.', 'c']]`, one node, since a nullish
+ * `a` skips every step. The parser folds the steps written after a `?.`
+ * into the node until a group closes the region, so `(a?.b).c` is an
+ * access over the guarded access and reaches here as one
+ * (`fjs/edag/README.md`, Chains). The key is judged as an access's is: by
+ * the read rule, or by the call rule where a call step follows it.
+ */
+export type AstGuardedAccess =
+    | readonly ['?.', AstConst, AstKey]
+    | readonly ['?.', AstConst, AstKey, AstStep]
+
+/**
+ * A guarded call, `callee?.(args)`: the EDAG's `['?.()', f, args]`, with
+ * the steps after it where there are any. A guarded call on a property
+ * reference is not this node but the access's own step, `['.', a, 'b',
+ * ['|?.()', args]]`, which keeps the receiver; this one's callee is an
+ * ordinary value.
+ */
+export type AstGuardedCall =
+    | readonly ['?.()', AstConst, readonly AstItem[]]
+    | readonly ['?.()', AstConst, readonly AstItem[], AstStep]
+
+/**
+ * One step a chain goes on with, and the steps after it — the EDAG's
+ * continuation, carried as it is: a property, a call, a guarded call,
+ * {@link AstGuardedCallStep}, or the escaping call `(a?.b)(args)`, which a
+ * group put outside the region and after which nothing continues. The
+ * operands a step holds are lazy: established only where the chain's guard
+ * lets it go on.
+ */
+export type AstStep =
+    | readonly ['|.', AstKey]
+    | readonly ['|.', AstKey, AstStep]
+    | readonly ['|()', readonly AstItem[]]
+    | readonly ['|()', readonly AstItem[], AstStep]
+    | AstGuardedCallStep
+    | readonly ['|!()', readonly AstItem[]]
+
+/** A guarded call step, `?.(args)`, and the steps after it. */
+export type AstGuardedCallStep =
+    | readonly ['|?.()', readonly AstItem[]]
+    | readonly ['|?.()', readonly AstItem[], AstStep]
 
 /**
  * A call, `f(a, b)`: the callee any value, and the arguments in the order
@@ -231,6 +312,29 @@ export type AstNot = readonly ['!', AstConst]
  * node.
  */
 export type AstTypeof = readonly ['typeof', AstConst]
+
+/**
+ * A `v instanceof Array`: the EDAG's `['instanceof', exp, constructor]`,
+ * the instance check of its one operand against a constructor *name* — a
+ * member of the EDAG's closed list, `Array` alone today, which the fold
+ * admits as the one reference the operator's right side may be. The name
+ * is metadata, as `arg`'s index is, not an operand: `operandsOf` walks the
+ * one operand and nothing else. Folds nothing: whether a value is an
+ * array is the interpreter's question.
+ */
+export type AstInstanceOf = readonly ['instanceof', AstConst, ConstructorId]
+
+/**
+ * The conversion `Number(v)`: the EDAG's `['Number', exp]`, `op1Id` — the
+ * number JavaScript's `Number` answers when called, a `bigint` converted
+ * where unary `+` throws
+ * ([spec: number conversion](../../../spec/README.md#number-conversion)).
+ * The parser writes it for the call of the reserved word `Number` with one
+ * argument, and for nothing else the word spells; like {@link AstTypeof}
+ * it folds nothing, since what a value converts to is the interpreter's
+ * question, so it always reaches the represented interpreter as a node.
+ */
+export type AstNumber = readonly ['Number', AstConst]
 
 /**
  * A binary operator, Stages A and B of

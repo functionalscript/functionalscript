@@ -13,13 +13,16 @@ import type { Result } from '../../types/result/types.ts'
 import type { AstConst, AstFrameRef, AstItem, AstModuleRef, AstRest, AstSelf, BinaryTag } from '../ast/types.ts'
 import type { DjsTokenWithMetadata } from '../tokenizer/types.ts'
 import type { ParseError } from './types.ts'
-import type { Block, Container, If, Item, Node } from './syntax/types.ts'
+import type { Block, Chain, Container, If, Item, Key, Node } from './syntax/types.ts'
 
 /** A named parameter, `i` of the function whose body names it: what the body reads it as, the `i`th argument. */
 export type _Parameter = readonly ['arg', number]
 
-/** The names bound so far, each to the reference that names it: a module's import or entry, a function's rest array or one of its fixed parameters — or a slot of a function's frame, for a word its body has read from the scopes around it and remembers, so that a later read of it stops at the body and a `const` of it in the body is refused. */
-export type _Env = OrderedMap<_Ref>
+/** The intrinsic `Object` namespace a word was read as, where nothing binds it: no value a module can name, and a binding that refuses a `const` of the word after the read, which in JavaScript the read would have named. */
+export type _Intrinsic = readonly ['intrinsic']
+
+/** The names bound so far, each to the reference that names it: a module's import or entry, a function's rest array or one of its fixed parameters — or a slot of a function's frame, for a word its body has read from the scopes around it and remembers, so that a later read of it stops at the body and a `const` of it in the body is refused — or the intrinsic, for `Object` read as the namespace the `entry` helper names where nothing binds the word, remembered in every scope out to the module's so that a `const` of the word after the read is refused the same way. */
+export type _Env = OrderedMap<_Ref | _Intrinsic>
 
 /** What a name resolves to where it is written: a name bound in its own scope, or a slot of the function's frame. */
 export type _Ref = AstModuleRef | AstRest | _Parameter | AstFrameRef | AstSelf
@@ -84,14 +87,50 @@ export type _CallFrame = {
 }
 
 /**
- * An access whose base is being evaluated: the token its key is read from,
- * and whether the access is the callee of a call — a method call, whose
- * key is checked against the member functions a module may not call rather
- * than the properties it may not read.
+ * An access whose base is being evaluated: its key — the token a constant
+ * is read from, or a computed key, entered once the base has its value,
+ * {@link _IndexFrame} — and whether the access is the callee of a call — a
+ * method call, whose constant key is checked against the member functions
+ * a module may not call rather than the properties it may not read.
  */
 export type _AccessFrame = {
-    readonly key: DjsTokenWithMetadata
+    readonly key: Key
     readonly method: boolean
+}
+
+/**
+ * An access whose base has its value and whose computed key, the
+ * conversion `Number(i)`, is being evaluated: the base, for the access the
+ * key's value closes.
+ */
+export type _IndexFrame = {
+    readonly indexed: AstConst
+}
+
+/**
+ * One operand of a chain in document order: a value to enter — its base
+ * or callee, or an argument's operand — or a key, with whether a call step
+ * follows it: a constant to judge, a method call's key being checked
+ * against the member functions a module may not call rather than the
+ * properties it may not read, as an access's is, or a computed key, entered
+ * as a value is once it is the conversion.
+ */
+export type _ChainPart =
+    | { readonly value: Node }
+    | { readonly key: Key, readonly method: boolean }
+
+/**
+ * A chain being built: `parts[index]` is being evaluated or judged, and
+ * `done` holds what came before it — each value's, and each key's name,
+ * in document order — a list, for the reason a container's is. The chain
+ * itself gives the shape the values are put back into once every part is
+ * done.
+ */
+export type _ChainFrame = {
+    readonly chain: Chain
+    readonly parts: readonly _ChainPart[]
+    readonly index: number
+    readonly done: List<AstConst>
 }
 
 /**
@@ -169,6 +208,20 @@ export type _NotFrame = { readonly not: true }
  */
 export type _TypeofFrame = { readonly typeof: true }
 
+/**
+ * An `instanceof` whose left operand is being evaluated: its right operand,
+ * checked once the left returns so that a fault in the left is reported
+ * first, and the operator token the refusal is reported at.
+ */
+export type _InstanceOfFrame = { readonly instanceof: Node, readonly at: DjsTokenWithMetadata }
+
+/**
+ * A `Number` conversion whose operand is being evaluated: the word, so
+ * that the frame is the node's tag and a second conversion joins it rather
+ * than adding a frame.
+ */
+export type _ConversionFrame = { readonly conversion: 'Number' }
+
 /** A binary operator whose left operand is being evaluated: the tag, and the right operand to enter once it resolves. */
 export type _BinaryLeftFrame = { readonly tag: BinaryTag, readonly right: Node }
 
@@ -190,10 +243,14 @@ export type _Frame =
     | _ContainerFrame
     | _CallFrame
     | _AccessFrame
+    | _IndexFrame
+    | _ChainFrame
     | _NegFrame
     | _BitnotFrame
     | _NotFrame
     | _TypeofFrame
+    | _InstanceOfFrame
+    | _ConversionFrame
     | _BinaryLeftFrame
     | _BinaryRightFrame
     | _ConditionalFrame

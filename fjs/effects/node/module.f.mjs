@@ -21,7 +21,7 @@
  * @import { Commands, CommandSet, Effect, Func, NotImplemented, Operation } from '../types.ts'
  * @import { List } from '../list/types.ts'
  * @import { List as List_ } from '../../types/list/types.ts'
- * @import { Access, Await, Catch, Close, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fstat, Fs, Handle, Headers, Http, IncomingMessage, Inflate, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, Open, Pread, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, ReadRequestBytes, RequestBody, ResolveFileModule, ReadWhole, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Rmdir, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteExclusive, WriteFile, _ChunkSource, _DoubledLength, _FramingHeader, _Gate, _NoBody, _ReadChunks, _Unframed, _UtfList, _WriteLoop } from './types.ts'
+ * @import { Access, Await, Catch, ChildWait, Close, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fstat, Fs, Handle, Headers, Http, IncomingMessage, Inflate, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, Open, Pread, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, ReadRequestBytes, RequestBody, ResolveFileModule, ReadWhole, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Rmdir, Sandbox, SandboxResult, Server, ServerResponse, Spawn, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteExclusive, WriteFile, _ChunkSource, _DoubledLength, _FramingHeader, _Gate, _NoBody, _ReadChunks, _Unframed, _UtfList, _WriteLoop } from './types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
@@ -122,6 +122,12 @@ export const maxPort = 0xffff
  * where `0` asks for an ephemeral one. Node throws {@link badPortCode} for
  * anything else, and a runner that accepted `-1` or `NaN` would let a program
  * be proven that cannot run.
+ *
+ * Not `fjs/types/number`'s `isUintUpTo(maxPort)`, which refuses `-0`: this
+ * states the host's contract, and Node's `Server.listen` takes `-0` as port
+ * `0`. The native runner forwards a port to `listen` unchecked and only the
+ * virtual runner gates on this, so refusing `-0` here would make the two
+ * runners disagree.
  *
  * @type {(port: number) => boolean}
  */
@@ -250,7 +256,7 @@ export const isDirectory = ([tag, payload]) =>
  * @type {CommandSet<NodeOp>}
  */
 const nodeCommandSet = {
-    access: null, all: null, await: null, catch: null, close: null,
+    access: null, all: null, await: null, catch: null, childWait: null, close: null,
     createExclusive: null,
     createServer: null, exec: null, fetch: null, forever: null, fstat: null,
     import: null, inflate: null, listen: null, memCreate: null, memRead: null,
@@ -258,7 +264,7 @@ const nodeCommandSet = {
     randomInt: null,
     read: null, readBytes: null, readFile: null, readRequestBytes: null,
     readWhole: null, readdir: null, rename: null, resolveFileModule: null,
-    rm: null, rmdir: null, sandbox: null, stat: null,
+    rm: null, rmdir: null, sandbox: null, spawn: null, stat: null,
     test: null, write: null, writeBytes: null, writeExclusive: null,
     writeFile: null,
 }
@@ -395,6 +401,14 @@ export const randomInt = do_('randomInt')
 
 /** @type {Func<Exec>} */
 export const exec = do_('exec')
+
+// spawn
+
+/** @type {Func<Spawn>} */
+export const spawn = do_('spawn')
+
+/** @type {Func<ChildWait>} */
+export const childWait = do_('childWait')
 
 // access
 

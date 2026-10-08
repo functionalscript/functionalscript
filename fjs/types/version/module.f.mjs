@@ -34,22 +34,39 @@
  */
 
 import { cmp as numberCmp } from '../number/module.f.mjs'
-import { isDigit } from '../../text/ascii/module.f.mjs'
+import { digit0, digitsValue, one } from '../../text/ascii/module.f.mjs'
+
+const decimalValue = digitsValue(10n)
+
+const maxPart = BigInt(Number.MAX_SAFE_INTEGER)
+
+const maxPartLength = String(Number.MAX_SAFE_INTEGER).length
 
 /**
- * One or more decimal digits spelling a safe integer. A longer run would
+ * One or more decimal digits spelling a safe integer. A larger number would
  * round, and two different versions would compare equal.
+ *
+ * A part with more significant digits than `Number.MAX_SAFE_INTEGER` is
+ * refused before it is read: reading it would build the whole number first,
+ * at a cost that grows with the square of its length. Leading zeros do not
+ * count, so `00000000000000001` is still `1`.
  *
  * @type {(part: string) => boolean}
  */
-const isPart = part =>
-    part.length !== 0
-    && [...part].every(c => isDigit(c.charCodeAt(0)))
-    && Number.isSafeInteger(Number(part))
+const isPart = part => {
+    const digits = [...part].map(one)
+    const first = digits.findIndex(d => d !== digit0)
+    const significant = first === -1 ? 0 : digits.length - first
+    if (significant > maxPartLength) { return false }
+    const n = decimalValue(digits)
+    return n !== null && n <= maxPart
+}
 
 /**
  * A version as its numbers, or `null` where any dot-separated part is not a
- * run of decimal digits spelling a safe integer.
+ * run of decimal digits spelling a safe integer. Parts are checked in order,
+ * and the first one refused ends the check. `Number` then reads each accepted
+ * part exactly, since it spells a safe integer.
  *
  * @type {(version: string) => Nullable<readonly number[]>}
  */

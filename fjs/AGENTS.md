@@ -23,10 +23,9 @@ difference, that a proof stays `proof.f.mjs`, is in
 
 ### 1.1 Commands
 
-- `tsc` — type-check. The compiler is the environment's, not a dependency of
-  this package: the Nix developer shell provides it, or install the version
-  `fjs/ci/config/module.f.js` pins globally. Not `npx tsc`, which resolves
-  nothing locally and fetches the registry's latest.
+- `tsc` — type-check. The compiler is the Nix developer shell's (`./dev.sh`),
+  not a dependency of this package. Not `npx tsc`, which resolves nothing
+  locally and fetches the registry's latest.
 - `fjs test` (or any equivalent from
   [CONTRIBUTING.md](../CONTRIBUTING.md#ways-to-run-the-functionalscript-test-suite))
   — test FunctionalScript (`.f.mjs`) files.
@@ -457,7 +456,7 @@ goes to one of:
   type is inlined into the annotation instead;
 - an optional sibling `private.ts` for implementation-private types outside the
   public closure, when separating them reads cleaner than inlining (e.g.
-  `fjs/common/monoid/private.ts`, `fjs/rtti/data/private.ts`); do not create it
+  `fjs/rtti/data/private.ts`); do not create it
   mechanically for every `_` name;
 - nowhere: a short type used once or twice is simply inlined.
 
