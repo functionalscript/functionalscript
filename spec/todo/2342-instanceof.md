@@ -33,15 +33,16 @@ word `Array`; any other right operand is refused. This is the one
 `instanceof` the repository uses
 ([`fjs/AGENTS.md`](../../fjs/AGENTS.md)), and the one with no other
 spelling. An object is an instance of `Object` and a function of
-`Function`, and the language builds both — but `typeof` already answers
-`"function"`, and `o instanceof Object` is `true` of an array and a
-function too, so it separates nothing that `typeof` and this operator
-do not between them; an array has no tag of its own but this. The
-language has no classes
-([`3390-class.md`](./3390-class.md)), admits no global as a value
-([`2360-built-in.md`](./2360-built-in.md)) and builds no `Map`, `Set` or
-`Promise`, so nothing else is a candidate yet. `Object` and `Function`
-are a name each on the list below, the day a use case asks for them.
+`Function`, and the language builds both, but `instanceof Object` and
+`instanceof Function` make no sense here: `typeof x === "object"` and
+`typeof x === "function"` are the spellings for those, and
+`o instanceof Object` is `true` of an array and a function too, so it
+separates nothing that `typeof` and this operator do not between them.
+Neither is admitted, now or later. An array has no tag of its own but
+this. The language has no classes ([`3390-class.md`](./3390-class.md)),
+admits no global as a value ([`2360-built-in.md`](./2360-built-in.md))
+and builds no `Map`, `Set` or `Promise`, so nothing else is a candidate
+yet; `Map` and `Set` are the names the list below is for.
 
 ### Syntax
 
@@ -122,10 +123,14 @@ node. What is new is a *word* that is neither a value nor a node, so the
 schema says so — a variant over the admitted names, as `op1Id` is a
 variant over tags — and no consumer evaluates it. The cost is one arm per
 consumer: the schema, the memo analysis, both interpreters, the Rust
-printer and the writer each dispatch on the tag and read the name. The
-alternative, one unary tag per constructor — `isArray`, then `isMap`,
-`isSet` — costs the same arms today and a new tag at every consumer for
-every constructor after, while the name list grows in one place.
+printer and the writer each dispatch on the tag and read the name, and
+the two generic operand walkers each gain a case so that the name is not
+walked as a string literal (the drawback below). The alternative, one
+unary tag per constructor — `isArray`, then `isMap`, `isSet` — is
+cheaper today, since a unary node is one every walker already handles,
+and costs a new tag at every consumer for every constructor after, while
+the name list grows in one place. The shape is chosen for where the
+operator is going, `Map` and `Set`, over the smaller first step.
 
 The right operand is a name rather than a value because the EDAG has no
 constructor values: no global is a value in it
@@ -154,8 +159,15 @@ proposal's question; the name form stays for the built-ins either way.
 - The `!a instanceof Array` trap is preserved.
 - A node shape the EDAG did not have — an operand that is a name — so
   every consumer that walks operands generically learns one node that it
-  may not evaluate. The schema makes the name a variant, so a reader that
-  forgets is a type error, not a wrong value.
+  may not evaluate. The two generic walkers, `operandsOf` in
+  [`fjs/edag/analysis`](../../fjs/edag/analysis/module.f.mjs) and in
+  [`fjs/edag/rust`](../../fjs/edag/rust/module.f.mjs), take everything
+  after the tag as an operand unless the tag says otherwise, and a string
+  is a valid expression, so a forgotten case would walk `'Array'` as a
+  string literal and no type checker would object. Each needs an
+  `instanceof` case, as each has an `arg` case, and a proof that pins it.
+  This is the real cost of the shape, and the reason the unary alternative
+  below is cheaper today: it adds no node a walker can get wrong.
 - One more per-operator arm in each consumer, the count
   [`fjs/compiler/todo/unary-tags.md`](../../fjs/compiler/todo/unary-tags.md)
   tracks; collapsing them stays that task's.
@@ -165,8 +177,10 @@ proposal's question; the name form stays for the built-ins either way.
 - [ ] A draft pull request claiming this file; the approval, recorded here.
 - [ ] `fjs/edag`: the `['instanceof', exp, constructor]` node, the
       constructor-name variant with `'Array'` alone, its row in the README
-      table, `semantics`' predicate and `operations`' arm; the memo
-      analysis reads the name and walks the one operand; the proofs.
+      table, `semantics`' predicate and `operations`' arm; an `instanceof`
+      case in each generic `operandsOf`, `analysis`' and `rust`'s, so the
+      name is never walked as an operand, each pinned by a proof; the memo
+      proofs.
 - [ ] `fjs/compiler/parser/grammar`: `instanceof` in `_framingKeywords`
       and in `relationalTags`; the `types.ts` pins.
 - [ ] `fjs/compiler/parser`: `Array` among the reserved words the fold
