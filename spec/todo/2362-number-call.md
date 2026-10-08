@@ -119,6 +119,17 @@ language ([spec](../README.md#optional-chaining)), so the same step reads
 `a?.[Number(i)]` and a chain's `a?.b[Number(i)]`, the key established only
 where the guard lets the chain go on.
 
+**The modules that read `Number`'s members** are not this task's. About
+thirty `.f.mjs` modules read one — `Number.isInteger`,
+`Number.isSafeInteger`, `Number.MAX_SAFE_INTEGER`, `Number.isNaN`, and
+`const { isFinite } = Number` in the three
+[global-names](./2365-global-names.md) names — and the rule refuses each.
+None is a `.f.js`, the files `npm start compile` holds to the compiler, so
+nothing reaches them today; each is rewritten when its member is admitted
+under [built-in](./2360-built-in.md), since the conversion replaces none of
+them. The three `isFinite` lines are global-names' already, which renames
+them for binding a global's name.
+
 ### Open questions
 
 1. Reserved outright, as proposed, or the intrinsic wherever no scope binds
@@ -156,12 +167,6 @@ where the guard lets the chain go on.
       the binding rule beside `undefined`, `NaN` and `Infinity`, and the
       expression list; the compiler demos' shared examples, where an
       example reads better with it.
-- [ ] The FunctionalScript files that read `Number` as a value, which the
-      rule refuses: `const { isFinite } = Number` in `fjs/types/bigint`,
-      `fjs/media/json/extended` and `fjs/media/json/parser`'s proof — the
-      three [global-names](./2365-global-names.md) names — each rewritten
-      without the word, in the pull request that lands the rule. No `.f.js`
-      reads it, so `npm start compile` would not catch them.
 - [ ] The index: the grammar's `index` a value, the fold's refusal by name,
       the key type widened, `a[Number(i)]` and `a[Number(i)](x)` lowered,
       the writer's `[Number(i)]`; the property-access section of the spec

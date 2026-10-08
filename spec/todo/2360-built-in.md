@@ -54,7 +54,8 @@ so, never admitted.
 
 - [x] `Number` — the call `Number(exp)` alone, the conversion
       ([number-call](./2362-number-call.md)); the namespace's members stay
-      unticked
+      unticked, each an admission of its own, and the modules that read
+      one are rewritten when it is admitted
 - [ ] `BigInt`
 - [ ] `Math`
 - [ ] `Date`
