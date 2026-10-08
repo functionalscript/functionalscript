@@ -32,10 +32,13 @@ const workflowOf = program => {
 }
 
 export const proof = {
-    // This repository's generation is `ci` with its consumer and nothing else:
-    // the same text, so a change to what `main` passes shows here.
+    // This repository's generation is `ci` with its consumer and its macOS
+    // and Windows jobs in the merge queue, and nothing else: the same text, so
+    // a change to what `main` passes shows here.
     isCiWithTheConsumer: () => {
-        assertEq(workflowOf(main()), workflowOf(ci({ nodeExtra: () => [], packageConsumer })))
+        assertEq(
+            workflowOf(main()),
+            workflowOf(ci({ nodeExtra: () => [], packageConsumer, mergeQueueOnly: ['macos', 'windows'] })))
     },
     // The consumer reaches the workflow, and the built-in command — the one
     // any project runs — carries none: that is the difference between the two
@@ -46,5 +49,9 @@ export const proof = {
         assert(own.includes(' good.mts'), 'expected the consumer steps')
         const generic = workflowOf(builtIn())
         assert(!generic.includes(' good.mts'), 'expected no consumer step from the built-in command')
+        // Nor does it gate a job on the merge queue: a project without one
+        // would never run that job.
+        assert(own.includes('merge_group\'"'), 'expected a merge-queue-only job')
+        assert(!generic.includes('merge_group\'"'), 'expected no merge-queue-only job from the built-in command')
     },
 }

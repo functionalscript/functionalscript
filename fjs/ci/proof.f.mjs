@@ -211,6 +211,9 @@ export const proof = {
         assertEq(Object.keys(gha.jobs).length, 12, 'expected 12 CI jobs')
         assertEq(gha.permissions.contents, 'read', 'expected read-only contents permission')
         assertEq(Object.keys(gha.permissions).length, 1, 'expected least-privilege workflow permissions')
+        // A push to a pull request cancels the run it supersedes.
+        assertEq(gha.concurrency?.group, '${{ github.workflow }}-${{ github.ref }}')
+        assertEq(gha.concurrency?.['cancel-in-progress'], true)
         // The 32-bit Linux checks, in the Intel Linux job, because that is the
         // one platform whose shell carries the target and the linker for it.
         // They had a job of their own while they needed a second environment;
@@ -989,6 +992,27 @@ export const proof = {
         assert(!hasRun('npm publish')(gha), 'unexpected publish step in the CI workflow')
         assertEq(gha.jobs[npmPublishJobId], undefined)
         assertEq(npmPublishWorkflow.jobs[packageJobId], undefined)
+    },
+    /**
+     * The jobs of the named platforms run in the merge queue only; every other
+     * job, and every job by default, runs on a pull request too. Read back
+     * through `workflow`, so the condition also survives the schema.
+     */
+    mergeQueueOnly: () => {
+        const [state, result] = virtual(makeState(true, runPackageJson))(
+            ci({ nodeExtra: () => [], mergeQueueOnly: ['macos', 'windows'] }))
+        assertEq(exitCode(result), 0)
+        const jobs = workflow(state).jobs
+        /** @type {(id: string) => boolean} */
+        const queued = id => id.startsWith('macos-') || id.startsWith('windows-')
+        for (const [id, job] of Object.entries(jobs)) {
+            assertEq(
+                job?.if,
+                queued(id) ? `github.event_name == 'merge_group'` : undefined,
+                id)
+        }
+        assertEq(Object.keys(jobs).filter(queued).length, 4, 'expected two macOS and two Windows jobs')
+        assertEq(definedValues(run(true).jobs).filter(job => job.if !== undefined).length, 0)
     },
     jobNeeds: () => {
         const steps = /** @type {const} */ ([{ run: 'echo hi' }])
