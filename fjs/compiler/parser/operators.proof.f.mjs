@@ -242,9 +242,6 @@ export const proof = {
             // a function is no operand of a lazy operator unparenthesized,
             // as of no eager one
             expect('export default 1 && (...a) => 2;', 22)
-            // `?.` is optional chaining, a token the language has no rule
-            // for: refused at the token, which the tokenizer marks
-            expect('export default 1?.x;', 17)
         },
         // The conditional, `['?:', condition, then, else]` — the one node
         // of three operands, above the short-circuit level, its arms whole

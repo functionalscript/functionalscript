@@ -53,6 +53,7 @@ export type Node =
     | readonly ['ref', DjsTokenWithMetadata]
     | readonly ['.', Node, DjsTokenWithMetadata]
     | readonly ['()', Node, readonly Item[]]
+    | Chain
     | readonly ['-', Node]
     | readonly ['~', Node]
     | readonly ['!', Node]
@@ -96,6 +97,42 @@ export type If = {
  * one, `...value`, which no node is — it stands only in an item list.
  */
 export type Item = Node | readonly ['...', Node]
+
+/**
+ * An optional chain, in the EDAG's own shapes (`fjs/edag/README.md`,
+ * Chains), its keys tokens as an access's is: a guarded access, `a?.b`, a
+ * guarded call, `a?.(…)`, or an access whose first step is a guarded call,
+ * `a.b?.(…)` — each with the steps the chain goes on with, {@link Step},
+ * where it has any. The reader folds the steps written after a `?.` into
+ * one of these until a group closes the region, and a group is where the
+ * shapes differ from a nested access: `a?.b.c` is one chain and `(a?.b).c`
+ * an access over one.
+ */
+export type Chain =
+    | readonly ['?.', Node, DjsTokenWithMetadata]
+    | readonly ['?.', Node, DjsTokenWithMetadata, Step]
+    | readonly ['?.()', Node, readonly Item[]]
+    | readonly ['?.()', Node, readonly Item[], Step]
+    | readonly ['.', Node, DjsTokenWithMetadata, OptionalCall]
+
+/**
+ * One step a chain goes on with, and the steps after it: a property by its
+ * key's token, a call by its items, a guarded call, or the call a group's
+ * closing parenthesis put outside the region, `(a?.b)(…)`, after which
+ * nothing continues the chain.
+ */
+export type Step =
+    | readonly ['|.', DjsTokenWithMetadata]
+    | readonly ['|.', DjsTokenWithMetadata, Step]
+    | readonly ['|()', readonly Item[]]
+    | readonly ['|()', readonly Item[], Step]
+    | OptionalCall
+    | readonly ['|!()', readonly Item[]]
+
+/** A guarded call step, `?.(…)`, and the steps after it. */
+export type OptionalCall =
+    | readonly ['|?.()', readonly Item[]]
+    | readonly ['|?.()', readonly Item[], Step]
 
 /** An array of its items, or an object of its entries, each in the order written. */
 export type Container =
