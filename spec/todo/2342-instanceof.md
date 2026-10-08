@@ -263,7 +263,20 @@ proposal's question; the name form stays for the built-ins either way.
       name keep the word through `identifierName`'s spread, and in
       `relationalTags`; the `types.ts` pins;
       proofs reading `{ instanceof: 1 }.instanceof` and `a instanceof
-      (Array)`.
+      (Array)`. The operator tables are typed `BinaryTag` today, and
+      `BinaryTag` is the list `binaryTags` in `fjs/compiler/ast` that
+      `isBinary` asks. `instanceof` is not added to that list: it is not a
+      two-expression node, and `isBinary` would send it down the ordinary
+      binary path in the parser's fold, the AST walk and the lowering,
+      where `Array` is resolved as a right expression and refused. The
+      tables' type widens instead, to `InfixTag = BinaryTag | 'instanceof'`
+      in the grammar's `types.ts`, so `isBinary` answers `false` for the
+      tag and each of the three walks reaches the `instanceof` arm its own
+      task below names.
+- [ ] `fjs/compiler/parser/syntax`: the layer fold emits the node with the
+      operator token as a fourth element, `['instanceof', left, right,
+      token]`, so the parser's refusal can name the operator's column; a
+      binary node stays three elements.
 - [ ] `fjs/compiler/parser`: `Array` among the reserved words the fold
       refuses as a binding, with proofs for a `const`, a parameter, a key
       and a property name; the fold's arm for the tag — the left operand
