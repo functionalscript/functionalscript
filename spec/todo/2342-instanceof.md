@@ -35,11 +35,15 @@ word `Array`; any other right operand is refused. This is the one
 spelling. An object is an instance of `Object` and a function of
 `Function`, and the language builds both, but `instanceof Object` and
 `instanceof Function` make no sense here: `typeof x === "object"` and
-`typeof x === "function"` are the spellings for those, and
-`o instanceof Object` is `true` of an array and a function too, so it
-separates nothing that `typeof` and this operator do not between them.
-Neither is admitted, now or later. An array has no tag of its own but
-this. The language has no classes ([`3390-class.md`](./3390-class.md)),
+`typeof x === "function"` are the spellings for those. `f instanceof
+Function` is `typeof f === "function"` exactly. `o instanceof Object` is
+not any one `typeof` test — it is `true` of a non-null object, an array
+and a function alike, and `false` of `null`, so it does tell `null` from
+`{}` — but the set it names, three kinds less one value, is one no
+FunctionalScript code asks for: a reader asks whether a value is an
+object, an array, a function or `null`, and `typeof`, this operator and
+`=== null` answer each with one spelling. Neither is admitted, now or
+later. An array has no tag of its own but this. The language has no classes ([`3390-class.md`](./3390-class.md)),
 admits no global as a value ([`2360-built-in.md`](./2360-built-in.md))
 and builds no `Map`, `Set` or `Promise`, so nothing else is a candidate
 yet; `Map` and `Set` are the names the list below is for.
