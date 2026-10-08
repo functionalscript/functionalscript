@@ -7,7 +7,6 @@
  * @module
  */
 
-import type { ConstructorId } from '../../edag/types.ts'
 import type { List } from '../../types/list/types.ts'
 import type { OrderedMap } from '../../types/ordered_map/types.ts'
 import type { Result } from '../../types/result/types.ts'
@@ -171,10 +170,11 @@ export type _NotFrame = { readonly not: true }
 export type _TypeofFrame = { readonly typeof: true }
 
 /**
- * An `instanceof` whose operand is being evaluated: the constructor name
- * its right side named, already checked, which the AST node carries.
+ * An `instanceof` whose left operand is being evaluated: its right operand,
+ * checked once the left returns so that a fault in the left is reported
+ * first, and the operator token the refusal is reported at.
  */
-export type _InstanceOfFrame = { readonly instanceof: ConstructorId }
+export type _InstanceOfFrame = { readonly instanceof: Node, readonly at: DjsTokenWithMetadata }
 
 /** A binary operator whose left operand is being evaluated: the tag, and the right operand to enter once it resolves. */
 export type _BinaryLeftFrame = { readonly tag: BinaryTag, readonly right: Node }

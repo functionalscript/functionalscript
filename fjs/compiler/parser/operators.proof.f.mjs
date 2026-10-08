@@ -151,6 +151,15 @@ export const proof = {
             refused('export default [] instanceof 1;', 19)
             refused('export default [] instanceof ((...a) => a);', 19)
             refused('export default 1 < [] instanceof (Array)[0];', 23)
+            // the left operand is resolved first, as every binary
+            // operator's: with both sides wrong, the left's fault is the
+            // one reported, the first in document order
+            {
+                const [tag, value] = parseFromTokens(tokenizeString('export default missing instanceof Map;'))
+                assert(tag === 'error', tag)
+                assertEq(value.message, 'const not found')
+                assertEq(value.metadata?.column, 16)
+            }
             // strict comparison and bitwise, in JavaScript's own precedence
             expect('export default 1 + 2 < 3 * 4;', '[[],[["object",[[":","default",["<",["+",1,2],["*",3,4]]]]]]]')
             expect('export default 1 <= 2 >= 1;', '[[],[["object",[[":","default",[">=",["<=",1,2],1]]]]]]')

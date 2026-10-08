@@ -685,14 +685,10 @@ const enter = (stack, scope, node) => {
         case '~': { return [{ top: { bitnot: true }, rest: stack }, scope, ['enter', node[1]]] }
         case '!': { return [{ top: { not: true }, rest: stack }, scope, ['enter', node[1]]] }
         case 'typeof': { return [{ top: { typeof: true }, rest: stack }, scope, ['enter', node[1]]] }
-        case 'instanceof': {
-            // the right operand is a name, not a value: the one reference
-            // the language has a meaning for, never resolved in scope —
-            // `Array` is a reserved global, so no scope binds it
-            const right = node[2]
-            if (right[0] !== 'ref' || nameOf(right[1]) !== 'Array') { return [stack, scope, error(instanceofRight(node[3]))] }
-            return [{ top: { instanceof: 'Array' }, rest: stack }, scope, ['enter', node[1]]]
-        }
+        // the left operand first, as every binary operator's: the right
+        // side is checked when the left returns, so a fault in the left is
+        // the one reported, the first in document order
+        case 'instanceof': { return [{ top: { instanceof: node[2], at: node[3] }, rest: stack }, scope, ['enter', node[1]]] }
         case '?:': { return conditionalRound(stack, scope, { conditional: node, index: 0, done: null }) }
         case '=>': { return entered(stack, scope, node, null) }
         // a block stands only as a function's body, which `'=>'` above
@@ -759,8 +755,13 @@ const returned = (stack, scope, frame, value) => {
         return [stack, scope, ok(tagged)]
     }
     if ('instanceof' in frame) {
+        // the right operand is a name, not a value: the one reference the
+        // language has a meaning for, never resolved in scope — `Array` is
+        // a reserved global, so no scope binds it
+        const right = frame.instanceof
+        if (right[0] !== 'ref' || nameOf(right[1]) !== 'Array') { return [stack, scope, error(instanceofRight(frame.at))] }
         /** @type {AstInstanceOf} */
-        const checked = ['instanceof', value, frame.instanceof]
+        const checked = ['instanceof', value, 'Array']
         return [stack, scope, ok(checked)]
     }
     if ('right' in frame) { return [{ top: { tag: frame.tag, left: value }, rest: stack }, scope, ['enter', frame.right]] }
