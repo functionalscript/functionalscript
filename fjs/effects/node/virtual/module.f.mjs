@@ -29,7 +29,7 @@ import {
 import { partialRun } from '../../mock/module.f.mjs'
 import { memoryInitial, memoryOperationMap } from '../../memory/module.f.mjs'
 import { asBase, asNominal } from '../../../types/nominal/module.f.mjs'
-import { compareNames } from './readdir/module.f.mjs'
+import { _compareNames } from './readdir/module.f.mjs'
 
 /** @type {State} */
 export const emptyState = {
@@ -520,7 +520,7 @@ const readdir = (base, recursive) => readOperation((dir, path) => {
     let result = []
     for (let i = 0; i < queue.length; i++) {
         const [parentPath, d] = queue[i]
-        for (const name of keys(d).toSorted(compareNames)) {
+        for (const name of keys(d).toSorted(_compareNames)) {
             const content = d[name]
             if (content === undefined) { continue }
             const isFile = !isDir(content)

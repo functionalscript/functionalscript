@@ -13,7 +13,7 @@ import { assert, assertEq, assertOk, assertStructurallySame } from '../../../../
 import { maxLengthBytes, msb } from '../../../../types/bit_vec/module.f.mjs'
 import { utf8 } from '../../../../text/module.f.mjs'
 import { emptyState, virtualOperationMap } from '../module.f.mjs'
-import { compareNames } from './module.f.mjs'
+import { _compareNames } from './module.f.mjs'
 
 /** @type {readonly []} */
 const file = []
@@ -28,19 +28,21 @@ const paths = (base, options) => {
 }
 
 export const proof = {
-    compareNames: () => {
+    _compareNames: () => {
         // Empty, equal, prefix and unequal inputs in both directions cover
         // every exit. Bounded vectors remain an oracle for these short names.
+        /** @type {readonly string[]} */
         const names = ['', 'p', 'pa', '\u007F', '\u0080', '\u07FF', '\u0800', '\uE000', '\u{10000}']
         for (const a of names) {
             for (const b of names) {
-                assertEq(Math.sign(compareNames(a, b)), msb.cmp(utf8(a))(utf8(b)))
+                assertEq(Math.sign(_compareNames(a, b)), msb.cmp(utf8(a))(utf8(b)))
             }
         }
     },
     hostPathEncoding: () => {
         // Explicit well-formed spellings, not the lossless encoder applied to
         // malformed input: the expected side must not reproduce the defect.
+        /** @type {readonly (readonly [string, string])[]} */
         const spellings = [
             ['', ''],
             ['\uD800', '\uFFFD'],
@@ -56,7 +58,7 @@ export const proof = {
         ]
         for (const [a, encodedA] of spellings) {
             for (const [b, encodedB] of spellings) {
-                assertEq(Math.sign(compareNames(a, b)), msb.cmp(utf8(encodedA))(utf8(encodedB)))
+                assertEq(Math.sign(_compareNames(a, b)), msb.cmp(utf8(encodedA))(utf8(encodedB)))
             }
         }
     },
@@ -107,7 +109,7 @@ export const proof = {
         // The first difference is beyond the old cap; do not truncate the
         // comparison or fall back to fixture order when that cap is crossed.
         const prefix = 'a'.repeat(Number(maxLengthBytes) + 1)
-        assertEq(compareNames(prefix, prefix), 0)
+        assertEq(_compareNames(prefix, prefix), 0)
         assertStructurallySame(paths({
             [`${prefix}b`]: file,
             [`${prefix}a`]: file,

@@ -32,7 +32,7 @@ const pathBytes = name => fromCodePointList(
  *
  * @type {(a: string, b: string) => number}
  */
-export const compareNames = (a, b) => {
+export const _compareNames = (a, b) => {
     let left = next(pathBytes(a))
     let right = next(pathBytes(b))
     while (left !== null && right !== null) {
