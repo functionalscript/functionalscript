@@ -4,6 +4,10 @@
     "pull_request": {},
     "merge_group": {}
   },
+  "concurrency": {
+    "group": "${{ github.workflow }}-${{ github.ref }}",
+    "cancel-in-progress": true
+  },
   "permissions": {
     "contents": "read"
   },
@@ -86,6 +90,7 @@
     },
     "macos-intel": {
       "runs-on": "macos-26-intel",
+      "if": "github.event_name == 'merge_group'",
       "steps": [
         {
           "uses": "cachix/install-nix-action@v31.11.1"
@@ -118,6 +123,7 @@
     },
     "macos-arm": {
       "runs-on": "macos-26",
+      "if": "github.event_name == 'merge_group'",
       "steps": [
         {
           "uses": "cachix/install-nix-action@v31.11.1"
@@ -150,6 +156,7 @@
     },
     "windows-intel": {
       "runs-on": "windows-2025",
+      "if": "github.event_name == 'merge_group'",
       "steps": [
         {
           "uses": "dtolnay/rust-toolchain@1.99.0",
@@ -201,6 +208,7 @@
     },
     "windows-arm": {
       "runs-on": "windows-11-arm",
+      "if": "github.event_name == 'merge_group'",
       "steps": [
         {
           "uses": "dtolnay/rust-toolchain@1.99.0",
