@@ -40,14 +40,21 @@ const decimalValue = digitsValue(10n)
 
 const maxPart = BigInt(Number.MAX_SAFE_INTEGER)
 
+const maxPartLength = String(Number.MAX_SAFE_INTEGER).length
+
 /**
  * The number one or more decimal digits spell, or `null` where `part` is
- * anything else or spells more than a safe integer. A longer run would
+ * anything else or spells more than a safe integer. A larger number would
  * round, and two different versions would compare equal.
+ *
+ * A part longer than `Number.MAX_SAFE_INTEGER`'s digits is refused before it
+ * is read, leading zeros or not: reading it would build the whole number
+ * first, at a cost that grows with the square of its length.
  *
  * @type {(part: string) => Nullable<number>}
  */
 const tryParsePart = part => {
+    if (part.length > maxPartLength) { return null }
     const n = decimalValue([...part].map(one))
     return n !== null && n <= maxPart ? Number(n) : null
 }

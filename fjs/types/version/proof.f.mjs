@@ -14,6 +14,9 @@ export const proof = {
         // Past `Number.MAX_SAFE_INTEGER` two different parts round to one.
         unsafe: () => assertEq(tryParse('9007199254740993'), null),
         maxSafe: () => assertStructurallySame(tryParse('9007199254740991'), [9007199254740991]),
+        // Longer than `Number.MAX_SAFE_INTEGER`'s digits: refused unread, padding or not.
+        tooLong: () => assertEq(tryParse('00000000000000001'), null),
+        huge: () => assertEq(tryParse('1'.repeat(100_000)), null),
     },
     cmp: {
         less: () => assertEq(cmp('25.99.99')('26.0.0'), -1),
