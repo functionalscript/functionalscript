@@ -35,6 +35,7 @@ import { loadModuleMap } from '../dev/module.f.mjs'
 import { invert, ok } from '../types/result/module.f.mjs'
 import { definedEntries } from '../types/object/module.f.mjs'
 import { concat } from '../types/list/module.f.mjs'
+import { isIdentifier, isInteger } from '../js/identifier/module.f.mjs'
 
 /**
  * The empty {@link RunTotals}: what a run's totals are before any leaf lands.
@@ -509,27 +510,6 @@ const registerModuleMap = (ctx, star) => moduleMap => {
     if (modules.length === 0) { return pureOk(undefined) }
     return mapStep(allOk(...modules.map(([k, v]) => registerModule(ctx, k, v, star))), () => undefined)
 }
-
-/** @type {(c: string) => boolean} */
-const isAlpha = c =>
-    (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c === '_' || c === '$'
-
-/** @type {(c: string) => boolean} */
-const isDigit = c => c >= '0' && c <= '9'
-
-/** Returns `true` if `s` is a non-negative decimal integer without a leading zero.
- *
- * @type {(s: string) => boolean}
- */
-export const isInteger = s =>
-    s.length > 0 && [...s].every(isDigit) && (s === '0' || s[0] !== '0')
-
-/** Returns `true` if `s` is a valid JS identifier (ASCII subset: `[A-Za-z_$][A-Za-z0-9_$]*`).
- *
- * @type {(s: string) => boolean}
- */
-export const isIdentifier = s =>
-    s.length > 0 && isAlpha(s[0]) && [...s.slice(1)].every(c => isAlpha(c) || isDigit(c))
 
 /** @type {(k: string | null) => string} */
 const fmtKey = k =>
