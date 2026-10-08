@@ -233,7 +233,7 @@ export type Comma = readonly[',', Exps]
 // Op0Ids
 
 export type Op0Id =
-    | 'undefined' | 'args' | 'rest' | 'self'
+    | 'undefined' | 'args' | 'rest' | 'self' | 'entry'
 
 export type Op0 = readonly[Op0Id]
 
@@ -256,7 +256,7 @@ export type Op1 = readonly[Op1Id, Exp]
 // Op2Ids
 
 export type Op2Id =
-    | 'own' | 'is'
+    | 'is'
     | '===' | '!==' | '>' | '>=' | '<' | '<='
     | '*' | '/' | '%' | '**'
     | '&' | '|' | '^' | '<<' | '>>' | '>>>'

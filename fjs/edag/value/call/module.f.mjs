@@ -7,7 +7,8 @@
  * Missing fixed arguments bind to tagged undefined; supplied values retain
  * their identities. Each successful call receives a fresh rest array after
  * the fixed prefix. The invoker receives the original function, including
- * its captures and body, and its result returns unchanged.
+ * its captures and body — or the `entry` helper, whose body is the
+ * invoker's own to perform — and its result returns unchanged.
  *
  * The executor callback owns body evaluation and each new invocation's
  * state. This helper is stateless call preparation. Function metadata and
@@ -20,9 +21,9 @@
  * @import { Invoke } from './types.ts'
  */
 
-import { isArray } from '../../../types/array/module.f.mjs'
 import { error } from '../../../types/result/module.f.mjs'
 import { array } from '../array/module.f.mjs'
+import { isFunction } from '../semantics/module.f.mjs'
 
 /** Bind arguments and delegate an ordinary bare call. @type {(callee: ValueResult, args: ItemsOver<ValueThunk>, invoke: Invoke) => ValueResult} */
 export const call = (callee, args, invoke) => {
@@ -31,8 +32,9 @@ export const call = (callee, args, invoke) => {
     const argumentsResult = array(args)
     const [argumentKind, argumentsArray] = argumentsResult
     if (argumentKind === 'error') { return argumentsResult }
-    if (!isArray(fn) || fn[0] !== '=>') { return error(['undefined']) }
-    const [, length] = fn
+    if (!isFunction(fn)) { return error(['undefined']) }
+    // the `entry` helper takes its two, as its `length` says
+    const length = fn[0] === 'entry' ? 2 : fn[1]
     const [, values] = argumentsArray
     /** @type {Values} */
     let fixed = []
