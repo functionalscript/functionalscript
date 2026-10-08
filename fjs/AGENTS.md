@@ -456,7 +456,7 @@ goes to one of:
   type is inlined into the annotation instead;
 - an optional sibling `private.ts` for implementation-private types outside the
   public closure, when separating them reads cleaner than inlining (e.g.
-  `fjs/common/monoid/private.ts`, `fjs/rtti/data/private.ts`); do not create it
+  `fjs/rtti/data/private.ts`); do not create it
   mechanically for every `_` name;
 - nowhere: a short type used once or twice is simply inlined.
 
