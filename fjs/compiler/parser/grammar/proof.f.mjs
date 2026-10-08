@@ -15,7 +15,7 @@ import { toArray } from '../../../types/list/module.f.mjs'
 import { tokenize } from '../../tokenizer/module.f.mjs'
 import {
     _ordinaryTokenNames as names, access, array, attribute, block, body, circuitTail, conditionalTail, constStatement,
-    djsModule, func, group, identifier, importStatement, index, items, lastStatement, entry, member, object, parameters, paren, statement,
+    djsModule, func, group, identifier, importStatement, items, lastStatement, entry, member, object, parameters, paren, statement,
     parenGroup, parenthesized, primitive, sym, symbolOf, value,
 } from './module.f.mjs'
 
@@ -59,7 +59,6 @@ export const proof = {
         parser(identifier)
         parser(primitive)
         parser(/** @type {Rule} */ (member))
-        parser(/** @type {Rule} */ (index))
         parser(access)
         parser(/** @type {Rule} */ (entry))
         parser(/** @type {Rule} */ (value))

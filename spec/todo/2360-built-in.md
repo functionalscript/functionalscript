@@ -56,7 +56,13 @@ name not yet decided, or, where it says so, never admitted.
 
 - [x] `Number` — the call `Number(exp)` alone, the conversion
       ([number conversion](../README.md#number-conversion)); the
-      namespace's members stay unticked
+      namespace's members stay unticked, each an admission of its own.
+      About thirty `.f.mjs` modules read one — `Number.isInteger`,
+      `Number.isSafeInteger`, `Number.MAX_SAFE_INTEGER`, `Number.isNaN`,
+      and `const { isFinite } = Number` in the three
+      [global-names](./2365-global-names.md) names — and each is rewritten
+      when its member is admitted; none is a `.f.js`, the files the
+      compiler holds to the reserved word today
 - [ ] `BigInt`
 - [ ] `Math`
 - [ ] `Date`

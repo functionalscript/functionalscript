@@ -46,7 +46,7 @@ import { literalWords } from '../../../js/keywords/module.f.mjs'
 import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.mjs'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
 import {
-    binaryOpTag, body, callArguments, constStatement, djsModule, eagerTail, importBinding, importBindings, index,
+    binaryOpTag, body, callArguments, constStatement, djsModule, eagerTail, importBinding, importBindings,
     importStatement, item, lastStatement, entries, entry, member, parameterNames, statement, symbolOf, unary, unaryOperand, value, values,
 } from '../grammar/module.f.mjs'
 
@@ -1109,9 +1109,6 @@ export const mappings = [
     // a call's arguments are that same list, reached through a rule of its
     // own, so the same reader serves both
     map(callArguments, toValues),
-    // an index's value is read as any value is, and its key made of it by
-    // the step that holds it ({@link indexKey})
-    map(index, toNode),
     map(member, toMember),
     map(entry, toEntry),
     map(entries, toEntries),

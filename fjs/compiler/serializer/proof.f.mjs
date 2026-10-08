@@ -1087,6 +1087,11 @@ export const proof = {
         writes(['**', ['Number', 1], 2], 'export default Number(1)**2;')
         writes(['.', ['Number', 1], 'x'], 'export default Number(1).x;')
         writes(['()', ['Number', 1], [2]], 'export default Number(1)(2);')
+        // a value shared only through conversions is one value: the
+        // conversion's operand is an eager operand, so the hoisting walk
+        // finds the array under both and names it once
+        const shared = /** @type {Exp} */ (['[]', [1]])
+        writes(['[]', [['Number', shared], ['Number', shared]]], 'const $0=[1];export default [Number($0),Number($0)];')
         // a computed key is the conversion in brackets, written from the
         // node in every position a key stands: a plain access, a method
         // call, a guarded access and a chain's step, where its operand is a
