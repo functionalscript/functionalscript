@@ -118,9 +118,11 @@ export const ioError = info => ['ioError', info]
  *
  * Both are read as fields, not by asking `instanceof Error` or `in`, which
  * FunctionalScript refuses. A field that is absent reads as `undefined`, which
- * is not a string either. Like every `.f.mjs` function, this takes values of
- * this realm; one from another realm, an iframe's or a worker's, is a host
- * boundary's to convert before it gets here.
+ * is not a string either. Each is read **once**, and the value read is the one
+ * tested and kept, so the answer holds a string `message` and, if any, a string
+ * `code`. Like every `.f.mjs` function, this takes values of this realm; one
+ * from another realm, an iframe's or a worker's, is a host boundary's to
+ * convert before it gets here.
  *
  * @type {(e: unknown) => IoError}
  */
@@ -130,10 +132,10 @@ export const toIoError = e => {
     }
     /** @type {{ readonly message?: unknown, readonly code?: unknown }} */
     const fields = e
-    const message = typeof fields.message === 'string' ? fields.message : String(e)
-    return typeof fields.code === 'string'
-        ? ioError({ code: fields.code, message })
-        : ioError({ message })
+    const ownMessage = fields.message
+    const message = typeof ownMessage === 'string' ? ownMessage : String(e)
+    const code = fields.code
+    return typeof code === 'string' ? ioError({ code, message }) : ioError({ message })
 }
 
 /**

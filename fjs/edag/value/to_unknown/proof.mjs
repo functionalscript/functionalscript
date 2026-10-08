@@ -153,16 +153,19 @@ export const proof = {
     // Thrown from `default`, not at the top level: Bun does not reject a
     // top-level `throw` in a `data:` module.
     unreadableThrown: async () => {
-        /** @type {readonly (readonly [string, string])[]} */
+        /** @type {readonly (readonly [string, string, string | undefined])[]} */
         const cases = [
-            ['throw { get message() { throw 1 } }', _unreadableThrownValue],
-            // A string for the check, then an object for the read.
-            ['let n = 0; throw { get message() { return n++ === 0 ? "a" : { toString: () => "b" } } }', 'b'],
+            ['throw { get message() { throw 1 } }', _unreadableThrownValue, undefined],
+            // A string on the first read, an object on any later one: each
+            // field is read once, so the string is what is kept.
+            ['let n = 0; throw { get message() { return n++ === 0 ? "a" : {} } }', 'a', undefined],
+            ['let n = 0; throw { message: "m", get code() { return n++ === 0 ? "EIO" : {} } }', 'm', 'EIO'],
         ]
-        for (const [body, message] of cases) {
+        for (const [body, message, code] of cases) {
             const failure = assertError(await javascriptOperationMap.compileValue(`export default () => { ${body} }`))
             assert(failure[0] === 'ioError')
             assertEq(failure[1].message, message)
+            assertEq(failure[1].code, code)
         }
     },
 }

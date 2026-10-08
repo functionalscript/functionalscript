@@ -26,16 +26,12 @@ export const _unreadableThrownValue = 'thrown value could not be read'
  * `message` getter — and code a runner evaluates, a module it imports or a
  * value it compiles, can throw one that throws in turn. Such a value is outside
  * every `.f.mjs` function's domain, so it is caught here and named rather than
- * read; and a `message` getter can answer `toIoError`'s check and its read
- * differently, so the message is pinned to a string inside the same guard.
+ * read.
  *
  * @type {(e: unknown) => IoError}
  */
 export const _describeThrown = e => {
-    const r = tryCatch(() => {
-        const [, info] = toIoError(e)
-        return ioError({ ...info, message: `${info.message}` })
-    })
+    const r = tryCatch(() => toIoError(e))
     return r[0] === 'ok' ? r[1] : ioError({ message: _unreadableThrownValue })
 }
 

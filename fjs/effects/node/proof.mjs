@@ -764,22 +764,25 @@ export const proof = {
     // rejecting.
     import: {
         thrown: () => withTemporary('fjs-import-thrown-', async root => {
-            /** @type {readonly (readonly [string, string])[]} */
+            /** @type {readonly (readonly [string, string, string | undefined])[]} */
             const cases = [
-                ['throw new Error("plain")', 'plain'],
-                ['throw { toString() { throw 1 } }', _unreadableThrownValue],
-                ['throw { get code() { throw 1 } }', _unreadableThrownValue],
-                ['throw { get message() { throw 1 } }', _unreadableThrownValue],
-                // A string for the check, then an object for the read.
-                ['let n = 0; throw { get message() { return n++ === 0 ? "a" : { toString: () => "b" } } }', 'b'],
+                ['throw new Error("plain")', 'plain', undefined],
+                ['throw { toString() { throw 1 } }', _unreadableThrownValue, undefined],
+                ['throw { get code() { throw 1 } }', _unreadableThrownValue, undefined],
+                ['throw { get message() { throw 1 } }', _unreadableThrownValue, undefined],
+                // A string on the first read, an object on any later one: each
+                // field is read once, so the string is what is kept.
+                ['let n = 0; throw { get message() { return n++ === 0 ? "a" : {} } }', 'a', undefined],
+                ['let n = 0; throw { message: "m", get code() { return n++ === 0 ? "EIO" : {} } }', 'm', 'EIO'],
             ]
-            for (const [i, [source, message]] of cases.entries()) {
+            for (const [i, [source, message, code]] of cases.entries()) {
                 const path = join(root, `thrown${i}.mjs`)
                 await writeFile(path, source)
                 await hostCheck(import_(pathToFileURL(path).href), result => {
                     assert(result[0] === 'error')
                     assert(result[1][0] === 'ioError')
                     assertEq(result[1][1].message, message)
+                    assertEq(result[1][1].code, code)
                 })
             }
         }),
