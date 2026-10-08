@@ -105,15 +105,17 @@ The signature is `(r, s)`.
 
 ### Verifying a signature
 
-`w = 1/s`
+`verify` checks `(r, s)` against the public key `Q = G * d`. All arithmetic on
+scalars is modulo `q`.
 
-`u1 = z * w` and `u2 = r * w`
+1. If `r` or `s` is not in `[1, q-1]`, the signature is invalid.
+2. `w = 1/s`
+3. `u1 = z * w` and `u2 = r * w`
+4. `X = G * u1 + Q * u2`
+5. If `X` is the point at infinity, the signature is invalid: it has no `x`.
+6. `v = X.x mod q`
 
-`X = G * u1 + Q * u2`
-
-`v = X.x`
-
-The signature is valid if `v = r`
+The signature is valid if `v = r`.
 
 ### Proof
 
