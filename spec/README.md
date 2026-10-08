@@ -1476,9 +1476,12 @@ number names, its string as JavaScript gives it, so `xs[Number("1")]` and
 `xs[Number("x")]`, whose key is `"NaN"`, is `undefined`. It reads an own
 property as every access does, and no prototype name is a number's string,
 so nothing is refused at a converted key; `a[Number(i)](x)` calls what it
-reads with `a` as the receiver, as `a[0](x)` does. The base is evaluated
-before the key, as in JavaScript, and `a?.[Number(i)]` evaluates the key only
-where `a` is neither `null` nor `undefined` ([optional chaining](#optional-chaining)).
+reads with `a` as the receiver, as `a[0](x)` does. Its base and its key are
+both evaluated, as in JavaScript, though not in a promised order: where both
+fail, which fails first is no observation
+([failure is one outcome](#failure-is-one-outcome)). `a?.[Number(i)]`
+evaluates the key only where `a` is neither `null` nor `undefined`
+([optional chaining](#optional-chaining)).
 Anything else in the brackets is a compilation error
 (`computed key is not Number(...)`), at the token it begins with: `a[i]`,
 whose type the compiler does not know — a key of any type is the `entry`

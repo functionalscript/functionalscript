@@ -185,8 +185,9 @@ export type AstObject = readonly ['object', readonly AstEntry[]]
  * An access's key, the EDAG's `index`: the constant written, a string or a
  * number from `[0]`, or the conversion of a key computed at run time,
  * `a[Number(i)]` ([spec: property access](../../../spec/README.md#property-access)).
- * A constant is the key as it is; the conversion is an operand, established
- * where the access is, after its base.
+ * A constant is the key as it is; the conversion is an operand, evaluated
+ * wherever the access is, in no promised order against its base
+ * ([spec: failure is one outcome](../../../spec/README.md#failure-is-one-outcome)).
  */
 export type AstKey = string | number | AstNumber
 

@@ -153,7 +153,9 @@ const lazyItem = nodes => item => {
  * A key's EDAG, {@link AstKey}: a constant as it is, and the conversion
  * the EDAG's own `['Number', exp]` over its operand's — what the operand
  * floats floating with it, as an eager operand's does: the key of a plain
- * access is established where the access is, after its base.
+ * access is evaluated wherever the access is, and what it floats may be
+ * established ahead of the base, an order failure equivalence leaves free
+ * ([spec](../../../spec/README.md#failure-is-one-outcome)).
  *
  * @type {(nodes: _Nodes) => (key: AstKey) => _LoweredOver<Index>}
  */
