@@ -296,13 +296,23 @@ export const startBrowserTestSources = (root, sources) => {
                 // outcome an automated controller cannot act on. The value
                 // that will not be read is named rather than propagated.
                 //
+                // The message is pinned to a string **here**, inside the same
+                // guard, because this is the host boundary: the thrown value is
+                // the module's, not one FunctionalScript built, and a `message`
+                // getter can answer `toIoError`'s check with a string and its
+                // read with an object whose `toString` throws. Past this point
+                // that throws in the renderer, where nothing knows which source
+                // it came from — so the row would name the runner instead of
+                // the module that failed.
+                //
                 // No proof pins this one. The fixture has to be a module that
                 // throws, and bun does not reject a top-level `throw` in a
                 // `data:` module at all, so the proof would assert one engine's
                 // behaviour rather than this code's — the mistake this branch
                 // already paid for once.
                 try {
-                    return error(toIoError(cause))
+                    const [, info] = toIoError(cause)
+                    return error(ioError({ ...info, message: `${info.message}` }))
                 } catch {
                     return error(ioError({ message: unknownValue }))
                 }
