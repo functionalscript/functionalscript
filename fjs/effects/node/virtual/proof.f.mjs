@@ -347,6 +347,42 @@ export const proof = {
         assertEq(result[1][1]?.isDirectory, false)
         assertEq(result[1][1]?.isFile, true)
     },
+    /**
+     * What a host answers: each directory's entries in the order of their
+     * names, whatever order the fixture wrote them in, and a recursive read
+     * level by level, the entries of the directory first and then those of each
+     * directory among them in the order found. Node 22's `readdirSync` lists it
+     * as `a b z a/f a/x b/g b/y a/x/deep a/x/deep/h`;
+     * its promises API uses a stack instead. This proof targets the pinned
+     * Node 26.10.0 promises API; see ./readdir/proof.f.mjs.
+     */
+    readdirOrder: () => {
+        const file = /** @type {const} */ ([vec8(0x42n)])
+        /** @type {Dir} */
+        const base = {
+            'z': file,
+            'b': { 'y': {}, 'g': file },
+            'a': { 'x': { 'deep': { 'h': file } }, 'f': file },
+            // A name that is an integer index is listed first by `Object.keys`.
+            '10': file,
+            '9': file,
+        }
+        /** @type {Dir} */
+        const root = { base }
+        const list = (/** @type {{ recursive?: true }} */ options) => {
+            const [, result] = virtual({ ...emptyState, root })(readdir('base', options))
+            assert(result[0] === 'ok', result)
+            return result[1].map(({ name, parentPath }) => `${parentPath}/${name}`)
+        }
+        assertStructurallySame(list({}), ['base/10', 'base/9', 'base/a', 'base/b', 'base/z'])
+        assertStructurallySame(list({ recursive: true }), [
+            'base/10', 'base/9', 'base/a', 'base/b', 'base/z',
+            'base/a/f', 'base/a/x',
+            'base/b/g', 'base/b/y',
+            'base/a/x/deep',
+            'base/a/x/deep/h',
+        ])
+    },
     accessNestedPathThroughFile: () => {
         // 'a/b/c' where 'a' is a file: the operation wrapper's "not a directory"
         // fallback passes the full remaining path through unchanged, covering the
@@ -716,7 +752,7 @@ export const proof = {
     },
     writeBytesNestedThroughFile: () => {
         // `a/b` where `a` is a *file*. `operation` stops descending at the first
-        // name that is not a directory, so the op is handed both segments and
+        // name that is not a `Dir`, so the op is handed both segments and
         // `resolveFile`'s one-segment guard is all that stands between this and
         // an append to `a` itself. The offset is `a`'s size deliberately: that
         // is what the append-only check accepts, so without the guard this
@@ -1042,7 +1078,7 @@ export const proof = {
         assert(bytes[0] === 'error', bytes)
         assertIoCode(bytes[1], 'ENOENT')
         const [, put] = virtual(emptyState)(writeBytes('toString', 0, payload))
-        assert(put[0] === 'error', put)
+        assert(put[0] === 'error')
         assertIoCode(put[1], 'ENOENT')
         // `rename` reads through both halves: `extractEntity` for the source,
         // `insertEntityAt` for the destination.

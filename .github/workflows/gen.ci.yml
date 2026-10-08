@@ -14,6 +14,7 @@
   "jobs": {
     "ubuntu-intel": {
       "runs-on": "ubuntu-26.04",
+      "timeout-minutes": 15,
       "steps": [
         {
           "uses": "cachix/install-nix-action@v31.11.1"
@@ -22,7 +23,7 @@
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.10.0\""
+          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.11.0\""
         },
         {
           "run": "sh ./gen.nix/run npm ci"
@@ -58,6 +59,7 @@
     },
     "ubuntu-arm": {
       "runs-on": "ubuntu-26.04-arm",
+      "timeout-minutes": 15,
       "steps": [
         {
           "uses": "cachix/install-nix-action@v31.11.1"
@@ -66,7 +68,7 @@
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.10.0\""
+          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.11.0\""
         },
         {
           "run": "sh ./gen.nix/run npm ci"
@@ -91,6 +93,7 @@
     "macos-intel": {
       "runs-on": "macos-26-intel",
       "if": "github.event_name == 'merge_group'",
+      "timeout-minutes": 15,
       "steps": [
         {
           "uses": "cachix/install-nix-action@v31.11.1"
@@ -99,7 +102,7 @@
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.10.0\""
+          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.11.0\""
         },
         {
           "run": "sh ./gen.nix/run npm ci"
@@ -124,6 +127,7 @@
     "macos-arm": {
       "runs-on": "macos-26",
       "if": "github.event_name == 'merge_group'",
+      "timeout-minutes": 15,
       "steps": [
         {
           "uses": "cachix/install-nix-action@v31.11.1"
@@ -132,7 +136,7 @@
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.10.0\""
+          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.11.0\""
         },
         {
           "run": "sh ./gen.nix/run npm ci"
@@ -157,6 +161,7 @@
     "windows-intel": {
       "runs-on": "windows-2025",
       "if": "github.event_name == 'merge_group'",
+      "timeout-minutes": 15,
       "steps": [
         {
           "uses": "dtolnay/rust-toolchain@1.99.0",
@@ -166,9 +171,9 @@
           }
         },
         {
-          "uses": "actions/setup-node@v7.0.0",
+          "uses": "actions/setup-node@v7.1.0",
           "with": {
-            "node-version": "26.10.0"
+            "node-version": "26.11.0"
           }
         },
         {
@@ -209,6 +214,7 @@
     "windows-arm": {
       "runs-on": "windows-11-arm",
       "if": "github.event_name == 'merge_group'",
+      "timeout-minutes": 15,
       "steps": [
         {
           "uses": "dtolnay/rust-toolchain@1.99.0",
@@ -217,9 +223,9 @@
           }
         },
         {
-          "uses": "actions/setup-node@v7.0.0",
+          "uses": "actions/setup-node@v7.1.0",
           "with": {
-            "node-version": "26.10.0"
+            "node-version": "26.11.0"
           }
         },
         {
@@ -247,6 +253,7 @@
     },
     "wasm": {
       "runs-on": "ubuntu-26.04-arm",
+      "timeout-minutes": 15,
       "steps": [
         {
           "uses": "cachix/install-nix-action@v31.11.1"
@@ -333,6 +340,7 @@
     },
     "deno": {
       "runs-on": "ubuntu-26.04-arm",
+      "timeout-minutes": 15,
       "steps": [
         {
           "uses": "cachix/install-nix-action@v31.11.1"
@@ -353,6 +361,7 @@
     },
     "bun": {
       "runs-on": "ubuntu-26.04-arm",
+      "timeout-minutes": 15,
       "steps": [
         {
           "uses": "cachix/install-nix-action@v31.11.1"
@@ -373,6 +382,7 @@
     },
     "node22": {
       "runs-on": "ubuntu-26.04-arm",
+      "timeout-minutes": 15,
       "steps": [
         {
           "uses": "cachix/install-nix-action@v31.11.1"
@@ -393,6 +403,7 @@
     },
     "node24": {
       "runs-on": "ubuntu-26.04-arm",
+      "timeout-minutes": 15,
       "steps": [
         {
           "uses": "cachix/install-nix-action@v31.11.1"
@@ -413,6 +424,7 @@
     },
     "node26": {
       "runs-on": "ubuntu-26.04-arm",
+      "timeout-minutes": 15,
       "steps": [
         {
           "uses": "cachix/install-nix-action@v31.11.1"
@@ -421,7 +433,7 @@
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.10.0\""
+          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.11.0\""
         },
         {
           "run": "test \"$(sh ./gen.nix/run tsc --version)\" = \"Version 7.0.2\""
@@ -451,10 +463,10 @@
           "run": "git add -A && git diff --cached --exit-code"
         },
         {
-          "uses": "actions/setup-node@v7.0.0",
+          "uses": "actions/setup-node@v7.1.0",
           "with": {
             "package-manager-cache": "false",
-            "node-version": "26.10.0"
+            "node-version": "26.11.0"
           }
         },
         {
