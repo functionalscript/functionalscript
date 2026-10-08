@@ -401,6 +401,8 @@ const resolveFile = onJsModule => (dir, p) => {
     return ok(file)
 }
 
+const { listToVec } = msb
+
 /**
  * **The requested path is captured, not reconstructed from what the op sees.**
  * `operation`'s wrapper descends before the op runs, so `p` holds only the
@@ -424,7 +426,7 @@ const readFile = path => readOperation((dir, p) => {
     const bits = chunks.reduce((acc, c) => acc + length(c), 0n)
     const refusal = fileSizeRefusal(path, Number(divUp8(bits)))
     if (refusal !== null) { return fail(refusal) }
-    return ok(msb.listToVec(chunks))
+    return ok(listToVec(chunks))
 })(path)
 
 /**
