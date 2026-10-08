@@ -65,7 +65,7 @@ const f = a => (assert(a >= 0), a + 2)
 Each operand but the last is evaluated for its throw-potential and its value discarded; the value of the expression is the last operand. The equivalent statement spellings — a bare `assert(...)` statement, or a `const` whose value is unused — denote the same function, and all of them lower to the EDAG's `","` operation ([edag-stage1-discussion](../../todo/edag-stage1-discussion.md), subject 8, for the graph representation). The [failure contract](../README.md#failure-is-one-outcome) governs execution: each required operand's success must be established before the result is revealed, without requiring a fixed evaluation order or computation count.
 
 `Number(a, b)` lands with the comma, as the `(a, b, Number(a))` it is
-([number-call](./2362-number-call.md)).
+([number conversion](../README.md#number-conversion)).
 
 A written comma lowers under the rule the compiler already applies to an unused `const` ([`fjs/compiler/edag`](../../fjs/compiler/edag/module.f.mjs)): the `","` anchors exactly the code the graph would not otherwise hold, so an operand whose node the result or another operand reaches is dropped, and a comma left with its result alone is the result. `const a = []; const b = a; export default (b, a.length);` is `['.', A, 'length']` with no comma, since `b` is `a`'s node and the access reaches it, where `const b = a.x; export default (b, a.length);` keeps `[',', [['.', A, 'x'], ['.', A, 'length']]]`, `b` being a node of its own that the result does not reach.
 

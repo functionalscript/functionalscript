@@ -543,7 +543,8 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       static-string/number property cases to `.`, and reject runtime-computed strings,
       prohibited property names, and other unsupported property expressions. Done:
       the grammar admits an access after any value, its key an identifier,
-      a string or a number, so a runtime key is refused at the token, and an
+      a string or a number — and since, any value in brackets, of which the
+      fold admits the conversion `a[Number(i)]` alone — and an
       access on a numeric literal is read as JavaScript reads it, `-1 .x`
       being `-(1 .x)`; the fold
       refuses `__proto__` and `constructor` in either spelling; the AST and the
@@ -698,8 +699,10 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       `ParseError`; pinned in `fjs/compiler/edag/proof.f.mjs` (`resolve.refused`).
 - [x] Stage 1 proofs, in [`fjs/compiler/edag/proof.f.mjs`](../edag/proof.f.mjs) unless
       named otherwise: `a.b`, `a['x']` and `a[0]` produce property-access EDAGs and
-      prohibited names are refused (`access`; the runtime-computed key is refused by
-      the grammar, `access` in [`fjs/compiler/parser/grammar/proof.f.mjs`](../parser/grammar/proof.f.mjs));
+      prohibited names are refused (`access`; a key computed at run time is the
+      conversion `Number(...)` or refused by the fold, not the grammar,
+      `conversion.index` and `conversion.indexRefused` in
+      [`fjs/compiler/parser/proof.f.mjs`](../parser/proof.f.mjs));
       `unresolved` is a function of the AST alone and import positions follow the
       source (`parameters`); object-entry order, integer-like and duplicate keys
       included, survives to the EDAG (`membersAsWritten` in

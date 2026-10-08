@@ -802,6 +802,23 @@ export const proof = {
         expectEdag(compile('export default !-1;').edag, ['!', -1])
         expectEdag(compile('export default typeof 1;').edag, ['typeof', 1])
         expectEdag(compile('export default typeof typeof -1;').edag, ['typeof', ['typeof', -1]])
+        // the `Number` conversion folds nothing either: what a value
+        // converts to is the interpreter's question, and the interpreter
+        // answers it as JavaScript's `Number` does, a bigint included
+        expectEdag(compile('export default Number("0x10");').edag, ['Number', '0x10'])
+        expectEdag(compile('export default -Number(1n) * 2;').edag, ['*', ['-', ['Number', 1n]], 2])
+        assertStructurallySame(execute(compile('export default [Number("0x10"), Number(1n), Number([7]), Number(null)];').edag), [16, 1, 7, 0])
+        // a computed key is the EDAG's index, `['Number', exp]`: eager in a
+        // plain access, whose base and key the comma anchors nothing for,
+        // and lazy in a chain's region, where a `const` read only there
+        // keeps its anchor and an inlined body's anchors stand under the
+        // conversion — the one node the index takes
+        expectEdag(compile('const c = [1]; export default [2][Number(c)];').edag, ['.', ['[]', [2]], ['Number', ['[]', [1]]]])
+        expectEdag(compile('const n = null; const c = [1]; export default n?.[Number(c)];').edag, [',', [['[]', [1]], ['?.', null, ['Number', ['[]', [1]]]]]])
+        expectEdag(compile('const n = null; export default n?.b[Number((() => { const x = null.y; return 0; })())];').edag, ['?.', null, 'b', ['|.', ['Number', [',', [['.', null, 'y'], 0]]]]])
+        expectEdag(compile('const n = [5]; export default [n[Number((() => { const x = [7]; return 0; })())], 1];').edag, [',', [['[]', [7]], ['[]', [['.', ['[]', [5]], ['Number', 0]], 1]]]])
+        expectEdag(compile('const f = [(...x) => x]; export default f[Number("0")](7);').edag, ['.', ['[]', [['=>', 0, [], ['rest']]]], ['Number', '0'], ['|()', [7]]])
+        assertStructurallySame(execute(compile('const xs = [10, 20]; export default [xs[Number("1")], null?.[Number(null.x)]];').edag), [20, undefined])
         // unary `-` still folds over a numeric literal, even nested inside
         // a binary operator the lowering does not fold
         expectEdag(compile('export default -1 * 2;').edag, ['*', -1, 2])
