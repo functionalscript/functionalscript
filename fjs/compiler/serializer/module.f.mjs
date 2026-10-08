@@ -130,7 +130,7 @@
  */
 
 import { _defaultExport, _moduleExports, _moduleThrows } from '../edag/module.f.mjs'
-import { keywords, literalWords } from '../../js/keywords/module.f.mjs'
+import { keywords, literalWords, reservedGlobals } from '../../js/keywords/module.f.mjs'
 import { analysis, checked, itemOperand, mergeable, operandsOf, stepOperands } from '../../edag/analysis/module.f.mjs'
 import { keySerialize, leafSerialize } from '../../media/datajs/serializer/module.f.mjs'
 import { arrayWrap, colon, objectWrap, wrap } from '../../media/json/serializer/module.f.mjs'
@@ -144,7 +144,7 @@ import { renderFunction } from './function_text/module.f.mjs'
 import { _name as name, _binding as binding, _resolve as resolve } from './names/module.f.mjs'
 
 /** Names the parser refuses to bind. */
-const reservedExports = new Set([...keywords, ...literalWords, 'then'])
+const reservedExports = new Set([...keywords, ...literalWords, ...reservedGlobals, 'then'])
 
 /**
  * The node kinds that keep a `const`: one value however many edges reach
