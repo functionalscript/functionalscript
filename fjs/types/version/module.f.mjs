@@ -34,7 +34,7 @@
  */
 
 import { cmp as numberCmp } from '../number/module.f.mjs'
-import { digitsValue, one } from '../../text/ascii/module.f.mjs'
+import { digit0, digitsValue, one } from '../../text/ascii/module.f.mjs'
 
 const decimalValue = digitsValue(10n)
 
@@ -47,15 +47,19 @@ const maxPartLength = String(Number.MAX_SAFE_INTEGER).length
  * anything else or spells more than a safe integer. A larger number would
  * round, and two different versions would compare equal.
  *
- * A part longer than `Number.MAX_SAFE_INTEGER`'s digits is refused before it
- * is read, leading zeros or not: reading it would build the whole number
- * first, at a cost that grows with the square of its length.
+ * A part with more significant digits than `Number.MAX_SAFE_INTEGER` is
+ * refused before it is read: reading it would build the whole number first,
+ * at a cost that grows with the square of its length. Leading zeros do not
+ * count, so `00000000000000001` is still `1`.
  *
  * @type {(part: string) => Nullable<number>}
  */
 const tryParsePart = part => {
-    if (part.length > maxPartLength) { return null }
-    const n = decimalValue([...part].map(one))
+    const digits = [...part].map(one)
+    const first = digits.findIndex(d => d !== digit0)
+    const significant = first === -1 ? 0 : digits.length - first
+    if (significant > maxPartLength) { return null }
+    const n = decimalValue(digits)
     return n !== null && n <= maxPart ? Number(n) : null
 }
 

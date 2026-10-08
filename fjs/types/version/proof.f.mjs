@@ -14,8 +14,10 @@ export const proof = {
         // Past `Number.MAX_SAFE_INTEGER` two different parts round to one.
         unsafe: () => assertEq(tryParse('9007199254740993'), null),
         maxSafe: () => assertStructurallySame(tryParse('9007199254740991'), [9007199254740991]),
-        // Longer than `Number.MAX_SAFE_INTEGER`'s digits: refused unread, padding or not.
-        tooLong: () => assertEq(tryParse('00000000000000001'), null),
+        // Leading zeros are read, however many: they do not make the number larger.
+        padded: () => assertStructurallySame(tryParse(`${'0'.repeat(100_000)}1`), [1]),
+        zeros: () => assertStructurallySame(tryParse('0'.repeat(100_000)), [0]),
+        // More significant digits than `Number.MAX_SAFE_INTEGER`: refused unread.
         huge: () => assertEq(tryParse('1'.repeat(100_000)), null),
     },
     cmp: {
