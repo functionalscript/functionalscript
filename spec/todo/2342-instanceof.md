@@ -190,6 +190,13 @@ proposal's question; the name form stays for the built-ins either way.
       the rule's message — the AST node, the lowering to
       `['instanceof', exp, 'Array']`. The pull request declares the
       breaking change.
+- [ ] `fjs/compiler/ast`: the eager walk's arm for the AST node, one
+      operand as the prefixes have, so `anchors` reaches through it.
+- [ ] `fjs/compiler/serializer`: the main serializer, the compiler's
+      JavaScript output — its tag switch, which refuses a tag it does not
+      know, prints `(x instanceof Array)`, and its private operand walker,
+      which answers nothing for one, yields `x`, so hoisting sees it; both
+      with proofs.
 - [ ] `fjs/compiler/serializer/function_text`: `(x instanceof Array)`.
 - [ ] `fjs/edag/rust`: `Any::instanceof_(x, Constructor::Array)`;
       `nanvm-lib`: a `Constructor` enum with the one variant, the method as
