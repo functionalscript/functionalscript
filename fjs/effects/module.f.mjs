@@ -120,9 +120,10 @@ export const ioError = info => ['ioError', info]
  * FunctionalScript refuses. A field that is absent reads as `undefined`, which
  * is not a string either. Each is read **once**, and the value read is the one
  * tested and kept, so the answer holds a string `message` and, if any, a string
- * `code`. Like every `.f.mjs` function, this takes values of this realm; one
- * from another realm, an iframe's or a worker's, is a host boundary's to
- * convert before it gets here.
+ * `code`. Like every `.f.mjs` function, this takes values FunctionalScript can
+ * build. A value from another realm, an iframe's or a worker's, or one with
+ * getters, is a host boundary's to convert before it gets here: a runner's
+ * `catch` reads what it caught with `_readThrown` in `./module.mjs`.
  *
  * @type {(e: unknown) => IoError}
  */

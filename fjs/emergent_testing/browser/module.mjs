@@ -39,7 +39,7 @@ import { addResult, unknownValue, zeroTotals } from '../module.f.mjs'
 // demo runtime to render, and this page turns the same views into nodes as
 // rows land.
 import { fill, toDom } from '../../media/html/module.mjs'
-import { asyncRun } from '../../effects/module.mjs'
+import { _readThrown, asyncRun } from '../../effects/module.mjs'
 import { commonOperationMap } from '../../effects/common/module.mjs'
 import { ioError, toIoError } from '../../effects/module.f.mjs'
 import { concat, toArray } from '../../types/list/module.f.mjs'
@@ -288,9 +288,9 @@ export const startBrowserTestSources = (root, sources) => {
             try {
                 return ok(await import(specifier(root.ownerDocument.baseURI, source)))
             } catch (cause) {
-                // **Normalising runs the value's own code too.** A module that
+                // **Reading runs the value's own code too.** A module that
                 // evaluates `throw { toString() { throw … } }` rejects with a
-                // value `toIoError` cannot describe, and an unguarded call here
+                // value `_readThrown` cannot read, and an unguarded call here
                 // rejects the whole run — leaving the page at `Loading 0/N`
                 // with no report and no completion event, which is the one
                 // outcome an automated controller cannot act on. The value
@@ -302,7 +302,7 @@ export const startBrowserTestSources = (root, sources) => {
                 // behaviour rather than this code's — the mistake this branch
                 // already paid for once.
                 try {
-                    return error(toIoError(cause))
+                    return error(toIoError(_readThrown(cause)))
                 } catch {
                     return error(ioError({ message: unknownValue }))
                 }

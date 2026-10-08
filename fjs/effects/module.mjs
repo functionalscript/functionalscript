@@ -14,25 +14,45 @@ import { tryCatch } from '../types/result/module.mjs'
 
 /**
  * The message of a thrown value that could not be read: one whose own code
- * throws when {@link toIoError} reads it.
+ * throws when {@link _readThrown} reads it.
  */
 export const _unreadableThrownValue = 'thrown value could not be read'
 
 /**
- * Describes a thrown value as an {@link IoError}, whatever it is: the host
- * boundary {@link toIoError} relies on, for a runner's `catch`.
+ * Reads a thrown value into data FunctionalScript can build, before
+ * {@link toIoError} sees it: the value's string form, or for an object, its
+ * string `message` (else its string form) and its `code` if that is a string.
  *
- * Reading a thrown value runs the value's own code — a `toString`, a `code` or
- * `message` getter — and code a runner evaluates, a module it imports or a
- * value it compiles, can throw one that throws in turn. Such a value is outside
- * every `.f.mjs` function's domain, so it is caught here and named rather than
- * read.
+ * This is the host boundary a runner's `catch` owes. Code a runner evaluates —
+ * a module it imports, a value it compiles — can throw anything, and an object
+ * with getters, a hostile `toString`, or one from another realm is outside every
+ * `.f.mjs` function's domain. Each field is read once, so a getter cannot answer
+ * the test and the read differently. Reading runs the value's own code, so this
+ * throws whatever that code throws.
+ *
+ * @type {(e: unknown) => string | { readonly message: string, readonly code?: string }}
+ */
+export const _readThrown = e => {
+    if (typeof e !== 'object' || e === null) {
+        return String(e)
+    }
+    /** @type {{ readonly message?: unknown, readonly code?: unknown }} */
+    const fields = e
+    const { message, code } = fields
+    const text = typeof message === 'string' ? message : String(e)
+    return typeof code === 'string' ? { message: text, code } : { message: text }
+}
+
+/**
+ * Describes a thrown value as an {@link IoError}, whatever it is: read by
+ * {@link _readThrown}, or named by {@link _unreadableThrownValue} when reading
+ * it throws.
  *
  * @type {(e: unknown) => IoError}
  */
 export const _describeThrown = e => {
-    const r = tryCatch(() => toIoError(e))
-    return r[0] === 'ok' ? r[1] : ioError({ message: _unreadableThrownValue })
+    const r = tryCatch(() => _readThrown(e))
+    return r[0] === 'ok' ? toIoError(r[1]) : ioError({ message: _unreadableThrownValue })
 }
 
 /**
