@@ -74,6 +74,7 @@ import { ok, error, okThen } from '../../types/result/module.f.mjs'
 import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.mjs'
 import { at, definedEntries } from '../../types/object/module.f.mjs'
 import { unwrap } from '../../types/nullable/module.f.mjs'
+import { dedup } from '../../types/array/module.f.mjs'
 import { errorSummary, isNotFound } from '../../effects/node/module.f.mjs'
 import { decodeText, encodeText, dialect, checkReferences, isHash, mapHashes } from '../../media/revision/module.f.mjs'
 
@@ -104,12 +105,6 @@ export const emptyCache = { bySubject: {} }
 
 /** @type {SubjectState} */
 const emptySubjectState = { hashes: [], parents: [], archived: [] }
-
-/** Adds every item of `items` to `set` that isn't already there, preserving `set`'s existing order.
- * @type {(set: readonly Hash[]) => (items: readonly Hash[]) => readonly Hash[]}
- */
-const union = set => items =>
-    items.reduce((/** @type {readonly Hash[]} */ acc, h) => acc.includes(h) ? acc : [...acc, h], set)
 
 /**
  * Re-encodes `h` in its canonical cBase32 spelling. `cBase32ToVec` accepts
@@ -188,9 +183,9 @@ const addRevisionToCache = (hash, revision) => cache => {
     const existing = at(revision.subject)(cache.bySubject) ?? emptySubjectState
     /** @type {SubjectState} */
     const state = {
-        hashes: union(existing.hashes)([hash]),
-        parents: union(existing.parents)(revision.parents.map(canonicalHash)),
-        archived: union(existing.archived)(revision.archived === undefined ? [] : [hash]),
+        hashes: dedup([...existing.hashes, hash]),
+        parents: dedup([...existing.parents, ...revision.parents.map(canonicalHash)]),
+        archived: dedup([...existing.archived, ...(revision.archived === undefined ? [] : [hash])]),
     }
     return { bySubject: { ...cache.bySubject, [revision.subject]: state } }
 }
