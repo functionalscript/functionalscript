@@ -93,7 +93,9 @@ repository in that container —
 [`.devcontainer/devcontainer.json`](./.devcontainer/devcontainer.json) builds
 a Debian image with Nix and runs `npm ci` in the shell on any devcontainer
 host; in VS Code and Codespaces it also opens every terminal inside the shell,
-through a terminal profile only those two hosts read, so on another host such
+through a terminal profile only those two hosts read, which runs `./dev.sh`
+and so expects a terminal opened at the workspace root, VS Code's default — so
+on another host such
 as IntelliJ or the devcontainer CLI run `./dev.sh` yourself — or works in WSL2
 with Nix installed there. The shell is the same either way; only the VS Code
 devcontainer enters it for you, so everywhere else run `./dev.sh` yourself or
@@ -412,11 +414,14 @@ as root in a container without an init system, which the official installer
 refuses in both of its modes, so the script uses the Determinate installer,
 which supports exactly that. The shells Codex opens for the task afterwards do
 not carry the setup shell's `PATH`, and `--init none` writes no startup
-integration, so nothing here sources a profile: `dev.sh` finds `nix` at the
-installer's default profile path whenever `PATH` lacks it.
+integration, so the environment's own settings must put Nix on the task's
+`PATH`: set the `PATH` environment variable there to begin with
+`/nix/var/nix/profiles/default/bin`. The setup script sources the same profile
+for its own commands.
 
 ```sh
 curl -fsSL https://install.determinate.systems/nix | sh -s -- install linux --init none --no-confirm
+. /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
 ./dev.sh npm ci
 ./dev.sh cargo fetch
 ```
