@@ -17,6 +17,7 @@ import { exitStep, mkdir, writeUtf8File } from '../../effects/node/module.f.mjs'
 import { forEachStep, pureOk, step } from '../../effects/module.f.mjs'
 import { data } from '../module.f.mjs'
 import { directory, generate } from '../rust/module.f.mjs'
+import { directory as commandsDirectory, generate as generateCommands, path as commandsPath } from '../commands/module.f.mjs'
 import { directory as methodsDirectory, generate as generateMethods, path as methodsPath } from '../methods/module.f.mjs'
 import { directory as valuesDirectory, generate as generateValues, path as valuesPath } from '../values/module.f.mjs'
 
@@ -24,7 +25,8 @@ import { directory as valuesDirectory, generate as generateValues, path as value
  * Regenerates `nanvm-lib/tests/test/gen.corpus/` from the shared test data,
  * one file at a time, stopping at the first that fails, and then the
  * completeness table `nanvm-lib/src/vm/lambda/gen.methods.rs` and interpreted
- * value fixture `nanvm-harness/gen.values/captures.rs`.
+ * value fixture `nanvm-harness/gen.values/captures.rs`, and the command set
+ * `nanvm-effects-node/src/gen.commands.rs`.
  *
  * @type {() => Effect<Mkdir | Rm | WriteBytes | WriteFile, void, IoChannel>}
  */
@@ -36,7 +38,9 @@ export const generateRustTests = () => {
     const methodsReady = step(corpus, () => mkdir(methodsDirectory, { recursive: true }))
     const methods = step(methodsReady, () => writeUtf8File(methodsPath, generateMethods()))
     const valuesReady = step(methods, () => mkdir(valuesDirectory, { recursive: true }))
-    return step(valuesReady, () => writeUtf8File(valuesPath, generateValues()))
+    const values = step(valuesReady, () => writeUtf8File(valuesPath, generateValues()))
+    const commandsReady = step(values, () => mkdir(commandsDirectory, { recursive: true }))
+    return step(commandsReady, () => writeUtf8File(commandsPath, generateCommands()))
 }
 
 /** @type {NodeProgram} */
