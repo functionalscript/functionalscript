@@ -12,6 +12,7 @@
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../../../asserts/module.f.mjs'
 import { maxLengthBytes, msb } from '../../../../types/bit_vec/module.f.mjs'
 import { utf8 } from '../../../../text/module.f.mjs'
+import { parse } from '../../../../path/module.f.mjs'
 import { emptyState, virtualOperationMap } from '../module.f.mjs'
 import { _compareNames, _orderDirents } from './module.f.mjs'
 
@@ -31,14 +32,32 @@ const paths = (base, options) => {
 const entry = (parentPath, name, isDirectory = false) =>
     ({ parentPath, name, isFile: !isDirectory, isDirectory })
 
+/** Canonical synthetic paths only; host paths are split by the native adapter.
+ * @type {(entries: readonly Dirent[]) => readonly Dirent[]}
+ */
+const order = entries => _orderDirents(entries, v => parse(v.parentPath))
+
 export const proof = {
     _orderDirents: {
+        structuralParents: () => {
+            // These first two physical parents have the same normalized path.
+            // Sorting must use their structure, not their display spelling.
+            const nested = /** @type {const} */ ({ parent: ['a', 'b'], parentPath: 'a/b', name: 'nested' })
+            const backslash = /** @type {const} */ ({ parent: ['a\\b'], parentPath: 'a/b', name: 'x' })
+            const sibling = /** @type {const} */ ({ parent: ['z'], parentPath: 'z', name: 'y' })
+            const dotLike = /** @type {const} */ ({ parent: ['a\\..\\c'], parentPath: 'c', name: 'tail' })
+            const input = /** @type {const} */ ([nested, sibling, backslash, dotLike])
+            assertStructurallySame(
+                _orderDirents(input, v => v.parent),
+                [dotLike, backslash, sibling, nested])
+            assertStructurallySame(input, [nested, sibling, backslash, dotLike])
+        },
         flat: () => {
             // Deliberately unsorted input catches the Windows issue on any OS.
             /** @type {readonly string[]} */
             const names = ['10', '9', 'Z', 'a', 'a!', 'z', '\uE000', '\u{10000}']
             const input = names.toReversed().map(name => entry('base', name))
-            assertStructurallySame(_orderDirents(input).map(v => v.name), names)
+            assertStructurallySame(order(input).map(v => v.name), names)
             assertStructurallySame(input.map(v => v.name), names.toReversed())
         },
         recursive: () => {
@@ -53,7 +72,7 @@ export const proof = {
             const expected = pairs.map(([parent, name]) => entry(parent, name))
             for (let i = 0; i < expected.length; i++) {
                 const input = [...expected.slice(i), ...expected.slice(0, i)].toReversed()
-                assertStructurallySame(_orderDirents(input), expected)
+                assertStructurallySame(order(input), expected)
             }
         },
         roots: () => {
@@ -62,7 +81,7 @@ export const proof = {
             for (const [root, child] of roots) {
                 const first = entry(root, 'z')
                 const second = entry(child, 'a')
-                assertStructurallySame(_orderDirents([second, first]), [first, second])
+                assertStructurallySame(order([second, first]), [first, second])
             }
         },
         retainsEntries: () => {
@@ -71,16 +90,16 @@ export const proof = {
             // Links and other special entries are neither file nor directory.
             /** @type {Dirent} */
             const other = { parentPath: 'base', name: 'a', isFile: false, isDirectory: false }
-            const result = _orderDirents([regular, directory, other])
+            const result = order([regular, directory, other])
             assertEq(result[0], other)
             assertEq(result[1], directory)
             assertEq(result[2], regular)
             assertEq(result.length, 3)
         },
         emptyAndSingleton: () => {
-            assertStructurallySame(_orderDirents([]), [])
+            assertStructurallySame(order([]), [])
             const only = entry('base', 'a')
-            assertStructurallySame(_orderDirents([only]), [only])
+            assertStructurallySame(order([only]), [only])
         },
     },
     _compareNames: () => {

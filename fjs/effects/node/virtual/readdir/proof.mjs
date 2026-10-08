@@ -17,6 +17,41 @@ import { runEffect } from '../../module.mjs'
 import { emptyState, virtualOperationMap } from '../module.f.mjs'
 
 export const proof = {
+    posixBackslashNames: async () => {
+        // A backslash cannot be a filename character on Windows. The pure
+        // structural-parent proof covers this distinction on every platform.
+        if (sep !== '/') { return }
+        const temporary = await mkdtemp(join(tmpdir(), 'fjs-readdir-backslash-'))
+        try {
+            // The read root itself also contains a literal backslash and dots.
+            const root = join(temporary, 'root\\..')
+            /** @type {readonly string[]} */
+            const files = ['a\\b/x', 'a/b/nested', 'z/y', 'a\\..\\c/tail']
+            for (const name of files) {
+                const path = join(root, name)
+                await mkdir(dirname(path), { recursive: true })
+                await writeFile(path, '')
+            }
+            /** @type {readonly []} */
+            const file = []
+            /** @type {Dir} */
+            const base = { 'a\\b': { x: file }, a: { b: { nested: file } }, z: { y: file }, 'a\\..\\c': { tail: file } }
+            /** @type {readonly string[]} */
+            const expected = ['a', 'a\\..\\c', 'a\\b', 'z', 'b', 'tail', 'x', 'y', 'nested']
+            const [, virtual] = virtualOperationMap.readdir('base', { recursive: true })({ ...emptyState, root: { base } })
+            // Names identify the order without conflating it with the separate
+            // pre-existing normalization of returned parentPath fields.
+            assertStructurallySame(assertOk(virtual).map(v => v.name), expected)
+            for (const path of [root, `${root}/`, relative('.', root), `${root}/a/..`]) {
+                assertEq(await runEffect(() => resultMapStep(readdir(path, { recursive: true }), result => {
+                    assertStructurallySame(assertOk(result).map(v => v.name), expected)
+                    return ok(0)
+                })), 0)
+            }
+        } finally {
+            await rm(temporary, { recursive: true, force: true })
+        }
+    },
     portableOrder: async () => {
         const root = await mkdtemp(join(tmpdir(), 'fjs-readdir-'))
         try {

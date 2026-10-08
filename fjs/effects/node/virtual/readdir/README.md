@@ -11,9 +11,14 @@ recursive traversal also differs between Node versions. The original Node 22
 `readdirSync` example and the pinned Node 26 traversal motivated the virtual walk,
 but native output must be normalized too for that walk to be portable.
 
-The Node adapter calls `_orderDirents` after converting its native entries to
-`Dirent`s with normalized parent paths. It orders by parent depth, then by parent
-path components, then by entry name. Comparing components matters: all of `a`
+The Node adapter calls `_orderDirents` on native entries **before** normalizing
+returned parent paths. Its component callback uses `node:path.relative` from the
+read root and splits on the host's `sep`; the root itself has no components.
+On POSIX, `a\b` stays one component, distinct from the two in `a/b`, and a literal
+`a\..\c` does not collapse. Reconstructing components from normalized output
+would lose that distinction and put entries at the wrong breadth-first depth.
+The helper orders by parent depth, then by parent components, then entry name.
+Comparing components matters: all of `a`
 precedes all of `a!`, even though a whole-path comparison puts `a!/x` before `a/x`.
 The virtual runner builds that order directly with its queue and `_compareNames`.
 The helpers are shared pure code; importing them does not import the virtual
@@ -27,8 +32,11 @@ It neither changes link traversal nor merges names. The separate virtual
 
 `proof.f.mjs` includes deliberately shuffled input, recursive component-prefix
 and Unicode cases, read-root forms, and entry-preservation checks. `proof.mjs`
-compares real Node and virtual effects on the same tree without platform skips;
-its temporary directory is removed in `finally`.
+compares real Node and virtual effects on the same portable tree on every OS.
+A separate POSIX-only fixture covers literal backslashes alongside actual nested
+directories, including a backslash in the read root. Temporary directories are
+removed in `finally`. This change preserves the existing returned `parentPath`
+normalization; it no longer uses that potentially lossy spelling as a sort key.
 
 Source of the platform distinction: Node v26.10.0's
 [Windows scan](https://github.com/nodejs/node/blob/v26.10.0/deps/uv/src/win/fs.c)

@@ -2,15 +2,12 @@
  * Portable directory ordering shared by the Node and virtual runners.
  *
  * @module
- *
- * @import { Dirent } from '../../types.ts'
  */
 
 import { stringToCodePointList } from '../../../../text/utf16/module.f.mjs'
 import { fromCodePointList } from '../../../../text/utf8/module.f.mjs'
 import { isValidCodePoint } from '../../../../text/code_point/module.f.mjs'
 import { map, next } from '../../../../types/list/module.f.mjs'
-import { parse } from '../../../../path/module.f.mjs'
 
 /**
  * Node path conversion replaces each lone UTF-16 surrogate with U+FFFD.
@@ -48,22 +45,20 @@ export const _compareNames = (a, b) => {
 }
 
 /**
- * Normalize one native readdir result to the virtual walk's portable order:
- * parent depth first, then parent components, then the entry's name. The input
- * has normalized parent paths from one read root. Parsing handles `.` and roots
- * without counting them as directory levels. Comparing components, not joined
- * paths, keeps all of `a` ahead of `a!`, even though `a!/x` sorts before `a/x`.
+ * Order one read's entries by parent depth, parent components, then name.
+ * The caller supplies structural components relative to the read root, before
+ * converting host paths for display. Reparsing a normalized path loses POSIX
+ * filename boundaries: `a\b` is one directory, not `a/b`, and `a\..\b` must
+ * not collapse. Comparing components also keeps all of `a` ahead of `a!`.
  *
- * Native Windows enumeration is not byte-sorted, and recursive traversal also
- * differs between Node versions. Only the returned order changes: retain every
- * entry, its fields and its identity; leave traversal and errors to the host.
- * The comparator lives here so both runners use exactly the same name order.
+ * Retain every entry and its identity. The Node adapter sorts native Dirents
+ * before mapping their fields; the virtual queue already has the tree structure.
  *
- * @type {(entries: readonly Dirent[]) => readonly Dirent[]}
+ * @type {<T extends { readonly name: string }>(entries: readonly T[], parentComponents: (entry: T) => readonly string[]) => readonly T[]}
  */
-export const _orderDirents = entries => entries.toSorted((a, b) => {
-    const left = parse(a.parentPath)
-    const right = parse(b.parentPath)
+export const _orderDirents = (entries, parentComponents) => entries.toSorted((a, b) => {
+    const left = parentComponents(a)
+    const right = parentComponents(b)
     const depth = left.length - right.length
     if (depth !== 0) { return depth }
     for (let i = 0; i < left.length; i++) {
