@@ -645,7 +645,9 @@ export const proof = {
         const [resp] = session(call(2, 'cas_add', { content: 'a'.repeat(Number(maxLengthBytes) + 1) }))
         assertEq(resultOf(resp).isError, true)
         assert(textOf(resp).includes('too large or malformed'))
-        assert(textOf(resp).includes('cas add'))
+        // The way out is the CLI, with where to run it: the CLI reads its own
+        // account's store, so run anywhere else it stores into another one.
+        assert(textOf(resp).includes('npx functionalscript cas add <path>` where this server runs'), textOf(resp))
     },
 
     // Exactly maxLengthBytes (131,072) ASCII bytes — tryUtf8 returns a non-null
