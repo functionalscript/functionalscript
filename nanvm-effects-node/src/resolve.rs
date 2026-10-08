@@ -269,12 +269,15 @@ pub fn resolve_file_module(name: &str, parent: Option<&str>) -> Result<FileModul
         None => name.to_string(),
         Some(parent) => {
             let invalid = || refusal(None, "invalid module specifier");
-            let (rooted, names) = decode_specifier(name).ok_or_else(invalid)?;
-            let importer = file_url_to_path(parent)?;
-            if rooted && names.starts_with('/') {
-                // `//x/y` is a network path, not a path on this machine.
+            // An authority is not a path segment: `//host/../../x` must not
+            // lose its host during dot reduction and turn into a local import.
+            // Empty and localhost authorities remain unsupported too; see
+            // `nanvm-effects-node/todo/local-file-url-authorities.md`.
+            if name.starts_with("//") {
                 return Err(invalid());
             }
+            let (rooted, names) = decode_specifier(name).ok_or_else(invalid)?;
+            let importer = file_url_to_path(parent)?;
             let mut path = if rooted {
                 // On Windows a rooted import keeps the importer's drive,
                 // which need not be the current working directory's drive.
@@ -497,6 +500,30 @@ mod test {
         assert_eq!(message("a%2Fb"), "invalid module specifier");
         assert_eq!(message("//x/y"), "invalid module specifier");
         assert_eq!(message("./a?b"), "invalid module specifier");
+    }
+
+    /// Refuse unsupported authorities before decoding can erase the host.
+    /// These checks need neither a local fixture nor a network share.
+    #[test]
+    fn authorities_are_refused_before_dot_reduction() {
+        for parent in ["file:///missing/main.f.js", "file:///C:/missing/main.f.js"] {
+            for name in [
+                "//",
+                "///tmp/dep.f.js",
+                "////tmp/dep.f.js",
+                "//localhost/tmp/dep.f.js",
+                "//LOCALHOST/tmp/dep.f.js",
+                "//%6cocalhost/tmp/dep.f.js",
+                "//host/../../Cargo.toml",
+                "//host/%2e%2e/%2e%2e/Cargo.toml",
+                "//localhost/../../Cargo.toml",
+                "///../../Cargo.toml",
+            ] {
+                let error = resolve_file_module(name, Some(parent)).unwrap_err();
+                assert_eq!(error.code, None, "{name:?}");
+                assert_eq!(error.message, "invalid module specifier", "{name:?}");
+            }
+        }
     }
 
     /// Against a real tree, with symbolic links: a module is the real file.
