@@ -58,6 +58,17 @@ against it, `Number.isFinite` not being the global `isFinite`. They are
 FunctionalScript ([`spec/README.md`](../README.md), File Types), so they are
 renamed by the same pull request.
 
+## Landing a name at a time
+
+The order this rule sets with [`2360-built-in.md`](./2360-built-in.md) is a
+name's, not the list's. What it protects is that a name 2360 admits is one
+no module could have bound, so each name is reserved no later than any of it
+is admitted, and the list may land whole or a name at a time. `Number` is
+the first, reserved together with the conversion it admits
+([number conversion](../README.md#number-conversion)), and it brought the
+list beside the keywords that open question 3 asks for, one name long.
+Every other name joins that list before 2360 admits any of it.
+
 ## Open questions
 
 1. The list ages as ECMAScript grows. Pin it to an edition, or re-read §19
@@ -89,6 +100,7 @@ renamed by the same pull request.
   [`fjs/js/keywords`](../../fjs/js/keywords/module.f.mjs)' `reservedGlobals`:
   the list beside the keywords that open question 3 asks for, one name long.
 - [`2360-built-in.md`](./2360-built-in.md) — which of these names become
-  namespaces; this lands first.
+  namespaces; each is reserved here no later than it is admitted there
+  ([landing a name at a time](#landing-a-name-at-a-time)).
 - [`3150-shadowing.md`](./3150-shadowing.md) — shadowing between a module's
   own bindings.

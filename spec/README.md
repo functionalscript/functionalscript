@@ -1411,8 +1411,9 @@ call shapes are not recognized yet, and refused by name
 which establishes `a`, then `b`, then converts `a` — the comma operator's
 `(a, b, Number(a))`, which lands with it
 ([operators](./todo/2340-operators.md)) — and `Number(...a)`, which converts
-the first value the spread yields after yielding them all, a call of a
-runtime arity no node expresses yet. Nor is the guarded call `Number?.(x)`,
+the first value the spread yields after yielding them all, or is `0` where it
+yields none, as `Number()` is, a call of a runtime arity no node expresses
+yet ([number-spread](./todo/2363-number-spread.md)). Nor is the guarded call `Number?.(x)`,
 which is `Number(x)` in JavaScript, the word never being nullish: it is
 refused at the word (`reserved word`) as every other spelling of `Number`
 but the call is, until a pull request reads the guard away, a spelling no
