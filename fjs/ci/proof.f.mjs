@@ -993,6 +993,25 @@ export const proof = {
         assertEq(gha.jobs[npmPublishJobId], undefined)
         assertEq(npmPublishWorkflow.jobs[packageJobId], undefined)
     },
+    /**
+     * The jobs of the named platforms run in the merge queue only; every other
+     * job, and every job by default, runs on a pull request too. Read back
+     * through `workflow`, so the condition also survives the schema.
+     */
+    mergeQueueOnly: () => {
+        const [state, result] = virtual(makeState(true, runPackageJson))(
+            ci({ nodeExtra: () => [], mergeQueueOnly: ['macos'] }))
+        assertEq(exitCode(result), 0)
+        const jobs = workflow(state).jobs
+        for (const [id, job] of Object.entries(jobs)) {
+            assertEq(
+                job?.if,
+                id.startsWith('macos-') ? `github.event_name == 'merge_group'` : undefined,
+                id)
+        }
+        assert(Object.keys(jobs).filter(id => id.startsWith('macos-')).length === 2, 'expected two macOS jobs')
+        assertEq(definedValues(run(true).jobs).filter(job => job.if !== undefined).length, 0)
+    },
     jobNeeds: () => {
         const steps = /** @type {const} */ ([{ run: 'echo hi' }])
         /** @type {(jobs: Unknown) => Unknown} */

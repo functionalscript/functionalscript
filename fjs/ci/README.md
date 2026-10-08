@@ -510,6 +510,7 @@ the packed package's consumer:
 export type Setup = {
     readonly nodeExtra: (os: Os) => readonly MetaStep[]
     readonly packageConsumer?: PackageConsumer
+    readonly mergeQueueOnly?: readonly Os[]
 }
 ```
 
@@ -521,6 +522,13 @@ a declared type, a value of that type and one that is not, which must fail to
 type-check. The built-in command passes none, since it cannot know what
 another package publishes, and a project that names none gets the declaration
 check alone; this repository passes its own from `self/module.f.mjs`.
+
+`mergeQueueOnly` names the platforms whose jobs run in the merge queue only:
+each gets `if: github.event_name == 'merge_group'`, so a pull request's pushes
+skip it. GitHub reads a skipped job as passed for a required status check, so
+it still gates the merge, once, in the queue. A project with no merge queue
+would never run those jobs, so the default is none; this repository passes
+`['macos']`, its slowest and scarcest runners.
 
 On every platform but Windows, an injected step that names a **command** runs
 inside the shared shell, alongside the job's own — these jobs no longer install

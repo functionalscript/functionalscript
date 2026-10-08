@@ -90,6 +90,7 @@
     },
     "macos-intel": {
       "runs-on": "macos-26-intel",
+      "if": "github.event_name == 'merge_group'",
       "steps": [
         {
           "uses": "cachix/install-nix-action@v31.11.1"
@@ -122,6 +123,7 @@
     },
     "macos-arm": {
       "runs-on": "macos-26",
+      "if": "github.event_name == 'merge_group'",
       "steps": [
         {
           "uses": "cachix/install-nix-action@v31.11.1"
