@@ -103,8 +103,8 @@ export const ioError = info => ['ioError', info]
 
 /**
  * Normalizes a **thrown** value into an {@link IoError}: the OS error code when
- * the host attached a string one, and a message that is the `Error`'s own or
- * the value's string form.
+ * the host attached a string one, and the value's own string `message` when it
+ * carries one, or else its string form.
  *
  * This is the boundary where an impure runner's `catch` becomes ordinary effect
  * data. Nothing past it sees the thrown object, which is the point — a stack, a
@@ -116,14 +116,24 @@ export const ioError = info => ['ioError', info]
  * `DOMException` carries a string `name` and not a `code`, so it normalizes
  * through the message branch — correctly, since there is no OS code to report.
  *
+ * Both are read as fields, not by asking `instanceof Error` or `in`, which
+ * FunctionalScript refuses: an `Error` thrown from another realm — an iframe, a
+ * worker — is not an instance of this realm's `Error`, and its `message` is
+ * exactly what this keeps. A field that is absent reads as `undefined`, which
+ * is not a string either.
+ *
  * @type {(e: unknown) => IoError}
  */
 export const toIoError = e => {
-    const message = e instanceof Error ? e.message : String(e)
-    if (typeof e !== 'object' || e === null || !('code' in e) || typeof e.code !== 'string') {
-        return ioError({ message })
+    if (typeof e !== 'object' || e === null) {
+        return ioError({ message: String(e) })
     }
-    return ioError({ code: e.code, message })
+    /** @type {{ readonly message?: unknown, readonly code?: unknown }} */
+    const fields = e
+    const message = typeof fields.message === 'string' ? fields.message : String(e)
+    return typeof fields.code === 'string'
+        ? ioError({ code: fields.code, message })
+        : ioError({ message })
 }
 
 /**
