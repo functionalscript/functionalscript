@@ -31,8 +31,30 @@ export type AstImport = {
  */
 export type AstModule = readonly [readonly AstImport[], AstBody]
 
-/** A value in a module body: a primitive, a reference, an array, an object, a property access, a call, a negation, a bitwise not, a logical not, a `typeof`, the function's own `self`, a binary operator, a conditional, a function, a fixed parameter, a rest array, a slot of its frame — or a `throw`, which a body may end with in place of a value. */
-export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstCall|AstNeg|AstBitnot|AstNot|AstTypeof|AstSelf|AstBinary|AstConditional|AstFunction|AstRest|AstArg|AstFrameRef|AstThrow
+/** A value in a module body: a primitive, a reference, an array, an object, a property access, a call, a negation, a bitwise not, a logical not, a `typeof`, the function's own `self`, a binary operator, a conditional, a function, the `entry` helper, a fixed parameter, a rest array, a slot of its frame — or a `throw`, which a body may end with in place of a value. */
+export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstGuardedAccess|AstCall|AstGuardedCall|AstNeg|AstBitnot|AstNot|AstTypeof|AstSelf|AstBinary|AstConditional|AstFunction|AstEntryFunction|AstRest|AstArg|AstFrameRef|AstThrow
+
+/**
+ * The `entry` helper, which the parser recognizes whole
+ * ([spec: entry](../../../spec/README.md#reading-an-entry-at-run-time)):
+ *
+ * ```js
+ * (a, b) => {
+ *     const x = Object.getOwnPropertyDescriptor(a, b);
+ *     return x?.enumerable ? x.value : undefined;
+ * }
+ * ```
+ *
+ * under any names — the one function that reads a property named at run
+ * time, the enumerable own property the key names once converted as
+ * `Object.getOwnPropertyDescriptor` converts it. It is a function like
+ * any other: a value, of `length` `2`, capturing nothing, and a fresh
+ * identity wherever it is written, as every arrow is. The lowering spells
+ * it as the EDAG's own node for it, `['entry']`, which the source spells
+ * through this helper and no other way; the writer spells the node back
+ * as the helper.
+ */
+export type AstEntryFunction = readonly ['entry']
 
 /**
  * A `throw`, `throw v;`: the statement a function's block body, or a
@@ -171,7 +193,55 @@ export type AstObject = readonly ['object', readonly AstEntry[]]
  * function's name, `at` or `toString`. A numeric literal is an ordinary
  * base: `1 .x` is `['.', 1, 'x']`.
  */
-export type AstAccess = readonly ['.', AstConst, string | number]
+export type AstAccess =
+    | readonly ['.', AstConst, string | number]
+    | readonly ['.', AstConst, string | number, AstGuardedCallStep]
+
+/**
+ * A guarded access, `base?.key`: the EDAG's `['?.', object, index]`, and
+ * with a fourth element the steps the chain goes on with, {@link AstStep}
+ * — `a?.b.c` is `['?.', a, 'b', ['|.', 'c']]`, one node, since a nullish
+ * `a` skips every step. The parser folds the steps written after a `?.`
+ * into the node until a group closes the region, so `(a?.b).c` is an
+ * access over the guarded access and reaches here as one
+ * (`fjs/edag/README.md`, Chains). The key is judged as an access's is: by
+ * the read rule, or by the call rule where a call step follows it.
+ */
+export type AstGuardedAccess =
+    | readonly ['?.', AstConst, string | number]
+    | readonly ['?.', AstConst, string | number, AstStep]
+
+/**
+ * A guarded call, `callee?.(args)`: the EDAG's `['?.()', f, args]`, with
+ * the steps after it where there are any. A guarded call on a property
+ * reference is not this node but the access's own step, `['.', a, 'b',
+ * ['|?.()', args]]`, which keeps the receiver; this one's callee is an
+ * ordinary value.
+ */
+export type AstGuardedCall =
+    | readonly ['?.()', AstConst, readonly AstItem[]]
+    | readonly ['?.()', AstConst, readonly AstItem[], AstStep]
+
+/**
+ * One step a chain goes on with, and the steps after it — the EDAG's
+ * continuation, carried as it is: a property, a call, a guarded call,
+ * {@link AstGuardedCallStep}, or the escaping call `(a?.b)(args)`, which a
+ * group put outside the region and after which nothing continues. The
+ * operands a step holds are lazy: established only where the chain's guard
+ * lets it go on.
+ */
+export type AstStep =
+    | readonly ['|.', string | number]
+    | readonly ['|.', string | number, AstStep]
+    | readonly ['|()', readonly AstItem[]]
+    | readonly ['|()', readonly AstItem[], AstStep]
+    | AstGuardedCallStep
+    | readonly ['|!()', readonly AstItem[]]
+
+/** A guarded call step, `?.(args)`, and the steps after it. */
+export type AstGuardedCallStep =
+    | readonly ['|?.()', readonly AstItem[]]
+    | readonly ['|?.()', readonly AstItem[], AstStep]
 
 /**
  * A call, `f(a, b)`: the callee any value, and the arguments in the order

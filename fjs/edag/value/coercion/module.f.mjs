@@ -29,7 +29,7 @@ import { isArray } from '../../../types/array/module.f.mjs'
 import { ok, error } from '../../../types/result/module.f.mjs'
 import { call } from '../call/module.f.mjs'
 import { findProperty } from '../property/module.f.mjs'
-import { untagUndefined } from '../semantics/module.f.mjs'
+import { isFunction, untagUndefined } from '../semantics/module.f.mjs'
 
 /** ToString of an evaluated primitive. @type {(value: Primitive) => string} */
 export const primitiveToString = value => String(untagUndefined(value))
@@ -54,7 +54,7 @@ export const objectToPrimitive = (value, hint, invoke) => {
             continue
         }
         const [, , method] = property
-        if (!isArray(method) || method[0] !== '=>') { continue }
+        if (!isFunction(method)) { continue }
         const result = call(ok(method), [], invoke)
         const [kind, primitive] = result
         if (kind === 'error' || !isArray(primitive) || primitive[0] === 'undefined') {

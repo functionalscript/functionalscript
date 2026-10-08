@@ -12,10 +12,12 @@
 
 import { isArray } from '../../types/array/module.f.mjs'
 import { ok } from '../../types/result/module.f.mjs'
-import { operation } from '../operations/module.f.mjs'
+import { entryCall, operation } from '../operations/module.f.mjs'
 
-/** @type {Invoke} */
-export const invoke = (fn, fixed, rest) => vm({ frame: fn[2], args: [], fixed, rest, self: fn })(fn[3])
+/** A represented function invoked, its body walked afresh — or the `entry` helper, answered in place. @type {Invoke} */
+export const invoke = (fn, fixed, rest) => fn[0] === 'entry'
+    ? entryCall(fixed, invoke)
+    : vm({ frame: fn[2], args: [], fixed, rest, self: fn })(fn[3])
 
 /** @type {(context: Context) => (e: Exp) => ValueResult} */
 export const vm = context => {

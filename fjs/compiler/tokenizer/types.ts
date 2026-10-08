@@ -34,7 +34,7 @@ import type {
  * and `&& || ??` with `?`, the lazy operators and the conditional's own
  * token, Stage B of the same; `:` the conditional shares with a member;
  * and `!`, the logical not, the third prefix, admitted after both stages.
- * `?.` stays refused: optional chaining is not this language's yet. Trivia
+ * `?.`, the optional step's, admitted with the optional chains. Trivia
  * is no member: whitespace, newlines and comments are not in the stream,
  * and what a rule reads of them is `newline` on the token after them,
  * {@link DjsTokenWithMetadata}.
@@ -45,7 +45,7 @@ export type DjsToken = |
     | '+' | '*' | '/' | '%' | '**'
     | '===' | '!==' | '>' | '>=' | '<' | '<='
     | '&' | '|' | '^' | '~' | '<<' | '>>' | '>>>'
-    | '!' | '&&' | '||' | '??' | '?'
+    | '!' | '&&' | '||' | '??' | '?' | '?.'
   } |
   StringToken |
   NumberToken |

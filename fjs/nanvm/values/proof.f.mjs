@@ -1,7 +1,7 @@
 /**
  * The native fixture starts from a computed value, preserving slot positions
  * and sharing. `nanvm-harness` compiles and invokes its generated Rust module.
- * @import { Array as ValueArray, Function as ValueFunction, Object as ValueObject } from '../../edag/value/types.ts'
+ * @import { Array as ValueArray, Closure, Object as ValueObject } from '../../edag/value/types.ts'
  */
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
@@ -18,8 +18,8 @@ export const proof = {
         assertEq(call, again)
         assert(call !== other)
         assertStructurallySame(call, other)
-        const [, length, slots, body] = /** @type {ValueFunction} */ (call)
-        const [, , otherSlots, otherBody] = /** @type {ValueFunction} */ (other)
+        const [, length, slots, body] = /** @type {Closure} */ (call)
+        const [, , otherSlots, otherBody] = /** @type {Closure} */ (other)
         assertEq(length, 1)
         assertStructurallySame(slots, [
             2, ['[]', [3]], ['[]', [3]], ['{}', [[':', 'unused', 9]]],
@@ -32,7 +32,7 @@ export const proof = {
     invocation: () => {
         const [, properties] = /** @type {ValueObject} */ (value())
         const shared = properties[0][2]
-        const call = /** @type {ValueFunction} */ (properties[2][2])
+        const call = /** @type {Closure} */ (properties[2][2])
         const first = assertOk(invoke(call, [3], ['[]', []]))
         const second = assertOk(invoke(call, [3], ['[]', []]))
         assert(first !== second)
@@ -46,10 +46,10 @@ export const proof = {
     nestedCaptures: () => {
         const [, properties] = /** @type {ValueObject} */ (value())
         const shared = properties[0][2]
-        const make = /** @type {ValueFunction} */ (properties[5][2])
+        const make = /** @type {Closure} */ (properties[5][2])
         assertEq(make[1], 1)
-        const first = /** @type {ValueFunction} */ (assertOk(invoke(make, [7], ['[]', []])))
-        const second = /** @type {ValueFunction} */ (assertOk(invoke(make, [7], ['[]', []])))
+        const first = /** @type {Closure} */ (assertOk(invoke(make, [7], ['[]', []])))
+        const second = /** @type {Closure} */ (assertOk(invoke(make, [7], ['[]', []])))
         assert(first !== second)
         assert(first[3] !== second[3])
         assert(first[2][1] !== second[2][1])

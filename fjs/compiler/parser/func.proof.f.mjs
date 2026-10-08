@@ -556,4 +556,142 @@ export const proof = {
             expect('export default () => f;', 'const not found', 22)
         },
     },
+    // The `entry` helper, recognized whole as the AST's `['entry']`: a
+    // function of two parameters whose block body binds the descriptor
+    // `Object.getOwnPropertyDescriptor` answers for them and returns the
+    // value an enumerable one holds, under any three distinct names and
+    // either key spelling, with or without its semicolons where JavaScript
+    // inserts them, wherever a function stands.
+    entry: {
+        parsed: () => {
+            /** @type {(source: string, expected: string) => void} */
+            const expect = (source, expected) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'ok', value)
+                assertEq(stringifyDjsModule(value), expected)
+            }
+            const helper = 'const entry = (a, b) => {\n    const x = Object.getOwnPropertyDescriptor(a, b);\n    return x?.enumerable ? x.value : undefined;\n};'
+            expect(`${helper} export default entry;`, '[[],[["entry"],["object",[[":","default",["cref",0]]]]]]')
+            expect(`${helper} export default entry({ k: 1 }, "k");`, '[[],[["entry"],["object",[[":","default",["()",["cref",0],[["object",[[":","k",1]]],"k"]]]]]]]')
+            expect('export default (a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? x.value : undefined; };', '[[],[["object",[[":","default",["entry"]]]]]]')
+            // other names, the other key spellings, the semicolons omitted,
+            // and nested in a function as any function may be
+            expect('export default (o, p) => {\n const d = Object["getOwnPropertyDescriptor"](o, p)\n return d?.enumerable ? d["value"] : undefined\n}', '[[],[["object",[[":","default",["entry"]]]]]]')
+            expect('export default () => (a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? x.value : undefined; };', '[[],[["object",[[":","default",["=>",0,[["entry"]]]]]]]]')
+        },
+        // Not the helper: `Object` names what a scope binds — a `const`, a
+        // parameter, the function's own name — and the function is the
+        // ordinary function JavaScript reads it as; and a body that departs
+        // from the helper's by a step is an ordinary function too, which is
+        // where the `Object` nothing binds is refused as any unbound word is.
+        notTheHelper: () => {
+            /** @type {(source: string) => string} */
+            const parsed = source => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'ok', value)
+                return stringifyDjsModule(value)
+            }
+            const body = '{ const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? x.value : undefined; }'
+            for (const source of [
+                `const Object = { getOwnPropertyDescriptor: (o, k) => o }; export default (a, b) => ${body};`,
+                `export default (Object, b) => { const x = Object.getOwnPropertyDescriptor(Object, b); return x?.enumerable ? x.value : undefined; };`,
+                `const Object = (a, b) => ${body}; export default Object;`,
+            ]) {
+                const tree = parsed(source)
+                assert(!tree.includes('"entry"') && tree.includes('"=>",2'), tree)
+            }
+            /** @type {(source: string, message: string, column: number) => void} */
+            const refused = (source, message, column) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'error', tag)
+                assertEq(`${value.message} at ${value.metadata?.column}`, `${message} at ${column}`, source)
+            }
+            for (const other of [
+                '(a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x.enumerable ? x.value : undefined; }',
+                '(a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? x.value : null; }',
+                '(a, b) => { const x = Object.getOwnPropertyDescriptor(b, a); return x?.enumerable ? x.value : undefined; }',
+                '(a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? x.name : undefined; }',
+                '(a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? x.value.y : undefined; }',
+                '(a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? x.value?.() : undefined; }',
+                '(a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? 1 : undefined; }',
+                '(a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? x.value : x; }',
+                '(a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return a?.enumerable ? x.value : undefined; }',
+                '(a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.writable ? x.value : undefined; }',
+                '(a, b) => { const x = Object.getOwnPropertyDescriptor(a, a); return x?.enumerable ? x.value : undefined; }',
+                '(a, b) => { const x = Object.getOwnPropertyDescriptor; return x?.enumerable ? x.value : undefined; }',
+                '(a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x; }',
+                '(a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable() ? x.value : undefined; }',
+                '(a, b) => { const x = Object.getOwnPropertyDescriptor(a, b, 1); return x?.enumerable ? x.value : undefined; }',
+                '(a, b) => { const x = Object.getOwnPropertyDescriptor(a, ...b); return x?.enumerable ? x.value : undefined; }',
+                '(a, b) => { const x = Object.getOwnPropertyDescriptors(a, b); return x?.enumerable ? x.value : undefined; }',
+                '(a, b) => { const x = Object(a, b); return x?.enumerable ? x.value : undefined; }',
+                '(a, b, c) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? x.value : undefined; }',
+                '(a, ...b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? x.value : undefined; }',
+                '(a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); const y = x; return x?.enumerable ? x.value : undefined; }',
+                '(a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); throw x?.enumerable ? x.value : undefined; }',
+                '(a, b) => { if (a) { return b; } return Object.getOwnPropertyDescriptor(a, b); }',
+                '(a, b) => Object.getOwnPropertyDescriptor(a, b);',
+            ]) { refused(`export default ${other}`, 'const not found', 16 + other.indexOf('Object')) }
+            refused('export default (a, b) => { const x = Reflect.getOwnPropertyDescriptor(a, b); return x?.enumerable ? x.value : undefined; };', 'const not found', 38)
+            // a keyword or a repeated name among the three is refused as it
+            // is in any function
+            refused('export default (if, b) => { const x = Object.getOwnPropertyDescriptor(if, b); return x?.enumerable ? x.value : undefined; };', 'reserved word', 17)
+            refused('export default (a, a) => { const x = Object.getOwnPropertyDescriptor(a, a); return x?.enumerable ? x.value : undefined; };', 'duplicate id', 20)
+            refused('export default (a, b) => { const a = Object.getOwnPropertyDescriptor(a, b); return a?.enumerable ? a.value : undefined; };', 'duplicate id', 34)
+            // and the line rules every block keeps: a statement without its
+            // `;` ends at a newline, and `return` and its value share a line
+            refused('export default (a, b) => { const x = Object.getOwnPropertyDescriptor(a, b) return x?.enumerable ? x.value : undefined; };', 'unexpected token', 76)
+            refused('export default (a, b) => {\n const x = Object.getOwnPropertyDescriptor(a, b);\n return\n x?.enumerable ? x.value : undefined;\n};', 'unexpected token', 2)
+        },
+        // The helper's read of `Object` is a read of the intrinsic through
+        // every scope out to the module's, and binds the word there as a
+        // body's read of any word binds it: a `const` of `Object` after the
+        // helper, in the module or in a body the helper is written in, is
+        // `capture shadowed`, since in JavaScript the helper would have
+        // named that `const` and been no helper; so is the `const` whose
+        // own initializer holds the helper. The word stays no value — a
+        // read of it after the helper is `const not found` as before — a
+        // second helper reads it as the first did, and a function written
+        // after the helper binds the word as it likes, shadowing nothing
+        // the helper read, as in JavaScript.
+        laterBinding: () => {
+            const helper = '(a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? x.value : undefined; }'
+            /** @type {(source: string) => string} */
+            const parsed = source => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'ok', value)
+                return stringifyDjsModule(value)
+            }
+            /** @type {(source: string, message: string, column: number) => void} */
+            const refused = (source, message, column) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'error', tag)
+                assertEq(`${value.message} at ${value.metadata?.column}`, `${message} at ${column}`, source)
+            }
+            /** The `const Object` refused, at its name. @type {(source: string) => void} */
+            const shadowed = source => refused(source, 'capture shadowed', source.indexOf('const Object') + 7)
+            // in the module, in the body, in the body around the function
+            // the helper is in, and after the guard whose block holds it
+            shadowed(`const entry = ${helper}; const Object = 1; export default entry;`)
+            shadowed(`export default c => { const entry = ${helper}; const Object = 1; return entry; };`)
+            shadowed(`export default c => { const f = () => ${helper}; const Object = 1; return f; };`)
+            shadowed(`export default c => { if (c) { const entry = ${helper}; return entry; } const Object = 1; return Object; };`)
+            // the `const` whose initializer holds the helper, in the module
+            // and in a body
+            shadowed(`const Object = [${helper}]; export default Object;`)
+            shadowed(`export default c => { const Object = [${helper}]; return Object; };`)
+            // no value, in the scope the helper is in and in a function
+            // inside it
+            refused(`const entry = ${helper}; export default Object;`, 'const not found', 138)
+            refused(`export default c => { const entry = ${helper}; return Object; };`, 'const not found', 152)
+            refused(`const entry = ${helper}; export default () => Object;`, 'const not found', 144)
+            // two helpers; a guard's block binding the word before a helper
+            // after it, in a block of its own; and a function after the
+            // helper binding the word, as a parameter and as a `const`
+            assertEq(parsed(`const a = ${helper}; const b = ${helper}; export default [a, b];`), '[[],[["entry"],["entry"],["object",[[":","default",["array",[["cref",0],["cref",1]]]]]]]]')
+            assertEq(parsed(`export default c => { if (c) { const Object = 1; return Object; } return ${helper}; };`), '[[],[["object",[[":","default",["=>",1,[["?:",["arg",0],["()",["=>",0,[1,["cref",0]]],[]],["()",["=>",0,[["entry"]]],[]]]]]]]]]]')
+            assertEq(parsed(`const entry = ${helper}; export default (Object) => Object;`), '[[],[["entry"],["object",[[":","default",["=>",1,[["arg",0]]]]]]]]')
+            assertEq(parsed(`const entry = ${helper}; export default () => { const Object = 1; return Object; };`), '[[],[["entry"],["object",[[":","default",["=>",0,[1,["cref",0]]]]]]]]')
+        },
+    },
 }

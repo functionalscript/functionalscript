@@ -22,9 +22,11 @@ lowering belongs to
 [call-like-instructions](../spec/todo/9100-call-like-instructions.md).
 
 **P1 source/writer reconciliation:** the direct descriptor-value source plan
-is superseded by [`entry`](../fjs/edag/todo/entry.md). That document owns the
-active runtime-entry API and its writer boundary: `own` is internal, not an
-alternate source spelling. The affected sections below follow that decision;
+is superseded by `entry`, the language's helper
+([spec: entry](../spec/README.md#reading-an-entry-at-run-time)), and the
+EDAG's `['entry']` node it lowers to, the helper as a value: the helper is
+the one source spelling of the node, and a key computed at run time is read
+by calling it. The affected sections below follow that decision;
 the remaining subjects retain their individual discussion status. Parsing
 JavaScript syntax does not itself admit it into FunctionalScript.
 
@@ -203,7 +205,7 @@ Two consequences worth stating plainly:
   supported domain (subject 12), a JS engine running the printed source and
   the VM must agree under the declared compatibility profile. Schema validity
   alone does not promise a source spelling for every internal operation:
-  internal-only `own` is refused by the writer under the `entry` plan.
+  `['entry']` has one, the helper, and no other.
   For compiled source, compare the original source as well as the output;
   print-run agreement alone does not prove the original lowering correct.
 
@@ -254,7 +256,7 @@ DJS rollout in
 **"Stage" names which compiler/interpreter task is scoped to emit or consume an
 operation — not when the EDAG schema itself admits it.** The schema
 (`fjs/edag/module.f.mjs`) doesn't have to wait for a task before defining a shape, and
-in practice it doesn't: `"own"`, `"Number"`, `"String"`, and `","` are marked `later`
+in practice it doesn't: `"Number"`, `"String"`, and `","` are marked `later`
 below, `"=>"` was marked a not-yet-implemented Stage 2, and `["frame"]` was marked
 `later` too (further down, under [Operations](#operations)) — yet all were already
 validated by `exp`, before any compiler emitted them. The optional nodes are the sharpest case: `"?."` and `"?.()"` are in the
@@ -277,7 +279,7 @@ schema is free to change independently of both.
 |`["?.()", callee, args]`, `["?.()", callee, args, k]`|`f?.(...args)`, and the rest of its optional region|later|optional call|
 |`["\|()", args]`, `["\|()", args, k]`|one chain step, `(...args)`|2|not an `exp` node — only valid as the continuation `k` of a chain node or another step (subject 6); this is the step a method call's `.` node carries, so Stage 2 needs it|
 |`["\|.", property, k?]`, `["\|?.()", args, k?]`, `["\|!()", args]`|one chain step|later|the remaining steps: a property access inside an optional region, a guarded call, and the call a group puts outside the region|
-|`["own", object, key]`|— internal only|later|no standalone source spelling; runtime-entry API and semantic migration belong to [entry](../fjs/edag/todo/entry.md)|
+|`["entry"]`|the `entry` helper|now|the helper as a value, a function of two parameters called as any function is, `["()", ["entry"], [a, b]]`; the helper is its one source spelling ([spec: entry](../spec/README.md#reading-an-entry-at-run-time))|
 |`["Number", node]`|`Number(x)`|later|numeric coercion that accepts bigints, unlike unary `+`|
 |`["String", node]`|`String(x)`|later|string coercion|
 |`[",", [...node, node]]`|`(a, b)`|later|membership without order (subject 8); the operands are one operand, an array, as for `"[]"`|
@@ -343,19 +345,14 @@ EDAG admits an operation when it is pure — its result a function of its
 operands and nothing else — and unary `+` is.
 
 **Superseded source plan:** the former direct lowering of
-`Object.getOwnPropertyDescriptor(object, key)?.value` to `["own", object, key]`
-is not an admitted standalone FJS instruction. It would expose non-enumerable
-properties as well as data entries. The JavaScript-subset AST may represent
-that expression; the AST-to-EDAG compiler, not a parser-specific ban, rejects
-its standalone use or a descriptor escaping an approved pattern.
-
-The active proposal is [`entry`](../fjs/edag/todo/entry.md): recognize the
-complete parsed enumerable-entry helper, lower its function definition to
-`['entry']`, and use ordinary calls. `own` remains the internal operation;
-the source writer refuses a bare `own` node rather than printing the retired
-descriptor-value expression. The entry proposal owns receiver/key conversion,
-function observations and the coordinated migration of internal semantics.
-This discussion does not silently change the existing opcode implementation.
+`Object.getOwnPropertyDescriptor(object, key)?.value` to an internal
+`["own", object, key]` node is gone with the node. It would have exposed
+non-enumerable properties as well as data entries, and it had no source
+spelling. What landed is [`entry`](../spec/README.md#reading-an-entry-at-run-time):
+the complete parsed enumerable-entry helper is recognized and lowered to
+`['entry']`, the helper as a value, and read through ordinary calls, whose
+receiver/key conversion and function observations the spec states; the
+executors answer the call themselves, and no second node stands beside it.
 All instruction patterns follow the
 [JavaScript AST → checked EDAG compilation boundary](../fjs/compiler/parser/todo/statement-aware-intrinsics.md).
 
@@ -374,7 +371,8 @@ Word tags remain only where no unambiguous JS spelling exists:
   mode);
 - `"throw"` — a JS keyword, but a *statement*, so there is no
   expression spelling to reuse;
-- `"own"` — internal operation, without an independent FJS source spelling.
+- `"entry"` — the `entry` helper as a value; the helper is its one source
+  spelling, and a JS keyword it is not.
 
 `"Number"` is not an exception: it is spelled exactly as the JS built-in
 it denotes.
@@ -1057,14 +1055,14 @@ specializations. The historical names `at`, `at_call`, `instance_property`,
 `instance_method_call` and `own_property` described bytecode sketches, not a
 one-to-one mapping to EDAG tags. In particular, the old `own_property` name
 was used both for a static fallback and for an explicit runtime lookup; it
-must not direct an ordinary static read to internal `own`.
+must not direct an ordinary static read to the `entry` helper.
 
 Every admitted constant-key read is `.`. A method call is a property step
 owning a call continuation, not a detached `()` over a completed read.
 Backends may specialize these operations or share lookup helpers where their
 semantics agree. Such reuse changes neither the source operation nor its
-EDAG representation. [`entry`](../fjs/edag/todo/entry.md) separately owns the
-runtime helper API and internal-opcode migration, not static-name fallback.
+EDAG representation. [`entry`](../spec/README.md#reading-an-entry-at-run-time)
+is the runtime helper, not a static-name fallback.
 
 An earlier draft added: "consequence — the EDAG interpreter carries the
 safety burden 2330 assigns to compile-time checks; prohibited names must
@@ -1115,8 +1113,7 @@ a backend lookup routine does not make the operations interchangeable.
 |---|---|---|
 |`[".", o, p]`|permitted constant-key or numeric read|includes non-enumerable `length`; not an entry filter|
 |`[".", o, p, ["\|()", args]]`|the same access with a receiver-preserving call|subject to the call admission, `fjs/js/prototype`'s `prohibitedCalls`: a built-in member function the read refuses may be called|
-|`['entry']` (proposed), used through ordinary `()`|enumerable-entry helper function|only the complete approved AST pattern, per [entry](../fjs/edag/todo/entry.md)|
-|`["own", o, k]`|internal operation|no standalone source spelling or static-read fallback; semantic migration belongs to `entry.md`|
+|`['entry']`, used through ordinary `()`|enumerable-entry helper function|only the complete helper, per [entry](../spec/README.md#reading-an-entry-at-run-time)|
 
 Every permitted static name stays on the `.` path, whether or not a built-in
 table lists it. A backend can specialize a known read without changing the
@@ -1498,9 +1495,9 @@ environment, the following constraints apply within its supported domain:
   source form. A `throw` wrapper or a named function for `self` remains a
   candidate, not permission to emit unsupported FunctionalScript. The JavaScript
   host used to read an example is not permission to use `eval` inside FJS.
-- **No alternate `own` API.** The direct descriptor-value spelling remains
-  retired. Follow [`entry`](../fjs/edag/todo/entry.md): print the complete helper
-  and ordinary calls, and refuse bare internal `own`. Its exact spelling follows
+- **No alternate API.** The direct descriptor-value spelling remains
+  retired. [`entry`](../spec/README.md#reading-an-entry-at-run-time) prints
+  the complete helper and ordinary calls of it. Its exact spelling follows
   the adopted function-text exception and open rendering questions, not a
   requirement to recover authored text. A printed helper's intrinsic `Object`
   reference still depends on the declared built-in environment; AST-to-EDAG
