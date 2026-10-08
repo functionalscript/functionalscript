@@ -47,7 +47,7 @@ import { ascii } from '../../ebnf/byte/module.f.mjs'
 import {
     commercialAt as at, fullStop as dot, leftCurlyBracket as brace, solidus as slash, space,
 } from '../../text/ascii/module.f.mjs'
-import { fold, sameItems } from '../../types/list/module.f.mjs'
+import { fold } from '../../types/list/module.f.mjs'
 import { isByte } from '../../types/number/module.f.mjs'
 
 const del = /** @type {const} */ (0x7F)
@@ -254,21 +254,3 @@ export const isWholeName = name => {
     const { bytes, components, atAlone } = check(name)
     return bytes && components && !atAlone
 }
-
-/**
- * Whether two names are the same bytes: `fjs/types/list`'s `sameItems`,
- * which is byte-for-byte equality and nothing more. A name is bytes,
- * compared as they are — no case folding, no normalisation, since Git
- * compares them so and two names differing by either are two names. It
- * stops at the first byte that differs, and materialises neither name to
- * get there.
- *
- * The one comparison of names in `fjs/git`: a tree entry's name in
- * [`fjs/git/walk`](../walk/module.f.mjs), a ref's in
- * [`fjs/git/refstore`](../refstore/module.f.mjs), a header's key in
- * [`fjs/git/header`](../header/module.f.mjs) and an object type's name in
- * [`fjs/git/object`](../object/module.f.mjs) all ask it.
- *
- * @type {(a: Bytes) => (b: Bytes) => boolean}
- */
-export const sameBytes = sameItems

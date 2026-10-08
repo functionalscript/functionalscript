@@ -357,6 +357,11 @@ export const proof = {
         () => {
             const result = sameItems([])([])
             assert(result, result)
+        },
+        // A lazy list is one list of the same items as the array it spells.
+        () => {
+            const result = sameItems(() => [15, 78])([15, 78])
+            assert(result, result)
         }
     ],
     isEmpty: [
