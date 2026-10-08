@@ -11,13 +11,10 @@
 import { exitCode } from '../effects/node/module.f.mjs'
 import { _errorLocation, compile } from './module.f.mjs'
 import { transpile } from './transpiler/module.f.mjs'
-import { parse } from './source/module.f.mjs'
-import { read } from '../edag/value/property/module.f.mjs'
 import { virtual, emptyState, nodeProgramOptions } from '../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../text/module.f.mjs'
 import { isObject } from '../types/object/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
-import { outputs } from './demo.f.mjs'
 import { compileSource, defaultValue, fjsRoundTrip, importing, jsonOf, jsonRefused, moduleRefused, protoValue, readOutput, runtime, stderrOf, withCfg, withSelected } from './proof.f.mjs'
 
 const { getPrototypeOf, is, prototype: objectPrototype } = Object
