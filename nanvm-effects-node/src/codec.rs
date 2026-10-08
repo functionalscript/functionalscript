@@ -8,8 +8,9 @@
 //!
 //! A `Vec`, the bytes of a file, is the language's bit vector: a `bigint` whose
 //! magnitude is the bits with a leading `1` as its stop bit, negative where
-//! the first bit was `0`, and `0n` for none (`fjs/types/bit_vec`). Only
-//! whole bytes are bytes here, as only whole bytes reach the Node runner.
+//! the first bit was `0`, and `0n` for none (`fjs/types/bit_vec`). As the Node
+//! runner's `fromVec` does, a trailing partial byte is zero-padded in its low
+//! bits, so any such vector is bytes.
 
 use nanvm_lib::{
     common::sized_index::SizedIndex,

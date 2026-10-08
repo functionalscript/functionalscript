@@ -13,6 +13,13 @@ use crate::codec::{
 use nanvm_lib::vm::{Any, Array, IVm, unstable::string_any};
 use std::io::{self, ErrorKind, Read, Write};
 
+/// `NodeOp`'s commands, printed from `nodeCommands` in
+/// `fjs/effects/node/module.f.mjs`: a command outside them is a malformed
+/// request, not a missing capability.
+#[path = "gen.commands.rs"]
+mod commands;
+use commands::COMMANDS;
+
 /// A host over `std`, reading console input from `R` and writing console
 /// output to `O` and `E`.
 #[derive(Debug)]
@@ -48,50 +55,6 @@ impl<R, O, E> Native<R, O, E> {
         &self.stderr
     }
 }
-
-/// `NodeOp`'s commands, as `nodeCommands` in `fjs/effects/node/module.f.mjs`:
-/// a command outside them is a malformed request, not a missing capability.
-const COMMANDS: [&str; 39] = [
-    "access",
-    "all",
-    "await",
-    "catch",
-    "close",
-    "createExclusive",
-    "createServer",
-    "exec",
-    "fetch",
-    "forever",
-    "fstat",
-    "import",
-    "inflate",
-    "listen",
-    "memCreate",
-    "memRead",
-    "memWrite",
-    "mkdir",
-    "now",
-    "open",
-    "pread",
-    "randomInt",
-    "read",
-    "readBytes",
-    "readFile",
-    "readRequestBytes",
-    "readWhole",
-    "readdir",
-    "rename",
-    "resolveFileModule",
-    "rm",
-    "rmdir",
-    "sandbox",
-    "stat",
-    "test",
-    "write",
-    "writeBytes",
-    "writeExclusive",
-    "writeFile",
-];
 
 /// What a host answers a command it has no operation for: `['error',
 /// ['notImplemented', command]]`, through the ordinary continuation, so the
@@ -176,7 +139,10 @@ mod test {
     use super::*;
     use nanvm_lib::{
         naive::Naive,
-        vm::{Nullish, Number, ToAny, ToArray, unstable::bigint_any},
+        vm::{
+            Nullish, Number, ToAny, ToArray,
+            unstable::{bigint_any, bigint_any_words},
+        },
     };
     use std::io::Cursor;
 
@@ -251,6 +217,21 @@ mod test {
             array([string_any("stdout"), bigint_any(0b1_0000_0001)]),
         ));
         assert_eq!(h.stdout().as_slice(), [0x80, 0x80, 0x80]);
+    }
+
+    /// A vector of more than one word is read across its words, whole bytes or not.
+    #[test]
+    fn many_words() {
+        let mut h = host(b"");
+        let mut put = |v: V| ok(h.perform(string_any("write"), array([string_any("stdout"), v])));
+        // nine bytes `01 02 .. 09`: the first bit is `0`, so the value is negative
+        put(bigint_any_words(true, &[0x0203_0405_0607_0809, 0x81]));
+        // 65 one bits: the last byte is padded to `80`
+        put(bigint_any_words(false, &[u64::MAX, 1]));
+        let mut expected: Vec<u8> = (1..=9).collect();
+        expected.extend([0xff; 8]);
+        expected.push(0x80);
+        assert_eq!(h.stdout().as_slice(), expected);
     }
 
     /// A command the host lacks is answered through the continuation as
