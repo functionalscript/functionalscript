@@ -37,10 +37,10 @@
 
 import { foldStep, mapStep, pureOk, step, walkStep } from '../../effects/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
+import { sameItems } from '../../types/list/module.f.mjs'
 import { at, empty, setReplace } from '../../types/ordered_map/module.f.mjs'
 import { tryTreeAt } from '../commit/module.f.mjs'
 import { ofWidth } from '../oid/module.f.mjs'
-import { sameBytes } from '../refname/module.f.mjs'
 import { tryTargetAt } from '../tag/module.f.mjs'
 import { isSubtree, tryRead as readTree } from '../tree/module.f.mjs'
 
@@ -200,7 +200,7 @@ export const tryEntries = (read, oidBytes) => {
  * @type {(entries: readonly TreeEntry[], want: readonly number[]) => Nullable<TreeEntry>}
  */
 const only = (entries, want) => {
-    const found = entries.filter(e => sameBytes(byteArray(e.name))(want))
+    const found = entries.filter(e => sameItems(byteArray(e.name))(want))
     return found.length === 1 ? found[0] : null
 }
 
