@@ -376,8 +376,9 @@ export const proof = {
     },
     /**
      * `Any::dot` reads an array, a string, a boolean, a number, and
-     * a bigint receiver correctly — unlike `Any::own_property`, which only
-     * inspects a plain object — so a base this printer can prove is one of
+     * a bigint receiver correctly — a `length` among what it reads, which
+     * `Any::entry`, the helper's read, never answers — so a base this
+     * printer can prove is one of
      * these prints the call rather than refusing it: `[1].length`, `"ab"[0]`,
      * `true.x` (`undefined`, since a boolean has no own properties at all)
      * are accepted, per `spec/README.md`'s Property Access.
