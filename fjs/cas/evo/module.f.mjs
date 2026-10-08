@@ -74,7 +74,6 @@ import { ok, error, okThen } from '../../types/result/module.f.mjs'
 import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.mjs'
 import { at, definedEntries } from '../../types/object/module.f.mjs'
 import { unwrap } from '../../types/nullable/module.f.mjs'
-import { dedup } from '../../types/array/module.f.mjs'
 import { errorSummary, isNotFound } from '../../effects/node/module.f.mjs'
 import { decodeText, encodeText, dialect, checkReferences, isHash, mapHashes } from '../../media/revision/module.f.mjs'
 
@@ -105,6 +104,20 @@ export const emptyCache = { bySubject: {} }
 
 /** @type {SubjectState} */
 const emptySubjectState = { hashes: [], parents: [], archived: [] }
+
+/**
+ * Adds every item of `items` to `set` that isn't already there, preserving `set`'s existing order.
+ *
+ * The result is `fjs/types/array`'s `dedup([...set, ...items])`, but not its
+ * cost: `set` is already free of repeats, so only the new `items` are looked
+ * up in it, while `dedup` would re-check every item of `set` against all the
+ * ones before it. {@link buildCache} folds a subject's whole history through
+ * here one revision at a time, which `dedup` would make cubic in its length.
+ *
+ * @type {(set: readonly Hash[]) => (items: readonly Hash[]) => readonly Hash[]}
+ */
+const union = set => items =>
+    items.reduce((/** @type {readonly Hash[]} */ acc, h) => acc.includes(h) ? acc : [...acc, h], set)
 
 /**
  * Re-encodes `h` in its canonical cBase32 spelling. `cBase32ToVec` accepts
@@ -183,9 +196,9 @@ const addRevisionToCache = (hash, revision) => cache => {
     const existing = at(revision.subject)(cache.bySubject) ?? emptySubjectState
     /** @type {SubjectState} */
     const state = {
-        hashes: dedup([...existing.hashes, hash]),
-        parents: dedup([...existing.parents, ...revision.parents.map(canonicalHash)]),
-        archived: dedup([...existing.archived, ...(revision.archived === undefined ? [] : [hash])]),
+        hashes: union(existing.hashes)([hash]),
+        parents: union(existing.parents)(revision.parents.map(canonicalHash)),
+        archived: union(existing.archived)(revision.archived === undefined ? [] : [hash]),
     }
     return { bySubject: { ...cache.bySubject, [revision.subject]: state } }
 }
