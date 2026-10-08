@@ -54,11 +54,11 @@ export default (a, b) => a instanceof Array && b instanceof Array;
 - **The right operand is read as an expression and must be a reference
   to `Array`.** In the grammar `instanceof` is one more relational
   operator, so its right operand is read as `<`'s is, and the fold admits
-  exactly one value there: a reference to the word `Array` that no `const`
-  and no parameter binds. Parentheses are a group and vanish in the AST,
-  so `a instanceof (Array)` is the same node as `a instanceof Array`, as in
-  JavaScript; `a instanceof Array.prototype.constructor` is an access, not
-  a reference, and is refused with a message naming the rule, as is any
+  exactly one value there: a reference to the word `Array`. Parentheses
+  are a group and vanish in the AST, so `a instanceof (Array)` is the same
+  node as `a instanceof Array`, as in JavaScript;
+  `a instanceof Array.prototype.constructor` is an access, not a
+  reference, and is refused with a message naming the rule, as is any
   other value. The restriction is to what the language has a meaning for,
   not to a spelling.
 - **`instanceof` is a reserved word**, as `typeof` is: it names no `const`
@@ -70,14 +70,24 @@ export default (a, b) => a instanceof Array && b instanceof Array;
   begins — it opens a tail, after an operand, where no reference may stand —
   so it can stay in the grammar's `identifier` rule and reach the fold,
   which refuses it as a `reserved word` as it refuses `const if = 1;`.
-- **A module that binds `Array`.** `const Array = 1; export default
-  [] instanceof Array;` throws in JavaScript, reading the local. The rule
-  above refuses it without a case of its own: the reference resolves to a
-  binding, so it is not the unbound `Array` the operand must be — the
-  honest answer, since the compiler would otherwise mean the global where
-  the source means the local. Once
-  [`2365-global-names.md`](./2365-global-names.md) refuses the binding
-  itself, the case is unreachable.
+- **`Array` is a reserved word**, like `NaN` and `Infinity`
+  ([numbers](../README.md#numbers)): a module cannot bind it as a `const`
+  or a parameter, and it still names a property, `{ Array: 1 }` and
+  `a.Array`. This is the first entry of
+  [`2365-global-names.md`](./2365-global-names.md)'s list to land, for
+  the reason that file gives: a module that binds the word means
+  something else by it. Checking the scope at the operator is not enough,
+  because the fold resolves a reference against the names bound so far
+  ([`3140-forward-references.md`](./3140-forward-references.md)), so in
+  `const x = [] instanceof Array; const Array = 1;` the operator would
+  see `Array` unbound and answer `true`, where JavaScript throws on a
+  binding still in its temporal dead zone — a plausible wrong value, which
+  the language never gives. Refusing the binding anywhere in the module
+  closes both orders at once, and the refusal already exists: the fold's
+  `reserved word`, one name longer. It is a breaking change — `const
+  Array = 1;` compiles today — declared by the pull request that lands
+  it; no FunctionalScript source in the repository binds the word, so it
+  costs no rename.
 
 ### Semantics
 
@@ -153,10 +163,13 @@ proposal's question; the name form stays for the built-ins either way.
       analysis reads the name and walks the one operand; the proofs.
 - [ ] `fjs/compiler/parser/grammar`: `instanceof` in `_framingKeywords`
       and in `relationalTags`; the `types.ts` pins.
-- [ ] `fjs/compiler/parser`: the fold's arm for the tag — the right
-      operand admitted only as a reference to an unbound `Array`, anything
-      else refused with the rule's message — the AST node, the lowering to
-      `['instanceof', exp, 'Array']`.
+- [ ] `fjs/compiler/parser`: `Array` among the reserved words the fold
+      refuses as a binding, with proofs for a `const`, a parameter, a key
+      and a property name; the fold's arm for the tag — the right operand
+      admitted only as a reference to `Array`, anything else refused with
+      the rule's message — the AST node, the lowering to
+      `['instanceof', exp, 'Array']`. The pull request declares the
+      breaking change.
 - [ ] `fjs/compiler/serializer/function_text`: `(x instanceof Array)`.
 - [ ] `fjs/edag/rust`: `Any::instanceof_(x, Constructor::Array)`;
       `nanvm-lib`: a `Constructor` enum with the one variant, the method as
@@ -177,8 +190,10 @@ proposal's question; the name form stays for the built-ins either way.
 - [`2360-built-in.md`](./2360-built-in.md) — why no global is a value the
   right operand could be; `Array.isArray` is listed there, and over
   FunctionalScript's values it is this same test.
-- [`2365-global-names.md`](./2365-global-names.md) — makes the bound-`Array`
-  refusal unreachable.
+- [`2365-global-names.md`](./2365-global-names.md) — reserving `Array`
+  is the first entry of its list to land; its tasks tick one name.
+- [`3140-forward-references.md`](./3140-forward-references.md) — why a
+  scope check at the operator could not see a later binding.
 - [`3390-class.md`](./3390-class.md) — where `instanceof` over a class
   value becomes the node's second arity.
 - [`fjs/compiler/todo/unary-tags.md`](../../fjs/compiler/todo/unary-tags.md)
