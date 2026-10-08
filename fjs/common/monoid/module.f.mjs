@@ -5,9 +5,10 @@
  * of a list as a balanced binary tree.
  *
  * The balanced fold's state, a {@link Stack} of runs that carries like a
- * binary counter, is exported too — `push`, `step` and `runs` — for a
- * structure that keeps the stack itself rather than folding it away, as
- * [`fjs/types/set`](../../types/set/module.f.mjs) does.
+ * binary counter, is exported too — `step` and `runs` — for a structure that
+ * keeps the stack itself rather than folding it away, as
+ * [`fjs/types/set`](../../types/set/module.f.mjs) does. `step` is the only
+ * way in: every stack it builds from `null` keeps the {@link Stack} layout.
  *
  * @module
  *
@@ -76,9 +77,13 @@ export const repeat = ({ identity, operation }) => n => a => {
  * The result is always a run, never the empty stack — which is what lets
  * {@link absorbingAccumulator} read `null` as a stop signal rather than a state.
  *
+ * Private: only the sizes {@link step} calls it with — `1`, then the doubling
+ * carry — keep the {@link Stack} layout. A run larger than the top, or a size
+ * that is not a power of two, would be prepended as is.
+ *
  * @type {<T>(operation: Reduce<T>) => (size: number) => (value: T) => (stack: Stack<T>) => Run<T>}
  */
-export const push = operation => size => value => stack =>
+const push = operation => size => value => stack =>
     stack === null || stack.size !== size
         ? { size, value, rest: stack }
         : push(operation)(size * 2)(operation(stack.value)(value))(stack.rest)

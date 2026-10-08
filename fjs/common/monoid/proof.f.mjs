@@ -4,7 +4,7 @@
  * @import { Absorbing, Monoid, Stack } from './types.ts'
  */
 
-import { repeat, fold, foldAbsorbing, push, runs, step } from './module.f.mjs'
+import { repeat, fold, foldAbsorbing, runs, step } from './module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 
@@ -152,10 +152,7 @@ export const proof = {
         assertStructurallySame(toArray(runs(empty)), [])
         const three = s('c')(s('b')(s('a')(empty)))
         assertStructurallySame(toArray(runs(three)), ['c', 'ab'])
-        assertStructurallySame(toArray(runs(s('d')(three))), ['abcd'])
-        // `push` takes a run of any size: a run of 2 on a run of 2 is a run
-        // of 4.
-        const four = push(concat)(2)('cd')(push(concat)(2)('ab')(empty))
+        const four = s('d')(three)
         assertEq(four.size, 4)
         assertStructurallySame(toArray(runs(four)), ['abcd'])
     },
