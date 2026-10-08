@@ -123,6 +123,12 @@ export const maxPort = 0xffff
  * anything else, and a runner that accepted `-1` or `NaN` would let a program
  * be proven that cannot run.
  *
+ * Not `fjs/types/number`'s `isUintUpTo(maxPort)`, which refuses `-0`: this
+ * states the host's contract, and Node's `Server.listen` takes `-0` as port
+ * `0`. The native runner forwards a port to `listen` unchecked and only the
+ * virtual runner gates on this, so refusing `-0` here would make the two
+ * runners disagree.
+ *
  * @type {(port: number) => boolean}
  */
 export const isPort = port => Number.isInteger(port) && port >= 0 && port <= maxPort

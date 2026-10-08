@@ -74,3 +74,21 @@ export type Absorbing<T> = {
     readonly monoid: Monoid<T>
     readonly absorbing: T
 }
+
+/**
+ * A run of `size` already-combined elements. Runs live on a {@link Stack}
+ * whose top is the most recent — and smallest — run, so `rest` holds
+ * everything to the left of `value`.
+ */
+export type Run<T> = {
+    readonly size: number
+    readonly value: T
+    readonly rest: Stack<T>
+}
+
+/**
+ * A stack of runs, `null` when empty: the state of a balanced fold, laid out
+ * as the binary representation of the number of elements pushed — the run
+ * sizes are its set bits, so `n` elements are at most `log2(n) + 1` runs.
+ */
+export type Stack<T> = Run<T> | null
