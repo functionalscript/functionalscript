@@ -49,6 +49,50 @@ impl<R, O, E> Native<R, O, E> {
     }
 }
 
+/// `NodeOp`'s commands, as `nodeCommands` in `fjs/effects/node/module.f.mjs`:
+/// a command outside them is a malformed request, not a missing capability.
+const COMMANDS: [&str; 39] = [
+    "access",
+    "all",
+    "await",
+    "catch",
+    "close",
+    "createExclusive",
+    "createServer",
+    "exec",
+    "fetch",
+    "forever",
+    "fstat",
+    "import",
+    "inflate",
+    "listen",
+    "memCreate",
+    "memRead",
+    "memWrite",
+    "mkdir",
+    "now",
+    "open",
+    "pread",
+    "randomInt",
+    "read",
+    "readBytes",
+    "readFile",
+    "readRequestBytes",
+    "readWhole",
+    "readdir",
+    "rename",
+    "resolveFileModule",
+    "rm",
+    "rmdir",
+    "sandbox",
+    "stat",
+    "test",
+    "write",
+    "writeBytes",
+    "writeExclusive",
+    "writeFile",
+];
+
 /// What a host answers a command it has no operation for: `['error',
 /// ['notImplemented', command]]`, through the ordinary continuation, so the
 /// program decides what that means.
@@ -57,6 +101,10 @@ fn not_implemented<A: IVm>(command: &str) -> Any<A> {
         "error",
         encode_tuple("notImplemented", encode_string(command.to_string())),
     )
+}
+
+fn malformed_command<T>(command: &str) -> Result<T, Malformed> {
+    Err(Malformed(format!("`{command}` is not a command")))
 }
 
 impl<R: Read, O: Write, E: Write> Native<R, O, E> {
@@ -87,7 +135,8 @@ impl<R: Read, O: Write, E: Write> Native<R, O, E> {
                 decode_literal(argument(payload, 0, "stream")?, "stdin")?;
                 Ok(encode_ok(encode_nullable(self.read(), encode_number)))
             }
-            _ => Ok(not_implemented(&command)),
+            _ if COMMANDS.contains(&command.as_str()) => Ok(not_implemented(&command)),
+            _ => malformed_command(&command),
         }
     }
 
@@ -171,15 +220,37 @@ mod test {
         assert_eq!(ok(write(&mut h, "stderr")), Nullish::Undefined.to_any());
         assert_eq!(h.stdout().as_slice(), b"hi");
         assert_eq!(h.stderr().as_slice(), b"hi");
+        // the streams are told apart: one write reaches one stream only
+        ok(write(&mut h, "stdout"));
+        assert_eq!(h.stdout().as_slice(), b"hihi");
+        assert_eq!(h.stderr().as_slice(), b"hi");
+        h.stdout.clear();
         h.perform(
             string_any("write"),
             array([string_any("stdout"), bigint_any(0)]),
         )
         .unwrap();
-        assert_eq!(h.stdout().as_slice(), b"hi");
+        assert!(h.stdout().is_empty());
         let read = |h: &mut Host| ok(h.perform(string_any("read"), array([string_any("stdin")])));
         assert_eq!(read(&mut h), Number::from(97.0).to_any());
         assert_eq!(read(&mut h), Nullish::Null.to_any());
+    }
+
+    /// A trailing partial byte is zero-padded in its low bits, as `fromVec` does.
+    #[test]
+    fn partial_byte() {
+        let mut h = host(b"");
+        // `vec(1n)(1n)`: the one bit `1`
+        ok(h.perform(
+            string_any("write"),
+            array([string_any("stdout"), bigint_any(1)]),
+        ));
+        // `vec(9n)(0b1_0000_0001n)` shifted: nine bits, `1 0000 0001`
+        ok(h.perform(
+            string_any("write"),
+            array([string_any("stdout"), bigint_any(0b1_0000_0001)]),
+        ));
+        assert_eq!(h.stdout().as_slice(), [0x80, 0x80, 0x80]);
     }
 
     /// A command the host lacks is answered through the continuation as
@@ -219,12 +290,12 @@ mod test {
             "`net` is not one of [\"stdout\", \"stderr\"]"
         );
         assert_eq!(
-            throws(w(), array([string_any("stdout"), bigint_any(0b1101)])),
-            "a bit vector that is not whole bytes"
-        );
-        assert_eq!(
             throws(w(), array([string_any("stdout"), string_any("hi")])),
             "not a bit vector"
+        );
+        assert_eq!(
+            throws(string_any("wirte"), array([])),
+            "`wirte` is not a command"
         );
         assert_eq!(
             throws(string_any("read"), array([string_any("stdout")])),
