@@ -121,7 +121,7 @@ sharing. Use [`examples`](./examples/module.f.mjs), through
 - **A caption is marked `data-caption`, which sets it bold at the text's own
   size**, as a label is, so a reader tells each result's name from the result
   and from the lead. It stays a `p`, not a heading: the demo's only headings
-  are the `h3`s over [parallel results](#one-order-top-to-bottom). Everything
+  are the `h3`s over [parallel parts](#one-order-top-to-bottom). Everything
   else around the output — the lead, explanatory notes, a progress summary, a
   disclosure's title — stays regular, so the bold marks only what names a
   control or a result.

@@ -60,11 +60,12 @@ Change the shared builders first, so most demos move by changing one place:
 - a text result through the shared [`codeBlock`](../code/module.f.mjs), or a
   plain `data-code` box where the reader has no reason to paste it
   elsewhere, with a proof that pins the `data-code` marker as the refusal
-  element's pins its own — today no proof does, so a renamed marker leaves
-  every result unboxed with every check green. The compiler's side-by-side,
-  parser, serializer and Rust pages build their result with one repeated
-  `kind === 'ok' ? ['pre', value] : …` line, which the refusal element can
-  replace together with it.
+  element's pins its own. Today `codeBlock`'s own proof does not pin it: only
+  the demos whose proofs happen to quote the box do, such as VDF's and
+  rtti's, so a demo whose proof does not can lose its box with every check
+  green. The compiler's side-by-side, parser, serializer and Rust pages build
+  their result with one repeated `kind === 'ok' ? ['pre', value] : …` line,
+  which the refusal element can replace together with it.
 
 Then the remaining demos, a few per pull request, each checked in the
 browser with its preview link in the description.
