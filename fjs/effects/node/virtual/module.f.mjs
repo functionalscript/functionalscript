@@ -18,7 +18,7 @@
 import { assert, todo } from '../../../asserts/module.f.mjs'
 import { isProperPrefix, join, normalize, parse } from '../../../path/module.f.mjs'
 import { resolve as resolveImportPath } from '../../../path/import/module.f.mjs'
-import { utf8ToString } from '../../../text/module.f.mjs'
+import { utf8, utf8ToString } from '../../../text/module.f.mjs'
 import { byteLength, bytesIn, empty, isWholeBytes, length, maxLengthBytes, msb, vec } from '../../../types/bit_vec/module.f.mjs'
 import { error, ok, unwrap } from '../../../types/result/module.f.mjs'
 import {
@@ -504,10 +504,10 @@ const { keys } = Object
  * found — which is what `readdir` with `recursive` answers on Node, and what
  * a depth-first walk does not.
  *
- * The order of names is the order of their UTF-16 code units, as `sort`
- * gives it. A host's is the order of their bytes where the two differ, which
- * is for characters outside the Basic Multilingual Plane against those above
- * `U+E000`.
+ * Names are compared by their UTF-8 bytes, as on the measured POSIX hosts.
+ * The shared MSB-first comparator puts a shorter prefix first and preserves
+ * that order for non-BMP names too: `U+E000` precedes `U+10000`, unlike the
+ * default UTF-16 comparison of `toSorted()`.
  *
  * @type {(base: string, recursive: boolean) => (path: string) => (state: State) => readonly [State, IoResult<readonly Dirent[]>]}
  */
@@ -519,7 +519,7 @@ const readdir = (base, recursive) => readOperation((dir, path) => {
     let result = []
     for (let i = 0; i < queue.length; i++) {
         const [parentPath, d] = queue[i]
-        for (const name of keys(d).toSorted()) {
+        for (const name of keys(d).toSorted((a, b) => msb.cmp(utf8(a))(utf8(b)))) {
             const content = d[name]
             if (content === undefined) { continue }
             const isFile = !isDir(content)
@@ -907,7 +907,8 @@ const statPath = readOperation((dir, path) => {
     if (file === undefined) { return enoent }
     if (path.length !== 1) { return enotdir }
     // `isBinFile` rather than a local `Array.isArray`: which entity kind a name
-    // holds is asked in one place now (#1697), and `stat` is one of its askers.
+    // holds is asked in one place now (#1697), and the size calculation uses the same
+    // helper as the write path, so the two cannot disagree about the file's end.
     if (!isBinFile(file)) { return notRegular }
     return ok({ size: fileSizeBytes(file), isFile: true, isDirectory: false })
 })
