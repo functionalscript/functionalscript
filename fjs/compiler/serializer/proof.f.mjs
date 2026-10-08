@@ -421,6 +421,20 @@ export const proof = {
         writes(['()', ['entry'], [1, 2]], `const $0=${named};export default $0(1,2);`)
         writes(['.', ['entry'], 'length'], `const $0=${named};export default $0.length;`)
         writes(['=>', 0, [], ['entry']], `export default ()=>${text};`)
+        // an operand of an operator, a prefix's and a conditional's
+        // condition are grouped as a function is, an arrow being no
+        // operand bare; a conditional's arm, an item and an argument are
+        // not, as a function is not
+        const second = '($3,$4)=>{const $5=Object.getOwnPropertyDescriptor($3,$4);return $5?.enumerable?$5.value:undefined;}'
+        writes(['typeof', ['entry']], `export default typeof (${text});`)
+        writes(['-', ['entry']], `export default -(${text});`)
+        writes(['===', ['entry'], ['entry']], `export default (${text})===(${second});`)
+        writes(['**', ['entry'], 2], `export default (${text})**2;`)
+        writes(['**', 2, ['entry']], `export default 2**(${text});`)
+        writes(['&&', 1, ['entry']], `export default 1&&(${text});`)
+        writes(['?:', ['entry'], 1, 2], `export default (${text})?1:2;`)
+        writes(['?:', 1, ['entry'], 2], `export default 1?${text}:2;`)
+        writes(['()', ['=>', 0, [], 1], [['entry']]], `const $0=()=>1;export default $0(${named});`)
         assertEq(unwrap(tryFunctionText(['entry'])), text)
         const a = assertOk(analysis(['[]', [['entry'], 1]]))
         assertEq(functionText(a, 0), text)

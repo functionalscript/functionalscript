@@ -100,8 +100,8 @@ select the enumerable-entry operation.
 | `a.foo`, `a["foo"]` | `['.', A, 'foo']` | Current, for permitted names |
 | `a[0]` | `['.', A, 0]` | Current |
 | `a.foo(x)` | `['.', A, 'foo', ['\|()', Args]]` | Current receiver-preserving lowering, for permitted names |
-| Complete recognized `entry` definition | `['entry']` | Proposed in `entry.md` |
-| `entry(a, key)` | `['()', E, [A, K]]` | Proposed ordinary call of that helper |
+| The `entry` helper, recognized whole | `['entry']` | Current ([spec: entry](../README.md#reading-an-entry-at-run-time)) |
+| `entry(a, key)` | `['()', E, [A, K]]` | Current, an ordinary call of that helper |
 
 `A`, `K` and `E` denote lowered receiver, key and helper expressions;
 `Args` denotes the lowered argument list. The method-call
@@ -113,9 +113,9 @@ Backend names such as `instance_property`, `at` and `own_property` in older
 sketches are not source-to-EDAG rules. A backend may specialize `.` for a
 known receiver/key, or share a lookup helper where the semantics agree,
 without replacing it with an enumerable-only operation. This does not rename
-host helpers or change an existing opcode. `entry.md` owns any coordinated
-migration of internal `own` semantics; its writer refuses bare internal `own`,
-not ordinary static reads represented by `.`.
+host helpers or change an existing opcode. The EDAG's former `own` operation
+went with the helper's arrival: `.` represents ordinary static reads, and
+`['entry']` the one read of a computed key.
 
 ## Instance Property
 

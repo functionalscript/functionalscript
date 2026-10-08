@@ -194,7 +194,7 @@ const hoistedKind = (a, i) => minting(a.nodes[i])
  */
 const basedHoisted = (a, base) => !(base instanceof Array)
     ? typeof base === 'number' || typeof base === 'bigint'
-    : a.nodes[base[1]][0] === '=>' || a.nodes[base[1]][0] === 'entry'
+    : arrowKind(a.nodes[base[1]][0])
 
 /** Two hoisted values are one when they name the same entry, or the same primitive by `Object.is`. @type {(x: _Hoisted, y: _Hoisted) => boolean} */
 const sameHoisted = (x, y) => x[0] === y[0] && Object.is(x[1], y[1])
@@ -313,6 +313,17 @@ const kindOf = (s, v) => {
 }
 
 /**
+ * A kind whose text is an arrow function — a function, or the `entry`
+ * helper, written in place as one — which JavaScript reads as an
+ * `AssignmentExpression` and no operand of an operator: an operator's
+ * operand, a prefix's and a conditional's condition group it, and a base
+ * hoists it.
+ *
+ * @type {(kind: string | null) => boolean}
+ */
+const arrowKind = kind => kind === '=>' || kind === 'entry'
+
+/**
  * The operators by level, loosest first, JavaScript's own ladder
  * ([spec: operators](../../../spec/README.md#operators)): the conditional;
  * `||` and `??` — one level, though the two never mix bare — `&&`; and
@@ -376,7 +387,7 @@ const grouped = grouped => text => grouped ? flat([['('], text, [')']]) : text
  * @type {(op: string, right: boolean) => (node: Node | null) => boolean}
  */
 const operandGrouped = (op, right) => node => node !== null && (
-    node[0] === '=>'
+    arrowKind(node[0])
     || mixesNullish(node[0], op)
     || precedence(node) < level(op)
     || (precedence(node) === level(op) && right !== (op === '**')))
@@ -436,7 +447,7 @@ const opensWithMinus = text => firstChunk(text).startsWith('-')
 const prefix = (s, path) => op => v => mapOk(
     /** @type {(text: List<string>) => List<string>} */
     (text => flat([[op === 'typeof' ? 'typeof ' : op === '-' && opensWithMinus(text) ? '- ' : op], text])),
-)(mapOk(grouped(isOperator(nodeOf(s, v)) || kindOf(s, v) === '=>'))(operand(s, path)(v)))
+)(mapOk(grouped(isOperator(nodeOf(s, v)) || arrowKind(kindOf(s, v))))(operand(s, path)(v)))
 
 /** An operand's text in place, with whether it is a block; a name and a primitive are neither. @type {(s: _Scope, path: string) => (v: Operand) => Result<_Written, string>} */
 const inPlace = (s, path) => v => mapOk((/** @type {List<string>} */ text) => ({ text, block: false }))(operand(s, path)(v))
@@ -542,7 +553,7 @@ const conditional = (s, path) => ([, c, t, e]) => mapOk(
     /** @type {(parts: readonly List<string>[]) => List<string>} */
     (([cond, then, otherwise]) => flat([cond, ['?'], then, [':'], otherwise])),
 )(okList([
-    mapOk(grouped(kindOf(s, c) === '?:' || kindOf(s, c) === '=>'))(operand(s, `${path}/condition`)(c)),
+    mapOk(grouped(kindOf(s, c) === '?:' || arrowKind(kindOf(s, c))))(operand(s, `${path}/condition`)(c)),
     lazyOperand(s, `${path}/then`, () => false)(t),
     lazyOperand(s, `${path}/else`, () => false)(e),
 ]))

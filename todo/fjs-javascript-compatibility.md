@@ -221,7 +221,9 @@ The TODO records that API choice rather than silently deciding it.
 
 The old `hasOwn` proposal already required extending or refusing unsupported
 receivers rather than returning a fabricated boolean. Its enumerability
-redefinition was proposed by `entry.md`, not by that receiver rule. The new
+redefinition came with the `entry` helper
+([spec: entry](../spec/README.md#reading-an-entry-at-run-time)), not from
+that receiver rule. The new
 direction retires standard-call recognition and its unresolved undefined-value
 answer instead of requiring an implementation of it.
 
