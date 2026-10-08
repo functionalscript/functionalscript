@@ -9,7 +9,7 @@
 import type { Meta, Unmapped } from '../../../ebnf/ast/types.ts'
 import type { TokenMetadata } from '../../../ebnf/lib/js/types.ts'
 import type { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
-import type { Item, Out } from './types.ts'
+import type { Item, Key, Out } from './types.ts'
 
 /**
  * The ordinary token stream the grammar reads, with the tokenizer's one
@@ -90,9 +90,8 @@ export type _NameNode = Unmapped<readonly [unknown, _Leaf]>
 export type _AccessNode = Unmapped<readonly [string, unknown]>
 
 /**
- * The branch of a property access, `. name` or `[ key ]`: the token its
- * key is read from at the second position, under the identifier's or the
- * constant's own alternative.
+ * The branch of a property access, `. name`: the token its key is read
+ * from at the second position, under the identifier's own alternative.
  */
 export type _KeyBranch = Unmapped<readonly [unknown, Unmapped<readonly [unknown, _Leaf]>, ...unknown[]]>
 
@@ -104,8 +103,8 @@ export type _KeyBranch = Unmapped<readonly [unknown, Unmapped<readonly [unknown,
  */
 export type _OptionalBranch = Unmapped<readonly [unknown, _Leaf]>
 
-/** The branch of an index step, `[ key ]`: the key's constant at the second position, under its own alternative. */
-export type _IndexBranch = Unmapped<readonly [unknown, Unmapped<readonly [unknown, _Leaf]>, unknown]>
+/** The branch of an index step, `[ value ]`: what the index rule's mapping returned, at the second position. */
+export type _IndexBranch = Unmapped<readonly [unknown, _Leaf, unknown]>
 
 /**
  * One step as `stepOf` reads it: whether `?.` guards it, and the token its
@@ -113,7 +112,7 @@ export type _IndexBranch = Unmapped<readonly [unknown, Unmapped<readonly [unknow
  */
 export type _StepRead = {
     readonly optional: boolean
-    readonly key: DjsTokenWithMetadata | null
+    readonly key: Key | null
     readonly items: readonly Item[] | null
 }
 

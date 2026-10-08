@@ -18,7 +18,8 @@ waiting: it stays refused ([operators](#operators)).
 The compiler accepts values ([supported value types](#supported-value-types)),
 the [constants](#shared-values-constants) and
 [imports](#importing-other-modules) that share them,
-[property access](#property-access), [operators](#operators), and
+[property access](#property-access), [operators](#operators), the
+[`Number` conversion](#number-conversion), and
 [functions](#functions) with their calls, and this document specifies all of
 them. The outputs differ in what they can write, so one module may compile to
 one output and be refused by another ([output](#output)).
@@ -721,7 +722,8 @@ See
 An expression is a data expression, a property access, a function, a call, an
 operator ([operators](#operators)) — a prefix `-` (negation), `~` (bitwise
 not), `!` (logical not) or `typeof`, a binary operator or the conditional
-`?:` — or any of those in parentheses ([grouping](#grouping)).
+`?:` — the conversion `Number(exp)` ([number conversion](#number-conversion)),
+or any of those in parentheses ([grouping](#grouping)).
 
 |Value|Example|In JSON|
 |-----|-------|:-----:|
@@ -1360,6 +1362,79 @@ Read back, that text is the graph it was written from. `.json` and
 unused `const` included, so a module holding one compiles to `.js`,
 `.edag.data.js` and `.rs`.
 
+## Number Conversion
+
+```js
+export default (...a) => [Number(a[0]), Number("0x10"), Number(1n)];
+```
+
+`Number(exp)` converts its operand to a number, exactly as JavaScript's
+`Number` does when called. A number is itself. A string is read as a numeric
+literal, the whitespace around it ignored: `Number("0x10")` is `16`,
+`Number(" 4 ")` is `4`, `Number("")` is `0`, and `Number("x")` is `NaN`.
+`null` is `0`, `undefined` is `NaN`, and a boolean is `1` or `0`. A `bigint`
+is the nearest number — `Number(1n)` is `1`, and `Number(2n ** 64n)` is
+`18446744073709552000`, rounded as JavaScript rounds it. An array and an
+object are made primitive as the [operators](#operators) make them: an array
+by joining its elements, so `Number([7])` is `7` and `Number([1, 2])` is
+`NaN`; an object through its own `valueOf` or `toString`, called as
+JavaScript calls them, and `"[object Object]"` otherwise, so `Number({})` is
+`NaN`. A function converts to its text, which is no number. Where a
+`valueOf` or a `toString` throws, so does the conversion
+([failure is one outcome](#failure-is-one-outcome)).
+
+It is the language's conversion to a number: unary `+` is not FunctionalScript
+syntax, and where the EDAG has it the two differ, `+` throwing on a `bigint`
+([operators](./todo/2340-operators.md)). It is the EDAG's own
+`['Number', exp]`, which every output spells and every executor answers; the
+front end folds nothing, `Number("1")` reaching the graph as a node, as `~1`
+does. The conversion is a value like any other: an operand, `-Number("1")`
+and `Number(a) * 2`; a base, `Number(a).x`; and a callee, however little
+calling a number is worth. The FunctionalScript writer spells it back as it
+is written, the operand an argument, `Number(1+2)`.
+
+**`Number` is a reserved word**, the first of the names
+[global names](./todo/2365-global-names.md) reserves —
+[`fjs/js/keywords`](../fjs/js/keywords/module.f.mjs)' `reservedGlobals`, a
+list beside the keywords rather than among them, since JavaScript has no
+such keyword. A module cannot bind it, as a `const`, a parameter or an
+import's local name ([shared values](#shared-values-constants)), and it is
+no value: it stands only as the callee of a call, and is a compilation
+error (`reserved word`) anywhere else — bare,
+`const f = Number;`, or as a namespace, `Number.isFinite(x)`, whose members
+are [built-ins](./todo/2360-built-in.md) still to admit, each on its own.
+A key or a property name is not a reference, so `{ Number: 1 }` and
+`o.Number` mean what they mean in JavaScript. `Number()` is `0`, as in
+JavaScript, and reaches the graph as the literal, folded as `-1` is. Two
+call shapes are not recognized yet, and refused by name
+(`Number takes one argument`) rather than answered wrongly: `Number(a, b)`,
+which establishes `a`, then `b`, then converts `a` — the comma operator's
+`(a, b, Number(a))`, which lands with it
+([operators](./todo/2340-operators.md)) — and `Number(...a)`, which converts
+the first value the spread yields after yielding them all, or is `0` where it
+yields none, as `Number()` is, a call of a runtime arity no node expresses
+yet ([number-spread](./todo/2363-number-spread.md)). Nor is the guarded call `Number?.(x)`,
+which is `Number(x)` in JavaScript, the word never being nullish: it is
+refused at the word (`reserved word`) as every other spelling of `Number`
+but the call is, until a pull request reads the guard away, a spelling no
+module writes.
+
+The word is reserved for the guarantee `undefined`, `NaN` and `Infinity`
+already have ([numbers](#numbers)): a global word means one thing wherever
+it stands. `Number(x)` is the conversion in every module, so a reader, an
+agent or a tool reads it without resolving a scope, where a JavaScript module
+that binds the word — `const Number = x => x;`, the shadowing JavaScript's
+linters flag — makes every `Number(…)` after it something else. And it keeps
+the language free to grow: a member of the namespace admitted later,
+`Number.isInteger` ([built-ins](./todo/2360-built-in.md)), cannot change
+what an existing module means, since no module could have bound the word
+([global names](./todo/2365-global-names.md)). The one JavaScript spelling it
+costs, a module rebinding a standard global, is refused at compile time
+rather than read another way.
+
+It is also the one key computed at run time, `a[Number(i)]`
+([property access](#property-access)).
+
 ## Property Access
 
 ```js
@@ -1393,12 +1468,27 @@ is `o["1e-7"]`, and `o[1e400]`, a literal that overflows, is
 `o["Infinity"]` — a key the FunctionalScript (`.js`) output refuses to write
 (`a number key no literal reads back`). A string in brackets is the key
 unchanged, so `a["01"]` and `a["1.0"]` name no element and are `undefined`,
-as in JavaScript. Anything else in the brackets is not recognized yet: a key
-computed at run time, `a[i]`, which the `entry` helper reads instead
-([reading an entry at run time](#reading-an-entry-at-run-time)), and every
-other expression, `a[-1]` and `a[NaN]` included — their keys are written as
-strings instead, `a["-1"]` and `a["NaN"]`. Trivia, a line break included,
-may stand on either side of the
+as in JavaScript.
+
+A key computed at run time is the conversion,
+`a[Number(i)]` ([number conversion](#number-conversion)): the property the
+number names, its string as JavaScript gives it, so `xs[Number("1")]` and
+`xs[1]` read one element, `"abc"[Number(true)]` is `"b"`, and
+`xs[Number("x")]`, whose key is `"NaN"`, is `undefined`. It reads an own
+property as every access does, and no prototype name is a number's string,
+so nothing is refused at a converted key; `a[Number(i)](x)` calls what it
+reads with `a` as the receiver, as `a[0](x)` does. Its base and its key are
+both evaluated, as in JavaScript, though not in a promised order: where both
+fail, which fails first is no observation
+([failure is one outcome](#failure-is-one-outcome)). `a?.[Number(i)]`
+evaluates the key only where `a` is neither `null` nor `undefined`
+([optional chaining](#optional-chaining)).
+Anything else in the brackets is a compilation error
+(`computed key is not Number(...)`), at the token it begins with: `a[i]`,
+whose type the compiler does not know — a key of any type is the `entry`
+helper's to read ([reading an entry at run time](#reading-an-entry-at-run-time))
+— and every other expression, `a[-1]` and `a[NaN]` included, whose keys
+are written as strings instead, `a["-1"]` and `a["NaN"]`. Trivia, a line break included, may stand on either side of the
 `.` or the `[` and inside the brackets, as between any two tokens
 ([trivia](#whitespace-and-line-terminators)): `a . b`, `a./* c */b` and `a`
 with `.b` on the next line are each `a.b`, as JavaScript reads them.
@@ -1472,8 +1562,10 @@ function is called through either, and `(a?.b)(c)` keeps it too, as
 `(a.b)(c)` does. The key is judged as an access's is — a prototype name
 refused as a read, `a?.at`, and allowed as a call, `a?.at(0)`; a member
 function a module may not call refused at its key, `a?.push(1)`; `length`
-read from any value — and a key computed at run time, `a?.[i]`, waits on
-the same step `a[i]` waits on.
+read from any value — and a key computed at run time is the conversion,
+`a?.[Number(i)]`, as it is after `.`
+([property access](#property-access)), established only where the guard
+lets the chain go on.
 
 The graph is `fjs/edag/README.md`'s Chains, where every spelling has one
 shape and the host engine agrees with it: `a?.b` is `['?.', a, 'b']`, the
@@ -1542,9 +1634,10 @@ The node is the language's one read of a property by a name it computes:
 `Object` is no value a module can name outside the helper
 ([built-ins](./todo/2360-built-in.md)), and `a[i]` stays unread
 ([property access](#property-access)). Where a program knows its index to
-be a number, the spelling to come is `a[Number(i)]`, or `a[+i]` where no
-`bigint` can reach it, [property-accessor](./todo/2330-property-accessor.md)'s
-next step; `entry` is the read for a key of any type.
+be a number, the spelling is `a[Number(i)]`
+([property access](#property-access)); `a[+i]`, where no `bigint` can reach
+it, is [property-accessor](./todo/2330-property-accessor.md)'s still, and
+`entry` is the read for a key of any type.
 
 ## Importing Other Modules
 
@@ -1687,7 +1780,10 @@ written.
   since any broken JavaScript program is a broken FunctionalScript program.
   `undefined`, `NaN` and `Infinity` are refused as well, although a
   JavaScript module may bind them, so that each denotes its value wherever a
-  value stands ([numbers](#numbers)). A word that is a keyword only in some
+  value stands ([numbers](#numbers)); and so is `Number`, the first global
+  reserved under [global names](./todo/2365-global-names.md), which names
+  no value and stands only as the conversion
+  ([number conversion](#number-conversion)). A word that is a keyword only in some
   position — `async`, `of`, `get`, `set`, `from`, `as` — is an ordinary name,
   as in JavaScript, and so are `type` and `then`:
   `(from, then) => [from, then]` is a function, and `then` is refused only as
