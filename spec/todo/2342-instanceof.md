@@ -82,30 +82,41 @@ that belongs to another realm, and no FunctionalScript value is either
 
 ### The EDAG
 
-A new unary operation, `['isArray', exp]`, one more tag in `op1Id`
-([`fjs/edag/module.f.mjs`](../../fjs/edag/module.f.mjs)). Named for the
-built-in it computes, as `is` is named for `Object.is` and `own` for
-`getOwnPropertyDescriptor`, not for a source spelling: the writer spells it
-`instanceof Array`, and should [`2360-built-in.md`](./2360-built-in.md) one
-day admit `Array.isArray(x)` as a call pattern, that is the same node.
+A new node, `['instanceof', exp, constructor]`, where `constructor` is a
+name from a closed list — `'Array'` today — not an expression
+([`fjs/edag/module.f.mjs`](../../fjs/edag/module.f.mjs)). The node reads
+as the source does, and the list is where it grows: `instanceof Map` and
+`instanceof Set` are one name each, once the language can build a `Map`
+or a `Set` for the test to be true of. Until then neither is admitted,
+since a form that can only answer `false` is not worth a reader's arm.
 
-The alternative is a binary node, `['instanceof', exp, 'Array']`, with a
-constructor name as a structural operand. It mirrors the source and
-generalizes to `'Map'` and `'Set'` by one string each, but it is a node
-shape no reader has — two `exp`s is what every `op2` consumer walks, and
-the schema, the memo analysis, both interpreters, the Rust printer and the
-writer would each learn an operand that is not an expression. The unary
-tag costs each of them one arm in a switch they already have. When classes
-or globals make the right side a value, `instanceof` becomes a true `op2`
-over two expressions and `isArray` stays as the special case it is, the
-way unary `+` stays beside `Number`.
+A name in an operand position has precedent: `['arg', N]` and
+`['frame', N]` carry a number that is no expression, and the index of
+`['.', exp, index]` is a constant string or number where it is not a
+node. What is new is a *word* that is neither a value nor a node, so the
+schema says so — a variant over the admitted names, as `op1Id` is a
+variant over tags — and no consumer evaluates it. The cost is one arm per
+consumer: the schema, the memo analysis, both interpreters, the Rust
+printer and the writer each dispatch on the tag and read the name. The
+alternative, one unary tag per constructor — `isArray`, then `isMap`,
+`isSet` — costs the same arms today and a new tag at every consumer for
+every constructor after, while the name list grows in one place.
+
+The right operand is a name rather than a value because the EDAG has no
+constructor values: no global is a value in it
+([`2360-built-in.md`](./2360-built-in.md)), and neither interpreter nor
+`nanvm-lib` holds an `Array` object. Should classes
+([`3390-class.md`](./3390-class.md)) one day make the right side a value
+of the program's own, how that form is spelled beside this one is that
+proposal's question; the name form stays for the built-ins either way.
 
 ### Benefits
 
 - The repository's own array test compiles, which every module telling an
   array from an object needs and `structurally_same` needs first.
-- No new node shape, no new conversion, no failure path: the smallest
-  operator the language can add.
+- No new conversion and no failure path: the smallest operator the
+  language can add, and the one node grows to `Map` and `Set` by a name
+  each, with no new tag anywhere.
 - `nanvm-lib`'s `instanceof` row stops reading as unimplemented for the one
   case the compiler will ever emit.
 
@@ -116,30 +127,33 @@ way unary `+` stays beside `Number`.
   parse error. That is the price of admitting the useful case before the
   general one, and the refusal says what is missing.
 - The `!a instanceof Array` trap is preserved.
+- A node shape the EDAG did not have — an operand that is a name — so
+  every consumer that walks operands generically learns one node that it
+  may not evaluate. The schema makes the name a variant, so a reader that
+  forgets is a type error, not a wrong value.
 - One more per-operator arm in each consumer, the count
   [`fjs/compiler/todo/unary-tags.md`](../../fjs/compiler/todo/unary-tags.md)
   tracks; collapsing them stays that task's.
-- Two spellings of one operation across the layers — `instanceof Array`
-  in source, `isArray` in the EDAG — where every other operator has one.
-  The precedent is `is` and `own`; the alternative above has one spelling
-  and a new shape.
 
 ## Tasks
 
 - [ ] A draft pull request claiming this file; the approval, recorded here.
-- [ ] `fjs/edag`: the `isArray` tag in `op1Id`, its row in the README table,
-      `semantics`' `unary` table and `operations`' `op1` arm; the memo
-      proofs.
+- [ ] `fjs/edag`: the `['instanceof', exp, constructor]` node, the
+      constructor-name variant with `'Array'` alone, its row in the README
+      table, `semantics`' predicate and `operations`' arm; the memo
+      analysis reads the name and walks the one operand; the proofs.
 - [ ] `fjs/compiler/parser/grammar`: `instanceof` in `_framingKeywords`,
       a relational-level branch `'instanceof' id`; the `types.ts` pins.
 - [ ] `fjs/compiler/parser`: the reader's round, the fold's refusal of any
       word but `Array` and of a scope that binds `Array`, the AST node, the
-      lowering to `['isArray', exp]`.
+      lowering to `['instanceof', exp, 'Array']`.
 - [ ] `fjs/compiler/serializer/function_text`: `(x instanceof Array)`.
-- [ ] `fjs/edag/rust`: `Any::is_array(x)`; `nanvm-lib`: the method, one
-      `Dispatch` over `Unpacked`, the README row; the harness operators
+- [ ] `fjs/edag/rust`: `Any::instanceof_(x, Constructor::Array)`;
+      `nanvm-lib`: a `Constructor` enum with the one variant, the method as
+      one `Dispatch` over `Unpacked`, the README row; the harness operators
       fixture pins it.
-- [ ] `fjs/nanvm`: an `isArray` case set in the corpus, every value kind.
+- [ ] `fjs/nanvm`: an `instanceof` case set in the corpus, every value kind
+      against `Array`.
 - [ ] `spec/README.md`: the operator — value-type list, precedence list,
       semantics, the keyword's standing as a name; `2340-operators.md`'s
       row **done**; this file deleted.
@@ -150,11 +164,12 @@ way unary `+` stays beside `Number`.
 
 - [`2340-operators.md`](./2340-operators.md) — the operator table this adds
   a row to.
-- [`2360-built-in.md`](./2360-built-in.md) — `Array.isArray` is listed
-  there; this is the same operation under the spelling the repository uses.
+- [`2360-built-in.md`](./2360-built-in.md) — why no global is a value the
+  right operand could be; `Array.isArray` is listed there, and over
+  FunctionalScript's values it is this same test.
 - [`2365-global-names.md`](./2365-global-names.md) — makes the bound-`Array`
   refusal unreachable.
 - [`3390-class.md`](./3390-class.md) — where `instanceof` over a class
-  value would make the operator a true binary one.
+  value becomes the node's second arity.
 - [`fjs/compiler/todo/unary-tags.md`](../../fjs/compiler/todo/unary-tags.md)
   — the per-operator arms this adds one to.
