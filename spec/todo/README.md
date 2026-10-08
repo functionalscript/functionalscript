@@ -71,8 +71,8 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
    ([optional chaining](../README.md#optional-chaining)), open for linked
    designer approval,
 3. [ ] [operators](./2340-operators.md),
-   and [`instanceof Array`](./2342-instanceof.md), the one `instanceof` the
-   repository writes, with the right operand fixed to that word,
+   and [`instanceof Array`](./2342-instanceof.md), the array test, with the
+   right operand fixed to that word,
 4. [ ] [enumerable presence](./2345-has-own-property.md) — prohibit
    `Object.hasOwn`; propose a separate `hasEntity` AST pattern,
 5. [ ] [built-in](./2360-built-in.md),

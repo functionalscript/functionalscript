@@ -29,10 +29,12 @@ syntax.
 ## Proposal
 
 **Admit `x instanceof Array`, and only that.** The right operand is the
-word `Array`; any other right operand is refused. This is the one
-`instanceof` the repository uses
+word `Array`; any other right operand is refused. This is the
+`instanceof` the repository's FunctionalScript is written with
 ([`fjs/AGENTS.md`](../../fjs/AGENTS.md)), and the one with no other
-spelling. An object is an instance of `Object` and a function of
+spelling. It is not the only one a FunctionalScript module writes:
+`toIoError` in [`fjs/effects`](../../fjs/effects/module.f.mjs) tests
+`e instanceof Error` (below). An object is an instance of `Object` and a function of
 `Function`, and the language builds both, but `instanceof Object` and
 `instanceof Function` make no sense here: `typeof x === "object"` and
 `typeof x === "function"` are the spellings for those. `f instanceof
@@ -45,8 +47,19 @@ object, an array, a function or `null`, and `typeof`, this operator and
 `=== null` answer each with one spelling. Neither is admitted, now or
 later. An array has no tag of its own but this. The language has no classes ([`3390-class.md`](./3390-class.md)),
 admits no global as a value ([`2360-built-in.md`](./2360-built-in.md))
-and builds no `Map`, `Set` or `Promise`, so nothing else is a candidate
-yet; `Map` and `Set` are the names the list below is for.
+and builds no `Map`, `Set`, `Promise` or `Error`, so nothing else is a
+candidate yet; `Map` and `Set` are the names the list below is for.
+
+`instanceof Error` is not admitted either, though `fjs/effects` writes
+it. The language builds no `Error` — there is no `new` — so over every
+value it builds the test answers `false`, and an `Error` reaches a module
+only as a value the host threw, at a runner's `catch`. That is the rule
+`Map` and `Set` wait under: a form admitted the day the language can build
+a value it is true of, not before. `toIoError` therefore keeps meeting the
+refusal, and its way past is the module's, not the operator's: read the
+fields, as [`fjs/emergent_testing/browser`](../../fjs/emergent_testing/browser/module.f.mjs)
+already does for a cross-realm `Error`, which `instanceof Error` misses
+([`to-io-error-instanceof.md`](../../fjs/effects/todo/to-io-error-instanceof.md)).
 
 ### Syntax
 
@@ -78,14 +91,18 @@ export default (a, b) => a instanceof Array && b instanceof Array;
   as an `id` ([`fjs/js/keywords`](../../fjs/js/keywords/module.f.mjs)); the
   grammar gives it a symbol of its own, as it gave `typeof` one, by adding
   it to `_framingKeywords`. That alone would break the key and the property
-  name: the grammar's `identifier` rule, the identifier-name position a
-  key and a property share, is enumerated by hand, one symbol per framing
-  keyword, not derived from the list, so the new symbol is added there
-  too, as `typeof`'s is, and `{ instanceof: 1 }` and `a.instanceof` are
-  pinned. Unlike `typeof` it never stands where a value begins — it opens
-  a tail, after an operand, where no reference may stand — so it reaches
-  the fold through that rule, which refuses it as a `reserved word` as it
-  refuses `const if = 1;`.
+  name. The rule a key and a property share is `identifierName`, which
+  spreads the grammar's `identifier` rule, and `identifier` is enumerated
+  by hand, one symbol per framing keyword, not derived from the list. So
+  the new symbol is added to `identifier`, as `if`'s is, and reaches a key
+  and a property through that spread; `{ instanceof: 1 }` and
+  `a.instanceof` are pinned. `typeof` is the one framing keyword kept out
+  of `identifier`, because it is required where a value begins and a
+  second branch on one symbol there is one `fjs/ebnf/ll1` refuses.
+  `instanceof` never stands where a value begins — it opens a tail, after
+  an operand, where no reference may stand — so it opens no such branch,
+  and reaches the fold through `identifier`, which refuses it as a
+  `reserved word` as it refuses `const if = 1;`.
 - **`Array` is a reserved word**, like `NaN` and `Infinity`
   ([numbers](../README.md#numbers)): a module cannot bind it as a `const`
   or a parameter, and it still names a property, `{ Array: 1 }` and
@@ -240,7 +257,8 @@ proposal's question; the name form stays for the built-ins either way.
       proofs.
 - [ ] `fjs/compiler/parser/grammar`: `instanceof` in `_framingKeywords`,
       in the hand-enumerated `identifier` rule, so a key and a property
-      name keep the word, and in `relationalTags`; the `types.ts` pins;
+      name keep the word through `identifierName`'s spread, and in
+      `relationalTags`; the `types.ts` pins;
       proofs reading `{ instanceof: 1 }.instanceof` and `a instanceof
       (Array)`.
 - [ ] `fjs/compiler/parser`: `Array` among the reserved words the fold
