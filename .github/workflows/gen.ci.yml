@@ -22,7 +22,7 @@
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.10.0\""
+          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.11.0\""
         },
         {
           "run": "sh ./gen.nix/run npm ci"
@@ -66,7 +66,7 @@
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.10.0\""
+          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.11.0\""
         },
         {
           "run": "sh ./gen.nix/run npm ci"
@@ -99,7 +99,7 @@
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.10.0\""
+          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.11.0\""
         },
         {
           "run": "sh ./gen.nix/run npm ci"
@@ -132,7 +132,7 @@
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.10.0\""
+          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.11.0\""
         },
         {
           "run": "sh ./gen.nix/run npm ci"
@@ -166,9 +166,9 @@
           }
         },
         {
-          "uses": "actions/setup-node@v7.0.0",
+          "uses": "actions/setup-node@v7.1.0",
           "with": {
-            "node-version": "26.10.0"
+            "node-version": "26.11.0"
           }
         },
         {
@@ -217,9 +217,9 @@
           }
         },
         {
-          "uses": "actions/setup-node@v7.0.0",
+          "uses": "actions/setup-node@v7.1.0",
           "with": {
-            "node-version": "26.10.0"
+            "node-version": "26.11.0"
           }
         },
         {
@@ -421,7 +421,7 @@
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.10.0\""
+          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.11.0\""
         },
         {
           "run": "test \"$(sh ./gen.nix/run tsc --version)\" = \"Version 7.0.2\""
@@ -451,10 +451,10 @@
           "run": "git add -A && git diff --cached --exit-code"
         },
         {
-          "uses": "actions/setup-node@v7.0.0",
+          "uses": "actions/setup-node@v7.1.0",
           "with": {
             "package-manager-cache": "false",
-            "node-version": "26.10.0"
+            "node-version": "26.11.0"
           }
         },
         {
