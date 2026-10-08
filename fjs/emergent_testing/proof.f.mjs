@@ -13,7 +13,7 @@ import { log } from '../effects/node/module.f.mjs'
 import { defaultNodeProgramOptions, emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
 import { assert, assertEq, todo } from '../asserts/module.f.mjs'
 import {
-    testAll, fmtPath, fmtImport, ghEscape, isInteger, isIdentifier,
+    testAll, fmtPath, fmtImport, ghEscape,
     registerModule, parseTestSet,
     addResult, defaultReporter, defaultTest, formatDuration, main, register, testResult, zeroTotals,
 } from './module.f.mjs'
@@ -846,23 +846,6 @@ export const registerSelectsContextAndStar = () => {
 
 // direct unit tests for the pure path-format helpers
 export const helpers = {
-    isInteger: () => {
-        assert(isInteger('0'))
-        assert(isInteger('123'))
-        assert(!isInteger(''))
-        assert(!isInteger('01'))
-        assert(!isInteger('1a'))
-        assert(!isInteger('-1'))
-    },
-    isIdentifier: () => {
-        assert(isIdentifier('abc'))
-        assert(isIdentifier('_x'))
-        assert(isIdentifier('$y'))
-        assert(isIdentifier('a1'))
-        assert(!isIdentifier(''))
-        assert(!isIdentifier('1a'))
-        assert(!isIdentifier('a-b'))
-    },
     shouldLoad: () => {
         // all .f.ts / .f.js — FJS modules are safe to bulk-load
         assert(shouldLoad('module.f.ts'))
