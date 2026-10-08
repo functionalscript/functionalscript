@@ -9,7 +9,8 @@
  * failure propagation.
  *
  * @module
- * @import { EdagValue } from '../types.ts'
+ * @import { EdagValue, Function as ValueFunction } from '../types.ts'
+ * @import { ConstructorId } from '../../types.ts'
  * @import { Result } from '../../../types/result/types.ts'
  */
 
@@ -22,8 +23,15 @@ export const untagUndefined = value => isArray(value) && value[0] === 'undefined
 /** JavaScript truthiness of the represented value. @type {(value: EdagValue) => boolean} */
 export const truthy = value => Boolean(untagUndefined(value))
 
+/**
+ * Whether a value is a function: a closure, or the `entry` helper.
+ *
+ * @type {(value: EdagValue) => value is ValueFunction}
+ */
+export const isFunction = value => isArray(value) && (value[0] === '=>' || value[0] === 'entry')
+
 /** JavaScript typeof of the represented value. @type {(value: EdagValue) => string} */
-export const typeOf = value => isArray(value) && value[0] === '=>' ? 'function' : typeof untagUndefined(value)
+export const typeOf = value => isFunction(value) ? 'function' : typeof untagUndefined(value)
 
 /** Strict equality, with containers and functions compared by identity. @type {(a: EdagValue, b: EdagValue) => boolean} */
 export const strictEqual = (a, b) => untagUndefined(a) === untagUndefined(b)
@@ -35,6 +43,18 @@ export const is = (a, b) => Object.is(untagUndefined(a), untagUndefined(b))
 export const unary = {
     '!': value => ok(!truthy(value)),
     typeof: value => ok(typeOf(value)),
+}
+
+/**
+ * `x instanceof c` for each constructor the EDAG names, over represented
+ * values: an array is its own tag, `['[]', values]`, which is the one test
+ * `Array` needs — `typeOf` tells only a function apart. Never throws, so
+ * it answers a `boolean` rather than a `Result`.
+ *
+ * @type {Readonly<Record<ConstructorId, (value: EdagValue) => boolean>>}
+ */
+export const instanceOf = {
+    Array: value => isArray(value) && value[0] === '[]',
 }
 
 /** @type {Readonly<Record<'===' | '!==' | 'is', (a: EdagValue, b: EdagValue) => Result<boolean, EdagValue>>>} */

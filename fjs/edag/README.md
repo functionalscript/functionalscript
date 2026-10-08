@@ -94,8 +94,11 @@ The memo interpreter threads its immutable cache around these stateless helpers.
 from represented values, preserving stored field and element identities.
 Arrays, strings and functions expose their lengths; string indices read
 UTF-16 code units. Missing properties return tagged undefined and nullish
-receivers fail. Callers own operand evaluation order, key resolution and
-source-name admission. Memo connects these reads to chains and `own`;
+receivers fail. Its `entry` is what a call of the `entry` helper reads,
+over a key already converted: the enumerable own property, so an array's
+or a string's elements and never a `length`, and nothing of a function.
+Callers own operand evaluation order, key resolution and source-name
+admission. Memo connects these reads to chains and to the helper's calls;
 [`value/method`](value/method/module.f.mjs) dispatches admitted built-ins, with
 represented array callbacks in [`value/array_method`](value/array_method/module.f.mjs).
 [`value/convert`](value/convert/module.f.mjs) supplies primitive conversion for
@@ -298,6 +301,7 @@ vocabularies.
 | `['arg', N]` | fixed parameter `N` of the owning function |
 | `['rest']` | the invocation's rest array, after the fixed prefix |
 | `['self']` | the owning function itself, as a value, the same every read: recursion is `['()', ['self'], args]`, and a nested function captures its parent's `self` as a slot |
+| `['entry']` | the language's `entry` helper, as a value: a function of `length` `2` capturing nothing, fresh where it is established as every `=>` is, whose call `['()', ['entry'], [a, b]]` reads the enumerable own property `b` names of `a` |
 | `['=>', length, slots[], body]` | function; integer length metadata, the slots of its frame — each an `exp` evaluated in the enclosing scope, `[]` for no captures — and the invocation-scope body |
 | `['frame', N]` | slot `N` of the owning function's captured frame |
 | `['()', exp, items[]]` | call with no receiver, `exp(…)` over the argument list `items[]` — see [Chains](#chains) |
@@ -307,9 +311,10 @@ vocabularies.
 | `['\|()', items[], k?]`, `['\|.', index, k?]`, `['\|?.()', items[], k?]`, `['\|!()', items[]]` | a chain step and, where the chain continues, its continuation — only valid in the continuation operand of a node above, or of another step |
 | `[',', exps]` | comma: establish all operands, take the value of the last |
 | `[id, exp]` | unary operation, `id` one of `String` `Number` `!` `~` `typeof` `throw` — `throw` establishes its operand and fails with it as the thrown value, so it is the one node that never has a value |
-| `[id, exp, exp]` | binary operation, `id` one of `own` `is` `===` `!==` `>` `>=` `<` `<=` `*` `/` `%` `**` `&` `\|` `^` `<<` `>>` `>>>` `&&` `\|\|` `??` |
+| `[id, exp, exp]` | binary operation, `id` one of `is` `===` `!==` `>` `>=` `<` `<=` `*` `/` `%` `**` `&` `\|` `^` `<<` `>>` `>>>` `&&` `\|\|` `??` |
 | `[id, exp]`, `[id, exp, exp]` | `id` one of `+` `-`: unary plus or negation, addition or subtraction — one tag at two arities, the node's length deciding, as a chain step's does; unary `+` is JS's and throws on a bigint where `Number` converts |
 | `['?:', exp, exp, exp]` | conditional: the condition, then exactly one arm — the one `ToBoolean` selects; the other is never established |
+| `['instanceof', exp, constructor]` | instance check, `x instanceof Array`: `true` of an array, `false` of every other value, never throws; `constructor` is a *name* from a closed list — `'Array'` alone today, not an operand — since no global is a value here. A reader walking operands generically needs an arm for it, or walks the name as a string literal |
 
 Where a form is listed twice above, the two are the node's arities: the
 shorter one ends the chain and the longer one hands it on, and the schema is
@@ -326,6 +331,20 @@ read has a count to be checked against and no spread can leave that count
 unknown. The distinction is easy to lose in
 prose and load-bearing in the schema — a single element where the array
 belongs still validates plenty of values, just the wrong ones.
+
+`instanceof` carries its constructor as a name beside the tag rather than
+being one unary tag per constructor (`isArray`, then `isSet`, `isRegExp`),
+and that is the language designer's decision, settled: if we plan to add
+more types, like `Set` or `RegExp` — none is approved yet — then under
+this shape each is a name added to one list where a tag per constructor
+is a new arm in every consumer that dispatches on tags; JavaScript has no
+`isSet` or `isRegExp` — `Array.isArray` exists for cross-realm arrays
+alone, and `x instanceof Set` is the one spelling — so the node reads as
+the source does; the two walker
+arms are its whole cost, paid once and pinned by proof; and the EDAG is a
+data format, so a unary shape landed first would have to live beside this
+one forever or be replaced in every module ever compiled, a breaking change
+that choosing the shape while no node exists is not.
 
 **Why an array operand rather than a variadic tail.** `['[]', [a, b]]`
 rather than `['[]', a, b]`, and the same one position further in for
@@ -389,9 +408,13 @@ An `index` — the property operand of `.`, `?.`, and the `|.` step — is a
 number. Widening those positions to a bare `exp` was weighed and rejected:
 `exp` and `index` overlap, since `['Number', e]` is both a `numberCast` and
 an `op1`, so it would buy a second spelling of every computed key and no new
-expressive power. Among the binary ids, `own` reads
-an own property, bypassing the prototype chain (including `__proto__` — see
-the `ownJs` proof); calling a function is not among them — a call's
+expressive power. A property named at run time is read by no binary id
+but by a call of `['entry']`, the language's `entry` helper as a value,
+which reads the enumerable own property a key names once converted,
+bypassing the prototype chain (including `__proto__`) and reading no
+`length` of an array, a string or a function — the helper is the one
+source spelling of the node (see the `entryJs` proof); calling a function
+is not among the binary ids — a call's
 receiver comes from the node holding it, which no `op2` id has anywhere to
 put. A call's arguments — the last operand of `()`, the second of `?.()`,
 the operand of every call step — are an item list, the list `[]` holds, read
@@ -672,8 +695,8 @@ need it.
   contributing the operand's own enumerable properties — of which a number,
   boolean, bigint, symbol, `null`, or `undefined` has none (`{...null}` is
   `{}`), while a string has its indices (`{...'ab'}` is `{0: 'a', 1: 'b'}`).
-  Object spread reads those properties *through* getters, unlike `own`,
-  which reads the descriptor's value and never calls one.
+  Object spread reads those properties *through* getters, unlike the
+  `entry` helper, which reads the descriptor's value and never calls one.
 - `index` does not yet exclude `constructor`/`__proto__` —
   [excluded-string-values.md](../rtti/todo/excluded-string-values.md).
 

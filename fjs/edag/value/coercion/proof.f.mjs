@@ -116,6 +116,7 @@ export const proof = {
             /** @type {Invoke} */
             const invoke = (fn, fixed, rest) => {
                 assertEq(fn, method)
+                assert(fn[0] === '=>')
                 assertEq(fn[2], captures)
                 assertEq(fn[2][0], data)
                 assertEq(fn[3], body)

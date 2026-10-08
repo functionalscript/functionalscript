@@ -35,7 +35,7 @@
 
 import { htmlUtf8 } from '../../media/html/module.f.mjs'
 import { concat as pathConcat } from '../../path/module.f.mjs'
-import { faviconLinks, logoPath, stylesheetLink } from '../style/module.f.mjs'
+import { demoMarker, faviconLinks, logoPath, stylesheetLink } from '../style/module.f.mjs'
 import { intersperse, toArray } from '../../types/list/module.f.mjs'
 
 /**
@@ -199,18 +199,18 @@ const summary = heading => (...rest) => ['summary', ['h2', heading], ...rest]
  *
  * Two elements and nothing else. The section is the demo's own root, so the
  * runtime replaces its contents wholesale on every state; the script is the
- * page's half of the wiring, naming the module in `data-demo` so the runtime
+ * page's half of the wiring, naming the module in `demoMarker` so the runtime
  * never guesses a filename.
  *
  * @type {(path: string) => readonly Node[]}
  */
 export const demoSection = path => [['details', { 'data-section': '', open: '' },
     summary('Demo')(),
-    ['div', { 'data-demo': path }],
+    ['div', { [demoMarker]: path }],
     ['script', { type: 'module' },
         `import { startDemo } from '/fjs/website/demo-runtime.mjs'
 
-startDemo(document.querySelector('[data-demo]'))
+startDemo(document.querySelector('[${demoMarker}]'))
 `],
 ]]
 
@@ -361,7 +361,7 @@ const item = kind => href => text => ['li', ['a', { href, 'data-kind': kind }, t
  *
  * The mark is an attribute for the same reason the kind is (see {@link item}):
  * the stylesheet draws it and gives it its text alternative. It is not
- * `data-demo`, which is what the demo runtime looks the demo's root up by.
+ * `demoMarker`, which is what the demo runtime looks the demo's root up by.
  *
  * @type {(dir: Dir) => (name: string) => Element}
  */

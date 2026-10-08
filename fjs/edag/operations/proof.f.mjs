@@ -51,6 +51,16 @@ export const proof = {
         eq(['Number', '42'], 42)
         eq(['String', 42], '42')
         eq(['typeof', 1n], 'bigint')
+        // `instanceof Array`: an array's own tag and nothing else, never a
+        // throw — `null`, `undefined`, an object and a function included
+        eq(['instanceof', ['[]', []], 'Array'], true)
+        eq(['instanceof', ['[]', [1, ['[]', []]]], 'Array'], true)
+        eq(['instanceof', ['{}', []], 'Array'], false)
+        eq(['instanceof', null, 'Array'], false)
+        eq(['instanceof', ['undefined'], 'Array'], false)
+        eq(['instanceof', 'a', 'Array'], false)
+        eq(['instanceof', 1, 'Array'], false)
+        eq(['instanceof', identity, 'Array'], false)
         eq(['+', '5'], 5)
         eq(['-', 5], -5)
         eq(['+', 2, 3], 5)
@@ -103,12 +113,12 @@ export const proof = {
     reads: () => {
         const object = /** @type {const} */ (['{}', [[':', 'a', 7]]])
         eq(['.', object, 'a'], 7)
-        eq(['own', object, 'a'], 7)
+        eq(['()', ['entry'], [object, 'a']], 7)
         eq(['?.', null, 'a'], ['undefined'])
         eq(['?.', object, 'a'], 7)
         eq(['?.', ['{}', [[':', 'a', object]]], 'a', ['|.', 'a']], 7)
-        failure(['own', object, 1])
-        failure(['own', null, 'a'])
+        eq(['()', ['entry'], [object, 1]], ['undefined'])
+        failure(['()', ['entry'], [null, 'a']])
         failure(['.', null, 'a', ['|()', []]])
     },
     calls: () => {

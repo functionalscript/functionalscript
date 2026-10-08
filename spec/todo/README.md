@@ -66,16 +66,24 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
 ### 2.2. Priority 2
 
 1. [ ] [property-accessor](./2330-property-accessor.md),
-2. [ ] [operators](./2340-operators.md),
-3. [ ] [enumerable presence](./2345-has-own-property.md) — prohibit
+2. [ ] [optional chaining](./2335-optional-chaining.md) — `a?.b`, `a?.[k]`,
+   `a?.(…)`; implemented
+   ([optional chaining](../README.md#optional-chaining)), open for linked
+   designer approval,
+3. [ ] [operators](./2340-operators.md),
+4. [ ] [enumerable presence](./2345-has-own-property.md) — prohibit
    `Object.hasOwn`; propose a separate `hasEntity` AST pattern,
-4. [ ] [built-in](./2360-built-in.md),
-5. [ ] [global-names](./2365-global-names.md) — a name ECMAScript defines
-   globally is never a module's to bind; lands before `built-in`, since
-   admitting a name a module may already have bound is a breaking change
+5. [ ] [built-in](./2360-built-in.md),
+6. [ ] [global-names](./2365-global-names.md) — a name ECMAScript defines
+   globally is never a module's to bind; each name is reserved no later
+   than `built-in` admits it, since admitting a name a module may already
+   have bound is a breaking change, so the list may land a name at a time
    (its file says P3, not this list's P2),
-6. [ ] property key as number — `{ 3e+7: true }` (no leading sign allowed),
-7. [ ] computed property key from an expression — `{ [name]: 0 }`. The
+7. [ ] [number-spread](./2363-number-spread.md) — `Number(...a)`, refused
+   until a representation is chosen; `Number(...[])` is `0`
+   (its file says P3, not this list's P2),
+8. [ ] property key as number — `{ 3e+7: true }` (no leading sign allowed),
+9. [ ] computed property key from an expression — `{ [name]: 0 }`. The
    constant-string form is implemented
    ([property keys](../README.md#property-keys)); the general one waits
    on expressions.

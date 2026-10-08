@@ -17,7 +17,7 @@
  */
 
 import type { Assert } from '../asserts/types.ts'
-import type { Exp, Op12Id, Op1Id, Op2, Op2Id, Op3Id, Plain } from '../edag/types.ts'
+import type { ConstructorId, Exp, Op12Id, Op1Id, Op2, Op2Id, Op3Id, Plain } from '../edag/types.ts'
 import type { AllowedCall } from '../js/prototype/types.ts'
 import type { FixedArray } from '../types/array/types.ts'
 import type { Equal } from '../types/ts/types.ts'
@@ -273,8 +273,20 @@ export type MethodGroup = {
     readonly cases: readonly MethodCase[]
 }
 
+/**
+ * The cases of `instanceof` against one constructor name — the EDAG's
+ * `['instanceof', exp, constructor]`, one operand and a name that is no
+ * operand, so the group carries the name and its cases are `Case<1>`.
+ */
+export type GroupInstanceOf = {
+    readonly op: 'instanceof'
+    /** The constructor's name — not `constructor`, which every object has through its prototype, and which an `in` test would find on every group. */
+    readonly name: ConstructorId
+    readonly cases: readonly Case<1>[]
+}
+
 /** A group whose `op` is an EDAG operation, as against a {@link MethodGroup}. */
-export type OperatorGroup = Group1 | Group2 | Group12 | Group3
+export type OperatorGroup = Group1 | Group2 | Group12 | Group3 | GroupInstanceOf
 
 export type Group = OperatorGroup | MethodGroup
 

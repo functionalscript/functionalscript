@@ -5,18 +5,29 @@
 read, with every built-in prototype name but `length` a compilation error,
 the names held by [`fjs/js/prototype`](../../fjs/js/prototype/module.f.js),
 and an access on a numeric literal read as JavaScript reads it — `-1 .x` is
-`-(1 .x)`, the unary minus binding looser than the access. The computed key,
-`a[Number(b)]`, is not; an index is a constant key, a string or a number,
-and a negative one is written as the string it names. Constant-key method
-calls follow the [current function specification](../README.md#functions).
+`-(1 .x)`, the unary minus binding looser than the access. So is the
+computed key, `a[Number(b)]`, the EDAG's `['.', a, ['Number', b]]`, in an
+access, a method call and an optional chain; every other value in brackets
+is refused at its first token, and a negative constant is written as the
+string it names. Method calls follow the
+[current function specification](../README.md#functions).
 
-The runtime-key plan is now [`entry`](../../fjs/edag/todo/entry.md), an
-explicit enumerable-entry helper. It supersedes the old descriptor-value-only
-source pattern and the `Object.hasOwn`-based alternative. `Object.hasOwn`
-and `obj.hasOwnProperty(...)` are prohibited source operations, not operations
-to reinterpret. [Enumerable presence](./2345-has-own-property.md) proposes a
+The runtime key is `entry`, in the language
+([spec: entry](../README.md#reading-an-entry-at-run-time)): the explicit
+enumerable-entry helper, recognized whole and lowered to the EDAG's
+`['entry']`. It superseded the old descriptor-value-only source pattern and
+the `Object.hasOwn`-based alternative. `Object.hasOwn` and
+`obj.hasOwnProperty(...)` are prohibited source operations, not operations to
+reinterpret. [Enumerable presence](./2345-has-own-property.md) proposes a
 separate `hasEntity` pattern. All such instructions follow
 [statement-aware AST recognition](../../fjs/compiler/parser/todo/statement-aware-intrinsics.md).
+
+What this file still owns is `a[+i]`, beside the numeric index
+`a[Number(i)]` that is in the language, where the program knows no `bigint`
+reaches the index — unary `+` waits on the
+[operators](./2340-operators.md) admitting it. Where a program knows its
+index to be a number, `a[Number(i)]` is the spelling to write, `entry`
+being the read for a key of any type.
 
 Syntax examples (planned computed/runtime-key forms included):
 
@@ -26,7 +37,7 @@ const a = { b: 45, c: [3] }
 const c0 = a.b
 // the same static-read operation, with another permitted constant key
 const c1 = a["c"]
-// planned numeric-index read: EDAG '.' with a Number operand
+// numeric-index read: EDAG '.' with a Number operand
 const c2 = c1[Number(0)] // Number(...) is required when index type is unknown at compile time
 // runtime enumerable-entry read, with entry defined by the pattern below
 const c3 = entry(a, c2)
@@ -58,8 +69,8 @@ syntax for array indexing, legit in FJS. Our current approach is to force FJS us
 wrap `<expression>` in `Number(...)` in cases when `<expression>` type is not known at
 compile time.
 
-The proposed runtime-key helper is shown with a JavaScript behavior example;
-this is not a claim that the helper is implemented in FJS today:
+The runtime-key helper, with a JavaScript behavior example, which the
+compiler reads as the helper and every executor answers alike:
 
 ```js
 const entry = (object, property) => {
@@ -72,10 +83,10 @@ export default [values.length, entry(values, "length")]; // [1, undefined]
 
 Its complete parsed function body is recognized after statements, expressions
 and binding relationships are known. The matcher does not read newlines or
-repair statement boundaries. Descriptor use is permitted only inside a whole
-approved pattern; extracting or returning a descriptor is still refused.
-[`entry.md`](../../fjs/edag/todo/entry.md) owns the proposed helper function,
-its ordinary calls and the internal `own` migration. None is a fallback for
+repair statement boundaries. Descriptor use is permitted only inside the
+whole helper; extracting or returning a descriptor is still refused. The
+helper's calls are ordinary calls, and no internal operation stands beside
+the node ([`fjs/edag`](../../fjs/edag/README.md)). None is a fallback for
 ordinary static access.
 
 ## Source-to-EDAG mapping
@@ -90,9 +101,10 @@ select the enumerable-entry operation.
 |--------|------|--------|
 | `a.foo`, `a["foo"]` | `['.', A, 'foo']` | Current, for permitted names |
 | `a[0]` | `['.', A, 0]` | Current |
+| `a[Number(i)]` | `['.', A, ['Number', I]]` | Current |
 | `a.foo(x)` | `['.', A, 'foo', ['\|()', Args]]` | Current receiver-preserving lowering, for permitted names |
-| Complete recognized `entry` definition | `['entry']` | Proposed in `entry.md` |
-| `entry(a, key)` | `['()', E, [A, K]]` | Proposed ordinary call of that helper |
+| The `entry` helper, recognized whole | `['entry']` | Current ([spec: entry](../README.md#reading-an-entry-at-run-time)) |
+| `entry(a, key)` | `['()', E, [A, K]]` | Current, an ordinary call of that helper |
 
 `A`, `K` and `E` denote lowered receiver, key and helper expressions;
 `Args` denotes the lowered argument list. The method-call
@@ -104,9 +116,10 @@ Backend names such as `instance_property`, `at` and `own_property` in older
 sketches are not source-to-EDAG rules. A backend may specialize `.` for a
 known receiver/key, or share a lookup helper where the semantics agree,
 without replacing it with an enumerable-only operation. This does not rename
-host helpers or change an existing opcode. `entry.md` owns any coordinated
-migration of internal `own` semantics; its writer refuses bare internal `own`,
-not ordinary static reads represented by `.`.
+host helpers or change an existing opcode. The EDAG's former `own` operation
+went with the helper's arrival: `.` represents ordinary reads, the key a
+constant or a number converted at run time, `a[Number(i)]`, and `['entry']`
+the one read of a key of any type.
 
 ## Instance Property
 
@@ -194,7 +207,7 @@ Syntax examples:
 const c4 = a.b(c)
 // the same receiver-preserving EDAG chain
 const c5 = a["b"](c)
-// planned numeric-key chain, not a runtime entry read
+// numeric-key chain, not a runtime entry read
 const c6 = a[Number(b)](c)
 ```
 
@@ -333,10 +346,11 @@ obj[42]
 obj[Number(index)]
 ```
 
-Constant numeric indices use EDAG `.` too. The proposed `Number(...)` form
-would use `['.', O, ['Number', I]]`, subject to its syntax and admission work;
-`at` is only a possible backend specialization, not a separate EDAG tag or
-an enumerable-entry read.
+Constant numeric indices use EDAG `.` too, and so does the `Number(...)`
+form, `['.', O, ['Number', I]]`, in the language
+([spec: property access](../README.md#property-access)); `at` is only a
+possible backend specialization, not a separate EDAG tag or an
+enumerable-entry read.
 
 ```js
 import m from './m.f.js'
@@ -349,9 +363,9 @@ export default {
 ```
 
 In `obj[index]`, `index` has to be a `number`. If we don't know what `index` is, wrap it in
-`Number(...)`. It means the byte code for the expression inside the `[]` should be either
-`Number(...)`, a number literal, or a string literal (excluding some strings).
-If it references an object, FJS gives up. FJS may try deeper analyses in the future, and type inference can help a lot.
+`Number(...)`. The expression inside the `[]` is either `Number(...)`, a number literal,
+or a string literal (excluding the prototype names); anything else is refused at its first
+token. FJS may try deeper analyses in the future, and type inference can help a lot.
 
 ## Regression requirements
 

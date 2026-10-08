@@ -2,57 +2,19 @@
 //! `nanvm-lib/todo/mvp-roadmap.md`): evaluate a compiled module, select one
 //! of its exports, read or call it, and print the result as JSON.
 //!
-//! `fjs compile <module> <output>.rs` (the Rust code generator) compiles
-//! each of `fixtures/*.mjs` into `gen.fixtures/*.rs`, named after its Rust
-//! module (`function-scope.mjs` becomes `function_scope.rs`), committed and
-//! drift-checked by `npm run gen` (see `../../fjs/ci/README.md`) the same way
-//! `nanvm-lib/tests/test/gen.corpus/` is. [`fixtures`] pulls them in
-//! with one `#[path]`: a `gen.` name is never a Rust identifier.
+//! `fjs run ./fjs/nanvm/harness/module.f.mjs` (`npm run gen`) compiles each of
+//! `fixtures/*.mjs` into `gen.fixtures/*.rs` through the Rust code generator,
+//! named after its Rust module (`function-scope.mjs` becomes
+//! `function_scope.rs`), and writes `gen.fixtures/mod.rs` naming every one —
+//! committed and drift-checked (see `../../fjs/ci/README.md`) the same way
+//! `nanvm-lib/tests/test/gen.corpus/` is. The directory is the list of
+//! fixtures: adding one is adding its `.mjs`. [`fixtures`] pulls them in with
+//! one `#[path]`: a `gen.` name is never a Rust identifier.
 
-/// The compiled fixtures, `gen.fixtures/*.rs`. One `#[path]` names the
-/// directory; each module inside it resolves by its own name.
-#[path = "../gen.fixtures"]
-pub mod fixtures {
-    pub mod arity;
-    pub mod array;
-    pub mod at;
-    pub mod bigint;
-    pub mod boolean;
-    pub mod call;
-    pub mod calls;
-    pub mod closure;
-    pub mod effect;
-    pub mod escapes;
-    pub mod exports;
-    pub mod function;
-    pub mod function_scope;
-    pub mod function_text;
-    pub mod lazy;
-    pub mod length;
-    pub mod method;
-    pub mod missing;
-    pub mod named;
-    pub mod named_imports;
-    pub mod named_imports_throws;
-    pub mod nested;
-    pub mod not_a_function;
-    pub mod nullish;
-    pub mod number;
-    pub mod object;
-    pub mod object_spread;
-    pub mod operators;
-    pub mod parameters;
-    pub mod property;
-    pub mod recursion;
-    pub mod rest;
-    pub mod rest_function;
-    pub mod sharing;
-    pub mod spread;
-    pub mod string;
-    pub mod throw;
-    pub mod throws;
-    pub mod to_string;
-}
+/// The compiled fixtures, `gen.fixtures/*.rs`, named by the generated
+/// `gen.fixtures/mod.rs`; one `#[path]` names that file.
+#[path = "../gen.fixtures/mod.rs"]
+pub mod fixtures;
 
 use core::fmt::{self, Debug, Display, Formatter};
 
@@ -182,11 +144,11 @@ mod tests {
     use crate::{
         Action, RunError,
         fixtures::{
-            arity, array, at, bigint, boolean, call, calls, closure, escapes, exports, function,
-            function_scope, function_text, lazy, length, method, missing, named, named_imports,
-            named_imports_throws, nested, not_a_function, nullish, number, object, object_spread,
-            operators, parameters, property, recursion, rest, rest_function, sharing, spread,
-            string, throw, throws, to_string,
+            arity, array, at, bigint, boolean, call, calls, closure, entry, escapes, exports,
+            function, function_scope, function_text, lazy, length, method, missing, named,
+            named_imports, named_imports_throws, nested, not_a_function, nullish, number, object,
+            object_spread, operators, optional, parameters, property, recursion, rest,
+            rest_function, sharing, spread, string, throw, throws, to_string,
         },
         run,
     };
@@ -263,7 +225,7 @@ mod tests {
         assert_eq!(
             run::<Naive>(operators::module, "default", Action::Read),
             Ok(
-                "[7,5,12,1.5,2,36,-6,-7,false,\"number\",true,false,true,true,false,true,2,7,7,12,3,3,\"ab\",7]"
+                "[7,5,12,1.5,2,36,-6,-7,false,\"number\",true,true,false,true,true,false,true,2,7,7,12,3,3,\"ab\",7]"
                     .into()
             )
         );
@@ -380,6 +342,17 @@ mod tests {
                 Ok(Nullish::Undefined.to_any())
             );
         }
+    }
+
+    /// The `entry` helper, end to end: compiled as `['entry']`, printed as
+    /// the static function answering `Any::entry`, and read, called and
+    /// passed as the function it is.
+    #[test]
+    fn entry_helper() {
+        assert_eq!(
+            run::<Naive>(entry::module, "default", Action::Read),
+            Ok(r#"[1,3,true,8,8,true,true,"a",true,true,2,"function",9,5,true,true]"#.into())
+        );
     }
 
     #[test]
@@ -660,6 +633,19 @@ mod tests {
         assert_eq!(
             run::<Naive>(method::module, "default", Action::Read),
             Ok("42".into())
+        );
+    }
+
+    /// The optional chains (`fjs/edag/README.md`, Chains): a guarded
+    /// access and its steps skipped on a nullish base, a guarded call on
+    /// a property reference, kept as the receiver, a guarded call on a
+    /// nullish callee, and a group ending a region — `(o?.a).b` two nodes
+    /// where `o?.a.b` is one.
+    #[test]
+    fn optional_chains() {
+        assert_eq!(
+            run::<Naive>(optional::module, "default", Action::Read),
+            Ok("[1,0,0,2,0,1]".into())
         );
     }
 

@@ -33,10 +33,10 @@
  * @import { Primitive } from '../../../media/datajs/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { ParseError } from '../types.ts'
- * @import { Block, BlockStatement, Const, Entry, Import, ImportBinding, Item, Member, Module, ModuleConst, Node, Out, ParameterBinding, ParameterList, ValueStatement } from './types.ts'
+ * @import { Block, BlockStatement, Chain, Const, Entry, Import, ImportBinding, Item, Key, Member, Module, ModuleConst, Node, Out, ParameterBinding, ParameterList, Step, ValueStatement } from './types.ts'
  * @import { ArrowOrRest, Block as BlockRule, Body, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, Member as MemberRule, ParameterNames, Parenthesized, Statement, Unary, UnaryOperand, Value } from '../grammar/types.ts'
  * @import { namedImports, primitive, terminator } from '../grammar/module.f.mjs'
- * @import { _AccessNode, _AttributeNode, _CallBranch, _CircuitNode, _ConditionalNode, _EndNode, _NameNode, _KeyBranch, _Leaf, _ListNode, _OptionalList, _ParameterNode, _PowTailNode, _TailRound, _TokenStream } from './private.ts'
+ * @import { _AccessNode, _AttributeNode, _CallBranch, _ChainState, _CircuitNode, _ConditionalNode, _EndNode, _IndexBranch, _NameNode, _KeyBranch, _Leaf, _ListNode, _OptionalBranch, _OptionalList, _ParameterNode, _PowTailNode, _StepRead, _TailRound, _TokenStream } from './private.ts'
  */
 
 import { error, ok } from '../../../types/result/module.f.mjs'
@@ -318,13 +318,29 @@ const entriesOf = listOf(entryAt, entriesAt)
 const symbol = out => ({ symbol: 0, meta: out })
 
 /**
- * The token an access names its key by: `.name`'s identifier, or `[key]`'s
- * constant — at the second position of either branch, under the
- * identifier's or the constant's own alternative.
+ * The token a property names its key by: `.name`'s identifier, at the
+ * second position of the branch, under the identifier's own alternative.
  *
  * @type {(branch: _KeyBranch) => DjsTokenWithMetadata}
  */
 const accessKey = branch => tokenAt(unmapped(unmapped(branch)[1])[1])
+
+/**
+ * The key an index names, `[ value ]`, the value at the second position:
+ * the token of a string or a number literal standing alone, a constant key
+ * as `.name`'s word is — what its name is read from, and what a refusal of
+ * the name is anchored at — and any other value a computed key, with the
+ * token it begins with. A group is no constant, `a[("x")]` being a value
+ * the reader cannot tell from any other.
+ *
+ * @type {(branch: _IndexBranch) => Key}
+ */
+const indexKey = branch => {
+    const out = outAt(unmapped(branch)[1])
+    const { node, first } = /** @type {Extract<Out, { readonly node: Node }>} */ (out)
+    const { kind } = first.token
+    return out.id === 'value' && node[0] === 'primitive' && (kind === 'string' || kind === 'number') ? first : ['[]', node, first]
+}
 
 /**
  * A function's parameter list where it begins with no value: the rest
@@ -355,33 +371,122 @@ const namedList = (open, head, more) => {
 }
 
 /**
- * One step applied to the node before it: a property access by the token
- * its key is read from, or a call by its arguments — the optional list at
- * the second position of `( [ items(value) ] )`, read as an array's items
- * are.
+ * One step as written: a property by the token its key is read from, or a
+ * call by its arguments — the optional list at the second position of
+ * `( [ items(value) ] )`, read as an array's items are — and whether a
+ * `?.` guards it. An optional step holds the same three one level further
+ * in, under the `?.`: its property is the name alone, so its token is one
+ * level nearer than {@link accessKey} reads.
  *
- * What a step applies to is everything written before it, which is what
- * folding them in order says: `a.b(1)[0]` is the index of the call of the
- * access, and `f(1)(2)` is the call of the call. A group is no boundary
- * here — the step reads the value inside it, so `(a.b)(c)` is the node
- * `a.b(c)` is.
- *
- * @type {(base: Node, round: _AccessNode) => Node}
+ * @type {(round: _AccessNode) => _StepRead}
  */
-const accessed = (base, round) => {
+const stepOf = round => {
     const [tag, branch] = unmapped(round)
-    if (tag !== 'call') { return ['.', base, accessKey(/** @type {_KeyBranch} */(branch))] }
-    const call = unmapped(/** @type {_CallBranch} */(branch))
-    return ['()', base, toArray(valueItems(call[1]))]
+    if (tag === 'call') { return { optional: false, key: null, items: toArray(valueItems(unmapped(/** @type {_CallBranch} */(branch))[1])) } }
+    if (tag === 'index') { return { optional: false, key: indexKey(/** @type {_IndexBranch} */(branch)), items: null } }
+    if (tag !== 'optional') { return { optional: false, key: accessKey(/** @type {_KeyBranch} */(branch)), items: null } }
+    const [kind, step] = unmapped(unmapped(/** @type {_OptionalBranch} */(branch))[1])
+    if (kind === 'call') { return { optional: true, key: null, items: toArray(valueItems(unmapped(/** @type {_CallBranch} */(step))[1])) } }
+    if (kind === 'index') { return { optional: true, key: indexKey(/** @type {_IndexBranch} */(step)), items: null } }
+    return { optional: true, key: tokenAt(unmapped(/** @type {_NameNode} */(step))[1]), items: null }
+}
+
+/**
+ * The state a chain's steps leave it in: whether a receiver is live — the
+ * value is a property reference, which a call after it keeps as `this` —
+ * and whether a short-circuit region is open, the two bits of
+ * `fjs/edag/README.md`'s Chains. A `?.` node opens a region with a
+ * receiver, a `?.()` node one without, and a step moves the bits as the
+ * README's table says: a property sets the receiver, a call spends it, a
+ * guarded call opens the region again and the escaping call closes it.
+ *
+ * @type {(state: _ChainState, step: Step | undefined) => _ChainState}
+ */
+const after = (state, step) => {
+    if (step === undefined) { return state }
+    switch (step[0]) {
+        case '|.': { return after({ receiver: true, open: state.open }, step[2]) }
+        case '|()': { return after({ receiver: false, open: state.open }, step[2]) }
+        case '|?.()': { return after({ receiver: false, open: true }, step[2]) }
+        default: { return { receiver: false, open: false } }
+    }
+}
+
+/** The state a node's steps leave it in; a node that is no chain has no bit live but an access's receiver. @type {(node: Node) => _ChainState} */
+const stateOf = node => {
+    switch (node[0]) {
+        case '?.': { return after({ receiver: true, open: true }, node[3]) }
+        case '?.()': { return after({ receiver: false, open: true }, node[3]) }
+        case '.': { return after({ receiver: true, open: false }, node[3]) }
+        default: { return { receiver: false, open: false } }
+    }
+}
+
+/** The steps with one more at their end. @type {(steps: Step, step: Step) => Step} */
+const continuedSteps = (steps, step) => {
+    const [tag, x, next] = steps
+    return /** @type {Step} */ (next === undefined ? [tag, x, step] : [tag, x, continuedSteps(next, step)])
+}
+
+/**
+ * A chain with one more step at its end: the node's fourth element, or
+ * the end of the steps it already has.
+ *
+ * @type {(node: Chain | readonly ['.', Node, Key], step: Step) => Chain}
+ */
+const appended = (node, step) => {
+    const [tag, base, x, k] = node
+    return /** @type {Chain} */ (k === undefined ? [tag, base, x, step] : [tag, base, x, continuedSteps(k, step)])
+}
+
+/**
+ * One step applied to the node before it. What a step applies to is
+ * everything written before it, which is what folding them in order says:
+ * `a.b(1)[0]` is the index of the call of the access, and `f(1)(2)` is the
+ * call of the call. A plain step on a plain value is a node over it, an
+ * access or a call, and a group is no boundary there — the step reads the
+ * value inside it, so `(a.b)(c)` is the node `a.b(c)` is.
+ *
+ * A `?.` opens a short-circuit region, and the steps after it, until a
+ * group closes it, are the chain's own continuation rather than nodes over
+ * it — `a?.b.c` is one `?.` node with a `|.` step, since a nullish `a`
+ * skips `.c` too — in the shapes `fjs/edag/README.md`'s Chains gives each
+ * spelling. `closed` is the group: `(a?.b).c` is an access over the chain,
+ * `(a?.b)(c)` the escaping call, `|!()`, which keeps the receiver the
+ * parentheses kept, and `(a?.b)?.(c)` the guarded call `a?.b?.(c)` is,
+ * since a region closed before a guard is unobservable. A guarded access
+ * always starts a node, `a?.b?.c` being a `?.` over a `?.`, and so does a
+ * guarded call where no receiver is live, `a?.(b)?.(c)`; a guarded call on
+ * a plain access is that access's own step, `a.b?.(c)`, the receiver kept.
+ *
+ * @type {(closed: boolean) => (base: Node, round: _AccessNode) => Node}
+ */
+const accessed = closed => (base, round) => {
+    const { optional, key, items } = stepOf(round)
+    const { receiver, open } = stateOf(base)
+    if (key !== null) {
+        return open && !closed && !optional
+            ? appended(/** @type {Chain} */ (base), ['|.', key])
+            : [optional ? '?.' : '.', base, key]
+    }
+    const args = /** @type {readonly Item[]} */ (items)
+    // a guarded call keeps a live receiver as the node's own step, in an
+    // open region or one a group closed alike; with none live it starts a node
+    if (optional) { return receiver ? appended(/** @type {Chain | readonly ['.', Node, Key]} */ (base), ['|?.()', args]) : ['?.()', base, args] }
+    if (!open) { return ['()', base, args] }
+    if (!closed) { return appended(/** @type {Chain} */ (base), ['|()', args]) }
+    return receiver ? appended(/** @type {Chain} */ (base), ['|!()', args]) : ['()', base, args]
 }
 
 /**
  * A value's own part and the steps written after it, each applied to
- * everything before it: the node the last of them leaves.
+ * everything before it: the node the last of them leaves. `closed` says
+ * the value was a group, which the first step alone reads
+ * ({@link accessed}): the steps after it apply to the node that step left.
  *
- * @type {(base: Node, accesses: readonly _AccessNode[]) => Node}
+ * @type {(base: Node, accesses: readonly _AccessNode[], closed: boolean) => Node}
  */
-const steps = (base, accesses) => accesses.reduce(accessed, base)
+const steps = (base, accesses, closed) => accesses.reduce((node, round, i) => accessed(closed && i === 0)(node, round), base)
 
 /**
  * `**`'s round, when a primitive, a reference, an array, an object or a
@@ -412,12 +517,15 @@ const withPow = (base, powTail) => {
  */
 const foldLayer = (base, rounds) => rounds.reduce((left, round) => {
     const [opChoice, v, ...lowerTails] = unmapped(round)
-    const [opTag] = unmapped(opChoice)
+    const [opTag, op] = unmapped(opChoice)
     const right = applyLayers(nodeAt(v), lowerTails)
     // every round's operator is a rule the grammar made from the same
     // records, so a name the map lacks is the grammar's bug, not the input's
     const tag = assertNotNullish(binaryOpTag[opTag], ['binary operator without a tag', opTag])
-    return [tag, left, right]
+    // `instanceof` keeps its operator token: the fold refuses a right
+    // operand that is no reference to `Array` there, where every spelling
+    // of the right side has a token
+    return tag === 'instanceof' ? [tag, left, right, tokenAt(op)] : [tag, left, right]
 }, base)
 
 /**
@@ -588,18 +696,19 @@ const arrowed = (list, arrow) => 'invalid' in list || !arrow.newline ? list : { 
  * being that parameter — or the value with the steps at the first
  * position of `access* powTail tail`, the power at the second and the
  * binary layers after them applied, exactly as {@link toNode} applies a
- * value's own.
+ * value's own, `closed` saying the value was a group, which the first
+ * step after it reads ({@link steps}).
  *
- * @type {(list: ParameterList, base: Node, node: Ast<ArrowOrRest, DjsTokenWithMetadata, Out>) => Node}
+ * @type {(list: ParameterList, base: Node, closed: boolean, node: Ast<ArrowOrRest, DjsTokenWithMetadata, Out>) => Node}
  */
-const continued = (list, base, node) => {
+const continued = (list, base, closed, node) => {
     const [tag, branch] = unmapped(node)
     if (tag === 'func') {
         const [arrow, b] = unmapped(branch)
         return ['=>', arrowed(list, tokenAt(arrow)), nodeAt(b)]
     }
     const [accesses, powTail, ...tailLists] = unmapped(branch)
-    return applyTail(withPow(steps(base, unmapped(accesses)), powTail), tailLists)
+    return applyTail(withPow(steps(base, unmapped(accesses), closed), powTail), tailLists)
 }
 
 /**
@@ -634,7 +743,7 @@ const parenNode = (open, [tag, branch]) => {
         return ['=>', arrowed(namedList(open, v, parameterItems(names)), tokenAt(arrow)), nodeAt(b)]
     }
     const [, next] = unmapped(rest)
-    return continued(namedList(open, v, null), nodeAt(v), next)
+    return continued(namedList(open, v, null), nodeAt(v), true, next)
 }
 
 /**
@@ -646,7 +755,7 @@ const parenNode = (open, [tag, branch]) => {
  */
 const groupNode = node => {
     const [v, , accesses, powTail] = unmapped(node)
-    return withPow(steps(nodeAt(v), unmapped(accesses)), powTail)
+    return withPow(steps(nodeAt(v), unmapped(accesses), true), powTail)
 }
 
 /**
@@ -686,7 +795,7 @@ const toNode = node => {
     if (node[0] === 'name') {
         const [id, after] = unmapped(node[1])
         const token = tokenAt(unmapped(id)[1])
-        return symbol({ id: 'value', node: continued([{ name: token, rest: false }], ['ref', token], after), first: token })
+        return symbol({ id: 'value', node: continued([{ name: token, rest: false }], ['ref', token], false, after), first: token })
     }
     if (node[0] === 'group') {
         const [open, g] = unmapped(node[1])
@@ -703,7 +812,7 @@ const toNode = node => {
     const x = unmapped(node[1])[0]
     const [base, accesses] = unmapped(x)
     const [, powTail, ...tailLists] = unmapped(node[1])
-    const withSteps = steps(baseOf(node), unmapped(accesses))
+    const withSteps = steps(baseOf(node), unmapped(accesses), false)
     return symbol({ id: 'value', node: applyTail(withPow(withSteps, powTail), tailLists), first: baseFirst(node[0], base) })
 }
 
@@ -727,11 +836,11 @@ const operandToNode = node => {
     if (node[0] === 'group') {
         const [open, g] = unmapped(node[1])
         const [v, , accesses] = unmapped(g)
-        return symbol({ id: 'value', node: steps(nodeAt(v), unmapped(accesses)), first: tokenAt(open) })
+        return symbol({ id: 'value', node: steps(nodeAt(v), unmapped(accesses), true), first: tokenAt(open) })
     }
     const x = unmapped(node[1])[0]
     const [base, accesses] = unmapped(x)
-    return symbol({ id: 'value', node: steps(baseOf(node), unmapped(accesses)), first: baseFirst(node[0], base) })
+    return symbol({ id: 'value', node: steps(baseOf(node), unmapped(accesses), false), first: baseFirst(node[0], base) })
 }
 
 /**

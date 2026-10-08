@@ -2,7 +2,7 @@
  * @import { DemoEvent } from './types.ts'
  */
 
-import { textDemo, textField, inputField, fieldUpdate } from './module.f.mjs'
+import { textDemo, textField, inputField, fieldUpdate, caption } from './module.f.mjs'
 import { name as exampleName } from './examples/module.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
@@ -20,6 +20,8 @@ const next = demo => state => event => unwrap(assertNotNullish(
     'expected the demo to reach a value without asking for an operation'))
 
 export const proof = {
+    caption: () => assertEq(htmlToString(caption('Hash, hex:')),
+        '<!DOCTYPE html><p data-caption="">Hash, hex:</p>'),
     inputField: () => {
         const h = htmlToString(inputField({ name: 'key', label: 'Key' }, 'a"&b'))
         assert(h.includes('<label for="key">Key </label>'), h)

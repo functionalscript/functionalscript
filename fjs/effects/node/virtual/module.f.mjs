@@ -1543,11 +1543,11 @@ export const virtualOperationMap = {
 /**
  * The virtual runner.
  *
- * **It implements part of `NodeOp`, and says so.** `exec`, `forever` and `test`
- * have no meaning against an in-memory filesystem, and `inflate` needs a
- * decoder this runner does not carry until
- * [`todo/inflate.md`](../../../../todo/inflate.md) is done. The first three
- * used to be present
+ * **It implements part of `NodeOp`, and says so.** `exec`, `spawn`, `childWait`,
+ * `forever` and `test` have no meaning against an in-memory filesystem, and
+ * `inflate` needs a decoder this runner does not carry until
+ * [`todo/inflate.md`](../../../../todo/inflate.md) is done. `exec`, `forever`
+ * and `test` used to be present
  * as `todo` handlers — entries that existed only to satisfy a total operation
  * map and threw when reached. They are simply absent now, so a program that
  * asks for one gets `error(notImplemented)` back through its own continuation
