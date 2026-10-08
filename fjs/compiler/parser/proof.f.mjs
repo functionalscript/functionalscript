@@ -834,6 +834,10 @@ export const proof = {
             expectRefused('export default Number.isFinite(1);', 'reserved word', 16)
             // the guarded call is not read as the conversion yet
             expectRefused('export default Number?.(1);', 'reserved word', 16)
+            // the `entry` helper under a reserved name is no helper: the
+            // binding is refused as any other is
+            expectRefused('const entry = (Number, b) => { const x = Object.getOwnPropertyDescriptor(Number, b); return x?.enumerable ? x.value : undefined; }; export default entry;', 'reserved word', 16)
+            expectRefused('const entry = (a, b) => { const Number = Object.getOwnPropertyDescriptor(a, b); return Number?.enumerable ? Number.value : undefined; }; export default entry;', 'reserved word', 33)
         },
         // more than one argument, or a spread: not recognized yet, refused
         // by name at the word

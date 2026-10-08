@@ -1473,9 +1473,10 @@ before the key, as in JavaScript, and `a?.[Number(i)]` evaluates the key only
 where `a` is neither `null` nor `undefined` ([optional chaining](#optional-chaining)).
 Anything else in the brackets is a compilation error
 (`computed key is not Number(...)`), at the token it begins with: `a[i]`,
-whose type the compiler does not know, and every other expression, `a[-1]`
-and `a[NaN]` included — their keys are written as strings instead,
-`a["-1"]` and `a["NaN"]`. Trivia, a line break included, may stand on either side of the
+whose type the compiler does not know — a key of any type is the `entry`
+helper's to read ([reading an entry at run time](#reading-an-entry-at-run-time))
+— and every other expression, `a[-1]` and `a[NaN]` included, whose keys
+are written as strings instead, `a["-1"]` and `a["NaN"]`. Trivia, a line break included, may stand on either side of the
 `.` or the `[` and inside the brackets, as between any two tokens
 ([trivia](#whitespace-and-line-terminators)): `a . b`, `a./* c */b` and `a`
 with `.b` on the next line are each `a.b`, as JavaScript reads them.
@@ -1567,6 +1568,64 @@ tokenizer reads it
 ([`?.` before a digit](../fjs/js/tokenizer/todo/optional-chain-before-digit.md)):
 `a?.5:1` is refused at the `5`, and will be the conditional it is in
 JavaScript when `.5` is a number.
+
+## Reading an Entry at Run Time
+
+```js
+const entry = (a, b) => {
+    const x = Object.getOwnPropertyDescriptor(a, b);
+    return x?.enumerable ? x.value : undefined;
+};
+const escapes = { n: "\n", t: "\t" };
+export default (...c) => entry(escapes, c[0]);
+```
+
+A key computed at run time is read by the **`entry` helper**: the function
+above, written in a module under any three names, or imported from
+[`fjs/js/entry`](../fjs/js/entry/module.f.js), which spells it once.
+`entry(a, b)` is the enumerable own property `b` names of `a` — a member of
+an object, an element of an array or of a string — and `undefined` where
+there is none: a `length`, which an array, a string and a function own
+without enumerating it; a function's `name`, which the language keeps
+unobservable ([functions](#functions)); anything of a number, a boolean or
+a `bigint`; and a name a prototype would give the value in JavaScript, since
+the descriptor is the value's own. The key is converted as
+`Object.getOwnPropertyDescriptor` converts it, so `entry(a, 0)` and
+`entry(a, "0")` read one element and an object key converts through its own
+`toString`; a `null` or `undefined` `a` is an error, as reading a property
+of one is, and so is a key whose conversion fails.
+
+The helper is exactly what it spells. The compiler recognizes the function
+whole — its two parameters, the `const` the descriptor binds and the
+`return`, under any three distinct names, the keys in either spelling, the
+semicolons where JavaScript inserts them — where `Object` is the intrinsic,
+which it is wherever no scope binds the word; a function that departs from
+it by a step is an ordinary function, in which `Object` is a name nothing
+binds ([shared values](#shared-values-constants)), and a parameter, a
+`const` or a function's own name spelling `Object` is what JavaScript reads
+it as. A `const` of `Object` after the helper, in the module or in a body
+the helper is written in, is refused as a shadowed capture is
+([functions](#functions)): JavaScript would resolve the helper's `Object`
+to that `const`, and the helper would be no helper. It is a function like
+any other once recognized: a value, of
+`length` `2`, capturing nothing, a fresh identity wherever it is written as
+every arrow is, passed as a value — `[a, b].map(entry)` — and converting
+to its text as any function does
+([function source](#function-source-representation-exception)). Its EDAG
+is the node `['entry']`, the helper as a value, and a read of a computed
+key is a call of it, `['()', ['entry'], [a, b]]`
+([`fjs/edag`](../fjs/edag/README.md)); every output writes the node back
+as the helper, the FunctionalScript one under names of its own, the Rust
+one as a function the VM answers natively.
+
+The node is the language's one read of a property by a name it computes:
+`Object` is no value a module can name outside the helper
+([built-ins](./todo/2360-built-in.md)), and `a[i]` stays unread
+([property access](#property-access)). Where a program knows its index to
+be a number, the spelling is `a[Number(i)]`
+([property access](#property-access)); `a[+i]`, where no `bigint` can reach
+it, is [property-accessor](./todo/2330-property-accessor.md)'s still, and
+`entry` is the read for a key of any type.
 
 ## Importing Other Modules
 
@@ -2028,8 +2087,8 @@ are not supported yet. A newline before `=>` is refused.
   `default`), and no program observes the difference: `f.name` is
   refused at the key of `.`, and `entry(f, 'name')` is `undefined`, since
   `name` is not an enumerable own property
-  ([`fjs/edag/todo/entry.md`](../fjs/edag/todo/entry.md)), which is the
-  decision that retired the proposals that would have exposed a name. The
+  ([reading an entry at run time](#reading-an-entry-at-run-time)), which is
+  the decision that retired the proposals that would have exposed a name. The
   name a JavaScript engine gives a function it loads from the written
   output is the writer's spelling, not a result of the program
   ([principles](#principles)).

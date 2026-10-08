@@ -9,7 +9,7 @@
  * failure propagation.
  *
  * @module
- * @import { EdagValue } from '../types.ts'
+ * @import { EdagValue, Function as ValueFunction } from '../types.ts'
  * @import { Result } from '../../../types/result/types.ts'
  */
 
@@ -22,8 +22,15 @@ export const untagUndefined = value => isArray(value) && value[0] === 'undefined
 /** JavaScript truthiness of the represented value. @type {(value: EdagValue) => boolean} */
 export const truthy = value => Boolean(untagUndefined(value))
 
+/**
+ * Whether a value is a function: a closure, or the `entry` helper.
+ *
+ * @type {(value: EdagValue) => value is ValueFunction}
+ */
+export const isFunction = value => isArray(value) && (value[0] === '=>' || value[0] === 'entry')
+
 /** JavaScript typeof of the represented value. @type {(value: EdagValue) => string} */
-export const typeOf = value => isArray(value) && value[0] === '=>' ? 'function' : typeof untagUndefined(value)
+export const typeOf = value => isFunction(value) ? 'function' : typeof untagUndefined(value)
 
 /** Strict equality, with containers and functions compared by identity. @type {(a: EdagValue, b: EdagValue) => boolean} */
 export const strictEqual = (a, b) => untagUndefined(a) === untagUndefined(b)

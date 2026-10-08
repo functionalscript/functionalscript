@@ -333,6 +333,9 @@ const lowerLeaf = nodes => ast => {
         // the function itself, the EDAG's own node, which a nested
         // function's capture of it lowers to as a slot of the parent's scope
         case 'self': { return plain(['self']) }
+        // the `entry` helper, the EDAG's own node for it — a fresh one per
+        // helper written, as every arrow is a node of its own
+        case 'entry': { return plain(['entry']) }
         case '()': { return call(nodes)(ast) }
         case '?.()': { return guardedCall(nodes)(ast) }
         // an access, plain or guarded: the EDAG's own form already, its key

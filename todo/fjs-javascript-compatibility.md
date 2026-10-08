@@ -105,7 +105,8 @@ logical/nullish operators and parameter syntax, which have since landed. The
 **Every pattern instruction MUST be recognized at a level where statements
 and expressions have already been recognized correctly.**
 
-The former [`entry` design](../fjs/edag/todo/entry.md) proposed a fixed token
+The former `entry` design, since landed as
+[the helper](../spec/README.md#reading-an-entry-at-run-time), proposed a fixed token
 shape that could bypass syntactic support for the constructs inside it.
 Ignoring whitespace before statement recognition is the root problem, not a
 missing newline exception in one intrinsic. This whitespace-only change to the
@@ -189,7 +190,7 @@ result of the program, so the `.js` writer's names — a hoisted function
 bound as `$0`, an inlined one taking the name of the position it is written
 in — are no compatibility question, and neither is the function text the
 exception above covers. No FJS program reads a function's name at all:
-[`entry`](../fjs/edag/todo/entry.md) replaced the own-property read with
+[`entry`](../spec/README.md#reading-an-entry-at-run-time) replaced the own-property read with
 the enumerable-entry helper so that it cannot — `person.name` is enumerable
 where `f.name` and `f.length` are not — and retired the proposals that would
 have exposed it, `own-access.md` and `function-name.md`, in `4f4da828`;
@@ -220,7 +221,9 @@ The TODO records that API choice rather than silently deciding it.
 
 The old `hasOwn` proposal already required extending or refusing unsupported
 receivers rather than returning a fabricated boolean. Its enumerability
-redefinition was proposed by `entry.md`, not by that receiver rule. The new
+redefinition came with the `entry` helper
+([spec: entry](../spec/README.md#reading-an-entry-at-run-time)), not from
+that receiver rule. The new
 direction retires standard-call recognition and its unresolved undefined-value
 answer instead of requiring an implementation of it.
 

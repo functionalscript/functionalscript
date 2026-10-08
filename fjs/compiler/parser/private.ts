@@ -18,8 +18,11 @@ import type { Block, Chain, Container, If, Item, Key, Node } from './syntax/type
 /** A named parameter, `i` of the function whose body names it: what the body reads it as, the `i`th argument. */
 export type _Parameter = readonly ['arg', number]
 
-/** The names bound so far, each to the reference that names it: a module's import or entry, a function's rest array or one of its fixed parameters — or a slot of a function's frame, for a word its body has read from the scopes around it and remembers, so that a later read of it stops at the body and a `const` of it in the body is refused. */
-export type _Env = OrderedMap<_Ref>
+/** The intrinsic `Object` namespace a word was read as, where nothing binds it: no value a module can name, and a binding that refuses a `const` of the word after the read, which in JavaScript the read would have named. */
+export type _Intrinsic = readonly ['intrinsic']
+
+/** The names bound so far, each to the reference that names it: a module's import or entry, a function's rest array or one of its fixed parameters — or a slot of a function's frame, for a word its body has read from the scopes around it and remembers, so that a later read of it stops at the body and a `const` of it in the body is refused — or the intrinsic, for `Object` read as the namespace the `entry` helper names where nothing binds the word, remembered in every scope out to the module's so that a `const` of the word after the read is refused the same way. */
+export type _Env = OrderedMap<_Ref | _Intrinsic>
 
 /** What a name resolves to where it is written: a name bound in its own scope, or a slot of the function's frame. */
 export type _Ref = AstModuleRef | AstRest | _Parameter | AstFrameRef | AstSelf

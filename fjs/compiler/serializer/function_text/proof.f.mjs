@@ -53,7 +53,7 @@ export const proof = {
             [['?:', true, 1, 2], '((true)?(1):(2))'],
             [[',', []], '(undefined)'], [[',', [1]], '((1))'], [[',', [1, 2]], '((1),(2))'],
             [['throw', 1], '(()=>{throw (1);})()'],
-            [['own', ['{}', []], 'x'], '(($0,$1)=>{if(typeof $1!=="string"){throw undefined;}return Object.getOwnPropertyDescriptor($0,$1)?.value;})(({}),("x"))'],
+            [['()', ['entry'], [['{}', []], 'x']], '((0,(($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}))(({}),("x")))'],
         ]
         for (const [body, expected] of cases) { assertEq(text(body), `()=>${expected}`) }
         for (const op of /** @type {readonly Op2Id[]} */ ([

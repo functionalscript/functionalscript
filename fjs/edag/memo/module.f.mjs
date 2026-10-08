@@ -16,7 +16,7 @@ import { assertOk } from '../../asserts/module.f.mjs'
 import { isArray } from '../../types/array/module.f.mjs'
 import { ok, unwrap } from '../../types/result/module.f.mjs'
 import { analysis, checked } from '../analysis/module.f.mjs'
-import { operation } from '../operations/module.f.mjs'
+import { entryCall, operation } from '../operations/module.f.mjs'
 
 /** Restore one operand from the already restored prefix of the analysis. @type {(code: readonly ExpOp[], operand: Operand) => Exp} */
 const expression = (code, operand) => isArray(operand) ? code[operand[1]] : operand
@@ -85,8 +85,9 @@ const evaluate = (a, context, root) => {
     return operand(root, [])[1]
 }
 
-/** Invoke a represented function, with fresh body state and retained captures. @type {Invoke} */
+/** Invoke a represented function, with fresh body state and retained captures — or the `entry` helper, answered in place. @type {Invoke} */
 export const invoke = (fn, fixed, rest) => {
+    if (fn[0] === 'entry') { return entryCall(fixed, invoke) }
     const a = assertOk(analysis(fn))
     const [, index] = /** @type {import('../analysis/types.ts').Ref} */ (a.root)
     const [, , , body] = /** @type {Over<import('../types.ts').Function, Operand>} */ (a.nodes[index])
