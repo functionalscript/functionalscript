@@ -290,7 +290,8 @@ pub fn write_file(path: &str, data: &[u8]) -> Result<(), IoError> {
 
 /// Writes into a file that exists, at `at`, leaving the rest as it is. An
 /// offset outside the safe non-negative integer range is `ERR_OUT_OF_RANGE`,
-/// refused before the file is opened.
+/// refused before the file is opened. Empty data still opens the path, but
+/// does not seek or write, as the Node runner skips its write loop.
 pub fn write_bytes(path: &str, at: f64, data: &[u8]) -> Result<(), IoError> {
     let Some(at) = offset(at) else {
         return Err(refusal(
@@ -303,6 +304,9 @@ pub fn write_bytes(path: &str, at: f64, data: &[u8]) -> Result<(), IoError> {
         .write(true)
         .open(path)
         .map_err(|e| failure(&e, "open", path))?;
+    if data.is_empty() {
+        return Ok(());
+    }
     file.seek(SeekFrom::Start(at))
         .and_then(|_| file.write_all(data))
         .map_err(|e| failure(&e, "write", path))
@@ -653,6 +657,43 @@ mod test {
                 code_of(write_bytes(&file, 0.5, &[1])),
                 Some("ERR_OUT_OF_RANGE".into())
             );
+        }
+
+        #[test]
+        fn empty_write_preserves_open_and_offset_checks() {
+            let dir = Scratch::new();
+            let file = dir.at("a");
+            assert_eq!(
+                code_of(write_bytes(&file, 0.0, &[])),
+                Some("ENOENT".into())
+            );
+            assert!(!Path::new(&file).exists());
+            write_file(&file, &[1, 2, 3]).unwrap();
+            for at in [0.0, 1.0, MAX_OFFSET as f64] {
+                assert_eq!(write_bytes(&file, at, &[]), Ok(()));
+                assert_eq!(read_file(&file), Ok([1, 2, 3].to_vec()));
+            }
+            for at in [-1.0, 0.5, f64::NAN, f64::INFINITY, MAX_OFFSET as f64 + 1.0] {
+                assert_eq!(
+                    code_of(write_bytes(&file, at, &[])),
+                    Some("ERR_OUT_OF_RANGE".into())
+                );
+            }
+        }
+
+        /// Reopen an anonymous pipe through procfs without a FIFO utility or FFI.
+        /// A nonempty positional write still fails: this file is not seekable.
+        #[cfg(target_os = "linux")]
+        #[test]
+        fn empty_write_does_not_seek_a_pipe() {
+            use std::os::fd::AsRawFd;
+
+            let (_reader, writer) = io::pipe().unwrap();
+            let path = format!("/proc/self/fd/{}", writer.as_raw_fd());
+            for at in [0.0, MAX_OFFSET as f64] {
+                assert_eq!(write_bytes(&path, at, &[]), Ok(()));
+            }
+            assert!(write_bytes(&path, 0.0, &[1]).is_err());
         }
 
         /// Match the promise API the Node runner uses. Callback and sync
