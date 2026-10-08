@@ -117,10 +117,10 @@ export const ioError = info => ['ioError', info]
  * through the message branch — correctly, since there is no OS code to report.
  *
  * Both are read as fields, not by asking `instanceof Error` or `in`, which
- * FunctionalScript refuses: an `Error` thrown from another realm — an iframe, a
- * worker — is not an instance of this realm's `Error`, and its `message` is
- * exactly what this keeps. A field that is absent reads as `undefined`, which
- * is not a string either.
+ * FunctionalScript refuses. A field that is absent reads as `undefined`, which
+ * is not a string either. Like every `.f.mjs` function, this takes values of
+ * this realm; one from another realm, an iframe's or a worker's, is a host
+ * boundary's to convert before it gets here.
  *
  * @type {(e: unknown) => IoError}
  */

@@ -221,13 +221,13 @@ export const proof = {
             assert(e[0] === 'ioError', e)
             assertEq(e[1].code, undefined, e)
         },
-        // The message is the field's, not the prototype's: an `Error` from
-        // another realm is not `instanceof Error` here, and keeps its message.
-        foreignError: () => {
-            const e = toIoError({ message: 'remote', code: 'EIO' })
+        // The message is the field's, not the prototype's: a value carrying a
+        // string `message` gives it, whether or not it is an `Error`.
+        messageField: () => {
+            const e = toIoError({ message: 'field', code: 'EIO' })
             assert(e[0] === 'ioError', e)
             assertEq(e[1].code, 'EIO', e)
-            assertEq(e[1].message, 'remote', e)
+            assertEq(e[1].message, 'field', e)
         },
         // A `message` that is not a string is not one to report; the value's
         // string form is.
