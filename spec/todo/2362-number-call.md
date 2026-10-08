@@ -60,14 +60,32 @@ as.
 Why reserved outright, rather than the intrinsic wherever no scope binds it,
 which is how the `entry` helper reads `Object`
 ([#2661](https://github.com/functionalscript/functionalscript/pull/2661)):
-2365 is the design the language already has for its globals, and one name
-is the smallest step that lands it. A module may bind `Number` today, so the
-rule is a breaking change, declared by the pull request that lands it — no
-`.f.js` in the tree binds the word. Reading it as JavaScript's own `const`
-where one stands would admit `const n = Number(5); const Number = 1;`, which
-JavaScript refuses at the first line, in its temporal dead zone, so the
-compatibility rule needs the refusal either way; a reserved word is the one
-that costs no scope bookkeeping.
+[DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
+admits a restriction that protects a guarantee, and this one protects two —
+the guarantee the language already keeps for `undefined`, `NaN` and
+`Infinity`, which JavaScript lets a module bind and FunctionalScript does
+not ([numbers](../README.md#numbers)):
+
+- **A global word means one thing wherever it stands.** `Number(x)` is the
+  conversion in every module, so a reader, an agent or a tool reads it
+  without resolving scopes, and a module cannot make it mean anything else.
+  Binding a standard global is the mistake JavaScript's linters flag
+  (ESLint's `no-shadow` with `builtinGlobals`, and `no-shadow-restricted-names`
+  for the literal globals): `const Number = x => x;` makes every
+  `Number(…)` below it read as the conversion and run as something else.
+- **Admitting more of the namespace never changes an existing module.**
+  [global-names](./2365-global-names.md)' own reason: a member admitted
+  later, `Number.isInteger` under [built-in](./2360-built-in.md), would
+  silently change what a module that had bound `Number` means; with no
+  module able to bind the word, every later admission is a pure addition.
+
+What it costs is one JavaScript spelling, the module that rebinds a
+standard global, refused at compile time rather than read another way. A
+module may bind `Number` today, so the rule is a breaking change, declared
+by the pull request that lands it — no `.f.js` in the tree binds the word.
+It also settles the order case: JavaScript refuses
+`const n = Number(5); const Number = 1;` at the first line, in the
+binding's temporal dead zone, and the reserved word refuses it as plainly.
 
 The call's other shapes are JavaScript's, and
 [DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
@@ -132,10 +150,10 @@ them for binding a global's name.
 
 ### Open questions
 
-1. Reserved outright, as proposed, or the intrinsic wherever no scope binds
-   the word, as `Object` is in the `entry` helper? The proposal takes 2365's
-   rule; the other reading keeps `const Number = 1; Number(2)` JavaScript's
-   call of `1`, which nobody needs.
+1. Reserved outright, or the intrinsic wherever no scope binds the word, as
+   `Object` is in the `entry` helper? Answered by the language designer:
+   reserved, `Number` being no name a module binds, for the two guarantees
+   above.
 2. `Number()` and `Number(a, b)`: answered by §12, above — `Number()` is
    `0`, and `Number(a, b)` lands with the comma operator, `Number(...a)`
    with a call of runtime arity. Still open: whether either deserves a
