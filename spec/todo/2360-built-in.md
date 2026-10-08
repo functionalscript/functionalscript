@@ -52,7 +52,9 @@ so, never admitted.
 
 ### Number and Math
 
-- [ ] `Number`
+- [x] `Number` — the call `Number(exp)` alone, the conversion
+      ([number-call](./2362-number-call.md)); the namespace's members stay
+      unticked
 - [ ] `BigInt`
 - [ ] `Math`
 - [ ] `Date`
