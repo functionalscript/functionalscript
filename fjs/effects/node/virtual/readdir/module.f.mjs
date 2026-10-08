@@ -1,13 +1,16 @@
 /**
- * UTF-8 byte ordering for virtual directory names, without a bit-vector size cap.
+ * Portable directory ordering shared by the Node and virtual runners.
  *
  * @module
+ *
+ * @import { Dirent } from '../../types.ts'
  */
 
 import { stringToCodePointList } from '../../../../text/utf16/module.f.mjs'
 import { fromCodePointList } from '../../../../text/utf8/module.f.mjs'
 import { isValidCodePoint } from '../../../../text/code_point/module.f.mjs'
 import { map, next } from '../../../../types/list/module.f.mjs'
+import { parse } from '../../../../path/module.f.mjs'
 
 /**
  * Node path conversion replaces each lone UTF-16 surrogate with U+FFFD.
@@ -43,3 +46,29 @@ export const _compareNames = (a, b) => {
     }
     return left === null ? right === null ? 0 : -1 : 1
 }
+
+/**
+ * Normalize one native readdir result to the virtual walk's portable order:
+ * parent depth first, then parent components, then the entry's name. The input
+ * has normalized parent paths from one read root. Parsing handles `.` and roots
+ * without counting them as directory levels. Comparing components, not joined
+ * paths, keeps all of `a` ahead of `a!`, even though `a!/x` sorts before `a/x`.
+ *
+ * Native Windows enumeration is not byte-sorted, and recursive traversal also
+ * differs between Node versions. Only the returned order changes: retain every
+ * entry, its fields and its identity; leave traversal and errors to the host.
+ * The comparator lives here so both runners use exactly the same name order.
+ *
+ * @type {(entries: readonly Dirent[]) => readonly Dirent[]}
+ */
+export const _orderDirents = entries => entries.toSorted((a, b) => {
+    const left = parse(a.parentPath)
+    const right = parse(b.parentPath)
+    const depth = left.length - right.length
+    if (depth !== 0) { return depth }
+    for (let i = 0; i < left.length; i++) {
+        const difference = _compareNames(left[i], right[i])
+        if (difference !== 0) { return difference }
+    }
+    return _compareNames(a.name, b.name)
+})

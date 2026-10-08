@@ -1,11 +1,11 @@
 /**
  * UTF-8 ordering regressions for the virtual readdir operation.
  *
- * Recursive order targets the pinned Node 26.10.0, whose native traversal is
- * breadth-first: https://github.com/nodejs/node/blob/v26.10.0/src/node_file.cc
- * Node 22.22.2's promises implementation uses a stack instead; it is not an
- * oracle for this recursive fixture. See ../../../../../gen.nix/flake.nix.
+ * Both runners promise this order. The Node adapter normalizes its native
+ * results, so Windows enumeration and older Node traversal cannot change it.
+ * See ./README.md; raw fs.readdir output is not the oracle for this contract.
  *
+ * @import { Dirent } from '../../types.ts'
  * @import { Dir } from '../types.ts'
  */
 
@@ -13,7 +13,7 @@ import { assert, assertEq, assertOk, assertStructurallySame } from '../../../../
 import { maxLengthBytes, msb } from '../../../../types/bit_vec/module.f.mjs'
 import { utf8 } from '../../../../text/module.f.mjs'
 import { emptyState, virtualOperationMap } from '../module.f.mjs'
-import { _compareNames } from './module.f.mjs'
+import { _compareNames, _orderDirents } from './module.f.mjs'
 
 /** @type {readonly []} */
 const file = []
@@ -27,7 +27,62 @@ const paths = (base, options) => {
     return assertOk(result).map(({ name, parentPath }) => `${parentPath}/${name}`)
 }
 
+/** @type {(parentPath: string, name: string, isDirectory?: boolean) => Dirent} */
+const entry = (parentPath, name, isDirectory = false) =>
+    ({ parentPath, name, isFile: !isDirectory, isDirectory })
+
 export const proof = {
+    _orderDirents: {
+        flat: () => {
+            // Deliberately unsorted input catches the Windows issue on any OS.
+            /** @type {readonly string[]} */
+            const names = ['10', '9', 'Z', 'a', 'a!', 'z', '\uE000', '\u{10000}']
+            const input = names.toReversed().map(name => entry('base', name))
+            assertStructurallySame(_orderDirents(input).map(v => v.name), names)
+            assertStructurallySame(input.map(v => v.name), names.toReversed())
+        },
+        recursive: () => {
+            // Parent components, not full paths: a/x belongs before a!/x.
+            /** @type {readonly (readonly [string, string])[]} */
+            const pairs = [
+                ['base', 'a'], ['base', 'a!'], ['base', '\uE000'], ['base', '\u{10000}'],
+                ['base/a', 'f'], ['base/a', 'x'], ['base/a!', 'x'],
+                ['base/\uE000', 'f'], ['base/\u{10000}', 'f'],
+                ['base/a/x', 'deep'], ['base/a/x/deep', 'h'],
+            ]
+            const expected = pairs.map(([parent, name]) => entry(parent, name))
+            for (let i = 0; i < expected.length; i++) {
+                const input = [...expected.slice(i), ...expected.slice(0, i)].toReversed()
+                assertStructurallySame(_orderDirents(input), expected)
+            }
+        },
+        roots: () => {
+            /** @type {readonly (readonly [string, string])[]} */
+            const roots = [['.', '!'], ['/', '/!'], ['C:/', 'C:/!'], ['//host/share', '//host/share/!']]
+            for (const [root, child] of roots) {
+                const first = entry(root, 'z')
+                const second = entry(child, 'a')
+                assertStructurallySame(_orderDirents([second, first]), [first, second])
+            }
+        },
+        retainsEntries: () => {
+            const directory = entry('base', 'b', true)
+            const regular = entry('base', 'c')
+            // Links and other special entries are neither file nor directory.
+            /** @type {Dirent} */
+            const other = { parentPath: 'base', name: 'a', isFile: false, isDirectory: false }
+            const result = _orderDirents([regular, directory, other])
+            assertEq(result[0], other)
+            assertEq(result[1], directory)
+            assertEq(result[2], regular)
+            assertEq(result.length, 3)
+        },
+        emptyAndSingleton: () => {
+            assertStructurallySame(_orderDirents([]), [])
+            const only = entry('base', 'a')
+            assertStructurallySame(_orderDirents([only]), [only])
+        },
+    },
     _compareNames: () => {
         // Empty, equal, prefix and unequal inputs in both directions cover
         // every exit. Bounded vectors remain an oracle for these short names.

@@ -50,6 +50,7 @@ import { error, ok, unwrap } from '../../types/result/module.f.mjs'
 import { asyncTryCatch, tryCatch } from '../../types/result/module.mjs'
 import { fromVec, toVec } from '../../types/uint8array/module.f.mjs'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
+import { _orderDirents } from './virtual/readdir/module.f.mjs'
 
 /**
  * Narrowed structural view of `node:http`'s `createServer`. The official types
@@ -765,7 +766,11 @@ const runNodeEffect = asyncRun({
         }
         return toVec(await readFile(path))
     }),
-    readdir: (path, r) => io(async () =>
+    // Windows scans need not be byte-sorted, and recursive order varies with
+    // Node versions. Normalize only the result to the virtual walk's portable
+    // order, leaving native traversal, entry flags and failures untouched.
+    // See ./virtual/readdir/README.md.
+    readdir: (path, r) => io(async () => _orderDirents(
         (await readdir(path, { ...r, withFileTypes: true }))
         .map(v => ({
             name: v.name,
@@ -773,7 +778,7 @@ const runNodeEffect = asyncRun({
             isFile: v.isFile(),
             isDirectory: v.isDirectory()
         }))
-    ),
+    )),
     // A `Vec` that is not whole bytes never reaches here: the effect in
     // `module.f.mjs` refuses it before the host is asked, since `fromVec` would
     // pad the last byte.
