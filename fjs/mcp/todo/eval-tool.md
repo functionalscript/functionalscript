@@ -152,7 +152,7 @@ not a transport error. Those failures are: a parse error, an import, a throw
 during evaluation, and a value JSON cannot spell. A parse error needs a name
 for its location because there is no file. Use a fixed pseudo-path such as
 `<eval>`, so the message reads `<eval>:line:column - error: …`, formatted by
-`_errorLocation` in [`fjs/compiler`](../../compiler/module.f.mjs).
+`errorLocation` in [`fjs/compiler/parser`](../../compiler/parser/module.f.mjs).
 
 **A result too large to encode is the transport's failure, not the tool's.**
 The input cap does not bound the output. At `940eff9`, a 420-byte module of
