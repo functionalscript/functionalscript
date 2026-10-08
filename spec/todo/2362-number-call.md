@@ -2,10 +2,11 @@
 
 **Priority:** P2
 **Status:** wip
-**Approval:** pending — `sergey-shandar`'s, on
-[#2666](https://github.com/functionalscript/functionalscript/pull/2666), as
+**Approval:** `sergey-shandar`, the language designer
 [DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
-requires of a language feature.
+names, on [#2666](https://github.com/functionalscript/functionalscript/pull/2666):
+[the change](https://github.com/functionalscript/functionalscript/pull/2666#issuecomment-6053595185)
+and [the design](https://github.com/functionalscript/functionalscript/pull/2666#issuecomment-6054395655).
 
 ### Problem
 
@@ -113,8 +114,10 @@ is then a string, a number or the conversion node, lowered to
 `a[Number(i)](x)`, the receiver-preserving chain as any `.` is. The
 prohibited-name check does not reach a converted key: a number's string is
 never a prototype's name. The writer spells `[Number(i)]`, the spelling it
-refuses today for the round trip's sake. `a?.[Number(i)]` follows once
-optional chaining lands ([#2660](https://github.com/functionalscript/functionalscript/pull/2660)).
+refuses today for the round trip's sake. Optional chaining is in the
+language ([spec](../README.md#optional-chaining)), so the same step reads
+`a?.[Number(i)]` and a chain's `a?.b[Number(i)]`, the key established only
+where the guard lets the chain go on.
 
 ### Open questions
 
@@ -153,6 +156,12 @@ optional chaining lands ([#2660](https://github.com/functionalscript/functionals
       the binding rule beside `undefined`, `NaN` and `Infinity`, and the
       expression list; the compiler demos' shared examples, where an
       example reads better with it.
+- [ ] The FunctionalScript files that read `Number` as a value, which the
+      rule refuses: `const { isFinite } = Number` in `fjs/types/bigint`,
+      `fjs/media/json/extended` and `fjs/media/json/parser`'s proof — the
+      three [global-names](./2365-global-names.md) names — each rewritten
+      without the word, in the pull request that lands the rule. No `.f.js`
+      reads it, so `npm start compile` would not catch them.
 - [ ] The index: the grammar's `index` a value, the fold's refusal by name,
       the key type widened, `a[Number(i)]` and `a[Number(i)](x)` lowered,
       the writer's `[Number(i)]`; the property-access section of the spec
