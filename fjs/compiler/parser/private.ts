@@ -13,7 +13,7 @@ import type { Result } from '../../types/result/types.ts'
 import type { AstConst, AstFrameRef, AstItem, AstModuleRef, AstRest, AstSelf, BinaryTag } from '../ast/types.ts'
 import type { DjsTokenWithMetadata } from '../tokenizer/types.ts'
 import type { ParseError } from './types.ts'
-import type { Block, Chain, Container, If, Item, Node } from './syntax/types.ts'
+import type { Block, Chain, Container, If, Item, Key, Node } from './syntax/types.ts'
 
 /** A named parameter, `i` of the function whose body names it: what the body reads it as, the `i`th argument. */
 export type _Parameter = readonly ['arg', number]
@@ -87,26 +87,37 @@ export type _CallFrame = {
 }
 
 /**
- * An access whose base is being evaluated: the token its key is read from,
- * and whether the access is the callee of a call — a method call, whose
- * key is checked against the member functions a module may not call rather
- * than the properties it may not read.
+ * An access whose base is being evaluated: its key — the token a constant
+ * is read from, or a computed key, entered once the base has its value,
+ * {@link _IndexFrame} — and whether the access is the callee of a call — a
+ * method call, whose constant key is checked against the member functions
+ * a module may not call rather than the properties it may not read.
  */
 export type _AccessFrame = {
-    readonly key: DjsTokenWithMetadata
+    readonly key: Key
     readonly method: boolean
 }
 
 /**
+ * An access whose base has its value and whose computed key, the
+ * conversion `Number(i)`, is being evaluated: the base, for the access the
+ * key's value closes.
+ */
+export type _IndexFrame = {
+    readonly indexed: AstConst
+}
+
+/**
  * One operand of a chain in document order: a value to enter — its base
- * or callee, or an argument's operand — or a key to judge, with whether a
- * call step follows it, a method call's key being checked against the
- * member functions a module may not call rather than the properties it
- * may not read, as an access's is.
+ * or callee, or an argument's operand — or a key, with whether a call step
+ * follows it: a constant to judge, a method call's key being checked
+ * against the member functions a module may not call rather than the
+ * properties it may not read, as an access's is, or a computed key, entered
+ * as a value is once it is the conversion.
  */
 export type _ChainPart =
     | { readonly value: Node }
-    | { readonly key: DjsTokenWithMetadata, readonly method: boolean }
+    | { readonly key: Key, readonly method: boolean }
 
 /**
  * A chain being built: `parts[index]` is being evaluated or judged, and
@@ -197,6 +208,13 @@ export type _NotFrame = { readonly not: true }
  */
 export type _TypeofFrame = { readonly typeof: true }
 
+/**
+ * A `Number` conversion whose operand is being evaluated: the word, so
+ * that the frame is the node's tag and a second conversion joins it rather
+ * than adding a frame.
+ */
+export type _ConversionFrame = { readonly conversion: 'Number' }
+
 /** A binary operator whose left operand is being evaluated: the tag, and the right operand to enter once it resolves. */
 export type _BinaryLeftFrame = { readonly tag: BinaryTag, readonly right: Node }
 
@@ -218,11 +236,13 @@ export type _Frame =
     | _ContainerFrame
     | _CallFrame
     | _AccessFrame
+    | _IndexFrame
     | _ChainFrame
     | _NegFrame
     | _BitnotFrame
     | _NotFrame
     | _TypeofFrame
+    | _ConversionFrame
     | _BinaryLeftFrame
     | _BinaryRightFrame
     | _ConditionalFrame
