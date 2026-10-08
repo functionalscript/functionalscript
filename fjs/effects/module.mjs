@@ -4,12 +4,40 @@
  *
  * @module
  *
- * @import { Commands, Effect, MatchResult, Operation, PartialAsyncOperationMap, ToAsyncOperationMap } from './types.ts'
+ * @import { Commands, Effect, IoError, MatchResult, Operation, PartialAsyncOperationMap, ToAsyncOperationMap } from './types.ts'
  * @import { Result } from '../types/result/types.ts'
  */
 
-import { match, notImplemented, partialMatch } from './module.f.mjs'
+import { ioError, match, notImplemented, partialMatch, toIoError } from './module.f.mjs'
 import { error } from '../types/result/module.f.mjs'
+import { tryCatch } from '../types/result/module.mjs'
+
+/**
+ * The message of a thrown value that could not be read: one whose own code
+ * throws when {@link toIoError} reads it.
+ */
+export const _unreadableThrownValue = 'thrown value could not be read'
+
+/**
+ * Describes a thrown value as an {@link IoError}, whatever it is: the host
+ * boundary {@link toIoError} relies on, for a runner's `catch`.
+ *
+ * Reading a thrown value runs the value's own code — a `toString`, a `code` or
+ * `message` getter — and code a runner evaluates, a module it imports or a
+ * value it compiles, can throw one that throws in turn. Such a value is outside
+ * every `.f.mjs` function's domain, so it is caught here and named rather than
+ * read; and a `message` getter can answer `toIoError`'s check and its read
+ * differently, so the message is pinned to a string inside the same guard.
+ *
+ * @type {(e: unknown) => IoError}
+ */
+export const _describeThrown = e => {
+    const r = tryCatch(() => {
+        const [, info] = toIoError(e)
+        return ioError({ ...info, message: `${info.message}` })
+    })
+    return r[0] === 'ok' ? r[1] : ioError({ message: _unreadableThrownValue })
+}
 
 /**
  * @template {Operation} O

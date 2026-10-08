@@ -11,7 +11,7 @@ import { throws } from 'node:assert/strict'
 
 import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.mjs'
 import { interpret } from '../../../compiler/transpiler/module.f.mjs'
-import { asyncPartialRun, asyncRun } from '../../../effects/module.mjs'
+import { _unreadableThrownValue, asyncPartialRun, asyncRun } from '../../../effects/module.mjs'
 import { emptyState, virtual } from '../../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../../text/module.f.mjs'
 import { isObject } from '../../../types/object/module.f.mjs'
@@ -147,5 +147,22 @@ export const proof = {
         const failure = assertError(await javascriptOperationMap.compileValue('export default ('))
         assertEq(failure[0], 'ioError')
         assert(failure[0] === 'ioError' && failure[1].message.length > 0)
+    },
+    // Reading what the compiled value threw runs that value's own code, and
+    // whatever it does, the failure is an `IoError` with a string message.
+    // Thrown from `default`, not at the top level: Bun does not reject a
+    // top-level `throw` in a `data:` module.
+    unreadableThrown: async () => {
+        /** @type {readonly (readonly [string, string])[]} */
+        const cases = [
+            ['throw { get message() { throw 1 } }', _unreadableThrownValue],
+            // A string for the check, then an object for the read.
+            ['let n = 0; throw { get message() { return n++ === 0 ? "a" : { toString: () => "b" } } }', 'b'],
+        ]
+        for (const [body, message] of cases) {
+            const failure = assertError(await javascriptOperationMap.compileValue(`export default () => { ${body} }`))
+            assert(failure[0] === 'ioError')
+            assertEq(failure[1].message, message)
+        }
     },
 }

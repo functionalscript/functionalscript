@@ -47,7 +47,8 @@ import {
     resolveFileModule, maxOffset, readBytes, rmdir, spawn, unframedBodyMessage, writeExclusive,
     writeFile as writeFileEffect,
 } from './module.f.mjs'
-import { readFlags, runEffect, unreadableThrownValue } from './module.mjs'
+import { _unreadableThrownValue } from '../module.mjs'
+import { readFlags, runEffect } from './module.mjs'
 
 /** @type {(program: NodeProgram) => Promise<number>} */
 const exitCode = runEffect
@@ -766,9 +767,9 @@ export const proof = {
             /** @type {readonly (readonly [string, string])[]} */
             const cases = [
                 ['throw new Error("plain")', 'plain'],
-                ['throw { toString() { throw 1 } }', unreadableThrownValue],
-                ['throw { get code() { throw 1 } }', unreadableThrownValue],
-                ['throw { get message() { throw 1 } }', unreadableThrownValue],
+                ['throw { toString() { throw 1 } }', _unreadableThrownValue],
+                ['throw { get code() { throw 1 } }', _unreadableThrownValue],
+                ['throw { get message() { throw 1 } }', _unreadableThrownValue],
                 // A string for the check, then an object for the read.
                 ['let n = 0; throw { get message() { return n++ === 0 ? "a" : { toString: () => "b" } } }', 'b'],
             ]

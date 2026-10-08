@@ -12,7 +12,7 @@
  *
  * @module
  *
- * @import { Effect, IoChannel, IoError } from '../types.ts'
+ * @import { Effect, IoChannel } from '../types.ts'
  * @import { Child, ExitStatus, Handle, Headers, IoResult, Server as EffectServer, Module, NodeOp, RequestListener as Erl, NodeProgram, NodeProgramOptions, ServerResponse, WriteConsoles, TestContext, TestFn, } from './types.ts'
  * @import { _CloseRecord, _IncomingMessage, _Readable, _RequestBodyReader, _RequestListener, _Server, _ServerResponse } from './private.ts'
  * @import { Next } from '../list/types.ts'
@@ -36,11 +36,11 @@ import * as testContext from 'node:test'
 
 import { concat, normalize, toPosix } from '../../path/module.f.mjs'
 import { decode as decodeImportPath } from '../../path/import/module.f.mjs'
-import { asyncRun } from '../module.mjs'
+import { _describeThrown, asyncRun } from '../module.mjs'
 import { memoryOperationMap } from './memory/module.mjs'
 import { commonOperationMap } from '../common/module.mjs'
 import {
-    emptyHost, emptyHostCode, emptyHostMessage, exitCode, inflateTrailingCode, inflateTrailingMessage, ioError,
+    emptyHost, emptyHostCode, emptyHostMessage, exitCode, inflateTrailingCode, inflateTrailingMessage,
     notAFileCode, notAFileMessage, refusalMessage, refusedStatus, requestBody, requestBodyOffsetMessage,
     responseGate, runnerResponse, toIoError, usesInlineTestContext, windowRefusal,
 } from './module.f.mjs'
@@ -61,33 +61,6 @@ import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
 const createServer = http.createServer
 
 /**
- * The message of a thrown value that could not be read: one whose own code
- * throws when {@link toIoError} reads it.
- */
-export const unreadableThrownValue = 'thrown value could not be read'
-
-/**
- * Describes a thrown value as an {@link IoError}, whatever it is.
- *
- * This is the host boundary {@link toIoError} relies on. Reading a thrown value
- * runs the value's own code — a `toString`, a `code` or `message` getter — and
- * a module the `import` operation evaluates can throw one that throws in turn.
- * Such a value is outside every `.f.mjs` function's domain, so it is caught
- * here and named rather than read; and a `message` getter can answer
- * `toIoError`'s check and its read differently, so the message is pinned to a
- * string inside the same guard.
- *
- * @type {(e: unknown) => IoError}
- */
-const describeThrown = e => {
-    const r = tryCatch(() => {
-        const [, info] = toIoError(e)
-        return ioError({ ...info, message: `${info.message}` })
-    })
-    return r[0] === 'ok' ? r[1] : ioError({ message: unreadableThrownValue })
-}
-
-/**
  * Performs host IO, reporting a thrown failure as an {@link IoResult} error.
  *
  * Every filesystem, network, and subprocess handler below goes through it, so
@@ -100,7 +73,7 @@ const describeThrown = e => {
  */
 const io = async f => {
     const r = await asyncTryCatch(f)
-    return r[0] === 'ok' ? r : error(describeThrown(r[1]))
+    return r[0] === 'ok' ? r : error(_describeThrown(r[1]))
 }
 
 /**
