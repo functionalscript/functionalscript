@@ -1,7 +1,7 @@
 ## Two access nodes: `.` for a known name, `entry` for an object's entry at run time
 
 **Priority:** P2
-**Status:** open
+**Status:** wip
 
 ### Problem
 
