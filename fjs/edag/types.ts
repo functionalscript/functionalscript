@@ -294,7 +294,7 @@ export type ConstructorId = 'Array'
 export type InstanceOf = readonly['instanceof', Exp, ConstructorId]
 
 /** The operator ids at every arity: the tag of an operator node. */
-export type OpId = Op1Id | Op2Id | Op12Id | Op3Id
+export type OpId = Op1Id | Op2Id | Op12Id | Op3Id | InstanceOf[0]
 
 // Operation nodes by tag
 
@@ -330,6 +330,7 @@ type _PlusIsOp12 = Assert<Equal<TagMap['+'], Op12>>
 type _MinusIsOp12 = Assert<Equal<TagMap['-'], Op12>>
 type _ConditionalIsOp3 = Assert<Equal<TagMap['?:'], Op3>>
 type _InstanceofIsInstanceOf = Assert<Equal<TagMap['instanceof'], InstanceOf>>
+type _InstanceofIsOpId = Assert<Equal<Extract<OpId, 'instanceof'>, 'instanceof'>>
 type _BracketsIsArray = Assert<Equal<TagMap['[]'], Array>>
 type _CallIsCall = Assert<Equal<TagMap['()'], Call>>
 type _DotIsDot = Assert<Equal<TagMap['.'], Dot>>
