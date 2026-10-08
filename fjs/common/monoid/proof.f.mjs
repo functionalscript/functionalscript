@@ -1,11 +1,12 @@
 /**
  * @import { List } from '../../types/list/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
- * @import { Absorbing, Monoid } from './types.ts'
+ * @import { Absorbing, Monoid, Stack } from './types.ts'
  */
 
-import { repeat, fold, foldAbsorbing } from './module.f.mjs'
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { repeat, fold, foldAbsorbing, push, runs, step } from './module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { toArray } from '../../types/list/module.f.mjs'
 
 /** @type {Absorbing<number>} */
 const multiply = {
@@ -138,5 +139,24 @@ export const proof = {
                 foldAbsorbing(multiply)({ first: 2, tail: { first: 0, tail: rest(1) } }),
                 0)
         },
+    },
+    // The run stack carries like a binary counter: the run sizes are the set
+    // bits of the number of elements pushed, and each merge keeps the earlier
+    // run on the left.
+    stack: () => {
+        /** @type {(a: string) => (b: string) => string} */
+        const concat = a => b => a + b
+        const s = step(concat)
+        /** @type {Stack<string>} */
+        const empty = null
+        assertStructurallySame(toArray(runs(empty)), [])
+        const three = s('c')(s('b')(s('a')(empty)))
+        assertStructurallySame(toArray(runs(three)), ['c', 'ab'])
+        assertStructurallySame(toArray(runs(s('d')(three))), ['abcd'])
+        // `push` takes a run of any size: a run of 2 on a run of 2 is a run
+        // of 4.
+        const four = push(concat)(2)('cd')(push(concat)(2)('ab')(empty))
+        assertEq(four.size, 4)
+        assertStructurallySame(toArray(runs(four)), ['abcd'])
     },
 }

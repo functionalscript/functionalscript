@@ -4,12 +4,16 @@
  * exponentiation by squaring, and `fold`, which applies it across every element
  * of a list as a balanced binary tree.
  *
+ * The balanced fold's state, a {@link Stack} of runs that carries like a
+ * binary counter, is exported too — `push`, `step` and `runs` — for a
+ * structure that keeps the stack itself rather than folding it away, as
+ * [`fjs/types/set`](../../types/set/module.f.mjs) does.
+ *
  * @module
  *
  * @import { Fold, Reduce } from '../../types/function/operator/types.ts'
  * @import { Accumulator, List } from  '../../types/list/types.ts'
- * @import { Absorbing, Monoid } from './types.ts'
- * @import { _Run, _Stack } from './private.ts'
+ * @import { Absorbing, Monoid, Run, Stack } from './types.ts'
  */
 
 import { fold as listFold, tryFold } from '../../types/list/module.f.mjs'
@@ -72,9 +76,9 @@ export const repeat = ({ identity, operation }) => n => a => {
  * The result is always a run, never the empty stack — which is what lets
  * {@link absorbingAccumulator} read `null` as a stop signal rather than a state.
  *
- * @type {<T>(operation: Reduce<T>) => (size: number) => (value: T) => (stack: _Stack<T>) => _Run<T>}
+ * @type {<T>(operation: Reduce<T>) => (size: number) => (value: T) => (stack: Stack<T>) => Run<T>}
  */
-const push = operation => size => value => stack =>
+export const push = operation => size => value => stack =>
     stack === null || stack.size !== size
         ? { size, value, rest: stack }
         : push(operation)(size * 2)(operation(stack.value)(value))(stack.rest)
@@ -83,15 +87,24 @@ const push = operation => size => value => stack =>
  * `push` seeded for a single element — the step both {@link fold} and
  * {@link absorbingAccumulator} walk a list with.
  *
- * @type {<T>(operation: Reduce<T>) => (value: T) => (stack: _Stack<T>) => _Run<T>}
+ * @type {<T>(operation: Reduce<T>) => (value: T) => (stack: Stack<T>) => Run<T>}
  */
-const step = operation => push(operation)(1)
+export const step = operation => push(operation)(1)
+
+/**
+ * The values of the stack's runs, newest (top, smallest) first, as a lazy
+ * list, so a walk that stops early reads only the runs it needs.
+ *
+ * @type {<T>(stack: Stack<T>) => List<T>}
+ */
+export const runs = stack =>
+    stack === null ? null : { first: stack.value, tail: () => runs(stack.rest) }
 
 /**
  * {@link step} seen as the {@link Fold} `list.fold` takes: the same function,
  * with its result widened from a run to the stack `list.fold` threads.
  *
- * @type {<T>(operation: Reduce<T>) => Fold<T, _Stack<T>>}
+ * @type {<T>(operation: Reduce<T>) => Fold<T, Stack<T>>}
  */
 const foldStep = step
 
@@ -99,7 +112,7 @@ const foldStep = step
  * Combines the stack's runs into one value, earliest (bottom, largest) first,
  * seeded at `identity`.
  *
- * @type {<T>(monoid: Monoid<T>) => (stack: _Stack<T>) => T}
+ * @type {<T>(monoid: Monoid<T>) => (stack: Stack<T>) => T}
  */
 const combine = monoid => stack =>
     stack === null
@@ -188,7 +201,7 @@ const absorbingAccumulator =
         const c = combine(monoid)
         /**
          * @param {T} absorbing
-         * @returns {Accumulator<T, _Stack<T>, readonly[T]>}
+         * @returns {Accumulator<T, Stack<T>, readonly[T]>}
          */
         return absorbing => ({
             init: null,
