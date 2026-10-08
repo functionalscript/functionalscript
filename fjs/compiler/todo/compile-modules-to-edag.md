@@ -481,7 +481,7 @@ rediscovered:
 | `-Infinity` | the prefix and `Infinity`, `['-', Infinity]` | `-Infinity` |
 
 **All four are done**, with the front end's move, and pinned end to end in
-`fjs/compiler/proof.f.mjs`. `-0` was serializer-only,
+`fjs/compiler/language.proof.f.mjs`. `-0` was serializer-only,
 which is easy to miss because `String(-0)` is `"0"` and only `Object.is`
 separates them. `NaN` and `Infinity` are reserved words with their own
 token kinds, read as primitives by the grammar; `-Infinity` is the prefix
@@ -554,7 +554,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       reads `a.toString` as a function); `undefined` for a missing member, as
       JavaScript; a `null` or `undefined` base fails the module, as JavaScript
       throws — `run` returns a `Result` now, and `fjs compile` reports the failure
-      against the input. Pinned in `fjs/compiler/proof.f.mjs` (`access`) and
+      against the input. Pinned in `fjs/compiler/language.proof.f.mjs` (`access`) and
       `fjs/compiler/ast/proof.f.mjs`. The sweep that once read an access by
       its keys to refuse `[cfg.a, cfg.a]` as JSON went with the refusal
       (#2526): a value output reads the value, where `[cfg.a, cfg.a]` is one
@@ -724,7 +724,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       comparisons belong to the [Node adapter proofs](../../effects/node/proof.mjs).
 - [x] `-0`, `NaN`, `Infinity` and `-Infinity` round-trip through DataJS, and the JSON
       writer refuses what JSON cannot spell rather than approximating. Pinned in
-      [`fjs/compiler/proof.f.mjs`](../proof.f.mjs) (`specialNumbers`, the `jsonRefused`
+      [`fjs/compiler/language.proof.f.mjs`](../language.proof.f.mjs) (`specialNumbers`, the `jsonRefused`
       cases) and [`spec/README.md`](../../../spec/README.md#output).
 
 ### Related
