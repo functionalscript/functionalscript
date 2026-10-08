@@ -15,7 +15,7 @@ matches!(Unpacked::from(self.clone()), Unpacked::Nullish(_))
 Some(v) => matches!(Unpacked::from(v), Unpacked::Nullish(_)),
 // vm/lambda/member.rs, Member::new
 if let Unpacked::Nullish(_) = Unpacked::from(receiver.clone()) {
-// vm/any/mod.rs, own_property
+// vm/any/mod.rs, Any::entry
 if let Unpacked::Nullish(_) = &unpacked {
 // vm/any/nullish_coalescing.rs
 Unpacked::Nullish(_) => rhs(),
@@ -55,7 +55,7 @@ impl<A: IVm> Any<A> {
 ```
 
 Two forms, because two of the sites already hold an `Unpacked`:
-`own_property` converts `self` once and dispatches on the result, and
+`Any::entry` converts `self` once and dispatches on the result, and
 `Member::is_nullish` consumes what `own()` returned. Those ask the
 `Unpacked` form and keep their single conversion; the others, which
 hold an `Any` and nothing else, ask the `Any` form, which is the
@@ -73,7 +73,7 @@ the test-local `undefined()` helpers are deleted.
 ### Related
 
 - [any-receiver-prologue](./any-receiver-prologue.md) — the receiver
-  guard in `Member::new` and `own_property` is two of these sites; a
+  guard in `Member::new` and `Any::entry` is two of these sites; a
   receiver-read layer would be built on this predicate.
 - [primitive-to-any](./primitive-to-any.md) — the other missing
   conversion beside `undefined()`.

@@ -60,7 +60,7 @@ impl<A: IVm> Member<A> {
     }
 
     /// The property read, `a.b`: the own property, or `undefined` — the
-    /// same fallback `own_property` has.
+    /// same fallback `Any::entry` has.
     pub(crate) fn read(self) -> Any<A> {
         self.own().unwrap_or_else(|| Nullish::Undefined.to_any())
     }

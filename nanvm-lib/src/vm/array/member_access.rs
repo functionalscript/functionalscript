@@ -12,7 +12,7 @@ impl<A: IVm> Array<A> {
     /// canonical decimal string — reads the element, the string key
     /// `"length"` reads the length, and every other key is `None` — for
     /// the caller (`Any::dot`) to turn into `undefined`, the same
-    /// contract `Object::own_property` has for `Any::own_property`.
+    /// contract `Object::own_property` has for `Any::entry`.
     ///
     /// Never panics on an out-of-range index: `index < len` is checked
     /// before indexing, so `Array`'s own `Index<u32>` (which still panics
