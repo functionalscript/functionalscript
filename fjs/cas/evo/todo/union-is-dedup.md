@@ -1,7 +1,7 @@
 ## union-is-dedup. `union` is `fjs/types/array`'s `dedup`
 
 **Priority:** P5
-**Status:** open
+**Status:** wip
 
 ### Problem
 
