@@ -433,6 +433,27 @@ export const proof = {
         assertStructurallySame(read('export default -1();'), ['ok'])
         assertStructurallySame(read('export default 1();'), ['ok'])
     },
+    // The optional step, `?.` and then a name, `[key]` or `(args)`: one
+    // more step a value takes, as `.`, `[` and `(` are, so it stands where
+    // they stand and takes what they take.
+    optional: () => {
+        assertStructurallySame(read('const o = {}; export default o?.b;'), ['ok'])
+        assertStructurallySame(read('const o = {}; export default o?.["b"];'), ['ok'])
+        assertStructurallySame(read('const o = {}; export default o?.[0];'), ['ok'])
+        assertStructurallySame(read('const o = {}; export default o?.(1);'), ['ok'])
+        assertStructurallySame(read('const o = {}; export default o?.();'), ['ok'])
+        assertStructurallySame(read('const o = {}; export default o?.b.c(1)?.d?.(2)[0]?.["e"]();'), ['ok'])
+        assertStructurallySame(read('const o = {}; export default (o?.b).c;'), ['ok'])
+        assertStructurallySame(read('const o = {}; export default [1]?.length;'), ['ok'])
+        assertStructurallySame(read('const o = {}; export default o ?. b;'), ['ok'])
+        assertStructurallySame(read('const o = {}; export default (...a) => a?.[0];'), ['ok'])
+        // the `?.` wants its step: a name, a key or a call list
+        assertStructurallySame(read('const o = {}; export default o?.;'), ['error', ';'])
+        assertStructurallySame(read('const o = {}; export default o?.1;'), ['error', 'number'])
+        assertStructurallySame(read('const o = {}; export default o?.[];'), ['error', ']'])
+        assertStructurallySame(read('const o = {}; export default o?.(,);'), ['error', ','])
+        assertStructurallySame(read('const o = {}; export default o?.b?.;'), ['error', ';'])
+    },
     // Stage B of `spec/todo/2340-operators.md`: the lazy operators and the
     // conditional, above the eager ladder. `&&` and `||` chain as in
     // JavaScript, `??` chains with itself alone, and `?:` takes whole
@@ -499,7 +520,9 @@ export const proof = {
         assertStructurallySame(read('const a = 1; export default a ? 1 : 2 : 3;'), ['error', ':'])
         assertStructurallySame(read('const a = 1; export default a ? 1 : 2 + 3 && a ? 4 : 5;'), ['ok'])
         assertStructurallySame(read('const a = 1; export default -(a ? 1 : 2);'), ['ok'])
-        assertStructurallySame(read('const a = 1; export default a ?. 1 : 2;'), ['error', 'error'])
+        // `?.` is one token, the optional step's, so `a ?. 1 : 2` is no
+        // conditional: the step wants a name, `[` or `(` after it
+        assertStructurallySame(read('const a = 1; export default a ?. 1 : 2;'), ['error', 'number'])
     },
     // A statement ends at `;`, or at nothing: the grammar reads a module
     // whose statements omit it, however they stand, since `;` begins no

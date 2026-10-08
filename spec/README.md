@@ -1196,7 +1196,9 @@ is a value like any other and takes a property access or a call after its
 `)`, and it holds one value: a bare comma inside it waits on the comma
 operator ([operators](./todo/2340-operators.md)).
 
-Parentheses are not a boundary that anything downstream can see. They keep
+Parentheses are not a boundary that anything downstream can see — but for
+the one an [optional chain](#optional-chaining) makes of them, where they
+end the region a `?.` opened. They keep
 a property reference, so `(o.m)(a)` is the method call `o.m(a)` is
 ([functions](#functions)), and they keep sharing, so a `const` reached
 through a group is the one value it is reached without one. They launder
@@ -1440,6 +1442,50 @@ a function the text the
 adopts, a defect
 [default function text](./todo/3120-parameters.md#default-function-text-render-or-refuse)
 tracks.
+
+## Optional Chaining
+
+```js
+const o = { a: { b: 1 }, f: (...x) => x };
+const n = null;
+export default [o?.a.b, n?.a.b, o.f?.(2), n?.(3), (o?.a).b];
+```
+
+An optional chain is JavaScript's: `v?.k` and `v?.[k]` read the property
+`v.k` and `v[k]` read, with the key the same constant either takes
+([property access](#property-access)), and `v?.(…)` calls `v` as `v(…)`
+does — unless `v` is `null` or `undefined`, when the whole chain is
+`undefined` and nothing after the `?.` is evaluated: not the key, not the
+arguments, and not the steps written after it. `n?.a.b` is `undefined` under
+a nullish `n`, where `n.a.b` throws, and `n?.f(g())` never calls `g`. The
+steps after a `?.` are the chain's own until a parenthesis ends it, so
+`(n?.a).b` reads `b` of `undefined` and throws — the one thing a group is
+observable through ([grouping](#grouping)) — and the value is JavaScript's
+in every spelling: `a?.b.c` and `(a?.b).c` are two programs, `a?.b?.(c)` and
+`(a?.b)?.(c)` one, since a region closed before a guard is unobservable.
+
+A call keeps its receiver through a `?.` as it keeps it through a `.`:
+`a?.b(c)` and `a.b?.(c)` call `b` with `a` as `this`, so a built-in member
+function is called through either, and `(a?.b)(c)` keeps it too, as
+`(a.b)(c)` does. The key is judged as an access's is — a prototype name
+refused as a read, `a?.at`, and allowed as a call, `a?.at(0)`; a member
+function a module may not call refused at its key, `a?.push(1)`; `length`
+read from any value — and a key computed at run time, `a?.[i]`, waits on
+the same step `a[i]` waits on.
+
+The graph is `fjs/edag/README.md`'s Chains, where every spelling has one
+shape and the host engine agrees with it: `a?.b` is `['?.', a, 'b']`, the
+steps after it the node's continuation, `['?.', a, 'b', ['|.', 'c']]` for
+`a?.b.c`, and a group an access over the node, `['.', ['?.', a, 'b'], 'c']`.
+`a.b?.(c)` is the access's own step, `['.', a, 'b', ['|?.()', c]]`, and
+`a?.(c)` the call node `['?.()', a, c]`. Every output writes them: the
+FunctionalScript one as above, a group where the region closed; the EDAG
+one as the nodes; the Rust one as the method chain `nanvm-lib` runs. A
+`?.` directly before a decimal digit is the token `?.` here, as the
+tokenizer reads it
+([`?.` before a digit](../fjs/js/tokenizer/todo/optional-chain-before-digit.md)):
+`a?.5:1` is refused at the `5`, and will be the conditional it is in
+JavaScript when `.5` is a number.
 
 ## Importing Other Modules
 
