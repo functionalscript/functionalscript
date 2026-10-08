@@ -40,6 +40,15 @@ work is tracked from then on.
 
 ## Requirements
 
+[Nix](https://nixos.org/download/). The repository's developer shell, below,
+provides every tool in this table at the version CI uses — install Nix, enter
+the shell, and nothing else is a question. The table says what the shell
+carries and what each tool is for. It is a list to install by hand in one case
+only: bare Windows, where Nix does not run, and a developer who wants to work
+there installs these tools themselves. The table's `latest` is the floor; the
+exact versions, the ones CI's Windows jobs install, are the pins in
+[`fjs/ci/config/module.f.js`](./fjs/ci/config/module.f.js).
+
 | Tool    | Version              | Required for                                                     |
 | ------- | -------------------- | ---------------------------------------------------------------- |
 | [Node.js](https://nodejs.org/en/download) | **latest** (22 min.) | Everything.                                                     |
@@ -50,29 +59,53 @@ work is tracked from then on.
 
 TypeScript is the one row that is not simply "latest", and the only one that is
 **not** an npm dependency of this package, so `npm ci` does not install it: it
-is a tool the environment provides, like the others in this table.
-[`fjs/ci/config/module.f.js`](./fjs/ci/config/module.f.js) pins the version CI
-uses — install exactly that one globally, or take the Nix shell below and skip
-the question. Either way, do not reach for `npx tsc`: with nothing to resolve in
-`node_modules` it downloads whatever the registry calls latest, which is not the
-compiler CI runs.
+is a tool the shell provides, like the others in this table, at the version
+[`fjs/ci/config/module.f.js`](./fjs/ci/config/module.f.js) pins for CI; on bare
+Windows, install exactly that version globally. Do not reach for `npx tsc`: with
+nothing to resolve in `node_modules` it downloads whatever the registry calls
+latest, which is not the compiler CI runs.
 
-### Or one Nix shell
+### The Nix shell
 
-If you have Nix, `gen.nix/` is a development environment carrying every tool in that
-table at the versions CI uses. It is not a convenience built alongside CI: most
-jobs run their commands inside this very shell, so what passes here is what
-passes there.
+`gen.nix/` is a development environment carrying every tool in that table at
+the versions CI uses. It is not a convenience built alongside CI: every job runs
+its commands inside this very shell, so what passes here is what passes there,
+except the Node 22 and Node 24 compatibility jobs, each on a flake of its own,
+the two Windows platform jobs, which run without Nix, and the publishing
+workflow, which runs on the Node `setup-node` installs. The packed-package
+check that closes `node26` stays out of it too, by design: it installs the
+published tarball with `setup-node`'s Node and npm, as a consumer would. So a
+change that leans on Node 26 passes the shell and still fails CI. Every
+developer and every agent works inside the shell.
 
 ```bash
 ./dev.sh                   # an interactive shell
-sh ./gen.nix/run npm run cov      # or one command in it
+./dev.sh npm run cov       # or one command in it
 ```
 
-[`dev.sh`](./dev.sh) opens the shell; [`gen.nix/run`](./gen.nix/run) hands it a single
-command, and is what a CI step names. Nix does not run natively on Windows, so a
-Windows contributor either works through WSL2 or installs the table above —
-nothing in this repository requires Nix.
+[`dev.sh`](./dev.sh) opens the shell, or runs the command given to it, and
+enables flakes itself, so a stock Nix install needs no configuration;
+[`gen.nix/run`](./gen.nix/run) is the generated form of the latter, and is what
+a CI step names. On macOS and Linux, install Nix on the host; VS Code's offer
+to reopen in a container is a slower detour there, and declining it changes
+nothing. Nix does not run natively on Windows: a Windows contributor opens the
+repository in that container —
+[`.devcontainer/devcontainer.json`](./.devcontainer/devcontainer.json) builds
+a Debian image with Nix and runs `npm ci` in the shell on any devcontainer
+host; in VS Code and Codespaces it also opens every terminal inside the shell,
+through a terminal profile only those two hosts read, which runs `./dev.sh`
+and so expects a terminal opened at the workspace root, VS Code's default — so
+on another host such
+as IntelliJ or the devcontainer CLI run `./dev.sh` yourself — or works in WSL2
+with Nix installed there. The shell is the same either way; only the VS Code
+devcontainer enters it for you, so everywhere else run `./dev.sh` yourself or
+set your own terminal profile to it. Bare Windows, outside both,
+means installing the [Requirements](#requirements) table by hand at the
+versions `fjs/ci/config/module.f.js` pins, as CI's Windows jobs do.
+
+One build runs outside it: Cloudflare's Workers Builds generates the website on
+its own image and reads its Node version from `.node-version`, which is why that
+file exists ([fjs/website/README.md](./fjs/website/README.md#the-site-is-the-repository-served)).
 
 [`fjs/ci/nix/README.md`](./fjs/ci/nix/README.md) explains the shell and how it is generated.
 
@@ -100,8 +133,7 @@ cargo clippy
 cargo fmt -- --check
 ```
 
-Both of the first two need `tsc` on `PATH` — from the Nix shell, or from the
-global install described under [Requirements](#requirements).
+Both of the first two need `tsc` on `PATH`, which the Nix shell provides.
 
 #### Ways to run the FunctionalScript test suite
 
@@ -211,8 +243,9 @@ npm run gen
 Run this after changing anything a generator reads — `fjs/ci`'s workflows and
 Nix flakes, `fjs/nanvm`'s Rust test data. It needs Node and Nix: its last
 command is the generated `gen.nix/lock-update.sh`, which locks each flake
-from its pinned commit after the cleanup below emptied `gen.nix/`, so it does
-not run on Windows for now. The dependency lockfiles it never touches.
+from its pinned commit after the cleanup below emptied `gen.nix/`, so on
+Windows it runs where Nix does: in WSL2 or a container. The dependency
+lockfiles it never touches.
 
 `gen` starts by deleting every generated output — the same module as
 `npm run gen:clean` — so regeneration starts from nothing: an output no
@@ -278,8 +311,16 @@ npm run lock-update
 This is a maintainer action, not something to run after an ordinary source
 change — `gen` above covers that, the `flake.lock` files included. It requires
 Node, Deno, Bun, Cargo, and Nix all installed: it runs `gen` first, then
-refreshes `package-lock.json`, `deno.lock`, `bun.lock`, and `Cargo.lock` — see
-[`nix/README.md`](./fjs/ci/nix/README.md).
+refreshes `package-lock.json`, `deno.lock`, `bun.lock`, `Cargo.lock` and
+`.devcontainer/devcontainer-lock.json` — see
+[`nix/README.md`](./fjs/ci/nix/README.md). The last one pins the devcontainer's
+Nix feature to the version and digest the registry serves, and is written by
+the devcontainer CLI, which the script runs through `npx` at a version pinned
+in the command rather than as a dependency of this package — an external tool
+called from a repository script, approved by the maintainer for this step
+([AGENTS.md §6](./AGENTS.md#6-external-tools)). An agent session
+needs the registry's content host, `pkg-containers.githubusercontent.com`,
+allowed in its network policy for that step.
 
 ## Opening a pull request
 
@@ -365,21 +406,25 @@ Reviewing someone else's pull request: [REVIEWING.md](./doc/REVIEWING.md).
 
 ## OpenAI Codex environment
 
-Set Node.js to 22. Both `npm test` and `npm run cov` work in this environment;
-the latter uses the automatic inline test-registration fallback.
-
-Setup script:
+The same shell. The environment's setup script installs Nix and fetches both
+dependency sets inside it, so every later command finds the toolchain CI uses
+and the dependencies it needs — the container's network is open during setup
+only, so a `cargo fetch` left for later would fail there. Codex runs the script
+as root in a container without an init system, which the official installer
+refuses in both of its modes, so the script uses the Determinate installer,
+which supports exactly that. The shells Codex opens for the task afterwards do
+not carry the setup shell's `PATH`, and `--init none` writes no startup
+integration, so the environment's own settings must put Nix on the task's
+`PATH`: set the `PATH` environment variable there to begin with
+`/nix/var/nix/profiles/default/bin`. The setup script sources the same profile
+for its own commands.
 
 ```sh
-rustup component add clippy
-rustup component add rustfmt
-
-# Install Node.js dependencies.
-npm ci
-
-# Install Rust dependencies.
-cargo fetch
-
-rustup show
-node -v
+curl -fsSL https://install.determinate.systems/nix | sh -s -- install linux --init none --no-confirm
+. /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
+./dev.sh npm ci
+./dev.sh cargo fetch
 ```
+
+`npm test`, `npm run cov` and every other check then run as
+`./dev.sh <command>`.

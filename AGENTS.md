@@ -12,10 +12,14 @@ work before starting, and check that no open pull request, draft or not, already
 works on the same `todo/`. Claim a task by opening a draft pull request for it
 at once ([SESSION.md](./doc/SESSION.md#claim-the-task)).
 
+Develop inside the Nix shell `./dev.sh` opens — every developer and every
+agent, on every platform ([§2](#2-environment-and-running-tests)). It carries
+every tool below at the version CI uses; nothing is installed by hand.
+
 Run the full check set before submitting:
 
 ```bash
-tsc                      # type-check; the compiler is the environment's
+tsc                      # type-check; the shell's compiler
 fjs test                 # or any equivalent runner
 npm start compile        # every authored .f.js still compiles; the working tree's compiler
 cargo test               # only if you touched Rust
@@ -33,14 +37,11 @@ node --test
 It must complete with exit code 0 and an observed final pass/fail summary. A
 targeted suite, partial output, or interrupted run does not satisfy this check.
 After `npm run gen`, rerun `node --test` and every relevant check above
-before publishing. If `tsc` is unavailable, enter the documented Nix shell or
-report the PR as unready; do not treat an unavailable required check as passing.
-
-`tsc` is not a dependency of this package. It comes from the Nix developer
-shell (`./dev.sh`), or from a global npm install of the version
-`fjs/ci/config/module.f.js` pins — [CONTRIBUTING.md](./CONTRIBUTING.md) has
-both. `npx tsc` no longer runs the repository's compiler: with nothing to
-resolve in `node_modules` it fetches whatever the registry calls latest.
+before publishing. If a check's tool is unavailable, you are outside the shell:
+enter it, or report the PR as unready; do not treat an unavailable required
+check as passing. `tsc` in particular is not a dependency of this package, and
+`npx tsc` does not run the repository's compiler: with nothing to resolve in
+`node_modules` it fetches whatever the registry calls latest.
 
 Three principles outrank everything else. **Always prefer simplicity and quality
 over optimization** — never optimize prematurely, and never at the cost of
@@ -122,13 +123,44 @@ pull requests, and a question at every step: [SESSION.md](./doc/SESSION.md).
 
 ## 2. Environment and running tests
 
-`npm ci` installs Node dependencies and `cargo fetch` the Rust ones. `npm test`
-runs `tsc` plus the FunctionalScript suite; `fjs test` and its Deno, Bun, and
-published-CLI equivalents run the same suite. To run only the tests under a
-subtree, `cd` into it and run the runner from there.
+Install [Nix](https://nixos.org/download/) and work inside the repository's
+shell. `gen.nix/` is a flake carrying every tool the project builds and tests
+with — Node, TypeScript, Rust with its WASM targets, Deno, Bun, the WASM
+runtimes — at the versions CI uses. Every CI job runs inside this very shell, so
+what passes in it is what passes there, except the Node 22 and Node 24
+compatibility jobs, each on a flake of its own, the two Windows platform jobs,
+which run without Nix, and the publishing workflow, which runs on the Node
+`setup-node` installs. The packed-package check that closes `node26` stays out
+of it too, by design: it installs the published tarball with `setup-node`'s
+Node and npm, as a consumer would. Do not install those tools by hand or pick
+their versions; the shell is the one environment.
 
-Required tool versions, every equivalent way to run the suite, and the
-dependency-update procedure: [CONTRIBUTING.md](./CONTRIBUTING.md).
+```bash
+./dev.sh                      # an interactive shell
+./dev.sh <command>            # one command in it; CI steps run the generated sh ./gen.nix/run <command>
+```
+
+`dev.sh` enables flakes itself, so a stock Nix install needs no configuration.
+On macOS and Linux, install Nix on the host. Nix does not run natively on
+Windows: open the repository in the devcontainer —
+[`.devcontainer/`](./.devcontainer/devcontainer.json) builds a Debian image
+with Nix and runs `npm ci` in the shell on any host, and VS Code and Codespaces
+also open every terminal inside the shell — or work in WSL2 with Nix installed
+there. The shell is the same either way. Bare Windows, outside both, is on your
+own: install the tools [CONTRIBUTING.md](./CONTRIBUTING.md#requirements)'s table
+names yourself, at the exact versions `fjs/ci/config/module.f.js` pins, which
+are what CI's Windows jobs install. A Claude Code cloud session runs `npm ci` in
+the shell and puts the shell's tools on its `PATH` before its first command,
+from [`.claude/hooks/session-start.sh`](./.claude/hooks/session-start.sh).
+
+Inside the shell, `npm ci` installs Node dependencies and `cargo fetch` the
+Rust ones. `npm test` runs `tsc` plus the FunctionalScript suite; `fjs test`
+and its Deno, Bun, and published-CLI equivalents run the same suite. To run
+only the tests under a subtree, `cd` into it and run the runner from there.
+
+Every equivalent way to run the suite and the dependency-update procedure:
+[CONTRIBUTING.md](./CONTRIBUTING.md). How the shell is generated and why it
+looks the way it does: [fjs/ci/nix/README.md](./fjs/ci/nix/README.md).
 
 Keep any website demos affected by the change working. Contributors may add or
 update demos; check them in the browser and include their preview links in the
