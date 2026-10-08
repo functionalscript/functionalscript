@@ -13,6 +13,7 @@ export const proof = {
         sign: () => assertEq(tryParse('-1.0'), null),
         // Past `Number.MAX_SAFE_INTEGER` two different parts round to one.
         unsafe: () => assertEq(tryParse('9007199254740993'), null),
+        maxSafe: () => assertStructurallySame(tryParse('9007199254740991'), [9007199254740991]),
     },
     cmp: {
         less: () => assertEq(cmp('25.99.99')('26.0.0'), -1),

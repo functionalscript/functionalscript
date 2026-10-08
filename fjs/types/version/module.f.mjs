@@ -34,18 +34,23 @@
  */
 
 import { cmp as numberCmp } from '../number/module.f.mjs'
-import { isDigit } from '../../text/ascii/module.f.mjs'
+import { digitsValue, one } from '../../text/ascii/module.f.mjs'
+
+const decimalValue = digitsValue(10n)
+
+const maxPart = BigInt(Number.MAX_SAFE_INTEGER)
 
 /**
- * One or more decimal digits spelling a safe integer. A longer run would
+ * The number one or more decimal digits spell, or `null` where `part` is
+ * anything else or spells more than a safe integer. A longer run would
  * round, and two different versions would compare equal.
  *
- * @type {(part: string) => boolean}
+ * @type {(part: string) => Nullable<number>}
  */
-const isPart = part =>
-    part.length !== 0
-    && [...part].every(c => isDigit(c.charCodeAt(0)))
-    && Number.isSafeInteger(Number(part))
+const tryParsePart = part => {
+    const n = decimalValue([...part].map(one))
+    return n !== null && n <= maxPart ? Number(n) : null
+}
 
 /**
  * A version as its numbers, or `null` where any dot-separated part is not a
@@ -54,8 +59,8 @@ const isPart = part =>
  * @type {(version: string) => Nullable<readonly number[]>}
  */
 export const tryParse = version => {
-    const parts = version.split('.')
-    return parts.every(isPart) ? parts.map(Number) : null
+    const parts = version.split('.').map(tryParsePart)
+    return parts.every(p => p !== null) ? parts : null
 }
 
 /** @type {(version: string) => readonly number[]} */
