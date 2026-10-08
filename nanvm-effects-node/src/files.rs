@@ -32,6 +32,9 @@ pub struct Dirent {
 /// larger file before reading; the read also checks the bytes actually returned.
 pub const MAX_FILE_SIZE_BYTES: u64 = 1 << 17;
 
+/// `maxOffset` in `fjs/effects/node/module.f.mjs`: `Number.MAX_SAFE_INTEGER`.
+const MAX_OFFSET: u64 = (1 << 53) - 1;
+
 /// The Node error code of a failure, where `std` has a kind for it: what a
 /// program reads from `IoError.code` to tell a missing file from a refused one.
 fn code(kind: ErrorKind) -> Option<&'static str> {
@@ -42,15 +45,77 @@ fn code(kind: ErrorKind) -> Option<&'static str> {
         ErrorKind::NotADirectory => Some("ENOTDIR"),
         ErrorKind::IsADirectory => Some("EISDIR"),
         ErrorKind::DirectoryNotEmpty => Some("ENOTEMPTY"),
+        ErrorKind::ReadOnlyFilesystem => Some("EROFS"),
+        ErrorKind::StorageFull => Some("ENOSPC"),
         _ => None,
     }
+}
+
+/// Raw codes carry distinctions `ErrorKind` loses, including `EPERM` versus
+/// `EACCES`, descriptor exhaustion and symlink loops. Keep the numeric ABI
+/// scoped to its target; these are not portable POSIX numbers. Full parity is
+/// tracked in `nanvm-effects-node/todo/filesystem-error-codes.md`.
+fn raw_code(raw: i32) -> Option<&'static str> {
+    // Linux asm-generic errno ABI, used by the native Linux targets in CI.
+    #[cfg(all(
+        target_os = "linux",
+        any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64")
+    ))]
+    let codes: &[(i32, &str)] = &[
+        (1, "EPERM"),
+        (5, "EIO"),
+        (23, "ENFILE"),
+        (24, "EMFILE"),
+        (28, "ENOSPC"),
+        (30, "EROFS"),
+        (40, "ELOOP"),
+    ];
+    // Darwin bsd/sys/errno.h.
+    #[cfg(target_os = "macos")]
+    let codes: &[(i32, &str)] = &[
+        (1, "EPERM"),
+        (5, "EIO"),
+        (23, "ENFILE"),
+        (24, "EMFILE"),
+        (28, "ENOSPC"),
+        (30, "EROFS"),
+        (62, "ELOOP"),
+    ];
+    // Win32 system errors, translated as libuv's src/win/error.c does.
+    #[cfg(target_os = "windows")]
+    let codes: &[(i32, &str)] = &[
+        (4, "EMFILE"),
+        (5, "EPERM"),
+        (19, "EROFS"),
+        (39, "ENOSPC"),
+        (112, "ENOSPC"),
+        (1117, "EIO"),
+        (1314, "EPERM"),
+        (1921, "ELOOP"),
+    ];
+    #[cfg(not(any(
+        all(
+            target_os = "linux",
+            any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64")
+        ),
+        target_os = "macos",
+        target_os = "windows"
+    )))]
+    let codes: &[(i32, &str)] = &[];
+    codes
+        .iter()
+        .find_map(|&(number, name)| (raw == number).then_some(name))
 }
 
 /// A failed call as the error channel carries it: the code where there is
 /// one, and a message naming the call and the path.
 fn failure(error: &io::Error, call: &str, path: &str) -> IoError {
     IoError {
-        code: code(error.kind()).map(str::to_string),
+        code: error
+            .raw_os_error()
+            .and_then(raw_code)
+            .or_else(|| code(error.kind()))
+            .map(str::to_string),
         message: format!("{error}, {call} '{path}'"),
     }
 }
@@ -146,9 +211,9 @@ fn tree(path: &str) -> io::Result<Vec<Dirent>> {
     Ok(found)
 }
 
-/// A byte offset: a whole, non-negative number that a file can hold.
+/// A byte offset within the shared positional-I/O safe integer range.
 fn offset(value: f64) -> Option<u64> {
-    (value.is_finite() && value >= 0.0 && value.fract() == 0.0 && value < u64::MAX as f64)
+    ((0.0..=MAX_OFFSET as f64).contains(&value) && value.fract() == 0.0)
         .then_some(value as u64)
 }
 
@@ -225,7 +290,8 @@ pub fn write_file(path: &str, data: &[u8]) -> Result<(), IoError> {
 }
 
 /// Writes into a file that exists, at `at`, leaving the rest as it is. An
-/// offset that is not a whole, non-negative number is `ERR_OUT_OF_RANGE`.
+/// offset outside the safe non-negative integer range is `ERR_OUT_OF_RANGE`,
+/// refused before the file is opened.
 pub fn write_bytes(path: &str, at: f64, data: &[u8]) -> Result<(), IoError> {
     let Some(at) = offset(at) else {
         return Err(refusal(
@@ -316,10 +382,16 @@ mod test {
     fn offsets() {
         assert_eq!(offset(0.0), Some(0));
         assert_eq!(offset(5.0), Some(5));
+        assert_eq!(offset(-0.0), Some(0));
+        assert_eq!(offset(MAX_OFFSET as f64 - 1.0), Some(MAX_OFFSET - 1));
+        assert_eq!(offset(MAX_OFFSET as f64), Some(MAX_OFFSET));
+        assert_eq!(offset(MAX_OFFSET as f64 + 1.0), None);
+        assert_eq!(offset(u64::MAX as f64), None);
         assert_eq!(offset(-1.0), None);
         assert_eq!(offset(0.5), None);
         assert_eq!(offset(f64::NAN), None);
         assert_eq!(offset(f64::INFINITY), None);
+        assert_eq!(offset(f64::NEG_INFINITY), None);
         assert_eq!(offset(1e30), None);
     }
 
@@ -331,7 +403,68 @@ mod test {
         assert_eq!(code(ErrorKind::NotADirectory), Some("ENOTDIR"));
         assert_eq!(code(ErrorKind::IsADirectory), Some("EISDIR"));
         assert_eq!(code(ErrorKind::DirectoryNotEmpty), Some("ENOTEMPTY"));
+        assert_eq!(code(ErrorKind::ReadOnlyFilesystem), Some("EROFS"));
+        assert_eq!(code(ErrorKind::StorageFull), Some("ENOSPC"));
         assert_eq!(code(ErrorKind::Other), None);
+    }
+
+    #[test]
+    fn failures_preserve_codes_and_context() {
+        for (kind, expected) in [
+            (ErrorKind::ReadOnlyFilesystem, Some("EROFS")),
+            (ErrorKind::StorageFull, Some("ENOSPC")),
+            (ErrorKind::Other, None),
+        ] {
+            let error = failure(&kind.into(), "write", "p");
+            assert_eq!(error.code.as_deref(), expected);
+            assert!(error.message.ends_with(", write 'p'"));
+        }
+        let unknown = io::Error::from_raw_os_error(i32::MAX);
+        assert_eq!(raw_code(i32::MAX), None);
+        assert_eq!(failure(&unknown, "open", "p").code, None);
+    }
+
+    #[cfg(any(
+        all(
+            target_os = "linux",
+            any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64")
+        ),
+        target_os = "macos"
+    ))]
+    #[test]
+    fn unix_failures_preserve_raw_codes() {
+        for (raw, expected) in [
+            (1, "EPERM"),
+            (5, "EIO"),
+            (23, "ENFILE"),
+            (24, "EMFILE"),
+            (28, "ENOSPC"),
+            (30, "EROFS"),
+        ] {
+            let error = io::Error::from_raw_os_error(raw);
+            assert_eq!(failure(&error, "open", "p").code.as_deref(), Some(expected));
+        }
+        // A raw permission error must not collapse EPERM into EACCES.
+        let denied = io::Error::from_raw_os_error(13);
+        assert_eq!(failure(&denied, "open", "p").code.as_deref(), Some("EACCES"));
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn windows_failures_preserve_raw_codes() {
+        for (raw, expected) in [
+            (4, "EMFILE"),
+            (5, "EPERM"),
+            (19, "EROFS"),
+            (39, "ENOSPC"),
+            (112, "ENOSPC"),
+            (1117, "EIO"),
+            (1314, "EPERM"),
+            (1921, "ELOOP"),
+        ] {
+            let error = io::Error::from_raw_os_error(raw);
+            assert_eq!(failure(&error, "open", "p").code.as_deref(), Some(expected));
+        }
     }
 
     fn code_of<T: std::fmt::Debug>(r: Result<T, IoError>) -> Option<String> {
@@ -447,6 +580,36 @@ mod test {
                 error.message,
                 "File exceeds maximum allowed size of 131072 bytes: '/dev/zero'"
             );
+        }
+
+        #[cfg(any(
+            all(
+                target_os = "linux",
+                any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64")
+            ),
+            target_os = "macos"
+        ))]
+        #[test]
+        fn read_reports_a_symlink_loop() {
+            let dir = Scratch::new();
+            let link = dir.at("loop");
+            std::os::unix::fs::symlink("loop", &link).unwrap();
+            assert_eq!(code_of(read_file(&link)), Some("ELOOP".into()));
+        }
+
+        #[test]
+        fn unsafe_offsets_are_refused_before_open() {
+            let dir = Scratch::new();
+            let missing = dir.at("missing");
+            for at in [MAX_OFFSET as f64 + 1.0, u64::MAX as f64] {
+                // A valid offset on this path would be ENOENT. No sparse file
+                // is created to prove the numeric boundary.
+                assert_eq!(
+                    code_of(write_bytes(&missing, at, &[1])),
+                    Some("ERR_OUT_OF_RANGE".into())
+                );
+            }
+            assert!(!Path::new(&missing).exists());
         }
 
         #[test]
