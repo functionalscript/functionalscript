@@ -18,7 +18,7 @@
  * @module
  *
  * @import { Type as RttiType } from '../../../rtti/types.ts'
- * @import { ArraySet, Data, KindSet, Node, ObjectSet, RuleSet, UnionSet } from '../../../rtti/data/types.ts'
+ * @import { ArraySet, Data, Node, ObjectSet, RuleSet, UnionAlgebra, UnionSet } from '../../../rtti/data/types.ts'
  * @import { Ts } from '../../../rtti/ts/types.ts'
  * @import { Phantom } from '../../../types/phantom/types.ts'
  */
@@ -27,16 +27,11 @@ import { assert } from '../../../asserts/module.f.mjs'
 import { at, definedEntries } from '../../../types/object/module.f.mjs'
 import { array, number, option, or, record, string } from '../../../rtti/module.f.mjs'
 import {
-    absentBit,
     admitsAbsence,
-    booleanBits,
-    falseBit,
-    isTop,
-    kindFold,
-    nullBit,
+    requiredPrefix,
     toData,
-    trueBit,
     undefinedBit,
+    unionFold,
     withoutUnits,
 } from '../../../rtti/data/module.f.mjs'
 import { unknown as jsonUnknown } from '../rtti/module.f.mjs'
@@ -130,19 +125,6 @@ const refSchema = rules => name => {
 const nodeSchema = rules => n =>
     typeof n === 'string' ? refSchema(rules)(n) : unionSchema(rules)(n)
 
-/**
- * The schemas of one kind component: nothing when absent, the whole kind
- * when `true`, one schema per member otherwise.
- *
- * @template T
- * @param {KindSet<T> | undefined} k
- * @param {Ts<typeof unknown>} whole
- * @param {(v: T) => Ts<typeof unknown>} item
- * @returns {readonly Ts<typeof unknown>[]}
- */
-const kindSchemas = (k, whole, item) =>
-    kindFold({ absent: () => [], whole: () => [whole], members: list => list.map(item) })(k)
-
 /** @type {(v: boolean | number | string | null) => Ts<typeof unknown>} */
 const constSchema = v => ({ const: v })
 
@@ -151,48 +133,34 @@ const constSchema = v => ({ const: v })
 const bigintConstSchema = v => ({ const: Number(v) })
 
 /**
- * The unit kind: `null` and `undefined` are their own singletons — no JSON
+ * A unit member: `null` and `undefined` are their own singletons — no JSON
  * value is `undefined`, hence `{ "not": {} }` — and both boolean bits
  * together are the `boolean` type with no special-case rule.
  *
- * @type {(bits: number) => readonly Ts<typeof unknown>[]}
+ * @type {UnionAlgebra<Ts<typeof unknown>>['unit']}
  */
-const unitSchemas = bits => [
-    ...((bits & nullBit) === 0 ? [] : [constSchema(null)]),
-    ...((bits & undefinedBit) === 0 ? [] : [{ not: {} }]),
-    ...((bits & booleanBits) === booleanBits ? [{ type: /** @type {const} */ ('boolean') }]
-        : (bits & falseBit) !== 0 ? [constSchema(false)]
-        : (bits & trueBit) !== 0 ? [constSchema(true)]
-        : []),
-]
-
-/**
- * The length below which the array would leave a declared position that
- * excludes **absence** unfilled: one past the last such position, and zero
- * when every position admits absence. The array counterpart of the
- * `required` key list — and, arrays being contiguous, one number says it for
- * every position.
- *
- * @type {(rules: RuleSet) => (prefix: readonly Node[]) => number}
- */
-const minLength = rules => prefix =>
-    prefix.findLastIndex(n => !admitsAbsence(rules)(n)) + 1
+const unitSchema = name =>
+    name === 'null' ? constSchema(null)
+    : name === 'undefined' ? { not: {} }
+    : name === 'boolean' ? { type: 'boolean' }
+    : name === 'false' ? constSchema(false)
+    : constSchema(true)
 
 /**
  * A set of arrays: `prefixItems` for the declared positions, `items` for what
  * may follow — `false` when nothing may, which is what makes the exact-length
  * pattern exact. `prefixItems` alone constrains only elements that exist
  * (draft 2020-12 implies no minimum length), so the required length is
- * `minItems` — one past the last position excluding absence — and a position
- * past it has `undefined` stripped from its schema, JSON spelling an
- * unfilled position as `null`-less truncation rather than a written
- * `undefined`. Both are the object side's `required` /
+ * `minItems` — one past the last position excluding absence
+ * (`requiredPrefix`) — and a position past it has `undefined` stripped from
+ * its schema, JSON spelling an unfilled position as `null`-less truncation
+ * rather than a written `undefined`. Both are the object side's `required` /
  * {@link stripUndefined} pair, one kind over.
  *
  * @type {(rules: RuleSet) => (p: ArraySet) => Ts<typeof unknown>}
  */
 const arraySetSchema = rules => p => {
-    const minItems = minLength(rules)(p.prefix)
+    const minItems = requiredPrefix(rules)(p.prefix)
     return {
         type: 'array',
         ...(p.prefix.length === 0 ? {} : {
@@ -244,28 +212,36 @@ const objectSetSchema = rules => p => {
 }
 
 /**
- * The absent bit is masked before rendering: absence is not a JSON value —
- * it is spelled by a key's omission from `required`, or by `minItems` — so
- * it contributes no schema member, and `or(option, unknown)` is the
- * always-true `{}` like plain `unknown`.
+ * The JSON Schema leaves of a union. A whole kind is its `type`, with
+ * `bigint` as `integer`. No members is the always-false `{ "not": {} }`, one
+ * member stands alone, and more are an `anyOf`.
+ *
+ * @type {(rules: RuleSet) => UnionAlgebra<Ts<typeof unknown>>}
+ */
+const schemaAlgebra = rules => ({
+    top: {},
+    unit: unitSchema,
+    whole: kind => ({ type: kind === 'bigint' ? 'integer' : kind }),
+    number: constSchema,
+    string: constSchema,
+    bigint: bigintConstSchema,
+    array: arraySetSchema(rules),
+    object: objectSetSchema(rules),
+    join: members =>
+        members.length === 0 ? { not: {} }
+        : members.length === 1 ? members[0]
+        : { anyOf: members },
+})
+
+/**
+ * The absent bit is masked before rendering, by `unionFold`: absence is not
+ * a JSON value — it is spelled by a key's omission from `required`, or by
+ * `minItems` — so it contributes no schema member, and `or(option, unknown)`
+ * is the always-true `{}` like plain `unknown`.
  *
  * @type {(rules: RuleSet) => (u: UnionSet) => Ts<typeof unknown>}
  */
-const unionSchema = rules => u0 => {
-    const u = withoutUnits(absentBit)(u0)
-    if (isTop(u)) { return {} }
-    const members = [
-        ...unitSchemas(u.unit ?? 0),
-        ...kindSchemas(u.number, { type: 'number' }, constSchema),
-        ...kindSchemas(u.string, { type: 'string' }, constSchema),
-        ...kindSchemas(u.bigint, { type: 'integer' }, bigintConstSchema),
-        ...kindSchemas(u.array, { type: 'array' }, arraySetSchema(rules)),
-        ...kindSchemas(u.object, { type: 'object' }, objectSetSchema(rules)),
-    ]
-    return members.length === 0 ? { not: {} }
-        : members.length === 1 ? members[0]
-        : { anyOf: members }
-}
+const unionSchema = rules => unionFold(schemaAlgebra(rules))
 
 /**
  * Converts a serializable RTTI {@link Data} (from `toData`) to a JSON Schema
