@@ -1,7 +1,7 @@
 # Optional chaining
 
 **Priority:** P2
-**Status:** wip — implementation in progress; linked language-design approval pending
+**Status:** wip — implementation complete; linked language-design approval pending
 
 ```js
 export default (a) => [a?.b, a?.["b"], a?.(1), a?.b.c(2)];
@@ -76,16 +76,18 @@ its own.
 
 ## Tasks
 
-- [ ] The grammar's `access` takes `?.name`, `?.[key]` and `?.(args)`; the
+- [x] The grammar's `access` takes `?.name`, `?.[key]` and `?.(args)`; the
       syntax reader folds a chain's steps into the EDAG's chain shapes and
       closes a region at a group; the fold resolves the names a chain holds
       and judges its keys; proofs in `fjs/compiler/parser`.
-- [ ] The lowering carries the chain nodes to the EDAG, the FunctionalScript
+- [x] The lowering carries the chain nodes to the EDAG, the FunctionalScript
       writer spells them back, parentheses where a region closed; proofs in
       `fjs/compiler/edag`, `fjs/compiler/serializer` and `fjs/compiler`.
-- [ ] A Rust harness fixture runs a chain end to end.
-- [ ] The specification describes the feature; the roadmap's entry and the
-      survey's rows are reread.
+- [x] A Rust harness fixture runs a chain end to end,
+      `nanvm-harness/fixtures/optional.mjs`.
+- [x] The specification describes the feature
+      ([optional chaining](../README.md#optional-chaining)); the roadmap's
+      entry and the survey's rows are reread.
 - [ ] Obtain and link explicit language-design approval from `sergey-shandar`.
 
 ## Related

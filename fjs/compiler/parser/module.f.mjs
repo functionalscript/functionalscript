@@ -53,10 +53,10 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
- * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstNot, AstTypeof, AstSelf, AstCall, AstConditional, AstConst, AstFrameRef, AstEntry, AstFunction, AstItem, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstRest, AstSpread, AstThrow } from '../ast/types.ts'
+ * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstNot, AstTypeof, AstSelf, AstCall, AstConditional, AstConst, AstFrameRef, AstEntry, AstFunction, AstItem, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstRest, AstSpread, AstStep, AstThrow } from '../ast/types.ts'
  * @import { ParseError } from './types.ts'
- * @import { Block, Container, Entry, If, Import, Item, Module, Node, ParameterBinding, ParameterList, Statement, ValueStatement } from './syntax/types.ts'
- * @import { _AccessFrame, _BodyFrame, _CallFrame, _ConditionalFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _Parameter, _Ref, _Scope, _Stack, _State } from './private.ts'
+ * @import { Block, Chain, Container, Entry, If, Import, Item, Module, Node, ParameterBinding, ParameterList, Statement, Step, ValueStatement } from './syntax/types.ts'
+ * @import { _AccessFrame, _BodyFrame, _CallFrame, _ChainFrame, _ChainPart, _ConditionalFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _Parameter, _Ref, _Scope, _Stack, _State } from './private.ts'
  */
 
 import { error, mapOk, ok } from '../../types/result/module.f.mjs'
@@ -270,16 +270,101 @@ const keyNamed = t => {
  *
  * @type {(frame: _AccessFrame, base: AstConst) => Result<AstConst, ParseError>}
  */
-const accessClosed = (frame, base) => {
-    const { key, method } = frame
+const accessClosed = (frame, base) => mapOk(
+    /** @type {(named: string | number) => AstConst} */
+    (named => ['.', base, named]),
+)(checkedKey(frame.key, frame.method))
+
+/**
+ * A key's name, or its refusal: a name of the prototype chain where the
+ * key is read, and a member function a module may not call where it is
+ * called, `method` — the two rules of `fjs/js/prototype`'s two lists.
+ *
+ * @type {(key: DjsTokenWithMetadata, method: boolean) => Result<string | number, ParseError>}
+ */
+const checkedKey = (key, method) => {
     const named = keyNamed(key)
     if (typeof named === 'string') {
         if (method && _prohibitedCallNames.has(named)) { return error(prohibitedCall(key)) }
         if (!method && _prohibitedNames.has(named)) { return error(prohibitedKey(key)) }
     }
-    /** @type {AstAccess} */
-    const access = ['.', base, named]
-    return ok(access)
+    return ok(named)
+}
+
+/** Whether the step after a key makes the key a call's: any step but a property. @type {(step: Step | undefined) => boolean} */
+const isCallStep = step => step !== undefined && step[0] !== '|.'
+
+/** The parts of a chain's steps, {@link chainParts}: each key with whether a call follows it, and each argument's operand. @type {(step: Step | undefined) => readonly _ChainPart[]} */
+const stepParts = step => {
+    if (step === undefined) { return [] }
+    if (step[0] === '|.') { return [{ key: step[1], method: isCallStep(step[2]) }, ...stepParts(step[2])] }
+    return [...step[1].map(item => ({ value: operandOf(item) })), ...stepParts(step[2])]
+}
+
+/**
+ * The operands of a chain in document order, {@link _ChainPart}: its base
+ * or callee, then each key — with whether a call step follows it, which
+ * is what makes the key a method call's — and each argument's operand,
+ * in the order they are written, which is the order they are evaluated in
+ * and the order their errors are reported in.
+ *
+ * @type {(chain: Chain) => readonly _ChainPart[]}
+ */
+const chainParts = chain => {
+    if (chain[0] === '?.()') { return [{ value: chain[1] }, ...chain[2].map(item => ({ value: operandOf(item) })), ...stepParts(chain[3])] }
+    return [{ value: chain[1] }, { key: chain[2], method: isCallStep(chain[3]) }, ...stepParts(chain[3])]
+}
+
+/**
+ * A chain's steps with their values put back, from `at` in `values`: a
+ * key's name where its token was, each argument's value under its spread.
+ *
+ * @type {(step: Step, values: readonly AstConst[], at: number) => AstStep}
+ */
+const stepClosed = (step, values, at) => {
+    const [tag, x, next] = step
+    if (tag === '|.') {
+        const key = /** @type {string | number} */ (values[at])
+        return next === undefined ? ['|.', key] : ['|.', key, stepClosed(next, values, at + 1)]
+    }
+    const args = x.map((item, i) => itemValue(item)(values[at + i]))
+    return /** @type {AstStep} */ (next === undefined ? [tag, args] : [tag, args, stepClosed(next, values, at + x.length)])
+}
+
+/**
+ * A chain closed over its parts' values, {@link chainParts}'s order: the
+ * AST's own shape, which is the EDAG's, with each value where its operand
+ * was and each key's name where its token was.
+ *
+ * @type {(chain: Chain, values: readonly AstConst[]) => AstConst}
+ */
+const chainClosed = (chain, values) => {
+    if (chain[0] === '?.()') {
+        const [, , items, step] = chain
+        const args = items.map((item, i) => itemValue(item)(values[1 + i]))
+        return step === undefined ? ['?.()', values[0], args] : ['?.()', values[0], args, stepClosed(step, values, 1 + items.length)]
+    }
+    const [tag, , , step] = chain
+    const key = /** @type {string | number} */ (values[1])
+    return /** @type {AstConst} */ (step === undefined ? [tag, values[0], key] : [tag, values[0], key, stepClosed(step, values, 2)])
+}
+
+/**
+ * The next part of a chain, or the chain closed when none is left: a
+ * value is entered under the frame, and a key is judged here, by the call
+ * rule where a call follows it, and its name kept with the values — in
+ * document order, so that the first error met is the first written.
+ *
+ * @type {(stack: _Stack, scope: _Scope, frame: _ChainFrame) => _State}
+ */
+const chainRound = (stack, scope, frame) => {
+    const { parts, index } = frame
+    if (index === parts.length) { return [stack, scope, ok(chainClosed(frame.chain, toArray(frame.done)))] }
+    const part = parts[index]
+    if ('value' in part) { return [{ top: frame, rest: stack }, scope, ['enter', part.value]] }
+    const [tag, named] = checkedKey(part.key, part.method)
+    if (tag === 'error') { return [stack, scope, error(named)] }
+    return chainRound(stack, scope, { ...frame, index: index + 1, done: concat(frame.done)([named]) })
 }
 
 /**
@@ -667,7 +752,12 @@ const enter = (stack, scope, node) => {
             const found = resolve(scope, word)
             return found === null ? [stack, scope, error(constNotFound(node[1]))] : [stack, found[0], ok(found[1])]
         }
-        case '.': { return [{ top: { key: node[2], method: isCallee(stack) }, rest: stack }, scope, ['enter', node[1]]] }
+        case '.': {
+            return node.length === 3
+                ? [{ top: { key: node[2], method: isCallee(stack) }, rest: stack }, scope, ['enter', node[1]]]
+                : chainRound(stack, scope, { chain: node, parts: chainParts(node), index: 0, done: null })
+        }
+        case '?.': case '?.()': { return chainRound(stack, scope, { chain: node, parts: chainParts(node), index: 0, done: null }) }
         case '()': { return callRound(stack, scope, { call: node, index: 0, done: null }) }
         case '-': { return [{ top: { neg: true }, rest: stack }, scope, ['enter', node[1]]] }
         case '~': { return [{ top: { bitnot: true }, rest: stack }, scope, ['enter', node[1]]] }
@@ -718,6 +808,7 @@ const returned = (stack, scope, frame, value) => {
     if ('call' in frame) { return callRound(stack, scope, { ...frame, index: frame.index + 1, done: concat(frame.done)([callValue(frame.call, frame.index, value)]) }) }
     if ('conditional' in frame) { return conditionalRound(stack, scope, { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) }) }
     if ('key' in frame) { return [stack, scope, accessClosed(frame, value)] }
+    if ('chain' in frame) { return chainRound(stack, scope, { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) }) }
     if ('neg' in frame) {
         /** @type {AstNeg} */
         const negated = ['-', value]

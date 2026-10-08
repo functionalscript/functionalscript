@@ -341,9 +341,10 @@ There are two call spellings and the receiver is what tells them apart. `()` is 
 ordinary call: its callee is an ordinary expression and it keeps no `this`. A method
 call is instead the **property-access node owning its call** — the `'|()'` step in a
 `.` node's continuation is what carries the `this` binding, which no `()` node can.
-See "Chains" in [`../../edag/README.md`](../../edag/README.md). Stage 2 needs neither
-optional node (`?.`, `?.()`) nor any of the other three steps, since optional chaining
-is not in its source subset; a plain property read is `['.', object, property]`.
+See "Chains" in [`../../edag/README.md`](../../edag/README.md). The optional nodes
+(`?.`, `?.()`) and the other three steps are the optional chains', in the language
+since [`spec/todo/2335-optional-chaining.md`](../../../spec/todo/2335-optional-chaining.md);
+a plain property read is `['.', object, property]`.
 
 The property operand of a `.` node carrying a `'|()'` step follows **the same canonical
 safety restriction as `.`** with no continuation.
@@ -650,16 +651,17 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       `func.call` and `func.callRefused` in [`../parser/proof.f.mjs`](../parser/proof.f.mjs),
       `call` in [`../edag/proof.f.mjs`](../edag/proof.f.mjs) and in
       [`../proof.f.mjs`](../proof.f.mjs).
-- [ ] Whenever optional chaining enters the source subset, lower chain boundaries per
+- [x] Whenever optional chaining enters the source subset, lower chain boundaries per
       "Chains" in [`../../edag/README.md`](../../edag/README.md), with proofs over the
       spellings the `chains` section of
       [`../../edag/proof.f.mjs`](../../edag/proof.f.mjs) pins — among them `a?.b.c`
       against `(a?.b).c`, `a?.b(d)` against `(a?.b)(d)`, and `(a?.b.c)(d)` against
-      `(a?.b).c(d)`. Grouping has landed, and it is where those pairs differ: a group
-      ends a chain's lazy region, so the second of each pair is a group whose steps
-      run whatever the `?.` found. Until `?.` is in the subset a group is transparent
-      and both sides of each pair are one node, which is the answer the lowering has
-      to keep for the non-optional spellings while it splits the optional ones.
+      `(a?.b).c(d)`. Done: the syntax reader folds the steps after a `?.` into the
+      chain node and a group closes the region, `access.optional` in
+      [`../parser/proof.f.mjs`](../parser/proof.f.mjs) pinning every spelling of the
+      table; the lowering carries the nodes as they are, `chains` in
+      [`../edag/proof.f.mjs`](../edag/proof.f.mjs); a group stays transparent for the
+      non-optional spellings, `(a.b)(c)` one node with `a.b(c)` as before.
 - [x] Add a scope-aware linking proof such as
       `import y from './y.f.js'; export default [y, (...x) => x]`: resolving `y` must not
       rewrite the nested function body's `['rest']`. Done, in `func` of

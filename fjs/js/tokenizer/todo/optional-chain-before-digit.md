@@ -15,11 +15,12 @@ then the number `5`.
 
 Nothing is wrong yet. A leading-dot number is not recognized
 ([numbers](../../../../spec/README.md#numbers)), so the JavaScript reading is
-refused anyway, and the parser recognizes no optional chain yet — `a?.b` is
-refused at the `?.` too — so `export default a?.5:1;` fails, as it should,
-though at the `?.` rather than at the `.5`. The day `.5` is recognized,
+refused anyway: the parser reads `a?.b` as the optional chain it is
+([optional chaining](../../../../spec/README.md#optional-chaining)) and wants
+a name, `[` or `(` after the `?.`, so `export default a?.5:1;` fails, as it
+should, at the `5` rather than at the `.5`. The day `.5` is recognized,
 `a?.5:1` is a valid conditional, and a tokenizer that still reads `?.` there
-refuses it, whether optional chains are recognized by then or not.
+refuses it.
 
 ### Proposal
 
@@ -42,6 +43,5 @@ numbers reshape the `.` branch of `operator` anyway.
   — the lookahead the prefix tree leaves out.
 - [The roadmap](../../../../spec/todo/README.md) — number spellings beyond
   JSON's, leading-dot numbers among them.
-- [`fjs/compiler/todo/compile-modules-to-edag.md`](../../../compiler/todo/compile-modules-to-edag.md)
-  — optional chaining is not in the source subset yet; its lowering is
-  planned there.
+- [`spec/todo/2335-optional-chaining.md`](../../../../spec/todo/2335-optional-chaining.md)
+  — the optional chains, which read the `?.` this task is about.

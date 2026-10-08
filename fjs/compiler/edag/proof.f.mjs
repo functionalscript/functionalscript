@@ -710,6 +710,26 @@ export const proof = {
     // A group lowers to the node of the value it holds and adds none of its
     // own: `(x)` *is* `x`, so the graph and its sharing are the ones the
     // parentheses are not in.
+    // The optional chains lower as they are, the AST's shapes being the
+    // EDAG's — but for what an argument floats: an inlined call's anchors
+    // are anchored where the argument stands, by the comma, since the step
+    // is lazy, where a plain call's float on to the scope
+    chains: () => {
+        /** @type {AstConst} */
+        const inlined = ['()', ['=>', 0, [['array', [1]], 2]], []]
+        expectEdag(lowered(['?.', 1, 'b']), ['?.', 1, 'b'])
+        expectEdag(lowered(['?.', 1, 'b', ['|.', 'c']]), ['?.', 1, 'b', ['|.', 'c']])
+        expectEdag(lowered(['?.', 1, 'b', ['|.', 'c', ['|()', [inlined]]]]), ['?.', 1, 'b', ['|.', 'c', ['|()', [[',', [['[]', [1]], 2]]]]]])
+        expectEdag(lowered(['?.', 1, 'b', ['|?.()', [['...', inlined]], ['|.', 'c', ['|!()', [3]]]]]), ['?.', 1, 'b', ['|?.()', [['...', [',', [['[]', [1]], 2]]]], ['|.', 'c', ['|!()', [3]]]]])
+        expectEdag(lowered(['?.()', 1, [inlined, 3]]), ['?.()', 1, [[',', [['[]', [1]], 2]], 3]])
+        expectEdag(lowered(['?.()', 1, [], ['|.', 'c']]), ['?.()', 1, [], ['|.', 'c']])
+        expectEdag(lowered(['.', 1, 'b', ['|?.()', [inlined]]]), ['.', 1, 'b', ['|?.()', [[',', [['[]', [1]], 2]]]]])
+
+        // a call over an access carrying a guarded call is the plain call,
+        // not the method call: the region's own call spent the receiver
+        expectEdag(lowered(['()', ['.', 1, 'b', ['|?.()', []]], [2]]), ['()', ['.', 1, 'b', ['|?.()', []]], [2]])
+        expectEdag(lowered(['()', ['.', 1, 'b'], [2]]), ['.', 1, 'b', ['|()', [2]]])
+    },
     group: () => {
         expectEdag(compile('export default (1);').edag, 1)
         expectEdag(compile('export default (([1]));').edag, ['[]', [1]])
@@ -1299,11 +1319,11 @@ export const proof = {
                 { kind: 'unsupported', label: '?. (not yet drawn)', children: [] }),
         },
         // A node `_shapeOf` cannot describe is not dropped: the walk still
-        // draws it, labeled by its own tag, with no outgoing edges. No
-        // source the parser accepts today reaches this — optional chaining
-        // does not parse yet — so it needs the same hand-built `Exp` the
-        // `shapeOf.unrecognizedTag` test above describes, carried one level
-        // up to where a node is actually built rather than only described.
+        // draws it, labeled by its own tag, with no outgoing edges — the
+        // optional chains, which parse but are not drawn yet, reach it from
+        // source; the hand-built `Exp` the `shapeOf.unrecognizedTag` test
+        // above describes is carried one level up here, to where a node is
+        // actually built rather than only described.
         walk: {
             unsupported: () => {
                 assertStructurallySame(graphOf(_shapeOf)(['?.', ['a'], 'x']), {

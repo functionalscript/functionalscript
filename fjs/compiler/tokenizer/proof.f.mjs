@@ -109,10 +109,11 @@ export const proof = {
             assertEq(toArray(tokenize(stringToList('? ?'))('')).map(t => t.token.kind).join(' '), '? ? eof')
         },
         () => {
-            // `?.` is optional chaining, a token this language has no rule
-            // for: an error, as every operator token not admitted is
+            // `?.` is the optional step's token, one token as `??` is, and
+            // `? .` two: a conditional's `?` and an access's `.`
             const kinds = toArray(tokenize(stringToList('a?.b'))('')).map(t => t.token.kind)
-            assertEq(kinds.join(' '), 'id error id eof')
+            assertEq(kinds.join(' '), 'id ?. id eof')
+            assertEq(toArray(tokenize(stringToList('a? .b'))('')).map(t => t.token.kind).join(' '), 'id ? . id eof')
         },
         () => {
             // grammar-level tokenizer error position flows through the module wrapper unchanged

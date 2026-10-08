@@ -153,9 +153,9 @@ leaf, directly or not — what a leaf's rename opens up, since a proof stays
 | `fjs/website/style` | 5 | template literals, and nothing else |
 | `fjs/nanvm/member` | 3 | `\u{…}` escapes, template literals |
 | `fjs/types/ts` | 2 | template literals, destructured parameters, `switch`, a default parameter, the `JSON`, `isFinite` and `String` globals |
-| `fjs/git/config` | 1 | `\v` and `\0` escapes, destructuring, runtime keys `escapes[c]` and `prefixes[…]`, optional chaining `body[1]?.toLowerCase()`, `toLowerCase` itself (a prohibited member function), template literals |
+| `fjs/git/config` | 1 | `\v` and `\0` escapes, destructuring, runtime keys `escapes[c]` and `prefixes[…]`, `toLowerCase` (a prohibited member function), template literals |
 | `fjs/nanvm/methods` | 1 | template literals, destructuring, the `Object` global, a runtime key `p[type]` |
-| `fjs/website/browser-source` | 1 | `let`, `+=`, `while` with `break` and `continue`, a non-terminating `if`, runtime keys, optional chaining `previous?.kind`, template literals |
+| `fjs/website/browser-source` | 1 | `let`, `+=`, `while` with `break` and `continue`, a non-terminating `if`, runtime keys, template literals |
 
 Since the previous measurement, at `89a12ea` with `main` at `4c67d6f`, the
 leaves are the same eighteen and the compiler has moved on two of them:
@@ -164,7 +164,9 @@ and `git/config`'s every `if` terminates, so the non-terminating `if` holds
 `browser-source` alone. Three readings also changed: `ci/package`'s
 `new Error` is text inside a template literal, not code; `nanvm/member`
 destructures nothing; and optional chaining, `?.`, which two leaves use, was
-not read before.
+not read before — and has landed since
+([optional chaining](../spec/README.md#optional-chaining)), so neither row
+names it.
 
 The same rows by feature, each with where the feature is tracked, so a
 language step can be picked for what it unblocks:
@@ -178,7 +180,7 @@ language step can be picked for what it unblocks:
 | `new` with a built-in constructor | nothing proposes it | structurally_same, keywords, map, set, demo/examples |
 | `let`, reassignment, `while` | [`spec/todo/3220-let.md`](../spec/todo/3220-let.md); `while` is roadmap §3.2 | function, set, browser-source |
 | String escapes `\u{…}`, `\v`, `\0` | [`spec/todo/2460-js-string-literals.md`](../spec/todo/2460-js-string-literals.md) | nanvm/member, demo/code, git/config |
-| Optional chaining, `?.` | nothing proposes it; [`fjs/compiler/todo/compile-modules-to-edag.md`](../fjs/compiler/todo/compile-modules-to-edag.md) plans its lowering | git/config, browser-source |
+
 | A non-terminating `if`, `break`, `continue` | roadmap §3.2, the guard's follow-ups; `break` and `continue` are `while`'s | set, browser-source |
 | `for … of` | nothing proposes it | result |
 | `instanceof` | nothing proposes it | structurally_same |
