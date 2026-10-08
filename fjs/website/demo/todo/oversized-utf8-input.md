@@ -18,23 +18,37 @@ Several demos pass what the reader typed straight to `utf8`:
   key and the message;
 - PoW, through `tried` and `output` in `fjs/crypto/pow/demo.f.mjs`.
 
+The limit applies to the bytes that are hashed. For SHA-1, SHA-2 and HMAC
+those are the field's own bytes. PoW hashes its input with the decimal nonce
+appended, so with the default nonce `42` its Input field fails past 131,070
+bytes.
+
 One byte past the limit, the runtime's `fail` replaces the whole demo with
 `demo failed: assertion failed`. The input fields go with it, so the reader
 cannot shorten the text and has to reload. Checked in headless Chromium at
 `33888c887` (the VDF demo branch, which carries `main` at `4d037cd2c`): every
-field above works at exactly the limit and fails one byte over.
+field above works when the hashed bytes are exactly at the limit and fails one
+byte over.
 
 That is a crash where [DESIGN.md §10](../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
 asks for a refusal.
 
 ### Proposal
 
-Use `tryUtf8` and refuse oversized input in the view, as the bits demo
+Use `tryUtf8` and refuse oversized input in the view, in the shape the
+[README's Refusals](../README.md#refusals) section describes. The bits demo
 (`../bits/module.f.mjs`) and the VDF demo (`fjs/crypto/vdf/demo.f.mjs`, in
-functionalscript/functionalscript#2651)
-already do: `text too long: more than 131072 UTF-8 bytes`. `digestOf` covers
-SHA-1 and SHA-2 at once; HMAC and PoW each need their own call sites changed.
-Each demo's proof pins the refusal one byte past the limit.
+functionalscript/functionalscript#2651) already refuse this input, each in its
+own words; the wording is the implementer's choice. An example:
+
+```text
+Input too long: more than 131072 UTF-8 bytes.
+```
+
+`digestOf` covers SHA-1 and SHA-2 at once; HMAC and PoW each need their own
+call sites changed.
+Each demo's proof pins the refusal one byte past the limit, and for PoW the
+limit counts the nonce.
 
 ### Tasks
 
