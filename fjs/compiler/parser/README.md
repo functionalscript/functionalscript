@@ -220,7 +220,8 @@ the fold's:
   list beside the keywords rather than among them, since JavaScript has no
   such keyword and its tokenizer keeps the word an `id`. The fold reads the
   callee's word before resolving it, so the word alone decides, no scope
-  ever binding it; a call of the word with other than one plain argument is
+  ever binding it; `Number()` is the literal `0`, and a call of the word
+  with more than one argument, or a spread, is not recognized yet and
   refused by name;
 - an import attribute other than `type: "json"`, the one JavaScript defines,
   read from the key's and the value's words;
@@ -243,8 +244,12 @@ the fold's:
   would read the prototype's, as
   [spec: property accessor](../../../spec/todo/2330-property-accessor.md)
   prohibits. The key of an access is a constant — an identifier after `.`, a
-  string or a number in `[ ]` — so what remains is the EDAG's own form,
-  `['.', base, key]`, and the grammar refuses a runtime key at the token;
+  string or a number in `[ ]` — or the conversion `a[Number(i)]`, whose
+  number names no prototype property, so what remains is the EDAG's own
+  form, `['.', base, key]`. The grammar reads any value in brackets, and the
+  fold refuses every other at the token it begins with, `a[i]` included
+  (`computed key is not Number(...)`), after the base, as JavaScript
+  evaluates the two;
 - a method call naming a member function a module may not call, `a.push(1)`
   or `a.valueOf()` — the names `prohibitedCalls` in the same module lists,
   its [README](../../js/prototype/README.md) saying why for each. An access

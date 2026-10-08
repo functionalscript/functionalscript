@@ -175,7 +175,7 @@ language step can be picked for what it unblocks:
 | --- | --- | --- |
 | Template literals | [`spec/todo/3440-template-literals.md`](../spec/todo/3440-template-literals.md) | function/operator, ci/package, ts, nanvm/methods, nanvm/member, style, demo/code, git/config, browser-source |
 | Destructuring | [`spec/todo/2450-destructuring.md`](../spec/todo/2450-destructuring.md) | structurally_same, result, function/operator, map, demo/examples, ts, git/config, nanvm/methods |
-| A runtime key, `a[i]` | the spec says "not recognized yet"; no `todo/` | structurally_same, function/operator, set, git/bytes, git/config, nanvm/methods, browser-source |
+| A runtime key, `a[i]` | an index the program knows to be a number is `a[Number(i)]`, [in the language](../spec/README.md#property-access); a key of any type waits on the `entry` helper | structurally_same, function/operator, set, git/bytes, git/config, nanvm/methods, browser-source |
 | Globals and built-ins | [`spec/todo/2365-global-names.md`](../spec/todo/2365-global-names.md), [`2360-built-in.md`](../spec/todo/2360-built-in.md) | structurally_same, array_index, ts, git/bytes, nanvm/methods, ci/package |
 | `new` with a built-in constructor | nothing proposes it | structurally_same, keywords, map, set, demo/examples |
 | `let`, reassignment, `while` | [`spec/todo/3220-let.md`](../spec/todo/3220-let.md); `while` is roadmap §3.2 | function, set, browser-source |

@@ -543,7 +543,8 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       static-string/number property cases to `.`, and reject runtime-computed strings,
       prohibited property names, and other unsupported property expressions. Done:
       the grammar admits an access after any value, its key an identifier,
-      a string or a number, so a runtime key is refused at the token, and an
+      a string or a number — and since, any value in brackets, of which the
+      fold admits the conversion `a[Number(i)]` alone — and an
       access on a numeric literal is read as JavaScript reads it, `-1 .x`
       being `-(1 .x)`; the fold
       refuses `__proto__` and `constructor` in either spelling; the AST and the

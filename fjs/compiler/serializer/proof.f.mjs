@@ -222,6 +222,8 @@ export const proof = {
                 ['{}', [[':', 'then', 1]]],
                 ['{}', [[':', 'if', 1]]],
                 ['{}', [[':', 'NaN', 1]]],
+                // a reserved global, which no module binds
+                ['{}', [[':', 'Number', 1]]],
                 ['{}', [[':', 'not-a-name', 1]]],
                 ['{}', [[':', 'a', ['{}', [[':', 1, 2]]]]]],
                 ['{}', [[':', 'a', [',', [1]]]]],
@@ -861,7 +863,10 @@ export const proof = {
         refuses(['=>', 0, [], ['[]', [[',', [1, 2]]]]], 'a comma outside a scope')
         // A key no literal spells: a computed one, an object key that is not
         // a string, and the three numbers the tokenizer does not read back.
-        refuses(['=>', 0, [], ['.', ['rest'], ['Number', ['rest']]]], 'an access key that is no literal')
+        // a key the EDAG's index admits nowhere, which only a graph built
+        // by hand holds
+        refuses(/** @type {Exp} */ (/** @type {unknown} */ (['=>', 0, [], ['.', ['rest'], ['rest']]])), 'an access key that is no literal')
+        refuses(/** @type {Exp} */ (/** @type {unknown} */ (['=>', 0, [], ['.', ['rest'], true]])), 'an access key that is no literal')
         refuses(['{}', [[':', 1, 2]]], 'an object key that is not a string')
         refuses(['=>', 0, [], ['.', ['rest'], NaN]], 'a number key no literal reads back')
         refuses(['=>', 0, [], ['.', ['rest'], Infinity]], 'a number key no literal reads back')
@@ -1048,6 +1053,15 @@ export const proof = {
         writes(['**', ['Number', 1], 2], 'export default Number(1)**2;')
         writes(['.', ['Number', 1], 'x'], 'export default Number(1).x;')
         writes(['()', ['Number', 1], [2]], 'export default Number(1)(2);')
+        // a computed key is the conversion in brackets, written from the
+        // node in every position a key stands: a plain access, a method
+        // call, a guarded access and a chain's step, where its operand is a
+        // lazy one, a block where it holds an anchor
+        writes(fn(['.', ['rest'], ['Number', r0]]), 'export default (...$0)=>$0[Number($0[0])];')
+        writes(fn(['.', ['rest'], ['Number', r0], ['|()', [1]]]), 'export default (...$0)=>$0[Number($0[0])](1);')
+        writes(fn(['?.', ['rest'], ['Number', r0]]), 'export default (...$0)=>$0?.[Number($0[0])];')
+        writes(fn(['?.', ['rest'], 'b', ['|.', ['Number', r0]]]), 'export default (...$0)=>$0?.b[Number($0[0])];')
+        writes(['?.', null, 'b', ['|.', ['Number', [',', [['.', null, 'y'], 0]]]]], 'export default null?.b[Number((()=>{const $0=null.y;return 0;})())];')
         // and an operator an access base only in a group, where an access
         // is a prefix's operand bare
         writes(['.', ['+', 1, 2], 'x'], 'export default (1+2).x;')

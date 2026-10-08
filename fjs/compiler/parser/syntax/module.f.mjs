@@ -33,7 +33,7 @@
  * @import { Primitive } from '../../../media/datajs/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { ParseError } from '../types.ts'
- * @import { Block, BlockStatement, Chain, Const, Entry, Import, ImportBinding, Item, Member, Module, ModuleConst, Node, Out, ParameterBinding, ParameterList, Step, ValueStatement } from './types.ts'
+ * @import { Block, BlockStatement, Chain, Const, Entry, Import, ImportBinding, Item, Key, Member, Module, ModuleConst, Node, Out, ParameterBinding, ParameterList, Step, ValueStatement } from './types.ts'
  * @import { ArrowOrRest, Block as BlockRule, Body, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, Member as MemberRule, ParameterNames, Parenthesized, Statement, Unary, UnaryOperand, Value } from '../grammar/types.ts'
  * @import { namedImports, primitive, terminator } from '../grammar/module.f.mjs'
  * @import { _AccessNode, _AttributeNode, _CallBranch, _ChainState, _CircuitNode, _ConditionalNode, _EndNode, _IndexBranch, _NameNode, _KeyBranch, _Leaf, _ListNode, _OptionalBranch, _OptionalList, _ParameterNode, _PowTailNode, _StepRead, _TailRound, _TokenStream } from './private.ts'
@@ -46,7 +46,7 @@ import { literalWords } from '../../../js/keywords/module.f.mjs'
 import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.mjs'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
 import {
-    binaryOpTag, body, callArguments, constStatement, djsModule, eagerTail, importBinding, importBindings,
+    binaryOpTag, body, callArguments, constStatement, djsModule, eagerTail, importBinding, importBindings, index,
     importStatement, item, lastStatement, entries, entry, member, parameterNames, statement, symbolOf, unary, unaryOperand, value, values,
 } from '../grammar/module.f.mjs'
 
@@ -318,13 +318,29 @@ const entriesOf = listOf(entryAt, entriesAt)
 const symbol = out => ({ symbol: 0, meta: out })
 
 /**
- * The token an access names its key by: `.name`'s identifier, or `[key]`'s
- * constant — at the second position of either branch, under the
- * identifier's or the constant's own alternative.
+ * The token a property names its key by: `.name`'s identifier, at the
+ * second position of the branch, under the identifier's own alternative.
  *
  * @type {(branch: _KeyBranch) => DjsTokenWithMetadata}
  */
 const accessKey = branch => tokenAt(unmapped(unmapped(branch)[1])[1])
+
+/**
+ * The key an index names, `[ value ]`, the value at the second position:
+ * the token of a string or a number literal standing alone, a constant key
+ * as `.name`'s word is — what its name is read from, and what a refusal of
+ * the name is anchored at — and any other value a computed key, with the
+ * token it begins with. A group is no constant, `a[("x")]` being a value
+ * the reader cannot tell from any other.
+ *
+ * @type {(branch: _IndexBranch) => Key}
+ */
+const indexKey = branch => {
+    const out = outAt(unmapped(branch)[1])
+    const { node, first } = /** @type {Extract<Out, { readonly node: Node }>} */ (out)
+    const { kind } = first.token
+    return out.id === 'value' && node[0] === 'primitive' && (kind === 'string' || kind === 'number') ? first : ['[]', node, first]
+}
 
 /**
  * A function's parameter list where it begins with no value: the rest
@@ -367,10 +383,11 @@ const namedList = (open, head, more) => {
 const stepOf = round => {
     const [tag, branch] = unmapped(round)
     if (tag === 'call') { return { optional: false, key: null, items: toArray(valueItems(unmapped(/** @type {_CallBranch} */(branch))[1])) } }
+    if (tag === 'index') { return { optional: false, key: indexKey(/** @type {_IndexBranch} */(branch)), items: null } }
     if (tag !== 'optional') { return { optional: false, key: accessKey(/** @type {_KeyBranch} */(branch)), items: null } }
     const [kind, step] = unmapped(unmapped(/** @type {_OptionalBranch} */(branch))[1])
     if (kind === 'call') { return { optional: true, key: null, items: toArray(valueItems(unmapped(/** @type {_CallBranch} */(step))[1])) } }
-    if (kind === 'index') { return { optional: true, key: tokenAt(unmapped(unmapped(/** @type {_IndexBranch} */(step))[1])[1]), items: null } }
+    if (kind === 'index') { return { optional: true, key: indexKey(/** @type {_IndexBranch} */(step)), items: null } }
     return { optional: true, key: tokenAt(unmapped(/** @type {_NameNode} */(step))[1]), items: null }
 }
 
@@ -415,7 +432,7 @@ const continuedSteps = (steps, step) => {
  * A chain with one more step at its end: the node's fourth element, or
  * the end of the steps it already has.
  *
- * @type {(node: Chain | readonly ['.', Node, DjsTokenWithMetadata], step: Step) => Chain}
+ * @type {(node: Chain | readonly ['.', Node, Key], step: Step) => Chain}
  */
 const appended = (node, step) => {
     const [tag, base, x, k] = node
@@ -455,7 +472,7 @@ const accessed = closed => (base, round) => {
     const args = /** @type {readonly Item[]} */ (items)
     // a guarded call keeps a live receiver as the node's own step, in an
     // open region or one a group closed alike; with none live it starts a node
-    if (optional) { return receiver ? appended(/** @type {Chain | readonly ['.', Node, DjsTokenWithMetadata]} */ (base), ['|?.()', args]) : ['?.()', base, args] }
+    if (optional) { return receiver ? appended(/** @type {Chain | readonly ['.', Node, Key]} */ (base), ['|?.()', args]) : ['?.()', base, args] }
     if (!open) { return ['()', base, args] }
     if (!closed) { return appended(/** @type {Chain} */ (base), ['|()', args]) }
     return receiver ? appended(/** @type {Chain} */ (base), ['|!()', args]) : ['()', base, args]
@@ -1092,6 +1109,9 @@ export const mappings = [
     // a call's arguments are that same list, reached through a rule of its
     // own, so the same reader serves both
     map(callArguments, toValues),
+    // an index's value is read as any value is, and its key made of it by
+    // the step that holds it ({@link indexKey})
+    map(index, toNode),
     map(member, toMember),
     map(entry, toEntry),
     map(entries, toEntries),

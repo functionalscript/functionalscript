@@ -5,10 +5,12 @@
 read, with every built-in prototype name but `length` a compilation error,
 the names held by [`fjs/js/prototype`](../../fjs/js/prototype/module.f.js),
 and an access on a numeric literal read as JavaScript reads it — `-1 .x` is
-`-(1 .x)`, the unary minus binding looser than the access. The computed key,
-`a[Number(b)]`, is not; an index is a constant key, a string or a number,
-and a negative one is written as the string it names. Constant-key method
-calls follow the [current function specification](../README.md#functions).
+`-(1 .x)`, the unary minus binding looser than the access. So is the
+computed key, `a[Number(b)]`, the EDAG's `['.', a, ['Number', b]]`, in an
+access, a method call and an optional chain; every other value in brackets
+is refused at its first token, and a negative constant is written as the
+string it names. Method calls follow the
+[current function specification](../README.md#functions).
 
 The runtime-key plan is now [`entry`](../../fjs/edag/todo/entry.md), an
 explicit enumerable-entry helper. It supersedes the old descriptor-value-only
@@ -26,7 +28,7 @@ const a = { b: 45, c: [3] }
 const c0 = a.b
 // the same static-read operation, with another permitted constant key
 const c1 = a["c"]
-// planned numeric-index read: EDAG '.' with a Number operand
+// numeric-index read: EDAG '.' with a Number operand
 const c2 = c1[Number(0)] // Number(...) is required when index type is unknown at compile time
 // runtime enumerable-entry read, with entry defined by the pattern below
 const c3 = entry(a, c2)
@@ -90,6 +92,7 @@ select the enumerable-entry operation.
 |--------|------|--------|
 | `a.foo`, `a["foo"]` | `['.', A, 'foo']` | Current, for permitted names |
 | `a[0]` | `['.', A, 0]` | Current |
+| `a[Number(i)]` | `['.', A, ['Number', I]]` | Current |
 | `a.foo(x)` | `['.', A, 'foo', ['\|()', Args]]` | Current receiver-preserving lowering, for permitted names |
 | Complete recognized `entry` definition | `['entry']` | Proposed in `entry.md` |
 | `entry(a, key)` | `['()', E, [A, K]]` | Proposed ordinary call of that helper |
@@ -194,7 +197,7 @@ Syntax examples:
 const c4 = a.b(c)
 // the same receiver-preserving EDAG chain
 const c5 = a["b"](c)
-// planned numeric-key chain, not a runtime entry read
+// numeric-key chain, not a runtime entry read
 const c6 = a[Number(b)](c)
 ```
 
@@ -333,10 +336,11 @@ obj[42]
 obj[Number(index)]
 ```
 
-Constant numeric indices use EDAG `.` too. The proposed `Number(...)` form
-would use `['.', O, ['Number', I]]`, subject to its syntax and admission work;
-`at` is only a possible backend specialization, not a separate EDAG tag or
-an enumerable-entry read.
+Constant numeric indices use EDAG `.` too, and so does the `Number(...)`
+form, `['.', O, ['Number', I]]`, in the language
+([spec: property access](../README.md#property-access)); `at` is only a
+possible backend specialization, not a separate EDAG tag or an
+enumerable-entry read.
 
 ```js
 import m from './m.f.js'
@@ -349,9 +353,9 @@ export default {
 ```
 
 In `obj[index]`, `index` has to be a `number`. If we don't know what `index` is, wrap it in
-`Number(...)`. It means the byte code for the expression inside the `[]` should be either
-`Number(...)`, a number literal, or a string literal (excluding some strings).
-If it references an object, FJS gives up. FJS may try deeper analyses in the future, and type inference can help a lot.
+`Number(...)`. The expression inside the `[]` is either `Number(...)`, a number literal,
+or a string literal (excluding the prototype names); anything else is refused at its first
+token. FJS may try deeper analyses in the future, and type inference can help a lot.
 
 ## Regression requirements
 

@@ -4,7 +4,7 @@
  * @module
  *
  * @import { List } from '../../types/list/types.ts'
- * @import { AstBinary, AstBitnot, AstNot, AstTypeof, AstNumber, AstCall, AstConditional, AstConst, AstBody, AstEntry, AstFunction, AstItem, AstModule, AstModuleRef, AstNeg, AstSpread, AstStep, AstThrow, BinaryTag, Anchors } from './types.ts'
+ * @import { AstBinary, AstBitnot, AstNot, AstTypeof, AstNumber, AstKey, AstCall, AstConditional, AstConst, AstBody, AstEntry, AstFunction, AstItem, AstModule, AstModuleRef, AstNeg, AstSpread, AstStep, AstThrow, BinaryTag, Anchors } from './types.ts'
  * @import { _Lazy, _OperandStack, _Reach, _RefNode } from './private.ts'
  */
 
@@ -57,29 +57,53 @@ export const isSpread = item => item instanceof Array && item[0] === '...'
 export const itemOperand = item => isSpread(item) ? item[1] : item
 
 /**
- * The operands a chain's steps hold, in the order written: each call
- * step's arguments, a spread's operand among them; a property step holds
- * none, its key being a constant. Every one of them is lazy — a chain's
- * guard decides whether the step runs — so a reader counts them as it
- * counts a lazy operator's right operand.
+ * The operand a key holds: the conversion of a computed key,
+ * `a[Number(i)]`, and none for a constant.
+ *
+ * @type {(key: AstKey) => readonly AstConst[]}
+ */
+const keyOperands = key => key instanceof Array ? [key] : []
+
+/**
+ * The operands a chain's steps hold, in the order written: each property
+ * step's computed key, and each call step's arguments, a spread's operand
+ * among them. Every one of them is lazy — a chain's guard decides whether
+ * the step runs — so a reader counts them as it counts a lazy operator's
+ * right operand.
  *
  * @type {(step: AstStep | undefined) => readonly AstConst[]}
  */
 export const stepOperands = step => {
     if (step === undefined) { return [] }
-    if (step[0] === '|.') { return stepOperands(step[2]) }
+    if (step[0] === '|.') { return [...keyOperands(step[1]), ...stepOperands(step[2])] }
     return [...step[1].map(itemOperand), ...stepOperands(step[2])]
 }
 
 /**
- * The lazy operands of a chain node: the steps' arguments, and a guarded
- * call's own — the operands an optional node skips when its value is
- * nullish, which is what makes them lazy. An access's base, and a guarded
- * call's callee, are eager and not among them.
+ * The lazy operands of a chain node: the steps', a guarded access's
+ * computed key, and a guarded call's own arguments — the operands an
+ * optional node skips when its value is nullish, which is what makes them
+ * lazy. An access's base, a plain access's key and a guarded call's callee
+ * are eager and not among them, {@link chainEager}.
  *
  * @type {(ast: Extract<AstConst, readonly ['.' | '?.' | '?.()', ...unknown[]]>) => readonly AstConst[]}
  */
-const chainOperands = ast => ast[0] === '?.()' ? [...ast[2].map(itemOperand), ...stepOperands(ast[3])] : stepOperands(ast[3])
+const chainOperands = ast => {
+    switch (ast[0]) {
+        case '?.()': { return [...ast[2].map(itemOperand), ...stepOperands(ast[3])] }
+        case '?.': { return [...keyOperands(ast[2]), ...stepOperands(ast[3])] }
+        default: { return stepOperands(ast[3]) }
+    }
+}
+
+/**
+ * The eager operands of a chain node: its base or callee, and a plain
+ * access's computed key, established after the base whatever the steps
+ * after it do.
+ *
+ * @type {(ast: Extract<AstConst, readonly ['.' | '?.' | '?.()', ...unknown[]]>) => readonly AstConst[]}
+ */
+const chainEager = ast => ast[0] === '.' ? [ast[1], ...keyOperands(ast[2])] : [ast[1]]
 
 // ── reaching ──────────────────────────────────────────────────────────────────
 
@@ -220,10 +244,11 @@ const refsOfOperand = lazy => ast => {
         // except the call the lowering inlines, which is its body where the
         // call stands
         case '()': { return isInlinedCall(ast) ? inlinedRefs(lazy)(ast) : flat([ast[1], ...ast[2].map(itemOperand)].map(refsOf(lazy))) }
-        // an access reaches its base, whole: the EDAG establishes the base
-        // before the read; a chain's steps, and a guarded call's arguments,
-        // are its lazy operands, which `lazy` counts or not
-        case '.': case '?.': case '?.()': { return flat([ast[1], ...lazy(chainOperands(ast))].map(refsOf(lazy))) }
+        // an access reaches its base, whole, and a plain access its
+        // computed key: the EDAG establishes both before the read; a
+        // chain's steps, a guarded access's key and a guarded call's
+        // arguments are its lazy operands, which `lazy` counts or not
+        case '.': case '?.': case '?.()': { return flat([...chainEager(ast), ...lazy(chainOperands(ast))].map(refsOf(lazy))) }
         // a function names what it captures, the enclosing scope's own
         // references, which it establishes when it is made — the captures
         // its body reads, since an unused alias of one names nothing
@@ -282,7 +307,7 @@ const operandReadsRest = ast => {
         case 'array': { return readsRest(ast[1].map(itemOperand)) }
         case 'object': { return readsRest(entryOperands(ast[1])) }
         case '()': { return readsRest([ast[1], ...ast[2].map(itemOperand)]) }
-        case '.': case '?.': case '?.()': { return readsRest([ast[1], ...chainOperands(ast)]) }
+        case '.': case '?.': case '?.()': { return readsRest([...chainEager(ast), ...chainOperands(ast)]) }
         case '=>': { return readsRest(ast[3] ?? []) }
         default: { return false }
     }

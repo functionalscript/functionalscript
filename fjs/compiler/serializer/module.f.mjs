@@ -130,7 +130,7 @@
  */
 
 import { _defaultExport, _moduleExports, _moduleThrows } from '../edag/module.f.mjs'
-import { keywords, literalWords } from '../../js/keywords/module.f.mjs'
+import { keywords, literalWords, reservedGlobals } from '../../js/keywords/module.f.mjs'
 import { analysis, checked, itemOperand, mergeable, operandsOf, stepOperands } from '../../edag/analysis/module.f.mjs'
 import { keySerialize, leafSerialize } from '../../media/datajs/serializer/module.f.mjs'
 import { arrayWrap, colon, objectWrap, wrap } from '../../media/json/serializer/module.f.mjs'
@@ -143,8 +143,8 @@ import { error, mapOk, ok, okList, okThen } from '../../types/result/module.f.mj
 import { renderFunction } from './function_text/module.f.mjs'
 import { _name as name, _binding as binding, _resolve as resolve } from './names/module.f.mjs'
 
-/** Names the parser refuses to bind. */
-const reservedExports = new Set([...keywords, ...literalWords, 'then'])
+/** Names the parser refuses to bind: the keywords, the literal words, the reserved globals, and `then` as an export's name. */
+const reservedExports = new Set([...keywords, ...literalWords, ...reservedGlobals, 'then'])
 
 /**
  * The node kinds that keep a `const`: one value however many edges reach
@@ -597,6 +597,19 @@ const property = (s, path) => p => {
 const bracketed = k => ok(flat([['['], leafSerialize(k), [']']]))
 
 /**
+ * The conversion's text, `Number(v)`: the call it is in JavaScript, its
+ * operand an argument, which takes no parentheses of its own — `v`'s text
+ * in place, or written as a lazy operand is where the conversion stands in
+ * a chain's region, `lazy`, {@link lazyItem}.
+ *
+ * @type {(s: _Scope, path: string, lazy: boolean) => (v: Operand) => Document}
+ */
+const conversion = (s, path, lazy) => v => mapOk(
+    /** @type {(text: List<string>) => List<string>} */
+    (text => flat([['Number('], text, [')']])),
+)((lazy ? lazyItem : item)(s, `${path}/operand`)(v))
+
+/**
  * An access's key: a name after `.` where the word admits it, and a key in
  * brackets otherwise. The `.` and the name are one chunk, so that a chunk
  * holding a name alone is always a reference — what {@link firstUse} reads.
@@ -608,40 +621,45 @@ const bracketed = k => ok(flat([['['], leafSerialize(k), [']']]))
  * `0` by the time a graph holds it — so each is refused rather than
  * respelled.
  *
- * A computed key, `['Number', e]`, is refused rather than written
- * `base[Number(k)]` as the issue proposes: the grammar's index is a string
- * or a number literal, so that spelling is one the parser would not read
- * back, and writing it would break the round trip the output exists for. It
- * is a spelling to add with computed keys, not before them.
+ * A computed key, `['Number', e]`, is written as the conversion in
+ * brackets, `base[Number(e)]`, from the node itself rather than by its
+ * name, since a key the parser reads back is the conversion and no other
+ * value: `e` is written in place, or as a lazy operand where the key
+ * stands in a chain's region, `lazy`, {@link conversion}.
  *
  * A method call's key is refused by the parser's other list: the member
  * functions a module may not call, `a.push(1)`, where `a.at(0)` is a call
  * though `a.at` is no read.
  *
- * @type {(method: boolean) => (k: Operand) => Document}
+ * @type {(s: _Scope, path: string, lazy: boolean) => (method: boolean) => (k: Operand) => Document}
  */
-const key = method => k => {
+const key = (s, path, lazy) => method => k => {
     if (typeof k === 'string') {
         if (method && _prohibitedCallNames.has(k)) { return error('a prohibited member function') }
         if (!method && _prohibitedNames.has(k)) { return error('a prohibited property name') }
         return identifierKey(k) ? ok([`.${k}`]) : bracketed(k)
     }
-    if (typeof k !== 'number') { return error('an access key that is no literal') }
-    return Number.isFinite(k) && !Object.is(k, -0)
-        ? bracketed(k)
-        : error('a number key no literal reads back')
+    if (typeof k === 'number') {
+        return Number.isFinite(k) && !Object.is(k, -0)
+            ? bracketed(k)
+            : error('a number key no literal reads back')
+    }
+    const node = k instanceof Array ? s.a.nodes[k[1]] : null
+    return node !== null && node[0] === 'Number'
+        ? mapOk(/** @type {(text: List<string>) => List<string>} */ (text => flat([['['], text, [']']])))(conversion(s, path, lazy)(node[1]))
+        : error('an access key that is no literal')
 }
 
 /**
  * A guarded access's key, `?.k` or `?.[k]`: {@link key}'s text behind the
  * `?.`, which takes the place of a name's own `.`.
  *
- * @type {(method: boolean) => (k: Operand) => Document}
+ * @type {(s: _Scope, path: string, lazy: boolean) => (method: boolean) => (k: Operand) => Document}
  */
-const optionalKey = method => k => mapOk(
+const optionalKey = (s, path, lazy) => method => k => mapOk(
     /** @type {(text: List<string>) => List<string>} */
     (text => flat([[firstChunk(text).startsWith('.') ? '?' : '?.'], text])),
-)(key(method)(k))
+)(key(s, path, lazy)(method)(k))
 
 /** Whether the step after a key makes the key a call's: any step but a property. @type {(step: Step | undefined) => boolean} */
 const isCallStep = step => step !== undefined && step[0] !== '|.'
@@ -911,7 +929,7 @@ const chainSteps = (s, path, i, lazy) => text => step => {
     const guarded = lazy || tag === '|?.()'
     /** @type {(part: List<string>) => Document} */
     const rest = part => chainSteps(s, path, i + 1, guarded)(flat([text, part]))(next)
-    if (tag === '|.') { return okThen(rest)(key(isCallStep(next))(x)) }
+    if (tag === '|.') { return okThen(rest)(key(s, `${path}/step${i}`, guarded)(isCallStep(next))(x)) }
     const args = (guarded ? lazyArguments : callArguments)(s, `${path}/step${i}`)(x)
     if (tag === '|()') { return okThen(rest)(args) }
     if (tag === '|?.()') { return okThen(rest)(mapOk(/** @type {(a: List<string>) => List<string>} */ (a => flat([['?.'], a])))(args)) }
@@ -931,7 +949,7 @@ const chain = (s, path) => node => {
     const [tag, b, x, k] = node
     const head = tag === '?.()'
         ? okList([chainBase(s, `${path}/callee`, true)(b), mapOk(/** @type {(a: List<string>) => List<string>} */ (a => flat([['?.'], a])))(lazyArguments(s, `${path}/arguments`)(/** @type {readonly ItemOperand[]} */ (x)))])
-        : okList([chainBase(s, `${path}/base`, tag === '?.')(b), (tag === '?.' ? optionalKey : key)(isCallStep(k))(/** @type {Operand} */ (x))])
+        : okList([chainBase(s, `${path}/base`, tag === '?.')(b), (tag === '?.' ? optionalKey : key)(s, `${path}/key`, tag === '?.')(isCallStep(k))(/** @type {Operand} */ (x))])
     return okThen(
         /** @type {(parts: readonly List<string>[]) => Document} */
         (parts => chainSteps(s, path, 0, tag !== '.')(flat(parts))(k)),
@@ -1036,14 +1054,7 @@ const entry = (s0, path) => i => {
             return right === undefined ? error('a unary + node') : binary(s, path)(op, left, right)
         }
         case '~': case '!': case 'typeof': { return prefix(s, path)(node[0])(node[1]) }
-        // the conversion is spelled as the call it is in JavaScript, its
-        // operand an argument, which takes no parentheses of its own
-        case 'Number': {
-            return mapOk(
-                /** @type {(text: List<string>) => List<string>} */
-                (text => flat([['Number'], text])),
-            )(callArguments(s, `${path}/operand`)([node[1]]))
-        }
+        case 'Number': { return conversion(s, path, false)(node[1]) }
         case '|': case '^': case '&': case '===': case '!==': case '<': case '<=': case '>': case '>=':
         case '<<': case '>>': case '>>>': case '*': case '/': case '%': case '**': { return binary(s, path)(node[0], node[1], node[2]) }
         case '&&': case '||': case '??': { return lazyBinary(s, path)(node) }

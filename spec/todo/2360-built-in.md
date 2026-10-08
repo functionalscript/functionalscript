@@ -55,15 +55,16 @@ name not yet decided, or, where it says so, never admitted.
 ### Number and Math
 
 - [x] `Number` — the call `Number(exp)` alone, the conversion
-      ([number-call](./2362-number-call.md)); the namespace's members stay
-      unticked
+      ([number conversion](../README.md#number-conversion)); the
+      namespace's members stay unticked
 - [ ] `BigInt`
 - [ ] `Math`
 - [ ] `Date`
 
 ### Text Processing
 
-- [ ] `String`
+- [ ] `String` — `String(exp)` is the same shape over the EDAG's other
+      cast, reserved and spelled as the `Number` conversion is
 - [ ] `RegExp`
 
 ### Indexed Collections

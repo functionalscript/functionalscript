@@ -53,9 +53,9 @@
  *                 | nullishRound { nullishRound } ]
  * conditionalTail ::= [ '?' value ':' value ]
  * tail   ::= eagerTail circuitTail conditionalTail
- * access ::= '.' id | '[' (string | number) ']' | '(' [ items(item) ] ')'
+ * access ::= '.' id | '[' value ']' | '(' [ items(item) ] ')'
  *          | '?.' optionalStep
- * optionalStep ::= id | '[' (string | number) ']' | '(' [ items(item) ] ')'
+ * optionalStep ::= id | '[' value ']' | '(' [ items(item) ] ')'
  * array  ::= '[' [ items(item) ] ']'
  * item   ::= '...' value | value
  * object ::= '{' [ items(entry) ] '}'
@@ -298,11 +298,22 @@ export const items = item => {
     return list
 }
 
-/** The constants an index may be: a string, or a number. */
-export const index = /** @type {const} */ ({
-    string: sym('string'),
-    number: sym('number'),
-})
+/**
+ * What an index holds, `[ value ]`: any value, so that a key computed at
+ * run time, `a[Number(i)]`, is read as JavaScript reads it. What a key may
+ * be — a string or a number literal, or the conversion
+ * ([spec: property access](../../../../spec/README.md#property-access)) —
+ * is the fold's to check, as the name after `.` is.
+ *
+ * A rule of its own over {@link value}'s branches, reached through a thunk
+ * as {@link callArguments} is, and for the same two reasons: `access`
+ * names it before `value` is declared, and the reader maps it to a key
+ * rather than to a value — a constant keeps the token it is read from,
+ * which a refusal of its name is anchored at.
+ *
+ * @type {Value}
+ */
+export const index = () => value()
 
 /**
  * A call's arguments: the items an array holds, {@link values}, reached
@@ -335,7 +346,7 @@ export const optionalStep = /** @type {OptionalStep} */ ({
 
 /**
  * One step after a value: a property access, `.name` with the name any
- * identifier or `[key]` with the key a constant, or a call, `(a, b)` with
+ * identifier or `[key]` with the key a value, {@link index}, or a call, `(a, b)` with
  * its arguments any values. What a property's two spellings may name is the
  * fold's to check, since the name is a word the grammar does not see.
  *

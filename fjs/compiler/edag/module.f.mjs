@@ -6,7 +6,7 @@
  * @module
  *
  * @import { Exp, Index, Spread, StepOver } from '../../edag/types.ts'
- * @import { AstBinary, AstBitnot, AstNot, AstTypeof, AstNumber, AstBody, AstCall, AstConditional, AstConst, AstEntry, AstFunction, AstGuardedCall, AstImport, AstItem, AstModule, AstNeg, AstSpread, AstStep, AstThrow } from '../ast/types.ts'
+ * @import { AstAccess, AstBinary, AstBitnot, AstNot, AstTypeof, AstNumber, AstKey, AstBody, AstCall, AstConditional, AstConst, AstEntry, AstFunction, AstGuardedCall, AstImport, AstItem, AstModule, AstNeg, AstSpread, AstStep, AstThrow } from '../ast/types.ts'
  * @import { _ImportSource, _Source } from '../source/types.ts'
  * @import { ParseError } from '../parser/types.ts'
  * @import { Effect } from '../../effects/types.ts'
@@ -114,7 +114,8 @@ const call = nodes => ast => {
     const list = items.map(x => x.exp)
     if (callee !== null && typeof callee === 'object' && callee[0] === '.' && callee.length === 3) {
         const base = lower(nodes)(callee[1])
-        return { exp: ['.', base.exp, callee[2], ['|()', list]], anchors: [...base.anchors, ...floated(items)] }
+        const key = lowerKey(nodes)(callee[2])
+        return { exp: ['.', base.exp, key.exp, ['|()', list]], anchors: [...base.anchors, ...key.anchors, ...floated(items)] }
     }
     const f = lower(nodes)(callee)
     return { exp: ['()', f.exp, list], anchors: [...f.anchors, ...floated(items)] }
@@ -149,15 +150,62 @@ const lazyItem = nodes => item => {
 }
 
 /**
- * A chain's steps lowered, the AST's shape being the EDAG's: each key as
- * it is, and each call step's arguments lazy, {@link lazyItem}.
+ * A key's EDAG, {@link AstKey}: a constant as it is, and the conversion
+ * the EDAG's own `['Number', exp]` over its operand's — what the operand
+ * floats floating with it, as an eager operand's does: the key of a plain
+ * access is established where the access is, after its base.
+ *
+ * @type {(nodes: _Nodes) => (key: AstKey) => _LoweredOver<Index>}
+ */
+const lowerKey = nodes => key => {
+    if (!(key instanceof Array)) { return { exp: key, anchors: [] } }
+    const { exp, anchors } = lower(nodes)(key[1])
+    return { exp: ['Number', exp], anchors }
+}
+
+/**
+ * A key inside a chain's region, established only where the guard lets
+ * the chain go on, as a step's argument is, {@link lazyItem}: what its
+ * operand floats anchored under the conversion — the EDAG's index takes
+ * the conversion and no other node, so the comma stands in its operand.
+ *
+ * @type {(nodes: _Nodes) => (key: AstKey) => Index}
+ */
+const lazyKey = nodes => key => {
+    if (!(key instanceof Array)) { return key }
+    return ['Number', anchoring(lower(nodes)(key[1]))]
+}
+
+/**
+ * An access's EDAG, plain or guarded: its base eager, and its key and
+ * steps as {@link lowerKey}, {@link lazyKey} and {@link lowerStep} say —
+ * the key of a plain access eager, a guarded access's inside the region
+ * its guard opens.
+ *
+ * @type {(nodes: _Nodes) => (ast: AstAccess | Extract<AstConst, readonly ['?.', ...unknown[]]>) => _Lowered}
+ */
+const access = nodes => ast => {
+    const base = lower(nodes)(ast[1])
+    const step = lowerStep(nodes)(ast[3])
+    if (ast[0] === '?.') { return { exp: stepped(['?.', base.exp, lazyKey(nodes)(ast[2])], step), anchors: base.anchors } }
+    const key = lowerKey(nodes)(ast[2])
+    return { exp: stepped(['.', base.exp, key.exp], step), anchors: [...base.anchors, ...key.anchors] }
+}
+
+/**
+ * A chain's steps lowered, the AST's shape being the EDAG's: each key a
+ * lazy one, {@link lazyKey}, and each call step's arguments lazy,
+ * {@link lazyItem}.
  *
  * @type {(nodes: _Nodes) => (step: AstStep | undefined) => StepOver<Exp, Index> | undefined}
  */
 const lowerStep = nodes => step => {
     if (step === undefined) { return undefined }
     const next = lowerStep(nodes)(step[2])
-    if (step[0] === '|.') { return next === undefined ? ['|.', step[1]] : ['|.', step[1], next] }
+    if (step[0] === '|.') {
+        const key = lazyKey(nodes)(step[1])
+        return next === undefined ? ['|.', key] : ['|.', key, next]
+    }
     const items = step[1].map(lazyItem(nodes))
     return /** @type {StepOver<Exp, Index>} */ (next === undefined ? [step[0], items] : [step[0], items, next])
 }
@@ -288,14 +336,11 @@ const lowerLeaf = nodes => ast => {
         case '()': { return call(nodes)(ast) }
         case '?.()': { return guardedCall(nodes)(ast) }
         // an access, plain or guarded: the EDAG's own form already, its key
-        // a constant the parser admitted and its steps, where it has any,
-        // the continuation the parser folded ({@link lowerStep}). One
-        // local, as before chains had steps: this frame is one of the few
-        // a nested container costs per level.
-        default: {
-            const base = lower(nodes)(ast[1])
-            return { exp: stepped([ast[0], base.exp, ast[2]], lowerStep(nodes)(ast[3])), anchors: base.anchors }
-        }
+        // a constant or the conversion and its steps, where it has any, the
+        // continuation the parser folded ({@link access}). Out of this
+        // frame, as a guarded call is: it is one of the few a nested
+        // container costs per level.
+        default: { return access(nodes)(ast) }
     }
 }
 

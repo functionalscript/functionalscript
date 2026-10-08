@@ -55,10 +55,10 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
- * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstNot, AstTypeof, AstNumber, AstSelf, AstCall, AstConditional, AstConst, AstFrameRef, AstEntry, AstFunction, AstItem, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstRest, AstSpread, AstStep, AstThrow } from '../ast/types.ts'
+ * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstNot, AstTypeof, AstNumber, AstKey, AstSelf, AstCall, AstConditional, AstConst, AstFrameRef, AstEntry, AstFunction, AstItem, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstRest, AstSpread, AstStep, AstThrow } from '../ast/types.ts'
  * @import { ParseError } from './types.ts'
- * @import { Block, Chain, Container, Entry, If, Import, Item, Module, Node, ParameterBinding, ParameterList, Statement, Step, ValueStatement } from './syntax/types.ts'
- * @import { _AccessFrame, _BodyFrame, _CallFrame, _ChainFrame, _ChainPart, _ConditionalFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _Parameter, _Ref, _Scope, _Stack, _State } from './private.ts'
+ * @import { Block, Chain, ComputedKey, Container, Entry, If, Import, Item, Module, Node, ParameterBinding, ParameterList, Statement, Step, ValueStatement } from './syntax/types.ts'
+ * @import { _AccessFrame, _BodyFrame, _CallFrame, _ChainFrame, _ChainPart, _ConditionalFrame, _IndexFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _Parameter, _Ref, _Scope, _Stack, _State } from './private.ts'
  */
 
 import { error, mapOk, ok } from '../../types/result/module.f.mjs'
@@ -128,12 +128,16 @@ const captureShadowed = foldError('capture shadowed')
 const reservedWord = foldError('reserved word')
 
 /**
- * The call of `Number` with other than one plain argument, at the word:
- * `Number()`, `Number(a, b)` and `Number(...a)`. The conversion takes one
- * operand ([spec: number conversion](../../../spec/README.md#number-conversion)):
- * `Number()` is `0` with a word in front of it, `Number(a, b)` establishes
- * `b` for its throw-potential alone, which is the comma operator's job, and
- * a spread's count is not the compiler's to know.
+ * The call of `Number` with more than one argument, or a spread, at the
+ * word: `Number(a, b)` and `Number(...a)`, JavaScript's and not recognized
+ * yet, for want of a representation
+ * ([spec: number conversion](../../../spec/README.md#number-conversion)):
+ * `Number(a, b)` is the comma's `(a, b, Number(a))`, which the
+ * FunctionalScript writer cannot spell until the comma operator lands, and
+ * `Number(...a)` converts the first value a spread yields, which no node
+ * expresses while a call's arity is the callee's to split. Refused by name
+ * rather than answered wrongly; `Number()` is `0`, and is read as the
+ * literal, {@link conversion}.
  */
 const conversionArity = foldError('Number takes one argument')
 
@@ -283,19 +287,53 @@ const keyNamed = t => {
 }
 
 /**
- * An access closed over its base: the AST's `['.', base, key]`, or the
- * refusal of its key — a name of the prototype chain where the access is
- * read, and a member function a module may not call where it is a call's
- * callee, `frame.method`. The two rules are `fjs/js/prototype`'s two
- * lists, and the access's shape is the same either way: the lowering
- * makes the callee access a method call, `['.', a, 'b', ['|()', args]]`.
+ * An access closed over its base and its constant key: the AST's
+ * `['.', base, key]`, or the refusal of its key — a name of the prototype
+ * chain where the access is read, and a member function a module may not
+ * call where it is a call's callee, `method`. The two rules are
+ * `fjs/js/prototype`'s two lists, and the access's shape is the same
+ * either way: the lowering makes the callee access a method call,
+ * `['.', a, 'b', ['|()', args]]`.
  *
- * @type {(frame: _AccessFrame, base: AstConst) => Result<AstConst, ParseError>}
+ * @type {(key: DjsTokenWithMetadata, method: boolean, base: AstConst) => Result<AstConst, ParseError>}
  */
-const accessClosed = (frame, base) => mapOk(
+const accessClosed = (key, method, base) => mapOk(
     /** @type {(named: string | number) => AstConst} */
     (named => ['.', base, named]),
-)(checkedKey(frame.key, frame.method))
+)(checkedKey(key, method))
+
+/**
+ * A key computed at run time that is no conversion, at the token it begins
+ * with: `a[i]`, `a[-1]`, `a[NaN]`. An index is a constant — a string or a
+ * number literal — or `Number(i)`, the conversion
+ * ([spec: property access](../../../spec/README.md#property-access)); a key
+ * of any type is read by the `entry` helper, and a negative or a special
+ * number is written as the string it names, `a["-1"]`.
+ */
+const computedKey = foldError('computed key is not Number(...)')
+
+/**
+ * Whether a computed key is the conversion: a call of the word `Number`,
+ * whatever its arguments, which the conversion itself judges when entered,
+ * {@link conversion} — so `a[Number()]` is `a[0]`, and `a[Number(1, 2)]`
+ * is refused as `Number(1, 2)` is anywhere.
+ *
+ * @type {(node: Node) => boolean}
+ */
+const isConversion = node => node[0] === '()' && node[1][0] === 'ref' && nameOf(node[1][1]) === 'Number'
+
+/**
+ * A computed key entered under `frame`, which receives its value — the
+ * access whose base it follows, {@link _IndexFrame}, or a chain, which
+ * takes the key among its parts' values — or its refusal, at the token it
+ * begins with, {@link computedKey}. It is entered after the base, and after
+ * every part of a chain written before it, as JavaScript evaluates it.
+ *
+ * @type {(stack: _Stack, scope: _Scope, key: ComputedKey, frame: _IndexFrame | _ChainFrame) => _State}
+ */
+const keyEntered = (stack, scope, [, node, first], frame) => isConversion(node)
+    ? [{ top: frame, rest: stack }, scope, ['enter', node]]
+    : [stack, scope, error(computedKey(first))]
 
 /**
  * A key's name, or its refusal: a name of the prototype chain where the
@@ -346,7 +384,7 @@ const chainParts = chain => {
 const stepClosed = (step, values, at) => {
     const [tag, x, next] = step
     if (tag === '|.') {
-        const key = /** @type {string | number} */ (values[at])
+        const key = /** @type {AstKey} */ (values[at])
         return next === undefined ? ['|.', key] : ['|.', key, stepClosed(next, values, at + 1)]
     }
     const args = x.map((item, i) => itemValue(item)(values[at + i]))
@@ -367,7 +405,7 @@ const chainClosed = (chain, values) => {
         return step === undefined ? ['?.()', values[0], args] : ['?.()', values[0], args, stepClosed(step, values, 1 + items.length)]
     }
     const [tag, , , step] = chain
-    const key = /** @type {string | number} */ (values[1])
+    const key = /** @type {AstKey} */ (values[1])
     return /** @type {AstConst} */ (step === undefined ? [tag, values[0], key] : [tag, values[0], key, stepClosed(step, values, 2)])
 }
 
@@ -384,7 +422,9 @@ const chainRound = (stack, scope, frame) => {
     if (index === parts.length) { return [stack, scope, ok(chainClosed(frame.chain, toArray(frame.done)))] }
     const part = parts[index]
     if ('value' in part) { return [{ top: frame, rest: stack }, scope, ['enter', part.value]] }
-    const [tag, named] = checkedKey(part.key, part.method)
+    const { key } = part
+    if (key instanceof Array) { return keyEntered(stack, scope, key, frame) }
+    const [tag, named] = checkedKey(key, part.method)
     if (tag === 'error') { return [stack, scope, error(named)] }
     return chainRound(stack, scope, { ...frame, index: index + 1, done: concat(frame.done)([named]) })
 }
@@ -798,14 +838,18 @@ const enter = (stack, scope, node) => {
  * conversion: a call whose callee is the word `Number` — which no scope
  * binds, since the word is refused at every binding, {@link identifierOf},
  * so the word alone decides — its one plain argument entered under a frame
- * holding the tag, {@link _ConversionFrame}, and the call of any other
- * shape refused at the word, {@link conversionArity}. The word anywhere
- * else is a reference, and refused as every reserved word is.
+ * holding the tag, {@link _ConversionFrame}. `Number()` is the literal `0`,
+ * exact as JavaScript has it, folded here as unary `-` over a literal is
+ * folded, since a node of no operand would be a second spelling of the
+ * leaf; the call of any other shape is refused at the word,
+ * {@link conversionArity}. The word anywhere else is a reference, and
+ * refused as every reserved word is.
  *
  * @type {(stack: _Stack, scope: _Scope, node: Extract<Node, readonly ['()', Node, readonly Item[]]>) => _State | null}
  */
 const conversion = (stack, scope, [, callee, args]) => {
     if (callee[0] !== 'ref' || nameOf(callee[1]) !== 'Number') { return null }
+    if (args.length === 0) { return [stack, scope, ok(0)] }
     const operand = args.length === 1 ? args[0] : null
     if (operand === null || operand[0] === '...') { return [stack, scope, error(conversionArity(callee[1]))] }
     return [{ top: { conversion: 'Number' }, rest: stack }, scope, ['enter', operand]]
@@ -847,7 +891,15 @@ const returned = (stack, scope, frame, value) => {
     if ('container' in frame) { return round(stack, scope, { ...frame, index: frame.index + 1, done: concat(frame.done)([containerValue(frame.container, frame.index, value)]) }) }
     if ('call' in frame) { return callRound(stack, scope, { ...frame, index: frame.index + 1, done: concat(frame.done)([callValue(frame.call, frame.index, value)]) }) }
     if ('conditional' in frame) { return conditionalRound(stack, scope, { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) }) }
-    if ('key' in frame) { return [stack, scope, accessClosed(frame, value)] }
+    if ('key' in frame) {
+        const { key, method } = frame
+        return key instanceof Array ? keyEntered(stack, scope, key, { indexed: value }) : [stack, scope, accessClosed(key, method, value)]
+    }
+    if ('indexed' in frame) {
+        /** @type {AstAccess} */
+        const access = ['.', frame.indexed, /** @type {AstKey} */ (value)]
+        return [stack, scope, ok(access)]
+    }
     if ('chain' in frame) { return chainRound(stack, scope, { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) }) }
     if ('neg' in frame) {
         /** @type {AstNeg} */

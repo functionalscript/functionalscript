@@ -78,12 +78,8 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
    globally is never a module's to bind; lands before `built-in`, since
    admitting a name a module may already have bound is a breaking change
    (its file says P3, not this list's P2),
-7. [ ] [number-call](./2362-number-call.md) — `a[Number(i)]`, the index
-   `property-accessor` plans; the conversion `Number(exp)` itself is in the
-   language, with `Number` the first name reserved under `global-names`
-   ([number conversion](../README.md#number-conversion)),
-8. [ ] property key as number — `{ 3e+7: true }` (no leading sign allowed),
-9. [ ] computed property key from an expression — `{ [name]: 0 }`. The
+7. [ ] property key as number — `{ 3e+7: true }` (no leading sign allowed),
+8. [ ] computed property key from an expression — `{ [name]: 0 }`. The
    constant-string form is implemented
    ([property keys](../README.md#property-keys)); the general one waits
    on expressions.

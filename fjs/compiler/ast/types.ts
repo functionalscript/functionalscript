@@ -160,10 +160,19 @@ export type AstEntry = AstMember | AstSpread
 export type AstObject = readonly ['object', readonly AstEntry[]]
 
 /**
+ * An access's key, the EDAG's `index`: the constant written, a string or a
+ * number from `[0]`, or the conversion of a key computed at run time,
+ * `a[Number(i)]` ([spec: property access](../../../spec/README.md#property-access)).
+ * A constant is the key as it is; the conversion is an operand, established
+ * where the access is, after its base.
+ */
+export type AstKey = string | number | AstNumber
+
+/**
  * A property access, `base.key` or `base[key]`: the base any value — a
- * reference, a literal, or an access — and the key the constant written,
- * a string, or a number from `[0]`. The EDAG's own form, `['.', object,
- * index]`, so the lowering carries it as it is. A key naming a property of
+ * reference, a literal, or an access — and the key, {@link AstKey}. The
+ * EDAG's own form, `['.', object, index]`, so the lowering carries it as it
+ * is, the conversion lowered as any operand is. A constant key naming a property of
  * a built-in prototype — every name `fjs/js/prototype` lists but `length`
  * — is refused by the parser where the access is read; where the access is
  * a call's callee the parser checks the key
@@ -172,8 +181,8 @@ export type AstObject = readonly ['object', readonly AstEntry[]]
  * base: `1 .x` is `['.', 1, 'x']`.
  */
 export type AstAccess =
-    | readonly ['.', AstConst, string | number]
-    | readonly ['.', AstConst, string | number, AstGuardedCallStep]
+    | readonly ['.', AstConst, AstKey]
+    | readonly ['.', AstConst, AstKey, AstGuardedCallStep]
 
 /**
  * A guarded access, `base?.key`: the EDAG's `['?.', object, index]`, and
@@ -186,8 +195,8 @@ export type AstAccess =
  * the read rule, or by the call rule where a call step follows it.
  */
 export type AstGuardedAccess =
-    | readonly ['?.', AstConst, string | number]
-    | readonly ['?.', AstConst, string | number, AstStep]
+    | readonly ['?.', AstConst, AstKey]
+    | readonly ['?.', AstConst, AstKey, AstStep]
 
 /**
  * A guarded call, `callee?.(args)`: the EDAG's `['?.()', f, args]`, with
@@ -209,8 +218,8 @@ export type AstGuardedCall =
  * lets it go on.
  */
 export type AstStep =
-    | readonly ['|.', string | number]
-    | readonly ['|.', string | number, AstStep]
+    | readonly ['|.', AstKey]
+    | readonly ['|.', AstKey, AstStep]
     | readonly ['|()', readonly AstItem[]]
     | readonly ['|()', readonly AstItem[], AstStep]
     | AstGuardedCallStep

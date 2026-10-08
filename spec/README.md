@@ -1399,24 +1399,32 @@ is written, the operand an argument, `Number(1+2)`.
 list beside the keywords rather than among them, since JavaScript has no
 such keyword. A module cannot bind it, as a `const`, a parameter or an
 import's local name ([shared values](#shared-values-constants)), and it is
-no value: it stands only as the callee of a call with exactly one argument,
-and is a compilation error (`reserved word`) anywhere else — bare,
+no value: it stands only as the callee of a call, and is a compilation
+error (`reserved word`) anywhere else — bare,
 `const f = Number;`, or as a namespace, `Number.isFinite(x)`, whose members
 are [built-ins](./todo/2360-built-in.md) still to admit, each on its own.
 A key or a property name is not a reference, so `{ Number: 1 }` and
-`o.Number` mean what they mean in JavaScript. The call of any other shape is
-refused by name (`Number takes one argument`): `Number()`, which is `0` with
-a word in front of it; `Number(a, b)`, which establishes `b` for its
-throw-potential alone, the comma operator's job; and `Number(...a)`, whose
-count the compiler cannot know. Reserving the word is what keeps the two
+`o.Number` mean what they mean in JavaScript. `Number()` is `0`, as in
+JavaScript, and reaches the graph as the literal, folded as `-1` is. Two
+call shapes are not recognized yet, and refused by name
+(`Number takes one argument`) rather than answered wrongly: `Number(a, b)`,
+which establishes `a`, then `b`, then converts `a` — the comma operator's
+`(a, b, Number(a))`, which lands with it
+([operators](./todo/2340-operators.md)) — and `Number(...a)`, which converts
+the first value the spread yields after yielding them all, a call of a
+runtime arity no node expresses yet. Nor is the guarded call `Number?.(x)`,
+which is `Number(x)` in JavaScript, the word never being nullish: it is
+refused at the word (`reserved word`) as every other spelling of `Number`
+but the call is, until a pull request reads the guard away, a spelling no
+module writes. Reserving the word is what keeps the two
 languages reading one program alike: a JavaScript module that binds `Number`
 shadows the global, so `const Number = 1;` makes `Number(x)` the call of `1`
 and `const n = Number(5); const Number = 1;` a read in the binding's temporal
 dead zone, each a failure there, where a refusal here says so at compile time
 ([principles](#principles)).
 
-The index spelled with it, `a[Number(i)]`, is not recognized yet
-([number-call](./todo/2362-number-call.md)).
+It is also the one key computed at run time, `a[Number(i)]`
+([property access](#property-access)).
 
 ## Property Access
 
@@ -1451,10 +1459,23 @@ is `o["1e-7"]`, and `o[1e400]`, a literal that overflows, is
 `o["Infinity"]` — a key the FunctionalScript (`.js`) output refuses to write
 (`a number key no literal reads back`). A string in brackets is the key
 unchanged, so `a["01"]` and `a["1.0"]` name no element and are `undefined`,
-as in JavaScript. Anything else in the brackets is not recognized yet: a key
-computed at run time, `a[i]`, and every other expression, `a[-1]` and
-`a[NaN]` included — their keys are written as strings instead, `a["-1"]` and
-`a["NaN"]`. Trivia, a line break included, may stand on either side of the
+as in JavaScript.
+
+A key computed at run time is the conversion,
+`a[Number(i)]` ([number conversion](#number-conversion)): the property the
+number names, its string as JavaScript gives it, so `xs[Number("1")]` and
+`xs[1]` read one element, `"abc"[Number(true)]` is `"b"`, and
+`xs[Number("x")]`, whose key is `"NaN"`, is `undefined`. It reads an own
+property as every access does, and no prototype name is a number's string,
+so nothing is refused at a converted key; `a[Number(i)](x)` calls what it
+reads with `a` as the receiver, as `a[0](x)` does. The base is evaluated
+before the key, as in JavaScript, and `a?.[Number(i)]` evaluates the key only
+where `a` is neither `null` nor `undefined` ([optional chaining](#optional-chaining)).
+Anything else in the brackets is a compilation error
+(`computed key is not Number(...)`), at the token it begins with: `a[i]`,
+whose type the compiler does not know, and every other expression, `a[-1]`
+and `a[NaN]` included — their keys are written as strings instead,
+`a["-1"]` and `a["NaN"]`. Trivia, a line break included, may stand on either side of the
 `.` or the `[` and inside the brackets, as between any two tokens
 ([trivia](#whitespace-and-line-terminators)): `a . b`, `a./* c */b` and `a`
 with `.b` on the next line are each `a.b`, as JavaScript reads them.
@@ -1528,8 +1549,10 @@ function is called through either, and `(a?.b)(c)` keeps it too, as
 `(a.b)(c)` does. The key is judged as an access's is — a prototype name
 refused as a read, `a?.at`, and allowed as a call, `a?.at(0)`; a member
 function a module may not call refused at its key, `a?.push(1)`; `length`
-read from any value — and a key computed at run time, `a?.[i]`, waits on
-the same step `a[i]` waits on.
+read from any value — and a key computed at run time is the conversion,
+`a?.[Number(i)]`, as it is after `.`
+([property access](#property-access)), established only where the guard
+lets the chain go on.
 
 The graph is `fjs/edag/README.md`'s Chains, where every spelling has one
 shape and the host engine agrees with it: `a?.b` is `['?.', a, 'b']`, the
