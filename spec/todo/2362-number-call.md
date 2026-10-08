@@ -2,6 +2,10 @@
 
 **Priority:** P2
 **Status:** wip
+**Approval:** pending — `sergey-shandar`'s, on
+[#2666](https://github.com/functionalscript/functionalscript/pull/2666), as
+[DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
+requires of a language feature.
 
 ### Problem
 
@@ -46,12 +50,11 @@ which is no number. It lowers to the EDAG's `['Number', exp]`, a node like
 **`Number` is a reserved word**, the first name under
 [global-names](./2365-global-names.md)' rule: never bound — not by a `const`,
 a body `const`, a parameter or an import's local name — and never a value.
-It is spelled in one position, as the callee of a call with exactly one
-argument, and refused everywhere else: bare (`const n = Number;`,
-`f(Number)`), as a namespace (`Number.isFinite(x)`, `Number.MAX_VALUE`),
-and as a callee of any other shape — `Number()`, `Number(a, b)` and
-`Number(...a)`. A key and a property name are not references, so
-`{ Number: 1 }` and `o.Number` stay what JavaScript has them as.
+It is spelled in one position, as the callee of a call, and refused
+everywhere else: bare (`const n = Number;`, `f(Number)`) and as a namespace
+(`Number.isFinite(x)`, `Number.MAX_VALUE`). A key and a property name are not
+references, so `{ Number: 1 }` and `o.Number` stay what JavaScript has them
+as.
 
 Why reserved outright, rather than the intrinsic wherever no scope binds it,
 which is how the `entry` helper reads `Object`
@@ -65,15 +68,23 @@ JavaScript refuses at the first line, in its temporal dead zone, so the
 compatibility rule needs the refusal either way; a reserved word is the one
 that costs no scope bookkeeping.
 
-Why the other call shapes are refused ([DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
-asks for the reason): `Number()` is `0` spelled with a word, and `0` is the
-better spelling; `Number(a, b)` establishes `b` for its throw-potential alone
-and then converts `a`, which is the comma operator's job
-([operators](./2340-operators.md)) over a `const`, not a second spelling of
-the conversion; and `Number(...a)` has an operand count the compiler cannot
-know. Each is refused by name, not as `const not found`. The namespace's
-members — `Number.isInteger`, `Number.MAX_SAFE_INTEGER` and the rest — are
-pure and wanted, and each is an admission of its own under
+The call's other shapes are JavaScript's, and
+[DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
+keeps a harmless convention unless a restriction buys something concrete,
+which none of them would: `Number()` is `0`, exact, and is read as the
+literal `0`, folded as unary `-` over a literal is. `Number(a, b)` and
+`Number(...a)` are not refused on principle but **not recognized yet**, each
+for want of a representation: `Number(a, b)` establishes `a`, then `b`, then
+converts `a`, which is the comma's `(a, b, Number(a))` — the EDAG has the
+node and the FunctionalScript writer no spelling for it until the comma
+operator lands ([operators](./2340-operators.md)), so admitting it first
+would make a program every output but `.js` writes; `Number(...a)` converts
+the first value the spread yields, after yielding them all, which no node
+expresses while a call's arity is the callee's to split. Both are refused by
+name (`Number takes one argument`), never answered with a wrong value, and
+each lands with what it waits on. The namespace's members —
+`Number.isInteger`, `Number.MAX_SAFE_INTEGER` and the rest — are pure and
+wanted, and each is an admission of its own under
 [built-in](./2360-built-in.md), with an EDAG node to design first; this task
 admits the call alone.
 
@@ -111,10 +122,14 @@ optional chaining lands ([#2660](https://github.com/functionalscript/functionals
    the word, as `Object` is in the `entry` helper? The proposal takes 2365's
    rule; the other reading keeps `const Number = 1; Number(2)` JavaScript's
    call of `1`, which nobody needs.
-2. `Number()` and `Number(a, b)`: refused by name, as proposed, or admitted
-   as JavaScript has them?
-3. Is the index form this task's, as proposed, or a task of its own filed
-   when the call lands?
+2. `Number()` and `Number(a, b)`: answered by §12, above — `Number()` is
+   `0`, and `Number(a, b)` lands with the comma operator, `Number(...a)`
+   with a call of runtime arity. Still open: whether either deserves a
+   `todo/` row of its own before then, beyond the comma's line in
+   [operators](./2340-operators.md).
+3. Answered by the task owner: the index is this task's, and lands in
+   [#2667](https://github.com/functionalscript/functionalscript/pull/2667)
+   with the call.
 4. `String(exp)` is the same shape over the EDAG's other cast, and
    `fjs/js/array_index` needs both. A follow-up, filed when this task closes,
    rather than this task's — unless the owner wants the two together.
@@ -129,9 +144,9 @@ optional chaining lands ([#2660](https://github.com/functionalscript/functionals
       as a bare reference; accepted as a key and a property name. A
       **breaking change**, declared.
 - [ ] The conversion: the fold reads `Number(x)` as the AST's conversion
-      node, the lowering writes `['Number', exp]`, and the FunctionalScript
-      writer spells it back. Refusals by name for `Number()`, `Number(a, b)`,
-      `Number(...a)` and `Number.x`. Proofs: source to EDAG to both
+      node and `Number()` as `0`, the lowering writes `['Number', exp]`, and
+      the FunctionalScript writer spells it back. Refusals by name for
+      `Number(a, b)`, `Number(...a)` and `Number.x`. Proofs: source to EDAG to both
       interpreters against JavaScript, the writer's round trip, the Rust
       output through the existing printer.
 - [ ] [spec](../README.md): a section for the conversion, the word added to
