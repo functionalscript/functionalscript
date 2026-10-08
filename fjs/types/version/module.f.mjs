@@ -43,8 +43,7 @@ const maxPart = BigInt(Number.MAX_SAFE_INTEGER)
 const maxPartLength = String(Number.MAX_SAFE_INTEGER).length
 
 /**
- * The number one or more decimal digits spell, or `null` where `part` is
- * anything else or spells more than a safe integer. A larger number would
+ * One or more decimal digits spelling a safe integer. A larger number would
  * round, and two different versions would compare equal.
  *
  * A part with more significant digits than `Number.MAX_SAFE_INTEGER` is
@@ -52,26 +51,28 @@ const maxPartLength = String(Number.MAX_SAFE_INTEGER).length
  * at a cost that grows with the square of its length. Leading zeros do not
  * count, so `00000000000000001` is still `1`.
  *
- * @type {(part: string) => Nullable<number>}
+ * @type {(part: string) => boolean}
  */
-const tryParsePart = part => {
+const isPart = part => {
     const digits = [...part].map(one)
     const first = digits.findIndex(d => d !== digit0)
     const significant = first === -1 ? 0 : digits.length - first
-    if (significant > maxPartLength) { return null }
+    if (significant > maxPartLength) { return false }
     const n = decimalValue(digits)
-    return n !== null && n <= maxPart ? Number(n) : null
+    return n !== null && n <= maxPart
 }
 
 /**
  * A version as its numbers, or `null` where any dot-separated part is not a
- * run of decimal digits spelling a safe integer.
+ * run of decimal digits spelling a safe integer. Parts are checked in order,
+ * and the first one refused ends the check. `Number` then reads each accepted
+ * part exactly, since it spells a safe integer.
  *
  * @type {(version: string) => Nullable<readonly number[]>}
  */
 export const tryParse = version => {
-    const parts = version.split('.').map(tryParsePart)
-    return parts.every(p => p !== null) ? parts : null
+    const parts = version.split('.')
+    return parts.every(isPart) ? parts.map(Number) : null
 }
 
 /** @type {(version: string) => readonly number[]} */
