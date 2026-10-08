@@ -1,7 +1,7 @@
 ## binary-counter-owner. `set` re-implements `common/monoid`'s binary-counter run stack
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
