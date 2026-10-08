@@ -6,6 +6,8 @@
  * @module
  * @import { ExpOp, StepOver, ItemsOver, Over } from '../types.ts'
  * @import { EdagValue, Values, Property, Array as ValueArray } from '../value/types.ts'
+ * @import { ValueResult } from '../value/control/types.ts'
+ * @import { Invoke } from '../value/call/types.ts'
  * @import { Evaluation, Evaluator } from './types.ts'
  */
 
@@ -15,7 +17,7 @@ import { array } from '../value/array/module.f.mjs'
 import { object } from '../value/object/module.f.mjs'
 import { func } from '../value/function/module.f.mjs'
 import { call } from '../value/call/module.f.mjs'
-import { findProperty, read } from '../value/property/module.f.mjs'
+import { entry, findProperty, read } from '../value/property/module.f.mjs'
 import { throwValue } from '../value/control/module.f.mjs'
 import { truthy, typeOf, instanceOf, unary as semanticUnary, binary as semanticBinary } from '../value/semantics/module.f.mjs'
 import { unary as numericUnary, binary as numericBinary } from '../value/numeric/module.f.mjs'
@@ -37,6 +39,21 @@ const then = (evaluation, next) => {
 
 /** @type {(value: EdagValue) => boolean} */
 const nullish = value => value === null || typeOf(value) === 'undefined'
+
+/**
+ * The `entry` helper called, `['entry']`'s body for the executors that
+ * invoke it: the entry its second argument names among the first's
+ * enumerable own properties, the key converted as
+ * `Object.getOwnPropertyDescriptor` converts one — through its own
+ * `toString`, under `invoke`, where it is an object — after a nullish
+ * receiver has failed, as `ToObject` fails before the key is read. The
+ * two fixed arguments are the helper's `length`, padded with `undefined`
+ * by the call.
+ *
+ * @type {(fixed: Values, invoke: Invoke) => ValueResult}
+ */
+export const entryCall = ([receiver, key], invoke) =>
+    nullish(receiver) ? error(['undefined']) : okThen(name => entry(receiver, name))(toString(key, invoke))
 
 /** @template E, S
  * @param {Evaluator<E, S>} evaluator
@@ -143,6 +160,8 @@ export const operation = evaluator => {
             // analysis refuses a `self` outside a function, so none is a
             // precondition this evaluator restates as a thrown `undefined`
             case 'self': { return [state, self === undefined ? error(['undefined']) : ok(self)] }
+            // the helper as a value: a fresh function each time, as `=>` makes one
+            case 'entry': { return [state, ok(['entry'])] }
             case '[]': { return items(node[1], state) }
             case '{}': { return properties(node[1], state) }
             case '=>': {
@@ -205,7 +224,6 @@ export const operation = evaluator => {
             const [tag] = node
             switch (tag) {
                 case '===': case '!==': case 'is': { return [after, semanticBinary[tag](left, right)] }
-                case 'own': { return [after, typeof right === 'string' ? read(ok(left), right) : error(['undefined'])] }
                 default: {
                     const a = toPrimitive(left, 'number', invoke)
                     const [kind, x] = a

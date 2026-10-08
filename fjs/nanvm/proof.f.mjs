@@ -61,14 +61,9 @@ const { fromEntries, is } = Object
  * arity dispatch to find the one it wants.
  *
  * These are the independent native checks; every case also runs through
- * `amnesia`'s `vm` (see `run` below). An absent entry means that group is not cross-checked at
- * all, which `referenceCoverage` below makes a deliberate list of exactly
- * one rather than an oversight: `own`, whose plain
- * `Object.getOwnPropertyDescriptor` read is not a copy of `amnesia`'s
- * stricter receiver/key invariants — `nonStringKeyThrows` (`[{1: 42}, 1]`) is
- * real JS and does *not* throw through the descriptor read, only through
- * `amnesia`'s FJS-specific string-key check — so the two are expected to
- * disagree there, and every `own` case is proven by `amnesia` alone.
+ * `amnesia`'s `vm` (see `run` below). An absent entry means that group is
+ * not cross-checked at all, which `referenceCoverage` below refuses: every
+ * group has its JavaScript.
  *
  * The `any` parameters are the point of the exercise: these operators are
  * being applied to operand types TypeScript rejects (`-[]`, `{} * 1`), which
@@ -304,7 +299,6 @@ const group = g => {
  * Named references share within each side; graph values and host values never
  * need to be the same objects. Non-throwing data results agree structurally.
  *
- * `own` has its documented string-key restriction and no host counterpart.
  * Unreached operands cannot become eager reference values, so their lazy cases
  * are interpreter-only. Function-text cases are skipped only here: JavaScript
  * gives these literal callbacks their host text, not canonical EDAG text.
@@ -333,21 +327,17 @@ const crossCheck = g => {
 }
 
 /**
- * Every group is cross-checked, save the one that deliberately is not.
+ * Every group is cross-checked.
  *
  * An absent {@link js} entry makes `crossCheck` return an empty tree, which
  * no test failure ever reports: a group added without a reference, or one
  * whose key is respelled, would simply stop being checked against JavaScript
- * and nothing would say so. This is what says so — and it pins the exclusion
- * in the other direction too, so `own` gaining an entry is also a failure
- * here rather than a silent change of what the corpus proves.
+ * and nothing would say so. This is what says so.
  */
 const referenceCoverage = () => {
     for (const g of data.groups) {
-        const key = groupKey(g)
-        assert(key === 'own' || referenceOf(g) !== undefined, ['no JavaScript reference for', key])
+        assert(referenceOf(g) !== undefined, ['no JavaScript reference for', groupKey(g)])
     }
-    assert(!('own' in js), ['own is excluded deliberately; see the js table'])
 }
 
 /**

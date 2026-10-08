@@ -18,7 +18,7 @@ import { join } from '../array/module.f.mjs'
 import { at } from '../at/module.f.mjs'
 import { call } from '../call/module.f.mjs'
 import { toNumber, toString } from '../convert/module.f.mjs'
-import { is, strictEqual, truthy, typeOf } from '../semantics/module.f.mjs'
+import { is, isFunction, strictEqual, truthy, typeOf } from '../semantics/module.f.mjs'
 import { slice } from '../slice/module.f.mjs'
 
 /** @type {(args: Values, index: number) => EdagValue} */
@@ -28,7 +28,7 @@ const argument = (args, index) => args[index] === undefined ? ['undefined'] : ar
 const absent = value => typeOf(value) === 'undefined'
 
 /** @type {(value: EdagValue) => value is ValueFunction} */
-const callable = value => isArray(value) && value[0] === '=>'
+const callable = isFunction
 
 /** ToIntegerOrInfinity after abstract ToNumber. @type {(value: number) => number} */
 const integer = value => Math.trunc(value) || 0

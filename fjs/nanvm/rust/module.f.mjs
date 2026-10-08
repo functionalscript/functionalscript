@@ -142,7 +142,6 @@ export const rustName = {
     '&&': 'logical_and',
     '||': 'logical_or',
     '??': 'nullish_coalescing',
-    own: 'own_property',
     '===': 'eq',
     '!==': 'ne',
     typeof: 'typeof_',

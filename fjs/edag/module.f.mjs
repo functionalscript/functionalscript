@@ -536,7 +536,8 @@ export const comma = /** @type {const} */ ([',', exps])
 /**
  * `op0`/`op1`/`op2` group operation nodes by their `exp`-operand count —
  * zero, one, or two. `undefined`, module imports (`args`), invocation
- * rest (`rest`) and the owning function itself (`self`) have no expression
+ * rest (`rest`), the owning function itself (`self`) and the `entry`
+ * helper (`entry`) have no expression
  * operands. `self` is the function whose body holds it, as a value — the
  * same value every read, so recursion is `['()', ['self'], args]` and a
  * nested function captures its parent's `self` as a slot — and it is what
@@ -546,8 +547,30 @@ export const comma = /** @type {const} */ ([',', exps])
  * open subject. Functions, fixed reads and
  * frame slot reads have separate tuples because their metadata is not an
  * expression operand.
+ *
+ * `entry` is the language's `entry` helper
+ * (`../../spec/README.md`, "Reading an entry at run time"), as a value:
+ *
+ * ```js
+ * (a, b) => {
+ *     const x = Object.getOwnPropertyDescriptor(a, b);
+ *     return x?.enumerable ? x.value : undefined;
+ * }
+ * ```
+ *
+ * A function of `length` `2` capturing nothing, minting a fresh identity
+ * where it is established as every `=>` does, and called as any function
+ * is, `['()', ['entry'], [a, b]]`: the enumerable own property the key
+ * names — an object's field, an array's or a string's element, nothing a
+ * value owns without enumerating it, a `length` or anything of a function
+ * — the key converted as `Object.getOwnPropertyDescriptor` converts it,
+ * `0` and `"0"` naming one entry, once a `null` or `undefined` receiver
+ * has failed (`entryJs` in `./proof.f.mjs`). The compiler emits the node
+ * for the helper written in source, and the writer spells it back as the
+ * helper and no other way: the source has no other spelling of a key
+ * computed at run time.
  */
-export const op0Id = or('undefined', 'args', 'rest', 'self')
+export const op0Id = or('undefined', 'args', 'rest', 'self', 'entry')
 
 export const op0 = /** @type {const} */ ([op0Id])
 
@@ -595,13 +618,7 @@ export const op1 = /** @type {const} */ ([op1Id, exp])
 export const lazyOp2Id = /** @type {const} */ (['&&', '||', '??'])
 
 /**
- * `own` is exactly
- * `Object.getOwnPropertyDescriptor(object, key)?.value` — no
- * getter invocation, no prototype chain — where the key operand must
- * evaluate to a string: a runtime-value constraint the shape-only schema
- * cannot express — a computed key's value is only known at execution, so
- * upholding it falls to the executor (`ownJs` in `./proof.f.mjs`; the
- * Operations table in `../../todo/edag-stage1-discussion.md`). `is` is
+ * `is` is
  * `Object.is`, the equality the language's guarantees are stated in —
  * `NaN` is `NaN` and `0` is not `-0`, where `===` says the opposite — as a
  * node, since `Object.is` is a function of a namespace the language cannot
@@ -614,7 +631,7 @@ export const lazyOp2Id = /** @type {const} */ (['&&', '||', '??'])
  * here: each is also a unary operator, so both are `op12` below.
  */
 export const op2Id = or(
-    'own', 'is',
+    'is',
     '===', '!==', '>', '>=', '<', '<=',
     '*', '/', '%', '**',
     '&', '|', '^', '<<', '>>', '>>>',

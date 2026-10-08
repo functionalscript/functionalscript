@@ -32,8 +32,30 @@ export type AstImport = {
  */
 export type AstModule = readonly [readonly AstImport[], AstBody]
 
-/** A value in a module body: a primitive, a reference, an array, an object, a property access, a call, a negation, a bitwise not, a logical not, a `typeof`, an `instanceof`, the function's own `self`, a binary operator, a conditional, a function, a fixed parameter, a rest array, a slot of its frame — or a `throw`, which a body may end with in place of a value. */
-export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstGuardedAccess|AstCall|AstGuardedCall|AstNeg|AstBitnot|AstNot|AstTypeof|AstInstanceOf|AstSelf|AstBinary|AstConditional|AstFunction|AstRest|AstArg|AstFrameRef|AstThrow
+/** A value in a module body: a primitive, a reference, an array, an object, a property access, a call, a negation, a bitwise not, a logical not, a `typeof`, an `instanceof`, the function's own `self`, a binary operator, a conditional, a function, the `entry` helper, a fixed parameter, a rest array, a slot of its frame — or a `throw`, which a body may end with in place of a value. */
+export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstGuardedAccess|AstCall|AstGuardedCall|AstNeg|AstBitnot|AstNot|AstTypeof|AstInstanceOf|AstSelf|AstBinary|AstConditional|AstFunction|AstEntryFunction|AstRest|AstArg|AstFrameRef|AstThrow
+
+/**
+ * The `entry` helper, which the parser recognizes whole
+ * ([spec: entry](../../../spec/README.md#reading-an-entry-at-run-time)):
+ *
+ * ```js
+ * (a, b) => {
+ *     const x = Object.getOwnPropertyDescriptor(a, b);
+ *     return x?.enumerable ? x.value : undefined;
+ * }
+ * ```
+ *
+ * under any names — the one function that reads a property named at run
+ * time, the enumerable own property the key names once converted as
+ * `Object.getOwnPropertyDescriptor` converts it. It is a function like
+ * any other: a value, of `length` `2`, capturing nothing, and a fresh
+ * identity wherever it is written, as every arrow is. The lowering spells
+ * it as the EDAG's own node for it, `['entry']`, which the source spells
+ * through this helper and no other way; the writer spells the node back
+ * as the helper.
+ */
+export type AstEntryFunction = readonly ['entry']
 
 /**
  * A `throw`, `throw v;`: the statement a function's block body, or a
