@@ -63,6 +63,19 @@ export const faviconLinks = [
 ]
 
 /**
+ * The attribute that marks a demo's root and names its module: the page
+ * writes it, the runtime starts the demo it finds by it, and the
+ * stylesheet's label-and-caption rule selects the demo's labels under it.
+ *
+ * One name for all of them, as with `captionMarker` below, so renaming it
+ * renames every reader and writer at once, and no rule is left selecting a
+ * root no page writes any more.
+ *
+ * @type {string}
+ */
+export const demoMarker = 'data-demo'
+
+/**
  * The attribute that marks a demo's caption, bold under the stylesheet's
  * label-and-caption rule.
  *
@@ -206,7 +219,7 @@ input[type="text"] { box-sizing: border-box; width: 100% }
    scanning the page tells the controls and each result's name from the prose
    around them without a heading's weight. The lead and notes stay regular.
    demo/README.md states the rule. */
-[data-demo] label, [${captionMarker}] { font-weight: bold }
+[${demoMarker}] label, [${captionMarker}] { font-weight: bold }
 /* The compact target field and its difficulty examples share one column;
    right-aligned attempt counts make the four targets easy to compare. */
 [data-pow-search-effort] { border-collapse: collapse; width: 100% }

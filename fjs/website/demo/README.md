@@ -60,8 +60,9 @@ The lead is plain prose, not a caption: no trailing colon, no bold.
   instead.
 - **A label is bold, at the text's own size**, so a reader scanning the page
   tells the controls from the prose around them. It stays a `label`, not a
-  heading. A label set inside a sentence stays regular, as the sentence does,
-  and the demo says why in its JSDoc.
+  heading. Every `label` in a demo is bold; a field set inside a sentence has
+  none, and carries `aria-label` instead, as the bullet above says, so the
+  sentence stays regular around it.
 - **The control fits what the reader types.** Text that can span lines — a
   program, a document, a release file — is a textarea, and a demo that is
   text in, text out uses [`textDemo`](./module.f.mjs), which owns the
