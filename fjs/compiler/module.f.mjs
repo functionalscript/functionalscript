@@ -17,7 +17,7 @@
  * @import { Unknown } from '../media/datajs/types.ts'
  * @import { _Checked, _CompileOp } from './types.ts'
  * @import { ParseError } from './parser/types.ts'
- * @import { Effect, IoChannel } from '../effects/types.ts'
+ * @import { Effect, IoChannel, IoError } from '../effects/types.ts'
  * @import { Env, Program, ReadFile, ResolveFileModule, Write } from '../effects/node/types.ts'
  */
 
@@ -32,7 +32,7 @@ import { ok, okThen } from '../types/result/module.f.mjs'
 import { concat } from '../types/string/module.f.mjs'
 import { serialize as bigintSerialize } from '../types/bigint/module.f.mjs'
 import { sort } from '../types/object/module.f.mjs'
-import { errorMessage, foldStep, mapStep, pureOk, resultMapStep, resultStep, step } from '../effects/module.f.mjs'
+import { errorMessage, foldStep, ioError, mapStep, pureError, pureOk, resultMapStep, resultStep, step } from '../effects/module.f.mjs'
 import { error as errorLine, errorExit, exitStep, log, mkdir, writeUtf8File } from '../effects/node/module.f.mjs'
 import { concat as pathConcat } from '../path/module.f.mjs'
 import { allFiles, sourceRoot } from '../dev/module.f.mjs'
@@ -321,6 +321,47 @@ const check = env => resultStep(
     })
 
 /**
+ * A compile refused, on the channel every operation reports on, so that a
+ * program sequencing {@link compileFile} reads a diagnostic as it reads a
+ * host failure — and `exitStep` prints it as `fjs compile` always has.
+ *
+ * @type {(message: string) => Effect<never, never, IoError>}
+ */
+const refused = message => pureError(ioError({ message }))
+
+/**
+ * Compiles the FunctionalScript module `inputFileName` into `outputFileName`,
+ * in the language the output's extension declares — what {@link compile} does
+ * with two arguments, as one effect a program can sequence: `fjs/nanvm/harness`
+ * compiles every harness fixture through it. The output's directory is created
+ * first. A failure is the diagnostic the command prints, carried as the
+ * message of an `IoError`: an output extension naming no language, a parse
+ * error, or a refused output, each as {@link compile} describes.
+ *
+ * @type {(inputFileName: string, outputFileName: string) => Effect<_CompileOp, void, IoChannel>}
+ */
+export const compileFile = (inputFileName, outputFileName) => {
+    const text = outputText(outputFileName)
+    if (text === null) {
+        return refused(`${outputFileName} - error: ${unknownOutput}`)
+    }
+    return resultStep(
+        text(inputFileName),
+        /** @type {(result: Result<Result<string, string>, ParseError>) => Effect<_CompileOp, void, IoChannel>} */
+        (result) => {
+            if (result[0] === 'error') {
+                return refused(diagnostic(inputFileName)(result[1]))
+            }
+            const [tag, content] = result[1]
+            if (tag === 'error') {
+                return refused(`${outputFileName} - error: ${content}`)
+            }
+            const directoryReady = mkdir(outputDirectory(outputFileName), { recursive: true })
+            return step(directoryReady, () => writeUtf8File(outputFileName, content))
+        })
+}
+
+/**
  * Compiles the FunctionalScript module `args[0]` into `args[1]`, in the
  * language `args[1]`'s extension declares: JSON for `.json`, a generated
  * Rust module calling the `nanvm-lib` API for `.rs`, the program's EDAG for
@@ -369,25 +410,5 @@ export const compile = ({ args, env }) => {
     if (args.length > 2) {
         return errorExit(`Error: unexpected argument ${args[2]}: fjs compile <input> <output>`)
     }
-    const inputFileName = args[0]
-    const outputFileName = args[1]
-    const text = outputText(outputFileName)
-    if (text === null) {
-        return errorExit(`${outputFileName} - error: ${unknownOutput}`)
-    }
-    return resultStep(
-        text(inputFileName),
-        /** @type {(result: Result<Result<string, string>, ParseError>) => Effect<_CompileOp, 0, number>} */
-        (result) => {
-            if (result[0] === 'error') {
-                return errorExit(diagnostic(inputFileName)(result[1]))
-            }
-            const [tag, content] = result[1]
-            if (tag === 'error') {
-                return errorExit(`${outputFileName} - error: ${content}`)
-            }
-            const directoryReady = mkdir(outputDirectory(outputFileName), { recursive: true })
-            const written = step(directoryReady, () => writeUtf8File(outputFileName, content))
-            return exitStep(written)
-        })
+    return exitStep(compileFile(args[0], args[1]))
 }
