@@ -1,9 +1,10 @@
 # Highlight from the producer, not by reparsing
 
 **Priority:** P3
-**Status:** open — design only. The reparsing highlighter,
-[`../highlight/module.f.mjs`](../highlight/module.f.mjs), exists and is the
-fallback this design keeps.
+**Status:** open — design only. It builds on a reparsing highlighter,
+`website/demo/highlight/module.f.mjs`, proposed on the branch
+`claude/gracious-euler-dw2lsd` and not on `main` yet; it is the fallback this
+design keeps.
 
 ## Problem
 
@@ -203,8 +204,8 @@ Each step is independently shippable and leaves the page working.
 
 ## Related
 
-- [`../highlight/module.f.mjs`](../highlight/module.f.mjs) — the reparsing
-  highlighter this builds on.
+- `website/demo/highlight/module.f.mjs` (branch
+  `claude/gracious-euler-dw2lsd`) — the reparsing highlighter this builds on.
 - [`../README.md`](../README.md#output) — how a demo's code blocks look.
 - [`../../../compiler/todo/output-demos.md`](../../../compiler/todo/output-demos.md)
   — the demos that print generated code.
