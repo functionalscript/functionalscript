@@ -129,12 +129,58 @@ variant over tags — and no consumer evaluates it. The cost is one arm per
 consumer: the schema, the memo analysis, both interpreters, the Rust
 printer and the writer each dispatch on the tag and read the name, and
 the two generic operand walkers each gain a case so that the name is not
-walked as a string literal (the drawback below). The alternative, one
-unary tag per constructor — `isArray`, then `isMap`, `isSet` — is
-cheaper today, since a unary node is one every walker already handles,
-and costs a new tag at every consumer for every constructor after, while
-the name list grows in one place. The shape is chosen for where the
-operator is going, `Map` and `Set`, over the smaller first step.
+walked as a string literal (the drawback below).
+
+#### Why the node carries a name, not a unary tag
+
+This is a decision of the language designer, made with the alternative
+in view, and it is final for this proposal: a review that asks for the
+unary shape again is answered by this section.
+
+The alternative is one unary tag per constructor — `isArray` today,
+`isMap` and `isSet` after it. It is cheaper for `Array` alone: a unary
+node is a shape every walker already handles, so the two operand walkers
+need no case and the type checker needs no new variant. It is rejected
+for four reasons:
+
+1. **`instanceof Map` and `instanceof Set` are planned**, not
+   hypothetical: the language will build both
+   ([`object-identity.md`](./object-identity.md)), and a value that is
+   one must be told from one that is not, exactly as an array is from an
+   object today. The shape is chosen for the operator the language will
+   have, so that the second constructor and every one after it is a name
+   added to one list, and not a new tag at every consumer: the schema,
+   the memo analysis, both interpreters, the Rust printer, the writer and
+   the corpus each dispatch on the tag, and a unary tag per constructor
+   means a new arm in each of them per constructor. Under this shape the
+   name is read where the tag is dispatched, once.
+2. **JavaScript has no `isMap` and no `isSet`.** `Array.isArray` exists
+   because `instanceof Array` fails across realms, and it was added in
+   ES5 for that one case; `Map` and `Set` arrived in ES2015 with no such
+   function, and `x instanceof Map` is their one spelling in the language
+   (Node's `util.types.isMap` is a host API). A unary `isMap` tag would be
+   a predicate the source language cannot write, named after a function
+   that does not exist. `instanceof` with the constructor beside it is
+   the EDAG reading as the JavaScript does.
+3. **The cost is paid once and it is pinned.** The arms and the two
+   walker cases are the price of the shape, and the implementation that
+   lands the operator pays it with a proof per consumer that the name is
+   read and never walked, so a consumer that loses its case fails its
+   proof rather than evaluating `'Array'`. Taking the unary tag first
+   would mean a second implementation of the same operator, to be
+   replaced with this one the day the second constructor lands — a
+   smaller first step that is paid for twice.
+4. **Changing the shape later is a breaking change; choosing it now is
+   not.** The EDAG is the language's data format
+   ([serialization](./serialization.md)): every compiled module, every
+   corpus case and every consumer outside this repository holds the node
+   as it is spelled. A unary `isArray` landed today becomes, when `Map`
+   arrives, either a second shape beside the first — `isArray` unary,
+   `instanceof` with a name, two spellings of one operator forever — or a
+   replacement of every `isArray` node ever emitted, which is the
+   breaking change the first option exists to avoid. Today no
+   `instanceof` node exists anywhere, so the shape costs nothing to
+   choose and the choice is the one time it is free.
 
 The right operand is a name rather than a value because the EDAG has no
 constructor values: no global is a value in it
@@ -171,7 +217,9 @@ proposal's question; the name form stays for the built-ins either way.
   string literal and no type checker would object. Each needs an
   `instanceof` case, as each has an `arg` case, and a proof that pins it.
   This is the real cost of the shape, and the reason the unary alternative
-  below is cheaper today: it adds no node a walker can get wrong.
+  is cheaper today: it adds no node a walker can get wrong. Why the shape
+  is taken regardless is settled under
+  [the EDAG](#why-the-node-carries-a-name-not-a-unary-tag).
 - One more per-operator arm in each consumer, the count
   [`fjs/compiler/todo/unary-tags.md`](../../fjs/compiler/todo/unary-tags.md)
   tracks; collapsing them stays that task's.
