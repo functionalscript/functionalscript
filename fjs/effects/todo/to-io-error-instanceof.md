@@ -8,7 +8,7 @@
 `toIoError` in [`../module.f.mjs`](../module.f.mjs) reads a thrown value's
 message with `e instanceof Error ? e.message : String(e)`. The module is
 FunctionalScript, and the compiler admits `instanceof` with `Array` on the
-right only ([`spec/todo/2342-instanceof.md`](../../../spec/todo/2342-instanceof.md)),
+right only ([`instanceof`](../../../spec/README.md#instanceof)),
 so this line is a refusal the module meets whatever else lands.
 
 `instanceof Error` is not going to be admitted for it. The language builds

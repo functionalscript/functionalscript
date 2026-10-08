@@ -51,6 +51,16 @@ export const proof = {
         eq(['Number', '42'], 42)
         eq(['String', 42], '42')
         eq(['typeof', 1n], 'bigint')
+        // `instanceof Array`: an array's own tag and nothing else, never a
+        // throw — `null`, `undefined`, an object and a function included
+        eq(['instanceof', ['[]', []], 'Array'], true)
+        eq(['instanceof', ['[]', [1, ['[]', []]]], 'Array'], true)
+        eq(['instanceof', ['{}', []], 'Array'], false)
+        eq(['instanceof', null, 'Array'], false)
+        eq(['instanceof', ['undefined'], 'Array'], false)
+        eq(['instanceof', 'a', 'Array'], false)
+        eq(['instanceof', 1, 'Array'], false)
+        eq(['instanceof', identity, 'Array'], false)
         eq(['+', '5'], 5)
         eq(['-', 5], -5)
         eq(['+', 2, 3], 5)

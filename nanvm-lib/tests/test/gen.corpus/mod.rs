@@ -11,6 +11,7 @@ pub mod div;
 pub mod eq;
 pub mod ge;
 pub mod gt;
+pub mod instanceof_array;
 pub mod le;
 pub mod logical_and;
 pub mod logical_or;
@@ -107,6 +108,7 @@ pub fn all<A: IStaticFunction>() {
     nullish_coalescing::run::<A>();
     conditional::run::<A>();
     typeof_::run::<A>();
+    instanceof_array::run::<A>();
     throw::run::<A>();
     string_coercion::run::<A>();
     number_cast::run::<A>();

@@ -1200,6 +1200,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
                 'Operator precedence': 'ooooo',
                 'Logical not': 'ooooo',
                 'typeof': 'ooooo',
+                'instanceof': 'ooooo',
                 'Number conversion': 'ooooo',
                 'Laziness': 'ooooo',
                 'Laziness: && || ??': 'xxooo',

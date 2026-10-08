@@ -314,6 +314,7 @@ vocabularies.
 | `[id, exp, exp]` | binary operation, `id` one of `is` `===` `!==` `>` `>=` `<` `<=` `*` `/` `%` `**` `&` `\|` `^` `<<` `>>` `>>>` `&&` `\|\|` `??` |
 | `[id, exp]`, `[id, exp, exp]` | `id` one of `+` `-`: unary plus or negation, addition or subtraction — one tag at two arities, the node's length deciding, as a chain step's does; unary `+` is JS's and throws on a bigint where `Number` converts |
 | `['?:', exp, exp, exp]` | conditional: the condition, then exactly one arm — the one `ToBoolean` selects; the other is never established |
+| `['instanceof', exp, constructor]` | instance check, `x instanceof Array`: `true` of an array, `false` of every other value, never throws; `constructor` is a *name* from a closed list — `'Array'` alone today, not an operand — since no global is a value here. A reader walking operands generically needs an arm for it, or walks the name as a string literal |
 
 Where a form is listed twice above, the two are the node's arities: the
 shorter one ends the chain and the longer one hands it on, and the schema is
@@ -330,6 +331,20 @@ read has a count to be checked against and no spread can leave that count
 unknown. The distinction is easy to lose in
 prose and load-bearing in the schema — a single element where the array
 belongs still validates plenty of values, just the wrong ones.
+
+`instanceof` carries its constructor as a name beside the tag rather than
+being one unary tag per constructor (`isArray`, then `isSet`, `isRegExp`),
+and that is the language designer's decision, settled: if we plan to add
+more types, like `Set` or `RegExp` — none is approved yet — then under
+this shape each is a name added to one list where a tag per constructor
+is a new arm in every consumer that dispatches on tags; JavaScript has no
+`isSet` or `isRegExp` — `Array.isArray` exists for cross-realm arrays
+alone, and `x instanceof Set` is the one spelling — so the node reads as
+the source does; the two walker
+arms are its whole cost, paid once and pinned by proof; and the EDAG is a
+data format, so a unary shape landed first would have to live beside this
+one forever or be replaced in every module ever compiled, a breaking change
+that choosing the shape while no node exists is not.
 
 **Why an array operand rather than a variadic tail.** `['[]', [a, b]]`
 rather than `['[]', a, b]`, and the same one position further in for

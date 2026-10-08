@@ -31,7 +31,7 @@
 |Conditional|`?:`     |**done**   |
 |Comma      |`,`      |1          |
 |Type       |`typeof` |**done**   |
-|           |`instanceof`|2 — [`2342-instanceof.md`](./2342-instanceof.md), `Array` on the right only|
+|           |`instanceof`|**done** — `Array` on the right only ([specification](../README.md#operators))|
 
 **Stages A and B are in the language** — every row marked **done** — and
 the [specification](../README.md#operators) is the one place their syntax,
