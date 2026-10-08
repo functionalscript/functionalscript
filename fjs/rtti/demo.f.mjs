@@ -267,7 +267,7 @@ export const projectSchemas = [
         name: 'GitHub Actions workflow',
         about: 'A workflow as this repository generates it. Closed: CI reads its own generated workflows back, so a key the schema does not name is generator drift.',
         schemas: inProject('gitHubActionSchema', 'ci/common', gitHubActionSchema),
-        value: 'export default {"name":"CI","on":{"pull_request":{}},"permissions":{"contents":"read"},"jobs":{"test":{"runs-on":"ubuntu-latest","steps":[{"uses":"actions/checkout@v5"},{"run":"npm test"}]}}};',
+        value: 'export default {"name":"CI","on":{"pull_request":{}},"permissions":{"contents":"read"},"jobs":{"test":{"runs-on":"ubuntu-latest","timeout-minutes":15,"steps":[{"uses":"actions/checkout@v5"},{"run":"npm test"}]}}};',
     },
     {
         name: 'Unary operator',
