@@ -39,6 +39,25 @@ export const proof = {
     // The call the lowering inlines: no arguments, a parameterless function
     // written at the call, reading no rest array. Every other call stays
     // one.
+    // A chain's base, and a guarded call's callee, are established
+    // whatever the guard decides; its steps' arguments, and a guarded
+    // call's own, only where the chain goes on — lazy, so a `const` read
+    // there alone keeps its anchor, as one under `&&`'s right operand does
+    chains: () => {
+        assertEq(anchorsOf([[a], [['array', []], ['?.', ['cref', 0], 'b']]]), 'consts ; imports 0')
+        assertEq(anchorsOf([[a], [['array', []], ['?.()', ['cref', 0], []]]]), 'consts ; imports 0')
+        assertEq(anchorsOf([[a], [['array', []], ['?.', 1, 'b', ['|()', [['cref', 0]]]]]]), 'consts 0; imports 0')
+        assertEq(anchorsOf([[a], [['array', []], ['?.', 1, 'b', ['|.', 'c', ['|?.()', [['...', ['cref', 0]]]]]]]]), 'consts 0; imports 0')
+        assertEq(anchorsOf([[a], [['array', []], ['?.()', 1, [['cref', 0]]]]]), 'consts 0; imports 0')
+        assertEq(anchorsOf([[a], [['array', []], ['.', 1, 'b', ['|?.()', [['cref', 0]]]]]]), 'consts 0; imports 0')
+        assertEq(anchorsOf([[a], [['array', []], ['.', 1, 'b', ['|?.()', [], ['|!()', [['cref', 0]]]]]]]), 'consts 0; imports 0')
+        // a body reads its rest array through a chain anywhere in it
+        assert(!isInlinedCall(['()', ['=>', 0, [['?.', ['rest'], 'b']]], []]))
+        assert(!isInlinedCall(['()', ['=>', 0, [['?.', 1, 'b', ['|()', [['rest']]]]]], []]))
+        assert(!isInlinedCall(['()', ['=>', 0, [['?.()', 1, [['rest']]]]], []]))
+        assert(!isInlinedCall(['()', ['=>', 0, [['.', 1, 'b', ['|?.()', [], ['|.', 'c', ['|()', [['...', ['rest']]]]]]]]], []]))
+        assert(isInlinedCall(['()', ['=>', 0, [['?.', 1, 'b', ['|.', 'c']]]], []]))
+    },
     inlined: () => {
         assert(isInlinedCall(['()', ['=>', 0, [1]], []]))
         assert(isInlinedCall(['()', ['=>', 0, [['fref', 0]], [['cref', 0]]], []]))

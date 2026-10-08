@@ -13,7 +13,7 @@ import type { Result } from '../../types/result/types.ts'
 import type { AstConst, AstFrameRef, AstItem, AstModuleRef, AstRest, AstSelf, BinaryTag } from '../ast/types.ts'
 import type { DjsTokenWithMetadata } from '../tokenizer/types.ts'
 import type { ParseError } from './types.ts'
-import type { Block, Container, If, Item, Node } from './syntax/types.ts'
+import type { Block, Chain, Container, If, Item, Node } from './syntax/types.ts'
 
 /** A named parameter, `i` of the function whose body names it: what the body reads it as, the `i`th argument. */
 export type _Parameter = readonly ['arg', number]
@@ -92,6 +92,31 @@ export type _CallFrame = {
 export type _AccessFrame = {
     readonly key: DjsTokenWithMetadata
     readonly method: boolean
+}
+
+/**
+ * One operand of a chain in document order: a value to enter — its base
+ * or callee, or an argument's operand — or a key to judge, with whether a
+ * call step follows it, a method call's key being checked against the
+ * member functions a module may not call rather than the properties it
+ * may not read, as an access's is.
+ */
+export type _ChainPart =
+    | { readonly value: Node }
+    | { readonly key: DjsTokenWithMetadata, readonly method: boolean }
+
+/**
+ * A chain being built: `parts[index]` is being evaluated or judged, and
+ * `done` holds what came before it — each value's, and each key's name,
+ * in document order — a list, for the reason a container's is. The chain
+ * itself gives the shape the values are put back into once every part is
+ * done.
+ */
+export type _ChainFrame = {
+    readonly chain: Chain
+    readonly parts: readonly _ChainPart[]
+    readonly index: number
+    readonly done: List<AstConst>
 }
 
 /**
@@ -197,6 +222,7 @@ export type _Frame =
     | _ContainerFrame
     | _CallFrame
     | _AccessFrame
+    | _ChainFrame
     | _NegFrame
     | _BitnotFrame
     | _NotFrame

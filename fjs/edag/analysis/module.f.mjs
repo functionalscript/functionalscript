@@ -347,7 +347,7 @@ const handlers = {
 const named = x => x instanceof Array ? [x[1]] : []
 
 /** The operands of a chain's steps, including guarded arguments and computed keys. @type {(k: Step | undefined) => readonly Operand[]} */
-const stepOperands = k => {
+export const stepOperands = k => {
     if (k === undefined) { return [] }
     if (k[0] === '|.') { return [k[1], ...stepOperands(k[2])] }
     const [, x, cont] = k
