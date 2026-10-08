@@ -850,6 +850,9 @@ export const proof = {
         const x = ['[]', [1]]
         writes(f(['?.', a, 'b', ['|()', [['[]', [x, x]]]]]), 'export default (...$0)=>$0?.b((()=>{const $1=[1];return [$1,$1];})());')
         writes(f(['?.()', a, [['[]', [x, x]]]]), 'export default (...$0)=>$0?.((()=>{const $1=[1];return [$1,$1];})());')
+        // the guard's own arguments too, where it is an access's first step
+        writes(f(['.', a, 'b', ['|?.()', [['[]', [x, x]]]]]), 'export default (...$0)=>$0.b?.((()=>{const $1=[1];return [$1,$1];})());')
+        writes(f(['.', a, 'b', ['|?.()', [1], ['|()', [['[]', [x, x]]]]]]), 'export default (...$0)=>$0.b?.(1)((()=>{const $1=[1];return [$1,$1];})());')
         // a key is judged as an access's is: a prototype name is refused as
         // a read and admitted as a call, a member function a module may not
         // call refused at the key — through a step too
