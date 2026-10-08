@@ -37,22 +37,38 @@ asks for a refusal.
 
 Use `tryUtf8` and refuse oversized input in the view, in the shape the
 [README's Refusals](../README.md#refusals) section describes. The bits demo
-(`../bits/module.f.mjs`) and the VDF demo (`fjs/crypto/vdf/demo.f.mjs`, in
-functionalscript/functionalscript#2651) already refuse this input, each in its
-own words; the wording is the implementer's choice. An example:
+(`../bits/module.f.mjs`) and the VDF demo (`fjs/crypto/vdf/demo.f.mjs`)
+already refuse this input, each in its own words; the wording is the
+implementer's choice. An example:
 
 ```text
 Input too long: more than 131072 UTF-8 bytes.
 ```
 
-`digestOf` covers SHA-1 and SHA-2 at once; HMAC and PoW each need their own
-call sites changed.
+**`digestOf` in [`../hash/module.f.mjs`](../hash/module.f.mjs) returns
+`string | null`**, `null` when the text is too long, the same convention as
+`tryUtf8`. (`digestOf` in `fjs/git/oid` is an unrelated byte-level helper and
+does not change.) `hashOutput` renders the refusal on `null`, and the `digest`
+the SHA-1 and SHA-2 demos re-export takes the same type. That covers SHA-1 and
+SHA-2 at once; HMAC and PoW each need their own call sites changed.
+
+**PoW hashes in `update` too, not only in the view.** The `auto-run` and
+`auto-next` branches call `tried`, which hashes the input with the nonce
+appended, so a view-only refusal still crashes on Auto-run. A search can also
+cross the limit midway: an input that, with nonce `99` appended, is exactly at
+the limit hashes, and the step to `100` adds a byte. `tried` must not throw; an oversized input
+plus nonce stops the search and shows the refusal.
+
 Each demo's proof pins the refusal one byte past the limit, and for PoW the
 limit counts the nonce.
 
 ### Tasks
 
-- [ ] `digestOf` and `hashOutput`: refuse instead of throwing
+- [ ] `digestOf` returns `string | null`; `hashOutput` and the SHA demos'
+      `digest` follow
 - [ ] HMAC: refuse an oversized key or message
-- [ ] PoW: refuse an oversized input with its nonce appended
-- [ ] proofs for each, and a browser check of the four pages
+- [ ] PoW: refuse an oversized input with its nonce appended, in the view and
+      in `tried`, so Auto-run and a search crossing the limit stop instead of
+      throwing
+- [ ] proofs for each, PoW's covering an Auto-run click on oversized input and
+      a nonce gaining a digit at the limit; a browser check of the four pages
