@@ -25,9 +25,12 @@ import { isUintUpTo } from '../number/module.f.mjs'
  *
  * @type {(max: number) => (n: number) => number}
  */
-const bitIndex = max => n => {
-    assert(isUintUpTo(max)(n), ['bit index outside 0..max', n, max])
-    return n
+const bitIndex = max => {
+    const isBitIndex = isUintUpTo(max)
+    return n => {
+        assert(isBitIndex(n), ['bit index outside 0..max', n, max])
+        return n
+    }
 }
 
 /** A bit index with no upper bound. */
