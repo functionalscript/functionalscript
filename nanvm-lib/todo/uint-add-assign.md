@@ -1,7 +1,7 @@
 ## uint-add-assign. `index_iter` restates `Uint`'s bounds by hand because `Uint` is missing `AddAssign`
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
