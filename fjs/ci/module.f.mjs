@@ -204,8 +204,14 @@ const inShell = step =>
         })
         : step
 
-/** @type {(rust: boolean, nodeExtra: readonly MetaStep[]) => (o: Os) => (a: Architecture) => readonly [string, Job]} */
-const job = (rust, nodeExtra) => o => a => {
+/**
+ * The condition of a job that runs in the merge queue only. On a pull request
+ * the job is skipped, which a required status check reads as passed.
+ */
+const mergeQueue = /** @type {const} */ (`github.event_name == 'merge_group'`)
+
+/** @type {(rust: boolean, nodeExtra: readonly MetaStep[], mergeQueueOnly: boolean) => (o: Os) => (a: Architecture) => readonly [string, Job]} */
+const job = (rust, nodeExtra, mergeQueueOnly) => o => a => {
     const id = `${o}-${a}`
     const image = images[o][a]
     // Windows is the one platform with no shell to enter, so it keeps the
@@ -217,7 +223,11 @@ const job = (rust, nodeExtra) => o => a => {
             ...nodeExtra,
         ]
         : [...shellPlatformSteps(rust, o, a), ...nodeExtra.map(inShell)]
-    return [id, { 'runs-on': image, steps: toSteps(result) }]
+    return [id, {
+        'runs-on': image,
+        ...(mergeQueueOnly ? { if: mergeQueue } : {}),
+        steps: toSteps(result),
+    }]
 }
 
 /**
@@ -292,13 +302,14 @@ const canonicalJobs = (rust, packageConsumer) => ({
 })
 
 /** @type {(setup: Setup) => Effect<NodeOp, 0, number>} */
-export const ci = ({ nodeExtra, packageConsumer }) => resultStep(
+export const ci = ({ nodeExtra, packageConsumer, mergeQueueOnly = [] }) => resultStep(
     access('Cargo.toml'),
     result => {
         const rust = result[0] === 'ok'
         /** @type {Jobs} */
         const jobs = {
-            ...Object.fromEntries(os.flatMap(o => architecture.map(job(rust, nodeExtra(o))(o)))),
+            ...Object.fromEntries(os.flatMap(o =>
+                architecture.map(job(rust, nodeExtra(o), mergeQueueOnly.includes(o))(o)))),
             ...canonicalJobs(rust, packageConsumer),
         }
         /** @type {GitHubAction} */
