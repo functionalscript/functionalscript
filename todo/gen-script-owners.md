@@ -72,7 +72,7 @@ composes:
 | NaNVM Rust tests | `fjs/nanvm/update` | the Rust test corpus, methods table, values fixture |
 | DataJS spec | `fjs/media/datajs/vectors/matrix` | `gen.matrix.md` |
 | NaNVM harness fixtures | `fjs/nanvm/harness` — new, per [one-fixture-list](../nanvm-harness/todo/one-fixture-list.md) | `nanvm-harness/gen.fixtures/` |
-| Nix locks | `gen.nix/lock-update.sh`, run through a `spawn` effect that inherits the terminal | the `flake.lock` files |
+| Nix locks | `gen.nix/lock-update.sh`, through the `Spawn` family of [spawn-effect](../fjs/effects/node/todo/spawn-effect.md), the terminal inherited | the `flake.lock` files |
 
 Two of those are the only changes in kind. The fixture chain becomes a
 generator, which one-fixture-list already proposes and this issue needs: a
@@ -80,15 +80,21 @@ program cannot compose several dozen shell commands, and should not. And the
 lock script keeps running as a script — it is itself generated, and
 `nix flake lock` is the external tool it already calls, so nothing new is
 invoked — but the program runs it last, after the step that wrote the
-flakes it locks, through a new effect, `spawn`, the first task below. It
-hands the child the terminal instead of capturing it —
-`['spawn', (command, args) => IoResult<number>]`, `child_process.spawn`
-with `stdio: 'inherit'`, answering the exit code — so the script's output
-reaches the reader exactly as the `&&` chain let it: live while
-`nix flake lock` runs, and the two streams in the order they were written.
-A nonzero exit is an ordinary result, which the program turns into a
-message naming the generator; only a command that could not run at all —
-no `sh`, no such file — is an `IoError`.
+flakes it locks, through the `Spawn` family that
+[spawn-effect](../fjs/effects/node/todo/spawn-effect.md) proposes: `spawn`
+for the child, `childWait` for its `ExitStatus`. This issue adds one option
+to that design rather than a contract of its own: `stdio: 'inherit'` on
+`SpawnOptions`, which hands the child the terminal instead of piping it, so
+the script's output reaches the reader exactly as the `&&` chain let it —
+live while `nix flake lock` runs, and the two streams in the order they
+were written. `childRead` and `childWrite` have nothing to reach on such a
+child and answer `IoError`. The status is that design's, not a number: an
+`exited` nonzero and a `signaled` child are both ordinary results, which
+the program turns into a message naming the generator, and only a command
+that could not run at all — no `sh`, no such file — is an `IoError` from
+`spawn`. The slice this issue needs is the family's smallest: `spawn`,
+`childWait` and the option, which spawn-effect's first implementation can
+be.
 
 The existing `exec` is the wrong tool for this and stays as it is. It is
 `child_process.exec`: it buffers both streams until the child exits, and a
@@ -97,8 +103,9 @@ what the child wrote. Capturing with it and replaying through `Console` was
 the first design here, and it fails twice over — a warning printed before a
 long lock waits on the lock, and two streams replayed one after the other
 lose their interleaving. A command whose output is for the terminal gets
-the terminal. The virtual runner omits `spawn` as it omits `exec`: neither
-means anything against an in-memory file system.
+the terminal. The virtual runner omits the family as it omits `exec`, as
+spawn-effect already says: neither means anything against an in-memory
+file system.
 
 A generator that fails stops the sequence, as `&&` does today, and its
 message names the generator rather than a position in a line.
@@ -133,10 +140,11 @@ program is the simpler shape, and the one every other step already has.
 
 - One more `.f.mjs` with a proof, for logic that is a list. The proof is
   cheap because the list is, and the alternative is a list with no owner.
-- A subprocess enters the generator set, through a new effect. `spawn` runs
-  the same `sh` the chain already runs, so the Windows limitation
-  CONTRIBUTING.md names is unchanged, but it is one effect the other
-  generators do not use. The step is last and isolated for that reason.
+- A subprocess enters the generator set, through an effect family that
+  does not exist yet. It runs the same `sh` the chain already runs, so the
+  Windows limitation CONTRIBUTING.md names is unchanged, but it is one
+  effect the other generators do not use. The step is last and isolated for
+  that reason.
 - The fixture generator is a prerequisite, so this issue cannot land first.
   It can land in two pull requests: the program composing the existing
   generators and keeping the fixture chain in `package.json` for one more
@@ -144,13 +152,15 @@ program is the simpler shape, and the one every other step already has.
 
 ### Tasks
 
-- [ ] `fjs/effects/node`: the `spawn` effect — the terminal inherited, the
-      exit code as its result, an `IoError` only when the command could not
-      run; its proof covers a nonzero exit.
+- [ ] `fjs/effects/node`: the first slice of
+      [spawn-effect](../fjs/effects/node/todo/spawn-effect.md) — `spawn`,
+      `childWait`, `ExitStatus` — with `stdio: 'inherit'` on `SpawnOptions`;
+      its proof covers a nonzero exit and an inherited child that
+      `childRead` refuses.
 - [ ] `fjs/nanvm/harness/module.f.mjs`: the fixture generator, per
       [one-fixture-list](../nanvm-harness/todo/one-fixture-list.md).
 - [ ] `fjs/dev/gen/module.f.mjs`: `main` composing cleanup, the four
-      generators, and the lock script through `spawn`, in order, with the
+      generators, and the lock script through `spawn`/`childWait`, in order, with the
       reason for each position in a comment beside it; `proof.f.mjs`
       covering every step and failure branch.
 - [ ] `package.json`: `gen` becomes the one `fjs run`.
@@ -172,6 +182,9 @@ program is the simpler shape, and the one every other step already has.
 - [replace-npm-check-updates-with-an-internal-script](../fjs/ci/todo/replace-npm-check-updates-with-an-internal-script.md)
   — `lock-update`, the other script that runs `gen`; unchanged by this
   issue, but the same move applies if it grows.
+- [spawn-effect](../fjs/effects/node/todo/spawn-effect.md) — the subprocess
+  family the lock step uses; this issue adds its `stdio: 'inherit'` option
+  and is the first caller of its smallest slice.
 - [`fjs/dev/clean/module.f.mjs`](../fjs/dev/clean/module.f.mjs) — the
   cleanup the program starts with, and the directory it lives beside.
 - [`fjs/ci/self/module.f.mjs`](../fjs/ci/self/module.f.mjs),

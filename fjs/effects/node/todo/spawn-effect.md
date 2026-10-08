@@ -177,6 +177,15 @@ Notes on the shape:
   callers want `stderr` separately and so will these.
 - **`argv`, not a shell string.** A `cmd`/`args` split has no shell to quote for.
   That is a side benefit, not the reason for the issue.
+- **`stdio: 'inherit'` on `SpawnOptions` hands the child the terminal.** A
+  caller whose child's output is for the reader — `npm run gen` running the
+  Nix lock script, per
+  [gen-script-owners](../../../../todo/gen-script-owners.md) — wants no pipe at
+  all: live output, and both streams in the order they were written, which
+  no capture-and-replay can keep. On such a child `childRead`, `childReadAny`
+  and `childWrite` have no stream to reach and answer `IoError`; `childWait`
+  and `childKill` work as on any child. `spawn`, `childWait` and this option
+  are the family's smallest slice, and its first caller.
 - **`childWait` answers an exit *status*, not a number.** Node reports
   `('exit', code, signal)` with `code === null` whenever the child was
   terminated by a signal — `SIGTERM` from a supervisor, or one it sent itself.
@@ -272,3 +281,6 @@ Open for review before code:
   first caller.
 - [requestlistener-stateful](./requestlistener-stateful.md) — the other place a
   long-lived host object needs state threaded through effects.
+- [gen-script-owners](../../../../todo/gen-script-owners.md) — the first
+  caller: the Nix lock script on an inherited terminal, through `spawn` and
+  `childWait` alone.
