@@ -16,8 +16,8 @@ writes it: about twenty `module.f.mjs` modules use it, most as the guarded call
 counts it among what holds two leaves). Admit it as ECMAScript reads it:
 
 - `a?.b` and `a?.[k]` — a property access whose key is what `a.b` and `a[k]`
-  take today, a name or a constant; a key computed at run time waits on the
-  same step `a[i]` waits on ([property access](../README.md#property-access));
+  take, a name, a constant or the conversion `a?.[Number(i)]`
+  ([property access](../README.md#property-access));
 - `a?.(…)` — a call;
 - the steps after one — `.c`, `[k]`, `(…)`, `?.c`, `?.(…)` — read as
   JavaScript reads a chain: when the value before `?.` is `null` or
