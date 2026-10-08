@@ -62,7 +62,7 @@
  * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstNot, AstTypeof, AstSelf, AstCall, AstConditional, AstConst, AstEntryFunction, AstFrameRef, AstEntry, AstFunction, AstItem, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstRest, AstSpread, AstStep, AstThrow } from '../ast/types.ts'
  * @import { ParseError } from './types.ts'
  * @import { Block, Chain, Container, Entry, If, Import, Item, Module, Node, ParameterBinding, ParameterList, Statement, Step, ValueStatement } from './syntax/types.ts'
- * @import { _AccessFrame, _BodyFrame, _CallFrame, _ChainFrame, _ChainPart, _ConditionalFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _Parameter, _Ref, _Scope, _Stack, _State } from './private.ts'
+ * @import { _AccessFrame, _BodyFrame, _CallFrame, _ChainFrame, _ChainPart, _ConditionalFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _Intrinsic, _Parameter, _Ref, _Scope, _Stack, _State } from './private.ts'
  */
 
 import { error, mapOk, ok } from '../../types/result/module.f.mjs'
@@ -568,13 +568,14 @@ const conditionalRound = (stack, scope, frame) => {
 }
 
 /**
- * What `word` names in `scope` itself: a name it binds, or — where it
- * binds none and the word is the function's own, {@link entered} — the
+ * What `word` names in `scope` itself: a name it binds — a value, or the
+ * intrinsic the word was read as, {@link intrinsicRead} — or, where it
+ * binds none and the word is the function's own, {@link entered}, the
  * function itself, `['self']`. The name comes after the bindings as it
  * does in JavaScript, where a parameter or a body `const` of the same
  * word shadows the `const` the function is the value of.
  *
- * @type {(scope: _Scope, word: string) => _Ref | null}
+ * @type {(scope: _Scope, word: string) => _Ref | _Intrinsic | null}
  */
 const bound = (scope, word) => {
     const ref = at(word)(scope.names)
@@ -609,6 +610,15 @@ const bound = (scope, word) => {
  * `const`, before its initializer ran — while a `const` of a name the
  * body has not read shadows the function's name, as it does there.
  *
+ * `Object` read as the intrinsic namespace, by the `entry` helper, is
+ * bound the same way in every body out to the module — to the intrinsic
+ * rather than to a slot, {@link intrinsicRead} — and resolves to nothing
+ * still: the word is no value, so a plain read of it is `const not found`
+ * as it is where nothing binds it, and a helper after the first reads it
+ * as the first did, while a `const` of the word after the read is refused
+ * as a capture shadowed is — in JavaScript the helper would have named
+ * that `const`, and been no helper.
+ *
  * @type {(scope: _Scope, word: string) => readonly [_Scope, _Ref] | null}
  */
 const resolve = (scope, word) => {
@@ -622,6 +632,9 @@ const resolve = (scope, word) => {
         binder = binder.outer
         ref = bound(binder, word)
     }
+    // the intrinsic is no value: the word resolves to nothing, as it does
+    // where nothing binds it, and no body captures it
+    if (ref[0] === 'intrinsic') { return null }
     /** @type {readonly [_Scope, _Ref]} */
     let result = [ref[0] === 'self' ? { ...binder, names: extended(binder.names)(word, ref) } : binder, ref]
     for (const body of toArray(through)) {
@@ -651,6 +664,37 @@ const captured = (body, word, [outer, ref]) => {
         // shadowed
         names: extended(body.names)(word, slot),
     }, slot]
+}
+
+/** The intrinsic `Object` namespace, as a word's binding: no value, {@link resolve}. @type {_Intrinsic} */
+const intrinsic = ['intrinsic']
+
+/**
+ * The scope chain with `Object` read as the intrinsic namespace through
+ * it, by the `entry` helper: the word bound to the intrinsic in `scope`
+ * and in every scope around it, out to the module's, since a read nothing
+ * binds stops at none of them — so that a `const` of the word after the
+ * read, in any of them, is refused as a capture shadowed is,
+ * {@link bodyBindable} and {@link bindable}: in JavaScript the helper
+ * would have named that `const`, and been no helper. Rebuilt inward from
+ * the module's scope, as {@link captured} rebuilds a chain; binding the
+ * word where it is bound already changes nothing.
+ *
+ * @type {(scope: _Scope) => _Scope}
+ */
+const intrinsicRead = scope => {
+    /** The scopes inside the module's, the one just inside it on top. @type {List<_Scope>} */
+    let through = null
+    let outermost = scope
+    while (outermost.outer !== null) {
+        through = { first: outermost, tail: through }
+        outermost = outermost.outer
+    }
+    let result = { ...outermost, names: extended(outermost.names)('Object', intrinsic) }
+    for (const body of toArray(through)) {
+        result = { ...body, outer: result, names: extended(body.names)('Object', intrinsic) }
+    }
+    return result
 }
 
 /**
@@ -860,8 +904,9 @@ const entryFunction = (scope, self, [, list, body]) => {
 
 /**
  * A function entered: the `entry` helper where it is one,
- * {@link entryFunction}, and otherwise its body in a scope of its own
- * inside `scope`, under
+ * {@link entryFunction}, its read of `Object` recorded in the scopes
+ * around it, {@link intrinsicRead}, and otherwise its body in a scope of
+ * its own inside `scope`, under
  * its parameters and, where the function is the whole initializer of a
  * `const`, with that `const`'s name as its `self` — so a read of the name
  * in the body that no parameter or body `const` answers first is the
@@ -874,9 +919,11 @@ const entryFunction = (scope, self, [, list, body]) => {
  * @type {(stack: _Stack, scope: _Scope, node: Extract<Node, readonly ['=>', ParameterList, Node]>, self: string | null) => _State}
  */
 const entered = (stack, scope, node, self) => {
-    // the helper first, whole: a function that is one has no body to resolve
+    // the helper first, whole: a function that is one has no body to
+    // resolve, and its read of the intrinsic `Object` is remembered in
+    // every scope around it, {@link intrinsicRead}
     const entry = entryFunction(scope, self, node)
-    if (entry !== null) { return [stack, scope, entry] }
+    if (entry !== null) { return [stack, intrinsicRead(scope), entry] }
     const [tag, bound] = functionScope(node[1])
     if (tag === 'error') { return [stack, scope, error(bound)] }
     const [names, count] = bound
@@ -1013,7 +1060,12 @@ const closed = (stack, scope, body) => {
  * that is no `const`'s: a function that is the whole value is entered with
  * the word bound to itself, {@link entered}, as a body `const`'s is.
  *
- * @type {(env: _Env, self: string | null) => (root: Node) => Result<AstConst, ParseError>}
+ * The value comes with the module's names as the resolution leaves them:
+ * `env`, with `Object` bound to the intrinsic where an `entry` helper in
+ * the value read it, {@link intrinsicRead}, so that the module refuses a
+ * `const` of the word after the value as a body refuses one after a read.
+ *
+ * @type {(env: _Env, self: string | null) => (root: Node) => Result<readonly [_Env, AstConst], ParseError>}
  */
 const evaluate = (env, self) => root => {
     /** @type {_State} */
@@ -1029,7 +1081,8 @@ const evaluate = (env, self) => root => {
         } else if (tag === 'error') {
             return error(payload)
         } else if (stack === null) {
-            return ok(payload)
+            // the root's value, every body closed: `scope` is the module's
+            return ok([scope.names, payload])
         } else {
             state = returned(stack.rest, scope, stack.top, payload)
         }
@@ -1039,7 +1092,10 @@ const evaluate = (env, self) => root => {
 /**
  * The word a binding may take: an identifier, refusing a keyword, and one
  * the environment does not hold — `import` and `const` share the one map,
- * so a name taken by either is taken for both.
+ * so a name taken by either is taken for both, `duplicate id`, and
+ * `Object` read as the intrinsic by an `entry` helper before,
+ * {@link intrinsicRead}, holds the word too, which a binding of it would
+ * shadow: `capture shadowed`, as in a body.
  *
  * Separate from the binding itself because a `const` asks the two questions
  * at different moments: its name is refused before its value is read, so
@@ -1052,7 +1108,9 @@ const evaluate = (env, self) => root => {
 const bindable = env => name => {
     const [tag, word] = identifierOf(name)
     if (tag === 'error') { return error(word) }
-    return at(word)(env) !== null ? error(duplicateId(name)) : ok(word)
+    const ref = at(word)(env)
+    if (ref === null) { return ok(word) }
+    return error((ref[0] === 'intrinsic' ? captureShadowed : duplicateId)(name))
 }
 
 /**
@@ -1060,8 +1118,9 @@ const bindable = env => name => {
  * the body's own names and of the names of the block it continues, the
  * statements after a guard being JavaScript's one block with the ones
  * before it. A name any of them binds is `duplicate id`; one none binds
- * but one has read from outside — bound to a slot of its frame, or to the
- * function itself, {@link bound} — is `capture shadowed`, and the binding wins where both hold, as it does in
+ * but one has read from outside — bound to a slot of its frame, to the
+ * function itself, {@link bound}, or to the intrinsic `Object`,
+ * {@link intrinsicRead} — is `capture shadowed`, and the binding wins where both hold, as it does in
  * JavaScript, where the read named the block's own binding. A name the
  * body's own initializer reads is refused once it has been, in
  * {@link returned}.
@@ -1075,11 +1134,11 @@ const bodyBindable = scope => name => {
         const ref = at(word)(env)
         return ref === null ? [] : [ref]
     })
-    if (refs.some(ref => ref[0] !== 'fref' && ref[0] !== 'self')) { return error(duplicateId(name)) }
+    if (refs.some(ref => ref[0] !== 'fref' && ref[0] !== 'self' && ref[0] !== 'intrinsic')) { return error(duplicateId(name)) }
     return refs.length === 0 ? ok(word) : error(captureShadowed(name))
 }
 
-/** The environment with a word bound to a reference, its two questions already answered. @type {(env: _Env) => (word: string, ref: _Ref) => _Env} */
+/** The environment with a word bound to a reference, or to the intrinsic, its two questions already answered. @type {(env: _Env) => (word: string, ref: _Ref | _Intrinsic) => _Env} */
 const extended = env => (word, ref) => setReplace(word)(ref)(env)
 
 /** An export as the module's result object holds it: a member of its name and node. @type {(e: readonly [string, AstConst]) => AstMember} */
@@ -1089,7 +1148,9 @@ const exportMember = ([name, value]) => [':', name, value]
  * The statements of a module, in order: each imported binding names
  * the next argument, each `const` resolves its value against the names
  * bound so far — itself not among them, so a `cref` always names an earlier
- * entry — and then binds its name. The default export is resolved against
+ * entry — and then binds its name, unless the value read the name as the
+ * intrinsic `Object`, {@link intrinsicRead}, which the binding would
+ * shadow. The default export is resolved against
  * them all and placed in the module's result object; a `throw` in its
  * place is resolved the same way and is the body's last entry instead of
  * that object, the module being a function whose body ends in it — its
@@ -1140,9 +1201,13 @@ const foldModule = ({ imports, consts, exported, thrown: failing }) => {
         const [tag, word] = bindable(env)(name)
         if (tag === 'error') { return error(word) }
         if (named && word === 'then') { return error({ message: 'reserved export name then', metadata: name.metadata }) }
-        const [resolved, value] = evaluate(env, word)(node)
-        if (resolved === 'error') { return error(value) }
-        env = extended(env)(word, ['cref', body.length])
+        const [resolved, evaluated] = evaluate(env, word)(node)
+        if (resolved === 'error') { return error(evaluated) }
+        const [read, value] = evaluated
+        // a name its own initializer read as the intrinsic: unbound when the
+        // statement began, bound now only by that read
+        if (at(word)(read) !== null) { return error(captureShadowed(name)) }
+        env = extended(read)(word, ['cref', body.length])
         if (named) { exports = [...exports, [word, ['cref', body.length]]] }
         body = [...body, value]
     }
@@ -1152,14 +1217,14 @@ const foldModule = ({ imports, consts, exported, thrown: failing }) => {
         const [resolved, last] = evaluate(env, null)(failing.value)
         if (resolved === 'error') { return error(last) }
         /** @type {AstModule} */
-        const failingModule = [modules, [...body, thrown(last)]]
+        const failingModule = [modules, [...body, thrown(last[1])]]
         return ok(failingModule)
     }
     if (exported !== null) {
         if (unterminated(previous, exported)) { return error(unexpectedToken(exported.start)) }
         const [resolved, last] = evaluate(env, null)(exported.value)
         if (resolved === 'error') { return error(last) }
-        exports = [...exports, ['default', last]]
+        exports = [...exports, ['default', last[1]]]
     }
     // annotated rather than inferred: a bare `[modules, body]` widens to an
     // array, because `readonly string[]` is itself assignable to `AstBody`.

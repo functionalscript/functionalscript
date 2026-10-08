@@ -253,7 +253,11 @@ the fold's:
   the function's own name of that word being JavaScript's own reading — is
   the AST's `['entry']`. A function that is not the helper, by shape or by
   binding, is resolved as every function is, where the `Object` nothing
-  binds is `const not found` as any unbound word is.
+  binds is `const not found` as any unbound word is. The helper's read of
+  `Object` is remembered in every scope out to the module's, as a body
+  remembers a word it has read from outside: a `const Object` after the
+  helper, in any of them, is `capture shadowed`, since JavaScript would
+  have resolved the helper's `Object` to it.
 
 The fold is where a symbol table already exists, because turning an identifier
 into `['cref', n]` or `['aref', n]` *is* the lookup. Do not contort the grammar

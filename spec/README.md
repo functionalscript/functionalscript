@@ -1523,7 +1523,11 @@ which it is wherever no scope binds the word; a function that departs from
 it by a step is an ordinary function, in which `Object` is a name nothing
 binds ([shared values](#shared-values-constants)), and a parameter, a
 `const` or a function's own name spelling `Object` is what JavaScript reads
-it as. It is a function like any other once recognized: a value, of
+it as. A `const` of `Object` after the helper, in the module or in a body
+the helper is written in, is refused as a shadowed capture is
+([functions](#functions)): JavaScript would resolve the helper's `Object`
+to that `const`, and the helper would be no helper. It is a function like
+any other once recognized: a value, of
 `length` `2`, capturing nothing, a fresh identity wherever it is written as
 every arrow is, passed as a value — `[a, b].map(entry)` — and converting
 to its text as any function does
