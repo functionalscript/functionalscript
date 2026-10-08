@@ -1,7 +1,7 @@
 ## The repository's lexical predicates ask `text/ascii`
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
@@ -12,12 +12,10 @@ module that owns the question was the only one nobody could use:
 |Where|What|
 |-|-|
 |[`fjs/text/ascii`](../../../text/ascii/module.f.mjs)|`isDigit`, `isLatinSmallLetter`, `isLatinCapitalLetter`, `isLatinLetter`, over its own ranges, and `isCanonicalDigits`, a decimal run without a leading zero — **the owner**|
-|[`fjs/js/tokenizer`](../../tokenizer/module.f.mjs)|`isDigit = cp => cp >= 0x30 && cp <= 0x39`, the range as two magic numbers, in the tokenizer itself|
 |[`fjs/git/config`](../../../git/config/module.f.mjs)|`isAlpha`, `isDigit`, over string comparisons|
 |[`fjs/git/alternates`](../../../git/alternates/module.f.mjs)|`isOctal` over string comparisons, and `parseInt(…, 8)` for the value, where `fjs/git/tree` reads octal with `text/ascii`'s `digitsValue(8n)`|
 |[`fjs/git/refstore`](../../../git/refstore/module.f.mjs)|`isPseudoref`, the capital letters as `'A'`..`'Z'`|
 |[`fjs/git/tree`](../../../git/tree/module.f.mjs)|`lower`, the capital letters as `0x41`..`0x5A`|
-|[`fjs/emergent_testing`](../../../emergent_testing/module.f.mjs)|`isAlpha`, `isDigit`, and `isIdentifier` and `isInteger` above them — exported from a *test* module|
 |[`fjs/rtti/ts`](../../../rtti/ts/module.f.mjs)|`isIdStart` and `isIdPart`, JavaScript's identifier rule over string comparisons, which `isTypeName` reads|
 |[`fjs/web`](../../../web/module.f.mjs)|`isDigits`, the digit range again|
 |[`fjs/website/browser-source`](../../../website/browser-source/module.f.mjs)|`nameChar`, JavaScript's identifier characters over string comparisons|
@@ -36,9 +34,11 @@ Kelvin sign, was a letter — it lowercases to `k` — and the writer emitted
 `a.K`, which the tokenizer does not read back. A code-point range has no
 such answer to give.
 
-The classes now live in `fjs/text/ascii`, exported, and the writer in
-[`fjs/compiler/serializer`](../../../compiler/serializer/module.f.mjs) asks them.
-Every row below it still carries its own.
+The classes now live in `fjs/text/ascii`, exported, and JavaScript's rule
+over them in [`fjs/js/identifier`](../module.f.mjs), which the writer in
+[`fjs/compiler/serializer`](../../../compiler/serializer/module.f.mjs), the
+tokenizer and `fjs/emergent_testing` ask. Every row below the owner's still
+carries its own.
 
 ### Proposal
 
@@ -77,14 +77,14 @@ written out again.
 - [ ] Decide whether `text/ascii` also offers the classes over a
       one-character string, which most rows above ask about, or each
       consumer converts to a code point first.
-- [ ] `fjs/js/identifier/module.f.mjs`: `isIdentifier` over `text/ascii`'s
+- [x] `fjs/js/identifier/module.f.mjs`: `isIdentifier` over `text/ascii`'s
       classes and `isInteger` over `isCanonicalDigits`, with a co-located proof
       at 100% (the cases in `fjs/emergent_testing/proof.f.mjs` are the start).
       No `deno.json` `exports` entry: the file has no map today, and
       [group-fjs-subdirectories-by-concern](../../../todo/group-fjs-subdirectories-by-concern.md)
       reserves introducing one for the change that enumerates every module.
-- [ ] `fjs/emergent_testing`: drop the four definitions, import the two.
-- [ ] `fjs/js/tokenizer`: `isDigit` from `text/ascii`, the magic numbers gone.
+- [x] `fjs/emergent_testing`: drop the four definitions, import the two.
+- [x] `fjs/js/tokenizer`: `isDigit` from `text/ascii`, the magic numbers gone.
 - [ ] `fjs/git/config`: `isAlpha`/`isDigit` from `text/ascii`; its `isKeyChar`
       keeps the `-` it adds.
 - [ ] `fjs/git/alternates`: `isOctal` from the classes, and the octal value read
@@ -101,7 +101,7 @@ written out again.
       Nix's own identifier rule.
 - [ ] `fjs/media/datajs/vectors/matrix`: `lower`, `upper` and `digits` over
       the classes, keeping the punctuation each allowed set adds.
-- [ ] `fjs/compiler/serializer`: `identifierKey` becomes `isIdentifier`, with
+- [x] `fjs/compiler/serializer`: `identifierKey` becomes `isIdentifier`, with
       nothing added. Its proof walks every keyword and expects `.k` for each,
       so a rule creeping back in fails there.
 - [ ] Answer the `fjs/ebnf/lib/js` question above, here or in a todo of its own.
