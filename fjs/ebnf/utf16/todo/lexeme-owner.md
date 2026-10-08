@@ -1,7 +1,7 @@
 ## lexeme-owner. Reading a UTF-16 subtree back as text belongs to the alphabet, not to the JSON parser
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
