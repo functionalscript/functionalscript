@@ -17,11 +17,14 @@ which nearly every module imports — waits on it
 first refusal; many more meet it behind a template literal or a
 destructuring they would meet first.
 
-The operation exists below the front end in everything but name:
+The test exists below the front end in everything but name: an evaluated
+array is tagged, `['[]', values]`
+([`fjs/edag/value`](../../fjs/edag/value/module.f.mjs)), so the predicate
+is one tag check beside the one
 [`fjs/edag/value/semantics`](../../fjs/edag/value/semantics/module.f.mjs)'s
-`typeOf` already tells an array value from the rest, and `nanvm-lib`
-dispatches on an `Unpacked::Array` variant. What is missing is the EDAG
-operation and the syntax.
+`typeOf` makes for the function tag, and `nanvm-lib` dispatches on an
+`Unpacked::Array` variant. What is missing is the EDAG operation and the
+syntax.
 
 ## Proposal
 
@@ -48,11 +51,16 @@ export default (a, b) => a instanceof Array && b instanceof Array;
   `(!a) instanceof Array` — JavaScript's famous trap, preserved rather than
   repaired ([DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions));
   the writer spells `!(a instanceof Array)` with the parentheses.
-- **The right operand is the bare word.** `a instanceof (Array)` and
-  `a instanceof Array.prototype.constructor` are JavaScript and refused
-  here: the grammar reads `'instanceof' id`, and the fold accepts the one
-  word. An index is not an expression ([`2340-operators.md`](./2340-operators.md));
-  the right operand of `instanceof` is not one either, until it can be.
+- **The right operand is read as an expression and must be a reference
+  to `Array`.** In the grammar `instanceof` is one more relational
+  operator, so its right operand is read as `<`'s is, and the fold admits
+  exactly one value there: a reference to the word `Array` that no `const`
+  and no parameter binds. Parentheses are a group and vanish in the AST,
+  so `a instanceof (Array)` is the same node as `a instanceof Array`, as in
+  JavaScript; `a instanceof Array.prototype.constructor` is an access, not
+  a reference, and is refused with a message naming the rule, as is any
+  other value. The restriction is to what the language has a meaning for,
+  not to a spelling.
 - **`instanceof` is a reserved word**, as `typeof` is: it names no `const`
   and no parameter, while `{ instanceof: 1 }` and `a.instanceof` are a key
   and a property name as in JavaScript. The tokenizer already hands it over
@@ -63,12 +71,13 @@ export default (a, b) => a instanceof Array && b instanceof Array;
   so it can stay in the grammar's `identifier` rule and reach the fold,
   which refuses it as a `reserved word` as it refuses `const if = 1;`.
 - **A module that binds `Array`.** `const Array = 1; export default
-  [] instanceof Array;` throws in JavaScript, reading the local. Until
+  [] instanceof Array;` throws in JavaScript, reading the local. The rule
+  above refuses it without a case of its own: the reference resolves to a
+  binding, so it is not the unbound `Array` the operand must be — the
+  honest answer, since the compiler would otherwise mean the global where
+  the source means the local. Once
   [`2365-global-names.md`](./2365-global-names.md) refuses the binding
-  itself, the fold refuses `instanceof` in a scope where `Array` resolves to
-  a binding — the honest answer, since the compiler would otherwise mean
-  the global where the source means the local. Once 2365 lands the check
-  is unreachable and goes.
+  itself, the case is unreachable.
 
 ### Semantics
 
@@ -122,10 +131,10 @@ proposal's question; the name form stays for the built-ins either way.
 
 ### Drawbacks
 
-- The grammar admits a narrower `instanceof` than it looks like: a reader
-  who writes `x instanceof Map` meets a refusal that names the rule, not a
-  parse error. That is the price of admitting the useful case before the
-  general one, and the refusal says what is missing.
+- The language admits a narrower `instanceof` than it looks like: a
+  reader who writes `x instanceof Map` meets a refusal that names the
+  rule, not a parse error. That is the price of admitting the useful case
+  before the general one, and the refusal says what is missing.
 - The `!a instanceof Array` trap is preserved.
 - A node shape the EDAG did not have — an operand that is a name — so
   every consumer that walks operands generically learns one node that it
@@ -142,11 +151,12 @@ proposal's question; the name form stays for the built-ins either way.
       constructor-name variant with `'Array'` alone, its row in the README
       table, `semantics`' predicate and `operations`' arm; the memo
       analysis reads the name and walks the one operand; the proofs.
-- [ ] `fjs/compiler/parser/grammar`: `instanceof` in `_framingKeywords`,
-      a relational-level branch `'instanceof' id`; the `types.ts` pins.
-- [ ] `fjs/compiler/parser`: the reader's round, the fold's refusal of any
-      word but `Array` and of a scope that binds `Array`, the AST node, the
-      lowering to `['instanceof', exp, 'Array']`.
+- [ ] `fjs/compiler/parser/grammar`: `instanceof` in `_framingKeywords`
+      and in `relationalTags`; the `types.ts` pins.
+- [ ] `fjs/compiler/parser`: the fold's arm for the tag — the right
+      operand admitted only as a reference to an unbound `Array`, anything
+      else refused with the rule's message — the AST node, the lowering to
+      `['instanceof', exp, 'Array']`.
 - [ ] `fjs/compiler/serializer/function_text`: `(x instanceof Array)`.
 - [ ] `fjs/edag/rust`: `Any::instanceof_(x, Constructor::Array)`;
       `nanvm-lib`: a `Constructor` enum with the one variant, the method as
