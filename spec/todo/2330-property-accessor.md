@@ -117,8 +117,9 @@ sketches are not source-to-EDAG rules. A backend may specialize `.` for a
 known receiver/key, or share a lookup helper where the semantics agree,
 without replacing it with an enumerable-only operation. This does not rename
 host helpers or change an existing opcode. The EDAG's former `own` operation
-went with the helper's arrival: `.` represents ordinary static reads, and
-`['entry']` the one read of a computed key.
+went with the helper's arrival: `.` represents ordinary reads, the key a
+constant or a number converted at run time, `a[Number(i)]`, and `['entry']`
+the one read of a key of any type.
 
 ## Instance Property
 
