@@ -77,10 +77,15 @@ export default (a, b) => a instanceof Array && b instanceof Array;
   and a property name as in JavaScript. The tokenizer already hands it over
   as an `id` ([`fjs/js/keywords`](../../fjs/js/keywords/module.f.mjs)); the
   grammar gives it a symbol of its own, as it gave `typeof` one, by adding
-  it to `_framingKeywords`. Unlike `typeof` it never stands where a value
-  begins — it opens a tail, after an operand, where no reference may stand —
-  so it can stay in the grammar's `identifier` rule and reach the fold,
-  which refuses it as a `reserved word` as it refuses `const if = 1;`.
+  it to `_framingKeywords`. That alone would break the key and the property
+  name: the grammar's `identifier` rule, the identifier-name position a
+  key and a property share, is enumerated by hand, one symbol per framing
+  keyword, not derived from the list, so the new symbol is added there
+  too, as `typeof`'s is, and `{ instanceof: 1 }` and `a.instanceof` are
+  pinned. Unlike `typeof` it never stands where a value begins — it opens
+  a tail, after an operand, where no reference may stand — so it reaches
+  the fold through that rule, which refuses it as a `reserved word` as it
+  refuses `const if = 1;`.
 - **`Array` is a reserved word**, like `NaN` and `Infinity`
   ([numbers](../README.md#numbers)): a module cannot bind it as a `const`
   or a parameter, and it still names a property, `{ Array: 1 }` and
@@ -233,8 +238,11 @@ proposal's question; the name form stays for the built-ins either way.
       case in each generic `operandsOf`, `analysis`' and `rust`'s, so the
       name is never walked as an operand, each pinned by a proof; the memo
       proofs.
-- [ ] `fjs/compiler/parser/grammar`: `instanceof` in `_framingKeywords`
-      and in `relationalTags`; the `types.ts` pins.
+- [ ] `fjs/compiler/parser/grammar`: `instanceof` in `_framingKeywords`,
+      in the hand-enumerated `identifier` rule, so a key and a property
+      name keep the word, and in `relationalTags`; the `types.ts` pins;
+      proofs reading `{ instanceof: 1 }.instanceof` and `a instanceof
+      (Array)`.
 - [ ] `fjs/compiler/parser`: `Array` among the reserved words the fold
       refuses as a binding, with proofs for a `const`, a parameter, a key
       and a property name; the fold's arm for the tag — the left operand
@@ -253,7 +261,11 @@ proposal's question; the name form stays for the built-ins either way.
       JavaScript output — its tag switch, which refuses a tag it does not
       know, prints `(x instanceof Array)`, and its private operand walker,
       which answers nothing for one, yields `x`, so hoisting sees it; both
-      with proofs.
+      with proofs. Its set of export names it refuses, today the keywords
+      and the literal words, gains the reserved globals, so that a module
+      whose EDAG exports `Array` is refused rather than written as
+      `export const Array=1;`, a source the parser no longer reads back;
+      a proof pins the refusal.
 - [ ] `fjs/compiler/serializer/function_text`: `(x instanceof Array)`.
 - [ ] `fjs/compiler/edag/demo`: the website EDAG demo's shape table draws
       the node — one `op` labelled `instanceof Array` with its operand as
