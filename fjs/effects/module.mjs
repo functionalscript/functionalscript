@@ -38,8 +38,11 @@ export const _readThrown = e => {
     }
     /** @type {{ readonly message?: unknown, readonly code?: unknown }} */
     const fields = e
-    const { message, code } = fields
+    const message = fields.message
     const text = typeof message === 'string' ? message : String(e)
+    // Read after the message is settled, as `toIoError` does: a `code` getter
+    // can change what the value's string form says.
+    const code = fields.code
     return typeof code === 'string' ? { message: text, code } : { message: text }
 }
 

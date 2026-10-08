@@ -774,6 +774,8 @@ export const proof = {
                 // field is read once, so the string is what is kept.
                 ['let n = 0; throw { get message() { return n++ === 0 ? "a" : {} } }', 'a', undefined],
                 ['let n = 0; throw { message: "m", get code() { return n++ === 0 ? "EIO" : {} } }', 'm', 'EIO'],
+                // The message is settled before `code` is read.
+                ['let s = "before"; throw { message: 1, toString: () => s, get code() { s = "after"; return "EIO" } }', 'before', 'EIO'],
             ]
             for (const [i, [source, message, code]] of cases.entries()) {
                 const path = join(root, `thrown${i}.mjs`)
