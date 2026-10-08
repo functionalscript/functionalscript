@@ -97,5 +97,11 @@ export const generateFixtures = () => step(fixtures(), names => {
     return step(directoryReady, () => writeUtf8File(modulesPath, modules(names.map(rustName))))
 })
 
-/** @type {NodeProgram} */
-export const main = () => exitStep(generateFixtures())
+/**
+ * The program `npm run gen` runs. It takes the options every `NodeProgram` is
+ * given and reads none of them: the directories are fixed above, so there is
+ * nothing on the command line to vary.
+ *
+ * @type {NodeProgram}
+ */
+export const main = _options => exitStep(generateFixtures())
