@@ -314,13 +314,23 @@ pub fn write_bytes(path: &str, at: f64, data: &[u8]) -> Result<(), IoError> {
 
 /// Removes a file or a link, and refuses a directory with `ERR_FS_EISDIR`, the
 /// code `rm` without `recursive` gives on Node, where `remove_file` would
-/// answer what the platform does.
+/// answer what the platform does. Windows directory symlinks need `remove_dir`;
+/// the link's own metadata selects that API, even when its target is missing.
 pub fn rm(path: &str) -> Result<(), IoError> {
-    if fs::symlink_metadata(path).is_ok_and(|m| m.is_dir()) {
+    let metadata = fs::symlink_metadata(path);
+    if metadata.as_ref().is_ok_and(|m| m.is_dir()) {
         return Err(refusal(
             "ERR_FS_EISDIR",
             format!("Path is a directory: rm returned EISDIR (is a directory) {path}"),
         ));
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::FileTypeExt;
+
+        if metadata.is_ok_and(|m| m.file_type().is_symlink_dir()) {
+            return fs::remove_dir(path).map_err(|e| failure(&e, "rm", path));
+        }
     }
     fs::remove_file(path).map_err(|e| failure(&e, "rm", path))
 }
@@ -623,6 +633,65 @@ mod test {
             let dir = Scratch::new();
             assert_eq!(code_of(rm(&dir.at(""))), Some("ERR_FS_EISDIR".into()));
             assert_eq!(code_of(rm(&dir.at("none"))), Some("ENOENT".into()));
+        }
+
+        /// Removing directory links must leave both empty and nonempty targets.
+        /// On Windows, creating these links requires Developer Mode or privilege.
+        #[cfg(any(unix, windows))]
+        #[test]
+        fn rm_removes_directory_links_not_targets() {
+            #[cfg(unix)]
+            use std::os::unix::fs::symlink as symlink_dir;
+            #[cfg(windows)]
+            use std::os::windows::fs::symlink_dir;
+
+            let dir = Scratch::new();
+            for name in ["empty", "nonempty"] {
+                mkdir(&dir.at(name), false).unwrap();
+            }
+            let child = dir.at("nonempty/child");
+            write_file(&child, &[1, 2, 3]).unwrap();
+            for name in ["empty", "nonempty", "missing"] {
+                let link = dir.at(&format!("{name}-link"));
+                symlink_dir(dir.at(name), &link).unwrap();
+                assert!(fs::symlink_metadata(&link).unwrap().is_symlink());
+                assert_eq!(rm(&link), Ok(()));
+                // exists() follows links, so it cannot prove a dangling link is gone.
+                let error = fs::symlink_metadata(&link).unwrap_err();
+                assert_eq!(error.kind(), ErrorKind::NotFound);
+            }
+            for name in ["empty", "nonempty"] {
+                let target = dir.at(name);
+                assert!(Path::new(&target).is_dir());
+                assert_eq!(code_of(rm(&target)), Some("ERR_FS_EISDIR".into()));
+                assert!(Path::new(&target).is_dir());
+            }
+            assert_eq!(read_file(&child), Ok([1, 2, 3].to_vec()));
+            assert!(!Path::new(&dir.at("missing")).exists());
+        }
+
+        /// File links, including dangling ones, still use the file-removal path.
+        #[cfg(any(unix, windows))]
+        #[test]
+        fn rm_removes_file_links_not_targets() {
+            #[cfg(unix)]
+            use std::os::unix::fs::symlink as symlink_file;
+            #[cfg(windows)]
+            use std::os::windows::fs::symlink_file;
+
+            let dir = Scratch::new();
+            let target = dir.at("file");
+            write_file(&target, &[4, 5]).unwrap();
+            for name in ["file", "missing"] {
+                let link = dir.at(&format!("{name}-link"));
+                symlink_file(dir.at(name), &link).unwrap();
+                assert!(fs::symlink_metadata(&link).unwrap().is_symlink());
+                assert_eq!(rm(&link), Ok(()));
+                let error = fs::symlink_metadata(&link).unwrap_err();
+                assert_eq!(error.kind(), ErrorKind::NotFound);
+            }
+            assert_eq!(read_file(&target), Ok([4, 5].to_vec()));
+            assert!(!Path::new(&dir.at("missing")).exists());
         }
 
         #[test]
