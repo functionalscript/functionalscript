@@ -3,9 +3,9 @@
  * every system Nix runs on.
  *
  * It is both things at once, and that is the point. It is what a developer
- * enters before running anything, and it is what all but two CI jobs run
- * inside — so the environment CI proves is the environment people work in,
- * rather than a fifth arrangement nobody uses.
+ * enters before running anything, and it is what every CI job but the Node 22,
+ * Node 24 and two Windows jobs runs inside — so the environment CI proves is
+ * the environment people work in, rather than a fifth arrangement nobody uses.
  *
  * The jobs used to have one flake each, on the reasoning that a shell with five
  * runtimes would let a job pass on whichever `node` reached `PATH` first. That
@@ -27,12 +27,10 @@
  * of what they say.
  *
  * Nix does not run natively on Windows, so the four systems below are all there
- * are; a Windows developer reaches this shell through WSL2 as a Linux one, or
- * works the way this repository has always supported natively — `npm ci`,
- * `tsc`, `fjs test`, none of which need Nix. That developer installs the
- * compiler globally at the version `../config/module.f.js` pins, which
- * `CONTRIBUTING.md` spells out; `npx tsc` is no longer the same thing, since
- * there is nothing left in `node_modules` for it to resolve.
+ * are; a Windows developer reaches this shell through the repository's
+ * devcontainer or WSL2, as a Linux one, or works on bare Windows with the tools
+ * installed by hand at the versions `../config/module.f.js` pins, as CI's
+ * Windows platform jobs do — `CONTRIBUTING.md` spells out all three.
  *
  * @module
  *

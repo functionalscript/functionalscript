@@ -1,0 +1,9 @@
+{
+  "features": {
+    "ghcr.io/devcontainers/features/nix:1": {
+      "version": "1.4.0",
+      "resolved": "ghcr.io/devcontainers/features/nix@sha256:92bde69ceec2ac0fe75bcce99b754f8867bf93bef77c9ace0f49a4296473c329",
+      "integrity": "sha256:92bde69ceec2ac0fe75bcce99b754f8867bf93bef77c9ace0f49a4296473c329"
+    }
+  }
+}
