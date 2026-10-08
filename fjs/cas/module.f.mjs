@@ -272,6 +272,15 @@ const writeImpl = (sha2, path, stageDir, payload) => {
     })
 }
 
+/** Streams any file at `filePath` in `<=128 KiB` chunks.
+ *
+ * A failed read fails the stream. It used to be yielded as an error *item*
+ * followed by an explicit empty tail — a tail no consumer would ever pull.
+ *
+ * @type {(filePath: string) => EffectList<ReadBytes, Vec, IoChannel>}
+ */
+const streamFile = filePath => readChunks((offset, size) => readBytes(filePath, offset, size), null)
+
 /**
  * Builds a content-addressable storage facade from a SHA-2 implementation.
  *
@@ -281,9 +290,10 @@ export const fileCas = sha2 => path => {
     const storePrefix = join(path, prefix)
     const normalizedStorePrefix = normalize(storePrefix)
     const stageDir = join(storePrefix, stageRel)
+    /** @type {(hash: Vec) => string} */
+    const at = hash => join(path, toPath(hash))
     return {
-        read: hash => {
-            const p = join(path, toPath(hash))
+        read: hash =>
             // Unbounded: an empty read ends the stream, and every non-empty
             // read — including a final short one — is a cell. A missing shard
             // or a read error fails the stream rather than ending it, so a
@@ -293,8 +303,7 @@ export const fileCas = sha2 => path => {
             // a name in this store is its content's hash, published by `rename`
             // and only ever republishable with the same bytes, so whichever
             // inode a per-chunk open lands on holds what the last one held.
-            return readChunks((offset, size) => readBytes(p, offset, size), null)
-        },
+            streamFile(at(hash)),
         write: payload => writeImpl(sha2, path, stageDir, payload),
         list: () =>
             // A fresh store has no `.cas` directory yet. Treat *only* that case as an
@@ -316,8 +325,7 @@ export const fileCas = sha2 => path => {
                             toOption(isFile
                                 ? unshard(join(normalize(parentPath).substring(normalizedStorePrefix.length), name))
                                 : null)))),
-        url: hash =>
-            join(path, toPath(hash))
+        url: at
     }
 }
 
@@ -331,15 +339,6 @@ const random256 =
         empty,
         () => (/** @type {Vec} */ acc) =>
             ioMapStep(randomInt(), r => msb.concat(acc)(vec(32n)(BigInt(r)))))
-
-/** Streams any file at `filePath` in `<=128 KiB` chunks.
- *
- * A failed read fails the stream. It used to be yielded as an error *item*
- * followed by an explicit empty tail — a tail no consumer would ever pull.
- *
- * @type {(filePath: string) => EffectList<ReadBytes, Vec, IoChannel>}
- */
-const streamFile = filePath => readChunks((offset, size) => readBytes(filePath, offset, size), null)
 
 /**
  * Streams the file at `path` through `cas.write`, returning the content hash.

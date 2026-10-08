@@ -112,6 +112,11 @@ export const proof = {
             const result = stringify(toArray(toCodePointList([NaN])))
             assertEq(result, '[2147483648]')
         },
+        // `-0` is not a second spelling of the byte `0`.
+        () => {
+            const result = stringify(toArray(toCodePointList([-0])))
+            assertEq(result, '[2147483648]')
+        },
         // A fractional continuation byte is the case that hides: the bitwise
         // payload arithmetic truncates it, so `C3 A9.5` decoded as U+00E9 —
         // the same character `C3 A9` spells — with nothing reported. It is now

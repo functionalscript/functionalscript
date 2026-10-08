@@ -51,8 +51,9 @@
 import { ascii, byte, byteArray, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.mjs'
 import { eof, option, repeatFrom0, repeatFrom1, set } from '../../ebnf/module.f.mjs'
 import { nul as nulByte, space as traitSeparator } from '../../text/ascii/module.f.mjs'
+import { sameItems } from '../../types/list/module.f.mjs'
 import { tryFromHexOf } from '../oid/module.f.mjs'
-import { isWholeName, sameBytes } from '../refname/module.f.mjs'
+import { isWholeName } from '../refname/module.f.mjs'
 
 /**
  * The bytes Git counts as whitespace in these files: SP, TAB, CR and LF.
@@ -532,11 +533,11 @@ export const tryPackedWithout = oidBytes => {
         const read = entries.map(entry)
         if (!read.every(e => e !== null)) { return ['malformed'] }
         const names = read.map(e => byteArray(/** @type {PackedRef} */ (e).name))
-        const claimsSorted = head.some(([, rest]) => traitsOf(symbolsOf(rest)).some(sameBytes(sortedTrait)))
+        const claimsSorted = head.some(([, rest]) => traitsOf(symbolsOf(rest)).some(sameItems(sortedTrait)))
         if (claimsSorted && !names.every((n, i) => i === 0 || notAfter(names[i - 1])(n))) {
             return ['unsorted']
         }
-        const kept = entries.filter((_, i) => !sameBytes(names[i])(name))
+        const kept = entries.filter((_, i) => !sameItems(names[i])(name))
         return kept.length === entries.length
             ? ['absent']
             : ['removed', [...bytesOf(head), ...kept.flatMap(bytesOf)]]

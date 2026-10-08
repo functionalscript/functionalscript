@@ -8,6 +8,7 @@
  */
 
 import { assert } from '../../../asserts/module.f.mjs'
+import { isUintUpTo } from '../../number/module.f.mjs'
 
 /**
  * Arrow factories by function length, written by hand: a function's `length`
@@ -38,8 +39,8 @@ export const factories = [
 /** The most fixed parameters a FunctionalScript function has: its largest `length`. */
 export const maxLength = 16
 
-/** A canonical nonnegative integer, including positive zero only. @type {(n: number) => boolean} */
-export const isIndex = n => Number.isInteger(n) && n >= 0 && !Object.is(n, -0)
+/** A canonical nonnegative integer, including positive zero only. */
+export const isIndex = isUintUpTo(Infinity)
 
 /** @type {(length: number, body: Body) => Callable} */
 export const callable = (length, body) => {

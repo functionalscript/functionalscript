@@ -14,20 +14,23 @@
 
 import { mask as bigintMask } from '../bigint/module.f.mjs'
 import { assert } from '../../asserts/module.f.mjs'
-
-const { isInteger } = Number
+import { isUintUpTo } from '../number/module.f.mjs'
 
 /**
- * `n`, asserted to be a bit index a shift keeps: an integer from `0` to `max`.
+ * `n`, asserted to be a bit index a shift keeps: an integer from `0` to `max`,
+ * and not `-0`.
  * Any other index answers with a plausible wrong set: a negative `bigint`
  * shift reverses direction, and a `number` shift truncates a fraction and
  * wraps past bit 30 (`1 << 31` is negative and `1 << 32` is `1`).
  *
  * @type {(max: number) => (n: number) => number}
  */
-const bitIndex = max => n => {
-    assert(isInteger(n) && 0 <= n && n <= max, ['bit index outside 0..max', n, max])
-    return n
+const bitIndex = max => {
+    const isBitIndex = isUintUpTo(max)
+    return n => {
+        assert(isBitIndex(n), ['bit index outside 0..max', n, max])
+        return n
+    }
 }
 
 /** A bit index with no upper bound. */

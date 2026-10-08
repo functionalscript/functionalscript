@@ -22,6 +22,7 @@ import {
 } from '../code_point/module.f.mjs'
 import { u8ListMsb, isWholeBytes } from '../../types/bit_vec/module.f.mjs'
 import { contains } from '../../types/range/module.f.js'
+import { isByte } from '../../types/number/module.f.mjs'
 import { codePointListToString } from '../utf16/module.f.mjs'
 
 /**
@@ -79,31 +80,6 @@ const errorByteFlag = 0b0000_0000_1000_0000
 const errorLead4ContFlag = 0b0000_0010_0000_0000
 const errorLead3ContFlag = 0b0000_0100_0000_0000
 const errorLead4Cont2Flag = 0b1000_0000_0000_0000
-
-const isInU8Range = contains(0x00, 0xff)
-
-/**
- * Whether `i` is a byte this decoder can be handed.
- *
- * `U8` is just `number`, so neither half is redundant. The dispatch below
- * partitions only the *integers* in `0x00`–`0xff` — below `contTag`, a
- * continuation, or one of the leads, with no gap — so a fraction falls between
- * two of those and would be misclassified rather than rejected: emitted as a
- * code point when it is below `contTag`, tagged with a fractional payload when
- * it is not. Worse where the payload arithmetic reaches it, since the bitwise
- * operators truncate silently: a fractional continuation byte would decode to
- * the very code point its integer part spells, reporting nothing.
- *
- * The range half is not carrying `NaN` — `contains` is written positively, so
- * `isInU8Range(NaN)` is already `false`. `Number.isInteger`'s own job here is
- * the *in-range* fraction, which no bound can reach.
- *
- * This mirrors `u16` in `../utf16/module.f.mjs`, which carries the same check
- * for the same reason; the two differ only in their bounds.
- *
- * @type {(i: number) => boolean}
- */
-const u8 = i => Number.isInteger(i) && isInU8Range(i)
 
 /**
  * Encodes the low six bits of `x` as a UTF-8 continuation byte.
@@ -280,7 +256,10 @@ export const utf8StateToError = state => {
  * @type {StateScan<number, Utf8State, readonly CodePoint[]>}
  */
 export const utf8ByteToCodePointOp = (byte, state) => {
-    if (!u8(byte)) {
+    // `U8` is just `number`. The dispatch below partitions only the integers
+    // in `0x00`–`0xff`, and its bitwise payload arithmetic truncates silently,
+    // so a fraction has to be refused here rather than misread.
+    if (!isByte(byte)) {
         return [[errorMask], state]
     }
     if (state === null) return restartUtf8([])(byte)
