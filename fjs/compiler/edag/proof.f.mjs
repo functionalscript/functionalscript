@@ -753,6 +753,12 @@ export const proof = {
         expectEdag(compile('export default !-1;').edag, ['!', -1])
         expectEdag(compile('export default typeof 1;').edag, ['typeof', 1])
         expectEdag(compile('export default typeof typeof -1;').edag, ['typeof', ['typeof', -1]])
+        // the `Number` conversion folds nothing either: what a value
+        // converts to is the interpreter's question, and the interpreter
+        // answers it as JavaScript's `Number` does, a bigint included
+        expectEdag(compile('export default Number("0x10");').edag, ['Number', '0x10'])
+        expectEdag(compile('export default -Number(1n) * 2;').edag, ['*', ['-', ['Number', 1n]], 2])
+        assertStructurallySame(execute(compile('export default [Number("0x10"), Number(1n), Number([7]), Number(null)];').edag), [16, 1, 7, 0])
         // unary `-` still folds over a numeric literal, even nested inside
         // a binary operator the lowering does not fold
         expectEdag(compile('export default -1 * 2;').edag, ['*', -1, 2])

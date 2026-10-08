@@ -4,7 +4,7 @@
  * @module
  *
  * @import { List } from '../../types/list/types.ts'
- * @import { AstBinary, AstBitnot, AstNot, AstTypeof, AstCall, AstConditional, AstConst, AstBody, AstEntry, AstFunction, AstItem, AstModule, AstModuleRef, AstNeg, AstSpread, AstThrow, BinaryTag, Anchors } from './types.ts'
+ * @import { AstBinary, AstBitnot, AstNot, AstTypeof, AstNumber, AstCall, AstConditional, AstConst, AstBody, AstEntry, AstFunction, AstItem, AstModule, AstModuleRef, AstNeg, AstSpread, AstThrow, BinaryTag, Anchors } from './types.ts'
  * @import { _Lazy, _OperandStack, _Reach, _RefNode } from './private.ts'
  */
 
@@ -125,12 +125,12 @@ const pushedAll = (operands, rest) => operands.reduceRight(pushed, rest)
  * condition and a prefix operator's operand, established whatever the
  * value, are every reader's.
  *
- * @type {(lazy: _Lazy) => (ast: AstConst) => List<Exclude<AstConst, AstNeg | AstBitnot | AstNot | AstTypeof | AstBinary | AstConditional | AstThrow>>}
+ * @type {(lazy: _Lazy) => (ast: AstConst) => List<Exclude<AstConst, AstNeg | AstBitnot | AstNot | AstTypeof | AstNumber | AstBinary | AstConditional | AstThrow>>}
  */
 const operandsOf = lazy => ast => {
     /** @type {_OperandStack} */
     let stack = { top: ast, rest: null }
-    /** @type {List<Exclude<AstConst, AstNeg | AstBitnot | AstNot | AstTypeof | AstBinary | AstConditional | AstThrow>>} */
+    /** @type {List<Exclude<AstConst, AstNeg | AstBitnot | AstNot | AstTypeof | AstNumber | AstBinary | AstConditional | AstThrow>>} */
     let bottom = empty
     while (stack !== null) {
         const node = stack.top
@@ -146,10 +146,10 @@ const operandsOf = lazy => ast => {
             continue
         }
         switch (node[0]) {
-            // a prefix operator's operand and a `throw`'s value are
-            // established whatever comes of them: eager, as an operator's
-            // operand is
-            case '-': case '~': case '!': case 'typeof': case 'throw': { stack = { top: node[1], rest }; break }
+            // a prefix operator's operand, a conversion's and a `throw`'s
+            // value are established whatever comes of them: eager, as an
+            // operator's operand is
+            case '-': case '~': case '!': case 'typeof': case 'Number': case 'throw': { stack = { top: node[1], rest }; break }
             // the condition is established whatever it decides, as a lazy
             // operator's left operand is; the arms are `lazy`'s
             case '?:': { stack = { top: node[1], rest: pushedAll(lazy([node[2], node[3]]), rest) }; break }
@@ -179,7 +179,7 @@ const refsOf = lazy => ast => flat(map(refsOfOperand(lazy))(operandsOf(lazy)(ast
  * access chain nests only as deep as the source that built it, which is a
  * separate, narrower concern than an operator chain's unbounded length.
  *
- * @type {(lazy: _Lazy) => (ast: Exclude<AstConst, AstNeg | AstBitnot | AstNot | AstTypeof | AstBinary | AstConditional | AstThrow>) => List<_RefNode>}
+ * @type {(lazy: _Lazy) => (ast: Exclude<AstConst, AstNeg | AstBitnot | AstNot | AstTypeof | AstNumber | AstBinary | AstConditional | AstThrow>) => List<_RefNode>}
  */
 const refsOfOperand = lazy => ast => {
     if (ast === null || typeof ast !== 'object') { return empty }
@@ -248,7 +248,7 @@ export const isInlinedCall = ([, callee, args]) =>
  */
 const readsRest = body => body.some(entry => toArray(operandsOf(every)(entry)).some(operandReadsRest))
 
-/** @type {(ast: Exclude<AstConst, AstNeg | AstBitnot | AstNot | AstTypeof | AstBinary | AstConditional>) => boolean} */
+/** @type {(ast: Exclude<AstConst, AstNeg | AstBitnot | AstNot | AstTypeof | AstNumber | AstBinary | AstConditional>) => boolean} */
 const operandReadsRest = ast => {
     if (ast === null || typeof ast !== 'object') { return false }
     switch (ast[0]) {

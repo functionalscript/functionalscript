@@ -18,10 +18,12 @@ later would change what a module already means:
 
 A ticked box below marks a name the language is to admit, not one it admits
 today. Only `Infinity`, `NaN` and `undefined` are implemented, as reserved
-words ([numbers](../README.md#numbers)); every other global is refused as an
-unbound name (`const not found`), so `export default isFinite(1);` does not
-compile yet. An unticked box is a name not yet decided, or, where it says
-so, never admitted.
+words ([numbers](../README.md#numbers)), and `Number`, as the conversion
+`Number(exp)` alone, the word reserved
+([number conversion](../README.md#number-conversion)); every other global is
+refused as an unbound name (`const not found`), so
+`export default isFinite(1);` does not compile yet. An unticked box is a
+name not yet decided, or, where it says so, never admitted.
 
 ### Value Properties
 

@@ -84,6 +84,10 @@ renamed by the same pull request.
 
 ## Related
 
+- [`2362-number-call.md`](./2362-number-call.md) — `Number`, the first name
+  reserved under this rule, in
+  [`fjs/js/keywords`](../../fjs/js/keywords/module.f.mjs)' `reservedGlobals`:
+  the list beside the keywords that open question 3 asks for, one name long.
 - [`2360-built-in.md`](./2360-built-in.md) — which of these names become
   namespaces; this lands first.
 - [`3150-shadowing.md`](./3150-shadowing.md) — shadowing between a module's

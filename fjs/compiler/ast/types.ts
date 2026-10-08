@@ -31,8 +31,8 @@ export type AstImport = {
  */
 export type AstModule = readonly [readonly AstImport[], AstBody]
 
-/** A value in a module body: a primitive, a reference, an array, an object, a property access, a call, a negation, a bitwise not, a logical not, a `typeof`, the function's own `self`, a binary operator, a conditional, a function, a fixed parameter, a rest array, a slot of its frame — or a `throw`, which a body may end with in place of a value. */
-export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstCall|AstNeg|AstBitnot|AstNot|AstTypeof|AstSelf|AstBinary|AstConditional|AstFunction|AstRest|AstArg|AstFrameRef|AstThrow
+/** A value in a module body: a primitive, a reference, an array, an object, a property access, a call, a negation, a bitwise not, a logical not, a `typeof`, the `Number` conversion, the function's own `self`, a binary operator, a conditional, a function, a fixed parameter, a rest array, a slot of its frame — or a `throw`, which a body may end with in place of a value. */
+export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstCall|AstNeg|AstBitnot|AstNot|AstTypeof|AstNumber|AstSelf|AstBinary|AstConditional|AstFunction|AstRest|AstArg|AstFrameRef|AstThrow
 
 /**
  * A `throw`, `throw v;`: the statement a function's block body, or a
@@ -231,6 +231,18 @@ export type AstNot = readonly ['!', AstConst]
  * node.
  */
 export type AstTypeof = readonly ['typeof', AstConst]
+
+/**
+ * The conversion `Number(v)`: the EDAG's `['Number', exp]`, `op1Id` — the
+ * number JavaScript's `Number` answers when called, a `bigint` converted
+ * where unary `+` throws
+ * ([spec: number conversion](../../../spec/README.md#number-conversion)).
+ * The parser writes it for the call of the reserved word `Number` with one
+ * argument, and for nothing else the word spells; like {@link AstTypeof}
+ * it folds nothing, since what a value converts to is the interpreter's
+ * question, so it always reaches the represented interpreter as a node.
+ */
+export type AstNumber = readonly ['Number', AstConst]
 
 /**
  * A binary operator, Stages A and B of

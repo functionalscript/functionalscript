@@ -905,6 +905,7 @@ export const proof = {
         writes(fn(['~', r0]), 'export default (...$0)=>~$0[0];')
         writes(fn(['!', r0]), 'export default (...$0)=>!$0[0];')
         writes(fn(['typeof', r0]), 'export default (...$0)=>typeof $0[0];')
+        writes(fn(['Number', r0]), 'export default (...$0)=>Number($0[0]);')
         writes(['+', 'a', 1n], 'export default "a"+1n;')
         // associativity: to the left, `**` to the right
         writes(['-', ['-', 1, 2], 3], 'export default 1-2-3;')
@@ -974,6 +975,17 @@ export const proof = {
         writes(['~', ['=>', 0, [], 1]], 'export default ~(()=>1);')
         writes(['!', ['=>', 0, [], 1]], 'export default !(()=>1);')
         writes(['typeof', ['=>', 0, [], 1]], 'export default typeof (()=>1);')
+        // the `Number` conversion is the call it is in JavaScript: its
+        // operand an argument, which groups nothing, and the call binding
+        // tighter than every operator, as a call does
+        writes(['Number', 1], 'export default Number(1);')
+        writes(['Number', ['|', 1, 2]], 'export default Number(1|2);')
+        writes(['Number', ['=>', 0, [], 1]], 'export default Number(()=>1);')
+        writes(['Number', ['Number', 1n]], 'export default Number(Number(1n));')
+        writes(['-', ['Number', 1]], 'export default -Number(1);')
+        writes(['**', ['Number', 1], 2], 'export default Number(1)**2;')
+        writes(['.', ['Number', 1], 'x'], 'export default Number(1).x;')
+        writes(['()', ['Number', 1], [2]], 'export default Number(1)(2);')
         // and an operator an access base only in a group, where an access
         // is a prefix's operand bare
         writes(['.', ['+', 1, 2], 'x'], 'export default (1+2).x;')

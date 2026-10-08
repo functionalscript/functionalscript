@@ -121,20 +121,20 @@ optional chaining lands ([#2660](https://github.com/functionalscript/functionals
 
 ### Tasks
 
-- [ ] This file; the `Number` row of [built-in](./2360-built-in.md) and
+- [x] This file; the `Number` row of [built-in](./2360-built-in.md) and
       the index entry of [the spec's todo list](./README.md).
-- [ ] `Number` a reserved word: the list of reserved globals in
+- [x] `Number` a reserved word: the list of reserved globals in
       `fjs/js/keywords`, consulted by the parser's `identifierOf`; refused as
       a `const`, a body `const`, a parameter and an import's local name, and
       as a bare reference; accepted as a key and a property name. A
       **breaking change**, declared.
-- [ ] The conversion: the fold reads `Number(x)` as the AST's conversion
+- [x] The conversion: the fold reads `Number(x)` as the AST's conversion
       node, the lowering writes `['Number', exp]`, and the FunctionalScript
       writer spells it back. Refusals by name for `Number()`, `Number(a, b)`,
       `Number(...a)` and `Number.x`. Proofs: source to EDAG to both
       interpreters against JavaScript, the writer's round trip, the Rust
       output through the existing printer.
-- [ ] [spec](../README.md): a section for the conversion, the word added to
+- [x] [spec](../README.md): a section for the conversion, the word added to
       the binding rule beside `undefined`, `NaN` and `Infinity`, and the
       expression list; the compiler demos' shared examples, where an
       example reads better with it.

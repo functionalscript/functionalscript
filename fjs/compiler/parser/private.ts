@@ -169,6 +169,13 @@ export type _NotFrame = { readonly not: true }
  */
 export type _TypeofFrame = { readonly typeof: true }
 
+/**
+ * A `Number` conversion whose operand is being evaluated: the word, so
+ * that the frame is the node's tag and a second conversion joins it rather
+ * than adding a frame.
+ */
+export type _ConversionFrame = { readonly conversion: 'Number' }
+
 /** A binary operator whose left operand is being evaluated: the tag, and the right operand to enter once it resolves. */
 export type _BinaryLeftFrame = { readonly tag: BinaryTag, readonly right: Node }
 
@@ -194,6 +201,7 @@ export type _Frame =
     | _BitnotFrame
     | _NotFrame
     | _TypeofFrame
+    | _ConversionFrame
     | _BinaryLeftFrame
     | _BinaryRightFrame
     | _ConditionalFrame

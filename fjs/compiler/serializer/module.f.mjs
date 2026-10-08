@@ -319,7 +319,8 @@ const kindOf = (s, v) => {
  * under them the eager binary operators, Stage A, `|` down to `**`. The
  * two prefixes, `-` of one operand and `~`, bind tighter than every level
  * here, and everything else this writer spells — a name, a primitive, an
- * access, a container, the call a nested `throw` is — tighter still.
+ * access, a container, the call a nested `throw` is, the `Number`
+ * conversion — tighter still.
  *
  * @type {readonly (readonly string[])[]}
  */
@@ -926,6 +927,14 @@ const entry = (s0, path) => i => {
             return right === undefined ? error('a unary + node') : binary(s, path)(op, left, right)
         }
         case '~': case '!': case 'typeof': { return prefix(s, path)(node[0])(node[1]) }
+        // the conversion is spelled as the call it is in JavaScript, its
+        // operand an argument, which takes no parentheses of its own
+        case 'Number': {
+            return mapOk(
+                /** @type {(text: List<string>) => List<string>} */
+                (text => flat([['Number'], text])),
+            )(callArguments(s, `${path}/operand`)([node[1]]))
+        }
         case '|': case '^': case '&': case '===': case '!==': case '<': case '<=': case '>': case '>=':
         case '<<': case '>>': case '>>>': case '*': case '/': case '%': case '**': { return binary(s, path)(node[0], node[1], node[2]) }
         case '&&': case '||': case '??': { return lazyBinary(s, path)(node) }
@@ -1001,7 +1010,8 @@ const hoists = s => {
 /**
  * The eager operands a node holds, for the hoisting walk and the module
  * writer: a container's items and a property's halves, an access's base
- * and key, a call's callee and each argument, a prefix's operand, an eager
+ * and key, a call's callee and each argument, a prefix's operand, a
+ * conversion's, an eager
  * binary operator's two, a `throw`'s value, a comma's operands, a lazy
  * operator's left operand and a conditional's condition. A function's body
  * is not among them, since the walk stops at a body, and neither is its
@@ -1015,7 +1025,7 @@ const operands = node => {
         case '()': { return [node[1], ...node[2].map(itemOperand)] }
         case '[]': { return node[1].map(itemOperand) }
         case '{}': { return node[1].flatMap(p => p[0] === '...' ? [p[1]] : [p[1], p[2]]) }
-        case 'throw': case '~': case '!': case 'typeof': { return [node[1]] }
+        case 'throw': case '~': case '!': case 'typeof': case 'Number': { return [node[1]] }
         case '-': case '+': { return node.length === 2 ? [node[1]] : [node[1], node[2]] }
         case ',': { return node[1] }
         case '&&': case '||': case '??': case '?:': { return [node[1]] }
