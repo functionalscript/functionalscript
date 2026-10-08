@@ -68,7 +68,9 @@ export const literalWords = /** @type {const} */ ([
  * The ECMAScript globals FunctionalScript reserves without making them
  * keywords: a module may not bind, assign or shadow one, and none is a
  * value a module can name — each is spelled only where the language admits
- * it, `Number` as the callee of the conversion `Number(exp)`
+ * it: `Array` as the right operand of `instanceof`
+ * ([spec: instanceof](../../../spec/README.md#instanceof)), and `Number` as
+ * the callee of the conversion `Number(exp)`
  * ([spec: number conversion](../../../spec/README.md#number-conversion)).
  * The first names under
  * [global-names](../../../spec/todo/2365-global-names.md)' rule.
@@ -78,7 +80,7 @@ export const literalWords = /** @type {const} */ ([
  * parser asks {@link isReservedGlobal} beside {@link isKeyword} where a
  * name is bound or referenced.
  */
-export const reservedGlobals = /** @type {const} */ (['Number'])
+export const reservedGlobals = /** @type {const} */ (['Array', 'Number'])
 
 /** The four groups in declaration order, each name once. */
 const groups = [...reservedWords, ...strictModeReservedWords, ...restrictedNames, ...literalGlobals]

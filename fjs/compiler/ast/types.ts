@@ -6,6 +6,7 @@
  */
 
 import type { Assert } from '../../asserts/types.ts'
+import type { ConstructorId } from '../../edag/types.ts'
 import type { Primitive } from '../../media/datajs/types.ts'
 import type { Equal } from '../../types/ts/types.ts'
 import type { binaryTags } from './module.f.mjs'
@@ -31,8 +32,8 @@ export type AstImport = {
  */
 export type AstModule = readonly [readonly AstImport[], AstBody]
 
-/** A value in a module body: a primitive, a reference, an array, an object, a property access, a call, a negation, a bitwise not, a logical not, a `typeof`, the `Number` conversion, the function's own `self`, a binary operator, a conditional, a function, the `entry` helper, a fixed parameter, a rest array, a slot of its frame — or a `throw`, which a body may end with in place of a value. */
-export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstGuardedAccess|AstCall|AstGuardedCall|AstNeg|AstBitnot|AstNot|AstTypeof|AstNumber|AstSelf|AstBinary|AstConditional|AstFunction|AstEntryFunction|AstRest|AstArg|AstFrameRef|AstThrow
+/** A value in a module body: a primitive, a reference, an array, an object, a property access, a call, a negation, a bitwise not, a logical not, a `typeof`, an `instanceof`, the `Number` conversion, the function's own `self`, a binary operator, a conditional, a function, the `entry` helper, a fixed parameter, a rest array, a slot of its frame — or a `throw`, which a body may end with in place of a value. */
+export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstGuardedAccess|AstCall|AstGuardedCall|AstNeg|AstBitnot|AstNot|AstTypeof|AstInstanceOf|AstNumber|AstSelf|AstBinary|AstConditional|AstFunction|AstEntryFunction|AstRest|AstArg|AstFrameRef|AstThrow
 
 /**
  * The `entry` helper, which the parser recognizes whole
@@ -311,6 +312,17 @@ export type AstNot = readonly ['!', AstConst]
  * node.
  */
 export type AstTypeof = readonly ['typeof', AstConst]
+
+/**
+ * A `v instanceof Array`: the EDAG's `['instanceof', exp, constructor]`,
+ * the instance check of its one operand against a constructor *name* — a
+ * member of the EDAG's closed list, `Array` alone today, which the fold
+ * admits as the one reference the operator's right side may be. The name
+ * is metadata, as `arg`'s index is, not an operand: `operandsOf` walks the
+ * one operand and nothing else. Folds nothing: whether a value is an
+ * array is the interpreter's question.
+ */
+export type AstInstanceOf = readonly ['instanceof', AstConst, ConstructorId]
 
 /**
  * The conversion `Number(v)`: the EDAG's `['Number', exp]`, `op1Id` — the

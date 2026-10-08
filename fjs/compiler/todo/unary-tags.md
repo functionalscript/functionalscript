@@ -47,7 +47,10 @@ if (work.kind === 'throw') {
 `'neg'` is the same arm plus the constant folding of a negated literal, and
 `'not'`, `'typeof'` and `'Number'` are the `'bitnot'` arm a third, a fourth
 and a fifth time: `!`, `typeof` and the conversion landed in the pattern as
-it stood, one more copy of each arm apiece.
+it stood, one more copy of each arm apiece. `instanceof` is a sixth copy
+with one difference: its frame and its work carry the constructor name the
+AST node holds, so the one unary frame and one unary work below carry a
+tag *and* an optional name, or `instanceof` keeps its own.
 
 ### Proposal
 

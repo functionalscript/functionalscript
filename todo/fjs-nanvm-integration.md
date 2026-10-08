@@ -183,7 +183,7 @@ language step can be picked for what it unblocks:
 | String escapes `\u{…}`, `\v`, `\0` | [`spec/todo/2460-js-string-literals.md`](../spec/todo/2460-js-string-literals.md) | nanvm/member, demo/code, git/config |
 | A non-terminating `if`, `break`, `continue` | roadmap §3.2, the guard's follow-ups; `break` and `continue` are `while`'s | set, browser-source |
 | `for … of` | nothing proposes it | result |
-| `instanceof` | [`spec/todo/2342-instanceof.md`](../spec/todo/2342-instanceof.md), `Array` on the right only | structurally_same |
+| `instanceof` | in the language, `Array` on the right only ([operators](../spec/README.md#operators)); the leaf still waits on destructuring, the `Object` global, `new Map` and a runtime key | structurally_same |
 | `switch`, a default parameter | neither proposed; the parameter is roadmap §3.1 | ts |
 | A prohibited member function, `toLowerCase` | [`fjs/js/prototype`](../fjs/js/prototype/module.f.js)'s `prohibitedCalls`; the module rewrites, not the language | git/config |
 
