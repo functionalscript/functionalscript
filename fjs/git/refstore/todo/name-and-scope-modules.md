@@ -59,5 +59,5 @@ whole store.
 
 - [byte-ref-names.md](./byte-ref-names.md) — the codec's rewrite, easier
   against a module of its own.
-- [`fjs/git/refname`](../../refname/module.f.mjs)'s `sameBytes` — the
+- [`fjs/types/list`](../../../types/list/module.f.mjs)'s `sameItems` — the
   comparison of two names, already shared rather than part of the codec.

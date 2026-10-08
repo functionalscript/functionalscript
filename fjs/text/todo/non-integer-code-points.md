@@ -107,9 +107,9 @@ out-of-domain input, so a non-integer joins that branch.
 
 ### Related
 
-- `fjs/text/utf8/module.f.mjs` — `u8`, and `fjs/text/utf16/module.f.mjs` —
-  `u16`: the shape to copy, and the doc comments explaining why the integer
-  check is not redundant with the range.
+- `fjs/types/number/module.f.mjs` — `isUintUpTo`: the shape to copy, which
+  `utf8`'s byte guard (`isByte`) and `utf16`'s `u16` read through; their
+  comments explain why the integer check is not redundant with the range.
 - [666-utf16-encode-errormask](./666-utf16-encode-errormask.md) — owns what an
   encoder does with an invalid code point, which a non-integer is.
 - The deleted `fjs/text/utf8/todo/byte-guard-accepts-non-integers.md` closed the
