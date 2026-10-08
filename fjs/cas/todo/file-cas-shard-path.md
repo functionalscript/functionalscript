@@ -1,7 +1,7 @@
 ## file-cas-shard-path. `fileCas` spells the shard path twice and `read` copies `streamFile`
 
 **Priority:** P5
-**Status:** open
+**Status:** wip
 
 ### Problem
 
