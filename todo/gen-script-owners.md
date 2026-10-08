@@ -84,7 +84,13 @@ wrote the flakes it locks. `exec` captures the script's `stdout` and
 `stderr` where the `&&` chain let them reach the terminal, so the program
 writes both back through the `Console` effect, whatever the exit code: a
 Nix warning that exits `0` must still reach the reader, and swallowing it
-would be a regression `npm run gen` could not report.
+would be a regression `npm run gen` could not report. The same holds when
+the script fails, and today's `exec` cannot deliver it: a nonzero exit
+answers with an `IoError` of a code and a message only, and what the child
+wrote before it died is dropped. So `Exec`'s failure has to carry the
+captured `stdout` and `stderr` — an API change in `fjs/effects/node`, the
+first task below — for the program to print what Nix said before the
+sequence stops.
 
 A generator that fails stops the sequence, as `&&` does today, and its
 message names the generator rather than a position in a line.
@@ -130,6 +136,9 @@ program is the simpler shape, and the one every other step already has.
 
 ### Tasks
 
+- [ ] `fjs/effects/node`: `exec`'s failure carries the `stdout` and `stderr`
+      captured before the exit, so a caller can replay them; its proof
+      covers a failing command.
 - [ ] `fjs/nanvm/harness/module.f.mjs`: the fixture generator, per
       [one-fixture-list](../nanvm-harness/todo/one-fixture-list.md).
 - [ ] `fjs/dev/gen/module.f.mjs`: `main` composing cleanup, the four
