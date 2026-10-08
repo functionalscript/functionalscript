@@ -1207,6 +1207,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
                 'Early return': 'xxooo',
                 'Shorthand members': 'ooooo',
                 'Methods and properties': 'ooooo',
+                'Optional chaining': 'xoooo',
                 'Named exports': 'ooooo',
                 'A failure at run time': 'xxooo',
                 'An import': 'xxxxx',

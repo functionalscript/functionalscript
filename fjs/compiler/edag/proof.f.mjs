@@ -1105,8 +1105,7 @@ export const proof = {
          * of these tags — every `Op1`, some of `Op2`, a spread, a computed
          * object key — have no `export default <text>;` that reaches them
          * yet, so this is the only way to the whole walker rather than only
-         * its currently-reachable half. An optional call
-         * continuation and optional chaining's own tags are refused the
+         * its currently-reachable half. A tag no node has is refused the
          * same way, and that path is tested here too, for the same reason.
          */
         shapeOf: {
@@ -1165,12 +1164,13 @@ export const proof = {
                 },
                 // A plain call continuation — a fourth element past the
                 // ordinary form — is a method call, and draws as one node:
-                // the receiver in `obj`, the arguments numbered after it
-                // as a plain call's are, a spread marked the same way.
+                // the receiver in `obj`, each argument after it in a port
+                // named by the call it belongs to, a spread marked as a
+                // plain call's is.
                 methodCall: () => {
                     const shape = nodeShapeOf(['.', ['a'], 'x', ['|()', [1, ['...', ['b']]]]], 'expected a shape')
                     assertEq(shape.label, '.x()')
-                    assertStructurallySame(shape.children, [['obj', ['a']], ['0', 1], ['...1', ['b']]])
+                    assertStructurallySame(shape.children, [['obj', ['a']], ['x(0)', 1], ['x(...1)', ['b']]])
                 },
                 // A computed index keeps its `idx` edge, ahead of the arguments.
                 computedMethodCall: () => {
@@ -1178,12 +1178,96 @@ export const proof = {
                     assertEq(shape.label, '.()')
                     assertStructurallySame(shape.children, [['obj', ['a']], ['idx', ['Number', ['b']]]])
                 },
-                // An optional call continuation opens a short-circuit region
-                // — not yet drawn, so drawn as itself rather than misread as
-                // a plain method call.
-                optionalCall: () => assertStructurallySame(
-                    _shapeOf(['.', ['a'], 'x', ['|?.()', [1]]]),
-                    { kind: 'unsupported', label: '. (not yet drawn)', children: [] }),
+                // A guarded call continuation opens a short-circuit region:
+                // the receiver is read regardless, and the call's own
+                // arguments are the first thing a nullish value skips, so
+                // their edges are lazy where a plain method call's are not.
+                guardedCall: () => {
+                    const shape = nodeShapeOf(['.', ['a'], 'x', ['|?.()', [1]]], 'expected a shape')
+                    assertEq(shape.label, '.x?.()')
+                    assertStructurallySame(shape.children, [['obj', ['a']], ['x?.(0)', 1, 'lazy']])
+                },
+                // The steps after a guarded call stay in its region.
+                guardedCallSteps: () => {
+                    const shape = nodeShapeOf(['.', ['a'], 'b', ['|?.()', [['x']], ['|.', 'c', ['|()', [['y']]]]]], 'expected a shape')
+                    assertEq(shape.label, '.b?.().c()')
+                    assertStructurallySame(shape.children, [['obj', ['a']], ['b?.(0)', ['x'], 'lazy'], ['c(0)', ['y'], 'lazy']])
+                },
+            },
+            /**
+             * **A chain is one node, labelled by its spelling, and its
+             * region is on the edges.** Every spelling of `fjs/edag`'s
+             * Chains table that a `?.` or `?.()` node begins, and what its
+             * ports say: the receiver or callee first, then one port per
+             * argument named by its call, each lazy where a nullish value
+             * would skip it.
+             */
+            chain: {
+                // `a?.b`: the guard is in the label, as a plain access's
+                // key is, and the receiver is read regardless.
+                guardedAccess: () => {
+                    const shape = nodeShapeOf(['?.', ['a'], 'b'], 'expected a shape')
+                    assertEq(shape.label, '?.b')
+                    assertStructurallySame(shape.children, [['obj', ['a']]])
+                },
+                guardedNumber: () => assertEq(nodeShapeOf(['?.', ['a'], 0], 'expected a shape').label, '?.[0]'),
+                // A computed key is inside the region — `u?.[todo()]` never
+                // runs `todo` — so its `idx` edge is lazy, where a plain
+                // access's is not.
+                guardedComputed: () => {
+                    const shape = nodeShapeOf(['?.', ['a'], ['Number', ['b']]], 'expected a shape')
+                    assertEq(shape.label, '?.')
+                    assertStructurallySame(shape.children, [['obj', ['a']], ['idx', ['Number', ['b']], 'lazy']])
+                },
+                // `a?.b.c(d, ...e)`: the key step joins the label, and the
+                // call's arguments are named by the key they are called on.
+                steps: () => {
+                    const shape = nodeShapeOf(['?.', ['a'], 'b', ['|.', 'c', ['|()', [['d'], ['...', ['e']]]]]], 'expected a shape')
+                    assertEq(shape.label, '?.b.c()')
+                    assertStructurallySame(shape.children, [['obj', ['a']], ['c(0)', ['d'], 'lazy'], ['c(...1)', ['e'], 'lazy']])
+                },
+                // `a?.b(x)(y)`: a call on a call's value has no key to be
+                // named by, so its port is the bare call.
+                callOnACall: () => {
+                    const shape = nodeShapeOf(['?.', ['a'], 'b', ['|()', [['x']], ['|()', [['y']]]]], 'expected a shape')
+                    assertEq(shape.label, '?.b()()')
+                    assertStructurallySame(shape.children, [['obj', ['a']], ['b(0)', ['x'], 'lazy'], ['(0)', ['y'], 'lazy']])
+                },
+                // A computed key in a step draws as the node's own does.
+                computedStep: () => {
+                    const shape = nodeShapeOf(['?.', ['a'], 'b', ['|.', ['Number', ['c']]]], 'expected a shape')
+                    assertEq(shape.label, '?.b.')
+                    assertStructurallySame(shape.children, [['obj', ['a']], ['idx', ['Number', ['c']], 'lazy']])
+                },
+                // `(a?.b.c)(x)`: the parentheses ended the region, so the
+                // label groups the chain before the call and the call's
+                // arguments run regardless — eager, after lazy steps.
+                closingCall: () => {
+                    const shape = nodeShapeOf(['?.', ['a'], 'b', ['|.', 'c', ['|!()', [['x']]]]], 'expected a shape')
+                    assertEq(shape.label, '(?.b.c)()')
+                    assertStructurallySame(shape.children, [['obj', ['a']], ['(c)(0)', ['x']]])
+                },
+                closingCallWithoutArguments: () => {
+                    const shape = nodeShapeOf(['?.', ['a'], 'b', ['|!()', []]], 'expected a shape')
+                    assertEq(shape.label, '(?.b)()')
+                    assertStructurallySame(shape.children, [['obj', ['a']]])
+                },
+                // `a?.(x)`: a guarded call's callee is read regardless and
+                // its arguments are inside the region it opens.
+                guardedCall: () => {
+                    const shape = nodeShapeOf(['?.()', ['a'], [['x']]], 'expected a shape')
+                    assertEq(shape.label, '?.()')
+                    assertStructurallySame(shape.children, [['callee', ['a']], ['?.(0)', ['x'], 'lazy']])
+                },
+                // `a?.(x).d(y)` and `a?.()(y)`: the steps after it.
+                guardedCallSteps: () => {
+                    const shape = nodeShapeOf(['?.()', ['a'], [['x']], ['|.', 'd', ['|()', [['y']]]]], 'expected a shape')
+                    assertEq(shape.label, '?.().d()')
+                    assertStructurallySame(shape.children, [['callee', ['a']], ['?.(0)', ['x'], 'lazy'], ['d(0)', ['y'], 'lazy']])
+                    const call = nodeShapeOf(['?.()', ['a'], [], ['|()', [['y']]]], 'expected a shape')
+                    assertEq(call.label, '?.()()')
+                    assertStructurallySame(call.children, [['callee', ['a']], ['(0)', ['y'], 'lazy']])
+                },
             },
             call: () => {
                 const shape = nodeShapeOf(['()', ['a'], [['b'], ['...', ['c']]]], 'expected a shape')
@@ -1311,23 +1395,22 @@ export const proof = {
                     assertStructurallySame(shape.children, [['left', ['a']], ['right', ['b']]])
                 },
             },
-            // A tag naming none of the recognized shapes — optional
-            // chaining's own, here — is drawn as itself the same way an
-            // optional call continuation is.
+            // A tag naming none of the recognized shapes — one no node has
+            // today — is drawn as itself.
             unrecognizedTag: () => assertStructurallySame(
-                _shapeOf(['?.', ['a'], 'x']),
-                { kind: 'unsupported', label: '?. (not yet drawn)', children: [] }),
+                _shapeOf(['new', ['a']]),
+                { kind: 'unsupported', label: 'new (not yet drawn)', children: [] }),
         },
         // A node `_shapeOf` cannot describe is not dropped: the walk still
-        // draws it, labeled by its own tag, with no outgoing edges — the
-        // optional chains, which parse but are not drawn yet, reach it from
-        // source; the hand-built `Exp` the `shapeOf.unrecognizedTag` test
-        // above describes is carried one level up here, to where a node is
-        // actually built rather than only described.
+        // draws it, labeled by its own tag, with no outgoing edges. No
+        // source reaches it today, so the hand-built `Exp` the
+        // `shapeOf.unrecognizedTag` test above describes is carried one
+        // level up here, to where a node is actually built rather than only
+        // described.
         walk: {
             unsupported: () => {
-                assertStructurallySame(graphOf(_shapeOf)(['?.', ['a'], 'x']), {
-                    nodes: [{ id: 0, kind: 'unsupported', label: '?. (not yet drawn)', rank: 0 }],
+                assertStructurallySame(graphOf(_shapeOf)(['new', ['a']]), {
+                    nodes: [{ id: 0, kind: 'unsupported', label: 'new (not yet drawn)', rank: 0 }],
                     edges: [],
                 })
             },
@@ -1338,6 +1421,16 @@ export const proof = {
             methodCall: () => {
                 const html = htmlToString(demo.view('export default [1, 2, 3].at(0);'))
                 assert(html.includes('.at()') && !html.includes('not yet drawn'), html)
+            },
+            // The chains from source: each is the one node the parser
+            // folds it into, labelled by its spelling, and the one lazy
+            // edge is the guarded call's argument — `?.a.b` has only its
+            // receiver, read regardless.
+            chains: () => {
+                const html = htmlToString(demo.view('const n = null; export default [n?.a.b, n?.(1)];'))
+                assert(html.includes('>?.a.b<') && html.includes('>?.()<') && html.includes('>?.(0)<'), html)
+                assert(!html.includes('not yet drawn'), html)
+                assertEq(html.split('data-graph-edge-kind="lazy"').length - 1, 1)
             },
             // An input with no user to sit in — the whole walk — is still
             // drawn, as the terminal node it is. No source the parser
@@ -1435,6 +1528,15 @@ export const proof = {
             assertEq(of('export default (...a) => a[0] ? a[1] : a[2];'), 2)
             // An eager operator marks nothing.
             assertEq(of('export default (...a) => a[0] + a[1];'), 0)
+            // A chain's region: the argument of a call after a `?.`, of a
+            // guarded call on an access and of a guarded call on a value;
+            // not the argument of a call whose parentheses ended the
+            // region, and not the receiver of a guarded access.
+            assertEq(of('export default (...a) => a[0]?.b(a[1]);'), 1)
+            assertEq(of('export default (...a) => a[0].b?.(a[1]);'), 1)
+            assertEq(of('export default (...a) => a[0]?.(a[1]);'), 1)
+            assertEq(of('export default (...a) => (a[0]?.b)(a[1]);'), 0)
+            assertEq(of('export default (...a) => a[0]?.b;'), 0)
             // The body of a function that may never be called, as the
             // review that found it wrote it.
             assertEq(of('export default (...a) => null.x;'), 0)
