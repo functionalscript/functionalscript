@@ -14,7 +14,9 @@ Global objects can't be assigned to a variable (`const r = Object`). They can on
 
 None of these names may be *bound* by a module either, or admitting one
 later would change what a module already means:
-[`2365-global-names.md`](./2365-global-names.md), which lands first.
+[`2365-global-names.md`](./2365-global-names.md), which reserves each name
+no later than this file admits any of it, a name at a time
+([landing a name at a time](./2365-global-names.md#landing-a-name-at-a-time)).
 
 A ticked box below marks a name the language is to admit, not one it admits
 today. Only `Infinity`, `NaN` and `undefined` are implemented, as reserved

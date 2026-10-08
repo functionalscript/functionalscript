@@ -49,7 +49,10 @@ which is no number. It lowers to the EDAG's `['Number', exp]`, a node like
 `~` and `typeof`: nothing folds, since conversion is the executor's question.
 
 **`Number` is a reserved word**, the first name under
-[global-names](./2365-global-names.md)' rule: never bound — not by a `const`,
+[global-names](./2365-global-names.md)' rule, reserved here with the
+conversion it admits rather than after the whole list, since that rule's
+order is a name's ([landing a name at a time](./2365-global-names.md#landing-a-name-at-a-time)):
+never bound — not by a `const`,
 a body `const`, a parameter or an import's local name — and never a value.
 It is spelled in one position, as the callee of a call, and refused
 everywhere else: bare (`const n = Number;`, `f(Number)`) and as a namespace
@@ -97,11 +100,13 @@ for want of a representation: `Number(a, b)` establishes `a`, then `b`, then
 converts `a`, which is the comma's `(a, b, Number(a))` — the EDAG has the
 node and the FunctionalScript writer no spelling for it until the comma
 operator lands ([operators](./2340-operators.md)), so admitting it first
-would make a program every output but `.js` writes; `Number(...a)` converts
-the first value the spread yields, after yielding them all, which no node
-expresses while a call's arity is the callee's to split. Both are refused by
-name (`Number takes one argument`), never answered with a wrong value, and
-each lands with what it waits on. The namespace's members —
+would make a program every output but `.js` writes; `Number(...a)` yields
+every value the spread has and converts the first, or is `0` where it yields
+none, as `Number()` is — `Number(...[])` is `0`, not `NaN` — which no node
+expresses while a call's arity is the callee's to split
+([number-spread](./2363-number-spread.md)). Both are refused by name
+(`Number takes one argument`), never answered with a wrong value, and each
+lands with what it waits on. The namespace's members —
 `Number.isInteger`, `Number.MAX_SAFE_INTEGER` and the rest — are pure and
 wanted, and each is an admission of its own under
 [built-in](./2360-built-in.md), with an EDAG node to design first; this task
@@ -155,10 +160,10 @@ them for binding a global's name.
    reserved, `Number` being no name a module binds, for the two guarantees
    above.
 2. `Number()` and `Number(a, b)`: answered by §12, above — `Number()` is
-   `0`, and `Number(a, b)` lands with the comma operator, `Number(...a)`
-   with a call of runtime arity. Still open: whether either deserves a
-   `todo/` row of its own before then, beyond the comma's line in
-   [operators](./2340-operators.md).
+   `0`, and `Number(a, b)` lands with the comma operator, recorded in
+   [operators](./2340-operators.md). `Number(...a)` has a file of its own,
+   [number-spread](./2363-number-spread.md), so the empty spread's `0`
+   outlives this one.
 3. Answered by the task owner: the index is this task's, and lands in
    [#2667](https://github.com/functionalscript/functionalscript/pull/2667)
    with the call.
@@ -197,6 +202,8 @@ them for binding a global's name.
   stay unticked.
 - [global-names](./2365-global-names.md) — the rule this applies to one
   name, and its open question 3, the list the fold consults.
+- [number-spread](./2363-number-spread.md) — `Number(...a)`, refused here by
+  name.
 - [property-accessor](./2330-property-accessor.md) — the index form.
 - [operators](./2340-operators.md) — unary `+`, the EDAG operation this one
   differs from on a `bigint`, and the folding line.
