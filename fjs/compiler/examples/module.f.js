@@ -53,6 +53,7 @@ export const examples = [
     ['Early return', 'export default (n) => {\n    if (n < 0) { return -1; }\n    if (n > 0) { return 1; }\n    return 0;\n};'],
     ['Shorthand members', 'const x = 1;\nconst y = [x];\nexport default { x, y };'],
     ['Methods and properties', 'export default ["abc".length, [1, 2, 3].at(0), (1).toString()];'],
+    ['The entry helper', 'const entry = (a, b) => {\n    const x = Object.getOwnPropertyDescriptor(a, b);\n    return x?.enumerable ? x.value : undefined;\n};\nexport default [entry({ k: 1 }, "k"), entry([7, 8], 1), entry("ab", 1), typeof entry];'],
     ['Named exports', 'export const a = 1;\nexport const b = [a, a];\nexport default 2;'],
     ['A failure at run time', 'export default [1, 2][5].x;'],
     ['An import', 'import m from "./m.f.js";\nexport default m;'],
