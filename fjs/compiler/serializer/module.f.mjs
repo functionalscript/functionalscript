@@ -140,7 +140,7 @@ import { dollarSign, isDigit, isLatinLetter, lowLine } from '../../text/ascii/mo
 import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { error, mapOk, ok, okList, okThen } from '../../types/result/module.f.mjs'
-import { renderFunction } from './function_text/module.f.mjs'
+import { _entryText as entryText, renderFunction } from './function_text/module.f.mjs'
 import { _name as name, _binding as binding, _resolve as resolve } from './names/module.f.mjs'
 
 /** Names the parser refuses to bind. */
@@ -194,7 +194,7 @@ const hoistedKind = (a, i) => minting(a.nodes[i])
  */
 const basedHoisted = (a, base) => !(base instanceof Array)
     ? typeof base === 'number' || typeof base === 'bigint'
-    : a.nodes[base[1]][0] === '=>'
+    : a.nodes[base[1]][0] === '=>' || a.nodes[base[1]][0] === 'entry'
 
 /** Two hoisted values are one when they name the same entry, or the same primitive by `Object.is`. @type {(x: _Hoisted, y: _Hoisted) => boolean} */
 const sameHoisted = (x, y) => x[0] === y[0] && Object.is(x[1], y[1])
@@ -995,6 +995,9 @@ const entry = (s0, path) => i => {
         // every function that reads its `self`, and the analysis refused a
         // `self` with no function around it
         case 'self': { return ok([assertNotNullish(s.self, ['a self in a scope with no name', i])]) }
+        // the `entry` helper, in its one spelling, under names of this
+        // function's own as every function's parameters are
+        case 'entry': { return ok([entryText(`${path}/function${i}`)]) }
         case 'arg': case 'rest': { return ok([assertNotNullish(parameterName(s.param, node))]) }
         case '[]': { return mapOk(arrayWrap)(okList(node[1].map((v, k) => item(s, `${path}/item${k}`)(v)))) }
         case '{}': { return mapOk(objectWrap)(okList(node[1].map((p, k) => property(s, `${path}/property${k}`)(p)))) }
@@ -1431,6 +1434,7 @@ export const tryStringify = e => mapOk(
  * @type {(a: Analysis, i: number) => string}
  */
 export const functionText = (a, i) => {
+    if (a.nodes[i][0] === 'entry') { return resolve([entryText('function')], [], []).join('') }
     const [, length, slots, body] = /** @type {Extract<Node, readonly ['=>', number, readonly Operand[], Operand]>} */ (a.nodes[i])
     const frame = slots.map((_, k) => name(`external${k}`))
     const [kind, text] = lambda(a, 'function', i, length, frame, true, null)(body)
@@ -1469,7 +1473,7 @@ export const functionText = (a, i) => {
  * @type {(e: Exp) => Result<string, string>}
  */
 export const tryFunctionText = e => {
-    if (!(e instanceof Array) || e[0] !== '=>') { return error('not a function') }
+    if (!(e instanceof Array) || (e[0] !== '=>' && e[0] !== 'entry')) { return error('not a function') }
     const result = analysis(e)
     const [kind, a] = result
     if (kind === 'error') { return result }

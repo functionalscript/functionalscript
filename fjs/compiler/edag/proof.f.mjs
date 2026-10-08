@@ -505,6 +505,35 @@ export const proof = {
         expectEdag(compile('export default (...a) => { return { x: a }; };').edag, ['=>', 0, [], ['{}', [[':', 'x', ['rest']]]]])
         expectEdag(compile('export default (...a) => { return (...b) => { return b; }; };').edag, ['=>', 0, [], ['=>', 0, [], ['rest']]])
     },
+    // The `entry` helper is the EDAG's own node for it, `['entry']`, the
+    // helper as a value: one node per helper written, as every arrow is a
+    // node of its own, and one however many references reach a `const`
+    // holding it; called as any function is, and read as one — and the
+    // graph runs, the executors answering the call themselves.
+    entry: () => {
+        const helper = 'const entry = (a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? x.value : undefined; };'
+        expectEdag(compile(`${helper} export default entry;`).edag, ['entry'])
+        const shared = compile(`${helper} export default [entry, entry];`).edag
+        expectEdag(shared, ['[]', [['entry'], ['entry']]])
+        assert(shared instanceof Array && shared[0] === '[]' && shared[1][0] === shared[1][1], shared)
+        const two = compile('export default [(a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? x.value : undefined; }, (c, d) => { const e = Object.getOwnPropertyDescriptor(c, d); return e?.enumerable ? e.value : undefined; }];').edag
+        expectEdag(two, ['[]', [['entry'], ['entry']]])
+        assert(two instanceof Array && two[0] === '[]' && two[1][0] !== two[1][1], two)
+        expectEdag(compile(`${helper} export default entry({ k: 1 }, "k");`).edag, ['()', ['entry'], [['{}', [[':', 'k', 1]]], 'k']])
+        expectEdag(compile(`${helper} export default [entry.length, typeof entry];`).edag, ['[]', [['.', ['entry'], 'length'], ['typeof', ['entry']]]])
+        // an unreached helper is anchored as any entry is
+        expectEdag(compile(`${helper} export default 1;`).edag, [',', [['entry'], 1]])
+        assertStructurallySame(execute(compile(`${helper} export default [entry({ k: 1 }, "k"), entry([7, 8], 1), entry([7, 8], "length"), entry("ab", 0), entry(entry, "length"), entry.length, typeof entry, entry({ "1": 9 }, 1)];`).edag),
+            [1, 8, undefined, 'a', undefined, 2, 'function', 9])
+        // the helper passed as a value, and called from where it was passed
+        assertStructurallySame(execute(compile(`${helper} const call = (f, o) => f(o, "x"); export default call(entry, { x: 3 });`).edag), 3)
+        assertStructurallySame(execute(compile(`${helper} export default [10, 20].map(entry);`).edag), [undefined, undefined])
+        const fn = value(compile(`${helper} export default entry;`).edag)
+        assertStructurallySame(assertOk(toData(apply(fn, [['{}', [[':', 'y', 4]]], 'y']))), 4)
+        assertStructurallySame(assertOk(toData(apply(fn, [['[]', [5]], 0]))), 5)
+        // and the helper's text is the helper, in the writer's spelling
+        assertStructurallySame(execute(compile(`${helper} export default entry.toString();`).edag), '($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}')
+    },
     // A function that captures is `['=>', length, slots, body]`: each slot
     // the enclosing scope's own node for a captured value — one per node,
     // in the order the body first names them — and each read of it in the
@@ -1295,7 +1324,7 @@ export const proof = {
             // mark their right operand, and `lazyRightOperand` above covers
             // all three rather than one standing for them.
             op2: () => {
-                for (const tag of ['===', '*', '&', 'own', 'is']) {
+                for (const tag of ['===', '*', '&', 'is']) {
                     const shape = nodeShapeOf([tag, ['a'], ['b']], tag)
                     assertEq(shape.label, tag)
                     assertStructurallySame(shape.children, [['left', ['a']], ['right', ['b']]])

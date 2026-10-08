@@ -224,17 +224,26 @@ export const proof = {
         // An `index` is a string, a number, or `['Number', exp]`, and all
         // three name a property the same way.
         eq(['.', ['[]', [1, 2, 3]], ['Number', '1']], 2)
-        eq(['own', ['{}', [[':', 'a', 7]]], 'a'], 7)
-        // Absent: no descriptor, so `?.value` is `undefined` rather than a
-        // read of `undefined.value`.
-        eq(['own', ['{}', []], 'a'], undefined)
-        // A stock method is not an own data property.
-        eq(['own', ['{}', []], 'toString'], undefined)
-        // A key that is a string only after JS coercion is not a string key:
-        // `own`'s key operand must *evaluate* to one, so `1` is rejected
-        // rather than silently reading `'1'` — see `failures.ownNonStringKey`.
-        eq(['own', ['{}', [[':', '1', 42]]], '1'], 42)
         eq(['.', ['{}', []], 'toString'], undefined)
+        // The `entry` helper, called: an own data property, and nothing
+        // else — not a stock method, which no object here owns; not a
+        // `length`, which an array owns without enumerating it.
+        const entry = /** @type {(a: Exp, b: Exp) => Exp} */ ((a, b) => ['()', ['entry'], [a, b]])
+        eq(entry(['{}', [[':', 'a', 7]]], 'a'), 7)
+        // Absent: no descriptor, so `?.enumerable` is `undefined` rather
+        // than a read of `undefined.enumerable`.
+        eq(entry(['{}', []], 'a'), undefined)
+        eq(entry(['{}', []], 'toString'), undefined)
+        // The key converts as a property key does: `1` reads `'1'`.
+        eq(entry(['{}', [[':', '1', 42]]], 1), 42)
+        eq(entry(['[]', [5, 6]], 1), 6)
+        eq(entry(['[]', [5, 6]], 'length'), undefined)
+        eq(entry('ab', 1), 'b')
+        eq(entry(['entry'], 'length'), undefined)
+        eq(['.', ['entry'], 'length'], 2)
+        // and nullish receivers fail before the key is read at all
+        fails(entry(null, 'a'))
+        fails(entry(['undefined'], boom))
     },
     // `o2lazy` — the right operand is a thunk, so these three short-circuit
     // — and `?:`, which establishes its condition and then one arm. Each
@@ -677,13 +686,12 @@ export const proof = {
         // where the object form would have contributed nothing.
         arraySpreadOfNumber: () => fails(['[]', [['...', 1]]]),
         arraySpreadOfNull: () => fails(['[]', [['...', null]]]),
-        // `own`'s key operand must evaluate to a string, and `ToPropertyKey`
-        // coercion is exactly what that rules out.
-        ownNonStringKey: () => fails(['own', ['{}', [[':', '1', 42]]], 1]),
-        // The receiver is checked before the key: real `ToObject` runs
-        // before `ToPropertyKey`, so a nullish receiver throws regardless
-        // of the key.
-        ownNullReceiver: () => fails(['own', null, 'a']),
+        // The `entry` helper checks the receiver before the key: real
+        // `ToObject` runs before `ToPropertyKey`, so a nullish receiver
+        // throws whatever the key is, and a key whose conversion throws
+        // does so under a receiver that is not nullish.
+        entryNullReceiver: () => fails(['()', ['entry'], [null, 'a']]),
+        entryKeyConversion: () => fails(['()', ['entry'], [['{}', []], ['{}', [[':', 'toString', ['=>', 0, [], ['throw', 'key']]]]]]], 'key'),
         // A non-function returns an implicit represented failure.
         callNonFunction: () => fails(['()', 1, noArgs]),
         // The other side of `lazy`: with the left operand that does not
@@ -701,7 +709,7 @@ export const proof = {
             fails(['throw', ['throw', 40]], 40)
             fails(['()', ['=>', 1, [], ['throw', ['arg', 0]]], [41]], 41)
             fails(['()', 0, [['throw', 42]]], 42)
-            fails(['own', null, ['throw', 43]], 43)
+            fails(['()', ['entry'], [null, ['throw', 43]]], 43)
             fails([',', [['throw', 44], 0]], 44)
         },
     },

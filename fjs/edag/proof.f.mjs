@@ -97,14 +97,14 @@ const vOptionPropertyLambda = value => validate(optionPropertyLambda)(value)
 /** Every id `op0` currently accepts — kept as a literal list, not derived
  * from `op0Id`, so deleting one from the schema reddens exactly its own
  * assertion below rather than silently shrinking this list too. */
-const op0Ids = /** @type {const} */ (['undefined', 'args', 'rest', 'self'])
+const op0Ids = /** @type {const} */ (['undefined', 'args', 'rest', 'self', 'entry'])
 
 /** Same purpose as `op0Ids`, for `op1`. */
 const op1Ids = /** @type {const} */ (['String', 'Number', '!', '~', 'typeof', 'throw'])
 
 /** Same purpose as `op0Ids`, for `op2`. */
 const op2Ids = /** @type {const} */ ([
-    'own', 'is',
+    'is',
     '===', '!==', '>', '>=', '<', '<=',
     '*', '/', '%', '**',
     '&', '|', '^', '<<', '>>', '>>>',
@@ -669,16 +669,31 @@ export const proof = {
             assertNoMatch(vOp1Id('xyz'))
             assertNoMatch(v(['xyz', 1]))
         },
-        // `own`'s point is bypassing the prototype chain — including the
-        // `__proto__` special case a computed key already avoids in JS.
-        // Demonstrates the pattern `['own', ...]` (an `op2` id) denotes;
-        // not a schema check.
-        ownJs: () => {
-            /** @type {<T>(a: StringMap<T>, k: string) => T|undefined } */
-            const own = (a, k) => Object.getOwnPropertyDescriptor(a, k)?.value
+        // `entry`'s point is bypassing the prototype chain — including the
+        // `__proto__` special case a computed key already avoids in JS —
+        // and reading nothing a value owns without enumerating it, which
+        // is what keeps a function's `name` and `length` out of the
+        // language. Demonstrates what a call of `['entry']` (an `op0` id,
+        // the helper as a value) denotes, the language's own helper run as
+        // JavaScript; not a schema check.
+        entryJs: () => {
+            /** @type {(a: unknown, k: PropertyKey) => unknown} */
+            const entry = (a, k) => {
+                const x = Object.getOwnPropertyDescriptor(a, k)
+                return x?.enumerable ? x.value : undefined
+            }
             const a = { ['__proto__']: 42 }
-            assertEq(own(a, '__proto__'), 42)
-            assertEq(own(a, 'x'), undefined)
+            assertEq(entry(a, '__proto__'), 42)
+            assertEq(entry(a, 'x'), undefined)
+            assertEq(entry(a, 'toString'), undefined)
+            assertEq(entry([7], 0), 7)
+            assertEq(entry([7], '0'), 7)
+            assertEq(entry([7], 'length'), undefined)
+            assertEq(entry('ab', 1), 'b')
+            assertEq(entry('ab', 'length'), undefined)
+            assertEq(entry(entry, 'length'), undefined)
+            assertEq(entry(entry, 'name'), undefined)
+            assertEq(entry({ length: 3 }, 'length'), 3)
         },
     },
     op2: {

@@ -242,7 +242,18 @@ the fold's:
   that is a call's callee, through a group as well, is checked against that
   list instead of the read rule, so `a.at(0)` and `a.toString()` are calls
   like any other while `a.at` stays a refused read: a detached built-in is a
-  function that only fails.
+  function that only fails;
+- the `entry` helper, which is matched whole rather than resolved
+  ([spec: entry](../../../spec/README.md#reading-an-entry-at-run-time)): a
+  function of two parameters whose block body binds the descriptor
+  `Object.getOwnPropertyDescriptor` answers for them and returns the value
+  an enumerable one holds — under any three distinct names, the keys in
+  either spelling, with or without its semicolons where JavaScript inserts
+  them, and only where no scope binds `Object`, a parameter, a `const` or
+  the function's own name of that word being JavaScript's own reading — is
+  the AST's `['entry']`. A function that is not the helper, by shape or by
+  binding, is resolved as every function is, where the `Object` nothing
+  binds is `const not found` as any unbound word is.
 
 The fold is where a symbol table already exists, because turning an identifier
 into `['cref', n]` or `['aref', n]` *is* the lookup. Do not contort the grammar

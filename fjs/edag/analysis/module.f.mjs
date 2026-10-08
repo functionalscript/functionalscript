@@ -91,7 +91,7 @@ const same = (a, b) => a instanceof Array
  */
 export const mergeable = node => {
     switch (node[0]) {
-        case '[]': case '{}': case '=>': case '()': case '?.()': { return false }
+        case '[]': case '{}': case '=>': case 'entry': case '()': case '?.()': { return false }
         case '.': case '?.': { return node.length === 3 }
         default: { return true }
     }
@@ -253,6 +253,7 @@ const handlers = {
     args: o0,
     rest: o0,
     self: o0,
+    entry: o0,
     arg: indexed,
     frame: indexed,
     '!': o1,
@@ -263,7 +264,6 @@ const handlers = {
     throw: o1,
     '+': o12,
     '-': o12,
-    own: o2,
     is: o2,
     '===': o2,
     '!==': o2,
@@ -365,7 +365,7 @@ const propertyOperands = p => p[0] === ':' ? [p[1], p[2]] : [p[1]]
  */
 export const operandsOf = node => {
     switch (node[0]) {
-        case 'undefined': case 'args': case 'frame': case 'rest': case 'arg': case 'self': { return [] }
+        case 'undefined': case 'args': case 'frame': case 'rest': case 'arg': case 'self': case 'entry': { return [] }
         case '[]': { return node[1].map(itemOperand) }
         case '{}': { return node[1].flatMap(propertyOperands) }
         case ',': { return node[1] }

@@ -405,6 +405,26 @@ export const proof = {
         // Empty parameter lists consume no numbers even beyond 26 nested bodies.
         assert(reads(nested(27)).endsWith('()=>()=>(...$0)=>$0;'))
     },
+    // The `entry` helper has its one spelling, the helper itself, under
+    // names of its own as every function's parameters are, and it is a
+    // function wherever it stands: hoisted where it is shared, since it
+    // mints identity, and named where it is called or read, as a function
+    // callee or base is.
+    entry: () => {
+        const text = '($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}'
+        writes(['entry'], `export default ${text};`)
+        writes(['[]', [['entry'], ['entry']]], `export default [${text},($3,$4)=>{const $5=Object.getOwnPropertyDescriptor($3,$4);return $5?.enumerable?$5.value:undefined;}];`)
+        /** @type {Exp} */
+        const helper = ['entry']
+        const named = '($1,$2)=>{const $3=Object.getOwnPropertyDescriptor($1,$2);return $3?.enumerable?$3.value:undefined;}'
+        writes(['[]', [helper, helper]], `const $0=${named};export default [$0,$0];`)
+        writes(['()', ['entry'], [1, 2]], `const $0=${named};export default $0(1,2);`)
+        writes(['.', ['entry'], 'length'], `const $0=${named};export default $0.length;`)
+        writes(['=>', 0, [], ['entry']], `export default ()=>${text};`)
+        assertEq(unwrap(tryFunctionText(['entry'])), text)
+        const a = assertOk(analysis(['[]', [['entry'], 1]]))
+        assertEq(functionText(a, 0), text)
+    },
     // A function's `length` is at most 16: 16 reads back, and a larger one,
     // top-level or nested, is an error from every entry point, not a throw
     // out of allocating its parameter names.

@@ -35,6 +35,12 @@
  * builds no module: a malformed suffix is found before any name is
  * resolved. `./README.md` holds the argument.
  *
+ * The `entry` helper is the fold's to recognize, {@link entryFunction}: the
+ * one function whose body names a property at run time, matched whole on
+ * the syntax tree with its names resolved as every other body's are, and
+ * the one place the `Object` namespace stands — outside it the fold
+ * refuses the `Object` nothing binds, as it refuses any unbound word.
+ *
  * A guard, `if (c) block`, is the fold's to shape as well as to check: it
  * is syntactic sugar, and the fold writes what it is sugar for. The
  * guard's block and the statements after it are each the body of a
@@ -53,7 +59,7 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
- * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstNot, AstTypeof, AstSelf, AstCall, AstConditional, AstConst, AstFrameRef, AstEntry, AstFunction, AstItem, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstRest, AstSpread, AstStep, AstThrow } from '../ast/types.ts'
+ * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstNot, AstTypeof, AstSelf, AstCall, AstConditional, AstConst, AstEntryFunction, AstFrameRef, AstEntry, AstFunction, AstItem, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstRest, AstSpread, AstStep, AstThrow } from '../ast/types.ts'
  * @import { ParseError } from './types.ts'
  * @import { Block, Chain, Container, Entry, If, Import, Item, Module, Node, ParameterBinding, ParameterList, Statement, Step, ValueStatement } from './syntax/types.ts'
  * @import { _AccessFrame, _BodyFrame, _CallFrame, _ChainFrame, _ChainPart, _ConditionalFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _Parameter, _Ref, _Scope, _Stack, _State } from './private.ts'
@@ -771,8 +777,91 @@ const enter = (stack, scope, node) => {
     }
 }
 
+/** Whether a node is the reference `word` spells. @type {(node: Item, word: string) => boolean} */
+const isRef = (node, word) => node[0] === 'ref' && nameOf(node[1]) === word
+
 /**
- * A function entered: its body in a scope of its own inside `scope`, under
+ * Whether a node is `Object.getOwnPropertyDescriptor(a, b)`, the helper's
+ * descriptor, `a` and `b` the words its parameters bind: a plain call of
+ * a plain access, the key in either spelling, as any key is read,
+ * {@link keyNamed}.
+ *
+ * @type {(node: Node, a: string, b: string) => boolean}
+ */
+const isDescriptorOf = (node, a, b) => {
+    if (node[0] !== '()' || node[2].length !== 2) { return false }
+    const [, callee, [first, second]] = node
+    return callee[0] === '.' && callee.length === 3 && isRef(callee[1], 'Object') && keyNamed(callee[2]) === 'getOwnPropertyDescriptor'
+        && isRef(first, a) && isRef(second, b)
+}
+
+/**
+ * Whether a node is `x?.enumerable ? x.value : undefined`, the helper's
+ * entry, `x` the word its `const` binds: a guarded access and a plain one,
+ * each ending its chain there.
+ *
+ * @type {(node: Node, x: string) => boolean}
+ */
+const isEntryOf = (node, x) => {
+    if (node[0] !== '?:') { return false }
+    const [, condition, then, otherwise] = node
+    return condition[0] === '?.' && condition.length === 3 && isRef(condition[1], x) && keyNamed(condition[2]) === 'enumerable'
+        && then[0] === '.' && then.length === 3 && isRef(then[1], x) && keyNamed(then[2]) === 'value'
+        && otherwise[0] === 'primitive' && otherwise[1] === undefined
+}
+
+/**
+ * The `entry` helper, recognized whole
+ * ([spec: entry](../../../spec/README.md#reading-an-entry-at-run-time)):
+ *
+ * ```js
+ * (a, b) => {
+ *     const x = Object.getOwnPropertyDescriptor(a, b);
+ *     return x?.enumerable ? x.value : undefined;
+ * }
+ * ```
+ *
+ * under any three distinct names — the AST's `['entry']`, the one function
+ * whose body reads a property named at run time, and the one place the
+ * `Object` namespace stands. It is matched on the syntax tree with its
+ * names resolved by the rules every other body follows: the two
+ * parameters and the body's `const` are what the body reads back, and
+ * `Object` is the intrinsic only where no scope binds the word — a
+ * parameter, a `const` or the function's own name spelling `Object` is
+ * JavaScript's own reading, and no helper. `null` where the function is
+ * not the helper, by shape or by binding, and the ordinary resolution
+ * takes it from there, refusing the `Object` it cannot name; a keyword or
+ * a repeated name among the three is left to it the same way, to refuse
+ * as it refuses every other. An error where the helper's two statements
+ * break the line rules every block's statements keep, {@link unterminated}
+ * and {@link brokenLine}, which the shape alone cannot see.
+ *
+ * @type {(scope: _Scope, self: string | null, node: Extract<Node, readonly ['=>', ParameterList, Node]>) => Result<AstEntryFunction, ParseError> | null}
+ */
+const entryFunction = (scope, self, [, list, body]) => {
+    if (!(list instanceof Array) || list.length !== 2 || list.some(p => p.rest) || body[0] !== 'block' || body[1].length !== 2) { return null }
+    const first = body[1][0]
+    const last = body[1][1]
+    if (first[0] !== 'const' || last[0] !== 'return') { return null }
+    const [, declaration] = first
+    const [, returned] = last
+    const a = nameOf(list[0].name)
+    const b = nameOf(list[1].name)
+    const x = nameOf(declaration.name)
+    const names = [a, b, x]
+    if (new Set(names).size !== names.length || names.some(word => isKeyword(word) || word === 'Object')) { return null }
+    if (!isDescriptorOf(declaration.value, a, b) || !isEntryOf(returned.value, x) || self === 'Object' || resolve(scope, 'Object') !== null) { return null }
+    if (unterminated(declaration, returned)) { return error(unexpectedToken(returned.start)) }
+    if (brokenLine(returned)) { return error(unexpectedToken(returned.first)) }
+    /** @type {AstEntryFunction} */
+    const entry = ['entry']
+    return ok(entry)
+}
+
+/**
+ * A function entered: the `entry` helper where it is one,
+ * {@link entryFunction}, and otherwise its body in a scope of its own
+ * inside `scope`, under
  * its parameters and, where the function is the whole initializer of a
  * `const`, with that `const`'s name as its `self` — so a read of the name
  * in the body that no parameter or body `const` answers first is the
@@ -785,6 +874,9 @@ const enter = (stack, scope, node) => {
  * @type {(stack: _Stack, scope: _Scope, node: Extract<Node, readonly ['=>', ParameterList, Node]>, self: string | null) => _State}
  */
 const entered = (stack, scope, node, self) => {
+    // the helper first, whole: a function that is one has no body to resolve
+    const entry = entryFunction(scope, self, node)
+    if (entry !== null) { return [stack, scope, entry] }
     const [tag, bound] = functionScope(node[1])
     if (tag === 'error') { return [stack, scope, error(bound)] }
     const [names, count] = bound

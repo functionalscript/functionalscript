@@ -175,12 +175,12 @@ language step can be picked for what it unblocks:
 | --- | --- | --- |
 | Template literals | [`spec/todo/3440-template-literals.md`](../spec/todo/3440-template-literals.md) | function/operator, ci/package, ts, nanvm/methods, nanvm/member, style, demo/code, git/config, browser-source |
 | Destructuring | [`spec/todo/2450-destructuring.md`](../spec/todo/2450-destructuring.md) | structurally_same, result, function/operator, map, demo/examples, ts, git/config, nanvm/methods |
-| A runtime key, `a[i]` | the spec says "not recognized yet"; no `todo/` | structurally_same, function/operator, set, git/bytes, git/config, nanvm/methods, browser-source |
+| A runtime key that is a string, `a[k]` | in the language as the `entry` helper ([spec: entry](../spec/README.md#reading-an-entry-at-run-time)); the module rewrites `a[k]` as `entry(a, k)`, imported from [`fjs/js/entry`](../fjs/js/entry/module.f.js) | git/config, nanvm/methods |
+| A runtime key that is a number, `a[i]` | [`spec/todo/2330-property-accessor.md`](../spec/todo/2330-property-accessor.md): the EDAG's `['.', a, ['Number', i]]`, which the parser does not read yet; the module writes `a[Number(i)]`, or `a[+i]` where no `bigint` reaches it, not `entry`, once it lands | structurally_same, function/operator, set, git/bytes, browser-source |
 | Globals and built-ins | [`spec/todo/2365-global-names.md`](../spec/todo/2365-global-names.md), [`2360-built-in.md`](../spec/todo/2360-built-in.md) | structurally_same, array_index, ts, git/bytes, nanvm/methods, ci/package |
 | `new` with a built-in constructor | nothing proposes it | structurally_same, keywords, map, set, demo/examples |
 | `let`, reassignment, `while` | [`spec/todo/3220-let.md`](../spec/todo/3220-let.md); `while` is roadmap §3.2 | function, set, browser-source |
 | String escapes `\u{…}`, `\v`, `\0` | [`spec/todo/2460-js-string-literals.md`](../spec/todo/2460-js-string-literals.md) | nanvm/member, demo/code, git/config |
-
 | A non-terminating `if`, `break`, `continue` | roadmap §3.2, the guard's follow-ups; `break` and `continue` are `while`'s | set, browser-source |
 | `for … of` | nothing proposes it | result |
 | `instanceof` | nothing proposes it | structurally_same |

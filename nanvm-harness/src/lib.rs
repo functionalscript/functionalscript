@@ -22,6 +22,7 @@ pub mod fixtures {
     pub mod calls;
     pub mod closure;
     pub mod effect;
+    pub mod entry;
     pub mod escapes;
     pub mod exports;
     pub mod function;
@@ -183,11 +184,11 @@ mod tests {
     use crate::{
         Action, RunError,
         fixtures::{
-            arity, array, at, bigint, boolean, call, calls, closure, escapes, exports, function,
-            function_scope, function_text, lazy, length, method, missing, named, named_imports,
-            named_imports_throws, nested, not_a_function, nullish, number, object, object_spread,
-            operators, optional, parameters, property, recursion, rest, rest_function, sharing,
-            spread, string, throw, throws, to_string,
+            arity, array, at, bigint, boolean, call, calls, closure, entry, escapes, exports,
+            function, function_scope, function_text, lazy, length, method, missing, named,
+            named_imports, named_imports_throws, nested, not_a_function, nullish, number, object,
+            object_spread, operators, optional, parameters, property, recursion, rest,
+            rest_function, sharing, spread, string, throw, throws, to_string,
         },
         run,
     };
@@ -381,6 +382,17 @@ mod tests {
                 Ok(Nullish::Undefined.to_any())
             );
         }
+    }
+
+    /// The `entry` helper, end to end: compiled as `['entry']`, printed as
+    /// the static function answering `Any::entry`, and read, called and
+    /// passed as the function it is.
+    #[test]
+    fn entry_helper() {
+        assert_eq!(
+            run::<Naive>(entry::module, "default", Action::Read),
+            Ok(r#"[1,3,true,8,8,true,true,"a",true,true,2,"function",9,5,true,true]"#.into())
+        );
     }
 
     #[test]

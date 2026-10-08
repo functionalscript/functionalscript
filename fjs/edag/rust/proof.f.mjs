@@ -197,6 +197,15 @@ export const proof = {
         assertEq(printed(['=>', 0, [], ['undefined']]), 'function_any()')
         assertEq(printed(['*', 1, 2]), 'f64_any(0x3ff0000000000000) * f64_any(0x4000000000000000)')
     },
+    /**
+     * The `entry` helper as a value: the static function every function
+     * is, its body `Any::entry` of its two fixed arguments, under the text
+     * the writer gives the helper.
+     */
+    entry: () => {
+        assertEq(printed(['entry']), 'A::static_function(|_self, args| Any::entry(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), args.clone().into_iter().nth(1).unwrap_or_else(|| Nullish::Undefined.to_any())), 2, Array::default(), Some("($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}")).to_any()')
+        assertEq(printed(['()', ['entry'], [1, 2]]), 'Any::call(A::static_function(|_self, args| Any::entry(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), args.clone().into_iter().nth(1).unwrap_or_else(|| Nullish::Undefined.to_any())), 2, Array::default(), Some("($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}")).to_any(), [f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any())')
+    },
     /** A module scope and each nested body construct their own functions. */
     undefinedFunction: () => {
         const text = /** @type {const} */ ('A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, Array::default(), Some("()=>undefined")).to_any()')
@@ -898,6 +907,8 @@ export const proof = {
          * held; a primitive holds nothing.
          */
         holdsFunction: () => {
+            assertEq(holdsFunction(['entry']), true)
+            assertEq(holdsFunction(['[]', [['entry']]]), true)
             assertEq(holdsFunction(['=>', 0, [], 1]), true)
             assertEq(holdsFunction(['=>', 0, [1], 1]), true)
             assertEq(holdsFunction(['=>', 0, [], ['rest']]), true)

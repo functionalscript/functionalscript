@@ -826,7 +826,7 @@ mod tests {
         assert_eq!(o().typeof_(), Ok(s("object")));
         assert_eq!(o().logical_and(|| Ok(1.0.to_any())), Ok(1.0.to_any()));
         assert!(o().logical_or(|| Ok(1.0.to_any())).is_ok());
-        assert_eq!(o().own_property(s("a")), Ok(Nullish::Undefined.to_any()));
+        assert_eq!(o().entry(s("a")), Ok(Nullish::Undefined.to_any()));
         // `===` compares by identity.
         let x = o();
         assert!(x == x.clone());

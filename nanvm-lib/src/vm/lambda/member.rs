@@ -21,7 +21,7 @@ pub(crate) struct Member<A: IVm> {
 
 impl<A: IVm> Member<A> {
     /// The `.` node's own step: a nullish receiver throws the `TypeError`
-    /// `own_property` does — real JS's `[]` runs the same `ToObject`
+    /// `Any::entry` does — real JS's `[]` runs the same `ToObject`
     /// failure ahead of any key handling — and any other opens the step.
     pub(crate) fn new(receiver: Any<A>, key: Any<A>) -> Result<Self, Any<A>> {
         if let Unpacked::Nullish(_) = Unpacked::from(receiver.clone()) {
@@ -35,7 +35,7 @@ impl<A: IVm> Member<A> {
     /// its own `member_access` (`vm/array/member_access.rs`,
     /// `vm/string/member_access.rs`, `vm/object/member_access.rs`,
     /// `vm/function/member_access.rs` — a function's one property is its
-    /// `length`), the same split `own_property` has between its dispatcher
+    /// `length`), the same split `Any::entry` has between its dispatcher
     /// and `Object::own_property`. Every remaining receiver — `Number`,
     /// `Boolean`, `BigInt` — owns nothing. No prototype chain: a built-in
     /// member function is reachable through a call alone, never as a
