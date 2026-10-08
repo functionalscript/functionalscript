@@ -45,12 +45,17 @@ implementer's choice. An example:
 Input too long: more than 131072 UTF-8 bytes.
 ```
 
-**`digestOf` in [`../hash/module.f.mjs`](../hash/module.f.mjs) returns
-`string | null`**, `null` when the text is too long, the same convention as
-`tryUtf8`. (`digestOf` in `fjs/git/oid` is an unrelated byte-level helper and
-does not change.) `hashOutput` renders the refusal on `null`, and the `digest`
-the SHA-1 and SHA-2 demos re-export takes the same type. That covers SHA-1 and
-SHA-2 at once; HMAC and PoW each need their own call sites changed.
+**Every exported digest in these demos returns `string | null`**, `null` when
+the input is too long, the same convention as `tryUtf8`; the view renders the
+refusal on `null`. That is:
+
+- `digestOf` in [`../hash/module.f.mjs`](../hash/module.f.mjs), which
+  `hashOutput` builds on (`digestOf` in `fjs/git/oid` is an unrelated
+  byte-level helper and does not change);
+- the `digest` the SHA-1 and SHA-2 demos re-export from it;
+- HMAC's exported `digest`, `null` when the key or the message is too long.
+
+PoW exports no digest; its call sites are below.
 
 **PoW hashes in `update` too, not only in the view.** The `auto-run` and
 `auto-next` branches call `tried`, which hashes the input with the nonce
@@ -66,7 +71,8 @@ limit counts the nonce.
 
 - [ ] `digestOf` returns `string | null`; `hashOutput` and the SHA demos'
       `digest` follow
-- [ ] HMAC: refuse an oversized key or message
+- [ ] HMAC: `digest` returns `string | null`, `null` for an oversized key or
+      message, and the view refuses
 - [ ] PoW: refuse an oversized input with its nonce appended, in the view and
       in `tried`, so Auto-run and a search crossing the limit stop instead of
       throwing
