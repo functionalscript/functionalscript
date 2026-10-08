@@ -1,7 +1,7 @@
 ## union-fold. The TypeScript printer and the JSON Schema printer walk a union the same way
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
