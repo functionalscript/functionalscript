@@ -1416,12 +1416,20 @@ runtime arity no node expresses yet. Nor is the guarded call `Number?.(x)`,
 which is `Number(x)` in JavaScript, the word never being nullish: it is
 refused at the word (`reserved word`) as every other spelling of `Number`
 but the call is, until a pull request reads the guard away, a spelling no
-module writes. Reserving the word is what keeps the two
-languages reading one program alike: a JavaScript module that binds `Number`
-shadows the global, so `const Number = 1;` makes `Number(x)` the call of `1`
-and `const n = Number(5); const Number = 1;` a read in the binding's temporal
-dead zone, each a failure there, where a refusal here says so at compile time
-([principles](#principles)).
+module writes.
+
+The word is reserved for the guarantee `undefined`, `NaN` and `Infinity`
+already have ([numbers](#numbers)): a global word means one thing wherever
+it stands. `Number(x)` is the conversion in every module, so a reader, an
+agent or a tool reads it without resolving a scope, where a JavaScript module
+that binds the word — `const Number = x => x;`, the shadowing JavaScript's
+linters flag — makes every `Number(…)` after it something else. And it keeps
+the language free to grow: a member of the namespace admitted later,
+`Number.isInteger` ([built-ins](./todo/2360-built-in.md)), cannot change
+what an existing module means, since no module could have bound the word
+([global names](./todo/2365-global-names.md)). The one JavaScript spelling it
+costs, a module rebinding a standard global, is refused at compile time
+rather than read another way.
 
 It is also the one key computed at run time, `a[Number(i)]`
 ([property access](#property-access)).
