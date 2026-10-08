@@ -126,91 +126,106 @@ contract and migration strategy.
 
 #### What the next rename waits on
 
-Measured at `89a12ea`, the branch of
-[#2641](https://github.com/functionalscript/functionalscript/pull/2641),
-shorthand members, with `main` at `4c67d6f` merged in:
-every `.f.mjs` that imports no other `.f.mjs` is a *leaf*, the only module a
-rename can start from, and `fjs compile` was run on each. The compiler stops
-at its first refusal, so one refusal per row is the compiler's and the rest
-of the row is a reading of the module. "Behind it" counts the non-proof
-runtime modules that import the leaf, directly or not — what a leaf's rename
-opens up, since a proof stays `proof.f.mjs` whatever its module is named
+Measured at `4c8ec55`, the head of `main`: every `.f.mjs` that imports no
+other `.f.mjs` is a *leaf*, the only module a rename can start from, and
+`fjs compile` was run on each. The compiler stops at its first refusal, so one
+refusal per row is the compiler's and the rest of the row is a reading of the
+module, each item confirmed against the compiler with a one-line module.
+"Behind it" counts the non-proof `.f.mjs` and `.f.js` modules that import the
+leaf, directly or not — what a leaf's rename opens up, since a proof stays
+`proof.f.mjs` whatever its module is named
 ([`fjs/compiler/README.md`](../fjs/compiler/README.md)).
 
 | Leaf | Behind it | The compiler refuses |
 | --- | ---: | --- |
-| `fjs/types/object/structurally_same` | 234 | destructuring (`const { entries, is } = Object`, `([k, v]) =>`), the `Object` global, `instanceof`, `new Map`, a runtime key `b[i]`|
-| `fjs/types/function` | 226 | `let`, reassignment and `while`, all inside `iterate` |
-| `fjs/types/function/operator` | 223 | template literals, destructured `const`s and parameters, runtime keys `steps[i]` and `prior[i]`|
-| `fjs/types/result` | 156 | `for … of` in `okList`, destructured parameters |
-| `fjs/js/array_index` | 56 | the `Number` and `String` globals |
-| `fjs/js/keywords` | 31 | `new Set` |
-| `fjs/types/set` | 30 | `let`, reassignment, `+=`, `while` with `break`, `new Set`, a runtime key `set[i]` |
-| `fjs/types/map` | 26 | `new Map`, a destructured parameter |
-| `fjs/website/demo/examples` | 21 | `new Set`, destructured parameters |
-| `fjs/ci/package` | 7 | template literals, `new Error`, globals |
+| `fjs/types/object/structurally_same` | 227 | destructuring (`const { entries, is } = Object`, `([k, v]) =>`), the `Object` global, `instanceof`, `new Map`, a runtime key `b[i]` |
+| `fjs/types/function` | 219 | `let`, reassignment and `while`, all inside `iterate` |
+| `fjs/types/function/operator` | 216 | template literals, destructured `const`s and parameters, runtime keys `steps[i]` and `prior[i]` |
+| `fjs/types/result` | 148 | `for … of` in `okList`, destructured parameters |
+| `fjs/js/array_index` | 55 | the `Number` and `String` globals |
+| `fjs/js/keywords` | 30 | `new Set` |
+| `fjs/types/set` | 29 | `let`, reassignment, `+=`, `while` with `break`, `new Set`, a runtime key `set[i]` |
+| `fjs/types/map` | 25 | `new Map`, a destructured parameter |
+| `fjs/website/demo/examples` | 22 | `new Set`, destructured parameters |
+| `fjs/ci/package` | 6 | template literals, the `JSON` global |
 | `fjs/git/bytes` | 5 | a runtime key `b[at]`, `Number.isSafeInteger` |
+| `fjs/website/demo/code` | 5 | template literals, a `'\0'` escape |
 | `fjs/website/style` | 5 | template literals, and nothing else |
-| `fjs/website/demo/code` | 4 | template literals, a `'\0'` escape |
-| `fjs/nanvm/member` | 3 | `\u{…}` escapes, template literals, destructuring |
-| `fjs/git/config` | 1 | `\v` and `\f` escapes, destructuring, a non-terminating `if`, runtime keys, template literals |
-| `fjs/nanvm/methods` | 1 | template literals, destructuring, the `Object` global |
-| `fjs/types/ts` | 2 | template literals, destructured parameters, `switch`, a default parameter, globals |
-| `fjs/website/browser-source` | 1 | `let`, `+=`, `while` with `break`, a non-terminating `if`, runtime keys |
+| `fjs/nanvm/member` | 3 | `\u{…}` escapes, template literals |
+| `fjs/types/ts` | 2 | template literals, destructured parameters, `switch`, a default parameter, the `JSON`, `isFinite` and `String` globals |
+| `fjs/git/config` | 1 | `\v` and `\0` escapes, destructuring, runtime keys `escapes[c]` and `prefixes[…]`, optional chaining `body[1]?.toLowerCase()`, `toLowerCase` itself (a prohibited member function), template literals |
+| `fjs/nanvm/methods` | 1 | template literals, destructuring, the `Object` global, a runtime key `p[type]` |
+| `fjs/website/browser-source` | 1 | `let`, `+=`, `while` with `break` and `continue`, a non-terminating `if`, runtime keys, optional chaining `previous?.kind`, template literals |
+
+Since the previous measurement, at `89a12ea` with `main` at `4c67d6f`, the
+leaves are the same eighteen and the compiler has moved on two of them:
+`\f` is JSON's escape and compiles, so `git/config` no longer waits on it,
+and `git/config`'s every `if` terminates, so the non-terminating `if` holds
+`browser-source` alone. Three readings also changed: `ci/package`'s
+`new Error` is text inside a template literal, not code; `nanvm/member`
+destructures nothing; and optional chaining, `?.`, which two leaves use, was
+not read before.
 
 The same rows by feature, each with where the feature is tracked, so a
 language step can be picked for what it unblocks:
 
 | Feature | Tracked in | Leaves it holds |
 | --- | --- | --- |
-| Destructuring | [`spec/todo/2450-destructuring.md`](../spec/todo/2450-destructuring.md) | structurally_same, result, function/operator, map, demo/examples, ci/package, nanvm/member, ts, git/config, nanvm/methods |
-| `let`, reassignment, `while` | [`spec/todo/3220-let.md`](../spec/todo/3220-let.md); `while` is roadmap §3.2 | function, set, browser-source |
+| Template literals | [`spec/todo/3440-template-literals.md`](../spec/todo/3440-template-literals.md) | function/operator, ci/package, ts, nanvm/methods, nanvm/member, style, demo/code, git/config, browser-source |
+| Destructuring | [`spec/todo/2450-destructuring.md`](../spec/todo/2450-destructuring.md) | structurally_same, result, function/operator, map, demo/examples, ts, git/config, nanvm/methods |
+| A runtime key, `a[i]` | the spec says "not recognized yet"; no `todo/` | structurally_same, function/operator, set, git/bytes, git/config, nanvm/methods, browser-source |
 | Globals and built-ins | [`spec/todo/2365-global-names.md`](../spec/todo/2365-global-names.md), [`2360-built-in.md`](../spec/todo/2360-built-in.md) | structurally_same, array_index, ts, git/bytes, nanvm/methods, ci/package |
-| Template literals | [`spec/todo/3440-template-literals.md`](../spec/todo/3440-template-literals.md) | function/operator, ci/package, ts, nanvm/methods, nanvm/member, style, demo/code, git/config |
-| `new` with a built-in constructor | nothing proposes it | structurally_same, keywords, map, set, demo/examples, ci/package |
-| A runtime key, `a[i]` | the spec says "not recognized yet"; no `todo/` | structurally_same, function/operator, set, git/bytes, browser-source, git/config |
+| `new` with a built-in constructor | nothing proposes it | structurally_same, keywords, map, set, demo/examples |
+| `let`, reassignment, `while` | [`spec/todo/3220-let.md`](../spec/todo/3220-let.md); `while` is roadmap §3.2 | function, set, browser-source |
+| String escapes `\u{…}`, `\v`, `\0` | [`spec/todo/2460-js-string-literals.md`](../spec/todo/2460-js-string-literals.md) | nanvm/member, demo/code, git/config |
+| Optional chaining, `?.` | nothing proposes it; [`fjs/compiler/todo/compile-modules-to-edag.md`](../fjs/compiler/todo/compile-modules-to-edag.md) plans its lowering | git/config, browser-source |
+| A non-terminating `if`, `break`, `continue` | roadmap §3.2, the guard's follow-ups; `break` and `continue` are `while`'s | set, browser-source |
 | `for … of` | nothing proposes it | result |
 | `instanceof` | nothing proposes it | structurally_same |
-| A non-terminating `if`, `break` | roadmap §3.2, the guard's follow-ups; `break` is `while`'s | set, git/config, browser-source |
-| String escapes `\u{…}`, `\v`, `\f`, `\0` | [`spec/todo/2460-js-string-literals.md`](../spec/todo/2460-js-string-literals.md) | nanvm/member, demo/code, git/config |
 | `switch`, a default parameter | neither proposed; the parameter is roadmap §3.1 | ts |
+| A prohibited member function, `toLowerCase` | [`fjs/js/prototype`](../fjs/js/prototype/module.f.js)'s `prohibitedCalls`; the module rewrites, not the language | git/config |
 
-A leaf renames only when every feature it uses has landed, and two wait on
+A leaf renames only when every feature it uses has landed, and three wait on
 one feature alone: `style` on template literals, `array_index` on the
-`Number` and `String` globals. Of the four root modules nearly everything
-imports, `structurally_same` waits on five features, and `function/operator`
-on three. `iterate` in `function` could lose its loop today, which would
-leave that module on nothing — `let`, reassignment and `while` are all
-inside `iterate`, and the shorthand `fn` returns, `{ result, map }`, is in
-the language ([objects](../spec/README.md#objects)) — the one rename no
-language step gates. `okList` in `result` could lose its `for … of` the
-same way, but `unwrap` and `invert` take destructured parameters, so that
-root waits on destructuring either way, which holds ten leaves, more than
-any other feature.
+`Number` and `String` globals, `keywords` on `new Set`. Of the four root
+modules nearly everything imports, `structurally_same` waits on five
+features, and `function/operator` on three. `iterate` in `function` could
+lose its loop today, which would leave that module on nothing — `let`,
+reassignment and `while` are all inside `iterate`, and the shorthand `fn`
+returns, `{ result, map }`, is in the language
+([objects](../spec/README.md#objects)) — the one rename no language step
+gates. `okList` in `result` could lose its `for … of` the same way, but
+`unwrap` and `invert` take destructured parameters, so that root waits on
+destructuring either way. Template literals hold nine leaves and
+destructuring eight, more than any other feature.
 
 #### The whole repository
 
 The same loop over every authored module, not only the leaves, measured at
-`8f78921`, the same branch with `main` at `0882d09` merged in: of 227
-modules — 221 `module.f.mjs` and 6 `module.f.js` — the 6 `.f.js` compile
-and every `.f.mjs` stops at its first refusal. The table counts that first
-refusal only, read at the token the compiler names, so it says which feature
-to settle first, not how much each costs; a refusal the compiler meets in an
-import is counted under the import's feature, 17 of the rows' members.
+the same `4c8ec55`: of 228 modules — 222 `module.f.mjs` and 6 `module.f.js`
+— the 6 `.f.js` compile and every `.f.mjs` stops at its first refusal. The
+table counts that first refusal only, read at the token the compiler names,
+so it says which feature to settle first, not how much each costs; a refusal
+the compiler meets in an import is counted under the import's feature, 17 of
+the rows' members.
 
 | Modules | First refusal |
 | ---: | --- |
-| 93 | a template literal |
+| 94 | a template literal |
 | 47 | destructuring, a `const` or a parameter |
-| 23 | `let`, `for`, `switch`, `while`, or an `if` with no block |
+| 23 | `let`, `for`, `switch`, or an `if` with no block |
 | 13 | a computed member or key, `a[i]`, `{ [k]: v }` |
-| 10 | an escape in a single-quoted string, `'\x07'`, `'\b'` |
+| 10 | an escape in a single-quoted string, `'\x07'`, `'\0'` |
 | 9 | a call as a statement, `assert(…)` |
 | 8 | `const not found`: three reads of a later `const` ([`3140`](../spec/todo/3140-forward-references.md)), five of `Number` or `Boolean` ([`2365`](../spec/todo/2365-global-names.md)) |
 | 5 | `new Set`, `new Map` |
 | 5 | `instanceof` |
-| 5 | `export { … } from` |
+| 5 | `export { … }`, with and without `from` |
 | 3 | one each: a reassignment, `in`, a default parameter |
+
+The count at `8f78921`, with `main` at `0882d09` merged in, was the same
+table over 227 modules with 93 template literals: one module was added and
+nothing else moved.
 
 Template literals are the first refusal of two modules in five, almost all
 of them error messages and `assert` texts, and they are a feature with open
