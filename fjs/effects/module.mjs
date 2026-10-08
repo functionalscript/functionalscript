@@ -10,7 +10,6 @@
 
 import { ioError, match, notImplemented, partialMatch, toIoError } from './module.f.mjs'
 import { error } from '../types/result/module.f.mjs'
-import { tryCatch } from '../types/result/module.mjs'
 
 /**
  * The message of a thrown value that could not be read: one whose own code
@@ -54,8 +53,13 @@ export const _readThrown = e => {
  * @type {(e: unknown) => IoError}
  */
 export const _describeThrown = e => {
-    const r = tryCatch(() => _readThrown(e))
-    return r[0] === 'ok' ? toIoError(r[1]) : ioError({ message: _unreadableThrownValue })
+    // A plain `catch`, not `tryCatch`: what the value's own code threw stays
+    // here and never reaches a FunctionalScript function, not even `error`.
+    try {
+        return toIoError(_readThrown(e))
+    } catch {
+        return ioError({ message: _unreadableThrownValue })
+    }
 }
 
 /**
