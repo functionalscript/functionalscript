@@ -23,6 +23,7 @@
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
  */
 
+import { codeMarker } from '../../website/style/module.f.mjs'
 import { parse, stringify } from './module.f.mjs'
 import { mapOk } from '../../types/result/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
@@ -55,6 +56,6 @@ export const demo = textDemo({
 })(text => {
     const [kind, value] = roundTrip(text)
     return kind === 'ok'
-        ? [caption('Parsed, then written back:'), ['pre', { 'data-code': '' }, value]]
+        ? [caption('Parsed, then written back:'), ['pre', { [codeMarker]: '' }, value]]
         : [refusal(value)]
 })

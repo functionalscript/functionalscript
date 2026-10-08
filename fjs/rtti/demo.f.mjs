@@ -60,6 +60,7 @@
  * @import { Const, DemoExample, DemoSchema, DemoState, Type, _Answer } from './types.ts'
  */
 
+import { codeMarker, resultMarker } from '../website/style/module.f.mjs'
 import { array, boolean, number, open, option, or, record, rest, string, unknown } from './module.f.mjs'
 import { structSchemaEntries, tupleSchemaEntries } from './common/module.f.mjs'
 import { parse } from './parse/module.f.mjs'
@@ -578,7 +579,7 @@ export const _compare = (a, b) => {
  */
 const answerView = (label, ok, text) => [
     caption(`${label} · ${ok ? 'ok' : 'error'}`),
-    ['pre', { 'data-result': ok ? 'ok' : 'error' }, text],
+    ['pre', { [resultMarker]: ok ? 'ok' : 'error' }, text],
 ]
 
 /** @type {(e: DemoExample, picked: DemoExample) => Element} */
@@ -628,8 +629,8 @@ const packageName = 'functionalscript'
  * @type {(s: DemoSchema) => Element}
  */
 const codeView = s => s.module === undefined
-    ? ['pre', { 'data-code': '' }, s.source]
-    : ['pre', { 'data-code': '' },
+    ? ['pre', { [codeMarker]: '' }, s.source]
+    : ['pre', { [codeMarker]: '' },
         `import { ${s.source} } from `,
         ['a', { href: pageHref(s.module) }, `'${packageName}/${s.module}/module.f.mjs'`],
     ]
@@ -655,10 +656,10 @@ const outputsView = s => {
     const o = _outputsOf(s.schema)
     return [
         caption('TypeScript:'),
-        ['pre', { 'data-code': '' }, o.ts],
+        ['pre', { [codeMarker]: '' }, o.ts],
         caption('JSON Schema:'),
-        ['pre', { 'data-code': '' }, o.jsonSchema],
-        ['details', ['summary', 'Canonical form (toData)'], ['pre', { 'data-code': '' }, o.data]],
+        ['pre', { [codeMarker]: '' }, o.jsonSchema],
+        ['details', ['summary', 'Canonical form (toData)'], ['pre', { [codeMarker]: '' }, o.data]],
     ]
 }
 
@@ -689,7 +690,7 @@ const compareView = (s, compare) => {
         ],
         ...(c === undefined ? [] : /** @type {readonly Element[]} */ ([
             ['p', c.verdict],
-            ['pre', { 'data-code': '' }, c.calls],
+            ['pre', { [codeMarker]: '' }, c.calls],
         ])),
     ]
 }
@@ -715,7 +716,7 @@ const valueView = (s, text) => {
                 ...answerView('validate', r.validate.ok, r.validate.text),
                 ...(r.validate.path === undefined ? [] : /** @type {readonly Element[]} */ ([
                     caption('Where:'),
-                    ['pre', { 'data-code': '' }, ..._marked(r.validate.path)(r.value)],
+                    ['pre', { [codeMarker]: '' }, ..._marked(r.validate.path)(r.value)],
                 ])),
             ]),
     ]

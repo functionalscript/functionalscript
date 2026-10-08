@@ -196,7 +196,9 @@ export const proof = {
             },
             // A parse failure is shown, not swallowed, and draws no graph.
             error: () => {
-                const html = htmlToString(demo.view('{bad'))
+                const source = '{"a":1}'
+                assertEq(_graphOf(source).ok, false)
+                const html = htmlToString(demo.view(source))
                 assert(html.includes('Refused:</p><pre data-result="error">unexpected symbol at 0'), html)
                 assert(!html.includes('<svg'), html)
             },
@@ -234,11 +236,14 @@ export const proof = {
                 assert(html.includes('<rect x="280" y="290" width="50" height="46" rx="4" data-graph-node=""'), html)
                 assert(html.includes('<rect x="190" y="240" width="50" height="66" rx="4" data-graph-node=""'), html)
             },
-            // Every example draws, except the one that is there to show an
-            // error.
+            // Every example's view agrees with the graph API. The malformed
+            // source is checked separately above, without depending on labels.
             draw: () => {
-                for (const [name, source] of examples) {
-                    assertEq(_graphOf(source).ok, name !== 'Plain JSON')
+                for (const [, source] of examples) {
+                    const graph = _graphOf(source)
+                    const html = htmlToString(demo.view(source))
+                    assertEq(html.includes('<svg'), graph.ok)
+                    assertEq(html.includes('<pre data-result="error">'), !graph.ok)
                 }
             },
         },

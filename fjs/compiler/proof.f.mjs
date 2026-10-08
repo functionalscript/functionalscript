@@ -1234,7 +1234,8 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             assert(shown.includes('<h3>.rs</h3>'), shown)
             assert(shown.includes('<pre data-code="">'), shown)
             const refused = htmlToString(demo.view('export default {bad'))
-            assert(refused.includes('Refused:</p><pre data-result="error">'), refused)
+            assert(refused.includes('Refused:</p><pre data-result="error">unexpected end</pre>'), refused)
+            assert(!refused.includes(' - error:'), refused)
         },
     },
 }

@@ -13,7 +13,11 @@
  * when it runs is refused by every value output while the source and Rust
  * ones carry it unevaluated.
  *
- * **A refusal is a pane's content, in the compiler's own words.** An empty
+ * **Syntax refusals use the parser's own message**, without the CLI's file
+ * and severity prefix. Other compiler-stage refusals retain the unedited CLI
+ * diagnostic, whose file information is part of the command's answer.
+ *
+ * **A refusal is a pane's content, in the module's own words.** An empty
  * box would be the plausible wrong answer
  * [DESIGN.md §10](../../doc/DESIGN.md#10-refuse-what-you-cannot-handle) rules
  * out, and what an output will not spell is half of what it is.
@@ -30,6 +34,7 @@
  * @import { Result } from '../types/result/types.ts'
  */
 
+import { codeMarker } from '../website/style/module.f.mjs'
 import { exitCode } from '../effects/node/module.f.mjs'
 import { emptyState, nodeProgramOptions, virtual } from '../effects/node/virtual/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
@@ -37,6 +42,7 @@ import { error, ok } from '../types/result/module.f.mjs'
 import { textDemo, refusal } from '../website/demo/module.f.mjs'
 import { examples } from './examples/module.f.js'
 import { compile } from './module.f.mjs'
+import { parse } from './transpiler/module.f.mjs'
 
 /**
  * The outputs, each under the file name that selects its language: what a
@@ -73,7 +79,12 @@ export const demo = textDemo({
     label: 'Source',
     init: examples[0][1],
     examples,
-})(text => outputs.map(([label, outputFileName]) => {
-    const [kind, value] = _compiled(text)(outputFileName)
-    return ['section', ['h3', label], kind === 'ok' ? ['pre', { 'data-code': '' }, value] : refusal(value)]
-}))
+})(text => {
+    const parsed = parse('')(text)
+    return outputs.map(([label, outputFileName]) => {
+        const [kind, value] = parsed[0] === 'error'
+            ? error(parsed[1].message)
+            : _compiled(text)(outputFileName)
+        return ['section', ['h3', label], kind === 'ok' ? ['pre', { [codeMarker]: '' }, value] : refusal(value)]
+    })
+})

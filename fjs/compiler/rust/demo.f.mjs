@@ -21,6 +21,7 @@
  * @import { Result } from '../../types/result/types.ts'
  */
 
+import { codeMarker } from '../../website/style/module.f.mjs'
 import { parse } from '../transpiler/module.f.mjs'
 import { unresolved } from '../edag/module.f.mjs'
 import { error } from '../../types/result/module.f.mjs'
@@ -48,6 +49,6 @@ export const demo = textDemo({
 })(text => {
     const [kind, value] = _rustOf(text)
     return kind === 'ok'
-        ? [caption('Rust module:'), ['pre', { 'data-code': '' }, value]]
+        ? [caption('Rust module:'), ['pre', { [codeMarker]: '' }, value]]
         : [refusal(value)]
 })

@@ -27,6 +27,7 @@
  * @import { DemoState, DemoRun, DemoVerdict } from './types.ts'
  */
 
+import { resultMarker } from '../../website/style/module.f.mjs'
 import { p, sloth } from './module.f.mjs'
 import { tryUtf8 } from '../../text/module.f.mjs'
 import { digitsValue, hexDigitValue } from '../../text/ascii/module.f.mjs'
@@ -100,7 +101,7 @@ const toggle = state => {
 }
 
 /** @type {(message: string) => readonly Element[]} */
-const refusal = message => [['p', { role: 'status', 'data-result': 'error' }, message]]
+const refusal = message => [['p', { role: 'status', [resultMarker]: 'error' }, message]]
 
 /** @type {(run: DemoRun | null) => readonly Element[]} */
 const progress = run =>
@@ -131,8 +132,8 @@ const verdictView = ({ verdict, steps }) =>
             : verdict === 'notHex' ? refusal('Enter y as hexadecimal digits.')
                 : verdict === 'notBelowP' ? refusal('y must be less than the modulus p.')
                     : verdict === 'verified'
-                        ? [['p', { role: 'status', 'data-result': 'ok' }, `✓ y verifies: squaring it ${steps} times returns x, up to sign.`]]
-                        : [['p', { role: 'status', 'data-result': 'error' }, '✗ y does not verify for this x and number of steps.']]
+                        ? [['p', { role: 'status', [resultMarker]: 'ok' }, `✓ y verifies: squaring it ${steps} times returns x, up to sign.`]]
+                        : [['p', { role: 'status', [resultMarker]: 'error' }, '✗ y does not verify for this x and number of steps.']]
 
 /** `x` in hex, or the refusal of a text too long to hash.
  * @type {(x: bigint | null) => readonly Element[]}

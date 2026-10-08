@@ -23,6 +23,7 @@
  * @import { DjsTokenWithMetadata } from './types.ts'
  */
 
+import { codeMarker } from '../../website/style/module.f.mjs'
 import { stringToList } from '../../text/utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { textDemo, caption } from '../../website/demo/module.f.mjs'
@@ -57,5 +58,5 @@ export const demo = textDemo({
     examples,
 })(text => [
     caption('Tokens, line:column, kind and value:'),
-    ['pre', { 'data-code': '' }, _tokensOf(text)],
+    ['pre', { [codeMarker]: '' }, _tokensOf(text)],
 ])

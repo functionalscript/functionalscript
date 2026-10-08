@@ -32,7 +32,7 @@
 import { at } from '../../types/object/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
 import { examplePicker, name as exampleName } from './examples/module.f.mjs'
-import { captionMarker } from '../style/module.f.mjs'
+import { captionMarker, resultMarker } from '../style/module.f.mjs'
 
 /**
  * A demo whose state is the text in a labelled textarea, followed by what
@@ -86,9 +86,9 @@ export const caption = text => ['p', { [captionMarker]: '' }, text]
 /** A module refusal: its caption and its unchanged message in a verdict box.
  * @type {(message: string) => Element}
  */
-export const refusal = message => ['div',
+export const refusal = message => ['div', { role: 'status' },
     caption('Refused:'),
-    ['pre', { 'data-result': 'error' }, message],
+    ['pre', { [resultMarker]: 'error' }, message],
 ]
 
 /** Update an existing string field; unrelated events keep the state.

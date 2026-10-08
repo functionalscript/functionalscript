@@ -22,6 +22,7 @@
  * @import { Result } from '../../types/result/types.ts'
  */
 
+import { codeMarker } from '../../website/style/module.f.mjs'
 import { tryStringify } from '../../media/datajs/module.f.mjs'
 import { error } from '../../types/result/module.f.mjs'
 import { textDemo, refusal, caption } from '../../website/demo/module.f.mjs'
@@ -47,6 +48,6 @@ export const demo = textDemo({
 })(text => {
     const [kind, value] = _astOf(text)
     return kind === 'ok'
-        ? [caption('Abstract syntax tree, DataJS:'), ['pre', { 'data-code': '' }, value]]
+        ? [caption('Abstract syntax tree, DataJS:'), ['pre', { [codeMarker]: '' }, value]]
         : [refusal(value)]
 })

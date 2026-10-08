@@ -6,7 +6,7 @@ import { parse, setProperty, stringify } from './module.f.mjs'
 import { demo, roundTrip } from './demo.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
 import { identity } from '../../types/function/module.f.mjs'
-import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertNotNullish, assertError } from '../../asserts/module.f.mjs'
 import { htmlToString } from '../html/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
@@ -97,7 +97,7 @@ export const proof = {
                 unwrap(roundTrip('{\n  "b": 2,\n  "a": [3, 2, 1],\n  "c": "hello"\n}')),
                 '{"a":[3,2,1],"b":2,"c":"hello"}')
             // A parse failure is shown, not swallowed.
-            assertEq(JSON.stringify(roundTrip('{')), JSON.stringify(['error', 'unexpected end']))
+            assertEq(assertError(roundTrip('{')), 'unexpected end')
         },
         // Typing replaces the text; every other event leaves it alone, which
         // is what `start` is for — a first render with nothing typed yet.

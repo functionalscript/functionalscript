@@ -2,6 +2,7 @@
  * @import { DemoEvent } from './types.ts'
  */
 
+import { codeMarker, resultMarker, stylesheet } from '../style/module.f.mjs'
 import { textDemo, textField, inputField, fieldUpdate, caption, refusal } from './module.f.mjs'
 import { name as exampleName } from './examples/module.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
@@ -20,8 +21,14 @@ const next = demo => state => event => unwrap(assertNotNullish(
     'expected the demo to reach a value without asking for an operation'))
 
 export const proof = {
+    markers: () => {
+        assertEq(codeMarker, 'data-code')
+        assertEq(resultMarker, 'data-result')
+        assert(stylesheet.includes('[data-code], [data-result]'), 'output box selectors')
+        assert(stylesheet.includes('[data-result="error"]'), 'refusal verdict selector')
+    },
     refusal: () => assertEq(htmlToString(refusal('Unexpected <token> & input\nnext line')),
-        '<!DOCTYPE html><div><p data-caption="">Refused:</p><pre data-result="error">Unexpected &lt;token&gt; &amp; input\nnext line</pre></div>'),
+        '<!DOCTYPE html><div role="status"><p data-caption="">Refused:</p><pre data-result="error">Unexpected &lt;token&gt; &amp; input\nnext line</pre></div>'),
     caption: () => assertEq(htmlToString(caption('Hash, hex:')),
         '<!DOCTYPE html><p data-caption="">Hash, hex:</p>'),
     inputField: () => {
