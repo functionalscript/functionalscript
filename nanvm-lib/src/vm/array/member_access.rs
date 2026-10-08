@@ -2,7 +2,7 @@ use super::Array;
 use crate::{
     common::sized_index::SizedIndex,
     vm::{
-        Any, IVm, Number, ToAny, Unpacked,
+        Any, IVm, Number, String, ToAny, Unpacked,
         member_access::{LENGTH, canonical_index, string_to_index},
     },
 };
@@ -12,7 +12,7 @@ impl<A: IVm> Array<A> {
     /// canonical decimal string — reads the element, the string key
     /// `"length"` reads the length, and every other key is `None` — for
     /// the caller (`Any::dot`) to turn into `undefined`, the same
-    /// contract `Object::own_property` has for `Any::own_property`.
+    /// contract `Object::own_property` has for `Any::entry`.
     ///
     /// Never panics on an out-of-range index: `index < len` is checked
     /// before indexing, so `Array`'s own `Index<u32>` (which still panics
@@ -23,22 +23,30 @@ impl<A: IVm> Array<A> {
     /// never through a number, the way JS itself never lets
     /// `array[array.length]` collide with `array["length"]`.
     pub(crate) fn member_access(&self, key: Any<A>) -> Option<Any<A>> {
-        let len = self.length();
         match Unpacked::from(key) {
             Unpacked::Number(n) => canonical_index(n)
-                .filter(|&i| i < len)
+                .filter(|&i| i < self.length())
                 .map(|i| self[i].clone()),
             Unpacked::String(s) => {
                 if s.is_str(LENGTH) {
-                    Some(Number::from(len).to_any())
+                    Some(Number::from(self.length()).to_any())
                 } else {
-                    string_to_index(&s)
-                        .filter(|&i| i < len)
-                        .map(|i| self[i].clone())
+                    self.entry(&s)
                 }
             }
             _ => None,
         }
+    }
+
+    /// The element a canonical index string names, `self["0"]`,
+    /// `self["1"]`, …, in bounds: the one kind of own property an array
+    /// enumerates, and so what the `entry` helper (`Any::entry`) reads of
+    /// one — `.length` is own but not enumerable, and `member_access`
+    /// alone answers it.
+    pub(crate) fn entry(&self, key: &String<A>) -> Option<Any<A>> {
+        string_to_index(key)
+            .filter(|&i| i < self.length())
+            .map(|i| self[i].clone())
     }
 }
 
@@ -132,5 +140,15 @@ mod tests {
     fn unrelated_key_is_none() {
         let a = array([10.0]);
         assert_eq!(a.member_access(true.to_any()), None);
+    }
+
+    /// An entry is an element and never the length.
+    #[test]
+    fn entry_reads_element_not_length() {
+        let a = array([10.0, 20.0]);
+        assert_eq!(a.entry(&"1".into()), Some(20.0.to_any()));
+        assert_eq!(a.entry(&"2".into()), None);
+        assert_eq!(a.entry(&"01".into()), None);
+        assert_eq!(a.entry(&"length".into()), None);
     }
 }

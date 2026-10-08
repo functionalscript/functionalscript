@@ -9,6 +9,7 @@ pub mod call;
 pub mod calls;
 pub mod closure;
 pub mod effect;
+pub mod entry;
 pub mod escapes;
 pub mod exports;
 pub mod function;

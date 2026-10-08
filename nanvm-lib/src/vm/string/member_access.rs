@@ -27,22 +27,30 @@ impl<A: IVm> String<A> {
     /// never through a number, the way JS itself never lets
     /// `string[string.length]` collide with `string["length"]`.
     pub(crate) fn member_access(&self, key: Any<A>) -> Option<Any<A>> {
-        let len = self.length();
         match Unpacked::from(key) {
             Unpacked::Number(n) => canonical_index(n)
-                .filter(|&i| i < len)
+                .filter(|&i| i < self.length())
                 .map(|i| [self[i]].to_string::<A>().to_any()),
             Unpacked::String(s) => {
                 if s.is_str(LENGTH) {
-                    Some(Number::from(len).to_any())
+                    Some(Number::from(self.length()).to_any())
                 } else {
-                    string_to_index(&s)
-                        .filter(|&i| i < len)
-                        .map(|i| [self[i]].to_string::<A>().to_any())
+                    self.entry(&s)
                 }
             }
             _ => None,
         }
+    }
+
+    /// The code unit a canonical index string names, `self["0"]`,
+    /// `self["1"]`, …, in bounds, as a one-unit `String<A>`: the one kind
+    /// of own property a string enumerates, and so what the `entry` helper
+    /// (`Any::entry`) reads of one — `.length` is own but not enumerable,
+    /// and `member_access` alone answers it.
+    pub(crate) fn entry(&self, key: &String<A>) -> Option<Any<A>> {
+        string_to_index(key)
+            .filter(|&i| i < self.length())
+            .map(|i| [self[i]].to_string::<A>().to_any())
     }
 }
 
@@ -132,6 +140,15 @@ mod tests {
     fn unrelated_key_is_none() {
         let s = string("a");
         assert_eq!(s.member_access(true.to_any()), None);
+    }
+
+    /// An entry is a code unit and never the length.
+    #[test]
+    fn entry_reads_code_unit_not_length() {
+        let s = string("ab");
+        assert_eq!(s.entry(&"1".into()), Some(string("b").to_any()));
+        assert_eq!(s.entry(&"2".into()), None);
+        assert_eq!(s.entry(&"length".into()), None);
     }
 
     /// A lone unpaired surrogate is a legal (if unpaired) UTF-16 code unit

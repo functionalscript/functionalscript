@@ -146,9 +146,9 @@ function: an invocation holds only the entries of its own body's scope. The
 table names its operands by index, so the interpreter runs the table and never
 walks the EDAG's objects.
 Memo and Amnesia share represented operations, differing in how operands are
-reused. Both `.` and `own` read represented own properties,
-as the specification defines an access
-([`fjs/edag/todo/entry.md`](../../edag/todo/entry.md)), so an
+reused. Both `.` and a call of the `entry` helper read represented own
+properties, as the specification defines an access
+([spec: entry](../../../spec/README.md#reading-an-entry-at-run-time)), so an
 inherited property is `undefined` whatever a realm puts on a prototype.
 The planned public admission entry must also refuse an access whose index is a
 prohibited property name — `constructor`, `__proto__`, every name a built-in prototype gives by

@@ -136,7 +136,7 @@ their JavaScript meanings; do not redefine them over enumerable properties.
 `obj.hasOwnProperty(...)` is not a replacement source spelling.
 
 Use explicit enumerable-entry patterns instead:
-[`entry`](../../fjs/edag/todo/entry.md) reads a data value, and
+[`entry`](../README.md#reading-an-entry-at-run-time) reads a data value, and
 [enumerable presence](./2345-has-own-property.md) proposes a separate
 `hasEntity` pattern. `Object.getOwnPropertyDescriptor` is permitted only as
 part of a complete approved AST pattern, never as an exposed descriptor API.

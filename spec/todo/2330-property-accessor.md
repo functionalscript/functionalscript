@@ -10,13 +10,22 @@ and an access on a numeric literal read as JavaScript reads it — `-1 .x` is
 and a negative one is written as the string it names. Constant-key method
 calls follow the [current function specification](../README.md#functions).
 
-The runtime-key plan is now [`entry`](../../fjs/edag/todo/entry.md), an
-explicit enumerable-entry helper. It supersedes the old descriptor-value-only
-source pattern and the `Object.hasOwn`-based alternative. `Object.hasOwn`
-and `obj.hasOwnProperty(...)` are prohibited source operations, not operations
-to reinterpret. [Enumerable presence](./2345-has-own-property.md) proposes a
+The runtime key is `entry`, in the language
+([spec: entry](../README.md#reading-an-entry-at-run-time)): the explicit
+enumerable-entry helper, recognized whole and lowered to the EDAG's
+`['entry']`. It superseded the old descriptor-value-only source pattern and
+the `Object.hasOwn`-based alternative. `Object.hasOwn` and
+`obj.hasOwnProperty(...)` are prohibited source operations, not operations to
+reinterpret. [Enumerable presence](./2345-has-own-property.md) proposes a
 separate `hasEntity` pattern. All such instructions follow
 [statement-aware AST recognition](../../fjs/compiler/parser/todo/statement-aware-intrinsics.md).
+
+What this file still owns is the numeric index: `a[Number(i)]`, the EDAG's
+`['.', a, ['Number', i]]`, which the parser does not read yet and the
+FunctionalScript writer does not write, and `a[+i]` beside it where the
+program knows no `bigint` reaches the index. Where a program knows its index
+to be a number, that is the spelling to write once it lands, `entry` being
+the read for a key of any type.
 
 Syntax examples (planned computed/runtime-key forms included):
 
@@ -58,8 +67,8 @@ syntax for array indexing, legit in FJS. Our current approach is to force FJS us
 wrap `<expression>` in `Number(...)` in cases when `<expression>` type is not known at
 compile time.
 
-The proposed runtime-key helper is shown with a JavaScript behavior example;
-this is not a claim that the helper is implemented in FJS today:
+The runtime-key helper, with a JavaScript behavior example, which the
+compiler reads as the helper and every executor answers alike:
 
 ```js
 const entry = (object, property) => {
@@ -72,10 +81,10 @@ export default [values.length, entry(values, "length")]; // [1, undefined]
 
 Its complete parsed function body is recognized after statements, expressions
 and binding relationships are known. The matcher does not read newlines or
-repair statement boundaries. Descriptor use is permitted only inside a whole
-approved pattern; extracting or returning a descriptor is still refused.
-[`entry.md`](../../fjs/edag/todo/entry.md) owns the proposed helper function,
-its ordinary calls and the internal `own` migration. None is a fallback for
+repair statement boundaries. Descriptor use is permitted only inside the
+whole helper; extracting or returning a descriptor is still refused. The
+helper's calls are ordinary calls, and no internal operation stands beside
+the node ([`fjs/edag`](../../fjs/edag/README.md)). None is a fallback for
 ordinary static access.
 
 ## Source-to-EDAG mapping
@@ -91,8 +100,8 @@ select the enumerable-entry operation.
 | `a.foo`, `a["foo"]` | `['.', A, 'foo']` | Current, for permitted names |
 | `a[0]` | `['.', A, 0]` | Current |
 | `a.foo(x)` | `['.', A, 'foo', ['\|()', Args]]` | Current receiver-preserving lowering, for permitted names |
-| Complete recognized `entry` definition | `['entry']` | Proposed in `entry.md` |
-| `entry(a, key)` | `['()', E, [A, K]]` | Proposed ordinary call of that helper |
+| The `entry` helper, recognized whole | `['entry']` | Current ([spec: entry](../README.md#reading-an-entry-at-run-time)) |
+| `entry(a, key)` | `['()', E, [A, K]]` | Current, an ordinary call of that helper |
 
 `A`, `K` and `E` denote lowered receiver, key and helper expressions;
 `Args` denotes the lowered argument list. The method-call
@@ -104,9 +113,9 @@ Backend names such as `instance_property`, `at` and `own_property` in older
 sketches are not source-to-EDAG rules. A backend may specialize `.` for a
 known receiver/key, or share a lookup helper where the semantics agree,
 without replacing it with an enumerable-only operation. This does not rename
-host helpers or change an existing opcode. `entry.md` owns any coordinated
-migration of internal `own` semantics; its writer refuses bare internal `own`,
-not ordinary static reads represented by `.`.
+host helpers or change an existing opcode. The EDAG's former `own` operation
+went with the helper's arrival: `.` represents ordinary static reads, and
+`['entry']` the one read of a computed key.
 
 ## Instance Property
 

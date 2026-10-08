@@ -103,12 +103,12 @@ export const proof = {
     reads: () => {
         const object = /** @type {const} */ (['{}', [[':', 'a', 7]]])
         eq(['.', object, 'a'], 7)
-        eq(['own', object, 'a'], 7)
+        eq(['()', ['entry'], [object, 'a']], 7)
         eq(['?.', null, 'a'], ['undefined'])
         eq(['?.', object, 'a'], 7)
         eq(['?.', ['{}', [[':', 'a', object]]], 'a', ['|.', 'a']], 7)
-        failure(['own', object, 1])
-        failure(['own', null, 'a'])
+        eq(['()', ['entry'], [object, 1]], ['undefined'])
+        failure(['()', ['entry'], [null, 'a']])
         failure(['.', null, 'a', ['|()', []]])
     },
     calls: () => {
