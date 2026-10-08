@@ -112,7 +112,7 @@ const sliceLiteral = items => `&[${items.join(', ')}]`
 
 /**
  * A string's UTF-16 code units as a Rust `&[u16]` slice literal,
- * `&[0xd800, 0x61]`: the spelling for a string {@link stringLiteral}
+ * `&[0xd800, 0x0061]`: the spelling for a string {@link stringLiteral}
  * refuses, since a code unit array holds a lone surrogate where a `&str`
  * cannot. Every string has one.
  *
