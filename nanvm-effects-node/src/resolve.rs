@@ -11,8 +11,11 @@
 //! `[`, `\`, `]`, `^`, `` ` ``, `{`, `|`, `}`, `~`, and every byte that is not
 //! ASCII.
 
-use crate::files::{IoError, normalize};
-use std::{fs, path::Path};
+use crate::files::IoError;
+use std::{
+    fs,
+    path::{Component, Path, PathBuf},
+};
 
 /// The module a specifier names: the real path of its file and its identity,
 /// a `file:` URL.
@@ -152,10 +155,11 @@ pub fn file_url_to_path(url: &str) -> Result<String, IoError> {
         return Err(invalid());
     }
     let path = percent_decode(rest).ok_or_else(invalid)?;
-    // `/C:/a` is the drive path `C:/a`.
+    // Only Windows reads `/C:/a` as the drive path `C:/a`. On POSIX the
+    // leading slash and the colon are part of the native absolute path.
     let drive = path.as_bytes();
     Ok(
-        if drive.len() >= 3 && drive[2] == b':' && drive[1].is_ascii_alphabetic() {
+        if cfg!(windows) && drive.len() >= 3 && drive[2] == b':' && drive[1].is_ascii_alphabetic() {
             path[1..].to_string()
         } else {
             path
@@ -165,7 +169,11 @@ pub fn file_url_to_path(url: &str) -> Result<String, IoError> {
 
 /// `pathToFileURL` of an absolute path.
 pub fn path_to_file_url(path: &str) -> String {
-    let path = path.replace('\\', "/");
+    let path = if cfg!(windows) {
+        path.replace('\\', "/")
+    } else {
+        path.to_string()
+    };
     let rooted = if path.starts_with('/') {
         path
     } else {
@@ -198,6 +206,46 @@ fn windows_path(path: &str) -> std::io::Result<&str> {
     ))
 }
 
+/// Resolve native roots before reducing dot segments, without following links.
+/// `absolute` handles Windows root-relative and drive-relative paths; native
+/// components keep POSIX backslashes and colons literal. Like `pathToFileURL`,
+/// collapse `..` before realpath, but keep an explicit trailing separator.
+fn absolute_path(path: &str) -> std::io::Result<String> {
+    let path = if cfg!(windows) {
+        windows_path(path)?
+    } else {
+        path
+    };
+    let absolute = std::path::absolute(if path.is_empty() { "." } else { path })?;
+    let mut normalized = PathBuf::new();
+    for component in absolute.components() {
+        match component {
+            Component::ParentDir => {
+                normalized.pop();
+            }
+            Component::CurDir => {}
+            other => normalized.push(other.as_os_str()),
+        }
+    }
+    let mut result = normalized.to_string_lossy().into_owned();
+    if path.ends_with(std::path::is_separator) && !result.ends_with(std::path::is_separator) {
+        result.push(std::path::MAIN_SEPARATOR);
+    }
+    // `absolute` may have supplied a UNC working directory, even for a local
+    // relative input. Never turn it into a URL without authority support.
+    if cfg!(windows) {
+        windows_path(&result).map(str::to_string)
+    } else {
+        Ok(result)
+    }
+}
+
+/// A URL ending in a slash or a dot segment still names a directory after
+/// dot-segment reduction. An empty specifier instead names the importer itself.
+fn directory_specifier(name: &str) -> bool {
+    name.ends_with('/') || !matches!(kind(name.rsplit('/').next().unwrap_or("")), Kind::Keep)
+}
+
 /// The real native path, without a Windows drive's extended-length prefix.
 /// Check again after canonicalization: a local link may resolve to a UNC path.
 fn real_path(path: &str) -> std::io::Result<String> {
@@ -209,7 +257,7 @@ fn real_path(path: &str) -> std::io::Result<String> {
     }
 }
 
-/// The directory of a path, and the path itself where it has none.
+/// The slash-separated directory of a decoded file URL path.
 fn directory(path: &str) -> &str {
     path.rfind('/').map_or("", |i| &path[..i])
 }
@@ -218,24 +266,7 @@ fn directory(path: &str) -> &str {
 /// working directory where there is none: the real path and its identity.
 pub fn resolve_file_module(name: &str, parent: Option<&str>) -> Result<FileModule, IoError> {
     let loading = match parent {
-        None => {
-            let absolute = if Path::new(name).is_absolute() {
-                name.to_string()
-            } else {
-                let here =
-                    std::env::current_dir().map_err(|e| crate::files::failure(&e, "cwd", name))?;
-                format!("{}/{name}", here.to_string_lossy())
-            };
-            // Inspect the native spelling before normalize turns backslashes
-            // into slashes. This also covers a UNC working directory.
-            let absolute = if cfg!(windows) {
-                windows_path(&absolute)
-                    .map_err(|e| crate::files::failure(&e, "resolveFileModule", &absolute))?
-            } else {
-                &absolute
-            };
-            normalize(absolute)
-        }
+        None => name.to_string(),
         Some(parent) => {
             let invalid = || refusal(None, "invalid module specifier");
             let (rooted, names) = decode_specifier(name).ok_or_else(invalid)?;
@@ -244,15 +275,26 @@ pub fn resolve_file_module(name: &str, parent: Option<&str>) -> Result<FileModul
                 // `//x/y` is a network path, not a path on this machine.
                 return Err(invalid());
             }
-            if rooted {
-                normalize(&format!("/{names}"))
-            } else if names.is_empty() {
-                normalize(&importer)
+            let mut path = if rooted {
+                // On Windows a rooted import keeps the importer's drive,
+                // which need not be the current working directory's drive.
+                Path::new(&importer)
+                    .join(format!("/{names}"))
+                    .to_string_lossy()
+                    .into_owned()
+            } else if name.is_empty() {
+                importer
             } else {
-                normalize(&format!("{}/{names}", directory(&importer)))
+                format!("{}/{names}", directory(&importer))
+            };
+            if directory_specifier(name) && !path.ends_with('/') {
+                path.push('/');
             }
+            path
         }
     };
+    let loading = absolute_path(&loading)
+        .map_err(|e| crate::files::failure(&e, "resolveFileModule", &loading))?;
     let path = real_path(&loading).map_err(|e| crate::files::failure(&e, "realpath", &loading))?;
     Ok(FileModule {
         id: path_to_file_url(&path),
@@ -312,6 +354,32 @@ mod test {
         ] {
             assert_eq!(decode_specifier(specifier), expected, "{specifier:?}");
         }
+    }
+
+    #[test]
+    fn directory_specifiers_keep_their_meaning() {
+        for name in [
+            "a/", "a//", "a/.", "a/%2e", "a/b/..", "a/b/.%2E", ".", "..", "/",
+        ] {
+            assert!(directory_specifier(name), "{name:?}");
+        }
+        for name in ["", "a", "./a", "...", "a%252e", "a%2e", "a%2Fb"] {
+            assert!(!directory_specifier(name), "{name:?}");
+        }
+    }
+
+    /// Root-relative entries must not be prefixed with the whole cwd. No
+    /// second drive, share, symlink privilege or cwd mutation is required.
+    #[cfg(windows)]
+    #[test]
+    fn windows_root_relative_entries_use_the_current_drive() {
+        let module = resolve_file_module("Cargo.toml", None).unwrap();
+        let rooted = &module.path[2..];
+        for name in [rooted.to_string(), rooted.replace('\\', "/")] {
+            assert_eq!(resolve_file_module(&name, None).unwrap(), module);
+        }
+        let drive_relative = format!("{}Cargo.toml", &module.path[..2]);
+        assert_eq!(resolve_file_module(&drive_relative, None).unwrap(), module);
     }
 
     #[test]
@@ -382,12 +450,23 @@ mod test {
     #[test]
     fn file_urls() {
         assert_eq!(path_to_file_url("/a/b c"), "file:///a/b%20c");
-        assert_eq!(path_to_file_url("C:\\a\\b"), "file:///C:/a/b");
+        if cfg!(windows) {
+            assert_eq!(path_to_file_url(r"C:\a\b"), "file:///C:/a/b");
+        } else {
+            assert_eq!(path_to_file_url(r"/a\b/m.f.js"), "file:///a%5Cb/m.f.js");
+            assert_eq!(
+                file_url_to_path("file:///a%5Cb/m.f.js"),
+                Ok(r"/a\b/m.f.js".to_string())
+            );
+        }
         assert_eq!(
             file_url_to_path("file:///a/b%20c"),
             Ok("/a/b c".to_string())
         );
-        assert_eq!(file_url_to_path("file:///C:/a"), Ok("C:/a".to_string()));
+        assert_eq!(
+            file_url_to_path("file:///C:/a"),
+            Ok(if cfg!(windows) { "C:/a" } else { "/C:/a" }.to_string())
+        );
         assert_eq!(file_url_to_path("file:///%C3%A9"), Ok("/é".to_string()));
         let code = |r: Result<String, IoError>| match r {
             Err(info) => (info.code, info.message),
@@ -472,6 +551,76 @@ mod test {
             assert_eq!(ids(&dir.path("top.f.js")[..]).path, dir.path("top.f.js"));
             assert_eq!(ids("").path, main.path);
             assert_eq!(ids("%2e/main.f.js").path, main.path);
+        }
+
+        #[test]
+        fn trailing_separators_do_not_turn_files_into_directories() {
+            let dir = Scratch::new("trailing");
+            fs::write(dir.path("dep.f.js"), "").unwrap();
+            fs::create_dir(dir.path("folder")).unwrap();
+            let parent = path_to_file_url(&dir.path("main.f.js"));
+            for name in [
+                "./dep.f.js/",
+                "./dep.f.js//",
+                "./dep.f.js/.",
+                "./dep.f.js/%2e",
+                "./dep.f.js/child/..",
+            ] {
+                for specifier in [name.to_string(), dir.path(name)] {
+                    let error = resolve_file_module(&specifier, Some(&parent)).unwrap_err();
+                    assert_eq!(error.code.as_deref(), Some("ENOTDIR"), "{specifier:?}");
+                }
+            }
+            let error = resolve_file_module(&dir.path("dep.f.js/"), None).unwrap_err();
+            assert_eq!(error.code.as_deref(), Some("ENOTDIR"));
+            let folder = resolve_file_module(&dir.path("folder"), None).unwrap();
+            assert_eq!(
+                resolve_file_module("./folder/", Some(&parent)).unwrap(),
+                folder
+            );
+            assert_eq!(
+                resolve_file_module("./folder/.", Some(&parent)).unwrap(),
+                folder
+            );
+            let root = resolve_file_module(&dir.path(""), None).unwrap();
+            assert_eq!(resolve_file_module(".", Some(&parent)).unwrap(), root);
+            assert_eq!(
+                resolve_file_module("./folder/..", Some(&parent)).unwrap(),
+                root
+            );
+        }
+
+        #[test]
+        fn posix_backslashes_do_not_alias_path_separators() {
+            let dir = Scratch::new("backslash");
+            for tree in [r"a\b", "a/b"] {
+                fs::create_dir_all(dir.path(tree)).unwrap();
+                fs::write(dir.path(&format!("{tree}/main.f.js")), "").unwrap();
+                fs::write(dir.path(&format!("{tree}/dep.f.js")), "").unwrap();
+            }
+            let literal = resolve_file_module(&dir.path(r"a\b/main.f.js"), None).unwrap();
+            let separated = resolve_file_module(&dir.path("a/b/main.f.js"), None).unwrap();
+            assert_eq!(literal.path, dir.path(r"a\b/main.f.js"));
+            assert_ne!(literal.id, separated.id);
+            assert!(literal.id.ends_with("/a%5Cb/main.f.js"));
+            assert_eq!(file_url_to_path(&literal.id).unwrap(), literal.path);
+            let dep = resolve_file_module("./dep.f.js", Some(&literal.id)).unwrap();
+            assert_eq!(dep.path, dir.path(r"a\b/dep.f.js"));
+            assert_eq!(
+                resolve_file_module("./main.f.js", Some(&dep.id)).unwrap(),
+                literal
+            );
+        }
+
+        #[test]
+        fn entry_dot_segments_are_reduced_before_following_symlinks() {
+            let dir = Scratch::new("lexical");
+            fs::create_dir_all(dir.path("target/nested")).unwrap();
+            fs::write(dir.path("main.f.js"), "").unwrap();
+            fs::write(dir.path("target/main.f.js"), "").unwrap();
+            symlink(dir.path("target/nested"), dir.path("link")).unwrap();
+            let module = resolve_file_module(&dir.path("link/../main.f.js"), None).unwrap();
+            assert_eq!(module.path, dir.path("main.f.js"));
         }
 
         #[test]
