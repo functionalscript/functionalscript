@@ -36,6 +36,16 @@ this package already had to put it.
 
 ### Proposal
 
+**Shipped so far: the smallest slice.** `spawn`, `childWait` and `ExitStatus`
+are in `../types.ts`, `../module.f.mjs` and the Node runner, with
+`SpawnOptions = { readonly stdio: 'inherit' }` — the option *required*, not
+optional, until `childRead` exists: a piped child has no reader yet, and one
+whose pipes nobody drains blocks once they fill. The first caller is
+`fjs/dev/gen`, which runs the Nix lock script on the terminal. `cwd` and `env`
+stay with the open questions below; the rest of the family, the piped child
+and its reads, writes and kill, is still to do. `deno.json` already grants
+`--allow-run` to the suite, since the host proofs spawn `node`.
+
 A `Spawn` family beside `Exec`, not replacing it. The 0.46 effect system can
 carry it: `Operation` is `readonly[string, (..._: readonly never[]) =>
 Result<unknown, unknown>]`, and `CreateServer`/`Listen` already establish the
@@ -224,13 +234,16 @@ Open for review before code:
 ### Tasks
 
 - [ ] Settle the signatures above.
-- [ ] `../types.ts`: the seven operations, `Child`, `SpawnOptions`,
-      `ExitStatus`; add them to `NodeOp`.
-- [ ] `../module.f.mjs`: `do_` constructors and the `nodeCommandSet` keys.
-- [ ] `../module.mjs`: the runner over `node:child_process.spawn` — brand the
-      `ChildProcess` itself with `asNominal`, recover it with `asBase`, no
-      table; `writeAll`-style backpressure; the `('exit', code, signal)`
-      mapping onto `ExitStatus`.
+- [x] `spawn`, `childWait`, `Child`, `ExitStatus` and `SpawnOptions` with
+      `stdio: 'inherit'`, in `../types.ts`, `../module.f.mjs` and the Node
+      runner — the brand around the `ChildProcess` itself, `'spawn'` raced
+      against `'error'`, the outcome read before `'exit'` is listened for —
+      with host proofs for an exit, a signal and a missing command.
+- [ ] `../types.ts`: the five remaining operations; `stdio` becomes optional
+      once `childRead` can drain a piped child.
+- [ ] `../module.f.mjs`: their `do_` constructors and `nodeCommandSet` keys.
+- [ ] `../module.mjs`: the piped child — `writeAll`-style backpressure, the
+      reads and their race, `childKill`.
 - [ ] A runner test in the shape of `../memory/proof.mjs` — spawn `node -e`,
       round-trip two batches, close, wait; one that kills the child through
       `childKill`, so the `signaled` branch is exercised rather than assumed;
@@ -256,20 +269,11 @@ Open for review before code:
       regression would hang `fjs test` rather than redden it — a guard against
       hanging that hangs is worth less than no guard, because it stops the
       whole suite instead of one case.
-- [ ] `deno.json`: add `--allow-run` to the tasks that run the suite. `test`,
-      `cov` and `cov-html` (`../../../../deno.json:4-6`) grant only
-      `--allow-read --allow-write --allow-env --allow-sys`, and the `deno` CI job runs
-      `deno task cov` (`../../../../.github/workflows/gen.ci.yml:404`), so the
-      first discovered proof to reach `node:child_process.spawn` fails there on
-      a permission error before a single case runs. Scope the grant to what the
-      proofs actually spawn if that suffices — under a scoped
-      `--allow-run=node` the "command that does not exist" case above surfaces
-      as a Deno permission error rather than `ENOENT`, so scope or assert
-      accordingly. The `gen.ci.yml:398` step already runs with `-A` and needs
-      nothing. This belongs to the implementation, not to this note: nothing
-      spawns yet, so widening the grant now would loosen CI for code that does
-      not exist.
-- [ ] `../virtual/module.f.mjs`: extend the not-implemented list in its docs.
+- [x] `deno.json`: `--allow-run` on the tasks that run the suite, unscoped,
+      so the missing-command proof surfaces as the host's `ENOENT` rather than
+      a Deno permission error.
+- [x] `../virtual/module.f.mjs`: the not-implemented list names `spawn` and
+      `childWait`.
 - [ ] `tsc`, `npm test`, `npm run cov`.
 
 ### Related
