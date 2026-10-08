@@ -12,7 +12,7 @@ import { byteLength, empty, isVec, maxLengthBytes, u8ListMsb, u8ListToVecMsb, ui
 import { utf8, utf8ToString } from "../../text/module.f.mjs"
 import { match } from "../module.f.mjs"
 import { mapStep, pureError, pureOk, step as ioStep } from "../module.f.mjs"
-import { badPortCode, badPortMessage, both, carriesNoBody, declaredLength, doubledLengthMessage, errorMessage, errorSummary, exitStep, fetch, framingHeaderMessage, headerValue, inflate, inflateTrailingMessage, ioError, isNotFound, isPort, maxPort, mkdir, now, readdir, readFile, readUtf8File, refusalMessage, refusedStatus, responseGate, rm, runnerResponse, sandbox, unframedBodyMessage, writeFile, writeUtf8File, _pieces, _vecList, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, readWholeBytes, readChunks, windowRefusal, maxOffset } from "./module.f.mjs"
+import { badPortCode, badPortMessage, both, carriesNoBody, declaredLength, doubledLengthMessage, errorMessage, errorSummary, exitStep, fetch, framingHeaderMessage, headerValue, inflate, inflateTrailingMessage, ioError, isNotFound, isPort, maxPort, mkdir, now, readdir, readFile, readUtf8File, refusalMessage, refusedStatus, responseGate, rm, runnerResponse, sandbox, unframedBodyMessage, writeFile, writeUtf8File, _pieces, _vecList, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, readWholeBytes, readChunks, windowRefusal, maxOffset, fileSizeRefusal } from "./module.f.mjs"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.mjs"
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.mjs"
 import { emptyState, virtual } from "./virtual/module.f.mjs"
@@ -771,6 +771,22 @@ export const proof = {
             assertEq(
                 windowRefusal(maxOffset + 1, Number(maxLengthBytes) + 1),
                 `Offset ${maxOffset + 1} exceeds maximum allowed offset of ${maxOffset}`)
+        },
+    },
+    // `readFile`'s limit, asked by both runners with the size their `stat`
+    // reports, so the words are asserted and not only the refusal.
+    fileSizeRefusal: {
+        // The limit is inclusive: a file of exactly the limit is read whole.
+        atLimit: () => {
+            assertEq(fileSizeRefusal('a', 0), null)
+            assertEq(fileSizeRefusal('a', Number(maxLengthBytes)), null)
+        },
+        // One byte over is refused, and the message names the size and the path.
+        overLimit: () => {
+            const over = Number(maxLengthBytes) + 1
+            assertEq(
+                fileSizeRefusal('a/b/big', over),
+                `File size ${over} exceeds maximum allowed size of ${maxLengthBytes} bytes: 'a/b/big'`)
         },
     },
     readWholeBytes: {

@@ -689,6 +689,24 @@ export const windowRefusal = (offset, size) => {
 }
 
 /**
+ * The refusal `readFile` gives a file of `size` bytes at `path`, or `null` for a
+ * file small enough to read whole.
+ *
+ * **It is here for the reason {@link windowRefusal} is**: both runners implement
+ * `readFile`, and a limit or a message spelled in each is one they come to
+ * disagree about. Each asks it with the size its own `stat` reports, before it
+ * reads a byte, and the message names the size and the path the caller asked for
+ * — `ReadFile` in [`./types.ts`](./types.ts) states that the failure names the
+ * file.
+ *
+ * @type {(path: string, size: number) => Nullable<string>}
+ */
+export const fileSizeRefusal = (path, size) =>
+    BigInt(size) > maxLengthBytes
+        ? `File size ${size} exceeds maximum allowed size of ${maxLengthBytes} bytes: '${path}'`
+        : null
+
+/**
  * A {@link _ChunkSource} that reads through one open file, which is what makes a
  * body both lazy and one inode's.
  *

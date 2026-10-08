@@ -19,10 +19,10 @@ import { assert, todo } from '../../../asserts/module.f.mjs'
 import { isProperPrefix, join, normalize, parse } from '../../../path/module.f.mjs'
 import { resolve as resolveImportPath } from '../../../path/import/module.f.mjs'
 import { utf8ToString } from '../../../text/module.f.mjs'
-import { byteLength, bytesIn, empty, isWholeBytes, length, maxLengthBytes, msb, vec } from '../../../types/bit_vec/module.f.mjs'
+import { byteLength, bytesIn, empty, isWholeBytes, length, msb, vec } from '../../../types/bit_vec/module.f.mjs'
 import { error, ok, unwrap } from '../../../types/result/module.f.mjs'
 import {
-    badPortCode, badPortMessage, carriesNoBody, emptyHost, emptyHostError, ioError, isPort, nodeCommands,
+    badPortCode, badPortMessage, carriesNoBody, emptyHost, emptyHostError, fileSizeRefusal, ioError, isPort, nodeCommands,
     notAFileCode, notAFileMessage, refusalMessage, refusedStatus, requestBody, requestBodyOffsetMessage,
     responseGate, runnerResponse, windowRefusal,
 } from '../module.f.mjs'
@@ -417,17 +417,9 @@ const readFile = path => readOperation((dir, p) => {
     const resolved = resolveFile(jsModuleUnsupported('readFile'))(dir, p)
     if (resolved[0] === 'error') { return resolved }
     const chunks = resolved[1]
-    const capBits = maxLengthBytes * 8n
-    let result = empty
-    for (const chunk of chunks) {
-        const chunkLen = length(chunk)
-        if (chunkLen === 0n) { continue }
-        if (length(result) + chunkLen > capBits) {
-            return fail(`File size exceeds maximum allowed size of ${maxLengthBytes} bytes: '${path}'`)
-        }
-        result = msb.concat(result)(chunk)
-    }
-    return ok(result)
+    const refusal = fileSizeRefusal(path, fileSizeBytes(chunks))
+    if (refusal !== null) { return fail(refusal) }
+    return ok(msb.listToVec(chunks))
 })(path)
 
 /**
