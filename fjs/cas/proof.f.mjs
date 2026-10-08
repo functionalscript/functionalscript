@@ -4,7 +4,7 @@
  * @import { IoChannel, IoResult, Mkdir, ReadFile, WriteFile } from '../effects/node/types.ts'
  * @import { Effect } from '../effects/types.ts'
  * @import { Ok, Result } from '../types/result/types.ts'
- * @import { List } from '../effects/list/types.ts'
+ * @import { EffectList } from '../effects/list/types.ts'
  */
 
 import { length, maxLength, msb, vec, vec8 } from '../types/bit_vec/module.f.mjs'
@@ -206,7 +206,7 @@ export const proof = {
         // the content hash, and `read` streams the same bytes back as `ok` chunk items.
         const content = vec8(0x2An)
         const c = fileCas(sha256)('.')
-        /** @type {List<FileCasOperation, Vec, IoChannel>} */
+        /** @type {EffectList<FileCasOperation, Vec, IoChannel>} */
         const payload = nonEmpty(content, empty())
         const [state1, writeResult] = virtual(emptyState)(c.write(payload))
         assert(writeResult[0] === 'ok', ['expected write ok', writeResult])
@@ -231,10 +231,10 @@ export const proof = {
         // and read streams the same content back.
         const chunks = /** @type {const} */ ([vec8(0x11n), vec8(0x22n), vec8(0x33n)])
         const c = fileCas(sha256)('.')
-        /** @type {List<FileCasOperation, Vec, IoChannel>} */
+        /** @type {EffectList<FileCasOperation, Vec, IoChannel>} */
         const payload = chunks.reduceRight(
             (tail, chunk) => nonEmpty(chunk, tail),
-            /** @satisfies {List<never, Vec, IoChannel>} */ (empty()))
+            /** @satisfies {EffectList<never, Vec, IoChannel>} */ (empty()))
         const [state1, writeResult] = virtual(emptyState)(c.write(payload))
         assert(writeResult[0] === 'ok', ['expected write ok', writeResult])
         const hash = writeResult[1]
@@ -249,7 +249,7 @@ export const proof = {
         // first, leaving exactly one shard in the store.
         const content = vec8(0x2An)
         const c = fileCas(sha256)('.')
-        /** @type {() => List<FileCasOperation, Vec, IoChannel>} */
+        /** @type {() => EffectList<FileCasOperation, Vec, IoChannel>} */
         const payload = () => nonEmpty(content, empty())
         const [state1, w1] = virtual(emptyState)(c.write(payload()))
         const [state2, w2] = virtual(state1)(c.write(payload()))
@@ -263,7 +263,7 @@ export const proof = {
         // A stream that fails mid-way deletes the partial staging file and fails; nothing is
         // published, so the store stays empty.
         const c = fileCas(sha256)('.')
-        /** @type {List<FileCasOperation, Vec, IoChannel>} */
+        /** @type {EffectList<FileCasOperation, Vec, IoChannel>} */
         const payload = nonEmpty(vec8(0x11n), pureError(ioError({ code: 'BOOM', message: 'boom' })))
         const [state1, result] = virtual(emptyState)(c.write(payload))
         assert(result[0] === 'error', ['expected write error', result])
@@ -277,7 +277,7 @@ export const proof = {
         // the stored shard would not match its address. `writeBytes` refuses the
         // chunk, the partial staging file is deleted, and nothing is published.
         const c = fileCas(sha256)('.')
-        /** @type {List<never, Vec, IoChannel>} */
+        /** @type {EffectList<never, Vec, IoChannel>} */
         const payload = nonEmpty(vec8(0x11n), nonEmpty(vec(5n)(0b10101n), empty()))
         const [state1, result] = virtual(emptyState)(c.write(payload))
         assert(result[0] === 'error', ['expected write error', result])
@@ -299,16 +299,16 @@ export const proof = {
         const tail = vec8(0x2An)            // one more byte ⇒ total > maxLength
         const chunks = /** @type {const} */ ([big, tail])
         const c = fileCas(sha256)('.')
-        /** @type {List<FileCasOperation, Vec, IoChannel>} */
+        /** @type {EffectList<FileCasOperation, Vec, IoChannel>} */
         const payload = chunks.reduceRight(
             (tl, chunk) => nonEmpty(chunk, tl),
-            /** @satisfies {List<never, Vec, IoChannel>} */ (empty()))
+            /** @satisfies {EffectList<never, Vec, IoChannel>} */ (empty()))
         const [state1, w] = virtual(emptyState)(c.write(payload))
         assert(w[0] === 'ok', ['expected write ok', w])
         const hash = w[1]
         assertEq(msb.cmp(hash)(computeSync(sha256)(chunks)), 0, 'oversized write hash mismatch')
         // Fold the read stream straight into a fresh SHA-2 state — never one `Vec`.
-        /** @type {(state: typeof sha256.init) => (stream: List<FileCasOperation, Vec, IoChannel>) => Effect<FileCasOperation, Vec, IoChannel>} */
+        /** @type {(state: typeof sha256.init) => (stream: EffectList<FileCasOperation, Vec, IoChannel>) => Effect<FileCasOperation, Vec, IoChannel>} */
         const rehash = state =>
             stream =>
                 ioStep(
@@ -334,7 +334,7 @@ export const proof = {
         }
         const content = vec8(0x2An)
         const c = fileCas(sha256)('.')
-        const x = c.write(nonEmpty(content, /** @satisfies {List<never, Vec, IoChannel>} */ (empty())))
+        const x = c.write(nonEmpty(content, /** @satisfies {EffectList<never, Vec, IoChannel>} */ (empty())))
         const [state1, w] = virtual(state0)(x)
         assert(w[0] === 'ok', ['expected write ok', w])
         const [, present] = virtual(state1)(access(stalePath))
@@ -348,7 +348,7 @@ export const proof = {
         const c = fileCas(sha256)('.')
         // An empty payload: the driver's default `stat` reports size 0, so the
         // publish check passes and the sweep is the only thing under test.
-        /** @type {List<never, Vec, IoChannel>} */
+        /** @type {EffectList<never, Vec, IoChannel>} */
         const payload = empty()
         const [result, log] = drive({
             // Only the first `now` is the sweep's, so every deadline after it
@@ -371,7 +371,7 @@ export const proof = {
         }
         const content = vec8(0x2An)
         const c = fileCas(sha256)('.')
-        const x = c.write(nonEmpty(content, /** @satisfies {List<never, Vec, IoChannel>} */ (empty())))
+        const x = c.write(nonEmpty(content, /** @satisfies {EffectList<never, Vec, IoChannel>} */ (empty())))
         const [state1, w] = virtual(state0)(x)
         assert(w[0] === 'ok', ['expected write ok', w])
         const [, present] = virtual(state1)(access(livePath))
@@ -382,7 +382,7 @@ export const proof = {
         // the partial staging file is deleted and the error is returned, without ever
         // reaching a real filesystem here.
         const c = fileCas(sha256)('.')
-        /** @type {List<never, Vec, IoChannel>} */
+        /** @type {EffectList<never, Vec, IoChannel>} */
         const payload = nonEmpty(vec8(0x11n), empty())
         const [result, log] = drive({ writeBytes: [error(ioError({ message: 'disk full' }))] })(c.write(payload))
         assertIoMessage(errorMessage(result), 'disk full')
@@ -394,7 +394,7 @@ export const proof = {
         // The lease-renewal `rename` (after every chunk) failing fails the same way as a
         // `writeBytes` failure: the partial staging file is deleted, error returned.
         const c = fileCas(sha256)('.')
-        /** @type {List<never, Vec, IoChannel>} */
+        /** @type {EffectList<never, Vec, IoChannel>} */
         const payload = nonEmpty(vec8(0x11n), empty())
         const [result, log] = drive({ rename: [error(ioError({ message: 'rename failed' }))] })(c.write(payload))
         assertIoMessage(errorMessage(result), 'rename failed')
@@ -409,7 +409,7 @@ export const proof = {
         // any size but the expected one must still fail, even though the tag alone says
         // success.
         const c = fileCas(sha256)('.')
-        /** @type {List<never, Vec, IoChannel>} */
+        /** @type {EffectList<never, Vec, IoChannel>} */
         const payload = nonEmpty(vec8(0x11n), empty())
         const [result] = drive({ stat: [ok({ size: 999 })] })(c.write(payload))
         assertIoMessage(errorMessage(result), 'publish size mismatch')
@@ -422,7 +422,7 @@ export const proof = {
         // through undetected by the size-mismatch case above, which never sees a
         // coincidentally-matching size on a failed `stat`.
         const c = fileCas(sha256)('.')
-        /** @type {List<never, Vec, IoChannel>} */
+        /** @type {EffectList<never, Vec, IoChannel>} */
         const payload = nonEmpty(vec8(0x11n), empty())
         const [result] = drive({ stat: [error({ size: 1 })] })(c.write(payload))
         assertIoMessage(errorMessage(result), 'publish size mismatch')
@@ -430,7 +430,7 @@ export const proof = {
     collectReadDrainsChunks: () => {
         // The common path: every chunk is `ok`, so collectRead concatenates them all
         // and returns the whole blob as one `Vec`.
-        /** @type {List<never, Vec, IoChannel>} */
+        /** @type {EffectList<never, Vec, IoChannel>} */
         const stream = nonEmpty(vec8(0x11n), nonEmpty(vec8(0x22n), empty()))
         const o = runPure(collectRead(stream))
         assert(o.length === 1, 'expected collectRead to finish without issuing a command')
@@ -439,7 +439,7 @@ export const proof = {
     collectReadPropagatesStreamFailure: () => {
         // A stream that fails mid-way short-circuits collectRead with that same
         // failure — `step` does it, so `collectRead` has no branch for it.
-        /** @type {List<never, Vec, IoChannel>} */
+        /** @type {EffectList<never, Vec, IoChannel>} */
         const stream = nonEmpty(vec8(0x11n), pureError(ioError({ message: 'boom' })))
         const o = runPure(collectRead(stream))
         assert(o.length === 1, 'expected collectRead to finish without issuing a command')
@@ -453,7 +453,7 @@ export const proof = {
         const half = maxLength / 2n
         const v1 = vec(half)(0n)
         const v2 = vec(half + 1n)(0n)
-        /** @type {List<never, Vec, IoChannel>} */
+        /** @type {EffectList<never, Vec, IoChannel>} */
         const stream = nonEmpty(v1, nonEmpty(v2, empty()))
         const o = runPure(collectRead(stream))
         assert(o.length === 1, 'expected collectRead to finish without issuing a command')

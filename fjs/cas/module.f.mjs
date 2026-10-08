@@ -8,7 +8,7 @@
  * @import { Operation } from '../effects/types.ts'
  * @import { Effect, NotImplemented } from '../effects/types.ts'
  * @import { IoChannel, Now, RandomInt, ReadBytes, Readdir, Rm } from '../effects/node/types.ts'
- *  @import { List } from '../effects/list/types.ts'
+ *  @import { EffectList } from '../effects/list/types.ts'
  * @import { Cas, FileCas, FileCasOperation } from './types.ts'
  */
 
@@ -92,11 +92,11 @@ export const toPath = key => {
  * too rather than crashing the process.
  *
  * @template {Operation} O
- * @param {List<O, Vec, IoChannel>} stream
+ * @param {EffectList<O, Vec, IoChannel>} stream
  * @returns {Effect<O, Vec, IoChannel>}
  */
 export const collectRead = stream => {
-    /** @type {(acc: Vec) => (s: List<O, Vec, IoChannel>) => Effect<O, Vec, IoChannel>} */
+    /** @type {(acc: Vec) => (s: EffectList<O, Vec, IoChannel>) => Effect<O, Vec, IoChannel>} */
     const loop = acc => s =>
         ioStep(s, node => {
             if (node === undefined) { return pureOk(acc) }
@@ -190,7 +190,7 @@ const gcStage = stageDir => {
  * @param {Sha2} sha2
  * @param {string} path
  * @param {string} stageDir
- * @param {List<O1, Vec, IoChannel>} payload
+ * @param {EffectList<O1, Vec, IoChannel>} payload
  * @returns {Effect<O1 | FileCasOperation, Vec, IoChannel>}
  */
 const writeImpl = (sha2, path, stageDir, payload) => {
@@ -223,7 +223,7 @@ const writeImpl = (sha2, path, stageDir, payload) => {
     const rndEffect = ioStep(gcStage(stageDir), () => random256)
     return ioStep(rndEffect, rnd => {
         const rndStr = vecToCBase32(rnd)
-        /** @type {(state: Sha2State, offset: number, curPath: string) => (stream: List<O1, Vec, IoChannel>) => Effect<O1 | FileCasOperation, Vec, IoChannel>} */
+        /** @type {(state: Sha2State, offset: number, curPath: string) => (stream: EffectList<O1, Vec, IoChannel>) => Effect<O1 | FileCasOperation, Vec, IoChannel>} */
         const loop = (state, offset, curPath) =>
             stream =>
                 // `resultStep`, not `step`: a stream that fails must still be
@@ -337,7 +337,7 @@ const random256 =
  * A failed read fails the stream. It used to be yielded as an error *item*
  * followed by an explicit empty tail — a tail no consumer would ever pull.
  *
- * @type {(filePath: string) => List<ReadBytes, Vec, IoChannel>}
+ * @type {(filePath: string) => EffectList<ReadBytes, Vec, IoChannel>}
  */
 const streamFile = filePath => readChunks((offset, size) => readBytes(filePath, offset, size), null)
 

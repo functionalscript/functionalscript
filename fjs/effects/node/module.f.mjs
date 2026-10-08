@@ -19,8 +19,8 @@
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { Commands, CommandSet, Effect, Func, NotImplemented, Operation } from '../types.ts'
- * @import { List } from '../list/types.ts'
- * @import { List as List_ } from '../../types/list/types.ts'
+ * @import { EffectList } from '../list/types.ts'
+ * @import { List } from '../../types/list/types.ts'
  * @import { Access, Await, Catch, ChildWait, Close, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fstat, Fs, Handle, Headers, Http, IncomingMessage, Inflate, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, Open, Pread, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, ReadRequestBytes, RequestBody, ResolveFileModule, ReadWhole, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Rmdir, Sandbox, SandboxResult, Server, ServerResponse, Spawn, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteExclusive, WriteFile, _ChunkSource, _DoubledLength, _FramingHeader, _Gate, _NoBody, _ReadChunks, _Unframed, _UtfList, _WriteLoop } from './types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  */
@@ -486,7 +486,7 @@ const writeLoop = path => {
  *
  * @template {Operation} O
  * @param {string} path
- * @param {List<O, Vec, IoChannel>} e
+ * @param {EffectList<O, Vec, IoChannel>} e
  * @returns {Effect<O | WriteBytes | CreateExclusive | Rm, void, IoChannel>}
  */
 export const writeFromStream = (path, e) => {
@@ -541,7 +541,7 @@ export const _pieces = units => s => {
  * The `Vec`s as a list of effects, one cell made when the writer asks for it, so
  * a list of any length is walked in constant stack.
  *
- * @type {(vs: readonly Vec[], i: number) => List<WriteBytes, Vec, IoChannel>}
+ * @type {(vs: readonly Vec[], i: number) => EffectList<WriteBytes, Vec, IoChannel>}
  */
 export const _vecList = (vs, i) => () => ok(i < vs.length ? { first: vs[i], tail: _vecList(vs, i + 1) } : undefined)
 
@@ -592,7 +592,7 @@ export const readChunks = (source, bound) => {
     /**
      * What one answered chunk becomes: a refusal, the end, or a cell whose
      * tail continues from where this chunk actually reached.
-     * @type {(chunk: Vec, offset: number) => List<any, Vec, IoChannel>}
+     * @type {(chunk: Vec, offset: number) => EffectList<any, Vec, IoChannel>}
      */
     const cell = (chunk, offset) => {
         const bits = length(chunk)
@@ -614,7 +614,7 @@ export const readChunks = (source, bound) => {
         }
         return nonEmpty(chunk, loop(offset + got))
     }
-    /** @type {(offset: number) => List<any, Vec, IoChannel>} */
+    /** @type {(offset: number) => EffectList<any, Vec, IoChannel>} */
     const loop = offset => {
         const remaining = bound === null ? chunkBytes : bound - offset
         if (remaining <= 0) { return elEmpty() }
@@ -995,13 +995,13 @@ export const notAFileMessage = path => `${path} is not a regular file`
  * The bound that remains is memory and the host's own: the whole file is held
  * while it is parsed.
  *
- * @type {(path: string) => Effect<ReadWhole, List_<number>, IoChannel>}
+ * @type {(path: string) => Effect<ReadWhole, List<number>, IoChannel>}
  */
 export const readWholeBytes = path => ioMapStep(
     readWhole(path),
     chunks => chunks.reduce(
         (bytes, v) => concat(bytes)(u8ListMsb(v)),
-        /** @type {List_<number>} */ (null)))
+        /** @type {List<number>} */ (null)))
 
 // readRequestBytes
 
@@ -1042,7 +1042,7 @@ export const requestBodyOffsetMessage = (offset, position) =>
  * offset is what makes a re-pull of an already-read cell a refusal rather than
  * a spliced body — see {@link ReadRequestBytes}.
  *
- * @type {(body: RequestBody) => List<ReadRequestBytes, Vec, IoChannel>}
+ * @type {(body: RequestBody) => EffectList<ReadRequestBytes, Vec, IoChannel>}
  */
 export const requestBody = body =>
     readChunks((offset, size) => readRequestBytes(body, offset, size), null)

@@ -1,7 +1,7 @@
 /**
  * @import { Effect } from '../effects/types.ts'
  * @import { FileStat, IncomingMessage, IoChannel, IoResult, NodeOp, ServerResponse } from '../effects/node/types.ts'
- * @import { List } from '../effects/list/types.ts'
+ * @import { EffectList } from '../effects/list/types.ts'
  * @import { Dir, RecordedResponse, State, _QueuedRequest } from '../effects/node/virtual/types.ts'
  * @import { Vec } from '../types/bit_vec/types.ts'
  */
@@ -99,10 +99,10 @@ const answerSite = answer(site)
  * This is what a runner's pump does, written out so that a proof can do something
  * *between* two pulls — which is how the one-inode claim is checked.
  *
- * @type {(state: State, e: List<NodeOp, Vec, IoChannel>, between?: (s: State) => State) => readonly[State, readonly Vec[]]}
+ * @type {(state: State, e: EffectList<NodeOp, Vec, IoChannel>, between?: (s: State) => State) => readonly[State, readonly Vec[]]}
  */
 const drain = (state, e, between = s => s) => {
-    /** @type {(s: State, rest: List<NodeOp, Vec, IoChannel>, out: readonly Vec[]) => readonly[State, readonly Vec[]]} */
+    /** @type {(s: State, rest: EffectList<NodeOp, Vec, IoChannel>, out: readonly Vec[]) => readonly[State, readonly Vec[]]} */
     const loop = (s, rest, out) => {
         const [next, cell] = virtual(s)(rest)
         const node = unwrap(cell)
@@ -115,7 +115,7 @@ const drain = (state, e, between = s => s) => {
 
 /** The text a body carries, pulled cell by cell.
  *
- * @type {(e: List<NodeOp, Vec, IoChannel>) => string}
+ * @type {(e: EffectList<NodeOp, Vec, IoChannel>) => string}
  */
 const textOf = e =>
     utf8ToString(u8ListToVecMsb(drain(emptyState, e)[1].flatMap(v => toArray(u8ListMsb(v)))))

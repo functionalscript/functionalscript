@@ -12,7 +12,7 @@
  * @import { All, Child, Handle, NodeProgram, NodeOp, ReadRequestBytes, RequestListener as Erl, ServerResponse } from './types.ts'
  * @import { ChildProcess } from 'node:child_process'
  * @import { Effect, IoChannel, Operation } from '../types.ts'
- * @import { List, Next } from '../list/types.ts'
+ * @import { EffectList, Next } from '../list/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
@@ -269,11 +269,11 @@ const withServer = async (listener, client) => {
  * answering out of memory looks like, beside the lazy bodies the pump proofs
  * below drive.
  *
- * @type {(chunks: readonly Vec[]) => List<never, Vec, IoChannel>}
+ * @type {(chunks: readonly Vec[]) => EffectList<never, Vec, IoChannel>}
  */
 const ofChunks = chunks => chunks.reduceRight(
     (tail, chunk) => nonEmpty(chunk, tail),
-    /** @type {List<never, Vec, IoChannel>} */(listEnd()))
+    /** @type {EffectList<never, Vec, IoChannel>} */(listEnd()))
 
 /** A listener holding nothing writes the pure end.
  *
@@ -291,7 +291,7 @@ const holdsNothing = pureOk(null)
  * @type {Erl<ReadRequestBytes>}
  */
 const echoBody = ({ body }) => {
-    /** @type {(taken: readonly Vec[], rest: List<ReadRequestBytes, Vec, IoChannel>) => Effect<ReadRequestBytes, readonly Vec[], IoChannel>} */
+    /** @type {(taken: readonly Vec[], rest: EffectList<ReadRequestBytes, Vec, IoChannel>) => Effect<ReadRequestBytes, readonly Vec[], IoChannel>} */
     const loop = (taken, rest) => step(rest, node =>
         node === undefined ? pureOk(taken) : loop([...taken, node.first], node.tail))
     return resultMapStep(loop([], body), r => ok(r[0] === 'ok'
@@ -365,14 +365,14 @@ const concurrentPulls = ({ body }) => resultMapStep(
  * cut the connection knowing the listener is already reading. Nothing else
  * orders the two, and a timer would make the proof a race.
  *
- * The retry is the subject: a `List`'s tail is a value, and a listener that
- * caught a failure has the cell it failed on still in hand. What it must not get
- * is the end of the body.
+ * The retry is the subject: an `EffectList`'s tail is a value, and a listener
+ * that caught a failure has the cell it failed on still in hand. What it must
+ * not get is the end of the body.
  *
  * @type {(started: () => void, report: (text: string) => void) => Erl<ReadRequestBytes>}
  */
 const retriesAFailedPull = (started, report) => ({ body }) => {
-    /** @type {(cell: List<ReadRequestBytes, Vec, IoChannel>) => Effect<ReadRequestBytes, string, never>} */
+    /** @type {(cell: EffectList<ReadRequestBytes, Vec, IoChannel>) => Effect<ReadRequestBytes, string, never>} */
     const loop = cell => resultStep(cell, r => {
         if (r[0] === 'error') {
             return resultMapStep(cell, again => ok(`${pulled(r)} | ${pulled(again)}`))
@@ -579,10 +579,10 @@ const counting = count => resultMapStep(catch_(() => { count.n += 1 }), () => ok
  * of milliseconds, and paying it per cell would make the pull count a measure of
  * this machine rather than of the socket.
  *
- * @type {(chunk: Vec, count: number, pulls: _Counter) => List<NodeOp, Vec, IoChannel>}
+ * @type {(chunk: Vec, count: number, pulls: _Counter) => EffectList<NodeOp, Vec, IoChannel>}
  */
 const lazyBody = (chunk, count, pulls) => {
-    /** @type {(i: number) => List<NodeOp, Vec, IoChannel>} */
+    /** @type {(i: number) => EffectList<NodeOp, Vec, IoChannel>} */
     const cell = i => step(catch_(() => { pulls.n += 1 }), () =>
         i === count ? listEnd() : nonEmpty(chunk, cell(i + 1)))
     return cell(0)
@@ -1319,15 +1319,15 @@ export const proof = {
         // connection rejects the pull that was waiting for the rest — that much
         // was already right. What was wrong is the pull *after* it. A listener
         // may catch an `IoChannel` failure and pull the same cell again, because
-        // a `List`'s tail is a value and nothing makes a consumer stop; Node's
-        // iterator answers `done` to every call after the one that threw, and
-        // `done` is how this stream says *end*. So the retry read the body as
-        // complete at 1,000 bytes: a truncated prefix, in order, under a
-        // `Content-Length` a thousandth of what arrived, with nothing left
-        // anywhere to say the client never finished sending. That is DESIGN
-        // §10's plausible wrong value, and the fix is that a failure of the
-        // stream belongs to the body rather than to the pull, so the retry meets
-        // it again, word for word.
+        // an `EffectList`'s tail is a value and nothing makes a consumer stop;
+        // Node's iterator answers `done` to every call after the one that
+        // threw, and `done` is how this stream says *end*. So the retry read
+        // the body as complete at 1,000 bytes: a truncated prefix, in order,
+        // under a `Content-Length` a thousandth of what arrived, with nothing
+        // left anywhere to say the client never finished sending. That is
+        // DESIGN §10's plausible wrong value, and the fix is that a failure of
+        // the stream belongs to the body rather than to the pull, so the retry
+        // meets it again, word for word.
         //
         // **The words are the host's own and are not written down here.** What
         // the retry gets is the very failure the first pull got, so the proof

@@ -3,8 +3,9 @@
 **Priority:** P3
 **Status:** wip. Unaffected in substance by the fallible-cell change — this is
 about folding a *stream* rather than a materialized list, which is still true —
-but any `List<O, IoResult<Vec>>` spelling below is now
-`List<O, Vec, IoChannel>`, and the error-item case the sketches carry is gone.
+but any `EffectList<O, IoResult<Vec>>` spelling below is now
+`EffectList<O, Vec, IoChannel>`, and the error-item case the sketches carry is
+gone.
 
 ### Problem
 
@@ -49,10 +50,16 @@ threads its offset as the accumulator; `fileCas.write` threads
 ### Proposal
 
 **1. Rename `List<O, T>` → `EffectList<O, T>`** in
-`fjs/effects/list/module.f.mjs`. It collides with `fjs/types/list`'s `List<T>`,
-and the eight importers currently alias around the clash — `elEmpty` in
-`fjs/cas`, `fjs/cas/evo`, `fjs/mcp`; `emptyList` in `fjs/media/type/proof`.
-The rename has value independent of the rest of this issue.
+`fjs/effects/list/types.ts`. **Done.** It collided with `fjs/types/list`'s
+`List<T>`: `fjs/effects/node` imported the strict one as `List_`, and
+`fjs/effects/common` and `fjs/effects/node`'s `types.ts` imported it as
+`EffectList` — the name now given to the other type. The rename has value
+independent of the rest of this issue.
+
+The `elEmpty` / `emptyList` / `listEnd` aliases this step once promised to
+drop are not part of that clash: they rename the *value* `empty`, not the type,
+and `fjs/media/type/proof` holds `fjs/types/bit_vec`'s `empty` beside it. They
+stay until `empty` itself has a name that says which list it ends.
 
 **2. Move `foldStep` / `forEachStep`** out of `fjs/effects/module.f.mjs` and into
 `fjs/effects/list/module.f.mjs`, retyped over `EffectList`:
@@ -142,9 +149,9 @@ follow-up in `fjs/cas` (see *Related*), not part of this issue.
 
 ### Tasks
 
-- [ ] Rename `List<O, T>` → `EffectList<O, T>` in `fjs/effects/list/module.f.mjs`;
-      update the eight importers and drop the `elEmpty` / `emptyList` aliases
-      that existed only to dodge the name clash.
+- [x] Rename `List<O, T>` → `EffectList<O, T>` in `fjs/effects/list/types.ts`;
+      update its importers and drop the `List_` / `List as EffectList` aliases
+      of `fjs/types/list`'s `List` that existed only to dodge the name clash.
 - [ ] Add `fromList` to `fjs/effects/list/module.f.mjs`.
 - [ ] Move `foldStep` / `forEachStep` there, retyped over `EffectList`, carrying
       their JSDoc and the step-variant rationale.
