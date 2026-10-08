@@ -25,11 +25,15 @@ As measured on the tree the spec landed against:
   paragraph. EDAG, DataJS, JSON, Markdown, the changelog and the
   [versions](../versions/module.f.mjs) helper (B-tree, Patricia trie) write
   `Error:` the same way, and JSON prints it inside the box its result sits
-  in. Only rtti uses the tinted `data-result="error"` box.
+  in. Only rtti and PoW use the tinted `data-result="error"` box.
 - **No caption over the output.** The parser, serializer, Rust and tokenizer
   pages show their result with nothing to say what it is.
 - **A verdict in an example's name.** DataJS's
   `Error: JSON is not a document`.
+
+Found later, by reading every `pre` the non-proof sources build, states only
+a click reaches included:
+
 - **A text result outside a code block.** The compiler's side-by-side page
   (every output in [`outputs`](../../../compiler/demo.f.mjs)), parser,
   serializer, Rust and tokenizer pages, JSON and UTF-8 draw their result as
@@ -55,9 +59,12 @@ Change the shared builders first, so most demos move by changing one place:
   wrong with every check green;
 - a text result through the shared [`codeBlock`](../code/module.f.mjs), or a
   plain `data-code` box where the reader has no reason to paste it
-  elsewhere. The compiler's side-by-side, parser, serializer and Rust pages
-  build their result with one repeated `kind === 'ok' ? ['pre', value] : …`
-  line, which the refusal element can replace together with it.
+  elsewhere, with a proof that pins the `data-code` marker as the refusal
+  element's pins its own — today no proof does, so a renamed marker leaves
+  every result unboxed with every check green. The compiler's side-by-side,
+  parser, serializer and Rust pages build their result with one repeated
+  `kind === 'ok' ? ['pre', value] : …` line, which the refusal element can
+  replace together with it.
 
 Then the remaining demos, a few per pull request, each checked in the
 browser with its preview link in the description.
@@ -71,7 +78,8 @@ browser with its preview link in the description.
 - [ ] Rename DataJS's `Error: JSON is not a document`.
 - [ ] Text results in a code block for the compiler's side-by-side, parser,
       serializer, Rust and tokenizer pages, JSON, UTF-8 and BigInt's measured
-      rows; decide per demo whether the result carries a copy button.
+      rows, with a proof pinning `data-code`; decide per demo whether the
+      result carries a copy button.
 
 ### Related
 
