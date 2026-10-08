@@ -54,6 +54,8 @@
  * conditionalTail ::= [ '?' value ':' value ]
  * tail   ::= eagerTail circuitTail conditionalTail
  * access ::= '.' id | '[' (string | number) ']' | '(' [ items(item) ] ')'
+ *          | '?.' optionalStep
+ * optionalStep ::= id | '[' (string | number) ']' | '(' [ items(item) ] ')'
  * array  ::= '[' [ items(item) ] ']'
  * item   ::= '...' value | value
  * object ::= '{' [ items(entry) ] '}'
@@ -123,7 +125,7 @@
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { BinaryTag } from '../../ast/types.ts'
  * @import { StringMap } from '../../../types/object/types.ts'
- * @import { Access, AfterValue, ArrowOrRest, Block, Body, CircuitTail, ConditionalTail, EagerTail, End, Func, Group, GroupOperand, Item, Items, LastStatement, Member, Entry, ParameterNames, Parameters, Paren, ParenGroup, ParenGroupOperand, Parenthesized, PowTail, Statement, Tail, Terminator, Unary, UnaryOperand, Value, ValueBranches } from './types.ts'
+ * @import { Access, AfterValue, ArrowOrRest, Block, Body, CircuitTail, ConditionalTail, EagerTail, End, Func, Group, GroupOperand, Item, Items, LastStatement, Member, Entry, OptionalStep, ParameterNames, Parameters, Paren, ParenGroup, ParenGroupOperand, Parenthesized, PowTail, Statement, Tail, Terminator, Unary, UnaryOperand, Value, ValueBranches } from './types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.mjs'
@@ -318,20 +320,37 @@ export const index = /** @type {const} */ ({
 export const callArguments = () => values()
 
 /**
+ * What follows `?.`: the three steps a value takes, each spelled as it is
+ * after a value, less the `.` a property's own spelling begins with — the
+ * `?.` has it. One symbol decides between them, a word, `[` or `(`, so an
+ * optional step is read in two: the `?.` and then this.
+ *
+ * @type {OptionalStep}
+ */
+export const optionalStep = /** @type {OptionalStep} */ ({
+    property: identifierName,
+    index: [sym('['), index, sym(']')],
+    call: [sym('('), option(callArguments), sym(')')],
+})
+
+/**
  * One step after a value: a property access, `.name` with the name any
  * identifier or `[key]` with the key a constant, or a call, `(a, b)` with
  * its arguments any values. What a property's two spellings may name is the
  * fold's to check, since the name is a word the grammar does not see.
  *
- * Three symbols decide between them — `.`, `[` and `(` — and none of them
- * follows a value any other way, so the step a value takes is read in one.
- * `f(1)(2)` and `a.b(1)[0]` are steps upon steps, as `a.b[0]` is: what a
- * step applies to is everything written before it.
+ * Four symbols decide between them — `.`, `[`, `(` and `?.` — and none of
+ * them follows a value any other way, so the step a value takes is read in
+ * one. `f(1)(2)` and `a.b(1)[0]` are steps upon steps, as `a.b[0]` is: what
+ * a step applies to is everything written before it. The fourth is the
+ * optional step, `?.` and then {@link optionalStep}: the same three steps,
+ * guarded.
  */
 export const access = /** @type {Access} */ ({
     property: [sym('.'), identifierName],
     index: [sym('['), index, sym(']')],
     call: [sym('('), option(callArguments), sym(')')],
+    optional: [sym('?.'), optionalStep],
 })
 
 /** The accesses after a value, `a.b[0]`, none or more. */

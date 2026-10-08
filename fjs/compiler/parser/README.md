@@ -75,6 +75,8 @@ circuitTail ::= [ logicalAndRound { logicalAndRound } { logicalOrRound }
 conditionalTail ::= [ '?' value ':' value ]
 tail   ::= eagerTail circuitTail conditionalTail
 access ::= '.' id | '[' (string | number) ']' | '(' [ items(value) ] ')'
+         | '?.' optionalStep
+optionalStep ::= id | '[' (string | number) ']' | '(' [ items(value) ] ')'
 array  ::= '[' [ items(value) ] ']'
 object ::= '{' [ items(entry) ] '}'
 entry  ::= '...' value | member

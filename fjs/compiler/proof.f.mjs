@@ -834,6 +834,27 @@ export const proof = {
             assertEq(fjsRoundTrip('const f = (...a) => 1; export default f(1);'), 'const $0=()=>1;export default $0(1);')
             assertEq(fjsRoundTrip('export default [1][0](2);'), 'export default [1][0](2);')
         },
+        // The optional chains: each spelling reads back as the graph it
+        // was written from, a group kept where it closed a region, and the
+        // value outputs answer as JavaScript does — `undefined` for a
+        // nullish base, the steps after it skipped.
+        chains: () => {
+            const o = 'const a = { b: { c: 1, d: (...x) => x } }; const n = null; '
+            assertEq(compileSource(`${o}export default [a?.b.c, n?.b.c, a?.b?.c, (a?.b).c];`)('output.data.js'), 'export default [1,undefined,1,1];')
+            assertEq(compileSource(`${o}export default [a?.b.d(1, 2), n?.b.d(1), a.b?.d(3), n?.(1), n?.b.d((() => { throw 0; })())];`)('output.data.js'), 'export default [[1,2],undefined,[3],undefined,undefined];')
+            assertEq(compileSource(`${o}export default [(a?.b)?.d?.(1), a?.b.d?.(1).length, (a?.b.d)(2)];`)('output.data.js'), 'export default [[1],1,[2]];')
+            assertEq(compileSource('const a = [1]; export default [a?.at(0), a?.length, a?.[0], a?.["length"]];')('output.data.js'), 'export default [1,1,1,1];')
+            // a group ends the region: `.c` of `undefined` throws
+            assertEq(moduleRefused('const n = null; export default (n?.b).c;'), 'input.f.js - error: module initialization failed')
+            assertEq(compileSource('const n = null; export default n?.b.c;')('output.edag.data.js'), 'export default ["{}",[[":","default",["?.",null,"b",["|.","c"]]]]];')
+            assertEq(compileSource('const f = (...x) => x; export default f?.(1).length;')('output.edag.data.js'), 'export default ["{}",[[":","default",["?.()",["=>",0,[],["rest"]],[1],["|.","length"]]]]];')
+            assertEq(fjsRoundTrip(`${o}export default [a?.b.c, (a?.b).c, a?.b?.c, a?.b.d(1).length, (a?.b.d)(1), a?.b?.d?.(1), a.b?.d(1), (a.b?.d(1))(2), n?.(1)?.(2), (n?.(1))(2)];`), 'const $0={"b":{"c":1,"d":(...$1)=>$1}};export default [$0?.b.c,($0?.b).c,$0?.b?.c,$0?.b.d(1).length,($0?.b.d)(1),$0?.b?.d?.(1),$0.b?.d(1),($0.b?.d(1))(2),null?.(1)?.(2),(null?.(1))(2)];')
+            assertEq(fjsRoundTrip('export default (...x) => [x?.[0], x?.["a b"], x[0]?.y, 1?.x];'), 'export default (...$0)=>{const $1=1;return [$0?.[0],$0?.["a b"],$0[0]?.y,$1?.x];};')
+            // a key is judged as an access's: refused at the key, through a step too
+            assertEq(moduleRefused('export default [1, 2]?.at;'), 'input.f.js:1:24 - error: prohibited property name')
+            assertEq(moduleRefused('export default [1, 2]?.push(0);'), 'input.f.js:1:24 - error: prohibited member function')
+            assertEq(moduleRefused('export default [[1]]?.at(0).push(0);'), 'input.f.js:1:29 - error: prohibited member function')
+        },
         // a program the linker refuses is reported against the input, as a
         // parse error is, and nothing is written: a missing import
         refused: () => {
