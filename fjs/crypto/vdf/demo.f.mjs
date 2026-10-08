@@ -31,7 +31,7 @@ import { p, sloth } from './module.f.mjs'
 import { tryUtf8 } from '../../text/module.f.mjs'
 import { digitsValue, hexDigitValue } from '../../text/ascii/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
-import { textField, inputField } from '../../website/demo/module.f.mjs'
+import { textField, inputField, caption } from '../../website/demo/module.f.mjs'
 import { codeBlock } from '../../website/demo/code/module.f.mjs'
 import { computeSync, sha256 } from '../sha2/module.f.mjs'
 import { maxLengthBytes, uint } from '../../types/bit_vec/module.f.mjs'
@@ -139,14 +139,14 @@ const verdictView = ({ verdict, steps }) =>
  */
 const xView = x => x === null
     ? refusal(`Input too long: more than ${maxLengthBytes} UTF-8 bytes.`)
-    : [['p', 'Input x = SHA-256 of the text, hex:'], codeBlock(x.toString(16).padStart(64, '0'), 'Copy x')]
+    : [caption('Input x = SHA-256 of the text, hex:'), codeBlock(x.toString(16).padStart(64, '0'), 'Copy x')]
 
 /** The evaluated `y`, once every step is done.
  * @type {(run: DemoRun | null) => readonly Element[]}
  */
 const result = run =>
     run === null || run.done < run.steps ? []
-        : [['p', 'Result y, hex:'], codeBlock(hexOfY(run.value), 'Copy y')]
+        : [caption('Result y, hex:'), codeBlock(hexOfY(run.value), 'Copy y')]
 
 /**
  * How long a verification at this many steps takes, when it is long enough

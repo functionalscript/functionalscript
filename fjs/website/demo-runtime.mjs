@@ -17,6 +17,7 @@
 import { asyncPartialRun } from '../effects/module.mjs'
 import { commonOperationMap } from '../effects/common/module.mjs'
 import { patch, toDom } from '../media/html/module.mjs'
+import { demoMarker } from './style/module.f.mjs'
 
 /**
  * What a demo may ask this page for.
@@ -410,7 +411,7 @@ const copyTimers = new WeakMap()
 const copyPending = new WeakSet()
 
 /**
- * Starts the demo named by `data-demo` inside `root`.
+ * Starts the demo named by `demoMarker` inside `root`.
  *
  * The path is root-relative and taken verbatim: a relative specifier in the
  * `import()` below would resolve against *this module*, two directories deep,
@@ -419,7 +420,7 @@ const copyPending = new WeakSet()
  * @type {(root: Element) => Promise<void>}
  */
 export const startDemo = async root => {
-    const path = root.getAttribute('data-demo')
+    const path = root.getAttribute(demoMarker)
     if (path === null) { return }
     // **The first render is reported like every later one.** It runs before
     // the queue exists, so without this a demo whose `view(init)` throws — or

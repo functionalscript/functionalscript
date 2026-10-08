@@ -31,6 +31,7 @@
 import { at } from '../../types/object/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
 import { examplePicker, name as exampleName } from './examples/module.f.mjs'
+import { captionMarker } from '../style/module.f.mjs'
 
 /**
  * A demo whose state is the text in a labelled textarea, followed by what
@@ -72,6 +73,13 @@ export const inputField = ({ name, label }, value) => ['p',
     ['label', { for: name }, `${label} `],
     ['input', { type: 'text', id: name, name, value }],
 ]
+
+/** A caption naming the result drawn after it: a `p` marked with the
+ * stylesheet's `captionMarker`, which sets it bold so a reader tells a
+ * result's name from the result and from the prose around it.
+ * @type {(text: string) => Element}
+ */
+export const caption = text => ['p', { [captionMarker]: '' }, text]
 
 /** Update an existing string field; unrelated events keep the state.
  * @type {<S extends StringMap<string>>(state: S) => (event: DemoEvent) => Effect<never, S, never>}

@@ -24,7 +24,7 @@
 
 import { parse, stringify } from './module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
-import { textDemo } from '../../website/demo/module.f.mjs'
+import { textDemo, caption } from '../../website/demo/module.f.mjs'
 
 /**
  * `text` parsed and written back in normalized form — sorted keys, one line
@@ -53,6 +53,6 @@ export const demo = textDemo({
     label: 'JSON',
     init: '{\n  "b": 2,\n  "a": [3, 2, 1],\n  "c": "hello"\n}',
 })(text => [
-    ['p', 'Parsed, then written back:'],
+    caption('Parsed, then written back:'),
     ['pre', roundTrip(text)],
 ])

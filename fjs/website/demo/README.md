@@ -58,6 +58,11 @@ The lead is plain prose, not a caption: no trailing colon, no bold.
   `A release file`. Where a label would break a sentence the field sits in,
   as the bigint demo's exponent does, the field carries `aria-label`
   instead.
+- **A field's own label is bold, at the text's own size**, so a reader
+  scanning the page tells the controls from the prose around them. It stays
+  a `label`, not a heading. A field that reads better inside a sentence, as
+  the bigint demo's exponent does, is part of that sentence and stays
+  regular with it.
 - **The control fits what the reader types.** Text that can span lines — a
   program, a document, a release file — is a textarea, and a demo that is
   text in, text out uses [`textDemo`](./module.f.mjs), which owns the
@@ -112,6 +117,13 @@ sharing. Use [`examples`](./examples/module.f.mjs), through
   what the result is and, where it matters, its notation — `SHA-256, hex:`,
   `Code points, UTF-8 hex:`, `Parsed, then written back:`. A demo whose only
   output is self-evident from the lead may omit it.
+- **A caption is marked `data-caption`, which sets it bold at the text's own
+  size**, as a label is, so a reader tells each result's name from the result
+  and from the lead. It stays a `p`, not a heading: the demo's only headings
+  are the `h3`s over [parallel results](#one-order-top-to-bottom). Everything
+  else around the output — the lead, explanatory notes, a progress summary, a
+  disclosure's title — stays regular, so the bold marks only what names a
+  control or a result.
 - **A text result is a code block**: a `pre` in an element marked
   `data-code`, the bordered, neutral box the SHA-2 demo draws its digest in.
   A result a reader will paste somewhere else — a digest, a command to run —
