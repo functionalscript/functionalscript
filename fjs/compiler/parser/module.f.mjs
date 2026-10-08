@@ -890,9 +890,9 @@ const isEntryOf = (node, x) => {
  * parameter, a `const` or the function's own name spelling `Object` is
  * JavaScript's own reading, and no helper. `null` where the function is
  * not the helper, by shape or by binding, and the ordinary resolution
- * takes it from there, refusing the `Object` it cannot name; a keyword or
- * a repeated name among the three is left to it the same way, to refuse
- * as it refuses every other. An error where the helper's two statements
+ * takes it from there, refusing the `Object` it cannot name; a keyword, a
+ * reserved global such as `Array`, or a repeated name among the three is
+ * left to it the same way, to refuse as it refuses every other. An error where the helper's two statements
  * break the line rules every block's statements keep, {@link unterminated}
  * and {@link brokenLine}, which the shape alone cannot see.
  *
@@ -909,7 +909,7 @@ const entryFunction = (scope, self, [, list, body]) => {
     const b = nameOf(list[1].name)
     const x = nameOf(declaration.name)
     const names = [a, b, x]
-    if (new Set(names).size !== names.length || names.some(word => isKeyword(word) || word === 'Object')) { return null }
+    if (new Set(names).size !== names.length || names.some(word => isKeyword(word) || isReservedGlobal(word) || word === 'Object')) { return null }
     if (!isDescriptorOf(declaration.value, a, b) || !isEntryOf(returned.value, x) || self === 'Object' || resolve(scope, 'Object') !== null) { return null }
     if (unterminated(declaration, returned)) { return error(unexpectedToken(returned.start)) }
     if (brokenLine(returned)) { return error(unexpectedToken(returned.first)) }

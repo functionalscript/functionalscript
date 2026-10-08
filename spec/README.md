@@ -1561,7 +1561,8 @@ of one is, and so is a key whose conversion fails.
 
 The helper is exactly what it spells. The compiler recognizes the function
 whole — its two parameters, the `const` the descriptor binds and the
-`return`, under any three distinct names, the keys in either spelling, the
+`return`, under any three distinct names a module may bind, so no keyword
+and no `Array`, the keys in either spelling, the
 semicolons where JavaScript inserts them — where `Object` is the intrinsic,
 which it is wherever no scope binds the word; a function that departs from
 it by a step is an ordinary function, in which `Object` is a name nothing

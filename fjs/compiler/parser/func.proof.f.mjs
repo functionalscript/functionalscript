@@ -633,9 +633,13 @@ export const proof = {
                 '(a, b) => Object.getOwnPropertyDescriptor(a, b);',
             ]) { refused(`export default ${other}`, 'const not found', 16 + other.indexOf('Object')) }
             refused('export default (a, b) => { const x = Reflect.getOwnPropertyDescriptor(a, b); return x?.enumerable ? x.value : undefined; };', 'const not found', 38)
-            // a keyword or a repeated name among the three is refused as it
-            // is in any function
+            // a keyword, a reserved global or a repeated name among the
+            // three is refused as it is in any function: `Array` is no more
+            // the helper's to bind than any module's, in each of the three
             refused('export default (if, b) => { const x = Object.getOwnPropertyDescriptor(if, b); return x?.enumerable ? x.value : undefined; };', 'reserved word', 17)
+            refused('export default (Array, b) => { const x = Object.getOwnPropertyDescriptor(Array, b); return x?.enumerable ? x.value : undefined; };', 'reserved word', 17)
+            refused('export default (a, Array) => { const x = Object.getOwnPropertyDescriptor(a, Array); return x?.enumerable ? x.value : undefined; };', 'reserved word', 20)
+            refused('export default (a, b) => { const Array = Object.getOwnPropertyDescriptor(a, b); return Array?.enumerable ? Array.value : undefined; };', 'reserved word', 34)
             refused('export default (a, a) => { const x = Object.getOwnPropertyDescriptor(a, a); return x?.enumerable ? x.value : undefined; };', 'duplicate id', 20)
             refused('export default (a, b) => { const a = Object.getOwnPropertyDescriptor(a, b); return a?.enumerable ? a.value : undefined; };', 'duplicate id', 34)
             // and the line rules every block keeps: a statement without its
