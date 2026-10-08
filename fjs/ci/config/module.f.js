@@ -142,7 +142,7 @@ export const rust = '1.99.0'
 // It does not count the wait for a runner. That wait belongs to the merge
 // queue's status check timeout, a repository setting, which has to cover it.
 // https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idtimeout-minutes
-export const jobTimeout = 15
+export const jobTimeout = /** @type {const} */ (15)
 
 // Official Nixpkgs snapshot used by the generated CI flakes. `ref` is the
 // stable channel the commit is accepted from; `commit` is the exact revision
