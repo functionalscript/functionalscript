@@ -1,5 +1,5 @@
 use super::Array;
-use crate::vm::{Any, Function, IVm, Nullish, ToAny};
+use crate::vm::{Any, Function, IVm};
 
 impl<A: IVm> Array<A> {
     /// `Array.prototype.find(f)`
@@ -19,6 +19,6 @@ impl<A: IVm> Array<A> {
 
     /// The element a search found, or `undefined`.
     fn element(&self, i: Option<u32>) -> Any<A> {
-        i.map_or_else(|| Nullish::Undefined.to_any(), |i| self[i].clone())
+        i.map_or_else(|| Any::undefined(), |i| self[i].clone())
     }
 }

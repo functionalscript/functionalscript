@@ -633,7 +633,7 @@ mod tests {
             Ok(1.0.to_any())
         );
         assert!(is_nan(
-            (value_of(Nullish::Undefined.to_any()) + 1.0.to_any()).and_then(Any::to_number)
+            (value_of(Any::undefined()) + 1.0.to_any()).and_then(Any::to_number)
         ));
         // Both operands convert before either answer is used.
         let t = |v| with(&[("toString", throws(v))]);
@@ -647,7 +647,7 @@ mod tests {
     fn every_primitive_result() {
         let cases: [(Any<A>, &str, Option<f64>); 7] = [
             (Nullish::Null.to_any(), "null", Some(0.0)),
-            (Nullish::Undefined.to_any(), "undefined", None),
+            (Any::undefined(), "undefined", None),
             (true.to_any(), "true", Some(1.0)),
             (s("7"), "7", Some(7.0)),
             (s(""), "", Some(0.0)),
@@ -817,7 +817,7 @@ mod tests {
         assert_eq!(o().typeof_(), Ok(s("object")));
         assert_eq!(o().logical_and(|| Ok(1.0.to_any())), Ok(1.0.to_any()));
         assert!(o().logical_or(|| Ok(1.0.to_any())).is_ok());
-        assert_eq!(o().entry(s("a")), Ok(Nullish::Undefined.to_any()));
+        assert_eq!(o().entry(s("a")), Ok(Any::undefined()));
         // `===` compares by identity.
         let x = o();
         assert!(x == x.clone());
@@ -851,7 +851,7 @@ mod tests {
     fn every_non_function_is_skipped() {
         let others = [
             Nullish::Null.to_any(),
-            Nullish::Undefined.to_any(),
+            Any::undefined(),
             true.to_any(),
             big(1),
             [].to_array().to_any(),

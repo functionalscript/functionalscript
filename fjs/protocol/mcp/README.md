@@ -146,6 +146,17 @@ particular error channel, so a fallible call added upstream becomes a compile
 error at the tool that has to say what the new failure reads like — the reason
 `unwrapStep` (`fjs/effects/module.f.mjs`) asks for its `summary`.
 
+A tool whose chain goes on after the call succeeds uses `toolStep` instead: the
+failure is the same `isError` result, and the `ok` value goes to a continuation
+that answers the call itself. `errorText` comes first, so the refusal reads
+beside the call it guards:
+
+```ts
+toolStep(c.write(content), () => 'write', hash => resultStep(
+    syncRevision(cacheKey)(hash)(content),
+    () => pureOk(okResult(vecToCBase32(hash)))))
+```
+
 ## The CAS MCP Server: A Real-World Example
 
 The content-addressable store MCP adapter (`fjs/mcp/cas/module.f.mjs`) demonstrates the pattern in production:

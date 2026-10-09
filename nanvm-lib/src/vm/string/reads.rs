@@ -4,7 +4,7 @@ use super::{
 };
 use crate::{
     common::sized_index::SizedIndex,
-    vm::{Any, IVm, Nullish, Number, ToAny, ToString, array::relative::relative},
+    vm::{Any, IVm, Number, ToAny, ToString, array::relative::relative},
 };
 
 impl<A: IVm> String<A> {
@@ -14,10 +14,9 @@ impl<A: IVm> String<A> {
     /// one-unit string, or `undefined` out of range.
     pub(crate) fn at(&self, index: Any<A>) -> Result<Any<A>, Any<A>> {
         let k = relative(index, self.length())?;
-        Ok(self.unit_at(k).map_or_else(
-            || Nullish::Undefined.to_any(),
-            |u| String::of_unit(u).to_any(),
-        ))
+        Ok(self
+            .unit_at(k)
+            .map_or_else(|| Any::undefined(), |u| String::of_unit(u).to_any()))
     }
 
     /// `String.prototype.charAt(pos)`
@@ -80,7 +79,7 @@ impl<A: IVm> String<A> {
 mod tests {
     use crate::{
         naive::Naive,
-        vm::{Any, Nullish, String, ToAny, ToString},
+        vm::{Any, String, ToAny, ToString},
     };
 
     type A = Naive;
@@ -96,10 +95,10 @@ mod tests {
     fn at_and_char_at() {
         let abc: String<A> = "abc".into();
         assert_eq!(abc.at(n(-1.0)), Ok("c".into()));
-        assert_eq!(abc.at(n(3.0)), Ok(Nullish::Undefined.to_any()));
+        assert_eq!(abc.at(n(3.0)), Ok(Any::undefined()));
         assert_eq!(abc.char_at(n(1.0)), Ok("b".into()));
         assert_eq!(abc.char_at(n(-1.0)), Ok("".into()));
-        assert_eq!(abc.char_at(Nullish::Undefined.to_any()), Ok("a".into()));
+        assert_eq!(abc.char_at(Any::undefined()), Ok("a".into()));
     }
 
     #[test]

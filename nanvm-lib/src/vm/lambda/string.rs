@@ -56,7 +56,7 @@ fn char_code_at<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
 /// The code point as a number, or `undefined` out of range.
 fn code_point_at<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     Ok(receiver(s)?.code_point_at(argument(&args, 0))?.map_or_else(
-        || crate::vm::Nullish::Undefined.to_any(),
+        || crate::vm::Any::undefined(),
         |c| Number::from(f64::from(c)).to_any(),
     ))
 }

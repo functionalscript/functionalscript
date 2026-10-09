@@ -48,8 +48,6 @@ makes that guide workspace-wide.
 
 - [159-collapse-per-type-wrapper-traits](./159-collapse-per-type-wrapper-traits.md)
   — `PartialEq` on the wrapper newtypes; this is the sum types.
-- [debug-delimited-fmt-helper](./debug-delimited-fmt-helper.md) — the
-  container `Debug` loop; independent.
 - [document-nanvm-harness](../../nanvm-harness/todo/document-nanvm-harness.md)
   — decides which Rust guide covers the harness, and so where this
   rule lives.

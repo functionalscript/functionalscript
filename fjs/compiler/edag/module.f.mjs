@@ -10,7 +10,7 @@
  * @import { _ImportSource, _Source } from '../source/types.ts'
  * @import { ParseError } from '../parser/types.ts'
  * @import { Effect } from '../../effects/types.ts'
- * @import { ReadFile, ResolveFileModule } from '../../effects/node/types.ts'
+ * @import { ReadWhole, ResolveFileModule } from '../../effects/node/types.ts'
  * @import { EdagValue } from '../../edag/value/types.ts'
  * @import { Unknown as JsonUnknown } from '../../media/json/types.ts'
  * @import { Unresolved } from './types.ts'
@@ -699,7 +699,7 @@ const completed = id => context => edag => {
 /** @type {(id: string) => (context: _Link) => (value: JsonUnknown) => readonly [_Link, _Resolved]} */
 const completedJson = id => context => value => completed(id)(context)(['{}', [[':', 'default', jsonValue(value)]]])
 
-/** Require the selected export even if its binding is unused. @type {(source: _ImportSource) => (binding: _Binding) => Effect<ReadFile | ResolveFileModule, _Binding, ParseError>} */
+/** Require the selected export even if its binding is unused. @type {(source: _ImportSource) => (binding: _Binding) => Effect<ReadWhole | ResolveFileModule, _Binding, ParseError>} */
 const linkImport = source => ({ context, bound }) => step(link(source)(context), ([linked, resolved]) => {
     const selected = source.name === null ? resolved.exports : resolved.bindings.find(([key]) => key === source.name)?.[1]
     return selected === undefined
@@ -713,7 +713,7 @@ const linkImport = source => ({ context, bound }) => step(link(source)(context),
  * reference is lowered, so the graph is built once, with the imported
  * module's node where its parameter would be.
  *
- * @type {(source: _Source) => (context: _Link) => (module: AstModule) => Effect<ReadFile | ResolveFileModule, readonly [_Link, _Resolved], ParseError>}
+ * @type {(source: _Source) => (context: _Link) => (module: AstModule) => Effect<ReadWhole | ResolveFileModule, readonly [_Link, _Resolved], ParseError>}
  */
 const linkModule = source => context => module => mapStep(
     foldStep(_importSources(source)(module[0]), { context, bound: [] }, linkImport),
@@ -727,7 +727,7 @@ const linkModule = source => context => module => mapStep(
  * `with { type: "json" }`; a `.json` file imported without it, or another
  * file imported with it, is refused as JavaScript refuses it.
  *
- * @type {(source: _Source) => (context: _Link) => Effect<ReadFile | ResolveFileModule, readonly [_Link, _Resolved], ParseError>}
+ * @type {(source: _Source) => (context: _Link) => Effect<ReadWhole | ResolveFileModule, readonly [_Link, _Resolved], ParseError>}
  */
 const link = source => context => {
     const { id, path, json } = source
@@ -761,7 +761,7 @@ const edagOf = ([, resolved]) => resolved.exports
  * position; and as `unresolved` refuses, on a module whose export does not
  * reach every import and every `const`.
  *
- * @type {(path: string) => Effect<ReadFile | ResolveFileModule, Exp, ParseError>}
+ * @type {(path: string) => Effect<ReadWhole | ResolveFileModule, Exp, ParseError>}
  */
 export const resolve = path => step(_rootSource(path), source => source.json
     // The CLI extension selects JSON input even when realpath follows an alias

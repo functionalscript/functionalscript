@@ -52,7 +52,7 @@ impl<A: IVm> Mul for Numeric<A> {
     type Output = Result<Self, Any<A>>;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        self.zip(rhs, |a, b| a * b, |a, b| Ok(a * b))
+        self.zip(rhs, |a, b| a * b, |a, b| a * b)
     }
 }
 

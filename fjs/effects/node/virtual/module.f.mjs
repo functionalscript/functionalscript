@@ -860,7 +860,6 @@ const writeBytesRawOp = (offset, data) => (dir, p) => {
     // writeBytes never creates.
     const resolved = resolveFile(jsModuleNotAFile)(dir, p)
     if (resolved[0] === 'error') { return [dir, resolved] }
-    if (!Number.isInteger(offset) || offset < 0) { return [dir, fail(`Offset ${offset} is invalid`)] }
     const chunks = resolved[1]
     if (offset !== fileSizeBytes(chunks)) {
         return [dir, fail(`writeBytes offset ${offset} must equal the file size (append-only)`)]

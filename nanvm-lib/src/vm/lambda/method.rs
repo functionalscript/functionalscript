@@ -80,7 +80,7 @@ pub(super) fn argument<A: IVm>(args: &Array<A>, i: u32) -> Any<A> {
     if i < args.length() {
         args[i].clone()
     } else {
-        Nullish::Undefined.to_any()
+        Any::undefined()
     }
 }
 
@@ -333,7 +333,7 @@ fn array_last_index_of<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A
 mod tests {
     use crate::{
         naive::Naive,
-        vm::{Any, BigInt, IStaticFunction, Nullish, ToAny, ToArray, ToObject, error},
+        vm::{Any, BigInt, IStaticFunction, ToAny, ToArray, ToObject, error},
     };
 
     type A = Naive;
@@ -353,10 +353,7 @@ mod tests {
         let b = || BigInt::<A>::from(-255i64).to_any();
         let out_of_range = Err(error::argument_out_of_range("toString", 2, 36));
         assert_eq!(to_string_with(n(255.0), 10.0.to_any()), Ok("255".into()));
-        assert_eq!(
-            to_string_with(n(255.0), Nullish::Undefined.to_any()),
-            Ok("255".into())
-        );
+        assert_eq!(to_string_with(n(255.0), Any::undefined()), Ok("255".into()));
         assert_eq!(to_string_with(n(255.0), 16.0.to_any()), Ok("ff".into()));
         assert_eq!(to_string_with(n(255.0), 16.9.to_any()), Ok("ff".into()));
         assert_eq!(to_string_with(n(255.0), "2".into()), Ok("11111111".into()));
@@ -521,7 +518,7 @@ mod tests {
         assert_eq!(at(0.0.to_any()), Ok(1.0.to_any()));
         assert_eq!(at((-1.0f64).to_any()), Ok(3.0.to_any()));
         assert_eq!(at("1".into()), Ok(2.0.to_any()));
-        assert_eq!(at(3.0.to_any()), Ok(Nullish::Undefined.to_any()));
+        assert_eq!(at(3.0.to_any()), Ok(Any::undefined()));
         assert_eq!(arr.dot("at".into()).end_call(no_args), Ok(1.0.to_any()));
     }
 

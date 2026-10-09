@@ -153,6 +153,24 @@ mod tests {
         run,
     };
 
+    /// A compiled fixture's `module`, at the VM every test runs.
+    type Module = fn() -> Result<Any<Naive>, Any<Naive>>;
+
+    /// The fixture's default export as JSON text, the way most tests read it.
+    ///
+    /// The tests stay `#[test]`s rather than rows of one table: a failing
+    /// one then fails alone, under its own name, while the rest still run,
+    /// and the doc comment saying what it proves stays on it.
+    fn read_default(module: Module) -> Result<std::string::String, RunError<Naive>> {
+        run(module, "default", Action::Read)
+    }
+
+    /// The fixture's default export as a value, for a test that checks what
+    /// JSON cannot hold.
+    fn default_export(module: Module) -> Any<Naive> {
+        module().unwrap().dot("default".into()).end().unwrap()
+    }
+
     #[test]
     fn module_result_contains_exports() {
         assert_eq!(
@@ -173,7 +191,7 @@ mod tests {
 
     #[test]
     fn thrown_value_is_reported_not_panicked() {
-        let error = run::<Naive>(throwing, "default", Action::Read).unwrap_err();
+        let error = read_default(throwing).unwrap_err();
         assert!(matches!(&error, RunError::Thrown(v) if *v == "boom".into()));
         assert_eq!(error.to_string(), "uncaught \"boom\"");
     }
@@ -188,7 +206,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "a compiled module returns its export object")]
     fn non_object_module_panics() {
-        let _ = run::<Naive>(not_an_object, "default", Action::Read);
+        let _ = read_default(not_an_object);
     }
 
     /// The failure contract from source to run: `1n / 0n` throws in
@@ -196,13 +214,13 @@ mod tests {
     #[test]
     fn compiled_throw_is_reported() {
         assert!(matches!(
-            run::<Naive>(throws::module, "default", Action::Read),
+            read_default(throws::module),
             Err(RunError::Thrown(_))
         ));
         // A property read on a nullish base: the compiler writes the read,
         // and the VM throws the `TypeError` JavaScript throws.
         assert!(matches!(
-            run::<Naive>(nullish::module, "default", Action::Read),
+            read_default(nullish::module),
             Err(RunError::Thrown(_))
         ));
     }
@@ -213,7 +231,7 @@ mod tests {
     #[test]
     fn compiled_throw_statement_is_reported() {
         assert_eq!(
-            run::<Naive>(throw::module, "default", Action::Read),
+            read_default(throw::module),
             Err(RunError::Thrown(Number::from(7.0).to_any()))
         );
     }
@@ -223,7 +241,7 @@ mod tests {
     #[test]
     fn operators() {
         assert_eq!(
-            run::<Naive>(operators::module, "default", Action::Read),
+            read_default(operators::module),
             Ok(
                 "[7,5,12,1.5,2,36,-6,-7,false,\"number\",true,true,false,true,true,false,true,2,7,7,12,3,3,\"ab\",7]"
                     .into()
@@ -241,7 +259,7 @@ mod tests {
     #[test]
     fn lazy_operators() {
         assert_eq!(
-            run::<Naive>(lazy::module, "default", Action::Read),
+            read_default(lazy::module),
             Ok("[0,2,null,1,3,\"x\",0,4,5,false,7,8,2,10,11,13,2]".into())
         );
     }
@@ -251,34 +269,16 @@ mod tests {
     /// arguments reach the body as its `args`.
     #[test]
     fn functions() {
-        assert_eq!(
-            run::<Naive>(call::module, "default", Action::Read),
-            Ok("41".into())
-        );
-        assert_eq!(
-            run::<Naive>(arity::module, "default", Action::Read),
-            Ok("[0,2]".into())
-        );
-        assert_eq!(
-            run::<Naive>(rest::module, "default", Action::Read),
-            Ok("[1,2,3]".into())
-        );
-        assert_eq!(
-            run::<Naive>(calls::module, "default", Action::Read),
-            Ok("[1,2]".into())
-        );
-        assert_eq!(
-            run::<Naive>(nested::module, "default", Action::Read),
-            Ok("[2,3]".into())
-        );
-        assert_eq!(
-            run::<Naive>(length::module, "default", Action::Read),
-            Ok("0".into())
-        );
+        assert_eq!(read_default(call::module), Ok("41".into()));
+        assert_eq!(read_default(arity::module), Ok("[0,2]".into()));
+        assert_eq!(read_default(rest::module), Ok("[1,2,3]".into()));
+        assert_eq!(read_default(calls::module), Ok("[1,2]".into()));
+        assert_eq!(read_default(nested::module), Ok("[2,3]".into()));
+        assert_eq!(read_default(length::module), Ok("0".into()));
         // spec/README.md's sharing example: `pair` is bound once inside the
         // function's own scope, where `a` is, and cloned at each reference.
         assert_eq!(
-            run::<Naive>(function_scope::module, "default", Action::Read),
+            read_default(function_scope::module),
             Ok("[[1,1],[1,1]]".into())
         );
     }
@@ -289,7 +289,7 @@ mod tests {
     #[test]
     fn spreads() {
         assert_eq!(
-            run::<Naive>(spread::module, "default", Action::Read),
+            read_default(spread::module),
             Ok(r#"[[0,1,2,3],["a","😀"],[1,2,4],4,2]"#.into())
         );
     }
@@ -301,7 +301,7 @@ mod tests {
     #[test]
     fn object_spreads() {
         assert_eq!(
-            run::<Naive>(object_spread::module, "default", Action::Read),
+            read_default(object_spread::module),
             Ok(r#"[{"a":1,"b":2,"c":3},{"b":2,"a":1},{"a":0,"b":2},{"0":"p","z":0},{"0":"a","1":"\ud83d","2":"\ude00"},{}]"#.into())
         );
     }
@@ -350,7 +350,7 @@ mod tests {
     #[test]
     fn entry_helper() {
         assert_eq!(
-            run::<Naive>(entry::module, "default", Action::Read),
+            read_default(entry::module),
             Ok(r#"[1,3,true,8,8,true,true,"a",true,true,2,"function",9,5,true,true]"#.into())
         );
     }
@@ -358,7 +358,7 @@ mod tests {
     #[test]
     fn named_and_rest_parameters() {
         assert_eq!(
-            run::<Naive>(parameters::module, "default", Action::Read),
+            read_default(parameters::module),
             Ok("[3,[1,2,3,[4,5]],true,true,true,1,1,[1,[2,3],4,[5],[2,3],[5]],true,true,true,true]".into())
         );
     }
@@ -370,7 +370,7 @@ mod tests {
     #[test]
     fn closures() {
         assert_eq!(
-            run::<Naive>(closure::module, "default", Action::Read),
+            read_default(closure::module),
             Ok("[3,15,[1,2,3,1],42]".into())
         );
     }
@@ -381,10 +381,7 @@ mod tests {
     /// nested in it as any value of the scope around it is.
     #[test]
     fn recursion() {
-        assert_eq!(
-            run::<Naive>(recursion::module, "default", Action::Read),
-            Ok("[120,true,3]".into())
-        );
+        assert_eq!(read_default(recursion::module), Ok("[120,true,3]".into()));
     }
 
     /// A function's text is the FunctionalScript writer's: converted where
@@ -394,7 +391,7 @@ mod tests {
     #[test]
     fn function_texts() {
         assert_eq!(
-            run::<Naive>(function_text::module, "default", Action::Read),
+            read_default(function_text::module),
             Ok(r#"["()=>1","()=>1!","()=>1|2","(...$1)=>$0[0]+$1[0]","(...$0)=>(...$1)=>$0[0]+$1[0]",true,false]"#.into())
         );
         let exports: Object<Naive> = function_text::module::<Naive>()
@@ -410,14 +407,9 @@ mod tests {
     /// a function throws.
     #[test]
     fn missing_argument_and_non_function_callee() {
-        let value = missing::module::<Naive>()
-            .unwrap()
-            .dot("default".into())
-            .end()
-            .unwrap();
-        assert_eq!(value, Nullish::Undefined.to_any());
+        assert_eq!(default_export(missing::module), Nullish::Undefined.to_any());
         assert!(matches!(
-            run::<Naive>(not_a_function::module, "default", Action::Read),
+            read_default(not_a_function::module),
             Err(RunError::Thrown(_))
         ));
     }
@@ -428,10 +420,7 @@ mod tests {
             named::module::<Naive>().unwrap().to_json(),
             Ok(r#"{"a":[5],"default":[5],"z":[5]}"#.into())
         );
-        assert_eq!(
-            run::<Naive>(named::module, "default", Action::Read),
-            Ok("[5]".into())
-        );
+        assert_eq!(read_default(named::module), Ok("[5]".into()));
     }
 
     /// The MVP acceptance example (`todo/fjs-nanvm-integration.md`): a
@@ -547,8 +536,7 @@ mod tests {
     /// text JavaScript gives each (JSON cannot hold a bigint).
     #[test]
     fn bigint_literals() {
-        let module = bigint::module::<Naive>().unwrap();
-        let list = Any::dot(module, "default".into()).end().unwrap();
+        let list = default_export(bigint::module);
         let expected = [
             "9223372036854775807",
             "-9223372036854775808",
@@ -567,40 +555,28 @@ mod tests {
 
     #[test]
     fn number_constant() {
-        assert_eq!(
-            run::<Naive>(number::module, "default", Action::Read),
-            Ok("42".into())
-        );
+        assert_eq!(read_default(number::module), Ok("42".into()));
     }
 
     #[test]
     fn string_constant() {
-        assert_eq!(
-            run::<Naive>(string::module, "default", Action::Read),
-            Ok(r#""hello""#.into())
-        );
+        assert_eq!(read_default(string::module), Ok(r#""hello""#.into()));
     }
 
     #[test]
     fn boolean_constant() {
-        assert_eq!(
-            run::<Naive>(boolean::module, "default", Action::Read),
-            Ok("true".into())
-        );
+        assert_eq!(read_default(boolean::module), Ok("true".into()));
     }
 
     #[test]
     fn array_literal() {
-        assert_eq!(
-            run::<Naive>(array::module, "default", Action::Read),
-            Ok("[1,2,3]".into())
-        );
+        assert_eq!(read_default(array::module), Ok("[1,2,3]".into()));
     }
 
     #[test]
     fn object_literal() {
         assert_eq!(
-            run::<Naive>(object::module, "default", Action::Read),
+            read_default(object::module),
             Ok(r#"{"a":1,"b":"two"}"#.into())
         );
     }
@@ -613,27 +589,21 @@ mod tests {
         // itself is a property of the generated Rust, not something the
         // JSON output could distinguish from two separate literal objects.
         assert_eq!(
-            run::<Naive>(sharing::module, "default", Action::Read),
+            read_default(sharing::module),
             Ok(r#"[{"x":1},{"x":1}]"#.into())
         );
     }
 
     #[test]
     fn property_access() {
-        assert_eq!(
-            run::<Naive>(property::module, "default", Action::Read),
-            Ok("42".into())
-        );
+        assert_eq!(read_default(property::module), Ok("42".into()));
     }
 
     /// `o.f(42)`: the read's continuation calls `f` — a method call, one
     /// chain — and the call reaches the function with its arguments.
     #[test]
     fn method_call() {
-        assert_eq!(
-            run::<Naive>(method::module, "default", Action::Read),
-            Ok("42".into())
-        );
+        assert_eq!(read_default(method::module), Ok("42".into()));
     }
 
     /// The optional chains (`fjs/edag/README.md`, Chains): a guarded
@@ -643,10 +613,7 @@ mod tests {
     /// where `o?.a.b` is one.
     #[test]
     fn optional_chains() {
-        assert_eq!(
-            run::<Naive>(optional::module, "default", Action::Read),
-            Ok("[1,0,0,2,0,1]".into())
-        );
+        assert_eq!(read_default(optional::module), Ok("[1,0,0,2,0,1]".into()));
     }
 
     /// `a.at(i)`: a built-in member function of one type, reading its
@@ -655,7 +622,7 @@ mod tests {
     #[test]
     fn at_method() {
         assert_eq!(
-            run::<Naive>(at::module, "default", Action::Read),
+            read_default(at::module),
             Ok("[10,30,true,true,20,20,10]".into())
         );
     }
@@ -665,7 +632,7 @@ mod tests {
     #[test]
     fn to_string_method() {
         assert_eq!(
-            run::<Naive>(to_string::module, "default", Action::Read),
+            read_default(to_string::module),
             Ok(r#"["1.5","true","ab","5","1,b","[object Object]","own"]"#.into())
         );
     }
@@ -677,7 +644,7 @@ mod tests {
         // Rust literal as it is; the VM reads back the character itself.
         // `to_json` escapes the two control characters and prints the rest.
         assert_eq!(
-            run::<Naive>(escapes::module, "default", Action::Read),
+            read_default(escapes::module),
             Ok("[\"\\u0000\",\"\\u001f\",\"\u{7f}\",\"\u{202e}\",\"\u{2069}\"]".into())
         );
     }
