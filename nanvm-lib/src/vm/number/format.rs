@@ -284,6 +284,7 @@ mod tests {
         assert_eq!(precision(0.0, 3.0), "0.00".into());
         assert_eq!(precision(1e-7, 1.0), "1e-7".into());
         assert_eq!(precision(-0.0, 2.0), "0.0".into());
+        assert_eq!(precision(-123.456, 4.0), "-123.5".into());
         assert_eq!(precision(99.99, 3.0), "100".into());
         assert!(Number::from(1.0).to_precision::<A>(0.0).is_err());
         assert_eq!(precision(f64::NAN, 0.0), "NaN".into());
