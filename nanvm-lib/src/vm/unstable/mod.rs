@@ -98,6 +98,15 @@ enum Part<A: IVm> {
     Many(IteratorRecord<A>),
 }
 
+/// Room for `additional` more elements, or the `RangeError` an array that
+/// cannot be backed is: an allocation the machine refuses is a failure the
+/// program can observe, not an abort of the process.
+fn reserve<A: IVm>(values: &mut Vec<Any<A>>, additional: usize) -> Result<(), Any<A>> {
+    values
+        .try_reserve(additional)
+        .map_err(|_| error::array_too_long())
+}
+
 /// The array an item list holds, a spread among them: each value an
 /// element, and each spread every value its operand iterates, in order. A
 /// spread of a value that is not iterable throws, so the array is an
@@ -110,7 +119,9 @@ enum Part<A: IVm> {
 /// an array — and, since a string's code points are only known by walking
 /// it, checked again as each element is added, so the build never passes
 /// the limit. Taking the iterators first is unobservable: neither an array
-/// nor a string runs code while iterated.
+/// nor a string runs code while iterated. The elements' room is reserved up
+/// front and before every growth, so a length under the limit that the
+/// machine cannot back is the same `RangeError`, not an abort.
 pub fn spread_array<A: IVm>(
     items: impl IntoIterator<Item = ArrayItem<A>>,
 ) -> Result<Any<A>, Any<A>> {
@@ -132,11 +143,13 @@ pub fn spread_array<A: IVm>(
     if at_least > limit {
         return Err(error::array_too_long());
     }
-    let mut values = Vec::with_capacity(at_least as usize);
+    let mut values = Vec::new();
+    reserve(&mut values, at_least as usize)?;
     let mut push = |v: Any<A>| -> Result<(), Any<A>> {
         if values.len() as u64 == limit {
             return Err(error::array_too_long());
         }
+        reserve(&mut values, 1)?;
         values.push(v);
         Ok(())
     };
@@ -337,6 +350,26 @@ mod test {
         assert_eq!(spread_array(too_many).err(), Some(error::array_too_long()));
         let within = (0..2).map(|_| spread_item(block.clone()));
         assert_eq!(elements(spread_array(within)).len(), 131072);
+    }
+
+    /// A length under the limit that the machine cannot back is the
+    /// `RangeError` too, not an abort: 65,535 spreads of one 65,537-element
+    /// array are exactly `2³² − 1` elements. Skipped where the machine can
+    /// reserve that room, as building it would take the machine's memory.
+    #[test]
+    fn spread_array_unbacked() {
+        let one = || f64_any::<Naive>(0x3ff0000000000000);
+        let block: Any<Naive> = (0..65537)
+            .map(|_| one())
+            .collect::<Vec<_>>()
+            .to_array()
+            .to_any();
+        let all = u32::MAX as usize;
+        if Vec::<Any<Naive>>::new().try_reserve(all).is_ok() {
+            return;
+        }
+        let spreads = (0..65535).map(|_| spread_item(block.clone()));
+        assert_eq!(spread_array(spreads).err(), Some(error::array_too_long()));
     }
 
     /// The callee receives the spread values as its arguments, and a spread
