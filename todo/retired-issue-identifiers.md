@@ -172,8 +172,7 @@ prints nothing for any identifier already resolved.
 names, and the collision is not theoretical — an earlier revision of this issue
 listed one of them as a citation to repair. None of these is a citation:
 
-- Rust integer types: `i8` in `nanvm-lib/todo/sign-algebra.md` (the sign
-  representation); `i32` in `nanvm-lib/todo/numeric-binary-operator-zip.md`
+- Rust integer types: `i32` in `nanvm-lib/todo/numeric-binary-operator-zip.md`
   (the `int32_op` signature); `i64` in `fjs/nanvm/README.md` and
   `nanvm-lib/todo/bigint-operator-test-scaffolding.md` (`f64`/`i64` spelling
   and `From<i64>`); `i64` and `i128` in `spec/datajs/vectors/README.md`.
