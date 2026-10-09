@@ -149,11 +149,12 @@ export const jobTimeout = /** @type {const} */ (15)
 // every generated `flake.nix` pins. The Node versions above come from this
 // snapshot, so the two move together.
 //
-// Pin only a commit whose whole shell `cache.nixos.org` holds on all four
-// systems. The channel advances on Linux tests alone, and Hydra skips commits
+// Pin only a commit whose shells `cache.nixos.org` holds on every system they
+// declare. The channel advances on Linux tests alone, and Hydra skips commits
 // for Darwin, so a channel commit can leave the macOS jobs compiling Node.js
-// from source until they time out — `7c8764b7` did. Check each system with
-// `nix build --dry-run ./gen.nix#devShells.<system>.default`: only the
+// from source until they time out — `7c8764b7` did. Check every system of
+// every `gen.nix` flake, `node22` and `node24` included, with
+// `nix build --dry-run <flake>#devShells.<system>.default`: only the
 // overlay's Rust, the pinned Bun and the shell itself may be left to build.
 //
 // `commit` is the only fact `flake.nix` needs: `inputs.nixpkgs.url` names it
