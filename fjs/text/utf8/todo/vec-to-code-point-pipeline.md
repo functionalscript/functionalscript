@@ -36,7 +36,7 @@ The byte-list level below the `Vec` had the same fan-out, outside `text/`, in
 `fjs/text/percent`, `fjs/git/refstore`, `fjs/media/datajs/parser` and
 `fjs/effects/common`, each importing the low-level `utf8`/`utf16` primitives
 directly. `text/utf8` now owns that level as `stringToU8List`,
-`u8ListToString` and `tryU8ListToString`, and those modules use them.
+`u8ListToString` and `fromU8List`, and those modules use them.
 
 The unchecked and checked forms also live in *different* modules (top `text`
 vs `text/utf8`), so the `Vec` → string UTF-8 boundary has no single owner.
@@ -73,9 +73,9 @@ with every importer updated in the same PR; a re-export left in
 
 **Revised once the byte-list helpers landed.** The byte list is the lower
 layer, so the `Vec` forms are now a `u8ListMsb` unpack in front of it:
-`fromVec` is `tryU8ListToString` after the alignment check, and `utf8ToString`
+`fromVec` is `fromU8List` after the alignment check, and `utf8ToString`
 is `u8ListToString`. The code-point validation lives once, in
-`tryU8ListToString`, and `vecToCodePointList` is left with no caller but its
+`fromU8List`, and `vecToCodePointList` is left with no caller but its
 proof. `git/refstore` still imports `utf16`'s `codePointListToString` for
 `nameKey`, which is a byte-per-code-unit key, not a decoding.
 
@@ -95,9 +95,10 @@ proof. `git/refstore` still imports `utf16`'s `codePointListToString` for
       (`string → bytes`, the inner pipeline of `tryUtf8`) replaces
       `fjs/text/percent`'s `utf8Bytes` and `fjs/git/refstore`'s `nameBytes`.
       Then those modules stop importing the utf8/utf16 primitives directly.
-      Named after `utf16`'s `stringToCodePointList`/`codePointListToString`
-      pair, so each says its direction: `stringToU8List`, `u8ListToString`
-      (unchecked) and `tryU8ListToString` (validated, `null` on invalid).
+      `stringToU8List` and `u8ListToString` (unchecked) are named after
+      `utf16`'s `stringToCodePointList`/`codePointListToString` pair, so each
+      says its direction; the validated decoder is the existing `fromU8List`
+      (`null` on invalid), whose name joins the renaming task below.
       `fromVec` and `tryUtf8` build on them.
 - [ ] Name the UTF-8 boundary in one direction: the decoder and encoder in
       `text/utf8` say which way they go, and `types/uint8array`'s `fromVec`

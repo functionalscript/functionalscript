@@ -13,7 +13,7 @@ make self-hosting depend on a second interpreter.
 
 ### Proposal
 
-Compose the existing `ReadFile` and `ResolveFileModule` effects with the FJS
+Compose the existing `ReadWhole` and `ResolveFileModule` effects with the FJS
 parser, AST-to-EDAG lowering and [FJS interpreter](./interpret-edag.md).
 Loading evaluates each unresolved initializer with represented dependency
 exports and returns its complete export object. It does not call exported

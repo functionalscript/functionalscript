@@ -55,7 +55,7 @@ import { eof } from '../../../ebnf/module.f.mjs'
 import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.mjs'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
 import { lexeme, units } from '../../../ebnf/utf16/module.f.mjs'
-import { tryU8ListToString } from '../../../text/utf8/module.f.mjs'
+import { fromU8List } from '../../../text/utf8/module.f.mjs'
 import { items } from '../../../ebnf/lib/json/module.f.mjs'
 import { dataJs, number, value } from '../../../ebnf/lib/datajs/module.f.mjs'
 import { stringMappings, syntaxError } from '../../json/parser/module.f.mjs'
@@ -312,7 +312,7 @@ const bomRule = 'document: a document has no BOM'
  * character among them — so {@link tryParse} can neither implement nor refuse
  * them, and a reader taking bytes owes both.
  *
- * Strictness is the decoder's: `tryU8ListToString` in
+ * Strictness is the decoder's: `fromU8List` in
  * [`fjs/text/utf8`](../../../text/utf8/module.f.mjs), which `fromVec` uses
  * too, refuses a malformed sequence and what a code point may not be — a
  * surrogate, which `ED A0 80` decodes to, and anything past U+10FFFF.
@@ -334,7 +334,7 @@ const bomRule = 'document: a document has no BOM'
  * @type {(bytes: List<U8>) => Result<Unknown, string>}
  */
 export const tryParseBytes = bytes => {
-    const text = tryU8ListToString(bytes)
+    const text = fromU8List(bytes)
     if (text === null) { return error(utf8Rule) }
     if (text.charCodeAt(0) === bom) { return error(bomRule) }
     return tryParse(text)

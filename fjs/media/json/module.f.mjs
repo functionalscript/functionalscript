@@ -54,6 +54,8 @@ export const setProperty = value => {
  * `stringify` follows the standard `JSON.stringify` rules determined by
  * https://262.ecma-international.org/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-ownpropertykeys
  * https://tc39.es/ecma262/#sec-serializejsonproperty
+ * with one deliberate exception: `-0` is written `-0`, not `0`, so it
+ * survives a round trip through `parse`.
  *
  * @type {Codec<Primitive>}
  */

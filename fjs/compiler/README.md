@@ -94,7 +94,7 @@ resolution errors keep their existing diagnostics.
 ordinary runtime value, including callable exports, with EDAG reflection erased:
 
 ```ts
-Effect<ReadFile | ResolveFileModule | CompileValue, unknown, SourceError | IoChannel>
+Effect<ReadWhole | ResolveFileModule | CompileValue, unknown, SourceError | IoChannel>
 ```
 
 The runner supplies `CompileValue` for callable results. Data-only results need

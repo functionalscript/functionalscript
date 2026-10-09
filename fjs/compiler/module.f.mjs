@@ -18,7 +18,7 @@
  * @import { _Checked, _CompileOp } from './types.ts'
  * @import { ParseError } from './parser/types.ts'
  * @import { Effect, IoChannel, IoError } from '../effects/types.ts'
- * @import { Env, Program, ReadFile, ResolveFileModule, Write } from '../effects/node/types.ts'
+ * @import { Env, Program, ReadWhole, ResolveFileModule, Write } from '../effects/node/types.ts'
  */
 
 import { _transpileDefault } from './transpiler/module.f.mjs'
@@ -99,7 +99,7 @@ const isFjs = named(['.js', '.mjs'])
  * hoisted into a `const` as any shared node is, so the document reads back
  * as the same graph. The writer refuses nothing an EDAG holds.
  *
- * @type {(path: string) => Effect<ReadFile | ResolveFileModule, Result<string, string>, ParseError>}
+ * @type {(path: string) => Effect<ReadWhole | ResolveFileModule, Result<string, string>, ParseError>}
  */
 const edagText = path => mapStep(resolve(path), tryStringify)
 
@@ -108,7 +108,7 @@ const edagText = path => mapStep(resolve(path), tryStringify)
  * into one graph, the same as {@link edagText}, and printed against the
  * `nanvm-lib` API by `./rust` rather than serialized as a DataJS document.
  *
- * @type {(path: string) => Effect<ReadFile | ResolveFileModule, Result<string, string>, ParseError>}
+ * @type {(path: string) => Effect<ReadWhole | ResolveFileModule, Result<string, string>, ParseError>}
  */
 const rustText = path => mapStep(resolve(path), toRust)
 
@@ -121,7 +121,7 @@ const rustText = path => mapStep(resolve(path), toRust)
  * would refuse, a read of `null`, compiles too, the failure being the
  * program's to make when it runs.
  *
- * @type {(path: string) => Effect<ReadFile | ResolveFileModule, Result<string, string>, ParseError>}
+ * @type {(path: string) => Effect<ReadWhole | ResolveFileModule, Result<string, string>, ParseError>}
  */
 const fjsText = path => mapStep(resolve(path), graph => path.endsWith('.json') ? fjsStringify(graph) : tryModuleStringify(graph))
 
@@ -129,7 +129,7 @@ const fjsText = path => mapStep(resolve(path), graph => path.endsWith('.json') ?
  * Write the default export of a module, or the whole document for a direct
  * JSON input. Input language decides the boundary, never an object's keys.
  *
- * @type {(write: (value: Unknown) => Result<string, string>) => (path: string) => Effect<ReadFile | ResolveFileModule, Result<string, string>, ParseError>}
+ * @type {(write: (value: Unknown) => Result<string, string>) => (path: string) => Effect<ReadWhole | ResolveFileModule, Result<string, string>, ParseError>}
  */
 const dataText = write => path => mapStep(_transpileDefault(path), okThen(write))
 
@@ -148,7 +148,7 @@ const dataText = write => path => mapStep(_transpileDefault(path), okThen(write)
  * input is the effect's; and a name with no language here is neither, since
  * there is nothing to read the input for.
  *
- * @type {(outputFileName: string) => ((inputFileName: string) => Effect<ReadFile | ResolveFileModule, Result<string, string>, ParseError>) | null}
+ * @type {(outputFileName: string) => ((inputFileName: string) => Effect<ReadWhole | ResolveFileModule, Result<string, string>, ParseError>) | null}
  */
 const outputText = outputFileName => {
     if (outputFileName.endsWith('.json')) { return dataText(tryJsonStringify) }
@@ -249,7 +249,7 @@ const noneChecked = { checked: 0, refused: 0 }
  * goes on to the next file and a run names every file that fails, not the
  * first.
  *
- * @type {(path: string) => (count: _Checked) => Effect<ReadFile | ResolveFileModule | Write, _Checked, IoChannel>}
+ * @type {(path: string) => (count: _Checked) => Effect<ReadWhole | ResolveFileModule | Write, _Checked, IoChannel>}
  */
 const checkOne = path => ({ checked, refused }) => resultStep(
     resolve(path),

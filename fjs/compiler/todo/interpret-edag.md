@@ -174,7 +174,7 @@ the original represented `thrown` payload. The VM still returns
 
 `transpile` composes `interpret` with effectful `toUnknown`, returning the complete
 ordinary export object directly as `unknown`. Its operations are
-`ReadFile | ResolveFileModule | CompileValue` and its error channel is
+`ReadWhole | ResolveFileModule | CompileValue` and its error channel is
 `SourceError | IoChannel`. The runner supplies the target compile/load operation
 for callable results; data-only results require none. Source failures keep their
 represented payload and path, while runtime compilation failures use `IoChannel`.

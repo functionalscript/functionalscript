@@ -9,13 +9,13 @@
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { fileCas } from '../../cas/module.f.mjs'
 import { sha256 } from '../../crypto/sha2/module.f.mjs'
-import { emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'
+import { virtual } from '../../effects/node/virtual/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
 import { pureError } from '../../effects/module.f.mjs'
 import { unwrap as unwrapResult } from '../../types/result/module.f.mjs'
 import { vec8 } from '../../types/bit_vec/module.f.mjs'
 import { vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
-import { initEvo, evo } from '../../cas/evo/module.f.mjs'
+import { _freshEvo } from '../../cas/evo/proof.f.mjs'
 import { evoAddArgs, evoToolRegistry } from './module.f.mjs'
 import { toJsonSchema } from '../../media/json/schema/module.f.mjs'
 import { at } from '../../types/object/module.f.mjs'
@@ -35,7 +35,7 @@ import { array, string as rttiString } from '../../rtti/module.f.mjs'
 import { parse as rttiParse } from '../../rtti/parse/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
 
-const home = '/home/user'
+const store = fileCas(sha256)('/home/user')
 
 const parseSubjects = rttiParse(array(rttiString))
 
@@ -96,9 +96,7 @@ export const proof = {
         assertEq(evoToolRegistry(e).map(entry => entry.name).join(','), 'evo_list,evo_head,evo_revision,evo_add')
     },
     evoListReflectsTheCache: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = unwrapRun(virtual(emptyState)(initEvo(c)))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         const entry = findEntry(evoToolRegistry(e), 'evo_list')
         const [, [, result]] = virtual(state0)(entry.handle({}))
         assert(!result.isError)
@@ -110,9 +108,7 @@ export const proof = {
     // indistinguishable from multiple/no subjects in that format. JSON
     // encoding preserves both exactly.
     evoListEncodesArbitrarySubjectsAsJson: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = unwrapRun(virtual(emptyState)(initEvo(c)))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         const [state1] = unwrapRun(virtual(state0)(e.add({ parents: [], subject: 'line one\nline two', snapshot: vecToCBase32(vec8(0x2an)) })))
         const [state2] = unwrapRun(virtual(state1)(e.add({ parents: [], subject: '', snapshot: vecToCBase32(vec8(0x2bn)) })))
         const entry = findEntry(evoToolRegistry(e), 'evo_list')
@@ -126,9 +122,7 @@ export const proof = {
     // The `archived` argument is a pass-through to `Evo.list`'s status filter:
     // omitted lists the active subjects, `true` the archived ones.
     evoListForwardsTheArchivedFilter: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = unwrapRun(virtual(emptyState)(initEvo(c)))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         const [state1] = unwrapRun(virtual(state0)(e.add({ parents: [], subject: 'gone', snapshot: vecToCBase32(vec8(0x2cn)), archived: true })))
         const entry = findEntry(evoToolRegistry(e), 'evo_list')
         const [state2, [, active]] = virtual(state1)(entry.handle({}))
@@ -139,18 +133,14 @@ export const proof = {
         assertEq(textOf(archived), '["gone"]')
     },
     evoHeadReflectsTheCache: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = unwrapRun(virtual(emptyState)(initEvo(c)))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         const entry = findEntry(evoToolRegistry(e), 'evo_head')
         const [, [, result]] = virtual(state0)(entry.handle({ subject: 'nope' }))
         assert(!result.isError)
         assertEq(textOf(result), '')
     },
     evoHeadMissingSubjectIsInvalidArguments: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = unwrapRun(virtual(emptyState)(initEvo(c)))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         const entry = findEntry(evoToolRegistry(e), 'evo_head')
         const [, [, result]] = virtual(state0)(entry.handle({}))
         assertEq(result.isError, true)
@@ -159,9 +149,7 @@ export const proof = {
     // the JSON of `RevisionData` — `dialect` dropped, `generation` and the
     // resolved `snapshot` included.
     evoRevisionReturnsRevisionJson: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = unwrapRun(virtual(emptyState)(initEvo(c)))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         const subject = vecToCBase32(vec8(0x3n))
         const [state1, added] = unwrapRun(virtual(state0)(e.add({ parents: [], subject })))
         const entry = findEntry(evoToolRegistry(e), 'evo_revision')
@@ -172,9 +160,7 @@ export const proof = {
     // Covers evo_revision's error branch: a domain-level failure (a hash the
     // store has nothing under) is surfaced as isError with the message.
     evoRevisionDomainErrorIsError: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = unwrapRun(virtual(emptyState)(initEvo(c)))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         const entry = findEntry(evoToolRegistry(e), 'evo_revision')
         const [, [, result]] = virtual(state0)(entry.handle({ hash: vecToCBase32(vec8(0x4n)) }))
         assertEq(result.isError, true)
@@ -183,9 +169,7 @@ export const proof = {
     // Covers evo_add's success branch: a valid revision is stored and its
     // hash comes back as plain, non-error text.
     evoAddSuccessReturnsHash: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = unwrapRun(virtual(emptyState)(initEvo(c)))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         const entry = findEntry(evoToolRegistry(e), 'evo_add')
         const args = { parents: [], subject: 'doc', snapshot: vecToCBase32(vec8(0x1n)) }
         const [, [, result]] = virtual(state0)(entry.handle(args))
@@ -196,9 +180,7 @@ export const proof = {
     // the two tools speak one recursive schema, so a revision read out can be
     // added again as-is however deep its lock nests.
     evoAddAndRevisionCarryNestedLocks: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = unwrapRun(virtual(emptyState)(initEvo(c)))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         const registry = evoToolRegistry(e)
         const snapshot = vecToCBase32(vec8(0x1n))
         const d1 = vecToCBase32(vec8(0x2n))
@@ -239,9 +221,7 @@ export const proof = {
     // Covers evo_add's error branch: a domain-level failure (Evo.add's
     // Result) is surfaced as isError with the failure message as text.
     evoAddDomainErrorIsError: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = unwrapRun(virtual(emptyState)(initEvo(c)))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         const entry = findEntry(evoToolRegistry(e), 'evo_add')
         const [, [, result]] = virtual(state0)(entry.handle({ parents: [] }))
         assertEq(result.isError, true)
