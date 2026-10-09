@@ -120,8 +120,11 @@ fn reserve<A: IVm>(values: &mut Vec<Any<A>>, additional: usize) -> Result<(), An
 /// it, checked again as each element is added, so the build never passes
 /// the limit. Taking the iterators first is unobservable: neither an array
 /// nor a string runs code while iterated. The elements' room is reserved up
-/// front and before every growth, so a length under the limit that the
-/// machine cannot back is the same `RangeError`, not an abort.
+/// front and before every growth, so a length under the limit whose elements
+/// the machine cannot hold is the same `RangeError`, not an abort. The array
+/// built from them is the container constructor's own allocation, which is
+/// not fallible yet (`todo/131-non-panicking-allocator.md`): a machine that
+/// can hold the elements but not a second copy of them still aborts.
 pub fn spread_array<A: IVm>(
     items: impl IntoIterator<Item = ArrayItem<A>>,
 ) -> Result<Any<A>, Any<A>> {
@@ -352,8 +355,8 @@ mod test {
         assert_eq!(elements(spread_array(within)).len(), 131072);
     }
 
-    /// A length under the limit that the machine cannot back is the
-    /// `RangeError` too, not an abort: 65,535 spreads of one 65,537-element
+    /// A length under the limit whose elements the machine cannot hold is
+    /// the `RangeError` too, not an abort: 65,535 spreads of one 65,537-element
     /// array are exactly `2³² − 1` elements. Skipped where the machine can
     /// reserve that room, as building it would take the machine's memory.
     #[test]
