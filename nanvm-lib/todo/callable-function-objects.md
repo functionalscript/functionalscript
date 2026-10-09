@@ -493,7 +493,7 @@ lazy branches and throws; account for the specified function-text exception
 when native JavaScript is the reference. A future Rust EDAG executor must
 satisfy the same contract, but this parity work does not wait for it.
 
-*Plan (proposal, awaiting the owner's decisions below).*
+*Plan (decided: the four decisions below are recorded; step 1 has landed, step 2 is next).*
 
 **The corpus is the harness fixtures, not a new format.** The operator corpus
 has to be data because its cases are lowered to EDAG by hand. A call-contract
@@ -515,8 +515,10 @@ model, while `amnesia` re-establishes a shared node on every edge and is not
 identity-compatible ([execution models](../../fjs/edag/execution-models.md)),
 so `f === f` would disagree by design.
 
-**Measured.** Step 1 below compares all 44 fixtures. The 41 in the corpus
-agree: the same value, or both throw. Three are excepted, none for a
+**Measured.** Step 1 below compares every fixture the corpus covers, and each
+agrees: the same value, or both throw. The corpus is whatever
+[`corpus(names)`](../../fjs/nanvm/corpus/module.f.mjs) selects from the fixture
+directory, so no count is kept here. Three fixtures are excepted, none for a
 disagreement of semantics:
 
 | fixture | why it is not compared |
@@ -574,7 +576,7 @@ call contract, and keep their hand-written Rust tests.
    native-parity checks. Recorded here so the corpus is written to be run
    there, not so it waits for it.
 
-**Decisions for the owner.**
+**Decisions (all four decided).**
 
 1. ~~Expectation authored by hand beside each fixture, or by the reference and
    committed?~~ Decided: by the reference, committed and drift-checked.
