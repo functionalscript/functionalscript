@@ -85,6 +85,10 @@ If anything changed:
    the commit's timestamp (`git log -1 --format=%ct C` in a clone that has
    it). First
    confirm this reproduces the current lock entries, then write the new ones.
+   `rust-overlay` needs no hand work: it is a `git+https` input, so once the
+   Nixpkgs entries are right and that tree is in the store, run
+   `sh ./gen.nix/lock-update.sh` again and it locks `rust-overlay` over `git`,
+   `revCount` included.
 3. Run the dry run again on the generated flakes as committed, with no
    override, for every system. This also checks the lock: a wrong `narHash`
    makes Nix try GitHub and fail.
