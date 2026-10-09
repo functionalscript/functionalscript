@@ -12,7 +12,7 @@ import { byteLength, empty, isVec, maxLengthBytes, u8ListMsb, u8ListToVecMsb, ui
 import { utf8, utf8ToString } from "../../text/module.f.mjs"
 import { match } from "../module.f.mjs"
 import { mapStep, pureError, pureOk, step as ioStep } from "../module.f.mjs"
-import { badPortCode, badPortMessage, both, carriesNoBody, declaredLength, doubledLengthMessage, errorMessage, errorSummary, exitStep, fetch, framingHeaderMessage, headerValue, inflate, inflateTrailingMessage, ioError, isNotFound, isPort, maxPort, mkdir, now, readdir, readFile, readUtf8File, refusalMessage, refusedStatus, responseGate, rm, runnerResponse, sandbox, unframedBodyMessage, writeFile, writeUtf8File, _pieces, _vecList, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, readWholeBytes, readChunks, windowRefusal, maxOffset, fileSizeRefusal } from "./module.f.mjs"
+import { badPortCode, badPortMessage, both, carriesNoBody, declaredLength, doubledLengthMessage, errorMessage, errorSummary, exitStep, fetch, framingHeaderMessage, headerValue, inflate, inflateTrailingMessage, ioError, isNotFound, isPort, maxPort, mkdir, now, readdir, readFile, readUtf8File, refusalMessage, refusedStatus, responseGate, rm, runnerResponse, sandbox, unframedBodyMessage, writeFile, writeUtf8File, _pieces, _vecList, rename, readBytes, randomInt, writeFromStream, plainTextResponse, usesInlineTestContext, readWholeBytes, readChunks, windowRefusal, maxOffset, fileSizeRefusal } from "./module.f.mjs"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.mjs"
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.mjs"
 import { emptyState, virtual } from "./virtual/module.f.mjs"
@@ -1101,6 +1101,16 @@ export const proof = {
             // exactly as the single length says.
             assertEq(named(responseGate('GET', true, 200, { 'content-length': '1', 'Content-Type': 'text/a', 'content-type': 'text/b' })), 'pump 1')
         },
+        // Every plain-text answer: the length is measured from the bytes, a
+        // multi-byte message included, and the connection is left to the runner.
+        plainTextResponse: () => {
+            const { status, headers, body } = plainTextResponse(404, 'не найдено')
+            assertEq(status, 404)
+            assertEq(utf8ToString(body[0]), 'не найдено\n')
+            assertEq(`${headers['content-type']}`, 'text/plain; charset=utf-8')
+            assertEq(`${headers['content-length']}`, '20')
+            assertEq(headers.connection, undefined)
+        },
         // The frame a refusal goes out as, shared so that the two runners spell it
         // alike: a refusal a program is proven against is the refusal it meets.
         runnerResponse: () => {
@@ -1109,6 +1119,12 @@ export const proof = {
             assertEq(utf8ToString(body[0]), `${framingHeaderMessage}\n`)
             assertEq(`${headers['content-length']}`, `${byteLength(body[0])}`)
             assertEq(`${headers.connection}`, 'close')
+            // The plain-text frame and the close, nothing else: the rest is
+            // `plainTextResponse`'s, so a listener's plain-text answer and a
+            // runner's refusal differ only in the connection.
+            assertStructurallySame(
+                headers,
+                { ...plainTextResponse(refusedStatus, framingHeaderMessage).headers, connection: 'close' })
             assertEq(refusalMessage(['framingHeader']), framingHeaderMessage)
             assertEq(refusalMessage(['unframed']), unframedBodyMessage)
             assertEq(refusalMessage(['doubledLength']), doubledLengthMessage)
