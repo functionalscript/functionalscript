@@ -164,15 +164,15 @@ and canonical string round-trip are unchanged; `String` remains its
 compiler blocker. `types/number`, ASCII digit parsing, Unicode surrogate
 conversion, and Node/web validation reuse the same predicate.
 
-Since the previous measurement, at `4c8ec55`, the leaves are the same
-eighteen and the compiler has moved on three of them. `Number(exp)` is in the
-language and `Number` a reserved word
+Compared with the previous measurement at `4c8ec55`, the `08d013b` snapshot
+had the same eighteen leaves and compiler progress on three of them.
+`Number(exp)` is in the language and `Number` a reserved word
 ([number conversion](../spec/README.md#number-conversion)), so
-`array_index`'s `Number(key)` compiles and the module stops at
-`Number.isInteger`, a member of `Number` and an admission of its own, as
-`git/bytes`' `Number.isSafeInteger` is. A computed key now parses, refused
-unless it is `a[Number(i)]`, and is `git/bytes`' first refusal; every row with
-a runtime key says which of the language's two rewrites it takes, a number
+`array_index`'s `Number(key)` and shared integer predicate compile; the module
+now stops at the `String` global. `git/bytes` still uses `Number.isSafeInteger`,
+a member of `Number` and an admission of its own. A computed key now parses,
+refused unless it is `a[Number(i)]`, and is `git/bytes`' first refusal; every
+row with a runtime key says which of the language's two rewrites it takes, a number
 key's `a[Number(i)]` or a string key's `entry(a, k)`. `structurally_same` no
 longer waits on `instanceof`: all three of its uses have `Array` on the right
 ([`instanceof`](../spec/README.md#instanceof)). Two leaves changed their
@@ -204,11 +204,10 @@ language step can be picked for what it unblocks:
 
 A leaf renames only when every feature it uses has landed, and four wait on
 one feature alone: `style` on template literals, `keywords` on `new Set`, and
-`array_index` and `git/bytes` on built-ins — `Number.isInteger` and the
-`String` global, and `Number.isSafeInteger` once its keys are read as
-`b[Number(…)]`. Of the four root modules nearly everything imports,
-`structurally_same` waits on three features — destructuring, the `Object`
-global and `new Map` — and `function/operator` on two, template literals and
+`array_index` on the `String` global, and `git/bytes` on `Number.isSafeInteger`
+once its keys are read as `b[Number(…)]`. Of the four root modules nearly
+everything imports, `structurally_same` waits on three features — destructuring,
+the `Object` global and `new Map` — and `function/operator` on two, template literals and
 destructuring; the runtime keys of both are rewrites the language already
 has. `iterate` in `function` could lose its loop today, which would leave
 that module on nothing — `let`, reassignment and `while` are all inside
