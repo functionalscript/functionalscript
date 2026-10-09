@@ -101,7 +101,18 @@ export const proof = {
         () => {
             const result = JSON.stringify(toArray(numberSerialize(10e20)))
             assertEq(result, '["1e+21"]')
-        }
+        },
+        // `-0` keeps its sign, where `JSON.stringify` writes `0`; `0` stays `0`
+        () => {
+            assertEq(concat(numberSerialize(-0)), '-0')
+            assertEq(concat(numberSerialize(0)), '0')
+        },
+        // no JSON spelling: `null`, as `JSON.stringify` writes them
+        () => {
+            assertEq(concat(numberSerialize(NaN)), 'null')
+            assertEq(concat(numberSerialize(Infinity)), 'null')
+            assertEq(concat(numberSerialize(-Infinity)), 'null')
+        },
     ],
     boolSerialize: [
         () => {

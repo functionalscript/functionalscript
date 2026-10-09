@@ -7,7 +7,7 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { fromArrayLike, toArray } from '../../types/list/module.f.mjs'
 import { commitPayload, headerOnlyTagPayload, hole, latin1 } from '../testlib.f.mjs'
-import { checkedAt, checkedOptionalAt, fieldAt, hasNulHeader, keyIs, optionalAt, tryFieldAt, tryRead, valueAt, valuesOf, write } from './module.f.mjs'
+import { field, hasNulHeader, keyIs, optionalField, tryRead, tryReadAtLeast, valueAt, valuesOf, write } from './module.f.mjs'
 
 /** @type {(input: readonly number[]) => Payload} */
 const read = input => {
@@ -88,8 +88,8 @@ export const proof = {
         assertEq(valueAt(p, 6, 'gpgsig'), null)
         assertEq(valueAt(read(latin1('\n')), 0, 'tree'), null)
     },
-    // A field by position, key and parser, in each of the five shapes:
-    // found and parsed, absent, and present but refused by the parser.
+    // A field described once, read by each view with a parser: found and
+    // parsed, absent, and present but refused by the parser.
     fields: () => {
         const p = read(latin1('a 1\nb x\n\n'))
         /** @type {(v: List<number>) => number | null} */
@@ -97,27 +97,44 @@ export const proof = {
             const [d] = toArray(v)
             return d >= 0x30 && d <= 0x39 ? d - 0x30 : null
         }
-        assertEq(fieldAt(0, 'a', parse, 'no a', 'bad a')(p), 1)
-        assertEq(tryFieldAt(0, 'a', parse)(p), 1)
-        assertEq(tryFieldAt(0, 'b', parse)(p), null)
-        assertEq(tryFieldAt(1, 'b', parse)(p), null)
-        assertEq(optionalAt(0, 'a', parse, 'bad a')(p), 1)
-        assertEq(optionalAt(2, 'c', parse, 'bad c')(p), null)
-        assertStructurallySame(checkedAt(0, 'a', parse, 'no a', 'bad a')(p), ['ok', 1])
-        assertStructurallySame(checkedAt(2, 'c', parse, 'no c', 'bad c')(p), ['error', 'no c'])
-        assertStructurallySame(checkedAt(1, 'b', parse, 'no b', 'bad b')(p), ['error', 'bad b'])
-        assertStructurallySame(checkedOptionalAt(0, 'a', parse, 'bad a')(p), ['ok', 1])
-        assertStructurallySame(checkedOptionalAt(2, 'c', parse, 'bad c')(p), ['ok', null])
-        assertStructurallySame(checkedOptionalAt(1, 'b', parse, 'bad b')(p), ['error', 'bad b'])
+        const a = field(0, 'a', 'no a', 'bad a')
+        const b = field(1, 'b', 'no b', 'bad b')
+        const c = field(2, 'c', 'no c', 'bad c')
+        assertEq(a.get(parse)(p), 1)
+        assertEq(a.tryGet(parse)(p), 1)
+        assertEq(field(0, 'b', 'no b', 'bad b').tryGet(parse)(p), null)
+        assertEq(b.tryGet(parse)(p), null)
+        assertStructurallySame(a.check(parse)(p), ['ok', 1])
+        assertStructurallySame(c.check(parse)(p), ['error', 'no c'])
+        assertStructurallySame(b.check(parse)(p), ['error', 'bad b'])
+        const oa = optionalField(0, 'a', 'bad a')
+        const ob = optionalField(1, 'b', 'bad b')
+        const oc = optionalField(2, 'c', 'bad c')
+        assertEq(oa.get(parse)(p), 1)
+        assertEq(oc.get(parse)(p), null)
+        assertStructurallySame(oa.check(parse)(p), ['ok', 1])
+        assertStructurallySame(oc.check(parse)(p), ['ok', null])
+        assertStructurallySame(ob.check(parse)(p), ['error', 'bad b'])
     },
-    // The panicking shapes refuse a header that is absent, and one whose
+    // The panicking views refuse a header that is absent, and one whose
     // value the parser refuses.
     fieldsRefused: {
         throw: {
-            fieldAtMissing: () => fieldAt(2, 'c', toArray, 'no c', 'bad c')(read(latin1('a 1\nb x\n\n'))),
-            fieldAtBad: () => fieldAt(1, 'b', () => null, 'no b', 'bad b')(read(latin1('a 1\nb x\n\n'))),
-            optionalAtBad: () => optionalAt(1, 'b', () => null, 'bad b')(read(latin1('a 1\nb x\n\n'))),
+            getMissing: () => field(2, 'c', 'no c', 'bad c').get(toArray)(read(latin1('a 1\nb x\n\n'))),
+            getBad: () => field(1, 'b', 'no b', 'bad b').get(() => null)(read(latin1('a 1\nb x\n\n'))),
+            optionalGetBad: () => optionalField(1, 'b', 'bad b').get(() => null)(read(latin1('a 1\nb x\n\n'))),
         },
+    },
+    // The size guard: a payload shorter than the least is refused before it
+    // is read, as is one holding a number that is no byte; one at the least
+    // is read as `tryRead` reads it.
+    tryReadAtLeast: () => {
+        const input = latin1('a 1\n\n')
+        const read4 = tryReadAtLeast(input.length)
+        assertStructurallySame(read4(input), tryRead(input))
+        assertEq(tryReadAtLeast(input.length + 1)(input), null)
+        assertEq(read4([0x100, 0x20, 0x31, 0x0A, 0x0A]), null)
+        assertEq(read4(latin1('a\n\n\n\n')), null)
     },
     // A key as bytes against a name: the same bytes, and nothing shorter,
     // longer or other.

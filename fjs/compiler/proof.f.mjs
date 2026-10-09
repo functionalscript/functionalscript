@@ -1101,6 +1101,22 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             assertEq(state.stderr.trim(), 'missing.json - error: file not found')
             assertEq(state.root['output.data.js'], undefined)
         },
+        // A file that is there is never reported missing: the read's own
+        // failure is what the error says.
+        directory: () => {
+            const [state, code] = virtual({ ...emptyState, root: { 'dir.f.js': {} } })(compile(nodeProgramOptions(['dir.f.js', 'output.data.js'])))
+            assertEq(exitCode(code), 1)
+            assertEq(state.stderr.trim(), 'dir.f.js - error: dir.f.js is not a regular file')
+        },
+    },
+    // A source past one `Vec`, 128 KiB, is read whole, in several chunks,
+    // where it was once refused as `file not found`.
+    largeInput: () => {
+        const comment = `// ${'x'.repeat(80000)}\n`
+        const root = { 'input.f.js': [utf8(comment), utf8(`${comment}export default 7;`)] }
+        const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.data.js'])))
+        assertEq(exitCode(code), 0, state.stderr)
+        assertEq(readOutput(state.root, 'output.data.js'), 'export default 7;')
     },
     // A parse error prints where it is — and, when the error knows how far the
     // offending source runs, how far: `path:line:column-column` on one line,
@@ -1233,9 +1249,14 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             const shown = htmlToString(demo.view(demo.init))
             assert(shown.includes('<h3>.rs</h3>'), shown)
             assert(shown.includes('<pre data-code="">'), shown)
+            assert(shown.includes('callable materialization requires a target compile/load boundary</pre>'), shown)
+            assert(!shown.includes(' - error:'), shown)
             const refused = htmlToString(demo.view('export default {bad'))
             assert(refused.includes('Refused:</p><pre data-result="error">unexpected end</pre>'), refused)
             assert(!refused.includes(' - error:'), refused)
+            const unsupported = htmlToString(demo.view('export default undefined;'))
+            assert(unsupported.includes('Refused:</p><pre data-result="error">no JSON spelling for undefined</pre>'), unsupported)
+            assert(!unsupported.includes(' - error:'), unsupported)
         },
     },
 }

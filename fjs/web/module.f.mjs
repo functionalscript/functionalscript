@@ -20,7 +20,8 @@
  * | case                                          | status |
  * |-----------------------------------------------|--------|
  * | file found                                     | `200`  |
- * | `GET`/`HEAD` on a missing, dot-prefixed, or non-regular path, or one descending through a file | `404` |
+ * | `GET`/`HEAD` on a directory-form path with no `index.html` | `404` `no index.html in <path>` |
+ * | `GET`/`HEAD` on any other missing, dot-prefixed, or non-regular path, or one descending through a file | `404` `not found` |
  * | any other method                               | `405` with `Allow` |
  * | a `Host` this server does not answer for       | `403`  |
  * | a path that escapes `root`, or an undecodable URL | `400`  |
@@ -36,25 +37,24 @@
  * @module
  *
  * @import { Effect } from '../effects/types.ts'
- * @import { FileStat, Fs, Handle, IoChannel, Program, ServerResponse, Stat } from '../effects/node/types.ts'
- * @import { List } from '../effects/list/types.ts'
+ * @import { FileStat, Fs, Handle, Headers, IoChannel, Program, ServerResponse, Stat } from '../effects/node/types.ts'
+ * @import { EffectList } from '../effects/list/types.ts'
  * @import { Nullable } from '../types/nullable/types.ts'
  * @import { Result } from '../types/result/types.ts'
  * @import { Vec } from '../types/bit_vec/types.ts'
- * @import { Refusal, Resolve, Respond, WebOp } from './types.ts'
+ * @import { Refusal, Resolve, Resolved, Respond, WebOp } from './types.ts'
  */
 
 import { catchStep, pureOk, resultMapStep, resultStep, step } from '../effects/module.f.mjs'
 import { empty, nonEmpty } from '../effects/list/module.f.mjs'
 import {
     createServer, errorExit, errorMessage, errorSummary, exitStep, forever, fstat, handleSource,
-    isDirectory, isNotFound, listen, log, maxPort, open, readChunks, releaseHandle, stat,
+    isDirectory, isNotFound, listen, log, maxPort, open, plainTextResponse, readChunks, releaseHandle, stat,
 } from '../effects/node/module.f.mjs'
 import { detectPath } from '../media/type/module.f.mjs'
 import { escapes, join, parse } from '../path/module.f.mjs'
-import { utf8 } from '../text/module.f.mjs'
-import { byteLength } from '../types/bit_vec/module.f.mjs'
-import { percentDecode } from '../text/percent/module.f.mjs'
+import { percentDecode, percentEncodePath } from '../text/percent/module.f.mjs'
+import { unwrap } from '../types/nullable/module.f.mjs'
 import { error, ok } from '../types/result/module.f.mjs'
 
 // ── Routing ───────────────────────────────────────────────────────────────────
@@ -160,12 +160,32 @@ const refuse = status => message => error({ status, message })
  */
 const served = root => root === '' ? '.' : root
 
+/** The sentence a `404` carries when nothing more is worth saying.
+ *
+ * @type {string}
+ */
+const notFoundMessage = 'not found'
+
 /**
  * Maps a request URL to a path under `root`, or explains why none exists.
  *
  * A directory request — a path ending in `/`, including the bare `/` — is
  * answered with its `index.html`, which is what makes a generated site browsable
  * at all.
+ *
+ * **Its `404` says so.** A root with no `index.html` — a fresh checkout, where
+ * the file is a build artifact — answered `/` with `not found`, which reads as a
+ * wrong URL rather than a missing file. The sentence names `index.html` and the
+ * path the client asked for, so it tells the client nothing the client did not
+ * send: an existing directory and a missing one still answer alike. It is
+ * decided here, by the branch that appends `index.html`, because a parsed
+ * `/a/..` and `/%2E` are directory requests too and do not end in a slash; and
+ * after the hidden-path refusal, so `/.git/` keeps `not found` — the server did
+ * not look, and the new sentence would say it had.
+ *
+ * The path is the one the client wrote, put through {@link percentEncodePath}:
+ * nothing on the way in excludes a control character, and a body echoed to a
+ * terminal must not carry one.
  *
  * An empty `root` is read as the working directory — see {@link served}.
  *
@@ -204,24 +224,28 @@ export const resolve = root => url => {
     // `escapes`, not a `..` among `segments` — see the traversal note above.
     // `/a/../b` collapses and is served; `/../b` escapes and is not.
     if (escapes(decoded)) { return refuse(400)('request path escapes the served root') }
-    if (segments.some(isHidden)) { return refuse(404)('not found') }
+    if (segments.some(isHidden)) { return refuse(404)(notFoundMessage) }
     const isDirectory = segments.length === 0 || decoded.endsWith('/')
-    return ok(join(base, ...(isDirectory ? [...segments, 'index.html'] : segments)))
+    if (!isDirectory) { return ok({ path: join(base, ...segments), notFound: notFoundMessage }) }
+    // `percentDecode` accepted this path above, so the encoder does too.
+    const echo = unwrap(percentEncodePath(target.path))
+    return ok({ path: join(base, ...segments, 'index.html'), notFound: `no index.html in ${echo}` })
 }
 
 // ── Answering ─────────────────────────────────────────────────────────────────
 
 /**
- * A response frame carrying `body`, with `length` declared and `release` stating
- * what the body holds.
+ * A response frame carrying `body` under `headers`, with `release` stating what
+ * the body holds.
  *
- * `Content-Length` is written here rather than left to the runner, because the
- * runner does not write one: Node sends an unmeasured body with
+ * `headers` declare the `Content-Length` rather than leave it to the runner,
+ * because the runner does not write one: Node sends an unmeasured body with
  * `Transfer-Encoding: chunked`, and for a `HEAD` request — where it drops the
  * body but keeps these headers — that leaves the client with neither the bytes
  * nor their count, which is the one thing a `HEAD` is asked for.
  *
- * **The number comes from the `fstat` of the open file, and the reads stop at it.**
+ * **For a served file, the number comes from the `fstat` of the open file, and
+ * the reads stop at it.**
  * A length declared ahead of an *unbounded* read would be a guess about the read:
  * the entry could grow, and a fold that ends at the empty read would stream the
  * surplus past the count already promised — measured, 131,072 declared and 132,072
@@ -234,16 +258,15 @@ export const resolve = root => url => {
  * lazy body cannot do — finding out costs draining it, which is the thing
  * streaming exists not to do.
  *
- * @type {(status: number, contentType: string, length: number, body: List<Fs, Vec, IoChannel>, release: Effect<Fs, null, never>) => ServerResponse<Fs>}
+ * @type {(status: number, headers: Headers, body: EffectList<Fs, Vec, IoChannel>, release: Effect<Fs, null, never>) => ServerResponse<Fs>}
  */
-const response = (status, contentType, length, body, release) => ({
+const response = (status, headers, body, release) => ({
     status,
     headers: {
-        'content-type': contentType,
-        'content-length': `${length}`,
-        // The `Content-Type` above is derived from a file name, and a browser
-        // that sniffs past it decides for itself what a served file is — which
-        // is the one thing this server has already answered.
+        ...headers,
+        // The `Content-Type` of a served file is derived from its name, and a
+        // browser that sniffs past it decides for itself what the file is —
+        // which is the one thing this server has already answered.
         'x-content-type-options': 'nosniff',
     },
     body,
@@ -262,15 +285,15 @@ const response = (status, contentType, length, body, release) => ({
  */
 const holdsNothing = pureOk(null)
 
-/** @type {(status: number) => (message: string) => ServerResponse<Fs>} */
+/**
+ * A failure's answer: the plain-text frame every runner refusal is too, so
+ * the two spell `text/plain` and measure the body the same way.
+ *
+ * @type {(status: number) => (message: string) => ServerResponse<Fs>}
+ */
 const plainText = status => message => {
-    const text = utf8(`${message}\n`)
-    return response(
-        status,
-        'text/plain; charset=utf-8',
-        Number(byteLength(text)),
-        nonEmpty(text, empty()),
-        holdsNothing)
+    const { headers, body } = plainTextResponse(status, message)
+    return response(status, headers, nonEmpty(body[0], empty()), holdsNothing)
 }
 
 /**
@@ -425,17 +448,16 @@ const methodNotAllowed = () => {
  * A name that is not a regular file is answered as absent, for the reason a
  * dot-prefixed one is: what it *is* would be a disclosure of its own.
  *
- * @type {(path: string) => (handle: Handle) => (s: FileStat) => ServerResponse<Fs>}
+ * @type {(resolved: Resolved) => (handle: Handle) => (s: FileStat) => ServerResponse<Fs>}
  */
-const fileResponse = path => handle => ({ isFile, size }) =>
+const fileResponse = ({ path, notFound }) => handle => ({ isFile, size }) =>
     isFile
         ? response(
             200,
-            detectPath(path),
-            size,
+            { 'content-type': detectPath(path), 'content-length': `${size}` },
             readChunks(handleSource(handle), size),
             releaseHandle(handle))
-        : holding(handle)(plainText(404)('not found'))
+        : holding(handle)(plainText(404)(notFound))
 
 /**
  * Both answers an `open` can earn once it has succeeded: what the descriptor
@@ -458,11 +480,11 @@ const fileResponse = path => handle => ({ isFile, size }) =>
  * this frame owes back. Nothing in `fjs/effects` binds both branches of a link
  * while keeping what ran before it.
  *
- * @type {(path: string) => (handle: Handle) => Effect<Fs, ServerResponse<Fs>, never>}
+ * @type {(resolved: Resolved) => (handle: Handle) => Effect<Fs, ServerResponse<Fs>, never>}
  */
-const openResponse = path => handle =>
+const openResponse = resolved => handle =>
     resultMapStep(fstat(handle), ([tag, s]) => ok(tag === 'ok'
-        ? fileResponse(path)(handle)(s)
+        ? fileResponse(resolved)(handle)(s)
         // The handle is open and the `fstat` is what failed, so this frame owes
         // it back like any other.
         : holding(handle)(plainText(500)(errorSummary(s)))))
@@ -489,11 +511,11 @@ const absentByCode = e => isNotFound(e) || isDirectory(e)
  * The `500` is not the last word on a path — see {@link answer}, which asks one
  * more question before it goes out.
  *
- * @type {(e: IoChannel) => ServerResponse<Fs>}
+ * @type {(notFound: string) => (e: IoChannel) => ServerResponse<Fs>}
  */
-const openFailure = e =>
+const openFailure = notFound => e =>
     absentByCode(e)
-        ? plainText(404)('not found')
+        ? plainText(404)(notFound)
         // `errorSummary`, not `errorMessage`: the host puts the absolute path it
         // could not read into the message, and a client is not entitled to the
         // server's filesystem layout.
@@ -586,10 +608,10 @@ const isNonRegular = s => s[0] === 'ok' && !s[1].isFile
  * on the ordinary `404`, since `ENOENT` is answered by {@link absentByCode} before
  * this is reached.
  *
- * @type {(root: string) => (path: string) => (e: IoChannel) => Effect<Stat, ServerResponse<Fs>, never>}
+ * @type {(root: string) => (resolved: Resolved) => (e: IoChannel) => Effect<Stat, ServerResponse<Fs>, never>}
  */
-const answer = root => path => e => {
-    const hostAnswer = openFailure(e)
+const answer = root => ({ path, notFound }) => e => {
+    const hostAnswer = openFailure(notFound)(e)
     /** @type {Effect<Stat, ServerResponse<Fs>, never>} */
     // A refusal the code already decided, and a runner that cannot open at all —
     // which has not looked at the path, so the file system has nothing to add.
@@ -597,9 +619,9 @@ const answer = root => path => e => {
         ? pureOk(hostAnswer)
         : e[1].code === notDirectory
             ? resultMapStep(stat(served(root)), s =>
-                ok(isServableRoot(s) ? plainText(404)('not found') : hostAnswer))
+                ok(isServableRoot(s) ? plainText(404)(notFound) : hostAnswer))
             : resultMapStep(stat(path), s =>
-                ok(isNonRegular(s) ? plainText(404)('not found') : hostAnswer))
+                ok(isNonRegular(s) ? plainText(404)(notFound) : hostAnswer))
     return framed
 }
 
@@ -637,12 +659,13 @@ export const respond = root => ({ method, url, headers }) => {
         const { status, message } = resolved[1]
         return pureOk(plainText(status)(message))
     }
-    const path = resolved[1]
     // One `open`, and every question after it is asked of what that open
     // resolved — see {@link openResponse}. Its failure is the only one this chain
-    // carries, and {@link answer} is where it becomes a status.
-    const described = step(open(path), openResponse(path))
-    return catchStep(described, answer(root)(path))
+    // carries, and {@link answer} is where it becomes a status. Every `404` on
+    // the way carries the one sentence `resolve` chose, so no two kinds of
+    // absence answer differently.
+    const described = step(open(resolved[1].path), openResponse(resolved[1]))
+    return catchStep(described, answer(root)(resolved[1]))
 }
 
 // ── The program ───────────────────────────────────────────────────────────────

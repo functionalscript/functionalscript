@@ -2,8 +2,8 @@
  * @import { Vec } from "../../types/bit_vec/types.ts"
  * @import { IoChannel, IoError, IoResult, NodeOp, ReadBytes, CreateExclusive, ReadFile, Rm, Stat, WriteBytes, WriteFile, _ChunkSource, _Gate } from "./types.ts"
  * @import { Result } from "../../types/result/types.ts"
- * @import { List } from "../list/types.ts"
- * @import { List as List_ } from "../../types/list/types.ts"
+ * @import { EffectList } from "../list/types.ts"
+ * @import { List } from "../../types/list/types.ts"
  * @import { Effect, OperationMap } from "../types.ts"
  * @import { MemOperationMap } from "../mock/types.ts"
  */
@@ -12,7 +12,7 @@ import { byteLength, empty, isVec, maxLengthBytes, u8ListMsb, u8ListToVecMsb, ui
 import { utf8, utf8ToString } from "../../text/module.f.mjs"
 import { match } from "../module.f.mjs"
 import { mapStep, pureError, pureOk, step as ioStep } from "../module.f.mjs"
-import { badPortCode, badPortMessage, both, carriesNoBody, declaredLength, doubledLengthMessage, errorMessage, errorSummary, exitStep, fetch, framingHeaderMessage, headerValue, inflate, inflateTrailingMessage, ioError, isNotFound, isPort, maxPort, mkdir, now, readdir, readFile, readUtf8File, refusalMessage, refusedStatus, responseGate, rm, runnerResponse, sandbox, unframedBodyMessage, writeFile, writeUtf8File, _pieces, _vecList, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, readWholeBytes, readChunks, windowRefusal, maxOffset } from "./module.f.mjs"
+import { badPortCode, badPortMessage, both, carriesNoBody, declaredLength, doubledLengthMessage, errorMessage, errorSummary, exitStep, fetch, framingHeaderMessage, headerValue, inflate, inflateTrailingMessage, ioError, isNotFound, isPort, maxPort, mkdir, now, readdir, readFile, readUtf8File, refusalMessage, refusedStatus, responseGate, rm, runnerResponse, sandbox, unframedBodyMessage, writeFile, writeUtf8File, writeExclusiveUtf8File, _pieces, _vecList, rename, readBytes, randomInt, writeFromStream, plainTextResponse, usesInlineTestContext, readWholeBytes, readChunks, windowRefusal, maxOffset, fileSizeRefusal } from "./module.f.mjs"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.mjs"
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.mjs"
 import { emptyState, virtual } from "./virtual/module.f.mjs"
@@ -56,11 +56,11 @@ const run = e => virtual(emptyState)(e)
  * Pulls a whole stream, answering the byte length of every cell in order — or
  * the channel error that ended it.
  *
- * **Pulling is the point.** A `List` cell is an effect, so a stream that fails
- * on its SECOND cell answers `ok` when only the first is taken: the failure
- * lives in a tail nobody pulled. A leaf that stopped at the first cell would
- * pass whether or not the loop refused, which is how the short-read leaf below
- * first passed against an implementation that was in fact correct.
+ * **Pulling is the point.** An `EffectList` cell is an effect, so a stream that
+ * fails on its SECOND cell answers `ok` when only the first is taken: the
+ * failure lives in a tail nobody pulled. A leaf that stopped at the first cell
+ * would pass whether or not the loop refused, which is how the short-read leaf
+ * below first passed against an implementation that was in fact correct.
  *
  * @type {(source: _ChunkSource<NodeOp>, bound: number | null) => Result<readonly number[], IoChannel>}
  */
@@ -544,6 +544,19 @@ export const proof = {
             assertStructurallySame(removed, ['big'])
         },
     },
+    // The text form of `writeExclusive`: a free name is created holding the
+    // text's UTF-8 bytes, and a taken one is refused with the bytes already
+    // there kept.
+    writeExclusiveUtf8File: () => {
+        const [made, [t, result]] = virtual(emptyState)(writeExclusiveUtf8File('x.lock', 'Hello, world!'))
+        assert(t === 'ok', result)
+        const file = made.root['x.lock']
+        assert(Array.isArray(file), file)
+        assertEq(utf8ToString(file[0]), 'Hello, world!')
+        const [again, [t2, taken]] = virtual(made)(writeExclusiveUtf8File('x.lock', 'other'))
+        assert(t2 === 'error', taken)
+        assertStructurallySame(again.root, made.root)
+    },
     rm: {
         one: () => {
             const [state, [t, result]] = virtual({
@@ -764,13 +777,32 @@ export const proof = {
             // Not an integer before negative: `-1.5` is both.
             assertEq(windowRefusal(-1.5, 1), 'Offset -1.5 is not an integer')
             assertEq(windowRefusal(0, -1.5), 'Chunk size -1.5 is not an integer')
-            // The offset before the size, so one call reports one thing.
+            // Every bound of the offset before any of the size, so one call
+            // reports one thing, and the offset's words are the ones a write's
+            // offset is refused with too.
             assertEq(windowRefusal(-1, -1), 'Offset -1 is negative')
             assertEq(windowRefusal(1.5, 1.5), 'Offset 1.5 is not an integer')
+            assertEq(windowRefusal(-1, 1.5), 'Offset -1 is negative')
             // Negative before too-large, and the offset's bound before the size's.
             assertEq(
                 windowRefusal(maxOffset + 1, Number(maxLengthBytes) + 1),
                 `Offset ${maxOffset + 1} exceeds maximum allowed offset of ${maxOffset}`)
+        },
+    },
+    // `readFile`'s limit, asked by both runners with the size their `stat`
+    // reports, so the words are asserted and not only the refusal.
+    fileSizeRefusal: {
+        // The limit is inclusive: a file of exactly the limit is read whole.
+        atLimit: () => {
+            assertEq(fileSizeRefusal('a', 0), null)
+            assertEq(fileSizeRefusal('a', Number(maxLengthBytes)), null)
+        },
+        // One byte over is refused, and the message names the size and the path.
+        overLimit: () => {
+            const over = Number(maxLengthBytes) + 1
+            assertEq(
+                fileSizeRefusal('a/b/big', over),
+                `File size ${over} exceeds maximum allowed size of ${maxLengthBytes} bytes: 'a/b/big'`)
         },
     },
     readWholeBytes: {
@@ -788,7 +820,7 @@ export const proof = {
                     readWholeBytes('file'))
                 assert(t === 'ok', result)
                 assertStructurallySame(
-                    toArray(/** @type {List_<number>} */ (result)),
+                    toArray(/** @type {List<number>} */ (result)),
                     chunks.flatMap(v => toArray(u8ListMsb(v))))
             }
         },
@@ -801,7 +833,7 @@ export const proof = {
             const root = { file: big }
             const [, [t, result]] = virtual({ ...emptyState, root })(readWholeBytes('file'))
             assert(t === 'ok', result)
-            assertEq(toArray(/** @type {List_<number>} */ (result)).length, Number(maxLengthBytes) * 3)
+            assertEq(toArray(/** @type {List<number>} */ (result)).length, Number(maxLengthBytes) * 3)
             // and the bounded read of the same file refuses
             const [, [rt]] = virtual({ ...emptyState, root })(readFile('file'))
             assertEq(rt, 'error')
@@ -826,9 +858,9 @@ export const proof = {
         // Drains a stream into the byte counts of its cells. Every leaf below
         // asks the same question of a different source, so it is asked once.
         //
-        // A `List` is an effect answering `{first, tail}` or `undefined`, so
-        // draining it is an ordinary `ioStep` recursion — the same shape a
-        // consumer writes.
+        // An `EffectList` is an effect answering `{first, tail}` or
+        // `undefined`, so draining it is an ordinary `ioStep` recursion — the
+        // same shape a consumer writes.
         //
         // The counts are what these leaves assert, not merely the cell count:
         // the defect this loop exists to prevent is a chunk of the wrong SIZE,
@@ -902,7 +934,7 @@ export const proof = {
         createExclusiveFails: () => {
             // The destination already exists, so `createExclusive` fails (EEXIST) and
             // the error propagates without ever touching `writeBytes`.
-            /** @type {List<never, Vec, IoChannel>} */
+            /** @type {EffectList<never, Vec, IoChannel>} */
             const chunks = listEmpty()
             const [state, [t, result]] = virtual({
                 ...emptyState,
@@ -913,7 +945,7 @@ export const proof = {
             assert(!(!Array.isArray(file) || uint(file[0]) !== 0x2An), file)
         },
         writesEveryChunk: () => {
-            /** @type {List<never, Vec, IoChannel>} */
+            /** @type {EffectList<never, Vec, IoChannel>} */
             const chunks = listNonEmpty(vec8(0x01n), listNonEmpty(vec8(0x02n), listEmpty()))
             const [state, [t, result]] = virtual(emptyState)(writeFromStream('hello', chunks))
             assert(t === 'ok', result)
@@ -925,7 +957,7 @@ export const proof = {
             // A chunk whose bit length isn't a multiple of 8 is refused by
             // `writeBytes` before any runner is asked, and the file the good
             // chunk before it went into is removed.
-            /** @type {List<never, Vec, IoChannel>} */
+            /** @type {EffectList<never, Vec, IoChannel>} */
             const chunks = listNonEmpty(vec8(0x01n), listNonEmpty(vec(4n)(0b1010n), listEmpty()))
             const [state, [t, result]] = virtual(emptyState)(
                 writeFromStream('hello', chunks)
@@ -937,7 +969,7 @@ export const proof = {
         streamFails: () => {
             // The stream itself fails after one chunk is written: the error is
             // the stream's, and the partial file is gone.
-            /** @type {List<never, Vec, IoChannel>} */
+            /** @type {EffectList<never, Vec, IoChannel>} */
             const chunks = listNonEmpty(vec8(0x01n), pureError(ioError({ message: 'stream failed' })))
             const [state, [t, result]] = virtual(emptyState)(writeFromStream('hello', chunks))
             assert(t === 'error', result)
@@ -1085,6 +1117,16 @@ export const proof = {
             // exactly as the single length says.
             assertEq(named(responseGate('GET', true, 200, { 'content-length': '1', 'Content-Type': 'text/a', 'content-type': 'text/b' })), 'pump 1')
         },
+        // Every plain-text answer: the length is measured from the bytes, a
+        // multi-byte message included, and the connection is left to the runner.
+        plainTextResponse: () => {
+            const { status, headers, body } = plainTextResponse(404, 'не найдено')
+            assertEq(status, 404)
+            assertEq(utf8ToString(body[0]), 'не найдено\n')
+            assertEq(`${headers['content-type']}`, 'text/plain; charset=utf-8')
+            assertEq(`${headers['content-length']}`, '20')
+            assertEq(headers.connection, undefined)
+        },
         // The frame a refusal goes out as, shared so that the two runners spell it
         // alike: a refusal a program is proven against is the refusal it meets.
         runnerResponse: () => {
@@ -1093,6 +1135,12 @@ export const proof = {
             assertEq(utf8ToString(body[0]), `${framingHeaderMessage}\n`)
             assertEq(`${headers['content-length']}`, `${byteLength(body[0])}`)
             assertEq(`${headers.connection}`, 'close')
+            // The plain-text frame and the close, nothing else: the rest is
+            // `plainTextResponse`'s, so a listener's plain-text answer and a
+            // runner's refusal differ only in the connection.
+            assertStructurallySame(
+                headers,
+                { ...plainTextResponse(refusedStatus, framingHeaderMessage).headers, connection: 'close' })
             assertEq(refusalMessage(['framingHeader']), framingHeaderMessage)
             assertEq(refusalMessage(['unframed']), unframedBodyMessage)
             assertEq(refusalMessage(['doubledLength']), doubledLengthMessage)

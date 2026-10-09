@@ -2,14 +2,20 @@
  * @import { DemoEvent } from '../../website/demo/types.ts'
  */
 
-import { parse, setProperty, stringify } from './module.f.mjs'
+import { parse, serialize, setProperty, stringify } from './module.f.mjs'
 import { demo, roundTrip } from './demo.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
 import { identity } from '../../types/function/module.f.mjs'
-import { assert, assertEq, assertNotNullish, assertError } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertNotNullish, assertError, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { htmlToString } from '../html/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
+import { concat } from '../../types/string/module.f.mjs'
+
+const { is } = Object
+
+/** The value a JSON text parses to; throws if it is malformed. @type {(text: string) => unknown} */
+const parsed = text => unwrap(parse(text))
 
 export const proof = {
     setProperty: [
@@ -71,6 +77,45 @@ export const proof = {
     ],
     undefined: () => {
         assertEq(stringify(sort)({ x: undefined }), '{}')
+    },
+    /**
+     * **`-0` survives a round trip.** It is valid JSON, and this codec writes
+     * it as `-0` where `JSON.stringify` writes `0` — a deliberate difference
+     * from the native API. Leaves are compared with `Object.is` (directly, or
+     * through `assertStructurallySame`), since `===` cannot tell the zeros
+     * apart.
+     */
+    negativeZero: {
+        serialize: () => {
+            assertEq(concat(serialize(sort)(-0)), '-0')
+            assertEq(concat(serialize(sort)([-0, 0])), '[-0,0]')
+        },
+        stringify: () => {
+            assertEq(stringify(sort)(-0), '-0')
+            assertEq(stringify(sort)(0), '0')
+            assertEq(stringify(sort)([-0, 0, [-0]]), '[-0,0,[-0]]')
+            assertEq(stringify(sort)({ b: 0, a: { c: -0 } }), '{"a":{"c":-0},"b":0}')
+        },
+        // every spelling of a negative zero the grammar admits, a negative
+        // underflow, and their unsigned counterparts
+        parse: () => {
+            for (const text of ['-0', '-0.0', '-0e0', '-0E+0', '-1e-400']) {
+                assert(is(parsed(text), -0), text)
+            }
+            for (const text of ['0', '0.0', '0e0', '0E+0', '1e-400']) {
+                assert(is(parsed(text), 0), text)
+            }
+            assertStructurallySame(parsed('[-0,{"a":[-0.0,0]}]'), [-0, { a: [-0, 0] }])
+            assertEq(parse('-')[0], 'error')
+            assertEq(parse('-00')[0], 'error')
+        },
+        roundTrip: () => {
+            for (const value of [-0, 0]) {
+                assert(is(parsed(stringify(sort)(value)), value))
+            }
+            const nested = { a: [-0, 0, { b: -0 }], c: 0 }
+            assertStructurallySame(parsed(stringify(sort)(nested)), nested)
+        },
     },
     parse: {
         ok: () => {

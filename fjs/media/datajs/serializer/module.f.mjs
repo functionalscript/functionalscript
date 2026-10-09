@@ -72,7 +72,7 @@ import { cmp } from '../../../types/number/module.f.mjs'
 import { error, mapOk, ok, okThen } from '../../../types/result/module.f.mjs'
 import { add, empty as noneStarted, has } from '../../../types/set/module.f.mjs'
 import { concat } from '../../../types/string/module.f.mjs'
-import { arrayWrap, boolSerialize, colon, leafSerialize as leafSerializeWith, nullSerialize, objectWrap, stringSerialize } from '../../json/serializer/module.f.mjs'
+import { arrayWrap, boolSerialize, colon, leafSerialize as leafSerializeWith, nullSerialize, numberSerialize, objectWrap, stringSerialize } from '../../json/serializer/module.f.mjs'
 
 const {
     entries,
@@ -80,7 +80,6 @@ const {
     getOwnPropertyNames,
     getOwnPropertySymbols,
     getPrototypeOf,
-    is,
     prototype: objectPrototype,
 } = Object
 
@@ -92,15 +91,17 @@ const undefinedSerialize = ['undefined']
 /**
  * A number as ECMAScript `ToString` spells it, which is the algorithm the
  * specification restates, with the one departure it names: `-0` is written
- * `-0` where `ToString` writes `0`. `NaN` and the infinities are words,
- * where JSON's `numberSerialize` writes `null` for them. Exported because
- * the compiler's JSON output and its proofs' dump, in `fjs/compiler`, write
- * numbers the same way, and the rule has one owner; the `_` prefix says that
- * export is linkage rather than API, as it does for `_memberValue` below.
+ * `-0` where `ToString` writes `0`. A finite number is JSON's
+ * `numberSerialize`, which owns that rule; `NaN` and the infinities are
+ * words, where JSON's `numberSerialize` writes `null` for them. Exported
+ * because the compiler's JSON output and its proofs' dump, in
+ * `fjs/compiler`, write numbers the same way, and the rule has one owner;
+ * the `_` prefix says that export is linkage rather than API, as it does for
+ * `_memberValue` below.
  *
  * @type {(value: number) => List<string>}
  */
-export const _numberSerialize = value => [is(value, -0) ? '-0' : `${value}`]
+export const _numberSerialize = value => isFinite(value) ? numberSerialize(value) : [`${value}`]
 
 /**
  * A leaf as a document spells it — this format's counterpart to JSON's
@@ -540,8 +541,8 @@ const noJson = what => error(`no JSON spelling for ${what}`)
  * writes `null` for `NaN` and drops an `undefined` member, and the extended
  * codec would write `1n` as `1`, which the standard reader takes back as
  * the *number* `1` — each a different value read back without a word. A
- * finite number is written by the DataJS rule, which is `ToString` with
- * `-0` kept, since `-0` is a JSON number that `JSON.stringify` alone loses.
+ * finite number is written by JSON's own `numberSerialize`, which keeps
+ * `-0`, a JSON number that `JSON.stringify` alone loses.
  *
  * @type {_Leaf}
  */
@@ -549,7 +550,7 @@ const jsonLeaf = value => {
     switch (typeof value) {
         case 'boolean': { return ok(boolSerialize(value)) }
         case 'string': { return ok(stringSerialize(value)) }
-        case 'number': { return isFinite(value) ? ok(_numberSerialize(value)) : noJson(`${value}`) }
+        case 'number': { return isFinite(value) ? ok(numberSerialize(value)) : noJson(`${value}`) }
         case 'bigint': { return noJson(`${value}n`) }
         case 'undefined': { return noJson('undefined') }
         default: { return ok(nullSerialize) }

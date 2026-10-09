@@ -12,7 +12,7 @@
  * @import { DemoState, DemoSearch } from './types.ts'
  */
 
-import { resultMarker } from '../../website/style/module.f.mjs'
+import { resultMarker, powResultMarker } from '../../website/style/module.f.mjs'
 import { sha256Pow, targetFromNBits } from './module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { digitsValue, hexDigitValue } from '../../text/ascii/module.f.mjs'
@@ -101,7 +101,7 @@ const output = state => {
         caption('Hash, hex:'),
         codeBlock(hexUint(hash), 'Copy hash'),
         caption('Proof of Work:'),
-        ['p', { role: 'status', 'data-pow-result': '', [resultMarker]: succeeded ? 'ok' : 'error' },
+        ['p', { role: 'status', [powResultMarker]: '', [resultMarker]: succeeded ? 'ok' : 'error' },
             ['svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2.5', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' },
                 ['path', { d: succeeded ? 'm5 12 4 4L19 6' : 'm6 6 12 12M18 6 6 18' }],
             ],

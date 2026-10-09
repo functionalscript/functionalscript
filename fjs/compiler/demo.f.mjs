@@ -5,17 +5,13 @@
  *
  * **It runs the compiler, not a lookalike.** The text is the input file of
  * the real `compile`, run over an in-memory file system, once per output
- * name; each pane is the file that run wrote, or the message it printed. So
+ * name; each pane uses the same output route, before CLI formatting. So
  * `[a, a]` is a shared `const` in `.js`, `.data.js`, the EDAG and Rust, but
  * JSON, which has no identity to keep, writes the node where each reference
  * reaches it; `undefined` is refused by JSON alone; a function is refused by
  * the two value outputs and written by the rest; and a program that fails
  * when it runs is refused by every value output while the source and Rust
  * ones carry it unevaluated.
- *
- * **Syntax refusals use the parser's own message**, without the CLI's file
- * and severity prefix. Other compiler-stage refusals retain the unedited CLI
- * diagnostic, whose file information is part of the command's answer.
  *
  * **A refusal is a pane's content, in the module's own words.** An empty
  * box would be the plausible wrong answer
@@ -41,8 +37,10 @@ import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { error, ok } from '../types/result/module.f.mjs'
 import { textDemo, refusal } from '../website/demo/module.f.mjs'
 import { examples } from './examples/module.f.js'
-import { compile } from './module.f.mjs'
-import { parse } from './transpiler/module.f.mjs'
+import { compile, outputText } from './module.f.mjs'
+import { assertNotNullish } from '../asserts/module.f.mjs'
+import { resultStep, pureOk } from '../effects/module.f.mjs'
+import { unwrap } from '../types/result/module.f.mjs'
 
 /**
  * The outputs, each under the file name that selects its language: what a
@@ -79,12 +77,11 @@ export const demo = textDemo({
     label: 'Source',
     init: examples[0][1],
     examples,
-})(text => {
-    const parsed = parse('')(text)
-    return outputs.map(([label, outputFileName]) => {
-        const [kind, value] = parsed[0] === 'error'
-            ? error(parsed[1].message)
-            : _compiled(text)(outputFileName)
-        return ['section', ['h3', label], kind === 'ok' ? ['pre', { [codeMarker]: '' }, value] : refusal(value)]
-    })
-})
+})(text => outputs.map(([label, outputFileName]) => {
+    const write = assertNotNullish(outputText(outputFileName))
+    const output = resultStep(write('input.f.js'), ([kind, value]) =>
+        pureOk(kind === 'error' ? error(value.message) : value))
+    const [, result] = virtual({ ...emptyState, root: { 'input.f.js': [utf8(text)] } })(output)
+    const [kind, value] = unwrap(result)
+    return ['section', ['h3', label], kind === 'ok' ? ['pre', { [codeMarker]: '' }, value] : refusal(value)]
+}))

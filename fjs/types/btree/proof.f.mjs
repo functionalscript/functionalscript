@@ -7,25 +7,18 @@
  */
 
 import { values } from './module.f.mjs'
-import { stringify as jsonStringify } from '../../media/json/module.f.mjs'
-import { sort } from '../object/module.f.mjs'
 import { cmp } from '../string/module.f.mjs'
 import { next, toArray } from '../list/module.f.mjs'
-import { set as setSet } from './set/module.f.mjs'
 import { value, find as findFind } from './find/module.f.mjs'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 import { _census, _graphOf, _load, _press, demo, presets } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
 import { unwrap } from '../result/module.f.mjs'
-
-const jsonStr = jsonStringify(sort)
+import { jsonStr, set, squares } from './testlib.f.mjs'
 
 /** @type {(sequence: List<Unknown>) => string} */
 const stringify = sequence => jsonStr(toArray(sequence))
-
-/** @type {(node: TNode<string>) => (value: string) => TNode<string>} */
-const set = node => value => setSet(cmp(value))(() => value)(node)
 
 const valueTest1 =() => {
     /** @type {TNode<string>} */
@@ -40,11 +33,7 @@ const valueTest1 =() => {
 }
 
 const valuesTest2 = () => {
-    /** @type {TNode<string>} */
-    let _map = ['1']
-    for(let i = 2; i <= 10; i++)
-        _map = set(_map)((i*i).toString())
-    const result = stringify(values(_map))
+    const result = stringify(values(squares(10)))
     assertEq(result, '["1","100","16","25","36","4","49","64","81","9"]')
 }
 

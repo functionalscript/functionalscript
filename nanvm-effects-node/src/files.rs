@@ -109,7 +109,7 @@ fn raw_code(raw: i32) -> Option<&'static str> {
 
 /// A failed call as the error channel carries it: the code where there is
 /// one, and a message naming the call and the path.
-fn failure(error: &io::Error, call: &str, path: &str) -> IoError {
+pub(crate) fn failure(error: &io::Error, call: &str, path: &str) -> IoError {
     IoError {
         code: error
             .raw_os_error()
@@ -269,6 +269,35 @@ fn read_bounded(path: &str, reader: impl Read) -> Result<Vec<u8>, IoError> {
         });
     }
     Ok(bytes)
+}
+
+/// A whole file as `readWhole` answers it: windows of one `Vec` each, so a
+/// file of any size is read. A path that names no regular file is refused
+/// before it is opened, with `notAFileCode` and `notAFileMessage` of
+/// `fjs/effects/node/module.f.mjs`: a FIFO with no writer would hold the open.
+pub fn read_whole(path: &str) -> Result<Vec<Vec<u8>>, IoError> {
+    let metadata = fs::metadata(path).map_err(|e| failure(&e, "stat", path))?;
+    if !metadata.is_file() {
+        return Err(refusal(
+            "ERR_NOT_A_FILE",
+            format!("{path} is not a regular file"),
+        ));
+    }
+    let file = File::open(path).map_err(|e| failure(&e, "open", path))?;
+    read_windows(path, file)
+}
+
+/// Every window is [`MAX_FILE_SIZE_BYTES`] but the last, which is shorter and
+/// never empty: an empty file is no windows, as the Node runner answers.
+fn read_windows(path: &str, mut reader: impl Read) -> Result<Vec<Vec<u8>>, IoError> {
+    let mut bytes = Vec::new();
+    reader
+        .read_to_end(&mut bytes)
+        .map_err(|e| failure(&e, "read", path))?;
+    Ok(bytes
+        .chunks(MAX_FILE_SIZE_BYTES as usize)
+        .map(<[u8]>::to_vec)
+        .collect())
 }
 
 /// The entries of each directory are in byte order of their names, where the
@@ -485,6 +514,38 @@ mod test {
 
     fn code_of<T: std::fmt::Debug>(r: Result<T, IoError>) -> Option<String> {
         r.unwrap_err().code
+    }
+
+    #[test]
+    fn whole_read_answers_windows() {
+        let max = MAX_FILE_SIZE_BYTES;
+        for (size, expected) in [
+            (0, vec![]),
+            (1, vec![1]),
+            (max, vec![max]),
+            (max + 1, vec![max, 1]),
+            (2 * max + 5, vec![max, max, 5]),
+        ] {
+            let windows = read_windows("stream", io::repeat(0xa5).take(size)).unwrap();
+            let lengths: Vec<u64> = windows.iter().map(|w| w.len() as u64).collect();
+            assert_eq!(lengths, expected, "{size}");
+        }
+    }
+
+    /// A directory is no regular file, and is refused rather than read.
+    #[cfg(not(target_family = "wasm"))]
+    #[test]
+    fn whole_read_refuses_a_directory() {
+        let dir = std::env::temp_dir();
+        let path = dir.to_string_lossy();
+        let error = read_whole(&path).unwrap_err();
+        assert_eq!(error.code.as_deref(), Some("ERR_NOT_A_FILE"));
+        assert_eq!(error.message, format!("{path} is not a regular file"));
+        let missing = dir.join("nanvm-effects-node-no-such-file");
+        assert_eq!(
+            code_of(read_whole(&missing.to_string_lossy())),
+            Some("ENOENT".into())
+        );
     }
 
     #[test]

@@ -103,8 +103,8 @@ export const ioError = info => ['ioError', info]
 
 /**
  * Normalizes a **thrown** value into an {@link IoError}: the OS error code when
- * the host attached a string one, and a message that is the `Error`'s own or
- * the value's string form.
+ * the host attached a string one, and the value's own string `message` when it
+ * carries one, or else its string form.
  *
  * This is the boundary where an impure runner's `catch` becomes ordinary effect
  * data. Nothing past it sees the thrown object, which is the point — a stack, a
@@ -116,14 +116,27 @@ export const ioError = info => ['ioError', info]
  * `DOMException` carries a string `name` and not a `code`, so it normalizes
  * through the message branch — correctly, since there is no OS code to report.
  *
+ * Both are read as fields, not by asking `instanceof Error` or `in`, which
+ * FunctionalScript refuses. A field that is absent reads as `undefined`, which
+ * is not a string either. Each is read **once**, and the value read is the one
+ * tested and kept, so the answer holds a string `message` and, if any, a string
+ * `code`. Like every `.f.mjs` function, this takes values FunctionalScript can
+ * build. A value from another realm, an iframe's or a worker's, or one with
+ * getters, is a host boundary's to convert before it gets here: a runner's
+ * `catch` reads what it caught with `_readThrown` in `./module.mjs`.
+ *
  * @type {(e: unknown) => IoError}
  */
 export const toIoError = e => {
-    const message = e instanceof Error ? e.message : String(e)
-    if (typeof e !== 'object' || e === null || !('code' in e) || typeof e.code !== 'string') {
-        return ioError({ message })
+    if (typeof e !== 'object' || e === null) {
+        return ioError({ message: String(e) })
     }
-    return ioError({ code: e.code, message })
+    /** @type {{ readonly message?: unknown, readonly code?: unknown }} */
+    const fields = e
+    const ownMessage = fields.message
+    const message = typeof ownMessage === 'string' ? ownMessage : String(e)
+    const code = fields.code
+    return typeof code === 'string' ? ioError({ code, message }) : ioError({ message })
 }
 
 /**

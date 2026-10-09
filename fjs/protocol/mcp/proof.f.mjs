@@ -26,7 +26,7 @@ import { string } from '../../rtti/module.f.mjs'
 import { create, memoryInitial, memoryOperationMap, read } from '../../effects/memory/module.f.mjs'
 import {
     uninitializedState, mcpStep, notInitialized, fromRegistry, toolEntry, okResult,
-    toolResultStep,
+    toolResultStep, toolStep,
 } from './module.f.mjs'
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -191,7 +191,7 @@ const firstText = resp => {
     return text
 }
 
-// ── `toolResultStep` renderers ────────────────────────────────────────────────
+// ── `toolResultStep` and `toolStep` renderers ─────────────────────────────────
 
 // Shared by both branches so each renderer is written once and reached once:
 // the `ok` test exercises `dashes`, the `error` test `errorText`.
@@ -201,6 +201,14 @@ const dashes = xs => xs.join('-')
 
 /** @type {(e: string) => string} */
 const errorText = e => `failed: ${e}`
+
+/**
+ * `toolStep`'s continuation: it answers the call itself, so the `ok` test sees
+ * its answer rather than a value `toolStep` rendered.
+ *
+ * @type {(xs: readonly string[]) => Effect<never, ToolsCallResult, never>}
+ */
+const continued = xs => pureOk(okResult(`continued: ${dashes(xs)}`))
 
 /** The `text` of the first content item of a `ToolsCallResult`. */
 /** @type {(r: ToolsCallResult) => string} */
@@ -540,6 +548,24 @@ export const proof = {
         },
         errorIsRenderedInBand: () => {
             const [r] = runPure(toolResultStep(pureError('gone'), dashes, errorText))
+            assert(r !== undefined && r[0] === 'ok', r)
+            assertEq(r[1].isError, true)
+            assertEq(textOf(r[1]), 'failed: gone')
+        },
+    },
+
+    // `toolStep` is `toolResultStep` with the `ok` branch handed to the
+    // caller: the error branch is the same in-band refusal, and the `ok`
+    // branch is whatever the continuation answers.
+    toolStep: {
+        okContinues: () => {
+            const [r] = runPure(toolStep(pureOk(['a', 'b']), errorText, continued))
+            assert(r !== undefined && r[0] === 'ok', r)
+            assertEq(r[1].isError, undefined)
+            assertEq(textOf(r[1]), 'continued: a-b')
+        },
+        errorIsRenderedInBand: () => {
+            const [r] = runPure(toolStep(pureError('gone'), errorText, continued))
             assert(r !== undefined && r[0] === 'ok', r)
             assertEq(r[1].isError, true)
             assertEq(textOf(r[1]), 'failed: gone')

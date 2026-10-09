@@ -22,18 +22,19 @@ Every cited identifier below has a file:
 |`i155`|`issues/155-test-runner-integration.md`|—|`emergent_testing/todo/211-reporter-modes.md` ×1, `661-test-runner-behavior.md` ×1|
 |`i163`|`issues/163-reporter-test-method.md`|open|`emergent_testing/todo/211-reporter-modes.md` ×2|
 |`i183`|`issues/183-tf-framework-scenario-tests.md`|open|`emergent_testing/todo/206-workers-as-a-sandbox.md` ×1, `65y-proof-asserteq-adoption.md` ×1, `65z-singleton-effect.md` ×1, `65z-tf-test-tree-walker.md` ×1|
-|`i189`|`issues/189-asn1-decode-all-unfold.md`|done|`fjs/asn.1/todo/65z-asn1-tag-codec-table.md` ×1|
 |`i666-utf8-continuation-helpers`|`issues/666-…`|done|`fjs/text/todo/666-utf16-encode-errormask.md` ×1|
 |`i65X-sandbox-async`|`issues/65X-sandbox-async.md`|done|`emergent_testing/todo/65y-proof-asserteq-adoption.md` ×1|
 |`i65Y-proof-by-export`|`issues/65Y-proof-by-export.md`|open|`emergent_testing/todo/65y-proof-asserteq-adoption.md` ×1|
 
 At `0a5bc32`, **thirteen bare citations across eight files.** The column
-counts *bare* occurrences only. Three rows have left the table since it was
+counts *bare* occurrences only. Four rows have left the table since it was
 filed, resolved when the issues citing them moved:
 `i180-sorted-set-intersect-symmetry` (the citation was dropped from
 `fjs/types/sorted_list/todo/cmp-reduce-factory.md`), `i662` (written in the
-retired form in `fjs/types/ts/todo/tuple-readonly.md`) and `i665-mcp` (split
-into `fjs/protocol/mcp/todo/roadmap.md`, which its citers now link).
+retired form in `fjs/types/ts/todo/tuple-readonly.md`), `i665-mcp` (split
+into `fjs/protocol/mcp/todo/roadmap.md`, which its citers now link) and `i189`
+(its one citer, `fjs/asn.1/todo/65z-asn1-tag-codec-table.md`, was deleted
+when the codec table shipped).
 Regenerate the whole column rather than trusting it — an earlier revision of
 this issue built it from a scan that printed only the first two paths per
 identifier, and listed two of `i183`'s four sites.
@@ -172,9 +173,7 @@ prints nothing for any identifier already resolved.
 names, and the collision is not theoretical — an earlier revision of this issue
 listed one of them as a citation to repair. None of these is a citation:
 
-- Rust integer types: `i8` in `nanvm-lib/todo/sign-algebra.md` (the sign
-  representation); `i32` in `nanvm-lib/todo/numeric-binary-operator-zip.md`
-  (the `int32_op` signature); `i64` in `fjs/nanvm/README.md` and
+- Rust integer types: `i64` in `fjs/nanvm/README.md` and
   `nanvm-lib/todo/bigint-operator-test-scaffolding.md` (`f64`/`i64` spelling
   and `From<i64>`); `i64` and `i128` in `spec/datajs/vectors/README.md`.
 - CPU architectures: `i386` and `i686` in `fjs/ci/README.md` and

@@ -26,12 +26,30 @@ use core::{cmp::Ordering, iter::once};
 use crate::{
     common::{div_mod::DivMod, iter::Iter, sized_index::SizedIndex, uint::Uint},
     sign::Sign,
-    vm::{Any, IContainer, IVm},
+    vm::{Any, IContainer, IVm, error},
 };
 
-/// The exact V8 message for dividing (`/`) or taking the remainder (`%`) of
-/// a `BigInt` by zero.
-const DIVISION_BY_ZERO: &str = "RangeError: Division by zero";
+/// The largest word count a `<<` or a `*` may grow a `BigInt` to — `2^14`
+/// words (`2^20` bits, 128 KiB) — matching
+/// [`fjs/types/bigint/module.f.mjs`](../../../../fjs/types/bigint/module.f.mjs)'s
+/// own `maxLength` (`0x10_0000n` bits) exactly, divided down from bits to
+/// 64-bit words. `maxLength` is itself the *smallest* `BigInt` size limit
+/// across the engines FunctionalScript targets — V8's own limit is `2^30`
+/// bits, far larger, but Bun's and Safari's are tighter, and `maxLength` is
+/// already chosen to fit under all of them (see that file's own comment on
+/// `mask`, keyed to the same constant). `nanvm-lib` follows the tightest
+/// bound already established for the language rather than picking a
+/// second, V8-only one of its own.
+///
+/// This is *not* the same limit as `BigInt`'s internal `u32` word index
+/// (~4 billion words, ~34 GiB): that ceiling only protects the container's
+/// own indexing, not the process. An allocation anywhere near it can abort
+/// the process outright — `Vec`'s allocator failure is not a catchable
+/// panic — from a shift count an attacker can spell in one `u64` word, or from
+/// operands whose product is that long, well before any guard based on the
+/// index limit alone would reject it. That is
+/// exactly the crash-instead-of-refuse this checks against.
+const MAX_WORDS: u64 = 1 << 14;
 
 /// [`BigInt::abs_sub_vec`]'s precondition, broken.
 const RHS_GREATER: &str = "abs_sub_vec: rhs is greater than self";
@@ -138,6 +156,25 @@ fn sub_words_assign(a: &mut Vec<u64>, b: &[u64]) {
 pub struct BigInt<A: IVm>(A::InternalBigInt);
 
 impl<A: IVm> BigInt<A> {
+    /// `self`, or the `RangeError` of a `BigInt` longer than `MAX_WORDS`
+    /// words. `*` and `<<` check their own results; `+` and `-` do not, and
+    /// a result of theirs that must stay in range, a sum of a product and a
+    /// digit, says so here.
+    pub(crate) fn within_limit(self) -> Result<Self, Any<A>> {
+        if u64::from(self.length()) > MAX_WORDS {
+            return Err(error::bigint_too_large());
+        }
+        Ok(self)
+    }
+
+    /// `self * rhs` where the caller's operands are bounded by construction
+    /// to a product far under `MAX_WORDS`, as the exact arithmetic of a
+    /// `binary64` is (a 53-bit mantissa, a power of two, a power of ten of at
+    /// most a few hundred digits): the product cannot throw.
+    pub(crate) fn mul_bounded(self, rhs: Self) -> Self {
+        (self * rhs).expect("a binary64's exact arithmetic is far under BigInt's size limit")
+    }
+
     /// `pub(crate)`, not private: `BooleanCoercion` (`vm/boolean_coercion.rs`)
     /// uses this to test `0n` without constructing and comparing against a
     /// throwaway `BigInt::default()`.
@@ -217,14 +254,10 @@ impl<A: IVm> BigInt<A> {
     /// throws instead of the `NaN` a `Number` operation would give.
     pub fn div_mod(self, rhs: Self) -> Result<(Self, Self), Any<A>> {
         if rhs.is_zero() {
-            return Err(DIVISION_BY_ZERO.into());
+            return Err(error::division_by_zero());
         }
         let lhs_sign = self.sign();
-        let quotient_sign = if lhs_sign == rhs.sign() {
-            Sign::Positive
-        } else {
-            Sign::Negative
-        };
+        let quotient_sign = lhs_sign * rhs.sign();
         let (quotient, remainder) = self.abs_divmod_vec(rhs);
         Ok((
             Self::normalize_new(quotient_sign, quotient),
@@ -249,13 +282,19 @@ impl<A: IVm> BigInt<A> {
         assert_slice_normalized(self.0.items());
     }
 
+    /// Panics unless both `self` and `rhs` are normalized: the shared
+    /// precondition of the two-operand magnitude helpers.
+    fn assert_normalized_with(&self, rhs: &Self) {
+        self.assert_normalized();
+        rhs.assert_normalized();
+    }
+
     /// Compare absolute values by looking at the most-significant words first.
     ///
     /// Precondition: both `self` and `rhs` must be normalized, i.e. they must
     /// not contain leading (most-significant) zero words.
     fn abs_cmp_vec(self, rhs: Self) -> Ordering {
-        self.assert_normalized();
-        rhs.assert_normalized();
+        self.assert_normalized_with(&rhs);
 
         let a = self.0.items();
         let b = rhs.0.items();
@@ -269,9 +308,7 @@ impl<A: IVm> BigInt<A> {
     }
 
     fn abs_add_vec(self, rhs: Self) -> Vec<u64> {
-        // Precondition: both operands must be normalized.
-        self.assert_normalized();
-        rhs.assert_normalized();
+        self.assert_normalized_with(&rhs);
 
         let mut carry: u128 = 0;
         let mut out: Vec<u64> = self
@@ -294,9 +331,7 @@ impl<A: IVm> BigInt<A> {
     }
 
     fn abs_sub_vec(self, rhs: Self) -> Vec<u64> {
-        // Precondition: both operands must be normalized.
-        self.assert_normalized();
-        rhs.assert_normalized();
+        self.assert_normalized_with(&rhs);
 
         let mut borrow: u64 = 0;
         let out: Vec<u64> = self
@@ -330,8 +365,7 @@ impl<A: IVm> BigInt<A> {
     ///
     /// Precondition: both operands are normalized, and `rhs` is non-zero.
     fn abs_divmod_vec(self, rhs: Self) -> (Vec<u64>, Vec<u64>) {
-        self.assert_normalized();
-        rhs.assert_normalized();
+        self.assert_normalized_with(&rhs);
 
         let denom: Vec<u64> = rhs.index_iter().collect();
         let numer: Vec<u64> = self.index_iter().collect();

@@ -4,7 +4,7 @@
  * @import { EdagValue, Values } from '../../edag/value/types.ts'
  */
 
-import { parseFromTokens } from './module.f.mjs'
+import { errorLocation, parseFromTokens } from './module.f.mjs'
 import { parseSyntax } from './syntax/module.f.mjs'
 import { unresolved } from '../edag/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
@@ -1766,6 +1766,27 @@ export const proof = {
             assert(tag === 'ok', tag)
         },
     ],
+    // Where a parse error is, as much as it knows: a span, a point, the file
+    // it names, and the file being compiled when it names none — the
+    // parser's contract failure, which no reader `fjs compile` runs
+    // produces, is the one such error left.
+    errorLocation: {
+        spanOneLine: () => {
+            assertEq(errorLocation('input.f.js')({ message: 'invalid token', metadata: { path: 'a.f.js', line: 1, column: 16 }, end: { line: 1, column: 17 } }), 'a.f.js:1:16-17')
+        },
+        spanLines: () => {
+            assertEq(errorLocation('input.f.js')({ message: '*/ expected', metadata: { path: 'a.f.js', line: 1, column: 16 }, end: { line: 3, column: 2 } }), 'a.f.js:1:16-3:2')
+        },
+        point: () => {
+            assertEq(errorLocation('input.f.js')({ message: 'unexpected token', metadata: { path: 'a.f.js', line: 2, column: 5 } }), 'a.f.js:2:5')
+        },
+        file: () => {
+            assertEq(errorLocation('input.f.js')({ message: 'file not found', metadata: null, path: 'm.f.js' }), 'm.f.js')
+        },
+        noFile: () => {
+            assertEq(errorLocation('input.f.js')({ message: 'missing end-of-input token', metadata: null }), 'input.f.js')
+        },
+    },
     /**
      * **Every shared example is proved to behave as its name says.** The
      * escape the tokenizer does not read and the unfinished module are the

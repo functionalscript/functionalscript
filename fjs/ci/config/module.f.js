@@ -123,7 +123,7 @@ export const typescript = /** @type {const} */({
     attribute: 'typescript-go',
 })
 
-// The Rust the `wasm` job's flake provides, resolved by `rust-overlay` from
+// The Rust the shared shell's flake provides, resolved by `rust-overlay` from
 // the official release manifest — so unlike the Nixpkgs pins below, this is an
 // exact release rather than whatever a snapshot happens to carry, and the flake
 // text names it in full. It is also the version the platform matrix's
@@ -131,6 +131,18 @@ export const typescript = /** @type {const} */({
 // cannot drift.
 // https://rust-lang.org/
 export const rust = '1.99.0'
+
+// How long, in minutes, a job may run once a runner has picked it up. GitHub's
+// default is six hours, and a job that hangs holds its runner for all of them:
+// two `macos-intel` jobs stuck building their shell held the scarcest runners
+// for three and a half hours before they were cancelled by hand. The slowest
+// job, `macos-intel`, has taken up to 13.3 minutes, so a job past this limit is
+// one that hung rather than one that is slow.
+//
+// It does not count the wait for a runner. That wait belongs to the merge
+// queue's status check timeout, a repository setting, which has to cover it.
+// https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idtimeout-minutes
+export const jobTimeout = /** @type {const} */ (15)
 
 // Official Nixpkgs snapshot used by the generated CI flakes. `ref` is the
 // stable channel the commit is accepted from; `commit` is the exact revision
@@ -147,7 +159,7 @@ export const nixpkgs = /** @type {const} */({
     owner: 'NixOS',
     repo: 'nixpkgs',
     ref: 'nixos-26.05',
-    commit: 'b25309931cfda5f0b8805f462a29897eeae50168',
+    commit: '2efa67fd26b6df417c33e4603185c701f260dd83',
 })
 
 // Wasmtime and Wasmer are installed by their own setup actions, so these are
@@ -166,7 +178,7 @@ export const rustOverlay = /** @type {const} */({
     owner: 'oxalica',
     repo: 'rust-overlay',
     ref: 'master',
-    commit: '8afee9fa8caa877a4feb65adc33e8d72f3747dc9',
+    commit: '4ca2963243427cb86bd6b4d9ca6010db0162a619',
 })
 
 // Moving either `commit` above needs `npm run lock-update` (real Nix) to
@@ -175,7 +187,7 @@ export const rustOverlay = /** @type {const} */({
 
 // The Wasmtime and Wasmer versions the pinned Nixpkgs snapshot provides — read
 // from `pkgs/by-name/wa/{wasmtime,wasmer}/package.nix` at that commit. The
-// `wasm` job asserts both from inside its shell, which is the only tie there
+// `ubuntu-arm` job asserts both from inside its shell, which is the only tie there
 // is: neither attribute carries a version, so nothing else connects these
 // numbers to what the shell provides. Bump the snapshot first and copy what it
 // offers, as the Node and Deno pins do.
@@ -193,7 +205,7 @@ export const actions = /** @type {const} */({
     // https://github.com/marketplace/actions/checkout
     'actions/checkout': 'v7.0.1',
     // https://github.com/marketplace/actions/setup-node-js-environment
-    'actions/setup-node': 'v7.0.0',
+    'actions/setup-node': 'v7.1.0',
     // https://github.com/marketplace/actions/cache
     'actions/cache': 'v6.1.0',
     // https://github.com/marketplace/actions/install-nix

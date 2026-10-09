@@ -97,6 +97,11 @@ export const codeMarker = 'data-code'
  */
 export const resultMarker = 'data-result'
 
+/** The attribute shared by the PoW verdict row and its layout rules.
+ * @type {string}
+ */
+export const powResultMarker = 'data-pow-result'
+
 /**
  * The stylesheet, verbatim.
  *
@@ -246,8 +251,8 @@ input[type="text"] { box-sizing: border-box; width: 100% }
 [data-pow-effort-note] { color: var(--muted); font-size: .875rem }
 /* The verdict takes the shared data-result tint and border. Keep its icon
    beside the sentence when it wraps, with enough space to read as one result. */
-[data-pow-result][${resultMarker}] { align-items: center; display: flex; gap: .625rem; line-height: 1.5; padding: .875rem 1rem; white-space: normal }
-[data-pow-result] > svg { flex-shrink: 0; height: 1.25rem; width: 1.25rem }
+[${powResultMarker}][${resultMarker}] { align-items: center; display: flex; gap: .625rem; line-height: 1.5; padding: .875rem 1rem; white-space: normal }
+[${powResultMarker}] > svg { flex-shrink: 0; height: 1.25rem; width: 1.25rem }
 /* Search progress supports the current verdict rather than competing with it;
    smaller muted text separates the attempt count and failed range from the result. */
 [data-pow-search-summary] { color: var(--muted); font-size: .875rem; line-height: 1.6; margin-top: .75rem }

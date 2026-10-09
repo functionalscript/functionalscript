@@ -319,7 +319,7 @@ const systemValues = (job, system) => {
         targets: ['list', ...targetsOf(job, system)],
         url: source,
         hash,
-        hook: hookOf(job, system),
+        shellHook: hookOf(job, system),
     }
 }
 
@@ -337,8 +337,42 @@ const sharedValues = job => ({
     targets: ['ref', 'targets'],
     url: ['ref', 'url'],
     hash: ['ref', 'hash'],
-    hook: declaresHook(job) ? ['ref', 'shellHook'] : undefined,
+    shellHook: declaresHook(job) ? ['ref', 'shellHook'] : undefined,
 })
+
+/**
+ * Whether a job pins a package, and so whether its shell takes an archive.
+ *
+ * @type {(job: NixJob) => boolean}
+ */
+const pins = ({ pin }) => pin !== undefined
+
+/**
+ * The shared function's arguments beyond `pkgs`, one row each, in the order the
+ * pattern and every call write them: the argument, and whether a job's function
+ * takes it.
+ *
+ * The pattern and the calls are both read off this table, so they cannot
+ * disagree. A pattern naming an argument the calls do not pass is a flake that
+ * fails to evaluate, and nothing in the types would catch it if the two were
+ * written separately.
+ *
+ * @type {readonly (readonly [keyof _ShellValues, (job: NixJob) => boolean])[]}
+ */
+const shellParameters = [
+    ['targets', ({ rust }) => rust !== undefined],
+    ['shellHook', declaresHook],
+    ['url', pins],
+    ['hash', pins],
+]
+
+/**
+ * The arguments beyond `pkgs` a job's shared function takes.
+ *
+ * @type {(job: NixJob) => readonly (keyof _ShellValues)[]}
+ */
+const parameters = job =>
+    shellParameters.flatMap(([name, takes]) => takes(job) ? [name] : [])
 
 /**
  * The arguments one system passes to the shared function: its package set, and
@@ -346,25 +380,16 @@ const sharedValues = job => ({
  *
  * A system with no hook of its own still passes one, because the function's
  * argument list is the same for every caller. It passes the empty string, which
- * is the shell initialization it has.
+ * is the shell initialization it has; the hook is the one value that can be
+ * absent.
  *
  * @type {(job: NixJob, system: string) => readonly _Binding[]}
  */
 const systemArguments = (job, system) => {
-    const { url: source, hash } = archive(job.pin, system)
-    const hook = hookOf(job, system)
+    const values = systemValues(job, system)
     return [
         ['=', ['pkgs'], ['ref', 'pkgs']],
-        ...(job.rust === undefined ? [] : /** @type {readonly _Binding[]} */ ([
-            ['=', ['targets'], ['list', ...targetsOf(job, system)]],
-        ])),
-        ...(declaresHook(job) ? /** @type {readonly _Binding[]} */ ([
-            ['=', ['shellHook'], hook === undefined ? '' : hook],
-        ]) : []),
-        ...(job.pin === undefined ? [] : /** @type {readonly _Binding[]} */ ([
-            ['=', ['url'], source],
-            ['=', ['hash'], hash],
-        ])),
+        ...parameters(job).map(name => /** @type {const} */ (['=', [name], values[name] ?? ''])),
     ]
 }
 
@@ -400,7 +425,7 @@ const devShells = job => {
                     ['=', ['pkgs'], packageSet(system, job.rust)],
                     ...shellBindings(job, values),
                 ],
-                mkShell(job, values.hook),
+                mkShell(job, values.shellHook),
             ]],
         ]
     }
@@ -408,13 +433,8 @@ const devShells = job => {
     return ['let',
         [
             ['=', [shellName], ['lambda',
-                ['open-set-pattern',
-                    'pkgs',
-                    ...(job.rust === undefined ? [] : ['targets']),
-                    ...(declaresHook(job) ? ['shellHook'] : []),
-                    ...(job.pin === undefined ? [] : ['url', 'hash']),
-                ],
-                letIn(shellBindings(job, values), mkShell(job, values.hook)),
+                ['open-set-pattern', 'pkgs', ...parameters(job)],
+                letIn(shellBindings(job, values), mkShell(job, values.shellHook)),
             ]],
         ],
         ['set',
@@ -459,12 +479,13 @@ const flake = job => ['set',
  * The serializer rejects invalid *identifiers*, and every identifier in a flake
  * is written here — a job only contributes attribute names and strings, which
  * are quoted when they are not identifiers. The unwrap is therefore a totality
- * assertion, not an input check.
+ * assertion, not an input check — and if it is ever wrong, it throws the
+ * serializer's reason, naming what broke.
  *
  * @type {(job: NixJob) => string}
  */
 export const flakeText = job =>
-    unwrapNullable(fromUndefined(nixToString(flake(job))))
+    unwrap(nixToString(flake(job)))
 
 /** Where {@link nixFlakes} writes the lock script, as a CI step names it. */
 export const lockUpdatePath = /** @type {const} */ (`./${generatedDirectory}/lock-update.sh`)

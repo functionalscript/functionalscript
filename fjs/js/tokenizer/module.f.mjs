@@ -46,15 +46,15 @@
  * @import { ErrorToken, JsToken, JsTokenWithMetadata, TokenMetadata, TokenPosition } from '../../ebnf/lib/js/types.ts'
  * @import { StateScan } from '../../types/function/operator/types.ts'
  * @import { List } from '../../types/list/types.ts'
- * @import { _Failure, _Kind, _Lexed, _Lexeme, _StringDecodeState, _Trivia } from './private.ts'
+ * @import { _Cursor, _Failure, _Kind, _Lexed, _Lexeme, _StringDecodeState, _Trivia } from './private.ts'
  */
 import { assert } from '../../asserts/module.f.mjs'
 import { parser } from '../../ebnf/ll1/module.f.mjs'
-import { mergeTrivia, token } from '../../ebnf/lib/js/module.f.mjs'
+import { lineTerminators, mergeTrivia, token } from '../../ebnf/lib/js/module.f.mjs'
 import { isKeyword } from '../keywords/module.f.mjs'
 import { escapeToCodePoint } from '../string_escape/module.f.mjs'
 import {
-    apostrophe, asterisk, lf,
+    apostrophe, asterisk, cr, lf, one,
     reverseSolidus,
     hexDigitValue, isDigit,
     latinSmallLetterU,
@@ -126,14 +126,36 @@ const kindOf = node => {
     }
 }
 
-// Advances path/line/column by one code point.
-/** @type {(cp: number) => (metadata: TokenMetadata) => TokenMetadata} */
-const advanceMetadata = cp => metadata => cp === lf
-    ? { path: metadata.path, line: metadata.line + 1, column: 1 }
-    : { path: metadata.path, line: metadata.line, column: metadata.column + 1 }
+/** The code points of ECMAScript's four line terminators. */
+const lineTerminatorCodePoints = lineTerminators.map(one)
 
-/** @type {(metadata: TokenMetadata) => (cp: readonly number[]) => TokenMetadata} */
-const advance = metadata => cp => fold(advanceMetadata)(metadata)(cp)
+/**
+ * The position past `cp`, `previous` the code point before it. A line
+ * starts after each of ECMAScript's `LineTerminatorSequence`s, so at every
+ * line terminator but the LF of a CRLF, which takes no column: its CR has
+ * already started the line.
+ *
+ * @type {(previous: number | undefined) => (cp: number) => (metadata: TokenMetadata) => TokenMetadata}
+ */
+const next = previous => cp => metadata => {
+    const { path, line, column } = metadata
+    if (cp === lf && previous === cr) { return metadata }
+    return lineTerminatorCodePoints.includes(cp)
+        ? { path, line: line + 1, column: 1 }
+        : { path, line, column: column + 1 }
+}
+
+// Advances path/line/column by one code point.
+/** @type {(cp: number) => (cursor: _Cursor) => _Cursor} */
+const advanceMetadata = cp => ([metadata, previous]) => [next(previous)(cp)(metadata), cp]
+
+/**
+ * The position past `cp`, read from `metadata`, `previous` the code point
+ * before `cp` — a CRLF may be split across two tokens.
+ *
+ * @type {(metadata: TokenMetadata) => (previous: number | undefined) => (cp: readonly number[]) => TokenMetadata}
+ */
+const advance = metadata => previous => cp => fold(advanceMetadata)(/** @type {_Cursor} */ ([metadata, previous]))(cp)[0]
 
 /**
  * Reads the whole input one token at a time, the parser resumed where the
@@ -152,20 +174,21 @@ const lex = path => cp => {
     let metadata = { path, line: 1, column: 1 }
     while (pos < cp.length) {
         const match = parseToken(symbols, pos)
+        const previous = pos === 0 ? undefined : cp[pos - 1]
         if (match[0] === 'error') {
             /** @type {_Failure} */
             const failure = {
                 number: isDigit(cp[pos]),
                 start: metadata,
-                at: advance(metadata)(cp.slice(pos, match[1])),
+                at: advance(metadata)(previous)(cp.slice(pos, match[1])),
             }
-            return { lexemes: toArray(lexemes), failure, final: advance(metadata)(cp.slice(pos)) }
+            return { lexemes: toArray(lexemes), failure, final: advance(metadata)(previous)(cp.slice(pos)) }
         }
         const [node, end] = match[1]
         const text = cp.slice(pos, end)
         const [kind, ok] = kindOf(node)
         lexemes = concat(lexemes)([{ kind, text, start: metadata, closed: ok }])
-        metadata = advance(metadata)(text)
+        metadata = advance(metadata)(previous)(text)
         pos = end
     }
     return { lexemes: toArray(lexemes), failure: null, final: metadata }

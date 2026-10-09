@@ -17,7 +17,7 @@ connection, not a thread.
 **The half of this that was about buffering is answered, and what is left is the
 timeout.** The runner used to read the body to its end before calling the
 listener, so *every* stalled request waited, including one for a method the
-listener was never going to serve. It does not any more: the body is a `List` the
+listener was never going to serve. It does not any more: the body is an `EffectList` the
 listener pulls from ([streaming-http-bodies](./streaming-http-bodies.md), stage
 2), so `fjs/web` answers `405` without reading a byte and the runner closes the
 connection rather than draining what is still coming. The `Vec` cap was a second
@@ -59,7 +59,7 @@ Two independent halves, either of which helps:
 - [ ] Decide the default `requestTimeout` / `headersTimeout` for a server built
       through `createServer`, and whether a listener can override them.
 - [x] Revisit once streaming bodies land: a listener that never reads the body
-      should not wait for one. — `IncomingMessage.body` is a `List`
+      should not wait for one. — `IncomingMessage.body` is an `EffectList`
       ([streaming-http-bodies](./streaming-http-bodies.md), stage 2), so the
       listener is called before the body arrives and `answerRequest`
       (`../module.mjs`) closes the connection on a body it did not finish
