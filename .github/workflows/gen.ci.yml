@@ -71,7 +71,16 @@
           "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.10.0\""
         },
         {
+          "run": "test \"$(sh ./gen.nix/run wasmtime --version)\" = \"wasmtime 45.0.2\""
+        },
+        {
+          "run": "test \"$(sh ./gen.nix/run wasmer --version)\" = \"wasmer 7.1.0\""
+        },
+        {
           "run": "sh ./gen.nix/run npm ci"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo fmt -- --check"
         },
         {
           "run": "sh ./gen.nix/run cargo test"
@@ -84,6 +93,72 @@
         },
         {
           "run": "sh ./gen.nix/run cargo clippy --release -- -D warnings"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip1"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip1 --release"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo clippy --target wasm32-wasip1 -- -D warnings"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo clippy --target wasm32-wasip1 --release -- -D warnings"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml --release"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip2"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip2 --release"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo clippy --target wasm32-wasip2 -- -D warnings"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo clippy --target wasm32-wasip2 --release -- -D warnings"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml --release"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo test --target wasm32-unknown-unknown"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo test --target wasm32-unknown-unknown --release"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo clippy --target wasm32-unknown-unknown -- -D warnings"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo clippy --target wasm32-unknown-unknown --release -- -D warnings"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml --release"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo clippy --target wasm32-wasip1-threads -- -D warnings"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo clippy --target wasm32-wasip1-threads --release -- -D warnings"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml --release"
         },
         {
           "run": "sh ./gen.nix/run node --test"
@@ -244,93 +319,6 @@
         },
         {
           "run": "fjs test"
-        }
-      ]
-    },
-    "wasm": {
-      "runs-on": "ubuntu-26.04-arm",
-      "timeout-minutes": 15,
-      "steps": [
-        {
-          "uses": "cachix/install-nix-action@v31.11.1"
-        },
-        {
-          "uses": "actions/checkout@v7.0.1"
-        },
-        {
-          "run": "test \"$(sh ./gen.nix/run wasmtime --version)\" = \"wasmtime 45.0.2\""
-        },
-        {
-          "run": "test \"$(sh ./gen.nix/run wasmer --version)\" = \"wasmer 7.1.0\""
-        },
-        {
-          "run": "sh ./gen.nix/run cargo fmt -- --check"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip1"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip1 --release"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo clippy --target wasm32-wasip1 -- -D warnings"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo clippy --target wasm32-wasip1 --release -- -D warnings"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml --release"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip2"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip2 --release"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo clippy --target wasm32-wasip2 -- -D warnings"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo clippy --target wasm32-wasip2 --release -- -D warnings"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml --release"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo test --target wasm32-unknown-unknown"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo test --target wasm32-unknown-unknown --release"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo clippy --target wasm32-unknown-unknown -- -D warnings"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo clippy --target wasm32-unknown-unknown --release -- -D warnings"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml --release"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo clippy --target wasm32-wasip1-threads -- -D warnings"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo clippy --target wasm32-wasip1-threads --release -- -D warnings"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml --release"
         }
       ]
     },

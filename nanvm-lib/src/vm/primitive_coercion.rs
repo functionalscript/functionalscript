@@ -1,17 +1,9 @@
 use crate::vm::{
-    Any, Array, BigInt, Function, IVm, Number, Object, String, Unpacked, dispatch::Dispatch,
+    Any, Array, BigInt, Function, IVm, Number, Object, String, Unpacked, dispatch::Dispatch, error,
     nullish::Nullish, primitive::Primitive,
 };
 
 use std::result::Result;
-
-const CANNOT_CONVERT_TO_PRIMITIVE_VALUE: &str = "TypeError: Cannot convert to primitive value";
-
-/// A function converts to its text, and one that has none — a host or
-/// hand-written function, which no EDAG renders — is refused. A result that
-/// does not depend on the text is answered without it: see
-/// `NumberCoercion` and `is_less_than`.
-pub const FUNCTION_TEXT: &str = "TypeError: Cannot convert a function to its text";
 
 /// Preferred type for coercion to primitive, as per ECMAScript specification.
 /// <https://tc39.es/ecma262/#sec-toprimitive>
@@ -65,7 +57,7 @@ fn obj_to_primitive<A: IVm>(
             return Ok(p);
         }
     }
-    Err(CANNOT_CONVERT_TO_PRIMITIVE_VALUE.into())
+    Err(error::cannot_convert_to_primitive())
 }
 
 /// One method of `OrdinaryToPrimitive`: its primitive result, or `None` to
@@ -111,14 +103,14 @@ fn arr_to_primitive<A: IVm>(
             Some(res) => res,
             None => match arr_to_string(a) {
                 Some(res) => res,
-                None => Err(CANNOT_CONVERT_TO_PRIMITIVE_VALUE.into()),
+                None => Err(error::cannot_convert_to_primitive()),
             },
         },
         ToPrimitivePreferredType::String => match arr_to_string(a.clone()) {
             Some(res) => res,
             None => match value_of(a) {
                 Some(res) => res,
-                None => Err(CANNOT_CONVERT_TO_PRIMITIVE_VALUE.into()),
+                None => Err(error::cannot_convert_to_primitive()),
             },
         },
     }
@@ -168,7 +160,7 @@ impl<A: IVm> Dispatch<A> for PrimitiveCoercionOp {
         // the function's text, and one without a text is refused.
         f.text()
             .map(|text| Primitive::String(text.into()))
-            .ok_or_else(|| FUNCTION_TEXT.into())
+            .ok_or_else(error::function_text)
     }
 }
 
@@ -179,12 +171,11 @@ impl<A: IVm> Dispatch<A> for PrimitiveCoercionOp {
 #[cfg(test)]
 mod tests {
     use super::ToPrimitivePreferredType;
-    use super::{CANNOT_CONVERT_TO_PRIMITIVE_VALUE, FUNCTION_TEXT};
     use crate::common::sized_index::SizedIndex;
     use crate::{
         naive::Naive,
         vm::{
-            Any, BigInt, IStaticFunction, Nullish, Number, ToAny, ToArray, ToObject,
+            Any, BigInt, IStaticFunction, Nullish, Number, ToAny, ToArray, ToObject, error,
             primitive::Primitive,
         },
     };
@@ -230,8 +221,8 @@ mod tests {
             .to_any()
     }
 
-    fn refused<T: core::fmt::Debug + PartialEq>(r: Result<T, Any<A>>, message: &str) {
-        assert_eq!(r, Err(message.into()));
+    fn refused<T: core::fmt::Debug + PartialEq>(r: Result<T, Any<A>>, thrown: impl Into<Any<A>>) {
+        assert_eq!(r, Err(thrown.into()));
     }
 
     fn is_nan(r: Result<Number, Any<A>>) -> bool {
@@ -278,8 +269,8 @@ mod tests {
             assert!(is_nan(o().to_number()));
             assert_eq!(o() + s("!"), Ok(s("[object Object]!")));
             let o = || with(&[("toString", value.clone())]);
-            refused(o().to_string(), CANNOT_CONVERT_TO_PRIMITIVE_VALUE);
-            refused(o().to_number(), CANNOT_CONVERT_TO_PRIMITIVE_VALUE);
+            refused(o().to_string(), error::cannot_convert_to_primitive());
+            refused(o().to_number(), error::cannot_convert_to_primitive());
         }
     }
 
@@ -337,7 +328,7 @@ mod tests {
             };
             assert_eq!(o().to_number(), Ok(Number::from(2.0)));
             let o = || with(&[("toString", returns(result.clone()))]);
-            refused(o().to_string(), CANNOT_CONVERT_TO_PRIMITIVE_VALUE);
+            refused(o().to_string(), error::cannot_convert_to_primitive());
         }
     }
 
@@ -391,11 +382,11 @@ mod tests {
     /// one does not have.
     #[test]
     fn function_without_text_is_refused() {
-        refused(function().to_string(), FUNCTION_TEXT);
-        refused(function() + s("!"), FUNCTION_TEXT);
-        refused(function() + 1.0.to_any(), FUNCTION_TEXT);
-        refused(1.0.to_any() + function(), FUNCTION_TEXT);
-        refused(function() + function(), FUNCTION_TEXT);
+        refused(function().to_string(), error::function_text());
+        refused(function() + s("!"), error::function_text());
+        refused(function() + 1.0.to_any(), error::function_text());
+        refused(1.0.to_any() + function(), error::function_text());
+        refused(function() + function(), error::function_text());
     }
 
     /// `+f`, `-f`, `f - 1` and `f ^ 6`: `NaN` for every text, so
@@ -412,14 +403,17 @@ mod tests {
     /// every text.
     #[test]
     fn function_comparison() {
-        refused(function().lt(s("z")), FUNCTION_TEXT);
-        refused(s("z").lt(function()), FUNCTION_TEXT);
-        refused(function().lt(function()), FUNCTION_TEXT);
-        refused(function().ge(s("z")), FUNCTION_TEXT);
+        refused(function().lt(s("z")), error::function_text());
+        refused(s("z").lt(function()), error::function_text());
+        refused(function().lt(function()), error::function_text());
+        refused(function().ge(s("z")), error::function_text());
         let five = || 5.0.to_any();
         let big = || BigInt::<A>::from(5i64).to_any();
         // An array's primitive is a string too.
-        refused(function().lt([].to_array().to_any()), FUNCTION_TEXT);
+        refused(
+            function().lt([].to_array().to_any()),
+            error::function_text(),
+        );
         for other in [five(), big(), true.to_any()] {
             assert_eq!(function().lt(other.clone()), Ok(false.to_any()));
             assert_eq!(other.clone().lt(function()), Ok(false.to_any()));
@@ -610,10 +604,7 @@ mod tests {
         assert_eq!(value_of(big(1)).bitwise_not(), Ok(big(-2)));
         assert_eq!(-value_of(big(5)), Ok(big(-5)));
         // `ToNumber` has no `BigInt`: unary `+` refuses it, `ToNumeric` keeps it.
-        refused(
-            value_of(big(1)).to_number(),
-            "TypeError: Cannot convert a BigInt value to a number",
-        );
+        refused(value_of(big(1)).to_number(), error::bigint_to_number());
         assert!(value_of(big(1)).unary_plus().is_err());
         // A `toString` answering a number string is a number, never a `BigInt`.
         assert!((big(1) * to_string_of(s("2"))).is_err());
@@ -812,7 +803,7 @@ mod tests {
         // An element's result that is no primitive is refused.
         refused(
             arr(vec![to_string_of(arr(vec![]))]).to_string(),
-            CANNOT_CONVERT_TO_PRIMITIVE_VALUE,
+            error::cannot_convert_to_primitive(),
         );
     }
 
@@ -871,8 +862,8 @@ mod tests {
             assert_eq!(o().to_string(), Ok("[object Object]".into()));
             assert!(is_nan(o().to_number()));
             let o = || with(&[("toString", v.clone())]);
-            refused(o().to_string(), CANNOT_CONVERT_TO_PRIMITIVE_VALUE);
-            refused(o() + 1.0.to_any(), CANNOT_CONVERT_TO_PRIMITIVE_VALUE);
+            refused(o().to_string(), error::cannot_convert_to_primitive());
+            refused(o() + 1.0.to_any(), error::cannot_convert_to_primitive());
             // `valueOf` is still reached first, and answers.
             let o = || with(&[("toString", v.clone()), ("valueOf", returns(4.0.to_any()))]);
             assert_eq!(o().to_number(), Ok(Number::from(4.0)));
@@ -887,8 +878,8 @@ mod tests {
     fn result_is_not_converted() {
         for result in [texted(), with(&[("toString", returns(s("a")))])] {
             let o = || with(&[("toString", returns(result.clone()))]);
-            refused(o().to_string(), CANNOT_CONVERT_TO_PRIMITIVE_VALUE);
-            refused(o().to_number(), CANNOT_CONVERT_TO_PRIMITIVE_VALUE);
+            refused(o().to_string(), error::cannot_convert_to_primitive());
+            refused(o().to_number(), error::cannot_convert_to_primitive());
             let o = || {
                 with(&[
                     ("valueOf", returns(result.clone())),
@@ -902,8 +893,8 @@ mod tests {
             ("valueOf", returns(with(&[]))),
             ("toString", returns(with(&[]))),
         ]);
-        refused(o.clone().to_number(), CANNOT_CONVERT_TO_PRIMITIVE_VALUE);
-        refused(o + 1.0.to_any(), CANNOT_CONVERT_TO_PRIMITIVE_VALUE);
+        refused(o.clone().to_number(), error::cannot_convert_to_primitive());
+        refused(o + 1.0.to_any(), error::cannot_convert_to_primitive());
     }
 
     /// A conversion whose result is discarded still runs the methods, so
@@ -914,7 +905,7 @@ mod tests {
         refused(call(empty(), "join", vec![boom()]), "boom");
         refused(
             call(empty(), "join", vec![to_string_of(with(&[]))]),
-            CANNOT_CONVERT_TO_PRIMITIVE_VALUE,
+            error::cannot_convert_to_primitive(),
         );
         refused(
             call(empty(), "join", vec![[boom()].to_array().to_any()]),

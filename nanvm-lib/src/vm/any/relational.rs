@@ -1,16 +1,13 @@
 use core::cmp::Ordering;
 
 use crate::vm::{
-    Any, BigInt, IVm, Number, ToAny, Unpacked,
-    ecma_whitespace::is_ecma_whitespace,
-    numeric::Numeric,
-    primitive::Primitive,
-    primitive_coercion::{FUNCTION_TEXT, ToPrimitivePreferredType},
+    Any, BigInt, IVm, Number, ToAny, Unpacked, ecma_whitespace::is_ecma_whitespace, error,
+    numeric::Numeric, primitive::Primitive, primitive_coercion::ToPrimitivePreferredType,
 };
 
 impl<A: IVm> Any<A> {
     /// `<`. Throws where `ToPrimitive` does, and where the text of a function
-    /// without text would be compared (`FUNCTION_TEXT`).
+    /// without text would be compared (`error::function_text`).
     pub fn lt(self, rhs: Self) -> Result<Self, Self> {
         let (x, y) = operands(self, rhs)?;
         Ok(is_less_than(x, y)?.unwrap_or(false).to_any())
@@ -63,7 +60,7 @@ fn is_less_than<A: IVm>(px: Operand<A>, py: Operand<A>) -> Result<Option<bool>, 
     match (px, py) {
         // A function's text against a string compares the texts.
         (None, None) | (None, Some(Primitive::String(_))) | (Some(Primitive::String(_)), None) => {
-            Err(FUNCTION_TEXT.into())
+            Err(error::function_text())
         }
         // Against anything else, the text is numeric: `NaN` for a number
         // and no `StringToBigInt` for a bigint, so `undefined` either way.
@@ -73,7 +70,7 @@ fn is_less_than<A: IVm>(px: Operand<A>, py: Operand<A>) -> Result<Option<bool>, 
 }
 
 /// `ToPrimitive(v, number)`, where `None` is the text of a function that has
-/// none (`FUNCTION_TEXT`). A function's text is a string that neither
+/// none (`error::function_text`). A function's text is a string that neither
 /// `StringToNumber` nor `StringToBigInt` accepts, so `is_less_than` answers a
 /// function without text against a number or a bigint, and refuses it only
 /// against a string.

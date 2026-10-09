@@ -1,9 +1,5 @@
 use super::Array;
-use crate::vm::{Any, IVm, ToArray};
-
-/// The error for an array longer than JavaScript's limit, `2³² − 1`
-/// elements, which is also `Array<A>`'s `u32` length limit.
-pub(crate) const TOO_LONG: &str = "RangeError: Invalid array length";
+use crate::vm::{Any, IVm, ToArray, error};
 
 /// A new array of `len` elements from `items`, or the `RangeError`
 /// JavaScript's `ArrayCreate` throws when `len` is past the limit. The
@@ -15,7 +11,7 @@ pub(crate) fn create<A: IVm>(
     items: impl IntoIterator<Item = Any<A>>,
 ) -> Result<Array<A>, Any<A>> {
     if len > u64::from(u32::MAX) {
-        return Err(TOO_LONG.into());
+        return Err(error::array_too_long());
     }
     Ok(items.into_iter().to_array())
 }
@@ -26,7 +22,7 @@ mod tests {
     use crate::{
         common::sized_index::SizedIndex,
         naive::Naive,
-        vm::{Any, ToAny},
+        vm::{Any, ToAny, error},
     };
 
     type A = Naive;
@@ -43,7 +39,7 @@ mod tests {
         assert!(create(u64::from(u32::MAX), items.clone()).is_ok());
         assert_eq!(
             create(u64::from(u32::MAX) + 1, items).map(|a| a.length()),
-            Err("RangeError: Invalid array length".into())
+            Err(error::array_too_long())
         );
     }
 }

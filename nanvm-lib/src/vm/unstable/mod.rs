@@ -3,8 +3,7 @@
 use crate::{
     sign::Sign,
     vm::{
-        Any, BigInt, IVm, IteratorRecord, Number, String, ToAny, ToArray, ToObject, ToString,
-        array::create::TOO_LONG,
+        Any, BigInt, IVm, IteratorRecord, Number, String, ToAny, ToArray, ToObject, ToString, error,
     },
 };
 
@@ -131,12 +130,12 @@ pub fn spread_array<A: IVm>(
         .sum();
     let limit = u64::from(u32::MAX);
     if at_least > limit {
-        return Err(TOO_LONG.into());
+        return Err(error::array_too_long());
     }
     let mut values = Vec::with_capacity(at_least as usize);
     let mut push = |v: Any<A>| -> Result<(), Any<A>> {
         if values.len() as u64 == limit {
-            return Err(TOO_LONG.into());
+            return Err(error::array_too_long());
         }
         values.push(v);
         Ok(())
@@ -335,10 +334,7 @@ mod test {
             .to_array()
             .to_any();
         let too_many = (0..65537).map(|_| spread_item(block.clone()));
-        assert_eq!(
-            spread_array(too_many).err(),
-            Some("RangeError: Invalid array length".into())
-        );
+        assert_eq!(spread_array(too_many).err(), Some(error::array_too_long()));
         let within = (0..2).map(|_| spread_item(block.clone()));
         assert_eq!(elements(spread_array(within)).len(), 131072);
     }
