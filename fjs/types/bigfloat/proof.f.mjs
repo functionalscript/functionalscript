@@ -381,6 +381,17 @@ export const proof = {
         () => assertBinary64([-1n, -1200])([0n, 0]),
         () => assertBinary64([0n, 0])([0n, 0]),
         () => assertEq(toBinary64([0n, -400])?.[1], 0),
+        // Zero is in every format, even one whose largest finite value is
+        // below 1/2 (`precision + maxExp < 0`), so the overflow guard must not
+        // reject it — neither a zero input nor a value that rounds away.
+        () => {
+            const tiny = tryDecToFormat({ precision: 1, minExp: -3, maxExp: -2 })
+            assertStructurallySame(tiny([0n, 0]), [0n, 0], 'zero input')
+            assertStructurallySame(tiny(dyadic(1n, -10)), [0n, 0], 'rounded away')
+            assertStructurallySame(tiny(dyadic(-1n, -10)), [0n, 0], 'negative, rounded away')
+            assertStructurallySame(tiny(dyadic(1n, -2)), [1n, -2], 'the largest finite value')
+            assertEq(tiny(dyadic(1n, -1)), null, 'past it')
+        },
         // Negatives mirror positives exactly, subnormals included.
         () => assertBinary64([-3n, -1074])([-3n, -1074]),
         () => assertBinary64([-1n, -1022])([-(1n << 52n), -1074]),
