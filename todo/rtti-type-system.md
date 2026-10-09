@@ -1089,33 +1089,33 @@ are stated instead:
       compile-time schema at run time means embedding it in the shipped
       program, which means serializing it — and
       [`data/README.md`](../fjs/rtti/data/README.md) states the corner
-      itself: JSON's number model "writes a `NaN` literal member as `null` and
-      drops `-0`'s sign, so a schema using those two as literal members does
-      not round-trip textually today and needs a serializer that preserves
-      them". It is shared by both serializers — DJS covers the rest of the form
-      including `bigint` literals, but numbers go to `JSON.stringify`
-      ([`json/serializer`](../fjs/media/json/serializer/module.f.mjs)). A
+      itself: JSON's number model "writes a `NaN` or `±Infinity` literal
+      member as `null`, so a schema using one does not round-trip through
+      JSON text". DataJS does not have the corner — it writes `NaN`,
+      `±Infinity` and `-0` as themselves — so which serializer the snapshot
+      goes through decides it. Written as JSON
+      ([`json/serializer`](../fjs/media/json/serializer/module.f.mjs)), a
       snapshot of `{ x: NaN }` would come back as `{ x: null }`,
       so the run-time schema would differ from the one the compiler checked
       against — the exact disagreement this remedy exists to prevent, arrived
-      at through the fix rather than the bug. So this stage needs a lossless
-      number serializer, or an explicit restriction on the literal members of a
-      snapshotted schema, before the remedy is sound. **The restriction has to
-      cover every non-finite number, not just `NaN`** — `numberSerialize`
-      delegates all numbers to `JSON.stringify`, which renders `Infinity` and
-      `-Infinity` as `null` too, so `{ x: Infinity }` snapshots as
-      `{ x: null }` exactly as the `NaN` case does. Plus `-0`, which is
-      lost differently: it serializes as `0` rather than `null`. An earlier
+      at through the fix rather than the bug. So this stage needs a
+      number-lossless serializer — DataJS is one — or an explicit restriction
+      on the literal members of a snapshotted schema, before the remedy is
+      sound. **The restriction has to cover every non-finite number, not just
+      `NaN`** — JSON's `numberSerialize` renders `Infinity` and `-Infinity` as
+      `null` too, so `{ x: Infinity }` snapshots as `{ x: null }` exactly as
+      the `NaN` case does. `-0` is not among them: the standard JSON
+      serializer writes it as `-0`, and its parser reads it back. An earlier
       draft of this paragraph named only `NaN` and `-0`, while the printer
       paragraph above already said *non-finite* — the same slip in one file,
       one section apart.
 
-      Note this is the **third** mechanism these values break, after the
-      printer rendering a non-finite const as `number` and `-0` as `0`, and
-      `validate` matching them with `Object.is` on purpose. Whoever picks up
-      the `.d.ts` policy should treat non-finite numbers and `-0` as one
-      question across all
-      three rather than three unrelated corners.
+      Note this is the **third** mechanism the non-finite values break, after
+      the printer rendering a non-finite const as `number`, and `validate`
+      matching them with `Object.is` on purpose; `-0` breaks only those two —
+      the printer renders it as `0` — since serialization keeps it. Whoever
+      picks up the `.d.ts` policy should treat non-finite numbers and `-0` as
+      one question across all three rather than three unrelated corners.
 
       **And it only reaches one of the two readers.** Of `data`'s readers and
       comparisons — `toData`, `validate`, `subset`, `cmp`, `equal` — there is

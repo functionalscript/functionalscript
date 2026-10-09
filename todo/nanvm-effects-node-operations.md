@@ -35,7 +35,7 @@ implementation details remain unspecified here.
 
 - [ ] Implement effects whose observable contracts the synchronous loop can preserve.
   - [x] Console: `write`, `read`.
-  - [x] Files and directories: `mkdir`, `readFile`, `readdir`, `writeFile`, `writeBytes`, `rm`.
+  - [x] Files and directories: `mkdir`, `readFile`, `readWhole`, `readdir`, `writeFile`, `writeBytes`, `rm`.
   - [x] `resolveFileModule`.
 - [ ] Complete the [asynchronous native-effects task](./nanvm-effects-node-async.md).
 - [ ] Verify equivalent observable behavior against the Node runner for the full

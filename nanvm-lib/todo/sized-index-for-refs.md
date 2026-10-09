@@ -33,15 +33,9 @@ from the one accessor that returns items, so every consumer falls back to
 matching `Index`), making `items()` directly iterable. Then `items_eq`
 becomes header check plus
 `a.index_iter().eq_by_(b.index_iter(), PartialEq::eq)`, and the debug/format
-loops become `for item in items.index_iter()`. Also the missing piece that unblocks
-[debug-delimited-fmt-helper](debug-delimited-fmt-helper.md) cleanly.
+loops become `for item in items.index_iter()`.
 
 ### Tasks
 
 - [ ] Add the reference impls
 - [ ] Convert `items_eq` and the debug/format loops
-
-### Related
-
-- [debug-delimited-fmt-helper](debug-delimited-fmt-helper.md) — the
-  `Debug` site; this issue removes the indexing it was forced into

@@ -3,8 +3,9 @@
  *
  * @module
  *
- * @import { Cmp } from '../function/compare/types.ts'
+ * @import { Cmp, Sign } from '../function/compare/types.ts'
  * @import { List } from '../list/types.ts'
+ * @import { Nullable } from '../nullable/types.ts'
  * @import { ReduceOp, SortedList, _MergeReduce } from './types.ts'
  */
 
@@ -52,7 +53,13 @@ export const merge =
      */
     cmp => genericMerge({ reduceOp: cmpReduce(cmp), tailReduce: keepTail })(null)
 
-const cmpReduce =
+/**
+ * The stateless reducer `merge` and `intersect` share: compare the two heads
+ * and emit whichever value `select` picks for the comparison's sign.
+ */
+const cmpReduceBy =
+    /** @param {<T>(sign: Sign, a: T, b: T) => Nullable<T>} select */
+    select =>
     /**
      * @template T
      * @param {Cmp<T>} cmp
@@ -60,8 +67,10 @@ const cmpReduce =
      */
     cmp => () => a => b => {
         const sign = cmp(a)(b)
-        return [sign === 1 ? b : a, sign, null]
+        return [select(sign, a, b), sign, null]
     }
+
+const cmpReduce = cmpReduceBy((sign, a, b) => sign === 1 ? b : a)
 
 /**
  * The two tail policies `genericMerge` takes, named for what they do with the
@@ -80,16 +89,7 @@ const keepTail = () => identity
 
 const dropTail = () => () => null
 
-const intersectReduce =
-    /**
-     * @template T
-     * @param {Cmp<T>} cmp
-     * @returns {ReduceOp<T, null>}
-     */
-    cmp => () => a => b => {
-        const sign = cmp(a)(b)
-        return [sign === 0 ? a : null, sign, null]
-    }
+const intersectReduce = cmpReduceBy((sign, a) => sign === 0 ? a : null)
 
 export const intersect =
     /**

@@ -1,6 +1,7 @@
 /**
  * @import { Cas } from '../types.ts'
- * @import { EvoChannel } from './types.ts'
+ * @import { Cache, Evo, EvoChannel } from './types.ts'
+ * @import { Key } from '../../effects/memory/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { IoChannel, NodeOp } from '../../effects/node/types.ts'
@@ -33,12 +34,12 @@ import {
     buildCache, decodeRevisionBlob, initEvo, evo, emptyCache, syncRevision,
 } from './module.f.mjs'
 
-const home = '.'
+const store = fileCas(sha256)('.')
 
 // A `Cas<never>` whose `write` always fails — used to reach `addRevision`'s
 // store-write-failure branch, which real `fileCas` has no easy way to trigger.
 /** @type {Cas<never>} */
-const writeFailingCas = {
+export const _writeFailingCas = {
     read: () => elEmpty(),
     write: () => pure(error(ioError({ message: 'boom' }))),
     list: () => pure(ok([])),
@@ -48,7 +49,7 @@ const writeFailingCas = {
 // missing shard — what a permission error, a mid-stream I/O failure, or a blob
 // too large for `collectRead` to buffer looks like to a caller.
 /** @type {Cas<never>} */
-const readFailingCas = {
+export const _readFailingCas = {
     read: () => pureError(ioError({ message: 'boom' })),
     write: () => pure(error(ioError({ message: 'write not supported' }))),
     list: () => pure(ok([])),
@@ -59,7 +60,7 @@ const readFailingCas = {
 // `buildCache` sees hashes in, independent of any real filesystem's
 // (hash-lexical, not causal) directory-listing order.
 /** @type {(entries: readonly (readonly [Vec, Vec])[]) => Cas<never>} */
-const fixedCas = entries => ({
+export const _fixedCas = entries => ({
     read: hash => {
         const found = entries.find(([h]) => vecToCBase32(h) === vecToCBase32(hash))
         return found === undefined
@@ -90,6 +91,26 @@ const virtualOk = state => e => {
 }
 
 /**
+ * A fresh Evo over `cas`, initialized in an empty virtual filesystem: the state
+ * after `initEvo`, the `Evo`, and the cache key, for a case that drives the
+ * cache directly.
+ *
+ * The three `Cas` stubs above are the other half of the fixture: a case that
+ * needs a store `fileCas` cannot reproduce hands one of them in here.
+ *
+ * Exported, with the stubs, only so the MCP proof can reach them: module
+ * linkage, not an Evo API.
+ *
+ * @template {NodeOp} O
+ * @param {Cas<O>} cas
+ * @returns {readonly [State, Evo<O>, Key<Cache>]}
+ */
+export const _freshEvo = cas => {
+    const [state0, cacheKey] = virtualOk(emptyState)(initEvo(cas))
+    return [state0, evo(cas)(cacheKey), cacheKey]
+}
+
+/**
  * Asserts that `r` failed with an {@link EvoError} whose message contains
  * `expected`.
  *
@@ -107,47 +128,41 @@ const assertEvoError = (r, expected) =>
 
 export const proof = {
     buildCacheEmptyStoreYieldsEmptyCache: () => {
-        const c = fileCas(sha256)(home)
-        const [, cache] = virtualOk(emptyState)(buildCache(c))
+        const [, cache] = virtualOk(emptyState)(buildCache(store))
         assertStructurallySame(cache, emptyCache)
     },
     buildCacheSkipsNonRevisionBlob: () => {
-        const c = fileCas(sha256)(home)
         const content = vec8(0x41n) // 'A' — valid UTF-8, not revision JSON
-        const [state1] = virtual(emptyState)(c.write(nonEmpty(content, /** @satisfies {EffectList<never, Vec, IoChannel>} */ (elEmpty()))))
-        const [, cache] = virtualOk(state1)(buildCache(c))
+        const [state1] = virtual(emptyState)(store.write(nonEmpty(content, /** @satisfies {EffectList<never, Vec, IoChannel>} */ (elEmpty()))))
+        const [, cache] = virtualOk(state1)(buildCache(store))
         assertEq(Object.keys(cache.bySubject).length, 0)
     },
     decodeRevisionBlobMissingHashIsNull: () => {
-        const c = fileCas(sha256)(home)
-        const [, revision] = virtualOk(emptyState)(decodeRevisionBlob(c)(vec8(0x99n)))
+        const [, revision] = virtualOk(emptyState)(decodeRevisionBlob(store)(vec8(0x99n)))
         assertEq(revision, null)
     },
     decodeRevisionBlobNonUtf8IsNull: () => {
-        const c = fileCas(sha256)(home)
         const invalid = vec8(0xFFn) // a byte no UTF-8 sequence contains
-        const [state1, w] = virtual(emptyState)(c.write(nonEmpty(invalid, /** @satisfies {EffectList<never, Vec, IoChannel>} */ (elEmpty()))))
+        const [state1, w] = virtual(emptyState)(store.write(nonEmpty(invalid, /** @satisfies {EffectList<never, Vec, IoChannel>} */ (elEmpty()))))
         assert(w[0] === 'ok', ['expected write ok', w])
-        const [, revision] = virtualOk(state1)(decodeRevisionBlob(c)(w[1]))
+        const [, revision] = virtualOk(state1)(decodeRevisionBlob(store)(w[1]))
         assertEq(revision, null)
     },
     decodeRevisionBlobInvalidJsonIsNull: () => {
-        const c = fileCas(sha256)(home)
         const content = vec8(0x7bn) // '{' alone: valid UTF-8, not parseable JSON
-        const [state1, w] = virtual(emptyState)(c.write(nonEmpty(content, /** @satisfies {EffectList<never, Vec, IoChannel>} */ (elEmpty()))))
+        const [state1, w] = virtual(emptyState)(store.write(nonEmpty(content, /** @satisfies {EffectList<never, Vec, IoChannel>} */ (elEmpty()))))
         assert(w[0] === 'ok', ['expected write ok', w])
-        const [, revision] = virtualOk(state1)(decodeRevisionBlob(c)(w[1]))
+        const [, revision] = virtualOk(state1)(decodeRevisionBlob(store)(w[1]))
         assertEq(revision, null)
     },
     decodeRevisionBlobValidRevisionRoundTrips: () => {
-        const c = fileCas(sha256)(home)
         const subjectHash = vecToCBase32(vec8(0x11n))
         const text = `{"dialect":"${revisionDialect}","subject":"${subjectHash}","parents":[],"snapshot":"${subjectHash}","generation":0}`
         const bytes = tryUtf8(text)
         assert(bytes !== null, 'expected the sample revision text to encode as UTF-8')
-        const [state1, w] = virtual(emptyState)(c.write(nonEmpty(bytes, /** @satisfies {EffectList<never, Vec, IoChannel>} */ (elEmpty()))))
+        const [state1, w] = virtual(emptyState)(store.write(nonEmpty(bytes, /** @satisfies {EffectList<never, Vec, IoChannel>} */ (elEmpty()))))
         assert(w[0] === 'ok', ['expected write ok', w])
-        const [, revision] = virtualOk(state1)(decodeRevisionBlob(c)(w[1]))
+        const [, revision] = virtualOk(state1)(decodeRevisionBlob(store)(w[1]))
         assert(revision !== null, 'expected a decoded revision')
         assertEq(revision?.subject, subjectHash)
     },
@@ -156,14 +171,13 @@ export const proof = {
         // time), this seeds a `vnd.fjs.revision` blob directly into the store
         // and scans it with `buildCache`, covering the "found a revision"
         // branch of the full-store fold.
-        const c = fileCas(sha256)(home)
         const subjectHash = vecToCBase32(vec8(0x12n))
         const text = `{"dialect":"${revisionDialect}","subject":"${subjectHash}","parents":[],"snapshot":"${subjectHash}","generation":0}`
         const bytes = tryUtf8(text)
         assert(bytes !== null, 'expected the sample revision text to encode as UTF-8')
-        const [state1, w] = virtual(emptyState)(fileCas(sha256)(home).write(nonEmpty(bytes, /** @satisfies {EffectList<never, Vec, IoChannel>} */ (elEmpty()))))
+        const [state1, w] = virtual(emptyState)(store.write(nonEmpty(bytes, /** @satisfies {EffectList<never, Vec, IoChannel>} */ (elEmpty()))))
         assert(w[0] === 'ok', ['expected write ok', w])
-        const [, cache] = virtualOk(state1)(buildCache(c))
+        const [, cache] = virtualOk(state1)(buildCache(store))
         assertEq(cache.bySubject[subjectHash]?.hashes.length, 1)
         assertEq(cache.bySubject[subjectHash]?.hashes[0], vecToCBase32(w[1]))
     },
@@ -184,9 +198,9 @@ export const proof = {
         const rootBytes = tryUtf8(rootText)
         const childBytes = tryUtf8(childText)
         assert(rootBytes !== null && childBytes !== null, 'expected sample revisions to encode as UTF-8')
-        const cas = fixedCas([[childHash, childBytes], [rootHash, rootBytes]])
-        const [state0, cacheKey] = virtualOk(emptyState)(initEvo(cas))
-        const [, heads] = virtualOk(state0)(evo(cas)(cacheKey).head('doc'))
+        const cas = _fixedCas([[childHash, childBytes], [rootHash, rootBytes]])
+        const [state0, e] = _freshEvo(cas)
+        const [, heads] = virtualOk(state0)(e.head('doc'))
         assertEq(heads.length, 1)
         assertEq(heads[0], childCBase32)
     },
@@ -208,9 +222,9 @@ export const proof = {
         const rootBytes = tryUtf8(rootText)
         const childBytes = tryUtf8(childText)
         assert(rootBytes !== null && childBytes !== null, 'expected sample revisions to encode as UTF-8')
-        const cas = fixedCas([[rootHash, rootBytes], [childHash, childBytes]])
-        const [state0, cacheKey] = virtualOk(emptyState)(initEvo(cas))
-        const [, heads] = virtualOk(state0)(evo(cas)(cacheKey).head('doc'))
+        const cas = _fixedCas([[rootHash, rootBytes], [childHash, childBytes]])
+        const [state0, e] = _freshEvo(cas)
+        const [, heads] = virtualOk(state0)(e.head('doc'))
         assertEq(heads.length, 1)
         assertEq(heads[0], vecToCBase32(childHash))
     },
@@ -219,9 +233,7 @@ export const proof = {
     // (no prior heads for the subject), a removal (a parent leaving the head
     // set), and a keep (an unrelated existing head surviving the fold).
     addRevisionBuildsHeadsAcrossChainAndFork: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = virtualOk(emptyState)(initEvo(c))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         const snapshotHash = vecToCBase32(vec8(0x22n))
 
         /** @type {RevisionData} */
@@ -257,9 +269,7 @@ export const proof = {
     // makes its subject archived, one without it leaves the subject active,
     // and neither subject appears in the other's result.
     listPartitionsSubjectsByHeadArchivedFlag: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = virtualOk(emptyState)(initEvo(c))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         const [state1, live] = virtualOk(state0)(e.add({ parents: [], subject: 'live', snapshot: vecToCBase32(vec8(0x40n)) }))
         const [state2, gone] = virtualOk(state1)(e.add({ parents: [], subject: 'gone', snapshot: vecToCBase32(vec8(0x41n)), archived: true }))
         const [state3, active] = virtualOk(state2)(e.list())
@@ -273,9 +283,7 @@ export const proof = {
     // keeps the whole subject active — there is still a head left to build on
     // — so the subject stays out of the archived-only result.
     listTreatsDisagreeingHeadsAsActive: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = virtualOk(emptyState)(initEvo(c))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         const [state1, root] = virtualOk(state0)(e.add({ parents: [], subject: 'doc', snapshot: vecToCBase32(vec8(0x42n)) }))
         // The two children differ only in `archived`, which is enough to make
         // them distinct blobs, hence two concurrent heads of one root.
@@ -293,9 +301,7 @@ export const proof = {
     // archived at one revision is active again as soon as an unarchived child
     // demotes that revision out of the head set.
     listIgnoresArchivedRevisionsThatAreNoLongerHeads: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = virtualOk(emptyState)(initEvo(c))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         const [state1, root] = virtualOk(state0)(e.add({ parents: [], subject: 'doc', snapshot: vecToCBase32(vec8(0x45n)), archived: true }))
         const [state2] = virtualOk(state1)(e.add({ parents: [root], subject: 'doc' }))
         const [state3, active] = virtualOk(state2)(e.list())
@@ -309,16 +315,15 @@ export const proof = {
     // archived and belongs to neither result. Nothing verifies that a stored
     // blob actually hashes to the key it sits under, so a hand-crafted or
     // corrupt store can present a revision naming its own hash as its parent;
-    // `fixedCas` reproduces exactly that, which a real `fileCas` cannot.
+    // `_fixedCas` reproduces exactly that, which a real `fileCas` cannot.
     listExcludesSubjectWithNoCurrentHeads: () => {
         const selfHash = vec8(0x43n)
         const snapshotHash = vecToCBase32(vec8(0x44n))
         const text = `{"dialect":"${revisionDialect}","subject":"doc","parents":["${vecToCBase32(selfHash)}"],"snapshot":"${snapshotHash}","generation":1}`
         const bytes = tryUtf8(text)
         assert(bytes !== null, 'expected the sample revision text to encode as UTF-8')
-        const cas = fixedCas([[selfHash, bytes]])
-        const [state0, cacheKey] = virtualOk(emptyState)(initEvo(cas))
-        const e = evo(cas)(cacheKey)
+        const cas = _fixedCas([[selfHash, bytes]])
+        const [state0, e] = _freshEvo(cas)
         const [state1, heads] = virtualOk(state0)(e.head('doc'))
         assertEq(heads.length, 0)
         const [state2, active] = virtualOk(state1)(e.list())
@@ -329,9 +334,7 @@ export const proof = {
     // Adding the exact same revision twice yields the same (deduplicated)
     // content hash and must not duplicate the head entry.
     addRevisionIdempotentOnDuplicateContent: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = virtualOk(emptyState)(initEvo(c))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         /** @type {RevisionData} */
         const input = { parents: [], subject: 'x', snapshot: vecToCBase32(vec8(0x33n)) }
         const [state1, r1] = virtualOk(state0)(e.add(input))
@@ -346,9 +349,7 @@ export const proof = {
     // `addRevision` itself would be the source of the very spelling drift
     // `canonicalHash` exists to prevent.
     addRevisionCanonicalizesParentSpellingBeforeSerializing: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = virtualOk(emptyState)(initEvo(c))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         /** @type {RevisionData} */
         const root = { parents: [], subject: 'doc', snapshot: vecToCBase32(vec8(0x2en)) }
         const [state1, rootResult] = virtualOk(state0)(e.add(root))
@@ -368,9 +369,7 @@ export const proof = {
     // `subject` omitted with exactly one parent is inherited from that
     // parent's own `subject`.
     addRevisionResolvesSubjectFromSingleParent: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = virtualOk(emptyState)(initEvo(c))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         /** @type {RevisionData} */
         const root = { parents: [], subject: 'inherit-me', snapshot: vecToCBase32(vec8(0x44n)) }
         const [state1, rootResult] = virtualOk(state0)(e.add(root))
@@ -388,20 +387,18 @@ export const proof = {
     // the snapshot reference; a single-parent child with no input `snapshot`
     // inherits the parent's stored snapshot and gets `generation` 1.
     addComputesGenerationAndResolvesSnapshot: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = virtualOk(emptyState)(initEvo(c))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         const subjectHash = vecToCBase32(vec8(0x71n))
         const [state1, rootResult] = virtualOk(state0)(e.add({ parents: [], subject: subjectHash }))
         const rootHashVec = unwrap(cBase32ToVec(rootResult))
-        const [state2, root] = virtualOk(state1)(decodeRevisionBlob(c)(rootHashVec))
+        const [state2, root] = virtualOk(state1)(decodeRevisionBlob(store)(rootHashVec))
         assert(root !== null, 'expected the stored root to decode')
         assertEq(root?.generation, 0)
         assertEq(root?.snapshot, subjectHash)
 
         const [state3, childResult] = virtualOk(state2)(e.add({ parents: [rootResult], subject: subjectHash }))
         const childHashVec = unwrap(cBase32ToVec(childResult))
-        const [, child] = virtualOk(state3)(decodeRevisionBlob(c)(childHashVec))
+        const [, child] = virtualOk(state3)(decodeRevisionBlob(store)(childHashVec))
         assert(child !== null, 'expected the stored child to decode')
         assertEq(child?.generation, 1)
         assertEq(child?.snapshot, subjectHash)
@@ -409,9 +406,7 @@ export const proof = {
     // A merge takes `1 + max(parents' generations)`: a parent at generation 2
     // and one at generation 1 yield generation 3.
     addComputesMergeGenerationFromMaxOfParents: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = virtualOk(emptyState)(initEvo(c))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         const snap = vecToCBase32(vec8(0x72n))
         // Mainline chain: root(gen0) → a(gen1) → b(gen2).
         const [state1, root] = virtualOk(state0)(e.add({ parents: [], subject: 'm', snapshot: snap }))
@@ -422,7 +417,7 @@ export const proof = {
         // Merge of b(gen2) and c(gen1) → gen3.
         const [state5, merge] = virtualOk(state4)(e.add({ parents: [b, cRev], subject: 'm', snapshot: snap }))
         const mergeHashVec = unwrap(cBase32ToVec(merge))
-        const [, mergeRev] = virtualOk(state5)(decodeRevisionBlob(c)(mergeHashVec))
+        const [, mergeRev] = virtualOk(state5)(decodeRevisionBlob(store)(mergeHashVec))
         assert(mergeRev !== null, 'expected the stored merge to decode')
         assertEq(mergeRev?.generation, 3)
     },
@@ -431,9 +426,7 @@ export const proof = {
     // supplying a wrong one must not reach the stored blob — the revision is
     // byte-identical to the same `add` without it.
     addIgnoresSuppliedGeneration: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = virtualOk(emptyState)(initEvo(c))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         const subjectHash = vecToCBase32(vec8(0x73n))
         const [state1, claimed] = virtualOk(state0)(e.add({ parents: [], subject: subjectHash, generation: 42 }))
         const [state2, plain] = virtualOk(state1)(e.add({ parents: [], subject: subjectHash }))
@@ -443,9 +436,7 @@ export const proof = {
         assertEq(revision[1].generation, 0)
     },
     addRevisionSubjectRequiredForZeroParents: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = virtualOk(emptyState)(initEvo(c))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         const [, result] = virtual(state0)(e.add({ parents: [] }))
         assertEvoError(result, 'subject is required')
     },
@@ -455,23 +446,17 @@ export const proof = {
     // nothing to resolve the snapshot to and is an error — the format requires
     // an explicit `snapshot`.
     addRevisionNonHashSubjectWithoutSnapshotIsError: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = virtualOk(emptyState)(initEvo(c))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         const [, result] = virtual(state0)(e.add({ parents: [], subject: 'not-a-hash!' }))
         assertEvoError(result, 'subject must be a valid hash')
     },
     addRevisionInvalidParentHashIsError: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = virtualOk(emptyState)(initEvo(c))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         const [, result] = virtual(state0)(e.add({ parents: ['not a valid cbase32!'] }))
         assertEvoError(result, 'invalid parent hash')
     },
     addRevisionParentNotARevisionIsError: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = virtualOk(emptyState)(initEvo(c))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         const missingParent = vecToCBase32(vec8(0x55n))
         const [, result] = virtual(state0)(e.add({ parents: [missingParent] }))
         assertEvoError(result, 'parent is not a revision blob')
@@ -480,9 +465,7 @@ export const proof = {
     // parent is still an error even though `subject` alone would otherwise
     // resolve without looking at any parent.
     addRevisionValidatesParentsEvenWithExplicitSubject: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = virtualOk(emptyState)(initEvo(c))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         const missingParent = vecToCBase32(vec8(0x66n))
         const [, result] = virtual(state0)(e.add({ parents: [missingParent], subject: 'doc' }))
         assertEvoError(result, 'parent is not a revision blob')
@@ -494,9 +477,7 @@ export const proof = {
     // history, and head demotion (scoped to the child's own subject) would
     // never remove the parent from its real subject's head set.
     addRevisionRejectsCrossSubjectParent: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = virtualOk(emptyState)(initEvo(c))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         /** @type {RevisionData} */
         const rootA = { parents: [], subject: 'A', snapshot: vecToCBase32(vec8(0x67n)) }
         const [state1, rootAResult] = virtualOk(state0)(e.add(rootA))
@@ -507,9 +488,7 @@ export const proof = {
     // fold — the second (here, a well-formed but nonexistent) parent is
     // never even looked up.
     addRevisionShortCircuitsOnFirstInvalidParentAmongMultiple: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = virtualOk(emptyState)(initEvo(c))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         const missingParent = vecToCBase32(vec8(0x99n))
         const [, result] = virtual(state0)(e.add({ parents: ['not a valid cbase32!', missingParent], subject: 'doc' }))
         assertEvoError(result, 'invalid parent hash')
@@ -519,9 +498,7 @@ export const proof = {
     // missing/invalid parent, reported by `resolveSnapshot` at the write
     // boundary now that the format requires an explicit `snapshot`.
     addRevisionInvalidReferencesIsError: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = virtualOk(emptyState)(initEvo(c))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         /** @type {RevisionData} */
         const rootA = { parents: [], subject: 'merge', snapshot: vecToCBase32(vec8(0x77n)) }
         const [state1, rootAResult] = virtualOk(state0)(e.add(rootA))
@@ -535,9 +512,7 @@ export const proof = {
             ['unexpected message', result])
     },
     addRevisionTooLargeToEncodeIsError: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = virtualOk(emptyState)(initEvo(c))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         const hugeSubject = 'x'.repeat(200_000)
         /** @type {RevisionData} */
         const input = { parents: [], subject: hugeSubject, snapshot: vecToCBase32(vec8(0x88n)) }
@@ -545,9 +520,8 @@ export const proof = {
         assertEvoError(result, 'revision too large to encode')
     },
     addRevisionWriteFailureIsError: () => {
-        const [, cacheKey] = virtualOk(emptyState)(initEvo(writeFailingCas))
-        const e = evo(writeFailingCas)(cacheKey)
-        const [, result] = virtual(emptyState)(e.add({ parents: [], subject: vecToCBase32(vec8(0x99n)) }))
+        const [state0, e] = _freshEvo(_writeFailingCas)
+        const [, result] = virtual(state0)(e.add({ parents: [], subject: vecToCBase32(vec8(0x99n)) }))
         assertEvoError(result, 'failed to write revision to CAS')
     },
     // Every way `revision` can fail is its own message, not one `null`: an
@@ -556,16 +530,12 @@ export const proof = {
     // `decodeRevisionBlob` collapses all but the first (it exists to scan
     // stores of arbitrary content); this read keeps them apart.
     revisionInvalidHashIsError: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = virtualOk(emptyState)(initEvo(c))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         const [, result] = virtual(state0)(e.revision('not a valid cbase32!'))
         assertEvoError(result, 'invalid hash')
     },
     revisionMissingHashIsError: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = virtualOk(emptyState)(initEvo(c))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         const [, result] = virtual(state0)(e.revision(vecToCBase32(vec8(0x9an))))
         assertEvoError(result, 'revision not found')
     },
@@ -574,17 +544,14 @@ export const proof = {
     // must not be reported as "not found". The blob may well be there; saying
     // it is absent would be a false answer, not merely a vague one.
     revisionReadFailureIsNotReportedAsMissing: () => {
-        const [state0, cacheKey] = virtualOk(emptyState)(initEvo(readFailingCas))
-        const e = evo(readFailingCas)(cacheKey)
+        const [state0, e] = _freshEvo(_readFailingCas)
         const [, result] = virtual(state0)(e.revision(vecToCBase32(vec8(0x9bn))))
         assertEvoError(result, 'failed to read revision')
     },
     revisionNonRevisionBlobIsError: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = virtualOk(emptyState)(initEvo(c))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         const content = vec8(0x41n) // 'A' — valid UTF-8, not revision JSON
-        const [state1, w] = virtual(state0)(c.write(nonEmpty(content, /** @satisfies {EffectList<never, Vec, IoChannel>} */ (elEmpty()))))
+        const [state1, w] = virtual(state0)(store.write(nonEmpty(content, /** @satisfies {EffectList<never, Vec, IoChannel>} */ (elEmpty()))))
         assert(w[0] === 'ok', ['expected write ok', w])
         const [, result] = virtual(state1)(e.revision(vecToCBase32(w[1])))
         assertEvoError(result, 'not a revision blob')
@@ -594,9 +561,7 @@ export const proof = {
     // canonicalized, so a client can compare it against `head` output
     // directly instead of knowing about cbase32 aliasing.
     revisionCanonicalizesReferenceSpellings: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = virtualOk(emptyState)(initEvo(c))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         const parentCanonical = vecToCBase32(vec8(0xffn))
         const snapshotCanonical = vecToCBase32(vec8(0xfen))
         const parentAlias = parentCanonical.toUpperCase()
@@ -607,7 +572,7 @@ export const proof = {
         const text = `{"dialect":"${revisionDialect}","subject":"doc","parents":["${parentAlias}"],"snapshot":"${snapshotAlias}","generation":1}`
         const bytes = tryUtf8(text)
         assert(bytes !== null, 'expected the sample revision text to encode as UTF-8')
-        const [state1, w] = virtual(state0)(c.write(nonEmpty(bytes, /** @satisfies {EffectList<never, Vec, IoChannel>} */ (elEmpty()))))
+        const [state1, w] = virtual(state0)(store.write(nonEmpty(bytes, /** @satisfies {EffectList<never, Vec, IoChannel>} */ (elEmpty()))))
         assert(w[0] === 'ok', ['expected write ok', w])
         const [, result] = virtual(state1)(e.revision(vecToCBase32(w[1])))
         assert(result[0] === 'ok', ['expected revision ok', result])
@@ -621,9 +586,7 @@ export const proof = {
     // comes back in the same `RevisionData` shape `add` takes, so the value
     // can be added again unchanged — same content, same hash.
     revisionRoundTripsThroughAdd: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = virtualOk(emptyState)(initEvo(c))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         const subjectHash = vecToCBase32(vec8(0x74n))
         const [state1, root] = virtualOk(state0)(e.add({ parents: [], subject: subjectHash }))
         const [state2, child] = virtualOk(state1)(e.add({ parents: [root], archived: true }))
@@ -639,9 +602,7 @@ export const proof = {
         assertEq(readded, child)
     },
     revisionLockRoundTripsAndCanonicalizes: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = virtualOk(emptyState)(initEvo(c))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         const canonical = vecToCBase32(vec8(0xffn))
         const alias = canonical.toUpperCase()
         const [state1, added] = virtualOk(state0)(e.add({
@@ -658,9 +619,7 @@ export const proof = {
     // reference it is: validated as a hash and re-spelled canonically, like
     // `snapshot`, and never followed — resolving one is a resolver's job.
     revisionSharedLockReferenceRoundTripsAndCanonicalizes: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = virtualOk(emptyState)(initEvo(c))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         const canonical = vecToCBase32(vec8(0xffn))
         const alias = canonical.toUpperCase()
         const [state1, added] = virtualOk(state0)(e.add({
@@ -675,9 +634,7 @@ export const proof = {
     // A shared-lock reference is checked as a hash on the way in, so a
     // non-cBase32 one fails the write instead of being stored unresolvable.
     revisionInvalidSharedLockReferenceIsRejected: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = virtualOk(emptyState)(initEvo(c))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         const [, result] = virtual(state0)(e.add({
             parents: [], subject: 'doc', snapshot: vecToCBase32(vec8(0xffn)),
             lock: 'https://example.com/lock',
@@ -688,9 +645,7 @@ export const proof = {
     // canonicalization recurses into it: an alias spelling bound inside a
     // scope comes back canonical, like a direct one.
     revisionNestedLockRoundTripsAndCanonicalizes: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = virtualOk(emptyState)(initEvo(c))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         const canonical = vecToCBase32(vec8(0xffn))
         const alias = canonical.toUpperCase()
         const [state1, added] = virtualOk(state0)(e.add({
@@ -712,9 +667,7 @@ export const proof = {
     // Semantic checking recurses: a non-hash string inside a nested scope
     // fails the write, like one at the root.
     revisionInvalidNestedLockValueIsRejected: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = virtualOk(emptyState)(initEvo(c))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         const [, result] = virtual(state0)(e.add({
             parents: [], subject: 'doc', snapshot: vecToCBase32(vec8(0x42n)),
             lock: { B: { dependency: 'not a hash!' } },
@@ -722,9 +675,7 @@ export const proof = {
         assertEvoError(result, 'B/dependency')
     },
     revisionAbsentAndEmptyLocksRemainDistinct: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = virtualOk(emptyState)(initEvo(c))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         const snapshot = vecToCBase32(vec8(0x42n))
         const [state1, absent] = virtualOk(state0)(e.add({ parents: [], subject: 'absent', snapshot }))
         const [state2, empty] = virtualOk(state1)(e.add({ parents: [], subject: 'empty', snapshot, lock: {} }))
@@ -736,9 +687,7 @@ export const proof = {
         assertEq(Object.keys(emptyRead[1].lock ?? {}).length, 0)
     },
     revisionInvalidLockValueIsRejected: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = virtualOk(emptyState)(initEvo(c))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         const [, result] = virtual(state0)(e.add({
             parents: [], subject: 'doc', snapshot: vecToCBase32(vec8(0x42n)),
             lock: { dependency: 'not a hash!' },
@@ -746,9 +695,7 @@ export const proof = {
         assertEvoError(result, 'dependency')
     },
     equivalentLockOrdersReuseOneCasAddress: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = virtualOk(emptyState)(initEvo(c))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         const a = vecToCBase32(vec8(0x1an))
         const b = vecToCBase32(vec8(0x2bn))
         const snapshot = vecToCBase32(vec8(0x3cn))
@@ -761,9 +708,7 @@ export const proof = {
     // inside the scope alike — deduplicate to one blob rather than leaving
     // two heads.
     equivalentNestedLockOrdersReuseOneCasAddress: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = virtualOk(emptyState)(initEvo(c))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         const a = vecToCBase32(vec8(0x1an))
         const b = vecToCBase32(vec8(0x2bn))
         const snapshot = vecToCBase32(vec8(0x3cn))
@@ -782,29 +727,25 @@ export const proof = {
     // `evo.add` — this is what keeps `cas_add` and `evo_add` writes to the
     // same store consistent (see `fjs/mcp`).
     syncRevisionFoldsValidRevisionIntoCache: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = virtualOk(emptyState)(initEvo(c))
+        const [state0, e, cacheKey] = _freshEvo(store)
         const subjectHash = vecToCBase32(vec8(0x13n))
         const text = `{"dialect":"${revisionDialect}","subject":"${subjectHash}","parents":[],"snapshot":"${subjectHash}","generation":0}`
         const bytes = tryUtf8(text)
         assert(bytes !== null, 'expected sample revision to encode as UTF-8')
         const hashVec = vec8(0x14n)
         const [state1] = virtualOk(state0)(syncRevision(cacheKey)(hashVec)(bytes))
-        const [, heads] = virtualOk(state1)(evo(c)(cacheKey).head(subjectHash))
+        const [, heads] = virtualOk(state1)(e.head(subjectHash))
         assertEq(heads.length, 1)
         assertEq(heads[0], vecToCBase32(hashVec))
     },
     syncRevisionIgnoresNonRevisionContent: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = virtualOk(emptyState)(initEvo(c))
+        const [state0, e, cacheKey] = _freshEvo(store)
         const [state1] = virtualOk(state0)(syncRevision(cacheKey)(vec8(0x15n))(vec8(0x41n)))
-        const [, subjects] = virtualOk(state1)(evo(c)(cacheKey).list())
+        const [, subjects] = virtualOk(state1)(e.list())
         assertEq(subjects.length, 0)
     },
     evoHeadUnknownSubjectIsEmpty: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = virtualOk(emptyState)(initEvo(c))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         const [, heads] = virtualOk(state0)(e.head('nope'))
         assertEq(heads.length, 0)
     },
@@ -814,16 +755,12 @@ export const proof = {
     // (e.g. the `toString` function) instead of "no entry yet", crashing on
     // `.hashes` — the cache must use an own-property lookup instead.
     evoHeadUnknownPrototypeNamedSubjectIsEmpty: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = virtualOk(emptyState)(initEvo(c))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         const [, heads] = virtualOk(state0)(e.head('constructor'))
         assertEq(heads.length, 0)
     },
     evoAddAndHeadHandlePrototypeNamedSubject: () => {
-        const c = fileCas(sha256)(home)
-        const [state0, cacheKey] = virtualOk(emptyState)(initEvo(c))
-        const e = evo(c)(cacheKey)
+        const [state0, e] = _freshEvo(store)
         /** @type {RevisionData} */
         const input = { parents: [], subject: 'toString', snapshot: vecToCBase32(vec8(0x16n)) }
         const [state1, result] = virtualOk(state0)(e.add(input))

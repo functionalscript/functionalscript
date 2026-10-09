@@ -36,15 +36,6 @@ if (r === void 0) { throw s }
 const first = s.charCodeAt(i)
 ```
 
-A concrete casualty of the missing primitive: `fjs/text/sgr/module.f.mjs`
-re-declares the backspace control character as a string literal
-(`export const backspace = '\x08'`) even though `fjs/text/ascii/module.f.mjs`
-already owns the code (`export const backspace = one('\b')`) — `sgr` cannot
-say `charFromCode(ascii.backspace)` today, so the byte is defined in two
-modules that must stay in sync by hand. Migrate this site when the converter
-lands (it also interacts with `fjs/text/sgr/todo/inplace-writer-split.md`,
-which relocates the backspace-based writer).
-
 `fjs/text/utf16` already owns the *list*-level boundary (`stringToList`,
 `stringToCodePointList`, `listToString`, `codePointListToString`) and the
 single code point (`codePointToString`). What is missing is the single *code

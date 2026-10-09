@@ -44,7 +44,7 @@ mod tests {
                 .to_any::<A>()
                 .option_call(|| Err("boom".into()))
                 .end(),
-            Ok(Nullish::Undefined.to_any())
+            Ok(Any::undefined())
         );
     }
 

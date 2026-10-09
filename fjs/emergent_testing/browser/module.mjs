@@ -38,22 +38,12 @@ import { addResult, unknownValue, zeroTotals } from '../module.f.mjs'
 // the pure views in `./module.f.mjs`: the runner's demo returns them for the
 // demo runtime to render, and this page turns the same views into nodes as
 // rows land.
-import { fill, toDom } from '../../media/html/module.mjs'
+import { fill, macrotask, toDom } from '../../media/html/module.mjs'
 import { _readThrown, asyncRun } from '../../effects/module.mjs'
 import { commonOperationMap } from '../../effects/common/module.mjs'
 import { ioError, toIoError } from '../../effects/module.f.mjs'
 import { concat, toArray } from '../../types/list/module.f.mjs'
 import { error, ok, unwrap } from '../../types/result/module.f.mjs'
-
-/**
- * Return to the event loop, so the browser can paint what has been appended.
- *
- * A macrotask rather than a microtask: draining the microtask queue is part of
- * the same task, and a task is what a paint waits for.
- *
- * @type {() => Promise<void>}
- */
-const macrotask = () => new Promise(resolve => { setTimeout(resolve, 0) })
 
 /**
  * The shared {@link failureOf}, run.
@@ -264,13 +254,21 @@ export const startBrowserTestSources = (root, sources) => {
     const start = performance.now()
     setState(root, 'loading')
     let loaded = 0
-    const summary = root.querySelector('[data-test-summary]')
-    /** @type {(text: string) => void} */
-    const say = text => { if (summary !== null) { summary.textContent = text } }
+    /**
+     * Publishes a run that stopped before its tests: every result in
+     * `results` is a failure to load, or the runner's own.
+     *
+     * @type {(results: readonly _BrowserTestResult[]) => Promise<BrowserTestReport>}
+     */
+    const infrastructureReport = results => publish(root, Promise.resolve(reportOf(
+        navigator.userAgent,
+        performance.now() - start,
+        results,
+        'infrastructure-error')))
     // Set synchronously, before any import settles: otherwise the page keeps
     // showing its idle text throughout loading — indefinitely, if a module
     // import never settles — even though the state and control already changed.
-    say(`Loading 0/${sources.length}`)
+    say(root, `Loading 0/${sources.length}`)
     /** @type {<T, E>(e: Effect<Import | _BrowserReport, T, E>) => Promise<Result<T, E>>} */
     const run = asyncRun({
         ...commonOperationMap,
@@ -311,7 +309,7 @@ export const startBrowserTestSources = (root, sources) => {
         report: async (/** @type {_BrowserEvent} */ event) => {
             if (event[0] === 'loading') {
                 loaded += 1
-                say(`Loading ${loaded}/${sources.length}: ${event[1]}`)
+                say(root, `Loading ${loaded}/${sources.length}: ${event[1]}`)
             }
             return ok(undefined)
         },
@@ -326,11 +324,7 @@ export const startBrowserTestSources = (root, sources) => {
                 // stops here. Each failure is still a counted result: totals
                 // that disagreed with `results` would tell an automated
                 // consumer the suite was empty rather than broken.
-                return publish(root, Promise.resolve(reportOf(
-                    navigator.userAgent,
-                    performance.now() - start,
-                    loadedModules[1],
-                    'infrastructure-error')))
+                return infrastructureReport(loadedModules[1])
             }
             return startBrowserTests(root, loadedModules[1])
         })
@@ -343,14 +337,21 @@ export const startBrowserTestSources = (root, sources) => {
         // code's. It stays because the alternative — a page left in `loading`
         // with no report and no completion event — is the one outcome an
         // automated controller cannot act on.
-        .catch(async cause => publish(root, Promise.resolve(reportOf(
-            navigator.userAgent,
-            performance.now() - start,
-            [await runFailureOf(runnerSource, performance.now() - start, cause)],
-            'infrastructure-error'))))
+        .catch(async cause => infrastructureReport(
+            [await runFailureOf(runnerSource, performance.now() - start, cause)]))
     const view = viewOf(root)
     if (view !== null) { view.fjsBrowserTestReport = report }
     return report
+}
+
+/**
+ * Writes `text` into the page's summary line, if the page has one.
+ *
+ * @type {(root: Element, text: string) => void}
+ */
+const say = (root, text) => {
+    const summary = root.querySelector('[data-test-summary]')
+    if (summary !== null) { summary.textContent = text }
 }
 
 /**
@@ -370,14 +371,7 @@ const setState = (root, state) => {
         root.querySelector('[data-test-counts]')?.replaceChildren()
         markUnreported(root, null)
     }
-    const runButton = root.querySelector('[data-test-run]')
-    if (runButton !== null) {
-        if (state === 'loading' || state === 'running') {
-            runButton.setAttribute('disabled', '')
-        } else {
-            runButton.removeAttribute('disabled')
-        }
-    }
+    root.querySelector('[data-test-run]')?.toggleAttribute('disabled', state === 'loading' || state === 'running')
 }
 
 /**
@@ -404,11 +398,7 @@ const markUnreported = (root, results) => {
     const missing = results === null ? [] : unreported(sources, results)
     for (const item of items) {
         const source = item.getAttribute('data-source')
-        if (source !== null && missing.includes(source)) {
-            item.setAttribute('data-no-tests', '')
-        } else {
-            item.removeAttribute('data-no-tests')
-        }
+        item.toggleAttribute('data-no-tests', source !== null && missing.includes(source))
     }
 }
 
@@ -419,15 +409,12 @@ const markUnreported = (root, results) => {
  */
 export const renderBrowserReport = (root, report) => {
     setState(root, report.status)
-    const summary = root.querySelector('[data-test-summary]')
-    if (summary !== null) {
-        // The counts are the section title's, so this line says only what the
-        // title cannot: that the suite never reached its tests. A run that did
-        // leaves it empty, and the stylesheet draws nothing for it.
-        summary.textContent = report.status === 'infrastructure-error'
-            ? `Infrastructure error: ${report.totals.failed} failed to load (${reportDuration(report.duration)})`
-            : ''
-    }
+    // The counts are the section title's, so this line says only what the
+    // title cannot: that the suite never reached its tests. A run that did
+    // leaves it empty, and the stylesheet draws nothing for it.
+    say(root, report.status === 'infrastructure-error'
+        ? `Infrastructure error: ${report.totals.failed} failed to load (${reportDuration(report.duration)})`
+        : '')
     const counts = root.querySelector('[data-test-counts]')
     if (counts !== null) { counts.replaceChildren(...countsView(report).map(view => toDom(root.ownerDocument, view))) }
     markUnreported(root, report.results)
@@ -502,8 +489,7 @@ export const startBrowserTests = (root, modules) => {
         modules,
         result => {
             completed += 1
-            const summary = root.querySelector('[data-test-summary]')
-            if (summary !== null) { summary.textContent = `${completed} tests completed…` }
+            say(root, `${completed} tests completed…`)
             if (output === null) { return }
             const into = groupFor(output, result.module)
             // A result with no pending row is a leaf that was never announced —

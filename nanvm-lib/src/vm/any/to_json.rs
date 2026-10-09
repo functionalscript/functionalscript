@@ -218,12 +218,12 @@ impl<A: IVm> Any<A> {
 mod tests {
     use crate::{
         naive::Naive,
-        vm::{Function, IStaticFunction, Nullish, String, ToAny, ToArray, ToObject, ToString},
+        vm::{Any, Function, IStaticFunction, Nullish, String, ToAny, ToArray, ToObject, ToString},
     };
 
     type A = Naive;
 
-    fn s(v: &str) -> crate::vm::Any<A> {
+    fn s(v: &str) -> Any<A> {
         String::<A>::from(v).to_any()
     }
 
@@ -331,8 +331,7 @@ mod tests {
         // The element that can't serialize is what's reported, never a
         // generic "array" refusal — arrays themselves can no longer be the
         // *reason* a serialization fails now that they recurse.
-        use crate::vm::Nullish;
-        let a: crate::vm::Array<A> = [1.0.to_any(), Nullish::Undefined.to_any()].to_array();
+        let a: crate::vm::Array<A> = [1.0.to_any(), Any::undefined()].to_array();
         assert_eq!(a.to_any::<A>().to_json(), Err(super::JsonError::Undefined));
     }
 
@@ -372,8 +371,7 @@ mod tests {
 
     #[test]
     fn object_member_error_propagates_as_the_scalar_it_is() {
-        use crate::vm::Nullish;
-        let o: crate::vm::Object<A> = [("a".into(), Nullish::Undefined.to_any())].to_object();
+        let o: crate::vm::Object<A> = [("a".into(), Any::undefined())].to_object();
         assert_eq!(o.to_any::<A>().to_json(), Err(super::JsonError::Undefined));
     }
 
@@ -464,12 +462,8 @@ mod tests {
 
     #[test]
     fn function_errors() {
-        let f: Function<A> = A::static_function(
-            |_, _| Ok(Nullish::Undefined.to_any()),
-            0,
-            [].to_array(),
-            None,
-        );
+        let f: Function<A> =
+            A::static_function(|_, _| Ok(Any::undefined()), 0, [].to_array(), None);
         assert_eq!(f.to_any::<A>().to_json(), Err(super::JsonError::Function));
     }
 
@@ -481,10 +475,9 @@ mod tests {
 
     #[test]
     fn null_and_undefined() {
-        use crate::vm::Nullish;
         assert_eq!(Nullish::Null.to_any::<A>().to_json(), Ok("null".into()));
         assert_eq!(
-            Nullish::Undefined.to_any::<A>().to_json(),
+            Any::<A>::undefined().to_json(),
             Err(super::JsonError::Undefined)
         );
     }
@@ -520,7 +513,7 @@ mod tests {
     fn a_deep_refusal_is_reported() {
         use crate::vm::test::deep::{DEPTH, leak, nested_arrays, small_stack};
         small_stack(|| {
-            let a = nested_arrays(DEPTH, Nullish::Undefined.to_any());
+            let a = nested_arrays(DEPTH, Any::undefined());
             leak(a.clone());
             assert_eq!(a.clone().to_json(), Err(super::JsonError::Undefined));
         });
