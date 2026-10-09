@@ -1,7 +1,7 @@
 ## rounded-magnitude. `decToBin` restates `tryDecToFormat`'s pipeline
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
