@@ -26,34 +26,29 @@ import { rust, wasmer, wasmtime } from '../config/module.f.js'
 import { test } from '../common/module.f.mjs'
 import { nixInstall, nixShell, nixSteps, nixVersionStep } from '../nix/module.f.mjs'
 
-/** @type {(tool: 'clippy' | 'test', target?: string, config?: string) => string} */
-const cargoCommand = (tool, target, config) => {
+/**
+ * One `cargo` check, run twice: debug, then `--release`.
+ *
+ * Every `cargo` command this generator emits belongs to such a pair, so the pair
+ * is the unit rather than the command. Clippy always denies warnings — the
+ * `-- -D warnings` suffix follows from the tool, not from the caller.
+ *
+ * @type {(tool: 'clippy' | 'test', target?: string, config?: string) => readonly string[]}
+ */
+const cargoPair = (tool, target, config) => {
     const to = target ? ` --target ${target}` : ''
     const co = config ? ` --config ${config}` : ''
-    return `cargo ${tool}${to}${co}`
+    const main = `cargo ${tool}${to}${co}`
+    const warnings = tool === 'clippy' ? ' -- -D warnings' : ''
+    return [`${main}${warnings}`, `${main} --release${warnings}`]
 }
-
-/** @type {(target?: string) => string} */
-const cargoClippy = target => `${cargoCommand('clippy', target)} -- -D warnings`
-
-/** @type {(target?: string) => string} */
-const cargoReleaseClippy = target =>
-    `${cargoCommand('clippy', target)} --release -- -D warnings`
 
 /** Debug and release, tests then Clippy — the check set every target gets. */
 /** @type {(target?: string) => readonly string[]} */
 const targetCheckCommands = target => [
-    cargoCommand('test', target),
-    `${cargoCommand('test', target)} --release`,
-    cargoClippy(target),
-    cargoReleaseClippy(target),
+    ...cargoPair('test', target),
+    ...cargoPair('clippy', target),
 ]
-
-/** @type {(target: string, config: string) => readonly string[]} */
-const cargoTestPairCommands = (target, config) => {
-    const main = cargoCommand('test', target, config)
-    return [main, `${main} --release`]
-}
 
 /** @type {(commands: readonly string[]) => readonly MetaStep[]} */
 const testSteps = commands => commands.map(run => test({ run }))
@@ -229,13 +224,12 @@ export const wasmTargets = /** @type {const} */ ([
 const wasmTargetCommands = target =>
     target === wasmerOnlyTarget
         ? [
-            cargoClippy(target),
-            cargoReleaseClippy(target),
-            ...cargoTestPairCommands(target, wasmerConfig),
+            ...cargoPair('clippy', target),
+            ...cargoPair('test', target, wasmerConfig),
         ]
         : [
             ...targetCheckCommands(target),
-            ...cargoTestPairCommands(target, wasmerConfig),
+            ...cargoPair('test', target, wasmerConfig),
         ]
 
 /**
