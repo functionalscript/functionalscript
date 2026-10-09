@@ -166,21 +166,19 @@ fn string_to_bigint<A: IVm>(s: &str) -> Result<Option<BigInt<A>>, Any<A>> {
 /// Parses `digits` as an unsigned integer literal in `radix` (2, 8, 10, or
 /// 16 — whatever the caller's prefix implied). `None` if `digits` is empty
 /// or any byte is out of range for the radix; `char::to_digit` covers both
-/// checks (and both cases of hex `a`-`f`) at once. Every digit is checked
-/// before any is multiplied in, so a literal that is both invalid and too
-/// long is invalid, not a throw.
+/// checks (and both cases of hex `a`-`f`) at once. Every digit is checked in a
+/// first pass, before any is multiplied in in the second, so a literal that
+/// is both invalid and too long is invalid, not a throw, and nothing the
+/// size of the input is held besides the input.
 fn parse_digits<A: IVm>(digits: &str, radix: u32) -> Result<Option<BigInt<A>>, Any<A>> {
-    let values: Option<Vec<u32>> = digits
-        .bytes()
-        .map(|byte| (byte as char).to_digit(radix))
-        .collect();
-    let Some(values) = values.filter(|values| !values.is_empty()) else {
+    let digit = |byte: u8| (byte as char).to_digit(radix);
+    if digits.is_empty() || !digits.bytes().all(|byte| digit(byte).is_some()) {
         return Ok(None);
-    };
+    }
     let base: BigInt<A> = (radix as u64).into();
     let mut magnitude = BigInt::default();
-    for digit in values {
-        magnitude = (magnitude * base.clone())? + BigInt::from(digit as u64);
+    for value in digits.bytes().filter_map(digit) {
+        magnitude = (magnitude * base.clone())? + BigInt::from(value as u64);
     }
     Ok(Some(magnitude))
 }
