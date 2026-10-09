@@ -1,7 +1,7 @@
 ## debug-delimited-fmt-helper. `Debug` impls re-open-code `container_fmt`'s delimited loop
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
