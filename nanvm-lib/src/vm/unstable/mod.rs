@@ -212,7 +212,7 @@ mod test {
     use crate::{
         common::sized_index::SizedIndex,
         naive::Naive,
-        vm::{Array, IStaticFunction, Nullish, Object, Unpacked},
+        vm::{Array, IStaticFunction, Object, Unpacked},
     };
 
     #[test]
@@ -398,7 +398,7 @@ mod test {
         let object = spread_object([
             computed_item(one(), string_any("a")).unwrap(),
             computed_item(negative_zero(), string_any("b")).unwrap(),
-            computed_item(Nullish::Undefined.to_any(), string_any("c")).unwrap(),
+            computed_item(Any::undefined(), string_any("c")).unwrap(),
             computed_item(string_any("1"), string_any("d")).unwrap(),
         ]);
         let entries = Object::try_from(object).unwrap().own_entries();

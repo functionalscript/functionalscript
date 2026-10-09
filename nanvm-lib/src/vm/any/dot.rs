@@ -41,14 +41,10 @@ mod tests {
 
     const NULLISH_BASE: &str = "TypeError: Cannot convert undefined or null to object";
 
-    fn undefined() -> Any<A> {
-        Nullish::Undefined.to_any()
-    }
-
     #[test]
     fn nullish_receiver_throws() {
         assert_eq!(
-            undefined().dot(0.0.to_any()).end(),
+            Any::<A>::undefined().dot(0.0.to_any()).end(),
             Err(NULLISH_BASE.into())
         );
         assert_eq!(
@@ -63,7 +59,7 @@ mod tests {
     fn array_receiver_dispatches_to_array_member_access() {
         let array: Any<A> = [10.0.to_any(), 20.0.to_any()].to_array().to_any();
         assert_eq!(array.clone().dot(1.0.to_any()).end(), Ok(20.0.to_any()));
-        assert_eq!(array.dot(2.0.to_any()).end(), Ok(undefined()));
+        assert_eq!(array.dot(2.0.to_any()).end(), Ok(Any::undefined()));
     }
 
     /// The dispatch wiring itself, as opposed to `String::member_access`'s
@@ -72,7 +68,7 @@ mod tests {
     fn string_receiver_dispatches_to_string_member_access() {
         let s: Any<A> = "ab".into();
         assert_eq!(s.clone().dot(1.0.to_any()).end(), Ok("b".into()));
-        assert_eq!(s.dot(2.0.to_any()).end(), Ok(undefined()));
+        assert_eq!(s.dot(2.0.to_any()).end(), Ok(Any::undefined()));
     }
 
     /// The dispatch wiring itself, as opposed to `Object::member_access`'s
@@ -81,16 +77,17 @@ mod tests {
     fn object_receiver_dispatches_to_object_member_access() {
         let object: Any<A> = [("a".into(), 1.0.to_any())].to_object().to_any();
         assert_eq!(object.clone().dot("a".into()).end(), Ok(1.0.to_any()));
-        assert_eq!(object.dot("b".into()).end(), Ok(undefined()));
+        assert_eq!(object.dot("b".into()).end(), Ok(Any::undefined()));
     }
 
     /// The dispatch wiring itself, as opposed to `Function::member_access`'s
     /// own behavior, which is tested in `vm/function/member_access.rs`.
     #[test]
     fn function_receiver_dispatches_to_function_member_access() {
-        let f: Any<A> = A::static_function(|_, _| Ok(undefined()), 0, [].to_array(), None).to_any();
+        let f: Any<A> =
+            A::static_function(|_, _| Ok(Any::undefined()), 0, [].to_array(), None).to_any();
         assert_eq!(f.clone().dot("length".into()).end(), Ok(0.0.to_any()));
-        assert_eq!(f.dot("a".into()).end(), Ok(undefined()));
+        assert_eq!(f.dot("a".into()).end(), Ok(Any::undefined()));
     }
 
     /// `Number`, `Boolean` and `BigInt` receivers have no own properties at
@@ -98,10 +95,13 @@ mod tests {
     /// `Any::entry` has.
     #[test]
     fn primitive_receiver_has_no_properties() {
-        assert_eq!(1.0.to_any::<A>().dot(0.0.to_any()).end(), Ok(undefined()));
+        assert_eq!(
+            1.0.to_any::<A>().dot(0.0.to_any()).end(),
+            Ok(Any::undefined())
+        );
         assert_eq!(
             true.to_any::<A>().dot("length".into()).end(),
-            Ok(undefined())
+            Ok(Any::undefined())
         );
     }
 
@@ -111,8 +111,10 @@ mod tests {
     fn option_dot_guards_the_key() {
         let object: Any<A> = [("a".into(), 1.0.to_any())].to_object().to_any();
         assert_eq!(
-            undefined().option_dot(|| Err("boom".into())).end(),
-            Ok(undefined())
+            Any::<A>::undefined()
+                .option_dot(|| Err("boom".into()))
+                .end(),
+            Ok(Any::undefined())
         );
         assert_eq!(
             object.clone().option_dot(|| Ok("a".into())).end(),

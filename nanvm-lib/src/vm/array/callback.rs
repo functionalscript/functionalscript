@@ -75,7 +75,7 @@ mod tests {
     use super::callback;
     use crate::{
         naive::Naive,
-        vm::{Any, Array, Function, IStaticFunction, Nullish, ToAny, ToArray},
+        vm::{Any, Array, Function, IStaticFunction, ToAny, ToArray},
     };
 
     type A = Naive;
@@ -93,7 +93,7 @@ mod tests {
     #[test]
     fn not_a_function_throws() {
         assert!(callback::<A>(1.0.to_any()).is_err());
-        assert!(callback::<A>(Nullish::Undefined.to_any()).is_err());
+        assert!(callback::<A>(Any::undefined()).is_err());
     }
 
     /// The element, its index, and the array itself.

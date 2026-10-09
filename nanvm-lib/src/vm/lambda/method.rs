@@ -80,7 +80,7 @@ pub(super) fn argument<A: IVm>(args: &Array<A>, i: u32) -> Any<A> {
     if i < args.length() {
         args[i].clone()
     } else {
-        Nullish::Undefined.to_any()
+        Any::undefined()
     }
 }
 
@@ -336,7 +336,7 @@ mod tests {
     use crate::{
         naive::Naive,
         vm::{
-            Any, BigInt, IStaticFunction, Nullish, ToAny, ToArray, ToObject,
+            Any, BigInt, IStaticFunction, ToAny, ToArray, ToObject,
             primitive_coercion::FUNCTION_TEXT,
         },
     };
@@ -359,10 +359,7 @@ mod tests {
         let out_of_range =
             Err("RangeError: toString() radix argument must be between 2 and 36".into());
         assert_eq!(to_string_with(n(255.0), 10.0.to_any()), Ok("255".into()));
-        assert_eq!(
-            to_string_with(n(255.0), Nullish::Undefined.to_any()),
-            Ok("255".into())
-        );
+        assert_eq!(to_string_with(n(255.0), Any::undefined()), Ok("255".into()));
         assert_eq!(to_string_with(n(255.0), 16.0.to_any()), Ok("ff".into()));
         assert_eq!(to_string_with(n(255.0), 16.9.to_any()), Ok("ff".into()));
         assert_eq!(to_string_with(n(255.0), "2".into()), Ok("11111111".into()));
@@ -527,7 +524,7 @@ mod tests {
         assert_eq!(at(0.0.to_any()), Ok(1.0.to_any()));
         assert_eq!(at((-1.0f64).to_any()), Ok(3.0.to_any()));
         assert_eq!(at("1".into()), Ok(2.0.to_any()));
-        assert_eq!(at(3.0.to_any()), Ok(Nullish::Undefined.to_any()));
+        assert_eq!(at(3.0.to_any()), Ok(Any::undefined()));
         assert_eq!(arr.dot("at".into()).end_call(no_args), Ok(1.0.to_any()));
     }
 

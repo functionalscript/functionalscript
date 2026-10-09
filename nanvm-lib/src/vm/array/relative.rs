@@ -27,7 +27,7 @@ mod tests {
     use super::{clamped, relative};
     use crate::{
         naive::Naive,
-        vm::{Any, Nullish, ToAny, unstable::bigint_any},
+        vm::{Any, ToAny, unstable::bigint_any},
     };
 
     type A = Naive;
@@ -43,7 +43,7 @@ mod tests {
         assert_eq!(r((-4.0f64).to_any()), Ok(-1.0));
         assert_eq!(r(1.7.to_any()), Ok(1.0));
         assert_eq!(r("2".into()), Ok(2.0));
-        assert_eq!(r(Nullish::Undefined.to_any()), Ok(0.0));
+        assert_eq!(r(Any::undefined()), Ok(0.0));
         assert_eq!(r(f64::INFINITY.to_any()), Ok(f64::INFINITY));
         assert_eq!(r(f64::NEG_INFINITY.to_any()), Ok(f64::NEG_INFINITY));
     }

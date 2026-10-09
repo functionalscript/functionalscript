@@ -13,7 +13,7 @@ The two receiver reads open the same way and fall back the same way —
 ```rust
 // vm/any/mod.rs, Any::entry
 let unpacked: Unpacked<A> = self.into();
-if let Unpacked::Nullish(_) = &unpacked {
+if unpacked.is_nullish() {
     return Err(CANNOT_CONVERT_NULLISH_TO_OBJECT.into());
 }
 let key = key.to_string()?;
@@ -23,21 +23,15 @@ Ok(match unpacked {
     Unpacked::String(s) => s.entry(&key),
     _ => None,
 }
-.unwrap_or_else(|| Nullish::Undefined.to_any()))
+.unwrap_or_else(Any::undefined))
 
 // vm/lambda/member.rs, Member::new — the guard, at the `.` node
-if let Unpacked::Nullish(_) = Unpacked::from(receiver.clone()) {
+if receiver.is_nullish() {
     return Err(CANNOT_CONVERT_NULLISH_TO_OBJECT.into());
 }
-// vm/lambda/member.rs, Member::read — the fallback, at the exit
-match Unpacked::from(receiver) {
-    Unpacked::Array(a) => a.member_access(key),
-    Unpacked::String(s) => s.member_access(key),
-    Unpacked::Object(o) => o.member_access(key),
-    Unpacked::Function(f) => f.member_access(key),
-    _ => None,
-}
-.unwrap_or_else(|| Nullish::Undefined.to_any())
+// vm/lambda/member.rs, Member::read — the fallback, at the exit, over
+// Member::own's match on the receiver
+self.own().unwrap_or_else(Any::undefined)
 ```
 
 Two policies are stated here, and each is stated by repetition rather than
@@ -45,10 +39,11 @@ by name. **A nullish receiver throws before the key is looked at** — the
 `ToObject`-first ordering that `Any::entry`'s doc and its
 `entry_nullish_receiver_outranks_the_key` test pin down.
 **An absent member reads `undefined`** — the `unwrap_or_else` each read
-ends in. The doc comments assert that the operators agree on both ("the
-same fallback `Any::entry` has"); nothing in the code makes them agree,
-and the next receiver operator re-follows the convention by hand or
-drifts.
+ends in. The predicate and the value are named (`is_nullish`,
+`Any::undefined`); the policies that use them are not. The doc comments
+assert that the operators agree on both ("the same fallback `Any::entry`
+has"); nothing in the code makes them agree, and the next receiver
+operator re-follows the convention by hand or drifts.
 
 ### Proposal
 

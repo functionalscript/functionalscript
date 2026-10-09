@@ -40,7 +40,7 @@ mod tests {
     use super::{is_high_surrogate, is_low_surrogate, position};
     use crate::{
         naive::Naive,
-        vm::{Any, Nullish, String, ToAny, unstable::bigint_any},
+        vm::{Any, String, ToAny, unstable::bigint_any},
     };
 
     type A = Naive;
@@ -57,7 +57,7 @@ mod tests {
     fn positions() {
         assert_eq!(position::<A>(1.7.to_any()), Ok(1.0));
         assert_eq!(position::<A>((-1.0f64).to_any()), Ok(-1.0));
-        assert_eq!(position::<A>(Nullish::Undefined.to_any()), Ok(0.0));
+        assert_eq!(position::<A>(Any::undefined()), Ok(0.0));
         let one: Any<A> = bigint_any(1);
         assert!(position(one).is_err());
         let s: String<A> = "ab".into();

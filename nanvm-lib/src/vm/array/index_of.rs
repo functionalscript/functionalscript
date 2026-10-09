@@ -29,7 +29,7 @@ mod tests {
     use super::Array;
     use crate::{
         naive::Naive,
-        vm::{Any, Nullish, ToAny, ToArray, unstable::bigint_any},
+        vm::{Any, ToAny, ToArray, unstable::bigint_any},
     };
 
     type A = Naive;
@@ -37,16 +37,18 @@ mod tests {
     fn array() -> Array<A> {
         [1.0.to_any(), f64::NAN.to_any(), 1.0.to_any(), 0.0.to_any()].to_array()
     }
-    fn undefined() -> Any<A> {
-        Nullish::Undefined.to_any()
-    }
-
     #[test]
     fn finds_by_strict_equality() {
-        assert_eq!(array().index_of(&1.0.to_any(), undefined()), Ok(Some(0)));
-        assert_eq!(array().index_of(&f64::NAN.to_any(), undefined()), Ok(None));
         assert_eq!(
-            array().index_of(&(-0.0f64).to_any(), undefined()),
+            array().index_of(&1.0.to_any(), Any::undefined()),
+            Ok(Some(0))
+        );
+        assert_eq!(
+            array().index_of(&f64::NAN.to_any(), Any::undefined()),
+            Ok(None)
+        );
+        assert_eq!(
+            array().index_of(&(-0.0f64).to_any(), Any::undefined()),
             Ok(Some(3))
         );
     }
