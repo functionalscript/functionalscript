@@ -27,6 +27,10 @@ consistent versioning policy.
       has advanced, with matching npm trusted-publisher configuration. Update
       the publishing workflow generator and release procedure so an urgent
       fix can publish without including later development changes from `main`.
+      Reconcile every open publishing TODO that assumes versions publish only
+      from `main`, including
+      [publishing packages](../fjs/ci/todo/publishing-packages.md), with this
+      release-line publishing path.
       Carry every release-line fix into `main` before the next regular release,
       adapting it if needed for the current code so upgrading to that release
       preserves the fix. If `main` already contains the fix, record that in the
@@ -46,6 +50,8 @@ defer that discussion until it is needed.
 - [Publishing workflow generator](../fjs/ci/publish/module.f.mjs) — extend
   the current `main`-only trigger to support release-line fixes; regenerate
   the workflow from its source.
+- [Publishing packages](../fjs/ci/todo/publishing-packages.md) — reconcile its
+  main-only publishing instructions when implementing release-line fixes.
 - [CONTRIBUTING.md](../CONTRIBUTING.md#commit-messages) and
   [AGENTS.md](../AGENTS.md#5-pull-requests-and-releases) — update the
   mandatory notice requirement when implementing this policy.
