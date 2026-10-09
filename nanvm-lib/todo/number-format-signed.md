@@ -1,7 +1,7 @@
 ## number-format-signed. Four formatters each peel the sign, format the magnitude and rebuild the string
 
 **Priority:** P5
-**Status:** open
+**Status:** wip
 
 ### Problem
 
