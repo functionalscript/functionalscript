@@ -258,6 +258,11 @@ fn has_legacy_drive_marker(name: &str) -> bool {
 /// The real native path, without a Windows drive's extended-length prefix.
 /// Check again after canonicalization: a local link may resolve to a UNC path.
 fn real_path(path: &str) -> std::io::Result<String> {
+    // Some hosts canonicalize a regular file even with a trailing separator.
+    // Enforce the directory requirement before canonicalization can erase it.
+    if path.ends_with(std::path::is_separator) && !fs::metadata(path)?.is_dir() {
+        return Err(std::io::ErrorKind::NotADirectory.into());
+    }
     let real = fs::canonicalize(path)?.to_string_lossy().into_owned();
     if cfg!(windows) {
         windows_path(&real).map(str::to_string)
@@ -671,6 +676,14 @@ mod test {
                 resolve_file_module("./folder/.", Some(&parent)).unwrap(),
                 folder
             );
+            // The directory check follows a link, but keeps missing-path errors.
+            symlink(dir.path("folder"), dir.path("folder-link")).unwrap();
+            assert_eq!(
+                resolve_file_module("./folder-link/", Some(&parent)).unwrap(),
+                folder
+            );
+            let missing = resolve_file_module("./missing/", Some(&parent)).unwrap_err();
+            assert_eq!(missing.code.as_deref(), Some("ENOENT"));
             let root = resolve_file_module(&dir.path(""), None).unwrap();
             assert_eq!(resolve_file_module(".", Some(&parent)).unwrap(), root);
             assert_eq!(
