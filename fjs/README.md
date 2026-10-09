@@ -116,17 +116,18 @@ Details, and the list of what it deliberately does not do, are in
 fjs run <module> [args...]
 ```
 
-`fjs run` dynamically imports `<module>` and calls its `main` export as a
-`NodeProgram`:
+`fjs run` dynamically imports `<module>` and runs its `main` export through
+`dispatch` from [`cli`](cli/module.f.mjs):
 
 ```ts
-(v.main as NodeProgram)({ ...options, args })
+dispatch(v.main as Main<NodeOp>)({ ...options, args })
 ```
 
 ### Convention: `export const main`
 
 A module intended to be run with `fjs run` must export a named `main` constant
-of type `NodeProgram`:
+of type `Main` (from [`cli/types.ts`](cli/types.ts)): either a `NodeProgram`
+or a `Commands` table. A program is the simple case:
 
 ```ts
 import type { NodeProgram } from '../effects/node/types.ts'
@@ -135,6 +136,18 @@ export const main: NodeProgram = options => {
     // options.args — command-line arguments passed after the module path
     ...
 }
+```
+
+A module whose interface is a set of subcommands exports the table itself, and
+`fjs run` routes the first argument to the command it names, with `help`
+listing them — no `dispatch` wrapper needed:
+
+```ts
+import type { Commands } from '../cli/types.ts'
+
+export const main: Commands<NodeOp> = [
+    { names: ['hello'], description: 'Say hello', handler: options => { ... } },
+]
 ```
 
 This mirrors:

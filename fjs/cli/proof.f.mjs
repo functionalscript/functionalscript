@@ -1,5 +1,5 @@
 /**
- * @import { NodeOp } from '../effects/node/types.ts'
+ * @import { NodeOp, Program } from '../effects/node/types.ts'
  * @import { Commands } from './types.ts'
  */
 
@@ -22,6 +22,14 @@ const run = (/** @type {Commands<NodeOp>} */ commands) => (/** @type {readonly s
     virtual(emptyState)(dispatch(commands)(nodeProgramOptions(args)))
 
 export const proof = {
+    // A `Program` is already what `dispatch` makes, so it runs as itself,
+    // arguments untouched — no command name is consumed.
+    program: () => {
+        /** @type {Program<NodeOp>} */
+        const program = ({ args }) => pureError(args.length)
+        const [, code] = virtual(emptyState)(dispatch(program)(nodeProgramOptions(['a', 'b', 'c'])))
+        assertEq(exitCode(code), 3, ['expected all three arguments', code])
+    },
     knownCommand: () => {
         const [, code] = run(echoCommands)(['echo', 'hello'])
         assertEq(exitCode(code), 5, ['expected length 5', code])

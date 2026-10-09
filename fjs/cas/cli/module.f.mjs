@@ -14,7 +14,6 @@ import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
 
 import { errorExit, exitStep, log, writeFromStream } from '../../effects/node/module.f.mjs'
 import { forEachStep, step as ioStep } from '../../effects/module.f.mjs'
-import { dispatch } from '../../cli/module.f.mjs'
 import { casAddFile, fileCas } from '../module.f.mjs'
 
 /** @type {Commands<FileCasOperation | WriteFile | Write | All | MemOp | Read>} */
@@ -64,4 +63,4 @@ export const commands = [
     },
 ]
 
-export const main = dispatch(commands)
+export const main = commands

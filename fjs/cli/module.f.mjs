@@ -6,7 +6,7 @@
  * @module
  *
  * @import { NodeOp, Program, Write } from '../effects/node/types.ts'
- * @import { Commands } from './types.ts'
+ * @import { Commands, Main } from './types.ts'
  */
 
 import { errorExit, exitStep, log } from '../effects/node/module.f.mjs'
@@ -25,8 +25,16 @@ const renderHelp = commands => {
     ].join('\n')
 }
 
+/**
+ * Runs a `Main`: a `Program` as itself, a `Commands` table by routing its first
+ * argument to the command it names.
+ *
+ * @type {<O extends NodeOp>(main: Main<O>) => Program<O | Write>}
+ */
+export const dispatch = main => typeof main === 'function' ? main : dispatchCommands(main)
+
 /** @type {<O extends NodeOp>(commands: Commands<O>) => Program<O | Write>} */
-export const dispatch = commands => options => {
+const dispatchCommands = commands => options => {
     const [cmd, ...rest] = options.args
     const map = fromEntries(commands.flatMap(c => c.names.map(n => /** @type {const} */ ([n, c]))))
     if (cmd === undefined) {
@@ -37,7 +45,7 @@ export const dispatch = commands => options => {
         if (target !== undefined) {
             const targetCmd = at(target)(map)
             if (targetCmd !== null && typeof targetCmd.handler !== 'function') {
-                return dispatch(targetCmd.handler)({ ...options, args: ['help'] })
+                return dispatchCommands(targetCmd.handler)({ ...options, args: ['help'] })
             }
         }
         return exitStep(log(renderHelp(commands)))
@@ -46,6 +54,5 @@ export const dispatch = commands => options => {
     if (found === null) {
         return errorExit(`Error: unknown command "${cmd}".\n${renderHelp(commands)}`)
     }
-    const { handler } = found
-    return (typeof handler === 'function' ? handler : dispatch(handler))({ ...options, args: rest })
+    return dispatch(found.handler)({ ...options, args: rest })
 }
