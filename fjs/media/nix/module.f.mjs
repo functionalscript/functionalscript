@@ -6,16 +6,23 @@
  * represented by tagged tuples. See `./types.ts` for the `Expression`
  * type-level API.
  *
+ * Two passes, one per job. {@link check} decides whether an expression is
+ * legal Nix and names the first rule it breaks; {@link serialize} decides what
+ * a legal one renders as, and cannot fail.
+ *
  * @module
  *
- * @import { List as ChunkList } from '../../types/list/types.ts'
+ * @import { List } from '../../types/list/types.ts'
+ * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Range } from '../../types/range/types.ts'
  * @import { RangeSet } from '../../types/range_set/types.ts'
- * @import { Expression, _AttributePath, _Binding, _Reference, _AttributeSet, _NixList, _Application, _OpenSetPattern, _Lambda, _Let, _Chunks } from './types.ts'
+ * @import { Result } from '../../types/result/types.ts'
+ * @import { Expression, _AttributePath, _Binding, _Reference, _AttributeSet, _NixList, _Application, _OpenSetPattern, _Lambda, _Let, _IndentedString } from './types.ts'
  */
 
 import { concat } from '../../types/string/module.f.mjs'
 import { includes } from '../../types/array/module.f.mjs'
+import { error, mapOk, ok } from '../../types/result/module.f.mjs'
 import {
     digitRange,
     latinCapitalLetterRange,
@@ -23,7 +30,7 @@ import {
     range,
 } from '../../text/ascii/module.f.mjs'
 import { contains, fromRange, union } from '../../types/range_set/module.f.mjs'
-import { intersperse, mergeAdjacent, toArray } from '../../types/list/module.f.mjs'
+import { find, flat, flatMap, intersperse, map, mergeAdjacent, toArray } from '../../types/list/module.f.mjs'
 
 const reservedWords = /** @type {const} */ ([
     'assert',
@@ -162,17 +169,106 @@ const protectLeadingWhitespace = line => {
     return `${leading}${line.slice(contentStart)}`
 }
 
-/** @type {(reference: _Reference) => string | undefined} */
-const serializeReference = ([, name, ...selection]) =>
-    isIdentifier(name)
-        ? [name, ...selection.map(attributeName)].join('.')
-        : undefined
+/** @type {(reason: Nullable<string>) => boolean} */
+const isReason = reason => reason !== null
 
-/** @type {(reference: _Reference) => _Chunks | undefined} */
-const serializeReferenceChunks = reference => {
-    const serialized = serializeReference(reference)
-    return serialized === undefined ? undefined : [serialized]
+/**
+ * The first reason in `reasons`, or `null` when there is none. A lazy
+ * `reasons` is read only up to its first reason.
+ *
+ * @type {(reasons: List<Nullable<string>>) => Nullable<string>}
+ */
+const firstReason = find(null)(isReason)
+
+/**
+ * The first reason `f` gives for any of `items`, or `null` when it gives none.
+ *
+ * @type {<T>(f: (item: T) => Nullable<string>) => (items: List<T>) => Nullable<string>}
+ */
+const firstReasonOf = f => items => firstReason(map(f)(items))
+
+/** @type {(reference: _Reference) => Nullable<string>} */
+const checkReference = ([, name]) =>
+    isIdentifier(name) ? null : `reference root is not an identifier: ${quoted(name)}`
+
+/** @type {(pattern: _OpenSetPattern) => Nullable<string>} */
+const checkPattern = ([, ...names]) => firstReason(names.map((name, index) =>
+    !isIdentifier(name) ? `pattern name is not an identifier: ${quoted(name)}`
+    : names.indexOf(name) !== index ? `duplicate pattern name: ${name}`
+    : null))
+
+/** @type {(prefix: _AttributePath, path: _AttributePath) => boolean} */
+const isPathPrefix = (prefix, path) =>
+    prefix.length <= path.length
+    && prefix.every((name, index) => name === path[index])
+
+/** @type {(a: _AttributePath, b: _AttributePath) => boolean} */
+const pathsConflict = (a, b) =>
+    isPathPrefix(a, b) || isPathPrefix(b, a)
+
+/**
+ * A binding group is legal when no attribute path in it is a prefix of
+ * another — Nix rejects `x = …; x.y = …;` as a redefinition — and every value
+ * is. Each binding is checked against the ones before it, then its value.
+ *
+ * @type {(bindings: readonly _Binding[]) => Nullable<string>}
+ */
+const checkBindings = bindings => firstReason(bindings.map(([, path, value], index) => {
+    const previous = bindings.slice(0, index).find(([, p]) => pathsConflict(path, p))
+    return previous !== undefined
+        ? `conflicting attribute paths: ${attributePath(previous[1])} and ${attributePath(path)}`
+        : check(value)
+}))
+
+/**
+ * The reason `expression` is not legal Nix, or `null` when it is.
+ *
+ * Every rule the serializer depends on lives here, and none of them depends on
+ * anything the renderer computes:
+ *
+ * - a reference's root is an identifier — its selection is quoted when it is
+ *   not one, but a root has no quoted spelling;
+ * - a lambda pattern's names are identifiers and pairwise distinct;
+ * - no attribute path in a binding group is a prefix of another.
+ *
+ * @type {(expression: Expression) => Nullable<string>}
+ */
+const check = expression => {
+    if (typeof expression === 'string') {
+        return null
+    }
+    switch (expression[0]) {
+        case 'ref': return checkReference(expression)
+        case 'set': {
+            const [, ...bindings] = expression
+            return checkBindings(bindings)
+        }
+        case 'list': {
+            const [, ...items] = expression
+            return firstReasonOf(check)(items)
+        }
+        case 'apply': {
+            const [, fn, ...args] = expression
+            return firstReasonOf(check)([fn, ...args])
+        }
+        case 'lambda': {
+            const [, pattern, body] = expression
+            return checkPattern(pattern) ?? check(body)
+        }
+        case 'let': {
+            const [, bindings, body] = expression
+            return checkBindings(bindings) ?? check(body)
+        }
+        case 'indented-string': {
+            const [, ...parts] = expression
+            return firstReasonOf(check)(parts)
+        }
+    }
 }
+
+/** @type {(reference: _Reference) => string} */
+const serializeReference = ([, name, ...selection]) =>
+    [name, ...selection.map(attributeName)].join('.')
 
 /** @type {(a: string | _Reference) => (b: string | _Reference) => string | _Reference | null} */
 const joinStrings = a => b => typeof a === 'string' && typeof b === 'string' ? `${a}${b}` : null
@@ -206,164 +302,127 @@ const coalesceStrings = parts => toArray(mergeAdjacent(joinStrings)(parts))
  * A string part is told whether a reference follows it, because that is the
  * one thing its own text cannot say — see {@link escapeTrailingDollar}.
  *
- * `undefined` for a reference whose root is not an identifier, as everywhere
- * else — the caller propagates it.
- *
- * @type {(part: string | _Reference, referenceFollows: boolean) => string | undefined}
+ * @type {(part: string | _Reference, referenceFollows: boolean) => string}
  */
 const indentedPart = (part, referenceFollows) => {
     if (typeof part === 'string') {
         const escaped = escapeIndented(part)
         return referenceFollows ? escapeTrailingDollar(escaped) : escaped
     }
-    const reference = serializeReference(part)
-    return reference === undefined ? undefined : `\${${reference}}`
+    return `\${${serializeReference(part)}}`
 }
 
-/** @type {(pattern: _OpenSetPattern) => string | undefined} */
+/** @type {(pattern: _OpenSetPattern) => string} */
 const serializePattern = ([, ...names]) =>
-    names.every((name, index) => isIdentifier(name) && names.indexOf(name) === index)
-        ? `{ ${[...names, '...'].join(', ')} }`
-        : undefined
+    `{ ${[...names, '...'].join(', ')} }`
 
-/** @type {(chunks: readonly _Chunks[], separator: string) => _Chunks} */
-const joinChunks = (chunks, separator) =>
-    chunks.flatMap((chunk, index) => index === 0 ? chunk : [separator, ...chunk])
-
-/** @type {(prefix: _AttributePath, path: _AttributePath) => boolean} */
-const isPathPrefix = (prefix, path) =>
-    prefix.length <= path.length
-    && prefix.every((name, index) => name === path[index])
-
-/** @type {(a: _AttributePath, b: _AttributePath) => boolean} */
-const pathsConflict = (a, b) =>
-    isPathPrefix(a, b) || isPathPrefix(b, a)
-
-/** @type {(bindings: readonly _Binding[]) => boolean} */
-const bindingsCompatible = bindings =>
-    bindings.every(([, path], index) =>
-        bindings.slice(0, index).every(([, previous]) => !pathsConflict(path, previous)))
-
-/** @type {(bindings: readonly _Binding[], level: number) => _Chunks | undefined} */
-const serializeBindings = (bindings, level) => {
-    if (!bindingsCompatible(bindings)) {
-        return undefined
-    }
-    const serialized = bindings.map(([, path, value]) => {
-        const expression = serialize(value, level)
-        return expression === undefined
-            ? undefined
-            : [indent(level), attributePath(path), ' = ', ...expression, ';']
-    })
-    const defined = serialized.flatMap(value => value === undefined ? [] : [value])
-    return defined.length !== serialized.length
-        ? undefined
-        : joinChunks(defined, '\n')
-}
-
-/** @type {(set: _AttributeSet, level: number) => _Chunks | undefined} */
-const serializeSet = ([, ...bindings], level) => {
-    if (bindings.length === 0) {
-        return ['{}']
-    }
-    const body = serializeBindings(bindings, level + 1)
-    return body === undefined ? undefined : ['{\n', ...body, '\n', indent(level), '}']
-}
-
-/** @type {(item: _Reference | string) => string | undefined} */
+/** @type {(item: _Reference | string) => string} */
 const serializeListItem = item =>
     typeof item === 'string' ? quoted(item) : serializeReference(item)
 
-/** @type {(list: _NixList) => _Chunks | undefined} */
-const serializeList = ([, ...references]) => {
-    const items = references.map(serializeListItem)
-    const definedItems = items.flatMap(item => item === undefined ? [] : [item])
-    return items.includes(undefined)
-        ? undefined
-        : items.length === 0
-            ? ['[ ]']
-            : ['[ ', ...toArray(intersperse(' ')(definedItems)), ' ]']
+/** @type {(list: _NixList) => List<string>} */
+const serializeList = ([, ...items]) =>
+    items.length === 0
+        ? ['[ ]']
+        : flat([['[ '], intersperse(' ')(map(serializeListItem)(items)), [' ]']])
+
+/**
+ * The bindings of one group, one per line at `level`.
+ *
+ * @type {(level: number) => (bindings: readonly _Binding[]) => List<string>}
+ */
+const serializeBindings = level => {
+    const prefix = indent(level)
+    const value = serialize(level)
+    /** @type {(binding: _Binding) => List<string>} */
+    const binding = ([, path, v]) => flat([[prefix, attributePath(path), ' = '], value(v), [';']])
+    return bindings => flat(intersperse(['\n'])(map(binding)(bindings)))
 }
 
-/** @type {(application: _Application, level: number) => _Chunks | undefined} */
-const serializeApplication = ([, fn, ...args], level) => {
-    const serializedFn = serializeReference(fn)
-    const serializedArgs = args.map(argument =>
-        argument[0] === 'ref'
-            ? serializeReferenceChunks(argument)
-            : serializeSet(argument, level))
-    const definedArgs = serializedArgs.flatMap(argument => argument === undefined ? [] : [argument])
-    return serializedFn === undefined || definedArgs.length !== serializedArgs.length
-        ? undefined
-        : [serializedFn, ...definedArgs.flatMap(argument => [' ', ...argument])]
+/** @type {(level: number) => (set: _AttributeSet) => List<string>} */
+const serializeSet = level => ([, ...bindings]) =>
+    bindings.length === 0
+        ? ['{}']
+        : flat([['{\n'], serializeBindings(level + 1)(bindings), ['\n', indent(level), '}']])
+
+/** @type {(level: number) => (application: _Application) => List<string>} */
+const serializeApplication = level => ([, fn, ...args]) => {
+    const argument = serialize(level)
+    return flat([
+        [serializeReference(fn)],
+        flatMap(a => flat([[' '], argument(a)]))(args)
+    ])
 }
 
-/** @type {(lambda: _Lambda, level: number) => _Chunks | undefined} */
-const serializeLambda = ([, pattern, body], level) => {
-    const serializedPattern = serializePattern(pattern)
-    const serializedBody = serialize(body, level)
-    return serializedPattern === undefined || serializedBody === undefined
-        ? undefined
-        : [serializedPattern, ': ', ...serializedBody]
+/** @type {(level: number) => (lambda: _Lambda) => List<string>} */
+const serializeLambda = level => ([, pattern, body]) =>
+    flat([[serializePattern(pattern), ': '], serialize(level)(body)])
+
+/** @type {(level: number) => (let_: _Let) => List<string>} */
+const serializeLet = level => ([, bindings, body]) => {
+    const prefix = indent(level)
+    return flat([
+        ['let\n'],
+        serializeBindings(level + 1)(bindings),
+        ['\n', prefix, 'in\n', prefix],
+        serialize(level)(body)
+    ])
 }
 
-/** @type {(let_: _Let, level: number) => _Chunks | undefined} */
-const serializeLet = ([, bindings, body], level) => {
-    const serializedBindings = serializeBindings(bindings, level + 1)
-    const serializedBody = serialize(body, level)
-    return serializedBindings === undefined || serializedBody === undefined
-        ? undefined
-        : ['let\n', ...serializedBindings, '\n', indent(level), 'in\n', indent(level), ...serializedBody]
+/** @type {(level: number) => (indented: _IndentedString) => List<string>} */
+const serializeIndentedString = level => ([, ...parts]) => {
+    const coalesced = coalesceStrings(parts)
+    const contentIndent = indent(level + 1)
+    const content = coalesced
+        .map((part, index) => indentedPart(part, typeof coalesced[index + 1] !== 'string'
+            && coalesced[index + 1] !== undefined))
+        .join('')
+        .split('\n')
+        .map(protectLeadingWhitespace)
+        .map(line => `${contentIndent}${line}`)
+        .join('\n')
+    return ["''\n", content, '\n', indent(level), "''"]
 }
 
-/** @type {(expression: Expression, level: number) => _Chunks | undefined} */
-const serialize = (expression, level) => {
+/**
+ * What a legal expression renders as, at an indentation `level`. Total: every
+ * rule that could refuse an expression is {@link check}'s.
+ *
+ * @type {(level: number) => (expression: Expression) => List<string>}
+ */
+const serialize = level => expression => {
     if (typeof expression === 'string') {
         return [quoted(expression)]
     }
     switch (expression[0]) {
-        case 'ref': {
-            return serializeReferenceChunks(expression)
-        }
-        case 'set': return serializeSet(expression, level)
+        case 'ref': return [serializeReference(expression)]
+        case 'set': return serializeSet(level)(expression)
         case 'list': return serializeList(expression)
-        case 'apply': return serializeApplication(expression, level)
-        case 'lambda': return serializeLambda(expression, level)
-        case 'let': return serializeLet(expression, level)
-        case 'indented-string': {
-            const [, ...parts] = expression
-            const coalesced = coalesceStrings(parts)
-            const serialized = coalesced.map((part, index) =>
-                indentedPart(part, typeof coalesced[index + 1] !== 'string'
-                    && coalesced[index + 1] !== undefined))
-            const defined = serialized.flatMap(part => part === undefined ? [] : [part])
-            if (defined.length !== serialized.length) { return undefined }
-            const contentIndent = indent(level + 1)
-            const content = defined.join('')
-                .split('\n')
-                .map(protectLeadingWhitespace)
-                .map(line => `${contentIndent}${line}`)
-                .join('\n')
-            return ["''\n", content, '\n', indent(level), "''"]
-        }
+        case 'apply': return serializeApplication(level)(expression)
+        case 'lambda': return serializeLambda(level)(expression)
+        case 'let': return serializeLet(level)(expression)
+        case 'indented-string': return serializeIndentedString(level)(expression)
     }
 }
 
 /**
- * Serializes an expression into composable chunks, or rejects an invalid identifier.
+ * Serializes an expression into composable chunks, or names the first rule it
+ * breaks.
  *
- * @type {(expression: Expression) => ChunkList<string> | undefined}
+ * @type {(expression: Expression) => Result<List<string>, string>}
  */
 export const nix = expression => {
-    return serialize(expression, 0)
+    const reason = check(expression)
+    return reason === null ? ok(serialize(0)(expression)) : error(reason)
 }
 
+/** @type {(chunks: List<string>) => string} */
+const withNewline = chunks => `${concat(chunks)}\n`
+
 /**
- * Serializes an expression with exactly one trailing newline on success.
+ * Serializes an expression with exactly one trailing newline on success, or
+ * names the first rule it breaks.
  *
- * @type {(expression: Expression) => string | undefined}
+ * @type {(expression: Expression) => Result<string, string>}
  */
-export const nixToString = expression => {
-    const chunks = nix(expression)
-    return chunks === undefined ? undefined : `${concat(chunks)}\n`
-}
+export const nixToString = expression => mapOk(withNewline)(nix(expression))

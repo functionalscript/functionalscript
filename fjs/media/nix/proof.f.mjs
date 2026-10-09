@@ -2,9 +2,20 @@
  * @import { Expression } from './types.ts'
  */
 
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assertEq } from '../../asserts/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
+import { unwrap } from '../../types/result/module.f.mjs'
 import { nix, nixToString } from './module.f.mjs'
+
+/** @type {(expression: Expression) => string} */
+const text = expression => unwrap(nixToString(expression))
+
+/** @type {(expression: Expression) => string} */
+const reason = expression => {
+    const [kind, value] = nixToString(expression)
+    assertEq(kind, 'error')
+    return value
+}
 
 /** @type {(nodePackage: string, shellHook: boolean) => Expression} */
 const nodeFlake = (nodePackage, shellHook) => ['set',
@@ -74,20 +85,20 @@ const node22 = `{
 
 export const proof = {
     strings: () => {
-        assertEq(nixToString('"\\${\n\r\t'), `"\\"\\\\\\\${\\n\\r\\t"\n`)
+        assertEq(text('"\\${\n\r\t'), `"\\"\\\\\\\${\\n\\r\\t"\n`)
     },
     reference: () => {
-        assertEq(nixToString(['ref', 'pkgs', 'a.b', 'or']), 'pkgs."a.b"."or"\n')
-        assertEq(nixToString(['ref', "a-b'9"]), "a-b'9\n")
-        assertEq(nixToString(['ref', '_AZ']), '_AZ\n')
+        assertEq(text(['ref', 'pkgs', 'a.b', 'or']), 'pkgs."a.b"."or"\n')
+        assertEq(text(['ref', "a-b'9"]), "a-b'9\n")
+        assertEq(text(['ref', '_AZ']), '_AZ\n')
     },
     emptySetAndList: () => {
-        assertEq(nixToString(['set']), '{}\n')
-        assertEq(nixToString(['list']), '[ ]\n')
+        assertEq(text(['set']), '{}\n')
+        assertEq(text(['list']), '[ ]\n')
     },
     multiReferenceList: () => {
         assertEq(
-            nixToString(['list', ['ref', 'pkgs', 'nodejs_22'], ['ref', 'pkgs', 'nodejs_24']]),
+            text(['list', ['ref', 'pkgs', 'nodejs_22'], ['ref', 'pkgs', 'nodejs_24']]),
             '[ pkgs.nodejs_22 pkgs.nodejs_24 ]\n'
         )
     },
@@ -97,22 +108,20 @@ export const proof = {
     // form exists for.
     stringList: () => {
         assertEq(
-            nixToString(['list', 'clippy', 'rustfmt']),
+            text(['list', 'clippy', 'rustfmt']),
             '[ "clippy" "rustfmt" ]\n')
         assertEq(
-            nixToString(['list', ['ref', 'rust'], 'a"b']),
+            text(['list', ['ref', 'rust'], 'a"b']),
             '[ rust "a\\"b" ]\n')
     },
     compatiblePaths: () => {
         assertEq(
-            nixToString(['set', ['=', ['x', 'y'], 'a'], ['=', ['x', 'z'], 'b']]),
+            text(['set', ['=', ['x', 'y'], 'a'], ['=', ['x', 'z'], 'b']]),
             '{\n    x.y = "a";\n    x.z = "b";\n}\n'
         )
     },
     chunks: () => {
-        const chunks = nix(['list', ['ref', 'pkgs', 'nodejs_24']])
-        assert(chunks !== undefined)
-        const [open, reference, close, extra] = toArray(chunks)
+        const [open, reference, close, extra] = toArray(unwrap(nix(['list', ['ref', 'pkgs', 'nodejs_24']])))
         assertEq(open, '[ ')
         assertEq(reference, 'pkgs.nodejs_24')
         assertEq(close, ' ]')
@@ -123,10 +132,10 @@ export const proof = {
         // rather than the `'''` a pair used to become — see the module for why
         // a bare quote can never be left in front of an escape.
         assertEq(
-            nixToString(['indented-string', "a '' ${b}"]),
+            text(['indented-string', "a '' ${b}"]),
             "''\n    a ''\\'''\\' ''${b}\n''\n")
         assertEq(
-            nixToString(['indented-string', '  a\n\t b\n  ']),
+            text(['indented-string', '  a\n\t b\n  ']),
             "''\n    ''\\ ''\\ a\n    ''\\t''\\ b\n    ''\\ ''\\ \n''\n"
         )
     },
@@ -137,20 +146,22 @@ export const proof = {
     // knowable when the file is written.
     indentedStringInterpolation: () => {
         assertEq(
-            nixToString(['indented-string', 'a=', ['ref', 'pkgs', 'gcc_multi'], '/bin/cc']),
+            text(['indented-string', 'a=', ['ref', 'pkgs', 'gcc_multi'], '/bin/cc']),
             "''\n    a=${pkgs.gcc_multi}/bin/cc\n''\n")
         // Escaped beside unescaped, in one string: the literal `${b}` survives
         // as text while the reference beside it does not.
         assertEq(
-            nixToString(['indented-string', '${b}', ['ref', 'a']]),
+            text(['indented-string', '${b}', ['ref', 'a']]),
             "''\n    ''${b}${a}\n''\n")
         // An attribute that is not an identifier is quoted, as in any other
         // selection; a *root* that is not one has no spelling at all, so the
         // whole expression is rejected rather than written wrong.
         assertEq(
-            nixToString(['indented-string', ['ref', 'pkgs', 'not an identifier']]),
+            text(['indented-string', ['ref', 'pkgs', 'not an identifier']]),
             "''\n    ${pkgs.\"not an identifier\"}\n''\n")
-        assertEq(nixToString(['indented-string', ['ref', 'not an identifier']]), undefined)
+        assertEq(
+            reason(['indented-string', ['ref', 'not an identifier']]),
+            'reference root is not an identifier: "not an identifier"')
     },
     // Escaping sees the text a reader sees, not each half of it. Both of these
     // were wrong when parts were escaped one at a time, and both silently.
@@ -158,12 +169,12 @@ export const proof = {
         // Neither half contains `${`, so neither would be escaped alone — and
         // the two concatenate into an interpolation Nix resolves.
         assertEq(
-            nixToString(['indented-string', '$', '{x}']),
+            text(['indented-string', '$', '{x}']),
             "''\n    ''${x}\n''\n")
         // Worse: neither half contains `''` either, and the pair closes the
         // string. Every quote is escaped, so the pair cannot form at all.
         assertEq(
-            nixToString(['indented-string', "a'", "'b"]),
+            text(['indented-string', "a'", "'b"]),
             "''\n    a''\\'''\\'b\n''\n")
     },
     // A reference is the one boundary `coalesceStrings` does not join across,
@@ -179,21 +190,21 @@ export const proof = {
     indentedStringEscapesIntoAReference: () => {
         // `''$` is a literal `$`; the `${a}` after it is a live interpolation.
         assertEq(
-            nixToString(['indented-string', '$', ['ref', 'a'], '{x}']),
+            text(['indented-string', '$', ['ref', 'a'], '{x}']),
             "''\n    ''$${a}{x}\n''\n")
         // Nothing to do on the other side: `{x}` after a reference has no `$`
         // in front of it to make anything of.
         assertEq(
-            nixToString(['indented-string', ['ref', 'a'], '{x}']),
+            text(['indented-string', ['ref', 'a'], '{x}']),
             "''\n    ${a}{x}\n''\n")
         // A trailing `$` with no reference after it is already literal, and is
         // left alone — `$PATH` and a `$` at the end of a hook both read back
         // as themselves.
         assertEq(
-            nixToString(['indented-string', 'echo $']),
+            text(['indented-string', 'echo $']),
             "''\n    echo $\n''\n")
         assertEq(
-            nixToString(['indented-string', 'echo $PATH']),
+            text(['indented-string', 'echo $PATH']),
             "''\n    echo $PATH\n''\n")
     },
     // A single quote in front of an escape is the collision that escaping
@@ -205,82 +216,106 @@ export const proof = {
     // ever left adjacent to an escape.
     indentedStringQuoteBeforeAnEscape: () => {
         assertEq(
-            nixToString(['indented-string', "'${x}"]),
+            text(['indented-string', "'${x}"]),
             "''\n    ''\\'''${x}\n''\n")
         assertEq(
-            nixToString(['indented-string', "'", ['ref', 'a']]),
+            text(['indented-string', "'", ['ref', 'a']]),
             "''\n    ''\\'${a}\n''\n")
     },
     // No parts at all is the empty string, not a failure.
     indentedStringEmpty: () => {
-        assertEq(nixToString(['indented-string']), "''\n    \n''\n")
+        assertEq(text(['indented-string']), "''\n    \n''\n")
     },
     emptyPattern: () => {
-        assertEq(nixToString(['lambda', ['open-set-pattern'], ['set']]), '{ ... }: {}\n')
+        assertEq(text(['lambda', ['open-set-pattern'], ['set']]), '{ ... }: {}\n')
     },
     node24: () => {
-        assertEq(nixToString(nodeFlake('nodejs_24', false)), node24)
+        assertEq(text(nodeFlake('nodejs_24', false)), node24)
     },
     node22: () => {
-        assertEq(nixToString(nodeFlake('nodejs_22', true)), node22)
+        assertEq(text(nodeFlake('nodejs_22', true)), node22)
     },
+    // Each rule `check` owns, and the reason it gives. A rejection names the
+    // offending identifier or the conflicting paths, so a caller generating a
+    // large expression learns which part of it broke.
     invalid: {
-        reference: () => assertEq(nixToString(['ref', 'not valid']), undefined),
-        reservedReference: () => assertEq(nixToString(['ref', 'let']), undefined),
-        emptyReference: () => assertEq(nixToString(['ref', '']), undefined),
-        digitReference: () => assertEq(nixToString(['ref', '1abc']), undefined),
-        nonAsciiReference: () => assertEq(nixToString(['ref', 'é']), undefined),
+        reference: () => assertEq(
+            reason(['ref', 'not valid']),
+            'reference root is not an identifier: "not valid"'),
+        reservedReference: () => assertEq(
+            reason(['ref', 'let']),
+            'reference root is not an identifier: "let"'),
+        emptyReference: () => assertEq(
+            reason(['ref', '']),
+            'reference root is not an identifier: ""'),
+        digitReference: () => assertEq(
+            reason(['ref', '1abc']),
+            'reference root is not an identifier: "1abc"'),
+        nonAsciiReference: () => assertEq(
+            reason(['ref', 'é']),
+            'reference root is not an identifier: "é"'),
+        // The name is quoted as a Nix string, so a reason stays one line.
+        escapedReference: () => assertEq(
+            reason(['ref', 'a\n"b']),
+            'reference root is not an identifier: "a\\n\\"b"'),
         pattern: () => assertEq(
-            nixToString(['lambda', ['open-set-pattern', 'if'], ['set']]),
-            undefined
-        ),
+            reason(['lambda', ['open-set-pattern', 'if'], ['set']]),
+            'pattern name is not an identifier: "if"'),
         duplicatePattern: () => assertEq(
-            nixToString(['lambda', ['open-set-pattern', 'x', 'x'], ['set']]),
-            undefined
-        ),
+            reason(['lambda', ['open-set-pattern', 'x', 'x'], ['set']]),
+            'duplicate pattern name: x'),
         duplicateBinding: () => assertEq(
-            nixToString(['set', ['=', ['x'], 'a'], ['=', ['x'], 'b']]),
-            undefined
-        ),
+            reason(['set', ['=', ['x'], 'a'], ['=', ['x'], 'b']]),
+            'conflicting attribute paths: x and x'),
         parentThenChildBinding: () => assertEq(
-            nixToString(['set', ['=', ['x'], 'a'], ['=', ['x', 'y'], 'b']]),
-            undefined
-        ),
+            reason(['set', ['=', ['x'], 'a'], ['=', ['x', 'y'], 'b']]),
+            'conflicting attribute paths: x and x.y'),
         childThenParentBinding: () => assertEq(
-            nixToString(['set', ['=', ['x', 'y'], 'a'], ['=', ['x'], 'b']]),
-            undefined
-        ),
+            reason(['set', ['=', ['x', 'y'], 'a'], ['=', ['x'], 'b']]),
+            'conflicting attribute paths: x.y and x'),
+        // A path is named as it is written, quoted where it has to be.
+        quotedConflict: () => assertEq(
+            reason(['set', ['=', ['a b'], 'a'], ['=', ['a b', 'c'], 'b']]),
+            'conflicting attribute paths: "a b" and "a b".c'),
         duplicateLetBinding: () => assertEq(
-            nixToString(['let', [['=', ['x'], 'a'], ['=', ['x'], 'b']], ['ref', 'x']]),
-            undefined
-        ),
+            reason(['let', [['=', ['x'], 'a'], ['=', ['x'], 'b']], ['ref', 'x']]),
+            'conflicting attribute paths: x and x'),
         bindingValue: () => assertEq(
-            nixToString(['set', ['=', ['ok'], ['ref', 'bad name']]]),
-            undefined
-        ),
+            reason(['set', ['=', ['ok'], ['ref', 'bad name']]]),
+            'reference root is not an identifier: "bad name"'),
         listItem: () => assertEq(
-            nixToString(['list', ['ref', 'valid'], ['ref', 'bad name']]),
-            undefined
-        ),
+            reason(['list', ['ref', 'valid'], ['ref', 'bad name']]),
+            'reference root is not an identifier: "bad name"'),
         applicationFunction: () => assertEq(
-            nixToString(['apply', ['ref', 'with']]),
-            undefined
-        ),
+            reason(['apply', ['ref', 'with']]),
+            'reference root is not an identifier: "with"'),
         applicationArgument: () => assertEq(
-            nixToString(['apply', ['ref', 'f'], ['ref', 'bad name']]),
-            undefined
-        ),
+            reason(['apply', ['ref', 'f'], ['ref', 'bad name']]),
+            'reference root is not an identifier: "bad name"'),
+        applicationSetArgument: () => assertEq(
+            reason(['apply', ['ref', 'f'], ['set', ['=', ['x'], ['ref', 'in']]]]),
+            'reference root is not an identifier: "in"'),
         lambdaBody: () => assertEq(
-            nixToString(['lambda', ['open-set-pattern', 'good'], ['ref', 'bad name']]),
-            undefined
-        ),
+            reason(['lambda', ['open-set-pattern', 'good'], ['ref', 'bad name']]),
+            'reference root is not an identifier: "bad name"'),
         letBinding: () => assertEq(
-            nixToString(['let', [['=', ['x'], ['ref', 'bad name']]], ['ref', 'x']]),
-            undefined
-        ),
+            reason(['let', [['=', ['x'], ['ref', 'bad name']]], ['ref', 'x']]),
+            'reference root is not an identifier: "bad name"'),
         letBody: () => assertEq(
-            nixToString(['let', [], ['ref', 'bad name']]),
-            undefined
-        ),
+            reason(['let', [], ['ref', 'bad name']]),
+            'reference root is not an identifier: "bad name"'),
+        // The first violation is the one reported: the pattern before the
+        // body, and an earlier binding before a later one.
+        first: () => {
+            assertEq(
+                reason(['lambda', ['open-set-pattern', 'if'], ['ref', 'bad name']]),
+                'pattern name is not an identifier: "if"')
+            assertEq(
+                reason(['set', ['=', ['a'], ['ref', 'bad one']], ['=', ['a'], ['ref', 'bad two']]]),
+                'reference root is not an identifier: "bad one"')
+            assertEq(
+                reason(['set', ['=', ['a'], 'x'], ['=', ['a'], ['ref', 'bad two']]]),
+                'conflicting attribute paths: a and a')
+        },
     }
 }

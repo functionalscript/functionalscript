@@ -53,5 +53,3 @@ export type Expression =
     | _Lambda
     | _Let
     | _IndentedString
-
-export type _Chunks = readonly string[]
