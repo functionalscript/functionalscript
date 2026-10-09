@@ -9,7 +9,8 @@
 //! The identity is `pathToFileURL` of the real path, whose percent-encoding is
 //! the set Node 22 encodes: the controls, space, `"`, `#`, `%`, `<`, `>`, `?`,
 //! `[`, `\`, `]`, `^`, `` ` ``, `{`, `|`, `}`, `~`, and every byte that is not
-//! ASCII.
+//! ASCII. Native paths must be Unicode; imports requiring raw-character URL
+//! preprocessing are refused. See `../todo/module-path-encoding.md`.
 
 use crate::files::IoError;
 use std::{
@@ -206,6 +207,17 @@ fn windows_path(path: &str) -> std::io::Result<&str> {
     ))
 }
 
+/// Module identities must not replace native filename bytes with U+FFFD.
+/// Apply the same lossless conversion to cwd-derived and canonical paths.
+fn path_text(path: &Path) -> std::io::Result<String> {
+    path.to_str().map(str::to_string).ok_or_else(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "non-UTF-8 module paths are not supported",
+        )
+    })
+}
+
 /// Resolve native roots before reducing dot segments, without following links.
 /// `absolute` handles Windows root-relative and drive-relative paths; native
 /// components keep POSIX backslashes and colons literal. Like `pathToFileURL`,
@@ -227,7 +239,7 @@ fn absolute_path(path: &str) -> std::io::Result<String> {
             other => normalized.push(other.as_os_str()),
         }
     }
-    let mut result = normalized.to_string_lossy().into_owned();
+    let mut result = path_text(&normalized)?;
     if path.ends_with(std::path::is_separator) && !result.ends_with(std::path::is_separator) {
         result.push(std::path::MAIN_SEPARATOR);
     }
@@ -255,6 +267,13 @@ fn has_legacy_drive_marker(name: &str) -> bool {
         .any(|part| matches!(part.as_bytes(), [letter, b'|'] if letter.is_ascii_alphabetic()))
 }
 
+/// Refuse raw imports that WHATWG preprocessing would change. Percent escapes
+/// and literal entry paths are not preprocessed; internal spaces stay literal.
+/// See `../todo/module-path-encoding.md` for the deferred URL behavior.
+fn needs_url_preprocessing(name: &str) -> bool {
+    name.trim_matches(|c: char| c <= ' ') != name || name.contains(['\t', '\n', '\r'])
+}
+
 /// The real native path, without a Windows drive's extended-length prefix.
 /// Check again after canonicalization: a local link may resolve to a UNC path.
 fn real_path(path: &str) -> std::io::Result<String> {
@@ -263,7 +282,7 @@ fn real_path(path: &str) -> std::io::Result<String> {
     if path.ends_with(std::path::is_separator) && !fs::metadata(path)?.is_dir() {
         return Err(std::io::ErrorKind::NotADirectory.into());
     }
-    let real = fs::canonicalize(path)?.to_string_lossy().into_owned();
+    let real = path_text(&fs::canonicalize(path)?)?;
     if cfg!(windows) {
         windows_path(&real).map(str::to_string)
     } else {
@@ -289,7 +308,10 @@ pub fn resolve_file_module(name: &str, parent: Option<&str>) -> Result<FileModul
             // `nanvm-effects-node/todo/local-file-url-authorities.md`.
             // Raw drive markers must not be erased by dot reduction either,
             // or confused with percent-encoded literal names.
-            if name.starts_with("//") || has_legacy_drive_marker(name) {
+            if needs_url_preprocessing(name)
+                || name.starts_with("//")
+                || has_legacy_drive_marker(name)
+            {
                 return Err(invalid());
             }
             let (rooted, names) = decode_specifier(name).ok_or_else(invalid)?;
@@ -297,10 +319,8 @@ pub fn resolve_file_module(name: &str, parent: Option<&str>) -> Result<FileModul
             let mut path = if rooted {
                 // On Windows a rooted import keeps the importer's drive,
                 // which need not be the current working directory's drive.
-                Path::new(&importer)
-                    .join(format!("/{names}"))
-                    .to_string_lossy()
-                    .into_owned()
+                path_text(&Path::new(&importer).join(format!("/{names}")))
+                    .map_err(|e| crate::files::failure(&e, "resolveFileModule", name))?
             } else if name.is_empty() {
                 importer
             } else {
@@ -593,6 +613,69 @@ mod test {
         );
     }
 
+    #[test]
+    fn raw_url_preprocessing_is_refused_before_resolution() {
+        let refused = |name: &str| {
+            assert!(needs_url_preprocessing(name), "{name:?}");
+            for parent in ["file:///missing/main.f.js", "file:///C:/missing/main.f.js"] {
+                let error = resolve_file_module(name, Some(parent)).unwrap_err();
+                assert_eq!(error.code, None, "{name:?}");
+                assert_eq!(error.message, "invalid module specifier", "{name:?}");
+            }
+        };
+        for byte in 0..=b' ' {
+            let c = char::from(byte);
+            refused(&format!("{c}./dep"));
+            refused(&format!("./dep{c}"));
+        }
+        for name in ["./a\tb", "./a\nb", "./a\rb", " /C|/dep", "/\t/host/x"] {
+            refused(name);
+        }
+    }
+
+    #[test]
+    fn encoded_and_internal_filename_characters_are_not_preprocessed() {
+        for name in [
+            "",
+            "./dep%20",
+            "./a%09b",
+            "./a%0Ab",
+            "./a%0Db",
+            "./dep%01",
+            "./a b",
+            "./a\u{1}b",
+            "./dep\u{a0}",
+            "\u{feff}dep",
+        ] {
+            assert!(!needs_url_preprocessing(name), "{name:?}");
+            assert!(decode_specifier(name).is_some(), "{name:?}");
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn non_utf8_path_text_is_not_replaced() {
+        use std::{ffi::OsStr, os::unix::ffi::OsStrExt};
+        let path = Path::new(OsStr::from_bytes(b"bad-\xff"));
+        assert_eq!(
+            path_text(path).unwrap_err().kind(),
+            std::io::ErrorKind::InvalidData
+        );
+        assert_eq!(path_text(Path::new("\u{fffd}")).unwrap(), "\u{fffd}");
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn unpaired_utf16_paths_are_not_replaced() {
+        use std::{ffi::OsString, os::windows::ffi::OsStringExt};
+        let path = PathBuf::from(OsString::from_wide(&[0xd800]));
+        assert_eq!(
+            path_text(&path).unwrap_err().kind(),
+            std::io::ErrorKind::InvalidData
+        );
+        assert_eq!(path_text(Path::new("\u{fffd}")).unwrap(), "\u{fffd}");
+    }
+
     /// Against a real tree, with symbolic links: a module is the real file.
     #[cfg(unix)]
     mod files {
@@ -743,6 +826,72 @@ mod test {
             symlink(dir.path("target/nested"), dir.path("link")).unwrap();
             let module = resolve_file_module(&dir.path("link/../main.f.js"), None).unwrap();
             assert_eq!(module.path, dir.path("main.f.js"));
+        }
+
+        // APFS rejects non-UTF-8 names at creation; use Linux for the real
+        // collision fixture. The lossless conversion is tested on every OS.
+        #[cfg(target_os = "linux")]
+        #[test]
+        fn non_utf8_targets_do_not_alias_replacement_characters() {
+            use std::{ffi::OsStr, os::unix::ffi::OsStrExt};
+            let dir = Scratch::new("non-utf8");
+            let raw = dir.0.join(OsStr::from_bytes(b"bad-\xff"));
+            fs::create_dir(&raw).unwrap();
+            fs::write(raw.join("dep.f.js"), "original").unwrap();
+            fs::create_dir(dir.path("bad-\u{fffd}")).unwrap();
+            let replacement = dir.path("bad-\u{fffd}/dep.f.js");
+            fs::write(&replacement, "replacement").unwrap();
+            symlink(raw.join("dep.f.js"), dir.path("link.f.js")).unwrap();
+            symlink(&raw, dir.path("link-dir")).unwrap();
+            assert_eq!(
+                path_text(&raw).unwrap_err().kind(),
+                std::io::ErrorKind::InvalidData
+            );
+            let parent = path_to_file_url(&dir.path("main.f.js"));
+            for name in ["link.f.js", "link-dir/dep.f.js"] {
+                let entry = resolve_file_module(&dir.path(name), None).unwrap_err();
+                let import = resolve_file_module(name, Some(&parent)).unwrap_err();
+                for error in [entry, import] {
+                    assert!(
+                        error
+                            .message
+                            .contains("non-UTF-8 module paths are not supported")
+                    );
+                }
+            }
+            let valid = resolve_file_module(&replacement, None).unwrap();
+            assert_eq!(valid.path, replacement);
+            assert_eq!(file_url_to_path(&valid.id).unwrap(), valid.path);
+            assert_eq!(fs::read(&valid.path).unwrap(), b"replacement");
+            assert_eq!(fs::read(dir.path("link.f.js")).unwrap(), b"original");
+        }
+
+        #[test]
+        fn escaped_whitespace_names_remain_literal() {
+            let dir = Scratch::new("url-whitespace");
+            let parent = path_to_file_url(&dir.path("main.f.js"));
+            for (name, encoded, plain) in [
+                ("dep ", "dep%20", "dep"),
+                ("a\tb", "a%09b", "ab"),
+                ("a\nb", "a%0Ab", "ab"),
+                ("a\rb", "a%0Db", "ab"),
+                ("dep\u{1}", "dep%01", "dep"),
+            ] {
+                fs::write(dir.path(name), "literal").unwrap();
+                fs::write(dir.path(plain), "plain").unwrap();
+                let literal = resolve_file_module(&dir.path(name), None).unwrap();
+                let other = resolve_file_module(plain, Some(&parent)).unwrap();
+                assert_ne!(literal.id, other.id);
+                assert_eq!(file_url_to_path(&literal.id).unwrap(), literal.path);
+                assert_eq!(resolve_file_module(encoded, Some(&parent)).unwrap(), literal);
+                let error = resolve_file_module(name, Some(&parent)).unwrap_err();
+                assert_eq!(error.message, "invalid module specifier");
+            }
+            for name in ["a b", "dep\u{a0}"] {
+                fs::write(dir.path(name), "literal").unwrap();
+                let literal = resolve_file_module(&dir.path(name), None).unwrap();
+                assert_eq!(resolve_file_module(name, Some(&parent)).unwrap(), literal);
+            }
         }
 
         #[test]
