@@ -14,7 +14,8 @@ upstream.
 Start from the latest `main`: fetch it on its own, before anything else.
 
 The container has no Nix, so install it yourself: `apt-get install nix-bin`,
-run in single-user mode (`NIX_REMOTE=local`). Everything else comes from the
+run in single-user mode (`NIX_REMOTE=local`), with flakes enabled for the
+`nix` commands below (`export NIX_CONFIG='experimental-features = nix-command flakes'`). Everything else comes from the
 repository's shell, at the versions CI uses: run every later command that is
 not itself `nix` as `./dev.sh <command>` (`./dev.sh tsc`, `./dev.sh npm run gen`
 and so on), and install nothing else by hand
