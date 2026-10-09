@@ -452,8 +452,9 @@ section is its record. What it taught:
 - **A stricter backend can change the language.** One of the eight was the
   parser's statement terminator, and resolving it made `;` required after
   every statement — a change to what DJS accepts, not to any `bnf/` path.
-  The port declared it as its own breaking change, as step 5 requires; the
-  migration's one declaration covered only the deletion.
+  The port declared it as its own breaking change under the policy then in
+  effect; the migration's one declaration covered only the deletion. Notices
+  are now optional before 1.0 and required from 1.0 onward.
 - **The stages were dependencies, not a sequence.** The byte alphabet landed
   for a Git consumer ahead of the text adapter it was planned beside; the
   backend shipped before the terminal module it was to build on; the plan

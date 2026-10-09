@@ -86,7 +86,8 @@ proof. `git/refstore` still imports `utf16`'s `codePointListToString` for
 - [ ] Decide whether `utf8ToString` moves next to `fromVec`; update importers
       if so.
 - [ ] Decide whether `vecToCodePointList` is removed, now that nothing calls
-      it (a declared breaking change).
+      it. Explain the API removal in the PR and update every importer; a
+      breaking notice is optional before 1.0 and required from 1.0 onward.
 - [x] Export the byte-list helpers in both directions, beside `fromVec`:
       the decoder pair (unchecked and code-point-validated
       `bytes → string`) replaces `fjs/text/percent`'s `utf8String` and
