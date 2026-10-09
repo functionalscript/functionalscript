@@ -531,7 +531,7 @@ structural, on the values themselves. `named-imports` and
 system holding the fixture directory. Three fixtures (`effect`, `exports`,
 `named-imports-math`) have `undefined` as their default and test named
 exports, so the comparison of their default is trivial; named exports are not
-compared yet.
+compared (decision 3).
 
 **Where the expectation lives (decision 1, decided: the reference's own
 output).** A generator writes the reference's output into a committed `gen.`
@@ -572,11 +572,30 @@ call contract, and keep their hand-written Rust tests.
    committed?~~ Decided: by the reference, committed and drift-checked.
 2. ~~How a callable export is observed.~~ Decided: the fixture calls it at
    module level; the two harness-call fixtures stay out of the corpus.
-3. Named exports: compare them too (a fixture's functions would need a call
-   to observe, so this waits on nothing the corpus has), or leave them to the
-   fixtures that call at module level?
-4. Is `memo` the interpreter of record for the identity contract, with
-   `amnesia` explicitly out of it?
+3. ~~Named exports: compare them too?~~ Decided: not yet. The corpus
+   compares `default`, the one projection `fjs compile` makes for a data
+   output (`_transpileDefault`), and the Rust harness tests named exports
+   directly (`named_exports`, `exports`). Comparing them would need a second
+   interpreter route and an order-insensitive comparison (a module namespace
+   sorts its keys, the export object keeps declaration order), and most named
+   exports in the fixtures are functions with no value to compare. Revisit at
+   step 2, when the reference's output is a committed file and adding
+   data-valued named exports is cheap. The three fixtures whose default is
+   `undefined` (`effect`, `exports`, `named-imports-math`) stay vacuous in
+   this corpus until then.
+4. ~~Is `memo` the interpreter of record for the identity contract?~~
+   Decided: yes, and `amnesia` is out of the identity contract. `memo`
+   starts each call with a fresh cache and keeps captures by identity, the
+   JavaScript-compatible model of
+   [execution models](../../fjs/edag/execution-models.md) §2; it is the
+   executor the loader, `compile` and module initialization use, and the one
+   the roadmap compiles to Rust; and it agrees with Node on every identity
+   fixture. `amnesia` re-establishes a shared node on every edge by design.
+   Its use as a third opinion on fixtures that observe no identity is left
+   open: it needs a per-fixture marker (like the operator corpus's `host`)
+   and its own source-to-export glue, which is upkeep to pay only if a
+   `memo`-only value bug appears. `memo`'s immutable-cache rewrite still has
+   [open native-parity checks](../../fjs/edag/memo/todo/immutable-cache.md).
 
 ### Open questions
 
