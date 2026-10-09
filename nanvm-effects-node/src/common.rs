@@ -11,10 +11,14 @@ use crate::codec::{encode_number, encode_object, encode_ok, encode_tuple};
 use nanvm_lib::vm::{Any, IVm, ToAny, ToArray};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
-/// A thunk called, as the language's `Result`: `['ok', value]`, or
-/// `['error', what it threw]`.
-fn call<A: IVm>(thunk: Any<A>) -> Any<A> {
-    match thunk.call([].to_array().to_any()) {
+/// A thunk called with no arguments.
+fn call<A: IVm>(thunk: Any<A>) -> Result<Any<A>, Any<A>> {
+    thunk.call([].to_array().to_any())
+}
+
+/// A thunk's outcome as the language's `Result`.
+fn result<A: IVm>(outcome: Result<Any<A>, Any<A>>) -> Any<A> {
+    match outcome {
         Ok(value) => encode_tuple("ok", value),
         Err(thrown) => encode_tuple("error", thrown),
     }
@@ -22,16 +26,18 @@ fn call<A: IVm>(thunk: Any<A>) -> Any<A> {
 
 /// `catch`: what the thunk did, as the answer's `Result`.
 pub fn catch<A: IVm>(thunk: Any<A>) -> Any<A> {
-    encode_ok(call(thunk))
+    encode_ok(result(call(thunk)))
 }
 
 /// `sandbox`: what the thunk did and how long it took, in milliseconds.
 pub fn sandbox<A: IVm>(thunk: Any<A>) -> Any<A> {
+    // The clock brackets the call and nothing else: the outcome is encoded
+    // after it is read, as `sandbox` in `fjs/effects/common/module.mjs` does.
     let before = Instant::now();
-    let result = call(thunk);
+    let outcome = call(thunk);
     let duration = before.elapsed().as_secs_f64() * 1000.0;
     encode_ok(encode_object([
-        Some(("result", result)),
+        Some(("result", result(outcome))),
         Some(("duration", encode_number(duration))),
     ]))
 }
