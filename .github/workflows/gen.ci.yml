@@ -92,7 +92,6 @@
     },
     "macos-intel": {
       "runs-on": "macos-26-intel",
-      "if": "github.event_name == 'merge_group'",
       "timeout-minutes": 15,
       "steps": [
         {
@@ -126,7 +125,6 @@
     },
     "macos-arm": {
       "runs-on": "macos-26",
-      "if": "github.event_name == 'merge_group'",
       "timeout-minutes": 15,
       "steps": [
         {
@@ -160,7 +158,6 @@
     },
     "windows-intel": {
       "runs-on": "windows-2025",
-      "if": "github.event_name == 'merge_group'",
       "timeout-minutes": 15,
       "steps": [
         {
@@ -213,7 +210,6 @@
     },
     "windows-arm": {
       "runs-on": "windows-11-arm",
-      "if": "github.event_name == 'merge_group'",
       "timeout-minutes": 15,
       "steps": [
         {
