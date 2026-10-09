@@ -1250,7 +1250,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
         // A pane shows what `fjs compile` writes: the whole of `compile` over
         // the same file system answers the same text, or the same refusal.
         // And what a pane marks, the tokenizer agrees with, for the languages
-        // it reads; Rust is unmarked until its printer says what it wrote.
+        // it reads; Rust has no oracle, and its markup is proved by its own module.
         panesAreTheFiles: () => {
             for (const [name, source] of examples) {
                 for (const [label, file] of outputs) {

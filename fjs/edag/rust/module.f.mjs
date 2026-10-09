@@ -37,6 +37,25 @@ import { error, mapOk, ok, okList, okThen, unwrap } from '../../types/result/mod
 import { lazyOp2Id } from '../module.f.mjs'
 import { isIndex, maxLength } from '../../types/function/length/module.f.mjs'
 import { tryFunctionText } from '../../compiler/serializer/module.f.mjs'
+import { tagged, untagged } from '../../text/marked/module.f.mjs'
+
+// The printed text is tagged (`tagged` in `fjs/text/marked`): the words,
+// literals and numbers of the Rust it prints say what they are, and the
+// public functions answer the plain text, `untagged`, as they always have.
+// `scopeTagged` and the tagged text of this module's other entry points are
+// what a producer of marked text resolves its runs from.
+
+/** A Rust keyword, as the text spells it. */
+const kw = tagged('keyword')
+
+/** A literal word: `true`, `false`. */
+const lit = tagged('literal')
+
+/** A Rust string literal, with its quotes. */
+const str = tagged('string')
+
+/** A number literal: an `f64`'s bits, an `i64`. */
+const num = tagged('number')
 
 /**
  * Text spelling no `nanvm_lib` name of its own.
@@ -305,7 +324,7 @@ const op3 = lookup(op3Rust)
  */
 const stringCall = name => v => {
     const r = stringLiteral(v)
-    return r[0] === 'ok' ? cat([unstable(name), `(${r[1]})`]) : cat([unstable(`${name}_utf16`), `(${utf16Literal(v)})`])
+    return r[0] === 'ok' ? cat([unstable(name), `(${str(r[1])})`]) : cat([unstable(`${name}_utf16`), `(${utf16Literal(v)})`])
 }
 
 /**
@@ -329,7 +348,7 @@ const argRead = k => cat([`args.clone().into_iter().${k === 0 ? 'next()' : `nth(
  */
 const textExpr = e => {
     const t = tryFunctionText(e)
-    return t[0] === 'ok' ? `Some(${unwrap(stringLiteral(t[1]))})` : 'None'
+    return t[0] === 'ok' ? `Some(${str(unwrap(stringLiteral(t[1])))})` : 'None'
 }
 
 /**
@@ -341,7 +360,7 @@ const textExpr = e => {
  */
 const bigintExpr = v => {
     const r = i64Literal(v)
-    return r[0] === 'ok' ? cat([unstable('bigint_any'), `(${r[1]})`]) : cat([unstable('bigint_any_words'), `(${v < 0n}, ${u64Words(v)})`])
+    return r[0] === 'ok' ? cat([unstable('bigint_any'), `(${num(r[1])})`]) : cat([unstable('bigint_any_words'), `(${lit(`${v < 0n}`)}, ${u64Words(v)})`])
 }
 
 /**
@@ -349,13 +368,13 @@ const bigintExpr = v => {
  *
  * @type {(v: number) => Printed<string>}
  */
-const numberExpr = v => cat([unstable('f64_any'), `(${f64Bits(v)})`])
+const numberExpr = v => cat([unstable('f64_any'), `(${num(f64Bits(v))})`])
 
 /** @type {(v: Primitive) => Result<Printed<string>, readonly unknown[]>} */
 const primitiveExpr = v => {
     if (v === null) { return ok(cat([vm('Nullish'), '::Null', toAny])) }
     switch (typeof v) {
-        case 'boolean': { return ok(cat([`${v}`, toAny])) }
+        case 'boolean': { return ok(cat([lit(`${v}`), toAny])) }
         case 'number': { return ok(numberExpr(v)) }
         case 'string': { return ok(stringCall('string_any')(v)) }
         case 'bigint': { return ok(bigintExpr(v)) }
@@ -497,7 +516,7 @@ const last = e => {
  *
  * @type {(length: number) => Printed<string>}
  */
-const restLine = length => cat([`let rest = args.clone().into_iter()${length === 0 ? '' : `.skip(${length})`}`, toArray, ';'])
+const restLine = length => cat([`${kw('let')} rest = args.clone().into_iter()${length === 0 ? '' : `.skip(${length})`}`, toArray, ';'])
 
 /**
  * The printer for the EDAG under `root`, or the refusal of a shape this
@@ -826,7 +845,7 @@ const printer = nested => shared => root => {
             // operand's text.
             return inline.includes(e)
                 ? map1((/** @type {readonly string[]} */ parts) => {
-                    const before = parts.slice(0, -1).map(s => `let _: Any<A> = ${s}; `).join('')
+                    const before = parts.slice(0, -1).map(s => `${kw('let')} _: Any<A> = ${s}; `).join('')
                     return `{ ${before}${parts[parts.length - 1]} }`
                 })(all(a.map(f)))
                 : f(last(e))
@@ -1091,8 +1110,8 @@ const printer = nested => shared => root => {
      * @type {(n: Exp) => Result<Printed<string>, readonly unknown[]>}
      */
     const letLine = n => isThunk(n)
-        ? map1(s => `let ${nameOf(n)} = ${s};`)(thunk(n))
-        : map1(s => `let ${nameOf(n)}: Any<A> = ${
+        ? map1(s => `${kw('let')} ${nameOf(n)} = ${s};`)(thunk(n))
+        : map1(s => `${kw('let')} ${nameOf(n)}: Any<A> = ${
             !isOperation(n) ? s : isChain(tagOf(n)) || tagOf(n) === '()' || tagOf(n) === '[]' ? `${s}?` : `(${s})?`};`)(node(n))
     /**
      * The `Result` an argument list's thunk answers: the array it builds,
@@ -1149,7 +1168,7 @@ const printer = nested => shared => root => {
  *
  * @type {(shared: readonly (readonly[Exp, string])[]) => (e: Exp) => Result<string, readonly unknown[]>}
  */
-export const expExpr = shared => e => mapOk((/** @type {Printed<string>} */ [text]) => text)(okThen(p => p.f(e))(printer(true)(shared)(e)))
+export const expExpr = shared => e => mapOk((/** @type {Printed<string>} */ [text]) => untagged(text))(okThen(p => p.f(e))(printer(true)(shared)(e)))
 
 /**
  * `true` for the operands of `() => undefined`: no slots and the
@@ -1451,7 +1470,7 @@ const blockOf = shared => root => okThen(p => p.block(root))(printer(false)(shar
  *
  * @type {(shared: readonly (readonly[Exp, string])[]) => (root: Exp) => Result<readonly string[], readonly unknown[]>}
  */
-export const statementsOf = shared => root => mapOk((/** @type {Printed<readonly string[]>} */ [s]) => s)(blockOf(shared)(root))
+export const statementsOf = shared => root => mapOk((/** @type {Printed<readonly string[]>} */ [s]) => s.map(untagged))(blockOf(shared)(root))
 
 /**
  * The statements of a scope's block — a compiled module's body, or a
@@ -1513,7 +1532,16 @@ const namesIn = uses => module => [...new Set(uses.flatMap(([m, n]) => m === mod
  *
  * @type {(root: Exp) => Result<Scope, readonly unknown[]>}
  */
-export const scope = root => mapOk((/** @type {Printed<readonly string[]>} */ [s, uses]) =>
+export const scope = root => mapOk(
+    (/** @type {Scope} */ { lines, uses }) => ({ lines: lines.map(untagged), uses }))(scopeTagged(root))
+
+/**
+ * {@link scope} with its lines tagged, the text a producer of marked text
+ * resolves its runs from (`fromTagged` in `fjs/text/marked`).
+ *
+ * @type {(root: Exp) => Result<Scope, readonly unknown[]>}
+ */
+export const scopeTagged = root => mapOk((/** @type {Printed<readonly string[]>} */ [s, uses]) =>
     ({ lines: lines(s), uses: { vm: namesIn(uses)('vm'), unstable: namesIn(uses)('unstable') } }))(statements(root))
 
 /**
@@ -1525,7 +1553,14 @@ export const scope = root => mapOk((/** @type {Printed<readonly string[]>} */ [s
  *
  * @type {(uses: Uses, bound: string) => readonly string[]}
  */
-export const useLines = ({ vm, unstable }, bound) => [
+export const useLines = (uses, bound) => useLinesTagged(uses, bound).map(untagged)
+
+/**
+ * {@link useLines} with the `use` of each tagged as a keyword.
+ *
+ * @type {(uses: Uses, bound: string) => readonly string[]}
+ */
+export const useLinesTagged = ({ vm, unstable }, bound) => [
     ...(unstable.length === 0 ? [] : useLine('nanvm_lib::vm::unstable', unstable)),
     ...useLine('nanvm_lib::vm', [...new Set(['Any', bound, ...vm])].toSorted()),
 ]
@@ -1545,9 +1580,9 @@ const maxWidth = 100
  * @type {(path: string, names: readonly string[]) => readonly string[]}
  */
 const useLine = (path, names) => {
-    if (names.length === 1) { return [`use ${path}::${names[0]};`] }
+    if (names.length === 1) { return [`${kw('use')} ${path}::${names[0]};`] }
     const line = `use ${path}::{${names.join(', ')}};`
-    return line.length <= maxWidth ? [line] : [`use ${path}::{`, ...names.reduce(filled, []), '};']
+    return line.length <= maxWidth ? [`${kw('use')}${line.slice(3)}`] : [`${kw('use')} ${path}::{`, ...names.reduce(filled, []), '};']
 }
 
 /**

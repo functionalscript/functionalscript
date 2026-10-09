@@ -25,12 +25,12 @@
 import { _transpileDefault } from './transpiler/module.f.mjs'
 import { errorLocation } from './parser/module.f.mjs'
 import { resolve } from './edag/module.f.mjs'
-import { toRust } from './rust/module.f.mjs'
+import { toRustMarked } from './rust/module.f.mjs'
 import { _numberSerialize, tryJsonMarked, tryMarked } from '../media/datajs/serializer/module.f.mjs'
 import { tryMarked as fjsMarked, tryModuleMarked } from './serializer/module.f.mjs'
 import { arrayWrap, boolSerialize, colon, nullSerialize, objectWrap, stringSerialize } from '../media/json/serializer/module.f.mjs'
 import { flat, map } from '../types/list/module.f.mjs'
-import { error, mapOk, ok, okThen } from '../types/result/module.f.mjs'
+import { error, ok, okThen } from '../types/result/module.f.mjs'
 import { concat } from '../types/string/module.f.mjs'
 import { serialize as bigintSerialize } from '../types/bigint/module.f.mjs'
 import { sort } from '../types/object/module.f.mjs'
@@ -38,7 +38,7 @@ import { errorMessage, foldStep, ioError, mapStep, pureError, pureOk, resultMapS
 import { error as errorLine, errorExit, exitStep, log, mkdir, writeUtf8File } from '../effects/node/module.f.mjs'
 import { concat as pathConcat } from '../path/module.f.mjs'
 import { allFiles, sourceRoot } from '../dev/module.f.mjs'
-import { chunksText, toText, unmarked } from '../text/marked/module.f.mjs'
+import { chunksText, toText } from '../text/marked/module.f.mjs'
 
 const { entries } = Object
 
@@ -112,7 +112,7 @@ const edagText = path => mapStep(resolve(path), tryMarked)
  *
  * @type {(path: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, string>, ParseError>}
  */
-const rustText = path => mapStep(resolve(path), graph => mapOk(unmarked)(toRust(graph)))
+const rustText = path => mapStep(resolve(path), toRustMarked)
 
 /**
  * The program at `path` as the text of the FunctionalScript module it is:
