@@ -1,6 +1,6 @@
 use crate::vm::{
     Array, BigInt, Function, IVm, Number, Object, String, ToAny, any::Any, dispatch::Dispatch,
-    ecma_whitespace::is_ecma_whitespace, nullish::Nullish, primitive::Primitive,
+    ecma_whitespace::is_ecma_whitespace, error, nullish::Nullish, primitive::Primitive,
     primitive_coercion::ToPrimitivePreferredType,
 };
 
@@ -54,7 +54,7 @@ impl<A: IVm> Dispatch<A> for NumberCoercion {
     }
 
     fn bigint(self, _: BigInt<A>) -> Self::Result {
-        Err("TypeError: Cannot convert a BigInt value to a number".into())
+        Err(error::bigint_to_number())
     }
 
     fn object(self, v: Object<A>) -> Self::Result {
@@ -67,7 +67,7 @@ impl<A: IVm> Dispatch<A> for NumberCoercion {
 
     fn function(self, _: Function<A>) -> Self::Result {
         // `ToPrimitive` of a function is its text, which is not implemented
-        // (`FUNCTION_TEXT`). No text converts to a number — it starts with
+        // (`error::function_text`). No text converts to a number — it starts with
         // `(`, `function`, `async` or a name — so the answer is `NaN`
         // without it.
         Ok(Number::NAN)

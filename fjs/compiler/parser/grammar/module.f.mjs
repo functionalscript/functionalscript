@@ -133,6 +133,7 @@ import { encoding } from '../../../ebnf/token_symbol/module.f.mjs'
 import { literalWords } from '../../../js/keywords/module.f.mjs'
 import { _djsTokenKinds } from '../../tokenizer/module.f.mjs'
 import { definedEntries } from '../../../types/object/module.f.mjs'
+import { eagerLayers, lazyLayers } from '../../ast/module.f.mjs'
 
 const { fromEntries } = Object
 
@@ -391,84 +392,20 @@ const primitiveValue = /** @type {const} */ ([primitive, accesses])
 /** A reference, then its accesses. */
 const reference = /** @type {const} */ ([identifier, accesses])
 
-/** `*`, `/`, `%` — the binary layer directly above {@link unary}. */
-const multiplicativeTags = /** @type {const} */ ({ mul: '*', div: '/', mod: '%' })
-
-/**
- * `+`, `-` — above {@link multiplicativeTags}. The `-` here is subtraction,
- * distinct from the `neg` prefix {@link unary} already owns: the two share
- * a token and nothing else, one an operator of two operands and the other
- * of one, told apart by which branch of the grammar reads them.
- */
-const additiveTags = /** @type {const} */ ({ add: '+', sub: '-' })
-
-/** `<<`, `>>`, `>>>` — above {@link additiveTags}. */
-const shiftTags = /** @type {const} */ ({ left: '<<', right: '>>', unsigned: '>>>' })
-
-/**
- * `<`, `<=`, `>`, `>=` and `instanceof` — above {@link shiftTags}.
- * `instanceof` is JavaScript's relational operator, one level with the
- * four, left-associative as they are: its right operand is read as `<`'s
- * is, and which values may stand there — a reference to `Array` — is the
- * fold's to say, `../module.f.mjs`.
- */
-const relationalTags = /** @type {const} */ ({ lt: '<', le: '<=', gt: '>', ge: '>=', instanceof: 'instanceof' })
-
-/** `===`, `!==` — above {@link relationalTags}; `==`/`!=` are not this language's, per `spec/todo/2340-operators.md`. */
-const equalityTags = /** @type {const} */ ({ eq: '===', ne: '!==' })
-
-/** `&` — above {@link equalityTags}. */
-const bitwiseAndTags = /** @type {const} */ ({ and: '&' })
-
-/** `^` — above {@link bitwiseAndTags}. */
-const bitwiseXorTags = /** @type {const} */ ({ xor: '^' })
-
-/** `|` — above {@link bitwiseXorTags}, the eager ladder's own top. */
-const bitwiseOrTags = /** @type {const} */ ({ or: '|' })
-
-/**
- * `&&`, `||`, `??` — the short-circuit level above {@link bitwiseOrTags},
- * Stage B of
- * [`spec/todo/2340-operators.md`](../../../../spec/todo/2340-operators.md).
- * Each is a tagged choice of one branch, as every layer's operator is,
- * because the reader in `../syntax/module.f.mjs` looks a round's operator up by
- * that tag; three choices rather than one of three branches, since which
- * of them opens a chain decides what may follow it — see
- * {@link circuitTail}.
- */
-const logicalAndTags = /** @type {const} */ ({ logicalAnd: '&&' })
-
-/** `||` — beside {@link logicalAndTags}, and above it in precedence. */
-const logicalOrTags = /** @type {const} */ ({ logicalOr: '||' })
-
-/** `??` — beside {@link logicalAndTags} and {@link logicalOrTags}, and mixing with neither. */
-const nullishTags = /** @type {const} */ ({ nullish: '??' })
-
 /**
  * Every binary layer's rounds keyed by a name none of the other layers
  * use, read back to the operator's tag — which is also the token the round
  * opens with, so {@link opOf} makes each layer's grammar from its own
- * record, and this one merged map serves `../syntax/module.f.mjs` a round
- * from any layer with a plain lookup. `**` is not here: it is
- * {@link powTail}'s, no layer's round. The lookup is by a name read at
- * run time, so it is typed as one that may miss, and the reader refuses a
- * name that does rather than build a node without a tag.
+ * record of `eagerLayers` or `lazyLayers` in `../../ast/module.f.mjs`, and
+ * this one merged map serves `../syntax/module.f.mjs` a round from any
+ * layer with a plain lookup. `**` is not here: it is {@link powTail}'s, no
+ * layer's round. The lookup is by a name read at run time, so it is typed
+ * as one that may miss, and the reader refuses a name that does rather
+ * than build a node without a tag.
  *
  * @type {StringMap<Exclude<InfixTag, '**'>>}
  */
-export const binaryOpTag = {
-    ...multiplicativeTags,
-    ...additiveTags,
-    ...shiftTags,
-    ...relationalTags,
-    ...equalityTags,
-    ...bitwiseAndTags,
-    ...bitwiseXorTags,
-    ...bitwiseOrTags,
-    ...logicalAndTags,
-    ...logicalOrTags,
-    ...nullishTags,
-}
+export const binaryOpTag = fromEntries([...eagerLayers, ...lazyLayers].flatMap(definedEntries))
 
 /**
  * One layer's operator: a choice of one branch per operator, keyed by its
@@ -478,18 +415,17 @@ export const binaryOpTag = {
  */
 const opOf = tags => fromEntries(definedEntries(tags).map(([name, tag]) => [name, sym(tag)]))
 
-// Each layer's operator, its record's names over its record's tokens.
-const multiplicativeOp = opOf(multiplicativeTags)
-const additiveOp = opOf(additiveTags)
-const shiftOp = opOf(shiftTags)
-const relationalOp = opOf(relationalTags)
-const equalityOp = opOf(equalityTags)
-const bitwiseAndOp = opOf(bitwiseAndTags)
-const bitwiseXorOp = opOf(bitwiseXorTags)
-const bitwiseOrOp = opOf(bitwiseOrTags)
-const logicalAndOp = opOf(logicalAndTags)
-const logicalOrOp = opOf(logicalOrTags)
-const nullishOp = opOf(nullishTags)
+/**
+ * The short-circuit operators, Stage B of
+ * [`spec/todo/2340-operators.md`](../../../../spec/todo/2340-operators.md),
+ * each a choice of its own rather than one of three branches, since which
+ * of them opens a chain decides what may follow it — see
+ * {@link circuitTail}.
+ */
+const [{ logicalAnd }, { logicalOr, nullish }] = lazyLayers
+const logicalAndOp = opOf({ logicalAnd })
+const logicalOrOp = opOf({ logicalOr })
+const nullishOp = opOf({ nullish })
 
 /**
  * A function's parameter list where it begins with no value: the one rest
@@ -624,62 +560,41 @@ export const unaryOperand = () => ['const', {
 }]
 
 /**
- * `*`, `/`, `%` — the binary layer directly above {@link unary}: zero or
- * more `(op, operand)` pairs, the operand always {@link unary}, never
- * {@link value}/{@link body} themselves — see {@link unary}'s own comment
- * for why. Threaded inline as a suffix on every branch of `value`/`body`
- * that may be followed by one, rather than wrapping a shared primary as a
- * unit, which is what let {@link func}'s body leak a wide follow set in
- * the first place.
- */
-const multiplicativeTail = repeatFrom0([multiplicativeOp, unary])
-
-/**
- * `+`, `-` — above {@link multiplicativeTail}. Each repeated operand is a
- * {@link unary} followed by its own {@link multiplicativeTail}, so `1 + 2
- * * 3` nests as `1 + (2 * 3)` rather than `(1 + 2) * 3`.
- */
-const additiveTail = repeatFrom0([additiveOp, unary, multiplicativeTail])
-
-/** `<<`, `>>`, `>>>` — above {@link additiveTail}. */
-const shiftTail = repeatFrom0([shiftOp, unary, multiplicativeTail, additiveTail])
-
-/** `<`, `<=`, `>`, `>=` — above {@link shiftTail}. */
-const relationalTail = repeatFrom0([relationalOp, unary, multiplicativeTail, additiveTail, shiftTail])
-
-/** `===`, `!==` — above {@link relationalTail}; `==`/`!=` are not this language's, per `spec/todo/2340-operators.md`. */
-const equalityTail = repeatFrom0([equalityOp, unary, multiplicativeTail, additiveTail, shiftTail, relationalTail])
-
-/** `&` — above {@link equalityTail}. */
-const bitwiseAndTail = repeatFrom0([bitwiseAndOp, unary, multiplicativeTail, additiveTail, shiftTail, relationalTail, equalityTail])
-
-/** `^` — above {@link bitwiseAndTail}. */
-const bitwiseXorTail = repeatFrom0([bitwiseXorOp, unary, multiplicativeTail, additiveTail, shiftTail, relationalTail, equalityTail, bitwiseAndTail])
-
-/** `|` — above {@link bitwiseXorTail}, the eager ladder's own top. */
-const bitwiseOrTail = repeatFrom0([bitwiseOrOp, unary, multiplicativeTail, additiveTail, shiftTail, relationalTail, equalityTail, bitwiseAndTail, bitwiseXorTail])
-
-/**
- * The eager binary-operator suffix, {@link multiplicativeTail} through
- * {@link bitwiseOrTail}: every layer whose operands are all established,
- * and so the first part of {@link tail}, and every lazy operator's own
- * operand — `unary` followed by these eight lists, which is what a
- * `bitwiseOr`-level expression is.
+ * The eager binary-operator suffix, one layer per record of `eagerLayers`
+ * in `../../ast/module.f.mjs`, tightest first, `|` the ladder's own top:
+ * every layer whose operands are all established, and so the first part
+ * of {@link tail}, and every lazy operator's own operand — `unary`
+ * followed by these lists, which is what a `bitwiseOr`-level expression
+ * is. `instanceof`'s right operand is read as `<`'s is; which values may
+ * stand there — a reference to `Array` — is the fold's to say,
+ * `../module.f.mjs`.
+ *
+ * Each layer is zero or more `(op, operand)` rounds, the operand {@link
+ * unary} followed by every layer below it, so `1 + 2 * 3` nests as
+ * `1 + (2 * 3)` rather than `(1 + 2) * 3`. The operand is always
+ * {@link unary}, never {@link value}/{@link body} themselves — see
+ * {@link unary}'s own comment for why. Threaded inline as a suffix on
+ * every branch of `value`/`body` that may be followed by one, rather than
+ * wrapping a shared primary as a unit, which is what let {@link func}'s
+ * body leak a wide follow set in the first place.
  *
  * Exported for the reader in `../syntax/module.f.mjs`, which splits a value's
  * whole {@link tail} at this list's length: the eager layers are one shape,
  * a repeat of rounds each, and the two positions after them another.
+ * The fold's list is cast to the tuple type, whose length `./types.ts`
+ * pins to the table's.
  *
  * @type {EagerTail}
  */
-export const eagerTail = [
-    multiplicativeTail, additiveTail, shiftTail, relationalTail,
-    equalityTail, bitwiseAndTail, bitwiseXorTail, bitwiseOrTail,
-]
+export const eagerTail = /** @type {EagerTail} */ (eagerLayers.reduce(
+    /** @type {(below: readonly Rule[], tags: StringMap<Exclude<InfixTag, '**'>>) => readonly Rule[]} */
+    ((below, tags) => [...below, repeatFrom0([opOf(tags), unary, ...below])]),
+    [],
+))
 
 /**
  * One round of the `&&` layer: `&& unary <every eager tail>`, the same
- * shape as {@link bitwiseOrTail}'s round one layer up, so `a && b | c` is
+ * shape as the top eager layer's round one layer up, so `a && b | c` is
  * `a && (b | c)`.
  */
 const logicalAndRound = /** @type {const} */ ([logicalAndOp, unary, ...eagerTail])

@@ -21,6 +21,11 @@ export const proof = {
         assertStructurallySame(invalid, ['error', { message: 'not UTF-8 text', metadata: null, path: 'bad.f.js' }])
         const [, missing] = virtual(emptyState)(_parseModule('missing'))
         assertStructurallySame(missing, ['error', { message: 'file not found', metadata: null, path: 'missing' }])
+        // Any other failure keeps the host's words: the file may be there.
+        const [, directory] = virtual({ ...emptyState, root: { dir: {} } })(_parseModule('dir'))
+        assertStructurallySame(directory, ['error', { message: 'dir is not a regular file', metadata: null, path: 'dir' }])
+        const [, unsupported] = partialRun(nodeCommands)({})(null)(_parseModule('main.f.js'))
+        assertStructurallySame(unsupported, ['error', { message: 'operation not implemented: readWhole', metadata: null, path: 'main.f.js' }])
     },
     json: () => {
         const run = virtual({ ...emptyState, root: { 'data.json': [utf8('{"x":[1]}')], 'bad.json': [utf8('[')] } })

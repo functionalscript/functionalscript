@@ -4,9 +4,10 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
+import { toArray } from '../../types/list/module.f.mjs'
 import { toHex } from '../oid/module.f.mjs'
 import { latin1 } from '../testlib.f.mjs'
-import { tryLoose, tryPacked, tryPackedWithout, tryRef } from './module.f.mjs'
+import { tryLoose, tryPacked, tryPackedWithout, tryRef, writeLoose } from './module.f.mjs'
 
 const loose = tryLoose(20)
 
@@ -77,6 +78,20 @@ export const proof = {
         assertEq(loose(latin1(`${wide}\n`)), null)
         assertEq(loose32(latin1(`${a}\n`)), null)
         assert(loose32(latin1(`${wide}\n`)) !== null)
+    },
+    // What `git update-ref` writes for a loose ref, byte for byte: the id in
+    // small letters and an LF, so an id read from upper-case hex is written in
+    // Git's case. Read back at the same width, it is the same id.
+    writeLoose: () => {
+        for (const [w, hex] of /** @type {const} */ ([[20, a], [32, wide]])) {
+            const id = tryLoose(w)(latin1(hex.toUpperCase()))
+            assert(id !== null, hex)
+            const bytes = writeLoose(w)(id)
+            assertEq(codePointListToString(toArray(bytes)), `${hex}\n`)
+            const back = tryLoose(w)(bytes)
+            assert(back !== null, hex)
+            assertEq(codePointListToString(toHex(back)), hex)
+        }
     },
     // A symbolic ref. Measured with `git symbolic-ref HEAD` after writing
     // each into `.git/HEAD`: the whitespace after the keyword is free, the
@@ -413,5 +428,12 @@ export const proof = {
         looseNotBytes: () => loose([256]),
         refNotBytes: () => ref([256]),
         packedNotBytes: () => packed(new Array(1)),
+        // An id of another width is a caller's bug: its own reader would call
+        // the file broken.
+        writeLooseWidth: () => {
+            const id = loose32(latin1(wide))
+            assert(id !== null)
+            writeLoose(20)(id)
+        },
     },
 }

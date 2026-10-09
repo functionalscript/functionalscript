@@ -39,11 +39,12 @@
  * @import { Nullable } from '../nullable/types.ts'
  * @import { Equal } from '../function/operator/types.ts'
  * @import { Range } from '../range/types.ts'
- * @import { Properties, RangeEntry, RangeMapArray, RangeMapOp, RangeMerge } from './types.ts'
+ * @import { List } from '../list/types.ts'
+ * @import { Properties, RangeEntry, RangeMap, RangeMapArray, RangeMapOp, RangeMerge } from './types.ts'
  */
 
 import { genericMerge } from '../sorted_list/module.f.mjs'
-import { next } from '../list/module.f.mjs'
+import { next, map } from '../list/module.f.mjs'
 import { cmp } from '../number/module.f.mjs'
 import { bsearch } from '../function/compare/module.f.mjs'
 
@@ -110,6 +111,36 @@ export const fromRange =
         v =>
             /** @param {Range} r */
             ([a, b]) => /** @type {RangeMapArray<T>} */([[def, a - 1], [v, b]])
+
+/**
+ * Maps the value of a range entry, keeping the upper bound of its range.
+ */
+export const mapValue =
+    /**
+     * @template A, B
+     * @param {(value: A) => B} f
+     * @returns {(entry: RangeEntry<A>) => RangeEntry<B>}
+     */
+    f => ([value, max]) => [f(value), max]
+
+const value =
+    /**
+     * @template T
+     * @param {RangeEntry<T>} entry
+     * @returns {T}
+     */
+    ([v]) => v
+
+/**
+ * The values of a range map, in order, without the bounds of their ranges.
+ */
+export const values =
+    /**
+     * @template T
+     * @param {RangeMap<T>} rm
+     * @returns {List<T>}
+     */
+    rm => map(value)(rm)
 
 /**
  * Creates a set of operations for managing range maps using the specified properties.

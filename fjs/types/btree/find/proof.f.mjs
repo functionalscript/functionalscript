@@ -6,16 +6,9 @@
 
 import { find as btreeFind } from './module.f.mjs'
 import { map, toArray } from '../../list/module.f.mjs'
-import { stringify } from '../../../media/json/module.f.mjs'
-import { sort } from '../../object/module.f.mjs'
 import { cmp } from '../../string/module.f.mjs'
-import { set as setSet } from '../set/module.f.mjs'
 import { assertEq } from '../../../asserts/module.f.mjs'
-
-const jsonStr = stringify(sort)
-
-/** @type {(node: TNode<string>) => (value: string) => TNode<string>} */
-const set = node => value => setSet(cmp(value))(() => value)(node)
+import { jsonStr, squares } from '../testlib.f.mjs'
 
 /** @type {(r: Result<Unknown>) => string} */
 const str = r => jsonStr(toArray(map((/** @type {any} */ x) => x[0])(r)))
@@ -24,16 +17,9 @@ const str = r => jsonStr(toArray(map((/** @type {any} */ x) => x[0])(r)))
 const find = i => m => str(btreeFind(cmp(i))(m))
 
 const test = () => {
-    /** @type {TNode<string>} */
-    let _map = ['1']
-    for (let i = 2; i <= 10; i++) {
-        _map = set(_map)((i * i).toString())
-    }
-    {
-        const s = jsonStr(_map)
-        assertEq(s, '[[["1","100"],"16",["25","36"]],"4",[["49"],"64",["81","9"]]]')
-    }
-    //
+    // Its shape is pinned by `set`'s proof; this one pins where each key,
+    // present or not, is found in it.
+    const _map = squares(10)
     {
         const r = find("0")(_map)
         assertEq(r, '[0,0,0]')

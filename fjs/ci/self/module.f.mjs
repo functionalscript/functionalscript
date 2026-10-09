@@ -36,16 +36,13 @@ export const packageConsumer = {
 
 /**
  * The workflows and flakes this repository commits: no extra platform steps,
- * its own module as the packed package's consumer, and the macOS and Windows
- * jobs in the merge queue only. Those are the slowest runners, and macOS the
- * scarcest, while a pull request rarely breaks one of them with both Linux
- * jobs passing, so it pays for them once, when it is queued, rather than on
- * every push.
+ * and its own module as the packed package's consumer. Every platform runs on
+ * every pull request: a macOS or Windows failure found only in the merge queue
+ * is found after review, by the queue's eviction.
  *
  * @type {() => Effect<NodeOp, 0, number>}
  */
 export const main = () => ci({
     nodeExtra: () => [],
     packageConsumer,
-    mergeQueueOnly: ['macos', 'windows'],
 })

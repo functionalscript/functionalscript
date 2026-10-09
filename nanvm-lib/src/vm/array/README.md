@@ -68,8 +68,9 @@ order. Whether the language should do more is
 
 ## Shared pieces
 
-- [`relative.rs`](relative.rs): a relative position, `ToIntegerOrInfinity`
-  counted from the end, and its clamp into the array.
+- [`../position.rs`](../position.rs): a position argument, shared with
+  strings — `ToIntegerOrInfinity` counted from the end, its clamp into the
+  array, its range check, and the range `slice` reads.
 - [`callback.rs`](callback.rs): the callback checked before any element is
   visited, `visit` with the element, index and array, `position` for the
   searches, `fold` for the reductions.

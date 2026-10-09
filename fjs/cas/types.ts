@@ -6,7 +6,7 @@
 
 import type { Vec } from '../types/bit_vec/types.ts'
 import type { Effect, Operation } from '../effects/types.ts'
-import type { List } from '../effects/list/types.ts'
+import type { EffectList } from '../effects/list/types.ts'
 import type { Access, CreateExclusive, IoChannel, Mkdir, Now, RandomInt, ReadBytes, Readdir, Rename, Rm, Stat, WriteBytes } from '../effects/node/types.ts'
 
 /**
@@ -31,12 +31,12 @@ export type Cas<O extends Operation> = {
      * between an `error` cell and an `ok(undefined)` one, which nothing can
      * confuse.
      */
-    readonly read: (hash: Vec) => List<O, Vec, IoChannel>
+    readonly read: (hash: Vec) => EffectList<O, Vec, IoChannel>
     /**
      * Consumes a chunk stream, hashing incrementally, and returns the content
      * address. A stream that fails aborts the upload with that failure.
      */
-    readonly write: <O1 extends Operation>(payload: List<O1, Vec, IoChannel>) => Effect<O | O1, Vec, IoChannel>
+    readonly write: <O1 extends Operation>(payload: EffectList<O1, Vec, IoChannel>) => Effect<O | O1, Vec, IoChannel>
     /**
      * Lists all stored content hashes.
      *

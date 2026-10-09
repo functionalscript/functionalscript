@@ -65,5 +65,5 @@ delegate. No behavior change, so existing tests pin the refactor.
 - [`ShiftAmount`](../src/vm/bigint/mod.rs) — `shl`/`shr` share only the
   shift-amount decode, not the carry loops; the ripple helpers here pick
   up `shr.rs`'s `increment`.
-- [bigint-normalized-check-reuse](./bigint-normalized-check-reuse.md) —
-  the assertion side of normalization; this issue is the operational side.
+- `assert_slice_normalized` in [`src/vm/bigint/mod.rs`](../src/vm/bigint/mod.rs)
+  — the assertion side of normalization; this issue is the operational side.

@@ -456,7 +456,7 @@ goes to one of:
   type is inlined into the annotation instead;
 - an optional sibling `private.ts` for implementation-private types outside the
   public closure, when separating them reads cleaner than inlining (e.g.
-  `fjs/common/monoid/private.ts`, `fjs/rtti/data/private.ts`); do not create it
+  `fjs/rtti/data/private.ts`); do not create it
   mechanically for every `_` name;
 - nowhere: a short type used once or twice is simply inlined.
 
@@ -1252,7 +1252,7 @@ and a `step` that ignored it would run the next link after a failed one.
 `resultStep` **is** that former raw `step`, at the type that says what its
 continuation receives — and with the collision gone, so is the subdirectory.
 
-Nothing "genuinely cannot fail". A `List` cell and a `Program`'s exit code were
+Nothing "genuinely cannot fail". An `EffectList` cell and a `Program`'s exit code were
 once listed here as such; both carry channels now, and so does every **absorb
 point** — a module that converts a channel into its own vocabulary, such as an
 MCP handler whose protocol *is* its error channel, says `Effect<O, T, never>`.

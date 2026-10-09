@@ -1,8 +1,10 @@
 ## Member functions of the built-in types
 
 **Priority:** P2
-**Status:** open — `toString` dispatch and `Array`'s `at` are wired; default
-function-text semantics remain incomplete, as tracked in the checklist below
+**Status:** open — every call [`fjs/js/prototype`](../../fjs/js/prototype/module.f.js)
+allows is answered (`vm/lambda/gen.methods.rs` has no pending pair); the
+corpus cases for each entry and the property-key conversion of a function
+remain, as the two unchecked boxes below
 
 ### Problem
 
@@ -10,14 +12,14 @@ The compiler admits a method call whose name is a built-in member function,
 `[1, 2].at(0)` or `n.toFixed(2)`: the names `allowedCalls` in
 [`fjs/js/prototype`](../../fjs/js/prototype/module.f.js) lists, one row
 each with its reason in [its README](../../fjs/js/prototype/README.md).
-The VM answers `toString` and nothing else. A call step —
+When this was filed the VM answered `toString` and nothing else. A call step —
 `PropertyLambda::end_call`, `OptionPropertyLambda::call`, `option_call` and
 `end_call` in [`vm/lambda`](../src/vm/lambda/mod.rs) — resolves an own
 property or element, then the receiver type's built-in from the table in
 `vm/lambda/method.rs`, then throws the `TypeError` for calling `undefined`;
-every built-in but `toString` is missing from that table, so `[1, 2].at(0)`
-throws where JavaScript answers `1`. A compiled module that calls one is
-wrong on this VM until its entry lands, which is the divergence the
+every built-in but `toString` was missing from that table, so `[1, 2].at(0)`
+threw where JavaScript answers `1`. A compiled module that called one was
+wrong on this VM until its entry landed, which is the divergence the
 two-list design exists to prevent: the compiler's list is the set of names
 the VM must answer.
 
@@ -83,7 +85,7 @@ its text, the FunctionalScript writer's rendering of its EDAG
 `IStaticFunction::static_function` by the Rust printer; `ToPrimitive` of a
 function answers it, so `f.toString()`, `String(f)`, `+`, an array joined
 and a string method's argument all reach the one text. A function without
-text — a host or hand-written one — is refused (`FUNCTION_TEXT`), never
+text — a host or hand-written one — is refused (`error::function_text`), never
 answered with a placeholder. What remains is the property key, which no
 module can compute but through the
 [`entry`](../../spec/README.md#reading-an-entry-at-run-time) helper, whose

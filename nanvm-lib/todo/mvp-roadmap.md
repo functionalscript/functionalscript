@@ -274,7 +274,9 @@ tracked in [fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md#tasks).
       capturing closure is its Stage 3, landed; self-reference is Stage 5.
 - [x] **`nanvm-effects-node` crate** (Rust) — a synchronous loop over existing
       VM values, with no generated operations trait or parallel type system.
-      Landed as [nanvm-effects-node](../../nanvm-effects-node/).
+      Landed as [nanvm-effects-node](../../nanvm-effects-node/), with the
+      console and the file operations native; the rest of the set is tracked
+      in the operations TODO below.
       Required for the self-hosted CLI together with
       [native Node effects](../../todo/nanvm-effects-node-operations.md);
       language logic stays in FJS.

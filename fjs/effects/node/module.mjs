@@ -28,6 +28,7 @@ import childProcess from 'node:child_process'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
+import { relative, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import process from 'node:process'
 import zlib from 'node:zlib'
@@ -36,11 +37,11 @@ import * as testContext from 'node:test'
 
 import { concat, normalize, toPosix } from '../../path/module.f.mjs'
 import { decode as decodeImportPath } from '../../path/import/module.f.mjs'
-import { asyncRun } from '../module.mjs'
+import { _describeThrown, asyncRun } from '../module.mjs'
 import { memoryOperationMap } from './memory/module.mjs'
 import { commonOperationMap } from '../common/module.mjs'
 import {
-    emptyHost, emptyHostCode, emptyHostMessage, exitCode, inflateTrailingCode, inflateTrailingMessage,
+    emptyHost, emptyHostCode, emptyHostMessage, exitCode, fileSizeRefusal, inflateTrailingCode, inflateTrailingMessage,
     notAFileCode, notAFileMessage, refusalMessage, refusedStatus, requestBody, requestBodyOffsetMessage,
     responseGate, runnerResponse, toIoError, usesInlineTestContext, windowRefusal,
 } from './module.f.mjs'
@@ -50,6 +51,7 @@ import { error, ok, unwrap } from '../../types/result/module.f.mjs'
 import { asyncTryCatch, tryCatch } from '../../types/result/module.mjs'
 import { fromVec, toVec } from '../../types/uint8array/module.f.mjs'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
+import { _orderDirents } from './virtual/readdir/module.f.mjs'
 
 /**
  * Narrowed structural view of `node:http`'s `createServer`. The official types
@@ -73,7 +75,7 @@ const createServer = http.createServer
  */
 const io = async f => {
     const r = await asyncTryCatch(f)
-    return r[0] === 'ok' ? r : error(toIoError(r[1]))
+    return r[0] === 'ok' ? r : error(_describeThrown(r[1]))
 }
 
 /**
@@ -83,9 +85,9 @@ const io = async f => {
  * **Nothing accumulates here, and that is the change.** This used to be
  * `collectBounded`, which read the whole body into an array before the listener
  * was called and gave up at the `Vec` cap, because `IncomingMessage.body` was
- * one `Vec` and there was no larger request value to build. A `List` body means
- * the listener pulls, so the runner's own cost per request is one chunk rather
- * than the body — and there is no cap left to refuse at.
+ * one `Vec` and there was no larger request value to build. An `EffectList`
+ * body means the listener pulls, so the runner's own cost per request is one
+ * chunk rather than the body — and there is no cap left to refuse at.
  *
  * **The position is `let`, and a closure is where it can be.** The offset a
  * pull names is checked against it rather than sought to, because a socket has
@@ -104,15 +106,15 @@ const io = async f => {
  * pull before it, and the second then meets the position the first left.
  *
  * **What the loser gets is the offset refusal, not a refusal of its own.** A
- * cell has one consumer — a `List` gives a consumer no way to tell a producer
- * it has stopped ([`../list/types.ts`](../list/types.ts)) — so the second pull
- * is refused either way, and the only question is in whose words. The virtual
- * runner folds `all` over its state, so it already answers a concurrent re-pull
- * with `requestBodyOffsetMessage`. A busy flag — "a read is in flight",
- * answered at once — would need a second message that only this runner could
- * ever produce, and no proof against the virtual runner could meet it. Queueing
- * costs nothing to wait for, either: the listener is awaiting both pulls, so
- * the refusal arrives with the chunk that caused it.
+ * cell has one consumer — an `EffectList` gives a consumer no way to tell a
+ * producer it has stopped ([`../list/types.ts`](../list/types.ts)) — so the
+ * second pull is refused either way, and the only question is in whose words.
+ * The virtual runner folds `all` over its state, so it already answers a
+ * concurrent re-pull with `requestBodyOffsetMessage`. A busy flag — "a read is
+ * in flight", answered at once — would need a second message that only this
+ * runner could ever produce, and no proof against the virtual runner could meet
+ * it. Queueing costs nothing to wait for, either: the listener is awaiting both
+ * pulls, so the refusal arrives with the chunk that caused it.
  *
  * The queue links on *settlement*, not on success, so a refused pull refuses
  * nothing after it — the refusal belongs to the pull that lost, and the winner's
@@ -539,13 +541,21 @@ const asChild = child => /** @type {ChildProcess} */ (asBase(child))
 /**
  * How a child ended, from the pair Node reports on `'exit'` and keeps on the
  * object: a signaled child has no code, so the signal is the status, and an
- * exited one has no signal — Node leaves exactly one of the two `null`.
+ * exited one has the opposite — Node leaves exactly one of the two `null`.
  *
  * @type {(code: number | null, signal: string | null) => ExitStatus}
  */
 const exitStatus = (code, signal) => code !== null ? ['exited', code] : ['signaled', /** @type {string} */ (signal)]
 
 const maxFileSizeBytes = Number(maxLengthBytes)
+
+/**
+ * An `Error` carrying `code`, the shape Node gives its own I/O failures and
+ * `toIoError` reads back, for a refusal this runner raises itself.
+ *
+ * @type {(code: string, message: string) => Error}
+ */
+const hostError = (code, message) => Object.assign(new Error(message), { code })
 
 const textEncoder = new TextEncoder()
 
@@ -758,22 +768,25 @@ const runNodeEffect = asyncRun({
         return { id: pathToFileURL(path).href, path }
     }),
     readFile: path => io(async () => {
-        const fileStats = await stat(path)
         // if the file is too big, toVec should fail anyway but in this case we don't want to load the file.
-        if (fileStats.size > maxFileSizeBytes) {
-            throw new Error(`File size ${fileStats.size} exceeds maximum allowed size of ${Number(maxFileSizeBytes)} bytes: '${path}'`)
-        }
+        const refusal = fileSizeRefusal(path, (await stat(path)).size)
+        if (refusal !== null) { throw new Error(refusal) }
         return toVec(await readFile(path))
     }),
-    readdir: (path, r) => io(async () =>
-        (await readdir(path, { ...r, withFileTypes: true }))
-        .map(v => ({
-            name: v.name,
-            parentPath: normalize(v.parentPath),
-            isFile: v.isFile(),
-            isDirectory: v.isDirectory()
-        }))
-    ),
+    // Windows scans need not be byte-sorted, and recursive order varies with
+    // Node versions. Sort the raw entries using physical parent components
+    // before normalize can turn a POSIX name's literal backslash into a separator.
+    // Leave native traversal, returned fields and failures untouched.
+    // See ./virtual/readdir/README.md.
+    readdir: (path, r) => io(async () => _orderDirents(
+        await readdir(path, { ...r, withFileTypes: true }),
+        v => relative(path, v.parentPath).split(sep).filter(part => part !== ''),
+    ).map(v => ({
+        name: v.name,
+        parentPath: normalize(v.parentPath),
+        isFile: v.isFile(),
+        isDirectory: v.isDirectory()
+    }))),
     // A `Vec` that is not whole bytes never reaches here: the effect in
     // `module.f.mjs` refuses it before the host is asked, since `fromVec` would
     // pad the last byte.
@@ -789,7 +802,7 @@ const runNodeEffect = asyncRun({
     // check-then-act by name has here.
     rmdir: path => io(async () => {
         if ((await lstat(path)).isSymbolicLink()) {
-            throw Object.assign(new Error(`ENOTDIR: not a directory, rmdir '${path}'`), { code: 'ENOTDIR' })
+            throw hostError('ENOTDIR', `ENOTDIR: not a directory, rmdir '${path}'`)
         }
         return rmdir(path)
     }),
@@ -827,7 +840,7 @@ const runNodeEffect = asyncRun({
     readWhole: path => io(async () => {
         const s = await stat(path)
         if (!s.isFile()) {
-            throw Object.assign(new Error(notAFileMessage(path)), { code: notAFileCode })
+            throw hostError(notAFileCode, notAFileMessage(path))
         }
         return withOpen(path, 'r')(async fh => {
             // Rebuilt rather than appended to, and serving an arbitrary file
@@ -874,7 +887,7 @@ const runNodeEffect = asyncRun({
         const { buffer, engine } = /** @type {{ readonly buffer: Uint8Array, readonly engine: { readonly bytesWritten: number } }} */
             (/** @type {unknown} */ (zlib.inflateSync(input, { info: true, maxOutputLength: maxFileSizeBytes })))
         if (engine.bytesWritten !== input.length) {
-            throw Object.assign(new Error(inflateTrailingMessage(input.length - engine.bytesWritten)), { code: inflateTrailingCode })
+            throw hostError(inflateTrailingCode, inflateTrailingMessage(input.length - engine.bytesWritten))
         }
         return toVec(buffer)
     }),
@@ -1047,7 +1060,7 @@ const runNodeEffect = asyncRun({
         // rejects, since a caller reading `IoError.code` should not have to
         // learn a second vocabulary for a refusal that is this runner's own.
         if (host === emptyHost) {
-            reject(Object.assign(new Error(emptyHostMessage), { code: emptyHostCode }))
+            reject(hostError(emptyHostCode, emptyHostMessage))
             return
         }
         // Each handler removes the other, so exactly one outcome is recorded and

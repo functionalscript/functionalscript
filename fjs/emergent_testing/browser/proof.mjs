@@ -29,7 +29,7 @@ import { error, ok, unwrap } from '../../types/result/module.f.mjs'
  * element/document/view types can stay function-local.
  */
 const dom = () => {
-    /** @typedef {{ readonly tag: string, readonly localName: string, readonly namespaceURI: string, attributes: ReadonlyMap<string, string>, readonly ownerDocument: _Document, textContent: string, readonly texts: string[], children: readonly _Element[], readonly setAttribute: (name: string, value: string) => void, readonly removeAttribute: (name: string) => void, readonly querySelector: (selector: string) => _Element | null, readonly replaceChildren: (...nodes: readonly (_Element | string)[]) => void, readonly append: (node: _Element) => void, readonly getAttribute: (name: string) => string | null }} _Element */
+    /** @typedef {{ readonly tag: string, readonly localName: string, readonly namespaceURI: string, attributes: ReadonlyMap<string, string>, readonly ownerDocument: _Document, textContent: string, readonly texts: string[], children: readonly _Element[], readonly setAttribute: (name: string, value: string) => void, readonly removeAttribute: (name: string) => void, readonly toggleAttribute: (name: string, force: boolean) => boolean, readonly querySelector: (selector: string) => _Element | null, readonly replaceChildren: (...nodes: readonly (_Element | string)[]) => void, readonly append: (node: _Element) => void, readonly getAttribute: (name: string) => string | null }} _Element */
     /** @typedef {{ defaultView: _View | null, readonly baseURI: string, readonly createElement: (tag: string) => _Element, readonly createElementNS: (namespace: string, tag: string) => _Element }} _Document */
     /** @typedef {{ events: readonly CustomEvent[], readonly dispatchEvent: (event: Event) => boolean, fjsBrowserTestReport?: Promise<unknown> }} _View */
 
@@ -67,6 +67,11 @@ const dom = () => {
             },
             removeAttribute: name => {
                 self.attributes = new Map([...self.attributes].filter(([key]) => key !== name))
+            },
+            // Only the forced form: the runner always says which way.
+            toggleAttribute: (name, force) => {
+                if (force) { self.setAttribute(name, '') } else { self.removeAttribute(name) }
+                return force
             },
             // The runner only ever queries an attribute selector of `[name]` form.
             querySelector: selector => self.children.reduce(

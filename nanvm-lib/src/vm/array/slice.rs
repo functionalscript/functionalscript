@@ -1,30 +1,17 @@
-use super::{
-    Array,
-    relative::{clamped, relative},
-};
+use super::Array;
 use crate::{
     common::sized_index::SizedIndex,
-    vm::{Any, IVm, Nullish, ToArray, Unpacked},
+    vm::{Any, IVm, ToArray, position::relative_range},
 };
 
 impl<A: IVm> Array<A> {
     /// `Array.prototype.slice(start, end)`
     /// (<https://tc39.es/ecma262/#sec-array.prototype.slice>): a new array of
-    /// the elements from `start` up to, not including, `end`. Both are
-    /// [`relative`] positions clamped into the array, `start` converted
-    /// first; `end` is the length when `undefined`. An empty range is `[]`.
+    /// the elements from `start` up to, not including, `end`, the
+    /// [`relative_range`] they name. An empty range is `[]`.
     pub(crate) fn slice(&self, start: Any<A>, end: Any<A>) -> Result<Array<A>, Any<A>> {
-        let len = self.length();
-        let from = clamped(relative(start, len)?, len);
-        let to = if matches!(
-            Unpacked::from(end.clone()),
-            Unpacked::Nullish(Nullish::Undefined)
-        ) {
-            len
-        } else {
-            clamped(relative(end, len)?, len)
-        };
-        Ok((from..to.max(from)).map(|i| self[i].clone()).to_array())
+        let range = relative_range(start, end, self.length())?;
+        Ok(range.map(|i| self[i].clone()).to_array())
     }
 }
 
@@ -51,7 +38,7 @@ mod tests {
 
     #[test]
     fn ranges() {
-        let undefined = || Nullish::Undefined.to_any();
+        let undefined = || Any::undefined();
         assert_eq!(slice(1.0, undefined()), vec![2.0.to_any(), 3.0.to_any()]);
         assert_eq!(slice(0.0, 2.0.to_any()), vec![1.0.to_any(), 2.0.to_any()]);
         assert_eq!(slice(-2.0, (-1.0f64).to_any()), vec![2.0.to_any()]);

@@ -27,6 +27,41 @@ export const binaryTags = /** @type {const} */ ([
 ])
 
 /**
+ * The eager binary layers, tightest first: one record per level, each
+ * operator keyed by a name no other layer uses and valued by its tag,
+ * which is also its token. The one statement of their precedence — the
+ * grammar builds its ladder from it and the writer the parentheses it
+ * needs. The `-` here is subtraction, sharing a token and nothing else
+ * with the negation prefix, {@link AstNeg}. `instanceof` is a relational
+ * operator, one level with `<` and left-associative as it is, though its
+ * node is {@link AstInstanceOf}, not a binary one. `==` and `!=` are not
+ * this language's, per `spec/todo/2340-operators.md`. `**` is in
+ * no layer: it is right-associative and read inside the operand, so each
+ * side places it, tightest of all, where it builds its own structure.
+ * Pinned beside {@link binaryTags} in `./types.ts`.
+ */
+export const eagerLayers = /** @type {const} */ ([
+    { mul: '*', div: '/', mod: '%' },
+    { add: '+', sub: '-' },
+    { left: '<<', right: '>>', unsigned: '>>>' },
+    { lt: '<', le: '<=', gt: '>', ge: '>=', instanceof: 'instanceof' },
+    { eq: '===', ne: '!==' },
+    { and: '&' },
+    { xor: '^' },
+    { or: '|' },
+])
+
+/**
+ * The lazy layers above {@link eagerLayers}, tightest first, as they are
+ * keyed. `??` shares a level with `||` and mixes with neither it nor `&&`
+ * bare — a refusal the grammar states, not an order.
+ */
+export const lazyLayers = /** @type {const} */ ([
+    { logicalAnd: '&&' },
+    { logicalOr: '||', nullish: '??' },
+])
+
+/**
  * Whether a node is a binary operator, {@link AstBinary} or the parser's
  * own node of the same shape: a tag of {@link binaryTags} and two operands.
  * The arity is what tells a subtraction from the negation `['-', a]`.
