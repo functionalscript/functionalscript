@@ -19,11 +19,14 @@ no later than this file admits any of it, a name at a time
 ([landing a name at a time](./2365-global-names.md#landing-a-name-at-a-time)).
 
 A ticked box below marks a name the language is to admit, not one it admits
-today. Only `Infinity`, `NaN` and `undefined` are implemented, as reserved
-words ([numbers](../README.md#numbers)), and `Number`, as the conversion
-`Number(exp)` alone, the word reserved
-([number conversion](../README.md#number-conversion)); every other global is
-refused as an unbound name (`const not found`), so
+today. Implemented reserved globals are `Infinity`, `NaN` and `undefined`
+([numbers](../README.md#numbers)), `Number` and `String`, as the
+conversions `Number(exp)` and `String(exp)` alone, their words reserved
+([number conversion](../README.md#number-conversion),
+[string conversion](../README.md#string-conversion)), and `Array`, as the
+right operand of [`instanceof`](../README.md#instanceof). Other global uses need
+a complete recognized pattern; an unrecognized global is refused as an
+unbound name (`const not found`), so
 `export default isFinite(1);` does not compile yet. An unticked box is a
 name not yet decided, or, where it says so, never admitted.
 
@@ -71,8 +74,11 @@ name not yet decided, or, where it says so, never admitted.
 
 ### Text Processing
 
-- [ ] `String` — `String(exp)` is the same shape over the EDAG's other
-      cast, reserved and spelled as the `Number` conversion is
+- [x] `String` — implemented as `String(exp)`, the string conversion,
+      and `String()`, the empty-string literal; the word is reserved
+      ([string conversion](../README.md#string-conversion)). Namespace
+      members, spreads, multiple arguments and guarded global calls remain
+      unrecognized
 - [ ] `RegExp`
 
 ### Indexed Collections
