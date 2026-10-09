@@ -6,7 +6,7 @@
  *
  * @import { Vec } from '../types/bit_vec/types.ts'
  * @import { ObjectIdentifier, Raw, Record, Sequence, SupportedRecord, _Tag } from './types.ts'
- * @import { _ClassPc, _ParsedTag } from './private.ts'
+ * @import { _ClassPc, _Codecs, _ParsedTag, _Records } from './private.ts'
  * @import { Thunk } from '../types/list/types.ts'
  */
 
@@ -27,6 +27,7 @@ import {
 import { assert } from '../asserts/module.f.mjs'
 import { identity } from '../types/function/module.f.mjs'
 import { toArray } from '../types/list/module.f.mjs'
+import { at } from '../types/object/module.f.mjs'
 import { max } from '../types/function/compare/module.f.mjs'
 import { encode as b128encode, decode as b128decode } from '../basen/base128/module.f.mjs'
 
@@ -313,19 +314,52 @@ export const encodeSet =
  */
 export const decodeSet = decodeSequence
 
+// codecs
+
+/** @type {<T extends _Tag>(tag: T) => `${T}`} */
+const key = tag => /** @type {const} */ (`${tag}`)
+
+/**
+ * A row of the codec table: `encode` turns a value into a payload, and
+ * `decode` turns a payload into the record tagged `tag`.
+ *
+ * @type {<T extends _Tag, V>(
+ *     tag: T,
+ *     encode: (value: V) => Vec,
+ *     decode: (v: Vec) => V,
+ * ) => { readonly encode: (value: V) => Vec, readonly decode: (v: Vec) => readonly[T, V] }}
+ */
+const codec = (tag, encode, decode) => ({ encode, decode: v => [tag, decode(v)] })
+
+/**
+ * The supported tags, one row each. `_Codecs` requires a row for every
+ * `SupportedRecord` and nothing else, so a tag can be neither encoded
+ * without being decoded nor decoded without being encoded.
+ *
+ * @type {_Codecs}
+ */
+const codecs = {
+    [key(boolean)]: codec(boolean, encodeBoolean, decodeBoolean),
+    [key(integer)]: codec(integer, encodeInteger, decodeInteger),
+    [key(octetString)]: codec(octetString, encodeOctetString, decodeOctetString),
+    [key(objectIdentifier)]: codec(objectIdentifier, encodeObjectIdentifier, decodeObjectIdentifier),
+    [key(constructedSequence)]: codec(constructedSequence, v => encodeSequence(...v), decodeSequence),
+    [key(constructedSet)]: codec(constructedSet, v => encodeSet(...v), decodeSet),
+}
+
 // encode
 
+/**
+ * Generic in the key, so that the row and the value are typed by the same
+ * `K`: indexed by a union of keys, `codecs` would offer a union of encoders,
+ * which no single value can be passed to.
+ *
+ * @type {<K extends keyof _Codecs>(k: K, value: _Records[K][1]) => Vec}
+ */
+const encodeValue = (k, value) => codecs[k].encode(value)
+
 /** @type {(_: SupportedRecord) => Vec} */
-const recordToRaw = ([tag, value]) => {
-    switch (tag) {
-        case boolean: return encodeBoolean(value)
-        case integer: return encodeInteger(value)
-        case octetString: return encodeOctetString(value)
-        case objectIdentifier: return encodeObjectIdentifier(value)
-        case constructedSequence: return encodeSequence(...value)
-        case constructedSet: return encodeSet(...value)
-    }
-}
+const recordToRaw = ([tag, value]) => encodeValue(key(tag), value)
 
 /**
  * Encodes a supported ASN.1 record as TLV.
@@ -340,15 +374,8 @@ export const encode = record =>
 /** @type {(raw: Raw) => Record} */
 const rawToRecord = raw => {
     const [tag, value] = raw
-    switch (tag) {
-        case boolean: return [boolean, decodeBoolean(value)]
-        case integer: return [integer, decodeInteger(value)]
-        case octetString: return [octetString, decodeOctetString(value)]
-        case objectIdentifier: return [objectIdentifier, decodeObjectIdentifier(value)]
-        case constructedSequence: return [constructedSequence, decodeSequence(value)]
-        case constructedSet: return [constructedSet, decodeSet(value)]
-        default: return encodeRaw(raw)
-    }
+    const c = at(key(tag))(codecs)
+    return c === null ? encodeRaw(raw) : c.decode(value)
 }
 
 /**

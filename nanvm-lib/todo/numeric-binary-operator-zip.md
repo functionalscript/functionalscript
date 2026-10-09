@@ -24,8 +24,7 @@ arms differently from their siblings for no semantic reason, and the three
 bitwise impls each restate the `to_int32(a) OP to_int32(b)` pairing.
 
 One level up, the `Any` operators repeat their own skeleton nine times —
-`any/{sub,div,rem,bitand,bitor,bitxor,shl,shr}.rs` and `impls/mul.rs` are
-each
+`any/{sub,div,mul,rem,bitand,bitor,bitxor,shl,shr}.rs` are each
 
 ```rust
 Ok(Unpacked::from((self.to_numeric()? OP rhs.to_numeric()?)?).into())
@@ -71,8 +70,5 @@ they lift.
 
 ### Related
 
-- [operator-impl-placement](./operator-impl-placement.md) — moves
-  `impls/mul.rs` to `vm/any/mul.rs`; placement only, but the same files —
-  land in either order, cross-check the file list.
 - [`src/vm/error.rs`](../src/vm/error.rs) — owns the thrown value,
   `mixed_numeric_operands`, not the twelve match skeletons around it.

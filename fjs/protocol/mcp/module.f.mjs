@@ -232,11 +232,38 @@ export const errorResult = text =>
  *     errorText: (e: E) => string,
  * ) => Effect<O, ToolsCallResult, never>}
  */
-export const toolResultStep = (e, text, errorText) => resultMapStep(
+export const toolResultStep = (e, text, errorText) =>
+    toolStep(e, errorText, value => pureOk(okResult(text(value))))
+
+/**
+ * {@link toolResultStep} for a tool whose chain goes on after the success: a
+ * failure of `e` answers the call with `errorText`'s `isError` result, and
+ * its `ok` value is handed to `onOk`, which answers the call itself.
+ *
+ * ```js
+ * resultStep(c.write(content), r => {
+ *     if (r[0] === 'error') { return pureOk(errorResult('write')) }
+ *     …
+ * })
+ * // is
+ * toolStep(c.write(content), () => 'write', hash => …)
+ * ```
+ *
+ * `errorText` is required for the reason {@link toolResultStep} gives, and it
+ * comes before `onOk` so the refusal is read beside the call that can fail,
+ * not after the continuation it guards.
+ *
+ * @type {<O extends Operation, T, E, Q extends Operation>(
+ *     e: Effect<O, T, E>,
+ *     errorText: (e: E) => string,
+ *     onOk: (value: T) => Effect<Q, ToolsCallResult, never>,
+ * ) => Effect<O | Q, ToolsCallResult, never>}
+ */
+export const toolStep = (e, errorText, onOk) => resultStep(
     e,
-    ([tag, value]) => ok(tag === 'error'
-        ? errorResult(errorText(value))
-        : okResult(text(value))))
+    ([tag, value]) => tag === 'error'
+        ? pureOk(errorResult(errorText(value)))
+        : onOk(value))
 
 /**
  * Builds `McpHandlers` from a registry of tool entries.

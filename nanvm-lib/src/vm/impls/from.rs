@@ -1,6 +1,5 @@
 use crate::vm::{
-    Any, Array, BigInt, Function, IVm, Number, Object, String, ToAny, ToString, Unpacked,
-    nullish::Nullish,
+    Any, Array, BigInt, Function, IVm, Number, Object, String, ToAny, Unpacked, nullish::Nullish,
 };
 
 impl<A: IVm> From<Unpacked<A>> for Any<A> {
@@ -15,28 +14,6 @@ impl<A: IVm> From<Unpacked<A>> for Any<A> {
             Unpacked::Array(a) => a.to_any(),
             Unpacked::Function(f) => f.to_any(),
         }
-    }
-}
-
-impl<A: IVm> From<&str> for Any<A> {
-    fn from(value: &str) -> Self {
-        let s: String<_> = value.into();
-        s.to_any()
-    }
-}
-
-impl<A: IVm> From<&str> for String<A> {
-    fn from(value: &str) -> Self {
-        value.encode_utf16().to_string()
-    }
-}
-
-// TODO: Should we use `TryFrom` instead since we can have an error?
-impl<A: IVm> From<String<A>> for std::string::String {
-    fn from(value: String<A>) -> Self {
-        char::decode_utf16(value)
-            .map(|r| r.unwrap_or(char::REPLACEMENT_CHARACTER))
-            .collect()
     }
 }
 

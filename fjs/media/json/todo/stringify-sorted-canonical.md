@@ -23,7 +23,7 @@ longer sorts, since key order is part of the value it writes, so it is gone.)
 Proof files (each binds its own alias: `jsonStr`, `str`, `stringify`,
 `stringifyJson`):
 
-- `fjs/types/btree` and its `find`, `set` and `remove` proofs
+- `fjs/types/btree/testlib.f.mjs`, the one alias the B-tree proofs share
 - the proofs of `fjs/types/array`, `fjs/types/byte_set`, `fjs/types/range_map`,
   `fjs/types/sorted_list`, `fjs/types/sorted_set` and `fjs/types/list`
 - the proofs of `fjs/text/ascii`, `fjs/text/utf8` and `fjs/text/utf16`

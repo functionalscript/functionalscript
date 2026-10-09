@@ -15,12 +15,9 @@ mutating an array:
   collects the handler's arguments with `captured.push(...args)`.
 - [`fjs/sul/proof.f.mjs`](../sul/proof.f.mjs) — `run` records each `add`
   call with `log.push([l, r, m, isSymbol])`.
-- [`fjs/text/sgr/proof.f.mjs`](../text/sgr/proof.f.mjs) — the `stdout`
-  stand-in for `createConsoleText` keeps what was written with
-  `output.push(s)`.
 
 Each recorder stands in for a callback the code under test calls for its
-effect — a command handler, a sink, a writer — so there is a reason for it.
+effect — a command handler, a sink — so there is a reason for it.
 The rule does not say whether that reason is enough.
 
 ### Proposal
@@ -34,17 +31,11 @@ Either of two answers, and the choice is the design decision here:
   handler, and the memory effects hold values across a run. `_driveCas` in
   [`fjs/cas/proof.f.mjs`](../cas/proof.f.mjs), the synthetic CAS driver both
   CAS proofs share, is the worked case: its override queues and its command
-  log are the state `run` threads. The callback-shaped ones (`cli`, `sul`,
-  `text/sgr`) may need their API under test to return what it would have
-  written.
+  log are the state `run` threads. The callback-shaped ones (`cli`, `sul`) may
+  need their API under test to return what it would have written.
 
 ### Tasks
 
 - [ ] Decide between the exemption and immutable recording.
 - [ ] Apply it to each proof above.
 - [ ] `tsc`, `fjs test`.
-
-### Related
-
-- [`fjs/text/sgr/todo/inplace-writer-split.md`](../text/sgr/todo/inplace-writer-split.md)
-  — the in-place writer the `stdout` stand-in records.

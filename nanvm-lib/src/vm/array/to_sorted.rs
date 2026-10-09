@@ -94,7 +94,7 @@ mod tests {
     use crate::{
         common::sized_index::SizedIndex,
         naive::Naive,
-        vm::{Any, Array, IStaticFunction, Nullish, ToAny, ToArray, ToObject},
+        vm::{Any, Array, IStaticFunction, ToAny, ToArray, ToObject},
     };
 
     type A = Naive;
@@ -107,7 +107,7 @@ mod tests {
         let f: Any<A> =
             A::static_function(|_, _| Err("boom".into()), 0, [].to_array(), None).to_any();
         let x = || [("toString".into(), f.clone())].to_object().to_any();
-        let lone: Array<A> = [x(), Nullish::Undefined.to_any()].to_array();
+        let lone: Array<A> = [x(), Any::undefined()].to_array();
         assert_eq!(lone.to_sorted(None).map(|a| a.length()), Ok(2));
         let pair: Array<A> = [x(), x()].to_array();
         assert_eq!(pair.to_sorted(None).map(|a| a.length()), Err("boom".into()));

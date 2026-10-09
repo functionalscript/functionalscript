@@ -41,7 +41,7 @@ mod tests {
     use super::Array;
     use crate::{
         naive::Naive,
-        vm::{Any, Nullish, ToAny, ToArray, unstable::bigint_any},
+        vm::{Any, ToAny, ToArray, unstable::bigint_any},
     };
 
     type A = Naive;
@@ -65,7 +65,7 @@ mod tests {
     /// A passed `undefined` is `0`, not the end.
     #[test]
     fn passed_undefined_is_zero() {
-        let undefined: Any<A> = Nullish::Undefined.to_any();
+        let undefined: Any<A> = Any::undefined();
         assert_eq!(
             array().last_index_of(&1.0.to_any(), Some(undefined)),
             Ok(Some(0))

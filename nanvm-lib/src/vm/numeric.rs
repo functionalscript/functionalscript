@@ -58,7 +58,7 @@ impl<A: IVm> Mul for Numeric<A> {
     fn mul(self, rhs: Self) -> Self::Output {
         Ok(match (self, rhs) {
             (Numeric::Number(a), Numeric::Number(b)) => Numeric::Number(a * b),
-            (Numeric::BigInt(a), Numeric::BigInt(b)) => Numeric::BigInt(a * b),
+            (Numeric::BigInt(a), Numeric::BigInt(b)) => Numeric::BigInt((a * b)?),
             _ => return Err(error::mixed_numeric_operands()),
         })
     }

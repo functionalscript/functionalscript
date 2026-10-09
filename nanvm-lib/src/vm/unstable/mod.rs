@@ -98,6 +98,15 @@ enum Part<A: IVm> {
     Many(IteratorRecord<A>),
 }
 
+/// Room for `additional` more elements, or the `RangeError` an array that
+/// cannot be backed is: an allocation the machine refuses is a failure the
+/// program can observe, not an abort of the process.
+fn reserve<A: IVm>(values: &mut Vec<Any<A>>, additional: usize) -> Result<(), Any<A>> {
+    values
+        .try_reserve(additional)
+        .map_err(|_| error::array_too_long())
+}
+
 /// The array an item list holds, a spread among them: each value an
 /// element, and each spread every value its operand iterates, in order. A
 /// spread of a value that is not iterable throws, so the array is an
@@ -110,7 +119,12 @@ enum Part<A: IVm> {
 /// an array — and, since a string's code points are only known by walking
 /// it, checked again as each element is added, so the build never passes
 /// the limit. Taking the iterators first is unobservable: neither an array
-/// nor a string runs code while iterated.
+/// nor a string runs code while iterated. The elements' room is reserved up
+/// front and before every growth, so a length under the limit whose elements
+/// the machine cannot hold is the same `RangeError`, not an abort. The array
+/// built from them is the container constructor's own allocation, which is
+/// not fallible yet (`todo/131-non-panicking-allocator.md`): a machine that
+/// can hold the elements but not a second copy of them still aborts.
 pub fn spread_array<A: IVm>(
     items: impl IntoIterator<Item = ArrayItem<A>>,
 ) -> Result<Any<A>, Any<A>> {
@@ -132,11 +146,13 @@ pub fn spread_array<A: IVm>(
     if at_least > limit {
         return Err(error::array_too_long());
     }
-    let mut values = Vec::with_capacity(at_least as usize);
+    let mut values = Vec::new();
+    reserve(&mut values, at_least as usize)?;
     let mut push = |v: Any<A>| -> Result<(), Any<A>> {
         if values.len() as u64 == limit {
             return Err(error::array_too_long());
         }
+        reserve(&mut values, 1)?;
         values.push(v);
         Ok(())
     };
@@ -211,7 +227,7 @@ mod test {
     use crate::{
         common::sized_index::SizedIndex,
         naive::Naive,
-        vm::{Array, IStaticFunction, Nullish, Object, Unpacked},
+        vm::{Array, IStaticFunction, Object, Unpacked},
     };
 
     #[test]
@@ -339,6 +355,43 @@ mod test {
         assert_eq!(elements(spread_array(within)).len(), 131072);
     }
 
+    /// A length under the limit whose elements the machine cannot hold is
+    /// the `RangeError` too, not an abort: 65,535 spreads of one 65,537-element
+    /// array are exactly `2³² − 1` elements. Skipped where the machine can
+    /// reserve that room, as building it would take the machine's memory.
+    #[test]
+    fn spread_array_unbacked() {
+        let one = || f64_any::<Naive>(0x3ff0000000000000);
+        let block: Any<Naive> = (0..65537)
+            .map(|_| one())
+            .collect::<Vec<_>>()
+            .to_array()
+            .to_any();
+        let all = u32::MAX as usize;
+        if Vec::<Any<Naive>>::new().try_reserve(all).is_ok() {
+            return;
+        }
+        let spreads = (0..65535).map(|_| spread_item(block.clone()));
+        assert_eq!(spread_array(spreads).err(), Some(error::array_too_long()));
+    }
+
+    /// `reserve` is the one place a refused reservation becomes the
+    /// `RangeError`, and `usize::MAX` elements overflow the capacity of every
+    /// `Vec` on every platform, so this holds where `spread_array_unbacked`
+    /// skips itself. It does not show that `spread_array` calls it: that
+    /// takes an allocator that refuses a real request.
+    #[test]
+    fn reserve_refuses_what_no_vec_can_hold() {
+        let mut values: Vec<Any<Naive>> = Vec::new();
+        assert_eq!(
+            reserve(&mut values, usize::MAX),
+            Err(error::array_too_long())
+        );
+        assert!(values.is_empty());
+        assert_eq!(reserve(&mut values, 3), Ok(()));
+        assert!(values.capacity() >= 3);
+    }
+
     /// The callee receives the spread values as its arguments, and a spread
     /// that throws throws before the call, a callee that is not a function
     /// included.
@@ -394,7 +447,7 @@ mod test {
         let object = spread_object([
             computed_item(one(), string_any("a")).unwrap(),
             computed_item(negative_zero(), string_any("b")).unwrap(),
-            computed_item(Nullish::Undefined.to_any(), string_any("c")).unwrap(),
+            computed_item(Any::undefined(), string_any("c")).unwrap(),
             computed_item(string_any("1"), string_any("d")).unwrap(),
         ]);
         let entries = Object::try_from(object).unwrap().own_entries();

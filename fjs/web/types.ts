@@ -22,14 +22,29 @@ export type Refusal = {
 }
 
 /**
- * Maps a request URL to the path of the file that answers it, or says why no
- * path does. Pure — the whole routing decision, with nothing to run.
+ * The file that answers a URL, and the sentence its `404` carries if the file
+ * is not there to answer.
+ *
+ * The sentence is decided with the path for the reason a {@link Refusal}'s is:
+ * whether `index.html` was appended is a routing fact, known here and gone by
+ * the time a failed `open` is turned into a frame. It is one sentence for every
+ * kind of absence — missing, no regular file, under a file — so the answer
+ * says what was asked for and never what is on disk.
+ */
+export type Resolved = {
+    readonly path: string
+    readonly notFound: string
+}
+
+/**
+ * Maps a request URL to the file that answers it, or says why no file does.
+ * Pure — the whole routing decision, with nothing to run.
  *
  * Everything it can fail on is a property of the URL. What is discovered by
  * *reading* — a missing file, an entry that is no regular file — is not its
  * business.
  */
-export type Resolve = (root: string) => (url: string) => Result<string, Refusal>
+export type Resolve = (root: string) => (url: string) => Result<Resolved, Refusal>
 
 /**
  * Answers one request by reading a file under `root`.

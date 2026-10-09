@@ -41,19 +41,13 @@ mod tests {
     fn not_iterable() {
         let values: [Any<A>; 8] = [
             Nullish::Null.to_any(),
-            Nullish::Undefined.to_any(),
+            Any::undefined(),
             true.to_any(),
             f64_any(0x3ff0000000000000),
             bigint_any(1),
             [].to_object().to_any(),
             [("0".into(), 1.0.to_any())].to_object().to_any(),
-            A::static_function(
-                |_, _| Ok(Nullish::Undefined.to_any()),
-                0,
-                [].to_array(),
-                None,
-            )
-            .to_any(),
+            A::static_function(|_, _| Ok(Any::undefined()), 0, [].to_array(), None).to_any(),
         ];
         for v in values {
             assert_eq!(v.get_iterator().err(), Some(error::not_iterable()));
