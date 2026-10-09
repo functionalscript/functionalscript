@@ -26,6 +26,32 @@ still names host `host` in Node, but the old path-only decoder erased the host
 and could redirect this input to a local file. A cross-platform regression
 keeps that failure explicit, including encoded dot segments.
 
+### Legacy drive-bar imports
+
+Review [r4226074718](https://github.com/functionalscript/functionalscript/pull/2656#discussion_r4226074718)
+identified the same URL/native-path boundary without an authority. The admitted
+`/C|/dep.f.js` and `C|/dep.f.js` become `file:///C:/dep.f.js`, not a literal
+`C|` directory. A subsequent `..` cannot remove that URL drive root. Decoding
+first loses another distinction: with parent `file:///tmp/main.f.js`,
+`/%43|/dep.f.js` instead names the literal POSIX `/C|/dep.f.js`.
+
+Until URL-aware drive handling is implemented, imports with a raw path
+component consisting of an ASCII letter and `|` are also refused with
+`invalid module specifier`. Inspect every raw component before dot reduction
+and percent-decoding so a marker cannot appear at the root or disappear during
+reduction. This is deliberately conservative: nested and canceled raw marker
+components are refused even when Node would treat them as ordinary names.
+Literal entry paths are unchanged. Percent-encoded components such as `%43|`
+and `C%7C` remain literal names; they must never be rewritten to drive colons.
+The regression suite preserves those names and relative imports on POSIX.
+
+The future implementation must distinguish raw drive markers from encoded
+filename data, preserve a URL drive root across `..`, and account for the
+parent URL's drive. Test single-slash and bare drive spellings, terminal
+markers, dot-segment variants, and encoded lookalikes before relaxing the
+refusal. See the [URL Standard's drive-letter definition](https://url.spec.whatwg.org/#windows-drive-letter)
+and file/path parsing rules. No URL parser dependency is introduced here.
+
 ### Follow-up
 
 Distinguish an empty authority and Node's accepted `localhost` authority from

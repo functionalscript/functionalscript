@@ -246,6 +246,15 @@ fn directory_specifier(name: &str) -> bool {
     name.ends_with('/') || !matches!(kind(name.rsplit('/').next().unwrap_or("")), Kind::Keep)
 }
 
+/// Raw `C|` components can become URL drive markers, even after dot reduction.
+/// Refuse them conservatively until URL-aware drive handling is implemented.
+/// Inspect raw components: `%43|` and `C%7C` are literal names, not markers.
+/// See `nanvm-effects-node/todo/local-file-url-authorities.md`.
+fn has_legacy_drive_marker(name: &str) -> bool {
+    name.split('/')
+        .any(|part| matches!(part.as_bytes(), [letter, b'|'] if letter.is_ascii_alphabetic()))
+}
+
 /// The real native path, without a Windows drive's extended-length prefix.
 /// Check again after canonicalization: a local link may resolve to a UNC path.
 fn real_path(path: &str) -> std::io::Result<String> {
@@ -273,7 +282,9 @@ pub fn resolve_file_module(name: &str, parent: Option<&str>) -> Result<FileModul
             // lose its host during dot reduction and turn into a local import.
             // Empty and localhost authorities remain unsupported too; see
             // `nanvm-effects-node/todo/local-file-url-authorities.md`.
-            if name.starts_with("//") {
+            // Raw drive markers must not be erased by dot reduction either,
+            // or confused with percent-encoded literal names.
+            if name.starts_with("//") || has_legacy_drive_marker(name) {
                 return Err(invalid());
             }
             let (rooted, names) = decode_specifier(name).ok_or_else(invalid)?;
@@ -526,6 +537,57 @@ mod test {
         }
     }
 
+    /// Refusal happens before URL decoding or filesystem access on every host.
+    #[test]
+    fn legacy_drive_markers_are_refused_before_dot_reduction() {
+        for parent in ["file:///missing/main.f.js", "file:///D:/missing/main.f.js"] {
+            for name in [
+                "/C|/dep.f.js",
+                "/z|/dep.f.js",
+                "C|/dep.f.js",
+                "C|",
+                "/C|",
+                "/C|/../dep.f.js",
+                "/C|/%2e%2e/dep.f.js",
+                "C|/../../dep.f.js",
+                "/./C|/dep.f.js",
+                "/%2e/C|/dep.f.js",
+                "/gone/../C|/dep.f.js",
+                "/gone/%2e%2e/C|/../dep.f.js",
+                "../C|/dep.f.js",
+                "./C|/dep.f.js",
+            ] {
+                assert!(decode_specifier(name).is_some(), "{name:?}");
+                let error = resolve_file_module(name, Some(parent)).unwrap_err();
+                assert_eq!(error.code, None, "{name:?}");
+                assert_eq!(error.message, "invalid module specifier", "{name:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn encoded_and_non_drive_names_are_not_raw_drive_markers() {
+        for name in [
+            "",
+            "/",
+            "/CC|/dep.f.js",
+            "/1|/dep.f.js",
+            "/é|/dep.f.js",
+            "/a|b/dep.f.js",
+            "/%43|/dep.f.js",
+            "/C%7C/dep.f.js",
+            "/%43%7c/dep.f.js",
+            "/%2543|/dep.f.js",
+        ] {
+            assert!(!has_legacy_drive_marker(name), "{name:?}");
+        }
+        // Decoding first would erase the distinction the URL parser observes.
+        assert_eq!(
+            decode_specifier("/C|/dep.f.js"),
+            decode_specifier("/%43|/dep.f.js")
+        );
+    }
+
     /// Against a real tree, with symbolic links: a module is the real file.
     #[cfg(unix)]
     mod files {
@@ -637,6 +699,26 @@ mod test {
                 resolve_file_module("./main.f.js", Some(&dep.id)).unwrap(),
                 literal
             );
+        }
+
+        #[test]
+        fn escaped_drive_bar_names_remain_literal() {
+            let dir = Scratch::new("drive-bar");
+            fs::create_dir(dir.path("C|")).unwrap();
+            fs::write(dir.path("C|/dep.f.js"), "").unwrap();
+            // An entry is a literal path, not an import specifier.
+            let literal = resolve_file_module(&dir.path("C|/dep.f.js"), None).unwrap();
+            assert!(literal.id.ends_with("/C%7C/dep.f.js"));
+            let parent = path_to_file_url(&dir.path("main.f.js"));
+            for name in ["./%43|/dep.f.js", "./C%7C/dep.f.js", "./%43%7c/dep.f.js"] {
+                assert_eq!(resolve_file_module(name, Some(&parent)).unwrap(), literal);
+            }
+            assert_eq!(
+                resolve_file_module("./dep.f.js", Some(&literal.id)).unwrap(),
+                literal
+            );
+            let error = resolve_file_module("./C|/dep.f.js", Some(&parent)).unwrap_err();
+            assert_eq!(error.message, "invalid module specifier");
         }
 
         #[test]
