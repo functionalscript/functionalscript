@@ -13,8 +13,8 @@ upstream.
 
 Start from the latest `main`: fetch it on its own, before anything else.
 
-The container has no Nix, so install it yourself: `apt-get install nix-bin`,
-run in single-user mode (`NIX_REMOTE=local`). `nix-bin` leaves flakes off, so
+The container has no Nix, so install it yourself: `apt-get install nix-bin`.
+Run as root with no daemon, Nix uses the store directly. `nix-bin` leaves flakes off, so
 pass `--extra-experimental-features 'nix-command flakes'` to every `nix`
 command below, as `./dev.sh` does. Everything else comes from the
 repository's shell, at the versions CI uses: run every later command that is
