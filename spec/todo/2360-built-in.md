@@ -109,8 +109,13 @@ serialization support throughout the compiler.
 **Language-design approval.** **sergey-shandar** explicitly directed
 "Implement it" in [the LLM working session](https://chatgpt.com/local/01a121ce-d4c3-71ca-a025-8e451349b01c),
 after the existing `String(x)` TODO was identified and before implementation
-began. The fuller benefits-and-drawbacks record above was added during PR
-review.
+began.
+
+**Process deviation.** The fuller benefits-and-drawbacks record was added
+during PR review. That ordering deviated from the
+[proposal-first workflow](../../doc/DESIGN.md#new-language-features-start-with-a-todo).
+Implementation followed the language designer's explicit instruction above;
+the chronology and the prior approval are retained here for review.
 
 ### Indexed Collections
 

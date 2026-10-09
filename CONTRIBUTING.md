@@ -346,15 +346,6 @@ about to start the same task finds it taken
 once it carries its change and every check passes. A pull request with no
 `todo/` behind it has nothing to claim.
 
-### LLM agent session links
-
-An LLM agent opening or updating a pull request must include a link to its
-working session in the description's trailer block, after any `Changelog:`
-section. The link lets reviewers inspect the request, design decisions, and
-approvals behind the change. Use the actual session URL; if the agent cannot
-access it, ask the user for it. Human contributors are not required to provide
-a working-session link.
-
 ### Commit messages
 
 A pull request lands on `main` as a merge commit titled `<PR title> (#NNN)`,
