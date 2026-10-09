@@ -5,6 +5,7 @@
  */
 
 import type { Nullable } from '../../types/nullable/types.ts'
+import type { Result } from '../../types/result/types.ts'
 import type { Bytes } from '../types.ts'
 
 /**
@@ -38,4 +39,36 @@ export type Header = readonly [key: Bytes, value: Bytes]
 export type Payload = {
     readonly headers: readonly Header[]
     readonly message: Nullable<Bytes>
+}
+
+/**
+ * A value's parser: what the value means, or `null` where it means nothing
+ * this field may hold.
+ */
+export type Parse<T> = (value: Bytes) => Nullable<T>
+
+/**
+ * One well-known field of a commit or a tag, read by position: its index,
+ * key and two messages held once, and a view for each way a caller wants
+ * a failure reported. Each view takes the parser, since one field is read
+ * at any width by one caller and at the repository's by another.
+ */
+export type Field = {
+    /** The field, or a panic: `missing` where the header is not there, `[bad, value]` where `parse` refuses its value. */
+    readonly get: <T>(parse: Parse<T>) => (p: Payload) => T
+    /** The field, or `null` where the header is not there or `parse` refuses its value: for an object nobody has vouched for. */
+    readonly tryGet: <T>(parse: Parse<T>) => (p: Payload) => Nullable<T>
+    /** The field, or the message for whichever of the two ways it is not there: for a `validate`. */
+    readonly check: <T>(parse: Parse<T>) => (p: Payload) => Result<T, string>
+}
+
+/**
+ * A field that may be absent but is never malformed, read by position:
+ * `null` where the header is not there.
+ */
+export type OptionalField = {
+    /** The field or `null`, or a panic of `[bad, value]` where `parse` refuses its value. */
+    readonly get: <T>(parse: Parse<T>) => (p: Payload) => Nullable<T>
+    /** `ok(null)` where the header is not there, the field where it is, and `bad` where `parse` refuses its value: for a `validate`. */
+    readonly check: <T>(parse: Parse<T>) => (p: Payload) => Result<Nullable<T>, string>
 }

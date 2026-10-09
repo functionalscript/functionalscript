@@ -153,6 +153,13 @@ impl<R: Read, O: Write, E: Write> Native<R, O, E> {
                 let path = decode_string(argument(payload, 0, "path")?)?;
                 Ok(answer(files::read_file(&path), encode_bytes))
             }
+            "readWhole" => {
+                arity(payload, 1)?;
+                let path = decode_string(argument(payload, 0, "path")?)?;
+                Ok(answer(files::read_whole(&path), |windows| {
+                    encode_array(windows, encode_bytes)
+                }))
+            }
             "readdir" => {
                 arity(payload, 2)?;
                 let path = decode_string(argument(payload, 0, "path")?)?;
@@ -488,6 +495,11 @@ mod test {
         );
         assert_eq!(ok(perform("writeFile", [at("f"), hi()])), undefined());
         assert_eq!(ok(perform("readFile", [at("f")])), hi());
+        let windows: Vec<V> = Array::try_from(ok(perform("readWhole", [at("f")])))
+            .unwrap()
+            .into_iter()
+            .collect();
+        assert_eq!(windows, [hi()]);
         assert_eq!(
             ok(perform(
                 "writeBytes",

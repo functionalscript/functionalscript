@@ -295,7 +295,9 @@ export type WriteExclusive = readonly['writeExclusive', (path: string, data: rea
  * (positional write). The mirror of `readBytes`: it never creates the file
  * (a missing path is `ENOENT`), and it writes every byte or returns an error —
  * the runner loops over short writes — so a later size check can never pass over
- * a hole. Bounded to ≤128 KiB per call, like `readBytes`.
+ * a hole. Bounded to ≤128 KiB per call, like `readBytes`. An `offset` that is
+ * not a safe non-negative integer, or a write whose last byte lands past
+ * `maxOffset`, is refused before `path` is opened.
  */
 export type WriteBytes = readonly['writeBytes', (path: string, offset: number, data: Vec) => IoResult<void>]
 

@@ -196,9 +196,9 @@ below, not something a schema walk can reach.
 **The walk settles kinds; the values need their own rule.** A schema whose
 members are all JSON kinds still admits
 values the encoder cannot round-trip: rtti `number` has no finiteness
-refinement, `numberSerialize` is `[jsonStringify(input)]`
-(`../json/serializer/module.f.mjs`), and `JSON.stringify` renders
-`NaN` and `±Infinity` as `null` — a rule this repo already documents in
+refinement, and `numberSerialize` (`../json/serializer/module.f.mjs`)
+renders `NaN` and `±Infinity` as `null`, as `JSON.stringify` does — a rule
+this repo already documents in
 `../json/extended/module.f.mjs`, in the same breath as the fact that
 those values "cannot arrive from JSON text but can be supplied
 programmatically". So `revisionSchema`'s
@@ -213,33 +213,27 @@ The answer is one rule in one place, not a documented caveat: after
 `encodeText` cannot reproduce.
 
 ```js
-/** A number `JSON.stringify` renders without changing its value. */
-const jsonExact = x => Number.isFinite(x) && !Object.is(x, -0)
+/** A number `numberSerialize` renders without changing its value. */
+const jsonExact = Number.isFinite
 ```
 
-Both bad cases are one failure. `NaN` and `±Infinity` serialize as `null`
-(`../json/extended/module.f.mjs`), and `-0` serializes as `0` —
-`JSON.stringify(-0)` is `"0"` — while this repo deliberately keeps the two
-apart: `../../types/object/structurally_same/module.f.mjs` says `0` and
-`-0` differ, and `../../rtti/data/module.f.mjs` orders them apart.
-Neither survives a round trip; one is rejected on the way back, the other
-silently changes value.
-
-**The `-0` half depends on an open decision.**
-[preserve-negative-zero](../json/todo/preserve-negative-zero.md) makes the
-standard serializer's `numberSerialize` write `-0` as `-0`. If it lands first,
-`-0` round-trips and `jsonExact` needs only `Number.isFinite`; the `-0` rows
-below are then the serializer's proofs, not the factory's.
+`NaN` and `±Infinity` serialize as `null` and do not survive a round trip:
+they are rejected on the way back. `-0` is not a bad case. This repo keeps
+it apart from `0` — `../../types/object/structurally_same/module.f.mjs` says
+the two differ, and `../../rtti/data/module.f.mjs` orders them apart — and
+the standard serializer's `numberSerialize` writes it as `-0`, which the
+parser reads back as `-0`. Its round trip is the serializer's proof, not
+the factory's.
 
 **Why `validate` owns this and not "the value came from JSON text".**
 Provenance is not something the type carries. `validate` is a *public*
 entry point taking `JsonUnknown`, and TypeScript's `number` includes `NaN`,
 so `validate({ dialect: 'x', value: NaN })` is a well-typed call on a
 hand-built object — scoping the guarantee to JSON-sourced values would be
-an assumption about callers, not a property of the API. And `-0` needs no
-such caller at all: `../json/module.f.mjs`'s parser returns negative zero
-for the `-0` literal — the extended codec's proof pins the same for its
-reader (`Object.is(parseValue('-0'), -0)`) — so it arrives from JSON text.
+an assumption about callers, not a property of the API. And `Infinity`
+needs no such caller at all: `../json/module.f.mjs`'s standard parser reads
+`1e400` as `Infinity`, the way JavaScript reads that text, so it arrives
+from JSON text.
 
 **One generic walk, after the parse — not a schema-specialized check.** It
 would be possible to compile the schema's `number` positions at construction
@@ -282,11 +276,10 @@ the offending path — which the walk collects as it descends, and which
 signature changes.
 
 `revision` should still add `Object.is(r.generation, -0)` beside its
-existing check in `checkReferences`, but now as a better message rather than
-as the guarantee: that function's JSDoc already argues a generation is
-an exact count derived as `1 + max(parents')`, which never yields negative
-zero, so the dialect has its own reason to name the value. It stops being
-load-bearing once the factory enforces the rule.
+existing check in `checkReferences` — not as a JSON rule, since `-0`
+round-trips, but as the dialect's own: that function's JSDoc already argues
+a generation is an exact count derived as `1 + max(parents')`, which never
+yields negative zero, so the dialect has its own reason to refuse the value.
 
 **`encodeText` needs a walk too — a wider one, and it refuses rather than
 reports.** `encodeText` is public and takes a bare `ValueOf<S>`, with
@@ -497,7 +490,7 @@ the adapters going into the factory earns its keep, and it is not optional.
 boolean the registrant passed, and nothing else. If the factory's exact-number
 walk lives only in its `validate`, the two predicates diverge: for a
 factory-built dialect that supplies no refinement, `detect` would classify a
-blob carrying `-0` as `application/vnd.fjs.x+json` while that
+blob carrying `1e400` as `application/vnd.fjs.x+json` while that
 dialect's own `decodeText` rejects it — detection labelling a blob its
 decoder will not read, which is the plausible-wrong-answer failure
 `doc/DESIGN.md §10` refuses.
@@ -555,8 +548,10 @@ level up from the seven-line kit.
 - [ ] Run one generic `jsonExact` walk over the value `rttiParse` rebuilds,
       inside the factory's `validate`, collecting the path as it descends.
       One strategy, no compiled positions, and nothing a dialect's
-      refinement can waive. Prove four: `validate` rejects `NaN` and `-0` at
-      `generation` with a `ValidationError` naming the path; a dialect with
+      refinement can waive. Prove four: `validate` rejects `NaN` and
+      `Infinity` at `generation` with a `ValidationError` naming the path
+      (a dialect with no refinement accepts `-0` at a `number` member; the
+      refusal of a `-0` `generation` is `revision`'s own, below); a dialect with
       `array(number)` and an identity refinement still rejects a `NaN`
       element (the case a per-schema check would have missed); and the
       fixpoint `decodeText(encodeText(validate(x)[1])) = validate(x)` for a
@@ -571,13 +566,14 @@ level up from the seven-line kit.
 - [ ] Add a proof row for the dropped-extras case itself, so the fixpoint's
       scope is pinned rather than assumed: a revision blob with a `future`
       member validates, and the value it returns does not carry it.
-- [ ] Add `Object.is(r.generation, -0)` to `revision`'s own check for the
-      better message, and prove `decodeText('{"generation":-0,…}')` is an
-      error. Independent of the factory — worth landing on its own.
+- [ ] Add `Object.is(r.generation, -0)` to `revision`'s own check — a
+      generation is a count, which is never negative zero — and prove
+      `decodeText('{"generation":-0,…}')` is an error. Independent of the
+      factory — worth landing on its own.
 - [ ] Build the kit's `entry` from the kit's own `validate`, so `match` and
       `validate` are one acceptance rule rather than two. Prove the case
       that would otherwise diverge: for a factory-built dialect with no
-      refinement, a blob whose only fault is a `-0` is rejected by
+      refinement, a blob whose only fault is a `1e400` is rejected by
       `decodeText` **and** not classified by `detect` — today's `match`
       would accept it, since it runs the shape check
       and the refinement only.
@@ -602,9 +598,9 @@ level up from the seven-line kit.
 - [json/todo/stringify-sorted-canonical.md](../json/todo/stringify-sorted-canonical.md)
   — the `stringify(sort)` idiom; the three `encodeText` copies are among its
   sites, and the factory would collapse them to one.
-- [json/todo/preserve-negative-zero.md](../json/todo/preserve-negative-zero.md)
-  — makes the standard serializer keep `-0`, which removes the `-0` half of
-  `jsonExact`'s reason.
+- [`../json/serializer/module.f.mjs`](../json/serializer/module.f.mjs)
+  `numberSerialize` — keeps `-0`, which is why `jsonExact` is only
+  `Number.isFinite`.
 - [`../json/serializer/module.f.mjs`](../json/serializer/module.f.mjs) —
   `leafSerialize`, which makes the standard serializer assert on an
   out-of-type `bigint` rather than writing `null`; that overlaps

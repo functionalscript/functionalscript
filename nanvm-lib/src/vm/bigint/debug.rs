@@ -15,6 +15,11 @@ impl<A: IVm> Debug for BigInt<A> {
         }
         f.write_str("0x")?;
         let items = self.0.items();
+        // Most significant word first and unpadded, then `_` and sixteen
+        // digits per word. Not `ContainerFmt`'s delimited loop: through a
+        // shared separator helper, the per-word closure would repeat the
+        // helper's first-item test to choose the padding. The loop's twin is
+        // `Display`'s decimal group join, which has no separator.
         let last = items.length() - 1;
         write!(f, "{:X}", items[last])?;
         for i in (0..last).rev() {

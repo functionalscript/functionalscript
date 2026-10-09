@@ -51,7 +51,7 @@ mod tests {
 
     #[test]
     fn ranges() {
-        let undefined = || Nullish::Undefined.to_any();
+        let undefined = || Any::undefined();
         assert_eq!(slice(1.0, undefined()), vec![2.0.to_any(), 3.0.to_any()]);
         assert_eq!(slice(0.0, 2.0.to_any()), vec![1.0.to_any(), 2.0.to_any()]);
         assert_eq!(slice(-2.0, (-1.0f64).to_any()), vec![2.0.to_any()]);

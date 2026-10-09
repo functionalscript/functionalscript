@@ -135,7 +135,7 @@ import { noteDialect } from '../../media/note/module.f.mjs'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
 import { ok } from '../../types/result/module.f.mjs'
 import {
-    toolEntry, errorResult, okResult, toolResultStep,
+    toolEntry, errorResult, okResult, toolResultStep, toolStep,
 } from '../../protocol/mcp/module.f.mjs'
 import { collectRead } from '../../cas/module.f.mjs'
 import { errorSummary } from '../../effects/node/module.f.mjs'
@@ -231,16 +231,13 @@ export const casToolRegistry = c => cacheKey => [
             return x === null
                 ? pureOk(errorResult(`too large or malformed — for large content, ${runWhereServerRuns('add <path>')}`))
                 // The resolved content fits in one chunk; feed it as a single-item stream.
-                : resultStep(
+                : toolStep(
                     c.write(nonEmpty(x, elEmpty())),
-                    writeResult => {
-                        if (writeResult[0] === 'error') { return pureOk(errorResult('write')) }
-                        const hash = writeResult[1]
-                        return resultStep(
-                            syncRevision(cacheKey)(hash)(x),
-                            () => pureOk(okResult(vecToCBase32(hash)))
-                        )
-                    },
+                    () => 'write',
+                    hash => resultStep(
+                        syncRevision(cacheKey)(hash)(x),
+                        () => pureOk(okResult(vecToCBase32(hash)))
+                    ),
                 )
         },
     ),
@@ -257,7 +254,7 @@ export const casToolRegistry = c => cacheKey => [
             // so decoding once and re-encoding beats decoding twice.
             const hash = vecToCBase32(key)
             const meta = toMeta(`cas:${hash}`)
-            const noSuchHash = pureOk(errorResult(`no such hash: ${r.hash}`))
+            const noSuchHash = `no such hash: ${r.hash}`
             /**
              * Reads the whole blob — already known to fit, from the streaming
              * pass — and re-derives its verdict through the dialect-aware
@@ -275,10 +272,10 @@ export const casToolRegistry = c => cacheKey => [
                 ([tag, value]) => tag === 'error'
                     ? vanished
                     : answer(value)(meta(detectDialect(value))))
-            return resultStep(
+            return toolStep(
                 detectStream(c.read(key)),
-                ([tag, detected]) => {
-                    if (tag === 'error') { return noSuchHash }
+                () => noSuchHash,
+                detected => {
                     const { length, type } = detected
                     const streamingVerdict = pureOk(okResult(toJson(meta(detected))))
                     if (r.content !== true) {
@@ -300,7 +297,7 @@ export const casToolRegistry = c => cacheKey => [
                     }
                     // Inline content was promised, so a vanished blob has no verdict
                     // to fall back to.
-                    return readWhole(noSuchHash)(value => refinedMeta => {
+                    return readWhole(pureOk(errorResult(noSuchHash)))(value => refinedMeta => {
                         if (refinedMeta.type === 'text') {
                             // `type: 'text'` means the detector validated `value` as
                             // whole-blob UTF-8 with a byte-aligned length (see

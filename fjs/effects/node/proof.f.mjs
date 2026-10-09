@@ -12,7 +12,7 @@ import { byteLength, empty, isVec, maxLengthBytes, u8ListMsb, u8ListToVecMsb, ui
 import { utf8, utf8ToString } from "../../text/module.f.mjs"
 import { match } from "../module.f.mjs"
 import { mapStep, pureError, pureOk, step as ioStep } from "../module.f.mjs"
-import { badPortCode, badPortMessage, both, carriesNoBody, declaredLength, doubledLengthMessage, errorMessage, errorSummary, exitStep, fetch, framingHeaderMessage, headerValue, inflate, inflateTrailingMessage, ioError, isNotFound, isPort, maxPort, mkdir, now, readdir, readFile, readUtf8File, refusalMessage, refusedStatus, responseGate, rm, runnerResponse, sandbox, unframedBodyMessage, writeFile, writeUtf8File, _pieces, _vecList, rename, readBytes, randomInt, writeFromStream, plainTextResponse, usesInlineTestContext, readWholeBytes, readChunks, windowRefusal, maxOffset, fileSizeRefusal } from "./module.f.mjs"
+import { badPortCode, badPortMessage, both, carriesNoBody, declaredLength, doubledLengthMessage, errorMessage, errorSummary, exitStep, fetch, framingHeaderMessage, headerValue, inflate, inflateTrailingMessage, ioError, isNotFound, isPort, maxPort, mkdir, now, readdir, readFile, readUtf8File, refusalMessage, refusedStatus, responseGate, rm, runnerResponse, sandbox, unframedBodyMessage, writeFile, writeUtf8File, writeExclusiveUtf8File, _pieces, _vecList, rename, readBytes, randomInt, writeFromStream, plainTextResponse, usesInlineTestContext, readWholeBytes, readChunks, windowRefusal, maxOffset, fileSizeRefusal } from "./module.f.mjs"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.mjs"
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.mjs"
 import { emptyState, virtual } from "./virtual/module.f.mjs"
@@ -544,6 +544,19 @@ export const proof = {
             assertStructurallySame(removed, ['big'])
         },
     },
+    // The text form of `writeExclusive`: a free name is created holding the
+    // text's UTF-8 bytes, and a taken one is refused with the bytes already
+    // there kept.
+    writeExclusiveUtf8File: () => {
+        const [made, [t, result]] = virtual(emptyState)(writeExclusiveUtf8File('x.lock', 'Hello, world!'))
+        assert(t === 'ok', result)
+        const file = made.root['x.lock']
+        assert(Array.isArray(file), file)
+        assertEq(utf8ToString(file[0]), 'Hello, world!')
+        const [again, [t2, taken]] = virtual(made)(writeExclusiveUtf8File('x.lock', 'other'))
+        assert(t2 === 'error', taken)
+        assertStructurallySame(again.root, made.root)
+    },
     rm: {
         one: () => {
             const [state, [t, result]] = virtual({
@@ -764,9 +777,12 @@ export const proof = {
             // Not an integer before negative: `-1.5` is both.
             assertEq(windowRefusal(-1.5, 1), 'Offset -1.5 is not an integer')
             assertEq(windowRefusal(0, -1.5), 'Chunk size -1.5 is not an integer')
-            // The offset before the size, so one call reports one thing.
+            // Every bound of the offset before any of the size, so one call
+            // reports one thing, and the offset's words are the ones a write's
+            // offset is refused with too.
             assertEq(windowRefusal(-1, -1), 'Offset -1 is negative')
             assertEq(windowRefusal(1.5, 1.5), 'Offset 1.5 is not an integer')
+            assertEq(windowRefusal(-1, 1.5), 'Offset -1 is negative')
             // Negative before too-large, and the offset's bound before the size's.
             assertEq(
                 windowRefusal(maxOffset + 1, Number(maxLengthBytes) + 1),

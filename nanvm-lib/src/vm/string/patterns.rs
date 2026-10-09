@@ -254,7 +254,7 @@ impl<A: IVm> String<A> {
 mod tests {
     use crate::{
         naive::Naive,
-        vm::{Any, Array, IStaticFunction, Nullish, String, ToAny, ToArray, error},
+        vm::{Any, Array, IStaticFunction, String, ToAny, ToArray, error},
     };
 
     type A = Naive;
@@ -281,7 +281,7 @@ mod tests {
             vec![]
         );
         assert_eq!(
-            s("a").split(f(), Nullish::Undefined.to_any()).map(|_| ()),
+            s("a").split(f(), Any::undefined()).map(|_| ()),
             Err(error::function_text())
         );
     }
@@ -331,7 +331,7 @@ mod tests {
 
     #[test]
     fn split() {
-        let u = || Nullish::Undefined.to_any();
+        let u = || Any::undefined();
         assert_eq!(
             pieces(s("a,b,,c").split(a(","), u())),
             vec![a("a"), a("b"), a(""), a("c")]

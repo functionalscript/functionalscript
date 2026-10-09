@@ -18,18 +18,13 @@ impl<A: IVm> Function<A> {
 mod tests {
     use crate::{
         naive::Naive,
-        vm::{Any, Function, IStaticFunction, Nullish, ToAny, ToArray},
+        vm::{Any, Function, IStaticFunction, ToAny, ToArray},
     };
 
     type A = Naive;
 
     fn function(length: u32) -> Function<A> {
-        A::static_function(
-            |_, _| Ok(Nullish::Undefined.to_any()),
-            length,
-            [].to_array(),
-            None,
-        )
+        A::static_function(|_, _| Ok(Any::undefined()), length, [].to_array(), None)
     }
 
     #[test]
@@ -49,7 +44,7 @@ mod tests {
         let f = function(2);
         assert_eq!(f.member_access("a".into()), None);
         assert_eq!(f.member_access(0.0.to_any()), None);
-        let key: Any<A> = Nullish::Undefined.to_any();
+        let key: Any<A> = Any::undefined();
         assert_eq!(f.member_access(key), None);
     }
 }

@@ -87,7 +87,7 @@ mod tests {
                 vec![
                     1.0.to_any(),
                     Nullish::Null.to_any(),
-                    Nullish::Undefined.to_any(),
+                    Any::undefined(),
                     nested,
                     "a".into()
                 ],
