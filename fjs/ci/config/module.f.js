@@ -123,7 +123,7 @@ export const typescript = /** @type {const} */({
     attribute: 'typescript-go',
 })
 
-// The Rust the `wasm` job's flake provides, resolved by `rust-overlay` from
+// The Rust the shared shell's flake provides, resolved by `rust-overlay` from
 // the official release manifest — so unlike the Nixpkgs pins below, this is an
 // exact release rather than whatever a snapshot happens to carry, and the flake
 // text names it in full. It is also the version the platform matrix's
@@ -187,7 +187,7 @@ export const rustOverlay = /** @type {const} */({
 
 // The Wasmtime and Wasmer versions the pinned Nixpkgs snapshot provides — read
 // from `pkgs/by-name/wa/{wasmtime,wasmer}/package.nix` at that commit. The
-// `wasm` job asserts both from inside its shell, which is the only tie there
+// `ubuntu-arm` job asserts both from inside its shell, which is the only tie there
 // is: neither attribute carries a version, so nothing else connects these
 // numbers to what the shell provides. Bump the snapshot first and copy what it
 // offers, as the Node and Deno pins do.
