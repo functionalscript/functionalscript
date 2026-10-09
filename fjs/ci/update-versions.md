@@ -13,9 +13,16 @@ upstream.
 
 Start from the latest `main`: fetch it on its own, before anything else.
 
-The container is missing some tools, so install them yourself: the pinned
-`tsc` and Deno via npm, and Nix via `apt-get install nix-bin`, run in
-single-user mode (`NIX_REMOTE=local`).
+The container has no Nix, so install it yourself: `apt-get install nix-bin`,
+run in single-user mode (`NIX_REMOTE=local`). Everything else comes from the
+repository's shell, at the versions CI uses: run every later command that is
+not itself `nix` as `./dev.sh <command>` (`./dev.sh tsc`, `./dev.sh npm run gen`
+and so on), and install nothing else by hand
+([AGENTS.md §2](../../AGENTS.md#2-environment-and-running-tests)). The shell's
+`github:` Nixpkgs input can't be downloaded here, so first put the pinned
+commit's tree in the store as step 1 of *To check a commit* below does; Nix then
+finds it by the `narHash` in `gen.nix/flake.lock` and downloads nothing from
+GitHub.
 
 **Every Nix shell must come from the binary cache.** A Nixpkgs commit is usable
 only if `cache.nixos.org` holds every Nixpkgs package of every generated shell,
@@ -65,18 +72,25 @@ To choose the commit:
 
 If anything changed:
 
-1. Update the file and run `npm run gen`. Read each Nix-provided version from
-   the chosen commit (`nix eval`), not from upstream.
-2. If a Nix input commit changed, refresh the `flake.lock` files.
-   `nix flake lock` can't download from GitHub here, but `git` can: take
-   `narHash` and `lastModified` from the prefetch above. First confirm this
-   reproduces the current lock entries, then write the new ones.
+1. Update the file and run `./dev.sh npm run gen`. Read each Nix-provided
+   version from the chosen commit (`nix eval`), not from upstream. Generation
+   writes every generated file, deleting the `flake.lock` files with the rest
+   of `gen.nix/`, and its last step runs `gen.nix/lock-update.sh`, whose
+   `nix flake lock` can't download from GitHub here. Expect exactly that step
+   to fail, as `./gen.nix/lock-update.sh: exit code 1`; any other failure is
+   real. Then put the lock files back with
+   `git restore $(git ls-files 'gen.nix/*flake.lock')`.
+2. If a Nix input commit changed, refresh the `flake.lock` files by hand, since
+   `lock-update.sh` couldn't: `git` can fetch from GitHub where `nix flake lock`
+   can't, so take `narHash` and `lastModified` from the prefetch above. First
+   confirm this reproduces the current lock entries, then write the new ones.
 3. Run the dry run again on the generated flakes as committed, with no
    override, for every system. This also checks the lock: a wrong `narHash`
    makes Nix try GitHub and fail.
-4. If `package.json` changed, run `npm install`, `deno install` and
-   `bun install`.
-5. Run `tsc` and `node --test`, then commit, push, and fix any CI failures. Put
+4. If `package.json` changed, run `./dev.sh npm install`,
+   `./dev.sh deno install` and `./dev.sh bun install`.
+5. Run `./dev.sh tsc` and `./dev.sh node --test`, then commit, push, and fix
+   any CI failures. Put
    the coverage check in the PR description: each commit checked, and for each
    system whether it passed or what it would build. The PR's own CI doesn't run
    macOS, so this is the only evidence before the merge queue.
