@@ -1,7 +1,7 @@
 ## read-default-test-helper. Every harness test spells the same run of a fixture's default export
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
