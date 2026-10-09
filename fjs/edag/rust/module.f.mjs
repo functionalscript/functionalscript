@@ -43,7 +43,9 @@ import { tagged, untagged } from '../../text/marked/module.f.mjs'
 // literals and numbers of the Rust it prints say what they are, and the
 // public functions answer the plain text, `untagged`, as they always have.
 // `scopeTagged` and the tagged text of this module's other entry points are
-// what a producer of marked text resolves its runs from.
+// what a producer of marked text resolves its runs from. What tagged text is,
+// why public text is never tagged, and why data cannot forge a tag:
+// `fjs/text/marked/README.md`, §4.
 
 /** A Rust keyword, as the text spells it. */
 const kw = tagged('keyword')

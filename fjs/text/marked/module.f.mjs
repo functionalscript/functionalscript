@@ -4,7 +4,8 @@
  * tokens, Pygments and Tree-sitter: the runs' texts, concatenated, are the
  * text, so what a producer writes to a file is {@link toText} of its runs.
  *
- * See `./types.ts` for the type-level API.
+ * See `./types.ts` for the type-level API, and `./README.md` for what a
+ * producer does with it.
  *
  * @module
  *
