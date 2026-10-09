@@ -1,7 +1,7 @@
 ## own-entries-quadratic. An object's ordered entries cost quadratic time in its size
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
