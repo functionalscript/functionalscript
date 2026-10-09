@@ -1,7 +1,7 @@
 ## fjs–nanvm integration
 
 **Priority:** P1
-**Status:** open
+**Status:** wip
 
 ### Problem
 
