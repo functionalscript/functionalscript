@@ -262,6 +262,54 @@ gates. `okList` in `result` could lose its `for … of` the same way, but
 destructuring either way. Template literals hold nine leaves and
 destructuring eight, more than any other feature.
 
+#### Leaf escape normalization
+
+A fresh audit of the authored implementation modules at `40e196a51` finds
+16 `.f.mjs` leaves: modules with no runtime import or re-export of another
+`.f.mjs`. Type-only JSDoc imports do not count. Proofs retain their extension;
+`emergent_testing/example.f.mjs` is a test example rather than an implementation
+module and is excluded. `js/array_index` and `types/set` now import other
+`.f.mjs` modules, so they are no longer leaves. The eighteen-row table above
+records the earlier dependency graph.
+
+Every current leaf still fails the current compiler. The table gives its
+first reported refusal after escape normalization, rather than a complete
+list of blockers; the historical feature analysis above remains useful for
+the other restrictions.
+
+| Leaf (`fjs/…/module.f.mjs`) | First refusal (line:column) |
+| --- | --- |
+| `ci/package` | template literal, 32:56 |
+| `git/bytes` | computed key is not `Number(...)`, 25:35 |
+| `git/config` | template literal, 398:60 |
+| `js/keywords` | `new Set`, 101:24 |
+| `nanvm/member` | template literal, 335:13 |
+| `nanvm/methods` | template literal, 125:21 |
+| `types/function` | `let`, 33:5 |
+| `types/function/operator` | template literal, 11:5 |
+| `types/map` | `new Map`, 10:42 |
+| `types/object/structurally_same` | destructuring, 20:7 |
+| `types/result` | `for … of`, 111:5 |
+| `types/ts` | template literal, 13:5 |
+| `website/browser-source` | template literal, 89:35 |
+| `website/demo/code` | template literal, 26:71 |
+| `website/demo/examples` | `new Set`, 54:13 |
+| `website/style` | template literal, 95:27 |
+
+Unsupported string escapes in these leaves have supported, value-preserving
+spellings, so they need no new language feature:
+
+| Replacement | Where | Occurrences |
+| --- | --- | ---: |
+| `\v` → `\u000B` | `git/config`, line 90 | 1 |
+| `\0` → `\u0000` | `git/config`, lines 434 and 479; `website/demo/code`, line 26 | 3 |
+| `\u{1F600}` → `\uD83D\uDE00` | `nanvm/member` test-corpus string values | 13 |
+
+These three leaves no longer wait on string-escape support. They stay `.f.mjs`
+until the remaining restrictions clear; the deferred escape proposal is not
+needed for their migration. Escape spellings in explanatory comments and
+non-leaf modules are outside this normalization.
+
 #### The whole repository
 
 The same loop over every authored module, not only the leaves, measured at

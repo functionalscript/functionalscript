@@ -56,7 +56,7 @@ const atCases = [
     { name: 'stringBeforeTheStart', args: ['abc', -4], expected: undefined },
     { name: 'stringNoArgument', args: ['abc'], expected: 'a' },
     { name: 'stringEmpty', args: ['', 0], expected: undefined },
-    { name: 'stringCodeUnit', args: ['\u{1F600}', 0], expected: '\uD83D' },
+    { name: 'stringCodeUnit', args: ['\uD83D\uDE00', 0], expected: '\uD83D' },
     { name: 'stringBigint', args: ['abc', 0n], expected: throws },
 ]
 
@@ -138,7 +138,7 @@ const indexOfCases = [
     { name: 'stringEmpty', args: ['abc', ''], expected: 0 },
     { name: 'stringEmptyPastTheEnd', args: ['abc', '', 10], expected: 3 },
     { name: 'stringLonger', args: ['ab', 'abc'], expected: -1 },
-    { name: 'stringLowSurrogate', args: ['\u{1F600}', '\uDE00'], expected: 1 },
+    { name: 'stringLowSurrogate', args: ['\uD83D\uDE00', '\uDE00'], expected: 1 },
     { name: 'stringBigintFrom', args: ['abc', 'a', 0n], expected: throws },
 ]
 
@@ -206,7 +206,7 @@ const sliceCases = [
     { name: 'stringEmptyRange', args: ['abc', 2, 1], expected: '' },
     { name: 'stringUndefinedEnd', args: ['abc', 1, undefined], expected: 'bc' },
     { name: 'stringNoArgument', args: ['abc'], expected: 'abc' },
-    { name: 'stringHalfAPair', args: ['\u{1F600}', 1], expected: '\uDE00' },
+    { name: 'stringHalfAPair', args: ['\uD83D\uDE00', 1], expected: '\uDE00' },
     { name: 'stringBigint', args: ['abc', 0n], expected: throws },
 ]
 
@@ -546,7 +546,7 @@ const charAtCases = [
     { name: 'string', args: ['abc', '2'], expected: 'c' },
     { name: 'nan', args: ['abc', NaN], expected: 'a' },
     { name: 'infinity', args: ['abc', Infinity], expected: '' },
-    { name: 'codeUnit', args: ['\u{1F600}', 1], expected: '\uDE00' },
+    { name: 'codeUnit', args: ['\uD83D\uDE00', 1], expected: '\uDE00' },
     { name: 'empty', args: ['', 0], expected: '' },
     { name: 'bigint', args: ['abc', 0n], expected: throws },
 ]
@@ -557,8 +557,8 @@ const charCodeAtCases = [
     { name: 'noArgument', args: ['abc'], expected: 97 },
     { name: 'negative', args: ['abc', -1], expected: NaN },
     { name: 'pastTheEnd', args: ['abc', 3], expected: NaN },
-    { name: 'highSurrogate', args: ['\u{1F600}', 0], expected: 0xD83D },
-    { name: 'lowSurrogate', args: ['\u{1F600}', 1], expected: 0xDE00 },
+    { name: 'highSurrogate', args: ['\uD83D\uDE00', 0], expected: 0xD83D },
+    { name: 'lowSurrogate', args: ['\uD83D\uDE00', 1], expected: 0xDE00 },
     { name: 'bigint', args: ['abc', 0n], expected: throws },
 ]
 
@@ -570,19 +570,19 @@ const charCodeAtCases = [
  */
 const codePointAtCases = [
     { name: 'ascii', args: ['abc', 1], expected: 98 },
-    { name: 'pair', args: ['\u{1F600}', 0], expected: 0x1F600 },
-    { name: 'lowHalf', args: ['\u{1F600}', 1], expected: 0xDE00 },
+    { name: 'pair', args: ['\uD83D\uDE00', 0], expected: 0x1F600 },
+    { name: 'lowHalf', args: ['\uD83D\uDE00', 1], expected: 0xDE00 },
     { name: 'loneHigh', args: ['\uD83Da', 0], expected: 0xD83D },
     { name: 'pastTheEnd', args: ['abc', 3], expected: undefined },
     { name: 'negative', args: ['abc', -1], expected: undefined },
-    { name: 'noArgument', args: ['\u{1F600}'], expected: 0x1F600 },
+    { name: 'noArgument', args: ['\uD83D\uDE00'], expected: 0x1F600 },
     { name: 'bigint', args: ['abc', 0n], expected: throws },
 ]
 
 /** `String.prototype.isWellFormed`: no surrogate is unpaired. @type {readonly MethodCase[]} */
 const isWellFormedCases = [
     { name: 'ascii', args: ['abc'], expected: true },
-    { name: 'pair', args: ['a\u{1F600}b'], expected: true },
+    { name: 'pair', args: ['a\uD83D\uDE00b'], expected: true },
     { name: 'loneHigh', args: ['a\uD83D'], expected: false },
     { name: 'loneLow', args: ['\uDE00a'], expected: false },
     { name: 'reversedPair', args: ['\uDE00\uD83D'], expected: false },
@@ -592,7 +592,7 @@ const isWellFormedCases = [
 /** `String.prototype.toWellFormed`: each unpaired surrogate replaced by U+FFFD. @type {readonly MethodCase[]} */
 const toWellFormedCases = [
     { name: 'ascii', args: ['abc'], expected: 'abc' },
-    { name: 'pair', args: ['a\u{1F600}b'], expected: 'a\u{1F600}b' },
+    { name: 'pair', args: ['a\uD83D\uDE00b'], expected: 'a\uD83D\uDE00b' },
     { name: 'lone', args: ['a\uD800b\uDC00'], expected: 'a\uFFFDb\uFFFD' },
     { name: 'reversedPair', args: ['\uDE00\uD83D'], expected: '\uFFFD\uFFFD' },
     { name: 'empty', args: [''], expected: '' },
@@ -796,7 +796,7 @@ const splitCases = [
     { name: 'trailing', args: ['a,', ','], expected: ['a', ''] },
     { name: 'longSeparator', args: ['a::b::', '::'], expected: ['a', 'b', ''] },
     { name: 'nullSeparator', args: ['anullb', null], expected: ['a', 'b'] },
-    { name: 'pair', args: ['\u{1F600}', ''], expected: ['\uD83D', '\uDE00'] },
+    { name: 'pair', args: ['\uD83D\uDE00', ''], expected: ['\uD83D', '\uDE00'] },
     { name: 'bigintLimit', args: ['a', ',', 1n], expected: throws },
 ]
 
