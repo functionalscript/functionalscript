@@ -114,7 +114,8 @@
  *
  * @import { MemOp } from '../../effects/memory/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
- * @import { ToolEntry } from '../../protocol/mcp/types.ts'
+ * @import { ToolEntry, ToolsCallResult } from '../../protocol/mcp/types.ts'
+ * @import { Effect } from '../../effects/types.ts'
  * @import { FileCas, FileCasOperation } from '../../cas/types.ts'
  * @import { Cache } from '../../cas/evo/types.ts'
  * @import { Key } from '../../effects/memory/types.ts'
@@ -191,6 +192,17 @@ const toMeta = uri => ({ length, mime_type: mimeType, type }) =>
     ({ length: Number(length), mimeType, type, uri })
 
 /**
+ * Where a `cas` CLI command must run to reach this server's store, as the
+ * clause every over-limit answer and its tool description shares: the CLI
+ * reads the store of the account it runs as, so the same command run over
+ * another `ssh` hop, container or account reaches a different store.
+ *
+ * @type {(command: string) => string}
+ */
+const runWhereServerRuns = command =>
+    `run \`npx functionalscript cas ${command}\` where this server runs — the same host, container and account, so over the same \`ssh host\` if it was launched that way — yourself if you have shell access, or give the user that exact command to run`
+
+/**
  * Registry of all CAS tools, bound to the store `c` and the Evo cache at
  * `cacheKey`. `cas_add` is the only tool that writes, so it is the only one
  * that needs `cacheKey`: a successfully stored blob is folded into the Evo
@@ -208,7 +220,7 @@ const toMeta = uri => ({ length, mime_type: mimeType, type }) =>
 export const casToolRegistry = c => cacheKey => [
     toolEntry(
         'cas_add',
-        'Store content and return its hash (cBase32). Pass type:"base64" for binary; omit or pass type:"text" for UTF-8 text (default). Inline content is capped at 128 KiB (131072 bytes) — larger content is rejected. For larger content, store the file with the `cas` CLI instead: run `npx functionalscript cas add <path>` where this server runs — the same host, container and account, so over the same `ssh host` if it was launched that way — yourself if you have shell access, or give the user that exact command to run; it prints the resulting hash on stdout. Run anywhere else, it stores into a different store.',
+        `Store content and return its hash (cBase32). Pass type:"base64" for binary; omit or pass type:"text" for UTF-8 text (default). Inline content is capped at 128 KiB (131072 bytes) — larger content is rejected. For larger content, store the file with the \`cas\` CLI instead: ${runWhereServerRuns('add <path>')}; it prints the resulting hash on stdout. Run anywhere else, it stores into a different store.`,
         casAddArgs,
         ({ type, content }) => {
             // type:'text' or 'base64' — resolve content to Vec, store via c.write()
@@ -217,7 +229,7 @@ export const casToolRegistry = c => cacheKey => [
                 ? base64Decode(content)
                 : tryUtf8(content)
             return x === null
-                ? pureOk(errorResult('too large or malformed — for large content, run `npx functionalscript cas add <path>` where this server runs (same host, container and account; over the same ssh if it was launched that way), or have the user run it there, instead'))
+                ? pureOk(errorResult(`too large or malformed — for large content, ${runWhereServerRuns('add <path>')}`))
                 // The resolved content fits in one chunk; feed it as a single-item stream.
                 : resultStep(
                     c.write(nonEmpty(x, elEmpty())),
@@ -234,7 +246,7 @@ export const casToolRegistry = c => cacheKey => [
     ),
     toolEntry(
         'cas_get',
-        'Inspect a blob by hash. Always returns JSON {length,mimeType,type,uri} where type is "text" or "base64" and uri is the blob\'s opaque identifier, cas:<hash>. Pass content:true to also include the inline payload as text (type:"text") or blob (type:"base64"), but content is capped at 128 KiB (131072 bytes) — a larger blob is rejected with an error. To write a blob of any size to a file, run `npx functionalscript cas get <hash> <path>` where this server runs — the same host, container and account, so over the same `ssh host` if it was launched that way — yourself if you have shell access, or give the user that exact command to run. Run anywhere else, it reads a different store and reports the hash missing.',
+        `Inspect a blob by hash. Always returns JSON {length,mimeType,type,uri} where type is "text" or "base64" and uri is the blob's opaque identifier, cas:<hash>. Pass content:true to also include the inline payload as text (type:"text") or blob (type:"base64"), but content is capped at 128 KiB (131072 bytes) — a larger blob is rejected with an error. To write a blob of any size to a file, ${runWhereServerRuns('get <hash> <path>')}. Run anywhere else, it reads a different store and reports the hash missing.`,
         casGetArgs,
         r => {
             const key = cBase32ToVec(r.hash)
@@ -245,32 +257,38 @@ export const casToolRegistry = c => cacheKey => [
             // so decoding once and re-encoding beats decoding twice.
             const hash = vecToCBase32(key)
             const meta = toMeta(`cas:${hash}`)
+            const noSuchHash = pureOk(errorResult(`no such hash: ${r.hash}`))
+            /**
+             * Reads the whole blob — already known to fit, from the streaming
+             * pass — and re-derives its verdict through the dialect-aware
+             * detector, since a dialect match is only decidable with the whole
+             * parsed blob in hand. A failed read means the hash vanished
+             * between the two reads; what that answers is the caller's
+             * `vanished`.
+             *
+             * @type {(vanished: Effect<FileCasOperation, ToolsCallResult, never>) =>
+             *   (answer: (value: Vec) => (refinedMeta: ReturnType<typeof meta>) => Effect<FileCasOperation, ToolsCallResult, never>) =>
+             *   Effect<FileCasOperation, ToolsCallResult, never>}
+             */
+            const readWhole = vanished => answer => resultStep(
+                collectRead(c.read(key)),
+                ([tag, value]) => tag === 'error'
+                    ? vanished
+                    : answer(value)(meta(detectDialect(value))))
             return resultStep(
                 detectStream(c.read(key)),
                 ([tag, detected]) => {
-                    if (tag === 'error') {
-                        return pureOk(errorResult(`no such hash: ${r.hash}`))
-                    }
+                    if (tag === 'error') { return noSuchHash }
                     const { length, type } = detected
-                    const detectedMeta = meta(detected)
+                    const streamingVerdict = pureOk(okResult(toJson(meta(detected))))
                     if (r.content !== true) {
                         // A dialect match can only be decided from the whole parsed blob;
                         // only attempt the extra bounded read when it stands a chance
                         // (whole-blob text within the same cap `content: true` allows).
-                        if (type !== 'text' || length > maxLengthBytes) {
-                            return pureOk(okResult(toJson(detectedMeta)))
-                        }
-                        return resultStep(
-                            collectRead(c.read(key)),
-                            ([collectTag, value]) => {
-                                // Already known to fit from the streaming pass above, so an
-                                // error here means the hash vanished between reads; fall back
-                                // to the streaming verdict rather than fail the whole request.
-                                if (collectTag === 'error') { return pureOk(okResult(toJson(detectedMeta))) }
-                                const refined = detectDialect(value)
-                                return pureOk(okResult(toJson(meta(refined))))
-                            }
-                        )
+                        if (type !== 'text' || length > maxLengthBytes) { return streamingVerdict }
+                        // A vanished blob falls back to the streaming verdict rather
+                        // than fail a request that asked only for metadata.
+                        return readWhole(streamingVerdict)(() => refinedMeta => pureOk(okResult(toJson(refinedMeta))))
                     }
                     // A single `Vec` caps at `maxLength` bits (`maxLengthBytes` bytes), so
                     // a larger blob cannot be buffered for inline transfer. Report the
@@ -278,38 +296,28 @@ export const casToolRegistry = c => cacheKey => [
                     // misreporting an existing blob as `no such hash`.
                     if (length > maxLengthBytes) {
                         return pureOk(errorResult(
-                            `blob too large to fetch inline (${length} bytes, limit ${maxLengthBytes} bytes); run \`npx functionalscript cas get ${hash} <path>\` where this server runs (same host, container and account; over the same ssh if it was launched that way), or have the user run it there, or omit content for metadata`))
+                            `blob too large to fetch inline (${length} bytes, limit ${maxLengthBytes} bytes); ${runWhereServerRuns(`get ${hash} <path>`)}, or omit content for metadata`))
                     }
-                    return resultStep(
-                        collectRead(c.read(key)),
-                        ([collectTag, value]) => {
-                            if (collectTag === 'error') {
-                                return pureOk(errorResult(`no such hash: ${r.hash}`))
-                            }
-                            // Re-derive the verdict from the now-materialized blob so a
-                            // dialect match — only decidable with the whole parsed JSON in
-                            // hand — is reflected in the inline result too, not just the
-                            // streaming guess.
-                            const refined = detectDialect(value)
-                            const refinedMeta = meta(refined)
-                            if (refined.type === 'text') {
-                                // `type: 'text'` means the detector validated `value` as
-                                // whole-blob UTF-8 with a byte-aligned length (see
-                                // `media/type`'s `finish`) — the same two conditions
-                                // `fromVec` checks, via the same decoder — so `fromVec`
-                                // cannot return `null` here (mirrors `media`'s own `detect`).
-                                const str = assertNotNullish(fromVec(value), 'cas_get: type text implies fromVec succeeds')
-                                return pureOk(okResult(toJson({ ...refinedMeta, text: str })))
-                            }
-                            // Every byte ever written through `cas_add`/the CAS store is
-                            // whole-byte chunks (UTF-8 text or already-decoded base64), so
-                            // `value` is always byte-aligned regardless of which branch
-                            // classified it — `base64Encode` only rejects a non-byte-aligned
-                            // input.
-                            const blob = assertNotNullish(base64Encode(value), 'cas_get: stored content is always byte-aligned')
-                            return pureOk(okResult(toJson({ ...refinedMeta, blob })))
-                        },
-                    )
+                    // Inline content was promised, so a vanished blob has no verdict
+                    // to fall back to.
+                    return readWhole(noSuchHash)(value => refinedMeta => {
+                        if (refinedMeta.type === 'text') {
+                            // `type: 'text'` means the detector validated `value` as
+                            // whole-blob UTF-8 with a byte-aligned length (see
+                            // `media/type`'s `finish`) — the same two conditions
+                            // `fromVec` checks, via the same decoder — so `fromVec`
+                            // cannot return `null` here (mirrors `media`'s own `detect`).
+                            const str = assertNotNullish(fromVec(value), 'cas_get: type text implies fromVec succeeds')
+                            return pureOk(okResult(toJson({ ...refinedMeta, text: str })))
+                        }
+                        // Every byte ever written through `cas_add`/the CAS store is
+                        // whole-byte chunks (UTF-8 text or already-decoded base64), so
+                        // `value` is always byte-aligned regardless of which branch
+                        // classified it — `base64Encode` only rejects a non-byte-aligned
+                        // input.
+                        const blob = assertNotNullish(base64Encode(value), 'cas_get: stored content is always byte-aligned')
+                        return pureOk(okResult(toJson({ ...refinedMeta, blob })))
+                    })
                 },
             )
         },

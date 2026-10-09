@@ -77,5 +77,5 @@ literal is met, as a leaf case, rather than as a work kind of its own.
   collapse.
 - [deep-nesting-recursion](./deep-nesting-recursion.md) — `lowerLeaf`'s
   recursion, which the unary work arms sit beside.
-- [one-precedence-table](./one-precedence-table.md) — the binary half
-  of the same table.
+- [`eagerLayers` and `lazyLayers`](../ast/module.f.mjs) — the binary
+  half of the same table, already one statement in `ast`.

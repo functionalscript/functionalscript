@@ -135,6 +135,8 @@ import { analysis, checked, itemOperand, mergeable, operandsOf, stepOperands } f
 import { keySerialize, leafSerialize } from '../../media/datajs/serializer/module.f.mjs'
 import { arrayWrap, colon, objectWrap, wrap } from '../../media/json/serializer/module.f.mjs'
 import { first, flat, toArray } from '../../types/list/module.f.mjs'
+import { definedValues } from '../../types/object/module.f.mjs'
+import { eagerLayers, lazyLayers } from '../ast/module.f.mjs'
 import { _prohibitedCallNames, _prohibitedNames } from '../parser/module.f.mjs'
 import { isIdentifier } from '../../js/identifier/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
@@ -301,8 +303,10 @@ const arrowKind = kind => kind === '=>' || kind === 'entry'
 /**
  * The operators by level, loosest first, JavaScript's own ladder
  * ([spec: operators](../../../spec/README.md#operators)): the conditional;
- * `||` and `??` — one level, though the two never mix bare — `&&`; and
- * under them the eager binary operators, Stage A, `|` down to `**`. The
+ * the lazy layers, `||` and `??` — one level, though the two never mix
+ * bare — and `&&`; under them the eager layers, Stage A, `|` down to
+ * `* / %`, both read loosest first from `eagerLayers` and `lazyLayers` in
+ * `../ast/module.f.mjs`; and `**`, in no layer there. The
  * two prefixes, `-` of one operand and `~`, bind tighter than every level
  * here, and everything else this writer spells — a name, a primitive, an
  * access, a container, the call a nested `throw` is, the `Number`
@@ -311,8 +315,10 @@ const arrowKind = kind => kind === '=>' || kind === 'entry'
  * @type {readonly (readonly string[])[]}
  */
 const levels = [
-    ['?:'], ['||', '??'], ['&&'],
-    ['|'], ['^'], ['&'], ['===', '!=='], ['<', '<=', '>', '>=', 'instanceof'], ['<<', '>>', '>>>'], ['+', '-'], ['*', '/', '%'], ['**'],
+    ['?:'],
+    ...lazyLayers.toReversed().map(definedValues),
+    ...eagerLayers.toReversed().map(definedValues),
+    ['**'],
 ]
 
 /** The level of an operator, `0` the loosest; `-1` for a tag that is none. @type {(op: string) => number} */

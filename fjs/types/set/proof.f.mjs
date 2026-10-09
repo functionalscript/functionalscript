@@ -5,16 +5,31 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { add, empty, has, size, values } from './module.f.mjs'
 
+/**
+ * The run sizes, newest (top, smallest) first.
+ *
+ * @type {(set: PersistentSet<unknown>) => readonly number[]}
+ */
+const sizes = set => set === null ? [] : [set.size, ...sizes(set.rest)]
+
 /** The set of the first `n` naturals, added in order. @type {(n: number) => PersistentSet<number>} */
 const naturals = n => Array.from({ length: n }, (_, i) => i).reduce((set, i) => add(i)(set), /** @type {PersistentSet<number>} */ (empty))
 
 /**
- * The layout invariant: the entry at index `k` holds exactly `2^k` values or
- * nothing, so the entries spell the size in binary.
+ * The layout invariant: every run's `Set` holds exactly its `size` values, a
+ * power of two, and the sizes strictly grow down the stack, so the runs spell
+ * the set's size in binary.
  *
  * @type {(set: PersistentSet<unknown>) => void}
  */
-const wellFormed = set => set.forEach((entry, k) => assert(entry === null || entry.size === 2 ** k, `entry ${k}`))
+const wellFormed = set => {
+    if (set === null) { return }
+    const { size, value, rest } = set
+    assertEq(value.size, size)
+    assertEq(size & (size - 1), 0)
+    assert(rest === null || size < rest.size, `run ${size}`)
+    wellFormed(rest)
+}
 
 export const proof = {
     empty: () => {
@@ -27,13 +42,13 @@ export const proof = {
     // way.
     carries: () => {
         const one = add(0)(empty)
-        assertStructurallySame(one.map(entry => entry === null ? 0 : entry.size), [1])
+        assertStructurallySame(sizes(one), [1])
         const two = add(1)(one)
-        assertStructurallySame(two.map(entry => entry === null ? 0 : entry.size), [0, 2])
+        assertStructurallySame(sizes(two), [2])
         const three = add(2)(two)
-        assertStructurallySame(three.map(entry => entry === null ? 0 : entry.size), [1, 2])
+        assertStructurallySame(sizes(three), [1, 2])
         const four = add(3)(three)
-        assertStructurallySame(four.map(entry => entry === null ? 0 : entry.size), [0, 0, 4])
+        assertStructurallySame(sizes(four), [4])
         for (let n = 0; n <= 70; n += 1) {
             const set = naturals(n)
             wellFormed(set)
@@ -81,7 +96,8 @@ export const proof = {
         const set = naturals(n)
         wellFormed(set)
         assertEq(size(set), n)
-        assertEq(set.length, 15)
+        // 20000 is `100111000100000` in binary.
+        assertStructurallySame(sizes(set), [32, 512, 1024, 2048, 16384])
         assert(has(n - 1)(set))
         assert(!has(n)(set))
     },

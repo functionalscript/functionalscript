@@ -50,7 +50,6 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Ok } from '../../types/result/types.ts'
- * @import { List } from '../../effects/list/types.ts'
  * @import { IoChannel, IoResult } from '../../effects/node/types.ts'
  * @import { Revision } from '../../media/revision/types.ts'
  * @import { Hash, Subject, RevisionData, SubjectState, Cache, Evo } from './types.ts'
@@ -105,7 +104,15 @@ export const emptyCache = { bySubject: {} }
 /** @type {SubjectState} */
 const emptySubjectState = { hashes: [], parents: [], archived: [] }
 
-/** Adds every item of `items` to `set` that isn't already there, preserving `set`'s existing order.
+/**
+ * Adds every item of `items` to `set` that isn't already there, preserving `set`'s existing order.
+ *
+ * The result is `fjs/types/array`'s `dedup([...set, ...items])`, but not its
+ * cost: `set` is already free of repeats, so only the new `items` are looked
+ * up in it, while `dedup` would re-check every item of `set` against all the
+ * ones before it. {@link buildCache} folds a subject's whole history through
+ * here one revision at a time, which `dedup` would make cubic in its length.
+ *
  * @type {(set: readonly Hash[]) => (items: readonly Hash[]) => readonly Hash[]}
  */
 const union = set => items =>

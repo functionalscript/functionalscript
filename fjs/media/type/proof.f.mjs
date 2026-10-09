@@ -1,6 +1,6 @@
 /**
  * @import { Vec } from '../../types/bit_vec/types.ts'
- * @import { List } from '../../effects/list/types.ts'
+ * @import { EffectList } from '../../effects/list/types.ts'
  * @import { IoChannel } from '../../effects/node/types.ts'
  * @import { DetectMeta } from './types.ts'
  */
@@ -22,11 +22,11 @@ const bytes = (...b) => u8ListToVecMsb(b)
 // ── Streaming detector helpers ──────────────────────────────────────────────────
 
 // Builds a CAS-style read stream from a sequence of chunks.
-/** @type {(...chunks: readonly Vec[]) => List<never, Vec, IoChannel>} */
+/** @type {(...chunks: readonly Vec[]) => EffectList<never, Vec, IoChannel>} */
 const stream = (...chunks) =>
     chunks.reduceRight(
         (tail, c) => nonEmpty(c, tail),
-        /** @satisfies {List<never, Vec, IoChannel>} */ (emptyList()))
+        /** @satisfies {EffectList<never, Vec, IoChannel>} */ (emptyList()))
 
 // Runs the streaming detector over the given chunks and unwraps the metadata.
 /** @type {(...chunks: readonly Vec[]) => DetectMeta} */
@@ -293,7 +293,7 @@ export const proof = {
 
         // A stream that fails carries its failure out as the detector's own.
         readErrorSurfaces: () => {
-            /** @type {List<never, Vec, IoChannel>} */
+            /** @type {EffectList<never, Vec, IoChannel>} */
             const errStream = pureError(ioError({ message: 'boom' }))
             const o = runPure(detectStream(errStream))
             assert(o.length === 1, 'effect is not pure')

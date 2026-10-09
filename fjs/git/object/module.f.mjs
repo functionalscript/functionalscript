@@ -22,8 +22,7 @@ import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { ascii, byteLength, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.mjs'
 import { range, repeatFrom1, set } from '../../ebnf/module.f.mjs'
 import { digitsValue, isCanonicalDigits } from '../../text/ascii/module.f.mjs'
-import { concat, drop, take } from '../../types/list/module.f.mjs'
-import { sameBytes } from '../refname/module.f.mjs'
+import { concat, drop, sameItems, take } from '../../types/list/module.f.mjs'
 
 const maxSize = BigInt(Number.MAX_SAFE_INTEGER)
 
@@ -90,7 +89,7 @@ const typeBytes = objectTypes.map(t => /** @type {const} */ ([t, ascii(t)]))
  *
  * @type {(w: readonly number[]) => Nullable<ObjectType>}
  */
-export const tryType = w => typeBytes.find(([, b]) => sameBytes(b)(w))?.[0] ?? null
+export const tryType = w => typeBytes.find(([, b]) => sameItems(b)(w))?.[0] ?? null
 
 /**
  * The size a digit string spells, or `null` where the spelling is not the

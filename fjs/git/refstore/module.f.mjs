@@ -208,9 +208,9 @@ import { under } from '../../path/module.f.mjs'
 import { fromCodePointList, fromVec } from '../../text/utf8/module.f.mjs'
 import { codePointListToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { length, maxLengthBytes, u8ListMsb, u8ListToVecMsb, uint } from '../../types/bit_vec/module.f.mjs'
-import { concat, toArray } from '../../types/list/module.f.mjs'
+import { concat, sameItems, toArray } from '../../types/list/module.f.mjs'
 import { tryPacked, tryRef } from '../ref/module.f.mjs'
-import { hasRefComponents, isWholeName, sameBytes } from '../refname/module.f.mjs'
+import { hasRefComponents, isWholeName } from '../refname/module.f.mjs'
 
 
 /**
@@ -231,7 +231,7 @@ const nameBytes = s => toArray(fromCodePointList(stringToCodePointList(s)))
  * One code unit per byte, which is **not** a decoding and never becomes a path —
  * {@link nameText} is the decoding, and it is UTF-8. This is only an injective
  * encoding: two names give the same key exactly when they are the same bytes, so
- * a `Map` or a `Set` over it answers what {@link sameBytes} answers, in one
+ * a `Map` or a `Set` over it answers what {@link sameItems} answers, in one
  * lookup rather than a pass per name.
  *
  * That matters at the size a repository reaches. Comparing every packed line
@@ -376,7 +376,7 @@ const special = /** @type {readonly string[]} */ (['FETCH_HEAD', 'MERGE_HEAD'])
  * @type {(packed: readonly PackedRef[], name: Bytes) => Nullable<Oid>}
  */
 const packedId = (packed, name) => {
-    const hits = packed.filter(e => sameBytes(e.name)(name))
+    const hits = packed.filter(e => sameItems(e.name)(name))
     return hits.length === 0 ? null : hits[hits.length - 1].id
 }
 
@@ -1221,8 +1221,8 @@ const packedDisagreement = packed => {
  * @type {(headFound: _Found, packed: readonly PackedRef[]) => boolean}
  */
 const packedHeadCollision = (headFound, packed) =>
-    toArray(headFound.names).some(n => sameBytes(n)(headName))
-    && packed.some(p => sameBytes(p.name)(headName))
+    toArray(headFound.names).some(n => sameItems(n)(headName))
+    && packed.some(p => sameItems(p.name)(headName))
 
 /**
  * The roots the walk found, then the packed lines nothing hides.

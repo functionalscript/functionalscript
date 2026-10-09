@@ -20,7 +20,7 @@
 import { anchors, isBinary, isInlinedCall, isLazy, isSpread, readCaptures } from '../ast/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
 import { fromValue } from '../../edag/module.f.mjs'
-import { _attributeError, _importSources, _missingExport, _rootSource, _parseJson, _parseModule } from '../source/module.f.mjs'
+import { _attributeError, _fileError, _importSources, _missingExport, _rootSource, _parseJson, _parseModule } from '../source/module.f.mjs'
 import { foldStep, mapStep, pureError, pureOk, step } from '../../effects/module.f.mjs'
 import { at, setReplace } from '../../types/ordered_map/module.f.mjs'
 import { drop, includes } from '../../types/list/module.f.mjs'
@@ -735,7 +735,7 @@ const link = source => context => {
     // met before is refused all the same when this import misspells it
     const mismatch = _attributeError(source)
     if (mismatch !== null) { return pureError(mismatch) }
-    if (includes(id)(context.stack)) { return pureError({ message: 'circular dependency', metadata: null, path }) }
+    if (includes(id)(context.stack)) { return pureError(_fileError(path)('circular dependency')) }
     const done = at(id)(context.complete)
     if (done !== null) { return pureOk([context, done]) }
     const entered = { ...context, stack: { first: id, tail: context.stack } }
