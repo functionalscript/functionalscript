@@ -1,7 +1,7 @@
 ## inplace-writer-split. The backspace in-place writer is not an SGR concern
 
 **Priority:** P5
-**Status:** open
+**Status:** wip
 
 ### Problem
 
