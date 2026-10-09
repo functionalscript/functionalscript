@@ -34,6 +34,7 @@ use crate::vm::{
     IVm, Number, String, ToAny, Unpacked,
     boolean_coercion::BooleanCoercion,
     dispatch::Dispatch,
+    error,
     nullish::Nullish,
     number_coercion::NumberCoercion,
     numeric::Numeric,
@@ -41,12 +42,6 @@ use crate::vm::{
     primitive_coercion::{PrimitiveCoercionOp, ToPrimitivePreferredType},
     string_coercion::StringCoercion,
 };
-
-/// `Object.getOwnPropertyDescriptor`'s own message for a nullish receiver
-/// (`entry`'s throwing case of its own, the other being a key whose
-/// conversion throws — see its doc comment).
-pub(crate) const CANNOT_CONVERT_NULLISH_TO_OBJECT: &str =
-    "TypeError: Cannot convert undefined or null to object";
 
 /// ```
 /// use nanvm_lib::{
@@ -150,7 +145,7 @@ impl<A: IVm> Any<A> {
     pub fn entry(self, key: Self) -> Result<Self, Self> {
         let unpacked: Unpacked<A> = self.into();
         if let Unpacked::Nullish(_) = &unpacked {
-            return Err(CANNOT_CONVERT_NULLISH_TO_OBJECT.into());
+            return Err(error::nullish_to_object());
         }
         let key = key.to_string()?;
         Ok(match unpacked {
@@ -234,7 +229,7 @@ impl<A: IVm> Any<A> {
 mod tests {
     use crate::{
         naive::Naive,
-        vm::{Any, Nullish, ToAny, ToArray, ToObject},
+        vm::{Any, Nullish, ToAny, ToArray, ToObject, error},
     };
 
     type A = Naive;
@@ -252,12 +247,9 @@ mod tests {
         let key = (1f64).to_any::<A>();
         assert_eq!(
             Nullish::Null.to_any::<A>().entry(key.clone()),
-            Err("TypeError: Cannot convert undefined or null to object".into())
+            Err(error::nullish_to_object())
         );
-        assert_eq!(
-            undefined().entry(key),
-            Err("TypeError: Cannot convert undefined or null to object".into())
-        );
+        assert_eq!(undefined().entry(key), Err(error::nullish_to_object()));
     }
 
     /// The key converts as `ToPropertyKey` converts it: a number names the
