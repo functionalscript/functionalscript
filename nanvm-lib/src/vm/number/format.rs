@@ -91,6 +91,14 @@ fn point_after_first(digits: &str) -> std::string::String {
     }
 }
 
+/// `-` for a negative `x`, then `magnitude` of `|x|`, as a VM string: the
+/// sign every formatter writes the same way around its own digits. `-0` is
+/// not negative, so it formats as `0`.
+fn signed<A: IVm>(x: f64, magnitude: impl FnOnce(f64) -> std::string::String) -> String<A> {
+    let sign = if x < 0.0 { "-" } else { "" };
+    format!("{sign}{}", magnitude(x.abs())).as_str().into()
+}
+
 impl Number {
     /// `Number.prototype.toFixed(f)`
     /// (<https://tc39.es/ecma262/#sec-number.prototype.tofixed>) over a digit
@@ -108,19 +116,18 @@ impl Number {
             return Ok(number_to_string(self));
         }
         let f = f as u32;
-        let sign = if x < 0.0 { "-" } else { "" };
-        let m = scaled::<A>(x.abs(), i64::from(f)).to_string();
-        let m = if f == 0 {
-            m
-        } else {
+        Ok(signed(x, |x| {
+            let m = scaled::<A>(x, i64::from(f)).to_string();
+            if f == 0 {
+                return m;
+            }
             let m = format!(
                 "{}{m}",
                 "0".repeat((f as usize + 1).saturating_sub(m.len()))
             );
             let (a, b) = m.split_at(m.len() - f as usize);
             format!("{a}.{b}")
-        };
-        Ok(format!("{sign}{m}").as_str().into())
+        }))
     }
 
     /// `Number.prototype.toExponential(f)`
@@ -137,21 +144,17 @@ impl Number {
         if f.is_some_and(|f| !(0.0..=100.0).contains(&f)) {
             return Err(error::argument_out_of_range("toExponential", 0, 100));
         }
-        let sign = if x < 0.0 { "-" } else { "" };
-        let x = x.abs();
-        let (digits, e) = match f {
-            _ if x == 0.0 => ("0".repeat(f.map_or(1, |f| f as usize + 1)), 0),
-            None => {
-                let (digits, n) = shortest_digits::<A>(x);
-                (digits, n - 1)
-            }
-            Some(f) => significand::<A>(x, f as u32 + 1),
-        };
-        Ok(
-            format!("{sign}{}{}", point_after_first(&digits), exponent(e))
-                .as_str()
-                .into(),
-        )
+        Ok(signed(x, |x| {
+            let (digits, e) = match f {
+                _ if x == 0.0 => ("0".repeat(f.map_or(1, |f| f as usize + 1)), 0),
+                None => {
+                    let (digits, n) = shortest_digits::<A>(x);
+                    (digits, n - 1)
+                }
+                Some(f) => significand::<A>(x, f as u32 + 1),
+            };
+            format!("{}{}", point_after_first(&digits), exponent(e))
+        }))
     }
 
     /// `Number.prototype.toPrecision(p)`
@@ -169,24 +172,23 @@ impl Number {
             return Err(error::argument_out_of_range("toPrecision", 1, 100));
         }
         let p = p as u32;
-        let sign = if x < 0.0 { "-" } else { "" };
-        let x = x.abs();
-        let (m, e) = if x == 0.0 {
-            ("0".repeat(p as usize), 0)
-        } else {
-            significand::<A>(x, p)
-        };
-        let text = if e < -6 || e >= i64::from(p) {
-            format!("{}{}", point_after_first(&m), exponent(e))
-        } else if e == i64::from(p) - 1 {
-            m
-        } else if e >= 0 {
-            let (a, b) = m.split_at(e as usize + 1);
-            format!("{a}.{b}")
-        } else {
-            format!("0.{}{m}", "0".repeat((-(e + 1)) as usize))
-        };
-        Ok(format!("{sign}{text}").as_str().into())
+        Ok(signed(x, |x| {
+            let (m, e) = if x == 0.0 {
+                ("0".repeat(p as usize), 0)
+            } else {
+                significand::<A>(x, p)
+            };
+            if e < -6 || e >= i64::from(p) {
+                format!("{}{}", point_after_first(&m), exponent(e))
+            } else if e == i64::from(p) - 1 {
+                m
+            } else if e >= 0 {
+                let (a, b) = m.split_at(e as usize + 1);
+                format!("{a}.{b}")
+            } else {
+                format!("0.{}{m}", "0".repeat((-(e + 1)) as usize))
+            }
+        }))
     }
 
     /// `Number::toString(x, radix)` for a radix other than ten, already
@@ -206,15 +208,15 @@ impl Number {
         if x.fract() != 0.0 {
             return Err(error::fraction_radix());
         }
-        let (mantissa, exp2) = mantissa_exp2(x.abs());
-        let magnitude = if exp2 >= 0 {
-            big::<A>(mantissa) * pow2(exp2 as u32)
-        } else {
-            big::<A>(mantissa >> exp2.unsigned_abs())
-        };
-        let digits = magnitude.to_radix_string(radix);
-        let sign = if x < 0.0 { "-" } else { "" };
-        Ok(format!("{sign}{digits}").as_str().into())
+        Ok(signed(x, |x| {
+            let (mantissa, exp2) = mantissa_exp2(x);
+            let magnitude = if exp2 >= 0 {
+                big::<A>(mantissa) * pow2(exp2 as u32)
+            } else {
+                big::<A>(mantissa >> exp2.unsigned_abs())
+            };
+            magnitude.to_radix_string(radix)
+        }))
     }
 }
 
