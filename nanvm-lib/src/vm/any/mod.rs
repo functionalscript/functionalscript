@@ -10,6 +10,7 @@ mod dot;
 mod from;
 mod get_iterator;
 mod instanceof_;
+mod mul;
 mod neg;
 mod not;
 mod nullish_coalescing;
