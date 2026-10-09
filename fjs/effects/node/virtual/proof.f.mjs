@@ -788,12 +788,37 @@ export const proof = {
         assertIoMessage(result[1], 'invalid buffer size')
         assertStructurallySame(state.root, root)
     },
-    writeBytesNegativeOffset: () => {
+    writeBytesUnnamedOffset: () => {
+        // An offset no position names never reaches this runner either:
+        // `writeBytes` refuses it in `../module.f.mjs`, in the words a read's
+        // window is refused with, so the append-only check below is never
+        // the one that answers. The refusal comes before the name is
+        // resolved — a missing file is refused for its offset, not `ENOENT`
+        // — and leaves the tree as it was.
         /** @type {Dir} */
         const root = { 'file': [vec8(0x1n)] }
-        const [, result] = virtual({ ...emptyState, root })(writeBytes('file', -1, vec8(0x2n)))
-        assert(result[0] === 'error')
-        assertIoMessage(result[1], 'Offset -1 is invalid')
+        /** @type {(offset: number, data: Vec, message: string) => void} */
+        const refuses = (offset, data, message) => {
+            for (const path of ['file', 'missing']) {
+                const [state, result] = virtual({ ...emptyState, root })(writeBytes(path, offset, data))
+                assert(result[0] === 'error')
+                assertIoMessage(result[1], message)
+                assertStructurallySame(state.root, root)
+            }
+        }
+        refuses(-1, vec8(0x2n), 'Offset -1 is negative')
+        refuses(0.5, vec8(0x2n), 'Offset 0.5 is not an integer')
+        refuses(NaN, vec8(0x2n), 'Offset NaN is not an integer')
+        refuses(Infinity, vec8(0x2n), 'Offset Infinity is not an integer')
+        refuses(maxOffset + 1, vec8(0x2n), `Offset ${maxOffset + 1} exceeds maximum allowed offset of ${maxOffset}`)
+        // The end is bounded as well as the start: two bytes from the last
+        // position a read may name put the second past it.
+        refuses(maxOffset, vec(16n)(0x0203n), `Write of 2 bytes at offset ${maxOffset} exceeds maximum allowed offset of ${maxOffset}`)
+        // One byte there is the last a read may name, so it is the runner's to
+        // answer, and this one answers with its append-only rule.
+        const [, last] = virtual({ ...emptyState, root })(writeBytes('file', maxOffset, vec8(0x2n)))
+        assert(last[0] === 'error')
+        assertIoMessage(last[1], `writeBytes offset ${maxOffset} must equal the file size (append-only)`)
     },
     statNestedMissing: () => {
         // stat('a/b') where 'a' doesn't exist.

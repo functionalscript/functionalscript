@@ -777,9 +777,12 @@ export const proof = {
             // Not an integer before negative: `-1.5` is both.
             assertEq(windowRefusal(-1.5, 1), 'Offset -1.5 is not an integer')
             assertEq(windowRefusal(0, -1.5), 'Chunk size -1.5 is not an integer')
-            // The offset before the size, so one call reports one thing.
+            // Every bound of the offset before any of the size, so one call
+            // reports one thing, and the offset's words are the ones a write's
+            // offset is refused with too.
             assertEq(windowRefusal(-1, -1), 'Offset -1 is negative')
             assertEq(windowRefusal(1.5, 1.5), 'Offset 1.5 is not an integer')
+            assertEq(windowRefusal(-1, 1.5), 'Offset -1 is negative')
             // Negative before too-large, and the offset's bound before the size's.
             assertEq(
                 windowRefusal(maxOffset + 1, Number(maxLengthBytes) + 1),

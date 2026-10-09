@@ -44,7 +44,7 @@ import {
     awaitIfPromise, both, catch_, childWait, close, createServer, doubledLengthMessage, errorMessage,
     framingHeaderMessage, fstat, import_,
     inflate, inflateTrailingCode, listen, open, pread, readWhole, rename, requestBodyOffsetMessage,
-    resolveFileModule, maxOffset, readBytes, rmdir, spawn, unframedBodyMessage, writeExclusive,
+    resolveFileModule, maxOffset, readBytes, rmdir, spawn, unframedBodyMessage, writeBytes, writeExclusive,
     writeFile as writeFileEffect,
 } from './module.f.mjs'
 import { _unreadableThrownValue } from '../module.mjs'
@@ -840,6 +840,47 @@ export const proof = {
             await symlink(join(root, 'absent'), dangling)
             await hostCheck(writeExclusive(dangling, [toVec(payload(300))]), refusedTaken)
             assert(!(await readdir(root)).includes('absent'))
+        }),
+    },
+    writeBytes: {
+        // **Node does not refuse an unsafe position; it ignores it.** Measured on
+        // Linux with Node 22.16.0 and 26.10.0, `FileHandle.write` at `2 ** 53`
+        // answers one byte written, at the descriptor's cursor, so the byte
+        // lands at the start of a file it was meant to land far past. Every
+        // runner now refuses such an offset in `writeBytes`'s constructor,
+        // before the path is opened: the file keeps its bytes, and a missing
+        // path is refused for its offset rather than `ENOENT`, and not created.
+        // No case writes past the file's end, so no sparse file is made.
+        refusesAnOffsetNoPositionNames: () => withTemporary('fjs-write-bytes-', async root => {
+            const path = join(root, 'a.bin')
+            const missing = join(root, 'missing')
+            const held = [42]
+            await writeFile(path, Uint8Array.from(held))
+            /** @type {(offset: number, data: readonly number[], message: string) => Promise<void>} */
+            const refuses = async (offset, data, message) => {
+                for (const target of [path, missing]) {
+                    await hostCheck(writeBytes(target, offset, toVec(Uint8Array.from(data))), result => {
+                        assert(result[0] === 'error', result)
+                        assert(result[1][0] === 'ioError', result[1])
+                        assertEq(result[1][1].message, message)
+                    })
+                }
+                assertStructurallySame([...await readFile(path)], held)
+                assert(!(await readdir(root)).includes('missing'))
+            }
+            await refuses(-1, [7], 'Offset -1 is negative')
+            await refuses(0.5, [7], 'Offset 0.5 is not an integer')
+            await refuses(NaN, [7], 'Offset NaN is not an integer')
+            await refuses(maxOffset + 1, [7], `Offset ${maxOffset + 1} exceeds maximum allowed offset of ${maxOffset}`)
+            await refuses(2 ** 64, [7], `Offset ${2 ** 64} exceeds maximum allowed offset of ${maxOffset}`)
+            await refuses(maxOffset, [7, 8], `Write of 2 bytes at offset ${maxOffset} exceeds maximum allowed offset of ${maxOffset}`)
+            // The largest offset is not refused: an empty write there opens the
+            // file and writes nothing, as the native runner's does.
+            await hostCheck(writeBytes(path, maxOffset, toVec(new Uint8Array())), result => assertEq(result[0], 'ok'))
+            assertStructurallySame([...await readFile(path)], held)
+            // And a safe offset lands where it names.
+            await hostCheck(writeBytes(path, 1, toVec(Uint8Array.from([7]))), result => assertEq(result[0], 'ok'))
+            assertStructurallySame([...await readFile(path)], [42, 7])
         }),
     },
     // What a ref delete prunes with. The two refusals are the whole reason to use
