@@ -1,7 +1,7 @@
 ## 65Z-asn1-tag-codec-table. `asn.1`: collapse the parallel encode/decode tag switches into one codec table
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
