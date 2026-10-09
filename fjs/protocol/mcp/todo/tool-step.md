@@ -1,7 +1,7 @@
 ## tool-step. A `toolStep` is missing beside `toolResultStep`
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
