@@ -515,44 +515,52 @@ model, while `amnesia` re-establishes a shared node on every edge and is not
 identity-compatible ([execution models](../../fjs/edag/execution-models.md)),
 so `f === f` would disagree by design.
 
-**Measured, not assumed.** A throwaway script (not committed) ran all 44
-fixtures present then through the reference and the interpreter and compared the JSON
-text. 38 agree. Four of those are vacuous (the default export is `undefined`:
-`effect`, `exports`, `missing`, `named-imports-math`), so 34 agree on a real
-value, five of them by both throwing. The six that differ are all explained
-and none is a disagreement of semantics:
+**Measured.** Step 1 below compares all 44 fixtures. The 41 in the corpus
+agree: the same value, or both throw. Three are excepted, none for a
+disagreement of semantics:
 
-| fixture | why it differs | what the corpus does with it |
-|---|---|---|
-| `bigint` | a `BigInt` result has no JSON | an expectation by hand, or a corpus-level text form |
-| `function-text` | the specified [function-text exception](../../spec/README.md#function-source-representation-exception) | marked `host`, as the operator corpus marks it: both represented executors run it, the native reference skips it |
-| `function`, `rest-function` | the default export is a function; the interpreter refuses to materialize it without a compile/load boundary | observed by calling, below |
-| `named-imports`, `named-imports-throws` | need the module loader | out of scope until the [loader](../../fjs/compiler/todo/load-modules-without-import-effect.md) |
+| fixture | why it is not compared |
+|---|---|
+| `function-text` | the specified [function-text exception](../../spec/README.md#function-source-representation-exception) |
+| `function`, `rest-function` | the default export is a function, which only the harness's own call action observes; see decision 2 |
 
-**Where the expectation lives (decision 1, decided: (b)).** Either (a) a hand-written value
-beside each fixture, or (b) the reference's own output, written by a
-generator into a committed `gen.` file and drift-checked, so Node is the
-single author and nothing is retyped. The owner chose (b): the reference
-is the intended authority, and the hand-written strings in `src/lib.rs`
-(`"[1,1,false,true,true,true]"`) are exactly the retyping that can drift.
-Fixtures with no JSON form keep a hand-written expectation, listed in the
-table above with the reason.
+Two things an earlier draft of this plan listed as exceptions are not.
+`bigint` and `undefined` results need no JSON form: the comparison is
+structural, on the values themselves. `named-imports` and
+`named-imports-throws` run on the interpreter's own loader over a virtual file
+system holding the fixture directory. Three fixtures (`effect`, `exports`,
+`named-imports-math`) have `undefined` as their default and test named
+exports, so the comparison of their default is trivial; named exports are not
+compared yet.
+
+**Where the expectation lives (decision 1, decided: the reference's own
+output).** A generator writes the reference's output into a committed `gen.`
+file, drift-checked, so Node is the single author and nothing is retyped. The
+hand-written strings in `src/lib.rs` (`"[1,1,false,true,true,true]"`) are
+exactly the retyping that can drift. Fixtures with no reference (the
+exceptions) keep a hand-written expectation, each with its reason.
+
+**How a callable is observed (decision 2, decided).** A fixture that tests a
+function calls it at module level and exports the observations, as `arity`,
+`closure`, `parameters` and `recursion` already do. Arguments are then
+anything the language can write (`undefined`, a shared object, a closure), and
+identity, laziness and throws report themselves. `function.mjs` and
+`rest-function.mjs` stay out of the corpus: they test the harness's `Call`
+action, a feature of the `nanvm-harness` command line and not the language's
+call contract, and keep their hand-written Rust tests.
 
 **Steps, each one pull request.**
 
-1. **Interpreter against reference.** A host proof (`proof.mjs`, the shape
-   `fjs/nanvm/values/proof.mjs` has) walks the fixture directory, runs both,
-   and compares; an explicit table names each exception and its reason, so a
-   fixture is never skipped silently and a new one is compared by default.
+1. **Interpreter against reference. Landed.** [`fjs/nanvm/corpus`](../../fjs/nanvm/corpus/module.f.mjs)
+   names the exceptions and the rule that everything else is compared;
+   `proof.mjs`, a host proof, runs each fixture in Node and through
+   `_transpileDefault`, the route `fjs compile` takes for a data output, and
+   compares the two. A stale exception, or a new fixture, is caught by the
+   proof, never skipped.
 2. **Direct AOT against the same expectation.** The generator writes the
    reference output next to the compiled fixture; one Rust test walks the
-   generated list and replaces the hand-written assertions it covers. The
-   rest stay as tests with a doc comment saying why they are not shared.
-3. **Calls, observed.** A fixture whose default export is a function is
-   observed by calling it with a list of argument lists and comparing the
-   results, because `function` and `rest-function` cannot be read as values.
-   The shape (a sidecar list, or a second export) is decision 2.
-4. **The interpreter compiled to Rust runs the corpus.** Blocked, not
+   generated list and replaces the hand-written assertions it covers.
+3. **The interpreter compiled to Rust runs the corpus.** Blocked, not
    planned: it needs the host `Map` dependencies of the executor migrated and
    the [immutable memo cache](../../fjs/edag/memo/todo/immutable-cache.md)
    native-parity checks. Recorded here so the corpus is written to be run
@@ -562,10 +570,11 @@ table above with the reason.
 
 1. ~~Expectation authored by hand beside each fixture, or by the reference and
    committed?~~ Decided: by the reference, committed and drift-checked.
-2. How a callable export is observed: a sidecar of argument lists, or a
-   second export the fixture itself provides?
-3. `bigint` and other values with no JSON: a corpus-level text form such as
-   `String(value)` with a type tag, or keep them hand-written?
+2. ~~How a callable export is observed.~~ Decided: the fixture calls it at
+   module level; the two harness-call fixtures stay out of the corpus.
+3. Named exports: compare them too (a fixture's functions would need a call
+   to observe, so this waits on nothing the corpus has), or leave them to the
+   fixtures that call at module level?
 4. Is `memo` the interpreter of record for the identity contract, with
    `amnesia` explicitly out of it?
 
@@ -639,8 +648,10 @@ table above with the reason.
       exported callables. Do not wait for Stage 7 to prevent wrong output.
 - [ ] Stage 7: semantic EDAG association for natively compiled functions,
       after resolving embedded data versus lookup; no Rust executor dependency.
-- [ ] Stage 8: shared call-contract corpus for direct AOT and FJS interpretation,
-      in the steps of the plan above. Awaiting its four decisions.
+- [x] Stage 8 step 1: the FJS interpreter against the Node reference over the
+      harness fixtures ([`fjs/nanvm/corpus`](../../fjs/nanvm/corpus/module.f.mjs)).
+- [ ] Stage 8 step 2: direct AOT against the reference's committed output.
+- [ ] Stage 8 step 3: the interpreter compiled to Rust runs the corpus (blocked).
 
 ### Related
 
