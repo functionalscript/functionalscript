@@ -1,8 +1,9 @@
 ## Callable function objects (Rust-generated bodies)
 
 **Priority:** P2
-**Status:** open — fixed/rest lowering is implemented in #2237; the remaining
-stages and default-text integration are unfinished.
+**Status:** open — callable bodies, fixed/rest lowering and default-text
+integration are implemented; semantic EDAG association and remaining
+migration/corpus work are unfinished.
 
 ### Problem
 
@@ -57,7 +58,8 @@ variables that the generated code and `nanvm-lib` agree on.
   `['arg', N]` / `['rest']`, replacing function-owned EDAG `['args']` while
   retaining module-import bindings. This is not a count-only extension of
   the old complete-list node. Stage 6 records the implementation and its
-  remaining migration/coverage work; default-text rendering remains open.
+  remaining migration/coverage work; default-text rendering is implemented
+  independently of the semantic EDAG association in Stage 7.
 
 #### Grounding: what is already decided
 
@@ -225,13 +227,13 @@ length check, only the enclosing scope's *construction* of the frame does.
 ([`internal/ifunction.rs`](../src/vm/internal/ifunction.rs)), so neither
 option below is the one; both are kept as the record of the question, and
 neither is implemented. A VM that binds static functions implements
-`IStaticFunction` — `static_function(code, length, frame)` and `frame`
+`IStaticFunction` — `static_function(code, length, frame, text)` and `frame`
 ([`internal/istatic_function.rs`](../src/vm/internal/istatic_function.rs)) —
 and every static function has the one signature `StaticCode<A>`,
 `fn(self_: &A::InternalFunction, args: Array<A>) -> Result<Any<A>, Any<A>>`,
 the arguments by value; the body reads its frame through `A::frame(self_)`
 and its length off `self_`. `naive`'s `InternalFunction` is an `Rc` over
-the `fn` pointer, the `length` and the frame
+the `fn` pointer, the `length`, the frame and optional code-only text
 ([`naive/function.rs`](../src/naive/function.rs)). The stages below are
 written against that shape.
 
@@ -295,14 +297,15 @@ compiled as part of writing this document:
    `Self::Assoc` projections allow a good deal of this, but this document
    does not assert it compiles.
 
-`toString`/hashing representation work is tracked separately
-([object-identity](../../spec/todo/object-identity.md), Stage 7 below), but
-that staging does not permit an incorrect successful default conversion.
-The [named/rest plan's default-text boundary](../../spec/todo/3120-parameters.md#default-function-text-render-or-refuse)
-requires the associated-EDAG renderer or explicit refusal on unsupported
-paths before function text becomes observable. Only the open rendering
-choices and full embedding work remain deferred; native placeholders and
-host wrapper text are not substitutes for the adopted default-text contract.
+Default function text is implemented through the shared
+[EDAG-derived renderer](../../fjs/edag/function-text.md), as the
+[named/rest plan's default-text boundary](../../spec/todo/3120-parameters.md#default-function-text-render-or-refuse)
+requires. The compiler supplies code-only text with generated static
+functions; a native function without text is explicitly refused when a
+conversion needs it. Native placeholders and host wrapper text are not
+substitutes. Retaining semantic EDAG for hashing or retrieval remains
+separate work ([object-identity](../../spec/todo/object-identity.md), Stage 7
+below); stored text is not a retrievable code graph.
 Equality is settled with the representation: `PartialEq for Function<A>`
 is identity, `ptr_eq` on `naive`'s `Rc`, so two closures built from
 unrelated creation events compare unequal — JS gives two closures from two
@@ -463,16 +466,37 @@ omitted, explicit `undefined` and extra arguments, captured fixed/rest values,
 and repeated versus distinct-call rest identity. The
 [Rust module proofs](../../fjs/compiler/rust/proof.f.mjs) cover binding refusals,
 the largest valid length, 16, and the refusal of 17.
-The remaining migration and regression work stays open in the checklist;
-this implementation does not complete the default-text renderer.
+The remaining migration and regression work stays open in the checklist.
 The older [call-like-instructions §6](../../spec/todo/9100-call-like-instructions.md#6-behind-the-scenes-of-user-defined-function-calls)
 notes describe call transport, not permission to restore the retired EDAG
 binding. Dynamic calls remain arbitrary-arity; no matching-arity assumption
 is permitted. Migrate zero-arity graphs by scope and refuse incompatible
 positive-arity/full-arguments sketches rather than silently normalize them.
 
+**Default function text — implemented.** The Rust printer's `textExpr` uses
+the shared `tryFunctionText` renderer and passes the result as the fourth
+argument of `A::static_function`, `text: Option<&'static str>`
+([printer](../../fjs/edag/rust/module.f.mjs),
+[`IStaticFunction`](../src/vm/internal/istatic_function.rs)). Every instance
+of one function template shares that text. Captures appear as slot names,
+without rendering their values; a body reading `self` has a named function
+expression. The renderer covers every admitted body, using general
+JavaScript expressions where the partial FJS source serializer cannot
+reconstruct it ([function text](../../fjs/edag/function-text.md)).
+
+`naive` retains the text alongside the code pointer, length and frame;
+`IFunction::text` exposes it to native conversion. `ToPrimitive` and
+`toString` answer that text, or refuse a function whose text is `None`
+([conversion](../src/vm/primitive_coercion.rs),
+[`IFunction`](../src/vm/internal/ifunction.rs)). The
+[`function-text` fixture](../../nanvm-harness/fixtures/function-text.mjs)
+and `function_texts` in the [native harness](../../nanvm-harness/src/lib.rs)
+pin direct and indirect conversion, returned/nested/exported functions,
+and distinct callable identities sharing one text. Remaining corpus work
+and runtime semantic EDAG association stay open.
+
 **Stage 7 — semantic EDAG association (staged separately from execution).**
-Hashing and function-text operations need the semantic code description from
+Hashing and metadata retrieval need the semantic code description from
 the [`fjs/edag`](../../fjs/edag/README.md) schema, including the association
 for capturing closures. Embedded `Any<A>` data versus out-of-band lookup is
 still open in the roadmap and
@@ -480,9 +504,12 @@ still open in the roadmap and
 Resolve that representation before implementing this stage. It does not
 require the optional Rust EDAG types or executor, and direct AOT output must
 remain usable without a dynamic EDAG library.
-Until the required semantic association and renderer are available, explicitly
-refuse unsupported default-text observations; deferring full embedding never
-licenses a placeholder or host-implementation string as a successful result.
+Compile-time default-text rendering is already available and does not wait
+for this association. Retaining rendered text does not retain the semantic
+EDAG or settle how a capturing closure is associated with that graph.
+Native functions without text remain refused on conversions that require it;
+deferring full association never licenses a placeholder or
+host-implementation string as a successful result.
 
 **Stage 8 — convergence with the FJS EDAG interpreter.**
 Compare direct AOT calls with the existing FJS interpreter for the same supported
@@ -551,8 +578,8 @@ satisfy the same contract, but this parity work does not wait for it.
       repeated rest reads, distinct calls, spread-array identity and captures.
       Cover zero-arity migration and refusal of legacy positive-arity/full-list
       sketches. Native capacity is the language's limit on `length`, 16.
-      Pin the closure behaviors that compile today but no generated fixture
-      pins yet: two closures made by one function are distinct while one
+      Complete shared corpus coverage for closure behaviors: two closures
+      made by one function are distinct while one
       binding read twice is the same
       (`const make = (...a) => () => a[0]; … [f(), g(), f === g, f === f]`
       gives `[1, 1, false, true]`); a captured object or array keeps its
@@ -560,9 +587,18 @@ satisfy the same contract, but this parity work does not wait for it.
       fails at creation, not at the call
       (`const make = (...a) => { const v = a[0].x; return () => v; };
       export default make(undefined);`).
-- [ ] Before enabling default-text observations, integrate the shared EDAG
-      renderer or explicit refusal, covering direct/indirect conversions and
-      exported callables. Do not wait for Stage 7 to prevent wrong output.
+      The `function-text` fixture already pins distinct functions with one
+      text, and the [interpreted-value native proofs](../../nanvm-harness/tests/values.rs)
+      pin distinct nested closures and captured-container identity; these
+      fixtures do not complete the shared cross-path corpus.
+- [x] Default-text integration: generate code-only text through the shared
+      EDAG renderer, retain it with native callable templates and refuse
+      conversions requiring text where none is associated. The `function-text`
+      fixture covers direct/indirect conversions and exported callables.
+- [ ] Complete the remaining default-text corpus coverage, including native
+      property-key conversion of a function, tracked in
+      [member-functions](./member-functions.md). This is coverage work,
+      separate from the implemented renderer and Stage 7 association.
 - [ ] Stage 7: semantic EDAG association for natively compiled functions,
       after resolving embedded data versus lookup; no Rust executor dependency.
 - [ ] Stage 8: shared call-contract corpus for direct AOT and FJS interpretation.
@@ -582,7 +618,7 @@ satisfy the same contract, but this parity work does not wait for it.
   against.
 - [Named and rest parameters](../../spec/todo/3120-parameters.md) — owns the
   implemented `length` / `arg` / `rest` contract and the remaining migration
-  and default-text work.
+  and coverage work; default-text rendering is implemented.
 - [`todo/edag-stage1-discussion.md`](../../todo/edag-stage1-discussion.md) —
   historical baseline and fixed/rest argument model, distinguished in
   subjects 2 and 7.
