@@ -1,7 +1,7 @@
 ## Count every line terminator in token positions
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
