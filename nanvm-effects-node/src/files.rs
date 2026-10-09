@@ -341,6 +341,104 @@ pub fn write_bytes(path: &str, at: f64, data: &[u8]) -> Result<(), IoError> {
         .map_err(|e| failure(&e, "write", path))
 }
 
+/// A number as JavaScript spells it in a message: `NaN`, `Infinity`, and the
+/// exponent form at and beyond `1e21` and below `1e-6`, where Rust would write
+/// every digit.
+fn js_number(value: f64) -> String {
+    if value.is_nan() {
+        "NaN".to_string()
+    } else if value.is_infinite() {
+        (if value > 0.0 { "Infinity" } else { "-Infinity" }).to_string()
+    } else if value == 0.0 {
+        "0".to_string()
+    } else if value.abs() >= 1e21 || value.abs() < 1e-6 {
+        let text = format!("{value:e}");
+        if text.contains("e-") {
+            text
+        } else {
+            text.replace('e', "e+")
+        }
+    } else {
+        value.to_string()
+    }
+}
+
+/// `windowRefusal` of `fjs/effects/node/module.f.mjs`: the numbers a positional
+/// read refuses, before a byte is read, in the words both runners use.
+fn window_refusal(at: f64, size: f64) -> Option<String> {
+    if at.fract() != 0.0 || !at.is_finite() {
+        Some(format!("Offset {} is not an integer", js_number(at)))
+    } else if at < 0.0 {
+        Some(format!("Offset {} is negative", js_number(at)))
+    } else if at > MAX_OFFSET as f64 {
+        Some(format!(
+            "Offset {} exceeds maximum allowed offset of {MAX_OFFSET}",
+            js_number(at)
+        ))
+    } else if size.fract() != 0.0 || !size.is_finite() {
+        Some(format!("Chunk size {} is not an integer", js_number(size)))
+    } else if size < 0.0 {
+        Some(format!("Chunk size {} is negative", js_number(size)))
+    } else if size > MAX_FILE_SIZE_BYTES as f64 {
+        Some(format!(
+            "Chunk size {} exceeds maximum allowed size of {MAX_FILE_SIZE_BYTES} bytes",
+            js_number(size)
+        ))
+    } else {
+        None
+    }
+}
+
+/// The bytes at `at`, at most `size` of them; fewer only at the end of the
+/// file. A window the Node runner refuses is refused before the file is opened,
+/// with no code.
+pub fn read_bytes(path: &str, at: f64, size: f64) -> Result<Vec<u8>, IoError> {
+    if let Some(message) = window_refusal(at, size) {
+        return Err(IoError {
+            code: None,
+            message,
+        });
+    }
+    let mut file = File::open(path).map_err(|e| failure(&e, "open", path))?;
+    let mut bytes = Vec::new();
+    file.seek(SeekFrom::Start(at as u64))
+        .and_then(|_| file.take(size as u64).read_to_end(&mut bytes))
+        .map_err(|e| failure(&e, "read", path))?;
+    Ok(bytes)
+}
+
+/// Creates `path` empty and fails if it exists (`O_CREAT|O_EXCL`).
+pub fn create_exclusive(path: &str) -> Result<(), IoError> {
+    exclusive(path)
+        .map(|_| ())
+        .map_err(|e| failure(&e, "open", path))
+}
+
+fn exclusive(path: &str) -> io::Result<File> {
+    OpenOptions::new().write(true).create_new(true).open(path)
+}
+
+/// Creates `path` holding `data`, in one open that fails if the file exists:
+/// the file either exists holding all of `data` or does not exist. A write that
+/// fails after the create removes the file, which is this call's alone because
+/// the create was exclusive; that is why it is not `write_file`.
+pub fn write_exclusive(path: &str, data: &[Vec<u8>]) -> Result<(), IoError> {
+    write_exclusive_with(path, |file| data.iter().try_for_each(|d| file.write_all(d)))
+}
+
+fn write_exclusive_with(
+    path: &str,
+    write: impl FnOnce(&mut File) -> io::Result<()>,
+) -> Result<(), IoError> {
+    let mut file = exclusive(path).map_err(|e| failure(&e, "open", path))?;
+    let written = write(&mut file);
+    drop(file);
+    written.map_err(|e| {
+        let _ = fs::remove_file(path);
+        failure(&e, "write", path)
+    })
+}
+
 /// Removes a file or a link, and refuses a directory with `ERR_FS_EISDIR`, the
 /// code `rm` without `recursive` gives on Node, where `remove_file` would
 /// answer what the platform does. Windows directory symlinks need `remove_dir`;
@@ -454,6 +552,53 @@ mod test {
         ] {
             assert_eq!(normalize(path), expected, "{path:?}");
         }
+    }
+
+    #[test]
+    fn js_numbers() {
+        assert_eq!(js_number(f64::NAN), "NaN");
+        assert_eq!(js_number(f64::INFINITY), "Infinity");
+        assert_eq!(js_number(f64::NEG_INFINITY), "-Infinity");
+        assert_eq!(js_number(-0.0), "0");
+        assert_eq!(js_number(1.5), "1.5");
+        assert_eq!(js_number(-7.0), "-7");
+        assert_eq!(js_number(9007199254740992.0), "9007199254740992");
+        assert_eq!(js_number(1e21), "1e+21");
+        assert_eq!(js_number(1.5e300), "1.5e+300");
+        assert_eq!(js_number(1e-7), "1e-7");
+    }
+
+    /// The numbers a positional read refuses, in the words of `windowRefusal`.
+    #[test]
+    fn window_refusals() {
+        let said = |at, size| window_refusal(at, size);
+        assert_eq!(said(0.0, 0.0), None);
+        assert_eq!(said(9007199254740991.0, 131072.0), None);
+        assert_eq!(said(1.5, 1.0), Some("Offset 1.5 is not an integer".into()));
+        assert_eq!(
+            said(f64::NAN, 1.0),
+            Some("Offset NaN is not an integer".into())
+        );
+        assert_eq!(
+            said(f64::INFINITY, 1.0),
+            Some("Offset Infinity is not an integer".into())
+        );
+        assert_eq!(said(-1.0, 1.0), Some("Offset -1 is negative".into()));
+        assert_eq!(
+            said(9007199254740992.0, 1.0),
+            Some(
+                "Offset 9007199254740992 exceeds maximum allowed offset of 9007199254740991".into()
+            )
+        );
+        assert_eq!(
+            said(0.0, 0.5),
+            Some("Chunk size 0.5 is not an integer".into())
+        );
+        assert_eq!(said(0.0, -2.0), Some("Chunk size -2 is negative".into()));
+        assert_eq!(
+            said(0.0, 131073.0),
+            Some("Chunk size 131073 exceeds maximum allowed size of 131072 bytes".into())
+        );
     }
 
     /// An empty path names nothing, with or without `recursive`.
@@ -720,6 +865,67 @@ mod test {
             assert_eq!(code_of(rmdir(&dir.at("link"))), Some("ENOTDIR".into()));
             assert_eq!(access(&dir.at("link")), Ok(()));
             assert_eq!(rmdir(&dir.at("target")), Ok(()));
+        }
+
+        #[test]
+        fn read_bytes_windows() {
+            let dir = Scratch::new();
+            let file = dir.at("f");
+            write_file(&file, &[1, 2, 3, 4, 5]).unwrap();
+            assert_eq!(read_bytes(&file, 1.0, 3.0), Ok([2, 3, 4].to_vec()));
+            assert_eq!(read_bytes(&file, 3.0, 10.0), Ok([4, 5].to_vec()));
+            assert_eq!(read_bytes(&file, 9.0, 4.0), Ok(Vec::new()));
+            assert_eq!(read_bytes(&file, 0.0, 0.0), Ok(Vec::new()));
+            assert_eq!(
+                code_of(read_bytes(&dir.at("none"), 0.0, 1.0)),
+                Some("ENOENT".into())
+            );
+            // Refused before the path is opened: no code, not ENOENT.
+            let error = read_bytes(&dir.at("none"), -1.0, 1.0).unwrap_err();
+            assert_eq!(error.code, None);
+            assert_eq!(error.message, "Offset -1 is negative");
+        }
+
+        #[test]
+        fn exclusive_creation() {
+            let dir = Scratch::new();
+            let file = dir.at("f");
+            assert_eq!(create_exclusive(&file), Ok(()));
+            assert_eq!(read_file(&file), Ok(Vec::new()));
+            assert_eq!(code_of(create_exclusive(&file)), Some("EEXIST".into()));
+            assert_eq!(code_of(write_exclusive(&file, &[])), Some("EEXIST".into()));
+            assert_eq!(read_file(&file), Ok(Vec::new()));
+        }
+
+        #[test]
+        fn write_exclusive_writes_every_chunk() {
+            let dir = Scratch::new();
+            let file = dir.at("f");
+            assert_eq!(
+                write_exclusive(&file, &[[1, 2].to_vec(), Vec::new(), [3].to_vec()]),
+                Ok(())
+            );
+            assert_eq!(read_file(&file), Ok([1, 2, 3].to_vec()));
+            assert_eq!(
+                code_of(write_exclusive(&dir.at("a/b"), &[])),
+                Some("ENOENT".into())
+            );
+        }
+
+        /// A write that fails after the create leaves no file, and the failure
+        /// is the write's, not the cleanup's.
+        #[test]
+        fn a_failed_exclusive_write_is_rolled_back() {
+            let dir = Scratch::new();
+            let file = dir.at("f");
+            let result = write_exclusive_with(&file, |f| {
+                f.write_all(&[1])?;
+                Err(ErrorKind::StorageFull.into())
+            });
+            let error = result.unwrap_err();
+            assert_eq!(error.code, Some("ENOSPC".into()));
+            assert!(error.message.contains("write"), "{}", error.message);
+            assert_eq!(code_of(access(&file)), Some("ENOENT".into()));
         }
 
         #[test]
