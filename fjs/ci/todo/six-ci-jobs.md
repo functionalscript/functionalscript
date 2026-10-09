@@ -5,16 +5,18 @@
 
 ### Problem
 
-`gen.ci.yml` runs twelve jobs: the six platform jobs (`job` in
-`../module.f.mjs`) and the six toolchain jobs (`canonicalJobs`: `wasm`, `deno`,
-`bun`, and `nodeVersionJobs`' `node22`, `node24`, `node26`). Even with the
-macOS and Windows jobs held to the merge queue (`Setup.mergeQueueOnly`), every
-pull-request commit still starts eight jobs, and that costs more than the work
-in them:
+`gen.ci.yml` runs eleven jobs: the six platform jobs (`job` in
+`../module.f.mjs`) and five toolchain jobs (`canonicalJobs`: `deno`, `bun`,
+and `nodeVersionJobs`' `node22`, `node24`, `node26`). The WASM checks were a
+sixth toolchain job, `wasm`, and are steps of `ubuntu-arm` now.
+`Setup.mergeQueueOnly` can hold the macOS and Windows jobs to the merge queue,
+but `../self/module.f.mjs` passes none, so every pull-request commit starts all
+eleven — and even with them held there it would start seven — and that costs
+more than the work in them:
 
-- **A pull request waits for many runners.** Seven of the eight jobs run on
+- **A pull request waits for many runners.** Six of the jobs run on
   `ubuntu-26.04-arm`, the congested pool, so a pull request waits for the
-  slowest of seven runner assignments rather than for its work.
+  slowest of six runner assignments there rather than for its work.
 - **Work is repeated.** Each job installs Nix, checks out, and realizes its
   shell, and `ubuntu-arm`'s `node --test` runs the same suite, on the same
   system, shell and Node, as `node26`'s `npm run cov`, which adds only
@@ -93,8 +95,8 @@ layout while the runner waits overstate the load it would see:
   The proof that `deno` and `bun` run no `npm ci` cannot move to a job that
   runs it; that property stays pinned by the exact command lists in
   `../deno/proof.f.mjs` and `../bun/proof.f.mjs`.
-- **One Nix installer.** Each tool's steps (`rustWasmSteps`, `denoSteps`,
-  `bunSteps`, `suiteNixSteps`, `node26Steps`, `shellPlatformSteps`) carry
+- **One Nix installer.** Each tool's steps (`denoSteps`, `bunSteps`,
+  `suiteNixSteps`, `node26Steps`, `shellPlatformSteps`) carry
   their own `nixInstall`, and `toSteps` does not merge duplicates. They have to
   split into version checks and commands before one job can carry them all.
 - **Several flakes in one job.** The primary enters the shared shell and the
@@ -110,12 +112,12 @@ layout while the runner waits overstate the load it would see:
   `publish-npm` keep `jobTimeout`, so a hung shell build still frees its runner.
   The merge queue's status check timeout has to cover the primary's run plus a
   runner wait.
-- **Proofs keyed on job ids.** `matrixShape` counts twelve jobs. An assertion
+- **Proofs keyed on job ids.** `matrixShape` counts eleven jobs. An assertion
   that a removed job does *not* run something would pass because the job is
-  gone, so each moves to the primary rather than being deleted with it. The
-  Wasmtime threads guard needs more than a move: it compares against the bare
-  `cargo test --target wasm32-wasip1-threads` while every step is wrapped in the
-  shell, so it cannot fail today either; key it on the wrapped command.
+  gone, so each moves to the primary rather than being deleted with it, keyed
+  on the wrapped command where it compares a whole `run` line — as the
+  Wasmtime threads guard is since it moved, having compared against the bare
+  `cargo` command, which no wrapped step could equal.
 - **What a project's pull requests run.** The primary's Node 26 suite is
   `npm run cov`. That is this repository's `node --test` with coverage, and so
   is the one `../README.md` documents, but for any project using `fjs ci`,
@@ -132,32 +134,34 @@ layout while the runner waits overstate the load it would see:
 #### Alternative
 
 Hold all six platform jobs to the merge queue and keep the toolchain jobs
-parallel, moving `ubuntu-arm`'s native Rust into `wasm`. Pull requests keep the
-primary's gate, spread over six jobs, and keep the parallel floor; the ruleset
-needs no edit; and on the same measurements the ARM load falls by about a
-fifth — but the six toolchain names stay required checks, and every commit
-still waits for six runners.
+parallel, giving `ubuntu-arm`'s WASM checks back a job of their own, now
+with the native Rust. Pull requests keep the primary's gate, spread over six
+jobs, and keep the parallel floor; and on the same measurements the ARM load
+falls by about a fifth — but the six toolchain names stay required checks, and
+every commit still waits for six runners.
 
 ### Tasks
 
+- [x] Fold `wasm` into `ubuntu-arm`: its runtime checks after Node's, `cargo
+      fmt` before the native checks, the WASM targets after them, and its
+      proofs re-keyed; `wasmJobId` removed.
 - [ ] Split each tool's steps into version checks and commands, so one job can
       carry them all under one `nixInstall`.
 - [ ] Build the primary job on `ubuntu-arm` in the order above, dropping its
       plain `node --test`.
 - [ ] Replace `Setup.mergeQueueOnly` with `Setup.mergeQueue`, and declare the
       break: `Setup` loses `mergeQueueOnly`, and the workflow `fjs ci` writes
-      loses the `wasm`, `deno`, `bun`, `node22`, `node24` and `node26` jobs, so a
+      loses the `deno`, `bun`, `node22`, `node24` and `node26` jobs, so a
       project that requires any of them as a status check removes it before
       regenerating, in the order the ruleset task gives. Any job-id export that
       no longer names a job goes into the same declaration.
 - [ ] Give the primary a run limit of its own; rework the `jobTimeout` proof
       and the comments that say every job takes `jobTimeout`.
 - [ ] Move `nixCoverage`'s one-flake-per-job rule to steps.
-- [ ] Re-key every proof on a removed job id, the Wasmtime threads guard on the
-      wrapped command; update `matrixShape`.
+- [ ] Re-key every proof on a removed job id; update `matrixShape`.
 - [ ] Measure the primary's disk use on a trial run.
-- [ ] Migrate the ruleset: remove `wasm`, `deno`, `bun`, `node22`, `node24`
-      and `node26` from the required checks **before** the switching pull
+- [ ] Migrate the ruleset: remove `deno`, `bun`, `node22`, `node24` and
+      `node26` from the required checks **before** the switching pull
       request enters the merge queue. In the other order, the queue waits for
       checks nothing reports until its status check timeout ejects every
       entry.
