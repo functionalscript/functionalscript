@@ -32,7 +32,7 @@
  * @import { Result } from '../../types/result/types.ts'
  */
 
-import { f64Bits, i64Literal, stringLiteral, u64Words, utf16Literal } from '../../media/rust/module.f.mjs'
+import { f64Bits, i64Literal, stringLiteral, u64WordItems, utf16Units } from '../../media/rust/module.f.mjs'
 import { error, mapOk, ok, okList, okThen, unwrap } from '../../types/result/module.f.mjs'
 import { lazyOp2Id } from '../module.f.mjs'
 import { isIndex, maxLength } from '../../types/function/length/module.f.mjs'
@@ -55,6 +55,9 @@ const lit = tagged('literal')
 
 /** A Rust string literal, with its quotes. */
 const str = tagged('string')
+
+/** A slice literal over hex items, `&[0x1, 0x2]`, each item a number. @type {(items: readonly string[]) => string} */
+const slice = items => `&[${items.map(item => num(item)).join(', ')}]`
 
 /** A number literal: an `f64`'s bits, an `i64`. */
 const num = tagged('number')
@@ -326,7 +329,7 @@ const op3 = lookup(op3Rust)
  */
 const stringCall = name => v => {
     const r = stringLiteral(v)
-    return r[0] === 'ok' ? cat([unstable(name), `(${str(r[1])})`]) : cat([unstable(`${name}_utf16`), `(${utf16Literal(v)})`])
+    return r[0] === 'ok' ? cat([unstable(name), `(${str(r[1])})`]) : cat([unstable(`${name}_utf16`), `(${slice(utf16Units(v))})`])
 }
 
 /**
@@ -336,7 +339,7 @@ const stringCall = name => v => {
  *
  * @type {(k: number) => Printed<string>}
  */
-const argRead = k => cat([`args.clone().into_iter().${k === 0 ? 'next()' : `nth(${k})`}.unwrap_or_else(|| `, undefinedAny, ')'])
+const argRead = k => cat([`args.clone().into_iter().${k === 0 ? 'next()' : `nth(${num(`${k}`)})`}.unwrap_or_else(|| `, undefinedAny, ')'])
 
 /**
  * A function's source text as the `Option<&'static str>` `IStaticFunction`
@@ -362,7 +365,7 @@ const textExpr = e => {
  */
 const bigintExpr = v => {
     const r = i64Literal(v)
-    return r[0] === 'ok' ? cat([unstable('bigint_any'), `(${num(r[1])})`]) : cat([unstable('bigint_any_words'), `(${lit(`${v < 0n}`)}, ${u64Words(v)})`])
+    return r[0] === 'ok' ? cat([unstable('bigint_any'), `(${num(r[1])})`]) : cat([unstable('bigint_any_words'), `(${lit(`${v < 0n}`)}, ${slice(u64WordItems(v))})`])
 }
 
 /**
@@ -518,7 +521,7 @@ const last = e => {
  *
  * @type {(length: number) => Printed<string>}
  */
-const restLine = length => cat([`${kw('let')} rest = args.clone().into_iter()${length === 0 ? '' : `.skip(${length})`}`, toArray, ';'])
+const restLine = length => cat([`${kw('let')} rest = args.clone().into_iter()${length === 0 ? '' : `.skip(${num(`${length}`)})`}`, toArray, ';'])
 
 /**
  * The printer for the EDAG under `root`, or the refusal of a shape this
@@ -809,14 +812,14 @@ const printer = nested => shared => root => {
         // gives the helper, {@link textExpr}, the one every function's
         // `ToPrimitive` answers with.
         if (id === 'entry') {
-            return ok(cat(['A::static_function(|_self, args| Any::entry(', argRead(0), ', ', argRead(1), '), 2, ', vm('Array'), `::default(), ${textExpr(e)})`, toAny]))
+            return ok(cat(['A::static_function(|_self, args| Any::entry(', argRead(0), ', ', argRead(1), '), ', num('2'), ', ', vm('Array'), `::default(), ${textExpr(e)})`, toAny]))
         }
         // Slot `i` of the frame the function was built with, read through
         // the closure's `self_` parameter, {@link closure}: the `Array<A>`
         // {@link frameExpr} built, indexed directly — the slot exists, since
         // `checked` refuses a read past the slots, so no `undefined`
         // case as an `args` read has.
-        if (id === 'frame') { return plain(`A::frame(self_)[${a}].clone()`) }
+        if (id === 'frame') { return plain(`A::frame(self_)[${num(`${a}`)}].clone()`) }
         // The function itself, as a value: the closure's `self_` parameter
         // wrapped as the `Function` it is, an `Rc`-cheap clone of the one
         // value every read of `self` is — the identity JavaScript gives a
@@ -938,7 +941,7 @@ const printer = nested => shared => root => {
      * @type {(length: number, body: Exp, text: string) => (frame: Result<Printed<string>, readonly unknown[]>) => Result<Printed<string>, readonly unknown[]>}
      */
     const closure = (length, body, text) => frame => flat(map2((/** @type {readonly string[]} */ lines, /** @type {string} */ fr) =>
-        cat([`A::static_function(|${readsFrame(body) || readsSelf(body) ? 'self_' : '_self'}, ${readsArgs(body) ? 'args' : '_args'}| ${braced(lines)}, ${length}, ${fr}, ${text})`, toAny])
+        cat([`A::static_function(|${readsFrame(body) || readsSelf(body) ? 'self_' : '_self'}, ${readsArgs(body) ? 'args' : '_args'}| ${braced(lines)}, ${num(`${length}`)}, ${fr}, ${text})`, toAny])
     )(reads('rest')(body) ? map2((/** @type {string} */ rest, /** @type {readonly string[]} */ s) => [rest, ...s])(ok(restLine(length)), statements(body)) : statements(body), frame))
     /**
      * A function's frame as the `Array<A>` its construction takes: the
@@ -1170,7 +1173,15 @@ const printer = nested => shared => root => {
  *
  * @type {(shared: readonly (readonly[Exp, string])[]) => (e: Exp) => Result<string, readonly unknown[]>}
  */
-export const expExpr = shared => e => mapOk((/** @type {Printed<string>} */ [text]) => untagged(text))(okThen(p => p.f(e))(printer(true)(shared)(e)))
+export const expExpr = shared => e => mapOk(untagged)(expExprTagged(shared)(e))
+
+/**
+ * {@link expExpr} with its words tagged, as {@link scopeTagged} is to
+ * {@link scope}.
+ *
+ * @type {(shared: readonly (readonly[Exp, string])[]) => (e: Exp) => Result<string, readonly unknown[]>}
+ */
+export const expExprTagged = shared => e => mapOk((/** @type {Printed<string>} */ [text]) => text)(okThen(p => p.f(e))(printer(true)(shared)(e)))
 
 /**
  * `true` for the operands of `() => undefined`: no slots and the

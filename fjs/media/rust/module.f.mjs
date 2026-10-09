@@ -118,8 +118,15 @@ const sliceLiteral = items => `&[${items.join(', ')}]`
  *
  * @type {(v: string) => string}
  */
-export const utf16Literal = v =>
-    sliceLiteral([...Array(v.length).keys()].map(i => u16Hex(v.charCodeAt(i))))
+export const utf16Literal = v => sliceLiteral(utf16Units(v))
+
+/**
+ * The code units of `v`, each as the hex literal `utf16Literal` lists: its
+ * items, for a printer that marks each one.
+ *
+ * @type {(v: string) => readonly string[]}
+ */
+export const utf16Units = v => [...Array(v.length).keys()].map(i => u16Hex(v.charCodeAt(i)))
 
 /**
  * The exponent of a normal number: the `e` with `2 ** e <= a < 2 ** (e + 1)`,
@@ -189,10 +196,15 @@ export const i64Literal = v => v < i64Min || v > i64Max ? error(v) : ok(v.toStri
  *
  * @type {(v: bigint) => string}
  */
-export const u64Words = v => {
-    const a = v < 0n ? -v : v
-    return sliceLiteral(words(a).map(u64Hex))
-}
+export const u64Words = v => sliceLiteral(u64WordItems(v))
+
+/**
+ * The `u64` words of `v`'s magnitude, least significant first, each as the
+ * hex literal `u64Words` lists: its items, for a printer that marks each one.
+ *
+ * @type {(v: bigint) => readonly string[]}
+ */
+export const u64WordItems = v => words(v < 0n ? -v : v).map(u64Hex)
 
 /** @type {(a: bigint) => readonly bigint[]} */
 const words = a => a === 0n ? [] : [a & 0xffffffffffffffffn, ...words(a >> 64n)]

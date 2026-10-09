@@ -4,9 +4,17 @@
 
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
-import { f64Bits, i64Literal, snakeCase, stringLiteral, u64Words, utf16Literal } from './module.f.mjs'
+import { f64Bits, i64Literal, snakeCase, stringLiteral, u64WordItems, u64Words, utf16Literal, utf16Units } from './module.f.mjs'
 
 export const proof = {
+    // the items the literals list, for a printer that marks each one
+    items: () => {
+        assertStructurallySame(utf16Units('a\ud800'), ['0x0061', '0xd800'])
+        assertStructurallySame(utf16Units(''), [])
+        assertStructurallySame(u64WordItems(2n ** 64n), ['0x0000000000000000', '0x0000000000000001'])
+        assertStructurallySame(u64WordItems(-1n), ['0x0000000000000001'])
+        assertStructurallySame(u64WordItems(0n), [])
+    },
     utf16Literal: () => {
         assertEq(utf16Literal(''), '&[]')
         assertEq(utf16Literal('a'), '&[0x0061]')

@@ -15,10 +15,8 @@ producer ──writes──▶ Marked ──toText──▶ the file `fjs compil
 The type API is [`types.ts`](./types.ts); the code is
 [`module.f.mjs`](./module.f.mjs); the proofs are
 [`proof.f.mjs`](./proof.f.mjs). Why the design is what it is, with the
-established practice it follows (LSP semantic tokens, Pygments, Tree-sitter,
-TextMate, source maps) and the alternatives it rejected:
-[`website/demo/todo/highlight-from-producers.md`](../../website/demo/todo/highlight-from-producers.md).
-This file says what exists and how to use it.
+established practice it follows and the alternatives it rejected, is
+[§12](#12-design-record). The rest says what exists and how to use it.
 
 ## Contents
 
@@ -33,6 +31,7 @@ This file says what exists and how to use it.
 9. [Proving a producer](#9-proving-a-producer)
 10. [The command line](#10-the-command-line)
 11. [Adding a producer: a checklist](#11-adding-a-producer-a-checklist)
+12. [Design record](#12-design-record)
 
 ---
 
@@ -62,15 +61,16 @@ no type for (TextMate and Tree-sitter keep that distinction too).
 | Kind | Means | JSON, DataJS, EDAG | `.js` | Rust |
 | ---- | ----- | ------------------ | ----- | ---- |
 | `keyword` | a reserved word the producer writes | `const`, `export`, `default` | `const`, `export`, `default`, `return`, `throw`, `typeof`, `instanceof` | `use`, `pub`, `fn`, `let` |
-| `literal` | a literal word | `null`, `true`, `false`, `undefined` | the same | `true`, `false` |
+| `literal` | one of the language's literal words | `null`, `true`, `false`, `undefined`, and `NaN`, `Infinity` and `-Infinity` | the same | `true`, `false` |
 | `string` | a string literal, quotes included | every string, and an object key written as a string | the same | every string literal, including the function text in `Some("…")` |
-| `number` | a numeric literal | numbers, bigints (`1n`), `-0` | the same | the `f64` bit patterns, and an `i64` for `bigint_any` |
+| `number` | a numeric literal | numbers, bigints (`1n`), `-0` | the same | every number the printer writes: the `f64` bit patterns, an `i64`, the words of a big integer and the units of a string with a lone surrogate, a function's length, and an index or `skip` |
 | `comment` | a comment | none | none | the `// @generated` line |
 | `operator` | an operator | none | none | none |
 
-Everything not in the table is plain text: names, punctuation, operators,
-parentheses, `NaN` and `Infinity`, which are words, not literals. Plain is the
-default, and a producer marks a piece only when it is certain what it is.
+Everything not in the table is plain text: names, punctuation, operators and
+parentheses. A word after `.` is a property name, `x.true`, and is plain too.
+Plain is the default, and a producer marks a piece only when it is certain what
+it is.
 `operator` exists in the type for a producer that wants it; none marks it yet.
 
 ## 3. Writing a producer
@@ -193,14 +193,22 @@ Some text has no producer behind it: an example a reader typed. For that,
 ([`fjs/js/tokenizer`](../../js/tokenizer/module.f.mjs)):
 
 - `spansOf(text)` answers the `Span`s the tokenizer finds (`keyword`,
-  `literal`, `string`, `number`, `comment`), or none if the tokenizer refuses
-  the text: colouring the tokens before a failure would suggest the text is
+  `literal`, `string`, `number`, `comment`; the literal words are
+  `literalWords` of [`js/keywords`](../../js/keywords/module.f.mjs), and a word
+  after `.` or `?.` is a property name and stays plain), or none if the
+  tokenizer refuses the text: colouring the tokens before a failure would suggest the text is
   partly valid. It feeds the tokenizer code points and finds each token's
   offset through the tokenizer's own position fold (`_positions`), so it
   counts lines as the tokenizer does.
 - `fromSpans(text)(spans)` turns spans beside a text into `Marked`. The spans
   must be in order, non-empty, whole and not overlapping, or it answers an
-  error: **refused, never clamped.**
+  error: **refused, never clamped.** The refusal is a `Result`, not a panic
+  ([DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
+  names both): `fromSpans` is where spans come from beside a text, and a
+  caller may hand it spans it did not build — a language server's semantic
+  tokens are the case it is shaped for — so a bad span is bad input, not a
+  defect of the program. A caller whose spans are its own, as `highlight`'s
+  are, `unwrap`s.
 - `highlight(text)` is `render` of `fromSpans` of `spansOf`.
 
 The fallback is also the **oracle** a producer is held to
@@ -247,9 +255,18 @@ pins:
   [`fjs/compiler/examples`](../../compiler/examples/module.f.js), `disagreement`
   of its output is `null`. The marked pieces are the tokenizer's spans, one for
   one.
-- **Without an oracle** (Rust has no tokenizer here), every run is one of the
-  forms the producer says it marks, and the overview and primitives examples
-  are pinned run by run.
+- **Without an oracle** (Rust has no tokenizer here), two checks that need each
+  other. Every run is one of the forms the printer says it marks: a list of
+  what is *allowed*. And no plain run holds a word the printer marks, `let`,
+  `pub`, `fn`, `use`, `true`, `false` or a number
+  ([`edag/rust/unmarked`](../../edag/rust/unmarked/module.f.mjs)): a list of
+  what is *required*, which the first cannot see, since a mark that goes
+  missing changes no text. The second is held to every case the printer's own
+  proof prints, not only the shared examples.
+- **Every marked site is watched.** A proof that passes with a site's kind
+  swapped, or its mark removed, is not watching the site. Each producer was
+  checked that way: every `keyword(`/`literal(` site of the writers and every
+  tag of the Rust printer, swapped and removed, fails a proof.
 
 ## 10. The command line
 
@@ -283,3 +300,119 @@ here builds it.
    call to `highlight`.
 7. **Update the table in [§2](#2-kinds-and-what-each-producer-marks) and
    [§5](#5-producers-and-their-entry-points)** of this file.
+
+---
+
+## 12. Design record
+
+Why marked text is what it is. This used to be a `todo/` file proposing the
+design; the work is done, so the file is gone and what it held is here.
+
+### The problem
+
+The demos print code the repository generated itself: the serializer's `.js`,
+the DataJS and JSON writers' documents, the EDAG, the Rust printer's module.
+Colouring it by tokenizing the text again is the wrong direction for the
+information to flow:
+
+- **The producer already knew.** The serializer wrote `const` and a string
+  literal on purpose; a page that re-reads them from characters can disagree
+  with the producer, silently
+  ([DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
+  refuses the plausible wrong answer).
+- **A language the tokenizer cannot read stays plain.** The Rust output was
+  uncoloured for that reason alone.
+- **The work is done twice**, on every render.
+
+So a producer says what it wrote.
+
+### Established practice
+
+Highlighting has settled into a few shapes. These were read in their own
+sources or documentation for this record:
+
+| Practice | Where the classes come from | How they are attached to the text |
+| -------- | --------------------------- | --------------------------------- |
+| [LSP semantic tokens](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_semanticTokens) | A language server, which has parsed and bound the program | Beside the text: five integers per token (`deltaLine`, `deltaStart`, `length`, an index into a *legend* of token types, a bitset of modifiers), positions relative to the previous token. Overlap and multi-line tokens are opt-in client capabilities. Positions count UTF-16 units unless the client and server agree otherwise |
+| [Tree-sitter highlight queries](https://tree-sitter.github.io/tree-sitter/3-syntax-highlighting.html) | A parse tree, queried with patterns that capture nodes: `"return" @keyword`, `(int_literal) @number` | An event stream of start, source slice, end |
+| [TextMate grammars](https://github.com/textmate/javascript.tmbundle), as in VS Code and [Shiki](https://shiki.style/) | Regex rules over the text; Shiki is "based on TextMate grammar and themes" | Dotted scope names (`constant.language`), mapped to colours by a theme. Shiki renders a styled span per token |
+| [Pygments](https://pygments.org/docs/tokens/) | A lexer per language, whose methods yield `(index, token, value)` | A stream of typed text: `Token.Literal.String`, `Token.Literal.Number` |
+| Roslyn's [`ClassifiedSpan`](https://github.com/dotnet/roslyn/blob/main/src/Workspaces/Core/Portable/Classification/ClassifiedSpan.cs) | The syntax and the semantic model | A `ClassifiedSpan(textSpan, classificationType)` beside the text |
+| [rustdoc](https://github.com/rust-lang/rust/blob/master/src/librustdoc/html/highlight.rs) | `rustc_lexer`, run over the code block | Inline spans — it *reparses*, as this repository's fallback does |
+
+What marked text takes from them:
+
+1. **Highlighting is a layer apart from the text.** None of them changes the
+   text; the colours are metadata.
+2. **A closed, named vocabulary.** LSP publishes standard token types
+   (`keyword`, `string`, `number`, `comment`, `operator`, `variable`,
+   `property`, `function`, …) so that themes work across servers; the names
+   here are LSP's. Where the semantics differ and LSP has no type — it has none
+   for `true`, `false`, `null` or `undefined` — a kind is added, as LSP's legend
+   allows a server to. TextMate keeps `constant.language` for them and
+   Tree-sitter's JavaScript queries capture `true`, `false`, `null` and
+   `undefined` as `@constant.builtin`. Hence `literal` beside `keyword`.
+3. **The party that knows should say.** LSP semantic tokens exist because a
+   lexer cannot tell a type from a variable and the server can. A generator is
+   the extreme case: it needs to infer nothing.
+4. **Reparsing is respectable when there is no producer.** rustdoc, Pygments and
+   TextMate classify from text because the text is all they get. That is the
+   situation for an example a reader typed, which is why `highlight` stays
+   ([§7](#7-the-fallback-for-text-with-no-producer)).
+
+What it leaves: hierarchical scopes and themes (one stylesheet maps a handful of
+kinds, so there is no second consumer for a hierarchy); modifiers (nothing needs
+them, and a field added later is compatible); LSP's relative integer encoding
+(it is for large files on a wire, and a demo's block is a few kilobytes in
+memory); and positions in the protocol's UTF-16 units (offsets here are code
+points, as the tokenizer's are).
+
+### Alternatives considered
+
+- **LSP-style spans as the primary type.** Familiar, compact, and what a reader
+  who knows language servers expects. Rejected for producers: the text and the
+  offsets can disagree, so a generator has to track how much it has written and
+  an off-by-one is a silent wrong colour; and the unit must be chosen and
+  converted. A list of runs cannot disagree with its text — the text is the
+  runs. Spans are kept as `fromSpans`, for annotating a text that already
+  exists.
+- **Inline markup in the public text** (HTML, or control characters in the
+  string). Rejected: the text is also what the command line writes and what a
+  copy button copies, so markup in it corrupts both. Every practice above keeps
+  the layers apart. (Tagged text, [§4](#4-tagged-text-for-producers-built-from-templates),
+  is internal to a producer and never public.)
+- **Keep reparsing.** Correct for an unknown text and cheap, so it stays as the
+  fallback and as the oracle; rejected as the *only* mechanism, chiefly for Rust
+  and for silent disagreement.
+- **Rewrite the Rust printer to carry runs.** The printer is large, composes its
+  text by templates all through, and is shared with the VM conformance corpus;
+  rewriting every template and operator table would have been a change of the
+  printer, not of its colours. It tags instead.
+- **A theme and scope system** (TextMate, Pygments). No second consumer.
+
+### Decisions
+
+- **`literal` stays a kind beside `keyword`**, although the stylesheet draws both
+  in one colour: a kind states what the producer wrote, and the colour is the
+  page designer's choice.
+- **The lexical kinds shipped first.** A producer knows a key from a variable and
+  a function name from a parameter; `property` or `function` can be added
+  later, and the oracle cannot check kinds the tokenizer cannot see.
+- **The code lives in `fjs/text/marked`**, with only `render` under the website,
+  so that the compiler does not depend on the website.
+- **`fromSpans` answers a `Result`** ([§7](#7-the-fallback-for-text-with-no-producer)).
+- **Markup reaches the page by the compiler's own seam.** A file system carries
+  text, so runs cannot cross it. `compileFile` is `_compileMarked` followed by
+  the directory and the write, so the demo runs the same code to the same point,
+  and its proof runs the whole of `compile` and holds each pane to the file
+  written, so a pane cannot drift from the command line.
+- **No command-line option** ([§10](#10-the-command-line)).
+
+### How it was built
+
+A chain of pull requests, each on the one before: the types, `render` and the
+fallback; the JSON and DataJS writers' leaves, which the `.js` writer takes its
+leaves from, so they had to come before it; the `.js` writer's own words; the
+compiler seam and the demos; and the Rust printer. The order changed once the
+first step was read against the code. Each step kept every public function's
+text, so that no caller changed what it prints.

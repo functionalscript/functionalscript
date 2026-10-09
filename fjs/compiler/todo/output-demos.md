@@ -43,8 +43,7 @@ text (`fjs/text/marked`) before it is written, which is how a pane is coloured
 by what the producer wrote and not by reading the text again. Its proof runs
 the whole `compile` over the same file system for every example and output
 and holds the page's text to the file written, so it cannot drift from the
-CLI. See
-[`website/demo/todo/highlight-from-producers.md`](../../website/demo/todo/highlight-from-producers.md). **No output logic is
+CLI. See [`text/marked/README.md`](../../text/marked/README.md#12-design-record). **No output logic is
 copied into a demo**; one that is not exported yet is exported, per
 [AGENTS.md §1](../../../AGENTS.md#1-workflow).
 

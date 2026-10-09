@@ -5,12 +5,12 @@
  * {@link highlight} is the fallback for a text with no producer behind it,
  * which finds the runs by tokenizing.
  *
- * Design: `website/demo/todo/highlight-from-producers.md`, proposed in
- * https://github.com/functionalscript/functionalscript/pull/2697.
+ * What marked text is, and why: [`fjs/text/marked`](../../../text/marked/README.md).
  *
  * **It reads the text with the real tokenizer**, [`fjs/js/tokenizer`](../../../js/tokenizer/module.f.mjs),
  * not with a lookalike, so a string that holds `//` is a string and a
- * keyword is whatever [`isKeyword`](../../../js/keywords/module.f.mjs) says.
+ * keyword is whatever [`isKeyword`](../../../js/keywords/module.f.mjs) says, and
+ * a literal word is one of its `literalWords`.
  * The tokenizer keeps a token's value, not its spelling (`'a'` and `"a"` are
  * one string), so each token's text is cut from the input between its start
  * and the next token's.
