@@ -149,10 +149,17 @@ pub fn file_url_to_path(url: &str) -> Result<String, IoError> {
     let invalid = || {
         refusal(
             Some("ERR_INVALID_FILE_URL_PATH"),
-            "File URL path must not include encoded / characters",
+            if cfg!(windows) {
+                "File URL path must not include encoded \\ or / characters"
+            } else {
+                "File URL path must not include encoded / characters"
+            },
         )
     };
-    if rest.to_ascii_lowercase().contains("%2f") {
+    // Decode only after rejecting native separators. A POSIX backslash is
+    // filename data, but on Windows accepting it would change the directory.
+    let lower = rest.to_ascii_lowercase();
+    if lower.contains("%2f") || (cfg!(windows) && lower.contains("%5c")) {
         return Err(invalid());
     }
     let path = percent_decode(rest).ok_or_else(invalid)?;
@@ -537,6 +544,46 @@ mod test {
             code(file_url_to_path("file:///a%ff")).0,
             Some("ERR_INVALID_FILE_URL_PATH".into())
         );
+    }
+
+    #[test]
+    fn encoded_backslashes_follow_native_separator_rules() {
+        for (escape, escaped_percent) in [("%5C", "%255C"), ("%5c", "%255c")] {
+            let url = format!("file:///C:/safe{escape}sub/main.f.js");
+            if cfg!(windows) {
+                let error = file_url_to_path(&url).unwrap_err();
+                assert_eq!(error.code.as_deref(), Some("ERR_INVALID_FILE_URL_PATH"));
+                assert_eq!(
+                    error.message,
+                    "File URL path must not include encoded \\ or / characters"
+                );
+            } else {
+                assert_eq!(file_url_to_path(&url).unwrap(), r"/C:/safe\sub/main.f.js");
+            }
+            // An escaped percent sign is decoded once, not into a separator.
+            let url = format!("file:///C:/safe{escaped_percent}sub/main.f.js");
+            let root = if cfg!(windows) { "C:/" } else { "/C:/" };
+            assert_eq!(
+                file_url_to_path(&url).unwrap(),
+                format!("{root}safe{escape}sub/main.f.js")
+            );
+        }
+    }
+
+    /// Use an existing file, so the old conversion would return a module
+    /// rather than an incidental filesystem error. No share is required.
+    #[cfg(windows)]
+    #[test]
+    fn windows_parent_urls_refuse_encoded_backslashes() {
+        let module = resolve_file_module("src/lib.rs", None).unwrap();
+        let directory = module.id.strip_suffix("/src/lib.rs").unwrap();
+        for escape in ["%5C", "%5c"] {
+            let parent = format!("{directory}{escape}src/lib.rs");
+            for name in ["", "./lib.rs"] {
+                let error = resolve_file_module(name, Some(&parent)).unwrap_err();
+                assert_eq!(error.code.as_deref(), Some("ERR_INVALID_FILE_URL_PATH"));
+            }
+        }
     }
 
     #[test]
