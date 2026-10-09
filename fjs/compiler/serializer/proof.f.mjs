@@ -32,8 +32,8 @@ import { _defaultExport, unresolved } from '../edag/module.f.mjs'
 import { parse } from '../transpiler/module.f.mjs'
 import { _tryModuleSerialize, _trySerialize, functionText, tryFunctionText, trySerialize, tryStringify, tryModuleSerialize, tryModuleStringify } from './module.f.mjs'
 import { keywords } from '../../js/keywords/module.f.mjs'
-import { spansOf } from '../../website/demo/highlight/module.f.mjs'
-import { chunkText } from '../../text/marked/module.f.mjs'
+import { disagreement } from '../../website/demo/highlight/module.f.mjs'
+import { chunksMarked, textOfResult } from '../../text/marked/module.f.mjs'
 
 /** The name the front end gives the text it reads back. */
 const path = '/proof.f.js'
@@ -534,31 +534,14 @@ export const proof = {
         assertStructurallySame(keywordsOf(['=>', 0, [], ['instanceof', ['rest'], 'Array']]), ['export', 'default', 'instanceof'])
         assertStructurallySame(keywordsOf(['throw', 1]), ['throw'])
     },
-    // The writer marks what the tokenizer finds: the spans of the marked
-    // chunks are the spans of the tokenizer's reading of the whole text, one
-    // for one. The tokenizer reads `-0` as a prefix and a number, so a
-    // leading `-` is not part of the span it finds.
+    // The writer marks what the tokenizer finds, one for one, in every example.
     markedAgreesWithTokenizer: () => {
         for (const [name, source] of examples) {
             const parsed = parse('')(source)
             if (parsed[0] === 'error') { continue }
             const written = _tryModuleSerialize(unresolved(parsed[1]).edag)
             if (written[0] === 'error') { continue }
-            const chunks = toArray(written[1])
-            const text = chunks.map(chunkText).join('')
-            const spans = spansOf(text)
-            /** @type {{ start: number, length: number, kind: string }[]} */
-            const marked = []
-            let start = 0
-            for (const chunk of chunks) {
-                const length = Array.from(chunkText(chunk)).length
-                if (typeof chunk !== 'string') {
-                    const dash = chunk[0].startsWith('-') ? 1 : 0
-                    marked.push({ start: start + dash, length: length - dash, kind: /** @type {string} */ (chunk[1]) })
-                }
-                start += length
-            }
-            assertEq(JSON.stringify(marked), JSON.stringify(spans), name)
+            assertEq(disagreement(chunksMarked(written[1])), null, name)
         }
     },
     // A function with a frame is a closure: each frame element takes a
@@ -1389,9 +1372,11 @@ export const proof = {
     demo: {
         examples: () => {
             for (const [name, source] of examples) {
-                assertEq(_sourceOf(source)[0], ['An import', 'A named import and a call', 'Hex escape', 'Parse error'].includes(name) ? 'error' : 'ok', name)
+                const shown = _sourceOf(source)
+                assertEq(shown[0], ['An import', 'A named import and a call', 'Hex escape', 'Parse error'].includes(name) ? 'error' : 'ok', name)
+                if (shown[0] === 'ok') { assertEq(disagreement(shown[1]), null, name) }
             }
-            assertEq(_sourceOf('const a = [1];\nexport default [a, a];')[1], 'const $0=[1];export default [$0,$0];')
+            assertEq(textOfResult(_sourceOf('const a = [1];\nexport default [a, a];')), 'const $0=[1];export default [$0,$0];')
         },
         view: () => {
             const shown = htmlToString(demo.view(demo.init))

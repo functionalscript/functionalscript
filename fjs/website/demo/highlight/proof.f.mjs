@@ -1,4 +1,4 @@
-import { highlight, render, spansOf } from './module.f.mjs'
+import { disagreement, highlight, render, spansOf } from './module.f.mjs'
 import { htmlToString } from '../../../media/html/module.f.mjs'
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
 
@@ -69,6 +69,10 @@ export const proof = {
         assertEq(render([]).length, 0)
         assertEq(JSON.stringify(render([['a', 'keyword'], [' b'], ['']])),
             '[["span",{"data-token":"keyword"},"a"]," b"]')
+    },
+    disagreement: () => {
+        assertEq(disagreement([['const', 'keyword'], [' a = '], ['-1', 'number'], [';']]), null)
+        assertEq(disagreement([['x', 'keyword']]), 'marked [{"start":0,"length":1,"kind":"keyword"}], the tokenizer finds [], in x')
     },
     refused: () => assertEq(highlight('1 @ 2').join('|'), '1 @ 2'),
 }

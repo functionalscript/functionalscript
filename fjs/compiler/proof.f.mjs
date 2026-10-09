@@ -27,7 +27,9 @@ import { unwrap } from '../types/result/module.f.mjs'
 import { fromEntries, isObject } from '../types/object/module.f.mjs'
 import { toVec } from '../types/uint8array/module.f.mjs'
 import { assert, assertEq, assertOk, assertStructurallySame } from '../asserts/module.f.mjs'
-import { _compiled, demo, outputs } from './demo.f.mjs'
+import { _compiled, _written, demo, outputs } from './demo.f.mjs'
+import { disagreement } from '../website/demo/highlight/module.f.mjs'
+import { textOfResult } from '../text/marked/module.f.mjs'
 import { examples } from './examples/module.f.js'
 import { htmlToString } from '../media/html/module.f.mjs'
 import { maxLengthBytes } from '../types/bit_vec/module.f.mjs'
@@ -1241,9 +1243,26 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             for (const [name, source] of examples) {
                 assertEq(outputs.map(([, file]) => _compiled(source)(file)[0] === 'ok' ? 'o' : 'x').join(''), expected[name])
             }
-            assertEq(_compiled('export default 1;')('output.json')[1], '1')
-            assertEq(_compiled('const fact = n => n < 2 ? 1 : n * fact(n - 1);\nexport default fact(5);')('output.json')[1], '120')
-            assertEq(_compiled('export default "\\x41";')('output.json')[1], 'input.f.js:1:16-23 - error: unexpected token')
+            assertEq(textOfResult(_compiled('export default 1;')('output.json')), '1')
+            assertEq(textOfResult(_compiled('const fact = n => n < 2 ? 1 : n * fact(n - 1);\nexport default fact(5);')('output.json')), '120')
+            assertEq(textOfResult(_compiled('export default "\\x41";')('output.json')), 'input.f.js:1:16-23 - error: unexpected token')
+        },
+        // A pane shows what `fjs compile` writes: the whole of `compile` over
+        // the same file system answers the same text, or the same refusal.
+        // And what a pane marks, the tokenizer agrees with, for the languages
+        // it reads; Rust is unmarked until its printer says what it wrote.
+        panesAreTheFiles: () => {
+            for (const [name, source] of examples) {
+                for (const [label, file] of outputs) {
+                    const shown = _compiled(source)(file)
+                    const written = _written(source)(file)
+                    assertEq(shown[0], written[0], `${name} ${label}`)
+                    assertEq(textOfResult(shown), written[1], `${name} ${label}`)
+                    if (shown[0] === 'ok' && label !== '.rs') {
+                        assertEq(disagreement(shown[1]), null, `${name} ${label}`)
+                    }
+                }
+            }
         },
         view: () => {
             const shown = htmlToString(demo.view(demo.init))

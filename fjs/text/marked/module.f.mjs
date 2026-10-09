@@ -38,6 +38,23 @@ export const keyword = word => [word, 'keyword']
 export const literal = word => [word, 'literal']
 
 /**
+ * A text with nothing marked: the output of a producer that has no kinds to
+ * give, such as the Rust printer for now.
+ *
+ * @type {(text: string) => Marked}
+ */
+export const unmarked = text => [[text]]
+
+/**
+ * The text of a result: the text of the marked text an `ok` holds, or the
+ * message an `error` holds. What a page shows in either case, and what a proof
+ * compares it with.
+ *
+ * @type {(result: Result<Marked, string>) => string}
+ */
+export const textOfResult = result => result[0] === 'ok' ? toText(result[1]) : result[1]
+
+/**
  * The text of a chunk.
  *
  * @type {(chunk: Chunk) => string}

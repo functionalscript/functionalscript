@@ -36,8 +36,15 @@ that code lands.
 
 **Each demo runs the stage it shows, never a lookalike.** The stage demos call
 the stage's own function (`tryModuleStringify`, `toRust`, `tokenize`, `parse`).
-The side-by-side page runs the real `compile` over an in-memory file system,
-once per output name, so it cannot drift from the CLI. **No output logic is
+The side-by-side page runs `_compileMarked`, which is `compile` but for its
+tail — the directory and the write — over an in-memory file system, once per
+output name. A file system carries text, so the page takes the output as marked
+text (`fjs/text/marked`) before it is written, which is how a pane is coloured
+by what the producer wrote and not by reading the text again. Its proof runs
+the whole `compile` over the same file system for every example and output
+and holds the page's text to the file written, so it cannot drift from the
+CLI. See
+[`website/demo/todo/highlight-from-producers.md`](../../website/demo/todo/highlight-from-producers.md). **No output logic is
 copied into a demo**; one that is not exported yet is exported, per
 [AGENTS.md §1](../../../AGENTS.md#1-workflow).
 

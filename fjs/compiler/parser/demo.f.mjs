@@ -20,26 +20,27 @@
  * @module
  *
  * @import { Result } from '../../types/result/types.ts'
+ * @import { Marked } from '../../text/marked/types.ts'
  */
 
-import { tryStringify } from '../../media/datajs/module.f.mjs'
+import { tryMarked } from '../../media/datajs/module.f.mjs'
 import { error } from '../../types/result/module.f.mjs'
 import { textDemo } from '../../website/demo/module.f.mjs'
-import { highlight } from '../../website/demo/highlight/module.f.mjs'
+import { render } from '../../website/demo/highlight/module.f.mjs'
 import { examples } from '../examples/module.f.js'
 import { parse } from '../transpiler/module.f.mjs'
 
 /**
  * `text` as its AST, in DataJS, or the parser's message.
  *
- * @type {(text: string) => Result<string, string>}
+ * @type {(text: string) => Result<Marked, string>}
  */
 export const _astOf = text => {
     const result = parse('')(text)
-    return result[0] === 'error' ? error(result[1].message) : tryStringify(result[1])
+    return result[0] === 'error' ? error(result[1].message) : tryMarked(result[1])
 }
 
 export const demo = textDemo({ name: 'parser', label: 'Source', init: examples[0][1], examples })(text => {
     const [kind, value] = _astOf(text)
-    return [kind === 'ok' ? ['pre', ...highlight(value)] : ['p', `Refused: ${value}`]]
+    return [kind === 'ok' ? ['pre', ...render(value)] : ['p', `Refused: ${value}`]]
 })

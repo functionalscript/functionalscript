@@ -40,7 +40,7 @@ import { _positions, tokenize } from '../../../js/tokenizer/module.f.mjs'
 import { assertNotNullish } from '../../../asserts/module.f.mjs'
 import { isKeyword } from '../../../js/keywords/module.f.mjs'
 import { stringToCodePointList } from '../../../text/utf16/module.f.mjs'
-import { fromSpans } from '../../../text/marked/module.f.mjs'
+import { fromSpans, toText } from '../../../text/marked/module.f.mjs'
 import { toArray } from '../../../types/list/module.f.mjs'
 import { unwrap } from '../../../types/result/module.f.mjs'
 
@@ -102,6 +102,34 @@ export const spansOf = text => {
         const kind = kindOf(token)
         return kind === undefined ? [] : [{ start, length: Array.from(symbols.slice(start, kept[i + 1].start).join('').trimEnd()).length, kind }]
     })
+}
+
+/**
+ * Where a producer's markup and the tokenizer part ways, or `null` where
+ * they agree: the marked runs, as spans of the whole text, are the spans
+ * the tokenizer finds in it, one for one. The tokenizer reads `-0` as a
+ * prefix and a number, so a leading `-` is not part of the span it finds.
+ * What a producer marks, this holds it to; the proofs of the producers that
+ * mark ask it of every example they have.
+ *
+ * @type {(marked: Marked) => string | null}
+ */
+export const disagreement = marked => {
+    const text = toText(marked)
+    const found = JSON.stringify(spansOf(text))
+    /** @type {readonly Span[]} */
+    const given = marked.reduce(
+        (acc, [chunk, kind]) => {
+            const length = Array.from(chunk).length
+            const dash = kind !== undefined && chunk.startsWith('-') ? 1 : 0
+            return {
+                at: acc.at + length,
+                spans: kind === undefined ? acc.spans : [...acc.spans, { start: acc.at + dash, length: length - dash, kind }],
+            }
+        },
+        /** @type {{ at: number, spans: readonly Span[] }} */({ at: 0, spans: [] })).spans
+    const marks = JSON.stringify(given)
+    return marks === found ? null : `marked ${marks}, the tokenizer finds ${found}, in ${text}`
 }
 
 /**
