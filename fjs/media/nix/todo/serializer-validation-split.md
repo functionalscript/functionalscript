@@ -205,9 +205,9 @@ path is public API and any downstream caller gets a tagged `Result` tuple where
 it used to get a chunk list, a string, or `undefined`. A repository search
 bounds the migration work, not the blast radius.
 
-So `AGENTS.md` §5 applies to the implementing PR: declare the break with
-`**BREAKING CHANGES:**` in its description, state the old and new shapes, and show the
-one-line migration — a caller that did
+So `AGENTS.md` §5 applies to the implementing PR: explain the API change in
+its description (a breaking notice is optional before 1.0), state the old and
+new shapes, and show the one-line migration — a caller that did
 `unwrapNullable(fromUndefined(nixToString(e)))` writes `unwrap(nixToString(e))`,
 and one that tested `=== undefined` now tests `[0] === 'error'` and gets a
 reason with it. Update every in-repo importer in that same PR rather than
@@ -270,7 +270,7 @@ where it lands.
 - [ ] Add proof cases for each rejection reason — today's proof can only
       observe "rejected", so the reasons need coverage as they become
       observable.
-- [ ] Declare the break with `**BREAKING CHANGES:**` in the implementing PR's
+- [ ] Explain the API change and migration in the implementing PR's
       description (`AGENTS.md` §5) — see "This is a breaking change" above.
 - [ ] Run `tsc` and `fjs t`.
 

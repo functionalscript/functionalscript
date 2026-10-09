@@ -75,12 +75,14 @@ export const gitHubActionSchema = /** @type {const} */ ({
     name: string,
     // Every trigger any generated workflow uses, all optional, because no
     // workflow uses them all: `gen.ci.yml` is a pull-request gate and the publish
-    // workflow fires on a push to a branch. `push` carries the branch list;
+    // workflow fires on a push or a maintainer's manual dispatch for an urgent
+    // fix branch. `push` carries the branch list;
     // without it a push to any branch would publish.
     on: {
         pull_request: or(option, {}),
         merge_group: or(option, {}),
-        push: or(option, { branches: array(string) })
+        push: or(option, { branches: array(string) }),
+        workflow_dispatch: or(option, {})
     },
     // Optional, because only `gen.ci.yml` sets it: a run there that a newer
     // push supersedes is cancelled. `cancel-in-progress` is the literal `true`

@@ -401,12 +401,11 @@ the last one, and nobody's unrelated work waits on the rewrite.
    the old module is deleted — a reachability walk over the old module with
    the consumers as roots, and nobody has to decide to drop anything.
 5. **Move the consumers one by one**, each port carrying the features it
-   needs and declaring its own breaking changes where the consumer's surface
-   changes.
+   needs and explaining API changes where the consumer's surface changes.
 6. **Delete the old module**, with the issues that described only its code,
    and repoint every reference — links and prose — to what replaced its
-   target. One `**BREAKING CHANGES:**` declaration, for the old paths that
-   were public.
+   target. Explain removal of the old public paths; a breaking-change notice
+   is optional before 1.0 and required from 1.0 onward.
 
 ### The worked example: `fjs/ebnf` replacing `fjs/bnf`
 

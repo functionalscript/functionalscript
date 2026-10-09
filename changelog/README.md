@@ -6,10 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Entries are written **once per release**, from the pull requests that shipped in
-it. A pull request adds no changelog file; what it owes instead — a
-`**BREAKING CHANGES:**` declaration when it breaks the public API — is in
-[CONTRIBUTING.md](../CONTRIBUTING.md#commit-messages). The release procedure that
-reads those pull requests and writes the file is [RELEASE.md](./RELEASE.md).
+it. A pull request adds no changelog file. Before 1.0, release-note material and
+`**BREAKING CHANGES:**` notices in its description are optional; from 1.0
+onward, public API breaks require a declaration
+([CONTRIBUTING.md](../CONTRIBUTING.md#commit-messages)). The release procedure
+is [RELEASE.md](./RELEASE.md).
 
 ## Layout
 
@@ -80,9 +81,10 @@ to order them: [RELEASE.md](./RELEASE.md).
   Markdown beyond paragraphs, list items, inline code, and bold, so the website
   can render entries with a small self-hosted parser. That subset is a
   convention rather than an accident.
-- **A breaking entry starts with `**BREAKING CHANGES:**`** and states the old
-  shape, the new one, and the one-line migration **its declaring pull request
-  gave**. Where that pull request gave none, the entry says what changed and
+- **Before 1.0, breaking-change markers are optional in entries too.** From
+  1.0 onward, a breaking entry starts with `**BREAKING CHANGES:**`. Describe
+  the old shape, the new one, and the one-line migration its pull request
+  gave. Where that pull request gave none, the entry says what changed and
   stops: a release author writes a migration down, never invents one
   ([RELEASE.md](./RELEASE.md#6-write-changelogxyzmd)).
 - **CI generation is not stable for third-party consumption.** `fjs/ci` and the
@@ -106,40 +108,27 @@ to order them: [RELEASE.md](./RELEASE.md).
   shape (see [DESIGN.md §2](../doc/DESIGN.md#2-the-api-is-the-most-important-part-of-quality)).
   The version number is what lets consumers stay on the old API; a released
   version is immutable, so nothing is taken away from anyone by improving the
-  next one. When a change breaks the public API, declare it with
-  `**BREAKING CHANGES:**` in the pull request description and update every
-  importer in the same pull request rather than keeping a compatibility shim.
-- **The project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html),
-  and the CHANGELOG decides which number moves.** A `**BREAKING CHANGES:**`
-  declaration on any pull request in the release window means the release
-  shipping it cannot be a patch — unless the window itself undid the break, which
-  the release pull request says in as many words
-  ([RELEASE.md](./RELEASE.md#4-group-by-net-effect)). The package is still
-  pre-1.0, where the leading `0.` is pinned and the *minor* position plays the
-  role the major one plays after 1.0:
-
-  | the release window contains                 | Pre-1.0 — `0.Y.Z` | 1.0 and later — `X.Y.Z` |
-  | ------------------------------------------- | ----------------- | ----------------------- |
-  | at least one surviving breaking change      | `0.(Y+1).0`       | `(X+1).0.0`             |
-  | new features, nothing breaking              | `0.Y.(Z+1)`       | `X.(Y+1).0`             |
-  | fixes only                                  | `0.Y.(Z+1)`       | `X.Y.(Z+1)`             |
-
-  Pre-1.0 the leading `0.` costs one position, and the distinction it costs is
-  feature-vs-fix, not the break signal: `0.Y` moves **only** for a breaking
-  change, and everything else — new features included — is a patch. That is
-  deliberate. `^0.41.0` and `~0.41.0` both resolve to `>=0.41.0 <0.42.0` under
-  npm (Cargo's bare `0.41.0` and JSR/Deno agree), so while the package is pre-1.0
-  the minor is the only upgrade boundary a resolver enforces. Reserving it for
-  breaking changes makes crossing it mean "something broke, read the entries" and
-  makes every patch release a safe upgrade that still delivers features — the
-  same contract the 1.0-and-later column gives, one position to the left. SemVer
-  §4 leaves `0.y.z` undefined ("Anything MAY change at any time"), so this is a
-  convention chosen inside the spec rather than a departure from it.
-
-  A bigger bump is a number, not a cost — it never argues for holding back a
-  breaking change, it only records that one happened. Releases through `0.41.0`
-  predate this convention and took a minor bump for feature-only releases too
-  (`0.35.0`, `0.33.0`); they are published, so leave their numbers alone.
+  next one. Update every importer in the same pull request rather than keeping
+  a compatibility shim; explain the API change in the description.
+- **Before 1.0, every regular release is `0.X.0`.** Increment the highest
+  released minor and reset the patch to zero, whether the window contains
+  breaking changes, features, fixes, or no notable changes. Most changes are
+  breaking at this stage, so mandatory `BREAKING CHANGES` notices and
+  declaration-driven bumps add little value. SemVer §4 allows anything to
+  change before 1.0. Consumers crossing a minor boundary should review the
+  release notes.
+- **Urgent fixes start at `0.X.1`, from the corresponding `0.X.0` release
+  commit.** Include only the required fixes and release metadata, excluding
+  subsequent development on `main`. If another urgent fix is needed, branch
+  from the preceding fix release and increment the patch (`0.X.2`, `0.X.3`,
+  etc.); never reuse a published version. The next regular release still
+  advances the minor and resets the patch. See
+  [RELEASE.md](./RELEASE.md#urgent-fixes-before-10) for publishing this branch.
+- **From 1.0 onward, use Semantic Versioning:** surviving public API breaks
+  require a major bump, features without breaks a minor bump, and fixes only a
+  patch bump. Breaking declarations are required at that stage. A break undone
+  within the window does not force a major bump; the release PR explains it.
+  Existing published versions keep their numbers.
 - Releasing is its own pull request, titled `Release X.Y.Z`: the version lives in
   `package.json` (`"version"`) — `deno.json` holds tasks and formatting only —
   and the entries are collected into `changelog/X.Y.Z.md` by
@@ -148,7 +137,7 @@ to order them: [RELEASE.md](./RELEASE.md).
 - **The release window is re-derived rather than assumed**, and when it is
   re-derived, from which ref, and in what form are
   [RELEASE.md](./RELEASE.md#7-open-the-release-pull-request)'s to state — this
-  file does not repeat them. What holds regardless: a pull request that merges
+  file does not repeat them. For a regular release, a pull request that merges
   to `main` while the release pull request is open belongs to the release, and
   nothing on the release branch notices on its own.
 - **The repository has no Git tags and is not going to get any.** A tag would be

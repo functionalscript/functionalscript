@@ -102,9 +102,9 @@ with every importer updated in the same PR; a re-export left in
       Then those modules stop importing the utf8/utf16 primitives directly.
 - [ ] Name the UTF-8 boundary in one direction: the decoder and encoder in
       `text/utf8` say which way they go, and `types/uint8array`'s `fromVec`
-      stops sharing a name with a decoder. A renamed export is a declared
-      breaking change (`**BREAKING CHANGES:**`), with every importer updated in
-      the same PR.
+      stops sharing a name with a decoder. A renamed export changes the public
+      API: explain it and update every importer in the same PR. Breaking
+      notices are optional before 1.0.
 - [x] Drop the two unused imports in `fjs/effects/node/module.f.mjs`.
 - [ ] `tsc`, `fjs t`.
 

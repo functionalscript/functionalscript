@@ -252,9 +252,9 @@ Judgement calls worth deciding explicitly rather than by accident:
 ### Caveats
 
 - **Every move is a breaking change** to an import path. Per `AGENTS.md`, do one
-  concern per PR, update every importer in the same PR, and declare the break
-  with `**BREAKING CHANGES:**` in the description. Do not leave re-export shims
-  behind.
+  concern per PR, update every importer in the same PR, and explain the API
+  change in the description. Breaking notices are optional before 1.0.
+  Do not leave re-export shims behind.
 
   **The exception is decided by a test, not by a list.** A re-export is a shim
   when it keeps a *dead* coupling alive; it is legitimate where the

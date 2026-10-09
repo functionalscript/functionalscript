@@ -335,9 +335,9 @@ A pull request implements only one feature or improvement, with minimal code
 changes. Before submitting, ensure every check above passes and delete the
 `todo/` issue file it fixes, if there is one. It adds **no changelog file**: the
 changelog is written once per release from the pull requests that shipped in it
-([changelog/RELEASE.md](./changelog/RELEASE.md)). What a pull request owes
-instead is a declaration in its description, below. The everyday workflow around
-this is [AGENTS.md §1](./AGENTS.md#1-workflow).
+([changelog/RELEASE.md](./changelog/RELEASE.md)). Before 1.0, a pull request may
+leave optional release-note material in its description, as described below.
+The everyday workflow around this is [AGENTS.md §1](./AGENTS.md#1-workflow).
 
 A pull request that works on a `todo/` is opened as a **draft** as soon as the
 branch has a commit, and names that `todo/` file in its description, so anyone
@@ -367,32 +367,26 @@ messages are not working notes: write each one for a reader who meets it on
   appends, and never write a `(#NNN)` of your own. A release pull request's
   title is `Release X.Y.Z`.
 - **Description.** Free prose — motivation, design, measurements, alternatives
-  considered — then, when the pull request **breaks the public API**, a
-  `Changelog:` section, the last section before an optional trailer block
-  (`Co-Authored-By:`, generated-with lines, session links):
+  considered. A change worth a release note may add an optional `Changelog:`
+  section, last before any trailer block (`Co-Authored-By:`, generated-with
+  lines, session links), with list items in the [entry style](./changelog/README.md#entries).
+  Before 1.0, `**BREAKING CHANGES:**` notices are optional: regular releases
+  always advance the minor to `0.X.0`, and urgent fixes use the corresponding
+  release line ([changelog/README.md](./changelog/README.md#breaking-changes-and-versioning)).
+  Explain API changes and update every importer in the same PR.
+
+  From 1.0 onward, a public API break requires a `Changelog:` item prefixed
+  `**BREAKING CHANGES:**`; the release uses that declaration to choose its
+  SemVer bump. For example:
 
   ```
-  <free prose>
-
   Changelog:
   - **BREAKING CHANGES:** `bnf`: `repeat` moved to `types/array` and returns a
     fixed-length tuple; the `Repeat` type is gone
   ```
 
-  A `**BREAKING CHANGES:**` declaration is **required**, and is the reason the
-  section exists. Nothing derives it from a diff — a `readonly` added to an
-  exported tuple breaks consumers and looks like noise in a patch — and the
-  release reads it to decide which version number moves
-  ([changelog/README.md](./changelog/README.md#breaking-changes-and-versioning)).
-  Getting it wrong ships a break as a patch release, which is the one mistake
-  here that reaches users.
-
-  For everything else the section is **optional**, and useful: a non-breaking
-  change worth a release note can leave one, in the same
-  [entry style](./changelog/README.md#entries), and the release author starts
-  from it instead of from the diff. It is raw material, not published text — the
-  release rewrites entries over the whole window, so several pull requests that
-  moved one thing become one entry
+  The section is raw material: the release author rewrites entries over the
+  whole window, grouping related pull requests into one entry
   ([changelog/RELEASE.md](./changelog/RELEASE.md)). A pull request that changes
   no observable behavior omits the section entirely.
 - **How it lands.** Create a merge commit, always — **squash and rebase are not

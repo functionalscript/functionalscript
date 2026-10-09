@@ -28,9 +28,10 @@ export const npmPublishPath = /** @type {const} */ ('.github/workflows/gen.npm-p
 /**
  * The branch a publish follows. The version in `package.json` is the single
  * source of truth for what gets published, and it becomes real when it reaches
- * the default branch — so this is the one trigger, and it is a `push` rather
- * than a `pull_request`: a fork's pull request must never reach a step holding
- * the registry's trust.
+ * the default branch. A manual dispatch also lets a maintainer publish an
+ * urgent fix from its maintenance branch, without later changes on main.
+ * Neither trigger is a `pull_request`: a fork's pull request must never reach
+ * a step holding the registry's trust.
  */
 export const publishBranch = /** @type {const} */ ('main')
 
@@ -104,6 +105,7 @@ export const npmPublishWorkflow = {
     name: 'npm publish',
     on: {
         push: { branches: [publishBranch] },
+        workflow_dispatch: {},
     },
     permissions: {
         contents: 'read',

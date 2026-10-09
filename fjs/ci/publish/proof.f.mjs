@@ -22,14 +22,19 @@ const runIndex = command => steps.findIndex(step => step.run === command)
 
 export const proof = {
     // A publish is not a gate, and the distinction is the whole of this
-    // workflow's trigger. `pull_request` would hand a fork's branch the
+    // workflow's triggers. Manual dispatch checks out its selected ref, so an
+    // urgent fix can publish without main's later changes. `pull_request` would
+    // hand a fork's branch the
     // registry's trust, and `merge_group` would publish a merge that has not
     // landed.
-    onlyPushesToTheBranch: () => {
+    pushesToMainOrManualMaintenanceRelease: () => {
         assertEq(npmPublishPath, '.github/workflows/gen.npm-publish.yml')
         assertEq(npmPublishWorkflow.name, 'npm publish')
         assertStructurallySame(npmPublishWorkflow.on.push?.branches, [publishBranch])
         assertEq(publishBranch, 'main')
+        assertStructurallySame(npmPublishWorkflow.on.workflow_dispatch, {})
+        const checkout = steps[usesIndex('actions/checkout@')]
+        assertEq(checkout?.with?.ref, undefined)
         assertEq(npmPublishWorkflow.on.pull_request, undefined)
         assertEq(npmPublishWorkflow.on.merge_group, undefined)
     },

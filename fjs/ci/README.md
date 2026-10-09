@@ -445,11 +445,14 @@ otherwise be a second publish workflow on the same trigger.
 
 The generated workflow is:
 
-- **triggered by a push to `main`, and by nothing else.** `pull_request` would
-  hand a fork's branch the registry's trust, and `merge_group` would publish a
+- **triggered by a push to `main` or a manual dispatch.** A maintainer can
+  select an urgent-fix maintenance branch for the manual run; the default
+  checkout uses that selected ref. The procedure is in
+  [changelog/RELEASE.md](../../changelog/RELEASE.md#urgent-fixes-before-10).
+  `pull_request` would hand a fork's branch the registry's trust, and `merge_group` would publish a
   merge that has not landed. The version in `package.json` is the single source
-  of truth for what gets released, and it becomes real when it reaches the
-  default branch.
+  of truth for what gets released: a push publishes the default branch
+  and a manual run publishes the selected maintenance ref.
 - **granted `contents: read` and `id-token: write`, at the workflow level.**
   A publish reads the tree and writes nowhere in it. The `id-token` grant is the
   one addition and it is spent by the step below.
