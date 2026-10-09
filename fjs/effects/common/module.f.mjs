@@ -15,8 +15,7 @@ import { do_, pure, pureOk, resultMapStep, step } from '../module.f.mjs'
 import { okList } from '../../types/result/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { lf } from '../../text/ascii/module.f.mjs'
-import { toCodePointList } from '../../text/utf8/module.f.mjs'
-import { codePointListToString } from '../../text/utf16/module.f.mjs'
+import { u8ListToString } from '../../text/utf8/module.f.mjs'
 import { reverse } from '../../types/list/module.f.mjs'
 import { error as resultError } from '../../types/result/module.f.mjs'
 
@@ -154,10 +153,6 @@ export const errorExit = s =>
 /** @type {Func<Read>} */
 export const read = do_('read')
 
-/** @type {(bytes: _UtfList) => string} */
-const utf8ListToString = bytes =>
-    codePointListToString(toCodePointList(bytes))
-
 /**
  * Reads bytes from `stream` up to and including the next line feed, and answers
  * the line without it.
@@ -182,9 +177,9 @@ export const readLine = stream => {
         step(
             read(stream),
             (/** @type {number | null} */ b) => b === null
-                ? pureOk(acc === null ? null : utf8ListToString(reverse(acc)))
+                ? pureOk(acc === null ? null : u8ListToString(reverse(acc)))
                 : b === lf
-                    ? pureOk(utf8ListToString(reverse(acc)))
+                    ? pureOk(u8ListToString(reverse(acc)))
                     : loop({ first: b, tail: acc })
         )
     return loop(null)
