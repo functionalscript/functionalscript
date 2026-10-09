@@ -6,7 +6,7 @@ use crate::{
     vm::{Any, BigInt, IVm, error},
 };
 
-use super::{MAX_WORDS, ShiftAmount};
+use super::{MAX_WORDS, ShiftAmount, assert_slice_normalized};
 
 /// `<<`. <https://tc39.es/ecma262/#sec-numeric-types-bigint-leftShift>
 impl<A: IVm> Shl for BigInt<A> {
@@ -64,10 +64,8 @@ impl<A: IVm> Shl for BigInt<A> {
             }
         }
 
-        assert!(
-            value.last() != Some(&0) && !value.is_empty(),
-            "shl: result must be normalized and non-empty"
-        );
+        assert!(!value.is_empty(), "shl: result must be non-empty");
+        assert_slice_normalized(value.as_slice());
 
         // TODO: `value`'s own allocation above is fallible, but
         // `unchecked_new` -> `IContainer::new_ok` -> (for `Naive`)

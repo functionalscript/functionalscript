@@ -19,7 +19,7 @@
  * @import { Primitive, Unknown } from '../ts/types.ts'
  * @import { ResultE } from '../common/types.ts'
  * @import { StringMap } from '../../types/object/types.ts'
- * @import { ArraySet, Data, KindSet, Node, ObjectSet, RuleSet, UnionSet } from './types.ts'
+ * @import { ArraySet, Data, KindSet, Node, ObjectSet, RuleSet, UnionAlgebra, UnionSet, UnitName } from './types.ts'
  * @import { _Assumed, _Ctx, _Key, _Keyed, _NodeMap, _State, _Thunk } from './private.ts'
  */
 
@@ -840,6 +840,69 @@ const internData = (rules, entry) => [
         ([n, u]) => /** @type {const} */ ([n, internUnion(rules)(u)]))),
     internNode(rules)(entry),
 ]
+
+// ── rendering ────────────────────────────────────────────────────────────────
+
+/**
+ * The unit members of a `unit` bitset, in canonical order. Both booleans
+ * together read as `boolean`.
+ *
+ * @type {(bits: number) => readonly UnitName[]}
+ */
+const unitNames = bits => [
+    ...((bits & nullBit) === 0 ? [] : /** @type {const} */ (['null'])),
+    ...((bits & undefinedBit) === 0 ? [] : /** @type {const} */ (['undefined'])),
+    ...((bits & booleanBits) === booleanBits ? /** @type {const} */ (['boolean'])
+        : (bits & falseBit) !== 0 ? /** @type {const} */ (['false'])
+        : (bits & trueBit) !== 0 ? /** @type {const} */ (['true'])
+        : []),
+]
+
+/**
+ * The rendered members of one kind component: nothing when absent, the whole
+ * kind when `true`, one per member otherwise.
+ *
+ * @type {<T, R>(whole: () => R, item: (v: T) => R) => (k: KindSet<T> | undefined) => readonly R[]}
+ */
+const kindMembers = (whole, item) =>
+    kindFold({ absent: () => [], whole: () => [whole()], members: list => list.map(item) })
+
+/**
+ * Renders a union through an {@link UnionAlgebra}. This is the one walk over a
+ * union's layout: which unit bits it has, which kinds, and in what order. A
+ * renderer supplies only the leaves.
+ *
+ * The absent bit is removed first. Absence is not a value, so it is not a
+ * member. A renderer that needs it, such as one marking an optional key, asks
+ * the position with {@link admitsAbsence}. Without the bit, the set of all
+ * values is `top`. Otherwise `join` gets the unit members first, then the
+ * members of `number`, `string`, `bigint`, `array` and `object`.
+ *
+ * @type {<R>(algebra: UnionAlgebra<R>) => (u: UnionSet) => R}
+ */
+export const unionFold = algebra => u0 => {
+    const { top, unit, whole, join } = algebra
+    const u = withoutUnits(absentBit)(u0)
+    if (isTop(u)) { return top }
+    return join([
+        ...unitNames(u.unit ?? 0).map(unit),
+        ...kindMembers(() => whole('number'), algebra.number)(u.number),
+        ...kindMembers(() => whole('string'), algebra.string)(u.string),
+        ...kindMembers(() => whole('bigint'), algebra.bigint)(u.bigint),
+        ...kindMembers(() => whole('array'), algebra.array)(u.array),
+        ...kindMembers(() => whole('object'), algebra.object)(u.object),
+    ])
+}
+
+/**
+ * How many leading positions of a tuple prefix are required: one past the
+ * last position whose set does not admit absence, or zero when every position
+ * admits it. Arrays are contiguous, so this one number covers every position.
+ *
+ * @type {(rules: RuleSet) => (prefix: readonly Node[]) => number}
+ */
+export const requiredPrefix = rules => prefix =>
+    prefix.findLastIndex(n => !admitsAbsence(rules)(n)) + 1
 
 // ── toData ───────────────────────────────────────────────────────────────────
 

@@ -286,13 +286,19 @@ impl<A: IVm> BigInt<A> {
         assert_slice_normalized(self.0.items());
     }
 
+    /// Panics unless both `self` and `rhs` are normalized: the shared
+    /// precondition of the two-operand magnitude helpers.
+    fn assert_normalized_with(&self, rhs: &Self) {
+        self.assert_normalized();
+        rhs.assert_normalized();
+    }
+
     /// Compare absolute values by looking at the most-significant words first.
     ///
     /// Precondition: both `self` and `rhs` must be normalized, i.e. they must
     /// not contain leading (most-significant) zero words.
     fn abs_cmp_vec(self, rhs: Self) -> Ordering {
-        self.assert_normalized();
-        rhs.assert_normalized();
+        self.assert_normalized_with(&rhs);
 
         let a = self.0.items();
         let b = rhs.0.items();
@@ -306,9 +312,7 @@ impl<A: IVm> BigInt<A> {
     }
 
     fn abs_add_vec(self, rhs: Self) -> Vec<u64> {
-        // Precondition: both operands must be normalized.
-        self.assert_normalized();
-        rhs.assert_normalized();
+        self.assert_normalized_with(&rhs);
 
         let mut carry: u128 = 0;
         let mut out: Vec<u64> = self
@@ -331,9 +335,7 @@ impl<A: IVm> BigInt<A> {
     }
 
     fn abs_sub_vec(self, rhs: Self) -> Vec<u64> {
-        // Precondition: both operands must be normalized.
-        self.assert_normalized();
-        rhs.assert_normalized();
+        self.assert_normalized_with(&rhs);
 
         let mut borrow: u64 = 0;
         let out: Vec<u64> = self
@@ -367,8 +369,7 @@ impl<A: IVm> BigInt<A> {
     ///
     /// Precondition: both operands are normalized, and `rhs` is non-zero.
     fn abs_divmod_vec(self, rhs: Self) -> (Vec<u64>, Vec<u64>) {
-        self.assert_normalized();
-        rhs.assert_normalized();
+        self.assert_normalized_with(&rhs);
 
         let denom: Vec<u64> = rhs.index_iter().collect();
         let numer: Vec<u64> = self.index_iter().collect();

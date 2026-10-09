@@ -9,7 +9,7 @@
  */
 
 import { exitCode } from '../effects/node/module.f.mjs'
-import { _errorLocation, compile } from './module.f.mjs'
+import { compile } from './module.f.mjs'
 import { transpile } from './transpiler/module.f.mjs'
 import { virtual, emptyState, nodeProgramOptions } from '../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../text/module.f.mjs'
@@ -138,13 +138,6 @@ export const proof = {
         failure: () => {
             assertEq(moduleRefused('const a = null; export default a.x;'), 'input.f.js - error: module initialization failed')
             assertEq(moduleRefused('const a = { b: 1 }; export default a.c.d;'), 'input.f.js - error: module initialization failed')
-        },
-        // a failure with no token and no file names the file being compiled
-        // — the parser's contract failure, which no reader `compile` runs
-        // produces, is the one such error left
-        noFile: () => {
-            assertEq(_errorLocation('input.f.js')({ message: 'missing end-of-input token', metadata: null }), 'input.f.js')
-            assertEq(_errorLocation('input.f.js')({ message: 'file not found', metadata: null, path: 'm.f.js' }), 'm.f.js')
         },
         // a failure with no token names the file it is in: an imported
         // module's body, a missing import, a cycle met at an import

@@ -2,7 +2,7 @@
  * @import { Dir, RecordedResponse, State, _QueuedRequest } from './types.ts'
  * @import { All, Handle, IncomingMessage, IoResult, NodeOp, ReadRequestBytes, RequestListener, ServerResponse } from '../types.ts'
  * @import { Effect } from '../../types.ts'
- * @import { List, Next } from '../../list/types.ts'
+ * @import { EffectList, Next } from '../../list/types.ts'
  * @import { Result } from '../../../types/result/types.ts'
  * @import { IoChannel } from '../types.ts'
  * @import { Key } from '../../memory/types.ts'
@@ -41,7 +41,7 @@ import { asNominal, create as memCreate, read as memRead, write as memWrite } fr
  * @type {RequestListener<ReadRequestBytes>}
  */
 const echoBody = ({ body }) => {
-    /** @type {(taken: readonly Vec[], rest: List<ReadRequestBytes, Vec, IoChannel>) => Effect<ReadRequestBytes, readonly Vec[], IoChannel>} */
+    /** @type {(taken: readonly Vec[], rest: EffectList<ReadRequestBytes, Vec, IoChannel>) => Effect<ReadRequestBytes, readonly Vec[], IoChannel>} */
     const loop = (taken, rest) => step(rest, node =>
         node === undefined ? pureOk(taken) : loop([...taken, node.first], node.tail))
     return resultMapStep(loop([], body), r => ok(r[0] === 'ok'
@@ -95,11 +95,11 @@ const responseText = r => utf8ToString(r.body.reduce((v, chunk) => msb.concat(v)
  * produces its cells inside a command's continuation, which is what `readChunks`
  * over a {@link handleSource} does and what the `fjs/web` proofs drive.
  *
- * @type {(chunks: readonly Vec[]) => List<never, Vec, IoChannel>}
+ * @type {(chunks: readonly Vec[]) => EffectList<never, Vec, IoChannel>}
  */
 const ofChunks = chunks => chunks.reduceRight(
     (tail, chunk) => nonEmpty(chunk, tail),
-    /** @type {List<never, Vec, IoChannel>} */(endOfBody()))
+    /** @type {EffectList<never, Vec, IoChannel>} */(endOfBody()))
 
 /** A listener holding nothing writes the pure end.
  *
@@ -138,7 +138,7 @@ const recordRelease = resultMapStep(log(released), () => ok(null))
  * It needs no instrument, which is why it is written this way rather than with a
  * counter — the gates' whole point is the read they save.
  *
- * @type {List<NodeOp, Vec, IoChannel>}
+ * @type {EffectList<NodeOp, Vec, IoChannel>}
  */
 const neverPulled = pureError(ioError({ message: 'pulled' }))
 
@@ -859,33 +859,45 @@ export const proof = {
         assertIoMessage(result[1], "'mydir' is a directory")
     },
     readFileTooLarge: () => {
-        // A file stored as two max-size chunks exceeds the limit; readFile must
-        // return an error, and the message must name the entry it refused —
-        // without it a caller that stops on the failure reports a build broken
-        // by no file in particular.
+        // A file stored as a max-size chunk and one byte more exceeds the limit;
+        // readFile must return an error, and the message must name the entry it
+        // refused — without it a caller that stops on the failure reports a
+        // build broken by no file in particular.
         const chunk0 = vec(maxLengthBytes * 8n)(0n)
-        const chunk1 = vec(1n)(1n)
+        const chunk1 = vec8(1n)
         /** @type {Dir} */
         const root = { 'big': [chunk0, chunk1] }
         const [, result] = virtual({ ...emptyState, root })(readFile('big'))
         assert(result[0] === 'error')
         assertIoMessage(
             result[1],
-            `File size exceeds maximum allowed size of ${maxLengthBytes} bytes: 'big'`)
+            `File size ${maxLengthBytes + 1n} exceeds maximum allowed size of ${maxLengthBytes} bytes: 'big'`)
+    },
+    readFileTooLargeByABit: () => {
+        // A chunk that is not whole bytes counts its partial byte whole: one bit
+        // past the limit is a file `listToVec` cannot build, so it is refused
+        // like any other oversized file rather than thrown at.
+        /** @type {Dir} */
+        const root = { 'big': [vec(maxLengthBytes * 8n)(0n), vec(1n)(1n)] }
+        const [, result] = virtual({ ...emptyState, root })(readFile('big'))
+        assert(result[0] === 'error')
+        assertIoMessage(
+            result[1],
+            `File size ${maxLengthBytes + 1n} exceeds maximum allowed size of ${maxLengthBytes} bytes: 'big'`)
     },
     readFileTooLargeNested: () => {
         // The path the caller asked for, not the entry `operation`'s descent
         // left behind: told only `'big'`, a caller cannot tell which of several
         // same-named files failed, and the Node runner names the whole path.
         const chunk0 = vec(maxLengthBytes * 8n)(0n)
-        const chunk1 = vec(1n)(1n)
+        const chunk1 = vec8(1n)
         /** @type {Dir} */
         const root = { a: { b: { 'big': [chunk0, chunk1] } } }
         const [, result] = virtual({ ...emptyState, root })(readFile('a/b/big'))
         assert(result[0] === 'error')
         assertIoMessage(
             result[1],
-            `File size exceeds maximum allowed size of ${maxLengthBytes} bytes: 'a/b/big'`)
+            `File size ${maxLengthBytes + 1n} exceeds maximum allowed size of ${maxLengthBytes} bytes: 'a/b/big'`)
     },
     readBytesNegativeSize: () => {
         // readBytes with negative size should fail
@@ -1520,7 +1532,7 @@ export const proof = {
             const root = { 'a.bin': [utf8('abcdefghij')] }
             /** @type {(bound: number) => readonly string[]} */
             const chunksOf = bound => {
-                /** @type {(s: State, e: List<NodeOp, Vec, IoChannel>, out: readonly string[]) => readonly string[]} */
+                /** @type {(s: State, e: EffectList<NodeOp, Vec, IoChannel>, out: readonly string[]) => readonly string[]} */
                 const drain = (s, e, out) => {
                     const [next, cell] = virtual(s)(e)
                     const node = unwrap(cell)
@@ -1797,12 +1809,12 @@ export const proof = {
             assertEq(cursor.rest.length, 2)
         },
         // **A second pull on a cell already read is refused, not answered with
-        // the next chunk.** A `List`'s tail is a value, so pulling one twice is
-        // ordinary code; over a socket the bytes behind the cursor are gone, so
-        // the second pull could only be answered with whatever comes next — a
-        // body no client sent, arriving in order and whole. That is refused here
-        // for the same reason it is refused there, with the shared message, so
-        // the two runners cannot drift.
+        // the next chunk.** An `EffectList`'s tail is a value, so pulling one
+        // twice is ordinary code; over a socket the bytes behind the cursor are
+        // gone, so the second pull could only be answered with whatever comes
+        // next — a body no client sent, arriving in order and whole. That is
+        // refused here for the same reason it is refused there, with the shared
+        // message, so the two runners cannot drift.
         refusesARePull: () => {
             /** @type {RequestListener<ReadRequestBytes>} */
             const rePull = ({ body }) => resultMapStep(
@@ -1900,15 +1912,15 @@ export const proof = {
             assertEq(responseText(r), 'chunk at 0 is 1 bits, not whole bytes')
         },
         // **And it goes on refusing it.** A refusal a listener catches is a
-        // refusal it may pull again — a `List`'s tail is a value, and nothing
-        // says a consumer that met an error stops. The chunk the stream would
-        // not take has to still be there when it does: handed out and dropped,
-        // the cursor moved while the offset did not, so the retry named an
-        // offset that still matched and was answered with the bytes *after* the
-        // refused chunk. The listener then had the body it asked for, in order
-        // and under a correct length, with one bit of it missing and nothing to
-        // say so — DESIGN §10's plausible wrong value, reached through the door
-        // the refusal opened.
+        // refusal it may pull again — an `EffectList`'s tail is a value, and
+        // nothing says a consumer that met an error stops. The chunk the stream
+        // would not take has to still be there when it does: handed out and
+        // dropped, the cursor moved while the offset did not, so the retry
+        // named an offset that still matched and was answered with the bytes
+        // *after* the refused chunk. The listener then had the body it asked
+        // for, in order and under a correct length, with one bit of it missing
+        // and nothing to say so — DESIGN §10's plausible wrong value, reached
+        // through the door the refusal opened.
         //
         // **Whatever the refused chunk's byte count is.** One bit is the silent
         // case, because `bytesIn` rounds it to nought and the offset the retry

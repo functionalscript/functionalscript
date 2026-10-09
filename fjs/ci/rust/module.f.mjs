@@ -1,20 +1,19 @@
 /**
  * CI step builder for the Rust crate: platform compatibility jobs run native
- * tests and Clippy, Intel jobs also run 32-bit target tests and Clippy, and the
- * canonical WASM job exercises every WASM target inside its generated flake.
+ * tests and Clippy, Intel jobs also run 32-bit target tests and Clippy, and
+ * `ubuntu-arm` also checks formatting and exercises every WASM target.
  *
- * The two families get their toolchain from different places, and the reason is
- * packaging rather than preference. The platform matrix runs on six runner
- * images across three operating systems, only one of which a generated flake
- * could serve, so it keeps `dtolnay/rust-toolchain`. The WASM job runs on one
- * Linux runner and can have a flake — but not one built from Nixpkgs alone:
- * Nixpkgs builds a single `rustc` and hard-codes the targets it builds `std`
- * for, and three of this job's four are not among them at any version. Its
- * flake takes the toolchain from `rust-overlay` instead, which unpacks the same
- * release artifacts `rustup` would.
+ * The jobs get their toolchain from two places, and the reason is packaging
+ * rather than preference. The two Windows jobs run where no generated flake can
+ * serve them, so they keep `dtolnay/rust-toolchain`. Every other job takes
+ * `cargo` from the shared shell — but not from Nixpkgs alone: Nixpkgs builds a
+ * single `rustc` and hard-codes the targets it builds `std` for, and three of
+ * the four WASM targets are not among them at any version. The shell takes the
+ * toolchain from `rust-overlay` instead, which unpacks the same release
+ * artifacts `rustup` would.
  *
  * Both name `../config/module.f.js`'s `rust`, so the version cannot differ
- * between a platform job and this one.
+ * between a Windows job and the rest.
  *
  * @module
  *
@@ -24,7 +23,7 @@
 
 import { rust, wasmer, wasmtime } from '../config/module.f.js'
 import { test } from '../common/module.f.mjs'
-import { nixInstall, nixShell, nixSteps, nixVersionStep } from '../nix/module.f.mjs'
+import { nixShell, nixVersionStep } from '../nix/module.f.mjs'
 
 /** @type {(tool: 'clippy' | 'test', target?: string, config?: string) => string} */
 const cargoCommand = (tool, target, config) => {
@@ -171,10 +170,46 @@ export const rustPlatformSteps = (v, a) => [
 ]
 
 /**
- * What a platform job on the shared shell runs `cargo` for: its own platform,
- * and — on Intel Linux — the 32-bit target that platform's shell carries.
+ * The one platform job that also checks formatting and every WASM target:
+ * Ubuntu ARM, the runner every canonical job uses.
  *
- * Those four checks were a job of their own, `ubuntu-intel32`, for as long as
+ * Those checks were a job of their own, `wasm`, on the same runner image and
+ * in the same shell as this one. What the extra job added beyond its commands
+ * was one more runner to wait for, and Nix installed and the shell substituted
+ * a second time — the reason `ubuntu-intel32` was folded into `ubuntu-intel`.
+ * Its steps are unchanged, and each is still its own reportable step.
+ *
+ * @type {(v: Os, a: Architecture) => boolean}
+ */
+const wasmPlatform = (v, a) => v === 'ubuntu' && a === 'arm'
+
+/**
+ * What a platform job on the shared shell asserts before its `cargo` commands
+ * run: on {@link wasmPlatform}, the two WASM runtimes its shell provides, and
+ * nothing elsewhere. See {@link wasmRust} for why the toolchain itself is not
+ * checked.
+ *
+ * The runtimes come from the same shell as `cargo`, and that is not a detail:
+ * `cargo` invokes them itself, through the `runner` keys in
+ * `.cargo/config.toml`, so they have to be on the same `PATH` as the `cargo`
+ * that spawns them.
+ *
+ * @type {(v: Os, a: Architecture) => readonly MetaStep[]}
+ */
+export const shellRustVersionSteps = (v, a) =>
+    wasmPlatform(v, a)
+        ? [
+            nixVersionStep(nixShell, 'wasmtime --version', `wasmtime ${wasmtime}`),
+            nixVersionStep(nixShell, 'wasmer --version', `wasmer ${wasmer}`),
+        ]
+        : []
+
+/**
+ * What a platform job on the shared shell runs `cargo` for: its own platform;
+ * on Intel Linux, the 32-bit target that platform's shell carries; and on
+ * {@link wasmPlatform}, the formatting check first and every WASM target after.
+ *
+ * The four 32-bit checks were a job of their own, `ubuntu-intel32`, for as long as
  * they needed a second environment. They no longer do, and a job is not free:
  * it is one more of the runners a workflow gets at once, and the whole of what
  * this one did beyond `ubuntu-intel` was install Nix and substitute the same
@@ -189,13 +224,15 @@ export const rustPlatformSteps = (v, a) => [
  *
  * @type {(v: Os, a: Architecture) => readonly string[]}
  */
-export const shellRustCommands = (v, a) => [
-    ...rustPlatformCommands,
-    ...(v === 'ubuntu' && a === 'intel' ? targetCheckCommands(i686Linux) : []),
-]
-
-/** CI job id, and the directory name of its generated flake. */
-export const wasmJobId = /** @type {const} */ ('wasm')
+export const shellRustCommands = (v, a) => {
+    const wasm = wasmPlatform(v, a)
+    return [
+        ...(wasm ? ['cargo fmt -- --check'] : []),
+        ...rustPlatformCommands,
+        ...(v === 'ubuntu' && a === 'intel' ? targetCheckCommands(i686Linux) : []),
+        ...(wasm ? wasmTargets.flatMap(wasmTargetCommands) : []),
+    ]
+}
 
 const wasmerConfig = /** @type {const} */ ('.cargo/config.wasmer.toml')
 
@@ -210,11 +247,12 @@ const wasmerConfig = /** @type {const} */ ('.cargo/config.wasmer.toml')
 const wasmerOnlyTarget = /** @type {const} */ ('wasm32-wasip1-threads')
 
 /**
- * Every WASM target the job exercises, in the order it exercises them.
+ * Every WASM target {@link wasmPlatform} exercises, in the order it exercises
+ * them.
  *
  * One list, read three times: the flake declares these as the targets whose
- * `rust-std` its toolchain must carry, the steps below build the commands from
- * the same array, and `../dev/module.f.mjs` gives a developer's shell the same
+ * `rust-std` its toolchain must carry, {@link shellRustCommands} builds the
+ * commands from the same array, and `../dev/module.f.mjs` gives a developer's shell the same
  * ones. A target added here therefore arrives in the shell and in the job
  * together, rather than as a command with no standard library.
  */
@@ -240,10 +278,10 @@ const wasmTargetCommands = target =>
 
 /**
  * The Rust the shared flake carries: a `rust-overlay` toolchain with every
- * target this job builds.
+ * target {@link wasmPlatform} builds.
  *
- * `minimal` rather than `default`, with the two components the job actually
- * runs named explicitly: the default profile would add `rust-docs`, which is a
+ * `minimal` rather than `default`, with the two components the jobs actually
+ * run named explicitly: the default profile would add `rust-docs`, which is a
  * download nothing here opens.
  *
  * It is declared beside the commands that use it rather than beside the flake,
@@ -252,7 +290,7 @@ const wasmTargetCommands = target =>
  *
  * The flake names `1.99.0` in full, so no job checks the toolchain's version:
  * a check could only restate the flake. The two runtimes are the opposite
- * case, and the checks below are the whole of that tie.
+ * case, and {@link shellRustVersionSteps} is the whole of that tie.
  *
  * @type {NixRust}
  */
@@ -269,27 +307,3 @@ export const wasmRust = {
  * @type {readonly string[]}
  */
 export const wasmPackages = ['wasmtime', 'wasmer']
-
-/**
- * The migrated job: install Nix, check the two runtimes its flake provides,
- * then format, test and lint every WASM target through that shell.
- *
- * It installs no toolchain of its own. `cargo` comes from the flake, which is
- * also where `wasmtime` and `wasmer` come from — and that is not a detail:
- * `cargo` invokes those runners itself, through the `runner` keys in
- * `.cargo/config.toml`, so they have to be on the same `PATH` as the `cargo`
- * that spawns them. A job taking the toolchain from an action and the runtimes
- * from a flake would depend on whether `nix develop` keeps the runner's `PATH`,
- * which nothing else here depends on.
- *
- * @type {readonly MetaStep[]}
- */
-export const rustWasmSteps = [
-    nixInstall,
-    nixVersionStep(nixShell, 'wasmtime --version', `wasmtime ${wasmtime}`),
-    nixVersionStep(nixShell, 'wasmer --version', `wasmer ${wasmer}`),
-    ...nixSteps(nixShell)([
-        'cargo fmt -- --check',
-        ...wasmTargets.flatMap(wasmTargetCommands),
-    ]),
-]
