@@ -1,10 +1,10 @@
 use super::{
     String,
-    code_unit::{is_high_surrogate, is_low_surrogate, position},
+    code_unit::{is_high_surrogate, is_low_surrogate},
 };
 use crate::{
     common::sized_index::SizedIndex,
-    vm::{Any, IVm, Nullish, Number, ToAny, ToString, array::relative::relative},
+    vm::{Any, IVm, Number, ToAny, ToString, position::relative},
 };
 
 impl<A: IVm> String<A> {
@@ -14,10 +14,9 @@ impl<A: IVm> String<A> {
     /// one-unit string, or `undefined` out of range.
     pub(crate) fn at(&self, index: Any<A>) -> Result<Any<A>, Any<A>> {
         let k = relative(index, self.length())?;
-        Ok(self.unit_at(k).map_or_else(
-            || Nullish::Undefined.to_any(),
-            |u| String::of_unit(u).to_any(),
-        ))
+        Ok(self
+            .unit_at(k)
+            .map_or_else(|| Any::undefined(), |u| String::of_unit(u).to_any()))
     }
 
     /// `String.prototype.charAt(pos)`
@@ -25,7 +24,7 @@ impl<A: IVm> String<A> {
     /// at a position never counted from the end, as a string, or `""`.
     pub(crate) fn char_at(&self, pos: Any<A>) -> Result<String<A>, Any<A>> {
         Ok(self
-            .unit_at(position(pos)?)
+            .unit_at(pos.to_integer_or_infinity()?)
             .map_or_else(|| "".into(), String::of_unit))
     }
 
@@ -33,7 +32,7 @@ impl<A: IVm> String<A> {
     /// (<https://tc39.es/ecma262/#sec-string.prototype.charcodeat>): the code
     /// unit at that position as a number, or `NaN`.
     pub(crate) fn char_code_at(&self, pos: Any<A>) -> Result<Number, Any<A>> {
-        let unit = self.unit_at(position(pos)?);
+        let unit = self.unit_at(pos.to_integer_or_infinity()?);
         Ok(Number::from(unit.map_or(f64::NAN, f64::from)))
     }
 
@@ -42,7 +41,7 @@ impl<A: IVm> String<A> {
     /// point of a surrogate pair starting at that position, else the code
     /// unit there — a lone surrogate included — or `None` out of range.
     pub(crate) fn code_point_at(&self, pos: Any<A>) -> Result<Option<u32>, Any<A>> {
-        let k = position(pos)?;
+        let k = pos.to_integer_or_infinity()?;
         Ok(self.unit_at(k).map(|first| match self.unit_at(k + 1.0) {
             Some(second) if is_high_surrogate(first) && is_low_surrogate(second) => {
                 0x10000 + ((u32::from(first) - 0xD800) << 10) + (u32::from(second) - 0xDC00)
@@ -80,7 +79,7 @@ impl<A: IVm> String<A> {
 mod tests {
     use crate::{
         naive::Naive,
-        vm::{Any, Nullish, String, ToAny, ToString},
+        vm::{Any, String, ToAny, ToString},
     };
 
     type A = Naive;
@@ -96,10 +95,10 @@ mod tests {
     fn at_and_char_at() {
         let abc: String<A> = "abc".into();
         assert_eq!(abc.at(n(-1.0)), Ok("c".into()));
-        assert_eq!(abc.at(n(3.0)), Ok(Nullish::Undefined.to_any()));
+        assert_eq!(abc.at(n(3.0)), Ok(Any::undefined()));
         assert_eq!(abc.char_at(n(1.0)), Ok("b".into()));
         assert_eq!(abc.char_at(n(-1.0)), Ok("".into()));
-        assert_eq!(abc.char_at(Nullish::Undefined.to_any()), Ok("a".into()));
+        assert_eq!(abc.char_at(Any::undefined()), Ok("a".into()));
     }
 
     #[test]

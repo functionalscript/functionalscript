@@ -1,7 +1,7 @@
-use super::{String, code_unit::position};
+use super::String;
 use crate::{
     common::sized_index::SizedIndex,
-    vm::{Any, IVm, Nullish, Unpacked, array::relative::clamped},
+    vm::{Any, IVm, Nullish, Unpacked, position::clamped},
 };
 
 impl<A: IVm> String<A> {
@@ -33,10 +33,10 @@ impl<A: IVm> String<A> {
     pub(crate) fn index_of(&self, search: Any<A>, pos: Any<A>) -> Result<Option<u32>, Any<A>> {
         // The shared conversion calls a needle's own `toString`/`valueOf`,
         // answers a function's text and refuses a function without one
-        // (`FUNCTION_TEXT`). Every search in this file
+        // (`error::function_text`). Every search in this file
         // converts its needle here.
         let needle = search.to_string()?;
-        let from = clamped(position(pos)?, self.length());
+        let from = clamped(pos.to_integer_or_infinity()?, self.length());
         Ok(self.find_from(&needle, from))
     }
 
@@ -66,7 +66,7 @@ impl<A: IVm> String<A> {
     /// `ToString(search)` occurs at `pos`, clamped into the string.
     pub(crate) fn starts_with(&self, search: Any<A>, pos: Any<A>) -> Result<bool, Any<A>> {
         let needle = search.to_string()?;
-        let k = clamped(position(pos)?, self.length());
+        let k = clamped(pos.to_integer_or_infinity()?, self.length());
         Ok(self.occurs_at(&needle, k))
     }
 
@@ -79,7 +79,7 @@ impl<A: IVm> String<A> {
         let len = self.length();
         let end = match Unpacked::from(end.clone()) {
             Unpacked::Nullish(Nullish::Undefined) => len,
-            _ => clamped(position(end)?, len),
+            _ => clamped(end.to_integer_or_infinity()?, len),
         };
         Ok(end
             .checked_sub(needle.length())
@@ -91,10 +91,7 @@ impl<A: IVm> String<A> {
 mod tests {
     use crate::{
         naive::Naive,
-        vm::{
-            Any, IStaticFunction, Nullish, String, ToAny, ToArray, ToObject,
-            primitive_coercion::FUNCTION_TEXT, unstable::bigint_any,
-        },
+        vm::{Any, IStaticFunction, String, ToAny, ToArray, ToObject, error, unstable::bigint_any},
     };
 
     type A = Naive;
@@ -105,10 +102,6 @@ mod tests {
     fn n(v: f64) -> Any<A> {
         v.to_any()
     }
-    fn undefined() -> Any<A> {
-        Nullish::Undefined.to_any()
-    }
-
     /// `"function".indexOf(f)` would be `0` with the conversion's old
     /// placeholder text; JavaScript answers `-1`. A needle whose text is not
     /// known is refused instead. A needle with its own `toString` is
@@ -117,41 +110,44 @@ mod tests {
     fn converts_a_needle_through_the_shared_conversion() {
         let f = || A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array(), None).to_any();
         let hay: String<A> = "function".into();
-        assert_eq!(hay.index_of(f(), undefined()), Err(FUNCTION_TEXT.into()));
+        assert_eq!(
+            hay.index_of(f(), Any::undefined()),
+            Err(error::function_text())
+        );
         let c = A::static_function(|_, _| Ok("c".into()), 0, [].to_array(), None).to_any();
         let own: Any<A> = [("toString".into(), c)].to_object().to_any();
-        assert_eq!(hay.index_of(own, undefined()), Ok(Some(3)));
+        assert_eq!(hay.index_of(own, Any::undefined()), Ok(Some(3)));
     }
 
     #[test]
     fn index_of() {
         let abca: String<A> = "abca".into();
-        assert_eq!(abca.index_of(s("a"), undefined()), Ok(Some(0)));
+        assert_eq!(abca.index_of(s("a"), Any::undefined()), Ok(Some(0)));
         assert_eq!(abca.index_of(s("a"), n(1.0)), Ok(Some(3)));
-        assert_eq!(abca.index_of(s("z"), undefined()), Ok(None));
+        assert_eq!(abca.index_of(s("z"), Any::undefined()), Ok(None));
         assert_eq!(abca.index_of(s(""), n(9.0)), Ok(Some(4)));
-        assert_eq!(abca.index_of(s("abcab"), undefined()), Ok(None));
+        assert_eq!(abca.index_of(s("abcab"), Any::undefined()), Ok(None));
         assert_eq!(abca.includes(s("bc"), n(-5.0)), Ok(true));
     }
 
     #[test]
     fn last_index_of() {
         let aa: String<A> = "aa".into();
-        assert_eq!(aa.last_index_of(s("a"), undefined()), Ok(Some(1)));
+        assert_eq!(aa.last_index_of(s("a"), Any::undefined()), Ok(Some(1)));
         assert_eq!(aa.last_index_of(s("a"), n(0.0)), Ok(Some(0)));
         assert_eq!(aa.last_index_of(s("a"), n(f64::NAN)), Ok(Some(1)));
         assert_eq!(aa.last_index_of(s("a"), n(-1.0)), Ok(Some(0)));
-        assert_eq!(aa.last_index_of(s(""), undefined()), Ok(Some(2)));
-        assert_eq!(aa.last_index_of(s("aaa"), undefined()), Ok(None));
+        assert_eq!(aa.last_index_of(s(""), Any::undefined()), Ok(Some(2)));
+        assert_eq!(aa.last_index_of(s("aaa"), Any::undefined()), Ok(None));
     }
 
     #[test]
     fn starts_and_ends() {
         let abc: String<A> = "abc".into();
         assert_eq!(abc.starts_with(s("b"), n(1.0)), Ok(true));
-        assert_eq!(abc.starts_with(s("abcd"), undefined()), Ok(false));
+        assert_eq!(abc.starts_with(s("abcd"), Any::undefined()), Ok(false));
         assert_eq!(abc.ends_with(s("b"), n(2.0)), Ok(true));
-        assert_eq!(abc.ends_with(s("c"), undefined()), Ok(true));
+        assert_eq!(abc.ends_with(s("c"), Any::undefined()), Ok(true));
         assert_eq!(abc.ends_with(s("abc"), n(2.0)), Ok(false));
     }
 

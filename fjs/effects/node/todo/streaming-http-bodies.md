@@ -13,11 +13,11 @@ least honest, and it was still a limit no HTTP client expects.
 
 **Neither body is one `Vec` any more, and they are not the same shape.**
 
-- `IncomingMessage.body` is a **`List` the listener pulls from**, over the
+- `IncomingMessage.body` is an **`EffectList` the listener pulls from**, over the
   [`ReadRequestBytes`](../types.ts) operation stage 2 added. The runner holds one
   chunk at a time, there is no cap, and the `413` is gone with it. "Stage 2, as
   landed" below records what that cost and what it decided.
-- `ServerResponse.body` is a **lazy `List` the runner pulls at the socket's
+- `ServerResponse.body` is a **lazy `EffectList` the runner pulls at the socket's
   pace**. The response half of stage 1 landed in two steps: the eager route made
   the body a chunk list, which lifted the cap and left the whole file in memory,
   and the handle-effect route made it lazy, which is what took the footprint down
@@ -57,7 +57,7 @@ request the files that cross it.
 
 ### Proposal
 
-The body is a `List<O, Vec, IoChannel>` on both sides — the shape
+The body is an `EffectList<O, Vec, IoChannel>` on both sides — the shape
 [`writeFromStream`](../module.f.mjs) already consumes and `fjs/cas`'s `read`
 already produces. Reusing it is most of the design; what is left is one type
 change, a pump in each runner, and one question per side that the existing code
@@ -234,7 +234,7 @@ socket's pace is the sections below, and it is the answer to both.
 export type ServerResponse<O extends Operation> = {
     readonly status: number
     readonly headers: Headers
-    readonly body: List<O, Vec, IoChannel>
+    readonly body: EffectList<O, Vec, IoChannel>
     /** Whatever the body held, given back — see "nobody closes" below. */
     readonly release: Effect<O, null, never>
 }
@@ -258,7 +258,7 @@ to its own op-set by a cast it already writes — the virtual one to
 widening is the separate cause
 [generic-operation-signatures](../../todo/generic-operation-signatures.md)
 files beside the `Pr` erasure, asking whether `CreateServer`
-can carry the listener's op-set instead. A `List` body neither raises that
+can carry the listener's op-set instead. An `EffectList` body neither raises that
 question nor answers it.
 
 The listener's channel stays `never` and the body's is `IoChannel`, and the
@@ -278,9 +278,9 @@ That duplication was filed as `66o-read-streamfile-dedup`, which answered it by
 keeping the loop in `fjs/cas` and pointing `read` at `streamFile`. A caller
 outside `fjs/cas` moved the destination, so the loop landed here instead and
 that issue is retired with this task. The question it held open — whether
-`read`, pinned to `List<FileCasOperation, …>` by the `FileCas` interface, could
+`read`, pinned to `EffectList<FileCasOperation, …>` by the `FileCas` interface, could
 take a loop written elsewhere without a cast — is answered: it can. Ordinary
-`Effect` widening carries `List<ReadBytes, …>` into it, no cast needed.
+`Effect` widening carries `EffectList<ReadBytes, …>` into it, no cast needed.
 
 **`Content-Length` stays derivable, and stops being derived from the body.**
 `fjs/web` writes it as `length(body) >> 3n` today, which a lazy list cannot
@@ -393,7 +393,7 @@ export type IncomingMessage = {
     readonly method: string
     readonly url: string
     readonly headers: Headers
-    readonly body: List<ReadRequestBytes, Vec, IoChannel>
+    readonly body: EffectList<ReadRequestBytes, Vec, IoChannel>
     /**
      * Whether a body with no `Content-Length` is framed
      * `Transfer-Encoding: chunked` for this request — the host's own answer,
@@ -751,7 +751,7 @@ window between asking about a name and opening it closed. Windows has no such fl
 and no FIFO an `open` reaches; the runner passes `0` there and the open is the one
 it always had.
 
-**`List` cannot be asked to clean up, and no combinator can be written that
+**`EffectList` cannot be asked to clean up, and no combinator can be written that
 asks.** A cell is a `first` and a `tail` behind an `Effect`
 ([`../../list/types.ts`](../../list/types.ts)): a consumer that stops pulling
 tells the producer nothing, because there is no cell left in which to tell it.
@@ -997,7 +997,7 @@ bytes behind it are gone, so the offset is a *claim* — the reader saying where
 believes it is — and each runner compares it against the position it is at.
 
 That comparison is what makes a second pull on a cell already read a refusal.
-`List`'s tail is a value ([`../../list/types.ts`](../../list/types.ts)), so
+`EffectList`'s tail is a value ([`../../list/types.ts`](../../list/types.ts)), so
 pulling the same tail twice is ordinary code rather than abuse; over a socket the
 only thing the second pull could be answered with is the chunk that comes *next*,
 handed over as though it were the one already read. That is a body no client ever
@@ -1081,11 +1081,11 @@ buffering half is what this stage answered.
       it. — `readChunks`, with `_ChunkSource` and `_ReadChunks` beside
       `_WriteLoop`. Both `fjs/cas` loops (`read` and `streamFile`) call it and
       the hand-written ones are gone. **No cast was needed**: the
-      `List<ReadBytes, …>` the source produces widens into `read`'s pinned
-      `List<FileCasOperation, …>` by ordinary `Effect` widening, which settles
+      `EffectList<ReadBytes, …>` the source produces widens into `read`'s pinned
+      `EffectList<FileCasOperation, …>` by ordinary `Effect` widening, which settles
       the inference question
       `66o-read-streamfile-dedup` left for `tsc`, and retires that issue.
-- [x] Stage 1: `ServerResponse<O>` with a **lazy** `List` body and a `release` —
+- [x] Stage 1: `ServerResponse<O>` with a **lazy** `EffectList` body and a `release` —
       the chunk list it carried was neither — and
       `IncomingMessage.chunkedResponse` for gate 3 to read; the Node runner's
       pump — its `drain` park released by a recorded `close`, including one
@@ -1167,8 +1167,8 @@ buffering half is what this stage answered.
       use, which is `answerRequest`'s own argument for its refusals, and Node's
       `req._dump()` is the alternative it is being chosen over. See "Stage 2 —
       the request body, as landed".
-- [x] Stage 2: `IncomingMessage.body` as a `List`, retiring the runner's `413`.
-      — a `List<ReadRequestBytes, Vec, IoChannel>`, so a listener pulls the
+- [x] Stage 2: `IncomingMessage.body` as an `EffectList`, retiring the runner's `413`.
+      — an `EffectList<ReadRequestBytes, Vec, IoChannel>`, so a listener pulls the
       chunks it wants and the runner holds one at a time. `collectBounded` and
       the `413` are gone with the cap that produced them; `readWhole` is the one
       operation in the runner still collecting, and the part of that comment
@@ -1196,7 +1196,7 @@ for a method nobody serves costs nothing — and left the five-minute
   stream, and a `get` writes the response body as one without holding the blob.
 - `fjs/effects/node/module.f.mjs` — `writeFromStream`, the chunk-list shape a
   streamed body should follow.
-- [`fjs/effects/list`](../../list/types.ts) — `List`, why a failure belongs to
+- [`fjs/effects/list`](../../list/types.ts) — `EffectList`, why a failure belongs to
   the cell rather than to the item it would otherwise be carried beside, the cell
   shape that leaves a consumer no way to tell a producer it has stopped, and the
   tail-is-a-value property that makes a second pull expressible — which is what

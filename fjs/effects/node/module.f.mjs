@@ -19,8 +19,8 @@
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { Commands, CommandSet, Effect, Func, NotImplemented, Operation } from '../types.ts'
- * @import { List } from '../list/types.ts'
- * @import { List as List_ } from '../../types/list/types.ts'
+ * @import { EffectList } from '../list/types.ts'
+ * @import { List } from '../../types/list/types.ts'
  * @import { Access, Await, Catch, ChildWait, Close, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fstat, Fs, Handle, Headers, Http, IncomingMessage, Inflate, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, Open, Pread, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, ReadRequestBytes, RequestBody, ResolveFileModule, ReadWhole, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Rmdir, Sandbox, SandboxResult, Server, ServerResponse, Spawn, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteExclusive, WriteFile, _ChunkSource, _DoubledLength, _FramingHeader, _Gate, _NoBody, _ReadChunks, _Unframed, _UtfList, _WriteLoop } from './types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  */
@@ -451,14 +451,19 @@ export const writeExclusiveUtf8File = (path, content) =>
 const writeBytesOp = /** @type {Func<WriteBytes>} */ (do_('writeBytes'))
 
 /**
- * Writes `data` into the existing `path` at byte `offset`. A `Vec` that is not
- * whole bytes is refused here as `invalid buffer size`, before any host sees
- * it, as {@link writeFile} refuses one.
+ * Writes `data` into the existing `path` at byte `offset`. What no host should
+ * be handed is refused here, before `path` is opened: a `Vec` that is not whole
+ * bytes as `invalid buffer size`, as {@link writeFile} refuses one, and a
+ * position {@link writeRefusal} refuses, in its words — so a refused write to a
+ * missing `path` is not `ENOENT`.
  *
  * @type {Func<WriteBytes>}
  */
-export const writeBytes = (path, offset, data) =>
-    isWholeBytes(data) ? writeBytesOp(path, offset, data) : invalidBufferSize
+export const writeBytes = (path, offset, data) => {
+    if (!isWholeBytes(data)) { return invalidBufferSize }
+    const refusal = writeRefusal(offset, byteLength(data))
+    return refusal === null ? writeBytesOp(path, offset, data) : pureError(ioError({ message: refusal }))
+}
 
 /** @type {(path: string) => _WriteLoop} */
 const writeLoop = path => {
@@ -492,7 +497,7 @@ const writeLoop = path => {
  *
  * @template {Operation} O
  * @param {string} path
- * @param {List<O, Vec, IoChannel>} e
+ * @param {EffectList<O, Vec, IoChannel>} e
  * @returns {Effect<O | WriteBytes | CreateExclusive | Rm, void, IoChannel>}
  */
 export const writeFromStream = (path, e) => {
@@ -547,7 +552,7 @@ export const _pieces = units => s => {
  * The `Vec`s as a list of effects, one cell made when the writer asks for it, so
  * a list of any length is walked in constant stack.
  *
- * @type {(vs: readonly Vec[], i: number) => List<WriteBytes, Vec, IoChannel>}
+ * @type {(vs: readonly Vec[], i: number) => EffectList<WriteBytes, Vec, IoChannel>}
  */
 export const _vecList = (vs, i) => () => ok(i < vs.length ? { first: vs[i], tail: _vecList(vs, i + 1) } : undefined)
 
@@ -598,7 +603,7 @@ export const readChunks = (source, bound) => {
     /**
      * What one answered chunk becomes: a refusal, the end, or a cell whose
      * tail continues from where this chunk actually reached.
-     * @type {(chunk: Vec, offset: number) => List<any, Vec, IoChannel>}
+     * @type {(chunk: Vec, offset: number) => EffectList<any, Vec, IoChannel>}
      */
     const cell = (chunk, offset) => {
         const bits = length(chunk)
@@ -620,7 +625,7 @@ export const readChunks = (source, bound) => {
         }
         return nonEmpty(chunk, loop(offset + got))
     }
-    /** @type {(offset: number) => List<any, Vec, IoChannel>} */
+    /** @type {(offset: number) => EffectList<any, Vec, IoChannel>} */
     const loop = offset => {
         const remaining = bound === null ? chunkBytes : bound - offset
         if (remaining <= 0) { return elEmpty() }
@@ -684,15 +689,71 @@ export const maxOffset = Number.MAX_SAFE_INTEGER
  *
  * @type {(offset: number, size: number) => Nullable<string>}
  */
-export const windowRefusal = (offset, size) => {
+export const windowRefusal = (offset, size) =>
+    offsetRefusal(offset) ?? sizeRefusal(size)
+
+/**
+ * The refusal of a position no host names, or `null`: the offset half of
+ * {@link windowRefusal} and of {@link writeRefusal}, so a read and a write
+ * refuse the same offsets in the same words.
+ *
+ * @type {(offset: number) => Nullable<string>}
+ */
+const offsetRefusal = offset => {
     if (!Number.isInteger(offset)) { return `Offset ${offset} is not an integer` }
-    if (!Number.isInteger(size)) { return `Chunk size ${size} is not an integer` }
     if (offset < 0) { return `Offset ${offset} is negative` }
-    if (size < 0) { return `Chunk size ${size} is negative` }
     if (!Number.isSafeInteger(offset)) { return `Offset ${offset} exceeds maximum allowed offset of ${maxOffset}` }
+    return null
+}
+
+/** @type {(size: number) => Nullable<string>} */
+const sizeRefusal = size => {
+    if (!Number.isInteger(size)) { return `Chunk size ${size} is not an integer` }
+    if (size < 0) { return `Chunk size ${size} is negative` }
     if (BigInt(size) > maxLengthBytes) { return `Chunk size ${size} exceeds maximum allowed size of ${maxLengthBytes} bytes` }
     return null
 }
+
+/**
+ * The refusal a positional write of `size` bytes at `offset` deserves, or
+ * `null` for one every byte of which lands at a position a read may name.
+ *
+ * **Node does not draw this bound for a write; it ignores it.** Measured on
+ * Linux with Node 22.16.0 and again with 26.10.0, `FileHandle.write` at
+ * `2 ** 53`, and at `2 ** 64 - 1`, answers one byte written — at the
+ * descriptor's *cursor*, not at the position asked, so a file holding `[42]`
+ * holds `[7, 7]` after two such writes. Refusing here, before the host is
+ * asked, is what keeps a write from landing somewhere it did not name.
+ *
+ * The last byte, not the first, is the one bounded: a write that starts at a
+ * safe offset and runs past {@link maxOffset} would put bytes where no read
+ * can reach them. An empty write names no byte and is bounded only by its
+ * offset, as the native runner's `write_bytes` is.
+ *
+ * @type {(offset: number, size: bigint) => Nullable<string>}
+ */
+const writeRefusal = (offset, size) => offsetRefusal(offset)
+    ?? (BigInt(offset) + size > BigInt(maxOffset) + 1n
+        ? `Write of ${size} bytes at offset ${offset} exceeds maximum allowed offset of ${maxOffset}`
+        : null)
+
+/**
+ * The refusal `readFile` gives a file of `size` bytes at `path`, or `null` for a
+ * file small enough to read whole.
+ *
+ * **It is here for the reason {@link windowRefusal} is**: both runners implement
+ * `readFile`, and a limit or a message spelled in each is one they come to
+ * disagree about. Each asks it with the bytes the file occupies before it reads
+ * one, and the message names the size and the path the caller asked for
+ * — `ReadFile` in [`./types.ts`](./types.ts) states that the failure names the
+ * file.
+ *
+ * @type {(path: string, size: number) => Nullable<string>}
+ */
+export const fileSizeRefusal = (path, size) =>
+    BigInt(size) > maxLengthBytes
+        ? `File size ${size} exceeds maximum allowed size of ${maxLengthBytes} bytes: '${path}'`
+        : null
 
 /**
  * A {@link _ChunkSource} that reads through one open file, which is what makes a
@@ -1001,13 +1062,13 @@ export const notAFileMessage = path => `${path} is not a regular file`
  * The bound that remains is memory and the host's own: the whole file is held
  * while it is parsed.
  *
- * @type {(path: string) => Effect<ReadWhole, List_<number>, IoChannel>}
+ * @type {(path: string) => Effect<ReadWhole, List<number>, IoChannel>}
  */
 export const readWholeBytes = path => ioMapStep(
     readWhole(path),
     chunks => chunks.reduce(
         (bytes, v) => concat(bytes)(u8ListMsb(v)),
-        /** @type {List_<number>} */ (null)))
+        /** @type {List<number>} */ (null)))
 
 // readRequestBytes
 
@@ -1048,7 +1109,7 @@ export const requestBodyOffsetMessage = (offset, position) =>
  * offset is what makes a re-pull of an already-read cell a refusal rather than
  * a spliced body — see {@link ReadRequestBytes}.
  *
- * @type {(body: RequestBody) => List<ReadRequestBytes, Vec, IoChannel>}
+ * @type {(body: RequestBody) => EffectList<ReadRequestBytes, Vec, IoChannel>}
  */
 export const requestBody = body =>
     readChunks((offset, size) => readRequestBytes(body, offset, size), null)

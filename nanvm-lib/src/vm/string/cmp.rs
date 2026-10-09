@@ -19,19 +19,7 @@ impl<A: IVm> Eq for String<A> {}
 
 impl<A: IVm> Ord for String<A> {
     fn cmp(&self, other: &Self) -> Ordering {
-        let mut a = self.clone().index_iter();
-        let mut b = other.clone().index_iter();
-        loop {
-            return match (a.next(), b.next()) {
-                (Some(x), Some(y)) => match x.cmp(&y) {
-                    Ordering::Equal => continue,
-                    order => order,
-                },
-                (Some(_), None) => Ordering::Greater,
-                (None, Some(_)) => Ordering::Less,
-                (None, None) => Ordering::Equal,
-            };
-        }
+        self.clone().index_iter().cmp(other.clone())
     }
 }
 

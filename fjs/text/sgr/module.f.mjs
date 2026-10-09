@@ -7,20 +7,12 @@
  * @module
  *
  * @import { Console, Std, Write, WriteConsoles } from '../../effects/common/types.ts'
- * @import { Stdout, WriteText, CsiConsole } from './types.ts'
+ * @import { CsiConsole } from './types.ts'
  */
-
-// C0 control codes
-// https://en.wikipedia.org/wiki/ANSI_escape_code#C0_control_codes
 
 import { write } from '../../effects/common/module.f.mjs'
 import { utf8 } from "../module.f.mjs"
 import { isDigit, latinSmallLetterM, leftSquareBracket, semicolon } from '../ascii/module.f.mjs'
-
-/** @type {string} */
-export const backspace = '\x08'
-
-//
 
 /** @type {string} */
 const esc = '\x1b'
@@ -55,32 +47,6 @@ export const bold = sgr(1)
 export const fgRed = sgr(31)
 /** Applies green foreground color to subsequent text. */
 export const fgGreen = sgr(32)
-
-const { max } = Math
-
-/** @type {(old: string) => (text: string) => string} */
-const replace = old => text => {
-    const len = old.length
-    const suffixLength = max(0, len - text.length)
-    return backspace.repeat(len) + text + " ".repeat(suffixLength) + backspace.repeat(suffixLength)
-}
-
-/**
- * Creates a stateful text writer that rewrites the previous value using backspaces.
- *
- * @param stdout - Destination output stream.
- * @returns A recursive writer that replaces prior text on each call.
- *
- * @type {(stdout: Stdout) => WriteText}
- */
-export const createConsoleText = stdout => {
-    /** @type {(old: string) => WriteText} */
-    const f = old => text => {
-        stdout.write(replace(old)(text))
-        return f(text)
-    }
-    return f('')
-}
 
 /** A character of an SGR parameter list: a decimal digit or `;`. @type {(c: number) => boolean} */
 const isParameter = c => isDigit(c) || c === semicolon

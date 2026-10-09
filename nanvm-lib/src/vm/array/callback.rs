@@ -1,5 +1,5 @@
 use super::Array;
-use crate::vm::{Any, Function, IVm, Number, ToAny, ToArray};
+use crate::vm::{Any, Function, IVm, Number, ToAny, ToArray, error};
 
 /// The callback of an iteration or a fold: the argument converted to a
 /// function before any element is visited, so `[].map(1)` throws as
@@ -56,7 +56,7 @@ impl<A: IVm> Array<A> {
             Some(v) => v,
             None => match indices.next() {
                 Some(i) => self[i].clone(),
-                None => return Err("TypeError: Reduce of empty array with no initial value".into()),
+                None => return Err(error::reduce_of_empty_array()),
             },
         };
         indices.try_fold(first, |acc, i| {
@@ -75,7 +75,7 @@ mod tests {
     use super::callback;
     use crate::{
         naive::Naive,
-        vm::{Any, Array, Function, IStaticFunction, Nullish, ToAny, ToArray},
+        vm::{Any, Array, Function, IStaticFunction, ToAny, ToArray, error},
     };
 
     type A = Naive;
@@ -93,7 +93,7 @@ mod tests {
     #[test]
     fn not_a_function_throws() {
         assert!(callback::<A>(1.0.to_any()).is_err());
-        assert!(callback::<A>(Nullish::Undefined.to_any()).is_err());
+        assert!(callback::<A>(Any::undefined()).is_err());
     }
 
     /// The element, its index, and the array itself.
@@ -113,7 +113,7 @@ mod tests {
         let empty = Array::<A>::default();
         assert_eq!(
             empty.fold(&args(), None, 0..0),
-            Err("TypeError: Reduce of empty array with no initial value".into())
+            Err(error::reduce_of_empty_array())
         );
         assert_eq!(
             empty.fold(&args(), Some(1.0.to_any()), 0..0),

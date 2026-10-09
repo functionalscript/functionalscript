@@ -10,9 +10,16 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
     let c2: Any<A> = A::static_function(|self_, args| {
         let c0: Any<A> = [args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), string_any("second")].to_array().to_any();
         Ok([(string_key("command"), string_any("echo")), (string_key("payload"), c0), (string_key("continuation"), A::frame(self_)[0].clone())].to_object().to_any())
-    }, 1, [c1].to_array(), Some("($1)=>{return {\"command\":\"echo\",\"payload\":[$1,\"second\"],\"continuation\":$0};}")).to_any();
+    }, 1, [c1.clone()].to_array(), Some("($1)=>{return {\"command\":\"echo\",\"payload\":[$1,\"second\"],\"continuation\":$0};}")).to_any();
     let c3: Any<A> = [(string_key("command"), string_any("echo")), (string_key("payload"), c0), (string_key("continuation"), c2)].to_object().to_any();
-    let c4: Any<A> = A::static_function(|_self, _args| { bigint_any(1) / bigint_any(0) }, 1, Array::default(), Some("($0)=>1n/0n")).to_any();
-    let c5: Any<A> = [(string_key("command"), string_any("echo")), (string_key("payload"), Array::default().to_any()), (string_key("continuation"), c4)].to_object().to_any();
-    Ok([(string_key("chain"), c3), (string_key("thrown"), c5)].to_object().to_any())
+    let c4: Any<A> = [string_any("stdout"), bigint_any(-59497)].to_array().to_any();
+    let c5: Any<A> = [string_any("stdout"), bigint_any(-14842213)].to_array().to_any();
+    let c6: Any<A> = [(string_key("command"), string_any("write")), (string_key("payload"), c5), (string_key("continuation"), c1.clone())].to_object().to_any();
+    let c7: Any<A> = A::static_function(|self_, _args| { Ok(A::frame(self_)[0].clone()) }, 1, [c6].to_array(), Some("($1)=>$0")).to_any();
+    let c8: Any<A> = [(string_key("command"), string_any("write")), (string_key("payload"), c4), (string_key("continuation"), c7)].to_object().to_any();
+    let c9: Any<A> = [string_any("http://example.com")].to_array().to_any();
+    let c10: Any<A> = [(string_key("command"), string_any("fetch")), (string_key("payload"), c9), (string_key("continuation"), c1.clone())].to_object().to_any();
+    let c11: Any<A> = A::static_function(|_self, _args| { bigint_any(1) / bigint_any(0) }, 1, Array::default(), Some("($0)=>1n/0n")).to_any();
+    let c12: Any<A> = [(string_key("command"), string_any("echo")), (string_key("payload"), Array::default().to_any()), (string_key("continuation"), c11)].to_object().to_any();
+    Ok([(string_key("chain"), c3), (string_key("hello"), c8), (string_key("missing"), c10), (string_key("thrown"), c12)].to_object().to_any())
 }

@@ -16,7 +16,7 @@
 
 import { asyncPartialRun } from '../effects/module.mjs'
 import { commonOperationMap } from '../effects/common/module.mjs'
-import { patch, toDom } from '../media/html/module.mjs'
+import { macrotask, patch, toDom } from '../media/html/module.mjs'
 import { demoMarker } from './style/module.f.mjs'
 
 /**
@@ -56,21 +56,6 @@ const commandSet = { sandbox: null, catch: null }
 const commands = /** @type {Commands<Sandbox | Catch>} */ (Object.keys(commandSet))
 
 const run = asyncPartialRun(commands)(commonOperationMap)
-
-/**
- * Return to the event loop, so the browser can paint what was just set.
- *
- * **A macrotask, and that is the whole point.** A demo's work is ordinary
- * JavaScript on the one thread that paints: `sandbox` calls the thunk the
- * moment it is dispatched, so a flag raised and then awaited is raised and
- * blocked in the same task and nobody ever sees it. Draining the microtask
- * queue is part of that same task, which is why an `await` of a resolved
- * promise is not enough — the same bargain the browser test runner makes
- * between rows.
- *
- * @type {() => Promise<void>}
- */
-const macrotask = () => new Promise(resolve => { setTimeout(resolve, 0) })
 
 /**
  * Says whether the page is waiting on this demo, and stops the reader asking
@@ -310,6 +295,9 @@ const stepper = (root, demo) => {
                 // controls available for its automatic and reader events alike.
                 if (!keepControls) {
                     // Read the warning before the update; afterwards is too late.
+                    // Then yield: `sandbox` calls the thunk the moment it is
+                    // dispatched, so the flag would be raised and blocked in
+                    // the same task, and nobody would ever see it.
                     busy(root, true, demo.wait === undefined ? null : demo.wait(state))
                     await macrotask()
                 }

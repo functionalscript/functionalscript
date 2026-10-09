@@ -160,10 +160,10 @@ developer reaches the shell through WSL2 or works the way this repository has
 always supported natively — nothing here requires Nix.
 
 There is no `dev` CI job. There was one, and its only reason was that nothing
-else evaluated this flake; eight jobs entering it on every pull request answers
+else evaluated this flake; seven jobs entering it on every pull request answers
 that better than one job asserting six versions. Between them they still assert
 all six — `node` and `tsc` from `node26`, `deno` from `deno`, `bun` from `bun`,
-both WASM runtimes from `wasm`.
+both WASM runtimes from `ubuntu-arm`, which took over the `wasm` job's checks.
 
 And all four shells are now built for real, which was not true when this was
 written. The canonical jobs run on one runner, so they only ever exercised
@@ -173,7 +173,7 @@ anything.
 
 One consequence for a project that is not this one: `nixJobs` is a list rather
 than a function of the project, so a project without a `Cargo.toml` gets no
-`wasm` job and therefore nothing checking the two WASM runtimes in its shell.
+WASM checks and therefore nothing checking the two WASM runtimes in its shell.
 That is the same trade `ci-generator-audience.md` describes for every job this
 generator writes unconditionally.
 

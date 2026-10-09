@@ -8,7 +8,7 @@
  * @import { MemoryState } from '../../memory/types.ts'
  * @import { Dirent, FileStat, Handle, Headers, IncomingMessage, IoError, IoResult, Module, NodeOp, NodeProgramOptions, OpResult, RequestBody, RequestListener, SandboxResult, Server, _Gate } from '../types.ts'
  * @import { Effect, IoChannel, Operation } from '../../types.ts'
- * @import { List } from '../../list/types.ts'
+ * @import { EffectList } from '../../list/types.ts'
  * @import { Result } from '../../../types/result/types.ts'
  * @import { Error } from '../../../types/result/types.ts'
  * @import { Nullable } from '../../../types/nullable/types.ts'
@@ -19,10 +19,11 @@ import { assert, todo } from '../../../asserts/module.f.mjs'
 import { isProperPrefix, join, normalize, parse } from '../../../path/module.f.mjs'
 import { resolve as resolveImportPath } from '../../../path/import/module.f.mjs'
 import { utf8ToString } from '../../../text/module.f.mjs'
-import { byteLength, bytesIn, empty, isWholeBytes, length, maxLengthBytes, msb, vec } from '../../../types/bit_vec/module.f.mjs'
+import { divUp8 } from '../../../types/bigint/module.f.mjs'
+import { byteLength, bytesIn, empty, isWholeBytes, length, msb, vec } from '../../../types/bit_vec/module.f.mjs'
 import { error, ok, unwrap } from '../../../types/result/module.f.mjs'
 import {
-    badPortCode, badPortMessage, carriesNoBody, emptyHost, emptyHostError, ioError, isPort, nodeCommands,
+    badPortCode, badPortMessage, carriesNoBody, emptyHost, emptyHostError, fileSizeRefusal, ioError, isPort, nodeCommands,
     notAFileCode, notAFileMessage, refusalMessage, refusedStatus, requestBody, requestBodyOffsetMessage,
     responseGate, runnerResponse, windowRefusal,
 } from '../module.f.mjs'
@@ -401,6 +402,8 @@ const resolveFile = onJsModule => (dir, p) => {
     return ok(file)
 }
 
+const { listToVec } = msb
+
 /**
  * **The requested path is captured, not reconstructed from what the op sees.**
  * `operation`'s wrapper descends before the op runs, so `p` holds only the
@@ -418,17 +421,13 @@ const readFile = path => readOperation((dir, p) => {
     const resolved = resolveFile(jsModuleUnsupported('readFile'))(dir, p)
     if (resolved[0] === 'error') { return resolved }
     const chunks = resolved[1]
-    const capBits = maxLengthBytes * 8n
-    let result = empty
-    for (const chunk of chunks) {
-        const chunkLen = length(chunk)
-        if (chunkLen === 0n) { continue }
-        if (length(result) + chunkLen > capBits) {
-            return fail(`File size exceeds maximum allowed size of ${maxLengthBytes} bytes: '${path}'`)
-        }
-        result = msb.concat(result)(chunk)
-    }
-    return ok(result)
+    // The bytes the chunks occupy, a partial byte counted whole. A fixture may
+    // hold a chunk that is not whole bytes, which `fileSizeBytes` floors, so
+    // asked with it the limit would pass a file `listToVec` then overflows.
+    const bits = chunks.reduce((acc, c) => acc + length(c), 0n)
+    const refusal = fileSizeRefusal(path, Number(divUp8(bits)))
+    if (refusal !== null) { return fail(refusal) }
+    return ok(listToVec(chunks))
 })(path)
 
 /**
@@ -861,7 +860,6 @@ const writeBytesRawOp = (offset, data) => (dir, p) => {
     // writeBytes never creates.
     const resolved = resolveFile(jsModuleNotAFile)(dir, p)
     if (resolved[0] === 'error') { return [dir, resolved] }
-    if (!Number.isInteger(offset) || offset < 0) { return [dir, fail(`Offset ${offset} is invalid`)] }
     const chunks = resolved[1]
     if (offset !== fileSizeBytes(chunks)) {
         return [dir, fail(`writeBytes offset ${offset} must equal the file size (append-only)`)]
@@ -1271,7 +1269,7 @@ const sentBytes = v => bytesIn(length(v) + 7n)
  * body and answered it. A runner that cannot model a body the host delivers cannot
  * be proven against for it.
  *
- * @type {(bound: Nullable<number>) => (state: State, e: List<NodeOp, Vec, IoChannel>, written: number, body: readonly Vec[]) => readonly [State, readonly Vec[], Nullable<IoChannel | Overrun | Underrun>]}
+ * @type {(bound: Nullable<number>) => (state: State, e: EffectList<NodeOp, Vec, IoChannel>, written: number, body: readonly Vec[]) => readonly [State, readonly Vec[], Nullable<IoChannel | Overrun | Underrun>]}
  */
 const pump = bound => (state, e, written, body) => {
     let s = state
@@ -1323,7 +1321,7 @@ const pump = bound => (state, e, written, body) => {
  * line that goes out. A listener's own `204` rewritten to `500` carries its
  * refusal on a `GET`, which is the host's answer too.
  *
- * @type {(gate: _Gate, method: string) => (state: State, status: number, headers: Headers, body: List<NodeOp, Vec, IoChannel>) => readonly [State, RecordedResponse]}
+ * @type {(gate: _Gate, method: string) => (state: State, status: number, headers: Headers, body: EffectList<NodeOp, Vec, IoChannel>) => readonly [State, RecordedResponse]}
  */
 const recordResponse = (gate, method) => (state, status, headers, body) => {
     if (gate[0] === 'noBody') { return [state, { status, headers, body: [], failure: null }] }
