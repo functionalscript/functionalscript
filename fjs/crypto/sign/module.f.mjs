@@ -89,53 +89,56 @@ const computeKFromDigest =
         //    such that the length of K, in bits, is equal to 8*ceil(hlen/8).
         const k0 = rep(x00)
         //
-        return x => h1 => {
-            let v = v0
-            let k = k0
-            // a. Process m through the hash function H, yielding:
-            //      h1 = H(m)
-            //   (h1 is a sequence of hlen bits).
-            //    The caller's step: `h1` is the parameter.
-            // d. Set:
-            //      K = HMAC_K(V || 0x00 || int2octets(x) || bits2octets(h1))
-            //    where '||' denotes concatenation.
-            const xh1 = concat(int2octets(x))(bits2octets(h1))
-            k = hmacf(k)(listToVec([v, x00, xh1]))
-            // e. Set:
-            //      V = HMAC_K(V)
-            v = hmacf(k)(v)
-            // f. Set:
-            //      K = HMAC_K(V || 0x01 || int2octets(x) || bits2octets(h1))
-            k = hmacf(k)(listToVec([v, x01, xh1]))
-            // g. Set:
-            //      V = HMAC_K(V)
-            v = hmacf(k)(v)
-            // h. Apply the following algorithm until a proper value is for `k`:
-            while (true) {
-                // h. Apply the following algorithm until a proper value is for `k`:
-                //    1. Set `T` to the empty sequence, so `tlen = 0`.
-                let t = empty
-                //    2. while `tlen < qlen` do:
-                //       - `V = HMAC_K(V)`
-                //       - `T = T || V`
-                // Possible optimizations:
-                // - precompute number of iterations
-                // - `qlen` can't be 0, so we can avoid the first check and
-                //   first concatenation.
-                while (length(t) < qlen) {
-                    v = hmacf(k)(v)
-                    t = concat(t)(v)
-                }
-                //    3. Compute `k = bits2int(T)`. If `k` is not in `[1, q-1]` or `kG = 0` then
-                //       - `K = HMAC_K(V || 0x00)`
-                //       - `V = HMAC_K(V)`
-                //       and loop (try to generate a new `T`, and so on). Return to step `1`.
-                const result = bits2int(t)
-                if (0n < result && result < q) {
-                    return result
-                }
-                k = hmacf(k)(concat(v)(x00))
+        return x => {
+            const xo = int2octets(x)
+            return h1 => {
+                let v = v0
+                let k = k0
+                // a. Process m through the hash function H, yielding:
+                //      h1 = H(m)
+                //   (h1 is a sequence of hlen bits).
+                //    The caller's step: `h1` is the parameter.
+                // d. Set:
+                //      K = HMAC_K(V || 0x00 || int2octets(x) || bits2octets(h1))
+                //    where '||' denotes concatenation.
+                const xh1 = concat(xo)(bits2octets(h1))
+                k = hmacf(k)(listToVec([v, x00, xh1]))
+                // e. Set:
+                //      V = HMAC_K(V)
                 v = hmacf(k)(v)
+                // f. Set:
+                //      K = HMAC_K(V || 0x01 || int2octets(x) || bits2octets(h1))
+                k = hmacf(k)(listToVec([v, x01, xh1]))
+                // g. Set:
+                //      V = HMAC_K(V)
+                v = hmacf(k)(v)
+                // h. Apply the following algorithm until a proper value is for `k`:
+                while (true) {
+                    // h. Apply the following algorithm until a proper value is for `k`:
+                    //    1. Set `T` to the empty sequence, so `tlen = 0`.
+                    let t = empty
+                    //    2. while `tlen < qlen` do:
+                    //       - `V = HMAC_K(V)`
+                    //       - `T = T || V`
+                    // Possible optimizations:
+                    // - precompute number of iterations
+                    // - `qlen` can't be 0, so we can avoid the first check and
+                    //   first concatenation.
+                    while (length(t) < qlen) {
+                        v = hmacf(k)(v)
+                        t = concat(t)(v)
+                    }
+                    //    3. Compute `k = bits2int(T)`. If `k` is not in `[1, q-1]` or `kG = 0` then
+                    //       - `K = HMAC_K(V || 0x00)`
+                    //       - `V = HMAC_K(V)`
+                    //       and loop (try to generate a new `T`, and so on). Return to step `1`.
+                    const result = bits2int(t)
+                    if (0n < result && result < q) {
+                        return result
+                    }
+                    k = hmacf(k)(concat(v)(x00))
+                    v = hmacf(k)(v)
+                }
             }
         }
     }
@@ -147,7 +150,11 @@ const computeKFromDigest =
  */
 export const computeK = a => hf => {
     const f = computeKFromDigest(a)(hf)
-    return x => m => f(x)(computeSync(hf)([m]))
+    const hash = computeSync(hf)
+    return x => {
+        const fx = f(x)
+        return m => fx(hash([m]))
+    }
 }
 
 /**
@@ -155,53 +162,64 @@ export const computeK = a => hf => {
  *
  * @type {(c: Curve) => (hf: Sha2) => (x: bigint) => (m: Vec) => _Signature}
  */
-export const sign = c => hf => x => m => {
+export const sign = c => {
     // 2.4 Signature Generation
     const { rfc6979, nf: { div }, mul, g } = fromCurve(c)
-    // The following steps are then applied:
-    //
-    // 1. H(m) is transformed into an integer modulo q using the bits2int
-    //    transform and an extra modular reduction:
-    //
-    //       h = bits2int(H(m)) mod q
-    //
-    //     As was noted in the description of bits2octets, the extra modular
-    //     reduction is no more than a conditional subtraction.
-    const hm = computeSync(hf)([m])
-    const h = rfc6979.bits2intModQ(hm)
-    // 2. A random value modulo q, dubbed k, is generated.  That value
-    //    shall not be 0; hence, it lies in the [1, q-1] range.  Most of
-    //    the remainder of this document will revolve around the process
-    //    used to generate k.  In plain DSA or ECDSA, k should be selected
-    //    through a random selection that chooses a value among the q-1
-    //    possible values with uniform probability.
-    const k = computeKFromDigest(rfc6979)(hf)(x)(hm)
-    // 3.  A value r (modulo q) is computed from k and the key parameters:
-    //
-    //     *  For ECDSA: the point kG is computed; its X coordinate (a
-    //        member of the field over which E is defined) is converted to
-    //        an integer, which is reduced modulo q, yielding r.
-    //
-    //     If r turns out to be zero, a new k should be selected and r
-    //     computed again (this is an utterly improbable occurrence).
-    // TODO: implement the loop. `computeK` should either
-    // - accept a state (current `k`).
-    // - accept a `is_valid` function.
-    // Until then, a zero `r` or `s` is refused rather than returned.
-    const rxy = assertNotNullish(mul(k)(g), 'rxy === null')
-    const r = rxy[0] % rfc6979.q
-    assert(r !== 0n, 'r === 0')
-    // 4.  The value s (modulo q) is computed:
-    //
-    //        s = (h+x*r)/k mod q
-    //
-    //     The pair (r, s) is the signature.  How a signature is to be
-    //     encoded is not covered by the DSA and ECDSA standards themselves;
-    //     a common way is to use a DER-encoded ASN.1 structure (a SEQUENCE
-    //     of two INTEGERs, for r and s, in that order).
-    const s = div(h + x*r)(k)
-    assert(s !== 0n, 's === 0')
-    return [r, s]
+    const { q, bits2intModQ } = rfc6979
+    const kFromDigest = computeKFromDigest(rfc6979)
+    return hf => {
+        const hash = computeSync(hf)
+        const kOf = kFromDigest(hf)
+        return x => {
+            const kOfX = kOf(x)
+            return m => {
+                // The following steps are then applied:
+                //
+                // 1. H(m) is transformed into an integer modulo q using the bits2int
+                //    transform and an extra modular reduction:
+                //
+                //       h = bits2int(H(m)) mod q
+                //
+                //     As was noted in the description of bits2octets, the extra modular
+                //     reduction is no more than a conditional subtraction.
+                const hm = hash([m])
+                const h = bits2intModQ(hm)
+                // 2. A random value modulo q, dubbed k, is generated.  That value
+                //    shall not be 0; hence, it lies in the [1, q-1] range.  Most of
+                //    the remainder of this document will revolve around the process
+                //    used to generate k.  In plain DSA or ECDSA, k should be selected
+                //    through a random selection that chooses a value among the q-1
+                //    possible values with uniform probability.
+                const k = kOfX(hm)
+                // 3.  A value r (modulo q) is computed from k and the key parameters:
+                //
+                //     *  For ECDSA: the point kG is computed; its X coordinate (a
+                //        member of the field over which E is defined) is converted to
+                //        an integer, which is reduced modulo q, yielding r.
+                //
+                //     If r turns out to be zero, a new k should be selected and r
+                //     computed again (this is an utterly improbable occurrence).
+                // TODO: implement the loop. `computeK` should either
+                // - accept a state (current `k`).
+                // - accept a `is_valid` function.
+                // Until then, a zero `r` or `s` is refused rather than returned.
+                const rxy = assertNotNullish(mul(k)(g), 'rxy === null')
+                const r = rxy[0] % q
+                assert(r !== 0n, 'r === 0')
+                // 4.  The value s (modulo q) is computed:
+                //
+                //        s = (h+x*r)/k mod q
+                //
+                //     The pair (r, s) is the signature.  How a signature is to be
+                //     encoded is not covered by the DSA and ECDSA standards themselves;
+                //     a common way is to use a DER-encoded ASN.1 structure (a SEQUENCE
+                //     of two INTEGERs, for r and s, in that order).
+                const s = div(h + x*r)(k)
+                assert(s !== 0n, 's === 0')
+                return [r, s]
+            }
+        }
+    }
 }
 
 /**
@@ -210,23 +228,36 @@ export const sign = c => hf => x => m => {
  *
  * @type {(c: Curve) => (hf: Sha2) => (u: Point) => (m: Vec) => (sig: _Signature) => boolean}
  */
-export const verify = c => hf => u => m => ([r, s]) => {
+export const verify = c => {
     const { rfc6979: { q, bits2intModQ }, nf: { mul: mulQ, reciprocal }, mul, g } = fromCurve(c)
     const { add } = c
-    // `u` must be a valid public key: for any other point, such as the
-    // point at infinity or one off the curve, the equation below can be
-    // satisfied without a private key.
+    const isKey = isPublicKey(c)
     // `r` and `s` are nonzero residues modulo `q`; anything else is refused.
     /** @type {(v: bigint) => boolean} */
     const inRange = v => 0n < v && v < q
-    if (!isPublicKey(c)(u) || !inRange(r) || !inRange(s)) {
-        return false
+    return hf => {
+        const hash = computeSync(hf)
+        return u => {
+            // `u` must be a valid public key: for any other point, such as the
+            // point at infinity or one off the curve, the equation below can be
+            // satisfied without a private key.
+            if (!isKey(u)) {
+                return () => () => false
+            }
+            return m => {
+                // The same `h` as `sign` step 1.
+                const h = bits2intModQ(hash([m]))
+                return ([r, s]) => {
+                    if (!inRange(r) || !inRange(s)) {
+                        return false
+                    }
+                    // `s = (h + x*r)/k`, so `(h/s)G + (r/s)U = ((h + x*r)/s)G = kG`.
+                    const w = reciprocal(s)
+                    const xy = add(mul(mulQ(h)(w))(g))(mul(mulQ(r)(w))(u))
+                    // The point at infinity has no X coordinate to compare.
+                    return xy !== null && xy[0] % q === r
+                }
+            }
+        }
     }
-    // The same `h` as `sign` step 1.
-    const h = bits2intModQ(computeSync(hf)([m]))
-    // `s = (h + x*r)/k`, so `(h/s)G + (r/s)U = ((h + x*r)/s)G = kG`.
-    const w = reciprocal(s)
-    const xy = add(mul(mulQ(h)(w))(g))(mul(mulQ(r)(w))(u))
-    // The point at infinity has no X coordinate to compare.
-    return xy !== null && xy[0] % q === r
 }
