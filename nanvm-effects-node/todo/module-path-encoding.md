@@ -34,7 +34,8 @@ portable admission helper is unchanged: this is an explicit native limitation,
 not a claim that the Node runner also rejects these inputs.
 
 Percent escapes (`%20`, `%09`, `%0A`, `%0D`, `%01`) remain filename data; entry
-paths remain literal. Internal spaces and non-ASCII whitespace are not trimmed.
+paths remain literal except for the terminal-control refusal below. Internal
+spaces and non-ASCII whitespace are not trimmed.
 A future implementation must apply portable admission and URL preprocessing
 in the Node runner's order, including inputs where preprocessing reveals an
 authority or drive marker. Coordinate with [local URL authorities](./local-file-url-authorities.md).
@@ -48,8 +49,28 @@ The invalid-byte filesystem fixture is Linux-only: [APFS accepts only valid
 UTF-8 filenames](https://developer.apple.com/library/archive/documentation/FileManagement/Conceptual/APFS_Guide/FAQ/FAQ.html).
 The strict conversion test itself needs no filesystem and runs on macOS too.
 
-A separate Node v22.16.0/Linux observation: `pathToFileURL` of a literal entry
-ending in U+0001 drops that final control, whereas `new URL("dep%01", parent)`
-retains it as filename data. This update preserves the existing native literal
-entry behavior; it does not claim parity with that old Node entry conversion.
-Verify entry-path controls against the pinned Node runner in the follow-up.
+### Terminal controls in entry paths
+
+Node v22.16.0/Linux `pathToFileURL` drops terminal C0 controls other than NUL,
+tab, LF and CR, which it escapes first. NUL remains invalid for filesystem IO. For example, both `dep<U+0001>` and
+`dep<U+0001>/.` select `dep`. When both files exist, accepting the literal
+control-character entry would silently select a different module.
+
+The native resolver now refuses affected entry paths after absolute lexical
+normalization and before metadata/canonicalization. It returns an IoError with
+no code and `entry paths with terminal C0 controls are not supported`. Checking
+the normalized path also covers terminal controls exposed by `.` or `..`.
+This is an explicit restriction, not an implementation of Node's conversion.
+
+Do not apply the broader import-preprocessing filter to entries: leading and
+trailing spaces, tab/LF/CR, and internal controls remain literal native path
+data. Percent-encoded imports such as `dep%01` can still select the actual
+control-character filename. An entry named `dep%01` names those literal percent
+characters; entry paths are never percent-decoded.
+
+Pure tests distinguish all C0 characters and encoded spellings on every target,
+including WASM. A Unix fixture covers colliding files, normalized spellings,
+the missing-lookalike case, escaped imports, and preserved entry characters.
+The reference observations were reproduced on Node v22.16.0/Linux; full entry
+conversion and canonical-identity parity across the pinned Node versions still
+belong in the follow-up. Native Windows/macOS validation remains a CI check.

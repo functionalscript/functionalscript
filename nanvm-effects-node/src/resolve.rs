@@ -274,6 +274,13 @@ fn needs_url_preprocessing(name: &str) -> bool {
     name.trim_matches(|c: char| c <= ' ') != name || name.contains(['\t', '\n', '\r'])
 }
 
+/// Node 22's entry conversion drops terminal C0 except NUL, tab, LF and CR,
+/// which it escapes first. Check the normalized path, including `dep<U+0001>/.`.
+/// Spaces, encoded imports and controls inside native filenames stay literal.
+fn entry_path_needs_url_preprocessing(path: &str) -> bool {
+    path.ends_with(|c: char| c < ' ' && !matches!(c, '\0' | '\t' | '\n' | '\r'))
+}
+
 /// The real native path, without a Windows drive's extended-length prefix.
 /// Check again after canonicalization: a local link may resolve to a UNC path.
 fn real_path(path: &str) -> std::io::Result<String> {
@@ -334,6 +341,12 @@ pub fn resolve_file_module(name: &str, parent: Option<&str>) -> Result<FileModul
     };
     let loading = absolute_path(&loading)
         .map_err(|e| crate::files::failure(&e, "resolveFileModule", &loading))?;
+    if parent.is_none() && entry_path_needs_url_preprocessing(&loading) {
+        return Err(refusal(
+            None,
+            "entry paths with terminal C0 controls are not supported",
+        ));
+    }
     let path = real_path(&loading).map_err(|e| crate::files::failure(&e, "realpath", &loading))?;
     Ok(FileModule {
         id: path_to_file_url(&path),
@@ -652,6 +665,24 @@ mod test {
         }
     }
 
+    #[test]
+    fn entry_controls_are_distinct_from_import_preprocessing() {
+        for byte in 0..b' ' {
+            let name = format!("/root/dep{}", char::from(byte));
+            assert_eq!(
+                entry_path_needs_url_preprocessing(&name),
+                !matches!(byte, b'\0' | b'\t' | b'\n' | b'\r')
+            );
+            let internal = format!("{name}/x");
+            let encoded = format!("/root/dep%{byte:02X}");
+            assert!(!entry_path_needs_url_preprocessing(&internal));
+            assert!(!entry_path_needs_url_preprocessing(&encoded));
+        }
+        for name in ["", "/", "/root/dep ", " /root/dep", "/root/dep\u{a0}"] {
+            assert!(!entry_path_needs_url_preprocessing(name), "{name:?}");
+        }
+    }
+
     #[cfg(unix)]
     #[test]
     fn non_utf8_path_text_is_not_replaced() {
@@ -875,7 +906,6 @@ mod test {
                 ("a\tb", "a%09b", "ab"),
                 ("a\nb", "a%0Ab", "ab"),
                 ("a\rb", "a%0Db", "ab"),
-                ("dep\u{1}", "dep%01", "dep"),
             ] {
                 fs::write(dir.path(name), "literal").unwrap();
                 fs::write(dir.path(plain), "plain").unwrap();
@@ -894,6 +924,43 @@ mod test {
                 fs::write(dir.path(name), "literal").unwrap();
                 let literal = resolve_file_module(&dir.path(name), None).unwrap();
                 assert_eq!(resolve_file_module(name, Some(&parent)).unwrap(), literal);
+            }
+        }
+
+        #[test]
+        fn terminal_entry_controls_do_not_load_a_different_file() {
+            let dir = Scratch::new("entry-controls");
+            fs::write(dir.path("dep"), "plain").unwrap();
+            let plain = resolve_file_module(&dir.path("dep"), None).unwrap();
+            let parent = path_to_file_url(&dir.path("main.f.js"));
+            for (name, encoded) in [("dep\u{1}", "dep%01"), ("dep\u{1f}", "dep%1F")] {
+                fs::write(dir.path(name), "literal").unwrap();
+                for suffix in ["", "/.", "/child/.."] {
+                    let entry = dir.path(&format!("{name}{suffix}"));
+                    let error = resolve_file_module(&entry, None).unwrap_err();
+                    assert_eq!(error.code, None);
+                    assert_eq!(
+                        error.message,
+                        "entry paths with terminal C0 controls are not supported"
+                    );
+                }
+                let literal = resolve_file_module(encoded, Some(&parent)).unwrap();
+                assert_eq!(literal.path, dir.path(name));
+                assert_ne!(literal.id, plain.id);
+                assert_eq!(file_url_to_path(&literal.id).unwrap(), literal.path);
+                assert_eq!(fs::read(&literal.path).unwrap(), b"literal");
+            }
+            // Refusal does not depend on the plain lookalike existing.
+            fs::remove_file(&plain.path).unwrap();
+            let error = resolve_file_module(&dir.path("dep\u{1}"), None).unwrap_err();
+            assert_eq!(
+                error.message,
+                "entry paths with terminal C0 controls are not supported"
+            );
+            for name in ["dep ", "dep\t", "dep\n", "dep\r", "de\u{1}p", "dep%01"] {
+                let path = dir.path(name);
+                fs::write(&path, "literal").unwrap();
+                assert_eq!(resolve_file_module(&path, None).unwrap().path, path);
             }
         }
 
