@@ -61,9 +61,9 @@ guards, A4) are merged into the graph by the **`","` operation**:
 
   lowers to a `","` node; a callable source serializer can print the
   expression back, and a JS engine running it implements one legal schedule
-  (left-to-right, eager). Whether `String(f)` is that serializer is open
-  (subject 12). The
-  other spellings normalize to the same node — all four of
+  (left-to-right, eager). Current `String(f)` is code-only function text, distinct
+  from structural source serialization and runtime-value compilation (subject 12).
+  The other spellings normalize to the same node — all four of
 
   ```js
   const f = a => { assert(a >= 0); return a + 2 }
@@ -74,8 +74,8 @@ guards, A4) are merged into the graph by the **`","` operation**:
 
   illustrate one code-EDAG shape, not one allocated function in the
   JS-compatible identity model. The last spelling — an expression-bodied
-  arrow, no block, no `return` — is a compact source-rendering candidate
-  (subject 12). The EDAG has **no
+  arrow, no block, no `return` — is a compact spelling the structural source
+  writer uses where supported (subject 12). The EDAG has **no
   assert node**: what makes an operand an assert is purely positional —
   its value is discarded by `","`. The guard itself is either an
   ordinary function value that throws on a falsy argument, or, with no
@@ -358,9 +358,10 @@ All instruction patterns follow the
 
 `"=>"` is the function constructor because FJS has only **arrow
 functions** — there is exactly one spelling to reuse, so the tag is
-unambiguous. A named function expression was suggested as a source
-representation of `["self"]`; it remains a candidate, not a selected spelling
-or a newly admitted function form (subject 12).
+unambiguous. Current function text uses a named function expression for
+`["self"]`; the structural FJS source writer uses a self-referencing `const`.
+The renderer's JavaScript output does not admit a new FJS function form
+(subject 12).
 
 Word tags remain only where no unambiguous JS spelling exists:
 
@@ -477,9 +478,10 @@ recursion with no special machinery.
   independently (subjects 3 and 9).
 - **Word tag**: JS has no expression spelling for "this function"
   (`arguments.callee` is forbidden in strict mode). A named function
-  expression — `function self(…) { … self(…) … }` — is a candidate for
-  callable source serialization, subject to syntax admission and the open
-  `self` question (subject 12); no `String(f)` strategy is selected.
+  expression — `function self(…) { … self(…) … }` — is the implemented
+  finite spelling for `self` in code-only function text. The structural FJS
+  source writer instead declares a self-referencing arrow `const`; named
+  function expressions remain outside FJS source admission (subject 12).
 - **Useless before `"?:"`**: with no branch there is no base case, so
   every `["self"]` call diverges. It lands with the operators, and
   before [let](../spec/todo/3220-let.md) (subject 11) — recursion is the
@@ -506,10 +508,10 @@ expression — there is no operator symbol to reuse. Consequences:
   (subject 8), but nothing in FJS semantics depends on it.
 - **Callable-source wrinkle**: since `throw` is a statement, a `throw`
   node inside an expression has no direct JS spelling. A wrapper such as
-  `(() => { throw v })()` is a candidate, subject to FJS admission and
-  round-trip support. Alternatives (a recognized `throw` helper, or an
-  expression-level `throw` pattern) remain to settle with assertion syntax.
-  This does not decide the `String(f)` contract (subject 12).
+  `(() => { throw v })()` is implemented in the total JavaScript function-text
+  renderer. The structural FJS writer also uses a throwing wrapper in an
+  expression position and retains its own round-trip/refusal contract.
+  Other assertion syntax remains separate future work (subject 12).
 
 **Laziness is positional, not nodal.** A lazy operand is a node that may
 never be demanded — but the same node referenced from an eager position
@@ -621,8 +623,10 @@ does not weaken JS-compatible executors' allocation and sharing guarantees.
 The [function-text exception](../spec/README.md#function-source-representation-exception)
 is independent of identity: FJS VMs use EDAG-derived default text, while direct
 JavaScript execution retains its host representation. The
-[rendering questions](../spec/todo/serialization.md#function-text-and-serialization)
-remain open; neither A2 nor this identity clarification decides them.
+[serialization record](../spec/todo/serialization.md#function-text-and-serialization)
+now distinguishes implemented code-only text, partial structural FJS source,
+and reflection-erasing JavaScript runtime compilation. Future interchange and
+CAVM hashing remain open; A2 does not change these API contracts.
 
 #### A3. Throws are preserved
 
@@ -762,7 +766,8 @@ Kept from the original decision, unchanged:
   does liveness analysis. Restoring the EDAG from bytecode is neither
   required nor generally possible: the function always carries its EDAG.
 - **The EDAG feeds multiple processors**: the bytecode interpreter,
-  source rendering and callable serialization (their relationship is open in
+  code-only function text, partial structural FJS source serialization,
+  runtime-value compilation (their current contracts are distinct in
   subject 12), and AOT backends
   (Rust, potentially WASM or machine code). Its structure is preserved
   because those backends exploit it; the interpreter may realize scopes as
@@ -1151,22 +1156,25 @@ operand; the invocation bindings are the fixed/rest pair in subject 2,
 not a count added to the old complete-arguments model. The function node
 owns its arity. The implementation request recorded in the parameter plan
 selected this replacement; the old invocation model is not a parallel
-contract. This does not settle the constructor's input API or default-text
-choices.
+contract. This does not settle the constructor's input API; current default
+function-text rendering is implemented under the distinct contract in subject 12.
 
-The function-text exception does not permit changing arity. The current
-writer emits fixed parameters plus rest, retaining unused fixed positions;
+The function-text exception does not permit changing arity. Current writers
+retain unused fixed positions and emit a rest binding when the body reads it;
 `['arg', N]` and `['rest']` render as those bindings. The earlier writer
 obstruction for positive arity plus complete `['args']` does not apply to
 this new format, which cannot express that combination. Unrelated source
-serialization questions in subject 12 stay separate, but the adopted
-EDAG-derived default-text rule is still required: use the shared renderer
-or explicitly refuse unsupported observations before exposing wrapper text
+serialization/interchange questions in subject 12 stay separate. Memo and Amnesia
+already use the shared total renderer for EDAG-derived default text, without
+exposing host arrow-factory wrappers
 ([default-text boundary](../spec/todo/3120-parameters.md#default-function-text-render-or-refuse)).
 
-Hand-written factories materialize these functions without the retired
+The former hand-written factories materialized these functions without the retired
 [length pattern](https://github.com/functionalscript/functionalscript/blob/245649cdeeb0fb6318004ee273121143273262db/spec/todo/arity-complete-arguments.md#candidate-mechanism-the-withlength-pattern) for every
 valid arity: the language limits `length` to 16, and the table covers 0–16.
+That table remains a utility, not the represented VMs' construction strategy.
+They bind fixed/rest values directly; `toUnknown` materializes ordinary runtime
+callables through the target compile/load boundary with reflection erased.
 
 #### 8. `","`: anchored evaluation
 
@@ -1379,17 +1387,25 @@ Nothing references a name the function did not compute itself:
 - a module-level `const` or `import` the body uses
   ([const](../spec/README.md#shared-values-constants),
   [default-import](../spec/README.md#importing-other-modules));
-- a captured const, once closures exist — the frame
+- a captured const — the implemented frame
   [function-frame](../spec/todo/3111-function-frame.md) designs;
 - a built-in namespace such as `Object` or `JSON`
   ([built-in](../spec/todo/2360-built-in.md)), which
   [2360](../spec/todo/2360-built-in.md) says may be used only as a
   namespace, never assigned to a variable.
 
-**Largely answered by `["frame", i]`** ([Operations](#operations)): free
-values are captured into the frame when the closure is created, and read
-back as `["frame", i]`. `["self"]` covers self-reference, which
-no frame can seed at the top level. What remains open:
+**Current APIs:** the compiler captures module/import and enclosing-scope nodes
+in first-use order, while known primitive constants can be embedded in the body.
+Memo and Amnesia evaluate those slots when creating the closure and read them
+as `["frame", i]`; `["self"]` handles direct self-reference. See `captures` in
+the [lowering proofs](../fjs/compiler/edag/proof.f.mjs) and
+[source-serializer proofs](../fjs/compiler/serializer/proof.f.mjs).
+Default function text names slots without expanding their captured values.
+
+**Historical hashing discussion:** the following choices were recorded before
+that implementation. Canonical interchange/hash layout and broader built-in
+namespace support remain future work; these alternatives do not reopen the
+current capture or function-text APIs:
 
 - **which values go into a frame, and in what order** — the compiler
   decides, and hash-as-written (subject 1) means that choice must be
@@ -1401,12 +1417,11 @@ no frame can seed at the top level. What remains open:
 - **module consts and imports** — captured per closure, or embedded
   directly as values (they are already-evaluated DJS values by then)?
   Embedding inlines a shared value into every function that uses it,
-  which costs hashing and `toString(f)` fidelity.
+  which changes hashing and a callable serializer's captured contents.
 
-Stage 1 can live without this — a body reachable from `["args"]` and
-constants alone is a real, if small, language. But every path forward
-needs it, so the shape should be chosen deliberately rather than by
-accident:
+The early Stage 1 could operate over imports and constants alone. The following
+alternatives are historical, rather than pending prerequisites for current
+closure interpretation:
 
 1. **A leaf operation** — `["const", …]` / `["capture", i]`: explicit,
    and the natural home for 3111's captured-consts frame.
@@ -1414,8 +1429,8 @@ accident:
    since imports and module consts are already evaluated DJS values by
    the time a function is built. Simplest, and it fits "the EDAG is an
    `Any`"; but it inlines a shared value into every referencing
-   function, which matters for hashing and for `toString(f)` (a
-   reference to a named const would print as its expansion).
+   function, which matters for hashing and self-contained callable output.
+   Current `String(f)` does not expand captured values; it is code-only text.
 3. **Built-ins as constants** — the built-in namespaces are values the
    VM provides; embedding them collides with 2360's rule that they are
    not assignable, so they may need their own leaf regardless.
@@ -1470,35 +1485,54 @@ require the EDAG to model mutable *objects*, only threaded state.
 
 #### 12. `toString(f)`: real, runnable source
 
-**Status:** reopened — callable-source requirements are conditional for `String(f)`.
+**Status:** current function-text contract implemented; broader callable interchange open.
 
-This section describes self-contained callable source serialization and candidate
-techniques for it. The earlier identification of that serializer with
-`toString(f)` is withdrawn. Whether `String(f)` has the same output contract,
-whether it includes the captured frame, and how each operation represents
-`self` are the three open questions in
-[Function text and serialization](../spec/todo/serialization.md#function-text-and-serialization).
-That document owns those decisions; the requirements below apply to `String(f)`
-only if the corresponding callable-serialization contract is selected.
+The earlier identification of self-contained callable serialization with
+`toString(f)`, and the later direction treating the current APIs' three
+rendering questions as open, are superseded. Memo and Amnesia use code-only
+EDAG-derived function text: captured values appear as slot names, and `self`
+uses a finite named function expression. The trusted
+`functionText(analysis, index): string` renders every admitted body;
+`tryFunctionText` checks separately supplied expressions. The
+[function-text contract](../fjs/edag/function-text.md) and `functionText` / `self`
+groups in the [serializer proofs](../fjs/compiler/serializer/proof.f.mjs)
+record these implemented answers.
+
+The APIs have distinct contracts. `tryStringify` is a partial structural FJS
+source serializer. The JavaScript
+[value emitter](../fjs/compiler/serializer/value/module.f.mjs) and effectful
+[`toUnknown`](../fjs/edag/value/to_unknown/module.f.mjs) already construct
+ordinary runtime values with captured sharing and EDAG reflection erased.
+Runtime compilation may emit JavaScript outside the current FJS grammar.
+General callable interchange, canonical hashing and exact representation
+round trips remain separate future work in
+[serialization](../spec/todo/serialization.md#function-text-and-serialization).
+The requirements below retain the historical self-contained serializer
+discussion within each serializer's declared profile; they are not a pending
+contract for `String(f)`.
 
 The [function-source exception](../spec/README.md#function-source-representation-exception)
 **is adopted**: default FJS function text comes from associated EDAG, not
 original spelling. This permits direct, indirect and exported source-text
-observations to differ from a JavaScript host; it neither requires a closed
-callable string nor decides any frame or `self` strategy. The source must still
-obey the applicable syntax and output contract.
+observations to differ from a JavaScript host. The exception does not require a
+closed callable string. Current code-only rendering leaves captures as slot
+names and uses named `self`; each output still obeys its own syntax and contract.
+After reflection-erasing JavaScript runtime compilation, ordinary callables use
+their host's function text.
 
 For a serializer that promises to reconstruct an equivalent callable in a new
 environment, the following constraints apply within its supported domain:
 
-- **Faithful admitted source.** Every printed operation needs a faithful
-  source form. A `throw` wrapper or a named function for `self` remains a
-  candidate, not permission to emit unsupported FunctionalScript. The JavaScript
-  host used to read an example is not permission to use `eval` inside FJS.
+- **Faithful output within the declared profile.** The current total function
+  renderer uses general JavaScript expressions, including throw wrappers and
+  named functions for `self`. The structural FJS source writer instead uses
+  admitted source forms, such as a self-referencing `const`, or refuses an
+  unsupported graph. Rendering JavaScript beyond FJS does not admit that syntax
+  in FJS or permit `eval` inside it.
 - **No alternate API.** The direct descriptor-value spelling remains
   retired. [`entry`](../spec/README.md#reading-an-entry-at-run-time) prints
   the complete helper and ordinary calls of it. Its exact spelling follows
-  the adopted function-text exception and open rendering questions, not a
+  the adopted function-text exception and current renderer, not a
   requirement to recover authored text. A printed helper's intrinsic `Object`
   reference still depends on the declared built-in environment; AST-to-EDAG
   compilation validates that binding without admitting the namespace as a value.
@@ -1510,10 +1544,10 @@ environment, the following constraints apply within its supported domain:
 - **Self-contained captures.** A callable serializer cannot rely on the
   originating module's local bindings existing in the destination environment.
   It must represent the relevant captured values and relationships. This is
-  not a statement about whether `String(f)` includes frames; that choice is open.
-- **Frame bindings are a candidate technique.** One possibility is to emit
-  enclosing `const` bindings that nested functions capture, or to represent a
-  whole frame as an array. For illustration, not as a selected serializer:
+  separate from `String(f)`, which does not materialize captured values.
+- **Frame bindings preserve allocation lifetimes.** The JavaScript value
+  emitter already constructs captures outside their callable bodies, preserving
+  shared values and primitive, repeated and unused capture slots. For example:
 
   ```js
   const captured = [];
@@ -1522,24 +1556,30 @@ environment, the following constraints apply within its supported domain:
   ```
 
   In contrast, `const restored = () => [];` creates a fresh array per call.
-  The placement and lifetime of bindings matter; generated names and frame
-  layout remain part of the rendering decision, not an answer hidden here.
+  The placement and lifetime of bindings matter. Current rendering uses one
+  deterministic `$n` counter across external slots and nested scopes. A future
+  interchange format's encoding and normalization remain separate choices.
 - **Captured functions and `self` need finite representations.** A complete
   callable may require rendering a graph of captured functions and values,
   preserving shared dependencies rather than expanding a tree. Recursive calls,
   returning `self`, and references to enclosing functions must keep the correct
-  binding. Wrappers, generated bindings and named functions remain alternatives.
-  If `String(f)` includes frames, the
+  binding. Current function text uses named `self`, and runtime-value compilation
+  constructs captured values with bindings rather than recursively expanding
+  text. For a future serializer that includes frames, the
   [conditional lazy-rendering requirement](../spec/todo/serialization.md#conditional-requirement-lazy-frame-rendering)
-  applies; self-contained output does not mean eager materialization.
+  discussion applies; it does not require `String(f)` to materialize frames.
 - **Data keys keep their meaning.** In an object literal, an own `__proto__`
   data key needs the computed spelling `{ ["__proto__"]: value }`, not a
   prototype-setting property definition ([spec](../spec/README.md#the-__proto__-key)).
 
 A callable round trip must reconstruct the promised behavior under its declared
-profile, including captured sharing and `self` where supported. Parsing produces
-the JavaScript-subset AST; checked AST-to-EDAG compilation supplies the admission
-and semantic checks. Internal or unsupported operations remain explicit refusals.
+profile, including captured sharing and `self` where supported. Structural FJS
+source output is checked by parsing and lowering it again. Runtime-value output
+is checked at its target JavaScript compile/load boundary; it promises behavior,
+not a structural FJS source round trip. See the
+[value-emitter proofs](../fjs/compiler/serializer/value/proof.f.mjs) and
+[runtime-conversion proofs](../fjs/edag/value/to_unknown/proof.mjs).
+Internal or unsupported operations remain explicit refusals in a partial profile.
 
 Reproducing exactly the same code graph, frame layout and hash is a stronger,
 separate round-trip property. Frame materialization can change that representation;
@@ -1549,6 +1589,9 @@ unconditional guarantee for `String(f)`. Compare original-source behavior too,
 subject to the specified exceptions; comparing output with itself proves neither
 source compatibility nor the closure contract.
 
-Deterministic rendering for chosen inputs remains required. Whether `String(f)`
-and callable serialization share contents, implementation or a canonical format
-is owned by the linked open questions, not settled by this historical section.
+Deterministic rendering for admitted inputs is implemented. Current function text,
+structural source serialization and runtime-value compilation share rendering
+machinery while preserving the distinct contracts above. A future callable
+interchange format, CAVM hashing, native semantic EDAG retention and incremental
+strings remain open; this historical section does not claim those facilities
+are implemented.

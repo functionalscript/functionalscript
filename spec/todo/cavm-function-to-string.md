@@ -5,15 +5,21 @@
 
 ### Problem
 
-Default function text is EDAG-derived
-([function text and serialization](./serialization.md#function-text-and-serialization),
-[render or refuse](./3120-parameters.md#default-function-text-render-or-refuse)),
-and the [serialization questions](./serialization.md#open-questions) about
-it are open: whether `String(f)` is the callable serializer, whether it
-instantiates the captured frame, and how it spells `self`. In a
-[content-addressable VM](./content-addressable-vm.md) they get harder
-before they get easier, because the CAVM adds a constraint: two functions
-with the same content are **one value**
+Current represented VMs already use EDAG-derived, code-only default function
+text. The earlier direction treating the three
+[serialization questions](./serialization.md#open-questions) as open for these
+APIs is superseded: `String(f)` does not serialize captured values, capture
+slots have generated names, and `self` renders as a finite named function
+expression. The shared renderer covers every admitted body; the separate FJS
+source serializer remains partial, and JavaScript runtime-value compilation
+materializes captures with EDAG reflection erased. See
+[function text](../../fjs/edag/function-text.md), `functionText` and `self` in the
+[serializer proofs](../../fjs/compiler/serializer/proof.f.mjs), and
+[runtime compilation](../../fjs/edag/values.md#runtime-compilation).
+
+This TODO proposes a future
+[content-addressable VM](./content-addressable-vm.md) profile. It adds a
+different constraint: two functions with the same content are **one value**
 ([execution models](../../fjs/edag/execution-models.md#4-content-addressable-vm)),
 and one value has one text. So
 
@@ -23,15 +29,16 @@ const b = x => () => x
 a === b(2) // true in the CAVM
 ```
 
-requires `String(a) === String(b(2))`, and any rendering that depends on how
-the function was built — a literal `2` in one body, a captured `x` in the
-other — risks giving one value two texts. Rendering the body also has no
-finite answer for a captured function without a name to call it by, since
-the EDAG is name-erased: `() => x` names a binding no reader can resolve,
-inlining `x`'s text pulls in the whole dependency graph, which the
-[lazy frame rendering](./serialization.md#conditional-requirement-lazy-frame-rendering)
-requirement exists to forbid and which never terminates for `self`, and a
-fresh name is arbitrary.
+Under the proposed normalization, this requires `String(a) === String(b(2))`;
+any rendering that depends on how the function was built — a literal `2` in one
+body, a captured `x` in the
+other — risks giving one content value two texts. Current code-only rendering
+has a finite answer: captured functions stay slot references, and named `self`
+does not recursively expand its own body. It does not provide a content hash
+or a self-contained callable interchange format. Eagerly inlining an entire
+captured dependency graph is a different operation, subject to the
+[conditional lazy frame rendering](./serialization.md#conditional-requirement-lazy-frame-rendering)
+discussion for future serializers that include frames.
 
 ### Proposal
 
@@ -51,12 +58,14 @@ const g = () => f() * 2
 ```
 
 where `$Bxo0DuQ…` is the hash of `g` — the content identity of its EDAG and
-captured frame, the same hash the CAVM keys `g` by. The parameter list is
-the one the
-[source serialization boundary](./3120-parameters.md#source-serialization-boundary)
-already fixes for a function of length `L`: `(a0, ..., aL_1, ...rest)`,
-generated from `L` alone, `(...rest)` for zero arity. So a function whose
-`length` is two reads `(a0, a1, ...rest) => $…(a0, a1, ...rest)`. The text's
+captured frame, the same hash the proposed CAVM would key `g` by. This proposal
+chooses the canonical forwarding parameter list `(a0, ..., aL_1, ...rest)`
+for length `L`, generated from `L` alone, `(...rest)` for zero arity. It follows
+the fixed/rest binding model of the
+[source serialization boundary](./3120-parameters.md#source-serialization-boundary),
+but is not the current renderer's exact spelling: current code-only text uses
+deterministic `$n` names and need not print an unused rest binding. So a function
+whose `length` is two reads `(a0, a1, ...rest) => $…(a0, a1, ...rest)`. The text's
 arity agrees with the function's, the rest parameter forwards whatever else
 a caller passes, and the spelling is deterministic — the same names for the
 same `L` on every implementation — which the canonical-text promise below
@@ -67,11 +76,11 @@ what makes it right:
 
 - **One value, one text.** `a` and `b(2)` above are one value, so one hash,
   so one text, however either was built. No rendering choice can split them.
-- **The three questions close at once.** There is no body in the text, so
+- **The proposed CAVM contract is separate.** There is no body in the text, so
   `String(f)` renders no captures and needs no spelling for `self`, and it
-  is not the callable serializer — it is a code *reference*, question 1's
-  second reading, decided by the profile. Nothing is instantiated, so
-  the lazy-rendering requirement is met with nothing to be lazy about.
+  is not the callable serializer — it is a code *reference*, chosen by this
+  proposed profile rather than the current code-only body renderer. Nothing is
+  instantiated, so the lazy-rendering requirement is met with nothing to be lazy about.
 - **Finite and canonical.** One identifier however deep the dependency
   graph; the same on every run of one CAVM version; and equal text means
   equal value, which a JS-compatible profile cannot promise
@@ -130,8 +139,8 @@ above, not a different `toString`.
 
 This is CAVM-only. A JS-compatible executor has no hash to name by, and
 [execution models](../../fjs/edag/execution-models.md) keeps the identity
-models distinct on purpose; the shared default renderer stays one operation
-with this as its one profile-dependent branch.
+models distinct on purpose. The shared default renderer already exists; a
+CAVM-specific branch would be future work, not a change already present in it.
 
 ### Open
 
@@ -175,27 +184,26 @@ with this as its one profile-dependent branch.
       [identifier-safe base64](../../fjs/basen/todo/various-basen-encodings.md)
       codec with this proposal as its named consumer; the renderer imports
       it.
-- [ ] Record the rule in [serialization](./serialization.md) as the CAVM
-      profile's answer to questions 1–3, and the JS-compatible profile's
-      remaining choice beside it.
-- [ ] Give the shared default renderer this profile-dependent branch, once
-      it exists
+- [ ] Record the proposed CAVM rule in [serialization](./serialization.md),
+      distinct from the implemented code-only, source and runtime-value APIs.
+- [ ] Add this profile-dependent branch to the existing shared default renderer
+      after the CAVM contract is selected
       ([render or refuse](./3120-parameters.md#default-function-text-render-or-refuse)).
 
 ### Related
 
 - [content-addressable-vm](./content-addressable-vm.md) — the hash this
   proposal names by, and its size trade-off.
-- [serialization](./serialization.md#open-questions) — the three questions
-  this proposal closes for one profile.
+- [serialization](./serialization.md#open-questions) — implemented current API
+  answers and future callable interchange/profile questions.
 - [3120-parameters](./3120-parameters.md#default-function-text-render-or-refuse)
   — the renderer this rule plugs into.
 - [execution-models](../../fjs/edag/execution-models.md#4-content-addressable-vm)
   — content identity, the premise of one value, one text.
 - [mvp-roadmap](../../nanvm-lib/todo/mvp-roadmap.md#canonical-representation-the-edag-as-data-decided)
   — the EDAG as the thing hashed.
-- [member-functions](../../nanvm-lib/todo/member-functions.md) — nanvm-lib's
-  `toString` placeholder, the JS-compatible side of the same gap.
+- [member-functions](../../nanvm-lib/todo/member-functions.md) — native compiled
+  function text and conversion coverage, separate from this future CAVM profile.
 - [identifier-safe base64](../../fjs/basen/todo/various-basen-encodings.md)
   — the codec the name is spelled with; this proposal is its first consumer.
 - [new-pl](../../todo/new-pl.md) — hashes are versioned by algorithm and

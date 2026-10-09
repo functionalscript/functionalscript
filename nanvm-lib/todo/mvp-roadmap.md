@@ -39,8 +39,10 @@ canonical representation:
 
 1. We need a canonical data representation of functions in FunctionalScript —
    and in the future content-addressable VM (CAVM) — to compute a hash.
-2. The EDAG can be transformed back to source code; this transformation will
-   be used in `toString(f)`.
+2. The shared EDAG renderer supplies code-only default function text, with
+   capture-slot names and finite `self` spelling. The partial FJS source writer
+   has a separate structural round-trip contract
+   ([function text](../../fjs/edag/function-text.md)).
 3. Because code is an FJS value, serializing functions requires no separate
    format: once the VM serializes `Any` values, it serializes code too.
 
@@ -74,7 +76,7 @@ Invariants:
   flow, calls and errors. Native JS remains an independent reference, with
   the specified FJS function-text exception accounted for.
 - A natively compiled function needs an **association with its semantic EDAG**
-  when hashing or function-text operations require it. The EDAG is the stable
+  when future hashing or metadata retrieval requires it. The EDAG is the stable
   **code/content identity** of a
   function; native code is a cached acceleration of it. It is not the
   allocation identity of a callable value. In a JS-compatible execution
@@ -83,9 +85,11 @@ Invariants:
   as CAVM may deliberately use content identity only when that profile
   explicitly specifies the different identity semantics. This invariant is
   **staged**: the MVP generator omits the association. Embedded data versus
-  out-of-band lookup remains open below. Until association and rendering are
-  available, unsupported observations must be refused rather than produce
-  placeholder function text. Metadata does not require a Rust EDAG executor.
+  out-of-band lookup remains open below. Compiled native functions already
+  carry code-only text from the shared renderer; conversion requiring text
+  refuses a function without supplied text. That rendering does not retain the
+  full semantic EDAG or depend on this metadata follow-up. Metadata does not
+  require a Rust EDAG executor.
 - Direct AOT programs depend on VM objects and the effects they use. The
   optional Rust EDAG library depends on the VM, never the reverse; VM
   implementations need not supply their own EDAG. The self-hosted CLI embeds

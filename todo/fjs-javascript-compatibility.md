@@ -152,6 +152,10 @@ expansion, not a substitute for AST matching.
 
 #### Function text — adopted exception, rendering questions open
 
+**Current status:** the historical rendering questions have implemented answers;
+their earlier open-question direction is superseded. Broader callable
+interchange and future execution profiles remain open.
+
 The owner adopted the [function-source representation exception](../spec/README.md#function-source-representation-exception).
 FJS VMs reconstruct default function text from associated EDAG instead of
 retaining authored spelling. Direct and indirect conversions, including
@@ -168,17 +172,28 @@ Ordinary JavaScript execution retains the host's representation.
 
 **Observed at `186af0b`:** the `.js` output already renders every function
 from the graph — `() => 1` is written `(...$a)=>1` — so a JavaScript
-consumer of that output sees different text, as adopted. The function's
-`name` differs too, which this exception does not cover; that is the
-correction below.
+consumer of that output sees different text, as adopted. Function-name
+observations about rewritten output are addressed below; they are not
+source-program compatibility results.
 
 [Function text and serialization](../spec/todo/serialization.md#function-text-and-serialization)
-owns the three open questions: whether the compiler's function serializer and `String`
-are the same function, whether `String` instantiates a frame (the owner's
-preference is substituting captured values), and how each handles `self`.
-No exact spelling or closure/self strategy is selected by this exception.
-Earlier no-exception/refusal directions for authored-text differences are
-superseded; implementing the chosen rendering contract remains work.
+records the current API answers. Memo and Amnesia use the shared total renderer
+for code-only function text: captured values appear as generated slot names,
+and `self` renders as a finite named function expression. They retain represented
+functions through explicit and indirect conversion, rather than exposing host
+arrow-factory text. See the
+[function-text contract](../fjs/edag/function-text.md), `functionText` and `self`
+in the [serializer proofs](../fjs/compiler/serializer/proof.f.mjs), and
+[conversion proofs](../fjs/edag/value/convert/proof.f.mjs).
+
+The structural FJS source serializer remains partial. The implemented
+JavaScript runtime-value emitter materializes captures separately and can emit
+JavaScript beyond FJS; effectful `toUnknown` returns ordinary callables with
+EDAG reflection erased, whose function text is the host's under the exception.
+See [runtime compilation](../fjs/edag/values.md#runtime-compilation) and its
+[proofs](../fjs/edag/value/to_unknown/proof.mjs). General callable interchange,
+CAVM content hashing and native semantic EDAG retention remain future work; they
+are not unfinished prerequisites for the current represented renderer.
 
 #### Function name — not a compatibility observation
 
@@ -315,10 +330,15 @@ randomness and external mutation.
 - [ ] **P1:** implement statement-aware pattern recognition before shipping
       intrinsics; its linked TODO separates the mandatory boundary from ASI
       syntax expansion and preserves refusal until syntax is understood.
-- [x] Record the adopted function-source exception and the three open
-      serializer/`String`, frame and `self` questions in the owning documents.
-- [ ] **P1:** implement and test the chosen function-rendering contract across
-      source, EDAG, coercion and execution; preserve other function observations.
+- [x] Record the adopted function-source exception and current distinct
+      function-text, structural source and runtime-value contracts in the owning
+      documents; preserve broader callable interchange as future work.
+- [x] **P1:** implement and test code-only EDAG-derived function text in
+      represented execution and explicit/indirect coercion, with capture-slot
+      names and finite named `self`; preserve other function observations.
+      Pinned by the serializer, value-conversion and shared interpreter corpus
+      proofs linked above. Structural FJS output remains partial, and ordinary
+      JavaScript runtime conversion deliberately erases EDAG reflection.
 - [x] Record that a function's name is no compatibility observation: no
       FJS program reads one, by `entry`'s decision, and what an engine
       reports about the written output is the writer's spelling.
@@ -340,7 +360,7 @@ randomness and external mutation.
       and warm/cold caches. Specify existing exceptions and their consequences;
       new exceptions require an explicit decision.
 - [ ] **P2:** add the arity gate and repeat the observation audit for future
-      captures, mutation and intrinsics.
+      capture extensions, mutation and intrinsics.
 
 Use existing runners and an independent native-JavaScript oracle, not a
 source-text grep or an unapproved external tool as a parsing substitute. The
