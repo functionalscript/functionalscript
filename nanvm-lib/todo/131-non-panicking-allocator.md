@@ -22,12 +22,18 @@ or receiver is one of three kinds. This is a snapshot, found with
 and by reading the container constructors; repeat it before calling the task
 done, since a `Vec` that grows by `push` can abort at any growth step too.
 
-- **A buffer the operation allocates itself, larger than its inputs.**
-  `BigInt`'s `*` (`vm/bigint/mul.rs`) sizes its result from the operands'
-  lengths, `lhs + rhs + 1` words, through `common/vec.rs::with_default`, an
-  infallible `Vec::with_capacity`, and has no size limit. `<<` already
-  refuses a result past `MAX_WORDS` and reserves fallibly
-  (`vm/bigint/shl.rs`); it is the model.
+- **A buffer the operation allocates or grows itself, larger than its
+  inputs.** `BigInt`'s `*` (`vm/bigint/mul.rs`) sizes its result from the
+  operands' lengths, `lhs + rhs + 1` words, through
+  `common/vec.rs::with_default`, an infallible `Vec::with_capacity`, and has
+  no size limit. `flat` (`vm/array/flat.rs`, `flatten`) pushes every element
+  of its result onto a `Vec` before `create` builds the array: an outer array
+  holding many references to one wide inner array makes that buffer far
+  larger than the inputs in memory, and each `push` can abort at its own
+  growth step. The output `String`s that grow by `push` and `extend` are the
+  same kind: `to_json`, `join`, `split`/`replace` in `string/patterns.rs`, and
+  `own_entries`. `<<` already refuses a result past `MAX_WORDS` and reserves
+  fallibly (`vm/bigint/shl.rs`); it is the model.
 - **A copy of an input that is already in memory.** These cannot be made
   larger by the program, but a machine that holds the input and not a second
   copy of it still aborts: `toSorted`'s merge buffers
@@ -42,8 +48,13 @@ done, since a `Vec` that grows by `push` can abort at any growth step too.
   `'a'.repeat(2 ** 32 - 1)` is a count under the limit that the machine may
   not back.
 
-The first kind is local to `*`, but a fallible `*` changes its signature:
-`Mul for BigInt` has `Output = Self` and no `RangeError` of its own, where `<<`
+The first kind needs a bound on the result, as `<<` has, or a fallible
+reservation before each growth. For `*` that also changes its signature: `Mul
+for BigInt` has `Output = Self` and no `RangeError` of its own, where `<<`
 returns a `Result`. The second kind needs a fallible `Vec` reservation at each
 site (`try_reserve_exact`, as `<<` does). The third needs a fallible container
 constructor in `IVm`, which is the general task.
+
+This list is not exhaustive and is not meant to be: it names the sites found
+so far, by the three kinds they fall into. A task is done when the grep above,
+read site by site, finds none left, not when the names here are crossed off.
