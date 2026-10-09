@@ -1,7 +1,7 @@
 ## number-bigint-partial-cmp. The mixed `Number`/`BigInt` comparison is written twice, mirrored, as `Option<bool>`
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
