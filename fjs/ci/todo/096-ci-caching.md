@@ -52,9 +52,11 @@ Three things let this through:
   this cost knowingly: "a cache miss looks like a cache hit: Nix compiles
   from source in silence". It calls that cost bounded because only the first
   step substitutes. A Node.js compile is bounded only by the job timeout.
-- **Pull requests do not run macOS.** The macOS and Windows jobs run only in
-  the merge queue (`Setup.mergeQueueOnly`). A pin that breaks them passes
-  review and fails only after it has been queued.
+- **Pull requests did not run macOS.** The macOS and Windows jobs ran only
+  in the merge queue (`Setup.mergeQueueOnly`), so a pin that broke them
+  passed review and failed only once queued.
+  [#2705](https://github.com/functionalscript/functionalscript/pull/2705)
+  runs them on pull requests again.
 
 **Our own cache is harder than it looks.** CI runs on `pull_request` and
 `merge_group` only. A GitHub Actions cache entry is readable from the ref
@@ -68,16 +70,17 @@ within the job timeout.
 
 In order. Each step is its own pull request.
 
-1. **Pin a commit the binary cache covers on all four systems.** For the
-   pin that is broken now, move to a commit that Hydra built for Darwin too
-   (the `nixpkgs-26.05-darwin` channel, Node 26.11.1 at the time of
-   writing). Then confirm with a dry run per system that only our own
-   derivations are left to build: the shell, the `rust-overlay` components
-   and the pinned `bun`.
+1. **Pin a commit the binary cache covers on all four systems.** Done in
+   [#2702](https://github.com/functionalscript/functionalscript/pull/2702),
+   which moved back to `b2530993` (Node 26.10.0) after a dry run per system
+   left only our own derivations to build: the shell, the `rust-overlay`
+   components and the pinned `bun`. The procedure for later pins is
+   [#2703](https://github.com/functionalscript/functionalscript/pull/2703).
 2. **Check coverage whenever the pin moves.** `lock-update` is the one
    command that runs on every pin change, and it already runs real Nix. A
-   per-system `nix path-info --store https://cache.nixos.org` over the
-   shell's Nixpkgs packages fails on the miss itself, and needs no text
+   per-system `nix path-info --recursive --store https://cache.nixos.org`
+   over the shell's Nixpkgs packages, which covers their whole closure,
+   fails on the miss itself, and needs no text
    matching. This adds an external command, so it needs approval before it is
    written.
 3. **Make a miss visible in CI.** Drop `--quiet` from each job's first shell
@@ -91,8 +94,8 @@ In order. Each step is its own pull request.
    - **A store cache in GitHub Actions** (for example
      `nix-community/cache-nix-action`). Needs no external service and no
      secret. Needs a run on `main`, on `push` or a `schedule`, to save
-     entries the queue can read. Each Darwin closure is about 2 GiB
-     unpacked, against the repository's cache quota.
+     entries the queue can read. At `b2530993` each Darwin closure was about
+     2 GiB unpacked, against the repository's cache quota.
    - **A hosted binary cache** (for example Cachix, which is free for open
      source). Every ref reads it. Pushing to it needs a secret, which
      `merge_group` runs have and fork pull requests do not. It also covers a
@@ -119,8 +122,8 @@ In order. Each step is its own pull request.
 
 ### Tasks
 
-- [ ] Move the Nixpkgs pin to a commit with Darwin binaries for the whole
-      shell, and confirm the macOS jobs enter the shell in minutes again.
+- [x] Move the Nixpkgs pin to a commit with Darwin binaries for the whole
+      shell ([#2702](https://github.com/functionalscript/functionalscript/pull/2702)).
 - [ ] Propose the `lock-update` coverage check and get it approved.
 - [ ] Drop `--quiet` from the first shell step of each Nix job.
 - [ ] Measure again. Decide whether an own binary cache, filled by a
