@@ -883,7 +883,10 @@ mod test {
                 let other = resolve_file_module(plain, Some(&parent)).unwrap();
                 assert_ne!(literal.id, other.id);
                 assert_eq!(file_url_to_path(&literal.id).unwrap(), literal.path);
-                assert_eq!(resolve_file_module(encoded, Some(&parent)).unwrap(), literal);
+                assert_eq!(
+                    resolve_file_module(encoded, Some(&parent)).unwrap(),
+                    literal
+                );
                 let error = resolve_file_module(name, Some(&parent)).unwrap_err();
                 assert_eq!(error.message, "invalid module specifier");
             }
