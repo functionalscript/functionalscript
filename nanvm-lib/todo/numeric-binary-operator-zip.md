@@ -1,7 +1,7 @@
 ## numeric-binary-operator-zip. One owner for the mixed-operand rule in `Numeric`'s binary operators
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
