@@ -85,9 +85,9 @@ const io = async f => {
  * **Nothing accumulates here, and that is the change.** This used to be
  * `collectBounded`, which read the whole body into an array before the listener
  * was called and gave up at the `Vec` cap, because `IncomingMessage.body` was
- * one `Vec` and there was no larger request value to build. A `List` body means
- * the listener pulls, so the runner's own cost per request is one chunk rather
- * than the body — and there is no cap left to refuse at.
+ * one `Vec` and there was no larger request value to build. An `EffectList`
+ * body means the listener pulls, so the runner's own cost per request is one
+ * chunk rather than the body — and there is no cap left to refuse at.
  *
  * **The position is `let`, and a closure is where it can be.** The offset a
  * pull names is checked against it rather than sought to, because a socket has
@@ -106,15 +106,15 @@ const io = async f => {
  * pull before it, and the second then meets the position the first left.
  *
  * **What the loser gets is the offset refusal, not a refusal of its own.** A
- * cell has one consumer — a `List` gives a consumer no way to tell a producer
- * it has stopped ([`../list/types.ts`](../list/types.ts)) — so the second pull
- * is refused either way, and the only question is in whose words. The virtual
- * runner folds `all` over its state, so it already answers a concurrent re-pull
- * with `requestBodyOffsetMessage`. A busy flag — "a read is in flight",
- * answered at once — would need a second message that only this runner could
- * ever produce, and no proof against the virtual runner could meet it. Queueing
- * costs nothing to wait for, either: the listener is awaiting both pulls, so
- * the refusal arrives with the chunk that caused it.
+ * cell has one consumer — an `EffectList` gives a consumer no way to tell a
+ * producer it has stopped ([`../list/types.ts`](../list/types.ts)) — so the
+ * second pull is refused either way, and the only question is in whose words.
+ * The virtual runner folds `all` over its state, so it already answers a
+ * concurrent re-pull with `requestBodyOffsetMessage`. A busy flag — "a read is
+ * in flight", answered at once — would need a second message that only this
+ * runner could ever produce, and no proof against the virtual runner could meet
+ * it. Queueing costs nothing to wait for, either: the listener is awaiting both
+ * pulls, so the refusal arrives with the chunk that caused it.
  *
  * The queue links on *settlement*, not on success, so a refused pull refuses
  * nothing after it — the refusal belongs to the pull that lost, and the winner's

@@ -2,8 +2,8 @@
  * @import { Vec } from "../../types/bit_vec/types.ts"
  * @import { IoChannel, IoError, IoResult, NodeOp, ReadBytes, CreateExclusive, ReadFile, Rm, Stat, WriteBytes, WriteFile, _ChunkSource, _Gate } from "./types.ts"
  * @import { Result } from "../../types/result/types.ts"
- * @import { List } from "../list/types.ts"
- * @import { List as List_ } from "../../types/list/types.ts"
+ * @import { EffectList } from "../list/types.ts"
+ * @import { List } from "../../types/list/types.ts"
  * @import { Effect, OperationMap } from "../types.ts"
  * @import { MemOperationMap } from "../mock/types.ts"
  */
@@ -56,11 +56,11 @@ const run = e => virtual(emptyState)(e)
  * Pulls a whole stream, answering the byte length of every cell in order — or
  * the channel error that ended it.
  *
- * **Pulling is the point.** A `List` cell is an effect, so a stream that fails
- * on its SECOND cell answers `ok` when only the first is taken: the failure
- * lives in a tail nobody pulled. A leaf that stopped at the first cell would
- * pass whether or not the loop refused, which is how the short-read leaf below
- * first passed against an implementation that was in fact correct.
+ * **Pulling is the point.** An `EffectList` cell is an effect, so a stream that
+ * fails on its SECOND cell answers `ok` when only the first is taken: the
+ * failure lives in a tail nobody pulled. A leaf that stopped at the first cell
+ * would pass whether or not the loop refused, which is how the short-read leaf
+ * below first passed against an implementation that was in fact correct.
  *
  * @type {(source: _ChunkSource<NodeOp>, bound: number | null) => Result<readonly number[], IoChannel>}
  */
@@ -788,7 +788,7 @@ export const proof = {
                     readWholeBytes('file'))
                 assert(t === 'ok', result)
                 assertStructurallySame(
-                    toArray(/** @type {List_<number>} */ (result)),
+                    toArray(/** @type {List<number>} */ (result)),
                     chunks.flatMap(v => toArray(u8ListMsb(v))))
             }
         },
@@ -801,7 +801,7 @@ export const proof = {
             const root = { file: big }
             const [, [t, result]] = virtual({ ...emptyState, root })(readWholeBytes('file'))
             assert(t === 'ok', result)
-            assertEq(toArray(/** @type {List_<number>} */ (result)).length, Number(maxLengthBytes) * 3)
+            assertEq(toArray(/** @type {List<number>} */ (result)).length, Number(maxLengthBytes) * 3)
             // and the bounded read of the same file refuses
             const [, [rt]] = virtual({ ...emptyState, root })(readFile('file'))
             assertEq(rt, 'error')
@@ -826,9 +826,9 @@ export const proof = {
         // Drains a stream into the byte counts of its cells. Every leaf below
         // asks the same question of a different source, so it is asked once.
         //
-        // A `List` is an effect answering `{first, tail}` or `undefined`, so
-        // draining it is an ordinary `ioStep` recursion — the same shape a
-        // consumer writes.
+        // An `EffectList` is an effect answering `{first, tail}` or
+        // `undefined`, so draining it is an ordinary `ioStep` recursion — the
+        // same shape a consumer writes.
         //
         // The counts are what these leaves assert, not merely the cell count:
         // the defect this loop exists to prevent is a chunk of the wrong SIZE,
@@ -902,7 +902,7 @@ export const proof = {
         createExclusiveFails: () => {
             // The destination already exists, so `createExclusive` fails (EEXIST) and
             // the error propagates without ever touching `writeBytes`.
-            /** @type {List<never, Vec, IoChannel>} */
+            /** @type {EffectList<never, Vec, IoChannel>} */
             const chunks = listEmpty()
             const [state, [t, result]] = virtual({
                 ...emptyState,
@@ -913,7 +913,7 @@ export const proof = {
             assert(!(!Array.isArray(file) || uint(file[0]) !== 0x2An), file)
         },
         writesEveryChunk: () => {
-            /** @type {List<never, Vec, IoChannel>} */
+            /** @type {EffectList<never, Vec, IoChannel>} */
             const chunks = listNonEmpty(vec8(0x01n), listNonEmpty(vec8(0x02n), listEmpty()))
             const [state, [t, result]] = virtual(emptyState)(writeFromStream('hello', chunks))
             assert(t === 'ok', result)
@@ -925,7 +925,7 @@ export const proof = {
             // A chunk whose bit length isn't a multiple of 8 is refused by
             // `writeBytes` before any runner is asked, and the file the good
             // chunk before it went into is removed.
-            /** @type {List<never, Vec, IoChannel>} */
+            /** @type {EffectList<never, Vec, IoChannel>} */
             const chunks = listNonEmpty(vec8(0x01n), listNonEmpty(vec(4n)(0b1010n), listEmpty()))
             const [state, [t, result]] = virtual(emptyState)(
                 writeFromStream('hello', chunks)
@@ -937,7 +937,7 @@ export const proof = {
         streamFails: () => {
             // The stream itself fails after one chunk is written: the error is
             // the stream's, and the partial file is gone.
-            /** @type {List<never, Vec, IoChannel>} */
+            /** @type {EffectList<never, Vec, IoChannel>} */
             const chunks = listNonEmpty(vec8(0x01n), pureError(ioError({ message: 'stream failed' })))
             const [state, [t, result]] = virtual(emptyState)(writeFromStream('hello', chunks))
             assert(t === 'error', result)

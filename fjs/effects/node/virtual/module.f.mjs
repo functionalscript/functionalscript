@@ -8,7 +8,7 @@
  * @import { MemoryState } from '../../memory/types.ts'
  * @import { Dirent, FileStat, Handle, Headers, IncomingMessage, IoError, IoResult, Module, NodeOp, NodeProgramOptions, OpResult, RequestBody, RequestListener, SandboxResult, Server, _Gate } from '../types.ts'
  * @import { Effect, IoChannel, Operation } from '../../types.ts'
- * @import { List } from '../../list/types.ts'
+ * @import { EffectList } from '../../list/types.ts'
  * @import { Result } from '../../../types/result/types.ts'
  * @import { Error } from '../../../types/result/types.ts'
  * @import { Nullable } from '../../../types/nullable/types.ts'
@@ -1271,7 +1271,7 @@ const sentBytes = v => bytesIn(length(v) + 7n)
  * body and answered it. A runner that cannot model a body the host delivers cannot
  * be proven against for it.
  *
- * @type {(bound: Nullable<number>) => (state: State, e: List<NodeOp, Vec, IoChannel>, written: number, body: readonly Vec[]) => readonly [State, readonly Vec[], Nullable<IoChannel | Overrun | Underrun>]}
+ * @type {(bound: Nullable<number>) => (state: State, e: EffectList<NodeOp, Vec, IoChannel>, written: number, body: readonly Vec[]) => readonly [State, readonly Vec[], Nullable<IoChannel | Overrun | Underrun>]}
  */
 const pump = bound => (state, e, written, body) => {
     let s = state
@@ -1323,7 +1323,7 @@ const pump = bound => (state, e, written, body) => {
  * line that goes out. A listener's own `204` rewritten to `500` carries its
  * refusal on a `GET`, which is the host's answer too.
  *
- * @type {(gate: _Gate, method: string) => (state: State, status: number, headers: Headers, body: List<NodeOp, Vec, IoChannel>) => readonly [State, RecordedResponse]}
+ * @type {(gate: _Gate, method: string) => (state: State, status: number, headers: Headers, body: EffectList<NodeOp, Vec, IoChannel>) => readonly [State, RecordedResponse]}
  */
 const recordResponse = (gate, method) => (state, status, headers, body) => {
     if (gate[0] === 'noBody') { return [state, { status, headers, body: [], failure: null }] }
