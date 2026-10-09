@@ -9,11 +9,12 @@
 use crate::{
     codec::{
         Malformed, argument, arity, decode_bytes, decode_choice, decode_flag, decode_literal,
-        decode_number, decode_object, decode_optional, decode_string, decode_true, encode_array,
-        encode_bool, encode_bytes, encode_nothing, encode_nullable, encode_number, encode_object,
-        encode_ok, encode_string, encode_tuple, member, optional_argument, required,
+        decode_nullable, decode_number, decode_object, decode_optional, decode_string, decode_true,
+        encode_array, encode_bool, encode_bytes, encode_nothing, encode_nullable, encode_number,
+        encode_object, encode_ok, encode_string, encode_tuple, member, optional_argument, required,
     },
     files::{self, Dirent, IoError},
+    resolve::{FileModule, resolve_file_module},
 };
 use nanvm_lib::vm::{Any, Array, IVm, unstable::string_any};
 use std::io::{self, ErrorKind, Read, Write};
@@ -93,6 +94,13 @@ fn answer<A: IVm, T>(result: Result<T, IoError>, ok: impl FnOnce(T) -> Any<A>) -
     }
 }
 
+fn encode_file_module<A: IVm>(module: FileModule) -> Any<A> {
+    encode_object([
+        Some(("id", encode_string(module.id))),
+        Some(("path", encode_string(module.path))),
+    ])
+}
+
 fn encode_dirent<A: IVm>(dirent: Dirent) -> Any<A> {
     encode_object([
         Some(("name", encode_string(dirent.name))),
@@ -168,6 +176,15 @@ impl<R: Read, O: Write, E: Write> Native<R, O, E> {
                 Ok(answer(
                     files::write_bytes(&path, offset, &data),
                     encode_nothing,
+                ))
+            }
+            "resolveFileModule" => {
+                arity(payload, 2)?;
+                let name = decode_string(argument(payload, 0, "name")?)?;
+                let parent = decode_nullable(argument(payload, 1, "parent")?, decode_string)?;
+                Ok(answer(
+                    resolve_file_module(&name, parent.as_deref()),
+                    |module| encode_file_module(module),
                 ))
             }
             "rm" => {
@@ -523,5 +540,51 @@ mod test {
             .unwrap();
         assert_eq!(code, string_any("ENOENT"));
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// `resolveFileModule` through `perform`: the working directory is where
+    /// a test runs, a crate's own directory.
+    #[cfg(not(target_family = "wasm"))]
+    #[test]
+    fn resolving_a_module_through_perform() {
+        let module = ok(perform(
+            "resolveFileModule",
+            [string_any("Cargo.toml"), Nullish::Null.to_any()],
+        ));
+        let member = |name: &str| {
+            let value = nanvm_lib::vm::Object::try_from(module.clone())
+                .unwrap()
+                .own_property(&name.into())
+                .unwrap();
+            decode_string(value).unwrap()
+        };
+        assert!(member("path").replace('\\', "/").ends_with("/Cargo.toml"));
+        assert_eq!(
+            member("id"),
+            crate::resolve::path_to_file_url(&member("path"))
+        );
+        let sibling = ok(perform(
+            "resolveFileModule",
+            [string_any("./src/lib.rs"), string_any(&member("id"))],
+        ));
+        assert!(
+            decode_string(
+                nanvm_lib::vm::Object::try_from(sibling)
+                    .unwrap()
+                    .own_property(&"path".into())
+                    .unwrap()
+            )
+            .unwrap()
+            .replace('\\', "/")
+            .ends_with("/nanvm-effects-node/src/lib.rs")
+        );
+    }
+
+    #[test]
+    fn a_parent_that_is_not_a_string_throws() {
+        assert_eq!(
+            thrown("resolveFileModule", [string_any("a"), hi()]),
+            "not a string"
+        );
     }
 }
