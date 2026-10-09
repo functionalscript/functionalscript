@@ -1,7 +1,10 @@
-use super::{Array, relative::relative};
+use super::Array;
 use crate::{
     common::sized_index::SizedIndex,
-    vm::{Any, IVm},
+    vm::{
+        Any, IVm,
+        position::{in_range, relative},
+    },
 };
 
 impl<A: IVm> Array<A> {
@@ -19,11 +22,7 @@ impl<A: IVm> Array<A> {
     /// only with an index the range check admitted.
     pub(crate) fn at(&self, index: Any<A>) -> Result<Any<A>, Any<A>> {
         let k = relative(index, self.length())?;
-        Ok(if (0.0..f64::from(self.length())).contains(&k) {
-            self[k as u32].clone()
-        } else {
-            Any::undefined()
-        })
+        Ok(in_range(k, self.length()).map_or_else(Any::undefined, |i| self[i].clone()))
     }
 }
 
