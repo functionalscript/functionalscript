@@ -13,7 +13,7 @@ use crate::{
         encode_array, encode_bool, encode_bytes, encode_nothing, encode_nullable, encode_number,
         encode_object, encode_ok, encode_string, encode_tuple, member, optional_argument, required,
     },
-    files::{self, Dirent, IoError},
+    files::{self, Dirent, IoError, Stat},
     resolve::{FileModule, resolve_file_module},
 };
 use nanvm_lib::vm::{Any, Array, IVm, unstable::string_any};
@@ -98,6 +98,14 @@ fn encode_file_module<A: IVm>(module: FileModule) -> Any<A> {
     encode_object([
         Some(("id", encode_string(module.id))),
         Some(("path", encode_string(module.path))),
+    ])
+}
+
+fn encode_stat<A: IVm>(stat: Stat) -> Any<A> {
+    encode_object([
+        Some(("size", encode_number(stat.size as f64))),
+        Some(("isFile", encode_bool(stat.is_file))),
+        Some(("isDirectory", encode_bool(stat.is_directory))),
     ])
 }
 
@@ -193,6 +201,27 @@ impl<R: Read, O: Write, E: Write> Native<R, O, E> {
                     resolve_file_module(&name, parent.as_deref()),
                     |module| encode_file_module(module),
                 ))
+            }
+            "stat" => {
+                arity(payload, 1)?;
+                let path = decode_string(argument(payload, 0, "path")?)?;
+                Ok(answer(files::stat(&path), encode_stat))
+            }
+            "access" => {
+                arity(payload, 1)?;
+                let path = decode_string(argument(payload, 0, "path")?)?;
+                Ok(answer(files::access(&path), encode_nothing))
+            }
+            "rename" => {
+                arity(payload, 2)?;
+                let src = decode_string(argument(payload, 0, "src")?)?;
+                let dst = decode_string(argument(payload, 1, "dst")?)?;
+                Ok(answer(files::rename(&src, &dst), encode_nothing))
+            }
+            "rmdir" => {
+                arity(payload, 1)?;
+                let path = decode_string(argument(payload, 0, "path")?)?;
+                Ok(answer(files::rmdir(&path), encode_nothing))
             }
             "rm" => {
                 arity(payload, 1)?;
@@ -551,6 +580,53 @@ mod test {
             .own_property(&"code".into())
             .unwrap();
         assert_eq!(code, string_any("ENOENT"));
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// `stat`, `access`, `rename` and `rmdir` through `perform`.
+    #[cfg(not(target_family = "wasm"))]
+    #[test]
+    fn metadata_through_perform() {
+        let dir = std::env::temp_dir().join(format!(
+            "nanvm-effects-node-metadata-{}",
+            std::process::id()
+        ));
+        let at = |name: &str| string_any(&dir.join(name).to_string_lossy());
+        std::fs::create_dir_all(&dir).unwrap();
+        let undefined = || Nullish::Undefined.to_any();
+        let member = |value: V, name: &str| {
+            nanvm_lib::vm::Object::try_from(value)
+                .unwrap()
+                .own_property(&name.into())
+                .unwrap()
+        };
+
+        ok(perform("writeFile", [at("a"), hi()]));
+        let stat = ok(perform("stat", [at("a")]));
+        assert_eq!(member(stat.clone(), "size"), Number::from(2.0).to_any());
+        assert_eq!(member(stat.clone(), "isFile"), true.to_any());
+        assert_eq!(member(stat, "isDirectory"), false.to_any());
+        assert_eq!(ok(perform("access", [at("a")])), undefined());
+        assert_eq!(ok(perform("rename", [at("a"), at("b")])), undefined());
+        assert_eq!(ok(perform("rm", [at("b")])), undefined());
+        assert_eq!(ok(perform("mkdir", [at("d"), undefined()])), undefined());
+        assert_eq!(ok(perform("rmdir", [at("d")])), undefined());
+
+        let missing = perform("stat", [at("d")]).unwrap();
+        let [tag, error]: [V; 2] = Array::try_from(missing)
+            .unwrap()
+            .into_iter()
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap();
+        assert_eq!(tag, string_any("error"));
+        let [_, info]: [V; 2] = Array::try_from(error)
+            .unwrap()
+            .into_iter()
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap();
+        assert_eq!(member(info, "code"), string_any("ENOENT"));
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
