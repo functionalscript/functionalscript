@@ -1,16 +1,13 @@
 use core::cmp::Ordering;
 
 use crate::vm::{
-    Any, BigInt, IVm, ToAny, Unpacked,
-    ecma_whitespace::is_ecma_whitespace,
-    numeric::Numeric,
-    primitive::Primitive,
-    primitive_coercion::{FUNCTION_TEXT, ToPrimitivePreferredType},
+    Any, BigInt, IVm, ToAny, Unpacked, ecma_whitespace::is_ecma_whitespace, error,
+    numeric::Numeric, primitive::Primitive, primitive_coercion::ToPrimitivePreferredType,
 };
 
 impl<A: IVm> Any<A> {
     /// `<`. Throws where `ToPrimitive` does, and where the text of a function
-    /// without text would be compared (`FUNCTION_TEXT`).
+    /// without text would be compared (`error::function_text`).
     pub fn lt(self, rhs: Self) -> Result<Self, Self> {
         Ok(matches!(compare(self, rhs)?, Some(Ordering::Less)).to_any())
     }
@@ -49,7 +46,7 @@ fn compare<A: IVm>(x: Any<A>, y: Any<A>) -> Result<Option<Ordering>, Any<A>> {
     match (px, to_primitive_or_text(y)?) {
         // A function's text against a string compares the texts.
         (None, None) | (None, Some(Primitive::String(_))) | (Some(Primitive::String(_)), None) => {
-            Err(FUNCTION_TEXT.into())
+            Err(error::function_text())
         }
         // Against anything else, the text is numeric: `NaN` for a number
         // and no `StringToBigInt` for a bigint, so `undefined` either way.
@@ -59,7 +56,7 @@ fn compare<A: IVm>(x: Any<A>, y: Any<A>) -> Result<Option<Ordering>, Any<A>> {
 }
 
 /// `ToPrimitive(v, number)`, where `None` is the text of a function that has
-/// none (`FUNCTION_TEXT`). A function's text is a string that neither
+/// none (`error::function_text`). A function's text is a string that neither
 /// `StringToNumber` nor `StringToBigInt` accepts, so `compare` answers a
 /// function without text against a number or a bigint, and refuses it only
 /// against a string.

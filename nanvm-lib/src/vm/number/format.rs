@@ -10,16 +10,9 @@
 
 use super::Number;
 use crate::vm::{
-    Any, BigInt, IVm, String,
+    Any, BigInt, IVm, String, error,
     string_coercion::{mantissa_exp2, number_to_string, shortest_digits},
 };
-
-/// The `RangeError` for a digit count or radix out of its range.
-fn out_of_range<A: IVm>(name: &str, low: u32, high: u32) -> Any<A> {
-    format!("RangeError: {name}() argument must be between {low} and {high}")
-        .as_str()
-        .into()
-}
 
 fn big<A: IVm>(v: u64) -> BigInt<A> {
     BigInt::from(v)
@@ -108,7 +101,7 @@ impl Number {
     /// `-1e-7` is `"-0.00"`.
     pub(crate) fn to_fixed<A: IVm>(self, f: f64) -> Result<String<A>, Any<A>> {
         if !(0.0..=100.0).contains(&f) {
-            return Err(out_of_range("toFixed", 0, 100));
+            return Err(error::argument_out_of_range("toFixed", 0, 100));
         }
         let x = f64::from(self);
         if !x.is_finite() || x.abs() >= 1e21 {
@@ -142,7 +135,7 @@ impl Number {
             return Ok(number_to_string(self));
         }
         if f.is_some_and(|f| !(0.0..=100.0).contains(&f)) {
-            return Err(out_of_range("toExponential", 0, 100));
+            return Err(error::argument_out_of_range("toExponential", 0, 100));
         }
         let sign = if x < 0.0 { "-" } else { "" };
         let x = x.abs();
@@ -173,7 +166,7 @@ impl Number {
             return Ok(number_to_string(self));
         }
         if !(1.0..=100.0).contains(&p) {
-            return Err(out_of_range("toPrecision", 1, 100));
+            return Err(error::argument_out_of_range("toPrecision", 1, 100));
         }
         let p = p as u32;
         let sign = if x < 0.0 { "-" } else { "" };
@@ -211,9 +204,7 @@ impl Number {
             return Ok("0".into());
         }
         if x.fract() != 0.0 {
-            return Err(
-                "RangeError: a fraction's digits in a radix other than 10 are not supported".into(),
-            );
+            return Err(error::fraction_radix());
         }
         let (mantissa, exp2) = mantissa_exp2(x.abs());
         let magnitude = if exp2 >= 0 {
