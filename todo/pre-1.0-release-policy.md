@@ -27,6 +27,11 @@ consistent versioning policy.
       has advanced, with matching npm trusted-publisher configuration. Update
       the publishing workflow generator and release procedure so an urgent
       fix can publish without including later development changes from `main`.
+      Select npm distribution tags explicitly: regular releases and urgent
+      fixes on the newest released line use `latest`. Publish fixes for older
+      lines with a maintenance tag (for example, `release-0.X`) and leave
+      `latest` unchanged, so `npm install functionalscript` continues to install
+      the newest release line. Verify this behavior in the publishing checks.
       Reconcile every open publishing TODO that assumes versions publish only
       from `main`, including
       [publishing packages](../fjs/ci/todo/publishing-packages.md), with this
