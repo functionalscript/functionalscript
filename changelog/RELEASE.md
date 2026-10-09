@@ -132,9 +132,11 @@ pull request number. Three cautions, each of which has cost a release note:
   step 4 depends on reading in the order things happened: without it a
   superseded state is read as the release's final effect.
 - **A line with no `(#NNN)` gives you no pull request to open.** It still
-  shipped, and the line names nothing to read, so **read its diff and declare
-  for it**. A break you find there enters step 5's set exactly as an author's
-  would. Two things produce such a line, and they differ in what exists behind
+  shipped, and the line names nothing to read, so **read its diff and collect
+  its notable changes for the release notes**. Group them by net effect in
+  step 4, like changes from pull requests. Before 1.0, a formal breaking notice
+  is optional and does not select the version bump. Two things produce such a
+  line, and they differ in what exists behind
   it: a direct push never had a pull request, so no reviewed description exists
   anywhere; a rebase merge had one whose description the line does not name — if
   you can find it, read it, but the diff is what you are guaranteed. Until the
@@ -240,8 +242,7 @@ listing was deleted on `main`, and that needs reading rather than obeying:
 **deleting the note is not retracting the change.** The likeliest reason for a
 legacy entry file to disappear is housekeeping — the new policy adds no such
 files, so someone tidied one away — and the API change it described still
-shipped. Dropping its note would hide that change from readers; from 1.0
-onward it could also select the wrong version bump.
+shipped. Dropping its note would hide that change from readers.
 
 So content that disappears removes **raw notes only** — a whole path gone from
 the listing, or the declaration alone gone from a path that is still there. The
