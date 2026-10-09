@@ -92,7 +92,7 @@ export const deno = '2.8.3'
 // versions it offers rather than the latest release.
 // https://nodejs.org/en/download
 export const node = /** @type {const} */({
-    default: '26.11.0',
+    default: '26.10.0',
     node22: '22.23.3',
     node24: '24.21.0',
 })
@@ -159,7 +159,7 @@ export const nixpkgs = /** @type {const} */({
     owner: 'NixOS',
     repo: 'nixpkgs',
     ref: 'nixos-26.05',
-    commit: '7c8764b7c7b09b34f632464276218ef9090eaa11',
+    commit: 'b25309931cfda5f0b8805f462a29897eeae50168',
 })
 
 // Wasmtime and Wasmer are installed by their own setup actions, so these are

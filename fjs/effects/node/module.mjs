@@ -37,7 +37,7 @@ import * as testContext from 'node:test'
 
 import { concat, normalize, toPosix } from '../../path/module.f.mjs'
 import { decode as decodeImportPath } from '../../path/import/module.f.mjs'
-import { asyncRun } from '../module.mjs'
+import { _describeThrown, asyncRun } from '../module.mjs'
 import { memoryOperationMap } from './memory/module.mjs'
 import { commonOperationMap } from '../common/module.mjs'
 import {
@@ -75,7 +75,7 @@ const createServer = http.createServer
  */
 const io = async f => {
     const r = await asyncTryCatch(f)
-    return r[0] === 'ok' ? r : error(toIoError(r[1]))
+    return r[0] === 'ok' ? r : error(_describeThrown(r[1]))
 }
 
 /**

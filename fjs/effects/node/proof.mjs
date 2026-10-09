@@ -42,11 +42,12 @@ import { write as writeEnvelope } from '../../git/object/module.f.mjs'
 import { tagLoose, tagPayload } from '../../git/testlib.f.mjs'
 import {
     awaitIfPromise, both, catch_, childWait, close, createServer, doubledLengthMessage, errorMessage,
-    framingHeaderMessage, fstat,
+    framingHeaderMessage, fstat, import_,
     inflate, inflateTrailingCode, listen, open, pread, readWhole, rename, requestBodyOffsetMessage,
     resolveFileModule, maxOffset, readBytes, rmdir, spawn, unframedBodyMessage, writeExclusive,
     writeFile as writeFileEffect,
 } from './module.f.mjs'
+import { _unreadableThrownValue } from '../module.mjs'
 import { readFlags, runEffect } from './module.mjs'
 
 /** @type {(program: NodeProgram) => Promise<number>} */
@@ -756,6 +757,37 @@ export const proof = {
             const fits = () => resultMapStep(inflate(toVec(deflated(new Uint8Array(most)))), r => r[0] === 'ok' ? ok(0) : error(1))
             assertEq(await exitCode(fits), 0)
         },
+    },
+    // A module the `import` operation evaluates can throw anything, and
+    // reading what it threw runs the value's own code. Whatever it is, the
+    // operation answers an `IoError` with a string message rather than
+    // rejecting.
+    import: {
+        thrown: () => withTemporary('fjs-import-thrown-', async root => {
+            /** @type {readonly (readonly [string, string, string | undefined])[]} */
+            const cases = [
+                ['throw new Error("plain")', 'plain', undefined],
+                ['throw { toString() { throw 1 } }', _unreadableThrownValue, undefined],
+                ['throw { get code() { throw 1 } }', _unreadableThrownValue, undefined],
+                ['throw { get message() { throw 1 } }', _unreadableThrownValue, undefined],
+                // A string on the first read, an object on any later one: each
+                // field is read once, so the string is what is kept.
+                ['let n = 0; throw { get message() { return n++ === 0 ? "a" : {} } }', 'a', undefined],
+                ['let n = 0; throw { message: "m", get code() { return n++ === 0 ? "EIO" : {} } }', 'm', 'EIO'],
+                // The message is settled before `code` is read.
+                ['let s = "before"; throw { message: 1, toString: () => s, get code() { s = "after"; return "EIO" } }', 'before', 'EIO'],
+            ]
+            for (const [i, [source, message, code]] of cases.entries()) {
+                const path = join(root, `thrown${i}.mjs`)
+                await writeFile(path, source)
+                await hostCheck(import_(pathToFileURL(path).href), result => {
+                    assert(result[0] === 'error')
+                    assert(result[1][0] === 'ioError')
+                    assertEq(result[1][1].message, message)
+                    assertEq(result[1][1].code, code)
+                })
+            }
+        }),
     },
     // The operation exists for one property the host holds and no runner here
     // models: the file is created by *this* call or not at all. `O_EXCL` is the
