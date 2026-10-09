@@ -13,8 +13,10 @@ consistent versioning policy.
 
 - [ ] Before 1.0, drop mandatory `BREAKING CHANGES` notices, since most changes
       are breaking.
-      Reconcile the requirement in contributor and release documentation and
-      every open TODO that mandates the declaration, including
+      Reconcile the requirement in contributor, release, and module
+      documentation, including [fjs/AGENTS.md](../fjs/AGENTS.md) and
+      [fjs/compiler/README.md](../fjs/compiler/README.md), and every open TODO
+      that mandates the declaration, including
       [commit-message enforcement](./commit-message-enforcement.md).
 - [ ] Until 1.0, publish regular releases as `0.X.0`.
 - [ ] Publish urgent fixes as `0.X.1`, based on the corresponding `0.X.0` commit.
@@ -25,6 +27,10 @@ consistent versioning policy.
       has advanced, with matching npm trusted-publisher configuration. Update
       the publishing workflow generator and release procedure so an urgent
       fix can publish without including later development changes from `main`.
+      Carry every release-line fix into `main` before the next regular release,
+      adapting it if needed for the current code so upgrading to that release
+      preserves the fix. If `main` already contains the fix, record that in the
+      urgent-fix PR.
 
 ### After 1.0
 
