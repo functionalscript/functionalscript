@@ -154,8 +154,10 @@ export const jobTimeout = /** @type {const} */ (15)
 // for Darwin, so a channel commit can leave the macOS jobs compiling Node.js
 // from source until they time out — `7c8764b7` did. Check every system of
 // every `gen.nix` flake, `node22` and `node24` included, with
-// `nix build --dry-run <flake>#devShells.<system>.default`: only the
-// overlay's Rust, the pinned Bun and the shell itself may be left to build.
+// `nix build --dry-run --store <empty directory> <flake>#devShells.<system>.default`
+// (an empty store, since a path the local store already holds is never
+// listed): only the overlay's Rust, the pinned Bun and the shell itself may be
+// left to build.
 //
 // `commit` is the only fact `flake.nix` needs: `inputs.nixpkgs.url` names it
 // exactly, so the two other things a `flake.lock` records about a revision —
