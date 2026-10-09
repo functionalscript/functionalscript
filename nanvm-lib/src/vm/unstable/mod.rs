@@ -375,6 +375,23 @@ mod test {
         assert_eq!(spread_array(spreads).err(), Some(error::array_too_long()));
     }
 
+    /// `reserve` is the one place a refused reservation becomes the
+    /// `RangeError`, and `usize::MAX` elements overflow the capacity of every
+    /// `Vec` on every platform, so this holds where `spread_array_unbacked`
+    /// skips itself. It does not show that `spread_array` calls it: that
+    /// takes an allocator that refuses a real request.
+    #[test]
+    fn reserve_refuses_what_no_vec_can_hold() {
+        let mut values: Vec<Any<Naive>> = Vec::new();
+        assert_eq!(
+            reserve(&mut values, usize::MAX),
+            Err(error::array_too_long())
+        );
+        assert!(values.is_empty());
+        assert_eq!(reserve(&mut values, 3), Ok(()));
+        assert!(values.capacity() >= 3);
+    }
+
     /// The callee receives the spread values as its arguments, and a spread
     /// that throws throws before the call, a callee that is not a function
     /// included.
