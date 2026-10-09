@@ -33,16 +33,15 @@
  * A string is folded rule by rule: an `escape` to the character it
  * spells, a `character` to its text, and the `string` to the text of its
  * characters, so the three mappings are one unit, {@link stringMappings},
- * that a grammar built over JSON's rules folds the same way. {@link lexeme}
- * is the text under a node, and {@link syntaxError} names where a parse
- * failed. `../../datajs/parser` is the reader built over them.
+ * that a grammar built over JSON's rules folds the same way, and
+ * {@link syntaxError} names where a parse failed. `../../datajs/parser` is
+ * the reader built over them.
  *
  * @module
  *
  * @import { Result } from '../../../types/result/types.ts'
  * @import { Ast, Children, Meta } from '../../../ebnf/ast/types.ts'
  * @import { Mapping, Mappings, RewriteSet } from '../../../ebnf/ll1/types.ts'
- * @import { Rule } from '../../../ebnf/types.ts'
  * @import { Utf16 } from '../../../ebnf/utf16/types.ts'
  * @import { hex } from '../../../ebnf/lib/json/module.f.mjs'
  * @import { Entry, JsonValue } from '../../../ebnf/lib/json/types.ts'
@@ -52,12 +51,11 @@
 import { assert, assertNotNullish } from '../../../asserts/module.f.mjs'
 import { hexDigitValue } from '../../../text/ascii/module.f.mjs'
 import { escapeToCodePoint } from '../../../js/string_escape/module.f.mjs'
-import { listToString } from '../../../text/utf16/module.f.mjs'
 import { error, mapOk, ok, okList } from '../../../types/result/module.f.mjs'
 import { eof } from '../../../ebnf/module.f.mjs'
 import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.mjs'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
-import { units } from '../../../ebnf/utf16/module.f.mjs'
+import { lexeme, unitAt, units } from '../../../ebnf/utf16/module.f.mjs'
 import { character, escape, items, json, number, string, value } from '../../../ebnf/lib/json/module.f.mjs'
 
 const { fromCharCode } = String
@@ -68,13 +66,6 @@ const text = value => ({ symbol: 0, meta: { id: 'text', value } })
 
 /** @type {<P>(result: Result<ParseUnknown<P>, string>) => Meta<Json<P>>} */
 const jsonSymbol = result => ({ symbol: 0, meta: { id: 'json', result } })
-
-/** @type {(node: Meta<Utf16 | { readonly id: string }> | readonly unknown[]) => number} */
-const unitAt = node => {
-    const { symbol, meta } = symbolAt(node)
-    assert(meta.id === 'utf16')
-    return symbol
-}
 
 /** @type {(node: Meta<Utf16 | Out<unknown>> | readonly unknown[]) => string} */
 const textAt = node => {
@@ -152,28 +143,10 @@ const stringMapping = textMapping(string, ([, characters]) => text(unmapped(char
 export const stringMappings = [escapeMapping, characterMapping, stringMapping]
 
 /**
- * The input symbols under a node, in order. A variant's tag is not a symbol
- * and is passed over.
- *
- * @type {(node: Ast<Rule, Utf16, { readonly id: string }> | string) => readonly number[]}
- */
-const unitsUnder = node =>
-    typeof node === 'string' ? [] :
-    node instanceof Array ? node.flatMap(unitsUnder) :
-    [unitAt(node)]
-
-/**
- * The text under a node: its input symbols, in order, as the string they
- * spell — the lexeme of a rule nothing under it maps, which is how a
- * number's reaches its policy whole.
- *
- * @type {(node: Ast<Rule, Utf16, { readonly id: string }>) => string}
- */
-export const lexeme = node => listToString(unitsUnder(node))
-
-/**
- * A number is what the policy makes of its lexeme: a leaf of the policy's
- * domain, or the policy's error where the domain cannot hold it.
+ * A number is what the policy makes of its lexeme — the text under its
+ * node, which nothing under it maps, so it reaches the policy whole: a leaf
+ * of the policy's domain, or the policy's error where the domain cannot
+ * hold it.
  *
  * @type {<P>(policy: NumberPolicy<P>) => (node: Children<typeof number, Utf16, Out<P>>) => Result<ParseUnknown<P>, string>}
  */
