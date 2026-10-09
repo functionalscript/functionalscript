@@ -11,23 +11,12 @@ import {
     fullStop, hexDigitValue, hyphenMinus, isDigit, isLatinCapitalLetter, isLatinSmallLetter, lowLine,
     solidus, tilde,
 } from '../ascii/module.f.mjs'
-import { isValidCodePoint } from '../code_point/module.f.mjs'
-import { fromCodePointList, toCodePointList } from '../utf8/module.f.mjs'
-import { codePointListToString, stringToCodePointList } from '../utf16/module.f.mjs'
+import { fromU8List, stringToU8List } from '../utf8/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { unwrap } from '../../types/nullable/module.f.mjs'
 
 /** @type {(s: string) => readonly number[]} */
-const utf8Bytes = s => toArray(fromCodePointList(stringToCodePointList(s)))
-
-/** @type {(bytes: readonly number[]) => Nullable<string>} */
-const utf8String = bytes => {
-    const codePoints = toArray(toCodePointList(bytes))
-    for (const c of codePoints) {
-        if (!isValidCodePoint(c)) { return null }
-    }
-    return codePointListToString(codePoints)
-}
+const utf8Bytes = s => toArray(stringToU8List(s))
 
 /**
  * The byte the two hexadecimal digits beginning a part split on `%` denote,
@@ -61,7 +50,7 @@ const escapeBytes = part => [unwrap(escapeByte(part)), ...utf8Bytes(part.slice(2
 export const percentDecode = s => {
     const [literal, ...escaped] = s.split('%')
     if (!escaped.every(isEscape)) { return null }
-    return utf8String([...utf8Bytes(literal), ...escaped.flatMap(escapeBytes)])
+    return fromU8List([...utf8Bytes(literal), ...escaped.flatMap(escapeBytes)])
 }
 
 /** The bytes besides letters and digits that stand for themselves in a URL
