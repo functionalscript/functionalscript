@@ -436,16 +436,6 @@ const writeExclusiveOp = /** @type {Func<WriteExclusive>} */ (do_('writeExclusiv
 export const writeExclusive = (path, data) =>
     data.every(isWholeBytes) ? writeExclusiveOp(path, data) : invalidBufferSize
 
-/**
- * Creates `path` and writes `content` to it as UTF-8 bytes, through one open,
- * failing with `EEXIST` where the name is taken. The text form of
- * {@link writeExclusive}, as {@link writeUtf8File} is of {@link writeFile}.
- *
- * @type {(path: string, content: string) => Effect<WriteExclusive, void, IoChannel>}
- */
-export const writeExclusiveUtf8File = (path, content) =>
-    writeExclusive(path, [utf8(content)])
-
 // writeBytes
 
 const writeBytesOp = /** @type {Func<WriteBytes>} */ (do_('writeBytes'))
