@@ -81,8 +81,8 @@ takes them from `fjs/text/utf16` — input decoding, not what
 
 ### Related
 
-- [`fjs/types/btree/todo/proof-tree-corpus.md`](../../types/btree/todo/proof-tree-corpus.md)
-  — the same "shared harness and fixtures belong in a `testlib.f.mjs`" move
+- [`fjs/types/btree/testlib.f.mjs`](../../types/btree/testlib.f.mjs) — the
+  same "shared harness and fixtures belong in a `testlib.f.mjs`" move, done
   for another module's proofs.
 - [65Y-proof-assertEq-adoption](../../emergent_testing/todo/65y-proof-asserteq-adoption.md)
   — orthogonal assertion cleanup.
