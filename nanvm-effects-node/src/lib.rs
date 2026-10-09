@@ -13,9 +13,13 @@
 //! `nanvm-effects-node` depends on `nanvm-lib`, never the reverse.
 
 mod codec;
+mod files;
 mod native;
+mod resolve;
 
+pub use files::{Dirent, IoError, MAX_FILE_SIZE_BYTES, normalize};
 pub use native::Native;
+pub use resolve::{FileModule, resolve_file_module};
 
 use nanvm_lib::vm::{Any, IVm, ToAny, ToArray};
 

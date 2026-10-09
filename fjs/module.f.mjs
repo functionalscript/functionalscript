@@ -12,7 +12,7 @@ import { main as testMain } from './emergent_testing/module.f.mjs'
 import { commands as casCommands } from './cas/cli/module.f.mjs'
 import { main as ciMain } from './ci/module.f.mjs'
 import { errorExit, errorMessage, exitStep, import_ } from './effects/node/module.f.mjs'
-import { dispatch } from './cli/module.f.mjs'
+import { dispatch, isMain } from './cli/module.f.mjs'
 import { casMcpServer } from './mcp/module.f.mjs'
 import { main as webMain } from './web/module.f.mjs'
 import { resultStep } from './effects/module.f.mjs'
@@ -61,7 +61,7 @@ const commands = [
     },
     {
         names: ['run', 'r'],
-        description: 'Run a FunctionalScript module as a NodeProgram',
+        description: 'Run the `main` program or command table a FunctionalScript module exports',
         // Both ways this can fail are the command line, not a defect: the
         // named file may not import, and a module that does import may export
         // no `main`. Neither deserves a stack trace, so both are reported on
@@ -76,10 +76,10 @@ const commands = [
                         return errorExit(`${file}: ${errorMessage(r[1])}`)
                     }
                     const { main } = r[1]
-                    if (typeof main !== 'function') {
-                        return errorExit(`${file}: not a NodeProgram — no exported \`main\` function`)
+                    if (!isMain(main)) {
+                        return errorExit(`${file}: not a program — no exported \`main\` function or command table`)
                     }
-                    return /** @type {NodeProgram} */ (main)({ ...options, args })
+                    return dispatch(main)({ ...options, args })
                 })
         },
     },

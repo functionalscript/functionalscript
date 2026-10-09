@@ -10,16 +10,9 @@
 
 use super::Number;
 use crate::vm::{
-    Any, BigInt, IVm, String,
+    Any, BigInt, IVm, String, error,
     string_coercion::{mantissa_exp2, number_to_string, shortest_digits},
 };
-
-/// The `RangeError` for a digit count or radix out of its range.
-fn out_of_range<A: IVm>(name: &str, low: u32, high: u32) -> Any<A> {
-    format!("RangeError: {name}() argument must be between {low} and {high}")
-        .as_str()
-        .into()
-}
 
 fn big<A: IVm>(v: u64) -> BigInt<A> {
     BigInt::from(v)
@@ -32,7 +25,7 @@ fn pow2<A: IVm>(e: u32) -> BigInt<A> {
 fn pow10<A: IVm>(e: u32) -> BigInt<A> {
     big::<A>(10)
         .pow(big(u64::from(e)))
-        .expect("a non-negative exponent")
+        .expect("a non-negative exponent, and a power of ten of a few hundred digits is far under BigInt's size limit")
 }
 
 /// `n`, the integer closest to `x × 10^s` for a finite `x ≥ 0`, the larger on
@@ -51,10 +44,14 @@ fn scaled<A: IVm>(x: f64, s: i64) -> BigInt<A> {
     } else {
         (big(1), pow10::<A>(s.unsigned_abs() as u32))
     };
-    let num = big::<A>(mantissa) * num2 * num10;
-    let den = den2 * den10;
+    let num = big::<A>(mantissa).mul_bounded(num2).mul_bounded(num10);
+    let den = den2.mul_bounded(den10);
     let (q, r) = num.div_mod(den.clone()).expect("a power is not zero");
-    if r * big(2) >= den { q + big(1) } else { q }
+    if r.mul_bounded(big(2)) >= den {
+        q + big(1)
+    } else {
+        q
+    }
 }
 
 /// `e` and the `digits`-digit `n` with `n × 10^(e − digits + 1)` closest to
@@ -108,7 +105,7 @@ impl Number {
     /// `-1e-7` is `"-0.00"`.
     pub(crate) fn to_fixed<A: IVm>(self, f: f64) -> Result<String<A>, Any<A>> {
         if !(0.0..=100.0).contains(&f) {
-            return Err(out_of_range("toFixed", 0, 100));
+            return Err(error::argument_out_of_range("toFixed", 0, 100));
         }
         let x = f64::from(self);
         if !x.is_finite() || x.abs() >= 1e21 {
@@ -142,7 +139,7 @@ impl Number {
             return Ok(number_to_string(self));
         }
         if f.is_some_and(|f| !(0.0..=100.0).contains(&f)) {
-            return Err(out_of_range("toExponential", 0, 100));
+            return Err(error::argument_out_of_range("toExponential", 0, 100));
         }
         let sign = if x < 0.0 { "-" } else { "" };
         let x = x.abs();
@@ -173,7 +170,7 @@ impl Number {
             return Ok(number_to_string(self));
         }
         if !(1.0..=100.0).contains(&p) {
-            return Err(out_of_range("toPrecision", 1, 100));
+            return Err(error::argument_out_of_range("toPrecision", 1, 100));
         }
         let p = p as u32;
         let sign = if x < 0.0 { "-" } else { "" };
@@ -211,13 +208,11 @@ impl Number {
             return Ok("0".into());
         }
         if x.fract() != 0.0 {
-            return Err(
-                "RangeError: a fraction's digits in a radix other than 10 are not supported".into(),
-            );
+            return Err(error::fraction_radix());
         }
         let (mantissa, exp2) = mantissa_exp2(x.abs());
         let magnitude = if exp2 >= 0 {
-            big::<A>(mantissa) * pow2(exp2 as u32)
+            big::<A>(mantissa).mul_bounded(pow2(exp2 as u32))
         } else {
             big::<A>(mantissa >> exp2.unsigned_abs())
         };

@@ -37,6 +37,8 @@ import { assertNotNullish } from '../../../asserts/module.f.mjs'
 
 const jsonStringify = JSON.stringify
 
+const { is } = Object
+
 const { fromCharCode } = String
 
 /** @type {(value: number) => string} */
@@ -85,10 +87,21 @@ export const stringSerialize
 /**
  * Serializes a number as a JSON number literal.
  *
+ * A finite number is spelled as ECMAScript `ToString` spells it, except that
+ * `-0` is written `-0`: it is valid JSON, the parser reads it back as `-0`,
+ * and `JSON.stringify` alone would write `0` — a different value read back
+ * without a word. This is a deliberate difference from native
+ * `JSON.stringify`. `NaN` and the infinities have no JSON spelling and are
+ * written `null`, as `JSON.stringify` writes them.
+ *
+ * Exported as the one owner of the finite-number spelling: DataJS's
+ * `_numberSerialize` writes a finite number through it and adds only its own
+ * words for the non-finite ones.
+ *
  * @type {(_: number) => List<Chunk>}
  */
 export const numberSerialize
-    = input => [[jsonStringify(input), 'number']]
+    = input => isFinite(input) ? [[is(input, -0) ? '-0' : jsonStringify(input), 'number']] : nullSerialize
 
 /**
  * Shared serialized representation for `null`.

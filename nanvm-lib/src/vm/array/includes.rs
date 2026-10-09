@@ -1,10 +1,10 @@
-use super::{
-    Array,
-    relative::{clamped, relative},
-};
+use super::Array;
 use crate::{
     common::sized_index::SizedIndex,
-    vm::{Any, IVm},
+    vm::{
+        Any, IVm,
+        position::{clamped, relative},
+    },
 };
 
 impl<A: IVm> Array<A> {
@@ -29,7 +29,7 @@ mod tests {
     use super::Array;
     use crate::{
         naive::Naive,
-        vm::{Any, Nullish, ToAny, ToArray, unstable::bigint_any},
+        vm::{Any, ToAny, ToArray, unstable::bigint_any},
     };
 
     type A = Naive;
@@ -37,16 +37,15 @@ mod tests {
     fn array() -> Array<A> {
         [1.0.to_any(), f64::NAN.to_any(), 3.0.to_any()].to_array()
     }
-    fn undefined() -> Any<A> {
-        Nullish::Undefined.to_any()
-    }
-
     #[test]
     fn finds_by_same_value_zero() {
-        assert_eq!(array().includes(&3.0.to_any(), undefined()), Ok(true));
-        assert_eq!(array().includes(&f64::NAN.to_any(), undefined()), Ok(true));
-        assert_eq!(array().includes(&2.0.to_any(), undefined()), Ok(false));
-        assert_eq!(array().includes(&"1".into(), undefined()), Ok(false));
+        assert_eq!(array().includes(&3.0.to_any(), Any::undefined()), Ok(true));
+        assert_eq!(
+            array().includes(&f64::NAN.to_any(), Any::undefined()),
+            Ok(true)
+        );
+        assert_eq!(array().includes(&2.0.to_any(), Any::undefined()), Ok(false));
+        assert_eq!(array().includes(&"1".into(), Any::undefined()), Ok(false));
     }
 
     #[test]

@@ -30,7 +30,7 @@
 //! receiver is consumed by the built-in and handed to nothing. Which
 //! built-ins the table answers is `nanvm-lib/todo/member-functions.md`.
 
-use crate::vm::{Any, IVm, Nullish, ToAny, Unpacked};
+use crate::vm::{Any, IVm};
 
 pub(crate) mod member;
 mod method;
@@ -63,11 +63,8 @@ impl<A: IVm> Live<A> for Any<A> {
     fn value(self) -> Any<A> {
         self
     }
-    /// Matches on `Unpacked` rather than `Nullish::try_from`, as
-    /// `nullish_coalescing` does, so the common non-nullish case allocates
-    /// no error value.
     fn is_nullish(&self) -> bool {
-        matches!(Unpacked::from(self.clone()), Unpacked::Nullish(_))
+        Any::is_nullish(self)
     }
     fn call(self, args: Any<A>) -> Result<Any<A>, Any<A>> {
         Any::call(self, args)
@@ -110,7 +107,7 @@ impl<A: IVm, T: Live<A>> Region<A, T> {
     fn end(self) -> Result<Any<A>, Any<A>> {
         match self {
             Region::Live(v) => Ok(v.value()),
-            Region::Skipped => Ok(Nullish::Undefined.to_any()),
+            Region::Skipped => Ok(Any::undefined()),
             Region::Thrown(e) => Err(e),
         }
     }
@@ -241,7 +238,7 @@ impl<A: IVm> OptionPropertyLambda<A> {
     pub fn end_call(self, args: impl FnOnce() -> Result<Any<A>, Any<A>>) -> Result<Any<A>, Any<A>> {
         match self.0 {
             Region::Live(m) => args().and_then(|a| m.call(a)),
-            Region::Skipped => args().and_then(|a| Nullish::Undefined.to_any().call(a)),
+            Region::Skipped => args().and_then(|a| Any::undefined().call(a)),
             Region::Thrown(e) => Err(e),
         }
     }
@@ -251,21 +248,15 @@ impl<A: IVm> OptionPropertyLambda<A> {
 mod tests {
     use crate::{
         naive::Naive,
-        vm::{Any, IStaticFunction, Nullish, ToAny, ToArray, ToObject},
+        vm::{Any, IStaticFunction, ToAny, ToArray, ToObject, error},
     };
 
     type A = Naive;
     type Thunk = Box<dyn FnOnce() -> Result<Any<A>, Any<A>>>;
 
-    const TYPE_ERROR: &str = "Type Error";
-    const NULLISH_BASE: &str = "TypeError: Cannot convert undefined or null to object";
-
     /// A thunk that must not be forced.
     fn boom() -> Result<Any<A>, Any<A>> {
         Err("boom".into())
-    }
-    fn undefined() -> Any<A> {
-        Nullish::Undefined.to_any()
     }
     /// A function that answers its arguments, as the array it was given.
     fn identity() -> Any<A> {
@@ -288,7 +279,7 @@ mod tests {
         [
             ("f".into(), identity()),
             ("n".into(), 1.0.to_any()),
-            ("u".into(), undefined()),
+            ("u".into(), Any::undefined()),
         ]
         .to_object()
         .to_any()
@@ -304,7 +295,10 @@ mod tests {
     #[test]
     fn property_end() {
         assert_eq!(object().dot("n".into()).end(), Ok(1.0.to_any()));
-        assert_eq!(undefined().dot("n".into()).end(), Err(NULLISH_BASE.into()));
+        assert_eq!(
+            Any::<A>::undefined().dot("n".into()).end(),
+            Err(error::nullish_to_object())
+        );
     }
 
     /// `a.f(...c)`, and `a.b(...c)` on a nullish `a`: the throw waited in
@@ -313,8 +307,8 @@ mod tests {
     fn property_end_call() {
         answers_arguments(|args| object().dot("f".into()).end_call(args));
         assert_eq!(
-            undefined().dot("f".into()).end_call(boom),
-            Err(NULLISH_BASE.into())
+            Any::undefined().dot("f".into()).end_call(boom),
+            Err(error::nullish_to_object())
         );
     }
 
@@ -325,7 +319,7 @@ mod tests {
         assert_eq!(object().dot("n".into()).end_call(boom), Err("boom".into()));
         assert_eq!(
             object().dot("n".into()).end_call(args),
-            Err(TYPE_ERROR.into())
+            Err(error::unexpected_type())
         );
     }
 
@@ -335,15 +329,15 @@ mod tests {
         answers_arguments(|args| object().dot("f".into()).option_call(args).end());
         assert_eq!(
             object().dot("u".into()).option_call(boom).end(),
-            Ok(undefined())
+            Ok(Any::undefined())
         );
         assert_eq!(
             object().dot("n".into()).option_call(boom).end(),
             Err("boom".into())
         );
         assert_eq!(
-            undefined().dot("f".into()).option_call(boom).end(),
-            Err(NULLISH_BASE.into())
+            Any::undefined().dot("f".into()).option_call(boom).end(),
+            Err(error::nullish_to_object())
         );
     }
 
@@ -373,13 +367,13 @@ mod tests {
     #[test]
     fn option_steps_skipped() {
         assert_eq!(
-            undefined()
+            Any::undefined()
                 .option_call(boom)
                 .dot(boom)
                 .call(boom)
                 .dot(boom)
                 .end(),
-            Ok(undefined())
+            Ok(Any::undefined())
         );
     }
 
@@ -402,11 +396,11 @@ mod tests {
         answers_arguments(|args| object().option_dot(key("f")).call(args).end());
         assert_eq!(
             object().option_dot(key("n")).dot(key("x")).end(),
-            Ok(undefined())
+            Ok(Any::undefined())
         );
         assert_eq!(
             object().option_dot(key("u")).option_call(boom).end(),
-            Ok(undefined())
+            Ok(Any::undefined())
         );
         answers_arguments(|args| object().option_dot(key("f")).option_call(args).end());
     }
@@ -416,14 +410,14 @@ mod tests {
     #[test]
     fn option_property_steps_skipped() {
         assert_eq!(
-            undefined()
+            Any::undefined()
                 .option_dot(boom)
                 .dot(boom)
                 .call(boom)
                 .dot(boom)
                 .option_call(boom)
                 .end(),
-            Ok(undefined())
+            Ok(Any::undefined())
         );
     }
 
@@ -435,7 +429,7 @@ mod tests {
     #[test]
     fn unguarded_steps_throw_on_nullish_current_value() {
         let returns_undefined: Any<A> =
-            A::static_function(|_, _| Ok(undefined()), 0, [].to_array(), None).to_any();
+            A::static_function(|_, _| Ok(Any::undefined()), 0, [].to_array(), None).to_any();
         assert_eq!(
             returns_undefined.clone().option_call(args).call(boom).end(),
             Err("boom".into())
@@ -460,7 +454,7 @@ mod tests {
         );
         assert_eq!(
             object().option_dot(key("u")).dot(key("x")).end(),
-            Err(NULLISH_BASE.into())
+            Err(error::nullish_to_object())
         );
     }
 
@@ -472,12 +466,12 @@ mod tests {
     fn option_property_end_call() {
         answers_arguments(|args| object().option_dot(key("f")).end_call(args));
         assert_eq!(
-            undefined().option_dot(boom).end_call(boom),
+            Any::undefined().option_dot(boom).end_call(boom),
             Err("boom".into())
         );
         assert_eq!(
-            undefined().option_dot(boom).end_call(args),
-            Err(TYPE_ERROR.into())
+            Any::undefined().option_dot(boom).end_call(args),
+            Err(error::unexpected_type())
         );
     }
 

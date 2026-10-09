@@ -28,8 +28,11 @@ import type { Expression } from '../../media/nix/types.ts'
  *
  * `targets` is read only under a `rust` and the archive halves only under a
  * `pin`, so for a job declaring neither, whatever fills them never reaches the
- * file. `hook` is the one that is genuinely absent rather than unread: a shell
- * with no initialization has no `shellHook` binding.
+ * file. `shellHook` is the one that is genuinely absent rather than unread: a
+ * shell with no initialization has no `shellHook` binding.
+ *
+ * Each field is named after the shared function's argument it fills, so the
+ * arguments a system passes are read off these values by name.
  *
  * @internal
  */
@@ -37,5 +40,5 @@ export type _ShellValues = {
     readonly targets: Expression
     readonly url: Expression
     readonly hash: Expression
-    readonly hook: Expression | undefined
+    readonly shellHook: Expression | undefined
 }

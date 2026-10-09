@@ -54,13 +54,13 @@ import { error, ok } from '../../../types/result/module.f.mjs'
 import { eof } from '../../../ebnf/module.f.mjs'
 import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.mjs'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
-import { units } from '../../../ebnf/utf16/module.f.mjs'
+import { lexeme, units } from '../../../ebnf/utf16/module.f.mjs'
 import { isValidCodePoint } from '../../../text/code_point/module.f.mjs'
 import { toCodePointList } from '../../../text/utf8/module.f.mjs'
 import { codePointListToString } from '../../../text/utf16/module.f.mjs'
 import { items } from '../../../ebnf/lib/json/module.f.mjs'
 import { dataJs, number, value } from '../../../ebnf/lib/datajs/module.f.mjs'
-import { lexeme, stringMappings, syntaxError } from '../../json/parser/module.f.mjs'
+import { stringMappings, syntaxError } from '../../json/parser/module.f.mjs'
 
 const { fromEntries } = Object
 

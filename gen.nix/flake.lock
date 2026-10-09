@@ -29,17 +29,17 @@
         ]
       },
       "locked": {
-        "lastModified": 1791361643,
-        "narHash": "sha256-HMdfSb1ONHs1RbSkQtCXm+tWEsTikisWWtXDnv0aQ+I=",
+        "lastModified": 1791448976,
+        "narHash": "sha256-HJ4TEF3j7HmLYeEP/PtqjeiBX/6TppXB2qY53HcrWbs=",
         "ref": "master",
-        "rev": "8afee9fa8caa877a4feb65adc33e8d72f3747dc9",
-        "revCount": 2328,
+        "rev": "f91010a5c1b6125b715eb78a84fb5dd8fb74a2b0",
+        "revCount": 2329,
         "type": "git",
         "url": "https://github.com/oxalica/rust-overlay"
       },
       "original": {
         "ref": "master",
-        "rev": "8afee9fa8caa877a4feb65adc33e8d72f3747dc9",
+        "rev": "f91010a5c1b6125b715eb78a84fb5dd8fb74a2b0",
         "type": "git",
         "url": "https://github.com/oxalica/rust-overlay"
       }

@@ -10,6 +10,7 @@ mod dot;
 mod from;
 mod get_iterator;
 mod instanceof_;
+mod mul;
 mod neg;
 mod not;
 mod nullish_coalescing;
@@ -34,6 +35,7 @@ use crate::vm::{
     IVm, Number, String, ToAny, Unpacked,
     boolean_coercion::BooleanCoercion,
     dispatch::Dispatch,
+    error,
     nullish::Nullish,
     number_coercion::NumberCoercion,
     numeric::Numeric,
@@ -41,12 +43,6 @@ use crate::vm::{
     primitive_coercion::{PrimitiveCoercionOp, ToPrimitivePreferredType},
     string_coercion::StringCoercion,
 };
-
-/// `Object.getOwnPropertyDescriptor`'s own message for a nullish receiver
-/// (`entry`'s throwing case of its own, the other being a key whose
-/// conversion throws — see its doc comment).
-pub(crate) const CANNOT_CONVERT_NULLISH_TO_OBJECT: &str =
-    "TypeError: Cannot convert undefined or null to object";
 
 /// ```
 /// use nanvm_lib::{
@@ -73,6 +69,18 @@ pub(crate) const CANNOT_CONVERT_NULLISH_TO_OBJECT: &str =
 pub struct Any<A: IVm>(A);
 
 impl<A: IVm> Any<A> {
+    /// `undefined`.
+    pub fn undefined() -> Self {
+        Nullish::Undefined.to_any()
+    }
+
+    /// Whether `self` is `undefined` or `null`: `Unpacked::is_nullish` over
+    /// one unpack of a clone. A caller that already holds the `Unpacked` asks
+    /// it instead and keeps its single conversion.
+    pub fn is_nullish(&self) -> bool {
+        Unpacked::from(self.clone()).is_nullish()
+    }
+
     /// Unary plus is nothing but coercion to number.
     /// We use unary_plus as ECMAScript unary plus operator, and we use coerce_to_number for
     /// internals in places where ECMAScript's abstract function ToNumber is needed, and also when
@@ -149,8 +157,8 @@ impl<A: IVm> Any<A> {
     /// `undefined`, as every absent key does.
     pub fn entry(self, key: Self) -> Result<Self, Self> {
         let unpacked: Unpacked<A> = self.into();
-        if let Unpacked::Nullish(_) = &unpacked {
-            return Err(CANNOT_CONVERT_NULLISH_TO_OBJECT.into());
+        if unpacked.is_nullish() {
+            return Err(error::nullish_to_object());
         }
         let key = key.to_string()?;
         Ok(match unpacked {
@@ -159,7 +167,7 @@ impl<A: IVm> Any<A> {
             Unpacked::String(s) => s.entry(&key),
             _ => None,
         }
-        .unwrap_or_else(|| Nullish::Undefined.to_any()))
+        .unwrap_or_else(Any::undefined))
     }
 
     /// Same as `Number.isNaN` in ECMAScript.
@@ -234,14 +242,10 @@ impl<A: IVm> Any<A> {
 mod tests {
     use crate::{
         naive::Naive,
-        vm::{Any, Nullish, ToAny, ToArray, ToObject},
+        vm::{Any, Nullish, ToAny, ToArray, ToObject, error},
     };
 
     type A = Naive;
-
-    fn undefined() -> Any<A> {
-        Nullish::Undefined.to_any()
-    }
 
     /// The receiver is checked before the key is converted (see `entry`'s
     /// own doc comment), so a nullish receiver throws the nullish
@@ -252,12 +256,9 @@ mod tests {
         let key = (1f64).to_any::<A>();
         assert_eq!(
             Nullish::Null.to_any::<A>().entry(key.clone()),
-            Err("TypeError: Cannot convert undefined or null to object".into())
+            Err(error::nullish_to_object())
         );
-        assert_eq!(
-            undefined().entry(key),
-            Err("TypeError: Cannot convert undefined or null to object".into())
-        );
+        assert_eq!(Any::undefined().entry(key), Err(error::nullish_to_object()));
     }
 
     /// The key converts as `ToPropertyKey` converts it: a number names the
@@ -267,7 +268,7 @@ mod tests {
         let o = [("1".into(), 42.0.to_any())].to_object().to_any::<A>();
         assert_eq!(o.clone().entry("1".into()), Ok(42.0.to_any()));
         assert_eq!(o.clone().entry(1.0.to_any()), Ok(42.0.to_any()));
-        assert_eq!(o.entry("01".into()), Ok(undefined()));
+        assert_eq!(o.entry("01".into()), Ok(Any::undefined()));
         let z = [("0".into(), 7.0.to_any())].to_object().to_any::<A>();
         assert_eq!(z.entry((-0.0f64).to_any()), Ok(7.0.to_any()));
     }
@@ -279,12 +280,31 @@ mod tests {
         let a = [7.0.to_any(), 8.0.to_any()].to_array().to_any::<A>();
         assert_eq!(a.clone().entry(1.0.to_any()), Ok(8.0.to_any()));
         assert_eq!(a.clone().entry("1".into()), Ok(8.0.to_any()));
-        assert_eq!(a.clone().entry("2".into()), Ok(undefined()));
-        assert_eq!(a.entry("length".into()), Ok(undefined()));
+        assert_eq!(a.clone().entry("2".into()), Ok(Any::undefined()));
+        assert_eq!(a.entry("length".into()), Ok(Any::undefined()));
         let s: Any<A> = "ab".into();
         assert_eq!(s.clone().entry(1.0.to_any()), Ok("b".into()));
-        assert_eq!(s.entry("length".into()), Ok(undefined()));
-        assert_eq!(true.to_any::<A>().entry("0".into()), Ok(undefined()));
-        assert_eq!(5.0.to_any::<A>().entry("0".into()), Ok(undefined()));
+        assert_eq!(s.entry("length".into()), Ok(Any::undefined()));
+        assert_eq!(true.to_any::<A>().entry("0".into()), Ok(Any::undefined()));
+        assert_eq!(5.0.to_any::<A>().entry("0".into()), Ok(Any::undefined()));
+    }
+
+    /// `undefined` and `null` are nullish, and nothing else is: not the
+    /// falsy values, which `??` returns unchanged, nor an empty container.
+    #[test]
+    fn is_nullish() {
+        assert_eq!(Any::<A>::undefined(), Nullish::Undefined.to_any());
+        assert!(Any::<A>::undefined().is_nullish());
+        assert!(Nullish::Null.to_any::<A>().is_nullish());
+        for v in [
+            false.to_any::<A>(),
+            0.0.to_any(),
+            f64::NAN.to_any(),
+            "".into(),
+            [].to_array().to_any(),
+            [].to_object().to_any(),
+        ] {
+            assert!(!v.is_nullish());
+        }
     }
 }

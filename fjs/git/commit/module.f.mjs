@@ -23,6 +23,7 @@
  *
  * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Result } from '../../types/result/types.ts'
+ * @import { Field } from '../header/types.ts'
  * @import { Ident } from '../ident/types.ts'
  * @import { Tag } from '../tag/types.ts'
  * @import { Bytes, Oid, OidBytes } from '../types.ts'
@@ -30,11 +31,10 @@
  */
 
 import { assert } from '../../asserts/module.f.mjs'
-import { byteLength } from '../../ebnf/byte/module.f.mjs'
 import { lf } from '../../text/ascii/module.f.mjs'
 import { concat, includes } from '../../types/list/module.f.mjs'
 import { error, mapOk, ok, okList } from '../../types/result/module.f.mjs'
-import { checkedAt, fieldAt, hasNulHeader, keyIs, tryFieldAt, tryRead as readPayload, valuesOf, write as writePayload } from '../header/module.f.mjs'
+import { field, hasNulHeader, keyIs, tryRead as readPayload, tryReadAtLeast, valuesOf, write as writePayload } from '../header/module.f.mjs'
 import { tryRead as readIdent } from '../ident/module.f.mjs'
 import { tryFromHex, tryFromHexOf } from '../oid/module.f.mjs'
 import { tryRead as readTag, validate as validateTag } from '../tag/module.f.mjs'
@@ -69,6 +69,23 @@ const parentValues = c => {
     return (end === -1 ? rest : rest.slice(0, end)).map(([, v]) => v)
 }
 
+/** The `tree` header: the first. */
+const treeField = field(0, 'tree', 'no tree', 'not a tree id')
+
+/**
+ * The `author` header, after the commit's `parents` parents.
+ *
+ * @type {(parents: number) => Field}
+ */
+const authorField = parents => field(1 + parents, 'author', 'no author', 'not an author')
+
+/**
+ * The `committer` header, after `author`.
+ *
+ * @type {(parents: number) => Field}
+ */
+const committerField = parents => field(2 + parents, 'committer', 'no committer', 'not a committer')
+
 /**
  * The id the `tree` header names: the first header, a hex id.
  *
@@ -77,7 +94,7 @@ const parentValues = c => {
  *
  * @type {(c: Commit) => Oid}
  */
-export const tree = fieldAt(0, 'tree', tryFromHex, 'no tree', 'not a tree id')
+export const tree = treeField.get(tryFromHex)
 
 /**
  * The id the `tree` header names, at the repository's width, or `null`
@@ -89,7 +106,7 @@ export const tree = fieldAt(0, 'tree', tryFromHex, 'no tree', 'not a tree id')
  *
  * @type {(oidBytes: OidBytes) => (c: Commit) => Nullable<Oid>}
  */
-export const tryTree = oidBytes => tryFieldAt(0, 'tree', tryFromHexOf(oidBytes))
+export const tryTree = oidBytes => treeField.tryGet(tryFromHexOf(oidBytes))
 
 /**
  * The tree of bytes stored as a commit, at the repository's width, or
@@ -137,11 +154,9 @@ export const tryTree = oidBytes => tryFieldAt(0, 'tree', tryFromHexOf(oidBytes))
 export const tryTreeAt = oidBytes => {
     const treeOf = tryTree(oidBytes)
     const id = tryFromHexOf(oidBytes)
-    const least = oidBytes * 2 + 7
+    const read = tryReadAtLeast(oidBytes * 2 + 7)
     return payload => {
-        const size = byteLength(payload)
-        if (size === null || size < least) { return null }
-        const c = tryRead(payload)
+        const c = read(payload)
         if (c === null) { return null }
         const parents = parentValues(c)
         // The payload ends at the last `parent` line's LF where the walk
@@ -178,7 +193,7 @@ export const parents = c => parentValues(c).map(value => {
  *
  * @type {(c: Commit) => Ident}
  */
-export const author = c => fieldAt(1 + parentValues(c).length, 'author', readIdent, 'no author', 'not an author')(c)
+export const author = c => authorField(parentValues(c).length).get(readIdent)(c)
 
 /**
  * Who made the commit and when: the `committer` header, after `author`.
@@ -188,7 +203,7 @@ export const author = c => fieldAt(1 + parentValues(c).length, 'author', readIde
  *
  * @type {(c: Commit) => Ident}
  */
-export const committer = c => fieldAt(2 + parentValues(c).length, 'committer', readIdent, 'no committer', 'not a committer')(c)
+export const committer = c => committerField(parentValues(c).length).get(readIdent)(c)
 
 /**
  * The value of the first header of a key, or `null` where there is none.
@@ -262,7 +277,7 @@ export const mergetags = c => valuesOf(c, 'mergetag').map(value => {
 export const validate = oidBytes => {
     const id = tryFromHexOf(oidBytes)
     const tagOk = validateTag(oidBytes)
-    const treeOk = checkedAt(0, 'tree', id, 'no tree', 'not a tree id')
+    const treeOk = treeField.check(id)
     /** @type {(cond: boolean, message: string) => Result<null, string>} */
     const check = (cond, message) => cond ? ok(null) : error(message)
     return c => {
@@ -273,8 +288,8 @@ export const validate = oidBytes => {
         const checks = [
             treeOk(c),
             check(ps.every(v => id(v) !== null), 'not a parent id'),
-            checkedAt(1 + ps.length, 'author', readIdent, 'no author', 'not an author')(c),
-            checkedAt(2 + ps.length, 'committer', readIdent, 'no committer', 'not a committer')(c),
+            authorField(ps.length).check(readIdent)(c),
+            committerField(ps.length).check(readIdent)(c),
             check(tags.every(t => t !== null && tagOk(t)[0] === 'ok'), 'not a mergetag'),
             check(!includes(0)(c.message), 'NUL in message'),
         ]

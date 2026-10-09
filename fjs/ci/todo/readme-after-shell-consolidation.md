@@ -43,7 +43,7 @@ In `config/module.f.js`'s comments:
   comment that follows, and `gen.nix/flake.nix`, give the shell `rust-overlay`,
   `pkgs.wasmtime` and `pkgs.wasmer`.
 - In the same comment, "Wasmtime and Wasmer are installed by their own setup
-  actions" — the `wasm` job takes both from that shell, and the comment above
+  actions" — `ubuntu-arm` takes both from that shell, and the comment above
   `wasmtime` says so.
 - Above `typescript`: "The two shells that carry it" — only the shared shell
   carries `typescript-go`; the Node 22 and Node 24 flakes carry only Node.
@@ -55,7 +55,8 @@ In `config/module.f.js`'s comments:
 - [ ] Rewrite the README's Files entries for `dev`, `deno` and `bun` around
       the shared shell, and drop the `dev` job
 - [ ] Replace `denoNixJob` with `devNixJob` in "Generated Nix environments",
-      and give `rust-overlay` to the shared shell rather than to `wasm`
+      and give `rust-overlay` to the shared shell rather than to the `wasm`
+      job, which is gone: its checks are `ubuntu-arm`'s
 - [ ] Take the example versions from `config/module.f.js`
 - [ ] Point "Generated flake locks" at [65z-ci-nix](./65z-ci-nix.md), or
       drop the reference

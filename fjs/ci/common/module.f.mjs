@@ -10,8 +10,8 @@
  * @import { Step, Job, MetaStep, StepType } from './types.ts'
  */
 
-import { actions, images } from '../config/module.f.js'
-import { array, option, or, record, string } from '../../rtti/module.f.mjs'
+import { actions, images, jobTimeout } from '../config/module.f.js'
+import { array, number, option, or, record, string } from '../../rtti/module.f.mjs'
 import { parse as rttiParse } from '../../rtti/parse/module.f.mjs'
 
 export const os = /** @type {const} */ (['ubuntu', 'macos', 'windows'])
@@ -57,10 +57,15 @@ export const stepSchema = /** @type {const} */ ({
 // `if` is the condition a job runs under. The generator writes exactly one:
 // a job that runs only in the merge queue, so a pull request's pushes do not
 // wait on it — see `mergeQueueOnly` in `../types.ts`.
+//
+// `timeout-minutes` is required, so no job can be built without a limit on how
+// long it holds its runner: GitHub's default is six hours. Every generated job
+// takes `jobTimeout` from `../config/module.f.js`.
 export const jobSchema = /** @type {const} */ ({
     'runs-on': string,
     if: or(option, string),
     needs: or(option, array(string)),
+    'timeout-minutes': number,
     steps: array(stepSchema)
 })
 
@@ -119,11 +124,13 @@ export const toSteps = m => {
 /** @type {(ms: readonly MetaStep[]) => Job} */
 export const ubuntu = ms => ({
     'runs-on': images.ubuntu.intel,
+    'timeout-minutes': jobTimeout,
     steps: toSteps(ms)
 })
 
 /** @type {(ms: readonly MetaStep[]) => Job} */
 export const ubuntuArm = ms => ({
     'runs-on': images.ubuntu.arm,
+    'timeout-minutes': jobTimeout,
     steps: toSteps(ms)
 })

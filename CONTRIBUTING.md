@@ -306,7 +306,10 @@ back from the pinned commits.
 
 To bump an npm devDependency version, edit `package.json` by hand first (there
 is no `npm-check-updates` step anymore). To move a pinned Nixpkgs or
-`rust-overlay` commit, edit `fjs/ci/config/module.f.js`. Either way, then run:
+`rust-overlay` commit, edit `fjs/ci/config/module.f.js`; a Nixpkgs commit must
+first pass the binary-cache check in
+[`fjs/ci/update-versions.md`](./fjs/ci/update-versions.md), the procedure the
+daily version-update routine follows. Either way, then run:
 
 ```bash
 npm run lock-update

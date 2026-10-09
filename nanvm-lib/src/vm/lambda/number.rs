@@ -28,7 +28,7 @@ fn digits<A: IVm>(v: Any<A>) -> Result<Option<f64>, Any<A>> {
     ) {
         return Ok(None);
     }
-    Ok(Some(f64::from(v.to_number()?.to_integer_or_infinity())))
+    Ok(Some(v.to_integer_or_infinity()?))
 }
 
 /// An `undefined` count is `0`, which `ToIntegerOrInfinity` answers too.

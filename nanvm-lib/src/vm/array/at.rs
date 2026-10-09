@@ -1,7 +1,10 @@
-use super::{Array, relative::relative};
+use super::Array;
 use crate::{
     common::sized_index::SizedIndex,
-    vm::{Any, IVm, Nullish, ToAny},
+    vm::{
+        Any, IVm,
+        position::{in_range, relative},
+    },
 };
 
 impl<A: IVm> Array<A> {
@@ -19,11 +22,7 @@ impl<A: IVm> Array<A> {
     /// only with an index the range check admitted.
     pub(crate) fn at(&self, index: Any<A>) -> Result<Any<A>, Any<A>> {
         let k = relative(index, self.length())?;
-        Ok(if (0.0..f64::from(self.length())).contains(&k) {
-            self[k as u32].clone()
-        } else {
-            Nullish::Undefined.to_any()
-        })
+        Ok(in_range(k, self.length()).map_or_else(Any::undefined, |i| self[i].clone()))
     }
 }
 
@@ -32,7 +31,7 @@ mod tests {
     use super::Array;
     use crate::{
         naive::Naive,
-        vm::{Any, Nullish, ToAny, ToArray, unstable::bigint_any},
+        vm::{Any, ToAny, ToArray, error, unstable::bigint_any},
     };
 
     type A = Naive;
@@ -40,10 +39,6 @@ mod tests {
     fn array() -> Array<A> {
         [10.0.to_any(), 20.0.to_any(), 30.0.to_any()].to_array()
     }
-    fn undefined() -> Result<Any<A>, Any<A>> {
-        Ok(Nullish::Undefined.to_any())
-    }
-
     #[test]
     fn from_the_start_and_the_end() {
         assert_eq!(array().at(0.0.to_any()), Ok(10.0.to_any()));
@@ -54,11 +49,11 @@ mod tests {
 
     #[test]
     fn out_of_range_is_undefined() {
-        assert_eq!(array().at(3.0.to_any()), undefined());
-        assert_eq!(array().at((-4.0f64).to_any()), undefined());
-        assert_eq!(array().at(f64::INFINITY.to_any()), undefined());
-        assert_eq!(array().at(f64::NEG_INFINITY.to_any()), undefined());
-        assert_eq!(Array::<A>::default().at(0.0.to_any()), undefined());
+        assert_eq!(array().at(3.0.to_any()), Ok(Any::undefined()));
+        assert_eq!(array().at((-4.0f64).to_any()), Ok(Any::undefined()));
+        assert_eq!(array().at(f64::INFINITY.to_any()), Ok(Any::undefined()));
+        assert_eq!(array().at(f64::NEG_INFINITY.to_any()), Ok(Any::undefined()));
+        assert_eq!(Array::<A>::default().at(0.0.to_any()), Ok(Any::undefined()));
     }
 
     /// The index is `ToIntegerOrInfinity` of the argument: truncated, a
@@ -68,7 +63,7 @@ mod tests {
         assert_eq!(array().at(1.7.to_any()), Ok(20.0.to_any()));
         assert_eq!(array().at((-0.5f64).to_any()), Ok(10.0.to_any()));
         assert_eq!(array().at("1".into()), Ok(20.0.to_any()));
-        assert_eq!(array().at(Nullish::Undefined.to_any()), Ok(10.0.to_any()));
+        assert_eq!(array().at(Any::undefined()), Ok(10.0.to_any()));
         assert_eq!(array().at(f64::NAN.to_any()), Ok(10.0.to_any()));
     }
 
@@ -76,9 +71,6 @@ mod tests {
     #[test]
     fn bigint_index_throws() {
         let one: Any<A> = bigint_any(1);
-        assert_eq!(
-            array().at(one),
-            Err("TypeError: Cannot convert a BigInt value to a number".into())
-        );
+        assert_eq!(array().at(one), Err(error::bigint_to_number()));
     }
 }

@@ -1,11 +1,10 @@
-use super::{
-    Array,
-    create::create,
-    relative::{clamped, relative},
-};
+use super::{Array, create::create};
 use crate::{
     common::sized_index::SizedIndex,
-    vm::{Any, IVm, Nullish, ToAny},
+    vm::{
+        Any, IVm,
+        position::{clamped, relative},
+    },
 };
 
 impl<A: IVm> Array<A> {
@@ -27,15 +26,13 @@ impl<A: IVm> Array<A> {
         items: Array<A>,
     ) -> Result<Array<A>, Any<A>> {
         let len = self.length();
-        let undefined = || Nullish::Undefined.to_any();
+        let undefined = || Any::undefined();
         let from = clamped(relative(start.clone().unwrap_or_else(undefined), len)?, len);
         let remaining = len - from;
         let skip = match (start, skip) {
             (None, _) => 0,
             (Some(_), None) => remaining,
-            (Some(_), Some(skip)) => {
-                clamped(skip.to_number()?.to_integer_or_infinity().into(), remaining)
-            }
+            (Some(_), Some(skip)) => clamped(skip.to_integer_or_infinity()?, remaining),
         };
         let new_len = u64::from(len - skip) + u64::from(items.length());
         create(
@@ -53,7 +50,7 @@ mod tests {
     use super::Array;
     use crate::{
         naive::Naive,
-        vm::{Any, Nullish, ToAny, ToArray},
+        vm::{Any, ToAny, ToArray},
     };
 
     type A = Naive;
@@ -75,7 +72,7 @@ mod tests {
 
     #[test]
     fn what_was_passed_decides_the_count() {
-        let undefined = Some(Nullish::Undefined.to_any());
+        let undefined = Some(Any::undefined());
         assert_eq!(spliced(None, None, &[]), ns(&[1.0, 2.0, 3.0]));
         assert_eq!(spliced(n(1.0), None, &[]), ns(&[1.0]));
         assert_eq!(spliced(n(1.0), undefined, &[]), ns(&[1.0, 2.0, 3.0]));

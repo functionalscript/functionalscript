@@ -1,5 +1,6 @@
 /**
- * @import { NodeProgram } from './effects/node/types.ts'
+ * @import { NodeOp, NodeProgram } from './effects/node/types.ts'
+ * @import { Commands } from './cli/types.ts'
  * @import { Dir } from './effects/node/virtual/types.ts'
  */
 
@@ -43,6 +44,16 @@ export const proof = {
         // `run` strips the command and file name, so `main` sees two arguments
         assertEq(exitCode(code), 2)
     },
+    // A module may export its command table as `main`: `run` dispatches it,
+    // so the first argument after the file names the command.
+    runCommands: () => {
+        /** @type {Commands<NodeOp>} */
+        const main = [{ names: ['app'], description: 'The app', handler: appMain }]
+        /** @type {Dir} */
+        const root = { 'app.f.ts': () => ({ main }) }
+        const [, code] = run(root)(['run', 'app.f.ts', 'app', 'x', 'y', 'z'])
+        assertEq(exitCode(code), 3)
+    },
     mcp: () => {
         // stdin is empty in the virtual environment, so the server sees EOF
         // immediately and shuts down cleanly, exercising the `mcp` handler.
@@ -76,6 +87,15 @@ export const proof = {
         const root = { 'app.f.ts': () => ({ notMain: 1 }) }
         const [state, code] = run(root)(['run', 'app.f.ts'])
         assertEq(exitCode(code), 1)
-        assert(state.stderr.includes('not a NodeProgram'), state.stderr)
+        assert(state.stderr.includes('not a program'), state.stderr)
+    },
+    // An array is a command table only in shape; any other array is refused
+    // like a missing `main`, not dispatched into a crash.
+    runMalformedTable: () => {
+        /** @type {Dir} */
+        const root = { 'app.f.ts': () => ({ main: [0] }) }
+        const [state, code] = run(root)(['run', 'app.f.ts'])
+        assertEq(exitCode(code), 1)
+        assert(state.stderr.includes('not a program'), state.stderr)
     },
 }

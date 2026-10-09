@@ -32,3 +32,17 @@ export const thrown = {
     /** @type {(answer: unknown) => unknown} */
     continuation: answer => 1n / 0n,
 };
+
+/** `write('stdout', 'bye')`, then the answer to it. */
+const bye = { command: 'write', payload: ['stdout', -14842213n], continuation: done };
+
+/** `write('stdout', 'hi')`, then `bye`: the continuation ignores the answer. */
+export const hello = {
+    command: 'write',
+    payload: ['stdout', -59497n],
+    /** @type {(answer: unknown) => typeof bye} */
+    continuation: answer => bye,
+};
+
+/** A command no host here has: answered `notImplemented` through the continuation. */
+export const missing = { command: 'fetch', payload: ['http://example.com'], continuation: done };
