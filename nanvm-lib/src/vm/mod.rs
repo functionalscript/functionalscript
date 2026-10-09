@@ -17,6 +17,7 @@ mod number_coercion;
 mod numeric;
 mod object;
 mod object_spread;
+mod position;
 mod primitive;
 mod primitive_coercion;
 mod string;

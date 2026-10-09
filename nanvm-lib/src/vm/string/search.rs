@@ -1,7 +1,7 @@
-use super::{String, code_unit::position};
+use super::String;
 use crate::{
     common::sized_index::SizedIndex,
-    vm::{Any, IVm, Nullish, Unpacked, array::relative::clamped},
+    vm::{Any, IVm, Nullish, Unpacked, position::clamped},
 };
 
 impl<A: IVm> String<A> {
@@ -36,7 +36,7 @@ impl<A: IVm> String<A> {
         // (`FUNCTION_TEXT`). Every search in this file
         // converts its needle here.
         let needle = search.to_string()?;
-        let from = clamped(position(pos)?, self.length());
+        let from = clamped(pos.to_integer_or_infinity()?, self.length());
         Ok(self.find_from(&needle, from))
     }
 
@@ -66,7 +66,7 @@ impl<A: IVm> String<A> {
     /// `ToString(search)` occurs at `pos`, clamped into the string.
     pub(crate) fn starts_with(&self, search: Any<A>, pos: Any<A>) -> Result<bool, Any<A>> {
         let needle = search.to_string()?;
-        let k = clamped(position(pos)?, self.length());
+        let k = clamped(pos.to_integer_or_infinity()?, self.length());
         Ok(self.occurs_at(&needle, k))
     }
 
@@ -79,7 +79,7 @@ impl<A: IVm> String<A> {
         let len = self.length();
         let end = match Unpacked::from(end.clone()) {
             Unpacked::Nullish(Nullish::Undefined) => len,
-            _ => clamped(position(end)?, len),
+            _ => clamped(end.to_integer_or_infinity()?, len),
         };
         Ok(end
             .checked_sub(needle.length())

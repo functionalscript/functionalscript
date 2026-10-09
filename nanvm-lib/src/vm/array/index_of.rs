@@ -1,10 +1,10 @@
-use super::{
-    Array,
-    relative::{clamped, relative},
-};
+use super::Array;
 use crate::{
     common::sized_index::SizedIndex,
-    vm::{Any, IVm},
+    vm::{
+        Any, IVm,
+        position::{clamped, relative},
+    },
 };
 
 impl<A: IVm> Array<A> {

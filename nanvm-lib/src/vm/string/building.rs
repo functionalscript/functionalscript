@@ -1,10 +1,10 @@
-use super::{String, code_unit::position, create::create};
+use super::{String, create::create};
 use crate::{
     common::sized_index::SizedIndex,
     vm::{
         Any, Array, IVm, Nullish, ToString, Unpacked,
-        array::relative::{clamped, relative},
         ecma_whitespace::is_ecma_whitespace,
+        position::{clamped, relative_range},
     },
 };
 
@@ -30,17 +30,10 @@ impl<A: IVm> String<A> {
 
     /// `String.prototype.slice(start, end)`
     /// (<https://tc39.es/ecma262/#sec-string.prototype.slice>): the code units
-    /// between two [`relative`] positions clamped into the string, the end
-    /// the length when `undefined`.
+    /// in the [`relative_range`] `start` and `end` name.
     pub(crate) fn slice(&self, start: Any<A>, end: Any<A>) -> Result<String<A>, Any<A>> {
-        let len = self.length();
-        let from = clamped(relative(start, len)?, len);
-        let to = if is_undefined(&end) {
-            len
-        } else {
-            clamped(relative(end, len)?, len)
-        };
-        Ok(self.units(from, to))
+        let range = relative_range(start, end, self.length())?;
+        Ok(self.units(range.start, range.end))
     }
 
     /// `String.prototype.substring(start, end)`
@@ -50,11 +43,11 @@ impl<A: IVm> String<A> {
     /// length when `undefined`.
     pub(crate) fn substring(&self, start: Any<A>, end: Any<A>) -> Result<String<A>, Any<A>> {
         let len = self.length();
-        let start = clamped(position(start)?, len);
+        let start = clamped(start.to_integer_or_infinity()?, len);
         let end = if is_undefined(&end) {
             len
         } else {
-            clamped(position(end)?, len)
+            clamped(end.to_integer_or_infinity()?, len)
         };
         Ok(self.units(start.min(end), start.max(end)))
     }
@@ -76,7 +69,7 @@ impl<A: IVm> String<A> {
     /// `count` times. A negative or infinite count is a `RangeError`, even on
     /// `""`, as it is in JavaScript.
     pub(crate) fn repeat(&self, count: Any<A>) -> Result<String<A>, Any<A>> {
-        let n = position(count)?;
+        let n = count.to_integer_or_infinity()?;
         if n < 0.0 || n.is_infinite() {
             return Err("RangeError: Invalid count value".into());
         }
@@ -101,7 +94,9 @@ impl<A: IVm> String<A> {
         at_start: bool,
     ) -> Result<String<A>, Any<A>> {
         let len = self.length();
-        let target = position(target)?.clamp(0.0, 9_007_199_254_740_991.0);
+        let target = target
+            .to_integer_or_infinity()?
+            .clamp(0.0, 9_007_199_254_740_991.0);
         if target <= f64::from(len) {
             return Ok(self.clone());
         }
