@@ -5,7 +5,7 @@
  * @import { Handle } from '../protocol/mcp/types.ts'
  * @import { Vec } from '../types/bit_vec/types.ts'
  * @import { FileCasOperation } from '../cas/types.ts'
- * @import { List } from '../effects/list/types.ts'
+ * @import { EffectList } from '../effects/list/types.ts'
  * @import { Effect } from '../effects/types.ts'
  * @import { ContentItem, ToolsCallResult } from '../protocol/mcp/types.ts'
  * @import { IoChannel, Mkdir, Now, RandomInt, ReadBytes, Rename } from '../effects/node/types.ts'
@@ -92,8 +92,8 @@ const runSessionVirtual =
 const seedBlob = (root, home = '/home/user') => chunks => {
     const c = fileCas(sha256)(home)
     const stream = chunks.reduceRight(
-        (/** @type {List<never, Vec, IoChannel>} */ tail, chunk) => nonEmpty(chunk, tail),
-        /** @satisfies {List<never, Vec, IoChannel>} */ (elEmpty()))
+        (/** @type {EffectList<never, Vec, IoChannel>} */ tail, chunk) => nonEmpty(chunk, tail),
+        /** @satisfies {EffectList<never, Vec, IoChannel>} */ (elEmpty()))
     const [state, result] = virtual({ ...emptyState, root })(c.write(stream))
     assert(result[0] === 'ok', result)
     return [state.root, vecToCBase32(result[1])]
@@ -645,7 +645,9 @@ export const proof = {
         const [resp] = session(call(2, 'cas_add', { content: 'a'.repeat(Number(maxLengthBytes) + 1) }))
         assertEq(resultOf(resp).isError, true)
         assert(textOf(resp).includes('too large or malformed'))
-        assert(textOf(resp).includes('cas add'))
+        // The way out is the CLI, with where to run it: the CLI reads its own
+        // account's store, so run anywhere else it stores into another one.
+        assert(textOf(resp).includes('npx functionalscript cas add <path>` where this server runs'), textOf(resp))
     },
 
     // Exactly maxLengthBytes (131,072) ASCII bytes — tryUtf8 returns a non-null

@@ -15,7 +15,7 @@
 import { sameItems, fold, map, toArray, foldScan, empty as emptyList } from '../types/list/module.f.mjs'
 import { toRangeMap, range } from '../types/byte_set/module.f.mjs'
 import { has, toKey, union as sortedSetUnion } from '../types/sorted_set/module.f.mjs'
-import { merge, get as rangeMapGet } from '../types/range_map/module.f.mjs'
+import { merge, get as rangeMapGet, mapValue, values } from '../types/range_map/module.f.mjs'
 import { range as asciiRange } from '../text/ascii/module.f.mjs'
 import { compose } from '../types/function/module.f.mjs'
 import { at } from '../types/object/module.f.mjs'
@@ -48,7 +48,7 @@ const hasState = has(cmp)
  *
  * @type {(ruleOut: string) => (entry: RangeEntry<boolean>) => RangeEntry<SortedSet<string>>}
  */
-const labelRange = ruleOut => ([inSet, max]) => [inSet ? [ruleOut] : [], max]
+const labelRange = ruleOut => mapValue(inSet => inSet ? [ruleOut] : [])
 
 /** @type {(set: SortedSet<string>) => Fold<_Rule, RangeMap<SortedSet<string>>>} */
 const foldOp = set => ([ruleIn, bs, ruleOut]) => rm => {
@@ -59,32 +59,27 @@ const foldOp = set => ([ruleIn, bs, ruleOut]) => rm => {
 }
 
 /**
- * Renders an entry's state set as its `_Dfa` key, keeping the range boundary.
+ * The transition function of the subset construction: from a set of states,
+ * each input range leads to the set of states the grammar's rules reach.
  *
- * @type {(entry: RangeEntry<SortedSet<string>>) => RangeEntry<string>}
+ * @type {(grammar: Grammar) => (set: SortedSet<string>) => RangeMap<SortedSet<string>>}
  */
-const keyEntry = ([sortedSet, max]) => [toKey(sortedSet), max]
-
-const keyEntries = map(keyEntry)
+const transitions = grammar => set => fold(foldOp(set))(emptyList)(grammar)
 
 /**
- * Drops an entry's range boundary, leaving the state set.
+ * Renders each entry's state set as its `_Dfa` key, keeping the range boundary.
  *
- * @type {(entry: RangeEntry<SortedSet<string>>) => SortedSet<string>}
+ * @type {(rm: RangeMap<SortedSet<string>>) => RangeMap<string>}
  */
-const entryValue = ([value]) => value
-
-const entryValues = map(entryValue)
+const keyEntries = map(mapValue(toKey))
 
 /** @type {(grammar: Grammar) => Fold<SortedSet<string>, _Dfa>} */
 const addEntry = grammar => set => dfa => {
     const s = toKey(set)
     if (at(s)(dfa) !== null) { return dfa }
-    const setMap = fold(foldOp(set))(emptyList)(grammar)
-    const stringMap = toArray(keyEntries(setMap))
-    const newDfa = { ...dfa, [s]: stringMap }
-    const newStates = entryValues(setMap)
-    return fold(addEntry(grammar))(newDfa)(newStates)
+    const setMap = transitions(grammar)(set)
+    const newDfa = { ...dfa, [s]: toArray(keyEntries(setMap)) }
+    return fold(addEntry(grammar))(newDfa)(values(setMap))
 }
 
 /** @type {string[]} */

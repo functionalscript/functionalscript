@@ -56,6 +56,10 @@
  * The resolution walks a value over an explicit stack of frames, so
  * nesting depth stays the input's.
  *
+ * {@link errorLocation} is `ParseError`'s renderer, beside the reader that
+ * reports one, so a change to what the type carries and to how it is
+ * printed is made in one module.
+ *
  * @module
  *
  * @import { Result } from '../../types/result/types.ts'
@@ -1384,4 +1388,34 @@ const foldModule = ({ imports, consts, exported, thrown: failing }) => {
 export const parseFromTokens = tokenList => {
     const [tag, module] = parseSyntax(tokenList)
     return tag === 'error' ? error(module) : foldModule(module)
+}
+
+/**
+ * Where a {@link ParseError} happened, as much of it as is known: the token's
+ * `path:line:column` when the reader tracks positions; otherwise the file
+ * the error names, when it names one — a missing import, a cycle, a body
+ * that fails to evaluate, in an imported module as readily as in the input;
+ * and otherwise `inputFileName`, the file being compiled — which no reader
+ * `fjs compile` runs produces any more, every reader naming its file, and
+ * which this parser's one contract failure, a token list with no end,
+ * still can.
+ *
+ * An error that knows how far the offending source runs renders as a span,
+ * `path:line:column-column` within one line and `path:line:column-line:column`
+ * across several. Only lexical errors carry one today; a grammar failure points
+ * at a single token and prints the point form.
+ *
+ * @type {(inputFileName: string) => (parseError: ParseError) => string}
+ */
+export const errorLocation = inputFileName => ({ metadata, end, path }) => {
+    if (metadata === null) { return path ?? inputFileName }
+    const start = `${metadata.path}:${metadata.line}:${metadata.column}`
+    if (end === undefined) { return start }
+    // the path is printed once — a token does not straddle files — and the
+    // line is dropped from the far end when the span stays on one line, so the
+    // common case reads `a.js:1:1-7` rather than repeating `1:`
+    const far = end.line === metadata.line
+        ? `${end.column}`
+        : `${end.line}:${end.column}`
+    return `${start}-${far}`
 }

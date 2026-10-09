@@ -132,6 +132,18 @@ export const typescript = /** @type {const} */({
 // https://rust-lang.org/
 export const rust = '1.99.0'
 
+// How long, in minutes, a job may run once a runner has picked it up. GitHub's
+// default is six hours, and a job that hangs holds its runner for all of them:
+// two `macos-intel` jobs stuck building their shell held the scarcest runners
+// for three and a half hours before they were cancelled by hand. The slowest
+// job, `macos-intel`, has taken up to 13.3 minutes, so a job past this limit is
+// one that hung rather than one that is slow.
+//
+// It does not count the wait for a runner. That wait belongs to the merge
+// queue's status check timeout, a repository setting, which has to cover it.
+// https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idtimeout-minutes
+export const jobTimeout = /** @type {const} */ (15)
+
 // Official Nixpkgs snapshot used by the generated CI flakes. `ref` is the
 // stable channel the commit is accepted from; `commit` is the exact revision
 // every generated `flake.nix` pins. The Node versions above come from this
@@ -166,7 +178,7 @@ export const rustOverlay = /** @type {const} */({
     owner: 'oxalica',
     repo: 'rust-overlay',
     ref: 'master',
-    commit: '8afee9fa8caa877a4feb65adc33e8d72f3747dc9',
+    commit: 'f91010a5c1b6125b715eb78a84fb5dd8fb74a2b0',
 })
 
 // Moving either `commit` above needs `npm run lock-update` (real Nix) to
@@ -193,7 +205,7 @@ export const actions = /** @type {const} */({
     // https://github.com/marketplace/actions/checkout
     'actions/checkout': 'v7.0.1',
     // https://github.com/marketplace/actions/setup-node-js-environment
-    'actions/setup-node': 'v7.0.0',
+    'actions/setup-node': 'v7.1.0',
     // https://github.com/marketplace/actions/cache
     'actions/cache': 'v6.1.0',
     // https://github.com/marketplace/actions/install-nix

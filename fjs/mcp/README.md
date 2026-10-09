@@ -188,7 +188,7 @@ Because the size and type are derived first with the size-independent
 the byte size and pointing at the alternatives, e.g.
 
 ```
-blob too large to fetch inline (262144 bytes, limit 131072 bytes); run `npx functionalscript cas get <hash> <path>` where this server runs (same host, container and account; over the same ssh if it was launched that way), or have the user run it there, or omit content for metadata
+blob too large to fetch inline (262144 bytes, limit 131072 bytes); run `npx functionalscript cas get <hash> <path>` where this server runs — the same host, container and account, so over the same `ssh host` if it was launched that way — yourself if you have shell access, or give the user that exact command to run, or omit content for metadata
 ```
 
 So `no such hash` means the hash genuinely is not in the store, while the message

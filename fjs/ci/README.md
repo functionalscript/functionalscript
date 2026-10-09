@@ -46,7 +46,7 @@ for, and whether that answer should change, is
 - `common/module.f.mjs` — shared RTTI schemas and types (`Step`, `Job`, `Jobs`,
   `GitHubAction`, `MetaStep`, `Os`, `Architecture`), and step-builder helpers
   (`test`, `install`, `uses`).
-- `config/module.f.js` — runner image matrix (OS × architecture → GitHub-hosted image name) and pinned tool/package versions, including the FunctionalScript package version used by generated smoke tests and the exact Nixpkgs commit the generated flakes pin.
+- `config/module.f.js` — runner image matrix (OS × architecture → GitHub-hosted image name), pinned tool/package versions, including the FunctionalScript package version used by generated smoke tests and the exact Nixpkgs commit the generated flakes pin, and `jobTimeout`, the `timeout-minutes` every generated job carries in place of GitHub's six-hour default.
 - `nix/module.f.mjs` — writes one self-contained `gen.nix/<job>/flake.nix`
   per declared job (`NixJob` in `types.ts`), using the Nix eDSL in `fjs/media/nix`.
 - `node/module.f.mjs` — Node.js job steps: platform smoke tests, canonical
@@ -527,8 +527,8 @@ check alone; this repository passes its own from `self/module.f.mjs`.
 each gets `if: github.event_name == 'merge_group'`, so a pull request's pushes
 skip it. GitHub reads a skipped job as passed for a required status check, so
 it still gates the merge, once, in the queue. A project with no merge queue
-would never run those jobs, so the default is none; this repository passes
-`['macos', 'windows']`, its slowest runners.
+would never run those jobs, so the default is none, which is what this
+repository uses.
 
 On every platform but Windows, an injected step that names a **command** runs
 inside the shared shell, alongside the job's own — these jobs no longer install
