@@ -91,5 +91,6 @@ names.
 - [`fjs/nanvm/harness`](../../../nanvm/harness/module.f.mjs) — a generator
   of the same shape, the sixth: one `writeUtf8File` per compiled fixture and
   one for `mod.rs`.
-- [check-render-split](../../../media/datajs/vectors/matrix/todo/check-render-split.md)
-  — the matrix generator's own split, whose `write` is one of the sites.
+- [`fjs/media/datajs/vectors/matrix`](../../../media/datajs/vectors/matrix/module.f.mjs)
+  — the matrix generator, already split into `check` and `matrix`, whose
+  `write` is one of the sites.
