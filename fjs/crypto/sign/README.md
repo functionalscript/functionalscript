@@ -114,7 +114,8 @@ scalars is modulo `q`.
 1. If `Q` is not a valid public key, or `r` or `s` is not in `[1, q-1]`, the
    signature is invalid. A valid public key is not the point at infinity, has
    coordinates in `[0, p-1]`, lies on the curve, and satisfies `Q * q = 0`
-   (SEC 1 §3.2.2.1, `isPublicKey` in `../secp`).
+   (SEC 1 §3.2.2.1, `isPublicKey` in `../secp`, which also requires
+   `q^2 > p + 1 + 2√p`, so that `Q * q = 0` puts `Q` in the subgroup of `G`).
 2. `w = 1/s`
 3. `u1 = z * w` and `u2 = r * w`
 4. `X = G * u1 + Q * u2`

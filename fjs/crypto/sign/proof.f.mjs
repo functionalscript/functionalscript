@@ -661,6 +661,11 @@ export const proof = {
         const forged = [2n, pf.sub(b)(pf.mul(t)(pf.sub(a)(2n)))]
         assertEq(assertNotNullish(c.add(hg)(forged), 'X === null')[0], 1n)
         assertEq(v(forged)(sample)([1n, 1n]), false)
+        // a key on the curve with `n·u = O`, but outside the subgroup of `g`:
+        // on `y^2 = x^3 + 6x` over 7 with `g = (0, 0)` and `n = 2`, `(1, 0)`
+        // made `[1, 1]` verify message "8".
+        const c2 = curve({ p: 7n, c: [0n, 6n], g: [0n, 0n], n: 2n })
+        assertEq(verify(c2)(sha256)([1n, 0n])(utf8("8"))([1n, 1n]), false)
         // `(h/s)G + (r/s)U` is the point at infinity when `h + x*r = 0 mod q`:
         // with `r = 1`, the key `x = -h` gets there for any `s`.
         assertEq(v(c.mul(neg(h))(g))(sample)([1n, 1n]), false)

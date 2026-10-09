@@ -155,11 +155,29 @@ export const proof = {
         assert(!k([gx, gy + p]))
         // off the curve
         assert(!k([gx, gy + 1n]))
-        // on the curve but outside the subgroup: `y^2 = x^3 + 1` over 7 has
-        // 12 points; `g = (0, 1)` generates a subgroup of order 3, which
-        // `(1, 3)` is not in.
-        const c = curve({ p: 7n, c: [1n, 0n], g: [0n, 1n], n: 3n })
-        assert(isPublicKey(c)([0n, 1n]))
-        assert(!isPublicKey(c)([1n, 3n]))
+        // every named curve meets the bound on `n`, so its generator passes
+        for (const c of [secp192r1, secp256k1, secp256r1, secp384r1, secp521r1]) {
+            assert(isPublicKey(c)(c.g))
+        }
+        // on the curve but outside the subgroup: `y^2 = x^3 + x + 1` over 11
+        // has 14 points; `g = (0, 1)` generates the subgroup of order 7, and
+        // `7^2 = 49` exceeds the bound `11 + 1 + 2·√11`, about 18.6.
+        // `(1, 5)` is on the curve and outside it.
+        const c14 = curve({ p: 11n, c: [1n, 1n], g: [0n, 1n], n: 7n })
+        assert(isPublicKey(c14)([0n, 1n]))
+        assert(!isPublicKey(c14)([1n, 5n]))
+    },
+    isPublicKeyRefusesSmallN: () => {
+        // `y^2 = x^3 + 6x` over 7, `g = (0, 0)`, `n = 2`: `n^2 - p - 1 < 0`.
+        // `(1, 0)` has `2·u = O` but is not in `{O, g}`; without the bound,
+        // it would pass, and `verify` would accept `[1, 1]` on message "8".
+        const c2 = curve({ p: 7n, c: [0n, 6n], g: [0n, 0n], n: 2n })
+        assert(eq(c2.mul(2n)([1n, 0n]))(null))
+        assert(!isPublicKey(c2)([1n, 0n]))
+        assert(!isPublicKey(c2)([0n, 0n]))
+        // `y^2 = x^3 + 1` over 7, `n = 3`: `d = 1 > 0` but `d^2 = 1 <= 28`.
+        // Even the generator is refused: the bound cannot vouch for any key.
+        const c3 = curve({ p: 7n, c: [1n, 0n], g: [0n, 1n], n: 3n })
+        assert(!isPublicKey(c3)([0n, 1n]))
     },
 }
