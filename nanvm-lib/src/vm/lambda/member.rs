@@ -1,5 +1,5 @@
 use super::method::method;
-use crate::vm::{Any, Array, IVm, Nullish, ToAny, Unpacked, any::CANNOT_CONVERT_NULLISH_TO_OBJECT};
+use crate::vm::{Any, Array, IVm, Nullish, ToAny, Unpacked, error};
 
 /// A property step's live state: the receiver and the key, the read
 /// deferred to the exit that needs it. `end` reads the property; a call
@@ -25,7 +25,7 @@ impl<A: IVm> Member<A> {
     /// failure ahead of any key handling — and any other opens the step.
     pub(crate) fn new(receiver: Any<A>, key: Any<A>) -> Result<Self, Any<A>> {
         if let Unpacked::Nullish(_) = Unpacked::from(receiver.clone()) {
-            return Err(CANNOT_CONVERT_NULLISH_TO_OBJECT.into());
+            return Err(error::nullish_to_object());
         }
         Ok(Member { receiver, key })
     }
@@ -99,12 +99,10 @@ impl<A: IVm> Member<A> {
 mod tests {
     use crate::{
         naive::Naive,
-        vm::{Any, IStaticFunction, Nullish, ToAny, ToArray, ToObject},
+        vm::{Any, IStaticFunction, Nullish, ToAny, ToArray, ToObject, error},
     };
 
     type A = Naive;
-
-    const TYPE_ERROR: &str = "Type Error";
 
     fn no_args() -> Result<Any<A>, Any<A>> {
         Ok([].to_array().to_any())
@@ -127,7 +125,7 @@ mod tests {
         let not_callable: Any<A> = [("toString".into(), 1.0.to_any())].to_object().to_any();
         assert_eq!(
             not_callable.dot("toString".into()).end_call(no_args),
-            Err(TYPE_ERROR.into())
+            Err(error::unexpected_type())
         );
     }
 
@@ -139,7 +137,7 @@ mod tests {
         let ns: Any<A> = [1.0.to_any()].to_array().to_any();
         assert_eq!(
             ns.dot(0.0.to_any()).end_call(no_args),
-            Err(TYPE_ERROR.into())
+            Err(error::unexpected_type())
         );
     }
 
@@ -152,20 +150,20 @@ mod tests {
         let object: Any<A> = [].to_object().to_any();
         assert_eq!(
             object.dot("at".into()).end_call(no_args),
-            Err(TYPE_ERROR.into())
+            Err(error::unexpected_type())
         );
         let s: Any<A> = "ab".into();
         assert_eq!(
             s.dot(0.0.to_any()).end_call(no_args),
-            Err(TYPE_ERROR.into())
+            Err(error::unexpected_type())
         );
         assert_eq!(
             seven().dot("length".into()).end_call(no_args),
-            Err(TYPE_ERROR.into())
+            Err(error::unexpected_type())
         );
         assert_eq!(
             1.0.to_any::<A>().dot("at".into()).end_call(no_args),
-            Err(TYPE_ERROR.into())
+            Err(error::unexpected_type())
         );
     }
 
@@ -183,11 +181,11 @@ mod tests {
         let s: Any<A> = "a".into();
         assert_eq!(
             s.dot(0.0.to_any()).option_call(no_args).end(),
-            Err(TYPE_ERROR.into())
+            Err(error::unexpected_type())
         );
         assert_eq!(
             seven().dot("length".into()).option_call(no_args).end(),
-            Err(TYPE_ERROR.into())
+            Err(error::unexpected_type())
         );
         assert_eq!(
             object.clone().dot("u".into()).option_call(no_args).end(),
@@ -208,7 +206,7 @@ mod tests {
             1.0.to_any::<A>()
                 .dot("toString".into())
                 .end_call(|| Ok(Nullish::Null.to_any())),
-            Err(TYPE_ERROR.into())
+            Err(error::unexpected_type())
         );
     }
 
@@ -224,7 +222,7 @@ mod tests {
                 .to_any::<A>()
                 .dot("toString".into())
                 .end_call(|| Err("boom".into())),
-            Err("TypeError: Cannot convert undefined or null to object".into())
+            Err(error::nullish_to_object())
         );
     }
 }

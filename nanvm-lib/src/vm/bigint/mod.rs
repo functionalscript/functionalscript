@@ -26,12 +26,8 @@ use core::{cmp::Ordering, iter::once};
 use crate::{
     common::{div_mod::DivMod, iter::Iter, sized_index::SizedIndex, uint::Uint},
     sign::Sign,
-    vm::{Any, IContainer, IVm},
+    vm::{Any, IContainer, IVm, error},
 };
-
-/// The exact V8 message for dividing (`/`) or taking the remainder (`%`) of
-/// a `BigInt` by zero.
-const DIVISION_BY_ZERO: &str = "RangeError: Division by zero";
 
 /// [`BigInt::abs_sub_vec`]'s precondition, broken.
 const RHS_GREATER: &str = "abs_sub_vec: rhs is greater than self";
@@ -217,7 +213,7 @@ impl<A: IVm> BigInt<A> {
     /// throws instead of the `NaN` a `Number` operation would give.
     pub fn div_mod(self, rhs: Self) -> Result<(Self, Self), Any<A>> {
         if rhs.is_zero() {
-            return Err(DIVISION_BY_ZERO.into());
+            return Err(error::division_by_zero());
         }
         let lhs_sign = self.sign();
         let quotient_sign = if lhs_sign == rhs.sign() {

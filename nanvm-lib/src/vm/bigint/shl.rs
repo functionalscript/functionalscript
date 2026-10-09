@@ -3,12 +3,10 @@ use core::ops::Shl;
 use crate::{
     common::sized_index::SizedIndex,
     sign::Sign,
-    vm::{Any, BigInt, IVm},
+    vm::{Any, BigInt, IVm, error},
 };
 
 use super::ShiftAmount;
-
-const TOO_LARGE: &str = "RangeError: Maximum BigInt size exceeded";
 
 /// The largest word count a single `<<` may grow a `BigInt` to — `2^14`
 /// words (`2^20` bits, 128 KiB) — matching
@@ -31,10 +29,6 @@ const TOO_LARGE: &str = "RangeError: Maximum BigInt size exceeded";
 /// exactly the crash-instead-of-refuse this checks against.
 const MAX_WORDS: u64 = 1 << 14;
 
-fn too_large<A: IVm>() -> Result<BigInt<A>, Any<A>> {
-    Err(TOO_LARGE.into())
-}
-
 /// `<<`. <https://tc39.es/ecma262/#sec-numeric-types-bigint-leftShift>
 impl<A: IVm> Shl for BigInt<A> {
     type Output = Result<Self, Any<A>>;
@@ -47,7 +41,7 @@ impl<A: IVm> Shl for BigInt<A> {
 
         let (word_shift, bit_shift) = match self.shift_amount(&rhs) {
             ShiftAmount::Noop => return Ok(self),
-            ShiftAmount::TooWide => return too_large(),
+            ShiftAmount::TooWide => return Err(error::bigint_too_large()),
             ShiftAmount::Words(word_shift, bit_shift) => (word_shift, bit_shift),
         };
         let n_len = self.length();
@@ -63,7 +57,7 @@ impl<A: IVm> Shl for BigInt<A> {
         let carries_new_word = bit_shift > 0 && top_word >> (64 - bit_shift) != 0;
         let result_len = word_shift + n_len as u64 + if carries_new_word { 1 } else { 0 };
         if result_len > MAX_WORDS {
-            return too_large();
+            return Err(error::bigint_too_large());
         }
         let word_shift = word_shift as usize;
 
@@ -74,7 +68,7 @@ impl<A: IVm> Shl for BigInt<A> {
         // whose failure aborts the process instead of returning an `Err`.
         let mut value: Vec<u64> = Vec::new();
         if value.try_reserve_exact(result_len as usize).is_err() {
-            return too_large();
+            return Err(error::bigint_too_large());
         }
         value.extend(core::iter::repeat_n(0u64, word_shift));
         value.extend((0..n_len).map(|i| self[i]));
@@ -112,7 +106,11 @@ impl<A: IVm> Shl for BigInt<A> {
 //       We should move these tests into integration tests.
 #[cfg(test)]
 mod tests {
-    use crate::{naive::Naive, sign::Sign, vm::bigint::BigInt};
+    use crate::{
+        naive::Naive,
+        sign::Sign,
+        vm::{bigint::BigInt, error},
+    };
 
     type T = BigInt<Naive>;
 
@@ -372,10 +370,7 @@ mod tests {
     fn shl_multi_word_rhs_returns_err() {
         let a: T = 1u64.into();
         let b = pos(vec![0, 1]); // shift = 2^64
-        assert_eq!(
-            a << b,
-            Err("RangeError: Maximum BigInt size exceeded".into())
-        );
+        assert_eq!(a << b, Err(error::bigint_too_large()));
     }
 
     #[test]
@@ -383,10 +378,7 @@ mod tests {
         // u64::MAX would require ~2^58 words; exceeds the MAX_WORDS limit
         let a: T = 1u64.into();
         let b: T = u64::MAX.into();
-        assert_eq!(
-            a << b,
-            Err("RangeError: Maximum BigInt size exceeded".into())
-        );
+        assert_eq!(a << b, Err(error::bigint_too_large()));
     }
 
     #[test]
@@ -402,10 +394,7 @@ mod tests {
         // stays cheap even though the *value* it describes would not.
         let a: T = 1u64.into();
         let b: T = (super::MAX_WORDS * 64).into();
-        assert_eq!(
-            a << b,
-            Err("RangeError: Maximum BigInt size exceeded".into())
-        );
+        assert_eq!(a << b, Err(error::bigint_too_large()));
     }
 
     #[test]

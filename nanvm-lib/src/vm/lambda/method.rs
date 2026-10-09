@@ -2,7 +2,7 @@ use crate::{
     common::sized_index::SizedIndex,
     vm::{
         Any, Array, Function, IVm, Nullish, Number, String, ToAny, ToArray, Unpacked,
-        array::callback::callback,
+        array::callback::callback, error,
     },
 };
 
@@ -139,7 +139,7 @@ fn radix<A: IVm>(radix: Any<A>) -> Result<u32, Any<A>> {
     }
     let r = f64::from(radix.to_number()?.to_integer_or_infinity());
     if !(2.0..=36.0).contains(&r) {
-        return Err("RangeError: toString() radix argument must be between 2 and 36".into());
+        return Err(error::argument_out_of_range("toString", 2, 36));
     }
     Ok(r as u32)
 }
@@ -295,9 +295,7 @@ fn array_to_sorted<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, A
         Unpacked::Nullish(Nullish::Undefined) => None,
         Unpacked::Function(f) => Some(f),
         _ => {
-            return Err(
-                "TypeError: The comparison function must be either a function or undefined".into(),
-            );
+            return Err(error::invalid_comparison_function());
         }
     };
     Ok(Array::try_from(receiver)?.to_sorted(compare)?.to_any())
@@ -335,10 +333,7 @@ fn array_last_index_of<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A
 mod tests {
     use crate::{
         naive::Naive,
-        vm::{
-            Any, BigInt, IStaticFunction, Nullish, ToAny, ToArray, ToObject,
-            primitive_coercion::FUNCTION_TEXT,
-        },
+        vm::{Any, BigInt, IStaticFunction, Nullish, ToAny, ToArray, ToObject, error},
     };
 
     type A = Naive;
@@ -356,8 +351,7 @@ mod tests {
     fn to_string_radix() {
         let n = |v: f64| v.to_any();
         let b = || BigInt::<A>::from(-255i64).to_any();
-        let out_of_range =
-            Err("RangeError: toString() radix argument must be between 2 and 36".into());
+        let out_of_range = Err(error::argument_out_of_range("toString", 2, 36));
         assert_eq!(to_string_with(n(255.0), 10.0.to_any()), Ok("255".into()));
         assert_eq!(
             to_string_with(n(255.0), Nullish::Undefined.to_any()),
@@ -406,7 +400,7 @@ mod tests {
         let f: Any<A> =
             A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array(), None).to_any();
         // refused: a function without text
-        assert_eq!(to_string(f), Err(FUNCTION_TEXT.into()));
+        assert_eq!(to_string(f), Err(error::function_text()));
     }
 
     /// `join` converts its separator and its elements through the shared
@@ -465,7 +459,7 @@ mod tests {
         assert_eq!(join(pair(), separator), Ok("012".into()));
         assert_eq!(
             join([f()].to_array().to_any(), ",".into()),
-            Err(FUNCTION_TEXT.into())
+            Err(error::function_text())
         );
     }
 

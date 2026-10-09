@@ -53,5 +53,5 @@ that order stays per method.
 
 - [binary64-layer](./binary64-layer.md) — `mantissa_exp2` and `pow2`,
   the other helpers `format.rs` reaches for.
-- [error-constructors](./error-constructors.md) — `out_of_range`, the
-  `RangeError` these formatters throw.
+- [`src/vm/error.rs`](../src/vm/error.rs) — `argument_out_of_range`,
+  the `RangeError` these formatters throw.
