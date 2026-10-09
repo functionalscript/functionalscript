@@ -8,9 +8,8 @@
  * @import { Utf8 } from './types.ts'
  */
 
-import { tryU8ListToVecMsb } from '../types/bit_vec/module.f.mjs'
-import { fromCodePointList, vecToCodePointList } from './utf8/module.f.mjs'
-import { stringToCodePointList, codePointListToString } from './utf16/module.f.mjs'
+import { tryU8ListToVecMsb, u8ListMsb } from '../types/bit_vec/module.f.mjs'
+import { stringToU8List, u8ListToString } from './utf8/module.f.mjs'
 import { mapUnwrap } from '../types/nullable/module.f.mjs'
 
 /**
@@ -22,7 +21,7 @@ import { mapUnwrap } from '../types/nullable/module.f.mjs'
  * @returns {Nullable<Utf8>} The resulting UTF-8 bit vector, MSB first, or `null` on overflow.
  */
 export const tryUtf8 = s =>
-    tryU8ListToVecMsb(fromCodePointList(stringToCodePointList(s)))
+    tryU8ListToVecMsb(stringToU8List(s))
 
 /**
  * Converts a string to an UTF-8, represented as an MSB first bit vector.
@@ -42,4 +41,4 @@ export const utf8 =
  * @returns {string} The resulting string.
  */
 export const utf8ToString = msbV =>
-    codePointListToString(vecToCodePointList(msbV))
+    u8ListToString(u8ListMsb(msbV))

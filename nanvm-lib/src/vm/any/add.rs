@@ -1,6 +1,6 @@
 use std::ops::Add;
 
-use crate::vm::{Any, IVm, ToAny, Unpacked, primitive::Primitive};
+use crate::vm::{Any, IVm, ToAny, Unpacked, numeric::Numeric, primitive::Primitive};
 
 impl<A: IVm> Add for Any<A> {
     type Output = Result<Self, Self>;
@@ -15,6 +15,6 @@ impl<A: IVm> Add for Any<A> {
         }
         let lhs: Any<A> = Unpacked::from(lhs).into();
         let rhs: Any<A> = Unpacked::from(rhs).into();
-        Ok(Unpacked::from((lhs.to_numeric()? + rhs.to_numeric()?)?).into())
+        lhs.numeric_op(rhs, Numeric::add)
     }
 }

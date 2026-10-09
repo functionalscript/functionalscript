@@ -37,7 +37,7 @@
  * @module
  *
  * @import { Effect } from '../effects/types.ts'
- * @import { FileStat, Fs, Handle, IoChannel, Program, ServerResponse, Stat } from '../effects/node/types.ts'
+ * @import { FileStat, Fs, Handle, Headers, IoChannel, Program, ServerResponse, Stat } from '../effects/node/types.ts'
  * @import { EffectList } from '../effects/list/types.ts'
  * @import { Nullable } from '../types/nullable/types.ts'
  * @import { Result } from '../types/result/types.ts'
@@ -49,12 +49,10 @@ import { catchStep, pureOk, resultMapStep, resultStep, step } from '../effects/m
 import { empty, nonEmpty } from '../effects/list/module.f.mjs'
 import {
     createServer, errorExit, errorMessage, errorSummary, exitStep, forever, fstat, handleSource,
-    isDirectory, isNotFound, listen, log, maxPort, open, readChunks, releaseHandle, stat,
+    isDirectory, isNotFound, listen, log, maxPort, open, plainTextResponse, readChunks, releaseHandle, stat,
 } from '../effects/node/module.f.mjs'
 import { detectPath } from '../media/type/module.f.mjs'
 import { escapes, join, parse } from '../path/module.f.mjs'
-import { utf8 } from '../text/module.f.mjs'
-import { byteLength } from '../types/bit_vec/module.f.mjs'
 import { percentDecode, percentEncodePath } from '../text/percent/module.f.mjs'
 import { unwrap } from '../types/nullable/module.f.mjs'
 import { error, ok } from '../types/result/module.f.mjs'
@@ -237,16 +235,17 @@ export const resolve = root => url => {
 // ── Answering ─────────────────────────────────────────────────────────────────
 
 /**
- * A response frame carrying `body`, with `length` declared and `release` stating
- * what the body holds.
+ * A response frame carrying `body` under `headers`, with `release` stating what
+ * the body holds.
  *
- * `Content-Length` is written here rather than left to the runner, because the
- * runner does not write one: Node sends an unmeasured body with
+ * `headers` declare the `Content-Length` rather than leave it to the runner,
+ * because the runner does not write one: Node sends an unmeasured body with
  * `Transfer-Encoding: chunked`, and for a `HEAD` request — where it drops the
  * body but keeps these headers — that leaves the client with neither the bytes
  * nor their count, which is the one thing a `HEAD` is asked for.
  *
- * **The number comes from the `fstat` of the open file, and the reads stop at it.**
+ * **For a served file, the number comes from the `fstat` of the open file, and
+ * the reads stop at it.**
  * A length declared ahead of an *unbounded* read would be a guess about the read:
  * the entry could grow, and a fold that ends at the empty read would stream the
  * surplus past the count already promised — measured, 131,072 declared and 132,072
@@ -259,16 +258,15 @@ export const resolve = root => url => {
  * lazy body cannot do — finding out costs draining it, which is the thing
  * streaming exists not to do.
  *
- * @type {(status: number, contentType: string, length: number, body: EffectList<Fs, Vec, IoChannel>, release: Effect<Fs, null, never>) => ServerResponse<Fs>}
+ * @type {(status: number, headers: Headers, body: EffectList<Fs, Vec, IoChannel>, release: Effect<Fs, null, never>) => ServerResponse<Fs>}
  */
-const response = (status, contentType, length, body, release) => ({
+const response = (status, headers, body, release) => ({
     status,
     headers: {
-        'content-type': contentType,
-        'content-length': `${length}`,
-        // The `Content-Type` above is derived from a file name, and a browser
-        // that sniffs past it decides for itself what a served file is — which
-        // is the one thing this server has already answered.
+        ...headers,
+        // The `Content-Type` of a served file is derived from its name, and a
+        // browser that sniffs past it decides for itself what the file is —
+        // which is the one thing this server has already answered.
         'x-content-type-options': 'nosniff',
     },
     body,
@@ -287,15 +285,15 @@ const response = (status, contentType, length, body, release) => ({
  */
 const holdsNothing = pureOk(null)
 
-/** @type {(status: number) => (message: string) => ServerResponse<Fs>} */
+/**
+ * A failure's answer: the plain-text frame every runner refusal is too, so
+ * the two spell `text/plain` and measure the body the same way.
+ *
+ * @type {(status: number) => (message: string) => ServerResponse<Fs>}
+ */
 const plainText = status => message => {
-    const text = utf8(`${message}\n`)
-    return response(
-        status,
-        'text/plain; charset=utf-8',
-        Number(byteLength(text)),
-        nonEmpty(text, empty()),
-        holdsNothing)
+    const { headers, body } = plainTextResponse(status, message)
+    return response(status, headers, nonEmpty(body[0], empty()), holdsNothing)
 }
 
 /**
@@ -456,8 +454,7 @@ const fileResponse = ({ path, notFound }) => handle => ({ isFile, size }) =>
     isFile
         ? response(
             200,
-            detectPath(path),
-            size,
+            { 'content-type': detectPath(path), 'content-length': `${size}` },
             readChunks(handleSource(handle), size),
             releaseHandle(handle))
         : holding(handle)(plainText(404)(notFound))
