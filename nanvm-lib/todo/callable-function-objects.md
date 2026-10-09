@@ -505,8 +505,8 @@ channel. Three executors read one source:
 
 | executor | route | today |
 |---|---|---|
-| reference | Node imports the module and the default export is JSON-stringified | independent of this repository |
-| FJS interpreter | `parse` → `unresolved` → `analysis` → `memo({ args: [] })` → `read(…, 'default')` → `toData`, the route `fjs/compiler/proof.f.mjs` takes | no fixture-wide check |
+| reference | Node imports the module; its default export is compared as a value, structurally and with its aliasing, or it throws | independent of this repository |
+| FJS interpreter | `_transpileDefault`: `parse` → `unresolved` → `analysis` → `memo({ args: [] })` → `read(…, 'default')` → `toData`, the route `fjs compile` takes for a data output | compared against the reference for every corpus fixture (step 1, landed) |
 | direct AOT | `fjs compile` → `gen.fixtures/<name>.rs` → `nanvm-harness` | each fixture's expected text is hand-written in `src/lib.rs` |
 
 The interpreter is `memo`, not `amnesia`: `memo` starts each call with a fresh
@@ -559,7 +559,11 @@ call contract, and keep their hand-written Rust tests.
    proof, never skipped.
 2. **Direct AOT against the same expectation.** The generator writes the
    reference output next to the compiled fixture; one Rust test walks the
-   generated list and replaces the hand-written assertions it covers.
+   generated list and replaces the hand-written assertions it covers. The
+   committed form is not plain JSON: the reference's output includes
+   `bigint`, `undefined` and aliasing (`sharing`), which JSON cannot spell.
+   The form, and how the Rust side checks aliasing, is this step's design
+   question, answered in its pull request before its code.
 3. **The interpreter compiled to Rust runs the corpus.** Blocked, not
    planned: it needs the host `Map` dependencies of the executor migrated and
    the [immutable memo cache](../../fjs/edag/memo/todo/immutable-cache.md)
