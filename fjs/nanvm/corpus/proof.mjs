@@ -29,13 +29,50 @@ const reference = async name => {
     }
 }
 
-/** What the interpreter makes of it, in the same shapes. @type {(name: string) => readonly [string, unknown?]} */
+/**
+ * What the interpreter makes of it, in the same shapes. Only the error a
+ * module's own initialization raises is a throw; a parser or loader error
+ * carries no `thrown` and stays a failure, so a fixture the interpreter never
+ * ran cannot pass as one that throws.
+ *
+ * @type {(name: string) => readonly [string, unknown?]}
+ */
 const interpreted = name => {
     const [, result] = virtual({ ...emptyState, root })(_transpileDefault(name))
-    if (result[0] === 'error') { return ['throws'] }
+    if (result[0] === 'error') {
+        return 'thrown' in result[1] ? ['throws'] : ['failed', result[1]]
+    }
     const [tag, value] = result[1]
     return tag === 'ok' ? ['ok', value] : ['refused', value]
 }
+
+/**
+ * A value with its aliasing written out: an array or object seen for the
+ * first time is `['node', n, ...]` and every later sight of it `['alias', n]`,
+ * so two values with equal contents but different sharing differ. A
+ * structural comparison alone accepts `[shared, shared]` for two copies.
+ *
+ * @type {(value: unknown) => unknown}
+ */
+const withAliasing = value => {
+    /** @type {Map<unknown, number>} */
+    const seen = new Map()
+    /** @type {(v: unknown) => unknown} */
+    const walk = v => {
+        if (typeof v !== 'object' || v === null) { return v }
+        const id = seen.get(v)
+        if (id !== undefined) { return ['alias', id] }
+        const n = seen.size
+        seen.set(v, n)
+        return Array.isArray(v)
+            ? ['node', n, 'array', v.map(walk)]
+            : ['node', n, 'object', Object.entries(v).map(([k, x]) => [k, walk(x)])]
+    }
+    return walk(value)
+}
+
+/** @type {(outcome: readonly [string, unknown?]) => readonly [string, unknown?]} */
+const aliased = ([tag, value]) => tag === 'ok' ? [tag, withAliasing(value)] : [tag, value]
 
 export const proof = {
     /** An exception for a fixture that is gone would excuse nothing. */
@@ -44,6 +81,6 @@ export const proof = {
     },
     /** The interpreter answers what Node answers, or both throw. */
     compared: Object.fromEntries(corpus(names).map(name => [name, async () => {
-        assertStructurallySame(interpreted(name), await reference(name))
+        assertStructurallySame(aliased(interpreted(name)), aliased(await reference(name)))
     }])),
 }
