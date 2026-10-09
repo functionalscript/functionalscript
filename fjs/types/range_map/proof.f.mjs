@@ -4,7 +4,7 @@
  * @import { SortedSet } from '../sorted_set/types.ts'
  */
 
-import { get, merge, fromRange, rangeMap } from './module.f.mjs'
+import { get, merge, fromRange, rangeMap, mapValue, values } from './module.f.mjs'
 import { stringify } from '../../media/json/module.f.mjs'
 import { sort } from '../object/module.f.mjs'
 import { union } from '../sorted_set/module.f.mjs'
@@ -185,4 +185,12 @@ export const proof = {
             () => assertEq(g(9), -1),
         ]
     },
+    mapValue: () => {
+        const entry = mapValue((/** @type {number} */n) => `${n}`)([7, 42])
+        assertEq(str(entry), '["7",42]')
+    },
+    values: [
+        () => assertEq(str(toArray(values([[['a'], 10], [['b'], 20]]))), '[["a"],["b"]]'),
+        () => assertEq(str(toArray(values(null))), '[]'),
+    ],
 }
