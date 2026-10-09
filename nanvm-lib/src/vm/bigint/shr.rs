@@ -344,7 +344,7 @@ mod tests {
     #[test]
     fn shr_by_very_negative_shift_delegates_to_too_large_shl() {
         // shift = -(2^64): `self >> shift` is `self << 2^64`, which needs
-        // ~2^58 result words — well past the `too_large` guard `<<` already
+        // ~2^58 result words — well past the `bigint_too_large` guard `<<` already
         // has, reached here through `>>`'s negative-shift delegation.
         let a: T = 1u64.into();
         let b = neg(vec![0, 1]);

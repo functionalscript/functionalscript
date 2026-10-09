@@ -4,6 +4,7 @@ use crate::{
     vm::{
         Any, Array, IVm, Nullish, ToString, Unpacked,
         ecma_whitespace::is_ecma_whitespace,
+        error,
         position::{clamped, relative_range},
     },
 };
@@ -71,7 +72,7 @@ impl<A: IVm> String<A> {
     pub(crate) fn repeat(&self, count: Any<A>) -> Result<String<A>, Any<A>> {
         let n = count.to_integer_or_infinity()?;
         if n < 0.0 || n.is_infinite() {
-            return Err("RangeError: Invalid count value".into());
+            return Err(error::invalid_count());
         }
         if n == 0.0 || self.length() == 0 {
             return Ok("".into());
@@ -145,7 +146,7 @@ impl<A: IVm> String<A> {
 mod tests {
     use crate::{
         naive::Naive,
-        vm::{Any, Nullish, String, ToAny, ToArray},
+        vm::{Any, Nullish, String, ToAny, ToArray, error},
     };
 
     type A = Naive;
@@ -180,13 +181,13 @@ mod tests {
     fn repeat() {
         assert_eq!(s("ab").repeat(n(2.9)), Ok(s("abab")));
         assert_eq!(s("ab").repeat(n(0.0)), Ok(s("")));
-        let invalid = Err("RangeError: Invalid count value".into());
+        let invalid = Err(error::invalid_count());
         assert_eq!(s("a").repeat(n(-1.0)), invalid);
         assert_eq!(s("").repeat(n(f64::INFINITY)), invalid);
         assert_eq!(s("").repeat(n(1e300)), Ok(s("")));
         assert_eq!(
             s("ab").repeat(n(4_294_967_295.0)),
-            Err("RangeError: Invalid string length".into())
+            Err(error::string_too_long())
         );
     }
 

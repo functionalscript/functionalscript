@@ -11,7 +11,7 @@ spread, bounds the result's length against JavaScript's limit,
 `2³² − 1` elements, and then reserve the whole of it before building anything:
 
 ```rust
-if at_least > limit { return Err(TOO_LONG.into()); }
+if at_least > limit { return Err(error::array_too_long()); }
 let mut values = Vec::with_capacity(at_least as usize);
 ```
 
@@ -46,7 +46,7 @@ capacity would not make a 103 GB result fillable, and each later `push` would
 abort at its own growth step.
 
 - `Vec::try_reserve(at_least)` up front, answering the `RangeError` the helper
-  already uses (`TOO_LONG`) or a dedicated allocation error when it fails;
+  already uses (`error::array_too_long`) or a dedicated allocation error when it fails;
 - and a fallible reservation, `try_reserve(1)` or a chunked
   `try_reserve(chunk)`, before any `push` that can grow past what was reserved,
   which is only the per-element backstop for a string spread, whose length the

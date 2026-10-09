@@ -63,17 +63,13 @@ mod tests {
     use super::{clamped, in_range, relative, relative_range};
     use crate::{
         naive::Naive,
-        vm::{Any, Nullish, ToAny, unstable::bigint_any},
+        vm::{Any, Nullish, ToAny, error, unstable::bigint_any},
     };
 
     type A = Naive;
 
     fn r(v: Any<A>) -> Result<f64, Any<A>> {
         relative(v, 3)
-    }
-
-    fn bigint_error() -> Any<A> {
-        "TypeError: Cannot convert a BigInt value to a number".into()
     }
 
     #[test]
@@ -85,7 +81,7 @@ mod tests {
             Ok(0.0)
         );
         let one: Any<A> = bigint_any(1);
-        assert_eq!(one.to_integer_or_infinity(), Err(bigint_error()));
+        assert_eq!(one.to_integer_or_infinity(), Err(error::bigint_to_number()));
     }
 
     #[test]
@@ -102,7 +98,7 @@ mod tests {
 
     #[test]
     fn bigint_throws() {
-        assert_eq!(r(bigint_any(1)), Err(bigint_error()));
+        assert_eq!(r(bigint_any(1)), Err(error::bigint_to_number()));
     }
 
     #[test]
@@ -133,6 +129,6 @@ mod tests {
         assert_eq!(range(-9.0, 9.0.to_any()), Ok(0..3));
         assert_eq!(range(2.0, 1.0.to_any()), Ok(2..2));
         assert_eq!(range(0.0, Nullish::Null.to_any()), Ok(0..0));
-        assert_eq!(range(0.0, bigint_any(1)), Err(bigint_error()));
+        assert_eq!(range(0.0, bigint_any(1)), Err(error::bigint_to_number()));
     }
 }

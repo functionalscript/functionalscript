@@ -5,6 +5,7 @@ mod boolean_coercion;
 mod container_fmt;
 mod dispatch;
 mod ecma_whitespace;
+mod error;
 mod function;
 mod impls;
 mod internal;

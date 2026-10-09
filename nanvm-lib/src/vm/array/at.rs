@@ -32,7 +32,7 @@ mod tests {
     use super::Array;
     use crate::{
         naive::Naive,
-        vm::{Any, Nullish, ToAny, ToArray, unstable::bigint_any},
+        vm::{Any, Nullish, ToAny, ToArray, error, unstable::bigint_any},
     };
 
     type A = Naive;
@@ -76,9 +76,6 @@ mod tests {
     #[test]
     fn bigint_index_throws() {
         let one: Any<A> = bigint_any(1);
-        assert_eq!(
-            array().at(one),
-            Err("TypeError: Cannot convert a BigInt value to a number".into())
-        );
+        assert_eq!(array().at(one), Err(error::bigint_to_number()));
     }
 }

@@ -1,12 +1,6 @@
 use std::ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Neg, Rem, Shl, Shr, Sub};
 
-use crate::vm::{Any, BigInt, IVm, Number, Unpacked};
-
-const CANNOT_MIX_NUMBER_AND_BIGINT: &str =
-    "TypeError: Cannot mix BigInt and other types, use explicit conversions";
-
-const NO_UNSIGNED_RIGHT_SHIFT_FOR_BIGINT: &str =
-    "TypeError: BigInts have no unsigned right shift, use >> instead";
+use crate::vm::{Any, BigInt, IVm, Number, Unpacked, error};
 
 /// `ToUint32(rhs) & 0x1F`: the shift-count operand of `<<`/`>>`/`>>>`
 /// between two `Number`s is reduced modulo 32 — a `u32` shift always in
@@ -53,7 +47,7 @@ impl<A: IVm> Add for Numeric<A> {
         Ok(match (self, rhs) {
             (Numeric::Number(a), Numeric::Number(b)) => Numeric::Number(a + b),
             (Numeric::BigInt(a), Numeric::BigInt(b)) => Numeric::BigInt(a + b),
-            _ => return Err(CANNOT_MIX_NUMBER_AND_BIGINT.into()),
+            _ => return Err(error::mixed_numeric_operands()),
         })
     }
 }
@@ -65,7 +59,7 @@ impl<A: IVm> Mul for Numeric<A> {
         Ok(match (self, rhs) {
             (Numeric::Number(a), Numeric::Number(b)) => Numeric::Number(a * b),
             (Numeric::BigInt(a), Numeric::BigInt(b)) => Numeric::BigInt(a * b),
-            _ => return Err(CANNOT_MIX_NUMBER_AND_BIGINT.into()),
+            _ => return Err(error::mixed_numeric_operands()),
         })
     }
 }
@@ -77,7 +71,7 @@ impl<A: IVm> Sub for Numeric<A> {
         Ok(match (self, rhs) {
             (Numeric::Number(a), Numeric::Number(b)) => Numeric::Number(a - b),
             (Numeric::BigInt(a), Numeric::BigInt(b)) => Numeric::BigInt(a - b),
-            _ => return Err(CANNOT_MIX_NUMBER_AND_BIGINT.into()),
+            _ => return Err(error::mixed_numeric_operands()),
         })
     }
 }
@@ -89,7 +83,7 @@ impl<A: IVm> Rem for Numeric<A> {
         match (self, rhs) {
             (Numeric::Number(a), Numeric::Number(b)) => Ok(Numeric::Number(a % b)),
             (Numeric::BigInt(a), Numeric::BigInt(b)) => Ok(Numeric::BigInt((a % b)?)),
-            _ => Err(CANNOT_MIX_NUMBER_AND_BIGINT.into()),
+            _ => Err(error::mixed_numeric_operands()),
         }
     }
 }
@@ -101,7 +95,7 @@ impl<A: IVm> Div for Numeric<A> {
         match (self, rhs) {
             (Numeric::Number(a), Numeric::Number(b)) => Ok(Numeric::Number(a / b)),
             (Numeric::BigInt(a), Numeric::BigInt(b)) => Ok(Numeric::BigInt((a / b)?)),
-            _ => Err(CANNOT_MIX_NUMBER_AND_BIGINT.into()),
+            _ => Err(error::mixed_numeric_operands()),
         }
     }
 }
@@ -115,7 +109,7 @@ impl<A: IVm> BitAnd for Numeric<A> {
                 Numeric::Number((a.to_int32() & b.to_int32()).into())
             }
             (Numeric::BigInt(a), Numeric::BigInt(b)) => Numeric::BigInt(a & b),
-            _ => return Err(CANNOT_MIX_NUMBER_AND_BIGINT.into()),
+            _ => return Err(error::mixed_numeric_operands()),
         })
     }
 }
@@ -129,7 +123,7 @@ impl<A: IVm> BitOr for Numeric<A> {
                 Numeric::Number((a.to_int32() | b.to_int32()).into())
             }
             (Numeric::BigInt(a), Numeric::BigInt(b)) => Numeric::BigInt(a | b),
-            _ => return Err(CANNOT_MIX_NUMBER_AND_BIGINT.into()),
+            _ => return Err(error::mixed_numeric_operands()),
         })
     }
 }
@@ -143,7 +137,7 @@ impl<A: IVm> BitXor for Numeric<A> {
                 Numeric::Number((a.to_int32() ^ b.to_int32()).into())
             }
             (Numeric::BigInt(a), Numeric::BigInt(b)) => Numeric::BigInt(a ^ b),
-            _ => return Err(CANNOT_MIX_NUMBER_AND_BIGINT.into()),
+            _ => return Err(error::mixed_numeric_operands()),
         })
     }
 }
@@ -157,7 +151,7 @@ impl<A: IVm> Shl for Numeric<A> {
                 Numeric::Number((a.to_int32() << shift_count(b)).into())
             }
             (Numeric::BigInt(a), Numeric::BigInt(b)) => Numeric::BigInt((a << b)?),
-            _ => return Err(CANNOT_MIX_NUMBER_AND_BIGINT.into()),
+            _ => return Err(error::mixed_numeric_operands()),
         })
     }
 }
@@ -171,7 +165,7 @@ impl<A: IVm> Shr for Numeric<A> {
                 Numeric::Number((a.to_int32() >> shift_count(b)).into())
             }
             (Numeric::BigInt(a), Numeric::BigInt(b)) => Numeric::BigInt((a >> b)?),
-            _ => return Err(CANNOT_MIX_NUMBER_AND_BIGINT.into()),
+            _ => return Err(error::mixed_numeric_operands()),
         })
     }
 }
@@ -184,7 +178,7 @@ impl<A: IVm> Numeric<A> {
         match (self, rhs) {
             (Numeric::Number(a), Numeric::Number(b)) => Ok(Numeric::Number(a.pow(b))),
             (Numeric::BigInt(a), Numeric::BigInt(b)) => Ok(Numeric::BigInt(a.pow(b)?)),
-            _ => Err(CANNOT_MIX_NUMBER_AND_BIGINT.into()),
+            _ => Err(error::mixed_numeric_operands()),
         }
     }
 
@@ -213,10 +207,8 @@ impl<A: IVm> Numeric<A> {
             (Numeric::Number(a), Numeric::Number(b)) => {
                 Ok(Numeric::Number((a.to_uint32() >> shift_count(b)).into()))
             }
-            (Numeric::BigInt(_), Numeric::BigInt(_)) => {
-                Err(NO_UNSIGNED_RIGHT_SHIFT_FOR_BIGINT.into())
-            }
-            _ => Err(CANNOT_MIX_NUMBER_AND_BIGINT.into()),
+            (Numeric::BigInt(_), Numeric::BigInt(_)) => Err(error::bigint_unsigned_right_shift()),
+            _ => Err(error::mixed_numeric_operands()),
         }
     }
 }
