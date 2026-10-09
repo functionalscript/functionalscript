@@ -52,9 +52,3 @@ yet, and an exported constant with no reader would be speculative API.
 
 - [fjs/media/README.md](../../README.md#membership)
   — the `fjs/media/` membership rule this applies.
-- [serializer-validation-split](./serializer-validation-split.md) — a separate
-  issue in the same module. This one was split out of it: that issue changes
-  the serializer's return type and validation structure, and per
-  [`AGENTS.md` §5](../../../../AGENTS.md#5-pull-requests-and-releases) a PR
-  implements one improvement, so a media-type declaration does not belong in
-  the same change. Neither blocks the other.

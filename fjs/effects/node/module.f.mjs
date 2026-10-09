@@ -972,6 +972,29 @@ export const refusalMessage = ([tag]) =>
         : tag === 'unframed' ? unframedBodyMessage : doubledLengthMessage
 
 /**
+ * A one-line plain-text answer, as a response frame: `message` and a newline,
+ * its type, and its length — measured from the bytes, never written by hand.
+ *
+ * Every plain-text answer in the tree is this frame: the runners' own refusals
+ * through {@link runnerResponse}, and a listener's, such as `fjs/web`'s. It says
+ * nothing about the connection, because that is the runner's socket policy and
+ * not part of the answer.
+ *
+ * @type {(status: number, message: string) => { readonly status: number, readonly headers: Headers, readonly body: readonly Vec[] }}
+ */
+export const plainTextResponse = (status, message) => {
+    const body = utf8(`${message}\n`)
+    return {
+        status,
+        headers: {
+            'content-type': 'text/plain; charset=utf-8',
+            'content-length': `${byteLength(body)}`,
+        },
+        body: [body],
+    }
+}
+
+/**
  * The runner's own answer, as a response frame — for the cases a listener never
  * gets to give one, or gave one the runner may not put on a socket.
  *
@@ -988,16 +1011,8 @@ export const refusalMessage = ([tag]) =>
  * @type {(status: number, message: string) => { readonly status: number, readonly headers: Headers, readonly body: readonly Vec[] }}
  */
 export const runnerResponse = (status, message) => {
-    const body = utf8(`${message}\n`)
-    return {
-        status,
-        headers: {
-            'content-type': 'text/plain; charset=utf-8',
-            'content-length': `${byteLength(body)}`,
-            connection: 'close',
-        },
-        body: [body],
-    }
+    const { headers, body } = plainTextResponse(status, message)
+    return { status, headers: { ...headers, connection: 'close' }, body }
 }
 
 // stat
