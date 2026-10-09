@@ -1,7 +1,10 @@
-use super::{Array, relative::relative};
+use super::Array;
 use crate::{
     common::sized_index::SizedIndex,
-    vm::{Any, IVm, ToArray, error},
+    vm::{
+        Any, IVm, ToArray, error,
+        position::{in_range, relative},
+    },
 };
 
 impl<A: IVm> Array<A> {
@@ -12,11 +15,9 @@ impl<A: IVm> Array<A> {
     /// anything is copied.
     pub(crate) fn with(&self, index: Any<A>, value: Any<A>) -> Result<Array<A>, Any<A>> {
         let len = self.length();
-        let k = relative(index, len)?;
-        if !(0.0..f64::from(len)).contains(&k) {
+        let Some(k) = in_range(relative(index, len)?, len) else {
             return Err(error::invalid_index());
-        }
-        let k = k as u32;
+        };
         Ok((0..len)
             .map(|i| {
                 if i == k {

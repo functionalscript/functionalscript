@@ -1,11 +1,10 @@
-use super::{
-    Array,
-    create::create,
-    relative::{clamped, relative},
-};
+use super::{Array, create::create};
 use crate::{
     common::sized_index::SizedIndex,
-    vm::{Any, IVm},
+    vm::{
+        Any, IVm,
+        position::{clamped, relative},
+    },
 };
 
 impl<A: IVm> Array<A> {
@@ -33,9 +32,7 @@ impl<A: IVm> Array<A> {
         let skip = match (start, skip) {
             (None, _) => 0,
             (Some(_), None) => remaining,
-            (Some(_), Some(skip)) => {
-                clamped(skip.to_number()?.to_integer_or_infinity().into(), remaining)
-            }
+            (Some(_), Some(skip)) => clamped(skip.to_integer_or_infinity()?, remaining),
         };
         let new_len = u64::from(len - skip) + u64::from(items.length());
         create(
