@@ -1,7 +1,7 @@
 ## Refuse unsafe write offsets consistently across runners
 
 **Priority:** P2
-**Status:** open
+**Status:** wip
 
 ### Evidence
 
