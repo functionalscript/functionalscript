@@ -53,8 +53,10 @@ and folding the rest while leaving `+` a node draws an inconsistent line.
 Fold what is exact; leave what needs an assumption to the readers that want
 a value.
 
-An index is not an expression: it is a constant key, a string or a number,
-so a negative key is written as the string it names, `a["-1"]`.
+An index is a constant string or unsigned numeric literal, or the implemented
+`Number(...)` conversion ([property access](../README.md#property-access)).
+A negative constant key is written as the string it names, `a["-1"]`;
+general computed indices remain unsupported.
 
 The [comma operator](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Comma_operator) is allowed. It was previously rejected on the grounds that it is useful only when we want to mutate — but that is not its only use. In a pure language the sole side effect a discarded operand can have is *throwing*, which makes `,` the assertion form:
 
@@ -103,8 +105,9 @@ Depends on [export default](../README.md#exporting-a-value) and [undefined](../R
 spells, a keyword with a symbol of its own in the grammar and, since it
 opens a value, the one such keyword a reference may not be — a key or a
 property name still. The EDAG admits every pure operation and the language
-spells a subset of them; unary `+` and the `String` and `Number` conversions
-remain on the other side of the line.
+spells a subset of them; unary `+` and the `String` conversion remain on the
+other side of the line. `Number(...)` is implemented
+([number conversion](../README.md#number-conversion)).
 
 For mutating operators, see [assignments](./3430-assignments.md).
 

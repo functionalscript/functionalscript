@@ -1,13 +1,15 @@
 # Language Specification: To Do
 
-Documents for language features that the `fjs` parser does **not** recognize
-yet, and design documents for parts of the system that are not implemented.
+Documents for planned language features and remaining system design work.
+Some features are implemented but retain open approval, proof or follow-up
+tasks; their current behavior is specified in the [language specification](../README.md).
 Each file is a working draft: it may mix specification text with design
 notes, alternatives, and implementation sketches.
 
-When the parser recognizes a feature, its document is folded into the single
+When the parser recognizes a feature, its implemented behavior is folded into the single
 [language specification](../README.md) — the one document that describes what
-the compiler accepts today — and this file's entry is removed. The numbering
+the compiler accepts today. A design record and its entry remain here while
+explicit work is still open, and are removed when that work is complete. The numbering
 below is this directory's own; the specification has no section numbers.
 
 ## Compatibility invariants — P1
@@ -134,8 +136,9 @@ information — see [serialization](./serialization.md) and
    ([functions](../README.md#functions))
 2. [ ] [named and rest parameters](./3120-parameters.md) — the syntax, the
    fixed `arg`/`rest` EDAG bindings and the callable factories have landed;
-   what remains is the P1 default-text renderer, since a factory callable's
-   `String` still shows its wrapper, and the plan's unticked proofs
+   represented interpreters and compiled native functions now render
+   EDAG-derived text ([function text](../../fjs/edag/function-text.md)).
+   The design record retains its remaining proof and runtime-association work
    (at most 16 fixed parameters: [functions](../README.md#functions))
 3. [x] body-const — a function body takes `const` statements before its
    `return`, and the writer spells them
