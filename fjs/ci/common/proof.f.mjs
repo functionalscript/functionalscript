@@ -4,7 +4,7 @@
 
 import { actions, images, jobTimeout } from '../config/module.f.js'
 import { install, parseGitHubAction, test, toSteps, ubuntu, ubuntuArm, uses } from './module.f.mjs'
-import { assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
 
 /** @type {Step} */
 const setup = { run: 'setup' }
@@ -72,17 +72,6 @@ export const proof = {
                 jobs: { check: job },
             }))
             assertStructurallySame(action.jobs.check, job)
-        },
-        /** A manually selected maintenance ref uses the same workflow schema. */
-        manualRelease: () => {
-            const action = assertOk(parseGitHubAction({
-                name: 'release',
-                on: { workflow_dispatch: {} },
-                permissions: { contents: 'read', 'id-token': 'write' },
-                jobs: { publish: ubuntu([test(check)]) },
-            }))
-            assertStructurallySame(action.on.workflow_dispatch, {})
-            assertEq(action.on.push, undefined)
         },
         /** A job without a timeout is refused. */
         error: () => {

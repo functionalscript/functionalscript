@@ -5,8 +5,7 @@
       "branches": [
         "main"
       ]
-    },
-    "workflow_dispatch": {}
+    }
   },
   "permissions": {
     "contents": "read",
@@ -34,14 +33,10 @@
           "run": "npm ci"
         },
         {
-          "run": "npm publish --provenance --tag \"$NPM_DIST_TAG\"",
-          "env": {
-            "NPM_DIST_TAG": "${{ github.event_name == 'push' && 'latest' || 'maintenance' }}"
-          },
+          "run": "npm publish --provenance",
           "continue-on-error": true
         }
-      ],
-      "environment": "npm-publish"
+      ]
     }
   }
 }

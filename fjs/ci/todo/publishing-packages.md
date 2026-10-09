@@ -17,13 +17,12 @@ FunctionalScript can't currently be installed from Git using NPM.
 
 ### Updating packages
 
-`npm run lock-update` reinstalls, syncs `deno.lock`/`bun.lock`/`Cargo.lock`, refreshes every `flake.lock`, and regenerates the CI workflow; dependency version bumps in `package.json` are manual until [replace-npm-check-updates-with-an-internal-script.md](./replace-npm-check-updates-with-an-internal-script.md) lands. The version is the single source of truth in `package.json`. Regular pre-1.0 releases publish `0.X.0` from `main`; urgent fixes publish `0.X.1`, `0.X.2`, etc. from the preceding release on a maintenance branch through a manual dispatch. Manual releases use the `maintenance` dist-tag, leaving `latest` unchanged. Both paths require release approval; see [the release procedure](../../../changelog/RELEASE.md#urgent-fixes-before-10) and [publisher setup](../README.md#release-approval-setup). This strategy can also work for Rust packages.
+`npm run lock-update` reinstalls, syncs `deno.lock`/`bun.lock`/`Cargo.lock`, refreshes every `flake.lock`, and regenerates the CI workflow; dependency version bumps in `package.json` are manual until [replace-npm-check-updates-with-an-internal-script.md](./replace-npm-check-updates-with-an-internal-script.md) lands. The version is the single source of truth in `package.json`. Regular pre-1.0 releases use `0.X.0` from `main`; urgent fixes use `0.X.1`, `0.X.2`, etc. from the preceding release on a maintenance branch. The current workflow publishes only main pushes. Implement [maintenance release publishing](./maintenance-release-publishing.md) separately so urgent fixes can publish from their release line without moving `latest` backward. See [the release procedure](../../../changelog/RELEASE.md#urgent-fixes-before-10). This strategy can also work for Rust packages.
 
 ### CI publishing (regular and maintenance releases)
 
 - [ ] Publish only a new version — [publish-only-a-new-version](./publish-only-a-new-version.md).
-      Today the publish step runs after approval on every main push or manual
-      maintenance dispatch and absorbs npm's republish 403
+      Today the publish step runs on every main push and absorbs npm's republish 403
       with `continue-on-error`.
 
 Package and publish jobs run in CI from a clean checkout. We do not rely on

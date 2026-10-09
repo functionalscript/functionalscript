@@ -21,24 +21,15 @@ const usesIndex = prefix => steps.findIndex(step => step.uses?.startsWith(prefix
 const runIndex = command => steps.findIndex(step => step.run === command)
 
 export const proof = {
-    publishingRequiresReleaseApproval: () => {
-        assertEq(npmPublishJob.environment, 'npm-publish')
-        assertEq(npmPublishWorkflow.jobs[npmPublishJobId]?.environment, 'npm-publish')
-    },
     // A publish is not a gate, and the distinction is the whole of this
-    // workflow's triggers. Manual dispatch checks out its selected ref, so an
-    // urgent fix can publish without main's later changes. `pull_request` would
-    // hand a fork's branch the
+    // workflow's trigger. `pull_request` would hand a fork's branch the
     // registry's trust, and `merge_group` would publish a merge that has not
     // landed.
-    pushesToMainOrManualMaintenanceRelease: () => {
+    onlyPushesToTheBranch: () => {
         assertEq(npmPublishPath, '.github/workflows/gen.npm-publish.yml')
         assertEq(npmPublishWorkflow.name, 'npm publish')
         assertStructurallySame(npmPublishWorkflow.on.push?.branches, [publishBranch])
         assertEq(publishBranch, 'main')
-        assertStructurallySame(npmPublishWorkflow.on.workflow_dispatch, {})
-        const checkout = steps[usesIndex('actions/checkout@')]
-        assertEq(checkout?.with?.ref, undefined)
         assertEq(npmPublishWorkflow.on.pull_request, undefined)
         assertEq(npmPublishWorkflow.on.merge_group, undefined)
     },
@@ -50,23 +41,15 @@ export const proof = {
         assertEq(npmPublishWorkflow.permissions.contents, 'read')
         assertEq(npmPublishWorkflow.permissions['id-token'], 'write')
         assertEq(Object.keys(npmPublishWorkflow.permissions).length, 2)
-        assert(has('npm publish --provenance --tag "$NPM_DIST_TAG"'), 'expected a provenance publish')
+        assert(has('npm publish --provenance'), 'expected a provenance publish')
         // Dropping `--provenance` would leave `id-token: write` granted and
         // unspent, and the package would publish unattested with nothing red —
         // so it is every publish that has to carry the flag, not merely one.
         assert(
             steps.every(step =>
                 step.run?.startsWith('npm publish') !== true
-                || step.run === 'npm publish --provenance --tag "$NPM_DIST_TAG"'),
+                || step.run === 'npm publish --provenance'),
             'expected every publish attested')
-    },
-    // Only normal main pushes may move latest. Manual releases can be fixes
-    // for older minors, and publishing must protect latest in the same step.
-    maintenanceDoesNotMoveLatest: () => {
-        const publish = steps[runIndex('npm publish --provenance --tag "$NPM_DIST_TAG"')]
-        assertEq(
-            publish?.env?.NPM_DIST_TAG,
-            "${{ github.event_name == 'push' && 'latest' || 'maintenance' }}")
     },
     // The registry named where the job configures npm, not left to whatever the
     // runner or `publishConfig` defaults to.
@@ -89,7 +72,7 @@ export const proof = {
             has(`npm install -g typescript@${typescript.version}`),
             'expected the configured compiler installed')
         const compiler = runIndex(`npm install -g typescript@${typescript.version}`)
-        const publish = runIndex('npm publish --provenance --tag "$NPM_DIST_TAG"')
+        const publish = runIndex('npm publish --provenance')
         assert(compiler !== -1, 'expected a compiler install')
         assert(compiler < publish, 'expected the compiler before the publish')
     },
@@ -106,7 +89,7 @@ export const proof = {
         const checkout = usesIndex('actions/checkout@')
         assert(checkout !== -1, 'expected a checkout')
         const install = runIndex('npm ci')
-        const publish = runIndex('npm publish --provenance --tag "$NPM_DIST_TAG"')
+        const publish = runIndex('npm publish --provenance')
         assert(checkout < install, 'expected the checkout before the install')
         assert(install < publish, 'expected the install before the publish')
         // One job, so nothing to wait for — and an ordering edge here would
@@ -122,6 +105,6 @@ export const proof = {
         assertStructurallySame(
             steps.flatMap(step =>
                 step['continue-on-error'] === undefined ? [] : [step.run]),
-            ['npm publish --provenance --tag "$NPM_DIST_TAG"'])
+            ['npm publish --provenance'])
     },
 }

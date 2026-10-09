@@ -27,28 +27,20 @@ fix deliberately uses a different branch and window:
    branch's first-parent history and branch from that commit instead.
 2. Apply only the urgent fixes, updating importers and running the full checks
    required by [AGENTS.md](../AGENTS.md). Review fix PRs against this maintenance
-   branch. Backport only the publishing-workflow support needed if the original
-   release predates the manual trigger; do not merge later development into it.
+   branch. Once maintenance publishing is implemented, backport only the
+   workflow support it needs; do not merge later development into the branch.
 3. Collect the notes over `<previous-release>..<maintenance-tip>`, using that
    tip instead of `origin/main` throughout steps 2–4 and the final scan. Bump
    `package.json` and `package-lock.json` to `0.X.1` (then `0.X.2`, etc.) and
    write the matching changelog file in a release PR against the maintenance
    branch. Verify its final scanned tip before merging.
-4. Verify [release approval setup](../fjs/ci/README.md#release-approval-setup),
-   including the protected GitHub environment and npm environment binding.
-   After that PR merges, run **npm publish** manually in GitHub Actions, selecting
-   the maintenance branch. Its default checkout publishes the selected branch's
-   commit with provenance; it does not publish `main`. The release maintainer
-   reviews the exact run commit against the merged release PR and approves the
-   `npm-publish` deployment before any publishing job steps run. Check the publish step
-   itself and the registry version: the current workflow tolerates publish
-   failure, so a green run alone does not establish publication. Never overwrite
-   a published version. Manual runs publish under the `maintenance` dist-tag,
-   leaving `latest` untouched even for an older minor. If the fix should become
-   the default for unversioned installs, a maintainer verifies that it is the
-   newest supported release and explicitly promotes it with
-   `npm dist-tag add functionalscript@0.X.P latest`. Never promote an older minor
-   over a newer release.
+4. Publishing this maintenance branch is tracked separately in
+   [maintenance release publishing](../fjs/ci/todo/maintenance-release-publishing.md).
+   The current generated workflow publishes only pushes to `main`; it does not
+   provide a maintenance-branch trigger. Implement and verify that follow-up
+   before publishing a maintenance release. Never merge later development into
+   the maintenance branch just to use the main publisher, or overwrite a
+   published version.
 5. Carry every fix forward to `main` through a separate PR **before the next
    regular release**, adapting it to current code if needed so upgrading retains
    the fix. Leave urgent version and changelog metadata on the maintenance

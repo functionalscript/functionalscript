@@ -28,10 +28,9 @@ export const npmPublishPath = /** @type {const} */ ('.github/workflows/gen.npm-p
 /**
  * The branch a publish follows. The version in `package.json` is the single
  * source of truth for what gets published, and it becomes real when it reaches
- * the default branch. A manual dispatch also lets a maintainer publish an
- * urgent fix from its maintenance branch, without later changes on main.
- * Neither trigger is a `pull_request`: a fork's pull request must never reach
- * a step holding the registry's trust.
+ * the default branch — so this is the one trigger, and it is a `push` rather
+ * than a `pull_request`: a fork's pull request must never reach a step holding
+ * the registry's trust.
  */
 export const publishBranch = /** @type {const} */ ('main')
 
@@ -80,15 +79,7 @@ const publishSteps = [
     // failure, an authentication or provenance error, just as quietly.
     // `../todo/publish-only-a-new-version.md` owns making the two
     // distinguishable.
-    // Manual maintenance releases may belong to an older minor. Publish them
-    // under their own tag so they cannot move unversioned installs backward.
-    test({
-        run: 'npm publish --provenance --tag "$NPM_DIST_TAG"',
-        env: {
-            NPM_DIST_TAG: "${{ github.event_name == 'push' && 'latest' || 'maintenance' }}",
-        },
-        'continue-on-error': true,
-    }),
+    test({ run: 'npm publish --provenance', 'continue-on-error': true }),
 ]
 
 /**
@@ -100,13 +91,7 @@ const publishSteps = [
  *
  * @type {Job}
  */
-export const npmPublishJob = {
-    ...ubuntuArm(publishSteps),
-    // npm must bind its trusted publisher to this same protected environment.
-    // A branch cannot bypass approval by removing this field: npm then rejects
-    // its OIDC identity. See ../README.md for the required registry setup.
-    environment: 'npm-publish',
-}
+export const npmPublishJob = ubuntuArm(publishSteps)
 
 /**
  * `contents: read` and nothing more on the repository — a publish reads the
@@ -119,7 +104,6 @@ export const npmPublishWorkflow = {
     name: 'npm publish',
     on: {
         push: { branches: [publishBranch] },
-        workflow_dispatch: {},
     },
     permissions: {
         contents: 'read',
