@@ -24,9 +24,11 @@ done, since a `Vec` that grows by `push` can abort at any growth step too.
 
 - **A buffer the operation allocates or grows itself, larger than its
   inputs.** `BigInt`'s `*` and `<<` (`vm/bigint/mul.rs`, `shl.rs`) are the
-  model, not a site: each refuses a result past `MAX_WORDS` words before it
-  allocates, returns a `Result`, and reserves with `try_reserve_exact`;
-  `common/vec.rs::with_default` has no user left. `flat` (`vm/array/flat.rs`,
+  model for the buffer they build themselves: each refuses a result past
+  `MAX_WORDS` words before it allocates, returns a `Result`, and reserves with
+  `try_reserve_exact`; `common/vec.rs::with_default` has no user left. Both
+  still meet the third kind below, in the container their result is handed
+  to. `flat` (`vm/array/flat.rs`,
   `flatten`) pushes every element of its result onto a `Vec` before `create`
   builds the array: an outer array holding many references to one wide inner
   array makes that buffer far larger than the inputs in memory, and each
@@ -42,8 +44,10 @@ done, since a `Vec` that grows by `push` can abort at any growth step too.
 - **A container the constructor allocates.** `spread_array`'s final
   `to_array`, and `array/create.rs`'s `create`, which bounds the length at
   `2³² − 1` and then builds the array from an iterator, and so do the string
-  builders that call it: `repeat`, `padStart`/`padEnd`, `concat`. `<<` meets
-  this one too, in its second allocation (the TODO in `shl.rs`).
+  builders that call it: `repeat`, `padStart`/`padEnd`, `concat`. `<<` and `*`
+  meet this one too, in their second allocation: the `Vec` they reserve
+  fallibly is collected into the container by `normalize_new` or
+  `unchecked_new` (the TODO in `shl.rs`).
   `'a'.repeat(2 ** 32 - 1)` is a count under the limit that the machine may
   not back.
 
