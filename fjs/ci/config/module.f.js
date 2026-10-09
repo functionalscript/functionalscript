@@ -92,7 +92,7 @@ export const deno = '2.8.3'
 // versions it offers rather than the latest release.
 // https://nodejs.org/en/download
 export const node = /** @type {const} */({
-    default: '26.11.0',
+    default: '26.10.0',
     node22: '22.23.3',
     node24: '24.21.0',
 })
@@ -149,6 +149,14 @@ export const jobTimeout = /** @type {const} */ (15)
 // every generated `flake.nix` pins. The Node versions above come from this
 // snapshot, so the two move together.
 //
+// Pin only a commit whose whole shell `cache.nixos.org` holds on all four
+// systems. The channel advances on Linux tests alone, and Hydra skips commits
+// for Darwin, so a channel commit can leave the macOS jobs compiling Node.js
+// from source until they time out — `7c8764b7` did. Check each system with
+// `nix build --dry-run ./gen.nix#devShells.<system>.default`: only the
+// overlay's Rust, the pinned Bun and the shell itself may be left to build.
+// See `../todo/096-ci-caching.md`.
+//
 // `commit` is the only fact `flake.nix` needs: `inputs.nixpkgs.url` names it
 // exactly, so the two other things a `flake.lock` records about a revision —
 // `narHash` and `lastModified` — are for real Nix to fill in, by
@@ -159,7 +167,7 @@ export const nixpkgs = /** @type {const} */({
     owner: 'NixOS',
     repo: 'nixpkgs',
     ref: 'nixos-26.05',
-    commit: '7c8764b7c7b09b34f632464276218ef9090eaa11',
+    commit: 'b25309931cfda5f0b8805f462a29897eeae50168',
 })
 
 // Wasmtime and Wasmer are installed by their own setup actions, so these are
