@@ -10,7 +10,7 @@
 
 import { Buffer } from 'node:buffer'
 
-import { toIoError } from '../../../effects/module.f.mjs'
+import { _describeThrown } from '../../../effects/module.mjs'
 import { error, ok } from '../../../types/result/module.f.mjs'
 
 /** JavaScript loader for the explicit runtime-compilation effect. @type {ToAsyncOperationMap<CompileValue>} */
@@ -23,7 +23,7 @@ export const javascriptOperationMap = {
             // ordinary `then` field must never become Promise assimilation.
             return ok(module.default())
         } catch (e) {
-            return error(toIoError(e))
+            return error(_describeThrown(e))
         }
     },
 }

@@ -19,7 +19,7 @@ bad.json - error: unexpected symbol at 6
 
 The other half of the original issue has shipped: a `ParseError` carries the
 `path` of a failure with no token (`file not found`, `circular dependency`),
-and `_errorLocation` in [`fjs/compiler/module.f.mjs`](../../../compiler/module.f.mjs)
+and `errorLocation` in [`fjs/compiler/parser`](../../../compiler/parser/module.f.mjs)
 prints it.
 
 ### Proposal
@@ -38,7 +38,6 @@ module does.
 
 ### Related
 
-- `_errorLocation` in [`fjs/compiler/module.f.mjs`](../../../compiler/module.f.mjs) —
-  the formatting site.
-- [json-writer-owner](../../../compiler/todo/json-writer-owner.md) — moves
-  `_errorLocation` beside `ParseError`.
+- `errorLocation` in [`fjs/compiler/parser`](../../../compiler/parser/module.f.mjs) —
+  the formatting site, beside `ParseError`, so the type and its renderer
+  change in one module.

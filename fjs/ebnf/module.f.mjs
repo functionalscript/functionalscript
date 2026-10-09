@@ -245,7 +245,7 @@ const node = words => {
  * The tree is the words' own structure, so the node a match builds is
  * nested — the word's characters down its branches — and a mapping reads
  * the word back as the symbols under the node, as `lexeme` in
- * `fjs/media/json/parser` does.
+ * `./utf16` does.
  *
  * @throws On no words, on an empty word — a rule that may match nothing
  * decides nothing, and a token is never empty — on a word spelled twice,
