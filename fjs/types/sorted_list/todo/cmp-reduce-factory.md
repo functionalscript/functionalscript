@@ -1,7 +1,7 @@
 ## Share the compare-and-select reduce shape
 
 **Priority:** P5
-**Status:** open
+**Status:** wip
 
 ### Problem
 
