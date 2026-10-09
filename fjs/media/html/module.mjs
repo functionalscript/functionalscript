@@ -1,6 +1,7 @@
 /**
  * Renders a `media/html` element into a DOM — the impure sibling of
  * [`./module.f.mjs`](./module.f.mjs), which renders the same element to text.
+ * It also holds {@link macrotask}, the yield a page renders across.
  *
  * **Built, not parsed.** A page that serialized an element and assigned the
  * string to `innerHTML` would pay for an escape on the way out and a parse on
@@ -374,3 +375,16 @@ const showDefault = target => {
  * @type {(document: Document, element: HtmlElement) => Element}
  */
 export const toDom = (document, element) => create(document, xhtml, element)
+
+/**
+ * Return to the event loop, so the browser can paint what was just set.
+ *
+ * **A macrotask, and that is the whole point.** Work on the page runs on the
+ * one thread that paints, so a change made and then awaited is made and
+ * blocked in the same task, and nobody ever sees it. Draining the microtask
+ * queue is part of that same task, which is why an `await` of a resolved
+ * promise is not enough: a paint waits for the next task.
+ *
+ * @type {() => Promise<void>}
+ */
+export const macrotask = () => new Promise(resolve => { setTimeout(resolve, 0) })

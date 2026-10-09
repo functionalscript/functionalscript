@@ -83,7 +83,7 @@ its text, the FunctionalScript writer's rendering of its EDAG
 `IStaticFunction::static_function` by the Rust printer; `ToPrimitive` of a
 function answers it, so `f.toString()`, `String(f)`, `+`, an array joined
 and a string method's argument all reach the one text. A function without
-text — a host or hand-written one — is refused (`FUNCTION_TEXT`), never
+text — a host or hand-written one — is refused (`error::function_text`), never
 answered with a placeholder. What remains is the property key, which no
 module can compute but through the
 [`entry`](../../spec/README.md#reading-an-entry-at-run-time) helper, whose

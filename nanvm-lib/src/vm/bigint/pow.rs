@@ -1,10 +1,8 @@
 use crate::{
     common::sized_index::SizedIndex,
     sign::Sign,
-    vm::{Any, BigInt, IVm},
+    vm::{Any, BigInt, IVm, error},
 };
-
-const NEGATIVE_EXPONENT: &str = "RangeError: Exponent must be non-negative";
 
 impl<A: IVm> BigInt<A> {
     /// `**`. Not a `core::ops` trait — Rust has no operator for
@@ -17,7 +15,7 @@ impl<A: IVm> BigInt<A> {
     /// a fraction, unlike `Number ** Number`, since `BigInt` has none.
     pub fn pow(self, rhs: Self) -> Result<Self, Any<A>> {
         if rhs.sign() == Sign::Negative {
-            return Err(NEGATIVE_EXPONENT.into());
+            return Err(error::negative_exponent());
         }
         let exponent: Vec<u64> = rhs.index_iter().collect();
         // The word count times 64 overcounts: only bits up to the top word's

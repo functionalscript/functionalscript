@@ -34,12 +34,10 @@ impl<A: IVm> Any<A> {
 mod tests {
     use crate::{
         naive::Naive,
-        vm::{Any, IStaticFunction, Nullish, ToAny, ToArray, ToObject},
+        vm::{Any, IStaticFunction, Nullish, ToAny, ToArray, ToObject, error},
     };
 
     type A = Naive;
-
-    const NULLISH_BASE: &str = "TypeError: Cannot convert undefined or null to object";
 
     fn undefined() -> Any<A> {
         Nullish::Undefined.to_any()
@@ -49,11 +47,11 @@ mod tests {
     fn nullish_receiver_throws() {
         assert_eq!(
             undefined().dot(0.0.to_any()).end(),
-            Err(NULLISH_BASE.into())
+            Err(error::nullish_to_object())
         );
         assert_eq!(
             Nullish::Null.to_any::<A>().dot("a".into()).end(),
-            Err(NULLISH_BASE.into())
+            Err(error::nullish_to_object())
         );
     }
 

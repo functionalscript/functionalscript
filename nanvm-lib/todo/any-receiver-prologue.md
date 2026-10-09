@@ -14,7 +14,7 @@ The two receiver reads open the same way and fall back the same way —
 // vm/any/mod.rs, Any::entry
 let unpacked: Unpacked<A> = self.into();
 if let Unpacked::Nullish(_) = &unpacked {
-    return Err(CANNOT_CONVERT_NULLISH_TO_OBJECT.into());
+    return Err(error::nullish_to_object());
 }
 let key = key.to_string()?;
 Ok(match unpacked {
@@ -27,7 +27,7 @@ Ok(match unpacked {
 
 // vm/lambda/member.rs, Member::new — the guard, at the `.` node
 if let Unpacked::Nullish(_) = Unpacked::from(receiver.clone()) {
-    return Err(CANNOT_CONVERT_NULLISH_TO_OBJECT.into());
+    return Err(error::nullish_to_object());
 }
 // vm/lambda/member.rs, Member::read — the fallback, at the exit
 match Unpacked::from(receiver) {
@@ -64,10 +64,8 @@ fn undefined_if_absent<A: IVm>(v: Option<Any<A>>) -> Any<A>
 
 Each read then opens with `non_nullish_receiver(self)?` — the `?` puts the
 ordering in the control flow rather than in a comment — and closes with
-`undefined_if_absent(…)`. The
-`CANNOT_CONVERT_NULLISH_TO_OBJECT` constant is read in one place, which is
-also what [error-constructors.md](./error-constructors.md) will want when
-the thrown-value vocabulary moves.
+`undefined_if_absent(…)`. `error::nullish_to_object` is then called in one
+place.
 
 ### Tasks
 
@@ -78,7 +76,7 @@ the thrown-value vocabulary moves.
 
 ### Related
 
-- [error-constructors.md](./error-constructors.md) — the message side; this
+- [`src/vm/error.rs`](../src/vm/error.rs) — the message side; this
   issue is the guard-and-fallback skeleton around it.
 - [indexed-member-access-skeleton.md](./indexed-member-access-skeleton.md) —
   the same pair of operators one layer down.
