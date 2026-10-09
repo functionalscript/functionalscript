@@ -12,7 +12,7 @@
  *
  * @module
  *
- * @import { List } from '../../types/list/types.ts'
+ * @import { Indexed, List } from '../../types/list/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Range } from '../../types/range/types.ts'
  * @import { RangeSet } from '../../types/range_set/types.ts'
@@ -30,7 +30,7 @@ import {
     range,
 } from '../../text/ascii/module.f.mjs'
 import { contains, fromRange, union } from '../../types/range_set/module.f.mjs'
-import { find, flat, flatMap, intersperse, map, mergeAdjacent, toArray } from '../../types/list/module.f.mjs'
+import { entries, find, flat, flatMap, intersperse, map, mergeAdjacent, toArray } from '../../types/list/module.f.mjs'
 
 const reservedWords = /** @type {const} */ ([
     'assert',
@@ -173,8 +173,8 @@ const protectLeadingWhitespace = line => {
 const isReason = reason => reason !== null
 
 /**
- * The first reason in `reasons`, or `null` when there is none. A lazy
- * `reasons` is read only up to its first reason.
+ * The first reason in `reasons`, or `null` when there is none. `reasons` is
+ * read only up to its first reason, so a lazy one is computed no further.
  *
  * @type {(reasons: List<Nullable<string>>) => Nullable<string>}
  */
@@ -192,10 +192,13 @@ const checkReference = ([, name]) =>
     isIdentifier(name) ? null : `reference root is not an identifier: ${quoted(name)}`
 
 /** @type {(pattern: _OpenSetPattern) => Nullable<string>} */
-const checkPattern = ([, ...names]) => firstReason(names.map((name, index) =>
-    !isIdentifier(name) ? `pattern name is not an identifier: ${quoted(name)}`
-    : names.indexOf(name) !== index ? `duplicate pattern name: ${name}`
-    : null))
+const checkPattern = ([, ...names]) => firstReasonOf(
+    /** @type {(entry: Indexed<string>) => Nullable<string>} */
+    ([index, name]) =>
+        !isIdentifier(name) ? `pattern name is not an identifier: ${quoted(name)}`
+        : names.indexOf(name) !== index ? `duplicate pattern name: ${name}`
+        : null)
+    (entries(names))
 
 /** @type {(prefix: _AttributePath, path: _AttributePath) => boolean} */
 const isPathPrefix = (prefix, path) =>
@@ -209,16 +212,21 @@ const pathsConflict = (a, b) =>
 /**
  * A binding group is legal when no attribute path in it is a prefix of
  * another — Nix rejects `x = …; x.y = …;` as a redefinition — and every value
- * is. Each binding is checked against the ones before it, then its value.
+ * is. Each binding is checked against the ones before it, then its value, and
+ * nothing after the first reason is visited: a conflict is reported without
+ * walking the values that follow it, however deep they are.
  *
  * @type {(bindings: readonly _Binding[]) => Nullable<string>}
  */
-const checkBindings = bindings => firstReason(bindings.map(([, path, value], index) => {
-    const previous = bindings.slice(0, index).find(([, p]) => pathsConflict(path, p))
-    return previous !== undefined
-        ? `conflicting attribute paths: ${attributePath(previous[1])} and ${attributePath(path)}`
-        : check(value)
-}))
+const checkBindings = bindings => firstReasonOf(
+    /** @type {(entry: Indexed<_Binding>) => Nullable<string>} */
+    ([index, [, path, value]]) => {
+        const previous = bindings.slice(0, index).find(([, p]) => pathsConflict(path, p))
+        return previous !== undefined
+            ? `conflicting attribute paths: ${attributePath(previous[1])} and ${attributePath(path)}`
+            : check(value)
+    })
+    (entries(bindings))
 
 /**
  * The reason `expression` is not legal Nix, or `null` when it is.

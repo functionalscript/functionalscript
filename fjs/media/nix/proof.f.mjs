@@ -3,9 +3,20 @@
  */
 
 import { assertEq } from '../../asserts/module.f.mjs'
-import { toArray } from '../../types/list/module.f.mjs'
+import { countdown, fold, toArray } from '../../types/list/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
 import { nix, nixToString } from './module.f.mjs'
+
+/**
+ * A set nested `depth` deep, built without recursion: deeper than any engine's
+ * stack lets a recursive walk go.
+ *
+ * @type {(depth: number) => Expression}
+ */
+const deepSet = depth => fold
+    (/** @type {(_: number) => (inner: Expression) => Expression} */ (() => inner => ['set', ['=', ['a'], inner]]))
+    (/** @type {Expression} */ ('x'))
+    (countdown(depth))
 
 /** @type {(expression: Expression) => string} */
 const text = expression => unwrap(nixToString(expression))
@@ -304,6 +315,11 @@ export const proof = {
         letBody: () => assertEq(
             reason(['let', [], ['ref', 'bad name']]),
             'reference root is not an identifier: "bad name"'),
+        // Nothing after the first reason is visited: the conflict is found
+        // without walking the value behind it, which no stack could.
+        conflictBeforeDeepValue: () => assertEq(
+            reason(['set', ['=', ['a'], 'x'], ['=', ['a'], 'y'], ['=', ['b'], deepSet(100_000)]]),
+            'conflicting attribute paths: a and a'),
         // The first violation is the one reported: the pattern before the
         // body, and an earlier binding before a later one.
         first: () => {
