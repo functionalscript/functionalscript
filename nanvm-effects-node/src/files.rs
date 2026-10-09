@@ -343,7 +343,9 @@ pub fn write_bytes(path: &str, at: f64, data: &[u8]) -> Result<(), IoError> {
 
 /// A number as JavaScript spells it in a message: `NaN`, `Infinity`, and the
 /// exponent form at and beyond `1e21` and below `1e-6`, where Rust would write
-/// every digit.
+/// every digit. Otherwise it is Rust's shortest spelling, which differs from
+/// ECMAScript's only on a tie between two same-length candidates, a fractional
+/// value from about 2^50 up (`todo/js-number-spelling.md`).
 fn js_number(value: f64) -> String {
     if value.is_nan() {
         "NaN".to_string()
