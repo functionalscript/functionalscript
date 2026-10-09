@@ -1,7 +1,7 @@
 ## sign-algebra. Give `Sign` its full small algebra (product and ordering, not just `flip`)
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
