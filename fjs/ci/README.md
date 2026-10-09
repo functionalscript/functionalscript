@@ -5,7 +5,7 @@ workflows for this repository. Running the generator writes
 `.github/workflows/gen.ci.yml` with the latest matrix of jobs and steps and
 `.github/workflows/gen.npm-publish.yml` with the release job, plus three Nix
 development environments under `gen.nix/`. The first of those, written to `gen.nix/`
-itself, is the shell a developer enters and the shell eight of the twelve
+itself, is the shell a developer enters and the shell seven of the eleven
 jobs run inside; the other two exist for the jobs that cannot share it — Node
 22 and Node 24. The two Windows jobs enter none, since Nix does not run there.
 Which jobs have a flake and why the rest do not is
@@ -72,8 +72,8 @@ for, and whether that answer should change, is
   `node26` put it through the runner queue a second time.
   `proof.f.mjs` — its property-based proofs.
 - `rust/module.f.mjs` — `cargo` build/test steps, the toolchain action the two
-  Windows jobs still need, the `wasm` job's steps, and what Intel Linux adds to
-  the shared shell for the 32-bit target. `cargo` now comes from that shell
+  Windows jobs still need, the formatting and WASM checks ARM Linux adds, and
+  what Intel Linux adds to the shared shell for the 32-bit target. `cargo` now comes from that shell
   everywhere Nix runs, 32-bit Linux included; `i686Target` is the predicate that
   decides which jobs install a toolchain of their own instead, and
   `../module.f.mjs` asks it rather than restating the names. Both paths
@@ -209,7 +209,7 @@ Wasmtime and Wasmer it is also the only tie there is — those attributes name n
 version, so unlike `pkgs.nodejs_26` they cannot be checked against the configuration
 without evaluating them.
 
-The one runtime with no check is the `wasm` job's Rust, and for the reason that makes
+The one runtime with no check is the shared shell's Rust, and for the reason that makes
 the others worth checking: its flake says `rust-bin.stable."1.99.0"`, naming the
 release in full rather than a major or nothing at all, so a check could only restate
 the flake it was meant to test.
@@ -238,6 +238,16 @@ still did was install Nix and substitute that same shell on a second runner —
 and a runner is the scarce thing, since a workflow gets only so many at once.
 The cost of folding it back in is the check name: a red `ubuntu-intel` no longer
 says "32-bit Linux" without opening it.
+
+The WASM checks are `ubuntu-arm`'s, for the same reason. They were a job of
+their own, `wasm`, on the same runner image and in the same shell, so all the
+extra job added was one more runner to wait for and the setup done twice.
+`ubuntu-arm` asserts both WASM runtimes right after Node, runs
+`cargo fmt -- --check` before its native checks, and then tests and Clippy for
+four WASM targets. `cargo` invokes `wasmtime` and `wasmer` itself, through the
+`runner` keys in `.cargo/config.toml`, so they have to share a `PATH` with the
+`cargo` that spawns them — which is why the whole toolchain is the shell's
+rather than half of it.
 
 That linker is `pkgsi686Linux.stdenv.cc` — Nixpkgs built *for* `i686-linux` —
 and the attribute throws on any host that is not x86 Linux, which is what makes
@@ -288,11 +298,6 @@ flake:
 - `deno` runs `deno install --frozen` and `deno task cov` in the shared shell.
 - `bun` runs `bun install --frozen-lockfile` and `bun test --coverage` there
   too, on a Bun that is an overridden archive rather than the snapshot's.
-- `wasm` runs `cargo fmt -- --check` and then tests and Clippy for four WASM
-  targets in the shared shell, which provides the toolchain and both runtimes.
-  `cargo` invokes `wasmtime` and `wasmer` itself, through the `runner` keys in
-  `.cargo/config.toml`, so they have to share a `PATH` with the `cargo` that
-  spawns them — which is why the whole toolchain moved rather than half of it.
 
 Neither installs a published package any more. That check subjects a release rather
 than this commit, so it belongs with the packed-package check in
