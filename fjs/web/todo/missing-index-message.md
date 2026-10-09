@@ -1,7 +1,7 @@
 ## missing-index-message. A directory with no index reads as a bad URL
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
