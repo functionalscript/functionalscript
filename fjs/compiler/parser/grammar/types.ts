@@ -14,6 +14,7 @@ import type { Equal } from '../../../types/ts/types.ts'
 import type { DjsToken } from '../../tokenizer/types.ts'
 import type { BinaryTag } from '../../ast/types.ts'
 import type { literalWords } from '../../../js/keywords/module.f.mjs'
+import type { eagerLayers } from '../../ast/module.f.mjs'
 import type {
     _framingKeywords,
     _ordinaryTokenNames,
@@ -235,7 +236,8 @@ type _BitwiseXorTail = _OpTail<readonly [_MultiplicativeTail, _AdditiveTail, _Sh
 type _BitwiseOrTail = _OpTail<readonly [_MultiplicativeTail, _AdditiveTail, _ShiftTail, _RelationalTail, _EqualityTail, _BitwiseAndTail, _BitwiseXorTail]>
 
 /**
- * The eager binary-operator suffix, `multiplicative` through `bitwiseOr`,
+ * The eager binary-operator suffix, one layer per record of `eagerLayers`
+ * in `../../ast/module.f.mjs`, `multiplicative` through `bitwiseOr`,
  * each layer built on the ones below it, `bitwiseOr` this type's own top:
  * the first part of {@link Tail}, and every lazy operator's own operand —
  * {@link Unary} followed by these eight, which is what a `bitwiseOr`-level
@@ -245,6 +247,9 @@ export type EagerTail = readonly [
     _MultiplicativeTail, _AdditiveTail, _ShiftTail, _RelationalTail,
     _EqualityTail, _BitwiseAndTail, _BitwiseXorTail, _BitwiseOrTail,
 ]
+
+/** One tail per layer of `eagerLayers`: the fold in `./module.f.mjs` builds exactly this many. */
+type _EagerTailIsEveryLayer = Assert<Equal<EagerTail['length'], (typeof eagerLayers)['length']>>
 
 /** One round of the `&&` layer: its operand every eager layer's, `a && b | c` being `a && (b | c)`. */
 type _LogicalAndRound = _OpRound<EagerTail>
