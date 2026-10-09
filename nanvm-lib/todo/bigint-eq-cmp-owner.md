@@ -49,5 +49,5 @@ Option 2 preserves the O(1)-bailout equality; option 1 is the smaller rule.
 
 - [sign-algebra](./sign-algebra.md) — rewrites `cmp.rs`'s four-arm match but
   keeps the two relations separate; independent of this issue.
-- [bigint-normalized-check-reuse](./bigint-normalized-check-reuse.md) — the
-  normalization invariant this agreement silently depends on.
+- `assert_slice_normalized` in [`src/vm/bigint/mod.rs`](../src/vm/bigint/mod.rs)
+  — the normalization invariant this agreement silently depends on.
