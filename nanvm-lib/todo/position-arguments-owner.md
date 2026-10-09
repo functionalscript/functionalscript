@@ -1,7 +1,7 @@
 ## position-arguments-owner. String reads positions through `vm/array/relative`, and three modules check a position is in range
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
