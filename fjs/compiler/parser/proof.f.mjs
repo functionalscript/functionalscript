@@ -4,7 +4,7 @@
  * @import { EdagValue, Values } from '../../edag/value/types.ts'
  */
 
-import { parseFromTokens } from './module.f.mjs'
+import { errorLocation, parseFromTokens } from './module.f.mjs'
 import { parseSyntax } from './syntax/module.f.mjs'
 import { unresolved } from '../edag/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
@@ -1459,6 +1459,19 @@ export const proof = {
             if (errorString !== '{"message":"unexpected token","metadata":{"column":17,"line":1,"path":""}}') { throw errorString }
         },
     ],
+    // Where a failure is, as much of it as is known: the token's position, a
+    // span when the error knows how far the source runs, the file the error
+    // names when there is no token, and the file being read when it names none
+    // — the case `parseFromTokens([])` reports.
+    errorLocation: () => {
+        const location = errorLocation('input.f.js')
+        assertEq(location({ message: 'missing end-of-input token', metadata: null }), 'input.f.js')
+        assertEq(location({ message: 'file not found', metadata: null, path: 'm.f.js' }), 'm.f.js')
+        const metadata = { path: 'a.f.js', line: 1, column: 16 }
+        assertEq(location({ message: 'unexpected token', metadata }), 'a.f.js:1:16')
+        assertEq(location({ message: 'invalid token', metadata, end: { line: 1, column: 17 } }), 'a.f.js:1:16-17')
+        assertEq(location({ message: 'invalid token', metadata, end: { line: 2, column: 3 } }), 'a.f.js:1:16-2:3')
+    },
     validWhiteSpaces:[
         () => {
             const tokenList = tokenizeString(' export default [ 0 , 1 , 2 ] ; ')

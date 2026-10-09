@@ -406,7 +406,7 @@ natural span. `export default <value>` is a span, not a point. The moment a
 formatter wants to underline a rule rather than a character, every token needs
 an end, and the change belongs in `JsTokenWithMetadata.metadata` rather than in
 more special cases beside `ErrorToken.end`. Nothing wants that yet:
-`errorLocation` in [`fjs/compiler/module.f.mjs`](../module.f.mjs) renders the span
+`errorLocation` in [`module.f.mjs`](./module.f.mjs) renders the span
 an error already carries and the point when there is none.
 
 ## What changed at the LL(1) port
