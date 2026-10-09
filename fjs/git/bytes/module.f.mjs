@@ -22,7 +22,7 @@
  *
  * @type {(b: readonly number[], at: number) => number}
  */
-export const u32be = (b, at) => b[at] * 16777216 + b[at + 1] * 65536 + b[at + 2] * 256 + b[at + 3]
+export const u32be = (b, at) => b[Number(at)] * 16777216 + b[Number(at + 1)] * 65536 + b[Number(at + 2)] * 256 + b[Number(at + 3)]
 
 /**
  * The big-endian 64-bit word at `at`, or `null` where it is above the range a
@@ -49,4 +49,4 @@ export const u64be = (b, at) => {
  *
  * @type {(prefix: readonly number[]) => (b: readonly number[]) => boolean}
  */
-export const startsWith = prefix => b => prefix.every((v, i) => b[i] === v)
+export const startsWith = prefix => b => prefix.every((v, i) => b[Number(i)] === v)

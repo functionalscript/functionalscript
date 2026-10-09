@@ -50,7 +50,7 @@ export const cascade =
         /** @type {(i: number, value: I) => readonly [I | undefined, readonly unknown[]]} */
         const step = (i, value) => {
             if (i === steps.length) { return [value, []] }
-            const [output, state] = steps[i](value, prior[i])
+            const [output, state] = steps[Number(i)](value, prior[Number(i)])
             const [result, rest] = output === undefined
                 ? [undefined, prior.slice(i + 1)]
                 : step(i + 1, output)
