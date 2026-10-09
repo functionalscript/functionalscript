@@ -38,9 +38,8 @@ To check a commit `C`:
 
 1. Put its tree in the Nix store without GitHub's tarball API:
    `nix flake prefetch --json "git+https://github.com/NixOS/nixpkgs?rev=C&shallow=1"`.
-   The `narHash` and store path it reports are the ones the
-   `github:NixOS/nixpkgs/C` input resolves to, and `lastModified` is the
-   commit time.
+   The hash it reports (`hash`, or `narHash` in newer Nix) and its store path
+   are the ones the `github:NixOS/nixpkgs/C` input resolves to.
 2. For each generated flake and each system it declares, run
    `nix build --dry-run --no-write-lock-file --override-input nixpkgs "git+https://github.com/NixOS/nixpkgs?rev=C&shallow=1" <flake>#devShells.<system>.default`,
    and read the list of derivations it says will be built. Only our own may
@@ -62,7 +61,7 @@ To choose the commit:
   `https://releases.nixos.org/<release>/git-revision` gives the full one.
 - In each channel, check releases newest first (highest release number),
   stopping at the first usable one or at the current pin. Of the two channels'
-  winners, take the one with the later `lastModified`. Linux and Darwin
+  winners, take the one with the later commit time. Linux and Darwin
   binaries for a commit often arrive hours apart, so the newest releases
   failing is normal.
 - Check the current pin too. If it is not usable, the pin must move even when no
@@ -82,16 +81,19 @@ If anything changed:
    `git restore $(git ls-files 'gen.nix/*flake.lock')`.
 2. If a Nix input commit changed, refresh the `flake.lock` files by hand, since
    `lock-update.sh` couldn't: `git` can fetch from GitHub where `nix flake lock`
-   can't, so take `narHash` and `lastModified` from the prefetch above. First
+   can't, so take `narHash` from the prefetch above and `lastModified` from
+   the commit's timestamp (`git log -1 --format=%ct C` in a clone that has
+   it). First
    confirm this reproduces the current lock entries, then write the new ones.
 3. Run the dry run again on the generated flakes as committed, with no
    override, for every system. This also checks the lock: a wrong `narHash`
    makes Nix try GitHub and fail.
 4. If `package.json` changed, run `./dev.sh npm install`,
    `./dev.sh deno install` and `./dev.sh bun install`.
-5. Run `./dev.sh tsc` and `./dev.sh node --test`, then commit, push, and fix
-   any CI failures. Put
-   the coverage check in the PR description: each commit checked, and for each
+5. Run the full check set
+   [AGENTS.md](../../AGENTS.md#agent-instructions) lists, each as
+   `./dev.sh <command>`, then commit, push, and fix any CI failures. Put the
+   coverage check in the PR description: each commit checked, and for each
    system whether it passed or what it would build. The PR's own CI doesn't run
    macOS, so this is the only evidence before the merge queue.
 
