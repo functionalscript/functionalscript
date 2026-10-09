@@ -398,7 +398,9 @@ pub fn rename(src: &str, dst: &str) -> Result<(), IoError> {
 /// Removes an empty directory. Nothing is followed: a link, to a directory or
 /// not, is `ENOTDIR`, as is a file, which holds on every host (`Rmdir` in
 /// `fjs/effects/node/types.ts`); Windows would otherwise remove a directory
-/// link.
+/// link. `FileType::is_symlink` is true for a Windows junction too: std reads
+/// it from the reparse tag's name-surrogate bit (`0x20000000`), which the
+/// symlink tag `0xA000000C` and the mount-point tag `0xA0000003` both carry.
 pub fn rmdir(path: &str) -> Result<(), IoError> {
     if fs::symlink_metadata(path).is_ok_and(|m| m.file_type().is_symlink()) {
         return Err(failure(&ErrorKind::NotADirectory.into(), "rmdir", path));
