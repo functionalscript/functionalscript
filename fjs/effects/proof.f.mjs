@@ -221,6 +221,19 @@ export const proof = {
             assert(e[0] === 'ioError', e)
             assertEq(e[1].code, undefined, e)
         },
+        // The message comes from a `message` property that resolves to a
+        // string, own or inherited, whether or not the value is an `Error`.
+        messageField: () => {
+            const e = toIoError({ message: 'field', code: 'EIO' })
+            assert(e[0] === 'ioError', e)
+            assertEq(e[1].code, 'EIO', e)
+            assertEq(e[1].message, 'field', e)
+        },
+        // A `message` that is not a string is not one to report; the value's
+        // string form is.
+        nonStringMessage: () => {
+            assertIoMessage(toIoError({ message: 42 }), '[object Object]')
+        },
     },
     runPure: {
         ok: () => {

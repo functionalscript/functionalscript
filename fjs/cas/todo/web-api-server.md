@@ -40,9 +40,9 @@ set over HTTP(S):
   request/response bodies, so `add`/`get` of arbitrary-size content is a
   natural fit for this transport where MCP is capped at 128 KiB of inline
   content. The HTTP effects meet it. `ServerResponse.body`
-  (`fjs/effects/node/types.ts`) is a lazy `List` the runner pulls at the socket's
+  (`fjs/effects/node/types.ts`) is a lazy `EffectList` the runner pulls at the socket's
   pace, so a `get` of any size is answered with one chunk of the blob held rather
-  than the blob. `IncomingMessage.body` is a `List` the listener pulls
+  than the blob. `IncomingMessage.body` is an `EffectList` the listener pulls
   from, with no cap and no `413`, so an `add` of any size has a way in. The CAS
   store side already streams (`Cas.read`/`Cas.write` deal in chunk lists), so what
   this transport still waits on is not the bodies at all: it is the server itself.
@@ -73,11 +73,11 @@ HTML form is an exposure-matrix decision for
       ([command-architecture](./command-architecture.md)).
 - [x] Streaming HTTP **request** body effects in `fjs/effects/node`
       ([streaming-http-bodies](../../effects/node/todo/streaming-http-bodies.md),
-      stage 2). — `IncomingMessage.body` is a `List` the listener pulls from,
+      stage 2). — `IncomingMessage.body` is an `EffectList` the listener pulls from,
       uncapped, so an `add` of any size has a way in and the adapter needs no
       128 KiB inline cap on what a client sends.
 - [ ] Serve a blob without materializing it. The effect it waited on has landed:
-      `ServerResponse.body` is a lazy `List` the runner pulls at the socket's pace
+      `ServerResponse.body` is a lazy `EffectList` the runner pulls at the socket's pace
       ([streaming-http-bodies](../../effects/node/todo/streaming-http-bodies.md)),
       so what is left is this adapter writing a blob as one. No size bounds what it
       can serve any more.
@@ -104,5 +104,5 @@ HTML form is an exposure-matrix decision for
   these effects; a CAS HTTP front end is the same layer with a command set
   behind it instead of a file system.
 - `fjs/effects/node/types.ts` (`IncomingMessage`/`ServerResponse`) — both bodies
-  are `List`s, one the listener pulls and one the runner pulls, so nothing here
+  are `EffectList`s, one the listener pulls and one the runner pulls, so nothing here
   caps what this transport can carry in either direction.

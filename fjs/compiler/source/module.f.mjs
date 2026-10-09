@@ -24,6 +24,15 @@ import { errorMessage, readFile, resolveFileModule } from '../../effects/node/mo
 import { fromVec } from '../../text/utf8/module.f.mjs'
 
 /**
+ * An error about a file rather than a token — not found, not UTF-8, a bad
+ * import, a cycle: it names the file and has no position. Exported for both
+ * linkers, which refuse files too; the `_` says linkage.
+ *
+ * @type {(path: string) => (message: string) => ParseError}
+ */
+export const _fileError = path => message => ({ message, metadata: null, path })
+
+/**
  * Reads a file, reporting any failure as the one `ParseError` a caller can act
  * on, naming the file. Both readers want this and neither wants the node
  * channel's vocabulary.
@@ -31,7 +40,7 @@ import { fromVec } from '../../text/utf8/module.f.mjs'
  * @type {(path: string) => <O extends Operation, T>(e: Effect<O, T, IoChannel>) => Effect<O, T, ParseError>}
  */
 const notFound = path => e =>
-    catchStep(e, () => pureError({ message: 'file not found', metadata: null, path }))
+    catchStep(e, () => pureError(_fileError(path)('file not found')))
 
 /**
  * Reads a source — a module, a JSON import or a `.json` input — as UTF-8
@@ -49,7 +58,7 @@ const readSource = path => step(
     bytes => {
         const text = fromVec(bytes)
         return text === null
-            ? pureError({ message: 'not UTF-8 text', metadata: null, path })
+            ? pureError(_fileError(path)('not UTF-8 text'))
             : pureOk(text)
     })
 
@@ -85,7 +94,7 @@ export const _parseModule = path => step(readSource(path), text => pure(parse(pa
  */
 const sourceAt = (name, parent, json, path) => {
     const located = catchStep(resolveFileModule(name, parent), e =>
-        pureError({ message: `module resolution failed: ${errorMessage(e)}`, metadata: null, path }))
+        pureError(_fileError(path)(`module resolution failed: ${errorMessage(e)}`)))
     return mapStep(located, location => ({ ...location, json }))
 }
 
@@ -110,11 +119,11 @@ export const _importSources = source => imports => {
     const unsupported = imports.find(({ specifier }) =>
         !specifier.startsWith('./') && !specifier.startsWith('../') && !specifier.startsWith('/'))
     if (unsupported !== undefined) {
-        return pureError({ message: `unsupported import specifier "${unsupported.specifier}": expected ./, ../, or /`, metadata: null, path })
+        return pureError(_fileError(path)(`unsupported import specifier "${unsupported.specifier}": expected ./, ../, or /`))
     }
     const invalid = imports.find(({ specifier }) => decodeImportPath(specifier) === null)
     if (invalid !== undefined) {
-        return pureError({ message: `invalid module specifier: ${invalid.specifier}`, metadata: null, path })
+        return pureError(_fileError(path)(`invalid module specifier: ${invalid.specifier}`))
     }
     return foldStep(pureOk(imports), [], importSource(source))
 }
@@ -134,12 +143,11 @@ export const _importSources = source => imports => {
 export const _attributeError = ({ path, json }) => {
     const isJson = path.endsWith('.json')
     if (json === isJson) { return null }
-    const message = isJson ? 'a JSON module needs the import attribute with { type: "json" }' : 'only a JSON module is imported with { type: "json" }'
-    return { message, metadata: null, path }
+    return _fileError(path)(isJson ? 'a JSON module needs the import attribute with { type: "json" }' : 'only a JSON module is imported with { type: "json" }')
 }
 
 /** A missing selected export, shared by the value and EDAG linkers. @type {(source: _ImportSource) => ParseError} */
-export const _missingExport = ({ path, name }) => ({ message: `module has no ${name} export`, metadata: null, path })
+export const _missingExport = ({ path, name }) => _fileError(path)(`module has no ${name} export`)
 
 
 /**
@@ -158,5 +166,5 @@ export const _parseJson = path => step(
     readSource(path),
     text => {
         const json = jsonParse(text)
-        return pure(json[0] === 'error' ? error({ message: json[1], metadata: null, path }) : json)
+        return pure(json[0] === 'error' ? error(_fileError(path)(json[1])) : json)
     })
