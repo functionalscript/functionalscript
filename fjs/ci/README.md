@@ -434,12 +434,11 @@ Its name follows the generated-file rule
 ([CONTRIBUTING.md](../../CONTRIBUTING.md#naming-generated-files)), and npm's
 trusted publishing is bound to that exact name: the package's trusted publisher
 on npmjs.com names the workflow file, and a mismatch fails only at publish
-time — quietly, since the publish step is `continue-on-error`. npm keeps one
-trusted publisher per package, so the rename and the setting change are one
-act, not a transition with both names live. A project whose workflow was
-`npm-publish.yml` does two things by hand when it takes this name, in the same
-sitting as regenerating: it changes the workflow filename in the package's
-trusted publisher settings on npm, and it deletes the old file, which this
+time — quietly, since the publish step is `continue-on-error`. Existing npm
+trusted publisher connections are immutable: changing the workflow filename or
+environment requires replacing the connection. A project whose workflow was
+`npm-publish.yml` replaces its connection using the setup below, in the same
+sitting as regenerating, and deletes the old file, which this
 generator does not do (see "`fjs ci` is not stable" above) and which would
 otherwise be a second publish workflow on the same trigger.
 
@@ -454,12 +453,22 @@ remain enabled for an authorized release maintainer.
 
 In **every package's npm trusted publisher settings**, set the GitHub environment
 name to **`npm-publish`**, alongside the repository and
-`gen.npm-publish.yml` workflow filename. Remove any alternate publisher that can
+`gen.npm-publish.yml` workflow filename. Replace an existing connection to
+change these fields. Explicitly enable **Allow npm publish** on the replacement
+connection and verify that the saved configuration permits direct publishing:
+new connections default to staged publishing, which does not authorize this
+workflow's `npm publish` command. See [npm's trusted publisher documentation](https://docs.npmjs.com/trusted-publishers/).
+Remove any alternate publisher that can
 publish this package without that approval boundary. GitHub's environment gate
 alone is insufficient: someone with write access could alter a branch's workflow
 to omit the environment. Binding the npm trust to the environment makes npm reject
 that branch's OIDC token. Do not enable manual publishing until both settings have
 been verified; an automatically created, unprotected environment is insufficient.
+For the next approved release of a new version, inspect the actual `npm publish`
+step for successful publication and verify that exact version and its intended
+dist-tag in the registry. A green workflow is insufficient because the publish
+step tolerates errors; `npm whoami` does not validate OIDC publishing permission.
+Do not publish a throwaway version as a configuration test.
 These settings are administrative state and cannot be enforced by the generator
 or its local proofs. Downstream repositories must configure them too.
 
