@@ -12,7 +12,7 @@ and the combinators alike.
 so the payload a runner is generic over is always a `Result` — the second name
 described no reachable case, while giving every combinator a `Result`-blind twin
 that would run the next link after a failed one. Nothing "genuinely cannot
-fail": a `List` cell, a `Program`'s exit code, and an MCP tool result were each
+fail": an `EffectList` cell, a `Program`'s exit code, and an MCP tool result were each
 named here as such, and all three carry channels now.
 
 The combinators lived in an `io/` subdirectory while that lasted, because their

@@ -15,7 +15,7 @@
  *
  * @import { StructField } from '../../types/ts/types.ts'
  * @import { Type } from '../types.ts'
- * @import { ArraySet, Data, KindSet, Node, ObjectSet, RuleSet, UnionSet } from '../data/types.ts'
+ * @import { ArraySet, Data, Node, ObjectSet, RuleSet, UnionAlgebra, UnionSet } from '../data/types.ts'
  * @import { _Ctx } from './private.ts'
  */
 
@@ -27,17 +27,12 @@ import { primitive, union, printer as tsPrinter } from '../../types/ts/module.f.
 import {
     absentBit,
     admitsAbsence as dataAdmitsAbsence,
-    booleanBits,
-    falseBit,
     isNever as dataIsNever,
-    isTop,
-    kindFold,
-    nullBit,
+    requiredPrefix,
     resolve,
     toData,
-    trueBit,
     undefinedBit,
-    withoutUnits,
+    unionFold,
 } from '../data/module.f.mjs'
 
 /**
@@ -112,29 +107,6 @@ const nodeToTs = ctx => n =>
         : unionToTs(ctx)(n)
 
 /**
- * The member expressions of one kind component: nothing when absent, the
- * whole kind when `true`, one expression per member otherwise.
- *
- * @template T
- * @param {KindSet<T> | undefined} k
- * @param {string} whole
- * @param {(v: T) => string} item
- * @returns {readonly string[]}
- */
-const kindToTs = (k, whole, item) =>
-    kindFold({ absent: () => [], whole: () => [whole], members: list => list.map(item) })(k)
-
-/** @type {(bits: number) => readonly string[]} */
-const unitToTs = bits => [
-    ...((bits & nullBit) === 0 ? [] : [primitive(null)]),
-    ...((bits & undefinedBit) === 0 ? [] : [primitive(undefined)]),
-    ...((bits & booleanBits) === booleanBits ? ['boolean']
-        : (bits & falseBit) !== 0 ? [primitive(false)]
-        : (bits & trueBit) !== 0 ? [primitive(true)]
-        : []),
-]
-
-/**
  * A tuple prints its prefix, an array its element type, and a
  * tuple-with-rest combines them with a rest element:
  * `readonly[A,...readonly(R|undefined)[]]`.
@@ -166,7 +138,7 @@ const unitToTs = bits => [
  * @type {(ctx: _Ctx) => (p: ArraySet) => string}
  */
 const arraySetToTs = ctx => p => {
-    const required = p.prefix.findLastIndex(n => !admitsAbsence(ctx)(n)) + 1
+    const required = requiredPrefix(ctx.rules)(p.prefix)
     const items = p.prefix.map((n, i) =>
         i < required ? interiorToTs(ctx)(n) : `(${nodeToTs(ctx)(n)})?`)
     const { rest } = p
@@ -264,28 +236,39 @@ const objectSetToTs = ctx => p => {
 }
 
 /**
- * The absent bit is **masked** before printing: absence is not a value, so
- * it contributes no union member — `or(option, number)` prints `number`,
- * `option` alone prints `never`, and `or(option, unknown)` prints `unknown`
- * — which is the public `Ts<>` of the same node. Where the bit changes what
- * a position *prints*, the position asks first: an optional key or trailing
- * position strips it by printing through this, and an interior tuple
- * position converts it to `undefined` (`interiorToTs`).
+ * The TypeScript leaves of a union. A unit's name is already its TypeScript
+ * spelling. A whole kind is its type name, except arrays and objects, which
+ * print as `unknown` containers.
+ *
+ * @type {(ctx: _Ctx) => UnionAlgebra<string>}
+ */
+const tsAlgebra = ctx => ({
+    top: 'unknown',
+    unit: name => name,
+    whole: kind =>
+        kind === 'array' ? ctx.ts.array('unknown')
+        : kind === 'object' ? ctx.ts.record('unknown')
+        : kind,
+    number: primitive,
+    string: primitive,
+    bigint: primitive,
+    array: arraySetToTs(ctx),
+    object: objectSetToTs(ctx),
+    join: union,
+})
+
+/**
+ * The absent bit is **masked** before printing, by `unionFold`: absence is
+ * not a value, so it contributes no union member — `or(option, number)`
+ * prints `number`, `option` alone prints `never`, and `or(option, unknown)`
+ * prints `unknown` — which is the public `Ts<>` of the same node. Where the
+ * bit changes what a position *prints*, the position asks first: an optional
+ * key or trailing position strips it by printing through this, and an
+ * interior tuple position converts it to `undefined` (`interiorToTs`).
  *
  * @type {(ctx: _Ctx) => (u: UnionSet) => string}
  */
-const unionToTs = ctx => u0 => {
-    const u = withoutUnits(absentBit)(u0)
-    if (isTop(u)) { return 'unknown' }
-    return union([
-        ...unitToTs(u.unit ?? 0),
-        ...kindToTs(u.number, 'number', primitive),
-        ...kindToTs(u.string, 'string', primitive),
-        ...kindToTs(u.bigint, 'bigint', primitive),
-        ...kindToTs(u.array, ctx.ts.array('unknown'), arraySetToTs(ctx)),
-        ...kindToTs(u.object, ctx.ts.record('unknown'), objectSetToTs(ctx)),
-    ])
-}
+const unionToTs = ctx => unionFold(tsAlgebra(ctx))
 
 /**
  * Renders a serializable RTTI {@link Data} (from `toData`) as TypeScript:

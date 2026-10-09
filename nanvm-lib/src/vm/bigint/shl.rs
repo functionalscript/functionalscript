@@ -6,7 +6,7 @@ use crate::{
     vm::{Any, BigInt, IVm, error},
 };
 
-use super::ShiftAmount;
+use super::{ShiftAmount, assert_slice_normalized};
 
 /// The largest word count a single `<<` may grow a `BigInt` to — `2^14`
 /// words (`2^20` bits, 128 KiB) — matching
@@ -85,10 +85,8 @@ impl<A: IVm> Shl for BigInt<A> {
             }
         }
 
-        assert!(
-            value.last() != Some(&0) && !value.is_empty(),
-            "shl: result must be normalized and non-empty"
-        );
+        assert!(!value.is_empty(), "shl: result must be non-empty");
+        assert_slice_normalized(value.as_slice());
 
         // TODO: `value`'s own allocation above is fallible, but
         // `unchecked_new` -> `IContainer::new_ok` -> (for `Naive`)

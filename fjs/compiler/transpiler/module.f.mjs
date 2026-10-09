@@ -24,7 +24,7 @@ import { toData, toUnknown } from '../../edag/value/to_unknown/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
 import { memo } from '../../edag/memo/module.f.mjs'
 import { unresolved, jsonValue } from '../edag/module.f.mjs'
-import { _attributeError, _importSources, _missingExport, _rootSource, _parseJson, _parseModule } from '../source/module.f.mjs'
+import { _attributeError, _fileError, _importSources, _missingExport, _rootSource, _parseJson, _parseModule } from '../source/module.f.mjs'
 import { foldStep, history, historyStep, mapStep, pureError, pureOk, step } from '../../effects/module.f.mjs'
 
 export { parse } from '../source/module.f.mjs'
@@ -56,7 +56,7 @@ const interpretModule = (source, module, context) => {
         const result = memo(assertOk(analysis(graph)))({ args: imports.map(({ id }) => moduleAt(next)(id)) })
         const [kind, value] = result
         return kind === 'error'
-            ? pureError({ message: 'module initialization failed', metadata: null, path, thrown: value })
+            ? pureError({ ..._fileError(path)('module initialization failed'), thrown: value })
             : pureOk(completed(id, /** @type {ValueObject} */ (value), next))
     })
 }
@@ -66,7 +66,7 @@ const foldModule = source => context => {
     const { id, path, json } = source
     const mismatch = _attributeError(source)
     if (mismatch !== null) { return pureError(mismatch) }
-    if (includes(id)(context.stack)) { return pureError({ message: 'circular dependency', metadata: null, path }) }
+    if (includes(id)(context.stack)) { return pureError(_fileError(path)('circular dependency')) }
     if (at(id)(context.complete) !== null) { return pureOk(context) }
     const entered = { ...context, stack: { first: id, tail: context.stack } }
     return json

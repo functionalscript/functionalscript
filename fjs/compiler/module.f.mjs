@@ -22,6 +22,7 @@
  */
 
 import { _transpileDefault } from './transpiler/module.f.mjs'
+import { errorLocation } from './parser/module.f.mjs'
 import { resolve } from './edag/module.f.mjs'
 import { toRust } from './rust/module.f.mjs'
 import { _numberSerialize, tryJsonStringify, tryStringify } from '../media/datajs/serializer/module.f.mjs'
@@ -38,36 +39,6 @@ import { concat as pathConcat } from '../path/module.f.mjs'
 import { allFiles, sourceRoot } from '../dev/module.f.mjs'
 
 const { entries } = Object
-
-/**
- * Where an error happened, as much of it as is known: the token's
- * `path:line:column` when the reader tracks positions; otherwise the file
- * the error names, when it names one — a missing import, a cycle, a body
- * that fails to evaluate, in an imported module as readily as in the input;
- * and otherwise the name of the file being compiled — which nothing
- * `compile` runs produces any more, every reader naming its file, and
- * which the parser's one contract failure, a token list with no end,
- * still can; exported for that case's proof, the `_` saying so.
- *
- * An error that knows how far the offending source runs renders as a span,
- * `path:line:column-column` within one line and `path:line:column-line:column`
- * across several. Only lexical errors carry one today; a grammar failure points
- * at a single token and prints the point form.
- *
- * @type {(inputFileName: string) => (parseError: ParseError) => string}
- */
-export const _errorLocation = inputFileName => ({ metadata, end, path }) => {
-    if (metadata === null) { return path ?? inputFileName }
-    const start = `${metadata.path}:${metadata.line}:${metadata.column}`
-    if (end === undefined) { return start }
-    // the path is printed once — a token does not straddle files — and the
-    // line is dropped from the far end when the span stays on one line, so the
-    // common case reads `a.js:1:1-7` rather than repeating `1:`
-    const far = end.line === metadata.line
-        ? `${end.column}`
-        : `${end.line}:${end.column}`
-    return `${start}-${far}`
-}
 
 // ── the route ─────────────────────────────────────────────────────────────────
 
@@ -248,14 +219,14 @@ const outputDirectory = outputFileName => {
 
 /**
  * The `path:line:column - error: message` line a failed compile reports:
- * where the error is, as far as {@link _errorLocation} knows it, then the
+ * where the error is, as far as {@link errorLocation} knows it, then the
  * message. One spelling for the command and the check, so a diagnostic reads
  * the same whichever asked for it.
  *
  * @type {(inputFileName: string) => (parseError: ParseError) => string}
  */
 const diagnostic = inputFileName => parseError =>
-    `${_errorLocation(inputFileName)(parseError)} - error: ${parseError.message}`
+    `${errorLocation(inputFileName)(parseError)} - error: ${parseError.message}`
 
 /**
  * Whether a path is authored FunctionalScript the compiler promises to
