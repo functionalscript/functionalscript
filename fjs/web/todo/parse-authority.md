@@ -62,9 +62,10 @@ today, so the `Host`-header side loosens nothing.
 - [ ] Pin the family in the proof: `resolve('.')` answers `400` for
       `http://[::1/x`, `http://localhost:bad/x`,
       `http://localhost:65536/x`, `http://localhost:8080:999/x`, and
-      `http://[::1]evil/x` — each a declared change from today's
-      `ok('./x')`, so the PR carries a `Changelog:` entry — and
-      `isServedHost` still refuses each of them as a `Host` value.
+      `http://[::1]evil/x` — each a change from today's `ok('./x')` — and
+      `isServedHost` still refuses each of them as a `Host` value. Explain these
+      behavior changes in the PR; a `Changelog:` section is optional before 1.0.
+      From 1.0 onward, follow [the public API break declaration rule](../../../CONTRIBUTING.md#commit-messages).
 - [ ] `tsc`, `fjs test`.
 
 ### Related
