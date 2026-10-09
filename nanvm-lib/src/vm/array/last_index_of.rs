@@ -1,7 +1,7 @@
-use super::{Array, relative::relative};
+use super::Array;
 use crate::{
     common::sized_index::SizedIndex,
-    vm::{Any, IVm},
+    vm::{Any, IVm, position::relative},
 };
 
 impl<A: IVm> Array<A> {

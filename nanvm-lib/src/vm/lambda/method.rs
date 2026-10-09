@@ -100,7 +100,7 @@ pub(super) fn rest<A: IVm>(args: &Array<A>, i: u32) -> Array<A> {
 }
 
 /// A search's position as JavaScript answers it: the index, or `-1`.
-pub(super) fn position<A: IVm>(found: Option<u32>) -> Any<A> {
+pub(super) fn index_or_minus_one<A: IVm>(found: Option<u32>) -> Any<A> {
     Number::from(found.map_or(-1.0, f64::from)).to_any()
 }
 
@@ -137,7 +137,7 @@ fn radix<A: IVm>(radix: Any<A>) -> Result<u32, Any<A>> {
     ) {
         return Ok(10);
     }
-    let r = f64::from(radix.to_number()?.to_integer_or_infinity());
+    let r = radix.to_integer_or_infinity()?;
     if !(2.0..=36.0).contains(&r) {
         return Err(error::argument_out_of_range("toString", 2, 36));
     }
@@ -159,7 +159,7 @@ fn array_includes<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, An
 /// `Array.prototype.indexOf`, `vm/array/index_of.rs`.
 fn array_index_of<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     let found = Array::try_from(receiver)?.index_of(&argument(&args, 0), argument(&args, 1))?;
-    Ok(position(found))
+    Ok(index_or_minus_one(found))
 }
 
 /// `Array.prototype.concat`, `vm/array/concat.rs`: every argument an item.
@@ -232,13 +232,13 @@ fn array_find_last<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, A
 /// `Array.prototype.findIndex`, `vm/array/find_index.rs`.
 fn array_find_index<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     let (a, f) = with_callback(receiver, &args)?;
-    Ok(position(a.find_index(&f)?))
+    Ok(index_or_minus_one(a.find_index(&f)?))
 }
 
 /// `Array.prototype.findLastIndex`, `vm/array/find_last_index.rs`.
 fn array_find_last_index<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     let (a, f) = with_callback(receiver, &args)?;
-    Ok(position(a.find_last_index(&f)?))
+    Ok(index_or_minus_one(a.find_last_index(&f)?))
 }
 
 /// `Array.prototype.map`, `vm/array/map.rs`.
@@ -275,7 +275,7 @@ fn array_flat<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>
     let depth = argument(&args, 0);
     let depth = match Unpacked::from(depth.clone()) {
         Unpacked::Nullish(Nullish::Undefined) => 1.0,
-        _ => f64::from(depth.to_number()?.to_integer_or_infinity()),
+        _ => depth.to_integer_or_infinity()?,
     };
     Ok(a.flat(depth)?.to_any())
 }
@@ -326,7 +326,7 @@ fn array_join<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>
 /// the three whose position is read only when passed.
 fn array_last_index_of<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     let found = Array::try_from(receiver)?.last_index_of(&argument(&args, 0), present(&args, 1))?;
-    Ok(position(found))
+    Ok(index_or_minus_one(found))
 }
 
 #[cfg(test)]

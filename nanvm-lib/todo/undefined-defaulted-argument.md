@@ -6,7 +6,8 @@
 ### Problem
 
 Many built-ins take an optional argument whose absence selects a default:
-`Array::slice`'s `end`, `String::slice`'s, `substring`'s and `pad`'s,
+`slice`'s `end` (one site, `relative_range` in `vm/position.rs`, for
+both `Array` and `String`), `substring`'s and `pad`'s,
 `split`'s limit, `ends_with`'s position, `to_sorted`'s comparator,
 `array_flat`'s depth, `array_join`'s separator, `radix`, `digits`. Each
 spells the test the same
@@ -32,11 +33,11 @@ conversion on the other:
 if matches!(Unpacked::from(v.clone()), Unpacked::Nullish(Nullish::Undefined)) {
     return Ok(None);
 }
-Ok(Some(f64::from(v.to_number()?.to_integer_or_infinity())))
+Ok(Some(v.to_integer_or_infinity()?))
 // vm/lambda/method.rs, array_flat
 let depth = match Unpacked::from(depth.clone()) {
     Unpacked::Nullish(Nullish::Undefined) => 1.0,
-    _ => f64::from(depth.to_number()?.to_integer_or_infinity()),
+    _ => depth.to_integer_or_infinity()?,
 };
 ```
 
@@ -83,6 +84,6 @@ no error — is followed by both.
 
 ### Related
 
-- [position-arguments-owner](./position-arguments-owner.md) — the
-  position readers that take the default most often; `relative_range`
-  there is one of these sites.
+- [`src/vm/position.rs`](../src/vm/position.rs) — the position readers
+  that take the default most often; `relative_range` there is one of
+  these sites.
