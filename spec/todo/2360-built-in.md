@@ -110,6 +110,8 @@ serialization support throughout the compiler.
 "Implement it" in [the LLM working session](https://chatgpt.com/local/01a121ce-d4c3-71ca-a025-8e451349b01c),
 after the existing `String(x)` TODO was identified and before implementation
 began.
+The design was also explicitly [approved on the PR](https://github.com/functionalscript/functionalscript/pull/2763#issuecomment-6088238083)
+by **sergey-shandar** during review.
 
 **Process deviation.** The fuller benefits-and-drawbacks record was added
 during PR review. That ordering deviated from the
