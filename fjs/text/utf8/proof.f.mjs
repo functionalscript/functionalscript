@@ -2,7 +2,7 @@
  * @import { DemoEvent } from '../../website/demo/types.ts'
  */
 
-import { toCodePointList, fromCodePointList, fromVec, utf8ByteToCodePointOp, vecToCodePointList } from './module.f.mjs'
+import { toCodePointList, fromCodePointList, fromU8List, fromVec, utf8ByteToCodePointOp, vecToCodePointList } from './module.f.mjs'
 import { stringify as jsonStringify } from '../../media/json/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
@@ -223,6 +223,14 @@ export const proof = {
             const v = u8ListToVecMsb([0xed, 0xa0, 0x80, 0xf4, 0x90, 0x80, 0x80])
             assertEq(stringify(toArray(vecToCodePointList(v))), '[55296,1114112]')
         },
+    ],
+    fromU8List: [
+        // Valid bytes → decoded string
+        () => assertEq(fromU8List([0x68, 0xc2, 0xa9]), 'h©'),
+        // Malformed sequence → null
+        () => assertEq(fromU8List([0xff]), null),
+        // Well-formed surrogate (U+D800) → null
+        () => assertEq(fromU8List([0xed, 0xa0, 0x80]), null),
     ],
     fromVec: [
         // Valid ASCII → decoded string

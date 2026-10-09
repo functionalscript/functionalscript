@@ -147,7 +147,7 @@ admission and supplies lexical resolution for the virtual host. The Node host
 validates that grammar and resolves the original spelling with its URL parser.
 
 Custom compiler effect runners must implement `resolveFileModule` as well as
-`readFile`. An absent resolver returns a normal `ParseError`; the compiler never
+`readWhole`. An absent resolver returns a normal `ParseError`; the compiler never
 falls back to interpreting an unsupported host's specifiers as paths.
 
 ### Tasks
