@@ -48,7 +48,7 @@ fn scaled<A: IVm>(x: f64, s: i64) -> BigInt<A> {
     let den = den2.mul_bounded(den10);
     let (q, r) = num.div_mod(den.clone()).expect("a power is not zero");
     if r.mul_bounded(big(2)) >= den {
-        q + big(1)
+        q.add_bounded(big(1))
     } else {
         q
     }

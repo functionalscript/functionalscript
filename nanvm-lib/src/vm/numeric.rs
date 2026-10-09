@@ -46,7 +46,7 @@ impl<A: IVm> Add for Numeric<A> {
     fn add(self, rhs: Self) -> Self::Output {
         Ok(match (self, rhs) {
             (Numeric::Number(a), Numeric::Number(b)) => Numeric::Number(a + b),
-            (Numeric::BigInt(a), Numeric::BigInt(b)) => Numeric::BigInt(a + b),
+            (Numeric::BigInt(a), Numeric::BigInt(b)) => Numeric::BigInt((a + b)?),
             _ => return Err(error::mixed_numeric_operands()),
         })
     }
@@ -70,7 +70,7 @@ impl<A: IVm> Sub for Numeric<A> {
     fn sub(self, rhs: Self) -> Self::Output {
         Ok(match (self, rhs) {
             (Numeric::Number(a), Numeric::Number(b)) => Numeric::Number(a - b),
-            (Numeric::BigInt(a), Numeric::BigInt(b)) => Numeric::BigInt(a - b),
+            (Numeric::BigInt(a), Numeric::BigInt(b)) => Numeric::BigInt((a - b)?),
             _ => return Err(error::mixed_numeric_operands()),
         })
     }
@@ -188,11 +188,11 @@ impl<A: IVm> Numeric<A> {
     /// exact spec identity (`BigInt::unaryMinus`/`Number::subtract` on the
     /// existing `Neg`/`Sub` impls), reusing them instead of a new
     /// two's-complement algorithm.
-    pub fn bitwise_not(self) -> Self {
-        match self {
+    pub fn bitwise_not(self) -> Result<Self, Any<A>> {
+        Ok(match self {
             Numeric::Number(v) => Numeric::Number((!v.to_int32()).into()),
-            Numeric::BigInt(v) => Numeric::BigInt(-v - BigInt::from(1u64)),
-        }
+            Numeric::BigInt(v) => Numeric::BigInt((-v - BigInt::from(1u64))?),
+        })
     }
 
     /// `>>>`. Not a `core::ops` trait — Rust has no unsigned-right-shift

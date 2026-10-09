@@ -115,7 +115,7 @@ impl<A: IVm> Any<A> {
     /// the same as `unary_plus`/`pow`.
     /// <https://tc39.es/ecma262/#sec-bitwise-not-operator>
     pub fn bitwise_not(self) -> Result<Self, Self> {
-        Ok(Unpacked::from(self.to_numeric()?.bitwise_not()).into())
+        Ok(Unpacked::from(self.to_numeric()?.bitwise_not()?).into())
     }
 
     /// `>>>`. Not a `core::ops` trait — Rust has no unsigned-right-shift
