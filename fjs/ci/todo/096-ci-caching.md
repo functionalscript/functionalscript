@@ -80,10 +80,10 @@ In order. Each step is its own pull request.
 2. **Check coverage whenever the pin moves.** `lock-update` is the one
    command that runs on every pin change, and it already runs real Nix. A
    per-system `nix path-info --recursive --store https://cache.nixos.org`
-   over the Nixpkgs packages of every generated flake, the `node22` and
-   `node24` ones included, which covers their whole closure,
-   fails on the miss itself, and needs no text
-   matching. This adds an external command, so it needs approval before it is
+   over every Nixpkgs path each generated shell depends on (its packages and
+   what its shell hook references, such as the `i686` linker on
+   `x86_64-linux`; the `node22` and `node24` flakes included) fails on the
+   miss itself, and needs no text matching. This adds an external command, so it needs approval before it is
    written.
 3. **Make a miss visible in CI.** Drop `--quiet` from each job's first shell
    step, the one that substitutes, so that a build names itself as
