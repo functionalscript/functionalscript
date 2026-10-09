@@ -136,13 +136,16 @@ export const rust = '1.99.0'
 // default is six hours, and a job that hangs holds its runner for all of them:
 // two `macos-intel` jobs stuck building their shell held the scarcest runners
 // for three and a half hours before they were cancelled by hand. The slowest
-// job, `macos-intel`, has taken up to 13.3 minutes, so a job past this limit is
+// jobs are the macOS ones: much of their time goes to the first step that enters the
+// shell, which realises the whole Nix closure with no binary cache of our own
+// (`../todo/096-ci-caching.md`). `macos-intel` has taken up to 13.3 minutes, too
+// close to a 15-minute limit, so the limit is twice that, and a job past it is
 // one that hung rather than one that is slow.
 //
 // It does not count the wait for a runner. That wait belongs to the merge
 // queue's status check timeout, a repository setting, which has to cover it.
 // https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idtimeout-minutes
-export const jobTimeout = /** @type {const} */ (15)
+export const jobTimeout = /** @type {const} */ (30)
 
 // Official Nixpkgs snapshot used by the generated CI flakes. `ref` is the
 // stable channel the commit is accepted from; `commit` is the exact revision

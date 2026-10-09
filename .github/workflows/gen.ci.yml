@@ -14,7 +14,7 @@
   "jobs": {
     "ubuntu-intel": {
       "runs-on": "ubuntu-26.04",
-      "timeout-minutes": 15,
+      "timeout-minutes": 30,
       "steps": [
         {
           "uses": "cachix/install-nix-action@v31.11.1"
@@ -59,7 +59,7 @@
     },
     "ubuntu-arm": {
       "runs-on": "ubuntu-26.04-arm",
-      "timeout-minutes": 15,
+      "timeout-minutes": 30,
       "steps": [
         {
           "uses": "cachix/install-nix-action@v31.11.1"
@@ -93,7 +93,7 @@
     "macos-intel": {
       "runs-on": "macos-26-intel",
       "if": "github.event_name == 'merge_group'",
-      "timeout-minutes": 15,
+      "timeout-minutes": 30,
       "steps": [
         {
           "uses": "cachix/install-nix-action@v31.11.1"
@@ -127,7 +127,7 @@
     "macos-arm": {
       "runs-on": "macos-26",
       "if": "github.event_name == 'merge_group'",
-      "timeout-minutes": 15,
+      "timeout-minutes": 30,
       "steps": [
         {
           "uses": "cachix/install-nix-action@v31.11.1"
@@ -161,7 +161,7 @@
     "windows-intel": {
       "runs-on": "windows-2025",
       "if": "github.event_name == 'merge_group'",
-      "timeout-minutes": 15,
+      "timeout-minutes": 30,
       "steps": [
         {
           "uses": "dtolnay/rust-toolchain@1.99.0",
@@ -214,7 +214,7 @@
     "windows-arm": {
       "runs-on": "windows-11-arm",
       "if": "github.event_name == 'merge_group'",
-      "timeout-minutes": 15,
+      "timeout-minutes": 30,
       "steps": [
         {
           "uses": "dtolnay/rust-toolchain@1.99.0",
@@ -253,7 +253,7 @@
     },
     "wasm": {
       "runs-on": "ubuntu-26.04-arm",
-      "timeout-minutes": 15,
+      "timeout-minutes": 30,
       "steps": [
         {
           "uses": "cachix/install-nix-action@v31.11.1"
@@ -340,7 +340,7 @@
     },
     "deno": {
       "runs-on": "ubuntu-26.04-arm",
-      "timeout-minutes": 15,
+      "timeout-minutes": 30,
       "steps": [
         {
           "uses": "cachix/install-nix-action@v31.11.1"
@@ -361,7 +361,7 @@
     },
     "bun": {
       "runs-on": "ubuntu-26.04-arm",
-      "timeout-minutes": 15,
+      "timeout-minutes": 30,
       "steps": [
         {
           "uses": "cachix/install-nix-action@v31.11.1"
@@ -382,7 +382,7 @@
     },
     "node22": {
       "runs-on": "ubuntu-26.04-arm",
-      "timeout-minutes": 15,
+      "timeout-minutes": 30,
       "steps": [
         {
           "uses": "cachix/install-nix-action@v31.11.1"
@@ -403,7 +403,7 @@
     },
     "node24": {
       "runs-on": "ubuntu-26.04-arm",
-      "timeout-minutes": 15,
+      "timeout-minutes": 30,
       "steps": [
         {
           "uses": "cachix/install-nix-action@v31.11.1"
@@ -424,7 +424,7 @@
     },
     "node26": {
       "runs-on": "ubuntu-26.04-arm",
-      "timeout-minutes": 15,
+      "timeout-minutes": 30,
       "steps": [
         {
           "uses": "cachix/install-nix-action@v31.11.1"
