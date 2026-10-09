@@ -14,8 +14,9 @@ upstream.
 Start from the latest `main`: fetch it on its own, before anything else.
 
 The container has no Nix, so install it yourself: `apt-get install nix-bin`,
-run in single-user mode (`NIX_REMOTE=local`), with flakes enabled for the
-`nix` commands below (`export NIX_CONFIG='experimental-features = nix-command flakes'`). Everything else comes from the
+run in single-user mode (`NIX_REMOTE=local`). `nix-bin` leaves flakes off, so
+pass `--extra-experimental-features 'nix-command flakes'` to every `nix`
+command below, as `./dev.sh` does. Everything else comes from the
 repository's shell, at the versions CI uses: run every later command that is
 not itself `nix` as `./dev.sh <command>` (`./dev.sh tsc`, `./dev.sh npm run gen`
 and so on), and install nothing else by hand
@@ -93,8 +94,9 @@ If anything changed:
 3. Run the dry run again on the generated flakes as committed, with no
    override, for every system. This also checks the lock: a wrong `narHash`
    makes Nix try GitHub and fail.
-4. If `package.json` changed, run `./dev.sh npm install`,
-   `./dev.sh deno install` and `./dev.sh bun install`.
+4. Install the dependencies the checks need: `./dev.sh npm ci`, or, if
+   `package.json` changed, `./dev.sh npm install`, `./dev.sh deno install` and
+   `./dev.sh bun install`.
 5. Run the full check set
    [AGENTS.md](../../AGENTS.md#agent-instructions) lists, each as
    `./dev.sh <command>`, then commit, push, and fix any CI failures. Put the
