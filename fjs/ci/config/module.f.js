@@ -155,7 +155,6 @@ export const jobTimeout = /** @type {const} */ (15)
 // from source until they time out — `7c8764b7` did. Check each system with
 // `nix build --dry-run ./gen.nix#devShells.<system>.default`: only the
 // overlay's Rust, the pinned Bun and the shell itself may be left to build.
-// `../update-versions.md` is the whole procedure.
 //
 // `commit` is the only fact `flake.nix` needs: `inputs.nixpkgs.url` names it
 // exactly, so the two other things a `flake.lock` records about a revision —
