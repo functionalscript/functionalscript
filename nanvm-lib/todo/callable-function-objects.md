@@ -507,7 +507,7 @@ channel. Three executors read one source:
 |---|---|---|
 | reference | Node imports the module; its default export is compared as a value, structurally and with its aliasing, or it throws | independent of this repository |
 | FJS interpreter | `_transpileDefault`: `parse` → `unresolved` → `analysis` → `memo({ args: [] })` → `read(…, 'default')` → `toData`, the route `fjs compile` takes for a data output | compared against the reference for every corpus fixture (step 1, landed) |
-| direct AOT | `fjs compile` → `gen.fixtures/<name>.rs` → `nanvm-harness` | each fixture's expected text is hand-written in `src/lib.rs` |
+| direct AOT | `fjs compile` → `gen.fixtures/<name>.rs` → `nanvm-harness` | each fixture's expected text is hand-written in `src/lib.rs`, except `effect` (asserted in `tests/effects.rs`) and `named-imports-math` (a dependency of `named-imports`, covered only through that fixture's test) |
 
 The interpreter is `memo`, not `amnesia`: `memo` starts each call with a fresh
 cache and keeps evaluated captures by identity, the JavaScript-compatible

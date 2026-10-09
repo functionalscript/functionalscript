@@ -54,6 +54,10 @@ export const proof = {
     exceptionsNameFixtures: () => {
         for (const file of Object.keys(exceptions)) { assert(names.includes(file), file) }
     },
+    /** An `undefinedDefault` entry for a fixture that is gone would excuse nothing. */
+    undefinedDefaultNamesFixtures: () => {
+        for (const file of Object.keys(undefinedDefault)) { assert(names.includes(file), file) }
+    },
     /** Each `undefined` default is listed, and each listed one still is. */
     undefinedDefaultsAreListed: async () => {
         for (const name of corpus(names)) {
