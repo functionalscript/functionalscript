@@ -100,6 +100,10 @@ with every importer updated in the same PR; a re-export left in
       (`string → bytes`, the inner pipeline of `tryUtf8`) replaces
       `fjs/text/percent`'s `utf8Bytes` and `fjs/git/refstore`'s `nameBytes`.
       Then those modules stop importing the utf8/utf16 primitives directly.
+      Named after `utf16`'s `stringToCodePointList`/`codePointListToString`
+      pair, so each says its direction: `stringToU8List`, `u8ListToString`
+      (unchecked) and `tryU8ListToString` (validated, `null` on invalid).
+      `fromVec` and `tryUtf8` build on them.
 - [ ] Name the UTF-8 boundary in one direction: the decoder and encoder in
       `text/utf8` say which way they go, and `types/uint8array`'s `fromVec`
       stops sharing a name with a decoder. A renamed export is a declared
