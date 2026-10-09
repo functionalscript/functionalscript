@@ -1,10 +1,12 @@
 # Highlight from the producer, not by reparsing
 
 **Priority:** P3
-**Status:** open — design only. It builds on a reparsing highlighter,
-`website/demo/highlight/module.f.mjs`, proposed on the branch
-`claude/gracious-euler-dw2lsd` and not on `main` yet; it is the fallback this
-design keeps.
+**Status:** implemented, as the chain of pull requests listed under
+[Migration](#migration-one-pull-request-each), which are open as drafts and
+not merged yet. This file records the design and why; what exists and how to
+use it is `fjs/text/marked/README.md`, which arrives with that chain, and the
+files named below are in it too, not on `main` until it merges. Where the
+implementation departs from what this file first proposed, the text says so.
 
 ## Problem
 
@@ -212,16 +214,18 @@ module does, pins:
 requires the side-by-side page to run the real `compile`, "so it cannot
 drift from the CLI". A file system carries text, so markup cannot cross it,
 and a design that recovered the runs by calling each producer separately
-would break that requirement. The seam exists already, though:
-`compileFile` is `outputText(outputFileName)(inputFileName)`, which yields
+would break that requirement. The seam existed already, though:
+`compileFile` was `outputText(outputFileName)(inputFileName)`, which yielded
 `Result<string, string>`, followed by the one write of that string to the
-output file. Steps 2–4 therefore make it:
+output file. As implemented:
 
-- `outputText` yields `Result<Marked, string>`, a pure function of the
-  input, the same one `compileFile` calls;
-- `compileFile` applies `toText` before the write, so a file is unchanged;
-- the side-by-side page runs `outputText` over the in-memory file system,
-  exported for the purpose, and renders its runs.
+- `outputMarked` (the old `outputText`) yields `Result<Marked, string>`, a
+  pure function of the input, the same one `compileFile` calls;
+- `_compileMarked(input, output)` is the whole of the compile but its tail,
+  with the diagnostics a refusal prints, and `compileFile` is it followed by
+  the tail, applying `toText` before the write, so a file is unchanged;
+- the side-by-side page runs `_compileMarked` over the in-memory file system
+  and renders its runs.
 
 What the page then skips is the tail of the real path — creating the
 directory, the write, the exit code — none of which decides what a pane
@@ -229,13 +233,9 @@ shows. What it keeps is every line that does. To keep "cannot drift"
 literally true, the page's proof also runs the whole `compile` once per
 output and example, and asserts the file it writes equals `toText` of the
 runs the page renders. That narrows the existing requirement from "runs
-`compile`" to "runs the text `compile` writes, and proves it", and the PR
-for step 4 amends `output-demos.md` to say so.
-
-Until step 4, the side-by-side page keeps the tokenizer fallback, so the
-other pages migrate without waiting on it. The stage pages — tokenizer,
-parser, serializer, Rust — call their stage's function directly and are not
-affected.
+`compile`" to "runs the text `compile` writes, and proves it", and
+`output-demos.md` says so. The stage pages — tokenizer, parser, serializer,
+Rust — call their stage's function directly and were never affected.
 
 ## Producers that compose by template: tagged text
 
@@ -256,24 +256,22 @@ design is the same for both.
 
 ## Migration, one pull request each
 
-1. Types and `toText`, `render`, `fromSpans`; `highlight` becomes a
-   `Marked` producer. Demos unchanged in behaviour.
-2. The `.js` serializer produces runs; `tryModuleStringify` is `toText` of
-   them; the proof pins runs against the tokenizer oracle over
-   [`compiler/examples`](../../../compiler/examples/module.f.js).
-3. The Rust generator. This is the case reparsing cannot reach, and the
-   reason to do any of this.
-4. DataJS and JSON writers; the parser demo stops calling `highlight`. The
-   compiler's `outputText` then yields `Marked`, and the side-by-side page
-   renders it, as [Crossing the compiler boundary](#crossing-the-compiler-boundary)
-   describes. Until then that page keeps the fallback.
+As planned, then as done. The order changed once the first step was read
+against the code: the `.js` writer takes its leaves from the shared JSON and
+DataJS writers, so those came first, and name resolution had to carry runs
+with them. Each pull request is chained onto the one before it.
 
-Each step is independently shippable and leaves the page working.
+| # | Planned | Done | Pull request |
+| - | ------- | ---- | ------------ |
+| 1 | Types, `toText`, `render`, `fromSpans`; `highlight` becomes a `Marked` producer | The same: `fjs/text/marked`, `render`, `spansOf` (the tokenizer fallback) | [#2726](https://github.com/functionalscript/functionalscript/pull/2726) |
+| 2a | — | The JSON and DataJS writers mark their leaves; the transitional `Chunk = string \| Run`; name resolution keeps a run's kind | [#2729](https://github.com/functionalscript/functionalscript/pull/2729) |
+| 2c | The `.js` serializer produces runs, pinned to the tokenizer oracle | The `.js` writer marks its own words (`const`, `export`, `return`, …) and `undefined`; the oracle is exact, one for one | [#2753](https://github.com/functionalscript/functionalscript/pull/2753) |
+| 4 | DataJS and JSON writers; the compiler's `outputText` yields runs; the demos render them | `outputMarked`, `_compileMarked`, `tryMarked`; the compiler, parser and serializer demos render runs; the proof holds each pane to the file `compile` writes | [#2758](https://github.com/functionalscript/functionalscript/pull/2758) |
+| 3 | The Rust generator | Rust, by [tagged text](#producers-that-compose-by-template-tagged-text), not by rewriting the printer to chunks; documentation | [#2760](https://github.com/functionalscript/functionalscript/pull/2760) |
 
-Status: steps 1 to 4 are implemented as a chain of pull requests, the
-compiler's `outputText` yielding runs as described in
-[Crossing the compiler boundary](#crossing-the-compiler-boundary), with Rust
-resolved from tagged text as above.
+Every public function that answers text still answers plain text, so no
+caller changed, and the text of every output is what it was. `fjs compile`
+has no option for markup, and the files it writes never hold any.
 
 ## Alternatives considered
 
@@ -285,35 +283,37 @@ resolved from tagged text as above.
   Rejected: the text is also what the CLI writes and what a copy button
   copies, so markup in it corrupts both. Every established practice above
   keeps the layers apart.
-- **Keep reparsing** (the current state). Correct for an unknown text and
-  cheap to keep; rejected as the *only* mechanism for the reasons in
-  Problem, chiefly Rust and silent disagreement.
+- **Keep reparsing** (the state before this). Correct for an unknown text
+  and cheap to keep, so it stays as the fallback and as the oracle; rejected
+  as the *only* mechanism for the reasons in Problem, chiefly Rust and
+  silent disagreement.
 - **A full theme/scope system** (TextMate, Pygments). No second consumer;
   see "What we leave".
 
-## Open questions
+## Decisions on the questions this file raised
 
-Each carries the author's leaning, to be overruled in review.
-
-- **Names versus properties.** A producer knows a key from a variable and a
-  function name from a parameter, which a lexer does not. *Leaning: ship the
-  lexical kinds first.* Adding `property` or `function` later is additive,
-  and the oracle cannot check kinds the tokenizer cannot see.
-- **A location for the shared code.** `website/demo/highlight/` is a demo
-  helper; the serializer and Rust generator depending on it would invert the
-  dependency (compiler → website). *Leaning: `Marked`, `toText` and
-  `fromSpans` in `fjs/text/marked/`, with only `render` under the website,*
-  because the type is about text and the first consumer outside the website
-  is the compiler.
-- **Does the CLI ever want it?** An ANSI-coloured `fjs compile` to a
-  terminal is the same data through an SGR renderer
-  ([`text/sgr`](../../../text/sgr/)). Not in scope; it is a second consumer
+- **The vocabulary of `TokenKind`.** `literal` stays a kind beside
+  `keyword`, although the stylesheet draws both in one colour: a kind states
+  what the producer wrote, and the colour is the page designer's choice.
+- **Names versus properties.** The lexical kinds shipped first. A producer
+  knows a key from a variable and a function name from a parameter; adding
+  `property` or `function` later is additive, and the oracle cannot check
+  kinds the tokenizer cannot see.
+- **A location for the shared code.** `fjs/text/marked`, with only `render`
+  under the website, so that the compiler does not depend on the website.
+- **Does the CLI ever want it?** Not built, and `fjs compile` has no option
+  for it. An ANSI-coloured output to a terminal, behind a flag, would be the
+  same runs through `text/sgr`: a separate feature, and the second consumer
   that would confirm the location above.
+- **How the Rust printer says what it wrote.** Not by rewriting it to carry
+  runs, which would have rewritten the operator tables and the corpus
+  generator it shares, but by tagged text. That was not in this file's first
+  version.
 
 ## Related
 
-- `website/demo/highlight/module.f.mjs` (branch
-  `claude/gracious-euler-dw2lsd`) — the reparsing highlighter this builds on.
+- `fjs/text/marked/README.md` — what exists, how a producer uses it, how it
+  is proved; arrives with the chain above.
 - [`../README.md`](../README.md#output) — how a demo's code blocks look.
 - [`../../../compiler/todo/output-demos.md`](../../../compiler/todo/output-demos.md)
   — the demos that print generated code.
