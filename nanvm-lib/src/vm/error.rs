@@ -51,7 +51,7 @@ pub(crate) fn cannot_convert_to_primitive<A: IVm>() -> Any<A> {
 
 /// `ToPrimitive` of a function without text — a host or hand-written
 /// function, which no EDAG renders. A result that does not depend on the
-/// text is answered without it: see `NumberCoercion` and `is_less_than`.
+/// text is answered without it: see `NumberCoercion` and the relational operators.
 pub(crate) fn function_text<A: IVm>() -> Any<A> {
     type_error("Cannot convert a function to its text")
 }
