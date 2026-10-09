@@ -33,15 +33,16 @@
  *
  * @import { Node } from '../../../media/html/types.ts'
  * @import { JsToken } from '../../../ebnf/lib/js/types.ts'
+ * @import { StateScan } from '../../../types/function/operator/types.ts'
  * @import { Marked, Span, TokenKind } from '../../../text/marked/types.ts'
  */
 
 import { _positions, tokenize } from '../../../js/tokenizer/module.f.mjs'
 import { assertNotNullish } from '../../../asserts/module.f.mjs'
-import { isKeyword } from '../../../js/keywords/module.f.mjs'
+import { isKeyword, literalWords } from '../../../js/keywords/module.f.mjs'
 import { stringToCodePointList } from '../../../text/utf16/module.f.mjs'
 import { fromSpans, toText } from '../../../text/marked/module.f.mjs'
-import { toArray } from '../../../types/list/module.f.mjs'
+import { stateScan, toArray } from '../../../types/list/module.f.mjs'
 import { unwrap } from '../../../types/result/module.f.mjs'
 
 /**
@@ -60,13 +61,15 @@ export const render = marked => marked.flatMap(([text, kind]) =>
  */
 const kindOf = ({ kind }) => {
     switch (kind) {
-        case 'true': case 'false': case 'null': case 'undefined': return 'literal'
         case 'string': return 'string'
         case 'number': case 'bigint': return 'number'
         case '//': case '/*': return 'comment'
-        default: return isKeyword(kind) ? 'keyword' : undefined
+        default: return literalWords.includes(/** @type {never} */ (kind)) ? 'literal' : isKeyword(kind) ? 'keyword' : undefined
     }
 }
+
+/** Whether a token is no part of the program's words: whitespace, a newline or a comment. @type {(token: JsToken) => boolean} */
+const isTrivia = ({ kind }) => kind === 'ws' || kind === 'nl' || kind === '//' || kind === '/*'
 
 /**
  * The spans the tokenizer finds in `text`: none if it refuses the text, as
@@ -78,6 +81,10 @@ const kindOf = ({ kind }) => {
  * the next token's, less trailing blanks: it anchors a run of trivia that
  * holds a newline at the newline, so the blanks before it fall in the
  * previous token's cut.
+ *
+ * **A word after `.` or `?.` is a property name**, `x.true` and `x.default`,
+ * and stays plain: the tokenizer reads it as the word it spells, which the
+ * language does not mean there.
  *
  * @type {(text: string) => readonly Span[]}
  */
@@ -96,11 +103,16 @@ export const spansOf = text => {
     // A token that starts where the previous one does adds nothing to cut:
     // the `nl` a block comment with a newline is followed by.
     const kept = tokens.flatMap(({ token }, i) => i > 0 && starts[i] === starts[i - 1] ? [] : [{ token, start: starts[i] }])
+    // The kind of the word before each token, trivia skipped, in one pass.
+    /** @type {StateScan<{ token: JsToken }, string, string>} */
+    const word = ({ token }, prior) => [prior, isTrivia(token) ? prior : token.kind]
+    const afterWords = toArray(stateScan(word)('')(kept))
     // The last token is `eof`, which stays plain, so every token that has a
     // kind has a next one to end at.
     return kept.slice(0, -1).flatMap(({ token, start }, i) => {
         const kind = kindOf(token)
-        return kind === undefined ? [] : [{ start, length: Array.from(symbols.slice(start, kept[i + 1].start).join('').trimEnd()).length, kind }]
+        const before = afterWords[i]
+        return kind === undefined || ((kind === 'keyword' || kind === 'literal') && (before === '.' || before === '?.')) ? [] : [{ start, length: Array.from(symbols.slice(start, kept[i + 1].start).join('').trimEnd()).length, kind }]
     })
 }
 

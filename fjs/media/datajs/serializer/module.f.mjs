@@ -102,7 +102,7 @@ const undefinedSerialize = [['undefined', 'literal']]
  *
  * @type {(value: number) => List<Chunk>}
  */
-export const _numberSerialize = value => isFinite(value) ? numberSerialize(value) : [`${value}`]
+export const _numberSerialize = value => isFinite(value) ? numberSerialize(value) : [[`${value}`, 'literal']]
 
 /**
  * A leaf as a document spells it — this format's counterpart to JSON's

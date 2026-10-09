@@ -44,6 +44,11 @@ export const proof = {
         assertEq(covered('"a\u2028b" + 1'), '[["string","\\"a\u2028b\\""],["number","1"]]')
         assertEq(covered('"a\u2029b" + 1'), '[["string","\\"a\u2029b\\""],["number","1"]]')
         assertEq(covered('1\r\n2\n3'), '[["number","1"],["number","2"],["number","3"]]')
+        // a word after `.` or `?.` is a property name, whatever it spells
+        assertEq(covered('a.true + a?.default + a . null + a./*c*/const'), '[["comment","/*c*/"]]')
+        assertEq(covered('true.true'), '[["literal","true"]]')
+        // the literal words are literals, `NaN` and `Infinity` among them
+        assertEq(covered('1 + NaN + Infinity + undefined'), '[["number","1"],["literal","NaN"],["literal","Infinity"],["literal","undefined"]]')
         assertEq(covered('const a = 1  \r\n/* x\r y */  \n// z\n"😀" 1n'),
             '[["keyword","const"],["number","1"],["comment","/* x\\r y */"],["comment","// z"],["string","\\"😀\\""],["number","1n"]]')
     },
