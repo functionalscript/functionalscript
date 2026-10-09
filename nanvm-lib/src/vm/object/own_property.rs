@@ -21,10 +21,10 @@ impl<A: IVm> Object<A> {
     /// a lookup must answer with, not the first.
     ///
     /// ```
-    /// use nanvm_lib::{naive::Naive, vm::{IVm, Nullish, Object, ToAny, ToObject}};
+    /// use nanvm_lib::{naive::Naive, vm::{Any, IVm, Object, ToObject}};
     /// fn own_property_test<A: IVm>() {
-    ///     let o: Object<A> = [("a".into(), Nullish::Undefined.to_any())].to_object();
-    ///     assert_eq!(o.own_property(&"a".into()), Some(Nullish::Undefined.to_any()));
+    ///     let o: Object<A> = [("a".into(), Any::undefined())].to_object();
+    ///     assert_eq!(o.own_property(&"a".into()), Some(Any::undefined()));
     ///     assert_eq!(o.own_property(&"b".into()), None);
     /// }
     ///

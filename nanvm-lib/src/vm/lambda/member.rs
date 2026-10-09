@@ -1,5 +1,5 @@
 use super::method::method;
-use crate::vm::{Any, Array, IVm, Nullish, ToAny, Unpacked, error};
+use crate::vm::{Any, Array, IVm, Unpacked, error};
 
 /// A property step's live state: the receiver and the key, the read
 /// deferred to the exit that needs it. `end` reads the property; a call
@@ -24,7 +24,7 @@ impl<A: IVm> Member<A> {
     /// `Any::entry` does — real JS's `[]` runs the same `ToObject`
     /// failure ahead of any key handling — and any other opens the step.
     pub(crate) fn new(receiver: Any<A>, key: Any<A>) -> Result<Self, Any<A>> {
-        if let Unpacked::Nullish(_) = Unpacked::from(receiver.clone()) {
+        if receiver.is_nullish() {
             return Err(error::nullish_to_object());
         }
         Ok(Member { receiver, key })
@@ -62,7 +62,7 @@ impl<A: IVm> Member<A> {
     /// The property read, `a.b`: the own property, or `undefined` — the
     /// same fallback `Any::entry` has.
     pub(crate) fn read(self) -> Any<A> {
-        self.own().unwrap_or_else(|| Nullish::Undefined.to_any())
+        self.own().unwrap_or_else(Any::undefined)
     }
 
     /// The guard of `|?.()`: whether the callee the call would find is
@@ -71,7 +71,7 @@ impl<A: IVm> Member<A> {
     /// `({}).toString?.()` calls.
     pub(crate) fn is_nullish(&self) -> bool {
         match self.own() {
-            Some(v) => matches!(Unpacked::from(v), Unpacked::Nullish(_)),
+            Some(v) => v.is_nullish(),
             None => method(&self.receiver, &self.key).is_none(),
         }
     }
@@ -89,7 +89,7 @@ impl<A: IVm> Member<A> {
             Some(callee) => callee.call(args),
             None => match method(&self.receiver, &self.key) {
                 Some(f) => f(self.receiver, Array::try_from(args)?),
-                None => Nullish::Undefined.to_any().call(args),
+                None => Any::undefined().call(args),
             },
         }
     }
@@ -176,7 +176,7 @@ mod tests {
         let object: Any<A> = [("u".into(), Nullish::Null.to_any())].to_object().to_any();
         assert_eq!(
             object.clone().dot("at".into()).option_call(no_args).end(),
-            Ok(Nullish::Undefined.to_any())
+            Ok(Any::undefined())
         );
         let s: Any<A> = "a".into();
         assert_eq!(
@@ -189,7 +189,7 @@ mod tests {
         );
         assert_eq!(
             object.clone().dot("u".into()).option_call(no_args).end(),
-            Ok(Nullish::Undefined.to_any())
+            Ok(Any::undefined())
         );
         assert_eq!(
             object.dot("toString".into()).option_call(no_args).end(),
@@ -218,8 +218,7 @@ mod tests {
         let object: Any<A> = [("a".into(), 1.0.to_any())].to_object().to_any();
         assert_eq!(object.dot("a".into()).end(), Ok(1.0.to_any()));
         assert_eq!(
-            Nullish::Undefined
-                .to_any::<A>()
+            Any::<A>::undefined()
                 .dot("toString".into())
                 .end_call(|| Err("boom".into())),
             Err(error::nullish_to_object())
