@@ -551,15 +551,13 @@ satisfy the same contract, but this parity work does not wait for it.
       repeated rest reads, distinct calls, spread-array identity and captures.
       Cover zero-arity migration and refusal of legacy positive-arity/full-list
       sketches. Native capacity is the language's limit on `length`, 16.
-      Pin the closure behaviors that compile today but no generated fixture
-      pins yet: two closures made by one function are distinct while one
-      binding read twice is the same
-      (`const make = (...a) => () => a[0]; … [f(), g(), f === g, f === f]`
-      gives `[1, 1, false, true]`); a captured object or array keeps its
-      identity (`get() === o.x`); and a failure computing a frame element
-      fails at creation, not at the call
-      (`const make = (...a) => { const v = a[0].x; return () => v; };
-      export default make(undefined);`).
+      Closure identity and frame failure are pinned by the
+      [`closure-identity`](../../nanvm-harness/fixtures/closure-identity.mjs)
+      fixture (two closures from one function are distinct, one binding read
+      twice is the same, a captured object keeps its identity) and the
+      [`closure-throws`](../../nanvm-harness/fixtures/closure-throws.mjs)
+      fixture (a failure computing a frame element fails at creation, not at
+      the call); the rest of the list above is open.
 - [ ] Before enabling default-text observations, integrate the shared EDAG
       renderer or explicit refusal, covering direct/indirect conversions and
       exported callables. Do not wait for Stage 7 to prevent wrong output.
