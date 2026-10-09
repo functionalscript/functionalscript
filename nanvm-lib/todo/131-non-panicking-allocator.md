@@ -23,17 +23,18 @@ and by reading the container constructors; repeat it before calling the task
 done, since a `Vec` that grows by `push` can abort at any growth step too.
 
 - **A buffer the operation allocates or grows itself, larger than its
-  inputs.** `BigInt`'s `*` (`vm/bigint/mul.rs`) sizes its result from the
-  operands' lengths, `lhs + rhs + 1` words, through
-  `common/vec.rs::with_default`, an infallible `Vec::with_capacity`, and has
-  no size limit. `flat` (`vm/array/flat.rs`, `flatten`) pushes every element
-  of its result onto a `Vec` before `create` builds the array: an outer array
-  holding many references to one wide inner array makes that buffer far
-  larger than the inputs in memory, and each `push` can abort at its own
-  growth step. The output `String`s that grow by `push` and `extend` are the
+  inputs.** `BigInt`'s `*` and `<<` (`vm/bigint/mul.rs`, `shl.rs`) are the
+  model for the buffer they build themselves: each refuses a result past
+  `MAX_WORDS` words before it allocates, returns a `Result`, and reserves with
+  `try_reserve_exact`; `common/vec.rs::with_default` has no user left. Both
+  still meet the third kind below, in the container their result is handed
+  to. `flat` (`vm/array/flat.rs`,
+  `flatten`) pushes every element of its result onto a `Vec` before `create`
+  builds the array: an outer array holding many references to one wide inner
+  array makes that buffer far larger than the inputs in memory, and each
+  `push` can abort at its own growth step. The output `String`s that grow by `push` and `extend` are the
   same kind: `to_json`, `join`, `split`/`replace` in `string/patterns.rs`, and
-  `own_entries`. `<<` already refuses a result past `MAX_WORDS` and reserves
-  fallibly (`vm/bigint/shl.rs`); it is the model.
+  `own_entries`.
 - **A copy of an input that is already in memory.** These cannot be made
   larger by the program, but a machine that holds the input and not a second
   copy of it still aborts: `toSorted`'s merge buffers
@@ -43,17 +44,19 @@ done, since a `Vec` that grows by `push` can abort at any growth step too.
 - **A container the constructor allocates.** `spread_array`'s final
   `to_array`, and `array/create.rs`'s `create`, which bounds the length at
   `2³² − 1` and then builds the array from an iterator, and so do the string
-  builders that call it: `repeat`, `padStart`/`padEnd`, `concat`. `<<` meets
-  this one too, in its second allocation (the TODO in `shl.rs`).
+  builders that call it: `repeat`, `padStart`/`padEnd`, `concat`. `<<` and `*`
+  meet this one too, in their second allocation: the `Vec` they reserve
+  fallibly is collected into the container by `normalize_new` or
+  `unchecked_new` (the TODO in `shl.rs`).
   `'a'.repeat(2 ** 32 - 1)` is a count under the limit that the machine may
   not back.
 
-The first kind needs a bound on the result, as `<<` has, or a fallible
-reservation before each growth. For `*` that also changes its signature: `Mul
-for BigInt` has `Output = Self` and no `RangeError` of its own, where `<<`
-returns a `Result`. The second kind needs a fallible `Vec` reservation at each
-site (`try_reserve_exact`, as `<<` does). The third needs a fallible container
-constructor in `IVm`, which is the general task.
+The first kind needs a bound on the result, as `<<` and `*` have, or a
+fallible reservation before each growth. Giving an operator that bound changes
+its signature to a `Result`, as it did for `*`. The second kind needs a
+fallible `Vec` reservation at each site (`try_reserve_exact`, as `<<` does).
+The third needs a fallible container constructor in `IVm`, which is the
+general task.
 
 This list is not exhaustive and is not meant to be: it names the sites found
 so far, by the three kinds they fall into. A task is done when the grep above,

@@ -285,9 +285,12 @@ fn round_tie_to_even<A: IVm>(v: f64, mantissa: u64, exp2: i32, s: u64, m: i64) -
     // `target / 2` away from zero at this scale — the shared shape of both
     // tie checks below, cross-multiplied so no side is ever divided.
     let equidistant = |target: u64| -> bool {
-        let v_num = BigInt::<A>::from(2 * mantissa) * v_extra.clone();
-        let s_num = BigInt::<A>::from(target) * s_extra.clone();
-        (v_num * s_den.clone()).cmp(&(s_num * v_den.clone())) == Ordering::Equal
+        let v_num = BigInt::<A>::from(2 * mantissa).mul_bounded(v_extra.clone());
+        let s_num = BigInt::<A>::from(target).mul_bounded(s_extra.clone());
+        v_num
+            .mul_bounded(s_den.clone())
+            .cmp(&s_num.mul_bounded(v_den.clone()))
+            == Ordering::Equal
     };
     if lo_roundtrips && equidistant(2 * s - 1) {
         return s - 1;
