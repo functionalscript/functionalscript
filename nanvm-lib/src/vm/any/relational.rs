@@ -178,7 +178,9 @@ fn parse_digits<A: IVm>(digits: &str, radix: u32) -> Result<Option<BigInt<A>>, A
     let base: BigInt<A> = (radix as u64).into();
     let mut magnitude = BigInt::default();
     for value in digits.bytes().filter_map(digit) {
-        magnitude = (magnitude * base.clone())? + BigInt::from(value as u64);
+        // `+` has no limit of its own: a product just under it plus a digit
+        // can carry one word past, so the sum is checked too.
+        magnitude = ((magnitude * base.clone())? + BigInt::from(value as u64)).within_limit()?;
     }
     Ok(Some(magnitude))
 }

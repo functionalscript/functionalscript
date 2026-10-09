@@ -56,11 +56,7 @@ impl<A: IVm> Mul for BigInt<A> {
             Sign::Negative
         };
 
-        let product = Self::normalize_new(sign, value);
-        if u64::from(product.length()) > MAX_WORDS {
-            return Err(error::bigint_too_large());
-        }
-        Ok(product)
+        Self::normalize_new(sign, value).within_limit()
     }
 }
 
@@ -89,6 +85,16 @@ mod tests {
         assert_eq!(int(-3) * int(5), Ok(int(-15)));
         assert_eq!(int(3) * int(-5), Ok(int(-15)));
         assert_eq!(int(-3) * int(-5), Ok(int(15)));
+    }
+
+    /// `within_limit` is the check `*` makes of its product and a sum makes
+    /// of itself: `2^1048575` is 16384 words, and twice it is 16385, which
+    /// `+` produces without a word of complaint.
+    #[test]
+    fn within_limit_of_a_sum() {
+        assert_eq!(pow2(1_048_575).within_limit(), Ok(pow2(1_048_575)));
+        let sum = pow2(1_048_575) + pow2(1_048_575);
+        assert_eq!(sum.within_limit(), Err(error::bigint_too_large()));
     }
 
     #[test]

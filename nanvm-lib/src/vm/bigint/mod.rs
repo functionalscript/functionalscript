@@ -156,6 +156,17 @@ fn sub_words_assign(a: &mut Vec<u64>, b: &[u64]) {
 pub struct BigInt<A: IVm>(A::InternalBigInt);
 
 impl<A: IVm> BigInt<A> {
+    /// `self`, or the `RangeError` of a `BigInt` longer than `MAX_WORDS`
+    /// words. `*` and `<<` check their own results; `+` and `-` do not, and
+    /// a result of theirs that must stay in range, a sum of a product and a
+    /// digit, says so here.
+    pub(crate) fn within_limit(self) -> Result<Self, Any<A>> {
+        if u64::from(self.length()) > MAX_WORDS {
+            return Err(error::bigint_too_large());
+        }
+        Ok(self)
+    }
+
     /// `self * rhs` where the caller's operands are bounded by construction
     /// to a product far under `MAX_WORDS`, as the exact arithmetic of a
     /// `binary64` is (a 53-bit mantissa, a power of two, a power of ten of at
