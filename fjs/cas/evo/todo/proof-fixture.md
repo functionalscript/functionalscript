@@ -1,7 +1,7 @@
 ## proof-fixture. Share the Evo proof fixture between `cas/evo` and `mcp/evo`
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
