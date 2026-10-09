@@ -1,7 +1,7 @@
 ## proof-tree-corpus. Table-drive the B-tree proofs and share their fixture
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
