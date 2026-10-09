@@ -65,7 +65,7 @@ today, so the `Host`-header side loosens nothing.
       `http://[::1]evil/x` — each a change from today's `ok('./x')` — and
       `isServedHost` still refuses each of them as a `Host` value. Explain these
       behavior changes in the PR; a `Changelog:` section is optional before 1.0.
-      From 1.0 onward, follow [the public API break declaration rule](../../../CONTRIBUTING.md#commit-messages).
+      The [release policy after 1.0](../../../todo/post-1.0-release-policy.md) remains undecided.
 - [ ] `tsc`, `fjs test`.
 
 ### Related

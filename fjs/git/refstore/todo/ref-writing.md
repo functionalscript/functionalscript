@@ -47,7 +47,7 @@ is created and filled and a second attempt on the taken name is `EEXIST` with th
 bytes unchanged. That is `fjs/effects/node`'s `writeExclusive`, added for this.
 Adding it widens `NodeOp`, which a custom runner must implement, so the PR
 explains the API change and updates every importer. A breaking notice is optional
-before 1.0 and required from 1.0 onward.
+before 1.0; policy after 1.0 remains undecided.
 
 The virtual runner cannot see that fix — it has no symlinks — and for two review
 rounds nothing else could either, because a proof that writes on the host was

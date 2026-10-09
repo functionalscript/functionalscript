@@ -50,15 +50,16 @@ section's items.
 #### What no pre-merge check can decide
 
 Whether a pull request breaks the public API. Before 1.0 that judgment does not
-select the version bump, and notices are optional. From 1.0 onward, declarations
-are required, but a format check still cannot confirm that the author declared
-every break. An API-surface diff could report candidates; behavior changes can
+select the version bump, and notices are optional. The release policy after
+1.0 remains undecided. A format check cannot confirm that an author explained
+every API change. An API-surface diff could report candidates; behavior changes can
 escape it, so it would need its own proposal and could not replace review.
 
 A release-side check can validate regular pre-1.0 minor bumps and urgent patch
 progression from the corresponding release commit without parsing notices.
-From 1.0 onward, a declaration-based check would need an enforced-format window;
-unstructured historical descriptions can advise, never establish completeness.
+If a future policy adopts declaration-based checks, those would need an
+enforced-format window; unstructured historical descriptions can advise, never
+establish completeness.
 Commits without a pull request number still need a diff audit for release notes,
 regardless of version policy.
 
@@ -78,9 +79,9 @@ it outright but require an Enterprise plan.
       based on the corresponding release commit. Do not require or parse
       breaking-change notices to select a pre-1.0 bump. Use `origin/main` for
       regular windows and the maintenance tip for urgent windows
-- [ ] Design the 1.0-and-later declaration-based check separately, after the
-      PR lint enforces the format. Account for missing pull request numbers and
-      unenforced history; a parsed notice cannot prove all breaks were declared
+- [ ] Defer checks for releases after 1.0 until the
+      [post-1.0 policy](./post-1.0-release-policy.md) is decided. This proposal
+      does not decide whether mandatory notices return
 - [ ] Repository settings, which need a maintainer with admin rights and cannot
       land in a pull request:
   - [ ] disable "Squash and merge" and "Rebase and merge" — the repository

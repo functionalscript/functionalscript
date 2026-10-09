@@ -405,7 +405,7 @@ the last one, and nobody's unrelated work waits on the rewrite.
 6. **Delete the old module**, with the issues that described only its code,
    and repoint every reference — links and prose — to what replaced its
    target. Explain removal of the old public paths; a breaking-change notice
-   is optional before 1.0 and required from 1.0 onward.
+   is optional before 1.0; policy after 1.0 remains undecided.
 
 ### The worked example: `fjs/ebnf` replacing `fjs/bnf`
 
@@ -454,7 +454,7 @@ section is its record. What it taught:
   every statement — a change to what DJS accepts, not to any `bnf/` path.
   The port declared it as its own breaking change under the policy then in
   effect; the migration's one declaration covered only the deletion. Notices
-  are now optional before 1.0 and required from 1.0 onward.
+  are now optional before 1.0; policy after 1.0 remains undecided.
 - **The stages were dependencies, not a sequence.** The byte alphabet landed
   for a Git consumer ahead of the text adapter it was planned beside; the
   backend shipped before the terminal module it was to build on; the plan

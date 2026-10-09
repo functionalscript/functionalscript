@@ -544,7 +544,7 @@ breaking change solely because TypeScript emitted it. The public contract still
 governs transitive effects: if a public type depends on `_Type`, changing
 `_Type` in a way that changes that public type's assignability is a breaking
 change. Explain that API change and update importers; breaking-change notices
-are optional before 1.0 and required from 1.0 onward.
+are optional before 1.0; policy after 1.0 remains undecided.
 
 For example, suppose the generated declaration initially contains:
 

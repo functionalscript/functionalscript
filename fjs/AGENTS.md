@@ -480,7 +480,7 @@ reading is wrong.
 
 That rule runs in one direction only. Moving a *published public* typedef to a
 `_` name is an ordinary breaking API change: update importers and explain the
-API change in the PR, with a mandatory breaking notice only from 1.0 onward,
+API change in the PR, with breaking notices optional before 1.0,
 exactly like removing any other public declaration. The `.f.ts` -> `.f.mjs` rename was the one moment
 a module's visibility contract could be corrected for free — that rename already
 broke importers, so a correction rode along with it — and stage 1 is over, so
@@ -492,7 +492,7 @@ module should offer consumers today, not what a future task plans to delete:
 [`simplify-list-type.md`](./types/list/todo/simplify-list-type.md) plans to
 remove both. Hiding a type behind `_` to make its eventual removal cheaper gives
 up a real present-day API for a discount on a breaking change that should simply
-be declared when it happens.
+be explained when it happens.
 
 The intra-directory dependency direction is
 `types.ts <- private.ts <- module.f.mjs <- proof.f.mjs <- module.mjs <- proof.mjs`

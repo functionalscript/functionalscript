@@ -3,14 +3,14 @@
 All notable changes to this project are documented in this directory.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+and the pre-1.0 policy uses the latitude allowed by
+[Semantic Versioning §4](https://semver.org/spec/v2.0.0.html#spec-item-4).
 
 Entries are written **once per release**, from the pull requests that shipped in
 it. A pull request adds no changelog file. Before 1.0, release-note material and
-`**BREAKING CHANGES:**` notices in its description are optional; from 1.0
-onward, public API breaks require a declaration
-([CONTRIBUTING.md](../CONTRIBUTING.md#commit-messages)). The release procedure
-is [RELEASE.md](./RELEASE.md).
+`**BREAKING CHANGES:**` notices in its description are optional. The release
+policy after 1.0 remains [undecided](../todo/post-1.0-release-policy.md).
+The release procedure is [RELEASE.md](./RELEASE.md).
 
 ## Layout
 
@@ -81,8 +81,7 @@ to order them: [RELEASE.md](./RELEASE.md).
   Markdown beyond paragraphs, list items, inline code, and bold, so the website
   can render entries with a small self-hosted parser. That subset is a
   convention rather than an accident.
-- **Before 1.0, breaking-change markers are optional in entries too.** From
-  1.0 onward, a breaking entry starts with `**BREAKING CHANGES:**`. Describe
+- **Before 1.0, breaking-change markers are optional in entries too.** Describe
   the old shape, the new one, and the one-line migration its pull request
   gave. Where that pull request gave none, the entry says what changed and
   stops: a release author writes a migration down, never invents one
@@ -124,10 +123,9 @@ to order them: [RELEASE.md](./RELEASE.md).
   etc.); never reuse a published version. The next regular release still
   advances the minor and resets the patch. See
   [RELEASE.md](./RELEASE.md#urgent-fixes-before-10) for publishing this branch.
-- **From 1.0 onward, use Semantic Versioning:** surviving public API breaks
-  require a major bump, features without breaks a minor bump, and fixes only a
-  patch bump. Breaking declarations are required at that stage. A break undone
-  within the window does not force a major bump; the release PR explains it.
+- **The release policy after 1.0 is not decided here.** Whether mandatory
+  notices return, and how release branches and version bumps work at that stage,
+  remain [open questions](../todo/post-1.0-release-policy.md).
   Existing published versions keep their numbers.
 - Releasing is its own pull request, titled `Release X.Y.Z`: the version lives in
   `package.json` (`"version"`) — `deno.json` holds tasks and formatting only —

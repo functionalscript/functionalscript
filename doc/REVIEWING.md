@@ -24,10 +24,10 @@ Four things are always worth a comment, because nothing else catches them:
   instead of a refusal
   ([DESIGN.md §10](./DESIGN.md#10-refuse-what-you-cannot-handle)). Ask for the
   refusal — an assert is minutes of work — and a `todo/` for the rest.
-- **An undeclared breaking change, from 1.0 onward.** At that stage the release
-  reads declarations to pick the SemVer bump
-  ([CONTRIBUTING.md](../CONTRIBUTING.md#commit-messages)). Before 1.0, notices
-  are optional and regular releases always advance the minor.
+- **An unexplained API change.** Explain the change and update every importer
+  in the same PR ([CONTRIBUTING.md](../CONTRIBUTING.md#commit-messages)).
+  Before 1.0, breaking notices are optional and regular releases always advance
+  the minor. The release policy after 1.0 remains undecided.
 - **A second feature.** A pull request implements one; the second is a
   `todo/`. Whether an already-combined pull request is split is the
   repository owner's call, and once made it is not reopened on a bot's finding
@@ -42,7 +42,7 @@ finding with the rule as its link. "An implementer following this task builds
 against a module the proposal above it retired" is a finding. "This could be
 more precise" is not.
 
-**What blocks.** A regression, silence, an undeclared break from 1.0 onward,
+**What blocks.** A regression, silence, an unexplained API change,
 and a broken code rule — the ones held by review, above — are fixed before
 approval. Everything else in this document is a `todo/` or an answer, and never a reason to hold the pull request.
 

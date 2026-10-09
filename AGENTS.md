@@ -211,9 +211,9 @@ regardless of whether their changes break the API. Urgent fixes start at
 `0.X.1`, based on the corresponding `0.X.0` release commit; further fixes
 increment the patch from the previous fix release. A PR that changes no
 observable behavior omits the section. Breaking changes are welcome when they
-improve the API — update every importer in the same PR. From 1.0 onward,
-public API breaks require a `**BREAKING CHANGES:**` item in the description's
-`Changelog:` section, last before any trailer block, to select the SemVer bump.
+improve the API — explain them and update every importer in the same PR.
+The release policy after 1.0 remains undecided
+([post-1.0 release policy](./todo/post-1.0-release-policy.md)).
 
 **Merge the knowledge.** A small step merged with what was learned written down
 beats two hundred iterations of a PR that never lands. Answer a review, don't

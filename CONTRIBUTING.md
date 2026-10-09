@@ -375,9 +375,9 @@ messages are not working notes: write each one for a reader who meets it on
   release line ([changelog/README.md](./changelog/README.md#breaking-changes-and-versioning)).
   Explain API changes and update every importer in the same PR.
 
-  From 1.0 onward, a public API break requires a `Changelog:` item prefixed
-  `**BREAKING CHANGES:**`; the release uses that declaration to choose its
-  SemVer bump. For example:
+  The release policy after 1.0, including whether mandatory notices return,
+  remains [undecided](./todo/post-1.0-release-policy.md). An optional notice
+  before 1.0 can look like this:
 
   ```
   Changelog:

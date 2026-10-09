@@ -7,8 +7,8 @@ versioning rule they feed.
 
 Before 1.0, `Changelog:` sections and `**BREAKING CHANGES:**` notices are
 optional. Read descriptions and diffs for notable changes rather than treating
-absence of a marker as evidence of compatibility. From 1.0 onward, public API
-breaks require declarations ([CONTRIBUTING.md](../CONTRIBUTING.md#commit-messages)).
+absence of a marker as evidence of compatibility. The release policy after 1.0
+remains [undecided](../todo/post-1.0-release-policy.md).
 
 **The release author's job is to collect the net changes and choose the release
 number.** Read every pull request in the window, group by net effect, and write
@@ -49,9 +49,12 @@ fix deliberately uses a different branch and window:
    newest supported release and explicitly promotes it with
    `npm dist-tag add functionalscript@0.X.P latest`. Never promote an older minor
    over a newer release.
-5. Carry the fixes forward to `main` through a separate PR, leaving the urgent
-   version and changelog metadata on the maintenance branch. The next regular
-   release collects that PR normally and uses the next minor with patch zero.
+5. Carry every fix forward to `main` through a separate PR **before the next
+   regular release**, adapting it to current code if needed so upgrading retains
+   the fix. Leave urgent version and changelog metadata on the maintenance
+   branch. If `main` already contains a fix, record that in the urgent-fix PR.
+   The next regular release collects the forward-port PR normally and uses the
+   next minor with patch zero.
 
 ## Why the collection happens here
 
@@ -173,7 +176,6 @@ would notice:
    settle it — the flag for the same reason as in step 1.
 
 Collect notable API changes, including any optional breaking-change notices.
-From 1.0 onward, step 5 also needs every breaking declaration.
 
 **While `changelog/unreleased/` can still receive files, it is a fourth source,
 and it is not optional.** That is the transitional release and any release after
@@ -293,7 +295,7 @@ release, not its history:
 - A feature added and then renamed before it shipped is reported under the name
   it shipped with.
 - A break introduced and reverted inside the window is **not a break** in the
-  entries, and from 1.0 onward does not force a major bump. Say so in the release
+  entries. Say so in the release
   pull request's description, so that the reasoning is reviewed rather than inferred
   from an absence.
 
@@ -303,8 +305,8 @@ The policy is in
 [README.md](./README.md#breaking-changes-and-versioning). Before 1.0, regular
 releases increment the highest released minor and reset the patch: `0.X.0`.
 Markers do not select the bump. Urgent fixes follow the maintenance-branch
-procedure above. From 1.0 onward, use the surviving breaking declarations for
-major bumps, otherwise features for minor bumps and fixes for patch bumps.
+procedure above. The release policy after 1.0 remains undecided; this procedure
+does not choose future notice requirements or version-bump rules.
 
 ### 6. Write `changelog/X.Y.Z.md`
 
@@ -338,11 +340,13 @@ Titled `Release X.Y.Z`. It bumps `"version"` in `package.json` (and
 triggers the `npm publish` workflow. Before merging:
 
 - [ ] the version in `package.json` matches the changelog file name
+- [ ] for a regular release, every urgent release-line fix is present in `main`,
+      adapted if necessary so upgrading preserves it; urgent-fix PRs record
+      fixes already present in `main`
 - [ ] every pull request in the window was read, and the count was cross-checked
-- [ ] every notable API change is covered; from 1.0 onward, every breaking
-      declaration is either in an entry or
-      explicitly accounted for as undone — including the ones that exist only in
-      `changelog/unreleased/` (step 3)
+- [ ] every notable API change is covered, and any optional breaking notices
+      are accounted for as shipped or undone — including the ones that exist
+      only in `changelog/unreleased/` (step 3)
 - [ ] **immediately before merging, fetch and re-run step 2 against
       `origin/main` one last time** — and again after any update from `main`,
       which is *a* reason to re-list rather than the only one. A pull request
@@ -354,7 +358,7 @@ triggers the `npm publish` workflow. Before merging:
       note is absent from a release that carries the code. Extend
       `changelog/X.Y.Z.md` with whatever the final listing adds, and re-check
       the version number under the current policy. Before 1.0 this remains a
-      regular minor release; from 1.0 onward a late break can force a major bump.
+      regular minor release, regardless of late breaking changes.
 - [ ] **record the tip you scanned, and merge only that tip.** "Immediately
       before" narrows the race between the scan and the merge; it does not close
       it, and a pull request that lands in between still becomes an ancestor of
@@ -415,7 +419,7 @@ Two other designs were considered and rejected:
   step 4 into the release notes.
 
 Every released file stays as published. Breaking-change markers remain useful
-optional context before 1.0 and required declarations from 1.0 onward; the old
+optional context before 1.0; the release policy after 1.0 remains undecided. The old
 pre-1.0 declaration-driven versioning rule has been replaced by regular minor
 releases and urgent fixes on maintenance branches.
 
