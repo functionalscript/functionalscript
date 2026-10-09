@@ -157,6 +157,12 @@ leaf, directly or not — what a leaf's rename opens up, since a proof stays
 | `fjs/git/config` | 1 | `\v` and `\0` escapes, destructuring, the `BigInt` global, runtime string keys `escapes[c]`, `factors[…]` and `prefixes[…]`, a runtime number key `values[values.length - 1]`, `toLowerCase` (a prohibited member function), `acc.sub` (a prohibited property name), template literals |
 | `fjs/website/browser-source` | 1 | `let`, `+=`, `while` with `break` and `continue`, a non-terminating `if`, eight runtime number keys, `source[index]` and `list[at]` among them, template literals |
 
+The table above is a historical measurement. `array_index` now imports
+[`types/number/is_integer`](../fjs/types/number/is_integer/module.f.js), whose
+`isInteger` uses `typeof` and `%` rather than `Number.isInteger`. Its bounds
+and canonical string round-trip are unchanged; `String` remains its
+compiler blocker. `types/number` reuses the same predicate.
+
 Since the previous measurement, at `4c8ec55`, the leaves are the same
 eighteen and the compiler has moved on three of them. `Number(exp)` is in the
 language and `Number` a reserved word
