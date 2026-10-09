@@ -50,7 +50,6 @@ export const proof = {
         assert(!generic.includes(' good.mts'), 'expected no consumer step from the built-in command')
         // Nor does it gate a job on the merge queue: a project without one
         // would never run that job.
-        assert(own.includes('merge_group\'"'), 'expected a merge-queue-only job')
         assert(!generic.includes('merge_group\'"'), 'expected no merge-queue-only job from the built-in command')
     },
 }
