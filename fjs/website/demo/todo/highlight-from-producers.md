@@ -237,6 +237,23 @@ other pages migrate without waiting on it. The stage pages — tokenizer,
 parser, serializer, Rust — call their stage's function directly and are not
 affected.
 
+## Producers that compose by template: tagged text
+
+A producer that builds its text from lists of chunks returns runs directly.
+One that builds it by string templates all through — the Rust printer,
+`fjs/edag/rust`, 1563 lines shared with the VM corpus generator — would have
+every template and operator table rewritten to carry runs. It uses the idiom
+the FunctionalScript writer already uses for symbolic names instead: a run is
+written inside the text as `U+0001`, a letter for its kind, its text and
+`U+0002` (`tagged`), and the text is resolved into runs once, at the boundary
+(`fromTagged`). This is not the "inline markup" rejected above, for three
+reasons: the public text a producer answers is never tagged, only its marked
+text is resolved from it (`untagged` gives the plain one); the markers cannot
+be forged, since the language it prints escapes both control characters in
+every literal; and a malformed tag is refused, never repaired. A producer
+chooses one of the two by how it composes its text, and the rest of the
+design is the same for both.
+
 ## Migration, one pull request each
 
 1. Types and `toText`, `render`, `fromSpans`; `highlight` becomes a
@@ -252,6 +269,11 @@ affected.
    describes. Until then that page keeps the fallback.
 
 Each step is independently shippable and leaves the page working.
+
+Status: steps 1 to 4 are implemented as a chain of pull requests, the
+compiler's `outputText` yielding runs as described in
+[Crossing the compiler boundary](#crossing-the-compiler-boundary), with Rust
+resolved from tagged text as above.
 
 ## Alternatives considered
 
