@@ -102,6 +102,12 @@
  * **One line, normalized**, as the DataJS output is, and its leaves are the
  * DataJS serializer's, which owns their spelling.
  *
+ * **Depth.** Source rendering still uses the host call stack for nested
+ * expressions. Deep `Number` and `String` conversion chains can throw
+ * `RangeError` after parsing and lowering succeed; the known reproducer
+ * and iterative-writer work are in
+ * [deep-nesting-recursion](../todo/deep-nesting-recursion.md#source-conversion-chains).
+ *
  * **What it refuses**, each by name and with nothing written: a node kind it
  * has no spelling for, which is how a feature that adds one is made to add
  * its spelling here in the same change; a comma anywhere but where a block
