@@ -100,7 +100,13 @@ const publishSteps = [
  *
  * @type {Job}
  */
-export const npmPublishJob = ubuntuArm(publishSteps)
+export const npmPublishJob = {
+    ...ubuntuArm(publishSteps),
+    // npm must bind its trusted publisher to this same protected environment.
+    // A branch cannot bypass approval by removing this field: npm then rejects
+    // its OIDC identity. See ../README.md for the required registry setup.
+    environment: 'npm-publish',
+}
 
 /**
  * `contents: read` and nothing more on the repository — a publish reads the

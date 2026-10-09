@@ -34,9 +34,13 @@ fix deliberately uses a different branch and window:
    `package.json` and `package-lock.json` to `0.X.1` (then `0.X.2`, etc.) and
    write the matching changelog file in a release PR against the maintenance
    branch. Verify its final scanned tip before merging.
-4. After that PR merges, run **npm publish** manually in GitHub Actions, selecting
+4. Verify [release approval setup](../fjs/ci/README.md#release-approval-setup),
+   including the protected GitHub environment and npm environment binding.
+   After that PR merges, run **npm publish** manually in GitHub Actions, selecting
    the maintenance branch. Its default checkout publishes the selected branch's
-   commit with provenance; it does not publish `main`. Check the publish step
+   commit with provenance; it does not publish `main`. The release maintainer
+   reviews the exact run commit against the merged release PR and approves the
+   `npm-publish` deployment before any publishing job steps run. Check the publish step
    itself and the registry version: the current workflow tolerates publish
    failure, so a green run alone does not establish publication. Never overwrite
    a published version. Manual runs publish under the `maintenance` dist-tag,

@@ -63,6 +63,8 @@ export const stepSchema = /** @type {const} */ ({
 // takes `jobTimeout` from `../config/module.f.js`.
 export const jobSchema = /** @type {const} */ ({
     'runs-on': string,
+    // Publishing waits for the protected deployment environment's approval.
+    environment: or(option, string),
     if: or(option, string),
     needs: or(option, array(string)),
     'timeout-minutes': number,

@@ -40,7 +40,8 @@
           },
           "continue-on-error": true
         }
-      ]
+      ],
+      "environment": "npm-publish"
     }
   }
 }

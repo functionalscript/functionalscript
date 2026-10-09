@@ -21,6 +21,10 @@ const usesIndex = prefix => steps.findIndex(step => step.uses?.startsWith(prefix
 const runIndex = command => steps.findIndex(step => step.run === command)
 
 export const proof = {
+    publishingRequiresReleaseApproval: () => {
+        assertEq(npmPublishJob.environment, 'npm-publish')
+        assertEq(npmPublishWorkflow.jobs[npmPublishJobId]?.environment, 'npm-publish')
+    },
     // A publish is not a gate, and the distinction is the whole of this
     // workflow's triggers. Manual dispatch checks out its selected ref, so an
     // urgent fix can publish without main's later changes. `pull_request` would

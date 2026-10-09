@@ -443,6 +443,26 @@ trusted publisher settings on npm, and it deletes the old file, which this
 generator does not do (see "`fjs ci` is not stable" above) and which would
 otherwise be a second publish workflow on the same trigger.
 
+### Release approval setup
+
+Before enabling this workflow, a repository administrator must create the
+`npm-publish` GitHub deployment environment, require an authorized release
+maintainer as reviewer, and disable administrator bypass. A reviewer checks the
+run's exact commit, version and release PR before approving it. Repository write
+access alone must not grant permission to approve releases. Self-approval may
+remain enabled for an authorized release maintainer.
+
+In **every package's npm trusted publisher settings**, set the GitHub environment
+name to **`npm-publish`**, alongside the repository and
+`gen.npm-publish.yml` workflow filename. Remove any alternate publisher that can
+publish this package without that approval boundary. GitHub's environment gate
+alone is insufficient: someone with write access could alter a branch's workflow
+to omit the environment. Binding the npm trust to the environment makes npm reject
+that branch's OIDC token. Do not enable manual publishing until both settings have
+been verified; an automatically created, unprotected environment is insufficient.
+These settings are administrative state and cannot be enforced by the generator
+or its local proofs. Downstream repositories must configure them too.
+
 The generated workflow is:
 
 - **triggered by a push to `main` or a manual dispatch.** A maintainer can
@@ -453,6 +473,10 @@ The generated workflow is:
   merge that has not landed. The version in `package.json` is the single source
   of truth for what gets released: a push publishes the default branch
   and a manual run publishes the selected maintenance ref.
+- **approval required through the `npm-publish` deployment environment.**
+  An authorized release reviewer approves the exact run and commit before any
+  job steps execute, including checkout and commands that receive OIDC access.
+  Both main pushes and manual dispatches use this boundary.
 - **granted `contents: read` and `id-token: write`, at the workflow level.**
   A publish reads the tree and writes nowhere in it. The `id-token` grant is the
   one addition and it is spent by the step below.
