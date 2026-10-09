@@ -115,7 +115,8 @@ scalars is modulo `q`.
    signature is invalid. A valid public key is not the point at infinity, has
    coordinates in `[0, p-1]`, lies on the curve, and satisfies `Q * q = 0`
    (SEC 1 §3.2.2.1, `isPublicKey` in `../secp`, which also requires
-   `q^2 > p + 1 + 2√p`, so that `Q * q = 0` puts `Q` in the subgroup of `G`).
+   `q^2 > p + 1 + 2√p`, so that, for the prime `q` ECDSA requires, `Q * q = 0`
+   puts `Q` in the subgroup of `G`).
 2. `w = 1/s`
 3. `u1 = z * w` and `u2 = r * w`
 4. `X = G * u1 + Q * u2`

@@ -116,9 +116,13 @@ export const eq = a => b => {
  * is used.
  *
  * `n·u = O` shows that `u` is in the subgroup `g` generates only when that
- * subgroup holds every point of order `n`. Hasse's bound puts at most
- * `p + 1 + 2√p` points on the curve; when `n²` exceeds it, `n²` cannot
- * divide the curve's order, so the curve has no other point of order `n`.
+ * subgroup holds every point of order `n`. For a prime `n`, as ECDSA
+ * requires, the points with `n·u = O` number `1`, `n` or `n²`. Hasse's bound
+ * puts at most `p + 1 + 2√p` points on the curve; when `n²` exceeds it, `n²`
+ * cannot divide the curve's order, so the curve has no other point of order
+ * `n`. A composite `n` gives no such guarantee: on `y² = x³ + 3x` over 7 with
+ * `g = (1, 2)` and `n = 4`, `(3, 1)` passes outside `⟨g⟩`. `n` is not tested
+ * for primality, as `p` is not either.
  * For a curve where `n²` does not exceed it, such as `y² = x³ + 6x` over 7
  * with `g = (0, 0)` and `n = 2`, where `(1, 0)` is a second point of order
  * 2, the test proves nothing, and every key is refused. The named curves

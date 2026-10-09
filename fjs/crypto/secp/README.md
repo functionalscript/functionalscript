@@ -34,9 +34,11 @@ coordinates in `[0, p-1]`, on the curve, and `Q * n = O`. The curve formulas
 compute over any pair, but only these give results that mean anything.
 
 `Q * n = O` puts `Q` in the subgroup `G` generates only if no other point of
-order `n` exists. That holds when `n^2 > p + 1 + 2√p`, which bounds the
-number of points on the curve (Hasse). Every named curve here has cofactor 1
-and meets it; `isPublicKey` refuses every key on a curve that does not.
+order `n` exists. For a prime `n`, as ECDSA requires, that holds when
+`n^2 > p + 1 + 2√p`, which bounds the number of points on the curve (Hasse);
+a composite `n` gives no such guarantee, and is not tested for. Every named
+curve here has a prime `n` and cofactor 1, and meets the bound; `isPublicKey`
+refuses every key on a curve that does not.
 
 ## Benchmarks
 
