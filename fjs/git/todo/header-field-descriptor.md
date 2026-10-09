@@ -1,7 +1,7 @@
 ## header-field-descriptor. Each commit and tag field is described two or three times
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
