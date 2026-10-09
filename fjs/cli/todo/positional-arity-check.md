@@ -41,19 +41,20 @@ export const exact = <O extends NodeOp>(name: string, n: number) =>
 `exact('cas get', 2)` and destructure a known-length `args`. A richer
 declarative variant — `Command` gaining an optional `arity`/`params` field
 that `dispatch` validates and folds into the help text — fits the repo's
-data-driven-registry preference better; choose whichever the
-`66g-fjs-run-commands` reshaping of `Commands` prefers, and land this
-alongside that work rather than as a standalone micro-PR.
+data-driven-registry preference better. The `Commands` reshaping this was
+waiting on (66g-fjs-run-commands, retired) shipped as `Main` in
+[`../types.ts`](../types.ts) — a `Program` or a `Commands` table, accepted
+by `dispatch`, a command's `handler`, and `fjs run` alike — and adds no
+`Command` field, so it leaves both variants open.
 
 ### Tasks
 
-- [ ] Pick combinator vs `Command`-field validation (coordinate with
-      `fjs/todo/66g-fjs-run-commands.md`).
+- [ ] Pick combinator vs `Command`-field validation.
 - [ ] Migrate `cas add` / `cas get`; keep their error strings.
 - [ ] `tsc`, `fjs t`.
 
 ### Related
 
-- `fjs/todo/66g-fjs-run-commands.md` — the `Commands` reshaping this
-  should ride along with.
+- `Main` in [`../types.ts`](../types.ts) — what a combinator would wrap
+  and a `Command` field would extend.
 - `fjs/cas/cli/module.f.mjs:24-26,43-45` — the two current copies.

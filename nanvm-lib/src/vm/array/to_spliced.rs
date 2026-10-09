@@ -2,7 +2,7 @@ use super::{Array, create::create};
 use crate::{
     common::sized_index::SizedIndex,
     vm::{
-        Any, IVm, Nullish, ToAny,
+        Any, IVm,
         position::{clamped, relative},
     },
 };
@@ -26,7 +26,7 @@ impl<A: IVm> Array<A> {
         items: Array<A>,
     ) -> Result<Array<A>, Any<A>> {
         let len = self.length();
-        let undefined = || Nullish::Undefined.to_any();
+        let undefined = || Any::undefined();
         let from = clamped(relative(start.clone().unwrap_or_else(undefined), len)?, len);
         let remaining = len - from;
         let skip = match (start, skip) {
@@ -50,7 +50,7 @@ mod tests {
     use super::Array;
     use crate::{
         naive::Naive,
-        vm::{Any, Nullish, ToAny, ToArray},
+        vm::{Any, ToAny, ToArray},
     };
 
     type A = Naive;
@@ -72,7 +72,7 @@ mod tests {
 
     #[test]
     fn what_was_passed_decides_the_count() {
-        let undefined = Some(Nullish::Undefined.to_any());
+        let undefined = Some(Any::undefined());
         assert_eq!(spliced(None, None, &[]), ns(&[1.0, 2.0, 3.0]));
         assert_eq!(spliced(n(1.0), None, &[]), ns(&[1.0]));
         assert_eq!(spliced(n(1.0), undefined, &[]), ns(&[1.0, 2.0, 3.0]));

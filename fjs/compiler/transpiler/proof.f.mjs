@@ -344,7 +344,7 @@ export const proof = {
     // The resolver's identity may differ from the read path in both directions:
     // one identity under two spellings, and two identities at one location.
     hostIdentities: () => {
-        /** @type {import('../../effects/mock/types.ts').MemOperationMap<import('../../effects/node/types.ts').ReadFile | import('../../effects/node/types.ts').ResolveFileModule, null>} */
+        /** @type {import('../../effects/mock/types.ts').MemOperationMap<import('../../effects/node/types.ts').ReadWhole | import('../../effects/node/types.ts').ResolveFileModule, null>} */
         const host = {
             resolveFileModule: (name, parent) => state => {
                 if (parent === null) {
@@ -358,11 +358,11 @@ export const proof = {
                     path: 'physical/shared',
                 })]
             },
-            readFile: path => state => {
+            readWhole: path => state => {
                 assert(['physical/main', 'physical/shared'].includes(path))
-                return [state, ok(utf8(path === 'physical/main'
+                return [state, ok([utf8(path === 'physical/main'
                     ? 'import a from "./one.mjs"; import b from "./two.mjs"; import c from "./%6fne.mjs"; export default [a, b, c];'
-                    : 'export default [7];'))]
+                    : 'export default [7];')])]
             },
         }
         const runner = partialRun(runtimeCommands)(host)(null)
@@ -374,16 +374,16 @@ export const proof = {
         assert(graph[1][0] === graph[1][2] && graph[1][0] !== graph[1][1])
     },
     rootJsonAlias: () => {
-        /** @type {import('../../effects/mock/types.ts').MemOperationMap<import('../../effects/node/types.ts').ReadFile | import('../../effects/node/types.ts').ResolveFileModule, null>} */
+        /** @type {import('../../effects/mock/types.ts').MemOperationMap<import('../../effects/node/types.ts').ReadWhole | import('../../effects/node/types.ts').ResolveFileModule, null>} */
         const host = {
             resolveFileModule: (name, parent) => state => {
                 assertEq(name, 'input.json')
                 assertEq(parent, null)
                 return [state, ok({ id: 'file:///real/data', path: 'real/data' })]
             },
-            readFile: path => state => {
+            readWhole: path => state => {
                 assertEq(path, 'real/data')
-                return [state, ok(utf8('[1,2]'))]
+                return [state, ok([utf8('[1,2]')])]
             },
         }
         const runner = partialRun(runtimeCommands)(host)(null)
@@ -431,11 +431,11 @@ export const proof = {
                     return [state, dependency === null ? error(ioError({ message: 'missing module' }))
                         : ok({ id: 'file:///real/dep.f.js', path: '/real/dep.f.js' })]
                 },
-                readFile: path => state => {
+                readWhole: path => state => {
                     assert([root.path, '/real/dep.f.js', '/real/data.json'].includes(path))
                     const source = path === root.path ? main : dependency
                     assert(source !== null)
-                    return [state, ok(utf8(source))]
+                    return [state, ok([utf8(source)])]
                 },
                 write: (stream, data) => state => {
                     assertEq(stream, 'stderr')

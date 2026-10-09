@@ -15,10 +15,9 @@ impl<A: IVm> PartialEq for BigInt<A> {
     }
 }
 
-// Ord for BigInt, src/vm/bigint/cmp.rs — bigint's own sign dispatch over abs_cmp_vec
-let lhs_sign = self.sign();
-let rhs_sign = rhs.sign();
-match (lhs_sign, rhs_sign) { ... }
+// Ord for BigInt, src/vm/bigint/cmp.rs — the signs' order, then abs_cmp_vec
+let sign = self.sign();
+sign.cmp(&rhs.sign()).then_with(|| match sign { ... })
 ```
 
 `Ord`'s contract requires `cmp(a, b) == Equal` exactly when `a == b`. The two
@@ -47,7 +46,5 @@ Option 2 preserves the O(1)-bailout equality; option 1 is the smaller rule.
 
 ### Related
 
-- [sign-algebra](./sign-algebra.md) — rewrites `cmp.rs`'s four-arm match but
-  keeps the two relations separate; independent of this issue.
 - `assert_slice_normalized` in [`src/vm/bigint/mod.rs`](../src/vm/bigint/mod.rs)
   — the normalization invariant this agreement silently depends on.

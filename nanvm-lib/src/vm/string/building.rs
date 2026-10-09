@@ -154,9 +154,6 @@ mod tests {
     fn n(v: f64) -> Any<A> {
         v.to_any()
     }
-    fn undefined() -> Any<A> {
-        Nullish::Undefined.to_any()
-    }
     fn s(v: &str) -> String<A> {
         v.into()
     }
@@ -164,10 +161,10 @@ mod tests {
     #[test]
     fn slice_and_substring() {
         assert_eq!(s("abcdef").slice(n(-3.0), n(-1.0)), Ok(s("de")));
-        assert_eq!(s("abc").slice(n(1.0), undefined()), Ok(s("bc")));
+        assert_eq!(s("abc").slice(n(1.0), Any::undefined()), Ok(s("bc")));
         assert_eq!(s("abc").slice(n(2.0), n(1.0)), Ok(s("")));
         assert_eq!(s("abcdef").substring(n(4.0), n(1.0)), Ok(s("bcd")));
-        assert_eq!(s("abc").substring(n(-1.0), undefined()), Ok(s("abc")));
+        assert_eq!(s("abc").substring(n(-1.0), Any::undefined()), Ok(s("abc")));
         assert_eq!(s("abc").substring(n(f64::NAN), n(2.0)), Ok(s("ab")));
     }
 
@@ -195,7 +192,7 @@ mod tests {
     fn pad() {
         assert_eq!(s("5").pad(n(3.0), "0".into(), true), Ok(s("005")));
         assert_eq!(s("abc").pad(n(8.0), "xy".into(), true), Ok(s("xyxyxabc")));
-        assert_eq!(s("a").pad(n(3.0), undefined(), false), Ok(s("a  ")));
+        assert_eq!(s("a").pad(n(3.0), Any::undefined(), false), Ok(s("a  ")));
         assert_eq!(s("a").pad(n(5.0), "".into(), false), Ok(s("a")));
         assert_eq!(s("abc").pad(n(-1.0), "x".into(), true), Ok(s("abc")));
         assert_eq!(

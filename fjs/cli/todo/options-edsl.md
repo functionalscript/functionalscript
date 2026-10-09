@@ -50,9 +50,7 @@ Design first, then migrate. The design should settle:
   across transports is evaluated in
   [fjs/cas command-architecture](../../cas/todo/command-architecture.md);
 - coordination with [positional-arity-check](./positional-arity-check.md)
-  (arity validation is subsumed by declared positionals) and
-  [fjs 66g-fjs-run-commands](../../todo/66g-fjs-run-commands.md)
-  (the `Commands` reshaping this should ride along with).
+  (arity validation is subsumed by declared positionals).
 
 ### Tasks
 
@@ -71,8 +69,8 @@ Design first, then migrate. The design should settle:
 - dispatch-help-rendering (retired; shipped as `renderHelp` in
   [`../module.f.mjs`](../module.f.mjs)) — the help rendering that declared
   options must plug into.
-- `fjs/todo/66g-fjs-run-commands.md` — the `Commands` reshaping to
-  coordinate with.
+- `Main` in [`../types.ts`](../types.ts) — a `Program` or a `Commands`
+  table; declared options extend what `dispatch` routes.
 - [fjs/cas 66g-cas-get-verify-option](../../cas/todo/66g-cas-get-verify-option.md)
   — first feature blocked on this.
 - [fjs/cas command-architecture](../../cas/todo/command-architecture.md) —

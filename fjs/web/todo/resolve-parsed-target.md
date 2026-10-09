@@ -108,7 +108,7 @@ two parses of the same string.
 
 ### Related
 
-- [missing-index-message.md](./missing-index-message.md) — notes that
-  "`respond` already binds `parseTarget(url)`" as plumbing for better
-  messages; a single-parse `resolve` gives that issue the parsed path for
-  free.
+- The directory-request `404` (`no index.html in <path>`), which shipped
+  with `resolve` returning a `Resolved` — the path and its `404` sentence —
+  echoes the target's path. It reads it from `resolve`'s own `parseTarget`,
+  so splitting the resolver moves that read and changes nothing it answers.

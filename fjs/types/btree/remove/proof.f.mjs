@@ -3,51 +3,22 @@
  */
 
 import { nodeRemove } from './module.f.mjs'
-import { set as setSet } from '../set/module.f.mjs'
 import { cmp } from '../../string/module.f.mjs'
-import { stringify } from '../../../media/json/module.f.mjs'
-import { sort } from '../../object/module.f.mjs'
 import { assertEq, assertNotNullish } from '../../../asserts/module.f.mjs'
-
-/** @type {(node: TNode<string>) => (value: string) => TNode<string>} */
-const set = node => value =>
-    setSet(cmp(value))(() => value)(node)
+import { expectedSquares38, jsonStr, set, squares } from '../testlib.f.mjs'
 
 /** @type {(node: TNode<string>) => (value: string) => TNode<string> | null} */
 const remove = node => value =>
     nodeRemove(cmp(value))(node)
 
-const jsonStr = stringify(sort)
-
 const test = () => {
     /** @type {TNode<string> | null} */
-    let _map = ['1']
-    for (let i = 2; i <= 38; i++)
-        _map = set(_map)((i * i).toString())
+    let _map = squares(38)
+    assertEq(jsonStr(_map), expectedSquares38)
     {
-        const r = jsonStr(_map)
-        if (r !==
-            '[[[[["1"],"100",["1024"]],"1089",[["1156"],"121",["1225"]]],' +
-            '"1296",' +
-            '[[["1369"],"144",["1444"]],"16",[["169"],"196",["225"]]]],' +
-            '"25",' +
-            '[[[["256"],"289",["324"],"36",["361"]],"4",[["400"],"441",["484"]]],' +
-            '"49",' +
-            '[[["529"],"576",["625"]],"64",[["676"],"729",["784"]],"81",[["841"],"9",["900","961"]]]]]'
-        ) { throw r }
-    }
-    {
+        // "0" is not in the tree, so removing it changes nothing.
         _map = assertNotNullish(remove(_map)("0"), null)
-        const r = jsonStr(_map)
-        if (r !==
-            '[[[[["1"],"100",["1024"]],"1089",[["1156"],"121",["1225"]]],' +
-            '"1296",' +
-            '[[["1369"],"144",["1444"]],"16",[["169"],"196",["225"]]]],' +
-            '"25",' +
-            '[[[["256"],"289",["324"],"36",["361"]],"4",[["400"],"441",["484"]]],' +
-            '"49",' +
-            '[[["529"],"576",["625"]],"64",[["676"],"729",["784"]],"81",[["841"],"9",["900","961"]]]]]'
-        ) { throw r }
+        assertEq(jsonStr(_map), expectedSquares38)
     }
     {
         _map = assertNotNullish(remove(_map)("1"), null)
@@ -378,9 +349,7 @@ const test = () => {
 
 const test2 = () => {
     /** @type {TNode<string> | null} */
-    let _map = ['1']
-    for (let i = 2; i <= 10; i++)
-        _map = set(_map)((i * i).toString())
+    let _map = squares(10)
     assertEq(_map.length, 3, _map)
     let _s = jsonStr(_map)
     assertEq(_s, '[[["1","100"],"16",["25","36"]],"4",[["49"],"64",["81","9"]]]')
@@ -445,13 +414,20 @@ const test2 = () => {
     }
 }
 
+/**
+ * `['1']` with the integers `2..n` inserted. Deliberately not the shared
+ * squares corpus: `test3` removes `'40'` and `'10'`, which are not squares, and
+ * needs this tree's shape to reach the path it exists for.
+ *
+ * @type {(n: number) => TNode<string>}
+ */
+const sequential = n => n <= 1 ? ['1'] : set(sequential(n - 1))(n.toString())
+
 // Exercises the branch-merge-into-Branch5-sibling path in reduceValue0
 // (removing an underflowed left leaf merges into a 5-wide right branch).
 const test3 = () => {
     /** @type {TNode<string> | null} */
-    let _map = ['1']
-    for (let i = 2; i <= 50; i++)
-        _map = set(_map)(i.toString())
+    let _map = sequential(50)
 
     _map = assertNotNullish(remove(_map)('40'), _map)
 

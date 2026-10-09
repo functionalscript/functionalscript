@@ -11,15 +11,11 @@ impl<A: IVm> Ord for BigInt<A> {
     fn cmp(&self, rhs: &Self) -> Ordering {
         use crate::sign::Sign;
 
-        let lhs_sign = self.sign();
-        let rhs_sign = rhs.sign();
-
-        match (lhs_sign, rhs_sign) {
-            (Sign::Positive, Sign::Negative) => Ordering::Greater,
-            (Sign::Negative, Sign::Positive) => Ordering::Less,
-            (Sign::Positive, Sign::Positive) => self.clone().abs_cmp_vec(rhs.clone()),
-            (Sign::Negative, Sign::Negative) => rhs.clone().abs_cmp_vec(self.clone()),
-        }
+        let sign = self.sign();
+        sign.cmp(&rhs.sign()).then_with(|| match sign {
+            Sign::Positive => self.clone().abs_cmp_vec(rhs.clone()),
+            Sign::Negative => rhs.clone().abs_cmp_vec(self.clone()),
+        })
     }
 }
 

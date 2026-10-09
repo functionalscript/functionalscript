@@ -76,10 +76,7 @@ mod tests {
     fn to_integer_or_infinity() {
         assert_eq!(1.7.to_any::<A>().to_integer_or_infinity(), Ok(1.0));
         assert_eq!((-1.0f64).to_any::<A>().to_integer_or_infinity(), Ok(-1.0));
-        assert_eq!(
-            Nullish::Undefined.to_any::<A>().to_integer_or_infinity(),
-            Ok(0.0)
-        );
+        assert_eq!(Any::<A>::undefined().to_integer_or_infinity(), Ok(0.0));
         let one: Any<A> = bigint_any(1);
         assert_eq!(one.to_integer_or_infinity(), Err(error::bigint_to_number()));
     }
@@ -91,7 +88,7 @@ mod tests {
         assert_eq!(r((-4.0f64).to_any()), Ok(-1.0));
         assert_eq!(r(1.7.to_any()), Ok(1.0));
         assert_eq!(r("2".into()), Ok(2.0));
-        assert_eq!(r(Nullish::Undefined.to_any()), Ok(0.0));
+        assert_eq!(r(Any::undefined()), Ok(0.0));
         assert_eq!(r(f64::INFINITY.to_any()), Ok(f64::INFINITY));
         assert_eq!(r(f64::NEG_INFINITY.to_any()), Ok(f64::NEG_INFINITY));
     }
@@ -124,7 +121,7 @@ mod tests {
     #[test]
     fn ranges() {
         let range = |start: f64, end: Any<A>| relative_range(start.to_any(), end, 3);
-        assert_eq!(range(1.0, Nullish::Undefined.to_any()), Ok(1..3));
+        assert_eq!(range(1.0, Any::undefined()), Ok(1..3));
         assert_eq!(range(-2.0, (-1.0f64).to_any()), Ok(1..2));
         assert_eq!(range(-9.0, 9.0.to_any()), Ok(0..3));
         assert_eq!(range(2.0, 1.0.to_any()), Ok(2..2));

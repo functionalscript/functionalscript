@@ -25,11 +25,11 @@
  * @import { Tag } from './types.ts'
  */
 
-import { assertNotNullish } from '../../asserts/module.f.mjs'
-import { byteArray, byteLength } from '../../ebnf/byte/module.f.mjs'
+import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { lf, nul as nulByte } from '../../text/ascii/module.f.mjs'
+import { identity } from '../../types/function/module.f.mjs'
 import { error, mapOk, okList } from '../../types/result/module.f.mjs'
-import { checkedAt, checkedOptionalAt, fieldAt, hasNulHeader, optionalAt, tryFieldAt, tryRead as readPayload, valueAt, write as writePayload } from '../header/module.f.mjs'
+import { field, hasNulHeader, optionalField, tryRead as readPayload, tryReadAtLeast, write as writePayload } from '../header/module.f.mjs'
 import { tryRead as readIdent } from '../ident/module.f.mjs'
 import { tryType as typeNamed } from '../object/module.f.mjs'
 import { isName } from '../refname/module.f.mjs'
@@ -82,6 +82,18 @@ const typeOf = value => {
     return typeNamed(end === -1 ? bs : bs.slice(0, end))
 }
 
+/** The `object` header: the first. */
+const objectField = field(0, 'object', 'no object', 'not an id')
+
+/** The `type` header: the second. */
+const typeField = field(1, 'type', 'no type', 'unknown type')
+
+/** The `tag` header: the third. */
+const tagField = field(2, 'tag', 'no tag name', 'bad tag name')
+
+/** The `tagger` header: the fourth, which very old tags lack. */
+const taggerField = optionalField(3, 'tagger', 'not a tagger')
+
 /**
  * The id the `object` header names: the first header, a hex id.
  *
@@ -90,7 +102,7 @@ const typeOf = value => {
  *
  * @type {(t: Tag) => Oid}
  */
-export const object = fieldAt(0, 'object', tryFromHex, 'no object', 'not an id')
+export const object = objectField.get(tryFromHex)
 
 /**
  * The id the `object` header names, at the repository's width, or `null`
@@ -101,7 +113,7 @@ export const object = fieldAt(0, 'object', tryFromHex, 'no object', 'not an id')
  *
  * @type {(oidBytes: OidBytes) => (t: Tag) => Nullable<Oid>}
  */
-export const tryObject = oidBytes => tryFieldAt(0, 'object', tryFromHexOf(oidBytes))
+export const tryObject = oidBytes => objectField.tryGet(tryFromHexOf(oidBytes))
 
 /**
  * The type the `type` header names: the second header, one of the four.
@@ -111,7 +123,7 @@ export const tryObject = oidBytes => tryFieldAt(0, 'object', tryFromHexOf(oidByt
  *
  * @type {(t: Tag) => ObjectType}
  */
-export const type = fieldAt(1, 'type', typeOf, 'no type', 'unknown type')
+export const type = typeField.get(typeOf)
 
 /**
  * The type the `type` header names, or `null` where there is no `type`
@@ -122,7 +134,14 @@ export const type = fieldAt(1, 'type', typeOf, 'no type', 'unknown type')
  *
  * @type {(t: Tag) => Nullable<ObjectType>}
  */
-export const tryType = tryFieldAt(1, 'type', typeOf)
+export const tryType = typeField.tryGet(typeOf)
+
+/**
+ * The tag's name, or `null` where there is no `tag` header third.
+ *
+ * @type {(t: Tag) => Nullable<Bytes>}
+ */
+const tryName = tagField.tryGet(identity)
 
 /**
  * What a tag names and what it says that object is, or `null` where Git
@@ -142,7 +161,7 @@ export const tryTarget = oidBytes => {
     return t => {
         const id = objectOf(t)
         const type = tryType(t)
-        return id === null || type === null || valueAt(t, 2, 'tag') === null ? null : { id, type }
+        return id === null || type === null || tryName(t) === null ? null : { id, type }
     }
 }
 
@@ -168,11 +187,9 @@ export const tryTarget = oidBytes => {
  */
 export const tryTargetAt = oidBytes => {
     const targetOf = tryTarget(oidBytes)
-    const least = oidBytes * 2 + 24
+    const read = tryReadAtLeast(oidBytes * 2 + 24)
     return payload => {
-        const size = byteLength(payload)
-        if (size === null || size < least) { return null }
-        const t = tryRead(payload)
+        const t = read(payload)
         return t === null ? null : targetOf(t)
     }
 }
@@ -185,11 +202,7 @@ export const tryTargetAt = oidBytes => {
  *
  * @type {(t: Tag) => Bytes}
  */
-export const name = t => {
-    const value = valueAt(t, 2, 'tag')
-    assertNotNullish(value, 'no tag name')
-    return value
-}
+export const name = tagField.get(identity)
 
 /**
  * Who made the tag and when, or `null` where the tag has no `tagger`
@@ -200,7 +213,7 @@ export const name = t => {
  *
  * @type {(t: Tag) => Nullable<Ident>}
  */
-export const tagger = optionalAt(3, 'tagger', readIdent, 'not a tagger')
+export const tagger = taggerField.get(readIdent)
 
 /**
  * Vouches for a tag, or refuses it, saying why: a NUL in any header, no
@@ -221,10 +234,10 @@ export const tagger = optionalAt(3, 'tagger', readIdent, 'not a tagger')
 export const validate = oidBytes => {
     /** @type {readonly ((t: Tag) => Result<unknown, string>)[]} */
     const checks = [
-        checkedAt(0, 'object', tryFromHexOf(oidBytes), 'no object', 'not an id'),
-        checkedAt(1, 'type', typeOf, 'no type', 'unknown type'),
-        checkedAt(2, 'tag', v => isName(v) ? v : null, 'no tag name', 'bad tag name'),
-        checkedOptionalAt(3, 'tagger', readIdent, 'not a tagger'),
+        objectField.check(tryFromHexOf(oidBytes)),
+        typeField.check(typeOf),
+        tagField.check(v => isName(v) ? v : null),
+        taggerField.check(readIdent),
     ]
     return t => hasNulHeader(t) ? error('NUL in header') : mapOk(() => t)(okList(checks.map(check => check(t))))
 }

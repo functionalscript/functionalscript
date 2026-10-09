@@ -6,7 +6,7 @@
  *
  * @import { CompileValue } from '../../edag/value/to_unknown/types.ts'
  * @import { ToAsyncOperationMap } from '../../effects/types.ts'
- * @import { ReadFile, ResolveFileModule } from '../../effects/node/types.ts'
+ * @import { ReadWhole, ResolveFileModule } from '../../effects/node/types.ts'
  * @import { Dir } from '../../effects/node/virtual/types.ts'
  */
 
@@ -21,11 +21,11 @@ import { transpile } from './module.f.mjs'
 /** @param {Dir} root */
 const run = root => {
     const state = { ...emptyState, root }
-    const { readFile, resolveFileModule } = virtualOperationMap
-    /** @type {ToAsyncOperationMap<ReadFile | ResolveFileModule | CompileValue>} */
+    const { readWhole, resolveFileModule } = virtualOperationMap
+    /** @type {ToAsyncOperationMap<ReadWhole | ResolveFileModule | CompileValue>} */
     const map = {
         ...javascriptOperationMap,
-        readFile: async path => readFile(path)(state)[1],
+        readWhole: async path => readWhole(path)(state)[1],
         resolveFileModule: async (name, parent) => resolveFileModule(name, parent)(state)[1],
     }
     return asyncRun(map)

@@ -7,7 +7,7 @@
  * @import { Unknown } from '../../types.ts'
  */
 
-import { assert, assertEq } from '../../../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../../../asserts/module.f.mjs'
 import { foldStep, mapStep, pureOk, step as ioStep } from '../../../../effects/module.f.mjs'
 import { exitCode, mkdir, readUtf8File, writeUtf8File } from '../../../../effects/node/module.f.mjs'
 import {
@@ -19,7 +19,7 @@ import { utf8 } from '../../../../text/module.f.mjs'
 import { toVec } from '../../../../types/uint8array/module.f.mjs'
 import { unwrap } from '../../../../types/result/module.f.mjs'
 import { tryStringify } from '../../serializer/module.f.mjs'
-import { corpus, directory, main, matrix, modules, path, program, sourceDefect, sourceOf, write } from './module.f.mjs'
+import { check, corpus, directory, main, matrix, modules, path, program, sourceDefect, sourceOf, write } from './module.f.mjs'
 
 /** A vector as the matrix reads one: an id and the class it covers. @type {(id: string, c: string) => { id: string, class: string }} */
 const v = (id, c) => ({ id, class: c })
@@ -45,17 +45,23 @@ const landed = {
 /** A corpus of one role, one set and one vector. @type {(role: string, name: string, vector: { id: string, class: string }) => Corpus} */
 const one = (role, name, vector) => ({ roles: [{ role, sets: [[name, [vector]]] }], notApplicable: [] })
 
-/** @type {(c: Corpus) => string} */
+/**
+ * The defects the matrix refuses `c` with, which `check` must answer too: it
+ * asks the same question without building the table.
+ *
+ * @type {(c: Corpus) => readonly string[]}
+ */
 const failure = c => {
     const r = matrix(c)
     assert(r[0] === 'error', 'expected the matrix to refuse this corpus')
+    assertStructurallySame(check(c), r[1])
     return r[1]
 }
 
-/** Asserts that the matrix refuses `c`, naming each expected failure. @type {(c: Corpus, ...expected: readonly string[]) => void} */
+/** Asserts that the matrix refuses `c`, naming each expected defect. @type {(c: Corpus, ...expected: readonly string[]) => void} */
 const refuses = (c, ...expected) => {
     const r = failure(c)
-    for (const e of expected) { assert(r.includes(e), `${e}\nnot in\n${r}`) }
+    for (const e of expected) { assert(r.includes(e), [e, 'not in', r]) }
 }
 
 /** The `landed` corpus with one serializer reason carrying the given scope, whatever shape it is. @type {(scope: unknown) => Corpus} */
@@ -103,10 +109,13 @@ const withSources = sources =>
  * is a value of the data model by the corpus's own rule, and `unknown` only
  * because it arrives through `import`, so it is handed to the writer as one.
  *
- * @type {readonly (readonly [string, string])[]}
+ * @type {(c: Corpus) => readonly (readonly [string, string])[]}
  */
-const written = modules(corpus).map(([name, imported]) =>
+const sourcesOf = c => modules(c).map(([name, imported]) =>
     /** @type {readonly [string, string]} */ ([name, unwrap(tryStringify(/** @type {Unknown} */ (imported)))]))
+
+/** The real corpus's sources. @type {readonly (readonly [string, string])[]} */
+const written = sourcesOf(corpus)
 
 /** The exit code the real program gives against a filesystem. @type {(state: State) => number} */
 const run = state => exitCode(virtual(state)(main(defaultNodeProgramOptions))[1])
@@ -150,11 +159,7 @@ export const proof = {
     // A role whose sets have landed owes every class an answer, and the
     // generator names the ones it does not get.
     unanswered: () => {
-        assertEq(failure(landed), [
-            'the corpus has 1 defects:',
-            '  y in serializer: no vector and no reason',
-            'a class a role owes no vector needs a record in spec/datajs/vectors/not-applicable saying why.',
-        ].join('\n'))
+        assertStructurallySame(failure(landed), ['y in serializer: no vector and no reason'])
     },
     // The corpus answers it with a reason, which the cell then carries.
     notApplicable: () => {
@@ -169,21 +174,14 @@ export const proof = {
     // with vectors needs none, and neither does a class or a role the
     // corpus does not have.
     stale: () => {
-        assertEq(failure({ ...two, notApplicable: [{ scope: ['class', 'x'], role: 'reader', because: 'no' }] }),
-            [
-                'the corpus has 1 defects:',
-                '  class x in reader: answers 1 classes that have vectors, x among them',
-                'a class a role owes no vector needs a record in spec/datajs/vectors/not-applicable saying why.',
-            ].join('\n'))
-        assert(failure({ ...two, notApplicable: [{ scope: ['class', 'z'], role: 'reader', because: 'no' }] })
-            .includes('class z in reader: answers no class'))
-        assert(failure({ ...two, notApplicable: [{ scope: ['class', 'x'], role: 'writer', because: 'no' }] })
-            .includes('class x in writer: no such role'))
+        assertStructurallySame(failure({ ...two, notApplicable: [{ scope: ['class', 'x'], role: 'reader', because: 'no' }] }),
+            ['class x in reader: answers 1 classes that have vectors, x among them'])
+        refuses({ ...two, notApplicable: [{ scope: ['class', 'z'], role: 'reader', because: 'no' }] }, 'class z in reader: answers no class')
+        refuses({ ...two, notApplicable: [{ scope: ['class', 'x'], role: 'writer', because: 'no' }] }, 'class x in writer: no such role')
         // A reason written before its role's sets exist has nothing to be
         // measured against, and would render `not applicable` under a column
         // whose header reads `no set yet`.
-        assert(failure({ ...two, notApplicable: [{ scope: ['class', 'x'], role: 'serializer', because: 'no' }] })
-            .includes('x in serializer: a reason for a role whose sets have not landed'))
+        refuses({ ...two, notApplicable: [{ scope: ['class', 'x'], role: 'serializer', because: 'no' }] }, 'x in serializer: a reason for a role whose sets have not landed')
         // Two reasons for one cell leave the matrix to pick, and `reasonOf`
         // would pick the first without a word. The set's own proof checks
         // this too, but `gen` does not run it and `matrix` is exported.
@@ -192,7 +190,7 @@ export const proof = {
             { scope: ['class', 'y'], role: 'serializer', because: 'a serializer never emits it' },
             { scope: ['class', 'y'], role: 'serializer', because: 'and here is a different account of why' },
         ] }
-        assert(failure(twice).includes('class y in serializer: a second reason for a scope that already has one'), failure(twice))
+        refuses(twice, 'class y in serializer: a second reason for a scope that already has one')
         // one reason each for two cells is not a duplicate; the second is
         // stale for its own reason, that its cell has a vector
         /** @type {Corpus} */
@@ -200,7 +198,7 @@ export const proof = {
             { scope: ['class', 'y'], role: 'serializer', because: 'a serializer never emits it' },
             { scope: ['class', 'x'], role: 'serializer', because: 'nor this one' },
         ] }
-        assert(failure(distinct).includes('class x in serializer: answers 1 classes that have vectors, x among them'))
+        refuses(distinct, 'class x in serializer: answers 1 classes that have vectors, x among them')
     },
     // A reason may answer a family rather than a cell, because otherwise the
     // bill is unpayable: a role's column must answer every class, and a
@@ -231,7 +229,7 @@ export const proof = {
                 { role: 'serializer', sets: [['serializer-accept', []]] },
             ],
         }
-        assert(failure(neighbour).includes('wsx in serializer: no vector and no reason'))
+        refuses(neighbour, 'wsx in serializer: no vector and no reason')
     },
     // The most specific reason wins, so a family's reason can be overridden
     // for one class beneath it without either being removed.
@@ -281,8 +279,7 @@ export const proof = {
         assert(t.includes('| `document/comment` | `r2` | not applicable, [note 1](#notes) |'), t)
         assert(t.includes('1. **`serializer`**, set `reject` — a reject class is a document a reader refuses, and a serializer refuses no input'), t)
         // a set the corpus does not have answers nothing and is named as such
-        assert(failure({ ...bySet, notApplicable: [{ scope: ['set', 'normalize'], role: 'serializer', because: 'no' }] })
-            .includes('set normalize in serializer: no set of that name'))
+        refuses({ ...bySet, notApplicable: [{ scope: ['set', 'normalize'], role: 'serializer', because: 'no' }] }, 'set normalize in serializer: no set of that name')
         // and a set is the last resort, so anything narrower takes the cell
         // from it while the rest of the family keeps it
         /** @type {Corpus} */
@@ -324,11 +321,9 @@ export const proof = {
             ],
             notApplicable: [{ scope: ['subtree', 'ws'], role: 'serializer', because: 'true of one of these and not the other' }],
         }
-        assert(failure(impure).includes('subtree ws in serializer: answers 1 classes that have vectors, ws/lf among them'),
-            failure(impure))
+        refuses(impure, 'subtree ws in serializer: answers 1 classes that have vectors, ws/lf among them')
         // a subtree under which no class sits answers nothing
-        assert(failure({ ...impure, notApplicable: [{ scope: ['subtree', 'nothing'], role: 'serializer', because: 'no' }] })
-            .includes('subtree nothing in serializer: answers no class'))
+        refuses({ ...impure, notApplicable: [{ scope: ['subtree', 'nothing'], role: 'serializer', because: 'no' }] }, 'subtree nothing in serializer: answers no class')
     },
     // A cell may carry only what the table shows as written, and that is
     // decided by the characters allowed rather than the ones forbidden: a
@@ -390,13 +385,13 @@ export const proof = {
             ],
             notApplicable: [],
         }
-        assert(failure(twoReaders).includes('the role reader: named twice, so its two columns cannot be told apart'))
+        refuses(twoReaders, 'the role reader: named twice, so its two columns cannot be told apart')
         /** @type {Corpus} */
         const twoSets = {
             roles: [{ role: 'reader', sets: [['accept', [v('a', 'x')]], ['accept', [v('b', 'x')]]] }],
             notApplicable: [],
         }
-        assert(failure(twoSets).includes('the set accept: named twice, so a set scope cannot tell its two sets apart'))
+        refuses(twoSets, 'the set accept: named twice, so a set scope cannot tell its two sets apart')
         // and a set name is one name across the corpus, not one per role:
         // `setsCarrying` answers with names, so two roles holding an `accept`
         // each would let a `['set', 'accept']` reason read as true of a class
@@ -409,22 +404,23 @@ export const proof = {
             ],
             notApplicable: [],
         }
-        assert(failure(sameSetTwoRoles).includes('the set accept: named twice, so a set scope cannot tell its two sets apart'))
+        refuses(sameSetTwoRoles, 'the set accept: named twice, so a set scope cannot tell its two sets apart')
         /** @type {Corpus} */
         const twoIds = {
             roles: [{ role: 'reader', sets: [['accept', [v('a', 'x')]], ['reject', [v('a', 'y')]]] }],
             notApplicable: [],
         }
-        assert(failure(twoIds).includes('the vector id a: used twice, so a cell naming it names either'))
+        refuses(twoIds, 'the vector id a: used twice, so a cell naming it names either')
         // a repeated name is said once however many times it repeats
         /** @type {Corpus} */
         const thrice = {
             roles: [{ role: 'reader', sets: [['a', [v('i', 'x')]], ['a', [v('j', 'x')]], ['a', [v('k', 'x')]]] }],
             notApplicable: [],
         }
-        assertEq(failure(thrice).split('the set a: named twice').length - 1, 1)
+        assertStructurallySame(failure(thrice), ['the set a: named twice, so a set scope cannot tell its two sets apart'])
         // and the real corpus names nothing twice
         assert(matrix(corpus)[0] === 'ok')
+        assertStructurallySame(check(corpus), [])
     },
     // A scope that is not a tag and a name. The reasons are a data module, so
     // both shapes arrive as data: a mistyped tag, which `reaches` would read as
@@ -530,9 +526,16 @@ export const proof = {
     },
     // A corpus the matrix refuses exits non-zero rather than writing a
     // table with a hole in it.
+    // The message names every defect, and says which record would answer it.
     programRefuses: () => {
-        const [, result] = virtual(emptyState)(program(landed)(defaultNodeProgramOptions))
+        const [state, result] = virtual(withSources(sourcesOf(landed)))(program(landed)(defaultNodeProgramOptions))
         assertEq(exitCode(result), 1)
+        assertEq(state.stderr, [
+            'the corpus has 1 defects:',
+            '  y in serializer: no vector and no reason',
+            'a class a role owes no vector needs a record in spec/datajs/vectors/not-applicable saying why.',
+            '',
+        ].join('\n'))
     },
     // A defect found outside the table is reported *beside* the table's own,
     // not instead of them. One edit breaks both — a new vector with a trailing
@@ -540,17 +543,14 @@ export const proof = {
     // turns one fix into two runs of the generator.
     defectsTogether: () => {
         const outside = 'the set a-set: its own source is not a DataJS document'
-        const [tag, both] = matrix(landed, [outside])
-        assert(tag === 'error', 'expected a refusal')
-        assert(both.includes(outside), both)
-        assert(both.includes('y in serializer'), both)
-        assert(both.includes('the corpus has 2 defects:'), both)
+        const both = [outside, 'y in serializer: no vector and no reason']
+        assertStructurallySame(matrix(landed, [outside]), ['error', both])
+        assertStructurallySame(check(landed, [outside]), both)
         // and beside a malformed scope, which the table refuses first and alone:
         // that exclusivity is about defects derived from *reading* a scope, and
         // an outside defect is not one
-        const [badTag, badScope] = matrix(withScope(null), [outside])
-        assert(badTag === 'error', 'expected a refusal')
-        assert(badScope.includes(outside), badScope)
-        assert(badScope.includes('is not a scope'), badScope)
+        const badScope = [outside, 'a reason in serializer: null is not a scope, which is a tag and a name']
+        assertStructurallySame(matrix(withScope(null), [outside]), ['error', badScope])
+        assertStructurallySame(check(withScope(null), [outside]), badScope)
     },
 }

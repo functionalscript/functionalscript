@@ -41,11 +41,11 @@ let depth = match Unpacked::from(depth.clone()) {
 };
 ```
 
-[any-is-nullish](./any-is-nullish.md) files the sibling test, "is this
-`null` or `undefined`", and proposes `is_nullish` and the `undefined()`
-constructor. None of the sites above are nullish tests: `null` is
-converted there, as the specification says, and only `undefined` takes
-the default. So that issue leaves every one of these in place.
+The sibling test, "is this `null` or `undefined`", is `Unpacked::is_nullish`
+and `Any::is_nullish` (`vm/unpacked.rs`, `vm/any/mod.rs`), beside the
+`Any::undefined()` constructor. None of the sites above are nullish tests:
+`null` is converted there, as the specification says, and only `undefined`
+takes the default. So those leave every one of these in place.
 
 ### Proposal
 
@@ -71,7 +71,7 @@ v.defined().map(|v| v.to_integer_or_infinity()).transpose()
 ```
 
 The two private predicates are deleted. Build `defined` on the same
-`Unpacked` match as `is_nullish`, so the rule that issue states — match
+`Unpacked` match as `is_nullish`, so the rule its doc states — match
 on `Unpacked`, never `Nullish::try_from`, so the common case allocates
 no error — is followed by both.
 
@@ -84,8 +84,6 @@ no error — is followed by both.
 
 ### Related
 
-- [any-is-nullish](./any-is-nullish.md) — the nullish test and the
-  `undefined()` constructor; this is its sequel for the undefined-only test.
 - [`src/vm/position.rs`](../src/vm/position.rs) — the position readers
   that take the default most often; `relative_range` there is one of
   these sites.

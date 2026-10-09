@@ -28,14 +28,13 @@ The extended codec's decisions are settled and shipped (below). What remains
 open is the **standard** bigint-free codec, whose serializer still delegates
 finite-number spelling to the host's `JSON.stringify`.
 
-### Settled direction: preserve negative zero
+### Settled and shipped: preserve negative zero
 
-The standard codec must preserve `-0` through serialization and parsing.
-[Preserve negative zero](./preserve-negative-zero.md) owns the implementation
-and regression proofs, including sharing `numberSerialize` with DataJS for
-finite values. The parser already preserves the sign; serialization still
-needs the change. This is a chosen policy, not a claim that it has shipped.
-JSON and DataJS retain their separate non-finite spellings.
+The standard codec preserves `-0` through serialization and parsing:
+`numberSerialize` in [`../serializer/module.f.mjs`](../serializer/module.f.mjs)
+writes it as `-0`, and DataJS writes its finite numbers through that export.
+JSON and DataJS retain their separate non-finite spellings. The contract is
+documented in [`../README.md`](../README.md) and pinned by the JSON proofs.
 
 ### Settled: extended codec
 
@@ -108,9 +107,8 @@ or adding a separate compatible API, is deliberately deferred to P5.
 ### Tasks
 
 - [ ] Choose the default FunctionalScript standard stringify policy for
-      `NaN`, `Infinity`, and `-Infinity`; the
-      [negative-zero task](./preserve-negative-zero.md) leaves their current
-      behavior unchanged.
+      `NaN`, `Infinity`, and `-Infinity`; negative-zero preservation left
+      their current behavior unchanged.
 - [ ] Define a deterministic finite-number serialization rule sufficient for the
       FunctionalScript standard codec, without undoing negative-zero
       preservation. Implementing it off the host's `JSON.stringify` is
@@ -124,8 +122,8 @@ or adding a separate compatible API, is deliberately deferred to P5.
 
 ### Related
 
-- [Preserve negative zero](./preserve-negative-zero.md) — the chosen `-0`
-  contract and shared finite-number serialization with DataJS.
+- [`numberSerialize`](../serializer/module.f.mjs) — the shipped `-0`
+  contract and the finite-number spelling shared with DataJS.
 - [`fjs/media/json/README.md`](../README.md) — the shipped codec architecture and
   the settled extended policy.
 - [Remove native JSON](./remove-native-json.md) — self-hosts serialization;
