@@ -62,6 +62,6 @@ variant where this ordering answers `Equal`, as JavaScript's `<` does.
 
 - [bigint-eq-cmp-owner](./bigint-eq-cmp-owner.md) — bigint against
   bigint; this is bigint against number.
-- [numeric-binary-operator-zip](./numeric-binary-operator-zip.md) — the
+- `Numeric::zip` in [`src/vm/numeric.rs`](../src/vm/numeric.rs) — the
   mixed-operand rule of the arithmetic operators; the relational ones
   are the same shape with a different answer type.
