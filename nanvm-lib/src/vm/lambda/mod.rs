@@ -248,14 +248,11 @@ impl<A: IVm> OptionPropertyLambda<A> {
 mod tests {
     use crate::{
         naive::Naive,
-        vm::{Any, IStaticFunction, ToAny, ToArray, ToObject},
+        vm::{Any, IStaticFunction, ToAny, ToArray, ToObject, error},
     };
 
     type A = Naive;
     type Thunk = Box<dyn FnOnce() -> Result<Any<A>, Any<A>>>;
-
-    const TYPE_ERROR: &str = "Type Error";
-    const NULLISH_BASE: &str = "TypeError: Cannot convert undefined or null to object";
 
     /// A thunk that must not be forced.
     fn boom() -> Result<Any<A>, Any<A>> {
@@ -300,7 +297,7 @@ mod tests {
         assert_eq!(object().dot("n".into()).end(), Ok(1.0.to_any()));
         assert_eq!(
             Any::<A>::undefined().dot("n".into()).end(),
-            Err(NULLISH_BASE.into())
+            Err(error::nullish_to_object())
         );
     }
 
@@ -311,7 +308,7 @@ mod tests {
         answers_arguments(|args| object().dot("f".into()).end_call(args));
         assert_eq!(
             Any::undefined().dot("f".into()).end_call(boom),
-            Err(NULLISH_BASE.into())
+            Err(error::nullish_to_object())
         );
     }
 
@@ -322,7 +319,7 @@ mod tests {
         assert_eq!(object().dot("n".into()).end_call(boom), Err("boom".into()));
         assert_eq!(
             object().dot("n".into()).end_call(args),
-            Err(TYPE_ERROR.into())
+            Err(error::unexpected_type())
         );
     }
 
@@ -340,7 +337,7 @@ mod tests {
         );
         assert_eq!(
             Any::undefined().dot("f".into()).option_call(boom).end(),
-            Err(NULLISH_BASE.into())
+            Err(error::nullish_to_object())
         );
     }
 
@@ -457,7 +454,7 @@ mod tests {
         );
         assert_eq!(
             object().option_dot(key("u")).dot(key("x")).end(),
-            Err(NULLISH_BASE.into())
+            Err(error::nullish_to_object())
         );
     }
 
@@ -474,7 +471,7 @@ mod tests {
         );
         assert_eq!(
             Any::undefined().option_dot(boom).end_call(args),
-            Err(TYPE_ERROR.into())
+            Err(error::unexpected_type())
         );
     }
 

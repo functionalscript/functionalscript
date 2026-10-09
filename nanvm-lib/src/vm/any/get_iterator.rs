@@ -1,9 +1,4 @@
-use crate::vm::{Any, IVm, IteratorRecord, Unpacked};
-
-/// The `TypeError` for a value that is not iterable. JavaScript engines
-/// name the expression spread, which a value no longer knows; a failure is
-/// one outcome whatever its message (`spec/README.md`).
-pub(crate) const NOT_ITERABLE: &str = "TypeError: value is not iterable";
+use crate::vm::{Any, IVm, IteratorRecord, Unpacked, error};
 
 impl<A: IVm> Any<A> {
     /// ECMAScript's `GetIterator(self, sync)`
@@ -23,18 +18,17 @@ impl<A: IVm> Any<A> {
         match self.into() {
             Unpacked::Array(array) => Ok(IteratorRecord::Array { array, next: 0 }),
             Unpacked::String(string) => Ok(IteratorRecord::String { string, next: 0 }),
-            _ => Err(NOT_ITERABLE.into()),
+            _ => Err(error::not_iterable()),
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::NOT_ITERABLE;
     use crate::{
         naive::Naive,
         vm::{
-            Any, IStaticFunction, Nullish, ToAny, ToArray, ToObject,
+            Any, IStaticFunction, Nullish, ToAny, ToArray, ToObject, error,
             unstable::{bigint_any, f64_any},
         },
     };
@@ -56,7 +50,7 @@ mod tests {
             A::static_function(|_, _| Ok(Any::undefined()), 0, [].to_array(), None).to_any(),
         ];
         for v in values {
-            assert_eq!(v.get_iterator().err(), Some(NOT_ITERABLE.into()));
+            assert_eq!(v.get_iterator().err(), Some(error::not_iterable()));
         }
     }
 

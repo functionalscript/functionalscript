@@ -254,9 +254,7 @@ impl<A: IVm> String<A> {
 mod tests {
     use crate::{
         naive::Naive,
-        vm::{
-            Any, Array, IStaticFunction, String, ToAny, ToArray, primitive_coercion::FUNCTION_TEXT,
-        },
+        vm::{Any, Array, IStaticFunction, String, ToAny, ToArray, error},
     };
 
     type A = Naive;
@@ -284,7 +282,7 @@ mod tests {
         );
         assert_eq!(
             s("a").split(f(), Any::undefined()).map(|_| ()),
-            Err(FUNCTION_TEXT.into())
+            Err(error::function_text())
         );
     }
 

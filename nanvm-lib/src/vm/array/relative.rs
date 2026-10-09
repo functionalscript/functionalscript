@@ -27,7 +27,7 @@ mod tests {
     use super::{clamped, relative};
     use crate::{
         naive::Naive,
-        vm::{Any, ToAny, unstable::bigint_any},
+        vm::{Any, ToAny, error, unstable::bigint_any},
     };
 
     type A = Naive;
@@ -51,10 +51,7 @@ mod tests {
     #[test]
     fn bigint_throws() {
         let one: Any<A> = bigint_any(1);
-        assert_eq!(
-            r(one),
-            Err("TypeError: Cannot convert a BigInt value to a number".into())
-        );
+        assert_eq!(r(one), Err(error::bigint_to_number()));
     }
 
     #[test]

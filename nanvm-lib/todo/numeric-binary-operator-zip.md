@@ -15,7 +15,7 @@ the same three-arm skeleton:
 Ok(match (self, rhs) {
     (Numeric::Number(a), Numeric::Number(b)) => Numeric::Number(a + b),
     (Numeric::BigInt(a), Numeric::BigInt(b)) => Numeric::BigInt(a + b),
-    _ => return Err(CANNOT_MIX_NUMBER_AND_BIGINT.into()),
+    _ => return Err(error::mixed_numeric_operands()),
 })
 ```
 
@@ -74,6 +74,5 @@ they lift.
 - [operator-impl-placement](./operator-impl-placement.md) — moves
   `impls/mul.rs` to `vm/any/mul.rs`; placement only, but the same files —
   land in either order, cross-check the file list.
-- [error-constructors](./error-constructors.md) — covers the
-  `CANNOT_MIX_NUMBER_AND_BIGINT` constant itself, not the twelve match
-  skeletons around it.
+- [`src/vm/error.rs`](../src/vm/error.rs) — owns the thrown value,
+  `mixed_numeric_operands`, not the twelve match skeletons around it.

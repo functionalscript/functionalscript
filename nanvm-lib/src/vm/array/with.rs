@@ -1,7 +1,7 @@
 use super::{Array, relative::relative};
 use crate::{
     common::sized_index::SizedIndex,
-    vm::{Any, IVm, ToArray},
+    vm::{Any, IVm, ToArray, error},
 };
 
 impl<A: IVm> Array<A> {
@@ -14,7 +14,7 @@ impl<A: IVm> Array<A> {
         let len = self.length();
         let k = relative(index, len)?;
         if !(0.0..f64::from(len)).contains(&k) {
-            return Err("RangeError: Invalid index".into());
+            return Err(error::invalid_index());
         }
         let k = k as u32;
         Ok((0..len)
@@ -34,7 +34,7 @@ mod tests {
     use super::Array;
     use crate::{
         naive::Naive,
-        vm::{Any, ToAny, ToArray},
+        vm::{Any, ToAny, ToArray, error},
     };
 
     type A = Naive;
@@ -53,9 +53,9 @@ mod tests {
 
     #[test]
     fn out_of_range_throws() {
-        let error = Err("RangeError: Invalid index".into());
-        assert_eq!(with(2.0), error);
-        assert_eq!(with(-3.0), error);
-        assert_eq!(with(f64::INFINITY), error);
+        let invalid = Err(error::invalid_index());
+        assert_eq!(with(2.0), invalid);
+        assert_eq!(with(-3.0), invalid);
+        assert_eq!(with(f64::INFINITY), invalid);
     }
 }
