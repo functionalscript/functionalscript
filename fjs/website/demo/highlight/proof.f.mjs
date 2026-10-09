@@ -1,4 +1,4 @@
-import { highlight } from './module.f.mjs'
+import { highlight, render, spansOf } from './module.f.mjs'
 import { htmlToString } from '../../../media/html/module.f.mjs'
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
 
@@ -43,5 +43,12 @@ export const proof = {
         assert(h.includes('<span data-token="number">1</span>'), h)
     },
     empty: () => assertEq(highlight('').length, 0),
+    spans: () => assertEq(JSON.stringify(spansOf('a /* x */ 1')),
+        '[{"start":2,"length":7,"kind":"comment"},{"start":10,"length":1,"kind":"number"}]'),
+    render: () => {
+        assertEq(render([]).length, 0)
+        assertEq(JSON.stringify(render([['a', 'keyword'], [' b'], ['']])),
+            '[["span",{"data-token":"keyword"},"a"]," b"]')
+    },
     refused: () => assertEq(highlight('1 @ 2').join('|'), '1 @ 2'),
 }
