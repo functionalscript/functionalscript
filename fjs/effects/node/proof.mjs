@@ -1823,6 +1823,32 @@ export const proof = {
             assertEq(pulls.n, 0)
             assertEq(releases.n, 2)
         },
+        // A `CONNECT` is answered by the runner, since no listener could answer
+        // one, and with the frame every other refusal goes out as: the length is
+        // the body's own and the connection closes after it.
+        refusesATunnel: async () => {
+            const answer = await withServer(
+                () => pureOk({ status: 204, headers: {}, body: listEnd(), release: pureOk(null) }),
+                port => within('a raw CONNECT', 10000, new Promise(resolve => {
+                    /** @type {Uint8Array[]} */
+                    const parts = []
+                    const socket = net.connect(port, loopback, () => {
+                        socket.write(`CONNECT ${loopback}:1 HTTP/1.1\r\nHost: ${loopback}:1\r\n\r\n`)
+                    })
+                    socket.on('data', part => { parts.push(Buffer.from(part)) })
+                    socket.on('error', () => { })
+                    socket.on('close', () => { resolve(`${Buffer.concat(parts)}`) })
+                })))
+            const body = 'this server cannot tunnel\n'
+            assertEq(answer, [
+                'HTTP/1.1 501 Not Implemented',
+                'content-type: text/plain; charset=utf-8',
+                `content-length: ${body.length}`,
+                'connection: close',
+                '',
+                body,
+            ].join('\r\n'))
+        },
         // `chunkedResponse` is the host's own answer, and this is what it answers:
         // `true` for the HTTP/1.1 request a browser sends, `false` for a raw 1.0
         // one. Measured identical on Node 26.8.1, Bun 1.4.2 and Deno 2.8.3, which
