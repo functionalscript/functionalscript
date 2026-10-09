@@ -1,7 +1,7 @@
 ## 66A-ci-cargo-step-factory. Unify the `cargo*` step builders in `fjs/ci/rust`
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
