@@ -1,7 +1,7 @@
 ## string-cmp-iterator-cmp. `String::cmp` hand-rolls `Iterator::cmp`
 
 **Priority:** P5
-**Status:** open
+**Status:** wip
 
 ### Problem
 
