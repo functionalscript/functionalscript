@@ -8,10 +8,10 @@
 
 /** @type {(separator: string) => Reduce<string>} */
 export const join = separator => value => prior =>
-    `${prior}${separator}${value}`
+    prior + separator + value
 
 /** @type {Reduce<string>} */
-export const concat = i => acc => `${acc}${i}`
+export const concat = i => acc => acc + i
 
 /** @type {Unary<boolean, boolean>} */
 export const logicalNot = v => !v
@@ -26,8 +26,8 @@ export const strictEqual = a => b => a === b
 
 /** @type {<I, S, O>(op: StateScan<I, S, O>) => (prior: S) => Scan<I, O>} */
 export const stateScanToScan = op => prior => i => {
-    const [o, s] = op(i, prior)
-    return [o, stateScanToScan(op)(s)]
+    const result = op(i, prior)
+    return [result[0], stateScanToScan(op)(result[1])]
 }
 
 export const cascade =
@@ -50,14 +50,15 @@ export const cascade =
         /** @type {(i: number, value: I) => readonly [I | undefined, readonly unknown[]]} */
         const step = (i, value) => {
             if (i === steps.length) { return [value, []] }
-            const [output, state] = steps[Number(i)](value, prior[Number(i)])
-            const [result, rest] = output === undefined
-                ? [undefined, prior.slice(i + 1)]
+            const current = steps[Number(i)](value, prior[Number(i)])
+            const output = current[0]
+            const next = output === undefined
+                ? /** @type {const} */ ([undefined, prior.slice(i + 1)])
                 : step(i + 1, output)
-            return [result, [state, ...rest]]
+            return [next[0], [current[1], ...next[1]]]
         }
-        const [output, state] = step(0, input)
-        return [output, /** @type {S} */ (state)]
+        const result = step(0, input)
+        return [result[0], /** @type {S} */ (result[1])]
     }
 
 /** @type {<I, O>(fold: Fold<I, O>) => (prior: O) => Scan<I, O>} */

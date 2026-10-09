@@ -16,7 +16,8 @@
  * converted, as the helper converts it, which TypeScript's narrower name
  * for what `Object.getOwnPropertyDescriptor` takes does not say.
  *
- * Known record keys retain their indexed value type. The fallback accepts
+ * Known keys retain their indexed value type together with `undefined` for
+ * absent, inherited, or non-enumerable properties. The fallback accepts
  * arbitrary receivers and keys and returns an unknown value.
  *
  * @module

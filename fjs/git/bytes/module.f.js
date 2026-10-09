@@ -38,7 +38,8 @@ export const u32be = (b, at) => b[Number(at)] * 16777216 + b[Number(at + 1)] * 6
  */
 export const u64be = (b, at) => {
     const v = u32be(b, at) * 4294967296 + u32be(b, at + 4)
-    return Number.isSafeInteger(v) ? v : null
+    // Number.isSafeInteger for a numeric value, using FJS operations only.
+    return v % 1 === 0 && v >= -9007199254740991 && v <= 9007199254740991 ? v : null
 }
 
 /**

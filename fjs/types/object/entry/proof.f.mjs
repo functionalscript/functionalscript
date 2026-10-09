@@ -11,6 +11,7 @@ export const proof = {
         assertEq(entry({ a: 7 }, 'a'), 7)
         assertEq(entry({ a: 7 }, 'b'), undefined)
         assertEq(entry({}, 'toString'), undefined)
+        // A computed __proto__ key is an own data field, not a prototype setter.
         assertEq(entry({ ['__proto__']: 42 }, '__proto__'), 42)
         assertEq(entry({ length: 3 }, 'length'), 3)
         assertEq(entry({ a: undefined }, 'a'), undefined)
