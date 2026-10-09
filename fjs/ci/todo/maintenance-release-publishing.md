@@ -33,9 +33,11 @@ continue to work when this path is added.
       expired connection before retrying; do not wait for an unspecified next
       release or publish a throwaway version to validate setup. Confirm npm's
       current activation requirements when implementing this workflow.
-- [ ] Publish maintenance releases under an explicit non-`latest` dist-tag so an
-      older minor cannot downgrade unversioned installs. Promotion to `latest`
-      is a separate maintainer decision after checking the supported release line.
+- [ ] Select npm distribution tags explicitly: regular releases and urgent
+      fixes on the newest released line use `latest`. Publish fixes for older
+      lines with a maintenance tag (for example, `release-0.X`) and leave
+      `latest` unchanged, so `npm install functionalscript` continues to install
+      the newest release line. Verify both cases in the publishing checks.
 - [ ] Verify the actual publish step and exact registry version and dist-tag;
       a green workflow or `npm whoami` cannot establish publication while the
       publish step tolerates failure. Coordinate with publish-only-a-new-version.
