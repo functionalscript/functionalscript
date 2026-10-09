@@ -20,9 +20,16 @@ consistent versioning policy.
       Publish subsequent urgent fixes as `0.X.2`, `0.X.3`, and so on,
       cumulatively based on the previous urgent-fix release on the same `0.X`
       release line. Never reuse a published version.
+      Provide a publishing path for these release-line commits after `main`
+      has advanced, with matching npm trusted-publisher configuration. Update
+      the publishing workflow generator and release procedure so an urgent
+      fix can publish without including later development changes from `main`.
 
 ### Related
 
+- [Publishing workflow generator](../fjs/ci/publish/module.f.mjs) — extend
+  the current `main`-only trigger to support release-line fixes; regenerate
+  the workflow from its source.
 - [CONTRIBUTING.md](../CONTRIBUTING.md#commit-messages) and
   [AGENTS.md](../AGENTS.md#5-pull-requests-and-releases) — update the
   mandatory notice requirement when implementing this policy.
