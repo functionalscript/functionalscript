@@ -2,7 +2,7 @@
  * @import { Dir, RecordedResponse, State, _QueuedRequest } from './types.ts'
  * @import { All, Handle, IncomingMessage, IoResult, NodeOp, ReadRequestBytes, RequestListener, ServerResponse } from '../types.ts'
  * @import { Effect } from '../../types.ts'
- * @import { List, Next } from '../../list/types.ts'
+ * @import { EffectList, Next } from '../../list/types.ts'
  * @import { Result } from '../../../types/result/types.ts'
  * @import { IoChannel } from '../types.ts'
  * @import { Key } from '../../memory/types.ts'
@@ -41,7 +41,7 @@ import { asNominal, create as memCreate, read as memRead, write as memWrite } fr
  * @type {RequestListener<ReadRequestBytes>}
  */
 const echoBody = ({ body }) => {
-    /** @type {(taken: readonly Vec[], rest: List<ReadRequestBytes, Vec, IoChannel>) => Effect<ReadRequestBytes, readonly Vec[], IoChannel>} */
+    /** @type {(taken: readonly Vec[], rest: EffectList<ReadRequestBytes, Vec, IoChannel>) => Effect<ReadRequestBytes, readonly Vec[], IoChannel>} */
     const loop = (taken, rest) => step(rest, node =>
         node === undefined ? pureOk(taken) : loop([...taken, node.first], node.tail))
     return resultMapStep(loop([], body), r => ok(r[0] === 'ok'
@@ -95,11 +95,11 @@ const responseText = r => utf8ToString(r.body.reduce((v, chunk) => msb.concat(v)
  * produces its cells inside a command's continuation, which is what `readChunks`
  * over a {@link handleSource} does and what the `fjs/web` proofs drive.
  *
- * @type {(chunks: readonly Vec[]) => List<never, Vec, IoChannel>}
+ * @type {(chunks: readonly Vec[]) => EffectList<never, Vec, IoChannel>}
  */
 const ofChunks = chunks => chunks.reduceRight(
     (tail, chunk) => nonEmpty(chunk, tail),
-    /** @type {List<never, Vec, IoChannel>} */(endOfBody()))
+    /** @type {EffectList<never, Vec, IoChannel>} */(endOfBody()))
 
 /** A listener holding nothing writes the pure end.
  *
@@ -138,7 +138,7 @@ const recordRelease = resultMapStep(log(released), () => ok(null))
  * It needs no instrument, which is why it is written this way rather than with a
  * counter — the gates' whole point is the read they save.
  *
- * @type {List<NodeOp, Vec, IoChannel>}
+ * @type {EffectList<NodeOp, Vec, IoChannel>}
  */
 const neverPulled = pureError(ioError({ message: 'pulled' }))
 
@@ -346,6 +346,42 @@ export const proof = {
         assertEq(result[1][0]?.isFile, false)
         assertEq(result[1][1]?.isDirectory, false)
         assertEq(result[1][1]?.isFile, true)
+    },
+    /**
+     * What a host answers: each directory's entries in the order of their
+     * names, whatever order the fixture wrote them in, and a recursive read
+     * level by level, the entries of the directory first and then those of each
+     * directory among them in the order found. Node 22's `readdirSync` lists it
+     * as `a b z a/f a/x b/g b/y a/x/deep a/x/deep/h`;
+     * its promises API uses a stack instead. This proof targets the pinned
+     * Node 26.10.0 promises API; see ./readdir/proof.f.mjs.
+     */
+    readdirOrder: () => {
+        const file = /** @type {const} */ ([vec8(0x42n)])
+        /** @type {Dir} */
+        const base = {
+            'z': file,
+            'b': { 'y': {}, 'g': file },
+            'a': { 'x': { 'deep': { 'h': file } }, 'f': file },
+            // A name that is an integer index is listed first by `Object.keys`.
+            '10': file,
+            '9': file,
+        }
+        /** @type {Dir} */
+        const root = { base }
+        const list = (/** @type {{ recursive?: true }} */ options) => {
+            const [, result] = virtual({ ...emptyState, root })(readdir('base', options))
+            assert(result[0] === 'ok', result)
+            return result[1].map(({ name, parentPath }) => `${parentPath}/${name}`)
+        }
+        assertStructurallySame(list({}), ['base/10', 'base/9', 'base/a', 'base/b', 'base/z'])
+        assertStructurallySame(list({ recursive: true }), [
+            'base/10', 'base/9', 'base/a', 'base/b', 'base/z',
+            'base/a/f', 'base/a/x',
+            'base/b/g', 'base/b/y',
+            'base/a/x/deep',
+            'base/a/x/deep/h',
+        ])
     },
     accessNestedPathThroughFile: () => {
         // 'a/b/c' where 'a' is a file: the operation wrapper's "not a directory"
@@ -716,7 +752,7 @@ export const proof = {
     },
     writeBytesNestedThroughFile: () => {
         // `a/b` where `a` is a *file*. `operation` stops descending at the first
-        // name that is not a directory, so the op is handed both segments and
+        // name that is not a `Dir`, so the op is handed both segments and
         // `resolveFile`'s one-segment guard is all that stands between this and
         // an append to `a` itself. The offset is `a`'s size deliberately: that
         // is what the append-only check accepts, so without the guard this
@@ -752,12 +788,37 @@ export const proof = {
         assertIoMessage(result[1], 'invalid buffer size')
         assertStructurallySame(state.root, root)
     },
-    writeBytesNegativeOffset: () => {
+    writeBytesUnnamedOffset: () => {
+        // An offset no position names never reaches this runner either:
+        // `writeBytes` refuses it in `../module.f.mjs`, in the words a read's
+        // window is refused with, so the append-only check below is never
+        // the one that answers. The refusal comes before the name is
+        // resolved — a missing file is refused for its offset, not `ENOENT`
+        // — and leaves the tree as it was.
         /** @type {Dir} */
         const root = { 'file': [vec8(0x1n)] }
-        const [, result] = virtual({ ...emptyState, root })(writeBytes('file', -1, vec8(0x2n)))
-        assert(result[0] === 'error')
-        assertIoMessage(result[1], 'Offset -1 is invalid')
+        /** @type {(offset: number, data: Vec, message: string) => void} */
+        const refuses = (offset, data, message) => {
+            for (const path of ['file', 'missing']) {
+                const [state, result] = virtual({ ...emptyState, root })(writeBytes(path, offset, data))
+                assert(result[0] === 'error')
+                assertIoMessage(result[1], message)
+                assertStructurallySame(state.root, root)
+            }
+        }
+        refuses(-1, vec8(0x2n), 'Offset -1 is negative')
+        refuses(0.5, vec8(0x2n), 'Offset 0.5 is not an integer')
+        refuses(NaN, vec8(0x2n), 'Offset NaN is not an integer')
+        refuses(Infinity, vec8(0x2n), 'Offset Infinity is not an integer')
+        refuses(maxOffset + 1, vec8(0x2n), `Offset ${maxOffset + 1} exceeds maximum allowed offset of ${maxOffset}`)
+        // The end is bounded as well as the start: two bytes from the last
+        // position a read may name put the second past it.
+        refuses(maxOffset, vec(16n)(0x0203n), `Write of 2 bytes at offset ${maxOffset} exceeds maximum allowed offset of ${maxOffset}`)
+        // One byte there is the last a read may name, so it is the runner's to
+        // answer, and this one answers with its append-only rule.
+        const [, last] = virtual({ ...emptyState, root })(writeBytes('file', maxOffset, vec8(0x2n)))
+        assert(last[0] === 'error')
+        assertIoMessage(last[1], `writeBytes offset ${maxOffset} must equal the file size (append-only)`)
     },
     statNestedMissing: () => {
         // stat('a/b') where 'a' doesn't exist.
@@ -823,33 +884,45 @@ export const proof = {
         assertIoMessage(result[1], "'mydir' is a directory")
     },
     readFileTooLarge: () => {
-        // A file stored as two max-size chunks exceeds the limit; readFile must
-        // return an error, and the message must name the entry it refused —
-        // without it a caller that stops on the failure reports a build broken
-        // by no file in particular.
+        // A file stored as a max-size chunk and one byte more exceeds the limit;
+        // readFile must return an error, and the message must name the entry it
+        // refused — without it a caller that stops on the failure reports a
+        // build broken by no file in particular.
         const chunk0 = vec(maxLengthBytes * 8n)(0n)
-        const chunk1 = vec(1n)(1n)
+        const chunk1 = vec8(1n)
         /** @type {Dir} */
         const root = { 'big': [chunk0, chunk1] }
         const [, result] = virtual({ ...emptyState, root })(readFile('big'))
         assert(result[0] === 'error')
         assertIoMessage(
             result[1],
-            `File size exceeds maximum allowed size of ${maxLengthBytes} bytes: 'big'`)
+            `File size ${maxLengthBytes + 1n} exceeds maximum allowed size of ${maxLengthBytes} bytes: 'big'`)
+    },
+    readFileTooLargeByABit: () => {
+        // A chunk that is not whole bytes counts its partial byte whole: one bit
+        // past the limit is a file `listToVec` cannot build, so it is refused
+        // like any other oversized file rather than thrown at.
+        /** @type {Dir} */
+        const root = { 'big': [vec(maxLengthBytes * 8n)(0n), vec(1n)(1n)] }
+        const [, result] = virtual({ ...emptyState, root })(readFile('big'))
+        assert(result[0] === 'error')
+        assertIoMessage(
+            result[1],
+            `File size ${maxLengthBytes + 1n} exceeds maximum allowed size of ${maxLengthBytes} bytes: 'big'`)
     },
     readFileTooLargeNested: () => {
         // The path the caller asked for, not the entry `operation`'s descent
         // left behind: told only `'big'`, a caller cannot tell which of several
         // same-named files failed, and the Node runner names the whole path.
         const chunk0 = vec(maxLengthBytes * 8n)(0n)
-        const chunk1 = vec(1n)(1n)
+        const chunk1 = vec8(1n)
         /** @type {Dir} */
         const root = { a: { b: { 'big': [chunk0, chunk1] } } }
         const [, result] = virtual({ ...emptyState, root })(readFile('a/b/big'))
         assert(result[0] === 'error')
         assertIoMessage(
             result[1],
-            `File size exceeds maximum allowed size of ${maxLengthBytes} bytes: 'a/b/big'`)
+            `File size ${maxLengthBytes + 1n} exceeds maximum allowed size of ${maxLengthBytes} bytes: 'a/b/big'`)
     },
     readBytesNegativeSize: () => {
         // readBytes with negative size should fail
@@ -1042,7 +1115,7 @@ export const proof = {
         assert(bytes[0] === 'error', bytes)
         assertIoCode(bytes[1], 'ENOENT')
         const [, put] = virtual(emptyState)(writeBytes('toString', 0, payload))
-        assert(put[0] === 'error', put)
+        assert(put[0] === 'error')
         assertIoCode(put[1], 'ENOENT')
         // `rename` reads through both halves: `extractEntity` for the source,
         // `insertEntityAt` for the destination.
@@ -1484,7 +1557,7 @@ export const proof = {
             const root = { 'a.bin': [utf8('abcdefghij')] }
             /** @type {(bound: number) => readonly string[]} */
             const chunksOf = bound => {
-                /** @type {(s: State, e: List<NodeOp, Vec, IoChannel>, out: readonly string[]) => readonly string[]} */
+                /** @type {(s: State, e: EffectList<NodeOp, Vec, IoChannel>, out: readonly string[]) => readonly string[]} */
                 const drain = (s, e, out) => {
                     const [next, cell] = virtual(s)(e)
                     const node = unwrap(cell)
@@ -1761,12 +1834,12 @@ export const proof = {
             assertEq(cursor.rest.length, 2)
         },
         // **A second pull on a cell already read is refused, not answered with
-        // the next chunk.** A `List`'s tail is a value, so pulling one twice is
-        // ordinary code; over a socket the bytes behind the cursor are gone, so
-        // the second pull could only be answered with whatever comes next — a
-        // body no client sent, arriving in order and whole. That is refused here
-        // for the same reason it is refused there, with the shared message, so
-        // the two runners cannot drift.
+        // the next chunk.** An `EffectList`'s tail is a value, so pulling one
+        // twice is ordinary code; over a socket the bytes behind the cursor are
+        // gone, so the second pull could only be answered with whatever comes
+        // next — a body no client sent, arriving in order and whole. That is
+        // refused here for the same reason it is refused there, with the shared
+        // message, so the two runners cannot drift.
         refusesARePull: () => {
             /** @type {RequestListener<ReadRequestBytes>} */
             const rePull = ({ body }) => resultMapStep(
@@ -1864,15 +1937,15 @@ export const proof = {
             assertEq(responseText(r), 'chunk at 0 is 1 bits, not whole bytes')
         },
         // **And it goes on refusing it.** A refusal a listener catches is a
-        // refusal it may pull again — a `List`'s tail is a value, and nothing
-        // says a consumer that met an error stops. The chunk the stream would
-        // not take has to still be there when it does: handed out and dropped,
-        // the cursor moved while the offset did not, so the retry named an
-        // offset that still matched and was answered with the bytes *after* the
-        // refused chunk. The listener then had the body it asked for, in order
-        // and under a correct length, with one bit of it missing and nothing to
-        // say so — DESIGN §10's plausible wrong value, reached through the door
-        // the refusal opened.
+        // refusal it may pull again — an `EffectList`'s tail is a value, and
+        // nothing says a consumer that met an error stops. The chunk the stream
+        // would not take has to still be there when it does: handed out and
+        // dropped, the cursor moved while the offset did not, so the retry
+        // named an offset that still matched and was answered with the bytes
+        // *after* the refused chunk. The listener then had the body it asked
+        // for, in order and under a correct length, with one bit of it missing
+        // and nothing to say so — DESIGN §10's plausible wrong value, reached
+        // through the door the refusal opened.
         //
         // **Whatever the refused chunk's byte count is.** One bit is the silent
         // case, because `bytesIn` rounds it to nought and the offset the retry

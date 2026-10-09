@@ -40,8 +40,8 @@ type _Module<T> = {
 type _Context<T> = { readonly complete: OrderedMap<_Module<T>>, readonly stack: List<string> }
 const _walk: <T>(
     onJson: (value: JsonUnknown) => _Module<T>,
-    onModule: (source: _Source, bound: readonly (readonly [_ImportSource, _Module<T>])[], module: AstModule) => Effect<ReadFile | ResolveFileModule, _Module<T>, ParseError>,
-) => (source: _Source) => (context: _Context<T>) => Effect<ReadFile | ResolveFileModule, readonly [_Context<T>, _Module<T>], ParseError>
+    onModule: (source: _Source, bound: readonly (readonly [_ImportSource, _Module<T>])[], module: AstModule) => Effect<ReadWhole | ResolveFileModule, _Module<T>, ParseError>,
+) => (source: _Source) => (context: _Context<T>) => Effect<ReadWhole | ResolveFileModule, readonly [_Context<T>, _Module<T>], ParseError>
 ```
 
 The walk memoises the **complete module**, never a bare selected value.

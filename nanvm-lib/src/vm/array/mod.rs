@@ -17,7 +17,6 @@ mod map;
 mod member_access;
 mod partial_eq;
 mod reduce;
-pub(crate) mod relative;
 mod sized_index;
 mod slice;
 mod some;

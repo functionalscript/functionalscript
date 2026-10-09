@@ -26,6 +26,11 @@ export const proof = {
             const result = stringify(toArray(toCodePointList([-1, 65536])))
             assertEq(result, '[2147483648,2147483648]')
         },
+        // `-0` is not a second spelling of the code unit `0`.
+        () => {
+            const result = stringify(toArray(toCodePointList([-0])))
+            assertEq(result, '[2147483648]')
+        },
         () => {
             const result = stringify(toArray(toCodePointList([0, 36, 8364, 55295, 57344, 65535])))
             assertEq(result, '[0,36,8364,55295,57344,65535]')

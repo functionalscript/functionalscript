@@ -12,7 +12,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { fill, patch, toDom } from './module.mjs'
+import { fill, macrotask, patch, toDom } from './module.mjs'
 
 const xhtml = 'http://www.w3.org/1999/xhtml'
 
@@ -440,5 +440,15 @@ export const proof = {
         patch(target, ['form', ['input', { value: 'b' }], ['textarea', 'b']])
         assertEq(input.value, 'b')
         assertEq(area.value, 'b')
+    },
+    // A task queued before the yield runs before it resumes, which no
+    // microtask can promise: that next task is where a paint happens.
+    macrotaskYieldsToTheNextTask: async () => {
+        let ran = false
+        setTimeout(() => { ran = true }, 0)
+        await Promise.resolve()
+        assert(!ran)
+        await macrotask()
+        assert(ran)
     },
 }

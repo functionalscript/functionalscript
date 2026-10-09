@@ -48,6 +48,7 @@
  * @import { Base } from '../types.ts'
  * @import { Unknown } from '../../types.ts'
  * @import { Corpus, NotApplicable, Role, Scope } from './types.ts'
+ * @import { _Cell } from './private.ts'
  */
 
 import { assertNotNullish } from '../../../../asserts/module.f.mjs'
@@ -57,7 +58,7 @@ import { fromVec } from '../../../../text/utf8/module.f.mjs'
 import { tryParse } from '../../module.f.mjs'
 import { difference } from '../module.f.mjs'
 import { cmp as strCmp } from '../../../../types/string/module.f.mjs'
-import { error, ok } from '../../../../types/result/module.f.mjs'
+import { error, mapOk, ok, unwrap } from '../../../../types/result/module.f.mjs'
 import accept from '../../../../../spec/datajs/vectors/accept/data.f.js'
 import reject from '../../../../../spec/datajs/vectors/reject/data.f.js'
 import serializerAccept from '../../../../../spec/datajs/vectors/serializer-accept/data.f.js'
@@ -176,8 +177,8 @@ const reasonOf = ({ roles, notApplicable }, role, c) => {
 }
 
 /**
- * One cell: that the role's sets have not landed, the ids it has for the
- * class, the reason the corpus gives for having none, or the failure an
+ * What one cell is: that the role's sets have not landed, the ids it has for
+ * the class, the reason the corpus gives for having none, or the failure an
  * empty cell with no answer is.
  *
  * The sets come first because a role without them has nothing else to
@@ -188,24 +189,30 @@ const reasonOf = ({ roles, notApplicable }, role, c) => {
  * owes is not known until the serializer set is, which is the whole sense
  * of the refusal arriving with the set.
  *
- * @type {(corpus: Corpus, role: Role, c: string) => Result<string, string>}
+ * @type {(corpus: Corpus, role: Role, c: string) => Result<_Cell, string>}
  */
-const cell = (corpus, role, c) => {
+const classify = (corpus, role, c) => {
     if (role.sets.length === 0) {
         return reasonOf(corpus, role.role, c) === -1
-            ? ok('*awaiting the set*')
+            ? ok(['awaiting'])
             : error(`${c} in ${role.role}: a reason for a role whose sets have not landed`)
     }
     const ids = idsOf(role, c)
-    if (ids.length !== 0) { return ok(ids.map(code).join(', ')) }
+    if (ids.length !== 0) { return ok(['ids', ids]) }
     const reason = reasonOf(corpus, role.role, c)
     return reason === -1
         ? error(`${c} in ${role.role}: no vector and no reason`)
-        : ok(`not applicable, ${note(reason)}`)
+        : ok(['reason', reason])
 }
 
 /** How a cell names the reason that answers it. @type {(i: number) => string} */
 const note = i => `[note ${i + 1}](#notes)`
+
+/** A cell as the table shows it. @type {(cell: _Cell) => string} */
+const render = cell =>
+    cell[0] === 'awaiting' ? '*awaiting the set*'
+        : cell[0] === 'ids' ? cell[1].map(code).join(', ')
+        : `not applicable, ${note(cell[1])}`
 
 /** @type {string} */
 const lower = 'abcdefghijklmnopqrstuvwxyz'
@@ -274,7 +281,7 @@ const isName = onlyFrom(nameChars)
  *
  * @type {(ok: (s: string) => boolean, kind: string, what: string, s: string) => readonly string[]}
  */
-const check = (ok, kind, what, s) =>
+const showable = (ok, kind, what, s) =>
     s.trim() === ''
         ? [`${what}: ${JSON.stringify(s)} shows nothing at all`]
         : ok(s) ? [] : [`${what}: ${JSON.stringify(s)} is not ${kind} the table can show as written`]
@@ -290,18 +297,18 @@ const check = (ok, kind, what, s) =>
  */
 const unrenderable = ({ roles, notApplicable }) => [
     ...roles.flatMap(({ role, sets }) => [
-        ...check(isName, 'a name', `the role ${role}`, role),
+        ...showable(isName, 'a name', `the role ${role}`, role),
         ...sets.flatMap(([name, vectors]) => [
-            ...check(isName, 'a name', `the set ${name} of ${role}`, name),
+            ...showable(isName, 'a name', `the set ${name} of ${role}`, name),
             ...vectors.flatMap(({ id, class: c }) => [
-                ...check(isName, 'a name', `an id in ${name}`, id),
-                ...check(isName, 'a name', `the class of ${id}`, c),
+                ...showable(isName, 'a name', `an id in ${name}`, id),
+                ...showable(isName, 'a name', `the class of ${id}`, c),
             ]),
         ]),
     ]),
     ...notApplicable.flatMap(({ scope, role, because }) => [
-        ...check(isName, 'a name', `the scope of a reason in ${role}`, scope[1]),
-        ...check(isProse, 'prose', `the reason for ${showScope(scope)} in ${role}`, because),
+        ...showable(isName, 'a name', `the scope of a reason in ${role}`, scope[1]),
+        ...showable(isProse, 'prose', `the reason for ${showScope(scope)} in ${role}`, because),
     ]),
 ]
 
@@ -461,69 +468,27 @@ const stale = corpus => {
     })
 }
 
-/** @type {(corpus: Corpus, c: string) => Result<readonly string[], readonly string[]>} */
-const row = (corpus, c) => {
-    const cells = corpus.roles.map(role => cell(corpus, role, c))
-    /** @type {readonly string[]} */
-    const failures = cells.flatMap(r => r[0] === 'error' ? [r[1]] : [])
-    return failures.length === 0
-        ? ok(cells.map(r => /** @type {string} */ (r[1])))
-        : error(failures)
-}
-
-/** How many classes a role answers, and how. @type {(corpus: Corpus, role: Role) => string} */
-const summary = (corpus, role) => {
-    const classes = classesOf(corpus.roles)
-    const withVectors = classes.filter(c => idsOf(role, c).length !== 0).length
-    const notApplicable = classes.filter(c => idsOf(role, c).length === 0 && reasonOf(corpus, role.role, c) !== -1).length
-    const sets = role.sets.length === 0
-        ? 'no set yet'
-        : role.sets.map(([name]) => code(name)).join(', ')
-    return `| ${code(role.role)} | ${sets} | ${withVectors} | ${notApplicable} | ${classes.length - withVectors - notApplicable} |`
-}
-
 /**
- * The defects a corpus has, as the failure a caller reads. The subject is the
- * **corpus** rather than the table, because these are not all the table's: a
- * source that is not a DataJS document is a defect of the corpus that the
- * generator reports in the same list.
+ * Every cell of the table, a row per class and a column per role, or the
+ * corpus's defects, `also` (defects found outside the table) first.
  *
- * @type {(failures: readonly string[]) => Result<string, string>}
+ * A malformed scope is refused first and alone. Every other check reads a
+ * scope as a tag and a name, so one that is neither cannot be read by them at
+ * all — a one-element tuple has no name to render and no family to measure.
+ * Reporting it beside failures derived from reading it would be reporting the
+ * same defect twice over.
+ *
+ * `also` rides alongside a malformed scope too, which that exclusivity does
+ * not reach: it is about defects *derived from reading* a scope, and a defect
+ * found outside the table is not derived from reading anything.
+ *
+ * @type {(corpus: Corpus, also: readonly string[]) => Result<readonly (readonly _Cell[])[], readonly string[]>}
  */
-const refused = failures => error([
-    `the corpus has ${failures.length} defects:`,
-    ...failures.map(f => `  ${f}`),
-    'a class a role owes no vector needs a record in spec/datajs/vectors/not-applicable saying why.',
-].join('\n'))
-
-/**
- * The matrix as the file holds it, or the classes the corpus leaves
- * unanswered. Rows are the classes, columns the roles, and a cell is the
- * vector ids, the reason there are none, or a role whose sets have not
- * landed.
- *
- * `also` carries defects found outside the table — the source checks below —
- * and they are reported **beside** the matrix's own rather than instead of
- * them. One edit can break both at once, a new vector with a trailing comma
- * whose class no role answers being the obvious case, and a generator that
- * reports one kind at a time turns one fix into two runs.
- *
- * They ride alongside a malformed scope too, which the exclusivity rule below
- * does not reach: that rule is about defects *derived from reading* a scope,
- * and a source defect is not derived from reading anything.
- *
- * @type {(corpus: Corpus, also?: readonly string[]) => Result<string, string>}
- */
-export const matrix = (corpus, also = []) => {
-    // A malformed scope is refused first and alone. Every other check reads a
-    // scope as a tag and a name, so one that is neither cannot be read by them
-    // at all — a one-element tuple has no name to render and no family to
-    // measure. Reporting it beside failures derived from reading it would be
-    // reporting the same defect twice over.
+const cells = (corpus, also) => {
     const bad = malformed(corpus)
-    if (bad.length !== 0) { return refused([...also, ...bad]) }
-    const classes = classesOf(corpus.roles)
-    const rows = classes.map(c => row(corpus, c))
+    if (bad.length !== 0) { return error([...also, ...bad]) }
+    const { roles } = corpus
+    const rows = classesOf(roles).map(c => roles.map(role => classify(corpus, role, c)))
     /** @type {readonly string[]} */
     const failures = [
         ...also,
@@ -532,15 +497,48 @@ export const matrix = (corpus, also = []) => {
         ...ambiguous(corpus),
         ...duplicated(corpus),
         ...stale(corpus),
-        ...rows.flatMap(r => r[0] === 'error' ? r[1] : []),
+        ...rows.flat().flatMap(([tag, value]) => tag === 'error' ? [value] : []),
     ]
-    if (failures.length !== 0) { return refused(failures) }
+    return failures.length === 0 ? ok(rows.map(row => row.map(unwrap))) : error(failures)
+}
+
+/**
+ * The corpus's defects, `also` (defects found outside the table) first, or
+ * none where it is well-formed — every check the matrix makes, without
+ * building any of the table to make them.
+ *
+ * `also` carries defects found outside the table — the source checks below —
+ * and they are reported **beside** the matrix's own rather than instead of
+ * them. One edit can break both at once, a new vector with a trailing comma
+ * whose class no role answers being the obvious case, and a generator that
+ * reports one kind at a time turns one fix into two runs.
+ *
+ * @type {(corpus: Corpus, also?: readonly string[]) => readonly string[]}
+ */
+export const check = (corpus, also = []) => {
+    const [tag, value] = cells(corpus, also)
+    return tag === 'error' ? value : []
+}
+
+/** How many classes a role answers, and how. @type {(role: Role, column: readonly _Cell[]) => string} */
+const summary = ({ role, sets }, column) => {
+    /** @type {(tag: _Cell[0]) => number} */
+    const count = tag => column.filter(cell => cell[0] === tag).length
+    const names = sets.length === 0
+        ? 'no set yet'
+        : sets.map(([name]) => code(name)).join(', ')
+    return `| ${code(role)} | ${names} | ${count('ids')} | ${count('reason')} | ${count('awaiting')} |`
+}
+
+/** The table's text, from cells already decided. @type {(corpus: Corpus) => (rows: readonly (readonly _Cell[])[]) => string} */
+const table = ({ roles, notApplicable }) => rows => {
+    const classes = classesOf(roles)
     // in code spans, as every other name in the table is: a role named
     // `_reader_` is a name `isName` admits, and raw in a header it would
     // render as an italic `reader` — the table saying one thing and the
     // corpus another, which is the whole failure this file refuses
-    const header = corpus.roles.map(r => code(r.role))
-    return ok([
+    const header = roles.map(r => code(r.role))
+    return [
         '# The class-by-role matrix',
         '',
         'Generated from the corpus by `npm run gen`. Edits here are overwritten;',
@@ -562,13 +560,13 @@ export const matrix = (corpus, also = []) => {
         '',
         '| role | sets | classes covered | not applicable | awaiting |',
         '| - | - | -: | -: | -: |',
-        ...corpus.roles.map(r => summary(corpus, r)),
+        ...roles.map((r, i) => summary(r, rows.map(row => row[i]))),
         '',
         `${classes.length} classes.`,
         '',
         `| class | ${header.join(' | ')} |`,
         `| - |${header.map(() => ' - |').join('')}`,
-        ...classes.map((c, i) => `| ${code(c)} | ${/** @type {readonly string[]} */ (rows[i][1]).join(' | ')} |`),
+        ...classes.map((c, i) => `| ${code(c)} | ${rows[i].map(render).join(' | ')} |`),
         '',
         '## Notes',
         '',
@@ -577,11 +575,21 @@ export const matrix = (corpus, also = []) => {
         'class under a prefix, or every class no set but one carries — so one note',
         'stands under as many rows as it is true of.',
         '',
-        ...corpus.notApplicable.map((n, i) =>
+        ...notApplicable.map((n, i) =>
             `${i + 1}. **${code(n.role)}**, ${n.scope[0]} ${code(n.scope[1])} — ${n.because}`),
         '',
-    ].join('\n'))
+    ].join('\n')
 }
+
+/**
+ * The matrix as the file holds it, or the defects that stop it being
+ * rendered — exactly what `check` answers. Rows are the classes, columns the
+ * roles, and a cell is the vector ids, the reason there are none, or a role
+ * whose sets have not landed.
+ *
+ * @type {(corpus: Corpus, also?: readonly string[]) => Result<string, readonly string[]>}
+ */
+export const matrix = (corpus, also = []) => mapOk(table(corpus))(cells(corpus, also))
 
 /**
  * Writes the matrix at `path`, one write over a directory the corpus
@@ -673,6 +681,20 @@ export const sourceDefects = corpus => foldStep(
             : sourceDefect(name, value, imported)])))
 
 /**
+ * The defects a corpus has, as the message the generator exits with. The
+ * subject is the **corpus** rather than the table, because these are not all
+ * the table's: a source that is not a DataJS document is a defect of the
+ * corpus that the generator reports in the same list.
+ *
+ * @type {(failures: readonly string[]) => string}
+ */
+const refused = failures => [
+    `the corpus has ${failures.length} defects:`,
+    ...failures.map(f => `  ${f}`),
+    'a class a role owes no vector needs a record in spec/datajs/vectors/not-applicable saying why.',
+].join('\n')
+
+/**
  * `gen` regenerates the matrix on every pull request, so a set that lands
  * without its row, or a class that loses a role, is a red check rather
  * than a file someone remembers to update. An unanswered cell exits
@@ -689,7 +711,7 @@ export const program = corpus => _options => {
     const checked = sourceDefects(corpus)
     const rendered = mapStep(checked, defects => matrix(corpus, defects))
     return step(rendered, ([tag, value]) =>
-        tag === 'error' ? errorExit(value) : exitStep(write(value)))
+        tag === 'error' ? errorExit(refused(value)) : exitStep(write(value)))
 }
 
 /** @type {NodeProgram} */

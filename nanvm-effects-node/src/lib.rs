@@ -5,10 +5,21 @@
 //! as they are: a `Pure`, a function that takes nothing and answers a `Result`,
 //! or a `Do`, an object with the `command` to perform, its `payload` and the
 //! `continuation` that takes the answer to the next effect. There is no native
-//! copy of any of it, no schema, no codec: the loop reads three properties,
-//! calls two kinds of function and hands values on, so identity survives.
+//! copy of any of it: the loop reads three properties, calls two kinds of
+//! function and hands values on, so identity survives. Only a [`Native`] host,
+//! the `perform` over `std`, reads a request out of VM values, and writes its
+//! answer back.
 //!
 //! `nanvm-effects-node` depends on `nanvm-lib`, never the reverse.
+
+mod codec;
+mod files;
+mod native;
+mod resolve;
+
+pub use files::{Dirent, IoError, MAX_FILE_SIZE_BYTES, normalize};
+pub use native::Native;
+pub use resolve::{FileModule, resolve_file_module};
 
 use nanvm_lib::vm::{Any, IVm, ToAny, ToArray};
 

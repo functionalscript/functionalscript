@@ -1,4 +1,5 @@
-import { anchors, binaryTags, isBinary, isInlinedCall, isLazy, readCaptures } from './module.f.mjs'
+import { anchors, binaryTags, eagerLayers, isBinary, isInlinedCall, isLazy, lazyLayers, readCaptures } from './module.f.mjs'
+import { definedValues } from '../../types/object/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 
 const a = { specifier: './a', json: false, name: 'default' }
@@ -158,6 +159,12 @@ export const proof = {
         assert(!isBinary(['-', 1]))
         assert(!isBinary(['.', 1, 'x']))
         assertEq(binaryTags.filter(isLazy).join(), '&&,||,??')
+    },
+    // The lazy layers hold exactly the lazy operators, as `isLazy` reads
+    // them from the EDAG, and no eager layer holds one.
+    layers: () => {
+        assertEq(lazyLayers.flatMap(definedValues).join(), binaryTags.filter(isLazy).join())
+        assert(!eagerLayers.flatMap(definedValues).some(tag => tag !== 'instanceof' && isLazy(tag)))
     },
     // A throw reaches its operand before the computation fails.
     thrown: () => {

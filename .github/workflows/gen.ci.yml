@@ -4,12 +4,17 @@
     "pull_request": {},
     "merge_group": {}
   },
+  "concurrency": {
+    "group": "${{ github.workflow }}-${{ github.ref }}",
+    "cancel-in-progress": true
+  },
   "permissions": {
     "contents": "read"
   },
   "jobs": {
     "ubuntu-intel": {
       "runs-on": "ubuntu-26.04",
+      "timeout-minutes": 15,
       "steps": [
         {
           "uses": "cachix/install-nix-action@v31.11.1"
@@ -54,6 +59,7 @@
     },
     "ubuntu-arm": {
       "runs-on": "ubuntu-26.04-arm",
+      "timeout-minutes": 15,
       "steps": [
         {
           "uses": "cachix/install-nix-action@v31.11.1"
@@ -63,188 +69,6 @@
         },
         {
           "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.10.0\""
-        },
-        {
-          "run": "sh ./gen.nix/run npm ci"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo test"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo test --release"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo clippy -- -D warnings"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo clippy --release -- -D warnings"
-        },
-        {
-          "run": "sh ./gen.nix/run node --test"
-        }
-      ]
-    },
-    "macos-intel": {
-      "runs-on": "macos-26-intel",
-      "steps": [
-        {
-          "uses": "cachix/install-nix-action@v31.11.1"
-        },
-        {
-          "uses": "actions/checkout@v7.0.1"
-        },
-        {
-          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.10.0\""
-        },
-        {
-          "run": "sh ./gen.nix/run npm ci"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo test"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo test --release"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo clippy -- -D warnings"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo clippy --release -- -D warnings"
-        },
-        {
-          "run": "sh ./gen.nix/run node --test"
-        }
-      ]
-    },
-    "macos-arm": {
-      "runs-on": "macos-26",
-      "steps": [
-        {
-          "uses": "cachix/install-nix-action@v31.11.1"
-        },
-        {
-          "uses": "actions/checkout@v7.0.1"
-        },
-        {
-          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.10.0\""
-        },
-        {
-          "run": "sh ./gen.nix/run npm ci"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo test"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo test --release"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo clippy -- -D warnings"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo clippy --release -- -D warnings"
-        },
-        {
-          "run": "sh ./gen.nix/run node --test"
-        }
-      ]
-    },
-    "windows-intel": {
-      "runs-on": "windows-2025",
-      "steps": [
-        {
-          "uses": "dtolnay/rust-toolchain@1.99.0",
-          "with": {
-            "components": "rustfmt,clippy",
-            "targets": "i686-pc-windows-msvc"
-          }
-        },
-        {
-          "uses": "actions/setup-node@v7.0.0",
-          "with": {
-            "node-version": "26.10.0"
-          }
-        },
-        {
-          "run": "npm install -g functionalscript@0.53.0"
-        },
-        {
-          "uses": "actions/checkout@v7.0.1"
-        },
-        {
-          "run": "cargo test"
-        },
-        {
-          "run": "cargo test --release"
-        },
-        {
-          "run": "cargo clippy -- -D warnings"
-        },
-        {
-          "run": "cargo clippy --release -- -D warnings"
-        },
-        {
-          "run": "cargo test --target i686-pc-windows-msvc"
-        },
-        {
-          "run": "cargo test --target i686-pc-windows-msvc --release"
-        },
-        {
-          "run": "cargo clippy --target i686-pc-windows-msvc -- -D warnings"
-        },
-        {
-          "run": "cargo clippy --target i686-pc-windows-msvc --release -- -D warnings"
-        },
-        {
-          "run": "fjs test"
-        }
-      ]
-    },
-    "windows-arm": {
-      "runs-on": "windows-11-arm",
-      "steps": [
-        {
-          "uses": "dtolnay/rust-toolchain@1.99.0",
-          "with": {
-            "components": "rustfmt,clippy"
-          }
-        },
-        {
-          "uses": "actions/setup-node@v7.0.0",
-          "with": {
-            "node-version": "26.10.0"
-          }
-        },
-        {
-          "run": "npm install -g functionalscript@0.53.0"
-        },
-        {
-          "uses": "actions/checkout@v7.0.1"
-        },
-        {
-          "run": "cargo test"
-        },
-        {
-          "run": "cargo test --release"
-        },
-        {
-          "run": "cargo clippy -- -D warnings"
-        },
-        {
-          "run": "cargo clippy --release -- -D warnings"
-        },
-        {
-          "run": "fjs test"
-        }
-      ]
-    },
-    "wasm": {
-      "runs-on": "ubuntu-26.04-arm",
-      "steps": [
-        {
-          "uses": "cachix/install-nix-action@v31.11.1"
-        },
-        {
-          "uses": "actions/checkout@v7.0.1"
         },
         {
           "run": "test \"$(sh ./gen.nix/run wasmtime --version)\" = \"wasmtime 45.0.2\""
@@ -253,7 +77,22 @@
           "run": "test \"$(sh ./gen.nix/run wasmer --version)\" = \"wasmer 7.1.0\""
         },
         {
+          "run": "sh ./gen.nix/run npm ci"
+        },
+        {
           "run": "sh ./gen.nix/run cargo fmt -- --check"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo test"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo test --release"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo clippy -- -D warnings"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo clippy --release -- -D warnings"
         },
         {
           "run": "sh ./gen.nix/run cargo test --target wasm32-wasip1"
@@ -320,11 +159,172 @@
         },
         {
           "run": "sh ./gen.nix/run cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml --release"
+        },
+        {
+          "run": "sh ./gen.nix/run node --test"
+        }
+      ]
+    },
+    "macos-intel": {
+      "runs-on": "macos-26-intel",
+      "timeout-minutes": 15,
+      "steps": [
+        {
+          "uses": "cachix/install-nix-action@v31.11.1"
+        },
+        {
+          "uses": "actions/checkout@v7.0.1"
+        },
+        {
+          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.10.0\""
+        },
+        {
+          "run": "sh ./gen.nix/run npm ci"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo test"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo test --release"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo clippy -- -D warnings"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo clippy --release -- -D warnings"
+        },
+        {
+          "run": "sh ./gen.nix/run node --test"
+        }
+      ]
+    },
+    "macos-arm": {
+      "runs-on": "macos-26",
+      "timeout-minutes": 15,
+      "steps": [
+        {
+          "uses": "cachix/install-nix-action@v31.11.1"
+        },
+        {
+          "uses": "actions/checkout@v7.0.1"
+        },
+        {
+          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.10.0\""
+        },
+        {
+          "run": "sh ./gen.nix/run npm ci"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo test"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo test --release"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo clippy -- -D warnings"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo clippy --release -- -D warnings"
+        },
+        {
+          "run": "sh ./gen.nix/run node --test"
+        }
+      ]
+    },
+    "windows-intel": {
+      "runs-on": "windows-2025",
+      "timeout-minutes": 15,
+      "steps": [
+        {
+          "uses": "dtolnay/rust-toolchain@1.99.0",
+          "with": {
+            "components": "rustfmt,clippy",
+            "targets": "i686-pc-windows-msvc"
+          }
+        },
+        {
+          "uses": "actions/setup-node@v7.1.0",
+          "with": {
+            "node-version": "26.10.0"
+          }
+        },
+        {
+          "run": "npm install -g functionalscript@0.53.0"
+        },
+        {
+          "uses": "actions/checkout@v7.0.1"
+        },
+        {
+          "run": "cargo test"
+        },
+        {
+          "run": "cargo test --release"
+        },
+        {
+          "run": "cargo clippy -- -D warnings"
+        },
+        {
+          "run": "cargo clippy --release -- -D warnings"
+        },
+        {
+          "run": "cargo test --target i686-pc-windows-msvc"
+        },
+        {
+          "run": "cargo test --target i686-pc-windows-msvc --release"
+        },
+        {
+          "run": "cargo clippy --target i686-pc-windows-msvc -- -D warnings"
+        },
+        {
+          "run": "cargo clippy --target i686-pc-windows-msvc --release -- -D warnings"
+        },
+        {
+          "run": "fjs test"
+        }
+      ]
+    },
+    "windows-arm": {
+      "runs-on": "windows-11-arm",
+      "timeout-minutes": 15,
+      "steps": [
+        {
+          "uses": "dtolnay/rust-toolchain@1.99.0",
+          "with": {
+            "components": "rustfmt,clippy"
+          }
+        },
+        {
+          "uses": "actions/setup-node@v7.1.0",
+          "with": {
+            "node-version": "26.10.0"
+          }
+        },
+        {
+          "run": "npm install -g functionalscript@0.53.0"
+        },
+        {
+          "uses": "actions/checkout@v7.0.1"
+        },
+        {
+          "run": "cargo test"
+        },
+        {
+          "run": "cargo test --release"
+        },
+        {
+          "run": "cargo clippy -- -D warnings"
+        },
+        {
+          "run": "cargo clippy --release -- -D warnings"
+        },
+        {
+          "run": "fjs test"
         }
       ]
     },
     "deno": {
       "runs-on": "ubuntu-26.04-arm",
+      "timeout-minutes": 15,
       "steps": [
         {
           "uses": "cachix/install-nix-action@v31.11.1"
@@ -345,6 +345,7 @@
     },
     "bun": {
       "runs-on": "ubuntu-26.04-arm",
+      "timeout-minutes": 15,
       "steps": [
         {
           "uses": "cachix/install-nix-action@v31.11.1"
@@ -365,6 +366,7 @@
     },
     "node22": {
       "runs-on": "ubuntu-26.04-arm",
+      "timeout-minutes": 15,
       "steps": [
         {
           "uses": "cachix/install-nix-action@v31.11.1"
@@ -385,6 +387,7 @@
     },
     "node24": {
       "runs-on": "ubuntu-26.04-arm",
+      "timeout-minutes": 15,
       "steps": [
         {
           "uses": "cachix/install-nix-action@v31.11.1"
@@ -405,6 +408,7 @@
     },
     "node26": {
       "runs-on": "ubuntu-26.04-arm",
+      "timeout-minutes": 15,
       "steps": [
         {
           "uses": "cachix/install-nix-action@v31.11.1"
@@ -443,7 +447,7 @@
           "run": "git add -A && git diff --cached --exit-code"
         },
         {
-          "uses": "actions/setup-node@v7.0.0",
+          "uses": "actions/setup-node@v7.1.0",
           "with": {
             "package-manager-cache": "false",
             "node-version": "26.10.0"

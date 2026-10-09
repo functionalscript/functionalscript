@@ -6,7 +6,7 @@
 
 import { exitCode } from '../effects/node/module.f.mjs'
 import { ci, ciPath, main, nixJobs } from './module.f.mjs'
-import { actions, bun, deno, functionalscript, node, typescript, wasmer, wasmtime } from './config/module.f.js'
+import { actions, bun, deno, functionalscript, jobTimeout, node, typescript, wasmer, wasmtime } from './config/module.f.js'
 import { main as ownMain, packageConsumer } from './self/module.f.mjs'
 import { installNode, major, nodeNixJobs, packageJobId } from './node/module.f.mjs'
 import { flakePath, flakeText, nixDevelop, nixShell } from './nix/module.f.mjs'
@@ -208,9 +208,12 @@ const runDefault = packageJson => {
 export const proof = {
     matrixShape: () => {
         const gha = run(true)
-        assertEq(Object.keys(gha.jobs).length, 12, 'expected 12 CI jobs')
+        assertEq(Object.keys(gha.jobs).length, 11, 'expected 11 CI jobs')
         assertEq(gha.permissions.contents, 'read', 'expected read-only contents permission')
         assertEq(Object.keys(gha.permissions).length, 1, 'expected least-privilege workflow permissions')
+        // A push to a pull request cancels the run it supersedes.
+        assertEq(gha.concurrency?.group, '${{ github.workflow }}-${{ github.ref }}')
+        assertEq(gha.concurrency?.['cancel-in-progress'], true)
         // The 32-bit Linux checks, in the Intel Linux job, because that is the
         // one platform whose shell carries the target and the linker for it.
         // They had a job of their own while they needed a second environment;
@@ -228,15 +231,25 @@ export const proof = {
         assert(hasRunInJob('ubuntu-arm', 'cargo test --release')(gha), 'expected native platform Rust release check')
         assert(hasRunInJob('ubuntu-arm', 'cargo clippy -- -D warnings')(gha), 'expected native platform Rust lint')
         assert(hasRunInJob('ubuntu-arm', 'cargo clippy --release -- -D warnings')(gha), 'expected native platform Rust release lint')
-        assert(hasRunInJob('wasm', 'cargo test --target wasm32-wasip1 --release')(gha), 'expected target-specific WASM release check')
-        assert(hasRunInJob('wasm', 'cargo clippy --target wasm32-wasip1 -- -D warnings')(gha), 'expected target-specific WASM Rust lint')
-        assert(hasRunInJob('wasm', 'cargo clippy --target wasm32-wasip1 --release -- -D warnings')(gha), 'expected target-specific WASM release lint')
+        // The WASM checks, in the ARM Linux job, which runs on the image and in
+        // the shell the `wasm` job they used to be had. The formatting check
+        // came with them, and is in no other job.
+        assert(hasExactRunInJob('ubuntu-arm', nixDevelop(nixShell, 'cargo fmt -- --check'))(gha), 'expected the formatting check')
+        assert(hasRunInJob('ubuntu-arm', 'cargo test --target wasm32-wasip1 --release')(gha), 'expected target-specific WASM release check')
+        assert(hasRunInJob('ubuntu-arm', 'cargo clippy --target wasm32-wasip1 -- -D warnings')(gha), 'expected target-specific WASM Rust lint')
+        assert(hasRunInJob('ubuntu-arm', 'cargo clippy --target wasm32-wasip1 --release -- -D warnings')(gha), 'expected target-specific WASM release lint')
+        for (const id of /** @type {const} */ (['ubuntu-intel', 'macos-intel', 'macos-arm', 'windows-intel', 'windows-arm'])) {
+            assert(!hasRunInJob(id, 'wasm32')(gha), `unexpected WASM check in ${id}`)
+            assert(!hasRunInJob(id, 'cargo fmt')(gha), `unexpected formatting check in ${id}`)
+        }
         // Wasmtime 47 removed wasi-threads: the threads target must run under
-        // Wasmer only, while Clippy (no runner) stays.
-        assert(hasRunInJob('wasm', 'cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml')(gha), 'expected Wasmer WASM threads check')
-        assert(hasRunInJob('wasm', 'cargo clippy --target wasm32-wasip1-threads -- -D warnings')(gha), 'expected WASM threads lint')
-        assert(!hasExactRunInJob('wasm', 'cargo test --target wasm32-wasip1-threads')(gha), 'unexpected Wasmtime WASM threads check')
-        assert(!hasExactRunInJob('wasm', 'cargo test --target wasm32-wasip1-threads --release')(gha), 'unexpected Wasmtime WASM threads release check')
+        // Wasmer only, while Clippy (no runner) stays. The negative half
+        // compares the whole `run` line, wrapper included: against the bare
+        // `cargo` command it could not fail, since every step is wrapped.
+        assert(hasRunInJob('ubuntu-arm', 'cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml')(gha), 'expected Wasmer WASM threads check')
+        assert(hasRunInJob('ubuntu-arm', 'cargo clippy --target wasm32-wasip1-threads -- -D warnings')(gha), 'expected WASM threads lint')
+        assert(!hasExactRunInJob('ubuntu-arm', nixDevelop(nixShell, 'cargo test --target wasm32-wasip1-threads'))(gha), 'unexpected Wasmtime WASM threads check')
+        assert(!hasExactRunInJob('ubuntu-arm', nixDevelop(nixShell, 'cargo test --target wasm32-wasip1-threads --release'))(gha), 'unexpected Wasmtime WASM threads release check')
         // Node 22 runs the suite the way every other Node job does. `fjs test`
         // and the global install that fed it were there only because Node 22
         // could not run `node --test`.
@@ -308,7 +321,6 @@ export const proof = {
             'ubuntu-arm',
             'macos-intel',
             'macos-arm',
-            'wasm',
         ])) {
             assert(
                 gha.jobs[id]?.steps.every(
@@ -643,9 +655,10 @@ export const proof = {
     // — and for Deno and Bun nothing else could, since `pkgs.deno` and
     // `pkgs.bun` name no version.
     nixVersionChecks: () => {
-        // With Rust, because `wasm` is the one job here that a project without
-        // a `Cargo.toml` does not get — while its flake is generated either
-        // way, since `nixJobs` is a list rather than a function of the project.
+        // With Rust, because the WASM runtimes are checked only where `cargo`
+        // runs, and a project without a `Cargo.toml` runs none — while the
+        // shell is generated either way, since `nixJobs` is a list rather than
+        // a function of the project.
         const gha = run(true)
         /**
          * Job, the shell it enters, and what it asserts before running
@@ -671,13 +684,6 @@ export const proof = {
             // Deno prints three lines for `--version`, so it is asked for the
             // one field this repository configures.
             ['deno', nixShell, [[`deno eval 'console.log(Deno.version.deno)'`, deno]]],
-            // Two, because the shell provides two unversioned attributes. Its
-            // Rust is the one thing nothing checks: the flake names that
-            // release in full, so a check would restate the flake.
-            ['wasm', nixShell, [
-                ['wasmtime --version', `wasmtime ${wasmtime}`],
-                ['wasmer --version', `wasmer ${wasmer}`],
-            ]],
             // Bun prints the bare version, with no leading `v` and no program
             // name. Its check is also the only one confirming that an override
             // took effect rather than that a snapshot is what it claims: the
@@ -688,10 +694,16 @@ export const proof = {
             // built at all.
             // `ubuntu-intel` runs the 32-bit checks too, and asserts nothing
             // more for them: the tool they run is `cargo`, whose release the
-            // flake names in full — the same reason `wasm` does not check its
-            // Rust either.
+            // flake names in full, so a check would restate the flake.
             ['ubuntu-intel', nixShell, [['node --version', `v${node.default}`]]],
-            ['ubuntu-arm', nixShell, [['node --version', `v${node.default}`]]],
+            // `ubuntu-arm` runs the WASM checks, so it asserts the two
+            // runtimes `cargo` hands their binaries to as well — unversioned
+            // attributes of the shell, unlike its Rust.
+            ['ubuntu-arm', nixShell, [
+                ['node --version', `v${node.default}`],
+                ['wasmtime --version', `wasmtime ${wasmtime}`],
+                ['wasmer --version', `wasmer ${wasmer}`],
+            ]],
             ['macos-intel', nixShell, [['node --version', `v${node.default}`]]],
             ['macos-arm', nixShell, [['node --version', `v${node.default}`]]],
         ]
@@ -990,6 +1002,46 @@ export const proof = {
         assertEq(gha.jobs[npmPublishJobId], undefined)
         assertEq(npmPublishWorkflow.jobs[packageJobId], undefined)
     },
+    /**
+     * The jobs of the named platforms run in the merge queue only; every other
+     * job, and every job by default, runs on a pull request too. Read back
+     * through `workflow`, so the condition also survives the schema.
+     */
+    mergeQueueOnly: () => {
+        const [state, result] = virtual(makeState(true, runPackageJson))(
+            ci({ nodeExtra: () => [], mergeQueueOnly: ['macos', 'windows'] }))
+        assertEq(exitCode(result), 0)
+        const jobs = workflow(state).jobs
+        /** @type {(id: string) => boolean} */
+        const queued = id => id.startsWith('macos-') || id.startsWith('windows-')
+        for (const [id, job] of Object.entries(jobs)) {
+            assertEq(
+                job?.if,
+                queued(id) ? `github.event_name == 'merge_group'` : undefined,
+                id)
+        }
+        assertEq(Object.keys(jobs).filter(queued).length, 4, 'expected two macOS and two Windows jobs')
+        assertEq(definedValues(run(true).jobs).filter(job => job.if !== undefined).length, 0)
+    },
+    /**
+     * Every job either workflow generates holds its runner for at most
+     * `jobTimeout` minutes, rather than GitHub's six hours. Read back through
+     * `workflow`, so the limit also survives the schema — which refuses a job
+     * without one.
+     */
+    jobTimeout: () => {
+        for (const gha of [run(true), npmPublishWorkflow]) {
+            for (const [id, job] of Object.entries(gha.jobs)) {
+                assertEq(job?.['timeout-minutes'], jobTimeout, id)
+            }
+        }
+        assertEq(parseGitHubAction({
+            name: 'test',
+            on: {},
+            permissions: { contents: 'read' },
+            jobs: { check: { 'runs-on': 'ubuntu-latest', steps: [{ run: 'echo hi' }] } },
+        })[0], 'error')
+    },
     jobNeeds: () => {
         const steps = /** @type {const} */ ([{ run: 'echo hi' }])
         /** @type {(jobs: Unknown) => Unknown} */
@@ -1003,21 +1055,21 @@ export const proof = {
         // Without this a consuming job could only reach the workflow by being
         // emitted past the schema, which `parseGitHubAction` would then reject.
         const ordered = unwrap(parseGitHubAction(action({
-            pack: { 'runs-on': 'ubuntu-latest', steps },
-            check: { 'runs-on': 'ubuntu-latest', needs: ['pack'], steps },
+            pack: { 'runs-on': 'ubuntu-latest', 'timeout-minutes': 15, steps },
+            check: { 'runs-on': 'ubuntu-latest', 'timeout-minutes': 15, needs: ['pack'], steps },
         })))
         assertEq(ordered.jobs.check?.needs?.[0], 'pack')
         assertEq(ordered.jobs.check?.needs?.length, 1)
         // Optional: the independent jobs, which is all of them today, still parse.
         assertEq(unwrap(parseGitHubAction(action({
-            pack: { 'runs-on': 'ubuntu-latest', steps },
+            pack: { 'runs-on': 'ubuntu-latest', 'timeout-minutes': 15, steps },
         }))).jobs.pack?.needs, undefined)
         // Constrained, not merely accepted. GitHub also allows a bare scalar
         // (`needs: pack`); this generator emits the list form only, so the
         // scalar is drift rather than an alternative spelling — the same reason
         // these schemas are closed.
         assertEq(parseGitHubAction(action({
-            check: { 'runs-on': 'ubuntu-latest', needs: 'pack', steps },
+            check: { 'runs-on': 'ubuntu-latest', 'timeout-minutes': 15, needs: 'pack', steps },
         }))[0], 'error')
         // No job orders itself. The packed-package check did, and paid for
         // it: GitHub creates a waiting job only when the job it waits for has

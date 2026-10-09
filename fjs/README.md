@@ -116,17 +116,20 @@ Details, and the list of what it deliberately does not do, are in
 fjs run <module> [args...]
 ```
 
-`fjs run` dynamically imports `<module>` and calls its `main` export as a
-`NodeProgram`:
+`fjs run` dynamically imports `<module>`, checks its `main` export with `isMain`
+and runs it through `dispatch`, both from [`cli`](cli/module.f.mjs):
 
 ```ts
-(v.main as NodeProgram)({ ...options, args })
+isMain(v.main)
+    ? dispatch(v.main)({ ...options, args })
+    : errorExit(`${file}: not a program — no exported \`main\` function or command table`)
 ```
 
 ### Convention: `export const main`
 
 A module intended to be run with `fjs run` must export a named `main` constant
-of type `NodeProgram`:
+of type `Main` (from [`cli/types.ts`](cli/types.ts)): either a `NodeProgram`
+or a `Commands` table. A program is the simple case:
 
 ```ts
 import type { NodeProgram } from '../effects/node/types.ts'
@@ -137,6 +140,19 @@ export const main: NodeProgram = options => {
 }
 ```
 
+A module whose interface is a set of subcommands exports the table itself, and
+`fjs run` routes the first argument to the command it names, with `help`
+listing them — no `dispatch` wrapper needed:
+
+```ts
+import type { NodeOp } from '../effects/node/types.ts'
+import type { Commands } from '../cli/types.ts'
+
+export const main: Commands<NodeOp> = [
+    { names: ['hello'], description: 'Say hello', handler: options => { ... } },
+]
+```
+
 This mirrors:
 
 - `export const proof` — the convention for proof/test modules.
@@ -145,10 +161,18 @@ This mirrors:
 
 ### Passing arguments
 
-Any arguments after `<module>` are forwarded to `main` via `options.args`:
+Any arguments after `<module>` are forwarded to a program `main` via
+`options.args`:
 
 ```sh
 fjs run ./my-tool.f.mjs foo bar   # options.args === ['foo', 'bar']
+```
+
+A command table consumes the first of them as the command name, and the
+handler it names gets the rest:
+
+```sh
+fjs run ./my-tool.f.mjs hello foo bar   # hello's options.args === ['foo', 'bar']
 ```
 
 

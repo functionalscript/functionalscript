@@ -16,15 +16,15 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { rust } from '../config/module.f.js'
+import { rust, wasmer, wasmtime } from '../config/module.f.js'
 import { devNixJob } from '../dev/module.f.mjs'
-import { flakeText } from '../nix/module.f.mjs'
+import { flakeText, nixVersionStep, nixShell } from '../nix/module.f.mjs'
 import {
     i686System,
     i686Target,
     rustPlatformCommands,
     shellRustCommands,
-    wasmJobId,
+    shellRustVersionSteps,
     wasmRust,
     wasmTargets,
 } from './module.f.mjs'
@@ -96,8 +96,8 @@ export const proof = {
                 devNixJob.packages.join(' '))
         },
     },
-    // The WASM job takes its toolchain from the same pin, so a platform job
-    // and the WASM job cannot drift apart on the Rust version.
+    // The WASM targets come from the same pin, so a Windows job and the
+    // shell cannot drift apart on the Rust version.
     wasmToolchain: () => {
         assertEq(wasmRust.version, rust)
         assertStructurallySame([...wasmRust.targets], [...wasmTargets])
@@ -130,8 +130,12 @@ export const proof = {
     // `ubuntu-intel32` was, now that the shell it would have entered is the
     // one `ubuntu-intel` already enters.
     //
-    // Every other platform gets the native four and nothing else, which is the
-    // half worth asserting: `pkgsi686Linux` throws on their systems, so a
+    // On ARM Linux, the formatting check first, the native four, and every
+    // WASM target — the job `wasm` was, on the same image and in the same
+    // shell.
+    //
+    // The two macOS platforms get the native four and nothing else, which is
+    // the half worth asserting: `pkgsi686Linux` throws on their systems, so a
     // 32-bit command there would be a job whose shell cannot be built. Windows
     // is not among them — those two jobs have no shell, and `i686Target` is
     // what gives them their own 32-bit target.
@@ -145,8 +149,35 @@ export const proof = {
                 'cargo clippy --target i686-unknown-linux-gnu -- -D warnings',
                 'cargo clippy --target i686-unknown-linux-gnu --release -- -D warnings',
             ])
+        assertStructurallySame(
+            [...shellRustCommands('ubuntu', 'arm')],
+            [
+                'cargo fmt -- --check',
+                ...rustPlatformCommands,
+                'cargo test --target wasm32-wasip1',
+                'cargo test --target wasm32-wasip1 --release',
+                'cargo clippy --target wasm32-wasip1 -- -D warnings',
+                'cargo clippy --target wasm32-wasip1 --release -- -D warnings',
+                'cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml',
+                'cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml --release',
+                'cargo test --target wasm32-wasip2',
+                'cargo test --target wasm32-wasip2 --release',
+                'cargo clippy --target wasm32-wasip2 -- -D warnings',
+                'cargo clippy --target wasm32-wasip2 --release -- -D warnings',
+                'cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml',
+                'cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml --release',
+                'cargo test --target wasm32-unknown-unknown',
+                'cargo test --target wasm32-unknown-unknown --release',
+                'cargo clippy --target wasm32-unknown-unknown -- -D warnings',
+                'cargo clippy --target wasm32-unknown-unknown --release -- -D warnings',
+                'cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml',
+                'cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml --release',
+                'cargo clippy --target wasm32-wasip1-threads -- -D warnings',
+                'cargo clippy --target wasm32-wasip1-threads --release -- -D warnings',
+                'cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml',
+                'cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml --release',
+            ])
         for (const [o, a] of /** @type {const} */ ([
-            ['ubuntu', 'arm'],
             ['macos', 'intel'],
             ['macos', 'arm'],
         ])) {
@@ -156,5 +187,21 @@ export const proof = {
                 `${o}-${a}`)
         }
     },
-    jobIds: () => assertEq(wasmJobId, 'wasm'),
+    // The two WASM runtimes are asserted where the WASM checks run, and
+    // nowhere else: a platform that runs no WASM has nothing to tie them to.
+    shellVersionStepsPerPlatform: () => {
+        assertStructurallySame(
+            [...shellRustVersionSteps('ubuntu', 'arm')],
+            [
+                nixVersionStep(nixShell, 'wasmtime --version', `wasmtime ${wasmtime}`),
+                nixVersionStep(nixShell, 'wasmer --version', `wasmer ${wasmer}`),
+            ])
+        for (const [o, a] of /** @type {const} */ ([
+            ['ubuntu', 'intel'],
+            ['macos', 'intel'],
+            ['macos', 'arm'],
+        ])) {
+            assertStructurallySame([...shellRustVersionSteps(o, a)], [], `${o}-${a}`)
+        }
+    },
 }

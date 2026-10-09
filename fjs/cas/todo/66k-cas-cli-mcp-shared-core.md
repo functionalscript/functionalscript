@@ -42,23 +42,14 @@ blob-inspection policy — the streaming-vs-buffered decision, the
 second read, the `text`→`fromVec` / `base64`→`base64Encode` split — none of
 it MCP-specific, and the module doc has grown paragraphs of classification
 prose to match. Inside the handler, the "materialize then re-classify" step
-is written twice, on the metadata path and the inline-content path:
-
-```js
-return resultStep(
-    collectRead(c.read(key)),
-    ([collectTag, value]) => {
-        if (collectTag === 'error') { … }        // the one real difference:
-        const refined = detectDialect(value)     // fallback vs error
-        …
-```
-
-and `no such hash` is spelled in both. The shared layer's
-`get` is where that policy goes, as one typed inspection returning
-`{ length, mimeType, type }` plus optional `text`/`blob` and a tagged error
-(`absent` / `tooLarge(length)`), with the re-read step one private helper
-and the caller deciding whether a failed second read is a fallback or an
-error. **The `uri` field is not part of that record**: it is the MCP
+is already one local, `readWhole`, shared by the metadata path and the
+inline-content path, each passing its own answer to a vanished blob — a
+fallback to the streaming verdict on one, `no such hash` on the other. The
+shared layer's `get` is where that policy goes, as one typed inspection
+returning `{ length, mimeType, type }` plus optional `text`/`blob` and a
+tagged error (`absent` / `tooLarge(length)`), with `readWhole` its private
+helper and the caller still deciding whether a failed second read is a
+fallback or an error. **The `uri` field is not part of that record**: it is the MCP
 adapter's opaque `cas:<hash>`, built from the hash alone, so the shared layer
 has nothing to supply for it.
 

@@ -5,7 +5,9 @@
  * All three are text and delimiter-framed, so they are grammars over the
  * byte alphabet like the objects, and all three are read here with no
  * effects — finding and opening the files is
- * [`fjs/git/refstore`](../refstore/module.f.mjs).
+ * [`fjs/git/refstore`](../refstore/module.f.mjs). What a writer puts in a loose
+ * ref is spelled here too, by {@link writeLoose}, beside the grammar that reads
+ * it back, so the round trip has one owner.
  *
  * The three do not agree with each other, and every disagreement below was
  * measured against Git 2.43.0 rather than read off a manual page. The
@@ -50,9 +52,10 @@
 
 import { ascii, byte, byteArray, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.mjs'
 import { eof, option, repeatFrom0, repeatFrom1, set } from '../../ebnf/module.f.mjs'
-import { nul as nulByte, space as traitSeparator } from '../../text/ascii/module.f.mjs'
-import { tryFromHexOf } from '../oid/module.f.mjs'
-import { isWholeName, sameBytes } from '../refname/module.f.mjs'
+import { lf, nul as nulByte, space as traitSeparator } from '../../text/ascii/module.f.mjs'
+import { concat, sameItems } from '../../types/list/module.f.mjs'
+import { ofWidth, toHex, tryFromHexOf } from '../oid/module.f.mjs'
+import { isWholeName } from '../refname/module.f.mjs'
 
 /**
  * The bytes Git counts as whitespace in these files: SP, TAB, CR and LF.
@@ -173,6 +176,24 @@ export const tryLoose = oidBytes => {
         return id(symbolsOf(hex))
     }
 }
+
+/**
+ * A loose ref file's bytes: the id in small-letter hex and the LF that ends it,
+ * which is what `git update-ref` writes. {@link tryLoose} reads them back, so
+ * `tryLoose(oidBytes)(writeLoose(oidBytes)(id))` is `id`.
+ *
+ * The width is bound as every reader here binds it, because an `Oid` is a `Vec`
+ * that carries no width of its own: `tryLoose(oidBytes)` refuses hex of any
+ * other length, so the round trip is a law only at that width, and this refuses
+ * any other id rather than write a file its own reader would call broken.
+ *
+ * @throws On an id that is not `oidBytes` wide, as
+ * [`fjs/git/oid`](../oid/module.f.mjs)'s `ofWidth` does: a caller that mixes the
+ * widths has a bug.
+ *
+ * @type {(oidBytes: OidBytes) => (id: Oid) => Bytes}
+ */
+export const writeLoose = oidBytes => ofWidth(oidBytes)(id => concat(toHex(id))([lf]))
 
 /**
  * A symbolic ref: the keyword, whatever whitespace follows it, the target
@@ -532,11 +553,11 @@ export const tryPackedWithout = oidBytes => {
         const read = entries.map(entry)
         if (!read.every(e => e !== null)) { return ['malformed'] }
         const names = read.map(e => byteArray(/** @type {PackedRef} */ (e).name))
-        const claimsSorted = head.some(([, rest]) => traitsOf(symbolsOf(rest)).some(sameBytes(sortedTrait)))
+        const claimsSorted = head.some(([, rest]) => traitsOf(symbolsOf(rest)).some(sameItems(sortedTrait)))
         if (claimsSorted && !names.every((n, i) => i === 0 || notAfter(names[i - 1])(n))) {
             return ['unsorted']
         }
-        const kept = entries.filter((_, i) => !sameBytes(names[i])(name))
+        const kept = entries.filter((_, i) => !sameItems(names[i])(name))
         return kept.length === entries.length
             ? ['absent']
             : ['removed', [...bytesOf(head), ...kept.flatMap(bytesOf)]]

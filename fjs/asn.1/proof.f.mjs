@@ -256,7 +256,7 @@ export const proof = {
             )
         },
         objectIdentifier: () => {
-            // exercises the objectIdentifier case in recordToRaw/rawToRecord
+            // exercises the objectIdentifier row of the codec table
             // via the generic encode/decode dispatch (the objectIdentifier
             // tests below only call encodeObjectIdentifier/decodeObjectIdentifier
             // directly, never through decode()).
@@ -288,7 +288,8 @@ export const proof = {
         },
     },
     unknownTag: () => {
-        // bitString (0x03) is not in SupportedRecord, exercises the default case in rawToRecord
+        // bitString (0x03) is not in SupportedRecord, so it has no row in the
+        // codec table: exercises rawToRecord's fallback to the raw TLV
         const raw = encodeRaw([0x03n, vec8(0x42n)])
         const [decoded, rest] = decode(raw)
         assert(isVec(decoded), 'expected UnsupportedRecord (Vec)')

@@ -31,4 +31,13 @@ export type Setup = {
      * package publishes.
      */
     readonly packageConsumer?: PackageConsumer,
+    /**
+     * The platforms whose jobs run in the merge queue only, skipped on a pull
+     * request's commits. A skipped job counts as passed for a required status
+     * check, so it still gates the merge — once, in the queue, rather than on
+     * every push. A project with no merge queue would never run them, so the
+     * default is none. `ubuntu` carries the formatting and WASM checks with
+     * it: they are steps of `ubuntu-arm`.
+     */
+    readonly mergeQueueOnly?: readonly Os[],
 }

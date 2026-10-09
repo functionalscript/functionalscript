@@ -36,8 +36,13 @@ export const packageConsumer = {
 
 /**
  * The workflows and flakes this repository commits: no extra platform steps,
- * and its own module as the packed package's consumer.
+ * and its own module as the packed package's consumer. Every platform runs on
+ * every pull request: a macOS or Windows failure found only in the merge queue
+ * is found after review, by the queue's eviction.
  *
  * @type {() => Effect<NodeOp, 0, number>}
  */
-export const main = () => ci({ nodeExtra: () => [], packageConsumer })
+export const main = () => ci({
+    nodeExtra: () => [],
+    packageConsumer,
+})

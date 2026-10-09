@@ -15,7 +15,7 @@
 import { resultStep } from '../effects/module.f.mjs'
 import { access, exitStep, mkdir, writeUtf8File } from '../effects/node/module.f.mjs'
 import { step as ioStep } from '../effects/module.f.mjs'
-import { functionalscript, images, node } from './config/module.f.js'
+import { functionalscript, images, jobTimeout, node } from './config/module.f.js'
 import {
     architecture,
     os,
@@ -25,8 +25,8 @@ import {
 } from './common/module.f.mjs'
 import {
     rustPlatformSteps,
-    rustWasmSteps,
     shellRustCommands,
+    shellRustVersionSteps,
 } from './rust/module.f.mjs'
 import {
     nodeNixJobs,
@@ -102,17 +102,20 @@ const workflowText = gha => JSON.stringify(gha, null, '  ')
  * this is what turns four shells that were pinned as text into four that are
  * known to work.
  *
- * The platform reaches the `cargo` commands because one of the four runs more
- * of them: Intel Linux checks the 32-bit target its shell carries, which was a
- * job of its own until that shell had it. `../rust/module.f.mjs` decides which
- * platform that is; everything else about these jobs is still identical across
- * the four.
+ * The platform reaches the `cargo` commands because two of the four run more
+ * of them: Intel Linux checks the 32-bit target its shell carries, and ARM
+ * Linux checks formatting and every WASM target, asserting both WASM runtimes
+ * first. Each was a job of its own — `ubuntu-intel32` until that shell had the
+ * target, `wasm` until it was one more runner doing this job's setup again.
+ * `../rust/module.f.mjs` decides which platforms those are; everything else
+ * about these jobs is still identical across the four.
  *
  * @type {(rust: boolean, o: Os, a: Architecture) => readonly MetaStep[]}
  */
 const shellPlatformSteps = (rust, o, a) => [
     nixInstall,
     nodeVersionStep(nixShell, node.default),
+    ...(rust ? shellRustVersionSteps(o, a) : []),
     ...nixSteps(nixShell)([
         'npm ci',
         ...(rust ? shellRustCommands(o, a) : []),
@@ -204,8 +207,14 @@ const inShell = step =>
         })
         : step
 
-/** @type {(rust: boolean, nodeExtra: readonly MetaStep[]) => (o: Os) => (a: Architecture) => readonly [string, Job]} */
-const job = (rust, nodeExtra) => o => a => {
+/**
+ * The condition of a job that runs in the merge queue only. On a pull request
+ * the job is skipped, which a required status check reads as passed.
+ */
+const mergeQueue = /** @type {const} */ (`github.event_name == 'merge_group'`)
+
+/** @type {(rust: boolean, nodeExtra: readonly MetaStep[], mergeQueueOnly: boolean) => (o: Os) => (a: Architecture) => readonly [string, Job]} */
+const job = (rust, nodeExtra, mergeQueueOnly) => o => a => {
     const id = `${o}-${a}`
     const image = images[o][a]
     // Windows is the one platform with no shell to enter, so it keeps the
@@ -217,14 +226,19 @@ const job = (rust, nodeExtra) => o => a => {
             ...nodeExtra,
         ]
         : [...shellPlatformSteps(rust, o, a), ...nodeExtra.map(inShell)]
-    return [id, { 'runs-on': image, steps: toSteps(result) }]
+    return [id, {
+        'runs-on': image,
+        ...(mergeQueueOnly ? { if: mergeQueue } : {}),
+        'timeout-minutes': jobTimeout,
+        steps: toSteps(result),
+    }]
 }
 
 /**
- * Every generated flake. Three, for the twelve jobs `./proof.f.mjs`'s
+ * Every generated flake. Three, for the eleven jobs `./proof.f.mjs`'s
  * `matrixShape` counts.
  *
- * `dev` is the one a developer enters and the one **eight** of those jobs
+ * `dev` is the one a developer enters and the one **seven** of those jobs
  * enter — see `./dev/module.f.mjs` for why sharing is safe where a command
  * names its runtime, and `./node/module.f.mjs` for the two jobs where it is
  * not. **Two** have a flake to themselves: Node 22 and Node 24, whose `node`
@@ -268,10 +282,10 @@ export const nixJobs = [
  * developer shell, so that flake would have rotted unnoticed; now every job
  * below but Node 22 and Node 24 enters it, and each asserts the versions it
  * depends on before running anything — `node` and `tsc` from Node 26, `deno`
- * from `deno`, `bun` from `bun`, both WASM runtimes from `wasm`. A separate job
- * could only repeat those six.
+ * from `deno`, `bun` from `bun`, and both WASM runtimes from the `ubuntu-arm`
+ * platform job. A separate job could only repeat those six.
  *
- * All of them are generated for every project, `wasm` excepted — and so is the
+ * All of them are generated for every project — and so is the
  * packed-package check closing Node 26's job. It used to appear only when the
  * project's `package.json` pinned an exact TypeScript, so a project with no
  * compiler of its own got no packed-package check; the compiler is the CI
@@ -280,26 +294,24 @@ export const nixJobs = [
  * fails it with `TS18003` — see `./todo/ci-generator-audience.md`, which owns
  * the general shape of this trade.
  *
- * @type {(rust: boolean, packageConsumer: PackageConsumer | undefined) => Jobs}
+ * @type {(packageConsumer: PackageConsumer | undefined) => Jobs}
  */
-const canonicalJobs = (rust, packageConsumer) => ({
-    ...(rust
-        ? { wasm: ubuntuArm(rustWasmSteps) }
-        : {}),
+const canonicalJobs = packageConsumer => ({
     deno: ubuntuArm(denoSteps),
     bun: ubuntuArm(bunSteps),
     ...nodeVersionJobs(packageConsumer),
 })
 
 /** @type {(setup: Setup) => Effect<NodeOp, 0, number>} */
-export const ci = ({ nodeExtra, packageConsumer }) => resultStep(
+export const ci = ({ nodeExtra, packageConsumer, mergeQueueOnly = [] }) => resultStep(
     access('Cargo.toml'),
     result => {
         const rust = result[0] === 'ok'
         /** @type {Jobs} */
         const jobs = {
-            ...Object.fromEntries(os.flatMap(o => architecture.map(job(rust, nodeExtra(o))(o)))),
-            ...canonicalJobs(rust, packageConsumer),
+            ...Object.fromEntries(os.flatMap(o =>
+                architecture.map(job(rust, nodeExtra(o), mergeQueueOnly.includes(o))(o)))),
+            ...canonicalJobs(packageConsumer),
         }
         /** @type {GitHubAction} */
         const gha = {
@@ -307,6 +319,17 @@ export const ci = ({ nodeExtra, packageConsumer }) => resultStep(
             on: {
                 pull_request: {},
                 merge_group: {},
+            },
+            // One run per pull request: a push cancels the run of the commit
+            // it supersedes, which would otherwise hold runners for a result
+            // nobody reads. The group is the ref — a pull request's,
+            // `refs/pull/<n>/merge`, is the same for every push to it, while
+            // a merge-queue entry's names its own commit, so no entry cancels
+            // another. The workflow name keeps the group apart from any a
+            // project's own workflows key on the ref.
+            concurrency: {
+                group: '${{ github.workflow }}-${{ github.ref }}',
+                'cancel-in-progress': true,
             },
             permissions: {
                 contents: 'read',

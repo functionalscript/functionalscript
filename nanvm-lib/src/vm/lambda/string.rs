@@ -3,7 +3,7 @@
 //! arguments into the typed method it calls, under `vm/string/`. The
 //! contracts are `vm/string/README.md`'s.
 
-use super::method::{Method, argument, lookup, position, rest};
+use super::method::{Method, argument, index_or_minus_one, lookup, rest};
 use crate::vm::{Any, Array, IVm, Number, String, ToAny};
 
 /// `String.prototype`'s.
@@ -56,7 +56,7 @@ fn char_code_at<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
 /// The code point as a number, or `undefined` out of range.
 fn code_point_at<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     Ok(receiver(s)?.code_point_at(argument(&args, 0))?.map_or_else(
-        || crate::vm::Nullish::Undefined.to_any(),
+        || crate::vm::Any::undefined(),
         |c| Number::from(f64::from(c)).to_any(),
     ))
 }
@@ -76,12 +76,12 @@ fn includes<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
 
 fn index_of<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     let found = receiver(s)?.index_of(argument(&args, 0), argument(&args, 1))?;
-    Ok(position(found))
+    Ok(index_or_minus_one(found))
 }
 
 fn last_index_of<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     let found = receiver(s)?.last_index_of(argument(&args, 0), argument(&args, 1))?;
-    Ok(position(found))
+    Ok(index_or_minus_one(found))
 }
 
 fn starts_with<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {

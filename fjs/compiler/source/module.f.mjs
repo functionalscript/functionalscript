@@ -10,7 +10,7 @@
  * @import { AstImport, AstModule } from '../ast/types.ts'
  * @import { _ImportSource, _Source } from './types.ts'
  * @import { Operation, Effect } from '../../effects/types.ts'
- * @import { IoChannel, ReadFile, ResolveFileModule } from '../../effects/node/types.ts'
+ * @import { IoChannel, ReadWhole, ResolveFileModule } from '../../effects/node/types.ts'
  */
 
 import { error } from '../../types/result/module.f.mjs'
@@ -20,36 +20,51 @@ import { decode as decodeImportPath } from '../../path/import/module.f.mjs'
 import { parseFromTokens } from '../parser/module.f.mjs'
 import { parse as jsonParse } from '../../media/json/module.f.mjs'
 import { catchStep, foldStep, mapStep, pure, pureError, pureOk, step } from '../../effects/module.f.mjs'
-import { errorMessage, readFile, resolveFileModule } from '../../effects/node/module.f.mjs'
-import { fromVec } from '../../text/utf8/module.f.mjs'
+import { errorMessage, isNotFound, readWholeBytes, resolveFileModule } from '../../effects/node/module.f.mjs'
+import { fromU8List } from '../../text/utf8/module.f.mjs'
 
 /**
- * Reads a file, reporting any failure as the one `ParseError` a caller can act
- * on, naming the file. Both readers want this and neither wants the node
- * channel's vocabulary.
+ * An error about a file rather than a token — not found, not UTF-8, a bad
+ * import, a cycle: it names the file and has no position. Exported for both
+ * linkers, which refuse files too; the `_` says linkage.
+ *
+ * @type {(path: string) => (message: string) => ParseError}
+ */
+export const _fileError = path => message => ({ message, metadata: null, path })
+
+/**
+ * Reports a read's failure as a `ParseError` naming the file. Both readers
+ * want this and neither wants the node channel's vocabulary.
+ *
+ * Only a missing file is `file not found`; any other failure — a directory, a
+ * permission, a runner without the operation — keeps the host's own words, so
+ * the error does not send the reader looking for a file that is there.
  *
  * @type {(path: string) => <O extends Operation, T>(e: Effect<O, T, IoChannel>) => Effect<O, T, ParseError>}
  */
-const notFound = path => e =>
-    catchStep(e, () => pureError({ message: 'file not found', metadata: null, path }))
+const readError = path => e =>
+    catchStep(e, err => pureError(_fileError(path)(isNotFound(err) ? 'file not found' : errorMessage(err))))
 
 /**
  * Reads a source — a module, a JSON import or a `.json` input — as UTF-8
  * text, refusing bytes that are not correct UTF-8 rather than decoding them:
  * a lenient decoder turns a raw `FF` in a string into U+00FF where a
  * JavaScript host reads U+FFFD, a different successful value (DESIGN.md §10).
- * `fromVec` is the checked decoder, answering `null` for a malformed,
+ * `fromU8List` is the checked decoder, answering `null` for a malformed,
  * overlong or surrogate sequence. The check lives here, not in
  * `readUtf8File`, whose other callers take any failed read as absence.
  *
- * @type {(path: string) => Effect<ReadFile, string, ParseError>}
+ * The bytes come from `readWholeBytes` rather than `readFile`, whose one `Vec`
+ * caps a file at 128 KiB: a generated data module passes that easily.
+ *
+ * @type {(path: string) => Effect<ReadWhole, string, ParseError>}
  */
 const readSource = path => step(
-    notFound(path)(readFile(path)),
+    readError(path)(readWholeBytes(path)),
     bytes => {
-        const text = fromVec(bytes)
+        const text = fromU8List(bytes)
         return text === null
-            ? pureError({ message: 'not UTF-8 text', metadata: null, path })
+            ? pureError(_fileError(path)('not UTF-8 text'))
             : pureOk(text)
     })
 
@@ -67,13 +82,13 @@ export const parse = path => text => parseFromTokens(tokenize(stringToList(text)
 
 /**
  * `catchStep` rather than a branch on the read's `Result`: however the read
- * failed — missing file, unreadable, a runner without `readFile` — the answer
- * a transpiler gives is the same `ParseError`, so the node channel is
+ * failed — missing file, unreadable, a runner without `readWhole` — the answer
+ * a transpiler gives is a `ParseError`, so the node channel is
  * translated once here rather than travelling any further. Exported for the
  * EDAG linker in `../edag`, which reads a module the same way; the `_` says
  * that export is linkage rather than API.
  *
- * @type {(path: string) => Effect<ReadFile, AstModule, ParseError>}
+ * @type {(path: string) => Effect<ReadWhole, AstModule, ParseError>}
  */
 export const _parseModule = path => step(readSource(path), text => pure(parse(path)(text)))
 
@@ -85,7 +100,7 @@ export const _parseModule = path => step(readSource(path), text => pure(parse(pa
  */
 const sourceAt = (name, parent, json, path) => {
     const located = catchStep(resolveFileModule(name, parent), e =>
-        pureError({ message: `module resolution failed: ${errorMessage(e)}`, metadata: null, path }))
+        pureError(_fileError(path)(`module resolution failed: ${errorMessage(e)}`)))
     return mapStep(located, location => ({ ...location, json }))
 }
 
@@ -110,11 +125,11 @@ export const _importSources = source => imports => {
     const unsupported = imports.find(({ specifier }) =>
         !specifier.startsWith('./') && !specifier.startsWith('../') && !specifier.startsWith('/'))
     if (unsupported !== undefined) {
-        return pureError({ message: `unsupported import specifier "${unsupported.specifier}": expected ./, ../, or /`, metadata: null, path })
+        return pureError(_fileError(path)(`unsupported import specifier "${unsupported.specifier}": expected ./, ../, or /`))
     }
     const invalid = imports.find(({ specifier }) => decodeImportPath(specifier) === null)
     if (invalid !== undefined) {
-        return pureError({ message: `invalid module specifier: ${invalid.specifier}`, metadata: null, path })
+        return pureError(_fileError(path)(`invalid module specifier: ${invalid.specifier}`))
     }
     return foldStep(pureOk(imports), [], importSource(source))
 }
@@ -134,12 +149,11 @@ export const _importSources = source => imports => {
 export const _attributeError = ({ path, json }) => {
     const isJson = path.endsWith('.json')
     if (json === isJson) { return null }
-    const message = isJson ? 'a JSON module needs the import attribute with { type: "json" }' : 'only a JSON module is imported with { type: "json" }'
-    return { message, metadata: null, path }
+    return _fileError(path)(isJson ? 'a JSON module needs the import attribute with { type: "json" }' : 'only a JSON module is imported with { type: "json" }')
 }
 
 /** A missing selected export, shared by the value and EDAG linkers. @type {(source: _ImportSource) => ParseError} */
-export const _missingExport = ({ path, name }) => ({ message: `module has no ${name} export`, metadata: null, path })
+export const _missingExport = ({ path, name }) => _fileError(path)(`module has no ${name} export`)
 
 
 /**
@@ -152,11 +166,11 @@ export const _missingExport = ({ path, name }) => ({ message: `module has no ${n
  * names the file instead of a line and column. Exported for the EDAG
  * linker, as `_parseModule` is.
  *
- * @type {(path: string) => Effect<ReadFile, JsonUnknown, ParseError>}
+ * @type {(path: string) => Effect<ReadWhole, JsonUnknown, ParseError>}
  */
 export const _parseJson = path => step(
     readSource(path),
     text => {
         const json = jsonParse(text)
-        return pure(json[0] === 'error' ? error({ message: json[1], metadata: null, path }) : json)
+        return pure(json[0] === 'error' ? error(_fileError(path)(json[1])) : json)
     })

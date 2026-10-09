@@ -31,9 +31,9 @@ Do not choose between these approaches now. The existence of a future
 compatibility requirement is not enough reason to maintain two APIs today.
 
 Negative-zero preservation is a deliberate default-policy exception, not a
-native-parity bug: [preserve-negative-zero](./preserve-negative-zero.md)
-requires the standard codec to keep `-0` through serialization and parsing.
-Do not normalize it to `0` in the default serializer as compatibility work.
+native-parity bug: the standard codec keeps `-0` through serialization and
+parsing ([`../README.md`](../README.md), "Numeric policies"). Do not normalize
+it to `0` in the default serializer as compatibility work.
 
 Any compatibility implementation must reuse the same grammar reader, its
 lexeme-first `NumberPolicy` seam, and recursive serializer. Only materialization,
@@ -68,8 +68,8 @@ not cause additional P3 design work.
 
 ### Related
 
-- [Preserve negative zero](./preserve-negative-zero.md) — intentional default
-  behavior that native-compatibility work must not undo.
+- [`numberSerialize`](../serializer/module.f.mjs) — keeps `-0`, intentional
+  default behavior that native-compatibility work must not undo.
 - [Standard/extended value transforms](./standard-transform.md) — make gradual
   policy changes easier once the runtime layers exist.
 - [`fjs/media/json/README.md`](../README.md) — the extended codec preserves

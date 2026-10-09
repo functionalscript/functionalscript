@@ -126,7 +126,7 @@ contract and migration strategy.
 
 #### What the next rename waits on
 
-Measured at `4c8ec55`, the head of `main`: every `.f.mjs` that imports no
+Measured at `08d013b`, the head of `main`: every `.f.mjs` that imports no
 other `.f.mjs` is a *leaf*, the only module a rename can start from, and
 `fjs compile` was run on each. The compiler stops at its first refusal, so one
 refusal per row is the compiler's and the rest of the row is a reading of the
@@ -138,35 +138,44 @@ leaf, directly or not — what a leaf's rename opens up, since a proof stays
 
 | Leaf | Behind it | The compiler refuses |
 | --- | ---: | --- |
-| `fjs/types/object/structurally_same` | 227 | destructuring (`const { entries, is } = Object`, `([k, v]) =>`), the `Object` global, `instanceof`, `new Map`, a runtime key `b[i]` |
-| `fjs/types/function` | 219 | `let`, reassignment and `while`, all inside `iterate` |
-| `fjs/types/function/operator` | 216 | template literals, destructured `const`s and parameters, runtime keys `steps[i]` and `prior[i]` |
-| `fjs/types/result` | 148 | `for … of` in `okList`, destructured parameters |
-| `fjs/js/array_index` | 55 | the `Number` and `String` globals |
-| `fjs/js/keywords` | 30 | `new Set` |
-| `fjs/types/set` | 29 | `let`, reassignment, `+=`, `while` with `break`, `new Set`, a runtime key `set[i]` |
-| `fjs/types/map` | 25 | `new Map`, a destructured parameter |
-| `fjs/website/demo/examples` | 22 | `new Set`, destructured parameters |
-| `fjs/ci/package` | 6 | template literals, the `JSON` global |
-| `fjs/git/bytes` | 5 | a runtime key `b[at]`, `Number.isSafeInteger` |
-| `fjs/website/demo/code` | 5 | template literals, a `'\0'` escape |
-| `fjs/website/style` | 5 | template literals, and nothing else |
-| `fjs/nanvm/member` | 3 | `\u{…}` escapes, template literals |
-| `fjs/types/ts` | 2 | template literals, destructured parameters, `switch`, a default parameter, the `JSON`, `isFinite` and `String` globals |
-| `fjs/git/config` | 1 | `\v` and `\0` escapes, destructuring, runtime keys `escapes[c]` and `prefixes[…]`, `toLowerCase` (a prohibited member function), template literals |
-| `fjs/nanvm/methods` | 1 | template literals, destructuring, the `Object` global, a runtime key `p[type]` |
-| `fjs/website/browser-source` | 1 | `let`, `+=`, `while` with `break` and `continue`, a non-terminating `if`, runtime keys, template literals |
+| `fjs/types/object/structurally_same` | 231 | destructuring (`const { entries, is } = Object`, `([k, v]) =>`), the `Object` global, `new Map`, a runtime number key `b[i]` |
+| `fjs/types/function` | 223 | `let`, reassignment and `while`, all inside `iterate` |
+| `fjs/types/function/operator` | 220 | template literals, destructured `const`s, runtime number keys `steps[i]` and `prior[i]` |
+| `fjs/types/result` | 152 | `for … of` in `okList`, destructured parameters |
+| `fjs/js/array_index` | 57 | `Number.isInteger`, the `String` global |
+| `fjs/js/keywords` | 32 | `new Set` |
+| `fjs/types/set` | 31 | `let`, reassignment, `+=`, `while` with `break`, `new Set`, a runtime number key `set[i]` |
+| `fjs/types/map` | 27 | `new Map`, a destructured parameter |
+| `fjs/website/demo/examples` | 25 | `new Set`, destructured parameters |
+| `fjs/website/style` | 25 | a template literal, with two substitutions, and nothing else |
+| `fjs/ci/package` | 7 | template literals, the `JSON` global |
+| `fjs/website/demo/code` | 6 | template literals, a `'\0'` escape |
+| `fjs/git/bytes` | 5 | runtime number keys `b[at]` and `b[i]`, `Number.isSafeInteger` |
+| `fjs/nanvm/member` | 4 | `\u{…}` escapes, template literals |
+| `fjs/nanvm/methods` | 2 | template literals, destructured parameters, the `Object` global, a runtime string key `p[type]` |
+| `fjs/types/ts` | 2 | template literals, a destructured parameter, `switch` (no `default`, so the body can end without a `return`), a default parameter, the `JSON`, `isFinite` and `String` globals |
+| `fjs/git/config` | 1 | `\v` and `\0` escapes, destructuring, the `BigInt` global, runtime string keys `escapes[c]`, `factors[…]` and `prefixes[…]`, a runtime number key `values[values.length - 1]`, `toLowerCase` (a prohibited member function), `acc.sub` (a prohibited property name), template literals |
+| `fjs/website/browser-source` | 1 | `let`, `+=`, `while` with `break` and `continue`, a non-terminating `if`, eight runtime number keys, `source[index]` and `list[at]` among them, template literals |
 
-Since the previous measurement, at `89a12ea` with `main` at `4c67d6f`, the
-leaves are the same eighteen and the compiler has moved on two of them:
-`\f` is JSON's escape and compiles, so `git/config` no longer waits on it,
-and `git/config`'s every `if` terminates, so the non-terminating `if` holds
-`browser-source` alone. Three readings also changed: `ci/package`'s
-`new Error` is text inside a template literal, not code; `nanvm/member`
-destructures nothing; and optional chaining, `?.`, which two leaves use, was
-not read before — and has landed since
-([optional chaining](../spec/README.md#optional-chaining)), so neither row
-names it.
+Since the previous measurement, at `4c8ec55`, the leaves are the same
+eighteen and the compiler has moved on three of them. `Number(exp)` is in the
+language and `Number` a reserved word
+([number conversion](../spec/README.md#number-conversion)), so
+`array_index`'s `Number(key)` compiles and the module stops at
+`Number.isInteger`, a member of `Number` and an admission of its own, as
+`git/bytes`' `Number.isSafeInteger` is. A computed key now parses, refused
+unless it is `a[Number(i)]`, and is `git/bytes`' first refusal; every row with
+a runtime key says which of the language's two rewrites it takes, a number
+key's `a[Number(i)]` or a string key's `entry(a, k)`. `structurally_same` no
+longer waits on `instanceof`: all three of its uses have `Array` on the right
+([`instanceof`](../spec/README.md#instanceof)). Two leaves changed their
+source: `keywords` builds a second `new Set`, the same feature, and `style`'s
+stylesheet now substitutes two string `const`s. `style` also has 25 modules
+behind it, not 5: `fjs/website/demo`, which every demo imports, imports it.
+Three readings were corrected, each refused by the `4c8ec55` compiler as well:
+`function/operator` destructures no parameter, `git/bytes` reads a second
+key, `b[i]`, and `git/config` also calls the `BigInt` global, reads `acc.sub`
+and has two more runtime keys.
 
 The same rows by feature, each with where the feature is tracked, so a
 language step can be picked for what it unblocks:
@@ -176,25 +185,28 @@ language step can be picked for what it unblocks:
 | Template literals | [`spec/todo/3440-template-literals.md`](../spec/todo/3440-template-literals.md) | function/operator, ci/package, ts, nanvm/methods, nanvm/member, style, demo/code, git/config, browser-source |
 | Destructuring | [`spec/todo/2450-destructuring.md`](../spec/todo/2450-destructuring.md) | structurally_same, result, function/operator, map, demo/examples, ts, git/config, nanvm/methods |
 | A runtime key that is a string, `a[k]` | in the language as the `entry` helper ([spec: entry](../spec/README.md#reading-an-entry-at-run-time)); the module rewrites `a[k]` as `entry(a, k)`, imported from [`fjs/js/entry`](../fjs/js/entry/module.f.js) | git/config, nanvm/methods |
-| A runtime key that is a number, `a[i]` | in the language as the conversion `a[Number(i)]` ([spec: property access](../spec/README.md#property-access)), the EDAG's `['.', a, ['Number', i]]`; the module rewrites `a[i]` as `a[Number(i)]`, not `entry` | structurally_same, function/operator, set, git/bytes, browser-source |
-| Globals and built-ins | [`spec/todo/2365-global-names.md`](../spec/todo/2365-global-names.md), [`2360-built-in.md`](../spec/todo/2360-built-in.md) | structurally_same, array_index, ts, git/bytes, nanvm/methods, ci/package |
-| `new` with a built-in constructor | nothing proposes it | structurally_same, keywords, map, set, demo/examples |
-| `let`, reassignment, `while` | [`spec/todo/3220-let.md`](../spec/todo/3220-let.md); `while` is roadmap §3.2 | function, set, browser-source |
+| A runtime key that is a number, `a[i]` | in the language as the conversion `a[Number(i)]` ([spec: property access](../spec/README.md#property-access)), the EDAG's `['.', a, ['Number', i]]`; the module rewrites `a[i]` as `a[Number(i)]`, not `entry` | structurally_same, function/operator, set, git/bytes, git/config, browser-source |
+| Globals and built-ins | [`spec/todo/2365-global-names.md`](../spec/todo/2365-global-names.md), [`2360-built-in.md`](../spec/todo/2360-built-in.md); of `Number`, only the call `Number(exp)` is in the language ([spec: number conversion](../spec/README.md#number-conversion)), each member an admission of its own | structurally_same, array_index, ts, git/bytes, nanvm/methods, ci/package, git/config |
+| `new` with a built-in constructor | nothing proposes it; `Map` and `Set` are undecided in [`2360-built-in.md`](../spec/todo/2360-built-in.md) | structurally_same, keywords, map, set, demo/examples |
+| `let`, reassignment, `+=`, `while` | [`spec/todo/3220-let.md`](../spec/todo/3220-let.md); `+=` is [`3430-assignments.md`](../spec/todo/3430-assignments.md); `while` is [roadmap §3.2](../spec/todo/README.md#32-priority-2) | function, set, browser-source |
 | String escapes `\u{…}`, `\v`, `\0` | [`spec/todo/2460-js-string-literals.md`](../spec/todo/2460-js-string-literals.md) | nanvm/member, demo/code, git/config |
-| A non-terminating `if`, `break`, `continue` | roadmap §3.2, the guard's follow-ups; `break` and `continue` are `while`'s | set, browser-source |
+| A non-terminating `if`, `break`, `continue` | [roadmap §3.2](../spec/todo/README.md#32-priority-2), the guard's follow-ups; `break` and `continue` are `while`'s | set, browser-source |
 | `for … of` | nothing proposes it | result |
-| `instanceof` | in the language, `Array` on the right only ([operators](../spec/README.md#operators)); the leaf still waits on destructuring, the `Object` global, `new Map` and a runtime key | structurally_same |
-| `switch`, a default parameter | neither proposed; the parameter is roadmap §3.1 | ts |
-| A prohibited member function, `toLowerCase` | [`fjs/js/prototype`](../fjs/js/prototype/module.f.js)'s `prohibitedCalls`; the module rewrites, not the language | git/config |
+| `switch`, a default parameter | neither proposed; [`3120-parameters.md`](../spec/todo/3120-parameters.md) leaves a default parameter for later | ts |
+| A prohibited member function, `toLowerCase`, or property name, `sub` | [`fjs/js/prototype`](../fjs/js/prototype/module.f.js)'s `prohibitedCalls` and `prototypeNames` ([spec: property access](../spec/README.md#property-access)); the module rewrites, not the language | git/config |
 
-A leaf renames only when every feature it uses has landed, and three wait on
-one feature alone: `style` on template literals, `array_index` on the
-`Number` and `String` globals, `keywords` on `new Set`. Of the four root
-modules nearly everything imports, `structurally_same` waits on five
-features, and `function/operator` on three. `iterate` in `function` could
-lose its loop today, which would leave that module on nothing — `let`,
-reassignment and `while` are all inside `iterate`, and the shorthand `fn`
-returns, `{ result, map }`, is in the language
+A leaf renames only when every feature it uses has landed, and four wait on
+one feature alone: `style` on template literals, `keywords` on `new Set`, and
+`array_index` and `git/bytes` on built-ins — `Number.isInteger` and the
+`String` global, and `Number.isSafeInteger` once its keys are read as
+`b[Number(…)]`. Of the four root modules nearly everything imports,
+`structurally_same` waits on three features — destructuring, the `Object`
+global and `new Map` — and `function/operator` on two, template literals and
+destructuring; the runtime keys of both are rewrites the language already
+has. `iterate` in `function` could lose its loop today, which would leave
+that module on nothing — `let`, reassignment and `while` are all inside
+`iterate`, a recursion that halves `n` compiles, and the shorthand `result`
+in the object `fn` returns is in the language
 ([objects](../spec/README.md#objects)) — the one rename no language step
 gates. `okList` in `result` could lose its `for … of` the same way, but
 `unwrap` and `invert` take destructured parameters, so that root waits on
@@ -204,7 +216,7 @@ destructuring eight, more than any other feature.
 #### The whole repository
 
 The same loop over every authored module, not only the leaves, measured at
-the same `4c8ec55`: of 228 modules — 222 `module.f.mjs` and 6 `module.f.js`
+`4c8ec55`: of 228 modules — 222 `module.f.mjs` and 6 `module.f.js`
 — the 6 `.f.js` compile and every `.f.mjs` stops at its first refusal. The
 table counts that first refusal only, read at the token the compiler names,
 so it says which feature to settle first, not how much each costs; a refusal

@@ -1,6 +1,6 @@
 import { assert } from '../../asserts/module.f.mjs'
 import { latin1 } from '../testlib.f.mjs'
-import { hasRefComponents, isName, isWholeName, sameBytes } from './module.f.mjs'
+import { hasRefComponents, isName, isWholeName } from './module.f.mjs'
 
 export const proof = {
     // A name below a prefix: every rule `git check-ref-format` applies to
@@ -92,18 +92,6 @@ export const proof = {
         // A lazy list is read as it is, the same as the array it spells.
         assert(isName(() => latin1('a/b')))
         assert(!isName(() => latin1('a/b.lock')))
-    },
-    // Byte for byte and nothing more: a prefix, a longer name and a name
-    // differing only in case are each another name. A lazy list is one list
-    // of the same bytes as the array it spells.
-    sameBytes: () => {
-        assert(sameBytes(latin1('main'))(latin1('main')))
-        assert(sameBytes([])([]))
-        assert(sameBytes(() => [0x61, 0x62])([0x61, 0x62]))
-        assert(!sameBytes(latin1('main'))(latin1('mai')))
-        assert(!sameBytes(latin1('mai'))(latin1('main')))
-        assert(!sameBytes(latin1('main'))(latin1('Main')))
-        assert(!sameBytes([])(latin1('a')))
     },
     throw: {
         // A value that is no byte is a caller's bug, not a name that is not

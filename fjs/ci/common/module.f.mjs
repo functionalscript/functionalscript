@@ -10,8 +10,8 @@
  * @import { Step, Job, MetaStep, StepType } from './types.ts'
  */
 
-import { actions, images } from '../config/module.f.js'
-import { array, option, or, record, string } from '../../rtti/module.f.mjs'
+import { actions, images, jobTimeout } from '../config/module.f.js'
+import { array, number, option, or, record, string } from '../../rtti/module.f.mjs'
 import { parse as rttiParse } from '../../rtti/parse/module.f.mjs'
 
 export const os = /** @type {const} */ (['ubuntu', 'macos', 'windows'])
@@ -21,8 +21,8 @@ export const architecture = /** @type {const} */ (['intel', 'arm'])
 // These three are **closed**, which is the bare form's meaning and the right
 // one here: `parseGitHubAction` reads back a workflow this repo generates, so
 // a key the schema does not name is generator drift rather than a field a
-// third party added. Reading a hand-written workflow — which carries `name`,
-// `if` and much else — would need `open`.
+// third party added. Reading a hand-written workflow — which carries `name`
+// and much else — would need `open`.
 
 // `continue-on-error` is admitted as the literal `true` rather than as a
 // boolean: `false` is the field's own default, so emitting it would say
@@ -53,9 +53,19 @@ export const stepSchema = /** @type {const} */ ({
 // deliberate change rather than a key emitted past the schema:
 // `parseGitHubAction` reads back the workflow this repository generates, so
 // an unmodelled key would fail that round-trip.
+//
+// `if` is the condition a job runs under. The generator writes exactly one:
+// a job that runs only in the merge queue, so a pull request's pushes do not
+// wait on it — see `mergeQueueOnly` in `../types.ts`.
+//
+// `timeout-minutes` is required, so no job can be built without a limit on how
+// long it holds its runner: GitHub's default is six hours. Every generated job
+// takes `jobTimeout` from `../config/module.f.js`.
 export const jobSchema = /** @type {const} */ ({
     'runs-on': string,
+    if: or(option, string),
     needs: or(option, array(string)),
+    'timeout-minutes': number,
     steps: array(stepSchema)
 })
 
@@ -72,6 +82,10 @@ export const gitHubActionSchema = /** @type {const} */ ({
         merge_group: or(option, {}),
         push: or(option, { branches: array(string) })
     },
+    // Optional, because only `gen.ci.yml` sets it: a run there that a newer
+    // push supersedes is cancelled. `cancel-in-progress` is the literal `true`
+    // for the reason `continue-on-error` is — `false` is its default.
+    concurrency: or(option, { group: string, 'cancel-in-progress': true }),
     permissions: record(string),
     jobs: jobsSchema
 })
@@ -110,11 +124,13 @@ export const toSteps = m => {
 /** @type {(ms: readonly MetaStep[]) => Job} */
 export const ubuntu = ms => ({
     'runs-on': images.ubuntu.intel,
+    'timeout-minutes': jobTimeout,
     steps: toSteps(ms)
 })
 
 /** @type {(ms: readonly MetaStep[]) => Job} */
 export const ubuntuArm = ms => ({
     'runs-on': images.ubuntu.arm,
+    'timeout-minutes': jobTimeout,
     steps: toSteps(ms)
 })
