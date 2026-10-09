@@ -12,8 +12,9 @@ a native EDAG representation or interpreter. The reasons:
    content-addressable VM ([CAVM](./content-addressable-vm.md)) — to compute a hash.
 2. The EDAG can be transformed back to source code. The adopted
    [function-source exception](../README.md#function-source-representation-exception)
-   uses EDAG-derived text for default function string conversion; whether
-   that operation is also the compiler's function serializer is open below.
+   uses EDAG-derived code-only text for default function string conversion.
+   Current source and runtime-value serializers have distinct contracts;
+   broader callable interchange serialization remains open below.
 3. Because code is an FJS value, serializing functions requires no separate format: once the VM
    serializes `Any` values, it serializes code too. The binary encoding of `Any` values is
    **CBOR** ([RFC 8949](https://www.rfc-editor.org/rfc/rfc8949)), chosen because it represents
@@ -41,10 +42,12 @@ that layer and end-to-end tests covering the execution paths. The optional
 [Rust EDAG library](../../todo/rust-edag.md) is deferred beyond MVP and is not
 required for self-hosting. It would depend on the VM, never the reverse.
 
-Hashing and function text require an association with semantic EDAG, independently
-of the executor used: the EDAG is the stable **code/content identity**, while
-native code is a cached acceleration of it. Embedded `Any` data versus out-of-band
-lookup remains open in the
+Future hashing and semantic metadata require an association with EDAG,
+independently of the executor used: EDAG is the stable **code/content identity**,
+while native code is a cached acceleration of it. Represented FJS values already
+retain that EDAG; compiled native functions carry rendered text for conversion
+without promising full semantic metadata retrieval. Native embedded `Any` data
+versus out-of-band lookup remains open in the
 [roadmap](../../nanvm-lib/todo/mvp-roadmap.md#open-questions). This metadata
 requirement does not imply a dependency on the dynamic Rust EDAG library.
 
@@ -82,26 +85,32 @@ changed lookup key or branch, and source-text reflection through exports.
 It does not justify unrelated value differences, change function allocation
 identity or arity, or require the original source spelling to be retained.
 A JavaScript host still uses its own representation when executing source
-outside the FJS VM; this decision does not patch its built-ins.
+or ordinary runtime callables after reflection-erasing compilation; this
+decision does not patch its built-ins. Amnesia, memo and compiler
+initialization use represented functions and the shared canonical renderer.
 
 ### Open questions
 
-These questions are deliberately open, not implementation instructions with
-an implicit answer. Captures and a function's own name, the EDAG's `self`,
-are in the language ([functions](../README.md#functions)); what the examples
-do not claim is an answer to how either is rendered as text. The spellings
-the writers use today — a `const` the function's body reads, in source, and
-a named function expression, in a function's text
-([function-text](../../fjs/edag/function-text.md)) — are among the
-candidates below, not answers.
+Current implementations have distinct contracts. Default function text is
+code-only, with captured values represented by slot names. The total renderer
+may emit JavaScript outside the FJS source grammar. The source serializer
+instead preserves a structural FJS round trip within its supported profile.
+Runtime value compilation materializes captured values separately and
+preserves their supported sharing and identity. See
+[function text](../../fjs/edag/function-text.md) and
+[runtime compilation](../../fjs/edag/values.md#runtime-compilation).
+The questions below record these implemented answers and the remaining
+broader callable serialization work.
 
 1. **Should the compiler's function serializer and `String(f)` be the same function?**
-   Should they have one output contract and implementation, or distinct
-   contracts that may share rendering machinery? In particular, does `String(f)`
-   promise self-contained source that reconstructs the callable value,
-   or only a source representation of its code? Sharing EDAG as input does not
-   by itself decide this. Here “function serializer” means source serialization
-   of a callable value, not EDAG-as-data encoding such as DataJS or the planned CBOR format.
+
+   **Answered for the current APIs: distinct contracts sharing rendering
+   machinery.** `String(f)` represents code and promises no self-contained
+   callable round trip. Source serialization and runtime-value compilation
+   have the separate profiles above. A future interchange serializer's
+   interface and guarantees remain open. Here “function serializer” means
+   source serialization of a callable value, not EDAG-as-data encoding such
+   as DataJS or the planned CBOR format.
 
 2. **Should `String(f)` instantiate the captured frame?**
 
@@ -117,6 +126,9 @@ candidates below, not answers.
    const x = 3;
    const f = () => x;
    ```
+
+   Source lowering may inline a known primitive capture into the body, so
+   this example can render as `()=>3` without instantiating a captured frame.
 
    Should the function serializer produce `() => x` or `() => 3`
    (illustrative spellings)? A self-contained serializer must represent
@@ -148,11 +160,14 @@ candidates below, not answers.
    choosing how to carry the frame is part of this question.
 
 3. **How should the function serializer and `String(f)` handle `self`?**
-   How is the current function referenced in finite source, both for recursive
-   calls and when `self` is returned as a value? Does each operation use a
-   generated binding, a wrapper, a named-function form, or another admitted
-   representation? No spelling is selected here, and a named-function candidate
-   does not add that syntax to FJS automatically.
+
+   **Implemented:** code-only text renders a function reading `self` as a
+   named function expression, with a generated self binding allocated before
+   its parameters. FJS source serialization uses a generated `const` whose
+   initializer references that binding. Nested functions capture the correct
+   enclosing function. The named expression belongs to rendered JavaScript
+   text; it adds no syntax to the FJS parser
+   ([function text](../../fjs/edag/function-text.md#a-function-that-names-itself)).
 
    ```js
    const f = () => f;
@@ -163,12 +178,12 @@ candidates below, not answers.
    would not provide a finite representation. Nested functions and captured
    references to an enclosing function must keep the correct binding too.
 
-Earlier sketches that identify `toString(f)` with a closed callable serializer,
-materialize every frame or choose a named function for `self` — including
-[EDAG stage 1, source printing](../../todo/edag-stage1-discussion.md) and the
-named function expression the function-text writer spells today — are
-candidates, not answers to these reopened questions. The questions change no
-EDAG `frame`/`self` semantics and no current serializer implementation.
+Earlier sketches that identify `toString(f)` with a closed callable serializer
+or materialize every frame — including
+[EDAG stage 1, source printing](../../todo/edag-stage1-discussion.md) — do not
+supersede the current code-only and finite-`self` answers. Broader interchange
+guarantees remain open; they do not reopen these implemented spellings or
+change EDAG `frame`/`self` semantics.
 
 ### Conditional requirement: lazy frame rendering
 
@@ -176,15 +191,18 @@ EDAG `frame`/`self` semantics and no current serializer implementation.
 this requirement does not apply to it. It stays for a function serializer
 that represents captured values (question 1).
 
-**If `String(f)` instantiates the frame, its FJS VM implementation must support
-lazy source production.** A small function can capture other functions and,
+**If a future callable serializer instantiates the frame, its FJS VM
+implementation must support lazy source production.** Current source and
+runtime-value emitters produce complete text; this deferred streaming design
+is not implemented. A small function can capture other functions and,
 through their frames, a large dependency graph. Do not precompute or retain the
 complete reconstructed source as part of every function value.
 
 Keep the semantic EDAG and captured frame as the source of the representation.
 Creating or calling a function does not by itself render its text. Merely
-postponing all work until `String(f)` is called is not enough: producing that string value
-must not require eagerly materializing the entire source either. The VM can
+postponing all work until serialization is called is not enough: producing
+that string value must not require eagerly materializing the entire source
+either. The VM can
 represent it internally as deferred text, generating code units or chunks as
 consumers demand them. It remains an ordinary string to FJS code, not a new
 promise, iterator or user-visible lazy object. Ropes, chunking and caching are
@@ -206,32 +224,36 @@ existing failure contract.
 
 A streaming function serializer and `String(f)` may share an incremental
 renderer without sharing an interface or a reconstruction guarantee. This
-constraint does not decide whether the two have identical contents (question 1)
-or whether `String(f)` includes the frame at all (question 2). It specifies the
-implementation requirement if frame inclusion is chosen; it does not claim
-lazy strings or frame serialization are implemented today.
+constraint governs the future serializer's frame production; `String(f)`
+keeps its implemented code-only contract. It specifies the
+implementation requirement if future callable frame serialization is chosen;
+it does not claim lazy strings or frame serialization are implemented today.
 
 ### Implementation follow-through
 
-- [ ] Resolve each question before implementing the cases whose observable
-  output depends on it; do not make unrelated work wait on all three.
-  [to-primitive Stage 3](../../nanvm-lib/todo/to-primitive.md#stage-3-a-functions-text)
-  stages the Rust VM's work that way: a function with an empty frame first,
-  since its text is the same under every answer, and a frame after
-  question 2.
-- [ ] Specify deterministic rendering for the chosen inputs and share the
-  default function-representation operation across FJS executors and coercion
-  paths. Render associated semantic EDAG, not mutable optimization/cache state.
+- [x] Specify code-only default text, capture-slot names and finite `self`
+  rendering, independently of callable reconstruction. Source and value
+  serializers retain distinct contracts.
+- [x] Share deterministic rendering of admitted bodies across represented
+  FJS executors and coercion paths; compiled native functions carry the
+  same EDAG-derived text. Render semantic code, not optimization/cache state.
+- [x] Prove represented direct/indirect conversion and implemented source
+  round trips, including captures and `self`: see
+  [conversion proofs](../../fjs/edag/value/convert/proof.f.mjs) and
+  [serializer proofs](../../fjs/compiler/serializer/proof.f.mjs).
+- [ ] Specify broader callable/interchange serialization guarantees,
+  including the supported captured-sharing and `self` round trips.
 - [ ] If a function serializer instantiates the frame (question 1; `String(f)`
   does not, per question 2), implement deferred text
   production and incremental consumption without storing complete source on
   function values. Cover large shared dependency graphs, prefix-only use and
   full consumption; compare produced code units and admitted string operations
   with a fully materialized reference, independently of caches and chunking.
-- [ ] Test direct and indirect conversion, helper functions and exports against
-  that contract. Test callable round trips with captured sharing and `self`
-  where promised; do not assume that `String(f)` promises the same round trip
-  before question 1 is answered.
+- [ ] Complete remaining native conversion corpus cases, including a
+  function used as a property key, as tracked in
+  [member-functions](../../nanvm-lib/todo/member-functions.md). Native semantic
+  EDAG association remains [separate](../../fjs/compiler/todo/associate-edag-with-functions.md)
+  from the compiled function text already supplied.
 
 Failure to follow the adopted contract is P1. Merely differing from authored
 JavaScript function text is the approved exception, not an unresolved defect

@@ -138,7 +138,8 @@ information — see [serialization](./serialization.md) and
    fixed `arg`/`rest` EDAG bindings and the callable factories have landed;
    represented interpreters and compiled native functions now render
    EDAG-derived text ([function text](../../fjs/edag/function-text.md)).
-   The design record retains its remaining proof and runtime-association work
+   The design record retains approval and migration-proof work plus the
+   separate native/AOT metadata-association follow-up
    (at most 16 fixed parameters: [functions](../README.md#functions))
 3. [x] body-const — a function body takes `const` statements before its
    `return`, and the writer spells them
