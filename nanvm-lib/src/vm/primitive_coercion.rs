@@ -10,7 +10,7 @@ const CANNOT_CONVERT_TO_PRIMITIVE_VALUE: &str = "TypeError: Cannot convert to pr
 /// A function converts to its text, and one that has none — a host or
 /// hand-written function, which no EDAG renders — is refused. A result that
 /// does not depend on the text is answered without it: see
-/// `NumberCoercion` and `is_less_than`.
+/// `NumberCoercion` and the relational operators.
 pub const FUNCTION_TEXT: &str = "TypeError: Cannot convert a function to its text";
 
 /// Preferred type for coercion to primitive, as per ECMAScript specification.

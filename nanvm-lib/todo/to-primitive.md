@@ -190,7 +190,7 @@ above, and the corpus covers each step for `String`, unary `+` and `-`,
 binary `+` and `slice`'s position.
 
 The order of the two conversions becomes observable here, since a method
-can throw. `>` and `<=` pass their operands to `is_less_than` swapped, and
+can throw. `>` and `<=` passed their operands to `is_less_than` swapped, and
 before Stage 2 it converted its first argument first, so `a > b` converted
 `b` first. ECMAScript's `LeftFirst` flag keeps the left operand first for
 all four operators: with `a` and `b` whose `valueOf`s throw `"a"` and `"b"`,
@@ -198,7 +198,7 @@ each of `a < b`, `a > b`, `a <= b` and `a >= b` throws `"a"`. Stage 1 could
 not show the order: the only throw a conversion made was
 `OWN_CONVERSION_METHOD`, one value whichever side made it, and a function
 side did not throw while it converted. Stage 2 converts both operands in
-source order before `is_less_than` compares them. The unit test
+source order before they are compared. The unit test
 `left_operand_first` pins that for every binary operator, the other twelve
 having converted left first already. The array searches answer an empty
 array before converting their position, which the corpus pins with a

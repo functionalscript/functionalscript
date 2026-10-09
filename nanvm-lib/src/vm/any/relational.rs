@@ -1,7 +1,7 @@
 use core::cmp::Ordering;
 
 use crate::vm::{
-    Any, BigInt, IVm, Number, ToAny, Unpacked,
+    Any, BigInt, IVm, ToAny, Unpacked,
     ecma_whitespace::is_ecma_whitespace,
     numeric::Numeric,
     primitive::Primitive,
@@ -12,55 +12,41 @@ impl<A: IVm> Any<A> {
     /// `<`. Throws where `ToPrimitive` does, and where the text of a function
     /// without text would be compared (`FUNCTION_TEXT`).
     pub fn lt(self, rhs: Self) -> Result<Self, Self> {
-        let (x, y) = operands(self, rhs)?;
-        Ok(is_less_than(x, y)?.unwrap_or(false).to_any())
+        Ok(matches!(compare(self, rhs)?, Some(Ordering::Less)).to_any())
     }
 
-    /// `>`. `x > y` is the reversed `<`: `y < x`.
+    /// `>`.
     pub fn gt(self, rhs: Self) -> Result<Self, Self> {
-        let (x, y) = operands(self, rhs)?;
-        Ok(is_less_than(y, x)?.unwrap_or(false).to_any())
+        Ok(matches!(compare(self, rhs)?, Some(Ordering::Greater)).to_any())
     }
 
-    /// `<=`. `x <= y` is `!(y < x)`, except a `NaN` anywhere still gives
-    /// `false`, not the `true` a plain negation of an undefined `<` would.
+    /// `<=`. Not `!(x > y)`: a `NaN` anywhere gives `false`.
     pub fn le(self, rhs: Self) -> Result<Self, Self> {
-        let (x, y) = operands(self, rhs)?;
-        Ok((!is_less_than(y, x)?.unwrap_or(true)).to_any())
+        Ok(matches!(compare(self, rhs)?, Some(Ordering::Less | Ordering::Equal)).to_any())
     }
 
-    /// `>=`. `x >= y` is `!(x < y)`, with the same `NaN` care as `<=`.
+    /// `>=`. Not `!(x < y)`: a `NaN` anywhere gives `false`.
     pub fn ge(self, rhs: Self) -> Result<Self, Self> {
-        let (x, y) = operands(self, rhs)?;
-        Ok((!is_less_than(x, y)?.unwrap_or(true)).to_any())
+        Ok(matches!(
+            compare(self, rhs)?,
+            Some(Ordering::Greater | Ordering::Equal)
+        )
+        .to_any())
     }
 }
 
-/// An operand's `ToPrimitive(v, number)`, `None` for a function without text
-/// (see [`to_primitive_or_text`]).
-type Operand<A> = Option<Primitive<A>>;
-
-/// Both operands' `ToPrimitive`, the left one first, whichever side the
-/// comparison then asks `<` of: the spec's `LeftFirst` flag of
-/// [`IsLessThan`](https://tc39.es/ecma262/#sec-islessthan). The order is
-/// observable, since an object's own `valueOf` or `toString` may throw:
-/// `a > b` with both throwing throws `a`'s.
-fn operands<A: IVm>(x: Any<A>, y: Any<A>) -> Result<(Operand<A>, Operand<A>), Any<A>> {
-    let px = to_primitive_or_text(x)?;
-    Ok((px, to_primitive_or_text(y)?))
-}
-
-/// <https://tc39.es/ecma262/#sec-islessthan>, after both `ToPrimitive`s
-/// (see [`operands`]).
+/// <https://tc39.es/ecma262/#sec-islessthan>, answered as the order of `x`
+/// relative to `y`, so `>` and `<=` read it rather than ask `<` of swapped
+/// operands. `None` is the spec's `undefined` — comparisons that involve
+/// `NaN`, directly or via a string that fails `StringToBigInt` against a
+/// `BigInt` — which every operator answers `false`.
 ///
-/// `None` is the spec's `undefined` result — comparisons that involve `NaN`,
-/// directly or via a string that fails `StringToBigInt` against a `BigInt`.
-/// Every caller above folds it to `false`, but which side of `<` is queried
-/// determines whether that `false` becomes `<`'s own result or the negation
-/// `<=`/`>=` build from it, so it's kept distinct from a "real" `false` up to
-/// that point.
-fn is_less_than<A: IVm>(px: Operand<A>, py: Operand<A>) -> Result<Option<bool>, Any<A>> {
-    match (px, py) {
+/// Both operands' `ToPrimitive` run left first, the spec's `LeftFirst` flag.
+/// The order is observable, since an object's own `valueOf` or `toString` may
+/// throw: `a > b` with both throwing throws `a`'s.
+fn compare<A: IVm>(x: Any<A>, y: Any<A>) -> Result<Option<Ordering>, Any<A>> {
+    let px = to_primitive_or_text(x)?;
+    match (px, to_primitive_or_text(y)?) {
         // A function's text against a string compares the texts.
         (None, None) | (None, Some(Primitive::String(_))) | (Some(Primitive::String(_)), None) => {
             Err(FUNCTION_TEXT.into())
@@ -68,13 +54,13 @@ fn is_less_than<A: IVm>(px: Operand<A>, py: Operand<A>) -> Result<Option<bool>, 
         // Against anything else, the text is numeric: `NaN` for a number
         // and no `StringToBigInt` for a bigint, so `undefined` either way.
         (None, Some(_)) | (Some(_), None) => Ok(None),
-        (Some(px), Some(py)) => primitive_less_than(px, py),
+        (Some(px), Some(py)) => compare_primitives(px, py),
     }
 }
 
 /// `ToPrimitive(v, number)`, where `None` is the text of a function that has
 /// none (`FUNCTION_TEXT`). A function's text is a string that neither
-/// `StringToNumber` nor `StringToBigInt` accepts, so `is_less_than` answers a
+/// `StringToNumber` nor `StringToBigInt` accepts, so `compare` answers a
 /// function without text against a number or a bigint, and refuses it only
 /// against a string.
 fn to_primitive_or_text<A: IVm>(v: Any<A>) -> Result<Option<Primitive<A>>, Any<A>> {
@@ -86,22 +72,21 @@ fn to_primitive_or_text<A: IVm>(v: Any<A>) -> Result<Option<Primitive<A>>, Any<A
     }
 }
 
-fn primitive_less_than<A: IVm>(px: Primitive<A>, py: Primitive<A>) -> Result<Option<bool>, Any<A>> {
+fn compare_primitives<A: IVm>(
+    px: Primitive<A>,
+    py: Primitive<A>,
+) -> Result<Option<Ordering>, Any<A>> {
     match (px, py) {
-        (Primitive::String(sx), Primitive::String(sy)) => Ok(Some(sx < sy)),
+        (Primitive::String(sx), Primitive::String(sy)) => Ok(Some(sx.cmp(&sy))),
         (Primitive::BigInt(bx), Primitive::String(sy)) => {
             let s: std::string::String = sy.into();
-            Ok(string_to_bigint(&s).map(|by| bx < by))
+            Ok(string_to_bigint(&s).map(|by| bx.cmp(&by)))
         }
         (Primitive::String(sx), Primitive::BigInt(by)) => {
             let s: std::string::String = sx.into();
-            Ok(string_to_bigint(&s).map(|bx| bx < by))
+            Ok(string_to_bigint(&s).map(|bx| bx.cmp(&by)))
         }
-        (px, py) => {
-            let nx = primitive_to_numeric(px)?;
-            let ny = primitive_to_numeric(py)?;
-            Ok(numeric_less_than(nx, ny))
-        }
+        (px, py) => Ok(primitive_to_numeric(px)?.compare(&primitive_to_numeric(py)?)),
     }
 }
 
@@ -115,17 +100,6 @@ fn primitive_to_numeric<A: IVm>(p: Primitive<A>) -> Result<Numeric<A>, Any<A>> {
             let any: Any<A> = Unpacked::from(other).into();
             Ok(Numeric::Number(any.to_number()?))
         }
-    }
-}
-
-fn numeric_less_than<A: IVm>(nx: Numeric<A>, ny: Numeric<A>) -> Option<bool> {
-    match (nx, ny) {
-        // `Number`'s partial order is IEEE 754's: a `NaN` compares with
-        // nothing, which is the `undefined` this returns as `None`.
-        (Numeric::Number(a), Numeric::Number(b)) => a.partial_cmp(&b).map(|o| o == Ordering::Less),
-        (Numeric::BigInt(a), Numeric::BigInt(b)) => Some(a < b),
-        (Numeric::Number(a), Numeric::BigInt(b)) => number_lt_bigint(a, &b),
-        (Numeric::BigInt(a), Numeric::Number(b)) => bigint_lt_number(&a, b),
     }
 }
 
@@ -183,86 +157,6 @@ fn parse_digits<A: IVm>(digits: &str, radix: u32) -> Option<BigInt<A>> {
     Some(magnitude)
 }
 
-/// `Number < BigInt`, per steps (g)-(k): `NaN` and the infinities are
-/// decided by the `Number` side alone; everything else needs the exact
-/// mathematical comparison `compare_bigint_number` gives.
-fn number_lt_bigint<A: IVm>(a: Number, b: &BigInt<A>) -> Option<bool> {
-    if a.is_nan() {
-        return None;
-    }
-    if !a.is_finite() {
-        return Some(a < 0.into());
-    }
-    Some(compare_bigint_number(b, a) == Ordering::Greater)
-}
-
-/// `BigInt < Number`, the mirror of [`number_lt_bigint`].
-fn bigint_lt_number<A: IVm>(a: &BigInt<A>, b: Number) -> Option<bool> {
-    if b.is_nan() {
-        return None;
-    }
-    if !b.is_finite() {
-        return Some(b > 0.into());
-    }
-    Some(compare_bigint_number(a, b) == Ordering::Less)
-}
-
-/// Ordering of `bi` relative to the finite, non-`NaN` `f` — the exact
-/// mathematical comparison ECMA-262 step (k) asks for, not
-/// `bi.to_f64() < f`, which would round `bi` and could be wrong for a
-/// magnitude a `f64` mantissa can't hold exactly. `bi`'s ordering against
-/// `f.floor()` (itself exact, via [`whole_f64_to_bigint`]) settles it,
-/// except when they're equal: `f` is still strictly greater whenever it has
-/// a fractional part.
-fn compare_bigint_number<A: IVm>(bi: &BigInt<A>, f: Number) -> Ordering {
-    let f: f64 = f.into();
-    let floor = f.floor();
-    let floor_bi = whole_f64_to_bigint::<A>(floor);
-    match bi.cmp(&floor_bi) {
-        Ordering::Equal if f != floor => Ordering::Less,
-        order => order,
-    }
-}
-
-/// The exact `BigInt` value of a finite, whole-number `f64`, built from its
-/// IEEE 754 bit pattern rather than any decimal round-trip — a `f64` beyond
-/// 2^53 is still an exact integer, just one with known trailing zero bits,
-/// and this reads those bits directly instead of trusting that a `Display`
-/// implementation preserves them.
-fn whole_f64_to_bigint<A: IVm>(f: f64) -> BigInt<A> {
-    if f == 0.0 {
-        return BigInt::default();
-    }
-    let bits = f.to_bits();
-    let biased_exponent = (bits >> 52) & 0x7FF;
-    debug_assert!(
-        biased_exponent != 0,
-        "a nonzero whole f64 is never subnormal"
-    );
-    let significand = (bits & 0x000F_FFFF_FFFF_FFFF) | (1u64 << 52);
-    // The value is `significand * 2^(biased_exponent - 1075)`: 1075 is the
-    // usual double bias (1023) plus 52, since `significand` already carries
-    // the mantissa's 52 fractional bits as whole-number bits of its own.
-    let exponent = biased_exponent as i64 - 1075;
-    let magnitude: BigInt<A> = significand.into();
-    let magnitude = if exponent >= 0 {
-        (magnitude << BigInt::from(exponent as u64))
-            .expect("a finite f64's exponent cannot overflow BigInt::shl's word-count limit")
-    } else {
-        // The shift amount here is always non-negative (`-exponent` where
-        // `exponent < 0`), so `BigInt::shr` never takes its
-        // negative-shift-amount path into `<<` — the one path that can
-        // return `Err` — and this can't fail.
-        (magnitude >> BigInt::from((-exponent) as u64))
-            .expect("a non-negative BigInt::shr shift amount cannot fail")
-    };
-    if f.is_sign_negative() {
-        -magnitude
-    } else {
-        magnitude
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use crate::{
@@ -296,6 +190,26 @@ mod tests {
         assert!(!bool_of(n(1.0).lt(n(f64::NAN))));
         assert!(!bool_of(n(f64::NAN).le(n(1.0))));
         assert!(!bool_of(n(1.0).le(n(f64::NAN))));
+    }
+
+    #[test]
+    fn nan_is_never_greater() {
+        assert!(!bool_of(n(f64::NAN).gt(n(1.0))));
+        assert!(!bool_of(n(1.0).gt(n(f64::NAN))));
+        assert!(!bool_of(n(f64::NAN).ge(n(1.0))));
+        assert!(!bool_of(big(1).ge(n(f64::NAN))));
+    }
+
+    #[test]
+    fn number_vs_bigint_each_operator() {
+        assert!(bool_of(n(5.5).gt(big(5))));
+        assert!(!bool_of(n(5.0).gt(big(5))));
+        assert!(bool_of(n(5.0).ge(big(5))));
+        assert!(!bool_of(n(4.5).ge(big(5))));
+        assert!(bool_of(n(4.5).lt(big(5))));
+        assert!(bool_of(n(5.0).le(big(5))));
+        assert!(bool_of(n(f64::INFINITY).gt(big(5))));
+        assert!(bool_of(n(f64::NEG_INFINITY).lt(big(5))));
     }
 
     #[test]
