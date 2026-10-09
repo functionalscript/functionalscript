@@ -124,6 +124,7 @@
  * @import { Analysis, ItemOperand, Node, Operand, Ref, Step } from '../../edag/analysis/types.ts'
  * @import { Exp } from '../../edag/types.ts'
  * @import { List } from '../../types/list/types.ts'
+ * @import { Chunk } from '../../text/marked/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { Document } from './types.ts'
  * @import { _Hoisted, _Names, _Root, _Scope, _Statement, _Written } from './private.ts'
@@ -137,6 +138,7 @@ import { arrayWrap, colon, objectWrap, wrap } from '../../media/json/serializer/
 import { first, flat, toArray } from '../../types/list/module.f.mjs'
 import { _prohibitedCallNames, _prohibitedNames } from '../parser/module.f.mjs'
 import { isIdentifier } from '../../js/identifier/module.f.mjs'
+import { chunkStrings, chunkText, chunksText } from '../../text/marked/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { error, mapOk, ok, okList, okThen } from '../../types/result/module.f.mjs'
 import { _entryText as entryText, renderFunction } from './function_text/module.f.mjs'
@@ -347,7 +349,7 @@ const mixesNullish = (kind, op) => (kind === '??') !== (op === '??') && ['&&', '
  * operand of an operator bare — `()=>1 && 2` is one function — and an
  * operator's text binds as {@link precedence} says.
  *
- * @type {(grouped: boolean) => (text: List<string>) => List<string>}
+ * @type {(grouped: boolean) => (text: List<Chunk>) => List<Chunk>}
  */
 const grouped = grouped => text => grouped ? flat([['('], text, [')']]) : text
 
@@ -378,11 +380,11 @@ const operandGrouped = (op, right) => node => node !== null && (
  * @type {(s: _Scope, path: string, op: string) => (v: Operand) => Document}
  */
 const leftOperand = (s, path, op) => v => mapOk(
-    /** @type {(text: List<string>) => List<string>} */
+    /** @type {(text: List<Chunk>) => List<Chunk>} */
     (text => grouped(operandGrouped(op, false)(nodeOf(s, v)) || (op === '**' && opensWithPrefix(text)))(text)),
 )(operand(s, path)(v))
 
-/** Whether a text opens with a prefix: `-`, `~`, `!` or `typeof`. @type {(text: List<string>) => boolean} */
+/** Whether a text opens with a prefix: `-`, `~`, `!` or `typeof`. @type {(text: List<Chunk>) => boolean} */
 const opensWithPrefix = text => ['-', '~', '!', 'typeof'].some(p => firstChunk(text).startsWith(p))
 
 /** The text of the right operand of the eager binary operator `op`. @type {(s: _Scope, path: string, op: string) => (v: Operand) => Document} */
@@ -399,11 +401,11 @@ const rightOperand = (s, path, op) => v => mapOk(grouped(operandGrouped(op, true
  * @type {(s: _Scope, path: string) => (op: string, left: Operand, right: Operand) => Document}
  */
 const binary = (s, path) => (op, left, right) => mapOk(
-    /** @type {(parts: readonly List<string>[]) => List<string>} */
+    /** @type {(parts: readonly List<Chunk>[]) => List<Chunk>} */
     (([l, r]) => flat([l, [op === '-' && opensWithMinus(r) ? '- ' : op], r])),
 )(okList([leftOperand(s, `${path}/left`, op)(left), rightOperand(s, `${path}/right`, op)(right)]))
 
-/** Whether a text opens with `-`. @type {(text: List<string>) => boolean} */
+/** Whether a text opens with `-`. @type {(text: List<Chunk>) => boolean} */
 const opensWithMinus = text => firstChunk(text).startsWith('-')
 
 /**
@@ -416,7 +418,7 @@ const opensWithMinus = text => firstChunk(text).startsWith('-')
  * @type {(s: _Scope, path: string) => (operand: Operand, constructor: string) => Document}
  */
 const instanceOf = (s, path) => (operand, constructor) => mapOk(
-    /** @type {(l: List<string>) => List<string>} */
+    /** @type {(l: List<Chunk>) => List<Chunk>} */
     (l => flat([l, [` instanceof ${constructor}`]])),
 )(leftOperand(s, `${path}/left`, 'instanceof')(operand))
 
@@ -435,12 +437,12 @@ const instanceOf = (s, path) => (operand, constructor) => mapOk(
  * @type {(s: _Scope, path: string) => (op: string) => (v: Operand) => Document}
  */
 const prefix = (s, path) => op => v => mapOk(
-    /** @type {(text: List<string>) => List<string>} */
+    /** @type {(text: List<Chunk>) => List<Chunk>} */
     (text => flat([[op === 'typeof' ? 'typeof ' : op === '-' && opensWithMinus(text) ? '- ' : op], text])),
 )(mapOk(grouped(isOperator(nodeOf(s, v)) || arrowKind(kindOf(s, v))))(operand(s, path)(v)))
 
 /** An operand's text in place, with whether it is a block; a name and a primitive are neither. @type {(s: _Scope, path: string) => (v: Operand) => Result<_Written, string>} */
-const inPlace = (s, path) => v => mapOk((/** @type {List<string>} */ text) => ({ text, block: false }))(operand(s, path)(v))
+const inPlace = (s, path) => v => mapOk((/** @type {List<Chunk>} */ text) => ({ text, block: false }))(operand(s, path)(v))
 
 /**
  * The text of a lazy operand — the right operand of `&&`, `||` or `??`, an
@@ -451,7 +453,7 @@ const inPlace = (s, path) => v => mapOk((/** @type {List<string>} */ text) => ({
  * @type {(s: _Scope, path: string, takes: (node: Node | null) => boolean) => (v: Operand) => Document}
  */
 const lazyOperand = (s, path, takes) => v => mapOk(
-    /** @type {(w: _Written) => List<string>} */
+    /** @type {(w: _Written) => List<Chunk>} */
     (({ text, block }) => grouped(!block && takes(nodeOf(s, v)))(text)),
 )(block(s, path)(v))
 
@@ -526,7 +528,7 @@ const block = (s, path) => v => {
  * @type {(s: _Scope, path: string) => (node: readonly [string, Operand, Operand]) => Document}
  */
 const lazyBinary = (s, path) => ([op, left, right]) => mapOk(
-    /** @type {(parts: readonly List<string>[]) => List<string>} */
+    /** @type {(parts: readonly List<Chunk>[]) => List<Chunk>} */
     (([l, r]) => flat([l, [op], r])),
 )(okList([leftOperand(s, `${path}/left`, op)(left), lazyOperand(s, `${path}/right`, operandGrouped(op, true))(right)]))
 
@@ -540,7 +542,7 @@ const lazyBinary = (s, path) => ([op, left, right]) => mapOk(
  * @type {(s: _Scope, path: string) => (node: readonly ['?:', Operand, Operand, Operand]) => Document}
  */
 const conditional = (s, path) => ([, c, t, e]) => mapOk(
-    /** @type {(parts: readonly List<string>[]) => List<string>} */
+    /** @type {(parts: readonly List<Chunk>[]) => List<Chunk>} */
     (([cond, then, otherwise]) => flat([cond, ['?'], then, [':'], otherwise])),
 )(okList([
     mapOk(grouped(kindOf(s, c) === '?:' || arrowKind(kindOf(s, c))))(operand(s, `${path}/condition`)(c)),
@@ -605,7 +607,7 @@ const bracketed = k => ok(flat([['['], leafSerialize(k), [']']]))
  * @type {(s: _Scope, path: string, lazy: boolean) => (v: Operand) => Document}
  */
 const conversion = (s, path, lazy) => v => mapOk(
-    /** @type {(text: List<string>) => List<string>} */
+    /** @type {(text: List<Chunk>) => List<Chunk>} */
     (text => flat([['Number('], text, [')']])),
 )((lazy ? lazyItem : item)(s, `${path}/operand`)(v))
 
@@ -646,7 +648,7 @@ const key = (s, path, lazy) => method => k => {
     }
     const node = k instanceof Array ? s.a.nodes[k[1]] : null
     return node !== null && node[0] === 'Number'
-        ? mapOk(/** @type {(text: List<string>) => List<string>} */ (text => flat([['['], text, [']']])))(conversion(s, path, lazy)(node[1]))
+        ? mapOk(/** @type {(text: List<Chunk>) => List<Chunk>} */ (text => flat([['['], text, [']']])))(conversion(s, path, lazy)(node[1]))
         : error('an access key that is no literal')
 }
 
@@ -657,7 +659,7 @@ const key = (s, path, lazy) => method => k => {
  * @type {(s: _Scope, path: string, lazy: boolean) => (method: boolean) => (k: Operand) => Document}
  */
 const optionalKey = (s, path, lazy) => method => k => mapOk(
-    /** @type {(text: List<string>) => List<string>} */
+    /** @type {(text: List<Chunk>) => List<Chunk>} */
     (text => flat([[firstChunk(text).startsWith('.') ? '?' : '?.'], text])),
 )(key(s, path, lazy)(method)(k))
 
@@ -703,8 +705,8 @@ const isRegion = node => node !== null && (node[0] === '?.' || node[0] === '?.()
  */
 const chainBase = (s, path, optional) => v => mapOk(grouped(!optional && isRegion(nodeOf(s, v))))(base(s, path)(v))
 
-/** The first chunk of a document, which no spelling leaves empty. @type {(text: List<string>) => string} */
-const firstChunk = first('')
+/** The first chunk of a document, which no spelling leaves empty. @type {(text: List<Chunk>) => string} */
+const firstChunk = text => chunkText(first('')(text))
 
 /**
  * The name the frame's slot `k` reads as in the scope `s`: the name the
@@ -763,12 +765,12 @@ const frameNames = s => slots => {
  * shares ({@link hoistName}), so the first time the text holds a slot's name
  * is where the parser meets that capture.
  *
- * @type {(names: readonly string[], text: List<string>) => readonly number[]}
+ * @type {(names: readonly string[], text: List<Chunk>) => readonly number[]}
  */
 const firstUse = (names, text) => toArray(text).reduce(
-    /** @type {(order: readonly number[], chunk: string) => readonly number[]} */
+    /** @type {(order: readonly number[], chunk: Chunk) => readonly number[]} */
     ((order, chunk) => {
-        const i = names.indexOf(chunk)
+        const i = names.indexOf(chunkText(chunk))
         return i === -1 || order.includes(i) ? order : [...order, i]
     }),
     [])
@@ -790,7 +792,7 @@ const firstUse = (names, text) => toArray(text).reduce(
  * @type {(a: Analysis, path: string, names: readonly string[], allowUnusedCaptures: boolean, self: string | null) => (b: Operand) => Document}
  */
 const closureBody = (a, path, names, allowUnusedCaptures, self) => b => okThen(
-    /** @type {(text: List<string>) => Document} */
+    /** @type {(text: List<Chunk>) => Document} */
     (text => {
         const order = firstUse(names, text)
         if (order.length !== names.length) {
@@ -828,7 +830,7 @@ const aliasedBody = (a, path, names, allowUnusedCaptures, self) => b => {
     return okThen(
         /** @type {(all: _Root) => Document} */
         (all => mapOk(
-            /** @type {(st: _Statement) => List<string>} */
+            /** @type {(st: _Statement) => List<Chunk>} */
             (st => flat([['{'], st.text, ['}']])),
         )(scope(bodyScope(a, path, aliases, b, allowUnusedCaptures, self), path, start)(all))),
     )(scopeOperands(a, b))
@@ -877,11 +879,11 @@ const lambdaBody = (a, path, frame, allowUnusedCaptures, self) => b => {
         /** @type {(all: _Root) => Document} */
         (all => all.length === 1 && thrownValue(a, all[0]) === null && hoists(s)(all[0]).length === 0
             ? mapOk(
-                /** @type {(text: List<string>) => List<string>} */
+                /** @type {(text: List<Chunk>) => List<Chunk>} */
                 (text => firstChunk(text).startsWith('{') ? flat([['{return '], text, [';}']]) : text),
             )(operand(s, path)(all[0]))
             : mapOk(
-                /** @type {(st: _Statement) => List<string>} */
+                /** @type {(st: _Statement) => List<Chunk>} */
                 (st => flat([['{'], st.text, ['}']])),
             )(scope(s, path, nothing)(all))),
     )(scopeOperands(a, b))
@@ -920,20 +922,20 @@ const lazyArguments = (s, path) => args => mapOk(wrap('(')(')'))(okList(args.map
  * nullish: a `.` node's own call, `a.b(c)`, is the one eager step, and the
  * only step such a node takes.
  *
- * @type {(s: _Scope, path: string, i: number, lazy: boolean) => (text: List<string>) => (step: Step | undefined) => Document}
+ * @type {(s: _Scope, path: string, i: number, lazy: boolean) => (text: List<Chunk>) => (step: Step | undefined) => Document}
  */
 const chainSteps = (s, path, i, lazy) => text => step => {
     if (step === undefined) { return ok(text) }
     const [tag, x, next] = step
     // a guarded call's own arguments are inside the region it opens
     const guarded = lazy || tag === '|?.()'
-    /** @type {(part: List<string>) => Document} */
+    /** @type {(part: List<Chunk>) => Document} */
     const rest = part => chainSteps(s, path, i + 1, guarded)(flat([text, part]))(next)
     if (tag === '|.') { return okThen(rest)(key(s, `${path}/step${i}`, guarded)(isCallStep(next))(x)) }
     const args = (guarded ? lazyArguments : callArguments)(s, `${path}/step${i}`)(x)
     if (tag === '|()') { return okThen(rest)(args) }
-    if (tag === '|?.()') { return okThen(rest)(mapOk(/** @type {(a: List<string>) => List<string>} */ (a => flat([['?.'], a])))(args)) }
-    return mapOk(/** @type {(a: List<string>) => List<string>} */ (a => flat([['('], text, [')'], a])))(args)
+    if (tag === '|?.()') { return okThen(rest)(mapOk(/** @type {(a: List<Chunk>) => List<Chunk>} */ (a => flat([['?.'], a])))(args)) }
+    return mapOk(/** @type {(a: List<Chunk>) => List<Chunk>} */ (a => flat([['('], text, [')'], a])))(args)
 }
 
 /**
@@ -948,10 +950,10 @@ const chainSteps = (s, path, i, lazy) => text => step => {
 const chain = (s, path) => node => {
     const [tag, b, x, k] = node
     const head = tag === '?.()'
-        ? okList([chainBase(s, `${path}/callee`, true)(b), mapOk(/** @type {(a: List<string>) => List<string>} */ (a => flat([['?.'], a])))(lazyArguments(s, `${path}/arguments`)(/** @type {readonly ItemOperand[]} */ (x)))])
+        ? okList([chainBase(s, `${path}/callee`, true)(b), mapOk(/** @type {(a: List<Chunk>) => List<Chunk>} */ (a => flat([['?.'], a])))(lazyArguments(s, `${path}/arguments`)(/** @type {readonly ItemOperand[]} */ (x)))])
         : okList([chainBase(s, `${path}/base`, tag === '?.')(b), (tag === '?.' ? optionalKey : key)(s, `${path}/key`, tag === '?.')(isCallStep(k))(/** @type {Operand} */ (x))])
     return okThen(
-        /** @type {(parts: readonly List<string>[]) => Document} */
+        /** @type {(parts: readonly List<Chunk>[]) => Document} */
         (parts => chainSteps(s, path, 0, tag !== '.')(flat(parts))(k)),
     )(head)
 }
@@ -995,7 +997,7 @@ const parameterList = (a, path, i, length) => {
 const lambda = (a, path, i, length, names, allowUnusedCaptures, self) => body => readsSelf(a, i) && self === null
     ? error('a self-referencing function with no name')
     : mapOk(
-        /** @type {(text: List<string>) => List<string>} */
+        /** @type {(text: List<Chunk>) => List<Chunk>} */
         (text => flat([[parameterList(a, path, i, length)], text])),
     )(closureBody(a, path, names, allowUnusedCaptures, self)(body))
 
@@ -1034,7 +1036,7 @@ const entry = (s0, path) => i => {
             // region grouped so that the call stays outside it.
             const [, callee, args] = node
             return mapOk(
-                /** @type {(parts: readonly List<string>[]) => List<string>} */
+                /** @type {(parts: readonly List<Chunk>[]) => List<Chunk>} */
                 (parts => flat(parts)),
             )(okList([chainBase(s, `${path}/callee`, false)(callee), callArguments(s, `${path}/arguments`)(args)]))
         }
@@ -1072,7 +1074,7 @@ const entry = (s0, path) => i => {
         // JavaScript's one spelling of an expression that fails
         case 'throw': {
             return mapOk(
-                /** @type {(text: List<string>) => List<string>} */
+                /** @type {(text: List<Chunk>) => List<Chunk>} */
                 (text => flat([['(()=>{throw '], text, [';})()']])),
             )(operand(s, path)(node[1]))
         }
@@ -1337,7 +1339,7 @@ const statement = (s0, path, last, elsewhere) => ({ text, names }, v) => {
         const before = acc[1]
         const s = { ...s0, names: before.names, binding: hoistName(path, before.names.length) }
         return mapOk(
-            /** @type {(value: List<string>) => _Statement} */
+            /** @type {(value: List<Chunk>) => _Statement} */
             (value => ({
                 text: flat([before.text, [`const ${binding(hoistName(path, before.names.length))}=`], value, [';']]),
                 names: [...before.names, [h, hoistName(path, before.names.length)]],
@@ -1357,7 +1359,7 @@ const statement = (s0, path, last, elsewhere) => ({ text, names }, v) => {
     const lead = thrown !== null ? 'throw ' : last ? (path === 'module' ? 'export default ' : 'return ') : `const ${binding(hoistName(path, before.names.length))}=`
     const written = thrown === null ? v : thrown[0]
     return mapOk(
-        /** @type {(value: List<string>) => _Statement} */
+        /** @type {(value: List<Chunk>) => _Statement} */
         (value => ({
             text: flat([before.text, [lead], value, [';']]),
             names: last ? before.names : [...before.names, [v instanceof Array && !elsewhere.includes(v[1]) ? ['entry', v[1]] : null, hoistName(path, before.names.length)]],
@@ -1421,24 +1423,30 @@ const scopeOperands = (a, v) => {
  *
  * @type {(e: Exp) => Document}
  */
-export const trySerialize = e => {
+export const _trySerialize = e => {
     const result = okThen(checked)(analysis(e))
     const [kind, a] = result
     if (kind === 'error') { return result }
     return okThen(
         /** @type {(all: _Root) => Document} */
         (all => mapOk(
-            /** @type {(s: _Statement) => List<string>} */
+            /** @type {(s: _Statement) => List<Chunk>} */
             (s => resolve(toArray(s.text))),
         )(scope(moduleScope(a, []), 'module', nothing)(all))),
     )(scopeOperands(a, a.root))
 }
 
+/**
+ * {@link _trySerialize} as plain strings, the kind of each chunk dropped.
+ *
+ * @type {(e: Exp) => Result<List<string>, string>}
+ */
+export const trySerialize = e => mapOk(chunkStrings)(_trySerialize(e))
+
 /** The same as one string. @type {(e: Exp) => Result<string, string>} */
 export const tryStringify = e => mapOk(
-    /** @type {(text: List<string>) => string} */
-    (text => toArray(text).join('')),
-)(trySerialize(e))
+    chunksText,
+)(_trySerialize(e))
 
 /**
  * A function entry's canonical text from an existing analysis table. The
@@ -1460,11 +1468,11 @@ export const tryStringify = e => mapOk(
  * @type {(a: Analysis, i: number) => string}
  */
 export const functionText = (a, i) => {
-    if (a.nodes[i][0] === 'entry') { return resolve([entryText('function')], [], []).join('') }
+    if (a.nodes[i][0] === 'entry') { return chunksText(resolve([entryText('function')], [], [])) }
     const [, length, slots, body] = /** @type {Extract<Node, readonly ['=>', number, readonly Operand[], Operand]>} */ (a.nodes[i])
     const frame = slots.map((_, k) => name(`external${k}`))
     const [kind, text] = lambda(a, 'function', i, length, frame, true, null)(body)
-    return kind === 'ok' ? resolve(toArray(text), [], frame).join('') : renderFunction(a, i)
+    return kind === 'ok' ? chunksText(resolve(toArray(text), [], frame)) : renderFunction(a, i)
 }
 
 /**
@@ -1511,7 +1519,7 @@ export const tryFunctionText = e => {
 const moduleBinding = (a, h) => before => {
     const symbol = hoistName('module', before.names.length)
     return mapOk(
-        /** @type {(text: List<string>) => _Statement} */
+        /** @type {(text: List<Chunk>) => _Statement} */
         (text => ({ text: flat([before.text, [`const ${binding(symbol)}=`], text, [';']]), names: [...before.names, [h, symbol]] })),
     )(hoistedText({ ...moduleScope(a, before.names), binding: symbol }, 'module')(h))
 }
@@ -1535,7 +1543,7 @@ const moduleOperand = a => (before, v) => {
             const last = node[1][node[1].length - 1]
             const symbol = hoistName('module', state.names.length)
             return mapOk(
-                /** @type {(text: List<string>) => _Statement} */
+                /** @type {(text: List<Chunk>) => _Statement} */
                 (text => ({ text: flat([state.text, [`const ${binding(symbol)}=`], text, [';']]), names: [...state.names, [['entry', v[1]], symbol]] })),
             )(operand(moduleScope(a, state.names), 'module')(last))
         }
@@ -1570,7 +1578,7 @@ const moduleBody = a => (state, v) => {
 
 /** One original export, after its computation has been emitted. @type {(a: Analysis, state: _Statement) => (member: readonly [':', string, Operand]) => Document} */
 const moduleExport = (a, state) => ([, key, v]) => mapOk(
-    /** @type {(text: List<string>) => List<string>} */
+    /** @type {(text: List<Chunk>) => List<Chunk>} */
     (text => flat([[key === 'default' ? 'export default ' : `export const ${key}=`], text, [';']])),
 )(operand(moduleScope(a, state.names), 'module')(v))
 
@@ -1582,10 +1590,10 @@ const moduleExport = (a, state) => ([, key, v]) => mapOk(
  *
  * @type {(e: Exp) => Document}
  */
-export const tryModuleSerialize = e => {
+export const _tryModuleSerialize = e => {
     // a module that throws exports nothing: its computation is the one
     // statement the value writer spells, `throw v;`, in place of the exports
-    if (_moduleThrows(e)) { return trySerialize(e) }
+    if (_moduleThrows(e)) { return _trySerialize(e) }
     const members = _moduleExports(e)
     if (members.length === 0) { return error('a module without exports') }
     const keys = members.map(([, key]) => key)
@@ -1594,7 +1602,7 @@ export const tryModuleSerialize = e => {
         return error('an unsupported export name')
     }
     if (keys.length === 1 && keys[0] === 'default') {
-        const compact = trySerialize(_defaultExport(e))
+        const compact = _trySerialize(_defaultExport(e))
         if (compact[0] === 'ok') { return compact }
     }
     const result = okThen(checked)(analysis(e))
@@ -1602,7 +1610,7 @@ export const tryModuleSerialize = e => {
     if (kind === 'error') { return result }
     const exports = exportOperands(a, a.root)
     return okThen(state => mapOk(
-        /** @type {(parts: readonly List<string>[]) => List<string>} */
+        /** @type {(parts: readonly List<Chunk>[]) => List<Chunk>} */
         (parts => resolve(toArray(flat([state.text, ...parts])), keys)),
     )(okList([
         ...exports.filter(([, key]) => key !== 'default'),
@@ -1610,8 +1618,14 @@ export const tryModuleSerialize = e => {
     ].map(moduleExport(a, state)))))(moduleBody(a)({ text: null, names: [] }, a.root))
 }
 
+/**
+ * {@link _tryModuleSerialize} as plain strings, the kind of each chunk dropped.
+ *
+ * @type {(e: Exp) => Result<List<string>, string>}
+ */
+export const tryModuleSerialize = e => mapOk(chunkStrings)(_tryModuleSerialize(e))
+
 /** The module source as one string. @type {(e: Exp) => Result<string, string>} */
 export const tryModuleStringify = e => mapOk(
-    /** @type {(text: List<string>) => string} */
-    (text => toArray(text).join('')),
-)(tryModuleSerialize(e))
+    chunksText,
+)(_tryModuleSerialize(e))

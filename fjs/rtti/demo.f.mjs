@@ -92,6 +92,7 @@ import { op1Id } from '../edag/module.f.mjs'
 import { value as edagValue } from '../edag/value/module.f.mjs'
 import { dirent } from '../effects/schema/module.f.mjs'
 import { fundingSchema } from '../website/funding/module.f.mjs'
+import { chunksText } from '../text/marked/module.f.mjs'
 
 const person = /** @type {const} */ ({ name: string, age: number })
 
@@ -346,7 +347,7 @@ const partnerOf = (e, shown) => e.schemas.length === 2 ? schemaKey(e, shown === 
  * @type {(c: Const) => Shape<Type>}
  */
 const constShape = c => c === null || typeof c !== 'object'
-    ? { inline: concat(leafSerialize(c)) }
+    ? { inline: chunksText(leafSerialize(c)) }
     : c instanceof Array
         ? { kind: 'tuple', label: '[ ]', children: tupleSchemaEntries(c) }
         : { kind: 'struct', label: '{ }', children: structSchemaEntries(c) }
@@ -462,14 +463,14 @@ export const _readersOf = schema => text => {
  * @type {(value: Unknown) => List<string>}
  */
 const expressionChunks = value => {
-    if (value === null || typeof value !== 'object') { return [concat(leafSerialize(value))] }
+    if (value === null || typeof value !== 'object') { return [chunksText(leafSerialize(value))] }
     /** @type {(items: List<List<string>>) => List<string>} */
     const items = list => flat(intersperse([','])(list))
     return value instanceof Array
         ? flat([['['], items(map(expressionChunks)([...value])), [']']])
         : flat([['{'], items(map(
             /** @type {(e: readonly [string, Unknown]) => List<string>} */
-            ([k, v]) => flat([[`${concat(leafSerialize(k))}:`], () => expressionChunks(v)]))(Object.entries(value))), ['}']])
+            ([k, v]) => flat([[`${chunksText(leafSerialize(k))}:`], () => expressionChunks(v)]))(Object.entries(value))), ['}']])
 }
 
 /**
@@ -519,7 +520,7 @@ export const _marked = path => value => {
     const commas = nodes => nodes.flatMap((n, i) => i === 0 ? n : [',', ...n])
     return value instanceof Array
         ? ['[', ...commas([...value].map((v, i) => member(String(i), v))), ']']
-        : ['{', ...commas(Object.entries(value).map(([k, v]) => [`${concat(leafSerialize(k))}:`, ...member(k, v)])), '}']
+        : ['{', ...commas(Object.entries(value).map(([k, v]) => [`${chunksText(leafSerialize(k))}:`, ...member(k, v)])), '}']
 }
 
 // ── outputs and comparison ───────────────────────────────────────────────────

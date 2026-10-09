@@ -28,12 +28,13 @@ import { leafSerialize } from '../../../media/datajs/serializer/module.f.mjs'
 import { concat } from '../../../types/string/module.f.mjs'
 import { _entryText, _renderSymbolic } from '../function_text/module.f.mjs'
 import { _name as symbol, _binding as binding, _resolve as resolve } from '../names/module.f.mjs'
+import { chunksText, chunkText } from '../../../text/marked/module.f.mjs'
 
 /** One outer node's stable binding. @type {(i: number) => string} */
 const name = i => symbol(`value${i}`)
 
 /** A leaf or a previously constructed value. @type {(v: Operand) => string} */
-const operand = v => v instanceof Array ? name(v[1]) : concat(leafSerialize(v))
+const operand = v => v instanceof Array ? name(v[1]) : chunksText(leafSerialize(v))
 
 /** Construct one outer node; no function-body entry reaches this writer. @type {(a: Analysis, i: number, n: _ValueNode) => string} */
 const entry = (a, i, n) => {
@@ -60,7 +61,7 @@ const construction = value => {
         // construction guarantees for entries outside function-body scopes.
         ? [`const ${binding(name(i))}=${entry(a, i, /** @type {_ValueNode} */ (node))};`]
         : [])
-    const [text, root] = resolve([declarations.join(''), operand(a.root)])
+    const [text, root] = resolve([declarations.join(''), operand(a.root)]).map(chunkText)
     return [text, root]
 }
 

@@ -7,6 +7,7 @@
 
 import type { Analysis, Operand } from '../../edag/analysis/types.ts'
 import type { List } from '../../types/list/types.ts'
+import type { Chunk } from '../../text/marked/types.ts'
 
 /**
  * A value hoisted into a `const`: an entry of the table by index, or a
@@ -70,13 +71,13 @@ export type _Scope = {
  * them where its node's precedence asks.
  */
 export type _Written = {
-    readonly text: List<string>
+    readonly text: List<Chunk>
     readonly block: boolean
 }
 
 /** A statement and the names it left behind. */
 export type _Statement = {
-    readonly text: List<string>
+    readonly text: List<Chunk>
     readonly names: _Names
 }
 

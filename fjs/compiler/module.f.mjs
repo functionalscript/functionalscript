@@ -13,6 +13,7 @@
  * @module
  *
  * @import { List } from '../types/list/types.ts'
+ * @import { Chunk } from '../text/marked/types.ts'
  * @import { Result } from '../types/result/types.ts'
  * @import { Unknown } from '../media/datajs/types.ts'
  * @import { _Checked, _CompileOp } from './types.ts'
@@ -36,6 +37,7 @@ import { errorMessage, foldStep, ioError, mapStep, pureError, pureOk, resultMapS
 import { error as errorLine, errorExit, exitStep, log, mkdir, writeUtf8File } from '../effects/node/module.f.mjs'
 import { concat as pathConcat } from '../path/module.f.mjs'
 import { allFiles, sourceRoot } from '../dev/module.f.mjs'
+import { chunksText } from '../text/marked/module.f.mjs'
 
 const { entries } = Object
 
@@ -198,10 +200,10 @@ const unknownOutput = 'no output language for this extension: expected .json, .r
 
 // ── the proofs' dump ──────────────────────────────────────────────────────────
 
-/** @type {(member: readonly [string, Unknown]) => List<string>} */
+/** @type {(member: readonly [string, Unknown]) => List<Chunk>} */
 const treeMember = ([key, value]) => flat([stringSerialize(key), colon, treeValue(value)])
 
-/** @type {(value: Unknown) => List<string>} */
+/** @type {(value: Unknown) => List<Chunk>} */
 const treeValue = value => {
     switch (typeof value) {
         case 'boolean': { return boolSerialize(value) }
@@ -231,7 +233,7 @@ const treeValue = value => {
  *
  * @type {(value: Unknown) => string}
  */
-export const _stringifyTree = value => concat(treeValue(value))
+export const _stringifyTree = value => chunksText(treeValue(value))
 
 // ── the command ───────────────────────────────────────────────────────────────
 

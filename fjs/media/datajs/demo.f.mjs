@@ -42,6 +42,7 @@ import { keySerialize, leafSerialize } from './serializer/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'
 import { graphOf, graphSvg } from '../../website/demo/graph/module.f.mjs'
 import { textDemo } from '../../website/demo/module.f.mjs'
+import { chunksText } from '../../text/marked/module.f.mjs'
 
 /** @type {(value: Unknown) => value is Primitive} */
 const isPrimitive = value => value === null || typeof value !== 'object'
@@ -52,10 +53,10 @@ const isPrimitive = value => value === null || typeof value !== 'object'
  *
  * @type {(value: Unknown) => Shape<Unknown>}
  */
-const shapeOf = value => isPrimitive(value) ? { inline: concat(leafSerialize(value)) }
+const shapeOf = value => isPrimitive(value) ? { inline: chunksText(leafSerialize(value)) }
     : value instanceof Array
         ? { kind: 'array', label: '[ ]', children: value.map((item, index) => [String(index), item]) }
-        : { kind: 'object', label: '{ }', children: Object.entries(value).map(([key, item]) => [concat(keySerialize(key)), item]) }
+        : { kind: 'object', label: '{ }', children: Object.entries(value).map(([key, item]) => [chunksText(keySerialize(key)), item]) }
 
 /**
  * `text` as the graph it denotes, or the parser's own error if it does not

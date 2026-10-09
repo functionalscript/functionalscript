@@ -35,6 +35,11 @@ export const proof = {
         assertEq(resolve(['"$0",{"$a":1}']).join(''), '"$0",{"$a":1}')
         assertEq(resolve([]).join(''), '')
     },
+    marked: () => {
+        const a = name('a')
+        // a marked chunk keeps its kind, and a symbol in its text is resolved
+        assertStructurallySame(resolve([[`${binding(a)}`, 'string'], [a], [`x${a}`], 'y']), [['$0', 'string'], ['$0'], ['x$0'], 'y'])
+    },
     throw: {
         missing: () => resolve([name('missing')]),
     },

@@ -20,10 +20,12 @@
  * @import { CodePoint } from '../../../text/code_point/types.ts'
  * @import { Tree, TreeObject, TreeArray, TreeEntry, TreeEntries, TreeMapEntries } from '../types.ts'
  * @import { Codec, LeafSerializer, _ExtraLeaves, _Leaves } from './types.ts'
+ * @import { Chunk } from '../../../text/marked/types.ts'
  */
 
 import { flat, map, reduce, empty } from '../../../types/list/module.f.mjs'
 import { concat } from '../../../types/string/module.f.mjs'
+import { chunkStrings, chunksText } from '../../../text/marked/module.f.mjs'
 import { codePointToString, stringToCodePointList } from '../../../text/utf16/module.f.mjs'
 import { errorMask } from '../../../text/code_point/module.f.mjs'
 import { definedEntries, isObject } from '../../../types/object/module.f.mjs'
@@ -75,29 +77,32 @@ const escapeCodePoint = codePoint =>
 /**
  * Serializes a string as a JSON string literal.
  *
- * @type {(_: string) => List<string>}
+ * @type {(_: string) => List<Chunk>}
  */
 export const stringSerialize
-    = input => [`"${concat(map(escapeCodePoint)(stringToCodePointList(input)))}"`]
+    = input => [[`"${concat(map(escapeCodePoint)(stringToCodePointList(input)))}"`, 'string']]
 
 /**
  * Serializes a number as a JSON number literal.
  *
- * @type {(_: number) => List<string>}
+ * @type {(_: number) => List<Chunk>}
  */
 export const numberSerialize
-    = input => [jsonStringify(input)]
+    = input => [[jsonStringify(input), 'number']]
 
 /**
  * Shared serialized representation for `null`.
  */
-export const nullSerialize = ['null']
+/** @type {List<Chunk>} */
+export const nullSerialize = [['null', 'literal']]
 
-const trueSerialize = ['true']
+/** @type {List<Chunk>} */
+const trueSerialize = [['true', 'literal']]
 
-const falseSerialize = ['false']
+/** @type {List<Chunk>} */
+const falseSerialize = [['false', 'literal']]
 
-/** @type {(_: boolean) => List<string>} */
+/** @type {(_: boolean) => List<Chunk>} */
 export const boolSerialize
     = value => value ? trueSerialize : falseSerialize
 
@@ -132,11 +137,11 @@ export const leafSerialize = numberSerialize => extra => {
 
 const comma = [',']
 
-/** @type {Reduce<List<string>>} */
+/** @type {Reduce<List<Chunk>>} */
 const joinOp
     = b => prior => flat([prior, comma, b])
 
-/** @type {(input: List<List<string>>) => List<string>} */
+/** @type {(input: List<List<Chunk>>) => List<Chunk>} */
 const join
     = reduce(joinOp)(empty)
 
@@ -144,7 +149,7 @@ const join
  * Entries joined by commas between an opening and a closing bracket. Shared
  * with the FunctionalScript writer, which spells a call's arguments this way.
  *
- * @type {(open: string) => (close: string) => (input: List<List<string>>) => List<string>}
+ * @type {(open: string) => (close: string) => (input: List<List<Chunk>>) => List<Chunk>}
  */
 export const wrap
     = open => close => {
@@ -153,14 +158,14 @@ export const wrap
         return input => flat([seqOpen, join(input), seqClose])
     }
 
-/** @type {(input: List<List<string>>) => List<string>} */
+/** @type {(input: List<List<Chunk>>) => List<Chunk>} */
 export const objectWrap
     = wrap('{')('}')
 
 /**
  * Wraps serialized entries into a JSON array.
  *
- * @type {(input: List<List<string>>) => List<string>}
+ * @type {(input: List<List<Chunk>>) => List<Chunk>}
  */
 export const arrayWrap
     = wrap('[')(']')
@@ -169,7 +174,7 @@ export const arrayWrap
  * The separator between a serialized property key and its value. Shared with
  * `fjs/media/datajs/serializer`, which builds the same `key : value` fragment.
  *
- * @type {List<string>}
+ * @type {List<Chunk>}
  */
 export const colon = [':']
 
@@ -186,8 +191,8 @@ export const colon = [':']
  * missing property, not a leaf of any of these trees.
  *
  * @template P
- * @param {(value: P) => List<string>} leafSerialize
- * @returns {(sort: TreeMapEntries<P>) => (value: Tree<P>) => List<string>}
+ * @param {(value: P) => List<Chunk>} leafSerialize
+ * @returns {(sort: TreeMapEntries<P>) => (value: Tree<P>) => List<Chunk>}
  */
 export const treeSerialize = leafSerialize => sort => {
     // `definedEntries` is generic; naming it at `P` here is what keeps the leaf
@@ -195,26 +200,26 @@ export const treeSerialize = leafSerialize => sort => {
     // instantiate it at `unknown`.
     /** @type {(object: TreeObject<P>) => TreeEntries<P>} */
     const objectEntries = definedEntries
-    /** @type {(kv: TreeEntry<P>) => List<string>} */
+    /** @type {(kv: TreeEntry<P>) => List<Chunk>} */
     const propertySerialize = ([k, v]) => flat([
         stringSerialize(k),
         colon,
         f(v)
     ])
     const mapPropertySerialize = map(propertySerialize)
-    /** @type {(object: TreeObject<P>) => List<string>} */
+    /** @type {(object: TreeObject<P>) => List<Chunk>} */
     const objectSerialize = fn(objectEntries)
         .map(sort)
         .map(mapPropertySerialize)
         .map(objectWrap)
         .result
-    /** @type {(value: Tree<P>) => List<string>} */
+    /** @type {(value: Tree<P>) => List<Chunk>} */
     const f = value => {
         if (value instanceof Array) { return arraySerialize(value) }
         if (isObject(value)) { return objectSerialize(value) }
         return leafSerialize(value)
     }
-    /** @type {(value: TreeArray<P>) => List<string>} */
+    /** @type {(value: TreeArray<P>) => List<Chunk>} */
     const arraySerialize = compose(map(f))(arrayWrap)
     return f
 }
@@ -230,7 +235,7 @@ export const treeSerialize = leafSerialize => sort => {
 export const codec = leaf => {
     const serialize = treeSerialize(leaf)
     return {
-        serialize,
-        stringify: sort => compose(serialize(sort))(concat),
+        serialize: sort => compose(serialize(sort))(chunkStrings),
+        stringify: sort => compose(serialize(sort))(chunksText),
     }
 }

@@ -2,10 +2,10 @@
  * @import { List } from '../../../types/list/types.ts'
  */
 
-import { arrayWrap, boolSerialize, codec, leafSerialize, numberSerialize, objectWrap, stringSerialize } from './module.f.mjs'
+import { arrayWrap, boolSerialize, codec, leafSerialize, nullSerialize, numberSerialize, objectWrap, stringSerialize } from './module.f.mjs'
 import * as list from '../../../types/list/module.f.mjs'
 import { sort } from '../../../types/object/module.f.mjs'
-import { concat } from '../../../types/string/module.f.mjs'
+import { chunksText } from '../../../text/marked/module.f.mjs'
 import { assertEq } from '../../../asserts/module.f.mjs'
 
 const { toArray } = list
@@ -33,7 +33,7 @@ const unchecked = value => /** @type {never} */ (value)
 // the same input; `stringSerialize` has to reproduce them exactly, so any
 // divergence in the FunctionalScript escaping shows up here as a failure.
 /** @type {(input: string) => string} */
-const serialized = input => concat(stringSerialize(input))
+const serialized = input => chunksText(stringSerialize(input))
 
 export const proof = {
     arrayWrap: [
@@ -96,39 +96,45 @@ export const proof = {
     numberSerialize: [
         () => {
             const result = JSON.stringify(toArray(numberSerialize(123)))
-            assertEq(result, '["123"]')
+            assertEq(result, '[["123","number"]]')
         },
         () => {
             const result = JSON.stringify(toArray(numberSerialize(10e20)))
-            assertEq(result, '["1e+21"]')
+            assertEq(result, '[["1e+21","number"]]')
         }
     ],
     boolSerialize: [
         () => {
             const result = JSON.stringify(toArray(boolSerialize(false)))
-            assertEq(result, '["false"]')
+            assertEq(result, '[["false","literal"]]')
         },
         () => {
             const result = JSON.stringify(toArray(boolSerialize(true)))
-            assertEq(result, '["true"]')
+            assertEq(result, '[["true","literal"]]')
         }
     ],
     leafSerialize: {
         shared: () => {
-            assertEq(concat(plain(true)), 'true')
-            assertEq(concat(plain(1.5)), '#1.5')
-            assertEq(concat(plain('a')), '"a"')
-            assertEq(concat(plain(null)), 'null')
+            assertEq(chunksText(plain(true)), 'true')
+            assertEq(chunksText(plain(1.5)), '#1.5')
+            assertEq(chunksText(plain('a')), '"a"')
+            assertEq(chunksText(plain(null)), 'null')
         },
         extra: () => {
-            assertEq(concat(full(1n)), '1n')
-            assertEq(concat(full(undefined)), 'undefined')
-            assertEq(concat(full(false)), 'false')
+            assertEq(chunksText(full(1n)), '1n')
+            assertEq(chunksText(full(undefined)), 'undefined')
+            assertEq(chunksText(full(false)), 'false')
         },
         throw: {
             bigint: () => plain(unchecked(1n)),
             undefined: () => plain(unchecked(undefined)),
         },
+    },
+    kinds: () => {
+        assertEq(JSON.stringify(toArray(stringSerialize('a'))), '[["\\"a\\"","string"]]')
+        assertEq(JSON.stringify(toArray(nullSerialize)), '[["null","literal"]]')
+        // punctuation stays plain
+        assertEq(JSON.stringify(toArray(arrayWrap([nullSerialize]))), '["[",["null","literal"],"]"]')
     },
     codec: () => {
         const { serialize, stringify } = codec(plain)
