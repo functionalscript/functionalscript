@@ -1,7 +1,7 @@
 ## check-render-split. Corpus validation is only reachable through the renderer
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
