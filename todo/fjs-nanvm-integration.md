@@ -161,7 +161,8 @@ The table above is a historical measurement. `array_index` now imports
 [`types/number/is_integer`](../fjs/types/number/is_integer/module.f.js), whose
 `isInteger` uses `typeof` and `%` rather than `Number.isInteger`. Its bounds
 and canonical string round-trip are unchanged; `String` remains its
-compiler blocker. `types/number` reuses the same predicate.
+compiler blocker. `types/number`, ASCII digit parsing, Unicode surrogate
+conversion, and Node/web validation reuse the same predicate.
 
 Since the previous measurement, at `4c8ec55`, the leaves are the same
 eighteen and the compiler has moved on three of them. `Number(exp)` is in the

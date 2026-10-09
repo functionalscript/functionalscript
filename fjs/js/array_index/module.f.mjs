@@ -12,6 +12,9 @@
 
 import { isInteger } from '../../types/number/is_integer/module.f.js'
 
+/** @type {(i: number) => boolean} */
+const isIndexValue = i => isInteger(i) && 0 <= i && i <= 2 ** 32 - 2
+
 /**
  * The array index a property key names, or `null`: the canonical decimal
  * spelling of an integer in `0 .. 2 ** 32 - 2`
@@ -33,5 +36,5 @@ import { isInteger } from '../../types/number/is_integer/module.f.js'
  */
 export const arrayIndex = key => {
     const i = Number(key)
-    return isInteger(i) && 0 <= i && i <= 2 ** 32 - 2 && String(i) === key ? i : null
+    return isIndexValue(i) && String(i) === key ? i : null
 }
