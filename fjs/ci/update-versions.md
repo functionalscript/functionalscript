@@ -36,8 +36,9 @@ If anything changed:
 1. Update the file and run `./dev.sh npm run gen`. Its last step,
    `./gen.nix/lock-update.sh`, fails here and deletes the `flake.lock` files;
    restore them with `git restore $(git ls-files 'gen.nix/*flake.lock')`.
-2. If Nixpkgs moved, write its new lock entries by hand: `narHash` is the hash
-   the prefetch printed, `lastModified` is `git log -1 --format=%ct C`. Then run
+2. If Nixpkgs moved, write its new lock entries by hand, taking `narHash` and
+   `lastModified` from `locked` in
+   `nix flake metadata --json "git+https://github.com/NixOS/nixpkgs?rev=C&shallow=1"`. Then run
    `sh ./gen.nix/lock-update.sh`, which now succeeds and locks `rust-overlay`.
 3. Repeat the dry run on the committed flakes, without `--override-input`.
 4. `./dev.sh npm ci` (or `npm install`, `deno install` and `bun install` if
