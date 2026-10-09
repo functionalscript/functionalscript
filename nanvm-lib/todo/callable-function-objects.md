@@ -529,10 +529,10 @@ and none is a disagreement of semantics:
 | `function`, `rest-function` | the default export is a function; the interpreter refuses to materialize it without a compile/load boundary | observed by calling, below |
 | `named-imports`, `named-imports-throws` | need the module loader | out of scope until the [loader](../../fjs/compiler/todo/load-modules-without-import-effect.md) |
 
-**Where the expectation lives (decision 1).** Either (a) a hand-written value
+**Where the expectation lives (decision 1, decided: (b)).** Either (a) a hand-written value
 beside each fixture, or (b) the reference's own output, written by a
 generator into a committed `gen.` file and drift-checked, so Node is the
-single author and nothing is retyped. This plan recommends (b): the reference
+single author and nothing is retyped. The owner chose (b): the reference
 is the intended authority, and the hand-written strings in `src/lib.rs`
 (`"[1,1,false,true,true,true]"`) are exactly the retyping that can drift.
 Fixtures with no JSON form keep a hand-written expectation, listed in the
@@ -560,8 +560,8 @@ table above with the reason.
 
 **Decisions for the owner.**
 
-1. Expectation authored by hand beside each fixture, or by the reference and
-   committed (recommended)?
+1. ~~Expectation authored by hand beside each fixture, or by the reference and
+   committed?~~ Decided: by the reference, committed and drift-checked.
 2. How a callable export is observed: a sidecar of argument lists, or a
    second export the fixture itself provides?
 3. `bigint` and other values with no JSON: a corpus-level text form such as
