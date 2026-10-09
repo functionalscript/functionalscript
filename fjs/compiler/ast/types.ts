@@ -9,7 +9,7 @@ import type { Assert } from '../../asserts/types.ts'
 import type { ConstructorId } from '../../edag/types.ts'
 import type { Primitive } from '../../media/datajs/types.ts'
 import type { Equal } from '../../types/ts/types.ts'
-import type { binaryTags } from './module.f.mjs'
+import type { binaryTags, eagerLayers, lazyLayers } from './module.f.mjs'
 
 /**
  * An imported binding: the selected export name, the specifier as written, and
@@ -365,6 +365,15 @@ export type BinaryTag =
     | '&&' | '||' | '??'
 
 type _BinaryTagsAreComplete = Assert<Equal<(typeof binaryTags)[number], BinaryTag>>
+
+/** Every tag a layer of `eagerLayers` or `lazyLayers` in `./module.f.mjs` holds. */
+type _LayerTag = _Values<(typeof eagerLayers)[number] | (typeof lazyLayers)[number]>
+
+/** The values of each record of a union, distributed over it. */
+type _Values<T> = T extends unknown ? T[keyof T] : never
+
+/** The layers and `**` hold every binary operator and `instanceof`, and nothing else. */
+type _LayersAreComplete = Assert<Equal<_LayerTag | '**', BinaryTag | 'instanceof'>>
 
 /**
  * The conditional, `c ? t : e`: the EDAG's `op3`, `['?:', c, t, e]`, the

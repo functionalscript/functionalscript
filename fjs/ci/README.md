@@ -527,8 +527,8 @@ check alone; this repository passes its own from `self/module.f.mjs`.
 each gets `if: github.event_name == 'merge_group'`, so a pull request's pushes
 skip it. GitHub reads a skipped job as passed for a required status check, so
 it still gates the merge, once, in the queue. A project with no merge queue
-would never run those jobs, so the default is none; this repository passes
-`['macos', 'windows']`, its slowest runners.
+would never run those jobs, so the default is none, which is what this
+repository uses.
 
 On every platform but Windows, an injected step that names a **command** runs
 inside the shared shell, alongside the job's own — these jobs no longer install

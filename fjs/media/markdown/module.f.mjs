@@ -22,39 +22,18 @@
  *
  * @module
  *
- * @import { Ast, Meta } from '../../ebnf/ast/types.ts'
  * @import { Utf16 } from '../../ebnf/utf16/types.ts'
  * @import { RewriteSet } from '../../ebnf/ll1/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { Document, Entry, Inline } from './types.ts'
  */
 
-import { symbolAt, unmapped } from '../../ebnf/ast/module.f.mjs'
+import { unmapped } from '../../ebnf/ast/module.f.mjs'
 import { entry as entryRule } from '../../ebnf/lib/markdown/module.f.mjs'
 import { eof } from '../../ebnf/module.f.mjs'
 import { parser } from '../../ebnf/ll1/module.f.mjs'
-import { units } from '../../ebnf/utf16/module.f.mjs'
-import { listToString } from '../../text/utf16/module.f.mjs'
+import { lexeme, units } from '../../ebnf/utf16/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
-
-/**
- * The input units under a node, in order.
- *
- * **No case for a variant's tag**, which JSON's own reader has and this does
- * not need: every call below indexes past a tag before asking for the text
- * under what it found, so a tag never reaches here. Carrying the case anyway
- * would be a branch nothing can take, and a reader would have to work out
- * which of the two this module was.
- *
- * @type {(node: unknown) => readonly number[]}
- */
-const unitsUnder = node =>
-    node instanceof Array
-        ? node.flatMap(unitsUnder)
-        : [symbolAt(/** @type {Meta<Utf16>} */(node)).symbol]
-
-/** The text a node spells. @type {(node: unknown) => string} */
-const lexeme = node => listToString(unitsUnder(node))
 
 /** @type {RewriteSet<Utf16, never>} */
 const nothing = []

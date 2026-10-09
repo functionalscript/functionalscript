@@ -44,7 +44,7 @@
  * @module
  */
 
-import type { List as EffectList } from '../../types/list/types.ts'
+import type { List } from '../../types/list/types.ts'
 import type { RequiredMap } from '../../types/object/types.ts'
 import type { Result } from '../../types/result/types.ts'
 import type { Vec } from '../../types/bit_vec/types.ts'
@@ -229,4 +229,4 @@ export type ReadConsoles = 'stdin'
 export type Read = readonly['read', (stream: ReadConsoles) => OpResult<number | null>]
 
 /** @internal */
-export type _UtfList = EffectList<number>
+export type _UtfList = List<number>
