@@ -1,7 +1,7 @@
 ## plain-text-response. The runner hand-builds HTTP refusal frames that `fjs/web` builds purely
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
