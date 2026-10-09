@@ -512,7 +512,10 @@ else in the name has moved DISOT semantics into Git's namespace.
 - [`fjs/git/refname`](../../refname/module.f.mjs) — `lockSuffix`, and why no ref
   is ever named by a writer's lock file.
 - [`fjs/git/ref`](../../ref/module.f.mjs) — the file grammars a writer must
-  produce, measured against Git.
+  produce, measured against Git, and `writeLoose`, the bytes `tryWrite` puts
+  in a loose file. A symbolic write's `ref: <name>\n` belongs beside it, as a
+  `writeSymbolic` proved by its round trip through `tryRef`, not as a format
+  string in the store.
 - [`fjs/git/store`](../../store/module.f.mjs) — from an id to the object a ref
   keeps, and what an object-existence check would have to read.
 - [`fjs/effects/node/virtual`](../../../effects/node/virtual/module.f.mjs) —

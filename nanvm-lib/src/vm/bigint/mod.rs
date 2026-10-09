@@ -257,11 +257,7 @@ impl<A: IVm> BigInt<A> {
             return Err(error::division_by_zero());
         }
         let lhs_sign = self.sign();
-        let quotient_sign = if lhs_sign == rhs.sign() {
-            Sign::Positive
-        } else {
-            Sign::Negative
-        };
+        let quotient_sign = lhs_sign * rhs.sign();
         let (quotient, remainder) = self.abs_divmod_vec(rhs);
         Ok((
             Self::normalize_new(quotient_sign, quotient),

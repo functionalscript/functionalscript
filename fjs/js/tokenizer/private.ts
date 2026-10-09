@@ -18,6 +18,13 @@ export type _Lexeme = {
     readonly closed: boolean
 }
 
+/**
+ * The position fold's state: where the next code point stands, and the code
+ * point before it — `undefined` at the start of input — which decides
+ * whether an LF starts a line or closes the CRLF its CR already started.
+ */
+export type _Cursor = readonly [TokenMetadata, number | undefined]
+
 /** A token the grammar refused: where it began, where it failed, and whether it was a number. */
 export type _Failure = {
     readonly number: boolean

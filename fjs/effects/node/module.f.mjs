@@ -451,14 +451,19 @@ export const writeExclusiveUtf8File = (path, content) =>
 const writeBytesOp = /** @type {Func<WriteBytes>} */ (do_('writeBytes'))
 
 /**
- * Writes `data` into the existing `path` at byte `offset`. A `Vec` that is not
- * whole bytes is refused here as `invalid buffer size`, before any host sees
- * it, as {@link writeFile} refuses one.
+ * Writes `data` into the existing `path` at byte `offset`. What no host should
+ * be handed is refused here, before `path` is opened: a `Vec` that is not whole
+ * bytes as `invalid buffer size`, as {@link writeFile} refuses one, and a
+ * position {@link writeRefusal} refuses, in its words — so a refused write to a
+ * missing `path` is not `ENOENT`.
  *
  * @type {Func<WriteBytes>}
  */
-export const writeBytes = (path, offset, data) =>
-    isWholeBytes(data) ? writeBytesOp(path, offset, data) : invalidBufferSize
+export const writeBytes = (path, offset, data) => {
+    if (!isWholeBytes(data)) { return invalidBufferSize }
+    const refusal = writeRefusal(offset, byteLength(data))
+    return refusal === null ? writeBytesOp(path, offset, data) : pureError(ioError({ message: refusal }))
+}
 
 /** @type {(path: string) => _WriteLoop} */
 const writeLoop = path => {
@@ -684,15 +689,53 @@ export const maxOffset = Number.MAX_SAFE_INTEGER
  *
  * @type {(offset: number, size: number) => Nullable<string>}
  */
-export const windowRefusal = (offset, size) => {
+export const windowRefusal = (offset, size) =>
+    offsetRefusal(offset) ?? sizeRefusal(size)
+
+/**
+ * The refusal of a position no host names, or `null`: the offset half of
+ * {@link windowRefusal} and of {@link writeRefusal}, so a read and a write
+ * refuse the same offsets in the same words.
+ *
+ * @type {(offset: number) => Nullable<string>}
+ */
+const offsetRefusal = offset => {
     if (!Number.isInteger(offset)) { return `Offset ${offset} is not an integer` }
-    if (!Number.isInteger(size)) { return `Chunk size ${size} is not an integer` }
     if (offset < 0) { return `Offset ${offset} is negative` }
-    if (size < 0) { return `Chunk size ${size} is negative` }
     if (!Number.isSafeInteger(offset)) { return `Offset ${offset} exceeds maximum allowed offset of ${maxOffset}` }
+    return null
+}
+
+/** @type {(size: number) => Nullable<string>} */
+const sizeRefusal = size => {
+    if (!Number.isInteger(size)) { return `Chunk size ${size} is not an integer` }
+    if (size < 0) { return `Chunk size ${size} is negative` }
     if (BigInt(size) > maxLengthBytes) { return `Chunk size ${size} exceeds maximum allowed size of ${maxLengthBytes} bytes` }
     return null
 }
+
+/**
+ * The refusal a positional write of `size` bytes at `offset` deserves, or
+ * `null` for one every byte of which lands at a position a read may name.
+ *
+ * **Node does not draw this bound for a write; it ignores it.** Measured on
+ * Linux with Node 22.16.0 and again with 26.10.0, `FileHandle.write` at
+ * `2 ** 53`, and at `2 ** 64 - 1`, answers one byte written — at the
+ * descriptor's *cursor*, not at the position asked, so a file holding `[42]`
+ * holds `[7, 7]` after two such writes. Refusing here, before the host is
+ * asked, is what keeps a write from landing somewhere it did not name.
+ *
+ * The last byte, not the first, is the one bounded: a write that starts at a
+ * safe offset and runs past {@link maxOffset} would put bytes where no read
+ * can reach them. An empty write names no byte and is bounded only by its
+ * offset, as the native runner's `write_bytes` is.
+ *
+ * @type {(offset: number, size: bigint) => Nullable<string>}
+ */
+const writeRefusal = (offset, size) => offsetRefusal(offset)
+    ?? (BigInt(offset) + size > BigInt(maxOffset) + 1n
+        ? `Write of ${size} bytes at offset ${offset} exceeds maximum allowed offset of ${maxOffset}`
+        : null)
 
 /**
  * The refusal `readFile` gives a file of `size` bytes at `path`, or `null` for a

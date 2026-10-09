@@ -15,6 +15,13 @@ pub enum Unpacked<A: IVm> {
 }
 
 impl<A: IVm> Unpacked<A> {
+    /// Whether this is `undefined` or `null`: the one place the match is
+    /// written. A match, never `Nullish::try_from`, which builds and discards
+    /// an error value for every value that is not nullish, the common answer.
+    pub fn is_nullish(&self) -> bool {
+        matches!(self, Unpacked::Nullish(_))
+    }
+
     pub fn dispatch<T: Dispatch<A>>(self, o: T) -> T::Result {
         match self {
             Unpacked::Nullish(v) => o.nullish(v),

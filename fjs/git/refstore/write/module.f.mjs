@@ -44,7 +44,7 @@
  */
 
 import { catchStep, finallyStep, foldStep, history, historyStep, ioError, mapStep, orElse, pureError, pureOk, refuse, resultStep, step } from '../../../effects/module.f.mjs'
-import { createExclusive, isNotFound, mkdir, rename, rm, rmdir, writeExclusive, writeExclusiveUtf8File } from '../../../effects/node/module.f.mjs'
+import { createExclusive, isNotFound, mkdir, rename, rm, rmdir, writeExclusive } from '../../../effects/node/module.f.mjs'
 import { byteArray } from '../../../ebnf/byte/module.f.mjs'
 import { under } from '../../../path/module.f.mjs'
 import { length, maxLengthBytes, u8ListToVecMsb } from '../../../types/bit_vec/module.f.mjs'
@@ -52,8 +52,8 @@ import { solidus as slash } from '../../../text/ascii/module.f.mjs'
 import { toArray } from '../../../types/list/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.mjs'
 import { startsWith } from '../../bytes/module.f.mjs'
-import { hexText, isOidOf } from '../../oid/module.f.mjs'
-import { tryPackedWithout, tryRef } from '../../ref/module.f.mjs'
+import { isOidOf } from '../../oid/module.f.mjs'
+import { tryPackedWithout, tryRef, writeLoose } from '../../ref/module.f.mjs'
 import { isWholeName, lockSuffix } from '../../refname/module.f.mjs'
 import { badNameCode, badNameMessage, dirOf, isDirectoryAt, nameForMessage, nameText, packedRefs, refsPrefix, tryBytes, tryPackedRefs, tryWholeBytes, zeroId, zeroIdCode } from '../module.f.mjs'
 
@@ -487,12 +487,13 @@ const collided = (packed, name) => {
  */
 export const tryWrite = (dirs, oidBytes) => {
     const isOid = isOidOf(oidBytes)
+    const loose = writeLoose(oidBytes)
     return name => id => {
         const named = refsText(name)
         if (named[0] === 'error') { return pureError(named[1]) }
         const [, text] = named
-        // Before `hexText`, which asserts on a `Vec` that is not whole bytes: an id
-        // of the wrong width is a caller's error to be told about, not a panic.
+        // Before `writeLoose`, which asserts on an id of another width: here that is
+        // a caller's error to be told about, not a panic.
         if (!isOid(id)) {
             return refuseIdWidth(idWidthMessage(oidBytes, id))
         }
@@ -530,7 +531,7 @@ export const tryWrite = (dirs, oidBytes) => {
         // that write succeeding is the only evidence the lock is this writer's, and
         // no failure — of it or of anything above it — is evidence of the same. See
         // {@link unlocked}.
-        const filled = step(made, () => writeExclusiveUtf8File(lock, `${hexText(id)}\n`))
+        const filled = step(made, () => writeExclusive(lock, [u8ListToVecMsb(loose(id))]))
         return step(filled, () => unlocked(lock, rename(lock, path)))
     }
 }

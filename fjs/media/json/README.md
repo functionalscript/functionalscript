@@ -107,8 +107,16 @@ no exponent conversion, and no `10 ** exponent`, so an input like
 ## Numeric policies
 
 Standard: every number becomes a `number`, the way JavaScript itself reads that
-text — `1e400` is `Infinity`, `1e-400` is `0`. The bigint-free domain has
-nothing more exact to offer.
+text — `1e400` is `Infinity`, `1e-400` is `0`, and `-1e-400` is `-0`. The
+bigint-free domain has nothing more exact to offer.
+
+Its serializer writes a finite number as `JSON.stringify` does, with one
+deliberate difference: `-0` is written `-0`, not `0`. It is valid JSON, the
+reader keeps its sign, and so a standard round trip keeps both zeros apart.
+`NaN` and the infinities are written `null`, as `JSON.stringify` writes them.
+The finite spelling has one owner, `numberSerialize` in
+[`serializer/module.f.mjs`](./serializer/module.f.mjs); DataJS writes its
+finite numbers through it and spells the non-finite ones as words.
 
 Extended: bare integer syntax becomes a `bigint`, exactly, whatever its
 magnitude; `.`/`e`/`E` syntax becomes a `number`; the exact lexeme `-0` stays a
