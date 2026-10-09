@@ -210,23 +210,33 @@ const pathsConflict = (a, b) =>
     isPathPrefix(a, b) || isPathPrefix(b, a)
 
 /**
- * A binding group is legal when no attribute path in it is a prefix of
- * another — Nix rejects `x = …; x.y = …;` as a redefinition — and every value
- * is. Each binding is checked against the ones before it, then its value, and
- * nothing after the first reason is visited: a conflict is reported without
- * walking the values that follow it, however deep they are.
+ * The first attribute path in a binding group that is a prefix of an earlier
+ * one, or the reverse — Nix rejects `x = …; x.y = …;` as a redefinition.
  *
  * @type {(bindings: readonly _Binding[]) => Nullable<string>}
  */
-const checkBindings = bindings => firstReasonOf(
+const checkConflicts = bindings => firstReasonOf(
     /** @type {(entry: Indexed<_Binding>) => Nullable<string>} */
-    ([index, [, path, value]]) => {
+    ([index, [, path]]) => {
         const previous = bindings.slice(0, index).find(([, p]) => pathsConflict(path, p))
-        return previous !== undefined
-            ? `conflicting attribute paths: ${attributePath(previous[1])} and ${attributePath(path)}`
-            : check(value)
+        return previous === undefined
+            ? null
+            : `conflicting attribute paths: ${attributePath(previous[1])} and ${attributePath(path)}`
     })
     (entries(bindings))
+
+/** @type {(binding: _Binding) => Nullable<string>} */
+const checkBindingValue = ([, , value]) => check(value)
+
+/**
+ * A binding group is legal when its paths do not conflict and every value is.
+ * The whole group's paths are checked before any value, so a conflict is
+ * reported without walking a value on either side of it, however deep.
+ *
+ * @type {(bindings: readonly _Binding[]) => Nullable<string>}
+ */
+const checkBindings = bindings =>
+    checkConflicts(bindings) ?? firstReasonOf(checkBindingValue)(bindings)
 
 /**
  * The reason `expression` is not legal Nix, or `null` when it is.

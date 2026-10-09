@@ -315,23 +315,28 @@ export const proof = {
         letBody: () => assertEq(
             reason(['let', [], ['ref', 'bad name']]),
             'reference root is not an identifier: "bad name"'),
-        // Nothing after the first reason is visited: the conflict is found
-        // without walking the value behind it, which no stack could.
+        // A group's paths are checked before any of its values, so a conflict
+        // is found without walking a value on either side of it — which, at
+        // this depth, no stack could.
         conflictBeforeDeepValue: () => assertEq(
             reason(['set', ['=', ['a'], 'x'], ['=', ['a'], 'y'], ['=', ['b'], deepSet(100_000)]]),
             'conflicting attribute paths: a and a'),
+        conflictAfterDeepValue: () => assertEq(
+            reason(['set', ['=', ['a'], deepSet(100_000)], ['=', ['a'], 'y']]),
+            'conflicting attribute paths: a and a'),
         // The first violation is the one reported: the pattern before the
-        // body, and an earlier binding before a later one.
+        // body, a group's conflicts before its values, and an earlier value
+        // before a later one.
         first: () => {
             assertEq(
                 reason(['lambda', ['open-set-pattern', 'if'], ['ref', 'bad name']]),
                 'pattern name is not an identifier: "if"')
             assertEq(
                 reason(['set', ['=', ['a'], ['ref', 'bad one']], ['=', ['a'], ['ref', 'bad two']]]),
-                'reference root is not an identifier: "bad one"')
-            assertEq(
-                reason(['set', ['=', ['a'], 'x'], ['=', ['a'], ['ref', 'bad two']]]),
                 'conflicting attribute paths: a and a')
+            assertEq(
+                reason(['set', ['=', ['a'], ['ref', 'bad one']], ['=', ['b'], ['ref', 'bad two']]]),
+                'reference root is not an identifier: "bad one"')
         },
     }
 }
