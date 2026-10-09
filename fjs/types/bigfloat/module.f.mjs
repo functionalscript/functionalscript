@@ -64,14 +64,6 @@ const divide = ([m, e]) => div => [[m / div, e], m % div]
 export const binary64 = { precision: 53, minExp: -1074, maxExp: 971 }
 
 /**
- * Runs `f` on the magnitude `[abs(m), e]` and restores the sign of `m` on the
- * result: operations on signed mantissas factor through the magnitude.
- *
- * @type {(m: bigint, e: number) => (f: (magnitude: BigFloat) => BigFloat) => BigFloat}
- */
-const withSign = (m, e) => f => multiply(f([abs(m), e]))(BigInt(sign(m)))
-
-/**
  * Truncates a magnitude to `precision + 1` bits, folding the bits it drops
  * into the remainder. A magnitude already that narrow is returned unchanged.
  *
@@ -134,6 +126,43 @@ const renormalize = precision => ([m, e]) =>
     m === twoPow(precision) ? [m >> 1n, e + 1] : [m, e]
 
 /**
+ * Rounds a non-zero decimal magnitude `dm * 10^de`, ties to even, onto the
+ * grid `2^max(minExp, e + 1)`, where `e + 1` is the exponent a full-precision
+ * result would carry: full `precision` bits above `minExp`, shrinking by a bit
+ * per binade below it, down to none at all. The result is `[0n, e]` for some
+ * `e` when the magnitude rounds away entirely.
+ *
+ * The rounding happens **once**, on the exact decimal. Rounding to `precision`
+ * bits first and onto a coarser grid afterwards is two roundings, and the
+ * first can manufacture a midpoint the true value only approached.
+ *
+ * @type {(precision: number) => (minExp: number) => (magnitude: BigFloat) => BigFloat}
+ */
+const roundedMagnitude = precision => minExp => magnitude => {
+    const scaled = scale(precision)(magnitude)
+    const [[, e]] = scaled
+    return renormalize(precision)(round(Math.max(minExp - e, 1))(scaled))
+}
+
+/**
+ * Runs `f` on the magnitude `[abs(m), e]` and restores the sign of `m` on the
+ * result: operations on signed mantissas factor through the magnitude.
+ *
+ * It owns both zero cases, so `f` sees only a non-zero magnitude and no zero
+ * leaves with an exponent: a zero input never reaches `f`, and a magnitude
+ * `f` rounds to zero comes back as the canonical `[0n, 0]`.
+ *
+ * @type {(f: (magnitude: BigFloat) => BigFloat) => (_: BigFloat) => BigFloat}
+ */
+const withSign = f => ([m, e]) => {
+    if (m === 0n) {
+        return [0n, 0]
+    }
+    const result = f([abs(m), e])
+    return result[0] === 0n ? [0n, 0] : multiply(result)(BigInt(sign(m)))
+}
+
+/**
  * Converts a decimal big-float `m * 10^e` into the nearest binary big-float,
  * rounding ties to even.
  *
@@ -152,14 +181,7 @@ const renormalize = precision => ([m, e]) =>
  *
  * @type {(dec: BigFloat) => BigFloat}
  */
-export const decToBin = ([dm, de]) => {
-    if (dm === 0n) {
-        return [0n, 0]
-    }
-    const { precision } = binary64
-    return withSign(dm, de)(magnitude =>
-        renormalize(precision)(round(1)(scale(precision)(magnitude))))
-}
+export const decToBin = withSign(roundedMagnitude(binary64.precision)(-Infinity))
 
 /**
  * Converts a decimal big-float `m * 10^e` into the nearest value of `format`,
@@ -174,26 +196,19 @@ export const decToBin = ([dm, de]) => {
  * the correctly-rounded answer rather than a failure to produce one.
  *
  * The rounding happens **once**, on the exact decimal, which is the whole
- * point of taking the format rather than post-processing {@link decToBin}. The
- * grid it rounds onto is `2^max(minExp, e + 1)`, where `e + 1` is the exponent
- * a full-precision result would carry: full precision above the normal range's
- * floor, shrinking by a bit per binade below it, down to none at all. Rounding
- * to `precision` bits first and onto that grid afterwards is two roundings,
- * and the first can manufacture a midpoint the true value only approached.
+ * point of taking the format rather than post-processing {@link decToBin}:
+ * both share one rounding pipeline, and `decToBin` is its instance with no
+ * `minExp` at all.
  *
  * @type {(format: Format) => (dec: BigFloat) => Nullable<BigFloat>}
  */
-export const tryDecToFormat = ({ precision, minExp, maxExp }) => ([dm, de]) => {
-    if (dm === 0n) {
-        return [0n, 0]
+export const tryDecToFormat = ({ precision, minExp, maxExp }) => {
+    const rounded = withSign(roundedMagnitude(precision)(minExp))
+    return dec => {
+        const result = rounded(dec)
+        const [m, e] = result
+        return m !== 0n && bitLength(m) + BigInt(e) > BigInt(precision + maxExp) ? null : result
     }
-    const scaled = scale(precision)([abs(dm), de])
-    const [, e] = scaled[0]
-    const [m, resultE] = renormalize(precision)(round(Math.max(minExp - e, 1))(scaled))
-    if (bitLength(m) + BigInt(resultE) > BigInt(precision + maxExp)) {
-        return null
-    }
-    return m === 0n ? [0n, 0] : multiply([m, resultE])(BigInt(sign(dm)))
 }
 
 export const proof = {
