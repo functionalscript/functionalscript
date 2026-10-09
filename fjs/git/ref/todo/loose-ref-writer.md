@@ -1,7 +1,7 @@
 ## loose-ref-writer. The loose-ref format is read here and written in `refstore/write`
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
