@@ -4,7 +4,6 @@
  * @module
  */
 
-import type { List as EffectList } from '../../types/list/types.ts'
 import type { Vec } from '../../types/bit_vec/types.ts'
 import type { MemOp } from '../memory/types.ts'
 import type { Nominal } from '../../types/nominal/types.ts'
@@ -15,7 +14,7 @@ import type {
     Operation, ToAsyncOperationMap,
 } from '../types.ts'
 import type { Nullable } from '../../types/nullable/types.ts';
-import type { List } from '../list/types.ts'
+import type { EffectList } from '../list/types.ts'
 import type {
     All, Catch, Console, Import, Module, Read, ReadConsoles, Sandbox, SandboxResult, Std, Write,
     WriteConsoles, _UtfList,
@@ -301,7 +300,7 @@ export type WriteExclusive = readonly['writeExclusive', (path: string, data: rea
 export type WriteBytes = readonly['writeBytes', (path: string, offset: number, data: Vec) => IoResult<void>]
 
 /** @internal */
-export type _WriteLoop = <O extends Operation>(offset: number, e: List<O, Vec, IoChannel>) => Effect<O | WriteBytes, void, IoChannel>
+export type _WriteLoop = <O extends Operation>(offset: number, e: EffectList<O, Vec, IoChannel>) => Effect<O | WriteBytes, void, IoChannel>
 
 /**
  * A chunk source: the bytes at `offset`, at most `size` of them.
@@ -344,7 +343,7 @@ export type _ChunkSource<O extends Operation> = (offset: number, size: number) =
  * the stream: a file that shrank mid-read is a truncated body under a declared
  * length, which is a plausible wrong value rather than a shorter right one.
  */
-export type _ReadChunks = <O extends Operation>(source: _ChunkSource<O>, bound: Nullable<number>) => List<O, Vec, IoChannel>
+export type _ReadChunks = <O extends Operation>(source: _ChunkSource<O>, bound: Nullable<number>) => EffectList<O, Vec, IoChannel>
 
 // stat
 
@@ -545,8 +544,8 @@ export type RequestBody =
  * a runner compares the offset it is handed against the position it is at and
  * refuses anything else.
  *
- * That refusal is the answer to the one question a `List` body raises that a
- * `Vec` body could not. A `List`'s tail is a value
+ * That refusal is the answer to the one question an `EffectList` body raises
+ * that a `Vec` body could not. An `EffectList`'s tail is a value
  * ([`../list/types.ts`](../list/types.ts)), so pulling the same tail twice is
  * ordinary code — and over a socket the second pull would hand back the *next*
  * chunk as though it were the one already read, which is a body no client ever
@@ -559,8 +558,8 @@ export type RequestBody =
  * pulls one cell twice through `all` or `both` is the case where a check made
  * per pull would let both through: both would read, both would answer `ok`, and
  * the body would be spliced with no offset ever named wrongly. So a runner
- * answers one pull of a body at a time — a cell has one consumer, and a `List`
- * gives a consumer no way to tell a producer it has stopped
+ * answers one pull of a body at a time — a cell has one consumer, and an
+ * `EffectList` gives a consumer no way to tell a producer it has stopped
  * ([`../list/types.ts`](../list/types.ts)) — and the pull that arrives second
  * meets the position the first left. The refusal is then this same one, in the
  * same words, whichever runner it came from.
@@ -609,15 +608,15 @@ export type ReadRequestBytes =
 /**
  * A request as a listener receives it: the head, and the body as a stream.
  *
- * **The body is a `List`, so the runner holds none of it.** It used to be one
- * `Vec` — the whole body buffered before the listener was called, and a request
- * past 131,072 bytes refused `413` because there was no request value to build
- * ([#1819](https://github.com/functionalscript/functionalscript/issues/1819)).
- * A listener now pulls the chunks it wants, one at a time, so a body of any size
- * arrives and the `413` is gone with the cap that produced it.
+ * **The body is an `EffectList`, so the runner holds none of it.** It used to
+ * be one `Vec` — the whole body buffered before the listener was called, and a
+ * request past 131,072 bytes refused `413` because there was no request value
+ * to build ([#1819](https://github.com/functionalscript/functionalscript/issues/1819)).
+ * A listener now pulls the chunks it wants, one at a time, so a body of any
+ * size arrives and the `413` is gone with the cap that produced it.
  *
  * Its operation is pinned rather than a parameter, as `fjs/cas`'s `read` pins
- * `List<FileCasOperation, …>`: a listener that reads the body performs
+ * `EffectList<FileCasOperation, …>`: a listener that reads the body performs
  * {@link ReadRequestBytes} and says so in its own op-set, and one that does not
  * read it — `fjs/web` answers `405` to every method that could carry a body —
  * never names the operation at all.
@@ -626,7 +625,7 @@ export type IncomingMessage = {
     readonly method: string
     readonly url: string
     readonly headers: Headers
-    readonly body: List<ReadRequestBytes, Vec, IoChannel>
+    readonly body: EffectList<ReadRequestBytes, Vec, IoChannel>
     /**
      * Whether a body with no `Content-Length` is framed
      * `Transfer-Encoding: chunked` for this request — the host's own answer, on
@@ -653,9 +652,9 @@ export type IncomingMessage = {
  * What a listener answers with: a status, headers, a **lazy** body, and whatever
  * that body holds, given back.
  *
- * **The body is a `List`, so a response costs one chunk rather than a file.**
- * It was `readonly Vec[]`, which lifted the 131,072-byte cap one `Vec` had been
- * ([#1819](https://github.com/functionalscript/functionalscript/issues/1819))
+ * **The body is an `EffectList`, so a response costs one chunk rather than a
+ * file.** It was `readonly Vec[]`, which lifted the 131,072-byte cap one `Vec`
+ * had been ([#1819](https://github.com/functionalscript/functionalscript/issues/1819))
  * and replaced it with an appetite: every chunk was in hand before the status
  * went out, so peak memory was the whole file per request in flight. A list is
  * pulled one cell at a time, and the runner's pump pulls at the socket's pace —
@@ -670,7 +669,7 @@ export type IncomingMessage = {
  * {@link Handle} — and the runner is the only party present at every way a
  * response ends: a refusal before the headers, a suppression, a client that hung
  * up mid-body, a failed cell, a destroy. None of those reaches the far end of the
- * body, which is the only place a `close` cell could sit, and no `List`
+ * body, which is the only place a `close` cell could sit, and no `EffectList`
  * combinator can be written that tells a producer the consumer has stopped
  * ([`../list/types.ts`](../list/types.ts)). A field that must be written is one
  * that cannot be forgotten; an optional one would record no obligation.
@@ -683,7 +682,7 @@ export type IncomingMessage = {
 export type ServerResponse<O extends Operation> = {
     readonly status: number
     readonly headers: Headers
-    readonly body: List<O, Vec, IoChannel>
+    readonly body: EffectList<O, Vec, IoChannel>
     /** Whatever the body held, given back — see above. */
     readonly release: Effect<O, null, never>
 }

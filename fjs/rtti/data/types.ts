@@ -105,3 +105,35 @@ export type RuleSet = StringMap<UnionSet>
  * entry node. Produced by `toData` in `./module.f.mjs`.
  */
 export type Data = readonly [RuleSet, Node]
+
+/**
+ * A unit member as {@link UnionAlgebra} reads it: one of the four unit values,
+ * or `boolean` when both booleans are present.
+ */
+export type UnitName = 'null' | 'undefined' | 'boolean' | 'false' | 'true'
+
+/** A kind other than the unit kind. */
+export type KindName = 'number' | 'string' | 'bigint' | 'array' | 'object'
+
+/**
+ * What a renderer says about each part of a {@link UnionSet}. `unionFold` in
+ * `./module.f.mjs` walks the union and calls these. The renderer only supplies
+ * the leaves.
+ *
+ * - `top` is the set of all values.
+ * - `unit` is one unit member, and `whole` is a whole kind.
+ * - `number`, `string`, `bigint`, `array` and `object` are one member of
+ *   their kind.
+ * - `join` combines the members of one union, in canonical kind order.
+ */
+export type UnionAlgebra<R> = {
+    readonly top: R
+    readonly unit: (name: UnitName) => R
+    readonly whole: (kind: KindName) => R
+    readonly number: (v: number) => R
+    readonly string: (v: string) => R
+    readonly bigint: (v: bigint) => R
+    readonly array: (p: ArraySet) => R
+    readonly object: (p: ObjectSet) => R
+    readonly join: (members: readonly R[]) => R
+}

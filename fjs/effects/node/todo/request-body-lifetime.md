@@ -5,8 +5,8 @@
 
 ### Problem
 
-A listener is handed its request body as a `List`
-(`IncomingMessage.body`, `../types.ts`). A `List` is a value, so a listener may
+A listener is handed its request body as an `EffectList`
+(`IncomingMessage.body`, `../types.ts`). An `EffectList` is a value, so a listener may
 keep it — through a memory effect (`../../memory/`), whose store the Node runner
 creates once for the whole process (`runNodeEffect`, `../module.mjs`) — and pull
 it while answering a **later** request. Nothing refuses that, and the two runners
@@ -33,7 +33,7 @@ request's own body stays untouched.
 
 This arrived with the streaming body ([streaming-http-bodies](./streaming-http-bodies.md),
 stage 2). A `Vec` body could be kept across requests and still be the bytes the
-client sent; a `List` over a socket cannot.
+client sent; an `EffectList` over a socket cannot.
 
 ### Proposal
 
@@ -68,7 +68,7 @@ What has to be decided:
 ### Related
 
 - [streaming-http-bodies](./streaming-http-bodies.md) — the change that made the
-  body a `List`, and so made this reachable.
+  body an `EffectList`, and so made this reachable.
 - [requestlistener-stateful](./requestlistener-stateful.md) — what a listener may
   carry between requests, which is the question this is a case of.
 - `../types.ts` (`ReadRequestBytes`) — what a pull already refuses, and the

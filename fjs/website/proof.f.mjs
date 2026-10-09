@@ -252,16 +252,16 @@ export const proof = {
         anUnreadableModuleIsRefused: () => {
             const [generated, code] = run({
                 'a.f.mjs': file("import './big.mjs'\nexport const proof = []"),
-                // One chunk at the cap plus one bit over it: `readFile` refuses
+                // One chunk at the cap plus one byte over it: `readFile` refuses
                 // the file rather than answering with part of it.
-                'big.mjs': [vec(maxLengthBytes * 8n)(0n), vec(1n)(1n)],
+                'big.mjs': [vec(maxLengthBytes * 8n)(0n), vec(8n)(1n)],
             })
             assertEq(code, 1)
             // The operator is told which file broke the build, not merely that
             // one did: the message is the host's own and names the entry.
             assertEq(
                 generated.stderr,
-                `File size exceeds maximum allowed size of ${maxLengthBytes} bytes: 'big.mjs'\n`)
+                `File size ${maxLengthBytes + 1n} exceeds maximum allowed size of ${maxLengthBytes} bytes: 'big.mjs'\n`)
         },
         /**
          * **An unreadable import is only the build's problem when something
@@ -276,7 +276,7 @@ export const proof = {
             const { root } = generate({
                 'a.f.mjs': file('export const proof = []'),
                 'unrelated.f.mjs': file("import './big.mjs'\nexport const x = 1"),
-                'big.mjs': [vec(maxLengthBytes * 8n)(0n), vec(1n)(1n)],
+                'big.mjs': [vec(maxLengthBytes * 8n)(0n), vec(8n)(1n)],
             })
             assertStructurallySame(listed(pageAt(root, [])), ['a.f.mjs'])
         },

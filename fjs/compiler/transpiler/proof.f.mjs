@@ -21,7 +21,8 @@ import { factoryStringify } from '../serializer/value/module.f.mjs'
 import { notImplemented } from '../../effects/module.f.mjs'
 import { isArray } from '../../types/array/module.f.mjs'
 import { isObject } from '../../types/object/module.f.mjs'
-import { _errorLocation, compile } from '../module.f.mjs'
+import { compile } from '../module.f.mjs'
+import { errorLocation } from '../parser/module.f.mjs'
 import { nodeCommands, exitCode, ioError } from '../../effects/node/module.f.mjs'
 import { tryStringify } from '../../media/datajs/module.f.mjs'
 import { error, ok, unwrap } from '../../types/result/module.f.mjs'
@@ -448,7 +449,7 @@ export const proof = {
             const runner = partialRun(runtimeCommands)(host)('')
             for (const result of [runner(transpile('main.f.js'))[1], runner(resolve('main.f.js'))[1]]) {
                 assert(result[0] === 'error' && !isArray(result[1]))
-                assertEq(_errorLocation('main.f.js')(result[1]), location)
+                assertEq(errorLocation('main.f.js')(result[1]), location)
                 assertEq(result[1].message, message)
             }
             for (const output of ['out.data.js', 'out.edag.data.js']) {

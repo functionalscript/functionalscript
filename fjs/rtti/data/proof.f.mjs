@@ -30,12 +30,14 @@ import {
     kindFold,
     never,
     nullBit,
+    requiredPrefix,
     resolve,
     subset,
     toData,
     trueBit,
     undefinedBit,
     unitBit,
+    unionFold,
     unitList,
     unknown,
     validate,
@@ -259,6 +261,56 @@ export const proof = {
         assertEq(spell(undefined), 'absent')
         assertEq(spell(true), 'whole')
         assertEq(spell([1, 2]), 'members:1,2')
+    },
+    unionFold: () => {
+        // every leaf spells what it was called with, so the output shows
+        // which leaf saw which part, and `join` shows the order
+        const spell = unionFold({
+            top: 'top',
+            unit: name => name,
+            whole: kind => `${kind}*`,
+            number: v => `${v}`,
+            string: v => JSON.stringify(v),
+            bigint: v => `${v}n`,
+            array: p => `[${p.prefix.length}]`,
+            object: p => `{${Object.keys(p.props).join()}}`,
+            join: members => `(${members.join('|')})`,
+        })
+        // absence is no member: it is removed before the top test and the units
+        assertEq(spell(unknown), 'top')
+        assertEq(spell({ ...unknown, unit: (unknown.unit ?? 0) | absentBit }), 'top')
+        assertEq(spell(never), '()')
+        assertEq(spell({ unit: absentBit }), '()')
+        // the unit members, both booleans read as one
+        assertEq(spell({ unit: nullBit | undefinedBit | booleanBits }), '(null|undefined|boolean)')
+        assertEq(spell({ unit: falseBit }), '(false)')
+        assertEq(spell({ unit: trueBit }), '(true)')
+        // canonical kind order, whatever order the keys are written in
+        assertEq(
+            spell({
+                object: [{ props: { a: { number: true } } }],
+                array: [{ prefix: [] }],
+                bigint: [1n],
+                string: ['s'],
+                number: [1, 2],
+                unit: nullBit,
+            }),
+            '(null|1|2|"s"|1n|[0]|{a})')
+        assertEq(
+            spell({ object: true, array: true, bigint: true, string: true, number: true }),
+            '(number*|string*|bigint*|array*|object*)')
+    },
+    requiredPrefix: {
+        empty: () => assertEq(requiredPrefix({})([]), 0),
+        allRequired: () => assertEq(requiredPrefix({})([{ number: true }, { string: true }]), 2),
+        allOptional: () => assertEq(requiredPrefix({})([{ unit: absentBit }, { unit: absentBit | nullBit }]), 0),
+        // only a trailing run is optional: an interior one is still required
+        // when a required position follows it
+        trailing: () => assertEq(requiredPrefix({})([{ number: true }, { unit: absentBit }]), 1),
+        interior: () => assertEq(requiredPrefix({})([{ unit: absentBit }, { number: true }]), 2),
+        // `undefined` is a value, not absence
+        undefined: () => assertEq(requiredPrefix({})([{ unit: undefinedBit }]), 1),
+        reference: () => assertEq(requiredPrefix({ r: { unit: absentBit } })(['r']), 0),
     },
     unitBits: () => {
         // the literal bits are the encoding under test

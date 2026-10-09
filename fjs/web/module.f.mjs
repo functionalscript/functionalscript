@@ -37,7 +37,7 @@
  *
  * @import { Effect } from '../effects/types.ts'
  * @import { FileStat, Fs, Handle, IoChannel, Program, ServerResponse, Stat } from '../effects/node/types.ts'
- * @import { List } from '../effects/list/types.ts'
+ * @import { EffectList } from '../effects/list/types.ts'
  * @import { Nullable } from '../types/nullable/types.ts'
  * @import { Result } from '../types/result/types.ts'
  * @import { Vec } from '../types/bit_vec/types.ts'
@@ -234,7 +234,7 @@ export const resolve = root => url => {
  * lazy body cannot do — finding out costs draining it, which is the thing
  * streaming exists not to do.
  *
- * @type {(status: number, contentType: string, length: number, body: List<Fs, Vec, IoChannel>, release: Effect<Fs, null, never>) => ServerResponse<Fs>}
+ * @type {(status: number, contentType: string, length: number, body: EffectList<Fs, Vec, IoChannel>, release: Effect<Fs, null, never>) => ServerResponse<Fs>}
  */
 const response = (status, contentType, length, body, release) => ({
     status,
