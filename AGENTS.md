@@ -201,10 +201,6 @@ Commands and Rust coding style: [nanvm-lib/AGENTS.md](./nanvm-lib/AGENTS.md).
 
 ## 5. Pull requests and releases
 
-Every PR, including drafts, links to its working session in the description's
-trailer block; preserve the link on updates. See
-[CONTRIBUTING.md](./CONTRIBUTING.md#commit-messages) for the required format.
-
 A PR implements only one feature or improvement, with minimal code changes, and
 every check above passing. Its title and description become the merge commit
 on `main`, so write them as one: a `<topic>: <short description>` title and a
