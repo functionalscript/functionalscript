@@ -140,6 +140,17 @@ their versions; the shell is the one environment.
 ./dev.sh <command>            # one command in it; CI steps run the generated sh ./gen.nix/run <command>
 ```
 
+In a Codex session, verify `./dev.sh node --version` before starting work.
+If a command fails with an explicit sandbox permission error, retry the same
+`./dev.sh` command through `exec_command` with
+`sandbox_permissions="require_escalated"`, subject to the tool's normal approval
+process, before reporting that Nix or validation is blocked. Do not substitute
+host-installed tools or reinstall Nix because of a sandbox denial. If the retry
+is denied, unavailable, or fails, report the affected command and its precise
+failure. This execution rule does not replace the saved environment setup:
+follow [CONTRIBUTING.md's Codex environment instructions](./CONTRIBUTING.md#openai-codex-environment)
+and verify startup through the same command runner sessions use.
+
 `dev.sh` enables flakes itself, so a stock Nix install needs no configuration.
 On macOS and Linux, install Nix on the host. Nix does not run natively on
 Windows: open the repository in the devcontainer —
