@@ -225,11 +225,10 @@ apart: `../../types/object/structurally_same/module.f.mjs` says `0` and
 Neither survives a round trip; one is rejected on the way back, the other
 silently changes value.
 
-**The `-0` half depends on an open decision.**
-[preserve-negative-zero](../json/todo/preserve-negative-zero.md) makes the
-standard serializer's `numberSerialize` write `-0` as `-0`. If it lands first,
-`-0` round-trips and `jsonExact` needs only `Number.isFinite`; the `-0` rows
-below are then the serializer's proofs, not the factory's.
+**The `-0` half is settled.** The standard serializer's `numberSerialize`
+(`../json/serializer/module.f.mjs`) now writes `-0` as `-0`, so `-0`
+round-trips and `jsonExact` needs only `Number.isFinite`; the `-0` rows below
+are the serializer's proofs, not the factory's.
 
 **Why `validate` owns this and not "the value came from JSON text".**
 Provenance is not something the type carries. `validate` is a *public*
@@ -602,8 +601,8 @@ level up from the seven-line kit.
 - [json/todo/stringify-sorted-canonical.md](../json/todo/stringify-sorted-canonical.md)
   — the `stringify(sort)` idiom; the three `encodeText` copies are among its
   sites, and the factory would collapse them to one.
-- [json/todo/preserve-negative-zero.md](../json/todo/preserve-negative-zero.md)
-  — makes the standard serializer keep `-0`, which removes the `-0` half of
+- [`../json/serializer/module.f.mjs`](../json/serializer/module.f.mjs)
+  `numberSerialize` — keeps `-0`, which removes the `-0` half of
   `jsonExact`'s reason.
 - [`../json/serializer/module.f.mjs`](../json/serializer/module.f.mjs) —
   `leafSerialize`, which makes the standard serializer assert on an
