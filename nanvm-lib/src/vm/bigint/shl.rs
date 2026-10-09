@@ -3,37 +3,10 @@ use core::ops::Shl;
 use crate::{
     common::sized_index::SizedIndex,
     sign::Sign,
-    vm::{Any, BigInt, IVm},
+    vm::{Any, BigInt, IVm, error},
 };
 
-use super::ShiftAmount;
-
-const TOO_LARGE: &str = "RangeError: Maximum BigInt size exceeded";
-
-/// The largest word count a single `<<` may grow a `BigInt` to — `2^14`
-/// words (`2^20` bits, 128 KiB) — matching
-/// [`fjs/types/bigint/module.f.mjs`](../../../../fjs/types/bigint/module.f.mjs)'s
-/// own `maxLength` (`0x10_0000n` bits) exactly, divided down from bits to
-/// 64-bit words. `maxLength` is itself the *smallest* `BigInt` size limit
-/// across the engines FunctionalScript targets — V8's own limit is `2^30`
-/// bits, far larger, but Bun's and Safari's are tighter, and `maxLength` is
-/// already chosen to fit under all of them (see that file's own comment on
-/// `mask`, keyed to the same constant). `nanvm-lib` follows the tightest
-/// bound already established for the language rather than picking a
-/// second, V8-only one of its own.
-///
-/// This is *not* the same limit as `BigInt`'s internal `u32` word index
-/// (~4 billion words, ~34 GiB): that ceiling only protects the container's
-/// own indexing, not the process. An allocation anywhere near it can abort
-/// the process outright — `Vec`'s allocator failure is not a catchable
-/// panic — from a shift count an attacker can spell in one `u64` word, well
-/// before any guard based on the index limit alone would reject it. That is
-/// exactly the crash-instead-of-refuse this checks against.
-const MAX_WORDS: u64 = 1 << 14;
-
-fn too_large<A: IVm>() -> Result<BigInt<A>, Any<A>> {
-    Err(TOO_LARGE.into())
-}
+use super::{MAX_WORDS, ShiftAmount, assert_slice_normalized};
 
 /// `<<`. <https://tc39.es/ecma262/#sec-numeric-types-bigint-leftShift>
 impl<A: IVm> Shl for BigInt<A> {
@@ -47,7 +20,7 @@ impl<A: IVm> Shl for BigInt<A> {
 
         let (word_shift, bit_shift) = match self.shift_amount(&rhs) {
             ShiftAmount::Noop => return Ok(self),
-            ShiftAmount::TooWide => return too_large(),
+            ShiftAmount::TooWide => return Err(error::bigint_too_large()),
             ShiftAmount::Words(word_shift, bit_shift) => (word_shift, bit_shift),
         };
         let n_len = self.length();
@@ -63,7 +36,7 @@ impl<A: IVm> Shl for BigInt<A> {
         let carries_new_word = bit_shift > 0 && top_word >> (64 - bit_shift) != 0;
         let result_len = word_shift + n_len as u64 + if carries_new_word { 1 } else { 0 };
         if result_len > MAX_WORDS {
-            return too_large();
+            return Err(error::bigint_too_large());
         }
         let word_shift = word_shift as usize;
 
@@ -74,7 +47,7 @@ impl<A: IVm> Shl for BigInt<A> {
         // whose failure aborts the process instead of returning an `Err`.
         let mut value: Vec<u64> = Vec::new();
         if value.try_reserve_exact(result_len as usize).is_err() {
-            return too_large();
+            return Err(error::bigint_too_large());
         }
         value.extend(core::iter::repeat_n(0u64, word_shift));
         value.extend((0..n_len).map(|i| self[i]));
@@ -91,10 +64,8 @@ impl<A: IVm> Shl for BigInt<A> {
             }
         }
 
-        assert!(
-            value.last() != Some(&0) && !value.is_empty(),
-            "shl: result must be normalized and non-empty"
-        );
+        assert!(!value.is_empty(), "shl: result must be non-empty");
+        assert_slice_normalized(value.as_slice());
 
         // TODO: `value`'s own allocation above is fallible, but
         // `unchecked_new` -> `IContainer::new_ok` -> (for `Naive`)
@@ -112,7 +83,11 @@ impl<A: IVm> Shl for BigInt<A> {
 //       We should move these tests into integration tests.
 #[cfg(test)]
 mod tests {
-    use crate::{naive::Naive, sign::Sign, vm::bigint::BigInt};
+    use crate::{
+        naive::Naive,
+        sign::Sign,
+        vm::{bigint::BigInt, error},
+    };
 
     type T = BigInt<Naive>;
 
@@ -372,10 +347,7 @@ mod tests {
     fn shl_multi_word_rhs_returns_err() {
         let a: T = 1u64.into();
         let b = pos(vec![0, 1]); // shift = 2^64
-        assert_eq!(
-            a << b,
-            Err("RangeError: Maximum BigInt size exceeded".into())
-        );
+        assert_eq!(a << b, Err(error::bigint_too_large()));
     }
 
     #[test]
@@ -383,10 +355,7 @@ mod tests {
         // u64::MAX would require ~2^58 words; exceeds the MAX_WORDS limit
         let a: T = 1u64.into();
         let b: T = u64::MAX.into();
-        assert_eq!(
-            a << b,
-            Err("RangeError: Maximum BigInt size exceeded".into())
-        );
+        assert_eq!(a << b, Err(error::bigint_too_large()));
     }
 
     #[test]
@@ -397,15 +366,12 @@ mod tests {
         // carry since bit_shift is 0) — one word past `nanvm-lib`'s own
         // policy limit. That is not a boundary V8 itself enforces (V8 alone
         // would still accept this shift); it is the tighter, cross-engine
-        // limit this file's `MAX_WORDS` doc comment explains.
+        // limit `MAX_WORDS`'s doc comment (in `bigint/mod.rs`) explains.
         // Rejected by the guard before any allocation is attempted, so this
         // stays cheap even though the *value* it describes would not.
         let a: T = 1u64.into();
         let b: T = (super::MAX_WORDS * 64).into();
-        assert_eq!(
-            a << b,
-            Err("RangeError: Maximum BigInt size exceeded".into())
-        );
+        assert_eq!(a << b, Err(error::bigint_too_large()));
     }
 
     #[test]

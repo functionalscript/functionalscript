@@ -18,7 +18,7 @@ impl<A: IVm> Any<A> {
 mod tests {
     use crate::{
         naive::Naive,
-        vm::{Any, Function, IStaticFunction, Nullish, ToAny, ToArray, unstable::f64_any},
+        vm::{Any, Function, IStaticFunction, Nullish, ToAny, ToArray, error, unstable::f64_any},
     };
 
     type A = Naive;
@@ -55,7 +55,7 @@ mod tests {
         let callee: Any<A> = f64_any(0x3ff0000000000000);
         assert_eq!(
             callee.call([].to_array().to_any()),
-            Err("Type Error".into())
+            Err(error::unexpected_type())
         );
     }
 
@@ -63,7 +63,7 @@ mod tests {
     fn non_array_arguments_throw() {
         assert_eq!(
             identity().call(Nullish::Null.to_any()),
-            Err("Type Error".into())
+            Err(error::unexpected_type())
         );
     }
 }

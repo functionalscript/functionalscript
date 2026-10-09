@@ -1,10 +1,8 @@
 use crate::{
     common::sized_index::SizedIndex,
     sign::Sign,
-    vm::{Any, BigInt, IVm},
+    vm::{Any, BigInt, IVm, error},
 };
-
-const NEGATIVE_EXPONENT: &str = "RangeError: Exponent must be non-negative";
 
 impl<A: IVm> BigInt<A> {
     /// `**`. Not a `core::ops` trait — Rust has no operator for
@@ -14,10 +12,12 @@ impl<A: IVm> BigInt<A> {
     /// Exponentiation by squaring, walking the exponent's own bits rather
     /// than converting it to a Rust integer, so an exponent wider than
     /// `u64` still works. A negative exponent throws instead of coercing to
-    /// a fraction, unlike `Number ** Number`, since `BigInt` has none.
+    /// a fraction, unlike `Number ** Number`, since `BigInt` has none. A
+    /// power longer than `MAX_WORDS` words throws the `RangeError` that `*`
+    /// throws for the multiplication that crosses it.
     pub fn pow(self, rhs: Self) -> Result<Self, Any<A>> {
         if rhs.sign() == Sign::Negative {
-            return Err(NEGATIVE_EXPONENT.into());
+            return Err(error::negative_exponent());
         }
         let exponent: Vec<u64> = rhs.index_iter().collect();
         // The word count times 64 overcounts: only bits up to the top word's
@@ -35,10 +35,10 @@ impl<A: IVm> BigInt<A> {
         let mut base = self;
         for bit in 0..bit_len {
             if (exponent[(bit / 64) as usize] >> (bit % 64)) & 1 != 0 {
-                result = result * base.clone();
+                result = (result * base.clone())?;
             }
             if bit + 1 < bit_len {
-                base = base.clone() * base;
+                base = (base.clone() * base)?;
             }
         }
         Ok(result)
@@ -49,12 +49,22 @@ impl<A: IVm> BigInt<A> {
 //       We should move these tests into integration tests.
 #[cfg(test)]
 mod tests {
-    use crate::{naive::Naive, vm::bigint::BigInt};
+    use crate::{
+        naive::Naive,
+        vm::{bigint::BigInt, error},
+    };
 
     type T = BigInt<Naive>;
 
     fn int(value: i64) -> T {
         value.into()
+    }
+
+    /// A power past the size limit is the `RangeError` `*` throws, not a
+    /// result grown without bound: `2^(2^20)` has 16385 words.
+    #[test]
+    fn power_past_the_limit() {
+        assert_eq!(int(2).pow(int(1 << 20)), Err(error::bigint_too_large()));
     }
 
     #[test]

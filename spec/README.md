@@ -287,10 +287,7 @@ malformed number points at the character that spoils it: `08` at its `8`.
 Lines and columns count from 1, and a column counts UTF-16 code units, so a
 tab is one and a character beyond U+FFFF two. A line ends where JavaScript
 ends one: at a newline ([whitespace](#whitespace-and-line-terminators)), and
-at a U+2028 or U+2029 inside a string. A diagnostic counts LF alone yet, so a
-position after a lone CR, or after either separator in a string, is reported
-on an earlier line than JavaScript counts
-([lone-cr-line-numbers](../fjs/js/tokenizer/todo/lone-cr-line-numbers.md)).
+at a U+2028 or U+2029 inside a string. A CRLF ends one line, not two.
 
 The JSON reader tracks no lines. A malformed `.json` document, the input or an
 import, gives in its message the UTF-16 code-unit offset reading failed at,

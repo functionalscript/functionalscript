@@ -28,9 +28,29 @@ export const proof = {
         assert(h.includes('<span data-token="string">'), h)
         assert(!h.includes('comment'), h)
     },
+    // Which characters each span covers, not only that the pieces rejoin: a
+    // misplaced span still rejoins to the input, so the text alone cannot see it.
+    covered: () => {
+        /** @type {(text: string) => string} */
+        const covered = text => JSON.stringify(spansOf(text).map(({ start, length, kind }) =>
+            [kind, Array.from(text).slice(start, start + length).join('')]))
+        // a character beyond U+FFFF counts once before it, in a string and in a comment
+        assertEq(covered('"😀" 1n'), '[["string","\\"😀\\""],["number","1n"]]')
+        assertEq(covered('"😀" 1'), '[["string","\\"😀\\""],["number","1"]]')
+        assertEq(covered('"😀" + 1'), '[["string","\\"😀\\""],["number","1"]]')
+        assertEq(covered('/* 😀 */ true'), '[["comment","/* 😀 */"],["literal","true"]]')
+        // every line terminator starts a line, and a CRLF starts one
+        assertEq(covered('// c\r1'), '[["comment","// c"],["number","1"]]')
+        assertEq(covered('"a\u2028b" + 1'), '[["string","\\"a\u2028b\\""],["number","1"]]')
+        assertEq(covered('"a\u2029b" + 1'), '[["string","\\"a\u2029b\\""],["number","1"]]')
+        assertEq(covered('1\r\n2\n3'), '[["number","1"],["number","2"],["number","3"]]')
+        assertEq(covered('const a = 1  \r\n/* x\r y */  \n// z\n"😀" 1n'),
+            '[["keyword","const"],["number","1"],["comment","/* x\\r y */"],["comment","// z"],["string","\\"😀\\""],["number","1n"]]')
+    },
     textIsKept: () => {
-        const source = 'const a = 1  \n/* x\n y */  \n// z\n\n"é😀" 1n\n'
-        assertEq(text(highlight(source)), source)
+        for (const source of ['const a = 1  \n/* x\n y */  \n// z\n\n"é😀" 1n\n', '"😀" 1', '"😀" + 1', '// c\r1', '"a\u2028b" + 1', '1\r\n2']) {
+            assertEq(text(highlight(source)), source)
+        }
     },
     trailingBlanks: () => {
         const nodes = highlight('const  \n')

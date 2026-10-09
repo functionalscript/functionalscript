@@ -15,8 +15,8 @@ host's:
   about fifty lines under `fjs/` — and one of them is
   `fjs/media/json/serializer/module.f.mjs`, so the FunctionalScript serializer
   itself still bottoms out in the host. `numberSerialize` is `JSON.stringify`
-  with a different name, and `fjs/media/datajs/serializer`'s `_numberSerialize`
-  is `ToString` with `-0` kept, so *every number* this repository serializes —
+  with `-0` kept, and `fjs/media/datajs/serializer`'s `_numberSerialize`
+  writes finite numbers through it, so *every number* this repository serializes —
   JSON and DataJS alike — is still formatted by the host. `stringSerialize` no longer is: phase 1 below has
   shipped.
 

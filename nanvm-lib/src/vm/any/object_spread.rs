@@ -94,18 +94,12 @@ mod tests {
     fn no_own_properties() {
         let values: [Any<A>; 7] = [
             Nullish::Null.to_any(),
-            Nullish::Undefined.to_any(),
+            Any::undefined(),
             true.to_any(),
             f64_any(0x3ff0000000000000),
             bigint_any(1),
             [].to_object().to_any(),
-            A::static_function(
-                |_, _| Ok(Nullish::Undefined.to_any()),
-                0,
-                [].to_array(),
-                None,
-            )
-            .to_any(),
+            A::static_function(|_, _| Ok(Any::undefined()), 0, [].to_array(), None).to_any(),
         ];
         for v in values {
             assert!(spread(v).is_empty());

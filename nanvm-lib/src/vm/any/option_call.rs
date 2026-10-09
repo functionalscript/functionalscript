@@ -19,7 +19,7 @@ impl<A: IVm> Any<A> {
 mod tests {
     use crate::{
         naive::Naive,
-        vm::{Any, IStaticFunction, Nullish, ToAny, ToArray},
+        vm::{Any, IStaticFunction, Nullish, ToAny, ToArray, error},
     };
 
     type A = Naive;
@@ -44,7 +44,7 @@ mod tests {
                 .to_any::<A>()
                 .option_call(|| Err("boom".into()))
                 .end(),
-            Ok(Nullish::Undefined.to_any())
+            Ok(Any::undefined())
         );
     }
 
@@ -58,7 +58,7 @@ mod tests {
         );
         assert_eq!(
             1.0.to_any::<A>().option_call(args).end(),
-            Err("Type Error".into())
+            Err(error::unexpected_type())
         );
     }
 }

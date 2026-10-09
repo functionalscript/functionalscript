@@ -4,12 +4,63 @@
  *
  * @module
  *
- * @import { Commands, Effect, MatchResult, Operation, PartialAsyncOperationMap, ToAsyncOperationMap } from './types.ts'
+ * @import { Commands, Effect, IoError, MatchResult, Operation, PartialAsyncOperationMap, ToAsyncOperationMap } from './types.ts'
  * @import { Result } from '../types/result/types.ts'
  */
 
-import { match, notImplemented, partialMatch } from './module.f.mjs'
+import { ioError, match, notImplemented, partialMatch, toIoError } from './module.f.mjs'
 import { error } from '../types/result/module.f.mjs'
+
+/**
+ * The message of a thrown value that could not be read: one whose own code
+ * throws when {@link _readThrown} reads it.
+ */
+export const _unreadableThrownValue = 'thrown value could not be read'
+
+/**
+ * Reads a thrown value into data FunctionalScript can build, before
+ * {@link toIoError} sees it: the value's string form, or for an object, its
+ * string `message` (else its string form) and its `code` if that is a string.
+ *
+ * This is the host boundary a runner's `catch` owes. Code a runner evaluates —
+ * a module it imports, a value it compiles — can throw anything, and an object
+ * with getters, a hostile `toString`, or one from another realm is outside every
+ * `.f.mjs` function's domain. Each field is read once, so a getter cannot answer
+ * the test and the read differently. Reading runs the value's own code, so this
+ * throws whatever that code throws.
+ *
+ * @type {(e: unknown) => string | { readonly message: string, readonly code?: string }}
+ */
+export const _readThrown = e => {
+    if (typeof e !== 'object' || e === null) {
+        return String(e)
+    }
+    /** @type {{ readonly message?: unknown, readonly code?: unknown }} */
+    const fields = e
+    const message = fields.message
+    const text = typeof message === 'string' ? message : String(e)
+    // Read after the message is settled, as `toIoError` does: a `code` getter
+    // can change what the value's string form says.
+    const code = fields.code
+    return typeof code === 'string' ? { message: text, code } : { message: text }
+}
+
+/**
+ * Describes a thrown value as an {@link IoError}, whatever it is: read by
+ * {@link _readThrown}, or named by {@link _unreadableThrownValue} when reading
+ * it throws.
+ *
+ * @type {(e: unknown) => IoError}
+ */
+export const _describeThrown = e => {
+    // A plain `catch`, not `tryCatch`: what the value's own code threw stays
+    // here and never reaches a FunctionalScript function, not even `error`.
+    try {
+        return toIoError(_readThrown(e))
+    } catch {
+        return ioError({ message: _unreadableThrownValue })
+    }
+}
 
 /**
  * @template {Operation} O

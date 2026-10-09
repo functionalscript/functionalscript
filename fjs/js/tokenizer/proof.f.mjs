@@ -6,7 +6,7 @@ import { stringToCodePointList, stringToList } from '../../text/utf16/module.f.m
 import { toArray } from '../../types/list/module.f.mjs'
 import { parser } from '../../ebnf/ll1/module.f.mjs'
 import { token as ebnfToken } from '../../ebnf/lib/js/module.f.mjs'
-import { tokenize } from './module.f.mjs'
+import { _positions, tokenize } from './module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { _stringifyTree } from '../../compiler/module.f.mjs'
 
@@ -44,6 +44,18 @@ const errorAt = s => {
     return token.kind !== 'error' || token.end === undefined
         ? start
         : `${start}..${token.end.line}:${token.end.column}`
+}
+
+/**
+ * 'line:column' of the identifier `x` in `s`, the token every position case
+ * below places after the line terminators it is about.
+ *
+ * @type {(s: string) => string}
+ */
+const xAt = s => {
+    const found = toArray(tokenize(stringToList(s))('a.js'))
+        .find(({ token }) => token.kind === 'id' && token.value === 'x')
+    return found === undefined ? 'no x' : `${found.metadata.line}:${found.metadata.column}`
 }
 
 /** The grammar's parser of one token, resumed per token below. */
@@ -938,6 +950,65 @@ export const proof = {
             // error, where the descent tokenizer looked for the comment first
             assertEq(errorAt('123abc /* x'), '1:4')
             assertEq(errorAt('/* x */ 123abc'), '1:12')
+        },
+    ],
+    // A line starts after each of ECMAScript's `LineTerminatorSequence`s:
+    // LF, CR, U+2028, U+2029, and CRLF once — whichever token holds it.
+    // The position of each code point, and of the end, by the fold that
+    // positions the tokens: a linkage export for readers who need an offset.
+    positions: () => {
+        /** @type {(text: string) => string} */
+        const at = text => _positions('p')(toArray(stringToCodePointList(text))).map(({ line, column }) => `${line}:${column}`).join(' ')
+        assertEq(at(''), '1:1')
+        assertEq(at('ab'), '1:1 1:2 1:3')
+        assertEq(at('a\nb'), '1:1 1:2 2:1 2:2')
+        // a CRLF starts one line, and its LF takes the position of what follows it
+        assertEq(at('a\r\nb'), '1:1 1:2 2:1 2:1 2:2')
+        // a character beyond U+FFFF is one position
+        assertEq(at('😀b'), '1:1 1:2 1:3')
+    },
+    lineTerminators: [
+        () => {
+            // without an `x`, the helper says so
+            assertEq(xAt('y'), 'no x')
+        },
+        () => {
+            // LF alone, as before
+            assertEq(xAt('a\nx'), '2:1')
+            assertEq(xAt('a\n\nx'), '3:1')
+        },
+        () => {
+            // a lone CR starts a line, and two start two
+            assertEq(xAt('a\rx'), '2:1')
+            assertEq(xAt('a\r\rx'), '3:1')
+            assertEq(xAt('export default 1;\r\rx;\n'), '3:1')
+        },
+        () => {
+            // CRLF is one line terminator; LF CR is two
+            assertEq(xAt('a\r\nx'), '2:1')
+            assertEq(xAt('a\r\n\r\nx'), '3:1')
+            assertEq(xAt('a\n\rx'), '3:1')
+        },
+        () => {
+            // inside a block comment, CR and CRLF each start one line
+            assertEq(xAt('/* c\r */ x'), '2:5')
+            assertEq(xAt('/* c\r\n */ x'), '2:5')
+            assertEq(xAt('/* c\r\r */ x'), '3:5')
+        },
+        () => {
+            // a CR ends a line comment and starts a line
+            assertEq(xAt('// c\rx'), '2:1')
+            assertEq(xAt('// c\r\nx'), '2:1')
+        },
+        () => {
+            // the separators a string may hold start a line too
+            assertEq(xAt('"a\u2028b"\nx'), '3:1')
+            assertEq(xAt('"a\u2029b" x'), '2:4')
+        },
+        () => {
+            // an error after a lone CR is reported on the CR's next line
+            assertEq(errorAt('a\r@'), '2:1..2:2')
+            assertEq(errorAt('a\r\n@'), '2:1..2:2')
         },
     ],
     // Regression coverage for large inputs: both a file with many short tokens and a

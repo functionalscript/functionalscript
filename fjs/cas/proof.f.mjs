@@ -2,67 +2,66 @@
  * @import { Vec } from '../types/bit_vec/types.ts'
  * @import { FileCasOperation } from './types.ts'
  * @import { IoChannel, IoResult, Mkdir, ReadFile, WriteFile } from '../effects/node/types.ts'
- * @import { Effect } from '../effects/types.ts'
+ * @import { Effect, Operation } from '../effects/types.ts'
+ * @import { MemOperationMap } from '../effects/mock/types.ts'
  * @import { Ok, Result } from '../types/result/types.ts'
- * @import { List } from '../effects/list/types.ts'
+ * @import { EffectList } from '../effects/list/types.ts'
  */
 
 import { length, maxLength, msb, vec, vec8 } from '../types/bit_vec/module.f.mjs'
 import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.mjs'
 import { computeSync, sha256 } from '../crypto/sha2/module.f.mjs'
 import { fileCas, casAddFile, collectRead } from './module.f.mjs'
-import { match, runPure } from '../effects/module.f.mjs'
+import { runPure } from '../effects/module.f.mjs'
+import { run } from '../effects/mock/module.f.mjs'
 import { mapStep as ioMapStep, pureError, pureOk, step as ioStep } from '../effects/module.f.mjs'
 import { ioError, mkdir, writeFile, readFile, readdir, access } from '../effects/node/module.f.mjs'
 import { error, ok, unwrap as unwrapResult } from '../types/result/module.f.mjs'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
 import { join } from '../path/module.f.mjs'
 import { nonEmpty, empty } from '../effects/list/module.f.mjs'
-import { assert, assertEq, assertNotNullish } from '../asserts/module.f.mjs'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../asserts/module.f.mjs'
 
 const testDir = './test-cas-cli'
 
-// Names the command a `FileCasOperation` effect stops at, so a proof can assert
-// on it and resume the continuation without reading the `Do` layout. The map
-// has to list every operation the CAS can perform — that is what makes it total,
-// and what makes a new operation a compile error here rather than a silent gap.
-const casCommand = match({
-    access: () => 'access',
-    createExclusive: () => 'createExclusive',
-    mkdir: () => 'mkdir',
-    now: () => 'now',
-    randomInt: () => 'randomInt',
-    readBytes: () => 'readBytes',
-    readdir: () => 'readdir',
-    rename: () => 'rename',
-    rm: () => 'rm',
-    stat: () => 'stat',
-    writeBytes: () => 'writeBytes',
-})
-
-// A harmless "always succeeds" response for a command, used by `drive` once a
-// test's overrides for that command are exhausted — good enough to let the
-// rest of `write`'s pipeline run to completion without ever touching a real
-// filesystem.
-/** @type {(cmd: string) => unknown} */
-const casDefaultResponse = cmd => {
-    switch (cmd) {
-        case 'now': return ok(0)
-        case 'randomInt': return ok(0)
-        case 'mkdir': case 'createExclusive': case 'rename': case 'rm':
-        case 'writeBytes': case 'access':
-            return ok(undefined)
-        case 'readdir': return ok([])
-        case 'stat': return ok({ size: 0 })
-        default: return ok(undefined)
-    }
+/**
+ * The always-succeeds answer to each CAS operation, which {@link _driveCas}
+ * gives once a test's overrides for that command are exhausted — good enough
+ * to let the rest of `write`'s pipeline run to completion without ever
+ * touching a real filesystem.
+ *
+ * The table lists every operation the CAS can perform, and its type is what
+ * makes it total: a new operation is a compile error here rather than a
+ * silent gap in the driver.
+ *
+ * @type {{ readonly [K in FileCasOperation[0]]: unknown }}
+ */
+const casDefaults = {
+    access: ok(undefined),
+    createExclusive: ok(undefined),
+    mkdir: ok(undefined),
+    now: ok(0),
+    randomInt: ok(0),
+    // An empty chunk reads as end-of-stream, so a `readBytes` call with no
+    // override reads as an immediately-empty file.
+    readBytes: ok(vec(0n)(0n)),
+    readdir: ok([]),
+    rename: ok(undefined),
+    rm: ok(undefined),
+    stat: ok({ size: 0 }),
+    writeBytes: ok(undefined),
 }
+
+const { entries, fromEntries } = Object
 
 /**
  * Drives a `FileCasOperation` effect to completion with synthetic op
  * responses instead of a filesystem. `overrides[cmd]` is a queue consumed in
  * call order; once a command's queue is empty (or was never given),
- * `casDefaultResponse` supplies an always-succeeds value.
+ * {@link casDefaults} supplies an always-succeeds value. `extra` adds the
+ * defaults of operations beyond the CAS's own — `fjs/mcp/cas/proof.f.mjs`
+ * adds `MemOp`'s, since its tools also touch the Evo cache — and so the
+ * commands the driver answers at all.
  *
  * `write`'s op-failure branches — a `writeBytes`/`rename` call failing
  * mid-stream, or the final `stat` reporting a mismatched size — are real only
@@ -76,38 +75,32 @@ const casDefaultResponse = cmd => {
  * failure path's own `rm` of the partial staging file was actually called,
  * not just that some code path returned the right error tag.
  *
- * @type {(overrides: Partial<Record<string, unknown[]>>) => (e: Effect<FileCasOperation, unknown, unknown>) => readonly [Result<unknown, unknown>, readonly string[]]}
+ * The queues and the log are the state `fjs/effects/mock`'s `run` threads, so
+ * the walk over the effect is that runner's rather than a copy of it.
+ *
+ * Exported only so the MCP proof can import it: module linkage, not a CAS API.
+ *
+ * @type {<X extends Operation>(extra: { readonly [K in X[0]]: unknown }) =>
+ *     (overrides: Partial<Record<string, readonly unknown[]>>) =>
+ *     <T, E>(e: Effect<FileCasOperation | X, T, E>) => readonly [Result<T, E>, readonly string[]]}
  */
-const drive = overrides => {
-    /** @type {string[]} */
-    const log = []
-    /** @type {(cmd: string) => unknown} */
-    const next = cmd => {
-        log.push(cmd)
-        const queue = overrides[cmd]
-        return queue !== undefined && queue.length > 0 ? queue.shift() : casDefaultResponse(cmd)
+export const _driveCas = extra => overrides => {
+    /** @typedef {{ readonly overrides: Partial<Record<string, readonly unknown[]>>, readonly log: readonly string[] }} State */
+    /** @type {(cmd: string, answer: unknown) => () => (state: State) => readonly [State, unknown]} */
+    const respond = (cmd, answer) => () => state => {
+        const queue = state.overrides[cmd] ?? []
+        const next = { overrides: { ...state.overrides, [cmd]: queue.slice(1) }, log: [...state.log, cmd] }
+        return [next, queue.length === 0 ? answer : queue[0]]
     }
-    const handlers = {
-        access: () => next('access'),
-        createExclusive: () => next('createExclusive'),
-        mkdir: () => next('mkdir'),
-        now: () => next('now'),
-        randomInt: () => next('randomInt'),
-        readBytes: () => next('readBytes'),
-        readdir: () => next('readdir'),
-        rename: () => next('rename'),
-        rm: () => next('rm'),
-        stat: () => next('stat'),
-        writeBytes: () => next('writeBytes'),
+    const map = fromEntries(entries({ ...casDefaults, ...extra }).map(([cmd, answer]) => [cmd, respond(cmd, answer)]))
+    const runner = run(/** @type {MemOperationMap<any, State>} */ (map))({ overrides, log: [] })
+    return e => {
+        const [{ log }, result] = runner(e)
+        return [result, log]
     }
-    const matcher = match(handlers)
-    /** @type {(e: Effect<FileCasOperation, unknown, unknown>) => Result<unknown, unknown>} */
-    const run_ = e => {
-        const m = matcher(e)
-        return m[0] === 'done' ? m[1] : run_(m[2](m[1]))
-    }
-    return e => [run_(e), log]
 }
+
+const drive = _driveCas({})
 
 // Create a 128 KiB big file content (at the max Vec size limit)
 // This tests the boundary where files are at the chunk size limit
@@ -206,7 +199,7 @@ export const proof = {
         // the content hash, and `read` streams the same bytes back as `ok` chunk items.
         const content = vec8(0x2An)
         const c = fileCas(sha256)('.')
-        /** @type {List<FileCasOperation, Vec, IoChannel>} */
+        /** @type {EffectList<FileCasOperation, Vec, IoChannel>} */
         const payload = nonEmpty(content, empty())
         const [state1, writeResult] = virtual(emptyState)(c.write(payload))
         assert(writeResult[0] === 'ok', ['expected write ok', writeResult])
@@ -231,10 +224,10 @@ export const proof = {
         // and read streams the same content back.
         const chunks = /** @type {const} */ ([vec8(0x11n), vec8(0x22n), vec8(0x33n)])
         const c = fileCas(sha256)('.')
-        /** @type {List<FileCasOperation, Vec, IoChannel>} */
+        /** @type {EffectList<FileCasOperation, Vec, IoChannel>} */
         const payload = chunks.reduceRight(
             (tail, chunk) => nonEmpty(chunk, tail),
-            /** @satisfies {List<never, Vec, IoChannel>} */ (empty()))
+            /** @satisfies {EffectList<never, Vec, IoChannel>} */ (empty()))
         const [state1, writeResult] = virtual(emptyState)(c.write(payload))
         assert(writeResult[0] === 'ok', ['expected write ok', writeResult])
         const hash = writeResult[1]
@@ -249,7 +242,7 @@ export const proof = {
         // first, leaving exactly one shard in the store.
         const content = vec8(0x2An)
         const c = fileCas(sha256)('.')
-        /** @type {() => List<FileCasOperation, Vec, IoChannel>} */
+        /** @type {() => EffectList<FileCasOperation, Vec, IoChannel>} */
         const payload = () => nonEmpty(content, empty())
         const [state1, w1] = virtual(emptyState)(c.write(payload()))
         const [state2, w2] = virtual(state1)(c.write(payload()))
@@ -263,7 +256,7 @@ export const proof = {
         // A stream that fails mid-way deletes the partial staging file and fails; nothing is
         // published, so the store stays empty.
         const c = fileCas(sha256)('.')
-        /** @type {List<FileCasOperation, Vec, IoChannel>} */
+        /** @type {EffectList<FileCasOperation, Vec, IoChannel>} */
         const payload = nonEmpty(vec8(0x11n), pureError(ioError({ code: 'BOOM', message: 'boom' })))
         const [state1, result] = virtual(emptyState)(c.write(payload))
         assert(result[0] === 'error', ['expected write error', result])
@@ -277,7 +270,7 @@ export const proof = {
         // the stored shard would not match its address. `writeBytes` refuses the
         // chunk, the partial staging file is deleted, and nothing is published.
         const c = fileCas(sha256)('.')
-        /** @type {List<never, Vec, IoChannel>} */
+        /** @type {EffectList<never, Vec, IoChannel>} */
         const payload = nonEmpty(vec8(0x11n), nonEmpty(vec(5n)(0b10101n), empty()))
         const [state1, result] = virtual(emptyState)(c.write(payload))
         assert(result[0] === 'error', ['expected write error', result])
@@ -299,16 +292,16 @@ export const proof = {
         const tail = vec8(0x2An)            // one more byte ⇒ total > maxLength
         const chunks = /** @type {const} */ ([big, tail])
         const c = fileCas(sha256)('.')
-        /** @type {List<FileCasOperation, Vec, IoChannel>} */
+        /** @type {EffectList<FileCasOperation, Vec, IoChannel>} */
         const payload = chunks.reduceRight(
             (tl, chunk) => nonEmpty(chunk, tl),
-            /** @satisfies {List<never, Vec, IoChannel>} */ (empty()))
+            /** @satisfies {EffectList<never, Vec, IoChannel>} */ (empty()))
         const [state1, w] = virtual(emptyState)(c.write(payload))
         assert(w[0] === 'ok', ['expected write ok', w])
         const hash = w[1]
         assertEq(msb.cmp(hash)(computeSync(sha256)(chunks)), 0, 'oversized write hash mismatch')
         // Fold the read stream straight into a fresh SHA-2 state — never one `Vec`.
-        /** @type {(state: typeof sha256.init) => (stream: List<FileCasOperation, Vec, IoChannel>) => Effect<FileCasOperation, Vec, IoChannel>} */
+        /** @type {(state: typeof sha256.init) => (stream: EffectList<FileCasOperation, Vec, IoChannel>) => Effect<FileCasOperation, Vec, IoChannel>} */
         const rehash = state =>
             stream =>
                 ioStep(
@@ -334,7 +327,7 @@ export const proof = {
         }
         const content = vec8(0x2An)
         const c = fileCas(sha256)('.')
-        const x = c.write(nonEmpty(content, /** @satisfies {List<never, Vec, IoChannel>} */ (empty())))
+        const x = c.write(nonEmpty(content, /** @satisfies {EffectList<never, Vec, IoChannel>} */ (empty())))
         const [state1, w] = virtual(state0)(x)
         assert(w[0] === 'ok', ['expected write ok', w])
         const [, present] = virtual(state1)(access(stalePath))
@@ -348,7 +341,7 @@ export const proof = {
         const c = fileCas(sha256)('.')
         // An empty payload: the driver's default `stat` reports size 0, so the
         // publish check passes and the sweep is the only thing under test.
-        /** @type {List<never, Vec, IoChannel>} */
+        /** @type {EffectList<never, Vec, IoChannel>} */
         const payload = empty()
         const [result, log] = drive({
             // Only the first `now` is the sweep's, so every deadline after it
@@ -371,7 +364,7 @@ export const proof = {
         }
         const content = vec8(0x2An)
         const c = fileCas(sha256)('.')
-        const x = c.write(nonEmpty(content, /** @satisfies {List<never, Vec, IoChannel>} */ (empty())))
+        const x = c.write(nonEmpty(content, /** @satisfies {EffectList<never, Vec, IoChannel>} */ (empty())))
         const [state1, w] = virtual(state0)(x)
         assert(w[0] === 'ok', ['expected write ok', w])
         const [, present] = virtual(state1)(access(livePath))
@@ -382,7 +375,7 @@ export const proof = {
         // the partial staging file is deleted and the error is returned, without ever
         // reaching a real filesystem here.
         const c = fileCas(sha256)('.')
-        /** @type {List<never, Vec, IoChannel>} */
+        /** @type {EffectList<never, Vec, IoChannel>} */
         const payload = nonEmpty(vec8(0x11n), empty())
         const [result, log] = drive({ writeBytes: [error(ioError({ message: 'disk full' }))] })(c.write(payload))
         assertIoMessage(errorMessage(result), 'disk full')
@@ -394,7 +387,7 @@ export const proof = {
         // The lease-renewal `rename` (after every chunk) failing fails the same way as a
         // `writeBytes` failure: the partial staging file is deleted, error returned.
         const c = fileCas(sha256)('.')
-        /** @type {List<never, Vec, IoChannel>} */
+        /** @type {EffectList<never, Vec, IoChannel>} */
         const payload = nonEmpty(vec8(0x11n), empty())
         const [result, log] = drive({ rename: [error(ioError({ message: 'rename failed' }))] })(c.write(payload))
         assertIoMessage(errorMessage(result), 'rename failed')
@@ -409,7 +402,7 @@ export const proof = {
         // any size but the expected one must still fail, even though the tag alone says
         // success.
         const c = fileCas(sha256)('.')
-        /** @type {List<never, Vec, IoChannel>} */
+        /** @type {EffectList<never, Vec, IoChannel>} */
         const payload = nonEmpty(vec8(0x11n), empty())
         const [result] = drive({ stat: [ok({ size: 999 })] })(c.write(payload))
         assertIoMessage(errorMessage(result), 'publish size mismatch')
@@ -422,7 +415,7 @@ export const proof = {
         // through undetected by the size-mismatch case above, which never sees a
         // coincidentally-matching size on a failed `stat`.
         const c = fileCas(sha256)('.')
-        /** @type {List<never, Vec, IoChannel>} */
+        /** @type {EffectList<never, Vec, IoChannel>} */
         const payload = nonEmpty(vec8(0x11n), empty())
         const [result] = drive({ stat: [error({ size: 1 })] })(c.write(payload))
         assertIoMessage(errorMessage(result), 'publish size mismatch')
@@ -430,7 +423,7 @@ export const proof = {
     collectReadDrainsChunks: () => {
         // The common path: every chunk is `ok`, so collectRead concatenates them all
         // and returns the whole blob as one `Vec`.
-        /** @type {List<never, Vec, IoChannel>} */
+        /** @type {EffectList<never, Vec, IoChannel>} */
         const stream = nonEmpty(vec8(0x11n), nonEmpty(vec8(0x22n), empty()))
         const o = runPure(collectRead(stream))
         assert(o.length === 1, 'expected collectRead to finish without issuing a command')
@@ -439,7 +432,7 @@ export const proof = {
     collectReadPropagatesStreamFailure: () => {
         // A stream that fails mid-way short-circuits collectRead with that same
         // failure — `step` does it, so `collectRead` has no branch for it.
-        /** @type {List<never, Vec, IoChannel>} */
+        /** @type {EffectList<never, Vec, IoChannel>} */
         const stream = nonEmpty(vec8(0x11n), pureError(ioError({ message: 'boom' })))
         const o = runPure(collectRead(stream))
         assert(o.length === 1, 'expected collectRead to finish without issuing a command')
@@ -453,7 +446,7 @@ export const proof = {
         const half = maxLength / 2n
         const v1 = vec(half)(0n)
         const v2 = vec(half + 1n)(0n)
-        /** @type {List<never, Vec, IoChannel>} */
+        /** @type {EffectList<never, Vec, IoChannel>} */
         const stream = nonEmpty(v1, nonEmpty(v2, empty()))
         const o = runPure(collectRead(stream))
         assert(o.length === 1, 'expected collectRead to finish without issuing a command')
@@ -465,12 +458,8 @@ export const proof = {
         // empty store nor thrown: the caller decides what an unreadable store means.
         const c = fileCas(sha256)('.')
         const boom = ioError({ code: 'EACCES', message: 'permission denied' })
-        const r = casCommand(c.list())
-        assert(r[0] === 'cont', 'expected list() to issue an access command first')
-        assertEq(r[1], 'access')
-        const answered = runPure(r[2](error(boom)))
-        assert(answered.length === 1, ['expected list() to answer without another command', answered])
-        const result = answered[0]
+        const [result, log] = drive({ access: [error(boom)] })(c.list())
+        assertStructurallySame(log, ['access'], 'expected list() to answer after its access command alone')
         assert(result[0] === 'error', ['expected the access failure to propagate', result])
         assertEq(result[1], boom)
     },

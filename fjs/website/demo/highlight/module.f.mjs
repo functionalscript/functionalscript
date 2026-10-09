@@ -36,9 +36,10 @@
  * @import { Marked, Span, TokenKind } from '../../../text/marked/types.ts'
  */
 
-import { tokenize } from '../../../js/tokenizer/module.f.mjs'
+import { _positions, tokenize } from '../../../js/tokenizer/module.f.mjs'
+import { assertNotNullish } from '../../../asserts/module.f.mjs'
 import { isKeyword } from '../../../js/keywords/module.f.mjs'
-import { stringToList } from '../../../text/utf16/module.f.mjs'
+import { stringToCodePointList } from '../../../text/utf16/module.f.mjs'
 import { fromSpans } from '../../../text/marked/module.f.mjs'
 import { toArray } from '../../../types/list/module.f.mjs'
 import { unwrap } from '../../../types/result/module.f.mjs'
@@ -81,21 +82,25 @@ const kindOf = ({ kind }) => {
  * @type {(text: string) => readonly Span[]}
  */
 export const spansOf = text => {
-    const tokens = toArray(tokenize(stringToList(text))(''))
+    // code points, not UTF-16 units, so that an offset counts what `Span` does
+    const input = toArray(stringToCodePointList(text))
+    const tokens = toArray(tokenize(input)(''))
     if (tokens.some(({ token }) => token.kind === 'error')) { return [] }
     const symbols = Array.from(text)
-    const lineStarts = symbols.reduce(
-        (starts, s, i) => s === '\n' ? [...starts, i + 1] : starts,
-        /** @type {readonly number[]} */([0]))
-    const starts = tokens.map(({ metadata: { line, column } }) => lineStarts[line - 1] + column - 1)
+    // Where a position is, by the fold that positioned the tokens, so the
+    // lines are counted as the tokenizer counts them. The LF of a CRLF takes
+    // the position of the character after it, which is the one a token
+    // starts at, so the later index wins.
+    const indexOf = new Map(_positions('')(input).map(({ line, column }, i) => [`${line}:${column}`, i]))
+    const starts = tokens.map(({ metadata: { line, column } }) => assertNotNullish(indexOf.get(`${line}:${column}`), 'a token at no position'))
     // A token that starts where the previous one does adds nothing to cut:
     // the `nl` a block comment with a newline is followed by.
     const kept = tokens.flatMap(({ token }, i) => i > 0 && starts[i] === starts[i - 1] ? [] : [{ token, start: starts[i] }])
-    return kept.flatMap(({ token, start }, i) => {
+    // The last token is `eof`, which stays plain, so every token that has a
+    // kind has a next one to end at.
+    return kept.slice(0, -1).flatMap(({ token, start }, i) => {
         const kind = kindOf(token)
-        if (kind === undefined) { return [] }
-        const end = i + 1 < kept.length ? kept[i + 1].start : symbols.length
-        return [{ start, length: Array.from(symbols.slice(start, end).join('').trimEnd()).length, kind }]
+        return kind === undefined ? [] : [{ start, length: Array.from(symbols.slice(start, kept[i + 1].start).join('').trimEnd()).length, kind }]
     })
 }
 

@@ -1,7 +1,7 @@
 /**
  * @import { Effect } from '../effects/types.ts'
  * @import { FileStat, IncomingMessage, IoChannel, IoResult, NodeOp, ServerResponse } from '../effects/node/types.ts'
- * @import { List } from '../effects/list/types.ts'
+ * @import { EffectList } from '../effects/list/types.ts'
  * @import { Dir, RecordedResponse, State, _QueuedRequest } from '../effects/node/virtual/types.ts'
  * @import { Vec } from '../types/bit_vec/types.ts'
  */
@@ -99,10 +99,10 @@ const answerSite = answer(site)
  * This is what a runner's pump does, written out so that a proof can do something
  * *between* two pulls — which is how the one-inode claim is checked.
  *
- * @type {(state: State, e: List<NodeOp, Vec, IoChannel>, between?: (s: State) => State) => readonly[State, readonly Vec[]]}
+ * @type {(state: State, e: EffectList<NodeOp, Vec, IoChannel>, between?: (s: State) => State) => readonly[State, readonly Vec[]]}
  */
 const drain = (state, e, between = s => s) => {
-    /** @type {(s: State, rest: List<NodeOp, Vec, IoChannel>, out: readonly Vec[]) => readonly[State, readonly Vec[]]} */
+    /** @type {(s: State, rest: EffectList<NodeOp, Vec, IoChannel>, out: readonly Vec[]) => readonly[State, readonly Vec[]]} */
     const loop = (s, rest, out) => {
         const [next, cell] = virtual(s)(rest)
         const node = unwrap(cell)
@@ -115,7 +115,7 @@ const drain = (state, e, between = s => s) => {
 
 /** The text a body carries, pulled cell by cell.
  *
- * @type {(e: List<NodeOp, Vec, IoChannel>) => string}
+ * @type {(e: EffectList<NodeOp, Vec, IoChannel>) => string}
  */
 const textOf = e =>
     utf8ToString(u8ListToVecMsb(drain(emptyState, e)[1].flatMap(v => toArray(u8ListMsb(v)))))
@@ -186,50 +186,73 @@ export const proof = {
         // The bare `/` and any directory path are the site's `index.html` —
         // without this a generated site cannot be opened at all.
         index: () => {
-            assertEq(unwrap(resolve('.')('/')), './index.html')
-            assertEq(unwrap(resolve('.')('/docs/')), './docs/index.html')
+            assertEq(unwrap(resolve('.')('/')).path, './index.html')
+            assertEq(unwrap(resolve('.')('/docs/')).path, './docs/index.html')
         },
         // An absolute-form target is a proxy's spelling of the same request, and
         // RFC 9112 §3.2.2 requires an origin server to accept it. Read as a
         // path it named a file called `http:` and answered `404` for the wrong
         // reason.
         absoluteForm: () => {
-            assertEq(unwrap(resolve('.')('http://127.0.0.1:8080/main.css')), './main.css')
-            assertEq(unwrap(resolve('.')('https://localhost/docs/')), './docs/index.html')
+            assertEq(unwrap(resolve('.')('http://127.0.0.1:8080/main.css')).path, './main.css')
+            assertEq(unwrap(resolve('.')('https://localhost/docs/')).path, './docs/index.html')
             // The scheme is case-insensitive, as schemes are.
-            assertEq(unwrap(resolve('.')('HTTP://localhost/main.css')), './main.css')
+            assertEq(unwrap(resolve('.')('HTTP://localhost/main.css')).path, './main.css')
             // No path at all is the root of that authority.
-            assertEq(unwrap(resolve('.')('http://localhost')), './index.html')
+            assertEq(unwrap(resolve('.')('http://localhost')).path, './index.html')
             // The query still goes, and traversal is still rejected after the
             // authority is taken off.
-            assertEq(unwrap(resolve('.')('http://localhost/main.css?v=2')), './main.css')
+            assertEq(unwrap(resolve('.')('http://localhost/main.css?v=2')).path, './main.css')
         },
         file: () => {
-            assertEq(unwrap(resolve('.')('/main.css')), './main.css')
+            assertEq(unwrap(resolve('.')('/main.css')).path, './main.css')
             // The query and the fragment are not part of the path.
-            assertEq(unwrap(resolve('.')('/main.css?v=2')), './main.css')
-            assertEq(unwrap(resolve('.')('/main.css#top')), './main.css')
+            assertEq(unwrap(resolve('.')('/main.css?v=2')).path, './main.css')
+            assertEq(unwrap(resolve('.')('/main.css#top')).path, './main.css')
             // `.` and a collapsible `..` are normalized, not rejected.
-            assertEq(unwrap(resolve('.')('/./docs/../main.css')), './main.css')
+            assertEq(unwrap(resolve('.')('/./docs/../main.css')).path, './main.css')
         },
         // An absolute root stays absolute: `join` does not renormalize, which
         // is why it is used here rather than `concat`.
         absoluteRoot: () => {
-            assertEq(unwrap(resolve('/var/www')('/main.css')), '/var/www/main.css')
+            assertEq(unwrap(resolve('/var/www')('/main.css')).path, '/var/www/main.css')
         },
         // An empty root is the working directory. Left alone it would be the
         // file system root instead — `join('', 'etc')` is `/etc` — and the
         // argument's default cannot catch it, since `''` is a value the caller
         // passed rather than an absent one.
         emptyRoot: () => {
-            assertEq(unwrap(resolve('')('/etc/passwd')), './etc/passwd')
-            assertEq(unwrap(resolve('')('/')), './index.html')
+            assertEq(unwrap(resolve('')('/etc/passwd')).path, './etc/passwd')
+            assertEq(unwrap(resolve('')('/')).path, './index.html')
+        },
+        // The `404` a path earns if its file is missing. A directory request
+        // names the `index.html` it looked for and the path the client wrote;
+        // every other request keeps `not found`.
+        notFound: () => {
+            /** @type {(url: string) => string} */
+            const sentence = url => unwrap(resolve('.')(url)).notFound
+            assertEq(sentence('/'), 'no index.html in /')
+            assertEq(sentence('/docs/'), 'no index.html in /docs/')
+            assertEq(sentence('http://localhost'), 'no index.html in /')
+            assertEq(sentence('/main.css'), 'not found')
+            // Directory-form is what parses to a directory, not what ends in a
+            // slash: each of these gets `index.html` appended, so each says so.
+            assertEq(sentence('/.'), 'no index.html in /.')
+            assertEq(sentence('/%2E'), 'no index.html in /%2E')
+            assertEq(sentence('/docs/..'), 'no index.html in /docs/..')
+            // A request naming the file is not a directory request.
+            assertEq(sentence('/index.html'), 'not found')
+            // The path is echoed as written, escapes kept, and nothing that
+            // reaches it unescaped can drive a terminal.
+            assertEq(sentence('/%1B%5B31m/'), 'no index.html in /%1B%5B31m/')
+            assertEq(sentence('/\x1B[31m/'), 'no index.html in /%1B%5B31m/')
+            assertEq(sentence('/a b/'), 'no index.html in /a%20b/')
         },
         percentEncoding: () => {
-            assertEq(unwrap(resolve('.')('/a%20b.txt')), './a b.txt')
+            assertEq(unwrap(resolve('.')('/a%20b.txt')).path, './a b.txt')
             // Several escapes spelling one character, which is why the bytes
             // are decoded as a whole rather than per escape.
-            assertEq(unwrap(resolve('.')('/%D0%9F.txt')), './П.txt')
+            assertEq(unwrap(resolve('.')('/%D0%9F.txt')).path, './П.txt')
         },
         // Every way a URL fails to name a path under the root.
         rejected: () => {
@@ -405,6 +428,51 @@ export const proof = {
         directoryWithoutSlash: () => {
             const r = answerSite('GET', '/docs')
             assertEq(r.status, 404)
+        },
+        // A directory request with no `index.html` says that is what is missing,
+        // rather than `not found`, which reads as a wrong URL.
+        noIndex: () => {
+            const r = answer({})('GET', '/')
+            assertEq(r.status, 404)
+            assertEq(body(r), 'no index.html in /\n')
+            assertEq(contentType(r), 'text/plain; charset=utf-8')
+            // `HEAD` is answered like `GET`.
+            assertEq(answer({})('HEAD', '/docs/').status, 404)
+            // A raw control character never reaches the body: Node's parser
+            // refuses one, but the virtual server — like any runner calling
+            // `respond` directly — has no parser in front of it.
+            assertEq(body(answer({})('GET', '/\x1B[31m/')), 'no index.html in /%1B%5B31m/\n')
+            assertEq(body(answer({})('GET', '/%1B%5B31m/')), 'no index.html in /%1B%5B31m/\n')
+        },
+        // …and says nothing about what is on disk: an existing directory, a
+        // missing one, and one whose `index.html` is no regular file answer the
+        // same URL alike. This covers what the virtual file system can hold; a
+        // permission-denied or looping directory stays a `500` on a POSIX host
+        // (see `answer` in `./module.f.mjs`).
+        noIndexDisclosesNothing: () => {
+            /** @type {(root: Dir) => string} */
+            const fjs = root => {
+                const r = answer(root)('GET', '/fjs/')
+                assertEq(r.status, 404)
+                return body(r)
+            }
+            assertEq(fjs({ fjs: {} }), 'no index.html in /fjs/\n')
+            assertEq(fjs({}), 'no index.html in /fjs/\n')
+            assertEq(fjs({ fjs: { 'index.html': () => ({}) } }), 'no index.html in /fjs/\n')
+            assertEq(fjs({ fjs: { 'index.html': {} } }), 'no index.html in /fjs/\n')
+        },
+        // A hidden directory keeps `not found`: it is refused before the disk
+        // is looked at, so `no index.html` would claim a look that never
+        // happened — and an existing one answers like a missing one.
+        hiddenDirectory: () => {
+            /** @type {Dir} */
+            const root = { '.git': { config: [utf8('[core]')] } }
+            const git = answer(root)('GET', '/.git/')
+            const nonexistent = answer(root)('GET', '/.nonexistent/')
+            assertEq(git.status, 404)
+            assertEq(body(git), 'not found\n')
+            assertEq(nonexistent.status, 404)
+            assertEq(body(nonexistent), body(git))
         },
         // A dotfile is answered as absent, even when it is right there.
         hidden: () => {
@@ -612,12 +680,14 @@ export const proof = {
         // proof reading the real `stat` would cover this branch on one host and
         // not the other.
         throughFile: () => {
+            // The same URL against a tree where it names a file and one where it
+            // names nothing.
             const throughRegular = answerSite('GET', '/main.css/')
-            const throughNothing = answerSite('GET', '/nope.md/')
+            const throughNothing = answer({})('GET', '/main.css/')
             assertEq(throughRegular.status, throughNothing.status)
             assertEq(body(throughRegular), body(throughNothing))
             assertEq(throughRegular.status, 404)
-            assertEq(body(throughRegular), 'not found\n')
+            assertEq(body(throughRegular), 'no index.html in /main.css/\n')
             // At any depth, and for an entry that is not a regular file either.
             assertEq(answerSite('GET', '/main.css/a/b.txt').status, 404)
             assertEq(answer({ 'pipe.txt': () => ({}) })('GET', '/pipe.txt/x').status, 404)

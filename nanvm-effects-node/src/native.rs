@@ -1,4 +1,4 @@
-//! The console over `std`, performed for the loop of [`crate::run`].
+//! The console, files and directories over `std`, performed for the loop of [`crate::run`].
 //!
 //! A [`Native`] is generic over its three streams so that it can be proven
 //! without touching the process's own; [`Native::stdio`] is the one over the
@@ -6,9 +6,15 @@
 //! it reads the request from VM values, runs the operation and answers the
 //! `Result` the language reads, as `fjs/effects/node/module.mjs` does.
 
-use crate::codec::{
-    Malformed, argument, arity, decode_bytes, decode_choice, decode_literal, decode_string,
-    encode_nothing, encode_nullable, encode_number, encode_ok, encode_string, encode_tuple,
+use crate::{
+    codec::{
+        Malformed, argument, arity, decode_bytes, decode_choice, decode_flag, decode_literal,
+        decode_nullable, decode_number, decode_object, decode_optional, decode_string, decode_true,
+        encode_array, encode_bool, encode_bytes, encode_nothing, encode_nullable, encode_number,
+        encode_object, encode_ok, encode_string, encode_tuple, member, optional_argument, required,
+    },
+    files::{self, Dirent, IoError},
+    resolve::{FileModule, resolve_file_module},
 };
 use nanvm_lib::vm::{Any, Array, IVm, unstable::string_any};
 use std::io::{self, ErrorKind, Read, Write};
@@ -70,6 +76,40 @@ fn malformed_command<T>(command: &str) -> Result<T, Malformed> {
     Err(Malformed(format!("`{command}` is not a command")))
 }
 
+/// An operation's answer as the language reads a `Result`: a failure is
+/// `['error', ['ioError', {code?, message}]]`.
+fn answer<A: IVm, T>(result: Result<T, IoError>, ok: impl FnOnce(T) -> Any<A>) -> Any<A> {
+    match result {
+        Ok(value) => encode_ok(ok(value)),
+        Err(IoError { code, message }) => encode_tuple(
+            "error",
+            encode_tuple(
+                "ioError",
+                encode_object([
+                    code.map(|code| ("code", encode_string(code))),
+                    Some(("message", encode_string(message))),
+                ]),
+            ),
+        ),
+    }
+}
+
+fn encode_file_module<A: IVm>(module: FileModule) -> Any<A> {
+    encode_object([
+        Some(("id", encode_string(module.id))),
+        Some(("path", encode_string(module.path))),
+    ])
+}
+
+fn encode_dirent<A: IVm>(dirent: Dirent) -> Any<A> {
+    encode_object([
+        Some(("name", encode_string(dirent.name))),
+        Some(("parentPath", encode_string(dirent.parent_path))),
+        Some(("isFile", encode_bool(dirent.is_file))),
+        Some(("isDirectory", encode_bool(dirent.is_directory))),
+    ])
+}
+
 impl<R: Read, O: Write, E: Write> Native<R, O, E> {
     /// Performs `command` with `payload`: the answer is a `Result` for the
     /// continuation. A request that is not one the operation takes is thrown
@@ -97,6 +137,67 @@ impl<R: Read, O: Write, E: Write> Native<R, O, E> {
                 arity(payload, 1)?;
                 decode_literal(argument(payload, 0, "stream")?, "stdin")?;
                 Ok(encode_ok(encode_nullable(self.read(), encode_number)))
+            }
+            "mkdir" => {
+                arity(payload, 2)?;
+                let path = decode_string(argument(payload, 0, "path")?)?;
+                let recursive = decode_optional(optional_argument(payload, 1), |options| {
+                    let options = decode_object(options, &["recursive"])?;
+                    decode_true(required(&options, "recursive")?)
+                })?
+                .is_some();
+                Ok(answer(files::mkdir(&path, recursive), encode_nothing))
+            }
+            "readFile" => {
+                arity(payload, 1)?;
+                let path = decode_string(argument(payload, 0, "path")?)?;
+                Ok(answer(files::read_file(&path), encode_bytes))
+            }
+            "readWhole" => {
+                arity(payload, 1)?;
+                let path = decode_string(argument(payload, 0, "path")?)?;
+                Ok(answer(files::read_whole(&path), |windows| {
+                    encode_array(windows, encode_bytes)
+                }))
+            }
+            "readdir" => {
+                arity(payload, 2)?;
+                let path = decode_string(argument(payload, 0, "path")?)?;
+                let options = decode_object(argument(payload, 1, "options")?, &["recursive"])?;
+                let recursive = decode_flag(member(&options, "recursive"))?;
+                Ok(answer(files::readdir(&path, recursive), |entries| {
+                    encode_array(entries, encode_dirent)
+                }))
+            }
+            "writeFile" => {
+                arity(payload, 2)?;
+                let path = decode_string(argument(payload, 0, "path")?)?;
+                let data = decode_bytes(argument(payload, 1, "data")?)?;
+                Ok(answer(files::write_file(&path, &data), encode_nothing))
+            }
+            "writeBytes" => {
+                arity(payload, 3)?;
+                let path = decode_string(argument(payload, 0, "path")?)?;
+                let offset = decode_number(argument(payload, 1, "offset")?)?;
+                let data = decode_bytes(argument(payload, 2, "data")?)?;
+                Ok(answer(
+                    files::write_bytes(&path, offset, &data),
+                    encode_nothing,
+                ))
+            }
+            "resolveFileModule" => {
+                arity(payload, 2)?;
+                let name = decode_string(argument(payload, 0, "name")?)?;
+                let parent = decode_nullable(argument(payload, 1, "parent")?, decode_string)?;
+                Ok(answer(
+                    resolve_file_module(&name, parent.as_deref()),
+                    |module| encode_file_module(module),
+                ))
+            }
+            "rm" => {
+                arity(payload, 1)?;
+                let path = decode_string(argument(payload, 0, "path")?)?;
+                Ok(answer(files::rm(&path), encode_nothing))
             }
             _ if COMMANDS.contains(&command.as_str()) => Ok(not_implemented(&command)),
             _ => malformed_command(&command),
@@ -140,8 +241,8 @@ mod test {
     use nanvm_lib::{
         naive::Naive,
         vm::{
-            Nullish, Number, ToAny, ToArray,
-            unstable::{bigint_any, bigint_any_words},
+            Nullish, Number, ToAny, ToArray, ToObject,
+            unstable::{bigint_any, bigint_any_words, string_key},
         },
     };
     use std::io::Cursor;
@@ -327,5 +428,175 @@ mod test {
             }
         }
         Native::new(Broken, Vec::new(), Vec::new()).read();
+    }
+
+    fn object(members: impl IntoIterator<Item = (&'static str, V)>) -> V {
+        members
+            .into_iter()
+            .map(|(key, value)| (string_key::<Naive>(key), value))
+            .collect::<Vec<_>>()
+            .to_object()
+            .to_any()
+    }
+
+    fn recursive(value: bool) -> V {
+        object([("recursive", value.to_any())])
+    }
+
+    fn perform<const N: usize>(command: &str, payload: [V; N]) -> Result<V, V> {
+        host(b"").perform(string_any(command), array(payload))
+    }
+
+    fn thrown<const N: usize>(command: &str, payload: [V; N]) -> String {
+        decode_string(perform(command, payload).unwrap_err()).unwrap()
+    }
+
+    /// A request that is not one the operation takes is thrown, naming why.
+    #[test]
+    fn malformed_file_requests_throw() {
+        let path = || string_any("p");
+        assert_eq!(thrown("mkdir", [path(), recursive(false)]), "not `true`");
+        assert_eq!(thrown("mkdir", [path(), string_any("x")]), "not an object");
+        assert_eq!(
+            thrown("mkdir", [path(), object([("x", hi())])]),
+            "unexpected member `x`"
+        );
+        assert_eq!(
+            thrown("mkdir", [path(), object([])]),
+            "missing member `recursive`"
+        );
+        assert_eq!(thrown("readdir", [path()]), "missing argument 1, `options`");
+        assert_eq!(
+            thrown("readdir", [path(), recursive(false)]),
+            "a flag that is not `true`"
+        );
+        assert_eq!(
+            thrown("writeBytes", [path(), string_any("0"), hi()]),
+            "not a number"
+        );
+        assert_eq!(thrown("rm", [Nullish::Null.to_any()]), "not a string");
+    }
+
+    /// The operations through `perform`, against a real directory, which a
+    /// WebAssembly host does not give a test.
+    #[cfg(not(target_family = "wasm"))]
+    #[test]
+    fn files_through_perform() {
+        let dir =
+            std::env::temp_dir().join(format!("nanvm-effects-node-perform-{}", std::process::id()));
+        let at = |name: &str| string_any(&dir.join(name).to_string_lossy());
+        std::fs::create_dir_all(&dir).unwrap();
+        let undefined = || Nullish::Undefined.to_any();
+
+        assert_eq!(ok(perform("mkdir", [at("a"), undefined()])), undefined());
+        assert_eq!(
+            ok(perform("mkdir", [at("b/c"), recursive(true)])),
+            undefined()
+        );
+        assert_eq!(ok(perform("writeFile", [at("f"), hi()])), undefined());
+        assert_eq!(ok(perform("readFile", [at("f")])), hi());
+        let windows: Vec<V> = Array::try_from(ok(perform("readWhole", [at("f")])))
+            .unwrap()
+            .into_iter()
+            .collect();
+        assert_eq!(windows, [hi()]);
+        assert_eq!(
+            ok(perform(
+                "writeBytes",
+                [at("f"), Number::from(1.0).to_any(), hi()]
+            )),
+            undefined()
+        );
+        let names = |entries: V| -> Vec<String> {
+            Array::try_from(entries)
+                .unwrap()
+                .into_iter()
+                .map(|entry| {
+                    let name = nanvm_lib::vm::Object::try_from(entry)
+                        .unwrap()
+                        .own_property(&"name".into())
+                        .unwrap();
+                    decode_string(name).unwrap()
+                })
+                .collect()
+        };
+        let root = string_any(&dir.to_string_lossy());
+        assert_eq!(
+            names(ok(perform("readdir", [root.clone(), object([])]))),
+            ["a", "b", "f"]
+        );
+        assert_eq!(
+            names(ok(perform("readdir", [root, recursive(true)]))),
+            ["a", "b", "f", "c"]
+        );
+        assert_eq!(ok(perform("rm", [at("f")])), undefined());
+
+        let missing = perform("readFile", [at("f")]).unwrap();
+        let [tag, error]: [V; 2] = Array::try_from(missing)
+            .unwrap()
+            .into_iter()
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap();
+        assert_eq!(tag, string_any("error"));
+        let [kind, info]: [V; 2] = Array::try_from(error)
+            .unwrap()
+            .into_iter()
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap();
+        assert_eq!(kind, string_any("ioError"));
+        let code = nanvm_lib::vm::Object::try_from(info)
+            .unwrap()
+            .own_property(&"code".into())
+            .unwrap();
+        assert_eq!(code, string_any("ENOENT"));
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// `resolveFileModule` through `perform`: the working directory is where
+    /// a test runs, a crate's own directory.
+    #[cfg(not(target_family = "wasm"))]
+    #[test]
+    fn resolving_a_module_through_perform() {
+        let module = ok(perform(
+            "resolveFileModule",
+            [string_any("Cargo.toml"), Nullish::Null.to_any()],
+        ));
+        let member = |name: &str| {
+            let value = nanvm_lib::vm::Object::try_from(module.clone())
+                .unwrap()
+                .own_property(&name.into())
+                .unwrap();
+            decode_string(value).unwrap()
+        };
+        assert!(member("path").replace('\\', "/").ends_with("/Cargo.toml"));
+        assert_eq!(
+            member("id"),
+            crate::resolve::path_to_file_url(&member("path"))
+        );
+        let sibling = ok(perform(
+            "resolveFileModule",
+            [string_any("./src/lib.rs"), string_any(&member("id"))],
+        ));
+        assert!(
+            decode_string(
+                nanvm_lib::vm::Object::try_from(sibling)
+                    .unwrap()
+                    .own_property(&"path".into())
+                    .unwrap()
+            )
+            .unwrap()
+            .replace('\\', "/")
+            .ends_with("/nanvm-effects-node/src/lib.rs")
+        );
+    }
+
+    #[test]
+    fn a_parent_that_is_not_a_string_throws() {
+        assert_eq!(
+            thrown("resolveFileModule", [string_any("a"), hi()]),
+            "not a string"
+        );
     }
 }
