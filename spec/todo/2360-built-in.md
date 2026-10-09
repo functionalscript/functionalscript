@@ -81,6 +81,37 @@ name not yet decided, or, where it says so, never admitted.
       unrecognized
 - [ ] `RegExp`
 
+#### String conversion proposal and approval
+
+**Problem.** The compiler refused `String(x)` even though the EDAG already
+represented string conversion, so authored `.f.js` modules could not use the
+familiar JavaScript spelling for that operation.
+
+**Proposal.** Admit `String(exp)` as the existing conversion operation and
+`String()` as the empty-string literal. Reserve the global name when admitting
+it, as [global-names](./2365-global-names.md) requires. Namespace members and
+other call shapes remain separate admissions; computed property keys retain
+their existing `Number(...)` requirement. The implemented semantics are in
+[String Conversion](../README.md#string-conversion).
+
+**Benefits.** This preserves familiar JavaScript syntax and conversion behavior
+for supported values, makes the existing operation available to source modules,
+and reuses its evaluation and output backends. One conversion expression and
+the empty-string literal add little language complexity.
+
+**Drawbacks.** Reserving `String` breaks existing bindings with that name.
+JavaScript's namespace members, multiple arguments, spreads, and guarded calls
+are still refused, so source compatibility is partial. Function conversion
+uses EDAG-derived code text rather than the original JavaScript source and
+omits captured values. The new expression also needs traversal, lowering, and
+serialization support throughout the compiler.
+
+**Language-design approval.** **sergey-shandar** explicitly directed
+"Implement it" in [the LLM working session](https://chatgpt.com/local/01a121ce-d4c3-71ca-a025-8e451349b01c),
+after the existing `String(x)` TODO was identified and before implementation
+began. The fuller benefits-and-drawbacks record above was added during PR
+review.
+
 ### Indexed Collections
 
 - [x] `Array`
