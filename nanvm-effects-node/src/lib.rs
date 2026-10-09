@@ -13,6 +13,7 @@
 //! `nanvm-effects-node` depends on `nanvm-lib`, never the reverse.
 
 mod codec;
+mod common;
 mod files;
 mod native;
 mod resolve;

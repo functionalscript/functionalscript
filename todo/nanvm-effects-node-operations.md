@@ -39,7 +39,8 @@ implementation details remain unspecified here.
   - [x] `resolveFileModule`.
   - [x] `stat`, `access`, `rename`, `rmdir`.
   - [x] `createExclusive`, `writeExclusive`, `readBytes`.
-  - [ ] `sandbox`, `catch`, `now`, `randomInt`, `inflate`, `test`.
+  - [x] `sandbox`, `catch`, `now`.
+  - [ ] `randomInt`, `inflate`, `test`.
   - [ ] The descriptor handles `open`, `fstat`, `pread`, `close`: a native `Handle`.
 - [ ] Complete the [asynchronous native-effects task](./nanvm-effects-node-async.md).
 - [ ] Verify equivalent observable behavior against the Node runner for the full
