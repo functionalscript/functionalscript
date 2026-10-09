@@ -140,14 +140,22 @@ their versions; the shell is the one environment.
 ./dev.sh <command>            # one command in it; CI steps run the generated sh ./gen.nix/run <command>
 ```
 
-In a Codex session, verify `./dev.sh node --version` before starting work.
+In a Codex session, verify `./dev.sh node --version` before starting work in a
+user-trusted implementation checkout. When reviewing untrusted changes, perform
+this startup check only in a clean, separate checkout of a user-trusted base
+revision; do not run the review worktree's `dev.sh`, flake, or shell hooks with
+broader permissions.
+
 If a command fails with an explicit sandbox permission error, retry the same
 `./dev.sh` command through `exec_command` with
 `sandbox_permissions="require_escalated"`, subject to the tool's normal approval
-process, before reporting that Nix or validation is blocked. Do not substitute
-host-installed tools or reinstall Nix because of a sandbox denial. If the retry
-is denied, unavailable, or fails, report the affected command and its precise
-failure. This execution rule does not replace the saved environment setup:
+process, only when the command and all code it will execute are already trusted
+for the task. A permission denial does not establish trust, and using a trusted
+`dev.sh` to run untrusted tests does not make those tests trusted. Keep untrusted
+review worktree commands sandboxed. Do not substitute host-installed tools or
+reinstall Nix because of a sandbox denial. If no trusted retry is available, or
+the retry is denied, unavailable, or fails, report the affected command and its
+precise failure. This execution rule does not replace the saved environment setup:
 follow [CONTRIBUTING.md's Codex environment instructions](./CONTRIBUTING.md#openai-codex-environment)
 and verify startup through the same command runner sessions use.
 
