@@ -528,10 +528,14 @@ Two things an earlier draft of this plan listed as exceptions are not.
 `bigint` and `undefined` results need no JSON form: the comparison is
 structural, on the values themselves. `named-imports` and
 `named-imports-throws` run on the interpreter's own loader over a virtual file
-system holding the fixture directory. Three fixtures (`effect`, `exports`,
+system holding the fixture directory. Four fixtures (`effect`, `exports`, `named-imports`,
 `named-imports-math`) have `undefined` as their default and test named
-exports, so the comparison of their default is trivial; named exports are not
-compared (decision 3).
+exports or imports, so the comparison of their default is trivial; named
+exports are not compared (decision 3). The `undefinedDefault` table in
+[`corpus/module.f.mjs`](../../fjs/nanvm/corpus/module.f.mjs) names them, and
+`missing` whose `undefined` is the observation, each with its reason, and the
+host proof fails on any other fixture whose default is `undefined` and on any
+entry that no longer is, so the gap is a list and not a silence.
 
 **Where the expectation lives (decision 1, decided: the reference's own
 output).** A generator writes the reference's output into a committed `gen.`
@@ -584,9 +588,10 @@ call contract, and keep their hand-written Rust tests.
    sorts its keys, the export object keeps declaration order), and most named
    exports in the fixtures are functions with no value to compare. Revisit at
    step 2, when the reference's output is a committed file and adding
-   data-valued named exports is cheap. The three fixtures whose default is
-   `undefined` (`effect`, `exports`, `named-imports-math`) stay vacuous in
-   this corpus until then.
+   data-valued named exports is cheap. The four fixtures whose default is
+   `undefined` and test named exports or imports (`effect`, `exports`,
+   `named-imports`, `named-imports-math`) stay vacuous in this corpus until
+   then, listed in `undefinedDefault`.
 4. ~~Is `memo` the interpreter of record for the identity contract?~~
    Decided: yes, and `amnesia` is out of the identity contract. `memo`
    starts each call with a fresh cache and keeps captures by identity, the

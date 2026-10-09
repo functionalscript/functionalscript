@@ -6,11 +6,11 @@
 
 import { readdirSync, readFileSync } from 'node:fs'
 
-import { assert, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { _transpileDefault } from '../../compiler/transpiler/module.f.mjs'
 import { emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
-import { corpus, exceptions, fixturesDirectory } from './module.f.mjs'
+import { corpus, exceptions, fixturesDirectory, undefinedDefault, withAliasing } from './module.f.mjs'
 
 const names = readdirSync(fixturesDirectory, { withFileTypes: true })
     .filter(entry => entry.isFile())
@@ -46,31 +46,6 @@ const interpreted = name => {
     return tag === 'ok' ? ['ok', value] : ['refused', value]
 }
 
-/**
- * A value with its aliasing written out: an array or object seen for the
- * first time is `['node', n, ...]` and every later sight of it `['alias', n]`,
- * so two values with equal contents but different sharing differ. A
- * structural comparison alone accepts `[shared, shared]` for two copies.
- *
- * @type {(value: unknown) => unknown}
- */
-const withAliasing = value => {
-    /** @type {Map<unknown, number>} */
-    const seen = new Map()
-    /** @type {(v: unknown) => unknown} */
-    const walk = v => {
-        if (typeof v !== 'object' || v === null) { return v }
-        const id = seen.get(v)
-        if (id !== undefined) { return ['alias', id] }
-        const n = seen.size
-        seen.set(v, n)
-        return Array.isArray(v)
-            ? ['node', n, 'array', v.map(walk)]
-            : ['node', n, 'object', Object.entries(v).map(([k, x]) => [k, walk(x)])]
-    }
-    return walk(value)
-}
-
 /** @type {(outcome: readonly [string, unknown?]) => readonly [string, unknown?]} */
 const aliased = ([tag, value]) => tag === 'ok' ? [tag, withAliasing(value)] : [tag, value]
 
@@ -78,6 +53,13 @@ export const proof = {
     /** An exception for a fixture that is gone would excuse nothing. */
     exceptionsNameFixtures: () => {
         for (const file of Object.keys(exceptions)) { assert(names.includes(file), file) }
+    },
+    /** Each `undefined` default is listed, and each listed one still is. */
+    undefinedDefaultsAreListed: async () => {
+        for (const name of corpus(names)) {
+            const [tag, value] = await reference(name)
+            assertEq(tag === 'ok' && value === undefined, undefinedDefault[name] !== undefined, name)
+        }
     },
     /** The interpreter answers what Node answers, or both throw. */
     compared: Object.fromEntries(corpus(names).map(name => [name, async () => {
