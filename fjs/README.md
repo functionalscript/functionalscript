@@ -161,10 +161,18 @@ This mirrors:
 
 ### Passing arguments
 
-Any arguments after `<module>` are forwarded to `main` via `options.args`:
+Any arguments after `<module>` are forwarded to a program `main` via
+`options.args`:
 
 ```sh
 fjs run ./my-tool.f.mjs foo bar   # options.args === ['foo', 'bar']
+```
+
+A command table consumes the first of them as the command name, and the
+handler it names gets the rest:
+
+```sh
+fjs run ./my-tool.f.mjs hello foo bar   # hello's options.args === ['foo', 'bar']
 ```
 
 
