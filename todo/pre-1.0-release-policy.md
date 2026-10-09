@@ -11,7 +11,8 @@ consistent versioning policy.
 
 ### Tasks
 
-- [ ] Drop mandatory `BREAKING CHANGES` notices, since most changes are breaking.
+- [ ] Before 1.0, drop mandatory `BREAKING CHANGES` notices, since most changes
+      are breaking.
       Reconcile the requirement in contributor and release documentation and
       every open TODO that mandates the declaration, including
       [commit-message enforcement](./commit-message-enforcement.md).
@@ -24,6 +25,15 @@ consistent versioning policy.
       has advanced, with matching npm trusted-publisher configuration. Update
       the publishing workflow generator and release procedure so an urgent
       fix can publish without including later development changes from `main`.
+
+### After 1.0
+
+The release policy after 1.0 remains an open question and is outside this
+task's scope. Do not decide whether mandatory notices return as part of this
+work. A possible direction is to continue releasing on branches, introducing
+breaking changes with major-version updates (`Mj.?.?`) and adding features
+within a major version (`Mj.Mi.?`). This is tentative, not an adopted policy;
+defer that discussion until it is needed.
 
 ### Related
 
