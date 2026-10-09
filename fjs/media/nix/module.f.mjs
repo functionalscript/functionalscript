@@ -12,7 +12,7 @@
  *
  * @module
  *
- * @import { Indexed, List } from '../../types/list/types.ts'
+ * @import { List } from '../../types/list/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Range } from '../../types/range/types.ts'
  * @import { RangeSet } from '../../types/range_set/types.ts'
@@ -30,7 +30,7 @@ import {
     range,
 } from '../../text/ascii/module.f.mjs'
 import { contains, fromRange, union } from '../../types/range_set/module.f.mjs'
-import { entries, find, flat, flatMap, intersperse, map, mergeAdjacent, toArray } from '../../types/list/module.f.mjs'
+import { flat, flatMap, intersperse, map, mergeAdjacent, toArray } from '../../types/list/module.f.mjs'
 
 const reservedWords = /** @type {const} */ ([
     'assert',
@@ -169,23 +169,20 @@ const protectLeadingWhitespace = line => {
     return `${leading}${line.slice(contentStart)}`
 }
 
-/** @type {(reason: Nullable<string>) => boolean} */
-const isReason = reason => reason !== null
-
-/**
- * The first reason in `reasons`, or `null` when there is none. `reasons` is
- * read only up to its first reason, so a lazy one is computed no further.
- *
- * @type {(reasons: List<Nullable<string>>) => Nullable<string>}
- */
-const firstReason = find(null)(isReason)
-
 /**
  * The first reason `f` gives for any of `items`, or `null` when it gives none.
  *
- * @type {<T>(f: (item: T) => Nullable<string>) => (items: List<T>) => Nullable<string>}
+ * `f` is not called once a reason is found, so nothing after the first
+ * reason is checked. The walk is a plain `reduce` rather than a lazy list on
+ * purpose: `check` recurses once per level of nesting, and every frame a
+ * level costs is depth a legal expression loses before the stack runs out.
+ *
+ * @type {<T>(f: (item: T, index: number) => Nullable<string>) => (items: readonly T[]) => Nullable<string>}
  */
-const firstReasonOf = f => items => firstReason(map(f)(items))
+const firstReasonOf = f => items => items.reduce(
+    /** @type {(reason: Nullable<string>, item: typeof items[number], index: number) => Nullable<string>} */
+    (reason, item, index) => reason ?? f(item, index),
+    null)
 
 /** @type {(reference: _Reference) => Nullable<string>} */
 const checkReference = ([, name]) =>
@@ -193,12 +190,12 @@ const checkReference = ([, name]) =>
 
 /** @type {(pattern: _OpenSetPattern) => Nullable<string>} */
 const checkPattern = ([, ...names]) => firstReasonOf(
-    /** @type {(entry: Indexed<string>) => Nullable<string>} */
-    ([index, name]) =>
+    /** @type {(name: string, index: number) => Nullable<string>} */
+    (name, index) =>
         !isIdentifier(name) ? `pattern name is not an identifier: ${quoted(name)}`
         : names.indexOf(name) !== index ? `duplicate pattern name: ${name}`
         : null)
-    (entries(names))
+    (names)
 
 /** @type {(prefix: _AttributePath, path: _AttributePath) => boolean} */
 const isPathPrefix = (prefix, path) =>
@@ -216,27 +213,49 @@ const pathsConflict = (a, b) =>
  * @type {(bindings: readonly _Binding[]) => Nullable<string>}
  */
 const checkConflicts = bindings => firstReasonOf(
-    /** @type {(entry: Indexed<_Binding>) => Nullable<string>} */
-    ([index, [, path]]) => {
+    /** @type {(binding: _Binding, index: number) => Nullable<string>} */
+    ([, path], index) => {
         const previous = bindings.slice(0, index).find(([, p]) => pathsConflict(path, p))
         return previous === undefined
             ? null
             : `conflicting attribute paths: ${attributePath(previous[1])} and ${attributePath(path)}`
     })
-    (entries(bindings))
+    (bindings)
 
-/** @type {(binding: _Binding) => Nullable<string>} */
-const checkBindingValue = ([, , value]) => check(value)
+/** @type {(reason: Nullable<string>, binding: _Binding) => Nullable<string>} */
+const valueReason = (reason, [, , value]) => reason ?? check(value)
 
 /**
  * A binding group is legal when its paths do not conflict and every value is.
  * The whole group's paths are checked before any value, so a conflict is
  * reported without walking a value on either side of it, however deep.
  *
+ * The values are walked by a `reduce` of their own rather than through
+ * {@link firstReasonOf}: this is the walk every level of a nested set takes,
+ * and the frames it saves are nesting depth.
+ *
  * @type {(bindings: readonly _Binding[]) => Nullable<string>}
  */
 const checkBindings = bindings =>
-    checkConflicts(bindings) ?? firstReasonOf(checkBindingValue)(bindings)
+    checkConflicts(bindings) ?? bindings.reduce(valueReason, null)
+
+/** @type {(set: _AttributeSet) => Nullable<string>} */
+const checkSet = ([, ...bindings]) => checkBindings(bindings)
+
+/** @type {(list: _NixList) => Nullable<string>} */
+const checkList = ([, ...items]) => firstReasonOf(check)(items)
+
+/** @type {(application: _Application) => Nullable<string>} */
+const checkApplication = ([, fn, ...args]) => firstReasonOf(check)([fn, ...args])
+
+/** @type {(lambda: _Lambda) => Nullable<string>} */
+const checkLambda = ([, pattern, body]) => checkPattern(pattern) ?? check(body)
+
+/** @type {(let_: _Let) => Nullable<string>} */
+const checkLet = ([, bindings, body]) => checkBindings(bindings) ?? check(body)
+
+/** @type {(indented: _IndentedString) => Nullable<string>} */
+const checkIndentedString = ([, ...parts]) => firstReasonOf(check)(parts)
 
 /**
  * The reason `expression` is not legal Nix, or `null` when it is.
@@ -249,6 +268,9 @@ const checkBindings = bindings =>
  * - a lambda pattern's names are identifiers and pairwise distinct;
  * - no attribute path in a binding group is a prefix of another.
  *
+ * Like {@link serialize}, it only dispatches, so the frame each level of
+ * nesting costs stays small.
+ *
  * @type {(expression: Expression) => Nullable<string>}
  */
 const check = expression => {
@@ -257,30 +279,12 @@ const check = expression => {
     }
     switch (expression[0]) {
         case 'ref': return checkReference(expression)
-        case 'set': {
-            const [, ...bindings] = expression
-            return checkBindings(bindings)
-        }
-        case 'list': {
-            const [, ...items] = expression
-            return firstReasonOf(check)(items)
-        }
-        case 'apply': {
-            const [, fn, ...args] = expression
-            return firstReasonOf(check)([fn, ...args])
-        }
-        case 'lambda': {
-            const [, pattern, body] = expression
-            return checkPattern(pattern) ?? check(body)
-        }
-        case 'let': {
-            const [, bindings, body] = expression
-            return checkBindings(bindings) ?? check(body)
-        }
-        case 'indented-string': {
-            const [, ...parts] = expression
-            return firstReasonOf(check)(parts)
-        }
+        case 'set': return checkSet(expression)
+        case 'list': return checkList(expression)
+        case 'apply': return checkApplication(expression)
+        case 'lambda': return checkLambda(expression)
+        case 'let': return checkLet(expression)
+        case 'indented-string': return checkIndentedString(expression)
     }
 }
 
