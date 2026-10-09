@@ -48,7 +48,11 @@ What they share, and what we take from it:
 2. **A closed, named vocabulary.** LSP publishes a legend with standard
    types (`keyword`, `string`, `number`, `comment`, `operator`, `function`,
    `variable`, `property`, …) so that themes work across servers. We use
-   those names where they exist, rather than inventing ours.
+   those names where they exist, rather than inventing ours, and add a kind
+   where the semantics differ and LSP has none — as LSP's legend allows a
+   server to, and as TextMate (`constant.language`) and Tree-sitter
+   (`@boolean`, `@constant.builtin`) both do for `true`, `false` and `null`.
+   Hence `literal` beside `keyword`.
 3. **The producer that knows should say.** LSP semantic tokens exist because
    a lexer-level highlighter (TextMate) cannot tell a type from a variable;
    the server can. A generator is the extreme case: it needs no inference at
@@ -80,8 +84,12 @@ What we leave:
 ### The shape: marked text, a list of runs
 
 ```ts
-/** What a run of text is. The names are LSP's standard token types. */
-export type TokenKind = 'keyword' | 'string' | 'number' | 'comment' | 'operator' /* … */
+/**
+ * What a run of text is. The names are LSP's standard token types, plus
+ * `literal` for `true`, `false`, `null` and `undefined`, which LSP has no
+ * type for. A kind states what the producer wrote, never how it looks.
+ */
+export type TokenKind = 'keyword' | 'literal' | 'string' | 'number' | 'comment' | 'operator' /* … */
 
 /** A run of text and, when it has one, its kind. */
 export type Run = readonly [text: string, kind?: TokenKind]
@@ -160,17 +168,21 @@ What the types and functions above promise, each testable:
 1. **Text is preserved.** `toText(marked)` is exactly the text the producer
    would have written without markup. Markup never adds, drops, reorders or
    escapes a character.
-2. **Kinds are closed.** A run's kind is one of `TokenKind` or absent. A
+2. **A kind is semantic, never presentational.** Two kinds that the
+   stylesheet happens to draw alike (`keyword` and `literal` today) stay two
+   kinds: the colour is the page designer's choice and may change, or differ
+   in another renderer, while the data keeps what the producer knew.
+3. **Kinds are closed.** A run's kind is one of `TokenKind` or absent. A
    producer cannot invent a kind; an unknown one is a type error, and the
    stylesheet has a rule for each.
-3. **Runs are flat.** No run nests inside another and none overlaps; a
+4. **Runs are flat.** No run nests inside another and none overlaps; a
    region with two properties gets one kind or is split. (LSP forbids
    overlap unless the client opts in; nothing here would.)
-4. **Empty runs carry nothing.** A producer may emit `['']`, and `render`
+5. **Empty runs carry nothing.** A producer may emit `['']`, and `render`
    drops it; no span is drawn around nothing.
-5. **`fromSpans` refuses, never repairs.** Overlapping, negative,
+6. **`fromSpans` refuses, never repairs.** Overlapping, negative,
    out-of-range or non-integer spans are an error, not a clamp.
-6. **Producers are total over the same inputs as before.** Marking a
+7. **Producers are total over the same inputs as before.** Marking a
    producer changes no input it accepts or refuses, and no refusal message.
 
 ## Proof obligations
@@ -187,7 +199,7 @@ module does, pins:
   `.edag.data.js`). Rust has no oracle; its proof is the round trip plus a
   table of expected runs for a small example.
 - **`fromSpans`:** one accepted case per kind, and one refusal for each
-  member of invariant 5.
+  member of invariant 6.
 - **`render`:** the HTML for a run with a kind, one without, and an empty
   one.
 - **The demo's view,** for the initial state, each example and one refused
@@ -261,11 +273,6 @@ Each step is independently shippable and leaves the page working.
 
 Each carries the author's leaning, to be overruled in review.
 
-- **The vocabulary of `TokenKind`.** LSP has no `literal`; `true`/`false`/
-  `null`/`undefined` are keywords in its terms, and `constant.language` in
-  TextMate's. *Leaning: fold `literal` into `keyword`.* The stylesheet
-  already draws both in one colour, so nothing is lost and the vocabulary
-  becomes LSP's subset exactly.
 - **Names versus properties.** A producer knows a key from a variable and a
   function name from a parameter, which a lexer does not. *Leaning: ship the
   lexical kinds first.* Adding `property` or `function` later is additive,
