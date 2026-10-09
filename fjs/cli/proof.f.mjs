@@ -6,7 +6,7 @@
 import { exitCode } from '../effects/node/module.f.mjs'
 import { pureError, pureOk } from '../effects/module.f.mjs'
 import { emptyState, nodeProgramOptions, virtual } from '../effects/node/virtual/module.f.mjs'
-import { dispatch } from './module.f.mjs'
+import { dispatch, isMain } from './module.f.mjs'
 import { assert, assertEq } from '../asserts/module.f.mjs'
 
 /** @type {Commands<NodeOp>} */
@@ -29,6 +29,21 @@ export const proof = {
         const program = ({ args }) => pureError(args.length)
         const [, code] = virtual(emptyState)(dispatch(program)(nodeProgramOptions(['a', 'b', 'c'])))
         assertEq(exitCode(code), 3, ['expected all three arguments', code])
+    },
+    // `isMain` admits what `dispatch` can run and refuses every other shape at
+    // the first field that is wrong.
+    isMain: {
+        program: () => assert(isMain(() => pureOk(0)), 'a function'),
+        table: () => assert(isMain(echoCommands), 'a table'),
+        nestedTable: () => assert(isMain([{ names: ['sub'], description: 'Sub', handler: echoCommands }]), 'a nested table'),
+        emptyTable: () => assert(isMain([]), 'an empty table'),
+        notMain: () => assert(!isMain(1), 'a number'),
+        notCommand: () => assert(!isMain([0]), 'an array of numbers'),
+        nullCommand: () => assert(!isMain([null]), 'an array of null'),
+        noNames: () => assert(!isMain([{ description: 'd', handler: echoCommands }]), 'no names'),
+        nonStringName: () => assert(!isMain([{ names: [0], description: 'd', handler: echoCommands }]), 'a number name'),
+        noDescription: () => assert(!isMain([{ names: ['a'], handler: echoCommands }]), 'no description'),
+        badHandler: () => assert(!isMain([{ names: ['a'], description: 'd', handler: [0] }]), 'a bad nested handler'),
     },
     knownCommand: () => {
         const [, code] = run(echoCommands)(['echo', 'hello'])

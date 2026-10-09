@@ -89,4 +89,13 @@ export const proof = {
         assertEq(exitCode(code), 1)
         assert(state.stderr.includes('not a program'), state.stderr)
     },
+    // An array is a command table only in shape; any other array is refused
+    // like a missing `main`, not dispatched into a crash.
+    runMalformedTable: () => {
+        /** @type {Dir} */
+        const root = { 'app.f.ts': () => ({ main: [0] }) }
+        const [state, code] = run(root)(['run', 'app.f.ts'])
+        assertEq(exitCode(code), 1)
+        assert(state.stderr.includes('not a program'), state.stderr)
+    },
 }

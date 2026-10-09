@@ -6,11 +6,12 @@
  * @module
  *
  * @import { NodeOp, Program, Write } from '../effects/node/types.ts'
- * @import { Commands, Main } from './types.ts'
+ * @import { Command, Commands, Main } from './types.ts'
  */
 
 import { errorExit, exitStep, log } from '../effects/node/module.f.mjs'
-import { at, fromEntries } from '../types/object/module.f.mjs'
+import { at, fromEntries, isObject } from '../types/object/module.f.mjs'
+import { isArray } from '../types/array/module.f.mjs'
 
 const helpMeta = { names: ['help', 'h', '?'], description: 'Print this help message' }
 
@@ -32,6 +33,29 @@ const renderHelp = commands => {
  * @type {<O extends NodeOp>(main: Main<O>) => Program<O | Write>}
  */
 export const dispatch = main => typeof main === 'function' ? main : dispatchCommands(main)
+
+/**
+ * Whether a value from outside the type system — a module's `main`, say — is a
+ * `Main`: a function, or a table whose every command has string `names`, a
+ * string `description` and a `Main` for its `handler`. A function is taken to
+ * be a `Program`; nothing can check that before calling it.
+ *
+ * @param {unknown} value
+ * @returns {value is Main<NodeOp>}
+ */
+export const isMain = value => typeof value === 'function' || (isArray(value) && value.every(isCommand))
+
+/**
+ * @param {unknown} value
+ * @returns {value is Command<NodeOp>}
+ */
+const isCommand = value => {
+    if (!isObject(value)) { return false }
+    const { names, description, handler } = value
+    return isArray(names) && names.every(n => typeof n === 'string')
+        && typeof description === 'string'
+        && isMain(handler)
+}
 
 /** @type {<O extends NodeOp>(commands: Commands<O>) => Program<O | Write>} */
 const dispatchCommands = commands => options => {
