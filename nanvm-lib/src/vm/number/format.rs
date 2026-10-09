@@ -44,10 +44,14 @@ fn scaled<A: IVm>(x: f64, s: i64) -> BigInt<A> {
     } else {
         (big(1), pow10::<A>(s.unsigned_abs() as u32))
     };
-    let num = big::<A>(mantissa) * num2 * num10;
-    let den = den2 * den10;
+    let num = big::<A>(mantissa).mul_bounded(num2).mul_bounded(num10);
+    let den = den2.mul_bounded(den10);
     let (q, r) = num.div_mod(den.clone()).expect("a power is not zero");
-    if r * big(2) >= den { q + big(1) } else { q }
+    if r.mul_bounded(big(2)) >= den {
+        q + big(1)
+    } else {
+        q
+    }
 }
 
 /// `e` and the `digits`-digit `n` with `n × 10^(e − digits + 1)` closest to
@@ -208,7 +212,7 @@ impl Number {
         }
         let (mantissa, exp2) = mantissa_exp2(x.abs());
         let magnitude = if exp2 >= 0 {
-            big::<A>(mantissa) * pow2(exp2 as u32)
+            big::<A>(mantissa).mul_bounded(pow2(exp2 as u32))
         } else {
             big::<A>(mantissa >> exp2.unsigned_abs())
         };

@@ -29,6 +29,28 @@ use crate::{
     vm::{Any, IContainer, IVm, error},
 };
 
+/// The largest word count a `<<` or a `*` may grow a `BigInt` to — `2^14`
+/// words (`2^20` bits, 128 KiB) — matching
+/// [`fjs/types/bigint/module.f.mjs`](../../../../fjs/types/bigint/module.f.mjs)'s
+/// own `maxLength` (`0x10_0000n` bits) exactly, divided down from bits to
+/// 64-bit words. `maxLength` is itself the *smallest* `BigInt` size limit
+/// across the engines FunctionalScript targets — V8's own limit is `2^30`
+/// bits, far larger, but Bun's and Safari's are tighter, and `maxLength` is
+/// already chosen to fit under all of them (see that file's own comment on
+/// `mask`, keyed to the same constant). `nanvm-lib` follows the tightest
+/// bound already established for the language rather than picking a
+/// second, V8-only one of its own.
+///
+/// This is *not* the same limit as `BigInt`'s internal `u32` word index
+/// (~4 billion words, ~34 GiB): that ceiling only protects the container's
+/// own indexing, not the process. An allocation anywhere near it can abort
+/// the process outright — `Vec`'s allocator failure is not a catchable
+/// panic — from a shift count an attacker can spell in one `u64` word, or from
+/// operands whose product is that long, well before any guard based on the
+/// index limit alone would reject it. That is
+/// exactly the crash-instead-of-refuse this checks against.
+const MAX_WORDS: u64 = 1 << 14;
+
 /// [`BigInt::abs_sub_vec`]'s precondition, broken.
 const RHS_GREATER: &str = "abs_sub_vec: rhs is greater than self";
 
@@ -134,6 +156,14 @@ fn sub_words_assign(a: &mut Vec<u64>, b: &[u64]) {
 pub struct BigInt<A: IVm>(A::InternalBigInt);
 
 impl<A: IVm> BigInt<A> {
+    /// `self * rhs` where the caller's operands are bounded by construction
+    /// to a product far under `MAX_WORDS`, as the exact arithmetic of a
+    /// `binary64` is (a 53-bit mantissa, a power of two, a power of ten of at
+    /// most a few hundred digits): the product cannot throw.
+    pub(crate) fn mul_bounded(self, rhs: Self) -> Self {
+        (self * rhs).expect("a binary64's exact arithmetic is far under BigInt's size limit")
+    }
+
     /// `pub(crate)`, not private: `BooleanCoercion` (`vm/boolean_coercion.rs`)
     /// uses this to test `0n` without constructing and comparing against a
     /// throwaway `BigInt::default()`.

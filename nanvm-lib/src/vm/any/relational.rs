@@ -88,11 +88,11 @@ fn primitive_less_than<A: IVm>(px: Primitive<A>, py: Primitive<A>) -> Result<Opt
         (Primitive::String(sx), Primitive::String(sy)) => Ok(Some(sx < sy)),
         (Primitive::BigInt(bx), Primitive::String(sy)) => {
             let s: std::string::String = sy.into();
-            Ok(string_to_bigint(&s).map(|by| bx < by))
+            Ok(string_to_bigint(&s)?.map(|by| bx < by))
         }
         (Primitive::String(sx), Primitive::BigInt(by)) => {
             let s: std::string::String = sx.into();
-            Ok(string_to_bigint(&s).map(|bx| bx < by))
+            Ok(string_to_bigint(&s)?.map(|bx| bx < by))
         }
         (px, py) => {
             let nx = primitive_to_numeric(px)?;
@@ -131,11 +131,12 @@ fn numeric_less_than<A: IVm>(nx: Numeric<A>, ny: Numeric<A>) -> Option<bool> {
 /// (`NonDecimalIntegerLiteral` has no `Sign` production, unlike
 /// `StrIntegerLiteral`'s decimal alternative). Surrounding whitespace is
 /// trimmed; `""` (or all whitespace) is `0n`, matching
-/// `StringToBigInt("")`.
-fn string_to_bigint<A: IVm>(s: &str) -> Option<BigInt<A>> {
+/// `StringToBigInt("")`. A literal that is not one is `None`; one longer than
+/// `BigInt`'s size limit is the `RangeError` the limit throws everywhere.
+fn string_to_bigint<A: IVm>(s: &str) -> Result<Option<BigInt<A>>, Any<A>> {
     let trimmed = s.trim_matches(is_ecma_whitespace);
     if trimmed.is_empty() {
-        return Some(BigInt::default());
+        return Ok(Some(BigInt::default()));
     }
     if let Some(digits) = trimmed
         .strip_prefix("0x")
@@ -159,25 +160,29 @@ fn string_to_bigint<A: IVm>(s: &str) -> Option<BigInt<A>> {
         Some(rest) => (true, rest),
         None => (false, trimmed.strip_prefix('+').unwrap_or(trimmed)),
     };
-    let magnitude = parse_digits(digits, 10)?;
-    Some(if negative { -magnitude } else { magnitude })
+    Ok(parse_digits(digits, 10)?.map(|m| if negative { -m } else { m }))
 }
 
 /// Parses `digits` as an unsigned integer literal in `radix` (2, 8, 10, or
 /// 16 — whatever the caller's prefix implied). `None` if `digits` is empty
 /// or any byte is out of range for the radix; `char::to_digit` covers both
-/// checks (and both cases of hex `a`-`f`) at once.
-fn parse_digits<A: IVm>(digits: &str, radix: u32) -> Option<BigInt<A>> {
-    if digits.is_empty() {
-        return None;
-    }
+/// checks (and both cases of hex `a`-`f`) at once. Every digit is checked
+/// before any is multiplied in, so a literal that is both invalid and too
+/// long is invalid, not a throw.
+fn parse_digits<A: IVm>(digits: &str, radix: u32) -> Result<Option<BigInt<A>>, Any<A>> {
+    let values: Option<Vec<u32>> = digits
+        .bytes()
+        .map(|byte| (byte as char).to_digit(radix))
+        .collect();
+    let Some(values) = values.filter(|values| !values.is_empty()) else {
+        return Ok(None);
+    };
     let base: BigInt<A> = (radix as u64).into();
     let mut magnitude = BigInt::default();
-    for byte in digits.bytes() {
-        let digit = (byte as char).to_digit(radix)?;
-        magnitude = magnitude * base.clone() + BigInt::from(digit as u64);
+    for digit in values {
+        magnitude = (magnitude * base.clone())? + BigInt::from(digit as u64);
     }
-    Some(magnitude)
+    Ok(Some(magnitude))
 }
 
 /// `Number < BigInt`, per steps (g)-(k): `NaN` and the infinities are

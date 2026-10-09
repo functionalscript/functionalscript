@@ -6,28 +6,7 @@ use crate::{
     vm::{Any, BigInt, IVm, error},
 };
 
-use super::ShiftAmount;
-
-/// The largest word count a single `<<` may grow a `BigInt` to — `2^14`
-/// words (`2^20` bits, 128 KiB) — matching
-/// [`fjs/types/bigint/module.f.mjs`](../../../../fjs/types/bigint/module.f.mjs)'s
-/// own `maxLength` (`0x10_0000n` bits) exactly, divided down from bits to
-/// 64-bit words. `maxLength` is itself the *smallest* `BigInt` size limit
-/// across the engines FunctionalScript targets — V8's own limit is `2^30`
-/// bits, far larger, but Bun's and Safari's are tighter, and `maxLength` is
-/// already chosen to fit under all of them (see that file's own comment on
-/// `mask`, keyed to the same constant). `nanvm-lib` follows the tightest
-/// bound already established for the language rather than picking a
-/// second, V8-only one of its own.
-///
-/// This is *not* the same limit as `BigInt`'s internal `u32` word index
-/// (~4 billion words, ~34 GiB): that ceiling only protects the container's
-/// own indexing, not the process. An allocation anywhere near it can abort
-/// the process outright — `Vec`'s allocator failure is not a catchable
-/// panic — from a shift count an attacker can spell in one `u64` word, well
-/// before any guard based on the index limit alone would reject it. That is
-/// exactly the crash-instead-of-refuse this checks against.
-const MAX_WORDS: u64 = 1 << 14;
+use super::{MAX_WORDS, ShiftAmount};
 
 /// `<<`. <https://tc39.es/ecma262/#sec-numeric-types-bigint-leftShift>
 impl<A: IVm> Shl for BigInt<A> {
@@ -389,7 +368,7 @@ mod tests {
         // carry since bit_shift is 0) — one word past `nanvm-lib`'s own
         // policy limit. That is not a boundary V8 itself enforces (V8 alone
         // would still accept this shift); it is the tighter, cross-engine
-        // limit this file's `MAX_WORDS` doc comment explains.
+        // limit `MAX_WORDS`'s doc comment (in `bigint/mod.rs`) explains.
         // Rejected by the guard before any allocation is attempted, so this
         // stays cheap even though the *value* it describes would not.
         let a: T = 1u64.into();

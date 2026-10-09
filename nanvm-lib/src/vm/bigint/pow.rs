@@ -33,10 +33,10 @@ impl<A: IVm> BigInt<A> {
         let mut base = self;
         for bit in 0..bit_len {
             if (exponent[(bit / 64) as usize] >> (bit % 64)) & 1 != 0 {
-                result = result * base.clone();
+                result = (result * base.clone())?;
             }
             if bit + 1 < bit_len {
-                base = base.clone() * base;
+                base = (base.clone() * base)?;
             }
         }
         Ok(result)
@@ -47,12 +47,22 @@ impl<A: IVm> BigInt<A> {
 //       We should move these tests into integration tests.
 #[cfg(test)]
 mod tests {
-    use crate::{naive::Naive, vm::bigint::BigInt};
+    use crate::{
+        naive::Naive,
+        vm::{bigint::BigInt, error},
+    };
 
     type T = BigInt<Naive>;
 
     fn int(value: i64) -> T {
         value.into()
+    }
+
+    /// A power past the size limit is the `RangeError` `*` throws, not a
+    /// result grown without bound: `2^(2^20)` has 16385 words.
+    #[test]
+    fn power_past_the_limit() {
+        assert_eq!(int(2).pow(int(1 << 20)), Err(error::bigint_too_large()));
     }
 
     #[test]
