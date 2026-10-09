@@ -1,7 +1,7 @@
 ## any-is-nullish. "Is this value nullish" is spelled six ways, one of them the way a doc warns against
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
