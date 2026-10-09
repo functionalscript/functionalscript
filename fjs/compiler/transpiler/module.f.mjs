@@ -12,7 +12,7 @@
  * @import { _ImportSource, _Source } from '../source/types.ts'
  * @import { SourceError, ParseContext } from './types.ts'
  * @import { Effect, IoChannel } from '../../effects/types.ts'
- * @import { ReadFile, ResolveFileModule } from '../../effects/node/types.ts'
+ * @import { ReadWhole, ResolveFileModule } from '../../effects/node/types.ts'
  */
 
 import { assertOk } from '../../asserts/module.f.mjs'
@@ -38,13 +38,13 @@ const completed = (id, value, context) => ({
     stack: drop(1)(context.stack),
 })
 
-/** Check a selected export before loading the next dependency. @type {(source: _ImportSource) => (context: ParseContext) => Effect<ReadFile | ResolveFileModule, ParseContext, SourceError>} */
+/** Check a selected export before loading the next dependency. @type {(source: _ImportSource) => (context: ParseContext) => Effect<ReadWhole | ResolveFileModule, ParseContext, SourceError>} */
 const foldImport = source => context => step(foldModule(source)(context), next =>
     source.name !== null && findProperty(moduleAt(next)(source.id), source.name) === undefined
         ? pureError(_missingExport(source))
         : pureOk(next))
 
-/** @type {(source: _Source, module: AstModule, context: ParseContext) => Effect<ReadFile | ResolveFileModule, ParseContext, SourceError>} */
+/** @type {(source: _Source, module: AstModule, context: ParseContext) => Effect<ReadWhole | ResolveFileModule, ParseContext, SourceError>} */
 const interpretModule = (source, module, context) => {
     const { id, path } = source
     const sources = _importSources(source)(module[0])
@@ -61,7 +61,7 @@ const interpretModule = (source, module, context) => {
     })
 }
 
-/** Initialize the next source unless this identity is already complete. @type {(source: _Source) => (context: ParseContext) => Effect<ReadFile | ResolveFileModule, ParseContext, SourceError>} */
+/** Initialize the next source unless this identity is already complete. @type {(source: _Source) => (context: ParseContext) => Effect<ReadWhole | ResolveFileModule, ParseContext, SourceError>} */
 const foldModule = source => context => {
     const { id, path, json } = source
     const mismatch = _attributeError(source)
@@ -74,12 +74,12 @@ const foldModule = source => context => {
         : step(_parseModule(path), module => interpretModule(source, module, entered))
 }
 
-/** Direct JSON is a document; modules yield their complete export object. @type {(source: _Source) => Effect<ReadFile | ResolveFileModule, EdagValue, SourceError>} */
+/** Direct JSON is a document; modules yield their complete export object. @type {(source: _Source) => Effect<ReadWhole | ResolveFileModule, EdagValue, SourceError>} */
 const interpretSource = source => source.json
     ? mapStep(_parseJson(source.path), jsonValue)
     : mapStep(foldModule(source)({ stack: null, complete: null }), context => moduleAt(context)(source.id))
 
-/** Interpret a source without erasing represented functions or thrown values. @type {(path: string) => Effect<ReadFile | ResolveFileModule, EdagValue, SourceError>} */
+/** Interpret a source without erasing represented functions or thrown values. @type {(path: string) => Effect<ReadWhole | ResolveFileModule, EdagValue, SourceError>} */
 export const interpret = path => step(_rootSource(path), interpretSource)
 
 /**
@@ -87,7 +87,7 @@ export const interpret = path => step(_rootSource(path), interpretSource)
  * ordinary runtime values. Callable graphs request the target's CompileValue
  * operation; its host failures stay separate from source initialization errors.
  *
- * @type {(path: string) => Effect<ReadFile | ResolveFileModule | CompileValue, unknown, SourceError | IoChannel>}
+ * @type {(path: string) => Effect<ReadWhole | ResolveFileModule | CompileValue, unknown, SourceError | IoChannel>}
  */
 export const transpile = path => step(interpret(path), toUnknown)
 
@@ -96,7 +96,7 @@ export const transpile = path => step(interpret(path), toUnknown)
  * then decode data for JSON/DataJS output. Named callable exports do not block
  * data outputs; a selected callable returns an output refusal in the Result.
  *
- * @type {(path: string) => Effect<ReadFile | ResolveFileModule, Result<Unknown, string>, SourceError>}
+ * @type {(path: string) => Effect<ReadWhole | ResolveFileModule, Result<Unknown, string>, SourceError>}
  */
 export const _transpileDefault = path => step(_rootSource(path), source =>
     mapStep(interpretSource(source), value => toData(source.json ? value : assertOk(read(ok(value), 'default')))))
