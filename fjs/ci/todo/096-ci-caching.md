@@ -5,9 +5,10 @@
 
 ### Problem
 
-Every Nix job starts from an empty store, and its first `sh ./gen.nix/run`
-realises the whole shared shell (`../nix/module.f.mjs`). That is only fast
-while every package in it is substituted from `cache.nixos.org`. Nothing
+Every Nix job starts from an empty store, and its first step realises its
+whole shell: the shared one through `sh ./gen.nix/run` (`../nix/module.f.mjs`),
+or, for `node22` and `node24`, their own flakes. That is only fast while every
+package in it is substituted from `cache.nixos.org`. Nothing
 checks that it is, and nothing in the log says when it is not.
 
 **What the shell costs when it is cached.** Over eight merge-queue runs from
