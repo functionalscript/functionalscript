@@ -1,6 +1,5 @@
 use crate::{
     common::{sized_index::SizedIndex, vec::with_default},
-    sign::Sign,
     vm::{BigInt, IVm},
 };
 
@@ -34,13 +33,7 @@ impl<A: IVm> Mul for BigInt<A> {
             i += 1;
         }
 
-        let sign = if self.sign() == rhs.sign() {
-            Sign::Positive
-        } else {
-            Sign::Negative
-        };
-
-        Self::normalize_new(sign, value)
+        Self::normalize_new(self.sign() * rhs.sign(), value)
     }
 }
 
