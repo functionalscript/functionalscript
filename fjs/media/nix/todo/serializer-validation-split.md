@@ -1,7 +1,7 @@
 ## serializer-validation-split. Split validation out of the Nix serializer
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
