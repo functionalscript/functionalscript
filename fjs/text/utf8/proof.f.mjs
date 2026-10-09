@@ -2,7 +2,7 @@
  * @import { DemoEvent } from '../../website/demo/types.ts'
  */
 
-import { toCodePointList, fromCodePointList, fromU8List, fromVec, utf8ByteToCodePointOp, vecToCodePointList } from './module.f.mjs'
+import { toCodePointList, fromCodePointList, fromU8List, fromVec, utf8ByteToCodePointOp, vecToCodePointList, stringToU8List, u8ListToString } from './module.f.mjs'
 import { stringify as jsonStringify } from '../../media/json/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
@@ -206,6 +206,18 @@ export const proof = {
             const result = stringify(toArray(fromCodePointList(codePointList)))
             assertEq(result, '[240,160,160,244,160,160]')
         }
+    ],
+    stringToU8List: () => {
+        // ASCII, a 2-byte, a 3-byte and a 4-byte (surrogate pair) character
+        assertEq(stringify(toArray(stringToU8List('h©中😀'))), '[104,194,169,228,184,173,240,159,152,128]')
+        // and round-trips through `fromU8List`
+        assertEq(fromU8List(stringToU8List('h©中😀')), 'h©中😀')
+    },
+    u8ListToString: [
+        // Valid bytes → their string
+        () => assertEq(u8ListToString([0x68, 0xc2, 0xa9]), 'h©'),
+        // Unchecked: a surrogate comes back as the lone code unit
+        () => assertEq(u8ListToString([0xed, 0xa0, 0x80]), '\ud800'),
     ],
     vecToCodePointList: [
         // Valid bytes → their code points

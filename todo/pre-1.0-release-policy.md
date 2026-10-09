@@ -12,8 +12,14 @@ consistent versioning policy.
 ### Tasks
 
 - [ ] Drop mandatory `BREAKING CHANGES` notices, since most changes are breaking.
+      Reconcile the requirement in contributor and release documentation and
+      every open TODO that mandates the declaration, including
+      [commit-message enforcement](./commit-message-enforcement.md).
 - [ ] Until 1.0, publish regular releases as `0.X.0`.
 - [ ] Publish urgent fixes as `0.X.1`, based on the corresponding `0.X.0` commit.
+      Publish subsequent urgent fixes as `0.X.2`, `0.X.3`, and so on,
+      cumulatively based on the previous urgent-fix release on the same `0.X`
+      release line. Never reuse a published version.
 
 ### Related
 
