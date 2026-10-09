@@ -439,9 +439,11 @@ fn write_exclusive_with(
     path: &str,
     write: impl FnOnce(&mut File) -> io::Result<()>,
 ) -> Result<(), IoError> {
-    let mut file = exclusive(path).map_err(|e| failure(&e, "open", path))?;
-    let written = write(&mut file);
-    drop(file);
+    // The file is closed when the block ends, before the rollback removes it.
+    let written = {
+        let mut file = exclusive(path).map_err(|e| failure(&e, "open", path))?;
+        write(&mut file)
+    };
     written.map_err(|e| {
         let _ = fs::remove_file(path);
         failure(&e, "write", path)
