@@ -25,7 +25,7 @@ fn pow2<A: IVm>(e: u32) -> BigInt<A> {
 fn pow10<A: IVm>(e: u32) -> BigInt<A> {
     big::<A>(10)
         .pow(big(u64::from(e)))
-        .expect("a non-negative exponent")
+        .expect("a non-negative exponent, and a power of ten of a few hundred digits is far under BigInt's size limit")
 }
 
 /// `n`, the integer closest to `x × 10^s` for a finite `x ≥ 0`, the larger on

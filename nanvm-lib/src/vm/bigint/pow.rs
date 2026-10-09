@@ -12,7 +12,9 @@ impl<A: IVm> BigInt<A> {
     /// Exponentiation by squaring, walking the exponent's own bits rather
     /// than converting it to a Rust integer, so an exponent wider than
     /// `u64` still works. A negative exponent throws instead of coercing to
-    /// a fraction, unlike `Number ** Number`, since `BigInt` has none.
+    /// a fraction, unlike `Number ** Number`, since `BigInt` has none. A
+    /// power longer than `MAX_WORDS` words throws the `RangeError` that `*`
+    /// throws for the multiplication that crosses it.
     pub fn pow(self, rhs: Self) -> Result<Self, Any<A>> {
         if rhs.sign() == Sign::Negative {
             return Err(error::negative_exponent());

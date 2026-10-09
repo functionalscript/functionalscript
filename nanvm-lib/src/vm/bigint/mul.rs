@@ -60,6 +60,16 @@ impl<A: IVm> Mul for BigInt<A> {
     }
 }
 
+impl<A: IVm> BigInt<A> {
+    /// `self * base + digit`, or the `RangeError` of a result longer than
+    /// `MAX_WORDS` words: the step a digit string is read by. `*` checks its
+    /// product, but `+` has no limit of its own and a product just under it
+    /// plus a digit carries one word past, so the sum is checked too.
+    pub(crate) fn mul_add(self, base: Self, digit: u64) -> Result<Self, Any<A>> {
+        ((self * base)? + Self::from(digit)).within_limit()
+    }
+}
+
 // TODO: The unit tests should not use `naive` or other VM implementations.
 //       We should move these tests into integration tests.
 #[cfg(test)]
@@ -95,6 +105,17 @@ mod tests {
         assert_eq!(pow2(1_048_575).within_limit(), Ok(pow2(1_048_575)));
         let sum = pow2(1_048_575) + pow2(1_048_575);
         assert_eq!(sum.within_limit(), Err(error::bigint_too_large()));
+    }
+
+    /// The carry `mul_add` exists for: `2^1048576 − 1` is 16384 words, so
+    /// times one it passes `*`, and plus one it is 16385, which `+` produces
+    /// without a word of complaint. The step refuses it; with the digit zero
+    /// it is the same number and passes.
+    #[test]
+    fn mul_add_checks_its_sum() {
+        let ones = pow2(1_048_575) + (pow2(1_048_575) - int(1));
+        assert_eq!(ones.clone().mul_add(int(1), 0), Ok(ones.clone()));
+        assert_eq!(ones.mul_add(int(1), 1), Err(error::bigint_too_large()));
     }
 
     #[test]
