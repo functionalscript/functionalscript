@@ -1,7 +1,7 @@
 ## Move `Debug for String` to `vm/string/debug.rs`
 
 **Priority:** P5
-**Status:** open
+**Status:** wip
 
 ### Problem
 
