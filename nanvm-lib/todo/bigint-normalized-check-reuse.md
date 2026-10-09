@@ -1,7 +1,7 @@
 ## bigint-normalized-check-reuse. `shl` restates the normalization invariant by hand
 
 **Priority:** P5
-**Status:** open
+**Status:** wip
 
 ### Problem
 
