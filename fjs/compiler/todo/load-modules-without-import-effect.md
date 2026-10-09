@@ -13,7 +13,7 @@ make self-hosting depend on a second interpreter.
 
 ### Proposal
 
-Compose the existing `ReadFile` and `ResolveFileModule` effects with the FJS
+Compose the existing `ReadWhole` and `ResolveFileModule` effects with the FJS
 parser, AST-to-EDAG lowering and [FJS interpreter](./interpret-edag.md).
 Loading evaluates each unresolved initializer with represented dependency
 exports and returns its complete export object. It does not call exported
@@ -55,6 +55,11 @@ results and returns `unknown`, with EDAG reflection erased.
 
 The host pipeline needs semantic migrations before compiler coverage can make
 it self-hosting:
+
+- The native runner performs `resolveFileModule` but not yet `readWhole`, the
+  operation every source is read through — one `readFile` `Vec` caps a source
+  at 128 KiB. It is one of the
+  [native Node effects](../../../todo/nanvm-effects-node-operations.md).
 
 - The memo executor now threads an immutable cache through evaluation. Its
   [native parity checks](../../edag/memo/todo/immutable-cache.md) must still prove
