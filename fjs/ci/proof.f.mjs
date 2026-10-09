@@ -208,7 +208,7 @@ const runDefault = packageJson => {
 export const proof = {
     matrixShape: () => {
         const gha = run(true)
-        assertEq(Object.keys(gha.jobs).length, 12, 'expected 12 CI jobs')
+        assertEq(Object.keys(gha.jobs).length, 11, 'expected 11 CI jobs')
         assertEq(gha.permissions.contents, 'read', 'expected read-only contents permission')
         assertEq(Object.keys(gha.permissions).length, 1, 'expected least-privilege workflow permissions')
         // A push to a pull request cancels the run it supersedes.
@@ -231,15 +231,25 @@ export const proof = {
         assert(hasRunInJob('ubuntu-arm', 'cargo test --release')(gha), 'expected native platform Rust release check')
         assert(hasRunInJob('ubuntu-arm', 'cargo clippy -- -D warnings')(gha), 'expected native platform Rust lint')
         assert(hasRunInJob('ubuntu-arm', 'cargo clippy --release -- -D warnings')(gha), 'expected native platform Rust release lint')
-        assert(hasRunInJob('wasm', 'cargo test --target wasm32-wasip1 --release')(gha), 'expected target-specific WASM release check')
-        assert(hasRunInJob('wasm', 'cargo clippy --target wasm32-wasip1 -- -D warnings')(gha), 'expected target-specific WASM Rust lint')
-        assert(hasRunInJob('wasm', 'cargo clippy --target wasm32-wasip1 --release -- -D warnings')(gha), 'expected target-specific WASM release lint')
+        // The WASM checks, in the ARM Linux job, which runs on the image and in
+        // the shell the `wasm` job they used to be had. The formatting check
+        // came with them, and is in no other job.
+        assert(hasExactRunInJob('ubuntu-arm', nixDevelop(nixShell, 'cargo fmt -- --check'))(gha), 'expected the formatting check')
+        assert(hasRunInJob('ubuntu-arm', 'cargo test --target wasm32-wasip1 --release')(gha), 'expected target-specific WASM release check')
+        assert(hasRunInJob('ubuntu-arm', 'cargo clippy --target wasm32-wasip1 -- -D warnings')(gha), 'expected target-specific WASM Rust lint')
+        assert(hasRunInJob('ubuntu-arm', 'cargo clippy --target wasm32-wasip1 --release -- -D warnings')(gha), 'expected target-specific WASM release lint')
+        for (const id of /** @type {const} */ (['ubuntu-intel', 'macos-intel', 'macos-arm', 'windows-intel', 'windows-arm'])) {
+            assert(!hasRunInJob(id, 'wasm32')(gha), `unexpected WASM check in ${id}`)
+            assert(!hasRunInJob(id, 'cargo fmt')(gha), `unexpected formatting check in ${id}`)
+        }
         // Wasmtime 47 removed wasi-threads: the threads target must run under
-        // Wasmer only, while Clippy (no runner) stays.
-        assert(hasRunInJob('wasm', 'cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml')(gha), 'expected Wasmer WASM threads check')
-        assert(hasRunInJob('wasm', 'cargo clippy --target wasm32-wasip1-threads -- -D warnings')(gha), 'expected WASM threads lint')
-        assert(!hasExactRunInJob('wasm', 'cargo test --target wasm32-wasip1-threads')(gha), 'unexpected Wasmtime WASM threads check')
-        assert(!hasExactRunInJob('wasm', 'cargo test --target wasm32-wasip1-threads --release')(gha), 'unexpected Wasmtime WASM threads release check')
+        // Wasmer only, while Clippy (no runner) stays. The negative half
+        // compares the whole `run` line, wrapper included: against the bare
+        // `cargo` command it could not fail, since every step is wrapped.
+        assert(hasRunInJob('ubuntu-arm', 'cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml')(gha), 'expected Wasmer WASM threads check')
+        assert(hasRunInJob('ubuntu-arm', 'cargo clippy --target wasm32-wasip1-threads -- -D warnings')(gha), 'expected WASM threads lint')
+        assert(!hasExactRunInJob('ubuntu-arm', nixDevelop(nixShell, 'cargo test --target wasm32-wasip1-threads'))(gha), 'unexpected Wasmtime WASM threads check')
+        assert(!hasExactRunInJob('ubuntu-arm', nixDevelop(nixShell, 'cargo test --target wasm32-wasip1-threads --release'))(gha), 'unexpected Wasmtime WASM threads release check')
         // Node 22 runs the suite the way every other Node job does. `fjs test`
         // and the global install that fed it were there only because Node 22
         // could not run `node --test`.
@@ -311,7 +321,6 @@ export const proof = {
             'ubuntu-arm',
             'macos-intel',
             'macos-arm',
-            'wasm',
         ])) {
             assert(
                 gha.jobs[id]?.steps.every(
@@ -646,9 +655,10 @@ export const proof = {
     // — and for Deno and Bun nothing else could, since `pkgs.deno` and
     // `pkgs.bun` name no version.
     nixVersionChecks: () => {
-        // With Rust, because `wasm` is the one job here that a project without
-        // a `Cargo.toml` does not get — while its flake is generated either
-        // way, since `nixJobs` is a list rather than a function of the project.
+        // With Rust, because the WASM runtimes are checked only where `cargo`
+        // runs, and a project without a `Cargo.toml` runs none — while the
+        // shell is generated either way, since `nixJobs` is a list rather than
+        // a function of the project.
         const gha = run(true)
         /**
          * Job, the shell it enters, and what it asserts before running
@@ -674,13 +684,6 @@ export const proof = {
             // Deno prints three lines for `--version`, so it is asked for the
             // one field this repository configures.
             ['deno', nixShell, [[`deno eval 'console.log(Deno.version.deno)'`, deno]]],
-            // Two, because the shell provides two unversioned attributes. Its
-            // Rust is the one thing nothing checks: the flake names that
-            // release in full, so a check would restate the flake.
-            ['wasm', nixShell, [
-                ['wasmtime --version', `wasmtime ${wasmtime}`],
-                ['wasmer --version', `wasmer ${wasmer}`],
-            ]],
             // Bun prints the bare version, with no leading `v` and no program
             // name. Its check is also the only one confirming that an override
             // took effect rather than that a snapshot is what it claims: the
@@ -691,10 +694,16 @@ export const proof = {
             // built at all.
             // `ubuntu-intel` runs the 32-bit checks too, and asserts nothing
             // more for them: the tool they run is `cargo`, whose release the
-            // flake names in full — the same reason `wasm` does not check its
-            // Rust either.
+            // flake names in full, so a check would restate the flake.
             ['ubuntu-intel', nixShell, [['node --version', `v${node.default}`]]],
-            ['ubuntu-arm', nixShell, [['node --version', `v${node.default}`]]],
+            // `ubuntu-arm` runs the WASM checks, so it asserts the two
+            // runtimes `cargo` hands their binaries to as well — unversioned
+            // attributes of the shell, unlike its Rust.
+            ['ubuntu-arm', nixShell, [
+                ['node --version', `v${node.default}`],
+                ['wasmtime --version', `wasmtime ${wasmtime}`],
+                ['wasmer --version', `wasmer ${wasmer}`],
+            ]],
             ['macos-intel', nixShell, [['node --version', `v${node.default}`]]],
             ['macos-arm', nixShell, [['node --version', `v${node.default}`]]],
         ]
