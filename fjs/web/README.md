@@ -94,6 +94,28 @@ file exists is itself what is not being disclosed. A NUL in a path (`%00`) is
 `400`: no path can contain one, and letting it reach the file system reports a
 host failure for what is plainly a bad request.
 
+**A directory request's `404` names the missing `index.html`.** `fjs web` in a
+fresh checkout, where `index.html` is a gitignored build artifact, used to answer
+`/` with `not found`, which reads as a wrong address. It now answers
+`no index.html in /`, and `/fjs/` answers `no index.html in /fjs/`. The sentence
+is decided by the branch that appends `index.html`, so it covers every request
+that *parses* to a directory — `/.`, `/%2E` and `/docs/..` as well as anything
+ending in `/` — and not `/index.html`, which names the file. `resolve` returns it
+with the path, because whether `index.html` was appended is known there and gone
+by the time a failed `open` is answered.
+
+It says what was asked for and nothing about what is on disk. One sentence
+covers every kind of absence under that URL — an existing directory, a missing
+one, an `index.html` that is no regular file, a name that is a file — so telling
+any of them apart would take a second `stat`, and this does not make one. The
+path is the client's own spelling, put through `percentEncodePath`: escapes are
+kept as written and every byte that is not unreserved or `/` is escaped, so a
+control character cannot reach a terminal that prints the body. Node's parser
+already refuses a raw one, but `respond` is exported and a runner calling it
+directly has no parser in front of it. A hidden path such as `/.git/` keeps
+`not found`: it is refused before the disk is looked at, and the new sentence
+would claim a look that never happened.
+
 Traversal is rejected **in segment space**. `parse` collapses `.` and `..` the
 way the file system does, so a `..` that survives it is one that climbs above the
 root, and the check is `segments.includes('..')` — nothing about the string form
@@ -107,7 +129,8 @@ relative. That is also why the path is built with `join` rather than `concat`.
 | case | status |
 |---|---|
 | file found | `200` with its bytes |
-| `GET`/`HEAD` on a missing, dot-prefixed, or non-regular path, or one descending through a file | `404` |
+| `GET`/`HEAD` on a directory request with no `index.html` | `404`, `no index.html in <path>` |
+| `GET`/`HEAD` on any other missing, dot-prefixed, or non-regular path, or one descending through a file | `404`, `not found` |
 | any other method | `405`, with `Allow: GET, HEAD` |
 | a `Host` this server does not answer for | `403` |
 | a path that escapes `root`, or an undecodable URL | `400` |
@@ -253,7 +276,7 @@ host refused a read of its own disk with `EACCES`, and that is the failure the
 `open` with `ENOTDIR`: the name before the slash exists and has nothing under
 it. That is client-caused in the way a missing name is — every served tree has
 thousands of regular files, so any client can ask — so it is a `404`, the same
-answer `/nope.md/` gets.
+answer it gets where `README.md` is absent: `no index.html in /README.md/`.
 
 While it was a `500` the two answered differently, which made a trailing slash a
 way to ask *"is there a regular file at this name?"* — the enumeration the
