@@ -138,10 +138,10 @@ import { arrayWrap, colon, objectWrap, wrap } from '../../media/json/serializer/
 import { first, flat, toArray } from '../../types/list/module.f.mjs'
 import { _prohibitedCallNames, _prohibitedNames } from '../parser/module.f.mjs'
 import { isIdentifier } from '../../js/identifier/module.f.mjs'
-import { chunkStrings, chunkText, chunksText } from '../../text/marked/module.f.mjs'
+import { chunkStrings, chunkText, chunksText, keyword, literal } from '../../text/marked/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { error, mapOk, ok, okList, okThen } from '../../types/result/module.f.mjs'
-import { _entryText as entryText, renderFunction } from './function_text/module.f.mjs'
+import { _entryChunks as entryChunks, _entryText as entryText, renderFunction } from './function_text/module.f.mjs'
 import { _name as name, _binding as binding, _resolve as resolve } from './names/module.f.mjs'
 
 /** Names the parser refuses to bind: the keywords, the literal words, the reserved globals, and `then` as an export's name. */
@@ -419,7 +419,7 @@ const opensWithMinus = text => firstChunk(text).startsWith('-')
  */
 const instanceOf = (s, path) => (operand, constructor) => mapOk(
     /** @type {(l: List<Chunk>) => List<Chunk>} */
-    (l => flat([l, [` instanceof ${constructor}`]])),
+    (l => flat([l, [' ', keyword('instanceof'), ` ${constructor}`]])),
 )(leftOperand(s, `${path}/left`, 'instanceof')(operand))
 
 /**
@@ -438,7 +438,7 @@ const instanceOf = (s, path) => (operand, constructor) => mapOk(
  */
 const prefix = (s, path) => op => v => mapOk(
     /** @type {(text: List<Chunk>) => List<Chunk>} */
-    (text => flat([[op === 'typeof' ? 'typeof ' : op === '-' && opensWithMinus(text) ? '- ' : op], text])),
+    (text => flat([op === 'typeof' ? [keyword('typeof'), ' '] : [op === '-' && opensWithMinus(text) ? '- ' : op], text])),
 )(mapOk(grouped(isOperator(nodeOf(s, v)) || arrowKind(kindOf(s, v))))(operand(s, path)(v)))
 
 /** An operand's text in place, with whether it is a block; a name and a primitive are neither. @type {(s: _Scope, path: string) => (v: Operand) => Result<_Written, string>} */
@@ -824,7 +824,7 @@ const aliasedBody = (a, path, names, allowUnusedCaptures, self) => b => {
     const aliases = names.map((_, i) => hoistName(path, i))
     /** @type {_Statement} */
     const start = {
-        text: flat(names.map((name, i) => [`const ${binding(aliases[i])}=`, name, ';'])),
+        text: flat(names.map((name, i) => [keyword('const'), ` ${binding(aliases[i])}=`, name, ';'])),
         names: aliases.map(alias => /** @type {const} */ ([null, alias])),
     }
     return okThen(
@@ -880,7 +880,7 @@ const lambdaBody = (a, path, frame, allowUnusedCaptures, self) => b => {
         (all => all.length === 1 && thrownValue(a, all[0]) === null && hoists(s)(all[0]).length === 0
             ? mapOk(
                 /** @type {(text: List<Chunk>) => List<Chunk>} */
-                (text => firstChunk(text).startsWith('{') ? flat([['{return '], text, [';}']]) : text),
+                (text => firstChunk(text).startsWith('{') ? flat([['{', keyword('return'), ' '], text, [';}']]) : text),
             )(operand(s, path)(all[0]))
             : mapOk(
                 /** @type {(st: _Statement) => List<Chunk>} */
@@ -1014,14 +1014,14 @@ const entry = (s0, path) => i => {
     const s = { ...s0, binding: null }
     const node = s.a.nodes[i]
     switch (node[0]) {
-        case 'undefined': { return ok(['undefined']) }
+        case 'undefined': { return ok([literal('undefined')]) }
         // the name the function was bound to: the hoisting walk gave one to
         // every function that reads its `self`, and the analysis refused a
         // `self` with no function around it
         case 'self': { return ok([assertNotNullish(s.self, ['a self in a scope with no name', i])]) }
         // the `entry` helper, in its one spelling, under names of this
         // function's own as every function's parameters are
-        case 'entry': { return ok([entryText(`${path}/function${i}`)]) }
+        case 'entry': { return ok(entryChunks(`${path}/function${i}`)) }
         case 'arg': case 'rest': { return ok([assertNotNullish(parameterName(s.param, node))]) }
         case '[]': { return mapOk(arrayWrap)(okList(node[1].map((v, k) => item(s, `${path}/item${k}`)(v)))) }
         case '{}': { return mapOk(objectWrap)(okList(node[1].map((p, k) => property(s, `${path}/property${k}`)(p)))) }
@@ -1075,7 +1075,7 @@ const entry = (s0, path) => i => {
         case 'throw': {
             return mapOk(
                 /** @type {(text: List<Chunk>) => List<Chunk>} */
-                (text => flat([['(()=>{throw '], text, [';})()']])),
+                (text => flat([['(()=>{', keyword('throw'), ' '], text, [';})()']])),
             )(operand(s, path)(node[1]))
         }
         default: { return error(`a ${node[0]} node`) }
@@ -1341,7 +1341,7 @@ const statement = (s0, path, last, elsewhere) => ({ text, names }, v) => {
         return mapOk(
             /** @type {(value: List<Chunk>) => _Statement} */
             (value => ({
-                text: flat([before.text, [`const ${binding(hoistName(path, before.names.length))}=`], value, [';']]),
+                text: flat([before.text, [keyword('const'), ` ${binding(hoistName(path, before.names.length))}=`], value, [';']]),
                 names: [...before.names, [h, hoistName(path, before.names.length)]],
             })),
         )(hoistedText(s, `${path}/statement${before.names.length}`)(h))
@@ -1356,12 +1356,12 @@ const statement = (s0, path, last, elsewhere) => ({ text, names }, v) => {
     }
     if (!last && isName(s.a, v)) { return error('an anchor that is a name') }
     const thrown = last ? thrownValue(s.a, v) : null
-    const lead = thrown !== null ? 'throw ' : last ? (path === 'module' ? 'export default ' : 'return ') : `const ${binding(hoistName(path, before.names.length))}=`
+    const lead = thrown !== null ? [keyword('throw'), ' '] : last ? (path === 'module' ? [keyword('export'), ' ', keyword('default'), ' '] : [keyword('return'), ' ']) : [keyword('const'), ` ${binding(hoistName(path, before.names.length))}=`]
     const written = thrown === null ? v : thrown[0]
     return mapOk(
         /** @type {(value: List<Chunk>) => _Statement} */
         (value => ({
-            text: flat([before.text, [lead], value, [';']]),
+            text: flat([before.text, lead, value, [';']]),
             names: last ? before.names : [...before.names, [v instanceof Array && !elsewhere.includes(v[1]) ? ['entry', v[1]] : null, hoistName(path, before.names.length)]],
         })),
     )(operand(s, `${path}/statement${before.names.length}`)(written))
@@ -1520,7 +1520,7 @@ const moduleBinding = (a, h) => before => {
     const symbol = hoistName('module', before.names.length)
     return mapOk(
         /** @type {(text: List<Chunk>) => _Statement} */
-        (text => ({ text: flat([before.text, [`const ${binding(symbol)}=`], text, [';']]), names: [...before.names, [h, symbol]] })),
+        (text => ({ text: flat([before.text, [keyword('const'), ` ${binding(symbol)}=`], text, [';']]), names: [...before.names, [h, symbol]] })),
     )(hoistedText({ ...moduleScope(a, before.names), binding: symbol }, 'module')(h))
 }
 
@@ -1544,7 +1544,7 @@ const moduleOperand = a => (before, v) => {
             const symbol = hoistName('module', state.names.length)
             return mapOk(
                 /** @type {(text: List<Chunk>) => _Statement} */
-                (text => ({ text: flat([state.text, [`const ${binding(symbol)}=`], text, [';']]), names: [...state.names, [['entry', v[1]], symbol]] })),
+                (text => ({ text: flat([state.text, [keyword('const'), ` ${binding(symbol)}=`], text, [';']]), names: [...state.names, [['entry', v[1]], symbol]] })),
             )(operand(moduleScope(a, state.names), 'module')(last))
         }
         const prepared = hoists(moduleScope(a, state.names))(v).reduce(
@@ -1579,7 +1579,7 @@ const moduleBody = a => (state, v) => {
 /** One original export, after its computation has been emitted. @type {(a: Analysis, state: _Statement) => (member: readonly [':', string, Operand]) => Document} */
 const moduleExport = (a, state) => ([, key, v]) => mapOk(
     /** @type {(text: List<Chunk>) => List<Chunk>} */
-    (text => flat([[key === 'default' ? 'export default ' : `export const ${key}=`], text, [';']])),
+    (text => flat([key === 'default' ? [keyword('export'), ' ', keyword('default'), ' '] : [keyword('export'), ' ', keyword('const'), ` ${key}=`], text, [';']])),
 )(operand(moduleScope(a, state.names), 'module')(v))
 
 /**

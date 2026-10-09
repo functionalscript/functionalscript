@@ -353,7 +353,7 @@ export const proof = {
     marked: () => {
         const value = [1, 'a', null, undefined, true, 2n, -0]
         assertEq(JSON.stringify(toArray(unwrap(_trySerialize(value)))),
-            '["export default ","[",["1","number"],",",["\\"a\\"","string"],",",["null","literal"],",",["undefined","literal"],",",["true","literal"],",",["2n","number"],",",["-0","number"],"]",";"]')
+            '[["export","keyword"]," ",["default","keyword"]," ","[",["1","number"],",",["\\"a\\"","string"],",",["null","literal"],",",["undefined","literal"],",",["true","literal"],",",["2n","number"],",",["-0","number"],"]",";"]')
         assertEq(JSON.stringify(toArray(unwrap(_tryJsonSerialize({ k: [1.5] })))),
             '["{",["\\"k\\"","string"],":","[",["1.5","number"],"]","}"]')
     },

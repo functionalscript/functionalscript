@@ -514,19 +514,30 @@ export const proof = {
     // The chunks, which is what the writer writes and the string is joined
     // from.
     chunks: () => {
-        assertStructurallySame(toArray(unwrap(trySerialize(1))), ['export default ', '1', ';'])
+        assertStructurallySame(toArray(unwrap(trySerialize(1))), ['export', ' ', 'default', ' ', '1', ';'])
     },
-    // The leaves carry their kinds; the writer's own keywords and punctuation
-    // are not marked yet, `undefined` among them: this writer spells it itself.
+    // The leaves carry their kinds, and so do the writer's own keywords and
+    // `undefined`; punctuation and operators stay plain, as the tokenizer's
+    // fallback leaves them.
     markedLeaves: () => {
-        assertStructurallySame(toArray(unwrap(_trySerialize(1))), ['export default ', ['1', 'number'], ';'])
-        assertStructurallySame(toArray(unwrap(_trySerialize(['[]', [1, 'a', null, true, 2n]]))).filter(c => typeof c !== 'string'),
-            [['1', 'number'], ['"a"', 'string'], ['null', 'literal'], ['true', 'literal'], ['2n', 'number']])
+        assertStructurallySame(toArray(unwrap(_trySerialize(1))), [['export', 'keyword'], ' ', ['default', 'keyword'], ' ', ['1', 'number'], ';'])
+        assertStructurallySame(toArray(unwrap(_trySerialize(['[]', [1, 'a', null, ['undefined'], true, 2n]]))).filter(c => typeof c !== 'string'),
+            [['export', 'keyword'], ['default', 'keyword'], ['1', 'number'], ['"a"', 'string'], ['null', 'literal'], ['undefined', 'literal'], ['true', 'literal'], ['2n', 'number']])
     },
-    // What the writer marks, the tokenizer agrees with: each marked chunk is
-    // a span of the same kind in the tokenizer's reading of the whole text.
-    // The tokenizer reads `-0` as a prefix and a number, so a leading `-` is
-    // not part of the span it finds.
+    // The writer's own words, one case each: `const`, `return`, `throw`,
+    // `typeof`, `instanceof`, a named export.
+    markedKeywords: () => {
+        /** @type {(e: Exp) => readonly string[]} */
+        const keywordsOf = e => toArray(unwrap(_trySerialize(e))).flatMap(c => typeof c !== 'string' && c[1] === 'keyword' ? [c[0]] : [])
+        assertStructurallySame(keywordsOf(['[]', [['[]', [1]], ['[]', [1]]]]), ['export', 'default'])
+        assertStructurallySame(keywordsOf(['=>', 0, [], ['typeof', ['rest']]]), ['export', 'default', 'typeof'])
+        assertStructurallySame(keywordsOf(['=>', 0, [], ['instanceof', ['rest'], 'Array']]), ['export', 'default', 'instanceof'])
+        assertStructurallySame(keywordsOf(['throw', 1]), ['throw'])
+    },
+    // The writer marks what the tokenizer finds: the spans of the marked
+    // chunks are the spans of the tokenizer's reading of the whole text, one
+    // for one. The tokenizer reads `-0` as a prefix and a number, so a
+    // leading `-` is not part of the span it finds.
     markedAgreesWithTokenizer: () => {
         for (const [name, source] of examples) {
             const parsed = parse('')(source)
@@ -536,15 +547,18 @@ export const proof = {
             const chunks = toArray(written[1])
             const text = chunks.map(chunkText).join('')
             const spans = spansOf(text)
+            /** @type {{ start: number, length: number, kind: string }[]} */
+            const marked = []
             let start = 0
             for (const chunk of chunks) {
                 const length = Array.from(chunkText(chunk)).length
                 if (typeof chunk !== 'string') {
                     const dash = chunk[0].startsWith('-') ? 1 : 0
-                    assert(spans.some(span => span.start === start + dash && span.length === length - dash && span.kind === chunk[1]), `${name}: ${chunk[0]} at ${start}`)
+                    marked.push({ start: start + dash, length: length - dash, kind: /** @type {string} */ (chunk[1]) })
                 }
                 start += length
             }
+            assertEq(JSON.stringify(marked), JSON.stringify(spans), name)
         }
     },
     // A function with a frame is a closure: each frame element takes a

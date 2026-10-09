@@ -1,4 +1,4 @@
-import { chunkRun, chunkStrings, chunkText, chunksMarked, chunksText, fromSpans, toText } from './module.f.mjs'
+import { chunkRun, chunkStrings, keyword, literal, chunkText, chunksMarked, chunksText, fromSpans, toText } from './module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
@@ -14,6 +14,10 @@ export const proof = {
     toText: {
         empty: () => assertEq(toText([]), ''),
         runs: () => assertEq(toText([['a', 'keyword'], [' b'], ['', 'string']]), 'a b'),
+    },
+    words: () => {
+        assertEq(JSON.stringify(keyword('const')), '["const","keyword"]')
+        assertEq(JSON.stringify(literal('null')), '["null","literal"]')
     },
     chunks: {
         text: () => {
