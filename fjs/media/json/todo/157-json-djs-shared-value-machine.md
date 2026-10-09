@@ -112,8 +112,8 @@ the shape `treeSerialize` walks.
   materialization for exponent overflow, oversized bare integers, and standard
   compatibility.
 - `tryJsonStringify` in [`fjs/media/datajs/serializer`](../../datajs/serializer/module.f.mjs) —
-  was a fourth, fallible JSON walker in `fjs/compiler/module.f.mjs`; it is now
-  the DataJS writer's read under JSON's leaf rule.
+  once a fourth, fallible JSON walker in `fjs/compiler/module.f.mjs`, now the
+  DataJS writer's read under JSON's leaf rule.
 - `i003` (retired; shipped as `fjs/compiler/ast`) — the original DJS design: parse a
   module into a flat list of constants addressed by index. It landed verbatim —
   [`ast/types.ts`](../../../compiler/ast/types.ts) carries the shape and

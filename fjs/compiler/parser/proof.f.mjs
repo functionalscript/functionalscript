@@ -1459,19 +1459,6 @@ export const proof = {
             if (errorString !== '{"message":"unexpected token","metadata":{"column":17,"line":1,"path":""}}') { throw errorString }
         },
     ],
-    // Where a failure is, as much of it as is known: the token's position, a
-    // span when the error knows how far the source runs, the file the error
-    // names when there is no token, and the file being read when it names none
-    // — the case `parseFromTokens([])` reports.
-    errorLocation: () => {
-        const location = errorLocation('input.f.js')
-        assertEq(location({ message: 'missing end-of-input token', metadata: null }), 'input.f.js')
-        assertEq(location({ message: 'file not found', metadata: null, path: 'm.f.js' }), 'm.f.js')
-        const metadata = { path: 'a.f.js', line: 1, column: 16 }
-        assertEq(location({ message: 'unexpected token', metadata }), 'a.f.js:1:16')
-        assertEq(location({ message: 'invalid token', metadata, end: { line: 1, column: 17 } }), 'a.f.js:1:16-17')
-        assertEq(location({ message: 'invalid token', metadata, end: { line: 2, column: 3 } }), 'a.f.js:1:16-2:3')
-    },
     validWhiteSpaces:[
         () => {
             const tokenList = tokenizeString(' export default [ 0 , 1 , 2 ] ; ')
@@ -1779,6 +1766,27 @@ export const proof = {
             assert(tag === 'ok', tag)
         },
     ],
+    // Where a parse error is, as much as it knows: a span, a point, the file
+    // it names, and the file being compiled when it names none — the
+    // parser's contract failure, which no reader `fjs compile` runs
+    // produces, is the one such error left.
+    errorLocation: {
+        spanOneLine: () => {
+            assertEq(errorLocation('input.f.js')({ message: 'invalid token', metadata: { path: 'a.f.js', line: 1, column: 16 }, end: { line: 1, column: 17 } }), 'a.f.js:1:16-17')
+        },
+        spanLines: () => {
+            assertEq(errorLocation('input.f.js')({ message: '*/ expected', metadata: { path: 'a.f.js', line: 1, column: 16 }, end: { line: 3, column: 2 } }), 'a.f.js:1:16-3:2')
+        },
+        point: () => {
+            assertEq(errorLocation('input.f.js')({ message: 'unexpected token', metadata: { path: 'a.f.js', line: 2, column: 5 } }), 'a.f.js:2:5')
+        },
+        file: () => {
+            assertEq(errorLocation('input.f.js')({ message: 'file not found', metadata: null, path: 'm.f.js' }), 'm.f.js')
+        },
+        noFile: () => {
+            assertEq(errorLocation('input.f.js')({ message: 'missing end-of-input token', metadata: null }), 'input.f.js')
+        },
+    },
     /**
      * **Every shared example is proved to behave as its name says.** The
      * escape the tokenizer does not read and the unfinished module are the

@@ -56,6 +56,10 @@
  * The resolution walks a value over an explicit stack of frames, so
  * nesting depth stays the input's.
  *
+ * {@link errorLocation} is `ParseError`'s renderer, beside the reader that
+ * reports one, so a change to what the type carries and to how it is
+ * printed is made in one module.
+ *
  * @module
  *
  * @import { Result } from '../../types/result/types.ts'
@@ -1391,10 +1395,10 @@ export const parseFromTokens = tokenList => {
  * `path:line:column` when the reader tracks positions; otherwise the file
  * the error names, when it names one — a missing import, a cycle, a body
  * that fails to evaluate, in an imported module as readily as in the input;
- * and otherwise `inputFileName`, the file being read — which no reader
+ * and otherwise `inputFileName`, the file being compiled — which no reader
  * `fjs compile` runs produces any more, every reader naming its file, and
- * which {@link parseFromTokens}'s one contract failure, a token list with no
- * end, still can.
+ * which this parser's one contract failure, a token list with no end,
+ * still can.
  *
  * An error that knows how far the offending source runs renders as a span,
  * `path:line:column-column` within one line and `path:line:column-line:column`

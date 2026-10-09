@@ -22,8 +22,6 @@ import type { TokenMetadata, TokenPosition } from '../../ebnf/lib/js/types.ts'
  * *grammar* failure has no span: it points at one token, and a token's extent is
  * not recorded — see `ErrorToken` in `fjs/ebnf/lib/js/types.ts`, and
  * `../parser/README.md` for the widening that would give every token one.
- *
- * `errorLocation` in `./module.f.mjs` renders where it is.
  */
 export type ParseError = {
     readonly message: string,
