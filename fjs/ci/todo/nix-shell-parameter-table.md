@@ -1,7 +1,7 @@
 ## nix-shell-parameter-table. The shared shell's optional parameters are restated four times in `ci/nix`
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
