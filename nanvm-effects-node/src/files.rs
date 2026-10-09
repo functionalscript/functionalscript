@@ -402,6 +402,11 @@ pub fn read_bytes(path: &str, at: f64, size: f64) -> Result<Vec<u8>, IoError> {
         });
     }
     let mut file = File::open(path).map_err(|e| failure(&e, "open", path))?;
+    // An empty window reads nothing, so it asks nothing of the file either: the
+    // open still happens, but a pipe, which cannot seek, answers it as Node does.
+    if size == 0.0 {
+        return Ok(Vec::new());
+    }
     let mut bytes = Vec::new();
     file.seek(SeekFrom::Start(at as u64))
         .and_then(|_| file.take(size as u64).read_to_end(&mut bytes))
@@ -423,7 +428,9 @@ fn exclusive(path: &str) -> io::Result<File> {
 /// Creates `path` holding `data`, in one open that fails if the file exists:
 /// the file either exists holding all of `data` or does not exist. A write that
 /// fails after the create removes the file, which is this call's alone because
-/// the create was exclusive; that is why it is not `write_file`.
+/// the create was exclusive; that is why it is not `write_file`. An error the
+/// filesystem reports only when the file is closed is not seen
+/// (`todo/close-errors.md`).
 pub fn write_exclusive(path: &str, data: &[Vec<u8>]) -> Result<(), IoError> {
     write_exclusive_with(path, |file| data.iter().try_for_each(|d| file.write_all(d)))
 }
@@ -886,6 +893,21 @@ mod test {
             let error = read_bytes(&dir.at("none"), -1.0, 1.0).unwrap_err();
             assert_eq!(error.code, None);
             assert_eq!(error.message, "Offset -1 is negative");
+        }
+
+        /// An empty window opens the path and seeks nowhere, so a pipe answers it.
+        #[cfg(target_os = "linux")]
+        #[test]
+        fn empty_read_does_not_seek_a_pipe() {
+            use std::os::fd::AsRawFd;
+
+            let (reader, _writer) = io::pipe().unwrap();
+            let path = format!("/proc/self/fd/{}", reader.as_raw_fd());
+            for at in [0.0, MAX_OFFSET as f64] {
+                assert_eq!(read_bytes(&path, at, 0.0), Ok(Vec::new()));
+            }
+            // A nonempty window still needs the seek, which this file cannot do.
+            assert!(read_bytes(&path, 0.0, 1.0).is_err());
         }
 
         #[test]
