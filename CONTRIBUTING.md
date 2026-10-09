@@ -348,6 +348,12 @@ once it carries its change and every check passes. A pull request with no
 
 ### Commit messages
 
+Every pull request description must include a link to the session where the
+work was discussed, including draft pull requests. Put `Session: [link](URL)`
+in the trailer block at the end of the description and preserve it when
+updating the description. Use the actual session URL; if it is not available
+to the author or agent, ask the task owner for it rather than inventing a link.
+
 A pull request lands on `main` as a merge commit titled `<PR title> (#NNN)`,
 with the pull request description as its body. Both halves are reviewed text
 that outlives the pull request page, and the release that collects the changelog
