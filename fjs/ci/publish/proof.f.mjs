@@ -46,15 +46,23 @@ export const proof = {
         assertEq(npmPublishWorkflow.permissions.contents, 'read')
         assertEq(npmPublishWorkflow.permissions['id-token'], 'write')
         assertEq(Object.keys(npmPublishWorkflow.permissions).length, 2)
-        assert(has('npm publish --provenance'), 'expected a provenance publish')
+        assert(has('npm publish --provenance --tag "$NPM_DIST_TAG"'), 'expected a provenance publish')
         // Dropping `--provenance` would leave `id-token: write` granted and
         // unspent, and the package would publish unattested with nothing red —
         // so it is every publish that has to carry the flag, not merely one.
         assert(
             steps.every(step =>
                 step.run?.startsWith('npm publish') !== true
-                || step.run === 'npm publish --provenance'),
+                || step.run === 'npm publish --provenance --tag "$NPM_DIST_TAG"'),
             'expected every publish attested')
+    },
+    // Only normal main pushes may move latest. Manual releases can be fixes
+    // for older minors, and publishing must protect latest in the same step.
+    maintenanceDoesNotMoveLatest: () => {
+        const publish = steps[runIndex('npm publish --provenance --tag "$NPM_DIST_TAG"')]
+        assertEq(
+            publish?.env?.NPM_DIST_TAG,
+            "${{ github.event_name == 'push' && 'latest' || 'maintenance' }}")
     },
     // The registry named where the job configures npm, not left to whatever the
     // runner or `publishConfig` defaults to.
@@ -77,7 +85,7 @@ export const proof = {
             has(`npm install -g typescript@${typescript.version}`),
             'expected the configured compiler installed')
         const compiler = runIndex(`npm install -g typescript@${typescript.version}`)
-        const publish = runIndex('npm publish --provenance')
+        const publish = runIndex('npm publish --provenance --tag "$NPM_DIST_TAG"')
         assert(compiler !== -1, 'expected a compiler install')
         assert(compiler < publish, 'expected the compiler before the publish')
     },
@@ -94,7 +102,7 @@ export const proof = {
         const checkout = usesIndex('actions/checkout@')
         assert(checkout !== -1, 'expected a checkout')
         const install = runIndex('npm ci')
-        const publish = runIndex('npm publish --provenance')
+        const publish = runIndex('npm publish --provenance --tag "$NPM_DIST_TAG"')
         assert(checkout < install, 'expected the checkout before the install')
         assert(install < publish, 'expected the install before the publish')
         // One job, so nothing to wait for — and an ordering edge here would
@@ -110,6 +118,6 @@ export const proof = {
         assertStructurallySame(
             steps.flatMap(step =>
                 step['continue-on-error'] === undefined ? [] : [step.run]),
-            ['npm publish --provenance'])
+            ['npm publish --provenance --tag "$NPM_DIST_TAG"'])
     },
 }

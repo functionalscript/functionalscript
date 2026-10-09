@@ -80,7 +80,15 @@ const publishSteps = [
     // failure, an authentication or provenance error, just as quietly.
     // `../todo/publish-only-a-new-version.md` owns making the two
     // distinguishable.
-    test({ run: 'npm publish --provenance', 'continue-on-error': true }),
+    // Manual maintenance releases may belong to an older minor. Publish them
+    // under their own tag so they cannot move unversioned installs backward.
+    test({
+        run: 'npm publish --provenance --tag "$NPM_DIST_TAG"',
+        env: {
+            NPM_DIST_TAG: "${{ github.event_name == 'push' && 'latest' || 'maintenance' }}",
+        },
+        'continue-on-error': true,
+    }),
 ]
 
 /**

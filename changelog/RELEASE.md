@@ -39,8 +39,12 @@ fix deliberately uses a different branch and window:
    commit with provenance; it does not publish `main`. Check the publish step
    itself and the registry version: the current workflow tolerates publish
    failure, so a green run alone does not establish publication. Never overwrite
-   a published version. For a fix to an older minor, restore npm's `latest` tag
-   to the newest regular release if this publish moved it backward.
+   a published version. Manual runs publish under the `maintenance` dist-tag,
+   leaving `latest` untouched even for an older minor. If the fix should become
+   the default for unversioned installs, a maintainer verifies that it is the
+   newest supported release and explicitly promotes it with
+   `npm dist-tag add functionalscript@0.X.P latest`. Never promote an older minor
+   over a newer release.
 5. Carry the fixes forward to `main` through a separate PR, leaving the urgent
    version and changelog metadata on the maintenance branch. The next regular
    release collects that PR normally and uses the next minor with patch zero.

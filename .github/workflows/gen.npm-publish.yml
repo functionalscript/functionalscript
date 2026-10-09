@@ -34,7 +34,10 @@
           "run": "npm ci"
         },
         {
-          "run": "npm publish --provenance",
+          "run": "npm publish --provenance --tag \"$NPM_DIST_TAG\"",
+          "env": {
+            "NPM_DIST_TAG": "${{ github.event_name == 'push' && 'latest' || 'maintenance' }}"
+          },
           "continue-on-error": true
         }
       ]

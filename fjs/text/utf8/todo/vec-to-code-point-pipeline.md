@@ -32,27 +32,12 @@ and `fromVec` merely wraps it with an octet-alignment check and an
 that its own detector re-proves "the same two conditions `fromVec` checks, via
 the same decoder" — evidence the pipeline is being re-derived in several places.
 
-The byte-list level below the `Vec` has the same fan-out, outside `text/`:
+The byte-list level below the `Vec` had the same fan-out, outside `text/`, in
+`fjs/text/percent`, `fjs/git/refstore`, `fjs/media/datajs/parser` and
+`fjs/effects/common`, each importing the low-level `utf8`/`utf16` primitives
+directly. `text/utf8` now owns that level as `stringToU8List`,
+`u8ListToString` and `fromU8List`, and those modules use them.
 
-```ts
-// fjs/text/percent/module.f.mjs, utf8Bytes — tryUtf8's inner pipeline, re-derived
-const utf8Bytes = s => toArray(fromCodePointList(stringToCodePointList(s)))
-// fjs/git/refstore/module.f.mjs, nameBytes — the same line again
-const nameBytes = s => toArray(fromCodePointList(stringToCodePointList(s)))
-// fjs/text/percent/module.f.mjs, utf8String — fromVec minus the alignment check, over bytes
-const utf8String = bytes => { /* toCodePointList + isValidCodePoint loop + codePointListToString */ }
-// fjs/media/datajs/parser/module.f.mjs, tryParseBytes — the same checked decode, inline
-const codePoints = toArray(toCodePointList(bytes))
-if (!codePoints.every(isValidCodePoint)) { return error(utf8Rule) }
-// fjs/effects/common/module.f.mjs, utf8ListToString — utf8ToString's inner pipeline
-const utf8ListToString = bytes => codePointListToString(toCodePointList(bytes))
-```
-
-These modules import the low-level `utf8`/`utf16` primitives directly, some
-while *also* importing `fjs/text`'s wrapper — reaching past the module whose
-stated job this is. `fjs/effects/node/module.f.mjs` still imports
-`toCodePointList` and `codePointListToString` and uses neither: the residue
-of this block having been copied out of `effects/node` into `effects/common`.
 The unchecked and checked forms also live in *different* modules (top `text`
 vs `text/utf8`), so the `Vec` → string UTF-8 boundary has no single owner.
 Both are real consumers: `utf8ToString` is used by `effects/node`,
@@ -86,13 +71,23 @@ with every importer updated in the same PR; a re-export left in
 `fjs/text/module.f.mjs` for existing importers is the stale-re-export case
 `changelog/README.md` rules out.
 
+**Revised once the byte-list helpers landed.** The byte list is the lower
+layer, so the `Vec` forms are now a `u8ListMsb` unpack in front of it:
+`fromVec` is `fromU8List` after the alignment check, and `utf8ToString`
+is `u8ListToString`. The code-point validation lives once, in
+`fromU8List`, and `vecToCodePointList` is left with no caller but its
+proof. `git/refstore` still imports `utf16`'s `codePointListToString` for
+`nameKey`, which is a byte-per-code-unit key, not a decoding.
+
 ### Tasks
 
 - [x] Add `vecToCodePointList` to `fjs/text/utf8/module.f.mjs`; rewrite
       `fromVec` and `utf8ToString` through it.
 - [ ] Decide whether `utf8ToString` moves next to `fromVec`; update importers
       if so.
-- [ ] Export the byte-list helpers in both directions, beside `fromVec`:
+- [ ] Decide whether `vecToCodePointList` is removed, now that nothing calls
+      it (a declared breaking change).
+- [x] Export the byte-list helpers in both directions, beside `fromVec`:
       the decoder pair (unchecked and code-point-validated
       `bytes → string`) replaces `fjs/text/percent`'s `utf8String` and
       `fjs/effects/common`'s `utf8ListToString` and the inline decode in
@@ -100,6 +95,11 @@ with every importer updated in the same PR; a re-export left in
       (`string → bytes`, the inner pipeline of `tryUtf8`) replaces
       `fjs/text/percent`'s `utf8Bytes` and `fjs/git/refstore`'s `nameBytes`.
       Then those modules stop importing the utf8/utf16 primitives directly.
+      `stringToU8List` and `u8ListToString` (unchecked) are named after
+      `utf16`'s `stringToCodePointList`/`codePointListToString` pair, so each
+      says its direction; the validated decoder is the existing `fromU8List`
+      (`null` on invalid), whose name joins the renaming task below.
+      `fromVec` and `tryUtf8` build on them.
 - [ ] Name the UTF-8 boundary in one direction: the decoder and encoder in
       `text/utf8` say which way they go, and `types/uint8array`'s `fromVec`
       stops sharing a name with a decoder. A renamed export changes the public

@@ -34,10 +34,10 @@ export const stepSchema = /** @type {const} */ ({
     run: or(option, string),
     uses: or(option, string),
     with: or(option, record(string)),
-    // Environment for one step. The generator writes it in exactly one
-    // place: an injected command travels here rather than inside the quotes
-    // of the command that runs it, so a value GitHub substitutes into it is
-    // never read back as shell source. See `../module.f.mjs`'s `inShell`.
+    // Environment for one step: injected commands and the publishing tag
+    // travel here rather than inside shell source. A value GitHub substitutes
+    // is passed as data to the command. See `../module.f.mjs`'s `inShell` and
+    // `../publish/module.f.mjs`.
     env: or(option, record(string)),
     // The directory a `run` step starts in, when it is not the checkout. The
     // packed-package check is the one user: it runs as a consumer, in a

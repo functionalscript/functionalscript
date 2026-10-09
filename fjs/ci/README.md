@@ -459,7 +459,10 @@ The generated workflow is:
 - **one job**, `publish-npm`, on the same Ubuntu ARM image the canonical jobs
   use, running `setup-node` (which writes the registry into the job's `.npmrc`),
   a global install of the configured TypeScript, `actions/checkout`, `npm ci`,
-  and `npm publish --provenance`.
+  and `npm publish --provenance --tag "$NPM_DIST_TAG"`. Pushes use `latest`;
+  manual maintenance releases use `maintenance`, so publishing an older minor
+  cannot downgrade unversioned installs. Promoting a maintenance release to
+  `latest` is an explicit maintainer action after verifying the release line.
 
 Neither install is optional the way both would be for a package that publishes
 its sources unchanged: `prepack` emits the declarations the package ships and

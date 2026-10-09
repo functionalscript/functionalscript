@@ -387,21 +387,25 @@ const deliver = async (res, record, req, { status, headers, body }) => {
 }
 
 /**
- * The whole HTTP response to a `CONNECT`, as bytes on a raw socket.
+ * A {@link runnerResponse} frame as the bytes of an HTTP/1.1 response, for a raw
+ * socket.
  *
- * Written by hand rather than through {@link respondWith}, because the `connect`
+ * Rendered here rather than through {@link respondWith}, because the `connect`
  * event hands over a socket and not a `ServerResponse` — there is no object to
- * ask for a status line.
+ * ask for a status line. The frame is the same one, so the length is measured
+ * and the `close` is the one every other refusal carries.
  *
- * @type {string}
+ * @type {(frame: { readonly status: number, readonly headers: Headers, readonly body: readonly Vec[] }) => Buffer}
  */
-const connectRefusal =
-    'HTTP/1.1 501 Not Implemented\r\n'
-    + 'content-type: text/plain; charset=utf-8\r\n'
-    + 'content-length: 26\r\n'
-    + 'connection: close\r\n'
-    + '\r\n'
-    + 'this server cannot tunnel\n'
+const rawResponse = ({ status, headers, body }) => Buffer.concat([
+    Buffer.from(`HTTP/1.1 ${status} ${http.STATUS_CODES[status]}\r\n`
+        + definedEntries(headers).map(([name, value]) => `${name}: ${value}\r\n`).join('')
+        + '\r\n'),
+    ...body.map(fromVec),
+])
+
+/** The whole HTTP response to a `CONNECT`. @type {Buffer} */
+const connectRefusal = rawResponse(runnerResponse(501, 'this server cannot tunnel'))
 
 /**
  * Answers one request through `listener`, or explains that it could not.
