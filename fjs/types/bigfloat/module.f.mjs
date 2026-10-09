@@ -214,7 +214,8 @@ export const tryDecToFormat = ({ precision, minExp, maxExp }) => {
     return dec => {
         const result = convert(dec)
         const [m, e] = result
-        return bitLength(m) + BigInt(e) > maxBits ? null : result
+        // Zero is in every format, even one whose largest value is below 1/2.
+        return m !== 0n && bitLength(m) + BigInt(e) > maxBits ? null : result
     }
 }
 
