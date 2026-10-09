@@ -1,5 +1,3 @@
-use core::ops::{AddAssign, Sub};
-
 use crate::common::{default::default, sized_index::SizedIndex, uint::Uint};
 
 pub struct IndexIter<I, T> {
@@ -16,11 +14,7 @@ impl<I: Uint, T: SizedIndex<I>> IndexIter<I, T> {
     }
 }
 
-impl<
-    I: Copy + Default + PartialEq + AddAssign + From<u8> + Sub<Output = I>,
-    T: SizedIndex<I, Output: Clone>,
-> Iterator for IndexIter<I, T>
-{
+impl<I: Uint, T: SizedIndex<I, Output: Clone>> Iterator for IndexIter<I, T> {
     type Item = T::Output;
     fn next(&mut self) -> Option<Self::Item> {
         let i = self.i;
