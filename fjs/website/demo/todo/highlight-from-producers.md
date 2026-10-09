@@ -153,6 +153,78 @@ serializer's `.js` runs equal what the tokenizer would find in the same
 text. That makes the tokenizer the oracle for the producer without making it
 a runtime dependency of the demo.
 
+## Invariants
+
+What the types and functions above promise, each testable:
+
+1. **Text is preserved.** `toText(marked)` is exactly the text the producer
+   would have written without markup. Markup never adds, drops, reorders or
+   escapes a character.
+2. **Kinds are closed.** A run's kind is one of `TokenKind` or absent. A
+   producer cannot invent a kind; an unknown one is a type error, and the
+   stylesheet has a rule for each.
+3. **Runs are flat.** No run nests inside another and none overlaps; a
+   region with two properties gets one kind or is split. (LSP forbids
+   overlap unless the client opts in; nothing here would.)
+4. **Empty runs carry nothing.** A producer may emit `['']`, and `render`
+   drops it; no span is drawn around nothing.
+5. **`fromSpans` refuses, never repairs.** Overlapping, negative,
+   out-of-range or non-integer spans are an error, not a clamp.
+6. **Producers are total over the same inputs as before.** Marking a
+   producer changes no input it accepts or refuses, and no refusal message.
+
+## Proof obligations
+
+A migration step is done when its proof, which owes 100% coverage as every
+module does, pins:
+
+- **Round trip:** `toText` of the producer's runs equals the producer's
+  pre-markup output for every example in
+  [`compiler/examples`](../../../compiler/examples/module.f.js). The old
+  output is the expected value, so a step cannot change what the CLI writes.
+- **The oracle:** the runs' kinds equal what the tokenizer fallback finds in
+  the same text, for the languages it reads (`.js`, `.json`, `.data.js`,
+  `.edag.data.js`). Rust has no oracle; its proof is the round trip plus a
+  table of expected runs for a small example.
+- **`fromSpans`:** one accepted case per kind, and one refusal for each
+  member of invariant 5.
+- **`render`:** the HTML for a run with a kind, one without, and an empty
+  one.
+- **The demo's view,** for the initial state, each example and one refused
+  input, as [`../README.md`](../README.md#what-a-demos-proof-covers) already
+  asks.
+
+## Crossing the compiler boundary
+
+[`compiler/todo/output-demos.md`](../../../compiler/todo/output-demos.md)
+requires the side-by-side page to run the real `compile`, "so it cannot
+drift from the CLI". A file system carries text, so markup cannot cross it,
+and a design that recovered the runs by calling each producer separately
+would break that requirement. The seam exists already, though:
+`compileFile` is `outputText(outputFileName)(inputFileName)`, which yields
+`Result<string, string>`, followed by the one write of that string to the
+output file. Steps 2–4 therefore make it:
+
+- `outputText` yields `Result<Marked, string>`, a pure function of the
+  input, the same one `compileFile` calls;
+- `compileFile` applies `toText` before the write, so a file is unchanged;
+- the side-by-side page runs `outputText` over the in-memory file system,
+  exported for the purpose, and renders its runs.
+
+What the page then skips is the tail of the real path — creating the
+directory, the write, the exit code — none of which decides what a pane
+shows. What it keeps is every line that does. To keep "cannot drift"
+literally true, the page's proof also runs the whole `compile` once per
+output and example, and asserts the file it writes equals `toText` of the
+runs the page renders. That narrows the existing requirement from "runs
+`compile`" to "runs the text `compile` writes, and proves it", and the PR
+for step 4 amends `output-demos.md` to say so.
+
+Until step 4, the side-by-side page keeps the tokenizer fallback, so the
+other pages migrate without waiting on it. The stage pages — tokenizer,
+parser, serializer, Rust — call their stage's function directly and are not
+affected.
+
 ## Migration, one pull request each
 
 1. Types and `toText`, `render`, `fromSpans`; `highlight` becomes a
@@ -162,8 +234,10 @@ a runtime dependency of the demo.
    [`compiler/examples`](../../../compiler/examples/module.f.js).
 3. The Rust generator. This is the case reparsing cannot reach, and the
    reason to do any of this.
-4. DataJS and JSON writers; the parser and compiler demos stop calling
-   `highlight` for generated panes.
+4. DataJS and JSON writers; the parser demo stops calling `highlight`. The
+   compiler's `outputText` then yields `Marked`, and the side-by-side page
+   renders it, as [Crossing the compiler boundary](#crossing-the-compiler-boundary)
+   describes. Until then that page keeps the fallback.
 
 Each step is independently shippable and leaves the page working.
 
@@ -185,22 +259,27 @@ Each step is independently shippable and leaves the page working.
 
 ## Open questions
 
+Each carries the author's leaning, to be overruled in review.
+
 - **The vocabulary of `TokenKind`.** LSP has no `literal`; `true`/`false`/
   `null`/`undefined` are keywords in its terms, and `constant.language` in
-  TextMate's. The current `highlight` has `literal`. Follow LSP and fold it
-  into `keyword`, or keep the distinction the stylesheet draws today?
+  TextMate's. *Leaning: fold `literal` into `keyword`.* The stylesheet
+  already draws both in one colour, so nothing is lost and the vocabulary
+  becomes LSP's subset exactly.
 - **Names versus properties.** A producer knows a key from a variable and a
-  function name from a parameter, which a lexer does not. Do we use that
-  (`property`, `function`, `variable`) now, or ship the five lexical kinds
-  first and let the producers' extra knowledge be a later, additive step?
+  function name from a parameter, which a lexer does not. *Leaning: ship the
+  lexical kinds first.* Adding `property` or `function` later is additive,
+  and the oracle cannot check kinds the tokenizer cannot see.
 - **A location for the shared code.** `website/demo/highlight/` is a demo
-  helper; the serializer and Rust generator depending on it would invert
-  the dependency (compiler → website). `Marked` may belong in `fjs/text/`
-  or `fjs/media/`, with only `render` staying under the website.
+  helper; the serializer and Rust generator depending on it would invert the
+  dependency (compiler → website). *Leaning: `Marked`, `toText` and
+  `fromSpans` in `fjs/text/marked/`, with only `render` under the website,*
+  because the type is about text and the first consumer outside the website
+  is the compiler.
 - **Does the CLI ever want it?** An ANSI-coloured `fjs compile` to a
   terminal is the same data through an SGR renderer
   ([`text/sgr`](../../../text/sgr/)). Not in scope; it is a second consumer
-  that would justify the location above.
+  that would confirm the location above.
 
 ## Related
 
