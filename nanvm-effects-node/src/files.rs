@@ -431,29 +431,34 @@ fn exclusive(path: &str) -> io::Result<File> {
 /// the file either exists holding all of `data` or does not exist. A write that
 /// fails after the create removes the file, which is this call's alone because
 /// the create was exclusive; that is why it is not `write_file`. The data is
-/// synced before the file is closed, so an error the filesystem reports only at
-/// the close, a delayed `EIO` or `ENOSPC`, fails the write and is rolled back
-/// like any other (`todo/close-errors.md`).
+/// then synced before the file is closed, so an error the filesystem reports
+/// only at the close, a delayed `EIO` or `ENOSPC`, is reported as a failed
+/// `close`. As in the Node runner that failure does not remove the file, which
+/// is left behind, where a failed write removes it (`todo/close-errors.md`).
 pub fn write_exclusive(path: &str, data: &[Vec<u8>]) -> Result<(), IoError> {
-    write_exclusive_with(path, |file| {
-        data.iter().try_for_each(|d| file.write_all(d))?;
-        file.sync_all()
-    })
+    write_exclusive_with(
+        path,
+        |file| data.iter().try_for_each(|d| file.write_all(d)),
+        File::sync_all,
+    )
 }
 
 fn write_exclusive_with(
     path: &str,
     write: impl FnOnce(&mut File) -> io::Result<()>,
+    finish: impl FnOnce(&File) -> io::Result<()>,
 ) -> Result<(), IoError> {
-    // The file is closed when the block ends, before the rollback removes it.
-    let written = {
+    // The handle is gone when the block ends, so a failed write removes the
+    // file by name only after it is closed.
+    let failed = {
         let mut file = exclusive(path).map_err(|e| failure(&e, "open", path))?;
-        write(&mut file)
+        match write(&mut file) {
+            Ok(()) => return finish(&file).map_err(|e| failure(&e, "close", path)),
+            Err(e) => e,
+        }
     };
-    written.map_err(|e| {
-        let _ = fs::remove_file(path);
-        failure(&e, "write", path)
-    })
+    let _ = fs::remove_file(path);
+    Err(failure(&failed, "write", path))
 }
 
 /// Removes a file or a link, and refuses a directory with `ERR_FS_EISDIR`, the
@@ -950,14 +955,35 @@ mod test {
         fn a_failed_exclusive_write_is_rolled_back() {
             let dir = Scratch::new();
             let file = dir.at("f");
-            let result = write_exclusive_with(&file, |f| {
-                f.write_all(&[1])?;
-                Err(ErrorKind::StorageFull.into())
-            });
+            let result = write_exclusive_with(
+                &file,
+                |f| {
+                    f.write_all(&[1])?;
+                    Err(ErrorKind::StorageFull.into())
+                },
+                |_| unreachable!("a failed write is not finished"),
+            );
             let error = result.unwrap_err();
             assert_eq!(error.code, Some("ENOSPC".into()));
             assert!(error.message.contains("write"), "{}", error.message);
             assert_eq!(code_of(access(&file)), Some("ENOENT".into()));
+        }
+
+        /// A failure at the close is reported as one, and the file stays, as
+        /// the Node runner leaves it.
+        #[test]
+        fn a_failed_close_is_reported_and_the_file_stays() {
+            let dir = Scratch::new();
+            let file = dir.at("f");
+            let error = write_exclusive_with(
+                &file,
+                |f| f.write_all(&[1, 2]),
+                |_| Err(ErrorKind::StorageFull.into()),
+            )
+            .unwrap_err();
+            assert_eq!(error.code, Some("ENOSPC".into()));
+            assert!(error.message.contains("close"), "{}", error.message);
+            assert_eq!(read_file(&file), Ok([1, 2].to_vec()));
         }
 
         #[test]
