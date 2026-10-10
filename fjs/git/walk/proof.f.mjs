@@ -404,11 +404,11 @@ export const proof = {
     // recursion these replaced died at two thousand tags and at eight
     // thousand components.
     deep: () => {
-        const [, peeled3000] = run({})([])(peel(chained, 20)(idOf(3000)))
+        const [, peeled3000] = run({})([])(peel(chained, 20)(idOf(3_000)))
         assert(peeled3000[0] === 'ok' && peeled3000[1] !== null)
         assertEq(hexText(peeled3000[1].id), hexText(idOf(0)))
         assertEq(peeled3000[1].envelope.type, 'commit')
-        const [, deepPath] = run({})([])(tryEntry(nested, 20)(rootId, Array.from({ length: 10000 }, () => name('d'))))
+        const [, deepPath] = run({})([])(tryEntry(nested, 20)(rootId, Array.from({ length: 10_000 }, () => name('d'))))
         assert(deepPath[0] === 'ok' && deepPath[1] !== null)
         assertStructurallySame(seen(deepPath[1]), [0o40000, 'd', hexText(rootId)])
     },

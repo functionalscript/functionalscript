@@ -113,16 +113,16 @@ export const eq = a => b => {
  * NIST P-192
  */
 export const secp192r1 = curve({
-    p: 0xffffffff_ffffffff_ffffffff_fffffffe_ffffffff_ffffffffn,
+    p: 0xffff_ffff_ffff_ffff_ffff_ffff_ffff_fffe_ffff_ffff_ffff_ffffn,
     c: [
-        0x64210519_e59c80e7_0fa7e9ab_72243049_feb8deec_c146b9b1n, //< c0 = b
-        0xffffffff_ffffffff_ffffffff_fffffffe_ffffffff_fffffffcn, //< c1 = a
+        0x6421_0519_e59c_80e7_0fa7_e9ab_7224_3049_feb8_deec_c146_b9b1n, //< c0 = b
+        0xffff_ffff_ffff_ffff_ffff_ffff_ffff_fffe_ffff_ffff_ffff_fffcn, //< c1 = a
     ],
     g: [
-        0x188da80e_b03090f6_7cbf20eb_43a18800_f4ff0afd_82ff1012n,
-        0x07192b95_ffc8da78_631011ed_6b24cdd5_73f977a1_1e794811n
+        0x188d_a80e_b030_90f6_7cbf_20eb_43a1_8800_f4ff_0afd_82ff_1012n,
+        0x0719_2b95_ffc8_da78_6310_11ed_6b24_cdd5_73f9_77a1_1e79_4811n
     ],
-    n: 0xffffffff_ffffffff_ffffffff_99def836_146bc9b1_b4d22831n,
+    n: 0xffff_ffff_ffff_ffff_ffff_ffff_99de_f836_146b_c9b1_b4d2_2831n,
 })
 
 // The curve doesn't have a simple square root function.
@@ -148,16 +148,16 @@ export const secp192r1 = curve({
  * https://neuromancer.sk/std/secg/secp256k1
  */
 export const secp256k1 = curve({
-    p: 0xffffffff_ffffffff_ffffffff_ffffffff_ffffffff_ffffffff_fffffffe_fffffc2fn,
+    p: 0xffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_fffe_ffff_fc2fn,
     c: [
         7n, //< c0 = b
         0n, //< c1 = a
     ],
     g: [
-        0x79be667e_f9dcbbac_55a06295_ce870b07_029bfcdb_2dce28d9_59f2815b_16f81798n,
-        0x483ada77_26a3c465_5da4fbfc_0e1108a8_fd17b448_a6855419_9c47d08f_fb10d4b8n
+        0x79be_667e_f9dc_bbac_55a0_6295_ce87_0b07_029b_fcdb_2dce_28d9_59f2_815b_16f8_1798n,
+        0x483a_da77_26a3_c465_5da4_fbfc_0e11_08a8_fd17_b448_a685_5419_9c47_d08f_fb10_d4b8n
     ],
-    n: 0xffffffff_ffffffff_ffffffff_fffffffe_baaedce6_af48a03b_bfd25e8c_d0364141n,
+    n: 0xffff_ffff_ffff_ffff_ffff_ffff_ffff_fffe_baae_dce6_af48_a03b_bfd2_5e8c_d036_4141n,
 })
 
 /**
@@ -165,46 +165,46 @@ export const secp256k1 = curve({
  * NIST P-256
  */
 export const secp256r1 = curve({
-    p: 0xffffffff_00000001_00000000_00000000_00000000_ffffffff_ffffffff_ffffffffn,
+    p: 0xffff_ffff_0000_0001_0000_0000_0000_0000_0000_0000_ffff_ffff_ffff_ffff_ffff_ffffn,
     c: [
-        0x5ac635d8_aa3a93e7_b3ebbd55_769886bc_651d06b0_cc53b0f6_3bce3c3e_27d2604bn, //< c0 = b
-        0xffffffff_00000001_00000000_00000000_00000000_ffffffff_ffffffff_fffffffcn, //< c1 = a
+        0x5ac6_35d8_aa3a_93e7_b3eb_bd55_7698_86bc_651d_06b0_cc53_b0f6_3bce_3c3e_27d2_604bn, //< c0 = b
+        0xffff_ffff_0000_0001_0000_0000_0000_0000_0000_0000_ffff_ffff_ffff_ffff_ffff_fffcn, //< c1 = a
     ],
     g: [
-        0x6b17d1f2_e12c4247_f8bce6e5_63a440f2_77037d81_2deb33a0_f4a13945_d898c296n, //< x
-        0x4fe342e2_fe1a7f9b_8ee7eb4a_7c0f9e16_2bce3357_6b315ece_cbb64068_37bf51f5n, //< y
+        0x6b17_d1f2_e12c_4247_f8bc_e6e5_63a4_40f2_7703_7d81_2deb_33a0_f4a1_3945_d898_c296n, //< x
+        0x4fe3_42e2_fe1a_7f9b_8ee7_eb4a_7c0f_9e16_2bce_3357_6b31_5ece_cbb6_4068_37bf_51f5n, //< y
     ],
-    n: 0xffffffff_00000000_ffffffff_ffffffff_bce6faad_a7179e84_f3b9cac2_fc632551n,
+    n: 0xffff_ffff_0000_0000_ffff_ffff_ffff_ffff_bce6_faad_a717_9e84_f3b9_cac2_fc63_2551n,
 })
 
 /**
  * https://neuromancer.sk/std/secg/secp384r1
  */
 export const secp384r1 = curve({
-    p: 0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffeffffffff0000000000000000ffffffffn,
+    p: 0xffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_fffe_ffff_ffff_0000_0000_0000_0000_ffff_ffffn,
     c: [
-        0xb3312fa7e23ee7e4988e056be3f82d19181d9c6efe8141120314088f5013875ac656398d8a2ed19d2a85c8edd3ec2aefn, //< c0 = b
-        0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffeffffffff0000000000000000fffffffcn, //< c1 = a
+        0xb331_2fa7_e23e_e7e4_988e_056b_e3f8_2d19_181d_9c6e_fe81_4112_0314_088f_5013_875a_c656_398d_8a2e_d19d_2a85_c8ed_d3ec_2aefn, //< c0 = b
+        0xffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_fffe_ffff_ffff_0000_0000_0000_0000_ffff_fffcn, //< c1 = a
     ],
     g: [
-        0xaa87ca22be8b05378eb1c71ef320ad746e1d3b628ba79b9859f741e082542a385502f25dbf55296c3a545e3872760ab7n, //< x
-        0x3617de4a96262c6f5d9e98bf9292dc29f8f41dbd289a147ce9da3113b5f0b8c00a60b1ce1d7e819d7a431d7c90ea0e5fn, //< y
+        0xaa87_ca22_be8b_0537_8eb1_c71e_f320_ad74_6e1d_3b62_8ba7_9b98_59f7_41e0_8254_2a38_5502_f25d_bf55_296c_3a54_5e38_7276_0ab7n, //< x
+        0x3617_de4a_9626_2c6f_5d9e_98bf_9292_dc29_f8f4_1dbd_289a_147c_e9da_3113_b5f0_b8c0_0a60_b1ce_1d7e_819d_7a43_1d7c_90ea_0e5fn, //< y
     ],
-    n: 0xffffffffffffffffffffffffffffffffffffffffffffffffc7634d81f4372ddf581a0db248b0a77aecec196accc52973n,
+    n: 0xffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_c763_4d81_f437_2ddf_581a_0db2_48b0_a77a_ecec_196a_ccc5_2973n,
 })
 
 /**
  * https://neuromancer.sk/std/secg/secp521r1
  */
 export const secp521r1 = curve({
-    p: 0x01ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffn,
+    p: 0x01ff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffffn,
     c: [
-        0x0051953eb9618e1c9a1f929a21a0b68540eea2da725b99b315f3b8b489918ef109e156193951ec7e937b1652c0bd3bb1bf073573df883d2c34f1ef451fd46b503f00n, //< c0 = b
-        0x01fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffcn, //< c1 = a
+        0x0051_953e_b961_8e1c_9a1f_929a_21a0_b685_40ee_a2da_725b_99b3_15f3_b8b4_8991_8ef1_09e1_5619_3951_ec7e_937b_1652_c0bd_3bb1_bf07_3573_df88_3d2c_34f1_ef45_1fd4_6b50_3f00n, //< c0 = b
+        0x01ff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_fffcn, //< c1 = a
     ],
     g: [
-        0x00c6858e06b70404e9cd9e3ecb662395b4429c648139053fb521f828af606b4d3dbaa14b5e77efe75928fe1dc127a2ffa8de3348b3c1856a429bf97e7e31c2e5bd66n,
-        0x011839296a789a3bc0045c8a5fb42c7d1bd998f54449579b446817afbd17273e662c97ee72995ef42640c550b9013fad0761353c7086a272c24088be94769fd16650n,
+        0x00c6_858e_06b7_0404_e9cd_9e3e_cb66_2395_b442_9c64_8139_053f_b521_f828_af60_6b4d_3dba_a14b_5e77_efe7_5928_fe1d_c127_a2ff_a8de_3348_b3c1_856a_429b_f97e_7e31_c2e5_bd66n,
+        0x0118_3929_6a78_9a3b_c004_5c8a_5fb4_2c7d_1bd9_98f5_4449_579b_4468_17af_bd17_273e_662c_97ee_7299_5ef4_2640_c550_b901_3fad_0761_353c_7086_a272_c240_88be_9476_9fd1_6650n,
     ],
-    n: 0x01fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffa51868783bf2f966b7fcc0148f709a5d03bb5c9b8899c47aebb6fb71e91386409n
+    n: 0x01ff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_fffa_5186_8783_bf2f_966b_7fcc_0148_f709_a5d0_3bb5_c9b8_899c_47ae_bb6f_b71e_9138_6409n
 })

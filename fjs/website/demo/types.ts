@@ -100,12 +100,14 @@ export type Demo<State, Event, O extends Operation = never> = {
 
 /**
  * What `textDemo` (`./module.f.mjs`) needs to draw a demo whose state is a
- * text: the textarea's `name` (also its `id`, which the runtime's `refocus`
- * and `resize` key on), the words before it, how tall it is (8 rows unless
+ * text: its introductory paragraph, the textarea's `name` (also its `id`,
+ * which the runtime's `refocus` and `resize` key on), the words before it, how tall it is (8 rows unless
  * given), the text it opens on, and, optionally, the examples a drop-down
  * above it offers.
  */
 export type TextDemoOptions = {
+    /** The plain lead paragraph before any control. */
+    readonly intro: string
     readonly name: string
     readonly label: string
     readonly rows?: number | undefined

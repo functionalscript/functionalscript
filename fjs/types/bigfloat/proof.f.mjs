@@ -82,7 +82,7 @@ const range = from => to => Array.from({ length: to - from + 1 }, (_, i) => from
  *
  * @type {readonly (readonly [bigint, number])[]}
  */
-const corpus = [1n, 2n, 3n, 5n, 7n, 9n, 10n, 4999999999999999n, 5000000000000001n, 12345678901234567890n]
+const corpus = [1n, 2n, 3n, 5n, 7n, 9n, 10n, 4_999_999_999_999_999n, 5_000_000_000_000_001n, 12_345_678_901_234_567_890n]
     .flatMap(dm => [dm, -dm])
     .flatMap(dm => range(-340)(320).map(de => /** @type {readonly [bigint, number]} */([dm, de])))
 
@@ -114,7 +114,7 @@ export const proof = {
             assertEq(result[1], -49)
         },
         () => {
-            const result = decToBin([1000n, -2])
+            const result = decToBin([1_000n, -2])
             assertEq(result[0], 0b1_0100_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n, result[0].toString(2))
             assertEq(result[1], -49)
         },
@@ -134,7 +134,7 @@ export const proof = {
             assertEq(result[1], -49)
         },
         () => {
-            const result = decToBin([-1000n, -2])
+            const result = decToBin([-1_000n, -2])
             assertEq(result[0], -0b1_0100_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n, result[0].toString(2))
             assertEq(result[1], -49)
         },
@@ -340,25 +340,25 @@ export const proof = {
         // correctly-rounded answer is 3, and `decToBin`'s 53-bit answer is the
         // midpoint itself, which rounds the other way because 3 is odd.
         () => {
-            const dec = /** @type {const} */([(7n * 2n ** 125n - 1n) * 5n ** 1200n, -1200])
-            assertStructurallySame(decToBin(dec), [7881299347898368n, -1125], 'the midpoint decToBin lands on')
-            assertStructurallySame(toBinary64(dec), [3n, -1074], 'rounded once, below the midpoint')
+            const dec = /** @type {const} */([(7n * 2n ** 125n - 1n) * 5n ** 1_200n, -1_200])
+            assertStructurallySame(decToBin(dec), [7_881_299_347_898_368n, -1_125], 'the midpoint decToBin lands on')
+            assertStructurallySame(toBinary64(dec), [3n, -1_074], 'rounded once, below the midpoint')
         },
         // minExp exactly: the smallest value the format holds.
-        () => assertBinary64([1n, -1074])([1n, -1074]),
-        () => assertBinary64([3n, -1074])([3n, -1074]),
+        () => assertBinary64([1n, -1_074])([1n, -1_074]),
+        () => assertBinary64([3n, -1_074])([3n, -1_074]),
         // Half of it is an exact tie, and 0 is the even side.
-        () => assertBinary64([1n, -1075])([0n, 0]),
+        () => assertBinary64([1n, -1_075])([0n, 0]),
         // A hair above that tie rounds up; a hair below rounds down.
-        () => assertEq(toBinary64([5n ** 1075n + 1n, -1075])?.[0], 1n),
-        () => assertEq(toBinary64([5n ** 1075n - 1n, -1075])?.[0], 0n),
+        () => assertEq(toBinary64([5n ** 1_075n + 1n, -1_075])?.[0], 1n),
+        () => assertEq(toBinary64([5n ** 1_075n - 1n, -1_075])?.[0], 0n),
         // Ties inside the subnormal range go to even in both directions.
-        () => assertBinary64([7n, -1075])([4n, -1074]),
-        () => assertBinary64([11n, -1075])([6n, -1074]),
+        () => assertBinary64([7n, -1_075])([4n, -1_074]),
+        () => assertBinary64([11n, -1_075])([6n, -1_074]),
         // minExp + 52: the smallest normal, where full precision resumes. Its
         // mantissa fills all 53 bits and its exponent is still minExp.
-        () => assertBinary64([1n, -1022])([1n << 52n, -1074]),
-        () => assertBinary64([(1n << 52n) - 1n, -1074])([(1n << 52n) - 1n, -1074]),
+        () => assertBinary64([1n, -1_022])([1n << 52n, -1_074]),
+        () => assertBinary64([(1n << 52n) - 1n, -1_074])([(1n << 52n) - 1n, -1_074]),
         // maxExp exactly: the largest finite value.
         () => assertBinary64([(1n << 53n) - 1n, 971])([(1n << 53n) - 1n, 971]),
         () => assertBinary64([-((1n << 53n) - 1n), 971])([-((1n << 53n) - 1n), 971]),
@@ -371,14 +371,14 @@ export const proof = {
         () => assertBinary64([-((1n << 54n) - 1n), -54])([-(1n << 52n), -52]),
         // Past it: 2^1024 outright, and the midpoint below it, which overflows
         // by rounding up rather than by magnitude.
-        () => assertOverflow([1n, 1024]),
-        () => assertOverflow([-1n, 1024]),
+        () => assertOverflow([1n, 1_024]),
+        () => assertOverflow([-1n, 1_024]),
         () => assertOverflow([(1n << 54n) - 1n, 970]),
         () => assertBinary64([(((1n << 54n) - 1n) << 970n) - 1n, 0])([(1n << 53n) - 1n, 971]),
         // Underflow is an answer, not a failure: it is the correctly-rounded
         // one. A bigint mantissa has no signed zero, so both signs give `0n`.
-        () => assertBinary64([1n, -1200])([0n, 0]),
-        () => assertBinary64([-1n, -1200])([0n, 0]),
+        () => assertBinary64([1n, -1_200])([0n, 0]),
+        () => assertBinary64([-1n, -1_200])([0n, 0]),
         () => assertBinary64([0n, 0])([0n, 0]),
         () => assertEq(toBinary64([0n, -400])?.[1], 0),
         // Zero is in every format, even one whose largest finite value is
@@ -393,8 +393,8 @@ export const proof = {
             assertEq(tiny(dyadic(1n, -1)), null, 'past it')
         },
         // Negatives mirror positives exactly, subnormals included.
-        () => assertBinary64([-3n, -1074])([-3n, -1074]),
-        () => assertBinary64([-1n, -1022])([-(1n << 52n), -1074]),
+        () => assertBinary64([-3n, -1_074])([-3n, -1_074]),
+        () => assertBinary64([-1n, -1_022])([-(1n << 52n), -1_074]),
         () => assertBinary64([-1n, 0])([-(1n << 52n), -52]),
         // A whole-number input takes the other scaling branch (`de >= 0`),
         // both when it needs widening and when it needs truncating.

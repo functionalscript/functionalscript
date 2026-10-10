@@ -7,7 +7,7 @@ export const proof = {
         sqrtBadPrime: () => sqrt(prime_field(5n)),
     },
     prime_field: () => {
-        const p = 0xffffffff_ffffffff_ffffffff_ffffffff_ffffffff_ffffffff_fffffffe_fffffc2fn;
+        const p = 0xffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff_fffe_ffff_fc2fn;
         const f = prime_field(p)
         const sqrt_f = sqrt(f)
         return {
@@ -83,7 +83,7 @@ export const proof = {
                     assert(s === null || f.abs(s) === f.abs(a), 'sqrt')
                 }
                 let i = 1n
-                while (i < 1000n) {
+                while (i < 1_000n) {
                     test(i)
                     ++i;
                 }
@@ -118,7 +118,7 @@ export const proof = {
                 assertEq(f.pow3(1n), 1n)
                 assertEq(f.pow3(2n), 8n)
                 assertEq(f.pow3(3n), 27n)
-                assertEq(f.pow3(10n), 1000n)
+                assertEq(f.pow3(10n), 1_000n)
             },
             abs: () => {
                 assertEq(f.abs(0n), 0n)

@@ -89,9 +89,9 @@ fn raw_code(raw: i32) -> Option<&'static str> {
         (19, "EROFS"),
         (39, "ENOSPC"),
         (112, "ENOSPC"),
-        (1117, "EIO"),
-        (1314, "EPERM"),
-        (1921, "ELOOP"),
+        (1_117, "EIO"),
+        (1_314, "EPERM"),
+        (1_921, "ELOOP"),
     ];
     #[cfg(not(any(
         all(
@@ -547,9 +547,9 @@ mod test {
             (19, "EROFS"),
             (39, "ENOSPC"),
             (112, "ENOSPC"),
-            (1117, "EIO"),
-            (1314, "EPERM"),
-            (1921, "ELOOP"),
+            (1_117, "EIO"),
+            (1_314, "EPERM"),
+            (1_921, "ELOOP"),
         ] {
             let error = io::Error::from_raw_os_error(raw);
             assert_eq!(failure(&error, "open", "p").code.as_deref(), Some(expected));

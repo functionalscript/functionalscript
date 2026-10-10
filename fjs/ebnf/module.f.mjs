@@ -269,4 +269,4 @@ export const literals = words => {
 export const eof = null
 
 export const unicodeMax =
-    codePointListToString([0x10FFFF])
+    codePointListToString([0x10_FFFF])
