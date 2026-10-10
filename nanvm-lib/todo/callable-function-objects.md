@@ -587,8 +587,7 @@ own value instead would need a converter from a host value graph (aliasing
 included) to a represented one, which does not exist, and the host `import`
 in a generator. This deviates from the letter of decision 1 (the reference
 authors the expectation) and keeps its intent (nothing is retyped, Node is
-the authority, and a divergence fails CI); it is put to the owner as a
-decision below, not assumed.
+the authority, and a divergence fails CI); the owner chose it (decision 5).
 
 *Why this is not circular.* The program under test reaches Rust by
 compiling its source (`gen.fixtures/<name>.rs`). The expectation reaches Rust
@@ -638,7 +637,7 @@ not an accident.
 programs that need arguments, which decision 2 has fixtures supply at module
 level.
 
-**Decisions (1 to 4 decided, 5 open).**
+**Decisions (all five decided).**
 
 1. ~~Expectation authored by hand beside each fixture, or by the reference and
    committed?~~ Decided: by the reference, committed and drift-checked.
@@ -670,12 +669,11 @@ level.
    `memo`-only value bug appears. `memo`'s immutable-cache rewrite still has
    [open native-parity checks](../../fjs/edag/memo/todo/immutable-cache.md).
 
-5. **Who authors the step 2 expectation.** The interpreter's value, printed
-   as Rust (recommended: the step 1 proof ties it to Node on every corpus
-   fixture, aliasing included, and the machinery exists), or Node's own
-   value through a new converter and the host `import` in the generator
-   (the letter of decision 1, at the cost of a converter that does not
-   exist)? Awaiting the owner.
+5. ~~Who authors the step 2 expectation?~~ Decided: the interpreter's value,
+   printed as Rust. The step 1 proof ties it to Node on every corpus fixture,
+   aliasing included, so a divergence fails CI, and the machinery to print a
+   represented graph exists; Node's own value would need a converter from a
+   host value graph that does not.
 
 ### Open questions
 
