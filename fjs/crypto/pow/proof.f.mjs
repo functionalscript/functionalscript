@@ -7,7 +7,9 @@ import { computeSync, sha224, sha256 } from '../sha2/module.f.mjs'
 import { bitcoinPow, genesisNBits, genesisTarget, pow, sha256Pow, targetFromNBits } from './module.f.mjs'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 import { demo, parseNBits, parseNonce } from './demo.f.mjs'
-import { htmlToString } from '../../media/html/module.f.mjs'
+import { refusal } from '../../website/demo/module.f.mjs'
+import { concat as stringConcat } from '../../types/string/module.f.mjs'
+import { element, htmlToString } from '../../media/html/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
 
@@ -176,15 +178,15 @@ export const proof = {
         },
         invalid: () => {
             const malformed = htmlToString(demo.view({ ...demo.init, nBits: 'bad' }))
-            assert(malformed.includes('Enter nBits as a hexadecimal 32-bit value'), malformed)
+            assert(malformed.includes(stringConcat(element(refusal('Enter nBits as a hexadecimal 32-bit value starting with 0x.')))), malformed)
             assert(!malformed.includes('Hash meets target'), malformed)
             for (const nBits of ['0x0', '0x01800001', '0x227fffff']) {
                 const html = htmlToString(demo.view({ ...demo.init, nBits }))
-                assert(html.includes('nBits must decode to a positive 256-bit target.'), html)
+                assert(html.includes(stringConcat(element(refusal('nBits must decode to a positive 256-bit target.')))), html)
                 assert(!html.includes('Copy target'), html)
             }
             const nonce = htmlToString(demo.view({ ...demo.init, nonce: '-' }))
-            assert(nonce.includes('Enter a non-negative decimal nonce.'), nonce)
+            assert(nonce.includes(stringConcat(element(refusal('Enter a non-negative decimal nonce.')))), nonce)
             assert(nonce.includes('name="next-nonce"'), nonce)
             assert(!nonce.includes('Copy hash"'), nonce)
         },

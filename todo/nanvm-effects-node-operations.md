@@ -39,8 +39,23 @@ implementation details remain unspecified here.
   - [x] `resolveFileModule`.
   - [x] `stat`, `access`, `rename`, `rmdir`.
   - [x] `createExclusive`, `writeExclusive`, `readBytes`.
-  - [ ] `sandbox`, `catch`, `now`, `randomInt`, `inflate`, `test`.
-  - [ ] The descriptor handles `open`, `fstat`, `pread`, `close`: a native `Handle`.
+  - [x] `sandbox`, `catch`, `now`.
+  - [ ] `randomInt`, `inflate`, `test`.
+  - [x] The descriptor handles `open`, `fstat`, `pread`, `close`: a handle is an
+        index into the host's table of open files, as `Handle` in
+        `fjs/effects/node/types.ts` allows; it is never reused, and a closed one
+        is `EBADF`. A FIFO is refused rather than opened without blocking
+        ([todo](../nanvm-effects-node/todo/non-blocking-open.md)).
 - [ ] Complete the [asynchronous native-effects task](./nanvm-effects-node-async.md).
 - [ ] Verify equivalent observable behavior against the Node runner for the full
       native scope above.
+  - [x] The file operations through one corpus: `nanvm-harness/fixtures/parity.mjs`
+        holds programs the Node runner (`fjs/nanvm/parity/proof.mjs`) and
+        `nanvm-effects-node` (`nanvm-harness/tests/parity.rs`) both perform
+        against one `expected`. Add a case there when an operation gains one.
+  - [x] `catch`, `sandbox` and `now`: the `thunks` case, over what they answer
+        rather than the clock's value.
+  - [x] `resolveFileModule` of a path: the `resolution` case. A module relative
+        to a parent URL is left out, for a file URL is spelled by platform.
+  - [ ] The rest of the scope: console, and what the corpus leaves out on
+        purpose (see its header).

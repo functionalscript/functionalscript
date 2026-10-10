@@ -58,6 +58,7 @@
  * @import { NumberPolicy } from '../parser/types.ts'
  * @import { Primitive, Unknown } from './types.ts'
  * @import { Codec } from '../serializer/types.ts'
+ * @import { Chunk } from '../../../text/marked/types.ts'
  */
 
 import { error, ok } from '../../../types/result/module.f.mjs'
@@ -95,7 +96,8 @@ const numberPolicy = value => {
  */
 export const parse = parseWith(numberPolicy)
 
-const negativeZeroSerialize = ['-0']
+/** @type {List<Chunk>} */
+const negativeZeroSerialize = [['-0', 'number']]
 
 /**
  * Spells a `number` so that reparsing it returns a `number` — never a
@@ -107,22 +109,22 @@ const negativeZeroSerialize = ['-0']
  * out as the exact token `-0`, the one bare integer the parser keeps as a
  * `number`.
  *
- * @type {(value: number) => List<string>}
+ * @type {(value: number) => List<Chunk>}
  */
 const numberSerialize = value => {
     if (is(value, -0)) { return negativeZeroSerialize }
     if (!isFinite(value)) { return nullSerialize }
     const text = `${value}`
-    return [isBareInteger(numberLexeme(text)) ? `${text}.0` : text]
+    return [[isBareInteger(numberLexeme(text)) ? `${text}.0` : text, 'number']]
 }
 
 /**
  * Spells a `bigint` as its full base-10 digits. `BigInt`'s own decimal form is
  * exactly that: no `n` suffix, and no exponent notation at any magnitude.
  *
- * @type {(value: bigint) => List<string>}
+ * @type {(value: bigint) => List<Chunk>}
  */
-const bigintSerialize = value => [`${value}`]
+const bigintSerialize = value => [[`${value}`, 'number']]
 
 /**
  * The extended codec: the `number` spelling above, and `bigint` added to the

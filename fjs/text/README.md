@@ -9,6 +9,10 @@ surrogate or above-`0x10FFFF` value the UTF-8 decoder passes through unchecked
 (gate on `isValidCodePoint` for a scalar), or an `errorMask`-tagged error value
 laid out by the error tables below.
 
+Text that says what its words are — keywords, strings, numbers — beside the
+text itself, for a page or a terminal to colour without reading it again, is
+`marked`: [`marked/README.md`](./marked/README.md).
+
 ## UTF-8
 
 Requirement: no loss for UTF8 => codepoint => UTF8

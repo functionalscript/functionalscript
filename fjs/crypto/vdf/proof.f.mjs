@@ -3,7 +3,9 @@
 import { sloth, p } from './module.f.mjs'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 import { demo, hexOfY, parseHex, parseSteps, xOf } from './demo.f.mjs'
-import { htmlToString } from '../../media/html/module.f.mjs'
+import { refusal } from '../../website/demo/module.f.mjs'
+import { concat as stringConcat } from '../../types/string/module.f.mjs'
+import { element, htmlToString } from '../../media/html/module.f.mjs'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
@@ -85,7 +87,7 @@ export const proof = {
             const invalid = { ...demo.init, steps: 'x' }
             assertEq(click(invalid, 'evaluate'), invalid)
             assertEq(click({ ...invalid, claimed: '1' }, 'verify').verdict, null)
-            assert(htmlToString(demo.view(invalid)).includes('Enter a non-negative decimal number of steps.'), invalid)
+            assert(htmlToString(demo.view(invalid)).includes(stringConcat(element(refusal('Enter a non-negative decimal number of steps.')))), invalid)
         },
         evaluate: () => {
             const schedule = assertNotNullish(demo.nextEvent)
@@ -142,30 +144,36 @@ export const proof = {
             /** @type {(claimed: string) => string} */
             const viewOf = claimed => htmlToString(demo.view(verified(claimed)))
             assertEq(verified(y).verdict, 'verified')
-            assert(viewOf(y).includes('✓ y verifies: squaring it 4 times returns x, up to sign.'), y)
+            assert(viewOf(y).includes('<p role="status" data-result="ok">✓ y verifies: squaring it 4 times returns x, up to sign.</p>'), y)
             const tampered = `${y.slice(0, -1)}${y.endsWith('0') ? '1' : '0'}`
             assertEq(verified(tampered).verdict, 'rejected')
-            assert(viewOf(tampered).includes('✗ y does not verify'), tampered)
+            assert(viewOf(tampered).includes('<p role="status" data-result="error">✗ y does not verify for this x and number of steps.</p>'), tampered)
             assertEq(verified('xyz').verdict, 'notHex')
-            assert(viewOf('xyz').includes('Enter y as hexadecimal digits.'), 'xyz')
+            assert(viewOf('xyz').includes(stringConcat(element(refusal('Enter y as hexadecimal digits.')))), 'xyz')
             assertEq(verified('').verdict, 'notHex')
             assertEq(verified(p.toString(16)).verdict, 'notBelowP')
-            assert(viewOf(p.toString(16)).includes('y must be less than the modulus p.'), 'p')
+            assert(viewOf(p.toString(16)).includes(stringConcat(element(refusal('y must be less than the modulus p.')))), 'p')
             // Verify needs no evaluation: a pasted y is checked against x and steps alone.
             assertEq(click({ ...demo.init, steps: '4', claimed: y }, 'verify').verdict, 'verified')
         },
         tooLongText: () => {
             const long = { ...demo.init, text: 'a'.repeat(Number(maxLengthBytes) + 1), claimed: '1' }
             assertEq(xOf(long.text), null)
-            assert(htmlToString(demo.view(long)).includes(`Input too long: more than ${maxLengthBytes} UTF-8 bytes.`), 'long')
+            assert(htmlToString(demo.view(long)).includes(stringConcat(element(refusal(`Input too long: more than ${maxLengthBytes} UTF-8 bytes.`)))), 'long')
             assertEq(click(long, 'evaluate'), long)
             assertEq(click(long, 'verify').verdict, null)
+            const combined = next(long, { kind: 'input', name: 'steps', value: '-' })
+            const html = htmlToString(demo.view(combined))
+            assertEq(html.split('Refused:').length - 1, 2)
+            assert(html.includes(stringConcat(element(refusal('Enter a non-negative decimal number of steps.')))), html)
+            assert(html.includes('name="evaluate"'), html)
+            assert(html.includes('name="verify"'), html)
         },
         tooLongY: () => {
             const yDigits = p.toString(16).length
             const long = { ...demo.init, claimed: '0'.repeat(yDigits + 1) }
             assertEq(click(long, 'verify').verdict, 'tooLong')
-            assert(htmlToString(demo.view(click(long, 'verify'))).includes(`Enter y with at most ${yDigits} hexadecimal digits.`), 'tooLong')
+            assert(htmlToString(demo.view(click(long, 'verify'))).includes(stringConcat(element(refusal(`Enter y with at most ${yDigits} hexadecimal digits.`)))), 'tooLong')
             assertEq(click({ ...long, claimed: '0'.repeat(yDigits) }, 'verify').verdict, 'rejected')
         },
         verifyWhileRunning: () => {

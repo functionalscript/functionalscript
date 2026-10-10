@@ -13,6 +13,9 @@
  * high bit of a `bigint`, and neither this module nor the runtime knows that:
  * one describes the work, the other times it.
  *
+ * **The listing is for inspection**, so it uses a neutral code box without
+ * a copy button.
+ *
  * @module
  *
  * @import { Sandbox, SandboxResult } from '../../effects/common/types.ts'
@@ -22,6 +25,7 @@
  * @import { DemoRow, DemoState } from './types.ts'
  */
 
+import { codeMarker } from '../../website/style/module.f.mjs'
 import { log2 } from './module.f.mjs'
 import { sandbox } from '../../effects/common/module.f.mjs'
 import { foldStep, pureOk, resultStep } from '../../effects/module.f.mjs'
@@ -486,6 +490,6 @@ export const demo = {
             ? [/** @type {const} */ (['p', state.note])]
             : state.kind === 'idle'
                 ? []
-                : [/** @type {const} */ (['pre', state.rows.map(rowText).join('\n')])]),
+                : [/** @type {const} */ (['pre', { [codeMarker]: '' }, state.rows.map(rowText).join('\n')])]),
     ],
 }

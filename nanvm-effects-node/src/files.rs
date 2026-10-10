@@ -312,9 +312,37 @@ pub fn readdir(path: &str, recursive: bool) -> Result<Vec<Dirent>, IoError> {
     .map_err(|e| failure(&e, "scandir", path))
 }
 
+/// Syncs `file` before it is closed, so an error the filesystem would report
+/// only at the close, a delayed `EIO` or `ENOSPC`, is reported: `std` discards
+/// the one `close(2)` answers, where the Node handler awaits `fh.close()`. The
+/// flush to disk is a cost the Node handler does not pay and this accepts. A file that
+/// cannot be synced at all, a pipe, a terminal or a device such as `/dev/null`,
+/// answers `EINVAL` or is unsupported, and has nothing to flush: that is not a
+/// failure. A Windows console answers
+/// `ERROR_INVALID_HANDLE`, which Rust does not categorize. The exclusive operations create a regular
+/// file, which can always be synced, so they call `sync_all` and take every
+/// error.
+fn sync(file: &File) -> io::Result<()> {
+    match file.sync_all() {
+        Err(e) if nothing_to_flush(&e) => Ok(()),
+        result => result,
+    }
+}
+
+/// What `FlushFileBuffers` answers for a console, on Windows only.
+const ERROR_INVALID_HANDLE: i32 = 6;
+
+fn nothing_to_flush(e: &io::Error) -> bool {
+    matches!(e.kind(), ErrorKind::InvalidInput | ErrorKind::Unsupported)
+        || (cfg!(windows) && e.raw_os_error() == Some(ERROR_INVALID_HANDLE))
+}
+
 /// Creates the file or truncates it.
 pub fn write_file(path: &str, data: &[u8]) -> Result<(), IoError> {
-    fs::write(path, data).map_err(|e| failure(&e, "open", path))
+    let mut file = File::create(path).map_err(|e| failure(&e, "open", path))?;
+    file.write_all(data)
+        .map_err(|e| failure(&e, "write", path))?;
+    sync(&file).map_err(|e| failure(&e, "close", path))
 }
 
 /// Writes into a file that exists, at `at`, leaving the rest as it is. An
@@ -333,12 +361,12 @@ pub fn write_bytes(path: &str, at: f64, data: &[u8]) -> Result<(), IoError> {
         .write(true)
         .open(path)
         .map_err(|e| failure(&e, "open", path))?;
-    if data.is_empty() {
-        return Ok(());
+    if !data.is_empty() {
+        file.seek(SeekFrom::Start(at))
+            .and_then(|_| file.write_all(data))
+            .map_err(|e| failure(&e, "write", path))?;
     }
-    file.seek(SeekFrom::Start(at))
-        .and_then(|_| file.write_all(data))
-        .map_err(|e| failure(&e, "write", path))
+    sync(&file).map_err(|e| failure(&e, "close", path))
 }
 
 /// A number as JavaScript spells it in a message: `NaN`, `Infinity`, and the
@@ -346,7 +374,7 @@ pub fn write_bytes(path: &str, at: f64, data: &[u8]) -> Result<(), IoError> {
 /// every digit. Otherwise it is Rust's shortest spelling, which differs from
 /// ECMAScript's only on a tie between two same-length candidates, a fractional
 /// value from about 2^50 up (`todo/js-number-spelling.md`).
-fn js_number(value: f64) -> String {
+pub fn js_number(value: f64) -> String {
     if value.is_nan() {
         "NaN".to_string()
     } else if value.is_infinite() {
@@ -395,28 +423,81 @@ fn window_refusal(at: f64, size: f64) -> Option<String> {
 /// file. A window the Node runner refuses is refused before the file is opened,
 /// with no code.
 pub fn read_bytes(path: &str, at: f64, size: f64) -> Result<Vec<u8>, IoError> {
-    if let Some(message) = window_refusal(at, size) {
-        return Err(IoError {
-            code: None,
-            message,
-        });
-    }
-    let mut file = File::open(path).map_err(|e| failure(&e, "open", path))?;
-    // An empty window reads nothing, so it asks nothing of the file either: the
-    // open still happens, but a pipe, which cannot seek, answers it as Node does.
-    if size == 0.0 {
-        return Ok(Vec::new());
-    }
+    check_window(at, size)?;
+    let file = File::open(path).map_err(|e| failure(&e, "open", path))?;
+    read_window(&file, at, size, path)
+}
+
+/// `size` bytes at `at` of an open file, fewer at its end. An empty window
+/// reads nothing, so it asks nothing of the file either: a pipe, which cannot
+/// seek, answers it as Node does.
+fn read_window(mut file: &File, at: f64, size: f64, what: &str) -> Result<Vec<u8>, IoError> {
     let mut bytes = Vec::new();
+    if size == 0.0 {
+        return Ok(bytes);
+    }
     file.seek(SeekFrom::Start(at as u64))
         .and_then(|_| file.take(size as u64).read_to_end(&mut bytes))
-        .map_err(|e| failure(&e, "read", path))?;
+        .map_err(|e| failure(&e, "read", what))?;
     Ok(bytes)
+}
+
+/// What a handle's operation answers for one that is closed.
+pub fn bad_descriptor() -> IoError {
+    refusal("EBADF", "bad file descriptor".to_string())
+}
+
+/// `open` of `fjs/effects/node/types.ts`: the file `path` names, for reading.
+/// A FIFO is refused before it is opened, `ERR_NOT_A_FILE` as for `readWhole`:
+/// a plain open of one with no writer blocks, the Node runner opens it without
+/// blocking and lets `fstat` say what it is, and `std` names no flag for that.
+pub fn open(path: &str) -> Result<File, IoError> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::FileTypeExt;
+        if fs::metadata(path).is_ok_and(|m| m.file_type().is_fifo()) {
+            return Err(refusal(
+                "ERR_NOT_A_FILE",
+                format!("{path} is a FIFO, which cannot be opened without blocking"),
+            ));
+        }
+    }
+    File::open(path).map_err(|e| failure(&e, "open", path))
+}
+
+/// `fstat`: what the open file is, as `stat` says of a name.
+pub fn fstat(file: &File) -> Result<Stat, IoError> {
+    let metadata = file
+        .metadata()
+        .map_err(|e| failure(&e, "fstat", "handle"))?;
+    Ok(Stat {
+        size: metadata.len(),
+        is_file: metadata.is_file(),
+        is_directory: metadata.is_dir(),
+    })
+}
+
+/// `pread`: the window `read_bytes` reads, through an open file. The window
+/// is checked by [`check_window`], which the Node runner does before it looks
+/// at the handle.
+pub fn pread(file: &File, at: f64, size: f64) -> Result<Vec<u8>, IoError> {
+    read_window(file, at, size, "handle")
+}
+
+/// Whether `size` bytes at `at` is a window a read may ask for.
+pub fn check_window(at: f64, size: f64) -> Result<(), IoError> {
+    match window_refusal(at, size) {
+        Some(message) => Err(IoError {
+            code: None,
+            message,
+        }),
+        None => Ok(()),
+    }
 }
 
 /// Creates `path` empty and fails if it exists (`O_CREAT|O_EXCL`). The file is
 /// synced before it is closed, so an error the filesystem would report only at
-/// the close is reported here (`todo/close-errors.md`); it is left in place, as
+/// the close is reported here; it is left in place, as
 /// the Node runner leaves it.
 pub fn create_exclusive(path: &str) -> Result<(), IoError> {
     let file = exclusive(path).map_err(|e| failure(&e, "open", path))?;
@@ -434,7 +515,7 @@ fn exclusive(path: &str) -> io::Result<File> {
 /// then synced before the file is closed, so an error the filesystem reports
 /// only at the close, a delayed `EIO` or `ENOSPC`, is reported as a failed
 /// `close`. As in the Node runner that failure does not remove the file, which
-/// is left behind, where a failed write removes it (`todo/close-errors.md`).
+/// is left behind, where a failed write removes it.
 pub fn write_exclusive(path: &str, data: &[Vec<u8>]) -> Result<(), IoError> {
     write_exclusive_with(
         path,
@@ -928,6 +1009,18 @@ mod test {
             assert!(read_bytes(&path, 0.0, 1.0).is_err());
         }
 
+        /// A FIFO is refused before it is opened, where a plain open of one
+        /// with no writer would never return.
+        #[cfg(target_os = "linux")]
+        #[test]
+        fn a_fifo_is_not_opened() {
+            use std::os::fd::AsRawFd;
+
+            let (reader, _writer) = io::pipe().unwrap();
+            let path = format!("/proc/self/fd/{}", reader.as_raw_fd());
+            assert_eq!(code_of(open(&path)), Some("ERR_NOT_A_FILE".into()));
+        }
+
         #[test]
         fn exclusive_creation() {
             let dir = Scratch::new();
@@ -1005,21 +1098,31 @@ mod test {
             assert!(error.message.contains("write"), "{}", error.message);
         }
 
-        /// A failure at the close is reported as one, and the file stays, as
-        /// the Node runner leaves it.
+        /// What a console, a pipe or a device answers to a sync is nothing to flush.
         #[test]
-        fn a_failed_close_is_reported_and_the_file_stays() {
-            let dir = Scratch::new();
-            let file = dir.at("f");
-            let error = write_exclusive_with(
-                &file,
-                |f| f.write_all(&[1, 2]),
-                |_| Err(ErrorKind::StorageFull.into()),
-            )
-            .unwrap_err();
-            assert_eq!(error.code, Some("ENOSPC".into()));
-            assert!(error.message.contains("close"), "{}", error.message);
-            assert_eq!(read_file(&file), Ok([1, 2].to_vec()));
+        fn a_console_that_cannot_be_flushed_has_nothing_to_flush() {
+            let invalid_handle = io::Error::from_raw_os_error(ERROR_INVALID_HANDLE);
+            assert_eq!(nothing_to_flush(&invalid_handle), cfg!(windows));
+            assert!(nothing_to_flush(&ErrorKind::InvalidInput.into()));
+            assert!(!nothing_to_flush(&ErrorKind::StorageFull.into()));
+        }
+
+        /// A file that cannot be synced has nothing to flush: a write to a pipe
+        /// succeeds, where `sync_all` alone would answer `EINVAL`.
+        #[cfg(target_os = "linux")]
+        #[test]
+        fn a_file_that_cannot_be_synced_is_not_a_failure() {
+            use std::os::fd::AsRawFd;
+
+            let (_reader, writer) = io::pipe().unwrap();
+            let path = format!("/proc/self/fd/{}", writer.as_raw_fd());
+            let opened = OpenOptions::new().write(true).open(&path).unwrap();
+            assert_eq!(
+                opened.sync_all().unwrap_err().kind(),
+                ErrorKind::InvalidInput
+            );
+            assert_eq!(write_file(&path, &[1]), Ok(()));
+            assert_eq!(write_bytes(&path, 0.0, &[]), Ok(()));
         }
 
         #[test]
