@@ -608,7 +608,14 @@ two parts, and each catches what the other cannot:
    (a throwaway script, not committed) found that text identical byte for
    byte to Node's `JSON.stringify` of the default for every fixture with a
    JSON form except the excepted `function-text`, so Node's text and ours
-   agree on the corpus today. In Rust the check is `Any::to_json()` against
+   agree on the corpus today. They differ in one known case, `-0`: the
+   compiler's writer spells it `-0` (its JSON output is a DataJS-flavoured
+   document), while `JSON.stringify` and `nanvm-lib`'s `to_json` both print
+   `0`. A probe of exponent forms (`1e+21`, `1e-7`), a 21-digit integer,
+   `5e-324` and U+2028 found no other difference. So the generator writes the
+   text of the value with `-0` replaced by `0`, `JSON.stringify`'s own rule, a
+   small pure function with its own proof, and `-0` is left to the graph
+   layer, which compares numbers by bits. In Rust the check is `Any::to_json()` against
    that text: `nanvm-lib`'s serializer on the compiled result, a path that
    shares nothing with the literal emitter. JSON text is also ordered, so a
    wrong property order fails here.
