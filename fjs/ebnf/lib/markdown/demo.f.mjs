@@ -19,7 +19,7 @@
 
 import { code, emphasis, entry as markdown, link, span, text } from './module.f.mjs'
 import { toData } from '../../data/module.f.mjs'
-import { toDiagrams } from '../../railroad/module.f.mjs'
+import { codePoints, toDiagrams } from '../../railroad/module.f.mjs'
 import { railroadDemo } from '../../../website/demo/railroad/module.f.mjs'
 import { assertNotNullish } from '../../../asserts/module.f.mjs'
 
@@ -43,4 +43,4 @@ export const diagrams = [
     ['link', nameOf(link)],
 ]
 
-export const demo = railroadDemo('The Markdown inline grammar of this module, drawn from its rules. Follow a track from left to right; a pill is text the input holds, and a box is another diagram — select it to go there.')(toDiagrams(ruleSet)(diagrams))
+export const demo = railroadDemo('The Markdown inline grammar of this module, drawn from its rules. Follow a track from left to right; a pill is text the input holds, and a box is another diagram — select it to go there.')(toDiagrams(codePoints)(ruleSet)(diagrams))
