@@ -20,6 +20,7 @@ use crate::{
 };
 use nanvm_lib::vm::{Any, Array, IVm, unstable::string_any};
 use std::{
+    collections::HashMap,
     fs::File,
     io::{self, ErrorKind, Read, Write},
 };
@@ -38,9 +39,12 @@ pub struct Native<R, O, E> {
     stdin: R,
     stdout: O,
     stderr: E,
-    /// The open files, by handle: a handle is an index, and a closed file
-    /// leaves its slot empty, so no handle is ever reused for another file.
-    files: Vec<Option<File>>,
+    /// The open files, by handle. A handle is the count of handles given before
+    /// it, so none is reused for another file, and a closed one is simply
+    /// absent: nothing is kept for it.
+    files: HashMap<u64, File>,
+    /// How many handles have been given.
+    opened: u64,
 }
 
 impl Native<io::Stdin, io::Stdout, io::Stderr> {
@@ -56,7 +60,8 @@ impl<R, O, E> Native<R, O, E> {
             stdin,
             stdout,
             stderr,
-            files: Vec::new(),
+            files: HashMap::new(),
+            opened: 0,
         }
     }
 
@@ -254,8 +259,9 @@ impl<R: Read, O: Write, E: Write> Native<R, O, E> {
                 arity(payload, 1)?;
                 let path = decode_string(argument(payload, 0, "path")?)?;
                 let opened = files::open(&path).map(|file| {
-                    self.files.push(Some(file));
-                    (self.files.len() - 1) as f64
+                    self.files.insert(self.opened, file);
+                    self.opened += 1;
+                    (self.opened - 1) as f64
                 });
                 Ok(answer(opened, encode_number))
             }
@@ -269,16 +275,21 @@ impl<R: Read, O: Write, E: Write> Native<R, O, E> {
                 let handle = self.handle(argument(payload, 0, "handle")?)?;
                 let offset = decode_number(argument(payload, 1, "offset")?)?;
                 let size = decode_number(argument(payload, 2, "size")?)?;
+                // The window first, as the Node runner: a closed handle with a
+                // bad window answers the window.
+                let window = files::check_window(offset, size);
                 Ok(answer(
-                    handle.and_then(|file| files::pread(file, offset, size)),
+                    window
+                        .and(handle)
+                        .and_then(|file| files::pread(file, offset, size)),
                     encode_bytes,
                 ))
             }
             "close" => {
                 arity(payload, 1)?;
-                let slot = self.slot(argument(payload, 0, "handle")?)?;
+                let handle = self.slot(argument(payload, 0, "handle")?)?;
                 // Closing twice is not an error, as `FileHandle.close()`.
-                self.files[slot] = None;
+                self.files.remove(&handle);
                 Ok(encode_ok(encode_nothing(())))
             }
             "catch" => {
@@ -303,12 +314,12 @@ impl<R: Read, O: Write, E: Write> Native<R, O, E> {
         }
     }
 
-    /// The slot a handle names. A value that is no handle this host gave is
+    /// The number a handle is. A value that is no handle this host gave is
     /// thrown, as the Node runner's `asFileHandle` does.
-    fn slot<A: IVm>(&self, handle: Any<A>) -> Result<usize, Malformed> {
+    fn slot<A: IVm>(&self, handle: Any<A>) -> Result<u64, Malformed> {
         let number = decode_number(handle)?;
-        if number.fract() == 0.0 && number >= 0.0 && number < self.files.len() as f64 {
-            Ok(number as usize)
+        if number.fract() == 0.0 && number >= 0.0 && number < self.opened as f64 {
+            Ok(number as u64)
         } else {
             Err(Malformed(format!(
                 "{} is not a file handle",
@@ -320,7 +331,7 @@ impl<R: Read, O: Write, E: Write> Native<R, O, E> {
     /// The open file a handle names, or `EBADF` for one that was closed.
     fn handle<A: IVm>(&self, handle: Any<A>) -> Result<Result<&File, IoError>, Malformed> {
         let slot = self.slot(handle)?;
-        Ok(self.files[slot].as_ref().ok_or_else(files::bad_descriptor))
+        Ok(self.files.get(&slot).ok_or_else(files::bad_descriptor))
     }
 
     /// Writes all of `data` and flushes, so that it is out when this answers.
@@ -755,9 +766,9 @@ mod test {
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
-    /// The code of an `['error', ['ioError', {code}]]` answer.
+    /// The `{code?, message}` of an `['error', ['ioError', info]]` answer.
     #[cfg(not(target_family = "wasm"))]
-    fn error_code(answer: V) -> V {
+    fn error_info(answer: V) -> V {
         let [tag, error]: [V; 2] = Array::try_from(answer)
             .unwrap()
             .into_iter()
@@ -771,7 +782,13 @@ mod test {
             .collect::<Vec<_>>()
             .try_into()
             .unwrap();
-        nanvm_lib::vm::Object::try_from(info)
+        info
+    }
+
+    /// The code of an `['error', ['ioError', {code}]]` answer.
+    #[cfg(not(target_family = "wasm"))]
+    fn error_code(answer: V) -> V {
+        nanvm_lib::vm::Object::try_from(error_info(answer))
             .unwrap()
             .own_property(&"code".into())
             .unwrap()
@@ -824,8 +841,9 @@ mod test {
             assert_eq!(directory, number(1.0));
             let stat = ok(run("fstat", vec![directory.clone()]));
             assert_eq!(member(stat, "isDirectory"), true.to_any());
-            let read = run("pread", vec![directory, number(0.0), number(1.0)]).unwrap();
+            let read = run("pread", vec![directory.clone(), number(0.0), number(1.0)]).unwrap();
             assert_eq!(error_code(read), string_any("EISDIR"));
+            assert_eq!(ok(run("close", vec![directory])), undefined());
         }
 
         assert_eq!(ok(run("close", vec![a.clone()])), undefined());
@@ -834,6 +852,13 @@ mod test {
         assert_eq!(error_code(closed), string_any("EBADF"));
         let closed = run("pread", window(0.0, 1.0)).unwrap();
         assert_eq!(error_code(closed), string_any("EBADF"));
+
+        // The window is checked before the handle, as the Node runner does.
+        let refused = run("pread", vec![a.clone(), number(-1.0), number(1.0)]).unwrap();
+        assert_eq!(
+            member(error_info(refused), "message"),
+            string_any("Offset -1 is negative")
+        );
 
         let thrown = |result: Result<V, V>| decode_string(result.unwrap_err()).unwrap();
         assert_eq!(
@@ -848,6 +873,8 @@ mod test {
             thrown(run("pread", vec![a, number(0.0)])),
             "missing argument 2, `size`"
         );
+        // Closing frees the file: nothing is kept for a handle that is closed.
+        assert_eq!(h.files.len(), 0);
         std::fs::remove_dir_all(&dir).unwrap();
     }
 

@@ -423,12 +423,7 @@ fn window_refusal(at: f64, size: f64) -> Option<String> {
 /// file. A window the Node runner refuses is refused before the file is opened,
 /// with no code.
 pub fn read_bytes(path: &str, at: f64, size: f64) -> Result<Vec<u8>, IoError> {
-    if let Some(message) = window_refusal(at, size) {
-        return Err(IoError {
-            code: None,
-            message,
-        });
-    }
+    check_window(at, size)?;
     let file = File::open(path).map_err(|e| failure(&e, "open", path))?;
     read_window(&file, at, size, path)
 }
@@ -482,15 +477,22 @@ pub fn fstat(file: &File) -> Result<Stat, IoError> {
     })
 }
 
-/// `pread`: the window `read_bytes` reads, through an open file.
+/// `pread`: the window `read_bytes` reads, through an open file. The window
+/// is checked by [`check_window`], which the Node runner does before it looks
+/// at the handle.
 pub fn pread(file: &File, at: f64, size: f64) -> Result<Vec<u8>, IoError> {
-    if let Some(message) = window_refusal(at, size) {
-        return Err(IoError {
+    read_window(file, at, size, "handle")
+}
+
+/// Whether `size` bytes at `at` is a window a read may ask for.
+pub fn check_window(at: f64, size: f64) -> Result<(), IoError> {
+    match window_refusal(at, size) {
+        Some(message) => Err(IoError {
             code: None,
             message,
-        });
+        }),
+        None => Ok(()),
     }
-    read_window(file, at, size, "handle")
 }
 
 /// Creates `path` empty and fails if it exists (`O_CREAT|O_EXCL`). The file is
