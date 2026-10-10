@@ -1,20 +1,28 @@
 /**
  * @import { FixedArray } from '../../types/array/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
- * @import { Curve } from '../secp/types.ts'
+ * @import { Curve, Point } from '../secp/types.ts'
  * @import { Sha2 } from '../sha2/types.ts'
  */
 
 import { utf8 } from '../../text/module.f.mjs'
 import { empty, msb, repeat, vec, vec8 } from '../../types/bit_vec/module.f.mjs'
 import { hmac } from '../hmac/module.f.mjs'
-import { secp192r1, secp256r1, secp384r1, secp521r1 } from '../secp/module.f.mjs'
+import { sqrt } from '../../types/prime_field/module.f.mjs'
+import { curve, secp192r1, secp256k1, secp256r1, secp384r1, secp521r1 } from '../secp/module.f.mjs'
 import { computeSync, sha224, sha256, sha384, sha512 } from '../sha2/module.f.mjs'
-import { all, computeK, fromCurve, sign } from './module.f.mjs'
-import { assertEq } from '../../asserts/module.f.mjs'
+import { all, computeK, fromCurve, sign, verify } from './module.f.mjs'
+import { assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 
 const sample = utf8("sample")
 const test = utf8("test")
+
+// Toy curves of order 5 over a field of 7, where `R.x` can reach `q` and
+// beyond: the cases a 256-bit curve hits with probability about 2^-128.
+// `y^2 = x^3 + x + 4`, whose points have `x` of 4 or 6.
+const toy4 = curve({ p: 7n, c: [4n, 1n], g: [4n, 3n], n: 5n })
+// `y^2 = x^3 + x + 1`, with a point at `x = 0`.
+const toy1 = curve({ p: 7n, c: [1n, 1n], g: [0n, 1n], n: 5n })
 
 const { concat, listToVec } = msb
 
@@ -407,12 +415,14 @@ export const proof = {
         /** @type {(p: _P) => void} */
         const check = ({ q, x, msg0, msg1 }) => {
             const a = fromCurve(q).rfc6979
+            const u = q.mul(x)(q.g)
             forEachVector((sha, { k, r, s }, m) => {
                 const k0 = computeK(a)(sha)(x)(m)
                 assertEq(k0, k, [k0.toString(16), k.toString(16)])
                 const [r0, s0] = sign(q)(sha)(x)(m)
                 assertEq(r0, r, [r0, r])
                 assertEq(s0, s, [s0, s])
+                assertEq(verify(q)(sha)(u)(m)([r, s]), true)
             }, msg0, msg1)
         }
         /** @type {{ readonly [key: string]: _P }} */
@@ -613,5 +623,65 @@ export const proof = {
         for (const v of Object.values(testVectors)) {
             check(v)
         }
-    }
+    },
+    verify: () => {
+        const c = secp256k1
+        const { nf: { p: q, neg }, g } = c
+        const x = 0xC9AFA9D845BA75166B5C215767B1D6934E50C3DB36E89B127B8A622B120F6721n
+        const u = c.mul(x)(g)
+        const v = verify(c)(sha256)
+        const sig = sign(c)(sha256)(x)(sample)
+        const [r, s] = sig
+        assertEq(v(u)(sample)(sig), true)
+        // tampered message
+        assertEq(v(u)(test)(sig), false)
+        // tampered `r` or `s`
+        assertEq(v(u)(sample)([r + 1n, s]), false)
+        assertEq(v(u)(sample)([r, s + 1n]), false)
+        // wrong public key
+        assertEq(v(c.mul(x + 1n)(g))(sample)(sig), false)
+        // `r` or `s` out of `[1, q-1]`
+        assertEq(v(u)(sample)([0n, s]), false)
+        assertEq(v(u)(sample)([q, s]), false)
+        assertEq(v(u)(sample)([r, 0n]), false)
+        assertEq(v(u)(sample)([r, q]), false)
+        // the point at infinity as the public key: without the refusal,
+        // `s = 1` and `r = x(hG) mod q` would verify any message.
+        const h = all(q).bits2intModQ(computeSync(sha256)([sample]))
+        const hg = assertNotNullish(c.mul(h)(g), 'hG === null')
+        assertEq(v(null)(sample)([hg[0] % q, 1n]), false)
+        // a key off the curve, built for one message: with `[r, s] = [1, 1]`,
+        // `X = hG + u`, and `u = (2, y)` is chosen so that `X.x = 1`. The
+        // addition formulas do not check the curve, so only refusing `u`
+        // stops the forgery.
+        const { pf } = c
+        const [a, b] = hg
+        const t = assertNotNullish(sqrt(pf)(pf.add(1n)(pf.add(a)(2n))), 'no t')
+        /** @type {Point} */
+        const forged = [2n, pf.sub(b)(pf.mul(t)(pf.sub(a)(2n)))]
+        assertEq(assertNotNullish(c.add(hg)(forged), 'X === null')[0], 1n)
+        assertEq(v(forged)(sample)([1n, 1n]), false)
+        // a key on the curve with `n·u = O`, but outside the subgroup of `g`:
+        // on `y^2 = x^3 + 6x` over 7 with `g = (0, 0)` and `n = 2`, `(1, 0)`
+        // made `[1, 1]` verify message "8".
+        const c2 = curve({ p: 7n, c: [0n, 6n], g: [0n, 0n], n: 2n })
+        assertEq(verify(c2)(sha256)([1n, 0n])(utf8("8"))([1n, 1n]), false)
+        // `(h/s)G + (r/s)U` is the point at infinity when `h + x*r = 0 mod q`:
+        // with `r = 1`, the key `x = -h` gets there for any `s`.
+        assertEq(v(c.mul(neg(h))(g))(sample)([1n, 1n]), false)
+    },
+    signModQ: () => {
+        // `R = 2G = (6, 4)`, so `R.x = 6 >= q`: `r` is `6 mod 5 = 1`, and
+        // `verify` accepts it.
+        const sig = sign(toy4)(sha256)(1n)(utf8("2"))
+        assertEq(sig[0], 1n)
+        assertEq(sig[1], 1n)
+        assertEq(verify(toy4)(sha256)(toy4.g)(utf8("2"))(sig), true)
+    },
+    throw: {
+        // `R = G = (0, 1)`, so `r = 0`.
+        signRZero: () => sign(toy1)(sha256)(1n)(utf8("0")),
+        // `h + x*r = 0 mod q`, so `s = 0`.
+        signSZero: () => sign(toy4)(sha256)(1n)(utf8("14")),
+    },
 }

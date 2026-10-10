@@ -109,6 +109,44 @@ export const eq = a => b => {
 }
 
 /**
+ * Whether `u` is a valid public key of the curve `c`, as SEC 1 §3.2.2.1
+ * validates one: not the point at infinity, coordinates in `[0, p-1]`, on
+ * the curve, and `n·u = O`. Formulas over any other pair of coordinates still
+ * compute, but mean nothing, so a key from outside must pass this before it
+ * is used.
+ *
+ * `n·u = O` shows that `u` is in the subgroup `g` generates only when that
+ * subgroup holds every point of order `n`. For a prime `n`, as ECDSA
+ * requires, the points with `n·u = O` number `1`, `n` or `n²`. Hasse's bound
+ * puts at most `p + 1 + 2√p` points on the curve; when `n²` exceeds it, `n²`
+ * cannot divide the curve's order, so the curve has no other point of order
+ * `n`. A composite `n` gives no such guarantee: on `y² = x³ + 3x` over 7 with
+ * `g = (1, 2)` and `n = 4`, `(3, 1)` passes outside `⟨g⟩`. `n` is not tested
+ * for primality, as `p` is not either.
+ * For a curve where `n²` does not exceed it, such as `y² = x³ + 6x` over 7
+ * with `g = (0, 0)` and `n = 2`, where `(1, 0)` is a second point of order
+ * 2, the test proves nothing, and every key is refused. The named curves
+ * below all have cofactor 1: `n` is close to the curve's order, and `n²`
+ * exceeds the bound by far.
+ *
+ * @type {(c: Curve) => (u: Point) => boolean}
+ */
+export const isPublicKey = ({ pf: { p, pow2 }, nf: { p: n }, y2, mul }) => {
+    // `n² > p + 1 + 2√p`, in integers: `d = n² - p - 1 > 0` and `d² > 4p`.
+    const d = n * n - p - 1n
+    const nTorsionIsSubgroup = d > 0n && d * d > 4n * p
+    /** @type {(v: bigint) => boolean} */
+    const inField = v => 0n <= v && v < p
+    return u => {
+        if (!nTorsionIsSubgroup || u === null) {
+            return false
+        }
+        const [x, y] = u
+        return inField(x) && inField(y) && pow2(y) === y2(x) && mul(n)(u) === null
+    }
+}
+
+/**
  * https://neuromancer.sk/std/secg/secp192r1
  * NIST P-192
  */
