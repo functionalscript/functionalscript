@@ -32,8 +32,7 @@ output whether a copy button is useful. `codeMarker` and `resultMarker`
 already connect the markup to the stylesheet, with proofs pinning their
 literal names and the code block and refusal shapes.
 
-The remaining two subtasks will land in separate pull requests from the
-lead and caption migration. Check affected demos in the browser and put
+The remaining output-box subtask will land in its own pull request. Check affected demos in the browser and put
 their branch preview links in each description.
 
 ### Tasks

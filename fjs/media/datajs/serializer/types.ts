@@ -15,6 +15,7 @@
  */
 
 import type { List } from '../../../types/list/types.ts'
+import type { Chunk } from '../../../text/marked/types.ts'
 import type { Result } from '../../../types/result/types.ts'
 import type { Primitive } from '../types.ts'
 
@@ -64,4 +65,4 @@ export type _Graph<L = Primitive> = {
  * written under, or the leaf itself for a DataJS document, which spells it
  * once the graph is linked.
  */
-export type _Leaf<L = List<string>> = (value: Primitive) => Result<L, string>
+export type _Leaf<L = List<Chunk>> = (value: Primitive) => Result<L, string>
