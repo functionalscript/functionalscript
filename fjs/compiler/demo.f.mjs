@@ -36,6 +36,7 @@ import { emptyState, nodeProgramOptions, virtual } from '../effects/node/virtual
 import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { error, ok } from '../types/result/module.f.mjs'
 import { textDemo, refusal } from '../website/demo/module.f.mjs'
+import { highlight } from '../website/demo/highlight/module.f.mjs'
 import { examples } from './examples/module.f.js'
 import { compile, outputText } from './module.f.mjs'
 import { assertNotNullish } from '../asserts/module.f.mjs'
@@ -83,5 +84,5 @@ export const demo = textDemo({
         pureOk(kind === 'error' ? error(value.message) : value))
     const [, result] = virtual({ ...emptyState, root: { 'input.f.js': [utf8(text)] } })(output)
     const [kind, value] = unwrap(result)
-    return ['section', ['h3', label], kind === 'ok' ? ['pre', { [codeMarker]: '' }, value] : refusal(value)]
+    return ['section', ['h3', label], kind === 'ok' ? ['pre', { [codeMarker]: '' }, ...(outputFileName.endsWith('.rs') ? [value] : highlight(value))] : refusal(value)]
 }))

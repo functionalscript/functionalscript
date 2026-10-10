@@ -24,6 +24,7 @@
 import { codeMarker } from '../../website/style/module.f.mjs'
 import { error } from '../../types/result/module.f.mjs'
 import { textDemo, refusal, caption } from '../../website/demo/module.f.mjs'
+import { highlight } from '../../website/demo/highlight/module.f.mjs'
 import { unresolved } from '../edag/module.f.mjs'
 import { examples } from '../examples/module.f.js'
 import { parse } from '../transpiler/module.f.mjs'
@@ -48,6 +49,6 @@ export const demo = textDemo({
 })(text => {
     const [kind, value] = _sourceOf(text)
     return kind === 'ok'
-        ? [caption('JavaScript module:'), ['pre', { [codeMarker]: '' }, value]]
+        ? [caption('JavaScript module:'), ['pre', { [codeMarker]: '' }, ...highlight(value)]]
         : [refusal(value)]
 })

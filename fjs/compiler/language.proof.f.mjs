@@ -386,6 +386,61 @@ export const proof = {
             assertEq(compileSource('export default -[1];')('output.edag.data.js'), 'export default ["{}",[[":","default",["-",["[]",[1]]]]]];')
         },
     },
+    // The reserved `String` call reaches the EDAG's represented conversion.
+    // Value outputs execute it; source, EDAG and Rust outputs preserve it.
+    stringConversion: {
+        primitives: () => {
+            const values = /** @type {const} */ ([null, undefined, true, false, 0, -0, 1.5, NaN, Infinity, -Infinity, 42n, -123456789012345678901234567890n, 'already'])
+            /** @type {string} */
+            const source = 'export default [String(), String(null), String(undefined), String(true), String(false), String(0), String(-0), String(1.5), String(NaN), String(Infinity), String(-Infinity), String(42n), String(-123456789012345678901234567890n), String("already")];'
+            const expected = JSON.stringify(['', ...values.map(value => String(value))])
+            assertEq(compileSource(source)('output.json'), expected)
+            assertEq(compileSource(source)('output.data.js'), `export default ${expected};`)
+        },
+        containers: () => {
+            const values = /** @type {const} */ ([[], [1, [2, 3], null, undefined], {}, { a: 1 }])
+            assertEq(
+                compileSource('export default [String([]), String([1, [2, 3], null, undefined]), String({}), String({ a: 1 })];')('output.json'),
+                JSON.stringify(values.map(value => String(value))))
+        },
+        // The string hint calls toString first, with no arguments, and only
+        // tries valueOf after a nonprimitive result or a noncallable method.
+        ownMethods: () => {
+            assertEq(compileSource('export default [String({ toString: () => "t", valueOf: () => { throw "unreached"; } }), String({ valueOf: () => { throw "unreached"; } }), String({ toString: () => ({}), valueOf: () => 7n }), String({ toString: 0, valueOf: () => true }), String([{ toString: () => "x" }, 1]), String({ toString: (...a) => a.length })];')('output.json'), '["t","[object Object]","7","true","x,1","0"]')
+            assertEq(compileSource('const s = "captured"; export default String({ toString: () => s });')('output.json'), '"captured"')
+        },
+        failure: () => {
+            for (const operand of ['{ toString: 1 }', '{ toString: () => ({}), valueOf: () => [] }', '{ toString: () => { throw "boom"; }, valueOf: () => 1 }']) {
+                assertEq(moduleRefused(`export default String(${operand});`), 'input.f.js - error: module initialization failed')
+            }
+        },
+        // Function text is EDAG-derived code; it does not embed captures.
+        functionText: () => {
+            assertEq(compileSource('export default [String(() => 1), String([() => 1, 2])];')('output.json'), '["()=>1","()=>1,2"]')
+            assertEq(compileSource('const make = (x) => () => x; export default [String(make(1)), String(make(2))];')('output.json'), '["()=>$0","()=>$0"]')
+        },
+        outputs: () => {
+            assertEq(compileSource('export default String();')('output.js'), 'export default "";')
+            assertEq(compileSource('export default String(1);')('output.js'), 'export default String(1);')
+            assertEq(compileSource('export default String(1);')('output.edag.data.js'), 'export default ["{}",[[":","default",["String",1]]]];')
+            assert(compileSource('export default String(1);')('output.rs').includes('f64_any(0x3ff0000000000000).to_string().map(|v| v.to_any())'))
+        },
+        sourceRoundTrip: () => {
+            fjsRoundTrip('export default String(Number("2") + 1).length;')
+            fjsRoundTrip('const s = {}; export default (x) => () => String(x ? s : "no");')
+            assertEq(compileSource('const make = (x) => () => String(x ? 7 : false); export default [make(true)(), make(false)()];')('output.json'), '["7","false"]')
+        },
+        refused: () => {
+            assertEq(moduleRefused('export default String(1, 2);'), 'input.f.js:1:16 - error: String takes one argument')
+            assertEq(moduleRefused('export default String(...[1]);'), 'input.f.js:1:16 - error: String takes one argument')
+            assertEq(moduleRefused('const String = 1; export default 2;'), 'input.f.js:1:7 - error: reserved word')
+            assertEq(moduleRefused('export default String;'), 'input.f.js:1:16 - error: reserved word')
+            assertEq(moduleRefused('export default String.fromCharCode(65);'), 'input.f.js:1:16 - error: reserved word')
+            assertEq(moduleRefused('export default [1][String(0)];'), 'input.f.js:1:20 - error: computed key is not Number(...)')
+            // A property named String is an ordinary own property.
+            assertEq(compileSource('export default { String: (x) => x + 1 }.String(2);')('output.json'), '3')
+        },
+    },
     // Negative zero end to end: the tokenizer pins the `-0` lexeme,
     // `parseFloat` keeps the sign, and the serializer writes it back as
     // `-0` — where `String(-0)` is `"0"`, which is why only `Object.is` can

@@ -26,6 +26,7 @@ import { codeMarker } from '../../website/style/module.f.mjs'
 import { tryStringify } from '../../media/datajs/module.f.mjs'
 import { error } from '../../types/result/module.f.mjs'
 import { textDemo, refusal, caption } from '../../website/demo/module.f.mjs'
+import { highlight } from '../../website/demo/highlight/module.f.mjs'
 import { examples } from '../examples/module.f.js'
 import { parse } from '../transpiler/module.f.mjs'
 
@@ -48,6 +49,6 @@ export const demo = textDemo({
 })(text => {
     const [kind, value] = _astOf(text)
     return kind === 'ok'
-        ? [caption('Abstract syntax tree, DataJS:'), ['pre', { [codeMarker]: '' }, value]]
+        ? [caption('Abstract syntax tree, DataJS:'), ['pre', { [codeMarker]: '' }, ...highlight(value)]]
         : [refusal(value)]
 })

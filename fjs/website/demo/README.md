@@ -139,6 +139,12 @@ sharing. Use [`examples`](./examples/module.f.mjs), through
   [`rtti/demo.f.mjs`](../../rtti/demo.f.mjs)). A result that is simply what
   the module computed — a digest, an AST, a generated module — stays
   neutral: green there would claim a check nobody made.
+- **Code in a language the tokenizer reads is highlighted**: a result in
+  JavaScript, JSON or DataJS goes through
+  [`highlight`](./highlight/module.f.mjs), which wraps keywords, literals,
+  strings, numbers and comments in a `span` marked `data-token` and leaves
+  the text itself unchanged. A text the tokenizer refuses, and code in
+  another language such as Rust, stays plain.
 - How each marker looks is the stylesheet's, with its reasons, in
   [`../style/module.f.mjs`](../style/module.f.mjs); this file names the
   markers, not the colours.
