@@ -11,10 +11,10 @@ words after each pass. [`radix.rs`](../src/vm/bigint/radix.rs)'s
 `to_radix_string` does the same with the base `chunk(radix)` answers, and
 its doc says so: "as `Display` divides by `10¹⁹`". The loop — `(remainder
 << 64) | word`, divide, take the remainder, `while words.last() ==
-Some(&0) { words.pop() }` — is written in both, and `chunk(10)` is
+Some(&0) { words.pop() }` — is written in each, and `chunk(10)` is
 `DECIMAL_BASE` under another name, as the `chunks` test asserts.
 
-The tests already pin the two to one another: `radixes` asserts that
+The tests already pin these paths to one another: `radixes` asserts that
 `to_radix_string(10)` equals `to_string()`.
 
 ### Proposal
@@ -26,7 +26,7 @@ replaced by `chunk(10)`.
 
 ### Tasks
 
-- [ ] Extract the loop; both callers onto it; `cargo test`, `cargo
+- [ ] Extract the loop; the named callers onto it; `cargo test`, `cargo
       clippy`, `cargo fmt -- --check`.
 
 ### Related

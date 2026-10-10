@@ -7,7 +7,7 @@
 
 [`fjs/text/code_point`](../code_point/module.f.mjs) exports
 `isHighSurrogate` and `isLowSurrogate` over named bounds, and keeps a
-private `isSurrogate` over the whole block. Two modules answer the same
+private `isSurrogate` over the whole block. Other modules answer the same
 questions with constants of their own:
 
 - [`fjs/effects/node`](../../effects/node/module.f.mjs) defines private
@@ -20,7 +20,7 @@ questions with constants of their own:
   re-derives [`fjs/text/utf16`](../utf16/module.f.mjs)'s `stringToList`
   with `charCodeAt` over an index range.
 
-A Unicode constant written twice is a constant that drifts, and the rules
+A Unicode constant written more than once is a constant that drifts, and the rules
 [non-integer-code-points](./non-integer-code-points.md) will settle for
 `code_point`'s predicates will not reach the copies.
 

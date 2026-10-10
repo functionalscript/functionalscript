@@ -7,14 +7,14 @@
 
 [`nanvm-lib`](../../nanvm-lib/src/vm/string/from.rs) implements
 `From<String<A>> for std::string::String`, documented as lossy: a lone
-surrogate becomes U+FFFD. Two places write the same conversion again,
+surrogate becomes U+FFFD. Other places write the same conversion again,
 collecting the code units into a `Vec<u16>` and calling
 `String::from_utf16_lossy`:
 
 - `decode_string` in [`codec.rs`](../src/codec.rs);
 - `names` in the harness's [`parity.rs`](../../nanvm-harness/tests/parity.rs).
 
-Both are lossy in the same way, so each is the library's conversion with an
+Each is lossy in the same way, so each is the library's conversion with an
 intermediate vector and a `SizedIndex` import it does not need.
 
 ### Proposal
@@ -25,5 +25,5 @@ entry.
 
 ### Tasks
 
-- [ ] Both sites onto the `From` impl; `cargo test`, `cargo clippy`,
+- [ ] The listed sites onto the `From` impl; `cargo test`, `cargo clippy`,
       `cargo fmt -- --check`.

@@ -6,7 +6,7 @@
 ### Problem
 
 Several generators under `fjs/nanvm` and `fjs/compiler` write Rust items by
-hand, line by line, and the same three items are spelled at each:
+hand, line by line, and the same few items are spelled at each:
 
 - **A `const` slice.** [`commands`](../commands/module.f.mjs)'s `generate`,
   [`methods`](../methods/module.f.mjs)'s `table` and

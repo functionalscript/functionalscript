@@ -38,9 +38,9 @@ stage and its view.
 ### Tasks
 
 - [ ] Add the three helpers with a proof at 100%.
-- [ ] Move the six pages onto them, with the `edag` page's `{ ok, error }`
+- [ ] Move every stage page onto them, with the `edag` page's `{ ok, error }`
       record becoming a `Result` like the others.
-- [ ] `tsc`, `fjs test`, `npm run cov` at 100%; check the six pages in the
+- [ ] `tsc`, `fjs test`, `npm run cov` at 100%; check each page in the
       browser.
 
 ### Related
