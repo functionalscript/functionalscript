@@ -34,8 +34,8 @@ export const proof = {
         const author = toArray(p.headers[3][1])
         const committer = toArray(p.headers[4][1])
         assertStructurallySame(text(read(author)),
-            ['Sergey Shandar', 'sergey-shandar@users.noreply.github.com', 1789011254n, '+0000'])
-        assertStructurallySame(text(read(committer)), ['GitHub', 'noreply@github.com', 1789011254n, '+0000'])
+            ['Sergey Shandar', 'sergey-shandar@users.noreply.github.com', 1_789_011_254n, '+0000'])
+        assertStructurallySame(text(read(committer)), ['GitHub', 'noreply@github.com', 1_789_011_254n, '+0000'])
         roundTrip(author)
         roundTrip(committer)
     },
@@ -54,7 +54,7 @@ export const proof = {
     // up to the latest Git can hold; one second later is refused.
     bigTime: () => {
         const i = read(latin1(`a <b> ${maxTime} +0000`))
-        assertEq(i.time, 9223372036854775807n)
+        assertEq(i.time, 9_223_372_036_854_775_807n)
         roundTrip(latin1(`a <b> ${maxTime} +0000`))
         assertEq(tryRead(latin1(`a <b> ${maxTime + 1n} +0000`)), null)
         // A time of many digits is refused for its length or its spelling

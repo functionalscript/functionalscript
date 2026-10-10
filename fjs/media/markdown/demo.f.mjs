@@ -26,7 +26,7 @@
  * @import { Entry, Inline } from './types.ts'
  */
 
-import { textDemo } from '../../website/demo/module.f.mjs'
+import { textDemo, refusal } from '../../website/demo/module.f.mjs'
 import { tryParse } from './module.f.mjs'
 
 /**
@@ -62,6 +62,7 @@ const entryView = entry => ['li', ['ul', ...entry.map(spanView)]]
  * @type {Demo<string, DemoEvent>}
  */
 export const demo = textDemo({
+    intro: 'Parses a changelog release file into Markdown spans. Each span shows its kind and its rendered content, so you can compare what the parser reads with how it looks.',
     name: 'changelog',
     label: 'A release file',
     init: [
@@ -75,6 +76,6 @@ export const demo = textDemo({
 })(text => {
     const parsed = tryParse(text)
     return [parsed[0] === 'error'
-        ? ['p', `Error: ${parsed[1]}`]
+        ? refusal(parsed[1])
         : ['ol', ...parsed[1].map(entryView)]]
 })

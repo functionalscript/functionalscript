@@ -216,9 +216,9 @@ export const proof = {
     // A graph nested as deep as a corpus vector allows is compared without
     // the call stack, and a difference at the bottom is found there.
     deep: () => {
-        same(nested(5000, 1), nested(5000, 1))
-        differ(nested(5000, 1), nested(5000, 2), `at $${'[0]'.repeat(5000)}: expected 1, got 2`)
-        differ(nested(5000, 1), nested(4999, [1, 1]), `at $${'[0]'.repeat(4999)}: expected 1 elements, got 2`)
+        same(nested(5_000, 1), nested(5_000, 1))
+        differ(nested(5_000, 1), nested(5_000, 2), `at $${'[0]'.repeat(5000)}: expected 1, got 2`)
+        differ(nested(5_000, 1), nested(4_999, [1, 1]), `at $${'[0]'.repeat(4999)}: expected 1 elements, got 2`)
     },
     // A difference is the first in document order: an earlier member's
     // before a later one's, and a container's shape before its members.

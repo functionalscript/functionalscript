@@ -264,18 +264,18 @@ destructuring eight, more than any other feature.
 
 #### Leaf escape normalization
 
-A fresh audit of the authored implementation modules at `40e196a51` finds
+An audit of the authored implementation modules at `40e196a51` found
 16 `.f.mjs` leaves: modules with no runtime import or re-export of another
 `.f.mjs`. Type-only JSDoc imports do not count. Proofs retain their extension;
 `emergent_testing/example.f.mjs` is a test example rather than an implementation
-module and is excluded. `js/array_index` and `types/set` now import other
-`.f.mjs` modules, so they are no longer leaves. The eighteen-row table above
-records the earlier dependency graph.
+module and is excluded. At that revision, `js/array_index` and `types/set`
+imported other `.f.mjs` modules, so they were no longer leaves. The eighteen-row
+table above records the earlier dependency graph.
 
-Every current leaf still fails the current compiler. The table gives its
-first reported refusal after escape normalization, rather than a complete
-list of blockers; the historical feature analysis above remains useful for
-the other restrictions.
+At `7d8c3991`, all 16 leaves still fail the compiler from that same revision.
+The table gives each first reported refusal after escape normalization, rather
+than a complete list of blockers; the historical feature analysis above
+remains useful for the other restrictions.
 
 | Leaf (`fjs/…/module.f.mjs`) | First refusal (line:column) |
 | --- | --- |
@@ -297,7 +297,8 @@ the other restrictions.
 | `website/style` | template literal, 95:27 |
 
 Unsupported string escapes in these leaves have supported, value-preserving
-spellings, so they need no new language feature:
+spellings, so they need no new language feature. The replacement counts and
+source positions below are measured at `7d8c3991`:
 
 | Replacement | Where | Occurrences |
 | --- | --- | ---: |

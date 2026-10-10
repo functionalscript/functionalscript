@@ -80,22 +80,22 @@ mod tests {
 
     #[test]
     fn two_to_the_53() {
-        assert_eq!(pos(&[1 << 53]), 9007199254740992.0);
+        assert_eq!(pos(&[1 << 53]), 9_007_199_254_740_992.0);
         // 2^53 + 1 is a tie between 2^53 and 2^53 + 2: the even one.
-        assert_eq!(pos(&[(1 << 53) + 1]), 9007199254740992.0);
+        assert_eq!(pos(&[(1 << 53) + 1]), 9_007_199_254_740_992.0);
         // 2^53 + 3 is a tie too, and the even significand is the upper one.
-        assert_eq!(pos(&[(1 << 53) + 3]), 9007199254740996.0);
+        assert_eq!(pos(&[(1 << 53) + 3]), 9_007_199_254_740_996.0);
     }
 
     #[test]
     fn sticky_bits_break_a_tie() {
         // 2^64 + 2^11 is half way between 2^64 and 2^64 + 2^12: a tie, even
         // is 2^64. One more bit anywhere below goes up.
-        let two_64 = 18446744073709551616.0;
+        let two_64 = 18_446_744_073_709_551_616.0;
         assert_eq!(pos(&[1 << 11, 1]), two_64);
-        assert_eq!(pos(&[(1 << 11) + 1, 1]), two_64 + 4096.0);
+        assert_eq!(pos(&[(1 << 11) + 1, 1]), two_64 + 4_096.0);
         // The same with the extra bit two words down.
-        assert_eq!(pos(&[1, 1 << 11, 1]), two_64 * two_64 + two_64 * 4096.0);
+        assert_eq!(pos(&[1, 1 << 11, 1]), two_64 * two_64 + two_64 * 4_096.0);
         assert_eq!(pos(&[0, 1 << 11, 1]), two_64 * two_64);
     }
 
@@ -103,11 +103,14 @@ mod tests {
     fn several_words() {
         // 123456789012345678901234567890n
         assert_eq!(
-            pos(&[0xC373E0EE4E3F0AD2, 0x18EE90FF6]),
-            123456789012345678901234567890.0
+            pos(&[0xC373_E0EE_4E3F_0AD2, 0x1_8EE9_0FF6]),
+            123_456_789_012_345_678_901_234_567_890.0
         );
-        assert_eq!(pos(&[0, 1]), 18446744073709551616.0);
-        assert_eq!(pos(&[0, 0, 1]), 340282366920938463463374607431768211456.0);
+        assert_eq!(pos(&[0, 1]), 18_446_744_073_709_551_616.0);
+        assert_eq!(
+            pos(&[0, 0, 1]),
+            340_282_366_920_938_463_463_374_607_431_768_211_456.0
+        );
     }
 
     #[test]
@@ -115,7 +118,7 @@ mod tests {
         // 2^1023 words: bit 1023 is bit 63 of word 15.
         let mut words = vec![0u64; 16];
         words[15] = 1 << 63;
-        assert_eq!(pos(&words), 2f64.powi(1023));
+        assert_eq!(pos(&words), 2f64.powi(1_023));
         // Just under 2^1024 rounds up to it: Infinity.
         let all = vec![u64::MAX; 16];
         assert_eq!(pos(&all), f64::INFINITY);

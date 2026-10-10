@@ -62,10 +62,10 @@ const parity = (b, c, d) => b ^ c ^ d
  * @type {readonly (readonly [(b: bigint, c: bigint, d: bigint) => bigint, bigint])[]}
  */
 const stages = [
-    [ch, 0x5a827999n],
-    [parity, 0x6ed9eba1n],
-    [maj, 0x8f1bbcdcn],
-    [parity, 0xca62c1d6n],
+    [ch, 0x5a82_7999n],
+    [parity, 0x6ed9_eba1n],
+    [maj, 0x8f1b_bcdcn],
+    [parity, 0xca62_c1d6n],
 ]
 
 const roundsPerStage = /** @type {const} */ (20)
@@ -167,6 +167,6 @@ export const sha1 = framed(
         compress,
         digest: fromWords(wordLength),
     },
-    [0x67452301n, 0xefcdab89n, 0x98badcfen, 0x10325476n, 0xc3d2e1f0n],
+    [0x6745_2301n, 0xefcd_ab89n, 0x98ba_dcfen, 0x1032_5476n, 0xc3d2_e1f0n],
     hashLength,
 )

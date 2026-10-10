@@ -77,11 +77,11 @@ const concat = e => r => () => {
 export const proof = {
     fromSentinel: () => {
         // Two data bytes; the leading 0x1 nibble is the sentinel, stripped out.
-        const v = fromSentinel(0x1_89_50n)
+        const v = fromSentinel(0x1_8950n)
         assertEq(length(v), 16n)
         assertEq(uint(v), 0x8950n)
         // Leading zero bytes survive because the sentinel pins the length.
-        const z = fromSentinel(0x1_00_05n)
+        const z = fromSentinel(0x1_0005n)
         assertEq(length(z), 16n)
         assertEq(uint(z), 0x0005n)
         // A bare sentinel yields the empty vector.
@@ -237,8 +237,8 @@ export const proof = {
         if (s !== 16n) { throw `appendBack: ${s}` }
     },
     removeBack: () => {
-        const v = vec(17n)(0x12345n)
-        assertEq(v, unsafeVec(0x12345n), (asBase(v)).toString(16))
+        const v = vec(17n)(0x1_2345n)
+        assertEq(v, unsafeVec(0x1_2345n), (asBase(v)).toString(16))
         const r = lsb.removeFront(9n)(v)
         assertEq(r, unsafeVec(0x91n), (asBase(r)).toString(16))
     },
@@ -403,7 +403,7 @@ export const proof = {
         c(vec(4n)(0x7n))(vec(8n)(0x12n))(vec(8n)(0x70n ^ 0x12n))
     },
     repeat: () => {
-        assertEq(repeat(4n)(vec8(0xA5n)), vec(32n)(0xA5A5A5A5n), 'repeat failed')
+        assertEq(repeat(4n)(vec8(0xA5n)), vec(32n)(0xA5A5_A5A5n), 'repeat failed')
         assertEq(repeat(7n)(vec(5n)(0x13n)), vec(35n)(0b10011_10011_10011_10011_10011_10011_10011n), 'repeat failed')
     },
     lsbCmp: () => {
@@ -468,7 +468,7 @@ export const proof = {
         const bytes = [0x12, 0x34, 0x56]
         const v = u8ListToVecMsb(bytes)
         assertEq(v, u8ListToVec(msb)(bytes))
-        assertEq(v, vec(24n)(0x123456n))
+        assertEq(v, vec(24n)(0x12_3456n))
         assertStructurallySame(toArray(u8ListMsb(v)), bytes)
         // not an inverse off whole bytes: the partial byte is zero-padded
         const ragged = toArray(u8ListMsb(vec(9n)(0x83n)))

@@ -104,7 +104,7 @@ export const proof = {
         assert(is(exported('-0e0'), -0))
         assert(is(exported('0.0'), 0))
         assert(is(exported('-1e-999'), -0))
-        assertEq(exported('1000000000000000128'), 1000000000000000100)
+        assertEq(exported('1000000000000000128'), 1_000_000_000_000_000_100)
         assertEq(exported('5e-324'), 5e-324)
         assertEq(exported('1e999'), Infinity)
         assertEq(exported('-1e999'), -Infinity)
@@ -119,8 +119,8 @@ export const proof = {
         assert(!is(exported('-0n'), -0))
         assertEq(exported('9n'), 9n)
         assertEq(exported('-34n'), -34n)
-        assertEq(exported('123456789012345678901234567890n'), 123456789012345678901234567890n)
-        assertEq(exported('-123456789012345678901234567890n'), -123456789012345678901234567890n)
+        assertEq(exported('123456789012345678901234567890n'), 123_456_789_012_345_678_901_234_567_890n)
+        assertEq(exported('-123456789012345678901234567890n'), -123_456_789_012_345_678_901_234_567_890n)
     },
     // A string is JSON's, unchanged: its escapes decoded, and the alphabet
     // code units, so a lone surrogate is one unit in and one out, raw or
@@ -309,18 +309,18 @@ export const proof = {
     // consts each naming the one before, 6000 sibling containers and an
     // array of 12000 items.
     deep: () => {
-        const n = /** @type {const} */ (5000)
+        const n = /** @type {const} */ (5_000)
         /** @type {(depth: number, v: Unknown) => number} */
         const depthOf = (depth, v) => v instanceof Array && v.length === 1 ? depthOf(depth + 1, v[0]) : depth
         assertEq(depthOf(0, exported('['.repeat(n) + ']'.repeat(n))), n - 1)
         const bottom = parsed(`const $0=[];export default ${'['.repeat(n)}$0${']'.repeat(n)};`)
         assertEq(depthOf(0, bottom), n)
-        const s = /** @type {const} */ (6000)
+        const s = /** @type {const} */ (6_000)
         const chain = parsed(Array.from({ length: s }, (_, i) => `const $${i}=[${i === 0 ? '' : `$${i - 1}`}];`).join('') + `export default $${s - 1};`)
         assertEq(depthOf(0, chain), s - 1)
         assertEq(asArray(exported(`[${Array(s).fill('{}').join(',')}]`)).length, s)
         assertEq(keys(asObject(exported(`{${Array.from({ length: s }, (_, i) => `"k${i}":[]`).join(',')}}`))).length, s)
-        const m = /** @type {const} */ (12000)
+        const m = /** @type {const} */ (12_000)
         const wide = asArray(exported(`[${Array.from({ length: m }, (_, i) => i).join(',')}]`))
         assertEq(wide.length, m)
         assertEq(wide[m - 1], m - 1)

@@ -21,7 +21,7 @@ export const proof = {
     commit: () => {
         const object = toArray(write('commit', commitPayload))
         assertStructurallySame(object.slice(0, 12), latin1('commit 3285\0'))
-        assertEq(object.length, 12 + 3285)
+        assertEq(object.length, 12 + 3_285)
         const e = read(object)
         assertEq(e.type, 'commit')
         assertStructurallySame(toArray(e.payload), commitPayload)
@@ -48,7 +48,7 @@ export const proof = {
         assertEq(tryType(latin1('blobs')), null)
         assertEq(tryType(latin1('blo')), null)
         assertEq(tryType(latin1('Blob')), null)
-        assertEq(tryType([0x110062, 0x11006c, 0x11006f, 0x110062]), null)
+        assertEq(tryType([0x11_0062, 0x11_006c, 0x11_006f, 0x11_0062]), null)
         assertEq(tryType([0x162, 0x16c, 0x16f, 0x162]), null)
     },
     // The payload is sliced, not read: any byte may follow the NUL.

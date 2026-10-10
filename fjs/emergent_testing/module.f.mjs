@@ -113,7 +113,7 @@ const emptyEntries = []
  * @type {(digits: number) => (ms: number) => string}
  */
 export const formatDuration = digits => ms =>
-    ms < 1000 ? `${ms.toFixed(digits)} ms` : `${(ms / 1000).toFixed(digits)} s`
+    ms < 1_000 ? `${ms.toFixed(digits)} ms` : `${(ms / 1000).toFixed(digits)} s`
 
 /** The terminal's {@link formatDuration}. */
 const terminalDuration = formatDuration(4)

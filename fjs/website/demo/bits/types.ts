@@ -59,10 +59,12 @@ export type BitGroups = {
 }
 
 /**
- * What `bitGroupDemo` needs: the codec's name and a line on how it cuts the
- * bits, its scheme, and its encoder.
+ * What `bitGroupDemo` needs: its introductory paragraph, the codec's name,
+ * a line on how it cuts the bits, its scheme, and its encoder.
  */
 export type BitGroupDemoOptions = {
+    /** What the codec does and how to read its groups. */
+    readonly intro: string
     readonly name: string
     readonly how: string
     readonly scheme: BitScheme
