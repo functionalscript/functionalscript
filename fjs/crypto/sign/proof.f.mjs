@@ -3,6 +3,7 @@
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Curve, Point } from '../secp/types.ts'
  * @import { Sha2 } from '../sha2/types.ts'
+ * @import { DemoState } from './types.ts'
  */
 
 import { utf8 } from '../../text/module.f.mjs'
@@ -58,6 +59,16 @@ const forEachVector = (check, msg0, msg1) => {
     check4(sample, msg0)
     check4(test, msg1)
 }
+
+/**
+ * The demo's verdict, marker and text together: the marker sets its colour,
+ * so a verdict painted in the other one is a failure too.
+ *
+ * @type {(verifies: boolean) => string}
+ */
+const verdict = verifies => verifies
+    ? '<p role="status" data-result="ok">✓ The signature verifies'
+    : '<p role="status" data-result="error">✗ The signature does not verify'
 
 export const proof = {
     bits2int: () => {
@@ -693,6 +704,7 @@ export const proof = {
         // RFC 6979 A.2.5, P-256 with SHA-256 over "sample": the demo opens on it.
         init: () => {
             const html = htmlToString(demo.view(demo.init))
+            /** @type {readonly string[]} */
             const rfc = [
                 'a6e3c57dd01abe90086538398355dd4c3b17aa873382b0f24d6129493d8aad60',
                 '60fed4ba255a9d31c961eb74c6356d68c049b8923b61fa6ce669622e60f29fb6',
@@ -701,23 +713,24 @@ export const proof = {
                 demo.init.s,
             ]
             for (const v of rfc) { assert(html.includes(`<pre>${v}`) || html.includes(`Ux = ${v}`) || html.includes(`Uy = ${v}`), v) }
-            assert(html.includes('✓ The signature verifies'), html)
+            assert(html.includes(verdict(true)), html)
             // each of k, r and s is explained under its value
             for (const note of ['share a k only with negligible probability', 'The x coordinate of the point kG', 's = (h + r·x) / k mod q']) { assert(html.includes(note), note) }
         },
         // Each curve verifies its own signature, as Sign shows it.
         everyCurve: () => {
             for (const curve of ['P-192 (secp192r1)', 'P-256 (secp256r1)', 'P-384 (secp384r1)', 'P-521 (secp521r1)', 'secp256k1']) {
+                /** @type {DemoState} */
                 const state = { ...demo.init, curve, hash: 'SHA-512', key: '1f' }
                 const { r, s } = unwrap(signed(state))
                 const html = htmlToString(demo.view({ ...state, r: r.toString(16), s: s.toString(16) }))
-                assert(html.includes('✓ The signature verifies'), curve)
+                assert(html.includes(verdict(true)), curve)
             }
         },
         rejected: () => {
             // a changed message, and a changed `r`, against the same signature
-            assert(htmlToString(demo.view({ ...demo.init, message: 'samplE' })).includes('✗ The signature does not verify'), 'message')
-            assert(htmlToString(demo.view({ ...demo.init, r: `f${demo.init.r.slice(1)}` })).includes('✗ The signature does not verify'), 'r')
+            assert(htmlToString(demo.view({ ...demo.init, message: 'samplE' })).includes(verdict(false)), 'message')
+            assert(htmlToString(demo.view({ ...demo.init, r: `f${demo.init.r.slice(1)}` })).includes(verdict(false)), 'r')
         },
         update: () => {
             const next = unwrap(assertNotNullish(runPure(demo.update(demo.init)({ kind: 'input', name: 'message', value: 'test' }))[0]))
