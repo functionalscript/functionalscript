@@ -77,11 +77,11 @@ export const decodeRequest = parse(request)
 export const rpcError = code => message => ({ code, message })
 
 // The standard JSON-RPC 2.0 errors.
-export const parseError = rpcError(-32700)('Parse error')
-export const invalidRequest = rpcError(-32600)('Invalid Request')
-export const methodNotFound = rpcError(-32601)('Method not found')
-export const invalidParams = rpcError(-32602)('Invalid params')
-export const internalError = rpcError(-32603)('Internal error')
+export const parseError = rpcError(-32_700)('Parse error')
+export const invalidRequest = rpcError(-32_600)('Invalid Request')
+export const methodNotFound = rpcError(-32_601)('Method not found')
+export const invalidParams = rpcError(-32_602)('Invalid params')
+export const internalError = rpcError(-32_603)('Internal error')
 
 /**
  * The error half of the response envelope: `{ jsonrpc, error, id }`.

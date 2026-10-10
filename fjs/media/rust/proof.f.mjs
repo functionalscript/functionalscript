@@ -54,7 +54,7 @@ export const proof = {
         assertEq(f64Bits(Infinity), '0x7ff0000000000000')
         assertEq(f64Bits(-Infinity), '0xfff0000000000000')
         // Either side of a power of two, and the two neighbours of 1.
-        assertEq(f64Bits(1024), '0x4090000000000000')
+        assertEq(f64Bits(1_024), '0x4090000000000000')
         assertEq(f64Bits(0.9999999999999999), '0x3fefffffffffffff')
         assertEq(f64Bits(1.0000000000000002), '0x3ff0000000000001')
         // The largest and the smallest normal, and two subnormals down to
@@ -82,7 +82,7 @@ export const proof = {
         // Least significant word first, a zero word kept in the middle.
         assertEq(u64Words(2n ** 64n), '&[0x0000000000000000, 0x0000000000000001]')
         assertEq(
-            u64Words(123456789012345678901234567890n),
+            u64Words(123_456_789_012_345_678_901_234_567_890n),
             '&[0xc373e0ee4e3f0ad2, 0x000000018ee90ff6]')
         assertEq(u64Words(2n ** 128n + 5n), '&[0x0000000000000005, 0x0000000000000000, 0x0000000000000001]')
     },

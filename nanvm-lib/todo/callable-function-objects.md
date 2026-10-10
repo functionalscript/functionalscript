@@ -627,15 +627,19 @@ cannot distinguish:
    copies), `bigint` and `undefined` leaves, `NaN` and `-0`. This layer does
    share the emitter with the compiled fixture, so on its own it is blind to
    an emitter bug; it checks execution and sharing differences that the first
-   layer cannot see, but cannot independently verify special-number literals.
+   layer cannot see, but cannot independently verify the leaf literals below.
 
-*Independent special-number checks.* A corpus default containing `-0` or a
-non-finite number, including a nested leaf, must also have a hand-written
-assertion on the compiled result, independent of the generated expected graph.
-For `-0`, inspect the actual number's bits against `(-0.0_f64).to_bits()`;
-for `NaN`, assert `is_nan()`; for infinities, assert the value and sign.
-These expectations use Rust's own constants, never the shared FJS Rust
-emitter. Retain such assertions when replacing JSON tests, and add them when
+*Independent leaf checks.* A corpus default containing `undefined`, `bigint`,
+`-0` or a non-finite number, including a nested leaf, must also have a
+hand-written assertion on the compiled result, independent of the generated
+expected graph. For `undefined`, compare the actual leaf with
+`Any::undefined()`, so an emitter regression that substitutes `null` fails
+even when both generated graphs make the same substitution. For `bigint`,
+keep the independent assertion described below. For `-0`, inspect the actual
+number's bits against `(-0.0_f64).to_bits()`; for `NaN`, assert `is_nan()`;
+for infinities, assert the value and sign. These expectations use Rust's own
+constructors and constants, never the shared FJS Rust emitter.
+Retain such assertions when replacing JSON tests, and add them when
 such a fixture enters the corpus. The normalized JSON layer and the generated
 graph alone do not establish emitter-independent coverage for these leaves,
 just as the `bigint` fixture still needs its independent assertion.
@@ -684,7 +688,7 @@ expectation has the JSON layer in `src/lib.rs` (the `read_default(…) ==
 Ok("…")` strings), since it is the same fact Node's text now supplies and
 keeping both is two copies. A fixture with no JSON form (`bigint`) keeps one
 hand-written assertion, which is its only emitter-independent check. The
-special-number assertions above stay even when the fixture has a JSON layer
+independent leaf assertions above stay even when the fixture has a JSON layer
 (`-0`), since that layer cannot distinguish the value they check. A test
 that checks something else about the same fixture (a named export, a call
 through the harness) stays. A fixture excepted from the corpus keeps its

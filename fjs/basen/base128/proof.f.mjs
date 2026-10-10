@@ -28,5 +28,5 @@ export const proof = () => {
     test(0x81n, vec(16n)(0x8101n))
     test(0x82n, vec(16n)(0x8102n))
     test(0x3FFFn, vec(16n)(0xFF7Fn))
-    test(0x4000n, vec(24n)(0x818000n))
+    test(0x4000n, vec(24n)(0x81_8000n))
 }

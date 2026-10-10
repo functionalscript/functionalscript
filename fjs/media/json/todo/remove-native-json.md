@@ -141,8 +141,9 @@ Consider a guard so it does not come back — the cheapest is a proof in
       `fjs/types/bigfloat/todo/`, then implement `numberSerialize` on it.
 - [ ] Phase 3: migrate the write sites, row by row from the shape table.
 - [ ] Phase 4: indenting serializer; migrate `fjs/ci/module.f.mjs`.
-- [ ] Per phase: `tsc`, `fjs t`, `npm run cov`, and a `Changelog:` section on
-      the phase's PR.
+- [ ] Per phase: `tsc`, `fjs t`, `npm run cov`, and an explanation of the
+      behavior changes in the phase's PR. A `Changelog:` section is optional
+      before 1.0. The [release policy after 1.0](../../../../todo/post-1.0-release-policy.md) remains undecided.
 
 ### Related
 

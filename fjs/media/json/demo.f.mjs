@@ -19,23 +19,23 @@
  *
  * @module
  *
+ * @import { Result } from '../../types/result/types.ts'
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
  */
 
+import { codeMarker } from '../../website/style/module.f.mjs'
 import { parse, stringify } from './module.f.mjs'
+import { mapOk } from '../../types/result/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
-import { textDemo, caption } from '../../website/demo/module.f.mjs'
+import { textDemo, caption, refusal } from '../../website/demo/module.f.mjs'
 
 /**
  * `text` parsed and written back in normalized form — sorted keys, one line
  * — or the parser's own error, if `text` is not a document.
  *
- * @type {(text: string) => string}
+ * @type {(text: string) => Result<string, string>}
  */
-export const roundTrip = text => {
-    const result = parse(text)
-    return result[0] === 'error' ? `Error: ${result[1]}` : stringify(sort)(result[1])
-}
+export const roundTrip = text => mapOk(stringify(sort))(parse(text))
 
 /**
  * The state is the text itself, not the parse: the parse is a function of
@@ -49,10 +49,13 @@ export const roundTrip = text => {
  * @type {Demo<string, DemoEvent>}
  */
 export const demo = textDemo({
+    intro: 'Parses JSON and writes it back on one line with object keys sorted. Arrays keep their element order; compare the result with the input to see the changes.',
     name: 'json',
     label: 'JSON',
     init: '{\n  "b": 2,\n  "a": [3, 2, 1],\n  "c": "hello"\n}',
-})(text => [
-    caption('Parsed, then written back:'),
-    ['pre', roundTrip(text)],
-])
+})(text => {
+    const [kind, value] = roundTrip(text)
+    return kind === 'ok'
+        ? [caption('Parsed, then written back:'), ['pre', { [codeMarker]: '' }, value]]
+        : [refusal(value)]
+})

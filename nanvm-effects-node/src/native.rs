@@ -8,10 +8,11 @@
 
 use crate::{
     codec::{
-        Malformed, argument, arity, decode_bytes, decode_choice, decode_flag, decode_literal,
-        decode_nullable, decode_number, decode_object, decode_optional, decode_string, decode_true,
-        encode_array, encode_bool, encode_bytes, encode_nothing, encode_nullable, encode_number,
-        encode_object, encode_ok, encode_string, encode_tuple, member, optional_argument, required,
+        Malformed, argument, arity, decode_array, decode_bytes, decode_choice, decode_flag,
+        decode_literal, decode_nullable, decode_number, decode_object, decode_optional,
+        decode_string, decode_true, encode_array, encode_bool, encode_bytes, encode_nothing,
+        encode_nullable, encode_number, encode_object, encode_ok, encode_string, encode_tuple,
+        member, optional_argument, required,
     },
     files::{self, Dirent, IoError, Stat},
     resolve::{FileModule, resolve_file_module},
@@ -223,6 +224,24 @@ impl<R: Read, O: Write, E: Write> Native<R, O, E> {
                 let path = decode_string(argument(payload, 0, "path")?)?;
                 Ok(answer(files::rmdir(&path), encode_nothing))
             }
+            "readBytes" => {
+                arity(payload, 3)?;
+                let path = decode_string(argument(payload, 0, "path")?)?;
+                let offset = decode_number(argument(payload, 1, "offset")?)?;
+                let size = decode_number(argument(payload, 2, "size")?)?;
+                Ok(answer(files::read_bytes(&path, offset, size), encode_bytes))
+            }
+            "createExclusive" => {
+                arity(payload, 1)?;
+                let path = decode_string(argument(payload, 0, "path")?)?;
+                Ok(answer(files::create_exclusive(&path), encode_nothing))
+            }
+            "writeExclusive" => {
+                arity(payload, 2)?;
+                let path = decode_string(argument(payload, 0, "path")?)?;
+                let data = decode_array(argument(payload, 1, "data")?, decode_bytes)?;
+                Ok(answer(files::write_exclusive(&path, &data), encode_nothing))
+            }
             "rm" => {
                 arity(payload, 1)?;
                 let path = decode_string(argument(payload, 0, "path")?)?;
@@ -300,7 +319,7 @@ mod test {
     /// `"hi"` as the language spells bytes: the bits with a stop bit in front,
     /// negated where the first bit was `0`.
     fn hi() -> V {
-        bigint_any(-59497)
+        bigint_any(-59_497)
     }
 
     fn write(host: &mut Host, stream: &str) -> Result<V, V> {
@@ -627,6 +646,41 @@ mod test {
             .try_into()
             .unwrap();
         assert_eq!(member(info, "code"), string_any("ENOENT"));
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// `readBytes`, `createExclusive` and `writeExclusive` through `perform`.
+    #[cfg(not(target_family = "wasm"))]
+    #[test]
+    fn exclusive_and_windows_through_perform() {
+        let dir = std::env::temp_dir().join(format!(
+            "nanvm-effects-node-exclusive-{}",
+            std::process::id()
+        ));
+        let at = |name: &str| string_any(&dir.join(name).to_string_lossy());
+        std::fs::create_dir_all(&dir).unwrap();
+        let undefined = || Nullish::Undefined.to_any();
+        let number = |n: f64| Number::from(n).to_any();
+
+        assert_eq!(ok(perform("createExclusive", [at("a")])), undefined());
+        assert_eq!(
+            ok(perform("writeExclusive", [at("b"), array([hi(), hi()])])),
+            undefined()
+        );
+        assert_eq!(std::fs::read(dir.join("b")).unwrap(), b"hihi");
+        let window = ok(perform("readBytes", [at("b"), number(1.0), number(2.0)]));
+        assert_eq!(decode_bytes(window).unwrap(), b"ih");
+
+        // A second create of the same name is EEXIST, answered as an error.
+        let again = perform("createExclusive", [at("a")]).unwrap();
+        let [tag, _]: [V; 2] = Array::try_from(again)
+            .unwrap()
+            .into_iter()
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap();
+        assert_eq!(tag, string_any("error"));
+        assert_eq!(thrown("writeExclusive", [at("c"), hi()]), "not an array");
         std::fs::remove_dir_all(&dir).unwrap();
     }
 

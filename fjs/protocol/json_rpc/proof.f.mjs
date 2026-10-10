@@ -58,11 +58,11 @@ export const proof = {
             assertEq(e.code, -7)
             assertEq(e.message, 'boom')
         },
-        parseError: () => { assertEq(parseError.code, -32700); assertEq(parseError.message, 'Parse error') },
-        invalidRequest: () => { assertEq(invalidRequest.code, -32600); assertEq(invalidRequest.message, 'Invalid Request') },
-        methodNotFound: () => { assertEq(methodNotFound.code, -32601); assertEq(methodNotFound.message, 'Method not found') },
-        invalidParams: () => { assertEq(invalidParams.code, -32602); assertEq(invalidParams.message, 'Invalid params') },
-        internalError: () => { assertEq(internalError.code, -32603); assertEq(internalError.message, 'Internal error') },
+        parseError: () => { assertEq(parseError.code, -32_700); assertEq(parseError.message, 'Parse error') },
+        invalidRequest: () => { assertEq(invalidRequest.code, -32_600); assertEq(invalidRequest.message, 'Invalid Request') },
+        methodNotFound: () => { assertEq(methodNotFound.code, -32_601); assertEq(methodNotFound.message, 'Method not found') },
+        invalidParams: () => { assertEq(invalidParams.code, -32_602); assertEq(invalidParams.message, 'Invalid params') },
+        internalError: () => { assertEq(internalError.code, -32_603); assertEq(internalError.message, 'Internal error') },
     },
     dispatch: {
         success: () => {
@@ -75,21 +75,21 @@ export const proof = {
         },
         handlerError: () => {
             const r = d({ jsonrpc: '2.0', method: 'boom', id: 3 })
-            assert(r !== null && 'error' in r && r.error.code === -32602 && r.id === 3)
+            assert(r !== null && 'error' in r && r.error.code === -32_602 && r.id === 3)
         },
         methodNotFound: () => {
             const r = d({ jsonrpc: '2.0', method: 'nope', id: 4 })
-            assert(r !== null && 'error' in r && r.error.code === -32601)
+            assert(r !== null && 'error' in r && r.error.code === -32_601)
         },
         // `method` is untrusted wire data: an inherited `Object.prototype`
         // name must not resolve to a callable.
         inheritedToString: () => {
             const r = d({ jsonrpc: '2.0', method: 'toString', id: 4 })
-            assert(r !== null && 'error' in r && r.error.code === -32601)
+            assert(r !== null && 'error' in r && r.error.code === -32_601)
         },
         inheritedConstructor: () => {
             const r = d({ jsonrpc: '2.0', method: 'constructor', id: 4 })
-            assert(r !== null && 'error' in r && r.error.code === -32601)
+            assert(r !== null && 'error' in r && r.error.code === -32_601)
         },
         // ... while an *own* property of that name is an ordinary method.
         ownPrototypeName: () => {
@@ -98,7 +98,7 @@ export const proof = {
         },
         invalidRequest: () => {
             const r = d({ jsonrpc: '1.0', method: 'ping', id: 5 })
-            assert(r !== null && 'error' in r && r.error.code === -32600 && r.id === null)
+            assert(r !== null && 'error' in r && r.error.code === -32_600 && r.id === null)
         },
         notification: () => {
             const r = d({ jsonrpc: '2.0', method: 'ping' })
@@ -126,7 +126,7 @@ export const proof = {
         error: () => {
             const r = errorResponseOf('abc')(parseError)
             assertEq(r.jsonrpc, '2.0')
-            assert('error' in r && r.error.code === -32700, r)
+            assert('error' in r && r.error.code === -32_700, r)
             assertEq(r.id, 'abc')
             assert(isOk(parse(response)(r)), r)
         },

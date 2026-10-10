@@ -416,7 +416,7 @@ export const proof = {
          * one after it, so all at one height.
          */
         deepTree: () => {
-            const n = 5000
+            const n = 5_000
             const html = htmlToString(graphSvg({
                 nodes: Array.from({ length: n }, (_, id) => ({ id, kind: 'a', label: 'x', rank: id })),
                 edges: Array.from({ length: n - 1 }, (_, from) => ({ from, to: from + 1, label: '', corner: /** @type {const} */ ('top') })),
