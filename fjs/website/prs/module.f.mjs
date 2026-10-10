@@ -103,13 +103,21 @@ export const row = ({ number: prNumber, user, draft }, checks) => ['tr',
 
 /**
  * The dedicated page, with a GitHub fallback and a browser adapter that reads
- * only when the reader clicks Refresh. Opening the page makes no API requests.
+ * only when the reader clicks Refresh. Opening makes no PR or check requests.
  *
  * @type {(build: Build) => Vec}
  */
 export const prsPage = build => shell(build)(pageTitle('Pull requests'))(['main', { 'data-prs': '' },
     ['h1', 'Pull requests'],
     ['p', ['a', { href: `${repository}/pulls` }, 'View pull requests on GitHub']],
+    ['div', { 'data-github-auth': '' },
+        ['p', { role: 'status', 'aria-live': 'polite' },
+            ['strong', { 'data-github-account': '' }, 'Not logged in to GitHub.'],
+            ' ',
+            ['a', { 'data-github-user': '', hidden: '' }, '']],
+        ['button', { type: 'button', 'data-github-login': '', disabled: '' }, 'Log in with GitHub'],
+        ['button', { type: 'button', 'data-github-logout': '', hidden: '' }, 'Log out'],
+        ['p', { 'data-github-note': '', role: 'status', 'aria-live': 'polite' }, 'Checking GitHub login availability…']],
     ['button', { type: 'button', 'data-pr-refresh': '' }, 'Refresh'],
     ['p', { 'data-pr-note': '', role: 'status', 'aria-live': 'polite' }, 'Press Refresh to load pull requests and checks.'],
     ['noscript', ['p', 'JavaScript is needed to load this list. Follow the GitHub link above to view pull requests.']],
@@ -121,9 +129,13 @@ export const prsPage = build => shell(build)(pageTitle('Pull requests'))(['main'
             ['th', { scope: 'col' }, 'Status']]],
         ['tbody', { 'data-pr-rows': '' }]],
     ['script', { type: 'module' },
-        `import { startPrs } from '/fjs/website/prs-runtime.mjs'
+        `import { startGitHubLogin } from '/fjs/website/github-runtime.mjs'
+import { startPrs } from '/fjs/website/prs-runtime.mjs'
 
 const root = document.querySelector('[data-prs]')
-if (root instanceof HTMLElement) { startPrs(root) }
+if (root instanceof HTMLElement) {
+    const auth = await startGitHubLogin(root)
+    await startPrs(root, { token: auth.token, onUnauthorized: auth.clear })
+}
 `],
 ])
