@@ -573,10 +573,11 @@ export const proof = {
     // the file and the claim is only that the footprint is nothing like it. How
     // much drift that eighth has to clear, and why it is the *file* that was
     // enlarged to clear it rather than the fraction, is measured on {@link vast}.
-    // The exact bound is the pull count in
+    // The direct backpressure check is in
     // [`../effects/node/proof.mjs`](../effects/node/proof.mjs)
-    // (`createServer.pullsAtTheSocketsPace`), where ten times the body is not ten
-    // times the memory.
+    // (`createServer.pullsAtTheSocketsPace`): neither lazy body pulls another
+    // cell while the response needs `drain`, whatever the socket's buffer
+    // capacity is.
     holdsNothingLikeTheFile: async () => {
         if (bunGivesFiveSeconds) { return }
         await withVastFile(async (root, vastName, smallName) => {
