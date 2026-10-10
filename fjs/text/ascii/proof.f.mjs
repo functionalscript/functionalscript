@@ -36,6 +36,12 @@ export const proof = {
             assertEq(hexDigitValue(one('`')), null)
             assertEq(hexDigitValue(one('g')), null)
         },
+        notAnInteger: () => {
+            assertEq(hexDigitValue(48.5), null)
+            assertEq(hexDigitValue(97.5), null)
+            assertEq(hexDigitValue(65.5), null)
+            assertEq(hexDigitValue(NaN), null)
+        },
     },
     lowerHexDigitValue: {
         digit: () => {
@@ -148,6 +154,8 @@ export const proof = {
             assertEq(hexDigitsValue(codePoints('g')), null)
             assertEq(hexDigitsValue(codePoints('0x1')), null)
             assertEq(hexDigitsValue(codePoints(' 1')), null)
+            assertEq(hexDigitsValue([48.5]), null)
+            assertEq(hexDigitsValue([49, 48.5]), null)
         },
     },
     throw: {

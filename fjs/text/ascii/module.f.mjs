@@ -292,15 +292,17 @@ const latinCapitalLetterAFOffset = latinCapitalLetterA - 10
 
 /**
  * The value `0..15` denoted by a hexadecimal digit code point, or `null` when
- * the code point is not one of `0-9`, `a-f`, `A-F`.
+ * the code point is not one of `0-9`, `a-f`, `A-F`. A non-integer such as
+ * `48.5` is `null`, never the `0.5` a bare range test would spell.
  *
  * @type {(codePoint: number) => Nullable<number>}
  */
 export const hexDigitValue = codePoint =>
-    isDigit(codePoint) ? codePoint - digit0
-        : isLatinSmallLetterAF(codePoint) ? codePoint - latinSmallLetterAFOffset
-            : isLatinCapitalLetterAF(codePoint) ? codePoint - latinCapitalLetterAFOffset
-                : null
+    !isInteger(codePoint) ? null
+        : isDigit(codePoint) ? codePoint - digit0
+            : isLatinSmallLetterAF(codePoint) ? codePoint - latinSmallLetterAFOffset
+                : isLatinCapitalLetterAF(codePoint) ? codePoint - latinCapitalLetterAFOffset
+                    : null
 
 /**
  * The value `0..15` denoted by a lowercase hexadecimal digit code point, or
@@ -367,8 +369,9 @@ export const digitsValue = radix => {
 /**
  * The number a run of hexadecimal digits spells, `0-9`, `a-f` and `A-F`
  * alike, or `null` where the run is empty or holds a code point that is not
- * a hexadecimal digit: {@link digitsValue} for radix 16, read through
- * {@link hexDigitValue}. A leading zero is read, not refused.
+ * a hexadecimal digit, a non-integer such as `48.5` included:
+ * {@link digitsValue} for radix 16, read through {@link hexDigitValue}. A
+ * leading zero is read, not refused.
  *
  * @type {(digits: readonly number[]) => Nullable<bigint>}
  */
