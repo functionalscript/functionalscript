@@ -23,7 +23,7 @@ const stringify = a =>
 export const proof = {
     toCodePointList: [
         () => {
-            const result = stringify(toArray(toCodePointList([-1, 65536])))
+            const result = stringify(toArray(toCodePointList([-1, 0x10000])))
             assertEq(result, '[2147483648,2147483648]')
         },
         // `-0` is not a second spelling of the code unit `0`.
@@ -32,31 +32,31 @@ export const proof = {
             assertEq(result, '[2147483648]')
         },
         () => {
-            const result = stringify(toArray(toCodePointList([0, 36, 8364, 55295, 57344, 65535])))
+            const result = stringify(toArray(toCodePointList([0, 0x24, 0x20ac, 0xd7ff, 0xe000, 0xffff])))
             assertEq(result, '[0,36,8364,55295,57344,65535]')
         },
         () => {
-            const result = stringify(toArray(toCodePointList([56320, 57343])))
+            const result = stringify(toArray(toCodePointList([0xdc00, 0xdfff])))
             assertEq(result, '[-2147427328,-2147426305]')
         },
         () => {
-            const result = stringify(toArray(toCodePointList([55296, 56320, 55297, 56375, 55378, 57186, 56319, 57343])))
+            const result = stringify(toArray(toCodePointList([0xd800, 0xdc00, 0xd801, 0xdc37, 0xd852, 0xdf62, 0xdbff, 0xdfff])))
             assertEq(result, '[65536,66615,150370,1114111]')
         },
         () => {
-            const result = stringify(toArray(toCodePointList([55296, 55296])))
+            const result = stringify(toArray(toCodePointList([0xd800, 0xd800])))
             assertEq(result, '[-2147428352,-2147428352]')
         },
         () => {
-            const result = stringify(toArray(toCodePointList([55296, 0])))
+            const result = stringify(toArray(toCodePointList([0xd800, 0])))
             assertEq(result, '[-2147428352,0]')
         },
         () => {
-            const result = stringify(toArray(toCodePointList([56320])))
+            const result = stringify(toArray(toCodePointList([0xdc00])))
             assertEq(result, '[-2147427328]')
         },
         () => {
-            const result = stringify(toArray(toCodePointList([56320, 0])))
+            const result = stringify(toArray(toCodePointList([0xdc00, 0])))
             assertEq(result, '[-2147427328,0]')
         },
         // `U16` is just `number`, so a non-integer in [0x0000, 0xFFFF] is a
@@ -71,7 +71,7 @@ export const proof = {
         // reported invalid on its own, and the surrogate is still flagged
         // unpaired at EOF.
         () => {
-            const result = stringify(toArray(toCodePointList([55296, 56319.5])))
+            const result = stringify(toArray(toCodePointList([0xd800, 56319.5])))
             assertEq(result, '[2147483648,-2147428352]')
         }
     ],

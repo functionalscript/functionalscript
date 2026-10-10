@@ -121,6 +121,24 @@ become `todo/` files: [todo/README.md](./todo/README.md). How one session takes
 one task from its `todo/` to the last pull request merged — a stack of small
 pull requests, and a question at every step: [SESSION.md](./doc/SESSION.md).
 
+### Numeric notation
+
+Prefer hexadecimal literals where the value represents bytes, Unicode code
+points or code units, bit masks, binary-format tags, byte weights, or integer
+limits defined by a bit width. Apply this to authored source and proof inputs
+and expectations alike: `0xff`, `0xd800`, `0x80`, `0x10000`, and
+`0x7fffffffn` make that structure visible. Preserve the value; add `0x` to the
+hexadecimal digits of the value, not to its decimal spelling.
+
+Keep decimal for counts, indices, bit widths and shift amounts, durations,
+protocol status/error numbers, and decimal arithmetic or conversion examples.
+A power of two alone is not a reason to use hex: a buffer length may read better
+as a count. Keep serialized decimal text (such as JSON numbers) in its required
+format. Rust floating-point literals cannot use hexadecimal integer syntax;
+use a named integer limit or an explicit integer-to-float cast only when that
+clarifies the code. Prefer existing named constants or encoder calls when they
+explain the value better than either literal spelling.
+
 ## 2. Environment and running tests
 
 Install [Nix](https://nixos.org/download/) and work inside the repository's

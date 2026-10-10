@@ -51,10 +51,10 @@ const idBytes = oid => toArray(u8ListMsb(oid))
 
 /** A big-endian 32-bit word as bytes. */
 const u32 = /** @type {(v: number) => readonly number[]} */ (v => [
-    Math.floor(v / 16777216) % 256,
-    Math.floor(v / 65536) % 256,
-    Math.floor(v / 256) % 256,
-    v % 256,
+    Math.floor(v / 0x1000000) % 0x100,
+    Math.floor(v / 0x10000) % 0x100,
+    Math.floor(v / 0x100) % 0x100,
+    v % 0x100,
 ])
 
 /** The checksum {@link packMixed} ends with, which is also what Git named it. */
@@ -80,7 +80,7 @@ const idxOf = named => {
     const ids = named.map(([h]) => idBytes(id(h)))
     const bytes = [
         0xFF, 0x74, 0x4F, 0x63, ...u32(2),
-        ...Array.from({ length: 256 }, (_, k) => u32(ids.filter(v => v[0] <= k).length)).flat(),
+        ...Array.from({ length: 0x100 }, (_, k) => u32(ids.filter(v => v[0] <= k).length)).flat(),
         ...ids.flat(),
         ...named.map(() => u32(0)).flat(),
         ...named.map(([, at]) => u32(at)).flat(),

@@ -155,12 +155,12 @@ const littleVarint = (b, at, value, scale) => {
     while (true) {
         if (i >= b.length) { return null }
         const c = b[i]
-        const group = c % 128
+        const group = c % 0x80
         const next = group === 0 ? v : v + group * s
         if (!Number.isSafeInteger(next)) { return null }
-        if (c < 128) { return [next, i + 1] }
+        if (c < 0x80) { return [next, i + 1] }
         v = next
-        s = s * 128
+        s = s * 0x80
         i += 1
     }
 }
@@ -179,8 +179,8 @@ const littleVarint = (b, at, value, scale) => {
 const backVarint = (b, at, value) => {
     if (at >= b.length) { return null }
     const c = b[at]
-    if (c < 128) { return [value + c, at + 1] }
-    const next = (value + (c % 128) + 1) * 128
+    if (c < 0x80) { return [value + c, at + 1] }
+    const next = (value + (c % 0x80) + 1) * 0x80
     return Number.isSafeInteger(next) ? backVarint(b, at + 1, next) : null
 }
 
@@ -202,12 +202,12 @@ export const tryEntry = oidBytes => input => {
     const b = byteArray(input)
     if (b.length === 0) { return null }
     const first = b[0]
-    const code = Math.floor(first / 16) % 8
+    const code = Math.floor(first / 0x10) % 8
     // the first byte carries the low four bits of the size, and the rest of
     // the size continues from the fifth bit
-    const low = first % 16
+    const low = first % 0x10
     /** @type {Nullable<readonly [number, number]>} */
-    const sized = first < 128 ? [low, 1] : littleVarint(b, 1, low, 16)
+    const sized = first < 0x80 ? [low, 1] : littleVarint(b, 1, low, 0x10)
     if (sized === null) { return null }
     const [bytes, after] = sized
     if (code === 6) {
@@ -231,7 +231,7 @@ export const tryEntry = oidBytes => input => {
  * How long a copy of size zero is. The format spells 65536 by leaving every
  * size byte out, which is the one number it encodes by absence.
  */
-const wholeCopy = /** @type {const} */ (65536)
+const wholeCopy = /** @type {const} */ (0x10000)
 
 /**
  * A little-endian value from the bytes a bit mask selects, and where it ends.
@@ -250,7 +250,7 @@ const selected = (b, at, mask, count, k, value) => {
     if (k === count) { return [value, at] }
     if (Math.floor(mask / Math.pow(2, k)) % 2 === 0) { return selected(b, at, mask, count, k + 1, value) }
     if (at >= b.length) { return null }
-    return selected(b, at + 1, mask, count, k + 1, value + b[at] * Math.pow(256, k))
+    return selected(b, at + 1, mask, count, k + 1, value + b[at] * Math.pow(0x100, k))
 }
 
 /**
@@ -347,7 +347,7 @@ const deltaPieces = (d, src, at, want) => {
         // one place states the rule and one place enforces it.
         if (i === d.length) { return total === want ? toArray(flat(found)) : null }
         const c = d[i]
-        if (c < 128) {
+        if (c < 0x80) {
             // an insert of nothing is written by no encoder, and a stream of
             // them would make no progress
             if (c === 0 || i + 1 + c > d.length) { return null }
@@ -359,7 +359,7 @@ const deltaPieces = (d, src, at, want) => {
         const offset = selected(d, i + 1, c, 4, 0, 0)
         if (offset === null) { return null }
         const [from, afterOffset] = offset
-        const size = selected(d, afterOffset, Math.floor(c / 16), 3, 0, 0)
+        const size = selected(d, afterOffset, Math.floor(c / 0x10), 3, 0, 0)
         if (size === null) { return null }
         const [count, afterSize] = size
         const length = count === 0 ? wholeCopy : count

@@ -1357,9 +1357,9 @@ const shiftLeftCases = [
     { name: 'shiftCountWrapsAt32', args: [1, 33], expected: 2 },
     // The shift count is `ToUint32`'d then masked, so a negative right
     // operand becomes a large one first: `ToUint32(-1) & 0x1F` is `31`.
-    { name: 'shiftCountNegative', args: [1, -1], expected: -2147483648 },
+    { name: 'shiftCountNegative', args: [1, -1], expected: -0x80000000 },
     { name: 'valueWrapsAt32Bits', args: [2 ** 32 + 5, 1], expected: 10 },
-    { name: 'resultOverflowsIntoSignBit', args: [0x40000000, 1], expected: -2147483648 },
+    { name: 'resultOverflowsIntoSignBit', args: [0x40000000, 1], expected: -0x80000000 },
     { name: 'bigFiveShlThree', args: [5n, 3n], expected: 40n },
     { name: 'bigNegativeFiveShlThree', args: [-5n, 3n], expected: -40n },
     { name: 'bigFiveShlZero', args: [5n, 0n], expected: 5n },
@@ -1394,7 +1394,7 @@ const signedRightShiftCases = [
     { name: 'valueWrapsAt32Bits', args: [2 ** 32 + 5, 1], expected: 2 },
     // `ToInt32(2^31)` is `i32::MIN`; arithmetic-shifting that right sign-
     // extends rather than producing a small negative number.
-    { name: 'wrapsAt32BitsThenNegative', args: [2 ** 31, 1], expected: -1073741824 },
+    { name: 'wrapsAt32BitsThenNegative', args: [2 ** 31, 1], expected: -0x40000000 },
     { name: 'bigFortyShrThree', args: [40n, 3n], expected: 5n },
     { name: 'bigNegativeFortyShrThree', args: [-40n, 3n], expected: -5n },
     { name: 'bigFiveShrThree', args: [5n, 3n], expected: 0n },
@@ -1431,7 +1431,7 @@ const unsignedRightShiftCases = [
     { name: 'valueWrapsAt32Bits', args: [2 ** 32 + 5, 1], expected: 2 },
     // The idiomatic `x >>> 0` use: turns a negative `Number` into its
     // unsigned 32-bit reading, with no shifting at all.
-    { name: 'negativeBecomesLargePositive', args: [-1, 0], expected: 4294967295 },
+    { name: 'negativeBecomesLargePositive', args: [-1, 0], expected: 0xffffffff },
     { name: 'bigintUnsignedRightShift', args: [5n, 1n], expected: throws },
     ...mixedCases('Ushr'),
 ]

@@ -553,8 +553,8 @@ const charAtCases = [
 
 /** `String.prototype.charCodeAt`: the code unit as a number, or `NaN`. @type {readonly MethodCase[]} */
 const charCodeAtCases = [
-    { name: 'first', args: ['abc', 0], expected: 97 },
-    { name: 'noArgument', args: ['abc'], expected: 97 },
+    { name: 'first', args: ['abc', 0], expected: 0x61 },
+    { name: 'noArgument', args: ['abc'], expected: 0x61 },
     { name: 'negative', args: ['abc', -1], expected: NaN },
     { name: 'pastTheEnd', args: ['abc', 3], expected: NaN },
     { name: 'highSurrogate', args: ['\u{1F600}', 0], expected: 0xD83D },
@@ -569,7 +569,7 @@ const charCodeAtCases = [
  * @type {readonly MethodCase[]}
  */
 const codePointAtCases = [
-    { name: 'ascii', args: ['abc', 1], expected: 98 },
+    { name: 'ascii', args: ['abc', 1], expected: 0x62 },
     { name: 'pair', args: ['\u{1F600}', 0], expected: 0x1F600 },
     { name: 'lowHalf', args: ['\u{1F600}', 1], expected: 0xDE00 },
     { name: 'loneHigh', args: ['\uD83Da', 0], expected: 0xD83D },

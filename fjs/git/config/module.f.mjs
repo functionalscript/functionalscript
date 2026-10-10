@@ -255,7 +255,7 @@ const factors = {
  * The magnitude a number may reach: Git reads one into a C `int`, and
  * refuses what does not fit, the scaling by a unit counted in.
  */
-const maxInt = /** @type {const} */ (2147483647n)
+const maxInt = /** @type {const} */ (0x7fffffffn)
 
 /**
  * What a character is worth as a digit, and 16 — no digit's worth — where

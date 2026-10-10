@@ -56,10 +56,10 @@ const decoded = bytes => {
 
 /** A big-endian 32-bit word as bytes, for the synthetic indexes below. */
 const u32 = /** @type {(v: number) => readonly number[]} */ (v => [
-    Math.floor(v / 16777216) % 256,
-    Math.floor(v / 65536) % 256,
-    Math.floor(v / 256) % 256,
-    v % 256,
+    Math.floor(v / 0x1000000) % 0x100,
+    Math.floor(v / 0x10000) % 0x100,
+    Math.floor(v / 0x100) % 0x100,
+    v % 0x100,
 ])
 
 /** How long an id is in these fixtures, and so how long each checksum is. */
@@ -291,10 +291,10 @@ export const proof = {
     // offset means. Git writes this only for a pack over 2 GiB.
     largeOffset: () => {
         const idx = decoded(withLargeOffset(only, [...u32(0), ...u32(0x80000000)]))
-        assertEq(offsetOf(idx)(only), 2147483648)
+        assertEq(offsetOf(idx)(only), 0x80000000)
         // And one past 4 GiB, to show the high word is read and not dropped.
         const far = decoded(withLargeOffset(only, [...u32(1), ...u32(0)]))
-        assertEq(offsetOf(far)(only), 4294967296)
+        assertEq(offsetOf(far)(only), 0x100000000)
     },
     // An 8-byte offset a `number` cannot hold exactly is refused rather than
     // rounded, because it goes on to `readBytes`, which takes a `number`.
@@ -303,7 +303,7 @@ export const proof = {
         assertEq(read(withLargeOffset(only, [...u32(0x00200000), ...u32(1)])), null)
         // One below the bound still reads, so the refusal is the bound's and
         // not the table's.
-        assertEq(offsetOf(decoded(withLargeOffset(only, [...u32(0x001FFFFF), ...u32(0xFFFFFFFF)])))(only), 9007199254740991)
+        assertEq(offsetOf(decoded(withLargeOffset(only, [...u32(0x001FFFFF), ...u32(0xFFFFFFFF)])))(only), 0x1fffffffffffff)
     },
     // An index of no objects: a fanout of zeros and nothing between it and
     // the checksums. The lookup answers nothing rather than searching.
@@ -516,6 +516,6 @@ export const proof = {
         emptyLookupWidth: () =>
             offsetOf(decoded(sealed(emptyV1)))(id('8031c3b5f0c291f374148e59909ea8a8f83538e9a412bac9b1f8072e6e6be27f')),
         // Bytes that are no bytes, the same refusal every reader here makes.
-        notBytes: () => read([256]),
+        notBytes: () => read([0x100]),
     },
 }
