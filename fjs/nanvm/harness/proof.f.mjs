@@ -10,7 +10,7 @@ import { exitCode, readUtf8File } from '../../effects/node/module.f.mjs'
 import { step } from '../../effects/module.f.mjs'
 import { defaultNodeProgramOptions, emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
-import { directory, fixtures, generateFixtures, main, modules, modulesPath, rustName } from './module.f.mjs'
+import { directory, expectedDirectory, expectedModulesPath, fixtures, generateAll, generateExpected, generateFixtures, main, modules, modulesPath, rustName } from './module.f.mjs'
 
 /**
  * Four fixtures and the things the walk must leave alone: a file that is not
@@ -95,6 +95,54 @@ export const proof = {
         const [state, result] = virtual({ ...emptyState, root: none })(step(generateFixtures(), () => readUtf8File(modulesPath)))
         assertEq(assertOk(result), modules([]))
         assertEq(Object.keys(into(state.root, directory.split('/'))).join(','), 'mod.rs')
+    },
+    // The corpus only: `function.mjs` and `rest-function.mjs` are excepted, so
+    // they get no expectation and `mod.rs` does not name them.
+    generateExpected: () => {
+        const [state, result] = virtual({ ...emptyState, root })(generateExpected())
+        assertOk(result)
+        const written = into(state.root, expectedDirectory.split('/'))
+        assertEq(Object.keys(written).toSorted().join(','), 'at.rs,function_scope.rs,mod.rs')
+        const [, modRs] = virtual(state)(readUtf8File(expectedModulesPath))
+        assertEq(assertOk(modRs), modules(['at', 'function_scope']))
+        const [, atRs] = virtual(state)(readUtf8File(`${expectedDirectory}/at.rs`))
+        assert(assertOk(atRs).startsWith('// Expectation of `nanvm-harness/fixtures/at.mjs`'))
+    },
+    // A fixture that throws is expected to throw, not refused.
+    generateExpectedForAThrowingFixture: () => {
+        /** @type {Dir} */
+        const throwing = { 'nanvm-harness': { 'fixtures': { 't.mjs': [utf8('throw 1;')] } } }
+        const [state, result] = virtual({ ...emptyState, root: throwing })(generateExpected())
+        assertOk(result)
+        const [, tRs] = virtual(state)(readUtf8File(`${expectedDirectory}/t.rs`))
+        assert(assertOk(tRs).includes('Err(Nullish::Undefined.to_any())'))
+    },
+    // A fixture the interpreter cannot load stops the sequence before `mod.rs`
+    // is written, as for the compiled fixtures.
+    generateExpectedStopsAtAFixtureItCannotLoad: () => {
+        /** @type {Dir} */
+        const broken = {
+            'nanvm-harness': { 'fixtures': { 'a.mjs': [utf8('export default 1;')], 'b.mjs': [utf8('export default (')] } },
+        }
+        const [state, result] = virtual({ ...emptyState, root: broken })(generateExpected())
+        assertEq(result[0], 'error')
+        const written = into(state.root, expectedDirectory.split('/'))
+        assertEq(Object.keys(written).join(','), 'a.rs')
+    },
+    // No corpus fixtures at all still leaves a `mod.rs`.
+    generateExpectedWithNoCorpus: () => {
+        /** @type {Dir} */
+        const excepted = { 'nanvm-harness': { 'fixtures': { 'function.mjs': [utf8('export default () => 1;')] } } }
+        const [state, result] = virtual({ ...emptyState, root: excepted })(step(generateExpected(), () => readUtf8File(expectedModulesPath)))
+        assertEq(assertOk(result), modules([]))
+        assertEq(Object.keys(into(state.root, expectedDirectory.split('/'))).join(','), 'mod.rs')
+    },
+    // The compiled fixtures and their expectations, both directories.
+    generateAll: () => {
+        const [state, result] = virtual({ ...emptyState, root })(generateAll())
+        assertOk(result)
+        assertEq(Object.keys(into(state.root, directory.split('/'))).length > 0, true)
+        assertEq(Object.keys(into(state.root, expectedDirectory.split('/'))).length > 0, true)
     },
     main: () => {
         const [, code] = virtual({ ...emptyState, root })(main(defaultNodeProgramOptions))

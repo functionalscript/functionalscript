@@ -27,9 +27,12 @@
  */
 
 import { compileFile } from '../../compiler/module.f.mjs'
-import { forEachStep, mapStep, pureOk, step } from '../../effects/module.f.mjs'
+import { interpret } from '../../compiler/transpiler/module.f.mjs'
+import { forEachStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../../effects/module.f.mjs'
 import { exitStep, mkdir, readdir, writeUtf8File } from '../../effects/node/module.f.mjs'
 import { cmp } from '../../types/string/module.f.mjs'
+import { corpus } from '../corpus/module.f.mjs'
+import { expectation } from '../expected/module.f.mjs'
 
 /** Where the fixtures are: one `.mjs` module each, a helper one imports beside them. */
 export const fixturesDirectory = 'nanvm-harness/fixtures'
@@ -97,6 +100,47 @@ export const generateFixtures = () => step(fixtures(), names => {
     return step(directoryReady, () => writeUtf8File(modulesPath, modules(names.map(rustName))))
 })
 
+/** Where the corpus fixtures' expectations are: one `.rs` each, a `gen.` name `gen:clean` empties. */
+export const expectedDirectory = 'nanvm-harness/gen.expected'
+
+/** The module file naming every expectation, which `src/lib.rs` includes by path. */
+export const expectedModulesPath = `${expectedDirectory}/mod.rs`
+
+/**
+ * Interprets one fixture and writes its expectation, or fails with the reason
+ * it has none: a fixture the interpreter cannot load, or a value the Rust
+ * backend has no spelling for. A fixture whose initialization throws has an
+ * expectation too, a module that throws.
+ *
+ * @type {(name: string) => Effect<_CompileOp, void, IoChannel>}
+ */
+const writeExpectation = name => resultStep(
+    interpret(`${fixturesDirectory}/${name}`),
+    result => {
+        const text = expectation(name)(result)
+        return text[0] === 'ok'
+            ? writeUtf8File(`${expectedDirectory}/${rustName(name)}.rs`, text[1])
+            : pureError(ioError({ message: text[1] }))
+    })
+
+/**
+ * Writes the expectation of every corpus fixture (see
+ * [`../corpus`](../corpus/module.f.mjs): the fixtures no exception names), in
+ * order, stopping at the first that fails, then `mod.rs` naming them all. The
+ * directory is created first, so an empty corpus still leaves a `mod.rs`.
+ *
+ * @type {() => Effect<_CompileOp, void, IoChannel>}
+ */
+export const generateExpected = () => step(fixtures(), names => {
+    const selected = corpus(names)
+    const directoryReady = mkdir(expectedDirectory, { recursive: true })
+    const written = step(directoryReady, () => forEachStep(pureOk(selected), writeExpectation))
+    return step(written, () => writeUtf8File(expectedModulesPath, modules(selected.map(rustName))))
+})
+
+/** The fixtures compiled, then their expectations written. @type {() => Effect<_CompileOp, void, IoChannel>} */
+export const generateAll = () => step(generateFixtures(), generateExpected)
+
 /**
  * The program `npm run gen` runs. It takes the options every `NodeProgram` is
  * given and reads none of them: the directories are fixed above, so there is
@@ -104,4 +148,4 @@ export const generateFixtures = () => step(fixtures(), names => {
  *
  * @type {NodeProgram}
  */
-export const main = _options => exitStep(generateFixtures())
+export const main = _options => exitStep(generateAll())

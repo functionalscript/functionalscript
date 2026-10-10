@@ -790,7 +790,7 @@ level.
       after resolving embedded data versus lookup; no Rust executor dependency.
 - [x] Stage 8 step 1: the FJS interpreter against the Node reference over the
       harness fixtures ([`fjs/nanvm/corpus`](../../fjs/nanvm/corpus/module.f.mjs)).
-- [ ] Stage 8 step 2a: for each corpus fixture, a committed `gen.expected` Rust module holding the interpreter's value as a graph and, when the default has a JSON form, the compiler's JSON text, and a list of them.
+- [x] Stage 8 step 2a: for each corpus fixture, a committed `gen.expected` Rust module holding the interpreter's value as a graph and, when the default has a JSON form, the compiler's JSON text, and a list of them.
 - [ ] Stage 8 step 2b: one Rust test checks each compiled fixture against both layers of its expectation (JSON text, then an order- and sharing-aware graph comparison) and replaces the hand-written assertions the JSON layer covers.
 - [ ] Stage 8 step 3: the interpreter compiled to Rust runs the corpus (blocked).
 
