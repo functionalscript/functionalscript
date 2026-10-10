@@ -5,8 +5,8 @@
 
 ### Problem
 
-[`toDiagrams`](../module.f.mjs) labels a terminal's symbols as code points:
-`a`, `space`, `U+00E9`. That is right for every grammar with a demo today —
+[`toDiagrams`](../module.f.mjs) labelled a terminal's symbols as code points
+only: `a`, `space`, `U+00E9`. That is right for every grammar with a demo today —
 JSON, DataJS, the JavaScript tokens and Markdown all read code points — and
 wrong for the grammars that read something else:
 
@@ -18,34 +18,38 @@ wrong for the grammars that read something else:
 - [`byte/`](../../byte/README.md) symbols are bytes: `0xE9` is half of a UTF-8
   sequence there, not `é`.
 
-A symbol above `0x10FFFF` is refused today rather than labelled as the code
-point it is not. A byte grammar is not refused — its symbols are all below
-`0x100` — and would be labelled as Latin-1, which is the silence
-[DESIGN.md §10](../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
+A symbol above `0x10FFFF` is refused by the code-point alphabet rather than
+labelled as the code point it is not. A byte grammar is not refused — its
+symbols are all below `0x100` — and would be labelled as Latin-1, which is the
+silence [DESIGN.md §10](../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
 rules out; no byte grammar is drawn today.
 
-### Proposal
+### Design
 
-`toDiagrams` takes the alphabet's labels as a parameter — a function from a
-symbol to its text — beside the rule set, with the code-point labelling it
-has now as the one the text grammars pass:
+`toDiagrams` takes an `Alphabet` ([`../types.ts`](../types.ts)) before the rule
+set: how a set of symbols is labelled, and which symbols join into one literal.
 
-- a token alphabet labels a symbol by `decode` from its
+- `codePoints` is the labelling the text grammars had: symbols and ranges, and
+  a run of printable ASCII drawn as the one string it spells.
+- `tokens(encoding, categories)` labels a symbol by `decode` from its
   [`encoding`](../../token_symbol/module.f.mjs), so a terminal reads `=>` or
-  `id`;
-- a byte alphabet labels a byte as `0xE9` outside printable ASCII.
+  `import`. A range of tokens means nothing a reader could use (`id … =>`),
+  so a token set is the choice of its tokens, however many runs it has, and
+  tokens never join into one literal. A name in `categories` — `id`, `string`
+  — stands for any token of its kind, not for its own text, and is drawn as a
+  `category`: a pill with its name in italics.
 
-With it, `compiler/parser/grammar` can get the same demo as the grammars in
-[`ebnf/lib`](../../lib/): it is the grammar a reader of the language most
-wants to see.
+### Tasks
 
-### Open questions
-
-- A range of token symbols has no meaning a reader could use (`id … =>`); a
-  token set is better drawn as the choice of its tokens, however many runs
-  it has.
-- The parser grammar is large, 969 lines of front-end rules; which of its
-  rules get titles decides whether its page reads as a specification.
+- [x] `toDiagrams` takes an `Alphabet`; `codePoints` and `tokens`; the
+  `category` piece in `website/demo/railroad`.
+- [ ] A railroad demo of `compiler/parser/grammar`: it is the grammar a reader
+  of the language most wants to see. Which of its rules get titles decides
+  whether its page reads as a specification — the module's own `@module`
+  EBNF names the candidates; `identifier` needs a title so its twelve
+  branches are drawn once, and `eagerTail` so its generated layers are.
+- [ ] A byte alphabet, labelling a byte as `0xE9` outside printable ASCII,
+  before any byte grammar (`git/*`) is drawn.
 
 Raised in review of
 [#2358](https://github.com/functionalscript/functionalscript/pull/2358).

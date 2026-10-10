@@ -93,6 +93,7 @@ const rowOffsets = sizes => {
 const measure = d => {
     switch (d[0]) {
         case 'terminal':
+        case 'category':
         case 'nonTerminal':
             return { width: labelWidth(d[1]), up: boxHalf, down: boxHalf }
         case 'skip':
@@ -124,9 +125,9 @@ const measure = d => {
 }
 
 /**
- * A terminal's pill or a non-terminal's box, and its label.
+ * A terminal's or a category's pill, or a non-terminal's box, and its label.
  *
- * @type {(kind: 'terminal' | 'nonTerminal', rx: number) => (label: string) => (x: number, y: number) => readonly Element[]}
+ * @type {(kind: 'terminal' | 'category' | 'nonTerminal', rx: number) => (label: string) => (x: number, y: number) => readonly Element[]}
  */
 const box = (kind, rx) => label => (x, y) => {
     const width = labelWidth(label)
@@ -140,6 +141,8 @@ const box = (kind, rx) => label => (x, y) => {
 }
 
 const terminalBox = box('terminal', boxHalf)
+
+const categoryBox = box('category', boxHalf)
 
 const nonTerminalBox = box('nonTerminal', 3)
 
@@ -169,6 +172,8 @@ const draw = backward => d => (x, y) => {
     switch (d[0]) {
         case 'terminal':
             return terminalBox(d[1])(x, y)
+        case 'category':
+            return categoryBox(d[1])(x, y)
         case 'nonTerminal':
             return [['a', { href: `#${anchor(d[1])}` }, ...nonTerminalBox(d[1])(x, y)]]
         case 'skip':
