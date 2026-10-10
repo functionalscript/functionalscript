@@ -133,7 +133,6 @@ import { revisionDialect } from '../../media/revision/module.f.mjs'
 import { lockDialect } from '../../media/lock/module.f.mjs'
 import { noteDialect } from '../../media/note/module.f.mjs'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
-import { ok } from '../../types/result/module.f.js'
 import {
     toolEntry, errorResult, okResult, toolResultStep, toolStep,
 } from '../../protocol/mcp/module.f.mjs'
