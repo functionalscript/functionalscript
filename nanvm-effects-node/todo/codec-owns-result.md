@@ -39,6 +39,14 @@ answer by hand.
   unpacks the fixed-size array; callers still assert the tag and decode the
   payload. Tagged-pair tests use `N = 2`.
 
+  This implementation lives in `nanvm-lib`, where `Array<A>` is the local
+  trait argument. The earlier `A` in the self type `[Any<A>; N]` is covered
+  by `Any<A>`, so the orphan rules permit it even though Rust's fixed-size
+  array is foreign. An isolated prototype of this generic implementation
+  compiled in the repository's Nix toolchain; making the trait argument
+  foreign instead is rejected. The conversion does not need a new trait
+  or wrapper.
+
 ### Tasks
 
 - [ ] `encode_error` and `encode_result`; the listed callers onto them.
