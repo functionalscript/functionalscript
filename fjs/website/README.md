@@ -79,8 +79,10 @@ catalogue — rather than a special case beside the rule.
 catalogue beside the centered main column, with Contents and Issues
 open by default. The catalogue stays in view while the demo or test report grows,
 and can scroll when its links are taller than the viewport. On smaller
-desktop screens it takes a 16rem column; at 48rem and below it returns to
-normal document flow above the main content. A page with no catalogue keeps
+desktop screens it takes a 16rem column; at 48rem and below Browse opens a modal drawer
+above the breadcrumb. Escape, the close button, and the backdrop dismiss it;
+resizing to desktop restores the sidebar. Without JavaScript the catalogue
+stays above the page. A page with no catalogue keeps
 its centered column. Release pages and the pull request queue keep their own
 layout.
 

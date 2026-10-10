@@ -147,6 +147,20 @@ main { margin: 1.5rem auto 3rem; max-width: 63.25rem; padding: 0 1rem }
     [data-directory-layout] { display: block }
     [data-catalogue] { border-right: 0; border-bottom: 1px solid var(--border); max-height: none; padding: 0 0 1rem; position: static }
 }
+[data-browse], [data-drawer] { display: none }
+@media (max-width: 48rem) {
+    [data-drawer-ready] > [data-catalogue] { display: none }
+    [data-browse] { display: inline-flex; align-items: center; gap: .45rem; margin-bottom: 1rem; background: var(--bg); color: var(--link); border: 1px solid var(--border); border-radius: 4px; padding: .65rem .75rem; min-height: 44px; cursor: pointer }
+    [data-drawer][open] { display: block; position: fixed; inset: 0 auto 0 0; margin: 0; box-sizing: border-box; width: min(86vw, 22rem); height: 100dvh; max-height: 100dvh; max-width: none; border: 0; border-right: 1px solid var(--border); padding: 1rem; background: var(--bg); color: var(--text); overflow: auto }
+    [data-drawer]::backdrop { background: rgb(0 0 0 / .42) }
+    [data-drawer-top] { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-bottom: .5rem }
+    [data-drawer-top] h2 { margin: 0; font-size: 1.125rem }
+    [data-drawer-top] button { background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 4px; min-height: 44px; min-width: 44px; font-size: 1.4rem; cursor: pointer }
+    [data-drawer-path] { color: var(--muted); font-size: .875rem; margin: 0 0 1.5rem }
+    [data-drawer] [data-catalogue] { border: 0; margin: 0; padding: 0 }
+    [data-drawer] [data-section] a { display: inline-block; padding-block: .35rem }
+    html:has([data-drawer][open]) { overflow: hidden }
+}
 [data-catalogue]:empty { display: none }
 [data-directory-layout]:has(> [data-catalogue]:empty) { display: block }
 [data-directory-layout]:has(> [data-catalogue]:empty) > main { margin-inline: auto }

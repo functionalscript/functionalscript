@@ -137,8 +137,10 @@ export const subtree = dir => all => {
  * @type {(sources: readonly string[]) => Element}
  */
 const runner = sources => ['script', { type: 'module' },
-    `import { startBrowserTestSources } from '/fjs/emergent_testing/browser/module.mjs'
+    `import { startDirectoryDrawer } from '/fjs/website/directory-runtime.mjs'
+import { startBrowserTestSources } from '/fjs/emergent_testing/browser/module.mjs'
 
+startDirectoryDrawer(document.querySelector('[data-directory-layout]'))
 const root = document.querySelector('[data-browser-tests]')
 const sources = [
 ${sources.map(source => `    '${source}',`).join('\n')}
@@ -424,7 +426,7 @@ export const sections = commit => dir => [
 /**
  * A directory's catalogue in the left margin beside its main content.
  * Contents and Issues keep their own disclosure controls. On a narrow
- * screen the stylesheet puts the catalogue above the main content.
+ * screen the directory runtime moves the catalogue into a modal drawer.
  *
  * @type {(build: Build) => (dir: Dir) => (main: Element) => Element}
  */
