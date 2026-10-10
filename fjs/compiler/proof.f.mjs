@@ -1256,19 +1256,21 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             for (const [name, source] of examples) {
                 for (const [label, file] of outputs) {
                     const shown = _compiled(source)(file)
-                    const written = _written(source)(file)
+                    const [shownTag, shownValue] = shown
+                    const [writtenTag, writtenValue] = _written(source)(file)
                     const route = assertNotNullish(outputText(file))
                     const [, routed] = virtual({ ...emptyState, root: { 'input.f.js': [utf8(source)] } })(route('input.f.js'))
-                    if (routed[0] === 'ok') {
-                        const [kind, text] = routed[1]
-                        assertEq(written[0], kind, `${name} ${label} text route`)
-                        assertEq(written[1], kind === 'ok' ? text : `${file} - error: ${text}`, `${name} ${label} text route`)
+                    const [routedTag, routedValue] = routed
+                    if (routedTag === 'ok') {
+                        const [kind, text] = routedValue
+                        assertEq(writtenTag, kind, `${name} ${label} text route`)
+                        assertEq(writtenValue, kind === 'ok' ? text : `${file} - error: ${text}`, `${name} ${label} text route`)
                     }
-                    assertEq(shown[0], written[0], `${name} ${label}`)
+                    assertEq(shownTag, writtenTag, `${name} ${label}`)
                     // a refusal is the command's line without its location
-                    assert(shown[0] === 'ok' ? textOfResult(shown) === written[1] : written[1].endsWith(` - error: ${shown[1]}`), `${name} ${label}`)
-                    if (shown[0] === 'ok' && label !== '.rs') {
-                        assertEq(disagreement(shown[1]), null, `${name} ${label}`)
+                    assert(shownTag === 'ok' ? textOfResult(shown) === writtenValue : writtenValue.endsWith(` - error: ${shownValue}`), `${name} ${label}`)
+                    if (shownTag === 'ok' && label !== '.rs') {
+                        assertEq(disagreement(shownValue), null, `${name} ${label}`)
                     }
                 }
             }
