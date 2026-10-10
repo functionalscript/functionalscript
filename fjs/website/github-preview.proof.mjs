@@ -72,6 +72,29 @@ export const proof = /** @type {const} */ ({
         assertEq(result, 17)
         removed(path)
     },
+    uploadsOptionalPreviewCallbackAlongsideProduction: async () => {
+        let path = ''
+        const previewCallback = 'https://functionalscript.workers.dev/prs/'
+        const result = await uploadGitHubPreview({ ...env, GITHUB_PREVIEW_REDIRECT_URI: previewCallback }, {
+            run: async args => {
+                path = secretPath(args)
+                assertStructurallySame(args, [
+                    'wrangler', 'versions', 'upload',
+                    '--var', `GITHUB_CLIENT_ID:${env.GITHUB_CLIENT_ID}`,
+                    '--var', `GITHUB_REDIRECT_URI:${env.GITHUB_REDIRECT_URI}`,
+                    '--var', `GITHUB_PREVIEW_REDIRECT_URI:${previewCallback}`,
+                    '--secrets-file', path,
+                ])
+                assert(args.every(arg => !arg.includes(env.GITHUB_CLIENT_SECRET)))
+                assertStructurallySame(JSON.parse(await readFile(path, 'utf8')), {
+                    GITHUB_CLIENT_SECRET: env.GITHUB_CLIENT_SECRET,
+                })
+                return 0
+            },
+        })
+        assertEq(result, 0)
+        removed(path)
+    },
     removesSecretFileAfterRejectedProcess: async () => {
         let path = ''
         const failure = new Error('Preview upload failed.')

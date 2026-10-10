@@ -2,7 +2,7 @@
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { parse } from '../../rtti/parse/module.f.mjs'
-import { configSchema, exchangeFailureMessage, exchangeFailureSchema, exchangeSchema, pendingSchema, providerErrorReason, providerErrorSchema, providerTokenSchema, tokenSchema, userSchema, validPending, validVerifier } from './module.f.mjs'
+import { allowedCallbackOrigin, configSchema, exchangeFailureMessage, exchangeFailureSchema, exchangeSchema, pendingSchema, providerErrorReason, providerErrorSchema, providerTokenSchema, tokenSchema, userSchema, validPending, validVerifier } from './module.f.mjs'
 
 const verifier = 'a'.repeat(43)
 const pending = /** @type {const} */ ({ state: 'unguessable', verifier, createdAt: 1_000 })
@@ -31,6 +31,37 @@ export const proof = /** @type {const} */ ({
         assertError(parse(providerErrorSchema)({ error: 42 }))
         assertError(parse(exchangeFailureSchema)({ reason: 'private-provider-detail' }))
         assertError(parse(pendingSchema)({ state: 'unguessable', verifier }))
+    },
+    callbackOrigins: () => {
+        const registered = /** @type {const} */ ({ protocol: 'https:', hostname: 'functionalscript.workers.dev', port: '' })
+        const preview = /** @type {const} */ ({ ...registered, hostname: 'codex-github-login-functionalscript.functionalscript.workers.dev' })
+        assert(allowedCallbackOrigin(registered, registered))
+        assert(allowedCallbackOrigin(preview, registered))
+        assert(allowedCallbackOrigin({ ...registered, hostname: `${'a'.repeat(63)}.functionalscript.workers.dev` }, registered))
+        assert(allowedCallbackOrigin({ ...registered, hostname: '0123456789.functionalscript.workers.dev' }, registered))
+        assertEq(allowedCallbackOrigin({ ...preview, protocol: 'http:' }, registered), false)
+        assertEq(allowedCallbackOrigin({ ...preview, port: '8443' }, registered), false)
+        assertEq(allowedCallbackOrigin({ ...registered, hostname: 'functionalscript.workers.dev.untrusted.example' }, registered), false)
+        assertEq(allowedCallbackOrigin({ ...registered, hostname: 'preview.otheraccount.workers.dev' }, registered), false)
+        assertEq(allowedCallbackOrigin({ ...registered, hostname: 'previewfunctionalscript.workers.dev' }, registered), false)
+        assertEq(allowedCallbackOrigin({ ...registered, hostname: '.functionalscript.workers.dev' }, registered), false)
+        assertEq(allowedCallbackOrigin({ ...registered, hostname: `${'a'.repeat(64)}.functionalscript.workers.dev` }, registered), false)
+        assertEq(allowedCallbackOrigin({ ...registered, hostname: '-preview.functionalscript.workers.dev' }, registered), false)
+        assertEq(allowedCallbackOrigin({ ...registered, hostname: 'preview-.functionalscript.workers.dev' }, registered), false)
+        assertEq(allowedCallbackOrigin({ ...registered, hostname: 'preview_name.functionalscript.workers.dev' }, registered), false)
+        assertEq(allowedCallbackOrigin({ ...registered, hostname: 'nested.preview.functionalscript.workers.dev' }, registered), false)
+        assert(allowedCallbackOrigin(preview, preview))
+        assertEq(allowedCallbackOrigin({ ...preview, hostname: `nested.${preview.hostname}` }, preview), false)
+        const other = /** @type {const} */ ({ ...registered, hostname: 'functionalscript.example' })
+        assert(allowedCallbackOrigin(other, other))
+        assertEq(allowedCallbackOrigin({ ...other, hostname: 'preview.functionalscript.example' }, other), false)
+        assertEq(allowedCallbackOrigin({ ...registered, hostname: 'preview.bad_account.workers.dev' },
+            { ...registered, hostname: 'bad_account.workers.dev' }), false)
+        const local = /** @type {const} */ ({ protocol: 'http:', hostname: 'localhost', port: '8787' })
+        assert(allowedCallbackOrigin(local, local))
+        assertEq(allowedCallbackOrigin({ ...local, hostname: 'preview.localhost' }, local), false)
+        assertEq(allowedCallbackOrigin({ ...registered, protocol: 'http:', hostname: preview.hostname },
+            { ...registered, protocol: 'http:' }), false)
     },
     providerReasons: () => {
         assertEq(providerErrorReason('incorrect_client_credentials'), 'incorrect_client_credentials')

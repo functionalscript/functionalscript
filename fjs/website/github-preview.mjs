@@ -29,7 +29,7 @@ const runWrangler = args => new Promise((resolve, reject) => {
  * @type {(env: WorkerEnv, host?: PreviewUploadHost) => Promise<number>}
  */
 export const uploadGitHubPreview = async (env, host = {}) => {
-    const { GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GITHUB_REDIRECT_URI } = env
+    const { GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GITHUB_REDIRECT_URI, GITHUB_PREVIEW_REDIRECT_URI } = env
     if (!GITHUB_CLIENT_ID || !GITHUB_CLIENT_SECRET || !GITHUB_REDIRECT_URI) {
         throw new Error('Set all three GitHub app build bindings before uploading this preview.')
     }
@@ -41,6 +41,7 @@ export const uploadGitHubPreview = async (env, host = {}) => {
             'wrangler', 'versions', 'upload',
             '--var', `GITHUB_CLIENT_ID:${GITHUB_CLIENT_ID}`,
             '--var', `GITHUB_REDIRECT_URI:${GITHUB_REDIRECT_URI}`,
+            ...(GITHUB_PREVIEW_REDIRECT_URI ? ['--var', `GITHUB_PREVIEW_REDIRECT_URI:${GITHUB_PREVIEW_REDIRECT_URI}`] : []),
             '--secrets-file', secretFile,
         ])
     } finally {
@@ -55,8 +56,9 @@ if (process.argv[1] !== undefined && pathToFileURL(process.argv[1]).href === imp
             GITHUB_CLIENT_ID = '',
             GITHUB_CLIENT_SECRET = '',
             GITHUB_REDIRECT_URI = '',
+            GITHUB_PREVIEW_REDIRECT_URI = '',
         } = process.env
-        process.exitCode = await uploadGitHubPreview({ GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GITHUB_REDIRECT_URI })
+        process.exitCode = await uploadGitHubPreview({ GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GITHUB_REDIRECT_URI, GITHUB_PREVIEW_REDIRECT_URI })
     } catch {
         console.error('GitHub preview upload failed. Check the three build bindings and Wrangler output.')
         process.exitCode = 1

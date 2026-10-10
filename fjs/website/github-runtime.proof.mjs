@@ -139,7 +139,7 @@ const queue = (page, responses, callback = false) => {
             assert(!page.current().searchParams.has('error'))
             assert(!page.current().searchParams.has('error_description'))
         }
-        urls.push(new URL(String(input), origin))
+        urls.push(new URL(String(input), page.current().origin))
         options.push(init)
         assert(next < responses.length, 'unexpected authentication request')
         const response = responses[next]
@@ -202,8 +202,12 @@ export const proof = /** @type {const} */ ({
         assertEq(target.pathname, '/login/oauth/authorize')
         assertEq(target.searchParams.get('client_id'), config.clientId)
         assertEq(target.searchParams.get('redirect_uri'), callback)
+        assertEq(target.searchParams.get('prompt'), 'select_account')
         assertEq(target.searchParams.get('code_challenge_method'), 'S256')
         assert(!target.searchParams.has('scope'))
+        assert(!target.searchParams.has('client_secret'))
+        assert(!target.searchParams.has('access_token'))
+        assert(!target.searchParams.has('code_verifier'))
         const saved = JSON.parse(page.storage.get(pendingKey))
         assertStructurallySame(Object.keys(saved).sort(), ['createdAt', 'state', 'verifier'])
         assertEq(saved.createdAt, now())
@@ -211,12 +215,52 @@ export const proof = /** @type {const} */ ({
         assert(saved.verifier.split('').every((/** @type {string} */ char) =>
             'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'.includes(char)))
         assert(saved.state.length >= 32)
+        assert(!target.href.includes(saved.verifier))
         assertEq(target.searchParams.get('state'), saved.state)
         const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(saved.verifier))
         assertEq(target.searchParams.get('code_challenge'), base64url(digest))
         assertEq(net.urls[0].pathname, '/auth/github/config')
         assertEq(net.remaining(), 0)
         assertNoPersistedToken(page)
+    },
+    loginReturnsToProductionAndPreviewSites: async () => {
+        const sites = /** @type {const} */ ([
+            'https://functionalscript.functionalscript.workers.dev',
+            'https://functionalscript.com',
+            'https://codex-github-login-previews-functionalscript.functionalscript.workers.dev',
+            'https://codex-github-login-functionalscript.functionalscript.workers.dev',
+        ])
+        for (const site of sites) {
+            const redirectUri = `${site}/prs/`
+            const siteConfig = { clientId: config.clientId, redirectUri }
+            const page = dom(redirectUri)
+            const net = queue(page, [json(siteConfig)])
+            await startGitHubLogin(page.root, { fetch: net.fetch, now })
+            await page.login.click()
+            assertEq(page.redirects.length, 1)
+            const authorize = new URL(page.redirects[0])
+            assertEq(authorize.origin, 'https://github.com')
+            assertEq(authorize.pathname, '/login/oauth/authorize')
+            assertEq(authorize.searchParams.get('redirect_uri'), redirectUri)
+            assertEq(authorize.searchParams.get('prompt'), 'select_account')
+            assertEq(net.urls[0].href, `${site}/auth/github/config`)
+            const saved = JSON.parse(page.storage.get(pendingKey))
+            assertEq(authorize.searchParams.get('state'), saved.state)
+            assert(!authorize.href.includes(saved.verifier))
+            assertNoPersistedToken(page)
+
+            const returned = dom(`${redirectUri}?code=github-code&state=${saved.state}`, JSON.stringify(saved))
+            const callbackNet = queue(returned, [json(siteConfig), json(token), json({ login: 'octocat' })], true)
+            const session = await startGitHubLogin(returned.root, { fetch: callbackNet.fetch, now })
+            assertEq(session.token(), token.access_token)
+            assertOctocat(returned)
+            assertEq(returned.current().href, redirectUri)
+            assertEq(callbackNet.urls[1].href, `${site}/auth/github/token`)
+            assertEq(returned.storage.get(pendingKey), undefined)
+            assertEq(net.remaining(), 0)
+            assertEq(callbackNet.remaining(), 0)
+            assertNoPersistedToken(returned)
+        }
     },
     cachedPageCanStartLoginAgainAfterLeavingForGitHub: async () => {
         const page = dom()
@@ -236,6 +280,7 @@ export const proof = /** @type {const} */ ({
         assertEq(second.origin, 'https://github.com')
         assertEq(second.pathname, '/login/oauth/authorize')
         assertEq(second.searchParams.get('client_id'), config.clientId)
+        assertEq(second.searchParams.get('prompt'), 'select_account')
         assert(first.searchParams.get('state') !== second.searchParams.get('state'))
         assertEq(JSON.parse(page.storage.get(pendingKey)).state, second.searchParams.get('state'))
         assertEq(net.remaining(), 0)
