@@ -1245,7 +1245,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             }
             assertEq(textOfResult(_compiled('export default 1;')('output.json')), '1')
             assertEq(textOfResult(_compiled('const fact = n => n < 2 ? 1 : n * fact(n - 1);\nexport default fact(5);')('output.json')), '120')
-            assertEq(textOfResult(_compiled('export default "\\x41";')('output.json')), 'input.f.js:1:16-23 - error: unexpected token')
+            assertEq(textOfResult(_compiled('export default "\\x41";')('output.json')), 'unexpected token')
         },
         // A pane shows what `fjs compile` writes: the whole of `compile` over
         // the same file system answers the same text, or the same refusal.
@@ -1265,7 +1265,8 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
                         assertEq(written[1], kind === 'ok' ? text : `${file} - error: ${text}`, `${name} ${label} text route`)
                     }
                     assertEq(shown[0], written[0], `${name} ${label}`)
-                    assertEq(textOfResult(shown), written[1], `${name} ${label}`)
+                    // a refusal is the command's line without its location
+                    assert(shown[0] === 'ok' ? textOfResult(shown) === written[1] : written[1].endsWith(` - error: ${shown[1]}`), `${name} ${label}`)
                     if (shown[0] === 'ok' && label !== '.rs') {
                         assertEq(disagreement(shown[1]), null, `${name} ${label}`)
                     }

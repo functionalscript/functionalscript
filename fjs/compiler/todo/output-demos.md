@@ -36,7 +36,7 @@ that code lands.
 
 **Each demo runs the stage it shows, never a lookalike.** The stage demos call
 the stage's own function (`tryModuleMarked`, `toRust`, `tokenize`, `parse`).
-The side-by-side page runs `outputMarked`, the output route shared with
+The side-by-side page runs `_outputMarked`, the output route shared with
 `compile`, over an in-memory file system, once per output name, before CLI
 diagnostic formatting. A file system carries text, so the page takes the output as marked
 text (`fjs/text/marked`) before it is written, which is how a pane is coloured

@@ -4,10 +4,11 @@
  * they differ.
  *
  * **It runs the compiler, not a lookalike.** The text is the input file of
- * `outputMarked`, the output route shared with the real `compile`, run over
- * an in-memory file system, once per output name. Each pane shows its marked
- * text or raw refusal message, before CLI diagnostic formatting. The proof
- * holds `_compileMarked`'s text to the file the whole of `compile` writes. So
+ * `_outputMarked`, the real `compile` but for the directory and the write,
+ * run over an in-memory file system, once per output name; each pane is the
+ * output that run answers, as marked text so that its words are coloured by
+ * what the compiler wrote, or the message it would print. The proof holds each
+ * pane's text to the file the whole of `compile` writes. So
  * `[a, a]` is a shared `const` in `.js`, `.data.js`, the EDAG and Rust, but
  * JSON, which has no identity to keep, writes the node where each reference
  * reaches it; `undefined` is refused by JSON alone; a function is refused by
@@ -41,9 +42,7 @@ import { error, ok, unwrap } from '../types/result/module.f.mjs'
 import { textDemo, refusal } from '../website/demo/module.f.mjs'
 import { render } from '../website/demo/highlight/module.f.mjs'
 import { examples } from './examples/module.f.js'
-import { _compileMarked, compile, outputMarked } from './module.f.mjs'
-import { assertNotNullish } from '../asserts/module.f.mjs'
-import { resultStep, pureOk } from '../effects/module.f.mjs'
+import { _outputMarked, compile } from './module.f.mjs'
 
 /**
  * The outputs, each under the file name that selects its language: what a
@@ -61,15 +60,17 @@ export const outputs = [
 
 /**
  * `text` compiled to the language `outputFileName` names, as marked text: the
- * output `compile` writes the text of, or what it would print when it
- * refuses. It is the real compile but for its tail, the directory and the
+ * output `compile` writes the text of, or why it refuses, without the
+ * location the command prints. It is the real compile but for its tail, the directory and the
  * write, so a pane cannot show anything the CLI does not write, which
  * {@link _written} lets the proof check.
  *
  * @type {(text: string) => (outputFileName: string) => Result<Marked, string>}
  */
-export const _compiled = text => outputFileName =>
-    unwrap(virtual({ ...emptyState, root: { 'input.f.js': [utf8(text)] } })(_compileMarked('input.f.js', outputFileName))[1])
+export const _compiled = text => outputFileName => {
+    const result = unwrap(virtual({ ...emptyState, root: { 'input.f.js': [utf8(text)] } })(_outputMarked('input.f.js', outputFileName))[1])
+    return result[0] === 'error' ? error(result[1][0]) : result
+}
 
 /**
  * `text` compiled by the whole of `compile` over an in-memory file system:
@@ -94,10 +95,6 @@ export const demo = textDemo({
     init: examples[0][1],
     examples,
 })(text => outputs.map(([label, outputFileName]) => {
-    const write = assertNotNullish(outputMarked(outputFileName))
-    const output = resultStep(write('input.f.js'), ([kind, value]) =>
-        pureOk(kind === 'error' ? error(value.message) : value))
-    const [, result] = virtual({ ...emptyState, root: { 'input.f.js': [utf8(text)] } })(output)
-    const [kind, value] = unwrap(result)
+    const [kind, value] = _compiled(text)(outputFileName)
     return ['section', ['h3', label], kind === 'ok' ? ['pre', { [codeMarker]: '' }, ...render(value)] : refusal(value)]
 }))
