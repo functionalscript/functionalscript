@@ -127,10 +127,12 @@ The signature is valid if `v = r`.
 
 ### Proof
 
+Scalar equalities below are modulo `q`, the order of `G`.
+
 1. `X = G * (z * 1/s) + Q * (r * 1/s)`
 2. `X = G * z * 1/s + G * d * r * 1/s`
-3. `G * z * 1/s + d * r * 1/s = G * k`
-4. `z * 1/s + d * r * 1/s) = k`
+3. `G * (z * 1/s + d * r * 1/s) = G * k`
+4. `z * 1/s + d * r * 1/s = k`
 5. `z + d * r = k * s`
 6. `z + d * r = k * (z + r * d) / k`
 7. `z + d * r = z + r * d`
