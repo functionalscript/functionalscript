@@ -379,12 +379,12 @@ const dirItem = dir => name => ['li', ['a', {
  * section away under, over a list of entries — or nothing at all when there
  * are none, so a page says only what is true of its directory.
  *
- * @type {(heading: string) => (open: boolean) => (items: readonly Element[]) => readonly Node[]}
+ * @type {(heading: string) => (items: readonly Element[]) => readonly Node[]}
  */
-const section = heading => open => items =>
+const section = heading => items =>
     items.length === 0
         ? []
-        : [['details', { 'data-section': '', open: open ? '' : undefined },
+        : [['details', { 'data-section': '', open: '' },
             summary(heading)(),
             ['ul', { 'data-links': '' }, ...items]]]
 
@@ -399,11 +399,11 @@ const section = heading => open => items =>
  * then files, as GitHub and a file manager list them: a directory is where a
  * reader goes next, and a file is where the reading stops.
  *
- * **Issues are a list of their own, folded.** An issue is about the
- * directory rather than in it, and the list is not bounded by the directory
- * — the root has dozens — so it opens only when a reader asks, and pushes
- * nothing below it down until then. Its entries keep the issue icon, so an
- * entry looks the same wherever it is listed.
+ * **Issues are a list of their own, open by default.** An issue is about
+ * the directory rather than in it. Showing its open work beside Contents
+ * makes both lists available immediately; a reader can fold either away.
+ * Its entries keep the issue icon, so an entry looks the same wherever it
+ * is listed.
  *
  * The root page inserts these into its own frame; {@link page} wraps them in
  * one. Nothing here depends on which of the two is calling.
@@ -413,11 +413,11 @@ const section = heading => open => items =>
  * @type {(commit: string | null) => (dir: Dir) => readonly Node[]}
  */
 export const sections = commit => dir => [
-    ...section('Contents')(true)([
+    ...section('Contents')([
         ...dir.dirs.map(dirItem(dir)),
         ...dir.files.map(name => item('file')(fileHref(commit)(dir.path)(name))(name)),
     ]),
-    ...section('Issues')(false)(dir.todo.map(name =>
+    ...section('Issues')(dir.todo.map(name =>
         item('issue')(fileHref(commit)(dir.path)(`todo/${name}`))(name))),
 ]
 

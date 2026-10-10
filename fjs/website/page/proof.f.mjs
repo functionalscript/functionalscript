@@ -35,11 +35,11 @@ const contents = items => '<body><details data-section="" open=""><summary><h2>C
     + `<ul data-links="">${items}</ul></details></body>`
 
 /**
- * The Issues section around `items`, folded, as the body it is the whole of.
+ * The Issues section around `items`, open, as the body it is the whole of.
  *
  * @type {(items: string) => string}
  */
-const issues = items => '<body><details data-section=""><summary><h2>Issues</h2></summary>'
+const issues = items => '<body><details data-section="" open=""><summary><h2>Issues</h2></summary>'
     + `<ul data-links="">${items}</ul></details></body>`
 
 /** @type {Dir} */
@@ -152,16 +152,15 @@ export const proof = {
             contents('<li><a href="/fjs/types/index.html" data-kind="dir">types</a></li>'
                 + '<li><a href="/fjs/module.f.mjs" data-kind="file">module.f.mjs</a></li>')),
         /**
-         * **Issues are a list of their own, after Contents and folded.** The
-         * root has dozens, and an open list would push the suite below it
-         * off the screen.
+         * **Issues are a list of their own, after Contents and open.** Both
+         * lists are available without opening a disclosure control.
          */
-        issuesSeparateAndFolded: () => {
+        issuesSeparateAndOpen: () => {
             const html = sectionsHtml({ ...empty, path: 'fjs', todo: ['a.md'], files: ['module.f.mjs'] })
             assertEq(html,
                 '<body><details data-section="" open=""><summary><h2>Contents</h2></summary>'
                 + '<ul data-links=""><li><a href="/fjs/module.f.mjs" data-kind="file">module.f.mjs</a></li></ul></details>'
-                + '<details data-section=""><summary><h2>Issues</h2></summary>'
+                + '<details data-section="" open=""><summary><h2>Issues</h2></summary>'
                 + '<ul data-links=""><li><a href="/fjs/todo/a.md" data-kind="issue">a.md</a></li></ul></details></body>')
         },
         // A subdirectory link points at a page, and every such page exists —

@@ -76,8 +76,8 @@ that page for the repository root — it carries the project's name and the same
 catalogue — rather than a special case beside the rule.
 
 **Contents and Issues use the left margin.** Both sections live in one
-catalogue beside the centered main column, with Contents open and Issues
-folded. The catalogue stays in view while the demo or test report grows,
+catalogue beside the centered main column, with Contents and Issues
+open by default. The catalogue stays in view while the demo or test report grows,
 and can scroll when its links are taller than the viewport. On smaller
 desktop screens it takes a 16rem column; at 48rem and below it returns to
 normal document flow above the main content. A page with no catalogue keeps
