@@ -55,6 +55,9 @@ const step = (command, payload, view) => rest => acc => ({
 /** What an operation with no value shows. */
 const none = (/** @type {unknown} */ _) => null;
 
+/** @type {(...a: readonly unknown[]) => never} */
+const fail = (...a) => { throw 'boom'; };
+
 const hi = -59497n;
 const hihi = -3899222121n;
 
@@ -151,6 +154,14 @@ export const readWhole = {
             step('readWhole', [root], none)(
                 step('readWhole', [root + '/none'], none)(end))))([]),
     expected: [['ok', null], ['ok', true], ['error', 'ERR_NOT_A_FILE'], ['error', 'ENOENT']],
+};
+
+export const thunks = {
+    run: (/** @type {string} */ _root) => step('catch', [() => 7], (/** @type {any} */ v) => v[0] === 'ok' && v[1] === 7)(
+        step('catch', [fail], (/** @type {any} */ v) => v[0] === 'error' && v[1] === 'boom')(
+            step('sandbox', [() => 2], (/** @type {any} */ v) => v.result[1] === 2 && v.duration >= 0)(
+                step('now', [], (/** @type {any} */ v) => v > 1000000000000)(end))))([]),
+    expected: [['ok', true], ['ok', true], ['ok', true], ['ok', true]],
 };
 
 export const directory = {

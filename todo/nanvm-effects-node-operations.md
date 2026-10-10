@@ -49,5 +49,7 @@ implementation details remain unspecified here.
         holds programs the Node runner (`fjs/nanvm/parity/proof.mjs`) and
         `nanvm-effects-node` (`nanvm-harness/tests/parity.rs`) both perform
         against one `expected`. Add a case there when an operation gains one.
-  - [ ] The rest of the scope: console, `resolveFileModule`, `sandbox`, `catch`,
-        and what the corpus leaves out on purpose (see its header).
+  - [x] `catch`, `sandbox` and `now`: the `thunks` case, over what they answer
+        rather than the clock's value.
+  - [ ] The rest of the scope: console, `resolveFileModule`, and what the corpus
+        leaves out on purpose (see its header).
