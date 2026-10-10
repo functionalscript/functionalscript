@@ -25,10 +25,11 @@
  *
  * @import { Result } from '../../types/result/types.ts'
  * @import { List } from '../../types/list/types.ts'
+ * @import { Scan } from '../../types/function/operator/types.ts'
  * @import { Chunk, Marked, Run, Span, TokenKind } from './types.ts'
  */
 
-import { map, toArray } from '../../types/list/module.f.mjs'
+import { map, scan, toArray } from '../../types/list/module.f.mjs'
 import { assert } from '../../asserts/module.f.mjs'
 import { error, ok, unwrap } from '../../types/result/module.f.mjs'
 
@@ -62,6 +63,19 @@ const isNameStart = c => (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c =
 const isNamePart = c => isNameStart(c) || (c >= '0' && c <= '9')
 
 /**
+ * Whether each character is part of a name, one character at a time. `word`
+ * says the previous character was a letter, digit, `_` or `$`, and `name` that
+ * the word it belongs to started like a name.
+ *
+ * @type {(word: boolean) => (name: boolean) => Scan<string, boolean>}
+ */
+const nameStep = word => name => c => {
+    const part = isNamePart(c)
+    const inName = part && (word ? name : isNameStart(c))
+    return [inName, nameStep(part)(inName)]
+}
+
+/**
  * A plain text as runs: each maximal word of letters, digits, `_` and `$`
  * that starts with a letter, `_` or `$` is an `identifier`, and what lies
  * between is plain. A word that starts with a digit is a number the producer
@@ -69,23 +83,15 @@ const isNamePart = c => isNameStart(c) || (c >= '0' && c <= '9')
  *
  * @type {(text: string) => Marked}
  */
-const nameRuns = text => Array.from(text).reduce(
-    /** @type {(acc: readonly (readonly [boolean, string])[], c: string) => readonly (readonly [boolean, string])[]} */
-    ((acc, c) => {
-        const word = isNamePart(c)
-        const last = acc[acc.length - 1]
-        return last !== undefined && last[0] === word ? [...acc.slice(0, -1), [word, last[1] + c]] : [...acc, [word, c]]
-    }),
-    [],
-).map(([word, run]) => word && isNameStart(run[0]) ? /** @type {Run} */ ([run, 'identifier']) : /** @type {Run} */ ([run]))
-    // neighbours with no kind are one run again
-    .reduce(
-        /** @type {(acc: Marked, run: Run) => Marked} */
-        ((acc, run) => {
-            const last = acc[acc.length - 1]
-            return run[1] === undefined && last !== undefined && last[1] === undefined ? [...acc.slice(0, -1), [last[0] + run[0]]] : [...acc, run]
-        }),
-        [])
+const nameRuns = text => {
+    const chars = Array.from(text)
+    const flags = toArray(scan(nameStep(false)(false))(chars))
+    const starts = flags.flatMap((flag, i) => i === 0 || flag !== flags[i - 1] ? [i] : [])
+    return starts.map((start, k) => {
+        const run = chars.slice(start, starts[k + 1]).join('')
+        return flags[start] ? /** @type {Run} */ ([run, 'identifier']) : /** @type {Run} */ ([run])
+    })
+}
 
 /**
  * The names of a producer's code: every word still plain in `marked` becomes
