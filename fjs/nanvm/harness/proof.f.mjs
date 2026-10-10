@@ -11,7 +11,7 @@ import { step } from '../../effects/module.f.mjs'
 import { defaultNodeProgramOptions, emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { fixturesDirectory as corpusDirectory } from '../corpus/module.f.mjs'
-import { directory, expectedDirectory, expectedModulesPath, fixtures, fixturesDirectory, generateAll, generateExpected, generateFixtures, main, modules, modulesPath, rustName } from './module.f.mjs'
+import { directory, expectedDirectory, expectedModules, expectedModulesPath, fixtures, fixturesDirectory, generateAll, generateExpected, generateFixtures, main, modules, modulesPath, rustName } from './module.f.mjs'
 
 /**
  * Four fixtures and the things the walk must leave alone: a file that is not
@@ -71,6 +71,14 @@ export const proof = {
         ].join('\n'))
         assertEq(modules([]).endsWith('\n\n'), true)
     },
+    expectedModules: () => {
+        const text = expectedModules(['at', 'rest_function'])
+        assert(text.startsWith(modules(['at', 'rest_function'])))
+        assert(text.includes(
+            '    crate::Case { name: "at", fixture: crate::fixtures::at::module::<Naive>, expected: at::module::<Naive>, json: at::JSON, throws: at::THROWS },\n'))
+        assert(text.endsWith('];\n'))
+        assert(expectedModules([]).endsWith('&[crate::Case] = &[\n];\n'))
+    },
     generateFixtures: () => {
         const [state, result] = virtual({ ...emptyState, root })(generateFixtures())
         assertOk(result)
@@ -110,7 +118,7 @@ export const proof = {
         const written = into(state.root, expectedDirectory.split('/'))
         assertEq(Object.keys(written).toSorted().join(','), 'at.rs,function_scope.rs,mod.rs')
         const [, modRs] = virtual(state)(readUtf8File(expectedModulesPath))
-        assertEq(assertOk(modRs), modules(['at', 'function_scope']))
+        assertEq(assertOk(modRs), expectedModules(['at', 'function_scope']))
         const [, atRs] = virtual(state)(readUtf8File(`${expectedDirectory}/at.rs`))
         assert(assertOk(atRs).startsWith('// Expectation of `nanvm-harness/fixtures/at.mjs`'))
     },
@@ -140,7 +148,7 @@ export const proof = {
         /** @type {Dir} */
         const excepted = { 'nanvm-harness': { 'fixtures': { 'function.mjs': [utf8('export default () => 1;')] } } }
         const [state, result] = virtual({ ...emptyState, root: excepted })(step(generateExpected(), () => readUtf8File(expectedModulesPath)))
-        assertEq(assertOk(result), modules([]))
+        assertEq(assertOk(result), expectedModules([]))
         assertEq(Object.keys(into(state.root, expectedDirectory.split('/'))).join(','), 'mod.rs')
     },
     // The compiled fixtures and their expectations, both directories.

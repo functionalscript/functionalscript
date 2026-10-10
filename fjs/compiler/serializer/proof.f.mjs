@@ -33,7 +33,7 @@ import { parse } from '../transpiler/module.f.mjs'
 import { _tryModuleSerialize, _trySerialize, functionText, tryFunctionText, trySerialize, tryStringify, tryModuleSerialize, tryModuleStringify } from './module.f.mjs'
 import { keywords } from '../../js/keywords/module.f.mjs'
 import { disagreement } from '../../website/demo/highlight/module.f.mjs'
-import { chunksMarked, toText } from '../../text/marked/module.f.mjs'
+import { chunksMarked, textOfResult, toText } from '../../text/marked/module.f.mjs'
 
 /** The name the front end gives the text it reads back. */
 const path = '/proof.f.js'
@@ -1417,13 +1417,16 @@ export const proof = {
     demo: {
         examples: () => {
             for (const [name, source] of examples) {
-                assertEq(_sourceOf(source)[0], ['An import', 'A named import and a call', 'Hex escape', 'Parse error'].includes(name) ? 'error' : 'ok', name)
+                const [tag, value] = _sourceOf(source)
+                assertEq(tag, ['An import', 'A named import and a call', 'Hex escape', 'Parse error'].includes(name) ? 'error' : 'ok', name)
+                if (tag === 'ok') { assertEq(disagreement(value), null, name) }
             }
-            assertEq(_sourceOf('const a = [1];\nexport default [a, a];')[1], 'const $0=[1];export default [$0,$0];')
+            assertEq(textOfResult(_sourceOf('const a = [1];\nexport default [a, a];')), 'const $0=[1];export default [$0,$0];')
         },
         view: () => {
             const shown = htmlToString(demo.view(demo.init))
-            assert(shown.includes('<p data-caption="">JavaScript module:</p><pre data-code="">'), shown)
+            assert(shown.includes('<p data-caption="">JavaScript module:</p><div data-code="" data-code-block=""><pre>'), shown)
+            assert(shown.includes('aria-label="Copy JavaScript module"'), shown)
             const refused = htmlToString(demo.view('export default {bad'))
             assert(refused.includes('Refused:</p><pre data-result="error">'), refused)
         },

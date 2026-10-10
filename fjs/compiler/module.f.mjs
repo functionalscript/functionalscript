@@ -13,11 +13,12 @@
  * @module
  *
  * @import { List } from '../types/list/types.ts'
- * @import { Chunk } from '../text/marked/types.ts'
+ * @import { Chunk, Marked } from '../text/marked/types.ts'
  * @import { Result } from '../types/result/types.ts'
  * @import { Unknown } from '../media/datajs/types.ts'
  * @import { _Checked, _CompileOp } from './types.ts'
  * @import { ParseError } from './parser/types.ts'
+ * @import { Exp } from '../edag/types.ts'
  * @import { Effect, IoChannel, IoError } from '../effects/types.ts'
  * @import { Env, Program, ReadWhole, ResolveFileModule, Write } from '../effects/node/types.ts'
  */
@@ -26,11 +27,11 @@ import { _transpileDefault } from './transpiler/module.f.mjs'
 import { errorLocation } from './parser/module.f.mjs'
 import { resolve } from './edag/module.f.mjs'
 import { toRust } from './rust/module.f.mjs'
-import { _numberSerialize, tryJsonStringify, tryStringify } from '../media/datajs/serializer/module.f.mjs'
-import { tryStringify as fjsStringify, tryModuleStringify } from './serializer/module.f.mjs'
+import { _numberSerialize, tryJsonMarked, tryMarked } from '../media/datajs/serializer/module.f.mjs'
+import { tryMarked as fjsMarked, tryModuleMarked } from './serializer/module.f.mjs'
 import { arrayWrap, boolSerialize, colon, nullSerialize, objectWrap, stringSerialize } from '../media/json/serializer/module.f.mjs'
 import { flat, map } from '../types/list/module.f.mjs'
-import { ok, okThen } from '../types/result/module.f.mjs'
+import { error, mapOk, ok, okThen } from '../types/result/module.f.mjs'
 import { concat } from '../types/string/module.f.mjs'
 import { serialize as bigintSerialize } from '../types/bigint/module.f.mjs'
 import { sort } from '../types/object/module.f.mjs'
@@ -38,7 +39,7 @@ import { errorMessage, foldStep, ioError, mapStep, pureError, pureOk, resultMapS
 import { error as errorLine, errorExit, exitStep, log, mkdir, writeUtf8File } from '../effects/node/module.f.mjs'
 import { concat as pathConcat } from '../path/module.f.mjs'
 import { allFiles, sourceRoot } from '../dev/module.f.mjs'
-import { chunksText } from '../text/marked/module.f.mjs'
+import { chunksText, toText, unmarked } from '../text/marked/module.f.mjs'
 
 const { entries } = Object
 
@@ -101,18 +102,24 @@ const isFjs = named(['.js', '.mjs'])
  * hoisted into a `const` as any shared node is, so the document reads back
  * as the same graph. The writer refuses nothing an EDAG holds.
  *
- * @type {(path: string) => Effect<ReadWhole | ResolveFileModule, Result<string, string>, ParseError>}
+ * @type {(path: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, string>, ParseError>}
  */
-const edagText = path => mapStep(resolve(path), tryStringify)
+const edagText = path => mapStep(resolve(path), tryMarked)
+
+/** Wrap a successful text result as a plain run. */
+const unmarkedResult = mapOk(unmarked)
+
+/** Rust output as plain marked text. @type {(graph: Exp) => Result<Marked, string>} */
+const rustMarked = graph => unmarkedResult(toRust(graph))
 
 /**
  * The program at `path` as the text of its `.rs` output: linked by `./edag`
  * into one graph, the same as {@link edagText}, and printed against the
  * `nanvm-lib` API by `./rust` rather than serialized as a DataJS document.
  *
- * @type {(path: string) => Effect<ReadWhole | ResolveFileModule, Result<string, string>, ParseError>}
+ * @type {(path: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, string>, ParseError>}
  */
-const rustText = path => mapStep(resolve(path), toRust)
+const rustText = path => mapStep(resolve(path), rustMarked)
 
 /**
  * The program at `path` as the text of the FunctionalScript module it is:
@@ -123,15 +130,15 @@ const rustText = path => mapStep(resolve(path), toRust)
  * would refuse, a read of `null`, compiles too, the failure being the
  * program's to make when it runs.
  *
- * @type {(path: string) => Effect<ReadWhole | ResolveFileModule, Result<string, string>, ParseError>}
+ * @type {(path: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, string>, ParseError>}
  */
-const fjsText = path => mapStep(resolve(path), graph => path.endsWith('.json') ? fjsStringify(graph) : tryModuleStringify(graph))
+const fjsText = path => mapStep(resolve(path), graph => path.endsWith('.json') ? fjsMarked(graph) : tryModuleMarked(graph))
 
 /**
  * Write the default export of a module, or the whole document for a direct
  * JSON input. Input language decides the boundary, never an object's keys.
  *
- * @type {(write: (value: Unknown) => Result<string, string>) => (path: string) => Effect<ReadWhole | ResolveFileModule, Result<string, string>, ParseError>}
+ * @type {(write: (value: Unknown) => Result<Marked, string>) => (path: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, string>, ParseError>}
  */
 const dataText = write => path => mapStep(_transpileDefault(path), okThen(write))
 
@@ -150,15 +157,28 @@ const dataText = write => path => mapStep(_transpileDefault(path), okThen(write)
  * input is the effect's; and a name with no language here is neither, since
  * there is nothing to read the input for.
  *
- * @type {(outputFileName: string) => ((inputFileName: string) => Effect<ReadWhole | ResolveFileModule, Result<string, string>, ParseError>) | null}
+ * @type {(outputFileName: string) => ((inputFileName: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, string>, ParseError>) | null}
  */
-export const outputText = outputFileName => {
-    if (outputFileName.endsWith('.json')) { return dataText(tryJsonStringify) }
+const outputMarked = outputFileName => {
+    if (outputFileName.endsWith('.json')) { return dataText(tryJsonMarked) }
     if (isEdag(outputFileName)) { return edagText }
-    if (isDataJs(outputFileName)) { return dataText(tryStringify) }
+    if (isDataJs(outputFileName)) { return dataText(tryMarked) }
     if (isFjs(outputFileName)) { return fjsText }
     if (outputFileName.endsWith('.rs')) { return rustText }
     return null
+}
+
+/** Flatten a successful marked output to plain text. */
+const textResult = mapOk(toText)
+
+/**
+ * The output route as plain text, preserving its input and output refusals.
+ *
+ * @type {(outputFileName: string) => ((inputFileName: string) => Effect<ReadWhole | ResolveFileModule, Result<string, string>, ParseError>) | null}
+ */
+export const outputText = outputFileName => {
+    const write = outputMarked(outputFileName)
+    return write === null ? null : inputFileName => mapStep(write(inputFileName), textResult)
 }
 
 /**
@@ -302,6 +322,58 @@ const check = env => resultStep(
  */
 const refused = message => pureError(ioError({ message }))
 
+/** A raw refusal beside its CLI diagnostic. @type {(message: string, diagnostic: string) => Result<Marked, readonly [string, string]>} */
+const refusal = (message, diagnostic) => error([message, diagnostic])
+
+/**
+ * The output `outputFileName` asks for from the module `inputFileName`, as
+ * marked text — what {@link compileFile} writes the text of — or why it is
+ * refused: an output extension naming no language, a parse error, or a
+ * refused output. A refusal is `[message, diagnostic]`: the message alone,
+ * which a page shows beside the output it is about, and the line the command
+ * prints, which adds where the refusal is. It is the whole of the compile but
+ * its tail, the directory and the write, so a page that shows what
+ * `fjs compile` writes runs this and the text it shows is the file's, which
+ * its proof pins. Exported for linkage, as the other `_` exports are.
+ *
+ * @type {(inputFileName: string, outputFileName: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, readonly [message: string, diagnostic: string]>, never>}
+ */
+export const _outputMarked = (inputFileName, outputFileName) => {
+    const text = outputMarked(outputFileName)
+    if (text === null) {
+        return pureOk(refusal(unknownOutput, `${outputFileName} - error: ${unknownOutput}`))
+    }
+    return resultStep(
+        text(inputFileName),
+        /** @type {(result: Result<Result<Marked, string>, ParseError>) => Effect<never, Result<Marked, readonly [string, string]>, never>} */
+        (result) => {
+            const [kind, value] = result
+            if (kind === 'error') { return pureOk(refusal(value.message, diagnostic(inputFileName)(value))) }
+            const [tag, content] = value
+            return pureOk(tag === 'error' ? refusal(content, `${outputFileName} - error: ${content}`) : ok(content))
+        })
+}
+
+/** Keep the CLI diagnostic when compilation is refused.
+ * @type {(result: Result<Marked, readonly [message: string, diagnostic: string]>) => Result<Marked, string>}
+ */
+const compileResult = result => {
+    const [tag, value] = result
+    if (tag === 'error') {
+        const [, diagnostic] = value
+        return error(diagnostic)
+    }
+    return result
+}
+
+/**
+ * {@link _outputMarked} with a refusal as the line the command prints.
+ *
+ * @type {(inputFileName: string, outputFileName: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, string>, never>}
+ */
+export const _compileMarked = (inputFileName, outputFileName) => mapStep(
+    _outputMarked(inputFileName, outputFileName), compileResult)
+
 /**
  * Compiles the FunctionalScript module `inputFileName` into `outputFileName`,
  * in the language the output's extension declares — what {@link compile} does
@@ -313,26 +385,15 @@ const refused = message => pureError(ioError({ message }))
  *
  * @type {(inputFileName: string, outputFileName: string) => Effect<_CompileOp, void, IoChannel>}
  */
-export const compileFile = (inputFileName, outputFileName) => {
-    const text = outputText(outputFileName)
-    if (text === null) {
-        return refused(`${outputFileName} - error: ${unknownOutput}`)
-    }
-    return resultStep(
-        text(inputFileName),
-        /** @type {(result: Result<Result<string, string>, ParseError>) => Effect<_CompileOp, void, IoChannel>} */
-        (result) => {
-            if (result[0] === 'error') {
-                return refused(diagnostic(inputFileName)(result[1]))
-            }
-            const [tag, content] = result[1]
-            if (tag === 'error') {
-                return refused(`${outputFileName} - error: ${content}`)
-            }
-            const directoryReady = mkdir(outputDirectory(outputFileName), { recursive: true })
-            return step(directoryReady, () => writeUtf8File(outputFileName, content))
-        })
-}
+export const compileFile = (inputFileName, outputFileName) => step(
+    _compileMarked(inputFileName, outputFileName),
+    /** @type {(result: Result<Marked, string>) => Effect<_CompileOp, void, IoChannel>} */
+    (result) => {
+        const [tag, value] = result
+        if (tag === 'error') { return refused(value) }
+        const directoryReady = mkdir(outputDirectory(outputFileName), { recursive: true })
+        return step(directoryReady, () => writeUtf8File(outputFileName, toText(value)))
+    })
 
 /**
  * Compiles the FunctionalScript module `args[0]` into `args[1]`, in the

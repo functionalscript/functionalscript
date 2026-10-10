@@ -11,3 +11,4 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
 
 #[rustfmt::skip]
 pub const JSON: Option<&[u8]> = Some(&[0x5b, 0x30, 0x2c, 0x32, 0x5d]);
+pub const THROWS: bool = false;

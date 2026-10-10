@@ -38,6 +38,26 @@ export const keyword = word => [word, 'keyword']
 export const literal = word => [word, 'literal']
 
 /**
+ * A text with nothing marked: the output of a producer that has no kinds to
+ * give, such as the Rust printer for now.
+ *
+ * @type {(text: string) => Marked}
+ */
+export const unmarked = text => [[text]]
+
+/**
+ * The text of a result: the text of the marked text an `ok` holds, or the
+ * message an `error` holds. What a page shows in either case, and what a proof
+ * compares it with.
+ *
+ * @type {(result: Result<Marked, string>) => string}
+ */
+export const textOfResult = result => {
+    const [tag, value] = result
+    return tag === 'ok' ? toText(value) : value
+}
+
+/**
  * The text of a chunk.
  *
  * @type {(chunk: Chunk) => string}
@@ -85,18 +105,26 @@ export const fromSpans = text => spans => {
     const symbols = Array.from(text)
     /** @type {(from: number, to: number) => readonly Run[]} */
     const plain = (from, to) => from < to ? [[symbols.slice(from, to).join('')]] : []
-    /** @type {(acc: Result<readonly [number, Marked], string>, span: Span) => Result<readonly [number, Marked], string>} */
-    const step = (acc, { start, length, kind }) => {
-        if (acc[0] === 'error') { return acc }
-        const [position, runs] = acc[1]
-        if (!Number.isInteger(start) || !Number.isInteger(length) || length < 1) {
-            return error(`span ${start}+${length} is not a non-empty range of whole code points`)
-        }
-        if (start < position) { return error(`span ${start}+${length} overlaps or precedes the text before it`) }
-        const end = start + length
-        if (end > symbols.length) { return error(`span ${start}+${length} is past the end of the text (${symbols.length})`) }
-        return ok([end, [...runs, ...plain(position, start), [symbols.slice(start, end).join(''), kind]]])
+    /** @type {(i: number) => number} */
+    const endBefore = i => {
+        if (i === 0) { return 0 }
+        const { start, length } = spans[i - 1]
+        return start + length
     }
-    const result = spans.reduce(step, /** @type {Result<readonly [number, Marked], string>} */(ok([0, []])))
-    return result[0] === 'error' ? result : ok([...result[1][1], ...plain(result[1][0], symbols.length)])
+    /** @type {(span: Span, i: number) => string | null} */
+    const problem = ({ start, length }, i) => {
+        if (!Number.isInteger(start) || !Number.isInteger(length) || length < 1) {
+            return `span ${start}+${length} is not a non-empty range of whole code points`
+        }
+        if (start < endBefore(i)) { return `span ${start}+${length} overlaps or precedes the text before it` }
+        if (start + length > symbols.length) { return `span ${start}+${length} is past the end of the text (${symbols.length})` }
+        return null
+    }
+    const failed = spans.map(problem).find(message => message !== null)
+    if (failed !== undefined) { return error(failed) }
+    const last = endBefore(spans.length)
+    return ok([
+        ...spans.flatMap(({ start, length, kind }, i) => [...plain(endBefore(i), start), /** @type {Run} */ ([symbols.slice(start, start + length).join(''), kind])]),
+        ...plain(last, symbols.length),
+    ])
 }

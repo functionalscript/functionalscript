@@ -130,7 +130,7 @@
  * @import { Analysis, ItemOperand, Node, Operand, Ref, Step } from '../../edag/analysis/types.ts'
  * @import { Exp } from '../../edag/types.ts'
  * @import { List } from '../../types/list/types.ts'
- * @import { Chunk } from '../../text/marked/types.ts'
+ * @import { Chunk, Marked } from '../../text/marked/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { Document } from './types.ts'
  * @import { _Hoisted, _Names, _Root, _Scope, _Statement, _Written } from './private.ts'
@@ -146,7 +146,7 @@ import { definedValues } from '../../types/object/module.f.mjs'
 import { eagerLayers, lazyLayers } from '../ast/module.f.mjs'
 import { _prohibitedCallNames, _prohibitedNames } from '../parser/module.f.mjs'
 import { isIdentifier } from '../../js/identifier/module.f.mjs'
-import { chunkStrings, chunkText, chunksText, keyword, literal } from '../../text/marked/module.f.mjs'
+import { chunkStrings, chunksMarked, chunkText, chunksText, keyword, literal } from '../../text/marked/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { error, mapOk, ok, okList, okThen } from '../../types/result/module.f.mjs'
 import { _entryChunks as entryChunks, _entryText as entryText, renderFunction } from './function_text/module.f.mjs'
@@ -1455,6 +1455,13 @@ export const _trySerialize = e => {
  */
 export const trySerialize = e => mapOk(chunkStrings)(_trySerialize(e))
 
+/**
+ * The same as marked text: the kind of each leaf and word kept.
+ *
+ * @type {(e: Exp) => Result<Marked, string>}
+ */
+export const tryMarked = e => mapOk(chunksMarked)(_trySerialize(e))
+
 /** The same as one string. @type {(e: Exp) => Result<string, string>} */
 export const tryStringify = e => mapOk(
     chunksText,
@@ -1636,6 +1643,13 @@ export const _tryModuleSerialize = e => {
  * @type {(e: Exp) => Result<List<string>, string>}
  */
 export const tryModuleSerialize = e => mapOk(chunkStrings)(_tryModuleSerialize(e))
+
+/**
+ * The module source as marked text.
+ *
+ * @type {(e: Exp) => Result<Marked, string>}
+ */
+export const tryModuleMarked = e => mapOk(chunksMarked)(_tryModuleSerialize(e))
 
 /** The module source as one string. @type {(e: Exp) => Result<string, string>} */
 export const tryModuleStringify = e => mapOk(

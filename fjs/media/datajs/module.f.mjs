@@ -54,4 +54,4 @@
  */
 
 export { tryParse, tryParseBytes } from './parser/module.f.mjs'
-export { tryJsonSerialize, tryJsonStringify, trySerialize, tryStringify } from './serializer/module.f.mjs'
+export { tryJsonMarked, tryJsonSerialize, tryJsonStringify, tryMarked, trySerialize, tryStringify } from './serializer/module.f.mjs'
