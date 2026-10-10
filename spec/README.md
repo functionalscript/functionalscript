@@ -1666,8 +1666,8 @@ The graph is `fjs/edag/README.md`'s Chains, where every spelling has one
 shape and the host engine agrees with it: `a?.b` is `['?.', a, 'b']`, the
 steps after it the node's continuation, `['?.', a, 'b', ['|.', 'c']]` for
 `a?.b.c`, and a group an access over the node, `['.', ['?.', a, 'b'], 'c']`.
-`a.b?.(c)` is the access's own step, `['.', a, 'b', ['|?.()', c]]`, and
-`a?.(c)` the call node `['?.()', a, c]`. The graph outputs write them: the
+`a.b?.(c)` is the access's own step, `['.', a, 'b', ['|?.()', [c]]]`, and
+`a?.(c)` the call node `['?.()', a, [c]]`. The graph outputs write them: the
 FunctionalScript one as above, a group where the region closed; the EDAG
 one as the nodes; the Rust one as the method chain `nanvm-lib` runs. Value
 outputs evaluate the chain and serialize its selected result. A
