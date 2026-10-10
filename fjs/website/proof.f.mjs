@@ -68,6 +68,40 @@ const pageAt = (root, path) => textOf(
     `the page for ${path.join('/')}`)
 
 export const proof = {
+    pullRequests: {
+        page: () => {
+            const { root } = generate({})
+            const html = pageAt(root, ['prs'])
+            assert(html.includes('<h1>Pull requests</h1>'), html)
+            assert(html.includes('data-pr-refresh'), html)
+            assert(html.includes('data-pr-rows'), html)
+            assert(html.includes("'/fjs/website/prs-runtime.mjs'"), html)
+            assert(pageAt(root, []).includes('href="/prs/index.html">PRs</a>'), pageAt(root, []))
+        },
+        // A generated route must not become source on the next build.
+        repeatBuild: () => {
+            const first = generate({ fjs: { website: { prs: {} } } })
+            const second = generate(first.root)
+            assertEq(pageAt(second.root, []), pageAt(first.root, []))
+            assertEq(pageAt(second.root, ['prs']), pageAt(first.root, ['prs']))
+            assert(pageAt(second.root, ['fjs', 'website']).includes('href="/fjs/website/prs/index.html"'), 'the module directory remains in the catalogue')
+        },
+        buildMetadata: () => {
+            const { root } = generate({ 'funding.json': file('{"funding":{"channels":[{"description":"Support","address":"https://example.com/"}]}}') }, {
+                WORKERS_CI_BRANCH: 'codex/pr-page',
+                WORKERS_CI_COMMIT_SHA: '0123456789abcdef0123456789abcdef01234567',
+            })
+            const html = pageAt(root, ['prs'])
+            assert(html.includes('Preview: '), html)
+            assert(html.includes('Support FunctionalScript:'), html)
+        },
+        // A file occupying the reserved route is a failed build, not a
+        // success that leaves its navigation link pointing nowhere.
+        routeIsAFile: () => {
+            const [, code] = run({ prs: file('occupied') })
+            assert(code !== 0)
+        },
+    },
     main: () => {
         assertNotNullish(main(defaultNodeProgramOptions), 'expected a program effect')
     },
