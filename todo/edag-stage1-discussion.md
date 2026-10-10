@@ -8,10 +8,12 @@ result is distilled into [`fjs/edag/README.md`](../fjs/edag/README.md) — the
 schema of record is [`fjs/edag/module.f.mjs`](../fjs/edag/module.f.mjs) — and
 this document is deleted.
 
-The concrete DJS rollout is tracked in
+The original DJS rollout is tracked in
 [`compile-modules-to-edag.md`](../fjs/compiler/todo/compile-modules-to-edag.md):
-Stage 1 introduces `.` and unresolved modules; Stage 2 introduces
-non-capturing `=>` and `()`, in its ordinary and method-call forms. This document owns the EDAG semantics,
+Stage 1 introduced `.` and unresolved modules; Stage 2 introduced
+non-capturing `=>` and `()`, in its ordinary and method-call forms. Those stages
+have landed; the operation tables retain their rollout history separately from
+current support. This document owns the EDAG semantics,
 not parser scheduling. Property/method-access safety is shared with
 [property-accessor](../spec/todo/2330-property-accessor.md); source functions
 are in the language ([functions](../spec/README.md#functions)), capturing
@@ -34,7 +36,7 @@ JavaScript syntax does not itself admit it into FunctionalScript.
 [named-and-rest parameter plan](../spec/todo/3120-parameters.md) owns the
 implemented `['=>', length, slots, body]`, `['arg', N]` and `['rest']` contract.
 Subjects 2 and 7 below follow that contract. The
-remaining baseline examples and operation table using `['args']` describe
+remaining baseline examples using `['args']` describe
 the historical zero-arity format, not the current fixed/rest target.
 Current schema, compiler and executors now use fixed/rest. Do not mix the
 historical invocation vocabulary with retained module-import `args`.
@@ -90,9 +92,10 @@ guards, A4) are merged into the graph by the **`","` operation**:
 - The operands of a `","` are this document's **branches**: rooted
   subgraphs of the DAG, sharing nodes freely by reference — distinct
   from the control-flow branches of `"?:"` (subject 3).
-- **Stage 1 ships without `","`**: a stage 1 body is a plain node, and
-  the operation is introduced later, when asserts arrive, without
-  changing the body's shape.
+- **The original Stage 1 shipped without `","`**: its body was a plain
+  node. The compiler now emits comma nodes for anchored computations,
+  without changing the body's shape; authored comma expressions remain
+  outside the current source grammar.
 
 - an operation node is:
   - a **non-object, non-array value** — a constant: `"hello world"`, `2.5`,
@@ -246,47 +249,50 @@ Agreed points (not under discussion):
 
 ### Operations
 
-The operations we want, with their stage. Every operand is an operation
-node; `node` below means any of them. The stage numbers match the concrete
-DJS rollout in
+The operation shapes below retain the original rollout labels where applicable.
+Every expression operand is an operation node; `node` below means any of them.
+The stage numbers refer to the original DJS rollout in
 [`compile-modules-to-edag.md`](../fjs/compiler/todo/compile-modules-to-edag.md).
 
 #### Structural operations
 
-**"Stage" names which compiler/interpreter task is scoped to emit or consume an
-operation — not when the EDAG schema itself admits it.** The schema
-(`fjs/edag/module.f.mjs`) doesn't have to wait for a task before defining a shape, and
-in practice it doesn't: `"Number"`, `"String"`, and `","` are marked `later`
-below, `"=>"` was marked a not-yet-implemented Stage 2, and `["frame"]` was marked
-`later` too (further down, under [Operations](#operations)) — yet all were already
-validated by `exp`, before any compiler emitted them. The optional nodes are the sharpest case: `"?."` and `"?.()"` are in the
-schema even though `?.` is not an FJS source operator in its own right (see below), because
-the public FJS final-EDAG entry takes EDAG from any producer and a chain's hidden control flow has
-to be representable and validatable when it does. A node being schema-valid says nothing about whether any parser emits it or
-any interpreter executes it — that's what the `Stage`/`later` marker tracks, and the
-schema is free to change independently of both.
+**Rollout history is not current implementation status.** The original plan's
+`1`, `2` and `later` labels record when emission or consumption was scheduled,
+not outstanding work. Schema admission, source syntax and executor support are
+separate contracts: the schema admitted several forms before the compiler
+emitted them. The current compiler and represented interpreters implement
+optional chains and their steps, `Number`, `String`, `typeof`, `throw`, comma
+anchors, fixed/rest functions, captures and `self`. The
+[compiler EDAG proofs](../fjs/compiler/edag/proof.f.mjs),
+[Memo proofs](../fjs/edag/memo/proof.f.mjs) and
+[Amnesia proofs](../fjs/edag/amnesia/proof.f.mjs) cover these paths. The current
+[node inventory](../fjs/edag/README.md#nodes) is the schema reference; source
+limits still apply, including no unary `+` or authored comma expressions.
 
-|Form|JS|Stage|Notes|
+|Form|JS|Rollout history|Notes|
 |----|--|-----|-----|
 |`2.5`, `"a"`, `true`, `null`, `34n`|itself|1|constant — any non-object, non-array value|
 |`["undefined"]`|`undefined`|1|the value `undefined`, as its own node — a bare `undefined` would be indistinguishable from a missing tuple position (a position past a node's arity reads as `undefined` too), so it is not a bare constant like the row above|
-|`["[]", [...node]]`|`[…]`|1|array constructor; the elements are one operand, an array of nodes — not spread across the tuple|
-|`["{}", [...entry]]`|`{ … }`|1|ordered object constructor; the entries are one operand, an array — initial entry form is `[":", key, value]` (subject 4)|
-|`["args"]`|—|1|the arguments array (subject 2)|
+|`["[]", items]`|`[…]`|1|array constructor; `items` is one array operand of nodes or `["...", node]` spread entries, not a variadic tuple tail|
+|`["{}", entries]`|`{ … }`|1|ordered object constructor; `entries` is one array operand of `[":", key, value]` or `["...", node]` spread entries (subject 4)|
+|`["args"]`|—|1|unresolved module imports, in import order; the historical invocation binding is retired (subject 2)|
+|`["arg", N]`|a fixed parameter|parameter migration|parameter `N` of the owning function, with `N < length`; a missing argument binds to `undefined`|
+|`["rest"]`|a rest parameter|parameter migration|the invocation's rest array after its fixed prefix, stable within one call and fresh between calls|
 |`[".", object, property]`, `[".", object, property, k]`|`o.p`, `o[p]`, `o.p(...args)`|1|property access, owning whatever its receiver is used for; a plain read leaves `k` out and is the shorter tuple; `property` is restricted (see below)|
-|`["()", callee, args]`|`f(...args)`|2|call with no receiver; `args` is an item list (subject 6)|
-|`["?.", object, property]`, `["?.", object, property, k]`|`o?.p`, and the rest of its optional region|later|optional property access; same `property` restriction|
-|`["?.()", callee, args]`, `["?.()", callee, args, k]`|`f?.(...args)`, and the rest of its optional region|later|optional call|
-|`["\|()", args]`, `["\|()", args, k]`|one chain step, `(...args)`|2|not an `exp` node — only valid as the continuation `k` of a chain node or another step (subject 6); this is the step a method call's `.` node carries, so Stage 2 needs it|
-|`["\|.", property, k?]`, `["\|?.()", args, k?]`, `["\|!()", args]`|one chain step|later|the remaining steps: a property access inside an optional region, a guarded call, and the call a group puts outside the region|
-|`["entry"]`|the `entry` helper|now|the helper as a value, a function of two parameters called as any function is, `["()", ["entry"], [a, b]]`; the helper is its one source spelling ([spec: entry](../spec/README.md#reading-an-entry-at-run-time))|
-|`["Number", node]`|`Number(x)`|later|numeric coercion that accepts bigints, unlike unary `+`|
-|`["String", node]`|`String(x)`|later|string coercion|
-|`[",", [...node, node]]`|`(a, b)`|later|membership without order (subject 8); the operands are one operand, an array, as for `"[]"`|
-|`["=>", length, slots, body]`|`(…) => …`|2|function; `length` is integer metadata (subject 7); `slots` is the array of captured values, an array operand of `exp`s evaluated in the enclosing scope, `[]` where there is none, each read in the body as `["frame", i]` — Stage 2 emitted only a placeholder for it ([functions](../spec/README.md#functions))|
+|`["()", callee, args]`|`f(...args)`|2|call with no receiver; `args` is an item list of nodes or `["...", node]` spreads (subject 6)|
+|`["?.", object, property]`, `["?.", object, property, k]`|`o?.p`, and the rest of its optional region|later|implemented optional property access; same `property` restriction|
+|`["?.()", callee, args]`, `["?.()", callee, args, k]`|`f?.(...args)`, and the rest of its optional region|later|implemented optional call|
+|`["\|()", args]`, `["\|()", args, k]`|one chain step, `(...args)`|2|not an `exp` node — only valid as the continuation `k` of a chain node or another step (subject 6); this is the implemented step a method call's `.` node carries, introduced in Stage 2|
+|`["\|.", property, k?]`, `["\|?.()", args, k?]`, `["\|!()", args]`|one chain step|later|implemented steps: a property access inside an optional region, a guarded call, and the call a group puts outside the region|
+|`["entry"]`|the `entry` helper|entry rollout|implemented helper as a value, a function of two parameters called as any function is, `["()", ["entry"], [a, b]]`; the helper is its one source spelling ([spec: entry](../spec/README.md#reading-an-entry-at-run-time))|
+|`["Number", node]`|`Number(x)`|later|implemented numeric coercion that accepts bigints, unlike unary `+`|
+|`["String", node]`|`String(x)`|later|implemented string coercion|
+|`[",", nodes]`|`(a, b)`|later|implemented sequence node (subject 8); `nodes` is one array operand, taking the last value or `undefined` when empty; the partial source writer refuses fewer than two operands; emitted for anchors and inlined blocks, while authored comma expressions remain unparsed|
+|`["=>", length, slots, body]`|`(…) => …`|2|implemented function and captures; `length` is integer metadata (subject 7); `slots` is the array of captured values, an array operand of `exp`s evaluated in the enclosing scope, `[]` where there is none, each read in the body as `["frame", i]`; the initial Stage 2 used a placeholder before captures landed ([functions](../spec/README.md#functions))|
 
-`["{}", [...entry]]` is an ordered object-construction operation. Stage 1
-uses `[":", key, value]` entries.
+`["{}", [...entry]]` is an ordered object-construction operation. The original
+Stage 1 used `[":", key, value]` entries; current construction also accepts
+`["...", object]` spreads.
 
 Both structural constructors take their variadic part as **one operand
 holding an array**, rather than spreading it across the tuple — the shape
@@ -298,9 +304,9 @@ node there — a computed key like `{ ["sss" + 3]: x }` is valid JS and a
 validly-shaped EDAG, even though today's compiler only lowers the trivial
 computed-key form; see subject 4 for why validation does not narrow this to
 a string constant. Entry forms are local to the object
-constructor rather than general expressions. Later, new entry forms can be
-added without changing the outer operation; for example `["...", object]`
-can represent `{ ...object }`. Plain objects remain reserved and have no EDAG
+constructor rather than general expressions. New entry forms can be added
+without changing the outer operation; `["...", object]` now represents
+`{ ...object }`. Plain objects remain reserved and have no EDAG
 meaning yet.
 
 Tags are **JS syntax wherever JS has syntax for the operation** — hence
@@ -365,8 +371,8 @@ The renderer's JavaScript output does not admit a new FJS function form
 
 Word tags remain only where no unambiguous JS spelling exists:
 
-- `"args"` — FJS has no `arguments` object to borrow a spelling from
-  (subject 2);
+- `"args"` — unresolved module imports, not a function's arguments;
+  `"arg"` and `"rest"` are the fixed/rest invocation bindings (subject 2);
 - `"frame"`, `"self"` — JS has no expression for either (`arguments`
   is not FJS's model, and `arguments.callee` is forbidden in strict
   mode);
@@ -375,8 +381,8 @@ Word tags remain only where no unambiguous JS spelling exists:
 - `"entry"` — the `entry` helper as a value; the helper is its one source
   spelling, and a JS keyword it is not.
 
-`"Number"` is not an exception: it is spelled exactly as the JS built-in
-it denotes.
+`"Number"` and `"String"` are not exceptions: each is spelled exactly as
+the JS built-in it denotes.
 
 Symbol tags never collide with word tags, so both live in one namespace.
 
@@ -398,22 +404,24 @@ arity by membership alone.
 |-------|-----|--|----|-----|
 |`+` `-`|1|`+a`, `-a`|no|unary plus and negation — the arithmetic tags below at one operand (see above); unary `+` is not FunctionalScript syntax ([operators](../spec/todo/2340-operators.md)), and [property-accessor](../spec/todo/2330-property-accessor.md)'s run-time-index coercion is `"Number"`, not an operator|
 |`!` `~`|1|`!a`, `~a`|no|unary only|
-|`typeof`|1|`typeof a`|no|the type tag of a value, a fresh string; an EDAG operation that is not FunctionalScript syntax ([operators](../spec/todo/2340-operators.md))|
+|`typeof`|1|`typeof a`|no|implemented FunctionalScript syntax; returns the value's JavaScript type string ([spec: operators](../spec/README.md#operators))|
 |`+` `-` `*` `/` `%` `**`|2|`a + b`|no|arithmetic|
 |`===` `!==` `<` `<=` `>` `>=`|2|`a === b`|no|`==` and `!=` are not allowed by [operators](../spec/todo/2340-operators.md)|
 |`&` `\|` `^` `<<` `>>` `>>>`|2|`a & b`|no|bitwise|
 |`&&` `\|\|` `??`|2|`a && b`|**yes**|the right operand is established only if the left does not decide the result|
 |`?:`|3|`c ? t : e`|**yes**|exactly one of the two arms is established|
 
-All operators are post-stage-1: stage 1 has no operators at all.
+These operators were scheduled after the original Stage 1, which had none.
+All are implemented by the represented interpreters. The current compiler
+accepts their source spellings except unary `+`, which remains EDAG-only.
 
 #### Other operations
 
-|Form|JS|Stage|Notes|
+|Form|JS|Rollout history|Notes|
 |----|--|-----|-----|
-|`["throw", node]`|`throw v`|later|always fails; never produces a value|
-|`["self"]`|—|self|the function itself, as a value, the same every read; recursion is `["()", ["self"], args]`, and a nested function captures its parent's `self` as a slot|
-|`["frame", i]`|—|captures|slot `i` of the captured-consts frame, a constant index as `["arg", N]`'s is; the compiler task that made captures frame slots first spelled the frame as a bare `["frame"]` node read through `[".", ["frame"], i]`, a form since retired — see `fjs/edag/README.md`|
+|`["throw", node]`|`throw v`|later|implemented statement lowering and execution; establishes its operand and fails with that value, never producing a result|
+|`["self"]`|—|self|implemented function self-reference, as a value, the same every read; recursion is `["()", ["self"], args]`, and a nested function captures its parent's `self` as a slot|
+|`["frame", i]`|—|captures|implemented slot `i` of the captured-consts frame, a constant index as `["arg", N]`'s is; the compiler task that made captures frame slots first spelled the frame as a bare `["frame"]` node read through `[".", ["frame"], i]`, a form since retired — see `fjs/edag/README.md`|
 
 **`["frame", i]` and the closed-scope model.** A closure's free values are
 copied into a frame when the function object is created — the scheme

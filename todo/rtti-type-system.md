@@ -1498,7 +1498,7 @@ are stated instead:
       every declaration in it is reproduced elsewhere, which breaks a consumer
       that imports it by path. Retirement therefore needs either a
       compatibility `types.d.ts` that re-exports from the generated
-      declarations, or an explicit, declared breaking change —
+      declarations, or an explicit explanation of the API change —
       "no internal importer" is a necessary condition, not the whole one. This is the stage where
       TypeScript stops being the type system for FunctionalScript — for the
       declarations it can reach.
