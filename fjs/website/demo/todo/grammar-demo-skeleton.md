@@ -1,4 +1,4 @@
-## The four grammar demos repeat their setup and their intro
+## The grammar demos repeat their setup and their intro
 
 **Priority:** P4
 **Status:** open
@@ -15,8 +15,8 @@ with [`railroadDemo`](../railroad/module.f.mjs) over
 `toDiagrams(ruleSet)(diagrams)`. The intro differs only in its first
 clause; the sentence "Follow a track from left to right; a pill is text the
 input holds, and a box is another diagram — select it to go there." is
-identical in all four. A reader's guide to railroad diagrams is the demo
-kind's text, not each grammar's.
+identical across these pages. A reader's guide to railroad diagrams is the
+demo kind's text, not each grammar's.
 
 Some titled diagrams are inline variant branches, not exported source
 rules: JSON and DataJS select `object` and `array` from `value`; JavaScript
@@ -24,9 +24,9 @@ selects `double` and `single` from `string`, and `star` from `content`.
 The pages resolve these through [`branch`](../../../ebnf/railroad/module.f.mjs)
 after lowering, so a list of source rules alone cannot describe them.
 
-A fifth grammar page is expected —
+Another grammar page is expected —
 [symbol-labels](../../../ebnf/railroad/todo/symbol-labels.md) names
-`compiler/parser/grammar` — and would copy a fifth time.
+`compiler/parser/grammar` — and would repeat the same setup.
 
 ### Proposal
 
@@ -56,6 +56,6 @@ and links, including JavaScript's titled `star` that breaks the recursive
 - [ ] `grammarDemo` with a proof at 100%, covering source-rule and branch
       selections and retaining the existing refusal of missing rules or
       branches.
-- [ ] Move the four pages onto it, preserving their titled selections and
+- [ ] Move the listed pages onto it, preserving their titled selections and
       rendered layout; check the diagrams and links in the browser.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.

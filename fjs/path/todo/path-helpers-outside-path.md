@@ -11,16 +11,18 @@ questions a file path is asked most often — its directory, its last name,
 and the directories above it — so every module that asks writes an answer of
 its own, over `lastIndexOf('/')` and `split('/')`:
 
-- **The directory of a path**, three ways. `dirOf` in
+- **The directory of a path**, computed independently. `dirOf` in
   [`fjs/website`](../../website/module.f.mjs) slices at the last slash and
   answers `'.'` for a bare name. `outputDirectory` in
   [`fjs/compiler`](../../compiler/module.f.mjs) is `pathConcat(name)('..')`
   with the same `'.'` fallback. `parentOf` in
   [`fjs/git/refstore/write`](../../git/refstore/write/module.f.mjs) slices at
-  the last slash with no fallback at all. The three disagree at the edges:
+  the last slash with no fallback at all. These implementations disagree at
+  the edges:
   for a rooted name such as `/x`, `dirOf` answers `''` where
   `outputDirectory` answers `/`.
-- **The ancestors of a path**, twice. `ancestors` in `refstore/write`
+- **The ancestors of a path**, computed independently. `ancestors` in
+  `refstore/write`
   walks `split('/')` into every proper prefix; `ancestors` in
   [`fjs/website/page`](../../website/page/module.f.mjs) does the same walk
   and pairs each prefix with its name under a `'.'` root.
@@ -29,7 +31,7 @@ its own, over `lastIndexOf('/')` and `split('/')`:
   the last slash and then after its last dot, with the rule that a leading
   dot is a name and not an extension — a basename and an extension rule,
   both written inline in a media-type table.
-- **A second `resolve`.** `fjs/website`'s private `resolve` is
+- **A copied `resolve`.** `fjs/website`'s private `resolve` is
   `pathConcat(`${from}/..`)(specifier)`, which is
   [`fjs/path/import`](../import/module.f.mjs)'s exported `resolve` without
   the `decode` step. The website's import graph therefore resolves a
@@ -79,7 +81,7 @@ never silent omissions or paths containing `null`.
 
 - [ ] Decide the names and the edge rules, in `fjs/path`'s JSDoc, with the
       `/x` case stated.
-- [ ] Implement with a proof at 100%, and move the five sites above onto
+- [ ] Implement with a proof at 100%, and move the listed sites onto
       the exports in the same PR.
 - [ ] Replace `fjs/website`'s `resolve` with `fjs/path/import`'s; implement
       the explicit resolved-string/refusal split in `importsOf` and update
@@ -101,4 +103,4 @@ never silent omissions or paths containing `null`.
   — `outputDirectory`'s `..` handling, which a shared `parent` must keep.
 - [write-files](../../effects/node/todo/write-files.md) — the proposed
   `writeFiles` needs the parent of each output path; it should take it from
-  here rather than write a fourth one.
+  here rather than write another copy.

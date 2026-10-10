@@ -1,4 +1,4 @@
-## The six stage demos repeat one skeleton
+## The compiler stage demos repeat one skeleton
 
 **Priority:** P4
 **Status:** open
@@ -8,13 +8,13 @@
 The compiler's demo pages — [`compiler`](../demo.f.mjs),
 [`tokenizer`](../tokenizer/demo.f.mjs), [`parser`](../parser/demo.f.mjs),
 [`edag`](../edag/demo.f.mjs), [`serializer`](../serializer/demo.f.mjs) and
-[`rust`](../rust/demo.f.mjs) — are one page each, and all six are the same
-page with a different stage in the middle:
+[`rust`](../rust/demo.f.mjs) — share the same page structure with a
+different stage in the middle:
 
 - Every one calls `textDemo` with `label: 'Source'`, `init:
   examples[0][1]` and `examples` from the shared
   [example list](../examples/module.f.js); only `intro` and `name` differ.
-- Four (`_astOf`, `_graphOf`, `_sourceOf`, `_rustOf`) begin
+- `_astOf`, `_graphOf`, `_sourceOf` and `_rustOf` begin
   `const result = parse('')(text)` and map a parse error to its message
   before handing the AST to their stage. The `edag` page spells the same
   branch as an `{ ok, error }` record rather than a `Result`.
@@ -25,7 +25,7 @@ page with a different stage in the middle:
 [DESIGN.md §4](../../../doc/DESIGN.md#4-reuse-dry-and-separation-of-concerns)'s
 "follow the example" is the rule here: the skeleton — source in, stage, a
 code block or a refusal out — should exist once, and each page supply only
-its stage. A seventh stage page today copies the sixth.
+its stage. Adding a stage page copies an existing page's skeleton.
 
 ### Proposal
 
@@ -37,10 +37,10 @@ stage and its view.
 
 ### Tasks
 
-- [ ] Add the three helpers with a proof at 100%.
-- [ ] Move the six pages onto them, with the `edag` page's `{ ok, error }`
+- [ ] Add the proposed helpers with a proof at 100%.
+- [ ] Move the listed pages onto them, with the `edag` page's `{ ok, error }`
       record becoming a `Result` like the others.
-- [ ] `tsc`, `fjs test`, `npm run cov` at 100%; check the six pages in the
+- [ ] `tsc`, `fjs test`, `npm run cov` at 100%; check the listed pages in the
       browser.
 
 ### Related

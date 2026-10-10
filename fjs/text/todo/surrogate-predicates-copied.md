@@ -7,7 +7,7 @@
 
 [`fjs/text/code_point`](../code_point/module.f.mjs) exports
 `isHighSurrogate` and `isLowSurrogate` over named bounds, and keeps a
-private `isSurrogate` over the whole block. Two modules answer the same
+private `isSurrogate` over the whole block. Callers answer the same
 questions with constants of their own:
 
 - [`fjs/effects/node`](../../effects/node/module.f.mjs) defines private

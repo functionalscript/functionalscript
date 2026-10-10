@@ -1,4 +1,4 @@
-## The parameter list, `rest` and `self` reads are written in both writers
+## The writers repeat parameter lists and `rest` and `self` reads
 
 **Priority:** P4
 **Status:** open
@@ -18,11 +18,11 @@ parameter list from the same facts, in the same words:
   the analysis the same question, `a.nodes.some((n, j) => n[0] === 'self'
   && a.scope[j] === i)`.
 
-The two writers deliberately differ in what they emit
+The writers deliberately differ in what they emit
 (`function_text`'s module doc: "separate from the source writer's FJS
 round-trip contract"). The naming scheme — `${path}/arg${k}`,
 `${path}/rest` — is the one thing they must agree on, since each resolves
-names the other also writes, and it is the thing written twice.
+names the other also writes, and it is the thing they repeat.
 
 ### Proposal
 

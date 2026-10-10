@@ -41,7 +41,7 @@ answer by hand.
 
 ### Tasks
 
-- [ ] `encode_error` and `encode_result`; the three callers onto them.
+- [ ] `encode_error` and `encode_result`; the listed callers onto them.
 - [ ] The fixed-array conversion in `nanvm-lib`, proving exact-length
       success and length-mismatch refusal; migrate the pair decoding in
       `native.rs`, `lib.rs`, `effects.rs` and `parity.rs` onto it while

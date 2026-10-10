@@ -26,15 +26,19 @@ hand, line by line, and the same three items are spelled at each:
   uses it for the same job. A command or method name holding a quote
   would be written as Rust that does not compile.
 
-[`fjs/media/rust`](../../media/rust/module.f.mjs) is the owner of Rust
-spelling; the item layer above its literals — a documented `const` slice, a
-generated-file header — has no owner, so each generator is one.
+[`fjs/media/rust`](../../media/rust/module.f.mjs) owns literal spelling
+and explicitly excludes expressions and items. The shared item layer
+belongs to [`fjs/edag/rust`](../../edag/rust/module.f.mjs), as
+[let-bindings-owner](../../edag/rust/todo/let-bindings-owner.md) proposes
+for bindings and function wrappers. The `const` slice and generated-file
+header still have separate implementations in each generator.
 
 ### Proposal
 
-Two item helpers beside `stringLiteral`, or in a `fjs/media/rust` item
-module: `constSlice(doc, name, type, rows, formatRow)` and
-`generatedHeader(source, instruction)`.
+Two item helpers in `fjs/edag/rust`, sharing the owner chosen by
+`let-bindings-owner`: `constSlice(doc, name, type, rows, formatRow)` and
+`generatedHeader(source, instruction)`. Literal spelling stays in
+`fjs/media/rust`.
 
 `constSlice` owns the documentation, annotation, declaration, row order,
 indentation, commas and closing line. Rows keep the caller's own type;
@@ -49,19 +53,19 @@ The harness row keeps its display name separate from its Rust module
 identifier: quote `name`, but emit the `fixture`, `expected`, `json` and
 `throws` references as code, using the harness's existing module naming.
 
-The five generators call the item helpers. The header helper may
+The listed generators call the item helpers. The header helper may
 standardize the comment-line layout; preserve each caller's generation
 provenance and edit instruction, and the generated Rust's behavior.
 
 ### Tasks
 
-- [ ] The two helpers with a proof at 100%, including row order and
-      propagation of a row formatter's refusal.
+- [ ] The two helpers in `fjs/edag/rust` with a proof at 100%, including
+      row order and propagation of a row formatter's refusal.
 - [ ] Prove each generator's row formatter escapes quotes and backslashes
       in every string field and refuses lone surrogates. For harness rows,
       use a separate valid module identifier and prove the Rust references
       remain unquoted while the display name is escaped.
-- [ ] Move the five generators onto them; `npm run gen` and diff the
+- [ ] Move the listed generators onto them; `npm run gen` and diff the
       generated files. Allow header-only layout changes and changes where
       a name needed escaping; preserve header content and generated Rust
       behavior.
@@ -70,8 +74,8 @@ provenance and edit instruction, and the generated Rust's behavior.
 ### Related
 
 - [let-bindings-owner](../../edag/rust/todo/let-bindings-owner.md) — the
-  `let` line and the header for the two printers; this issue is the item
-  layer for the table generators as well.
+  same `fjs/edag/rust` item owner for bindings and function wrappers; this
+  issue adds shared slice and header helpers for the table generators too.
 - [generated-rust-module-rustfmt-skip](../../../nanvm-lib/todo/generated-rust-module-rustfmt-skip.md)
   — whether `#[rustfmt::skip]` is written per item or once per module; the
   helper is where that decision would land for every generator at once.

@@ -1,11 +1,11 @@
-## "Which names repeat" is computed three ways
+## Consumers find repeated names differently
 
 **Priority:** P4
 **Status:** open
 
 ### Problem
 
-Three modules ask which members of a list of names occur more than once,
+The listed modules ask which members of a list of names occur more than once,
 and each answers for itself:
 
 - `twiceNamed` in [`fjs/git/refstore`](../../../git/refstore/module.f.mjs)
@@ -46,6 +46,6 @@ shared analysis must preserve these results and each caller's messages.
 ### Tasks
 
 - [ ] Shared name-occurrence analysis with a proof at 100%.
-- [ ] Move the three callers onto it, preserving selection, ordering,
+- [ ] Move the listed callers onto it, preserving selection, ordering,
       validation precedence and messages; pin the examples above in proofs.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.

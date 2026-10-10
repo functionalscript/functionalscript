@@ -85,7 +85,7 @@ give it a hexadecimal sibling, so the three readers above ask `text/ascii`.
       `media/json/parser`, `js/tokenizer` and the `vdf` and `pow` demos
       onto it.
 - [ ] Decide whether a fixed-width hex formatter belongs beside it, and if
-      so move the four writers above onto it.
+      so move the listed writers onto it.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
 
 ### Related

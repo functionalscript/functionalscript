@@ -19,8 +19,7 @@ the same four things, and each file has its own:
   a root.
 - The temporary-directory bracket — `mkdtemp(join(tmpdir(), prefix))`,
   then `rm(root, { recursive: true, force: true })` in `finally` — is a
-  named `withTemporary` in the node proof, and inline three times in the
-  web proof and twice in
+  named `withTemporary` in the node proof, and inline in the web proof and
   [`virtual/readdir/proof.mjs`](../virtual/readdir/proof.mjs).
 - Which engine is running is asked as `'Bun' in globalThis` in the web
   proof and as `isNode` in the node proof, while
@@ -53,4 +52,4 @@ runner has no dependency on the test library.
 - [ ] Export the production `engine` binding and re-export it from the
       library; replace the proofs' runtime detection with shared-value
       comparisons.
-- [ ] Move the three proof files onto it; `node --test` to exit 0.
+- [ ] Move the listed proof files onto it; `node --test` to exit 0.

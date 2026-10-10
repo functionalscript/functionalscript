@@ -1,4 +1,4 @@
-## The `Commands` cast over `Object.keys` is written three times
+## Consumers repeat the `Commands` cast over `Object.keys`
 
 **Priority:** P5
 **Status:** open
@@ -20,8 +20,8 @@ for the same reason".
 
 `commandsOf` in [`fjs/effects`](../module.f.mjs), next to the
 [`CommandSet` and `Commands` types](../types.ts): the one justified cast,
-once. The three sites call it.
+once. The listed sites call it.
 
 ### Tasks
 
-- [ ] `commandsOf`, proven; the three sites onto it.
+- [ ] `commandsOf`, proven; the listed sites onto it.

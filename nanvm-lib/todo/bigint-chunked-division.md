@@ -14,7 +14,7 @@ its doc says so: "as `Display` divides by `10¹⁹`". The loop — `(remainder
 Some(&0) { words.pop() }` — is written in both, and `chunk(10)` is
 `DECIMAL_BASE` under another name, as the `chunks` test asserts.
 
-The tests already pin the two to one another: `radixes` asserts that
+The tests already pin these paths to one another: `radixes` asserts that
 `to_radix_string(10)` equals `to_string()`.
 
 ### Proposal
@@ -26,11 +26,11 @@ replaced by `chunk(10)`.
 
 ### Tasks
 
-- [ ] Extract the loop; both callers onto it; `cargo test`, `cargo
+- [ ] Extract the loop; the named callers onto it; `cargo test`, `cargo
       clippy`, `cargo fmt -- --check`.
 
 ### Related
 
 - [bigint-word-layer-owner](./bigint-word-layer-owner.md) — the trim inside
-  this loop is one of the three spellings it lists; this issue is the loop
+  this loop contains a spelling it lists; this issue is the loop
   around the trim.

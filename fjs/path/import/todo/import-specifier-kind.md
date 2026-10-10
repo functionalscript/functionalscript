@@ -1,4 +1,4 @@
-## "Is this specifier a path?" is decided in three modules
+## Consumers each decide whether a specifier is a path
 
 **Priority:** P3
 **Status:** open
@@ -23,21 +23,21 @@ admission does not offer the answer:
   tests `./` and `../` only. Nothing says why a rooted specifier is not
   local there, so a reader cannot tell a choice from an omission.
 
-Three spellings of one rule is how the third came to differ. The compiler's
-message, `expected ./, ../, or /`, documents the rule in prose at one of the
-sites rather than in the module that owns it.
+The duplicated rule has drifted: the website's test is narrower. The
+compiler's message, `expected ./, ../, or /`, documents the rule in prose at
+one of the sites rather than in the module that owns it.
 
 ### Proposal
 
 `fjs/path/import` exports the classification — one function answering
 `'relative'`, `'rooted'` or `'bare'`, or a predicate over the first two —
-and the three callers ask it. The website's narrower rule is then either a
+and the listed callers ask it. The website's narrower rule is then either a
 documented choice made on top of the classification, or gone.
 
 ### Tasks
 
 - [ ] Export the classifier with a proof at 100%.
-- [ ] Move the three sites onto it; decide and document `browser-source`'s
+- [ ] Move the listed sites onto it; decide and document `browser-source`'s
       rooted case.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
 

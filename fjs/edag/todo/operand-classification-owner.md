@@ -1,4 +1,4 @@
-## Eager and lazy operands are classified in three modules, and they disagree
+## Eager and lazy operand classifiers disagree
 
 **Priority:** P3
 **Status:** open
@@ -6,8 +6,8 @@
 ### Problem
 
 Which operands a node establishes unconditionally, and which only when it
-decides to, is a property of the EDAG. It is written three times, by three
-consumers, over three representations:
+decides to, is a property of the EDAG. Consumers classify their own
+representations independently:
 
 - [`fjs/compiler/serializer`](../../compiler/serializer/module.f.mjs)
   keeps private `operands`, `lazyOperands`, `allOperands`,
@@ -21,7 +21,7 @@ consumers, over three representations:
   `lazyOperandsOf`, `chainLazy` and a `stepOperands` of its own, over the
   linked `Exp`.
 - [`fjs/compiler/ast`](../../compiler/ast/module.f.mjs) keeps `chainEager`,
-  `chainOperands` and a third `stepOperands`, over the AST.
+  `chainOperands` and its own `stepOperands`, over the AST.
 
 The evaluation order is already established by
 [`edag/operations`](../operations/module.f.mjs)'s `operation`: its
