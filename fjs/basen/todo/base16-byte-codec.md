@@ -49,6 +49,18 @@ every radix-16 reader sums its own digits:
 `escapeMapping` over the four digits of a `\u`, and
 [`fjs/js/tokenizer`](../../js/tokenizer/module.f.mjs)'s `stringDecodeScan`
 with `(state.acc << 4) | unwrapHexDigitValue(cp)`.
+The demos do it too: `parseHex` in
+[`fjs/crypto/vdf/demo.f.mjs`](../../crypto/vdf/demo.f.mjs) and `parseNBits`
+in [`fjs/crypto/pow/demo.f.mjs`](../../crypto/pow/demo.f.mjs) fold
+`hexDigitValue` over the characters with the same `n * 16n + d` body.
+
+The writing side has a sibling the codec above does not cover: a scalar
+spelled in fixed-width hex. `hexLiteral` in
+[`fjs/media/rust`](../../media/rust/module.f.mjs), `pathByte` in
+`fjs/text/percent`, `unicodeEscape` in
+[`fjs/media/json/serializer`](../../media/json/serializer/module.f.mjs) and
+`hexOfY` in the `vdf` demo each pad `toString(16)` to a width, upper or
+lower case as each one chose.
 
 ### Proposal
 
@@ -70,7 +82,10 @@ give it a hexadecimal sibling, so the three readers above ask `text/ascii`.
       consumer listed above onto it, `fjs/types/uint8array` included;
       `fjs/website`'s `commitOf` uses `hexText` at the least.
 - [ ] A radix-16 digit-run reader in `text/ascii`; move `git/config`,
-      `media/json/parser` and `js/tokenizer` onto it.
+      `media/json/parser`, `js/tokenizer` and the `vdf` and `pow` demos
+      onto it.
+- [ ] Decide whether a fixed-width hex formatter belongs beside it, and if
+      so move the four writers above onto it.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
 
 ### Related
