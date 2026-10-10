@@ -23,7 +23,7 @@
 
 import { rust, wasmer, wasmtime } from '../config/module.f.js'
 import { test } from '../common/module.f.mjs'
-import { nixShell, nixVersionStep } from '../nix/module.f.mjs'
+import { nixVersionStep } from '../nix/module.f.mjs'
 
 /**
  * One `cargo` check, run twice: debug, then `--release`.
@@ -194,8 +194,8 @@ const wasmPlatform = (v, a) => v === 'ubuntu' && a === 'arm'
 export const shellRustVersionSteps = (v, a) =>
     wasmPlatform(v, a)
         ? [
-            nixVersionStep(nixShell, 'wasmtime --version', `wasmtime ${wasmtime}`),
-            nixVersionStep(nixShell, 'wasmer --version', `wasmer ${wasmer}`),
+            nixVersionStep('wasmtime --version', `wasmtime ${wasmtime}`),
+            nixVersionStep('wasmer --version', `wasmer ${wasmer}`),
         ]
         : []
 

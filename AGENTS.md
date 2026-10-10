@@ -151,13 +151,18 @@ Install [Nix](https://nixos.org/download/) and work inside the repository's
 shell. `gen.nix/` is a flake carrying every tool the project builds and tests
 with — Node, TypeScript, Rust with its WASM targets, Deno, Bun, the WASM
 runtimes — at the versions CI uses. Every CI job runs inside this very shell, so
-what passes in it is what passes there, except the Node 22 and Node 24
-compatibility jobs, each on a flake of its own, the two Windows platform jobs,
+what passes in it is what passes there, except the two Windows platform jobs,
 which run without Nix, and the publishing workflow, which runs on the Node
 `setup-node` installs. The packed-package check that closes `node26` stays out
 of it too, by design: it installs the published tarball with `setup-node`'s
 Node and npm, as a consumer would. Do not install those tools by hand or pick
 their versions; the shell is the one environment.
+
+During prerelease, each release supports one exact accepted version per tool
+from `fjs/ci/config/module.f.js`, chosen close to the latest usable stable
+release. Updating a pin replaces the supported version. Use an older
+FunctionalScript release with a suitable recorded toolset when an older tool
+is needed; additional support after release remains subject to demand.
 
 ```bash
 ./dev.sh                      # an interactive shell

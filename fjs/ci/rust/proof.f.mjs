@@ -18,7 +18,7 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { rust, wasmer, wasmtime } from '../config/module.f.js'
 import { devNixJob } from '../dev/module.f.mjs'
-import { flakeText, nixVersionStep, nixShell } from '../nix/module.f.mjs'
+import { flakeText, nixVersionStep } from '../nix/module.f.mjs'
 import {
     i686System,
     i686Target,
@@ -193,8 +193,8 @@ export const proof = {
         assertStructurallySame(
             [...shellRustVersionSteps('ubuntu', 'arm')],
             [
-                nixVersionStep(nixShell, 'wasmtime --version', `wasmtime ${wasmtime}`),
-                nixVersionStep(nixShell, 'wasmer --version', `wasmer ${wasmer}`),
+                nixVersionStep('wasmtime --version', `wasmtime ${wasmtime}`),
+                nixVersionStep('wasmer --version', `wasmer ${wasmer}`),
             ])
         for (const [o, a] of /** @type {const} */ ([
             ['ubuntu', 'intel'],
