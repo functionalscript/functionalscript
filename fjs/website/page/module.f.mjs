@@ -319,6 +319,9 @@ export const pageHref = path => `/${urlPath(pagePath(path))}`
  */
 export const changelogDir = 'changelog'
 
+/** The generated page for current pull requests. @type {string} */
+export const prsDir = 'prs'
+
 /**
  * A file in a directory, as a reader opens it: on GitHub at `commit`, or
  * root-relative on this site when there is no commit to link.
@@ -466,7 +469,7 @@ const buildLine = ({ branch, commit }) => branch === null || branch === producti
 
 /**
  * The header every page opens with: the logo and the site's name, linking
- * home, then the releases and the repository.
+ * home, then the pull requests, releases and repository.
  *
  * **One element for every page**, as {@link stylesheetLink} is one link: the
  * root page, a directory's page and a release's page each used to carry their
@@ -488,6 +491,7 @@ export const header = build => ['header',
         // The site's links are one group, so a narrow screen wraps them
         // together under the name rather than one beside it and one below.
         ['span', { 'data-site-links': '' },
+            ['a', { href: pageHref(prsDir) }, 'PRs'],
             ['a', { href: pageHref(changelogDir) }, 'Releases'],
             ['a', { href: repository }, 'GitHub', ['span', { 'aria-hidden': 'true' }, ' ↗']]]],
     ...buildLine(build)]

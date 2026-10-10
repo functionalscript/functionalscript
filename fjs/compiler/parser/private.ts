@@ -216,11 +216,11 @@ export type _TypeofFrame = { readonly typeof: true }
 export type _InstanceOfFrame = { readonly instanceof: Node, readonly at: DjsTokenWithMetadata }
 
 /**
- * A `Number` conversion whose operand is being evaluated: the word, so
+ * A `Number` or `String` conversion whose operand is being evaluated: the word, so
  * that the frame is the node's tag and a second conversion joins it rather
  * than adding a frame.
  */
-export type _ConversionFrame = { readonly conversion: 'Number' }
+export type _ConversionFrame = { readonly conversion: 'Number' | 'String' }
 
 /** A binary operator whose left operand is being evaluated: the tag, and the right operand to enter once it resolves. */
 export type _BinaryLeftFrame = { readonly tag: BinaryTag, readonly right: Node }

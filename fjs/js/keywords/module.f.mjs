@@ -71,7 +71,9 @@ export const literalWords = /** @type {const} */ ([
  * it: `Array` as the right operand of `instanceof`
  * ([spec: instanceof](../../../spec/README.md#instanceof)), and `Number` as
  * the callee of the conversion `Number(exp)`
- * ([spec: number conversion](../../../spec/README.md#number-conversion)).
+ * ([spec: number conversion](../../../spec/README.md#number-conversion)),
+ * and `String` as the callee of the conversion `String(exp)`
+ * ([spec: string conversion](../../../spec/README.md#string-conversion)).
  * The first names under
  * [global-names](../../../spec/todo/2365-global-names.md)' rule.
  *
@@ -80,7 +82,7 @@ export const literalWords = /** @type {const} */ ([
  * parser asks {@link isReservedGlobal} beside {@link isKeyword} where a
  * name is bound or referenced.
  */
-export const reservedGlobals = /** @type {const} */ (['Array', 'Number'])
+export const reservedGlobals = /** @type {const} */ (['Array', 'Number', 'String'])
 
 /** The four groups in declaration order, each name once. */
 const groups = [...reservedWords, ...strictModeReservedWords, ...restrictedNames, ...literalGlobals]

@@ -92,9 +92,9 @@ export const captionMarker = 'data-caption'
  *
  * @type {string}
  */
-export const stylesheet = `:root { color-scheme: light dark; --graph-new-bg: #aecbfa; --bg: white; --text: black; --muted: #5f6368; --border: #dadce0; --link: #137333; --pass: #137333; --pass-bg: #e6f4ea; --fail: #b3261e; --fail-bg: #fce8e6; --value: #174ea6; --value-bg: #e8f0fe }
+export const stylesheet = `:root { color-scheme: light dark; --graph-new-bg: #aecbfa; --bg: white; --text: black; --muted: #5f6368; --border: #dadce0; --link: #137333; --pass: #137333; --pass-bg: #e6f4ea; --fail: #b3261e; --fail-bg: #fce8e6; --value: #174ea6; --value-bg: #e8f0fe; --syntax-number: #8430ce }
 @media (prefers-color-scheme: dark) {
-    :root { --graph-new-bg: #1c2d4d; --bg: #121212; --text: #f1f1f1; --muted: #9aa0a6; --border: #3c4043; --link: #81c995; --pass: #81c995; --pass-bg: #0f2417; --fail: #f28b82; --fail-bg: #2a1414; --value: #8ab4f8; --value-bg: #172033 }
+    :root { --graph-new-bg: #1c2d4d; --bg: #121212; --text: #f1f1f1; --muted: #9aa0a6; --border: #3c4043; --link: #81c995; --pass: #81c995; --pass-bg: #0f2417; --fail: #f28b82; --fail-bg: #2a1414; --value: #8ab4f8; --value-bg: #172033; --syntax-number: #c58af9 }
 }
 /* Every link on the site is coloured the same whether or not it has been
    opened: nearly every word here is a link into the tree, and the visited
@@ -115,6 +115,18 @@ body { background-color: var(--bg); color: var(--text); font: 16px ui-monospace,
    as the same directory's view on GitHub. It is in rem, like every other
    length here, so it grows with a reader's own font size. */
 main { margin: 1.5rem auto 3rem; max-width: 63.25rem; padding: 0 1rem }
+/* The PR queue keeps the site's three-column table readable on a phone;
+   status uses words as well as colour. */
+[data-prs] table { border-collapse: collapse; margin-block: 1rem; table-layout: fixed; width: 100% }
+[data-prs] caption { margin-bottom: .75rem; text-align: left }
+[data-prs] th, [data-prs] td { border-bottom: 1px solid var(--border); padding: .65rem .5rem; text-align: left; vertical-align: top }
+[data-prs] th:first-child, [data-prs] td:first-child { padding-left: 0; width: 20% }
+[data-prs] th:last-child, [data-prs] td:last-child { padding-right: 0; width: 45% }
+[data-pr-check="Passing"] { color: var(--pass) }
+[data-pr-check="Failing"], [data-pr-check="Unavailable"] { color: var(--fail) }
+[data-pr-check="Loading"], [data-pr-check="No checks"], [data-pr-check="Unknown"] { color: var(--muted) }
+[data-prs][aria-busy="true"] [data-pr-note] { color: var(--muted) }
+[data-prs][data-pr-stale] [data-pr-note] { color: var(--fail) }
 [data-state="passed"] [data-test-summary] { color: var(--pass) }
 [data-state="failed"] [data-test-summary], [data-state="infrastructure-error"] [data-test-summary] { color: var(--fail) }
 [data-test-results] { color: var(--text) }
@@ -492,6 +504,12 @@ a:hover > [data-railroad-box="nonTerminal"] { fill: var(--pass-bg) }
 [data-pick-dot] { border: 2px solid var(--muted); border-radius: 50%; flex: none; height: .95rem; margin-top: .2rem; width: .95rem }
 [aria-pressed="true"] > [data-pick-dot] { background: var(--value); border-color: var(--value); box-shadow: inset 0 0 0 2px var(--value-bg) }
 [data-pick-code] { min-width: 0; overflow-wrap: anywhere; white-space: pre-wrap }
+/* Syntax highlighting inside a code block, from website/demo/highlight:
+   the token classes only, so names and punctuation keep the text colour. */
+[data-token="keyword"], [data-token="literal"] { color: var(--value) }
+[data-token="string"] { color: var(--pass) }
+[data-token="number"] { color: var(--syntax-number) }
+[data-token="comment"] { color: var(--muted); font-style: italic }
 /* The member a failure points at, marked inside a code block — the rtti
    demo's value written again under a refusal — in the failure's colours. */
 [data-code] mark { background: var(--fail-bg); border-radius: 3px; color: var(--fail); outline: 1px solid color-mix(in srgb, var(--fail) 40%, transparent) }

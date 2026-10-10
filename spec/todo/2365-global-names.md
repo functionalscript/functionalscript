@@ -69,6 +69,8 @@ the first, reserved together with the conversion it admits
 list beside the keywords that open question 3 asks for. `Array` is the
 second, reserved together with the one right operand of `instanceof` it
 admits ([`instanceof`](../README.md#instanceof)).
+`String` is the third, reserved with its conversion
+([string conversion](../README.md#string-conversion)).
 Every other name joins that list before 2360 admits any of it.
 
 ## Open questions
@@ -103,6 +105,8 @@ Every other name joins that list before 2360 admits any of it.
   the list beside the keywords that open question 3 asks for.
 - [`instanceof`](../README.md#instanceof) — `Array`, the second name
   reserved under this rule, in the same list.
+- [String conversion](../README.md#string-conversion) — `String`, the third
+  name reserved under this rule, in the same list.
 - [`2360-built-in.md`](./2360-built-in.md) — which of these names become
   namespaces; each is reserved here no later than it is admitted there
   ([landing a name at a time](#landing-a-name-at-a-time)).

@@ -32,8 +32,8 @@ export type AstImport = {
  */
 export type AstModule = readonly [readonly AstImport[], AstBody]
 
-/** A value in a module body: a primitive, a reference, an array, an object, a property access, a call, a negation, a bitwise not, a logical not, a `typeof`, an `instanceof`, the `Number` conversion, the function's own `self`, a binary operator, a conditional, a function, the `entry` helper, a fixed parameter, a rest array, a slot of its frame — or a `throw`, which a body may end with in place of a value. */
-export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstGuardedAccess|AstCall|AstGuardedCall|AstNeg|AstBitnot|AstNot|AstTypeof|AstInstanceOf|AstNumber|AstSelf|AstBinary|AstConditional|AstFunction|AstEntryFunction|AstRest|AstArg|AstFrameRef|AstThrow
+/** A value in a module body: a primitive, a reference, an array, an object, a property access, a call, a negation, a bitwise not, a logical not, a `typeof`, an `instanceof`, a `Number` or `String` conversion, the function's own `self`, a binary operator, a conditional, a function, the `entry` helper, a fixed parameter, a rest array, a slot of its frame — or a `throw`, which a body may end with in place of a value. */
+export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstGuardedAccess|AstCall|AstGuardedCall|AstNeg|AstBitnot|AstNot|AstTypeof|AstInstanceOf|AstNumber|AstString|AstSelf|AstBinary|AstConditional|AstFunction|AstEntryFunction|AstRest|AstArg|AstFrameRef|AstThrow
 
 /**
  * The `entry` helper, which the parser recognizes whole
@@ -335,6 +335,15 @@ export type AstInstanceOf = readonly ['instanceof', AstConst, ConstructorId]
  * question, so it always reaches the represented interpreter as a node.
  */
 export type AstNumber = readonly ['Number', AstConst]
+
+/**
+ * The conversion `String(v)`: the EDAG's `['String', exp]`, `op1Id` — the
+ * string JavaScript's `String` answers when called. Like {@link AstNumber}
+ * it folds nothing: the interpreter owns value conversion, including the
+ * represented source of a function. The parser writes it for the reserved
+ * word's call with one argument; `String()` is the empty string literal.
+ */
+export type AstString = readonly ['String', AstConst]
 
 /**
  * A binary operator, Stages A and B of

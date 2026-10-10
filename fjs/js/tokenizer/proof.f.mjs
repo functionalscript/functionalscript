@@ -6,7 +6,7 @@ import { stringToCodePointList, stringToList } from '../../text/utf16/module.f.m
 import { toArray } from '../../types/list/module.f.mjs'
 import { parser } from '../../ebnf/ll1/module.f.mjs'
 import { token as ebnfToken } from '../../ebnf/lib/js/module.f.mjs'
-import { tokenize } from './module.f.mjs'
+import { _positions, tokenize } from './module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { _stringifyTree } from '../../compiler/module.f.mjs'
 
@@ -954,6 +954,19 @@ export const proof = {
     ],
     // A line starts after each of ECMAScript's `LineTerminatorSequence`s:
     // LF, CR, U+2028, U+2029, and CRLF once — whichever token holds it.
+    // The position of each code point, and of the end, by the fold that
+    // positions the tokens: a linkage export for readers who need an offset.
+    positions: () => {
+        /** @type {(text: string) => string} */
+        const at = text => _positions('p')(toArray(stringToCodePointList(text))).map(({ line, column }) => `${line}:${column}`).join(' ')
+        assertEq(at(''), '1:1')
+        assertEq(at('ab'), '1:1 1:2 1:3')
+        assertEq(at('a\nb'), '1:1 1:2 2:1 2:2')
+        // a CRLF starts one line, and its LF takes the position of what follows it
+        assertEq(at('a\r\nb'), '1:1 1:2 2:1 2:1 2:2')
+        // a character beyond U+FFFF is one position
+        assertEq(at('😀b'), '1:1 1:2 1:3')
+    },
     lineTerminators: [
         () => {
             // without an `x`, the helper says so
