@@ -19,7 +19,7 @@ pub(crate) const DEPTH: usize = 100_000;
 /// A stack a tenth of the default's: a recursion that follows the nesting
 /// overflows it within a thousand levels.
 #[cfg(not(target_family = "wasm"))]
-const STACK: usize = 256 * 1024;
+const STACK: usize = 256 * 1_024;
 
 /// Runs `f` on a thread with [`STACK`]. WebAssembly has no threads, so there it
 /// runs on the one stack, which a recursion that follows the nesting overflows

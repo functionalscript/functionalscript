@@ -57,7 +57,7 @@ export const proof = {
         assertEq(hex(tree(c)), treeId)
         assertStructurallySame(parents(c).map(hex), [parentId, '261b9142dfe024d8e8e009b0e97f6e52ea981c8d'])
         assertEq(text(toArray(author(c).name)), 'Sergey Shandar')
-        assertEq(author(c).time, 1789011254n)
+        assertEq(author(c).time, 1_789_011_254n)
         assertEq(text(toArray(committer(c).email)), 'noreply@github.com')
         assertEq(committer(c).tz, '+0000')
         assertEq(encoding(c), null)
@@ -82,8 +82,8 @@ export const proof = {
         assertEq(text(toArray(name(t))), 'vt')
         const by = tagger(t)
         assert(by !== null)
-        assertEq(by.time, 1700000100n)
-        assertEq(committer(c).time, 1700000200n)
+        assertEq(by.time, 1_700_000_100n)
+        assertEq(committer(c).time, 1_700_000_200n)
         const message = text(toArray(t.message)).split('\n')
         assertStructurallySame([message[0], message[1], message[6]], ['Topic tag', '-----BEGIN SSH SIGNATURE-----', '-----END SSH SIGNATURE-----'])
         assert(gpgsig(c) !== null)
@@ -109,7 +109,7 @@ export const proof = {
         assertEq(hex(tree(c)), '2f1e8b790adef60b1b58a9fe37ff415972da0e5abd333e171a4f999484eb42b0')
         assertStructurallySame(parents(c), [])
         const by = author(c)
-        assertStructurallySame([text(toArray(by.name)), text(toArray(by.email)), by.time, by.tz], ['Proof', 'proof@example.com', 1700000300n, '+0100'])
+        assertStructurallySame([text(toArray(by.name)), text(toArray(by.email)), by.time, by.tz], ['Proof', 'proof@example.com', 1_700_000_300n, '+0100'])
         assertStructurallySame(committer(c), by)
         assertEq(text(toArray(c.message)), 'sha256\n')
         assertStructurallySame(validate(32)(c), ['ok', c])
@@ -244,10 +244,10 @@ export const proof = {
     // Git puts no bound on the parents: a merge of eight thousand is read,
     // vouched for, and walked without a stack to run out of.
     octopus: () => {
-        const ps = Array.from({ length: 8000 }, (_, i) => `parent ${i.toString(16).padStart(40, '0')}`)
+        const ps = Array.from({ length: 8_000 }, (_, i) => `parent ${i.toString(16).padStart(40, '0')}`)
         const c = commit([`tree ${treeId}`, ...ps, `author ${who}`, `committer ${who}`, '', 'm'])
-        assertEq(parents(c).length, 8000)
-        assertEq(hex(parents(c)[7999]), '1f3f'.padStart(40, '0'))
+        assertEq(parents(c).length, 8_000)
+        assertEq(hex(parents(c)[7_999]), '1f3f'.padStart(40, '0'))
         assertEq(text(toArray(committer(c).name)), 'A')
         assertStructurallySame(validate20(c), ['ok', c])
     },

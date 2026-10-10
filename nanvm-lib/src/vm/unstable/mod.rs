@@ -262,7 +262,7 @@ mod test {
         assert_eq!(word(true, &[0, 1, 0]), (-two_64.clone()).unwrap());
         assert_ne!(two_64, word(false, &[1, 1]));
         // Several words, as the decimal `123456789012345678901234567890n`.
-        let big = word(false, &[0xC373E0EE4E3F0AD2, 0x18EE90FF6]);
+        let big = word(false, &[0xC373_E0EE_4E3F_0AD2, 0x1_8EE9_0FF6]);
         assert_eq!(
             big.to_string().unwrap(),
             "123456789012345678901234567890".into()
@@ -275,17 +275,17 @@ mod test {
             Unpacked::Number(x) => f64::from(x).to_bits(),
             _ => panic!("a number"),
         };
-        assert_eq!(bits(f64_any(0x4002666666666666)), 2.3f64.to_bits());
-        assert_eq!(bits(f64_any(0x8000000000000000)), (-0f64).to_bits());
-        assert_eq!(bits(f64_any(0x7ff8000000000000)), 0x7ff8000000000000);
+        assert_eq!(bits(f64_any(0x4002_6666_6666_6666)), 2.3f64.to_bits());
+        assert_eq!(bits(f64_any(0x8000_0000_0000_0000)), (-0f64).to_bits());
+        assert_eq!(bits(f64_any(0x7ff8_0000_0000_0000)), 0x7ff8_0000_0000_0000);
     }
 
     /// The two answer each other's negation, `NaN` against itself included:
     /// `NaN === NaN` is `false` and `NaN !== NaN` is `true`, as in JavaScript.
     #[test]
     fn strict_equality() {
-        let one = || f64_any::<Naive>(0x3ff0000000000000);
-        let nan = || f64_any::<Naive>(0x7ff8000000000000);
+        let one = || f64_any::<Naive>(0x3ff0_0000_0000_0000);
+        let nan = || f64_any::<Naive>(0x7ff8_0000_0000_0000);
         assert_eq!(strict_eq(one(), one()), Ok(true.to_any()));
         assert_eq!(strict_ne(one(), one()), Ok(false.to_any()));
         assert_eq!(strict_eq(nan(), nan()), Ok(false.to_any()));
@@ -297,9 +297,9 @@ mod test {
     /// from `-0`.
     #[test]
     fn same_value_equality() {
-        let nan = || f64_any::<Naive>(0x7ff8000000000000);
+        let nan = || f64_any::<Naive>(0x7ff8_0000_0000_0000);
         let zero = || f64_any::<Naive>(0);
-        let negative_zero = || f64_any::<Naive>(0x8000000000000000);
+        let negative_zero = || f64_any::<Naive>(0x8000_0000_0000_0000);
         assert_eq!(object_is(nan(), nan()), Ok(true.to_any()));
         assert_eq!(object_is(zero(), negative_zero()), Ok(false.to_any()));
         assert_eq!(object_is(zero(), zero()), Ok(true.to_any()));
@@ -316,8 +316,8 @@ mod test {
     /// nothing, and a spread of what is not iterable throws.
     #[test]
     fn spread_arrays() {
-        let one = || f64_any::<Naive>(0x3ff0000000000000);
-        let two = || f64_any::<Naive>(0x4000000000000000);
+        let one = || f64_any::<Naive>(0x3ff0_0000_0000_0000);
+        let two = || f64_any::<Naive>(0x4000_0000_0000_0000);
         let inner: Any<Naive> = [two()].to_array().to_any();
         assert_eq!(
             elements(spread_array([
@@ -343,16 +343,16 @@ mod test {
     /// spreads of one 65,536-element array would be 2³² + 2¹⁶ elements.
     #[test]
     fn spread_array_too_long() {
-        let one = || f64_any::<Naive>(0x3ff0000000000000);
-        let block: Any<Naive> = (0..65536)
+        let one = || f64_any::<Naive>(0x3ff0_0000_0000_0000);
+        let block: Any<Naive> = (0..65_536)
             .map(|_| one())
             .collect::<Vec<_>>()
             .to_array()
             .to_any();
-        let too_many = (0..65537).map(|_| spread_item(block.clone()));
+        let too_many = (0..65_537).map(|_| spread_item(block.clone()));
         assert_eq!(spread_array(too_many).err(), Some(error::array_too_long()));
         let within = (0..2).map(|_| spread_item(block.clone()));
-        assert_eq!(elements(spread_array(within)).len(), 131072);
+        assert_eq!(elements(spread_array(within)).len(), 131_072);
     }
 
     /// A length under the limit whose elements the machine cannot hold is
@@ -361,8 +361,8 @@ mod test {
     /// reserve that room, as building it would take the machine's memory.
     #[test]
     fn spread_array_unbacked() {
-        let one = || f64_any::<Naive>(0x3ff0000000000000);
-        let block: Any<Naive> = (0..65537)
+        let one = || f64_any::<Naive>(0x3ff0_0000_0000_0000);
+        let block: Any<Naive> = (0..65_537)
             .map(|_| one())
             .collect::<Vec<_>>()
             .to_array()
@@ -371,7 +371,7 @@ mod test {
         if Vec::<Any<Naive>>::new().try_reserve(all).is_ok() {
             return;
         }
-        let spreads = (0..65535).map(|_| spread_item(block.clone()));
+        let spreads = (0..65_535).map(|_| spread_item(block.clone()));
         assert_eq!(spread_array(spreads).err(), Some(error::array_too_long()));
     }
 
@@ -404,7 +404,7 @@ mod test {
             elements(spread_call(identity, [spread_item(string_any("ab"))])),
             [string_any("a"), string_any("b")]
         );
-        let one = || f64_any::<Naive>(0x3ff0000000000000);
+        let one = || f64_any::<Naive>(0x3ff0_0000_0000_0000);
         assert!(spread_call(one(), [spread_item(one())]).is_err());
     }
 
@@ -414,9 +414,9 @@ mod test {
     #[test]
     fn spread_objects() {
         use crate::vm::{Nullish, Object, ToObject};
-        let one = || f64_any::<Naive>(0x3ff0000000000000);
-        let two = || f64_any::<Naive>(0x4000000000000000);
-        let three = || f64_any::<Naive>(0x4008000000000000);
+        let one = || f64_any::<Naive>(0x3ff0_0000_0000_0000);
+        let two = || f64_any::<Naive>(0x4000_0000_0000_0000);
+        let three = || f64_any::<Naive>(0x4008_0000_0000_0000);
         let inner: Any<Naive> = [(string_key("b"), two()), (string_key("a"), three())]
             .to_object()
             .to_any();
@@ -442,8 +442,8 @@ mod test {
     /// the entry exists.
     #[test]
     fn computed_keys() {
-        let one = || f64_any::<Naive>(0x3ff0000000000000);
-        let negative_zero = || f64_any::<Naive>(0x8000000000000000);
+        let one = || f64_any::<Naive>(0x3ff0_0000_0000_0000);
+        let negative_zero = || f64_any::<Naive>(0x8000_0000_0000_0000);
         let object = spread_object([
             computed_item(one(), string_any("a")).unwrap(),
             computed_item(negative_zero(), string_any("b")).unwrap(),

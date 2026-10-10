@@ -43,6 +43,6 @@ mod tests {
         assert_eq!(bits(1.7), 1.0f64.to_bits());
         assert_eq!(bits(-1.7), (-1.0f64).to_bits());
         assert_eq!(bits(-0.5), 0.0f64.to_bits());
-        assert_eq!(bits(4294967296.5), 4294967296.0f64.to_bits());
+        assert_eq!(bits(4_294_967_296.5), 4_294_967_296.0f64.to_bits());
     }
 }

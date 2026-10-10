@@ -39,6 +39,7 @@ export const demo = {
     view: state => {
         const algorithm = selectedAlgorithm(state.algorithm)
         return ['div',
+            ['p', 'Hashes UTF-8 text with the selected SHA-2 algorithm and shows the digest in hexadecimal. Use the OpenSSL command below the result to check it independently.'],
             ['p',
                 ['label', { for: 'algorithm' }, 'Algorithm '],
                 ['select', { id: 'algorithm', name: 'algorithm' },
