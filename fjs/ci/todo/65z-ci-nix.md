@@ -196,15 +196,15 @@ added later has to come here and say which side of the line it falls on.
   reach. Its Node comes from `setup-node`, and the version it names is the one
   `node26` already asserts from the shared shell.
 
-The two Windows platform jobs are the only jobs here, and for one reason: **Nix
-does not run natively on Windows**. `windows-intel` and `windows-arm` keep the runner's
-toolchain, and are the last jobs in the workflow that install one.
+Intel macOS now installs only Node and native Rust directly, retaining its
+working-checkout `npm ci`, `node --test`, and native Rust checks. Its flake
+system is removed ahead of Nixpkgs dropping Intel macOS after 26.05. ARM macOS
+continues to use Nix. The two Windows platform jobs also install tools directly
+because **Nix does not run natively on Windows**.
 
-The other four — `ubuntu-intel`, `ubuntu-arm`, `macos-intel`, `macos-arm` —
-moved into the shared shell, all of them, so the matrix differs by platform and
-by nothing else. They are also what makes `devSystems` mean anything: they are
-the only place its `x86_64-linux`, `aarch64-darwin` and `x86_64-darwin` shells
-are built rather than pinned as text.
+The other three — `ubuntu-intel`, `ubuntu-arm`, `macos-arm` — enter the
+shared shell. They cover every remaining `devSystems` entry: `x86_64-linux`,
+`aarch64-linux` and `aarch64-darwin`.
 
 32-bit Linux became a **job of its own**, `ubuntu-intel32`, with a flake of its
 own — and is now four steps of `ubuntu-intel` again, with neither.

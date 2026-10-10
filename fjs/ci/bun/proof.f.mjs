@@ -40,10 +40,9 @@ export const proof = {
     },
     // The pin covers whatever systems it is asked for, and each entry names the
     // release the job checks for and the archive that system's packaging
-    // expects. Neither half is derivable from the other — Intel macOS takes a
-    // baseline build — so both come from the configured table.
+    // expects. Both come from the configured table.
     pinSources: () => {
-        const { sources } = bunPin(['aarch64-linux', 'x86_64-darwin'])
+        const { sources } = bunPin(['aarch64-linux', 'aarch64-darwin'])
         for (const [system, { url, hash }] of Object.entries(sources)) {
             const configured = bunSources[system]
             assert(configured !== undefined, system)
@@ -54,8 +53,7 @@ export const proof = {
         }
         assertStructurallySame(
             Object.keys(sources),
-            ['aarch64-linux', 'x86_64-darwin'])
-        assertEq(bunSources['x86_64-darwin']?.archive, 'bun-darwin-x64-baseline')
+            ['aarch64-linux', 'aarch64-darwin'])
         assertEq(nixSystem, 'aarch64-linux')
     },
 }

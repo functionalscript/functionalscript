@@ -50,10 +50,8 @@ export type NixPin = {
      *
      * One entry per system the job declares, because both halves vary with it:
      * a release publishes a different file per platform, and each has its own
-     * hash. The snapshot's packaging reads the *name* too — for `x86_64-darwin`
-     * it strips a `bun-darwin-x64-baseline` directory — so an archive is chosen
-     * to match what that recipe already expects rather than for being the
-     * newest build on offer.
+     * hash. The snapshot's packaging reads the archive's directory name too,
+     * so an archive is chosen to match what that recipe already expects.
      */
     readonly sources: { readonly [system: string]: NixArchive }
 }

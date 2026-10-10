@@ -18,12 +18,22 @@ here, so before the first `./dev.sh`, fetch the pinned Nixpkgs with
 `nix flake prefetch "git+https://github.com/NixOS/nixpkgs?rev=<commit>&shallow=1"`.
 
 **Pin only a Nixpkgs commit that `cache.nixos.org` fully covers.** Otherwise
-the macOS jobs compile Node.js from source and time out, and pull requests
-don't run macOS. To check commit `C`: prefetch it as above, then for every
+the ARM macOS job can compile Node.js from source and time out. To check commit
+`C`: prefetch it as above, then for every
 `gen.nix` flake and every system it declares, run
 `nix build --dry-run --no-write-lock-file --override-input nixpkgs "git+https://github.com/NixOS/nixpkgs?rev=C&shallow=1" <flake>#devShells.<system>.default`.
+The generated systems are `aarch64-linux`, `x86_64-linux`, and
+`aarch64-darwin`; no flake should declare `x86_64-darwin`. Intel macOS
+installs Node and native Rust directly using the shared pins and is excluded
+from Nix cache checks. Keep its pinned installer inputs in sync when versions
+change, and verify its working-checkout Node/npm and Rust checks in CI, along
+with the remaining Nix jobs. ARM macOS remains on Nix.
+
 Only our own derivations may be listed to build: `rust*`, `cargo*`, `clippy*`,
-`bun*` and `nix-shell`. Anything else, `nodejs*` above all, means `C` fails.
+`bun*` and `nix-shell`. Node's joined package wrapper may also be listed if
+its derivation only links the cached `nodejs-slim` binaries and npm together;
+inspect it with `nix derivation show` to confirm that. A source build of Node
+or any other snapshot package means `C` fails.
 
 Candidates are the releases of `nixos-26.05` and `nixpkgs-26.05-darwin`
 (`https://nix-releases.s3.amazonaws.com/?delimiter=/&prefix=nixos/26.05/`,

@@ -612,13 +612,17 @@ exec nix develop --extra-experimental-features 'nix-command flakes' --no-update-
         // rather than exempted by a pattern: a job quietly declaring a second
         // system would otherwise generate a shell no runner enters.
         //
-        // `dev` is the reason the list form exists — four systems, one per
+        // `dev` is the reason the list form exists — three systems, one per
         // machine a developer might have. It is also the only declaration with
         // a `perSystem`, and every key of one has to be a system the flake
         // writes a shell for: a key that is not names a shell that does not
         // exist, and the capability it declares would silently be in none.
         systems: () => {
-            for (const { id, systems, perSystem } of nixJobs) {
+            for (const job of nixJobs) {
+                const { id, systems, perSystem } = job
+                assert(!systems.includes('x86_64-darwin'), `${id} still declares Intel macOS`)
+                assert(!flakeText(job).includes('x86_64-darwin'),
+                    `${id} still emits an Intel macOS shell`)
                 if (id === devJobId) {
                     assertStructurallySame([...systems], [...devSystems])
                 } else {

@@ -12,7 +12,7 @@ import { nixShell, nixSystem } from '../nix/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 
 export const proof = {
-    // Four systems, and `git` — the two things this declaration has that no CI
+    // Three systems, and `git` — the two things this declaration has that no CI
     // job needs. Both are the point of it: a shell that runs on one machine, or
     // one a developer leaves to find `git`, is not a developer environment,
     // and this shell is the developer environment as well as the jobs'.
@@ -24,10 +24,9 @@ export const proof = {
             'aarch64-linux',
             'x86_64-linux',
             'aarch64-darwin',
-            'x86_64-darwin',
         ])
         // The runner CI has is among them, since every job but the Node 22,
-        // Node 24 and two Windows jobs enters this shell from it.
+        // Node 24, Intel macOS and two Windows jobs enters this shell from it.
         assert(devSystems.includes(nixSystem), nixSystem)
         assert(devNixJob.packages.includes('git'), devNixJob.packages.join(' '))
         // A pinned archive for every system, and no others: an entry the flake
@@ -77,9 +76,9 @@ export const proof = {
             'expected the 32-bit declaration itself')
     },
     // What makes this the environment for a platform rather than the common
-    // part of four. One system carries more than the others — the 32-bit
+    // part of three. One system carries more than the others — the 32-bit
     // target and its linker — because that is what its CI runs and what its
-    // package set can hold; `pkgsi686Linux` throws on the other three, so a
+    // package set can hold; `pkgsi686Linux` throws on the other two, so a
     // shell identical everywhere could only be a shell missing this.
     //
     // That one system and no other, which is the half that would rot quietly:

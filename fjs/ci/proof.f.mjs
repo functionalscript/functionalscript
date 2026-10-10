@@ -6,12 +6,13 @@
 
 import { exitCode } from '../effects/node/module.f.mjs'
 import { ci, ciPath, main, nixJobs } from './module.f.mjs'
-import { actions, bun, deno, functionalscript, jobTimeout, node, typescript, wasmer, wasmtime } from './config/module.f.js'
+import { actions, bun, deno, functionalscript, images, jobTimeout, node, typescript, wasmer, wasmtime } from './config/module.f.js'
 import { main as ownMain, packageConsumer } from './self/module.f.mjs'
 import { installNode, major, nodeNixJobs, packageJobId } from './node/module.f.mjs'
 import { flakePath, flakeText, nixDevelop, nixShell } from './nix/module.f.mjs'
 import { consumerDirectory, packageCheckSteps } from './package/module.f.mjs'
 import { npmPublishJobId, npmPublishPath, npmPublishWorkflow } from './publish/module.f.mjs'
+import { rustPlatformCommands } from './rust/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { empty as emptyVec } from '../types/bit_vec/module.f.mjs'
 import { install, test, ubuntu, uses, parseGitHubAction } from './common/module.f.mjs'
@@ -292,7 +293,7 @@ export const proof = {
         ])) {
             assert(!hasRunInJob(id, 'npm ci')(gha), `unexpected npm ci in ${id}`)
         }
-        // And in the four platform jobs, in that order. The version check goes
+        // And in the three Nix platform jobs, in that order. The version check goes
         // first because `npm ci` runs `preinstall`/`install`/`postinstall`
         // hooks from the project and its dependencies — code that should not be
         // the thing that discovers which runtime it is on. `node --test` goes
@@ -300,7 +301,6 @@ export const proof = {
         for (const id of /** @type {const} */ ([
             'ubuntu-intel',
             'ubuntu-arm',
-            'macos-intel',
             'macos-arm',
         ])) {
             const check = runIndex(
@@ -319,7 +319,6 @@ export const proof = {
         for (const id of /** @type {const} */ ([
             'ubuntu-intel',
             'ubuntu-arm',
-            'macos-intel',
             'macos-arm',
         ])) {
             assert(
@@ -327,12 +326,36 @@ export const proof = {
                     step => step.uses?.startsWith('dtolnay/rust-toolchain@') !== true) === true,
                 `unexpected runner toolchain in ${id}`)
         }
-        // The two Windows jobs still have it, because they have no shell.
-        for (const id of /** @type {const} */ (['windows-intel', 'windows-arm'])) {
+        // The direct-install jobs get Rust from the shared toolchain action.
+        for (const id of /** @type {const} */ (['macos-intel', 'windows-intel', 'windows-arm'])) {
             assert(
                 gha.jobs[id]?.steps.some(
                     step => step.uses?.startsWith('dtolnay/rust-toolchain@') === true) === true,
                 `expected a runner toolchain in ${id}`)
+        }
+    },
+    intelMacDirectTools: () => {
+        for (const rust of [false, true]) {
+            const gha = run(rust)
+            const job = gha.jobs['macos-intel']
+            assert(job !== undefined, 'expected the Intel macOS job')
+            assertEq(job['runs-on'], images.macos.intel)
+            assert(!installsNix(job), 'unexpected Intel macOS Nix installer')
+            assertStructurallySame(flakesEntered(job), [])
+            assertStructurallySame(job.steps, [
+                ...(rust ? [uses('dtolnay/rust-toolchain', { components: 'rustfmt,clippy' })] : []),
+                installNode(),
+                uses('actions/checkout'),
+                { run: `test "$(node --version)" = "v${node.default}"` },
+                { run: 'npm ci' },
+                ...(rust ? rustPlatformCommands.map(run => ({ run })) : []),
+                { run: 'node --test' },
+            ])
+            // ARM macOS retains both its Nix installer and shell commands.
+            const arm = gha.jobs['macos-arm']
+            assert(installsNix(arm), 'expected ARM macOS to keep Nix')
+            assertStructurallySame(flakesEntered(arm), [nixShell])
+            assertEq(arm?.['runs-on'], images.macos.arm)
         }
     },
     rust: () => {
@@ -357,23 +380,24 @@ export const proof = {
         // the image ships rather than the release every other step asserts.
         //
         // Through `bash -e -c`, because a GitHub `run:` is a shell script
-        // while the `run` script's `--command "$@"` is an argv. Windows is the
-        // exception, and has to be — there is no shell there to put anything
-        // in.
+        // while the `run` script's `--command "$@"` is an argv. Intel macOS and Windows keep commands on the
+        // runner, where the pinned tools are installed directly.
         inTheSameShell: () => {
             const cmd = 'echo hello'
             const gha = run(false, () => [test({ run: cmd })])
-            for (const o of /** @type {const} */ (['ubuntu', 'macos'])) {
-                for (const a of /** @type {const} */ (['intel', 'arm'])) {
-                    assert(
-                        hasInjected(`${o}-${a}`, cmd)(gha),
-                        `expected the extra step in the shell in ${o}-${a}`)
-                }
-            }
-            for (const a of /** @type {const} */ (['intel', 'arm'])) {
+            for (const [o, a] of /** @type {const} */ ([
+                ['ubuntu', 'intel'], ['ubuntu', 'arm'], ['macos', 'arm'],
+            ])) {
                 assert(
-                    hasExactRunInJob(`windows-${a}`, cmd)(gha),
-                    `expected the extra step on the runner in windows-${a}`)
+                    hasInjected(`${o}-${a}`, cmd)(gha),
+                    `expected the extra step in the shell in ${o}-${a}`)
+            }
+            for (const id of /** @type {const} */ ([
+                'macos-intel', 'windows-intel', 'windows-arm',
+            ])) {
+                assert(
+                    hasExactRunInJob(id, cmd)(gha),
+                    `expected the extra step on the runner in ${id}`)
             }
         },
         // The two shapes a bare prefix would have broken, and broken
@@ -465,28 +489,29 @@ export const proof = {
         // `run` script it names lives there, and therefore after the job's own
         // `node --test` too, since `toSteps` emits install steps, the checkout,
         // then tests. Declaring `install` no longer means "before the tests"
-        // here. On Windows nothing is wrapped, so an `install` step keeps the
-        // pre-checkout position that type buys.
+        // here. On direct-install platforms nothing is wrapped, so an
+        // `install` step keeps the pre-checkout position that type buys.
         injectedPosition: () => {
             const cmd = 'echo hello'
             const gha = run(false, () => [install({ run: cmd })])
-            for (const o of /** @type {const} */ (['ubuntu', 'macos'])) {
-                for (const a of /** @type {const} */ (['intel', 'arm'])) {
-                    const id = `${o}-${a}`
-                    const injected = injectedIndex(id)(gha)
-                    const checkout = checkoutIndex(id)(gha)
-                    const suite = runIndex(id, nixDevelop(nixShell, 'node --test'))(gha)
-                    assert(injected !== -1 && checkout !== -1 && suite !== -1, id)
-                    assert(
-                        injected > checkout,
-                        `expected the injected step after the checkout in ${id}`)
-                    assert(
-                        injected > suite,
-                        `expected the injected step after the suite in ${id}`)
-                }
+            for (const [o, a] of /** @type {const} */ ([
+                ['ubuntu', 'intel'], ['ubuntu', 'arm'], ['macos', 'arm'],
+            ])) {
+                const id = `${o}-${a}`
+                const injected = injectedIndex(id)(gha)
+                const checkout = checkoutIndex(id)(gha)
+                const suite = runIndex(id, nixDevelop(nixShell, 'node --test'))(gha)
+                assert(injected !== -1 && checkout !== -1 && suite !== -1, id)
+                assert(
+                    injected > checkout,
+                    `expected the injected step after the checkout in ${id}`)
+                assert(
+                    injected > suite,
+                    `expected the injected step after the suite in ${id}`)
             }
-            for (const a of /** @type {const} */ (['intel', 'arm'])) {
-                const id = `windows-${a}`
+            for (const id of /** @type {const} */ ([
+                'macos-intel', 'windows-intel', 'windows-arm',
+            ])) {
                 const declared = runIndex(id, cmd)(gha)
                 const checkout = checkoutIndex(id)(gha)
                 assert(declared !== -1 && checkout !== -1, id)
@@ -508,22 +533,27 @@ export const proof = {
                 install({ run: cmd }),
                 test(uses('actions/cache')),
             ])
-            for (const o of /** @type {const} */ (['ubuntu', 'macos'])) {
-                for (const a of /** @type {const} */ (['intel', 'arm'])) {
-                    const id = `${o}-${a}`
-                    assert(
-                        hasInjected(id, cmd)(gha),
-                        `expected the install command moved into the shell in ${id}`)
-                    assert(
-                        gha.jobs[id]?.steps.some(
-                            step => step.uses?.startsWith('actions/cache@') === true) === true,
-                        `expected the action step kept in ${id}`)
-                }
+            for (const [o, a] of /** @type {const} */ ([
+                ['ubuntu', 'intel'], ['ubuntu', 'arm'], ['macos', 'arm'],
+            ])) {
+                const id = `${o}-${a}`
+                assert(
+                    hasInjected(id, cmd)(gha),
+                    `expected the install command moved into the shell in ${id}`)
+                assert(
+                    gha.jobs[id]?.steps.some(
+                        step => step.uses?.startsWith('actions/cache@') === true) === true,
+                    `expected the action step kept in ${id}`)
             }
             // Windows has no shell, so both keep their old shape there.
             assert(
                 hasExactRunInJob('windows-arm', cmd)(gha),
                 'expected the install step unwrapped on Windows')
+            assert(hasExactRunInJob('macos-intel', cmd)(gha),
+                'expected the install step unwrapped on Intel macOS')
+            assert(gha.jobs['macos-intel']?.steps.some(
+                step => step.uses?.startsWith('actions/cache@') === true) === true,
+                'expected the action step kept on Intel macOS')
         },
     },
     defaultSetup: {
@@ -689,8 +719,8 @@ export const proof = {
             // took effect rather than that a snapshot is what it claims: the
             // shell's Bun is not the snapshot's.
             ['bun', nixShell, [['bun --version', bun]]],
-            // All four platform jobs, in the one shell. These are the only
-            // place its three systems other than the canonical runner's are
+            // The three Nix platform jobs, in the one shell. These are the only
+            // place its two systems other than the canonical runner's are
             // built at all.
             // `ubuntu-intel` runs the 32-bit checks too, and asserts nothing
             // more for them: the tool they run is `cargo`, whose release the
@@ -704,7 +734,6 @@ export const proof = {
                 ['wasmtime --version', `wasmtime ${wasmtime}`],
                 ['wasmer --version', `wasmer ${wasmer}`],
             ]],
-            ['macos-intel', nixShell, [['node --version', `v${node.default}`]]],
             ['macos-arm', nixShell, [['node --version', `v${node.default}`]]],
         ]
         // Between them these name every declared flake, which is what replaced
@@ -811,8 +840,9 @@ export const proof = {
         const offNix = canonical.filter(id => !installsNix(gha.jobs[id]))
         /** @type {readonly string[]} */
         const expectedOffNix = [
-            // Nix does not run natively on Windows. That is the whole of what
-            // is left: every other job in this workflow enters a flake.
+            // Intel macOS needs only Node and native Rust, installed directly.
+            'macos-intel',
+            // Nix does not run natively on Windows.
             'windows-intel',
             'windows-arm',
         ]
@@ -827,15 +857,14 @@ export const proof = {
         for (const id of offNix) {
             assert(expectedOffNix.includes(id), `unexplained job off Nix: ${id}`)
         }
-        // The four that joined the shared shell cover every system it declares.
-        // `ubuntu-intel` is its `x86_64-linux`, the two macOS jobs its two
-        // Darwin systems, and `ubuntu-arm` the `aarch64-linux` the canonical
-        // jobs already built. Before this, three of the four were generated as
+        // The three jobs on the shared shell cover every system it declares.
+        // `ubuntu-intel` is its `x86_64-linux`, ARM macOS its
+        // Darwin system, and `ubuntu-arm` the `aarch64-linux` the canonical
+        // jobs already built. Before this, two of the three were generated as
         // text and built nowhere.
         for (const id of /** @type {const} */ ([
             'ubuntu-intel',
             'ubuntu-arm',
-            'macos-intel',
             'macos-arm',
         ])) {
             assertStructurallySame(flakesEntered(gha.jobs[id]), [nixShell])

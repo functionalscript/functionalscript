@@ -5,9 +5,10 @@ workflows for this repository. Running the generator writes
 `.github/workflows/gen.ci.yml` with the latest matrix of jobs and steps and
 `.github/workflows/gen.npm-publish.yml` with the release job, plus three Nix
 development environments under `gen.nix/`. The first of those, written to `gen.nix/`
-itself, is the shell a developer enters and the shell seven of the eleven
+itself, is the shell a developer enters and the shell six of the eleven
 jobs run inside; the other two exist for the jobs that cannot share it — Node
-22 and Node 24. The two Windows jobs enter none, since Nix does not run there.
+22 and Node 24. Intel macOS and the two Windows jobs install their tools
+directly and enter no flake.
 Which jobs have a flake and why the rest do not is
 [`todo/65z-ci-nix.md`](./todo/65z-ci-nix.md), under "Jobs with no flake".
 
@@ -71,8 +72,8 @@ for, and whether that answer should change, is
   the package. It was a separate job with no checkout, until waiting for
   `node26` put it through the runner queue a second time.
   `proof.f.mjs` — its property-based proofs.
-- `rust/module.f.mjs` — `cargo` build/test steps, the toolchain action the two
-  Windows jobs still need, the formatting and WASM checks ARM Linux adds, and
+- `rust/module.f.mjs` — `cargo` build/test steps, the toolchain action Intel macOS and the two
+  Windows jobs need, the formatting and WASM checks ARM Linux adds, and
   what Intel Linux adds to the shared shell for the 32-bit target. `cargo` now comes from that shell
   everywhere Nix runs, 32-bit Linux included; `i686Target` is the predicate that
   decides which jobs install a toolchain of their own instead, and
@@ -82,7 +83,7 @@ for, and whether that answer should change, is
 - `deno/module.f.mjs` — the `deno` job's steps and its flake declaration.
   `proof.f.mjs` — its property-based proofs.
 - `dev/module.f.mjs` — the developer environment: one shell carrying every
-  runtime the canonical jobs use, on all four systems Nix runs on, generated
+  runtime the canonical jobs use, on the three supported Nixpkgs systems, generated
   from those jobs' own declarations so it cannot drift from them. The `dev` CI
   job enters it and asserts every version, which is the only thing that
   evaluates that flake at all.
@@ -127,7 +128,7 @@ nothing of the repository on `PATH`.
 A declaration names the systems it wants a shell for, and the generator writes
 one explicit `devShells.<system>.default` per system rather than looping. The
 two Node flakes name one each, since their jobs run on one runner image; the
-shared shell names four, because a developer's machine is not a runner — which
+shared shell names three, because a developer's machine is not a runner — which
 is the reason that field is a list. `nix/module.f.mjs` writes each out as one
 static `flake.nix` exposing `devShells.<system>.default`. A declaration may also
 say what a *single* system adds, in `perSystem`: extra toolchain targets, and a
@@ -141,7 +142,7 @@ consumed.
 `config/module.f.js` records the Node, Deno, Wasmtime and Wasmer versions the pinned
 Nixpkgs snapshot provides — not each vendor's latest release, which the snapshot
 usually trails. They feed the flakes' package attributes where the attribute is
-versioned, as well as every `setup-node` step left: the two Windows jobs,
+versioned, as well as every `setup-node` step left: Intel macOS, the two Windows jobs,
 the packed-package check closing `node26`, and the publishing workflow. Bumping any of them therefore means moving the Nixpkgs commit first
 and copying the versions it offers.
 
@@ -224,14 +225,22 @@ evaluated for real, by the job that uses it.
 
 ### Expected package scripts
 
-All four non-Windows platform jobs run `cargo` and the suite in the **same**
-shell, so the matrix differs by platform and by nothing else. They are also the
-only place that shell's `x86_64-linux`, `aarch64-darwin` and `x86_64-darwin`
-outputs get built at all. Only the two Windows jobs are off Nix, because Nix has
-no native Windows.
+Linux and ARM macOS run `cargo` and the suite in the **same** Nix shell.
+Those jobs cover all three generated systems: `aarch64-linux`, `x86_64-linux`
+and `aarch64-darwin`. ARM macOS retains its Nix installer and shell wrappers.
+
+Intel macOS keeps its runner and working-checkout checks, but installs only
+Node with `actions/setup-node` and native Rust with `dtolnay/rust-toolchain`,
+using the shared pins. Its separate steps check Node, run `npm ci`, run native
+Rust tests and Clippy in debug and release modes, and finish with `node --test`.
+Without `Cargo.toml`, it installs only Node. It installs no Nix, published
+FunctionalScript, compiler, alternate runtimes or WASM tools. The flakes omit
+`x86_64-darwin` ahead of Nixpkgs dropping Intel macOS after 26.05, and this
+smaller setup also reduces work on the slow Intel runner. Windows continues
+to install tools directly because Nix has no native Windows support.
 
 32-bit Linux is four more steps on `ubuntu-intel`, and the one thing that makes
-that job differ from its three siblings. It was a job of its own,
+that job differ from its two Nix siblings. It was a job of its own,
 `ubuntu-intel32`, while it needed a shell of its own; once `perSystem` gave
 `x86_64-linux` the target's `rust-std` and the linker for it, what the extra job
 still did was install Nix and substitute that same shell on a second runner —
@@ -263,7 +272,7 @@ runs this commit's suite instead: `npm install -g` writes to the read-only store
 from inside a shell, and the check was the one `deno` and `bun` already dropped
 because it tests a shipped release rather than the commit under review.
 
-The four that moved assert their Node and then run `npm ci` — the version check
+The four working-checkout platform jobs assert their Node and then run `npm ci` — the version check
 first, deliberately, since `npm ci` runs lifecycle hooks and those should not be
 the thing that discovers the runtime. `fjs test` walked the tree for proof
 modules and resolved nothing; `node --test` runs a project's *test entry*, and
@@ -417,7 +426,7 @@ The FunctionalScript package version used by the surviving smoke tests is pinned
 in `config/module.f.js` too — nothing about the project reaches the generated
 steps except whether it has a `Cargo.toml`. That one flag reaches further than
 it used to: without Rust there are no 32-bit checks, so `ubuntu-intel` shares
-the shell like the rest and only Windows stays off it.
+the shell, while Intel macOS and Windows install tools directly.
 
 ## The publishing workflow
 
@@ -540,7 +549,7 @@ it still gates the merge, once, in the queue. A project with no merge queue
 would never run those jobs, so the default is none, which is what this
 repository uses.
 
-On every platform but Windows, an injected step that names a **command** runs
+On Linux and ARM macOS, an injected step that names a **command** runs
 inside the shared shell, alongside the job's own — these jobs no longer install
 Node with `setup-node`, so a step left on the runner would find whatever the
 image ships rather than the release the job asserts:
@@ -591,14 +600,15 @@ either.
 **Where it lands instead is worth saying, because it is not symmetric.**
 `toSteps` emits install steps, then the checkout, then test steps, so an
 injected command becomes a test step and runs *after* the job's own
-`node --test` on Linux and macOS — while on Windows, which wraps nothing, the
+`node --test` on Linux and ARM macOS — while on Intel macOS and Windows, the
 same declaration still runs before `actions/checkout`. Declaring `install` no
 longer means "before the tests" anywhere it was moved. `extra.injectedPosition`
 asserts both halves.
 
 A step naming an **action** keeps both its position and its shape —
 there is nothing to wrap, and `actions/cache` and its like want to run early.
-Windows keeps everything as declared, having no shell at all.
+Intel macOS and Windows keep everything as declared, with the pinned tools
+installed directly on the runner.
 Rust steps are included automatically when `Cargo.toml` is present; no flag is needed.
 
 ## Related

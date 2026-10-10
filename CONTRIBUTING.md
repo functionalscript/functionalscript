@@ -43,10 +43,9 @@ work is tracked from then on.
 [Nix](https://nixos.org/download/). The repository's developer shell, below,
 provides every tool in this table at the version CI uses — install Nix, enter
 the shell, and nothing else is a question. The table says what the shell
-carries and what each tool is for. It is a list to install by hand in one case
-only: bare Windows, where Nix does not run, and a developer who wants to work
-there installs these tools themselves. The table's `latest` is the floor; the
-exact versions, the ones CI's Windows jobs install, are the pins in
+carries and what each tool is for. Intel macOS and bare Windows developers
+install the pinned tools directly. The table's `latest` is the floor; the
+exact versions, the ones CI's direct-install jobs use, are the pins in
 [`fjs/ci/config/module.f.js`](./fjs/ci/config/module.f.js).
 
 | Tool    | Version              | Required for                                                     |
@@ -60,8 +59,8 @@ exact versions, the ones CI's Windows jobs install, are the pins in
 TypeScript is the one row that is not simply "latest", and the only one that is
 **not** an npm dependency of this package, so `npm ci` does not install it: it
 is a tool the shell provides, like the others in this table, at the version
-[`fjs/ci/config/module.f.js`](./fjs/ci/config/module.f.js) pins for CI; on bare
-Windows, install exactly that version globally. Do not reach for `npx tsc`: with
+[`fjs/ci/config/module.f.js`](./fjs/ci/config/module.f.js) pins for CI; on Intel
+macOS or bare Windows, install exactly that version globally. Do not reach for `npx tsc`: with
 nothing to resolve in `node_modules` it downloads whatever the registry calls
 latest, which is not the compiler CI runs.
 
@@ -71,12 +70,13 @@ latest, which is not the compiler CI runs.
 the versions CI uses. It is not a convenience built alongside CI: every job runs
 its commands inside this very shell, so what passes here is what passes there,
 except the Node 22 and Node 24 compatibility jobs, each on a flake of its own,
-the two Windows platform jobs, which run without Nix, and the publishing
-workflow, which runs on the Node `setup-node` installs. The packed-package
+the Intel macOS and two Windows platform jobs, which install their tools
+directly, and the publishing workflow, which runs on the Node `setup-node`
+installs. The packed-package
 check that closes `node26` stays out of it too, by design: it installs the
 published tarball with `setup-node`'s Node and npm, as a consumer would. So a
 change that leans on Node 26 passes the shell and still fails CI. Every
-developer and every agent works inside the shell.
+developer and every agent on a supported Nix platform works inside the shell.
 
 ```bash
 ./dev.sh                   # an interactive shell
@@ -86,7 +86,7 @@ developer and every agent works inside the shell.
 [`dev.sh`](./dev.sh) opens the shell, or runs the command given to it, and
 enables flakes itself, so a stock Nix install needs no configuration;
 [`gen.nix/run`](./gen.nix/run) is the generated form of the latter, and is what
-a CI step names. On macOS and Linux, install Nix on the host; VS Code's offer
+a CI step names. On ARM macOS and Linux, install Nix on the host; VS Code's offer
 to reopen in a container is a slower detour there, and declining it changes
 nothing. Nix does not run natively on Windows: a Windows contributor opens the
 repository in that container —
@@ -102,6 +102,23 @@ devcontainer enters it for you, so everywhere else run `./dev.sh` yourself or
 set your own terminal profile to it. Bare Windows, outside both,
 means installing the [Requirements](#requirements) table by hand at the
 versions `fjs/ci/config/module.f.js` pins, as CI's Windows jobs do.
+
+### Direct tools on Intel macOS
+
+Intel macOS CI installs Node with `actions/setup-node` and native Rust with
+`dtolnay/rust-toolchain`, using the same pins as the Nix jobs. It runs
+`npm ci`, `node --test`, and native Rust tests and Clippy in debug and release
+mode. It needs no Deno, Bun, TypeScript or WASM tooling for those checks.
+ARM macOS continues to use Nix.
+
+The generated flakes support Linux and ARM macOS only. This split is adopted
+ahead of Nixpkgs dropping Intel macOS after 26.05, and avoids setting up the
+full shared toolchain on the slow Intel runner. Intel macOS contributors and
+agents install the tools needed for their work from the [Requirements](#requirements)
+table at the exact versions in `fjs/ci/config/module.f.js`; type-checking and
+package generation also need the pinned TypeScript compiler. Run the normal
+check commands directly. `npm run gen` requires Nix and must run on a supported
+platform, or in the Linux devcontainer.
 
 One build runs outside it: Cloudflare's Workers Builds generates the website on
 its own image and reads its Node version from `.node-version`, which is why that
