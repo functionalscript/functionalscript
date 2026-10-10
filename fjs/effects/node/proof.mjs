@@ -572,10 +572,10 @@ const counting = count => resultMapStep(catch_(() => { count.n += 1 }), () => ok
  * inside a command's continuation, so nothing of it exists until the pump asks —
  * and counting the pulls.
  *
- * That count is how these proofs see a bound rather than assert one: a pump parked
- * on `drain` has pulled a small number of chunks whatever the body's length is,
- * and a pump that read `res.write`'s answer and pulled anyway would have pulled
- * all of them.
+ * The counter records each requested cell, including the end marker. The proof
+ * with a paused client checks that each body starts and stays unfinished, while
+ * its `onPull` observer checks backpressure by recording any pull while the
+ * response's `writableNeedDrain` flag is set.
  *
  * `chunk` is converted once, before the body exists: `toVec` of 128 KiB costs tens
  * of milliseconds, and paying it per cell would make the pull count a measure of
