@@ -111,14 +111,14 @@ variadic in the first place.)
 ### Tasks
 
 - [ ] Decide the list-shaped `All` signature and whether a variadic wrapper stays.
-      **Either way this is breaking, and the entry must say so.** Changing the
+      **Either way this changes the public API; explain the change.** Changing the
       *operation* breaks every `all` handler however it is spelled at call
       sites; dropping the wrapper additionally changes the published
       `all`/`allOk` call shape, which reaches every fixed-arity caller
       (`both`, hand-written fan-outs in proofs) and any external importer —
       so the PR migrates every in-repo caller in the same change and carries
-      a `**BREAKING CHANGES:**` declaration naming what moved. Keeping
-      the wrapper narrows the break to the handlers, which is the argument
+      an explanation of what moved (a breaking notice is optional before 1.0).
+      Keeping the wrapper narrows the break to the handlers, which is the argument
       for keeping it.
 - [ ] Move every interpreter and fixture to it in one change, and every spread site in the
       table above with them. Future combinators scheduled after this issue are
