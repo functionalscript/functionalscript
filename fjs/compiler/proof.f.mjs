@@ -1278,7 +1278,9 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
         view: () => {
             const shown = htmlToString(demo.view(demo.init))
             assert(shown.includes('<h3>.rs</h3>'), shown)
-            assert(shown.includes('<pre data-code="">'), shown)
+            assert(shown.includes('aria-label="Copy .js output"'), shown)
+            assert(shown.includes('data-copy='), shown)
+            assert(shown.includes('<div data-code="" data-code-block=""><pre>'), shown)
             assert(shown.includes('callable materialization requires a target compile/load boundary</pre>'), shown)
             assert(!shown.includes(' - error:'), shown)
             const refused = htmlToString(demo.view('export default {bad'))

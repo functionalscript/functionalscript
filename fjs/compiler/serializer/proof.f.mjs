@@ -1425,7 +1425,8 @@ export const proof = {
         },
         view: () => {
             const shown = htmlToString(demo.view(demo.init))
-            assert(shown.includes('<p data-caption="">JavaScript module:</p><pre data-code="">'), shown)
+            assert(shown.includes('<p data-caption="">JavaScript module:</p><div data-code="" data-code-block=""><pre>'), shown)
+            assert(shown.includes('aria-label="Copy JavaScript module"'), shown)
             const refused = htmlToString(demo.view('export default {bad'))
             assert(refused.includes('Refused:</p><pre data-result="error">'), refused)
         },

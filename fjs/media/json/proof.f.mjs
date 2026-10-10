@@ -177,6 +177,8 @@ export const proof = {
             assert(empty.includes(unwrap(roundTrip(demo.init)).replaceAll('"', '&quot;')), empty)
             const typed = htmlToString(demo.view('[1,2]'))
             assert(typed.includes('[1,2]'), typed)
+            assert(typed.includes('data-copy="[1,2]"'), typed)
+            assert(typed.includes('aria-label="Copy JSON"'), typed)
             assert(typed.includes(unwrap(roundTrip('[1,2]'))), typed)
             const refused = htmlToString(demo.view('{'))
             assert(refused.includes('Refused:</p><pre data-result="error">unexpected end</pre>'), refused)

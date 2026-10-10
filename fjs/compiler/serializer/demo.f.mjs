@@ -16,13 +16,17 @@
  * functions of the text, so `update` declares `never` and returns through
  * `pureOk`.
  *
+ * **The output is copyable**: it is a document or generated source a reader
+ * can save and use elsewhere. Copy keeps the original output text.
+ *
  * @module
  *
  * @import { Result } from '../../types/result/types.ts'
  * @import { Marked } from '../../text/marked/types.ts'
  */
 
-import { codeMarker } from '../../website/style/module.f.mjs'
+import { toText } from '../../text/marked/module.f.mjs'
+import { codeBlock } from '../../website/demo/code/module.f.mjs'
 import { error } from '../../types/result/module.f.mjs'
 import { textDemo, refusal, caption } from '../../website/demo/module.f.mjs'
 import { render } from '../../website/demo/highlight/module.f.mjs'
@@ -50,6 +54,6 @@ export const demo = textDemo({
 })(text => {
     const [kind, value] = _sourceOf(text)
     return kind === 'ok'
-        ? [caption('JavaScript module:'), ['pre', { [codeMarker]: '' }, ...render(value)]]
+        ? [caption('JavaScript module:'), codeBlock(toText(value), 'Copy JavaScript module', render(value))]
         : [refusal(value)]
 })
