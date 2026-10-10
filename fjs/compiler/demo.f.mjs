@@ -42,7 +42,7 @@ import { error, ok, unwrap } from '../types/result/module.f.mjs'
 import { textDemo, refusal } from '../website/demo/module.f.mjs'
 import { render } from '../website/demo/highlight/module.f.mjs'
 import { examples } from './examples/module.f.js'
-import { _compileMarked, compile } from './module.f.mjs'
+import { _outputMarked, compile } from './module.f.mjs'
 
 /**
  * The outputs, each under the file name that selects its language: what a
@@ -60,15 +60,17 @@ export const outputs = [
 
 /**
  * `text` compiled to the language `outputFileName` names, as marked text: the
- * output `compile` writes the text of, or what it would print when it
- * refuses. It is the real compile but for its tail, the directory and the
+ * output `compile` writes the text of, or why it refuses, without the
+ * location the command prints. It is the real compile but for its tail, the directory and the
  * write, so a pane cannot show anything the CLI does not write, which
  * {@link _written} lets the proof check.
  *
  * @type {(text: string) => (outputFileName: string) => Result<Marked, string>}
  */
-export const _compiled = text => outputFileName =>
-    unwrap(virtual({ ...emptyState, root: { 'input.f.js': [utf8(text)] } })(_compileMarked('input.f.js', outputFileName))[1])
+export const _compiled = text => outputFileName => {
+    const result = unwrap(virtual({ ...emptyState, root: { 'input.f.js': [utf8(text)] } })(_outputMarked('input.f.js', outputFileName))[1])
+    return result[0] === 'error' ? error(result[1][0]) : result
+}
 
 /**
  * `text` compiled by the whole of `compile` over an in-memory file system:
