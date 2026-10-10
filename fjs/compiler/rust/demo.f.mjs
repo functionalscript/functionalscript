@@ -22,25 +22,28 @@
  * @module
  *
  * @import { Result } from '../../types/result/types.ts'
+ * @import { Marked } from '../../text/marked/types.ts'
  */
 
 import { codeBlock } from '../../website/demo/code/module.f.mjs'
+import { toText } from '../../text/marked/module.f.mjs'
 import { parse } from '../transpiler/module.f.mjs'
 import { unresolved } from '../edag/module.f.mjs'
 import { error } from '../../types/result/module.f.mjs'
 import { textDemo, refusal, caption } from '../../website/demo/module.f.mjs'
+import { render } from '../../website/demo/highlight/module.f.mjs'
 import { examples } from '../examples/module.f.js'
-import { toRust } from './module.f.mjs'
+import { toRustMarked } from './module.f.mjs'
 
 /**
  * `text` as Rust, or why it is not: the parser's message, or the printer's
  * refusal.
  *
- * @type {(text: string) => Result<string, string>}
+ * @type {(text: string) => Result<Marked, string>}
  */
 export const _rustOf = text => {
     const result = parse('')(text)
-    return result[0] === 'error' ? error(result[1].message) : toRust(unresolved(result[1]).edag)
+    return result[0] === 'error' ? error(result[1].message) : toRustMarked(unresolved(result[1]).edag)
 }
 
 export const demo = textDemo({
@@ -52,6 +55,6 @@ export const demo = textDemo({
 })(text => {
     const [kind, value] = _rustOf(text)
     return kind === 'ok'
-        ? [caption('Rust module:'), codeBlock(value, 'Copy Rust module')]
+        ? [caption('Rust module:'), codeBlock(toText(value), 'Copy Rust module', render(value))]
         : [refusal(value)]
 })

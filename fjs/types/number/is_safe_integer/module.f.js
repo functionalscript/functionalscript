@@ -17,9 +17,10 @@ const isInSafeIntegerRange = value =>
 
 /**
  * Whether `value` is an integer in the safe range, without converting it.
+ * A false result can still be a number, so this does not narrow its type.
  *
  * @param {unknown} value
- * @returns {value is number}
+ * @returns {boolean}
  */
 export const isSafeInteger = value =>
     typeof value === 'number' && isInteger(value) && isInSafeIntegerRange(value)

@@ -10,6 +10,13 @@
  * it is the check instead: every authored `.f.js` under the current
  * directory compiled and nothing written ({@link check}).
  *
+ * Every output is also available as **marked text** — the same text with the
+ * kind of each keyword, literal, string and number its writer spelled — which
+ * the demo pages colour from. {@link _compileMarked} is the compile but for
+ * its tail, the directory and the write, and {@link compileFile} writes the
+ * text of its result, so a file never holds markup. There is no command-line
+ * option for it (`fjs/text/marked/README.md`, §10).
+ *
  * @module
  *
  * @import { List } from '../types/list/types.ts'
@@ -18,7 +25,6 @@
  * @import { Unknown } from '../media/datajs/types.ts'
  * @import { _Checked, _CompileOp } from './types.ts'
  * @import { ParseError } from './parser/types.ts'
- * @import { Exp } from '../edag/types.ts'
  * @import { Effect, IoChannel, IoError } from '../effects/types.ts'
  * @import { Env, Program, ReadWhole, ResolveFileModule, Write } from '../effects/node/types.ts'
  */
@@ -26,7 +32,7 @@
 import { _transpileDefault } from './transpiler/module.f.mjs'
 import { errorLocation } from './parser/module.f.mjs'
 import { resolve } from './edag/module.f.mjs'
-import { toRust } from './rust/module.f.mjs'
+import { toRustMarked } from './rust/module.f.mjs'
 import { _numberSerialize, tryJsonMarked, tryMarked } from '../media/datajs/serializer/module.f.mjs'
 import { tryMarked as fjsMarked, tryModuleMarked } from './serializer/module.f.mjs'
 import { arrayWrap, boolSerialize, colon, nullSerialize, objectWrap, stringSerialize } from '../media/json/serializer/module.f.mjs'
@@ -39,7 +45,7 @@ import { errorMessage, foldStep, ioError, mapStep, pureError, pureOk, resultMapS
 import { error as errorLine, errorExit, exitStep, log, mkdir, writeUtf8File } from '../effects/node/module.f.mjs'
 import { concat as pathConcat } from '../path/module.f.mjs'
 import { allFiles, sourceRoot } from '../dev/module.f.mjs'
-import { chunksText, toText, unmarked } from '../text/marked/module.f.mjs'
+import { chunksText, toText } from '../text/marked/module.f.mjs'
 
 const { entries } = Object
 
@@ -106,12 +112,6 @@ const isFjs = named(['.js', '.mjs'])
  */
 const edagText = path => mapStep(resolve(path), tryMarked)
 
-/** Wrap a successful text result as a plain run. */
-const unmarkedResult = mapOk(unmarked)
-
-/** Rust output as plain marked text. @type {(graph: Exp) => Result<Marked, string>} */
-const rustMarked = graph => unmarkedResult(toRust(graph))
-
 /**
  * The program at `path` as the text of its `.rs` output: linked by `./edag`
  * into one graph, the same as {@link edagText}, and printed against the
@@ -119,7 +119,7 @@ const rustMarked = graph => unmarkedResult(toRust(graph))
  *
  * @type {(path: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, string>, ParseError>}
  */
-const rustText = path => mapStep(resolve(path), rustMarked)
+const rustText = path => mapStep(resolve(path), toRustMarked)
 
 /**
  * The program at `path` as the text of the FunctionalScript module it is:

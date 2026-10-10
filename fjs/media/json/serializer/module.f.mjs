@@ -13,6 +13,14 @@
  * escapes over this repository's own UTF-16 decoder and reproduces the
  * ECMAScript `QuoteJSONString` result exactly, lone surrogates included.
  *
+ * **A leaf says what it is.** A leaf is a `[text, kind]` run, not a bare
+ * string: a string is a `string`, a number a `number`, `null`, `true` and
+ * `false` are `literal`s; punctuation stays a plain string. The pieces are
+ * `Chunk`s, `string | Run`, so that a writer built on them marks what it
+ * knows and leaves the rest. The public `serialize` of a codec still answers
+ * plain strings, `chunkStrings`; the kinds are what a writer of marked text
+ * builds on (`fjs/text/marked/README.md`).
+ *
  * @module
  *
  * @import { List } from '../../../types/list/types.ts'
