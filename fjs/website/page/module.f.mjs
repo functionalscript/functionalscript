@@ -422,6 +422,18 @@ export const sections = commit => dir => [
 ]
 
 /**
+ * A directory's catalogue in the left margin beside its main content.
+ * Contents and Issues keep their own disclosure controls. On a narrow
+ * screen the stylesheet puts the catalogue above the main content.
+ *
+ * @type {(build: Build) => (dir: Dir) => (main: Element) => Element}
+ */
+export const directoryLayout = build => dir => main => ['div', { 'data-directory-layout': '' },
+    ['aside', { 'data-catalogue': '', 'aria-label': 'Directory catalogue' }, ...sections(build.commit)(dir)],
+    main,
+]
+
+/**
  * The path to each ancestor of `path`, root first, paired with the name to
  * show for it. The directory itself is not included: a page does not link to
  * itself.
@@ -525,7 +537,7 @@ export const footer = funding => funding.length === 0 ? [] : [['footer', { 'data
 
 /**
  * The frame every page of the site shares: its `<head>`, its {@link header}
- * and its {@link footer}, around the page's own `main`.
+ * and its {@link footer}, around the page's own content.
  *
  * **One builder, so a page cannot drift from the rest.** The root page, a
  * directory's page, a release's page and the release index each used to
@@ -533,13 +545,13 @@ export const footer = funding => funding.length === 0 ? [] : [['footer', { 'data
  * one of them would have been missing from the others with nothing to say
  * so.
  *
- * **`main` is the page's, attributes and all**, because pages differ there on
+ * **The content is the page's, attributes and all**, because pages differ there on
  * purpose: one that runs a suite marks it for the runtime — see
  * {@link testsMain} — and a changelog page does not.
  *
- * @type {(build: Build) => (title: string) => (main: Element) => Vec}
+ * @type {(build: Build) => (title: string) => (content: Element) => Vec}
  */
-export const shell = build => title => main => htmlUtf8(lang)(
+export const shell = build => title => content => htmlUtf8(lang)(
     ['title', title],
     // OAuth callback parameters must not become subresource referrers.
     ['meta', { name: 'referrer', content: 'no-referrer' }],
@@ -547,7 +559,7 @@ export const shell = build => title => main => htmlUtf8(lang)(
     ...faviconLinks,
 )(
     header(build),
-    main,
+    content,
     ...footer(build.funding),
 )
 
@@ -566,11 +578,10 @@ export const testsMain = (...nodes) => ['main', { 'data-browser-tests': '', 'dat
  *
  * @type {(build: Build) => (dir: Dir) => Vec}
  */
-export const page = build => dir => shell(build)(pageTitle(dir.path))(testsMain(
+export const page = build => dir => shell(build)(pageTitle(dir.path))(directoryLayout(build)(dir)(testsMain(
     ['nav', ...toArray(intersperse(' / ')(ancestors(dir.path).map(([path, name]) =>
         /** @type {Element} */(['a', { href: pageHref(path) }, name]))))],
     ['h1', dir.path],
     ...(dir.demo === null ? [] : demoSection(dir.demo)),
-    ...sections(build.commit)(dir),
     ...testSection(dir)([]),
-))
+)))

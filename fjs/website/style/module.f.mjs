@@ -130,6 +130,26 @@ body { background-color: var(--bg); color: var(--text); font: 16px ui-monospace,
    as the same directory's view on GitHub. It is in rem, like every other
    length here, so it grows with a reader's own font size. */
 main { margin: 1.5rem auto 3rem; max-width: 63.25rem; padding: 0 1rem }
+/* Use the empty left margin for the directory's catalogue while preserving
+   the centered reading column. Below that width, give the catalogue a
+   fixed column; on a phone, stack it above the page. */
+[data-directory-layout] { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 63.25rem) minmax(0, 1fr); gap: 1.5rem; padding-inline: 1rem }
+[data-directory-layout] > main { margin: 1.5rem 0 3rem; min-width: 0; padding: 0 }
+[data-catalogue] { align-self: start; border-right: 1px solid var(--border); margin-top: 1.5rem; max-height: calc(100dvh - 3rem); overflow: auto; padding-right: 1rem; position: sticky; top: 1.5rem }
+[data-catalogue] > [data-section]:first-child { margin-top: 0 }
+[data-catalogue] > [data-section]:last-child { margin-bottom: 0 }
+[data-catalogue] li { margin-block: .4rem }
+[data-catalogue] a { font-size: .875rem }
+@media (max-width: 85rem) {
+    [data-directory-layout] { grid-template-columns: 16rem minmax(0, 1fr) }
+}
+@media (max-width: 48rem) {
+    [data-directory-layout] { display: block }
+    [data-catalogue] { border-right: 0; border-bottom: 1px solid var(--border); max-height: none; padding: 0 0 1rem; position: static }
+}
+[data-catalogue]:empty { display: none }
+[data-directory-layout]:has(> [data-catalogue]:empty) { display: block }
+[data-directory-layout]:has(> [data-catalogue]:empty) > main { margin-inline: auto }
 /* The PR queue keeps the site's three-column table readable on a phone;
    status uses words as well as colour. */
 [data-prs] table { border-collapse: collapse; margin-block: 1rem; table-layout: fixed; width: 100% }
