@@ -272,17 +272,19 @@ module and is excluded. At that revision, `js/array_index` and `types/set`
 imported other `.f.mjs` modules, so they were no longer leaves. The eighteen-row
 table above records the earlier dependency graph.
 
-At `b300aa20c`, all 16 leaves still fail the compiler from that same revision.
-The table gives each first reported refusal after escape normalization, rather
-than a complete list of blockers; the historical feature analysis above
-remains useful for the other restrictions.
+The source and compiler for the refusal table are pinned to the `main` revision
+`40e196a51`, with only the 17 string-escape replacements listed below applied
+to a scratch checkout. All 16 candidates still fail that compiler after
+normalization. The table gives each first reported refusal, rather than a
+complete list of blockers; the historical feature analysis above remains
+useful for the other restrictions.
 
 | Leaf (`fjs/…/module.f.mjs`) | First refusal (line:column) |
 | --- | --- |
 | `ci/package` | template literal, 32:56 |
 | `git/bytes` | computed key is not `Number(...)`, 25:35 |
 | `git/config` | template literal, 398:60 |
-| `js/keywords` | `new Set`, 103:24 |
+| `js/keywords` | `new Set`, 101:24 |
 | `nanvm/member` | template literal, 335:13 |
 | `nanvm/methods` | template literal, 125:21 |
 | `types/function` | `let`, 33:5 |
@@ -298,13 +300,27 @@ remains useful for the other restrictions.
 
 Unsupported string escapes in these leaves have supported, value-preserving
 spellings, so they need no new language feature. The replacement counts and
-source positions below are measured at `b300aa20c`:
+source positions below refer to the source at `40e196a51`; the replacements
+preserve its line numbers:
 
 | Replacement | Where | Occurrences |
 | --- | --- | ---: |
 | `\v` → `\u000B` | `git/config`, line 90 | 1 |
 | `\0` → `\u0000` | `git/config`, lines 434 and 479; `website/demo/code`, line 26 | 3 |
 | `\u{1F600}` → `\uD83D\uDE00` | `nanvm/member` test-corpus string values | 13 |
+
+To reproduce, make a detached checkout of
+`40e196a5191ece2081f7d6bc82f1aaeb70da6f52`, apply the 17 replacements above
+to string literals in those three files, then run the checkout's CLI for each
+table row:
+
+```bash
+./dev.sh node fjs/module.mjs compile fjs/git/config/module.f.mjs /tmp/git-config.rs
+```
+
+Use each candidate's path in place of `fjs/git/config/module.f.mjs`. The
+diagnostics refer to the normalized copy; the source and compiler revision is
+retained on `main`.
 
 These three leaves no longer wait on string-escape support. They stay `.f.mjs`
 until the remaining restrictions clear; the deferred escape proposal is not
