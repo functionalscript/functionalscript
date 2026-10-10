@@ -232,7 +232,7 @@ const within = async (label, ms, p) => {
  *
  * @template T
  * @param {Erl<NodeOp>} listener
- * @param {(port: number) => Promise<T>} client
+ * @param {(port: number, server: import('node:http').Server) => Promise<T>} client
  * @returns {Promise<T>}
  */
 const withServer = async (listener, client) => {
@@ -257,7 +257,7 @@ const withServer = async (listener, client) => {
     try {
         const address = server.address()
         assert(address !== null && typeof address !== 'string', address)
-        return await client(address.port)
+        return await client(address.port, server)
     } finally {
         server.closeAllConnections()
         await new Promise(resolve => { server.close(() => resolve(undefined)) })
@@ -580,11 +580,14 @@ const counting = count => resultMapStep(catch_(() => { count.n += 1 }), () => ok
  * of milliseconds, and paying it per cell would make the pull count a measure of
  * this machine rather than of the socket.
  *
- * @type {(chunk: Vec, count: number, pulls: _Counter) => EffectList<NodeOp, Vec, IoChannel>}
+ * `onPull` lets a host proof observe the response at the moment the producer is
+ * asked for a cell, before the runner has written that cell.
+ *
+ * @type {(chunk: Vec, count: number, pulls: _Counter, onPull?: () => void) => EffectList<NodeOp, Vec, IoChannel>}
  */
-const lazyBody = (chunk, count, pulls) => {
+const lazyBody = (chunk, count, pulls, onPull = () => { }) => {
     /** @type {(i: number) => EffectList<NodeOp, Vec, IoChannel>} */
-    const cell = i => step(catch_(() => { pulls.n += 1 }), () =>
+    const cell = i => step(catch_(() => { onPull(); pulls.n += 1 }), () =>
         i === count ? listEnd() : nonEmpty(chunk, cell(i + 1)))
     return cell(0)
 }
@@ -1472,64 +1475,74 @@ export const proof = {
             assertEq(pulls.n, 0)
             assertEq(releases.n, 1)
         },
-        // **The memory bound, proved rather than asserted.** The client asks and
-        // then reads nothing, so the socket is the only thing that can slow the
-        // writes: `res.write` answers `false` on the first 128 KiB — the default
-        // high-water mark being 16 KiB, measured `false` on all three runtimes —
-        // and a pump that pulled anyway would be throttled by the disk rather than
-        // by the client, which is fast enough to be no throttle at all.
+        // The client asks and reads nothing. At every producer pull, observe the
+        // real response's `writableNeedDrain`: after `write` answers `false`, no
+        // further cell may be pulled until `drain` clears that flag. This checks
+        // the memory bound directly for both a 25 MiB and a 250 MiB lazy body.
         //
-        // **What makes this a bound is the second body, not the first.** How many
-        // chunks a parked pump has taken is the platform's socket buffers, and a
-        // proof naming a figure would be pinning those. So the same parked client
-        // is offered a body ten times longer, and the claim is that the count does
-        // not follow: the pull count is what the process holds, one `Vec` a pull,
-        // so a count that is the same for 25 MiB and 250 MiB is a footprint that
-        // does not grow with the file. An eager runner answers two hundred and two
-        // thousand.
+        // Pull counts across independent sockets need not match: their buffers
+        // and scheduling vary. A macOS CI run correctly parked at five and ten
+        // chunks, which failed the old four-chunk allowance.
         //
         // And the client's departure is what ends the pump, since `drain` never
         // comes for a socket that has gone — so `release` runs there too.
         pullsAtTheSocketsPace: async () => {
-            /** @type {(chunks: number) => Promise<readonly[number, number]>} */
+            /** @type {(chunks: number) => Promise<readonly[number, number, number]>} */
             const parked = async chunks => {
                 const pulls = counter()
                 const releases = counter()
+                const pullsWhileFull = counter()
+                /** @type {import('node:http').ServerResponse | undefined} */
+                let response
+                /** @type {() => void} */
+                let started = () => { }
+                /** @type {Promise<void>} */
+                const firstPull = new Promise(resolve => { started = () => resolve(undefined) })
                 const held = await withServer(
                     () => pureOk({
                         status: 200,
                         headers: { 'content-length': `${chunks * oneVec}` },
-                        body: lazyBody(vecChunk, chunks, pulls),
+                        body: lazyBody(vecChunk, chunks, pulls, () => {
+                            // Record rather than throw here: `catch_` would turn
+                            // an assertion into a body error the pump handles.
+                            if (response?.writableNeedDrain) { pullsWhileFull.n += 1 }
+                            started()
+                        }),
                         release: counting(releases),
                     }),
-                    port => within('a parked pump', 20000, new Promise(resolve => {
+                    async (port, server) => {
+                        // The runner awaits the listener before pulling, so this
+                        // observer sees the response before its first body cell.
+                        server.once('request', (_, res) => { response = res })
                         const socket = net.connect(port, loopback, () => {
                             socket.write('GET / HTTP/1.1\r\nHost: x\r\n\r\n')
                         })
                         socket.pause()
                         socket.on('error', () => { })
-                        // Long enough for a pump that ignored `false` to be well
-                        // into a body it should not have touched, and short enough
-                        // that two runs of this fit inside the five seconds Bun's
-                        // test runner gives one proof.
-                        setTimeout(async () => {
-                            const taken = pulls.n
+                        try {
+                            return await within('a parked pump', 20000, firstPull.then(async () => {
+                                // Let the real socket fill after production has
+                                // started; no particular pull count is required.
+                                await new Promise(resolve => setTimeout(resolve, 500))
+                                return pulls.n
+                            }))
+                        } finally {
                             socket.destroy()
                             // Give the recorded `close` its chance to end the
                             // parked pull, which is the other half of this proof.
                             await reaches(releases, 1)
-                            resolve([taken, releases.n])
-                        }, 500)
-                    })))
-                return held
+                        }
+                    })
+                assert(response !== undefined)
+                return [held, releases.n, pullsWhileFull.n]
             }
-            const [small, smallReleases] = await parked(200)
-            const [large, largeReleases] = await parked(2000)
+            const [small, smallReleases, smallWhileFull] = await parked(200)
+            const [large, largeReleases, largeWhileFull] = await parked(2000)
+            assertEq(smallWhileFull, 0)
+            assertEq(largeWhileFull, 0)
             // Parked, not finished: an eager pump answers the cell count itself.
             assert(small > 0 && small < 200, small)
-            // And ten times the body is not ten times the memory. Four chunks of
-            // slack for a machine that drained a little more in the same 900 ms.
-            assert(large <= small + 4, [small, large])
+            assert(large > 0 && large < 2000, large)
             // `release` ran on the client's departure, once, on both.
             assertEq(smallReleases, 1)
             assertEq(largeReleases, 1)

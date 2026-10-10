@@ -1153,7 +1153,8 @@ buffering half is what this stage answered.
       [`../../../web/proof.mjs`](../../../web/proof.mjs) serves a file of a
       hundred and twenty-eight mebibytes to a client that reads nothing, and
       `createServer.pullsAtTheSocketsPace` in [`../proof.mjs`](../proof.mjs) is the
-      exact bound — ten times the body is not ten times the memory.
+      direct backpressure check — neither body pulls another cell while the
+      response needs `drain`, whatever the socket's buffer capacity is.
 - [x] Stage 2: name the operation that pulls one request-body chunk, and answer
       what an undrained body does. — [`ReadRequestBytes`](../types.ts),
       `(body, offset, size)` over a `RequestBody` handle, which is
