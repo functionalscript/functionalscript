@@ -18,6 +18,14 @@
  * crate is the output's one dependency, so the functions a literal becomes
  * are `vm::unstable`'s, never copied here.
  *
+ * **The module says what it wrote.** The printer tags what it spells — a
+ * keyword, `true` and `false`, a string or number literal, the generated
+ * comment — and `toRustMarked` resolves the runs; `toRust` and `generate`
+ * answer the plain text, as they always have. The skeleton here marks its own
+ * words, `pub fn`, `use` and the comment. Why tagged text and not runs all
+ * through the printer, and how it is proved: `fjs/text/marked/README.md`, §4
+ * and §9.
+ *
  * @module
  *
  * @import { Exp } from '../../edag/types.ts'

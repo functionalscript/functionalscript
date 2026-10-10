@@ -56,6 +56,15 @@
  * graph unfolds to, so its writer is this read under JSON's leaf rule, and
  * lives here rather than in `fjs/media/json`, which this module imports.
  *
+ * **The writer builds `Chunk`s and says what it wrote.** A leaf, a key and the
+ * words `const`, `export` and `default` are runs with a kind, and the rest
+ * plain strings. `trySerialize` and `tryJsonSerialize` answer the plain
+ * strings (`chunkStrings`), as they always have; `_trySerialize` and
+ * `_tryJsonSerialize` keep the kinds, for the writers that build on this one
+ * (they are linkage, with the `_` prefix), and `tryMarked` and `tryJsonMarked`
+ * are the public marked text. The non-finite numbers are the language's
+ * literal words, `NaN` and `Infinity`.
+ *
  * @module
  *
  * @import { List } from '../../../types/list/types.ts'

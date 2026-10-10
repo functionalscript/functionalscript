@@ -10,6 +10,13 @@
  * it is the check instead: every authored `.f.js` under the current
  * directory compiled and nothing written ({@link check}).
  *
+ * Every output is also available as **marked text** — the same text with the
+ * kind of each keyword, literal, string and number its writer spelled — which
+ * the demo pages colour from. {@link _compileMarked} is the compile but for
+ * its tail, the directory and the write, and {@link compileFile} writes the
+ * text of its result, so a file never holds markup. There is no command-line
+ * option for it (`fjs/text/marked/README.md`, §10).
+ *
  * @module
  *
  * @import { List } from '../types/list/types.ts'

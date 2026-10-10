@@ -4,6 +4,18 @@
  * tokens, Pygments and Tree-sitter: the runs' texts, concatenated, are the
  * text, so what a producer writes to a file is {@link toText} of its runs.
  *
+ * Four groups, by how a producer uses them:
+ *
+ * - **Runs**: {@link toText}, {@link textOfResult}, and {@link keyword} and
+ *   {@link literal} to build a run.
+ * - **Chunks**, `string | Run`, for a producer that builds a list of pieces
+ *   and marks some of them: {@link chunksMarked}, {@link chunksText},
+ *   {@link chunkStrings}.
+ * - **Tagged text**, for a producer that composes its text by templates and
+ *   says what a word is inside the string: {@link tagged}, resolved once at
+ *   its boundary by {@link fromTagged}, or dropped by {@link untagged}.
+ * - **Spans** beside a text that already exists: {@link fromSpans}.
+ *
  * See `./types.ts` for the type-level API, and `./README.md` for what a
  * producer does with it.
  *

@@ -25,6 +25,18 @@
  * re-export of the same names, so that no generated file lists what it
  * uses — and that copy is checked, since a name it lacks fails `cargo test`.
  *
+ * **Tagged text.** What the printer spells says what it is: a keyword
+ * (`let`), `true` and `false`, a string literal, a number — an `f64`'s bits, an
+ * `i64`, a word of a big integer, a function's length, an index. The text is
+ * composed by templates all through and shared with the corpus generator, so
+ * the kinds travel inside it as tags (`tagged` in `fjs/text/marked`) and are
+ * resolved once, at the boundary. Every public function answers the plain text,
+ * `untagged`, exactly as before; {@link scopeTagged}, {@link expExprTagged} and
+ * {@link useLinesTagged} answer it tagged, for the one producer of marked text
+ * (`fjs/compiler/rust`). Why tags and not runs, and why data cannot forge one:
+ * `fjs/text/marked/README.md`, §4. That nothing the printer marks is left
+ * plain, and no mark is missing a case, is `./unmarked`'s check.
+ *
  * @module
  *
  * @import { Exp, Index, OpId, Primitive, Properties } from '../types.ts'
@@ -39,13 +51,8 @@ import { isIndex, maxLength } from '../../types/function/length/module.f.mjs'
 import { tryFunctionText } from '../../compiler/serializer/module.f.mjs'
 import { tagged, untagged } from '../../text/marked/module.f.mjs'
 
-// The printed text is tagged (`tagged` in `fjs/text/marked`): the words,
-// literals and numbers of the Rust it prints say what they are, and the
-// public functions answer the plain text, `untagged`, as they always have.
-// `scopeTagged` and the tagged text of this module's other entry points are
-// what a producer of marked text resolves its runs from. What tagged text is,
-// why public text is never tagged, and why data cannot forge a tag:
-// `fjs/text/marked/README.md`, §4.
+// The printed text is tagged: see the module comment, "Tagged text". The four
+// helpers below are the kinds this printer says it spells.
 
 /** A Rust keyword, as the text spells it. */
 const kw = tagged('keyword')

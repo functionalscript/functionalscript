@@ -102,6 +102,18 @@
  * **One line, normalized**, as the DataJS output is, and its leaves are the
  * DataJS serializer's, which owns their spelling.
  *
+ * **It says what it wrote.** The document is a list of `Chunk`s,
+ * `string | Run`: the words it spells — `const`, `export`, `default`,
+ * `return`, `throw`, `typeof`, `instanceof` — and `undefined` are runs with a
+ * kind, and so is every leaf, which the DataJS writer spells. Names are
+ * symbols until the end ({@link resolve}), and resolving one keeps the kind
+ * of the chunk it is in. `tryMarked` and `tryModuleMarked` answer the runs;
+ * `trySerialize` and `tryModuleSerialize` still answer plain strings,
+ * `chunkStrings` of {@link _trySerialize} and {@link _tryModuleSerialize}
+ * (linkage, with the `_` prefix), and the text of every output is what it
+ * was. Punctuation and operators stay plain. What is marked is held to the
+ * tokenizer's reading of the text: `fjs/text/marked/README.md`, §9.
+ *
  * **What it refuses**, each by name and with nothing written: a node kind it
  * has no spelling for, which is how a feature that adds one is made to add
  * its spelling here in the same change; a comma anywhere but where a block
