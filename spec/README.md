@@ -7,10 +7,12 @@ A FunctionalScript module is exactly a module that
 fjs compile <input> <output>
 ```
 
-compiles; every rule below is a rule the `fjs` parser and serializer enforce.
+compiles to a supported output. Source admission, program evaluation and output
+serialization are separate steps: the parser may accept a program whose
+evaluation fails, or whose result a particular output cannot represent.
 
 Features the parser does not recognize yet — among them the remaining unary
-operator (`+`), the comma operator and type annotations — and the
+operator (`+`), the comma operator and type annotations in comments — and the
 design documents for the VM, I/O, serialization, and the rest of the roadmap
 live in [`spec/todo/`](./todo/README.md). Loose equality (`== !=`) is not
 waiting: it stays refused ([operators](#operators)).
@@ -33,10 +35,45 @@ leaf set gains `undefined`, `bigint`, `NaN` and the infinities — and with a
 module here may omit one JavaScript inserts), no `import`, no comments, no
 identifier keys and no trailing commas. The language this document describes is wider, and holds
 functions besides. The compiler bridges the two: to a `.data.js` output,
-`fjs compile` writes a module's default export as a DataJS document, through
-DataJS's own writer, and refuses a module whose program — its imports
-included — holds a function, a call, or an operator other than unary `-`
-([output](#output)).
+`fjs compile` evaluates the module and writes its default export through
+DataJS's own writer. Functions, calls and operators may compute that data;
+a function remaining in the selected result cannot be written as DataJS
+or JSON ([output](#output)).
+
+## Contents
+
+- [Principles](#principles)
+- [Lexical grammar](#lexical-grammar) and [comments](#comments)
+- [Module structure](#module-structure), [exports](#exporting-a-value),
+  [imports](#importing-other-modules) and [constants](#shared-values-constants)
+- [Values and literals](#supported-value-types)
+- [Grouping](#grouping), [operators](#operators),
+  [number conversion](#number-conversion) and [string conversion](#string-conversion)
+- [Property access](#property-access), [optional chaining](#optional-chaining)
+  and [computed entries](#reading-an-entry-at-run-time)
+- [Functions](#functions)
+- [Command line](#command-line), [file types](#file-types) and [output](#output)
+- [Roadmap](#roadmap)
+
+## Implemented Features
+
+| Area | Supported today |
+| --- | --- |
+| Modules | Default, named and combined imports; JSON import attributes; local and exported `const`; named and default exports; terminal `throw` |
+| Literals | JSON values, `undefined`, `NaN`, infinities and arbitrary-width bigints; decimal, hexadecimal and binary integers; numeric separators; single- and double-quoted strings |
+| Containers | Dense arrays, object literals, shorthand members, constant string keys, trailing commas, array/call spread and object spread |
+| Expressions | Grouping; arithmetic, strict comparison, bitwise and lazy operators; `?:`, `!`, `typeof`, `instanceof Array`, `Number(...)` and `String(...)` |
+| Properties | Own-property reads, numeric computed keys through `Number(...)`, optional reads/calls and the enumerable `entry` helper |
+| Functions | Arrow functions, 0–16 fixed parameters, optional rest, closures, self recursion, body constants, terminating `if` guards, `return`, `throw`, ordinary and method calls |
+| Built-ins | Pure array, string and numeric member functions, including callbacks and function text ([member functions](#built-in-member-functions)) |
+| Compiler | JSON/DataJS evaluation; FunctionalScript, EDAG and Rust graph output; import linking and the authored `.f.js` check |
+
+The sections below give the restrictions and executor-specific limits for
+each feature. This overview records compiler support; optional chaining's
+required [language-design approval record](./todo/2335-optional-chaining.md#authorization-and-approval)
+remains open. TypeScript-only syntax, mutation, loops, classes, general
+computed object keys and general forward references remain outside the
+implemented language.
 
 ## Principles
 
@@ -102,21 +139,28 @@ inside complete instruction patterns. It applies to exported functions too.
 Running source directly on a JavaScript engine retains that host's function
 representation. Its text can differ from the FunctionalScript VM's, including
 when a JavaScript consumer reflects on an exported function. The
-JavaScript-hosted EDAG evaluators retain represented functions and render
-their EDAG-derived text, with captured values written as slot names
-([`fjs/edag/function-text.md`](../fjs/edag/function-text.md)). Differences
+ordinary runtime callables produced by runtime compilation are the same case:
+they expose their host's function text after EDAG reflection has been erased.
+The Memo and Amnesia EDAG interpreters, including compiler module
+initialization, retain represented functions and use the shared EDAG-derived
+renderer ([`fjs/edag/function-text.md`](../fjs/edag/function-text.md)). Differences
 caused by using that text as a key, comparing it or branching on it are
 consequences of this exception, not a blanket waiver for unrelated results.
 Non-function conversion, other admitted function observations and source
 syntax retain their existing contracts. The exception alone admits no new
 syntax or API.
 
+Function text renders code with captured values represented by slot names;
+it does not serialize those values or instantiate their frames. Instances
+of the same function template have the same text even when their captures differ.
+A body reading `self` is rendered as a named function expression. This text
+need not be accepted by the FunctionalScript source parser: the total text
+renderer and the structural source serializer have separate contracts
+([function text](../fjs/edag/function-text.md)). The Rust VM also answers
+`String(f)`, `f.toString()`, `'' + f` and `[f].toString()` with the compiled
+function's EDAG-derived text, and refuses a native function without associated text.
 [Function text and serialization](./todo/serialization.md#function-text-and-serialization)
-records the design questions beyond the representation exception. The current
-EDAG interpreters and Rust VM answer a conversion the compiler admits —
-`String(f)`, `f.toString()`, `'' + f`, `[f].toString()` — with EDAG-derived text,
-captured values written as slot names rather than embedded in the text
-([to-primitive, Stage 3](../nanvm-lib/todo/to-primitive.md#stage-3-a-functions-text)).
+tracks the broader serialization design.
 
 ### Failure is one outcome
 
@@ -146,6 +190,228 @@ not a guessed result.
 
 When we implement features of FunctionalScript, the first priority is a
 simplification of the VM, subject to these requirements.
+
+## Comments
+
+Comments are [trivia](#whitespace-and-line-terminators). Their text does not
+become an AST value, but the parser preserves line-terminator information
+needed by JavaScript's grammar. A line break inside a block comment counts at
+a restricted boundary too, such as after `return` or `throw`, or before `=>`
+([functions](#functions)).
+
+```js
+// a line comment runs to the end of the line
+
+/** @type {number} */
+export default -42.5;
+```
+
+|Form|Syntax|
+|----|------|
+|line comment|`// ...`|
+|block comment|`/* ... */`|
+
+A line comment runs to the next newline or to the end of the file. A block
+comment runs to the first `*/`, may span lines, and is an error if the file
+ends first. Their text may be any characters, non-ASCII included, except
+U+2028 and U+2029, which are refused in a comment as everywhere outside a
+string ([line terminators](#whitespace-and-line-terminators)): JavaScript
+ends a line comment at either, so what follows one is code there and never
+comment text here, and reads either inside a block comment as a line break.
+
+Block comments carry JSDoc/TypeScript type declarations, which is why the
+language has them: a `.f.js` file is type-checked as JavaScript, and JSDoc is
+how it says what its types are.
+
+A comment can separate tokens where whitespace can, which is between any two
+([trivia](#whitespace-and-line-terminators)). At unrestricted boundaries, the
+`;` that ends a statement may follow a comment on the same line or a later
+one ([module structure](#module-structure)), as any other token may. This
+does not make newlines interchangeable with spaces at restricted boundaries,
+nor a comment with a newline: where a statement omits its `;`, the next one
+begins a new line only if a newline stands between them — inside a block
+comment, or ending a line comment — as JavaScript counts it.
+
+Comments belong to the module language. A `.json` input containing one is an
+error, because JSON has no comments.
+
+See
+<https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar#comments>.
+
+## Lexical Grammar
+
+A module is a sequence of tokens — words, numbers, strings and punctuators —
+with trivia between them: whitespace, newlines and [comments](#comments).
+Trivia only separates tokens, and at a boundary JavaScript restricts it also
+says whether a line break stands there. The literal tokens are specified with
+their values — [numbers](#numbers), [bigints](#bigints), [strings](#strings)
+— and this section gives the characters between tokens and the spelling of a
+word.
+
+### Whitespace and Line Terminators
+
+Whitespace is a space (U+0020) or a tab (U+0009). A newline is a line feed
+(LF, U+000A), a carriage return (CR, U+000D), or CR followed by LF, which is
+one line break. Those are JSON's four whitespace characters, the same four
+[DataJS](./datajs/README.md#whitespace) admits.
+
+Trivia may stand between any two tokens, before the first and after the last,
+and it is insignificant there, newlines included, but for one: a statement
+written without its `;` ends at the newline before the next statement
+([module structure](#module-structure)). Inside an expression a line break
+reads as a space does, exactly as JavaScript reads it: `a` followed by
+`.length`, `[0]` or `+ 2` on the next line is `a.length`, `a[0]` or `a + 2`,
+and `f` followed by `(1)` is the call `f(1)`. Trivia is needed only where two
+tokens would otherwise read as one: `const a`, not `consta`
+([module structure](#module-structure)); `1 .x`, not `1.x`
+([property access](#property-access)).
+
+The exceptions are the boundaries JavaScript restricts, before `=>` and after
+`return` and `throw`, where a line break is refused ([functions](#functions)). There the
+trivia is a line break if a newline of any of the three forms stands in it,
+inside a block comment or not ([comments](#comments)).
+
+Nothing else is trivia. JavaScript's other whitespace — VT (U+000B), FF
+(U+000C), U+FEFF, and the Unicode space separators such as NBSP (U+00A0) and
+U+3000 — is refused, although JavaScript accepts it, a byte order mark at the
+start of the file included ([source text](#source-text)). JavaScript's other
+two line terminators, U+2028 and U+2029, may stand raw only inside a
+[string](#strings), as in JSON; anywhere else, a comment included, they are
+refused, since an invisible line break is no line break here. A hashbang
+comment, `#!` at the start of the file, is refused too, although JavaScript
+admits one ([hash comments](../fjs/compiler/todo/083-compiler-hash-comments.md)). Any
+other character outside a string or a comment is part of a token or an
+error, as it is in JavaScript.
+
+See
+<https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar#white_space>.
+
+### Identifiers
+
+An identifier is ASCII: a letter `A`–`Z` or `a`–`z`, `_` or `$`, then any
+number of those or the digits `0`–`9`. `a`, `_x`, `$0` and `a_$1` are
+identifiers, and `1a` is not. Every word is spelled this way — a `const`,
+`import` or parameter name, an identifier key, the name after `.`, and the
+keywords — and which words may name a binding is the reserved-word rule of
+[shared values](#shared-values-constants): a reserved word may still be a key
+or a property name, `{ if: 1 }` and `a.default` included.
+
+The rest of JavaScript's identifier grammar is not recognized yet
+([roadmap](./todo/README.md)), and each of its other spellings is a
+compilation error: a non-ASCII character in a name, a letter
+(`const é = 1;`, `{ π: 1 }`, `o.é`) or U+200C or U+200D (ZWNJ, ZWJ)
+included, and a Unicode escape in a name (`const \u0061 = 1;`, `\u{61}`,
+`{ \u0069f: 1 }`). Non-ASCII text is fine inside a string, so such a key is
+written as one: `{ "é": 1 }`, `o["é"]`.
+
+See
+<https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar#identifiers>.
+
+## Module Structure
+
+A module is a sequence of statements, each terminated by a semicolon —
+`export default 5;` — or by nothing, where JavaScript's automatic semicolon
+insertion supplies one: at the end of the input, before a `}`, and before a
+statement that begins on a new line. `export default 5` at the end of a file
+is that module, and so is `const a = 1` followed by `export default a` on the
+next line. A newline is what ends such a statement, so two statements on one
+line need the `;` between them: `const a = 1 export default a;` is a syntax
+error in JavaScript and an error here, at `export`, exactly as it was when
+the `;` was required. A comment counts by the line it ends on: a line comment
+ends at a newline, and a block comment that holds one breaks the line as
+JavaScript's `LineTerminator` rule has it, while one that holds none does
+not. The `;` lets several statements share a line, and whitespace may precede
+it, newlines included: a line break before the `;` is insignificant, exactly
+as it is in DataJS and JavaScript. One terminator per statement: `;;` is an
+error, not an empty statement. Nor does a newline end an expression: a line
+break between two tokens reads as a space does, as in JavaScript, so `f`
+followed by `(7)` on the next line is the call `f(7)`, and `[1]` followed by
+`[0]` is an index — a `;` is inserted only where the parser cannot continue
+the statement, never at a newline as such — except at the two boundaries of
+this language where JavaScript forbids one, before `=>` and after `return`
+or `throw` ([line terminators](#whitespace-and-line-terminators)).
+
+[DataJS](./datajs/README.md) *requires* the `;` after every statement, and
+every DataJS document must be a valid FunctionalScript module —
+`const $0=[1];export default [$0,$0];` is normalized DataJS, one line, and it
+parses here. JavaScript accepts the same module with the same meaning, so the
+subset law holds; what FunctionalScript refuses from JavaScript is the empty
+statement. The `;` is the rule of the compiler-formatted `.f.js` output
+language: the compiler writes the `;` after every statement it emits. The
+grammar admits the omission by making the `;` optional and looking no
+further, which one symbol of lookahead still decides, since `;` begins no
+statement and no statement's continuation; whether the token after an
+omitted `;` begins a line is a fact the token carries, and the reader checks
+it there ([`fjs/compiler/parser`](../fjs/compiler/parser/README.md)). Trivia
+between tokens — whitespace
+or a comment — is optional here, `export default[1];`, `export default{};`
+and `import a from"./a.f.js";` included. Where two words would otherwise
+lex as one identifier some trivia is needed — after `const`, `export` and
+`import`, and between an import's name and `from`, since `const$0`,
+`exportdefault`, `importa` and `afrom` are each one identifier — and a
+comment separates as a space does: `const/**/a=1;` and
+`import/**/a/**/from/**/"./a.f.js";` parse. After `default`, and before an
+import's string, nothing is needed. DataJS requires a space after `const`,
+`export` and `default` and admits no comment, more than this language asks,
+so every DataJS document parses here.
+
+|Statement|Form|
+|---------|----|
+|default import|`import name from "./path";`|
+|named imports|`import { name, other as local, } from "./path";`|
+|combined imports|`import value, { name } from "./path";`|
+|JSON import|`import name from "./path.json" with { type: "json" };`|
+|constant|`const name = expression;`|
+|named export|`export const name = expression;`|
+|default export|`export default expression;`|
+|throw|`throw expression;`|
+
+```js
+import base from "./base.f.js";    // imports first
+
+const extra = { "debug": true };   // then constants
+
+export default [base, extra];      // optional, at most one, last
+```
+
+These are the module-level statement forms. A statement begins with `import`,
+`const`, `export`, or `throw`, and never with a value; more forms land as the
+language grows ([`spec/todo/`](./todo/README.md)).
+
+JavaScript accepts `throw` at the top level of a module, and
+[a module is a function](#a-module-is-a-function), so a block's rule
+([functions](#functions)) is the module's: after its imports and every
+`const`, exported or not, `throw expression;` may stand where
+`export default` would, in place of it and not beside it, and nothing
+follows it. Such a module fails at every load and exports nothing: a module
+that imports it fails to load too, as one importing a module that reads
+`null.x` at load does, and a name imported from it is refused at link as
+an export the module does not have. The graph outputs write it, as they
+write a module holding `const c = null.x;`, since they evaluate none of it,
+and the value outputs, which evaluate, refuse it as they refuse that module
+([output](#output)).
+
+### A Module Is a Function
+
+A module is one function, and the compiler reads it that way. Its imports are
+its parameters, in source order; its constants are the constants of its body;
+and what it returns is the object of its exports
+([exporting a value](#exporting-a-value)), `export default` being that
+object's `default` member — or, where the module ends in `throw`, it
+returns nothing and fails, as a function whose body ends in `throw` does. So a module's imports and constants are one scope,
+as a function's parameters and body constants are: one namespace, each name
+bound once, and a name used only after it is declared.
+
+The EDAG says so directly. Before linking, a module's graph reads import `i`
+from its arguments: the module slot is `['.', ['args'], i]`, and a binding
+selects its export from that slot, `['.', ['.', ['args'], i], name]`, where
+`name` is `default` for a default import. Only an empty import list, which
+binds no name, is the bare slot. Linking replaces each import with the export
+it selects from the module that import resolves to — applying the module to
+its imports — so the linked program has no parameter left
+([`fjs/compiler/edag`](../fjs/compiler/edag/module.f.mjs)). Two imports of one module
+identity are one application, shared, as
+[importing](#importing-other-modules) requires.
 
 ## Exporting a Value
 
@@ -182,7 +448,8 @@ has none — so `export const __proto__ = 7;` returns `{ ["__proto__"]: 7 }`, an
 own property like any other export, and an importer selects it the same way
 ([importing](#importing-other-modules)).
 
-At least one export is required. A named-only module needs no default:
+Unless a module ends in `throw`, at least one export is required.
+A named-only module needs no default:
 `export const a = 5;` returns `{ a: 5 }`. When present, `export default` is
 **last**; only [trivia](#whitespace-and-line-terminators) — whitespace,
 newlines and comments — may follow it. Ordinary and exported
@@ -207,6 +474,1623 @@ tracked separately in [export-lists](./todo/export-lists.md).
 See
 <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/export#using_the_default_export>.
 
+## Importing Other Modules
+
+```js
+import a from "./a.f.js";
+import { add, subtract as sub, } from "./math.f.js";
+import { default as config } from "./config.f.js";
+import d, { value as v } from "./mixed.f.js";
+import {} from "./checked.f.js";
+```
+
+An `import` statement selects exports from another module's complete export
+object. The exported name selects the property; an alias changes only its local
+binding. Named-only modules need no default export.
+
+The completed [named-import proposal](./named-imports.md) records the design
+scope and language-designer authorization.
+
+- The selected export must exist, even when its binding is unused. A present
+  export whose value is `undefined` is valid; an absent export is an error.
+- A selection reads an own property of the export object, so a built-in
+  prototype's name selects an export like any other:
+  `import { __proto__ as p, constructor as c } from "./dep.f.js";` binds the
+  dependency's own exports of those names, and one it does not export —
+  `toString`, `hasOwnProperty` — is an absent export, not a built-in.
+  [Property access](#property-access) refuses these names as keys; a
+  selection is not an access. The FunctionalScript output refuses such an
+  importer today (`a prohibited property name`), since it writes the selection
+  as an access; the other outputs accept it.
+- Named lists admit aliases, trailing commas, `default as name`, and an empty
+  list. A default binding may precede a named list.
+- An empty list still loads and evaluates the dependency. Unused imports and
+  unselected export initializers retain their required evaluation and failures.
+- Namespace imports ([namespace-import](./todo/2220-namespace-import.md)),
+  string-literal export names, bare side-effect imports, and re-exports remain
+  unsupported.
+- The module specifier is a [string literal](#strings), resolved using the
+  declared host environment's module-resolution rules. Relative specifiers
+  resolve against the importing module's identity; bare specifiers follow the
+  host's package or import-map rules. Unsupported specifier classes are
+  refused, not reinterpreted as sibling filesystem paths.
+- Within one program load, imports resolving to the same module identity
+  share its evaluation and exported value. Distinct module identities remain
+  distinct even when they load the same file; loading paths are not cache
+  keys. A circular dependency is an error.
+- Local bindings are names under the [rule](#shared-values-constants) a
+  `const` follows — `import { a as let }` and `import eval from "./e.f.js"`
+  are errors, `import from from "./f.f.js"` is not — and cannot duplicate
+  another import or module constant, both being names of the one module
+  function ([a module is a function](#a-module-is-a-function)). Exported names are identifier names;
+  reserved words such as `default` require a valid local alias.
+- Every `import` comes before every `const`
+  ([module structure](#module-structure)).
+
+**Current supported host profile:** the Node runner resolves admitted file imports
+against the importing file URL, canonicalizes symlinks, and reuses modules by the
+resulting file URL identity. Imports use portable URL-path spellings beginning
+with `./`, `../`, or `/`. Absolute `file:` imports and query/fragment components
+are outside the supported grammar, as are bare packages and other URL schemes.
+Encoded filename characters such as `%23` still work. This is the default Node
+file-module profile; preserve-symlinks modes are not supported profiles.
+
+The profile does not yet cover a module's format, only its resolution and
+identity. An import without the attribute is read by the module parser
+whatever the file it resolves to is called — `.f.js`, `.js`, `.mjs`,
+`.data.js`, `.ts`, `.cjs`, `.txt` or no extension alike — as a root input is
+([file types](#file-types)); only a `.json` file is refused without it
+(below). Node takes the format from the extension instead: it refuses `.txt`
+and loads `.cjs` as CommonJS, where `export` is a syntax error, so a module
+importing either compiles although Node would not load it. The existing
+[module-resolution TODO](../fjs/compiler/todo/module-resolution-compatibility.md)
+records the host boundary, tests, and remaining support work.
+
+A JSON document has only a `default` export. Both a default binding and
+`{ default as name }` may select it; its object keys are not named exports.
+The import requires the attribute JavaScript specifies and denotes the value
+`JSON.parse` gives it:
+
+```js
+import a from "./a.json" with { type: "json" };
+```
+
+- The attribute is `with { type: "json" }`, spelled as JavaScript spells it:
+  the key `type`, an identifier name, and the string `"json"`, in braces after
+  the path. Any other key or value is an error, as it is in JavaScript. The
+  value is a [string](#strings) like any other, so `type: 'json'` is the same
+  attribute. JavaScript also accepts the key written as a string,
+  `with { "type": "json" }`, a trailing comma after the pair, and `with {}`
+  on an import that is not JSON; none of these is recognized yet. `"json"` is
+  the one type ECMAScript defines; `"text"` and `"bytes"` are proposals,
+  blocked on their standardization
+  ([import-text-bytes](../todo/blocked/import-text-bytes.md)).
+- The attribute declares the file's language and never reinterprets the file,
+  so it must agree with the extension: a `.json` file imported without it, and
+  any other file imported with it, are errors — JavaScript refuses both, so
+  that data a program did not declare cannot stand where it expects a module.
+  The extension is that of the file the import resolves to, not the
+  specifier's: under the Node profile a symlink's target decides, as it does
+  in Node, so `"./alias.f.js"` linking to `data.json` needs the attribute,
+  and `"./mod.json"` linking to `m.f.js` must not carry it.
+- The document is read by the JSON reader, as a `.json` input is
+  ([JSON input](#json-input)): a `.json` file is JSON and nothing more.
+
+`fjs compile` resolves imports and inlines them, so its output is one
+self-contained file that imports nothing.
+
+See
+<https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#default_import>.
+
+## Shared Values, Constants
+
+```js
+const port = 8080;
+const server = { "port": port, "host": "localhost" };
+export default { "dev": server, "prod": server };
+```
+
+A `const` statement names a value so that it can be *used more than once*. It
+is what makes a module denote a **graph** rather than a tree, and it is the
+main thing FunctionalScript data has that JSON data does not.
+
+JSON can only represent a tree, so a value used twice is written twice. Two
+copies are not one shared value: they take twice the space, they drift apart
+when only one is edited, and a reader that loads them gets two objects where
+the author meant one. The usual answers — an id/reference convention, a
+`$ref` pointer — require a bespoke format and a bespoke resolver on both
+sides, and what they load still has a different shape from the object graph
+the author had in mind. In FunctionalScript the sharing *is* the language:
+`const` and `import` are how a value gets more than one reference, and a
+JavaScript engine loading the module rebuilds exactly the graph that was
+written.
+
+- A name is an [identifier](#identifiers), and one rule says which
+  identifiers a binding may take — a `const`, a body `const`, a parameter,
+  fixed or rest, and an import's local name alike. A word JavaScript reserves
+  in a module is refused: `const if = 1;`, `const export = 1;`,
+  `const let = 1;` and `const await = 1;` are errors here as they are there.
+  So are `eval` and `arguments`, which strict code may not bind —
+  `const eval = 1;` and `(arguments) => 1` are errors in both languages —
+  since any broken JavaScript program is a broken FunctionalScript program.
+  `undefined`, `NaN` and `Infinity` are refused as well, although a
+  JavaScript module may bind them, so that each denotes its value wherever a
+  value stands ([numbers](#numbers)). `Array`, `Number` and `String` are also
+  reserved under [global names](./todo/2365-global-names.md), with no standalone
+  values: `Array` stands in [instance checks](#instanceof), and `Number` and
+  `String` stand as [number](#number-conversion) and [string](#string-conversion)
+  conversions. A word that is a keyword only in some
+  position — `async`, `of`, `get`, `set`, `from`, `as` — is an ordinary name,
+  as in JavaScript, and so are `type` and `then`:
+  `(from, then) => [from, then]` is a function, and `then` is refused only as
+  an export's name ([exporting a value](#exporting-a-value)). A key or a
+  property name is not a binding, and this rule does not reach it:
+  `{ if: 1 }` and `a.default` are a key and an access, as in JavaScript.
+- A name must be declared before it is used. Forward references are not
+  recognized yet ([forward-references](./todo/3140-forward-references.md)).
+- Imported and constant names share one namespace, the module function's
+  ([a module is a function](#a-module-is-a-function)): declaring the same
+  name twice is an error.
+- Every `const` is evaluated as its own statement, whether or not anything
+  reads it — a module's when the module loads, a function body's at every
+  call ([functions](#functions)) — so its failure is the module's or the
+  call's, as in JavaScript: `const c = null.x; export default 1;` throws at
+  load. The [failure contract](#failure-is-one-outcome) says what an
+  implementation may reorder around it. The FunctionalScript and EDAG outputs
+  keep what such a `const` computes, and the value outputs, which write only
+  the value, still evaluate it and refuse the module when it fails
+  ([output](#output)).
+- Every ordinary or exported `const` comes after every `import` and before
+  `export default`, when present
+  ([module structure](#module-structure)).
+- `let` and `var` are not part of the language ([let](./todo/3220-let.md)).
+
+Sharing is a property of the *value*, not of the name, so what the compiler
+preserves is what the graph actually shares. A DataJS document writes it in
+[normalized form](./datajs/README.md#normalized-form):
+
+- a `const` referenced once is inlined into its single use;
+- an object or an array referenced more than once is emitted as a `const`,
+  whether the source named it or not;
+- a primitive is written inline wherever it is read, however many times,
+  even when a `const` or an import names it:
+  `const s = "str"; export default [s, s];` writes the string twice in every
+  output, JSON included, since a primitive has no identity for a second
+  reference to share;
+- objects and arrays are shared by identity, so two separately written objects
+  with equal contents stay two objects.
+
+```js
+const a = { "x": 1 };
+const b = [a, a];
+export default [b, b, a];
+```
+
+is written, as DataJS and as FunctionalScript, as
+
+```js
+const $0={"x":1};const $1=[$0,$0];export default [$1,$1,$0];
+```
+
+and as JSON, a tree, with the node written where each reference reaches it,
+`[[{"x":1},{"x":1}],[{"x":1},{"x":1}],{"x":1}]`. A
+function has identity as an object does ([functions](#functions)), so a
+FunctionalScript document shares one the same way:
+`const f = () => 1; export default [f, f];` is written
+`const $0=()=>1;export default [$0,$0];`. Not every FunctionalScript
+document is in normalized form: a module with a named export, among others,
+gives what it computes more names than normalized form does
+([output](#output)).
+
+See
+<https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const>.
+
+## Supported Value Types
+
+An expression is a data expression, a property access, a function, a call, an
+operator ([operators](#operators)) — a prefix `-` (negation), `~` (bitwise
+not), `!` (logical not) or `typeof`, a binary operator, `instanceof Array`
+or the conditional `?:` — the conversions `Number(exp)`
+([number conversion](#number-conversion)) and `String(exp)`
+([string conversion](#string-conversion)), or any of those in parentheses
+([grouping](#grouping)).
+
+|Value|Example|In JSON|
+|-----|-------|:-----:|
+|`null`|`null`|✅|
+|boolean|`true`, `false`|✅|
+|number|`-42.5`, `3e2`|✅|
+|number, not JSON's|`NaN`, `Infinity`, `-Infinity`|❌|
+|string|`"hello"`|✅|
+|array|`[1, "a"]`|✅|
+|object|`{ "a": 1 }`|✅|
+|`bigint`|`34n`, `-34n`|❌|
+|`undefined`|`undefined`|❌|
+|function|`(x) => x + 1`|❌|
+|reference|`a`|❌|
+
+A reference is a name in scope — an `import`, a module or body `const`, or a
+function parameter — and denotes the value that name holds
+([shared values](#shared-values-constants), [functions](#functions)). It is
+not a kind of value of its own: what a reference denotes is one of the types
+above, and what makes it worth writing is that two references can denote the
+*same* value.
+
+The ❌ rows are what a module has and a JSON document does not, and every one
+of them but `reference` is also what a `.json` output cannot carry
+([output](#output)). A reference is not a value, so a `.json` output writes
+the value it denotes: `const a = [1]; export default { p: a };` is
+`{"p":[1]}`. What JSON cannot carry is the *sharing*: an object or an array
+the value reaches along more than one reference is written where each
+reference reaches it, as `JSON.stringify` writes it ([output](#output)).
+
+### Numbers
+
+A number is written with JSON number syntax less its sign: an integer part, an
+optional fraction, an optional exponent. A leading `-` is not part of the
+literal but the [unary minus](#supported-value-types) applied to it, which is
+why `- 42.5` is the same value written with a space.
+
+```js
+export default [0, -42.5, 3e2, 1E-7];
+```
+
+A literal denotes the IEEE 754 double nearest its decimal value, as it does in
+JavaScript and in `JSON.parse`: digits beyond a double's precision round away,
+so `9007199254740993` is `9007199254740992`; a literal too large for a double
+is `Infinity` (`1e400`); and one too small is `0` (`1e-400`), which is why
+`-1e-400` is `-0`. A `.json` input reads its numbers the same way. An
+overflowed literal is an `Infinity` like any other, written as the word where
+a format has one and refused by a `.json` output ([output](#output)).
+
+A number may also be written in binary, as JavaScript writes it: `0b` or
+`0B` followed by one or more `0` or `1` digits. `0b101010` is `42`;
+conversion rounds to the nearest double, as for decimal and hexadecimal
+literals. A binary literal has no fraction or exponent. Missing digits,
+other digits or a word directly after the literal are errors. The `n`
+suffix gives an exact bigint at any width: `0B101n` is `5n`. Outputs write
+the value in decimal; unary negation also preserves `-0b0` as `-0`.
+A single `_` may separate digits in decimal integer parts, fractions and
+exponents, and in binary or hexadecimal digits: `1_000`, `1.2_5e1_0`,
+`0b1010_0011`, `0xFF_FF`, and `1_000n`. Separators do not change the
+value. Leading, trailing or repeated separators, separators next to a
+radix prefix, decimal point, exponent marker or sign, or bigint suffix,
+and separators after a leading decimal zero are errors.
+
+A number may also be written in hexadecimal, as JavaScript writes it: `0x`
+or `0X`, then one or more digits `0`–`9`, `a`–`f` or `A`–`F`. It denotes the
+double nearest the integer its digits spell, as a decimal literal does, so
+`0xFF` is `255` and `0x20000000000001` is `9007199254740992`. It has no
+fraction and no exponent: after `0x`, `e` is a digit, so `0x10e1` is `4321`,
+and a `.` after the digits is the next token, so `0x10.length` is an access,
+as in JavaScript. `0x` with no digit, and a word or a digit standing directly
+after the literal (`0xg`, `0x1g`), are errors in both languages. The spelling
+is the source's and not the value's: every output writes `0xFF` exactly as
+it writes `255` — `255` in the `.js`, DataJS, JSON and EDAG outputs, and
+the double's bits in `.rs` — as it writes a single-quoted string between
+double quotes, and two modules that differ only in it are one graph.
+
+```js
+export default [0xFF, 0XfF, 0x10e1];
+```
+
+Otherwise the syntax is JSON's, so the other JavaScript spellings JSON
+leaves out are not recognized: no octal (`0o7`) prefix, no
+leading `+`, no leading decimal point (`.5`), and no trailing decimal point
+without a fractional digit (`1.`). The three numbers JSON cannot spell
+are written as the words JavaScript gives them — `NaN`, `Infinity` and
+`-Infinity` — exactly as [DataJS](./datajs/README.md) writes them:
+
+```js
+export default [NaN, Infinity, -Infinity];
+```
+
+`NaN` and `Infinity` are reserved words, like `undefined`: a module cannot
+bind or shadow them, so each denotes its value wherever a value stands.
+`Array` is reserved the same way, for a different reason: it denotes no
+value here, and is the one word the right side of `instanceof` may be
+([operators](#operators)), so a module that could bind it would mean
+something else by it.
+
+They still name a property, as every reserved word does: `{ NaN: 1 }` and
+`a.NaN` are a key and an access, and mean the string `"NaN"`, exactly as in
+JavaScript, where a property is named by an `IdentifierName` and a value by
+an `IdentifierReference`. `-Infinity` names nothing in either language: it is
+two tokens in both — the operator and the word — which no property name may
+be.
+
+**FunctionalScript has one `NaN`.** IEEE 754 gives a `NaN` a sign and a
+payload, and a JavaScript program can read them — through a typed array or a
+`DataView`, which FunctionalScript has none of. Nothing else tells two `NaN`s
+apart: every operator, coercion and comparison treats each the same,
+`Object.is` included, and each is written as the word `NaN`. So a `NaN`'s
+bits are not serializable data, hence not an observation and not a
+compatibility question ([principles](#principles)): every `NaN` is the one
+value, and a writer may spell them all as one — the Rust writer spells each
+as the quiet `NaN` with an empty payload.
+
+The `-` is the **unary minus operator** ([operators](./todo/2340-operators.md)),
+the first operator the language had; `~`, the **bitwise not operator**, `!`,
+the **logical not operator**, and `typeof` are the other prefixes — `~`
+Stage A of the same operators document, `!` and `typeof` the rows admitted
+after both stages. None is part of the literal after it: `-42.5` is the
+negation of `42.5`, `- 42.5` is the same value written with a space, and
+`-NaN` and `-Infinity` are values as JavaScript has them. Each binds looser
+than a property access or a call, as in JavaScript, so `-1 .x` is `-(1 .x)`
+and `-1()` is `-(1())`. What any of them takes is JavaScript's
+`UnaryExpression`, which an arrow function is not, so `-(...a) => 1`,
+`~(...a) => 1`, `!(...a) => 1` and `typeof (...a) => 1` are syntax errors in
+both, and none stands immediately before `**` — `-2 ** 2` is refused,
+matching JavaScript, where `(-2) ** 2` and `-(2 ** 2)` are the parenthesized
+readings — though
+either may stand right after it, as in JavaScript: `2 ** -2` is `2 ** (-2)`
+and `2 ** ~2` is `2 ** (~2)`. Two adjacent `-` characters are the decrement
+operator, which the language has no rule for, so a negation of a negation is
+spaced, `- -1`, or grouped, `-(-1)`. `~` and `!` have no such token, in
+JavaScript or here, so `~~1` is two bitwise nots, the same as `~ ~1`, and
+`!!1` two logical nots.
+[Operators](#operators) has the rest of them.
+
+A negative number is therefore an expression rather than a literal *in the
+syntax*. The graph is another matter: lowering folds a negation into a leaf
+when its operand lowers to a number or a `bigint`, since negating one is exact
+arithmetic, so the EDAG of `-1` is the leaf `-1` and not an operation. The
+operand is judged as lowered, not as written: a numeric literal, `NaN` or
+`Infinity`, a `const` holding a number or a `bigint` — a captured one
+included — and another folded negation all fold, so
+`const a = 1; export default - -a;` is the leaf `1`, and its FunctionalScript
+output is `export default 1;`. An import of a number or a `bigint` folds too
+where it lowers to that value, which it does from a module that computes
+nothing but its default export, as a JSON document does; from any other
+module it lowers to that module's computation — its statement sequence, or
+a read of its export object when the module exports more than `default` —
+and stays an operation. A negation of anything else stays one too: of a string, a
+boolean, `null`, `undefined` or a container, since folding it would mean
+saying what that value converts to, and of an access, a parameter or a call,
+whose value lowering does not compute. No other operator folds, even over
+numbers: `~1` and `1 + 2` stay nodes, and `-1 * 2` multiplies the leaf `-1`.
+
+A `.json` or DataJS output computes a negation that survives lowering,
+using JavaScript's coercion rules. For a primitive, a
+`bigint` stays a `bigint`, and any other primitive converts to a number —
+`-"2"` is `-2`, `-true` is `-1`, `-null` and `-""` are `-0`, and `-undefined`
+and `-"abc"` are `NaN`, which a `.json` output then has no spelling for. A
+negation of an array or an object first uses `ToPrimitive`: `-[5]` is `-5`
+and `-{}` is `NaN`. Own `valueOf` or `toString` functions participate in that
+conversion and can fail. JSON then refuses a result such as `NaN` that it
+cannot represent; DataJS writes it. The EDAG and FunctionalScript outputs
+keep an unfolded negation as code ([output](#output)).
+
+### Bigints
+
+A `bigint` is written as a number's integer part — `0`, or digits not
+starting with `0` — followed directly by a lowercase `n`: `0n`, `34n`,
+`123456789012345678901234567890n`. Like a number it is unsigned: `-34n` is
+the [unary minus](#numbers) applied to `34n`, which lowering folds into the
+leaf `-34n` as it folds a negated number, and `-0n` is `0n`, since a `bigint`
+has no negative zero, as in JavaScript.
+
+```js
+export default [0n, 34n, -34n];
+```
+
+A hexadecimal integer part, as a [number](#numbers) writes it, takes the
+`n` too: `0x10n` is `16n` and `0XFFn` is `255n`, exact at any width, and
+`-0x8000000000000000n` folds into the leaf `-9223372036854775808n`. An
+output writes `0x10n` exactly as it writes `16n`, and one that refuses a
+`bigint` refuses it whatever its spelling: `.json` refuses every one.
+
+```js
+export default [0x10n, 0XFFn, -0x8000000000000000n];
+```
+
+A binary integer part also takes `n`: `0b101n` and `0B101n` are `5n`.
+Numeric separators may occur between digits in every admitted base,
+`1_000n`, `0xFF_FFn` and `0b1010_0011n`, under the same separator rules as
+[numbers](#numbers). Values remain exact at any width and outputs use decimal.
+
+The syntax is those integer parts and the `n`, so the JavaScript spellings
+it leaves out are not recognized: no octal prefix (`0o7n`). A fraction or
+an exponent (`1.5n`, `1e3n`), a leading zero (`01n`) and an uppercase `N` are
+errors in both languages. JSON has no spelling for a `bigint`, so a `.json`
+output refuses one ([output](#output)).
+
+### Strings
+
+A string is JSON's, between double quotes or between single quotes:
+
+```js
+export default ["hello!", 'hello!'];
+```
+
+Between double quotes it is exactly JSON's string: JSON's escapes — `\"`,
+`\\`, `\/`, `\b`, `\f`, `\n`, `\r`, `\t`, and `\uXXXX` — and no unescaped `"`,
+`\` or C0 control character (U+0000 through U+001F). Between single quotes it
+is the same with the delimiters swapped: a `"` stands for itself, and `\'` is
+the one escape it adds, so `'it\'s'` and `"it's"` are one string. Every other
+code point may stand raw in either quote, as in JSON: DEL (U+007F), the C1
+controls (U+0080 through U+009F), U+FEFF, U+2028 and U+2029, and a code point
+above U+FFFF included. The quote is a spelling, not part of the value, and
+every output writes the string between double quotes.
+
+`\'` stays refused between double quotes, where JavaScript accepts it, so a
+double-quoted string is always a JSON string. JavaScript's other spellings —
+the `\v`, `\0`, `\xHH` and `\u{…}` escapes, a raw TAB or other C0 control
+character, a line continuation — are refused in both quotes, as is a template
+literal; see [js-string-literals](./todo/2460-js-string-literals.md) and
+[template-literals](./todo/3440-template-literals.md).
+
+This holds at every string position of a module: a value, an object key,
+plain or in brackets, the key of a property access in brackets (`o['k']`),
+the path of an `import` statement and the value of its attribute —
+`with { type: 'json' }` is the attribute `with { type: "json" }` is.
+
+### Arrays
+
+```js
+export default [
+    "hello",
+    42,
+    [true, null],
+];
+```
+
+An array may be empty, may hold any value including another array or an
+object, and may end with a **trailing comma**. Two adjacent commas are not an
+elision: an array has no holes.
+
+See
+<https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Trailing_commas>.
+
+#### Spread
+
+An item may be a **spread**, `...` and any value, at any position and any
+number of times:
+
+```js
+const a = [1, 2];
+export default [[0, ...a, 3], [...a, ...a], [...'a😀']];
+// [[0, 1, 2, 3], [1, 2, 1, 2], ['a', '😀']]
+```
+
+The operand is evaluated in its place among the items, left to right, and
+then iterated, each value it yields becoming one item, as JavaScript's
+`SpreadElement` does. An array yields its elements in index order, and a
+string its code points, each a string of its own: `[...'😀']` is one item
+of two code units. Every other value — `null`, `undefined`, a boolean, a
+number, a `bigint`, an object, a function — is not iterable, and the spread
+fails, as JavaScript's `GetIterator` throws its `TypeError` (`a spread of a
+value that is not iterable`): a FunctionalScript object cannot define
+`Symbol.iterator`, so no object is iterable here, and none is in JavaScript
+either. A call's arguments take a spread the same way
+([functions](#functions)).
+
+The value outputs write the array the spread made, and the graph outputs
+the spread itself: `.js` and `.f.js` write it back, `[0, ...a]`, the EDAG
+keeps its `['...', exp]` item, and `.rs` prints it through `nanvm-lib`'s
+`get_iterator`. A constant spread is not folded, so `[...[1, 2]]` is a
+different graph from `[1, 2]`, as `1 + 1` is from `2`. A spread puts its
+operand's elements in the array and not the operand, so it shares what an
+element shares: `const a = [{}]; export default [[...a], a];` holds the
+object once, a `const` in DataJS and written where each reference reaches
+it in JSON ([Output](#output)), where `const a = [1]` in its place shares
+nothing. An object literal takes a spread too, with a different reading
+([objects](#objects)).
+
+### Objects
+
+```js
+export default {
+    a: "hello",
+    "b": 2,
+    ["c"]: [1, 2],
+};
+```
+
+An object may be empty and may end with a trailing comma, like an array. When
+one key is written twice, the last value wins, as in JavaScript.
+
+A member may be a name alone, the **shorthand** JavaScript reads as the name
+twice, `{ a }` for `{ a: a }`: the name is the key, and a reference to the
+name — a `const`, an import, a parameter — is the value, resolved and refused
+as any reference is, so `{ b }` with nothing binding `b` is an error, as is
+`{ typeof }` — and `{ NaN }`, since `NaN`, `Infinity` and `undefined` are
+[reserved words](#numbers) that denote a value and name no binding. Only the
+identifier spelling has the shorthand: `{ "a" }` and `{ ["a"] }` are errors,
+the key alone being no reference.
+
+```js
+const a = 1;
+const b = [a];
+export default { a, b, c: 3 };   // { a: 1, b: [1], c: 3 }
+```
+
+#### Object Spread
+
+A member may be a **spread**, `...` and any value, at any position and any
+number of times:
+
+```js
+const o = { a: 1, b: 2 };
+export default [{ ...o, c: 3 }, { a: 0, ...o }, { ...o, a: 0 }, { ...'ab' }, { ...null }];
+// [{ a: 1, b: 2, c: 3 }, { a: 1, b: 2 }, { a: 0, b: 2 }, { 0: 'a', 1: 'b' }, {}]
+```
+
+The operand is evaluated in its place among the members, left to right, and
+its own enumerable string-keyed properties are copied in, in its own
+property order, as JavaScript's `CopyDataProperties` copies them. A copied
+key behaves as a written one: when it is already present, the later value
+wins and the key keeps its first position. What each value contributes
+agrees with JavaScript:
+
+- **An object:** its own properties, array-index keys first in ascending
+  order, then the others in the order they were made.
+- **An array:** its elements, keyed `'0'`, `'1'`, ….
+- **A string:** one property per UTF-16 code unit, not per code point:
+  `{ ...'😀' }` is `{ 0: '\ud83d', 1: '\ude00' }`, where `[...'😀']` is
+  `['😀']`. The two spreads read a string differently in JavaScript, and so
+  here.
+- **Anything else** — `null`, `undefined`, a boolean, a number, a `bigint`,
+  a function — contributes nothing: `{ ...null }` is `{}`.
+
+So, unlike an [array's spread](#spread), copying these properties never
+throws; evaluating the operand still may. A function contributes nothing:
+`export default { ...(() => 1) };` writes `{}` as JSON and
+`export default {};` as DataJS. Graph outputs preserve the spread
+([output](#output)). A
+copied `__proto__` key is an ordinary own property, as JavaScript's
+`CreateDataProperty` makes it: `{ ...{ ['__proto__']: 1 } }` owns a
+property named `__proto__` and has no new prototype
+([the `__proto__` key](#the-__proto__-key)).
+
+The value outputs write the object the spread made, and the graph outputs
+the spread itself: `.js` and `.f.js` write it back, `{ ...o, c: 3 }`, the
+EDAG keeps its `['...', exp]` entry, and `.rs` prints it through
+`nanvm-lib`'s `object_spread`. A constant spread is not folded, so
+`{ ...{ a: 1 } }` is a different graph from `{ a: 1 }`. With a spread among
+the members, which keys the literal has is known only once the operand is:
+no key selects inside such a literal during source reconstruction, and no
+member before a spread is dropped as overwritten. Value outputs instead
+evaluate the members and spreads before selecting and serializing the result.
+
+A member may hold any value, `undefined` included, and a member holding
+`undefined` is still an own property, as in JavaScript: it keeps its key and
+that key's position, so `{ x: undefined }` is not `{}`, although reading `x`
+gives `undefined` from both. `{ x: 1, x: undefined }.x` is `undefined`, and
+`{ x: undefined, y: 2, x: 3 }` has the keys `x` and `y`, in that order. A
+DataJS or FunctionalScript output writes the member, `{"x":undefined}`; a
+`.json` output refuses it rather than drop it the way `JSON.stringify` does
+([output](#output)).
+
+#### Property Keys
+
+A key is a constant, written in one of three ways:
+
+|Form|Example|
+|----|-------|
+|string literal|`{ "a": 1 }`|
+|identifier|`{ a: 1 }`|
+|bracketed string literal|`{ ["a"]: 1 }`|
+
+The three spellings denote the same key and mix freely inside one object. An
+identifier key is an [identifier](#identifiers) — ASCII letters, digits, `_`
+and `$`, not starting with a digit — and may be a reserved word, `{ if: 1 }`,
+as it may in JavaScript. A key no identifier spells is written as a string:
+`{ "é": 1 }`, `{ "a-b": 1 }`.
+
+A key may be any name, including one a built-in prototype gives a value:
+`{ constructor: 1, toString: 2, push: 3 }` is an object that owns those three
+properties, as in JavaScript, whichever spelling each key takes. What
+[property access](#property-access) refuses is reading such a member back,
+not owning it, and `__proto__` is the one key with a rule of its own
+([below](#the-__proto__-key)).
+
+The brackets hold a **string literal**, not an expression: a key is a constant
+in every form. A key computed from a reference or any other expression, and a
+numeric key such as `{ 3e7: true }`, are not recognized yet — see the
+[roadmap](./todo/README.md).
+
+#### The `__proto__` Key
+
+JavaScript gives the three spellings of a `__proto__` key two different
+meanings:
+
+```js
+{ __proto__: v }      // sets [[Prototype]]; no own property
+{ "__proto__": v }    // sets [[Prototype]]; no own property
+{ ["__proto__"]: v }  // an ordinary own property named "__proto__"
+```
+
+Only the bracketed spelling denotes a property, so it is the only keyed one
+FunctionalScript accepts. The other two are compilation errors:
+
+```js
+export default { __proto__: 1 };    // error
+export default { "__proto__": 1 };  // error
+export default { ["__proto__"]: 1 }; // ok
+```
+
+**The bracketed form is the workaround**: it is how a module holds a property
+actually named `__proto__`. The [shorthand](#objects) `{ __proto__ }` is the
+other way, and denotes the same own property, as it does in JavaScript, where
+the prototype rule names the keyed spellings alone.
+
+FunctionalScript has no prototype chains at run time
+([property-accessor](./todo/2330-property-accessor.md)), so a spelling whose
+only meaning is "assign a prototype" has no meaning to give. Rejecting it is
+the whitelist principle rather than a special case, and it keeps principle 2:
+a module means on the FunctionalScript VM what it means on any other
+JavaScript engine.
+
+A value may still carry a `__proto__` property; what a module cannot do is
+*read* it with `o.__proto__`, which is a separate rule of
+[property-accessor](./todo/2330-property-accessor.md).
+
+##### The one key the two languages read differently
+
+`"__proto__"` is an ordinary data key in a JSON document — `JSON.parse` makes
+it an own property — and a prototype assignment in a JavaScript module. It is
+the only text the two languages disagree about; every other JSON document
+denotes the same value in both.
+
+Each language keeps its own reading, because each is right about itself:
+JSON's reader gives the document the value `JSON.parse` gives it, and the
+module parser refuses the spelling rather than give a module a value no
+JavaScript engine would give it.
+
+So `fjs compile` reads and writes the key differently in each language, and
+the extension of each file **named on the command line** picks the language:
+
+```sh
+fjs compile input.f.js output.data.js   # {["__proto__"]:1}
+fjs compile input.f.js output.json      # {"__proto__":1}
+fjs compile input.json  output.data.js  # reads {"__proto__":1} as a property
+```
+
+A JSON document therefore survives the loop `proto.json → a.data.js → out.json`
+byte for byte, each hop spelling the key its own language's way. The
+disagreement is about a *text*, not a value, so nothing is unreachable.
+
+The identifier spelling is not a key in either language: no JSON document
+contains one, so `{ __proto__: 1 }` is an error whatever the input file is
+called.
+
+In JavaScript output the bracketed form is what makes the module round-trip —
+of the keyed spellings it is the only one whose evaluation reproduces the
+property, and the writer has no other, since the [shorthand](#objects) needs
+a binding named `__proto__` to refer to and an output binds none. In JSON
+output the plain key stays: `JSON.parse` has no prototype special case, so
+JSON already round-trips, and the bracketed form is not JSON at all.
+
+## Grouping
+
+```js
+export default ([80, 443]).length;
+```
+
+A value may be written in parentheses, and it denotes that value: `(x)` is
+`x`, so the parentheses leave nothing behind — no node of their own and no
+change to which values a module shares — exactly as in JavaScript. A group
+is a value like any other and takes a property access or a call after its
+`)`, and it holds one value: a bare comma inside it waits on the comma
+operator ([operators](./todo/2340-operators.md)).
+
+Once admitted, parentheses leave no node behind, except for the boundary an
+[optional chain](#optional-chaining) makes of them: they end the region a
+`?.` opened. Admission can still depend on source form, as it does for a
+literal bracket key ([property access](#property-access)). They keep
+a property reference, so `(o.m)(a)` is the method call `o.m(a)` is
+([functions](#functions)), and they keep sharing, so a `const` reached
+through a group is the one value it is reached without one. They launder
+nothing either: `(1).x` is the access `1 .x` is, `(1)(2)` the call `1(2)`
+is, and `(o.toString)(1)` the method call `o.toString(1)` is, its key judged
+by the call rule and not the read rule ([property access](#property-access)):
+`(a.push)(1)` is refused at the key as a prohibited member function, as
+`a.push(1)` is, and `(o.toString)` alone, a read, stays refused.
+
+What a group does change is how far an operator reaches. A group is one
+operand of whatever operator stands around it, so it overrides precedence
+and associativity as in JavaScript ([operators](#operators)): `(1 + 2) * 3`
+multiplies the sum, `1 - (2 - 3)` and `(2 ** 3) ** 2` reverse the default
+association, `(a ? b : c) + 1` adds to the chosen arm, and `(1 + 2) ** 2`
+raises the sum. It bounds how far a prefix reaches too, since `-` binds
+looser than a step ([unary minus](#supported-value-types)): `(-1).x` is the
+access on the negation and `-1 .x` the negation of the access, as JavaScript
+reads each. A group is an operand of `-` as well, and the one way a function
+reaches the prefix at all: `-((...a) => 1)` is a value where `-(...a) => 1`
+is a syntax error, there and here.
+
+A parenthesized parameter list, `(a, b) => …`, is distinguished from a group
+by the arrow following `)`. Each parameter must be a binding name; `(a + b)`
+is a group, while `(a + b) => 1` is refused.
+
+## Operators
+
+```js
+export default 1 + 2 * 3;
+```
+
+Beyond unary `-` ([supported value types](#supported-value-types)), the
+language has arithmetic (`+ - * / % **`), comparison
+(`=== !== > >= < <=`), and bitwise (`& | ^ ~ << >> >>>`) — Stage A of
+[operators](./todo/2340-operators.md) — and, above them, the lazy operators
+(`&& || ??`) and the conditional (`?:`), Stage B — and `!` and `typeof`, the
+logical not and the type tag, the prefixes neither stage had — and
+`instanceof Array`, the one instance check ([below](#instanceof)).
+`==`/`!=` stay refused, since neither language reads them the same way
+twice. The comma operator is not recognized yet.
+
+Precedence and associativity follow JavaScript's own. From the tightest, the
+levels are the prefixes `-`, `~`, `!` and `typeof`; `**`; `* / %`; `+ -`;
+the shifts `<< >> >>>`; `< <= > >=` and `instanceof`; `=== !==`; `&`; `^`;
+`|`; `&&`; `||`,
+with `??` a chain of its own at the same level; and the conditional above
+them all. The shifts therefore sit between arithmetic and comparison, unlike
+`& ^ |`:
+`1 << 2 + 3` is `1 << (2 + 3)` and `1 << 2 < 5` is `(1 << 2) < 5`. `**` is
+right-associative (`2 ** 3 ** 2` is `2 ** (3 ** 2)`), the conditional nests
+to the right (`a ? b : c ? d : e` is `a ? b : (c ? d : e)`), and every other
+operator here is left-associative; a group overrides both
+([grouping](#grouping)). A prefix immediately before `**` is refused,
+matching JavaScript exactly: `-2 ** 2`, `~2 ** 2`, `!2 ** 2` and
+`typeof 2 ** 2` are syntax errors here as there, at any depth of prefix
+nesting, and parentheses are the only way to write either reading —
+`(-2) ** 2` raises the negation, `-(2 ** 2)` negates the power. Immediately
+after `**` a prefix needs no parentheses, since JavaScript reads the right
+operand of `**` as another power or a
+`UnaryExpression`: `2 ** -2` is `2 ** (-2)` and `2 ** ~2` is `2 ** (~2)`.
+The refusal holds inside that operand too, so `2 ** -2 ** 2` is a syntax
+error in both languages, as its right side `-2 ** 2` is. `??` mixes with
+`&&`/`||` only under parentheses, as in JavaScript: `a ?? b || c` and
+`a && b ?? c` are syntax errors in both, and `(a ?? b) || c` is the one
+spelling of that reading.
+
+Each operator means what JavaScript's means and takes any value as an
+operand, converted exactly as JavaScript converts it — save a function's
+string, which the
+[function-source representation exception](#function-source-representation-exception)
+governs. Arithmetic and bitwise operators convert each operand to a number,
+a `bigint` staying one: `"5" - 2` is `3`, `true + true` is `2`, `null + 1`
+is `1`, and `undefined + 1` and `[1, 2] * 1` are `NaN`. `+` alone
+concatenates instead when either operand, made primitive, is a string —
+`"a" + 1` is `"a1"`, `1 + "2"` is `"12"`, `"x" + null` is `"xnull"` — and
+an array or an object is made primitive as JavaScript's `ToPrimitive` makes
+it: an array is its elements joined by `,`, `null` and `undefined` as empty
+strings (`[1] + [2]` is `"12"`, `[1, [2, 3]] + ""` is `"1,2,3"`), and an
+object is `"[object Object]"` unless it owns a `valueOf` or a `toString`,
+which is called as JavaScript calls it. Left associativity decides the rest:
+`1 + 2 + "3"` is `"33"` and `"1" + 2 + 3` is `"123"`. `< <= > >=` compare
+by UTF-16 code unit when both operands, made primitive, are strings
+(`"10" < "9"` is `true`), and numerically otherwise (`"10" < 9` is `false`,
+`null >= 0` is `true`, `undefined < 1` is `false`); `===`/`!==` convert
+nothing. `!` converts its operand as JavaScript's `ToBoolean` does and
+negates it: `!0`, `!""`, `!null`, `!undefined` and `!NaN` are `true`, and
+`![]` and `!{}` are `false`, an array or an object being truthy however
+empty. `typeof` is the type tag of its operand, the string JavaScript gives:
+`"undefined"`, `"boolean"`, `"number"`, `"bigint"`, `"string"`, `"object"`
+for `null`, an array and an object alike, and `"function"`. `typeof` is a
+reserved word, so it names no `const` and no parameter, while `{ typeof: 1 }`
+and `a.typeof` are a key and a property name as in JavaScript; the
+FunctionalScript writer spells it with a space after the word, `typeof 1`
+and `typeof (1+2)`.
+[`fjs/edag/operations`](../fjs/edag/operations/module.f.mjs) owns each
+node's meaning, and the [`fjs/nanvm`](../fjs/nanvm/module.f.mjs) corpus
+checks its cases against a JavaScript engine.
+
+A `bigint` stays exact. Over two of them the arithmetic and bitwise
+operators are integer operations of any size — `2n ** 64n` and `1n << 70n`
+are exact, `7n / 2n` is `3n` and `-7n / 2n` is `-3n`, truncated toward zero,
+`-7n % 2n` is `-1n` and `~5n` is `-6n` — and `< <= > >=` weigh a `bigint`
+against a number by value (`1n < 2`, `3 > 2n` and `1n <= 1.5` are `true`),
+while `===` never equates the two (`1n === 1` is `false`). Where JavaScript
+throws, so does the operation here
+([failure is one outcome](#failure-is-one-outcome)): a `bigint` mixed with a
+number in an arithmetic or bitwise operator (`1 + 1n`), `>>>` on a `bigint`,
+`/` or `%` by `0n`, and a negative `bigint` exponent (`2n ** -1n`). A string
+still concatenates: `"a" + 1n` is `"a1"`.
+
+The lazy operators establish their right operand only when the left decides
+nothing — `a && b`'s `b` when `a` is truthy, `a || b`'s when `a` is falsy,
+`a ?? b`'s when `a` is `null` or `undefined` — and yield the last operand
+they established, not a boolean (`0 && 2` is `0`, `1 && 2` is `2`); the
+conditional establishes exactly one of its arms, as JavaScript does. A
+`const` reached only through such a position is still evaluated when the
+module loads, as its own statement:
+`const c = null.x; export default [a && c, b && c];` throws at load in both
+languages, whatever `a` and `b` are. The
+[failure contract](#failure-is-one-outcome) says what an implementation may
+reorder around that; being reached only through a lazy position is not what
+decides whether a `const` runs.
+
+Unparenthesized, a function is no operand of these operators, the
+conditional's condition included: `(...a) => body` reads everything to its
+right as `body`, exactly as in JavaScript, so `1 * (...a) => 2` is refused
+where `1 * (...a)` runs out of value to read, and `(...a) => 1 ? 2 : 3` is
+one function whose body is the conditional. A group makes a function an
+operand, the same way it does for `-`: `1 * ((...a) => 2)` is a value, `NaN`,
+however little multiplying by a function is worth. The conditional's arms
+are the exception: each is a whole value, as in JavaScript, so a function
+stands in either bare, its body ending where `:` cannot continue it —
+`1 ? () => 2 : 3` is the function and then the else arm, and
+`0 ? 2 : () => 3 ? 4 : 5` is `0 ? 2 : () => (3 ? 4 : 5)`.
+
+The front end computes none of these — it builds the operation and passes
+it on. Unary `-` alone folds, over an operand that lowers to a number or a
+`bigint`, exact and total arithmetic ([numbers](#numbers)); every other
+operator here reaches the EDAG as a node, over numbers too (`1 + 2`, `~1`),
+the lazy ones and the conditional included. Of the other outputs
+([output](#output)), the Rust one spells every operator, running a lazy
+operand or an arm only where JavaScript would, and calls an object's own
+`valueOf` or `toString` when conversion requires it. JSON and DataJS output
+evaluate these operators through the represented EDAG interpreter, then
+check whether the selected result belongs to their data format. The
+FunctionalScript writer, the `.js` output, spells every operator here, with
+the parentheses its precedence and associativity ask for and no more —
+`1 + 2 * 3` and `(1 + 2) * 3` come back as written, less the spaces, and
+`(1 + 2) + 3` as `1+2+3`; `??` is never bare beside `&&` or `||`; a prefix
+or a negative number on the left of `**` is grouped, `(-2)**2`; a `-`
+before a text opening with `-` takes a space, `1- -2`; a function under an
+operator, and an operator's text under an access, stand in a group,
+`-(()=>1)` and `(1+2).x`; and a value shared under one lazy operand
+alone is written in a block of the operand's own ([functions](#functions)).
+Read back, that text is the graph it was written from. Graph output retains
+the operation, while value output retains its result: `export default 1 + 2 * 3;`
+is `export default 1+2*3;` as FunctionalScript, `export default 7;` as DataJS
+and `7` as JSON.
+
+### `instanceof`
+
+```js
+export default (...a) => a[0] instanceof Array;
+```
+
+`x instanceof Array` is `true` when `x` is an array and `false` of every
+other value — `null`, `undefined`, every primitive, an object and a
+function included. It never throws and converts nothing. It is the one
+`instanceof` the language has: the right operand must be the word `Array`,
+bare or in parentheses, since a group vanishes (`a instanceof (Array)` is
+`a instanceof Array`); any other right operand — `Map`, an access, a
+literal, a function — is refused at the operator. `Object` and `Function`
+are not admitted and never will be: `typeof x === "object"` and
+`typeof x === "function"` are the spellings for those. If we add more
+types, like `Set` or `RegExp`, each is one more name on the right, once the
+language can build one.
+
+`instanceof` is a relational operator, one level with `< <= > >=` and
+left-associative as they are: `a instanceof Array === b` is
+`(a instanceof Array) === b`, `a < b instanceof Array` is
+`(a < b) instanceof Array`, and `!a instanceof Array` is
+`(!a) instanceof Array` — JavaScript's own trap, kept rather than repaired;
+`!(a instanceof Array)` is the negation. `instanceof` is a reserved word,
+as `typeof` is: it names no `const` and no parameter, while
+`{ instanceof: 1 }` and `a.instanceof` are a key and a property name as in
+JavaScript. `Array` is a reserved word too ([numbers](#numbers)), so no
+scope binds it and the operator always means the global — before and after
+any `const`, where JavaScript would read a later `const Array` as a binding
+in its temporal dead zone and throw.
+
+The EDAG's node is `['instanceof', exp, 'Array']`: the constructor is a
+*name* from a closed list, not an operand, since no global is a value there
+([`fjs/edag`](../fjs/edag/README.md)); `nanvm-lib` answers it with
+`Any::instanceof_(x, Constructor::Array)`. The writer spells it with
+spaces around the word, `a instanceof Array`.
+
+## Number Conversion
+
+```js
+export default (...a) => [Number(a[0]), Number("0x10"), Number(1n)];
+```
+
+`Number(exp)` converts its operand to a number, exactly as JavaScript's
+`Number` does when called. A number is itself. A string is read as a numeric
+literal, the whitespace around it ignored: `Number("0x10")` is `16`,
+`Number(" 4 ")` is `4`, `Number("")` is `0`, and `Number("x")` is `NaN`.
+`null` is `0`, `undefined` is `NaN`, and a boolean is `1` or `0`. A `bigint`
+is the nearest number — `Number(1n)` is `1`, and `Number(2n ** 64n)` is
+`18446744073709552000`, rounded as JavaScript rounds it. An array and an
+object are made primitive as the [operators](#operators) make them: an array
+by joining its elements, so `Number([7])` is `7` and `Number([1, 2])` is
+`NaN`; an object through its own `valueOf` or `toString`, called as
+JavaScript calls them, and `"[object Object]"` otherwise, so `Number({})` is
+`NaN`. A function converts to its text, which is no number. Where a
+`valueOf` or a `toString` throws, so does the conversion
+([failure is one outcome](#failure-is-one-outcome)).
+
+It is the language's conversion to a number: unary `+` is not FunctionalScript
+syntax, and where the EDAG has it the two differ, `+` throwing on a `bigint`
+([operators](./todo/2340-operators.md)). It is the EDAG's own
+`['Number', exp]`, which graph outputs preserve and every executor answers; the
+front end folds nothing, `Number("1")` reaching the graph as a node, as `~1`
+does. The conversion is a value like any other: an operand, `-Number("1")`
+and `Number(a) * 2`; a base, `Number(a).x`; and a callee, however little
+calling a number is worth. The FunctionalScript writer spells it back as it
+is written, the operand an argument, `Number(1+2)`.
+
+**`Number` is a reserved word**, one of the names
+[global names](./todo/2365-global-names.md) reserves, with `Array` and `String`
+([string conversion](#string-conversion)) —
+[`fjs/js/keywords`](../fjs/js/keywords/module.f.mjs)' `reservedGlobals`, a
+list beside the keywords rather than among them, since JavaScript has no
+such keyword. A module cannot bind it, as a `const`, a parameter or an
+import's local name ([shared values](#shared-values-constants)), and it is
+no value: it stands only as the callee of a call, and is a compilation
+error (`reserved word`) anywhere else — bare,
+`const f = Number;`, or as a namespace, `Number.isFinite(x)`, whose members
+are [built-ins](./todo/2360-built-in.md) still to admit, each on its own.
+A key or a property name is not a reference, so `{ Number: 1 }` and
+`o.Number` mean what they mean in JavaScript. `Number()` is `0`, as in
+JavaScript, and reaches the graph as the literal, folded as `-1` is. Two
+call shapes are not recognized yet, and refused by name
+(`Number takes one argument`) rather than answered wrongly: `Number(a, b)`,
+which establishes `a`, then `b`, then converts `a` — the comma operator's
+`(a, b, Number(a))`, which lands with it
+([operators](./todo/2340-operators.md)) — and `Number(...a)`, which converts
+the first value the spread yields after yielding them all, or is `0` where it
+yields none, as `Number()` is, a call of a runtime arity no node expresses
+yet ([number-spread](./todo/2363-number-spread.md)). Nor is the guarded call `Number?.(x)`,
+which is `Number(x)` in JavaScript, the word never being nullish: it is
+refused at the word (`reserved word`) as every other spelling of `Number`
+but the call is, until a pull request reads the guard away, a spelling no
+module writes.
+
+The word is reserved for the guarantee `undefined`, `NaN` and `Infinity`
+already have ([numbers](#numbers)): a global word means one thing wherever
+it stands. `Number(x)` is the conversion in every module, so a reader, an
+agent or a tool reads it without resolving a scope, where a JavaScript module
+that binds the word — `const Number = x => x;`, the shadowing JavaScript's
+linters flag — makes every `Number(…)` after it something else. And it keeps
+the language free to grow: a member of the namespace admitted later,
+`Number.isInteger` ([built-ins](./todo/2360-built-in.md)), cannot change
+what an existing module means, since no module could have bound the word
+([global names](./todo/2365-global-names.md)). The one JavaScript spelling it
+costs, a module rebinding a standard global, is refused at compile time
+rather than read another way.
+
+It is also the one key computed at run time, `a[Number(i)]`
+([property access](#property-access)).
+
+## String Conversion
+
+```js
+export default (...a) => [String(a[0]), String(42n), String([1, 2])];
+```
+
+`String(exp)` converts its operand to a string, as JavaScript's `String`
+does when called. A string is itself. `null` and `undefined` become
+`"null"` and `"undefined"`, booleans become `"true"` or `"false"`, and numbers
+and `bigint`s become their decimal text: `String(-0)` is `"0"`,
+`String(NaN)` is `"NaN"`, and `String(42n)` is `"42"`. An array joins its
+elements with commas, with `null` and `undefined` contributing empty text,
+so `String([1, [2, 3], null])` is `"1,2,3,"`.
+
+An object uses the string hint for primitive conversion: its `toString`
+is tried before its `valueOf`, with no arguments. A noncallable method or
+a nonprimitive result falls through to the next method. An object with no
+own `toString` uses the ordinary `"[object Object]"` text, so
+`String({ valueOf: () => 7 })` is `"[object Object]"`. If neither method
+produces a primitive, or a method throws, conversion fails
+([failure is one outcome](#failure-is-one-outcome)). A function becomes
+its [EDAG-derived text](#function-source-representation-exception), which
+describes its code without embedding captured values.
+
+The one-argument conversion reaches the graph as `['String', exp]`, with
+no front-end folding. The FunctionalScript writer spells it as `String(exp)`;
+the EDAG and Rust outputs retain the operation, and the JSON and DataJS
+outputs evaluate it. It is an expression wherever a value may stand,
+including an operand, `String(x) + "!"`, or a base, `String(x).length`.
+`String()` is the empty-string literal, as in JavaScript.
+
+**`String` is a reserved word**, under the same
+[global-name rule](./todo/2365-global-names.md) as `Number`. A module cannot
+bind it as a `const`, parameter or import, and it has no standalone value:
+`const f = String;` and `String.fromCharCode(65)` are compilation errors
+(`reserved word`). A key or property name remains ordinary,
+`{ String: 1 }.String` being `1`. Reserving the word lets every `String(x)`
+denote the conversion without resolving a scope, and keeps future namespace
+members from changing the meaning of existing bindings.
+
+Multiple arguments and spreads remain unrecognized and are refused at the
+word (`String takes one argument`): JavaScript evaluates all arguments before
+converting the first, while a one-operand node cannot express those call
+shapes. The guarded call `String?.(x)` is also refused (`reserved word`).
+A property key computed at run time still requires `Number(...)`
+([property access](#property-access)); `a[String(x)]` is refused as every
+other unrecognized computed key is.
+
+## Property Access
+
+```js
+const cfg = { ports: [80, 443] };
+export default [cfg.ports[0], cfg["ports"].length];
+```
+
+A property access reads an **own property** of a value — a member of an
+object, an element or the `length` of an array, a code unit or the `length`
+of a string, the `length` of a function. Any value takes one: a reference, a
+group, an access, a call, or a value written out of any
+[type](#supported-value-types) — `null`, `undefined`, a boolean, a number, a
+`bigint`, a string, an array or an object. A property the value does not own
+is `undefined` — `true.x` and `true.length` are, a boolean owning nothing —
+and reading one of `null` or `undefined` is an error, as JavaScript throws.
+
+A numeric literal takes an access like anything else: `1 .x` is `undefined`,
+written with a space since `1.x` is one number and a stray word, while a
+`bigint`'s `n` ends its literal, so `1n.x` needs none. The sign binds looser,
+as it does in JavaScript, so `-1 .x` is `-(1 .x)`, `-1n.x` is `-(1n.x)`,
+which is `NaN`, and `const n = 1;` followed by `n.x` is `undefined` in both
+languages.
+
+The key is a constant — an [identifier](#identifiers) after `.`, or a directly
+written string or unsigned numeric literal in brackets — and `0` and `"0"` name the same element,
+as in JavaScript. A numeric literal names the string JavaScript's `String`
+gives its number, which is the number's
+[normalized DataJS](./datajs/README.md#normalized-form) spelling: `a[1.0]`,
+`a[1e0]` and `a[0.1e1]` are `a["1"]`, `o[1e21]` is `o["1e+21"]`, `o[1e-7]`
+is `o["1e-7"]`, and `o[1e400]`, a literal that overflows, is
+`o["Infinity"]` — a key the FunctionalScript (`.js`) output refuses to write
+(`a number key no literal reads back`). A string in brackets is the key
+unchanged, so `a["01"]` and `a["1.0"]` name no element and are `undefined`,
+as in JavaScript.
+
+A key computed at run time is the conversion,
+`a[Number(i)]` ([number conversion](#number-conversion)): the property the
+number names, its string as JavaScript gives it, so `xs[Number("1")]` and
+`xs[1]` read one element, `"abc"[Number(true)]` is `"b"`, and
+`xs[Number("x")]`, whose key is `"NaN"`, is `undefined`. It reads an own
+property as every access does, and no prototype name is a number's string,
+so nothing is refused at a converted key; `a[Number(i)](x)` calls what it
+reads with `a` as the receiver, as `a[0](x)` does. Its base and its key are
+both evaluated, as in JavaScript, though not in a promised order: where both
+fail, which fails first is no observation
+([failure is one outcome](#failure-is-one-outcome)). `a?.[Number(i)]`
+evaluates the key only where `a` is neither `null` nor `undefined`
+([optional chaining](#optional-chaining)).
+Anything else in the brackets is a compilation error
+(`computed key is not Number(...)`), at the token it begins with: `a[i]`,
+whose type the compiler does not know — a key of any type is the `entry`
+helper's to read ([reading an entry at run time](#reading-an-entry-at-run-time))
+— and every other expression, `a[-1]` and `a[NaN]` included, whose keys
+are written as strings instead, `a["-1"]` and `a["NaN"]`. A grouped literal
+key, `a[(0)]` or `a[("x")]`, is also refused; a grouped conversion,
+`a[(Number(i))]`, is accepted. Trivia, a line break included, may stand on either side of the
+`.` or the `[` and inside the brackets, as between any two tokens
+([trivia](#whitespace-and-line-terminators)): `a . b`, `a./* c */b` and `a`
+with `.b` on the next line are each `a.b`, as JavaScript reads them.
+
+FunctionalScript has no prototype chains, so a name a built-in prototype
+gives a value — `push`, `toString`, `valueOf`, `constructor`, `__proto__`
+and the rest, listed in [`fjs/js/prototype`](../fjs/js/prototype/module.f.js)
+— is a **compilation error** as the key of an access, in either spelling,
+`o.toString` or `o["toString"]` (`prohibited property name`): JavaScript
+would find a function there and this language nothing, and a module must
+mean one thing in both. The rule refuses reading such a name, not owning it:
+an object literal may hold one, `{ toString: 1 }`
+([property keys](#property-keys)). `length` is the exception, since an
+array, a string and a function own it. The rules are
+[property-accessor](./todo/2330-property-accessor.md)'s.
+
+A method call has a rule of its own. `a.push(1)`, `a.valueOf()` and the
+other member functions
+[`fjs/js/prototype`](../fjs/js/prototype/module.f.js)'s `prohibitedCalls`
+names are compilation errors (`prohibited member function`) — one row per
+name, with the reason, in [its README](../fjs/js/prototype/README.md). Every
+other prototype name but `length` is on its `allowedCalls`, and a call of one
+— `a.toString()`, `[1, 2].at(0)`, `a.map(f)` — calls the receiver type's
+built-in, as in JavaScript, an own property of the name shadowing the
+built-in and a type without one throwing as JavaScript does. The read stays
+refused where the call is allowed, since a detached built-in is a function
+that only fails. `length` is on neither list: `a.length(1)` calls whatever
+`a` owns there, as JavaScript does, so a function an object holds under
+`length` is called, and anything else — an array's, a string's or a
+function's `length` is a number — throws the `TypeError` JavaScript throws.
+
+### Built-in Member Functions
+
+The represented EDAG interpreters and the Rust VM implement the admitted
+member functions. The native completeness table checks every allowed
+receiver-type/name pair against the compiler's list
+([member-functions](../nanvm-lib/todo/member-functions.md)).
+
+| Receiver | Admitted methods |
+| --- | --- |
+| Array | `at`, `concat`, `every`, `filter`, `find`, `findIndex`, `findLast`, `findLastIndex`, `flat`, `flatMap`, `includes`, `indexOf`, `join`, `lastIndexOf`, `map`, `reduce`, `reduceRight`, `slice`, `some`, `toReversed`, `toSorted`, `toSpliced`, `with` |
+| String | `at`, `charAt`, `charCodeAt`, `codePointAt`, `concat`, `endsWith`, `includes`, `indexOf`, `isWellFormed`, `lastIndexOf`, `padEnd`, `padStart`, `repeat`, `replace`, `replaceAll`, `slice`, `split`, `startsWith`, `substring`, `toWellFormed`, `trim`, `trimEnd`, `trimStart` |
+| Number | `toExponential`, `toFixed`, `toPrecision` |
+| Object, Array, String, Number, Boolean, BigInt, Function | `toString` |
+
+Methods follow JavaScript's argument, callback and coercion rules. Array
+callbacks can be closures, missing arguments differ from explicitly passed
+`undefined` where the method specifies that distinction, and string positions
+count UTF-16 code units. Mutation methods, iterator-producing methods,
+locale-sensitive operations, regular-expression methods and namespace APIs
+such as `Array.isArray` remain outside this set. The complete name-by-name
+admission rationale is in [prototype names](../fjs/js/prototype/README.md).
+
+Native execution has these limits:
+
+- Number and bigint `toString` accept radices 2–36. Bigints and integral
+  numbers convert exactly; a fractional number with a nondecimal radix is
+  refused. Exact large-integer radix digits can differ from a host engine's
+  implementation-defined formatting.
+- `toSorted` with an inconsistent comparator has the order the executor's
+  sorting algorithm gives it, as ECMAScript permits.
+- Native strings hold at most 2³² − 1 UTF-16 code units; a host engine may
+  exhaust its resources sooner.
+- Compiled functions carry EDAG-derived text. A native function without
+  associated text is refused when conversion requests it
+  ([function-source exception](#function-source-representation-exception)).
+
+The native [array](../nanvm-lib/src/vm/array/README.md) and
+[string/number](../nanvm-lib/src/vm/string/README.md) documentation gives the
+method-specific details and implementation-defined cases.
+
+## Optional Chaining
+
+The behavior below was added to the compiler and specification in
+[#2660](https://github.com/functionalscript/functionalscript/pull/2660).
+Its required explicit language-design approval is not recorded; the
+[approval-process follow-up](./todo/2335-optional-chaining.md#authorization-and-approval)
+remains open.
+
+```js
+const o = { a: { b: 1 }, f: (...x) => x };
+const n = null;
+export default [o?.a.b, n?.a.b, o.f?.(2), n?.(3), (o?.a).b];
+```
+
+An optional chain is JavaScript's: `v?.k` and `v?.[k]` read the property
+`v.k` and `v[k]` read, with the key the same constant either takes
+([property access](#property-access)), and `v?.(…)` calls `v` as `v(…)`
+does — unless `v` is `null` or `undefined`, when the whole chain is
+`undefined` and nothing after the `?.` is evaluated: not the key, not the
+arguments, and not the steps written after it. `n?.a.b` is `undefined` under
+a nullish `n`, where `n.a.b` throws, and `n?.f(g())` never calls `g`. The
+steps after a `?.` are the chain's own until a parenthesis ends it, so
+`(n?.a).b` reads `b` of `undefined` and throws — the one thing a group is
+observable through ([grouping](#grouping)) — and the value is JavaScript's
+in every spelling: `a?.b.c` and `(a?.b).c` are two programs, `a?.b?.(c)` and
+`(a?.b)?.(c)` one, since a region closed before a guard is unobservable.
+
+A call keeps its receiver through a `?.` as it keeps it through a `.`:
+`a?.b(c)` and `a.b?.(c)` call `b` with `a` as `this`, so a built-in member
+function is called through either, and `(a?.b)(c)` keeps it too, as
+`(a.b)(c)` does. The key is judged as an access's is — a prototype name
+refused as a read, `a?.at`, and allowed as a call, `a?.at(0)`; a member
+function a module may not call refused at its key, `a?.push(1)`; `length`
+read from any value — and a key computed at run time is the conversion,
+`a?.[Number(i)]`, as it is after `.`
+([property access](#property-access)), established only where the guard
+lets the chain go on.
+
+The graph is `fjs/edag/README.md`'s Chains, where every spelling has one
+shape and the host engine agrees with it: `a?.b` is `['?.', a, 'b']`, the
+steps after it the node's continuation, `['?.', a, 'b', ['|.', 'c']]` for
+`a?.b.c`, and a group an access over the node, `['.', ['?.', a, 'b'], 'c']`.
+`a.b?.(c)` is the access's own step, `['.', a, 'b', ['|?.()', [c]]]`, and
+`a?.(c)` the call node `['?.()', a, [c]]`. The graph outputs write them: the
+FunctionalScript one as above, a group where the region closed; the EDAG
+one as the nodes; the Rust one as the method chain `nanvm-lib` runs. Value
+outputs evaluate the chain and serialize its selected result. A
+`?.` directly before a decimal digit is the token `?.` here, as the
+tokenizer reads it
+([`?.` before a digit](../fjs/js/tokenizer/todo/optional-chain-before-digit.md)):
+`a?.5:1` is refused at the `5`, and will be the conditional it is in
+JavaScript when `.5` is a number.
+
+## Reading an Entry at Run Time
+
+```js
+const entry = (a, b) => {
+    const x = Object.getOwnPropertyDescriptor(a, b);
+    return x?.enumerable ? x.value : undefined;
+};
+const escapes = { n: "\n", t: "\t" };
+export default (...c) => entry(escapes, c[0]);
+```
+
+A key computed at run time is read by the **`entry` helper**: the function
+above, written in a module under any three names, or imported from
+[`fjs/types/object/entry`](../fjs/types/object/entry/module.f.js), which spells it once.
+`entry(a, b)` is the enumerable own property `b` names of `a` — a member of
+an object, an element of an array or of a string — and `undefined` where
+there is none: a `length`, which an array, a string and a function own
+without enumerating it; a function's `name`, which the language keeps
+unobservable ([functions](#functions)); anything of a number, a boolean or
+a `bigint`; and a name a prototype would give the value in JavaScript, since
+the descriptor is the value's own. The key is converted as
+`Object.getOwnPropertyDescriptor` converts it, so `entry(a, 0)` and
+`entry(a, "0")` read one element and an object key converts through its own
+`toString`; a `null` or `undefined` `a` is an error, as reading a property
+of one is, and so is a key whose conversion fails.
+
+The helper is exactly what it spells. The compiler recognizes the function
+whole — its two parameters, the `const` the descriptor binds and the
+`return`, under any three distinct names a module may bind, so no keyword
+and no `Array`, the keys in either spelling, the
+semicolons where JavaScript inserts them — where `Object` is the intrinsic,
+which it is wherever no scope binds the word; a function that departs from
+it by a step is an ordinary function, in which `Object` is a name nothing
+binds ([shared values](#shared-values-constants)), and a parameter, a
+`const` or a function's own name spelling `Object` is what JavaScript reads
+it as. A `const` of `Object` after the helper, in the module or in a body
+the helper is written in, is refused as a shadowed capture is
+([functions](#functions)): JavaScript would resolve the helper's `Object`
+to that `const`, and the helper would be no helper. It is a function like
+any other once recognized: a value, of
+`length` `2`, capturing nothing, a fresh identity wherever it is written as
+every arrow is, passed as a value — `[a, b].map(entry)` — and converting
+to its text as any function does
+([function source](#function-source-representation-exception)). Its EDAG
+is the node `['entry']`, the helper as a value, and a read of a computed
+key is a call of it, `['()', ['entry'], [a, b]]`
+([`fjs/edag`](../fjs/edag/README.md)); the graph outputs write the node back
+as the helper, the FunctionalScript one under names of its own, the Rust
+one as a function the VM answers natively. Value outputs can evaluate calls
+to the helper; selecting the helper itself is refused as a function value.
+
+The node is the language's one read of a property by a name it computes:
+`Object` is no value a module can name outside the helper
+([built-ins](./todo/2360-built-in.md)), and `a[i]` stays unread
+([property access](#property-access)). Where a program knows its index to
+be a number, the spelling is `a[Number(i)]`
+([property access](#property-access)); `a[+i]`, where no `bigint` can reach
+it, is [property-accessor](./todo/2330-property-accessor.md)'s still, and
+`entry` is the read for a key of any type.
+
+## Functions
+
+```js
+export default (...args) => [args, args[0]];
+```
+
+The same function, written with a block body:
+
+```js
+export default (...args) => { return [args, args[0]]; };
+```
+
+A function that takes no arguments, its parameter list empty:
+
+```js
+export default () => 6;
+```
+
+A function is an arrow with zero or more fixed named parameters and an
+optional final rest parameter. Its body is an expression or a block:
+
+```js
+export default (a, b, c, ...x) => [a, b, c, x];
+```
+
+Bare `a => a`, `(a) => a`, and a fixed list with a trailing comma are also
+accepted. No parameter or comma may follow rest. Defaults and destructuring
+are not supported yet. A newline before `=>` is refused.
+
+### Parameters
+
+- Fixed names bind positional arguments; missing arguments are `undefined`.
+  Extra arguments are permitted. The rest parameter is the array of arguments
+  after the fixed prefix. Each invocation has its own rest array, and repeated
+  reads within it return the same array. Parameters may shadow outer names,
+  but must be distinct and cannot collide with body declarations. Each one,
+  fixed or rest, is a name by the
+  [binding rule](#shared-values-constants): `(eval) => 1` and
+  `(...let) => 1` are refused, while `(from, then) => [from, then]` is a
+  function.
+- `f.length` is the number of fixed parameters, including unused ones. Rest
+  adds zero. A function has **at most 16** fixed parameters: a 17th is a
+  compile error, and an EDAG function whose `length` is above 16 is refused by
+  every writer. Wider data reads better as an array or an object, and a rest
+  parameter still takes any number of arguments. The EDAG interpreters retain
+  the function's length, body and evaluated captures as represented values;
+  conversion to ordinary runtime callables happens at an explicit target
+  compile/load boundary ([EDAG values](../fjs/edag/values.md#runtime-compilation)).
+- An **empty parameter list** binds no name at all, so a body written under
+  one cannot reach its arguments: the arguments array is named by the
+  parameter and by nothing else, and a word the list does not spell is
+  unbound here exactly as any other unbound word is. Nothing else
+  distinguishes the two lists. `() => 1` and `(...args) => 1` denote the one
+  function, the one node `['=>', 0, [], 1]` — though each arrow written is
+  a function of its own (below) — and a body `const` may take the name a
+  parameter would have taken, there being no parameter to collide with.
+
+### Captures and Self Recursion
+
+- A name the body reads from a scope around it — a `const`, an import, an
+  enclosing function's parameter or an enclosing body's `const` — is a
+  **capture**, as a JavaScript closure's is. The function's frame is the
+  array of the captured values, each value once however many bindings or
+  references reach it, in the order the body first names them, built where the
+  function is written; the body reads a capture as a slot of it, and a
+  nested function captures through its parent. Nothing mutates, so a frame
+  copied when the function is made is unobservable from a closure over the
+  scope ([function-frame](./todo/3111-function-frame.md)). A captured
+  primitive is written into the body instead, as a `const` holding one is
+  wherever it is read, since it has nothing to share.
+
+  Captures are JavaScript's closures, not a feature of this language's
+  own: a capture was an error only while a function had no frame to
+  capture with, a restriction whose reason is gone
+  ([DESIGN.md §12](../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)).
+  The frame is the one [function-frame](./todo/3111-function-frame.md) and
+  the EDAG's closed-scope model
+  ([`["frame", N]`](../todo/edag-stage1-discussion.md)) describe.
+
+  ```js
+  const base = [10];
+  const add = (...a) => (...b) => a[0] + b[0];
+  export default [add(1)(2), ((...a) => base[0] + a[0])(5)];
+  ```
+
+  A function that names itself reaches itself: in
+  `const fact = n => n < 2 ? 1 : n * fact(n - 1);` the inner `fact` is the
+  function itself, the EDAG's `["self"]`, and `export default fact(5);`
+  exports `120`. The name is the function's own only where the function is
+  the whole value of the `const`, a module's or a body's: `const f = [() => f];`
+  and `const f = (() => f)();` are `const not found`, since neither value is
+  a function with a self to read. The function's own name comes after the
+  names its body binds, as in JavaScript: a parameter or a body `const` of
+  the same word shadows it — unless the body has already read the function
+  by that word, which is refused as a capture shadowed is
+  ([functions](#functions)). A function nested in it captures the name as
+  it captures any other value around it, so `const f = x => () => f(x);`
+  recurs through the inner function. Reading a *later* `const`, and so two
+  functions calling each other, is still refused
+  ([forward-references](./todo/3140-forward-references.md)).
+
+### Bodies and Guards
+
+- A body `const` is the body's, and binds as a module's does, a module
+  being a function too ([a module is a function](#a-module-is-a-function)):
+  it names a value the `return` and the statements after it may use, it may
+  not be written twice, and it is not in its own initializer's scope — except
+  that a function that is the whole initializer has the name as its own, as
+  a module `const`'s does (above). It is evaluated as a module's is, as its own statement, at every call and whether
+  or not the `return` reaches it ([shared values](#shared-values-constants)):
+  `() => { const x = null.x; return 1; }` loads and throws when called, as in
+  JavaScript. The parameter is a name of the body too, so a `const` may not
+  take it. A body `const`
+  *may* take a name a scope around it binds, shadowing it as in
+  JavaScript ([no-shadowing](./todo/3150-shadowing.md)) — unless the body
+  has already read that name from outside, before the `const` or in its own
+  initializer. That is not supported yet and is refused (`capture
+  shadowed`) rather than compiled to another value: JavaScript resolves
+  every reference in the body to the body's `const`, a read before its
+  declaration throwing and a function written earlier reading it once
+  called, where this compiler would read the capture. It is no restriction
+  of the language — nothing leaks through it — but a forward reference
+  inside a body, which
+  [`body-const-forward-reference.md`](../fjs/compiler/parser/todo/body-const-forward-reference.md)
+  tracks.
+
+  ```js
+  export default (...args) => {
+      const first = args[0];
+      const pair = [first, first];
+      return [pair, pair];
+  };
+  ```
+
+  `pair` is one array however many references reach it, as a module `const`
+  is one value — which is the whole reason a body has them.
+- The body is an expression or a block, and `value` and `{ return value; }`
+  denote the same function. As an expression the body is any value except a
+  bare object literal: after `=>` JavaScript reads `{` as a block, never as
+  an object, so the spelling is refused rather than read another way, and the
+  object is written in parentheses instead ([grouping](#grouping)) —
+  `(...args) => ({ a: 1 })`, as in JavaScript. The block
+  is any number of statements — `const`s, and guards, `if` (below) — and
+  then one terminating statement, a `return` or a `throw` (below), each
+  ended as every statement is — by its `;`, or by the newline before the
+  next statement, a guard's by its `}`, and the last one's by the `}`
+  ([module structure](#module-structure)) — and an object literal is an
+  ordinary value again, since after `return` JavaScript expects an
+  expression. `return` and the value share a line: a newline between them
+  ends the statement in JavaScript, which would return `undefined`, so it is
+  refused here rather than read another way, exactly as a newline before
+  `=>` is. Nothing follows the terminating statement: a statement after it
+  is unreachable, and JavaScript's admitting the text does not make it
+  anything but a mistake.
+- A parameterless function **called where it is written**, with no
+  arguments, denotes its body where the call stands:
+  `a ? (() => { const x = f(); return [x, x]; })() : 4` is the idiom for a
+  `const` inside an expression, an arm of a conditional say, where no
+  statement can stand, and it lowers to the arm holding `[x, x]` with `x`
+  one shared node, no function and no call. Nothing observes the function:
+  it is called once and compared with nothing, so it mints no identity the
+  program could see, and its body evaluates exactly once, where the call
+  stands — a slot of its frame is the enclosing scope's own node, so what
+  the body shares stays shared and nothing else is. A body `const` the
+  returned value does not reach is evaluated where the call stands, as in
+  JavaScript; in the graph it is anchored at the nearest position that
+  opens a block, the scope's root or a lazy operand
+  ([operators](#operators)), which is where JavaScript's own semantics can
+  tell no difference under the [failure contract](#failure-is-one-outcome).
+  `(() => [1, 2])()` is `[1, 2]`, and a module holding either hashes the
+  same. A capture a body names only through an unused alias, `const x =
+  c;` and nothing more, is no slot of its frame, in a body or in a call
+  inlined into one: the alias is dropped, so nothing reads it, and the
+  scope's `const` is anchored as one nothing reaches. A call with an
+  argument, `(() => 1)(null.x)`, has an argument to evaluate; a function
+  with a parameter binds a name; and a body reading its own rest array
+  names what the enclosing scope does not hold — each stays a call. The FunctionalScript writer uses the same idiom in reverse:
+  a value shared under one lazy operand alone, which no `const` of the
+  scope could hold without evaluating it whatever the operator decides, is
+  written in a block opened at the operand,
+  `a ? (() => { const $0 = [1]; return [$0, $0]; })() : 4`, which reads
+  back as the operand. Round-tripping through that writer keeps the graph,
+  not the text: the function written in the source is gone from both.
+- **`throw value;`** terminates a block as `return value;` does, and a
+  function whose body ends in it fails at every call — the one failure
+  outcome the language has ([failure is one outcome](#failure-is-one-outcome)),
+  reached on purpose, as a panic on a broken invariant rather than an
+  expected error, which travels as a value
+  ([`fjs/AGENTS.md` §1.5](../fjs/AGENTS.md#15-never-use-trycatch-test-throwing-with-the-throw-key)).
+  Everything else about it is JavaScript's, read as `return` is: the value
+  is any expression and is evaluated first, so `throw f(x)` calls `f` before
+  failing; `throw` and its value share a line, since JavaScript's restricted
+  production forbids a line terminator between them, and `throw;` with no
+  value is not JavaScript; and nothing in the language catches the value,
+  so the language promises the failure and not the payload, which an
+  executor carries out of band for a human or a test runner to read.
+
+  ```js
+  export const todo = () => { throw "not implemented"; };
+  export const checked = (n) => {
+      const half = n / 2;
+      throw ["not yet", half];
+  };
+  ```
+
+  The body lowers to the node `['throw', v]`, an operation of one operand
+  that always fails, and it follows the positional laziness every operator
+  has: in an eager position it is evaluated and fails, and in a lazy one —
+  an arm of `?:`, the right operand of `&&`, `||` or `??` — it is not
+  established unless JavaScript would establish it, so
+  `c ? 1 : (() => { throw 0; })()` is `1` under a true `c`. The
+  FunctionalScript writer spells the node in a terminating position, a
+  block's or [the module's](#module-structure), as the statement it came
+  from, and anywhere else — wherever a graph puts one, and an arm of `?:`
+  once `if` lowers there — as the call of a function that throws,
+  `(() => { throw v; })()`: JavaScript's one spelling of an expression that
+  fails, and FunctionalScript itself — the call of a parameterless function
+  written where it is called, which the front end inlines (above), so the
+  text reads back as the node it was written from and fails at the same
+  point. That is the writer's spelling, not a second source form:
+  `throw` is a statement only, and an expression that must fail goes
+  through a function that throws, as in JavaScript. The EDAG output carries
+  the node, and the Rust output fails as the VM fails
+  ([output](#output)).
+- **`if (condition) block`** is a guard: a statement of a block body,
+  standing where a `const` may, any number of times before the body's
+  terminating statement. Its block is a block as above — any number of
+  statements and then a `return` or a `throw` — so the branch always
+  terminates, and the statements after the guard, up to and including the
+  body's own terminator, are what runs when the condition is falsy. The
+  condition is any expression, evaluated where the statement stands and
+  tested as `?:` tests its condition. This is the one form: the braces are
+  required, there is no `else`, and the statement stands in a function
+  body only — each a scoping decision of a step-by-step plan rather than a
+  guarantee, the bare consequent `if (c) return v;`, a branch that does
+  not terminate and with it `else`, and a guard at module level being
+  follow-ups, each additive on top of this one. No `;` follows the `}`, as
+  in JavaScript: one there is the empty statement the language refuses
+  ([module structure](#module-structure)), and the next statement may
+  share the guard's line.
+
+  ```js
+  export const unwrap = r => {
+      if (r[0] === 'error') { throw r[1]; }
+      return r[1];
+  };
+  export const sign = n => {
+      if (n < 0) { return -1; }
+      if (n > 0) { return 1; }
+      return 0;
+  };
+  ```
+
+  The guard is syntactic sugar over the conditional and adds no node: a
+  body `s… if (c) B rest` denotes `c ? (() => B)() : (() => rest)()`, the
+  guard's block and the statements after it each the body of a
+  parameterless function called where it stands (above), and the compiler
+  reads it as exactly that, so `if (a) { const x = [1]; return [x, x]; }
+  return 0;` and `a ? (() => { const x = [1]; return [x, x]; })() : 0`
+  are one graph and one hash — `['?:', a, ['[]', [x, x]], 0]` with `x`
+  one shared node — and a second guard nests as the alternate of the
+  first. Where a `const` lives is which edges reach it: one before the
+  guard is the scope's, evaluated eagerly as JavaScript evaluates it before
+  the condition, so `const a = [1]; if (m) { return a; } return 0;` is
+  `[',', [a, ['?:', m, a, 0]]]`, the anchoring rule of
+  [operators](#operators) — and `m ? a : a` is not folded to `a`, the
+  condition being an evaluation of its own that may fail; one in the
+  guard's block, or after the guard, is reached from its arm alone, and
+  evaluated only when JavaScript would evaluate it, so `if (a) { throw 1;
+  } const y = [2]; return y;` is `['?:', a, ['throw', 1], ['[]', [2]]]`
+  and an unused `const z = [2]` in its place is anchored at the
+  alternate's comma, `[',', [z, 1]]`, never at the function's root. The
+  statements after a guard are JavaScript's one block with the ones before
+  it, so a name that block has bound — a parameter, a `const` before the
+  guard, or one after an earlier guard — may not be bound again there
+  (`duplicate id`), and neither may a word that block has already read
+  from an enclosing scope, in a statement before the guard, in the
+  condition or in the guard's block (`capture shadowed`), since in
+  JavaScript every such read would have named the later `const` before
+  its declaration; the guard's block is a block of its own and may shadow
+  either. The FunctionalScript writer never
+  writes `if`: it spells the conditional, and an arm that holds a `const`
+  or a `throw` as the block opened at the operand (above), so the guarded
+  body reads back as the same graph; the EDAG output carries the `?:`,
+  and the Rust output prints it as it prints any conditional.
+
+### Names and Identity
+
+- A function **carries no name**. Its EDAG is `['=>', length, slots, body]`,
+  name-erased, so the function in `{ make: () => 0 }.make`, in
+  `const hello = () => 0` and in `export default () => 0` is the same node,
+  `['=>', 0, [], 0]`, whatever JavaScript would name it (`make`, `hello`,
+  `default`), and no program observes the difference: `f.name` is
+  refused at the key of `.`, and `entry(f, 'name')` is `undefined`, since
+  `name` is not an enumerable own property
+  ([reading an entry at run time](#reading-an-entry-at-run-time)), which is
+  the decision that retired the proposals that would have exposed a name. The
+  name a JavaScript engine gives a function it loads from the written
+  output is the writer's spelling, not a result of the program
+  ([principles](#principles)).
+  Empty and rest-only parameter lists both have `length === 0`.
+- A function has **identity**, as an object does, and it is JavaScript's:
+  evaluating an arrow makes a new function — once for one written at module
+  level, once per call for one written in a body — and a `const` holding one
+  is that one function however many references reach it. Under
+  `const f = () => 1;`, `f === f` is `true`; under
+  `const g = (y) => () => y;`, `g(1) === g(1)` is `false`; and
+  `(() => 1) === (() => 1)` is `false`, as two separately written objects are
+  two ([shared values](#shared-values-constants)). Denoting the same function
+  is sameness of meaning, not of identity.
+
+### Calls
+
+- A function is **called** as JavaScript calls one: `f(a, b)` with no
+  receiver, and `o.m(a)` with `o` as the receiver. A call is a step after a
+  value, as a property access is, and what a step applies to is everything
+  written before it — so `f(1)(2)` calls what `f(1)` returns, and
+  `o.m(1).n(2)` calls `n` on what `o.m(1)` returned. The arguments are the
+  list an array holds, a trailing comma and a [spread](#spread) included:
+  `f(...a, 4)` passes `a`'s elements and then `4`, and
+  `(...r) => f(...r)` forwards the values and never the array, since every
+  callee builds its own rest array from the arguments.
+
+  Parentheses around the property do not drop the receiver: `(o.m)(a)`
+  passes `o` as surely as `o.m(a)` does, since the parentheses keep the
+  property reference — only detaching the value loses it, as `(0, o.m)(a)`
+  does with the comma operator. `(o.m)(a)` is in the language
+  ([grouping](#grouping)) and is the same program as `o.m(a)`, down to the
+  graph it compiles to; the detached spelling waits on the comma operator,
+  so every call written on a property today is a call with a receiver.
+
+  A method call's property is the access's, but its key is judged by the
+  call rule and not the read rule ([property access](#property-access)): a
+  member function on `fjs/js/prototype`'s `prohibitedCalls` is a compilation
+  error, every other prototype name but `length` is a call the VM answers by
+  the receiver's type, and the read of either stays refused. The represented
+  interpreters and the native VM implement the admitted
+  [member functions](#built-in-member-functions), including the function
+  text the [exception](#function-source-representation-exception) adopts.
+
+  The graph outputs preserve a call: the EDAG carries its node, generated
+  Rust runs it through nanvm-lib, and FunctionalScript writes `f(a)` or
+  `a.b(c)`. JSON and DataJS output evaluate it and serialize its result,
+  provided the selected data contains no function ([output](#output)).
+
+### Function Outputs
+
+- A function is written by the graph outputs, the FunctionalScript, EDAG
+  and Rust ones ([output](#output)). JSON and DataJS have no function value,
+  so they refuse a function in the selected result, even inside an array or
+  object. A function used only during initialization or exported under an
+  unselected name does not block data output:
+  `const f = (a, b) => 1; export default [f.length];` writes `[2]` as JSON.
+
 ## Command Line
 
 ```sh
@@ -220,8 +2104,8 @@ write the exported value; the graph outputs — FunctionalScript, EDAG and
 Rust — write the program itself and evaluate nothing ([output](#output)). So a
 module whose evaluation fails, such as `const c = null.x; export default 1;`
 or one that imports it, compiles to no value output — the error is
-`cannot read property "x" of null` — while a graph output never sees the
-failure: it writes the program, which fails when it runs, as the module does
+`module initialization failed`, naming the failing module — while a graph
+output never sees the failure: it writes the program, which fails when it runs, as the module does
 in JavaScript.
 
 Both file names are part of the command: the **input extension names the
@@ -249,7 +2133,8 @@ fails, naming no file: one with `Error: Requires 2 arguments`, and more than
 two with the first one it does not read, `Error: unexpected argument --tree`,
 rather than succeed without it.
 
-On success the command writes the output and exits `0`. On failure it writes
+On success the command creates the output's parent directories recursively,
+writes the output and exits `0`. On failure it writes
 nothing, reports the error on `stderr`, and exits `1`:
 
 ```text
@@ -264,15 +2149,16 @@ resolved names the module importing it; one whose module lacks the selected
 export, or is not what its import attribute declares, names that module; and
 a circular dependency names the module met again. Only an input that cannot
 be resolved at all keeps the spelling given on the command line. A value
-output refusing the program — `a function has no value`,
-`a call has no value`, `an operator has no value` — names the module holding
-what it refused. A refusal of the output names the output as given instead,
+output reports an initialization failure as `module initialization failed`.
+The interpreter retains the evaluated thrown payload for API consumers;
+the CLI diagnostic does not expose it as a language-level observation.
+A refusal of the output names the output as given instead,
 since the module itself is sound: an extension naming no format, a value JSON
-cannot spell, a node the FunctionalScript or Rust writer has no spelling
-for. A failure to write the output — a missing
-directory, a name that is a directory — is reported in the host's own words,
-which name the output too:
-`ENOENT: no such file or directory, open 'out/config.json'`.
+cannot spell, a callable in the selected data, or a node the FunctionalScript
+or Rust writer has no spelling for. A failure to create a directory or write
+the output — a parent that is a file, a name that is a directory — is reported
+in the host's own words, which name the affected path too:
+`EISDIR: illegal operation on a directory, open 'out/config.json'`.
 
 A parse error carries the token's `path:line:column`, as above. A lexical
 error — a character no token begins with, a string or block comment the input
@@ -448,42 +2334,51 @@ declares none of the five, and is refused before the input is read, rather
 than written in a language the name does not declare: `.ts`, `.JSON` and a
 name with no extension alike.
 
+#### Evaluation and Projection
+
 `.json` and `.data.js` are the **value outputs**: they evaluate the program
 and write the value it computes. `.js`, `.edag.data.js` and `.rs` are the
 **graph outputs**: they write the program's graph and evaluate none of it.
-What a module holds decides which outputs it has. A function, a call or an
-operator counts wherever it stands in the program; a `bigint` counts only
-where an output writes it, which for `.json` is the selected value (below):
+Value outputs can evaluate every implemented expression form, including
+functions, calls, closures, methods, operators, spreads and optional chains.
+Their representability check applies to the resulting selected data, after
+the entire module has initialized:
 
-|A module holding|`.json`|`.data.js`|`.js`|`.edag.data.js`|`.rs`|
+|Program or selected result|`.json`|`.data.js`|`.js`|`.edag.data.js`|`.rs`|
 |----------------|-------|----------|-----|---------------|-----|
-|a function|refused|refused|written|written|written|
-|a `throw` at module level|refused|refused|written|written|written|
-|a call|refused|refused|refused|written|written|
-|unary `-`|computed|computed|written|written|written|
-|any other operator|refused|refused|refused|written|written|
+|a function in selected data|refused|refused|written|written|written|
+|a function used to compute data|computed|computed|written|written|written|
+|a reached initialization failure|refused|refused|written|written|written|
+|a call or any admitted operator|computed|computed|written|written|written|
 |an object or array reached twice|written twice|a `const`|a `const`|a shared node|a shared value|
 |a `bigint`|refused|written|written|written|written|
 
-A value output refuses a function, which neither DataJS nor JSON can spell
-(`a function has no value`), a module that ends in `throw`, whose load fails
-as one reaching `null.x` does (`throw "boom"`, naming the value thrown, or
-`throw an array`, `throw an object` for a container)
-([module structure](#module-structure)), and a call or an operator other than unary `-`,
-whose result is the interpreter's to compute
-([`interpret-edag.md`](../fjs/compiler/todo/interpret-edag.md)): `a call has no
-value`, `an operator has no value`. It computes unary `-` over a primitive, as
-JavaScript does — `-"2"` is `-2` — and refuses it over an object or an array
-(`no number for this value`). Of the graph outputs, the `.js` writer has no
-spelling yet for a call or for an operator other than unary `-` (the
-FunctionalScript bullet below), and the EDAG holds every node, folding unary
-`-` where its operand lowers to a number or a `bigint` ([numbers](#numbers)).
-The Rust module holds every node too and computes each operator as JavaScript
-does, running the right operand of `&&`, `||` and
-`??` and each arm of `?:` only where JavaScript evaluates it, so an unreached
-`1n / 0n` never throws. The VM does not answer every member function the
-compiler admits yet
-([member-functions](../nanvm-lib/todo/member-functions.md)). The Rust writer
+A value output evaluates the program through the Memo EDAG interpreter
+([EDAG values](../fjs/edag/values.md#module-initialization)). It computes
+calls and coercions: `const f = x => x + 2; export default f(3);` writes
+`5` as JSON and `export default 5;` as DataJS; `export default [1, 2].map(x => x + 1);`
+writes `[2,3]` as JSON. An evaluated function, including one nested in a
+selected array or object, is refused by both data formats with
+`callable materialization requires a target compile/load boundary`.
+An initialization failure is reported against its source module instead.
+
+Graph outputs preserve the unevaluated program. The FunctionalScript writer
+spells calls and every admitted operator; the EDAG output preserves their
+nodes, folding unary `-` where its operand lowers to a number or a `bigint`
+([numbers](#numbers)). The Rust output emits the native implementation of
+those nodes. All executors evaluate a lazy operand or conditional arm only
+where JavaScript does, so an unreached `1n / 0n` never throws. Source and
+Rust writers can still refuse a graph they cannot reconstruct within their
+output profile; recognizing a node does not guarantee every sharing or
+capture arrangement has a source spelling
+([source and runtime compilation](../fjs/edag/values.md#runtime-compilation)).
+Deep container, function and conversion nesting can also exhaust the host
+call stack during compilation. In particular, parsing and lowering a long
+`Number`/`String` conversion chain can succeed before source serialization
+overflows. These are compiler resource limits, not fixed language depth limits
+([tracked inputs and remaining work](../fjs/compiler/todo/deep-nesting-recursion.md)).
+
+The Rust writer
 spells a `bigint` of any size, a literal within `i64` as one number and a
 larger one as its sign and `u64` words. A string holding a lone surrogate,
 which no Rust `&str` can hold, is written as its UTF-16 code units. A literal
@@ -494,11 +2389,13 @@ For a FunctionalScript input, JSON and DataJS output serialize the module
 result's `default` property.
 Selecting the `default` does not narrow what they evaluate: a value output
 evaluates the whole program — every `const`, exported or not, of the input and
-of every module it loads, one an `import {}` loads included — so a function, a
-call, or an operator other than unary `-` anywhere in that program refuses the
-output, even where the `default` never reaches it:
-`const g = () => 1; export default 5;` compiles to the three graph outputs
-alone. A named-only root projects to `undefined`: DataJS writes
+of every module it loads, one an `import {}` loads included — and a required
+failure anywhere prevents output. Only after initialization succeeds is the
+default export selected and converted to data. Unselected function exports
+and local functions are allowed:
+`export const g = () => 1; export default 5;` writes `5` as JSON, and
+`const f = (a, b) => 1; export default [f.length];` writes `[2]`.
+A named-only root projects to `undefined`: DataJS writes
 `export default undefined;`, while JSON refuses `undefined`. FunctionalScript
 output preserves each named export as `export const` and writes `export default`
 last when present. Dependencies and shared values are declared before use;
@@ -508,13 +2405,15 @@ document: its value is used without projection, even when it contains a property
 named `default`. Imported JSON instead exposes `{ default: document }` at the
 module boundary, from which a default import selects the document.
 
+#### Serialization Rules
+
 - A DataJS document is written in
   [normalized form](./datajs/README.md#normalized-form): one line, and an
   object or array referenced more than once hoisted into a `const` named `$0`,
   `$1`, … in post-order, so it stays shared
   ([shared values](#shared-values-constants)); a primitive is written inline
   wherever it is read, however often, since sharing one is not observable.
-  Every value a value output computes has a document, shared nodes, `bigint`,
+  Every function-free selected value has a DataJS document, shared nodes, `bigint`,
   `undefined`, `NaN` and the infinities included.
 - JSON is a tree, and a JSON document carries no identity: every object and
   array in it is a fresh one when it is read. So an object or array the value
@@ -566,8 +2465,12 @@ module boundary, from which a default import selects the document.
   The writer spells a property access, every operator the language has
   ([operators](#operators)) and every call. A number or a function that is
   an access's base or a callee takes a `const`, and so does a callee that
-  is an access: `a.b(c)` and `(a.b)(c)` are both the method call, and a
-  function called where it is written is inlined.
+  is an access: `a.b(c)` and `(a.b)(c)` are both the method call. The front
+  end inlines a function written at the call only when the call has no
+  arguments, the function has zero fixed parameters, and its body does not
+  read its own rest array ([bodies and guards](#bodies-and-guards)). The
+  writer hoists function callees when retaining a call node, so reading its
+  output does not inline that call away.
 - Object properties are emitted in the order the value carries them for the
   value outputs — JavaScript's own-property order, array-index keys first,
   a repeated key keeping its first position and its last value — and in the
@@ -578,7 +2481,7 @@ module boundary, from which a default import selects the document.
   writes that `[]` in a FunctionalScript document and nowhere else.
 - A `__proto__` key is emitted as `["__proto__"]:` in a DataJS or
   FunctionalScript document and as `"__proto__":` in JSON
-  ([below](#the-__proto__-key)).
+  ([the `__proto__` key](#the-__proto__-key)).
 - An access in a FunctionalScript document is written from its constant key
   ([property access](#property-access)): a string key that is an
   [identifier](#identifiers), a reserved word included, follows a `.`, and
@@ -596,1808 +2499,13 @@ module boundary, from which a default import selects the document.
   to infinity — are emitted as those words in a DataJS or FunctionalScript
   document, and `-0` as `-0` in every format.
 
-## Comments
-
-Comments are [trivia](#whitespace-and-line-terminators). Their text does not
-become an AST value, but the parser preserves line-terminator information
-needed by JavaScript's grammar. A line break inside a block comment counts at
-a restricted boundary too, such as after `return` or `throw`, or before `=>`
-([functions](#functions)).
-
-```js
-// a line comment runs to the end of the line
-
-/** @type {number} */
-export default -42.5;
-```
-
-|Form|Syntax|
-|----|------|
-|line comment|`// ...`|
-|block comment|`/* ... */`|
-
-A line comment runs to the next newline or to the end of the file. A block
-comment runs to the first `*/`, may span lines, and is an error if the file
-ends first. Their text may be any characters, non-ASCII included, except
-U+2028 and U+2029, which are refused in a comment as everywhere outside a
-string ([line terminators](#whitespace-and-line-terminators)): JavaScript
-ends a line comment at either, so what follows one is code there and never
-comment text here, and reads either inside a block comment as a line break.
-
-Block comments carry JSDoc/TypeScript type declarations, which is why the
-language has them: a `.f.js` file is type-checked as JavaScript, and JSDoc is
-how it says what its types are.
-
-A comment can separate tokens where whitespace can, which is between any two
-([trivia](#whitespace-and-line-terminators)). At unrestricted boundaries, the
-`;` that ends a statement may follow a comment on the same line or a later
-one ([module structure](#module-structure)), as any other token may. This
-does not make newlines interchangeable with spaces at restricted boundaries,
-nor a comment with a newline: where a statement omits its `;`, the next one
-begins a new line only if a newline stands between them — inside a block
-comment, or ending a line comment — as JavaScript counts it.
-
-Comments belong to the module language. A `.json` input containing one is an
-error, because JSON has no comments.
-
-See
-<https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar#comments>.
-
-## Lexical Grammar
-
-A module is a sequence of tokens — words, numbers, strings and punctuators —
-with trivia between them: whitespace, newlines and [comments](#comments).
-Trivia only separates tokens, and at a boundary JavaScript restricts it also
-says whether a line break stands there. The literal tokens are specified with
-their values — [numbers](#numbers), [bigints](#bigints), [strings](#strings)
-— and this section gives the characters between tokens and the spelling of a
-word.
-
-### Whitespace and Line Terminators
-
-Whitespace is a space (U+0020) or a tab (U+0009). A newline is a line feed
-(LF, U+000A), a carriage return (CR, U+000D), or CR followed by LF, which is
-one line break. Those are JSON's four whitespace characters, the same four
-[DataJS](./datajs/README.md#whitespace) admits.
-
-Trivia may stand between any two tokens, before the first and after the last,
-and it is insignificant there, newlines included, but for one: a statement
-written without its `;` ends at the newline before the next statement
-([module structure](#module-structure)). Inside an expression a line break
-reads as a space does, exactly as JavaScript reads it: `a` followed by
-`.length`, `[0]` or `+ 2` on the next line is `a.length`, `a[0]` or `a + 2`,
-and `f` followed by `(1)` is the call `f(1)`. Trivia is needed only where two
-tokens would otherwise read as one: `const a`, not `consta`
-([module structure](#module-structure)); `1 .x`, not `1.x`
-([property access](#property-access)).
-
-The exceptions are the boundaries JavaScript restricts, before `=>` and after
-`return` and `throw`, where a line break is refused ([functions](#functions)). There the
-trivia is a line break if a newline of any of the three forms stands in it,
-inside a block comment or not ([comments](#comments)).
-
-Nothing else is trivia. JavaScript's other whitespace — VT (U+000B), FF
-(U+000C), U+FEFF, and the Unicode space separators such as NBSP (U+00A0) and
-U+3000 — is refused, although JavaScript accepts it, a byte order mark at the
-start of the file included ([source text](#source-text)). JavaScript's other
-two line terminators, U+2028 and U+2029, may stand raw only inside a
-[string](#strings), as in JSON; anywhere else, a comment included, they are
-refused, since an invisible line break is no line break here. A hashbang
-comment, `#!` at the start of the file, is refused too, although JavaScript
-admits one ([hash comments](../fjs/compiler/todo/083-compiler-hash-comments.md)). Any
-other character outside a string or a comment is part of a token or an
-error, as it is in JavaScript.
-
-See
-<https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar#white_space>.
-
-### Identifiers
-
-An identifier is ASCII: a letter `A`–`Z` or `a`–`z`, `_` or `$`, then any
-number of those or the digits `0`–`9`. `a`, `_x`, `$0` and `a_$1` are
-identifiers, and `1a` is not. Every word is spelled this way — a `const`,
-`import` or parameter name, an identifier key, the name after `.`, and the
-keywords — and which words may name a binding is the reserved-word rule of
-[shared values](#shared-values-constants): a reserved word may still be a key
-or a property name, `{ if: 1 }` and `a.default` included.
-
-The rest of JavaScript's identifier grammar is not recognized yet
-([roadmap](./todo/README.md)), and each of its other spellings is a
-compilation error: a non-ASCII character in a name, a letter
-(`const é = 1;`, `{ π: 1 }`, `o.é`) or U+200C or U+200D (ZWNJ, ZWJ)
-included, and a Unicode escape in a name (`const \u0061 = 1;`, `\u{61}`,
-`{ \u0069f: 1 }`). Non-ASCII text is fine inside a string, so such a key is
-written as one: `{ "é": 1 }`, `o["é"]`.
-
-See
-<https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar#identifiers>.
-
-## Supported Value Types
-
-An expression is a data expression, a property access, a function, a call, an
-operator ([operators](#operators)) — a prefix `-` (negation), `~` (bitwise
-not), `!` (logical not) or `typeof`, a binary operator, `instanceof Array`
-or the conditional `?:` — the conversions `Number(exp)`
-([number conversion](#number-conversion)) and `String(exp)`
-([string conversion](#string-conversion)), or any of those in parentheses
-([grouping](#grouping)).
-
-|Value|Example|In JSON|
-|-----|-------|:-----:|
-|`null`|`null`|✅|
-|boolean|`true`, `false`|✅|
-|number|`-42.5`, `3e2`|✅|
-|number, not JSON's|`NaN`, `Infinity`, `-Infinity`|❌|
-|string|`"hello"`|✅|
-|array|`[1, "a"]`|✅|
-|object|`{ "a": 1 }`|✅|
-|`bigint`|`34n`, `-34n`|❌|
-|`undefined`|`undefined`|❌|
-|reference|`a`|❌|
-
-A reference is a name in scope — an `import`, a module or body `const`, or a
-function parameter — and denotes the value that name holds
-([shared values](#shared-values-constants), [functions](#functions)). It is
-not a kind of value of its own: what a reference denotes is one of the types
-above, and what makes it worth writing is that two references can denote the
-*same* value.
-
-The ❌ rows are what a module has and a JSON document does not, and every one
-of them but `reference` is also what a `.json` output cannot carry
-([output](#output)). A reference is not a value, so a `.json` output writes
-the value it denotes: `const a = [1]; export default { p: a };` is
-`{"p":[1]}`. What JSON cannot carry is the *sharing*: an object or an array
-the value reaches along more than one reference is written where each
-reference reaches it, as `JSON.stringify` writes it ([output](#output)).
-
-### Numbers
-
-A number is written with JSON number syntax less its sign: an integer part, an
-optional fraction, an optional exponent. A leading `-` is not part of the
-literal but the [unary minus](#supported-value-types) applied to it, which is
-why `- 42.5` is the same value written with a space.
-
-```js
-export default [0, -42.5, 3e2, 1E-7];
-```
-
-A literal denotes the IEEE 754 double nearest its decimal value, as it does in
-JavaScript and in `JSON.parse`: digits beyond a double's precision round away,
-so `9007199254740993` is `9007199254740992`; a literal too large for a double
-is `Infinity` (`1e400`); and one too small is `0` (`1e-400`), which is why
-`-1e-400` is `-0`. A `.json` input reads its numbers the same way. An
-overflowed literal is an `Infinity` like any other, written as the word where
-a format has one and refused by a `.json` output ([output](#output)).
-
-A number may also be written in binary, as JavaScript writes it: `0b` or
-`0B` followed by one or more `0` or `1` digits. `0b101010` is `42`;
-conversion rounds to the nearest double, as for decimal and hexadecimal
-literals. A binary literal has no fraction or exponent. Missing digits,
-other digits or a word directly after the literal are errors. The `n`
-suffix gives an exact bigint at any width: `0B101n` is `5n`. Outputs write
-the value in decimal; unary negation also preserves `-0b0` as `-0`.
-A single `_` may separate digits in decimal integer parts, fractions and
-exponents, and in binary or hexadecimal digits: `1_000`, `1.2_5e1_0`,
-`0b1010_0011`, `0xFF_FF`, and `1_000n`. Separators do not change the
-value. Leading, trailing or repeated separators, separators next to a
-radix prefix, decimal point, exponent marker or sign, or bigint suffix,
-and separators after a leading decimal zero are errors.
-
-A number may also be written in hexadecimal, as JavaScript writes it: `0x`
-or `0X`, then one or more digits `0`–`9`, `a`–`f` or `A`–`F`. It denotes the
-double nearest the integer its digits spell, as a decimal literal does, so
-`0xFF` is `255` and `0x20000000000001` is `9007199254740992`. It has no
-fraction and no exponent: after `0x`, `e` is a digit, so `0x10e1` is `4321`,
-and a `.` after the digits is the next token, so `0x10.length` is an access,
-as in JavaScript. `0x` with no digit, and a word or a digit standing directly
-after the literal (`0xg`, `0x1g`), are errors in both languages. The spelling
-is the source's and not the value's: every output writes `0xFF` exactly as
-it writes `255` — `255` in the `.js`, DataJS, JSON and EDAG outputs, and
-the double's bits in `.rs` — as it writes a single-quoted string between
-double quotes, and two modules that differ only in it are one graph.
-
-```js
-export default [0xFF, 0XfF, 0x10e1];
-```
-
-Otherwise the syntax is JSON's, so the other JavaScript spellings JSON
-leaves out are not recognized: no octal (`0o7`) prefix, no
-leading `+`, and no leading decimal point (`.5`). The three numbers JSON cannot spell
-are written as the words JavaScript gives them — `NaN`, `Infinity` and
-`-Infinity` — exactly as [DataJS](./datajs/README.md) writes them:
-
-```js
-export default [NaN, Infinity, -Infinity];
-```
-
-`NaN` and `Infinity` are reserved words, like `undefined`: a module cannot
-bind or shadow them, so each denotes its value wherever a value stands.
-`Array` is reserved the same way, for a different reason: it denotes no
-value here, and is the one word the right side of `instanceof` may be
-([operators](#operators)), so a module that could bind it would mean
-something else by it.
-
-They still name a property, as every reserved word does: `{ NaN: 1 }` and
-`a.NaN` are a key and an access, and mean the string `"NaN"`, exactly as in
-JavaScript, where a property is named by an `IdentifierName` and a value by
-an `IdentifierReference`. `-Infinity` names nothing in either language: it is
-two tokens in both — the operator and the word — which no property name may
-be.
-
-**FunctionalScript has one `NaN`.** IEEE 754 gives a `NaN` a sign and a
-payload, and a JavaScript program can read them — through a typed array or a
-`DataView`, which FunctionalScript has none of. Nothing else tells two `NaN`s
-apart: every operator, coercion and comparison treats each the same,
-`Object.is` included, and each is written as the word `NaN`. So a `NaN`'s
-bits are not serializable data, hence not an observation and not a
-compatibility question ([principles](#principles)): every `NaN` is the one
-value, and a writer may spell them all as one — the Rust writer spells each
-as the quiet `NaN` with an empty payload.
-
-The `-` is the **unary minus operator** ([operators](./todo/2340-operators.md)),
-the first operator the language had; `~`, the **bitwise not operator**, `!`,
-the **logical not operator**, and `typeof` are the other prefixes — `~`
-Stage A of the same operators document, `!` and `typeof` the rows admitted
-after both stages. None is part of the literal after it: `-42.5` is the
-negation of `42.5`, `- 42.5` is the same value written with a space, and
-`-NaN` and `-Infinity` are values as JavaScript has them. Each binds looser
-than a property access or a call, as in JavaScript, so `-1 .x` is `-(1 .x)`
-and `-1()` is `-(1())`. What any of them takes is JavaScript's
-`UnaryExpression`, which an arrow function is not, so `-(...a) => 1`,
-`~(...a) => 1`, `!(...a) => 1` and `typeof (...a) => 1` are syntax errors in
-both, and none stands immediately before `**` — `-2 ** 2` is refused,
-matching JavaScript, where `(-2) ** 2` and `-(2 ** 2)` are the parenthesized
-readings — though
-either may stand right after it, as in JavaScript: `2 ** -2` is `2 ** (-2)`
-and `2 ** ~2` is `2 ** (~2)`. Two adjacent `-` characters are the decrement
-operator, which the language has no rule for, so a negation of a negation is
-spaced, `- -1`, or grouped, `-(-1)`. `~` and `!` have no such token, in
-JavaScript or here, so `~~1` is two bitwise nots, the same as `~ ~1`, and
-`!!1` two logical nots.
-[Operators](#operators) has the rest of them.
-
-A negative number is therefore an expression rather than a literal *in the
-syntax*. The graph is another matter: lowering folds a negation into a leaf
-when its operand lowers to a number or a `bigint`, since negating one is exact
-arithmetic, so the EDAG of `-1` is the leaf `-1` and not an operation. The
-operand is judged as lowered, not as written: a numeric literal, `NaN` or
-`Infinity`, a `const` holding a number or a `bigint` — a captured one
-included — and another folded negation all fold, so
-`const a = 1; export default - -a;` is the leaf `1`, and its FunctionalScript
-output is `export default 1;`. An import of a number or a `bigint` folds too
-where it lowers to that value, which it does from a module that computes
-nothing but its default export, as a JSON document does; from any other
-module it lowers to that module's computation — its statement sequence, or
-a read of its export object when the module exports more than `default` —
-and stays an operation. A negation of anything else stays one too: of a string, a
-boolean, `null`, `undefined` or a container, since folding it would mean
-saying what that value converts to, and of an access, a parameter or a call,
-whose value lowering does not compute. No other operator folds, even over
-numbers: `~1` and `1 + 2` stay nodes, and `-1 * 2` multiplies the leaf `-1`.
-
-A `.json` or DataJS output is a value, so it computes a negation that
-survives, as JavaScript's unary `-` does, when the operand is a primitive: a
-`bigint` stays a `bigint`, and any other primitive converts to a number —
-`-"2"` is `-2`, `-true` is `-1`, `-null` and `-""` are `-0`, and `-undefined`
-and `-"abc"` are `NaN`, which a `.json` output then has no spelling for. A
-negation of an array or an object, written out or reached through a reference
-or an access, is refused there (`no number for this value`): converting a
-container is JavaScript's `ToPrimitive`, whose answer depends on what the
-container holds — `-[5]` is `-5` and `-{}` is `NaN` — and a value output does
-not compute it. The refusal reaches a `const` the default export never reads
-as well, since a value output evaluates the whole program
-([output](#output)). The EDAG and FunctionalScript outputs keep such a
-negation as written.
-
-### Bigints
-
-A `bigint` is written as a number's integer part — `0`, or digits not
-starting with `0` — followed directly by a lowercase `n`: `0n`, `34n`,
-`123456789012345678901234567890n`. Like a number it is unsigned: `-34n` is
-the [unary minus](#numbers) applied to `34n`, which lowering folds into the
-leaf `-34n` as it folds a negated number, and `-0n` is `0n`, since a `bigint`
-has no negative zero, as in JavaScript.
-
-```js
-export default [0n, 34n, -34n];
-```
-
-A hexadecimal integer part, as a [number](#numbers) writes it, takes the
-`n` too: `0x10n` is `16n` and `0XFFn` is `255n`, exact at any width, and
-`-0x8000000000000000n` folds into the leaf `-9223372036854775808n`. An
-output writes `0x10n` exactly as it writes `16n`, and one that refuses a
-`bigint` refuses it whatever its spelling: `.json` refuses every one.
-
-```js
-export default [0x10n, 0XFFn, -0x8000000000000000n];
-```
-
-The syntax is those integer parts and the `n`, so the JavaScript spellings
-it leaves out are not recognized: no octal prefix (`0o7n`). A fraction or
-an exponent (`1.5n`, `1e3n`), a leading zero (`01n`) and an uppercase `N` are
-errors in both languages. JSON has no spelling for a `bigint`, so a `.json`
-output refuses one ([output](#output)).
-
-### Strings
-
-A string is JSON's, between double quotes or between single quotes:
-
-```js
-export default ["hello!", 'hello!'];
-```
-
-Between double quotes it is exactly JSON's string: JSON's escapes — `\"`,
-`\\`, `\/`, `\b`, `\f`, `\n`, `\r`, `\t`, and `\uXXXX` — and no unescaped `"`,
-`\` or C0 control character (U+0000 through U+001F). Between single quotes it
-is the same with the delimiters swapped: a `"` stands for itself, and `\'` is
-the one escape it adds, so `'it\'s'` and `"it's"` are one string. Every other
-code point may stand raw in either quote, as in JSON: DEL (U+007F), the C1
-controls (U+0080 through U+009F), U+FEFF, U+2028 and U+2029, and a code point
-above U+FFFF included. The quote is a spelling, not part of the value, and
-every output writes the string between double quotes.
-
-`\'` stays refused between double quotes, where JavaScript accepts it, so a
-double-quoted string is always a JSON string. JavaScript's other spellings —
-the `\v`, `\0`, `\xHH` and `\u{…}` escapes, a raw TAB or other C0 control
-character, a line continuation — are refused in both quotes, as is a template
-literal; see [js-string-literals](./todo/2460-js-string-literals.md) and
-[template-literals](./todo/3440-template-literals.md).
-
-This holds at every string position of a module: a value, an object key,
-plain or in brackets, the key of a property access in brackets (`o['k']`),
-the path of an `import` statement and the value of its attribute —
-`with { type: 'json' }` is the attribute `with { type: "json" }` is.
-
-### Arrays
-
-```js
-export default [
-    "hello",
-    42,
-    [true, null],
-];
-```
-
-An array may be empty, may hold any value including another array or an
-object, and may end with a **trailing comma**. Two adjacent commas are not an
-elision: an array has no holes.
-
-See
-<https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Trailing_commas>.
-
-#### Spread
-
-An item may be a **spread**, `...` and any value, at any position and any
-number of times:
-
-```js
-const a = [1, 2];
-export default [[0, ...a, 3], [...a, ...a], [...'a😀']];
-// [[0, 1, 2, 3], [1, 2, 1, 2], ['a', '😀']]
-```
-
-The operand is evaluated in its place among the items, left to right, and
-then iterated, each value it yields becoming one item, as JavaScript's
-`SpreadElement` does. An array yields its elements in index order, and a
-string its code points, each a string of its own: `[...'😀']` is one item
-of two code units. Every other value — `null`, `undefined`, a boolean, a
-number, a `bigint`, an object, a function — is not iterable, and the spread
-fails, as JavaScript's `GetIterator` throws its `TypeError` (`a spread of a
-value that is not iterable`): a FunctionalScript object cannot define
-`Symbol.iterator`, so no object is iterable here, and none is in JavaScript
-either. A call's arguments take a spread the same way
-([functions](#functions)).
-
-The value outputs write the array the spread made, and the graph outputs
-the spread itself: `.js` and `.f.js` write it back, `[0, ...a]`, the EDAG
-keeps its `['...', exp]` item, and `.rs` prints it through `nanvm-lib`'s
-`get_iterator`. A constant spread is not folded, so `[...[1, 2]]` is a
-different graph from `[1, 2]`, as `1 + 1` is from `2`. A spread puts its
-operand's elements in the array and not the operand, so it shares what an
-element shares: `const a = [{}]; export default [[...a], a];` holds the
-object once, a `const` in DataJS and written where each reference reaches
-it in JSON ([Output](#output)), where `const a = [1]` in its place shares
-nothing. An object literal takes a spread too, with a different reading
-([objects](#objects)).
-
-### Objects
-
-```js
-export default {
-    a: "hello",
-    "b": 2,
-    ["c"]: [1, 2],
-};
-```
-
-An object may be empty and may end with a trailing comma, like an array. When
-one key is written twice, the last value wins, as in JavaScript.
-
-A member may be a name alone, the **shorthand** JavaScript reads as the name
-twice, `{ a }` for `{ a: a }`: the name is the key, and a reference to the
-name — a `const`, an import, a parameter — is the value, resolved and refused
-as any reference is, so `{ b }` with nothing binding `b` is an error, as is
-`{ typeof }` — and `{ NaN }`, since `NaN`, `Infinity` and `undefined` are
-[reserved words](#numbers) that denote a value and name no binding. Only the
-identifier spelling has the shorthand: `{ "a" }` and `{ ["a"] }` are errors,
-the key alone being no reference.
-
-```js
-const a = 1;
-const b = [a];
-export default { a, b, c: 3 };   // { a: 1, b: [1], c: 3 }
-```
-
-#### Object Spread
-
-A member may be a **spread**, `...` and any value, at any position and any
-number of times:
-
-```js
-const o = { a: 1, b: 2 };
-export default [{ ...o, c: 3 }, { a: 0, ...o }, { ...o, a: 0 }, { ...'ab' }, { ...null }];
-// [{ a: 1, b: 2, c: 3 }, { a: 1, b: 2 }, { a: 0, b: 2 }, { 0: 'a', 1: 'b' }, {}]
-```
-
-The operand is evaluated in its place among the members, left to right, and
-its own enumerable string-keyed properties are copied in, in its own
-property order, as JavaScript's `CopyDataProperties` copies them. A copied
-key behaves as a written one: when it is already present, the later value
-wins and the key keeps its first position. What each value contributes
-agrees with JavaScript:
-
-- **An object:** its own properties, array-index keys first in ascending
-  order, then the others in the order they were made.
-- **An array:** its elements, keyed `'0'`, `'1'`, ….
-- **A string:** one property per UTF-16 code unit, not per code point:
-  `{ ...'😀' }` is `{ 0: '\ud83d', 1: '\ude00' }`, where `[...'😀']` is
-  `['😀']`. The two spreads read a string differently in JavaScript, and so
-  here.
-- **Anything else** — `null`, `undefined`, a boolean, a number, a `bigint`,
-  a function — contributes nothing: `{ ...null }` is `{}`.
-
-So, unlike an [array's spread](#spread), an object's never throws. A
-function contributes nothing to the object, but the module holding it is
-still one holding a function: the value outputs refuse it, as they refuse any
-module holding one, and the others write the spread as it stands
-([Output](#output)). A
-copied `__proto__` key is an ordinary own property, as JavaScript's
-`CreateDataProperty` makes it: `{ ...{ ['__proto__']: 1 } }` owns a
-property named `__proto__` and has no new prototype
-([the `__proto__` key](#the-__proto__-key)).
-
-The value outputs write the object the spread made, and the graph outputs
-the spread itself: `.js` and `.f.js` write it back, `{ ...o, c: 3 }`, the
-EDAG keeps its `['...', exp]` entry, and `.rs` prints it through
-`nanvm-lib`'s `object_spread`. A constant spread is not folded, so
-`{ ...{ a: 1 } }` is a different graph from `{ a: 1 }`. With a spread among
-the members, which keys the literal has is known only once the operand is:
-no key selects inside such a literal, and no member before a spread is
-dropped as overwritten, so the sharing sweep reads every member and every
-spread operand's properties — which may refuse a `.json` output whose
-selected part shares nothing, never write a wrong one.
-
-A member may hold any value, `undefined` included, and a member holding
-`undefined` is still an own property, as in JavaScript: it keeps its key and
-that key's position, so `{ x: undefined }` is not `{}`, although reading `x`
-gives `undefined` from both. `{ x: 1, x: undefined }.x` is `undefined`, and
-`{ x: undefined, y: 2, x: 3 }` has the keys `x` and `y`, in that order. A
-DataJS or FunctionalScript output writes the member, `{"x":undefined}`; a
-`.json` output refuses it rather than drop it the way `JSON.stringify` does
-([output](#output)).
-
-#### Property Keys
-
-A key is a constant, written in one of three ways:
-
-|Form|Example|
-|----|-------|
-|string literal|`{ "a": 1 }`|
-|identifier|`{ a: 1 }`|
-|bracketed string literal|`{ ["a"]: 1 }`|
-
-The three spellings denote the same key and mix freely inside one object. An
-identifier key is an [identifier](#identifiers) — ASCII letters, digits, `_`
-and `$`, not starting with a digit — and may be a reserved word, `{ if: 1 }`,
-as it may in JavaScript. A key no identifier spells is written as a string:
-`{ "é": 1 }`, `{ "a-b": 1 }`.
-
-A key may be any name, including one a built-in prototype gives a value:
-`{ constructor: 1, toString: 2, push: 3 }` is an object that owns those three
-properties, as in JavaScript, whichever spelling each key takes. What
-[property access](#property-access) refuses is reading such a member back,
-not owning it, and `__proto__` is the one key with a rule of its own
-([below](#the-__proto__-key)).
-
-The brackets hold a **string literal**, not an expression: a key is a constant
-in every form. A key computed from a reference or any other expression, and a
-numeric key such as `{ 3e7: true }`, are not recognized yet — see the
-[roadmap](./todo/README.md).
-
-#### The `__proto__` Key
-
-JavaScript gives the three spellings of a `__proto__` key two different
-meanings:
-
-```js
-{ __proto__: v }      // sets [[Prototype]]; no own property
-{ "__proto__": v }    // sets [[Prototype]]; no own property
-{ ["__proto__"]: v }  // an ordinary own property named "__proto__"
-```
-
-Only the bracketed spelling denotes a property, so it is the only keyed one
-FunctionalScript accepts. The other two are compilation errors:
-
-```js
-export default { __proto__: 1 };    // error
-export default { "__proto__": 1 };  // error
-export default { ["__proto__"]: 1 }; // ok
-```
-
-**The bracketed form is the workaround**: it is how a module holds a property
-actually named `__proto__`. The [shorthand](#objects) `{ __proto__ }` is the
-other way, and denotes the same own property, as it does in JavaScript, where
-the prototype rule names the keyed spellings alone.
-
-FunctionalScript has no prototype chains at run time
-([property-accessor](./todo/2330-property-accessor.md)), so a spelling whose
-only meaning is "assign a prototype" has no meaning to give. Rejecting it is
-the whitelist principle rather than a special case, and it keeps principle 2:
-a module means on the FunctionalScript VM what it means on any other
-JavaScript engine.
-
-A value may still carry a `__proto__` property; what a module cannot do is
-*read* it with `o.__proto__`, which is a separate rule of
-[property-accessor](./todo/2330-property-accessor.md).
-
-##### The one key the two languages read differently
-
-`"__proto__"` is an ordinary data key in a JSON document — `JSON.parse` makes
-it an own property — and a prototype assignment in a JavaScript module. It is
-the only text the two languages disagree about; every other JSON document
-denotes the same value in both.
-
-Each language keeps its own reading, because each is right about itself:
-JSON's reader gives the document the value `JSON.parse` gives it, and the
-module parser refuses the spelling rather than give a module a value no
-JavaScript engine would give it.
-
-So `fjs compile` reads and writes the key differently in each language, and
-the extension of each file **named on the command line** picks the language:
-
-```sh
-fjs compile input.f.js output.data.js   # {["__proto__"]:1}
-fjs compile input.f.js output.json      # {"__proto__":1}
-fjs compile input.json  output.data.js  # reads {"__proto__":1} as a property
-```
-
-A JSON document therefore survives the loop `proto.json → a.data.js → out.json`
-byte for byte, each hop spelling the key its own language's way. The
-disagreement is about a *text*, not a value, so nothing is unreachable.
-
-The identifier spelling is not a key in either language: no JSON document
-contains one, so `{ __proto__: 1 }` is an error whatever the input file is
-called.
-
-In JavaScript output the bracketed form is what makes the module round-trip —
-of the keyed spellings it is the only one whose evaluation reproduces the
-property, and the writer has no other, since the [shorthand](#objects) needs
-a binding named `__proto__` to refer to and an output binds none. In JSON
-output the plain key stays: `JSON.parse` has no prototype special case, so
-JSON already round-trips, and the bracketed form is not JSON at all.
-
-## Grouping
-
-```js
-export default ([80, 443]).length;
-```
-
-A value may be written in parentheses, and it denotes that value: `(x)` is
-`x`, so the parentheses leave nothing behind — no node of their own and no
-change to which values a module shares — exactly as in JavaScript. A group
-is a value like any other and takes a property access or a call after its
-`)`, and it holds one value: a bare comma inside it waits on the comma
-operator ([operators](./todo/2340-operators.md)).
-
-Parentheses are not a boundary that anything downstream can see — but for
-the one an [optional chain](#optional-chaining) makes of them, where they
-end the region a `?.` opened. They keep
-a property reference, so `(o.m)(a)` is the method call `o.m(a)` is
-([functions](#functions)), and they keep sharing, so a `const` reached
-through a group is the one value it is reached without one. They launder
-nothing either: `(1).x` is the access `1 .x` is, `(1)(2)` the call `1(2)`
-is, and `(o.toString)(1)` the method call `o.toString(1)` is, its key judged
-by the call rule and not the read rule ([property access](#property-access)):
-`(a.push)(1)` is refused at the key as a prohibited member function, as
-`a.push(1)` is, and `(o.toString)` alone, a read, stays refused.
-
-What a group does change is how far an operator reaches. A group is one
-operand of whatever operator stands around it, so it overrides precedence
-and associativity as in JavaScript ([operators](#operators)): `(1 + 2) * 3`
-multiplies the sum, `1 - (2 - 3)` and `(2 ** 3) ** 2` reverse the default
-association, `(a ? b : c) + 1` adds to the chosen arm, and `(1 + 2) ** 2`
-raises the sum. It bounds how far a prefix reaches too, since `-` binds
-looser than a step ([unary minus](#supported-value-types)): `(-1).x` is the
-access on the negation and `-1 .x` the negation of the access, as JavaScript
-reads each. A group is an operand of `-` as well, and the one way a function
-reaches the prefix at all: `-((...a) => 1)` is a value where `-(...a) => 1`
-is a syntax error, there and here.
-
-A parenthesized parameter list, `(a, b) => …`, is distinguished from a group
-by the arrow following `)`. Each parameter must be a binding name; `(a + b)`
-is a group, while `(a + b) => 1` is refused.
-
-## Operators
-
-```js
-export default 1 + 2 * 3;
-```
-
-Beyond unary `-` ([supported value types](#supported-value-types)), the
-language has arithmetic (`+ - * / % **`), comparison
-(`=== !== > >= < <=`), and bitwise (`& | ^ ~ << >> >>>`) — Stage A of
-[operators](./todo/2340-operators.md) — and, above them, the lazy operators
-(`&& || ??`) and the conditional (`?:`), Stage B — and `!` and `typeof`, the
-logical not and the type tag, the prefixes neither stage had — and
-`instanceof Array`, the one instance check ([below](#instanceof)).
-`==`/`!=` stay refused, since neither language reads them the same way
-twice. The comma operator is not recognized yet.
-
-Precedence and associativity follow JavaScript's own. From the tightest, the
-levels are the prefixes `-`, `~`, `!` and `typeof`; `**`; `* / %`; `+ -`;
-the shifts `<< >> >>>`; `< <= > >=` and `instanceof`; `=== !==`; `&`; `^`;
-`|`; `&&`; `||`,
-with `??` a chain of its own at the same level; and the conditional above
-them all. The shifts therefore sit between arithmetic and comparison, unlike
-`& ^ |`:
-`1 << 2 + 3` is `1 << (2 + 3)` and `1 << 2 < 5` is `(1 << 2) < 5`. `**` is
-right-associative (`2 ** 3 ** 2` is `2 ** (3 ** 2)`), the conditional nests
-to the right (`a ? b : c ? d : e` is `a ? b : (c ? d : e)`), and every other
-operator here is left-associative; a group overrides both
-([grouping](#grouping)). A prefix immediately before `**` is refused,
-matching JavaScript exactly: `-2 ** 2`, `~2 ** 2`, `!2 ** 2` and
-`typeof 2 ** 2` are syntax errors here as there, at any depth of prefix
-nesting, and parentheses are the only way to write either reading —
-`(-2) ** 2` raises the negation, `-(2 ** 2)` negates the power. Immediately
-after `**` a prefix needs no parentheses, since JavaScript reads the right
-operand of `**` as another power or a
-`UnaryExpression`: `2 ** -2` is `2 ** (-2)` and `2 ** ~2` is `2 ** (~2)`.
-The refusal holds inside that operand too, so `2 ** -2 ** 2` is a syntax
-error in both languages, as its right side `-2 ** 2` is. `??` mixes with
-`&&`/`||` only under parentheses, as in JavaScript: `a ?? b || c` and
-`a && b ?? c` are syntax errors in both, and `(a ?? b) || c` is the one
-spelling of that reading.
-
-Each operator means what JavaScript's means and takes any value as an
-operand, converted exactly as JavaScript converts it — save a function's
-string, which the
-[function-source representation exception](#function-source-representation-exception)
-governs. Arithmetic and bitwise operators convert each operand to a number,
-a `bigint` staying one: `"5" - 2` is `3`, `true + true` is `2`, `null + 1`
-is `1`, and `undefined + 1` and `[1, 2] * 1` are `NaN`. `+` alone
-concatenates instead when either operand, made primitive, is a string —
-`"a" + 1` is `"a1"`, `1 + "2"` is `"12"`, `"x" + null` is `"xnull"` — and
-an array or an object is made primitive as JavaScript's `ToPrimitive` makes
-it: an array is its elements joined by `,`, `null` and `undefined` as empty
-strings (`[1] + [2]` is `"12"`, `[1, [2, 3]] + ""` is `"1,2,3"`), and an
-object is `"[object Object]"` unless it owns a `valueOf` or a `toString`,
-which is called as JavaScript calls it. Left associativity decides the rest:
-`1 + 2 + "3"` is `"33"` and `"1" + 2 + 3` is `"123"`. `< <= > >=` compare
-by UTF-16 code unit when both operands, made primitive, are strings
-(`"10" < "9"` is `true`), and numerically otherwise (`"10" < 9` is `false`,
-`null >= 0` is `true`, `undefined < 1` is `false`); `===`/`!==` convert
-nothing. `!` converts its operand as JavaScript's `ToBoolean` does and
-negates it: `!0`, `!""`, `!null`, `!undefined` and `!NaN` are `true`, and
-`![]` and `!{}` are `false`, an array or an object being truthy however
-empty. `typeof` is the type tag of its operand, the string JavaScript gives:
-`"undefined"`, `"boolean"`, `"number"`, `"bigint"`, `"string"`, `"object"`
-for `null`, an array and an object alike, and `"function"`. `typeof` is a
-reserved word, so it names no `const` and no parameter, while `{ typeof: 1 }`
-and `a.typeof` are a key and a property name as in JavaScript; the
-FunctionalScript writer spells it with a space after the word, `typeof 1`
-and `typeof (1+2)`.
-[`fjs/edag/operations`](../fjs/edag/operations/module.f.mjs) owns each
-node's meaning, and the [`fjs/nanvm`](../fjs/nanvm/module.f.mjs) corpus
-checks its cases against a JavaScript engine.
-
-### `instanceof`
-
-```js
-export default (...a) => a[0] instanceof Array;
-```
-
-`x instanceof Array` is `true` when `x` is an array and `false` of every
-other value — `null`, `undefined`, every primitive, an object and a
-function included. It never throws and converts nothing. It is the one
-`instanceof` the language has: the right operand must be the word `Array`,
-bare or in parentheses, since a group vanishes (`a instanceof (Array)` is
-`a instanceof Array`); any other right operand — `Map`, an access, a
-literal, a function — is refused at the operator. `Object` and `Function`
-are not admitted and never will be: `typeof x === "object"` and
-`typeof x === "function"` are the spellings for those. If we add more
-types, like `Set` or `RegExp`, each is one more name on the right, once the
-language can build one.
-
-`instanceof` is a relational operator, one level with `< <= > >=` and
-left-associative as they are: `a instanceof Array === b` is
-`(a instanceof Array) === b`, `a < b instanceof Array` is
-`(a < b) instanceof Array`, and `!a instanceof Array` is
-`(!a) instanceof Array` — JavaScript's own trap, kept rather than repaired;
-`!(a instanceof Array)` is the negation. `instanceof` is a reserved word,
-as `typeof` is: it names no `const` and no parameter, while
-`{ instanceof: 1 }` and `a.instanceof` are a key and a property name as in
-JavaScript. `Array` is a reserved word too ([numbers](#numbers)), so no
-scope binds it and the operator always means the global — before and after
-any `const`, where JavaScript would read a later `const Array` as a binding
-in its temporal dead zone and throw.
-
-The EDAG's node is `['instanceof', exp, 'Array']`: the constructor is a
-*name* from a closed list, not an operand, since no global is a value there
-([`fjs/edag`](../fjs/edag/README.md)); `nanvm-lib` answers it with
-`Any::instanceof_(x, Constructor::Array)`. The writer spells it with
-spaces around the word, `a instanceof Array`.
-
-A `bigint` stays exact. Over two of them the arithmetic and bitwise
-operators are integer operations of any size — `2n ** 64n` and `1n << 70n`
-are exact, `7n / 2n` is `3n` and `-7n / 2n` is `-3n`, truncated toward zero,
-`-7n % 2n` is `-1n` and `~5n` is `-6n` — and `< <= > >=` weigh a `bigint`
-against a number by value (`1n < 2`, `3 > 2n` and `1n <= 1.5` are `true`),
-while `===` never equates the two (`1n === 1` is `false`). Where JavaScript
-throws, so does the operation here
-([failure is one outcome](#failure-is-one-outcome)): a `bigint` mixed with a
-number in an arithmetic or bitwise operator (`1 + 1n`), `>>>` on a `bigint`,
-`/` or `%` by `0n`, and a negative `bigint` exponent (`2n ** -1n`). A string
-still concatenates: `"a" + 1n` is `"a1"`.
-
-The lazy operators establish their right operand only when the left decides
-nothing — `a && b`'s `b` when `a` is truthy, `a || b`'s when `a` is falsy,
-`a ?? b`'s when `a` is `null` or `undefined` — and yield the last operand
-they established, not a boolean (`0 && 2` is `0`, `1 && 2` is `2`); the
-conditional establishes exactly one of its arms, as JavaScript does. A
-`const` reached only through such a position is still evaluated when the
-module loads, as its own statement:
-`const c = null.x; export default [a && c, b && c];` throws at load in both
-languages, whatever `a` and `b` are. The
-[failure contract](#failure-is-one-outcome) says what an implementation may
-reorder around that; being reached only through a lazy position is not what
-decides whether a `const` runs.
-
-Unparenthesized, a function is no operand of these operators, the
-conditional's condition included: `(...a) => body` reads everything to its
-right as `body`, exactly as in JavaScript, so `1 * (...a) => 2` is refused
-where `1 * (...a)` runs out of value to read, and `(...a) => 1 ? 2 : 3` is
-one function whose body is the conditional. A group makes a function an
-operand, the same way it does for `-`: `1 * ((...a) => 2)` is a value, `NaN`,
-however little multiplying by a function is worth. The conditional's arms
-are the exception: each is a whole value, as in JavaScript, so a function
-stands in either bare, its body ending where `:` cannot continue it —
-`1 ? () => 2 : 3` is the function and then the else arm, and
-`0 ? 2 : () => 3 ? 4 : 5` is `0 ? 2 : () => (3 ? 4 : 5)`.
-
-The front end computes none of these — it builds the operation and passes
-it on. Unary `-` alone folds, over an operand that lowers to a number or a
-`bigint`, exact and total arithmetic ([numbers](#numbers)); every other
-operator here reaches the EDAG as a node, over numbers too (`1 + 2`, `~1`),
-the lazy ones and the conditional included. Of the other outputs
-([output](#output)), the Rust one spells every operator, running a lazy
-operand or an arm only where JavaScript would; its VM does not yet call an
-object's own `valueOf` or `toString` in a conversion
-([`member-functions.md`](../nanvm-lib/todo/member-functions.md)). A `.json`
-or DataJS output — the readers that compute a value — computes a negation of
-a primitive and refuses one of an array or an object ([numbers](#numbers)),
-and refuses every other operator the same way it refuses a function or a
-call (`an operator has no value`), until the EDAG interpreter answers for
-them there ([`interpret-edag.md`](../fjs/compiler/todo/interpret-edag.md)). The
-FunctionalScript writer, the `.js` output, spells every operator here, with
-the parentheses its precedence and associativity ask for and no more —
-`1 + 2 * 3` and `(1 + 2) * 3` come back as written, less the spaces, and
-`(1 + 2) + 3` as `1+2+3`; `??` is never bare beside `&&` or `||`; a prefix
-or a negative number on the left of `**` is grouped, `(-2)**2`; a `-`
-before a text opening with `-` takes a space, `1- -2`; a function under an
-operator, and an operator's text under an access, stand in a group,
-`-(()=>1)` and `(1+2).x`; and a value shared under one lazy operand
-alone is written in a block of the operand's own ([functions](#functions)).
-Read back, that text is the graph it was written from. `.json` and
-`.data.js` refuse every operator but unary `-` wherever it stands, an
-unused `const` included, so a module holding one compiles to `.js`,
-`.edag.data.js` and `.rs`.
-
-## Number Conversion
-
-```js
-export default (...a) => [Number(a[0]), Number("0x10"), Number(1n)];
-```
-
-`Number(exp)` converts its operand to a number, exactly as JavaScript's
-`Number` does when called. A number is itself. A string is read as a numeric
-literal, the whitespace around it ignored: `Number("0x10")` is `16`,
-`Number(" 4 ")` is `4`, `Number("")` is `0`, and `Number("x")` is `NaN`.
-`null` is `0`, `undefined` is `NaN`, and a boolean is `1` or `0`. A `bigint`
-is the nearest number — `Number(1n)` is `1`, and `Number(2n ** 64n)` is
-`18446744073709552000`, rounded as JavaScript rounds it. An array and an
-object are made primitive as the [operators](#operators) make them: an array
-by joining its elements, so `Number([7])` is `7` and `Number([1, 2])` is
-`NaN`; an object through its own `valueOf` or `toString`, called as
-JavaScript calls them, and `"[object Object]"` otherwise, so `Number({})` is
-`NaN`. A function converts to its text, which is no number. Where a
-`valueOf` or a `toString` throws, so does the conversion
-([failure is one outcome](#failure-is-one-outcome)).
-
-It is the language's conversion to a number: unary `+` is not FunctionalScript
-syntax, and where the EDAG has it the two differ, `+` throwing on a `bigint`
-([operators](./todo/2340-operators.md)). It is the EDAG's own
-`['Number', exp]`, which every output spells and every executor answers; the
-front end folds nothing, `Number("1")` reaching the graph as a node, as `~1`
-does. The conversion is a value like any other: an operand, `-Number("1")`
-and `Number(a) * 2`; a base, `Number(a).x`; and a callee, however little
-calling a number is worth. The FunctionalScript writer spells it back as it
-is written, the operand an argument, `Number(1+2)`.
-
-**`Number` is a reserved word**, one of the names
-[global names](./todo/2365-global-names.md) reserves, with `Array` and `String`
-([string conversion](#string-conversion)) —
-[`fjs/js/keywords`](../fjs/js/keywords/module.f.mjs)' `reservedGlobals`, a
-list beside the keywords rather than among them, since JavaScript has no
-such keyword. A module cannot bind it, as a `const`, a parameter or an
-import's local name ([shared values](#shared-values-constants)), and it is
-no value: it stands only as the callee of a call, and is a compilation
-error (`reserved word`) anywhere else — bare,
-`const f = Number;`, or as a namespace, `Number.isFinite(x)`, whose members
-are [built-ins](./todo/2360-built-in.md) still to admit, each on its own.
-A key or a property name is not a reference, so `{ Number: 1 }` and
-`o.Number` mean what they mean in JavaScript. `Number()` is `0`, as in
-JavaScript, and reaches the graph as the literal, folded as `-1` is. Two
-call shapes are not recognized yet, and refused by name
-(`Number takes one argument`) rather than answered wrongly: `Number(a, b)`,
-which establishes `a`, then `b`, then converts `a` — the comma operator's
-`(a, b, Number(a))`, which lands with it
-([operators](./todo/2340-operators.md)) — and `Number(...a)`, which converts
-the first value the spread yields after yielding them all, or is `0` where it
-yields none, as `Number()` is, a call of a runtime arity no node expresses
-yet ([number-spread](./todo/2363-number-spread.md)). Nor is the guarded call `Number?.(x)`,
-which is `Number(x)` in JavaScript, the word never being nullish: it is
-refused at the word (`reserved word`) as every other spelling of `Number`
-but the call is, until a pull request reads the guard away, a spelling no
-module writes.
-
-The word is reserved for the guarantee `undefined`, `NaN` and `Infinity`
-already have ([numbers](#numbers)): a global word means one thing wherever
-it stands. `Number(x)` is the conversion in every module, so a reader, an
-agent or a tool reads it without resolving a scope, where a JavaScript module
-that binds the word — `const Number = x => x;`, the shadowing JavaScript's
-linters flag — makes every `Number(…)` after it something else. And it keeps
-the language free to grow: a member of the namespace admitted later,
-`Number.isInteger` ([built-ins](./todo/2360-built-in.md)), cannot change
-what an existing module means, since no module could have bound the word
-([global names](./todo/2365-global-names.md)). The one JavaScript spelling it
-costs, a module rebinding a standard global, is refused at compile time
-rather than read another way.
-
-It is also the one key computed at run time, `a[Number(i)]`
-([property access](#property-access)).
-
-## String Conversion
-
-```js
-export default (...a) => [String(a[0]), String(42n), String([1, 2])];
-```
-
-`String(exp)` converts its operand to a string, as JavaScript's `String`
-does when called. A string is itself. `null` and `undefined` become
-`"null"` and `"undefined"`, booleans become `"true"` or `"false"`, and numbers
-and `bigint`s become their decimal text: `String(-0)` is `"0"`,
-`String(NaN)` is `"NaN"`, and `String(42n)` is `"42"`. An array joins its
-elements with commas, with `null` and `undefined` contributing empty text,
-so `String([1, [2, 3], null])` is `"1,2,3,"`.
-
-An object uses the string hint for primitive conversion: its `toString`
-is tried before its `valueOf`, with no arguments. A noncallable method or
-a nonprimitive result falls through to the next method. An object with no
-own `toString` uses the ordinary `"[object Object]"` text, so
-`String({ valueOf: () => 7 })` is `"[object Object]"`. If neither method
-produces a primitive, or a method throws, conversion fails
-([failure is one outcome](#failure-is-one-outcome)). A function becomes
-its [EDAG-derived text](#function-source-representation-exception), which
-describes its code without embedding captured values.
-
-The one-argument conversion reaches the graph as `['String', exp]`, with
-no front-end folding. The FunctionalScript writer spells it as `String(exp)`;
-the EDAG and Rust outputs retain the operation, and the JSON and DataJS
-outputs evaluate it. It is an expression wherever a value may stand,
-including an operand, `String(x) + "!"`, or a base, `String(x).length`.
-`String()` is the empty-string literal, as in JavaScript.
-
-**`String` is a reserved word**, under the same
-[global-name rule](./todo/2365-global-names.md) as `Number`. A module cannot
-bind it as a `const`, parameter or import, and it has no standalone value:
-`const f = String;` and `String.fromCharCode(65)` are compilation errors
-(`reserved word`). A key or property name remains ordinary,
-`{ String: 1 }.String` being `1`. Reserving the word lets every `String(x)`
-denote the conversion without resolving a scope, and keeps future namespace
-members from changing the meaning of existing bindings.
-
-Multiple arguments and spreads remain unrecognized and are refused at the
-word (`String takes one argument`): JavaScript evaluates all arguments before
-converting the first, while a one-operand node cannot express those call
-shapes. The guarded call `String?.(x)` is also refused (`reserved word`).
-A property key computed at run time still requires `Number(...)`
-([property access](#property-access)); `a[String(x)]` is refused as every
-other unrecognized computed key is.
-
-## Property Access
-
-```js
-const cfg = { ports: [80, 443] };
-export default [cfg.ports[0], cfg["ports"].length];
-```
-
-A property access reads an **own property** of a value — a member of an
-object, an element or the `length` of an array, a code unit or the `length`
-of a string, the `length` of a function. Any value takes one: a reference, a
-group, an access, a call, or a value written out of any
-[type](#supported-value-types) — `null`, `undefined`, a boolean, a number, a
-`bigint`, a string, an array or an object. A property the value does not own
-is `undefined` — `true.x` and `true.length` are, a boolean owning nothing —
-and reading one of `null` or `undefined` is an error, as JavaScript throws.
-
-A numeric literal takes an access like anything else: `1 .x` is `undefined`,
-written with a space since `1.x` is one number and a stray word, while a
-`bigint`'s `n` ends its literal, so `1n.x` needs none. The sign binds looser,
-as it does in JavaScript, so `-1 .x` is `-(1 .x)`, `-1n.x` is `-(1n.x)`,
-which is `NaN`, and `const n = 1;` followed by `n.x` is `undefined` in both
-languages.
-
-The key is a constant — an [identifier](#identifiers) after `.`, or a string
-or a numeric literal in brackets — and `0` and `"0"` name the same element,
-as in JavaScript. A numeric literal names the string JavaScript's `String`
-gives its number, which is the number's
-[normalized DataJS](./datajs/README.md#normalized-form) spelling: `a[1.0]`,
-`a[1e0]` and `a[0.1e1]` are `a["1"]`, `o[1e21]` is `o["1e+21"]`, `o[1e-7]`
-is `o["1e-7"]`, and `o[1e400]`, a literal that overflows, is
-`o["Infinity"]` — a key the FunctionalScript (`.js`) output refuses to write
-(`a number key no literal reads back`). A string in brackets is the key
-unchanged, so `a["01"]` and `a["1.0"]` name no element and are `undefined`,
-as in JavaScript.
-
-A key computed at run time is the conversion,
-`a[Number(i)]` ([number conversion](#number-conversion)): the property the
-number names, its string as JavaScript gives it, so `xs[Number("1")]` and
-`xs[1]` read one element, `"abc"[Number(true)]` is `"b"`, and
-`xs[Number("x")]`, whose key is `"NaN"`, is `undefined`. It reads an own
-property as every access does, and no prototype name is a number's string,
-so nothing is refused at a converted key; `a[Number(i)](x)` calls what it
-reads with `a` as the receiver, as `a[0](x)` does. Its base and its key are
-both evaluated, as in JavaScript, though not in a promised order: where both
-fail, which fails first is no observation
-([failure is one outcome](#failure-is-one-outcome)). `a?.[Number(i)]`
-evaluates the key only where `a` is neither `null` nor `undefined`
-([optional chaining](#optional-chaining)).
-Anything else in the brackets is a compilation error
-(`computed key is not Number(...)`), at the token it begins with: `a[i]`,
-whose type the compiler does not know — a key of any type is the `entry`
-helper's to read ([reading an entry at run time](#reading-an-entry-at-run-time))
-— and every other expression, `a[-1]` and `a[NaN]` included, whose keys
-are written as strings instead, `a["-1"]` and `a["NaN"]`. Trivia, a line break included, may stand on either side of the
-`.` or the `[` and inside the brackets, as between any two tokens
-([trivia](#whitespace-and-line-terminators)): `a . b`, `a./* c */b` and `a`
-with `.b` on the next line are each `a.b`, as JavaScript reads them.
-
-FunctionalScript has no prototype chains, so a name a built-in prototype
-gives a value — `push`, `toString`, `valueOf`, `constructor`, `__proto__`
-and the rest, listed in [`fjs/js/prototype`](../fjs/js/prototype/module.f.js)
-— is a **compilation error** as the key of an access, in either spelling,
-`o.toString` or `o["toString"]` (`prohibited property name`): JavaScript
-would find a function there and this language nothing, and a module must
-mean one thing in both. The rule refuses reading such a name, not owning it:
-an object literal may hold one, `{ toString: 1 }`
-([property keys](#property-keys)). `length` is the exception, since an
-array, a string and a function own it. The rules are
-[property-accessor](./todo/2330-property-accessor.md)'s.
-
-A method call has a rule of its own. `a.push(1)`, `a.valueOf()` and the
-other member functions
-[`fjs/js/prototype`](../fjs/js/prototype/module.f.js)'s `prohibitedCalls`
-names are compilation errors (`prohibited member function`) — one row per
-name, with the reason, in [its README](../fjs/js/prototype/README.md). Every
-other prototype name but `length` is on its `allowedCalls`, and a call of one
-— `a.toString()`, `[1, 2].at(0)`, `a.map(f)` — calls the receiver type's
-built-in, as in JavaScript, an own property of the name shadowing the
-built-in and a type without one throwing as JavaScript does. The read stays
-refused where the call is allowed, since a detached built-in is a function
-that only fails. `length` is on neither list: `a.length(1)` calls whatever
-`a` owns there, as JavaScript does, so a function an object holds under
-`length` is called, and anything else — an array's, a string's or a
-function's `length` is a number — throws the `TypeError` JavaScript throws.
-
-Today the Rust VM, which runs a `.rs` output, has only two of those
-built-ins: `toString`, on every type, and an array's `at`. A call that
-reaches any other, a string's `at` included, throws there as a call of
-`undefined` does, where JavaScript answers — a failure, which is
-[one outcome](#failure-is-one-outcome), not a different value — until its
-entry in [member-functions](../nanvm-lib/todo/member-functions.md) lands.
-Its `toString` applies no radix yet, so on a number or a `bigint` any radix
-but `10` throws — `(255).toString(16)` fails there rather than answer `"255"`
-([member-functions](../nanvm-lib/todo/member-functions.md)). Nor does it give
-a function the text the
-[function-source exception](#function-source-representation-exception)
-adopts, a defect
-[default function text](./todo/3120-parameters.md#default-function-text-render-or-refuse)
-tracks.
-
-## Optional Chaining
-
-```js
-const o = { a: { b: 1 }, f: (...x) => x };
-const n = null;
-export default [o?.a.b, n?.a.b, o.f?.(2), n?.(3), (o?.a).b];
-```
-
-An optional chain is JavaScript's: `v?.k` and `v?.[k]` read the property
-`v.k` and `v[k]` read, with the key the same constant either takes
-([property access](#property-access)), and `v?.(…)` calls `v` as `v(…)`
-does — unless `v` is `null` or `undefined`, when the whole chain is
-`undefined` and nothing after the `?.` is evaluated: not the key, not the
-arguments, and not the steps written after it. `n?.a.b` is `undefined` under
-a nullish `n`, where `n.a.b` throws, and `n?.f(g())` never calls `g`. The
-steps after a `?.` are the chain's own until a parenthesis ends it, so
-`(n?.a).b` reads `b` of `undefined` and throws — the one thing a group is
-observable through ([grouping](#grouping)) — and the value is JavaScript's
-in every spelling: `a?.b.c` and `(a?.b).c` are two programs, `a?.b?.(c)` and
-`(a?.b)?.(c)` one, since a region closed before a guard is unobservable.
-
-A call keeps its receiver through a `?.` as it keeps it through a `.`:
-`a?.b(c)` and `a.b?.(c)` call `b` with `a` as `this`, so a built-in member
-function is called through either, and `(a?.b)(c)` keeps it too, as
-`(a.b)(c)` does. The key is judged as an access's is — a prototype name
-refused as a read, `a?.at`, and allowed as a call, `a?.at(0)`; a member
-function a module may not call refused at its key, `a?.push(1)`; `length`
-read from any value — and a key computed at run time is the conversion,
-`a?.[Number(i)]`, as it is after `.`
-([property access](#property-access)), established only where the guard
-lets the chain go on.
-
-The graph is `fjs/edag/README.md`'s Chains, where every spelling has one
-shape and the host engine agrees with it: `a?.b` is `['?.', a, 'b']`, the
-steps after it the node's continuation, `['?.', a, 'b', ['|.', 'c']]` for
-`a?.b.c`, and a group an access over the node, `['.', ['?.', a, 'b'], 'c']`.
-`a.b?.(c)` is the access's own step, `['.', a, 'b', ['|?.()', c]]`, and
-`a?.(c)` the call node `['?.()', a, c]`. Every output writes them: the
-FunctionalScript one as above, a group where the region closed; the EDAG
-one as the nodes; the Rust one as the method chain `nanvm-lib` runs. A
-`?.` directly before a decimal digit is the token `?.` here, as the
-tokenizer reads it
-([`?.` before a digit](../fjs/js/tokenizer/todo/optional-chain-before-digit.md)):
-`a?.5:1` is refused at the `5`, and will be the conditional it is in
-JavaScript when `.5` is a number.
-
-## Reading an Entry at Run Time
-
-```js
-const entry = (a, b) => {
-    const x = Object.getOwnPropertyDescriptor(a, b);
-    return x?.enumerable ? x.value : undefined;
-};
-const escapes = { n: "\n", t: "\t" };
-export default (...c) => entry(escapes, c[0]);
-```
-
-A key computed at run time is read by the **`entry` helper**: the function
-above, written in a module under any three names, or imported from
-[`fjs/types/object/entry`](../fjs/types/object/entry/module.f.js), which spells it once.
-`entry(a, b)` is the enumerable own property `b` names of `a` — a member of
-an object, an element of an array or of a string — and `undefined` where
-there is none: a `length`, which an array, a string and a function own
-without enumerating it; a function's `name`, which the language keeps
-unobservable ([functions](#functions)); anything of a number, a boolean or
-a `bigint`; and a name a prototype would give the value in JavaScript, since
-the descriptor is the value's own. The key is converted as
-`Object.getOwnPropertyDescriptor` converts it, so `entry(a, 0)` and
-`entry(a, "0")` read one element and an object key converts through its own
-`toString`; a `null` or `undefined` `a` is an error, as reading a property
-of one is, and so is a key whose conversion fails.
-
-The helper is exactly what it spells. The compiler recognizes the function
-whole — its two parameters, the `const` the descriptor binds and the
-`return`, under any three distinct names a module may bind, so no keyword
-and no `Array`, the keys in either spelling, the
-semicolons where JavaScript inserts them — where `Object` is the intrinsic,
-which it is wherever no scope binds the word; a function that departs from
-it by a step is an ordinary function, in which `Object` is a name nothing
-binds ([shared values](#shared-values-constants)), and a parameter, a
-`const` or a function's own name spelling `Object` is what JavaScript reads
-it as. A `const` of `Object` after the helper, in the module or in a body
-the helper is written in, is refused as a shadowed capture is
-([functions](#functions)): JavaScript would resolve the helper's `Object`
-to that `const`, and the helper would be no helper. It is a function like
-any other once recognized: a value, of
-`length` `2`, capturing nothing, a fresh identity wherever it is written as
-every arrow is, passed as a value — `[a, b].map(entry)` — and converting
-to its text as any function does
-([function source](#function-source-representation-exception)). Its EDAG
-is the node `['entry']`, the helper as a value, and a read of a computed
-key is a call of it, `['()', ['entry'], [a, b]]`
-([`fjs/edag`](../fjs/edag/README.md)); every output writes the node back
-as the helper, the FunctionalScript one under names of its own, the Rust
-one as a function the VM answers natively.
-
-The node is the language's one read of a property by a name it computes:
-`Object` is no value a module can name outside the helper
-([built-ins](./todo/2360-built-in.md)), and `a[i]` stays unread
-([property access](#property-access)). Where a program knows its index to
-be a number, the spelling is `a[Number(i)]`
-([property access](#property-access)); `a[+i]`, where no `bigint` can reach
-it, is [property-accessor](./todo/2330-property-accessor.md)'s still, and
-`entry` is the read for a key of any type.
-
-## Importing Other Modules
-
-```js
-import a from "./a.f.js";
-import { add, subtract as sub, } from "./math.f.js";
-import { default as config } from "./config.f.js";
-import d, { value as v } from "./mixed.f.js";
-import {} from "./checked.f.js";
-```
-
-An `import` statement selects exports from another module's complete export
-object. The exported name selects the property; an alias changes only its local
-binding. Named-only modules need no default export.
-
-The completed [named-import proposal](./named-imports.md) records the design
-scope and language-designer authorization.
-
-- The selected export must exist, even when its binding is unused. A present
-  export whose value is `undefined` is valid; an absent export is an error.
-- A selection reads an own property of the export object, so a built-in
-  prototype's name selects an export like any other:
-  `import { __proto__ as p, constructor as c } from "./dep.f.js";` binds the
-  dependency's own exports of those names, and one it does not export —
-  `toString`, `hasOwnProperty` — is an absent export, not a built-in.
-  [Property access](#property-access) refuses these names as keys; a
-  selection is not an access. The FunctionalScript output refuses such an
-  importer today (`a prohibited property name`), since it writes the selection
-  as an access; the other outputs accept it.
-- Named lists admit aliases, trailing commas, `default as name`, and an empty
-  list. A default binding may precede a named list.
-- An empty list still loads and evaluates the dependency. Unused imports and
-  unselected export initializers retain their required evaluation and failures.
-- Namespace imports ([namespace-import](./todo/2220-namespace-import.md)),
-  string-literal export names, bare side-effect imports, and re-exports remain
-  unsupported.
-- The module specifier is a [string literal](#strings), resolved using the
-  declared host environment's module-resolution rules. Relative specifiers
-  resolve against the importing module's identity; bare specifiers follow the
-  host's package or import-map rules. Unsupported specifier classes are
-  refused, not reinterpreted as sibling filesystem paths.
-- Within one program load, imports resolving to the same module identity
-  share its evaluation and exported value. Distinct module identities remain
-  distinct even when they load the same file; loading paths are not cache
-  keys. A circular dependency is an error.
-- Local bindings are names under the [rule](#shared-values-constants) a
-  `const` follows — `import { a as let }` and `import eval from "./e.f.js"`
-  are errors, `import from from "./f.f.js"` is not — and cannot duplicate
-  another import or module constant, both being names of the one module
-  function ([a module is a function](#a-module-is-a-function)). Exported names are identifier names;
-  reserved words such as `default` require a valid local alias.
-- Every `import` comes before every `const`
-  ([module structure](#module-structure)).
-
-**Current supported host profile:** the Node runner resolves admitted file imports
-against the importing file URL, canonicalizes symlinks, and reuses modules by the
-resulting file URL identity. Imports use portable URL-path spellings beginning
-with `./`, `../`, or `/`. Absolute `file:` imports and query/fragment components
-are outside the supported grammar, as are bare packages and other URL schemes.
-Encoded filename characters such as `%23` still work. This is the default Node
-file-module profile; preserve-symlinks modes are not supported profiles.
-
-The profile does not yet cover a module's format, only its resolution and
-identity. An import without the attribute is read by the module parser
-whatever the file it resolves to is called — `.f.js`, `.js`, `.mjs`,
-`.data.js`, `.ts`, `.cjs`, `.txt` or no extension alike — as a root input is
-([file types](#file-types)); only a `.json` file is refused without it
-(below). Node takes the format from the extension instead: it refuses `.txt`
-and loads `.cjs` as CommonJS, where `export` is a syntax error, so a module
-importing either compiles although Node would not load it. The existing
-[module-resolution TODO](../fjs/compiler/todo/module-resolution-compatibility.md)
-records the host boundary, tests, and remaining support work.
-
-A JSON document has only a `default` export. Both a default binding and
-`{ default as name }` may select it; its object keys are not named exports.
-The import requires the attribute JavaScript specifies and denotes the value
-`JSON.parse` gives it:
-
-```js
-import a from "./a.json" with { type: "json" };
-```
-
-- The attribute is `with { type: "json" }`, spelled as JavaScript spells it:
-  the key `type`, an identifier name, and the string `"json"`, in braces after
-  the path. Any other key or value is an error, as it is in JavaScript. The
-  value is a [string](#strings) like any other, so `type: 'json'` is the same
-  attribute. JavaScript also accepts the key written as a string,
-  `with { "type": "json" }`, a trailing comma after the pair, and `with {}`
-  on an import that is not JSON; none of these is recognized yet. `"json"` is
-  the one type ECMAScript defines; `"text"` and `"bytes"` are proposals,
-  blocked on their standardization
-  ([import-text-bytes](../todo/blocked/import-text-bytes.md)).
-- The attribute declares the file's language and never reinterprets the file,
-  so it must agree with the extension: a `.json` file imported without it, and
-  any other file imported with it, are errors — JavaScript refuses both, so
-  that data a program did not declare cannot stand where it expects a module.
-  The extension is that of the file the import resolves to, not the
-  specifier's: under the Node profile a symlink's target decides, as it does
-  in Node, so `"./alias.f.js"` linking to `data.json` needs the attribute,
-  and `"./mod.json"` linking to `m.f.js` must not carry it.
-- The document is read by the JSON reader, as a `.json` input is
-  ([JSON input](#json-input)): a `.json` file is JSON and nothing more.
-
-`fjs compile` resolves imports and inlines them, so its output is one
-self-contained file that imports nothing.
-
-See
-<https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#default_import>.
-
-## Shared Values, Constants
-
-```js
-const port = 8080;
-const server = { "port": port, "host": "localhost" };
-export default { "dev": server, "prod": server };
-```
-
-A `const` statement names a value so that it can be *used more than once*. It
-is what makes a module denote a **graph** rather than a tree, and it is the
-main thing FunctionalScript data has that JSON data does not.
-
-JSON can only represent a tree, so a value used twice is written twice. Two
-copies are not one shared value: they take twice the space, they drift apart
-when only one is edited, and a reader that loads them gets two objects where
-the author meant one. The usual answers — an id/reference convention, a
-`$ref` pointer — require a bespoke format and a bespoke resolver on both
-sides, and what they load still has a different shape from the object graph
-the author had in mind. In FunctionalScript the sharing *is* the language:
-`const` and `import` are how a value gets more than one reference, and a
-JavaScript engine loading the module rebuilds exactly the graph that was
-written.
-
-- A name is an [identifier](#identifiers), and one rule says which
-  identifiers a binding may take — a `const`, a body `const`, a parameter,
-  fixed or rest, and an import's local name alike. A word JavaScript reserves
-  in a module is refused: `const if = 1;`, `const export = 1;`,
-  `const let = 1;` and `const await = 1;` are errors here as they are there.
-  So are `eval` and `arguments`, which strict code may not bind —
-  `const eval = 1;` and `(arguments) => 1` are errors in both languages —
-  since any broken JavaScript program is a broken FunctionalScript program.
-  `undefined`, `NaN` and `Infinity` are refused as well, although a
-  JavaScript module may bind them, so that each denotes its value wherever a
-  value stands ([numbers](#numbers)); and so is `Number`, the first global
-  reserved under [global names](./todo/2365-global-names.md), which names
-  no value and stands only as the conversion
-  ([number conversion](#number-conversion)). A word that is a keyword only in some
-  position — `async`, `of`, `get`, `set`, `from`, `as` — is an ordinary name,
-  as in JavaScript, and so are `type` and `then`:
-  `(from, then) => [from, then]` is a function, and `then` is refused only as
-  an export's name ([exporting a value](#exporting-a-value)). A key or a
-  property name is not a binding, and this rule does not reach it:
-  `{ if: 1 }` and `a.default` are a key and an access, as in JavaScript.
-- A name must be declared before it is used. Forward references are not
-  recognized yet ([forward-references](./todo/3140-forward-references.md)).
-- Imported and constant names share one namespace, the module function's
-  ([a module is a function](#a-module-is-a-function)): declaring the same
-  name twice is an error.
-- Every `const` is evaluated as its own statement, whether or not anything
-  reads it — a module's when the module loads, a function body's at every
-  call ([functions](#functions)) — so its failure is the module's or the
-  call's, as in JavaScript: `const c = null.x; export default 1;` throws at
-  load. The [failure contract](#failure-is-one-outcome) says what an
-  implementation may reorder around it. The FunctionalScript and EDAG outputs
-  keep what such a `const` computes, and the value outputs, which write only
-  the value, still evaluate it and refuse the module when it fails
-  ([output](#output)).
-- Every ordinary or exported `const` comes after every `import` and before
-  `export default`, when present
-  ([module structure](#module-structure)).
-- `let` and `var` are not part of the language ([let](./todo/3220-let.md)).
-
-Sharing is a property of the *value*, not of the name, so what the compiler
-preserves is what the graph actually shares. A DataJS document writes it in
-[normalized form](./datajs/README.md#normalized-form):
-
-- a `const` referenced once is inlined into its single use;
-- an object or an array referenced more than once is emitted as a `const`,
-  whether the source named it or not;
-- a primitive is written inline wherever it is read, however many times,
-  even when a `const` or an import names it:
-  `const s = "str"; export default [s, s];` writes the string twice in every
-  output, JSON included, since a primitive has no identity for a second
-  reference to share;
-- objects and arrays are shared by identity, so two separately written objects
-  with equal contents stay two objects.
-
-```js
-const a = { "x": 1 };
-const b = [a, a];
-export default [b, b, a];
-```
-
-is written, as DataJS and as FunctionalScript, as
-
-```js
-const $0={"x":1};const $1=[$0,$0];export default [$1,$1,$0];
-```
-
-and as JSON, a tree, with the node written where each reference reaches it,
-`[[{"x":1},{"x":1}],[{"x":1},{"x":1}],{"x":1}]`. A
-function has identity as an object does ([functions](#functions)), so a
-FunctionalScript document shares one the same way:
-`const f = () => 1; export default [f, f];` is written
-`const $0=()=>1;export default [$0,$0];`. Not every FunctionalScript
-document is in normalized form: a module with a named export, among others,
-gives what it computes more names than normalized form does
-([output](#output)).
-
-See
-<https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const>.
-
-## Functions
-
-```js
-export default (...args) => [args, args[0]];
-```
-
-The same function, written with a block body:
-
-```js
-export default (...args) => { return [args, args[0]]; };
-```
-
-A function that takes no arguments, its parameter list empty:
-
-```js
-export default () => 6;
-```
-
-A function is an arrow with zero or more fixed named parameters and an
-optional final rest parameter. Its body is an expression or a block:
-
-```js
-export default (a, b, c, ...x) => [a, b, c, x];
-```
-
-Bare `a => a`, `(a) => a`, and a fixed list with a trailing comma are also
-accepted. No parameter or comma may follow rest. Defaults and destructuring
-are not supported yet. A newline before `=>` is refused.
-
-- Fixed names bind positional arguments; missing arguments are `undefined`.
-  Extra arguments are permitted. The rest parameter is the array of arguments
-  after the fixed prefix. Each invocation has its own rest array, and repeated
-  reads within it return the same array. Parameters may shadow outer names,
-  but must be distinct and cannot collide with body declarations. Each one,
-  fixed or rest, is a name by the
-  [binding rule](#shared-values-constants): `(eval) => 1` and
-  `(...let) => 1` are refused, while `(from, then) => [from, then]` is a
-  function.
-- `f.length` is the number of fixed parameters, including unused ones. Rest
-  adds zero. A function has **at most 16** fixed parameters: a 17th is a
-  compile error, and an EDAG function whose `length` is above 16 is refused by
-  every writer. Wider data reads better as an array or an object, and a rest
-  parameter still takes any number of arguments. The JavaScript evaluators
-  materialize every valid length through
-  [hand-written arrow factories](../fjs/types/function/length/README.md).
-- A name the body reads from a scope around it — a `const`, an import, an
-  enclosing function's parameter or an enclosing body's `const` — is a
-  **capture**, as a JavaScript closure's is. The function's frame is the
-  array of the captured values, each value once however many bindings or
-  references reach it, in the order the body first names them, built where the
-  function is written; the body reads a capture as a slot of it, and a
-  nested function captures through its parent. Nothing mutates, so a frame
-  copied when the function is made is unobservable from a closure over the
-  scope ([function-frame](./todo/3111-function-frame.md)). A captured
-  primitive is written into the body instead, as a `const` holding one is
-  wherever it is read, since it has nothing to share.
-
-  Captures are JavaScript's closures, not a feature of this language's
-  own: a capture was an error only while a function had no frame to
-  capture with, a restriction whose reason is gone
-  ([DESIGN.md §12](../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)).
-  The frame is the one [function-frame](./todo/3111-function-frame.md) and
-  the EDAG's closed-scope model
-  ([`["frame", N]`](../todo/edag-stage1-discussion.md)) describe.
-
-  ```js
-  const base = [10];
-  const add = (...a) => (...b) => a[0] + b[0];
-  export default [add(1)(2), ((...a) => base[0] + a[0])(5)];
-  ```
-
-  A function that names itself reaches itself: in
-  `const fact = n => n < 2 ? 1 : n * fact(n - 1);` the inner `fact` is the
-  function itself, the EDAG's `["self"]`, and `export default fact(5);`
-  exports `120`. The name is the function's own only where the function is
-  the whole value of the `const`, a module's or a body's: `const f = [() => f];`
-  and `const f = (() => f)();` are `const not found`, since neither value is
-  a function with a self to read. The function's own name comes after the
-  names its body binds, as in JavaScript: a parameter or a body `const` of
-  the same word shadows it — unless the body has already read the function
-  by that word, which is refused as a capture shadowed is
-  ([functions](#functions)). A function nested in it captures the name as
-  it captures any other value around it, so `const f = x => () => f(x);`
-  recurs through the inner function. Reading a *later* `const`, and so two
-  functions calling each other, is still refused
-  ([forward-references](./todo/3140-forward-references.md)).
-- An **empty parameter list** binds no name at all, so a body written under
-  one cannot reach its arguments: the arguments array is named by the
-  parameter and by nothing else, and a word the list does not spell is
-  unbound here exactly as any other unbound word is. Nothing else
-  distinguishes the two lists. `() => 1` and `(...args) => 1` denote the one
-  function, the one node `['=>', 0, [], 1]` — though each arrow written is
-  a function of its own (below) — and a body `const` may take the name a
-  parameter would have taken, there being no parameter to collide with.
-- A parameterless function **called where it is written**, with no
-  arguments, denotes its body where the call stands:
-  `a ? (() => { const x = f(); return [x, x]; })() : 4` is the idiom for a
-  `const` inside an expression, an arm of a conditional say, where no
-  statement can stand, and it lowers to the arm holding `[x, x]` with `x`
-  one shared node, no function and no call. Nothing observes the function:
-  it is called once and compared with nothing, so it mints no identity the
-  program could see, and its body evaluates exactly once, where the call
-  stands — a slot of its frame is the enclosing scope's own node, so what
-  the body shares stays shared and nothing else is. A body `const` the
-  returned value does not reach is evaluated where the call stands, as in
-  JavaScript; in the graph it is anchored at the nearest position that
-  opens a block, the scope's root or a lazy operand
-  ([operators](#operators)), which is where JavaScript's own semantics can
-  tell no difference under the [failure contract](#failure-is-one-outcome).
-  `(() => [1, 2])()` is `[1, 2]`, and a module holding either hashes the
-  same. A capture a body names only through an unused alias, `const x =
-  c;` and nothing more, is no slot of its frame, in a body or in a call
-  inlined into one: the alias is dropped, so nothing reads it, and the
-  scope's `const` is anchored as one nothing reaches. A call with an
-  argument, `(() => 1)(null.x)`, has an argument to evaluate; a function
-  with a parameter binds a name; and a body reading its own rest array
-  names what the enclosing scope does not hold — each stays a call. The FunctionalScript writer uses the same idiom in reverse:
-  a value shared under one lazy operand alone, which no `const` of the
-  scope could hold without evaluating it whatever the operator decides, is
-  written in a block opened at the operand,
-  `a ? (() => { const $0 = [1]; return [$0, $0]; })() : 4`, which reads
-  back as the operand. Round-tripping through that writer keeps the graph,
-  not the text: the function written in the source is gone from both.
-- The body is an expression or a block, and `value` and `{ return value; }`
-  denote the same function. As an expression the body is any value except a
-  bare object literal: after `=>` JavaScript reads `{` as a block, never as
-  an object, so the spelling is refused rather than read another way, and the
-  object is written in parentheses instead ([grouping](#grouping)) —
-  `(...args) => ({ a: 1 })`, as in JavaScript. The block
-  is any number of statements — `const`s, and guards, `if` (below) — and
-  then one terminating statement, a `return` or a `throw` (below), each
-  ended as every statement is — by its `;`, or by the newline before the
-  next statement, a guard's by its `}`, and the last one's by the `}`
-  ([module structure](#module-structure)) — and an object literal is an
-  ordinary value again, since after `return` JavaScript expects an
-  expression. `return` and the value share a line: a newline between them
-  ends the statement in JavaScript, which would return `undefined`, so it is
-  refused here rather than read another way, exactly as a newline before
-  `=>` is. Nothing follows the terminating statement: a statement after it
-  is unreachable, and JavaScript's admitting the text does not make it
-  anything but a mistake.
-- **`throw value;`** terminates a block as `return value;` does, and a
-  function whose body ends in it fails at every call — the one failure
-  outcome the language has ([failure is one outcome](#failure-is-one-outcome)),
-  reached on purpose, as a panic on a broken invariant rather than an
-  expected error, which travels as a value
-  ([`fjs/AGENTS.md` §1.5](../fjs/AGENTS.md#15-never-use-trycatch-test-throwing-with-the-throw-key)).
-  Everything else about it is JavaScript's, read as `return` is: the value
-  is any expression and is evaluated first, so `throw f(x)` calls `f` before
-  failing; `throw` and its value share a line, since JavaScript's restricted
-  production forbids a line terminator between them, and `throw;` with no
-  value is not JavaScript; and nothing in the language catches the value,
-  so the language promises the failure and not the payload, which an
-  executor carries out of band for a human or a test runner to read.
-
-  ```js
-  export const todo = () => { throw "not implemented"; };
-  export const checked = (n) => {
-      const half = n / 2;
-      throw ["not yet", half];
-  };
-  ```
-
-  The body lowers to the node `['throw', v]`, an operation of one operand
-  that always fails, and it follows the positional laziness every operator
-  has: in an eager position it is evaluated and fails, and in a lazy one —
-  an arm of `?:`, the right operand of `&&`, `||` or `??` — it is not
-  established unless JavaScript would establish it, so
-  `c ? 1 : (() => { throw 0; })()` is `1` under a true `c`. The
-  FunctionalScript writer spells the node in a terminating position, a
-  block's or [the module's](#module-structure), as the statement it came
-  from, and anywhere else — wherever a graph puts one, and an arm of `?:`
-  once `if` lowers there — as the call of a function that throws,
-  `(() => { throw v; })()`: JavaScript's one spelling of an expression that
-  fails, and FunctionalScript itself — the call of a parameterless function
-  written where it is called, which the front end inlines (above), so the
-  text reads back as the node it was written from and fails at the same
-  point. That is the writer's spelling, not a second source form:
-  `throw` is a statement only, and an expression that must fail goes
-  through a function that throws, as in JavaScript. The EDAG output carries
-  the node, and the Rust output fails as the VM fails
-  ([output](#output)).
-- **`if (condition) block`** is a guard: a statement of a block body,
-  standing where a `const` may, any number of times before the body's
-  terminating statement. Its block is a block as above — any number of
-  statements and then a `return` or a `throw` — so the branch always
-  terminates, and the statements after the guard, up to and including the
-  body's own terminator, are what runs when the condition is falsy. The
-  condition is any expression, evaluated where the statement stands and
-  tested as `?:` tests its condition. This is the one form: the braces are
-  required, there is no `else`, and the statement stands in a function
-  body only — each a scoping decision of a step-by-step plan rather than a
-  guarantee, the bare consequent `if (c) return v;`, a branch that does
-  not terminate and with it `else`, and a guard at module level being
-  follow-ups, each additive on top of this one. No `;` follows the `}`, as
-  in JavaScript: one there is the empty statement the language refuses
-  ([module structure](#module-structure)), and the next statement may
-  share the guard's line.
-
-  ```js
-  export const unwrap = r => {
-      if (r[0] === 'error') { throw r[1]; }
-      return r[1];
-  };
-  export const sign = n => {
-      if (n < 0) { return -1; }
-      if (n > 0) { return 1; }
-      return 0;
-  };
-  ```
-
-  The guard is syntactic sugar over the conditional and adds no node: a
-  body `s… if (c) B rest` denotes `c ? (() => B)() : (() => rest)()`, the
-  guard's block and the statements after it each the body of a
-  parameterless function called where it stands (above), and the compiler
-  reads it as exactly that, so `if (a) { const x = [1]; return [x, x]; }
-  return 0;` and `a ? (() => { const x = [1]; return [x, x]; })() : 0`
-  are one graph and one hash — `['?:', a, ['[]', [x, x]], 0]` with `x`
-  one shared node — and a second guard nests as the alternate of the
-  first. Where a `const` lives is which edges reach it: one before the
-  guard is the scope's, evaluated eagerly as JavaScript evaluates it before
-  the condition, so `const a = [1]; if (m) { return a; } return 0;` is
-  `[',', [a, ['?:', m, a, 0]]]`, the anchoring rule of
-  [operators](#operators) — and `m ? a : a` is not folded to `a`, the
-  condition being an evaluation of its own that may fail; one in the
-  guard's block, or after the guard, is reached from its arm alone, and
-  evaluated only when JavaScript would evaluate it, so `if (a) { throw 1;
-  } const y = [2]; return y;` is `['?:', a, ['throw', 1], ['[]', [2]]]`
-  and an unused `const z = [2]` in its place is anchored at the
-  alternate's comma, `[',', [z, 1]]`, never at the function's root. The
-  statements after a guard are JavaScript's one block with the ones before
-  it, so a name that block has bound — a parameter, a `const` before the
-  guard, or one after an earlier guard — may not be bound again there
-  (`duplicate id`), and neither may a word that block has already read
-  from an enclosing scope, in a statement before the guard, in the
-  condition or in the guard's block (`capture shadowed`), since in
-  JavaScript every such read would have named the later `const` before
-  its declaration; the guard's block is a block of its own and may shadow
-  either. The FunctionalScript writer never
-  writes `if`: it spells the conditional, and an arm that holds a `const`
-  or a `throw` as the block opened at the operand (above), so the guarded
-  body reads back as the same graph; the EDAG output carries the `?:`,
-  and the Rust output prints it as it prints any conditional.
-- A function **carries no name**. Its EDAG is `['=>', length, slots, body]`,
-  name-erased, so the function in `{ make: () => 0 }.make`, in
-  `const hello = () => 0` and in `export default () => 0` is the same node,
-  `['=>', 0, [], 0]`, whatever JavaScript would name it (`make`, `hello`,
-  `default`), and no program observes the difference: `f.name` is
-  refused at the key of `.`, and `entry(f, 'name')` is `undefined`, since
-  `name` is not an enumerable own property
-  ([reading an entry at run time](#reading-an-entry-at-run-time)), which is
-  the decision that retired the proposals that would have exposed a name. The
-  name a JavaScript engine gives a function it loads from the written
-  output is the writer's spelling, not a result of the program
-  ([principles](#principles)).
-  Empty and rest-only parameter lists both have `length === 0`.
-- A function has **identity**, as an object does, and it is JavaScript's:
-  evaluating an arrow makes a new function — once for one written at module
-  level, once per call for one written in a body — and a `const` holding one
-  is that one function however many references reach it. Under
-  `const f = () => 1;`, `f === f` is `true`; under
-  `const g = (y) => () => y;`, `g(1) === g(1)` is `false`; and
-  `(() => 1) === (() => 1)` is `false`, as two separately written objects are
-  two ([shared values](#shared-values-constants)). Denoting the same function
-  is sameness of meaning, not of identity.
-- A body `const` is the body's, and binds as a module's does, a module
-  being a function too ([a module is a function](#a-module-is-a-function)):
-  it names a value the `return` and the statements after it may use, it may
-  not be written twice, and it is not in its own initializer's scope — except
-  that a function that is the whole initializer has the name as its own, as
-  a module `const`'s does (above). It is evaluated as a module's is, as its own statement, at every call and whether
-  or not the `return` reaches it ([shared values](#shared-values-constants)):
-  `() => { const x = null.x; return 1; }` loads and throws when called, as in
-  JavaScript. The parameter is a name of the body too, so a `const` may not
-  take it. A body `const`
-  *may* take a name a scope around it binds, shadowing it as in
-  JavaScript ([no-shadowing](./todo/3150-shadowing.md)) — unless the body
-  has already read that name from outside, before the `const` or in its own
-  initializer. That is not supported yet and is refused (`capture
-  shadowed`) rather than compiled to another value: JavaScript resolves
-  every reference in the body to the body's `const`, a read before its
-  declaration throwing and a function written earlier reading it once
-  called, where this compiler would read the capture. It is no restriction
-  of the language — nothing leaks through it — but a forward reference
-  inside a body, which
-  [`body-const-forward-reference.md`](../fjs/compiler/parser/todo/body-const-forward-reference.md)
-  tracks.
-
-  ```js
-  export default (...args) => {
-      const first = args[0];
-      const pair = [first, first];
-      return [pair, pair];
-  };
-  ```
-
-  `pair` is one array however many references reach it, as a module `const`
-  is one value — which is the whole reason a body has them.
-- A function is **called** as JavaScript calls one: `f(a, b)` with no
-  receiver, and `o.m(a)` with `o` as the receiver. A call is a step after a
-  value, as a property access is, and what a step applies to is everything
-  written before it — so `f(1)(2)` calls what `f(1)` returns, and
-  `o.m(1).n(2)` calls `n` on what `o.m(1)` returned. The arguments are the
-  list an array holds, a trailing comma and a [spread](#spread) included:
-  `f(...a, 4)` passes `a`'s elements and then `4`, and
-  `(...r) => f(...r)` forwards the values and never the array, since every
-  callee builds its own rest array from the arguments.
-
-  Parentheses around the property do not drop the receiver: `(o.m)(a)`
-  passes `o` as surely as `o.m(a)` does, since the parentheses keep the
-  property reference — only detaching the value loses it, as `(0, o.m)(a)`
-  does with the comma operator. `(o.m)(a)` is in the language
-  ([grouping](#grouping)) and is the same program as `o.m(a)`, down to the
-  graph it compiles to; the detached spelling waits on the comma operator,
-  so every call written on a property today is a call with a receiver.
-
-  A method call's property is the access's, but its key is judged by the
-  call rule and not the read rule ([property access](#property-access)): a
-  member function on `fjs/js/prototype`'s `prohibitedCalls` is a compilation
-  error, every other prototype name but `length` is a call the VM answers by
-  the receiver's type, and the read of either stays refused. No executor yet
-  answers a function's `toString` with the text the
-  [exception](#function-source-representation-exception) adopts, and
-  nanvm-lib has only some of these built-ins
-  ([default function text](./todo/3120-parameters.md#default-function-text-render-or-refuse),
-  [member-functions](../nanvm-lib/todo/member-functions.md)).
-
-  Three outputs hold a call today: the EDAG, the generated Rust module,
-  which nanvm-lib runs, and the FunctionalScript one, which writes both call
-  forms, `f(a)` and `a.b(c)` ([output](#output)). `.data.js` and `.json`
-  refuse one, since they are values, and what a call *returns* is not a
-  value the compiler computes — applying a function is the interpreter's
-  work
-  ([`fjs/compiler/todo/interpret-edag.md`](../fjs/compiler/todo/interpret-edag.md)) — so
-  a module reaching a call has no value output (`a call has no value`), as
-  one holding a function has none.
-- A function is written by the graph outputs, the FunctionalScript, EDAG
-  and Rust ones ([output](#output)). `fjs compile` refuses
-  to write a module holding one as DataJS or as JSON
-  (`a function has no value`), since a value has no function in it and the
-  evaluator computing one has no function value to compute with
-  ([`interpret-edag.md`](../fjs/compiler/todo/interpret-edag.md)). That evaluator
-  runs the whole program, so a function anywhere in it keeps a module out of
-  both value outputs, even one the `default` export never reaches:
-  `const f = (a, b) => 1;` followed by `export default [f.length];` is
-  refused, although its value is `[2]` ([output](#output)).
-
-## Module Structure
-
-A module is a sequence of statements, each terminated by a semicolon —
-`export default 5;` — or by nothing, where JavaScript's automatic semicolon
-insertion supplies one: at the end of the input, before a `}`, and before a
-statement that begins on a new line. `export default 5` at the end of a file
-is that module, and so is `const a = 1` followed by `export default a` on the
-next line. A newline is what ends such a statement, so two statements on one
-line need the `;` between them: `const a = 1 export default a;` is a syntax
-error in JavaScript and an error here, at `export`, exactly as it was when
-the `;` was required. A comment counts by the line it ends on: a line comment
-ends at a newline, and a block comment that holds one breaks the line as
-JavaScript's `LineTerminator` rule has it, while one that holds none does
-not. The `;` lets several statements share a line, and whitespace may precede
-it, newlines included: a line break before the `;` is insignificant, exactly
-as it is in DataJS and JavaScript. One terminator per statement: `;;` is an
-error, not an empty statement. Nor does a newline end an expression: a line
-break between two tokens reads as a space does, as in JavaScript, so `f`
-followed by `(7)` on the next line is the call `f(7)`, and `[1]` followed by
-`[0]` is an index — a `;` is inserted only where the parser cannot continue
-the statement, never at a newline as such — except at the two boundaries of
-this language where JavaScript forbids one, before `=>` and after `return`
-or `throw` ([line terminators](#whitespace-and-line-terminators)).
-
-[DataJS](./datajs/README.md) *requires* the `;` after every statement, and
-every DataJS document must be a valid FunctionalScript module —
-`const $0=[1];export default [$0,$0];` is normalized DataJS, one line, and it
-parses here. JavaScript accepts the same module with the same meaning, so the
-subset law holds; what FunctionalScript refuses from JavaScript is the empty
-statement. The `;` is the rule of the compiler-formatted `.f.js` output
-language: the compiler writes the `;` after every statement it emits. The
-grammar admits the omission by making the `;` optional and looking no
-further, which one symbol of lookahead still decides, since `;` begins no
-statement and no statement's continuation; whether the token after an
-omitted `;` begins a line is a fact the token carries, and the reader checks
-it there ([`fjs/compiler/parser`](../fjs/compiler/parser/README.md)). Trivia
-between tokens — whitespace
-or a comment — is optional here, `export default[1];`, `export default{};`
-and `import a from"./a.f.js";` included. Where two words would otherwise
-lex as one identifier some trivia is needed — after `const`, `export` and
-`import`, and between an import's name and `from`, since `const$0`,
-`exportdefault`, `importa` and `afrom` are each one identifier — and a
-comment separates as a space does: `const/**/a=1;` and
-`import/**/a/**/from/**/"./a.f.js";` parse. After `default`, and before an
-import's string, nothing is needed. DataJS requires a space after `const`,
-`export` and `default` and admits no comment, more than this language asks,
-so every DataJS document parses here.
-
-|Statement|Form|
-|---------|----|
-|default import|`import name from "./path";`|
-|named imports|`import { name, other as local, } from "./path";`|
-|combined imports|`import value, { name } from "./path";`|
-|JSON import|`import name from "./path.json" with { type: "json" };`|
-|constant|`const name = expression;`|
-|named export|`export const name = expression;`|
-|default export|`export default expression;`|
-|throw|`throw expression;`|
-
-```js
-import base from "./base.f.js";    // imports first
-
-const extra = { "debug": true };   // then constants
-
-export default [base, extra];      // optional, at most one, last
-```
-
-These statement forms are the whole language. A statement begins with `import`,
-`const`, `export`, or `throw`, and never with a value; more forms land as the
-language grows ([`spec/todo/`](./todo/README.md)).
-
-JavaScript accepts `throw` at the top level of a module, and
-[a module is a function](#a-module-is-a-function), so a block's rule
-([functions](#functions)) is the module's: after its imports and every
-`const`, exported or not, `throw expression;` may stand where
-`export default` would, in place of it and not beside it, and nothing
-follows it. Such a module fails at every load and exports nothing: a module
-that imports it fails to load too, as one importing a module that reads
-`null.x` at load does, and a name imported from it is refused at link as
-an export the module does not have. The graph outputs write it, as they
-write a module holding `const c = null.x;`, since they evaluate none of it,
-and the value outputs, which evaluate, refuse it as they refuse that module
-([output](#output)).
-
-### A Module Is a Function
-
-A module is one function, and the compiler reads it that way. Its imports are
-its parameters, in source order; its constants are the constants of its body;
-and what it returns is the object of its exports
-([exporting a value](#exporting-a-value)), `export default` being that
-object's `default` member — or, where the module ends in `throw`, it
-returns nothing and fails, as a function whose body ends in `throw` does. So a module's imports and constants are one scope,
-as a function's parameters and body constants are: one namespace, each name
-bound once, and a name used only after it is declared.
-
-The EDAG says so directly. Before linking, a module's graph reads import `i`
-from its arguments: the module slot is `['.', ['args'], i]`, and a binding
-selects its export from that slot, `['.', ['.', ['args'], i], name]`, where
-`name` is `default` for a default import. Only an empty import list, which
-binds no name, is the bare slot. Linking replaces each import with the export
-it selects from the module that import resolves to — applying the module to
-its imports — so the linked program has no parameter left
-([`fjs/compiler/edag`](../fjs/compiler/edag/module.f.mjs)). Two imports of one module
-identity are one application, shared, as
-[importing](#importing-other-modules) requires.
-
 ## Roadmap
 
-Everything else — unimplemented language features, ECMAScript proposals, I/O
-effects, the content-addressable VM, object identity, mutability, and
-serialization — is in [`spec/todo/`](./todo/README.md). A feature's document
-moves into this one when the parser recognizes it.
+Unimplemented language features and remaining design work — ECMAScript
+proposals, I/O effects, the content-addressable VM, object identity,
+mutability and serialization — are tracked in [`spec/todo/`](./todo/README.md).
+Implemented behavior belongs in this document; a design record may remain
+open for approval, proofs or follow-up work after its syntax has landed.
 
 For the implementation, see [`fjs/compiler/README.md`](../fjs/compiler/README.md), the
 compiler.

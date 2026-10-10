@@ -8,8 +8,13 @@ The compiler now supports fixed/rest parameters and captures; #2237 uses
 `['=>', length, slots, body]`, fixed `['arg', N]` reads and `['rest']`, following
 the [parameter plan](../../../spec/todo/3120-parameters.md). The remaining
 module-resolution and integration tasks below do not restore the old function
-tuple or require rejecting supported captures. Default function-text rendering
-remains open in the parameter plan.
+tuple or require rejecting supported captures. Code-only default function text
+is implemented by the shared compiler renderer: Amnesia and memo convert
+represented functions through it, and native compiled functions carry its
+static text. Captures are slot names rather than embedded values. FJS source serialization
+remains partial; retaining and retrieving a native function's semantic EDAG is
+separate remaining work, not a prerequisite for the implemented text
+([function-text contract](../../edag/function-text.md)).
 
 ### Original problem
 
@@ -301,6 +306,16 @@ implemented. The original Stage 2 admitted only non-capturing rest-only arrows w
 `null` frame. That rollout restriction is historical; it is not the current parser
 or interpreter contract. Fixed-only and mixed fixed/rest syntax is implemented in
 #2237, with defaults and destructuring left to separate work.
+
+Default text is also implemented: the serializer's trusted `functionText`
+renders every admitted body, while `tryFunctionText` checks separately supplied
+expressions. Represented conversion shares it without creating host wrappers;
+Rust output supplies its text to `IStaticFunction`. Proofs are in
+[`serializer`](../serializer/proof.f.mjs) (`functionText`),
+[`represented conversion`](../../edag/value/convert/proof.f.mjs) (`functions`,
+`completeFunctionText`), and [`Rust output`](../../edag/rust/proof.f.mjs).
+Ordinary runtime callables produced after EDAG reflection is erased retain the
+[host-text exception](../../edag/function-text.md#host-runtime-values).
 
 The current function operation is:
 
@@ -765,9 +780,10 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resources.md) —
   lower-priority resource/time/memory hardening for EDAG processing.
 - [`associate-edag-with-functions.md`](./associate-edag-with-functions.md) —
-  low-priority note on compiling an EDAG to an executable function while retaining
-  its semantic EDAG. Embedded metadata versus lookup remains open;
-  `edagAdd` / `edagGet` Effects are a candidate only if lookup is selected.
+  remaining native/AOT semantic EDAG association and retrieval, separate from
+  implemented default text and represented FJS functions. Embedded metadata
+  versus lookup remains open; `edagAdd` / `edagGet` Effects are a candidate
+  only if lookup is selected.
 - [`todo/edag-stage1-discussion.md`](../../../todo/edag-stage1-discussion.md) — EDAG
   semantics and structural operations.
 - [`fjs/edag/README.md`](../../edag/README.md) — the canonical EDAG schema.
@@ -778,6 +794,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [`spec/todo/3111-function-frame.md`](../../../spec/todo/3111-function-frame.md) —
   captured-frame semantics; the original non-capturing Stage 2 restriction is historical.
 - [`spec/todo/3120-parameters.md`](../../../spec/todo/3120-parameters.md) —
-  implemented fixed/rest bindings and the remaining migration/default-text work.
+  implemented fixed/rest bindings and shared code-only default text; remaining
+  approval, migration and native semantic EDAG association tasks.
 - [`spec/todo/9100-call-like-instructions.md`](../../../spec/todo/9100-call-like-instructions.md)
   — VM-internal call lowering, separate from stable EDAG call syntax.

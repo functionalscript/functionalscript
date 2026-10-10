@@ -66,8 +66,11 @@ name not yet decided, or, where it says so, never admitted.
       `Number.isSafeInteger`, `Number.MAX_SAFE_INTEGER`, `Number.isNaN`,
       and `const { isFinite } = Number` in the three
       [global-names](./2365-global-names.md) names — and each is rewritten
-      when its member is admitted; none is a `.f.js`, the files the
-      compiler holds to the reserved word today
+      when its member is admitted or equivalent code can use existing syntax.
+      Integer checks already use the importable
+      [operator-based predicate](../../fjs/types/number/is_integer/module.f.js),
+      without admitting `Number.isInteger`. Remaining global-member users
+      are not `.f.js`, the files the compiler holds to the reserved word today
 - [ ] `BigInt`
 - [ ] `Math`
 - [ ] `Date`

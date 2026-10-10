@@ -8,10 +8,12 @@ result is distilled into [`fjs/edag/README.md`](../fjs/edag/README.md) — the
 schema of record is [`fjs/edag/module.f.mjs`](../fjs/edag/module.f.mjs) — and
 this document is deleted.
 
-The concrete DJS rollout is tracked in
+The original DJS rollout is tracked in
 [`compile-modules-to-edag.md`](../fjs/compiler/todo/compile-modules-to-edag.md):
-Stage 1 introduces `.` and unresolved modules; Stage 2 introduces
-non-capturing `=>` and `()`, in its ordinary and method-call forms. This document owns the EDAG semantics,
+Stage 1 introduced `.` and unresolved modules; Stage 2 introduced
+non-capturing `=>` and `()`, in its ordinary and method-call forms. Those stages
+have landed; the operation tables retain their rollout history separately from
+current support. This document owns the EDAG semantics,
 not parser scheduling. Property/method-access safety is shared with
 [property-accessor](../spec/todo/2330-property-accessor.md); source functions
 are in the language ([functions](../spec/README.md#functions)), capturing
@@ -34,7 +36,7 @@ JavaScript syntax does not itself admit it into FunctionalScript.
 [named-and-rest parameter plan](../spec/todo/3120-parameters.md) owns the
 implemented `['=>', length, slots, body]`, `['arg', N]` and `['rest']` contract.
 Subjects 2 and 7 below follow that contract. The
-remaining baseline examples and operation table using `['args']` describe
+remaining baseline examples using `['args']` describe
 the historical zero-arity format, not the current fixed/rest target.
 Current schema, compiler and executors now use fixed/rest. Do not mix the
 historical invocation vocabulary with retained module-import `args`.
@@ -61,9 +63,9 @@ guards, A4) are merged into the graph by the **`","` operation**:
 
   lowers to a `","` node; a callable source serializer can print the
   expression back, and a JS engine running it implements one legal schedule
-  (left-to-right, eager). Whether `String(f)` is that serializer is open
-  (subject 12). The
-  other spellings normalize to the same node — all four of
+  (left-to-right, eager). Current `String(f)` is code-only function text, distinct
+  from structural source serialization and runtime-value compilation (subject 12).
+  The other spellings normalize to the same node — all four of
 
   ```js
   const f = a => { assert(a >= 0); return a + 2 }
@@ -74,8 +76,8 @@ guards, A4) are merged into the graph by the **`","` operation**:
 
   illustrate one code-EDAG shape, not one allocated function in the
   JS-compatible identity model. The last spelling — an expression-bodied
-  arrow, no block, no `return` — is a compact source-rendering candidate
-  (subject 12). The EDAG has **no
+  arrow, no block, no `return` — is a compact spelling the structural source
+  writer uses where supported (subject 12). The EDAG has **no
   assert node**: what makes an operand an assert is purely positional —
   its value is discarded by `","`. The guard itself is either an
   ordinary function value that throws on a falsy argument, or, with no
@@ -90,9 +92,10 @@ guards, A4) are merged into the graph by the **`","` operation**:
 - The operands of a `","` are this document's **branches**: rooted
   subgraphs of the DAG, sharing nodes freely by reference — distinct
   from the control-flow branches of `"?:"` (subject 3).
-- **Stage 1 ships without `","`**: a stage 1 body is a plain node, and
-  the operation is introduced later, when asserts arrive, without
-  changing the body's shape.
+- **The original Stage 1 shipped without `","`**: its body was a plain
+  node. The compiler now emits comma nodes for anchored computations,
+  without changing the body's shape; authored comma expressions remain
+  outside the current source grammar.
 
 - an operation node is:
   - a **non-object, non-array value** — a constant: `"hello world"`, `2.5`,
@@ -246,47 +249,50 @@ Agreed points (not under discussion):
 
 ### Operations
 
-The operations we want, with their stage. Every operand is an operation
-node; `node` below means any of them. The stage numbers match the concrete
-DJS rollout in
+The operation shapes below retain the original rollout labels where applicable.
+Every expression operand is an operation node; `node` below means any of them.
+The stage numbers refer to the original DJS rollout in
 [`compile-modules-to-edag.md`](../fjs/compiler/todo/compile-modules-to-edag.md).
 
 #### Structural operations
 
-**"Stage" names which compiler/interpreter task is scoped to emit or consume an
-operation — not when the EDAG schema itself admits it.** The schema
-(`fjs/edag/module.f.mjs`) doesn't have to wait for a task before defining a shape, and
-in practice it doesn't: `"Number"`, `"String"`, and `","` are marked `later`
-below, `"=>"` was marked a not-yet-implemented Stage 2, and `["frame"]` was marked
-`later` too (further down, under [Operations](#operations)) — yet all were already
-validated by `exp`, before any compiler emitted them. The optional nodes are the sharpest case: `"?."` and `"?.()"` are in the
-schema even though `?.` is not an FJS source operator in its own right (see below), because
-the public FJS final-EDAG entry takes EDAG from any producer and a chain's hidden control flow has
-to be representable and validatable when it does. A node being schema-valid says nothing about whether any parser emits it or
-any interpreter executes it — that's what the `Stage`/`later` marker tracks, and the
-schema is free to change independently of both.
+**Rollout history is not current implementation status.** The original plan's
+`1`, `2` and `later` labels record when emission or consumption was scheduled,
+not outstanding work. Schema admission, source syntax and executor support are
+separate contracts: the schema admitted several forms before the compiler
+emitted them. The current compiler and represented interpreters implement
+optional chains and their steps, `Number`, `String`, `typeof`, `throw`, comma
+anchors, fixed/rest functions, captures and `self`. The
+[compiler EDAG proofs](../fjs/compiler/edag/proof.f.mjs),
+[Memo proofs](../fjs/edag/memo/proof.f.mjs) and
+[Amnesia proofs](../fjs/edag/amnesia/proof.f.mjs) cover these paths. The current
+[node inventory](../fjs/edag/README.md#nodes) is the schema reference; source
+limits still apply, including no unary `+` or authored comma expressions.
 
-|Form|JS|Stage|Notes|
+|Form|JS|Rollout history|Notes|
 |----|--|-----|-----|
 |`2.5`, `"a"`, `true`, `null`, `34n`|itself|1|constant — any non-object, non-array value|
 |`["undefined"]`|`undefined`|1|the value `undefined`, as its own node — a bare `undefined` would be indistinguishable from a missing tuple position (a position past a node's arity reads as `undefined` too), so it is not a bare constant like the row above|
-|`["[]", [...node]]`|`[…]`|1|array constructor; the elements are one operand, an array of nodes — not spread across the tuple|
-|`["{}", [...entry]]`|`{ … }`|1|ordered object constructor; the entries are one operand, an array — initial entry form is `[":", key, value]` (subject 4)|
-|`["args"]`|—|1|the arguments array (subject 2)|
+|`["[]", items]`|`[…]`|1|array constructor; `items` is one array operand of nodes or `["...", node]` spread entries, not a variadic tuple tail|
+|`["{}", entries]`|`{ … }`|1|ordered object constructor; `entries` is one array operand of `[":", key, value]` or `["...", node]` spread entries (subject 4)|
+|`["args"]`|—|1|unresolved module imports, in import order; the historical invocation binding is retired (subject 2)|
+|`["arg", N]`|a fixed parameter|parameter migration|parameter `N` of the owning function, with `N < length`; a missing argument binds to `undefined`|
+|`["rest"]`|a rest parameter|parameter migration|the invocation's rest array after its fixed prefix, stable within one call and fresh between calls|
 |`[".", object, property]`, `[".", object, property, k]`|`o.p`, `o[p]`, `o.p(...args)`|1|property access, owning whatever its receiver is used for; a plain read leaves `k` out and is the shorter tuple; `property` is restricted (see below)|
-|`["()", callee, args]`|`f(...args)`|2|call with no receiver; `args` is an item list (subject 6)|
-|`["?.", object, property]`, `["?.", object, property, k]`|`o?.p`, and the rest of its optional region|later|optional property access; same `property` restriction|
-|`["?.()", callee, args]`, `["?.()", callee, args, k]`|`f?.(...args)`, and the rest of its optional region|later|optional call|
-|`["\|()", args]`, `["\|()", args, k]`|one chain step, `(...args)`|2|not an `exp` node — only valid as the continuation `k` of a chain node or another step (subject 6); this is the step a method call's `.` node carries, so Stage 2 needs it|
-|`["\|.", property, k?]`, `["\|?.()", args, k?]`, `["\|!()", args]`|one chain step|later|the remaining steps: a property access inside an optional region, a guarded call, and the call a group puts outside the region|
-|`["entry"]`|the `entry` helper|now|the helper as a value, a function of two parameters called as any function is, `["()", ["entry"], [a, b]]`; the helper is its one source spelling ([spec: entry](../spec/README.md#reading-an-entry-at-run-time))|
-|`["Number", node]`|`Number(x)`|later|numeric coercion that accepts bigints, unlike unary `+`|
-|`["String", node]`|`String(x)`|later|string coercion|
-|`[",", [...node, node]]`|`(a, b)`|later|membership without order (subject 8); the operands are one operand, an array, as for `"[]"`|
-|`["=>", length, slots, body]`|`(…) => …`|2|function; `length` is integer metadata (subject 7); `slots` is the array of captured values, an array operand of `exp`s evaluated in the enclosing scope, `[]` where there is none, each read in the body as `["frame", i]` — Stage 2 emitted only a placeholder for it ([functions](../spec/README.md#functions))|
+|`["()", callee, args]`|`f(...args)`|2|call with no receiver; `args` is an item list of nodes or `["...", node]` spreads (subject 6)|
+|`["?.", object, property]`, `["?.", object, property, k]`|`o?.p`, and the rest of its optional region|later|implemented optional property access; same `property` restriction|
+|`["?.()", callee, args]`, `["?.()", callee, args, k]`|`f?.(...args)`, and the rest of its optional region|later|implemented optional call|
+|`["\|()", args]`, `["\|()", args, k]`|one chain step, `(...args)`|2|not an `exp` node — only valid as the continuation `k` of a chain node or another step (subject 6); this is the implemented step a method call's `.` node carries, introduced in Stage 2|
+|`["\|.", property, k?]`, `["\|?.()", args, k?]`, `["\|!()", args]`|one chain step|later|implemented steps: a property access inside an optional region, a guarded call, and the call a group puts outside the region|
+|`["entry"]`|the `entry` helper|entry rollout|implemented helper as a value, a function of two parameters called as any function is, `["()", ["entry"], [a, b]]`; the helper is its one source spelling ([spec: entry](../spec/README.md#reading-an-entry-at-run-time))|
+|`["Number", node]`|`Number(x)`|later|implemented numeric coercion that accepts bigints, unlike unary `+`|
+|`["String", node]`|`String(x)`|later|implemented string coercion|
+|`[",", nodes]`|`(a, b)`|later|implemented sequence node (subject 8); `nodes` is one array operand, taking the last value or `undefined` when empty; the partial source writer refuses fewer than two operands; emitted for anchors and inlined blocks, while authored comma expressions remain unparsed|
+|`["=>", length, slots, body]`|`(…) => …`|2|implemented function and captures; `length` is integer metadata (subject 7); `slots` is the array of captured values, an array operand of `exp`s evaluated in the enclosing scope, `[]` where there is none, each read in the body as `["frame", i]`; the initial Stage 2 used a placeholder before captures landed ([functions](../spec/README.md#functions))|
 
-`["{}", [...entry]]` is an ordered object-construction operation. Stage 1
-uses `[":", key, value]` entries.
+`["{}", [...entry]]` is an ordered object-construction operation. The original
+Stage 1 used `[":", key, value]` entries; current construction also accepts
+`["...", object]` spreads.
 
 Both structural constructors take their variadic part as **one operand
 holding an array**, rather than spreading it across the tuple — the shape
@@ -298,9 +304,9 @@ node there — a computed key like `{ ["sss" + 3]: x }` is valid JS and a
 validly-shaped EDAG, even though today's compiler only lowers the trivial
 computed-key form; see subject 4 for why validation does not narrow this to
 a string constant. Entry forms are local to the object
-constructor rather than general expressions. Later, new entry forms can be
-added without changing the outer operation; for example `["...", object]`
-can represent `{ ...object }`. Plain objects remain reserved and have no EDAG
+constructor rather than general expressions. New entry forms can be added
+without changing the outer operation; `["...", object]` now represents
+`{ ...object }`. Plain objects remain reserved and have no EDAG
 meaning yet.
 
 Tags are **JS syntax wherever JS has syntax for the operation** — hence
@@ -358,14 +364,15 @@ All instruction patterns follow the
 
 `"=>"` is the function constructor because FJS has only **arrow
 functions** — there is exactly one spelling to reuse, so the tag is
-unambiguous. A named function expression was suggested as a source
-representation of `["self"]`; it remains a candidate, not a selected spelling
-or a newly admitted function form (subject 12).
+unambiguous. Current function text uses a named function expression for
+`["self"]`; the structural FJS source writer uses a self-referencing `const`.
+The renderer's JavaScript output does not admit a new FJS function form
+(subject 12).
 
 Word tags remain only where no unambiguous JS spelling exists:
 
-- `"args"` — FJS has no `arguments` object to borrow a spelling from
-  (subject 2);
+- `"args"` — unresolved module imports, not a function's arguments;
+  `"arg"` and `"rest"` are the fixed/rest invocation bindings (subject 2);
 - `"frame"`, `"self"` — JS has no expression for either (`arguments`
   is not FJS's model, and `arguments.callee` is forbidden in strict
   mode);
@@ -374,8 +381,8 @@ Word tags remain only where no unambiguous JS spelling exists:
 - `"entry"` — the `entry` helper as a value; the helper is its one source
   spelling, and a JS keyword it is not.
 
-`"Number"` is not an exception: it is spelled exactly as the JS built-in
-it denotes.
+`"Number"` and `"String"` are not exceptions: each is spelled exactly as
+the JS built-in it denotes.
 
 Symbol tags never collide with word tags, so both live in one namespace.
 
@@ -397,22 +404,24 @@ arity by membership alone.
 |-------|-----|--|----|-----|
 |`+` `-`|1|`+a`, `-a`|no|unary plus and negation — the arithmetic tags below at one operand (see above); unary `+` is not FunctionalScript syntax ([operators](../spec/todo/2340-operators.md)), and [property-accessor](../spec/todo/2330-property-accessor.md)'s run-time-index coercion is `"Number"`, not an operator|
 |`!` `~`|1|`!a`, `~a`|no|unary only|
-|`typeof`|1|`typeof a`|no|the type tag of a value, a fresh string; an EDAG operation that is not FunctionalScript syntax ([operators](../spec/todo/2340-operators.md))|
+|`typeof`|1|`typeof a`|no|implemented FunctionalScript syntax; returns the value's JavaScript type string ([spec: operators](../spec/README.md#operators))|
 |`+` `-` `*` `/` `%` `**`|2|`a + b`|no|arithmetic|
 |`===` `!==` `<` `<=` `>` `>=`|2|`a === b`|no|`==` and `!=` are not allowed by [operators](../spec/todo/2340-operators.md)|
 |`&` `\|` `^` `<<` `>>` `>>>`|2|`a & b`|no|bitwise|
 |`&&` `\|\|` `??`|2|`a && b`|**yes**|the right operand is established only if the left does not decide the result|
 |`?:`|3|`c ? t : e`|**yes**|exactly one of the two arms is established|
 
-All operators are post-stage-1: stage 1 has no operators at all.
+These operators were scheduled after the original Stage 1, which had none.
+All are implemented by the represented interpreters. The current compiler
+accepts their source spellings except unary `+`, which remains EDAG-only.
 
 #### Other operations
 
-|Form|JS|Stage|Notes|
+|Form|JS|Rollout history|Notes|
 |----|--|-----|-----|
-|`["throw", node]`|`throw v`|later|always fails; never produces a value|
-|`["self"]`|—|self|the function itself, as a value, the same every read; recursion is `["()", ["self"], args]`, and a nested function captures its parent's `self` as a slot|
-|`["frame", i]`|—|captures|slot `i` of the captured-consts frame, a constant index as `["arg", N]`'s is; the compiler task that made captures frame slots first spelled the frame as a bare `["frame"]` node read through `[".", ["frame"], i]`, a form since retired — see `fjs/edag/README.md`|
+|`["throw", node]`|`throw v`|later|implemented statement lowering and execution; establishes its operand and fails with that value, never producing a result|
+|`["self"]`|—|self|implemented function self-reference, as a value, the same every read; recursion is `["()", ["self"], args]`, and a nested function captures its parent's `self` as a slot|
+|`["frame", i]`|—|captures|implemented slot `i` of the captured-consts frame, a constant index as `["arg", N]`'s is; the compiler task that made captures frame slots first spelled the frame as a bare `["frame"]` node read through `[".", ["frame"], i]`, a form since retired — see `fjs/edag/README.md`|
 
 **`["frame", i]` and the closed-scope model.** A closure's free values are
 copied into a frame when the function object is created — the scheme
@@ -477,9 +486,10 @@ recursion with no special machinery.
   independently (subjects 3 and 9).
 - **Word tag**: JS has no expression spelling for "this function"
   (`arguments.callee` is forbidden in strict mode). A named function
-  expression — `function self(…) { … self(…) … }` — is a candidate for
-  callable source serialization, subject to syntax admission and the open
-  `self` question (subject 12); no `String(f)` strategy is selected.
+  expression — `function self(…) { … self(…) … }` — is the implemented
+  finite spelling for `self` in code-only function text. The structural FJS
+  source writer instead declares a self-referencing arrow `const`; named
+  function expressions remain outside FJS source admission (subject 12).
 - **Useless before `"?:"`**: with no branch there is no base case, so
   every `["self"]` call diverges. It lands with the operators, and
   before [let](../spec/todo/3220-let.md) (subject 11) — recursion is the
@@ -506,10 +516,10 @@ expression — there is no operator symbol to reuse. Consequences:
   (subject 8), but nothing in FJS semantics depends on it.
 - **Callable-source wrinkle**: since `throw` is a statement, a `throw`
   node inside an expression has no direct JS spelling. A wrapper such as
-  `(() => { throw v })()` is a candidate, subject to FJS admission and
-  round-trip support. Alternatives (a recognized `throw` helper, or an
-  expression-level `throw` pattern) remain to settle with assertion syntax.
-  This does not decide the `String(f)` contract (subject 12).
+  `(() => { throw v })()` is implemented in the total JavaScript function-text
+  renderer. The structural FJS writer also uses a throwing wrapper in an
+  expression position and retains its own round-trip/refusal contract.
+  Other assertion syntax remains separate future work (subject 12).
 
 **Laziness is positional, not nodal.** A lazy operand is a node that may
 never be demanded — but the same node referenced from an eager position
@@ -621,8 +631,10 @@ does not weaken JS-compatible executors' allocation and sharing guarantees.
 The [function-text exception](../spec/README.md#function-source-representation-exception)
 is independent of identity: FJS VMs use EDAG-derived default text, while direct
 JavaScript execution retains its host representation. The
-[rendering questions](../spec/todo/serialization.md#function-text-and-serialization)
-remain open; neither A2 nor this identity clarification decides them.
+[serialization record](../spec/todo/serialization.md#function-text-and-serialization)
+now distinguishes implemented code-only text, partial structural FJS source,
+and reflection-erasing JavaScript runtime compilation. Future interchange and
+CAVM hashing remain open; A2 does not change these API contracts.
 
 #### A3. Throws are preserved
 
@@ -762,7 +774,8 @@ Kept from the original decision, unchanged:
   does liveness analysis. Restoring the EDAG from bytecode is neither
   required nor generally possible: the function always carries its EDAG.
 - **The EDAG feeds multiple processors**: the bytecode interpreter,
-  source rendering and callable serialization (their relationship is open in
+  code-only function text, partial structural FJS source serialization,
+  runtime-value compilation (their current contracts are distinct in
   subject 12), and AOT backends
   (Rust, potentially WASM or machine code). Its structure is preserved
   because those backends exploit it; the interpreter may realize scopes as
@@ -1151,22 +1164,25 @@ operand; the invocation bindings are the fixed/rest pair in subject 2,
 not a count added to the old complete-arguments model. The function node
 owns its arity. The implementation request recorded in the parameter plan
 selected this replacement; the old invocation model is not a parallel
-contract. This does not settle the constructor's input API or default-text
-choices.
+contract. This does not settle the constructor's input API; current default
+function-text rendering is implemented under the distinct contract in subject 12.
 
-The function-text exception does not permit changing arity. The current
-writer emits fixed parameters plus rest, retaining unused fixed positions;
+The function-text exception does not permit changing arity. Current writers
+retain unused fixed positions and emit a rest binding when the body reads it;
 `['arg', N]` and `['rest']` render as those bindings. The earlier writer
 obstruction for positive arity plus complete `['args']` does not apply to
 this new format, which cannot express that combination. Unrelated source
-serialization questions in subject 12 stay separate, but the adopted
-EDAG-derived default-text rule is still required: use the shared renderer
-or explicitly refuse unsupported observations before exposing wrapper text
+serialization/interchange questions in subject 12 stay separate. Memo and Amnesia
+already use the shared total renderer for EDAG-derived default text, without
+exposing host arrow-factory wrappers
 ([default-text boundary](../spec/todo/3120-parameters.md#default-function-text-render-or-refuse)).
 
-Hand-written factories materialize these functions without the retired
+The former hand-written factories materialized these functions without the retired
 [length pattern](https://github.com/functionalscript/functionalscript/blob/245649cdeeb0fb6318004ee273121143273262db/spec/todo/arity-complete-arguments.md#candidate-mechanism-the-withlength-pattern) for every
 valid arity: the language limits `length` to 16, and the table covers 0–16.
+That table remains a utility, not the represented VMs' construction strategy.
+They bind fixed/rest values directly; `toUnknown` materializes ordinary runtime
+callables through the target compile/load boundary with reflection erased.
 
 #### 8. `","`: anchored evaluation
 
@@ -1379,17 +1395,25 @@ Nothing references a name the function did not compute itself:
 - a module-level `const` or `import` the body uses
   ([const](../spec/README.md#shared-values-constants),
   [default-import](../spec/README.md#importing-other-modules));
-- a captured const, once closures exist — the frame
+- a captured const — the implemented frame
   [function-frame](../spec/todo/3111-function-frame.md) designs;
 - a built-in namespace such as `Object` or `JSON`
   ([built-in](../spec/todo/2360-built-in.md)), which
   [2360](../spec/todo/2360-built-in.md) says may be used only as a
   namespace, never assigned to a variable.
 
-**Largely answered by `["frame", i]`** ([Operations](#operations)): free
-values are captured into the frame when the closure is created, and read
-back as `["frame", i]`. `["self"]` covers self-reference, which
-no frame can seed at the top level. What remains open:
+**Current APIs:** the compiler captures module/import and enclosing-scope nodes
+in first-use order, while known primitive constants can be embedded in the body.
+Memo and Amnesia evaluate those slots when creating the closure and read them
+as `["frame", i]`; `["self"]` handles direct self-reference. See `captures` in
+the [lowering proofs](../fjs/compiler/edag/proof.f.mjs) and
+[source-serializer proofs](../fjs/compiler/serializer/proof.f.mjs).
+Default function text names slots without expanding their captured values.
+
+**Historical hashing discussion:** the following choices were recorded before
+that implementation. Canonical interchange/hash layout and broader built-in
+namespace support remain future work; these alternatives do not reopen the
+current capture or function-text APIs:
 
 - **which values go into a frame, and in what order** — the compiler
   decides, and hash-as-written (subject 1) means that choice must be
@@ -1401,12 +1425,11 @@ no frame can seed at the top level. What remains open:
 - **module consts and imports** — captured per closure, or embedded
   directly as values (they are already-evaluated DJS values by then)?
   Embedding inlines a shared value into every function that uses it,
-  which costs hashing and `toString(f)` fidelity.
+  which changes hashing and a callable serializer's captured contents.
 
-Stage 1 can live without this — a body reachable from `["args"]` and
-constants alone is a real, if small, language. But every path forward
-needs it, so the shape should be chosen deliberately rather than by
-accident:
+The early Stage 1 could operate over imports and constants alone. The following
+alternatives are historical, rather than pending prerequisites for current
+closure interpretation:
 
 1. **A leaf operation** — `["const", …]` / `["capture", i]`: explicit,
    and the natural home for 3111's captured-consts frame.
@@ -1414,8 +1437,8 @@ accident:
    since imports and module consts are already evaluated DJS values by
    the time a function is built. Simplest, and it fits "the EDAG is an
    `Any`"; but it inlines a shared value into every referencing
-   function, which matters for hashing and for `toString(f)` (a
-   reference to a named const would print as its expansion).
+   function, which matters for hashing and self-contained callable output.
+   Current `String(f)` does not expand captured values; it is code-only text.
 3. **Built-ins as constants** — the built-in namespaces are values the
    VM provides; embedding them collides with 2360's rule that they are
    not assignable, so they may need their own leaf regardless.
@@ -1470,35 +1493,54 @@ require the EDAG to model mutable *objects*, only threaded state.
 
 #### 12. `toString(f)`: real, runnable source
 
-**Status:** reopened — callable-source requirements are conditional for `String(f)`.
+**Status:** current function-text contract implemented; broader callable interchange open.
 
-This section describes self-contained callable source serialization and candidate
-techniques for it. The earlier identification of that serializer with
-`toString(f)` is withdrawn. Whether `String(f)` has the same output contract,
-whether it includes the captured frame, and how each operation represents
-`self` are the three open questions in
-[Function text and serialization](../spec/todo/serialization.md#function-text-and-serialization).
-That document owns those decisions; the requirements below apply to `String(f)`
-only if the corresponding callable-serialization contract is selected.
+The earlier identification of self-contained callable serialization with
+`toString(f)`, and the later direction treating the current APIs' three
+rendering questions as open, are superseded. Memo and Amnesia use code-only
+EDAG-derived function text: captured values appear as slot names, and `self`
+uses a finite named function expression. The trusted
+`functionText(analysis, index): string` renders every admitted body;
+`tryFunctionText` checks separately supplied expressions. The
+[function-text contract](../fjs/edag/function-text.md) and `functionText` / `self`
+groups in the [serializer proofs](../fjs/compiler/serializer/proof.f.mjs)
+record these implemented answers.
+
+The APIs have distinct contracts. `tryStringify` is a partial structural FJS
+source serializer. The JavaScript
+[value emitter](../fjs/compiler/serializer/value/module.f.mjs) and effectful
+[`toUnknown`](../fjs/edag/value/to_unknown/module.f.mjs) already construct
+ordinary runtime values with captured sharing and EDAG reflection erased.
+Runtime compilation may emit JavaScript outside the current FJS grammar.
+General callable interchange, canonical hashing and exact representation
+round trips remain separate future work in
+[serialization](../spec/todo/serialization.md#function-text-and-serialization).
+The requirements below retain the historical self-contained serializer
+discussion within each serializer's declared profile; they are not a pending
+contract for `String(f)`.
 
 The [function-source exception](../spec/README.md#function-source-representation-exception)
 **is adopted**: default FJS function text comes from associated EDAG, not
 original spelling. This permits direct, indirect and exported source-text
-observations to differ from a JavaScript host; it neither requires a closed
-callable string nor decides any frame or `self` strategy. The source must still
-obey the applicable syntax and output contract.
+observations to differ from a JavaScript host. The exception does not require a
+closed callable string. Current code-only rendering leaves captures as slot
+names and uses named `self`; each output still obeys its own syntax and contract.
+After reflection-erasing JavaScript runtime compilation, ordinary callables use
+their host's function text.
 
 For a serializer that promises to reconstruct an equivalent callable in a new
 environment, the following constraints apply within its supported domain:
 
-- **Faithful admitted source.** Every printed operation needs a faithful
-  source form. A `throw` wrapper or a named function for `self` remains a
-  candidate, not permission to emit unsupported FunctionalScript. The JavaScript
-  host used to read an example is not permission to use `eval` inside FJS.
+- **Faithful output within the declared profile.** The current total function
+  renderer uses general JavaScript expressions, including throw wrappers and
+  named functions for `self`. The structural FJS source writer instead uses
+  admitted source forms, such as a self-referencing `const`, or refuses an
+  unsupported graph. Rendering JavaScript beyond FJS does not admit that syntax
+  in FJS or permit `eval` inside it.
 - **No alternate API.** The direct descriptor-value spelling remains
   retired. [`entry`](../spec/README.md#reading-an-entry-at-run-time) prints
   the complete helper and ordinary calls of it. Its exact spelling follows
-  the adopted function-text exception and open rendering questions, not a
+  the adopted function-text exception and current renderer, not a
   requirement to recover authored text. A printed helper's intrinsic `Object`
   reference still depends on the declared built-in environment; AST-to-EDAG
   compilation validates that binding without admitting the namespace as a value.
@@ -1510,10 +1552,10 @@ environment, the following constraints apply within its supported domain:
 - **Self-contained captures.** A callable serializer cannot rely on the
   originating module's local bindings existing in the destination environment.
   It must represent the relevant captured values and relationships. This is
-  not a statement about whether `String(f)` includes frames; that choice is open.
-- **Frame bindings are a candidate technique.** One possibility is to emit
-  enclosing `const` bindings that nested functions capture, or to represent a
-  whole frame as an array. For illustration, not as a selected serializer:
+  separate from `String(f)`, which does not materialize captured values.
+- **Frame bindings preserve allocation lifetimes.** The JavaScript value
+  emitter already constructs captures outside their callable bodies, preserving
+  shared values and primitive, repeated and unused capture slots. For example:
 
   ```js
   const captured = [];
@@ -1522,24 +1564,30 @@ environment, the following constraints apply within its supported domain:
   ```
 
   In contrast, `const restored = () => [];` creates a fresh array per call.
-  The placement and lifetime of bindings matter; generated names and frame
-  layout remain part of the rendering decision, not an answer hidden here.
+  The placement and lifetime of bindings matter. Current rendering uses one
+  deterministic `$n` counter across external slots and nested scopes. A future
+  interchange format's encoding and normalization remain separate choices.
 - **Captured functions and `self` need finite representations.** A complete
   callable may require rendering a graph of captured functions and values,
   preserving shared dependencies rather than expanding a tree. Recursive calls,
   returning `self`, and references to enclosing functions must keep the correct
-  binding. Wrappers, generated bindings and named functions remain alternatives.
-  If `String(f)` includes frames, the
+  binding. Current function text uses named `self`, and runtime-value compilation
+  constructs captured values with bindings rather than recursively expanding
+  text. For a future serializer that includes frames, the
   [conditional lazy-rendering requirement](../spec/todo/serialization.md#conditional-requirement-lazy-frame-rendering)
-  applies; self-contained output does not mean eager materialization.
+  discussion applies; it does not require `String(f)` to materialize frames.
 - **Data keys keep their meaning.** In an object literal, an own `__proto__`
   data key needs the computed spelling `{ ["__proto__"]: value }`, not a
   prototype-setting property definition ([spec](../spec/README.md#the-__proto__-key)).
 
 A callable round trip must reconstruct the promised behavior under its declared
-profile, including captured sharing and `self` where supported. Parsing produces
-the JavaScript-subset AST; checked AST-to-EDAG compilation supplies the admission
-and semantic checks. Internal or unsupported operations remain explicit refusals.
+profile, including captured sharing and `self` where supported. Structural FJS
+source output is checked by parsing and lowering it again. Runtime-value output
+is checked at its target JavaScript compile/load boundary; it promises behavior,
+not a structural FJS source round trip. See the
+[value-emitter proofs](../fjs/compiler/serializer/value/proof.f.mjs) and
+[runtime-conversion proofs](../fjs/edag/value/to_unknown/proof.mjs).
+Internal or unsupported operations remain explicit refusals in a partial profile.
 
 Reproducing exactly the same code graph, frame layout and hash is a stronger,
 separate round-trip property. Frame materialization can change that representation;
@@ -1549,6 +1597,9 @@ unconditional guarantee for `String(f)`. Compare original-source behavior too,
 subject to the specified exceptions; comparing output with itself proves neither
 source compatibility nor the closure contract.
 
-Deterministic rendering for chosen inputs remains required. Whether `String(f)`
-and callable serialization share contents, implementation or a canonical format
-is owned by the linked open questions, not settled by this historical section.
+Deterministic rendering for admitted inputs is implemented. Current function text,
+structural source serialization and runtime-value compilation share rendering
+machinery while preserving the distinct contracts above. A future callable
+interchange format, CAVM hashing, native semantic EDAG retention and incremental
+strings remain open; this historical section does not claim those facilities
+are implemented.

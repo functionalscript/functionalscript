@@ -46,8 +46,9 @@ base fails, reported as JavaScript's throw is. A function with fixed names and o
 and Rust outputs and retained by EDAG interpretation. A selected function
 is refused by data outputs; functions used during initialization can compute data.
 The AST erases names after binding but retains the fixed parameter count.
-The writer preserves that count, even for unused parameters, and appends a
-fresh rest binding. Empty and rest-only functions both have length zero.
+The writer preserves that count, even for unused parameters, and adds a fresh
+rest binding when the body reads it. Empty and rest-only functions both have
+length zero.
 
 The classical grammars this package once
 held were deleted rather than kept: nothing imported them, no proof covered
@@ -112,12 +113,16 @@ no compile/load operation. Source failures retain their paths and represented
 payloads; runtime compilation failures use `IoChannel`, including
 `['notImplemented', 'compileValue']` when a partial runner lacks the operation.
 
-JSON/DataJS output uses `_transpileDefault`, which selects the represented default
-and applies synchronous `toData`. Its inner `Result` separates a conversion
+JSON/DataJS output uses `_transpileDefault`, which initializes the complete
+module before selecting its represented default and applying synchronous
+`toData`. Every required dependency and initializer runs, including an unused
+`const` or an unselected named export. Its inner `Result` separates a conversion
 refusal from a source failure. This allows
 `export const f = x => x; export default 1;` to produce JSON `1`, while a callable
 in the selected data is refused at the output path. Both APIs keep direct JSON
-documents unwrapped. The obsolete `Denotation` wrapper is removed.
+documents unwrapped. The [transpiler proofs](./transpiler/proof.f.mjs) cover
+calls/operators, projection and unused initialization. The obsolete `Denotation`
+wrapper is removed.
 
 [`serializer/value`](./serializer/value/module.f.mjs) provides the code-generation
 step for callable runtime compilation: `stringify(value)` emits a JavaScript
@@ -174,9 +179,10 @@ nodes hoisted as the DataJS output's are, and writes it back as source under
 any other `.js` or `.mjs` name, through
 [`serializer`](serializer/module.f.mjs), retaining function code. What
 the export does not reach is anchored by the comma operation rather than
-dropped, `[',', [...roots, exported]]`: `transpile` reads every import and
-interpretation establishes every `const`, so a failure behind an unused one fails the
-compile, and the graph keeps the computation the same way — its operands the
+dropped, `[',', [...roots, exported]]`: interpretation reads every dependency and
+establishes every required initializer, so a failure behind an unused one fails
+value output. FunctionalScript, EDAG and Rust output preserve that computation
+without executing module initialization. The graph's operands are the
 roots of the unreached part in source order, an entry another unreached entry
 reaches being anchored through it, an alias being the node it names, and two
 imports of one module being one node. A module the export reaches entirely
@@ -215,8 +221,9 @@ after it, so `-1` is the negation of `1` in the parser's tree, and the
 lowering folds that one case back into the leaf: negating a numeric literal
 is exact arithmetic, so the graph holds the number and [`rust`](rust/module.f.mjs)
 prints it. A negation of anything else stays a node — folding one would mean
-saying what a container converts to — and that route refuses one, `Neg for
-Any<A>` answering a `Result` a module cannot hold. It binds looser than a
+saying what a container converts to. Code outputs retain that operation; value
+outputs interpret it, including container conversion and represented failures
+(`negation` in the [language proofs](./language.proof.f.mjs)). It binds looser than a
 step, as it does in JavaScript, so `-1 .x` is `-(1 .x)` and `-1()` is `-(1())`
 — which is what retired the two refusals the old fold needed, an access and a
 call on a numeric literal alike. What it takes is JavaScript's
@@ -281,10 +288,12 @@ the EDAG's two forms it lowers to: an access as the callee is a method call,
 `a.b(c)`, whose receiver is that access's base, so the access owns the call
 and the two are one node, `['.', a, 'b', ['|()', args]]`; any other callee is
 the plain `['()', callee, args]`, its arguments an item list, the one an
-array literal holds. The plain form over an access is the *detached* receiver,
-`(0, a.b)(c)`, which needs the comma operator and is unspellable, so no
-source writes one — `(a.b)(c)` keeps the receiver and is the method call
-again, parentheses preserving the property reference. A call mints identity — two calls are
+array literal holds. The plain form over an access calls the selected function
+without its receiver. `(a.b)(c)` still keeps the receiver, parentheses preserving
+the property reference: it lowers to the same method node as `a.b(c)`, and the
+writer emits a method call. For a plain-call node whose EDAG callee is an access,
+the structural writer names the selected function first, `const f = a.b`, then
+calls `f(c)`. A call mints identity — two calls are
 two nodes and a `const` naming one is one — which is what a body's `const`
 keeps. One call lowers to no call at all: a parameterless function written
 at the call and called with no arguments, `(() => { const x = f(); return
@@ -294,17 +303,35 @@ block root, a scope's root or a lazy operand — `isInlinedCall` in
 [`ast`](ast/module.f.mjs) names the conditions and the argument, and
 [spec: functions](../../spec/README.md#functions) the rule. The writer
 spells the same idiom back where a lazy operand shares a value nothing else
-reaches. [`serializer`](serializer/module.f.mjs) has no spelling for either
-call form yet and refuses both by name, so a module with a call in it
-compiles to the EDAG output alone. When it gets one, a negative callee needs the care an
-access base takes: `-1()` is `-(1())`, so `['()', -1, args]` cannot be
-written `-1()` — the grammar spells it, `(-1)()`, and until the writer reads
-a group a `const` does. The writer's proof refuses that shape by name, so
-the question comes up where the spelling is written.
-A group, `(x)`, is the value it holds: no node in the AST or the graph, and
-nothing downstream can tell one was written — the steps after the `)` read
-the value inside, which is why `(a.b)(c)` is the node `a.b(c)` is, and the
-sharing a module spells survives the parentheses. What it adds is spelling:
+reaches. [`serializer`](serializer/module.f.mjs) writes both ordinary and method
+calls, including chained calls, spreads and calls shared through a `const`.
+An operator callee is grouped, `(x+1)()`. A function callee takes a binding so
+reading the output does not inline away the original call node. A negative
+callee needs the same care as an access base: `-1()` is `-(1())`, so a negative
+numeric leaf uses a binding, such as `const f=-1;export default f();`, while a
+negation node is grouped, `(-[])()`. The `calls`, `neg` and `operators` groups in the
+[serializer proofs](./serializer/proof.f.mjs) pin these spellings and their
+structural round trips. Calls and arithmetic can therefore reach source, EDAG
+and Rust output, and can compute data for JSON/DataJS output.
+
+The structural FJS writer remains partial: unsupported operations, capture
+layouts and lazy sharing can be refused. Total code-only
+[default function text](../edag/function-text.md) and
+[runtime-value compilation](../edag/values.md#runtime-compilation) have separate
+contracts and may emit JavaScript beyond FJS; they do not make structural
+source serialization total.
+Source rendering still uses the host stack for nested expressions; deep
+`Number`/`String` chains can throw `RangeError` after parsing and lowering
+succeed, as recorded in
+[deep-nesting-recursion](./todo/deep-nesting-recursion.md#source-conversion-chains).
+
+Outside optional chaining, a group, `(x)`, is the value it holds: no node in
+the AST or the graph, and nothing downstream can tell one was written — the
+steps after the `)` read the value inside, which is why `(a.b)(c)` is the node
+`a.b(c)` is, and the sharing a module spells survives the parentheses. A group
+closes an optional-chain region, so `(a?.b).c` and `a?.b.c` are distinct programs
+([optional chaining](../../spec/README.md#optional-chaining)). What ordinary
+grouping adds is spelling:
 a function returning an object, `(...a) => ({ x: 1 })`, an access or a call
 on a value written in place, `([1]).length`, and the two the prefix cannot
 say without it — the access on a negation, `(-1).x` against `-1 .x`, and a

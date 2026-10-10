@@ -81,8 +81,9 @@ the adopted [function-source exception](../README.md#function-source-representat
 A function-derived key may differ from the host's key; ordinary string-key
 presence and the raw-flag/boolean distinction do not change. A receiver or
 conversion not yet supported is refused, not answered with an invented value.
-The [rendering questions](./serialization.md#function-text-and-serialization)
-also apply to this helper; it cannot silently choose a different conversion.
+The implemented [default-text contract](./serialization.md#function-text-and-serialization)
+also applies to this helper's key conversion. It must use the same code-only
+renderer; broader callable serialization does not select a different conversion.
 
 ## Tasks
 
