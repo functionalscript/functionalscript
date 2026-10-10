@@ -155,8 +155,8 @@ mod tests {
         Action, RunError,
         fixtures::{
             bigint, closure_throws, exports, function, function_text, missing, named,
-            named_imports, named_imports_throws, not_a_function, nullish, number, rest_function,
-            throw, throws,
+            named_imports, named_imports_throws, not_a_function, nullish, number, object,
+            rest_function, throw, throws,
         },
         run,
     };
@@ -177,6 +177,21 @@ mod tests {
     /// JSON cannot hold.
     fn default_export(module: Module) -> Any<Naive> {
         module().unwrap().dot("default".into()).end().unwrap()
+    }
+
+    /// The whole export object, not only `default`: the corpus compares the
+    /// default alone (named exports are decision 3 of Stage 8, not yet
+    /// compared), so an extra or missing export would pass there.
+    #[test]
+    fn module_result_contains_exports() {
+        assert_eq!(
+            number::module::<Naive>().unwrap().to_json(),
+            Ok(r#"{"default":42}"#.into())
+        );
+        assert_eq!(
+            object::module::<Naive>().unwrap().to_json(),
+            Ok(r#"{"default":{"a":1,"b":"two"}}"#.into())
+        );
     }
 
     /// Every corpus fixture against its generated expectation, both layers

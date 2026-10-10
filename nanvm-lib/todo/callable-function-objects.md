@@ -706,7 +706,8 @@ hand-written assertion, which is its only emitter-independent check. The
 independent leaf assertions above stay even when the fixture has a JSON layer
 (`-0`), since that layer cannot distinguish the value they check. A test
 that checks something else about the same fixture (a named export, a call
-through the harness) stays. A fixture excepted from the corpus keeps its
+through the harness, the whole export object, since the comparison reads only
+`default`) stays. A fixture excepted from the corpus keeps its
 hand-written test and its reason.
 
 *Invariants this relies on, each already checked.* Every corpus default is
