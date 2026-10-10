@@ -65,7 +65,7 @@ const kindOf = ({ kind }) => {
         case 'string': return 'string'
         case 'number': case 'bigint': return 'number'
         case '//': case '/*': return 'comment'
-        default: return literalWords.includes(/** @type {never} */ (kind)) ? 'literal' : isKeyword(kind) ? 'keyword' : undefined
+        default: return literalWords.some(word => word === kind) ? 'literal' : isKeyword(kind) ? 'keyword' : undefined
     }
 }
 
