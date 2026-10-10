@@ -493,6 +493,121 @@ lazy branches and throws; account for the specified function-text exception
 when native JavaScript is the reference. A future Rust EDAG executor must
 satisfy the same contract, but this parity work does not wait for it.
 
+*Plan (decided: the four decisions below are recorded; step 1 has landed, step 2 is next).*
+
+**The corpus is the harness fixtures, not a new format.** The operator corpus
+has to be data because its cases are lowered to EDAG by hand. A call-contract
+case is a program, and the programs already exist: every
+[`nanvm-harness/fixtures/*.mjs`](../../nanvm-harness/fixtures) is a source
+module whose default export is a value, written so that identity and laziness
+report themselves (`f === g`, `get() === o.x`) rather than needing a side
+channel. Three executors read one source:
+
+| executor | route | today |
+|---|---|---|
+| reference | Node imports the module; its default export is compared as a value, structurally and with its aliasing, or it throws | independent of this repository |
+| FJS interpreter | `_transpileDefault`: `parse` → `unresolved` → `analysis` → `memo({ args: [] })` → `read(…, 'default')` → `toData`, the route `fjs compile` takes for a data output | compared against the reference for every corpus fixture (step 1, landed) |
+| direct AOT | `fjs compile` → `gen.fixtures/<name>.rs` → `nanvm-harness` | each fixture's expected text is hand-written in `src/lib.rs`, except `effect` (asserted in `tests/effects.rs`) and `named-imports-math` (a dependency of `named-imports`, covered only through that fixture's test) |
+
+The interpreter is `memo`, not `amnesia`: `memo` starts each call with a fresh
+cache and keeps evaluated captures by identity, the JavaScript-compatible
+model, while `amnesia` re-establishes a shared node on every edge and is not
+identity-compatible ([execution models](../../fjs/edag/execution-models.md)),
+so `f === f` would disagree by design.
+
+**Measured.** Step 1 below compares every fixture the corpus covers, and each
+agrees: the same value, or both throw. The corpus is whatever
+[`corpus(names)`](../../fjs/nanvm/corpus/module.f.mjs) selects from the fixture
+directory, so no count is kept here. Three fixtures are excepted, none for a
+disagreement of semantics:
+
+| fixture | why it is not compared |
+|---|---|
+| `function-text` | the specified [function-text exception](../../spec/README.md#function-source-representation-exception) |
+| `function`, `rest-function` | the default export is a function, which only the harness's own call action observes; see decision 2 |
+
+Two things an earlier draft of this plan listed as exceptions are not.
+`bigint` and `undefined` results need no JSON form: the comparison is
+structural, on the values themselves. `named-imports` and
+`named-imports-throws` run on the interpreter's own loader over a virtual file
+system holding the fixture directory. Four fixtures (`effect`, `exports`, `named-imports`,
+`named-imports-math`) have `undefined` as their default and test named
+exports or imports, so the comparison of their default is trivial; named
+exports are not compared (decision 3). The `undefinedDefault` table in
+[`corpus/module.f.mjs`](../../fjs/nanvm/corpus/module.f.mjs) names them, and
+`missing` whose `undefined` is the observation, each with its reason, and the
+host proof fails on any other fixture whose default is `undefined` and on any
+entry that no longer is, so the gap is a list and not a silence.
+
+**Where the expectation lives (decision 1, decided: the reference's own
+output).** A generator writes the reference's output into a committed `gen.`
+file, drift-checked, so Node is the single author and nothing is retyped. The
+hand-written strings in `src/lib.rs` (`"[1,1,false,true,true,true]"`) are
+exactly the retyping that can drift. Fixtures with no reference (the
+exceptions) keep a hand-written expectation, each with its reason.
+
+**How a callable is observed (decision 2, decided).** A fixture that tests a
+function calls it at module level and exports the observations, as `arity`,
+`closure`, `parameters` and `recursion` already do. Arguments are then
+anything the language can write (`undefined`, a shared object, a closure), and
+identity, laziness and throws report themselves. `function.mjs` and
+`rest-function.mjs` stay out of the corpus: they test the harness's `Call`
+action, a feature of the `nanvm-harness` command line and not the language's
+call contract, and keep their hand-written Rust tests.
+
+**Steps, each one pull request.**
+
+1. **Interpreter against reference. Landed.** [`fjs/nanvm/corpus`](../../fjs/nanvm/corpus/module.f.mjs)
+   names the exceptions and the rule that everything else is compared;
+   `proof.mjs`, a host proof, runs each fixture in Node and through
+   `_transpileDefault`, the route `fjs compile` takes for a data output, and
+   compares the two. A stale exception, or a new fixture, is caught by the
+   proof, never skipped.
+2. **Direct AOT against the same expectation.** The generator writes the
+   reference output next to the compiled fixture; one Rust test walks the
+   generated list and replaces the hand-written assertions it covers. The
+   committed form is not plain JSON: the reference's output includes
+   `bigint`, `undefined` and aliasing (`sharing`), which JSON cannot spell.
+   The form, and how the Rust side checks aliasing, is this step's design
+   question, answered in its pull request before its code.
+3. **The interpreter compiled to Rust runs the corpus.** Blocked, not
+   planned: it needs the host `Map` dependencies of the executor migrated and
+   the [immutable memo cache](../../fjs/edag/memo/todo/immutable-cache.md)
+   native-parity checks. Recorded here so the corpus is written to be run
+   there, not so it waits for it.
+
+**Decisions (all four decided).**
+
+1. ~~Expectation authored by hand beside each fixture, or by the reference and
+   committed?~~ Decided: by the reference, committed and drift-checked.
+2. ~~How a callable export is observed.~~ Decided: the fixture calls it at
+   module level; the two harness-call fixtures stay out of the corpus.
+3. ~~Named exports: compare them too?~~ Decided: not yet. The corpus
+   compares `default`, the one projection `fjs compile` makes for a data
+   output (`_transpileDefault`), and the Rust harness tests named exports
+   directly (`named_exports`, `exports`). Comparing them would need a second
+   interpreter route and an order-insensitive comparison (a module namespace
+   sorts its keys, the export object keeps declaration order), and most named
+   exports in the fixtures are functions with no value to compare. Revisit at
+   step 2, when the reference's output is a committed file and adding
+   data-valued named exports is cheap. The four fixtures whose default is
+   `undefined` and test named exports or imports (`effect`, `exports`,
+   `named-imports`, `named-imports-math`) stay vacuous in this corpus until
+   then, listed in `undefinedDefault`.
+4. ~~Is `memo` the interpreter of record for the identity contract?~~
+   Decided: yes, and `amnesia` is out of the identity contract. `memo`
+   starts each call with a fresh cache and keeps captures by identity, the
+   JavaScript-compatible model of
+   [execution models](../../fjs/edag/execution-models.md) §2; it is the
+   executor the loader, `compile` and module initialization use, and the one
+   the roadmap compiles to Rust; and it agrees with Node on every identity
+   fixture. `amnesia` re-establishes a shared node on every edge by design.
+   Its use as a third opinion on fixtures that observe no identity is left
+   open: it needs a per-fixture marker (like the operator corpus's `host`)
+   and its own source-to-export glue, which is upkeep to pay only if a
+   `memo`-only value bug appears. `memo`'s immutable-cache rewrite still has
+   [open native-parity checks](../../fjs/edag/memo/todo/immutable-cache.md).
+
 ### Open questions
 
 1. ~~Does option 2 of the code-pointer sketch type-check?~~ Moot: neither
@@ -551,21 +666,22 @@ satisfy the same contract, but this parity work does not wait for it.
       repeated rest reads, distinct calls, spread-array identity and captures.
       Cover zero-arity migration and refusal of legacy positive-arity/full-list
       sketches. Native capacity is the language's limit on `length`, 16.
-      Pin the closure behaviors that compile today but no generated fixture
-      pins yet: two closures made by one function are distinct while one
-      binding read twice is the same
-      (`const make = (...a) => () => a[0]; … [f(), g(), f === g, f === f]`
-      gives `[1, 1, false, true]`); a captured object or array keeps its
-      identity (`get() === o.x`); and a failure computing a frame element
-      fails at creation, not at the call
-      (`const make = (...a) => { const v = a[0].x; return () => v; };
-      export default make(undefined);`).
+      Closure identity and frame failure are pinned by the
+      [`closure-identity`](../../nanvm-harness/fixtures/closure-identity.mjs)
+      fixture (two closures from one function are distinct, one binding read
+      twice is the same, a captured object keeps its identity) and the
+      [`closure-throws`](../../nanvm-harness/fixtures/closure-throws.mjs)
+      fixture (a failure computing a frame element fails at creation, not at
+      the call); the rest of the list above is open.
 - [ ] Before enabling default-text observations, integrate the shared EDAG
       renderer or explicit refusal, covering direct/indirect conversions and
       exported callables. Do not wait for Stage 7 to prevent wrong output.
 - [ ] Stage 7: semantic EDAG association for natively compiled functions,
       after resolving embedded data versus lookup; no Rust executor dependency.
-- [ ] Stage 8: shared call-contract corpus for direct AOT and FJS interpretation.
+- [x] Stage 8 step 1: the FJS interpreter against the Node reference over the
+      harness fixtures ([`fjs/nanvm/corpus`](../../fjs/nanvm/corpus/module.f.mjs)).
+- [ ] Stage 8 step 2: direct AOT against the reference's committed output.
+- [ ] Stage 8 step 3: the interpreter compiled to Rust runs the corpus (blocked).
 
 ### Related
 

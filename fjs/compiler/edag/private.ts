@@ -52,6 +52,7 @@ export type _LowerWork =
     | { readonly kind: 'typeof', readonly rest: _LowerWork }
     | { readonly kind: 'instanceof', readonly name: ConstructorId, readonly rest: _LowerWork }
     | { readonly kind: 'Number', readonly rest: _LowerWork }
+    | { readonly kind: 'String', readonly rest: _LowerWork }
     | { readonly kind: 'throw', readonly rest: _LowerWork }
     | { readonly kind: 'binary', readonly tag: BinaryTag, readonly rest: _LowerWork }
     | { readonly kind: 'ternary', readonly rest: _LowerWork }

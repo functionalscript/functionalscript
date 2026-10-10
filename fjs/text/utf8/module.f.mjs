@@ -23,7 +23,7 @@ import {
 import { u8ListMsb, isWholeBytes } from '../../types/bit_vec/module.f.mjs'
 import { contains } from '../../types/range/module.f.js'
 import { isByte } from '../../types/number/module.f.mjs'
-import { codePointListToString } from '../utf16/module.f.mjs'
+import { codePointListToString, stringToCodePointList } from '../utf16/module.f.mjs'
 
 /**
  * UTF-8 byte-format constants. Each byte kind is defined by a tag — the fixed
@@ -317,14 +317,32 @@ export const toCodePointList =
     decoder(utf8ByteToCodePointOp, utf8EofToCodePointOp)
 
 /**
+ * Encodes a string as UTF-8 bytes. The inverse of {@link u8ListToString} for
+ * any string without unpaired surrogates.
+ *
+ * @type {(s: string) => List<U8>}
+ */
+export const stringToU8List = s => fromCodePointList(stringToCodePointList(s))
+
+/**
+ * Decodes UTF-8 bytes into a string, unchecked: a malformed sequence, a
+ * surrogate, or a value above `U+10FFFF` is not refused, and comes out as
+ * whatever `codePointListToString` makes of it. {@link fromU8List} is the
+ * checked sibling.
+ *
+ * @type {(bytes: List<U8>) => string}
+ */
+export const u8ListToString = bytes =>
+    codePointListToString(toCodePointList(bytes))
+
+/**
  * Decodes an MSB-first UTF-8 bit vector into a list of code points,
  * unchecked, exactly as {@link toCodePointList} does for its bytes. A
  * structurally malformed sequence becomes an error-tagged code point, but a
  * well-formed one that encodes no Unicode scalar value — a surrogate
  * (`ED A0 80`) or a value above `U+10FFFF` (`F4 90 80 80`) — comes back as
  * that plain number; {@link fromU8List}'s `isValidCodePoint` pass is what rejects
- * those. `fjs/text`'s `utf8ToString` builds on it; {@link fromVec} is the
- * checked decode of the same bytes.
+ * those. {@link fromVec} is the checked decode of the same bytes.
  *
  * @type {(v: Vec) => List<CodePoint>}
  */

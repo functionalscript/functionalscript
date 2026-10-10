@@ -55,9 +55,7 @@ import { eof } from '../../../ebnf/module.f.mjs'
 import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.mjs'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
 import { lexeme, units } from '../../../ebnf/utf16/module.f.mjs'
-import { isValidCodePoint } from '../../../text/code_point/module.f.mjs'
-import { toCodePointList } from '../../../text/utf8/module.f.mjs'
-import { codePointListToString } from '../../../text/utf16/module.f.mjs'
+import { fromU8List } from '../../../text/utf8/module.f.mjs'
 import { items } from '../../../ebnf/lib/json/module.f.mjs'
 import { dataJs, number, value } from '../../../ebnf/lib/datajs/module.f.mjs'
 import { stringMappings, syntaxError } from '../../json/parser/module.f.mjs'
@@ -314,31 +312,30 @@ const bomRule = 'document: a document has no BOM'
  * character among them — so {@link tryParse} can neither implement nor refuse
  * them, and a reader taking bytes owes both.
  *
- * Strictness is the decoder's, and it is the same pair `fromVec` in
- * [`fjs/text/utf8`](../../../text/utf8/module.f.mjs) uses:
- * `toCodePointList` marks a malformed sequence with an error code, and
- * `isValidCodePoint` refuses what a code point may not be — a surrogate,
- * which `ED A0 80` decodes to, and anything past U+10FFFF. Measured, that
- * catches a truncated sequence, a lone continuation byte, an overlong form,
- * a surrogate encoding and an out-of-range lead alike, which is the whole
- * of what "correct UTF-8" excludes.
+ * Strictness is the decoder's: `fromU8List` in
+ * [`fjs/text/utf8`](../../../text/utf8/module.f.mjs), which `fromVec` uses
+ * too, refuses a malformed sequence and what a code point may not be — a
+ * surrogate, which `ED A0 80` decodes to, and anything past U+10FFFF.
+ * Measured, that catches a truncated sequence, a lone continuation byte, an
+ * overlong form, a surrogate encoding and an out-of-range lead alike, which
+ * is the whole of what "correct UTF-8" excludes.
  *
  * The order of the two checks is the layering: a BOM inside bytes that do
  * not decode is refused for the UTF-8 rule, since there is no first
- * character to be a BOM until the bytes decode to one.
+ * character to be a BOM until the bytes decode to one. U+FEFF is in the
+ * BMP, so the decoded string's first code unit is that character.
  *
- * Then the bridge back: the reader's symbols are UTF-16 code units, so the
- * code points are re-encoded with `codePointListToString` before the
- * grammar sees one. A four-byte scalar decodes to a single code point —
- * `F0 90 80 80` is U+10000 — and the grammar must receive the pair
- * `D800 DC00`, which the corpus's four-byte vector requires to succeed.
- * One reader over one alphabet; the bridge is the decoder's.
+ * The reader's symbols are UTF-16 code units, and the decoder answers a
+ * string, so a four-byte scalar — `F0 90 80 80` is U+10000 — reaches the
+ * grammar as the pair `D800 DC00`, which the corpus's four-byte vector
+ * requires to succeed. One reader over one alphabet; the bridge is the
+ * decoder's.
  *
  * @type {(bytes: List<U8>) => Result<Unknown, string>}
  */
 export const tryParseBytes = bytes => {
-    const codePoints = toArray(toCodePointList(bytes))
-    if (!codePoints.every(isValidCodePoint)) { return error(utf8Rule) }
-    if (codePoints[0] === bom) { return error(bomRule) }
-    return tryParse(codePointListToString(codePoints))
+    const text = fromU8List(bytes)
+    if (text === null) { return error(utf8Rule) }
+    if (text.charCodeAt(0) === bom) { return error(bomRule) }
+    return tryParse(text)
 }

@@ -364,6 +364,50 @@ pub fn rm(path: &str) -> Result<(), IoError> {
     fs::remove_file(path).map_err(|e| failure(&e, "rm", path))
 }
 
+/// What `stat` answers: the size and which of the two kinds a caller acts on
+/// the entry is. A link is followed, a FIFO, a device and a socket are neither
+/// (`FileStat` in `fjs/effects/node/types.ts`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Stat {
+    pub size: u64,
+    pub is_file: bool,
+    pub is_directory: bool,
+}
+
+pub fn stat(path: &str) -> Result<Stat, IoError> {
+    let metadata = fs::metadata(path).map_err(|e| failure(&e, "stat", path))?;
+    Ok(Stat {
+        size: metadata.len(),
+        is_file: metadata.is_file(),
+        is_directory: metadata.is_dir(),
+    })
+}
+
+/// Whether the path exists, as `access` with no mode asks: a link is followed.
+pub fn access(path: &str) -> Result<(), IoError> {
+    fs::metadata(path)
+        .map(|_| ())
+        .map_err(|e| failure(&e, "access", path))
+}
+
+/// Moves `src` to `dst`, replacing a file there.
+pub fn rename(src: &str, dst: &str) -> Result<(), IoError> {
+    fs::rename(src, dst).map_err(|e| failure(&e, "rename", &format!("{src}' -> '{dst}")))
+}
+
+/// Removes an empty directory. Nothing is followed: a link, to a directory or
+/// not, is `ENOTDIR`, as is a file, which holds on every host (`Rmdir` in
+/// `fjs/effects/node/types.ts`); Windows would otherwise remove a directory
+/// link. `FileType::is_symlink` is true for a Windows junction too: std reads
+/// it from the reparse tag's name-surrogate bit (`0x20000000`), which the
+/// symlink tag `0xA000000C` and the mount-point tag `0xA0000003` both carry.
+pub fn rmdir(path: &str) -> Result<(), IoError> {
+    if fs::symlink_metadata(path).is_ok_and(|m| m.file_type().is_symlink()) {
+        return Err(failure(&ErrorKind::NotADirectory.into(), "rmdir", path));
+    }
+    fs::remove_dir(path).map_err(|e| failure(&e, "rmdir", path))
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -611,6 +655,71 @@ mod test {
             fn drop(&mut self) {
                 let _ = fs::remove_dir_all(&self.0);
             }
+        }
+
+        #[test]
+        fn stat_and_access() {
+            let dir = Scratch::new();
+            let file = dir.at("f");
+            write_file(&file, &[1, 2, 3]).unwrap();
+            assert_eq!(
+                stat(&file),
+                Ok(Stat {
+                    size: 3,
+                    is_file: true,
+                    is_directory: false
+                })
+            );
+            assert_eq!(
+                stat(&dir.at("")),
+                Ok(Stat {
+                    size: stat(&dir.at("")).unwrap().size,
+                    is_file: false,
+                    is_directory: true
+                })
+            );
+            assert_eq!(code_of(stat(&dir.at("none"))), Some("ENOENT".into()));
+            assert_eq!(access(&file), Ok(()));
+            assert_eq!(access(&dir.at("")), Ok(()));
+            assert_eq!(code_of(access(&dir.at("none"))), Some("ENOENT".into()));
+        }
+
+        #[test]
+        fn rename_replaces_a_file() {
+            let dir = Scratch::new();
+            write_file(&dir.at("a"), &[1]).unwrap();
+            write_file(&dir.at("b"), &[2]).unwrap();
+            assert_eq!(rename(&dir.at("a"), &dir.at("b")), Ok(()));
+            assert_eq!(read_file(&dir.at("b")), Ok([1].to_vec()));
+            assert_eq!(code_of(read_file(&dir.at("a"))), Some("ENOENT".into()));
+            let error = rename(&dir.at("a"), &dir.at("c")).unwrap_err();
+            assert_eq!(error.code, Some("ENOENT".into()));
+            assert!(error.message.contains(" -> "), "{}", error.message);
+        }
+
+        #[test]
+        fn rmdir_removes_an_empty_directory_only() {
+            let dir = Scratch::new();
+            mkdir(&dir.at("d"), false).unwrap();
+            write_file(&dir.at("d/f"), &[]).unwrap();
+            assert_eq!(code_of(rmdir(&dir.at("d"))), Some("ENOTEMPTY".into()));
+            rm(&dir.at("d/f")).unwrap();
+            assert_eq!(rmdir(&dir.at("d")), Ok(()));
+            assert_eq!(code_of(rmdir(&dir.at("d"))), Some("ENOENT".into()));
+            write_file(&dir.at("f"), &[]).unwrap();
+            assert_eq!(code_of(rmdir(&dir.at("f"))), Some("ENOTDIR".into()));
+        }
+
+        /// A link to a directory is `ENOTDIR` and is left alone.
+        #[cfg(unix)]
+        #[test]
+        fn rmdir_refuses_a_link() {
+            let dir = Scratch::new();
+            mkdir(&dir.at("target"), false).unwrap();
+            std::os::unix::fs::symlink(dir.at("target"), dir.at("link")).unwrap();
+            assert_eq!(code_of(rmdir(&dir.at("link"))), Some("ENOTDIR".into()));
+            assert_eq!(access(&dir.at("link")), Ok(()));
+            assert_eq!(rmdir(&dir.at("target")), Ok(()));
         }
 
         #[test]
