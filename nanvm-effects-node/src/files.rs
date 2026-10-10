@@ -316,7 +316,9 @@ pub fn readdir(path: &str, recursive: bool) -> Result<Vec<Dirent>, IoError> {
 /// only at the close, a delayed `EIO` or `ENOSPC`, is reported. A file that
 /// cannot be synced at all, a pipe, a terminal or a device such as `/dev/null`,
 /// answers `EINVAL` or is unsupported, and has nothing to flush: that is not a
-/// failure (`todo/close-errors.md`).
+/// failure (`todo/close-errors.md`). The exclusive operations create a regular
+/// file, which can always be synced, so they call `sync_all` and take every
+/// error.
 fn sync(file: &File) -> io::Result<()> {
     match file.sync_all() {
         Err(e) if matches!(e.kind(), ErrorKind::InvalidInput | ErrorKind::Unsupported) => Ok(()),
@@ -436,7 +438,7 @@ pub fn read_bytes(path: &str, at: f64, size: f64) -> Result<Vec<u8>, IoError> {
 /// the Node runner leaves it.
 pub fn create_exclusive(path: &str) -> Result<(), IoError> {
     let file = exclusive(path).map_err(|e| failure(&e, "open", path))?;
-    sync(&file).map_err(|e| failure(&e, "close", path))
+    file.sync_all().map_err(|e| failure(&e, "close", path))
 }
 
 fn exclusive(path: &str) -> io::Result<File> {
@@ -455,7 +457,7 @@ pub fn write_exclusive(path: &str, data: &[Vec<u8>]) -> Result<(), IoError> {
     write_exclusive_with(
         path,
         |file| data.iter().try_for_each(|d| file.write_all(d)),
-        sync,
+        File::sync_all,
     )
 }
 

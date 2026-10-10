@@ -30,4 +30,6 @@ takes, which the rollback test exercises.
 ### Tasks
 
 - [x] `createExclusive` and `writeExclusive`.
-- [x] `writeFile` and `writeBytes`, through the one `sync` helper in `files.rs`.
+- [x] `writeFile` and `writeBytes`, through the one `sync` helper in `files.rs`; the exclusive operations keep
+      raw `sync_all`, since the file they create is regular and every sync error
+      there is real.
