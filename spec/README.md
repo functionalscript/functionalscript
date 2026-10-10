@@ -2465,8 +2465,12 @@ module boundary, from which a default import selects the document.
   The writer spells a property access, every operator the language has
   ([operators](#operators)) and every call. A number or a function that is
   an access's base or a callee takes a `const`, and so does a callee that
-  is an access: `a.b(c)` and `(a.b)(c)` are both the method call, and a
-  function called where it is written is inlined.
+  is an access: `a.b(c)` and `(a.b)(c)` are both the method call. The front
+  end inlines a function written at the call only when the call has no
+  arguments, the function has zero fixed parameters, and its body does not
+  read its own rest array ([bodies and guards](#bodies-and-guards)). The
+  writer hoists function callees when retaining a call node, so reading its
+  output does not inline that call away.
 - Object properties are emitted in the order the value carries them for the
   value outputs — JavaScript's own-property order, array-index keys first,
   a repeated key keeping its first position and its last value — and in the
