@@ -9,4 +9,4 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
 }
 
 #[rustfmt::skip]
-pub const JSON: Option<&str> = Some("42");
+pub const JSON: Option<&[u8]> = Some(&[0x34, 0x32]);

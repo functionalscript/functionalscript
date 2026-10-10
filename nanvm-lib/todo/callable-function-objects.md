@@ -615,8 +615,13 @@ two parts, and each catches what the other cannot:
    `5e-324` and U+2028 found no other difference. So the generator writes the
    text of the value with `-0` replaced by `0`, `JSON.stringify`'s own rule, a
    small pure function with its own proof, and `-0` is left to the graph
-   layer, which compares numbers by bits. In Rust the check is `Any::to_json()` against
-   that text: `nanvm-lib`'s serializer on the compiled result, a path that
+   layer, which compares numbers by bits. The text is committed as its UTF-8
+   bytes, spelled as numbers, and not as a Rust string literal: the
+   string-literal emitter is the one that spells the compiled fixture's
+   strings, so a text written through it would share an escaping mistake with
+   what it checks (DEL and a bidirectional control, in `escapes`), and `rustc`
+   refuses some characters in a literal. In Rust the check is `Any::to_json()`
+   as bytes against those bytes: `nanvm-lib`'s serializer on the compiled result, a path that
    shares nothing with the literal emitter. JSON text is also ordered, so a
    wrong property order fails here.
 2. *The graph, for what JSON cannot say.* The interpreter's value printed as
@@ -634,8 +639,8 @@ walks the corpus fixtures, also loads each through the interpreter's loader
 (`interpret`, as `_transpileDefault` does), takes the `default` of the
 represented export object, and writes `nanvm-harness/gen.expected/<name>.rs`:
 a module returning the expected `Any` as a graph, as `gen.values/captures.rs`
-does, with, when the default has a JSON form, that JSON text as a string
-constant, plus a `mod.rs` that is the list. A module whose initialization
+does, with, when the default has a JSON form, the UTF-8 bytes of that JSON
+text as a constant, plus a `mod.rs` that is the list. A module whose initialization
 throws gets a module that returns `Err`, so a fixture that throws is expected
 to throw (the thrown value is engine-specific and not compared, as in the
 operator corpus). The corpus rule of `fjs/nanvm/corpus` decides which
