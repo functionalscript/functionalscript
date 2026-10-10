@@ -83,6 +83,27 @@ export const modules = names => [
 ].join('\n')
 
 /**
+ * The text of `gen.expected/mod.rs`: the `pub mod` of every expectation, as
+ * {@link modules} writes them, and `CASES`, one row per expectation pairing
+ * the compiled fixture of the same name with it, so one Rust test walks the
+ * whole corpus without naming a fixture. The rows are on the VM every
+ * `nanvm-harness` test runs at; `crate::Case` is `src/lib.rs`'s.
+ *
+ * @type {(names: readonly string[]) => string}
+ */
+export const expectedModules = names => [
+    modules(names),
+    'use nanvm_lib::naive::Naive;',
+    '',
+    '/// Every corpus fixture with its expectation.',
+    '#[rustfmt::skip]',
+    'pub const CASES: &[crate::Case] = &[',
+    ...names.map(name => `    crate::Case { name: "${name}", fixture: crate::fixtures::${name}::module::<Naive>, expected: ${name}::module::<Naive>, json: ${name}::JSON },`),
+    '];',
+    '',
+].join('\n')
+
+/**
  * Compiles every fixture into its `.rs`, in order, stopping at the first the
  * compiler refuses, then writes `mod.rs` naming them all. The output
  * directory is created by the first compile — after `gen:clean` on a fresh
@@ -134,7 +155,7 @@ export const generateExpected = () => {
     const selected = history(mapStep(fixtures(), corpus))
     const directoryReady = historyStep(selected, () => mkdir(expectedDirectory, { recursive: true }))
     const written = historyStep(directoryReady, (_, names) => forEachStep(pureOk(names), writeExpectation))
-    return step(written, ([, , names]) => writeUtf8File(expectedModulesPath, modules(names.map(rustName))))
+    return step(written, ([, , names]) => writeUtf8File(expectedModulesPath, expectedModules(names.map(rustName))))
 }
 
 /** The fixtures compiled, then their expectations written. @type {() => Effect<_CompileOp, void, IoChannel>} */

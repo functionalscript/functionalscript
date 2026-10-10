@@ -18,10 +18,13 @@ pub mod fixtures;
 
 /// The expectation of each corpus fixture, `gen.expected/*.rs`, named by the
 /// generated `gen.expected/mod.rs`: the value of its default as a graph, and
-/// its JSON text where it has one. The comparison with the compiled fixture
-/// is the next step's.
+/// its JSON text where it has one, and `CASES` pairing each with its compiled
+/// fixture for [`check`].
 #[path = "../gen.expected/mod.rs"]
 pub mod expected;
+
+mod compare;
+pub use compare::{Case, check, same_graph};
 
 use core::fmt::{self, Debug, Display, Formatter};
 
@@ -151,12 +154,9 @@ mod tests {
     use crate::{
         Action, RunError,
         fixtures::{
-            arity, array, at, bigint, boolean, call, calls, closure, closure_identity,
-            closure_throws, entry, escapes, exports, function, function_scope, function_text, lazy,
-            length, method, missing, named, named_imports, named_imports_throws, nested,
-            not_a_function, nullish, number, object, object_spread, operators, optional,
-            parameters, property, recursion, rest, rest_function, sharing, spread, string, throw,
-            throws, to_string,
+            bigint, closure_throws, exports, function, function_text, missing, named,
+            named_imports, named_imports_throws, not_a_function, nullish, number, rest_function,
+            throw, throws,
         },
         run,
     };
@@ -179,16 +179,21 @@ mod tests {
         module().unwrap().dot("default".into()).end().unwrap()
     }
 
+    /// Every corpus fixture against its generated expectation, both layers
+    /// (see [`crate::check`]). One test over the whole list, since a new
+    /// fixture is a new row and not a new test; every difference is reported,
+    /// not the first alone.
     #[test]
-    fn module_result_contains_exports() {
-        assert_eq!(
-            number::module::<Naive>().unwrap().to_json(),
-            Ok(r#"{"default":42}"#.into())
-        );
-        assert_eq!(
-            object::module::<Naive>().unwrap().to_json(),
-            Ok(r#"{"default":{"a":1,"b":"two"}}"#.into())
-        );
+    fn corpus_matches_expectations() {
+        let failures: Vec<_> = crate::expected::CASES
+            .iter()
+            .filter_map(|case| {
+                crate::check(case)
+                    .err()
+                    .map(|e| format!("{}: {e}", case.name))
+            })
+            .collect();
+        assert!(failures.is_empty(), "{}", failures.join("\n"));
     }
 
     /// A module written by hand in the shape the generator prints, throwing
@@ -244,76 +249,6 @@ mod tests {
         );
     }
 
-    /// Every eager operator, computed by `nanvm-lib` from the compiled
-    /// module, against what a JavaScript engine gives the same source.
-    #[test]
-    fn operators() {
-        assert_eq!(
-            read_default(operators::module),
-            Ok(
-                "[7,5,12,1.5,2,36,-6,-7,false,\"number\",true,true,false,true,true,false,true,2,7,7,12,3,3,\"ab\",7]"
-                    .into()
-            )
-        );
-    }
-
-    /// The four lazy operators, each from source the grammar reads: the
-    /// operand a `&&`, `||` or `??` never reaches and the arm a `?:` does
-    /// not select is a thunk never run, so the `1n / 0n` standing in each
-    /// of those positions throws nowhere, and the module answers what a
-    /// JavaScript engine answers the same source. The last two are a
-    /// function's arguments reached only through lazy positions, bound
-    /// once by the body and cloned by each thunk.
-    #[test]
-    fn lazy_operators() {
-        assert_eq!(
-            read_default(lazy::module),
-            Ok("[0,2,null,1,3,\"x\",0,4,5,false,7,8,2,10,11,13,2]".into())
-        );
-    }
-
-    /// Functions, end to end: a function of one rest parameter is a closure
-    /// bound through `IStaticFunction`, a call is `Any::call`, and the
-    /// arguments reach the body as its `args`.
-    #[test]
-    fn functions() {
-        assert_eq!(read_default(call::module), Ok("41".into()));
-        assert_eq!(read_default(arity::module), Ok("[0,2]".into()));
-        assert_eq!(read_default(rest::module), Ok("[1,2,3]".into()));
-        assert_eq!(read_default(calls::module), Ok("[1,2]".into()));
-        assert_eq!(read_default(nested::module), Ok("[2,3]".into()));
-        assert_eq!(read_default(length::module), Ok("0".into()));
-        // spec/README.md's sharing example: `pair` is bound once inside the
-        // function's own scope, where `a` is, and cloned at each reference.
-        assert_eq!(
-            read_default(function_scope::module),
-            Ok("[[1,1],[1,1]]".into())
-        );
-    }
-
-    /// Spread, end to end: an array's elements and a string's code points
-    /// spliced into an array literal and a call's arguments, a method
-    /// call's included — the values Node gives the fixture.
-    #[test]
-    fn spreads() {
-        assert_eq!(
-            read_default(spread::module),
-            Ok(r#"[[0,1,2,3],["a","😀"],[1,2,4],4,2]"#.into())
-        );
-    }
-
-    /// Object spread, end to end: an object's own properties copied in
-    /// place, a later value at the earlier key's position, an array's
-    /// elements by index, a string's code units, nothing from `null` — the
-    /// values Node gives the fixture.
-    #[test]
-    fn object_spreads() {
-        assert_eq!(
-            read_default(object_spread::module),
-            Ok(r#"[{"a":1,"b":2,"c":3},{"b":2,"a":1},{"a":0,"b":2},{"0":"p","z":0},{"0":"a","1":"\ud83d","2":"\ude00"},{}]"#.into())
-        );
-    }
-
     /// A function as the default export, called rather than read: with no
     /// arguments, and with a rest parameter that gathers what it is given.
     #[test]
@@ -352,48 +287,6 @@ mod tests {
         }
     }
 
-    /// The `entry` helper, end to end: compiled as `['entry']`, printed as
-    /// the static function answering `Any::entry`, and read, called and
-    /// passed as the function it is.
-    #[test]
-    fn entry_helper() {
-        assert_eq!(
-            read_default(entry::module),
-            Ok(r#"[1,3,true,8,8,true,true,"a",true,true,2,"function",9,5,true,true]"#.into())
-        );
-    }
-
-    #[test]
-    fn named_and_rest_parameters() {
-        assert_eq!(
-            read_default(parameters::module),
-            Ok("[3,[1,2,3,[4,5]],true,true,true,1,1,[1,[2,3],4,[5],[2,3],[5]],true,true,true,true]".into())
-        );
-    }
-
-    /// Closures, end to end: a function's frame is the values its body
-    /// names from outside, built where the function is made and read
-    /// through `A::frame` — an enclosing function's arguments, a module
-    /// `const`, and a capture through a parent's own frame.
-    #[test]
-    fn closures() {
-        assert_eq!(
-            read_default(closure::module),
-            Ok("[3,15,[1,2,3,1],42]".into())
-        );
-    }
-
-    /// Closure identity: two closures made by one function are distinct
-    /// while one binding read twice is the same, and a captured object keeps
-    /// its identity through the frame. The expected text is what Node prints.
-    #[test]
-    fn closure_identity() {
-        assert_eq!(
-            read_default(closure_identity::module),
-            Ok("[1,1,false,true,true,true]".into())
-        );
-    }
-
     /// A failure computing a frame element fails where the closure is made,
     /// not where it is called: the module itself throws.
     #[test]
@@ -402,15 +295,6 @@ mod tests {
             read_default(closure_throws::module),
             Err(RunError::Thrown(_))
         ));
-    }
-
-    /// A function that names itself: its `self`, the EDAG node the Rust
-    /// printer spells as the closure's own `self_`, calls the function it
-    /// is, is the one identity every read, and is captured by a function
-    /// nested in it as any value of the scope around it is.
-    #[test]
-    fn recursion() {
-        assert_eq!(read_default(recursion::module), Ok("[120,true,3]".into()));
     }
 
     /// A function's text is the FunctionalScript writer's: converted where
@@ -580,101 +464,5 @@ mod tests {
                 .unwrap();
             assert_eq!(item.to_string().unwrap(), text.into());
         }
-    }
-
-    #[test]
-    fn number_constant() {
-        assert_eq!(read_default(number::module), Ok("42".into()));
-    }
-
-    #[test]
-    fn string_constant() {
-        assert_eq!(read_default(string::module), Ok(r#""hello""#.into()));
-    }
-
-    #[test]
-    fn boolean_constant() {
-        assert_eq!(read_default(boolean::module), Ok("true".into()));
-    }
-
-    #[test]
-    fn array_literal() {
-        assert_eq!(read_default(array::module), Ok("[1,2,3]".into()));
-    }
-
-    #[test]
-    fn object_literal() {
-        assert_eq!(
-            read_default(object::module),
-            Ok(r#"{"a":1,"b":"two"}"#.into())
-        );
-    }
-
-    #[test]
-    fn shared_object_reference() {
-        // `[shared, shared]` is one object reached from two places, printed
-        // as a single `let c0` binding cloned at each reference
-        // (`sharing.rs`) — this only proves the JSON is right; the sharing
-        // itself is a property of the generated Rust, not something the
-        // JSON output could distinguish from two separate literal objects.
-        assert_eq!(
-            read_default(sharing::module),
-            Ok(r#"[{"x":1},{"x":1}]"#.into())
-        );
-    }
-
-    #[test]
-    fn property_access() {
-        assert_eq!(read_default(property::module), Ok("42".into()));
-    }
-
-    /// `o.f(42)`: the read's continuation calls `f` — a method call, one
-    /// chain — and the call reaches the function with its arguments.
-    #[test]
-    fn method_call() {
-        assert_eq!(read_default(method::module), Ok("42".into()));
-    }
-
-    /// The optional chains (`fjs/edag/README.md`, Chains): a guarded
-    /// access and its steps skipped on a nullish base, a guarded call on
-    /// a property reference, kept as the receiver, a guarded call on a
-    /// nullish callee, and a group ending a region — `(o?.a).b` two nodes
-    /// where `o?.a.b` is one.
-    #[test]
-    fn optional_chains() {
-        assert_eq!(read_default(optional::module), Ok("[1,0,0,2,0,1]".into()));
-    }
-
-    /// `a.at(i)`: a built-in member function of one type, reading its
-    /// receiver — from the start, from the end, out of range, and with
-    /// the index converted.
-    #[test]
-    fn at_method() {
-        assert_eq!(
-            read_default(at::module),
-            Ok("[10,30,true,true,20,20,10]".into())
-        );
-    }
-
-    /// `x.toString()` on every type, a built-in member function the
-    /// receiver does not own, and an own `toString` shadowing it.
-    #[test]
-    fn to_string_method() {
-        assert_eq!(
-            read_default(to_string::module),
-            Ok(r#"["1.5","true","ab","5","1,b","[object Object]","own"]"#.into())
-        );
-    }
-
-    #[test]
-    fn escaped_characters() {
-        // `escapes.rs` spells each of these as a `\u{…}` escape, since a
-        // control character or a bidirectional control cannot stand in a
-        // Rust literal as it is; the VM reads back the character itself.
-        // `to_json` escapes the two control characters and prints the rest.
-        assert_eq!(
-            read_default(escapes::module),
-            Ok("[\"\\u0000\",\"\\u001f\",\"\u{7f}\",\"\u{202e}\",\"\u{2069}\"]".into())
-        );
     }
 }

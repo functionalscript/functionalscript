@@ -689,6 +689,15 @@ the helper keeps its map of pairs in a list of container pairs compared with
 `==`, with no hashing of an `Any` required. Numbers compare by bits (`NaN`,
 `-0`), as `same` already does.
 
+*As built (2b).* The generated `gen.expected/mod.rs` also holds `CASES`, one
+row per expectation pairing the compiled fixture with it, so the single test
+`corpus_matches_expectations` walks the corpus without naming a fixture and
+reports every difference. The comparison is
+[`nanvm-harness/src/compare.rs`](../../nanvm-harness/src/compare.rs). A module
+without a `default` is read as `undefined`, as the interpreter's
+`read 'default'` is. A default with no JSON form must also give `to_json()` an
+error, so the `None` side is checked too.
+
 *What 2b deletes.* The hand-written JSON assertion of each fixture whose
 expectation has the JSON layer in `src/lib.rs` (the `read_default(…) ==
 Ok("…")` strings), since it is the same fact Node's text now supplies and
@@ -825,7 +834,7 @@ level.
 - [x] Stage 8 step 1: the FJS interpreter against the Node reference over the
       harness fixtures ([`fjs/nanvm/corpus`](../../fjs/nanvm/corpus/module.f.mjs)).
 - [x] Stage 8 step 2a: for each corpus fixture, a committed `gen.expected` Rust module holding the interpreter's value as a graph and, when the default has a JSON form, the compiler's JSON text, and a list of them.
-- [ ] Stage 8 step 2b (in progress): one Rust test checks each compiled fixture against both layers of its expectation (JSON text, then an order- and sharing-aware graph comparison) and replaces the hand-written assertions the JSON layer covers.
+- [x] Stage 8 step 2b: one Rust test checks each compiled fixture against both layers of its expectation (JSON text, then an order- and sharing-aware graph comparison) and replaces the hand-written assertions the JSON layer covers.
 - [ ] Stage 8 step 3: the interpreter compiled to Rust runs the corpus (blocked).
 
 ### Related
