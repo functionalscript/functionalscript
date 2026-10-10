@@ -103,11 +103,11 @@ export const proof = {
             const decimal = digitsValue(10n)
             assertEq(decimal(codePoints('0')), 0n)
             assertEq(decimal(codePoints('42')), 42n)
-            assertEq(decimal(codePoints('9223372036854775807')), 9223372036854775807n)
+            assertEq(decimal(codePoints('9223372036854775807')), 9_223_372_036_854_775_807n)
         },
         octal: () => {
             const octal = digitsValue(8n)
-            assertEq(octal(codePoints('100644')), 33188n)
+            assertEq(octal(codePoints('100644')), 33_188n)
             assertEq(octal(codePoints('7')), 7n)
             assertEq(octal(codePoints('8')), null)
             assertEq(octal(codePoints('19')), null)

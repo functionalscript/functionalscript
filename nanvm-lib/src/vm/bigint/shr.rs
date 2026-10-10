@@ -309,7 +309,7 @@ mod tests {
         // shift = (u32::MAX as u64 + 1) * 64 = 274877906944
         // word_shift = 2^32 which exceeds any u32 n_len; result must be zero.
         let a = pos(vec![u64::MAX, u64::MAX]);
-        let b: T = 274877906944u64.into();
+        let b: T = 274_877_906_944u64.into();
         assert_eq!((a >> b).unwrap(), T::default());
     }
 

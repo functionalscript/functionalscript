@@ -48,7 +48,7 @@ export const proof = {
     // The merged hash's eight SHA2 words are packed most significant first
     overflowHashValue: () => assertEq(
         asBase(overflowHash),
-        0xc0caa9d6cf74446133e0d3c5d891a40103045a3df74963c8ecf796f96dbf9017n),
+        0xc0ca_a9d6_cf74_4461_33e0_d3c5_d891_a401_0304_5a3d_f749_63c8_ecf7_96f9_6dbf_9017n),
 
     // Hash input: either argument being a hash always triggers SHA2-based merge
     hashLeftIsHash: () => assert(isHash(compress(overflowHash, level3Id(0n)))),

@@ -372,7 +372,7 @@ export const proof = {
     // 5,000 levels would survive — is caught.
     depth: {
         writesBack: () => {
-            const n = 20000
+            const n = 20_000
             const document = `export default ${'['.repeat(n)}${']'.repeat(n)};`
             assertEq(text(unwrap(tryParse(document))), document)
         },
@@ -383,8 +383,8 @@ export const proof = {
         below: () => {
             /** @type {(depth: number, bottom: unknown) => unknown} */
             const nested = (depth, bottom) => Array.from({ length: depth }).reduce(v => [v], bottom)
-            assertEq(refused(nested(2600, () => 1)), 'a function is not a DataJS value')
-            const chain = nested(2600, emptyArray)
+            assertEq(refused(nested(2_600, () => 1)), 'a function is not a DataJS value')
+            const chain = nested(2_600, emptyArray)
             assertEq(text([chain, chain]).slice(0, 12), 'const $0=[[[')
         },
     },

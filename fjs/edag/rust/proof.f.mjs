@@ -1064,7 +1064,7 @@ export const proof = {
         assertEq(printed(2n ** 63n), 'bigint_any_words(false, &[0x8000000000000000])')
         assertEq(printed(-(2n ** 63n) - 1n), 'bigint_any_words(true, &[0x8000000000000001])')
         assertEq(
-            printed(123456789012345678901234567890n),
+            printed(123_456_789_012_345_678_901_234_567_890n),
             'bigint_any_words(false, &[0xc373e0ee4e3f0ad2, 0x000000018ee90ff6])')
         assertEq(printed(-(2n ** 64n)), 'bigint_any_words(true, &[0x0000000000000000, 0x0000000000000001])')
     },

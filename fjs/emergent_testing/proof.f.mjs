@@ -973,13 +973,13 @@ const runTotalsProofs = {
 const formatDurationProofs = {
     underASecond: () => assertEq(formatDuration(1)(82.34), '82.3 ms'),
     // From a second on, seconds: the root page's suite is minutes long.
-    fromASecond: () => assertEq(formatDuration(1)(1000), '1.0 s'),
-    long: () => assertEq(formatDuration(1)(103812.4), '103.8 s'),
+    fromASecond: () => assertEq(formatDuration(1)(1_000), '1.0 s'),
+    long: () => assertEq(formatDuration(1)(103_812.4), '103.8 s'),
     // The terminal's precision: a leaf is often well under a millisecond.
     fourDigits: () => {
         assertEq(formatDuration(4)(0), '0.0000 ms')
         assertEq(formatDuration(4)(0.00012), '0.0001 ms')
-        assertEq(formatDuration(4)(1500), '1.5000 s')
+        assertEq(formatDuration(4)(1_500), '1.5000 s')
     },
 }
 

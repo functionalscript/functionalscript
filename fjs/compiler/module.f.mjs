@@ -311,29 +311,42 @@ const refused = message => pureError(ioError({ message }))
 
 /**
  * The output `outputFileName` asks for from the module `inputFileName`, as
- * marked text — what {@link compileFile} writes the text of — or the
- * diagnostic the command prints: an output extension naming no language, a
- * parse error, or a refused output. It is the whole of the compile but
+ * marked text — what {@link compileFile} writes the text of — or why it is
+ * refused: an output extension naming no language, a parse error, or a
+ * refused output. A refusal is `[message, diagnostic]`: the message alone,
+ * which a page shows beside the output it is about, and the line the command
+ * prints, which adds where the refusal is. It is the whole of the compile but
  * its tail, the directory and the write, so a page that shows what
  * `fjs compile` writes runs this and the text it shows is the file's, which
  * its proof pins. Exported for linkage, as the other `_` exports are.
  *
- * @type {(inputFileName: string, outputFileName: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, string>, never>}
+ * @type {(inputFileName: string, outputFileName: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, readonly [message: string, diagnostic: string]>, never>}
  */
-export const _compileMarked = (inputFileName, outputFileName) => {
+export const _outputMarked = (inputFileName, outputFileName) => {
+    /** @type {(message: string, diagnostic: string) => Result<Marked, readonly [string, string]>} */
+    const refusal = (message, diagnostic) => error([message, diagnostic])
     const text = outputMarked(outputFileName)
     if (text === null) {
-        return pureOk(error(`${outputFileName} - error: ${unknownOutput}`))
+        return pureOk(refusal(unknownOutput, `${outputFileName} - error: ${unknownOutput}`))
     }
     return resultStep(
         text(inputFileName),
-        /** @type {(result: Result<Result<Marked, string>, ParseError>) => Effect<never, Result<Marked, string>, never>} */
+        /** @type {(result: Result<Result<Marked, string>, ParseError>) => Effect<never, Result<Marked, readonly [string, string]>, never>} */
         (result) => {
-            if (result[0] === 'error') { return pureOk(error(diagnostic(inputFileName)(result[1]))) }
+            if (result[0] === 'error') { return pureOk(refusal(result[1].message, diagnostic(inputFileName)(result[1]))) }
             const [tag, content] = result[1]
-            return pureOk(tag === 'error' ? error(`${outputFileName} - error: ${content}`) : ok(content))
+            return pureOk(tag === 'error' ? refusal(content, `${outputFileName} - error: ${content}`) : ok(content))
         })
 }
+
+/**
+ * {@link _outputMarked} with a refusal as the line the command prints.
+ *
+ * @type {(inputFileName: string, outputFileName: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, string>, never>}
+ */
+export const _compileMarked = (inputFileName, outputFileName) => mapStep(
+    _outputMarked(inputFileName, outputFileName),
+    result => result[0] === 'error' ? error(result[1][1]) : result)
 
 /**
  * Compiles the FunctionalScript module `inputFileName` into `outputFileName`,

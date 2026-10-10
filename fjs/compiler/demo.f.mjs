@@ -16,7 +16,7 @@
  * when it runs is refused by every value output while the source and Rust
  * ones carry it unevaluated.
  *
- * **A refusal is a pane's content, in the compiler's own words.** An empty
+ * **A refusal is a pane's content, in the module's own words.** An empty
  * box would be the plausible wrong answer
  * [DESIGN.md §10](../../doc/DESIGN.md#10-refuse-what-you-cannot-handle) rules
  * out, and what an output will not spell is half of what it is.
@@ -34,14 +34,15 @@
  * @import { Marked } from '../text/marked/types.ts'
  */
 
+import { codeMarker } from '../website/style/module.f.mjs'
 import { exitCode } from '../effects/node/module.f.mjs'
 import { emptyState, nodeProgramOptions, virtual } from '../effects/node/virtual/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { error, ok, unwrap } from '../types/result/module.f.mjs'
-import { textDemo } from '../website/demo/module.f.mjs'
+import { textDemo, refusal } from '../website/demo/module.f.mjs'
 import { render } from '../website/demo/highlight/module.f.mjs'
 import { examples } from './examples/module.f.js'
-import { _compileMarked, compile } from './module.f.mjs'
+import { _outputMarked, compile } from './module.f.mjs'
 
 /**
  * The outputs, each under the file name that selects its language: what a
@@ -59,15 +60,17 @@ export const outputs = [
 
 /**
  * `text` compiled to the language `outputFileName` names, as marked text: the
- * output `compile` writes the text of, or what it would print when it
- * refuses. It is the real compile but for its tail, the directory and the
+ * output `compile` writes the text of, or why it refuses, without the
+ * location the command prints. It is the real compile but for its tail, the directory and the
  * write, so a pane cannot show anything the CLI does not write, which
  * {@link _written} lets the proof check.
  *
  * @type {(text: string) => (outputFileName: string) => Result<Marked, string>}
  */
-export const _compiled = text => outputFileName =>
-    unwrap(virtual({ ...emptyState, root: { 'input.f.js': [utf8(text)] } })(_compileMarked('input.f.js', outputFileName))[1])
+export const _compiled = text => outputFileName => {
+    const result = unwrap(virtual({ ...emptyState, root: { 'input.f.js': [utf8(text)] } })(_outputMarked('input.f.js', outputFileName))[1])
+    return result[0] === 'error' ? error(result[1][0]) : result
+}
 
 /**
  * `text` compiled by the whole of `compile` over an in-memory file system:
@@ -85,7 +88,13 @@ export const _written = text => outputFileName => {
         : error(state.stderr.trim())
 }
 
-export const demo = textDemo({ name: 'compiler', label: 'Source', init: examples[0][1], examples })(text => outputs.map(([label, outputFileName]) => {
+export const demo = textDemo({
+    intro: 'Compiles a FunctionalScript module into JSON, DataJS, JavaScript, an expression graph and Rust, with each output under its file extension. Compare the output with fjs compile for a module without imports.',
+    name: 'compiler',
+    label: 'Source',
+    init: examples[0][1],
+    examples,
+})(text => outputs.map(([label, outputFileName]) => {
     const [kind, value] = _compiled(text)(outputFileName)
-    return ['section', ['h3', label], kind === 'ok' ? ['pre', ...render(value)] : ['p', `Refused: ${value}`]]
+    return ['section', ['h3', label], kind === 'ok' ? ['pre', { [codeMarker]: '' }, ...render(value)] : refusal(value)]
 }))

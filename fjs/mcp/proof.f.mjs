@@ -383,7 +383,7 @@ export const proof = {
         const [getResp] = runStdio(root)([
             call(2, 'cas_get', { hash, content: true }),
         ])
-        assertEq(errorCode(getResp), -32603)
+        assertEq(errorCode(getResp), -32_603)
         assertEq(idOf(getResp), 2)
     },
 
@@ -417,7 +417,7 @@ export const proof = {
         const [getResp] = runStdio(root)([
             call(2, 'cas_get', { hash, content: true }),
         ])
-        assertEq(errorCode(getResp), -32603)
+        assertEq(errorCode(getResp), -32_603)
         assertEq(idOf(getResp), 2)
     },
 

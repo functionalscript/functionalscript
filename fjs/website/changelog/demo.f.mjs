@@ -26,7 +26,7 @@
  * @import { Document } from '../../media/markdown/types.ts'
  */
 
-import { textDemo } from '../demo/module.f.mjs'
+import { textDemo, refusal } from '../demo/module.f.mjs'
 import { tryParse } from '../../media/markdown/module.f.mjs'
 import { entryNode, linked } from './module.f.mjs'
 
@@ -57,6 +57,7 @@ const plural = (n, one) => `${n} ${one}${n === 1 ? '' : 's'}`
  * @type {Demo<string, DemoEvent>}
  */
 export const demo = textDemo({
+    intro: 'Renders a changelog release file as the website publishes it. Bare pull request references become links, while links already written in the input stay as they are.',
     name: 'release',
     label: 'A release file',
     rows: 9,
@@ -71,7 +72,7 @@ export const demo = textDemo({
     ].join('\n'),
 })(text => {
     const document = tryParse(text)
-    if (document[0] === 'error') { return [['p', `Error: ${document[1]}`]] }
+    if (document[0] === 'error') { return [refusal(document[1])] }
     const [derived, written] = counted(document[1])
     return [
         ['p', [

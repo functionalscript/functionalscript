@@ -301,7 +301,7 @@ export const proof = {
             const bad = { jsonrpc: '2.0', method: 'initialize', id: 2, params: { wrong: true } }
             const [resp, newState] = step1(config)(bad)
             assert(newState[0] === 'uninitialized')
-            assertEq(errorCode(resp), -32602)
+            assertEq(errorCode(resp), -32_602)
         },
 
         notificationBeforeInitReturnNull: () => {
@@ -319,7 +319,7 @@ export const proof = {
         doubleInitializeReturnsInvalidRequest: () => {
             const [resp, newState] = step2(config)(initMsg)(initMsg)
             assert(newState[0] === 'initializing')
-            assertEq(errorCode(resp), -32600)
+            assertEq(errorCode(resp), -32_600)
         },
 
         pingBeforeInitSucceeds: () => {
@@ -351,7 +351,7 @@ export const proof = {
         pingInvalidParamsReturnsInvalidParams: () => {
             const msg = { jsonrpc: '2.0', method: 'ping', id: 20, params: 1 }
             const [resp] = step1(config)(msg)
-            assertEq(errorCode(resp), -32602)
+            assertEq(errorCode(resp), -32_602)
         },
 
         initializedNotificationObjectParamsTransitions: () => {
@@ -385,7 +385,7 @@ export const proof = {
         invalidEnvelopeReturnsInvalidRequest: () => {
             const bad = { jsonrpc: '1.0', method: 'ping', id: 4 }
             const [resp] = step1(config)(bad)
-            assertEq(errorCode(resp), -32600)
+            assertEq(errorCode(resp), -32_600)
             assertEq(errorId(resp), null)
         },
     },
@@ -438,7 +438,7 @@ export const proof = {
             const msg = { jsonrpc: '2.0', method: 'tools/list', id: 18,
                 params: { cursor: 42 } }
             const [resp] = step3(config)(initMsg)(initNotif)(msg)
-            assertEq(errorCode(resp), -32602)
+            assertEq(errorCode(resp), -32_602)
         },
 
         // Only an absent `params` defaults to `{}`; an explicit `null` is
@@ -446,7 +446,7 @@ export const proof = {
         toolsListNullParamsReturnsInvalidParams: () => {
             const msg = { jsonrpc: '2.0', method: 'tools/list', id: 21, params: null }
             const [resp] = step3(config)(initMsg)(initNotif)(msg)
-            assertEq(errorCode(resp), -32602)
+            assertEq(errorCode(resp), -32_602)
         },
 
         toolsCallSucceeds: () => {
@@ -459,7 +459,7 @@ export const proof = {
         toolsCallBadParamsReturnsInvalidParams: () => {
             const msg = { jsonrpc: '2.0', method: 'tools/call', id: 7, params: { missing: true } }
             const [resp] = step3(config)(initMsg)(initNotif)(msg)
-            assertEq(errorCode(resp), -32602)
+            assertEq(errorCode(resp), -32_602)
         },
 
         toolsCallAbsentArgumentsSucceeds: () => {
@@ -473,26 +473,26 @@ export const proof = {
             const msg = { jsonrpc: '2.0', method: 'tools/call', id: 14,
                 params: { name: 'greet', arguments: null } }
             const [resp] = step3(config)(initMsg)(initNotif)(msg)
-            assertEq(errorCode(resp), -32602)
+            assertEq(errorCode(resp), -32_602)
         },
 
         toolsListWithoutCapabilityReturnsMethodNotFound: () => {
             const msg = { jsonrpc: '2.0', method: 'tools/list', id: 8 }
             const [resp] = step3(configNoTools)(initMsg)(initNotif)(msg)
-            assertEq(errorCode(resp), -32601)
+            assertEq(errorCode(resp), -32_601)
         },
 
         toolsCallWithoutCapabilityReturnsMethodNotFound: () => {
             const msg = { jsonrpc: '2.0', method: 'tools/call', id: 9,
                 params: { name: 'greet', arguments: {} } }
             const [resp] = step3(configNoTools)(initMsg)(initNotif)(msg)
-            assertEq(errorCode(resp), -32601)
+            assertEq(errorCode(resp), -32_601)
         },
 
         unknownMethodReturnsMethodNotFound: () => {
             const msg = { jsonrpc: '2.0', method: 'resources/list', id: 10 }
             const [resp] = step3(config)(initMsg)(initNotif)(msg)
-            assertEq(errorCode(resp), -32601)
+            assertEq(errorCode(resp), -32_601)
         },
     },
 

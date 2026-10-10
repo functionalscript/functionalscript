@@ -233,7 +233,9 @@ mod tests {
         // 2^60 vs 2^60 + 2048 as a whole f64 (both exactly representable):
         // rounding the `BigInt` down to `f64` first would be wrong here,
         // since a naive `bi.to_f64() < f` could compare equal instead.
-        assert!(bool_of(big(1i64 << 60).lt(n((1u64 << 60) as f64 + 2048.0))));
+        assert!(bool_of(
+            big(1i64 << 60).lt(n((1u64 << 60) as f64 + 2_048.0))
+        ));
     }
 
     #[test]

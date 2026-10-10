@@ -25,9 +25,9 @@
  * colours.
  *
  * Classes, the values of `data-token`: `keyword`, `literal` (`true`,
- * `false`, `null`, `undefined`), `string`, `number` (a bigint included) and
- * `comment`. Names and punctuation stay plain. The stylesheet owns the
- * colours.
+ * `false`, `null`, `undefined`, `NaN`, `Infinity`), `string`, `number` (a
+ * bigint included) and `comment`. Names and punctuation stay plain. The
+ * stylesheet owns the colours.
  *
  * @module
  *
