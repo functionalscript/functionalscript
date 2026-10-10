@@ -272,16 +272,17 @@ impl<R: Read, O: Write, E: Write> Native<R, O, E> {
             }
             "pread" => {
                 arity(payload, 3)?;
-                let handle = self.handle(argument(payload, 0, "handle")?)?;
+                let handle = argument(payload, 0, "handle")?;
                 let offset = decode_number(argument(payload, 1, "offset")?)?;
                 let size = decode_number(argument(payload, 2, "size")?)?;
-                // The window first, as the Node runner: a closed handle with a
-                // bad window answers the window.
-                let window = files::check_window(offset, size);
+                // The window first, as the Node runner: whatever the handle is,
+                // a bad window answers the window.
+                if let Err(refused) = files::check_window(offset, size) {
+                    return Ok(answer(Err(refused), encode_bytes));
+                }
+                let handle = self.handle(handle)?;
                 Ok(answer(
-                    window
-                        .and(handle)
-                        .and_then(|file| files::pread(file, offset, size)),
+                    handle.and_then(|file| files::pread(file, offset, size)),
                     encode_bytes,
                 ))
             }
@@ -873,6 +874,12 @@ mod test {
             thrown(run("pread", vec![a, number(0.0)])),
             "missing argument 2, `size`"
         );
+        let refused = run("pread", vec![number(99.0), number(-1.0), number(1.0)]).unwrap();
+        assert_eq!(
+            member(error_info(refused), "message"),
+            string_any("Offset -1 is negative")
+        );
+
         // Closing frees the file: nothing is kept for a handle that is closed.
         assert_eq!(h.files.len(), 0);
         std::fs::remove_dir_all(&dir).unwrap();
