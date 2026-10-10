@@ -6,7 +6,7 @@
  */
 
 import type { Ts } from '../../rtti/ts/types.ts'
-import type { configSchema, exchangeSchema, pendingSchema, tokenSchema, userSchema } from './module.f.mjs'
+import type { configSchema, exchangeFailureSchema, exchangeSchema, pendingSchema, tokenSchema, userSchema } from './module.f.mjs'
 
 /** Public application ID and registered callback. */
 export type Config = Ts<typeof configSchema>
@@ -16,6 +16,9 @@ export type Pending = Ts<typeof pendingSchema>
 
 /** A temporary authorization code and its original PKCE verifier. */
 export type Exchange = Ts<typeof exchangeSchema>
+
+/** A fixed local exchange reason, without credentials or provider details. */
+export type ExchangeFailure = Ts<typeof exchangeFailureSchema>
 
 /** The bearer token held only in browser memory. */
 export type Token = Ts<typeof tokenSchema>

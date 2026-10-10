@@ -38,7 +38,19 @@ const refused = async (response, status) => {
     const text = await response.text()
     assert(!text.includes('worker-only-secret'))
     assert(!text.includes('private-provider-detail'))
+    assert(!text.includes('private-provider-uri'))
     assert(!text.includes('browser-only-token'))
+    assert(!text.includes('temporary-code'))
+}
+
+/** Token exchange exposes only a fixed failure category and local message. */
+/** @type {(response: Response, status: number, reason: string) => Promise<void>} */
+const exchangeRefused = async (response, status, reason) => {
+    await refused(response.clone(), status)
+    const body = await response.json()
+    assertStructurallySame(Object.keys(body).sort(), ['error', 'reason'])
+    assertEq(typeof body.error, 'string')
+    assertEq(body.reason, reason)
 }
 
 /** The admission boundary must refuse bad browser input before contacting GitHub. */
@@ -196,25 +208,54 @@ export const proof = /** @type {const} */ ({
         })
         assertEq(response.status, 200)
     },
+    identifiesDocumentedOAuthFailuresWithoutProviderDetails: async () => {
+        const reasons = /** @type {const} */ ([
+            'incorrect_client_credentials', 'redirect_uri_mismatch',
+            'bad_verification_code', 'unverified_user_email',
+        ])
+        for (const reason of reasons) {
+            // GitHub can return OAuth error JSON with an HTTP 200 response.
+            for (const status of [200, 400]) {
+                const response = await handleGithubRequest(request(), env, {
+                    fetch: /** @type {typeof fetch} */ (async () => json({
+                        error: reason,
+                        error_description: 'private-provider-detail',
+                        error_uri: 'https://github.com/private-provider-uri',
+                        client_secret: env.GITHUB_CLIENT_SECRET,
+                        code: exchange.code,
+                        access_token: token.access_token,
+                    }, status)),
+                })
+                await exchangeRefused(response, 400, reason)
+            }
+        }
+    },
     sanitizesProviderFailures: async () => {
         for (const { value, status } of [
-            { value: json({ error: 'private-provider-detail' }), status: 400 },
+            { value: json({
+                error: 'private-provider-detail', error_description: 'private-provider-detail',
+                error_uri: 'https://github.com/private-provider-uri',
+                client_secret: env.GITHUB_CLIENT_SECRET, code: exchange.code,
+            }), status: 400 },
+            { value: json({ error: ['incorrect_client_credentials'], error_description: 'private-provider-detail' }), status: 400 },
+            { value: json(null), status: 400 },
+            { value: json(['private-provider-detail']), status: 400 },
             { value: json({ ...token, access_token: '' }), status: 400 },
             { value: json({ ...token, token_type: 'different' }), status: 400 },
             { value: json({ error_description: 'private-provider-detail' }, 400), status: 400 },
             { value: json({ error_description: 'private-provider-detail' }, 500), status: 502 },
             { value: new Response('{'), status: 502 },
         ]) {
-            await refused(await handleGithubRequest(request(), env, {
+            await exchangeRefused(await handleGithubRequest(request(), env, {
                 fetch: /** @type {typeof fetch} */ (async () => value),
-            }), status)
+            }), status, 'provider_error')
         }
-        await refused(await handleGithubRequest(request(), env, {
+        await exchangeRefused(await handleGithubRequest(request(), env, {
             fetch: /** @type {typeof fetch} */ (async () => { throw new Error('private-provider-detail worker-only-secret') }),
-        }), 502)
-        await refused(await handleGithubRequest(request(), env, {
+        }), 502, 'network_error')
+        await exchangeRefused(await handleGithubRequest(request(), env, {
             fetch: /** @type {typeof fetch} */ (async () => { throw new DOMException('private-provider-detail', 'TimeoutError') }),
-        }), 502)
+        }), 502, 'network_error')
     },
     delegatesOnlyNonAuthPathsToAssets: async () => {
         const page = new Request(`${origin}/prs/`)

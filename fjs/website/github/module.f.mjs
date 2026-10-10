@@ -1,14 +1,15 @@
 /**
  * The GitHub sign-in boundary: declared wire fields and the pending login's
- * state, PKCE verifier, and ten-minute lifetime. Tokens are browser memory;
- * the pending record exists only while navigating through GitHub.
+ * state, PKCE verifier, and ten-minute lifetime, plus safe exchange failure
+ * reasons. Tokens are browser memory; the pending record exists only while
+ * navigating through GitHub.
  *
  * @module
  *
- * @import { Pending } from './types.ts'
+ * @import { ExchangeFailure, Pending } from './types.ts'
  */
 
-import { number, open, string } from '../../rtti/module.f.mjs'
+import { number, open, or, string } from '../../rtti/module.f.mjs'
 
 /** Public configuration, with no application secret. */
 export const configSchema = open({ clientId: string, redirectUri: string })
@@ -22,8 +23,43 @@ export const exchangeSchema = /** @type {const} */ ({ code: string, verifier: st
 /** Parsing discards extra provider fields, including refresh tokens. */
 export const tokenSchema = open({ access_token: string, token_type: 'bearer' })
 
+/** Admit the provider's reason without retaining its raw error description. */
+export const providerErrorSchema = open({ error: string })
+
+/** Only fixed local reasons cross the Worker/browser failure boundary. */
+export const exchangeFailureSchema = open({ reason: or(
+    'incorrect_client_credentials', 'redirect_uri_mismatch', 'bad_verification_code',
+    'unverified_user_email', 'provider_error', 'network_error',
+) })
+
 /** Revalidate the signed-in account after each completed authorization. */
 export const userSchema = open({ login: string })
+
+/** Allow documented provider reasons; arbitrary provider text stays private. */
+/** @type {(error: string) => ExchangeFailure['reason']} */
+export const providerErrorReason = error => error === 'incorrect_client_credentials'
+    ? 'incorrect_client_credentials'
+    : error === 'redirect_uri_mismatch'
+        ? 'redirect_uri_mismatch'
+        : error === 'bad_verification_code'
+            ? 'bad_verification_code'
+            : error === 'unverified_user_email'
+                ? 'unverified_user_email'
+                : 'provider_error'
+
+/** Actionable local messages never interpolate provider fields or credentials. */
+/** @type {(reason: ExchangeFailure['reason']) => string} */
+export const exchangeFailureMessage = reason => reason === 'incorrect_client_credentials'
+    ? "GitHub rejected this site's credentials. Check the GitHub OAuth App configuration."
+    : reason === 'redirect_uri_mismatch'
+        ? "GitHub rejected this site's callback URL. Check the GitHub OAuth App callback configuration."
+        : reason === 'bad_verification_code'
+            ? 'GitHub rejected the login code. Please log in again.'
+            : reason === 'unverified_user_email'
+                ? 'Verify your primary email address on GitHub, then log in again.'
+                : reason === 'provider_error'
+                    ? 'GitHub returned an unexpected login response. Please try again.'
+                    : 'Could not reach GitHub. Please try again.'
 
 /** @type {string} */
 const unreserved = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~'

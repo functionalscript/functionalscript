@@ -456,6 +456,98 @@ export const proof = /** @type {const} */ ({
             assertNoPersistedToken(page)
         }
     },
+    rejectedSiteCredentialsExplainTheExchangeFailureAndAllowRetry: async () => {
+        const page = returning()
+        const net = queue(page, [json(config), json({
+            reason: 'incorrect_client_credentials',
+            error_description: 'SENSITIVE_PROVIDER_DETAIL',
+            access_token: 'test-token',
+        }, 502)], true)
+        const session = await startGitHubLogin(page.root, { fetch: net.fetch, now })
+        assertEq(session.token(), null)
+        assertLoggedOut(page)
+        assertEq(page.login.disabled, false)
+        assertEq(page.note.textContent,
+            "GitHub rejected this site's credentials. Check the GitHub OAuth App configuration. (HTTP 502)")
+        assertEq(page.storage.get(pendingKey), undefined)
+        assert(net.urls.every(url => url.pathname !== '/user'))
+        assertNoPersistedToken(page)
+
+        await page.login.click()
+        assertEq(page.redirects.length, 1)
+        const redirect = new URL(page.redirects[0])
+        assertEq(redirect.origin, 'https://github.com')
+        assertEq(redirect.pathname, '/login/oauth/authorize')
+        const saved = JSON.parse(page.storage.get(pendingKey))
+        assertEq(redirect.searchParams.get('state'), saved.state)
+        assert(saved.state !== pending.state)
+        assertEq(net.remaining(), 0)
+
+        const retry = returning(`code=retry-code&state=${saved.state}`, JSON.stringify(saved))
+        const retryNet = queue(retry, [json(config), json(token), json({ login: 'octocat' })], true)
+        const completed = await startGitHubLogin(retry.root, { fetch: retryNet.fetch, now })
+        assertEq(completed.token(), 'test-token')
+        assertOctocat(retry)
+        assertEq(retryNet.remaining(), 0)
+        assertNoPersistedToken(retry)
+    },
+    unknownOrMalformedExchangeFailuresExposeOnlyTheHttpStatus: async () => {
+        const cases = /** @type {const} */ ([
+            [json({ reason: 'SENSITIVE_PROVIDER_DETAIL', access_token: 'test-token' }, 502), 502],
+            [json({ reason: 42, error_description: 'SENSITIVE_PROVIDER_DETAIL' }, 503), 503],
+            [json({ error_description: 'SENSITIVE_PROVIDER_DETAIL' }, 429), 429],
+            [json(['SENSITIVE_PROVIDER_DETAIL', 'test-token'], 500), 500],
+            [new Response('SENSITIVE_PROVIDER_DETAIL test-token', { status: 502 }), 502],
+            [new Response('{', { status: 503 }), 503],
+        ])
+        for (const [response, status] of cases) {
+            const page = returning()
+            const net = queue(page, [json(config), response], true)
+            const session = await startGitHubLogin(page.root, { fetch: net.fetch, now })
+            assertEq(session.token(), null)
+            assertEq(page.note.textContent,
+                `Could not exchange the GitHub login code. Please try again. (HTTP ${status})`)
+            assertEq(page.login.disabled, false)
+            assertEq(page.storage.get(pendingKey), undefined)
+            assert(net.urls.every(url => url.pathname !== '/user'))
+            assertEq(net.remaining(), 0)
+            assertLoggedOut(page)
+            assertNoPersistedToken(page)
+        }
+    },
+    identityRefusalHasADistinctSafeMessageAndAllowsRetry: async () => {
+        const page = returning()
+        const net = queue(page, [json(config), json(token), json({
+            message: 'SENSITIVE_IDENTITY_DETAIL',
+            access_token: 'test-token',
+        }, 401)], true)
+        const session = await startGitHubLogin(page.root, { fetch: net.fetch, now })
+        assertEq(session.token(), null)
+        assertEq(page.note.textContent,
+            'Could not verify your GitHub account. Please try again. (HTTP 401)')
+        assertEq(page.login.disabled, false)
+        assertLoggedOut(page)
+        assertNoPersistedToken(page)
+        await page.login.click()
+        assertEq(page.redirects.length, 1)
+        assertEq(new URL(page.redirects[0]).origin, 'https://github.com')
+        assertEq(net.remaining(), 0)
+    },
+    unavailableConfigurationReportsOnlyItsStatus: async () => {
+        const page = dom()
+        const net = queue(page, [json({
+            message: 'SENSITIVE_PROVIDER_DETAIL',
+            access_token: 'test-token',
+        }, 503)])
+        const session = await startGitHubLogin(page.root, { fetch: net.fetch, now })
+        assertEq(session.token(), null)
+        assertEq(page.note.textContent, 'GitHub login is unavailable on this site. (HTTP 503)')
+        assertEq(page.login.disabled, true)
+        assertEq(page.redirects.length, 0)
+        assertEq(net.remaining(), 0)
+        assertLoggedOut(page)
+        assertNoPersistedToken(page)
+    },
     failedIdentityReadClearsTheUnverifiedToken: async () => {
         const cases = /** @type {const} */ ([
             () => Promise.reject(new TypeError('SENSITIVE_IDENTITY_DETAIL')),

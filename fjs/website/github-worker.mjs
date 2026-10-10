@@ -6,14 +6,15 @@
  *
  * @module
  *
- * @import { WorkerEnv, WorkerHost } from './github/types.ts'
+ * @import { ExchangeFailure, WorkerEnv, WorkerHost } from './github/types.ts'
  */
 
 import { parse } from '../rtti/parse/module.f.mjs'
-import { exchangeSchema, tokenSchema, validVerifier } from './github/module.f.mjs'
+import { exchangeSchema, providerErrorSchema, providerErrorReason, tokenSchema, validVerifier } from './github/module.f.mjs'
 
 const readExchange = parse(exchangeSchema)
 const readToken = parse(tokenSchema)
+const readProviderError = parse(providerErrorSchema)
 
 /** All authorization responses are excluded from caches, including refusals. */
 /** @type {(value: unknown, status?: number, headers?: Record<string, string>) => Response} */
@@ -21,6 +22,10 @@ const json = (value, status = 200, headers = {}) => Response.json(value, {
     status,
     headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', ...headers },
 })
+
+/** Provider details are replaced by fixed reasons that contain no credentials. */
+/** @type {(reason: ExchangeFailure['reason'], status: number) => Response} */
+const signInFailure = (reason, status) => json({ error: 'GitHub sign-in failed. Try again.', reason }, status)
 
 /** URL parsing and transport safety belong to this host boundary. */
 /** @type {(value: string | undefined) => URL | null} */
@@ -86,8 +91,9 @@ export const handleGithubRequest = async (request, env, host = {}) => {
         return json({ error: 'Invalid sign-in request.' }, 400)
     }
     const fetchRequest = host.fetch ?? globalThis.fetch
+    let response
     try {
-        const response = await fetchRequest('https://github.com/login/oauth/access_token', {
+        response = await fetchRequest('https://github.com/login/oauth/access_token', {
             method: 'POST',
             headers: { Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' },
             body: new URLSearchParams({
@@ -102,15 +108,25 @@ export const handleGithubRequest = async (request, env, host = {}) => {
             redirect: 'error',
             signal: AbortSignal.timeout(15_000),
         })
-        if (!response.ok) { return json({ error: 'GitHub sign-in failed. Try again.' }, response.status >= 500 ? 502 : 400) }
-        const [tokenTag, token] = readToken(await response.json())
-        if (tokenTag === 'error' || token.access_token === '') {
-            return json({ error: 'GitHub sign-in failed. Try again.' }, 400)
-        }
-        return json(token)
     } catch {
-        return json({ error: 'GitHub sign-in failed. Try again.' }, 502)
+        return signInFailure('network_error', 502)
     }
+    let value
+    try {
+        value = await response.json()
+    } catch {
+        return signInFailure('provider_error', 502)
+    }
+    const [errorTag, providerError] = readProviderError(value)
+    if (errorTag === 'ok') {
+        return signInFailure(providerErrorReason(providerError.error), response.status >= 500 ? 502 : 400)
+    }
+    if (!response.ok) { return signInFailure('provider_error', response.status >= 500 ? 502 : 400) }
+    const [tokenTag, token] = readToken(value)
+    if (tokenTag === 'error' || token.access_token === '') {
+        return signInFailure('provider_error', 400)
+    }
+    return json(token)
 }
 
 /** Cloudflare's ExecutionContext is not part of the optional proof host. */

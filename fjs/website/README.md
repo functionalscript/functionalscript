@@ -149,6 +149,12 @@ GitHub's app authorization; users can revoke it in GitHub's application
 settings. The application requests no additional OAuth scopes for the public
 PR page and account identity.
 
+Failed login distinguishes authorization-code exchange from account verification.
+The Worker maps GitHub's documented credential, callback, code, and email errors
+to a small allowlist of reasons; the browser shows fixed messages and HTTP status.
+Unknown provider responses and thrown errors remain generic. Provider descriptions,
+URLs, authorization codes, and credentials never appear in these diagnostics.
+
 ### Configure Cloudflare
 
 1. Register a [GitHub OAuth App](https://github.com/settings/developers) with

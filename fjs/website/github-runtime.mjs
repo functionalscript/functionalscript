@@ -9,7 +9,7 @@
  */
 
 import { parse } from '../rtti/parse/module.f.mjs'
-import { configSchema, pendingSchema, tokenSchema, userSchema, validPending } from './github/module.f.mjs'
+import { configSchema, exchangeFailureMessage, exchangeFailureSchema, pendingSchema, tokenSchema, userSchema, validPending } from './github/module.f.mjs'
 
 /** @type {string} */
 const pendingKey = 'functionalscript.github.login'
@@ -17,6 +17,7 @@ const readConfig = parse(configSchema)
 const readPending = parse(pendingSchema)
 const readToken = parse(tokenSchema)
 const readUser = parse(userSchema)
+const readExchangeFailure = parse(exchangeFailureSchema)
 
 /** @type {WeakMap<Element, Promise<{ readonly token: () => string | null, readonly clear: () => void }>>} */
 const started = new WeakMap()
@@ -85,7 +86,18 @@ export const startGitHubLogin = (root, host = {}) => {
                 redirect: 'error',
                 signal: AbortSignal.timeout(15_000),
             })
-            if (!response.ok) { throw new Error('GitHub login request failed.') }
+            if (!response.ok) {
+                if (url === '/auth/github/token') {
+                    try {
+                        const [tag, rejected] = readExchangeFailure(await response.json())
+                        if (tag === 'ok') { failure = exchangeFailureMessage(rejected.reason) }
+                    } catch {
+                        // Unrecognized or malformed bodies never become UI messages.
+                    }
+                }
+                failure = `${failure} (HTTP ${response.status})`
+                throw new Error('GitHub login request failed.')
+            }
             const [tag, value] = read(await response.json())
             if (tag === 'error') { throw new Error('GitHub login response was invalid.') }
             return value
@@ -149,7 +161,7 @@ export const startGitHubLogin = (root, host = {}) => {
             })
 
             if (!callback) { return auth }
-            failure = 'Could not complete GitHub login. Please try again.'
+            failure = 'GitHub login details could not be verified. Please log in again.'
             if (params.has('error')) {
                 note.textContent = 'GitHub login was cancelled or denied. You can try again.'
                 return auth
@@ -164,12 +176,14 @@ export const startGitHubLogin = (root, host = {}) => {
             }
             note.textContent = 'Completing GitHub login…'
             login.disabled = true
+            failure = 'Could not exchange the GitHub login code. Please try again.'
             const result = await request('/auth/github/token', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ code: codes[0], verifier: pending.verifier }),
             }, readToken)
             if (result.access_token === '') { throw new Error('GitHub returned no token.') }
+            failure = 'Could not verify your GitHub account. Please try again.'
             const user = await request('https://api.github.com/user', {
                 headers: {
                     Authorization: `Bearer ${result.access_token}`,
