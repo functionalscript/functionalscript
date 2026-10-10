@@ -312,6 +312,9 @@ const check = env => resultStep(
  */
 const refused = message => pureError(ioError({ message }))
 
+/** A raw refusal beside its CLI diagnostic. @type {(message: string, diagnostic: string) => Result<Marked, readonly [string, string]>} */
+const refusal = (message, diagnostic) => error([message, diagnostic])
+
 /**
  * The output `outputFileName` asks for from the module `inputFileName`, as
  * marked text — what {@link compileFile} writes the text of — or why it is
@@ -326,8 +329,6 @@ const refused = message => pureError(ioError({ message }))
  * @type {(inputFileName: string, outputFileName: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, readonly [message: string, diagnostic: string]>, never>}
  */
 export const _outputMarked = (inputFileName, outputFileName) => {
-    /** @type {(message: string, diagnostic: string) => Result<Marked, readonly [string, string]>} */
-    const refusal = (message, diagnostic) => error([message, diagnostic])
     const text = outputMarked(outputFileName)
     if (text === null) {
         return pureOk(refusal(unknownOutput, `${outputFileName} - error: ${unknownOutput}`))
@@ -336,8 +337,9 @@ export const _outputMarked = (inputFileName, outputFileName) => {
         text(inputFileName),
         /** @type {(result: Result<Result<Marked, string>, ParseError>) => Effect<never, Result<Marked, readonly [string, string]>, never>} */
         (result) => {
-            if (result[0] === 'error') { return pureOk(refusal(result[1].message, diagnostic(inputFileName)(result[1]))) }
-            const [tag, content] = result[1]
+            const [kind, value] = result
+            if (kind === 'error') { return pureOk(refusal(value.message, diagnostic(inputFileName)(value))) }
+            const [tag, content] = value
             return pureOk(tag === 'error' ? refusal(content, `${outputFileName} - error: ${content}`) : ok(content))
         })
 }
@@ -349,7 +351,14 @@ export const _outputMarked = (inputFileName, outputFileName) => {
  */
 export const _compileMarked = (inputFileName, outputFileName) => mapStep(
     _outputMarked(inputFileName, outputFileName),
-    result => result[0] === 'error' ? error(result[1][1]) : result)
+    result => {
+        const [tag, value] = result
+        if (tag === 'error') {
+            const [, message] = value
+            return error(message)
+        }
+        return result
+    })
 
 /**
  * Compiles the FunctionalScript module `inputFileName` into `outputFileName`,
