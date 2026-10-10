@@ -23,9 +23,10 @@ global for the generated module.
 
 **Open question:**
 [let-bindings-owner](../../fjs/edag/rust/todo/let-bindings-owner.md) proposes
-the opposite: a shared `skipFn` in `fjs/edag/rust` through which both Rust
+the alternative: a shared `skipFn` in `fjs/media/rust/item` through which Rust
 printers, this corpus printer included, keep emitting `#[rustfmt::skip]` per
-function. Which of the two the corpus follows is undecided.
+function if the helper is retained. Which policy the corpus follows is
+undecided.
 
 ### Proposal
 

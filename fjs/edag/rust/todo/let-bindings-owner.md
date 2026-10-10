@@ -23,8 +23,10 @@ bindings before it — is still written by `fjs/nanvm/rust`:
 Both callers also emit `'#[rustfmt::skip]'` immediately before a
 `fn …<A: IVm>` line and document at length why, and both join a
 `// @generated` header over the lines. `fjs/media/rust` deliberately stops
-at literals, so the item layer's owner is this module, and today it owns
-part of it.
+at literals. The binding mechanism takes an `Exp` and belongs here;
+string-only item wrappers and headers belong in
+[rust-item-helpers](../../../nanvm/todo/rust-item-helpers.md)'s EDAG-free
+item module.
 
 ### Proposal
 
@@ -38,9 +40,9 @@ export const letBindings: (bindings: readonly (readonly [Exp, string])[]) => (na
 
 `nanvm/rust`'s block becomes `letBindings(used.map(binding))(i => snakeCase(used[i][0]))`
 unwrapped, and `scope`'s temporaries could print through the same export
-with `i => \`c${i}\``. A two-line `skipFn(signature, lines)` — the
-`#[rustfmt::skip]` item wrapper — moves beside it, so the invariant both
-files document is stated once.
+with `i => \`c${i}\``. If retained after the formatting-policy decision
+below, `skipFn(signature, lines)` — the `#[rustfmt::skip]` item wrapper —
+lives in `fjs/media/rust/item`, and the printers import it.
 
 **Open question:**
 [generated-rust-module-rustfmt-skip](../../../../nanvm-lib/todo/generated-rust-module-rustfmt-skip.md)
@@ -48,23 +50,28 @@ proposes the opposite for the corpus printer: `fjs/nanvm/rust` stops emitting
 `#[rustfmt::skip]` per function, and one `#[rustfmt::skip] mod generated;`
 in `nanvm-lib/tests/test/main.rs` covers the generated file. If that lands,
 `fjs/compiler/rust`'s module alone may not justify a `skipFn` helper.
-Which of the two the corpus follows is undecided. If `skipFn` survives,
-where it lives is open too: it is spelled over strings, so
-[rust-item-helpers](../../../nanvm/todo/rust-item-helpers.md)'s item module
-is a home as fitting as this one. That issue also moves `indent` there,
-below this printer, which then imports it; the task below follows.
+Which policy the corpus follows is undecided. The retained helper's owner
+is settled: it consumes strings and already-rendered lines, so it belongs
+in [rust-item-helpers](../../../nanvm/todo/rust-item-helpers.md)'s item
+module. That issue also moves `indent` there, below this printer, which
+then imports it.
 
 ### Tasks
 
-- [ ] `letBindings` and `skipFn` in `fjs/edag/rust` with proofs, and
-      `indent` imported from the item module rust-item-helpers adds;
-      both printers rewritten over them.
+- [ ] `letBindings` in `fjs/edag/rust` with proofs, and `indent` imported
+      from the item module rust-item-helpers adds; both printers use the
+      shared binding and indentation output.
+- [ ] If retained after the formatting-policy decision, implement and
+      prove `skipFn` in `fjs/media/rust/item`; the printers using the
+      per-function wrapper import it from there.
 - [ ] `npm run gen`; `tsc`, `fjs test`; generated Rust unchanged.
 
 ### Related
 
 - [`../../../types/ts/todo/66c-emit-literals-via-owner-modules.md`](../../../types/ts/todo/66c-emit-literals-via-owner-modules.md) —
   the same principle for literals; this is the item layer.
+- [rust-item-helpers](../../../nanvm/todo/rust-item-helpers.md) — owns
+  `indent` and the string-only `skipFn` wrapper if retained.
 - [generated-rust-module-rustfmt-skip](../../../../nanvm-lib/todo/generated-rust-module-rustfmt-skip.md)
   — proposes the corpus stop emitting `#[rustfmt::skip]` per function, which
   `skipFn` would keep; see the open question above.

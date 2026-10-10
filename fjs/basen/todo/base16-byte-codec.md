@@ -41,8 +41,8 @@ helps, in the same PR or any later one, with nothing to declare.
 
 A run of hex digits read as one number has the same shape one level down.
 [`fjs/text/ascii`](../../text/ascii/module.f.mjs)'s `digitsValue` stops at
-radix 10 on purpose ("a hexadecimal digit is `hexDigitValue`'s business"), so
-every radix-16 reader sums its own digits:
+radix 10 on purpose ("a hexadecimal digit is `hexDigitValue`'s business").
+The remaining radix-16 readers still sum their own digits:
 [`fjs/git/config`](../../git/config/module.f.mjs)'s `digitValue` and
 `tryDigits` (with their own letter offsets),
 [`fjs/media/json/parser`](../../media/json/parser/module.f.mjs)'s
@@ -75,8 +75,13 @@ and which stay with the consumer, is the design question. `baseN` in
 [`../module.f.mjs`](../module.f.mjs) is `Vec`-shaped and pads by the bit, so
 it is a neighbour here rather than the answer.
 
-For digit runs, let `digitsValue` take radix 16 through `hexDigitValue`, or
-give it a hexadecimal sibling, so the readers above ask `text/ascii`.
+For digit runs, the landed `hexDigitsValue` in `text/ascii` is the
+hexadecimal reader: digit code points to `bigint` or `null`. `digitsValue`
+keeps its `0-9` alphabet and radices `2n`..`10n`. The remaining readers use
+`hexDigitsValue` for their hexadecimal runs, keeping their grammar, prefix
+and range rules. JSON and JavaScript's grammar-admitted four-digit `\u`
+escapes still decode to one UTF-16 code unit, including surrogates; convert
+that bounded `bigint` result to `number` at the consumer's boundary.
 
 ### Tasks
 
@@ -87,8 +92,9 @@ give it a hexadecimal sibling, so the readers above ask `text/ascii`.
 - [x] The radix-16 digit-run reader: `hexDigitsValue` in `text/ascii`,
       landed by [#2787](https://github.com/functionalscript/functionalscript/pull/2787)
       with the `vdf` demo on it.
-- [ ] Move `git/config`, `media/json/parser`, `js/tokenizer` and the `pow`
-      demo onto `hexDigitsValue`.
+- [ ] Move the hexadecimal digit runs in `git/config`, `media/json/parser`,
+      `js/tokenizer` and the `pow` demo onto `hexDigitsValue`, preserving
+      their admission and bounds.
 - [ ] Decide whether a fixed-width hex formatter belongs beside it, and if
       so move the writers above onto it.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
@@ -98,5 +104,5 @@ give it a hexadecimal sibling, so the readers above ask `text/ascii`.
 - [various-basen-encodings.md](./various-basen-encodings.md) — the other
   encodings this directory tracks.
 - [`fjs/text/ascii`](../../text/ascii/module.f.mjs) — `hexDigitValue`,
-  `lowerHexDigitValue`, `hexDigitCodePoint` and `digitsValue`, the digit level
-  every consumer already shares.
+  `lowerHexDigitValue`, `hexDigitCodePoint`, `digitsValue` and the landed
+  `hexDigitsValue`, the shared digit level.

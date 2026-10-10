@@ -28,15 +28,15 @@ hand, line by line, and the same few items are spelled at each:
 
 [`fjs/media/rust`](../../media/rust/module.f.mjs) owns literal spelling
 and its doc leaves expressions and items to each generator.
-[let-bindings-owner](../../edag/rust/todo/let-bindings-owner.md) claims
-the item layer for [`fjs/edag/rust`](../../edag/rust/module.f.mjs), but
-that module is the EDAG printer: it imports the EDAG layer and
-`compiler/serializer`, so a const table that imported from it would make
-`nanvm/commands`, which imports only `effects/node` today, a consumer of
-the whole graph machinery for the sake of some quoted rows. The items
-these generators share need no `Exp`: they are spelled over strings, one
-layer above the literals and below any printer. Nothing owns that layer,
-so each generator is its owner.
+[let-bindings-owner](../../edag/rust/todo/let-bindings-owner.md) keeps
+`Exp`-dependent bindings in
+[`fjs/edag/rust`](../../edag/rust/module.f.mjs). That printer imports the
+EDAG layer and `compiler/serializer`, so a const table importing from it
+would make `nanvm/commands`, which imports only `effects/node` today, a
+consumer of the whole graph machinery for the sake of some quoted rows.
+The items these generators share need no `Exp`: they are spelled over
+strings, one layer above the literals and below any printer. Nothing owns
+that layer, so each generator is its owner.
 
 ### Proposal
 
@@ -48,8 +48,8 @@ items spelled over strings. Its first two exports are
 `fjs/media/rust`, whose doc sentence leaving items to the generator is
 amended to name the sibling. Items that take an `Exp` — the `let` line
 `let-bindings-owner` proposes — stay with the printer in `fjs/edag/rust`;
-its string-level `skipFn` is a candidate for this module too, decided
-there.
+its string-level `skipFn`, if retained by that issue, belongs to this item
+module too.
 
 The indentation moves with the items. `indent`, the one level of
 generated Rust, is exported by `fjs/edag/rust` today and imported by
@@ -107,8 +107,8 @@ blank lines outside the mark.
 ### Related
 
 - [let-bindings-owner](../../edag/rust/todo/let-bindings-owner.md) — the
-  `Exp`-level items the printer keeps; its string-level `skipFn` may join
-  the item module this issue adds, and that issue decides.
+  `Exp`-level items the printer keeps; it decides whether to retain
+  `skipFn`, whose string-only wrapper belongs in this item module.
 - [generated-rust-module-rustfmt-skip](../../../nanvm-lib/todo/generated-rust-module-rustfmt-skip.md)
   — whether `#[rustfmt::skip]` is written per item or once per module; the
   helper is where that decision would land for every generator at once.
