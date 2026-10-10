@@ -312,9 +312,24 @@ pub fn readdir(path: &str, recursive: bool) -> Result<Vec<Dirent>, IoError> {
     .map_err(|e| failure(&e, "scandir", path))
 }
 
+/// Syncs `file` before it is closed, so an error the filesystem would report
+/// only at the close, a delayed `EIO` or `ENOSPC`, is reported. A file that
+/// cannot be synced at all, a pipe, a terminal or a device such as `/dev/null`,
+/// answers `EINVAL` or is unsupported, and has nothing to flush: that is not a
+/// failure (`todo/close-errors.md`).
+fn sync(file: &File) -> io::Result<()> {
+    match file.sync_all() {
+        Err(e) if matches!(e.kind(), ErrorKind::InvalidInput | ErrorKind::Unsupported) => Ok(()),
+        result => result,
+    }
+}
+
 /// Creates the file or truncates it.
 pub fn write_file(path: &str, data: &[u8]) -> Result<(), IoError> {
-    fs::write(path, data).map_err(|e| failure(&e, "open", path))
+    let mut file = File::create(path).map_err(|e| failure(&e, "open", path))?;
+    file.write_all(data)
+        .map_err(|e| failure(&e, "write", path))?;
+    sync(&file).map_err(|e| failure(&e, "close", path))
 }
 
 /// Writes into a file that exists, at `at`, leaving the rest as it is. An
@@ -338,7 +353,8 @@ pub fn write_bytes(path: &str, at: f64, data: &[u8]) -> Result<(), IoError> {
     }
     file.seek(SeekFrom::Start(at))
         .and_then(|_| file.write_all(data))
-        .map_err(|e| failure(&e, "write", path))
+        .map_err(|e| failure(&e, "write", path))?;
+    sync(&file).map_err(|e| failure(&e, "close", path))
 }
 
 /// A number as JavaScript spells it in a message: `NaN`, `Infinity`, and the
@@ -420,7 +436,7 @@ pub fn read_bytes(path: &str, at: f64, size: f64) -> Result<Vec<u8>, IoError> {
 /// the Node runner leaves it.
 pub fn create_exclusive(path: &str) -> Result<(), IoError> {
     let file = exclusive(path).map_err(|e| failure(&e, "open", path))?;
-    file.sync_all().map_err(|e| failure(&e, "close", path))
+    sync(&file).map_err(|e| failure(&e, "close", path))
 }
 
 fn exclusive(path: &str) -> io::Result<File> {
@@ -437,7 +453,7 @@ fn exclusive(path: &str) -> io::Result<File> {
 pub fn write_exclusive(path: &str, data: &[Vec<u8>]) -> Result<(), IoError> {
     write_exclusive_with(path, |file| {
         data.iter().try_for_each(|d| file.write_all(d))?;
-        file.sync_all()
+        sync(file)
     })
 }
 
@@ -958,6 +974,24 @@ mod test {
             assert_eq!(error.code, Some("ENOSPC".into()));
             assert!(error.message.contains("write"), "{}", error.message);
             assert_eq!(code_of(access(&file)), Some("ENOENT".into()));
+        }
+
+        /// A file that cannot be synced has nothing to flush: a write to a pipe
+        /// succeeds, where `sync_all` alone would answer `EINVAL`.
+        #[cfg(target_os = "linux")]
+        #[test]
+        fn a_file_that_cannot_be_synced_is_not_a_failure() {
+            use std::os::fd::AsRawFd;
+
+            let (_reader, writer) = io::pipe().unwrap();
+            let path = format!("/proc/self/fd/{}", writer.as_raw_fd());
+            let opened = OpenOptions::new().write(true).open(&path).unwrap();
+            assert_eq!(
+                opened.sync_all().unwrap_err().kind(),
+                ErrorKind::InvalidInput
+            );
+            assert_eq!(write_file(&path, &[1]), Ok(()));
+            assert_eq!(write_bytes(&path, 0.0, &[]), Ok(()));
         }
 
         #[test]

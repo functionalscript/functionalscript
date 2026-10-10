@@ -19,7 +19,10 @@ Node handler does not make; that cost is accepted for the operations below.
 
 `createExclusive` and `writeExclusive` do it. A sync that fails fails the
 operation, and `writeExclusive` rolls its file back as it does for a failed
-write. A local filesystem reports these errors from `write` already, so the
+write. `writeFile` and `writeBytes` take arbitrary paths, which may be a pipe, a terminal
+or a device: those cannot be synced and answer `EINVAL` or `Unsupported`, which
+the helper treats as nothing to flush, since a Node `close` of them succeeds. A
+local filesystem reports these errors from `write` already, so the
 sync is not observable in a test there; it is a call in the one place a close
 error can be seen, written so that its failure takes the path a write failure
 takes, which the rollback test exercises.
@@ -27,5 +30,4 @@ takes, which the rollback test exercises.
 ### Tasks
 
 - [x] `createExclusive` and `writeExclusive`.
-- [ ] `writeFile` and `writeBytes`, which go through `fs::write` and a dropped
-      `File`: sync them the same way.
+- [x] `writeFile` and `writeBytes`, through the one `sync` helper in `files.rs`.
