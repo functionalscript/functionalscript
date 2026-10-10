@@ -10,9 +10,10 @@
  * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
-import { isUintUpTo } from '../../types/number/module.f.mjs'
+import { isInteger } from '../../types/number/is_integer/module.f.js'
 
-const isIndexValue = isUintUpTo(2 ** 32 - 2)
+/** @type {(i: number) => boolean} */
+const isIndexValue = i => isInteger(i) && 0 <= i && i <= 2 ** 32 - 2
 
 /**
  * The array index a property key names, or `null`: the canonical decimal

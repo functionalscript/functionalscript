@@ -45,11 +45,7 @@ impl<A: IVm> Add for Numeric<A> {
     type Output = Result<Self, Any<A>>;
 
     fn add(self, rhs: Self) -> Self::Output {
-        Ok(match (self, rhs) {
-            (Numeric::Number(a), Numeric::Number(b)) => Numeric::Number(a + b),
-            (Numeric::BigInt(a), Numeric::BigInt(b)) => Numeric::BigInt(a + b),
-            _ => return Err(error::mixed_numeric_operands()),
-        })
+        self.zip(rhs, |a, b| a + b, |a, b| a + b)
     }
 }
 
@@ -57,11 +53,7 @@ impl<A: IVm> Mul for Numeric<A> {
     type Output = Result<Self, Any<A>>;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        Ok(match (self, rhs) {
-            (Numeric::Number(a), Numeric::Number(b)) => Numeric::Number(a * b),
-            (Numeric::BigInt(a), Numeric::BigInt(b)) => Numeric::BigInt((a * b)?),
-            _ => return Err(error::mixed_numeric_operands()),
-        })
+        self.zip(rhs, |a, b| a * b, |a, b| a * b)
     }
 }
 
@@ -69,11 +61,7 @@ impl<A: IVm> Sub for Numeric<A> {
     type Output = Result<Self, Any<A>>;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        Ok(match (self, rhs) {
-            (Numeric::Number(a), Numeric::Number(b)) => Numeric::Number(a - b),
-            (Numeric::BigInt(a), Numeric::BigInt(b)) => Numeric::BigInt(a - b),
-            _ => return Err(error::mixed_numeric_operands()),
-        })
+        self.zip(rhs, |a, b| a - b, |a, b| a - b)
     }
 }
 
@@ -81,11 +69,7 @@ impl<A: IVm> Rem for Numeric<A> {
     type Output = Result<Self, Any<A>>;
 
     fn rem(self, rhs: Self) -> Self::Output {
-        match (self, rhs) {
-            (Numeric::Number(a), Numeric::Number(b)) => Ok(Numeric::Number(a % b)),
-            (Numeric::BigInt(a), Numeric::BigInt(b)) => Ok(Numeric::BigInt((a % b)?)),
-            _ => Err(error::mixed_numeric_operands()),
-        }
+        self.zip(rhs, |a, b| a % b, |a, b| a % b)
     }
 }
 
@@ -93,11 +77,7 @@ impl<A: IVm> Div for Numeric<A> {
     type Output = Result<Self, Any<A>>;
 
     fn div(self, rhs: Self) -> Self::Output {
-        match (self, rhs) {
-            (Numeric::Number(a), Numeric::Number(b)) => Ok(Numeric::Number(a / b)),
-            (Numeric::BigInt(a), Numeric::BigInt(b)) => Ok(Numeric::BigInt((a / b)?)),
-            _ => Err(error::mixed_numeric_operands()),
-        }
+        self.zip(rhs, |a, b| a / b, |a, b| a / b)
     }
 }
 
@@ -105,13 +85,11 @@ impl<A: IVm> BitAnd for Numeric<A> {
     type Output = Result<Self, Any<A>>;
 
     fn bitand(self, rhs: Self) -> Self::Output {
-        Ok(match (self, rhs) {
-            (Numeric::Number(a), Numeric::Number(b)) => {
-                Numeric::Number((a.to_int32() & b.to_int32()).into())
-            }
-            (Numeric::BigInt(a), Numeric::BigInt(b)) => Numeric::BigInt(a & b),
-            _ => return Err(error::mixed_numeric_operands()),
-        })
+        self.zip(
+            rhs,
+            |a, b| (a.to_int32() & b.to_int32()).into(),
+            |a, b| Ok(a & b),
+        )
     }
 }
 
@@ -119,13 +97,11 @@ impl<A: IVm> BitOr for Numeric<A> {
     type Output = Result<Self, Any<A>>;
 
     fn bitor(self, rhs: Self) -> Self::Output {
-        Ok(match (self, rhs) {
-            (Numeric::Number(a), Numeric::Number(b)) => {
-                Numeric::Number((a.to_int32() | b.to_int32()).into())
-            }
-            (Numeric::BigInt(a), Numeric::BigInt(b)) => Numeric::BigInt(a | b),
-            _ => return Err(error::mixed_numeric_operands()),
-        })
+        self.zip(
+            rhs,
+            |a, b| (a.to_int32() | b.to_int32()).into(),
+            |a, b| Ok(a | b),
+        )
     }
 }
 
@@ -133,13 +109,11 @@ impl<A: IVm> BitXor for Numeric<A> {
     type Output = Result<Self, Any<A>>;
 
     fn bitxor(self, rhs: Self) -> Self::Output {
-        Ok(match (self, rhs) {
-            (Numeric::Number(a), Numeric::Number(b)) => {
-                Numeric::Number((a.to_int32() ^ b.to_int32()).into())
-            }
-            (Numeric::BigInt(a), Numeric::BigInt(b)) => Numeric::BigInt(a ^ b),
-            _ => return Err(error::mixed_numeric_operands()),
-        })
+        self.zip(
+            rhs,
+            |a, b| (a.to_int32() ^ b.to_int32()).into(),
+            |a, b| Ok(a ^ b),
+        )
     }
 }
 
@@ -147,13 +121,11 @@ impl<A: IVm> Shl for Numeric<A> {
     type Output = Result<Self, Any<A>>;
 
     fn shl(self, rhs: Self) -> Self::Output {
-        Ok(match (self, rhs) {
-            (Numeric::Number(a), Numeric::Number(b)) => {
-                Numeric::Number((a.to_int32() << shift_count(b)).into())
-            }
-            (Numeric::BigInt(a), Numeric::BigInt(b)) => Numeric::BigInt((a << b)?),
-            _ => return Err(error::mixed_numeric_operands()),
-        })
+        self.zip(
+            rhs,
+            |a, b| (a.to_int32() << shift_count(b)).into(),
+            |a, b| a << b,
+        )
     }
 }
 
@@ -161,26 +133,41 @@ impl<A: IVm> Shr for Numeric<A> {
     type Output = Result<Self, Any<A>>;
 
     fn shr(self, rhs: Self) -> Self::Output {
-        Ok(match (self, rhs) {
-            (Numeric::Number(a), Numeric::Number(b)) => {
-                Numeric::Number((a.to_int32() >> shift_count(b)).into())
-            }
-            (Numeric::BigInt(a), Numeric::BigInt(b)) => Numeric::BigInt((a >> b)?),
-            _ => return Err(error::mixed_numeric_operands()),
-        })
+        self.zip(
+            rhs,
+            |a, b| (a.to_int32() >> shift_count(b)).into(),
+            |a, b| a >> b,
+        )
     }
 }
 
 impl<A: IVm> Numeric<A> {
+    /// The mixed-operand rule every binary operator shares: two `Number`s
+    /// combine through `number`, two `BigInt`s through `bigint`, and a
+    /// `Number`/`BigInt` mix throws a `TypeError`.
+    /// <https://tc39.es/ecma262/#sec-applystringornumericbinaryoperator>
+    ///
+    /// Only the `BigInt` side may throw: `Number` arithmetic is total, while
+    /// a `BigInt` result can be refused (a division by zero, a negative
+    /// exponent, a result too large to hold).
+    fn zip(
+        self,
+        rhs: Self,
+        number: impl FnOnce(Number, Number) -> Number,
+        bigint: impl FnOnce(BigInt<A>, BigInt<A>) -> Result<BigInt<A>, Any<A>>,
+    ) -> Result<Self, Any<A>> {
+        match (self, rhs) {
+            (Numeric::Number(a), Numeric::Number(b)) => Ok(Numeric::Number(number(a, b))),
+            (Numeric::BigInt(a), Numeric::BigInt(b)) => Ok(Numeric::BigInt(bigint(a, b)?)),
+            _ => Err(error::mixed_numeric_operands()),
+        }
+    }
+
     /// `**`. Not a `core::ops` trait — Rust has no operator for
     /// exponentiation, so this is a plain method, the same as `Any::pow`
     /// one level up.
     pub fn pow(self, rhs: Self) -> Result<Self, Any<A>> {
-        match (self, rhs) {
-            (Numeric::Number(a), Numeric::Number(b)) => Ok(Numeric::Number(a.pow(b))),
-            (Numeric::BigInt(a), Numeric::BigInt(b)) => Ok(Numeric::BigInt(a.pow(b)?)),
-            _ => Err(error::mixed_numeric_operands()),
-        }
+        self.zip(rhs, |a, b| a.pow(b), |a, b| a.pow(b))
     }
 
     /// `~`. Not a `core::ops` trait — `Not` is already claimed by `Any`'s
@@ -189,11 +176,11 @@ impl<A: IVm> Numeric<A> {
     /// exact spec identity (`BigInt::unaryMinus`/`Number::subtract` on the
     /// existing `Neg`/`Sub` impls), reusing them instead of a new
     /// two's-complement algorithm.
-    pub fn bitwise_not(self) -> Self {
-        match self {
+    pub fn bitwise_not(self) -> Result<Self, Any<A>> {
+        Ok(match self {
             Numeric::Number(v) => Numeric::Number((!v.to_int32()).into()),
-            Numeric::BigInt(v) => Numeric::BigInt(-v - BigInt::from(1u64)),
-        }
+            Numeric::BigInt(v) => Numeric::BigInt((-v - BigInt::from(1u64))?),
+        })
     }
 
     /// `>>>`. Not a `core::ops` trait — Rust has no unsigned-right-shift
@@ -204,13 +191,11 @@ impl<A: IVm> Numeric<A> {
     /// throws — arbitrary-precision integers have no fixed width for an
     /// "unsigned" shift to be relative to.
     pub fn unsigned_right_shift(self, rhs: Self) -> Result<Self, Any<A>> {
-        match (self, rhs) {
-            (Numeric::Number(a), Numeric::Number(b)) => {
-                Ok(Numeric::Number((a.to_uint32() >> shift_count(b)).into()))
-            }
-            (Numeric::BigInt(_), Numeric::BigInt(_)) => Err(error::bigint_unsigned_right_shift()),
-            _ => Err(error::mixed_numeric_operands()),
-        }
+        self.zip(
+            rhs,
+            |a, b| (a.to_uint32() >> shift_count(b)).into(),
+            |_, _| Err(error::bigint_unsigned_right_shift()),
+        )
     }
 
     /// The order of `self` relative to `other` that `<`, `>`, `<=` and `>=`

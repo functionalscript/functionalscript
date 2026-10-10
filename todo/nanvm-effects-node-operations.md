@@ -37,6 +37,10 @@ implementation details remain unspecified here.
   - [x] Console: `write`, `read`.
   - [x] Files and directories: `mkdir`, `readFile`, `readWhole`, `readdir`, `writeFile`, `writeBytes`, `rm`.
   - [x] `resolveFileModule`.
+  - [x] `stat`, `access`, `rename`, `rmdir`.
+  - [ ] `createExclusive`, `writeExclusive`, `readBytes`.
+  - [ ] `sandbox`, `catch`, `now`, `randomInt`, `inflate`, `test`.
+  - [ ] The descriptor handles `open`, `fstat`, `pread`, `close`: a native `Handle`.
 - [ ] Complete the [asynchronous native-effects task](./nanvm-effects-node-async.md).
 - [ ] Verify equivalent observable behavior against the Node runner for the full
       native scope above.

@@ -602,6 +602,10 @@ mod tests {
         }
         assert!(value_of(big(6)).unsigned_right_shift(big(1)).is_err());
         assert_eq!(value_of(big(1)).bitwise_not(), Ok(big(-2)));
+        // `~(2^1048576 - 1)` is `-2^1048576`: one word past the size limit.
+        let half = (big(1) << big(1_048_575)).unwrap();
+        let ones = (half.clone() + (half - big(1)).unwrap()).unwrap();
+        assert_eq!(ones.bitwise_not(), Err(error::bigint_too_large()));
         assert_eq!(-value_of(big(5)), Ok(big(-5)));
         // `ToNumber` has no `BigInt`: unary `+` refuses it, `ToNumeric` keeps it.
         refused(value_of(big(1)).to_number(), error::bigint_to_number());

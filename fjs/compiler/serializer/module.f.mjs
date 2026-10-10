@@ -102,6 +102,12 @@
  * **One line, normalized**, as the DataJS output is, and its leaves are the
  * DataJS serializer's, which owns their spelling.
  *
+ * **Depth.** Source rendering still uses the host call stack for nested
+ * expressions. Deep `Number` and `String` conversion chains can throw
+ * `RangeError` after parsing and lowering succeed; the known reproducer
+ * and iterative-writer work are in
+ * [deep-nesting-recursion](../todo/deep-nesting-recursion.md#source-conversion-chains).
+ *
  * **What it refuses**, each by name and with nothing written: a node kind it
  * has no spelling for, which is how a feature that adds one is made to add
  * its spelling here in the same change; a comma anywhere but where a block
@@ -311,8 +317,8 @@ const arrowKind = kind => kind === '=>' || kind === 'entry'
  * `../ast/module.f.mjs`; and `**`, in no layer there. The
  * two prefixes, `-` of one operand and `~`, bind tighter than every level
  * here, and everything else this writer spells — a name, a primitive, an
- * access, a container, the call a nested `throw` is, the `Number`
- * conversion — tighter still.
+ * access, a container, the call a nested `throw` is, the `Number` and
+ * `String` conversions — tighter still.
  *
  * @type {readonly (readonly string[])[]}
  */
@@ -605,16 +611,16 @@ const property = (s, path) => p => {
 const bracketed = k => ok(flat([['['], leafSerialize(k), [']']]))
 
 /**
- * The conversion's text, `Number(v)`: the call it is in JavaScript, its
- * operand an argument, which takes no parentheses of its own — `v`'s text
- * in place, or written as a lazy operand is where the conversion stands in
- * a chain's region, `lazy`, {@link lazyItem}.
+ * A conversion's text, `Number(v)` or `String(v)`: the call it is in
+ * JavaScript, its operand an argument, which takes no parentheses of its
+ * own — `v`'s text in place, or written as a lazy operand is where the
+ * conversion stands in a chain's region, `lazy`, {@link lazyItem}.
  *
- * @type {(s: _Scope, path: string, lazy: boolean) => (v: Operand) => Document}
+ * @type {(s: _Scope, path: string, lazy: boolean, tag: 'Number' | 'String') => (v: Operand) => Document}
  */
-const conversion = (s, path, lazy) => v => mapOk(
+const conversion = (s, path, lazy, tag) => v => mapOk(
     /** @type {(text: List<Chunk>) => List<Chunk>} */
-    (text => flat([['Number('], text, [')']])),
+    (text => flat([[`${tag}(`], text, [')']])),
 )((lazy ? lazyItem : item)(s, `${path}/operand`)(v))
 
 /**
@@ -654,7 +660,7 @@ const key = (s, path, lazy) => method => k => {
     }
     const node = k instanceof Array ? s.a.nodes[k[1]] : null
     return node !== null && node[0] === 'Number'
-        ? mapOk(/** @type {(text: List<Chunk>) => List<Chunk>} */ (text => flat([['['], text, [']']])))(conversion(s, path, lazy)(node[1]))
+        ? mapOk(/** @type {(text: List<Chunk>) => List<Chunk>} */ (text => flat([['['], text, [']']])))(conversion(s, path, lazy, 'Number')(node[1]))
         : error('an access key that is no literal')
 }
 
@@ -1066,7 +1072,7 @@ const entry = (s0, path) => i => {
         }
         case '~': case '!': case 'typeof': { return prefix(s, path)(node[0])(node[1]) }
         case 'instanceof': { return instanceOf(s, path)(node[1], node[2]) }
-        case 'Number': { return conversion(s, path, false)(node[1]) }
+        case 'Number': case 'String': { return conversion(s, path, false, node[0])(node[1]) }
         case '|': case '^': case '&': case '===': case '!==': case '<': case '<=': case '>': case '>=':
         case '<<': case '>>': case '>>>': case '*': case '/': case '%': case '**': { return binary(s, path)(node[0], node[1], node[2]) }
         case '&&': case '||': case '??': { return lazyBinary(s, path)(node) }
@@ -1161,7 +1167,7 @@ const operands = node => {
         case '[]': { return node[1].map(itemOperand) }
         case '{}': { return node[1].flatMap(p => p[0] === '...' ? [p[1]] : [p[1], p[2]]) }
         // an instance check's constructor is a name, not an operand
-        case 'throw': case '~': case '!': case 'typeof': case 'instanceof': case 'Number': { return [node[1]] }
+        case 'throw': case '~': case '!': case 'typeof': case 'instanceof': case 'Number': case 'String': { return [node[1]] }
         case '-': case '+': { return node.length === 2 ? [node[1]] : [node[1], node[2]] }
         case ',': { return node[1] }
         case '&&': case '||': case '??': case '?:': { return [node[1]] }

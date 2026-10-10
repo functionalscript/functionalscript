@@ -11,7 +11,7 @@ import type { Headers } from './types.ts'
 
 /** The one thing the runner does with the socket a `connect` event hands it. */
 export type _Socket = {
-    readonly end: (data: string) => void
+    readonly end: (data: Uint8Array) => void
 }
 
 /**

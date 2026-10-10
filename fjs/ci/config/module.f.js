@@ -159,7 +159,7 @@ export const nixpkgs = /** @type {const} */({
     owner: 'NixOS',
     repo: 'nixpkgs',
     ref: 'nixos-26.05',
-    commit: 'b25309931cfda5f0b8805f462a29897eeae50168',
+    commit: '2efa67fd26b6df417c33e4603185c701f260dd83',
 })
 
 // Wasmtime and Wasmer are installed by their own setup actions, so these are
@@ -178,7 +178,7 @@ export const rustOverlay = /** @type {const} */({
     owner: 'oxalica',
     repo: 'rust-overlay',
     ref: 'master',
-    commit: 'f91010a5c1b6125b715eb78a84fb5dd8fb74a2b0',
+    commit: '4ca2963243427cb86bd6b4d9ca6010db0162a619',
 })
 
 // Moving either `commit` above needs `npm run lock-update` (real Nix) to
