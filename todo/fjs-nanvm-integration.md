@@ -65,12 +65,28 @@ compiles this pattern to Rust. Its cargo test has the harness's `run` select
 JavaScript and both JavaScript EDAG evaluators (`namedImports.acceptance` in
 [`fjs/compiler/edag/proof.f.mjs`](../fjs/compiler/edag/proof.f.mjs), on its own copy of
 the sources). The harness has no CLI; its
-[`main`](../nanvm-harness/src/main.rs) says why. Source round trips cover the
-serializer's admitted expressions; calls and arithmetic are still refused by
-that serializer. `main` is the fixture's selected
+[`main`](../nanvm-harness/src/main.rs) says why. The structural FJS serializer
+already writes ordinary/method calls and arithmetic; `calls`, `neg`, `operators`
+and `lazy` in the [serializer proofs](../fjs/compiler/serializer/proof.f.mjs)
+cover grouping, bindings and supported source round trips. That profile remains
+partial, unlike total code-only [function text](../fjs/edag/function-text.md);
+[runtime-value compilation](../fjs/edag/values.md#runtime-compilation) has its own
+behavioral contract. Deep source conversion chains retain their
+[host-stack limit](../fjs/compiler/todo/deep-nesting-recursion.md#source-conversion-chains).
+`main` is the fixture's selected
 export, not a required language-level name. The rest-only helper keeps this
 milestone independent of named function parameters. These are synthetic
 fixtures; renaming repository modules to `.f.js` is the migration below.
+
+JSON/DataJS compiler outputs now run represented module initialization,
+including calls and arithmetic, before projecting the default export and
+decoding it as data. Dependencies and unused initializers still run; an
+unselected callable export does not prevent a data output, while a callable
+remaining in the selected result is refused. See `callsAndOperators`,
+`projectBeforeMaterializing` and `unusedInitialization` in the
+[transpiler proofs](../fjs/compiler/transpiler/proof.f.mjs).
+FunctionalScript, EDAG and Rust generation preserve the module computation
+without running it during compilation.
 
 ### Repository compiler-compatibility migration
 
@@ -126,7 +142,44 @@ contract and migration strategy.
 
 #### What the next rename waits on
 
-Measured at `08d013b`, the head of `main`: every `.f.mjs` that imports no
+The leaf check at `e67123d58`, the `String` PR stacked on the shared integer
+predicate, found seventeen implementation leaves: only `array_index` compiled.
+It is now migrated to
+[`fjs/js/array_index/module.f.js`](../fjs/js/array_index/module.f.js), with its
+runtime callers and proof import updated; its proof remains `proof.f.mjs`.
+`types/set` is no longer a leaf: it imports `.f.mjs` modules from
+`common/monoid`, `types/list` and `types/number`.
+
+The sixteen remaining implementation leaves below are measured at
+`e67123d58`. Each row gives the first compiler refusal, not every blocker in
+the file. Locations are `line:column`; paths are relative to `fjs/`.
+
+| Leaf file | Location | First refused construct |
+| --- | ---: | --- |
+| `ci/package/module.f.mjs` | 32:56 | Template literal in `consumerDirectory` |
+| `git/bytes/module.f.mjs` | 25:35 | Computed key `b[at]`; it must use `Number(...)` |
+| `git/config/module.f.mjs` | 90:57 | `\v` escape |
+| `js/keywords/module.f.mjs` | 103:24 | `new Set(keywords)` |
+| `nanvm/member/module.f.mjs` | 59:38 | `\u{1F600}` escape |
+| `nanvm/methods/module.f.mjs` | 125:21 | Template literal in `path` |
+| `types/function/module.f.mjs` | 33:5 | `let v = value` in `iterate` |
+| `types/function/operator/module.f.mjs` | 11:5 | Template literal in `join` |
+| `types/map/module.f.mjs` | 10:42 | `new Map(...)` |
+| `types/object/structurally_same/module.f.mjs` | 20:7 | Destructuring `const { entries, is } = Object` |
+| `types/result/module.f.mjs` | 111:5 | `for (const r of list)` in `okList` |
+| `types/ts/module.f.mjs` | 13:5 | Template literal in `complex` |
+| `website/browser-source/module.f.mjs` | 89:35 | Template literal |
+| `website/demo/code/module.f.mjs` | 26:52 | `\0` escape |
+| `website/demo/examples/module.f.mjs` | 54:13 | `new Set(...)` |
+| `website/style/module.f.mjs` | 95:27 | Template literal containing the stylesheet |
+
+The separate leaf `emergent_testing/example.f.mjs`, which embeds its proof,
+first refuses the template literal in `checkMul` at `14:34` in the same snapshot.
+No caller of `array_index` is ready to rename with it: their other `.f.mjs`
+dependencies or compiler refusals remain.
+
+The following historical measurement is pinned to `08d013b`, the then-head of
+`main`: every `.f.mjs` that imports no
 other `.f.mjs` is a *leaf*, the only module a rename can start from, and
 `fjs compile` was run on each. The compiler stops at its first refusal, so one
 refusal per row is the compiler's and the rest of the row is a reading of the
@@ -163,7 +216,7 @@ The table above is a historical measurement. `array_index` now imports
 and canonical string round-trip are unchanged. With
 [`String` conversion](../spec/README.md#string-conversion) admitted,
 `array_index` now compiles through its shared integer predicate and canonical
-string check; renaming it to `.f.js` remains a migration step.
+string check; the rename above completes that migration step.
 `types/number`, ASCII digit parsing, Unicode surrogate
 conversion, and Node/web validation reuse the same predicate.
 
@@ -190,10 +243,11 @@ Three readings were corrected, each refused by the `4c8ec55` compiler as well:
 key, `b[i]`, and `git/config` also calls the `BigInt` global, reads `acc.sub`
 and has two more runtime keys.
 
-The same rows by feature, each with where the feature is tracked, so a
-language step can be picked for what it unblocks:
+The same historical `08d013b` rows by feature, each with where the feature is
+tracked, so a language step can be picked for what it unblocks. This table
+records that snapshot's blockers, including the since-migrated `array_index`:
 
-| Feature | Tracked in | Leaves it holds |
+| Feature | Tracked in | Leaves it held at `08d013b` |
 | --- | --- | --- |
 | Template literals | [`spec/todo/3440-template-literals.md`](../spec/todo/3440-template-literals.md) | function/operator, ci/package, ts, nanvm/methods, nanvm/member, style, demo/code, git/config, browser-source |
 | Destructuring | [`spec/todo/2450-destructuring.md`](../spec/todo/2450-destructuring.md) | structurally_same, result, function/operator, map, demo/examples, ts, git/config, nanvm/methods |
@@ -208,8 +262,9 @@ language step can be picked for what it unblocks:
 | `switch`, a default parameter | neither proposed; [`3120-parameters.md`](../spec/todo/3120-parameters.md) leaves a default parameter for later | ts |
 | A prohibited member function, `toLowerCase`, or property name, `sub` | [`fjs/js/prototype`](../fjs/js/prototype/module.f.js)'s `prohibitedCalls` and `prototypeNames` ([spec: property access](../spec/README.md#property-access)); the module rewrites, not the language | git/config |
 
-A leaf renames only when every feature it uses has landed. These leaves still
-wait on one feature alone: `style` on template literals, `keywords` on `new Set`,
+A leaf renames only when every feature it uses has landed. In that historical
+snapshot, these leaves waited on one feature alone: `style` on template literals,
+`keywords` on `new Set`,
 and `git/bytes` on `Number.isSafeInteger`
 once its keys are read as `b[Number(…)]`. Of the four root modules nearly
 everything imports, `structurally_same` waits on three features — destructuring,
@@ -357,6 +412,10 @@ is on hold and is not part of this completed MVP or a self-hosting prerequisite.
       `.f.mjs`.
 - [x] Rename `fjs/compiler/examples`, the one leaf the compiler accepted whole
       after `!` and `typeof`: its eleven importers, proofs and demos, follow it.
+- [x] Rename `fjs/js/array_index/module.f.mjs` to `.f.js` after the shared
+      integer predicate and `String` conversion made the complete module
+      compiler-compatible; update its callers and proof import, keeping
+      `proof.f.mjs`.
 - [ ] Continue `.f.mjs` -> `.f.js` incrementally as compiler support grows.
 
 ### Related
