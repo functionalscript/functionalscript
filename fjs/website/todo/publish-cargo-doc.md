@@ -49,7 +49,7 @@ types and has its own open question.
 
 ### Tasks
 
-- [ ] Generator: copy `target/doc` into `cargo.doc/`, write its index page,
+- [x] Generator: copy `target/doc` into `cargo.doc/`, write its index page,
       exclude it from the catalogue, and link each documented crate from its
       directory page.
 - [ ] Decide and wire where the published site runs `cargo doc`.

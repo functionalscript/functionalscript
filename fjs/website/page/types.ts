@@ -52,6 +52,12 @@ export type Dir = {
      * than against the page.
      */
     readonly demo: string | null
+    /**
+     * The root-relative link to the API reference of the crate this
+     * directory holds, or `null` where it holds none, or its reference was
+     * not built.
+     */
+    readonly api: string | null
 }
 
 /**

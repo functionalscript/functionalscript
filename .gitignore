@@ -125,6 +125,7 @@ target/
 _*
 .vscode
 /docs
+/cargo.doc
 .DS_Store
 **/*.d.mts
 **/*.d.ts

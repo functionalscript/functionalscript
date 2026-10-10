@@ -43,7 +43,7 @@ const issues = items => '<body><details data-section=""><summary><h2>Issues</h2>
     + `<ul data-links="">${items}</ul></details></body>`
 
 /** @type {Dir} */
-const empty = { path: '.', files: [], dirs: [], demoDirs: [], todo: [], proofs: [], demo: null }
+const empty = { path: '.', files: [], dirs: [], demoDirs: [], todo: [], proofs: [], demo: null, api: null }
 
 export const proof = {
     /**
@@ -391,6 +391,13 @@ export const proof = {
             const html = pageHtml({ ...empty, path: 'a', files: ['demo.f.mjs'], demo: '/a/demo.f.mjs' })
             assert(html.includes('data-demo="/a/demo.f.mjs"'), html)
             assert(html.indexOf('<h2>Demo</h2>') < html.indexOf('<h2>Contents</h2>'), html)
+        },
+        // A crate's page links its API reference under its heading, and a
+        // directory without one says nothing about it.
+        linksItsApi: () => {
+            const html = pageHtml({ ...empty, path: 'nanvm-lib', api: '/cargo.doc/nanvm_lib/index.html' })
+            assert(html.includes('<h1>nanvm-lib</h1><p><a href="/cargo.doc/nanvm_lib/index.html">API documentation</a></p>'), html)
+            assert(!pageHtml({ ...empty, path: 'a' }).includes('API documentation'), 'no link without a reference')
         },
         // The catalogue is the same one the root page carries.
         carriesSections: () => {

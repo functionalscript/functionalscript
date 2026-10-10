@@ -62,6 +62,23 @@ feedback as pure decisions with co-located proofs. The browser adapter reads
 responses, performs requests and DOM updates, and supplies browser clock and
 date-formatting results to that policy.
 
+## The Rust API reference
+
+`/cargo.doc/` is rustdoc's output for the workspace's crates, and each crate's
+directory page links its part of it as **API documentation**.
+
+The generator copies `target/doc` there unchanged and writes one page of its
+own, `cargo.doc/index.html`, listing the crates: stable rustdoc writes no root
+page. It does not run `cargo` — whoever builds the site runs
+`cargo doc --no-deps --workspace` first, and a build without `target/doc`
+writes no `cargo.doc/` and no links. `target/` itself is never served: it
+holds build artifacts beside the docs.
+
+`cargo.doc/` is the one generated name outside `index.html` and the
+`_`-prefixed files, so `.gitignore` and `tsconfig.json` name it, and the walk
+excludes it as it excludes `prs/`. Where the published site runs `cargo doc`
+is open: [publish-cargo-doc](todo/publish-cargo-doc.md).
+
 ## Every directory gets a page
 
 One rule rather than two: whatever a directory holds, it gets an `index.html`

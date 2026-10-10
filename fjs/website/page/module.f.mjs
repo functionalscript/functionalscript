@@ -568,6 +568,7 @@ export const page = build => dir => shell(build)(pageTitle(dir.path))(testsMain(
     ['nav', ...toArray(intersperse(' / ')(ancestors(dir.path).map(([path, name]) =>
         /** @type {Element} */(['a', { href: pageHref(path) }, name]))))],
     ['h1', dir.path],
+    ...(dir.api === null ? [] : [/** @type {Element} */ (['p', ['a', { href: dir.api }, 'API documentation']])]),
     ...(dir.demo === null ? [] : demoSection(dir.demo)),
     ...sections(build.commit)(dir),
     ...testSection(dir)([]),
