@@ -25,12 +25,15 @@
  * **It needs no operations.** The in-memory run is a pure function of the
  * text, so `update` declares `never` and returns through `pureOk`.
  *
+ * **The output is copyable**: it is a document or generated source a reader
+ * can save and use elsewhere. Copy keeps the original output text.
+ *
  * @module
  *
  * @import { Result } from '../types/result/types.ts'
  */
 
-import { codeMarker } from '../website/style/module.f.mjs'
+import { codeBlock } from '../website/demo/code/module.f.mjs'
 import { exitCode } from '../effects/node/module.f.mjs'
 import { emptyState, nodeProgramOptions, virtual } from '../effects/node/virtual/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
@@ -84,5 +87,5 @@ export const demo = textDemo({
         pureOk(kind === 'error' ? error(value.message) : value))
     const [, result] = virtual({ ...emptyState, root: { 'input.f.js': [utf8(text)] } })(output)
     const [kind, value] = unwrap(result)
-    return ['section', ['h3', label], kind === 'ok' ? ['pre', { [codeMarker]: '' }, ...(outputFileName.endsWith('.rs') ? [value] : highlight(value))] : refusal(value)]
+    return ['section', ['h3', label], kind === 'ok' ? codeBlock(value, `Copy ${label} output`, outputFileName.endsWith('.rs') ? [value] : highlight(value)) : refusal(value)]
 }))

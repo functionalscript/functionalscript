@@ -15,10 +15,11 @@
  * @module
  * @import { Analysis, ItemOperand, Node, Operand, Step } from '../../../edag/analysis/types.ts'
  * @import { _Scope } from './private.ts'
+ * @import { Chunk } from '../../../text/marked/types.ts'
  */
 
 import { leafSerialize } from '../../../media/datajs/serializer/module.f.mjs'
-import { chunksText } from '../../../text/marked/module.f.mjs'
+import { chunksText, keyword, literal } from '../../../text/marked/module.f.mjs'
 import { _name as name, _binding as binding, _resolve as resolve } from '../names/module.f.mjs'
 
 /** The name of one invocation-local memo cell. @type {(_s: _Scope, k: number) => string} */
@@ -39,11 +40,27 @@ const selfName = path => name(`${path}/self`)
  *
  * @type {(path: string) => string}
  */
-export const _entryText = path => {
+export const _entryText = path => chunksText(_entryChunks(path))
+
+/**
+ * {@link _entryText} as chunks: its keywords and its `undefined` carry their
+ * kind, so the one text has one spelling for the plain and the marked writer.
+ *
+ * @type {(path: string) => readonly Chunk[]}
+ */
+export const _entryChunks = path => {
     const a = name(`${path}/arg0`)
     const b = name(`${path}/arg1`)
     const x = name(`${path}/descriptor`)
-    return `(${binding(a)},${binding(b)})=>{const ${binding(x)}=Object.getOwnPropertyDescriptor(${a},${b});return ${x}?.enumerable?${x}.value:undefined;}`
+    return [
+        `(${binding(a)},${binding(b)})=>{`,
+        keyword('const'),
+        ` ${binding(x)}=Object.getOwnPropertyDescriptor(${a},${b});`,
+        keyword('return'),
+        ` ${x}?.enumerable?${x}.value:`,
+        literal('undefined'),
+        ';}',
+    ]
 }
 
 /** Render a value, demanding a shared entry through its cell. @type {(s: _Scope, v: Operand) => string} */
