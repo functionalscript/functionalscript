@@ -474,8 +474,13 @@ fn write_exclusive_with(
             Err(e) => e,
         }
     };
-    let _ = fs::remove_file(path);
-    Err(failure(&failed, "write", path))
+    // As the Node runner's `rm` with `force`: a file that is already gone is
+    // rolled back, and any other failure replaces the write's, because the
+    // caller is promised no file and would retry into `EEXIST`.
+    match fs::remove_file(path) {
+        Err(e) if e.kind() != ErrorKind::NotFound => Err(failure(&e, "unlink", path)),
+        _ => Err(failure(&failed, "write", path)),
+    }
 }
 
 /// Removes a file or a link, and refuses a directory with `ERR_FS_EISDIR`, the
@@ -984,6 +989,37 @@ mod test {
             assert_eq!(error.code, Some("ENOSPC".into()));
             assert!(error.message.contains("write"), "{}", error.message);
             assert_eq!(code_of(access(&file)), Some("ENOENT".into()));
+        }
+
+        /// A rollback that fails is the failure reported, since the file the
+        /// caller was promised gone is still there; one that finds the file
+        /// already gone is a rollback.
+        #[test]
+        fn a_failed_rollback_is_reported() {
+            let dir = Scratch::new();
+            let file = dir.at("f");
+            let error = write_exclusive_with(
+                &file,
+                |_| {
+                    fs::remove_file(&file)?;
+                    fs::create_dir_all(format!("{file}/inside"))?;
+                    Err(ErrorKind::StorageFull.into())
+                },
+                |_| unreachable!("a failed write is not finished"),
+            )
+            .unwrap_err();
+            assert!(error.message.contains("unlink"), "{}", error.message);
+            let error = write_exclusive_with(
+                &dir.at("g"),
+                |_| {
+                    fs::remove_file(dir.at("g"))?;
+                    Err(ErrorKind::StorageFull.into())
+                },
+                |_| unreachable!("a failed write is not finished"),
+            )
+            .unwrap_err();
+            assert_eq!(error.code, Some("ENOSPC".into()));
+            assert!(error.message.contains("write"), "{}", error.message);
         }
 
         /// A file that cannot be synced has nothing to flush: a write to a pipe
