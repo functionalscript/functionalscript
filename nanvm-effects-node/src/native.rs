@@ -14,6 +14,7 @@ use crate::{
         encode_nullable, encode_number, encode_object, encode_ok, encode_string, encode_tuple,
         member, optional_argument, required,
     },
+    common,
     files::{self, Dirent, IoError, Stat},
     resolve::{FileModule, resolve_file_module},
 };
@@ -241,6 +242,18 @@ impl<R: Read, O: Write, E: Write> Native<R, O, E> {
                 let path = decode_string(argument(payload, 0, "path")?)?;
                 let data = decode_array(argument(payload, 1, "data")?, decode_bytes)?;
                 Ok(answer(files::write_exclusive(&path, &data), encode_nothing))
+            }
+            "catch" => {
+                arity(payload, 1)?;
+                Ok(common::catch(argument(payload, 0, "f")?))
+            }
+            "sandbox" if common::CLOCK => {
+                arity(payload, 1)?;
+                Ok(common::sandbox(argument(payload, 0, "f")?))
+            }
+            "now" if common::CLOCK => {
+                arity(payload, 0)?;
+                Ok(common::now())
             }
             "rm" => {
                 arity(payload, 1)?;
@@ -682,6 +695,106 @@ mod test {
         assert_eq!(tag, string_any("error"));
         assert_eq!(thrown("writeExclusive", [at("c"), hi()]), "not an array");
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    fn thunk(code: nanvm_lib::vm::StaticCode<Naive>) -> V {
+        use nanvm_lib::vm::IStaticFunction;
+        Naive::static_function(code, 0, [].to_array(), None).to_any()
+    }
+
+    #[cfg(not(all(target_family = "wasm", target_os = "unknown")))]
+    fn members(value: V, names: [&str; 2]) -> [V; 2] {
+        let object = nanvm_lib::vm::Object::try_from(value).unwrap();
+        names.map(|name| object.own_property(&name.into()).unwrap())
+    }
+
+    /// `catch` answers what the thunk did: `['ok', ['ok', value]]`, and a
+    /// throw as `['ok', ['error', thrown]]`, neither ending the run.
+    #[test]
+    fn catch_answers_what_the_thunk_did() {
+        let returned = ok(perform("catch", [thunk(|_, _| Ok(string_any("fine")))]));
+        assert_eq!(returned.to_json(), Ok("[\"ok\",\"fine\"]".into()));
+        let threw = ok(perform("catch", [thunk(|_, _| Err(string_any("boom")))]));
+        assert_eq!(threw.to_json(), Ok("[\"error\",\"boom\"]".into()));
+        // A value that is no function throws when it is called, which `catch` catches.
+        let not_callable = ok(perform("catch", [string_any("x")]));
+        let [tag, _]: [V; 2] = Array::try_from(not_callable)
+            .unwrap()
+            .into_iter()
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap();
+        assert_eq!(tag, string_any("error"));
+    }
+
+    /// `sandbox` answers `{result, duration}`, the duration a number of
+    /// milliseconds that is not negative.
+    /// Needs a clock, which `wasm32-unknown-unknown` does not have: `std` panics
+    /// on `Instant::now` and `SystemTime::now` there, WASI has them.
+    #[cfg(not(all(target_family = "wasm", target_os = "unknown")))]
+    #[test]
+    fn sandbox_answers_the_result_and_a_duration() {
+        for (code, expected) in [
+            (
+                (|_, _| Ok(string_any("fine"))) as nanvm_lib::vm::StaticCode<Naive>,
+                "[\"ok\",\"fine\"]",
+            ),
+            (|_, _| Err(string_any("boom")), "[\"error\",\"boom\"]"),
+        ] {
+            let answer = ok(perform("sandbox", [thunk(code)]));
+            let [result, duration] = members(answer, ["result", "duration"]);
+            assert_eq!(result.to_json(), Ok(expected.into()));
+            let milliseconds = f64::from(Number::try_from(duration).unwrap());
+            assert!((0.0..60_000.0).contains(&milliseconds));
+        }
+    }
+
+    /// `now` is whole milliseconds since the epoch, within the test's own bounds.
+    /// Needs a clock, which `wasm32-unknown-unknown` does not have: `std` panics
+    /// on `Instant::now` and `SystemTime::now` there, WASI has them.
+    #[cfg(not(all(target_family = "wasm", target_os = "unknown")))]
+    #[test]
+    fn now_is_the_epoch_in_milliseconds() {
+        let epoch = || {
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis() as f64
+        };
+        let before = epoch();
+        let answer = f64::from(Number::try_from(ok(perform("now", []))).unwrap());
+        let after = epoch();
+        assert!(before <= answer && answer <= after && answer.fract() == 0.0);
+    }
+
+    #[test]
+    fn the_thunk_operations_take_exactly_their_arguments() {
+        assert_eq!(thrown("catch", []), "missing argument 0, `f`");
+    }
+
+    #[cfg(not(all(target_family = "wasm", target_os = "unknown")))]
+    #[test]
+    fn the_clock_operations_take_exactly_their_arguments() {
+        assert_eq!(
+            thrown("sandbox", [hi(), hi()]),
+            "2 arguments where at most 1 are taken"
+        );
+        assert_eq!(
+            thrown("now", [hi()]),
+            "1 arguments where at most 0 are taken"
+        );
+    }
+
+    /// Without a clock the operations are refused, not trapped.
+    #[cfg(all(target_family = "wasm", target_os = "unknown"))]
+    #[test]
+    fn the_clock_operations_are_not_implemented_without_a_clock() {
+        for command in ["sandbox", "now"] {
+            assert_eq!(
+                perform(command, []).unwrap().to_json(),
+                Ok(format!("[\"error\",[\"notImplemented\",\"{command}\"]]"))
+            );
+        }
     }
 
     /// `resolveFileModule` through `perform`: the working directory is where
