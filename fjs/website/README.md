@@ -56,6 +56,11 @@ The generator reserves the root `prs/` output directory and excludes it from
 source discovery. The implementation's `fjs/website/prs/` directory remains
 an ordinary source page. A repeated build produces the same catalogue.
 
+`prs/load/` defines pagination, rate-limit refusals, worker limits and refresh
+feedback as pure decisions with co-located proofs. The browser adapter reads
+responses, performs requests and DOM updates, and supplies browser clock and
+date-formatting results to that policy.
+
 ## Every directory gets a page
 
 One rule rather than two: whatever a directory holds, it gets an `index.html`

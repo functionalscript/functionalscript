@@ -1,6 +1,8 @@
 /**
  * Browser boundary for the public pull-request page: fetch GitHub JSON,
  * admit it through the page's schemas, and render its FunctionalScript rows.
+ * Loading limits and feedback come from the pure prs/load policy; this
+ * adapter drives requests, listeners, clocks and DOM updates.
  *
  * The initial load runs once. Further loads require the Refresh button; the
  * request deadline never schedules a refresh, and failed requests are not retried.
@@ -9,14 +11,15 @@
  * @import { Unknown } from '../rtti/ts/types.ts'
  * @import { Result } from '../types/result/types.ts'
  * @import { CheckLabel } from './prs/types.ts'
+ * @import { Failures } from './prs/load/types.ts'
  */
 
 import { toDom } from '../media/html/module.mjs'
 import { parse } from '../rtti/parse/module.f.mjs'
 import { checksSchema, checkSummary, pullsSchema, row, statusesSchema } from './prs/module.f.mjs'
+import { checkFailure, finishedNote, hasNextLink, listFailure, pageRequest, pageStep, refreshStart, refusalDecision, refusalNote, responseMessages, transportFailure, unavailableLabel, unavailableMessage, workerCount } from './prs/load/module.f.mjs'
 
 const api = 'https://api.github.com/repos/functionalscript/functionalscript'
-const maxPages = 10
 const parsePulls = parse(pullsSchema)
 const parseChecks = parse(checksSchema)
 const parseStatuses = parse(statusesSchema)
@@ -28,39 +31,7 @@ const started = new WeakMap()
 /** @type {(error: unknown) => string} */
 const message = error => error instanceof Error
     ? error.message
-    : 'GitHub is unavailable. Try Refresh again.'
-
-/**
- * Read only the relation from GitHub's pagination header. Every request URL
- * is constructed locally; a Link URL is never followed.
- */
-/** @type {(response: Response) => boolean} */
-const hasNext = response => (response.headers.get('link') ?? '').split(',')
-    .some(link => link.split(';').slice(1).some(part => part.trim() === 'rel="next"'))
-
-/**
- * Explain a refusal and, when supplied, the time GitHub says to try again.
- * The user's browser supplies the locale and time zone for the displayed time.
- */
-/** @type {(response: Response, now: () => number) => string} */
-const refusal = (response, now) => {
-    const retry = response.headers.get('retry-after')
-    const reset = response.headers.get('x-ratelimit-reset')
-    const limited = response.status === 429
-        || response.headers.get('x-ratelimit-remaining') === '0'
-        || retry !== null
-    let after = NaN
-    if (retry !== null) {
-        const seconds = Number(retry)
-        after = Number.isFinite(seconds) ? now() + seconds * 1000 : Date.parse(retry)
-    } else if (limited && reset !== null) {
-        after = Number(reset) * 1000
-    }
-    const reason = limited ? 'GitHub API rate limit reached.' : `GitHub request failed (HTTP ${response.status}).`
-    return Number.isFinite(after) && after > now()
-        ? `${reason} Try Refresh after ${new Date(after).toLocaleString()}.`
-        : `${reason} Try Refresh again later.`
-}
+    : unavailableMessage
 
 /**
  * Bind one page and perform its initial load. A duplicate call neither loads
@@ -88,11 +59,12 @@ export const startPrs = (root, host = {}) => {
     let loaded = false
 
     const refresh = async () => {
-        if (busy) { return }
+        const loadingNote = refreshStart(busy, loaded)
+        if (loadingNote === null) { return }
         busy = true
         button.disabled = true
         root.setAttribute('aria-busy', 'true')
-        note.textContent = loaded ? 'Refreshing pull requests and checks…' : 'Loading pull requests and checks…'
+        note.textContent = loadingNote
         // A rate-limit refusal stops all remaining requests in this load,
         // including the workers that have not started their next PR yet.
         /** @type {Error | null} */
@@ -120,29 +92,37 @@ export const startPrs = (root, host = {}) => {
                 })
             } catch (error) {
                 const timedOut = error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')
-                throw new Error(timedOut
-                    ? 'The GitHub request timed out. Try Refresh again.'
-                    : 'GitHub request failed. Check your connection and try Refresh again.')
+                throw new Error(transportFailure(timedOut))
             }
             if (!response.ok) {
-                const error = new Error(refusal(response, now))
-                if (response.status === 403 || response.status === 429) { blocked = error }
+                const retryAfter = response.headers.get('retry-after')
+                const decision = refusalDecision({
+                    status: response.status,
+                    remaining: response.headers.get('x-ratelimit-remaining'),
+                    retryAfter,
+                    reset: response.headers.get('x-ratelimit-reset'),
+                    now: now(),
+                    retryDateMillis: retryAfter === null ? null : Date.parse(retryAfter),
+                })
+                const formattedRetry = decision.retryAt === null ? '' : new Date(decision.retryAt).toLocaleString()
+                const error = new Error(refusalNote(decision, formattedRetry))
+                if (decision.blocked) { blocked = error }
                 throw error
             }
             let value
             try {
                 value = await response.json()
             } catch {
-                throw new Error('GitHub returned invalid JSON. Try Refresh again.')
+                throw new Error(responseMessages.invalidJson)
             }
             const [tag, admitted] = read(value)
-            if (tag === 'error') { throw new Error('GitHub returned an unsupported response. View the results on GitHub.') }
-            return { value: admitted, next: hasNext(response) }
+            if (tag === 'error') { throw new Error(responseMessages.unsupported) }
+            return { value: admitted, next: hasNextLink(response.headers.get('link')) }
         }
 
         /**
-         * Load a bounded set of locally numbered API pages. An endpoint's
-         * total_count also catches GitHub's own check-run pagination limit.
+         * Drive pure paging decisions against actual responses. Each decision
+         * supplies another locally numbered page, a complete result, or a refusal.
          *
          * @template Value
          * @template Item
@@ -153,21 +133,17 @@ export const startPrs = (root, host = {}) => {
          * @returns {Promise<readonly Item[]>}
          */
         const pages = async (path, read, select, total) => {
-            /** @type {Item[]} */
-            const items = []
-            for (let page = 1; page <= maxPages; page += 1) {
-                const separator = path.includes('?') ? '&' : '?'
-                const { value, next } = await request(`${path}${separator}per_page=100&page=${page}`, read)
-                items.push(...select(value))
-                if (!next) {
-                    const count = total(value)
-                    if (count !== null && items.length < count) {
-                        throw new Error('GitHub returned an incomplete set of checks. View the checks on GitHub.')
-                    }
-                    return items
-                }
+            /** @type {readonly Item[]} */
+            let items = []
+            let page = 1
+            while (true) {
+                const { value, next } = await request(pageRequest(path, page), read)
+                const decision = pageStep(page, items, select(value), next, total(value))
+                if (decision.tag === 'error') { throw new Error(decision.message) }
+                if (decision.tag === 'done') { return decision.items }
+                items = decision.items
+                page = decision.page
             }
-            throw new Error(`GitHub returned more than ${maxPages} pages. View the complete results on GitHub.`)
         }
 
         try {
@@ -177,8 +153,8 @@ export const startPrs = (root, host = {}) => {
             root.removeAttribute('data-pr-stale')
             loaded = true
             let nextPull = 0
-            let failures = 0
-            let firstFailure = ''
+            /** @type {Failures} */
+            let failures = { count: 0, first: '' }
             const worker = async () => {
                 while (nextPull < pulls.length) {
                     const index = nextPull
@@ -186,7 +162,7 @@ export const startPrs = (root, host = {}) => {
                     const pr = pulls[index]
                     const sha = encodeURIComponent(pr.head.sha)
                     /** @type {CheckLabel} */
-                    let label = 'Unavailable'
+                    let label = unavailableLabel
                     try {
                         const checks = await pages(`commits/${sha}/check-runs?filter=latest`, parseChecks,
                             value => value.check_runs, value => value.total_count)
@@ -194,19 +170,17 @@ export const startPrs = (root, host = {}) => {
                             value => value.statuses, value => value.total_count)
                         label = checkSummary(checks, statuses)
                     } catch (error) {
-                        failures += 1
-                        if (firstFailure === '') { firstFailure = message(error) }
+                        failures = checkFailure(failures, message(error))
                     }
                     rows.replaceChild(toDom(root.ownerDocument, row(pr, label)), elements[index])
                 }
             }
-            await Promise.all(Array.from({ length: Math.min(3, pulls.length) }, worker))
-            const count = pulls.length === 0 ? 'No open pull requests.' : `${pulls.length} open pull request${pulls.length === 1 ? '' : 's'}.`
-            const partial = failures === 0 ? '' : ` Checks unavailable for ${failures} pull request${failures === 1 ? '' : 's'}. ${firstFailure}`
-            note.textContent = `${count} Updated ${new Date(now()).toLocaleString()}.${partial}`
+            await Promise.all(Array.from({ length: workerCount(pulls.length) }, worker))
+            note.textContent = finishedNote(pulls.length, failures, new Date(now()).toLocaleString())
         } catch (error) {
-            if (loaded) { root.setAttribute('data-pr-stale', '') }
-            note.textContent = `${loaded ? 'Could not refresh. Showing previous results, which may be stale.' : 'Could not load pull requests.'} ${message(error)}`
+            const failure = listFailure(loaded, message(error))
+            if (failure.stale) { root.setAttribute('data-pr-stale', '') }
+            note.textContent = failure.note
         } finally {
             busy = false
             button.disabled = false

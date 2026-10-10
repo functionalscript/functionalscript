@@ -195,6 +195,7 @@ export const proof = {
         const page = dom()
         const net = queue([
             json([pull(5)]), json(passed), json(noStatuses), new Response('', { status: 500 }),
+            json([pull(6)]), json(passed), json(noStatuses),
         ])
         await startPrs(page.root, { fetch: net.fetch, now })
         const previous = page.rows.childNodes[0]
@@ -204,6 +205,10 @@ export const proof = {
         assert(page.note.textContent.includes('previous results, which may be stale'))
         assert(page.note.textContent.includes('HTTP 500'))
         assertEq(page.button.disabled, false)
+        await page.click()
+        assertEq(page.root.getAttribute('data-pr-stale'), null)
+        assert(page.rows.textContent.includes('#6'))
+        assertEq(net.remaining(), 0)
     },
     checkFailureReplacesPreviousPassingResult: async () => {
         const page = dom()
@@ -234,6 +239,32 @@ export const proof = {
         assert(page.rows.childNodes.every((/** @type {any} */ r) => r.textContent.includes('Unavailable')))
         assert(page.note.textContent.includes('GitHub API rate limit reached'))
         assert(page.note.textContent.includes('Try Refresh after'))
+        assertEq(page.button.disabled, false)
+    },
+    dateRetryAfterUsesBrowserFormatting: async () => {
+        const page = dom()
+        const retryAt = now() + 60_000
+        const net = queue([new Response('', {
+            status: 429, headers: { 'Retry-After': new Date(retryAt).toUTCString() },
+        })])
+        await startPrs(page.root, { fetch: net.fetch, now })
+        assert(page.note.textContent.includes(`Try Refresh after ${new Date(retryAt).toLocaleString()}.`))
+        assertEq(net.urls.length, 1)
+        assertEq(page.button.disabled, false)
+    },
+    manualRefreshRecoversFromRateLimit: async () => {
+        const page = dom()
+        const net = queue([
+            json([pull(5)]), new Response('', { status: 429 }),
+            json([pull(6)]), json(passed), json(noStatuses),
+        ])
+        await startPrs(page.root, { fetch: net.fetch, now })
+        assert(page.rows.textContent.includes('Unavailable'))
+        await page.click()
+        assert(page.rows.textContent.includes('#6'))
+        assert(page.rows.textContent.includes('Passing'))
+        assert(!page.note.textContent.includes('Checks unavailable'))
+        assertEq(net.remaining(), 0)
         assertEq(page.button.disabled, false)
     },
     boundsListPagination: async () => {
