@@ -185,6 +185,34 @@ the preview being tested.
 See [GitHub's OAuth documentation](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps)
 for registration and PKCE details.
 
+### Preview while production only serves assets
+
+Cloudflare disables the runtime bindings editor for an asset-only production
+deployment, even when a preview version contains the new Worker code. Use
+[`github-preview.mjs`](./github-preview.mjs) to attach the app bindings while
+uploading that preview, without deploying the preview to production:
+
+1. In **Settings → Builds → Variables and secrets**, set `GITHUB_CLIENT_ID`
+   and `GITHUB_REDIRECT_URI` as variables, and `GITHUB_CLIENT_SECRET` as a
+   **Secret**. Use the preview app and its exact `/prs/` callback.
+2. Keep the build command as `npm run website`.
+3. Change the version command to:
+
+   ```sh
+   if [ -f fjs/website/github-preview.mjs ]; then node fjs/website/github-preview.mjs; else npx wrangler versions upload; fi
+   ```
+
+   The fallback preserves uploads for older branches that lack the helper.
+4. Rebuild the preview branch after saving those settings.
+
+The upload helper passes the two public values as explicit Wrangler variables.
+It writes the app secret to a private temporary JSON file outside the asset
+directory, uploads it with `wrangler versions upload --secrets-file` as an
+encrypted Worker binding, and removes the file after the upload attempt.
+The secret never appears in command arguments or the helper's error messages.
+This uses Wrangler 4.74.0 or newer; see its
+[version upload options](https://developers.cloudflare.com/workers/wrangler/commands/workers/#versions-upload).
+
 ## A demo shows what a module does
 
 A module page can say what a module *is* and whether it *passes*. A demo is the

@@ -6,3 +6,4 @@
 .wrangler/
 node_modules/
 work/
+functionalscript-github-preview-*/

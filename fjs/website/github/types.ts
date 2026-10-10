@@ -33,3 +33,8 @@ export type WorkerEnv = {
 
 /** The network boundary supplied by the Worker host or its proof. */
 export type WorkerHost = { readonly fetch?: typeof fetch }
+
+/** The process boundary for uploading a preview with runtime bindings. */
+export type PreviewUploadHost = {
+    readonly run?: (args: readonly string[]) => Promise<number>
+}
