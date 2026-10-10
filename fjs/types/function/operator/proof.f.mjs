@@ -17,7 +17,7 @@ import {
     foldToScan,
     reduceToScan,
     cascade,
-} from './module.f.mjs'
+} from './module.f.js'
 
 const joinTest = () => {
     const result = join(', ')('world')('hello')

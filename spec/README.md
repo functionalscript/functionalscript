@@ -1690,7 +1690,7 @@ export default (...c) => entry(escapes, c[0]);
 
 A key computed at run time is read by the **`entry` helper**: the function
 above, written in a module under any three names, or imported from
-[`fjs/js/entry`](../fjs/js/entry/module.f.js), which spells it once.
+[`fjs/types/object/entry`](../fjs/types/object/entry/module.f.js), which spells it once.
 `entry(a, b)` is the enumerable own property `b` names of `a` — a member of
 an object, an element of an array or of a string — and `undefined` where
 there is none: a `length`, which an array, a string and a function own

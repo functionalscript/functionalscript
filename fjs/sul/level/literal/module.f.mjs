@@ -12,7 +12,7 @@
 
 import { log2 } from '../../../types/bigint/module.f.mjs'
 import { msb, vec } from '../../../types/bit_vec/module.f.mjs'
-import { cascade } from '../../../types/function/operator/module.f.mjs'
+import { cascade } from '../../../types/function/operator/module.f.js'
 import { map, sameItems } from '../../../types/list/module.f.mjs'
 import { join } from '../../../types/string/module.f.mjs'
 

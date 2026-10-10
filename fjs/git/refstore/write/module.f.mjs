@@ -51,7 +51,7 @@ import { length, maxLengthBytes, u8ListToVecMsb } from '../../../types/bit_vec/m
 import { solidus as slash } from '../../../text/ascii/module.f.mjs'
 import { toArray } from '../../../types/list/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.mjs'
-import { startsWith } from '../../bytes/module.f.mjs'
+import { startsWith } from '../../bytes/module.f.js'
 import { isOidOf } from '../../oid/module.f.mjs'
 import { tryPackedWithout, tryRef, writeLoose } from '../../ref/module.f.mjs'
 import { isWholeName, lockSuffix } from '../../refname/module.f.mjs'
