@@ -303,15 +303,54 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
     let c60: Any<A> = [c54, c55, c56, c57, c58, c59].to_array().to_any();
     let c61: Any<A> = [(string_key("run"), c53), (string_key("expected"), c60)].to_object().to_any();
     let c62: Any<A> = A::static_function(|self_, args| {
+        let c0: Any<A> = A::frame(self_)[0].clone();
+        let c1: Any<A> = (args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()) + string_any("/m.f.mjs"))?;
+        let c2: Any<A> = [c1, bigint_any(-59497)].to_array().to_any();
+        let c3: Any<A> = A::frame(self_)[1].clone();
+        let c4: Any<A> = Any::call(c0.clone(), [string_any("writeFile"), c2, c3.clone()].to_array().to_any())?;
+        let c5: Any<A> = (args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()) + string_any("/m.f.mjs"))?;
+        let c6: Any<A> = [c5, Nullish::Null.to_any()].to_array().to_any();
+        let c7: Any<A> = A::static_function(|_self, args| {
+            let c0: Any<A> = Any::dot(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), string_any("id")).end()?;
+            let c1 = || Ok([string_any("file:///")].to_array().to_any());
+            let c2: Any<A> = Any::dot(c0, string_any("startsWith")).end_call(c1)?;
+            let c3 = || {
+                let c4: Any<A> = Any::dot(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), string_any("id")).end()?;
+                let c5 = || Ok([string_any("/m.f.mjs")].to_array().to_any());
+                Any::dot(c4, string_any("endsWith")).end_call(c5)
+            };
+            let c6: Any<A> = (Any::logical_and(c2, c3))?;
+            let c7 = || {
+                let c8: Any<A> = Any::dot(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), string_any("path")).end()?;
+                let c9 = || Ok([string_any("m.f.mjs")].to_array().to_any());
+                Any::dot(c8, string_any("endsWith")).end_call(c9)
+            };
+            Any::logical_and(c6, c7)
+        }, 1, Array::default(), Some("($0)=>$0.id.startsWith(\"file:///\")&&$0.id.endsWith(\"/m.f.mjs\")&&$0.path.endsWith(\"m.f.mjs\")")).to_any();
+        let c8: Any<A> = Any::call(c0.clone(), [string_any("resolveFileModule"), c6, c7].to_array().to_any())?;
+        let c9: Any<A> = (args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()) + string_any("/none.f.mjs"))?;
+        let c10: Any<A> = [c9, Nullish::Null.to_any()].to_array().to_any();
+        let c11: Any<A> = Any::call(c0.clone(), [string_any("resolveFileModule"), c10, c3.clone()].to_array().to_any())?;
+        let c12: Any<A> = Any::call(c11, [A::frame(self_)[2].clone()].to_array().to_any())?;
+        let c13: Any<A> = Any::call(c8, [c12].to_array().to_any())?;
+        let c14: Any<A> = Any::call(c4, [c13].to_array().to_any())?;
+        Any::call(c14, [Array::default().to_any()].to_array().to_any())
+    }, 1, [c1.clone(), c2.clone(), c6.clone()].to_array(), Some("($3)=>$0(\"writeFile\",[$3+\"/m.f.mjs\",-59497n],$1)($0(\"resolveFileModule\",[$3+\"/m.f.mjs\",null],($4)=>$4.id.startsWith(\"file:///\")&&$4.id.endsWith(\"/m.f.mjs\")&&$4.path.endsWith(\"m.f.mjs\"))($0(\"resolveFileModule\",[$3+\"/none.f.mjs\",null],$1)($2)))([])")).to_any();
+    let c63: Any<A> = [string_any("ok"), Nullish::Null.to_any()].to_array().to_any();
+    let c64: Any<A> = [string_any("ok"), true.to_any()].to_array().to_any();
+    let c65: Any<A> = [string_any("error"), string_any("ENOENT")].to_array().to_any();
+    let c66: Any<A> = [c63, c64, c65].to_array().to_any();
+    let c67: Any<A> = [(string_key("run"), c62), (string_key("expected"), c66)].to_object().to_any();
+    let c68: Any<A> = A::static_function(|self_, args| {
         let c0: Any<A> = [args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any())].to_array().to_any();
         let c1: Any<A> = Any::call(A::frame(self_)[0].clone(), [string_any("rm"), c0, A::frame(self_)[1].clone()].to_array().to_any())?;
         let c2: Any<A> = Any::call(c1, [A::frame(self_)[2].clone()].to_array().to_any())?;
         Any::call(c2, [Array::default().to_any()].to_array().to_any())
     }, 1, [c1.clone(), c2.clone(), c6.clone()].to_array(), Some("($3)=>$0(\"rm\",[$3],$1)($2)([])")).to_any();
-    let c63: Any<A> = [string_any("error"), string_any("ERR_FS_EISDIR")].to_array().to_any();
-    let c64: Any<A> = [c63].to_array().to_any();
-    let c65: Any<A> = [(string_key("run"), c62), (string_key("expected"), c64)].to_object().to_any();
-    let c66: Any<A> = A::static_function(|self_, args| {
+    let c69: Any<A> = [string_any("error"), string_any("ERR_FS_EISDIR")].to_array().to_any();
+    let c70: Any<A> = [c69].to_array().to_any();
+    let c71: Any<A> = [(string_key("run"), c68), (string_key("expected"), c70)].to_object().to_any();
+    let c72: Any<A> = A::static_function(|self_, args| {
         let c0: Any<A> = A::frame(self_)[0].clone();
         let c1: Any<A> = (args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()) + string_any("/d"))?;
         let c2: Any<A> = [c1, Nullish::Undefined.to_any()].to_array().to_any();
@@ -340,15 +379,15 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
         let c25: Any<A> = Any::call(c4, [c24].to_array().to_any())?;
         Any::call(c25, [Array::default().to_any()].to_array().to_any())
     }, 1, [c1.clone(), c2.clone(), c6.clone()].to_array(), Some("($3)=>$0(\"mkdir\",[$3+\"/d\",undefined],$1)($0(\"writeFile\",[$3+\"/d/f\",-59497n],$1)($0(\"rmdir\",[$3+\"/d\"],$1)($0(\"rm\",[$3+\"/d/f\"],$1)($0(\"rmdir\",[$3+\"/d\"],$1)($0(\"rmdir\",[$3+\"/d\"],$1)($2))))))([])")).to_any();
-    let c67: Any<A> = [string_any("ok"), Nullish::Null.to_any()].to_array().to_any();
-    let c68: Any<A> = [string_any("ok"), Nullish::Null.to_any()].to_array().to_any();
-    let c69: Any<A> = [string_any("error"), string_any("ENOTEMPTY")].to_array().to_any();
-    let c70: Any<A> = [string_any("ok"), Nullish::Null.to_any()].to_array().to_any();
-    let c71: Any<A> = [string_any("ok"), Nullish::Null.to_any()].to_array().to_any();
-    let c72: Any<A> = [string_any("error"), string_any("ENOENT")].to_array().to_any();
-    let c73: Any<A> = [c67, c68, c69, c70, c71, c72].to_array().to_any();
-    let c74: Any<A> = [(string_key("run"), c66), (string_key("expected"), c73)].to_object().to_any();
-    let c75: Any<A> = A::static_function(|self_, args| {
+    let c73: Any<A> = [string_any("ok"), Nullish::Null.to_any()].to_array().to_any();
+    let c74: Any<A> = [string_any("ok"), Nullish::Null.to_any()].to_array().to_any();
+    let c75: Any<A> = [string_any("error"), string_any("ENOTEMPTY")].to_array().to_any();
+    let c76: Any<A> = [string_any("ok"), Nullish::Null.to_any()].to_array().to_any();
+    let c77: Any<A> = [string_any("ok"), Nullish::Null.to_any()].to_array().to_any();
+    let c78: Any<A> = [string_any("error"), string_any("ENOENT")].to_array().to_any();
+    let c79: Any<A> = [c73, c74, c75, c76, c77, c78].to_array().to_any();
+    let c80: Any<A> = [(string_key("run"), c72), (string_key("expected"), c79)].to_object().to_any();
+    let c81: Any<A> = A::static_function(|self_, args| {
         let c0: Any<A> = A::frame(self_)[0].clone();
         let c1: Any<A> = (args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()) + string_any("/f"))?;
         let c2: Any<A> = [c1, bigint_any(-59497)].to_array().to_any();
@@ -390,19 +429,19 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
         let c29: Any<A> = Any::call(c4, [c28].to_array().to_any())?;
         Any::call(c29, [Array::default().to_any()].to_array().to_any())
     }, 1, [c1.clone(), c2.clone(), c6.clone()].to_array(), Some("($3)=>$0(\"writeFile\",[$3+\"/f\",-59497n],$1)($0(\"stat\",[$3+\"/f\"],($4)=>[$4.size,$4.isFile,$4.isDirectory])($0(\"stat\",[$3],($5)=>[$5.isFile,$5.isDirectory])($0(\"stat\",[$3+\"/none\"],$1)($0(\"access\",[$3+\"/f\"],$1)($0(\"access\",[$3],$1)($0(\"access\",[$3+\"/none\"],$1)($2)))))))([])")).to_any();
-    let c76: Any<A> = [string_any("ok"), Nullish::Null.to_any()].to_array().to_any();
-    let c77: Any<A> = [f64_any(0x4000000000000000), true.to_any(), false.to_any()].to_array().to_any();
-    let c78: Any<A> = [string_any("ok"), c77].to_array().to_any();
-    let c79: Any<A> = [false.to_any(), true.to_any()].to_array().to_any();
-    let c80: Any<A> = [string_any("ok"), c79].to_array().to_any();
-    let c81: Any<A> = [string_any("error"), string_any("ENOENT")].to_array().to_any();
     let c82: Any<A> = [string_any("ok"), Nullish::Null.to_any()].to_array().to_any();
-    let c83: Any<A> = [string_any("ok"), Nullish::Null.to_any()].to_array().to_any();
-    let c84: Any<A> = [string_any("error"), string_any("ENOENT")].to_array().to_any();
-    let c85: Any<A> = [c76, c78, c80, c81, c82, c83, c84].to_array().to_any();
-    let c86: Any<A> = [(string_key("run"), c75), (string_key("expected"), c85)].to_object().to_any();
-    let c87: Any<A> = A::static_function(|_self, _args| { Err(string_any("boom")) }, 0, Array::default(), Some("()=>{throw \"boom\";}")).to_any();
-    let c88: Any<A> = A::static_function(|self_, _args| {
+    let c83: Any<A> = [f64_any(0x4000000000000000), true.to_any(), false.to_any()].to_array().to_any();
+    let c84: Any<A> = [string_any("ok"), c83].to_array().to_any();
+    let c85: Any<A> = [false.to_any(), true.to_any()].to_array().to_any();
+    let c86: Any<A> = [string_any("ok"), c85].to_array().to_any();
+    let c87: Any<A> = [string_any("error"), string_any("ENOENT")].to_array().to_any();
+    let c88: Any<A> = [string_any("ok"), Nullish::Null.to_any()].to_array().to_any();
+    let c89: Any<A> = [string_any("ok"), Nullish::Null.to_any()].to_array().to_any();
+    let c90: Any<A> = [string_any("error"), string_any("ENOENT")].to_array().to_any();
+    let c91: Any<A> = [c82, c84, c86, c87, c88, c89, c90].to_array().to_any();
+    let c92: Any<A> = [(string_key("run"), c81), (string_key("expected"), c91)].to_object().to_any();
+    let c93: Any<A> = A::static_function(|_self, _args| { Err(string_any("boom")) }, 0, Array::default(), Some("()=>{throw \"boom\";}")).to_any();
+    let c94: Any<A> = A::static_function(|self_, _args| {
         let c0: Any<A> = A::frame(self_)[0].clone();
         let c1: Any<A> = A::static_function(|_self, _args| { Ok(f64_any(0x401c000000000000)) }, 0, Array::default(), Some("()=>7")).to_any();
         let c2: Any<A> = [c1].to_array().to_any();
@@ -499,15 +538,15 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
         let c21: Any<A> = Any::call(c8, [c20].to_array().to_any())?;
         let c22: Any<A> = Any::call(c4, [c21].to_array().to_any())?;
         Any::call(c22, [Array::default().to_any()].to_array().to_any())
-    }, 1, [c1.clone(), c87, c6.clone()].to_array(), Some("($3)=>$0(\"catch\",[()=>7],($4)=>$4[0]===\"ok\"&&$4[1]===7)($0(\"catch\",[$1],($5)=>$5[0]===\"error\"&&$5[1]===\"boom\")($0(\"sandbox\",[()=>2],($6)=>$6.result[0]===\"ok\"&&$6.result[1]===2&&$6.duration*1===$6.duration&&$6.duration>=0)($0(\"sandbox\",[$1],($7)=>$7.result[0]===\"error\"&&$7.result[1]===\"boom\"&&$7.duration*1===$7.duration&&$7.duration>=0)($0(\"now\",[],($8)=>$8*1===$8&&$8%1===0&&$8>1000000000000&&$8<100000000000000)($2)))))([])")).to_any();
-    let c89: Any<A> = [string_any("ok"), true.to_any()].to_array().to_any();
-    let c90: Any<A> = [string_any("ok"), true.to_any()].to_array().to_any();
-    let c91: Any<A> = [string_any("ok"), true.to_any()].to_array().to_any();
-    let c92: Any<A> = [string_any("ok"), true.to_any()].to_array().to_any();
-    let c93: Any<A> = [string_any("ok"), true.to_any()].to_array().to_any();
-    let c94: Any<A> = [c89, c90, c91, c92, c93].to_array().to_any();
-    let c95: Any<A> = [(string_key("run"), c88), (string_key("expected"), c94)].to_object().to_any();
-    let c96: Any<A> = A::static_function(|self_, args| {
+    }, 1, [c1.clone(), c93, c6.clone()].to_array(), Some("($3)=>$0(\"catch\",[()=>7],($4)=>$4[0]===\"ok\"&&$4[1]===7)($0(\"catch\",[$1],($5)=>$5[0]===\"error\"&&$5[1]===\"boom\")($0(\"sandbox\",[()=>2],($6)=>$6.result[0]===\"ok\"&&$6.result[1]===2&&$6.duration*1===$6.duration&&$6.duration>=0)($0(\"sandbox\",[$1],($7)=>$7.result[0]===\"error\"&&$7.result[1]===\"boom\"&&$7.duration*1===$7.duration&&$7.duration>=0)($0(\"now\",[],($8)=>$8*1===$8&&$8%1===0&&$8>1000000000000&&$8<100000000000000)($2)))))([])")).to_any();
+    let c95: Any<A> = [string_any("ok"), true.to_any()].to_array().to_any();
+    let c96: Any<A> = [string_any("ok"), true.to_any()].to_array().to_any();
+    let c97: Any<A> = [string_any("ok"), true.to_any()].to_array().to_any();
+    let c98: Any<A> = [string_any("ok"), true.to_any()].to_array().to_any();
+    let c99: Any<A> = [string_any("ok"), true.to_any()].to_array().to_any();
+    let c100: Any<A> = [c95, c96, c97, c98, c99].to_array().to_any();
+    let c101: Any<A> = [(string_key("run"), c94), (string_key("expected"), c100)].to_object().to_any();
+    let c102: Any<A> = A::static_function(|self_, args| {
         let c0: Any<A> = A::frame(self_)[0].clone();
         let c1: Any<A> = (args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()) + string_any("/f"))?;
         let c2: Any<A> = [c1, bigint_any(-3899222121)].to_array().to_any();
@@ -552,18 +591,18 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
         let c41: Any<A> = Any::call(c4, [c40].to_array().to_any())?;
         Any::call(c41, [Array::default().to_any()].to_array().to_any())
     }, 1, [c1.clone(), c2.clone(), c6.clone()].to_array(), Some("($3)=>$0(\"writeFile\",[$3+\"/f\",-3899222121n],$1)($0(\"readBytes\",[$3+\"/f\",1,2],($4)=>$4===-59752n)($0(\"readBytes\",[$3+\"/f\",3,10],($5)=>$5===-233n)($0(\"readBytes\",[$3+\"/f\",9,4],($6)=>$6===0n)($0(\"readBytes\",[$3+\"/f\",0,0],($7)=>$7===0n)($0(\"readBytes\",[$3+\"/none\",0,1],$1)($0(\"readBytes\",[$3+\"/f\",-1,1],$1)($0(\"readBytes\",[$3+\"/f\",0,131073],$1)($0(\"readBytes\",[$3+\"/f\",0.5,1],$1)($2)))))))))([])")).to_any();
-    let c97: Any<A> = [string_any("ok"), Nullish::Null.to_any()].to_array().to_any();
-    let c98: Any<A> = [string_any("ok"), true.to_any()].to_array().to_any();
-    let c99: Any<A> = [string_any("ok"), true.to_any()].to_array().to_any();
-    let c100: Any<A> = [string_any("ok"), true.to_any()].to_array().to_any();
-    let c101: Any<A> = [string_any("ok"), true.to_any()].to_array().to_any();
-    let c102: Any<A> = [string_any("error"), string_any("ENOENT")].to_array().to_any();
-    let c103: Any<A> = [string_any("error"), Nullish::Null.to_any()].to_array().to_any();
-    let c104: Any<A> = [string_any("error"), Nullish::Null.to_any()].to_array().to_any();
-    let c105: Any<A> = [string_any("error"), Nullish::Null.to_any()].to_array().to_any();
-    let c106: Any<A> = [c97, c98, c99, c100, c101, c102, c103, c104, c105].to_array().to_any();
-    let c107: Any<A> = [(string_key("run"), c96), (string_key("expected"), c106)].to_object().to_any();
-    let c108: Any<A> = A::static_function(|self_, args| {
+    let c103: Any<A> = [string_any("ok"), Nullish::Null.to_any()].to_array().to_any();
+    let c104: Any<A> = [string_any("ok"), true.to_any()].to_array().to_any();
+    let c105: Any<A> = [string_any("ok"), true.to_any()].to_array().to_any();
+    let c106: Any<A> = [string_any("ok"), true.to_any()].to_array().to_any();
+    let c107: Any<A> = [string_any("ok"), true.to_any()].to_array().to_any();
+    let c108: Any<A> = [string_any("error"), string_any("ENOENT")].to_array().to_any();
+    let c109: Any<A> = [string_any("error"), Nullish::Null.to_any()].to_array().to_any();
+    let c110: Any<A> = [string_any("error"), Nullish::Null.to_any()].to_array().to_any();
+    let c111: Any<A> = [string_any("error"), Nullish::Null.to_any()].to_array().to_any();
+    let c112: Any<A> = [c103, c104, c105, c106, c107, c108, c109, c110, c111].to_array().to_any();
+    let c113: Any<A> = [(string_key("run"), c102), (string_key("expected"), c112)].to_object().to_any();
+    let c114: Any<A> = A::static_function(|self_, args| {
         let c0: Any<A> = A::frame(self_)[0].clone();
         let c1: Any<A> = (args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()) + string_any("/f"))?;
         let c2: Any<A> = [c1, bigint_any(-3899222121)].to_array().to_any();
@@ -585,11 +624,11 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
         let c18: Any<A> = Any::call(c4, [c17].to_array().to_any())?;
         Any::call(c18, [Array::default().to_any()].to_array().to_any())
     }, 1, [c1.clone(), c2.clone(), c6.clone()].to_array(), Some("($3)=>$0(\"writeFile\",[$3+\"/f\",-3899222121n],$1)($0(\"writeBytes\",[$3+\"/f\",1,-55898n],$1)($0(\"readFile\",[$3+\"/f\"],($4)=>$4===-3898235497n)($0(\"writeBytes\",[$3+\"/none\",0,-59497n],$1)($2))))([])")).to_any();
-    let c109: Any<A> = [string_any("ok"), Nullish::Null.to_any()].to_array().to_any();
-    let c110: Any<A> = [string_any("ok"), Nullish::Null.to_any()].to_array().to_any();
-    let c111: Any<A> = [string_any("ok"), true.to_any()].to_array().to_any();
-    let c112: Any<A> = [string_any("error"), string_any("ENOENT")].to_array().to_any();
-    let c113: Any<A> = [c109, c110, c111, c112].to_array().to_any();
-    let c114: Any<A> = [(string_key("run"), c108), (string_key("expected"), c113)].to_object().to_any();
-    Ok([(string_key("directory"), c18), (string_key("exclusive"), c27), (string_key("files"), c37), (string_key("mkdirs"), c45), (string_key("readWhole"), c52), (string_key("renames"), c61), (string_key("rmOfADirectory"), c65), (string_key("rmdirs"), c74), (string_key("stats"), c86), (string_key("thunks"), c95), (string_key("windows"), c107), (string_key("writeBytes"), c114)].to_object().to_any())
+    let c115: Any<A> = [string_any("ok"), Nullish::Null.to_any()].to_array().to_any();
+    let c116: Any<A> = [string_any("ok"), Nullish::Null.to_any()].to_array().to_any();
+    let c117: Any<A> = [string_any("ok"), true.to_any()].to_array().to_any();
+    let c118: Any<A> = [string_any("error"), string_any("ENOENT")].to_array().to_any();
+    let c119: Any<A> = [c115, c116, c117, c118].to_array().to_any();
+    let c120: Any<A> = [(string_key("run"), c114), (string_key("expected"), c119)].to_object().to_any();
+    Ok([(string_key("directory"), c18), (string_key("exclusive"), c27), (string_key("files"), c37), (string_key("mkdirs"), c45), (string_key("readWhole"), c52), (string_key("renames"), c61), (string_key("resolution"), c67), (string_key("rmOfADirectory"), c71), (string_key("rmdirs"), c80), (string_key("stats"), c92), (string_key("thunks"), c101), (string_key("windows"), c113), (string_key("writeBytes"), c120)].to_object().to_any())
 }

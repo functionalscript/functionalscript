@@ -165,6 +165,13 @@ export const thunks = {
     expected: [['ok', true], ['ok', true], ['ok', true], ['ok', true], ['ok', true]],
 };
 
+export const resolution = {
+    run: (/** @type {string} */ root) => step('writeFile', [root + '/m.f.mjs', hi], none)(
+        step('resolveFileModule', [root + '/m.f.mjs', null], (/** @type {any} */ v) => v.id.startsWith('file:///') && v.id.endsWith('/m.f.mjs') && v.path.endsWith('m.f.mjs'))(
+            step('resolveFileModule', [root + '/none.f.mjs', null], none)(end)))([]),
+    expected: [['ok', null], ['ok', true], ['error', 'ENOENT']],
+};
+
 export const directory = {
     run: (/** @type {string} */ root) => step('mkdir', [root + '/b', undefined], none)(
         step('mkdir', [root + '/a', undefined], none)(
