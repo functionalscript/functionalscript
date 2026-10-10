@@ -313,10 +313,12 @@ pub fn readdir(path: &str, recursive: bool) -> Result<Vec<Dirent>, IoError> {
 }
 
 /// Syncs `file` before it is closed, so an error the filesystem would report
-/// only at the close, a delayed `EIO` or `ENOSPC`, is reported. A file that
+/// only at the close, a delayed `EIO` or `ENOSPC`, is reported: `std` discards
+/// the one `close(2)` answers, where the Node handler awaits `fh.close()`. The
+/// flush to disk is a cost the Node handler does not pay and this accepts. A file that
 /// cannot be synced at all, a pipe, a terminal or a device such as `/dev/null`,
 /// answers `EINVAL` or is unsupported, and has nothing to flush: that is not a
-/// failure (`todo/close-errors.md`). A Windows console answers
+/// failure. A Windows console answers
 /// `ERROR_INVALID_HANDLE`, which Rust does not categorize. The exclusive operations create a regular
 /// file, which can always be synced, so they call `sync_all` and take every
 /// error.
@@ -442,7 +444,7 @@ pub fn read_bytes(path: &str, at: f64, size: f64) -> Result<Vec<u8>, IoError> {
 
 /// Creates `path` empty and fails if it exists (`O_CREAT|O_EXCL`). The file is
 /// synced before it is closed, so an error the filesystem would report only at
-/// the close is reported here (`todo/close-errors.md`); it is left in place, as
+/// the close is reported here; it is left in place, as
 /// the Node runner leaves it.
 pub fn create_exclusive(path: &str) -> Result<(), IoError> {
     let file = exclusive(path).map_err(|e| failure(&e, "open", path))?;
@@ -460,7 +462,7 @@ fn exclusive(path: &str) -> io::Result<File> {
 /// then synced before the file is closed, so an error the filesystem reports
 /// only at the close, a delayed `EIO` or `ENOSPC`, is reported as a failed
 /// `close`. As in the Node runner that failure does not remove the file, which
-/// is left behind, where a failed write removes it (`todo/close-errors.md`).
+/// is left behind, where a failed write removes it.
 pub fn write_exclusive(path: &str, data: &[Vec<u8>]) -> Result<(), IoError> {
     write_exclusive_with(
         path,
@@ -1031,9 +1033,7 @@ mod test {
             assert!(error.message.contains("write"), "{}", error.message);
         }
 
-        /// A file that cannot be synced has nothing to flush: a write to a pipe
-        /// succeeds, where `sync_all` alone would answer `EINVAL`.
-        #[cfg(target_os = "linux")]
+        /// What a console, a pipe or a device answers to a sync is nothing to flush.
         #[test]
         fn a_console_that_cannot_be_flushed_has_nothing_to_flush() {
             let invalid_handle = io::Error::from_raw_os_error(ERROR_INVALID_HANDLE);
@@ -1042,6 +1042,9 @@ mod test {
             assert!(!nothing_to_flush(&ErrorKind::StorageFull.into()));
         }
 
+        /// A file that cannot be synced has nothing to flush: a write to a pipe
+        /// succeeds, where `sync_all` alone would answer `EINVAL`.
+        #[cfg(target_os = "linux")]
         #[test]
         fn a_file_that_cannot_be_synced_is_not_a_failure() {
             use std::os::fd::AsRawFd;
