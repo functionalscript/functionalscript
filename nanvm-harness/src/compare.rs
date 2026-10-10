@@ -37,6 +37,8 @@ pub struct Case {
     pub expected: fn() -> Result<Any<Naive>, Any<Naive>>,
     /// The UTF-8 bytes of the default's JSON text, where it has a JSON form.
     pub json: Option<&'static [u8]>,
+    /// Whether the fixture is expected to throw while it initializes.
+    pub throws: bool,
 }
 
 /// Whether two graphs are the same value, and, where they are not, the first
@@ -140,14 +142,17 @@ fn default_of<A: IVm>(exports: Any<A>) -> Result<Any<A>, String> {
 /// Runs both layers for one case: `Ok` when the compiled fixture is what its
 /// expectation says, or the first difference.
 ///
-/// A fixture whose initialization throws is expected to throw, and the
-/// thrown value, which is engine-specific, is not compared.
+/// Whether the fixture throws is the expectation's recorded `THROWS`, not
+/// whether its module happens to throw too: a regression in the emitter both
+/// share could make both throw. The thrown value, which is engine-specific,
+/// is not compared.
 pub fn check(case: &Case) -> Result<(), String> {
-    match ((case.fixture)(), (case.expected)()) {
-        (Err(_), Err(_)) => Ok(()),
-        (Err(thrown), Ok(_)) => Err(format!("threw {thrown:?}, expected a value")),
-        (Ok(value), Err(_)) => Err(format!("expected a throw, got {value:?}")),
-        (Ok(actual), Ok(expected)) => {
+    match ((case.fixture)(), case.throws) {
+        (Err(_), true) => Ok(()),
+        (Err(thrown), false) => Err(format!("threw {thrown:?}, expected a value")),
+        (Ok(value), true) => Err(format!("expected a throw, got {value:?}")),
+        (Ok(actual), false) => {
+            let expected = (case.expected)().map_err(|e| format!("the expectation threw {e:?}"))?;
             let (actual, expected) = (default_of(actual)?, default_of(expected)?);
             check_json(case.json, &actual)?;
             same_graph(&actual, &expected)

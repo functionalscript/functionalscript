@@ -27,7 +27,7 @@ export const proof = {
         assert(text.includes('Ok([(string_key("default"), c0)].to_object().to_any())'))
         // `[1,"a"]`
         assert(text.includes('#[rustfmt::skip]\npub const JSON: Option<&[u8]> = Some(&[0x5b, 0x31, 0x2c, 0x22, 0x61, 0x22, 0x5d]);'))
-        assertEq(text.endsWith('\n'), true)
+        assert(text.endsWith('\npub const THROWS: bool = false;\n'))
     },
     // A shared node is one binding cloned at each reference, so the graph
     // keeps the sharing the JSON text cannot.
@@ -73,6 +73,7 @@ export const proof = {
         const text = assertOk(expectation('f.mjs')(error({ message: 'module initialization failed', metadata: null, path: 'f.mjs', thrown: ['undefined'] })))
         assert(text.includes('Err(Nullish::Undefined.to_any())'))
         assert(text.includes('#[rustfmt::skip]\npub const JSON: Option<&[u8]> = None;'))
+        assert(text.endsWith('\npub const THROWS: bool = true;\n'))
         assertEq(text.split('\n')[0].startsWith('// Expectation of'), true)
     },
     // A parse or loader failure carries no `thrown`: the fixture was never run,

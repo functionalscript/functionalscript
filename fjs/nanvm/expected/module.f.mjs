@@ -18,7 +18,10 @@
  *
  * A fixture whose initialization throws is expected to throw: its `module`
  * returns an `Err`, whose value no one compares (an engine's thrown value is
- * its own), and its `JSON` is `None`.
+ * its own), its `JSON` is `None`, and its `THROWS` is `true`. Every
+ * expectation says `THROWS`, so that a compiled fixture which throws where a
+ * value is expected, or the reverse, fails by that record and not by whatever
+ * the two sides happen to share.
  *
  * This module is pure. `fjs/nanvm/harness` reads the fixtures and writes the
  * files.
@@ -47,6 +50,9 @@ const header = fixture =>
 
 /** The `JSON` constant of a value with no JSON form. */
 const none = '#[rustfmt::skip]\npub const JSON: Option<&[u8]> = None;'
+
+/** The `THROWS` constant: whether the fixture is expected to throw. @type {(throws: boolean) => string} */
+const throwsConstant = throws => `pub const THROWS: bool = ${throws};`
 
 /** A byte as a Rust hexadecimal literal. @type {(byte: number) => string} */
 const byteLiteral = byte => `0x${byte.toString(16).padStart(2, '0')}`
@@ -104,7 +110,7 @@ export const expectation = fixture => interpreted => {
     if (interpreted[0] === 'error') {
         const failure = interpreted[1]
         return 'thrown' in failure
-            ? ok([header(fixture), '', throwing, '', none, ''].join('\n'))
+            ? ok([header(fixture), '', throwing, '', none, throwsConstant(true), ''].join('\n'))
             : error(`${fixture}: ${failure.message}`)
     }
     // An export object always answers `default`, if only `undefined`.
@@ -112,5 +118,5 @@ export const expectation = fixture => interpreted => {
     const printed = graph(value)
     return printed[0] === 'error'
         ? error(`${fixture}: ${printed[1]}`)
-        : ok([withHeader(fixture)(printed[1]).trimEnd(), '', jsonConstant(jsonText(value)), ''].join('\n'))
+        : ok([withHeader(fixture)(printed[1]).trimEnd(), '', jsonConstant(jsonText(value)), throwsConstant(false), ''].join('\n'))
 }

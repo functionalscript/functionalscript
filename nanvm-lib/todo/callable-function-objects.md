@@ -696,7 +696,9 @@ reports every difference. The comparison is
 [`nanvm-harness/src/compare.rs`](../../nanvm-harness/src/compare.rs). A module
 without a `default` is read as `undefined`, as the interpreter's
 `read 'default'` is. A default with no JSON form must also give `to_json()` an
-error, so the `None` side is checked too.
+error, so the `None` side is checked too. Every expectation records
+`THROWS`, and whether the fixture throws is compared with it, so two modules
+that both throw because of a regression they share do not pass for a value.
 
 *What 2b deletes.* The hand-written JSON assertion of each fixture whose
 expectation has the JSON layer in `src/lib.rs` (the `read_default(…) ==

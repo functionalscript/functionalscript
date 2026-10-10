@@ -75,7 +75,7 @@ export const proof = {
         const text = expectedModules(['at', 'rest_function'])
         assert(text.startsWith(modules(['at', 'rest_function'])))
         assert(text.includes(
-            '    crate::Case { name: "at", fixture: crate::fixtures::at::module::<Naive>, expected: at::module::<Naive>, json: at::JSON },\n'))
+            '    crate::Case { name: "at", fixture: crate::fixtures::at::module::<Naive>, expected: at::module::<Naive>, json: at::JSON, throws: at::THROWS },\n'))
         assert(text.endsWith('];\n'))
         assert(expectedModules([]).endsWith('&[crate::Case] = &[\n];\n'))
     },

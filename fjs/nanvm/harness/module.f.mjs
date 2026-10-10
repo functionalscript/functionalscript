@@ -98,7 +98,7 @@ export const expectedModules = names => [
     '/// Every corpus fixture with its expectation.',
     '#[rustfmt::skip]',
     'pub const CASES: &[crate::Case] = &[',
-    ...names.map(name => `    crate::Case { name: "${name}", fixture: crate::fixtures::${name}::module::<Naive>, expected: ${name}::module::<Naive>, json: ${name}::JSON },`),
+    ...names.map(name => `    crate::Case { name: "${name}", fixture: crate::fixtures::${name}::module::<Naive>, expected: ${name}::module::<Naive>, json: ${name}::JSON, throws: ${name}::THROWS },`),
     '];',
     '',
 ].join('\n')
