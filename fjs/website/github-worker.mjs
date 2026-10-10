@@ -1,7 +1,7 @@
 /**
  * A stateless Cloudflare boundary for GitHub's authorization-code exchange.
  * No user sessions, cookies, database, or token persistence are required.
- * The registered callback and client credentials come only from bindings;
+ * Registered callback parents and client credentials come only from bindings;
  * all GitHub API reads happen directly in the user's browser.
  *
  * @module
@@ -10,7 +10,7 @@
  */
 
 import { parse } from '../rtti/parse/module.f.mjs'
-import { exchangeSchema, providerErrorSchema, providerErrorReason, providerTokenSchema, validVerifier } from './github/module.f.mjs'
+import { allowedCallbackOrigin, exchangeSchema, providerErrorSchema, providerErrorReason, providerTokenSchema, validVerifier } from './github/module.f.mjs'
 
 const readExchange = parse(exchangeSchema)
 const readProviderToken = parse(providerTokenSchema)
@@ -59,7 +59,10 @@ export const handleGithubRequest = async (request, env, host = {}) => {
     const method = config ? 'GET' : 'POST'
     if (request.method !== method) { return json({ error: 'Method not allowed.' }, 405, { Allow: method }) }
     const redirect = callback(env.GITHUB_REDIRECT_URI)
-    if (redirect === null || !env.GITHUB_CLIENT_ID || !env.GITHUB_CLIENT_SECRET) {
+    const previewConfigured = env.GITHUB_PREVIEW_REDIRECT_URI !== undefined && env.GITHUB_PREVIEW_REDIRECT_URI !== ''
+    const previewRedirect = callback(env.GITHUB_PREVIEW_REDIRECT_URI)
+    if (redirect === null || !env.GITHUB_CLIENT_ID || !env.GITHUB_CLIENT_SECRET
+        || (previewConfigured && previewRedirect === null)) {
         if (!config) { return json({ error: 'GitHub login is not configured.' }, 503) }
         const bindingNames = /** @type {const} */ ([
             'GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET', 'GITHUB_REDIRECT_URI',
@@ -68,10 +71,15 @@ export const handleGithubRequest = async (request, env, host = {}) => {
             error: 'GitHub login is not configured.',
             missingBindings: bindingNames.filter(name => env[name] === undefined || env[name] === ''),
             invalidRedirectUri: env.GITHUB_REDIRECT_URI !== undefined && env.GITHUB_REDIRECT_URI !== '' && redirect === null,
+            ...(previewConfigured ? { invalidPreviewRedirectUri: previewRedirect === null } : {}),
         }, 503)
     }
-    if (url.origin !== redirect.origin) { return json({ error: 'GitHub login is unavailable on this origin.' }, 403) }
-    if (config) { return json({ clientId: env.GITHUB_CLIENT_ID, redirectUri: redirect.href }) }
+    if (!allowedCallbackOrigin(url, redirect)
+        && (previewRedirect === null || !allowedCallbackOrigin(url, previewRedirect))) {
+        return json({ error: 'GitHub login is unavailable on this origin.' }, 403)
+    }
+    const redirectUri = `${url.origin}/prs/`
+    if (config) { return json({ clientId: env.GITHUB_CLIENT_ID, redirectUri }) }
     if (request.headers.get('Origin') !== url.origin) { return json({ error: 'Origin not allowed.' }, 403) }
     const contentType = request.headers.get('Content-Type')?.split(';')[0].trim().toLowerCase()
     if (contentType !== 'application/json') { return json({ error: 'JSON is required.' }, 415) }
@@ -99,7 +107,7 @@ export const handleGithubRequest = async (request, env, host = {}) => {
             body: new URLSearchParams({
                 client_id: env.GITHUB_CLIENT_ID,
                 client_secret: env.GITHUB_CLIENT_SECRET,
-                redirect_uri: redirect.href,
+                redirect_uri: redirectUri,
                 code,
                 code_verifier: verifier,
             }),

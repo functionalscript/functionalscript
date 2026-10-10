@@ -11,6 +11,13 @@ import type { configSchema, exchangeFailureSchema, exchangeSchema, pendingSchema
 /** Public application ID and registered callback. */
 export type Config = Ts<typeof configSchema>
 
+/** Normalized URL components supplied by the host's URL parser. */
+export type CallbackOrigin = {
+    readonly protocol: string
+    readonly hostname: string
+    readonly port: string
+}
+
 /** One pending authorization, held in tab-local sessionStorage. */
 export type Pending = Ts<typeof pendingSchema>
 
@@ -31,6 +38,7 @@ export type WorkerEnv = {
     readonly GITHUB_CLIENT_ID?: string
     readonly GITHUB_CLIENT_SECRET?: string
     readonly GITHUB_REDIRECT_URI?: string
+    readonly GITHUB_PREVIEW_REDIRECT_URI?: string
     readonly ASSETS?: { readonly fetch: (request: Request) => Promise<Response> }
 }
 
