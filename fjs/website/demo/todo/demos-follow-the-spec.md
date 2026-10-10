@@ -7,15 +7,8 @@
 
 [`../README.md`](../README.md) states the presentation rules. The lead,
 caption and example-name migrations are complete, and the text, bit-group
-and versions demos use the shared refusal element. Two migrations remain:
+and versions demos use the shared refusal element. The output-box migration remains:
 
-- **Refusals in VDF and PoW.** [VDF](../../../crypto/vdf/demo.f.mjs)
-  still shows invalid steps, oversized input, and an invalid claimed `y`
-  in a tinted paragraph without a `Refused:` caption or a `pre`.
-  [PoW](../../../crypto/pow/demo.f.mjs) has the caption and verdict box,
-  but its private refusal builder duplicates the shared element. Both
-  should use [`refusal`](../module.f.mjs), which also owns the live status
-  region. A verification verdict is a result, not an input refusal.
 - **Text results outside a code box.** [UTF-8](../../../text/utf8/demo.f.mjs)
   still draws its result as a bare `pre`, as does
   [BigInt](../../../types/bigint/demo.f.mjs) once `Measure` has run.
@@ -32,8 +25,9 @@ must show a report that looks like a real run.
 
 ### Proposal
 
-Finish the refusal migration through the shared element, preserving each
-demo's workflow and accessibility. Finish the output boxes and decide per
+The refusal migration is complete; VDF and PoW use the shared element
+while verification verdicts keep their result presentation. Finish the
+output boxes and decide per
 output whether a copy button is useful. `codeMarker` and `resultMarker`
 already connect the markup to the stylesheet, with proofs pinning their
 literal names and the code block and refusal shapes.
@@ -46,7 +40,7 @@ their branch preview links in each description.
 
 - [x] A lead option on `textDemo`; every `textDemo` demo through it.
 - [x] Leads for SHA-2, Base64 and CBase32.
-- [ ] Finish the shared refusal migration for VDF and PoW.
+- [x] Finish the shared refusal migration for VDF and PoW.
 - [x] Captions for the parser, serializer, Rust and tokenizer pages.
 - [x] Rename DataJS's `Error: JSON is not a document`.
 - [ ] Finish code boxes for UTF-8 and BigInt's measured rows; decide copy

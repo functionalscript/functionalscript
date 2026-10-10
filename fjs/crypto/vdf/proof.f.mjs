@@ -3,6 +3,7 @@
 import { sloth, p } from './module.f.mjs'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 import { demo, hexOfY, parseHex, parseSteps, xOf } from './demo.f.mjs'
+import { refusal } from '../../website/demo/module.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
@@ -50,6 +51,22 @@ const helloX = 0xa22d_1ef8_834e_3024_bb56_53a1_dbeb_3830_5bef_6d1c_ef48_6e45_0e0
 
 export const proof = {
     demo: {
+        refusals: () => {
+            for (const [patch, message] of /** @type {readonly (readonly [Partial<typeof demo.init>, string])[]} */ ([
+                [{ steps: '-' }, 'Enter a non-negative decimal number of steps.'],
+                [{ verdict: 'notHex' }, 'Enter y as hexadecimal digits.'],
+                [{ verdict: 'notBelowP' }, 'y must be less than the modulus p.'],
+                [{ verdict: 'tooLong' }, `Enter y with at most ${p.toString(16).length} hexadecimal digits.`],
+            ])) {
+                const html = htmlToString(demo.view({ ...demo.init, ...patch }))
+                assert(html.includes(htmlToString(refusal(message)).slice('<!DOCTYPE html>'.length)), html)
+            }
+            for (const verdict of /** @type {const} */ (['verified', 'rejected'])) {
+                const html = htmlToString(demo.view({ ...demo.init, verdict }))
+                assert(!html.includes('Refused:'), html)
+            }
+        },
+
         xOf: () => {
             assertEq(xOf(demo.init.text), helloX)
         },

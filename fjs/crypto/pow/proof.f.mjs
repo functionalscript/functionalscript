@@ -7,6 +7,7 @@ import { computeSync, sha224, sha256 } from '../sha2/module.f.mjs'
 import { bitcoinPow, genesisNBits, genesisTarget, pow, sha256Pow, targetFromNBits } from './module.f.mjs'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 import { demo, parseNBits, parseNonce } from './demo.f.mjs'
+import { refusal } from '../../website/demo/module.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
@@ -37,6 +38,17 @@ const expectNull = nBits => {
 
 export const proof = {
     demo: {
+        refusals: () => {
+            for (const [patch, message] of /** @type {readonly (readonly [Partial<typeof demo.init>, string])[]} */ ([
+                [{ nBits: 'bad' }, 'Enter nBits as a hexadecimal 32-bit value starting with 0x.'],
+                [{ nBits: '0x00000000' }, 'nBits must decode to a positive 256-bit target.'],
+                [{ nonce: '-' }, 'Enter a non-negative decimal nonce.'],
+            ])) {
+                const html = htmlToString(demo.view({ ...demo.init, ...patch }))
+                assert(html.includes(htmlToString(refusal(message)).slice('<!DOCTYPE html>'.length)), html)
+            }
+        },
+
         parseNonce: () => {
             assertEq(parseNonce('0'), 0n)
             assertEq(parseNonce('00042'), 42n)
