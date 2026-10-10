@@ -37,7 +37,7 @@
 import { error, mapOk, okThen, unwrap } from '../../types/result/module.f.mjs'
 import { analysis, checked } from '../../edag/analysis/module.f.mjs'
 import { holdsFunction, indent, readsArgs, scopeTagged, useLinesTagged } from '../../edag/rust/module.f.mjs'
-import { fromTagged, tagged, untagged } from '../../text/marked/module.f.mjs'
+import { fromTagged, tagged, untagged, withNames } from '../../text/marked/module.f.mjs'
 
 /**
  * The bound on the module's VM parameter: `IVm`, or `IStaticFunction` —
@@ -151,11 +151,13 @@ export const toRust = root => mapOk(untagged)(toRustTagged(root))
 /**
  * {@link toRust} as marked text: the generated module's comment, keywords,
  * string and number literals and `true`/`false` carry their kinds, which the
- * printer says where it spells them. The text is {@link toRust}'s.
+ * printer says where it spells them, and every word left over is a name, an
+ * `identifier`: all the data the printer writes is inside a string literal,
+ * so what stays plain is its own code. The text is {@link toRust}'s.
  *
  * @type {(root: Exp) => Result<Marked, string>}
  */
-export const toRustMarked = root => mapOk(text => unwrap(fromTagged(text)))(toRustTagged(root))
+export const toRustMarked = root => mapOk(text => withNames(unwrap(fromTagged(text))))(toRustTagged(root))
 
 /**
  * The same, with its kinds still tagged in the text, and the refusal.

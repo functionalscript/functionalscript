@@ -30,10 +30,10 @@ import { toArray } from '../../types/list/module.f.mjs'
 import { invert, ok, unwrap } from '../../types/result/module.f.mjs'
 import { _defaultExport, unresolved } from '../edag/module.f.mjs'
 import { parse } from '../transpiler/module.f.mjs'
-import { _tryModuleSerialize, _trySerialize, functionText, tryFunctionText, trySerialize, tryStringify, tryModuleSerialize, tryModuleStringify } from './module.f.mjs'
+import { _tryModuleSerialize, _trySerialize, functionText, tryFunctionText, trySerialize, tryStringify, tryModuleSerialize, tryModuleStringify, tryMarked, tryModuleMarked } from './module.f.mjs'
 import { keywords } from '../../js/keywords/module.f.mjs'
 import { disagreement } from '../../website/demo/highlight/module.f.mjs'
-import { chunksMarked, textOfResult, toText } from '../../text/marked/module.f.mjs'
+import { textOfResult, toText } from '../../text/marked/module.f.mjs'
 
 /** The name the front end gives the text it reads back. */
 const path = '/proof.f.js'
@@ -51,7 +51,7 @@ const reads = e => {
     assertEq(imports.length, 0, text)
     assertStructurallySame(assertOk(analysis(_defaultExport(edag))), assertOk(analysis(e)), text)
     // and what it marks is what the tokenizer finds, in every case that reads
-    assertEq(disagreement(chunksMarked(unwrap(_trySerialize(e)))), null, text)
+    assertEq(disagreement(unwrap(tryMarked(e))), null, text)
     return text
 }
 
@@ -537,6 +537,14 @@ export const proof = {
         assertStructurallySame(keywordsOf(['=>', 0, [], ['instanceof', ['rest'], 'Array']]), ['export', 'default', 'instanceof'])
         assertStructurallySame(keywordsOf(['throw', 1]), ['throw'])
     },
+    // The names are identifiers: a parameter and its use, a property after `.`,
+    // and a global, while the words it spells stay keywords.
+    markedNames: () => {
+        assertEq(JSON.stringify(unwrap(tryMarked(['=>', 0, [], ['instanceof', ['.', ['rest'], 'x'], 'Array']]))),
+            '[["export","keyword"],[" "],["default","keyword"],[" "],["(..."],["$0","identifier"],[")=>"],["$0","identifier"],["."],["x","identifier"],[" "],["instanceof","keyword"],[" "],["Array","identifier"],[";"]]')
+        // a property named like a keyword or a literal is still a name
+        assertEq(JSON.stringify(unwrap(tryMarked(['.', ['[]', [1]], 'true'])).filter(([, kind]) => kind === 'identifier')), '[["true","identifier"]]')
+    },
     // A module with named exports writes its anchors and bindings as `const`s
     // before them, which no shared example reaches: each word is marked, and
     // the tokenizer finds what the writer marked.
@@ -548,7 +556,7 @@ export const proof = {
             ['const checked = 1 + 2;\nconst v = [1];\nexport const a = v;\nexport default v;', 'const $0=1+2;const $1=[1];export const a=$1;export default $1;'],
         ]
         for (const [source, text] of cases) {
-            const marked = chunksMarked(unwrap(_tryModuleSerialize(moduleGraph(source))))
+            const marked = unwrap(tryModuleMarked(moduleGraph(source)))
             assertEq(toText(marked), text)
             assertEq(disagreement(marked), null, text)
         }
@@ -561,7 +569,7 @@ export const proof = {
             [['{}', [[':', 'a', ['[]', [[',', [['.', x, 0], 3]]]]], [':', 'b', 2]]], 'const $0=[1];const $1=$0[0];const $2=3;const $3=[$2];export const a=$3;export const b=2;'],
         ]
         for (const [graph, text] of graphs) {
-            const marked = chunksMarked(unwrap(_tryModuleSerialize(graph)))
+            const marked = unwrap(tryModuleMarked(graph))
             assertEq(toText(marked), text)
             assertEq(disagreement(marked), null, text)
         }
@@ -571,9 +579,9 @@ export const proof = {
         for (const [name, source] of examples) {
             const parsed = parse('')(source)
             if (parsed[0] === 'error') { continue }
-            const written = _tryModuleSerialize(unresolved(parsed[1]).edag)
+            const written = tryModuleMarked(unresolved(parsed[1]).edag)
             if (written[0] === 'error') { continue }
-            assertEq(disagreement(chunksMarked(written[1])), null, name)
+            assertEq(disagreement(written[1]), null, name)
         }
     },
     // A function with a frame is a closure: each frame element takes a

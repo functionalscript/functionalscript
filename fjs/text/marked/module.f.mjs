@@ -4,7 +4,7 @@
  * tokens, Pygments and Tree-sitter: the runs' texts, concatenated, are the
  * text, so what a producer writes to a file is {@link toText} of its runs.
  *
- * Four groups, by how a producer uses them:
+ * Five groups, by how a producer uses them:
  *
  * - **Runs**: {@link toText}, {@link textOfResult}, and {@link keyword} and
  *   {@link literal} to build a run.
@@ -14,6 +14,8 @@
  * - **Tagged text**, for a producer that composes its text by templates and
  *   says what a word is inside the string: {@link tagged}, resolved once at
  *   its boundary by {@link fromTagged}, or dropped by {@link untagged}.
+ * - **Names**, for a producer of code: {@link withNames} makes the words it
+ *   left plain `identifier`s.
  * - **Spans** beside a text that already exists: {@link fromSpans}.
  *
  * See `./types.ts` for the type-level API, and `./README.md` for what a
@@ -50,6 +52,55 @@ export const keyword = word => [word, 'keyword']
  * @type {(word: string) => Run}
  */
 export const literal = word => [word, 'literal']
+
+// -- names ----------------------------------------------------------------------
+
+/** @type {(c: string) => boolean} */
+const isNameStart = c => (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c === '_' || c === '$'
+
+/** @type {(c: string) => boolean} */
+const isNamePart = c => isNameStart(c) || (c >= '0' && c <= '9')
+
+/**
+ * A plain text as runs: each maximal word of letters, digits, `_` and `$`
+ * that starts with a letter, `_` or `$` is an `identifier`, and what lies
+ * between is plain. A word that starts with a digit is a number the producer
+ * did not mark, and stays plain, where a check can find it.
+ *
+ * @type {(text: string) => Marked}
+ */
+const nameRuns = text => Array.from(text).reduce(
+    /** @type {(acc: readonly (readonly [boolean, string])[], c: string) => readonly (readonly [boolean, string])[]} */
+    ((acc, c) => {
+        const word = isNamePart(c)
+        const last = acc[acc.length - 1]
+        return last !== undefined && last[0] === word ? [...acc.slice(0, -1), [word, last[1] + c]] : [...acc, [word, c]]
+    }),
+    [],
+).map(([word, run]) => word && isNameStart(run[0]) ? /** @type {Run} */ ([run, 'identifier']) : /** @type {Run} */ ([run]))
+    // neighbours with no kind are one run again
+    .reduce(
+        /** @type {(acc: Marked, run: Run) => Marked} */
+        ((acc, run) => {
+            const last = acc[acc.length - 1]
+            return run[1] === undefined && last !== undefined && last[1] === undefined ? [...acc.slice(0, -1), [last[0] + run[0]]] : [...acc, run]
+        }),
+        [])
+
+/**
+ * The names of a producer's code: every word still plain in `marked` becomes
+ * an `identifier`. A producer of code marks the keywords, literals, strings,
+ * numbers and comments it spells and says, by calling this, that what is left
+ * of its words are names. That is a claim about the producer, and the
+ * producer's proof holds it: the tokenizer's reading for a language the
+ * tokenizer reads, and a check that no word is left over for the rest.
+ *
+ * A run that has a kind is left as it is, so a producer that knows what a name
+ * is — a property, a function — says so by marking it before this runs.
+ *
+ * @type {(marked: Marked) => Marked}
+ */
+export const withNames = marked => marked.flatMap(run => run[1] === undefined ? nameRuns(run[0]) : [run])
 
 /**
  * The text of a result: the text of the marked text an `ok` holds, or the
@@ -99,7 +150,7 @@ export const chunksText = chunks => toArray(chunks).map(chunkText).join('')
 // -- tagged text ---------------------------------------------------------------
 
 /** What a kind is written as inside tagged text. @type {{ readonly [k in TokenKind]: string }} */
-const kindCodes = { keyword: 'k', literal: 'l', string: 's', number: 'n', comment: 'c', operator: 'o' }
+const kindCodes = { keyword: 'k', literal: 'l', string: 's', number: 'n', comment: 'c', operator: 'o', identifier: 'i' }
 
 const open = '\u0001'
 

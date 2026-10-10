@@ -39,7 +39,7 @@ established practice it follows and the alternatives it rejected, is
 
 | Type | Is | Notes |
 | ---- | -- | ----- |
-| `TokenKind` | `'keyword' \| 'literal' \| 'string' \| 'number' \| 'comment' \| 'operator'` | A closed set. What the producer wrote, never how it looks. |
+| `TokenKind` | `'keyword' \| 'literal' \| 'string' \| 'number' \| 'comment' \| 'operator' \| 'identifier'` | A closed set. What the producer wrote, never how it looks. |
 | `Run` | `[text, kind?]` | A piece of text and, when it has one, its kind. A run without a kind is plain. |
 | `Marked` | `readonly Run[]` | A text written as runs. The runs' texts, concatenated, are the text. |
 | `Chunk` | `string \| Run` | A transitional piece: a bare string is a run with no kind. It lets a writer that builds lists of strings mark some of its pieces and leave the rest. |
@@ -66,12 +66,25 @@ no type for (TextMate and Tree-sitter keep that distinction too).
 | `number` | a numeric literal | numbers, bigints (`1n`), `-0` | the same | every number the printer writes: the `f64` bit patterns, an `i64`, the words of a big integer and the units of a string with a lone surrogate, a function's length, and an index or `skip` |
 | `comment` | a comment | none | none | the `// @generated` line |
 | `operator` | an operator | none | none | none |
+| `identifier` | a name, whatever it names | the name of a shared node's `const`, `$0` | every name: a parameter or binding, `$0`, a property after `.` (even `x.true`), a global such as `Array` | every other word: crate, module, type, function and method names, `Ok`, `c0` |
 
-Everything not in the table is plain text: names, punctuation, operators and
-parentheses. A word after `.` is a property name, `x.true`, and is plain too.
-Plain is the default, and a producer marks a piece only when it is certain what
-it is.
-`operator` exists in the type for a producer that wants it; none marks it yet.
+Everything not in the table is plain text: punctuation, operators and
+parentheses. Plain is the default, and a producer marks a piece only when it is
+certain what it is. `operator` exists in the type for a producer that wants it;
+none marks it yet.
+
+**An `identifier` is a name and nothing finer.** LSP has no generic name; it has
+the refinements — `variable`, `property`, `function`, `parameter`, `type`, … — and
+a producer that knows which a name is can say so by marking it as one *before*
+the naming pass below, additively: no producer does yet, since the tokenizer
+cannot tell them apart, and the check that holds a producer to it could not
+check a refinement. Every producer that spells names marks them with one call,
+`withNames`: it turns each word left plain into an `identifier` and touches
+nothing that already has a kind. The producers mark everything that is a keyword,
+literal, string, number or comment, and the words left over are its names — a
+claim about the producer, not a guess about unknown text, and one its proof holds
+([§9](#9-proving-a-producer)). `x.true` is a name, not a literal: the word after
+`.` is a property.
 
 ## 3. Writing a producer
 
@@ -89,6 +102,11 @@ const chunks = [keyword('export'), ' ', keyword('default'), ' ', ['1', 'number']
 `chunkStrings(chunks)` the pieces as plain strings. The text is derived from
 the chunks, never built a second way: a producer has **one implementation**,
 with the plain text as a view of it.
+
+A producer of code ends by calling `withNames` on its runs
+(`withNames(chunksMarked(chunks))`), so that its names are `identifier`s; JSON,
+which spells no name, does not need it. A word that starts with a digit is left
+plain, since it is a number the producer did not mark, and a proof can find it.
 
 Two rules keep a piece's text honest:
 
@@ -114,6 +132,7 @@ A tag is `U+0001`, one letter for the kind, the text, and `U+0002`:
 | `keyword` | `k` | | `comment` | `c` |
 | `literal` | `l` | | `operator` | `o` |
 | `string` | `s` | | `number` | `n` |
+| `identifier` | `i` | | | |
 
 ```js
 import { tagged, fromTagged, untagged } from '../../text/marked/module.f.mjs'
@@ -179,8 +198,11 @@ renders marked text for the demo pages:
   string. An empty run draws as nothing.
 - The stylesheet ([`website/style`](../../website/style/module.f.mjs)) owns the
   colours: `keyword` and `literal` in the value colour, `string` in the pass
-  colour, `number` in `--syntax-number`, `comment` muted and italic. Both colour
-  schemes are defined. A demo never sets a colour.
+  colour, `number` in `--syntax-number`, `identifier` in `--syntax-name` (an
+  amber in both schemes, apart from the other four), `comment` muted and
+  italic. Both colour schemes are defined, and `--syntax-name` was chosen for contrast on
+  the code block's background — about 5.9 to 1 in the light scheme and 7.5 to 1
+  in the dark, measured once, not by a proof. A demo never sets a colour.
 
 The compiler (side-by-side), parser, serializer and Rust demos render their
 producers' runs. How a demo's code blocks look is
@@ -193,9 +215,10 @@ Some text has no producer behind it: an example a reader typed. For that,
 ([`fjs/js/tokenizer`](../../js/tokenizer/module.f.mjs)):
 
 - `spansOf(text)` answers the `Span`s the tokenizer finds (`keyword`,
-  `literal`, `string`, `number`, `comment`; the literal words are
-  `literalWords` of [`js/keywords`](../../js/keywords/module.f.mjs), and a word
-  after `.` or `?.` is a property name and stays plain), or none if the
+  `literal`, `string`, `number`, `comment`, and `identifier` for an `id` token;
+  the literal words are `literalWords` of
+  [`js/keywords`](../../js/keywords/module.f.mjs), and a word after `.` or `?.`
+  is a property name, an `identifier` whatever it spells), or none if the
   tokenizer refuses the text: colouring the tokens before a failure would suggest the text is
   partly valid. It feeds the tokenizer code points and finds each token's
   offset through the tokenizer's own position fold (`_positions`), so it
@@ -263,6 +286,11 @@ pins:
   what is *required*, which the first cannot see, since a mark that goes
   missing changes no text. The second is held to every case the printer's own
   proof prints, not only the shared examples.
+- **Names are held to it too.** The tokenizer oracle includes identifiers, so a
+  word a `.js` or DataJS producer left plain, or marked as another kind, is a
+  disagreement; and for Rust, where there is no oracle, no plain run may hold a
+  word of any kind (`wordsOf` in `edag/rust/unmarked`). Removing the `withNames`
+  call of any producer fails a proof.
 - **Every marked site is watched.** A proof that passes with a site's kind
   swapped, or its mark removed, is not watching the site. Each producer was
   checked that way: every `keyword(`/`literal(` site of the writers and every
@@ -398,6 +426,15 @@ points, as the tokenizer's are).
 - **The lexical kinds shipped first.** A producer knows a key from a variable and
   a function name from a parameter; `property` or `function` can be added
   later, and the oracle cannot check kinds the tokenizer cannot see.
+- **`identifier` is the one name kind, and `withNames` the one way to say it.**
+  A reviewer asked for names to be coloured apart. The alternative to a pass was
+  marking each name where a producer spells it: for the Rust printer that is
+  hundreds of templates, and for the `.js` writer every `.`, parameter and
+  global. The pass is sound because the producers already mark every keyword,
+  literal, string, number and comment, and because the proofs hold it: the
+  tokenizer's reading for the languages it reads, and "no word left plain" for
+  Rust. It never overrides a kind, so a refinement can come later. The colour
+  is a new stylesheet variable, `--syntax-name`.
 - **The code lives in `fjs/text/marked`**, with only `render` under the website,
   so that the compiler does not depend on the website.
 - **`fromSpans` answers a `Result`** ([§7](#7-the-fallback-for-text-with-no-producer)).

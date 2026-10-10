@@ -61,6 +61,7 @@ export const render = marked => marked.flatMap(([text, kind]) =>
  */
 const kindOf = ({ kind }) => {
     switch (kind) {
+        case 'id': return 'identifier'
         case 'string': return 'string'
         case 'number': case 'bigint': return 'number'
         case '//': case '/*': return 'comment'
@@ -83,8 +84,8 @@ const isTrivia = ({ kind }) => kind === 'ws' || kind === 'nl' || kind === '//' |
  * previous token's cut.
  *
  * **A word after `.` or `?.` is a property name**, `x.true` and `x.default`,
- * and stays plain: the tokenizer reads it as the word it spells, which the
- * language does not mean there.
+ * and an `identifier` whatever it spells: the tokenizer reads it as the word
+ * it spells, which the language does not mean there.
  *
  * @type {(text: string) => readonly Span[]}
  */
@@ -112,7 +113,8 @@ export const spansOf = text => {
     return kept.slice(0, -1).flatMap(({ token, start }, i) => {
         const kind = kindOf(token)
         const before = afterWords[i]
-        return kind === undefined || ((kind === 'keyword' || kind === 'literal') && (before === '.' || before === '?.')) ? [] : [{ start, length: Array.from(symbols.slice(start, kept[i + 1].start).join('').trimEnd()).length, kind }]
+        const property = (kind === 'keyword' || kind === 'literal') && (before === '.' || before === '?.')
+        return kind === undefined ? [] : [{ start, length: Array.from(symbols.slice(start, kept[i + 1].start).join('').trimEnd()).length, kind: property ? 'identifier' : kind }]
     })
 }
 

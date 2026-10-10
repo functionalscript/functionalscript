@@ -11,7 +11,7 @@ import { invert, unwrap } from '../../../types/result/module.f.mjs'
 import { concat } from '../../../types/string/module.f.mjs'
 import { tryParse } from '../parser/module.f.mjs'
 import { difference } from '../vectors/module.f.mjs'
-import { _elementNames, _link, _memberValue, _tryJsonSerialize, _trySerialize, trySerialize, tryJsonStringify, tryStringify } from './module.f.mjs'
+import { _elementNames, _link, _memberValue, _tryJsonSerialize, _trySerialize, tryMarked, trySerialize, tryJsonStringify, tryStringify } from './module.f.mjs'
 
 /**
  * A value as a host would hand it: the writer's parameter is the data
@@ -354,6 +354,10 @@ export const proof = {
         const value = [1, 'a', null, undefined, true, 2n, -0]
         assertEq(JSON.stringify(toArray(unwrap(_trySerialize(value)))),
             '[["export","keyword"]," ",["default","keyword"]," ","[",["1","number"],",",["\\"a\\"","string"],",",["null","literal"],",",["undefined","literal"],",",["true","literal"],",",["2n","number"],",",["-0","number"],"]",";"]')
+        // a shared node is a `const`, and its name an identifier wherever it stands
+        const shared = [1]
+        assertEq(JSON.stringify(unwrap(tryMarked([shared, shared]))),
+            '[["const","keyword"],[" "],["$0","identifier"],["="],["["],["1","number"],["]"],[";"],["export","keyword"],[" "],["default","keyword"],[" "],["["],["$0","identifier"],[","],["$0","identifier"],["]"],[";"]]')
         // the non-finite numbers are the language's literal words
         assertEq(JSON.stringify(toArray(unwrap(_trySerialize([NaN, Infinity, -Infinity]))).filter(c => typeof c !== 'string' && c[1] === 'literal')),
             '[["NaN","literal"],["Infinity","literal"],["-Infinity","literal"]]')

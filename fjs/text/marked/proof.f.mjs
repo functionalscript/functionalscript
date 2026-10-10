@@ -1,4 +1,4 @@
-import { chunkRun, chunkStrings, fromTagged, keyword, literal, tagged, textOfResult, untagged, chunkText, chunksMarked, chunksText, fromSpans, toText } from './module.f.mjs'
+import { chunkRun, chunkStrings, fromTagged, keyword, literal, tagged, textOfResult, untagged, withNames, chunkText, chunksMarked, chunksText, fromSpans, toText } from './module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { error, ok, unwrap } from '../../types/result/module.f.mjs'
@@ -32,7 +32,7 @@ export const proof = {
             assertEq(JSON.stringify(unwrap(fromTagged(`${tagged('keyword')('a')}${tagged('literal')('b')}`))), '[["a","keyword"],["b","literal"]]')
         },
         everyKind: () => {
-            for (const kind of /** @type {const} */ (['keyword', 'literal', 'string', 'number', 'comment', 'operator'])) {
+            for (const kind of /** @type {const} */ (['keyword', 'literal', 'string', 'number', 'comment', 'operator', 'identifier'])) {
                 assertEq(JSON.stringify(unwrap(fromTagged(tagged(kind)('x')))), `[["x","${kind}"]]`)
             }
         },
@@ -48,6 +48,18 @@ export const proof = {
     },
     throw: {
         forged: () => tagged('string')('a\u0001b'),
+    },
+    withNames: () => {
+        /** @type {(m: import('./types.ts').Marked) => string} */
+        const j = m => JSON.stringify(withNames(m))
+        assertEq(j([]), '[]')
+        assertEq(j([['']]), '[]')
+        // a word is a name; what lies between stays plain
+        assertEq(j([['a.b + $0(_x1, y)']]), '[["a","identifier"],["."],["b","identifier"],[" + "],["$0","identifier"],["("],["_x1","identifier"],[", "],["y","identifier"],[")"]]')
+        // a run that has a kind is left alone, and a word starting with a digit is not a name
+        assertEq(j([['let', 'keyword'], [' 0x1f x'], ['y', 'string']]), '[["let","keyword"],[" 0x1f "],["x","identifier"],["y","string"]]')
+        // no letters, no names
+        assertEq(j([['(){};, ']]), '[["(){};, "]]')
     },
     words: () => {
         assertEq(JSON.stringify(keyword('const')), '["const","keyword"]')
