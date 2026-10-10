@@ -4,7 +4,8 @@
  * @import { Diagram } from '../../website/demo/railroad/types.ts'
  */
 
-import { branch, toDiagrams } from './module.f.mjs'
+import { branch, codePoints, tokens, toDiagrams } from './module.f.mjs'
+import { encoding } from '../token_symbol/module.f.mjs'
 import { toData } from '../data/module.f.mjs'
 import { eof, join, option, range, rangeEncode, repeat, repeatFrom, repeatFrom0, repeatFrom1, set, times } from '../module.f.mjs'
 import { assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
@@ -26,7 +27,7 @@ const loop = (d, separator = skip) => ['loop', d, separator]
  */
 const diagram = fr => {
     const [ruleSet, entry] = toData(fr)
-    const [[, d]] = toDiagrams(ruleSet)([['root', entry]])
+    const [[, d]] = toDiagrams(codePoints)(ruleSet)([['root', entry]])
     return d
 }
 
@@ -50,6 +51,26 @@ const tail = () => ['const', ['a', option(tail)]]
 
 const digit = range('09')
 
+/**
+ * A token alphabet: `id` and `string` are kinds of token, `=>` and
+ * `import` the text they are.
+ */
+const tokenEncoding = encoding(['=>', 'import', 'id', 'string'])
+
+const sym = tokenEncoding.encode
+
+const tokenAlphabet = tokens(tokenEncoding, ['id', 'string'])
+
+/**
+ * The diagram of the one rule `a`, read as tokens.
+ *
+ * @type {(a: RuleSet[string]) => Diagram}
+ */
+const drawTokens = a => {
+    const [[, d]] = toDiagrams(tokenAlphabet)({ a })([['a', 'a']])
+    return d
+}
+
 export const proof = {
     set: {
         // A string lowered to single printable symbols is the one text.
@@ -67,7 +88,7 @@ export const proof = {
         openTail: () => {
             /** @type {RuleSet} */
             const ruleSet = { a: ['set', 0x41] }
-            assertStructurallySame(toDiagrams(ruleSet)([['a', 'a']]), [['a', t('A …')]])
+            assertStructurallySame(toDiagrams(codePoints)(ruleSet)([['a', 'a']]), [['a', t('A …')]])
         },
     },
     sequence: {
@@ -91,6 +112,28 @@ export const proof = {
         multiRun: draws([set('Ee'), set('x')], ['sequence', [['choice', [t('E'), t('e')]], t('x')]]),
         bounded: draws([range('09'), option(range('09'))],
             ['sequence', [t('0 … 9'), ['choice', [skip, t('0 … 9')]]]]),
+    },
+    tokens: {
+        // A token is its name: text the input holds is a terminal, a kind
+        // of token a category.
+        terminal: () => assertStructurallySame(drawTokens(['set', sym('=>'), sym('=>') + 1]), t('=>')),
+        category: () => assertStructurallySame(drawTokens(['set', sym('id'), sym('id') + 1]), ['category', 'id']),
+        // A run of tokens is the choice of its tokens, never a range.
+        run: () => assertStructurallySame(drawTokens(['set', sym('=>'), sym('string') + 1]),
+            ['choice', [t('=>'), t('import'), ['category', 'id'], ['category', 'string']]]),
+        // Tokens one after another stay apart: `import` then `=>` is not
+        // the literal `import=>`.
+        sequence: () => {
+            /** @type {RuleSet} */
+            const ruleSet = {
+                a: ['sequence', 'i', 'r'],
+                i: ['set', sym('import'), sym('import') + 1],
+                r: ['set', sym('=>'), sym('=>') + 1],
+            }
+            assertStructurallySame(toDiagrams(tokenAlphabet)(ruleSet)([['a', 'a']]), [['a', ['sequence', [t('import'), t('=>')]]]])
+        },
+        // The end of input is `EOF` whatever the alphabet.
+        eof: () => assertStructurallySame(drawTokens(['set', -1, 0]), t('EOF')),
     },
     // A variant is a choice, and a branch that is itself a choice adds its
     // rows to the column rather than a column of its own.
@@ -117,25 +160,25 @@ export const proof = {
         literal: () => {
             const letter = set('a')
             const [ruleSet, entry, names] = toData([letter, letter])
-            const [[, root]] = toDiagrams(ruleSet)([['root', entry], ['letter', assertNotNullish(names.get(letter))]])
+            const [[, root]] = toDiagrams(codePoints)(ruleSet)([['root', entry], ['letter', assertNotNullish(names.get(letter))]])
             assertStructurallySame(root, ['sequence', [['nonTerminal', 'letter'], ['nonTerminal', 'letter']]])
         },
         repeat: () => {
             const many = repeatFrom0(digit)
             const [ruleSet, entry, names] = toData([digit, many])
-            const [[, root]] = toDiagrams(ruleSet)([['root', entry], ['many', assertNotNullish(names.get(many))]])
+            const [[, root]] = toDiagrams(codePoints)(ruleSet)([['root', entry], ['many', assertNotNullish(names.get(many))]])
             assertStructurallySame(root, ['sequence', [t('0 … 9'), ['nonTerminal', 'many']]])
         },
         separator: () => {
             const pair = [',', digit]
             const [ruleSet, entry, names] = toData([digit, repeatFrom0(pair)])
-            const [[, root]] = toDiagrams(ruleSet)([['root', entry], ['pair', assertNotNullish(names.get(pair))]])
+            const [[, root]] = toDiagrams(codePoints)(ruleSet)([['root', entry], ['pair', assertNotNullish(names.get(pair))]])
             assertStructurallySame(root, ['sequence', [t('0 … 9'), ['choice', [skip, loop(['nonTerminal', 'pair'])]]]])
         },
         several: () => {
             const [ruleSet, entry, names] = toData([digit, digit])
             assertStructurallySame(
-                toDiagrams(ruleSet)([['pair', entry], ['digit', assertNotNullish(names.get(digit))]]),
+                toDiagrams(codePoints)(ruleSet)([['pair', entry], ['digit', assertNotNullish(names.get(digit))]]),
                 [
                     ['pair', ['sequence', [['nonTerminal', 'digit'], ['nonTerminal', 'digit']]]],
                     ['digit', t('0 … 9')],
@@ -149,18 +192,22 @@ export const proof = {
         // A box for a rule titled twice would have two diagrams to link to.
         titledTwice: () => {
             const [ruleSet, entry] = toData('a')
-            toDiagrams(ruleSet)([['a', entry], ['b', entry]])
+            toDiagrams(codePoints)(ruleSet)([['a', entry], ['b', entry]])
         },
-        // A token symbol is no code point, and has no label here yet.
+        // A token symbol is no code point.
         tokenSymbol: () => {
             /** @type {RuleSet} */
             const ruleSet = { a: ['set', 0x11_0000, 0x11_0001] }
-            toDiagrams(ruleSet)([['a', 'a']])
+            toDiagrams(codePoints)(ruleSet)([['a', 'a']])
         },
+        // A symbol past the token alphabet's last name has no name to show.
+        notAToken: () => drawTokens(['set', sym('id') + 3, sym('id') + 4]),
+        // Nor has a set that runs to the top of the alphabet.
+        openTokenSet: () => drawTokens(['set', sym('id')]),
         // Two rules under one title would be two diagrams behind one link.
         titleTwice: () => {
             const [ruleSet, , names] = toData(['a', 'b'])
-            toDiagrams(ruleSet)([['same', assertNotNullish(names.get('a'))], ['same', assertNotNullish(names.get('b'))]])
+            toDiagrams(codePoints)(ruleSet)([['same', assertNotNullish(names.get('a'))], ['same', assertNotNullish(names.get('b'))]])
         },
         notAVariant: () => {
             const [ruleSet, entry] = toData('a')
