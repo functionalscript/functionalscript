@@ -59,7 +59,7 @@
  * @module
  *
  * @import { List } from '../../../types/list/types.ts'
- * @import { Chunk } from '../../../text/marked/types.ts'
+ * @import { Chunk, Marked } from '../../../text/marked/types.ts'
  * @import { Result } from '../../../types/result/types.ts'
  * @import { Primitive, Unknown } from '../types.ts'
  * @import { _Graph, _Leaf, _Member, _Node, _Read, _Value } from './types.ts'
@@ -72,7 +72,7 @@ import { empty, flat, toArray } from '../../../types/list/module.f.mjs'
 import { cmp } from '../../../types/number/module.f.mjs'
 import { error, mapOk, ok, okThen } from '../../../types/result/module.f.mjs'
 import { add, empty as noneStarted, has } from '../../../types/set/module.f.mjs'
-import { chunkStrings, chunksText, keyword } from '../../../text/marked/module.f.mjs'
+import { chunksMarked, chunkStrings, chunksText, keyword } from '../../../text/marked/module.f.mjs'
 import { arrayWrap, boolSerialize, colon, leafSerialize as leafSerializeWith, nullSerialize, numberSerialize, objectWrap, stringSerialize } from '../../json/serializer/module.f.mjs'
 
 const {
@@ -588,6 +588,22 @@ export const tryJsonSerialize = value => mapOk(chunkStrings)(_tryJsonSerialize(v
  * @type {(value: Unknown) => Result<List<Chunk>, string>}
  */
 export const _tryJsonSerialize = tryTreeSerialize(jsonLeaf)(stringSerialize)
+
+/**
+ * {@link trySerialize} as marked text: the document with the kind of each
+ * leaf and keyword, which `fjs compile` writes the text of.
+ *
+ * @type {(value: Unknown) => Result<Marked, string>}
+ */
+export const tryMarked = value => mapOk(chunksMarked)(_trySerialize(value))
+
+/**
+ * {@link tryJsonSerialize} as marked text, as {@link tryMarked} is to
+ * {@link trySerialize}.
+ *
+ * @type {(value: Unknown) => Result<Marked, string>}
+ */
+export const tryJsonMarked = value => mapOk(chunksMarked)(_tryJsonSerialize(value))
 
 /**
  * {@link tryJsonSerialize} as one string: what `fjs compile` writes for a

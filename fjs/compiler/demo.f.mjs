@@ -4,8 +4,11 @@
  * they differ.
  *
  * **It runs the compiler, not a lookalike.** The text is the input file of
- * the real `compile`, run over an in-memory file system, once per output
- * name; each pane uses the same output route, before CLI formatting. So
+ * `_outputMarked`, the real `compile` but for the directory and the write,
+ * run over an in-memory file system, once per output name; each pane is the
+ * output that run answers, as marked text so that its words are coloured by
+ * what the compiler wrote, or the message it would print. The proof holds each
+ * pane's text to the file the whole of `compile` writes. So
  * `[a, a]` is a shared `const` in `.js`, `.data.js`, the EDAG and Rust, but
  * JSON, which has no identity to keep, writes the node where each reference
  * reaches it; `undefined` is refused by JSON alone; a function is refused by
@@ -31,20 +34,19 @@
  * @module
  *
  * @import { Result } from '../types/result/types.ts'
+ * @import { Marked } from '../text/marked/types.ts'
  */
 
+import { toText } from '../text/marked/module.f.mjs'
 import { codeBlock } from '../website/demo/code/module.f.mjs'
 import { exitCode } from '../effects/node/module.f.mjs'
 import { emptyState, nodeProgramOptions, virtual } from '../effects/node/virtual/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
-import { error, ok } from '../types/result/module.f.mjs'
+import { error, ok, unwrap } from '../types/result/module.f.mjs'
 import { textDemo, refusal } from '../website/demo/module.f.mjs'
-import { highlight } from '../website/demo/highlight/module.f.mjs'
+import { render } from '../website/demo/highlight/module.f.mjs'
 import { examples } from './examples/module.f.js'
-import { compile, outputText } from './module.f.mjs'
-import { assertNotNullish } from '../asserts/module.f.mjs'
-import { resultStep, pureOk } from '../effects/module.f.mjs'
-import { unwrap } from '../types/result/module.f.mjs'
+import { _outputMarked, compile } from './module.f.mjs'
 
 /**
  * The outputs, each under the file name that selects its language: what a
@@ -61,12 +63,32 @@ export const outputs = [
 ]
 
 /**
- * `text` compiled to the language `outputFileName` names: the file `compile`
- * wrote, or what it printed when it refused.
+ * `text` compiled to the language `outputFileName` names, as marked text: the
+ * output `compile` writes the text of, or why it refuses, without the
+ * location the command prints. It is the real compile but for its tail, the directory and the
+ * write, so a pane cannot show anything the CLI does not write, which
+ * {@link _written} lets the proof check.
+ *
+ * @type {(text: string) => (outputFileName: string) => Result<Marked, string>}
+ */
+export const _compiled = text => outputFileName => {
+    const result = unwrap(virtual({ ...emptyState, root: { 'input.f.js': [utf8(text)] } })(_outputMarked('input.f.js', outputFileName))[1])
+    const [tag, value] = result
+    if (tag === 'error') {
+        const [message] = value
+        return error(message)
+    }
+    return result
+}
+
+/**
+ * `text` compiled by the whole of `compile` over an in-memory file system:
+ * the file it wrote, or what it printed when it refused. The proof holds
+ * {@link _compiled} to it.
  *
  * @type {(text: string) => (outputFileName: string) => Result<string, string>}
  */
-export const _compiled = text => outputFileName => {
+export const _written = text => outputFileName => {
     const [state, code] = virtual({ ...emptyState, root: { 'input.f.js': [utf8(text)] } })(
         compile(nodeProgramOptions(['input.f.js', outputFileName])))
     const file = state.root[outputFileName]
@@ -82,10 +104,6 @@ export const demo = textDemo({
     init: examples[0][1],
     examples,
 })(text => outputs.map(([label, outputFileName]) => {
-    const write = assertNotNullish(outputText(outputFileName))
-    const output = resultStep(write('input.f.js'), ([kind, value]) =>
-        pureOk(kind === 'error' ? error(value.message) : value))
-    const [, result] = virtual({ ...emptyState, root: { 'input.f.js': [utf8(text)] } })(output)
-    const [kind, value] = unwrap(result)
-    return ['section', ['h3', label], kind === 'ok' ? codeBlock(value, `Copy ${label} output`, outputFileName.endsWith('.rs') ? [value] : highlight(value)) : refusal(value)]
+    const [kind, value] = _compiled(text)(outputFileName)
+    return ['section', ['h3', label], kind === 'ok' ? codeBlock(toText(value), `Copy ${label} output`, render(value)) : refusal(value)]
 }))

@@ -22,25 +22,27 @@
  * @module
  *
  * @import { Result } from '../../types/result/types.ts'
+ * @import { Marked } from '../../text/marked/types.ts'
  */
 
+import { toText } from '../../text/marked/module.f.mjs'
 import { codeBlock } from '../../website/demo/code/module.f.mjs'
 import { error } from '../../types/result/module.f.mjs'
 import { textDemo, refusal, caption } from '../../website/demo/module.f.mjs'
-import { highlight } from '../../website/demo/highlight/module.f.mjs'
+import { render } from '../../website/demo/highlight/module.f.mjs'
 import { unresolved } from '../edag/module.f.mjs'
 import { examples } from '../examples/module.f.js'
 import { parse } from '../transpiler/module.f.mjs'
-import { tryModuleStringify } from './module.f.mjs'
+import { tryModuleMarked } from './module.f.mjs'
 
 /**
  * `text` as a `.js` module, or why it is not one.
  *
- * @type {(text: string) => Result<string, string>}
+ * @type {(text: string) => Result<Marked, string>}
  */
 export const _sourceOf = text => {
     const result = parse('')(text)
-    return result[0] === 'error' ? error(result[1].message) : tryModuleStringify(unresolved(result[1]).edag)
+    return result[0] === 'error' ? error(result[1].message) : tryModuleMarked(unresolved(result[1]).edag)
 }
 
 export const demo = textDemo({
@@ -52,6 +54,6 @@ export const demo = textDemo({
 })(text => {
     const [kind, value] = _sourceOf(text)
     return kind === 'ok'
-        ? [caption('JavaScript module:'), codeBlock(value, 'Copy JavaScript module', highlight(value))]
+        ? [caption('JavaScript module:'), codeBlock(toText(value), 'Copy JavaScript module', render(value))]
         : [refusal(value)]
 })

@@ -124,6 +124,15 @@ string. The stylesheet already owns the colours
 ([`style/module.f.mjs`](../../style/module.f.mjs)). Refusal of unknown kinds
 is the type's job; the renderer needs no table.
 
+Signed leaves are a deliberate visible difference from the JavaScript tokenizer
+fallback: a producer's `['-0', 'number']`, `['-1', 'number']` or
+`['-Infinity', 'literal']` colours the sign with the whole literal. JSON's number
+grammar includes the sign; JavaScript tokenization instead reads a unary `-`
+followed by the number or literal word. Keep the producer's run intact.
+`disagreement` excludes this leading sign when comparing with the JavaScript
+oracle, so it establishes agreement modulo that boundary, not identical rendered
+spans. The highlighter's `signedLeaves` proof pins both renderings explicitly.
+
 ### Where LSP's shape still fits: marking an existing text
 
 Runs suit producers. They suit *annotating a text that already exists* less:

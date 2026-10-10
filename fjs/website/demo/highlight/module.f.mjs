@@ -33,7 +33,7 @@
  *
  * @import { Node } from '../../../media/html/types.ts'
  * @import { JsToken } from '../../../ebnf/lib/js/types.ts'
- * @import { StateScan } from '../../../types/function/operator/types.ts'
+ * @import { Scan, StateScan } from '../../../types/function/operator/types.ts'
  * @import { Marked, Span, TokenKind } from '../../../text/marked/types.ts'
  */
 
@@ -42,7 +42,7 @@ import { assertNotNullish } from '../../../asserts/module.f.mjs'
 import { isKeyword, literalWords } from '../../../js/keywords/module.f.mjs'
 import { stringToCodePointList } from '../../../text/utf16/module.f.mjs'
 import { fromSpans, toText } from '../../../text/marked/module.f.mjs'
-import { stateScan, toArray } from '../../../types/list/module.f.mjs'
+import { scan, stateScan, toArray } from '../../../types/list/module.f.mjs'
 import { unwrap } from '../../../types/result/module.f.mjs'
 
 /**
@@ -116,11 +116,17 @@ export const spansOf = text => {
     })
 }
 
+/** The starting offset before each run's length. @type {(at: number) => Scan<number, number>} */
+const before = at => length => [at, before(at + length)]
+
 /**
  * Where a producer's markup and the tokenizer part ways, or `null` where
  * they agree: the marked runs, as spans of the whole text, are the spans
  * the tokenizer finds in it, one for one. The tokenizer reads `-0` as a
  * prefix and a number, so a leading `-` is not part of the span it finds.
+ * This comparison deliberately excludes that sign; it does not prove pixel
+ * equality with the fallback. `render` honours the producer's whole run,
+ * including the sign, as the rendering proof and design record specify.
  * What a producer marks, this holds it to; the proofs of the producers that
  * mark ask it of every example they have.
  *
@@ -129,17 +135,13 @@ export const spansOf = text => {
 export const disagreement = marked => {
     const text = toText(marked)
     const found = JSON.stringify(spansOf(text))
+    const lengths = marked.map(([chunk]) => Array.from(chunk).length)
+    const starts = toArray(scan(before(0))(lengths))
     /** @type {readonly Span[]} */
-    const given = marked.reduce(
-        (acc, [chunk, kind]) => {
-            const length = Array.from(chunk).length
-            const dash = kind !== undefined && chunk.startsWith('-') ? 1 : 0
-            return {
-                at: acc.at + length,
-                spans: kind === undefined ? acc.spans : [...acc.spans, { start: acc.at + dash, length: length - dash, kind }],
-            }
-        },
-        /** @type {{ at: number, spans: readonly Span[] }} */({ at: 0, spans: [] })).spans
+    const given = marked.flatMap(([chunk, kind], i) => {
+        const dash = chunk.startsWith('-') ? 1 : 0
+        return kind === undefined ? [] : [{ start: starts[i] + dash, length: lengths[i] - dash, kind }]
+    })
     const marks = JSON.stringify(given)
     return marks === found ? null : `marked ${marks}, the tokenizer finds ${found}, in ${text}`
 }
