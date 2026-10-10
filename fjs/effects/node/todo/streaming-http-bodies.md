@@ -1150,10 +1150,11 @@ buffering half is what this stage answered.
       same; `respond.oneInode` replaces the served entry between two pulls
       and still reads the opened one, and `respond.boundedByTheFstat` grows it and
       still stops at the declared length. The footprint is a host measurement:
-      [`../../../web/proof.mjs`](../../../web/proof.mjs) serves a file of a
-      hundred and twenty-eight mebibytes to a client that reads nothing, and
+      [`../../../web/proof.mjs`](../../../web/proof.mjs) serves a file of two
+      gibibytes to a client that reads nothing, and
       `createServer.pullsAtTheSocketsPace` in [`../proof.mjs`](../proof.mjs) is the
-      exact bound — ten times the body is not ten times the memory.
+      direct backpressure check — neither body pulls another cell while the
+      response needs `drain`, whatever the socket's buffer capacity is.
 - [x] Stage 2: name the operation that pulls one request-body chunk, and answer
       what an undrained body does. — [`ReadRequestBytes`](../types.ts),
       `(body, offset, size)` over a `RequestBody` handle, which is
