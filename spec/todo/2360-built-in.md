@@ -19,11 +19,14 @@ no later than this file admits any of it, a name at a time
 ([landing a name at a time](./2365-global-names.md#landing-a-name-at-a-time)).
 
 A ticked box below marks a name the language is to admit, not one it admits
-today. Only `Infinity`, `NaN` and `undefined` are implemented, as reserved
-words ([numbers](../README.md#numbers)), and `Number`, as the conversion
-`Number(exp)` alone, the word reserved
-([number conversion](../README.md#number-conversion)); every other global is
-refused as an unbound name (`const not found`), so
+today. Implemented reserved globals are `Infinity`, `NaN` and `undefined`
+([numbers](../README.md#numbers)), `Number` and `String`, as the
+conversions `Number(exp)` and `String(exp)` alone, their words reserved
+([number conversion](../README.md#number-conversion),
+[string conversion](../README.md#string-conversion)), and `Array`, as the
+right operand of [`instanceof`](../README.md#instanceof). Other global uses need
+a complete recognized pattern; an unrecognized global is refused as an
+unbound name (`const not found`), so
 `export default isFinite(1);` does not compile yet. An unticked box is a
 name not yet decided, or, where it says so, never admitted.
 
@@ -63,17 +66,61 @@ name not yet decided, or, where it says so, never admitted.
       `Number.isSafeInteger`, `Number.MAX_SAFE_INTEGER`, `Number.isNaN`,
       and `const { isFinite } = Number` in the three
       [global-names](./2365-global-names.md) names — and each is rewritten
-      when its member is admitted; none is a `.f.js`, the files the
-      compiler holds to the reserved word today
+      when its member is admitted or equivalent code can use existing syntax.
+      Integer checks already use the importable
+      [operator-based predicate](../../fjs/types/number/is_integer/module.f.js),
+      without admitting `Number.isInteger`. Remaining global-member users
+      are not `.f.js`, the files the compiler holds to the reserved word today
 - [ ] `BigInt`
 - [ ] `Math`
 - [ ] `Date`
 
 ### Text Processing
 
-- [ ] `String` — `String(exp)` is the same shape over the EDAG's other
-      cast, reserved and spelled as the `Number` conversion is
+- [x] `String` — implemented as `String(exp)`, the string conversion,
+      and `String()`, the empty-string literal; the word is reserved
+      ([string conversion](../README.md#string-conversion)). Namespace
+      members, spreads, multiple arguments and guarded global calls remain
+      unrecognized
 - [ ] `RegExp`
+
+#### String conversion proposal and approval
+
+**Problem.** The compiler refused `String(x)` even though the EDAG already
+represented string conversion, so authored `.f.js` modules could not use the
+familiar JavaScript spelling for that operation.
+
+**Proposal.** Admit `String(exp)` as the existing conversion operation and
+`String()` as the empty-string literal. Reserve the global name when admitting
+it, as [global-names](./2365-global-names.md) requires. Namespace members and
+other call shapes remain separate admissions; computed property keys retain
+their existing `Number(...)` requirement. The implemented semantics are in
+[String Conversion](../README.md#string-conversion).
+
+**Benefits.** This preserves familiar JavaScript syntax and conversion behavior
+for supported values, makes the existing operation available to source modules,
+and reuses its evaluation and output backends. One conversion expression and
+the empty-string literal add little language complexity.
+
+**Drawbacks.** Reserving `String` breaks existing bindings with that name.
+JavaScript's namespace members, multiple arguments, spreads, and guarded calls
+are still refused, so source compatibility is partial. Function conversion
+uses EDAG-derived code text rather than the original JavaScript source and
+omits captured values. The new expression also needs traversal, lowering, and
+serialization support throughout the compiler.
+
+**Language-design approval.** **sergey-shandar** explicitly directed
+"Implement it" in [the LLM working session](https://chatgpt.com/local/01a121ce-d4c3-71ca-a025-8e451349b01c),
+after the existing `String(x)` TODO was identified and before implementation
+began.
+The design was also explicitly [approved on the PR](https://github.com/functionalscript/functionalscript/pull/2763#issuecomment-6088238083)
+by **sergey-shandar** during review.
+
+**Process deviation.** The fuller benefits-and-drawbacks record was added
+during PR review. That ordering deviated from the
+[proposal-first workflow](../../doc/DESIGN.md#new-language-features-start-with-a-todo).
+Implementation followed the language designer's explicit instruction above;
+the chronology and the prior approval are retained here for review.
 
 ### Indexed Collections
 

@@ -21,7 +21,8 @@ The compiler accepts values ([supported value types](#supported-value-types)),
 the [constants](#shared-values-constants) and
 [imports](#importing-other-modules) that share them,
 [property access](#property-access), [operators](#operators), the
-[`Number` conversion](#number-conversion), and
+[`Number` conversion](#number-conversion),
+[`String` conversion](#string-conversion), and
 [functions](#functions) with their calls, and this document specifies all of
 them. The outputs differ in what they can write, so one module may compile to
 one output and be refused by another ([output](#output)).
@@ -46,8 +47,8 @@ or JSON ([output](#output)).
 - [Module structure](#module-structure), [exports](#exporting-a-value),
   [imports](#importing-other-modules) and [constants](#shared-values-constants)
 - [Values and literals](#supported-value-types)
-- [Grouping](#grouping), [operators](#operators) and
-  [number conversion](#number-conversion)
+- [Grouping](#grouping), [operators](#operators),
+  [number conversion](#number-conversion) and [string conversion](#string-conversion)
 - [Property access](#property-access), [optional chaining](#optional-chaining)
   and [computed entries](#reading-an-entry-at-run-time)
 - [Functions](#functions)
@@ -61,7 +62,7 @@ or JSON ([output](#output)).
 | Modules | Default, named and combined imports; JSON import attributes; local and exported `const`; named and default exports; terminal `throw` |
 | Literals | JSON values, `undefined`, `NaN`, infinities and arbitrary-width bigints; decimal, hexadecimal and binary integers; numeric separators; single- and double-quoted strings |
 | Containers | Dense arrays, object literals, shorthand members, constant string keys, trailing commas, array/call spread and object spread |
-| Expressions | Grouping; arithmetic, strict comparison, bitwise and lazy operators; `?:`, `!`, `typeof`, `instanceof Array` and `Number(...)` |
+| Expressions | Grouping; arithmetic, strict comparison, bitwise and lazy operators; `?:`, `!`, `typeof`, `instanceof Array`, `Number(...)` and `String(...)` |
 | Properties | Own-property reads, numeric computed keys through `Number(...)`, optional reads/calls and the enumerable `entry` helper |
 | Functions | Arrow functions, 0–16 fixed parameters, optional rest, closures, self recursion, body constants, terminating `if` guards, `return`, `throw`, ordinary and method calls |
 | Built-ins | Pure array, string and numeric member functions, including callbacks and function text ([member functions](#built-in-member-functions)) |
@@ -154,8 +155,8 @@ A body reading `self` is rendered as a named function expression. This text
 need not be accepted by the FunctionalScript source parser: the total text
 renderer and the structural source serializer have separate contracts
 ([function text](../fjs/edag/function-text.md)). The Rust VM also answers
-`f.toString()`, `'' + f` and `[f].toString()` with the compiled function's
-EDAG-derived text, and refuses a native function without associated text.
+`String(f)`, `f.toString()`, `'' + f` and `[f].toString()` with the compiled
+function's EDAG-derived text, and refuses a native function without associated text.
 [Function text and serialization](./todo/serialization.md#function-text-and-serialization)
 tracks the broader serialization design.
 
@@ -612,10 +613,11 @@ written.
   since any broken JavaScript program is a broken FunctionalScript program.
   `undefined`, `NaN` and `Infinity` are refused as well, although a
   JavaScript module may bind them, so that each denotes its value wherever a
-  value stands ([numbers](#numbers)); and so is `Number`, the first global
-  reserved under [global names](./todo/2365-global-names.md), which names
-  no value and stands only as the conversion
-  ([number conversion](#number-conversion)). A word that is a keyword only in some
+  value stands ([numbers](#numbers)). `Array`, `Number` and `String` are also
+  reserved under [global names](./todo/2365-global-names.md), with no standalone
+  values: `Array` stands in [instance checks](#instanceof), and `Number` and
+  `String` stand as [number](#number-conversion) and [string](#string-conversion)
+  conversions. A word that is a keyword only in some
   position — `async`, `of`, `get`, `set`, `from`, `as` — is an ordinary name,
   as in JavaScript, and so are `type` and `then`:
   `(from, then) => [from, then]` is a function, and `then` is refused only as
@@ -686,8 +688,9 @@ See
 An expression is a data expression, a property access, a function, a call, an
 operator ([operators](#operators)) — a prefix `-` (negation), `~` (bitwise
 not), `!` (logical not) or `typeof`, a binary operator, `instanceof Array`
-or the conditional `?:` — the conversion `Number(exp)`
-([number conversion](#number-conversion)), or any of those in parentheses
+or the conditional `?:` — the conversions `Number(exp)`
+([number conversion](#number-conversion)) and `String(exp)`
+([string conversion](#string-conversion)), or any of those in parentheses
 ([grouping](#grouping)).
 
 |Value|Example|In JSON|
@@ -1402,8 +1405,8 @@ calling a number is worth. The FunctionalScript writer spells it back as it
 is written, the operand an argument, `Number(1+2)`.
 
 **`Number` is a reserved word**, one of the names
-[global names](./todo/2365-global-names.md) reserves, with `Array`
-([numbers](#numbers)) —
+[global names](./todo/2365-global-names.md) reserves, with `Array` and `String`
+([string conversion](#string-conversion)) —
 [`fjs/js/keywords`](../fjs/js/keywords/module.f.mjs)' `reservedGlobals`, a
 list beside the keywords rather than among them, since JavaScript has no
 such keyword. A module cannot bind it, as a `const`, a parameter or an
@@ -1443,6 +1446,54 @@ rather than read another way.
 
 It is also the one key computed at run time, `a[Number(i)]`
 ([property access](#property-access)).
+
+## String Conversion
+
+```js
+export default (...a) => [String(a[0]), String(42n), String([1, 2])];
+```
+
+`String(exp)` converts its operand to a string, as JavaScript's `String`
+does when called. A string is itself. `null` and `undefined` become
+`"null"` and `"undefined"`, booleans become `"true"` or `"false"`, and numbers
+and `bigint`s become their decimal text: `String(-0)` is `"0"`,
+`String(NaN)` is `"NaN"`, and `String(42n)` is `"42"`. An array joins its
+elements with commas, with `null` and `undefined` contributing empty text,
+so `String([1, [2, 3], null])` is `"1,2,3,"`.
+
+An object uses the string hint for primitive conversion: its `toString`
+is tried before its `valueOf`, with no arguments. A noncallable method or
+a nonprimitive result falls through to the next method. An object with no
+own `toString` uses the ordinary `"[object Object]"` text, so
+`String({ valueOf: () => 7 })` is `"[object Object]"`. If neither method
+produces a primitive, or a method throws, conversion fails
+([failure is one outcome](#failure-is-one-outcome)). A function becomes
+its [EDAG-derived text](#function-source-representation-exception), which
+describes its code without embedding captured values.
+
+The one-argument conversion reaches the graph as `['String', exp]`, with
+no front-end folding. The FunctionalScript writer spells it as `String(exp)`;
+the EDAG and Rust outputs retain the operation, and the JSON and DataJS
+outputs evaluate it. It is an expression wherever a value may stand,
+including an operand, `String(x) + "!"`, or a base, `String(x).length`.
+`String()` is the empty-string literal, as in JavaScript.
+
+**`String` is a reserved word**, under the same
+[global-name rule](./todo/2365-global-names.md) as `Number`. A module cannot
+bind it as a `const`, parameter or import, and it has no standalone value:
+`const f = String;` and `String.fromCharCode(65)` are compilation errors
+(`reserved word`). A key or property name remains ordinary,
+`{ String: 1 }.String` being `1`. Reserving the word lets every `String(x)`
+denote the conversion without resolving a scope, and keeps future namespace
+members from changing the meaning of existing bindings.
+
+Multiple arguments and spreads remain unrecognized and are refused at the
+word (`String takes one argument`): JavaScript evaluates all arguments before
+converting the first, while a one-operand node cannot express those call
+shapes. The guarded call `String?.(x)` is also refused (`reserved word`).
+A property key computed at run time still requires `Number(...)`
+([property access](#property-access)); `a[String(x)]` is refused as every
+other unrecognized computed key is.
 
 ## Property Access
 
@@ -2313,6 +2364,12 @@ Rust writers can still refuse a graph they cannot reconstruct within their
 output profile; recognizing a node does not guarantee every sharing or
 capture arrangement has a source spelling
 ([source and runtime compilation](../fjs/edag/values.md#runtime-compilation)).
+Deep container, function and conversion nesting can also exhaust the host
+call stack during compilation. In particular, parsing and lowering a long
+`Number`/`String` conversion chain can succeed before source serialization
+overflows. These are compiler resource limits, not fixed language depth limits
+([tracked inputs and remaining work](../fjs/compiler/todo/deep-nesting-recursion.md)).
+
 The Rust writer
 spells a `bigint` of any size, a literal within `i64` as one number and a
 larger one as its sign and `u64` words. A string holding a lone surrogate,

@@ -86,6 +86,7 @@ export const proof = {
         // Both ends are ports: `0` asks for an ephemeral one.
         inRange: () => {
             assert(isPort(0))
+            assert(isPort(-0))
             assert(isPort(8080))
             assert(isPort(maxPort))
         },
@@ -743,7 +744,7 @@ export const proof = {
             assertEq(windowRefusal(1.5, 1), 'Offset 1.5 is not an integer')
             assertEq(windowRefusal(0, 1.5), 'Chunk size 1.5 is not an integer')
             assertEq(windowRefusal(0, 0.5), 'Chunk size 0.5 is not an integer')
-            // Neither is a number at all, and `Number.isInteger` is what says so.
+            // NaN and infinity are also refused by `isInteger`.
             assertEq(windowRefusal(NaN, 1), 'Offset NaN is not an integer')
             assertEq(windowRefusal(Infinity, 1), 'Offset Infinity is not an integer')
             assertEq(windowRefusal(0, NaN), 'Chunk size NaN is not an integer')
