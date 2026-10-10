@@ -43,7 +43,7 @@ mod tests {
             Nullish::Null.to_any(),
             Any::undefined(),
             true.to_any(),
-            f64_any(0x3ff0000000000000),
+            f64_any(0x3ff0_0000_0000_0000),
             bigint_any(1),
             [].to_object().to_any(),
             [("0".into(), 1.0.to_any())].to_object().to_any(),

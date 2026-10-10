@@ -96,7 +96,7 @@ mod tests {
             Nullish::Null.to_any(),
             Any::undefined(),
             true.to_any(),
-            f64_any(0x3ff0000000000000),
+            f64_any(0x3ff0_0000_0000_0000),
             bigint_any(1),
             [].to_object().to_any(),
             A::static_function(|_, _| Ok(Any::undefined()), 0, [].to_array(), None).to_any(),

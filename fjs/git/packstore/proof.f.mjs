@@ -80,7 +80,7 @@ const idxOf = named => {
     const ids = named.map(([h]) => idBytes(id(h)))
     const bytes = [
         0xFF, 0x74, 0x4F, 0x63, ...u32(2),
-        ...Array.from({ length: 0x100 }, (_, k) => u32(ids.filter(v => v[0] <= k).length)).flat(),
+        ...Array.from({ length: 256 }, (_, k) => u32(ids.filter(v => v[0] <= k).length)).flat(),
         ...ids.flat(),
         ...named.map(() => u32(0)).flat(),
         ...named.map(([, at]) => u32(at)).flat(),

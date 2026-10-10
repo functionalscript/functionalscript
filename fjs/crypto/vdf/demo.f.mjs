@@ -44,7 +44,7 @@ const decimalValue = digitsValue(10n)
 const yDigits = p.toString(16).length
 
 /** Verification steps per second, measured in Node at `aa87d8cd`. */
-const verifyStepsPerSecond = 500000n
+const verifyStepsPerSecond = 500_000n
 
 /** `x`: the SHA-256 digest of the text's UTF-8 bytes as an integer, or null
  * when the text is longer than a bit vector holds.

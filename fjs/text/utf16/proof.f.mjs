@@ -64,14 +64,14 @@ export const proof = {
         // misclassified by the surrogate/BMP range checks, which only
         // partition the integers in that range.
         () => {
-            const result = stringify(toArray(toCodePointList([56319.5])))
+            const result = stringify(toArray(toCodePointList([56_319.5])))
             assertEq(result, '[2147483648]')
         },
         // A non-integer word doesn't disturb a pending high surrogate: it is
         // reported invalid on its own, and the surrogate is still flagged
         // unpaired at EOF.
         () => {
-            const result = stringify(toArray(toCodePointList([0xd800, 56319.5])))
+            const result = stringify(toArray(toCodePointList([0xd800, 56_319.5])))
             assertEq(result, '[2147483648,-2147428352]')
         }
     ],

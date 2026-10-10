@@ -390,7 +390,7 @@ const write = async (view, text) => {
     }
 }
 
-const copyFeedbackDurationMs = 2000
+const copyFeedbackDurationMs = 2_000
 
 /** @type {WeakMap<HTMLButtonElement | HTMLInputElement, number>} */
 const copyTimers = new WeakMap()

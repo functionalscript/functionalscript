@@ -721,7 +721,7 @@ export const proof = {
     deleteBigPacked: () => {
         /** @type {(i: number) => string} */
         const line = i => `${a} refs/heads/topic/feature-${String(i).padStart(4, '0')}\n`
-        const all = Array.from({ length: 2000 }, (_, i) => line(i))
+        const all = Array.from({ length: 2_000 }, (_, i) => line(i))
         const before = latin1(`${header}${all.join('')}`)
         assert(before.length > Number(maxLengthBytes), before.length)
         const [fs, r] = deleted({ 'packed-refs': chunksOf(before), refs: { heads: {} } }, 'refs/heads/topic/feature-1000')

@@ -42,7 +42,7 @@ export const parseNBits = text => {
     const digits = [...text.slice(2)].map(c => hexDigitValue(c.charCodeAt(0)))
     if (digits.length === 0 || digits.some(d => d === null)) { return null }
     const value = digits.reduce((n, d) => n * 16n + BigInt(/** @type {number} */ (d)), 0n)
-    return value <= 0xffffffffn ? value : null
+    return value <= 0xffff_ffffn ? value : null
 }
 
 /** @type {(state: DemoState) => bigint | null} */

@@ -34,12 +34,12 @@ export const thrown = {
 };
 
 /** `write('stdout', 'bye')`, then the answer to it. */
-const bye = { command: 'write', payload: ['stdout', -14842213n], continuation: done };
+const bye = { command: 'write', payload: ['stdout', -14_842_213n], continuation: done };
 
 /** `write('stdout', 'hi')`, then `bye`: the continuation ignores the answer. */
 export const hello = {
     command: 'write',
-    payload: ['stdout', -59497n],
+    payload: ['stdout', -59_497n],
     /** @type {(answer: unknown) => typeof bye} */
     continuation: answer => bye,
 };

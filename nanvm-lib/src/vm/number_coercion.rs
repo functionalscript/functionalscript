@@ -262,7 +262,7 @@ mod test {
         // matching real JS's `Number("0b111...011")`.
         assert_eq!(
             string_to_number("0b1111111101110111011101101101011011010110110100010000011"),
-            35953735677732996.0
+            35_953_735_677_732_996.0
         );
         // Exactness at and around the 53-bit boundary, and well beyond it.
         assert_eq!(
@@ -278,14 +278,14 @@ mod test {
         // an even mantissa (`2^52`), so the tie rounds down.
         assert_eq!(
             string_to_number(&format!("0b1{}1", "0".repeat(52))),
-            9007199254740992.0 // 2^53
+            9_007_199_254_740_992.0 // 2^53
         );
         // `2^53 + 3` is also a tie (between `2^53 + 2` and `2^53 + 4`), but
         // the lower neighbor's mantissa (`2^52 + 1`) is now odd, so this
         // one rounds up instead.
         assert_eq!(
             string_to_number(&format!("0b1{}11", "0".repeat(51))),
-            9007199254740996.0 // 2^53 + 4
+            9_007_199_254_740_996.0 // 2^53 + 4
         );
         // All trailing zero digits past a 128-bit window: still exact
         // (`sticky` stays `false`), not merely "close".

@@ -133,7 +133,8 @@ hexadecimal digits of the value, not to its decimal spelling.
 Use `_` separators in long numeric literals, grouping from the right: three
 digits for decimal (`1_000_000`) and four hexadecimal digits for hex
 (`0x1_0000_0000`). Keep short literals ungrouped, and preserve required text
-formats in strings and serialized data.
+formats in strings, serialized data, and source fixtures parsed as documents
+whose number grammar does not accept separators (such as DataJS vectors).
 
 Keep decimal for counts, indices, bit widths and shift amounts, durations,
 protocol status/error numbers, and decimal arithmetic or conversion examples.

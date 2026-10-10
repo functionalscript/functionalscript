@@ -74,7 +74,7 @@ const littleVarint = v => v < 0x80 ? [v] : [v % 0x80 + 0x80, ...littleVarint(Mat
  * size byte out. Named here because two cases are about that size and the
  * module keeps its own copy of the number private.
  */
-const wholeCopy = /** @type {const} */ (0x1_0000)
+const wholeCopy = /** @type {const} */ (65_536)
 
 /**
  * A blob entry of one byte whose size varint is padded with `n` groups that
@@ -330,20 +330,20 @@ export const proof = {
     // object costs about eight of heap, so the ceiling is the one `inflate` and
     // `readFile` already put on every other object here: 128 KiB.
     applyDeltaTooLarge: () => {
-        const base = Array.from({ length: 0x1_0000 }, (_, i) => i % 251)
+        const base = Array.from({ length: 65_536 }, (_, i) => i % 251)
         // source 65536, target 6553600, then the hundred bare copies that fill
         // it exactly: the delta is telling the truth about its size
         const huge = /** @type {readonly number[]} */ ([
-            ...sizeVarint(0x1_0000), ...sizeVarint(6_553_600),
+            ...sizeVarint(65_536), ...sizeVarint(6_553_600),
             ...Array.from({ length: 100 }, () => 0x80),
         ])
         assertEq(tryApplyDelta(base, huge), null)
         // and the largest target it does build, one byte over the bound and one
         // byte under it, with the instructions that would fill it
         const at = /** @type {(n: number) => readonly number[]} */ (n => [
-            ...sizeVarint(0x1_0000),
+            ...sizeVarint(65_536),
             ...sizeVarint(n),
-            ...Array.from({ length: Math.ceil(n / 0x1_0000) }, () => 0x80),
+            ...Array.from({ length: Math.ceil(n / 65_536) }, () => 0x80),
         ])
         assertEq(tryApplyDelta(base, at(131_073)), null)
         const ok = tryApplyDelta(base, at(131_072))
@@ -354,12 +354,12 @@ export const proof = {
     // leaving every size byte out. Built, because a real delta only copies
     // that much from a base at least that long.
     applyDeltaWholeCopy: () => {
-        const base = Array.from({ length: 0x1_0000 }, (_, i) => i % 251)
+        const base = Array.from({ length: 65_536 }, (_, i) => i % 251)
         // source 65536, target 65536, then one copy with no offset or size byte
         const delta = /** @type {readonly number[]} */ ([0x80, 0x80, 0x04, 0x80, 0x80, 0x04, 0x80])
         const out = tryApplyDelta(base, delta)
         assert(out !== null)
-        assertStructurallySame(out.length, 0x1_0000)
+        assertStructurallySame(out.length, 65_536)
         assertEq(out.every((v, i) => v === base[i]), true)
     },
     // An instruction that cannot be followed refuses the whole delta rather

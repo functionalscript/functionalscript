@@ -97,12 +97,12 @@ export const proof = {
             return {
                 s256: () => {
                     const result = fromV8(compress(sha256.init.hash)(e))
-                    const x = 0xe3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855n
+                    const x = 0xe3b0_c442_98fc_1c14_9afb_f4c8_996f_b924_27ae_41e4_649b_934c_a495_991b_7852_b855n
                     assertEq(result, x, [result.toString(16), x.toString(16)])
                 },
                 s224: () => {
                     const result = fromV8(compress(sha224.init.hash)(e)) >> 32n
-                    const x = 0xd14a028c2a3a2bc9476102bb288234c415a2b01f828ea62ac5b3e42fn
+                    const x = 0xd14a_028c_2a3a_2bc9_4761_02bb_2882_34c4_15a2_b01f_828e_a62a_c5b3_e42fn
                     assertEq(result, x, [result, x])
                 },
             }
@@ -113,22 +113,22 @@ export const proof = {
             return {
                 s512: () => {
                     const result = fromV8(compress(sha512.init.hash)(e))
-                    const x = 0xcf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3en
+                    const x = 0xcf83_e135_7eef_b8bd_f154_2850_d66d_8007_d620_e405_0b57_15dc_83f4_a921_d36c_e9ce_47d0_d13c_5d85_f2b0_ff83_18d2_877e_ec2f_63b9_31bd_4741_7a81_a538_327a_f927_da3en
                     assertEq(result, x, [result, x])
                 },
                 s384: () => {
                     const result = fromV8(compress(sha384.init.hash)(e)) >> 128n
-                    const x = 0x38b060a751ac96384cd9327eb1b1e36a21fdb71114be07434c0cc7bf63f6e1da274edebfe76f65fbd51ad2f14898b95bn
+                    const x = 0x38b0_60a7_51ac_9638_4cd9_327e_b1b1_e36a_21fd_b711_14be_0743_4c0c_c7bf_63f6_e1da_274e_debf_e76f_65fb_d51a_d2f1_4898_b95bn
                     assertEq(result, x, [result, x])
                 },
                 s512x256: () => {
                     const result = fromV8(base64.compress(sha512x256.init.hash)(e)) >> 256n
-                    const x = 0xc672b8d1ef56ed28ab87c3622c5114069bdd3ad7b8f9737498d0c01ecef0967an
+                    const x = 0xc672_b8d1_ef56_ed28_ab87_c362_2c51_1406_9bdd_3ad7_b8f9_7374_98d0_c01e_cef0_967an
                     assertEq(result, x, [result, x])
                 },
                 s512x224: () => {
                     const result = fromV8(compress(sha512x224.init.hash)(e)) >> 288n
-                    const x = 0x6ed0dd02806fa89e25de060c19d3ac86cabb87d6a0ddd05c333b84f4n
+                    const x = 0x6ed0_dd02_806f_a89e_25de_060c_19d3_ac86_cabb_87d6_a0dd_d05c_333b_84f4n
                     assertEq(result, x, [result, x])
                 },
             }
@@ -140,11 +140,11 @@ export const proof = {
     maj: () => assertEq(maj(0b11110000n, 0b11001100n, 0b10101010n), 0b11101000n),
     fromWords: {
         empty: () => assertEq(fromWords(32n)([]), 0n),
-        bytes: () => assertEq(fromWords(8n)([0xabn, 0xcdn, 0x00n, 0xffn]), 0xabcd00ffn),
+        bytes: () => assertEq(fromWords(8n)([0xabn, 0xcdn, 0x00n, 0xffn]), 0xabcd_00ffn),
         // SHA-1's initial hash value, five words, as one number.
         v5: () => assertEq(
-            fromWords(32n)([0x67452301n, 0xefcdab89n, 0x98badcfen, 0x10325476n, 0xc3d2e1f0n]),
-            0x67452301efcdab8998badcfe10325476c3d2e1f0n),
+            fromWords(32n)([0x6745_2301n, 0xefcd_ab89n, 0x98ba_dcfen, 0x1032_5476n, 0xc3d2_e1f0n]),
+            0x6745_2301_efcd_ab89_98ba_dcfe_1032_5476_c3d2_e1f0n),
         // The same field with one owner behind it: `base32.fromV8` is
         // `fromWords(32n)` over eight words.
         v8: () => {
@@ -185,12 +185,12 @@ export const proof = {
         }
     },
     sha2: {
-        sha256: () => checkEmpty(sha256)(0xe3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855n),
-        sha224: () => checkEmpty(sha224)(0xd14a028c2a3a2bc9476102bb288234c415a2b01f828ea62ac5b3e42fn),
-        sha512: () => checkEmpty(sha512)(0xcf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3en),
-        sha384: () => checkEmpty(sha384)(0x38b060a751ac96384cd9327eb1b1e36a21fdb71114be07434c0cc7bf63f6e1da274edebfe76f65fbd51ad2f14898b95bn),
-        sha512x256: () => checkEmpty(sha512x256)(0xc672b8d1ef56ed28ab87c3622c5114069bdd3ad7b8f9737498d0c01ecef0967an),
-        sha512x224: () => checkEmpty(sha512x224)(0x6ed0dd02806fa89e25de060c19d3ac86cabb87d6a0ddd05c333b84f4n),
+        sha256: () => checkEmpty(sha256)(0xe3b0_c442_98fc_1c14_9afb_f4c8_996f_b924_27ae_41e4_649b_934c_a495_991b_7852_b855n),
+        sha224: () => checkEmpty(sha224)(0xd14a_028c_2a3a_2bc9_4761_02bb_2882_34c4_15a2_b01f_828e_a62a_c5b3_e42fn),
+        sha512: () => checkEmpty(sha512)(0xcf83_e135_7eef_b8bd_f154_2850_d66d_8007_d620_e405_0b57_15dc_83f4_a921_d36c_e9ce_47d0_d13c_5d85_f2b0_ff83_18d2_877e_ec2f_63b9_31bd_4741_7a81_a538_327a_f927_da3en),
+        sha384: () => checkEmpty(sha384)(0x38b0_60a7_51ac_9638_4cd9_327e_b1b1_e36a_21fd_b711_14be_0743_4c0c_c7bf_63f6_e1da_274e_debf_e76f_65fb_d51a_d2f1_4898_b95bn),
+        sha512x256: () => checkEmpty(sha512x256)(0xc672_b8d1_ef56_ed28_ab87_c362_2c51_1406_9bdd_3ad7_b8f9_7374_98d0_c01e_cef0_967an),
+        sha512x224: () => checkEmpty(sha512x224)(0x6ed0_dd02_806f_a89e_25de_060c_19d3_ac86_cabb_87d6_a0dd_d05c_333b_84f4n),
     },
     // The byte counts consumers read instead of converting bit lengths
     // themselves. Asserted against the bit length each is derived from, not
@@ -205,7 +205,7 @@ export const proof = {
     ],
     utf8: [
         () => {
-            const e = 0x730e109bd7a8a32b1cb9d9a09aa2325d2430587ddbc0c38bad911525n
+            const e = 0x730e_109b_d7a8_a32b_1cb9_d9a0_9aa2_325d_2430_587d_dbc0_c38b_ad91_1525n
             {
                 const s = utf8("The quick brown fox jumps over the lazy dog")
                 const h = computeSync(sha224)([s])
@@ -220,33 +220,33 @@ export const proof = {
         () => {
             const s = utf8("The quick brown fox jumps over the lazy dog.")
             const h = computeSync(sha224)([s])
-            assertEq(uint(h), 0x619cba8e8e05826e9b8c519c0a5c68f4fb653e8a3d8aa04bb2c8cd4cn, h)
+            assertEq(uint(h), 0x619c_ba8e_8e05_826e_9b8c_519c_0a5c_68f4_fb65_3e8a_3d8a_a04b_b2c8_cd4cn, h)
         },
         () => {
             const s = utf8("hello world")
-            assertEq(uint(s), 0x68656C6C_6F20776F_726C64n, s)
+            assertEq(uint(s), 0x68_656C_6C6F_2077_6F72_6C64n, s)
             let state = sha256.init
             state = sha256.append(s)(state)
             const h = sha256.end(state)
-            assertEq(uint(h), 0xb94d27b9_934d3e08_a52e52d7_da7dabfa_c484efe3_7a5380ee_9088f7ac_e2efcde9n, h)
+            assertEq(uint(h), 0xb94d_27b9_934d_3e08_a52e_52d7_da7d_abfa_c484_efe3_7a53_80ee_9088_f7ac_e2ef_cde9n, h)
         }
     ],
     fill: () => {
-        const times = flip(repeat)(vec(32n)(0x31313131n))
+        const times = flip(repeat)(vec(32n)(0x3131_3131n))
         return {
             8: () => {
                 const r = times(8n)
                 let state = sha256.init
                 state = sha256.append(r)(state)
                 const h = uint(sha256.end(state))
-                assertEq(h >> 224n, 0x8a83665fn, h)
+                assertEq(h >> 224n, 0x8a83_665fn, h)
             },
             16: () => {
                 const r = times(16n)
                 let state = sha256.init
                 state = sha256.append(r)(state)
                 const h = sha256.end(state)
-                assertEq(uint(h), 0x3138bb9b_c78df27c_473ecfd1_410f7bd4_5ebac1f5_9cf3ff9c_fe4db77a_ab7aedd3n, h)
+                assertEq(uint(h), 0x3138_bb9b_c78d_f27c_473e_cfd1_410f_7bd4_5eba_c1f5_9cf3_ff9c_fe4d_b77a_ab7a_edd3n, h)
             }
         }
     },
@@ -255,7 +255,7 @@ export const proof = {
             const zero = vec(8n)(0n)
             const msg = flip(repeat)(zero)(113n)
             const h = computeSync(sha384)([msg])
-            const x = 0x6be9af2cf3cd5dd12c8d9399ec2b34e66034fbd699d4e0221d39074172a380656089caafe8f39963f94cc7c0a07e3d21n
+            const x = 0x6be9_af2c_f3cd_5dd1_2c8d_9399_ec2b_34e6_6034_fbd6_99d4_e022_1d39_0741_72a3_8065_6089_caaf_e8f3_9963_f94c_c7c0_a07e_3d21n
             assertEq(uint(h), x, h)
         },
     },
@@ -287,7 +287,7 @@ export const proof = {
         let state = sha256.init
         state = sha256.append(big)(state)
         const h = sha256.end(state)
-        const x = 0xbe87f6dbe42cdf682276fbecab3636fbfcaa008cf454d635dd77872b50d940aan
+        const x = 0xbe87_f6db_e42c_df68_2276_fbec_ab36_36fb_fcaa_008c_f454_d635_dd77_872b_50d9_40aan
         assertEq(uint(h), x, h)
     },
     demo: {

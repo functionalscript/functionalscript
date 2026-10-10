@@ -43,14 +43,14 @@ export const proof = {
         // beyond `Number.MAX_SAFE_INTEGER`, so a materializer that went
         // through `number` first would round here
         beyondSafeInteger: () => {
-            assertEq(parseValue('12345678901234567890123'), 12345678901234567890123n)
-            assertEq(parseValue('-12345678901234567890123'), -12345678901234567890123n)
+            assertEq(parseValue('12345678901234567890123'), 12_345_678_901_234_567_890_123n)
+            assertEq(parseValue('-12345678901234567890123'), -12_345_678_901_234_567_890_123n)
         },
         // an integer of a size no `number` can even approximate
         oversized: () => {
             const digits = `1${'0'.repeat(2000)}`
             assertStructurallySame(parsed(digits), ['bigint', digits])
-            assertEq(parseValue(digits), 10n ** 2000n)
+            assertEq(parseValue(digits), 10n ** 2_000n)
         },
     },
     // `.`/`e`/`E` means `number`, even when the value is a whole number

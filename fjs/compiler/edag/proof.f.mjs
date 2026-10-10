@@ -1080,15 +1080,15 @@ export const proof = {
     // number, so `expectEdag` never recurses into it.
     stackSafety: () => {
         const plus = `1${' + 1'.repeat(5000)}`
-        expectPlusChain(5000)(compile(`export default ${plus};`).edag)
+        expectPlusChain(5_000)(compile(`export default ${plus};`).edag)
         const neg = `${'- '.repeat(5000)}1`
         expectEdag(compile(`export default ${neg};`).edag, 1)
         // conversions use the same iterative lowering as prefixes
         /** @type {AstConst} */
         let converted = 1
-        for (let i = 0; i < 5000; i++) { converted = ['String', converted] }
+        for (let i = 0; i < 5_000; i++) { converted = ['String', converted] }
         let node = lowered(converted)
-        for (let i = 0; i < 5000; i++) {
+        for (let i = 0; i < 5_000; i++) {
             assert(node instanceof Array && node[0] === 'String', node)
             node = node[1]
         }
@@ -1098,12 +1098,12 @@ export const proof = {
         // here rather than parsed, `lowered`'s own comment has why
         /** @type {AstConst} */
         let and = 1
-        for (let i = 0; i < 20000; i++) { and = ['&&', and, 1] }
-        expectAndChain(20000)(lowered(and))
+        for (let i = 0; i < 20_000; i++) { and = ['&&', and, 1] }
+        expectAndChain(20_000)(lowered(and))
         /** @type {AstConst} */
         let otherwise = 3
-        for (let i = 0; i < 20000; i++) { otherwise = ['?:', 1, 2, otherwise] }
-        expectElseChain(20000)(lowered(otherwise))
+        for (let i = 0; i < 20_000; i++) { otherwise = ['?:', 1, 2, otherwise] }
+        expectElseChain(20_000)(lowered(otherwise))
     },
     // A `throw` lowers to the EDAG's own `['throw', v]`, the node a body or
     // a module that ends in the statement is: a body's value, with the
