@@ -18,7 +18,7 @@
  */
 
 import { leafSerialize } from '../../../media/datajs/serializer/module.f.mjs'
-import { toArray } from '../../../types/list/module.f.mjs'
+import { chunksText } from '../../../text/marked/module.f.mjs'
 import { _name as name, _binding as binding, _resolve as resolve } from '../names/module.f.mjs'
 
 /** The name of one invocation-local memo cell. @type {(_s: _Scope, k: number) => string} */
@@ -48,7 +48,7 @@ export const _entryText = path => {
 
 /** Render a value, demanding a shared entry through its cell. @type {(s: _Scope, v: Operand) => string} */
 const operand = (s, v) => {
-    if (!(v instanceof Array)) { return `(${toArray(leafSerialize(v)).join('')})` }
+    if (!(v instanceof Array)) { return `(${chunksText(leafSerialize(v))})` }
     const k = s.shared.indexOf(v[1])
     return k === -1 ? entry(s, v[1]) : `(${memoName(s, k)}())`
 }
@@ -142,7 +142,7 @@ const lambda = (a, i, path, frame) => {
 export const renderFunction = (a, i) => {
     const node = /** @type {Extract<Node, readonly ['=>', number, readonly Operand[], Operand]>} */ (a.nodes[i])
     const frame = node[2].map((_, k) => name(`external${k}`))
-    return resolve([lambda(a, i, 'function', frame)], [], frame).join('')
+    return chunksText(resolve([lambda(a, i, 'function', frame)], [], frame))
 }
 
 /** Compose a function into a larger symbolic document before allocating names. @type {(a: Analysis, i: number, path: string, frame: readonly string[]) => string} */

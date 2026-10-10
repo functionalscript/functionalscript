@@ -1,5 +1,6 @@
-import { fromSpans, toText } from './module.f.mjs'
+import { chunkRun, chunkStrings, chunkText, chunksMarked, chunksText, fromSpans, toText } from './module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
+import { toArray } from '../../types/list/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
 
 /** @type {(text: string) => (spans: readonly import('./types.ts').Span[]) => unknown} */
@@ -13,6 +14,21 @@ export const proof = {
     toText: {
         empty: () => assertEq(toText([]), ''),
         runs: () => assertEq(toText([['a', 'keyword'], [' b'], ['', 'string']]), 'a b'),
+    },
+    chunks: {
+        text: () => {
+            assertEq(chunkText('a'), 'a')
+            assertEq(chunkText(['b', 'string']), 'b')
+        },
+        run: () => {
+            assertEq(JSON.stringify(chunkRun('a')), '["a"]')
+            assertEq(JSON.stringify(chunkRun(['b', 'string'])), '["b","string"]')
+        },
+        list: () => {
+            assertEq(JSON.stringify(chunksMarked(['a', ['b', 'string']])), '[["a"],["b","string"]]')
+            assertEq(chunksText(['a', ['b', 'string'], 'c']), 'abc')
+            assertEq(JSON.stringify(toArray(chunkStrings(['a', ['b', 'string']]))), '["a","b"]')
+        },
     },
     fromSpans: {
         noSpans: () => assertEq(JSON.stringify(unwrap(fromSpans('ab')([]))), '[["ab"]]'),
