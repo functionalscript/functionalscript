@@ -20,7 +20,7 @@
  * `import` or `const`, which share one map, a JavaScript keyword bound or
  * referenced, since the tokenizer hands every keyword over as an
  * identifier and a key or the name after `.` may be one, a reserved global
- * — `Number`, which is spelled only as the conversion `Number(x)`,
+ * — `Number` and `String`, spelled only as their conversions,
  * {@link conversion} — bound or referenced anywhere else, and a bare or
  * string `__proto__` key, which JavaScript reads as an instruction to
  * replace the prototype; the computed spelling `{ ["__proto__"]: v }` and
@@ -65,7 +65,7 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
- * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstNot, AstTypeof, AstInstanceOf, AstNumber, AstKey, AstSelf, AstCall, AstConditional, AstConst, AstEntryFunction, AstFrameRef, AstEntry, AstFunction, AstItem, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstRest, AstSpread, AstStep, AstThrow } from '../ast/types.ts'
+ * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstNot, AstTypeof, AstInstanceOf, AstNumber, AstString, AstKey, AstSelf, AstCall, AstConditional, AstConst, AstEntryFunction, AstFrameRef, AstEntry, AstFunction, AstItem, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstRest, AstSpread, AstStep, AstThrow } from '../ast/types.ts'
  * @import { ParseError } from './types.ts'
  * @import { Block, Chain, ComputedKey, Container, Entry, If, Import, Item, Key, Module, Node, ParameterBinding, ParameterList, Statement, Step, ValueStatement } from './syntax/types.ts'
  * @import { _AccessFrame, _BodyFrame, _CallFrame, _ChainFrame, _ChainPart, _ConditionalFrame, _IndexFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _Intrinsic, _Parameter, _Ref, _Scope, _Stack, _State } from './private.ts'
@@ -129,8 +129,8 @@ const captureShadowed = foldError('capture shadowed')
 
 /**
  * A keyword where JavaScript wants an identifier, at the word — or a
- * reserved global, `Number`, bound or read anywhere but as the callee of
- * the conversion, {@link conversion}: never a module's to bind, under
+ * reserved global, `Number` or `String`, bound or read anywhere but as the
+ * callee of the conversion, {@link conversion}: never a module's to bind, under
  * [spec: global names](../../../spec/todo/2365-global-names.md)' rule, and
  * no value, so `Number.isFinite` and a bare `Number` are refused at the
  * word as `typeof.x` would be.
@@ -138,8 +138,8 @@ const captureShadowed = foldError('capture shadowed')
 const reservedWord = foldError('reserved word')
 
 /**
- * The call of `Number` with more than one argument, or a spread, at the
- * word: `Number(a, b)` and `Number(...a)`, JavaScript's and not recognized
+ * The call of `Number` or `String` with more than one argument, or a spread,
+ * at the word: `Number(a, b)` and `Number(...a)`, JavaScript's and not recognized
  * yet, for want of a representation
  * ([spec: number conversion](../../../spec/README.md#number-conversion)):
  * `Number(a, b)` is the comma's `(a, b, Number(a))`, which the
@@ -147,9 +147,11 @@ const reservedWord = foldError('reserved word')
  * `Number(...a)` converts the first value a spread yields, which no node
  * expresses while a call's arity is the callee's to split. Refused by name
  * rather than answered wrongly; `Number()` is `0`, and is read as the
- * literal, {@link conversion}.
+ * literal, {@link conversion}, as `String()` is the empty string.
+ *
+ * @type {(name: 'Number' | 'String') => (token: DjsTokenWithMetadata) => ParseError}
  */
-const conversionArity = foldError('Number takes one argument')
+const conversionArity = name => foldError(`${name} takes one argument`)
 
 /**
  * A token on the wrong side of a line break, at that token: the first
@@ -207,7 +209,7 @@ const restBinding = ['rest']
  * demotes them all to `id`, so that a key or the name after `.` may be one,
  * and here is where the distinction is made. `const if = 1;` is a syntax
  * error in JavaScript, so it is an error here. A reserved global is refused
- * the same way, {@link reservedWord}: `Array` and `Number` name no binding
+ * the same way, {@link reservedWord}: `Array`, `Number` and `String` name no binding
  * and no value, and the one place each stands is read before the word
  * reaches here — `instanceof`'s right operand, which the fold checks for
  * the word itself, and the conversion's callee, {@link conversion}.
@@ -905,12 +907,13 @@ const enter = (stack, scope, node) => {
 const isRef = (node, word) => node[0] === 'ref' && nameOf(node[1]) === word
 
 /**
- * The conversion `Number(x)` entered, or `null` where the call is no
- * conversion: a call whose callee is the word `Number` — which no scope
- * binds, since the word is refused at every binding, {@link identifierOf},
+ * The conversion `Number(x)` or `String(x)` entered, or `null` where the call
+ * is no conversion: a call whose callee is one of those words — which no scope
+ * binds, since each word is refused at every binding, {@link identifierOf},
  * so the word alone decides — its one plain argument entered under a frame
- * holding the tag, {@link _ConversionFrame}. `Number()` is the literal `0`,
- * exact as JavaScript has it, folded here as unary `-` over a literal is
+ * holding the tag, {@link _ConversionFrame}. `Number()` is the literal `0`
+ * and `String()` the empty-string literal, as JavaScript has them, folded
+ * here as unary `-` over a literal is
  * folded, since a node of no operand would be a second spelling of the
  * leaf; the call of any other shape is refused at the word,
  * {@link conversionArity}. The word anywhere else is a reference, and
@@ -919,11 +922,13 @@ const isRef = (node, word) => node[0] === 'ref' && nameOf(node[1]) === word
  * @type {(stack: _Stack, scope: _Scope, node: Extract<Node, readonly ['()', Node, readonly Item[]]>) => _State | null}
  */
 const conversion = (stack, scope, [, callee, args]) => {
-    if (callee[0] !== 'ref' || nameOf(callee[1]) !== 'Number') { return null }
-    if (args.length === 0) { return [stack, scope, ok(0)] }
+    if (callee[0] !== 'ref') { return null }
+    const name = nameOf(callee[1])
+    if (name !== 'Number' && name !== 'String') { return null }
+    if (args.length === 0) { return [stack, scope, ok(name === 'Number' ? 0 : '')] }
     const operand = args.length === 1 ? args[0] : null
-    if (operand === null || operand[0] === '...') { return [stack, scope, error(conversionArity(callee[1]))] }
-    return [{ top: { conversion: 'Number' }, rest: stack }, scope, ['enter', operand]]
+    if (operand === null || operand[0] === '...') { return [stack, scope, error(conversionArity(name)(callee[1]))] }
+    return [{ top: { conversion: name }, rest: stack }, scope, ['enter', operand]]
 }
 
 /**
@@ -1098,7 +1103,7 @@ const returned = (stack, scope, frame, value) => {
         return [stack, scope, ok(checked)]
     }
     if ('conversion' in frame) {
-        /** @type {AstNumber} */
+        /** @type {AstNumber | AstString} */
         const converted = [frame.conversion, value]
         return [stack, scope, ok(converted)]
     }

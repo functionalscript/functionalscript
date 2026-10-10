@@ -17,6 +17,7 @@
  */
 
 import { empty, flat, stateScan } from '../../types/list/module.f.mjs'
+import { isInteger } from '../../types/number/is_integer/module.f.js'
 import { contains } from '../../types/range/module.f.js'
 
 //
@@ -169,7 +170,7 @@ const surrogatePayloadMask = (1 << surrogatePayloadBits) - 1
  * @type {(codePoint: CodePoint) => Nullable<readonly [number, number]>}
  */
 export const tryToSurrogatePair = codePoint => {
-    if (!Number.isInteger(codePoint) || !isSupplementaryPlane(codePoint)) {
+    if (!isInteger(codePoint) || !isSupplementaryPlane(codePoint)) {
         return null
     }
     const n = codePoint - supplementaryMin
@@ -188,8 +189,8 @@ export const tryToSurrogatePair = codePoint => {
  * @type {(high: number, low: number) => Nullable<CodePoint>}
  */
 export const tryFromSurrogatePair = (high, low) =>
-    Number.isInteger(high) && isHighSurrogate(high)
-        && Number.isInteger(low) && isLowSurrogate(low)
+    isInteger(high) && isHighSurrogate(high)
+        && isInteger(low) && isLowSurrogate(low)
         ? ((high - surrogateMin) << surrogatePayloadBits)
             + (low - lowSurrogateMin)
             + supplementaryMin

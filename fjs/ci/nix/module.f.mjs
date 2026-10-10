@@ -479,12 +479,13 @@ const flake = job => ['set',
  * The serializer rejects invalid *identifiers*, and every identifier in a flake
  * is written here — a job only contributes attribute names and strings, which
  * are quoted when they are not identifiers. The unwrap is therefore a totality
- * assertion, not an input check.
+ * assertion, not an input check — and if it is ever wrong, it throws the
+ * serializer's reason, naming what broke.
  *
  * @type {(job: NixJob) => string}
  */
 export const flakeText = job =>
-    unwrapNullable(fromUndefined(nixToString(flake(job))))
+    unwrap(nixToString(flake(job)))
 
 /** Where {@link nixFlakes} writes the lock script, as a CI step names it. */
 export const lockUpdatePath = /** @type {const} */ (`./${generatedDirectory}/lock-update.sh`)

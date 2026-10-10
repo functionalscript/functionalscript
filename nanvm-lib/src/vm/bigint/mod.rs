@@ -157,9 +157,8 @@ pub struct BigInt<A: IVm>(A::InternalBigInt);
 
 impl<A: IVm> BigInt<A> {
     /// `self`, or the `RangeError` of a `BigInt` longer than `MAX_WORDS`
-    /// words. `*` and `<<` check their own results; `+` and `-` do not, and
-    /// a result of theirs that must stay in range, a sum of a product and a
-    /// digit, says so here.
+    /// words: the check `+`, `-` and `*` make of their results (`<<` checks
+    /// its width before it allocates).
     pub(crate) fn within_limit(self) -> Result<Self, Any<A>> {
         if u64::from(self.length()) > MAX_WORDS {
             return Err(error::bigint_too_large());
@@ -173,6 +172,12 @@ impl<A: IVm> BigInt<A> {
     /// most a few hundred digits): the product cannot throw.
     pub(crate) fn mul_bounded(self, rhs: Self) -> Self {
         (self * rhs).expect("a binary64's exact arithmetic is far under BigInt's size limit")
+    }
+
+    /// `self + rhs` where the caller's operands are bounded by construction,
+    /// as for `mul_bounded`: the sum cannot throw.
+    pub(crate) fn add_bounded(self, rhs: Self) -> Self {
+        (self + rhs).expect("a binary64's exact arithmetic is far under BigInt's size limit")
     }
 
     /// `pub(crate)`, not private: `BooleanCoercion` (`vm/boolean_coercion.rs`)

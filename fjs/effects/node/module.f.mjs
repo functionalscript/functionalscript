@@ -27,6 +27,7 @@
 
 import { tryUtf8, utf8, utf8ToString } from '../../text/module.f.mjs'
 import { concat } from '../../types/list/module.f.mjs'
+import { isInteger } from '../../types/number/is_integer/module.f.js'
 import { definedEntries } from '../../types/object/module.f.mjs'
 import { byteLength, bytesIn, isWholeBytes, isWholeBytesIn, length, maxLengthBytes, u8ListMsb } from '../../types/bit_vec/module.f.mjs'
 import { nonEmpty, empty as elEmpty } from '../list/module.f.mjs'
@@ -131,7 +132,7 @@ export const maxPort = 0xffff
  *
  * @type {(port: number) => boolean}
  */
-export const isPort = port => Number.isInteger(port) && port >= 0 && port <= maxPort
+export const isPort = port => isInteger(port) && port >= 0 && port <= maxPort
 
 /**
  * Node's code for a port {@link isPort} refuses.
@@ -700,7 +701,7 @@ export const windowRefusal = (offset, size) =>
  * @type {(offset: number) => Nullable<string>}
  */
 const offsetRefusal = offset => {
-    if (!Number.isInteger(offset)) { return `Offset ${offset} is not an integer` }
+    if (!isInteger(offset)) { return `Offset ${offset} is not an integer` }
     if (offset < 0) { return `Offset ${offset} is negative` }
     if (!Number.isSafeInteger(offset)) { return `Offset ${offset} exceeds maximum allowed offset of ${maxOffset}` }
     return null
@@ -708,7 +709,7 @@ const offsetRefusal = offset => {
 
 /** @type {(size: number) => Nullable<string>} */
 const sizeRefusal = size => {
-    if (!Number.isInteger(size)) { return `Chunk size ${size} is not an integer` }
+    if (!isInteger(size)) { return `Chunk size ${size} is not an integer` }
     if (size < 0) { return `Chunk size ${size} is negative` }
     if (BigInt(size) > maxLengthBytes) { return `Chunk size ${size} exceeds maximum allowed size of ${maxLengthBytes} bytes` }
     return null
@@ -972,6 +973,29 @@ export const refusalMessage = ([tag]) =>
         : tag === 'unframed' ? unframedBodyMessage : doubledLengthMessage
 
 /**
+ * A one-line plain-text answer, as a response frame: `message` and a newline,
+ * its type, and its length — measured from the bytes, never written by hand.
+ *
+ * Every plain-text answer in the tree is this frame: the runners' own refusals
+ * through {@link runnerResponse}, and a listener's, such as `fjs/web`'s. It says
+ * nothing about the connection, because that is the runner's socket policy and
+ * not part of the answer.
+ *
+ * @type {(status: number, message: string) => { readonly status: number, readonly headers: Headers, readonly body: readonly Vec[] }}
+ */
+export const plainTextResponse = (status, message) => {
+    const body = utf8(`${message}\n`)
+    return {
+        status,
+        headers: {
+            'content-type': 'text/plain; charset=utf-8',
+            'content-length': `${byteLength(body)}`,
+        },
+        body: [body],
+    }
+}
+
+/**
  * The runner's own answer, as a response frame — for the cases a listener never
  * gets to give one, or gave one the runner may not put on a socket.
  *
@@ -988,16 +1012,8 @@ export const refusalMessage = ([tag]) =>
  * @type {(status: number, message: string) => { readonly status: number, readonly headers: Headers, readonly body: readonly Vec[] }}
  */
 export const runnerResponse = (status, message) => {
-    const body = utf8(`${message}\n`)
-    return {
-        status,
-        headers: {
-            'content-type': 'text/plain; charset=utf-8',
-            'content-length': `${byteLength(body)}`,
-            connection: 'close',
-        },
-        body: [body],
-    }
+    const { headers, body } = plainTextResponse(status, message)
+    return { status, headers: { ...headers, connection: 'close' }, body }
 }
 
 // stat

@@ -229,6 +229,7 @@ export const proof = {
                 // a reserved global, which no module binds
                 ['{}', [[':', 'Array', 1]]],
                 ['{}', [[':', 'Number', 1]]],
+                ['{}', [[':', 'String', 1]]],
                 ['{}', [[':', 'not-a-name', 1]]],
                 ['{}', [[':', 'a', ['{}', [[':', 1, 2]]]]]],
                 ['{}', [[':', 'a', [',', [1]]]]],
@@ -700,11 +701,13 @@ export const proof = {
             ['=>', 0, [], ['?:', ['rest'], ['.', ['rest'], 'f', ['|()', [1]]], null]],
         ])) { assertEq(`export default ${text(e)};`, reads(e)) }
         assertEq(text(['=>', 0, [], 1]), '()=>1')
+        assertEq(text(['=>', 0, [], ['String', 1]]), '()=>String(1)')
         assertEq(text(['=>', 1, [], ['+', ['arg', 0], ['.', ['rest'], 'length']]]), '($0,...$1)=>$0+$1.length')
         assertEq(text(['=>', 0, [['rest']], slot(0)]), '()=>$0')
         assertEq(text(['=>', 0, [['rest'], ['arg', 3]], ['[]', [slot(0), slot(1), ['rest']]]]), '(...$2)=>[$0,$1,$2]')
-        // A captured expression need not have a source spelling in the body.
-        assertEq(text(['=>', 0, [['String', 1]], slot(0)]), '()=>$0')
+        // Unary plus has no source spelling, but a captured expression is
+        // named without rendering it in the body.
+        assertEq(text(['=>', 0, [['+', 1]], slot(0)]), '()=>$0')
         // Captured functions' bindings and parameter limits are outside the
         // selected body's code, just like its enclosing argument reads.
         assertEq(text(['=>', 0, [['=>', 0, [], ['arg', 0]]], slot(0)]), '()=>$0')
@@ -723,10 +726,11 @@ export const proof = {
         assertEq(text(['=>', 0, [['rest']], ['=>', 0, [slot(0)], slot(0)]]), '()=>()=>$0')
         // slots read out of order are named in order first, as a body's are
         assertEq(text(['=>', 0, [1, 2], ['[]', [slot(1), slot(0)]]]), '()=>{const $2=$0;const $3=$1;return [$3,$2];}')
+        // A body outside the source subset uses the JavaScript renderer.
+        assertEq(text(['=>', 0, [], ['+', 1]]), '()=>(+ (1))')
         // Refused: non-functions and invalid body metadata or bindings.
         assertStructurallySame(tryFunctionText(1), ['error', 'not a function'])
         assertStructurallySame(tryFunctionText(['[]', []]), ['error', 'not a function'])
-        assertEq(text(['=>', 0, [], ['String', 1]]), '()=>(String((1)))')
         assertStructurallySame(tryFunctionText(['=>', 0, [], ['arg', 0]]), ['error', 'invalid fixed parameter index or scope'])
         assertStructurallySame(tryFunctionText(['=>', 0, [], ['=>', 0, [], ['arg', 0]]]), ['error', 'invalid fixed parameter index or scope'])
         assertStructurallySame(tryFunctionText(['=>', 0, [], ['=>', 17, [], 1]]), ['error', 'a function length above 16'])
@@ -820,8 +824,11 @@ export const proof = {
         },
         completeBodies: () => {
             const e = /** @type {const} */ (['=>', 0, [], ['String', 1]])
-            assertEq(analyzedFunction(e), '()=>(String((1)))')
+            assertEq(analyzedFunction(e), '()=>String(1)')
             assertEq(analyzedFunction(e), assertOk(tryFunctionText(e)))
+            const outsideSource = /** @type {const} */ (['=>', 0, [], ['+', 1]])
+            assertEq(analyzedFunction(outsideSource), '()=>(+ (1))')
+            assertEq(analyzedFunction(outsideSource), assertOk(tryFunctionText(outsideSource)))
             // Function text accepts evaluated captures while the source
             // writer keeps its structural round-trip restrictions.
             /** @type {readonly (readonly [Exp, string])[]} */
@@ -1069,6 +1076,7 @@ export const proof = {
         writes(fn(['!', r0]), 'export default (...$0)=>!$0[0];')
         writes(fn(['typeof', r0]), 'export default (...$0)=>typeof $0[0];')
         writes(fn(['Number', r0]), 'export default (...$0)=>Number($0[0]);')
+        writes(fn(['String', r0]), 'export default (...$0)=>String($0[0]);')
         writes(['+', 'a', 1n], 'export default "a"+1n;')
         // associativity: to the left, `**` to the right
         writes(['-', ['-', 1, 2], 3], 'export default 1-2-3;')
@@ -1155,22 +1163,28 @@ export const proof = {
         writes(['~', ['=>', 0, [], 1]], 'export default ~(()=>1);')
         writes(['!', ['=>', 0, [], 1]], 'export default !(()=>1);')
         writes(['typeof', ['=>', 0, [], 1]], 'export default typeof (()=>1);')
-        // the `Number` conversion is the call it is in JavaScript: its
+        // each conversion is the call it is in JavaScript: its
         // operand an argument, which groups nothing, and the call binding
         // tighter than every operator, as a call does
-        writes(['Number', 1], 'export default Number(1);')
-        writes(['Number', ['|', 1, 2]], 'export default Number(1|2);')
-        writes(['Number', ['=>', 0, [], 1]], 'export default Number(()=>1);')
-        writes(['Number', ['Number', 1n]], 'export default Number(Number(1n));')
-        writes(['-', ['Number', 1]], 'export default -Number(1);')
-        writes(['**', ['Number', 1], 2], 'export default Number(1)**2;')
-        writes(['.', ['Number', 1], 'x'], 'export default Number(1).x;')
-        writes(['()', ['Number', 1], [2]], 'export default Number(1)(2);')
+        for (const tag of /** @type {const} */ (['Number', 'String'])) {
+            writes([tag, 1], `export default ${tag}(1);`)
+            writes([tag, ['|', 1, 2]], `export default ${tag}(1|2);`)
+            writes([tag, ['=>', 0, [], 1]], `export default ${tag}(()=>1);`)
+            writes([tag, [tag, 1n]], `export default ${tag}(${tag}(1n));`)
+            writes(['-', [tag, 1]], `export default -${tag}(1);`)
+            writes(['**', [tag, 1], 2], `export default ${tag}(1)**2;`)
+            writes(['.', [tag, 1], 'x'], `export default ${tag}(1).x;`)
+            writes(['()', [tag, 1], [2]], `export default ${tag}(1)(2);`)
+        }
+        writes(['String', ['Number', '7']], 'export default String(Number("7"));')
+        writes(['Number', ['String', 7]], 'export default Number(String(7));')
         // a value shared only through conversions is one value: the
         // conversion's operand is an eager operand, so the hoisting walk
         // finds the array under both and names it once
         const shared = /** @type {Exp} */ (['[]', [1]])
         writes(['[]', [['Number', shared], ['Number', shared]]], 'const $0=[1];export default [Number($0),Number($0)];')
+        writes(['[]', [['String', shared], ['String', shared]]], 'const $0=[1];export default [String($0),String($0)];')
+        writes(['[]', [['Number', shared], ['String', shared]]], 'const $0=[1];export default [Number($0),String($0)];')
         // a computed key is the conversion in brackets, written from the
         // node in every position a key stands: a plain access, a method
         // call, a guarded access and a chain's step, where its operand is a
