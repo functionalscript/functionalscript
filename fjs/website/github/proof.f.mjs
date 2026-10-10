@@ -2,7 +2,7 @@
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { parse } from '../../rtti/parse/module.f.mjs'
-import { configSchema, exchangeFailureMessage, exchangeFailureSchema, exchangeSchema, pendingSchema, providerErrorReason, providerErrorSchema, tokenSchema, userSchema, validPending, validVerifier } from './module.f.mjs'
+import { configSchema, exchangeFailureMessage, exchangeFailureSchema, exchangeSchema, pendingSchema, providerErrorReason, providerErrorSchema, providerTokenSchema, tokenSchema, userSchema, validPending, validVerifier } from './module.f.mjs'
 
 const verifier = 'a'.repeat(43)
 const pending = /** @type {const} */ ({ state: 'unguessable', verifier, createdAt: 1_000 })
@@ -15,13 +15,19 @@ export const proof = /** @type {const} */ ({
         assertStructurallySame(assertOk(parse(exchangeSchema)({ code: 'temporary', verifier })), { code: 'temporary', verifier })
         assertStructurallySame(assertOk(parse(tokenSchema)({ access_token: 'token', token_type: 'bearer', refresh_token: 'excluded' })),
             { access_token: 'token', token_type: 'bearer' })
+        assertStructurallySame(assertOk(parse(providerTokenSchema)({ access_token: 'token', token_type: 'bearer', scope: '', refresh_token: 'excluded' })),
+            { access_token: 'token', token_type: 'bearer', scope: '' })
         assertStructurallySame(assertOk(parse(providerErrorSchema)({ error: 'bad_verification_code', error_description: 'private-provider-detail' })),
             { error: 'bad_verification_code' })
         assertStructurallySame(assertOk(parse(exchangeFailureSchema)({ reason: 'network_error', error_description: 'private-provider-detail' })),
             { reason: 'network_error' })
+        assertStructurallySame(assertOk(parse(exchangeFailureSchema)({ reason: 'unexpected_scope', scope: 'private-provider-detail' })),
+            { reason: 'unexpected_scope' })
         assertStructurallySame(assertOk(parse(userSchema)({ login: 'octocat', id: 1 })), { login: 'octocat' })
         assertError(parse(exchangeSchema)({ code: 'temporary', verifier, redirectUri: 'https://untrusted.example/' }))
         assertError(parse(tokenSchema)({ access_token: 'token', token_type: 'different' }))
+        assertError(parse(providerTokenSchema)({ access_token: 'token', token_type: 'bearer' }))
+        assertError(parse(providerTokenSchema)({ access_token: 'token', token_type: 'bearer', scope: 42 }))
         assertError(parse(providerErrorSchema)({ error: 42 }))
         assertError(parse(exchangeFailureSchema)({ reason: 'private-provider-detail' }))
         assertError(parse(pendingSchema)({ state: 'unguessable', verifier }))
@@ -48,6 +54,8 @@ export const proof = /** @type {const} */ ({
             'GitHub returned an unexpected login response. Please try again.')
         assertEq(exchangeFailureMessage('network_error'),
             'Could not reach GitHub. Please try again.')
+        assertEq(exchangeFailureMessage('unexpected_scope'),
+            'GitHub returned permissions this page does not need. Revoke this app in GitHub’s authorized OAuth apps, then log in again.')
     },
     pkceVerifier: () => {
         assert(validVerifier(verifier))

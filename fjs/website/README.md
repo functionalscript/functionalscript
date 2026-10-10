@@ -41,11 +41,12 @@ their linked number, author, and open/draft state with a CI/check summary.
 The shared header links it as **PRs**. The page uses the same frame and
 stylesheet as the directory pages.
 
-The browser reads GitHub's API once on opening and again only when
-**Refresh** is clicked. Visitors can read public results without logging in.
+The browser loads pull requests and checks only when **Refresh** is clicked.
+Opening the page does not load that list. Visitors can read public results without logging in.
 Optional **Log in with GitHub** uses the visitor's API rate limit. No polling
 or stored snapshot is needed. Checks are read for each PR's current head
-commit, combining latest check runs and commit statuses; a passing summary does not assert that the
+commit, combining latest check runs and commit statuses; a passing summary
+does not assert that the
 PR is mergeable or that every branch protection requirement is met.
 
 A failed read is shown as a failure, not an empty list or a passing result.
@@ -56,6 +57,11 @@ link to GitHub available.
 The generator reserves the root `prs/` output directory and excludes it from
 source discovery. The implementation's `fjs/website/prs/` directory remains
 an ordinary source page. A repeated build produces the same catalogue.
+
+`prs/load/` defines pagination, rate-limit refusals, worker limits and refresh
+feedback as pure decisions with co-located proofs. The browser adapter reads
+responses, performs requests and DOM updates, and supplies browser clock and
+date-formatting results to that policy.
 
 ## Every directory gets a page
 
@@ -149,6 +155,11 @@ GitHub's app authorization; users can revoke it in GitHub's application
 settings. The application requests no additional OAuth scopes for the public
 PR page and account identity.
 
+The Worker forwards a token only when GitHub returns an exact empty scope
+string. GitHub may reuse permissions granted to this app previously; if it
+returns those permissions, revoke the app in GitHub’s authorized OAuth apps
+before logging in again. Missing or malformed scope information is rejected.
+
 Failed login distinguishes authorization-code exchange from account verification.
 The Worker maps GitHub's documented credential, callback, code, and email errors
 to a small allowlist of reasons; the browser shows fixed messages and HTTP status.
@@ -212,6 +223,9 @@ uploading that preview, without deploying the preview to production:
 
    The fallback preserves uploads for older branches that lack the helper.
 4. Rebuild the preview branch after saving those settings.
+
+The repository owner approved this helper’s invocation of
+`npx wrangler versions upload` as the Cloudflare Builds version command.
 
 The upload helper passes the two public values as explicit Wrangler variables.
 It writes the app secret to a private temporary JSON file outside the asset

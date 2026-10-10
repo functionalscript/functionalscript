@@ -142,10 +142,31 @@ export const proof = /** @type {const} */ ({
             client_id: 'public-client-id', client_secret: 'worker-only-secret',
             redirect_uri: `${origin}/prs/`, code: 'temporary-code', code_verifier: verifier,
         })
-        assertEq(options?.redirect, 'error')
+        assertEq(options?.redirect, 'manual')
         assertEq(options?.credentials, 'omit')
         assertEq(options?.cache, 'no-store')
         assert(options?.signal instanceof AbortSignal)
+    },
+    refusesProviderRedirectsWithoutFollowingOrAcceptingTokens: async () => {
+        for (const status of [302, 307]) {
+            let calls = 0
+            const response = await handleGithubRequest(request(), env, {
+                fetch: /** @type {typeof fetch} */ (async (input, options) => {
+                    calls += 1
+                    assertEq(input, 'https://github.com/login/oauth/access_token')
+                    assertEq(options?.redirect, 'manual')
+                    return new Response(JSON.stringify({ ...token, scope: '' }), {
+                        status,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Location: 'https://unrelated.example/private-provider-uri',
+                        },
+                    })
+                }),
+            })
+            assertEq(calls, 1)
+            await exchangeRefused(response, 502, 'provider_error')
+        }
     },
     unavailableWithoutTrustedConfiguration: async () => {
         for (const configured of [
@@ -204,9 +225,26 @@ export const proof = /** @type {const} */ ({
         }), env, noNetwork), 400)
         await refused(await handleGithubRequest(request(exchange, { 'Content-Type': 'text/plain' }), env, noNetwork), 415)
         const response = await handleGithubRequest(request(exchange, { 'Content-Type': 'application/json; charset=utf-8' }), env, {
-            fetch: /** @type {typeof fetch} */ (async () => json(token)),
+            fetch: /** @type {typeof fetch} */ (async () => json({ ...token, scope: '' })),
         })
         assertEq(response.status, 200)
+    },
+    refusesMissingMalformedAndNonemptyProviderScopes: async () => {
+        const cases = /** @type {const} */ ([
+            { value: token, reason: 'provider_error' },
+            { value: { ...token, scope: null }, reason: 'provider_error' },
+            { value: { ...token, scope: 42 }, reason: 'provider_error' },
+            { value: { ...token, scope: ['repo'] }, reason: 'provider_error' },
+            { value: { ...token, scope: 'repo' }, reason: 'unexpected_scope' },
+            { value: { ...token, scope: 'read:user,user:email' }, reason: 'unexpected_scope' },
+            { value: { ...token, scope: 'private-provider-detail worker-only-secret' }, reason: 'unexpected_scope' },
+            { value: { ...token, scope: ' ' }, reason: 'unexpected_scope' },
+        ])
+        for (const { value, reason } of cases) {
+            await exchangeRefused(await handleGithubRequest(request(), env, {
+                fetch: /** @type {typeof fetch} */ (async () => json(value)),
+            }), 400, reason)
+        }
     },
     identifiesDocumentedOAuthFailuresWithoutProviderDetails: async () => {
         const reasons = /** @type {const} */ ([
@@ -240,8 +278,8 @@ export const proof = /** @type {const} */ ({
             { value: json({ error: ['incorrect_client_credentials'], error_description: 'private-provider-detail' }), status: 400 },
             { value: json(null), status: 400 },
             { value: json(['private-provider-detail']), status: 400 },
-            { value: json({ ...token, access_token: '' }), status: 400 },
-            { value: json({ ...token, token_type: 'different' }), status: 400 },
+            { value: json({ ...token, access_token: '', scope: '' }), status: 400 },
+            { value: json({ ...token, token_type: 'different', scope: '' }), status: 400 },
             { value: json({ error_description: 'private-provider-detail' }, 400), status: 400 },
             { value: json({ error_description: 'private-provider-detail' }, 500), status: 502 },
             { value: new Response('{'), status: 502 },

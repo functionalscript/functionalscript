@@ -23,13 +23,16 @@ export const exchangeSchema = /** @type {const} */ ({ code: string, verifier: st
 /** Parsing discards extra provider fields, including refresh tokens. */
 export const tokenSchema = open({ access_token: string, token_type: 'bearer' })
 
+/** Verify GitHub's returned grants before reducing the browser token shape. */
+export const providerTokenSchema = open({ access_token: string, token_type: 'bearer', scope: string })
+
 /** Admit the provider's reason without retaining its raw error description. */
 export const providerErrorSchema = open({ error: string })
 
 /** Only fixed local reasons cross the Worker/browser failure boundary. */
 export const exchangeFailureSchema = open({ reason: or(
     'incorrect_client_credentials', 'redirect_uri_mismatch', 'bad_verification_code',
-    'unverified_user_email', 'provider_error', 'network_error',
+    'unverified_user_email', 'provider_error', 'network_error', 'unexpected_scope',
 ) })
 
 /** Revalidate the signed-in account after each completed authorization. */
@@ -59,7 +62,9 @@ export const exchangeFailureMessage = reason => reason === 'incorrect_client_cre
                 ? 'Verify your primary email address on GitHub, then log in again.'
                 : reason === 'provider_error'
                     ? 'GitHub returned an unexpected login response. Please try again.'
-                    : 'Could not reach GitHub. Please try again.'
+                    : reason === 'unexpected_scope'
+                        ? 'GitHub returned permissions this page does not need. Revoke this app in GitHub’s authorized OAuth apps, then log in again.'
+                        : 'Could not reach GitHub. Please try again.'
 
 /** @type {string} */
 const unreserved = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~'

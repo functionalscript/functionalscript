@@ -19,7 +19,7 @@
  * @import { _Node, _Visited } from './private.ts'
  */
 
-import { arrayIndex } from '../../../js/array_index/module.f.mjs'
+import { arrayIndex } from '../../../js/array_index/module.f.js'
 import { prependPath, verror } from '../../../rtti/common/module.f.mjs'
 import { mapOk, ok } from '../../../types/result/module.f.mjs'
 import { add, empty, has } from '../../../types/set/module.f.mjs'

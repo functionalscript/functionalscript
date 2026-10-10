@@ -491,6 +491,38 @@ export const proof = /** @type {const} */ ({
         assertEq(retryNet.remaining(), 0)
         assertNoPersistedToken(retry)
     },
+    unexpectedScopeGivesFixedRevocationMessageAndAllowsRetry: async () => {
+        const page = returning()
+        const net = queue(page, [json(config), json({
+            reason: 'unexpected_scope', scope: 'SENSITIVE_SCOPE_DETAILS',
+            access_token: 'test-token', error_description: 'SENSITIVE_PROVIDER_DETAIL',
+        }, 400)], true)
+        const session = await startGitHubLogin(page.root, { fetch: net.fetch, now })
+        assertEq(session.token(), null)
+        assertLoggedOut(page)
+        assertEq(page.login.disabled, false)
+        assertEq(page.note.textContent,
+            'GitHub returned permissions this page does not need. Revoke this app in GitHub’s authorized OAuth apps, then log in again. (HTTP 400)')
+        assert(!page.note.textContent.includes('SENSITIVE_SCOPE_DETAILS'))
+        assert(!page.note.textContent.includes('SENSITIVE_PROVIDER_DETAIL'))
+        assert(net.urls.every(url => url.pathname !== '/user'))
+        assertNoPersistedToken(page)
+        await page.login.click()
+        assertEq(page.redirects.length, 1)
+        const saved = JSON.parse(page.storage.get(pendingKey))
+        assert(saved.state !== pending.state)
+        const redirect = new URL(page.redirects[0])
+        assertEq(redirect.origin, 'https://github.com')
+        assertEq(redirect.searchParams.get('state'), saved.state)
+        assertEq(net.remaining(), 0)
+        const retry = returning(`code=retry-code&state=${saved.state}`, JSON.stringify(saved))
+        const retryNet = queue(retry, [json(config), json(token), json({ login: 'octocat' })], true)
+        const completed = await startGitHubLogin(retry.root, { fetch: retryNet.fetch, now })
+        assertEq(completed.token(), 'test-token')
+        assertOctocat(retry)
+        assertEq(retryNet.remaining(), 0)
+        assertNoPersistedToken(retry)
+    },
     unknownOrMalformedExchangeFailuresExposeOnlyTheHttpStatus: async () => {
         const cases = /** @type {const} */ ([
             [json({ reason: 'SENSITIVE_PROVIDER_DETAIL', access_token: 'test-token' }, 502), 502],

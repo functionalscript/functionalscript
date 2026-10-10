@@ -138,6 +138,7 @@ export const proof = {
         assert(html.includes('<a href="https://github.com/functionalscript/functionalscript/pulls">'), html)
         assert(html.includes('<button type="button" data-pr-refresh="">Refresh</button>'), html)
         assert(html.includes('data-pr-note="" role="status" aria-live="polite"'), html)
+        assert(html.includes('Press Refresh to load pull requests and checks.'), html)
         assert(html.includes('<noscript>'), html)
         assert(html.includes('<caption>Open pull requests</caption>'), html)
         assert(html.includes('<th scope="col">PR</th><th scope="col">Author</th><th scope="col">Status</th>'), html)

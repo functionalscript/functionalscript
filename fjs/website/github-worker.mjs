@@ -10,10 +10,10 @@
  */
 
 import { parse } from '../rtti/parse/module.f.mjs'
-import { exchangeSchema, providerErrorSchema, providerErrorReason, tokenSchema, validVerifier } from './github/module.f.mjs'
+import { exchangeSchema, providerErrorSchema, providerErrorReason, providerTokenSchema, validVerifier } from './github/module.f.mjs'
 
 const readExchange = parse(exchangeSchema)
-const readToken = parse(tokenSchema)
+const readProviderToken = parse(providerTokenSchema)
 const readProviderError = parse(providerErrorSchema)
 
 /** All authorization responses are excluded from caches, including refusals. */
@@ -105,11 +105,16 @@ export const handleGithubRequest = async (request, env, host = {}) => {
             }),
             credentials: 'omit',
             cache: 'no-store',
-            redirect: 'error',
+            redirect: 'manual',
             signal: AbortSignal.timeout(15_000),
         })
     } catch {
         return signInFailure('network_error', 502)
+    }
+    // Workers supports manual redirects; never forward app credentials or
+    // accept an authorization response from a redirected endpoint.
+    if (response.status >= 300 && response.status < 400) {
+        return signInFailure('provider_error', 502)
     }
     let value
     try {
@@ -122,11 +127,12 @@ export const handleGithubRequest = async (request, env, host = {}) => {
         return signInFailure(providerErrorReason(providerError.error), response.status >= 500 ? 502 : 400)
     }
     if (!response.ok) { return signInFailure('provider_error', response.status >= 500 ? 502 : 400) }
-    const [tokenTag, token] = readToken(value)
+    const [tokenTag, token] = readProviderToken(value)
     if (tokenTag === 'error' || token.access_token === '') {
         return signInFailure('provider_error', 400)
     }
-    return json(token)
+    if (token.scope !== '') { return signInFailure('unexpected_scope', 400) }
+    return json({ access_token: token.access_token, token_type: token.token_type })
 }
 
 /** Cloudflare's ExecutionContext is not part of the optional proof host. */
