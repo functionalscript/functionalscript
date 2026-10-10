@@ -11,7 +11,7 @@ disagreed, one way was picked and the reason written down. The shared builders
 put the required lead before the controls; the shared `refusal` element puts
 `Refused:` above the module's message in its verdict box. The migration is
 partial: [`todo/demos-follow-the-spec.md`](./todo/demos-follow-the-spec.md)
-tracks the remaining refusal and output-box work. A demo may deviate where
+tracks the remaining output-box work. A demo may deviate where
 its subject needs it, and says why in its JSDoc.
 
 ## One order, top to bottom
@@ -176,6 +176,12 @@ the rtti demo's `parse · ok` and `validate · error` do.
 - **A failure that belongs to one item of a valid result stays on that
   item's line**, as the UTF-8 demo marks one unpaired surrogate among valid
   code points: the result as a whole was not refused.
+
+VDF evaluates and verifies in separate sections. A refusal replaces only the
+output that its invalid input prevents: oversized text and invalid steps can
+therefore show separate live refusal boxes. The controls remain available so
+readers can correct each input, and verification verdicts keep their own
+result presentation.
 
 ## What a demo's proof covers
 
