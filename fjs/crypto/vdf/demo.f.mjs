@@ -35,7 +35,7 @@
 import { resultMarker } from '../../website/style/module.f.mjs'
 import { p, sloth } from './module.f.mjs'
 import { tryUtf8 } from '../../text/module.f.mjs'
-import { digitsValue, hexDigitValue } from '../../text/ascii/module.f.mjs'
+import { digitsValue, hexDigitsValue } from '../../text/ascii/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
 import { textField, inputField, caption, refusal } from '../../website/demo/module.f.mjs'
 import { codeBlock } from '../../website/demo/code/module.f.mjs'
@@ -69,11 +69,7 @@ export const parseSteps = text => decimalValue([...text].map(c => c.charCodeAt(0
 /** A non-empty hexadecimal number, or null.
  * @type {(text: string) => bigint | null}
  */
-export const parseHex = text => {
-    const digits = [...text].map(c => hexDigitValue(c.charCodeAt(0)))
-    return digits.length === 0 || digits.some(d => d === null) ? null
-        : digits.reduce((n, d) => n * 16n + BigInt(/** @type {number} */ (d)), 0n)
-}
+export const parseHex = text => hexDigitsValue([...text].map(c => c.charCodeAt(0)))
 
 /** `y` in hex, padded to the width of `p`.
  * @type {(y: bigint) => string}
