@@ -194,16 +194,17 @@ const kindsByCode = new Map(/** @type {readonly [string, TokenKind][]} */ (Objec
 export const fromTagged = text => {
     const [head, ...rest] = text.split(open)
     if (head.includes(close)) { return error('a closing marker with no opening') }
-    /** @type {(acc: Result<Marked, string>, part: string) => Result<Marked, string>} */
-    const step = (acc, part) => {
-        if (acc[0] === 'error') { return acc }
+    /** @type {(part: string) => Result<Marked, string>} */
+    const run = part => {
         const kind = kindsByCode.get(part.slice(0, 1))
         if (kind === undefined) { return error(`a tag of no kind: ${part.slice(0, 1)}`) }
         const [inside, ...after] = part.slice(1).split(close)
         if (after.length !== 1) { return error(after.length === 0 ? 'a tag left open' : 'a closing marker with no opening') }
-        return ok([...acc[1], [inside, kind], ...(after[0] === '' ? [] : [/** @type {Run} */ ([after[0]])])])
+        return ok([[inside, kind], ...(after[0] === '' ? [] : [/** @type {Run} */ ([after[0]])])])
     }
-    return rest.reduce(step, /** @type {Result<Marked, string>} */(ok(head === '' ? [] : [[head]])))
+    const results = rest.map(run)
+    const failed = results.find(result => result[0] === 'error')
+    return failed ?? ok([...(head === '' ? [] : [/** @type {Run} */ ([head])]), ...results.flatMap(unwrap)])
 }
 
 /**
@@ -226,18 +227,22 @@ export const fromSpans = text => spans => {
     const symbols = Array.from(text)
     /** @type {(from: number, to: number) => readonly Run[]} */
     const plain = (from, to) => from < to ? [[symbols.slice(from, to).join('')]] : []
-    /** @type {(acc: Result<readonly [number, Marked], string>, span: Span) => Result<readonly [number, Marked], string>} */
-    const step = (acc, { start, length, kind }) => {
-        if (acc[0] === 'error') { return acc }
-        const [position, runs] = acc[1]
+    /** @type {(i: number) => number} */
+    const endBefore = i => i === 0 ? 0 : spans[i - 1].start + spans[i - 1].length
+    /** @type {(span: Span, i: number) => string | null} */
+    const problem = ({ start, length }, i) => {
         if (!Number.isInteger(start) || !Number.isInteger(length) || length < 1) {
-            return error(`span ${start}+${length} is not a non-empty range of whole code points`)
+            return `span ${start}+${length} is not a non-empty range of whole code points`
         }
-        if (start < position) { return error(`span ${start}+${length} overlaps or precedes the text before it`) }
-        const end = start + length
-        if (end > symbols.length) { return error(`span ${start}+${length} is past the end of the text (${symbols.length})`) }
-        return ok([end, [...runs, ...plain(position, start), [symbols.slice(start, end).join(''), kind]]])
+        if (start < endBefore(i)) { return `span ${start}+${length} overlaps or precedes the text before it` }
+        if (start + length > symbols.length) { return `span ${start}+${length} is past the end of the text (${symbols.length})` }
+        return null
     }
-    const result = spans.reduce(step, /** @type {Result<readonly [number, Marked], string>} */(ok([0, []])))
-    return result[0] === 'error' ? result : ok([...result[1][1], ...plain(result[1][0], symbols.length)])
+    const failed = spans.map(problem).find(message => message !== null)
+    if (failed !== undefined) { return error(failed) }
+    const last = endBefore(spans.length)
+    return ok([
+        ...spans.flatMap((span, i) => [...plain(endBefore(i), span.start), /** @type {Run} */ ([symbols.slice(span.start, span.start + span.length).join(''), span.kind])]),
+        ...plain(last, symbols.length),
+    ])
 }
