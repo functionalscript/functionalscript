@@ -13,9 +13,8 @@
  */
 
 import { assert } from '../../asserts/module.f.mjs'
+import { isInteger } from '../../types/number/is_integer/module.f.js'
 import { contains } from '../../types/range/module.f.js'
-
-const { isInteger } = Number
 
 /** @type {(s: string) => (i: number) => number} */
 const at = s => i => {
