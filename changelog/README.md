@@ -7,7 +7,9 @@ and the pre-1.0 policy uses the latitude allowed by
 [Semantic Versioning §4](https://semver.org/spec/v2.0.0.html#spec-item-4).
 
 Entries are written **once per release**, from the pull requests that shipped in
-it. A pull request adds no changelog file. Before 1.0, release-note material and
+it. A pull request adds no changelog file. Release PRs write those files;
+forward-port or archival PRs may copy already-published urgent-release notes
+unchanged to `main`. Before 1.0, release-note material and
 `**BREAKING CHANGES:**` notices in its description are optional. The release
 policy after 1.0 remains [undecided](../todo/post-1.0-release-policy.md).
 The release procedure is [RELEASE.md](./RELEASE.md).

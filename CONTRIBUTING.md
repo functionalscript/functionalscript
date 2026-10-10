@@ -335,7 +335,9 @@ A pull request implements only one feature or improvement, with minimal code
 changes. Before submitting, ensure every check above passes and delete the
 `todo/` issue file it fixes, if there is one. It adds **no changelog file**: the
 changelog is written once per release from the pull requests that shipped in it
-([changelog/RELEASE.md](./changelog/RELEASE.md)). Before 1.0, a pull request may
+([changelog/RELEASE.md](./changelog/RELEASE.md)). Release PRs write those files;
+forward-port or archival PRs may copy already-published urgent-release notes
+unchanged to `main`. Before 1.0, a pull request may
 leave optional release-note material in its description, as described below.
 The everyday workflow around this is [AGENTS.md §1](./AGENTS.md#1-workflow).
 

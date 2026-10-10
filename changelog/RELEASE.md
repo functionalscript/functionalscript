@@ -43,8 +43,12 @@ fix deliberately uses a different branch and window:
    published version.
 5. Carry every fix forward to `main` through a separate PR **before the next
    regular release**, adapting it to current code if needed so upgrading retains
-   the fix. Leave urgent version and changelog metadata on the maintenance
-   branch. If `main` already contains a fix, record that in the urgent-fix PR.
+   the fix. Leave urgent `package.json` and `package-lock.json` version changes
+   on the maintenance branch. After publication, copy `changelog/0.X.P.md`
+   unchanged into `main` in the forward-port PR, or in a separate archival PR
+   if the fix is already on `main`. Retain that file even if the maintenance
+   branch is deleted, so the website keeps the urgent release in its history.
+   If `main` already contains a fix, record that in the urgent-fix PR.
    The next regular release collects the forward-port PR normally and uses the
    next minor with patch zero.
 6. Check newer released lines for the same defect and promptly publish an urgent

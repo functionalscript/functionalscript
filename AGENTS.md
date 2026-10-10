@@ -229,7 +229,10 @@ A PR implements only one feature or improvement, with minimal code changes, and
 every check above passing. Its title and description become the merge commit
 on `main`, so write them as one: a `<topic>: <short description>` title and a
 description. **A PR adds no changelog file** — the changelog is written once per
-release, from the PRs that shipped in it. Before 1.0, `Changelog:` sections and
+release, from the PRs that shipped in it. Release PRs write those files;
+forward-port or archival PRs may copy already-published urgent-release notes
+unchanged to `main` ([release procedure](./changelog/RELEASE.md#urgent-fixes-before-10)).
+Before 1.0, `Changelog:` sections and
 `**BREAKING CHANGES:**` notices are optional; regular releases are `0.X.0`,
 regardless of whether their changes break the API. Urgent fixes start at
 `0.X.1`, based on the corresponding `0.X.0` release commit; further fixes

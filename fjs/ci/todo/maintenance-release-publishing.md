@@ -1,9 +1,9 @@
-# Publish maintenance releases from reviewed release commits
+## Publish maintenance releases from reviewed release commits
 
 **Priority:** P1
 **Status:** open
 
-## Problem
+### Problem
 
 The pre-1.0 policy allows urgent fixes from a released `0.X.0` commit, then
 successive patches from the preceding fix release. The current generated npm
@@ -17,7 +17,7 @@ alone does not constrain that branch. An environment field alone is insufficient
 too: a writer can omit it in a branch's workflow. Existing main publishing must
 continue to work when this path is added.
 
-## Tasks
+### Tasks
 
 - [ ] Publish the exact reviewed maintenance release commit without later main
       development; extend the generator and proofs, then regenerate workflows.
@@ -47,11 +47,14 @@ continue to work when this path is added.
 - [ ] Update the maintenance release procedure with the implemented path and
       required configuration. Carry fixes into main before the next regular
       release, adapting them if needed or recording that main already has them.
+      After publication, retain the urgent release's changelog file unchanged
+      on main for the website's history, keeping its package version changes
+      on the maintenance branch.
 - [ ] Check newer released lines for the same defect and promptly publish an
       urgent fix on every affected newer line, including the newest line used
       by `latest`. Do not leave those users waiting for the next regular release.
 
-## Evidence and related work
+### Evidence and related work
 
 - [Approval boundary review](https://github.com/functionalscript/functionalscript/pull/2761#discussion_r4233684939)
 - [Direct publish permission review](https://github.com/functionalscript/functionalscript/pull/2761#discussion_r4234014314)
