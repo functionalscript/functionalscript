@@ -35,6 +35,7 @@ import { emptyState, nodeProgramOptions, virtual } from '../effects/node/virtual
 import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { error, ok } from '../types/result/module.f.mjs'
 import { textDemo } from '../website/demo/module.f.mjs'
+import { highlight } from '../website/demo/highlight/module.f.mjs'
 import { examples } from './examples/module.f.js'
 import { compile } from './module.f.mjs'
 
@@ -69,5 +70,5 @@ export const _compiled = text => outputFileName => {
 
 export const demo = textDemo({ name: 'compiler', label: 'Source', init: examples[0][1], examples })(text => outputs.map(([label, outputFileName]) => {
     const [kind, value] = _compiled(text)(outputFileName)
-    return ['section', ['h3', label], kind === 'ok' ? ['pre', value] : ['p', `Refused: ${value}`]]
+    return ['section', ['h3', label], kind === 'ok' ? ['pre', ...(outputFileName.endsWith('.rs') ? [value] : highlight(value))] : ['p', `Refused: ${value}`]]
 }))
