@@ -54,8 +54,31 @@ that function, held the array to 1,160 and the chain to 1,842. Behind the
 lowering, the memo walk holds 1,170 levels, measured in
 [stack-safety](../../edag/todo/stack-safety.md#compiler-integration-baseline).
 
+### Source conversion chains
+
+A host JavaScript reproducer generates valid FunctionalScript source with
+`'export default ' + 'String('.repeat(5000) + '1' + ')'.repeat(5000) + ';'`.
+The same input with `Number` instead of `String` fails in the same way.
+`compiler/transpiler`'s `parse` and `compiler/edag`'s `unresolved` succeed;
+`compiler/serializer`'s `tryModuleStringify` then throws
+`RangeError: Maximum call stack size exceeded` on the pinned Node 26.10.0.
+The source-rendering path follows `entry` → `conversion` → `item` →
+`operand` → `entry`, paying a host call-stack frame at each conversion.
+
+The parser and lowering stack-safety proofs establish those stages' depth
+support; source serialization still has its own limit. This is shared with
+the existing `Number` writer, rather than a regression in that conversion.
+The depth above names a failing input, not a portable maximum: the exact
+threshold depends on the host stack. This corner-case crash is deferred here
+under [REVIEW.md](../../../doc/REVIEW.md#deferring-a-defect); the writer's
+module documentation records the limitation for callers.
+
 ### Tasks
 
+- [ ] Give the source writer an explicit work stack for nested expressions,
+      including conversion operands; preserve scope hoisting, lazy regions,
+      capture names, and document order. Cover deep `Number`, `String`, and
+      mixed conversion chains with source-output round trips.
 - [ ] Give `lowerLeaf`'s container and function cases the explicit stack the
       operator cases already have.
 - [ ] Proofs at the depth `stackSafety` in `../parser/proof.f.mjs` uses, for
