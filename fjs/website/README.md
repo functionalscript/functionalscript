@@ -41,10 +41,11 @@ their linked number, author, and open/draft state with a CI/check summary.
 The shared header links it as **PRs**. The page uses the same frame and
 stylesheet as the directory pages.
 
-The browser reads GitHub's public API once on opening and again only when
-**Refresh** is clicked. No polling, credentials, backend or stored snapshot is
-needed. Checks are read for each PR's current head commit, combining latest
-check runs and commit statuses; a passing summary does not assert that the
+The browser reads GitHub's API once on opening and again only when
+**Refresh** is clicked. Visitors can read public results without logging in.
+Optional **Log in with GitHub** uses the visitor's API rate limit. No polling
+or stored snapshot is needed. Checks are read for each PR's current head
+commit, combining latest check runs and commit statuses; a passing summary does not assert that the
 PR is mergeable or that every branch protection requirement is met.
 
 A failed read is shown as a failure, not an empty list or a passing result.
@@ -122,6 +123,52 @@ that reported nothing the way a real page does. It is a `demo`, never a
 `proof`, so no real run sees it. It draws into `data-example-*` hooks, not
 `data-test-*`, because the runner looks those up across the whole page and the
 demo renders above the suite.
+
+## GitHub login
+
+The PR page redirects to GitHub's official authorization page with a random
+state and an S256 PKCE challenge. Its `/prs/` callback consumes a pending
+login from tab-local `sessionStorage`, validates state and its ten-minute
+lifetime, and removes authorization parameters from the address bar before
+making requests. Pages set `no-referrer` before loading subresources.
+
+The Cloudflare Worker in [`github-worker.mjs`](./github-worker.mjs) exposes
+only `/auth/github/config` and `/auth/github/token`. It exchanges the code
+with GitHub using the application secret, the original PKCE verifier, and
+the configured callback. The exchange accepts same-origin JSON POSTs only;
+responses are never cached. Other routes remain static assets. No KV, D1,
+cookies, user sessions, or token database are required.
+
+After the exchange, the browser verifies the account directly with GitHub
+and holds the access token only in page memory. Subsequent PR and check
+requests go directly to `api.github.com`. **Log out**, a rejected token, a
+reload, or leaving the page ends this local login. Logging out does not revoke
+GitHub's app authorization; users can revoke it in GitHub's application
+settings. The application requests no additional OAuth scopes for the public
+PR page and account identity.
+
+### Configure Cloudflare
+
+1. Register a [GitHub OAuth App](https://github.com/settings/developers) with
+   the site's exact `/prs/` callback, for example
+   `https://your-site.example/prs/` (use the actual website origin).
+2. Set `GITHUB_CLIENT_ID` and `GITHUB_REDIRECT_URI` as Cloudflare Worker
+   variables. The redirect must be an HTTPS URL ending in `/prs/`, with no
+   query, fragment, or embedded credentials.
+3. Set `GITHUB_CLIENT_SECRET` as an encrypted Cloudflare Worker secret,
+   using the dashboard or `wrangler secret put GITHUB_CLIENT_SECRET`.
+   Do not place it in source, public assets, or a build-time browser variable.
+4. Deploy the Worker and generated assets using the root `wrangler.jsonc`.
+
+Until those bindings exist, the public PR list works and the login control
+reports that login is unavailable. The Worker serves authentication only on
+the configured callback origin. Configure a separate app and bindings for a
+trusted preview, rather than sharing production credentials with every branch
+preview. Local development may use HTTP on localhost with its own app;
+`.dev.vars` and `.env` files are excluded from uploads by `.assetsignore`.
+
+See [GitHub's OAuth documentation](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps)
+for registration and PKCE details.
 
 ## A demo shows what a module does
 

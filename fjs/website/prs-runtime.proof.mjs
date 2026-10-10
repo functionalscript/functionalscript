@@ -111,6 +111,39 @@ const anchors = node => node.nodeType === 3 ? []
     : [...(node.localName === 'a' ? [node] : []), ...node.childNodes.flatMap(anchors)]
 
 export const proof = {
+    authenticatedRefreshAndLogout: async () => {
+        const page = dom()
+        const net = queue([
+            json([pull(42)]), json(passed), json(noStatuses),
+            json([pull(42)]), json(passed), json(noStatuses),
+        ])
+        /** @type {string | null} */
+        let token = 'browser-only-token'
+        await startPrs(page.root, { fetch: net.fetch, now, token: () => token })
+        assert(net.options.every(options => new Headers(options?.headers).get('Authorization') === 'Bearer browser-only-token'))
+        token = null
+        await page.click()
+        assert(net.options.slice(3).every(options => new Headers(options?.headers).get('Authorization') === null))
+        assertEq(net.remaining(), 0)
+    },
+    invalidTokenClearsLoginWithoutRetrying: async () => {
+        const page = dom()
+        const net = queue([new Response('', { status: 401 }), json([])])
+        /** @type {string | null} */
+        let token = 'revoked-token'
+        let cleared = 0
+        await startPrs(page.root, {
+            fetch: net.fetch, now, token: () => token,
+            onUnauthorized: () => { token = null; cleared += 1 },
+        })
+        assertEq(cleared, 1)
+        assertEq(net.urls.length, 1)
+        assert(page.note.textContent.includes('HTTP 401'))
+        assert(!page.note.textContent.includes('revoked-token'))
+        await page.click()
+        assertEq(new Headers(net.options[1]?.headers).get('Authorization'), null)
+        assertEq(net.remaining(), 0)
+    },
     initialLoadAndManualRefresh: async () => {
         const page = dom()
         const net = queue([

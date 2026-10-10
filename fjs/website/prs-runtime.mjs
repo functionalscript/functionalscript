@@ -1,5 +1,5 @@
 /**
- * Browser boundary for the public pull-request page: fetch GitHub JSON,
+ * Browser boundary for the pull-request page: fetch GitHub JSON,
  * admit it through the page's schemas, and render its FunctionalScript rows.
  *
  * The initial load runs once. Further loads require the Refresh button; the
@@ -71,7 +71,7 @@ const refusal = (response, now) => {
  * failures replace that row's result with Unavailable; a failed list refresh
  * keeps the previous rows and explicitly identifies them as stale.
  *
- * @type {(root: Element, host?: { readonly fetch?: typeof fetch, readonly now?: () => number }) => Promise<void>}
+ * @type {(root: Element, host?: { readonly fetch?: typeof fetch, readonly now?: () => number, readonly token?: () => string | null, readonly onUnauthorized?: () => void }) => Promise<void>}
  */
 export const startPrs = (root, host = {}) => {
     const existing = started.get(root)
@@ -111,8 +111,13 @@ export const startPrs = (root, host = {}) => {
             if (blocked !== null) { throw blocked }
             let response
             try {
+                const token = host.token?.() ?? null
                 response = await fetchRequest(`${api}/${path}`, {
-                    headers: { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' },
+                    headers: {
+                        Accept: 'application/vnd.github+json',
+                        'X-GitHub-Api-Version': '2022-11-28',
+                        ...(token === null ? {} : { Authorization: `Bearer ${token}` }),
+                    },
                     credentials: 'omit',
                     cache: 'no-store',
                     redirect: 'error',
@@ -125,8 +130,9 @@ export const startPrs = (root, host = {}) => {
                     : 'GitHub request failed. Check your connection and try Refresh again.')
             }
             if (!response.ok) {
+                if (response.status === 401) { host.onUnauthorized?.() }
                 const error = new Error(refusal(response, now))
-                if (response.status === 403 || response.status === 429) { blocked = error }
+                if (response.status === 401 || response.status === 403 || response.status === 429) { blocked = error }
                 throw error
             }
             let value

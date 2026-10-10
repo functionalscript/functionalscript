@@ -1,0 +1,45 @@
+/**
+ * The GitHub sign-in boundary: declared wire fields and the pending login's
+ * state, PKCE verifier, and ten-minute lifetime. Tokens are browser memory;
+ * the pending record exists only while navigating through GitHub.
+ *
+ * @module
+ *
+ * @import { Pending } from './types.ts'
+ */
+
+import { number, open, string } from '../../rtti/module.f.mjs'
+
+/** Public configuration, with no application secret. */
+export const configSchema = open({ clientId: string, redirectUri: string })
+
+/** Only the pending authorization survives navigation in sessionStorage. */
+export const pendingSchema = /** @type {const} */ ({ state: string, verifier: string, createdAt: number })
+
+/** The browser sends no callback URI or client credentials to the Worker. */
+export const exchangeSchema = /** @type {const} */ ({ code: string, verifier: string })
+
+/** Parsing discards extra provider fields, including refresh tokens. */
+export const tokenSchema = open({ access_token: string, token_type: 'bearer' })
+
+/** Revalidate the signed-in account after each completed authorization. */
+export const userSchema = open({ login: string })
+
+/** @type {string} */
+const unreserved = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~'
+
+/** RFC 7636's 43..128 ASCII unreserved characters, without accepting Unicode. */
+/** @type {(verifier: string) => boolean} */
+export const validVerifier = verifier => verifier.length >= 43
+    && verifier.length <= 128
+    && [...verifier].every(character => unreserved.includes(character))
+
+/** A matching, single-use authorization whose code has not expired. */
+/** @type {(pending: Pending, state: string, now: number) => boolean} */
+export const validPending = ({ state: expected, verifier, createdAt }, state, now) => state !== ''
+    && state === expected
+    && validVerifier(verifier)
+    && Number.isFinite(createdAt)
+    && Number.isFinite(now)
+    && createdAt <= now
+    && now - createdAt <= 600_000
