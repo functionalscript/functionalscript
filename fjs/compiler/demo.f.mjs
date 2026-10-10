@@ -69,7 +69,12 @@ export const outputs = [
  */
 export const _compiled = text => outputFileName => {
     const result = unwrap(virtual({ ...emptyState, root: { 'input.f.js': [utf8(text)] } })(_outputMarked('input.f.js', outputFileName))[1])
-    return result[0] === 'error' ? error(result[1][0]) : result
+    const [tag, value] = result
+    if (tag === 'error') {
+        const [message] = value
+        return error(message)
+    }
+    return result
 }
 
 /**
