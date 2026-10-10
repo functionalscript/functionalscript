@@ -182,7 +182,7 @@ mod tests {
         vm::{Any, ToAny, ToArray, ToObject},
     };
 
-    use super::same_graph;
+    use super::{Case, check, same_graph};
 
     type V = Any<Naive>;
 
@@ -196,6 +196,65 @@ mod tests {
 
     fn num(x: f64) -> V {
         x.to_any()
+    }
+
+    #[test]
+    fn outcomes_follow_the_independent_throw_marker() {
+        fn throws() -> Result<V, V> {
+            Err(Any::undefined())
+        }
+        fn value() -> Result<V, V> {
+            Ok(object([("default", Any::undefined())]))
+        }
+        for json in [Some(&b"1"[..]), None] {
+            let case = Case {
+                name: "regression",
+                fixture: throws,
+                expected: throws,
+                throws: false,
+                json,
+            };
+            assert!(check(&case).is_err());
+        }
+        let case = Case {
+            name: "throw",
+            fixture: value,
+            expected: value,
+            throws: true,
+            json: None,
+        };
+        assert!(check(&case).is_err());
+        assert_eq!(
+            check(&Case {
+                throws: false,
+                ..case
+            }),
+            Ok(())
+        );
+        assert_eq!(
+            check(&Case {
+                fixture: throws,
+                expected: throws,
+                ..case
+            }),
+            Ok(())
+        );
+        assert!(
+            check(&Case {
+                fixture: throws,
+                throws: false,
+                ..case
+            })
+            .is_err()
+        );
+        assert!(
+            check(&Case {
+                expected: throws,
+                throws: false,
+                ..case
+            })
+            .is_err()
+        );
     }
 
     /// `[shared, shared]` is one node reached twice; two equal copies are
