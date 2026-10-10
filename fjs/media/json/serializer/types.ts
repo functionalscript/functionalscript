@@ -10,12 +10,13 @@ import type { Assert } from '../../../asserts/types.ts'
 import type { Equal } from '../../../types/ts/types.ts'
 import type { List } from '../../../types/list/types.ts'
 import type { Tree, TreeMapEntries } from '../types.ts'
+import type { Chunk } from '../../../text/marked/types.ts'
 
 /**
  * A leaf's spelling as chunks. Public: every codec names it for its
  * `numberSerialize`.
  */
-export type LeafSerializer<V> = (value: V) => List<string>
+export type LeafSerializer<V> = (value: V) => List<Chunk>
 
 /**
  * The dialect-specific arms a leaf configuration may carry. Every member is a

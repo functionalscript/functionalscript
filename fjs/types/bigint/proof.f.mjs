@@ -727,6 +727,8 @@ export const proof = {
             }))
             assert(done.includes('log2'), done)
             assert(done.includes('1.3 ms'), done)
+            assert(done.includes('<pre data-code="">'), done)
+            assert(!done.includes('data-copy='), done)
         },
     },
 }

@@ -47,7 +47,7 @@
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { maxLengthBytes, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { concat, flat, toArray } from '../../types/list/module.f.mjs'
-import { startsWith, u32be } from '../bytes/module.f.mjs'
+import { startsWith, u32be } from '../bytes/module.f.js'
 
 /** The four bytes a pack begins with. */
 const signature = /** @type {const} */ ([0x50, 0x41, 0x43, 0x4B])

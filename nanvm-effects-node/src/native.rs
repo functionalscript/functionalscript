@@ -14,11 +14,16 @@ use crate::{
         encode_nullable, encode_number, encode_object, encode_ok, encode_string, encode_tuple,
         member, optional_argument, required,
     },
-    files::{self, Dirent, IoError, Stat},
+    common,
+    files::{self, Dirent, IoError, Stat, js_number},
     resolve::{FileModule, resolve_file_module},
 };
 use nanvm_lib::vm::{Any, Array, IVm, unstable::string_any};
-use std::io::{self, ErrorKind, Read, Write};
+use std::{
+    collections::HashMap,
+    fs::File,
+    io::{self, ErrorKind, Read, Write},
+};
 
 /// `NodeOp`'s commands, printed from `nodeCommands` in
 /// `fjs/effects/node/module.f.mjs`: a command outside them is a malformed
@@ -34,6 +39,12 @@ pub struct Native<R, O, E> {
     stdin: R,
     stdout: O,
     stderr: E,
+    /// The open files, by handle. A handle is the count of handles given before
+    /// it, so none is reused for another file, and a closed one is simply
+    /// absent: nothing is kept for it.
+    files: HashMap<u64, File>,
+    /// How many handles have been given.
+    opened: u64,
 }
 
 impl Native<io::Stdin, io::Stdout, io::Stderr> {
@@ -49,6 +60,8 @@ impl<R, O, E> Native<R, O, E> {
             stdin,
             stdout,
             stderr,
+            files: HashMap::new(),
+            opened: 0,
         }
     }
 
@@ -242,6 +255,60 @@ impl<R: Read, O: Write, E: Write> Native<R, O, E> {
                 let data = decode_array(argument(payload, 1, "data")?, decode_bytes)?;
                 Ok(answer(files::write_exclusive(&path, &data), encode_nothing))
             }
+            "open" => {
+                arity(payload, 1)?;
+                let path = decode_string(argument(payload, 0, "path")?)?;
+                let opened = files::open(&path).map(|file| {
+                    self.files.insert(self.opened, file);
+                    self.opened += 1;
+                    (self.opened - 1) as f64
+                });
+                Ok(answer(opened, encode_number))
+            }
+            "fstat" => {
+                arity(payload, 1)?;
+                let handle = self.handle(argument(payload, 0, "handle")?)?;
+                Ok(answer(handle.and_then(files::fstat), encode_stat))
+            }
+            "pread" => {
+                arity(payload, 3)?;
+                let handle = argument(payload, 0, "handle")?;
+                let offset = decode_number(argument(payload, 1, "offset")?)?;
+                let size = decode_number(argument(payload, 2, "size")?)?;
+                // The window first, as the Node runner: whatever the handle is,
+                // a bad window answers the window.
+                if let Err(refused) = files::check_window(offset, size) {
+                    return Ok(answer(Err(refused), encode_bytes));
+                }
+                let handle = self.handle(handle)?;
+                // An empty window reads nothing, so a closed handle answers it
+                // too, as the Node runner's `fill` does.
+                let read = if size == 0.0 {
+                    Ok(Vec::new())
+                } else {
+                    handle.and_then(|file| files::pread(file, offset, size))
+                };
+                Ok(answer(read, encode_bytes))
+            }
+            "close" => {
+                arity(payload, 1)?;
+                let handle = self.slot(argument(payload, 0, "handle")?)?;
+                // Closing twice is not an error, as `FileHandle.close()`.
+                self.files.remove(&handle);
+                Ok(encode_ok(encode_nothing(())))
+            }
+            "catch" => {
+                arity(payload, 1)?;
+                Ok(common::catch(argument(payload, 0, "f")?))
+            }
+            "sandbox" if common::CLOCK => {
+                arity(payload, 1)?;
+                Ok(common::sandbox(argument(payload, 0, "f")?))
+            }
+            "now" if common::CLOCK => {
+                arity(payload, 0)?;
+                Ok(common::now())
+            }
             "rm" => {
                 arity(payload, 1)?;
                 let path = decode_string(argument(payload, 0, "path")?)?;
@@ -250,6 +317,26 @@ impl<R: Read, O: Write, E: Write> Native<R, O, E> {
             _ if COMMANDS.contains(&command.as_str()) => Ok(not_implemented(&command)),
             _ => malformed_command(&command),
         }
+    }
+
+    /// The number a handle is. A value that is no handle this host gave is
+    /// thrown, as the Node runner's `asFileHandle` does.
+    fn slot<A: IVm>(&self, handle: Any<A>) -> Result<u64, Malformed> {
+        let number = decode_number(handle)?;
+        if number.fract() == 0.0 && number >= 0.0 && number < self.opened as f64 {
+            Ok(number as u64)
+        } else {
+            Err(Malformed(format!(
+                "{} is not a file handle",
+                js_number(number)
+            )))
+        }
+    }
+
+    /// The open file a handle names, or `EBADF` for one that was closed.
+    fn handle<A: IVm>(&self, handle: Any<A>) -> Result<Result<&File, IoError>, Malformed> {
+        let slot = self.slot(handle)?;
+        Ok(self.files.get(&slot).ok_or_else(files::bad_descriptor))
     }
 
     /// Writes all of `data` and flushes, so that it is out when this answers.
@@ -682,6 +769,226 @@ mod test {
         assert_eq!(tag, string_any("error"));
         assert_eq!(thrown("writeExclusive", [at("c"), hi()]), "not an array");
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// The `{code?, message}` of an `['error', ['ioError', info]]` answer.
+    #[cfg(not(target_family = "wasm"))]
+    fn error_info(answer: V) -> V {
+        let [tag, error]: [V; 2] = Array::try_from(answer)
+            .unwrap()
+            .into_iter()
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap();
+        assert_eq!(tag, string_any("error"));
+        let [_, info]: [V; 2] = Array::try_from(error)
+            .unwrap()
+            .into_iter()
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap();
+        info
+    }
+
+    /// The code of an `['error', ['ioError', {code}]]` answer.
+    #[cfg(not(target_family = "wasm"))]
+    fn error_code(answer: V) -> V {
+        nanvm_lib::vm::Object::try_from(error_info(answer))
+            .unwrap()
+            .own_property(&"code".into())
+            .unwrap()
+    }
+
+    /// `open`, `fstat`, `pread` and `close` through one host, which keeps the
+    /// handles: an index, never reused, and `EBADF` once closed.
+    #[cfg(not(target_family = "wasm"))]
+    #[test]
+    fn handles_through_perform() {
+        let dir =
+            std::env::temp_dir().join(format!("nanvm-effects-node-handles-{}", std::process::id()));
+        let at = |name: &str| string_any(&dir.join(name).to_string_lossy());
+        std::fs::create_dir_all(&dir).unwrap();
+        let undefined = || Nullish::Undefined.to_any();
+        let number = |n: f64| Number::from(n).to_any();
+        let member = |value: V, name: &str| {
+            nanvm_lib::vm::Object::try_from(value)
+                .unwrap()
+                .own_property(&name.into())
+                .unwrap()
+        };
+        ok(perform("writeFile", [at("a"), hi()]));
+        let mut h = host(b"");
+        let mut run = |command: &str, payload: Vec<V>| {
+            h.perform(string_any(command), payload.to_array().to_any())
+        };
+
+        let a = ok(run("open", vec![at("a")]));
+        assert_eq!(a, number(0.0));
+        let stat = ok(run("fstat", vec![a.clone()]));
+        assert_eq!(member(stat.clone(), "size"), number(2.0));
+        assert_eq!(member(stat, "isFile"), true.to_any());
+        let window = |at: f64, size: f64| vec![number(0.0), number(at), number(size)];
+        let bytes = |answer: Result<V, V>| decode_bytes(ok(answer)).unwrap();
+        assert_eq!(bytes(run("pread", window(0.0, 2.0))), b"hi");
+        assert_eq!(bytes(run("pread", window(1.0, 10.0))), b"i");
+        assert_eq!(bytes(run("pread", window(5.0, 1.0))), b"");
+
+        // The path is gone, and the handle still reads what it opened.
+        std::fs::remove_file(dir.join("a")).unwrap();
+        assert_eq!(bytes(run("pread", window(0.0, 2.0))), b"hi");
+
+        // A name that is not there answers `ENOENT` and mints no handle.
+        let missing = run("open", vec![at("none")]).unwrap();
+        assert_eq!(error_code(missing), string_any("ENOENT"));
+        #[cfg(unix)]
+        {
+            let directory = ok(run("open", vec![string_any(&dir.to_string_lossy())]));
+            assert_eq!(directory, number(1.0));
+            let stat = ok(run("fstat", vec![directory.clone()]));
+            assert_eq!(member(stat, "isDirectory"), true.to_any());
+            let read = run("pread", vec![directory.clone(), number(0.0), number(1.0)]).unwrap();
+            assert_eq!(error_code(read), string_any("EISDIR"));
+            assert_eq!(ok(run("close", vec![directory])), undefined());
+        }
+
+        assert_eq!(ok(run("close", vec![a.clone()])), undefined());
+        assert_eq!(ok(run("close", vec![a.clone()])), undefined());
+        let closed = run("fstat", vec![a.clone()]).unwrap();
+        assert_eq!(error_code(closed), string_any("EBADF"));
+        let closed = run("pread", window(0.0, 1.0)).unwrap();
+        assert_eq!(error_code(closed), string_any("EBADF"));
+        // An empty window reads nothing, so it needs no file.
+        assert_eq!(bytes(run("pread", window(0.0, 0.0))), b"");
+
+        // The window is checked before the handle, as the Node runner does.
+        let refused = run("pread", vec![a.clone(), number(-1.0), number(1.0)]).unwrap();
+        assert_eq!(
+            member(error_info(refused), "message"),
+            string_any("Offset -1 is negative")
+        );
+
+        let thrown = |result: Result<V, V>| decode_string(result.unwrap_err()).unwrap();
+        assert_eq!(
+            thrown(run("fstat", vec![number(99.0)])),
+            "99 is not a file handle"
+        );
+        assert_eq!(
+            thrown(run("close", vec![number(0.5)])),
+            "0.5 is not a file handle"
+        );
+        assert_eq!(
+            thrown(run("pread", vec![a, number(0.0)])),
+            "missing argument 2, `size`"
+        );
+        let refused = run("pread", vec![number(99.0), number(-1.0), number(1.0)]).unwrap();
+        assert_eq!(
+            member(error_info(refused), "message"),
+            string_any("Offset -1 is negative")
+        );
+
+        // Closing frees the file: nothing is kept for a handle that is closed.
+        assert_eq!(h.files.len(), 0);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    fn thunk(code: nanvm_lib::vm::StaticCode<Naive>) -> V {
+        use nanvm_lib::vm::IStaticFunction;
+        Naive::static_function(code, 0, [].to_array(), None).to_any()
+    }
+
+    #[cfg(not(all(target_family = "wasm", target_os = "unknown")))]
+    fn members(value: V, names: [&str; 2]) -> [V; 2] {
+        let object = nanvm_lib::vm::Object::try_from(value).unwrap();
+        names.map(|name| object.own_property(&name.into()).unwrap())
+    }
+
+    /// `catch` answers what the thunk did: `['ok', ['ok', value]]`, and a
+    /// throw as `['ok', ['error', thrown]]`, neither ending the run.
+    #[test]
+    fn catch_answers_what_the_thunk_did() {
+        let returned = ok(perform("catch", [thunk(|_, _| Ok(string_any("fine")))]));
+        assert_eq!(returned.to_json(), Ok("[\"ok\",\"fine\"]".into()));
+        let threw = ok(perform("catch", [thunk(|_, _| Err(string_any("boom")))]));
+        assert_eq!(threw.to_json(), Ok("[\"error\",\"boom\"]".into()));
+        // A value that is no function throws when it is called, which `catch` catches.
+        let not_callable = ok(perform("catch", [string_any("x")]));
+        let [tag, _]: [V; 2] = Array::try_from(not_callable)
+            .unwrap()
+            .into_iter()
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap();
+        assert_eq!(tag, string_any("error"));
+    }
+
+    /// `sandbox` answers `{result, duration}`, the duration a number of
+    /// milliseconds that is not negative.
+    /// Needs a clock, which `wasm32-unknown-unknown` does not have: `std` panics
+    /// on `Instant::now` and `SystemTime::now` there, WASI has them.
+    #[cfg(not(all(target_family = "wasm", target_os = "unknown")))]
+    #[test]
+    fn sandbox_answers_the_result_and_a_duration() {
+        for (code, expected) in [
+            (
+                (|_, _| Ok(string_any("fine"))) as nanvm_lib::vm::StaticCode<Naive>,
+                "[\"ok\",\"fine\"]",
+            ),
+            (|_, _| Err(string_any("boom")), "[\"error\",\"boom\"]"),
+        ] {
+            let answer = ok(perform("sandbox", [thunk(code)]));
+            let [result, duration] = members(answer, ["result", "duration"]);
+            assert_eq!(result.to_json(), Ok(expected.into()));
+            let milliseconds = f64::from(Number::try_from(duration).unwrap());
+            assert!((0.0..60_000.0).contains(&milliseconds));
+        }
+    }
+
+    /// `now` is whole milliseconds since the epoch, within the test's own bounds.
+    /// Needs a clock, which `wasm32-unknown-unknown` does not have: `std` panics
+    /// on `Instant::now` and `SystemTime::now` there, WASI has them.
+    #[cfg(not(all(target_family = "wasm", target_os = "unknown")))]
+    #[test]
+    fn now_is_the_epoch_in_milliseconds() {
+        let epoch = || {
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis() as f64
+        };
+        let before = epoch();
+        let answer = f64::from(Number::try_from(ok(perform("now", []))).unwrap());
+        let after = epoch();
+        assert!(before <= answer && answer <= after && answer.fract() == 0.0);
+    }
+
+    #[test]
+    fn the_thunk_operations_take_exactly_their_arguments() {
+        assert_eq!(thrown("catch", []), "missing argument 0, `f`");
+    }
+
+    #[cfg(not(all(target_family = "wasm", target_os = "unknown")))]
+    #[test]
+    fn the_clock_operations_take_exactly_their_arguments() {
+        assert_eq!(
+            thrown("sandbox", [hi(), hi()]),
+            "2 arguments where at most 1 are taken"
+        );
+        assert_eq!(
+            thrown("now", [hi()]),
+            "1 arguments where at most 0 are taken"
+        );
+    }
+
+    /// Without a clock the operations are refused, not trapped.
+    #[cfg(all(target_family = "wasm", target_os = "unknown"))]
+    #[test]
+    fn the_clock_operations_are_not_implemented_without_a_clock() {
+        for command in ["sandbox", "now"] {
+            assert_eq!(
+                perform(command, []).unwrap().to_json(),
+                Ok(format!("[\"error\",[\"notImplemented\",\"{command}\"]]"))
+            );
+        }
     }
 
     /// `resolveFileModule` through `perform`: the working directory is where
