@@ -281,10 +281,14 @@ impl<R: Read, O: Write, E: Write> Native<R, O, E> {
                     return Ok(answer(Err(refused), encode_bytes));
                 }
                 let handle = self.handle(handle)?;
-                Ok(answer(
-                    handle.and_then(|file| files::pread(file, offset, size)),
-                    encode_bytes,
-                ))
+                // An empty window reads nothing, so a closed handle answers it
+                // too, as the Node runner's `fill` does.
+                let read = if size == 0.0 {
+                    Ok(Vec::new())
+                } else {
+                    handle.and_then(|file| files::pread(file, offset, size))
+                };
+                Ok(answer(read, encode_bytes))
             }
             "close" => {
                 arity(payload, 1)?;
@@ -853,6 +857,8 @@ mod test {
         assert_eq!(error_code(closed), string_any("EBADF"));
         let closed = run("pread", window(0.0, 1.0)).unwrap();
         assert_eq!(error_code(closed), string_any("EBADF"));
+        // An empty window reads nothing, so it needs no file.
+        assert_eq!(bytes(run("pread", window(0.0, 0.0))), b"");
 
         // The window is checked before the handle, as the Node runner does.
         let refused = run("pread", vec![a.clone(), number(-1.0), number(1.0)]).unwrap();
