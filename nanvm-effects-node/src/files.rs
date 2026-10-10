@@ -452,10 +452,11 @@ fn exclusive(path: &str) -> io::Result<File> {
 /// `close`. As in the Node runner that failure does not remove the file, which
 /// is left behind, where a failed write removes it (`todo/close-errors.md`).
 pub fn write_exclusive(path: &str, data: &[Vec<u8>]) -> Result<(), IoError> {
-    write_exclusive_with(path, |file| {
-        data.iter().try_for_each(|d| file.write_all(d))?;
-        sync(file)
-    })
+    write_exclusive_with(
+        path,
+        |file| data.iter().try_for_each(|d| file.write_all(d)),
+        sync,
+    )
 }
 
 fn write_exclusive_with(
