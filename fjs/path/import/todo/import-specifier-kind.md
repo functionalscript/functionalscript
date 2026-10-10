@@ -31,13 +31,13 @@ one of the sites rather than in the module that owns it.
 
 `fjs/path/import` exports the classification — one function answering
 `'relative'`, `'rooted'` or `'bare'`, or a predicate over the first two —
-and the listed callers ask it. The website's narrower rule is then either a
+and the three callers ask it. The website's narrower rule is then either a
 documented choice made on top of the classification, or gone.
 
 ### Tasks
 
 - [ ] Export the classifier with a proof at 100%.
-- [ ] Move the listed sites onto it; decide and document `browser-source`'s
+- [ ] Move the three sites onto it; decide and document `browser-source`'s
       rooted case.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
 

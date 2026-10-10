@@ -6,7 +6,7 @@
 ### Problem
 
 `asyncImport` in [`module.mjs`](../module.mjs) turns a name into something
-`import()` accepts with string tests: `v.includes(':') ? v :
+`import()` accepts with two string tests: `v.includes(':') ? v :
 concat(process.cwd())(v)`, then prefix `file:///` unless already present.
 The `resolveFileModule` operation in the same map already uses
 `pathToFileURL`, `new URL(name, parent)` and `fileURLToPath`, but its input

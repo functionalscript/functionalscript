@@ -22,7 +22,7 @@ The writers deliberately differ in what they emit
 (`function_text`'s module doc: "separate from the source writer's FJS
 round-trip contract"). The naming scheme — `${path}/arg${k}`,
 `${path}/rest` — is the one thing they must agree on, since each resolves
-names the other also writes, and it is the thing they repeat.
+names the other also writes, and it is the thing written twice.
 
 ### Proposal
 

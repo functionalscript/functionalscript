@@ -7,7 +7,7 @@
 
 [`nanvm-lib`](../../nanvm-lib/src/vm/string/from.rs) implements
 `From<String<A>> for std::string::String`, documented as lossy: a lone
-surrogate becomes U+FFFD. The listed sites write the same conversion again,
+surrogate becomes U+FFFD. Two places write the same conversion again,
 collecting the code units into a `Vec<u16>` and calling
 `String::from_utf16_lossy`:
 
@@ -25,5 +25,5 @@ entry.
 
 ### Tasks
 
-- [ ] The listed sites onto the `From` impl; `cargo test`, `cargo clippy`,
+- [ ] Both sites onto the `From` impl; `cargo test`, `cargo clippy`,
       `cargo fmt -- --check`.

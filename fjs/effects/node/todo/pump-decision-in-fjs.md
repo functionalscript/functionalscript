@@ -8,7 +8,7 @@
 A streamed response body is checked against its declared length as it is
 pulled: a cell that fails destroys, a body that ends short of the length is
 an underrun, a chunk that would pass it is an overrun, and otherwise the
-chunk is taken and the count advances. Each runner makes that decision:
+chunk is taken and the count advances. That decision is made twice:
 
 - `pumpBody` in [`module.mjs`](../module.mjs), for the Node runner:
   `if (bound !== null && written !== bound) { res.destroy(); return }` and
@@ -39,7 +39,7 @@ comparison of its own.
 
 - [ ] `pumpCell` with a proof at 100%, covering `null` and bounded
       lengths at each edge.
-- [ ] The listed pumps over it, behaviour unchanged; `node --test` to exit 0.
+- [ ] Both pumps over it, behaviour unchanged; `node --test` to exit 0.
 
 ### Related
 

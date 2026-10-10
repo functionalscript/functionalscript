@@ -6,8 +6,8 @@
 ### Problem
 
 Which operands a node establishes unconditionally, and which only when it
-decides to, is a property of the EDAG. Consumers classify their own
-representations independently:
+decides to, is a property of the EDAG. It is written three times, by three
+consumers, over three representations:
 
 - [`fjs/compiler/serializer`](../../compiler/serializer/module.f.mjs)
   keeps private `operands`, `lazyOperands`, `allOperands`,
@@ -50,7 +50,7 @@ The null receiver must fail at the property read with `argument` untouched;
 hoisting `x` before the access throws `'argument'` instead. This is a
 serializer ordering defect, not an unresolved language decision. It is the
 drift [DESIGN.md §4](../../../doc/DESIGN.md#4-reuse-dry-and-separation-of-concerns)
-describes: a rule with several owners has no owner.
+describes: a rule with three owners has no owner.
 
 ### Proposal
 

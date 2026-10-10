@@ -38,7 +38,11 @@ header still have separate implementations in each generator.
 Two item helpers in `fjs/edag/rust`, sharing the owner chosen by
 `let-bindings-owner`: `constSlice(doc, name, type, rows, formatRow)` and
 `generatedHeader(source, instruction)`. Literal spelling stays in
-`fjs/media/rust`.
+`fjs/media/rust`. The helpers take strings and a row formatter, never an
+`Exp` or any other EDAG type: `nanvm/commands` imports only `effects/node`
+today, and a const table should not make it a consumer of the printer's
+graph machinery. Keeping the signatures plain also keeps a later move
+into an item module of their own cheap.
 
 `constSlice` owns the documentation, annotation, declaration, row order,
 indentation, commas and closing line. Rows keep the caller's own type;

@@ -9,7 +9,7 @@ Which token kinds are trivia — `ws`, `nl`, `//`, `/*` — is a fact of the
 JavaScript token grammar in [this module](../module.f.mjs), which already
 exports `mergeTrivia` "stated once, here, so that every reader of the
 grammar folds by the same rule". The membership test is not exported, and
-readers wrote their own:
+two readers wrote it:
 
 - `isTrivia` in [`fjs/compiler/tokenizer`](../../../../compiler/tokenizer/module.f.mjs),
   over a kind;
@@ -22,8 +22,8 @@ and nothing says so at either.
 
 ### Proposal
 
-Export `isTrivia(kind)` beside `mergeTrivia`; the listed readers import it.
+Export `isTrivia(kind)` beside `mergeTrivia`; both readers import it.
 
 ### Tasks
 
-- [ ] Export, prove, and replace the listed copies.
+- [ ] Export, prove, and replace the two copies.

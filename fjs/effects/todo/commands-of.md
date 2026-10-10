@@ -20,8 +20,8 @@ for the same reason".
 
 `commandsOf` in [`fjs/effects`](../module.f.mjs), next to the
 [`CommandSet` and `Commands` types](../types.ts): the one justified cast,
-once. The listed sites call it.
+once. The three sites call it.
 
 ### Tasks
 
-- [ ] `commandsOf`, proven; the listed sites onto it.
+- [ ] `commandsOf`, proven; the three sites onto it.
