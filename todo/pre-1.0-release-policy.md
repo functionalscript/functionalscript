@@ -40,6 +40,9 @@ consistent versioning policy.
       adapting it if needed for the current code so upgrading to that release
       preserves the fix. If `main` already contains the fix, record that in the
       urgent-fix PR.
+      Check newer released lines for the same defect and promptly publish an
+      urgent fix on every affected newer line, including the newest line used
+      by `latest`. Do not leave those users waiting for the next regular release.
 
 ### After 1.0
 
