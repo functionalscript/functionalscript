@@ -5,23 +5,55 @@ shipped in it — not once per pull request. This file is the procedure.
 [README.md](./README.md) is the format those entries are written in and the
 versioning rule they feed.
 
-A pull request owes the changelog one thing, and only when it applies: a
-`Changelog:` section in its description whose items are prefixed
-`**BREAKING CHANGES:**` where the public API breaks
-([CONTRIBUTING.md](../CONTRIBUTING.md#commit-messages)). That declaration is the
-version-bump signal and nothing derives it from a diff. Everything else — what
-the release notes say, how entries are grouped, how long they are — is decided
-here, at release time, by one author with the whole window in view.
+Before 1.0, `Changelog:` sections and `**BREAKING CHANGES:**` notices are
+optional. Read descriptions and diffs for notable changes rather than treating
+absence of a marker as evidence of compatibility. The release policy after 1.0
+remains [undecided](../todo/post-1.0-release-policy.md).
 
-**The release author's job is to identify what broke, and nothing else.** Read
-every pull request in the window, collect the declarations, group by net effect,
-choose the number, write the file. A release pull request carries the version
-bump, the changelog file, and the deletion of `changelog/unreleased/` when it
-still exists — **no unrelated work**. Something worth fixing that the window
-turns up is a `todo/` file or its own pull request, never a commit here: a
-release that also changes behaviour cannot be reviewed as a release, and a break
-the release itself introduces is invisible to the procedure that just finished
-declaring the window's breaks.
+**The release author's job is to collect the net changes and choose the release
+number.** Read every pull request in the window, group by net effect, and write
+the file. A release PR carries the version bump, the changelog file, and deletion
+of `changelog/unreleased/` when it exists. Fixes discovered while preparing a
+regular release belong in their own PR, not in the release metadata PR.
+
+## Urgent fixes before 1.0
+
+The numbered procedure below describes regular releases from `main`. An urgent
+fix deliberately uses a different branch and window:
+
+1. Find and verify the corresponding `0.X.0` release commit using step 1.
+   Branch from that exact commit, not today's `main`. For a further urgent fix,
+   find and verify the preceding `0.X.P` fix release commit in the maintenance
+   branch's first-parent history and branch from that commit instead.
+2. Apply only the urgent fixes, updating importers and running the full checks
+   required by [AGENTS.md](../AGENTS.md). Review fix PRs against this maintenance
+   branch. Once maintenance publishing is implemented, backport only the
+   workflow support it needs; do not merge later development into the branch.
+3. Collect the notes over `<previous-release>..<maintenance-tip>`, using that
+   tip instead of `origin/main` throughout steps 2–4 and the final scan. Bump
+   `package.json` and `package-lock.json` to `0.X.1` (then `0.X.2`, etc.) and
+   write the matching changelog file in a release PR against the maintenance
+   branch. Verify its final scanned tip before merging.
+4. Publishing this maintenance branch is tracked separately in
+   [maintenance release publishing](../fjs/ci/todo/maintenance-release-publishing.md).
+   The current generated workflow publishes only pushes to `main`; it does not
+   provide a maintenance-branch trigger. Implement and verify that follow-up
+   before publishing a maintenance release. Never merge later development into
+   the maintenance branch just to use the main publisher, or overwrite a
+   published version.
+5. Carry every fix forward to `main` through a separate PR **before the next
+   regular release**, adapting it to current code if needed so upgrading retains
+   the fix. Leave urgent `package.json` and `package-lock.json` version changes
+   on the maintenance branch. After publication, copy `changelog/0.X.P.md`
+   unchanged into `main` in the forward-port PR, or in a separate archival PR
+   if the fix is already on `main`. Retain that file even if the maintenance
+   branch is deleted, so the website keeps the urgent release in its history.
+   If `main` already contains a fix, record that in the urgent-fix PR.
+   The next regular release collects the forward-port PR normally and uses the
+   next minor with patch zero.
+6. Check newer released lines for the same defect and promptly publish an urgent
+   fix on every affected newer line, including the newest line used by `latest`.
+   Do not leave those users waiting for the next regular release.
 
 ## Why the collection happens here
 
@@ -107,17 +139,18 @@ pull request number. Three cautions, each of which has cost a release note:
   step 4 depends on reading in the order things happened: without it a
   superseded state is read as the release's final effect.
 - **A line with no `(#NNN)` gives you no pull request to open.** It still
-  shipped, and the line names nothing to read, so **read its diff and declare
-  for it**. A break you find there enters step 5's set exactly as an author's
-  would. Two things produce such a line, and they differ in what exists behind
+  shipped, and the line names nothing to read, so **read its diff and collect
+  its notable changes for the release notes**. Group them by net effect in
+  step 4, like changes from pull requests. Before 1.0, a formal breaking notice
+  is optional and does not select the version bump. Two things produce such a
+  line, and they differ in what exists behind
   it: a direct push never had a pull request, so no reviewed description exists
   anywhere; a rebase merge had one whose description the line does not name — if
   you can find it, read it, but the diff is what you are guaranteed. Until the
   repository settings in
   [commit-message-enforcement](../todo/commit-message-enforcement.md) forbid
-  both, this is the one input to the version decision whose declaration — if one
-  was ever written — is not reachable from the line, which is what makes the
-  diff the thing you read. Release `0.41.0` (`7b979e74`) landed this way.
+  both, its description — if one was ever written — is not reachable from the
+  line, which is what makes the diff the thing you read. Release `0.41.0` (`7b979e74`) landed this way.
 
 Merge order is not pull-request-number order — a pull request opened earlier can
 merge later — and merge order is the one to use.
@@ -143,8 +176,7 @@ would notice:
 3. the diff (`git show --first-parent <commit>`), when the description does not
    settle it — the flag for the same reason as in step 1.
 
-Collect every `**BREAKING CHANGES:**` declaration as you go; step 5 needs all of
-them.
+Collect notable API changes, including any optional breaking-change notices.
 
 **While `changelog/unreleased/` can still receive files, it is a fourth source,
 and it is not optional.** That is the transitional release and any release after
@@ -167,14 +199,9 @@ section to be exhaustive. Reading only the merge commits would undercount the
 breaks by four — four breaking changes a reader of the release notes never
 learns about.
 
-It did not get that window's version wrong: the other nine declarations do
-appear in their merge bodies — somewhere in them, which is the instrument that
-matters here, since step 3 is a person reading a description rather than a
-parser keyed on one shape — and one surviving break already forces a minor.
-That was an accident of that window rather than a property of the procedure — a
-window whose declarations were all of the invisible kind would take a patch for
-a release that breaks the API — and it is why the directory is read in full
-rather than sampled.
+Under the former declaration-driven policy, those omissions could also choose
+an incorrect patch version. Regular pre-1.0 releases now always advance the
+minor; the files still matter for complete release notes.
 
 Read those files **from `origin/main`, not from the working tree**, for the same
 reason step 2 lists `origin/main`: a pull request opened under the old policy can
@@ -204,7 +231,7 @@ drops `--name-only`. A late pull request can *correct* an entry that is already
 recorded, adding the `**BREAKING CHANGES:**` its author first left out, and the
 path is then identical in both listings while the content is not. Paths alone
 call that unchanged and never re-read it, and the branch has already deleted its
-copy, so the correction reaches neither the notes nor the version. The blob id
+copy, so the correction never reaches the notes. The blob id
 moves whenever the content does, so the line comparison catches an amended entry
 and a new one alike.
 
@@ -222,9 +249,7 @@ listing was deleted on `main`, and that needs reading rather than obeying:
 **deleting the note is not retracting the change.** The likeliest reason for a
 legacy entry file to disappear is housekeeping — the new policy adds no such
 files, so someone tidied one away — and the API change it described still
-shipped. Dropping its declaration then turns a minor into a patch while the
-break is still in the release, which is the failure this whole section exists to
-prevent.
+shipped. Dropping its note would hide that change from readers.
 
 So content that disappears removes **raw notes only** — a whole path gone from
 the listing, or the declaration alone gone from a path that is still there. The
@@ -269,18 +294,19 @@ release, not its history:
   it landed, referencing all of them.
 - A feature added and then renamed before it shipped is reported under the name
   it shipped with.
-- A break introduced and reverted inside the window is **not a break** — not in
-  the entries and not in the version number. Say so in the release pull
-  request's description, so that the reasoning is reviewed rather than inferred
+- A break introduced and reverted inside the window is **not a break** in the
+  entries. Say so in the release
+  pull request's description, so that the reasoning is reviewed rather than inferred
   from an absence.
 
 ### 5. Choose the version number
 
-The rule and its table are in
-[README.md](./README.md#breaking-changes-and-versioning). The input is the set
-of `**BREAKING CHANGES:**` declarations collected in step 3, minus any the
-window itself undid (step 4): at least one surviving break means the release
-cannot be a patch.
+The policy is in
+[README.md](./README.md#breaking-changes-and-versioning). Before 1.0, regular
+releases increment the highest released minor and reset the patch: `0.X.0`.
+Markers do not select the bump. Urgent fixes follow the maintenance-branch
+procedure above. The release policy after 1.0 remains undecided; this procedure
+does not choose future notice requirements or version-bump rules.
 
 ### 6. Write `changelog/X.Y.Z.md`
 
@@ -314,10 +340,13 @@ Titled `Release X.Y.Z`. It bumps `"version"` in `package.json` (and
 triggers the `npm publish` workflow. Before merging:
 
 - [ ] the version in `package.json` matches the changelog file name
+- [ ] for a regular release, every urgent release-line fix is present in `main`,
+      adapted if necessary so upgrading preserves it; urgent-fix PRs record
+      fixes already present in `main`
 - [ ] every pull request in the window was read, and the count was cross-checked
-- [ ] every `**BREAKING CHANGES:**` declaration is either in an entry or
-      explicitly accounted for as undone — including the ones that exist only in
-      `changelog/unreleased/` (step 3)
+- [ ] every notable API change is covered, and any optional breaking notices
+      are accounted for as shipped or undone — including the ones that exist
+      only in `changelog/unreleased/` (step 3)
 - [ ] **immediately before merging, fetch and re-run step 2 against
       `origin/main` one last time** — and again after any update from `main`,
       which is *a* reason to re-list rather than the only one. A pull request
@@ -328,8 +357,8 @@ triggers the `npm publish` workflow. Before merging:
       that case: the branch never moved, so nothing prompts a rescan, and the
       note is absent from a release that carries the code. Extend
       `changelog/X.Y.Z.md` with whatever the final listing adds, and re-check
-      the version number against any break it brings — a late arrival can turn a
-      patch into a minor.
+      the version number under the current policy. Before 1.0 this remains a
+      regular minor release, regardless of late breaking changes.
 - [ ] **record the tip you scanned, and merge only that tip.** "Immediately
       before" narrows the race between the scan and the merge; it does not close
       it, and a pull request that lands in between still becomes an ancestor of
@@ -389,9 +418,10 @@ Two other designs were considered and rejected:
   sections are written one pull request at a time, so they carry the churn of
   step 4 into the release notes.
 
-What the previous scheme got right is kept: the `**BREAKING CHANGES:**` marker
-as a reviewed, per-pull-request declaration, the versioning table it feeds, and
-every released file exactly as it was published.
+Every released file stays as published. Breaking-change markers remain useful
+optional context before 1.0; the release policy after 1.0 remains undecided. The old
+pre-1.0 declaration-driven versioning rule has been replaced by regular minor
+releases and urgent fixes on maintenance branches.
 
 ## Transition
 

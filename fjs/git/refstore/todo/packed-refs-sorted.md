@@ -40,7 +40,8 @@ What is worth having is the *other* half — the lookup that does not scan.
 
 - [`fjs/git/ref`](../../ref/module.f.mjs)'s `tryPacked` answers the traits beside
   the records, rather than skipping the header comment. That is a change to what
-  it returns, so it is a declared break in whichever pull request makes it.
+  it returns, so explain the API change in whichever PR makes it. A breaking
+  notice is optional before 1.0.
 - `packedId` bisects where `sorted` is claimed and scans where it is not, which
   is what Git does and what the trait is for. A name found by bisection is found
   in the logarithm of the file rather than a pass over it.

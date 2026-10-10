@@ -253,14 +253,18 @@ A PR implements only one feature or improvement, with minimal code changes, and
 every check above passing. Its title and description become the merge commit
 on `main`, so write them as one: a `<topic>: <short description>` title and a
 description. **A PR adds no changelog file** — the changelog is written once per
-release, from the PRs that shipped in it. What a PR owes is one declaration:
-when it **breaks the public API**, a `Changelog:` section — the last section of
-the description before any trailer block — with an item prefixed
-`**BREAKING CHANGES:**`. That is required, because nothing derives a break from
-a diff and the release reads it to pick the version number. For a non-breaking
-change the section is optional raw material for the release author, and a PR
-that changes no observable behavior omits it. Breaking changes are welcome when
-they improve the API — declare it and update every importer in the same PR.
+release, from the PRs that shipped in it. Release PRs write those files;
+forward-port or archival PRs may copy already-published urgent-release notes
+unchanged to `main` ([release procedure](./changelog/RELEASE.md#urgent-fixes-before-10)).
+Before 1.0, `Changelog:` sections and
+`**BREAKING CHANGES:**` notices are optional; regular releases are `0.X.0`,
+regardless of whether their changes break the API. Urgent fixes start at
+`0.X.1`, based on the corresponding `0.X.0` release commit; further fixes
+increment the patch from the previous fix release. A PR that changes no
+observable behavior omits the section. Breaking changes are welcome when they
+improve the API — explain them and update every importer in the same PR.
+The release policy after 1.0 remains undecided
+([post-1.0 release policy](./todo/post-1.0-release-policy.md)).
 
 **Merge the knowledge.** A small step merged with what was learned written down
 beats two hundred iterations of a PR that never lands. Answer a review, don't
