@@ -31,7 +31,7 @@ export const toText = marked => marked.map(([text]) => text).join('')
 export const keyword = word => [word, 'keyword']
 
 /**
- * A literal word: `undefined`, `null`, `true`, `false`.
+ * A literal word: `undefined`, `null`, `true`, `false`, `NaN`, `Infinity`.
  *
  * @type {(word: string) => Run}
  */
