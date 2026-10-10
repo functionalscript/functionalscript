@@ -35,6 +35,7 @@ const scheme = { width: 5, stop: true }
 export const groupsOf = bitGroups(scheme, vecToCBase32)
 
 export const demo = bitGroupDemo({
+    intro: 'Encodes UTF-8 text as CBase32. The same bits are shown first as bytes and then as five-bit groups, with the encoded character under each group; a stop bit marks the end of the data.',
     name: 'CBase32',
     how: '5 bits per character, then a stop bit',
     scheme,

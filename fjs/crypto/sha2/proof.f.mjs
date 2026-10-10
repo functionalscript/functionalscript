@@ -342,6 +342,7 @@ export const proof = {
          */
         view: () => {
             const empty = htmlToString(demo.view(demo.init))
+            assert(empty.startsWith('<!DOCTYPE html><div><p>Hashes UTF-8 text with the selected SHA-2 algorithm and shows the digest in hexadecimal. Use the OpenSSL command below the result to check it independently.</p><p><label'), empty)
             assert(empty.includes('name="algorithm"'), empty)
             assert(empty.includes('name="text"'), empty)
             assert(empty.includes(digest('')), empty)

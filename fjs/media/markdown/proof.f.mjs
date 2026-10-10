@@ -158,7 +158,7 @@ export const proof = {
         // A file that does not parse is said so, not swallowed, and draws no list.
         error: () => {
             const html = htmlToString(demo.view('- ' + tick + 'unclosed'))
-            assert(html.includes('Error:'), html)
+            assert(html.includes('Refused:</p><pre data-result="error">'), html)
             assert(!html.includes('<ol>'), html)
         },
         view: () => assert(htmlToString(demo.view(demo.init)).includes('name="changelog"')),

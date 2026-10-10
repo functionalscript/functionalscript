@@ -1,5 +1,6 @@
 /** @import { DemoEvent } from '../../website/demo/types.ts' */
 
+import { powResultMarker, stylesheet } from '../../website/style/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { empty, uint } from '../../types/bit_vec/module.f.mjs'
 import { computeSync, sha224, sha256 } from '../sha2/module.f.mjs'
@@ -73,6 +74,10 @@ export const proof = {
         view: () => {
             // Independent Node crypto.createHash vectors pin both failed and successful nonces.
             const failed = htmlToString(demo.view(demo.init))
+            assertEq(powResultMarker, 'data-pow-result')
+            assert(failed.includes('data-pow-result=""'), failed)
+            assert(stylesheet.includes('[data-pow-result][data-result] { align-items: center; display: flex;'), 'PoW verdict layout')
+            assert(stylesheet.includes('[data-pow-result] > svg { flex-shrink: 0;'), 'PoW verdict icon')
             assert(failed.includes('<textarea id="text" name="text" rows="8">Hello, FunctionalScript!</textarea>'), failed)
             assert(failed.includes('name="next-nonce"'), failed)
             assert(failed.includes('Try next nonce'), failed)
