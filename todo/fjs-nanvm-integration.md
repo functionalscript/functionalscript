@@ -272,7 +272,7 @@ module and is excluded. At that revision, `js/array_index` and `types/set`
 imported other `.f.mjs` modules, so they were no longer leaves. The eighteen-row
 table above records the earlier dependency graph.
 
-At `7d8c3991`, all 16 leaves still fail the compiler from that same revision.
+At `b300aa20c`, all 16 leaves still fail the compiler from that same revision.
 The table gives each first reported refusal after escape normalization, rather
 than a complete list of blockers; the historical feature analysis above
 remains useful for the other restrictions.
@@ -282,7 +282,7 @@ remains useful for the other restrictions.
 | `ci/package` | template literal, 32:56 |
 | `git/bytes` | computed key is not `Number(...)`, 25:35 |
 | `git/config` | template literal, 398:60 |
-| `js/keywords` | `new Set`, 101:24 |
+| `js/keywords` | `new Set`, 103:24 |
 | `nanvm/member` | template literal, 335:13 |
 | `nanvm/methods` | template literal, 125:21 |
 | `types/function` | `let`, 33:5 |
@@ -298,7 +298,7 @@ remains useful for the other restrictions.
 
 Unsupported string escapes in these leaves have supported, value-preserving
 spellings, so they need no new language feature. The replacement counts and
-source positions below are measured at `7d8c3991`:
+source positions below are measured at `b300aa20c`:
 
 | Replacement | Where | Occurrences |
 | --- | --- | ---: |
