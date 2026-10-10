@@ -463,23 +463,33 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
         let c9: Any<A> = [c8].to_array().to_any();
         let c10: Any<A> = A::static_function(|_self, args| {
             let c0: Any<A> = Any::dot(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), string_any("result")).end()?;
-            let c1: Any<A> = Any::dot(c0, f64_any(0x3ff0000000000000)).end()?;
-            let c2: Any<A> = (strict_eq(c1, f64_any(0x4000000000000000)))?;
+            let c1: Any<A> = Any::dot(c0, f64_any(0x0000000000000000)).end()?;
+            let c2: Any<A> = (strict_eq(c1, string_any("ok")))?;
             let c3 = || {
-                let c4: Any<A> = Any::dot(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), string_any("duration")).end()?;
-                Any::ge(c4, f64_any(0x0000000000000000))
+                let c4: Any<A> = Any::dot(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), string_any("result")).end()?;
+                let c5: Any<A> = Any::dot(c4, f64_any(0x3ff0000000000000)).end()?;
+                strict_eq(c5, f64_any(0x4000000000000000))
             };
-            Any::logical_and(c2, c3)
-        }, 1, Array::default(), Some("($0)=>$0.result[1]===2&&$0.duration>=0")).to_any();
+            let c6: Any<A> = (Any::logical_and(c2, c3))?;
+            let c7 = || {
+                let c8: Any<A> = Any::dot(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), string_any("duration")).end()?;
+                Any::ge(c8, f64_any(0x0000000000000000))
+            };
+            Any::logical_and(c6, c7)
+        }, 1, Array::default(), Some("($0)=>$0.result[0]===\"ok\"&&$0.result[1]===2&&$0.duration>=0")).to_any();
         let c11: Any<A> = Any::call(c0.clone(), [string_any("sandbox"), c9, c10].to_array().to_any())?;
-        let c12: Any<A> = A::static_function(|_self, args| { Any::gt(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), f64_any(0x426d1a94a2000000)) }, 1, Array::default(), Some("($0)=>$0>1000000000000")).to_any();
+        let c12: Any<A> = A::static_function(|_self, args| {
+            let c0: Any<A> = (Any::gt(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), f64_any(0x426d1a94a2000000)))?;
+            let c1 = || Any::lt(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), f64_any(0x42d6bcc41e900000));
+            Any::logical_and(c0, c1)
+        }, 1, Array::default(), Some("($0)=>$0>1000000000000&&$0<100000000000000")).to_any();
         let c13: Any<A> = Any::call(c0.clone(), [string_any("now"), Array::default().to_any(), c12].to_array().to_any())?;
         let c14: Any<A> = Any::call(c13, [A::frame(self_)[2].clone()].to_array().to_any())?;
         let c15: Any<A> = Any::call(c11, [c14].to_array().to_any())?;
         let c16: Any<A> = Any::call(c7, [c15].to_array().to_any())?;
         let c17: Any<A> = Any::call(c4, [c16].to_array().to_any())?;
         Any::call(c17, [Array::default().to_any()].to_array().to_any())
-    }, 1, [c1.clone(), c93, c6.clone()].to_array(), Some("($3)=>$0(\"catch\",[()=>7],($4)=>$4[0]===\"ok\"&&$4[1]===7)($0(\"catch\",[$1],($5)=>$5[0]===\"error\"&&$5[1]===\"boom\")($0(\"sandbox\",[()=>2],($6)=>$6.result[1]===2&&$6.duration>=0)($0(\"now\",[],($7)=>$7>1000000000000)($2))))([])")).to_any();
+    }, 1, [c1.clone(), c93, c6.clone()].to_array(), Some("($3)=>$0(\"catch\",[()=>7],($4)=>$4[0]===\"ok\"&&$4[1]===7)($0(\"catch\",[$1],($5)=>$5[0]===\"error\"&&$5[1]===\"boom\")($0(\"sandbox\",[()=>2],($6)=>$6.result[0]===\"ok\"&&$6.result[1]===2&&$6.duration>=0)($0(\"now\",[],($7)=>$7>1000000000000&&$7<100000000000000)($2))))([])")).to_any();
     let c95: Any<A> = [string_any("ok"), true.to_any()].to_array().to_any();
     let c96: Any<A> = [string_any("ok"), true.to_any()].to_array().to_any();
     let c97: Any<A> = [string_any("ok"), true.to_any()].to_array().to_any();
