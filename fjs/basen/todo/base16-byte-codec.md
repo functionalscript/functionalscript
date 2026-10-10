@@ -76,7 +76,7 @@ and which stay with the consumer, is the design question. `baseN` in
 it is a neighbour here rather than the answer.
 
 For digit runs, let `digitsValue` take radix 16 through `hexDigitValue`, or
-give it a hexadecimal sibling, so the three readers above ask `text/ascii`.
+give it a hexadecimal sibling, so the readers above ask `text/ascii`.
 
 ### Tasks
 

@@ -27,22 +27,29 @@ hand, line by line, and the same few items are spelled at each:
   would be written as Rust that does not compile.
 
 [`fjs/media/rust`](../../media/rust/module.f.mjs) owns literal spelling
-and explicitly excludes expressions and items. The shared item layer
-belongs to [`fjs/edag/rust`](../../edag/rust/module.f.mjs), as
-[let-bindings-owner](../../edag/rust/todo/let-bindings-owner.md) proposes
-for bindings and function wrappers. The `const` slice and generated-file
-header still have separate implementations in each generator.
+and its doc leaves expressions and items to each generator.
+[let-bindings-owner](../../edag/rust/todo/let-bindings-owner.md) claims
+the item layer for [`fjs/edag/rust`](../../edag/rust/module.f.mjs), but
+that module is the EDAG printer: it imports the EDAG layer and
+`compiler/serializer`, so a const table that imported from it would make
+`nanvm/commands`, which imports only `effects/node` today, a consumer of
+the whole graph machinery for the sake of some quoted rows. The items
+these generators share need no `Exp`: they are spelled over strings, one
+layer above the literals and below any printer. Nothing owns that layer,
+so each generator is its owner.
 
 ### Proposal
 
-Two item helpers in `fjs/edag/rust`, sharing the owner chosen by
-`let-bindings-owner`: `constSlice(doc, name, type, rows, formatRow)` and
+An item module beside the literals, `fjs/media/rust/item/module.f.mjs`,
+that imports `fjs/media/rust` and nothing of the EDAG: the layer of Rust
+items spelled over strings. Its first two exports are
+`constSlice(doc, name, type, rows, formatRow)` and
 `generatedHeader(source, instruction)`. Literal spelling stays in
-`fjs/media/rust`. The helpers take strings and a row formatter, never an
-`Exp` or any other EDAG type: `nanvm/commands` imports only `effects/node`
-today, and a const table should not make it a consumer of the printer's
-graph machinery. Keeping the signatures plain also keeps a later move
-into an item module of their own cheap.
+`fjs/media/rust`, whose doc sentence leaving items to the generator is
+amended to name the sibling. Items that take an `Exp` — the `let` line
+`let-bindings-owner` proposes — stay with the printer in `fjs/edag/rust`;
+its string-level `skipFn` is a candidate for this module too, decided
+there.
 
 `constSlice` owns the documentation, annotation, declaration, row order,
 indentation, commas and closing line. Rows keep the caller's own type;
@@ -63,8 +70,9 @@ provenance and edit instruction, and the generated Rust's behavior.
 
 ### Tasks
 
-- [ ] The two helpers in `fjs/edag/rust` with a proof at 100%, including
-      row order and propagation of a row formatter's refusal.
+- [ ] The item module with the two helpers and a proof at 100%, including
+      row order and propagation of a row formatter's refusal; `fjs/media/rust`'s
+      doc amended to name it.
 - [ ] Prove each generator's row formatter escapes quotes and backslashes
       in every string field and refuses lone surrogates. For harness rows,
       use a separate valid module identifier and prove the Rust references
@@ -78,8 +86,8 @@ provenance and edit instruction, and the generated Rust's behavior.
 ### Related
 
 - [let-bindings-owner](../../edag/rust/todo/let-bindings-owner.md) — the
-  same `fjs/edag/rust` item owner for bindings and function wrappers; this
-  issue adds shared slice and header helpers for the table generators too.
+  `Exp`-level items the printer keeps; its string-level `skipFn` may join
+  the item module this issue adds, and that issue decides.
 - [generated-rust-module-rustfmt-skip](../../../nanvm-lib/todo/generated-rust-module-rustfmt-skip.md)
   — whether `#[rustfmt::skip]` is written per item or once per module; the
   helper is where that decision would land for every generator at once.
