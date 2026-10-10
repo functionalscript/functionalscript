@@ -52,7 +52,7 @@
  */
 
 import { utf8 } from '../text/module.f.mjs'
-import { allOk, exitStep, isNotFound, mkdir, readdir, readUtf8File, writeFile, writeUtf8File } from '../effects/node/module.f.mjs'
+import { exitStep, isNotFound, mkdir, readdir, readUtf8File, writeFile, writeUtf8File } from '../effects/node/module.f.mjs'
 import { foldStep, forEachStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../effects/module.f.mjs'
 import { exportsDemo, exportsProof, local, specifiers } from './browser-source/module.f.mjs'
 import { concat as pathConcat } from '../path/module.f.mjs'
