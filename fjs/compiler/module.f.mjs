@@ -375,9 +375,10 @@ export const compileFile = (inputFileName, outputFileName) => step(
     _compileMarked(inputFileName, outputFileName),
     /** @type {(result: Result<Marked, string>) => Effect<_CompileOp, void, IoChannel>} */
     (result) => {
-        if (result[0] === 'error') { return refused(result[1]) }
+        const [tag, value] = result
+        if (tag === 'error') { return refused(value) }
         const directoryReady = mkdir(outputDirectory(outputFileName), { recursive: true })
-        return step(directoryReady, () => writeUtf8File(outputFileName, toText(result[1])))
+        return step(directoryReady, () => writeUtf8File(outputFileName, toText(value)))
     })
 
 /**

@@ -1417,9 +1417,9 @@ export const proof = {
     demo: {
         examples: () => {
             for (const [name, source] of examples) {
-                const shown = _sourceOf(source)
-                assertEq(shown[0], ['An import', 'A named import and a call', 'Hex escape', 'Parse error'].includes(name) ? 'error' : 'ok', name)
-                if (shown[0] === 'ok') { assertEq(disagreement(shown[1]), null, name) }
+                const [tag, value] = _sourceOf(source)
+                assertEq(tag, ['An import', 'A named import and a call', 'Hex escape', 'Parse error'].includes(name) ? 'error' : 'ok', name)
+                if (tag === 'ok') { assertEq(disagreement(value), null, name) }
             }
             assertEq(textOfResult(_sourceOf('const a = [1];\nexport default [a, a];')), 'const $0=[1];export default [$0,$0];')
         },
