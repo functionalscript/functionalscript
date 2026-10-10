@@ -103,7 +103,7 @@ export const row = ({ number: prNumber, user, draft }, checks) => ['tr',
 
 /**
  * The dedicated page, with a GitHub fallback and a browser adapter that reads
- * once and binds the reader's Refresh button. It starts no background polling.
+ * only when the reader clicks Refresh. Opening the page makes no API requests.
  *
  * @type {(build: Build) => Vec}
  */
@@ -111,7 +111,7 @@ export const prsPage = build => shell(build)(pageTitle('Pull requests'))(['main'
     ['h1', 'Pull requests'],
     ['p', ['a', { href: `${repository}/pulls` }, 'View pull requests on GitHub']],
     ['button', { type: 'button', 'data-pr-refresh': '' }, 'Refresh'],
-    ['p', { 'data-pr-note': '', role: 'status', 'aria-live': 'polite' }, 'Loading pull requests…'],
+    ['p', { 'data-pr-note': '', role: 'status', 'aria-live': 'polite' }, 'Press Refresh to load pull requests and checks.'],
     ['noscript', ['p', 'JavaScript is needed to load this list. Follow the GitHub link above to view pull requests.']],
     ['table',
         ['caption', 'Open pull requests'],

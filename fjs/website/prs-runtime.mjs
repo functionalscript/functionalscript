@@ -4,8 +4,8 @@
  * Loading limits and feedback come from the pure prs/load policy; this
  * adapter drives requests, listeners, clocks and DOM updates.
  *
- * The initial load runs once. Further loads require the Refresh button; the
- * request deadline never schedules a refresh, and failed requests are not retried.
+ * Loads require the Refresh button, including the first load. The request
+ * deadline never schedules a refresh, and failed requests are not retried.
  *
  * @import { ValidationError } from '../rtti/common/types.ts'
  * @import { Unknown } from '../rtti/ts/types.ts'
@@ -34,9 +34,9 @@ const message = error => error instanceof Error
     : unavailableMessage
 
 /**
- * Bind one page and perform its initial load. A duplicate call neither loads
- * again nor registers another listener. Optional host functions let the proof
- * drive actual Response JSON and a recording DOM without live API requests.
+ * Bind one page without fetching. A duplicate call registers no additional
+ * listener. Optional host functions let the proof drive actual Response JSON
+ * and a recording DOM without live API requests.
  *
  * A refresh replaces the list only after every pull-list page succeeds. CI
  * failures replace that row's result with Unavailable; a failed list refresh
@@ -188,7 +188,7 @@ export const startPrs = (root, host = {}) => {
         }
     }
     button.addEventListener('click', refresh)
-    const initial = refresh()
-    started.set(root, initial)
-    return initial
+    const initialized = Promise.resolve()
+    started.set(root, initialized)
+    return initialized
 }

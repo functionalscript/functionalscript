@@ -41,10 +41,11 @@ their linked number, author, and open/draft state with a CI/check summary.
 The shared header links it as **PRs**. The page uses the same frame and
 stylesheet as the directory pages.
 
-The browser reads GitHub's public API once on opening and again only when
-**Refresh** is clicked. No polling, credentials, backend or stored snapshot is
-needed. Checks are read for each PR's current head commit, combining latest
-check runs and commit statuses; a passing summary does not assert that the
+The browser reads GitHub's public API only when **Refresh** is clicked;
+opening the page makes no GitHub API requests. No polling, credentials,
+backend or stored snapshot is needed. Checks are read for each PR's current
+head commit, combining latest check runs and commit statuses; a passing
+summary does not assert that the
 PR is mergeable or that every branch protection requirement is met.
 
 A failed read is shown as a failure, not an empty list or a passing result.

@@ -111,13 +111,27 @@ const anchors = node => node.nodeType === 3 ? []
     : [...(node.localName === 'a' ? [node] : []), ...node.childNodes.flatMap(anchors)]
 
 export const proof = {
-    initialLoadAndManualRefresh: async () => {
+    noRequestsUntilManualRefresh: async () => {
         const page = dom()
         const net = queue([
             json([pull(42, false, '<script>alert(1)</script>')]), json(passed), json(noStatuses),
             json([pull(42, true, '<script>alert(1)</script>')]), json(failed), json(noStatuses),
         ])
-        await startPrs(page.root, { fetch: net.fetch, now })
+        const initialized = startPrs(page.root, { fetch: net.fetch, now })
+        await initialized
+        assertEq(net.urls.length, 0)
+        assertEq(page.rows.childNodes.length, 0)
+        assertEq(page.button.disabled, false)
+        assertEq(page.root.getAttribute('aria-busy'), null)
+        assertEq(page.listeners.length, 1)
+        const duplicate = startPrs(page.root, { fetch: net.fetch, now })
+        assertEq(duplicate, initialized)
+        await duplicate
+        await Promise.resolve()
+        await new Promise(resolve => globalThis.setTimeout(() => resolve(undefined), 0))
+        assertEq(net.urls.length, 0)
+        assertEq(page.listeners.length, 1)
+        await page.click()
         assertEq(page.rows.childNodes.length, 1)
         assert(page.rows.textContent.includes('Open'))
         assert(page.rows.textContent.includes('Passing'))
@@ -149,13 +163,14 @@ export const proof = {
         let resolve = () => {}
         const waiting = new Promise((/** @type {(value: Response) => void} */ done) => { resolve = done })
         const net = queue([() => waiting])
-        const initial = startPrs(page.root, { fetch: net.fetch, now })
+        await startPrs(page.root, { fetch: net.fetch, now })
+        const loading = page.click()
         assertEq(page.button.disabled, true)
         assertEq(page.root.getAttribute('aria-busy'), 'true')
         await page.click()
         assertEq(net.urls.length, 1)
         resolve(json([]))
-        await initial
+        await loading
         assertEq(page.rows.childNodes.length, 0)
         assert(page.note.textContent.includes('No open pull requests'))
         assertEq(page.button.disabled, false)
@@ -170,6 +185,7 @@ export const proof = {
             json(passed), json(noStatuses), json(noStatuses),
         ])
         await startPrs(page.root, { fetch: net.fetch, now })
+        await page.click()
         assertEq(page.rows.childNodes.length, 2)
         assert(page.rows.childNodes.every((/** @type {any} */ r) => r.textContent.includes('Passing')))
         assert(net.urls.every(url => url.startsWith('https://api.github.com/repos/functionalscript/functionalscript/')))
@@ -187,6 +203,7 @@ export const proof = {
             json({ total_count: 2, statuses: [{ state: 'failure' }] }),
         ])
         await startPrs(page.root, { fetch: net.fetch, now })
+        await page.click()
         assert(page.rows.textContent.includes('Failing'))
         assertEq(net.urls[3], 'https://api.github.com/repos/functionalscript/functionalscript/commits/sha-9/status?per_page=100&page=2')
         assertEq(net.remaining(), 0)
@@ -198,6 +215,7 @@ export const proof = {
             json([pull(6)]), json(passed), json(noStatuses),
         ])
         await startPrs(page.root, { fetch: net.fetch, now })
+        await page.click()
         const previous = page.rows.childNodes[0]
         await page.click()
         assertEq(page.rows.childNodes[0], previous)
@@ -218,6 +236,7 @@ export const proof = {
         ])
         await startPrs(page.root, { fetch: net.fetch, now })
         await page.click()
+        await page.click()
         assert(page.rows.textContent.includes('Unavailable'))
         assert(!page.rows.textContent.includes('Passing'))
         assert(page.note.textContent.includes('Checks unavailable for 1 pull request'))
@@ -234,6 +253,7 @@ export const proof = {
         const net = queue([json([pull(1), pull(2), pull(3), pull(4)]), limit,
             new Response('', { status: 429 }), new Response('', { status: 429 })])
         await startPrs(page.root, { fetch: net.fetch, now })
+        await page.click()
         assertEq(net.urls.length, 4)
         assert(!net.urls.some(url => url.includes('sha-4') || url.includes('/status?')))
         assert(page.rows.childNodes.every((/** @type {any} */ r) => r.textContent.includes('Unavailable')))
@@ -248,6 +268,7 @@ export const proof = {
             status: 429, headers: { 'Retry-After': new Date(retryAt).toUTCString() },
         })])
         await startPrs(page.root, { fetch: net.fetch, now })
+        await page.click()
         assert(page.note.textContent.includes(`Try Refresh after ${new Date(retryAt).toLocaleString()}.`))
         assertEq(net.urls.length, 1)
         assertEq(page.button.disabled, false)
@@ -259,6 +280,7 @@ export const proof = {
             json([pull(6)]), json(passed), json(noStatuses),
         ])
         await startPrs(page.root, { fetch: net.fetch, now })
+        await page.click()
         assert(page.rows.textContent.includes('Unavailable'))
         await page.click()
         assert(page.rows.textContent.includes('#6'))
@@ -271,6 +293,7 @@ export const proof = {
         const page = dom()
         const net = queue(Array.from({ length: 10 }, () => json([pull(1)], { Link: '<https://api.github.com/anything>; rel="next"' })))
         await startPrs(page.root, { fetch: net.fetch, now })
+        await page.click()
         assertEq(net.urls.length, 10)
         assertEq(page.rows.childNodes.length, 0)
         assert(page.note.textContent.includes('more than 10 pages'))
@@ -280,6 +303,7 @@ export const proof = {
         const page = dom()
         const net = queue([json([pull(8)]), json({ ...passed, total_count: 101 })])
         await startPrs(page.root, { fetch: net.fetch, now })
+        await page.click()
         assert(page.rows.textContent.includes('Unavailable'))
         assert(page.note.textContent.includes('incomplete set of checks'))
         assertEq(net.urls.length, 2)
@@ -298,6 +322,7 @@ export const proof = {
             return url.includes('/check-runs?') ? json(passed) : json(noStatuses)
         })
         await startPrs(page.root, { fetch, now })
+        await page.click()
         assertEq(maximum, 3)
         assertEq(active, 0)
         assertEq(page.rows.childNodes.length, 5)
@@ -315,6 +340,7 @@ export const proof = {
             const page = dom()
             const net = queue([response])
             await startPrs(page.root, { fetch: net.fetch, now })
+            await page.click()
             assert(page.note.textContent.includes(text))
             assertEq(page.rows.childNodes.length, 0)
             assertEq(page.button.disabled, false)
