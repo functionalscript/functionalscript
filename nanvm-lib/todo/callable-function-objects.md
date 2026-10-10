@@ -563,20 +563,82 @@ call contract, and keep their hand-written Rust tests.
    `_transpileDefault`, the route `fjs compile` takes for a data output, and
    compares the two. A stale exception, or a new fixture, is caught by the
    proof, never skipped.
-2. **Direct AOT against the same expectation.** The generator writes the
-   reference output next to the compiled fixture; one Rust test walks the
-   generated list and replaces the hand-written assertions it covers. The
-   committed form is not plain JSON: the reference's output includes
-   `bigint`, `undefined` and aliasing (`sharing`), which JSON cannot spell.
-   The form, and how the Rust side checks aliasing, is this step's design
-   question, answered in its pull request before its code.
+2. **Direct AOT against the same expectation.** Designed below; split into
+   2a, the generated expectation, and 2b, the Rust comparison that replaces
+   the hand-written assertions it covers.
 3. **The interpreter compiled to Rust runs the corpus.** Blocked, not
    planned: it needs the host `Map` dependencies of the executor migrated and
    the [immutable memo cache](../../fjs/edag/memo/todo/immutable-cache.md)
    native-parity checks. Recorded here so the corpus is written to be run
    there, not so it waits for it.
 
-**Decisions (all four decided).**
+**Step 2 design.**
+
+*The expectation is the interpreter's value, printed as Rust.* The reference
+is Node, and step 1 proves, in CI, that for every corpus fixture the
+interpreter's answer equals Node's, aliasing included. So the interpreter's
+value *is* Node's value as long as that proof passes, and it is the
+cheaper thing to print: it is already a represented graph
+([`EdagValue`](../../fjs/edag/values.md)) that keeps sharing by node identity,
+and [`fjs/nanvm/values`](../../fjs/nanvm/values/module.f.mjs) already prints
+such a graph as a Rust module through the compiler's backend
+(`generateRust`), the way `gen.values/captures.rs` is made. Printing Node's
+own value instead would need a converter from a host value graph (aliasing
+included) to a represented one, which does not exist, and the host `import`
+in a generator. This deviates from the letter of decision 1 (the reference
+authors the expectation) and keeps its intent (nothing is retyped, Node is
+the authority, and a divergence fails CI); it is put to the owner as a
+decision below, not assumed.
+
+*Why this is not circular.* The program under test reaches Rust by
+compiling its source (`gen.fixtures/<name>.rs`). The expectation reaches Rust
+as a literal graph of the interpreter's result, so it never runs the
+program's logic in Rust. The two share the backend's literal printing and
+nothing else.
+
+*2a, the generated expectation.* The generator in
+[`fjs/nanvm/harness`](../../fjs/nanvm/harness/module.f.mjs), which already
+walks the corpus fixtures, also loads each through the interpreter's loader
+(`interpret`, as `_transpileDefault` does), takes the `default` of the
+represented export object, and writes `nanvm-harness/gen.expected/<name>.rs`:
+a module returning the expected `Any`, as `gen.values/captures.rs` does, plus
+a `mod.rs` that is the list. A module whose initialization throws gets a
+module that returns `Err`, so a fixture that throws is expected to throw
+(the thrown value is engine-specific and not compared, as in the operator
+corpus). The corpus rule of `fjs/nanvm/corpus` decides which fixtures get
+one, so the list cannot drift from the proof. It is `gen.`-named and
+drift-checked by `npm run gen` like the compiled fixtures.
+
+*2b, the comparison.* One Rust test walks the generated list and, for each
+fixture, builds the compiled fixture's default and the expectation and
+compares them. The comparison is a small helper in `nanvm-harness`,
+modelled on the operator corpus's `same` (`nanvm-lib/tests/test/harness.rs`,
+private to that test crate) and extended for sharing: the two graphs are
+walked together, and an actual container must map to one
+expected container and the reverse, so `[shared, shared]` does not equal two
+copies. `Any ==` is `===` and compares arrays, objects and functions by
+identity (`ptr_eq`), so the helper keeps its map of pairs in a list of
+container pairs compared with `==`, with no hashing of an `Any` required.
+Numbers compare by bits (`NaN`, `-0`), as `same` already does.
+
+*What 2b deletes.* The hand-written assertion of each covered fixture in
+`src/lib.rs` (the `read_default(…) == Ok("…")` strings), since keeping both is
+two copies of one fact. A test that checks something else about the same
+fixture (a named export, a call through the harness) stays. A fixture
+excepted from the corpus keeps its hand-written test and its reason.
+
+*Invariants this relies on, each already checked.* Every corpus default is
+data: step 1 compares through `toData`, which refuses a callable, and all
+corpus fixtures pass. The corpus rule and the generator share one function,
+`corpus(names)`. A fixture with an `undefined` default is listed in
+`undefinedDefault`, so its expectation being `undefined` is a decision and
+not an accident.
+
+*Out of scope.* Named exports (decision 3, revisit after 2b), and a corpus of
+programs that need arguments, which decision 2 has fixtures supply at module
+level.
+
+**Decisions (1 to 4 decided, 5 open).**
 
 1. ~~Expectation authored by hand beside each fixture, or by the reference and
    committed?~~ Decided: by the reference, committed and drift-checked.
@@ -607,6 +669,13 @@ call contract, and keep their hand-written Rust tests.
    and its own source-to-export glue, which is upkeep to pay only if a
    `memo`-only value bug appears. `memo`'s immutable-cache rewrite still has
    [open native-parity checks](../../fjs/edag/memo/todo/immutable-cache.md).
+
+5. **Who authors the step 2 expectation.** The interpreter's value, printed
+   as Rust (recommended: the step 1 proof ties it to Node on every corpus
+   fixture, aliasing included, and the machinery exists), or Node's own
+   value through a new converter and the host `import` in the generator
+   (the letter of decision 1, at the cost of a converter that does not
+   exist)? Awaiting the owner.
 
 ### Open questions
 
@@ -680,7 +749,8 @@ call contract, and keep their hand-written Rust tests.
       after resolving embedded data versus lookup; no Rust executor dependency.
 - [x] Stage 8 step 1: the FJS interpreter against the Node reference over the
       harness fixtures ([`fjs/nanvm/corpus`](../../fjs/nanvm/corpus/module.f.mjs)).
-- [ ] Stage 8 step 2: direct AOT against the reference's committed output.
+- [ ] Stage 8 step 2a: the interpreter's value of each corpus fixture, printed as a committed `gen.expected` Rust module and listed.
+- [ ] Stage 8 step 2b: one Rust test compares each compiled fixture with its expectation, sharing included, and replaces the hand-written assertions it covers.
 - [ ] Stage 8 step 3: the interpreter compiled to Rust runs the corpus (blocked).
 
 ### Related
