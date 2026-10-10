@@ -28,7 +28,7 @@
 
 import { compileFile } from '../../compiler/module.f.mjs'
 import { interpret } from '../../compiler/transpiler/module.f.mjs'
-import { forEachStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../../effects/module.f.mjs'
+import { forEachStep, history, historyStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../../effects/module.f.mjs'
 import { exitStep, mkdir, readdir, writeUtf8File } from '../../effects/node/module.f.mjs'
 import { cmp } from '../../types/string/module.f.mjs'
 import { corpus, fixturesDirectory } from '../corpus/module.f.mjs'
@@ -130,12 +130,12 @@ const writeExpectation = name => resultStep(
  *
  * @type {() => Effect<_CompileOp, void, IoChannel>}
  */
-export const generateExpected = () => step(fixtures(), names => {
-    const selected = corpus(names)
-    const directoryReady = mkdir(expectedDirectory, { recursive: true })
-    const written = step(directoryReady, () => forEachStep(pureOk(selected), writeExpectation))
-    return step(written, () => writeUtf8File(expectedModulesPath, modules(selected.map(rustName))))
-})
+export const generateExpected = () => {
+    const selected = history(mapStep(fixtures(), corpus))
+    const directoryReady = historyStep(selected, () => mkdir(expectedDirectory, { recursive: true }))
+    const written = historyStep(directoryReady, (_, names) => forEachStep(pureOk(names), writeExpectation))
+    return step(written, ([, , names]) => writeUtf8File(expectedModulesPath, modules(names.map(rustName))))
+}
 
 /** The fixtures compiled, then their expectations written. @type {() => Effect<_CompileOp, void, IoChannel>} */
 export const generateAll = () => step(generateFixtures(), generateExpected)
