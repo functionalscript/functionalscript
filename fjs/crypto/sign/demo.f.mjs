@@ -51,6 +51,7 @@ const namedCurve = (name, curve) => ({
     coordinateDigits: (curve.pf.p - 1n).toString(16).length,
 })
 
+/** @type {readonly DemoCurve[]} */
 const curves = [
     namedCurve('P-192 (secp192r1)', secp192r1),
     namedCurve('P-256 (secp256r1)', secp256r1),

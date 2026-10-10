@@ -3,7 +3,6 @@
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Curve, Point } from '../secp/types.ts'
  * @import { Sha2 } from '../sha2/types.ts'
- * @import { DemoSigned } from './types.ts'
  */
 
 import { utf8 } from '../../text/module.f.mjs'
@@ -710,7 +709,7 @@ export const proof = {
         everyCurve: () => {
             for (const curve of ['P-192 (secp192r1)', 'P-256 (secp256r1)', 'P-384 (secp384r1)', 'P-521 (secp521r1)', 'secp256k1']) {
                 const state = { ...demo.init, curve, hash: 'SHA-512', key: '1f' }
-                const [, { r, s }] = /** @type {['ok', DemoSigned]} */ (signed(state))
+                const { r, s } = unwrap(signed(state))
                 const html = htmlToString(demo.view({ ...state, r: r.toString(16), s: s.toString(16) }))
                 assert(html.includes('✓ The signature verifies'), curve)
             }
