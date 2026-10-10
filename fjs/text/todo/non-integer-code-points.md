@@ -6,8 +6,9 @@
 ### Problem
 
 `utf8ByteToCodePointOp` and `utf16ByteToCodePointOp` now both check
-`Number.isInteger` before dispatching, because their range partitions cover
-only the *integers* in range and a fraction falls between two arms.
+the shared `types/number/is_integer` predicate before dispatching, because
+their range partitions cover only the *integers* in range and a fraction falls
+between two arms.
 
 The root cause is one line — `contains = (b, e) => i => b <= i && i <= e` in
 `fjs/types/range/module.f.js`. It is a numeric range, nothing more, so every
@@ -49,7 +50,7 @@ that asks one of them has already been told the input is fine.
 `>>`/`&` truncation in `codePointToUtf8`, so the fraction reaches the shift
 through the check meant to stop it, and `utf8` answers exactly as it would for
 the integer. `utf16` no longer reaches its shift through the bare predicate:
-`code_point`'s `tryToSurrogatePair` checks `Number.isInteger` before the range
+`code_point`'s `tryToSurrogatePair` checks `isInteger` before the range
 and refuses the fraction, and `utf16`'s `codePointToUtf16` then falls through
 to its out-of-range branch, which masks to 16 bits:
 
@@ -74,7 +75,7 @@ still whatever its out-of-range arithmetic does.
 Fix `contains`'s consumers, not `contains` itself: a numeric range is the
 right thing for a numeric range, and `types/range` has callers that are not
 code-point predicates. Give each site the domain predicate the decoders now
-have — `Number.isInteger(i) && <range>(i)` — most cheaply by making the
+have — `isInteger(i) && <range>(i)` — most cheaply by making the
 `code_point` predicates integral, since the encoders reach their arithmetic
 through those.
 
