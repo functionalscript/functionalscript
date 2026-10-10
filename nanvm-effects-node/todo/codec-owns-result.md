@@ -30,13 +30,20 @@ answer by hand.
   over both. `common::result` is then `encode_result`; `answer` is
   `encode_result(result.map(ok).map_err(encode_io_error))`; the
   `"ok"`/`"error"` strings are spelled in the codec alone.
-- One decode helper for a tagged pair that every test can reach — either a
-  `TryFrom<Array<A>> for [Any<A>; N]` in `nanvm-lib`, which serves the
-  harness tests as well, or a small shared test module here.
+- Add `TryFrom<Array<A>> for [Any<A>; N]` beside
+  [`nanvm-lib`'s `Array`](../../nanvm-lib/src/vm/array/mod.rs), available in
+  normal dependency builds. `nanvm-effects-node`'s `lib.rs` and `native.rs`
+  unit tests and `nanvm-harness`'s integration tests can all use that lower
+  dependency layer, without a reverse dependency or an import from another
+  crate's `cfg(test)` module. The conversion checks the exact length and
+  unpacks the fixed-size array; callers still assert the tag and decode the
+  payload. Tagged-pair tests use `N = 2`.
 
 ### Tasks
 
 - [ ] `encode_error` and `encode_result`; the three callers onto them.
-- [ ] One pair-decode helper; the tests in `native.rs`, `lib.rs`,
-      `effects.rs` and `parity.rs` onto it.
+- [ ] The fixed-array conversion in `nanvm-lib`, proving exact-length
+      success and length-mismatch refusal; migrate the pair decoding in
+      `native.rs`, `lib.rs`, `effects.rs` and `parity.rs` onto it while
+      retaining each test's tag and payload assertions.
 - [ ] `cargo test`, `cargo clippy`, `cargo fmt -- --check`.

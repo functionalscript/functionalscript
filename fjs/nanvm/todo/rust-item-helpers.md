@@ -33,17 +33,34 @@ generated-file header — has no owner, so each generator is one.
 ### Proposal
 
 Two item helpers beside `stringLiteral`, or in a `fjs/media/rust` item
-module: `constSlice(doc, name, type, rows)` and `generatedHeader(source,
-instruction)`. Rows quote through `stringLiteral`, so an unescapable name is
-a refusal rather than a bad file. The five generators call them. The header
-helper may standardize the comment-line layout; preserve each caller's
-generation provenance and edit instruction, and the generated Rust's
-behavior.
+module: `constSlice(doc, name, type, rows, formatRow)` and
+`generatedHeader(source, instruction)`.
+
+`constSlice` owns the documentation, annotation, declaration, row order,
+indentation, commas and closing line. Rows keep the caller's own type;
+`formatRow(row)` returns a `Result` containing one Rust element expression,
+without indentation or a trailing comma. The helper returns the complete
+slice or propagates the formatter's refusal.
+
+The generators own their row formatters: a command string, a pair of type
+and method strings, or a harness `Case` row. Each formatter calls
+`stringLiteral` for its string fields, so an unescapable name is refused.
+The harness row keeps its display name separate from its Rust module
+identifier: quote `name`, but emit the `fixture`, `expected`, `json` and
+`throws` references as code, using the harness's existing module naming.
+
+The five generators call the item helpers. The header helper may
+standardize the comment-line layout; preserve each caller's generation
+provenance and edit instruction, and the generated Rust's behavior.
 
 ### Tasks
 
-- [ ] The two helpers with a proof at 100%, rows quoted through
-      `stringLiteral`.
+- [ ] The two helpers with a proof at 100%, including row order and
+      propagation of a row formatter's refusal.
+- [ ] Prove each generator's row formatter escapes quotes and backslashes
+      in every string field and refuses lone surrogates. For harness rows,
+      use a separate valid module identifier and prove the Rust references
+      remain unquoted while the display name is escaped.
 - [ ] Move the five generators onto them; `npm run gen` and diff the
       generated files. Allow header-only layout changes and changes where
       a name needed escaping; preserve header content and generated Rust
