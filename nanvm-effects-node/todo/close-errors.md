@@ -18,14 +18,14 @@ Sync before the drop: `File::sync_all` reports what the close would, with no
 Node handler does not make; that cost is accepted for the operations below.
 
 `createExclusive` and `writeExclusive` do it. A sync that fails fails the
-operation, and `writeExclusive` rolls its file back as it does for a failed
-write. `writeFile` and `writeBytes` take arbitrary paths, which may be a pipe, a terminal
+operation and the file stays, as it does when the Node handler's `close`
+fails; only a failed *write* is rolled back. `writeFile` and `writeBytes` take arbitrary paths, which may be a pipe, a terminal
 or a device: those cannot be synced and answer `EINVAL` or `Unsupported`, which
 the helper treats as nothing to flush, since a Node `close` of them succeeds. A
 local filesystem reports these errors from `write` already, so the
 sync is not observable in a test there; it is a call in the one place a close
-error can be seen, written so that its failure takes the path a write failure
-takes, which the rollback test exercises.
+error can be seen. A Windows console answers `ERROR_INVALID_HANDLE`, which Rust
+does not categorize, and is nothing to flush as well.
 
 ### Tasks
 

@@ -316,14 +316,23 @@ pub fn readdir(path: &str, recursive: bool) -> Result<Vec<Dirent>, IoError> {
 /// only at the close, a delayed `EIO` or `ENOSPC`, is reported. A file that
 /// cannot be synced at all, a pipe, a terminal or a device such as `/dev/null`,
 /// answers `EINVAL` or is unsupported, and has nothing to flush: that is not a
-/// failure (`todo/close-errors.md`). The exclusive operations create a regular
+/// failure (`todo/close-errors.md`). A Windows console answers
+/// `ERROR_INVALID_HANDLE`, which Rust does not categorize. The exclusive operations create a regular
 /// file, which can always be synced, so they call `sync_all` and take every
 /// error.
 fn sync(file: &File) -> io::Result<()> {
     match file.sync_all() {
-        Err(e) if matches!(e.kind(), ErrorKind::InvalidInput | ErrorKind::Unsupported) => Ok(()),
+        Err(e) if nothing_to_flush(&e) => Ok(()),
         result => result,
     }
+}
+
+/// What `FlushFileBuffers` answers for a console, on Windows only.
+const ERROR_INVALID_HANDLE: i32 = 6;
+
+fn nothing_to_flush(e: &io::Error) -> bool {
+    matches!(e.kind(), ErrorKind::InvalidInput | ErrorKind::Unsupported)
+        || (cfg!(windows) && e.raw_os_error() == Some(ERROR_INVALID_HANDLE))
 }
 
 /// Creates the file or truncates it.
@@ -1025,6 +1034,14 @@ mod test {
         /// A file that cannot be synced has nothing to flush: a write to a pipe
         /// succeeds, where `sync_all` alone would answer `EINVAL`.
         #[cfg(target_os = "linux")]
+        #[test]
+        fn a_console_that_cannot_be_flushed_has_nothing_to_flush() {
+            let invalid_handle = io::Error::from_raw_os_error(ERROR_INVALID_HANDLE);
+            assert_eq!(nothing_to_flush(&invalid_handle), cfg!(windows));
+            assert!(nothing_to_flush(&ErrorKind::InvalidInput.into()));
+            assert!(!nothing_to_flush(&ErrorKind::StorageFull.into()));
+        }
+
         #[test]
         fn a_file_that_cannot_be_synced_is_not_a_failure() {
             use std::os::fd::AsRawFd;
