@@ -9,7 +9,7 @@
  */
 
 import { exitCode, readUtf8File, nodeCommands } from '../effects/node/module.f.mjs'
-import { compile } from './module.f.mjs'
+import { compile, outputText } from './module.f.mjs'
 import { transpile } from './transpiler/module.f.mjs'
 import { parse } from './source/module.f.mjs'
 import { resolve, unresolved } from './edag/module.f.mjs'
@@ -26,8 +26,10 @@ import { fromVec } from '../text/utf8/module.f.mjs'
 import { unwrap } from '../types/result/module.f.mjs'
 import { fromEntries, isObject } from '../types/object/module.f.mjs'
 import { toVec } from '../types/uint8array/module.f.mjs'
-import { assert, assertEq, assertOk, assertStructurallySame } from '../asserts/module.f.mjs'
-import { _compiled, demo, outputs } from './demo.f.mjs'
+import { assert, assertEq, assertOk, assertNotNullish, assertStructurallySame } from '../asserts/module.f.mjs'
+import { _compiled, _written, demo, outputs } from './demo.f.mjs'
+import { disagreement } from '../website/demo/highlight/module.f.mjs'
+import { textOfResult } from '../text/marked/module.f.mjs'
 import { examples } from './examples/module.f.js'
 import { htmlToString } from '../media/html/module.f.mjs'
 import { maxLengthBytes } from '../types/bit_vec/module.f.mjs'
@@ -1241,14 +1243,44 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             for (const [name, source] of examples) {
                 assertEq(outputs.map(([, file]) => _compiled(source)(file)[0] === 'ok' ? 'o' : 'x').join(''), expected[name])
             }
-            assertEq(_compiled('export default 1;')('output.json')[1], '1')
-            assertEq(_compiled('const fact = n => n < 2 ? 1 : n * fact(n - 1);\nexport default fact(5);')('output.json')[1], '120')
-            assertEq(_compiled('export default "\\x41";')('output.json')[1], 'input.f.js:1:16-23 - error: unexpected token')
+            assertEq(textOfResult(_compiled('export default 1;')('output.json')), '1')
+            assertEq(textOfResult(_compiled('const fact = n => n < 2 ? 1 : n * fact(n - 1);\nexport default fact(5);')('output.json')), '120')
+            assertEq(textOfResult(_compiled('export default "\\x41";')('output.json')), 'unexpected token')
+        },
+        // A pane shows what `fjs compile` writes: the whole of `compile` over
+        // the same file system answers the same text, or the same refusal.
+        // And what a pane marks, the tokenizer agrees with, for the languages
+        // it reads; Rust is unmarked until its printer says what it wrote.
+        panesAreTheFiles: () => {
+            assertEq(outputText('output.txt'), null)
+            for (const [name, source] of examples) {
+                for (const [label, file] of outputs) {
+                    const shown = _compiled(source)(file)
+                    const [shownTag, shownValue] = shown
+                    const [writtenTag, writtenValue] = _written(source)(file)
+                    const route = assertNotNullish(outputText(file))
+                    const [, routed] = virtual({ ...emptyState, root: { 'input.f.js': [utf8(source)] } })(route('input.f.js'))
+                    const [routedTag, routedValue] = routed
+                    if (routedTag === 'ok') {
+                        const [kind, text] = routedValue
+                        assertEq(writtenTag, kind, `${name} ${label} text route`)
+                        assertEq(writtenValue, kind === 'ok' ? text : `${file} - error: ${text}`, `${name} ${label} text route`)
+                    }
+                    assertEq(shownTag, writtenTag, `${name} ${label}`)
+                    // a refusal is the command's line without its location
+                    assert(shownTag === 'ok' ? textOfResult(shown) === writtenValue : writtenValue.endsWith(` - error: ${shownValue}`), `${name} ${label}`)
+                    if (shownTag === 'ok' && label !== '.rs') {
+                        assertEq(disagreement(shownValue), null, `${name} ${label}`)
+                    }
+                }
+            }
         },
         view: () => {
             const shown = htmlToString(demo.view(demo.init))
             assert(shown.includes('<h3>.rs</h3>'), shown)
-            assert(shown.includes('<pre data-code="">'), shown)
+            assert(shown.includes('aria-label="Copy .js output"'), shown)
+            assert(shown.includes('data-copy='), shown)
+            assert(shown.includes('<div data-code="" data-code-block=""><pre>'), shown)
             assert(shown.includes('callable materialization requires a target compile/load boundary</pre>'), shown)
             assert(!shown.includes(' - error:'), shown)
             const refused = htmlToString(demo.view('export default {bad'))

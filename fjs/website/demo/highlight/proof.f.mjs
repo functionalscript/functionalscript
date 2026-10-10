@@ -1,4 +1,4 @@
-import { highlight, render, spansOf } from './module.f.mjs'
+import { disagreement, highlight, render, spansOf } from './module.f.mjs'
 import { htmlToString } from '../../../media/html/module.f.mjs'
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
 
@@ -44,6 +44,11 @@ export const proof = {
         assertEq(covered('"a\u2028b" + 1'), '[["string","\\"a\u2028b\\""],["number","1"]]')
         assertEq(covered('"a\u2029b" + 1'), '[["string","\\"a\u2029b\\""],["number","1"]]')
         assertEq(covered('1\r\n2\n3'), '[["number","1"],["number","2"],["number","3"]]')
+        // a word after `.` or `?.` is a property name, whatever it spells
+        assertEq(covered('a.true + a?.default + a . null + a./*c*/const'), '[["comment","/*c*/"]]')
+        assertEq(covered('true.true'), '[["literal","true"]]')
+        // the literal words are literals, `NaN` and `Infinity` among them
+        assertEq(covered('1 + NaN + Infinity + undefined'), '[["number","1"],["literal","NaN"],["literal","Infinity"],["literal","undefined"]]')
         assertEq(covered('const a = 1  \r\n/* x\r y */  \n// z\n"😀" 1n'),
             '[["keyword","const"],["number","1"],["comment","/* x\\r y */"],["comment","// z"],["string","\\"😀\\""],["number","1n"]]')
     },
@@ -69,6 +74,18 @@ export const proof = {
         assertEq(render([]).length, 0)
         assertEq(JSON.stringify(render([['a', 'keyword'], [' b'], ['']])),
             '[["span",{"data-token":"keyword"},"a"]," b"]')
+    },
+    signedLeaves: () => {
+        // Producers own the whole literal, including its sign; the JS
+        // tokenizer treats the sign as a separate, unmarked unary operator.
+        assertEq(htmlToString(['pre', ...render([['-0', 'number'], [' '], ['-Infinity', 'literal']])]),
+            '<!DOCTYPE html><pre><span data-token="number">-0</span> <span data-token="literal">-Infinity</span></pre>')
+        assertEq(html('-0 -Infinity'),
+            '<!DOCTYPE html><pre>-<span data-token="number">0</span> -<span data-token="literal">Infinity</span></pre>')
+    },
+    disagreement: () => {
+        assertEq(disagreement([['const', 'keyword'], [' a = '], ['-1', 'number'], [';']]), null)
+        assertEq(disagreement([['x', 'keyword']]), 'marked [{"start":0,"length":1,"kind":"keyword"}], the tokenizer finds [], in x')
     },
     refused: () => assertEq(highlight('1 @ 2').join('|'), '1 @ 2'),
 }

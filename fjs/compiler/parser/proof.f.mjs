@@ -20,6 +20,8 @@ import { stringify } from '../../media/json/module.f.mjs'
 import { ok, unwrap } from '../../types/result/module.f.mjs'
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { _astOf, demo } from './demo.f.mjs'
+import { textOfResult } from '../../text/marked/module.f.mjs'
+import { disagreement } from '../../website/demo/highlight/module.f.mjs'
 import { examples } from '../examples/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
 
@@ -1851,10 +1853,13 @@ export const proof = {
     demo: {
         examples: () => {
             for (const [name, source] of examples) {
-                assertEq(_astOf(source)[0], ['Hex escape', 'Parse error'].includes(name) ? 'error' : 'ok')
+                const [tag, value] = _astOf(source)
+                assertEq(tag, ['Hex escape', 'Parse error'].includes(name) ? 'error' : 'ok')
+                // what the pane marks, the tokenizer agrees with
+                if (tag === 'ok') { assertEq(disagreement(value), null, name) }
             }
-            assertEq(_astOf('export default 1;')[1], 'export default [[],[["object",[[":","default",1]]]]];')
-            assertEq(_astOf('export default "\\x41";')[1], 'unexpected token')
+            assertEq(textOfResult(_astOf('export default 1;')), 'export default [[],[["object",[[":","default",1]]]]];')
+            assertEq(textOfResult(_astOf('export default "\\x41";')), 'unexpected token')
         },
         view: () => {
             const shown = htmlToString(demo.view(demo.init))

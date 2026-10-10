@@ -14,10 +14,10 @@
  * @module
  */
 
-import { fixturesDirectory } from '../harness/module.f.mjs'
 import { isArray } from '../../types/array/module.f.mjs'
 
-export { fixturesDirectory }
+/** Where the fixtures are: one `.mjs` module each, a helper one imports beside them. */
+export const fixturesDirectory = 'nanvm-harness/fixtures'
 
 /**
  * The fixtures no executor comparison covers, each with its reason. A fixture
@@ -99,4 +99,22 @@ export const withAliasing = value => {
         return [['node', n, 'object', entries.map(([key], i) => [key, children[i]])], next]
     }
     return walk([], value)[0]
+}
+
+/**
+ * A data value with every `-0` written as `0`, which is what `JSON.stringify`
+ * and `nanvm-lib`'s `to_json` do and the compiler's own JSON writer does not.
+ * Arrays and objects keep their shape and order; a leaf other than `-0` is
+ * returned as it is. The JSON layer of an expectation is written from this,
+ * and `-0` itself is the graph layer's to compare.
+ *
+ * @type {(value: unknown) => unknown}
+ */
+export const withoutNegativeZero = value => {
+    if (Object.is(value, -0)) { return 0 }
+    if (isArray(value)) { return value.map(withoutNegativeZero) }
+    if (typeof value === 'object' && value !== null) {
+        return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, withoutNegativeZero(child)]))
+    }
+    return value
 }

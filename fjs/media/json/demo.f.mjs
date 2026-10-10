@@ -17,13 +17,16 @@
  * the input, so `update` declares `never` and returns its next state through
  * `pureOk`.
  *
+ * **The output is copyable**: it is a document or generated source a reader
+ * can save and use elsewhere. Copy keeps the original output text.
+ *
  * @module
  *
  * @import { Result } from '../../types/result/types.ts'
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
  */
 
-import { codeMarker } from '../../website/style/module.f.mjs'
+import { codeBlock } from '../../website/demo/code/module.f.mjs'
 import { parse, stringify } from './module.f.mjs'
 import { mapOk } from '../../types/result/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
@@ -56,6 +59,6 @@ export const demo = textDemo({
 })(text => {
     const [kind, value] = roundTrip(text)
     return kind === 'ok'
-        ? [caption('Parsed, then written back:'), ['pre', { [codeMarker]: '' }, value]]
+        ? [caption('Parsed, then written back:'), codeBlock(value, 'Copy JSON')]
         : [refusal(value)]
 })

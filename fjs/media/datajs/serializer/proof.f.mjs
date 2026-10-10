@@ -11,7 +11,7 @@ import { invert, unwrap } from '../../../types/result/module.f.mjs'
 import { concat } from '../../../types/string/module.f.mjs'
 import { tryParse } from '../parser/module.f.mjs'
 import { difference } from '../vectors/module.f.mjs'
-import { _elementNames, _link, _memberValue, trySerialize, tryJsonStringify, tryStringify } from './module.f.mjs'
+import { _elementNames, _link, _memberValue, _tryJsonSerialize, _trySerialize, trySerialize, tryJsonStringify, tryStringify } from './module.f.mjs'
 
 /**
  * A value as a host would hand it: the writer's parameter is the data
@@ -347,6 +347,18 @@ export const proof = {
         const value = [1, { a: 2 }]
         assertEq(concat(unwrap(trySerialize(value))), text(value))
         assertEq(text(value), 'export default [1,{"a":2}];')
+    },
+    // The leaves carry their kinds and nothing else does: punctuation, keys
+    // spelled as names and the writer's keywords stay plain strings.
+    marked: () => {
+        const value = [1, 'a', null, undefined, true, 2n, -0]
+        assertEq(JSON.stringify(toArray(unwrap(_trySerialize(value)))),
+            '[["export","keyword"]," ",["default","keyword"]," ","[",["1","number"],",",["\\"a\\"","string"],",",["null","literal"],",",["undefined","literal"],",",["true","literal"],",",["2n","number"],",",["-0","number"],"]",";"]')
+        // the non-finite numbers are the language's literal words
+        assertEq(JSON.stringify(toArray(unwrap(_trySerialize([NaN, Infinity, -Infinity]))).filter(c => typeof c !== 'string' && c[1] === 'literal')),
+            '[["NaN","literal"],["Infinity","literal"],["-Infinity","literal"]]')
+        assertEq(JSON.stringify(toArray(unwrap(_tryJsonSerialize({ k: [1.5] })))),
+            '["{",["\\"k\\"","string"],":","[",["1.5","number"],"]","}"]')
     },
     // Nesting depth is the input's, not the call stack's: the read walks an
     // explicit stack and the write reads the linked graph in its post-order,
