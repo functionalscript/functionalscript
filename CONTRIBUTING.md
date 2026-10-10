@@ -1,7 +1,7 @@
 # Contributing to FunctionalScript
 
 This repository is a monorepo with two code bases: `fjs/` (the FunctionalScript
-language, its standard modules, and the `fjs` CLI) and `nanvm-lib/` (NaNVM, the
+language, its standard modules, and the `fjs` CLI) and `nanvm/lib/` (NaNVM, the
 native FunctionalScript VM, in Rust).
 
 **Coding style, testing rules, design principles, and pull request requirements
@@ -9,7 +9,7 @@ start in [AGENTS.md](./AGENTS.md).** Read it before opening a pull request — i
 applies to human and AI contributors alike. That file is a map: the
 repository-wide design principles are in [DESIGN.md](./doc/DESIGN.md), the
 FunctionalScript and TypeScript rules in [fjs/AGENTS.md](./fjs/AGENTS.md), the
-Rust ones in [nanvm-lib/AGENTS.md](./nanvm-lib/AGENTS.md), and what to do with
+Rust ones in [nanvm/lib/AGENTS.md](./nanvm/lib/AGENTS.md), and what to do with
 the comments a review leaves on your pull request in
 [REVIEW.md](./doc/REVIEW.md), and how to review someone else's in
 [REVIEWING.md](./doc/REVIEWING.md), and how one session carries one task through
@@ -276,7 +276,7 @@ are handwritten.
   FunctionalScript module is `gen.{name}/module.f.mjs`, held to the same proof
   coverage as any other.
 - A `gen.` name is never a Rust identifier: load a generated file or directory
-  with one `#[path]`, as `nanvm-harness/src/lib.rs` does for
+  with one `#[path]`, as `nanvm/harness/src/lib.rs` does for
   `gen.fixtures/`. A dotted name cannot be a Cargo target root.
 - A committed output must not use a name `.gitignore` hides (`*.d.ts`,
   `*.d.mts`, `index.html`, `_*`), or the drift check cannot see it.

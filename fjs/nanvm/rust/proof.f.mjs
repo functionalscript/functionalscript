@@ -149,7 +149,7 @@ const file = name => files => {
 
 export const proof = {
     directory: () => {
-        assertEq(directory, 'nanvm-lib/tests/test/gen.corpus')
+        assertEq(directory, 'nanvm/lib/tests/test/gen.corpus')
     },
     valueExpr: () => {
         assertEq(valueExpr(null), 'Nullish::Null.to_any()')

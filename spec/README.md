@@ -116,7 +116,7 @@ records the design questions beyond the representation exception. The current
 EDAG interpreters and Rust VM answer a conversion the compiler admits —
 `String(f)`, `f.toString()`, `'' + f`, `[f].toString()` — with EDAG-derived text,
 captured values written as slot names rather than embedded in the text
-([to-primitive, Stage 3](../nanvm-lib/todo/to-primitive.md#stage-3-a-functions-text)).
+([to-primitive, Stage 3](../nanvm/lib/todo/to-primitive.md#stage-3-a-functions-text)).
 
 ### Failure is one outcome
 
@@ -440,7 +440,7 @@ writer — the one that refuses a function.
 
 `fjs compile` writes two more things, neither of them a document of this
 language: the program's EDAG under `.edag.data.js` or `.edag.data.mjs`, and a
-generated Rust module under `.rs`, which [nanvm-lib](../nanvm-lib/README.md)
+generated Rust module under `.rs`, which [nanvm-lib](../nanvm/lib/README.md)
 runs. They are compiler artifacts, and [`fjs/compiler`](../fjs/compiler/README.md)'s to
 describe. A name ending in none of the eight suffixes — `.json`, `.data.js`,
 `.data.mjs`, `.js`, `.mjs`, `.edag.data.js`, `.edag.data.mjs` and `.rs` —
@@ -483,7 +483,7 @@ does, running the right operand of `&&`, `||` and
 `??` and each arm of `?:` only where JavaScript evaluates it, so an unreached
 `1n / 0n` never throws. The VM does not answer every member function the
 compiler admits yet
-([member-functions](../nanvm-lib/todo/member-functions.md)). The Rust writer
+([member-functions](../nanvm/lib/todo/member-functions.md)). The Rust writer
 spells a `bigint` of any size, a literal within `i64` as one number and a
 larger one as its sign and `u64` words. A string holding a lone surrogate,
 which no Rust `&str` can hold, is written as its UTF-16 code units. A literal
@@ -1382,7 +1382,7 @@ the lazy ones and the conditional included. Of the other outputs
 ([output](#output)), the Rust one spells every operator, running a lazy
 operand or an arm only where JavaScript would; its VM does not yet call an
 object's own `valueOf` or `toString` in a conversion
-([`member-functions.md`](../nanvm-lib/todo/member-functions.md)). A `.json`
+([`member-functions.md`](../nanvm/lib/todo/member-functions.md)). A `.json`
 or DataJS output — the readers that compute a value — computes a negation of
 a primitive and refuses one of an array or an object ([numbers](#numbers)),
 and refuses every other operator the same way it refuses a function or a
@@ -1614,10 +1614,10 @@ built-ins: `toString`, on every type, and an array's `at`. A call that
 reaches any other, a string's `at` included, throws there as a call of
 `undefined` does, where JavaScript answers — a failure, which is
 [one outcome](#failure-is-one-outcome), not a different value — until its
-entry in [member-functions](../nanvm-lib/todo/member-functions.md) lands.
+entry in [member-functions](../nanvm/lib/todo/member-functions.md) lands.
 Its `toString` applies no radix yet, so on a number or a `bigint` any radix
 but `10` throws — `(255).toString(16)` fails there rather than answer `"255"`
-([member-functions](../nanvm-lib/todo/member-functions.md)). Nor does it give
+([member-functions](../nanvm/lib/todo/member-functions.md)). Nor does it give
 a function the text the
 [function-source exception](#function-source-representation-exception)
 adopts, a defect
@@ -2264,7 +2264,7 @@ are not supported yet. A newline before `=>` is refused.
   [exception](#function-source-representation-exception) adopts, and
   nanvm-lib has only some of these built-ins
   ([default function text](./todo/3120-parameters.md#default-function-text-render-or-refuse),
-  [member-functions](../nanvm-lib/todo/member-functions.md)).
+  [member-functions](../nanvm/lib/todo/member-functions.md)).
 
   Three outputs hold a call today: the EDAG, the generated Rust module,
   which nanvm-lib runs, and the FunctionalScript one, which writes both call

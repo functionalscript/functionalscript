@@ -5,7 +5,7 @@
 
 ### Problem
 
-The MVP ([mvp-roadmap](../nanvm-lib/todo/mvp-roadmap.md)) is reached when
+The MVP ([mvp-roadmap](../nanvm/lib/todo/mvp-roadmap.md)) is reached when
 `fjs compile` can emit Rust code that calls the `nanvm-lib` API, and a
 harness crate builds and runs the generated code with cargo. It is reached:
 the [named-module acceptance](#named-module-acceptance) example runs through
@@ -41,7 +41,7 @@ The embedding crate chooses where to include the generated file.
 exports and aliases from dependency export objects, and the consumer does the
 same: `nanvm-harness::run(module, export, action)` reads or calls one named
 export and renders that one result as JSON
-([`nanvm-harness/src/lib.rs`](../nanvm-harness/src/lib.rs)). Neither feature
+([`nanvm/harness/src/lib.rs`](../nanvm/harness/src/lib.rs)). Neither feature
 requires named function parameters.
 
 ### Named-module acceptance
@@ -59,13 +59,13 @@ import { add as sum } from "./math.f.js";
 export const main = () => sum(20, 22);
 ```
 
-The [named-imports fixture](../nanvm-harness/fixtures/named-imports.mjs)
+The [named-imports fixture](../nanvm/harness/fixtures/named-imports.mjs)
 compiles this pattern to Rust. Its cargo test has the harness's `run` select
 `main` and call it with no arguments, and checks `42`, matching native
 JavaScript and both JavaScript EDAG evaluators (`namedImports.acceptance` in
 [`fjs/compiler/edag/proof.f.mjs`](../fjs/compiler/edag/proof.f.mjs), on its own copy of
 the sources). The harness has no CLI; its
-[`main`](../nanvm-harness/src/main.rs) says why. Source round trips cover the
+[`main`](../nanvm/harness/src/main.rs) says why. Source round trips cover the
 serializer's admitted expressions; calls and arithmetic are still refused by
 that serializer. `main` is the fixture's selected
 export, not a required language-level name. The rest-only helper keeps this
@@ -394,7 +394,7 @@ ordinary cargo workflow in a Rust project (the harness in this repo, the
 CLI surface, and no Rust toolchain orchestration in the npm-shipped tool.
 The ergonomic single command ("run my FJS on the VM") arrives as the
 self-hosted `nanvm` crate
-([console-program](../nanvm-lib/todo/console-program.md)), which interprets
+([console-program](../nanvm/lib/todo/console-program.md)), which interprets
 via the FJS interpreter compiled to Rust ahead of time — no rustc at the user's
 run time. Its [module loader](../fjs/compiler/todo/load-modules-without-import-effect.md)
 needs no native `import` effect. The optional [Rust EDAG library](./rust-edag.md)
@@ -409,7 +409,7 @@ is on hold and is not part of this completed MVP or a self-hosting prerequisite.
       operators, calls and capturing functions; current coverage lives in
       the [parser](../fjs/compiler/parser/README.md),
       [shared Rust printer](../fjs/edag/rust/module.f.mjs) and
-      [harness fixtures](../nanvm-harness/fixtures).
+      [harness fixtures](../nanvm/harness/fixtures).
 - [x] Create the harness: a crate (`nanvm-harness`) with a thin `main` that
       selects a generated module's `default` property and prints that value
       as JSON; wired into CI via `cargo test`. Exported functions are not
@@ -426,7 +426,7 @@ is on hold and is not part of this completed MVP or a self-hosting prerequisite.
 - [x] Implement harness export selection: `run(module, export, action)`
       reads or calls one named export, and the named-module example runs
       through it. The selection is exposed as the harness API only; a CLI
-      waits for a use ([`main.rs`](../nanvm-harness/src/main.rs)).
+      waits for a use ([`main.rs`](../nanvm/harness/src/main.rs)).
 - [x] Inline source dependencies into one generated Rust output.
       `rustText` in the [compiler](../fjs/compiler/module.f.mjs) resolves the complete
       graph before calling `toRust`; source imports do not become separate
@@ -435,10 +435,10 @@ is on hold and is not part of this completed MVP or a self-hosting prerequisite.
 - [x] Prove the pipeline with a minimal synthetic JavaScript FunctionalScript
       subset: a constant default export compiled by `fjs` to `.rs`, built and
       run by cargo, with the result printed to stdout as JSON —
-      `nanvm-harness/fixtures/{number,boolean,string}.mjs` — then extended to
+      `nanvm/harness/fixtures/{number,boolean,string}.mjs` — then extended to
       arrays, objects, `const`-sharing, and string-keyed property access —
-      `nanvm-harness/fixtures/{array,object,sharing,property}.mjs`, matched
-      by [`Any::to_json`](../nanvm-lib/src/vm/any/to_json.rs) recursing into
+      `nanvm/harness/fixtures/{array,object,sharing,property}.mjs`, matched
+      by [`Any::to_json`](../nanvm/lib/src/vm/any/to_json.rs) recursing into
       arrays/objects instead of refusing them.
 - [x] Complete package support for authored `.f.js`, including direct
       type-checking, declaration emission, packing, and clean-consumer
@@ -472,10 +472,10 @@ is on hold and is not part of this completed MVP or a self-hosting prerequisite.
   of a published `.f.js`.
 - [`fjs/compiler/README.md`](../fjs/compiler/README.md) — the extension contract, and the
   stage-1/stage-2 boundary this migration starts from.
-- [nanvm-lib/todo/mvp-roadmap.md](../nanvm-lib/todo/mvp-roadmap.md) — the
+- [nanvm/lib/todo/mvp-roadmap.md](../nanvm/lib/todo/mvp-roadmap.md) — the
   design decided around the MVP pipeline and the post-MVP tasks; this file
   holds the MVP definition and its tasks.
-- [nanvm-lib/todo/console-program.md](../nanvm-lib/todo/console-program.md) —
+- [nanvm/lib/todo/console-program.md](../nanvm/lib/todo/console-program.md) —
   the self-hosted `nanvm` crate (post-MVP).
 - [authored `.mjs` package support](../fjs/ci/todo/f-mjs-package-support.md) —
   stage-1 validation, declaration, and package prerequisite.

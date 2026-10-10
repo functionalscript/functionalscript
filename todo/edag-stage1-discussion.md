@@ -242,7 +242,7 @@ Agreed points (not under discussion):
 
   A call spread is therefore an array spread, the arguments array built
   as `[a, ...x, b]` is, and runs the same `GetIterator`
-  ([spread operations](../nanvm-lib/todo/spread-operations.md)).
+  ([spread operations](../nanvm/lib/todo/spread-operations.md)).
 
 ### Operations
 
@@ -1296,7 +1296,7 @@ the **graph**, not a tree expansion:
   canonical placement rule — e.g. first use in evaluation order is the
   definition, later uses are back-references. The back-reference indices
   are **derived** from the graph, never authored (subject 1). Affects
-  the CBOR task in [mvp-roadmap](../nanvm-lib/todo/mvp-roadmap.md).
+  the CBOR task in [mvp-roadmap](../nanvm/lib/todo/mvp-roadmap.md).
 - Hash-consing / content-addressed dedup must **not** merge structurally
   identical constructor nodes: `["[]", ["{}"], ["{}"]]` and
   `const x = ["{}"]; ["[]", x, x]` are semantically different, and a

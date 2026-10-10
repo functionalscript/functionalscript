@@ -308,7 +308,7 @@ randomness and external mutation.
       [`fjs/compiler/transpiler`](../fjs/compiler/transpiler/module.f.mjs)).
 - [x] **P1:** refuse a `toString` radix in `nanvm-lib` rather than answer in
       radix ten, until the radix is implemented
-      ([member functions](../nanvm-lib/todo/member-functions.md)).
+      ([member functions](../nanvm/lib/todo/member-functions.md)).
 - [ ] **P1:** compare the operator grammar's refusals with a native
       JavaScript engine's syntax and early errors, and extend that gate to
       the logical/nullish operators and parameter syntax.

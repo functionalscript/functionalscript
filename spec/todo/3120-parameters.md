@@ -422,7 +422,7 @@ this contract; refuse such input rather than claim a lossless migration.
 
 Reconcile pending design documents in this proposal, before implementation:
 [stage-1 subjects 2 and 7](../../todo/edag-stage1-discussion.md#2-arguments-reference),
-the [native callable plan](../../nanvm-lib/todo/callable-function-objects.md),
+the [native callable plan](../../nanvm/lib/todo/callable-function-objects.md),
 which also covers captured frames in Rust,
 and the [function-frame plan](./3111-function-frame.md) follow this
 `length` / `arg` / `rest` contract, not a count-only extension of complete

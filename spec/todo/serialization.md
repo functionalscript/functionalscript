@@ -45,7 +45,7 @@ Hashing and function text require an association with semantic EDAG, independent
 of the executor used: the EDAG is the stable **code/content identity**, while
 native code is a cached acceleration of it. Embedded `Any` data versus out-of-band
 lookup remains open in the
-[roadmap](../../nanvm-lib/todo/mvp-roadmap.md#open-questions). This metadata
+[roadmap](../../nanvm/lib/todo/mvp-roadmap.md#open-questions). This metadata
 requirement does not imply a dependency on the dynamic Rust EDAG library.
 
 Code/content identity is not callable allocation identity. Under a JS-compatible execution
@@ -109,7 +109,7 @@ candidates below, not answers.
    2026-09-30, [recorded on #2418](https://github.com/functionalscript/functionalscript/pull/2418)). A captured
    value is written as its slot's name, so every function one arrow makes has
    one text; see
-   [to-primitive's D2](../../nanvm-lib/todo/to-primitive.md#stage-3-a-functions-text).
+   [to-primitive's D2](../../nanvm/lib/todo/to-primitive.md#stage-3-a-functions-text).
    What the function serializer does with a frame stays with question 1. The
    discussion below is kept for that.
 
@@ -215,7 +215,7 @@ lazy strings or frame serialization are implemented today.
 
 - [ ] Resolve each question before implementing the cases whose observable
   output depends on it; do not make unrelated work wait on all three.
-  [to-primitive Stage 3](../../nanvm-lib/todo/to-primitive.md#stage-3-a-functions-text)
+  [to-primitive Stage 3](../../nanvm/lib/todo/to-primitive.md#stage-3-a-functions-text)
   stages the Rust VM's work that way: a function with an empty frame first,
   since its text is the same under every answer, and a frame after
   question 2.

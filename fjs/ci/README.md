@@ -327,7 +327,7 @@ Git, not only the workflows. `fjs ci` covers `.github/workflows/gen.ci.yml`,
 and `run`, deliberately not `flake.lock`, which the generated
 `gen.nix/lock-update.sh` regenerates through Nix — see below); a project with other
 generators chains them into the same script, as this repository does for
-`nanvm-lib/tests/test/gen.corpus/` (see
+`nanvm/lib/tests/test/gen.corpus/` (see
 [`fjs/nanvm/README.md`](../nanvm/README.md)) and for the lock script itself.
 Everything chained there is covered by the drift check below for free.
 

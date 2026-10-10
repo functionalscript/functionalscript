@@ -22,11 +22,11 @@ import { directory as methodsDirectory, generate as generateMethods, path as met
 import { directory as valuesDirectory, generate as generateValues, path as valuesPath } from '../values/module.f.mjs'
 
 /**
- * Regenerates `nanvm-lib/tests/test/gen.corpus/` from the shared test data,
+ * Regenerates `nanvm/lib/tests/test/gen.corpus/` from the shared test data,
  * one file at a time, stopping at the first that fails, and then the
- * completeness table `nanvm-lib/src/vm/lambda/gen.methods.rs` and interpreted
- * value fixture `nanvm-harness/gen.values/captures.rs`, and the command set
- * `nanvm-effects-node/src/gen.commands.rs`.
+ * completeness table `nanvm/lib/src/vm/lambda/gen.methods.rs` and interpreted
+ * value fixture `nanvm/harness/gen.values/captures.rs`, and the command set
+ * `nanvm/effects-node/src/gen.commands.rs`.
  *
  * @type {() => Effect<Mkdir | Rm | WriteBytes | WriteFile, void, IoChannel>}
  */
