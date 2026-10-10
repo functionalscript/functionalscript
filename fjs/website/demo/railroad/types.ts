@@ -13,10 +13,12 @@
  *
  * - `terminal` — text the input must hold, drawn as a pill;
  * - `category` — any one of a kind of text, such as an identifier, by the
- *   kind's name, drawn as a pill with that name in italics, so it is not
- *   read as the text itself: the ECMAScript specification's own convention,
- *   which sets *IdentifierName* and *StringLiteral* in italics and the text
- *   an input holds, `=>`, in monospace;
+ *   kind's name, drawn as a grey pill with that name in italics, so it is
+ *   not read as the text itself. Grey keeps the terminal's colour for text
+ *   the input holds; the italics are the ECMAScript specification's own
+ *   convention, which sets *IdentifierName* and *StringLiteral* in italics
+ *   and the text an input holds, `=>`, in monospace, and they still tell
+ *   the two apart where colour does not;
  * - `nonTerminal` — another diagram, by name, drawn as a box that links to
  *   it;
  * - `skip` — plain track, the way past an optional piece;
@@ -36,3 +38,11 @@ export type Diagram =
     | readonly ['sequence', readonly Diagram[]]
     | readonly ['choice', readonly [Diagram, ...Diagram[]]]
     | readonly ['loop', Diagram, Diagram]
+
+/**
+ * The kinds of piece drawn as a box with a label — a terminal's or a
+ * category's pill, a non-terminal's box: the tags of the pieces that carry
+ * a name. The stylesheet selects each by this kind, so a kind it names is
+ * one a diagram draws.
+ */
+export type BoxKind = Extract<Diagram, readonly [string, string]>[0]

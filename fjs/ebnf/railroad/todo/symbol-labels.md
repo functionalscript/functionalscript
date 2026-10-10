@@ -37,17 +37,18 @@ set: how a set of symbols is labelled, and which symbols join into one literal.
   so a token set is the choice of its tokens, however many runs it has, and
   tokens never join into one literal. A name in `categories` — `id`, `string`
   — stands for any token of its kind, not for its own text, and is drawn as a
-  `category`: a pill with its name in italics.
+  `category`: a grey pill with its name in italics, so only text the input
+  holds is drawn in the terminal's blue.
 
 ### Tasks
 
 - [x] `toDiagrams` takes an `Alphabet`; `codePoints` and `tokens`; the
   `category` piece in `website/demo/railroad`.
-- [ ] A railroad demo of `compiler/parser/grammar`: it is the grammar a reader
-  of the language most wants to see. Which of its rules get titles decides
-  whether its page reads as a specification — the module's own `@module`
-  EBNF names the candidates; `identifier` needs a title so its twelve
-  branches are drawn once, and `eagerTail` so its generated layers are.
+- [x] A railroad demo of `compiler/parser/grammar`
+  ([`demo.f.mjs`](../../../compiler/parser/grammar/demo.f.mjs)): a diagram per
+  exported rule and per `eagerTail` layer, the layers titled by their
+  operators' names in `eagerLayers`; `id`, `string`, `number` and `bigint` are
+  its categories.
 - [ ] A byte alphabet, labelling a byte as `0xE9` outside printable ASCII,
   before any byte grammar (`git/*`) is drawn.
 

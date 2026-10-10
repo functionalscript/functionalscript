@@ -5,9 +5,13 @@
  * @import { Equal } from '../../../types/ts/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { Items } from './types.ts'
+ * @import { Node } from '../../../media/html/types.ts'
  */
 
-import { assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { diagramPage } from '../../../ebnf/testlib.f.mjs'
+import { railroadLabelMarker } from '../../../website/style/module.f.mjs'
+import { demo, diagrams } from './demo.f.mjs'
 import { parser } from '../../../ebnf/ll1/module.f.mjs'
 import { repeatFrom0 } from '../../../ebnf/module.f.mjs'
 import { stringToList } from '../../../text/utf16/module.f.mjs'
@@ -51,6 +55,22 @@ const read = s => {
     if (at === undefined) { return ['error', 'end'] }
     const { token } = at.meta
     return ['error', token.kind === 'id' ? token.value : token.kind]
+}
+
+/**
+ * The labels a view draws, each as `kind:text`: read from the element tree
+ * the page is rendered from, by the marker the stylesheet selects, rather
+ * than matched in its HTML text.
+ *
+ * @type {(node: Node) => readonly string[]}
+ */
+const labelsOf = node => {
+    if (typeof node === 'string') { return [] }
+    const [, first, ...rest] = node
+    if (first === undefined) { return [] }
+    if (typeof first === 'string' || first instanceof Array) { return [first, ...rest].flatMap(labelsOf) }
+    const kind = first[railroadLabelMarker]
+    return [...(kind === undefined ? [] : [`${kind}:${rest.join('')}`]), ...rest.flatMap(labelsOf)]
 }
 
 export const proof = {
@@ -575,6 +595,17 @@ export const proof = {
         parser(/** @type {Rule} */ (lastStatement))
         // a block's statement: `const` and `if` decide the two in one symbol
         parser(/** @type {Rule} */ (statement))
+    },
+    demo: {
+        // A diagram per title, and a diagram for every box.
+        page: diagramPage(demo, diagrams),
+        // A token that stands for any token of its kind is a category, and
+        // a token that is its own text a terminal.
+        labels: () => {
+            const labels = labelsOf(demo.view(demo.init))
+            assert(labels.includes('category:id'), 'id')
+            assert(labels.includes('terminal:=>'), '=>')
+        },
     },
     throw: {
         eofRejected: () => symbolOf({ token: { kind: 'eof' }, metadata: { path: 'a.js', line: 1, column: 1 }, newline: false }),
