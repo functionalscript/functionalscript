@@ -34,6 +34,7 @@ pub mod object_spread;
 pub mod operators;
 pub mod optional;
 pub mod parameters;
+pub mod parity;
 pub mod property;
 pub mod recursion;
 pub mod rest;

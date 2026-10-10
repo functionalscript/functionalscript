@@ -144,7 +144,7 @@ export const proof = {
     codePoints: {
         text: () => {
             assertStructurallySame(codePoints(''), [])
-            assertStructurallySame(codePoints('a😀'), [c('a'), 0x1F600])
+            assertStructurallySame(codePoints('a😀'), [c('a'), 0x1_F600])
         },
         throw: {
             loneHigh: () => codePoints('\uD800'),
@@ -349,7 +349,7 @@ export const proof = {
                 const [ruleSet] = toData(unicodeMax)
                 assertStructurallySame(ruleSet, {
                     '': ['sequence', '0'],
-                    0: ['set', 0x10FFFF, 0x110000],
+                    0: ['set', 0x10_FFFF, 0x11_0000],
                 })
             },
         },

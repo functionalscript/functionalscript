@@ -1,5 +1,5 @@
 import { assertEq } from '../../asserts/module.f.mjs'
-import { arrayIndex } from './module.f.mjs'
+import { arrayIndex } from './module.f.js'
 
 export const proof = {
     // The canonical spellings, up to the last index the language admits.

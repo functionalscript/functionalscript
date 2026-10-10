@@ -303,7 +303,7 @@ export const fromRegistry = registry => {
 // ── Lifecycle / capability state machine ───────────────────────────────────────
 
 /** MCP error -32002: the client called a method before `initialize`. */
-export const notInitialized = rpcError(-32002)('Server not initialized')
+export const notInitialized = rpcError(-32_002)('Server not initialized')
 
 // Params for methods that take no arguments (`ping`, `notifications/initialized`):
 // absent, or an object (which may carry `_meta`). Checked against the *read*

@@ -434,7 +434,7 @@ export const proof = {
     // One decimal, and the shared unit rule — a row reads as the counts do.
     reportDuration: {
         underASecond: () => assertEq(reportDuration(82.34), '82.3 ms'),
-        fromASecond: () => assertEq(reportDuration(103812.4), '103.8 s'),
+        fromASecond: () => assertEq(reportDuration(103_812.4), '103.8 s'),
     },
     /**
      * **The report's markup, as data.** Both renderers draw these — the live
@@ -478,7 +478,7 @@ export const proof = {
         // No red zero: a clean run's counts are the green count and the time.
         countsWithoutFailures: () => assertStructurallySame(countsView(reportOf('b', 12.3, [leaf('passed', 1)], null)),
             [['span', { 'data-count-passed': '' }, '1 passed'], ['span', { 'data-duration': '' }, '12.3 ms']]),
-        countsWithFailures: () => assertStructurallySame(countsView(reportOf('b', 1500, [leaf('passed', 1), leaf('failed', 1)], null)),
+        countsWithFailures: () => assertStructurallySame(countsView(reportOf('b', 1_500, [leaf('passed', 1), leaf('failed', 1)], null)),
             [['span', { 'data-count-passed': '' }, '1 passed'], ['span', { 'data-count-failed': '' }, '1 failed'], ['span', { 'data-duration': '' }, '1.5 s']]),
     },
     demo: {

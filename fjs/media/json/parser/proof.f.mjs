@@ -85,10 +85,10 @@ export const proof = {
         assertEq(parsed('123'), 123)
         assertEq(parsed('1.5'), 1.5)
         assertEq(parsed('-0.25'), -0.25)
-        assertEq(parsed('1e3'), 1000)
-        assertEq(parsed('1E+3'), 1000)
+        assertEq(parsed('1e3'), 1_000)
+        assertEq(parsed('1E+3'), 1_000)
         assertEq(parsed('1.5e-3'), 0.0015)
-        assertEq(parsed('9007199254740993'), 9007199254740992)
+        assertEq(parsed('9007199254740993'), 9_007_199_254_740_992)
         assert(is(parsed('-0'), -0))
         assertEq(parsed('1e-400'), 0)
     },
@@ -171,19 +171,19 @@ export const proof = {
     // machine's: 5000 levels of brackets, 6000 sibling containers and an
     // array of 12000 items all parse, and the values come out whole.
     deep: () => {
-        const n = 5000
+        const n = 5_000
         const nested = parsed('['.repeat(n) + ']'.repeat(n))
         /** @type {(depth: number, v: Unknown) => number} */
         const depthOf = (depth, v) => v instanceof Array && v.length === 1 ? depthOf(depth + 1, v[0]) : depth
         assertEq(depthOf(0, nested), n - 1)
-        const s = 6000
+        const s = 6_000
         const objects = parsed(`[${Array(s).fill('{}').join(',')}]`)
         assert(objects instanceof Array)
         assertEq(objects.length, s)
         const entries = parsed(`{${Array.from({ length: s }, (_, i) => `"k${i}":[]`).join(',')}}`)
         assert(typeof entries === 'object' && entries !== null && !(entries instanceof Array))
         assertEq(Object.keys(entries).length, s)
-        const m = 12000
+        const m = 12_000
         const wide = parsed(`[${Array.from({ length: m }, (_, i) => i).join(',')}]`)
         assert(wide instanceof Array)
         assertEq(wide.length, m)

@@ -49,7 +49,8 @@ test that tells a name from a typo, and only the head of a path is a name —
 ## What it costs
 
 It is a breaking change: `const Object = 1;` compiles today, so the pull
-request that lands the rule declares it.
+request that lands the rule explains the API change and updates affected
+importers. Formal breaking-change notices are optional before 1.0.
 
 Here it costs three renames. At `ce2698cf`, `fjs/types/bigint`,
 `fjs/media/json/extended` and `fjs/media/json/parser` each hold

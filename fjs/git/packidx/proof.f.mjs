@@ -56,10 +56,10 @@ const decoded = bytes => {
 
 /** A big-endian 32-bit word as bytes, for the synthetic indexes below. */
 const u32 = /** @type {(v: number) => readonly number[]} */ (v => [
-    Math.floor(v / 16777216) % 256,
-    Math.floor(v / 65536) % 256,
-    Math.floor(v / 256) % 256,
-    v % 256,
+    Math.floor(v / 0x100_0000) % 0x100,
+    Math.floor(v / 0x1_0000) % 0x100,
+    Math.floor(v / 0x100) % 0x100,
+    v % 0x100,
 ])
 
 /** How long an id is in these fixtures, and so how long each checksum is. */
@@ -112,7 +112,7 @@ const withLargeOffset = (only, offset) => {
         ...oid,
         ...u32(0),
         // the high bit says "an index into the table below", and it is index 0
-        ...u32(0x80000000),
+        ...u32(0x8000_0000),
         ...offset,
         // the pack's checksum, which this reader hands back and does not check
         ...oid,
@@ -290,20 +290,20 @@ export const proof = {
     // An offset in the 8-byte table, which is what the high bit of a 4-byte
     // offset means. Git writes this only for a pack over 2 GiB.
     largeOffset: () => {
-        const idx = decoded(withLargeOffset(only, [...u32(0), ...u32(0x80000000)]))
-        assertEq(offsetOf(idx)(only), 2147483648)
+        const idx = decoded(withLargeOffset(only, [...u32(0), ...u32(0x8000_0000)]))
+        assertEq(offsetOf(idx)(only), 0x8000_0000)
         // And one past 4 GiB, to show the high word is read and not dropped.
         const far = decoded(withLargeOffset(only, [...u32(1), ...u32(0)]))
-        assertEq(offsetOf(far)(only), 4294967296)
+        assertEq(offsetOf(far)(only), 0x1_0000_0000)
     },
     // An 8-byte offset a `number` cannot hold exactly is refused rather than
     // rounded, because it goes on to `readBytes`, which takes a `number`.
     // 2^53 bytes is 8 PiB, so such a file is corrupt and not large.
     largeOffsetTooLarge: () => {
-        assertEq(read(withLargeOffset(only, [...u32(0x00200000), ...u32(1)])), null)
+        assertEq(read(withLargeOffset(only, [...u32(0x0020_0000), ...u32(1)])), null)
         // One below the bound still reads, so the refusal is the bound's and
         // not the table's.
-        assertEq(offsetOf(decoded(withLargeOffset(only, [...u32(0x001FFFFF), ...u32(0xFFFFFFFF)])))(only), 9007199254740991)
+        assertEq(offsetOf(decoded(withLargeOffset(only, [...u32(0x001F_FFFF), ...u32(0xFFFF_FFFF)])))(only), 0x1f_ffff_ffff_ffff)
     },
     // An index of no objects: a fanout of zeros and nothing between it and
     // the checksums. The lookup answers nothing rather than searching.
@@ -333,7 +333,7 @@ export const proof = {
     // magic says a version follows, and an unknown one is a layout this
     // reader does not know.
     version: () => {
-        for (const v of [0, 1, 3, 0xFFFFFFFF]) {
+        for (const v of [0, 1, 3, 0xFFFF_FFFF]) {
             assertEq(read([...packIdx2.slice(0, 4), ...u32(v), ...packIdx2.slice(8)]), null)
         }
     },
@@ -368,7 +368,7 @@ export const proof = {
         // the word sits after the magic, the version, the fanout, the id and
         // the CRC
         const wordAt = 4 + 4 + 256 * 4 + 20 + 4
-        assertEq(read(replaced(built, wordAt, u32(0x80000001))), null)
+        assertEq(read(replaced(built, wordAt, u32(0x8000_0001))), null)
         // the same file with index 0 reads, so the refusal is the index's
         assertEq(offsetOf(decoded(built))(small), 12)
     },
@@ -391,9 +391,9 @@ export const proof = {
             ...Array.from({ length: width }, () => 0),
         ])
         // the high bit set is an offset and not a flag
-        assertEq(offsetOf(decoded(v1(u32(0x80000001))))(only), 0x80000001)
+        assertEq(offsetOf(decoded(v1(u32(0x8000_0001))))(only), 0x8000_0001)
         // and the largest word a version 1 index can hold, one byte short of 4 GiB
-        assertEq(offsetOf(decoded(v1(u32(0xFFFFFFFF))))(only), 0xFFFFFFFF)
+        assertEq(offsetOf(decoded(v1(u32(0xFFFF_FFFF))))(only), 0xFFFF_FFFF)
         // where the same word in a version 2 index names the table instead —
         // `largeOffsetPastTable` above reads it that way
     },
@@ -432,16 +432,16 @@ export const proof = {
         const twoSlots = withTwoSlots(low, high)
         // In order, so the file itself is readable and the refusals below are
         // about which slots the words name and nothing else.
-        const good = twoSlots([...u32(0x80000000), ...u32(0x80000001)])
+        const good = twoSlots([...u32(0x8000_0000), ...u32(0x8000_0001)])
         assertStructurallySame(seen(decoded(good)), [
             ['1800000000000000000000000000000000000000', 12],
             ['2500000000000000000000000000000000000000', 24],
         ])
         // Both words on the last slot: two slots named, two slots present, slot
         // 0 never read. This is what a count alone accepts.
-        assertEq(read(twoSlots([...u32(0x80000001), ...u32(0x80000001)])), null)
+        assertEq(read(twoSlots([...u32(0x8000_0001), ...u32(0x8000_0001)])), null)
         // Both on the first: a gap at the end rather than at the start.
-        assertEq(read(twoSlots([...u32(0x80000000), ...u32(0x80000000)])), null)
+        assertEq(read(twoSlots([...u32(0x8000_0000), ...u32(0x8000_0000)])), null)
         // In the wrong order, which Git never writes — it hands out slots as it
         // walks the objects — and which no count can see either.
         //
@@ -452,7 +452,7 @@ export const proof = {
         // 128, where the same table in order is read and printed. Git's
         // *object* reader is laxer and takes it, so the two disagree and this
         // follows the one whose job is the same as this module's.
-        assertEq(read(twoSlots([...u32(0x80000001), ...u32(0x80000000)])), null)
+        assertEq(read(twoSlots([...u32(0x8000_0001), ...u32(0x8000_0000)])), null)
     },
     // The trailing checksum is the index's own, over every byte before it, and
     // it is checked. It is the only thing that catches a corruption no
@@ -516,6 +516,6 @@ export const proof = {
         emptyLookupWidth: () =>
             offsetOf(decoded(sealed(emptyV1)))(id('8031c3b5f0c291f374148e59909ea8a8f83538e9a412bac9b1f8072e6e6be27f')),
         // Bytes that are no bytes, the same refusal every reader here makes.
-        notBytes: () => read([256]),
+        notBytes: () => read([0x100]),
     },
 }

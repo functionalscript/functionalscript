@@ -1267,9 +1267,15 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
         view: () => {
             const shown = htmlToString(demo.view(demo.init))
             assert(shown.includes('<h3>.rs</h3>'), shown)
-            assert(shown.includes('<pre>'), shown)
+            assert(shown.includes('<pre data-code="">'), shown)
+            assert(shown.includes('callable materialization requires a target compile/load boundary</pre>'), shown)
+            assert(!shown.includes(' - error:'), shown)
             const refused = htmlToString(demo.view('export default {bad'))
-            assert(refused.includes('Refused: '), refused)
+            assert(refused.includes('Refused:</p><pre data-result="error">unexpected end</pre>'), refused)
+            assert(!refused.includes(' - error:'), refused)
+            const unsupported = htmlToString(demo.view('export default undefined;'))
+            assert(unsupported.includes('Refused:</p><pre data-result="error">no JSON spelling for undefined</pre>'), unsupported)
+            assert(!unsupported.includes(' - error:'), unsupported)
         },
     },
 }

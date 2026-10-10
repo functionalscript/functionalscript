@@ -332,11 +332,10 @@ justification is the API and the AST, which is where
       difference against the Unicode universe with the front end's `remove`
       over `range('\0' + unicodeMax)`, not with the adapter's `not`: the port
       did not depend on `ebnf/unicode/` and did not wait on it.
-- [ ] `tsc`, `fjs test`. Each breaking PR declares `**BREAKING CHANGES:**`
-      in the `Changelog:` section of its description
-      ([changelog/RELEASE.md](../../../../changelog/RELEASE.md)) — the
-      `range_set` representation and the AST shape both are. A PR adds no
-      changelog file.
+- [ ] `tsc`, `fjs test`. Explain changes to the `range_set` representation
+      and AST shape in the PR description. Breaking notices are optional
+      before 1.0 ([changelog/RELEASE.md](../../../../changelog/RELEASE.md)).
+      A PR adds no changelog file.
 
 ### Related
 

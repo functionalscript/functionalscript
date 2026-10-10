@@ -72,7 +72,7 @@ const posted = body => ({ method: 'POST', url: '/', headers: {}, body, chunkedRe
  * @type {(listener: RequestListener<ReadRequestBytes | All>, body: readonly Vec[]) => readonly[State, RecordedResponse]}
  */
 const answered = (listener, body) => {
-    const e = step(createServer(listener), server => listen(server, 8080, '127.0.0.1'))
+    const e = step(createServer(listener), server => listen(server, 8_080, '127.0.0.1'))
     const [s, result] = virtual({ ...emptyState, requests: [posted(body)] })(e)
     assert(result[0] === 'ok', result)
     return [s, s.responses[0]]
@@ -156,7 +156,7 @@ const requested = (method, headers = {}, chunkedResponse = true) =>
  * @type {(listener: RequestListener<NodeOp>, request: _QueuedRequest, state?: State) => readonly[State, RecordedResponse]}
  */
 const answerOne = (listener, request, state = emptyState) => {
-    const e = step(createServer(listener), server => listen(server, 8080, '127.0.0.1'))
+    const e = step(createServer(listener), server => listen(server, 8_080, '127.0.0.1'))
     const [s, result] = virtual({ ...state, requests: [request] })(e)
     assert(result[0] === 'ok', result)
     assertEq(s.responses.length, 1)
@@ -1604,7 +1604,7 @@ export const proof = {
             /** @type {RequestListener<NodeOp>} */
             const listener = ({ url }) =>
                 pureOk({ status: 200, headers: {}, body: ofChunks([utf8(`echo ${url}`)]), release: holdsNothing })
-            const e = step(createServer(listener), server => listen(server, 8080, '127.0.0.1'))
+            const e = step(createServer(listener), server => listen(server, 8_080, '127.0.0.1'))
             /** @type {State} */
             const state = { ...emptyState, requests: [get('/a'), get('/b')] }
             const [s, result] = virtual(state)(e)
@@ -1627,7 +1627,7 @@ export const proof = {
             // closing over it.
             const created = history(createServer(named('a')))
             const both = historyStep(created, () => createServer(named('b')))
-            const first = step(both, ([, a]) => listen(a, 8080, '127.0.0.1'))
+            const first = step(both, ([, a]) => listen(a, 8_080, '127.0.0.1'))
             /** @type {State} */
             const state = {
                 ...emptyState,
@@ -1658,7 +1658,7 @@ export const proof = {
             }
             rejects(-1)
             rejects(1.5)
-            rejects(65536)
+            rejects(65_536)
             rejects(NaN)
         },
         // Port `0` names no port: two servers asking the host for a free one
@@ -1686,8 +1686,8 @@ export const proof = {
             const second = historyStep(first, () => createServer(listener))
             // `historyStep` spreads the history over its continuation, newest
             // first: `b` here is the second server, and `a` the first.
-            const bound = historyStep(second, b => listen(b, 8080, '127.0.0.1'))
-            const e = step(bound, ([, , a]) => listen(a, 8080, '127.0.0.1'))
+            const bound = historyStep(second, b => listen(b, 8_080, '127.0.0.1'))
+            const e = step(bound, ([, , a]) => listen(a, 8_080, '127.0.0.1'))
             const [s, result] = virtual(emptyState)(e)
             assert(result[0] === 'error', result)
             assertIoCode(result[1], 'EADDRINUSE')
@@ -1703,8 +1703,8 @@ export const proof = {
                 pureOk({ status: 200, headers: {}, body: endOfBody(), release: holdsNothing })
             const first = history(createServer(listener))
             const second = historyStep(first, () => createServer(listener))
-            const bound = historyStep(second, b => listen(b, 8080, 'LOCALHOST'))
-            const e = step(bound, ([, , a]) => listen(a, 8080, 'localhost'))
+            const bound = historyStep(second, b => listen(b, 8_080, 'LOCALHOST'))
+            const e = step(bound, ([, , a]) => listen(a, 8_080, 'localhost'))
             const [s, result] = virtual(emptyState)(e)
             assert(result[0] === 'error', result)
             assertIoCode(result[1], 'EADDRINUSE')
@@ -1722,7 +1722,7 @@ export const proof = {
             const listener = () =>
                 pureOk({ status: 200, headers: {}, body: endOfBody(), release: holdsNothing })
             const created = history(createServer(listener))
-            const e = step(created, ([server]) => listen(server, 8080, ''))
+            const e = step(created, ([server]) => listen(server, 8_080, ''))
             const [s, result] = virtual(emptyState)(e)
             assert(result[0] === 'error', result)
             assertIoCode(result[1], 'ERR_INVALID_ARG_VALUE')
@@ -1741,8 +1741,8 @@ export const proof = {
             const listener = () =>
                 pureOk({ status: 200, headers: {}, body: endOfBody(), release: holdsNothing })
             const created = history(createServer(listener))
-            const bound = historyStep(created, server => listen(server, 8080, '127.0.0.1'))
-            const e = step(bound, ([, server]) => listen(server, 9090, ''))
+            const bound = historyStep(created, server => listen(server, 8_080, '127.0.0.1'))
+            const e = step(bound, ([, server]) => listen(server, 9_090, ''))
             const [, result] = virtual(emptyState)(e)
             assert(result[0] === 'error', result)
             assertIoCode(result[1], 'ERR_INVALID_ARG_VALUE')
@@ -1754,20 +1754,20 @@ export const proof = {
             /** @type {(second: number) => IoChannel} */
             const again = second => {
                 const created = history(createServer(listener))
-                const bound = historyStep(created, server => listen(server, 8080, '127.0.0.1'))
+                const bound = historyStep(created, server => listen(server, 8_080, '127.0.0.1'))
                 const e = step(bound, ([, server]) => listen(server, second, '127.0.0.1'))
                 const [, result] = virtual(emptyState)(e)
                 assert(result[0] === 'error', result)
                 return result[1]
             }
-            assertIoCode(again(9090), 'ERR_SERVER_ALREADY_LISTEN')
+            assertIoCode(again(9_090), 'ERR_SERVER_ALREADY_LISTEN')
             // And it is asked before the port is: a server already listening
             // reports this for a port no server could take, where the same
             // value on a fresh server is `ERR_SOCKET_BAD_PORT`. That is the
             // order Node asks in, checked on Linux with Node 22.22.2 and on
             // Darwin with Node 23.11.0.
             assertIoCode(again(-1), 'ERR_SERVER_ALREADY_LISTEN')
-            assertIoCode(again(65536), 'ERR_SERVER_ALREADY_LISTEN')
+            assertIoCode(again(65_536), 'ERR_SERVER_ALREADY_LISTEN')
             assertIoCode(again(NaN), 'ERR_SERVER_ALREADY_LISTEN')
         },
         // **A body arriving in many small chunks is reassembled in order.** The
@@ -1798,7 +1798,7 @@ export const proof = {
         // wrong while still answering the right bytes to whichever request ran
         // last.
         eachRequestHasItsOwnBody: () => {
-            const e = step(createServer(echoBody), server => listen(server, 8080, '127.0.0.1'))
+            const e = step(createServer(echoBody), server => listen(server, 8_080, '127.0.0.1'))
             const [s, result] = virtual({
                 ...emptyState,
                 requests: [posted([utf8('first'), utf8('!')]), posted([utf8('second')])],
@@ -2377,7 +2377,7 @@ export const proof = {
         // it, which is the margin a slower CI runner needs. That is the whole
         // reason the depth is not larger.
         pullsADeepBodyWithoutRecursing: () => {
-            const cells = 15000
+            const cells = 15_000
             const [s, r] = answerOne(
                 () => pureOk({
                     status: 200,

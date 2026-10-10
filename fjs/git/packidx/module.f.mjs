@@ -196,7 +196,7 @@ const tryV1 = (b, oidBytes) => {
  * table" rather than an offset, and so also the first offset that cannot be
  * spelled in four bytes.
  */
-const largeOffsetFlag = /** @type {const} */ (0x80000000)
+const largeOffsetFlag = /** @type {const} */ (0x8000_0000)
 
 /**
  * Version 2: the magic and version, the fanout, the ids, a CRC per object,

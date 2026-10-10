@@ -108,13 +108,13 @@ export const proof = {
         assertEq(mode(entry('40000', 'a', idA)), 0o40000)
         // Exactly, and as Git keeps it: the low 32 bits, so a run past them
         // wraps as Git's `unsigned int` does, and `fsck` judges what is left.
-        assertEq(mode(entry('37777777777', 'a', idA)), 0xFFFFFFFF)
-        assertEq(mode(entry('0000037777777777', 'a', idA)), 0xFFFFFFFF)
+        assertEq(mode(entry('37777777777', 'a', idA)), 0xFFFF_FFFF)
+        assertEq(mode(entry('0000037777777777', 'a', idA)), 0xFFFF_FFFF)
         assertEq(mode(entry('40000100644', 'a', idA)), 0o100644)
         assertStructurallySame(validate([entry('40000100644', 'a', idA)])[0], 'ok')
         assertEq(mode(entry('40000000000', 'a', idA)), 0)
         assertStructurallySame(validate([entry('40000000000', 'a', idA)]), ['error', 'unknown mode at 0'])
-        assertEq(mode(entry('77777777777777777777', 'a', idA)), 0xFFFFFFFF)
+        assertEq(mode(entry('77777777777777777777', 'a', idA)), 0xFFFF_FFFF)
         assertStructurallySame(validate([entry('77777777777777777777', 'a', idA)]), ['error', 'unknown mode at 0'])
     },
     // A subtree is any mode whose kind bits say directory, which is what
@@ -176,8 +176,8 @@ export const proof = {
         assertStructurallySame(validate([entry('100644', '.gitmodules', idA)])[0], 'ok')
         assertStructurallySame(validate([entry('100644', '.gi', idA)])[0], 'ok')
         // A name of 4096 bytes is the longest `fsck` takes; one more is refused.
-        assertStructurallySame(validate([entry('100644', 'n'.repeat(4096), idA)])[0], 'ok')
-        assertStructurallySame(validate([entry('100644', 'n'.repeat(4097), idA)]), ['error', 'long name at 0'])
+        assertStructurallySame(validate([entry('100644', 'n'.repeat(4_096), idA)])[0], 'ok')
+        assertStructurallySame(validate([entry('100644', 'n'.repeat(4_097), idA)]), ['error', 'long name at 0'])
         // An id of all zero bytes is refused at either width; one non-zero
         // byte is an id.
         assertStructurallySame(validate([entry('100644', 'a', idZero)]), ['error', 'null id at 0'])

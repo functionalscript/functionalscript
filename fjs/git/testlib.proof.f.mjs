@@ -22,14 +22,14 @@ export const proof = {
     hexBytes: () => {
         assertStructurallySame(hexBytes(''), [])
         assertStructurallySame(hexBytes('00'), [0])
-        assertStructurallySame(hexBytes('ff'), [255])
+        assertStructurallySame(hexBytes('ff'), [0xff])
         assertStructurallySame(hexBytes('0f10a5'), [0x0F, 0x10, 0xA5])
         // Upper case reads too, though the fixtures are written lower: the
         // digit rule is `fjs/text/ascii`'s and admits both, and refusing one
         // here would be a rule of this function's own invention.
-        assertStructurallySame(hexBytes('FF0A'), [255, 10])
+        assertStructurallySame(hexBytes('FF0A'), [0xff, 0xa])
         // a word of a fanout table, which is what these captures mostly are
-        assertStructurallySame(hexBytes('000000ff'), [0, 0, 0, 255])
+        assertStructurallySame(hexBytes('000000ff'), [0, 0, 0, 0xff])
     },
     // One byte per two characters, which is the property the length assertion
     // is for.
@@ -45,7 +45,7 @@ export const proof = {
         assertStructurallySame(latin1('PACK'), [0x50, 0x41, 0x43, 0x4B])
         // `\xff` is one byte here and two in UTF-8, which is the whole reason
         // the fixtures are read this way
-        assertStructurallySame(latin1('\xFF'), [255])
+        assertStructurallySame(latin1('\xFF'), [0xff])
     },
     throw: {
         // An odd length is a digit dropped while typing a capture, and the

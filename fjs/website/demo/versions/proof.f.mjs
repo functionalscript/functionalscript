@@ -200,7 +200,7 @@ export const proof = {
             const s = press('insert')({ ...demo.init, key: '2' })
             assertEq(s.versions, demo.init.versions)
             assertEq(s.status, demo.init.status)
-            assert(html(s).includes('Error: &quot;2&quot; is not a key: type up to four binary digits.'), '')
+            assert(html(s).includes('Refused:</p><pre data-result="error">&quot;2&quot; is not a key: type up to four binary digits.</pre>'), '')
             // The next good press clears it.
             assertEq(press('insert')({ ...s, key: '101' }).error, null)
         },

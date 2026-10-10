@@ -1425,9 +1425,9 @@ export const proof = {
         },
         view: () => {
             const shown = htmlToString(demo.view(demo.init))
-            assert(shown.includes('<pre>'), shown)
+            assert(shown.includes('<p data-caption="">JavaScript module:</p><pre data-code="">'), shown)
             const refused = htmlToString(demo.view('export default {bad'))
-            assert(refused.includes('Refused: '), refused)
+            assert(refused.includes('Refused:</p><pre data-result="error">'), refused)
         },
     },
 }

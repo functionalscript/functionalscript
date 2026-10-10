@@ -52,7 +52,7 @@ const octal = digitsValue(8n)
  * int`, so a run spelling more than 32 bits wraps, and `40000100644` is
  * the mode `100644` to Git — read, and vouched for by `fsck`.
  */
-const modeBits = 0xFFFFFFFFn
+const modeBits = 0xFFFF_FFFFn
 
 /**
  * The number a mode's digits spell to Git, its low 32 bits, or `null`
@@ -126,7 +126,7 @@ export const isSubtree = e => {
 const dotGit = ascii('.git')
 
 /** The longest name `git fsck` accepts, in bytes. */
-const maxNameLength = 4096
+const maxNameLength = 4_096
 
 /** A byte with an ASCII capital folded to its small letter. @type {(b: number) => number} */
 const lower = b => isLatinCapitalLetter(b) ? b - latinCapitalLetterA + latinSmallLetterA : b

@@ -33,7 +33,10 @@ owner rather than re-spelling the template, and the compiler's proof dump in
 // fjs/media/datajs/serializer/module.f.mjs
 import { serialize as bigintSerialize } from '../../../types/bigint/module.f.mjs'
 // ...
-case 'bigint': { return [bigintSerialize(value)] }
+export const leafSerialize = leafSerializeWith(_numberSerialize)({
+    bigint: value => [[bigintSerialize(value), 'number']],
+    undefined: () => undefinedSerialize,
+})
 ```
 
 But the sibling emitter `fjs/types/ts` re-implements the exact same literal by
@@ -57,12 +60,13 @@ host's `JSON.stringify`.
 ```js
 // stringSerialize, fjs/media/json/serializer/module.f.mjs
 export const stringSerialize
-    = input => [`"${concat(map(escapeCodePoint)(stringToCodePointList(input)))}"`]
+    = input => [[`"${concat(map(escapeCodePoint)(stringToCodePointList(input)))}"`, 'string']]
 ```
 
-`stringSerialize` returns a one-element `List<string>`, so it can't be reused
-where a bare quoted string is needed. As a result, two other modules reach for
-the raw built-in to do the same quoting:
+`stringSerialize` returns a one-element `List<Chunk>` containing a marked
+`[text, 'string']` run. The kind is part of its API: the JSON, DataJS and compiler
+writers pass it on for highlighting. It is not a bare quoted string. As a result,
+two other modules reach for the raw built-in to do the same quoting:
 
 ```js
 // printer's struct, fjs/types/ts/module.f.mjs — struct field key
@@ -100,12 +104,16 @@ but isn't exposed in a reusable (bare-string) form.
    ```js
    /** Renders a string as a double-quoted JS/JSON string literal. */
    export const stringLiteral = input => `"${concat(map(escapeCodePoint)(stringToCodePointList(input)))}"`
-   export const stringSerialize = input => [stringLiteral(input)]
+   export const stringSerialize = input => [[stringLiteral(input), 'string']]
    ```
 
    Then route `fjs/emergent_testing`'s two quoting sites through
    `stringLiteral` instead of the built-in. `emergent_testing` is
    application-level, so depending on `fjs/media/json` is clean.
+
+   Keep `stringSerialize`'s marked run and its `List<Chunk>` return type.
+   Extracting the text renderer must preserve both the escaped text and its
+   `'string'` kind; returning `[stringLiteral(input)]` would discard metadata.
 
 3. **string in `fjs/types/ts` (judgment call — flag, don't force).** The two
    `JSON.stringify` sites in `fjs/types/ts` are the same concern, but routing
@@ -128,14 +136,17 @@ but isn't exposed in a reusable (bare-string) form.
 - [ ] `fjs/types/ts`: import `serialize` from `../bigint/module.f.mjs`; replace
       `case 'bigint': return \`${c}n\`` with `bigintSerialize(c)`.
 - [ ] `fjs/media/json/serializer`: export `stringLiteral`; redefine `stringSerialize`
-      in terms of it (no behavior change).
+      in terms of it, preserving `[[stringLiteral(input), 'string']]` (no behavior
+      change in either text or token metadata).
 - [ ] `fjs/emergent_testing`: import `stringLiteral` from `fjs/media/json/serializer`;
       replace the two `JSON.stringify(...)` quoting sites, in `fmtKey` and
       `fmtImport`.
 - [ ] Decide the `types/ts` string-quoting case per the layering note above;
       record the decision in this file before closing.
 - [ ] Run `tsc` and `fjs t`; confirm `fjs/types/ts`, `fjs/media/json/serializer`,
-      and `fjs/emergent_testing` proofs still pass with full coverage.
+      and `fjs/emergent_testing` proofs still pass with full coverage. Keep the
+      JSON string-run proof and the DataJS/compiler marked-leaf proofs passing;
+      checking flattened text alone does not establish metadata preservation.
 
 ### Related
 
