@@ -18,6 +18,7 @@
  * @import { Unknown } from '../media/datajs/types.ts'
  * @import { _Checked, _CompileOp } from './types.ts'
  * @import { ParseError } from './parser/types.ts'
+ * @import { Exp } from '../edag/types.ts'
  * @import { Effect, IoChannel, IoError } from '../effects/types.ts'
  * @import { Env, Program, ReadWhole, ResolveFileModule, Write } from '../effects/node/types.ts'
  */
@@ -105,6 +106,12 @@ const isFjs = named(['.js', '.mjs'])
  */
 const edagText = path => mapStep(resolve(path), tryMarked)
 
+/** Wrap a successful text result as a plain run. */
+const unmarkedResult = mapOk(unmarked)
+
+/** Rust output as plain marked text. @type {(graph: Exp) => Result<Marked, string>} */
+const rustMarked = graph => unmarkedResult(toRust(graph))
+
 /**
  * The program at `path` as the text of its `.rs` output: linked by `./edag`
  * into one graph, the same as {@link edagText}, and printed against the
@@ -112,7 +119,7 @@ const edagText = path => mapStep(resolve(path), tryMarked)
  *
  * @type {(path: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, string>, ParseError>}
  */
-const rustText = path => mapStep(resolve(path), graph => mapOk(unmarked)(toRust(graph)))
+const rustText = path => mapStep(resolve(path), rustMarked)
 
 /**
  * The program at `path` as the text of the FunctionalScript module it is:
@@ -161,6 +168,9 @@ const outputMarked = outputFileName => {
     return null
 }
 
+/** Flatten a successful marked output to plain text. */
+const textResult = mapOk(toText)
+
 /**
  * The output route as plain text, preserving its input and output refusals.
  *
@@ -168,7 +178,7 @@ const outputMarked = outputFileName => {
  */
 export const outputText = outputFileName => {
     const write = outputMarked(outputFileName)
-    return write === null ? null : inputFileName => mapStep(write(inputFileName), mapOk(toText))
+    return write === null ? null : inputFileName => mapStep(write(inputFileName), textResult)
 }
 
 /**
@@ -344,21 +354,25 @@ export const _outputMarked = (inputFileName, outputFileName) => {
         })
 }
 
+/** Keep the CLI diagnostic when compilation is refused.
+ * @type {(result: Result<Marked, readonly [message: string, diagnostic: string]>) => Result<Marked, string>}
+ */
+const compileResult = result => {
+    const [tag, value] = result
+    if (tag === 'error') {
+        const [, diagnostic] = value
+        return error(diagnostic)
+    }
+    return result
+}
+
 /**
  * {@link _outputMarked} with a refusal as the line the command prints.
  *
  * @type {(inputFileName: string, outputFileName: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, string>, never>}
  */
 export const _compileMarked = (inputFileName, outputFileName) => mapStep(
-    _outputMarked(inputFileName, outputFileName),
-    result => {
-        const [tag, value] = result
-        if (tag === 'error') {
-            const [, message] = value
-            return error(message)
-        }
-        return result
-    })
+    _outputMarked(inputFileName, outputFileName), compileResult)
 
 /**
  * Compiles the FunctionalScript module `inputFileName` into `outputFileName`,
