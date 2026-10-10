@@ -12,6 +12,13 @@
  * a box that links to its diagram. Every other rule is drawn in place,
  * inside the diagram that reaches it.
  *
+ * **A caller says what the symbols are.** A symbol is only a number: a
+ * code point in a grammar over text, a token in one over tokens. So a caller
+ * passes the {@link Alphabet} that labels them — {@link codePoints}, or
+ * {@link tokens} for an `encoding` from `fjs/ebnf/token_symbol` — and a
+ * token that stands for a kind of text, such as `id`, is drawn as a
+ * category rather than as text the input holds.
+ *
  * **Recursion is a box like any other reference.** A rule that reaches
  * itself does so through a titled rule, drawn as a box, so no diagram is
  * infinite. A cycle that runs through untitled rules only has nowhere to
@@ -30,6 +37,8 @@
  * @import { RuleSet } from '../data/types.ts'
  * @import { Diagram } from '../../website/demo/railroad/types.ts'
  * @import { RangeSet } from '../../types/range_set/types.ts'
+ * @import { Encoding } from '../token_symbol/types.ts'
+ * @import { Alphabet } from './types.ts'
  */
 
 import { matchRule } from '../data/module.f.mjs'
@@ -41,6 +50,9 @@ const skip = ['skip']
 
 /** @type {(text: string) => Diagram} */
 const terminal = text => ['terminal', text]
+
+/** @type {(name: string) => Diagram} */
+const category = name => ['category', name]
 
 /**
  * `items` one after another; one piece is itself, and none is plain track.
@@ -79,8 +91,8 @@ const named = { 9: '\\t', 10: '\\n', 13: '\\r', 32: 'space' }
 /**
  * A code point as a label. A symbol above the last code point belongs to
  * another alphabet — a token symbol starts at `0x110000` — and is refused
- * rather than labelled `U+110005`, a code point it is not; see
- * `./todo/symbol-labels.md`.
+ * rather than labelled `U+110005`, a code point it is not: a grammar over
+ * tokens is drawn with {@link tokens}.
  *
  * @type {(c: number) => string}
  */
@@ -111,15 +123,41 @@ const runText = ([first, last]) =>
     : [`${symbolText(first)} … ${symbolText(last)}`]
 
 /**
- * A terminal set as the choice of its symbols and ranges. EOF, the one set
- * with a negative boundary, is `EOF`.
+ * The alphabet of a grammar over text: a symbol is a code point, a set is
+ * its symbols and ranges, and a sequence of printable ASCII symbols is the
+ * one string it spells.
  *
- * @type {(s: RangeSet) => Diagram}
+ * @type {Alphabet}
  */
-const setDiagram = s => {
-    const [head, ...tail] = s[0] < 0 ? ['EOF'] : runs(s).flatMap(runText)
-    return choice(terminal(head), tail.map(terminal))
+export const codePoints = {
+    labels: s => runs(s).flatMap(runText).map(terminal),
+    letter: c => c > 0x20 && c < 0x7f ? String.fromCodePoint(c) : null,
 }
+
+/**
+ * The alphabet of a grammar over tokens, encoded by `encoding`: a symbol is
+ * the name `encoding` decodes it to. A name in `categories` stands for any
+ * token of its kind — `id`, `string` — rather than for text the input
+ * holds, and is drawn as one. Every other name is the text it is: `=>`,
+ * `import`.
+ *
+ * A range of tokens means nothing a reader could use, so a set is the
+ * choice of its tokens one by one, and tokens never join into one literal.
+ * A symbol that decodes to no name, and a set that runs to the top of the
+ * alphabet, are refused rather than labelled with a name they are not.
+ *
+ * @type {<T extends string>(encoding: Encoding<T>, categories: readonly T[]) => Alphabet}
+ */
+export const tokens = ({ decode }, categories) => ({
+    labels: s => runs(s).flatMap(([first, last]) => {
+        assert(last !== null, ['a token set runs past the alphabet', first])
+        return Array.from({ length: last - first + 1 }, (_, i) => {
+            const name = assertNotNullish(decode(first + i), ['not a token', first + i])
+            return categories.includes(name) ? category(name) : terminal(name)
+        })
+    }),
+    letter: () => null,
+})
 
 /**
  * The diagram of each rule in `titled`, under its title, in the order given.
@@ -133,26 +171,35 @@ const setDiagram = s => {
  * two diagrams one link; or if a rule reaches itself through untitled rules
  * only.
  *
- * @type {(ruleSet: RuleSet) => (titled: readonly (readonly [string, string])[]) => readonly (readonly [string, Diagram])[]}
+ * @type {(alphabet: Alphabet) => (ruleSet: RuleSet) => (titled: readonly (readonly [string, string])[]) => readonly (readonly [string, Diagram])[]}
  */
-export const toDiagrams = ruleSet => titled => {
+export const toDiagrams = ({ labels, letter }) => ruleSet => titled => {
     const titles = new Map(titled.map(([title, name]) => [name, title]))
     assert(titles.size === titled.length, ['a rule is titled twice', titled])
     assert(new Set(titles.values()).size === titled.length, ['a title names two rules', titled])
     /**
-     * The printable symbol a rule is, if it is a set of exactly one: one
-     * run, so two boundaries, one symbol apart. A set of more runs is not
-     * its first run, and is drawn as the choice it is. A titled set is a
-     * reference, drawn as its box, never folded into a literal.
+     * The letter a rule is, if it is a set of exactly one symbol the
+     * alphabet spells literals with: one run, so two boundaries, one symbol
+     * apart. A set of more runs is not its first run, and is drawn as the
+     * choice it is. A titled set is a reference, drawn as its box, never
+     * folded into a literal.
      *
      * @type {(name: string) => string | null}
      */
     const printable = name => {
         const rule = ruleSet[name]
         const [tag, first, end] = rule
-        return !titles.has(name) && tag === 'set' && rule.length === 3 && end === first + 1 && first > 0x20 && first < 0x7f
-            ? String.fromCodePoint(first)
-            : null
+        return !titles.has(name) && tag === 'set' && rule.length === 3 && end === first + 1 ? letter(first) : null
+    }
+    /**
+     * A terminal set as the choice of its labels. EOF, the one set with a
+     * negative boundary, is `EOF` in every alphabet.
+     *
+     * @type {(s: RangeSet) => Diagram}
+     */
+    const setDiagram = s => {
+        const [head, ...tail] = s[0] < 0 ? [terminal('EOF')] : labels(s)
+        return choice(assertNotNullish(head), tail)
     }
     /**
      * What `b` separates copies of `a` with, if `b` is a repeat of `a`, or
