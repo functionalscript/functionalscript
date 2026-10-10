@@ -71,18 +71,22 @@ export const fromSpans = text => spans => {
     const symbols = Array.from(text)
     /** @type {(from: number, to: number) => readonly Run[]} */
     const plain = (from, to) => from < to ? [[symbols.slice(from, to).join('')]] : []
-    /** @type {(acc: Result<readonly [number, Marked], string>, span: Span) => Result<readonly [number, Marked], string>} */
-    const step = (acc, { start, length, kind }) => {
-        if (acc[0] === 'error') { return acc }
-        const [position, runs] = acc[1]
+    /** @type {(i: number) => number} */
+    const endBefore = i => i === 0 ? 0 : spans[i - 1].start + spans[i - 1].length
+    /** @type {(span: Span, i: number) => string | null} */
+    const problem = ({ start, length }, i) => {
         if (!Number.isInteger(start) || !Number.isInteger(length) || length < 1) {
-            return error(`span ${start}+${length} is not a non-empty range of whole code points`)
+            return `span ${start}+${length} is not a non-empty range of whole code points`
         }
-        if (start < position) { return error(`span ${start}+${length} overlaps or precedes the text before it`) }
-        const end = start + length
-        if (end > symbols.length) { return error(`span ${start}+${length} is past the end of the text (${symbols.length})`) }
-        return ok([end, [...runs, ...plain(position, start), [symbols.slice(start, end).join(''), kind]]])
+        if (start < endBefore(i)) { return `span ${start}+${length} overlaps or precedes the text before it` }
+        if (start + length > symbols.length) { return `span ${start}+${length} is past the end of the text (${symbols.length})` }
+        return null
     }
-    const result = spans.reduce(step, /** @type {Result<readonly [number, Marked], string>} */(ok([0, []])))
-    return result[0] === 'error' ? result : ok([...result[1][1], ...plain(result[1][0], symbols.length)])
+    const failed = spans.map(problem).find(message => message !== null)
+    if (failed !== undefined) { return error(failed) }
+    const last = endBefore(spans.length)
+    return ok([
+        ...spans.flatMap((span, i) => [...plain(endBefore(i), span.start), /** @type {Run} */ ([symbols.slice(span.start, span.start + span.length).join(''), span.kind])]),
+        ...plain(last, symbols.length),
+    ])
 }
