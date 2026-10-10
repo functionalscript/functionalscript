@@ -130,6 +130,18 @@ body { background-color: var(--bg); color: var(--text); font: 16px ui-monospace,
    as the same directory's view on GitHub. It is in rem, like every other
    length here, so it grows with a reader's own font size. */
 main { margin: 1.5rem auto 3rem; max-width: 63.25rem; padding: 0 1rem }
+/* The PR queue keeps the site's three-column table readable on a phone;
+   status uses words as well as colour. */
+[data-prs] table { border-collapse: collapse; margin-block: 1rem; table-layout: fixed; width: 100% }
+[data-prs] caption { margin-bottom: .75rem; text-align: left }
+[data-prs] th, [data-prs] td { border-bottom: 1px solid var(--border); padding: .65rem .5rem; text-align: left; vertical-align: top }
+[data-prs] th:first-child, [data-prs] td:first-child { padding-left: 0; width: 20% }
+[data-prs] th:last-child, [data-prs] td:last-child { padding-right: 0; width: 45% }
+[data-pr-check="Passing"] { color: var(--pass) }
+[data-pr-check="Failing"], [data-pr-check="Unavailable"] { color: var(--fail) }
+[data-pr-check="Loading"], [data-pr-check="No checks"], [data-pr-check="Unknown"] { color: var(--muted) }
+[data-prs][aria-busy="true"] [data-pr-note] { color: var(--muted) }
+[data-prs][data-pr-stale] [data-pr-note] { color: var(--fail) }
 [data-state="passed"] [data-test-summary] { color: var(--pass) }
 [data-state="failed"] [data-test-summary], [data-state="infrastructure-error"] [data-test-summary] { color: var(--fail) }
 [data-test-results] { color: var(--text) }

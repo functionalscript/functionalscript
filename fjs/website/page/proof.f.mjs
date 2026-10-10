@@ -76,7 +76,7 @@ export const proof = {
         links: () => assertEq(headerHtml(local),
             '<header><nav aria-label="Site">'
             + '<a href="/index.html" data-home=""><img src="/fjs/website/favicon.svg" alt="" width="24" height="24">FunctionalScript</a>'
-            + '<span data-site-links=""><a href="/changelog/index.html">Releases</a>'
+            + '<span data-site-links=""><a href="/prs/index.html">PRs</a><a href="/changelog/index.html">Releases</a>'
             + `<a href="${repository}">GitHub<span aria-hidden="true"> ↗</span></a></span>`
             + '</nav></header>'),
         /**
