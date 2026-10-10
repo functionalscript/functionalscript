@@ -144,11 +144,12 @@ mod tests {
     use crate::{
         Action, RunError,
         fixtures::{
-            arity, array, at, bigint, boolean, call, calls, closure, entry, escapes, exports,
-            function, function_scope, function_text, lazy, length, method, missing, named,
-            named_imports, named_imports_throws, nested, not_a_function, nullish, number, object,
-            object_spread, operators, optional, parameters, property, recursion, rest,
-            rest_function, sharing, spread, string, throw, throws, to_string,
+            arity, array, at, bigint, boolean, call, calls, closure, closure_identity,
+            closure_throws, entry, escapes, exports, function, function_scope, function_text, lazy,
+            length, method, missing, named, named_imports, named_imports_throws, nested,
+            not_a_function, nullish, number, object, object_spread, operators, optional,
+            parameters, property, recursion, rest, rest_function, sharing, spread, string, throw,
+            throws, to_string,
         },
         run,
     };
@@ -373,6 +374,27 @@ mod tests {
             read_default(closure::module),
             Ok("[3,15,[1,2,3,1],42]".into())
         );
+    }
+
+    /// Closure identity: two closures made by one function are distinct
+    /// while one binding read twice is the same, and a captured object keeps
+    /// its identity through the frame. The expected text is what Node prints.
+    #[test]
+    fn closure_identity() {
+        assert_eq!(
+            read_default(closure_identity::module),
+            Ok("[1,1,false,true,true,true]".into())
+        );
+    }
+
+    /// A failure computing a frame element fails where the closure is made,
+    /// not where it is called: the module itself throws.
+    #[test]
+    fn closure_frame_failure_is_at_creation() {
+        assert!(matches!(
+            read_default(closure_throws::module),
+            Err(RunError::Thrown(_))
+        ));
     }
 
     /// A function that names itself: its `self`, the EDAG node the Rust

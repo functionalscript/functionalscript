@@ -55,11 +55,11 @@ impl<A: IVm> Mul for BigInt<A> {
 
 impl<A: IVm> BigInt<A> {
     /// `self * base + digit`, or the `RangeError` of a result longer than
-    /// `MAX_WORDS` words: the step a digit string is read by. `*` checks its
-    /// product, but `+` has no limit of its own and a product just under it
-    /// plus a digit carries one word past, so the sum is checked too.
+    /// `MAX_WORDS` words: the step a digit string is read by. A product just
+    /// under the limit plus a digit carries one word past, so the sum is
+    /// checked as well as the product.
     pub(crate) fn mul_add(self, base: Self, digit: u64) -> Result<Self, Any<A>> {
-        ((self * base)? + Self::from(digit)).within_limit()
+        (self * base)? + Self::from(digit)
     }
 }
 
@@ -90,23 +90,12 @@ mod tests {
         assert_eq!(int(-3) * int(-5), Ok(int(15)));
     }
 
-    /// `within_limit` is the check `*` makes of its product and a sum makes
-    /// of itself: `2^1048575` is 16384 words, and twice it is 16385, which
-    /// `+` produces without a word of complaint.
-    #[test]
-    fn within_limit_of_a_sum() {
-        assert_eq!(pow2(1_048_575).within_limit(), Ok(pow2(1_048_575)));
-        let sum = pow2(1_048_575) + pow2(1_048_575);
-        assert_eq!(sum.within_limit(), Err(error::bigint_too_large()));
-    }
-
     /// The carry `mul_add` exists for: `2^1048576 − 1` is 16384 words, so
-    /// times one it passes `*`, and plus one it is 16385, which `+` produces
-    /// without a word of complaint. The step refuses it; with the digit zero
-    /// it is the same number and passes.
+    /// times one it passes `*`, and plus one it is 16385. The step refuses it;
+    /// with the digit zero it is the same number and passes.
     #[test]
     fn mul_add_checks_its_sum() {
-        let ones = pow2(1_048_575) + (pow2(1_048_575) - int(1));
+        let ones = (pow2(1_048_575) + (pow2(1_048_575) - int(1)).unwrap()).unwrap();
         assert_eq!(ones.clone().mul_add(int(1), 0), Ok(ones.clone()));
         assert_eq!(ones.mul_add(int(1), 1), Err(error::bigint_too_large()));
     }

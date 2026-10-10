@@ -28,7 +28,9 @@ done, since a `Vec` that grows by `push` can abort at any growth step too.
   `MAX_WORDS` words before it allocates, returns a `Result`, and reserves with
   `try_reserve_exact`; `common/vec.rs::with_default` has no user left. Both
   still meet the third kind below, in the container their result is handed
-  to. `flat` (`vm/array/flat.rs`,
+  to. `+` and `-` throw the same `RangeError` for a result past `MAX_WORDS`,
+  checked after the fact: their buffer is one word longer than the longer
+  operand, and each operand is already bounded. `flat` (`vm/array/flat.rs`,
   `flatten`) pushes every element of its result onto a `Vec` before `create`
   builds the array: an outer array holding many references to one wide inner
   array makes that buffer far larger than the inputs in memory, and each
