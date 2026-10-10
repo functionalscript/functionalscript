@@ -137,12 +137,16 @@ sharing. Use [`examples`](./examples/module.f.mjs), through
   [`rtti/demo.f.mjs`](../../rtti/demo.f.mjs)). A result that is simply what
   the module computed — a digest, an AST, a generated module — stays
   neutral: green there would claim a check nobody made.
-- **Code in a language the tokenizer reads is highlighted**: a result in
-  JavaScript, JSON or DataJS goes through
-  [`highlight`](./highlight/module.f.mjs), which wraps keywords, literals,
-  strings, numbers and comments in a `span` marked `data-token` and leaves
-  the text itself unchanged. A text the tokenizer refuses, and code in
-  another language such as Rust, stays plain.
+- **Generated code is coloured by what its producer wrote.** A result the
+  repository's own writers produce — JSON, DataJS, the EDAG, a FunctionalScript
+  module, Rust — is marked text, and the demo draws it with
+  [`render`](./highlight/module.f.mjs), which wraps each run that has a kind in
+  a `span` marked `data-token` and leaves the text itself unchanged. The demo
+  does not read the text again to find the words. Only a text with no producer
+  behind it, such as an example a reader typed, goes through `highlight`,
+  which tokenizes it; a text the tokenizer refuses stays plain. What a kind is,
+  how a producer marks one and how it is proved:
+  [`../../text/marked/README.md`](../../text/marked/README.md).
 - How each marker looks is the stylesheet's, with its reasons, in
   [`../style/module.f.mjs`](../style/module.f.mjs); this file names the
   markers, not the colours.

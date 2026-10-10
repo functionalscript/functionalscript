@@ -37,18 +37,18 @@ that code lands.
 `ast/` has no demo of its own: its data is what `parser/` draws.
 
 **Each demo runs the stage it shows, never a lookalike.** The stage demos call
-the stage's own function (`tryModuleMarked`, `toRust`, `tokenize`, `parse`).
+the stage's own function (`tryModuleMarked`, `toRustMarked`, `tokenize`, `parse`).
 The side-by-side page runs `_outputMarked`, the output route shared with
 `compile`, over an in-memory file system, once per output name, before CLI
 diagnostic formatting
 ([`demo.f.mjs`](../demo.f.mjs), [`module.f.mjs`](../module.f.mjs)). A file
 system carries text, so the page takes the output as marked text
-(`fjs/text/marked`) before it is written. JavaScript, DataJS and JSON panes
-render the producer's markings; Rust remains plain text in unmarked runs.
+(`fjs/text/marked`) before it is written. JavaScript, DataJS, JSON and Rust
+panes render the producer's markings.
 Its [`proof.f.mjs`](../proof.f.mjs) runs the whole `compile` over the same
 file system for every example and output, pins acceptance and refusal, and
 holds each pane's text to the file written. See
-[`website/demo/todo/highlight-from-producers.md`](../../website/demo/todo/highlight-from-producers.md).
+[`text/marked/README.md`](../../text/marked/README.md#12-design-record).
 **No output logic is copied into a demo**; one that is not exported yet is
 exported, per
 [AGENTS.md §1](../../../AGENTS.md#1-workflow).

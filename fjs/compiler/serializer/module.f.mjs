@@ -102,6 +102,19 @@
  * **One line, normalized**, as the DataJS output is, and its leaves are the
  * DataJS serializer's, which owns their spelling.
  *
+ * **It says what it wrote.** The document is a list of `Chunk`s,
+ * `string | Run`: the words it spells — `const`, `export`, `default`,
+ * `return`, `throw`, `typeof`, `instanceof` — and `undefined` are runs with a
+ * kind, and so is every leaf, which the DataJS writer spells. Names are
+ * symbols until the end ({@link resolve}), and resolving one keeps the kind
+ * of the chunk it is in. `tryMarked` and `tryModuleMarked` answer the runs,
+ * and every word left plain in them is a name, an `identifier` ({@link withNames});
+ * `trySerialize` and `tryModuleSerialize` still answer plain strings,
+ * `chunkStrings` of {@link _trySerialize} and {@link _tryModuleSerialize}
+ * (linkage, with the `_` prefix), and the text of every output is what it
+ * was. Punctuation and operators stay plain. What is marked is held to the
+ * tokenizer's reading of the text: `fjs/text/marked/README.md`, §9.
+ *
  * **Depth.** Source rendering still uses the host call stack for nested
  * expressions. Deep `Number` and `String` conversion chains can throw
  * `RangeError` after parsing and lowering succeed; the known reproducer
@@ -146,7 +159,7 @@ import { definedValues } from '../../types/object/module.f.mjs'
 import { eagerLayers, lazyLayers } from '../ast/module.f.mjs'
 import { _prohibitedCallNames, _prohibitedNames } from '../parser/module.f.mjs'
 import { isIdentifier } from '../../js/identifier/module.f.mjs'
-import { chunkStrings, chunksMarked, chunkText, chunksText, keyword, literal } from '../../text/marked/module.f.mjs'
+import { chunkStrings, chunksMarked, chunkText, chunksText, keyword, literal, withNames } from '../../text/marked/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { error, mapOk, ok, okList, okThen } from '../../types/result/module.f.mjs'
 import { _entryChunks as entryChunks, _entryText as entryText, renderFunction } from './function_text/module.f.mjs'
@@ -1460,7 +1473,7 @@ export const trySerialize = e => mapOk(chunkStrings)(_trySerialize(e))
  *
  * @type {(e: Exp) => Result<Marked, string>}
  */
-export const tryMarked = e => mapOk(chunksMarked)(_trySerialize(e))
+export const tryMarked = e => mapOk(chunks => withNames(chunksMarked(chunks)))(_trySerialize(e))
 
 /** The same as one string. @type {(e: Exp) => Result<string, string>} */
 export const tryStringify = e => mapOk(
@@ -1649,7 +1662,7 @@ export const tryModuleSerialize = e => mapOk(chunkStrings)(_tryModuleSerialize(e
  *
  * @type {(e: Exp) => Result<Marked, string>}
  */
-export const tryModuleMarked = e => mapOk(chunksMarked)(_tryModuleSerialize(e))
+export const tryModuleMarked = e => mapOk(chunks => withNames(chunksMarked(chunks)))(_tryModuleSerialize(e))
 
 /** The module source as one string. @type {(e: Exp) => Result<string, string>} */
 export const tryModuleStringify = e => mapOk(
