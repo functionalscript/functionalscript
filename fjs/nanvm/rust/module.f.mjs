@@ -54,7 +54,7 @@ import {
     valueExp,
 } from '../module.f.mjs'
 import { snakeCase, stringLiteral } from '../../media/rust/module.f.mjs'
-import { unwrap } from '../../types/result/module.f.mjs'
+import { unwrap } from '../../types/result/module.f.js'
 import { braced, expExpr as sharedExpExpr, indent, nestsOperation, statementsOf } from '../../edag/rust/module.f.mjs'
 
 /**

@@ -11,7 +11,7 @@ import { array, number, open, option, or, record, rest, string, unknown } from '
 import { _compare, _graphOf, _marked, _outputsOf, _readersOf, demo, examples, lessons, projectSchemas } from './demo.f.mjs'
 import { htmlToString } from '../media/html/module.f.mjs'
 import { runPure } from '../effects/module.f.mjs'
-import { unwrap } from '../types/result/module.f.mjs'
+import { unwrap } from '../types/result/module.f.js'
 import { _crossings, graphSvg } from '../website/demo/graph/module.f.mjs'
 
 /** @type {StringMap<readonly unknown[]>} */

@@ -21,7 +21,7 @@ import { demo } from './demo.f.mjs'
 import { asyncRun } from '../../effects/module.mjs'
 import { commonOperationMap } from '../../effects/common/module.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
-import { error, ok, unwrap } from '../../types/result/module.f.mjs'
+import { error, ok, unwrap } from '../../types/result/module.f.js'
 
 /**
  * Builds the DOM stand-in the proofs drive the runner with. A single factory

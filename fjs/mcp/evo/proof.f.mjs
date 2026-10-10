@@ -12,7 +12,7 @@ import { sha256 } from '../../crypto/sha2/module.f.mjs'
 import { virtual } from '../../effects/node/virtual/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
 import { pureError } from '../../effects/module.f.mjs'
-import { unwrap as unwrapResult } from '../../types/result/module.f.mjs'
+import { unwrap as unwrapResult } from '../../types/result/module.f.js'
 import { vec8 } from '../../types/bit_vec/module.f.mjs'
 import { vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
 import { _freshEvo } from '../../cas/evo/proof.f.mjs'
@@ -33,7 +33,7 @@ const unwrapRun = ([state, r]) => [state, unwrapResult(r)]
 import { parse as parseJson } from '../../media/json/module.f.mjs'
 import { array, string as rttiString } from '../../rtti/module.f.mjs'
 import { parse as rttiParse } from '../../rtti/parse/module.f.mjs'
-import { unwrap } from '../../types/result/module.f.mjs'
+import { unwrap } from '../../types/result/module.f.js'
 
 const store = fileCas(sha256)('/home/user')
 

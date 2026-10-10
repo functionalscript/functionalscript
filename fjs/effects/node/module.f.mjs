@@ -31,7 +31,7 @@ import { isInteger } from '../../types/number/is_integer/module.f.js'
 import { definedEntries } from '../../types/object/module.f.mjs'
 import { byteLength, bytesIn, isWholeBytes, isWholeBytesIn, length, maxLengthBytes, u8ListMsb } from '../../types/bit_vec/module.f.mjs'
 import { nonEmpty, empty as elEmpty } from '../list/module.f.mjs'
-import { ok } from '../../types/result/module.f.mjs'
+import { ok } from '../../types/result/module.f.js'
 import { cmp as versionCmp } from '../../types/version/module.f.mjs'
 import { do_, errorMessage, ioError, toIoError } from '../module.f.mjs'
 import {

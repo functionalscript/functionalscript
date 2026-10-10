@@ -27,8 +27,8 @@
 
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { lf, nul as nulByte } from '../../text/ascii/module.f.mjs'
-import { identity } from '../../types/function/module.f.mjs'
-import { error, mapOk, okList } from '../../types/result/module.f.mjs'
+import { identity } from '../../types/function/module.f.js'
+import { error, mapOk, okList } from '../../types/result/module.f.js'
 import { field, hasNulHeader, optionalField, tryRead as readPayload, tryReadAtLeast, write as writePayload } from '../header/module.f.mjs'
 import { tryRead as readIdent } from '../ident/module.f.mjs'
 import { tryType as typeNamed } from '../object/module.f.mjs'

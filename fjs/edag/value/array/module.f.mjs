@@ -22,7 +22,7 @@
  */
 
 import { isArray } from '../../../types/array/module.f.mjs'
-import { error, ok } from '../../../types/result/module.f.mjs'
+import { error, ok } from '../../../types/result/module.f.js'
 import { typeOf } from '../semantics/module.f.mjs'
 
 /** The evaluated elements of an iterable value, or null. @param {EdagValue} value */

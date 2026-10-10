@@ -26,7 +26,7 @@
 import { next } from '../../types/list/module.f.mjs'
 import { parse as parseWith } from './parser/module.f.mjs'
 import { at } from '../../types/object/module.f.mjs'
-import { ok } from '../../types/result/module.f.mjs'
+import { ok } from '../../types/result/module.f.js'
 import { codec, leafSerialize, numberSerialize } from './serializer/module.f.mjs'
 
 // ── JSON utilities ────────────────────────────────────────────────────────────

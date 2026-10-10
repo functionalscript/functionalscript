@@ -217,7 +217,7 @@ the fold's:
   anywhere but as the callee of `Number(x)` or `String(x)`
   ([spec: number conversion](../../../spec/README.md#number-conversion),
   [string conversion](../../../spec/README.md#string-conversion)) —
-  [`fjs/js/keywords`](../../js/keywords/module.f.mjs)' `reservedGlobals`, a
+  [`fjs/js/keywords`](../../js/keywords/module.f.js)' `reservedGlobals`, a
   list beside the keywords rather than among them, since JavaScript has no
   such keyword and its tokenizer keeps the word an `id`. The fold reads the
   callee's word before resolving it, so the word alone decides, no scope

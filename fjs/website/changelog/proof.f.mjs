@@ -8,7 +8,7 @@
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { repository } from '../page/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
-import { unwrap } from '../../types/result/module.f.mjs'
+import { unwrap } from '../../types/result/module.f.js'
 import { tryParse } from '../../media/markdown/module.f.mjs'
 import { demo } from './demo.f.mjs'
 import { utf8ToString } from '../../text/module.f.mjs'

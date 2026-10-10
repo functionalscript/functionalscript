@@ -14,7 +14,7 @@ import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 import { _census, _graphOf, _load, _press, demo, presets } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
-import { unwrap } from '../result/module.f.mjs'
+import { unwrap } from '../result/module.f.js'
 import { jsonStr, set, squares } from './testlib.f.mjs'
 
 /** @type {(sequence: List<Unknown>) => string} */

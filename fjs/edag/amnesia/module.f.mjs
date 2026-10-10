@@ -11,7 +11,7 @@
  */
 
 import { isArray } from '../../types/array/module.f.mjs'
-import { ok } from '../../types/result/module.f.mjs'
+import { ok } from '../../types/result/module.f.js'
 import { entryCall, operation } from '../operations/module.f.mjs'
 
 /** A represented function invoked, its body walked afresh — or the `entry` helper, answered in place. @type {Invoke} */

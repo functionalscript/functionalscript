@@ -1436,7 +1436,7 @@ is written, the operand an argument, `Number(1+2)`.
 **`Number` is a reserved word**, one of the names
 [global names](./todo/2365-global-names.md) reserves, with `Array` and `String`
 ([string conversion](#string-conversion)) —
-[`fjs/js/keywords`](../fjs/js/keywords/module.f.mjs)' `reservedGlobals`, a
+[`fjs/js/keywords`](../fjs/js/keywords/module.f.js)' `reservedGlobals`, a
 list beside the keywords rather than among them, since JavaScript has no
 such keyword. A module cannot bind it, as a `const`, a parameter or an
 import's local name ([shared values](#shared-values-constants)), and it is

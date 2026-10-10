@@ -27,7 +27,7 @@
 
 import { toText } from '../../text/marked/module.f.mjs'
 import { codeBlock } from '../../website/demo/code/module.f.mjs'
-import { error } from '../../types/result/module.f.mjs'
+import { error } from '../../types/result/module.f.js'
 import { textDemo, refusal, caption } from '../../website/demo/module.f.mjs'
 import { render } from '../../website/demo/highlight/module.f.mjs'
 import { unresolved } from '../edag/module.f.mjs'

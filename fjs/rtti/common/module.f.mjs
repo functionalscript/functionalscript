@@ -40,7 +40,7 @@
  */
 
 import { assert } from '../../asserts/module.f.mjs'
-import { error, ok } from '../../types/result/module.f.mjs'
+import { error, ok } from '../../types/result/module.f.js'
 import { isArray as commonIsArray } from '../../types/array/module.f.mjs'
 import { isObject as commonIsObject } from '../../types/object/module.f.mjs'
 import { arrayIndex } from '../../js/array_index/module.f.js'

@@ -102,7 +102,7 @@ Every other name joins that list before 2360 admits any of it.
 
 - [Number conversion](../README.md#number-conversion) — `Number`, the
   first name reserved under this rule, in
-  [`fjs/js/keywords`](../../fjs/js/keywords/module.f.mjs)' `reservedGlobals`:
+  [`fjs/js/keywords`](../../fjs/js/keywords/module.f.js)' `reservedGlobals`:
   the list beside the keywords that open question 3 asks for.
 - [`instanceof`](../README.md#instanceof) — `Array`, the second name
   reserved under this rule, in the same list.

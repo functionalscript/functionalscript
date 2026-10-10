@@ -14,7 +14,7 @@
 import { map, flatMap, flat, concat as listConcat } from '../../types/list/module.f.mjs'
 import { concat, concat as stringConcat } from '../../types/string/module.f.mjs'
 import { definedEntries } from '../../types/object/module.f.mjs'
-import { compose } from '../../types/function/module.f.mjs'
+import { compose } from '../../types/function/module.f.js'
 import { stringToList } from '../../text/utf16/module.f.mjs'
 import { includes } from '../../types/array/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'

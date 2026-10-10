@@ -55,7 +55,7 @@ out, and what a stage will not accept is half of what it is.
 **The presets are one flat list**, [`examples/module.f.js`](../examples/module.f.js),
 that all six demos — the five stages and the side-by-side page — offer whole
 through the shared picker
-([`website/demo/examples`](../../website/demo/examples/module.f.mjs)), which
+([`website/demo/examples`](../../website/demo/examples/module.f.js)), which
 checks that names and sources are distinct. A reader who picks "Closure" on one
 page finds "Closure" on the others. The first is an overview every page opens
 on, with no import so that no page opens on a refusal. The list holds programs

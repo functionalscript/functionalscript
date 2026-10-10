@@ -3,7 +3,7 @@
  */
 
 import { assert, assertEq } from '../../asserts/module.f.mjs'
-import { ok, error } from '../../types/result/module.f.mjs'
+import { ok, error } from '../../types/result/module.f.js'
 import { parse } from '../../rtti/parse/module.f.mjs'
 import {
     error as errorSchema,

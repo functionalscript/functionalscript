@@ -6,7 +6,7 @@
  */
 
 import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.mjs'
-import { ok, error } from '../../../types/result/module.f.mjs'
+import { ok, error } from '../../../types/result/module.f.js'
 import { throwValue, and, or, coalesce, conditional, sequence } from './module.f.mjs'
 
 /** A thunk that must never be demanded. @type {() => never} */

@@ -150,7 +150,7 @@
  */
 
 import { _defaultExport, _moduleExports, _moduleThrows } from '../edag/module.f.mjs'
-import { keywords, literalWords, reservedGlobals } from '../../js/keywords/module.f.mjs'
+import { keywords, literalWords, reservedGlobals } from '../../js/keywords/module.f.js'
 import { analysis, checked, itemOperand, mergeable, operandsOf, stepOperands } from '../../edag/analysis/module.f.mjs'
 import { keySerialize, leafSerialize } from '../../media/datajs/serializer/module.f.mjs'
 import { arrayWrap, colon, objectWrap, wrap } from '../../media/json/serializer/module.f.mjs'
@@ -161,7 +161,7 @@ import { _prohibitedCallNames, _prohibitedNames } from '../parser/module.f.mjs'
 import { isIdentifier } from '../../js/identifier/module.f.mjs'
 import { chunkStrings, chunksMarked, chunkText, chunksText, keyword, literal, withNames } from '../../text/marked/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
-import { error, mapOk, ok, okList, okThen } from '../../types/result/module.f.mjs'
+import { error, mapOk, ok, okList, okThen } from '../../types/result/module.f.js'
 import { _entryChunks as entryChunks, _entryText as entryText, renderFunction } from './function_text/module.f.mjs'
 import { _name as name, _binding as binding, _resolve as resolve } from './names/module.f.mjs'
 

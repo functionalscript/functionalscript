@@ -18,7 +18,7 @@
  */
 
 import { fold as listFold, tryFold } from '../../types/list/module.f.mjs'
-import { compose } from '../../types/function/module.f.mjs'
+import { compose } from '../../types/function/module.f.js'
 
 /**
  * Repeats a monoid operation `n` times on the given element `a`.

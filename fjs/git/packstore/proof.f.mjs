@@ -17,7 +17,7 @@ import { nodeCommands, notAFileCode, notAFileMessage } from '../../effects/node/
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { maxLengthBytes, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { sameItems, toArray } from '../../types/list/module.f.mjs'
-import { error, ok } from '../../types/result/module.f.mjs'
+import { error, ok } from '../../types/result/module.f.js'
 import { digestOf, of, toHex, tryFromHex } from '../oid/module.f.mjs'
 import { hexBytes, latin1, packMixed, packMixedIdx } from '../testlib.f.mjs'
 import { packEntryCode, packFileCode, packIdxCode, packsIn, tryRead } from './module.f.mjs'

@@ -11,7 +11,7 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { mkdir } from '../../effects/node/module.f.mjs'
 import { u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
-import { ok } from '../../types/result/module.f.mjs'
+import { ok } from '../../types/result/module.f.js'
 import { latin1 } from '../testlib.f.mjs'
 import { a, file, hexOf, kind, missing, one, ran, ref, resolved, run, shadowed } from './testlib.f.mjs'
 

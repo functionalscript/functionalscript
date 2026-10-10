@@ -21,7 +21,7 @@
  * @import { Invoke } from './types.ts'
  */
 
-import { error } from '../../../types/result/module.f.mjs'
+import { error } from '../../../types/result/module.f.js'
 import { array } from '../array/module.f.mjs'
 import { isFunction } from '../semantics/module.f.mjs'
 

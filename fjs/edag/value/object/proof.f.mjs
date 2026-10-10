@@ -7,7 +7,7 @@
  */
 
 import { assert, assertEq, assertOk } from '../../../asserts/module.f.mjs'
-import { ok, error } from '../../../types/result/module.f.mjs'
+import { ok, error } from '../../../types/result/module.f.js'
 import { object } from './module.f.mjs'
 
 /** A later operand that must never be evaluated. @type {() => never} */

@@ -60,7 +60,7 @@ Three branch-aware operations, in [`./module.f.mjs`](./module.f.mjs):
 - `resultStep` — continue with the complete `Result`. Both paths, explicitly.
 
 The union rules follow `okThen` in
-[`../types/result/module.f.mjs`](../types/result/module.f.mjs): error
+[`../types/result/module.f.js`](../types/result/module.f.js): error
 types are **unioned, not unified**, so neither side is pre-widened and a branch
 that is passed through stays the very tuple it arrived as. `step` unions the
 error channel and replaces the success type; `catchStep` mirrors it, unioning
@@ -120,7 +120,7 @@ and a module that uses both wants them distinguishable.
 `step`'s two error types union (`E | F`) rather than unifying, and an `error`
 is handed back as the very tuple it arrived as rather than rebuilt to retag it
 into a wider type. That is what lets adjacent links in one chain fail in
-different ways, and it follows `okThen` (`fjs/types/result/module.f.mjs`), the
+different ways, and it follows `okThen` (`fjs/types/result/module.f.js`), the
 pure sibling of this bind.
 
 This used to route through an `okStep` exported by the representation module —

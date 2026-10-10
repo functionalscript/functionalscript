@@ -28,6 +28,9 @@
 /** The `name` of the drop-down, and of the `input` events a pick sends. */
 export const name = 'example'
 
+/** Whether a list of strings repeats a value. @type {(values: readonly string[]) => boolean} */
+const hasRepeat = values => values.some((value, index) => values.indexOf(value) !== index)
+
 /**
  * `list` as the drop-down a demo draws and the pick it makes — after
  * checking that its names and its sources are each distinct.
@@ -51,14 +54,17 @@ export const name = 'example'
  * @type {(list: Examples) => Picker}
  */
 export const examplePicker = list => {
-    if (new Set(list.map(([n]) => n)).size !== list.length) { throw 'examples: a name is repeated' }
-    if (new Set(list.map(([, source]) => source)).size !== list.length) { throw 'examples: a source is repeated' }
+    if (hasRepeat(list.map(example => example[0]))) { throw 'examples: a name is repeated' }
+    if (hasRepeat(list.map(example => example[1]))) { throw 'examples: a source is repeated' }
     return {
         view: text => {
             /** @type {readonly Element[]} */
-            const options = list.map(([n, source]) =>
-                ['option', source === text ? { value: n, selected: '' } : { value: n }, n])
-            const custom = list.some(([, source]) => source === text)
+            const options = list.map(example => {
+                const n = example[0]
+                const source = example[1]
+                return ['option', source === text ? { value: n, selected: '' } : { value: n }, n]
+            })
+            const custom = list.some(example => example[1] === text)
                 ? []
                 : [/** @type {Element} */ (['option', { selected: '', disabled: '' }, 'Custom'])]
             return ['p',
@@ -67,7 +73,7 @@ export const examplePicker = list => {
             ]
         },
         pick: value => {
-            const found = list.find(([n]) => n === value)
+            const found = list.find(example => example[0] === value)
             if (found === undefined) { throw 'examples: no example has this name' }
             return found[1]
         },

@@ -28,7 +28,7 @@
 
 import { codeBlock } from '../../website/demo/code/module.f.mjs'
 import { parse, stringify } from './module.f.mjs'
-import { mapOk } from '../../types/result/module.f.mjs'
+import { mapOk } from '../../types/result/module.f.js'
 import { sort } from '../../types/object/module.f.mjs'
 import { textDemo, caption, refusal } from '../../website/demo/module.f.mjs'
 

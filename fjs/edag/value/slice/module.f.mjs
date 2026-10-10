@@ -15,7 +15,7 @@
  * @import { Result } from '../../../types/result/types.ts'
  */
 
-import { ok } from '../../../types/result/module.f.mjs'
+import { ok } from '../../../types/result/module.f.js'
 import { primitiveToNumber } from '../coercion/module.f.mjs'
 import { untagUndefined } from '../semantics/module.f.mjs'
 

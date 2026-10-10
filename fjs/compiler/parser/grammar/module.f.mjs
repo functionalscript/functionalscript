@@ -130,7 +130,7 @@
 import { assert } from '../../../asserts/module.f.mjs'
 import { eof, option, repeatFrom0 } from '../../../ebnf/module.f.mjs'
 import { encoding } from '../../../ebnf/token_symbol/module.f.mjs'
-import { literalWords } from '../../../js/keywords/module.f.mjs'
+import { literalWords } from '../../../js/keywords/module.f.js'
 import { _djsTokenKinds } from '../../tokenizer/module.f.mjs'
 import { definedEntries } from '../../../types/object/module.f.mjs'
 import { eagerLayers, lazyLayers } from '../../ast/module.f.mjs'

@@ -32,7 +32,7 @@ import {
 } from '../../text/ascii/module.f.mjs'
 import { u8ListMsb, u8ListToVecMsb, uint } from '../../types/bit_vec/module.f.mjs'
 import { flat } from '../../types/list/module.f.mjs'
-import { error, ok } from '../../types/result/module.f.mjs'
+import { error, ok } from '../../types/result/module.f.js'
 import { isOidOf } from '../oid/module.f.mjs'
 
 const octalDigit = range('07')

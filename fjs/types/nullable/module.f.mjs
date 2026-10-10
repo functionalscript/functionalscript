@@ -8,7 +8,7 @@
  */
 
 import { assert } from '../../asserts/module.f.mjs'
-import { fn } from '../function/module.f.mjs'
+import { fn } from '../function/module.f.js'
 
 /**
  * Folds a `Nullable<T>` into a single value: `f` for a present value, `none`

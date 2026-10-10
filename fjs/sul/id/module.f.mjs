@@ -19,7 +19,7 @@ import { secp256r1 } from '../../crypto/secp/module.f.mjs'
 import { base32 } from '../../crypto/sha2/module.f.mjs'
 import { literal3ToVec } from '../level/literal/module.f.mjs'
 import { log2 } from '../../types/bigint/module.f.mjs'
-import { asBase, asNominal } from '../../types/nominal/module.f.mjs'
+import { asBase, asNominal } from '../../types/nominal/module.f.js'
 
 // 32 bytes = 256 bits.
 //

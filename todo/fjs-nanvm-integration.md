@@ -124,7 +124,103 @@ modules remain `.f.mjs` until the required compiler features land.
 See [`fjs/compiler/README.md`](../fjs/compiler/README.md) for the authoritative extension
 contract and migration strategy.
 
-#### What the next rename waits on
+#### Current leaf migration fixed point
+
+The iterative audit in [#2812](https://github.com/functionalscript/functionalscript/pull/2812)
+starts from `4e663c19c`. A leaf is an authored, non-proof `.f.mjs` with no
+runtime import or re-export of another `.f.mjs`; JSDoc and TypeScript-only
+imports do not count. Demos and supporting FunctionalScript modules do count.
+The embedded-proof test fixture `emergent_testing/example.f.mjs` is reported
+separately, as in the earlier audits.
+
+JavaScript AST dependency discovery found fifteen initial implementation leaves.
+None compiled unchanged. Small, value-preserving rewrites using already supported
+syntax made five of them eligible, and the dependency loop exposed one more
+eligible module. Runtime imports, type references, proofs and documentation follow
+each rename; proofs retain `.f.mjs`. The compiler and exported signatures stay
+unchanged.
+
+| Pass | Implementation leaves checked | Converted to `.f.js` |
+| --- | ---: | --- |
+| 1 | 15 | `types/function`, `js/keywords` |
+| 2 | 15 | `types/nominal`, `edag/rust/unmarked` |
+| 3 | 13 | `types/result` |
+| 4 | 13 | `website/demo/examples` |
+| 5 | 12 | None: every remaining leaf is refused |
+
+The compatibility rewrites preserve the existing contracts:
+
+- `types/function`: `iterate` uses balanced recursion, retaining exactly `n`
+  sequential applications and unchanged results for non-positive counts, with
+  logarithmic stack depth. Its proof also exercises 100,000 iterations.
+- `js/keywords`: membership over the existing fixed string arrays replaces
+  private `Set` instances.
+- `edag/rust/unmarked`: string spread replaces `Array.from`, numeric runtime
+  keys use `Number(...)`, and tuple callbacks bind static-index reads.
+- `types/result`: static tuple reads replace destructured parameters; `okList`
+  finds and returns the first error tuple unchanged, or maps successful values.
+- `website/demo/examples`: array membership detects repeated strings, and tuple
+  callbacks use static-index reads, preserving selections and duplicate refusals.
+- `types/nominal`: only its extension and references change.
+
+Converting `types/function` exposes `types/list` and `types/nominal`; the latter
+converts in the next pass. Converting `types/result` exposes `media/rust`.
+The other conversions expose no additional `.f.mjs` leaves. The authored `.f.js`
+population grows from 21 to 27, all accepted by `npm start compile`.
+
+The final twelve implementation leaves below cannot be renamed with their current
+source. Each row is the first actual refusal from the same `resolve()` pipeline
+that `fjs compile` with no arguments uses, rather than a serializer or Rust-output
+restriction. Locations are `line:column`; paths are relative to `fjs/`.
+Other unsupported constructs may follow the first one. The template literals
+remain readable source pending compiler support; this migration does not replace
+large text templates or substantially rewrite the remaining modules.
+
+| Leaf file | Location | First refused construct |
+| --- | ---: | --- |
+| `ci/package/module.f.mjs` | 32:56 | Template literal in `consumerDirectory` |
+| `git/config/module.f.mjs` | 400:60 | Template literal extending `pending` |
+| `media/rust/module.f.mjs` | 65:44 | Template literal producing a Rust Unicode escape |
+| `nanvm/member/module.f.mjs` | 335:13 | Template literal in a generated test name |
+| `nanvm/methods/module.f.mjs` | 125:21 | Template literal in `path` |
+| `types/list/module.f.mjs` | 40:5 | `while` and reassignment in `trampoline` |
+| `types/map/module.f.mjs` | 10:42 | `new Map(...)` in `mapSet` |
+| `types/object/structurally_same/module.f.mjs` | 20:7 | Destructuring `const { entries, is } = Object` |
+| `types/ts/module.f.mjs` | 13:5 | Template literal in `complex` |
+| `website/browser-source/module.f.mjs` | 89:35 | Template literal assembling browser source |
+| `website/prs/load/module.f.mjs` | 28:5 | Template literal in `pageRequest` |
+| `website/style/module.f.mjs` | 110:27 | Template literal containing the stylesheet |
+
+The separate fixture `emergent_testing/example.f.mjs` also remains refused:
+the template literal in `checkMul` at `14:34`. Since the final pass converts
+nothing, it exposes no new leaves and the loop stops. The older measurements
+below retain their revision-specific paths and diagnostics.
+
+To recheck the current table without writing generated output, run this from
+the repository root inside `./dev.sh node --input-type=module`:
+
+```js
+import { resolve as absolute } from 'node:path';
+import { resolve } from './fjs/compiler/edag/module.f.mjs';
+import { runNodeEffect } from './fjs/effects/node/module.mjs';
+
+const leaves = [
+  'ci/package', 'git/config', 'media/rust', 'nanvm/member', 'nanvm/methods',
+  'types/list', 'types/map', 'types/object/structurally_same', 'types/ts',
+  'website/browser-source', 'website/prs/load', 'website/style',
+];
+for (const leaf of leaves) {
+  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
+  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
+}
+```
+
+After a compiler feature lands, rediscover the runtime dependency leaves,
+compile every candidate, rename accepted modules and update their references,
+then rediscover and repeat until a pass accepts none. Update this table with
+the remaining refusals.
+
+#### Leaf check at `e67123d58` (historical)
 
 The leaf check at `e67123d58`, the `String` PR stacked on the shared integer
 predicate, found seventeen implementation leaves: only `array_index` compiled.
@@ -463,6 +559,10 @@ is on hold and is not part of this completed MVP or a self-hosting prerequisite.
       integer predicate and `String` conversion made the complete module
       compiler-compatible; update its callers and proof import, keeping
       `proof.f.mjs`.
+- [x] Run the iterative leaf migration in #2812: convert `types/function`,
+      `js/keywords`, `types/nominal`, `edag/rust/unmarked`, `types/result` and
+      `website/demo/examples`; preserve their APIs and record the final twelve
+      implementation leaf refusals plus the separate embedded-proof fixture.
 - [ ] Continue `.f.mjs` -> `.f.js` incrementally as compiler support grows.
 
 ### Related

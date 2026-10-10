@@ -10,7 +10,7 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
-import { unwrap } from '../../types/result/module.f.mjs'
+import { unwrap } from '../../types/result/module.f.js'
 import { eof, join, literals, option, range, repeat, repeatFrom0, repeatFrom1, times } from '../module.f.mjs'
 import { toData } from '../data/module.f.mjs'
 import { dataJs } from '../lib/datajs/module.f.mjs'

@@ -25,7 +25,7 @@ import {
 import { demo } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { partialRun, run as mockRun } from '../../effects/mock/module.f.mjs'
-import { error, ok } from '../../types/result/module.f.mjs'
+import { error, ok } from '../../types/result/module.f.js'
 import { ioError } from '../../effects/module.f.mjs'
 
 /**

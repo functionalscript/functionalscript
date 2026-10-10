@@ -151,7 +151,7 @@ TypeScript aliases out.
    the value layer needs nothing new. What needs design is `Ts<>` and `.d.ts`
    emission for a parameterised alias.
 
-5. **Nominal types.** [`fjs/types/nominal`](../../fjs/types/nominal/module.f.mjs)
+5. **Nominal types.** [`fjs/types/nominal`](../../fjs/types/nominal/module.f.js)
    has no RTTI representation and no issue of its own. Branding is a
    compile-time-only fiction — `asNominal` is `identity` — so either RTTI gains
    a nominal wrapper carrying a brand, or nominal types stay a TypeScript-era

@@ -9,7 +9,7 @@
 
 import { randomUUID } from 'node:crypto'
 import { asyncRun } from '../../module.mjs'
-import { ok } from '../../../types/result/module.f.mjs'
+import { ok } from '../../../types/result/module.f.js'
 import { asBase, asNominal } from '../../memory/module.f.mjs'
 
 /** @type {(id: string) => Error} */

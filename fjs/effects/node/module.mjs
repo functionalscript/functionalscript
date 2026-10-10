@@ -45,9 +45,9 @@ import {
     notAFileCode, notAFileMessage, refusalMessage, refusedStatus, requestBody, requestBodyOffsetMessage,
     responseGate, runnerResponse, toIoError, usesInlineTestContext, windowRefusal,
 } from './module.f.mjs'
-import { asBase, asNominal } from '../../types/nominal/module.f.mjs'
+import { asBase, asNominal } from '../../types/nominal/module.f.js'
 import { definedEntries } from '../../types/object/module.f.mjs'
-import { error, ok, unwrap } from '../../types/result/module.f.mjs'
+import { error, ok, unwrap } from '../../types/result/module.f.js'
 import { asyncTryCatch, tryCatch } from '../../types/result/module.mjs'
 import { fromVec, toVec } from '../../types/uint8array/module.f.mjs'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'

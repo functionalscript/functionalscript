@@ -6,7 +6,7 @@ import { anchor, railroadDemo, railroadSection, railroadSvg } from './module.f.m
 import { htmlToString } from '../../../media/html/module.f.mjs'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../../asserts/module.f.mjs'
 import { runPure } from '../../../effects/module.f.mjs'
-import { unwrap } from '../../../types/result/module.f.mjs'
+import { unwrap } from '../../../types/result/module.f.js'
 
 /** @type {(text: string) => Diagram} */
 const t = text => ['terminal', text]

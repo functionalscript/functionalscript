@@ -7,7 +7,7 @@
  * @import { Result } from './types.ts'
  */
 
-import { ok, error } from './module.f.mjs'
+import { ok, error } from './module.f.js'
 
 /** @type {<T>(f: () => T) => Result<T, unknown>} */
 export const tryCatch = f => {

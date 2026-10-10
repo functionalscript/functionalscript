@@ -22,7 +22,7 @@ import { shouldLoad } from '../dev/module.f.mjs'
 import { parse as parseJson } from '../media/json/module.f.mjs'
 import { number as rttiNumber, or, string as rttiString } from '../rtti/module.f.mjs'
 import { parse as rttiParse } from '../rtti/parse/module.f.mjs'
-import { error, ok, unwrap } from '../types/result/module.f.mjs'
+import { error, ok, unwrap } from '../types/result/module.f.js'
 import { pureError, step } from '../effects/module.f.mjs'
 
 /**

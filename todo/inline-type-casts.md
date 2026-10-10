@@ -235,8 +235,8 @@ is the way to refresh this file, not a partial edit.
 | `fjs/types/btree/find/module.f.mjs` | 33 | `First<T>` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/types/function/compare/module.f.mjs` | 29 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
 | `fjs/types/function/compare/module.f.mjs` | 29 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
-| `fjs/types/nominal/module.f.mjs` | 12 | `<N extends string, R extends string, B>(b: B) => Nominal<N…` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/types/nominal/module.f.mjs` | 16 | `<T extends string, R extends string, B>(n: Nominal<T, R, B…` | nominal branding of `identity` — no runtime representation |
+| `fjs/types/nominal/module.f.js` | 12 | `<N extends string, R extends string, B>(b: B) => Nominal<N…` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/types/nominal/module.f.js` | 16 | `<T extends string, R extends string, B>(n: Nominal<T, R, B…` | nominal branding of `identity` — no runtime representation |
 | `fjs/types/nominal/proof.f.mjs` | 26 | `_IntersectionSafeId` | the brand is unconstructible by design, so only an override can produce a value of this type; the cast **is** the demonstration |
 | `fjs/types/nominal/proof.f.mjs` | 27 | `_IntersectionSafeId` | the brand is unconstructible by design, so only an override can produce a value of this type; the cast **is** the demonstration |
 | `fjs/types/nominal/proof.f.mjs` | 41 | `_SymbolKeyBranded` | the brand is unconstructible by design, so only an override can produce a value of this type; the cast **is** the demonstration |

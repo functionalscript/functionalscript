@@ -17,7 +17,7 @@ import { empty as emptyVec } from '../types/bit_vec/module.f.mjs'
 import { install, test, ubuntu, uses, parseGitHubAction } from './common/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
-import { unwrap } from '../types/result/module.f.mjs'
+import { unwrap } from '../types/result/module.f.js'
 import { definedValues } from '../types/object/module.f.mjs'
 import { parse as jsonParse } from '../media/json/module.f.mjs'
 

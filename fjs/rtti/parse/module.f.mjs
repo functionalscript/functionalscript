@@ -55,7 +55,7 @@
  * @import { _Entries, _Rebuild } from './private.ts'
  */
 
-import { ok } from '../../types/result/module.f.mjs'
+import { ok } from '../../types/result/module.f.js'
 import {
     absentMember,
     constPrimitiveValidate,

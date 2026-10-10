@@ -4,7 +4,7 @@
  * @import { Equal } from '../ts/types.ts'
  */
 
-import { error, ok, unwrap, invert, mapOk, okThen, okList } from './module.f.mjs'
+import { error, ok, unwrap, invert, mapOk, okThen, okList } from './module.f.js'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 
 const example = () => {
@@ -18,6 +18,8 @@ const example = () => {
     assertEq(kind, 'error')
     // `v` is inferred as `string` here
     assertEq(v, 'Something went wrong', 'error')
+    const shared = { value: 42 }
+    assertEq(unwrap(ok(shared)), shared)
 }
 
 // `ok` and `error` take `const` type parameters, so a literal argument keeps
@@ -38,6 +40,9 @@ const invertTest = () => {
     assert(!(k0 !== 'error' || v0 !== 42), [k0, v0])
     const [k1, v1] = invert(error('oops'))
     assert(!(k1 !== 'ok' || v1 !== 'oops'), [k1, v1])
+    const shared = { value: 42 }
+    assertEq(invert(ok(shared))[1], shared)
+    assertEq(invert(error(shared))[1], shared)
 }
 
 const mapOkTest = () => {
@@ -73,10 +78,12 @@ const okListTest = () => {
     const [k1, v1] = okList(allOk)
     assert(!(k1 !== 'ok' || v1.length !== 2 || v1[0] !== 1 || v1[1] !== 2), [k1, v1])
     // The first error in list order wins; the later one is discarded.
+    const first = error('first')
     /** @type {readonly Result<number, string>[]} */
-    const twoErrors = [ok(1), error('first'), ok(3), error('second')]
+    const twoErrors = [ok(1), first, ok(3), error('second')]
     const [k2, v2] = okList(twoErrors)
     assert(!(k2 !== 'error' || v2 !== 'first'), [k2, v2])
+    assertEq(okList(twoErrors), first)
 }
 
 export const proof = {

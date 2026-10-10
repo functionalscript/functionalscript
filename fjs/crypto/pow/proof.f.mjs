@@ -11,7 +11,7 @@ import { refusal } from '../../website/demo/module.f.mjs'
 import { concat as stringConcat } from '../../types/string/module.f.mjs'
 import { element, htmlToString } from '../../media/html/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
-import { unwrap } from '../../types/result/module.f.mjs'
+import { unwrap } from '../../types/result/module.f.js'
 
 const p256 = sha256Pow
 const p224 = pow(sha224)

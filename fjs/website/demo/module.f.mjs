@@ -31,7 +31,7 @@
 
 import { at } from '../../types/object/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
-import { examplePicker, name as exampleName } from './examples/module.f.mjs'
+import { examplePicker, name as exampleName } from './examples/module.f.js'
 import { captionMarker, resultMarker } from '../style/module.f.mjs'
 
 /**

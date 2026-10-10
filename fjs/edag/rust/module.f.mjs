@@ -45,7 +45,7 @@
  */
 
 import { f64Bits, i64Literal, stringLiteral, u64WordItems, utf16Units } from '../../media/rust/module.f.mjs'
-import { error, mapOk, ok, okList, okThen, unwrap } from '../../types/result/module.f.mjs'
+import { error, mapOk, ok, okList, okThen, unwrap } from '../../types/result/module.f.js'
 import { lazyOp2Id } from '../module.f.mjs'
 import { isIndex, maxLength } from '../../types/function/length/module.f.mjs'
 import { tryFunctionText } from '../../compiler/serializer/module.f.mjs'

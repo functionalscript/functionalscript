@@ -14,7 +14,7 @@
  * @import { ToAsyncOperationMap } from '../types.ts'
  */
 
-import { error, ok } from '../../types/result/module.f.mjs'
+import { error, ok } from '../../types/result/module.f.js'
 import { tryCatch } from '../../types/result/module.mjs'
 
 /**

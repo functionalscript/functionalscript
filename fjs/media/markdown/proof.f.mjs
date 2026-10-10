@@ -1,7 +1,7 @@
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
 import { htmlToString } from '../html/module.f.mjs'
-import { unwrap } from '../../types/result/module.f.mjs'
+import { unwrap } from '../../types/result/module.f.js'
 import { demo } from './demo.f.mjs'
 import { entryTexts, tryParse, tryParseEntry } from './module.f.mjs'
 

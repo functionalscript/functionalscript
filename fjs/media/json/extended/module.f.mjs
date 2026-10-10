@@ -61,7 +61,7 @@
  * @import { Chunk } from '../../../text/marked/types.ts'
  */
 
-import { error, ok } from '../../../types/result/module.f.mjs'
+import { error, ok } from '../../../types/result/module.f.js'
 import { parse as parseWith } from '../parser/module.f.mjs'
 import { isBareInteger, numberLexeme } from '../number/module.f.mjs'
 import { codec, leafSerialize, nullSerialize } from '../serializer/module.f.mjs'
