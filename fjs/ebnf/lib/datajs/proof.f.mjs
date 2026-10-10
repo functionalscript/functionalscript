@@ -17,7 +17,7 @@ const wsData = force(ws)
 
 const ws1Data = /**@type {const}*/(['repeat', 1, Infinity, force(wsSymbol)])
 
-const digitData = /**@type {const}*/(['set', 48, 58])
+const digitData = /**@type {const}*/(['set', 0x30, 0x3a])
 
 const digits0Data = /**@type {const}*/(['repeat', 0, Infinity, digitData])
 
@@ -74,7 +74,7 @@ assert(typeof valueRule === 'function')
 const value = valueRule
 
 const idData = /**@type {const}*/(['$', ['repeat', 0, Infinity, {
-    letter: { lo: ['set', 97, 123], up: ['set', 65, 91], _: '_', $: '$' },
+    letter: { lo: ['set', 0x61, 0x7b], up: ['set', 0x41, 0x5b], _: '_', $: '$' },
     digit: digitData,
 }]])
 
@@ -119,14 +119,14 @@ export const proof = {
                 ['repeat', 0, 1, '-'],
                 {
                     finite: [
-                        { 0: '0', onenine: [['set', 49, 58], digits0Data] },
+                        { 0: '0', onenine: [['set', 0x31, 0x3a], digits0Data] },
                         {
                             n: 'n',
                             optionFloatSuffix: [
                                 ['repeat', 0, 1, ['.', digitsData]],
                                 ['repeat', 0, 1, [
-                                    ['set', 69, 70, 101, 102],
-                                    ['repeat', 0, 1, ['set', 43, 44, 45, 46]],
+                                    ['set', 0x45, 0x46, 0x65, 0x66],
+                                    ['repeat', 0, 1, ['set', 0x2b, 0x2c, 0x2d, 0x2e]],
                                     digitsData]]],
                         },
                     ],

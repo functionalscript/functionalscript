@@ -13,7 +13,7 @@ export const proof = {
         sign: () => assertEq(tryParse('-1.0'), null),
         // Past `Number.MAX_SAFE_INTEGER` two different parts round to one.
         unsafe: () => assertEq(tryParse('9007199254740993'), null),
-        maxSafe: () => assertStructurallySame(tryParse('9007199254740991'), [9007199254740991]),
+        maxSafe: () => assertStructurallySame(tryParse('9007199254740991'), [9_007_199_254_740_991]),
         // Leading zeros are read, however many: they do not make the number larger.
         padded: () => assertStructurallySame(tryParse(`${'0'.repeat(100_000)}1`), [1]),
         zeros: () => assertStructurallySame(tryParse('0'.repeat(100_000)), [0]),

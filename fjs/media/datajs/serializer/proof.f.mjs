@@ -11,7 +11,7 @@ import { invert, unwrap } from '../../../types/result/module.f.mjs'
 import { concat } from '../../../types/string/module.f.mjs'
 import { tryParse } from '../parser/module.f.mjs'
 import { difference } from '../vectors/module.f.mjs'
-import { _elementNames, _link, _memberValue, trySerialize, tryJsonStringify, tryStringify } from './module.f.mjs'
+import { _elementNames, _link, _memberValue, _tryJsonSerialize, _trySerialize, trySerialize, tryJsonStringify, tryStringify } from './module.f.mjs'
 
 /**
  * A value as a host would hand it: the writer's parameter is the data
@@ -348,6 +348,15 @@ export const proof = {
         assertEq(concat(unwrap(trySerialize(value))), text(value))
         assertEq(text(value), 'export default [1,{"a":2}];')
     },
+    // The leaves carry their kinds and nothing else does: punctuation, keys
+    // spelled as names and the writer's keywords stay plain strings.
+    marked: () => {
+        const value = [1, 'a', null, undefined, true, 2n, -0]
+        assertEq(JSON.stringify(toArray(unwrap(_trySerialize(value)))),
+            '["export default ","[",["1","number"],",",["\\"a\\"","string"],",",["null","literal"],",",["undefined","literal"],",",["true","literal"],",",["2n","number"],",",["-0","number"],"]",";"]')
+        assertEq(JSON.stringify(toArray(unwrap(_tryJsonSerialize({ k: [1.5] })))),
+            '["{",["\\"k\\"","string"],":","[",["1.5","number"],"]","}"]')
+    },
     // Nesting depth is the input's, not the call stack's: the read walks an
     // explicit stack and the write reads the linked graph in its post-order,
     // so both keep the reader's 5,000-level contract and a document the
@@ -356,7 +365,7 @@ export const proof = {
     // 5,000 levels would survive — is caught.
     depth: {
         writesBack: () => {
-            const n = 20000
+            const n = 20_000
             const document = `export default ${'['.repeat(n)}${']'.repeat(n)};`
             assertEq(text(unwrap(tryParse(document))), document)
         },
@@ -367,8 +376,8 @@ export const proof = {
         below: () => {
             /** @type {(depth: number, bottom: unknown) => unknown} */
             const nested = (depth, bottom) => Array.from({ length: depth }).reduce(v => [v], bottom)
-            assertEq(refused(nested(2600, () => 1)), 'a function is not a DataJS value')
-            const chain = nested(2600, emptyArray)
+            assertEq(refused(nested(2_600, () => 1)), 'a function is not a DataJS value')
+            const chain = nested(2_600, emptyArray)
             assertEq(text([chain, chain]).slice(0, 12), 'const $0=[[[')
         },
     },

@@ -30,8 +30,10 @@ import { toArray } from '../../types/list/module.f.mjs'
 import { invert, ok, unwrap } from '../../types/result/module.f.mjs'
 import { _defaultExport, unresolved } from '../edag/module.f.mjs'
 import { parse } from '../transpiler/module.f.mjs'
-import { functionText, tryFunctionText, trySerialize, tryStringify, tryModuleSerialize, tryModuleStringify } from './module.f.mjs'
+import { _tryModuleSerialize, _trySerialize, functionText, tryFunctionText, trySerialize, tryStringify, tryModuleSerialize, tryModuleStringify } from './module.f.mjs'
 import { keywords } from '../../js/keywords/module.f.mjs'
+import { spansOf } from '../../website/demo/highlight/module.f.mjs'
+import { chunkText } from '../../text/marked/module.f.mjs'
 
 /** The name the front end gives the text it reads back. */
 const path = '/proof.f.js'
@@ -514,6 +516,37 @@ export const proof = {
     // from.
     chunks: () => {
         assertStructurallySame(toArray(unwrap(trySerialize(1))), ['export default ', '1', ';'])
+    },
+    // The leaves carry their kinds; the writer's own keywords and punctuation
+    // are not marked yet, `undefined` among them: this writer spells it itself.
+    markedLeaves: () => {
+        assertStructurallySame(toArray(unwrap(_trySerialize(1))), ['export default ', ['1', 'number'], ';'])
+        assertStructurallySame(toArray(unwrap(_trySerialize(['[]', [1, 'a', null, true, 2n]]))).filter(c => typeof c !== 'string'),
+            [['1', 'number'], ['"a"', 'string'], ['null', 'literal'], ['true', 'literal'], ['2n', 'number']])
+    },
+    // What the writer marks, the tokenizer agrees with: each marked chunk is
+    // a span of the same kind in the tokenizer's reading of the whole text.
+    // The tokenizer reads `-0` as a prefix and a number, so a leading `-` is
+    // not part of the span it finds.
+    markedAgreesWithTokenizer: () => {
+        for (const [name, source] of examples) {
+            const parsed = parse('')(source)
+            if (parsed[0] === 'error') { continue }
+            const written = _tryModuleSerialize(unresolved(parsed[1]).edag)
+            if (written[0] === 'error') { continue }
+            const chunks = toArray(written[1])
+            const text = chunks.map(chunkText).join('')
+            const spans = spansOf(text)
+            let start = 0
+            for (const chunk of chunks) {
+                const length = Array.from(chunkText(chunk)).length
+                if (typeof chunk !== 'string') {
+                    const dash = chunk[0].startsWith('-') ? 1 : 0
+                    assert(spans.some(span => span.start === start + dash && span.length === length - dash && span.kind === chunk[1]), `${name}: ${chunk[0]} at ${start}`)
+                }
+                start += length
+            }
+        }
     },
     // A function with a frame is a closure: each frame element takes a
     // `const` in the scope around the function — even one the writer would
@@ -1362,9 +1395,9 @@ export const proof = {
         },
         view: () => {
             const shown = htmlToString(demo.view(demo.init))
-            assert(shown.includes('<pre>'), shown)
+            assert(shown.includes('<p data-caption="">JavaScript module:</p><pre data-code="">'), shown)
             const refused = htmlToString(demo.view('export default {bad'))
-            assert(refused.includes('Refused: '), refused)
+            assert(refused.includes('Refused:</p><pre data-result="error">'), refused)
         },
     },
 }

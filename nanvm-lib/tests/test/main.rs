@@ -83,7 +83,7 @@ fn bigint_debug_format<A: IVm>() {
         assert_eq!(x, "-0x8000000000000000n");
         let i: i64 = i64::MIN;
         let m = i.overflowing_neg().0 as u64;
-        assert_eq!(m, 0x8000000000000000);
+        assert_eq!(m, 0x8000_0000_0000_0000);
     }
 
     {
@@ -93,7 +93,7 @@ fn bigint_debug_format<A: IVm>() {
         assert_eq!(x, "-0x7FFFFFFFFFFFFFFFn");
         let i: i64 = i64::MIN + 1;
         let m = i.overflowing_neg().0 as u64;
-        assert_eq!(m, 0x7FFFFFFFFFFFFFFF);
+        assert_eq!(m, 0x7FFF_FFFF_FFFF_FFFF);
     }
 
     {

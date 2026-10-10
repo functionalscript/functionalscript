@@ -142,7 +142,7 @@ export const proof = {
             [1e-6, '0.000001'], [1e-7, '1e-7'],
             ['', ''], ['undefined', 'undefined'], ['  value  ', '  value  '], ['😀\ud800', '😀\ud800'],
             [0n, '0'], [1n, '1'], [-1n, '-1'],
-            [123456789012345678901234567890n, '123456789012345678901234567890'],
+            [123_456_789_012_345_678_901_234_567_890n, '123456789012345678901234567890'],
         ]
         for (const [value, expected] of cases) { assertEq(primitiveToString(value), expected) }
     },
@@ -163,7 +163,7 @@ export const proof = {
         const cases = [
             ['', 0], ['\t\n\r \u00a0\ufeff\u2028\u2029', 0], ['\u00a0-1\u2029', -1],
             ['0', 0], ['-0', -0], [' \t-0\n', -0], ['+1', 1], ['1.5', 1.5], ['.5', 0.5],
-            ['1e3', 1000], ['1e-3', 0.001], ['0x10', 16], ['0b101', 5], ['0o17', 15],
+            ['1e3', 1_000], ['1e-3', 0.001], ['0x10', 16], ['0b101', 5], ['0o17', 15],
             ['Infinity', Infinity], ['+Infinity', Infinity], ['-Infinity', -Infinity],
             ['NaN', NaN], ['undefined', NaN], ['null', NaN], ['true', NaN],
             ['12x', NaN], ['1_000', NaN], ['1n', NaN], ['0x', NaN], ['-0x10', NaN], ['1 2', NaN],
@@ -177,7 +177,7 @@ export const proof = {
         // The explicit Number constructor accepts bigint; abstract
         // ToNumber rejects it, including values exactly representable.
         assertEq(Number(1n), 1)
-        for (const value of [0n, 1n, -1n, 123456789012345678901234567890n]) {
+        for (const value of [0n, 1n, -1n, 123_456_789_012_345_678_901_234_567_890n]) {
             assertStructurallySame(assertError(primitiveToNumber(value)), ['undefined'])
             assertEq(primitiveToNumeric(value), value)
         }

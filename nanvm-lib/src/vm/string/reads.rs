@@ -44,7 +44,7 @@ impl<A: IVm> String<A> {
         let k = pos.to_integer_or_infinity()?;
         Ok(self.unit_at(k).map(|first| match self.unit_at(k + 1.0) {
             Some(second) if is_high_surrogate(first) && is_low_surrogate(second) => {
-                0x10000 + ((u32::from(first) - 0xD800) << 10) + (u32::from(second) - 0xDC00)
+                0x1_0000 + ((u32::from(first) - 0xD800) << 10) + (u32::from(second) - 0xDC00)
             }
             _ => u32::from(first),
         }))
@@ -111,7 +111,7 @@ mod tests {
     #[test]
     fn code_point_at() {
         let pair = s(&[0xD83D, 0xDE00, 0x61]);
-        assert_eq!(pair.code_point_at(n(0.0)), Ok(Some(0x1F600)));
+        assert_eq!(pair.code_point_at(n(0.0)), Ok(Some(0x1_F600)));
         assert_eq!(pair.code_point_at(n(1.0)), Ok(Some(0xDE00)));
         assert_eq!(pair.code_point_at(n(2.0)), Ok(Some(0x61)));
         assert_eq!(pair.code_point_at(n(3.0)), Ok(None));

@@ -539,8 +539,8 @@ exports are not compared (decision 3). The `undefinedDefault` table in
 host proof fails on any other fixture whose default is `undefined` and on any
 entry that no longer is, so the gap is a list and not a silence.
 
-**Where the expectation lives (decisions 1 and 5, decided).** Nothing is
-retyped by hand: a generator writes the expectation into a committed `gen.`
+**Where the expectation lives (decisions 1 and 5, decided).** The generated
+expectation is not retyped by hand: a generator writes it into a committed `gen.`
 file, drift-checked, and Node stays the authority. Decision 1 chose that Node's
 output be the source; decision 5 refines how, for step 2: the expectation is
 the FJS interpreter's value printed as Rust, with its JSON text where it has
@@ -548,7 +548,8 @@ one, which the step 1 proof ties to Node on every corpus fixture, so it is Node'
 second conversion (see Step 2 design). The hand-written strings in
 `src/lib.rs` (`"[1,1,false,true,true,true]"`) are exactly the retyping that can
 drift. Fixtures with no corpus comparison (the exceptions) keep a
-hand-written expectation, each with its reason.
+hand-written expectation, each with its reason. Independent leaf assertions
+remain where the generated layers cannot catch emitter bugs (see Step 2).
 
 **How a callable is observed (decision 2, decided).** A fixture that tests a
 function calls it at module level and exports the observations, as `arity`,
@@ -599,7 +600,8 @@ emitter, so a bug there (a wrong number, string, array or object literal)
 would transform both identically and a comparison of the two would pass.
 Deleting the hand-written assertions would then remove the one independent
 check that catches that class of direct-AOT regression. So the expectation has
-two parts, and each catches what the other cannot:
+two parts, supplemented by independent assertions for leaves that JSON
+cannot distinguish:
 
 1. *The JSON text, independent of the Rust emitter.* For a default that has a
    JSON form, the expectation includes the compiler's own JSON data output
@@ -614,21 +616,39 @@ two parts, and each catches what the other cannot:
    `0`. A probe of exponent forms (`1e+21`, `1e-7`), a 21-digit integer,
    `5e-324` and U+2028 found no other difference. So the generator writes the
    text of the value with `-0` replaced by `0`, `JSON.stringify`'s own rule, a
-   small pure function with its own proof, and `-0` is left to the graph
-   layer, which compares numbers by bits. The text is committed as its UTF-8
+   small pure function with its own proof. The graph layer distinguishes `-0`
+   by bits, but an independent assertion is also required below: normalizing
+   the JSON text loses its sign. The text is committed as its UTF-8
    bytes, spelled as numbers, and not as a Rust string literal: the
    string-literal emitter is the one that spells the compiled fixture's
    strings, so a text written through it would share an escaping mistake with
    what it checks (DEL and a bidirectional control, in `escapes`), and `rustc`
    refuses some characters in a literal. In Rust the check is `Any::to_json()`
-   as bytes against those bytes: `nanvm-lib`'s serializer on the compiled result, a path that
+   as bytes against those bytes: `nanvm-lib`'s serializer on the compiled
+   result, a path that
    shares nothing with the literal emitter. JSON text is also ordered, so a
    wrong property order fails here.
 2. *The graph, for what JSON cannot say.* The interpreter's value printed as
    Rust, compared as a graph: sharing (`[shared, shared]` against two
    copies), `bigint` and `undefined` leaves, `NaN` and `-0`. This layer does
    share the emitter with the compiled fixture, so on its own it is blind to
-   an emitter bug; it is there for what the first layer cannot see.
+   an emitter bug; it checks execution and sharing differences that the first
+   layer cannot see, but cannot independently verify the leaf literals below.
+
+*Independent leaf checks.* A corpus default containing `undefined`, `bigint`,
+`-0` or a non-finite number, including a nested leaf, must also have a
+hand-written assertion on the compiled result, independent of the generated
+expected graph. For `undefined`, compare the actual leaf with
+`Any::undefined()`, so an emitter regression that substitutes `null` fails
+even when both generated graphs make the same substitution. For `bigint`,
+keep the independent assertion described below. For `-0`, inspect the actual
+number's bits against `(-0.0_f64).to_bits()`; for `NaN`, assert `is_nan()`;
+for infinities, assert the value and sign. These expectations use Rust's own
+constructors and constants, never the shared FJS Rust emitter.
+Retain such assertions when replacing JSON tests, and add them when
+such a fixture enters the corpus. The normalized JSON layer and the generated
+graph alone do not establish emitter-independent coverage for these leaves,
+just as the `bigint` fixture still needs its independent assertion.
 
 The program under test reaches Rust by compiling its source
 (`gen.fixtures/<name>.rs`); neither layer runs the program's logic in Rust.
@@ -651,13 +671,20 @@ and drift-checked by `npm run gen` like the compiled fixtures.
 fixture, runs both layers. The graph comparison is a small helper in
 `nanvm-harness`, modelled on the operator corpus's `same`
 (`nanvm-lib/tests/test/harness.rs`, private to that test crate) with two
-differences. It compares an object's properties pairwise **in order**, not as
-a set through `own_property` as `same` does, so a result with the right keys
-and values in the wrong insertion order fails (`object-spread` is the
-fixture that observes it). And it is extended for sharing: the two graphs are
-walked together, and an actual container must map to one expected container
-and the reverse, so `[shared, shared]` does not equal two copies. `Any ==` is
-`===` and compares arrays, objects and functions by identity (`ptr_eq`), so
+differences. It compares both objects' `own_entries()` views pairwise
+**in order**, checking entry counts, keys and values, rather than indexing raw
+`Object` slots or comparing a set through `own_property` as `same` does.
+`own_entries()` exposes each key once with its last value, array-index keys
+first in numeric order and other keys in their first insertion order.
+AOT object spread can retain duplicate raw entries, while the interpreter
+normalizes them through `Object.fromEntries`; those representations must
+compare equal when their observable entries agree. A result with the right
+keys and values in the wrong observable order still fails (`object-spread`
+covers overwrites and order). Sharing is checked only through these observable
+values, not overwritten raw slots. And it is extended for sharing: the two
+graphs are walked together, and an actual container must map to one expected
+container and the reverse, so `[shared, shared]` does not equal two copies.
+`Any ==` is `===` and compares arrays, objects and functions by identity (`ptr_eq`), so
 the helper keeps its map of pairs in a list of container pairs compared with
 `==`, with no hashing of an `Any` required. Numbers compare by bits (`NaN`,
 `-0`), as `same` already does.
@@ -666,7 +693,9 @@ the helper keeps its map of pairs in a list of container pairs compared with
 expectation has the JSON layer in `src/lib.rs` (the `read_default(…) ==
 Ok("…")` strings), since it is the same fact Node's text now supplies and
 keeping both is two copies. A fixture with no JSON form (`bigint`) keeps one
-hand-written assertion, which is its only emitter-independent check. A test
+hand-written assertion, which is its only emitter-independent check. The
+independent leaf assertions above stay even when the fixture has a JSON layer
+(`-0`), since that layer cannot distinguish the value they check. A test
 that checks something else about the same fixture (a named export, a call
 through the harness) stays. A fixture excepted from the corpus keeps its
 hand-written test and its reason.

@@ -42,8 +42,8 @@ mod tests {
     #[test]
     fn with_zero() {
         assert_eq!(int(0) | int(0), int(0));
-        assert_eq!(int(12345) | int(0), int(12345));
-        assert_eq!(int(-12345) | int(0), int(-12345));
+        assert_eq!(int(12_345) | int(0), int(12_345));
+        assert_eq!(int(-12_345) | int(0), int(-12_345));
     }
 
     #[test]
