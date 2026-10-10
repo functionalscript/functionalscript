@@ -702,6 +702,7 @@ mod test {
         Naive::static_function(code, 0, [].to_array(), None).to_any()
     }
 
+    #[cfg(not(all(target_family = "wasm", target_os = "unknown")))]
     fn members(value: V, names: [&str; 2]) -> [V; 2] {
         let object = nanvm_lib::vm::Object::try_from(value).unwrap();
         names.map(|name| object.own_property(&name.into()).unwrap())
@@ -728,6 +729,9 @@ mod test {
 
     /// `sandbox` answers `{result, duration}`, the duration a number of
     /// milliseconds that is not negative.
+    /// Needs a clock, which `wasm32-unknown-unknown` does not have: `std` panics
+    /// on `Instant::now` and `SystemTime::now` there, WASI has them.
+    #[cfg(not(all(target_family = "wasm", target_os = "unknown")))]
     #[test]
     fn sandbox_answers_the_result_and_a_duration() {
         for (code, expected) in [
@@ -746,6 +750,9 @@ mod test {
     }
 
     /// `now` is whole milliseconds since the epoch, within the test's own bounds.
+    /// Needs a clock, which `wasm32-unknown-unknown` does not have: `std` panics
+    /// on `Instant::now` and `SystemTime::now` there, WASI has them.
+    #[cfg(not(all(target_family = "wasm", target_os = "unknown")))]
     #[test]
     fn now_is_the_epoch_in_milliseconds() {
         let epoch = || {

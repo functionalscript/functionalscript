@@ -6,6 +6,10 @@
 //! what it throws is the `Err` the VM's `Result` carries. A thunk is pure, so
 //! there is nothing to await: the Node runner's `Promise` case has no native
 //! twin.
+//!
+//! `sandbox` and `now` read a clock. `wasm32-unknown-unknown` has none, and
+//! `std` panics there, so a host on that target cannot answer them; WASI has
+//! one. The host over `std` has no files on that target either.
 
 use crate::codec::{encode_number, encode_object, encode_ok, encode_tuple};
 use nanvm_lib::vm::{Any, IVm, ToAny, ToArray};
