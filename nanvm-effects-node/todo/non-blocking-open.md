@@ -15,6 +15,12 @@ A caller that opens a FIFO to learn what it is gets an error where the Node
 runner answers a handle. It refuses the entry either way; only the way it learns
 differs.
 
+The check is not atomic. A path that is a regular file when `metadata` looks and
+a writerless FIFO when `File::open` follows, swapped in by another process in
+between, blocks the open, and with `Native::perform` synchronous, the whole
+interpreter with it. Only opening without blocking closes that window; the
+refusal narrows it to a swap inside one pair of calls.
+
 ### Tasks
 
 - [ ] Open with `O_NONBLOCK` where the platform names it, and drop the refusal.
