@@ -22,7 +22,7 @@ listed sites — `Evo.add` in `fjs/cas/evo`, the `Rm` continuation in `fjs/cas`,
 `Result<number, string>` continuation in `fjs/effects/proof.f.mjs` — carries a
 cast any more. One cast of the listed shape survives, and it is not a
 continuation:
-`registerSelectsContextAndStar` in `fjs/emergent_testing/proof.f.mjs` casts a
+`registerUsesSuppliedContext` in `fjs/emergent_testing/proof.f.mjs` casts a
 whole `register(…)` effect to
 `Effect<_RegisterMockOps | Readdir | Import, 0, number>`, and
 `reporterWriteFailure` beside it casts `main(…)` to `Effect<_FailOps, 0, number>`.

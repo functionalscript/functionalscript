@@ -1134,9 +1134,14 @@ const inlineContext = { test: inlineTest }
  * nested tests inline, so ` ...` marks that one reported test may cover more
  * leaves. Expected-to-throw tests never produce nested tests and keep their name.
  *
+ * Private linkage lets the co-located host proof's `inlineRegistrationNames`
+ * observe the names handed to the registration callback, which the native
+ * frameworks do not expose back through `TestContext`.
+ *
+ * @internal
  * @type {(register: (name: string, fn: () => Promise<void>) => Promise<void>) => TestContext}
  */
-const wrapInlineTest = register => ({
+export const _wrapInlineTest = register => ({
     test: (name, opts, fn) => register(
         opts.expectFailure ? name : `${name} ...`,
         () => inlineTest(name, opts, fn)),
@@ -1148,7 +1153,7 @@ const options = {
     env: process.env,
     home: toPosix(os.homedir()),
     std: { stdout: process.stdout, stderr: process.stderr },
-    testContext: 'Bun' in globalThis ? wrapInlineTest(testContext.test) : testContext,
+    testContext: 'Bun' in globalThis ? _wrapInlineTest(testContext.test) : testContext,
 }
 
 /**
