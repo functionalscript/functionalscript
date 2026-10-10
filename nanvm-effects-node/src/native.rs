@@ -247,11 +247,11 @@ impl<R: Read, O: Write, E: Write> Native<R, O, E> {
                 arity(payload, 1)?;
                 Ok(common::catch(argument(payload, 0, "f")?))
             }
-            "sandbox" => {
+            "sandbox" if common::CLOCK => {
                 arity(payload, 1)?;
                 Ok(common::sandbox(argument(payload, 0, "f")?))
             }
-            "now" => {
+            "now" if common::CLOCK => {
                 arity(payload, 0)?;
                 Ok(common::now())
             }
@@ -770,6 +770,11 @@ mod test {
     #[test]
     fn the_thunk_operations_take_exactly_their_arguments() {
         assert_eq!(thrown("catch", []), "missing argument 0, `f`");
+    }
+
+    #[cfg(not(all(target_family = "wasm", target_os = "unknown")))]
+    #[test]
+    fn the_clock_operations_take_exactly_their_arguments() {
         assert_eq!(
             thrown("sandbox", [hi(), hi()]),
             "2 arguments where at most 1 are taken"
@@ -778,6 +783,18 @@ mod test {
             thrown("now", [hi()]),
             "1 arguments where at most 0 are taken"
         );
+    }
+
+    /// Without a clock the operations are refused, not trapped.
+    #[cfg(all(target_family = "wasm", target_os = "unknown"))]
+    #[test]
+    fn the_clock_operations_are_not_implemented_without_a_clock() {
+        for command in ["sandbox", "now"] {
+            assert_eq!(
+                ok(perform(command, [])).to_json(),
+                Ok(format!("[\"error\",[\"notImplemented\",\"{command}\"]]"))
+            );
+        }
     }
 
     /// `resolveFileModule` through `perform`: the working directory is where

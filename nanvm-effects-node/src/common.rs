@@ -9,11 +9,15 @@
 //!
 //! `sandbox` and `now` read a clock. `wasm32-unknown-unknown` has none, and
 //! `std` panics there, so a host on that target cannot answer them; WASI has
-//! one. The host over `std` has no files on that target either.
+//! one. The host over `std` has no files on that target either, and refuses
+//! both as not implemented, rather than let `std` panic: see [`CLOCK`].
 
 use crate::codec::{encode_number, encode_object, encode_ok, encode_tuple};
 use nanvm_lib::vm::{Any, IVm, ToAny, ToArray};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
+
+/// Whether this target has a clock for `sandbox` and `now`.
+pub const CLOCK: bool = !cfg!(all(target_family = "wasm", target_os = "unknown"));
 
 /// A thunk called with no arguments.
 fn call<A: IVm>(thunk: Any<A>) -> Result<Any<A>, Any<A>> {
