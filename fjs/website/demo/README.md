@@ -175,6 +175,12 @@ the rtti demo's `parse · ok` and `validate · error` do.
   item's line**, as the UTF-8 demo marks one unpaired surrogate among valid
   code points: the result as a whole was not refused.
 
+VDF evaluates and verifies in separate sections. A refusal replaces only the
+output that its invalid input prevents: oversized text and invalid steps can
+therefore show separate live refusal boxes. The controls remain available so
+readers can correct each input, and verification verdicts keep their own
+result presentation.
+
 ## What a demo's proof covers
 
 Besides the 100% coverage every module owes, a demo's proof drives its view

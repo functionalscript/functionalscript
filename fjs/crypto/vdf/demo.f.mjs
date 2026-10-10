@@ -20,6 +20,11 @@
  * but evaluation runs in `nextEvent` turns, whose contract asks for no
  * operations; timing it means revisiting that contract first.
  *
+ * **Refusals belong to the input they block.** Oversized text and invalid
+ * steps can each show a live refusal box. Evaluate and Verify controls stay
+ * visible so readers can correct the fields; verification verdicts keep
+ * their own result presentation.
+ *
  * @module
  *
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'

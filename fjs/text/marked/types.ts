@@ -27,3 +27,10 @@ export type Span = {
     readonly length: number
     readonly kind: TokenKind
 }
+
+/**
+ * A piece of text on its way to becoming {@link Marked}: a bare string is an
+ * unmarked run. It lets a writer migrate piece by piece, the pieces it has
+ * not marked yet staying strings.
+ */
+export type Chunk = string | Run
