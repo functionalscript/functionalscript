@@ -51,5 +51,7 @@ implementation details remain unspecified here.
         against one `expected`. Add a case there when an operation gains one.
   - [x] `catch`, `sandbox` and `now`: the `thunks` case, over what they answer
         rather than the clock's value.
-  - [ ] The rest of the scope: console, `resolveFileModule`, and what the corpus
-        leaves out on purpose (see its header).
+  - [x] `resolveFileModule` of a path: the `resolution` case. A module relative
+        to a parent URL is left out, for a file URL is spelled by platform.
+  - [ ] The rest of the scope: console, and what the corpus leaves out on
+        purpose (see its header).
