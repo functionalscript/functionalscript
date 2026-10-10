@@ -23,37 +23,72 @@ consumers, over three representations:
 - [`fjs/compiler/ast`](../../compiler/ast/module.f.mjs) keeps `chainEager`,
   `chainOperands` and a third `stepOperands`, over the AST.
 
-The three do not agree. For a `.` node whose continuation is a plain call
-step, `|()`, `edag/rust`'s `chainLazy` and `compiler/ast`'s `chainOperands`
-list the call's arguments as lazy — "after an access that may throw with
-them untouched". The serializer's `operands` lists them as eager and its
-`lazyOperands` reserves the lazy region for `|?.()` alone. The serializer
-hoists a `const` only from what `eagerFrom` reaches, so it may hoist from
-those arguments where the other two would not. Whether that is a defect or
-a deliberate difference is not written down anywhere, which is the
+The evaluation order is already established by
+[`edag/operations`](../operations/module.f.mjs)'s `operation`: its
+`property` helper reads the property, then demands the call's arguments
+inside `then`, which propagates a failed read without demanding them.
+For a `.` node whose continuation is a plain call step, `|()`, the receiver
+and key are eager; the call's arguments are lazy because the access may
+throw with them untouched. A successful read still demands the arguments
+before checking whether its value is callable.
+
+`edag/rust`'s `chainLazy` / `eagerOperandsOf` and `compiler/ast`'s
+`chainOperands` / `chainEager` follow that order. The serializer is the
+divergent copy: its `operands` lists the plain call's arguments as eager
+and its `lazyOperands` reserves the lazy region for `|?.()` alone. Since
+`eagerFrom` controls which scope owns a `const`, this can establish an
+argument before the access that should precede it. For example, a shared
+constructor under one argument makes that difference observable:
+
+```js
+const x = ['[]', [['throw', 'argument']]]
+const argument = ['[]', [x, x]]
+const root = ['.', null, 'f', ['|()', [argument]]]
+```
+
+The null receiver must fail at the property read with `argument` untouched;
+hoisting `x` before the access throws `'argument'` instead. This is a
+serializer ordering defect, not an unresolved language decision. It is the
 drift [DESIGN.md §4](../../../doc/DESIGN.md#4-reuse-dry-and-separation-of-concerns)
-describes: a rule with three owners has no owner.
+describes: a rule with several owners has no owner.
 
 ### Proposal
 
 `analysis` owns the classification over `Node`: it exports eager and lazy
 operand lists, a parameterized reach (through every operand, or through
 eager ones only), and `places` over a chosen root, so that the serializer's
-private walks become imports. The `.`/`|()` question is settled first, in
-the analysis's JSDoc, and the AST and `Exp` copies are checked against it —
+private walks become imports. Its JSDoc records the established
+read-before-arguments rule and cites `operations`; the AST and `Exp` copies
+cite the same rule. Moving the serializer onto it corrects its eager
+treatment of `.` / `|()` arguments. Serializer output may change wherever
+needed to preserve that evaluation order and keep argument-only bindings
+inside the argument that establishes them. Preserve sharing when the
+argument is demanded, as well as skipping it when the read fails.
 [identity-shared-walks](./identity-shared-walks.md) decides whether the
 `Exp` walk can share more than the rule.
 
 ### Tasks
 
-- [ ] Settle whether a plain call step after `.` is eager or lazy, and
-      write the answer where the three copies can cite it.
+- [ ] Record the read-before-arguments rule in `analysis`'s JSDoc and
+      reference it from the AST and `Exp` classifiers.
 - [ ] Export the classification and reaches from `analysis`; move the
-      serializer's private walks onto them, output unchanged.
-- [ ] Align `compiler/ast` and `edag/rust` with the settled rule, or
-      document at each why its representation differs.
+      serializer's private walks onto them, correcting its `.` / `|()`
+      classification and any resulting output expectations.
+- [ ] Prove that a plain access's receiver and key remain eager while its
+      plain call arguments are lazy; cover guarded calls and continuation
+      operands too, against `compiler/ast` and `edag/rust`'s classifiers.
+- [ ] Extend `operations`'s operand-demand proof for a null receiver with
+      a throwing `|()` argument: only receiver and key are demanded.
+      Also prove that a successful read of a non-callable value demands
+      that argument and propagates its failure before the call fails.
+- [ ] Add a serializer regression for the shared throwing constructor
+      above, checking emitted text and evaluation after parsing it: the
+      access fails before the argument runs. Add a successful-access case
+      with a nonthrowing shared constructor to prove it is still one value
+      when demanded, and retain receiver-sensitive method-call behavior.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%; regenerate and diff the
-      compiled corpus.
+      compiled corpus, explaining output changes that correct evaluation
+      order.
 
 ### Related
 
