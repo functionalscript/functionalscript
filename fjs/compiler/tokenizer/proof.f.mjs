@@ -173,7 +173,7 @@ export const proof = {
         },
         view: () => {
             const shown = htmlToString(demo.view(demo.init))
-            assert(shown.includes('<pre>'), shown)
+            assert(shown.includes('<p data-caption="">Tokens, line:column, kind and value:</p><pre data-code="">'), shown)
             assert(shown.includes('1:1  id  '), shown)
         },
     },

@@ -1106,7 +1106,7 @@ export const proof = {
     // the joining and not only the reading — the last name in the file is in the
     // third chunk.
     bigPackedRefs: () => {
-        const lines = Array.from({ length: 4000 }, (_, i) => `${a} refs/heads/topic/feature-${i}\n`)
+        const lines = Array.from({ length: 4_000 }, (_, i) => `${a} refs/heads/topic/feature-${i}\n`)
         const text = latin1(`# pack-refs with: peeled fully-peeled sorted \n${lines.join('')}`)
         const chunk = Number(maxLengthBytes)
         assert(text.length > chunk * 2, text.length)

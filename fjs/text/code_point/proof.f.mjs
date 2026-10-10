@@ -95,7 +95,7 @@ export const proof = {
         () => assertEq(isBmpCodePoint(0xffff), true),
         // both false: surrogate and supplementary
         () => assertEq(isBmpCodePoint(0xd800), false),
-        () => assertEq(isBmpCodePoint(0x10000), false),
+        () => assertEq(isBmpCodePoint(0x1_0000), false),
     ],
     bmpMax: [
         // The exported boundary and the predicates derived from it must agree:
@@ -108,27 +108,27 @@ export const proof = {
         () => assertEq(isBmpCodePoint(bmpMax + 1), false),
     ],
     isSupplementaryPlane: [
-        () => assertEq(isSupplementaryPlane(0x10000), true),
-        () => assertEq(isSupplementaryPlane(0x10ffff), true),
+        () => assertEq(isSupplementaryPlane(0x1_0000), true),
+        () => assertEq(isSupplementaryPlane(0x10_ffff), true),
         () => assertEq(isSupplementaryPlane(0xffff), false),
-        () => assertEq(isSupplementaryPlane(0x110000), false),
+        () => assertEq(isSupplementaryPlane(0x11_0000), false),
     ],
     tryToSurrogatePair: [
         // the first, a middle, and the last supplementary code point
-        () => assertStructurallySame(tryToSurrogatePair(0x10000), [0xd800, 0xdc00]),
-        () => assertStructurallySame(tryToSurrogatePair(0x1f600), [0xd83d, 0xde00]),
-        () => assertStructurallySame(tryToSurrogatePair(0x10ffff), [0xdbff, 0xdfff]),
+        () => assertStructurallySame(tryToSurrogatePair(0x1_0000), [0xd800, 0xdc00]),
+        () => assertStructurallySame(tryToSurrogatePair(0x1_f600), [0xd83d, 0xde00]),
+        () => assertStructurallySame(tryToSurrogatePair(0x10_ffff), [0xdbff, 0xdfff]),
         // outside the supplementary planes: refused
         () => assertEq(tryToSurrogatePair(0xffff), null),
-        () => assertEq(tryToSurrogatePair(0x110000), null),
+        () => assertEq(tryToSurrogatePair(0x11_0000), null),
         () => assertEq(tryToSurrogatePair(-1), null),
         // a fraction inside the range: refused, not truncated
-        () => assertEq(tryToSurrogatePair(0x10000 + 0.5), null),
+        () => assertEq(tryToSurrogatePair(0x1_0000 + 0.5), null),
     ],
     tryFromSurrogatePair: [
-        () => assertEq(tryFromSurrogatePair(0xd800, 0xdc00), 0x10000),
-        () => assertEq(tryFromSurrogatePair(0xd83d, 0xde00), 0x1f600),
-        () => assertEq(tryFromSurrogatePair(0xdbff, 0xdfff), 0x10ffff),
+        () => assertEq(tryFromSurrogatePair(0xd800, 0xdc00), 0x1_0000),
+        () => assertEq(tryFromSurrogatePair(0xd83d, 0xde00), 0x1_f600),
+        () => assertEq(tryFromSurrogatePair(0xdbff, 0xdfff), 0x10_ffff),
         // `high` is not a high surrogate: refused
         () => assertEq(tryFromSurrogatePair(0xdc00, 0xdc00), null),
         () => assertEq(tryFromSurrogatePair(0xd7ff, 0xdc00), null),
@@ -149,23 +149,23 @@ export const proof = {
             assertEq(isLowSurrogate(low), true)
             assertEq(tryFromSurrogatePair(high, low), cp)
         }
-        roundTrip(0x10000)
-        roundTrip(0x103ff)
-        roundTrip(0x10400)
-        roundTrip(0x1f600)
-        roundTrip(0x10fc00)
-        roundTrip(0x10ffff)
+        roundTrip(0x1_0000)
+        roundTrip(0x1_03ff)
+        roundTrip(0x1_0400)
+        roundTrip(0x1_f600)
+        roundTrip(0x10_fc00)
+        roundTrip(0x10_ffff)
     },
     isValidCodePoint: [
         // in range, not surrogate
         () => assertEq(isValidCodePoint(0x0000), true),
-        () => assertEq(isValidCodePoint(0x10ffff), true),
+        () => assertEq(isValidCodePoint(0x10_ffff), true),
         // in range, surrogate -> invalid
         () => assertEq(isValidCodePoint(0xd800), false),
         () => assertEq(isValidCodePoint(0xdfff), false),
         // out of range -> validRange short-circuits false
         () => assertEq(isValidCodePoint(-1), false),
-        () => assertEq(isValidCodePoint(0x110000), false),
+        () => assertEq(isValidCodePoint(0x11_0000), false),
     ],
     isTextCodePoint: [
         // C0 controls are binary...
@@ -189,6 +189,6 @@ export const proof = {
         () => assertEq(isTextCodePoint(0x9f), false), // C1 end
         // above C1 is text again
         () => assertEq(isTextCodePoint(0xa0), true), // NBSP
-        () => assertEq(isTextCodePoint(0x10ffff), true),
+        () => assertEq(isTextCodePoint(0x10_ffff), true),
     ],
 }

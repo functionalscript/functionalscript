@@ -338,7 +338,7 @@ export const proof = {
         // takes a variable argument list at all. Correctness of every hole
         // and every member is what is asserted.
         largeSparse: () => {
-            const pairs = 2048
+            const pairs = 2_048
             const omittable = or(option, number)
             const schema = Array.from(
                 { length: 2 * pairs },
