@@ -126,9 +126,14 @@ pull requests, and a question at every step: [SESSION.md](./doc/SESSION.md).
 Prefer hexadecimal literals where the value represents bytes, Unicode code
 points or code units, bit masks, binary-format tags, byte weights, or integer
 limits defined by a bit width. Apply this to authored source and proof inputs
-and expectations alike: `0xff`, `0xd800`, `0x80`, `0x10000`, and
-`0x7fffffffn` make that structure visible. Preserve the value; add `0x` to the
+and expectations alike: `0xff`, `0xd800`, `0x80`, `0x1_0000`, and
+`0x7fff_ffffn` make that structure visible. Preserve the value; add `0x` to the
 hexadecimal digits of the value, not to its decimal spelling.
+
+Use `_` separators in long numeric literals, grouping from the right: three
+digits for decimal (`1_000_000`) and four hexadecimal digits for hex
+(`0x1_0000_0000`). Keep short literals ungrouped, and preserve required text
+formats in strings and serialized data.
 
 Keep decimal for counts, indices, bit widths and shift amounts, durations,
 protocol status/error numbers, and decimal arithmetic or conversion examples.

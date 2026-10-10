@@ -23,7 +23,7 @@ const stringify = a =>
 export const proof = {
     toCodePointList: [
         () => {
-            const result = stringify(toArray(toCodePointList([-1, 0x10000])))
+            const result = stringify(toArray(toCodePointList([-1, 0x1_0000])))
             assertEq(result, '[2147483648,2147483648]')
         },
         // `-0` is not a second spelling of the code unit `0`.
@@ -101,23 +101,23 @@ export const proof = {
             assertEq(result, '[65535]')
         },
         () => {
-            const result = stringify(toArray(fromCodePointList([0x10000])))
+            const result = stringify(toArray(fromCodePointList([0x1_0000])))
             assertEq(result, '[55296,56320]')
         },
         () => {
-            const result = stringify(toArray(fromCodePointList([0x10437])))
+            const result = stringify(toArray(fromCodePointList([0x1_0437])))
             assertEq(result, '[55297,56375]')
         },
         () => {
-            const result = stringify(toArray(fromCodePointList([0x24B62])))
+            const result = stringify(toArray(fromCodePointList([0x2_4B62])))
             assertEq(result, '[55378,57186]')
         },
         () => {
-            const result = stringify(toArray(fromCodePointList([0x10ffff])))
+            const result = stringify(toArray(fromCodePointList([0x10_ffff])))
             assertEq(result, '[56319,57343]')
         },
         () => {
-            const result = stringify(toArray(fromCodePointList([-1, 0xd800, 0xdfff, 0x110000])))
+            const result = stringify(toArray(fromCodePointList([-1, 0xd800, 0xdfff, 0x11_0000])))
             assertEq(result, '[65535,55296,57343,0]')
         }
     ],
@@ -171,10 +171,10 @@ export const proof = {
     codePointToString: [
         () => { assertEq(codePointToString(0x48), 'H') },
         // supplementary plane: one code point, two code units
-        () => { assertEq(codePointToString(0x1f600), '😀') },
+        () => { assertEq(codePointToString(0x1_f600), '😀') },
         // a surrogate is not a code point; it round-trips as its own code unit
         () => { assertEq(codePointToString(0xd800), '\ud800') },
         // above the maximum code point, the low 16 bits are kept
-        () => { assertEq(codePointToString(0x110000), '\u0000') },
+        () => { assertEq(codePointToString(0x11_0000), '\u0000') },
     ]
 }

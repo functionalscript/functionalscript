@@ -119,7 +119,7 @@ export const proof = {
         assertStructurallySame(force(string), [
             '"',
             ['repeat', 0, Infinity, {
-                c: ['set', 0x20, 0x22, 0x23, 0x5c, 0x5d, 0x110000],
+                c: ['set', 0x20, 0x22, 0x23, 0x5c, 0x5d, 0x11_0000],
                 escape: ['\\', {
                     c: [
                         'set',
@@ -168,7 +168,7 @@ export const proof = {
     // A delimiter above the BMP is one symbol, not the two UTF-16 units that
     // spell it, because spreading a string walks code points.
     cjAstral: () => {
-        const brace = String.fromCodePoint(0x1D114)
+        const brace = String.fromCodePoint(0x1_D114)
         assertStructurallySame(
             force(cj(`${brace}${brace}`, 'x')),
             containerData(brace, brace, 'x'))

@@ -231,7 +231,7 @@ export const tryEntry = oidBytes => input => {
  * How long a copy of size zero is. The format spells 65536 by leaving every
  * size byte out, which is the one number it encodes by absence.
  */
-const wholeCopy = /** @type {const} */ (0x10000)
+const wholeCopy = /** @type {const} */ (0x1_0000)
 
 /**
  * A little-endian value from the bytes a bit mask selects, and where it ends.

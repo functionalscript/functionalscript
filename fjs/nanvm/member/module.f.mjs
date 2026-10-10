@@ -570,12 +570,12 @@ const charCodeAtCases = [
  */
 const codePointAtCases = [
     { name: 'ascii', args: ['abc', 1], expected: 0x62 },
-    { name: 'pair', args: ['\u{1F600}', 0], expected: 0x1F600 },
+    { name: 'pair', args: ['\u{1F600}', 0], expected: 0x1_F600 },
     { name: 'lowHalf', args: ['\u{1F600}', 1], expected: 0xDE00 },
     { name: 'loneHigh', args: ['\uD83Da', 0], expected: 0xD83D },
     { name: 'pastTheEnd', args: ['abc', 3], expected: undefined },
     { name: 'negative', args: ['abc', -1], expected: undefined },
-    { name: 'noArgument', args: ['\u{1F600}'], expected: 0x1F600 },
+    { name: 'noArgument', args: ['\u{1F600}'], expected: 0x1_F600 },
     { name: 'bigint', args: ['abc', 0n], expected: throws },
 ]
 
@@ -667,7 +667,7 @@ const repeatCases = [
     { name: 'zero', args: ['ab', 0], expected: '' },
     { name: 'noArgument', args: ['ab'], expected: '' },
     { name: 'string', args: ['a', '3'], expected: 'aaa' },
-    { name: 'emptyMany', args: ['', 1000], expected: '' },
+    { name: 'emptyMany', args: ['', 1_000], expected: '' },
     { name: 'negative', args: ['a', -1], expected: throws },
     { name: 'infinity', args: ['a', Infinity], expected: throws },
     { name: 'emptyInfinity', args: ['', Infinity], expected: throws },
@@ -842,8 +842,8 @@ const toFixedCases = [
  * @type {readonly MethodCase[]}
  */
 const toExponentialCases = [
-    { name: 'digits', args: [123456, 2], expected: '1.23e+5' },
-    { name: 'noArgument', args: [123456], expected: '1.23456e+5' },
+    { name: 'digits', args: [123_456, 2], expected: '1.23e+5' },
+    { name: 'noArgument', args: [123_456], expected: '1.23456e+5' },
     { name: 'passedUndefined', args: [1.5, undefined], expected: '1.5e+0' },
     { name: 'zero', args: [0, 2], expected: '0.00e+0' },
     { name: 'zeroNoArgument', args: [0], expected: '0e+0' },
@@ -874,7 +874,7 @@ const toExponentialCases = [
 const toPrecisionCases = [
     { name: 'plain', args: [123.456, 4], expected: '123.5' },
     { name: 'small', args: [0.000123, 2], expected: '0.00012' },
-    { name: 'exponent', args: [123456, 2], expected: '1.2e+5' },
+    { name: 'exponent', args: [123_456, 2], expected: '1.2e+5' },
     { name: 'noArgument', args: [1.5], expected: '1.5' },
     { name: 'zero', args: [0, 3], expected: '0.00' },
     { name: 'negativeZero', args: [-0, 2], expected: '0.0' },

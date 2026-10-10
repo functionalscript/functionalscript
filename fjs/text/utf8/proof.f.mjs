@@ -164,19 +164,19 @@ export const proof = {
             assertEq(result, '[239,191,191]')
         },
         () => {
-            const result = stringify(toArray(fromCodePointList([0x10000])))
+            const result = stringify(toArray(fromCodePointList([0x1_0000])))
             assertEq(result, '[240,144,128,128]')
         },
         () => {
-            const result = stringify(toArray(fromCodePointList([0x10001])))
+            const result = stringify(toArray(fromCodePointList([0x1_0001])))
             assertEq(result, '[240,144,128,129]')
         },
         () => {
-            const result = stringify(toArray(fromCodePointList([0x10FFFF])))
+            const result = stringify(toArray(fromCodePointList([0x10_FFFF])))
             assertEq(result, '[244,143,191,191]')
         },
         () => {
-            const result = stringify(toArray(fromCodePointList([0x110000, 0x80000000])))
+            const result = stringify(toArray(fromCodePointList([0x11_0000, 0x8000_0000])))
             assertEq(result, '[2147483648,2147483648]')
         }
     ],

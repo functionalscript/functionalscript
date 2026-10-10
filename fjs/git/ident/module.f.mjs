@@ -62,7 +62,7 @@ const decimal = digitsValue(10n)
  * time into a signed 64-bit integer, and `git fsck` refuses a later one
  * as `badDateOverflow`.
  */
-export const maxTime = /** @type {const} */ (0x7fffffffffffffffn)
+export const maxTime = /** @type {const} */ (0x7fff_ffff_ffff_ffffn)
 
 /** The digits {@link maxTime} has: a time spelled with more is later. */
 const maxTimeDigits = /** @type {const} */ (19)
