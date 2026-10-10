@@ -213,16 +213,20 @@ the fold's:
   reference rule, where it would conflict with its own prefix branch; a
   binding takes the wider `identifierName`, so `const typeof = 1;` still
   reaches the fold, and `{ typeof: 1 }` and `a.typeof` stay members;
-- a reserved global, `Number`, bound or referenced anywhere but as the callee
-  of the conversion `Number(x)`
-  ([spec: number conversion](../../../spec/README.md#number-conversion)) —
+- a reserved conversion global, `Number` or `String`, bound or referenced
+  anywhere but as the callee of `Number(x)` or `String(x)`
+  ([spec: number conversion](../../../spec/README.md#number-conversion),
+  [string conversion](../../../spec/README.md#string-conversion)) —
   [`fjs/js/keywords`](../../js/keywords/module.f.mjs)' `reservedGlobals`, a
   list beside the keywords rather than among them, since JavaScript has no
   such keyword and its tokenizer keeps the word an `id`. The fold reads the
   callee's word before resolving it, so the word alone decides, no scope
-  ever binding it; `Number()` is the literal `0`, and a call of the word
-  with more than one argument, or a spread, is not recognized yet and
-  refused by name;
+  ever binding it. `Number()` is the literal `0`, and `String()` is the
+  empty-string literal. Multiple arguments and spreads are refused at the
+  callee with `Number takes one argument` or `String takes one argument`.
+  Guarded calls, standalone references, and namespace members are refused
+  as reserved-word uses. A key or property name remains ordinary,
+  `{ String: 1 }.String` being valid;
 - an import attribute other than `type: "json"`, the one JavaScript defines,
   read from the key's and the value's words;
 - a body `const` that takes a name the body already binds, its parameter
