@@ -5,12 +5,12 @@
  * {@link highlight} is the fallback for a text with no producer behind it,
  * which finds the runs by tokenizing.
  *
- * Design: `website/demo/todo/highlight-from-producers.md`, proposed in
- * https://github.com/functionalscript/functionalscript/pull/2697.
+ * What marked text is, and why: [`fjs/text/marked`](../../../text/marked/README.md).
  *
  * **It reads the text with the real tokenizer**, [`fjs/js/tokenizer`](../../../js/tokenizer/module.f.mjs),
  * not with a lookalike, so a string that holds `//` is a string and a
- * keyword is whatever [`isKeyword`](../../../js/keywords/module.f.mjs) says.
+ * keyword is whatever [`isKeyword`](../../../js/keywords/module.f.mjs) says, and
+ * a literal word is one of its `literalWords`.
  * The tokenizer keeps a token's value, not its spelling (`'a'` and `"a"` are
  * one string), so each token's text is cut from the input between its start
  * and the next token's.
@@ -61,6 +61,7 @@ export const render = marked => marked.flatMap(([text, kind]) =>
  */
 const kindOf = ({ kind }) => {
     switch (kind) {
+        case 'id': return 'identifier'
         case 'string': return 'string'
         case 'number': case 'bigint': return 'number'
         case '//': case '/*': return 'comment'
@@ -83,8 +84,8 @@ const isTrivia = ({ kind }) => kind === 'ws' || kind === 'nl' || kind === '//' |
  * previous token's cut.
  *
  * **A word after `.` or `?.` is a property name**, `x.true` and `x.default`,
- * and stays plain: the tokenizer reads it as the word it spells, which the
- * language does not mean there.
+ * and an `identifier` whatever it spells: the tokenizer reads it as the word
+ * it spells, which the language does not mean there.
  *
  * @type {(text: string) => readonly Span[]}
  */
@@ -112,7 +113,8 @@ export const spansOf = text => {
     return kept.slice(0, -1).flatMap(({ token, start }, i) => {
         const kind = kindOf(token)
         const before = afterWords[i]
-        return kind === undefined || ((kind === 'keyword' || kind === 'literal') && (before === '.' || before === '?.')) ? [] : [{ start, length: Array.from(symbols.slice(start, kept[i + 1].start).join('').trimEnd()).length, kind }]
+        const property = (kind === 'keyword' || kind === 'literal') && (before === '.' || before === '?.')
+        return kind === undefined ? [] : [{ start, length: Array.from(symbols.slice(start, kept[i + 1].start).join('').trimEnd()).length, kind: property ? 'identifier' : kind }]
     })
 }
 

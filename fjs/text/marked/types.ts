@@ -8,9 +8,12 @@
 /**
  * What a run of text is. The names are LSP's standard token types, plus
  * `literal` for `true`, `false`, `null`, `undefined`, `NaN` and `Infinity`, which LSP has no
- * type for. A kind states what the producer wrote, never how it looks.
+ * type for, and `identifier` for a name whatever it names: LSP has only the
+ * refinements — `variable`, `property`, `function`, `type`, … — which a
+ * producer that knows which a name is can use beside it, additively. A kind
+ * states what the producer wrote, never how it looks.
  */
-export type TokenKind = 'keyword' | 'literal' | 'string' | 'number' | 'comment' | 'operator'
+export type TokenKind = 'keyword' | 'literal' | 'string' | 'number' | 'comment' | 'operator' | 'identifier'
 
 /** A run of text and, when it has one, its kind. */
 export type Run = readonly [text: string, kind?: TokenKind]

@@ -56,6 +56,15 @@
  * graph unfolds to, so its writer is this read under JSON's leaf rule, and
  * lives here rather than in `fjs/media/json`, which this module imports.
  *
+ * **The writer builds `Chunk`s and says what it wrote.** A leaf, a key and the
+ * words `const`, `export` and `default` are runs with a kind, and the rest
+ * plain strings. `trySerialize` and `tryJsonSerialize` answer the plain
+ * strings (`chunkStrings`), as they always have; `_trySerialize` and
+ * `_tryJsonSerialize` keep the kinds, for the writers that build on this one
+ * (they are linkage, with the `_` prefix), and `tryMarked` and `tryJsonMarked`
+ * are the public marked text. The non-finite numbers are the language's
+ * literal words, `NaN` and `Infinity`.
+ *
  * @module
  *
  * @import { List } from '../../../types/list/types.ts'
@@ -72,7 +81,7 @@ import { empty, flat, toArray } from '../../../types/list/module.f.mjs'
 import { cmp } from '../../../types/number/module.f.mjs'
 import { error, mapOk, ok, okThen } from '../../../types/result/module.f.mjs'
 import { add, empty as noneStarted, has } from '../../../types/set/module.f.mjs'
-import { chunksMarked, chunkStrings, chunksText, keyword } from '../../../text/marked/module.f.mjs'
+import { chunksMarked, chunkStrings, chunksText, keyword, withNames } from '../../../text/marked/module.f.mjs'
 import { arrayWrap, boolSerialize, colon, leafSerialize as leafSerializeWith, nullSerialize, numberSerialize, objectWrap, stringSerialize } from '../../json/serializer/module.f.mjs'
 
 const {
@@ -591,11 +600,12 @@ export const _tryJsonSerialize = tryTreeSerialize(jsonLeaf)(stringSerialize)
 
 /**
  * {@link trySerialize} as marked text: the document with the kind of each
- * leaf and keyword, which `fjs compile` writes the text of.
+ * leaf and keyword, and each name — a `const`'s — an `identifier`, which
+ * `fjs compile` writes the text of.
  *
  * @type {(value: Unknown) => Result<Marked, string>}
  */
-export const tryMarked = value => mapOk(chunksMarked)(_trySerialize(value))
+export const tryMarked = value => mapOk(chunks => withNames(chunksMarked(chunks)))(_trySerialize(value))
 
 /**
  * {@link tryJsonSerialize} as marked text, as {@link tryMarked} is to

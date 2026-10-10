@@ -9,6 +9,9 @@
  * user data cannot introduce a symbol. This is a document representation, not
  * a parser or a rewrite of JavaScript identifiers.
  *
+ * A chunk may be a marked run, `[text, kind]` (`fjs/text/marked`): a symbol
+ * inside one is resolved in its text, and the run keeps its kind.
+ *
  * @module
  *
  * @import { Chunk } from '../../../text/marked/types.ts'

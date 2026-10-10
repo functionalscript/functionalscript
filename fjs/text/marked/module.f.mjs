@@ -4,17 +4,34 @@
  * tokens, Pygments and Tree-sitter: the runs' texts, concatenated, are the
  * text, so what a producer writes to a file is {@link toText} of its runs.
  *
- * See `./types.ts` for the type-level API.
+ * Five groups, by how a producer uses them:
+ *
+ * - **Runs**: {@link toText}, {@link textOfResult}, and {@link keyword} and
+ *   {@link literal} to build a run.
+ * - **Chunks**, `string | Run`, for a producer that builds a list of pieces
+ *   and marks some of them: {@link chunksMarked}, {@link chunksText},
+ *   {@link chunkStrings}.
+ * - **Tagged text**, for a producer that composes its text by templates and
+ *   says what a word is inside the string: {@link tagged}, resolved once at
+ *   its boundary by {@link fromTagged}, or dropped by {@link untagged}.
+ * - **Names**, for a producer of code: {@link withNames} makes the words it
+ *   left plain `identifier`s.
+ * - **Spans** beside a text that already exists: {@link fromSpans}.
+ *
+ * See `./types.ts` for the type-level API, and `./README.md` for what a
+ * producer does with it.
  *
  * @module
  *
  * @import { Result } from '../../types/result/types.ts'
  * @import { List } from '../../types/list/types.ts'
- * @import { Chunk, Marked, Run, Span } from './types.ts'
+ * @import { Scan } from '../../types/function/operator/types.ts'
+ * @import { Chunk, Marked, Run, Span, TokenKind } from './types.ts'
  */
 
-import { map, toArray } from '../../types/list/module.f.mjs'
-import { error, ok } from '../../types/result/module.f.mjs'
+import { map, scan, toArray } from '../../types/list/module.f.mjs'
+import { assert } from '../../asserts/module.f.mjs'
+import { error, ok, unwrap } from '../../types/result/module.f.mjs'
 
 /**
  * The text the runs spell.
@@ -37,13 +54,59 @@ export const keyword = word => [word, 'keyword']
  */
 export const literal = word => [word, 'literal']
 
+// -- names ----------------------------------------------------------------------
+
+/** @type {(c: string) => boolean} */
+const isNameStart = c => (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c === '_' || c === '$'
+
+/** @type {(c: string) => boolean} */
+const isNamePart = c => isNameStart(c) || (c >= '0' && c <= '9')
+
 /**
- * A text with nothing marked: the output of a producer that has no kinds to
- * give, such as the Rust printer for now.
+ * Whether each character is part of a name, one character at a time. `word`
+ * says the previous character was a letter, digit, `_` or `$`, and `name` that
+ * the word it belongs to started like a name.
+ *
+ * @type {(word: boolean) => (name: boolean) => Scan<string, boolean>}
+ */
+const nameStep = word => name => c => {
+    const part = isNamePart(c)
+    const inName = part && (word ? name : isNameStart(c))
+    return [inName, nameStep(part)(inName)]
+}
+
+/**
+ * A plain text as runs: each maximal word of letters, digits, `_` and `$`
+ * that starts with a letter, `_` or `$` is an `identifier`, and what lies
+ * between is plain. A word that starts with a digit is a number the producer
+ * did not mark, and stays plain, where a check can find it.
  *
  * @type {(text: string) => Marked}
  */
-export const unmarked = text => [[text]]
+const nameRuns = text => {
+    const chars = Array.from(text)
+    const flags = toArray(scan(nameStep(false)(false))(chars))
+    const starts = flags.flatMap((flag, i) => i === 0 || flag !== flags[i - 1] ? [i] : [])
+    return starts.map((start, k) => {
+        const run = chars.slice(start, starts[k + 1]).join('')
+        return flags[start] ? /** @type {Run} */ ([run, 'identifier']) : /** @type {Run} */ ([run])
+    })
+}
+
+/**
+ * The names of a producer's code: every word still plain in `marked` becomes
+ * an `identifier`. A producer of code marks the keywords, literals, strings,
+ * numbers and comments it spells and says, by calling this, that what is left
+ * of its words are names. That is a claim about the producer, and the
+ * producer's proof holds it: the tokenizer's reading for a language the
+ * tokenizer reads, and a check that no word is left over for the rest.
+ *
+ * A run that has a kind is left as it is, so a producer that knows what a name
+ * is — a property, a function — says so by marking it before this runs.
+ *
+ * @type {(marked: Marked) => Marked}
+ */
+export const withNames = marked => marked.flatMap(run => run[1] === undefined ? nameRuns(run[0]) : [run])
 
 /**
  * The text of a result: the text of the marked text an `ok` holds, or the
@@ -92,6 +155,68 @@ export const chunkStrings = map(chunkText)
  * @type {(chunks: List<Chunk>) => string}
  */
 export const chunksText = chunks => toArray(chunks).map(chunkText).join('')
+
+// -- tagged text ---------------------------------------------------------------
+
+/** What a kind is written as inside tagged text. @type {{ readonly [k in TokenKind]: string }} */
+const kindCodes = { keyword: 'k', literal: 'l', string: 's', number: 'n', comment: 'c', operator: 'o', identifier: 'i' }
+
+const open = '\u0001'
+
+const close = '\u0002'
+
+/**
+ * A text that a producer composes as a string and resolves into runs at its
+ * boundary: a run is `U+0001`, one letter for its kind, its text and
+ * `U+0002`. It is the idiom `fjs/compiler/serializer/names` uses for symbolic
+ * names, for a producer whose text is built by templates all through; the
+ * public text a producer answers is never tagged, only its marked text is
+ * resolved from it, and {@link untagged} gives the plain one.
+ *
+ * A tag does not nest, and the text inside one may hold neither marker: a
+ * producer escapes the data it prints, and these two control characters are
+ * escaped by every language it prints, so no data can forge a tag.
+ *
+ * @type {(kind: TokenKind) => (text: string) => string}
+ */
+export const tagged = kind => text => {
+    assert(!text.includes(open) && !text.includes(close), ['a tagged text holding a marker', text])
+    return `${open}${kindCodes[kind]}${text}${close}`
+}
+
+/** Kinds by their letter. @type {ReadonlyMap<string, TokenKind>} */
+const kindsByCode = new Map(/** @type {readonly [string, TokenKind][]} */ (Object.entries(kindCodes).map(([kind, code]) => [code, kind])))
+
+/**
+ * The runs of a tagged text, or why it is not one: a tag left open, a kind
+ * no letter names, or a closing marker with no opening. Refused, never
+ * repaired ([DESIGN.md §10](../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)).
+ *
+ * @type {(text: string) => Result<Marked, string>}
+ */
+export const fromTagged = text => {
+    const [head, ...rest] = text.split(open)
+    if (head.includes(close)) { return error('a closing marker with no opening') }
+    /** @type {(part: string) => Result<Marked, string>} */
+    const run = part => {
+        const kind = kindsByCode.get(part.slice(0, 1))
+        if (kind === undefined) { return error(`a tag of no kind: ${part.slice(0, 1)}`) }
+        const [inside, ...after] = part.slice(1).split(close)
+        if (after.length !== 1) { return error(after.length === 0 ? 'a tag left open' : 'a closing marker with no opening') }
+        return ok([[inside, kind], ...(after[0] === '' ? [] : [/** @type {Run} */ ([after[0]])])])
+    }
+    const results = rest.map(run)
+    const failed = results.find(result => result[0] === 'error')
+    return failed ?? ok([...(head === '' ? [] : [/** @type {Run} */ ([head])]), ...results.flatMap(unwrap)])
+}
+
+/**
+ * The plain text of a tagged text, the markers gone. A malformed one is
+ * refused by the assert, as a printer that made it has a defect.
+ *
+ * @type {(text: string) => string}
+ */
+export const untagged = text => toText(unwrap(fromTagged(text)))
 
 /**
  * A text with spans beside it, as runs: the spans' text with their kind, the
