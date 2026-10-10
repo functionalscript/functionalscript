@@ -7,7 +7,10 @@
  * @import { Items } from './types.ts'
  */
 
-import { assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { diagramPage } from '../../../ebnf/testlib.f.mjs'
+import { htmlToString } from '../../../media/html/module.f.mjs'
+import { demo, diagrams } from './demo.f.mjs'
 import { parser } from '../../../ebnf/ll1/module.f.mjs'
 import { repeatFrom0 } from '../../../ebnf/module.f.mjs'
 import { stringToList } from '../../../text/utf16/module.f.mjs'
@@ -575,6 +578,17 @@ export const proof = {
         parser(/** @type {Rule} */ (lastStatement))
         // a block's statement: `const` and `if` decide the two in one symbol
         parser(/** @type {Rule} */ (statement))
+    },
+    demo: {
+        // A diagram per title, and a diagram for every box.
+        page: diagramPage(demo, diagrams),
+        // A token that stands for any token of its kind is a category, and
+        // a token that is its own text a terminal.
+        labels: () => {
+            const html = htmlToString(demo.view(demo.init))
+            assert(html.includes('data-railroad-label="category">id</text>'), 'id')
+            assert(html.includes('data-railroad-label="terminal">=&gt;</text>'), '=>')
+        },
     },
     throw: {
         eofRejected: () => symbolOf({ token: { kind: 'eof' }, metadata: { path: 'a.js', line: 1, column: 1 }, newline: false }),
