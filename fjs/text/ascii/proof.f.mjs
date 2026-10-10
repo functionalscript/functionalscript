@@ -155,7 +155,7 @@ export const proof = {
             assertEq(hexDigitsValue(codePoints('0x1')), null)
             assertEq(hexDigitsValue(codePoints(' 1')), null)
             assertEq(hexDigitsValue([48.5]), null)
-            assertEq(hexDigitsValue([49, 48.5]), null)
+            assertEq(hexDigitsValue([0x31, 48.5]), null)
         },
     },
     throw: {
