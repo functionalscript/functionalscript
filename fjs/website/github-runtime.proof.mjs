@@ -46,6 +46,8 @@ const dom = (href = callback, stored = null) => {
             disabled: false,
             hidden: false,
             textContent: '',
+            get href() { return attributes.get('href') ?? '' },
+            set href(/** @type {string} */ value) { attributes.set('href', value) },
             getAttribute: (/** @type {string} */ name) => attributes.get(name) ?? null,
             setAttribute: (/** @type {string} */ name, /** @type {string} */ value) => { attributes.set(name, value) },
             removeAttribute: (/** @type {string} */ name) => { attributes.delete(name) },
@@ -59,6 +61,8 @@ const dom = (href = callback, stored = null) => {
     }
     const login = element('button')
     const logout = element('button')
+    const account = element('strong')
+    const user = element('a')
     const note = element('p')
     const window = /** @type {const} */ ({
         addEventListener: (/** @type {string} */ kind, /** @type {() => void} */ listener) => {
@@ -98,12 +102,14 @@ const dom = (href = callback, stored = null) => {
         querySelector: (/** @type {string} */ selector) => {
             if (selector === '[data-github-login]') { return login }
             if (selector === '[data-github-logout]') { return logout }
+            if (selector === '[data-github-account]') { return account }
+            if (selector === '[data-github-user]') { return user }
             if (selector === '[data-github-note]') { return note }
             return null
         },
     })
     return {
-        root, login, logout, note, window, storage, writes, redirects, history,
+        root, login, logout, account, user, note, window, storage, writes, redirects, history,
         current: () => new URL(current),
         pagehide: () => { pageHides.forEach(listener => listener()) },
     }
@@ -158,8 +164,27 @@ const assertNoPersistedToken = page => {
     assert(page.writes.every((/** @type {[string, string, string | null]} */ write) =>
         write[1] === pendingKey && !String(write[2]).includes('test-token')))
     assert(!page.note.textContent.includes('test-token'))
+    assert(!page.account.textContent.includes('test-token'))
+    assert(!page.user.textContent.includes('test-token'))
+    assert(!String(page.user.getAttribute('href')).includes('test-token'))
     assert(page.redirects.every((/** @type {string} */ value) => !value.includes('test-token')))
     assert(page.history.every((/** @type {string} */ value) => !value.includes('test-token')))
+}
+
+/** @type {(page: any) => void} */
+const assertLoggedOut = page => {
+    assertEq(page.account.textContent, 'Not logged in to GitHub.')
+    assertEq(page.user.hidden, true)
+    assertEq(page.user.textContent, '')
+    assertEq(page.user.getAttribute('href'), null)
+}
+
+/** @type {(page: any) => void} */
+const assertOctocat = page => {
+    assertEq(page.account.textContent, 'Logged in as')
+    assertEq(page.user.hidden, false)
+    assertEq(page.user.textContent, '@octocat')
+    assertEq(page.user.getAttribute('href'), 'https://github.com/octocat')
 }
 
 export const proof = /** @type {const} */ ({
@@ -168,6 +193,7 @@ export const proof = /** @type {const} */ ({
         const net = queue(page, [json(config)])
         const session = await startGitHubLogin(page.root, { fetch: net.fetch, now })
         assertEq(session.token(), null)
+        assertLoggedOut(page)
         assertEq(page.login.disabled, false)
         await page.login.click()
         assertEq(page.redirects.length, 1)
@@ -192,12 +218,36 @@ export const proof = /** @type {const} */ ({
         assertEq(net.remaining(), 0)
         assertNoPersistedToken(page)
     },
+    cachedPageCanStartLoginAgainAfterLeavingForGitHub: async () => {
+        const page = dom()
+        const net = queue(page, [json(config)])
+        const session = await startGitHubLogin(page.root, { fetch: net.fetch, now })
+        await page.login.click()
+        assertEq(page.redirects.length, 1)
+        assertEq(page.login.disabled, true)
+        const first = new URL(page.redirects[0])
+        page.pagehide()
+        assertEq(session.token(), null)
+        assertEq(page.login.disabled, false)
+        assertLoggedOut(page)
+        await page.login.click()
+        assertEq(page.redirects.length, 2)
+        const second = new URL(page.redirects[1])
+        assertEq(second.origin, 'https://github.com')
+        assertEq(second.pathname, '/login/oauth/authorize')
+        assertEq(second.searchParams.get('client_id'), config.clientId)
+        assert(first.searchParams.get('state') !== second.searchParams.get('state'))
+        assertEq(JSON.parse(page.storage.get(pendingKey)).state, second.searchParams.get('state'))
+        assertEq(net.remaining(), 0)
+        assertNoPersistedToken(page)
+    },
     callbackExchangesThenReadsIdentity: async () => {
         const page = returning()
         const net = queue(page, [json(config), json(token), json({ login: 'octocat' })], true)
         const session = await startGitHubLogin(page.root, { fetch: net.fetch, now })
         assertEq(session.token(), 'test-token')
-        assert(page.note.textContent.includes('octocat'))
+        assertOctocat(page)
+        assert(!page.note.textContent.includes('octocat'))
         assertEq(page.storage.get(pendingKey), undefined)
         assertEq(page.current().href, `${callback}?keep=1#section`)
         assertStructurallySame(net.urls.map(url => url.pathname), ['/auth/github/config', '/auth/github/token', '/user'])
@@ -210,7 +260,7 @@ export const proof = /** @type {const} */ ({
         assertNoPersistedToken(page)
         await page.logout.click()
         assertEq(session.token(), null)
-        assert(!page.note.textContent.includes('octocat'))
+        assertLoggedOut(page)
         assertEq(page.login.disabled, false)
         assertNoPersistedToken(page)
     },
@@ -219,10 +269,10 @@ export const proof = /** @type {const} */ ({
         const net = queue(page, [json(config), json(token), json({ login: 'octocat' })], true)
         const session = await startGitHubLogin(page.root, { fetch: net.fetch, now })
         assertEq(session.token(), 'test-token')
-        assert(page.note.textContent.includes('octocat'))
+        assertOctocat(page)
         page.pagehide()
         assertEq(session.token(), null)
-        assert(!page.note.textContent.includes('octocat'))
+        assertLoggedOut(page)
         assertEq(page.login.hidden, false)
         assertEq(page.logout.hidden, true)
         assertNoPersistedToken(page)
@@ -247,7 +297,7 @@ export const proof = /** @type {const} */ ({
         finish(json({ login: 'octocat' }))
         const session = await initial
         assertEq(session.token(), null)
-        assert(!page.note.textContent.includes('octocat'))
+        assertLoggedOut(page)
         assertEq(page.login.hidden, false)
         assertEq(page.logout.hidden, true)
         assertEq(net.remaining(), 0)
@@ -280,7 +330,7 @@ export const proof = /** @type {const} */ ({
             const session = await initial
             assertEq(session.token(), null)
             assertEq(page.login.disabled, false)
-            assert(!page.note.textContent.includes('octocat'))
+            assertLoggedOut(page)
             assertEq(net.remaining(), 0)
             assertNoPersistedToken(page)
         }
@@ -346,9 +396,11 @@ export const proof = /** @type {const} */ ({
         const net = queue(page, [json(config), json(token), json({ login: 'octocat' })], true)
         const session = await startGitHubLogin(page.root, { fetch: net.fetch, now })
         assertEq(session.token(), 'test-token')
+        assertOctocat(page)
         assertNoPersistedToken(page)
         session.clear()
         assertEq(session.token(), null)
+        assertLoggedOut(page)
     },
     cancellationNeverEchoesProviderDescriptions: async () => {
         const page = returning('error=access_denied&error_description=SENSITIVE_PROVIDER_DETAIL&state=pending-state')
@@ -417,6 +469,7 @@ export const proof = /** @type {const} */ ({
             const session = await startGitHubLogin(page.root, { fetch: net.fetch, now })
             assertEq(session.token(), null)
             assert(!page.note.textContent.includes('SENSITIVE_IDENTITY_DETAIL'))
+            assertLoggedOut(page)
             assertNoPersistedToken(page)
         }
     },

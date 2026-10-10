@@ -34,8 +34,10 @@ export const startGitHubLogin = (root, host = {}) => {
         const view = root.ownerDocument.defaultView
         const login = /** @type {HTMLButtonElement | null} */ (root.querySelector('[data-github-login]'))
         const logout = /** @type {HTMLButtonElement | null} */ (root.querySelector('[data-github-logout]'))
+        const account = root.querySelector('[data-github-account]')
+        const userLink = /** @type {HTMLAnchorElement | null} */ (root.querySelector('[data-github-user]'))
         const note = root.querySelector('[data-github-note]')
-        if (view === null || login === null || logout === null || note === null) {
+        if (view === null || login === null || logout === null || account === null || userLink === null || note === null) {
             throw new Error('GitHub login is missing its browser controls.')
         }
         const fetchRequest = host.fetch ?? globalThis.fetch
@@ -43,17 +45,26 @@ export const startGitHubLogin = (root, host = {}) => {
         /** @type {string | null} */
         let token = null
         let active = true
+        let available = false
         const clear = () => {
             token = null
+            login.disabled = !available
             logout.hidden = true
             login.hidden = false
+            account.textContent = 'Not logged in to GitHub.'
+            userLink.hidden = true
+            userLink.removeAttribute('href')
+            userLink.textContent = ''
             note.textContent = 'Logged out. Refresh to read public GitHub results.'
         }
         const auth = /** @type {const} */ ({ token: () => token, clear })
         login.disabled = true
         logout.hidden = true
+        account.textContent = 'Not logged in to GitHub.'
+        userLink.hidden = true
         logout.addEventListener('click', clear)
         // Back/forward caching must not preserve a login after leaving.
+        // Restore the enabled login control before the browser caches the page.
         view.addEventListener('pagehide', () => { active = false; clear() })
 
         /**
@@ -94,7 +105,6 @@ export const startGitHubLogin = (root, host = {}) => {
         }
 
         let failure = 'GitHub login is unavailable on this site.'
-        let available = false
         try {
             // Consume a pending login even when GitHub declined authorization.
             const pendingText = callback ? view.sessionStorage.getItem(pendingKey) : null
@@ -172,7 +182,11 @@ export const startGitHubLogin = (root, host = {}) => {
             token = result.access_token
             login.hidden = true
             logout.hidden = false
-            note.textContent = `Logged in as ${user.login}. Login lasts until you reload or leave this page.`
+            account.textContent = 'Logged in as'
+            userLink.textContent = `@${user.login}`
+            userLink.setAttribute('href', `https://github.com/${encodeURIComponent(user.login)}`)
+            userLink.hidden = false
+            note.textContent = 'Login lasts until you reload or leave this page.'
         } catch {
             note.textContent = failure
         } finally {

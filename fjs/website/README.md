@@ -140,7 +140,9 @@ responses are never cached. Other routes remain static assets. No KV, D1,
 cookies, user sessions, or token database are required.
 
 After the exchange, the browser verifies the account directly with GitHub
-and holds the access token only in page memory. Subsequent PR and check
+and shows **Logged in as @username** with a profile link and **Log out**.
+The page explicitly shows **Not logged in to GitHub** until that verification
+succeeds. It holds the access token only in page memory. Subsequent PR and check
 requests go directly to `api.github.com`. **Log out**, a rejected token, a
 reload, or leaving the page ends this local login. Logging out does not revoke
 GitHub's app authorization; users can revoke it in GitHub's application

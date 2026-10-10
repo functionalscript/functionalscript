@@ -144,6 +144,8 @@ export const proof = {
         assertEq(html.split('<th scope="col">').length - 1, 3)
         assert(html.includes('<tbody data-pr-rows=""></tbody>'), html)
         assert(html.includes("import { startPrs } from '/fjs/website/prs-runtime.mjs'"), html)
+        assert(html.includes('data-github-account="">Not logged in to GitHub.</strong>'), html)
+        assert(html.includes('data-github-user="" hidden=""></a>'), html)
         assert(html.includes('data-github-login="" disabled="">Log in with GitHub</button>'), html)
         assert(html.includes('data-github-logout="" hidden="">Log out</button>'), html)
         assert(html.includes('data-github-note="" role="status" aria-live="polite"'), html)
