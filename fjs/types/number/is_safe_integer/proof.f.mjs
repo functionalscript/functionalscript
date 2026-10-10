@@ -3,7 +3,7 @@ import { isSafeInteger } from './module.f.js'
 
 export const proof = {
     integers: () => {
-        for (const value of [0, -0, 1, -1, 0xFFFFFFFF, -0xFFFFFFFF]) {
+        for (const value of [0, -0, 1, -1, 0xFFFF_FFFF, -0xFFFF_FFFF]) {
             assertEq(isSafeInteger(value), true)
         }
     },

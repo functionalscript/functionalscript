@@ -26,7 +26,7 @@ export const proof = {
         assertArrayEq(output, input)
     },
     roundTrip: () => {
-        const input = Uint8Array.from([0, 1, 2, 3, 255])
+        const input = Uint8Array.from([0, 1, 2, 3, 0xff])
         const vec = toVec(input)
         const output = fromVec(vec)
         assertArrayEq(output, input)

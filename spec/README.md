@@ -19,7 +19,8 @@ The compiler accepts values ([supported value types](#supported-value-types)),
 the [constants](#shared-values-constants) and
 [imports](#importing-other-modules) that share them,
 [property access](#property-access), [operators](#operators), the
-[`Number` conversion](#number-conversion), and
+[`Number` conversion](#number-conversion),
+[`String` conversion](#string-conversion), and
 [functions](#functions) with their calls, and this document specifies all of
 them. The outputs differ in what they can write, so one module may compile to
 one output and be refused by another ([output](#output)).
@@ -101,10 +102,9 @@ inside complete instruction patterns. It applies to exported functions too.
 Running source directly on a JavaScript engine retains that host's function
 representation. Its text can differ from the FunctionalScript VM's, including
 when a JavaScript consumer reflects on an exported function. The
-JavaScript-hosted EDAG evaluators are the same case: their functions are
-host closures, so their text is the host's, and they neither render nor
-refuse it ([`fjs/edag/function-text.md`](../fjs/edag/function-text.md)).
-Differences
+JavaScript-hosted EDAG evaluators retain represented functions and render
+their EDAG-derived text, with captured values written as slot names
+([`fjs/edag/function-text.md`](../fjs/edag/function-text.md)). Differences
 caused by using that text as a key, comparing it or branching on it are
 consequences of this exception, not a blanket waiver for unrelated results.
 Non-function conversion, other admitted function observations and source
@@ -112,12 +112,10 @@ syntax retain their existing contracts. The exception alone admits no new
 syntax or API.
 
 [Function text and serialization](./todo/serialization.md#function-text-and-serialization)
-owns the remaining questions: whether the compiler's function serializer and
-`String(f)` are the same operation, whether `String(f)` instantiates captured
-frames, and how each handles `self`. Adopting EDAG-derived text does not settle
-those questions. The Rust VM answers a conversion the compiler admits —
-`f.toString()`, `'' + f`, `[f].toString()` — with the EDAG-derived text,
-captured values written as slot names
+records the design questions beyond the representation exception. The current
+EDAG interpreters and Rust VM answer a conversion the compiler admits —
+`String(f)`, `f.toString()`, `'' + f`, `[f].toString()` — with EDAG-derived text,
+captured values written as slot names rather than embedded in the text
 ([to-primitive, Stage 3](../nanvm-lib/todo/to-primitive.md#stage-3-a-functions-text)).
 
 ### Failure is one outcome
@@ -719,8 +717,9 @@ See
 An expression is a data expression, a property access, a function, a call, an
 operator ([operators](#operators)) — a prefix `-` (negation), `~` (bitwise
 not), `!` (logical not) or `typeof`, a binary operator, `instanceof Array`
-or the conditional `?:` — the conversion `Number(exp)`
-([number conversion](#number-conversion)), or any of those in parentheses
+or the conditional `?:` — the conversions `Number(exp)`
+([number conversion](#number-conversion)) and `String(exp)`
+([string conversion](#string-conversion)), or any of those in parentheses
 ([grouping](#grouping)).
 
 |Value|Example|In JSON|
@@ -1435,8 +1434,8 @@ calling a number is worth. The FunctionalScript writer spells it back as it
 is written, the operand an argument, `Number(1+2)`.
 
 **`Number` is a reserved word**, one of the names
-[global names](./todo/2365-global-names.md) reserves, with `Array`
-([numbers](#numbers)) —
+[global names](./todo/2365-global-names.md) reserves, with `Array` and `String`
+([string conversion](#string-conversion)) —
 [`fjs/js/keywords`](../fjs/js/keywords/module.f.mjs)' `reservedGlobals`, a
 list beside the keywords rather than among them, since JavaScript has no
 such keyword. A module cannot bind it, as a `const`, a parameter or an
@@ -1476,6 +1475,54 @@ rather than read another way.
 
 It is also the one key computed at run time, `a[Number(i)]`
 ([property access](#property-access)).
+
+## String Conversion
+
+```js
+export default (...a) => [String(a[0]), String(42n), String([1, 2])];
+```
+
+`String(exp)` converts its operand to a string, as JavaScript's `String`
+does when called. A string is itself. `null` and `undefined` become
+`"null"` and `"undefined"`, booleans become `"true"` or `"false"`, and numbers
+and `bigint`s become their decimal text: `String(-0)` is `"0"`,
+`String(NaN)` is `"NaN"`, and `String(42n)` is `"42"`. An array joins its
+elements with commas, with `null` and `undefined` contributing empty text,
+so `String([1, [2, 3], null])` is `"1,2,3,"`.
+
+An object uses the string hint for primitive conversion: its `toString`
+is tried before its `valueOf`, with no arguments. A noncallable method or
+a nonprimitive result falls through to the next method. An object with no
+own `toString` uses the ordinary `"[object Object]"` text, so
+`String({ valueOf: () => 7 })` is `"[object Object]"`. If neither method
+produces a primitive, or a method throws, conversion fails
+([failure is one outcome](#failure-is-one-outcome)). A function becomes
+its [EDAG-derived text](#function-source-representation-exception), which
+describes its code without embedding captured values.
+
+The one-argument conversion reaches the graph as `['String', exp]`, with
+no front-end folding. The FunctionalScript writer spells it as `String(exp)`;
+the EDAG and Rust outputs retain the operation, and the JSON and DataJS
+outputs evaluate it. It is an expression wherever a value may stand,
+including an operand, `String(x) + "!"`, or a base, `String(x).length`.
+`String()` is the empty-string literal, as in JavaScript.
+
+**`String` is a reserved word**, under the same
+[global-name rule](./todo/2365-global-names.md) as `Number`. A module cannot
+bind it as a `const`, parameter or import, and it has no standalone value:
+`const f = String;` and `String.fromCharCode(65)` are compilation errors
+(`reserved word`). A key or property name remains ordinary,
+`{ String: 1 }.String` being `1`. Reserving the word lets every `String(x)`
+denote the conversion without resolving a scope, and keeps future namespace
+members from changing the meaning of existing bindings.
+
+Multiple arguments and spreads remain unrecognized and are refused at the
+word (`String takes one argument`): JavaScript evaluates all arguments before
+converting the first, while a one-operand node cannot express those call
+shapes. The guarded call `String?.(x)` is also refused (`reserved word`).
+A property key computed at run time still requires `Number(...)`
+([property access](#property-access)); `a[String(x)]` is refused as every
+other unrecognized computed key is.
 
 ## Property Access
 

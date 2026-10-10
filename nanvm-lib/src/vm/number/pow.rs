@@ -34,6 +34,6 @@ mod tests {
         assert!(n(1.0).pow(Number::NAN).is_nan());
         assert!(n(1.0).pow(n(f64::INFINITY)).is_nan());
         assert!(n(-1.0).pow(n(f64::NEG_INFINITY)).is_nan());
-        assert_eq!(n(2.0).pow(n(10.0)), n(1024.0));
+        assert_eq!(n(2.0).pow(n(10.0)), n(1_024.0));
     }
 }

@@ -6,11 +6,10 @@
  * @module
  */
 
-// Binary64 has 53 bits of integer precision: the inclusive bound is 2^53 - 1.
-const maxSafeInteger = 0x1FFFFFFFFFFFFF
+import { isInteger } from '../is_integer/module.f.js'
 
-/** @type {(value: number) => boolean} */
-const isInteger = value => value % 1 === 0
+// Binary64 has 53 bits of integer precision: the inclusive bound is 2^53 - 1.
+const maxSafeInteger = 0x1F_FFFF_FFFF_FFFF
 
 /** @type {(value: number) => boolean} */
 const isInSafeIntegerRange = value =>

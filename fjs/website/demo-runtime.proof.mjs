@@ -246,7 +246,7 @@ const dom = path => {
         resetCopies: () => {
             assert(copyTimers.size > 0)
             for (const [id, { reset, delay }] of copyTimers) {
-                assertEq(delay, 2000)
+                assertEq(delay, 2_000)
                 copyTimers.delete(id)
                 reset()
             }

@@ -17,8 +17,8 @@ const poker = param => () => {
     //
     const pf = prime_field(n)
     //           0        1        2        3        4        5        6        7
-    const sA = 0x01234567_89ABCDEF_01234567_89ABCDEF_01234567_89ABCDEF_01234567_89ABCDEFn % n
-    const sB = 0xFEDCBA98_FEDCBA98_FEDCBA98_FEDCBA98_FEDCBA98_FEDCBA98_FEDCBA98_FEDCBA98n % n
+    const sA = 0x0123_4567_89AB_CDEF_0123_4567_89AB_CDEF_0123_4567_89AB_CDEF_0123_4567_89AB_CDEFn % n
+    const sB = 0xFEDC_BA98_FEDC_BA98_FEDC_BA98_FEDC_BA98_FEDC_BA98_FEDC_BA98_FEDC_BA98_FEDC_BA98n % n
     // "22d3ad011aec6aabdb3d3d47636f3e2859de02298c87a496"
     // "2b359de5cfb5937a5610d565dceaef2a760ceeaec96e68140757f0c8371534e0"
     // "1359162ede91207ccaea1de94afc63c1db5a967c1e6e21f91ef9f077f20a46b6"

@@ -4,8 +4,10 @@
  * @import { Element } from '../../../media/html/types.ts'
  */
 
+import { codeMarker } from '../../style/module.f.mjs'
+
 /** @type {(text: string, label: string) => Element} */
-export const codeBlock = (text, label) => ['div', { 'data-code': '', 'data-code-block': '' },
+export const codeBlock = (text, label) => ['div', { [codeMarker]: '', 'data-code-block': '' },
     ['pre', text],
     ['button', { type: 'button', 'data-copy': text, 'aria-label': label, title: label },
         ['svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.5', 'aria-hidden': 'true' },

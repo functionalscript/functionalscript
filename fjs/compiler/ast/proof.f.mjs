@@ -150,6 +150,18 @@ export const proof = {
         // what it does not reach is anchored as ever
         assertEq(anchorsOf([[a], [['array', []], ['+', 1, 2]]]), 'consts 0; imports 0')
     },
+    // A string conversion establishes its operand, follows captures and
+    // rest reads, and leaves references inside lazy positions lazy.
+    stringConversion: () => {
+        assertEq(anchorsOf([[a], [['array', []], ['String', ['cref', 0]]]]), 'consts ; imports 0')
+        assertEq(anchorsOf([[a], [['String', ['aref', 0]]]]), 'consts ; imports ')
+        assertEq(anchorsOf([[], [['array', []], ['String', ['&&', 1, ['cref', 0]]]]]), 'consts 0; imports ')
+        assertEq(anchorsOf([[], [['array', []], ['&&', false, ['String', ['cref', 0]]]]]), 'consts 0; imports ')
+        assertStructurallySame(readCaptures(['=>', 0, [['String', ['fref', 0]]], [['cref', 0]]]), [0])
+        assert(!isInlinedCall(['()', ['=>', 0, [['String', ['rest']]]], []]))
+        // a converted nested function reads its own rest array
+        assert(isInlinedCall(['()', ['=>', 0, [['String', ['=>', 0, [['rest']]]]]], []]))
+    },
     // Every tag of `binaryTags` with two operands is a binary operator, and
     // nothing else is: the negation shares `-` and has one, and a node of
     // two operands under any other tag is an access or the like. Of those
@@ -298,27 +310,31 @@ export const proof = {
         // reached, so the `const` it names is not anchored
         /** @type {import('./types.ts').AstConst} */
         let plus = ['cref', 0]
-        for (let i = 0; i < 5000; i++) { plus = ['+', plus, 1] }
+        for (let i = 0; i < 5_000; i++) { plus = ['+', plus, 1] }
         assertEq(anchorsOf([[], [['array', []], plus]]), 'consts ; imports ')
         // a right-associative chain of negations, `refsOf`'s other shape
         /** @type {import('./types.ts').AstConst} */
         let neg = ['cref', 0]
-        for (let i = 0; i < 5000; i++) { neg = ['-', neg] }
+        for (let i = 0; i < 5_000; i++) { neg = ['-', neg] }
         assertEq(anchorsOf([[], [['array', []], neg]]), 'consts ; imports ')
+        /** @type {import('./types.ts').AstConst} */
+        let converted = ['cref', 0]
+        for (let i = 0; i < 5_000; i++) { converted = ['String', converted] }
+        assertEq(anchorsOf([[], [['array', []], converted]]), 'consts ; imports ')
         // a lazy chain, and a conditional nested through either arm, at
         // the depth the parser's own `lazyStackCost` proves: the eager
         // operand is followed and the lazy one is not
         /** @type {import('./types.ts').AstConst} */
         let and = ['cref', 0]
-        for (let i = 0; i < 20000; i++) { and = ['&&', and, ['cref', 0]] }
+        for (let i = 0; i < 20_000; i++) { and = ['&&', and, ['cref', 0]] }
         assertEq(anchorsOf([[], [['array', []], and]]), 'consts ; imports ')
         /** @type {import('./types.ts').AstConst} */
         let otherwise = ['cref', 0]
-        for (let i = 0; i < 20000; i++) { otherwise = ['?:', 1, 2, otherwise] }
+        for (let i = 0; i < 20_000; i++) { otherwise = ['?:', 1, 2, otherwise] }
         assertEq(anchorsOf([[], [['array', []], otherwise]]), 'consts 0; imports ')
         /** @type {import('./types.ts').AstConst} */
         let then = ['cref', 0]
-        for (let i = 0; i < 20000; i++) { then = ['?:', ['cref', 0], then, 2] }
+        for (let i = 0; i < 20_000; i++) { then = ['?:', ['cref', 0], then, 2] }
         assertEq(anchorsOf([[], [['array', []], then]]), 'consts ; imports ')
     },
 }

@@ -258,7 +258,7 @@ const demoProof = {
         assertEq(s.versions, demo.init.versions)
         assertEq(s.status, demo.init.status)
         const h = html(s)
-        assert(h.includes('Error: &quot;two&quot; is not a key'), h)
+        assert(h.includes('Refused:</p><pre data-result="error">&quot;two&quot; is not a key'), h)
         assert(h.includes('Press Insert to add 80'), h)
         // A spelling `String` would not write back, and `NaN`, which has no
         // order for the tree to keep.

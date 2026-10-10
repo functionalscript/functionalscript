@@ -92,12 +92,12 @@ export const proof = {
     // a few tens of milliseconds where copying the set each time is seconds.
     // Pinned as the invariant at that size rather than as a timing.
     large: () => {
-        const n = 20000
+        const n = 20_000
         const set = naturals(n)
         wellFormed(set)
         assertEq(size(set), n)
         // 20000 is `100111000100000` in binary.
-        assertStructurallySame(sizes(set), [32, 512, 1024, 2048, 16384])
+        assertStructurallySame(sizes(set), [32, 512, 1_024, 2_048, 16_384])
         assert(has(n - 1)(set))
         assert(!has(n)(set))
     },

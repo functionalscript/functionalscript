@@ -85,8 +85,8 @@ mod tests {
         assert_eq!(big.to_radix_string(16), format!("1{}", "0".repeat(25)));
         assert_eq!(big.to_radix_string(10), big.to_string());
         // Zeros inside a chunk, and chunks of zeros, are digits too.
-        let wide = (b(1) << b(1000)).unwrap();
-        assert_eq!(wide.to_radix_string(2), format!("1{}", "0".repeat(1000)));
+        let wide = (b(1) << b(1_000)).unwrap();
+        assert_eq!(wide.to_radix_string(2), format!("1{}", "0".repeat(1_000)));
         assert_eq!(wide.to_radix_string(10), wide.to_string());
         assert_eq!(b(36 * 36 * 36).to_radix_string(36), "1000");
         assert_eq!(

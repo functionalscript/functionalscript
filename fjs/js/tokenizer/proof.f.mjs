@@ -6,7 +6,7 @@ import { stringToCodePointList, stringToList } from '../../text/utf16/module.f.m
 import { toArray } from '../../types/list/module.f.mjs'
 import { parser } from '../../ebnf/ll1/module.f.mjs'
 import { token as ebnfToken } from '../../ebnf/lib/js/module.f.mjs'
-import { tokenize } from './module.f.mjs'
+import { _positions, tokenize } from './module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { _stringifyTree } from '../../compiler/module.f.mjs'
 
@@ -954,6 +954,19 @@ export const proof = {
     ],
     // A line starts after each of ECMAScript's `LineTerminatorSequence`s:
     // LF, CR, U+2028, U+2029, and CRLF once — whichever token holds it.
+    // The position of each code point, and of the end, by the fold that
+    // positions the tokens: a linkage export for readers who need an offset.
+    positions: () => {
+        /** @type {(text: string) => string} */
+        const at = text => _positions('p')(toArray(stringToCodePointList(text))).map(({ line, column }) => `${line}:${column}`).join(' ')
+        assertEq(at(''), '1:1')
+        assertEq(at('ab'), '1:1 1:2 1:3')
+        assertEq(at('a\nb'), '1:1 1:2 2:1 2:2')
+        // a CRLF starts one line, and its LF takes the position of what follows it
+        assertEq(at('a\r\nb'), '1:1 1:2 2:1 2:1 2:2')
+        // a character beyond U+FFFF is one position
+        assertEq(at('😀b'), '1:1 1:2 1:3')
+    },
     lineTerminators: [
         () => {
             // without an `x`, the helper says so
@@ -1006,13 +1019,13 @@ export const proof = {
     largeInputs: [
         () => {
             // many short whitespace tokens: the reported repro (`' '.repeat(5000)`)
-            const result = tokenizeString(' '.repeat(5000))
+            const result = tokenizeString(' '.repeat(5_000))
             assertEq(result, '[{"kind":"ws"},{"kind":"eof"}]')
         },
         () => {
             // many distinct short tokens, well past the ~1000-1500 token crash threshold
             // the old whole-file recursive match hit for this shape
-            const ids = Array.from({ length: 3000 }, (_, i) => `a${i % 10}`)
+            const ids = Array.from({ length: 3_000 }, (_, i) => `a${i % 10}`)
             const src = ids.join(' ')
             const result = tokenizeString(src)
             assert(result !== 'error', result)
@@ -1026,31 +1039,31 @@ export const proof = {
                 `[${ids.map(v => `{"kind":"id","value":"${v}"}`).join(',{"kind":"ws"},')},{"kind":"eof"}]`)
             // The token list must agree with the dump: 3000 ids + 2999
             // separating ws + a trailing eof token.
-            assertEq(toArray(tokenize(stringToList(src))('a.js')).length, 3000 + 2999 + 1)
+            assertEq(toArray(tokenize(stringToList(src))('a.js')).length, 3_000 + 2_999 + 1)
         },
         () => {
             // same many-short-tokens shape through the metadata-aware entry point
-            const src = 'x '.repeat(3000)
+            const src = 'x '.repeat(3_000)
             const result = toArray(tokenize(stringToList(src))('a.js'))
-            assertEq(result.length, 3000 * 2 + 1)
+            assertEq(result.length, 3_000 * 2 + 1)
         },
         () => {
             // a single long token: a 5 KB string literal — overflows unless the
             // matcher itself is iterative
-            const value = 'a'.repeat(5000)
+            const value = 'a'.repeat(5_000)
             const result = tokenizeString(`"${value}"`)
             assertEq(result, `[{"kind":"string","value":"${value}"},{"kind":"eof"}]`)
         },
         () => {
             // a single long token via the hand-written recursive multilineContent rule:
             // a 20 KB block comment (the size the pre-grammar tokenizer handled)
-            const value = 'x'.repeat(20000)
+            const value = 'x'.repeat(20_000)
             const result = tokenizeString(`/*${value}*/`)
             assertEq(result, `[{"kind":"/*","value":"${value}"},{"kind":"eof"}]`)
         },
         () => {
             // a single long identifier (repeat0Plus(idChar) inside one token match)
-            const value = 'x'.repeat(10000)
+            const value = 'x'.repeat(10_000)
             const result = tokenizeString(value)
             assertEq(result, `[{"kind":"id","value":"${value}"},{"kind":"eof"}]`)
         },

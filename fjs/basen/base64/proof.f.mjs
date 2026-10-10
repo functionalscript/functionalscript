@@ -88,7 +88,7 @@ export const proof = {
         // 0x66 0x6f ('fo') → Zm8=
         check('Zm8=', vec(16n)(0x666fn))
         // 0x66 0x6f 0x6f ('foo') → Zm9v
-        check('Zm9v', vec(24n)(0x666f6fn))
+        check('Zm9v', vec(24n)(0x66_6f6fn))
     },
     decodeOverflow: () => {
         // 174_764 base64 chars decode to 1_048_584 bits, 8 over `maxLength`;

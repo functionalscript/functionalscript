@@ -30,9 +30,12 @@ mod tests {
 
     #[test]
     fn calls_with_the_arguments() {
-        let args: Any<A> = [f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)]
-            .to_array()
-            .to_any();
+        let args: Any<A> = [
+            f64_any(0x3ff0_0000_0000_0000),
+            f64_any(0x4000_0000_0000_0000),
+        ]
+        .to_array()
+        .to_any();
         assert_eq!(identity().call(args.clone()), Ok(args));
     }
 
@@ -52,7 +55,7 @@ mod tests {
 
     #[test]
     fn a_non_function_callee_throws() {
-        let callee: Any<A> = f64_any(0x3ff0000000000000);
+        let callee: Any<A> = f64_any(0x3ff0_0000_0000_0000);
         assert_eq!(
             callee.call([].to_array().to_any()),
             Err(error::unexpected_type())

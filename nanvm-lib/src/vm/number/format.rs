@@ -260,8 +260,8 @@ mod tests {
 
     #[test]
     fn to_exponential() {
-        assert_eq!(exponential(123456.0, Some(2.0)), "1.23e+5".into());
-        assert_eq!(exponential(123456.0, None), "1.23456e+5".into());
+        assert_eq!(exponential(123_456.0, Some(2.0)), "1.23e+5".into());
+        assert_eq!(exponential(123_456.0, None), "1.23456e+5".into());
         assert_eq!(exponential(0.0, Some(2.0)), "0.00e+0".into());
         assert_eq!(exponential(0.0, None), "0e+0".into());
         assert_eq!(exponential(1.25, Some(1.0)), "1.3e+0".into());
@@ -280,7 +280,7 @@ mod tests {
     fn to_precision() {
         assert_eq!(precision(123.456, 4.0), "123.5".into());
         assert_eq!(precision(0.000123, 2.0), "0.00012".into());
-        assert_eq!(precision(123456.0, 2.0), "1.2e+5".into());
+        assert_eq!(precision(123_456.0, 2.0), "1.2e+5".into());
         assert_eq!(precision(0.0, 3.0), "0.00".into());
         assert_eq!(precision(1e-7, 1.0), "1e-7".into());
         assert_eq!(precision(-0.0, 2.0), "0.0".into());

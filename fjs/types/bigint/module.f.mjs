@@ -200,7 +200,7 @@ export const mask = len => {
     return (x << h) | x
 }
 
-export const maxLength = 0x100000n
+export const maxLength = 0x10_0000n
 
 // max + 1n // bun throws an error
 export const max = mask(maxLength)

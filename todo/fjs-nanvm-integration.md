@@ -126,7 +126,44 @@ contract and migration strategy.
 
 #### What the next rename waits on
 
-Measured at `08d013b`, the head of `main`: every `.f.mjs` that imports no
+The leaf check at `e67123d58`, the `String` PR stacked on the shared integer
+predicate, found seventeen implementation leaves: only `array_index` compiled.
+It is now migrated to
+[`fjs/js/array_index/module.f.js`](../fjs/js/array_index/module.f.js), with its
+runtime callers and proof import updated; its proof remains `proof.f.mjs`.
+`types/set` is no longer a leaf: it imports `.f.mjs` modules from
+`common/monoid`, `types/list` and `types/number`.
+
+The sixteen remaining implementation leaves below are measured at
+`e67123d58`. Each row gives the first compiler refusal, not every blocker in
+the file. Locations are `line:column`; paths are relative to `fjs/`.
+
+| Leaf file | Location | First refused construct |
+| --- | ---: | --- |
+| `ci/package/module.f.mjs` | 32:56 | Template literal in `consumerDirectory` |
+| `git/bytes/module.f.mjs` | 25:35 | Computed key `b[at]`; it must use `Number(...)` |
+| `git/config/module.f.mjs` | 90:57 | `\v` escape |
+| `js/keywords/module.f.mjs` | 103:24 | `new Set(keywords)` |
+| `nanvm/member/module.f.mjs` | 59:38 | `\u{1F600}` escape |
+| `nanvm/methods/module.f.mjs` | 125:21 | Template literal in `path` |
+| `types/function/module.f.mjs` | 33:5 | `let v = value` in `iterate` |
+| `types/function/operator/module.f.mjs` | 11:5 | Template literal in `join` |
+| `types/map/module.f.mjs` | 10:42 | `new Map(...)` |
+| `types/object/structurally_same/module.f.mjs` | 20:7 | Destructuring `const { entries, is } = Object` |
+| `types/result/module.f.mjs` | 111:5 | `for (const r of list)` in `okList` |
+| `types/ts/module.f.mjs` | 13:5 | Template literal in `complex` |
+| `website/browser-source/module.f.mjs` | 89:35 | Template literal |
+| `website/demo/code/module.f.mjs` | 26:52 | `\0` escape |
+| `website/demo/examples/module.f.mjs` | 54:13 | `new Set(...)` |
+| `website/style/module.f.mjs` | 95:27 | Template literal containing the stylesheet |
+
+The separate leaf `emergent_testing/example.f.mjs`, which embeds its proof,
+first refuses the template literal in `checkMul` at `14:34` in the same snapshot.
+No caller of `array_index` is ready to rename with it: their other `.f.mjs`
+dependencies or compiler refusals remain.
+
+The following historical measurement is pinned to `08d013b`, the then-head of
+`main`: every `.f.mjs` that imports no
 other `.f.mjs` is a *leaf*, the only module a rename can start from, and
 `fjs compile` was run on each. The compiler stops at its first refusal, so one
 refusal per row is the compiler's and the rest of the row is a reading of the
@@ -157,15 +194,26 @@ leaf, directly or not — what a leaf's rename opens up, since a proof stays
 | `fjs/git/config` | 1 | `\v` and `\0` escapes, destructuring, the `BigInt` global, runtime string keys `escapes[c]`, `factors[…]` and `prefixes[…]`, a runtime number key `values[values.length - 1]`, `toLowerCase` (a prohibited member function), `acc.sub` (a prohibited property name), template literals |
 | `fjs/website/browser-source` | 1 | `let`, `+=`, `while` with `break` and `continue`, a non-terminating `if`, eight runtime number keys, `source[index]` and `list[at]` among them, template literals |
 
-Since the previous measurement, at `4c8ec55`, the leaves are the same
-eighteen and the compiler has moved on three of them. `Number(exp)` is in the
-language and `Number` a reserved word
+The table above is a historical measurement. `array_index` now imports
+[`types/number/is_integer`](../fjs/types/number/is_integer/module.f.js), whose
+`isInteger` uses `typeof` and `%` rather than `Number.isInteger`. Its bounds
+and canonical string round-trip are unchanged. With
+[`String` conversion](../spec/README.md#string-conversion) admitted,
+`array_index` now compiles through its shared integer predicate and canonical
+string check; the rename above completes that migration step.
+`types/number`, ASCII digit parsing, Unicode surrogate
+conversion, and Node/web validation reuse the same predicate.
+
+Compared with the previous measurement at `4c8ec55`, the `08d013b` snapshot
+had the same eighteen leaves and compiler progress on three of them.
+`Number(exp)` is in the language and `Number` a reserved word
 ([number conversion](../spec/README.md#number-conversion)), so
-`array_index`'s `Number(key)` compiles and the module stops at
-`Number.isInteger`, a member of `Number` and an admission of its own, as
-`git/bytes`' `Number.isSafeInteger` is. A computed key now parses, refused
-unless it is `a[Number(i)]`, and is `git/bytes`' first refusal; every row with
-a runtime key says which of the language's two rewrites it takes, a number
+`array_index`'s `Number(key)` and shared integer predicate compiled at that
+snapshot, while the module still stopped at the `String` global.
+`git/bytes` still uses `Number.isSafeInteger`,
+a member of `Number` and an admission of its own. A computed key now parses,
+refused unless it is `a[Number(i)]`, and is `git/bytes`' first refusal; every
+row with a runtime key says which of the language's two rewrites it takes, a number
 key's `a[Number(i)]` or a string key's `entry(a, k)`. `structurally_same` no
 longer waits on `instanceof`: all three of its uses have `Array` on the right
 ([`instanceof`](../spec/README.md#instanceof)). Two leaves changed their
@@ -177,10 +225,11 @@ Three readings were corrected, each refused by the `4c8ec55` compiler as well:
 key, `b[i]`, and `git/config` also calls the `BigInt` global, reads `acc.sub`
 and has two more runtime keys.
 
-The same rows by feature, each with where the feature is tracked, so a
-language step can be picked for what it unblocks:
+The same historical `08d013b` rows by feature, each with where the feature is
+tracked, so a language step can be picked for what it unblocks. This table
+records that snapshot's blockers, including the since-migrated `array_index`:
 
-| Feature | Tracked in | Leaves it holds |
+| Feature | Tracked in | Leaves it held at `08d013b` |
 | --- | --- | --- |
 | Template literals | [`spec/todo/3440-template-literals.md`](../spec/todo/3440-template-literals.md) | function/operator, ci/package, ts, nanvm/methods, nanvm/member, style, demo/code, git/config, browser-source |
 | Destructuring | [`spec/todo/2450-destructuring.md`](../spec/todo/2450-destructuring.md) | structurally_same, result, function/operator, map, demo/examples, ts, git/config, nanvm/methods |
@@ -195,13 +244,13 @@ language step can be picked for what it unblocks:
 | `switch`, a default parameter | neither proposed; [`3120-parameters.md`](../spec/todo/3120-parameters.md) leaves a default parameter for later | ts |
 | A prohibited member function, `toLowerCase`, or property name, `sub` | [`fjs/js/prototype`](../fjs/js/prototype/module.f.js)'s `prohibitedCalls` and `prototypeNames` ([spec: property access](../spec/README.md#property-access)); the module rewrites, not the language | git/config |
 
-A leaf renames only when every feature it uses has landed, and four wait on
-one feature alone: `style` on template literals, `keywords` on `new Set`, and
-`array_index` and `git/bytes` on built-ins — `Number.isInteger` and the
-`String` global, and `Number.isSafeInteger` once its keys are read as
-`b[Number(…)]`. Of the four root modules nearly everything imports,
-`structurally_same` waits on three features — destructuring, the `Object`
-global and `new Map` — and `function/operator` on two, template literals and
+A leaf renames only when every feature it uses has landed. In that historical
+snapshot, these leaves waited on one feature alone: `style` on template literals,
+`keywords` on `new Set`,
+and `git/bytes` on `Number.isSafeInteger`
+once its keys are read as `b[Number(…)]`. Of the four root modules nearly
+everything imports, `structurally_same` waits on three features — destructuring,
+the `Object` global and `new Map` — and `function/operator` on two, template literals and
 destructuring; the runtime keys of both are rewrites the language already
 has. `iterate` in `function` could lose its loop today, which would leave
 that module on nothing — `let`, reassignment and `while` are all inside
@@ -345,6 +394,10 @@ is on hold and is not part of this completed MVP or a self-hosting prerequisite.
       `.f.mjs`.
 - [x] Rename `fjs/compiler/examples`, the one leaf the compiler accepted whole
       after `!` and `typeof`: its eleven importers, proofs and demos, follow it.
+- [x] Rename `fjs/js/array_index/module.f.mjs` to `.f.js` after the shared
+      integer predicate and `String` conversion made the complete module
+      compiler-compatible; update its callers and proof import, keeping
+      `proof.f.mjs`.
 - [ ] Continue `.f.mjs` -> `.f.js` incrementally as compiler support grows.
 
 ### Related

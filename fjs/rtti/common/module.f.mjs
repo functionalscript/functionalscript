@@ -43,7 +43,7 @@ import { assert } from '../../asserts/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { isArray as commonIsArray } from '../../types/array/module.f.mjs'
 import { isObject as commonIsObject } from '../../types/object/module.f.mjs'
-import { arrayIndex } from '../../js/array_index/module.f.mjs'
+import { arrayIndex } from '../../js/array_index/module.f.js'
 
 /** Builds an error result with empty path and the given message. */
 /** @type {(message: string) => Error<ValidationError>} */

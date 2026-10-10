@@ -833,6 +833,35 @@ export const proof = {
         assert(shared instanceof Array && shared[0] === '+', shared)
         assert(shared[1] === shared[2], shared)
     },
+    // A conversion remains an EDAG operation over the lowered operand;
+    // the interpreter answers values, including represented functions.
+    stringConversion: {
+        values: () => {
+            expectEdag(lowered(['String', 1n]), ['String', 1n])
+            expectEdag(lowered(['String', ['Number', '0x10']]), ['String', ['Number', '0x10']])
+            expectEdag(lowered(['Number', ['String', 16]]), ['Number', ['String', 16]])
+            expectEdag(lowered(['String', ['=>', 0, [1]]]), ['String', ['=>', 0, [], 1]])
+            assertStructurallySame(execute(lowered(['array', [
+                ['String', undefined], ['String', null], ['String', true],
+                ['String', -0], ['String', 1n], ['String', ['array', [1, null, 2]]],
+                ['String', ['object', []]], ['String', ['=>', 0, [1]]],
+            ]])), ['undefined', 'null', 'true', '0', '1', '1,,2', '[object Object]', '()=>1'])
+        },
+        anchors: () => {
+            /** @type {AstConst} */
+            const inlined = ['()', ['=>', 0, [['array', [1]], 2]], []]
+            expectEdag(lowered(['String', inlined]), [',', [['[]', [1]], ['String', 2]]])
+            expectEdag(lowered(['&&', false, ['String', inlined]]), ['&&', false, [',', [['[]', [1]], ['String', 2]]]])
+            // an operand's unused initializer fails eagerly through String,
+            // but stays behind the guard when the conversion is lazy
+            /** @type {AstConst} */
+            const failing = ['()', ['=>', 0, [['.', null, 'x'], 2]], []]
+            assertEq(execute(lowered(['&&', false, ['String', failing]])), false)
+        },
+        throw: {
+            anchoredOperand: () => execute(lowered(['String', ['()', ['=>', 0, [['.', null, 'x'], 2]], []]])),
+        },
+    },
     // Stage B: the lazy operators are the EDAG's own `op2`, the same shape
     // as an eager one — laziness is the EDAG's positional rule, `op2Id`'s
     // own comment, and no shape of its own — and the conditional its
@@ -1051,20 +1080,30 @@ export const proof = {
     // number, so `expectEdag` never recurses into it.
     stackSafety: () => {
         const plus = `1${' + 1'.repeat(5000)}`
-        expectPlusChain(5000)(compile(`export default ${plus};`).edag)
+        expectPlusChain(5_000)(compile(`export default ${plus};`).edag)
         const neg = `${'- '.repeat(5000)}1`
         expectEdag(compile(`export default ${neg};`).edag, 1)
+        // conversions use the same iterative lowering as prefixes
+        /** @type {AstConst} */
+        let converted = 1
+        for (let i = 0; i < 5_000; i++) { converted = ['String', converted] }
+        let node = lowered(converted)
+        for (let i = 0; i < 5_000; i++) {
+            assert(node instanceof Array && node[0] === 'String', node)
+            node = node[1]
+        }
+        assertEq(node, 1)
         // a lazy chain, and a conditional nested through its else arm, at
         // the depth the parser's own `lazyStackCost` proves — the AST built
         // here rather than parsed, `lowered`'s own comment has why
         /** @type {AstConst} */
         let and = 1
-        for (let i = 0; i < 20000; i++) { and = ['&&', and, 1] }
-        expectAndChain(20000)(lowered(and))
+        for (let i = 0; i < 20_000; i++) { and = ['&&', and, 1] }
+        expectAndChain(20_000)(lowered(and))
         /** @type {AstConst} */
         let otherwise = 3
-        for (let i = 0; i < 20000; i++) { otherwise = ['?:', 1, 2, otherwise] }
-        expectElseChain(20000)(lowered(otherwise))
+        for (let i = 0; i < 20_000; i++) { otherwise = ['?:', 1, 2, otherwise] }
+        expectElseChain(20_000)(lowered(otherwise))
     },
     // A `throw` lowers to the EDAG's own `['throw', v]`, the node a body or
     // a module that ends in the statement is: a body's value, with the
@@ -1662,7 +1701,7 @@ export const proof = {
         // A parse failure is shown, not swallowed, and draws no graph.
         error: () => {
             const html = htmlToString(demo.view('export default {bad'))
-            assert(html.includes('Error:'), html)
+            assert(html.includes('Refused:</p><pre data-result="error">'), html)
             assert(!html.includes('<svg'), html)
         },
         // Typing replaces the text; every other event leaves it alone.

@@ -86,7 +86,8 @@ export const proof = {
         // Both ends are ports: `0` asks for an ephemeral one.
         inRange: () => {
             assert(isPort(0))
-            assert(isPort(8080))
+            assert(isPort(-0))
+            assert(isPort(8_080))
             assert(isPort(maxPort))
         },
         outOfRange: () => {
@@ -477,7 +478,7 @@ export const proof = {
                 rm: () => error(ioError({ message: 'must not be called' })),
             }
             const host = match(map)
-            let r = host(writeUtf8File('p', 'a'.repeat(50000)))
+            let r = host(writeUtf8File('p', 'a'.repeat(50_000)))
             while (r[0] === 'cont') {
                 r = host(r[2](r[1]))
             }
@@ -490,7 +491,7 @@ export const proof = {
             const text = `${'ab'.repeat(50000)}\u{1F600}${'\u20ac'.repeat(49999)}`
             const parts = _pieces(1)(text)
             assertEq(parts.join(''), text)
-            assert(parts.length > 100000, parts.length)
+            assert(parts.length > 100_000, parts.length)
             assert(parts.every(p => p.length <= 2))
             assert(parts.every(p => utf8(p) !== null))
             assertStructurallySame(_pieces(5)(''), [''])
@@ -511,13 +512,13 @@ export const proof = {
                 rm: () => ok(undefined),
             }
             const host = match(map)
-            const vs = Array.from({ length: 200000 }, () => vec8(0x2An))
+            const vs = Array.from({ length: 200_000 }, () => vec8(0x2An))
             let r = host(writeFromStream('long', _vecList(vs, 0)))
             while (r[0] === 'cont') {
                 r = host(r[2](r[1]))
             }
             assertEq(r[1][0], 'ok')
-            assertEq(written, 200000)
+            assertEq(written, 200_000)
         },
         // The first piece goes in through `writeFile`; if a later one fails the
         // error is the write's and the file is removed.
@@ -743,7 +744,7 @@ export const proof = {
             assertEq(windowRefusal(1.5, 1), 'Offset 1.5 is not an integer')
             assertEq(windowRefusal(0, 1.5), 'Chunk size 1.5 is not an integer')
             assertEq(windowRefusal(0, 0.5), 'Chunk size 0.5 is not an integer')
-            // Neither is a number at all, and `Number.isInteger` is what says so.
+            // NaN and infinity are also refused by `isInteger`.
             assertEq(windowRefusal(NaN, 1), 'Offset NaN is not an integer')
             assertEq(windowRefusal(Infinity, 1), 'Offset Infinity is not an integer')
             assertEq(windowRefusal(0, NaN), 'Chunk size NaN is not an integer')
@@ -1011,7 +1012,7 @@ export const proof = {
         // invented.
         declaredLength: () => {
             assertEq(declaredLength({ 'content-length': '0' }), 0)
-            assertEq(declaredLength({ 'Content-Length': '131072' }), 131072)
+            assertEq(declaredLength({ 'Content-Length': '131072' }), 131_072)
             // A parser reads `00007` as seven, and so does this.
             assertEq(declaredLength({ 'content-length': '00007' }), 7)
             assertEq(declaredLength({}), null)

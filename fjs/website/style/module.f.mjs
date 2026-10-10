@@ -87,14 +87,29 @@ export const demoMarker = 'data-demo'
  */
 export const captionMarker = 'data-caption'
 
+/** The attribute shared by neutral output boxes and their stylesheet rules.
+ * @type {string}
+ */
+export const codeMarker = 'data-code'
+
+/** The verdict attribute shared by result views and their stylesheet rules.
+ * @type {string}
+ */
+export const resultMarker = 'data-result'
+
+/** The attribute shared by the PoW verdict row and its layout rules.
+ * @type {string}
+ */
+export const powResultMarker = 'data-pow-result'
+
 /**
  * The stylesheet, verbatim.
  *
  * @type {string}
  */
-export const stylesheet = `:root { color-scheme: light dark; --graph-new-bg: #aecbfa; --bg: white; --text: black; --muted: #5f6368; --border: #dadce0; --link: #137333; --pass: #137333; --pass-bg: #e6f4ea; --fail: #b3261e; --fail-bg: #fce8e6; --value: #174ea6; --value-bg: #e8f0fe }
+export const stylesheet = `:root { color-scheme: light dark; --graph-new-bg: #aecbfa; --bg: white; --text: black; --muted: #5f6368; --border: #dadce0; --link: #137333; --pass: #137333; --pass-bg: #e6f4ea; --fail: #b3261e; --fail-bg: #fce8e6; --value: #174ea6; --value-bg: #e8f0fe; --syntax-number: #8430ce }
 @media (prefers-color-scheme: dark) {
-    :root { --graph-new-bg: #1c2d4d; --bg: #121212; --text: #f1f1f1; --muted: #9aa0a6; --border: #3c4043; --link: #81c995; --pass: #81c995; --pass-bg: #0f2417; --fail: #f28b82; --fail-bg: #2a1414; --value: #8ab4f8; --value-bg: #172033 }
+    :root { --graph-new-bg: #1c2d4d; --bg: #121212; --text: #f1f1f1; --muted: #9aa0a6; --border: #3c4043; --link: #81c995; --pass: #81c995; --pass-bg: #0f2417; --fail: #f28b82; --fail-bg: #2a1414; --value: #8ab4f8; --value-bg: #172033; --syntax-number: #c58af9 }
 }
 /* Every link on the site is coloured the same whether or not it has been
    opened: nearly every word here is a link into the tree, and the visited
@@ -236,8 +251,8 @@ input[type="text"] { box-sizing: border-box; width: 100% }
 [data-pow-effort-note] { color: var(--muted); font-size: .875rem }
 /* The verdict takes the shared data-result tint and border. Keep its icon
    beside the sentence when it wraps, with enough space to read as one result. */
-[data-pow-result][data-result] { align-items: center; display: flex; gap: .625rem; line-height: 1.5; padding: .875rem 1rem; white-space: normal }
-[data-pow-result] > svg { flex-shrink: 0; height: 1.25rem; width: 1.25rem }
+[${powResultMarker}][${resultMarker}] { align-items: center; display: flex; gap: .625rem; line-height: 1.5; padding: .875rem 1rem; white-space: normal }
+[${powResultMarker}] > svg { flex-shrink: 0; height: 1.25rem; width: 1.25rem }
 /* Search progress supports the current verdict rather than competing with it;
    smaller muted text separates the attempt count and failed range from the result. */
 [data-pow-search-summary] { color: var(--muted); font-size: .875rem; line-height: 1.6; margin-top: .75rem }
@@ -460,8 +475,8 @@ a:hover > [data-railroad-box="nonTerminal"] { fill: var(--pass-bg) }
    success and red for a failure, so the verdict reads before the value does.
    A line can be one long DataJS document, so it wraps rather than widening
    the page. */
-[data-code], [data-result] { border: 1px solid var(--border); border-radius: 6px; overflow-wrap: anywhere; padding: .5rem .75rem; white-space: pre-wrap }
-[data-code] { background: color-mix(in srgb, var(--border) 30%, var(--bg)) }
+[${codeMarker}], [${resultMarker}] { border: 1px solid var(--border); border-radius: 6px; overflow-wrap: anywhere; padding: .5rem .75rem; white-space: pre-wrap }
+[${codeMarker}] { background: color-mix(in srgb, var(--border) 30%, var(--bg)) }
 [data-code-block] { position: relative; margin-block: 1em; padding-right: 3rem }
 [data-code-block] > pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere }
 [data-code-block] > button { position: absolute; top: .25rem; right: .25rem; display: inline-flex; align-items: center; justify-content: center; width: 1.5rem; height: 1.5rem; padding: .125rem; border: 0; border-radius: .25rem; background: transparent; color: var(--muted) }
@@ -479,8 +494,8 @@ a:hover > [data-railroad-box="nonTerminal"] { fill: var(--pass-bg) }
     [data-copy-feedback] > [data-copy-status] { background: #e8eaed; color: #202124 }
     [data-copy-feedback] > [data-copy-status]::after { border-top-color: #e8eaed }
 }
-[data-result="ok"] { background: var(--pass-bg); border-color: color-mix(in srgb, var(--pass) 40%, transparent); color: var(--pass) }
-[data-result="error"] { background: var(--fail-bg); border-color: color-mix(in srgb, var(--fail) 40%, transparent); color: var(--fail) }
+[${resultMarker}="ok"] { background: var(--pass-bg); border-color: color-mix(in srgb, var(--pass) 40%, transparent); color: var(--pass) }
+[${resultMarker}="error"] { background: var(--fail-bg); border-color: color-mix(in srgb, var(--fail) 40%, transparent); color: var(--fail) }
 /* A choice between code blocks — the rtti demo's pair of schemas — shows
    every block, one above another, each a button with a radio dot. The one
    picked is outlined and tinted in the value colour with its dot filled; the
@@ -492,7 +507,13 @@ a:hover > [data-railroad-box="nonTerminal"] { fill: var(--pass-bg) }
 [data-pick-dot] { border: 2px solid var(--muted); border-radius: 50%; flex: none; height: .95rem; margin-top: .2rem; width: .95rem }
 [aria-pressed="true"] > [data-pick-dot] { background: var(--value); border-color: var(--value); box-shadow: inset 0 0 0 2px var(--value-bg) }
 [data-pick-code] { min-width: 0; overflow-wrap: anywhere; white-space: pre-wrap }
+/* Syntax highlighting inside a code block, from website/demo/highlight:
+   the token classes only, so names and punctuation keep the text colour. */
+[data-token="keyword"], [data-token="literal"] { color: var(--value) }
+[data-token="string"] { color: var(--pass) }
+[data-token="number"] { color: var(--syntax-number) }
+[data-token="comment"] { color: var(--muted); font-style: italic }
 /* The member a failure points at, marked inside a code block — the rtti
    demo's value written again under a refusal — in the failure's colours. */
-[data-code] mark { background: var(--fail-bg); border-radius: 3px; color: var(--fail); outline: 1px solid color-mix(in srgb, var(--fail) 40%, transparent) }
+[${codeMarker}] mark { background: var(--fail-bg); border-radius: 3px; color: var(--fail); outline: 1px solid color-mix(in srgb, var(--fail) 40%, transparent) }
 `

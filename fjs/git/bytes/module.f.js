@@ -24,7 +24,7 @@ import { isSafeInteger } from '../../types/number/is_safe_integer/module.f.js'
  *
  * @type {(b: readonly number[], at: number) => number}
  */
-export const u32be = (b, at) => b[Number(at)] * 0x1000000 + b[Number(at + 1)] * 0x10000 + b[Number(at + 2)] * 0x100 + b[Number(at + 3)]
+export const u32be = (b, at) => b[Number(at)] * 0x100_0000 + b[Number(at + 1)] * 0x1_0000 + b[Number(at + 2)] * 0x100 + b[Number(at + 3)]
 
 /**
  * The big-endian 64-bit word at `at`, or `null` where it is above the range a
@@ -39,7 +39,7 @@ export const u32be = (b, at) => b[Number(at)] * 0x1000000 + b[Number(at + 1)] * 
  * @type {(b: readonly number[], at: number) => Nullable<number>}
  */
 export const u64be = (b, at) => {
-    const v = u32be(b, at) * 0x100000000 + u32be(b, at + 4)
+    const v = u32be(b, at) * 0x1_0000_0000 + u32be(b, at + 4)
     return isSafeInteger(v) ? v : null
 }
 

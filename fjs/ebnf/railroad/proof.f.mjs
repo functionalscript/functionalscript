@@ -154,7 +154,7 @@ export const proof = {
         // A token symbol is no code point, and has no label here yet.
         tokenSymbol: () => {
             /** @type {RuleSet} */
-            const ruleSet = { a: ['set', 0x110000, 0x110001] }
+            const ruleSet = { a: ['set', 0x11_0000, 0x11_0001] }
             toDiagrams(ruleSet)([['a', 'a']])
         },
         // Two rules under one title would be two diagrams behind one link.
