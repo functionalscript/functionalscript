@@ -111,7 +111,7 @@ const signView = (c, result) => {
         codeBlock(`Ux = ${coordinate(ux)}\nUy = ${coordinate(uy)}`, 'Copy public key'),
         caption('Nonce k, derived from x and the message, hex:'),
         codeBlock(scalar(k), 'Copy k'),
-        ['p', 'A one-time secret. Anyone who learns k, or sees one k used for two messages, can compute the private key x; RFC 6979 derives it from x and the message, so two different messages never share a k, and no random number generator is needed.'],
+        ['p', 'A one-time secret. Anyone who learns k, or sees one k used for two different messages, can compute the private key x. RFC 6979 derives it from x and the message instead of a random number generator, so a broken generator cannot repeat it, and two different messages share a k only with negligible probability.'],
         caption('Signature r, hex:'),
         codeBlock(scalar(r), 'Copy r'),
         ['p', 'The x coordinate of the point kG, modulo q: it binds the signature to k without revealing k.'],
