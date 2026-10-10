@@ -17,27 +17,31 @@
  * **It needs no operations.** Parsing is a pure function of the text, so
  * `update` declares `never` and returns through `pureOk`.
  *
+ * **The listing is for inspection**, so it uses a neutral code box without
+ * a copy button.
+ *
  * @module
  *
  * @import { Result } from '../../types/result/types.ts'
+ * @import { Marked } from '../../text/marked/types.ts'
  */
 
 import { codeMarker } from '../../website/style/module.f.mjs'
-import { tryStringify } from '../../media/datajs/module.f.mjs'
+import { tryMarked } from '../../media/datajs/module.f.mjs'
 import { error } from '../../types/result/module.f.mjs'
 import { textDemo, refusal, caption } from '../../website/demo/module.f.mjs'
-import { highlight } from '../../website/demo/highlight/module.f.mjs'
+import { render } from '../../website/demo/highlight/module.f.mjs'
 import { examples } from '../examples/module.f.js'
 import { parse } from '../transpiler/module.f.mjs'
 
 /**
  * `text` as its AST, in DataJS, or the parser's message.
  *
- * @type {(text: string) => Result<string, string>}
+ * @type {(text: string) => Result<Marked, string>}
  */
 export const _astOf = text => {
     const result = parse('')(text)
-    return result[0] === 'error' ? error(result[1].message) : tryStringify(result[1])
+    return result[0] === 'error' ? error(result[1].message) : tryMarked(result[1])
 }
 
 export const demo = textDemo({
@@ -49,6 +53,6 @@ export const demo = textDemo({
 })(text => {
     const [kind, value] = _astOf(text)
     return kind === 'ok'
-        ? [caption('Abstract syntax tree, DataJS:'), ['pre', { [codeMarker]: '' }, ...highlight(value)]]
+        ? [caption('Abstract syntax tree, DataJS:'), ['pre', { [codeMarker]: '' }, ...render(value)]]
         : [refusal(value)]
 })
