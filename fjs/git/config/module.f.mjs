@@ -38,6 +38,8 @@
  * @import { Entry } from './types.ts'
  */
 
+import { entry as objectEntry } from '../../types/object/entry/module.f.js'
+
 /** The value Git gives a key written without one. */
 const bareValue = /** @type {const} */ ('true')
 
@@ -246,16 +248,16 @@ const prefixes = { b: 2n, x: 16n }
  * @type {StringMap<bigint>}
  */
 const factors = {
-    k: 1024n,
-    m: 1048576n,
-    g: 1073741824n,
+    k: 1_024n,
+    m: 1_048_576n,
+    g: 1_073_741_824n,
 }
 
 /**
  * The magnitude a number may reach: Git reads one into a C `int`, and
  * refuses what does not fit, the scaling by a unit counted in.
  */
-const maxInt = /** @type {const} */ (2147483647n)
+const maxInt = /** @type {const} */ (0x7fff_ffffn)
 
 /**
  * What a character is worth as a digit, and 16 — no digit's worth — where
@@ -337,9 +339,9 @@ const tryDigits = (digits, radix) => digits.length === 0
 const tryInt = value => {
     const text = afterCSpace(value)
     const signed = text[0] === '+' || text[0] === '-' ? text.slice(1) : text
-    const unit = factors[signed.slice(-1).toLowerCase()]
+    const unit = objectEntry(factors, signed.slice(-1).toLowerCase())
     const body = unit === undefined ? signed : signed.slice(0, -1)
-    const marked = body[0] === '0' ? prefixes[body[1]?.toLowerCase()] : undefined
+    const marked = body[0] === '0' ? objectEntry(prefixes, body[1]?.toLowerCase()) : undefined
     // A leading `0` is an octal digit as well as the mark of the base, so
     // where no letter follows it, it stays in the digits and `0` alone is
     // the number it spells.
@@ -382,7 +384,7 @@ const escapes = {
 const valueStep = (acc, c) => {
     if (acc.bad || acc.done) { return acc }
     if (acc.escape) {
-        const e = escapes[c]
+        const e = objectEntry(escapes, c)
         return e === undefined
             ? { ...acc, bad: true }
             : { ...acc, value: acc.value + acc.pending + e, pending: '', escape: false }
@@ -584,7 +586,7 @@ const valuesOf = (entries, section, key) => entries.flatMap(valueAt(section, key
  *
  * @type {(values: readonly string[]) => Nullable<string>}
  */
-const last = values => values.length === 0 ? null : values[values.length - 1]
+const last = values => values.length === 0 ? null : values[Number(values.length - 1)]
 
 /** What every extension's name begins with, the dot included. */
 const extensionsPrefix = /** @type {const} */ ('extensions.')

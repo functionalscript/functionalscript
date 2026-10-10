@@ -60,6 +60,7 @@
  * @import { Const, DemoExample, DemoSchema, DemoState, Type, _Answer } from './types.ts'
  */
 
+import { codeMarker, resultMarker } from '../website/style/module.f.mjs'
 import { array, boolean, number, open, option, or, record, rest, string, unknown } from './module.f.mjs'
 import { structSchemaEntries, tupleSchemaEntries } from './common/module.f.mjs'
 import { parse } from './parse/module.f.mjs'
@@ -93,6 +94,7 @@ import { op1Id } from '../edag/module.f.mjs'
 import { value as edagValue } from '../edag/value/module.f.mjs'
 import { dirent } from '../effects/schema/module.f.mjs'
 import { fundingSchema } from '../website/funding/module.f.mjs'
+import { chunksText } from '../text/marked/module.f.mjs'
 
 const person = /** @type {const} */ ({ name: string, age: number })
 
@@ -347,7 +349,7 @@ const partnerOf = (e, shown) => e.schemas.length === 2 ? schemaKey(e, shown === 
  * @type {(c: Const) => Shape<Type>}
  */
 const constShape = c => c === null || typeof c !== 'object'
-    ? { inline: concat(leafSerialize(c)) }
+    ? { inline: chunksText(leafSerialize(c)) }
     : c instanceof Array
         ? { kind: 'tuple', label: '[ ]', children: tupleSchemaEntries(c) }
         : { kind: 'struct', label: '{ }', children: structSchemaEntries(c) }
@@ -463,14 +465,14 @@ export const _readersOf = schema => text => {
  * @type {(value: Unknown) => List<string>}
  */
 const expressionChunks = value => {
-    if (value === null || typeof value !== 'object') { return [concat(leafSerialize(value))] }
+    if (value === null || typeof value !== 'object') { return [chunksText(leafSerialize(value))] }
     /** @type {(items: List<List<string>>) => List<string>} */
     const items = list => flat(intersperse([','])(list))
     return value instanceof Array
         ? flat([['['], items(map(expressionChunks)([...value])), [']']])
         : flat([['{'], items(map(
             /** @type {(e: readonly [string, Unknown]) => List<string>} */
-            ([k, v]) => flat([[`${concat(leafSerialize(k))}:`], () => expressionChunks(v)]))(Object.entries(value))), ['}']])
+            ([k, v]) => flat([[`${chunksText(leafSerialize(k))}:`], () => expressionChunks(v)]))(Object.entries(value))), ['}']])
 }
 
 /**
@@ -520,7 +522,7 @@ export const _marked = path => value => {
     const commas = nodes => nodes.flatMap((n, i) => i === 0 ? n : [',', ...n])
     return value instanceof Array
         ? ['[', ...commas([...value].map((v, i) => member(String(i), v))), ']']
-        : ['{', ...commas(Object.entries(value).map(([k, v]) => [`${concat(leafSerialize(k))}:`, ...member(k, v)])), '}']
+        : ['{', ...commas(Object.entries(value).map(([k, v]) => [`${chunksText(leafSerialize(k))}:`, ...member(k, v)])), '}']
 }
 
 // ── outputs and comparison ───────────────────────────────────────────────────
@@ -579,7 +581,7 @@ export const _compare = (a, b) => {
  */
 const answerView = (label, ok, text) => [
     caption(`${label} · ${ok ? 'ok' : 'error'}`),
-    ['pre', { 'data-result': ok ? 'ok' : 'error' }, text],
+    ['pre', { [resultMarker]: ok ? 'ok' : 'error' }, text],
 ]
 
 /** @type {(e: DemoExample, picked: DemoExample) => Element} */
@@ -629,8 +631,8 @@ const packageName = 'functionalscript'
  * @type {(s: DemoSchema) => Element}
  */
 const codeView = s => s.module === undefined
-    ? ['pre', { 'data-code': '' }, s.source]
-    : ['pre', { 'data-code': '' },
+    ? ['pre', { [codeMarker]: '' }, s.source]
+    : ['pre', { [codeMarker]: '' },
         `import { ${s.source} } from `,
         ['a', { href: pageHref(s.module) }, `'${packageName}/${s.module}/module.f.mjs'`],
     ]
@@ -656,10 +658,10 @@ const outputsView = s => {
     const o = _outputsOf(s.schema)
     return [
         caption('TypeScript:'),
-        ['pre', { 'data-code': '' }, o.ts],
+        ['pre', { [codeMarker]: '' }, o.ts],
         caption('JSON Schema:'),
-        ['pre', { 'data-code': '' }, o.jsonSchema],
-        ['details', ['summary', 'Canonical form (toData)'], ['pre', { 'data-code': '' }, o.data]],
+        ['pre', { [codeMarker]: '' }, o.jsonSchema],
+        ['details', ['summary', 'Canonical form (toData)'], ['pre', { [codeMarker]: '' }, o.data]],
     ]
 }
 
@@ -690,7 +692,7 @@ const compareView = (s, compare) => {
         ],
         ...(c === undefined ? [] : /** @type {readonly Element[]} */ ([
             ['p', c.verdict],
-            ['pre', { 'data-code': '' }, c.calls],
+            ['pre', { [codeMarker]: '' }, c.calls],
         ])),
     ]
 }
@@ -716,7 +718,7 @@ const valueView = (s, text) => {
                 ...answerView('validate', r.validate.ok, r.validate.text),
                 ...(r.validate.path === undefined ? [] : /** @type {readonly Element[]} */ ([
                     caption('Where:'),
-                    ['pre', { 'data-code': '' }, ..._marked(r.validate.path)(r.value)],
+                    ['pre', { [codeMarker]: '' }, ..._marked(r.validate.path)(r.value)],
                 ])),
             ]),
     ]

@@ -293,7 +293,7 @@ const demoCases = {
     // A file that does not parse is shown, not swallowed, and draws no list.
     error: () => {
         const html = htmlToString(demo.view('- x\ny'))
-        assert(html.includes('Error:'), html)
+        assert(html.includes('Refused:</p><pre data-result="error">'), html)
         assert(!html.includes('<ul>'), html)
     },
     view: () => assert(htmlToString(demo.view(demo.init)).includes('name="release"')),

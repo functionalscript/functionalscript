@@ -54,6 +54,16 @@ held were deleted rather than kept: nothing imported them, no proof covered
 them, and their FunctionalScript half separated statements by newline where
 the language requires `;`. Do not restore them; git history has them.
 
+## Marked output
+
+Every output `fjs compile` writes — `.json`, `.data.js`, `.js`,
+`.edag.data.js` and `.rs` — is also available as **marked text**: the same
+text with the kind of each keyword, literal, string and number its writer
+spelled, which the demo pages colour from. `_compileMarked` is `compile`
+without creating the directory and writing the file, and `compileFile` writes
+`toText` of its result, so the file never holds markup. There is no command
+line option for it. See [`../text/marked/README.md`](../text/marked/README.md).
+
 ## AST
 
 A module parses into [ast/module.f.mjs](./ast/module.f.mjs); the types
@@ -543,7 +553,8 @@ those names directly, so renaming or removing a `_`-prefixed name is not a
 breaking change solely because TypeScript emitted it. The public contract still
 governs transitive effects: if a public type depends on `_Type`, changing
 `_Type` in a way that changes that public type's assignability is a breaking
-change and requires the normal `**BREAKING CHANGES:**` treatment.
+change. Explain that API change and update importers; breaking-change notices
+are optional before 1.0; policy after 1.0 remains undecided.
 
 For example, suppose the generated declaration initially contains:
 

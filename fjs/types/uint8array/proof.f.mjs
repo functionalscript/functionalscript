@@ -1,6 +1,6 @@
 import { maxLengthBytes, vec } from '../bit_vec/module.f.mjs'
 import { toVec, fromVec, listToVec, decodeUtf8, encodeUtf8 } from './module.f.mjs'
-import { strictEqual } from '../function/operator/module.f.mjs'
+import { strictEqual } from '../function/operator/module.f.js'
 import { equal, fromArrayLike } from '../list/module.f.mjs'
 import { assert } from '../../asserts/module.f.mjs'
 
@@ -26,7 +26,7 @@ export const proof = {
         assertArrayEq(output, input)
     },
     roundTrip: () => {
-        const input = Uint8Array.from([0, 1, 2, 3, 255])
+        const input = Uint8Array.from([0, 1, 2, 3, 0xff])
         const vec = toVec(input)
         const output = fromVec(vec)
         assertArrayEq(output, input)

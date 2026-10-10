@@ -2,7 +2,8 @@
  * @import { DemoEvent } from './types.ts'
  */
 
-import { textDemo, textField, inputField, fieldUpdate, caption } from './module.f.mjs'
+import { codeMarker, resultMarker, stylesheet } from '../style/module.f.mjs'
+import { textDemo, textField, inputField, fieldUpdate, caption, refusal } from './module.f.mjs'
 import { name as exampleName } from './examples/module.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
@@ -10,9 +11,9 @@ import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
 
 /** A demo that echoes its text after the textarea, twice, as siblings. */
-const plain = textDemo({ name: 'src', label: 'Source', init: 'a' })(text => [['p', text], ['pre', text]])
+const plain = textDemo({ intro: 'Echo <text> & compare.', name: 'src', label: 'Source', init: 'a' })(text => [['p', text], ['pre', text]])
 
-const picked = textDemo({ name: 'src', label: 'Source', rows: 3, init: 'one', examples: [['One', 'one'], ['Two', 'two']] })(() => [])
+const picked = textDemo({ intro: 'Echo <text> & compare.', name: 'src', label: 'Source', rows: 3, init: 'one', examples: [['One', 'one'], ['Two', 'two']] })(() => [])
 
 /** @type {(demo: typeof plain) => (state: string) => (event: DemoEvent) => string} */
 const next = demo => state => event => unwrap(assertNotNullish(
@@ -20,6 +21,14 @@ const next = demo => state => event => unwrap(assertNotNullish(
     'expected the demo to reach a value without asking for an operation'))
 
 export const proof = {
+    markers: () => {
+        assertEq(codeMarker, 'data-code')
+        assertEq(resultMarker, 'data-result')
+        assert(stylesheet.includes('[data-code], [data-result]'), 'output box selectors')
+        assert(stylesheet.includes('[data-result="error"]'), 'refusal verdict selector')
+    },
+    refusal: () => assertEq(htmlToString(refusal('Unexpected <token> & input\nnext line')),
+        '<!DOCTYPE html><div role="status"><p data-caption="">Refused:</p><pre data-result="error">Unexpected &lt;token&gt; &amp; input\nnext line</pre></div>'),
     caption: () => assertEq(htmlToString(caption('Hash, hex:')),
         '<!DOCTYPE html><p data-caption="">Hash, hex:</p>'),
     inputField: () => {
@@ -46,13 +55,13 @@ export const proof = {
         // `render` answers follows it as siblings, with no drop-down.
         plain: () => {
             const h = htmlToString(plain.view('x'))
-            assertEq(h, '<!DOCTYPE html><div><p><label for="src">Source </label><textarea id="src" name="src" rows="8">x</textarea></p><p>x</p><pre>x</pre></div>')
+            assertEq(h, '<!DOCTYPE html><div><p>Echo &lt;text&gt; &amp; compare.</p><p><label for="src">Source </label><textarea id="src" name="src" rows="8">x</textarea></p><p>x</p><pre>x</pre></div>')
         },
         // With examples, the drop-down is drawn above the textarea, and
         // `rows` is the one given.
         examples: () => {
             const h = htmlToString(picked.view('two'))
-            assert(h.startsWith(`<!DOCTYPE html><div><p><label for="${exampleName}">`), h)
+            assert(h.startsWith(`<!DOCTYPE html><div><p>Echo &lt;text&gt; &amp; compare.</p><p><label for="${exampleName}">`), h)
             assert(h.includes('<option value="Two" selected="">Two</option>'), h)
             assert(h.endsWith('<textarea id="src" name="src" rows="3">two</textarea></p></div>'), h)
         },
@@ -74,12 +83,12 @@ export const proof = {
     // Refused where the demo is built.
     throw: {
         // A repeated example.
-        repeatedExample: () => textDemo({ name: 'src', label: 'Source', init: '', examples: [['A', 'a'], ['A', 'b']] })(() => []),
+        repeatedExample: () => textDemo({ intro: 'Echo <text> & compare.', name: 'src', label: 'Source', init: '', examples: [['A', 'a'], ['A', 'b']] })(() => []),
         // A textarea named like the drop-down: typing would arrive as a pick.
-        nameCollision: () => textDemo({ name: exampleName, label: 'Source', init: '', examples: [['A', 'a']] })(() => []),
+        nameCollision: () => textDemo({ intro: 'Echo <text> & compare.', name: exampleName, label: 'Source', init: '', examples: [['A', 'a']] })(() => []),
     },
     // Without examples, the drop-down's name is free for the textarea.
     exampleNameWithoutExamples: () => assertEq(
-        next(textDemo({ name: exampleName, label: 'Source', init: '' })(() => []))('')({ kind: 'input', name: exampleName, value: 'typed' }),
+        next(textDemo({ intro: 'Echo <text> & compare.', name: exampleName, label: 'Source', init: '' })(() => []))('')({ kind: 'input', name: exampleName, value: 'typed' }),
         'typed'),
 }

@@ -107,7 +107,7 @@ export const proof = {
     },
     encode80: () => {
         const valueLen = 0x80n << 3n
-        const value = 0x123456n
+        const value = 0x12_3456n
         const v = vec(valueLen)(value)
         const x = encodeRaw([integer, v])
         const lx = length(x)
@@ -124,7 +124,7 @@ export const proof = {
     },
     encodeFF: () => {
         const valueLen = 0xFFn << 3n
-        const value = 0x123456n
+        const value = 0x12_3456n
         const v = vec(valueLen)(value)
         const x = encodeRaw([integer, v])
         const lx = length(x)
@@ -141,7 +141,7 @@ export const proof = {
     },
     encode103: () => {
         const valueLen = 0x103n << 3n
-        const value = 0x123456n
+        const value = 0x12_3456n
         const v = vec(valueLen)(value)
         const x = encodeRaw([integer, v])
         const lx = length(x)
@@ -212,7 +212,7 @@ export const proof = {
         nx81: () => integerValueCheck(-0x81n, vec(16n)(0xFF7Fn)),
         nx7FFF: () => integerValueCheck(-0x7FFFn, vec(16n)(0x8001n)),
         nx8000: () => integerValueCheck(-0x8000n, vec(16n)(0x8000n)),
-        nx8001: () => integerValueCheck(-0x8001n, vec(24n)(0xFF7FFFn)),
+        nx8001: () => integerValueCheck(-0x8001n, vec(24n)(0xFF_7FFFn)),
     },
     encodeDecode: {
         integer: () => {
@@ -261,7 +261,7 @@ export const proof = {
             // tests below only call encodeObjectIdentifier/decodeObjectIdentifier
             // directly, never through decode()).
             /** @type {SupportedRecord} */
-            const r = [objectIdentifier, [1n, 2n, 840n, 113549n]]
+            const r = [objectIdentifier, [1n, 2n, 840n, 113_549n]]
             ch0(r, encode(r), empty)
         },
     },
@@ -278,13 +278,13 @@ export const proof = {
         withArc: () => {
             // OID 1.2.840.113549 (RSA)
             /** @type {ObjectIdentifier} */
-            const oid = [1n, 2n, 840n, 113549n]
+            const oid = [1n, 2n, 840n, 113_549n]
             const decoded = decodeObjectIdentifier(encodeObjectIdentifier(oid))
             assertEq(decoded.length, 4)
             assertEq(decoded[0], 1n)
             assertEq(decoded[1], 2n)
             assertEq(decoded[2], 840n)
-            assertEq(decoded[3], 113549n)
+            assertEq(decoded[3], 113_549n)
         },
     },
     unknownTag: () => {

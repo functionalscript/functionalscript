@@ -3,7 +3,7 @@ import { _name as name, _binding as binding, _resolve as resolve } from './modul
 
 export const proof = {
     manyBindings: () => {
-        const references = Array.from({ length: 20000 }, (_, i) => name(`binding${i}`))
+        const references = Array.from({ length: 20_000 }, (_, i) => name(`binding${i}`))
         assertEq(resolve([references.map(binding).join(',')]).join(''),
             references.map((_, i) => `$${i}`).join(','))
     },
@@ -21,7 +21,7 @@ export const proof = {
         assertEq(resolve([`${binding(a)},${binding(b)}`], ['$0', '$1', '$3']).join(''), '$2,$4')
         assertEq(resolve([`${binding(a)}`], ['$99']).join(''), '$0')
         assertEq(resolve([`${binding(a)},${binding(b)}`],
-            Array.from({ length: 10000 }, (_, i) => `$${9999 - i}`)).join(''), '$10000,$10001')
+            Array.from({ length: 10_000 }, (_, i) => `$${9999 - i}`)).join(''), '$10000,$10001')
     },
     external: () => {
         const a = name('capture0')
@@ -34,6 +34,11 @@ export const proof = {
         assertEq(resolve(['"\\u0000!binding\\u0000"']).join(''), '"\\u0000!binding\\u0000"')
         assertEq(resolve(['"$0",{"$a":1}']).join(''), '"$0",{"$a":1}')
         assertEq(resolve([]).join(''), '')
+    },
+    marked: () => {
+        const a = name('a')
+        // a marked chunk keeps its kind, and a symbol in its text is resolved
+        assertStructurallySame(resolve([[`${binding(a)}`, 'string'], [a], [`x${a}`], 'y']), [['$0', 'string'], ['$0'], ['x$0'], 'y'])
     },
     throw: {
         missing: () => resolve([name('missing')]),

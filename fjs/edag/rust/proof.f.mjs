@@ -13,19 +13,40 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
-import { braced, eagerNodesOf, expExpr, holdsFunction, nestsOperation, nodeExpr, readsArgs, readsFrame, scope, sharedNodesOf, statementsOf, useLines } from './module.f.mjs'
+import { braced, eagerNodesOf, expExpr, expExprTagged, holdsFunction, nestsOperation, nodeExpr, readsArgs, readsFrame, scope, scopeTagged, sharedNodesOf, statementsOf, useLines, useLinesTagged } from './module.f.mjs'
+import { fromTagged, toText } from '../../text/marked/module.f.mjs'
+import { unmarkedWords } from './unmarked/module.f.mjs'
 
 /** @type {(e: Exp) => string} */
-const printed = e => unwrap(nodeExpr(e))
+const printed = e => {
+    complete(unwrap(expExprTagged([])(e)))
+    return unwrap(nodeExpr(e))
+}
+
+/**
+ * That the printer marked every word it marks: the tagged text has no plain
+ * keyword, `true`, `false` or number left. A missing mark changes no text,
+ * so no comparison of the text sees it; this is what does, for every case
+ * the helpers below print.
+ *
+ * @type {(tagged: string) => void}
+ */
+const complete = tagged => assertEq(JSON.stringify(unmarkedWords(unwrap(fromTagged(tagged)))), '[]', tagged)
 
 /** The lines of a scope over `e`: what a compiled module's body holds. @type {(e: Exp) => readonly string[]} */
-const scoped = e => unwrap(scope(e)).lines
+const scoped = e => {
+    complete(unwrap(scopeTagged(e)).lines.join('\n'))
+    return unwrap(scope(e)).lines
+}
 
 /** The names a scope over `e` spells. @type {(e: Exp) => Uses} */
 const usedBy = e => unwrap(scope(e)).uses
 
 /** @type {(shared: readonly (readonly [Exp, string])[]) => (e: Exp) => string} */
-const printedWith = shared => e => unwrap(expExpr(shared)(e))
+const printedWith = shared => e => {
+    complete(unwrap(expExprTagged(shared)(e)))
+    return unwrap(expExpr(shared)(e))
+}
 
 /**
  * The refusal reason `nodeExpr` reports for `e`, read straight off the
@@ -136,6 +157,42 @@ export const proof = {
             '};',
             'use nanvm_lib::vm::{Any, IVm};',
         ])
+    },
+    // The `use` of each statement is a keyword, whether the names fit one
+    // line, wrap, or are a single name, and the text is `useLines`'s.
+    useLinesTagged: () => {
+        /** @type {readonly (readonly [Uses, string, number])[]} */
+        const cases = [
+            [{ vm: [], unstable: [] }, 'IVm', 1],
+            [{ vm: [], unstable: ['f64_any'] }, 'IVm', 2],
+            [{ vm: ['ToAny'], unstable: ['f64_any', 'strict_eq'] }, 'IStaticFunction', 2],
+            [{ vm: [], unstable: Array.from({ length: 11 }, (_, i) => `helper_number_${i}`) }, 'IVm', 2],
+        ]
+        for (const [uses, bound, statements] of cases) {
+            const marked = unwrap(fromTagged(useLinesTagged(uses, bound).join('\n')))
+            assertEq(JSON.stringify(marked.filter(([, kind]) => kind === 'keyword').map(([text]) => text)), JSON.stringify(Array(statements).fill('use')))
+            assertEq(toText(marked), useLines(uses, bound).join('\n'))
+            assertEq(JSON.stringify(unmarkedWords(marked)), '[]')
+        }
+    },
+    // Each kind the printer says it marks, where it spells one.
+    markedKinds: () => {
+        /** @type {(e: Exp) => string} */
+        const runs = e => JSON.stringify(unwrap(fromTagged(unwrap(expExprTagged([])(e)))).filter(([, kind]) => kind !== undefined))
+        assertEq(runs(true), '[["true","literal"]]')
+        assertEq(runs(1), '[["0x3ff0000000000000","number"]]')
+        assertEq(runs('a'), '[["\\"a\\"","string"]]')
+        assertEq(runs(2n), '[["2","number"]]')
+        // a bigint past `i64`: the sign is a literal, each word a number
+        assertEq(runs(2n ** 63n), '[["false","literal"],["0x8000000000000000","number"]]')
+        assertEq(runs(-(2n ** 64n)), '[["true","literal"],["0x0000000000000000","number"],["0x0000000000000001","number"]]')
+        // a string no `&str` holds: each unit a number
+        assertEq(runs('\ud800'), '[["0xd800","number"]]')
+        // a discarded operand is bound by a `let`
+        assertEq(runs([',', [1, 2]]), '[["let","keyword"],["0x3ff0000000000000","number"],["0x4000000000000000","number"]]')
+        // an index read and a function's length are numbers too
+        assertEq(JSON.stringify(unwrap(fromTagged(unwrap(scopeTagged(['=>', 1, [], ['arg', 0]])).lines.join('\n'))).filter(([, kind]) => kind === 'number')), '[["1","number"]]')
+        assertEq(JSON.stringify(unwrap(fromTagged(unwrap(scopeTagged(['=>', 0, [['[]', [1]]], ['frame', 0]])).lines.join('\n'))).filter(([, kind]) => kind === 'number').map(([text]) => text)), '["0x3ff0000000000000","0","0"]')
     },
     fixedAndRest: () => {
         const text = scoped(['=>', 3, [], ['[]', [['arg', 0], ['arg', 2], ['rest']]]]).join('\n')
@@ -1007,7 +1064,7 @@ export const proof = {
         assertEq(printed(2n ** 63n), 'bigint_any_words(false, &[0x8000000000000000])')
         assertEq(printed(-(2n ** 63n) - 1n), 'bigint_any_words(true, &[0x8000000000000001])')
         assertEq(
-            printed(123456789012345678901234567890n),
+            printed(123_456_789_012_345_678_901_234_567_890n),
             'bigint_any_words(false, &[0xc373e0ee4e3f0ad2, 0x000000018ee90ff6])')
         assertEq(printed(-(2n ** 64n)), 'bigint_any_words(true, &[0x0000000000000000, 0x0000000000000001])')
     },

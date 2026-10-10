@@ -57,7 +57,7 @@ export const proof = {
         /** @type {readonly (ValueArray | string)[]} */
         const receivers = [['[]', []], letters, '', 'abc']
         for (const receiver of receivers) {
-            for (const bigint of [0n, 1n, -1n, 123456789012345678901234567890n]) {
+            for (const bigint of [0n, 1n, -1n, 123_456_789_012_345_678_901_234_567_890n]) {
                 assertStructurallySame(assertError(slice(receiver, bigint, undefinedValue)), undefinedValue)
                 assertStructurallySame(assertError(slice(receiver, bigint, bigint)), undefinedValue)
                 for (const start of [undefinedValue, 0, 4, Infinity, -Infinity]) {

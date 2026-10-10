@@ -55,7 +55,7 @@ const loopback = '127.0.0.1'
  * bound falling inside a chunk, ignoring it reads 131,072 bytes where 1,000 were
  * owed, and the count refuses that chunk whole.
  */
-const served = 2 * 1024 * 1024 + 1000
+const served = 2 * 1_024 * 1_024 + 1_000
 
 /**
  * The file the footprint is measured against: two gibibytes, sixteen thousand
@@ -102,13 +102,13 @@ const served = 2 * 1024 * 1024 + 1000
  * threshold at 256 MiB, which is 2.7 times the worst drift yet seen — the same
  * margin the original 64 MiB had over Node's 23 MB.
  */
-const vast = 2 * 1024 * 1024 * 1024
+const vast = 2 * 1_024 * 1_024 * 1_024
 
 /** The header the bound proof reads the declared length out of. */
 const lengthHeader = 'content-length:'
 
 /** The slice the fixture is written in, and the slice the bound proof appends. */
-const slice = 1024 * 1024
+const slice = 1_024 * 1_024
 
 /**
  * An order-sensitive digest, so that a body which arrives complete but **out of
@@ -418,8 +418,8 @@ export const proof = {
         if (process.platform === 'win32') { return }
         await withSocket(async (root, name) => {
             const [sock, absent] = await withServer(root, async port => [
-                await within('a socket', 30000, refusal(port, name)),
-                await within('an absent name', 30000, refusal(port, 'nope')),
+                await within('a socket', 30_000, refusal(port, name)),
+                await within('an absent name', 30_000, refusal(port, 'nope')),
             ])
             assertEq(sock.status, 404)
             assertEq(sock.text, 'not found\n')
@@ -434,7 +434,7 @@ export const proof = {
     servesEveryByteInOrder: () => withLargeFile(async (root, name, expected) => {
         const answer = await withServer(root, port => within(
             `a ${served}-byte body`,
-            120000,
+            120_000,
             /** @type {Promise<{ readonly status: number, readonly length: string, readonly count: number, readonly digest: number, readonly parts: number }>} */
             (new Promise((resolve, reject) => {
                 const request = http.request({ host: loopback, port, path: `/${name}` }, response => {
@@ -494,7 +494,7 @@ export const proof = {
         await withLargeFile(async (root, name, expected) => {
             const answer = await withServer(root, port => within(
                 'a body bounded by the fstat',
-                60000,
+                60_000,
                 /** @type {Promise<{ readonly count: number, readonly digest: number, readonly length: string }>} */
                 (new Promise(resolve => {
                     let count = 0
@@ -573,17 +573,18 @@ export const proof = {
     // the file and the claim is only that the footprint is nothing like it. How
     // much drift that eighth has to clear, and why it is the *file* that was
     // enlarged to clear it rather than the fraction, is measured on {@link vast}.
-    // The exact bound is the pull count in
+    // The direct backpressure check is in
     // [`../effects/node/proof.mjs`](../effects/node/proof.mjs)
-    // (`createServer.pullsAtTheSocketsPace`), where ten times the body is not ten
-    // times the memory.
+    // (`createServer.pullsAtTheSocketsPace`): neither lazy body pulls another
+    // cell while the response needs `drain`, whatever the socket's buffer
+    // capacity is.
     holdsNothingLikeTheFile: async () => {
         if (bunGivesFiveSeconds) { return }
         await withVastFile(async (root, vastName, smallName) => {
             const held = await withServer(root, async port => {
-                await within('a warm-up request', 30000, read(port, smallName, false))
+                await within('a warm-up request', 30_000, read(port, smallName, false))
                 const before = process.memoryUsage().rss
-                const answer = await within('a vast file', 30000, read(port, vastName, true))
+                const answer = await within('a vast file', 30_000, read(port, vastName, true))
                 // The headers are in hand, so the listener has opened the file and
                 // taken its size. An eager body would be in memory by now.
                 assertEq(answer.length, `${vast}`)

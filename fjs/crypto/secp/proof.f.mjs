@@ -4,7 +4,7 @@
 
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 import { prime_field } from '../../types/prime_field/module.f.mjs'
-import { curve, secp256k1, secp192r1, secp256r1, eq, secp384r1, secp521r1 } from './module.f.mjs'
+import { curve, secp256k1, secp192r1, secp256r1, eq, isPublicKey, secp384r1, secp521r1 } from './module.f.mjs'
 
 /** @type {(param: Curve) => () => void} */
 const poker = param => () => {
@@ -17,8 +17,8 @@ const poker = param => () => {
     //
     const pf = prime_field(n)
     //           0        1        2        3        4        5        6        7
-    const sA = 0x01234567_89ABCDEF_01234567_89ABCDEF_01234567_89ABCDEF_01234567_89ABCDEFn % n
-    const sB = 0xFEDCBA98_FEDCBA98_FEDCBA98_FEDCBA98_FEDCBA98_FEDCBA98_FEDCBA98_FEDCBA98n % n
+    const sA = 0x0123_4567_89AB_CDEF_0123_4567_89AB_CDEF_0123_4567_89AB_CDEF_0123_4567_89AB_CDEFn % n
+    const sB = 0xFEDC_BA98_FEDC_BA98_FEDC_BA98_FEDC_BA98_FEDC_BA98_FEDC_BA98_FEDC_BA98_FEDC_BA98n % n
     // "22d3ad011aec6aabdb3d3d47636f3e2859de02298c87a496"
     // "2b359de5cfb5937a5610d565dceaef2a760ceeaec96e68140757f0c8371534e0"
     // "1359162ede91207ccaea1de94afc63c1db5a967c1e6e21f91ef9f077f20a46b6"
@@ -140,5 +140,44 @@ export const proof = {
         assert(!eq(null)(c.g))
         assert(!eq(c.g)(null))
         assert(eq(c.add(c.g)(null))(c.g))
-    }
+    },
+    isPublicKey: () => {
+        const k = isPublicKey(secp256k1)
+        const { pf: { p }, g } = secp256k1
+        const [gx, gy] = assertNotNullish(g, 'g === null')
+        assert(k(g))
+        assert(k(secp256k1.mul(12345n)(g)))
+        // the point at infinity
+        assert(!k(null))
+        // coordinates outside `[0, p-1]`, though congruent to `g`'s
+        assert(!k([-1n, gy]))
+        assert(!k([gx + p, gy]))
+        assert(!k([gx, gy + p]))
+        // off the curve
+        assert(!k([gx, gy + 1n]))
+        // every named curve meets the bound on `n`, so its generator passes
+        for (const c of [secp192r1, secp256k1, secp256r1, secp384r1, secp521r1]) {
+            assert(isPublicKey(c)(c.g))
+        }
+        // on the curve but outside the subgroup: `y^2 = x^3 + x + 1` over 11
+        // has 14 points; `g = (0, 1)` generates the subgroup of order 7, and
+        // `7^2 = 49` exceeds the bound `11 + 1 + 2·√11`, about 18.6.
+        // `(1, 5)` is on the curve and outside it.
+        const c14 = curve({ p: 11n, c: [1n, 1n], g: [0n, 1n], n: 7n })
+        assert(isPublicKey(c14)([0n, 1n]))
+        assert(!isPublicKey(c14)([1n, 5n]))
+    },
+    isPublicKeyRefusesSmallN: () => {
+        // `y^2 = x^3 + 6x` over 7, `g = (0, 0)`, `n = 2`: `n^2 - p - 1 < 0`.
+        // `(1, 0)` has `2·u = O` but is not in `{O, g}`; without the bound,
+        // it would pass, and `verify` would accept `[1, 1]` on message "8".
+        const c2 = curve({ p: 7n, c: [0n, 6n], g: [0n, 0n], n: 2n })
+        assert(eq(c2.mul(2n)([1n, 0n]))(null))
+        assert(!isPublicKey(c2)([1n, 0n]))
+        assert(!isPublicKey(c2)([0n, 0n]))
+        // `y^2 = x^3 + 1` over 7, `n = 3`: `d = 1 > 0` but `d^2 = 1 <= 28`.
+        // Even the generator is refused: the bound cannot vouch for any key.
+        const c3 = curve({ p: 7n, c: [1n, 0n], g: [0n, 1n], n: 3n })
+        assert(!isPublicKey(c3)([0n, 1n]))
+    },
 }

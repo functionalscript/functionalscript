@@ -89,7 +89,8 @@ import { _defaultExport, _moduleExports, unresolved } from './module.f.mjs'
 import { graphOf, graphSvg } from '../../website/demo/graph/module.f.mjs'
 import { leafSerialize } from '../../media/datajs/serializer/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'
-import { textDemo } from '../../website/demo/module.f.mjs'
+import { textDemo, refusal } from '../../website/demo/module.f.mjs'
+import { chunksText } from '../../text/marked/module.f.mjs'
 
 // The operator tag groups `fjs/edag/types.ts` names, read here rather than
 // reconstructed from the compiler's own runtime schemas: a demo is allowed
@@ -247,7 +248,7 @@ const chain = exp => {
  * @type {(exp: unknown) => Shape<unknown>}
  */
 export const _shapeOf = e => {
-    if (e === null || typeof e !== 'object') { return { inline: concat(leafSerialize(/** @type {Primitive} */ (e))) } }
+    if (e === null || typeof e !== 'object') { return { inline: chunksText(leafSerialize(/** @type {Primitive} */ (e))) } }
     const exp = /** @type {readonly unknown[]} */ (e)
     const tag = exp[0]
     if (tag === '[]') { return { kind: 'op', label: '[]', children: numbered(exp[1]) } }
@@ -455,7 +456,13 @@ export const _graphOf = text => {
  *
  * @type {Demo<string, DemoEvent>}
  */
-export const demo = textDemo({ name: 'edag', label: 'Source', init: examples[0][1], examples })(text => {
+export const demo = textDemo({
+    intro: 'Lowers a FunctionalScript module to an expression graph. Arrows point to operands, multiple arrows to one node show sharing, and dashed arrows mark operands that may not be evaluated.',
+    name: 'edag',
+    label: 'Source',
+    init: examples[0][1],
+    examples,
+})(text => {
     const g = _graphOf(text)
-    return [g.ok ? graphSvg(g) : ['p', `Error: ${g.error}`]]
+    return [g.ok ? graphSvg(g) : refusal(g.error)]
 })

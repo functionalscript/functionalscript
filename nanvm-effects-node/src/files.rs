@@ -89,9 +89,9 @@ fn raw_code(raw: i32) -> Option<&'static str> {
         (19, "EROFS"),
         (39, "ENOSPC"),
         (112, "ENOSPC"),
-        (1117, "EIO"),
-        (1314, "EPERM"),
-        (1921, "ELOOP"),
+        (1_117, "EIO"),
+        (1_314, "EPERM"),
+        (1_921, "ELOOP"),
     ];
     #[cfg(not(any(
         all(
@@ -312,9 +312,37 @@ pub fn readdir(path: &str, recursive: bool) -> Result<Vec<Dirent>, IoError> {
     .map_err(|e| failure(&e, "scandir", path))
 }
 
+/// Syncs `file` before it is closed, so an error the filesystem would report
+/// only at the close, a delayed `EIO` or `ENOSPC`, is reported: `std` discards
+/// the one `close(2)` answers, where the Node handler awaits `fh.close()`. The
+/// flush to disk is a cost the Node handler does not pay and this accepts. A file that
+/// cannot be synced at all, a pipe, a terminal or a device such as `/dev/null`,
+/// answers `EINVAL` or is unsupported, and has nothing to flush: that is not a
+/// failure. A Windows console answers
+/// `ERROR_INVALID_HANDLE`, which Rust does not categorize. The exclusive operations create a regular
+/// file, which can always be synced, so they call `sync_all` and take every
+/// error.
+fn sync(file: &File) -> io::Result<()> {
+    match file.sync_all() {
+        Err(e) if nothing_to_flush(&e) => Ok(()),
+        result => result,
+    }
+}
+
+/// What `FlushFileBuffers` answers for a console, on Windows only.
+const ERROR_INVALID_HANDLE: i32 = 6;
+
+fn nothing_to_flush(e: &io::Error) -> bool {
+    matches!(e.kind(), ErrorKind::InvalidInput | ErrorKind::Unsupported)
+        || (cfg!(windows) && e.raw_os_error() == Some(ERROR_INVALID_HANDLE))
+}
+
 /// Creates the file or truncates it.
 pub fn write_file(path: &str, data: &[u8]) -> Result<(), IoError> {
-    fs::write(path, data).map_err(|e| failure(&e, "open", path))
+    let mut file = File::create(path).map_err(|e| failure(&e, "open", path))?;
+    file.write_all(data)
+        .map_err(|e| failure(&e, "write", path))?;
+    sync(&file).map_err(|e| failure(&e, "close", path))
 }
 
 /// Writes into a file that exists, at `at`, leaving the rest as it is. An
@@ -333,12 +361,190 @@ pub fn write_bytes(path: &str, at: f64, data: &[u8]) -> Result<(), IoError> {
         .write(true)
         .open(path)
         .map_err(|e| failure(&e, "open", path))?;
-    if data.is_empty() {
-        return Ok(());
+    if !data.is_empty() {
+        file.seek(SeekFrom::Start(at))
+            .and_then(|_| file.write_all(data))
+            .map_err(|e| failure(&e, "write", path))?;
     }
-    file.seek(SeekFrom::Start(at))
-        .and_then(|_| file.write_all(data))
-        .map_err(|e| failure(&e, "write", path))
+    sync(&file).map_err(|e| failure(&e, "close", path))
+}
+
+/// A number as JavaScript spells it in a message: `NaN`, `Infinity`, and the
+/// exponent form at and beyond `1e21` and below `1e-6`, where Rust would write
+/// every digit. Otherwise it is Rust's shortest spelling, which differs from
+/// ECMAScript's only on a tie between two same-length candidates, a fractional
+/// value from about 2^50 up (`todo/js-number-spelling.md`).
+pub fn js_number(value: f64) -> String {
+    if value.is_nan() {
+        "NaN".to_string()
+    } else if value.is_infinite() {
+        (if value > 0.0 { "Infinity" } else { "-Infinity" }).to_string()
+    } else if value == 0.0 {
+        "0".to_string()
+    } else if value.abs() >= 1e21 || value.abs() < 1e-6 {
+        let text = format!("{value:e}");
+        if text.contains("e-") {
+            text
+        } else {
+            text.replace('e', "e+")
+        }
+    } else {
+        value.to_string()
+    }
+}
+
+/// `windowRefusal` of `fjs/effects/node/module.f.mjs`: the numbers a positional
+/// read refuses, before a byte is read, in the words both runners use.
+fn window_refusal(at: f64, size: f64) -> Option<String> {
+    if at.fract() != 0.0 || !at.is_finite() {
+        Some(format!("Offset {} is not an integer", js_number(at)))
+    } else if at < 0.0 {
+        Some(format!("Offset {} is negative", js_number(at)))
+    } else if at > MAX_OFFSET as f64 {
+        Some(format!(
+            "Offset {} exceeds maximum allowed offset of {MAX_OFFSET}",
+            js_number(at)
+        ))
+    } else if size.fract() != 0.0 || !size.is_finite() {
+        Some(format!("Chunk size {} is not an integer", js_number(size)))
+    } else if size < 0.0 {
+        Some(format!("Chunk size {} is negative", js_number(size)))
+    } else if size > MAX_FILE_SIZE_BYTES as f64 {
+        Some(format!(
+            "Chunk size {} exceeds maximum allowed size of {MAX_FILE_SIZE_BYTES} bytes",
+            js_number(size)
+        ))
+    } else {
+        None
+    }
+}
+
+/// The bytes at `at`, at most `size` of them; fewer only at the end of the
+/// file. A window the Node runner refuses is refused before the file is opened,
+/// with no code.
+pub fn read_bytes(path: &str, at: f64, size: f64) -> Result<Vec<u8>, IoError> {
+    check_window(at, size)?;
+    let file = File::open(path).map_err(|e| failure(&e, "open", path))?;
+    read_window(&file, at, size, path)
+}
+
+/// `size` bytes at `at` of an open file, fewer at its end. An empty window
+/// reads nothing, so it asks nothing of the file either: a pipe, which cannot
+/// seek, answers it as Node does.
+fn read_window(mut file: &File, at: f64, size: f64, what: &str) -> Result<Vec<u8>, IoError> {
+    let mut bytes = Vec::new();
+    if size == 0.0 {
+        return Ok(bytes);
+    }
+    file.seek(SeekFrom::Start(at as u64))
+        .and_then(|_| file.take(size as u64).read_to_end(&mut bytes))
+        .map_err(|e| failure(&e, "read", what))?;
+    Ok(bytes)
+}
+
+/// What a handle's operation answers for one that is closed.
+pub fn bad_descriptor() -> IoError {
+    refusal("EBADF", "bad file descriptor".to_string())
+}
+
+/// `open` of `fjs/effects/node/types.ts`: the file `path` names, for reading.
+/// A FIFO is refused before it is opened, `ERR_NOT_A_FILE` as for `readWhole`:
+/// a plain open of one with no writer blocks, the Node runner opens it without
+/// blocking and lets `fstat` say what it is, and `std` names no flag for that.
+pub fn open(path: &str) -> Result<File, IoError> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::FileTypeExt;
+        if fs::metadata(path).is_ok_and(|m| m.file_type().is_fifo()) {
+            return Err(refusal(
+                "ERR_NOT_A_FILE",
+                format!("{path} is a FIFO, which cannot be opened without blocking"),
+            ));
+        }
+    }
+    File::open(path).map_err(|e| failure(&e, "open", path))
+}
+
+/// `fstat`: what the open file is, as `stat` says of a name.
+pub fn fstat(file: &File) -> Result<Stat, IoError> {
+    let metadata = file
+        .metadata()
+        .map_err(|e| failure(&e, "fstat", "handle"))?;
+    Ok(Stat {
+        size: metadata.len(),
+        is_file: metadata.is_file(),
+        is_directory: metadata.is_dir(),
+    })
+}
+
+/// `pread`: the window `read_bytes` reads, through an open file. The window
+/// is checked by [`check_window`], which the Node runner does before it looks
+/// at the handle.
+pub fn pread(file: &File, at: f64, size: f64) -> Result<Vec<u8>, IoError> {
+    read_window(file, at, size, "handle")
+}
+
+/// Whether `size` bytes at `at` is a window a read may ask for.
+pub fn check_window(at: f64, size: f64) -> Result<(), IoError> {
+    match window_refusal(at, size) {
+        Some(message) => Err(IoError {
+            code: None,
+            message,
+        }),
+        None => Ok(()),
+    }
+}
+
+/// Creates `path` empty and fails if it exists (`O_CREAT|O_EXCL`). The file is
+/// synced before it is closed, so an error the filesystem would report only at
+/// the close is reported here; it is left in place, as
+/// the Node runner leaves it.
+pub fn create_exclusive(path: &str) -> Result<(), IoError> {
+    let file = exclusive(path).map_err(|e| failure(&e, "open", path))?;
+    file.sync_all().map_err(|e| failure(&e, "close", path))
+}
+
+fn exclusive(path: &str) -> io::Result<File> {
+    OpenOptions::new().write(true).create_new(true).open(path)
+}
+
+/// Creates `path` holding `data`, in one open that fails if the file exists:
+/// the file either exists holding all of `data` or does not exist. A write that
+/// fails after the create removes the file, which is this call's alone because
+/// the create was exclusive; that is why it is not `write_file`. The data is
+/// then synced before the file is closed, so an error the filesystem reports
+/// only at the close, a delayed `EIO` or `ENOSPC`, is reported as a failed
+/// `close`. As in the Node runner that failure does not remove the file, which
+/// is left behind, where a failed write removes it.
+pub fn write_exclusive(path: &str, data: &[Vec<u8>]) -> Result<(), IoError> {
+    write_exclusive_with(
+        path,
+        |file| data.iter().try_for_each(|d| file.write_all(d)),
+        File::sync_all,
+    )
+}
+
+fn write_exclusive_with(
+    path: &str,
+    write: impl FnOnce(&mut File) -> io::Result<()>,
+    finish: impl FnOnce(&File) -> io::Result<()>,
+) -> Result<(), IoError> {
+    // The handle is gone when the block ends, so a failed write removes the
+    // file by name only after it is closed.
+    let failed = {
+        let mut file = exclusive(path).map_err(|e| failure(&e, "open", path))?;
+        match write(&mut file) {
+            Ok(()) => return finish(&file).map_err(|e| failure(&e, "close", path)),
+            Err(e) => e,
+        }
+    };
+    // As the Node runner's `rm` with `force`: a file that is already gone is
+    // rolled back, and any other failure replaces the write's, because the
+    // caller is promised no file and would retry into `EEXIST`.
+    match fs::remove_file(path) {
+        Err(e) if e.kind() != ErrorKind::NotFound => Err(failure(&e, "unlink", path)),
+        _ => Err(failure(&failed, "write", path)),
+    }
 }
 
 /// Removes a file or a link, and refuses a directory with `ERR_FS_EISDIR`, the
@@ -456,6 +662,53 @@ mod test {
         }
     }
 
+    #[test]
+    fn js_numbers() {
+        assert_eq!(js_number(f64::NAN), "NaN");
+        assert_eq!(js_number(f64::INFINITY), "Infinity");
+        assert_eq!(js_number(f64::NEG_INFINITY), "-Infinity");
+        assert_eq!(js_number(-0.0), "0");
+        assert_eq!(js_number(1.5), "1.5");
+        assert_eq!(js_number(-7.0), "-7");
+        assert_eq!(js_number(9007199254740992.0), "9007199254740992");
+        assert_eq!(js_number(1e21), "1e+21");
+        assert_eq!(js_number(1.5e300), "1.5e+300");
+        assert_eq!(js_number(1e-7), "1e-7");
+    }
+
+    /// The numbers a positional read refuses, in the words of `windowRefusal`.
+    #[test]
+    fn window_refusals() {
+        let said = |at, size| window_refusal(at, size);
+        assert_eq!(said(0.0, 0.0), None);
+        assert_eq!(said(9007199254740991.0, 131072.0), None);
+        assert_eq!(said(1.5, 1.0), Some("Offset 1.5 is not an integer".into()));
+        assert_eq!(
+            said(f64::NAN, 1.0),
+            Some("Offset NaN is not an integer".into())
+        );
+        assert_eq!(
+            said(f64::INFINITY, 1.0),
+            Some("Offset Infinity is not an integer".into())
+        );
+        assert_eq!(said(-1.0, 1.0), Some("Offset -1 is negative".into()));
+        assert_eq!(
+            said(9007199254740992.0, 1.0),
+            Some(
+                "Offset 9007199254740992 exceeds maximum allowed offset of 9007199254740991".into()
+            )
+        );
+        assert_eq!(
+            said(0.0, 0.5),
+            Some("Chunk size 0.5 is not an integer".into())
+        );
+        assert_eq!(said(0.0, -2.0), Some("Chunk size -2 is negative".into()));
+        assert_eq!(
+            said(0.0, 131073.0),
+            Some("Chunk size 131073 exceeds maximum allowed size of 131072 bytes".into())
+        );
+    }
+
     /// An empty path names nothing, with or without `recursive`.
     #[test]
     fn mkdir_of_an_empty_path() {
@@ -547,9 +800,9 @@ mod test {
             (19, "EROFS"),
             (39, "ENOSPC"),
             (112, "ENOSPC"),
-            (1117, "EIO"),
-            (1314, "EPERM"),
-            (1921, "ELOOP"),
+            (1_117, "EIO"),
+            (1_314, "EPERM"),
+            (1_921, "ELOOP"),
         ] {
             let error = io::Error::from_raw_os_error(raw);
             assert_eq!(failure(&error, "open", "p").code.as_deref(), Some(expected));
@@ -720,6 +973,156 @@ mod test {
             assert_eq!(code_of(rmdir(&dir.at("link"))), Some("ENOTDIR".into()));
             assert_eq!(access(&dir.at("link")), Ok(()));
             assert_eq!(rmdir(&dir.at("target")), Ok(()));
+        }
+
+        #[test]
+        fn read_bytes_windows() {
+            let dir = Scratch::new();
+            let file = dir.at("f");
+            write_file(&file, &[1, 2, 3, 4, 5]).unwrap();
+            assert_eq!(read_bytes(&file, 1.0, 3.0), Ok([2, 3, 4].to_vec()));
+            assert_eq!(read_bytes(&file, 3.0, 10.0), Ok([4, 5].to_vec()));
+            assert_eq!(read_bytes(&file, 9.0, 4.0), Ok(Vec::new()));
+            assert_eq!(read_bytes(&file, 0.0, 0.0), Ok(Vec::new()));
+            assert_eq!(
+                code_of(read_bytes(&dir.at("none"), 0.0, 1.0)),
+                Some("ENOENT".into())
+            );
+            // Refused before the path is opened: no code, not ENOENT.
+            let error = read_bytes(&dir.at("none"), -1.0, 1.0).unwrap_err();
+            assert_eq!(error.code, None);
+            assert_eq!(error.message, "Offset -1 is negative");
+        }
+
+        /// An empty window opens the path and seeks nowhere, so a pipe answers it.
+        #[cfg(target_os = "linux")]
+        #[test]
+        fn empty_read_does_not_seek_a_pipe() {
+            use std::os::fd::AsRawFd;
+
+            let (reader, _writer) = io::pipe().unwrap();
+            let path = format!("/proc/self/fd/{}", reader.as_raw_fd());
+            for at in [0.0, MAX_OFFSET as f64] {
+                assert_eq!(read_bytes(&path, at, 0.0), Ok(Vec::new()));
+            }
+            // A nonempty window still needs the seek, which this file cannot do.
+            assert!(read_bytes(&path, 0.0, 1.0).is_err());
+        }
+
+        /// A FIFO is refused before it is opened, where a plain open of one
+        /// with no writer would never return.
+        #[cfg(target_os = "linux")]
+        #[test]
+        fn a_fifo_is_not_opened() {
+            use std::os::fd::AsRawFd;
+
+            let (reader, _writer) = io::pipe().unwrap();
+            let path = format!("/proc/self/fd/{}", reader.as_raw_fd());
+            assert_eq!(code_of(open(&path)), Some("ERR_NOT_A_FILE".into()));
+        }
+
+        #[test]
+        fn exclusive_creation() {
+            let dir = Scratch::new();
+            let file = dir.at("f");
+            assert_eq!(create_exclusive(&file), Ok(()));
+            assert_eq!(read_file(&file), Ok(Vec::new()));
+            assert_eq!(code_of(create_exclusive(&file)), Some("EEXIST".into()));
+            assert_eq!(code_of(write_exclusive(&file, &[])), Some("EEXIST".into()));
+            assert_eq!(read_file(&file), Ok(Vec::new()));
+        }
+
+        #[test]
+        fn write_exclusive_writes_every_chunk() {
+            let dir = Scratch::new();
+            let file = dir.at("f");
+            assert_eq!(
+                write_exclusive(&file, &[[1, 2].to_vec(), Vec::new(), [3].to_vec()]),
+                Ok(())
+            );
+            assert_eq!(read_file(&file), Ok([1, 2, 3].to_vec()));
+            assert_eq!(
+                code_of(write_exclusive(&dir.at("a/b"), &[])),
+                Some("ENOENT".into())
+            );
+        }
+
+        /// A write that fails after the create leaves no file, and the failure
+        /// is the write's, not the cleanup's.
+        #[test]
+        fn a_failed_exclusive_write_is_rolled_back() {
+            let dir = Scratch::new();
+            let file = dir.at("f");
+            let result = write_exclusive_with(
+                &file,
+                |f| {
+                    f.write_all(&[1])?;
+                    Err(ErrorKind::StorageFull.into())
+                },
+                |_| unreachable!("a failed write is not finished"),
+            );
+            let error = result.unwrap_err();
+            assert_eq!(error.code, Some("ENOSPC".into()));
+            assert!(error.message.contains("write"), "{}", error.message);
+            assert_eq!(code_of(access(&file)), Some("ENOENT".into()));
+        }
+
+        /// A rollback that fails is the failure reported, since the file the
+        /// caller was promised gone is still there; one that finds the file
+        /// already gone is a rollback.
+        #[test]
+        fn a_failed_rollback_is_reported() {
+            let dir = Scratch::new();
+            let file = dir.at("f");
+            let error = write_exclusive_with(
+                &file,
+                |_| {
+                    fs::remove_file(&file)?;
+                    fs::create_dir_all(format!("{file}/inside"))?;
+                    Err(ErrorKind::StorageFull.into())
+                },
+                |_| unreachable!("a failed write is not finished"),
+            )
+            .unwrap_err();
+            assert!(error.message.contains("unlink"), "{}", error.message);
+            let error = write_exclusive_with(
+                &dir.at("g"),
+                |_| {
+                    fs::remove_file(dir.at("g"))?;
+                    Err(ErrorKind::StorageFull.into())
+                },
+                |_| unreachable!("a failed write is not finished"),
+            )
+            .unwrap_err();
+            assert_eq!(error.code, Some("ENOSPC".into()));
+            assert!(error.message.contains("write"), "{}", error.message);
+        }
+
+        /// What a console, a pipe or a device answers to a sync is nothing to flush.
+        #[test]
+        fn a_console_that_cannot_be_flushed_has_nothing_to_flush() {
+            let invalid_handle = io::Error::from_raw_os_error(ERROR_INVALID_HANDLE);
+            assert_eq!(nothing_to_flush(&invalid_handle), cfg!(windows));
+            assert!(nothing_to_flush(&ErrorKind::InvalidInput.into()));
+            assert!(!nothing_to_flush(&ErrorKind::StorageFull.into()));
+        }
+
+        /// A file that cannot be synced has nothing to flush: a write to a pipe
+        /// succeeds, where `sync_all` alone would answer `EINVAL`.
+        #[cfg(target_os = "linux")]
+        #[test]
+        fn a_file_that_cannot_be_synced_is_not_a_failure() {
+            use std::os::fd::AsRawFd;
+
+            let (_reader, writer) = io::pipe().unwrap();
+            let path = format!("/proc/self/fd/{}", writer.as_raw_fd());
+            let opened = OpenOptions::new().write(true).open(&path).unwrap();
+            assert_eq!(
+                opened.sync_all().unwrap_err().kind(),
+                ErrorKind::InvalidInput
+            );
+            assert_eq!(write_file(&path, &[1]), Ok(()));
+            assert_eq!(write_bytes(&path, 0.0, &[]), Ok(()));
         }
 
         #[test]

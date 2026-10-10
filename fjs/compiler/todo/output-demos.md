@@ -35,9 +35,15 @@ that code lands.
 `ast/` has no demo of its own: its data is what `parser/` draws.
 
 **Each demo runs the stage it shows, never a lookalike.** The stage demos call
-the stage's own function (`tryModuleStringify`, `toRust`, `tokenize`, `parse`).
-The side-by-side page runs the real `compile` over an in-memory file system,
-once per output name, so it cannot drift from the CLI. **No output logic is
+the stage's own function (`tryModuleMarked`, `toRust`, `tokenize`, `parse`).
+The side-by-side page runs `_outputMarked`, the output route shared with
+`compile`, over an in-memory file system, once per output name, before CLI
+diagnostic formatting. A file system carries text, so the page takes the output as marked
+text (`fjs/text/marked`) before it is written, which is how a pane is coloured
+by what the producer wrote and not by reading the text again. Its proof runs
+the whole `compile` over the same file system for every example and output
+and holds the page's text to the file written, so it cannot drift from the
+CLI. See [`text/marked/README.md`](../../text/marked/README.md#12-design-record). **No output logic is
 copied into a demo**; one that is not exported yet is exported, per
 [AGENTS.md §1](../../../AGENTS.md#1-workflow).
 

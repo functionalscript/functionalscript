@@ -118,8 +118,15 @@ const sliceLiteral = items => `&[${items.join(', ')}]`
  *
  * @type {(v: string) => string}
  */
-export const utf16Literal = v =>
-    sliceLiteral([...Array(v.length).keys()].map(i => u16Hex(v.charCodeAt(i))))
+export const utf16Literal = v => sliceLiteral(utf16Units(v))
+
+/**
+ * The code units of `v`, each as the hex literal `utf16Literal` lists: its
+ * items, for a printer that marks each one.
+ *
+ * @type {(v: string) => readonly string[]}
+ */
+export const utf16Units = v => [...Array(v.length).keys()].map(i => u16Hex(v.charCodeAt(i)))
 
 /**
  * The exponent of a normal number: the `e` with `2 ** e <= a < 2 ** (e + 1)`,
@@ -129,8 +136,8 @@ export const utf16Literal = v =>
  * @type {(a: number) => number}
  */
 const exponentOf = a => {
-    let low = -1022
-    let high = 1024
+    let low = -1_022
+    let high = 1_024
     while (high - low > 1) {
         const mid = Math.floor((low + high) / 2)
         if (2 ** mid <= a) { low = mid } else { high = mid }
@@ -139,7 +146,7 @@ const exponentOf = a => {
 }
 
 /** The one `NaN` this writer spells: the quiet `NaN` with an empty payload. @type {bigint} */
-const canonicalNan = 0x7ff8000000000000n
+const canonicalNan = 0x7ff8_0000_0000_0000n
 
 /**
  * The IEEE 754 binary64 bits of a number as a Rust `u64` literal in sixteen
@@ -162,13 +169,13 @@ const bitsOf = v => {
     if (Number.isNaN(v)) { return canonicalNan }
     const sign = v < 0 || Object.is(v, -0) ? 1n << 63n : 0n
     const a = Math.abs(v)
-    if (a === Infinity) { return sign | 0x7ff0000000000000n }
+    if (a === Infinity) { return sign | 0x7ff0_0000_0000_0000n }
     if (a === 0) { return sign }
     // scaled in two exact steps: `2 ** 1074` itself is past the largest double
-    if (a < 2 ** -1022) { return sign | BigInt(a * 2 ** 1023 * 2 ** 51) }
+    if (a < 2 ** -1_022) { return sign | BigInt(a * 2 ** 1_023 * 2 ** 51) }
     const exponent = exponentOf(a)
     const fraction = BigInt((a / 2 ** exponent - 1) * 2 ** 52)
-    return sign | BigInt(exponent + 1023) << 52n | fraction
+    return sign | BigInt(exponent + 1_023) << 52n | fraction
 }
 
 const i64Min = -(2n ** 63n)
@@ -189,13 +196,18 @@ export const i64Literal = v => v < i64Min || v > i64Max ? error(v) : ok(v.toStri
  *
  * @type {(v: bigint) => string}
  */
-export const u64Words = v => {
-    const a = v < 0n ? -v : v
-    return sliceLiteral(words(a).map(u64Hex))
-}
+export const u64Words = v => sliceLiteral(u64WordItems(v))
+
+/**
+ * The `u64` words of `v`'s magnitude, least significant first, each as the
+ * hex literal `u64Words` lists: its items, for a printer that marks each one.
+ *
+ * @type {(v: bigint) => readonly string[]}
+ */
+export const u64WordItems = v => words(v < 0n ? -v : v).map(u64Hex)
 
 /** @type {(a: bigint) => readonly bigint[]} */
-const words = a => a === 0n ? [] : [a & 0xffffffffffffffffn, ...words(a >> 64n)]
+const words = a => a === 0n ? [] : [a & 0xffff_ffff_ffff_ffffn, ...words(a >> 64n)]
 
 /**
  * A `snake_case` Rust identifier from a `camelCase` name.

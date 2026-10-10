@@ -18,70 +18,70 @@ const stringify = jsonStringify(sort)
 export const proof = {
     toCodePoint: [
         () => {
-            const result = stringify(toArray(toCodePointList([-1, 256])))
+            const result = stringify(toArray(toCodePointList([-1, 0x100])))
             assertEq(result, '[2147483648,2147483648]')
         },
         () => {
-            const result = stringify(toArray(toCodePointList([128, 193, 245, 255])))
+            const result = stringify(toArray(toCodePointList([0x80, 0xc1, 0xf5, 0xff])))
             assertEq(result, '[-2147483520,-2147483455,-2147483403,-2147483393]')
         },
         () => {
-            const result = stringify(toArray(toCodePointList([0, 1, 127])))
+            const result = stringify(toArray(toCodePointList([0, 1, 0x7f])))
             assertEq(result, '[0,1,127]')
         },
         () => {
-            const result = stringify(toArray(toCodePointList([194, 128, 194, 169, 223, 191])))
+            const result = stringify(toArray(toCodePointList([0xc2, 0x80, 0xc2, 0xa9, 0xdf, 0xbf])))
             assertEq(result, '[128,169,2047]')
         },
         () => {
-            const result = stringify(toArray(toCodePointList([194, 194, 127, 194, 192, 194])))
+            const result = stringify(toArray(toCodePointList([0xc2, 0xc2, 0x7f, 0xc2, 0xc0, 0xc2])))
             assertEq(result, '[-2147483454,-2147483454,127,-2147483454,-2147483456,-2147483454]')
         },
         () => {
-            const result = stringify(toArray(toCodePointList([224, 160, 128, 224, 160, 129, 239, 191, 191])))
+            const result = stringify(toArray(toCodePointList([0xe0, 0xa0, 0x80, 0xe0, 0xa0, 0x81, 0xef, 0xbf, 0xbf])))
             assertEq(result, '[2048,2049,65535]')
         },
         () => {
-            const result = stringify(toArray(toCodePointList([224, 224, 160, 127, 239, 191])))
+            const result = stringify(toArray(toCodePointList([0xe0, 0xe0, 0xa0, 0x7f, 0xef, 0xbf])))
             assertEq(result, '[-2147483424,-2147482592,127,-2147481601]')
         },
         () => {
-            const result = stringify(toArray(toCodePointList([240, 144, 128, 128, 240, 144, 128, 129, 244, 143, 191, 191])))
+            const result = stringify(toArray(toCodePointList([0xf0, 0x90, 0x80, 0x80, 0xf0, 0x90, 0x80, 0x81, 0xf4, 0x8f, 0xbf, 0xbf])))
             assertEq(result, '[65536,65537,1114111]')
         },
         () => {
-            const result = stringify(toArray(toCodePointList([240, 240, 160, 127, 244, 191])))
+            const result = stringify(toArray(toCodePointList([0xf0, 0xf0, 0xa0, 0x7f, 0xf4, 0xbf])))
             assertEq(result, '[-2147483408,-2147483104,127,-2147482817]')
         },
         () => {
-            const result = stringify(toArray(toCodePointList([240, 160, 160, 244, 160, 160])))
+            const result = stringify(toArray(toCodePointList([0xf0, 0xa0, 0xa0, 0xf4, 0xa0, 0xa0])))
             assertEq(result, '[-2147448800,-2147432416]')
         },
         // Overlong 3-byte encodings (E0 80..9F ..) are rejected, not decoded.
         () => {
-            const result = stringify(toArray(toCodePointList([224, 128, 128])))
+            const result = stringify(toArray(toCodePointList([0xe0, 0x80, 0x80])))
             assertEq(result, '[-2147483424,-2147483520,-2147483520]')
         },
         () => {
-            const result = stringify(toArray(toCodePointList([224, 159, 191])))
+            const result = stringify(toArray(toCodePointList([0xe0, 0x9f, 0xbf])))
             assertEq(result, '[-2147483424,-2147483489,-2147483457]')
         },
         // Overlong 4-byte encodings (F0 80..8F .. ..) are rejected, not decoded.
         () => {
-            const result = stringify(toArray(toCodePointList([240, 128, 128, 128])))
+            const result = stringify(toArray(toCodePointList([0xf0, 0x80, 0x80, 0x80])))
             assertEq(result, '[-2147483408,-2147483520,-2147483520,-2147483520]')
         },
         () => {
-            const result = stringify(toArray(toCodePointList([240, 143, 191, 191])))
+            const result = stringify(toArray(toCodePointList([0xf0, 0x8f, 0xbf, 0xbf])))
             assertEq(result, '[-2147483408,-2147483505,-2147483457,-2147483457]')
         },
         // Valid boundary cases still decode: E0 A0 80 -> U+0800, F0 90 80 80 -> U+10000.
         () => {
-            const result = stringify(toArray(toCodePointList([224, 160, 128])))
+            const result = stringify(toArray(toCodePointList([0xe0, 0xa0, 0x80])))
             assertEq(result, '[2048]')
         },
         () => {
-            const result = stringify(toArray(toCodePointList([240, 144, 128, 128])))
+            const result = stringify(toArray(toCodePointList([0xf0, 0x90, 0x80, 0x80])))
             assertEq(result, '[65536]')
         },
         // A byte stream never accumulates a 2-byte state whose lead is >= F8
@@ -164,45 +164,45 @@ export const proof = {
             assertEq(result, '[239,191,191]')
         },
         () => {
-            const result = stringify(toArray(fromCodePointList([0x10000])))
+            const result = stringify(toArray(fromCodePointList([0x1_0000])))
             assertEq(result, '[240,144,128,128]')
         },
         () => {
-            const result = stringify(toArray(fromCodePointList([0x10001])))
+            const result = stringify(toArray(fromCodePointList([0x1_0001])))
             assertEq(result, '[240,144,128,129]')
         },
         () => {
-            const result = stringify(toArray(fromCodePointList([0x10FFFF])))
+            const result = stringify(toArray(fromCodePointList([0x10_FFFF])))
             assertEq(result, '[244,143,191,191]')
         },
         () => {
-            const result = stringify(toArray(fromCodePointList([0x110000, 2147483648])))
+            const result = stringify(toArray(fromCodePointList([0x11_0000, 0x8000_0000])))
             assertEq(result, '[2147483648,2147483648]')
         }
     ],
     toFrom: [
         () => {
-            const codePointList = toCodePointList([128, 193, 245, 255])
+            const codePointList = toCodePointList([0x80, 0xc1, 0xf5, 0xff])
             const result = stringify(toArray(fromCodePointList(codePointList)))
             assertEq(result, '[128,193,245,255]')
         },
         () => {
-            const codePointList = toCodePointList([194, 194, 127, 194, 192, 194])
+            const codePointList = toCodePointList([0xc2, 0xc2, 0x7f, 0xc2, 0xc0, 0xc2])
             const result = stringify(toArray(fromCodePointList(codePointList)))
             assertEq(result, '[194,194,127,194,192,194]')
         },
         () => {
-            const codePointList = toCodePointList([224, 224, 160, 127, 239, 191])
+            const codePointList = toCodePointList([0xe0, 0xe0, 0xa0, 0x7f, 0xef, 0xbf])
             const result = stringify(toArray(fromCodePointList(codePointList)))
             assertEq(result, '[224,224,160,127,239,191]')
         },
         () => {
-            const codePointList = toCodePointList([240, 240, 160, 127, 244, 191])
+            const codePointList = toCodePointList([0xf0, 0xf0, 0xa0, 0x7f, 0xf4, 0xbf])
             const result = stringify(toArray(fromCodePointList(codePointList)))
             assertEq(result, '[240,240,160,127,244,191]')
         },
         () => {
-            const codePointList = toCodePointList([240, 160, 160, 244, 160, 160])
+            const codePointList = toCodePointList([0xf0, 0xa0, 0xa0, 0xf4, 0xa0, 0xa0])
             const result = stringify(toArray(fromCodePointList(codePointList)))
             assertEq(result, '[240,160,160,244,160,160]')
         }
@@ -342,7 +342,8 @@ export const proof = {
         view: () => {
             const html = htmlToString(demo.view(demo.init))
             assert(html.includes('name="text"'), html)
-            assert(html.includes(codePoints(demo.init)), html)
+            assert(html.includes(`<pre data-code="">${codePoints(demo.init)}</pre>`), html)
+            assert(!html.includes('data-copy='), html)
         },
     },
 }

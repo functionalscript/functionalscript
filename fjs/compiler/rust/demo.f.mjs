@@ -16,30 +16,45 @@
  * functions of the text, so `update` declares `never` and returns through
  * `pureOk`.
  *
+ * **The output is copyable**: it is a document or generated source a reader
+ * can save and use elsewhere. Copy keeps the original output text.
+ *
  * @module
  *
  * @import { Result } from '../../types/result/types.ts'
+ * @import { Marked } from '../../text/marked/types.ts'
  */
 
+import { codeBlock } from '../../website/demo/code/module.f.mjs'
+import { toText } from '../../text/marked/module.f.mjs'
 import { parse } from '../transpiler/module.f.mjs'
 import { unresolved } from '../edag/module.f.mjs'
 import { error } from '../../types/result/module.f.mjs'
-import { textDemo } from '../../website/demo/module.f.mjs'
+import { textDemo, refusal, caption } from '../../website/demo/module.f.mjs'
+import { render } from '../../website/demo/highlight/module.f.mjs'
 import { examples } from '../examples/module.f.js'
-import { toRust } from './module.f.mjs'
+import { toRustMarked } from './module.f.mjs'
 
 /**
  * `text` as Rust, or why it is not: the parser's message, or the printer's
  * refusal.
  *
- * @type {(text: string) => Result<string, string>}
+ * @type {(text: string) => Result<Marked, string>}
  */
 export const _rustOf = text => {
     const result = parse('')(text)
-    return result[0] === 'error' ? error(result[1].message) : toRust(unresolved(result[1]).edag)
+    return result[0] === 'error' ? error(result[1].message) : toRustMarked(unresolved(result[1]).edag)
 }
 
-export const demo = textDemo({ name: 'rust', label: 'Source', init: examples[0][1], examples })(text => {
+export const demo = textDemo({
+    intro: 'Compiles a FunctionalScript module without imports into Rust calls that build its value in NaNVM. Compare the output with the .rs module written by fjs compile.',
+    name: 'rust',
+    label: 'Source',
+    init: examples[0][1],
+    examples,
+})(text => {
     const [kind, value] = _rustOf(text)
-    return [kind === 'ok' ? ['pre', value] : ['p', `Refused: ${value}`]]
+    return kind === 'ok'
+        ? [caption('Rust module:'), codeBlock(toText(value), 'Copy Rust module', render(value))]
+        : [refusal(value)]
 })

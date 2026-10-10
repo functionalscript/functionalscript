@@ -20,6 +20,8 @@ import { stringify } from '../../media/json/module.f.mjs'
 import { ok, unwrap } from '../../types/result/module.f.mjs'
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { _astOf, demo } from './demo.f.mjs'
+import { textOfResult } from '../../text/marked/module.f.mjs'
+import { disagreement } from '../../website/demo/highlight/module.f.mjs'
 import { examples } from '../examples/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
 
@@ -519,7 +521,7 @@ export const proof = {
             assert(tag === 'ok', tag)
             /** @type {any} */
             let arm = /** @type {any} */ (value[1][0])[1][0][2][2][0]
-            for (let depth = 1; depth < 5000; depth += 1) { arm = arm[3][1][2][0] }
+            for (let depth = 1; depth < 5_000; depth += 1) { arm = arm[3][1][2][0] }
             assertEq(stringify(sort)(arm[3]), '["()",["=>",0,[0]],[]]')
         },
     ],
@@ -1797,7 +1799,7 @@ export const proof = {
         },
         () => {
             const [tag] = parseFromTokens(tokenizeString(
-                'export default ' + '['.repeat(20000) + ']'.repeat(20000) + ';'))
+                'export default ' + '['.repeat(20_000) + ']'.repeat(20_000) + ';'))
             assert(tag === 'ok', tag)
         },
         () => {
@@ -1812,7 +1814,7 @@ export const proof = {
             /** @type {any} */
             let fn = /** @type {any} */ (value[1][1])[1][0][2]
             assertEq(stringify(sort)(fn[3]), '[["cref",0]]')
-            for (let depth = 1; depth < 20000; depth += 1) { fn = fn[2][0] }
+            for (let depth = 1; depth < 20_000; depth += 1) { fn = fn[2][0] }
             assertEq(stringify(sort)(fn), '["=>",0,[["fref",0]],[["fref",0]]]')
         },
         () => {
@@ -1851,16 +1853,19 @@ export const proof = {
     demo: {
         examples: () => {
             for (const [name, source] of examples) {
-                assertEq(_astOf(source)[0], ['Hex escape', 'Parse error'].includes(name) ? 'error' : 'ok')
+                const [tag, value] = _astOf(source)
+                assertEq(tag, ['Hex escape', 'Parse error'].includes(name) ? 'error' : 'ok')
+                // what the pane marks, the tokenizer agrees with
+                if (tag === 'ok') { assertEq(disagreement(value), null, name) }
             }
-            assertEq(_astOf('export default 1;')[1], 'export default [[],[["object",[[":","default",1]]]]];')
-            assertEq(_astOf('export default "\\x41";')[1], 'unexpected token')
+            assertEq(textOfResult(_astOf('export default 1;')), 'export default [[],[["object",[[":","default",1]]]]];')
+            assertEq(textOfResult(_astOf('export default "\\x41";')), 'unexpected token')
         },
         view: () => {
             const shown = htmlToString(demo.view(demo.init))
-            assert(shown.includes('<pre>'), shown)
+            assert(shown.includes('<p data-caption="">Abstract syntax tree, DataJS:</p><pre data-code="">'), shown)
             const refused = htmlToString(demo.view('export default {bad'))
-            assert(refused.includes('Refused: '), refused)
+            assert(refused.includes('Refused:</p><pre data-result="error">'), refused)
         },
     },
 }

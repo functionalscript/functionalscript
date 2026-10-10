@@ -5,11 +5,15 @@ import { assert, assertEq } from '../../../asserts/module.f.mjs'
 export const proof = {
     codeBlock: () => {
         const h = htmlToString(codeBlock('<text>&', 'Copy result'))
-        assert(h.includes('<pre>&lt;text&gt;&amp;</pre>'), h)
+        assert(h.startsWith('<!DOCTYPE html><div data-code="" data-code-block=""><pre>&lt;text&gt;&amp;</pre>'), h)
         assert(h.includes('data-copy="&lt;text&gt;&amp;"'), h)
         assert(h.includes('aria-label="Copy result" title="Copy result"'), h)
         assert(h.includes('data-copy-check=""'), h)
         assert(h.includes('data-copy-status="" aria-live="polite"'), h)
+        const highlighted = htmlToString(codeBlock('export default 1;', 'Copy module', [['span', { 'data-token': 'keyword' }, 'export'], ' default 1;']))
+        assert(highlighted.includes('<pre><span data-token="keyword">export</span> default 1;</pre>'), highlighted)
+        assert(highlighted.includes('data-copy="export default 1;"'), highlighted)
+
     },
     tryShellQuote: () => {
         assertEq(tryShellQuote('a\0b'), null)

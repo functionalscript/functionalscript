@@ -11,6 +11,7 @@
  *
  * @import { All, Child, Handle, NodeProgram, NodeOp, ReadRequestBytes, RequestListener as Erl, ServerResponse } from './types.ts'
  * @import { ChildProcess } from 'node:child_process'
+ * @import { Agent, Server, ServerResponse as NodeServerResponse } from 'node:http'
  * @import { Effect, IoChannel, Operation } from '../types.ts'
  * @import { EffectList, Next } from '../list/types.ts'
  * @import { Result } from '../../types/result/types.ts'
@@ -232,13 +233,13 @@ const within = async (label, ms, p) => {
  *
  * @template T
  * @param {Erl<NodeOp>} listener
- * @param {(port: number) => Promise<T>} client
+ * @param {(port: number, server: Server) => Promise<T>} client
  * @returns {Promise<T>}
  */
 const withServer = async (listener, client) => {
-    /** @type {(server: import('node:http').Server) => void} */
+    /** @type {(server: Server) => void} */
     let created = () => { }
-    /** @type {Promise<import('node:http').Server>} */
+    /** @type {Promise<Server>} */
     const held = new Promise(resolve => { created = resolve })
     /** @type {NodeProgram} */
     const program = () => resultMapStep(
@@ -248,7 +249,7 @@ const withServer = async (listener, client) => {
                 // The one cast, and the boundary the runner itself crosses the
                 // same way: a `Server` is a `Nominal` over the host's own
                 // object, and `asBase` is how the runner reads it back.
-                created(/** @type {import('node:http').Server} */ (asBase(server)))
+                created(/** @type {Server} */ (asBase(server)))
                 return listen(server, 0, loopback)
             }),
         r => r[0] === 'ok' ? ok(0) : error(1))
@@ -257,7 +258,7 @@ const withServer = async (listener, client) => {
     try {
         const address = server.address()
         assert(address !== null && typeof address !== 'string', address)
-        return await client(address.port)
+        return await client(address.port, server)
     } finally {
         server.closeAllConnections()
         await new Promise(resolve => { server.close(() => resolve(undefined)) })
@@ -429,7 +430,7 @@ const keepsAliveIgnoringBody = () => pureOk({
  * been read. The response wins where there is one, and the error is only an
  * answer where there is not.
  *
- * @type {(port: number, method: string, body: Nullable<Uint8Array>, agent: import('node:http').Agent) => Promise<{ readonly status: number, readonly connection: string, readonly chunks: string, readonly body: Uint8Array, readonly reused: boolean }>}
+ * @type {(port: number, method: string, body: Nullable<Uint8Array>, agent: Agent) => Promise<{ readonly status: number, readonly connection: string, readonly chunks: string, readonly body: Uint8Array, readonly reused: boolean }>}
  */
 const overAnAgent = (port, method, body, agent) => new Promise((resolve, reject) => {
     /** @type {boolean} */
@@ -571,20 +572,23 @@ const counting = count => resultMapStep(catch_(() => { count.n += 1 }), () => ok
  * inside a command's continuation, so nothing of it exists until the pump asks —
  * and counting the pulls.
  *
- * That count is how these proofs see a bound rather than assert one: a pump parked
- * on `drain` has pulled a small number of chunks whatever the body's length is,
- * and a pump that read `res.write`'s answer and pulled anyway would have pulled
- * all of them.
+ * The counter records each requested cell, including the end marker. The proof
+ * with a paused client checks that each body starts and stays unfinished, while
+ * its `onPull` observer checks backpressure by recording any pull while the
+ * response's `writableNeedDrain` flag is set.
  *
  * `chunk` is converted once, before the body exists: `toVec` of 128 KiB costs tens
  * of milliseconds, and paying it per cell would make the pull count a measure of
  * this machine rather than of the socket.
  *
- * @type {(chunk: Vec, count: number, pulls: _Counter) => EffectList<NodeOp, Vec, IoChannel>}
+ * `onPull` lets a host proof observe the response at the moment the producer is
+ * asked for a cell, before the runner has written that cell.
+ *
+ * @type {(chunk: Vec, count: number, pulls: _Counter, onPull?: () => void) => EffectList<NodeOp, Vec, IoChannel>}
  */
-const lazyBody = (chunk, count, pulls) => {
+const lazyBody = (chunk, count, pulls, onPull = () => { }) => {
     /** @type {(i: number) => EffectList<NodeOp, Vec, IoChannel>} */
-    const cell = i => step(catch_(() => { pulls.n += 1 }), () =>
+    const cell = i => step(catch_(() => { onPull(); pulls.n += 1 }), () =>
         i === count ? listEnd() : nonEmpty(chunk, cell(i + 1)))
     return cell(0)
 }
@@ -704,7 +708,7 @@ export const proof = {
         // A stream through the real zlib: the bytes it was made from, every
         // one, and the whole input taken.
         roundTrip: async () => {
-            const data = bytes(1000)
+            const data = bytes(1_000)
             /** @type {NodeProgram} */
             const program = () => resultMapStep(inflate(toVec(deflated(data))), r => {
                 if (r[0] === 'error') { return error(1) }
@@ -927,7 +931,7 @@ export const proof = {
         // about the boundaries the way an accumulator can.
         pastOneVec: () => withTemporary('fjs-read-whole-', async root => {
             const path = join(root, 'large.bin')
-            const content = unalignedBytes(Number(maxLengthBytes) + 1024)
+            const content = unalignedBytes(Number(maxLengthBytes) + 1_024)
             await writeFile(path, content)
             await hostCheck(readWhole(path), result => {
                 const chunks = unwrap(result)
@@ -1191,12 +1195,12 @@ export const proof = {
                     }),
                 }),
                 async port => {
-                    const response = await within('a three-chunk body', 10000, answered(port, 'GET'))
+                    const response = await within('a three-chunk body', 10_000, answered(port, 'GET'))
                     // Content-Length lets the client finish before the last
                     // drain and end-marker pull. Wait for the producer before
                     // withServer closes its connections and cancels that pull.
                     // Missing release must fail, rather than silently end the wait.
-                    await within('a three-chunk producer release', 10000, released)
+                    await within('a three-chunk producer release', 10_000, released)
                     return response
                 })
             assertEq(answer.status, 200)
@@ -1222,7 +1226,7 @@ export const proof = {
         // a pattern repeating every 256 bytes survives a reordered chunk list.
         readsARequestBodyPastOneVec: async () => {
             if (!isNode()) { return }
-            const sent = unalignedBytes(Number(maxLengthBytes) * 2 + 1024)
+            const sent = unalignedBytes(Number(maxLengthBytes) * 2 + 1_024)
             await withServer(echoBody, async port => {
                 const agent = new http.Agent({ keepAlive: false })
                 const answer = await overAnAgent(port, 'POST', sent, agent)
@@ -1247,7 +1251,7 @@ export const proof = {
             if (!isNode()) { return }
             await withServer(ignoresBody, async port => {
                 const agent = new http.Agent({ keepAlive: true, maxSockets: 1 })
-                const first = await overAnAgent(port, 'POST', unalignedBytes(300000), agent)
+                const first = await overAnAgent(port, 'POST', unalignedBytes(300_000), agent)
                 assertEq(first.status, 200)
                 assertEq(first.connection, 'close')
                 const second = await overAnAgent(port, 'GET', null, agent)
@@ -1278,7 +1282,7 @@ export const proof = {
                 assertEq(first.connection, 'keep-alive')
                 const second = await overAnAgent(port, 'GET', null, agent)
                 assertEq(second.reused, true)
-                const drained = await overAnAgent(port, 'POST', unalignedBytes(300000), agent)
+                const drained = await overAnAgent(port, 'POST', unalignedBytes(300_000), agent)
                 assertEq(drained.status, 200)
                 assertEq(drained.connection, 'keep-alive')
                 assertEq(drained.reused, true)
@@ -1309,7 +1313,7 @@ export const proof = {
             if (!isNode()) { return }
             await withServer(keepsAliveIgnoringBody, async port => {
                 const agent = new http.Agent({ keepAlive: true, maxSockets: 1 })
-                const first = await overAnAgent(port, 'POST', unalignedBytes(300000), agent)
+                const first = await overAnAgent(port, 'POST', unalignedBytes(300_000), agent)
                 assertEq(first.status, 200)
                 assertEq(first.connection, 'close')
                 assertEq(first.chunks, 'kept')
@@ -1372,7 +1376,7 @@ export const proof = {
             if (!isNode()) { return }
             await withServer(concurrentPulls, async port => {
                 const agent = new http.Agent({ keepAlive: false })
-                const answer = await overAnAgent(port, 'POST', unalignedBytes(300000), agent)
+                const answer = await overAnAgent(port, 'POST', unalignedBytes(300_000), agent)
                 assertEq(answer.status, 500)
                 const [one = '', two = '', tail = ''] = new TextDecoder().decode(answer.body).split(' | ')
                 const won = one.startsWith('ok ') ? one : two
@@ -1436,7 +1440,7 @@ export const proof = {
                 // the point rather than a problem: what the listener saw comes
                 // back through `seen`.
                 request.on('error', () => undefined)
-                request.write(bytes(1000))
+                request.write(bytes(1_000))
                 await started
                 request.destroy()
                 const [failed = '', retry = ''] = (await seen).split(' | ')
@@ -1462,7 +1466,7 @@ export const proof = {
                     body: lazyBody(vecChunk, 1, pulls),
                     release: counting(releases),
                 }),
-                port => within('a HEAD response', 10000, answered(port, 'HEAD')))
+                port => within('a HEAD response', 10_000, answered(port, 'HEAD')))
             assertEq(answer.status, 200)
             assertEq(answer.length, `${oneVec}`)
             assertEq(answer.body.length, 0)
@@ -1472,64 +1476,74 @@ export const proof = {
             assertEq(pulls.n, 0)
             assertEq(releases.n, 1)
         },
-        // **The memory bound, proved rather than asserted.** The client asks and
-        // then reads nothing, so the socket is the only thing that can slow the
-        // writes: `res.write` answers `false` on the first 128 KiB — the default
-        // high-water mark being 16 KiB, measured `false` on all three runtimes —
-        // and a pump that pulled anyway would be throttled by the disk rather than
-        // by the client, which is fast enough to be no throttle at all.
+        // The client asks and reads nothing. At every producer pull, observe the
+        // real response's `writableNeedDrain`: after `write` answers `false`, no
+        // further cell may be pulled until `drain` clears that flag. This checks
+        // the memory bound directly for both a 25 MiB and a 250 MiB lazy body.
         //
-        // **What makes this a bound is the second body, not the first.** How many
-        // chunks a parked pump has taken is the platform's socket buffers, and a
-        // proof naming a figure would be pinning those. So the same parked client
-        // is offered a body ten times longer, and the claim is that the count does
-        // not follow: the pull count is what the process holds, one `Vec` a pull,
-        // so a count that is the same for 25 MiB and 250 MiB is a footprint that
-        // does not grow with the file. An eager runner answers two hundred and two
-        // thousand.
+        // Pull counts across independent sockets need not match: their buffers
+        // and scheduling vary. A macOS CI run correctly parked at five and ten
+        // chunks, which failed the old four-chunk allowance.
         //
         // And the client's departure is what ends the pump, since `drain` never
         // comes for a socket that has gone — so `release` runs there too.
         pullsAtTheSocketsPace: async () => {
-            /** @type {(chunks: number) => Promise<readonly[number, number]>} */
+            /** @type {(chunks: number) => Promise<readonly[number, number, number]>} */
             const parked = async chunks => {
                 const pulls = counter()
                 const releases = counter()
+                const pullsWhileFull = counter()
+                /** @type {NodeServerResponse | undefined} */
+                let response
+                /** @type {() => void} */
+                let started = () => { }
+                /** @type {Promise<void>} */
+                const firstPull = new Promise(resolve => { started = () => resolve(undefined) })
                 const held = await withServer(
                     () => pureOk({
                         status: 200,
                         headers: { 'content-length': `${chunks * oneVec}` },
-                        body: lazyBody(vecChunk, chunks, pulls),
+                        body: lazyBody(vecChunk, chunks, pulls, () => {
+                            // Record rather than throw here: `catch_` would turn
+                            // an assertion into a body error the pump handles.
+                            if (response?.writableNeedDrain) { pullsWhileFull.n += 1 }
+                            started()
+                        }),
                         release: counting(releases),
                     }),
-                    port => within('a parked pump', 20000, new Promise(resolve => {
+                    async (port, server) => {
+                        // The runner awaits the listener before pulling, so this
+                        // observer sees the response before its first body cell.
+                        server.once('request', (_, res) => { response = res })
                         const socket = net.connect(port, loopback, () => {
                             socket.write('GET / HTTP/1.1\r\nHost: x\r\n\r\n')
                         })
                         socket.pause()
                         socket.on('error', () => { })
-                        // Long enough for a pump that ignored `false` to be well
-                        // into a body it should not have touched, and short enough
-                        // that two runs of this fit inside the five seconds Bun's
-                        // test runner gives one proof.
-                        setTimeout(async () => {
-                            const taken = pulls.n
+                        try {
+                            return await within('a parked pump', 20_000, firstPull.then(async () => {
+                                // Let the real socket fill after production has
+                                // started; no particular pull count is required.
+                                await new Promise(resolve => setTimeout(resolve, 500))
+                                return pulls.n
+                            }))
+                        } finally {
                             socket.destroy()
                             // Give the recorded `close` its chance to end the
                             // parked pull, which is the other half of this proof.
                             await reaches(releases, 1)
-                            resolve([taken, releases.n])
-                        }, 500)
-                    })))
-                return held
+                        }
+                    })
+                assert(response !== undefined)
+                return [held, releases.n, pullsWhileFull.n]
             }
-            const [small, smallReleases] = await parked(200)
-            const [large, largeReleases] = await parked(2000)
+            const [small, smallReleases, smallWhileFull] = await parked(200)
+            const [large, largeReleases, largeWhileFull] = await parked(2_000)
+            assertEq(smallWhileFull, 0)
+            assertEq(largeWhileFull, 0)
             // Parked, not finished: an eager pump answers the cell count itself.
             assert(small > 0 && small < 200, small)
-            // And ten times the body is not ten times the memory. Four chunks of
-            // slack for a machine that drained a little more in the same 900 ms.
-            assert(large <= small + 4, [small, large])
+            assert(large > 0 && large < 2_000, large)
             // `release` ran on the client's departure, once, on both.
             assertEq(smallReleases, 1)
             assertEq(largeReleases, 1)
@@ -1564,7 +1578,7 @@ export const proof = {
                         body: lazyBody(vecChunk, 1, pulls),
                         release: counting(releases),
                     })),
-                port => within('a request the client abandoned', 10000, new Promise(resolve => {
+                port => within('a request the client abandoned', 10_000, new Promise(resolve => {
                     const socket = net.connect(port, loopback, () => {
                         socket.write('GET / HTTP/1.1\r\nHost: x\r\n\r\n')
                     })
@@ -1611,7 +1625,7 @@ export const proof = {
                         body: lazyBody(vecChunk, 2, pulls),
                         release: counting(releases),
                     }),
-                    port => within('an overrunning body', 10000, answered(port, 'GET')))
+                    port => within('an overrunning body', 10_000, answered(port, 'GET')))
                 return { body: answer.body, ending: answer.ending, pulls: pulls.n, releases: releases.n }
             }
             // The declared length is one chunk, and the producer has two. The
@@ -1652,13 +1666,13 @@ export const proof = {
                     body: lazyBody(vecChunk, 1, pulls),
                     release: counting(releases),
                 }),
-                port => within('a body that ended early', 10000, answered(port, 'GET')))
+                port => within('a body that ended early', 10_000, answered(port, 'GET')))
             assertEq(answer.ending, 'ECONNRESET')
             assertEq(answer.body.length, oneVec)
             // Immediately, not at the idle timeout. Two seconds is a third of the
             // measured timeout and many times the millisecond a destroy takes, so
             // the margin is the machine's rather than the claim's.
-            assert(answer.ms < 2000, answer.ms)
+            assert(answer.ms < 2_000, answer.ms)
             assertEq(releases.n, 1)
         },
         // A cell that **fails** after the headers are written destroys too, for
@@ -1674,7 +1688,7 @@ export const proof = {
                     body: nonEmpty(vecChunk, pureError(ioError({ code: 'EIO', message: 'disk' }))),
                     release: counting(releases),
                 }),
-                port => within('a failing body', 10000, answered(port, 'GET')))
+                port => within('a failing body', 10_000, answered(port, 'GET')))
             assertEq(answer.ending, 'ECONNRESET')
             assertEq(answer.body.length, oneVec)
             assertEq(releases.n, 1)
@@ -1693,7 +1707,7 @@ export const proof = {
                     body: nonEmpty(vecChunk, () => { throw new Error('thrown from a cell') }),
                     release: counting(releases),
                 }),
-                port => within('a throwing body', 10000, answered(port, 'GET')))
+                port => within('a throwing body', 10_000, answered(port, 'GET')))
             assertEq(answer.ending, 'ECONNRESET')
             assertEq(answer.body.length, oneVec)
             assertEq(releases.n, 1)
@@ -1714,7 +1728,7 @@ export const proof = {
                     body: lazyBody(vecChunk, 1, pulls),
                     release: counting(releases),
                 }),
-                port => within('a refused framing header', 10000, answered(port, 'GET')))
+                port => within('a refused framing header', 10_000, answered(port, 'GET')))
             assertEq(answer.status, 500)
             assertEq(`${Buffer.from(answer.body)}`, `${framingHeaderMessage}\n`)
             assertEq(pulls.n, 0)
@@ -1746,7 +1760,7 @@ export const proof = {
             })
             const answer = await withServer(
                 doubling,
-                port => within('a refused doubled length', 10000, answered(port, 'GET')))
+                port => within('a refused doubled length', 10_000, answered(port, 'GET')))
             assertEq(answer.status, 500)
             assertEq(`${Buffer.from(answer.body)}`, `${doubledLengthMessage}\n`)
             // The refusal's own length, not either of the listener's: a response the
@@ -1766,11 +1780,11 @@ export const proof = {
             await withServer(doubling, async port => {
                 const agent = new http.Agent({ keepAlive: true, maxSockets: 1 })
                 const first = await within(
-                    'a refused doubled length over an agent', 10000, overAnAgent(port, 'GET', null, agent))
+                    'a refused doubled length over an agent', 10_000, overAnAgent(port, 'GET', null, agent))
                 assertEq(first.status, 500)
                 assertEq(first.connection, 'close')
                 const second = await within(
-                    'a second request after a refused doubled length', 10000, overAnAgent(port, 'GET', null, agent))
+                    'a second request after a refused doubled length', 10_000, overAnAgent(port, 'GET', null, agent))
                 assertEq(second.status, 500)
                 assertEq(second.reused, false)
                 agent.destroy()
@@ -1801,7 +1815,7 @@ export const proof = {
                     body: lazyBody(vecChunk, 1, pulls),
                     release: counting(releases),
                 }),
-                port => within(`a raw ${method} over HTTP/1.0`, 10000, new Promise(resolve => {
+                port => within(`a raw ${method} over HTTP/1.0`, 10_000, new Promise(resolve => {
                     /** @type {Uint8Array[]} */
                     const parts = []
                     const socket = net.connect(port, loopback, () => {
@@ -1829,7 +1843,7 @@ export const proof = {
         refusesATunnel: async () => {
             const answer = await withServer(
                 () => pureOk({ status: 204, headers: {}, body: listEnd(), release: pureOk(null) }),
-                port => within('a raw CONNECT', 10000, new Promise(resolve => {
+                port => within('a raw CONNECT', 10_000, new Promise(resolve => {
                     /** @type {Uint8Array[]} */
                     const parts = []
                     const socket = net.connect(port, loopback, () => {
@@ -1868,8 +1882,8 @@ export const proof = {
                     })
                 },
                 async port => {
-                    await within('an HTTP/1.1 request', 10000, answered(port, 'GET'))
-                    await within('a raw HTTP/1.0 request', 10000, new Promise(resolve => {
+                    await within('an HTTP/1.1 request', 10_000, answered(port, 'GET'))
+                    await within('a raw HTTP/1.0 request', 10_000, new Promise(resolve => {
                         const socket = net.connect(port, loopback, () => {
                             socket.write('GET / HTTP/1.0\r\nHost: x\r\n\r\n')
                         })

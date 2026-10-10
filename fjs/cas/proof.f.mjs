@@ -127,9 +127,9 @@ const errorMessage = result => {
 
 /** @type {() => Vec} */
 const createBigFileContent = () => {
-    const byteCount = 128n * 1024n // 128 KiB
+    const byteCount = 128n * 1_024n // 128 KiB
     // Create a repeating pattern: 0x42 repeated across the file
-    return vec(byteCount * 8n)(0x42424242n)
+    return vec(byteCount * 8n)(0x4242_4242n)
 }
 
 // Test adding a big file and verifying the hash.

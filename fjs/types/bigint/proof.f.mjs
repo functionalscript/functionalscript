@@ -130,7 +130,7 @@ const m1023log2 = v => {
     let result = -1n
     // `bigints` higher than 2**1023 may lead to `Inf` during conversion to `number`.
     // For example: `Number((1n << 1024n) - (1n << 970n)) === Inf`.
-    let i = 1023n
+    let i = 1_023n
     while (true) {
         const n = v >> i
         if (n === 0n) {
@@ -148,7 +148,7 @@ const m1023log2 = v => {
 
     // We know that `v` is not 0 so it doesn't make sense to check `n` when `i` is 0.
     // Because of this, We check if `i` is greater than 1023 before we divide it by 2.
-    while (i !== 1023n) {
+    while (i !== 1_023n) {
         i >>= 1n
         const n = v >> i
         if (n !== 0n) {
@@ -197,7 +197,7 @@ const benchmarkSmall = f => () => {
             const x = f(c)
             assertEq(x, e, [e, x])
         }
-        for (let j = 1n; j < min(c >> 1n)(1000n); ++j) {
+        for (let j = 1n; j < min(c >> 1n)(1_000n); ++j) {
             const x = f(c - j)
             assertEq(x, e - 1n, [j, e, x])
         }
@@ -274,11 +274,11 @@ export const proof = {
             assertEq(result, '0n')
         },
         () => {
-            const result = serialize(123456789012345678901234567890n)
+            const result = serialize(123_456_789_012_345_678_901_234_567_890n)
             assertEq(result, '123456789012345678901234567890n')
         },
         () => {
-            const result = serialize(-55555n)
+            const result = serialize(-55_555n)
             assertEq(result, '-55555n')
         },
     ],
@@ -330,7 +330,7 @@ export const proof = {
             assertEq(result, v)
         },
         () => {
-            const v = 0x18945n
+            const v = 0x1_8945n
             const result = log2(v)
             assertEq(result, 16n)
         }
@@ -431,7 +431,7 @@ export const proof = {
         // 2+3+4+2 = 5*6*7*8*9*10*11
         // e = 5 * 6 * 7 * 8 * 9 * 10 * 11 / (2n * 2n * 6n) =
         // e = 5     * 7 * 2 * 9 * 10 * 11 = 69300
-        assertEq(r, 69300n)
+        assertEq(r, 69_300n)
     },
     divUp: () => {
         assertEq(divUp(8n)(0b1000n), 1n)
@@ -550,7 +550,7 @@ export const proof = {
          * in this repository.
          */
         parseSize: () => {
-            assertEq(parseSize('20000'), 20000n)
+            assertEq(parseSize('20000'), 20_000n)
             assertEq(parseSize('1'), 1n)
             assertEq(parseSize(''), null)
             assertEq(parseSize('0'), null)
@@ -727,6 +727,8 @@ export const proof = {
             }))
             assert(done.includes('log2'), done)
             assert(done.includes('1.3 ms'), done)
+            assert(done.includes('<pre data-code="">'), done)
+            assert(!done.includes('data-copy='), done)
         },
     },
 }

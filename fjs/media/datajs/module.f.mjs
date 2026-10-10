@@ -38,6 +38,13 @@
  * the second writer the specification leaves room for, and the name waits
  * for it.
  *
+ * **The same documents as marked text.** `tryMarked` and `tryJsonMarked`
+ * answer the document with the kind of each leaf and keyword — a string, a
+ * number, a literal word, `const`, `export`, `default` — which a page
+ * colours from without reading the text again; the text is the one
+ * `tryStringify` and `tryJsonStringify` answer, by construction
+ * (`fjs/text/marked/README.md`).
+ *
  * The JSON writers are the same writer under JSON's leaf rule. A JSON
  * document is the tree a DataJS graph unfolds to: a node reached twice is
  * written where each reference reaches it, as `JSON.stringify` writes it,
@@ -54,4 +61,4 @@
  */
 
 export { tryParse, tryParseBytes } from './parser/module.f.mjs'
-export { tryJsonSerialize, tryJsonStringify, trySerialize, tryStringify } from './serializer/module.f.mjs'
+export { tryJsonMarked, tryJsonSerialize, tryJsonStringify, tryMarked, trySerialize, tryStringify } from './serializer/module.f.mjs'
