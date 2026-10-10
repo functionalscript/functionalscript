@@ -116,6 +116,9 @@ export const spansOf = text => {
     })
 }
 
+/** The starting offset before each run's length. @type {(at: number) => Scan<number, number>} */
+const before = at => length => [at, before(at + length)]
+
 /**
  * Where a producer's markup and the tokenizer part ways, or `null` where
  * they agree: the marked runs, as spans of the whole text, are the spans
@@ -130,8 +133,6 @@ export const disagreement = marked => {
     const text = toText(marked)
     const found = JSON.stringify(spansOf(text))
     const lengths = marked.map(([chunk]) => Array.from(chunk).length)
-    /** @type {(at: number) => Scan<number, number>} */
-    const before = at => length => [at, before(at + length)]
     const starts = toArray(scan(before(0))(lengths))
     /** @type {readonly Span[]} */
     const given = marked.flatMap(([chunk, kind], i) => {

@@ -52,7 +52,10 @@ export const unmarked = text => [[text]]
  *
  * @type {(result: Result<Marked, string>) => string}
  */
-export const textOfResult = result => result[0] === 'ok' ? toText(result[1]) : result[1]
+export const textOfResult = result => {
+    const [tag, value] = result
+    return tag === 'ok' ? toText(value) : value
+}
 
 /**
  * The text of a chunk.
