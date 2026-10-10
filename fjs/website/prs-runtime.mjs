@@ -7,6 +7,8 @@
  * Loads require the Refresh button, including the first load. The request
  * deadline never schedules a refresh, and failed requests are not retried.
  *
+ * @module
+ *
  * @import { ValidationError } from '../rtti/common/types.ts'
  * @import { Unknown } from '../rtti/ts/types.ts'
  * @import { Result } from '../types/result/types.ts'

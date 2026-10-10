@@ -86,7 +86,8 @@ proof. `git/refstore` still imports `utf16`'s `codePointListToString` for
 - [ ] Decide whether `utf8ToString` moves next to `fromVec`; update importers
       if so.
 - [ ] Decide whether `vecToCodePointList` is removed, now that nothing calls
-      it (a declared breaking change).
+      it. Explain the API removal in the PR and update every importer; a
+      breaking notice is optional before 1.0; policy after 1.0 remains undecided.
 - [x] Export the byte-list helpers in both directions, beside `fromVec`:
       the decoder pair (unchecked and code-point-validated
       `bytes → string`) replaces `fjs/text/percent`'s `utf8String` and
@@ -102,9 +103,9 @@ proof. `git/refstore` still imports `utf16`'s `codePointListToString` for
       `fromVec` and `tryUtf8` build on them.
 - [ ] Name the UTF-8 boundary in one direction: the decoder and encoder in
       `text/utf8` say which way they go, and `types/uint8array`'s `fromVec`
-      stops sharing a name with a decoder. A renamed export is a declared
-      breaking change (`**BREAKING CHANGES:**`), with every importer updated in
-      the same PR.
+      stops sharing a name with a decoder. A renamed export changes the public
+      API: explain it and update every importer in the same PR. Breaking
+      notices are optional before 1.0.
 - [x] Drop the two unused imports in `fjs/effects/node/module.f.mjs`.
 - [ ] `tsc`, `fjs t`.
 

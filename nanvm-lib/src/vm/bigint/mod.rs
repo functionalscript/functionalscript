@@ -481,8 +481,8 @@ mod tests {
 
     #[test]
     fn test_abs_cmp_vec_equal_numbers() {
-        let a: TestBigInt = 12345u64.into();
-        let b: TestBigInt = 12345u64.into();
+        let a: TestBigInt = 12_345u64.into();
+        let b: TestBigInt = 12_345u64.into();
         assert_eq!(a.abs_cmp_vec(b), Ordering::Equal);
     }
 
@@ -506,15 +506,15 @@ mod tests {
 
     #[test]
     fn test_abs_cmp_vec_same_length_first_greater() {
-        let a: TestBigInt = 12346u64.into();
-        let b: TestBigInt = 12345u64.into();
+        let a: TestBigInt = 12_346u64.into();
+        let b: TestBigInt = 12_345u64.into();
         assert_eq!(a.abs_cmp_vec(b), Ordering::Greater);
     }
 
     #[test]
     fn test_abs_cmp_vec_same_length_first_less() {
-        let a: TestBigInt = 12344u64.into();
-        let b: TestBigInt = 12345u64.into();
+        let a: TestBigInt = 12_344u64.into();
+        let b: TestBigInt = 12_345u64.into();
         assert_eq!(a.abs_cmp_vec(b), Ordering::Less);
     }
 
@@ -700,12 +700,12 @@ mod tests {
 
     #[test]
     fn test_abs_add_vec_no_carry() {
-        let a: TestBigInt = 1000u64.into();
-        let b: TestBigInt = 2000u64.into();
+        let a: TestBigInt = 1_000u64.into();
+        let b: TestBigInt = 2_000u64.into();
         let result = a.abs_add_vec(b);
 
         assert_eq!(result.len(), 1);
-        assert_eq!(result[0], 3000u64);
+        assert_eq!(result[0], 3_000u64);
     }
 
     #[test]
@@ -732,7 +732,7 @@ mod tests {
 
     #[test]
     fn test_abs_sub_vec_same_numbers() {
-        let a: TestBigInt = 12345u64.into();
+        let a: TestBigInt = 12_345u64.into();
         let result = a.clone().abs_sub_vec(a);
 
         // Result should be zero (empty vec or [0])
@@ -750,7 +750,7 @@ mod tests {
 
     #[test]
     fn test_abs_sub_vec_with_borrow() {
-        let a: TestBigInt = 1000u64.into();
+        let a: TestBigInt = 1_000u64.into();
         let b: TestBigInt = 1u64.into();
         let result = a.abs_sub_vec(b);
 
@@ -797,21 +797,21 @@ mod tests {
     #[test]
     fn test_abs_sub_vec_large_numbers() {
         let a: TestBigInt = u64::MAX.into();
-        let b: TestBigInt = (u64::MAX - 1000u64).into();
+        let b: TestBigInt = (u64::MAX - 1_000u64).into();
         let result = a.abs_sub_vec(b);
 
         assert_eq!(result.len(), 1);
-        assert_eq!(result[0], 1000u64);
+        assert_eq!(result[0], 1_000u64);
     }
 
     #[test]
     fn test_abs_sub_vec_no_borrow() {
-        let a: TestBigInt = 5000u64.into();
-        let b: TestBigInt = 2000u64.into();
+        let a: TestBigInt = 5_000u64.into();
+        let b: TestBigInt = 2_000u64.into();
         let result = a.abs_sub_vec(b);
 
         assert_eq!(result.len(), 1);
-        assert_eq!(result[0], 3000u64);
+        assert_eq!(result[0], 3_000u64);
     }
 
     #[test]

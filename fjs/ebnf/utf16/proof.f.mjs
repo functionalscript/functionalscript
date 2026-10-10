@@ -61,7 +61,7 @@ export const proof = {
             negative: () => unitAt({ symbol: -1, meta: utf16 }),
             negativeZero: () => unitAt({ symbol: -0, meta: utf16 }),
             fraction: () => unitAt({ symbol: 0.5, meta: utf16 }),
-            outOfRange: () => unitAt({ symbol: 0x10000, meta: utf16 }),
+            outOfRange: () => unitAt({ symbol: 0x1_0000, meta: utf16 }),
             notANumber: () => unitAt({ symbol: NaN, meta: utf16 }),
             bigint: () => unitAt({ symbol: 0x61n, meta: utf16 }),
         },

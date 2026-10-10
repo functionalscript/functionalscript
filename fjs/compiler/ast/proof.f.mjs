@@ -310,31 +310,31 @@ export const proof = {
         // reached, so the `const` it names is not anchored
         /** @type {import('./types.ts').AstConst} */
         let plus = ['cref', 0]
-        for (let i = 0; i < 5000; i++) { plus = ['+', plus, 1] }
+        for (let i = 0; i < 5_000; i++) { plus = ['+', plus, 1] }
         assertEq(anchorsOf([[], [['array', []], plus]]), 'consts ; imports ')
         // a right-associative chain of negations, `refsOf`'s other shape
         /** @type {import('./types.ts').AstConst} */
         let neg = ['cref', 0]
-        for (let i = 0; i < 5000; i++) { neg = ['-', neg] }
+        for (let i = 0; i < 5_000; i++) { neg = ['-', neg] }
         assertEq(anchorsOf([[], [['array', []], neg]]), 'consts ; imports ')
         /** @type {import('./types.ts').AstConst} */
         let converted = ['cref', 0]
-        for (let i = 0; i < 5000; i++) { converted = ['String', converted] }
+        for (let i = 0; i < 5_000; i++) { converted = ['String', converted] }
         assertEq(anchorsOf([[], [['array', []], converted]]), 'consts ; imports ')
         // a lazy chain, and a conditional nested through either arm, at
         // the depth the parser's own `lazyStackCost` proves: the eager
         // operand is followed and the lazy one is not
         /** @type {import('./types.ts').AstConst} */
         let and = ['cref', 0]
-        for (let i = 0; i < 20000; i++) { and = ['&&', and, ['cref', 0]] }
+        for (let i = 0; i < 20_000; i++) { and = ['&&', and, ['cref', 0]] }
         assertEq(anchorsOf([[], [['array', []], and]]), 'consts ; imports ')
         /** @type {import('./types.ts').AstConst} */
         let otherwise = ['cref', 0]
-        for (let i = 0; i < 20000; i++) { otherwise = ['?:', 1, 2, otherwise] }
+        for (let i = 0; i < 20_000; i++) { otherwise = ['?:', 1, 2, otherwise] }
         assertEq(anchorsOf([[], [['array', []], otherwise]]), 'consts 0; imports ')
         /** @type {import('./types.ts').AstConst} */
         let then = ['cref', 0]
-        for (let i = 0; i < 20000; i++) { then = ['?:', ['cref', 0], then, 2] }
+        for (let i = 0; i < 20_000; i++) { then = ['?:', ['cref', 0], then, 2] }
         assertEq(anchorsOf([[], [['array', []], then]]), 'consts ; imports ')
     },
 }

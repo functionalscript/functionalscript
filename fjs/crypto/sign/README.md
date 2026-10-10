@@ -56,7 +56,7 @@ const bits2octets: (q: bigint) => (b: Vec) => Vec
 
 1. `h = bits2int(H(m)) mod q`.
 2. `k` is a random value module `q`. It shall not be `0`.
-3. `r` is `(kG).x`. It's an `X` coordinate (a member of the field over which `E` is defined).
+3. `r = (kG).x mod q`: the `X` coordinate of `kG` (a member of the field over which `E` is defined), reduced modulo `q`.
    If `r` is `0`, select new `k`.
 4. `s = (h+x*r)/k mod q`
 
@@ -97,30 +97,42 @@ We use elliptic curves for digital signatures.
 
 `R = G * k`.
 
-`r = R.x`.
+`r = R.x mod q`.
 
-`s = ((z + r * d) / k)`.
+`s = ((z + r * d) / k) mod q`.
+
+If `r` or `s` is `0`, the signature is invalid and `k` must be selected again;
+`sign` does not select again yet, and refuses instead.
 
 The signature is `(r, s)`.
 
 ### Verifying a signature
 
-`w = 1/s`
+`verify` checks `(r, s)` against the public key `Q = G * d`. All arithmetic on
+scalars is modulo `q`.
 
-`u1 = z * w` and `u2 = r * w`
+1. If `Q` is not a valid public key, or `r` or `s` is not in `[1, q-1]`, the
+   signature is invalid. A valid public key is not the point at infinity, has
+   coordinates in `[0, p-1]`, lies on the curve, and satisfies `Q * q = 0`
+   (SEC 1 §3.2.2.1, `isPublicKey` in `../secp`, which also requires
+   `q^2 > p + 1 + 2√p`, so that, for the prime `q` ECDSA requires, `Q * q = 0`
+   puts `Q` in the subgroup of `G`).
+2. `w = 1/s`
+3. `u1 = z * w` and `u2 = r * w`
+4. `X = G * u1 + Q * u2`
+5. If `X` is the point at infinity, the signature is invalid: it has no `x`.
+6. `v = X.x mod q`
 
-`X = G * u1 + Q * u2`
-
-`v = X.x`
-
-The signature is valid if `v = r`
+The signature is valid if `v = r`.
 
 ### Proof
 
+Scalar equalities below are modulo `q`, the order of `G`.
+
 1. `X = G * (z * 1/s) + Q * (r * 1/s)`
 2. `X = G * z * 1/s + G * d * r * 1/s`
-3. `G * z * 1/s + d * r * 1/s = G * k`
-4. `z * 1/s + d * r * 1/s) = k`
+3. `G * (z * 1/s + d * r * 1/s) = G * k`
+4. `z * 1/s + d * r * 1/s = k`
 5. `z + d * r = k * s`
 6. `z + d * r = k * (z + r * d) / k`
 7. `z + d * r = z + r * d`

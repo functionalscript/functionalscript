@@ -13,6 +13,7 @@
 //! `nanvm-effects-node` depends on `nanvm-lib`, never the reverse.
 
 mod codec;
+mod common;
 mod files;
 mod native;
 mod resolve;
@@ -114,7 +115,7 @@ mod test {
     /// the very value it answered.
     #[test]
     fn a_pure_effect_is_its_result() {
-        let ok = result("ok", f64_any(0x4014000000000000));
+        let ok = result("ok", f64_any(0x4014_0000_0000_0000));
         assert_eq!(run(pure(ok.clone()), answers_ok), Ok(ok));
         let error = result("error", string_any("no"));
         assert_eq!(run(pure(error.clone()), answers_ok), Ok(error));
@@ -241,7 +242,7 @@ mod test {
         };
         #[cfg(not(target_family = "wasm"))]
         let (ended, ticks) = std::thread::Builder::new()
-            .stack_size(256 * 1024)
+            .stack_size(256 * 1_024)
             .spawn(work)
             .unwrap()
             .join()

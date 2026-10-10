@@ -38,7 +38,7 @@ export const proof = {
     isRangeSet: () => {
         assert(isRangeSet(empty))
         assert(isRangeSet(full))
-        assert(isRangeSet([-Infinity, 0, 0x110000]))
+        assert(isRangeSet([-Infinity, 0, 0x11_0000]))
         // any number is a boundary, integer or not
         assert(isRangeSet([0.5, 1.5]))
         // not strictly increasing: a repeat, and a decrease
@@ -78,7 +78,7 @@ export const proof = {
             // the universe's bottom is a member of it
             assert(has(-Infinity))
             assert(has(-1))
-            assert(has(0x110000))
+            assert(has(0x11_0000))
         },
         closed: () => {
             const has = contains(digit)
@@ -91,11 +91,11 @@ export const proof = {
             const has = contains(nonNegative)
             assert(!has(-1))
             assert(has(0))
-            assert(has(0x110000))
+            assert(has(0x11_0000))
         },
         openBottom: () => {
             const has = contains(negative)
-            assert(has(-0x110000))
+            assert(has(-0x11_0000))
             assert(has(-1))
             assert(!has(0))
         },

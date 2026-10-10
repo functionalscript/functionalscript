@@ -7,11 +7,10 @@ so that a reader who has used one demo can read the next without learning a
 new page.
 
 The rules here were drawn from the demos already on the site, and where they
-disagreed, one way was picked and the reason written down. So some demos do
-not follow every rule yet; this file states the rules, and
-[`todo/demos-follow-the-spec.md`](./todo/demos-follow-the-spec.md) lists the
-demos that do not. A demo may
-deviate where its subject needs it, and says why in its JSDoc.
+disagreed, one way was picked and the reason written down. The shared builders
+put the required lead before the controls; the shared `refusal` element puts
+`Refused:` above the module's message in its verdict box. A demo may deviate
+where its subject needs it, and says why in its JSDoc.
 
 ## One order, top to bottom
 
@@ -138,12 +137,16 @@ sharing. Use [`examples`](./examples/module.f.mjs), through
   [`rtti/demo.f.mjs`](../../rtti/demo.f.mjs)). A result that is simply what
   the module computed — a digest, an AST, a generated module — stays
   neutral: green there would claim a check nobody made.
-- **Code in a language the tokenizer reads is highlighted**: a result in
-  JavaScript, JSON or DataJS goes through
-  [`highlight`](./highlight/module.f.mjs), which wraps keywords, literals,
-  strings, numbers and comments in a `span` marked `data-token` and leaves
-  the text itself unchanged. A text the tokenizer refuses, and code in
-  another language such as Rust, stays plain.
+- **Generated code is coloured by what its producer wrote.** A result the
+  repository's own writers produce — JSON, DataJS, the EDAG, a FunctionalScript
+  module, Rust — is marked text, and the demo draws it with
+  [`render`](./highlight/module.f.mjs), which wraps each run that has a kind in
+  a `span` marked `data-token` and leaves the text itself unchanged. The demo
+  does not read the text again to find the words. Only a text with no producer
+  behind it, such as an example a reader typed, goes through `highlight`,
+  which tokenizes it; a text the tokenizer refuses stays plain. What a kind is,
+  how a producer marks one and how it is proved:
+  [`../../text/marked/README.md`](../../text/marked/README.md).
 - How each marker looks is the stylesheet's, with its reasons, in
   [`../style/module.f.mjs`](../style/module.f.mjs); this file names the
   markers, not the colours.
@@ -175,6 +178,12 @@ the rtti demo's `parse · ok` and `validate · error` do.
 - **A failure that belongs to one item of a valid result stays on that
   item's line**, as the UTF-8 demo marks one unpaired surrogate among valid
   code points: the result as a whole was not refused.
+
+VDF evaluates and verifies in separate sections. A refusal replaces only the
+output that its invalid input prevents: oversized text and invalid steps can
+therefore show separate live refusal boxes. The controls remain available so
+readers can correct each input, and verification verdicts keep their own
+result presentation.
 
 ## What a demo's proof covers
 

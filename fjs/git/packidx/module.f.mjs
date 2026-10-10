@@ -59,7 +59,7 @@ import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { u8ListToVecMsb, uint } from '../../types/bit_vec/module.f.mjs'
 import { bsearch, cmp } from '../../types/function/compare/module.f.mjs'
 import { take } from '../../types/list/module.f.mjs'
-import { startsWith, u32be, u64be } from '../bytes/module.f.mjs'
+import { startsWith, u32be, u64be } from '../bytes/module.f.js'
 import { digestOf, ofWidth } from '../oid/module.f.mjs'
 
 /** The four bytes a version 2 index begins with: `\377tOc`. */
@@ -196,7 +196,7 @@ const tryV1 = (b, oidBytes) => {
  * table" rather than an offset, and so also the first offset that cannot be
  * spelled in four bytes.
  */
-const largeOffsetFlag = /** @type {const} */ (0x80000000)
+const largeOffsetFlag = /** @type {const} */ (0x8000_0000)
 
 /**
  * Version 2: the magic and version, the fanout, the ids, a CRC per object,

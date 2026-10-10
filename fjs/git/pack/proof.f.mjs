@@ -42,7 +42,7 @@ const targetId = /** @type {const} */ ('6b031e456ef1c7522e0b088db90655bef54da841
 const sizeTail = rest =>
     rest === 0
         ? []
-        : [...(rest < 128 ? [rest] : [rest % 128 + 128]), ...sizeTail(Math.floor(rest / 128))]
+        : [...(rest < 0x80 ? [rest] : [rest % 0x80 + 0x80]), ...sizeTail(Math.floor(rest / 0x80))]
 
 /**
  * An entry header built from a type code and a size, for the cases a real pack
@@ -56,8 +56,8 @@ const sizeTail = rest =>
  * @type {(code: number, size: number) => readonly number[]}
  */
 const header = (code, size) => {
-    const tail = sizeTail(Math.floor(size / 16))
-    return [code * 16 + size % 16 + (tail.length === 0 ? 0 : 128), ...tail]
+    const tail = sizeTail(Math.floor(size / 0x10))
+    return [code * 0x10 + size % 0x10 + (tail.length === 0 ? 0 : 0x80), ...tail]
 }
 
 /**
@@ -67,14 +67,14 @@ const header = (code, size) => {
  *
  * @type {(v: number) => readonly number[]}
  */
-const littleVarint = v => v < 128 ? [v] : [v % 128 + 128, ...littleVarint(Math.floor(v / 128))]
+const littleVarint = v => v < 0x80 ? [v] : [v % 0x80 + 0x80, ...littleVarint(Math.floor(v / 0x80))]
 
 /**
  * What a copy of size zero copies, which the format spells by leaving every
  * size byte out. Named here because two cases are about that size and the
  * module keeps its own copy of the number private.
  */
-const wholeCopy = /** @type {const} */ (65536)
+const wholeCopy = /** @type {const} */ (65_536)
 
 /**
  * A blob entry of one byte whose size varint is padded with `n` groups that
@@ -91,7 +91,7 @@ const paddedEntry = n => entry([0xB1, ...Array.from({ length: n }, () => 0x80), 
  *
  * @type {(v: number) => readonly number[]}
  */
-const sizeVarint = v => v < 128 ? [v] : [(v % 128) + 128, ...sizeVarint(Math.floor(v / 128))]
+const sizeVarint = v => v < 0x80 ? [v] : [(v % 0x80) + 0x80, ...sizeVarint(Math.floor(v / 0x80))]
 
 export const proof = {
     // The header of a pack Git 2.43.0 wrote.
@@ -144,7 +144,7 @@ export const proof = {
     // Sizes either side of the one-byte boundary. The first byte carries four
     // bits, so 15 fits and 16 does not, and the groups after it carry seven.
     entrySizes: () => {
-        for (const size of [0, 1, 15, 16, 17, 127, 128, 2047, 2048, 1048576]) {
+        for (const size of [0, 1, 15, 16, 17, 127, 128, 2_047, 2_048, 1_048_576]) {
             const e = entry([...header(3, size), 0x78, 0x01])
             assert(e !== null)
             const { kind, size: read } = e
@@ -211,7 +211,7 @@ export const proof = {
     // rather than the scale's, so the reader is a loop: 20,000 groups read here,
     // where the recursion died with `RangeError` at 6,000, measured.
     paddedSize: () => {
-        for (const n of [1, 145, 146, 147, 500, 20000]) {
+        for (const n of [1, 145, 146, 147, 500, 20_000]) {
             const e = paddedEntry(n)
             assert(e !== null)
             const { kind, size, dataAt } = e
@@ -330,36 +330,36 @@ export const proof = {
     // object costs about eight of heap, so the ceiling is the one `inflate` and
     // `readFile` already put on every other object here: 128 KiB.
     applyDeltaTooLarge: () => {
-        const base = Array.from({ length: 65536 }, (_, i) => i % 251)
+        const base = Array.from({ length: 65_536 }, (_, i) => i % 251)
         // source 65536, target 6553600, then the hundred bare copies that fill
         // it exactly: the delta is telling the truth about its size
         const huge = /** @type {readonly number[]} */ ([
-            ...sizeVarint(65536), ...sizeVarint(6553600),
+            ...sizeVarint(65_536), ...sizeVarint(6_553_600),
             ...Array.from({ length: 100 }, () => 0x80),
         ])
         assertEq(tryApplyDelta(base, huge), null)
         // and the largest target it does build, one byte over the bound and one
         // byte under it, with the instructions that would fill it
         const at = /** @type {(n: number) => readonly number[]} */ (n => [
-            ...sizeVarint(65536),
+            ...sizeVarint(65_536),
             ...sizeVarint(n),
-            ...Array.from({ length: Math.ceil(n / 65536) }, () => 0x80),
+            ...Array.from({ length: Math.ceil(n / 65_536) }, () => 0x80),
         ])
-        assertEq(tryApplyDelta(base, at(131073)), null)
-        const ok = tryApplyDelta(base, at(131072))
+        assertEq(tryApplyDelta(base, at(131_073)), null)
+        const ok = tryApplyDelta(base, at(131_072))
         assert(ok !== null)
-        assertEq(ok.length, 131072)
+        assertEq(ok.length, 131_072)
     },
     // A copy of size zero means 65536, the one number the format spells by
     // leaving every size byte out. Built, because a real delta only copies
     // that much from a base at least that long.
     applyDeltaWholeCopy: () => {
-        const base = Array.from({ length: 65536 }, (_, i) => i % 251)
+        const base = Array.from({ length: 65_536 }, (_, i) => i % 251)
         // source 65536, target 65536, then one copy with no offset or size byte
         const delta = /** @type {readonly number[]} */ ([0x80, 0x80, 0x04, 0x80, 0x80, 0x04, 0x80])
         const out = tryApplyDelta(base, delta)
         assert(out !== null)
-        assertStructurallySame(out.length, 65536)
+        assertStructurallySame(out.length, 65_536)
         assertEq(out.every((v, i) => v === base[i]), true)
     },
     // An instruction that cannot be followed refuses the whole delta rather
@@ -403,7 +403,7 @@ export const proof = {
     // a stream compresses to almost nothing. Ten thousand here, which is past
     // that edge and still quick.
     deltaManyInstructions: () => {
-        const n = /** @type {const} */ (10000)
+        const n = /** @type {const} */ (10_000)
         const delta = /** @type {readonly number[]} */ ([
             // the two header sizes: the base's one byte, and this delta's `n`
             ...littleVarint(1),
@@ -425,7 +425,7 @@ export const proof = {
     // after. A few hundred bytes of an untrusted pack should not be able to
     // ask a reader for a gigabyte.
     deltaTargetBounds: () => {
-        const wide = Array.from({ length: wholeCopy }, (_, i) => i % 256)
+        const wide = Array.from({ length: wholeCopy }, (_, i) => i % 0x100)
         const copies = /** @type {(n: number) => readonly number[]} */ (n =>
             Array.from({ length: n }, () => 0x80))
         // A target of nothing: the very first copy is already past it.
@@ -443,9 +443,9 @@ export const proof = {
     },
     throw: {
         // Bytes that are no bytes, the same refusal every reader here makes.
-        headerNotBytes: () => tryHeader([256]),
-        entryNotBytes: () => entry([256]),
-        deltaBaseNotBytes: () => tryApplyDelta([256], packDelta),
-        deltaNotBytes: () => tryApplyDelta(packDeltaBase, [256]),
+        headerNotBytes: () => tryHeader([0x100]),
+        entryNotBytes: () => entry([0x100]),
+        deltaBaseNotBytes: () => tryApplyDelta([0x100], packDelta),
+        deltaNotBytes: () => tryApplyDelta(packDeltaBase, [0x100]),
     },
 }

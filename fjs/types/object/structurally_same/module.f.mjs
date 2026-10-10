@@ -48,7 +48,7 @@ export const structurallySame = (a, b) => {
     if (a instanceof Array) {
         return b instanceof Array
             && a.length === b.length
-            && a.every((v, i) => structurallySame(v, b[i]))
+            && a.every((v, i) => structurallySame(v, b[Number(i)]))
     }
     if (b instanceof Array) { return false }
     const ae = entries(a)

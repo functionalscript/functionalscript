@@ -30,8 +30,10 @@ import { toArray } from '../../types/list/module.f.mjs'
 import { invert, ok, unwrap } from '../../types/result/module.f.mjs'
 import { _defaultExport, unresolved } from '../edag/module.f.mjs'
 import { parse } from '../transpiler/module.f.mjs'
-import { functionText, tryFunctionText, trySerialize, tryStringify, tryModuleSerialize, tryModuleStringify } from './module.f.mjs'
+import { _tryModuleSerialize, _trySerialize, functionText, tryFunctionText, trySerialize, tryStringify, tryModuleSerialize, tryModuleStringify, tryMarked, tryModuleMarked } from './module.f.mjs'
 import { keywords } from '../../js/keywords/module.f.mjs'
+import { disagreement } from '../../website/demo/highlight/module.f.mjs'
+import { textOfResult, toText } from '../../text/marked/module.f.mjs'
 
 /** The name the front end gives the text it reads back. */
 const path = '/proof.f.js'
@@ -48,6 +50,8 @@ const reads = e => {
     const { imports, edag } = unresolved(unwrap(parse(path)(text)))
     assertEq(imports.length, 0, text)
     assertStructurallySame(assertOk(analysis(_defaultExport(edag))), assertOk(analysis(e)), text)
+    // and what it marks is what the tokenizer finds, in every case that reads
+    assertEq(disagreement(unwrap(tryMarked(e))), null, text)
     return text
 }
 
@@ -513,7 +517,72 @@ export const proof = {
     // The chunks, which is what the writer writes and the string is joined
     // from.
     chunks: () => {
-        assertStructurallySame(toArray(unwrap(trySerialize(1))), ['export default ', '1', ';'])
+        assertStructurallySame(toArray(unwrap(trySerialize(1))), ['export', ' ', 'default', ' ', '1', ';'])
+    },
+    // The leaves carry their kinds, and so do the writer's own keywords and
+    // `undefined`; punctuation and operators stay plain, as the tokenizer's
+    // fallback leaves them.
+    markedLeaves: () => {
+        assertStructurallySame(toArray(unwrap(_trySerialize(1))), [['export', 'keyword'], ' ', ['default', 'keyword'], ' ', ['1', 'number'], ';'])
+        assertStructurallySame(toArray(unwrap(_trySerialize(['[]', [1, 'a', null, ['undefined'], true, 2n]]))).filter(c => typeof c !== 'string'),
+            [['export', 'keyword'], ['default', 'keyword'], ['1', 'number'], ['"a"', 'string'], ['null', 'literal'], ['undefined', 'literal'], ['true', 'literal'], ['2n', 'number']])
+    },
+    // The writer's own words, one case each: `const`, `return`, `throw`,
+    // `typeof`, `instanceof`, a named export.
+    markedKeywords: () => {
+        /** @type {(e: Exp) => readonly string[]} */
+        const keywordsOf = e => toArray(unwrap(_trySerialize(e))).flatMap(c => typeof c !== 'string' && c[1] === 'keyword' ? [c[0]] : [])
+        assertStructurallySame(keywordsOf(['[]', [['[]', [1]], ['[]', [1]]]]), ['export', 'default'])
+        assertStructurallySame(keywordsOf(['=>', 0, [], ['typeof', ['rest']]]), ['export', 'default', 'typeof'])
+        assertStructurallySame(keywordsOf(['=>', 0, [], ['instanceof', ['rest'], 'Array']]), ['export', 'default', 'instanceof'])
+        assertStructurallySame(keywordsOf(['throw', 1]), ['throw'])
+    },
+    // The names are identifiers: a parameter and its use, a property after `.`,
+    // and a global, while the words it spells stay keywords.
+    markedNames: () => {
+        assertEq(JSON.stringify(unwrap(tryMarked(['=>', 0, [], ['instanceof', ['.', ['rest'], 'x'], 'Array']]))),
+            '[["export","keyword"],[" "],["default","keyword"],[" "],["(..."],["$0","identifier"],[")=>"],["$0","identifier"],["."],["x","identifier"],[" "],["instanceof","keyword"],[" "],["Array","identifier"],[";"]]')
+        // a property named like a keyword or a literal is still a name
+        assertEq(JSON.stringify(unwrap(tryMarked(['.', ['[]', [1]], 'true'])).filter(([, kind]) => kind === 'identifier')), '[["true","identifier"]]')
+    },
+    // A module with named exports writes its anchors and bindings as `const`s
+    // before them, which no shared example reaches: each word is marked, and
+    // the tokenizer finds what the writer marked.
+    markedNamedExports: () => {
+        /** @type {readonly (readonly [source: string, text: string])[]} */
+        const cases = [
+            ['const c = [1].x;\nexport const a = 1;\nexport const b = 2;', 'const $0=[1];const $1=$0.x;export const a=1;export const b=2;'],
+            ['const x = [1];\nconst checked = x.y;\nexport const a = x;\nexport const b = 2;', 'const $0=[1];const $1=$0.y;export const a=$0;export const b=2;'],
+            ['const checked = 1 + 2;\nconst v = [1];\nexport const a = v;\nexport default v;', 'const $0=1+2;const $1=[1];export const a=$1;export default $1;'],
+        ]
+        for (const [source, text] of cases) {
+            const marked = unwrap(tryModuleMarked(moduleGraph(source)))
+            assertEq(toText(marked), text)
+            assertEq(disagreement(marked), null, text)
+        }
+        // an anchor inside an exported value, built as a graph: a comma is an operand
+        /** @type {Exp} */
+        const x = ['[]', [1]]
+        /** @type {readonly (readonly [Exp, string])[]} */
+        const graphs = [
+            [['{}', [[':', 'a', [',', [['.', x, 0], ['[]', [2]]]]], [':', 'b', 2]]], 'const $0=[1];const $1=$0[0];const $2=[2];const $3=$2;export const a=$3;export const b=2;'],
+            [['{}', [[':', 'a', ['[]', [[',', [['.', x, 0], 3]]]]], [':', 'b', 2]]], 'const $0=[1];const $1=$0[0];const $2=3;const $3=[$2];export const a=$3;export const b=2;'],
+        ]
+        for (const [graph, text] of graphs) {
+            const marked = unwrap(tryModuleMarked(graph))
+            assertEq(toText(marked), text)
+            assertEq(disagreement(marked), null, text)
+        }
+    },
+    // The writer marks what the tokenizer finds, one for one, in every example.
+    markedAgreesWithTokenizer: () => {
+        for (const [name, source] of examples) {
+            const parsed = parse('')(source)
+            if (parsed[0] === 'error') { continue }
+            const written = tryModuleMarked(unresolved(parsed[1]).edag)
+            if (written[0] === 'error') { continue }
+            assertEq(disagreement(written[1]), null, name)
+        }
     },
     // A function with a frame is a closure: each frame element takes a
     // `const` in the scope around the function — even one the writer would
@@ -1356,15 +1425,18 @@ export const proof = {
     demo: {
         examples: () => {
             for (const [name, source] of examples) {
-                assertEq(_sourceOf(source)[0], ['An import', 'A named import and a call', 'Hex escape', 'Parse error'].includes(name) ? 'error' : 'ok', name)
+                const [tag, value] = _sourceOf(source)
+                assertEq(tag, ['An import', 'A named import and a call', 'Hex escape', 'Parse error'].includes(name) ? 'error' : 'ok', name)
+                if (tag === 'ok') { assertEq(disagreement(value), null, name) }
             }
-            assertEq(_sourceOf('const a = [1];\nexport default [a, a];')[1], 'const $0=[1];export default [$0,$0];')
+            assertEq(textOfResult(_sourceOf('const a = [1];\nexport default [a, a];')), 'const $0=[1];export default [$0,$0];')
         },
         view: () => {
             const shown = htmlToString(demo.view(demo.init))
-            assert(shown.includes('<pre>'), shown)
+            assert(shown.includes('<p data-caption="">JavaScript module:</p><div data-code="" data-code-block=""><pre>'), shown)
+            assert(shown.includes('aria-label="Copy JavaScript module"'), shown)
             const refused = htmlToString(demo.view('export default {bad'))
-            assert(refused.includes('Refused: '), refused)
+            assert(refused.includes('Refused:</p><pre data-result="error">'), refused)
         },
     },
 }

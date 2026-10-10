@@ -6,7 +6,7 @@ import { parse, serialize, setProperty, stringify } from './module.f.mjs'
 import { demo, roundTrip } from './demo.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
 import { identity } from '../../types/function/module.f.mjs'
-import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertNotNullish, assertError, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { htmlToString } from '../html/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
@@ -137,12 +137,12 @@ export const proof = {
          * nobody is looking at.
          */
         roundTrip: () => {
-            assertEq(roundTrip('{"b":2,"a":1}'), '{"a":1,"b":2}')
+            assertEq(unwrap(roundTrip('{"b":2,"a":1}')), '{"a":1,"b":2}')
             assertEq(
-                roundTrip('{\n  "b": 2,\n  "a": [3, 2, 1],\n  "c": "hello"\n}'),
+                unwrap(roundTrip('{\n  "b": 2,\n  "a": [3, 2, 1],\n  "c": "hello"\n}')),
                 '{"a":[3,2,1],"b":2,"c":"hello"}')
             // A parse failure is shown, not swallowed.
-            assertEq(roundTrip('{'), 'Error: unexpected end')
+            assertEq(assertError(roundTrip('{')), 'unexpected end')
         },
         // Typing replaces the text; every other event leaves it alone, which
         // is what `start` is for — a first render with nothing typed yet.
@@ -168,16 +168,21 @@ export const proof = {
          *
          * The initial output is checked against its own escaped quotes: a
          * `pre`'s text is HTML-escaped like any other, so the literal
-         * `roundTrip` string with `"` in it never appears in the markup —
+         * successful `roundTrip` value with `"` in it never appears in the markup —
          * only what a browser decodes back into it does.
          */
         view: () => {
             const empty = htmlToString(demo.view(demo.init))
             assert(empty.includes('name="json"'), empty)
-            assert(empty.includes(roundTrip(demo.init).replaceAll('"', '&quot;')), empty)
+            assert(empty.includes(unwrap(roundTrip(demo.init)).replaceAll('"', '&quot;')), empty)
             const typed = htmlToString(demo.view('[1,2]'))
             assert(typed.includes('[1,2]'), typed)
-            assert(typed.includes(roundTrip('[1,2]')), typed)
+            assert(typed.includes('data-copy="[1,2]"'), typed)
+            assert(typed.includes('aria-label="Copy JSON"'), typed)
+            assert(typed.includes(unwrap(roundTrip('[1,2]'))), typed)
+            const refused = htmlToString(demo.view('{'))
+            assert(refused.includes('Refused:</p><pre data-result="error">unexpected end</pre>'), refused)
+            assert(!refused.includes('Parsed, then written back:'), refused)
         },
     },
 }

@@ -20,6 +20,11 @@
  * but evaluation runs in `nextEvent` turns, whose contract asks for no
  * operations; timing it means revisiting that contract first.
  *
+ * **Refusals belong to the input they block.** Oversized text and invalid
+ * steps can each show a live refusal box. Evaluate and Verify controls stay
+ * visible so readers can correct the fields; verification verdicts keep
+ * their own result presentation.
+ *
  * @module
  *
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
@@ -27,11 +32,12 @@
  * @import { DemoState, DemoRun, DemoVerdict } from './types.ts'
  */
 
+import { resultMarker } from '../../website/style/module.f.mjs'
 import { p, sloth } from './module.f.mjs'
 import { tryUtf8 } from '../../text/module.f.mjs'
 import { digitsValue, hexDigitValue } from '../../text/ascii/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
-import { textField, inputField, caption } from '../../website/demo/module.f.mjs'
+import { textField, inputField, caption, refusal } from '../../website/demo/module.f.mjs'
 import { codeBlock } from '../../website/demo/code/module.f.mjs'
 import { computeSync, sha256 } from '../sha2/module.f.mjs'
 import { maxLengthBytes, uint } from '../../types/bit_vec/module.f.mjs'
@@ -44,7 +50,7 @@ const decimalValue = digitsValue(10n)
 const yDigits = p.toString(16).length
 
 /** Verification steps per second, measured in Node at `aa87d8cd`. */
-const verifyStepsPerSecond = 500000n
+const verifyStepsPerSecond = 500_000n
 
 /** `x`: the SHA-256 digest of the text's UTF-8 bytes as an integer, or null
  * when the text is longer than a bit vector holds.
@@ -99,9 +105,6 @@ const toggle = state => {
         : advance(state, { steps, done: 0n, value: x, running: true })
 }
 
-/** @type {(message: string) => readonly Element[]} */
-const refusal = message => [['p', { role: 'status', 'data-result': 'error' }, message]]
-
 /** @type {(run: DemoRun | null) => readonly Element[]} */
 const progress = run =>
     run === null ? []
@@ -127,18 +130,18 @@ const verify = state => {
 /** @type {(state: DemoState) => readonly Element[]} */
 const verdictView = ({ verdict, steps }) =>
     verdict === null ? []
-        : verdict === 'tooLong' ? refusal(`Enter y with at most ${yDigits} hexadecimal digits.`)
-            : verdict === 'notHex' ? refusal('Enter y as hexadecimal digits.')
-                : verdict === 'notBelowP' ? refusal('y must be less than the modulus p.')
+        : verdict === 'tooLong' ? [refusal(`Enter y with at most ${yDigits} hexadecimal digits.`)]
+            : verdict === 'notHex' ? [refusal('Enter y as hexadecimal digits.')]
+                : verdict === 'notBelowP' ? [refusal('y must be less than the modulus p.')]
                     : verdict === 'verified'
-                        ? [['p', { role: 'status', 'data-result': 'ok' }, `✓ y verifies: squaring it ${steps} times returns x, up to sign.`]]
-                        : [['p', { role: 'status', 'data-result': 'error' }, '✗ y does not verify for this x and number of steps.']]
+                        ? [['p', { role: 'status', [resultMarker]: 'ok' }, `✓ y verifies: squaring it ${steps} times returns x, up to sign.`]]
+                        : [['p', { role: 'status', [resultMarker]: 'error' }, '✗ y does not verify for this x and number of steps.']]
 
 /** `x` in hex, or the refusal of a text too long to hash.
  * @type {(x: bigint | null) => readonly Element[]}
  */
 const xView = x => x === null
-    ? refusal(`Input too long: more than ${maxLengthBytes} UTF-8 bytes.`)
+    ? [refusal(`Input too long: more than ${maxLengthBytes} UTF-8 bytes.`)]
     : [caption('Input x = SHA-256 of the text, hex:'), codeBlock(x.toString(16).padStart(64, '0'), 'Copy x')]
 
 /** The evaluated `y`, once every step is done.
@@ -193,7 +196,7 @@ export const demo = {
         textField({ name: 'text', label: 'Input' }, state.text),
         ...xView(xOf(state.text)),
         inputField({ name: 'steps', label: 'Steps' }, state.steps),
-        ...(parseSteps(state.steps) === null ? refusal('Enter a non-negative decimal number of steps.') : []),
+        ...(parseSteps(state.steps) === null ? [refusal('Enter a non-negative decimal number of steps.')] : []),
         ['section',
             ['h3', 'Evaluate'],
             ['p', ['button', { type: 'button', name: 'evaluate' }, buttonLabel(state)]],

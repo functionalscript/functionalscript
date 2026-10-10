@@ -56,9 +56,19 @@
  * graph unfolds to, so its writer is this read under JSON's leaf rule, and
  * lives here rather than in `fjs/media/json`, which this module imports.
  *
+ * **The writer builds `Chunk`s and says what it wrote.** A leaf, a key and the
+ * words `const`, `export` and `default` are runs with a kind, and the rest
+ * plain strings. `trySerialize` and `tryJsonSerialize` answer the plain
+ * strings (`chunkStrings`), as they always have; `_trySerialize` and
+ * `_tryJsonSerialize` keep the kinds, for the writers that build on this one
+ * (they are linkage, with the `_` prefix), and `tryMarked` and `tryJsonMarked`
+ * are the public marked text. The non-finite numbers are the language's
+ * literal words, `NaN` and `Infinity`.
+ *
  * @module
  *
  * @import { List } from '../../../types/list/types.ts'
+ * @import { Chunk, Marked } from '../../../text/marked/types.ts'
  * @import { Result } from '../../../types/result/types.ts'
  * @import { Primitive, Unknown } from '../types.ts'
  * @import { _Graph, _Leaf, _Member, _Node, _Read, _Value } from './types.ts'
@@ -71,7 +81,7 @@ import { empty, flat, toArray } from '../../../types/list/module.f.mjs'
 import { cmp } from '../../../types/number/module.f.mjs'
 import { error, mapOk, ok, okThen } from '../../../types/result/module.f.mjs'
 import { add, empty as noneStarted, has } from '../../../types/set/module.f.mjs'
-import { concat } from '../../../types/string/module.f.mjs'
+import { chunksMarked, chunkStrings, chunksText, keyword, withNames } from '../../../text/marked/module.f.mjs'
 import { arrayWrap, boolSerialize, colon, leafSerialize as leafSerializeWith, nullSerialize, numberSerialize, objectWrap, stringSerialize } from '../../json/serializer/module.f.mjs'
 
 const {
@@ -85,8 +95,8 @@ const {
 
 // ── leaves and keys ───────────────────────────────────────────────────────────
 
-/** `undefined`, a DataJS leaf that JSON has no spelling for. @type {List<string>} */
-const undefinedSerialize = ['undefined']
+/** `undefined`, a DataJS leaf that JSON has no spelling for. @type {List<Chunk>} */
+const undefinedSerialize = [['undefined', 'literal']]
 
 /**
  * A number as ECMAScript `ToString` spells it, which is the algorithm the
@@ -99,9 +109,9 @@ const undefinedSerialize = ['undefined']
  * the `_` prefix says that export is linkage rather than API, as it does for
  * `_memberValue` below.
  *
- * @type {(value: number) => List<string>}
+ * @type {(value: number) => List<Chunk>}
  */
-export const _numberSerialize = value => isFinite(value) ? numberSerialize(value) : [`${value}`]
+export const _numberSerialize = value => isFinite(value) ? numberSerialize(value) : [[`${value}`, 'literal']]
 
 /**
  * A leaf as a document spells it — this format's counterpart to JSON's
@@ -110,10 +120,10 @@ export const _numberSerialize = value => isFinite(value) ? numberSerialize(value
  * documents this way, DataJS's leaves being FunctionalScript's, and the
  * rule has one owner.
  *
- * @type {(value: Primitive) => List<string>}
+ * @type {(value: Primitive) => List<Chunk>}
  */
 export const leafSerialize = leafSerializeWith(_numberSerialize)({
-    bigint: value => [bigintSerialize(value)],
+    bigint: value => [[bigintSerialize(value), 'number']],
     undefined: () => undefinedSerialize,
 })
 
@@ -131,7 +141,7 @@ const protoKey = '__proto__'
  * Public beside {@link leafSerialize}, and for the same reason: the
  * FunctionalScript writer spells an object's key this way too.
  *
- * @type {(key: string) => List<string>}
+ * @type {(key: string) => List<Chunk>}
  */
 export const keySerialize = key => key === protoKey
     ? flat([['['], stringSerialize(key), [']']])
@@ -419,21 +429,21 @@ const constNames = graph => {
  * accepts costs no call stack here either.
  *
  * @template L
- * @param {(key: string) => List<string>} key
- * @returns {(spellLeaf: (kept: L) => List<string>) => (names: ReadonlyMap<number, string>) => (graph: _Graph<L>) => { readonly chunks: readonly List<string>[], readonly value: (value: _Value<number, L>) => List<string> }}
+ * @param {(key: string) => List<Chunk>} key
+ * @returns {(spellLeaf: (kept: L) => List<Chunk>) => (names: ReadonlyMap<number, string>) => (graph: _Graph<L>) => { readonly chunks: readonly List<Chunk>[], readonly value: (value: _Value<number, L>) => List<Chunk> }}
  */
 const chunksOf = key => spellLeaf => names => ({ nodes }) => {
-    /** @type {(value: _Value<number, L>) => List<string>} */
+    /** @type {(value: _Value<number, L>) => List<Chunk>} */
     const value = v => {
         if (v[0] === 'leaf') { return spellLeaf(v[1]) }
         const name = names.get(v[1])
         return name === undefined ? () => chunks[v[1]] : [name]
     }
-    /** @type {(node: _Node<number, L>) => List<string>} */
+    /** @type {(node: _Node<number, L>) => List<Chunk>} */
     const inline = node => node.kind === 'array'
         ? arrayWrap(node.items.map(value))
         : objectWrap(node.members.map(([k, v]) => flat([key(k), colon, value(v)])))
-    /** @type {readonly List<string>[]} */
+    /** @type {readonly List<Chunk>[]} */
     const chunks = nodes.map(inline)
     return { chunks, value }
 }
@@ -448,7 +458,7 @@ const chunksOf = key => spellLeaf => names => ({ nodes }) => {
  */
 const kept = ok
 
-/** A leaf a tree document's read already spelled. @type {(chunks: List<string>) => List<string>} */
+/** A leaf a tree document's read already spelled. @type {(chunks: List<Chunk>) => List<Chunk>} */
 const spelled = chunks => chunks
 
 /**
@@ -456,13 +466,13 @@ const spelled = chunks => chunks
  * name is declared before it is used, and then the exported value, the
  * leaves spelled here from the linked graph.
  *
- * @type {(graph: _Graph) => List<string>}
+ * @type {(graph: _Graph) => List<Chunk>}
  */
 const write = graph => {
     const names = constNames(graph)
     const { chunks, value } = chunksOf(keySerialize)(leafSerialize)(names)(graph)
-    const statements = [...names].map(([i, name]) => flat([[`const ${name}=`], chunks[i], [';']]))
-    return flat([flat(statements), ['export default '], value(graph.root), [';']])
+    const statements = [...names].map(([i, name]) => flat([[keyword('const'), ` ${name}=`], chunks[i], [';']]))
+    return flat([flat(statements), [keyword('export'), ' ', keyword('default'), ' '], value(graph.root), [';']])
 }
 
 /**
@@ -472,7 +482,7 @@ const write = graph => {
  * is needed and every reference is a thunk over its node's chunks; the
  * leaves were spelled by the read.
  *
- * @type {(key: (key: string) => List<string>) => (graph: _Graph<List<string>>) => List<string>}
+ * @type {(key: (key: string) => List<Chunk>) => (graph: _Graph<List<Chunk>>) => List<Chunk>}
  */
 const writeTree = key => graph => chunksOf(key)(spelled)(new Map())(graph).value(graph.root)
 
@@ -499,8 +509,17 @@ const writeTree = key => graph => chunksOf(key)(spelled)(new Map())(graph).value
  *
  * @type {(value: Unknown) => Result<List<string>, string>}
  */
-export const trySerialize = value => okThen(
-    /** @type {(step: _Step<Primitive>) => Result<List<string>, string>} */
+export const trySerialize = value => mapOk(chunkStrings)(_trySerialize(value))
+
+/**
+ * {@link trySerialize} with the kind of each leaf kept: the chunks a writer
+ * builds on, where `trySerialize` answers their text alone. Exported for
+ * linkage, as the other `_` exports are.
+ *
+ * @type {(value: Unknown) => Result<List<Chunk>, string>}
+ */
+export const _trySerialize = value => okThen(
+    /** @type {(step: _Step<Primitive>) => Result<List<Chunk>, string>} */
     (([walk, root]) => mapOk(write)(_link(toArray(walk.finished), root)))
 )(read(kept)(value))
 
@@ -518,10 +537,10 @@ export const trySerialize = value => okThen(
  * `[undefined, [1n]]` names `undefined` under JSON's rule. What the data
  * model refuses, `trySerialize` refuses here too.
  *
- * @type {(leaf: _Leaf) => (key: (key: string) => List<string>) => (value: Unknown) => Result<List<string>, string>}
+ * @type {(leaf: _Leaf) => (key: (key: string) => List<Chunk>) => (value: Unknown) => Result<List<Chunk>, string>}
  */
 const tryTreeSerialize = leaf => key => value => okThen(
-    /** @type {(step: _Step<List<string>>) => Result<List<string>, string>} */
+    /** @type {(step: _Step<List<Chunk>>) => Result<List<Chunk>, string>} */
     (([walk, root]) => mapOk(writeTree(key))(_link(toArray(walk.finished), root)))
 )(read(leaf)(value))
 
@@ -569,7 +588,32 @@ const jsonLeaf = value => {
  *
  * @type {(value: Unknown) => Result<List<string>, string>}
  */
-export const tryJsonSerialize = tryTreeSerialize(jsonLeaf)(stringSerialize)
+export const tryJsonSerialize = value => mapOk(chunkStrings)(_tryJsonSerialize(value))
+
+/**
+ * {@link tryJsonSerialize} with the kind of each leaf kept, as
+ * {@link _trySerialize} is to {@link trySerialize}.
+ *
+ * @type {(value: Unknown) => Result<List<Chunk>, string>}
+ */
+export const _tryJsonSerialize = tryTreeSerialize(jsonLeaf)(stringSerialize)
+
+/**
+ * {@link trySerialize} as marked text: the document with the kind of each
+ * leaf and keyword, and each name — a `const`'s — an `identifier`, which
+ * `fjs compile` writes the text of.
+ *
+ * @type {(value: Unknown) => Result<Marked, string>}
+ */
+export const tryMarked = value => mapOk(chunks => withNames(chunksMarked(chunks)))(_trySerialize(value))
+
+/**
+ * {@link tryJsonSerialize} as marked text, as {@link tryMarked} is to
+ * {@link trySerialize}.
+ *
+ * @type {(value: Unknown) => Result<Marked, string>}
+ */
+export const tryJsonMarked = value => mapOk(chunksMarked)(_tryJsonSerialize(value))
 
 /**
  * {@link tryJsonSerialize} as one string: what `fjs compile` writes for a
@@ -577,7 +621,7 @@ export const tryJsonSerialize = tryTreeSerialize(jsonLeaf)(stringSerialize)
  *
  * @type {(value: Unknown) => Result<string, string>}
  */
-export const tryJsonStringify = value => mapOk(concat)(tryJsonSerialize(value))
+export const tryJsonStringify = value => mapOk(chunksText)(_tryJsonSerialize(value))
 
 /**
  * {@link trySerialize} as one string: the document in normalized form, the
@@ -585,4 +629,4 @@ export const tryJsonStringify = value => mapOk(concat)(tryJsonSerialize(value))
  *
  * @type {(value: Unknown) => Result<string, string>}
  */
-export const tryStringify = value => mapOk(concat)(trySerialize(value))
+export const tryStringify = value => mapOk(chunksText)(_trySerialize(value))

@@ -85,7 +85,7 @@ export const proof = {
         check('a😀b', 'at', [10], undefinedValue)
         check('a😀b', 'charAt', [1], '\ud83d')
         check('a😀b', 'charCodeAt', [1], 0xD83D)
-        check('a😀b', 'codePointAt', [1], 0x1F600)
+        check('a😀b', 'codePointAt', [1], 0x1_F600)
         check('a😀b', 'codePointAt', [10], undefinedValue)
         check('abc', 'slice', [1], 'bc')
         check('abc', 'slice', [-2, -1], 'b')

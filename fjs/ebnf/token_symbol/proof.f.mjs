@@ -7,21 +7,21 @@ const names = /** @type {const} */ (['>>', '>>>=', 'instanceof'])
 export const proof = {
     encode: () => {
         const { encode } = encoding(names)
-        assertEq(encode('>>'), 0x110000)
-        assertEq(encode('instanceof'), 0x110002)
-        assertEq(start, 0x10FFFF + 1)
+        assertEq(encode('>>'), 0x11_0000)
+        assertEq(encode('instanceof'), 0x11_0002)
+        assertEq(start, 0x10_FFFF + 1)
     },
     decode: [
         () => {
             const { decode } = encoding(names)
-            assertEq(decode(0x110000), '>>')
-            assertEq(decode(0x110002), 'instanceof')
+            assertEq(decode(0x11_0000), '>>')
+            assertEq(decode(0x11_0002), 'instanceof')
         },
         () => {
             const { decode } = encoding(names)
             // past the end of the alphabet, a code point, the end of input
-            assertEq(decode(0x110003), null)
-            assertEq(decode(0x10FFFF), null)
+            assertEq(decode(0x11_0003), null)
+            assertEq(decode(0x10_FFFF), null)
             assertEq(decode(-1), null)
         },
     ],

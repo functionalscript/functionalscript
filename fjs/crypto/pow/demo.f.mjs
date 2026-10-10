@@ -12,11 +12,12 @@
  * @import { DemoState, DemoSearch } from './types.ts'
  */
 
+import { resultMarker, powResultMarker } from '../../website/style/module.f.mjs'
 import { sha256Pow, targetFromNBits } from './module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { digitsValue, hexDigitValue } from '../../text/ascii/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
-import { textField, inputField, caption } from '../../website/demo/module.f.mjs'
+import { textField, inputField, caption, refusal } from '../../website/demo/module.f.mjs'
 import { codeBlock } from '../../website/demo/code/module.f.mjs'
 import { hexOf } from '../../website/demo/hash/module.f.mjs'
 import { sha256 } from '../sha2/module.f.mjs'
@@ -42,7 +43,7 @@ export const parseNBits = text => {
     const digits = [...text.slice(2)].map(c => hexDigitValue(c.charCodeAt(0)))
     if (digits.length === 0 || digits.some(d => d === null)) { return null }
     const value = digits.reduce((n, d) => n * 16n + BigInt(/** @type {number} */ (d)), 0n)
-    return value <= 0xffffffffn ? value : null
+    return value <= 0xffff_ffffn ? value : null
 }
 
 /** @type {(state: DemoState) => bigint | null} */
@@ -71,25 +72,19 @@ const searchSummary = (state, nonce, succeeded) => {
     ]]
 }
 
-/** @type {(message: string) => readonly Element[]} */
-const refusal = message => [
-    caption('Refused:'),
-    ['pre', { role: 'status', 'data-result': 'error' }, message],
-]
-
 /** @type {(state: DemoState) => readonly Element[]} */
 const output = state => {
     const bits = parseNBits(state.nBits)
     const target = targetOf(state)
     const nonce = parseNonce(state.nonce)
-    if (bits === null) { return refusal('Enter nBits as a hexadecimal 32-bit value starting with 0x.') }
-    if (target === null || target === 0n) { return refusal('nBits must decode to a positive 256-bit target.') }
+    if (bits === null) { return [refusal('Enter nBits as a hexadecimal 32-bit value starting with 0x.')] }
+    if (target === null || target === 0n) { return [refusal('nBits must decode to a positive 256-bit target.')] }
     /** @type {readonly Element[]} */
     const targetView = [
         caption('Target, hex:'),
         codeBlock(hexUint(target), 'Copy target'),
     ]
-    if (nonce === null) { return [...targetView, ...refusal('Enter a non-negative decimal nonce.')] }
+    if (nonce === null) { return [...targetView, refusal('Enter a non-negative decimal nonce.')] }
     const text = `${state.text}${nonce}`
     const hash = state.search === null ? sha256Pow.hashInt(utf8(text)) : state.search.hash
     const succeeded = hash <= target
@@ -100,7 +95,7 @@ const output = state => {
         caption('Hash, hex:'),
         codeBlock(hexUint(hash), 'Copy hash'),
         caption('Proof of Work:'),
-        ['p', { role: 'status', 'data-pow-result': '', 'data-result': succeeded ? 'ok' : 'error' },
+        ['p', { role: 'status', [powResultMarker]: '', [resultMarker]: succeeded ? 'ok' : 'error' },
             ['svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2.5', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' },
                 ['path', { d: succeeded ? 'm5 12 4 4L19 6' : 'm6 6 12 12M18 6 6 18' }],
             ],

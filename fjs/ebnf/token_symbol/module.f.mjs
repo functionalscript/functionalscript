@@ -30,7 +30,7 @@ import { fromUndefined } from '../../types/nullable/module.f.mjs'
  *
  * @type {number}
  */
-export const start = 0x110000
+export const start = 0x11_0000
 
 /**
  * Builds an encoding over the complete list of token names.

@@ -49,7 +49,7 @@ export const proof = {
         assert(who !== null)
         assertEq(text(toArray(who.name)), 'Proof')
         assertEq(text(toArray(who.email)), 'proof@example.com')
-        assertEq(who.time, 1700000000n)
+        assertEq(who.time, 1_700_000_000n)
         assertEq(who.tz, '+0100')
         const message = text(toArray(t.message)).split('\n')
         assertEq(message[0], 'Version two, signed')

@@ -301,7 +301,7 @@ mod tests {
     /// past `2³² − 1` code units: refused, counted without building it.
     #[test]
     fn too_long_is_refused_before_it_is_built() {
-        let wide: String<A> = s("a").repeat(92681.0.to_any()).unwrap();
+        let wide: String<A> = s("a").repeat(92_681.0.to_any()).unwrap();
         assert!(wide.replace_all(a(""), a("$`")).is_err());
     }
 
@@ -310,7 +310,7 @@ mod tests {
     /// length, not copied.
     #[test]
     fn too_long_answers_are_refused_before_they_are_copied() {
-        let wide: String<A> = s("a").repeat(65536.0.to_any()).unwrap();
+        let wide: String<A> = s("a").repeat(65_536.0.to_any()).unwrap();
         let itself =
             A::static_function(|_, args| Ok(args[2].clone()), 0, [].to_array(), None).to_any();
         assert!(wide.replace_all(a(""), itself).is_err());

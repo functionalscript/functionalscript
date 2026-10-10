@@ -706,9 +706,9 @@ export const proof = {
         // 10000 rounds long, both match. The fold adds no depth: a mapping
         // is applied where the node is built, in the same loop.
         deep: () => {
-            const n = 5000
+            const n = 5_000
             assertEq(unwrap(parseDocument(cps('['.repeat(n) + ']'.repeat(n))))[1], 2 * n)
-            assertEq(unwrap(parseDocument(cps(`${' '.repeat(10000)}1`)))[1], 10001)
+            assertEq(unwrap(parseDocument(cps(`${' '.repeat(10000)}1`)))[1], 10_001)
             assertEq(integers(`[${Array.from({ length: n }, (_, i) => i).join(',')}]`).length, n)
         },
     },
