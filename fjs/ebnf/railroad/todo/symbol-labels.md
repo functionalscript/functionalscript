@@ -1,7 +1,7 @@
 ## Label the symbols of any alphabet
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
