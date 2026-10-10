@@ -55,6 +55,7 @@ import { detectPath } from '../media/type/module.f.mjs'
 import { escapes, join, parse } from '../path/module.f.mjs'
 import { percentDecode, percentEncodePath } from '../text/percent/module.f.mjs'
 import { unwrap } from '../types/nullable/module.f.mjs'
+import { isInteger } from '../types/number/is_integer/module.f.js'
 import { error, ok } from '../types/result/module.f.mjs'
 
 // ── Routing ───────────────────────────────────────────────────────────────────
@@ -716,7 +717,7 @@ export const main = ({ args }) => {
     // `0` is excluded with the out-of-range values: Node reads it as "any free
     // port", and the program has no way to ask which one it got, so the URL it
     // prints would name a port nothing is listening on.
-    if (!Number.isInteger(port) || port < 1 || port > maxPort) {
+    if (!isInteger(port) || port < 1 || port > maxPort) {
         return errorExit(`invalid port "${portArgument}"`)
     }
     const base = served(root)

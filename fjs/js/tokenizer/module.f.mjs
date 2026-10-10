@@ -158,6 +158,22 @@ const advanceMetadata = cp => ([metadata, previous]) => [next(previous)(cp)(meta
 const advance = metadata => previous => cp => fold(advanceMetadata)(/** @type {_Cursor} */ ([metadata, previous]))(cp)[0]
 
 /**
+ * The position of each code point of the input, and the position past the
+ * last one: `cp.length + 1` positions, by the fold that positions the tokens.
+ * A reader that needs the offset of a token it was given a position of asks
+ * this, so it counts lines as the tokenizer does and not as it assumes to.
+ * Exported for linkage, as the other `_` exports are.
+ *
+ * @type {(path: string) => (cp: readonly number[]) => readonly TokenMetadata[]}
+ */
+export const _positions = path => cp => {
+    const start = { path, line: 1, column: 1 }
+    /** @type {StateScan<number, _Cursor, TokenMetadata>} */
+    const step = (c, cursor) => [cursor[0], advanceMetadata(c)(cursor)]
+    return [...toArray(stateScan(step)(/** @type {_Cursor} */ ([start, undefined]))(cp)), advance(start)(undefined)(cp)]
+}
+
+/**
  * Reads the whole input one token at a time, the parser resumed where the
  * last token ended, until a token the grammar refuses. A token's text is
  * the input it spans, and its position is carried along rather than

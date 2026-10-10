@@ -163,6 +163,25 @@ their versions; the shell is the one environment.
 ./dev.sh <command>            # one command in it; CI steps run the generated sh ./gen.nix/run <command>
 ```
 
+In a Codex session, verify `./dev.sh node --version` before starting work in a
+user-trusted implementation checkout. When reviewing untrusted changes, perform
+this startup check only in a clean, separate checkout of a user-trusted base
+revision; do not run the review worktree's `dev.sh`, flake, or shell hooks with
+broader permissions.
+
+If a command fails with an explicit sandbox permission error, retry the same
+`./dev.sh` command through `exec_command` with
+`sandbox_permissions="require_escalated"`, subject to the tool's normal approval
+process, only when the command and all code it will execute are already trusted
+for the task. A permission denial does not establish trust, and using a trusted
+`dev.sh` to run untrusted tests does not make those tests trusted. Keep untrusted
+review worktree commands sandboxed. Do not substitute host-installed tools or
+reinstall Nix because of a sandbox denial. If no trusted retry is available, or
+the retry is denied, unavailable, or fails, report the affected command and its
+precise failure. This execution rule does not replace the saved environment setup:
+follow [CONTRIBUTING.md's Codex environment instructions](./CONTRIBUTING.md#openai-codex-environment)
+and verify startup through the same command runner sessions use.
+
 `dev.sh` enables flakes itself, so a stock Nix install needs no configuration.
 On macOS and Linux, install Nix on the host. Nix does not run natively on
 Windows: open the repository in the devcontainer —
@@ -223,6 +242,11 @@ repository's preference for explicit, locally-readable code.
 Commands and Rust coding style: [nanvm-lib/AGENTS.md](./nanvm-lib/AGENTS.md).
 
 ## 5. Pull requests and releases
+
+An LLM agent creating or updating a PR, including drafts, links to its working
+session in the description's trailer block and preserves existing session
+links on updates. Developers working without an LLM agent need no link. See
+[CONTRIBUTING.md](./CONTRIBUTING.md#commit-messages) for the required format.
 
 A PR implements only one feature or improvement, with minimal code changes, and
 every check above passing. Its title and description become the merge commit
