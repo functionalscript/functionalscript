@@ -41,7 +41,16 @@ One host test library beside the runner, named after
 client)`, `withTemporary(prefix, check)` and `engine`. The web proof calls
 `withServer(respond(root), client)`; the inline brackets become calls.
 
+`module.mjs` remains the owner of runtime detection: export its existing
+`engine` binding, then import and re-export it from `testlib.mjs`. The
+proofs compare that shared value with `'node'` or `'bun'`. The production
+runner has no dependency on the test library.
+
 ### Tasks
 
-- [ ] The library, with the four helpers moved rather than rewritten.
+- [ ] The library, with `within`, `withServer` and `withTemporary` moved
+      rather than rewritten.
+- [ ] Export the production `engine` binding and re-export it from the
+      library; replace the proofs' runtime detection with shared-value
+      comparisons.
 - [ ] Move the three proof files onto it; `node --test` to exit 0.
