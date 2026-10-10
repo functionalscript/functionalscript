@@ -51,6 +51,14 @@ amended to name the sibling. Items that take an `Exp` — the `let` line
 its string-level `skipFn` is a candidate for this module too, decided
 there.
 
+The indentation moves with the items. `indent`, the one level of
+generated Rust, is exported by `fjs/edag/rust` today and imported by the
+two printers; the item module cannot reach it without importing the
+printer, and spelling the four spaces again would add the copy this issue
+exists to remove. So `indent` is defined in the item module, and
+`fjs/edag/rust` imports it from there — its two importers follow, or keep
+importing through the printer, which is a re-export either way.
+
 `constSlice` owns the documentation, annotation, declaration, row order,
 indentation, commas and closing line. Rows keep the caller's own type;
 `formatRow(row)` returns a `Result` containing one Rust element expression,
@@ -70,8 +78,9 @@ provenance and edit instruction, and the generated Rust's behavior.
 
 ### Tasks
 
-- [ ] The item module with the two helpers and a proof at 100%, including
-      row order and propagation of a row formatter's refusal; `fjs/media/rust`'s
+- [ ] The item module with `indent` and the two helpers and a proof at
+      100%, including row order and propagation of a row formatter's
+      refusal; `fjs/edag/rust` importing `indent` from it; `fjs/media/rust`'s
       doc amended to name it.
 - [ ] Prove each generator's row formatter escapes quotes and backslashes
       in every string field and refuses lone surrogates. For harness rows,
