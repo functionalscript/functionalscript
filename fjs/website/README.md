@@ -41,11 +41,12 @@ their linked number, author, and open/draft state with a CI/check summary.
 The shared header links it as **PRs**. The page uses the same frame and
 stylesheet as the directory pages.
 
-The browser reads GitHub's public API only when **Refresh** is clicked;
-opening the page makes no GitHub API requests. No polling, credentials,
-backend or stored snapshot is needed. Checks are read for each PR's current
-head commit, combining latest check runs and commit statuses; a passing
-summary does not assert that the
+The browser loads pull requests and checks only when **Refresh** is clicked.
+Opening the page does not load that list. Visitors can read public results without logging in.
+Optional **Log in with GitHub** uses the visitor's API rate limit. No polling
+or stored snapshot is needed. Checks are read for each PR's current head
+commit, combining latest check runs and commit statuses; a passing summary
+does not assert that the
 PR is mergeable or that every branch protection requirement is met.
 
 A failed read is shown as a failure, not an empty list or a passing result.
@@ -128,6 +129,111 @@ that reported nothing the way a real page does. It is a `demo`, never a
 `proof`, so no real run sees it. It draws into `data-example-*` hooks, not
 `data-test-*`, because the runner looks those up across the whole page and the
 demo renders above the suite.
+
+## GitHub login
+
+The PR page redirects to GitHub's official authorization page with a random
+state and an S256 PKCE challenge. Its `/prs/` callback consumes a pending
+login from tab-local `sessionStorage`, validates state and its ten-minute
+lifetime, and removes authorization parameters from the address bar before
+making requests. Pages set `no-referrer` before loading subresources.
+
+The Cloudflare Worker in [`github-worker.mjs`](./github-worker.mjs) exposes
+only `/auth/github/config` and `/auth/github/token`. It exchanges the code
+with GitHub using the application secret, the original PKCE verifier, and
+the configured callback. The exchange accepts same-origin JSON POSTs only;
+responses are never cached. Other routes remain static assets. No KV, D1,
+cookies, user sessions, or token database are required.
+
+After the exchange, the browser verifies the account directly with GitHub
+and shows **Logged in as @username** with a profile link and **Log out**.
+The page explicitly shows **Not logged in to GitHub** until that verification
+succeeds. It holds the access token only in page memory. Subsequent PR and check
+requests go directly to `api.github.com`. **Log out**, a rejected token, a
+reload, or leaving the page ends this local login. Logging out does not revoke
+GitHub's app authorization; users can revoke it in GitHub's application
+settings. The application requests no additional OAuth scopes for the public
+PR page and account identity.
+
+The Worker forwards a token only when GitHub returns an exact empty scope
+string. GitHub may reuse permissions granted to this app previously; if it
+returns those permissions, revoke the app in GitHub’s authorized OAuth apps
+before logging in again. Missing or malformed scope information is rejected.
+
+Failed login distinguishes authorization-code exchange from account verification.
+The Worker maps GitHub's documented credential, callback, code, and email errors
+to a small allowlist of reasons; the browser shows fixed messages and HTTP status.
+Unknown provider responses and thrown errors remain generic. Provider descriptions,
+URLs, authorization codes, and credentials never appear in these diagnostics.
+
+### Configure Cloudflare
+
+1. Register a [GitHub OAuth App](https://github.com/settings/developers) with
+   the site's exact `/prs/` callback, for example
+   `https://your-site.example/prs/` (use the actual website origin).
+2. Set `GITHUB_CLIENT_ID` and `GITHUB_REDIRECT_URI` as **Text** Cloudflare Worker
+   runtime variables in **Settings → Variables and Secrets**, outside the
+   **Builds** section. Build variables
+   alone do not become Worker bindings. The redirect must be an HTTPS URL
+   ending in `/prs/`, with no query, fragment, or embedded credentials.
+   The root Wrangler configuration sets `keep_vars: true` so redeploying
+   preserves variables configured in the dashboard.
+3. Set `GITHUB_CLIENT_SECRET` as an encrypted Cloudflare Worker secret,
+   using the dashboard or `wrangler secret put GITHUB_CLIENT_SECRET`.
+   Do not place it in source, public assets, or a build-time browser variable.
+4. Deploy the Worker and generated assets using the root `wrangler.jsonc`.
+
+Until those bindings exist, the public PR list works and the login control
+reports that login is unavailable. The Worker serves authentication only on
+the configured callback origin. Configure a separate app and bindings for a
+trusted preview, rather than sharing production credentials with every branch
+preview. Local development may use HTTP on localhost with its own app;
+`.dev.vars` and `.env` files are excluded from uploads by `.assetsignore`.
+
+Open `/auth/github/config` on the site to check the deployed configuration.
+HTTP 200 returns the public client ID and callback URL; HTTP 503 means a
+binding is missing or the callback URL is invalid. Its `missingBindings`
+array names absent or empty `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, and
+`GITHUB_REDIRECT_URI` bindings; `invalidRedirectUri` is true when a nonempty
+callback fails validation. These diagnostics contain names and a boolean,
+never binding values. HTTP 403 means the site origin differs from the
+configured callback origin. This endpoint never returns the application
+secret. After changing bindings, deploy a version with those bindings to
+the preview being tested.
+
+See [GitHub's OAuth documentation](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps)
+for registration and PKCE details.
+
+### Preview while production only serves assets
+
+Cloudflare disables the runtime bindings editor for an asset-only production
+deployment, even when a preview version contains the new Worker code. Use
+[`github-preview.mjs`](./github-preview.mjs) to attach the app bindings while
+uploading that preview, without deploying the preview to production:
+
+1. In **Settings → Builds → Variables and secrets**, set `GITHUB_CLIENT_ID`
+   and `GITHUB_REDIRECT_URI` as variables, and `GITHUB_CLIENT_SECRET` as a
+   **Secret**. Use the preview app and its exact `/prs/` callback.
+2. Keep the build command as `npm run website`.
+3. Change the version command to:
+
+   ```sh
+   if [ -f fjs/website/github-preview.mjs ]; then node fjs/website/github-preview.mjs; else npx wrangler versions upload; fi
+   ```
+
+   The fallback preserves uploads for older branches that lack the helper.
+4. Rebuild the preview branch after saving those settings.
+
+The repository owner approved this helper’s invocation of
+`npx wrangler versions upload` as the Cloudflare Builds version command.
+
+The upload helper passes the two public values as explicit Wrangler variables.
+It writes the app secret to a private temporary JSON file outside the asset
+directory, uploads it with `wrangler versions upload --secrets-file` as an
+encrypted Worker binding, and removes the file after the upload attempt.
+The secret never appears in command arguments or the helper's error messages.
+This uses Wrangler 4.74.0 or newer; see its
+[version upload options](https://developers.cloudflare.com/workers/wrangler/commands/workers/#versions-upload).
 
 ## A demo shows what a module does
 

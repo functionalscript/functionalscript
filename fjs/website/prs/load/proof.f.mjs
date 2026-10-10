@@ -73,6 +73,9 @@ export const proof = {
         ordinaryFailure: () => assertStructurallySame(refusalDecision(ordinary), {
             blocked: false, reason: 'GitHub request failed (HTTP 500).', retryAt: null,
         }),
+        unauthorized: () => assertStructurallySame(refusalDecision({ ...ordinary, status: 401 }), {
+            blocked: true, reason: 'GitHub request failed (HTTP 401).', retryAt: null,
+        }),
         forbidden: () => assertStructurallySame(refusalDecision({ ...ordinary, status: 403 }), {
             blocked: true, reason: 'GitHub request failed (HTTP 403).', retryAt: null,
         }),
