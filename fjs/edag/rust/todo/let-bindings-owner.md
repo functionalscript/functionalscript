@@ -50,12 +50,14 @@ in `nanvm-lib/tests/test/main.rs` covers the generated file. If that lands,
 `skipFn` has one caller, `fjs/compiler/rust`'s module, and may not earn its place.
 Which of the two the corpus follows is undecided. If `skipFn` survives,
 where it lives is open too: it is spelled over strings, so
-[rust-item-helpers](../../../nanvm/todo/rust-item-helpers.md)'s item module,
-which takes `indent` from here, is a home as fitting as this one.
+[rust-item-helpers](../../../nanvm/todo/rust-item-helpers.md)'s item module
+is a home as fitting as this one. That issue also moves `indent` there,
+below this printer, which then imports it; the task below follows.
 
 ### Tasks
 
-- [ ] `letBindings`, `indent`, `skipFn` in `fjs/edag/rust` with proofs;
+- [ ] `letBindings` and `skipFn` in `fjs/edag/rust` with proofs, and
+      `indent` imported from the item module rust-item-helpers adds;
       both printers rewritten over them.
 - [ ] `npm run gen`; `tsc`, `fjs test`; generated Rust unchanged.
 

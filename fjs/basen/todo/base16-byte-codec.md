@@ -54,7 +54,7 @@ The demos did it too: `parseHex` in
 in [`fjs/crypto/pow/demo.f.mjs`](../../crypto/pow/demo.f.mjs) fold
 `hexDigitValue` over the characters with the same `n * 16n + d` body.
 [#2787](https://github.com/functionalscript/functionalscript/pull/2787)
-adds that reader to `text/ascii` as `hexDigitsValue` and moves `parseHex`
+added that reader to `text/ascii` as `hexDigitsValue` and moved `parseHex`
 onto it; `parseNBits` and the readers above are what is left.
 
 The writing side has a sibling the codec above does not cover: a scalar
@@ -84,10 +84,11 @@ give it a hexadecimal sibling, so the readers above ask `text/ascii`.
 - [ ] Implement it with a proof at 100%, and move every byte-list
       consumer listed above onto it, `fjs/types/uint8array` included;
       `fjs/website`'s `commitOf` uses `hexText` at the least.
-- [ ] The radix-16 digit-run reader `hexDigitsValue` in `text/ascii`,
-      which [#2787](https://github.com/functionalscript/functionalscript/pull/2787)
-      lands with the `vdf` demo on it; move `git/config`,
-      `media/json/parser`, `js/tokenizer` and the `pow` demo onto it.
+- [x] The radix-16 digit-run reader: `hexDigitsValue` in `text/ascii`,
+      landed by [#2787](https://github.com/functionalscript/functionalscript/pull/2787)
+      with the `vdf` demo on it.
+- [ ] Move `git/config`, `media/json/parser`, `js/tokenizer` and the `pow`
+      demo onto `hexDigitsValue`.
 - [ ] Decide whether a fixed-width hex formatter belongs beside it, and if
       so move the writers above onto it.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
