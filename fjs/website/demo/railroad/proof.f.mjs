@@ -4,6 +4,7 @@
 
 import { anchor, railroadDemo, railroadSection, railroadSvg } from './module.f.mjs'
 import { htmlToString } from '../../../media/html/module.f.mjs'
+import { stylesheet } from '../../style/module.f.mjs'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../../asserts/module.f.mjs'
 import { runPure } from '../../../effects/module.f.mjs'
 import { unwrap } from '../../../types/result/module.f.mjs'
@@ -74,8 +75,8 @@ export const proof = {
             ['text', { x: '32', y: '21', 'text-anchor': 'middle', 'data-railroad-label': 'terminal' }, 'a'],
             ['path', { d: 'M46 21L54 21M54 13L54 29', 'data-railroad-line': '' }],
         ]]),
-    // A category is a pill as a terminal is, its label marked as a
-    // category, which the style sets in italics.
+    // A category is a pill as a terminal is, its box and label marked as a
+    // category.
     category: () => assertStructurallySame(railroadSvg(['category', 'x']),
         ['div', { 'data-railroad': '' }, ['svg', { viewBox: '0 0 64 42', width: '64', height: '42' },
             ['path', { d: 'M10 13L10 29M10 21L18 21', 'data-railroad-line': '' }],
@@ -83,6 +84,13 @@ export const proof = {
             ['text', { x: '32', y: '21', 'text-anchor': 'middle', 'data-railroad-label': 'category' }, 'x'],
             ['path', { d: 'M46 21L54 21M54 13L54 29', 'data-railroad-line': '' }],
         ]]),
+    // The marks are what the style draws a category apart from a terminal
+    // by: a grey pill, its label in the text colour and in italics. Without
+    // these rules a category would read as text the input holds.
+    categoryStyle: () => {
+        assert(stylesheet.includes('[data-railroad-box="category"] { fill: var(--border); stroke: var(--muted);'), 'category box')
+        assert(stylesheet.includes('[data-railroad-label="category"] { fill: var(--text); font-style: italic }'), 'category label')
+    },
     // A box links to its diagram, by the id `anchor` gives it.
     nonTerminal: () => assert(svg(['nonTerminal', 'value']).includes('<a href="#railroad-value">')),
     // A long label widens its box: 8 per character, and 16 to spare.
