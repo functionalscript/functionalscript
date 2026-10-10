@@ -69,7 +69,9 @@ or JSON ([output](#output)).
 | Compiler | JSON/DataJS evaluation; FunctionalScript, EDAG and Rust graph output; import linking and the authored `.f.js` check |
 
 The sections below give the restrictions and executor-specific limits for
-each feature. TypeScript-only syntax, mutation, loops, classes, general
+each feature. This overview records compiler support; optional chaining's
+required [language-design approval record](./todo/2335-optional-chaining.md#authorization-and-approval)
+remains open. TypeScript-only syntax, mutation, loops, classes, general
 computed object keys and general forward references remain outside the
 implemented language.
 
@@ -1623,6 +1625,12 @@ The native [array](../nanvm-lib/src/vm/array/README.md) and
 method-specific details and implementation-defined cases.
 
 ## Optional Chaining
+
+The behavior below was added to the compiler and specification in
+[#2660](https://github.com/functionalscript/functionalscript/pull/2660).
+Its required explicit language-design approval is not recorded; the
+[approval-process follow-up](./todo/2335-optional-chaining.md#authorization-and-approval)
+remains open.
 
 ```js
 const o = { a: { b: 1 }, f: (...x) => x };

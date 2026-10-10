@@ -15,17 +15,17 @@ import { uint } from '../../types/bit_vec/module.f.mjs'
 import { computeSync, sha256 } from '../sha2/module.f.mjs'
 
 const nBitsMantissa = mask(24n)
-const mantissaSign = 0x00800000n
-const mantissaBody = 0x007fffffn
+const mantissaSign = 0x0080_0000n
+const mantissaBody = 0x007f_ffffn
 const exponentShift = 24n
 const uint256Mask = mask(256n)
 
 /** Genesis-block compact target (`0x1d00ffff`). */
-export const genesisNBits = 0x1d00ffffn
+export const genesisNBits = 0x1d00_ffffn
 
 /** Genesis-block uint256 target decoded from {@link genesisNBits}. */
 export const genesisTarget =
-    0x00000000ffff0000000000000000000000000000000000000000000000000000n
+    0x0000_0000_ffff_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n
 
 /** @type {(exponent: bigint) => bigint} */
 const decodeShift = exponent => 8n * (exponent - 3n)

@@ -46,6 +46,7 @@ const encodeBytes = v => assertNotNullish(encode(v), 'UTF-8 is whole bytes')
 export const groupsOf = bitGroups(scheme, encodeBytes)
 
 export const demo = bitGroupDemo({
+    intro: 'Encodes UTF-8 text as Base64. The same bits are shown first as bytes and then as six-bit groups, with the encoded character under each group; compare the result with a Base64 encoder.',
     name: 'Base64',
     how: '6 bits per character; every 4 characters encode 3 bytes, and = completes the last block',
     scheme,

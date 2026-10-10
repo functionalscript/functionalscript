@@ -78,6 +78,7 @@ export const codePoints = text => toArray(stringToCodePointList(text))
  * @type {Demo<string, DemoEvent>}
  */
 export const demo = textDemo({
+    intro: 'Encodes text as UTF-8, one code point per line. Each line shows the code point and its bytes in hexadecimal; the initial text shows all four byte lengths.',
     name: 'text',
     label: 'Text',
     rows: 2,

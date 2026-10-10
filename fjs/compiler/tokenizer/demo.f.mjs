@@ -23,9 +23,10 @@
  * @import { DjsTokenWithMetadata } from './types.ts'
  */
 
+import { codeMarker } from '../../website/style/module.f.mjs'
 import { stringToList } from '../../text/utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
-import { textDemo } from '../../website/demo/module.f.mjs'
+import { textDemo, caption } from '../../website/demo/module.f.mjs'
 import { examples } from '../examples/module.f.js'
 import { tokenize } from './module.f.mjs'
 
@@ -49,4 +50,13 @@ export const _line = ({ token, metadata }) => {
  */
 export const _tokensOf = text => toArray(tokenize(stringToList(text))('')).map(_line).join('\n')
 
-export const demo = textDemo({ name: 'tokenizer', label: 'Source', init: examples[0][1], examples })(text => [['pre', _tokensOf(text)]])
+export const demo = textDemo({
+    intro: 'Reads FunctionalScript source as tokens, one per line. Each line shows the starting line and column, the token kind, and its value or diagnostic; whitespace and comments are omitted.',
+    name: 'tokenizer',
+    label: 'Source',
+    init: examples[0][1],
+    examples,
+})(text => [
+    caption('Tokens, line:column, kind and value:'),
+    ['pre', { [codeMarker]: '' }, _tokensOf(text)],
+])

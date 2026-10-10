@@ -531,9 +531,9 @@ export const proof = {
         // continuation survive to be walked — see the pure sibling below for
         // why an all-`pure` fold cannot show this.
         aLongCommandFoldCompletes: () => {
-            const items = Array.from({ length: 20000 }, (_, i) => i)
+            const items = Array.from({ length: 20_000 }, (_, i) => i)
             const e = foldStep(pureOk(items), 0, x => s => mapStep(neg(x), n => s - n))
-            assertEq(assertOk(run(e)), 199990000)
+            assertEq(assertOk(run(e)), 199_990_000)
         },
         // The same length with no command in it, which guards the *other*
         // half: that answering-with-a-value does not recurse either.
@@ -546,9 +546,9 @@ export const proof = {
         // interpreter, and a fold of values recurses once per item and this is
         // the leaf that fails.
         aLongPureFoldCompletes: () => {
-            const items = Array.from({ length: 20000 }, (_, i) => i)
+            const items = Array.from({ length: 20_000 }, (_, i) => i)
             assertEq(assertOk(pureResult(foldStep(pureOk(items), 0, x => s => pureOk(s + x)))),
-                199990000)
+                199_990_000)
         },
     },
     walkStep: {
@@ -583,10 +583,10 @@ export const proof = {
         // gives: a command is what makes a continuation survive to be walked.
         aDeepWalkCompletes: () => {
             const e = walkStep(
-                pureOk([20000]),
+                pureOk([20_000]),
                 0,
                 x => s => mapStep(neg(x), n => /** @type {const} */ ([s - n, x === 0 ? null : [x - 1]])))
-            assertEq(assertOk(run(e)), 200010000)
+            assertEq(assertOk(run(e)), 200_010_000)
         },
     },
     forEachStep: {

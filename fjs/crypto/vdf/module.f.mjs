@@ -27,7 +27,7 @@ import { modSqrt, prime_field } from '../../types/prime_field/module.f.mjs'
 
 /** Sloth VDF modulus (3072-bit safe prime, same as reference implementations). */
 export const p =
-    0xf2346eae06a23388_2814ff16f6a076d3_b8f2161c5c92171c_0b7b84eed4e9475b_cce0c13bde34512a_fdf90f41ab9b86dc_f834f85e04b27fad_ee712eed23a1d4e5_8cd1b09d9bfb1069_6d614f119179a40c_49dc8762edc29e81_15263913237e1471_8cbcd4dc6b35bace_13f8cdb1b5156c50_c47b4aaee0820c87_4e2864cb854367c3n
+    0xf234_6eae_06a2_3388_2814_ff16_f6a0_76d3_b8f2_161c_5c92_171c_0b7b_84ee_d4e9_475b_cce0_c13b_de34_512a_fdf9_0f41_ab9b_86dc_f834_f85e_04b2_7fad_ee71_2eed_23a1_d4e5_8cd1_b09d_9bfb_1069_6d61_4f11_9179_a40c_49dc_8762_edc2_9e81_1526_3913_237e_1471_8cbc_d4dc_6b35_bace_13f8_cdb1_b515_6c50_c47b_4aae_e082_0c87_4e28_64cb_8543_67c3n
 
 /**
  * Builds Sloth VDF operations over `modulus`.

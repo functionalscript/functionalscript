@@ -150,7 +150,7 @@ const dataText = write => path => mapStep(_transpileDefault(path), okThen(write)
  *
  * @type {(outputFileName: string) => ((inputFileName: string) => Effect<ReadWhole | ResolveFileModule, Result<string, string>, ParseError>) | null}
  */
-const outputText = outputFileName => {
+export const outputText = outputFileName => {
     if (outputFileName.endsWith('.json')) { return dataText(tryJsonStringify) }
     if (isEdag(outputFileName)) { return edagText }
     if (isDataJs(outputFileName)) { return dataText(tryStringify) }

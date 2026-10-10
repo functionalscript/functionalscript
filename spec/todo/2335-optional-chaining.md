@@ -1,16 +1,20 @@
 # Optional chaining
 
 **Priority:** P2
-**Status:** wip — implementation complete; linked language-design approval pending
+**Status:** open — required linked language-design approval is not recorded
 
-The grammar, syntax reader, name/key checks, EDAG lowering and FunctionalScript
-writer are implemented. The current rules are in the
+The compiler already accepts optional chaining: the grammar, syntax reader,
+name/key checks, EDAG lowering and FunctionalScript writer were merged in
+[#2660](https://github.com/functionalscript/functionalscript/pull/2660),
+[commit `5774062e6`](https://github.com/functionalscript/functionalscript/commit/5774062e61f7d4f4bb9b9047a5efa53ca7e6281a).
+That change also added the current rules to the
 [language specification](../README.md#optional-chaining), with proofs in
 [`parser`](../../fjs/compiler/parser/proof.f.mjs) (`optional`),
 [`edag`](../../fjs/compiler/edag/proof.f.mjs) (`chains`) and
 [`serializer`](../../fjs/compiler/serializer/proof.f.mjs) (`chains`).
-The remaining task is to obtain and link formal language-design approval;
-the proposal below preserves the original motivation and design.
+This record remains open because the required approval evidence is missing.
+Compiler support does not establish language-design approval; the proposal
+below preserves the original motivation and design.
 
 ```js
 export default (a) => [a?.b, a?.["b"], a?.(1), a?.b.c(2)];
@@ -80,11 +84,16 @@ number.
 
 The language designer, `sergey-shandar`, asked in the session that produced
 this proposal: "Let's implement optional chaining. Including `?.`, `?.()`".
-That is the implementation authorization. The proposer is the implementation
-agent, so the approval DESIGN.md §12 requires is the designer's own, distinct
-from the proposer. The implementation is complete; the outstanding task is to
-obtain and link the explicit approval record, following
-[binary literals](./2470-binary-literals.md)'s example.
+That records implementation authorization. The proposer is the implementation
+agent. [DESIGN.md §12](../../doc/DESIGN.md#new-language-features-start-with-a-todo)
+requires formal, explicit approval from another language designer before
+implementation, with a link to that approval. The
+[implementation discussion](https://github.com/functionalscript/functionalscript/pull/2660#discussion_r4214191999)
+recorded the missing approval, and the
+[approving review](https://github.com/functionalscript/functionalscript/pull/2660#pullrequestreview-5451767338)
+explicitly excluded language-design approval. #2660 merged with the approval
+task still unchecked. This chronology is not claimed compliant with the rule;
+neither the implementation request nor the merge supplies the missing record.
 
 ## Tasks
 
@@ -103,7 +112,9 @@ obtain and link the explicit approval record, following
 - [x] The specification describes the feature
       ([optional chaining](../README.md#optional-chaining)); the roadmap's
       entry and the survey's rows are reread.
-- [ ] Obtain and link explicit language-design approval from `sergey-shandar`.
+- [ ] Locate and link explicit pre-implementation language-design approval from
+      `sergey-shandar`; if no such record exists, obtain and record the
+      designer's resolution of this approval-process gap for the merged feature.
 
 ## Related
 

@@ -75,7 +75,7 @@ mod tests {
 
     #[test]
     fn positive_exponent() {
-        assert_eq!(int(2).pow(int(10)).unwrap(), int(1024));
+        assert_eq!(int(2).pow(int(10)).unwrap(), int(1_024));
     }
 
     #[test]

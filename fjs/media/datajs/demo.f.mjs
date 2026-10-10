@@ -41,7 +41,7 @@ import { tryParse } from './module.f.mjs'
 import { keySerialize, leafSerialize } from './serializer/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'
 import { graphOf, graphSvg } from '../../website/demo/graph/module.f.mjs'
-import { textDemo } from '../../website/demo/module.f.mjs'
+import { textDemo, refusal } from '../../website/demo/module.f.mjs'
 
 /** @type {(value: Unknown) => value is Primitive} */
 const isPrimitive = value => value === null || typeof value !== 'object'
@@ -107,7 +107,7 @@ export const _graphOf = text => {
  *   last value, writes index keys out of order, which read back in numeric
  *   order before every other key, and uses the one spelling `__proto__`
  *   has.
- * - **Error: JSON is not a document** is JSON without the conversion, which
+ * - **Plain JSON** is JSON without the conversion, which
  *   the parser refuses: at the top of a module, `{` opens a block.
  *
  * @type {Examples}
@@ -124,7 +124,7 @@ export const examples = [
     ['A shared primitive is not a node', 'const $x=1;\nexport default [$x,$x];'],
     ['Unused const', 'const $dead=undefined;\nexport default 1;'],
     ['Object keys', 'export default {"b":1,"2":2,"1":3,"b":4,["__proto__"]:5};'],
-    ['Error: JSON is not a document', '{"a":1}'],
+    ['Plain JSON', '{"a":1}'],
 ]
 
 /**
@@ -137,7 +137,13 @@ export const examples = [
  *
  * @type {Demo<string, DemoEvent>}
  */
-export const demo = textDemo({ name: 'datajs', label: 'DataJS', init: examples[0][1], examples })(text => {
+export const demo = textDemo({
+    intro: 'Parses a DataJS document and draws its graph. Containers are nodes, leaves appear inside them, and multiple arrows to one node show a shared reference.',
+    name: 'datajs',
+    label: 'DataJS',
+    init: examples[0][1],
+    examples,
+})(text => {
     const g = _graphOf(text)
-    return [g.ok ? graphSvg(g) : ['p', `Error: ${g.error}`]]
+    return [g.ok ? graphSvg(g) : refusal(g.error)]
 })
