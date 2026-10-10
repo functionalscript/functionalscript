@@ -160,16 +160,20 @@ leaf, directly or not — what a leaf's rename opens up, since a proof stays
 The table above is a historical measurement. `array_index` now imports
 [`types/number/is_integer`](../fjs/types/number/is_integer/module.f.js), whose
 `isInteger` uses `typeof` and `%` rather than `Number.isInteger`. Its bounds
-and canonical string round-trip are unchanged; `String` remains its
-compiler blocker. `types/number`, ASCII digit parsing, Unicode surrogate
+and canonical string round-trip are unchanged. With
+[`String` conversion](../spec/README.md#string-conversion) admitted,
+`array_index` now compiles through its shared integer predicate and canonical
+string check; renaming it to `.f.js` remains a migration step.
+`types/number`, ASCII digit parsing, Unicode surrogate
 conversion, and Node/web validation reuse the same predicate.
 
 Compared with the previous measurement at `4c8ec55`, the `08d013b` snapshot
 had the same eighteen leaves and compiler progress on three of them.
 `Number(exp)` is in the language and `Number` a reserved word
 ([number conversion](../spec/README.md#number-conversion)), so
-`array_index`'s `Number(key)` and shared integer predicate compile; the module
-now stops at the `String` global. `git/bytes` still uses `Number.isSafeInteger`,
+`array_index`'s `Number(key)` and shared integer predicate compiled at that
+snapshot, while the module still stopped at the `String` global.
+`git/bytes` still uses `Number.isSafeInteger`,
 a member of `Number` and an admission of its own. A computed key now parses,
 refused unless it is `a[Number(i)]`, and is `git/bytes`' first refusal; every
 row with a runtime key says which of the language's two rewrites it takes, a number
@@ -202,9 +206,9 @@ language step can be picked for what it unblocks:
 | `switch`, a default parameter | neither proposed; [`3120-parameters.md`](../spec/todo/3120-parameters.md) leaves a default parameter for later | ts |
 | A prohibited member function, `toLowerCase`, or property name, `sub` | [`fjs/js/prototype`](../fjs/js/prototype/module.f.js)'s `prohibitedCalls` and `prototypeNames` ([spec: property access](../spec/README.md#property-access)); the module rewrites, not the language | git/config |
 
-A leaf renames only when every feature it uses has landed, and four wait on
-one feature alone: `style` on template literals, `keywords` on `new Set`, and
-`array_index` on the `String` global, and `git/bytes` on `Number.isSafeInteger`
+A leaf renames only when every feature it uses has landed. These leaves still
+wait on one feature alone: `style` on template literals, `keywords` on `new Set`,
+and `git/bytes` on `Number.isSafeInteger`
 once its keys are read as `b[Number(…)]`. Of the four root modules nearly
 everything imports, `structurally_same` waits on three features — destructuring,
 the `Object` global and `new Map` — and `function/operator` on two, template literals and

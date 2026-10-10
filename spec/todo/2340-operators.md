@@ -103,8 +103,9 @@ Depends on [export default](../README.md#exporting-a-value) and [undefined](../R
 spells, a keyword with a symbol of its own in the grammar and, since it
 opens a value, the one such keyword a reference may not be — a key or a
 property name still. The EDAG admits every pure operation and the language
-spells a subset of them; unary `+` and the `String` and `Number` conversions
-remain on the other side of the line.
+spells a subset of them; unary `+` remains on the other side of the line,
+while the [`Number`](../README.md#number-conversion) and
+[`String`](../README.md#string-conversion) conversions are source syntax.
 
 For mutating operators, see [assignments](./3430-assignments.md).
 

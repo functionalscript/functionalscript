@@ -6,7 +6,7 @@
  * @module
  *
  * @import { Exp, Index, Op12, Op2, Spread, StepOver } from '../../edag/types.ts'
- * @import { AstAccess, AstBinary, AstBitnot, AstNot, AstTypeof, AstInstanceOf, AstNumber, AstKey, AstBody, AstCall, AstConditional, AstConst, AstEntry, AstFunction, AstGuardedCall, AstImport, AstItem, AstModule, AstNeg, AstSpread, AstStep, AstThrow } from '../ast/types.ts'
+ * @import { AstAccess, AstBinary, AstBitnot, AstNot, AstTypeof, AstInstanceOf, AstNumber, AstString, AstKey, AstBody, AstCall, AstConditional, AstConst, AstEntry, AstFunction, AstGuardedCall, AstImport, AstItem, AstModule, AstNeg, AstSpread, AstStep, AstThrow } from '../ast/types.ts'
  * @import { _ImportSource, _Source } from '../source/types.ts'
  * @import { ParseError } from '../parser/types.ts'
  * @import { Effect } from '../../effects/types.ts'
@@ -310,7 +310,7 @@ const slotKeys = nodes => {
  * length ({@link lower}'s own comment has why that one gets an explicit
  * stack instead).
  *
- * @type {(nodes: _Nodes) => (ast: Exclude<AstConst, AstNeg | AstBitnot | AstNot | AstTypeof | AstInstanceOf | AstNumber | AstBinary | AstConditional | AstThrow>) => _Lowered}
+ * @type {(nodes: _Nodes) => (ast: Exclude<AstConst, AstNeg | AstBitnot | AstNot | AstTypeof | AstInstanceOf | AstNumber | AstString | AstBinary | AstConditional | AstThrow>) => _Lowered}
  */
 const lowerLeaf = nodes => ast => {
     if (ast === undefined) { return plain(undefinedNode()) }
@@ -376,8 +376,8 @@ const lowerLeaf = nodes => ast => {
  * and `??` the same `op2` as the eager ones, laziness being the EDAG's
  * positional rule and no shape of its own — and the conditional its
  * `op3`, `['?:', c, t, e]`, three operands lowered the same way. The
- * `Number` conversion is the EDAG's own `['Number', v]`, an `op1` like
- * `~`, and folds no more than `~` does: what a value converts to is the
+ * `Number` and `String` conversions are the EDAG's own `op1` nodes, like
+ * `~`, and fold no more than `~` does: what a value converts to is the
  * interpreter's question. A
  * `throw` is the EDAG's own `['throw', v]`, an `op1` over its value, the
  * node a body or a module that ends in the statement is.
@@ -417,7 +417,7 @@ const lower = nodes => root => {
                 case '!': { work = { kind: 'expand', ast: ast[1], rest: { kind: 'not', rest } }; break }
                 case 'typeof': { work = { kind: 'expand', ast: ast[1], rest: { kind: 'typeof', rest } }; break }
                 case 'instanceof': { work = { kind: 'expand', ast: ast[1], rest: { kind: 'instanceof', name: ast[2], rest } }; break }
-                case 'Number': { work = { kind: 'expand', ast: ast[1], rest: { kind: 'Number', rest } }; break }
+                case 'Number': case 'String': { work = { kind: 'expand', ast: ast[1], rest: { kind: ast[0], rest } }; break }
                 case 'throw': { work = { kind: 'expand', ast: ast[1], rest: { kind: 'throw', rest } }; break }
                 case '?:': {
                     work = { kind: 'expand', ast: ast[1], rest: { kind: 'expand', ast: ast[2], rest: { kind: 'expand', ast: ast[3], rest: { kind: 'ternary', rest } } } }
@@ -475,11 +475,11 @@ const lower = nodes => root => {
             work = rest
             continue
         }
-        if (work.kind === 'Number') {
+        if (work.kind === 'Number' || work.kind === 'String') {
             /** @type {_LowerWork} */
             const rest = work.rest
-            const operand = assertNotNullish(results, ['no operand for a Number conversion', root])
-            results = { top: { exp: ['Number', operand.top.exp], anchors: operand.top.anchors }, rest: operand.rest }
+            const operand = assertNotNullish(results, ['no operand for a conversion', work.kind, root])
+            results = { top: { exp: [work.kind, operand.top.exp], anchors: operand.top.anchors }, rest: operand.rest }
             work = rest
             continue
         }
