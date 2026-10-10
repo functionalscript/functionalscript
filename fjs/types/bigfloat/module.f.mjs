@@ -61,7 +61,7 @@ const divide = ([m, e]) => div => [[m / div, e], m % div]
  *
  * @type {Format}
  */
-export const binary64 = { precision: 53, minExp: -1074, maxExp: 971 }
+export const binary64 = { precision: 53, minExp: -1_074, maxExp: 971 }
 
 /**
  * Runs `f` on the magnitude `[abs(m), e]` and restores the sign of `m` on the

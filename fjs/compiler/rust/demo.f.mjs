@@ -21,10 +21,11 @@
  * @import { Result } from '../../types/result/types.ts'
  */
 
+import { codeMarker } from '../../website/style/module.f.mjs'
 import { parse } from '../transpiler/module.f.mjs'
 import { unresolved } from '../edag/module.f.mjs'
 import { error } from '../../types/result/module.f.mjs'
-import { textDemo } from '../../website/demo/module.f.mjs'
+import { textDemo, refusal, caption } from '../../website/demo/module.f.mjs'
 import { examples } from '../examples/module.f.js'
 import { toRust } from './module.f.mjs'
 
@@ -39,7 +40,15 @@ export const _rustOf = text => {
     return result[0] === 'error' ? error(result[1].message) : toRust(unresolved(result[1]).edag)
 }
 
-export const demo = textDemo({ name: 'rust', label: 'Source', init: examples[0][1], examples })(text => {
+export const demo = textDemo({
+    intro: 'Compiles a FunctionalScript module without imports into Rust calls that build its value in NaNVM. Compare the output with the .rs module written by fjs compile.',
+    name: 'rust',
+    label: 'Source',
+    init: examples[0][1],
+    examples,
+})(text => {
     const [kind, value] = _rustOf(text)
-    return [kind === 'ok' ? ['pre', value] : ['p', `Refused: ${value}`]]
+    return kind === 'ok'
+        ? [caption('Rust module:'), ['pre', { [codeMarker]: '' }, value]]
+        : [refusal(value)]
 })

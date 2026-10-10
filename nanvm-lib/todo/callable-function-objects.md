@@ -493,7 +493,7 @@ lazy branches and throws; account for the specified function-text exception
 when native JavaScript is the reference. A future Rust EDAG executor must
 satisfy the same contract, but this parity work does not wait for it.
 
-*Plan (decided: the four decisions below are recorded; step 1 has landed, step 2 is next).*
+*Plan (decided: the five decisions below are recorded; step 1 has landed, step 2 is next).*
 
 **The corpus is the harness fixtures, not a new format.** The operator corpus
 has to be data because its cases are lowered to EDAG by hand. A call-contract
@@ -539,12 +539,17 @@ exports are not compared (decision 3). The `undefinedDefault` table in
 host proof fails on any other fixture whose default is `undefined` and on any
 entry that no longer is, so the gap is a list and not a silence.
 
-**Where the expectation lives (decision 1, decided: the reference's own
-output).** A generator writes the reference's output into a committed `gen.`
-file, drift-checked, so Node is the single author and nothing is retyped. The
-hand-written strings in `src/lib.rs` (`"[1,1,false,true,true,true]"`) are
-exactly the retyping that can drift. Fixtures with no reference (the
-exceptions) keep a hand-written expectation, each with its reason.
+**Where the expectation lives (decisions 1 and 5, decided).** The generated
+expectation is not retyped by hand: a generator writes it into a committed `gen.`
+file, drift-checked, and Node stays the authority. Decision 1 chose that Node's
+output be the source; decision 5 refines how, for step 2: the expectation is
+the FJS interpreter's value printed as Rust, with its JSON text where it has
+one, which the step 1 proof ties to Node on every corpus fixture, so it is Node's value by proof and not by a
+second conversion (see Step 2 design). The hand-written strings in
+`src/lib.rs` (`"[1,1,false,true,true,true]"`) are exactly the retyping that can
+drift. Fixtures with no corpus comparison (the exceptions) keep a
+hand-written expectation, each with its reason. Independent leaf assertions
+remain where the generated layers cannot catch emitter bugs (see Step 2).
 
 **How a callable is observed (decision 2, decided).** A fixture that tests a
 function calls it at module level and exports the observations, as `arity`,
@@ -563,23 +568,149 @@ call contract, and keep their hand-written Rust tests.
    `_transpileDefault`, the route `fjs compile` takes for a data output, and
    compares the two. A stale exception, or a new fixture, is caught by the
    proof, never skipped.
-2. **Direct AOT against the same expectation.** The generator writes the
-   reference output next to the compiled fixture; one Rust test walks the
-   generated list and replaces the hand-written assertions it covers. The
-   committed form is not plain JSON: the reference's output includes
-   `bigint`, `undefined` and aliasing (`sharing`), which JSON cannot spell.
-   The form, and how the Rust side checks aliasing, is this step's design
-   question, answered in its pull request before its code.
+2. **Direct AOT against the same expectation.** Designed below; split into
+   2a, the generated expectation, and 2b, the Rust comparison that replaces
+   the hand-written assertions it covers.
 3. **The interpreter compiled to Rust runs the corpus.** Blocked, not
    planned: it needs the host `Map` dependencies of the executor migrated and
    the [immutable memo cache](../../fjs/edag/memo/todo/immutable-cache.md)
    native-parity checks. Recorded here so the corpus is written to be run
    there, not so it waits for it.
 
-**Decisions (all four decided).**
+**Step 2 design.**
+
+*The expectation is the interpreter's value, printed as Rust.* The reference
+is Node, and step 1 proves, in CI, that for every corpus fixture the
+interpreter's answer equals Node's, aliasing included. So the interpreter's
+value *is* Node's value as long as that proof passes, and it is the
+cheaper thing to print: it is already a represented graph
+([`EdagValue`](../../fjs/edag/values.md)) that keeps sharing by node identity,
+and [`fjs/nanvm/values`](../../fjs/nanvm/values/module.f.mjs) already prints
+such a graph as a Rust module through the compiler's backend
+(`generateRust`), the way `gen.values/captures.rs` is made. Printing Node's
+own value instead would need a converter from a host value graph (aliasing
+included) to a represented one, which does not exist, and the host `import`
+in a generator. This refines decision 1, which named Node's output as the
+source, and keeps its intent (nothing is retyped, Node is the authority, and a
+divergence fails CI); the owner chose it (decision 5).
+
+*Two layers, because one shared emitter is not independent.* The compiled
+fixture and a graph printed as Rust both go through the same Rust literal
+emitter, so a bug there (a wrong number, string, array or object literal)
+would transform both identically and a comparison of the two would pass.
+Deleting the hand-written assertions would then remove the one independent
+check that catches that class of direct-AOT regression. So the expectation has
+two parts, supplemented by independent assertions for leaves that JSON
+cannot distinguish:
+
+1. *The JSON text, independent of the Rust emitter.* For a default that has a
+   JSON form, the expectation includes the compiler's own JSON data output
+   for it, the text `fjs compile <fixture> <out>.json` writes, produced by the
+   FunctionalScript JSON writer and not by the Rust emitter. A measurement
+   (a throwaway script, not committed) found that text identical byte for
+   byte to Node's `JSON.stringify` of the default for every fixture with a
+   JSON form except the excepted `function-text`, so Node's text and ours
+   agree on the corpus today. They differ in one known case, `-0`: the
+   compiler's writer spells it `-0` (its JSON output is a DataJS-flavoured
+   document), while `JSON.stringify` and `nanvm-lib`'s `to_json` both print
+   `0`. A probe of exponent forms (`1e+21`, `1e-7`), a 21-digit integer,
+   `5e-324` and U+2028 found no other difference. So the generator writes the
+   text of the value with `-0` replaced by `0`, `JSON.stringify`'s own rule, a
+   small pure function with its own proof. The graph layer distinguishes `-0`
+   by bits, but an independent assertion is also required below: normalizing
+   the JSON text loses its sign. In Rust the check is `Any::to_json()` against
+   that text: `nanvm-lib`'s serializer on the compiled result, a path that
+   shares nothing with the literal emitter. JSON text is also ordered, so a
+   wrong property order fails here.
+2. *The graph, for what JSON cannot say.* The interpreter's value printed as
+   Rust, compared as a graph: sharing (`[shared, shared]` against two
+   copies), `bigint` and `undefined` leaves, `NaN` and `-0`. This layer does
+   share the emitter with the compiled fixture, so on its own it is blind to
+   an emitter bug; it checks execution and sharing differences that the first
+   layer cannot see, but cannot independently verify the leaf literals below.
+
+*Independent leaf checks.* A corpus default containing `undefined`, `bigint`,
+`-0` or a non-finite number, including a nested leaf, must also have a
+hand-written assertion on the compiled result, independent of the generated
+expected graph. For `undefined`, compare the actual leaf with
+`Any::undefined()`, so an emitter regression that substitutes `null` fails
+even when both generated graphs make the same substitution. For `bigint`,
+keep the independent assertion described below. For `-0`, inspect the actual
+number's bits against `(-0.0_f64).to_bits()`; for `NaN`, assert `is_nan()`;
+for infinities, assert the value and sign. These expectations use Rust's own
+constructors and constants, never the shared FJS Rust emitter.
+Retain such assertions when replacing JSON tests, and add them when
+such a fixture enters the corpus. The normalized JSON layer and the generated
+graph alone do not establish emitter-independent coverage for these leaves,
+just as the `bigint` fixture still needs its independent assertion.
+
+The program under test reaches Rust by compiling its source
+(`gen.fixtures/<name>.rs`); neither layer runs the program's logic in Rust.
+
+*2a, the generated expectation.* The generator in
+[`fjs/nanvm/harness`](../../fjs/nanvm/harness/module.f.mjs), which already
+walks the corpus fixtures, also loads each through the interpreter's loader
+(`interpret`, as `_transpileDefault` does), takes the `default` of the
+represented export object, and writes `nanvm-harness/gen.expected/<name>.rs`:
+a module returning the expected `Any` as a graph, as `gen.values/captures.rs`
+does, with, when the default has a JSON form, that JSON text as a string
+constant, plus a `mod.rs` that is the list. A module whose initialization
+throws gets a module that returns `Err`, so a fixture that throws is expected
+to throw (the thrown value is engine-specific and not compared, as in the
+operator corpus). The corpus rule of `fjs/nanvm/corpus` decides which
+fixtures get one, so the list cannot drift from the proof. It is `gen.`-named
+and drift-checked by `npm run gen` like the compiled fixtures.
+
+*2b, the comparison.* One Rust test walks the generated list and, for each
+fixture, runs both layers. The graph comparison is a small helper in
+`nanvm-harness`, modelled on the operator corpus's `same`
+(`nanvm-lib/tests/test/harness.rs`, private to that test crate) with two
+differences. It compares both objects' `own_entries()` views pairwise
+**in order**, checking entry counts, keys and values, rather than indexing raw
+`Object` slots or comparing a set through `own_property` as `same` does.
+`own_entries()` exposes each key once with its last value, array-index keys
+first in numeric order and other keys in their first insertion order.
+AOT object spread can retain duplicate raw entries, while the interpreter
+normalizes them through `Object.fromEntries`; those representations must
+compare equal when their observable entries agree. A result with the right
+keys and values in the wrong observable order still fails (`object-spread`
+covers overwrites and order). Sharing is checked only through these observable
+values, not overwritten raw slots. And it is extended for sharing: the two
+graphs are walked together, and an actual container must map to one expected
+container and the reverse, so `[shared, shared]` does not equal two copies.
+`Any ==` is `===` and compares arrays, objects and functions by identity (`ptr_eq`), so
+the helper keeps its map of pairs in a list of container pairs compared with
+`==`, with no hashing of an `Any` required. Numbers compare by bits (`NaN`,
+`-0`), as `same` already does.
+
+*What 2b deletes.* The hand-written JSON assertion of each fixture whose
+expectation has the JSON layer in `src/lib.rs` (the `read_default(…) ==
+Ok("…")` strings), since it is the same fact Node's text now supplies and
+keeping both is two copies. A fixture with no JSON form (`bigint`) keeps one
+hand-written assertion, which is its only emitter-independent check. The
+independent leaf assertions above stay even when the fixture has a JSON layer
+(`-0`), since that layer cannot distinguish the value they check. A test
+that checks something else about the same fixture (a named export, a call
+through the harness) stays. A fixture excepted from the corpus keeps its
+hand-written test and its reason.
+
+*Invariants this relies on, each already checked.* Every corpus default is
+data: step 1 compares through `toData`, which refuses a callable, and all
+corpus fixtures pass. The corpus rule and the generator share one function,
+`corpus(names)`. A fixture with an `undefined` default is listed in
+`undefinedDefault`, so its expectation being `undefined` is a decision and
+not an accident.
+
+*Out of scope.* Named exports (decision 3, revisit after 2b), and a corpus of
+programs that need arguments, which decision 2 has fixtures supply at module
+level.
+
+**Decisions (all five decided).**
 
 1. ~~Expectation authored by hand beside each fixture, or by the reference and
-   committed?~~ Decided: by the reference, committed and drift-checked.
+   committed?~~ Decided: not by hand; committed and drift-checked, with Node
+   the authority. Refined by decision 5: the interpreter's value, proved equal
+   to Node's, is what step 2 prints.
 2. ~~How a callable export is observed.~~ Decided: the fixture calls it at
    module level; the two harness-call fixtures stay out of the corpus.
 3. ~~Named exports: compare them too?~~ Decided: not yet. The corpus
@@ -589,7 +720,7 @@ call contract, and keep their hand-written Rust tests.
    interpreter route and an order-insensitive comparison (a module namespace
    sorts its keys, the export object keeps declaration order), and most named
    exports in the fixtures are functions with no value to compare. Revisit at
-   step 2, when the reference's output is a committed file and adding
+   step 2, when the expectation is a committed file and adding
    data-valued named exports is cheap. The four fixtures whose default is
    `undefined` and test named exports or imports (`effect`, `exports`,
    `named-imports`, `named-imports-math`) stay vacuous in this corpus until
@@ -607,6 +738,13 @@ call contract, and keep their hand-written Rust tests.
    and its own source-to-export glue, which is upkeep to pay only if a
    `memo`-only value bug appears. `memo`'s immutable-cache rewrite still has
    [open native-parity checks](../../fjs/edag/memo/todo/immutable-cache.md).
+
+5. ~~Who authors the step 2 expectation?~~ Decided: the interpreter's value,
+   printed as Rust, and its JSON text where it has one (the layer that does
+   not share the Rust emitter). The step 1 proof ties it to Node on every corpus fixture,
+   aliasing included, so a divergence fails CI, and the machinery to print a
+   represented graph exists; Node's own value would need a converter from a
+   host value graph that does not.
 
 ### Open questions
 
@@ -680,7 +818,8 @@ call contract, and keep their hand-written Rust tests.
       after resolving embedded data versus lookup; no Rust executor dependency.
 - [x] Stage 8 step 1: the FJS interpreter against the Node reference over the
       harness fixtures ([`fjs/nanvm/corpus`](../../fjs/nanvm/corpus/module.f.mjs)).
-- [ ] Stage 8 step 2: direct AOT against the reference's committed output.
+- [ ] Stage 8 step 2a: for each corpus fixture, a committed `gen.expected` Rust module holding the interpreter's value as a graph and, when the default has a JSON form, the compiler's JSON text, and a list of them.
+- [ ] Stage 8 step 2b: one Rust test checks each compiled fixture against both layers of its expectation (JSON text, then an order- and sharing-aware graph comparison) and replaces the hand-written assertions the JSON layer covers.
 - [ ] Stage 8 step 3: the interpreter compiled to Rust runs the corpus (blocked).
 
 ### Related

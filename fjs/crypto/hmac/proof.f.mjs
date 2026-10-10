@@ -99,35 +99,35 @@ export const proof = {
     // eight. RFC 2202 test cases 1 and 2 for HMAC-SHA1.
     sha1: () => {
         const r = hmac(sha1)(vec(160n)(BigInt(`0x${'0b'.repeat(20)}`)))(utf8('Hi There'))
-        assertEq(uint(r), 0xb617318655057264e28bc0b6fb378c8ef146be00n, r)
+        assertEq(uint(r), 0xb617_3186_5505_7264_e28b_c0b6_fb37_8c8e_f146_be00n, r)
         const r2 = hmac(sha1)(utf8('Jefe'))(utf8('what do ya want for nothing?'))
-        assertEq(uint(r2), 0xeffcdf6ae5eb2fa2d27416d5f184df9c259a7c79n, r2)
+        assertEq(uint(r2), 0xeffc_df6a_e5eb_2fa2_d274_16d5_f184_df9c_259a_7c79n, r2)
     },
     example: () => {
         const r = hmac(sha256)(utf8('key'))(utf8('The quick brown fox jumps over the lazy dog'))
-        assertEq(r, vec(256n)(0xf7bc83f430538424b13298e6aa6fb143ef4d59a14946175997479dbc2d1a3cd8n))
+        assertEq(r, vec(256n)(0xf7bc_83f4_3053_8424_b132_98e6_aa6f_b143_ef4d_59a1_4946_1759_9747_9dbc_2d1a_3cd8n))
     },
     sha256: () => {
         const r = hmac(sha256)(utf8('key'))(utf8('The quick brown fox jumps over the lazy dog'))
-        assertEq(uint(r), 0xf7bc83f430538424b13298e6aa6fb143ef4d59a14946175997479dbc2d1a3cd8n, r)
+        assertEq(uint(r), 0xf7bc_83f4_3053_8424_b132_98e6_aa6f_b143_ef4d_59a1_4946_1759_9747_9dbc_2d1a_3cd8n, r)
     },
     sha384: () => {
         const k = vec(384n)(0n)
         const m = vec(904n)(
-             0x0101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010069c7548c21d0dfea6b9a51c9ead4e27c33d3b3f180316e5bcab92c933f0e4dbc9a9083505bc92276aec4be312696ef7bf3bf603f4bbd381196a029f340585312n)
+             0x01_0101_0101_0101_0101_0101_0101_0101_0101_0101_0101_0101_0101_0101_0101_0101_0101_0101_0101_0101_0101_0101_0101_0101_0100_69c7_548c_21d0_dfea_6b9a_51c9_ead4_e27c_33d3_b3f1_8031_6e5b_cab9_2c93_3f0e_4dbc_9a90_8350_5bc9_2276_aec4_be31_2696_ef7b_f3bf_603f_4bbd_3811_96a0_29f3_4058_5312n)
         const r = hmac(sha384)(k)(m)
-        assertEq(r, vec(384n)(0x8F858157CE005CD52FD8E8F1A46B55E6CFAE21C8C183D9C2F7504BEDF450609EDD7D3C6171DC0BDD2D2444FAA28F18BAn), uint(r).toString(16))
+        assertEq(r, vec(384n)(0x8F85_8157_CE00_5CD5_2FD8_E8F1_A46B_55E6_CFAE_21C8_C183_D9C2_F750_4BED_F450_609E_DD7D_3C61_71DC_0BDD_2D24_44FA_A28F_18BAn), uint(r).toString(16))
     },
     sha512: () => {
         const r = hmac(sha512)(utf8('key'))(utf8('The quick brown fox jumps over the lazy dog'))
-        assertEq(r, vec(512n)(0xb42af09057bac1e2d41708e48a902e09b5ff7f12ab428a4fe86653c73dd248fb82f948a549f7b791a5b41915ee4d1ec3935357e4e2317250d0372afa2ebeeb3an))
+        assertEq(r, vec(512n)(0xb42a_f090_57ba_c1e2_d417_08e4_8a90_2e09_b5ff_7f12_ab42_8a4f_e866_53c7_3dd2_48fb_82f9_48a5_49f7_b791_a5b4_1915_ee4d_1ec3_9353_57e4_e231_7250_d037_2afa_2ebe_eb3an))
     },
     // RFC 4231 Test Case 6: key (131 bytes of 0xaa = 1048 bits) exceeds SHA-256 block size (512 bits),
     // so the key is first compressed via the hash function before use.
     longKey: () => {
-        const key = vec(1048n)(BigInt('0x' + 'aa'.repeat(131)))
+        const key = vec(1_048n)(BigInt('0x' + 'aa'.repeat(131)))
         const r = hmac(sha256)(key)(utf8('Test Using Larger Than Block-Size Key - Hash Key First'))
-        assertEq(uint(r), 0x60e431591ee0b67f0d8a26aacbf5b77f8e0bc6213728c5140546040f0ee37f54n)
+        assertEq(uint(r), 0x60e4_3159_1ee0_b67f_0d8a_26aa_cbf5_b77f_8e0b_c621_3728_c514_0546_040f_0ee3_7f54n)
     },
     // The shapes HMAC has no answer for, refused where the hash is given
     // rather than where a message arrives: a block of no bits and a block
@@ -141,6 +141,6 @@ export const proof = {
         emptyBlock: () => hmac(/** @type {Hash<State>} */ ({ ...sha256, blockLength: 0n, blockBytes: 0n, hashLength: 0n })),
         negativeBlock: () => hmac(/** @type {Hash<State>} */ ({ ...sha256, blockLength: -8n, blockBytes: -1n, hashLength: -8n })),
         oddBlock: () => hmac(/** @type {Hash<State>} */ ({ ...sha256, blockLength: 513n, blockBytes: 65n })),
-        wideDigest: () => hmac(/** @type {Hash<State>} */ ({ ...sha256, hashLength: 1024n, hashBytes: 128n })),
+        wideDigest: () => hmac(/** @type {Hash<State>} */ ({ ...sha256, hashLength: 1_024n, hashBytes: 128n })),
     },
 }

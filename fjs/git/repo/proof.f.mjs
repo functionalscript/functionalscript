@@ -152,10 +152,10 @@ export const proof = {
     // and `gitdir: /r\xff` with the `\xff` before the NUL is still refused.
     nulThenJunk: () => {
         // `gitdir: /r`, a NUL, then `\xff` — 12 bytes.
-        assertEq(at({ w: { '.git': raw(96n, 0x6769746469723a202f7200ffn) }, r: repo })('w'), '/r')
+        assertEq(at({ w: { '.git': raw(96n, 0x6769_7464_6972_3a20_2f72_00ffn) }, r: repo })('w'), '/r')
         const root = /** @type {State['root']} */ ({
             w: { '.git': file('gitdir: /d\n') },
-            d: { commondir: raw(72n, 0x2f6d2f2e67697400ffn) },
+            d: { commondir: raw(72n, 0x2f_6d2f_2e67_6974_00ffn) },
             m: { '.git': repo },
         })
         assertEq(at(root)('w'), '/m/.git')
@@ -234,7 +234,7 @@ export const proof = {
     // as `0xc3 0xbf` and name another directory. So bytes that are no UTF-8
     // name none here, in either file. `gitdir: \xff` is 9 bytes.
     bytes: () => {
-        assertEq(at({ w: { '.git': raw(72n, 0x6769746469723a20ffn) } })('w'), null)
+        assertEq(at({ w: { '.git': raw(72n, 0x67_6974_6469_723a_20ffn) } })('w'), null)
         const root = /** @type {State['root']} */ ({ w: { '.git': file('gitdir: /d\n') }, d: { commondir: raw(8n, 0xffn) } })
         assertEq(at(root)('w'), null)
     },

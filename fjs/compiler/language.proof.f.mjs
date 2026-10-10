@@ -390,7 +390,7 @@ export const proof = {
     // Value outputs execute it; source, EDAG and Rust outputs preserve it.
     stringConversion: {
         primitives: () => {
-            const values = /** @type {const} */ ([null, undefined, true, false, 0, -0, 1.5, NaN, Infinity, -Infinity, 42n, -123456789012345678901234567890n, 'already'])
+            const values = /** @type {const} */ ([null, undefined, true, false, 0, -0, 1.5, NaN, Infinity, -Infinity, 42n, -123_456_789_012_345_678_901_234_567_890n, 'already'])
             /** @type {string} */
             const source = 'export default [String(), String(null), String(undefined), String(true), String(false), String(0), String(-0), String(1.5), String(NaN), String(Infinity), String(-Infinity), String(42n), String(-123456789012345678901234567890n), String("already")];'
             const expected = JSON.stringify(['', ...values.map(value => String(value))])

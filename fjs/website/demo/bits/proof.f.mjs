@@ -31,9 +31,9 @@ const blocks = { width: 3, stop: false, block: 2 }
 /** @type {(scheme: BitScheme) => (text: string) => BitGroups} */
 const encoded = scheme => text => unwrap(bitGroups(scheme, encode)(text))
 
-const zeroDemo = bitGroupDemo({ name: 'Toy', how: '3 bits per character', scheme: zeros, encode })
-const stopDemo = bitGroupDemo({ name: 'Stop', how: '3 bits, then a stop bit', scheme: stops, encode })
-const blockDemo = bitGroupDemo({ name: 'Block', how: '3 bits, 2 to a block', scheme: blocks, encode })
+const zeroDemo = bitGroupDemo({ intro: 'Encode <text> & read the groups.', name: 'Toy', how: '3 bits per character', scheme: zeros, encode })
+const stopDemo = bitGroupDemo({ intro: 'Encode <text> & read the groups.', name: 'Stop', how: '3 bits, then a stop bit', scheme: stops, encode })
+const blockDemo = bitGroupDemo({ intro: 'Encode <text> & read the groups.', name: 'Block', how: '3 bits, 2 to a block', scheme: blocks, encode })
 
 export const proof = {
     bitGroups: {
@@ -123,6 +123,7 @@ export const proof = {
          */
         boxes: () => {
             const html = htmlToString(zeroDemo.view(zeroDemo.init))
+            assert(html.startsWith('<!DOCTYPE html><div><p>Encode &lt;text&gt; &amp; read the groups.</p><p><label'), html)
             assert(html.includes('name="text"'), html)
             assert(html.includes('<div data-byte-char=""><div data-byte-row=""><span data-byte="">11000011</span><span data-byte="">10101001</span></div><span data-byte-label="">é</span></div>'), html)
             assert(html.includes('<strong>Toy</strong> — 3 bits per character'), html)
@@ -175,7 +176,7 @@ export const proof = {
         },
         unpairedSurrogate: () => {
             const html = htmlToString(zeroDemo.view('a\uD800'))
-            assert(html.includes('<strong>error: unpaired surrogate, no UTF-8</strong>'), html)
+            assert(html.includes('<pre data-result="error">unpaired surrogate, no UTF-8</pre>'), html)
             assert(!html.includes('data-bit-groups'), html)
         },
     },

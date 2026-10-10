@@ -1,6 +1,7 @@
 /**
  * The shared half of every demo whose state is a text: a labelled textarea
- * holding it, and whatever the demo derives from it drawn after.
+ * holding it, and whatever the demo derives from it drawn after. A required
+ * intro opens the view before the examples and textarea.
  *
  * **The demo supplies only its text and its `render`.** `update` and the
  * textarea are the same in every such demo, and the textarea's `id` and
@@ -31,7 +32,7 @@
 import { at } from '../../types/object/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
 import { examplePicker, name as exampleName } from './examples/module.f.mjs'
-import { captionMarker } from '../style/module.f.mjs'
+import { captionMarker, resultMarker } from '../style/module.f.mjs'
 
 /**
  * A demo whose state is the text in a labelled textarea, followed by what
@@ -39,7 +40,7 @@ import { captionMarker } from '../style/module.f.mjs'
  *
  * @type {(o: TextDemoOptions) => (render: (text: string) => readonly Node[]) => Demo<string, DemoEvent>}
  */
-export const textDemo = ({ name, label, rows, init, examples }) => render => {
+export const textDemo = ({ intro, name, label, rows, init, examples }) => render => {
     if (examples !== undefined && name === exampleName) { throw 'textDemo: the textarea is named like the examples drop-down' }
     const picker = examples === undefined ? undefined : examplePicker(examples)
     return {
@@ -50,6 +51,7 @@ export const textDemo = ({ name, label, rows, init, examples }) => render => {
                 : event.name === exampleName ? picker.pick(event.value)
                     : event.value),
         view: text => ['div',
+            ['p', intro],
             ...(picker === undefined ? [] : [picker.view(text)]),
             textField({ name, label, rows }, text),
             ...render(text),
@@ -80,6 +82,14 @@ export const inputField = ({ name, label }, value) => ['p',
  * @type {(text: string) => Element}
  */
 export const caption = text => ['p', { [captionMarker]: '' }, text]
+
+/** A module refusal: its caption and its unchanged message in a verdict box.
+ * @type {(message: string) => Element}
+ */
+export const refusal = message => ['div', { role: 'status' },
+    caption('Refused:'),
+    ['pre', { [resultMarker]: 'error' }, message],
+]
 
 /** Update an existing string field; unrelated events keep the state.
  * @type {<S extends StringMap<string>>(state: S) => (event: DemoEvent) => Effect<never, S, never>}

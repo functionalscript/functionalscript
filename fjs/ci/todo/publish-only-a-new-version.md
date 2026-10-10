@@ -65,12 +65,13 @@ next) may be the cheaper answer, or may not.
 ### Tasks
 
 - [ ] Decide how the workflow learns whether the version is already published.
-- [ ] Run the publish only for a new version.
+- [ ] Run the publish only for a new version. When maintenance publishing is
+      implemented, cover the selected release line as well as main; coordinate
+      with [maintenance-release-publishing.md](./maintenance-release-publishing.md).
 - [ ] Remove `continue-on-error` and, if it is then unused, its schema entry.
 - [ ] Prove that a failing publish is red.
 
 ### Related
 
-- [`publishing-packages.md`](./publishing-packages.md) — "CI publishing (merge
-  to `main`)", which records this check as done; it is done by absorption rather
-  than by decision.
+- [`publishing-packages.md`](./publishing-packages.md) — regular and planned
+  maintenance publishing; the new-version check remains open.

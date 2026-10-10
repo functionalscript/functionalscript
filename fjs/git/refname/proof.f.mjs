@@ -84,11 +84,11 @@ export const proof = {
     // rather than once per byte: twenty thousand bytes, and the same in
     // slashes, which a rule applied per component per byte would not finish.
     long: () => {
-        assert(isName(latin1('n'.repeat(20000))))
+        assert(isName(latin1('n'.repeat(20_000))))
         assert(isName(latin1(`${'n/'.repeat(10000)}n`)))
         // The same name with an empty last component is refused, so the
         // length is not what decides it.
-        assert(!isName(latin1('n/'.repeat(10000))))
+        assert(!isName(latin1('n/'.repeat(10_000))))
         // A lazy list is read as it is, the same as the array it spells.
         assert(isName(() => latin1('a/b')))
         assert(!isName(() => latin1('a/b.lock')))

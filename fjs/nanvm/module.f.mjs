@@ -634,7 +634,7 @@ const divCases = [
 const expCases = [
     // Over three, not ten: the rows spell `stringThree`, and a name is a Rust test's.
     ...againstRight(toNumericOperands(3, 'Three'))('ToThePowerOf', 2, 'Two')((a, b) => a ** b),
-    { name: 'twoToThePowerOfTen', args: [2, 10], expected: 1024 },
+    { name: 'twoToThePowerOfTen', args: [2, 10], expected: 1_024 },
     { name: 'twoToThePowerOfHalf', args: [2, 0.5], expected: 2 ** 0.5 },
     { name: 'twoToThePowerOfNegativeOne', args: [2, -1], expected: 0.5 },
     { name: 'negativeTwoToThePowerOfThree', args: [-2, 3], expected: -8 },
@@ -665,7 +665,7 @@ const expCases = [
     { name: 'negativeZeroToThePowerOfNegativeThree', args: [-0, -3], expected: -Infinity },
     { name: 'negativeZeroToThePowerOfNegativeTwo', args: [-0, -2], expected: Infinity },
     { name: 'negativeTwoToThePowerOfHalf', args: [-2, 0.5], expected: NaN },
-    { name: 'bigTwoToThePowerOfTen', args: [2n, 10n], expected: 1024n },
+    { name: 'bigTwoToThePowerOfTen', args: [2n, 10n], expected: 1_024n },
     { name: 'bigZeroToThePowerOfZero', args: [0n, 0n], expected: 1n },
     { name: 'bigNegativeTwoToThePowerOfThree', args: [-2n, 3n], expected: -8n },
     { name: 'bigTwoToThePowerOfNegativeOne', args: [2n, -1n], expected: throws },
@@ -1204,7 +1204,7 @@ const stringCoercionCases = [
     { name: 'bigint', args: [123n], expected: '123' },
     { name: 'negativeBigint', args: [-456n], expected: '-456' },
     // Past `i64` the literal is its sign and `u64` words.
-    { name: 'wideBigint', args: [123456789012345678901234567890n], expected: '123456789012345678901234567890' },
+    { name: 'wideBigint', args: [123_456_789_012_345_678_901_234_567_890n], expected: '123456789012345678901234567890' },
     { name: 'wideNegativeBigint', args: [-(2n ** 64n)], expected: '-18446744073709551616' },
     { name: 'emptyArray', args: [[]], expected: '' },
     { name: 'singletonArray', args: [[1]], expected: '1' },
@@ -1254,8 +1254,8 @@ const bitAndCases = [
     { name: 'bigNegativeTwoBitAndNegativeThree', args: [-2n, -3n], expected: -4n },
     { name: 'bigFiveBitAndNegativeOne', args: [5n, -1n], expected: 5n },
     { name: 'bigZeroBitAndZero', args: [0n, 0n], expected: 0n },
-    { name: 'bigPositiveBitAndZero', args: [12345n, 0n], expected: 0n },
-    { name: 'bigNegativeBitAndZero', args: [-12345n, 0n], expected: 0n },
+    { name: 'bigPositiveBitAndZero', args: [12_345n, 0n], expected: 0n },
+    { name: 'bigNegativeBitAndZero', args: [-12_345n, 0n], expected: 0n },
     // A magnitude near `i64::MAX`,
     // where `-1`'s all-ones pattern makes AND an identity.
     { name: 'bigLargeMagnitude', args: [-(2n ** 62n), -1n], expected: -(2n ** 62n) },
@@ -1271,8 +1271,8 @@ const bitOrCases = [
     { name: 'bigNegativeTwoBitOrNegativeThree', args: [-2n, -3n], expected: -1n },
     { name: 'bigFiveBitOrNegativeOne', args: [5n, -1n], expected: -1n },
     { name: 'bigZeroBitOrZero', args: [0n, 0n], expected: 0n },
-    { name: 'bigPositiveBitOrZero', args: [12345n, 0n], expected: 12345n },
-    { name: 'bigNegativeBitOrZero', args: [-12345n, 0n], expected: -12345n },
+    { name: 'bigPositiveBitOrZero', args: [12_345n, 0n], expected: 12_345n },
+    { name: 'bigNegativeBitOrZero', args: [-12_345n, 0n], expected: -12_345n },
     // A magnitude near `i64::MAX`:
     // `-1`'s all-ones two's-complement pattern absorbs anything it meets, so
     // the result is `-1` regardless of the other operand's magnitude.
@@ -1290,8 +1290,8 @@ const bitXorCases = [
     { name: 'bigNegativeTwoBitXorNegativeThree', args: [-2n, -3n], expected: 3n },
     { name: 'bigFiveBitXorNegativeOne', args: [5n, -1n], expected: -6n },
     { name: 'bigZeroBitXorZero', args: [0n, 0n], expected: 0n },
-    { name: 'bigPositiveBitXorZero', args: [12345n, 0n], expected: 12345n },
-    { name: 'bigNegativeBitXorZero', args: [-12345n, 0n], expected: -12345n },
+    { name: 'bigPositiveBitXorZero', args: [12_345n, 0n], expected: 12_345n },
+    { name: 'bigNegativeBitXorZero', args: [-12_345n, 0n], expected: -12_345n },
     // A magnitude near `i64::MAX`:
     // `x ^ -1` is `~x`, the identity `bitwiseNotCases` below checks
     // directly, exercised here at a large magnitude instead of a small one.
@@ -1357,9 +1357,9 @@ const shiftLeftCases = [
     { name: 'shiftCountWrapsAt32', args: [1, 33], expected: 2 },
     // The shift count is `ToUint32`'d then masked, so a negative right
     // operand becomes a large one first: `ToUint32(-1) & 0x1F` is `31`.
-    { name: 'shiftCountNegative', args: [1, -1], expected: -2147483648 },
+    { name: 'shiftCountNegative', args: [1, -1], expected: -0x8000_0000 },
     { name: 'valueWrapsAt32Bits', args: [2 ** 32 + 5, 1], expected: 10 },
-    { name: 'resultOverflowsIntoSignBit', args: [0x40000000, 1], expected: -2147483648 },
+    { name: 'resultOverflowsIntoSignBit', args: [0x4000_0000, 1], expected: -0x8000_0000 },
     { name: 'bigFiveShlThree', args: [5n, 3n], expected: 40n },
     { name: 'bigNegativeFiveShlThree', args: [-5n, 3n], expected: -40n },
     { name: 'bigFiveShlZero', args: [5n, 0n], expected: 5n },
@@ -1367,7 +1367,7 @@ const shiftLeftCases = [
     // A negative shift count is a right shift by its magnitude.
     { name: 'bigFiveShlNegativeThree', args: [5n, -3n], expected: 0n },
     { name: 'bigNegativeFiveShlNegativeThree', args: [-5n, -3n], expected: -1n },
-    { name: 'bigShiftTooLarge', args: [1n, 100000000000000000n], expected: throws, allocation: 'the host cannot allocate a BigInt with 100000000000000001 bits' },
+    { name: 'bigShiftTooLarge', args: [1n, 100_000_000_000_000_000n], expected: throws, allocation: 'the host cannot allocate a BigInt with 100000000000000001 bits' },
     ...mixedCases('Shl'),
 ]
 
@@ -1394,7 +1394,7 @@ const signedRightShiftCases = [
     { name: 'valueWrapsAt32Bits', args: [2 ** 32 + 5, 1], expected: 2 },
     // `ToInt32(2^31)` is `i32::MIN`; arithmetic-shifting that right sign-
     // extends rather than producing a small negative number.
-    { name: 'wrapsAt32BitsThenNegative', args: [2 ** 31, 1], expected: -1073741824 },
+    { name: 'wrapsAt32BitsThenNegative', args: [2 ** 31, 1], expected: -0x4000_0000 },
     { name: 'bigFortyShrThree', args: [40n, 3n], expected: 5n },
     { name: 'bigNegativeFortyShrThree', args: [-40n, 3n], expected: -5n },
     { name: 'bigFiveShrThree', args: [5n, 3n], expected: 0n },
@@ -1404,7 +1404,7 @@ const signedRightShiftCases = [
     // A negative shift count is a left shift by its magnitude.
     { name: 'bigFiveShrNegativeThree', args: [5n, -3n], expected: 40n },
     { name: 'bigNegativeFiveShrNegativeThree', args: [-5n, -3n], expected: -40n },
-    { name: 'bigShiftTooLarge', args: [1n, -100000000000000000n], expected: throws, allocation: 'the negative right-shift count requests a BigInt with 100000000000000001 bits' },
+    { name: 'bigShiftTooLarge', args: [1n, -100_000_000_000_000_000n], expected: throws, allocation: 'the negative right-shift count requests a BigInt with 100000000000000001 bits' },
     ...mixedCases('Shr'),
 ]
 
@@ -1431,7 +1431,7 @@ const unsignedRightShiftCases = [
     { name: 'valueWrapsAt32Bits', args: [2 ** 32 + 5, 1], expected: 2 },
     // The idiomatic `x >>> 0` use: turns a negative `Number` into its
     // unsigned 32-bit reading, with no shifting at all.
-    { name: 'negativeBecomesLargePositive', args: [-1, 0], expected: 4294967295 },
+    { name: 'negativeBecomesLargePositive', args: [-1, 0], expected: 0xffff_ffff },
     { name: 'bigintUnsignedRightShift', args: [5n, 1n], expected: throws },
     ...mixedCases('Ushr'),
 ]
@@ -1609,15 +1609,15 @@ export const data = {
                 { name: 'bigintWideTieDown', args: [2n ** 64n + 2n ** 11n], expected: 2 ** 64 },
                 { name: 'bigintWideTieUp', args: [2n ** 64n + 3n * 2n ** 11n], expected: 2 ** 64 + 2 ** 13 },
                 { name: 'bigintWideSticky', args: [2n ** 64n + 2n ** 11n + 1n], expected: 2 ** 64 + 2 ** 12 },
-                { name: 'bigintSeveralWords', args: [123456789012345678901234567890n], expected: 123456789012345678901234567890 },
+                { name: 'bigintSeveralWords', args: [123_456_789_012_345_678_901_234_567_890n], expected: 123_456_789_012_345_678_901_234_567_890 },
                 { name: 'bigintLargestFinite', args: [(2n ** 53n - 1n) * 2n ** 971n], expected: Number.MAX_VALUE },
                 // The halfway point to 2^1024 overflows; one integer below
                 // still rounds to the largest finite number.
-                { name: 'bigintBelowOverflowTie', args: [2n ** 1024n - 2n ** 970n - 1n], expected: Number.MAX_VALUE },
-                { name: 'bigintOverflowTie', args: [2n ** 1024n - 2n ** 970n], expected: Infinity },
-                { name: 'bigintNegativeOverflowTie', args: [-(2n ** 1024n - 2n ** 970n)], expected: -Infinity },
-                { name: 'bigintBeyondRange', args: [2n ** 1024n], expected: Infinity },
-                { name: 'bigintNegativeBeyondRange', args: [-(2n ** 1024n)], expected: -Infinity },
+                { name: 'bigintBelowOverflowTie', args: [2n ** 1_024n - 2n ** 970n - 1n], expected: Number.MAX_VALUE },
+                { name: 'bigintOverflowTie', args: [2n ** 1_024n - 2n ** 970n], expected: Infinity },
+                { name: 'bigintNegativeOverflowTie', args: [-(2n ** 1_024n - 2n ** 970n)], expected: -Infinity },
+                { name: 'bigintBeyondRange', args: [2n ** 1_024n], expected: Infinity },
+                { name: 'bigintNegativeBeyondRange', args: [-(2n ** 1_024n)], expected: -Infinity },
                 { name: 'bigintObject', args: [{ valueOf: returns(7n) }], expected: 7 },
             ],
         },

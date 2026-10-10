@@ -1,5 +1,6 @@
 /** @import { DemoEvent } from '../../website/demo/types.ts' */
 
+import { powResultMarker, stylesheet } from '../../website/style/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { empty, uint } from '../../types/bit_vec/module.f.mjs'
 import { computeSync, sha224, sha256 } from '../sha2/module.f.mjs'
@@ -16,18 +17,18 @@ const sample = utf8('functionalscript pow proof')
 const emptyData = empty
 
 /** Target large enough for {@link sample} under SHA-256 (`0x207fffff`). */
-const easyNBits = 0x207fffffn
+const easyNBits = 0x207f_ffffn
 
 /** Compact encoding for target `1` (`0x03000001`). */
-const hardNBits = 0x03000001n
+const hardNBits = 0x0300_0001n
 
 /** SHA-256 of the empty message (NIST / Bitcoin block merkle uses this primitive). */
 const sha256EmptyHash =
-    0xe3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855n
+    0xe3b0_c442_98fc_1c14_9afb_f4c8_996f_b924_27ae_41e4_649b_934c_a495_991b_7852_b855n
 
 /** Bitcoin block #0 header hash as big-endian uint256. */
 const block0Hash =
-    0x000000000019d6689c085ae165831e934ff763ae46a2a6cffb388491c27dc990n
+    0x0000_0000_0019_d668_9c08_5ae1_6583_1e93_4ff7_63ae_46a2_a6cf_fb38_8491_c27d_c990n
 
 /** @type {(nBits: bigint) => void} */
 const expectNull = nBits => {
@@ -39,17 +40,17 @@ export const proof = {
         parseNonce: () => {
             assertEq(parseNonce('0'), 0n)
             assertEq(parseNonce('00042'), 42n)
-            assertEq(parseNonce('9007199254740993'), 9007199254740993n)
+            assertEq(parseNonce('9007199254740993'), 9_007_199_254_740_993n)
             return ['', '-1', '+1', '1.5', '1e3', '0x10', ' 42', '42 ', '٤٢', '🔑'].map(text => assertEq(parseNonce(text), null))
         },
         parseNBits: () => {
             assertEq(parseNBits('0x1d00ffff'), genesisNBits)
             assertEq(parseNBits('0X1D00FFFF'), genesisNBits)
             assertEq(parseNBits('0x01d00ffff'), genesisNBits)
-            assertEq(parseNBits('0x00000000ffffffff'), 0xffffffffn)
+            assertEq(parseNBits('0x00000000ffffffff'), 0xffff_ffffn)
             assertEq(parseNBits('0x000000000'), 0n)
             assertEq(parseNBits('0x0'), 0n)
-            assertEq(parseNBits('0xffffffff'), 0xffffffffn)
+            assertEq(parseNBits('0xffffffff'), 0xffff_ffffn)
             return ['', '1d00ffff', '0x', '0x100000000', '0xgg', '0x-1', ' 0x1', '0x1 ', '0x🔑'].map(text => assertEq(parseNBits(text), null))
         },
         update: () => {
@@ -73,6 +74,10 @@ export const proof = {
         view: () => {
             // Independent Node crypto.createHash vectors pin both failed and successful nonces.
             const failed = htmlToString(demo.view(demo.init))
+            assertEq(powResultMarker, 'data-pow-result')
+            assert(failed.includes('data-pow-result=""'), failed)
+            assert(stylesheet.includes('[data-pow-result][data-result] { align-items: center; display: flex;'), 'PoW verdict layout')
+            assert(stylesheet.includes('[data-pow-result] > svg { flex-shrink: 0;'), 'PoW verdict icon')
             assert(failed.includes('<textarea id="text" name="text" rows="8">Hello, FunctionalScript!</textarea>'), failed)
             assert(failed.includes('name="next-nonce"'), failed)
             assert(failed.includes('Try next nonce'), failed)
@@ -109,8 +114,8 @@ export const proof = {
             assertEq(state.search?.running, true)
             assertEq(state.search?.attempts, 1n)
             assertEq(state.search?.start, 42n)
-            assertEq(state.search?.target, targetFromNBits(0x200fffffn))
-            assertEq(state.search?.hash, 0x6b874641ffc6e42bbb63ca7350bda22218d53a2af93c4dd03361f624c160d691n)
+            assertEq(state.search?.target, targetFromNBits(0x200f_ffffn))
+            assertEq(state.search?.hash, 0x6b87_4641_ffc6_e42b_bb63_ca73_50bd_a222_18d5_3a2a_f93c_4dd0_3361_f624_c160_d691n)
             assertEq(assertNotNullish(schedule(state)).kind, 'click')
             const active = htmlToString(demo.view(state))
             assert(active.includes('>Stop</button>'), active)
@@ -122,7 +127,7 @@ export const proof = {
             }
             assertEq(state.search?.running, false)
             assertEq(state.search?.attempts, 12n)
-            assertEq(state.search?.hash, 0x0a3d56c9c89d4aad40f0f93a1d8b199714975201d74ff72e64ba0cc1f99fd07dn)
+            assertEq(state.search?.hash, 0x0a3d_56c9_c89d_4aad_40f0_f93a_1d8b_1997_1497_5201_d74f_f72e_64ba_0cc1_f99f_d07dn)
             assertEq(schedule(state), null)
             const found = htmlToString(demo.view(state))
             assert(found.includes('Found nonce 53 after 12 attempts.<br>Failed nonces: 42–52.'), found)
@@ -192,10 +197,10 @@ export const proof = {
             assert(!(block0Hash > genesisTarget), 'block0 hash exceeds genesis target')
         },
         exponent3: () => {
-            assertEq(targetFromNBits(0x030000ffn), 0xffn, 'exponent 3')
+            assertEq(targetFromNBits(0x0300_00ffn), 0xffn, 'exponent 3')
         },
         exponent2: () => {
-            assertEq(targetFromNBits(0x02008000n), 0x80n, 'exponent 2')
+            assertEq(targetFromNBits(0x0200_8000n), 0x80n, 'exponent 2')
         },
         hardTargetOne: () => {
             assertEq(targetFromNBits(hardNBits), 1n, 'hard target')
@@ -204,16 +209,16 @@ export const proof = {
             assertEq(targetFromNBits(0n), 0n, 'zero nBits')
         },
         negative: () => {
-            expectNull(0x01800001n)
+            expectNull(0x0180_0001n)
         },
         negativeHighMantissa: () => {
-            expectNull(0x22ffffffn)
+            expectNull(0x22ff_ffffn)
         },
         overflowExponent: () => {
-            expectNull(0x23000001n)
+            expectNull(0x2300_0001n)
         },
         exceeds256: () => {
-            expectNull(0x227fffffn)
+            expectNull(0x227f_ffffn)
         },
     },
     meets: {
@@ -230,7 +235,7 @@ export const proof = {
             assert(!(p256.meets(0n)(sample)), 'non-zero hash vs zero target')
         },
         invalidNBits: () => {
-            assert(!(p256.meets(0x01800001n)(sample)), 'invalid nBits should not pass')
+            assert(!(p256.meets(0x0180_0001n)(sample)), 'invalid nBits should not pass')
         },
         hashLeqTarget: () => {
             const h = p256.hashInt(sample)

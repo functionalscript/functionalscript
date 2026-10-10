@@ -748,7 +748,7 @@ const randomMax = Number(1n << 32n)
 const { randomInt } = crypto
 
 /** @type {<T, E>(effect: Effect<NodeOp, T, E>) => Promise<Result<T, E>>} */
-const runNodeEffect = asyncRun({
+export const runNodeEffect = asyncRun({
     ...memoryOperationMap(),
     all: async (...effects) => ok(await Promise.all(effects.map(runNodeEffect))),
     fetch: url => io(async () => {
