@@ -180,16 +180,18 @@ A short heading is easier to scan, link to, and reference from other files.
 why, in terms that stay true while the tree moves under it. Cite code by
 name — the file and the export, function, or type, `fjs/git/oid`'s
 `tryFromHexOf` — never by line number, and label a quoted snippet with
-the function it comes from, not the lines it spanned. Prefer an
-approximate count — "about a dozen importers", "several emit sites", "a
-few callers", "tens of proofs" — to an exact one: "three callers" goes
-stale as surely as `3`. The aim is fewer edits to an issue over its life,
-not a rule for its own sake, so a reviewer who asks for a count to go
-proposes the words that replace it. A line number or an exact count is a
-measurement of the tree on the day it was taken: the next merge makes
-it wrong, nothing checks it, and every review then spends its rounds
-correcting numbers instead of reading the design. A name stays right until the code it names is
-renamed, and then the rename is what a reader searches for. Numbers that
+the function it comes from, not the lines it spanned. A count is
+either approximate — "about a dozen importers", "several emit sites", "a
+few callers", "tens of proofs" — or exact and pinned to the commit it was
+taken at, as the next paragraph describes; an unpinned "three callers"
+goes stale as surely as `3`. The aim is fewer edits to an issue over its
+life, not a rule for its own sake, so a reviewer who asks for a count to
+change proposes the words that replace it. A line number or an unpinned
+count is a measurement of the tree on the day it was taken: the next
+merge makes it wrong, nothing checks it, and every review then spends
+its rounds correcting numbers instead of reading the design. A name
+stays right until the code it names is renamed, and then the rename is
+what a reader searches for. Numbers that
 are part of the meaning — a bit width, a `0x30` offset, the two outcomes
 a function has — are not measurements and stay exact.
 
@@ -198,7 +200,10 @@ the issue, a line worth quoting by position — pin it to the commit it
 was taken at: "at `1a2b3c4d`, `cas_get` was about seventy lines". Read
 at that commit it stays true forever, so it is never updated, and a
 reviewer does not ask for it to be re-taken at each new commit
-([REVIEWING.md](../doc/REVIEWING.md#designs-and-todo-files)). A
+([REVIEWING.md](../doc/REVIEWING.md#designs-and-todo-files)). Read
+later, it still gives the impression it was written for: two hundred
+proof sites at that commit means a few hundred today, and the reader
+knows what kind of change the issue asks for without re-counting. A
 measurement with no commit is the one thing a reviewer may ask to see
 pinned or replaced by a name — once.
 
