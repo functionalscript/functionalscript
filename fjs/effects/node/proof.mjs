@@ -11,6 +11,7 @@
  *
  * @import { All, Child, Handle, NodeProgram, NodeOp, ReadRequestBytes, RequestListener as Erl, ServerResponse } from './types.ts'
  * @import { ChildProcess } from 'node:child_process'
+ * @import { Agent, Server, ServerResponse as NodeServerResponse } from 'node:http'
  * @import { Effect, IoChannel, Operation } from '../types.ts'
  * @import { EffectList, Next } from '../list/types.ts'
  * @import { Result } from '../../types/result/types.ts'
@@ -232,13 +233,13 @@ const within = async (label, ms, p) => {
  *
  * @template T
  * @param {Erl<NodeOp>} listener
- * @param {(port: number, server: import('node:http').Server) => Promise<T>} client
+ * @param {(port: number, server: Server) => Promise<T>} client
  * @returns {Promise<T>}
  */
 const withServer = async (listener, client) => {
-    /** @type {(server: import('node:http').Server) => void} */
+    /** @type {(server: Server) => void} */
     let created = () => { }
-    /** @type {Promise<import('node:http').Server>} */
+    /** @type {Promise<Server>} */
     const held = new Promise(resolve => { created = resolve })
     /** @type {NodeProgram} */
     const program = () => resultMapStep(
@@ -248,7 +249,7 @@ const withServer = async (listener, client) => {
                 // The one cast, and the boundary the runner itself crosses the
                 // same way: a `Server` is a `Nominal` over the host's own
                 // object, and `asBase` is how the runner reads it back.
-                created(/** @type {import('node:http').Server} */ (asBase(server)))
+                created(/** @type {Server} */ (asBase(server)))
                 return listen(server, 0, loopback)
             }),
         r => r[0] === 'ok' ? ok(0) : error(1))
@@ -429,7 +430,7 @@ const keepsAliveIgnoringBody = () => pureOk({
  * been read. The response wins where there is one, and the error is only an
  * answer where there is not.
  *
- * @type {(port: number, method: string, body: Nullable<Uint8Array>, agent: import('node:http').Agent) => Promise<{ readonly status: number, readonly connection: string, readonly chunks: string, readonly body: Uint8Array, readonly reused: boolean }>}
+ * @type {(port: number, method: string, body: Nullable<Uint8Array>, agent: Agent) => Promise<{ readonly status: number, readonly connection: string, readonly chunks: string, readonly body: Uint8Array, readonly reused: boolean }>}
  */
 const overAnAgent = (port, method, body, agent) => new Promise((resolve, reject) => {
     /** @type {boolean} */
@@ -1492,7 +1493,7 @@ export const proof = {
                 const pulls = counter()
                 const releases = counter()
                 const pullsWhileFull = counter()
-                /** @type {import('node:http').ServerResponse | undefined} */
+                /** @type {NodeServerResponse | undefined} */
                 let response
                 /** @type {() => void} */
                 let started = () => { }
