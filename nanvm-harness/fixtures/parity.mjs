@@ -49,7 +49,7 @@ const end = acc => () => ['ok', acc];
 const step = (command, payload, view) => rest => acc => ({
     command,
     payload,
-    continuation: answer => rest([...acc, summary(view, answer)]),
+    continuation: (/** @type {any} */ answer) => rest([...acc, summary(view, answer)]),
 });
 
 /** What an operation with no value shows. */
