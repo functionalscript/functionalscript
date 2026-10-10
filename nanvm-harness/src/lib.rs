@@ -16,6 +16,13 @@
 #[path = "../gen.fixtures/mod.rs"]
 pub mod fixtures;
 
+/// The expectation of each corpus fixture, `gen.expected/*.rs`, named by the
+/// generated `gen.expected/mod.rs`: the value of its default as a graph, and
+/// its JSON text where it has one. The comparison with the compiled fixture
+/// is the next step's.
+#[path = "../gen.expected/mod.rs"]
+pub mod expected;
+
 use core::fmt::{self, Debug, Display, Formatter};
 
 use nanvm_lib::vm::{Any, Array, Function, IVm, JsonError, Object};

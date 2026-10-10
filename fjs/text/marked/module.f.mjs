@@ -9,9 +9,11 @@
  * @module
  *
  * @import { Result } from '../../types/result/types.ts'
- * @import { Marked, Run, Span } from './types.ts'
+ * @import { List } from '../../types/list/types.ts'
+ * @import { Chunk, Marked, Run, Span } from './types.ts'
  */
 
+import { map, toArray } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 
 /**
@@ -20,6 +22,56 @@ import { error, ok } from '../../types/result/module.f.mjs'
  * @type {(marked: Marked) => string}
  */
 export const toText = marked => marked.map(([text]) => text).join('')
+
+/**
+ * A keyword: `const`, `export`, `typeof`, …
+ *
+ * @type {(word: string) => Run}
+ */
+export const keyword = word => [word, 'keyword']
+
+/**
+ * A literal word: `undefined`, `null`, `true`, `false`, `NaN`, `Infinity`.
+ *
+ * @type {(word: string) => Run}
+ */
+export const literal = word => [word, 'literal']
+
+/**
+ * The text of a chunk.
+ *
+ * @type {(chunk: Chunk) => string}
+ */
+export const chunkText = chunk => typeof chunk === 'string' ? chunk : chunk[0]
+
+/**
+ * A chunk as a run: a bare string is an unmarked one.
+ *
+ * @type {(chunk: Chunk) => Run}
+ */
+export const chunkRun = chunk => typeof chunk === 'string' ? [chunk] : chunk
+
+/**
+ * The runs a list of chunks spells.
+ *
+ * @type {(chunks: List<Chunk>) => Marked}
+ */
+export const chunksMarked = chunks => toArray(chunks).map(chunkRun)
+
+/**
+ * The chunks as plain strings, the markup dropped: what a writer's public
+ * `List<string>` API still answers.
+ *
+ * @type {(chunks: List<Chunk>) => List<string>}
+ */
+export const chunkStrings = map(chunkText)
+
+/**
+ * The text a list of chunks spells.
+ *
+ * @type {(chunks: List<Chunk>) => string}
+ */
+export const chunksText = chunks => toArray(chunks).map(chunkText).join('')
 
 /**
  * A text with spans beside it, as runs: the spans' text with their kind, the
