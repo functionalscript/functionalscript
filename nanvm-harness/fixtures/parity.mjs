@@ -145,6 +145,14 @@ export const writeBytes = {
     expected: [['ok', null], ['ok', null], ['ok', true], ['error', 'ENOENT']],
 };
 
+export const readWhole = {
+    run: (/** @type {string} */ root) => step('writeFile', [root + '/f', hihi], none)(
+        step('readWhole', [root + '/f'], (/** @type {any} */ v) => v[0] === hihi)(
+            step('readWhole', [root], none)(
+                step('readWhole', [root + '/none'], none)(end))))([]),
+    expected: [['ok', null], ['ok', true], ['error', 'ERR_NOT_A_FILE'], ['error', 'ENOENT']],
+};
+
 export const directory = {
     run: (/** @type {string} */ root) => step('mkdir', [root + '/b', undefined], none)(
         step('mkdir', [root + '/a', undefined], none)(
