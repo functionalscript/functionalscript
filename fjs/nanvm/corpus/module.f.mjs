@@ -16,6 +16,9 @@
 
 import { isArray } from '../../types/array/module.f.mjs'
 
+/** Where the fixtures are: one `.mjs` module each, a helper one imports beside them. */
+export const fixturesDirectory = 'nanvm-harness/fixtures'
+
 /**
  * The fixtures no executor comparison covers, each with its reason. A fixture
  * here is not wrong; it tests something other than the language's value

@@ -10,7 +10,8 @@ import { exitCode, readUtf8File } from '../../effects/node/module.f.mjs'
 import { step } from '../../effects/module.f.mjs'
 import { defaultNodeProgramOptions, emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
-import { directory, expectedDirectory, expectedModulesPath, fixtures, generateAll, generateExpected, generateFixtures, main, modules, modulesPath, rustName } from './module.f.mjs'
+import { fixturesDirectory as corpusDirectory } from '../corpus/module.f.mjs'
+import { directory, expectedDirectory, expectedModulesPath, fixtures, fixturesDirectory, generateAll, generateExpected, generateFixtures, main, modules, modulesPath, rustName } from './module.f.mjs'
 
 /**
  * Four fixtures and the things the walk must leave alone: a file that is not
@@ -44,6 +45,11 @@ const into = (dir, path) => path.reduce((d, name) => {
 }, dir)
 
 export const proof = {
+    // The corpus owns the directory and the harness re-exports it: one value.
+    fixturesDirectory: () => {
+        assertEq(fixturesDirectory, corpusDirectory)
+        assertEq(fixturesDirectory, 'nanvm-harness/fixtures')
+    },
     rustName: () => {
         assertEq(rustName('function-scope.mjs'), 'function_scope')
         assertEq(rustName('named-imports-throws.mjs'), 'named_imports_throws')

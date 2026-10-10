@@ -31,11 +31,10 @@ import { interpret } from '../../compiler/transpiler/module.f.mjs'
 import { forEachStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../../effects/module.f.mjs'
 import { exitStep, mkdir, readdir, writeUtf8File } from '../../effects/node/module.f.mjs'
 import { cmp } from '../../types/string/module.f.mjs'
-import { corpus } from '../corpus/module.f.mjs'
+import { corpus, fixturesDirectory } from '../corpus/module.f.mjs'
 import { expectation } from '../expected/module.f.mjs'
 
-/** Where the fixtures are: one `.mjs` module each, a helper one imports beside them. */
-export const fixturesDirectory = 'nanvm-harness/fixtures'
+export { fixturesDirectory }
 
 /** Where the compiled fixtures go, a `gen.` name `gen:clean` empties. */
 export const directory = 'nanvm-harness/gen.fixtures'

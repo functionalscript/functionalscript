@@ -10,8 +10,7 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { _transpileDefault } from '../../compiler/transpiler/module.f.mjs'
 import { emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
-import { fixturesDirectory } from '../harness/module.f.mjs'
-import { corpus, exceptions, undefinedDefault, withAliasing } from './module.f.mjs'
+import { corpus, exceptions, fixturesDirectory, undefinedDefault, withAliasing } from './module.f.mjs'
 
 const names = readdirSync(fixturesDirectory, { withFileTypes: true })
     .filter(entry => entry.isFile())
