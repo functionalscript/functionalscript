@@ -1,14 +1,15 @@
 ## Run Intel macOS CI without Nix
 
 **Priority:** P3
-**Status:** blocked
+**Status:** wip
 
 ### Trigger
 
 When upgrading the repository's pinned Nixpkgs from 26.05 to 26.11 or a later
 revision that no longer supports `x86_64-darwin`, make this migration part of
-that upgrade. Keep the current setup until that switch. Updating the Nix
-package-manager executable alone is not the trigger.
+that upgrade. The task owner has approved making the migration now, before
+that upgrade, to reduce Intel macOS setup time by installing only the tools
+its job needs. Updating the Nix executable alone does not require it.
 
 ### Problem
 
