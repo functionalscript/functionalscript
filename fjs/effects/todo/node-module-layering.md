@@ -318,17 +318,17 @@ moved afterwards and kept its plain tuple for the same reason. All six —
 `Fetch`, `CreateServer`, `Listen`, `Forever`, `All`, `Import` — remain plain
 tuples today.
 
-The six are worth aligning *deliberately*, in one change that says so and takes
-the version bump for the set rather than smuggling it inside a move. Nothing
-depends on it.
+The six are worth aligning *deliberately*, in one change that explains the API
+change and checks every call site rather than smuggling it inside a move.
+Breaking notices are optional before 1.0, and regular releases advance the minor
+regardless of individual changes. Nothing depends on this alignment.
 
 functionalscript#1822 (which added the repo-wide `readonly`-types rule in
 `fjs/AGENTS.md`) considered aligning these six as part of that sweep and
-deliberately deferred them here instead, even though that PR's own other
-changes already forced a version bump: each of the six now carries an inline
-comment pointing back at this section, and folding them in without giving the
-rename its own declaration and its own look at every call site would have
-been exactly the kind of smuggled break this section exists to avoid.
+deliberately deferred them here instead. Each of the six now carries an inline
+comment pointing back at this section. Folding them into that sweep without
+explaining the tuple change and checking every call site would have been exactly
+the kind of smuggled break this section exists to avoid.
 
 ### Tasks
 

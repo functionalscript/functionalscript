@@ -47,6 +47,9 @@ fix deliberately uses a different branch and window:
    branch. If `main` already contains a fix, record that in the urgent-fix PR.
    The next regular release collects the forward-port PR normally and uses the
    next minor with patch zero.
+6. Check newer released lines for the same defect and promptly publish an urgent
+   fix on every affected newer line, including the newest line used by `latest`.
+   Do not leave those users waiting for the next regular release.
 
 ## Why the collection happens here
 

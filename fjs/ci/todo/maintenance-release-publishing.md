@@ -47,6 +47,9 @@ continue to work when this path is added.
 - [ ] Update the maintenance release procedure with the implemented path and
       required configuration. Carry fixes into main before the next regular
       release, adapting them if needed or recording that main already has them.
+- [ ] Check newer released lines for the same defect and promptly publish an
+      urgent fix on every affected newer line, including the newest line used
+      by `latest`. Do not leave those users waiting for the next regular release.
 
 ## Evidence and related work
 
