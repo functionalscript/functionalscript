@@ -22,7 +22,7 @@
  */
 
 import { cmp } from '../function/compare/module.f.mjs'
-import { addition as additionOp } from '../function/operator/module.f.mjs'
+import { addition as additionOp } from '../function/operator/module.f.js'
 import { fold } from '../../common/monoid/module.f.mjs'
 
 /**

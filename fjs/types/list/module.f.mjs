@@ -16,7 +16,7 @@ import {
     stateScanToScan,
     foldToScan,
     reduceToScan,
-} from '../function/operator/module.f.mjs'
+} from '../function/operator/module.f.js'
 
 export const fromArrayLike =
     /**

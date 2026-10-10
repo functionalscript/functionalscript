@@ -23,7 +23,7 @@
 import { reduce as listReduce, repeat as listRepeat } from '../list/module.f.mjs'
 import { compose } from '../function/module.f.mjs'
 import { cmp as uCmp } from '../function/compare/module.f.mjs'
-import { addition as additionOp, join as joinOp } from '../function/operator/module.f.mjs'
+import { addition as additionOp, join as joinOp } from '../function/operator/module.f.js'
 import { fold } from '../../common/monoid/module.f.mjs'
 
 /** @type {Reduce<string>} */

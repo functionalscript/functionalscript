@@ -58,13 +58,13 @@ export type Scan<I, O> = (input: I) => readonly [O, Scan<I, O>]
  *
  * A {@link Fold} is the output-less special case (state only); driving a
  * `StateScan` over a `List` is `stateScan` in `../../list/module.f.mjs`, and
- * {@link ./module.f.mjs | `stateScanToScan`} hides the state to recover a
+ * {@link ./module.f.js | `stateScanToScan`} hides the state to recover a
  * {@link Scan}.
  */
 export type StateScan<I, S, O> = (input: I, prior: S) => readonly [O, S]
 
 /**
- * The steps of a `cascade` in `./module.f.mjs`: one {@link StateScan} per
+ * The steps of a `cascade` in `./module.f.js`: one {@link StateScan} per
  * position of the state tuple `S`, each over its own state `S[K]`, each
  * mapping an `I` to the next step's `I` or to `undefined`, which ends the
  * chain. Since `undefined` is that signal, `I` excludes it.

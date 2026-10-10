@@ -9,7 +9,7 @@ import { stringify } from '../../media/json/module.f.mjs'
 import { sort } from '../object/module.f.mjs'
 import { union } from '../sorted_set/module.f.mjs'
 import { equal, toArray } from '../list/module.f.mjs'
-import { strictEqual } from '../function/operator/module.f.mjs'
+import { strictEqual } from '../function/operator/module.f.js'
 import { cmp } from '../string/module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
 
