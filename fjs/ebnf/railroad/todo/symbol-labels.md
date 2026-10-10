@@ -37,7 +37,8 @@ set: how a set of symbols is labelled, and which symbols join into one literal.
   so a token set is the choice of its tokens, however many runs it has, and
   tokens never join into one literal. A name in `categories` — `id`, `string`
   — stands for any token of its kind, not for its own text, and is drawn as a
-  `category`: a pill with its name in italics.
+  `category`: a grey pill with its name in italics, so only text the input
+  holds is drawn in the terminal's blue.
 
 ### Tasks
 
