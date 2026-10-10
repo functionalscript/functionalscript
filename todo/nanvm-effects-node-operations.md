@@ -41,7 +41,11 @@ implementation details remain unspecified here.
   - [x] `createExclusive`, `writeExclusive`, `readBytes`.
   - [x] `sandbox`, `catch`, `now`.
   - [ ] `randomInt`, `inflate`, `test`.
-  - [ ] The descriptor handles `open`, `fstat`, `pread`, `close`: a native `Handle`.
+  - [x] The descriptor handles `open`, `fstat`, `pread`, `close`: a handle is an
+        index into the host's table of open files, as `Handle` in
+        `fjs/effects/node/types.ts` allows; it is never reused, and a closed one
+        is `EBADF`. A FIFO is refused rather than opened without blocking
+        ([todo](../nanvm-effects-node/todo/non-blocking-open.md)).
 - [ ] Complete the [asynchronous native-effects task](./nanvm-effects-node-async.md).
 - [ ] Verify equivalent observable behavior against the Node runner for the full
       native scope above.
