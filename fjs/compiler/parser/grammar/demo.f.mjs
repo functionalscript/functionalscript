@@ -13,8 +13,9 @@
  * tokenizer's output, each token encoded as a symbol by
  * `fjs/ebnf/token_symbol`, so a pill is a token's name: `=>`, `import`. Four
  * names stand for any token of their kind rather than for their own text —
- * `id`, `string`, `number` and `bigint` — and are drawn in italics.
- * Whitespace and comments are no tokens, so no diagram mentions them.
+ * `id`, `string`, `number` and `bigint` — and are drawn as grey pills in
+ * italics. Whitespace and comments are no tokens, so no diagram mentions
+ * them.
  *
  * **The diagrams are the exported rules, by their export names**, and so
  * are the operator layers of `eagerTail`, one diagram per layer, from
@@ -118,4 +119,4 @@ export const diagrams = [
 /** The token kinds that stand for any token of their kind, not for their own text. */
 const categories = /** @type {const} */ (['id', 'string', 'number', 'bigint'])
 
-export const demo = railroadDemo('The FunctionalScript module grammar, drawn from the rules the parser reads a module with. Follow a track from left to right; a pill is a token, one in italics any token of its kind, and a box is another diagram — select it to go there.')(toDiagrams(tokens(encoding(_ordinaryTokenNames), categories))(ruleSet)(diagrams))
+export const demo = railroadDemo('The FunctionalScript module grammar, drawn from the rules the parser reads a module with. Follow a track from left to right; a pill is a token, a grey one in italics any token of its kind, and a box is another diagram — select it to go there.')(toDiagrams(tokens(encoding(_ordinaryTokenNames), categories))(ruleSet)(diagrams))
