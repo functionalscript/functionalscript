@@ -59,30 +59,30 @@ const read = source => {
     // say the same thing twice, and a proof can only ever exercise one of the
     // two answers.
     while (true) {
-        const char = source[index]
+        const char = source[Number(index)]
         if (char === undefined) { break }
-        const next = source[index + 1]
+        const next = source[Number(index + 1)]
         if (char === '/' && next === '/') {
-            while (index < source.length && source[index] !== '\n') { index += 1 }
+            while (index < source.length && source[Number(index)] !== '\n') { index += 1 }
             continue
         }
         if (char === '/' && next === '*') {
             index += 2
             while (index < source.length
-                && !(source[index] === '*' && source[index + 1] === '/')) { index += 1 }
+                && !(source[Number(index)] === '*' && source[Number(index + 1)] === '/')) { index += 1 }
             index += 2
             continue
         }
         if (char === '\'' || char === '"' || char === '`') {
             index += 1
             let text = ''
-            while (index < source.length && source[index] !== char) {
-                if (source[index] === '\\') {
+            while (index < source.length && source[Number(index)] !== char) {
+                if (source[Number(index)] === '\\') {
                     text += ' '
                     index += 2
                     continue
                 }
-                text += source[index]
+                text += source[Number(index)]
                 index += 1
             }
             index += 1
@@ -91,8 +91,8 @@ const read = source => {
         }
         if (nameChar(char)) {
             let text = ''
-            while (nameChar(source[index])) {
-                text += source[index]
+            while (nameChar(source[Number(index)])) {
+                text += source[Number(index)]
                 index += 1
             }
             out += `${separator}n${text}`
@@ -125,7 +125,7 @@ const declarations = ['const', 'let', 'var', 'function', 'class']
  * @type {(list: readonly string[], at: number) => number}
  */
 const declaredName = (list, at) =>
-    list[at] === 'function' && list[at + 1] === '*' ? at + 2 : at + 1
+    list[Number(at)] === 'function' && list[Number(at + 1)] === '*' ? at + 2 : at + 1
 
 /**
  * Whether a bracketed group starting at `at` binds `name`. A named export list
@@ -144,7 +144,7 @@ const groupBinds = name => (list, at, close) => {
         .split(',')
         .some(item => {
             const names = item.split(' ').filter(word => word !== '')
-            return names[names.length - 1] === name
+            return names[Number(names.length - 1)] === name
         })
 }
 
@@ -156,7 +156,7 @@ const groupBinds = name => (list, at, close) => {
  * @type {(name: string) => (list: readonly string[], at: number) => boolean}
  */
 const bindsName = name => (list, at) => {
-    const head = list[at]
+    const head = list[Number(at)]
     if (head === undefined) { return false }
     // `async` modifies the declaration that follows it and binds nothing itself.
     if (head === 'async') { return bindsName(name)(list, at + 1) }
@@ -164,12 +164,12 @@ const bindsName = name => (list, at) => {
         // A declaration binds one name, or a pattern of them: the repository
         // exports through one already — `export const { merge, get } = map`.
         const declared = declaredName(list, at)
-        const bound = list[declared]
+        const bound = list[Number(declared)]
         if (bound === '{') { return groupBinds(name)(list, declared, '}') }
         if (bound === '[') { return groupBinds(name)(list, declared, ']') }
         return bound === name
     }
-    if (head === '*') { return list[at + 1] === 'as' && list[at + 2] === name }
+    if (head === '*') { return list[Number(at + 1)] === 'as' && list[Number(at + 2)] === name }
     return head === '{' && groupBinds(name)(list, at, '}')
 }
 
@@ -221,7 +221,7 @@ export const specifiers = source => {
     const tokens = read(source)
     return tokens.flatMap((token, index) => {
         if (token.kind !== 'string') { return [] }
-        const previous = tokens[index - 1]
+        const previous = tokens[Number(index - 1)]
         return previous?.kind === 'name'
             && (previous.text === 'from' || previous.text === 'import')
             ? [token.text]

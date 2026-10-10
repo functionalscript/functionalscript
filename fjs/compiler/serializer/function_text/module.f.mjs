@@ -15,10 +15,11 @@
  * @module
  * @import { Analysis, ItemOperand, Node, Operand, Step } from '../../../edag/analysis/types.ts'
  * @import { _Scope } from './private.ts'
+ * @import { Chunk } from '../../../text/marked/types.ts'
  */
 
 import { leafSerialize } from '../../../media/datajs/serializer/module.f.mjs'
-import { toArray } from '../../../types/list/module.f.mjs'
+import { chunksText, keyword, literal } from '../../../text/marked/module.f.mjs'
 import { _name as name, _binding as binding, _resolve as resolve } from '../names/module.f.mjs'
 
 /** The name of one invocation-local memo cell. @type {(_s: _Scope, k: number) => string} */
@@ -39,16 +40,32 @@ const selfName = path => name(`${path}/self`)
  *
  * @type {(path: string) => string}
  */
-export const _entryText = path => {
+export const _entryText = path => chunksText(_entryChunks(path))
+
+/**
+ * {@link _entryText} as chunks: its keywords and its `undefined` carry their
+ * kind, so the one text has one spelling for the plain and the marked writer.
+ *
+ * @type {(path: string) => readonly Chunk[]}
+ */
+export const _entryChunks = path => {
     const a = name(`${path}/arg0`)
     const b = name(`${path}/arg1`)
     const x = name(`${path}/descriptor`)
-    return `(${binding(a)},${binding(b)})=>{const ${binding(x)}=Object.getOwnPropertyDescriptor(${a},${b});return ${x}?.enumerable?${x}.value:undefined;}`
+    return [
+        `(${binding(a)},${binding(b)})=>{`,
+        keyword('const'),
+        ` ${binding(x)}=Object.getOwnPropertyDescriptor(${a},${b});`,
+        keyword('return'),
+        ` ${x}?.enumerable?${x}.value:`,
+        literal('undefined'),
+        ';}',
+    ]
 }
 
 /** Render a value, demanding a shared entry through its cell. @type {(s: _Scope, v: Operand) => string} */
 const operand = (s, v) => {
-    if (!(v instanceof Array)) { return `(${toArray(leafSerialize(v)).join('')})` }
+    if (!(v instanceof Array)) { return `(${chunksText(leafSerialize(v))})` }
     const k = s.shared.indexOf(v[1])
     return k === -1 ? entry(s, v[1]) : `(${memoName(s, k)}())`
 }
@@ -142,7 +159,7 @@ const lambda = (a, i, path, frame) => {
 export const renderFunction = (a, i) => {
     const node = /** @type {Extract<Node, readonly ['=>', number, readonly Operand[], Operand]>} */ (a.nodes[i])
     const frame = node[2].map((_, k) => name(`external${k}`))
-    return resolve([lambda(a, i, 'function', frame)], [], frame).join('')
+    return chunksText(resolve([lambda(a, i, 'function', frame)], [], frame))
 }
 
 /** Compose a function into a larger symbolic document before allocating names. @type {(a: Analysis, i: number, path: string, frame: readonly string[]) => string} */

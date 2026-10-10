@@ -5,12 +5,12 @@
  * {@link highlight} is the fallback for a text with no producer behind it,
  * which finds the runs by tokenizing.
  *
- * Design: `website/demo/todo/highlight-from-producers.md`, proposed in
- * https://github.com/functionalscript/functionalscript/pull/2697.
+ * What marked text is, and why: [`fjs/text/marked`](../../../text/marked/README.md).
  *
  * **It reads the text with the real tokenizer**, [`fjs/js/tokenizer`](../../../js/tokenizer/module.f.mjs),
  * not with a lookalike, so a string that holds `//` is a string and a
- * keyword is whatever [`isKeyword`](../../../js/keywords/module.f.mjs) says.
+ * keyword is whatever [`isKeyword`](../../../js/keywords/module.f.mjs) says, and
+ * a literal word is one of its `literalWords`.
  * The tokenizer keeps a token's value, not its spelling (`'a'` and `"a"` are
  * one string), so each token's text is cut from the input between its start
  * and the next token's.
@@ -25,23 +25,24 @@
  * colours.
  *
  * Classes, the values of `data-token`: `keyword`, `literal` (`true`,
- * `false`, `null`, `undefined`), `string`, `number` (a bigint included) and
- * `comment`. Names and punctuation stay plain. The stylesheet owns the
- * colours.
+ * `false`, `null`, `undefined`, `NaN`, `Infinity`), `string`, `number` (a
+ * bigint included) and `comment`. Names and punctuation stay plain. The
+ * stylesheet owns the colours.
  *
  * @module
  *
  * @import { Node } from '../../../media/html/types.ts'
  * @import { JsToken } from '../../../ebnf/lib/js/types.ts'
+ * @import { Scan, StateScan } from '../../../types/function/operator/types.ts'
  * @import { Marked, Span, TokenKind } from '../../../text/marked/types.ts'
  */
 
 import { _positions, tokenize } from '../../../js/tokenizer/module.f.mjs'
 import { assertNotNullish } from '../../../asserts/module.f.mjs'
-import { isKeyword } from '../../../js/keywords/module.f.mjs'
+import { isKeyword, literalWords } from '../../../js/keywords/module.f.mjs'
 import { stringToCodePointList } from '../../../text/utf16/module.f.mjs'
-import { fromSpans } from '../../../text/marked/module.f.mjs'
-import { toArray } from '../../../types/list/module.f.mjs'
+import { fromSpans, toText } from '../../../text/marked/module.f.mjs'
+import { scan, stateScan, toArray } from '../../../types/list/module.f.mjs'
 import { unwrap } from '../../../types/result/module.f.mjs'
 
 /**
@@ -60,13 +61,16 @@ export const render = marked => marked.flatMap(([text, kind]) =>
  */
 const kindOf = ({ kind }) => {
     switch (kind) {
-        case 'true': case 'false': case 'null': case 'undefined': return 'literal'
+        case 'id': return 'identifier'
         case 'string': return 'string'
         case 'number': case 'bigint': return 'number'
         case '//': case '/*': return 'comment'
-        default: return isKeyword(kind) ? 'keyword' : undefined
+        default: return literalWords.some(word => word === kind) ? 'literal' : isKeyword(kind) ? 'keyword' : undefined
     }
 }
+
+/** Whether a token is no part of the program's words: whitespace, a newline or a comment. @type {(token: JsToken) => boolean} */
+const isTrivia = ({ kind }) => kind === 'ws' || kind === 'nl' || kind === '//' || kind === '/*'
 
 /**
  * The spans the tokenizer finds in `text`: none if it refuses the text, as
@@ -78,6 +82,10 @@ const kindOf = ({ kind }) => {
  * the next token's, less trailing blanks: it anchors a run of trivia that
  * holds a newline at the newline, so the blanks before it fall in the
  * previous token's cut.
+ *
+ * **A word after `.` or `?.` is a property name**, `x.true` and `x.default`,
+ * and an `identifier` whatever it spells: the tokenizer reads it as the word
+ * it spells, which the language does not mean there.
  *
  * @type {(text: string) => readonly Span[]}
  */
@@ -96,12 +104,48 @@ export const spansOf = text => {
     // A token that starts where the previous one does adds nothing to cut:
     // the `nl` a block comment with a newline is followed by.
     const kept = tokens.flatMap(({ token }, i) => i > 0 && starts[i] === starts[i - 1] ? [] : [{ token, start: starts[i] }])
+    // The kind of the word before each token, trivia skipped, in one pass.
+    /** @type {StateScan<{ token: JsToken }, string, string>} */
+    const word = ({ token }, prior) => [prior, isTrivia(token) ? prior : token.kind]
+    const afterWords = toArray(stateScan(word)('')(kept))
     // The last token is `eof`, which stays plain, so every token that has a
     // kind has a next one to end at.
     return kept.slice(0, -1).flatMap(({ token, start }, i) => {
         const kind = kindOf(token)
-        return kind === undefined ? [] : [{ start, length: Array.from(symbols.slice(start, kept[i + 1].start).join('').trimEnd()).length, kind }]
+        const before = afterWords[i]
+        const property = (kind === 'keyword' || kind === 'literal') && (before === '.' || before === '?.')
+        return kind === undefined ? [] : [{ start, length: Array.from(symbols.slice(start, kept[i + 1].start).join('').trimEnd()).length, kind: property ? 'identifier' : kind }]
     })
+}
+
+/** The starting offset before each run's length. @type {(at: number) => Scan<number, number>} */
+const before = at => length => [at, before(at + length)]
+
+/**
+ * Where a producer's markup and the tokenizer part ways, or `null` where
+ * they agree: the marked runs, as spans of the whole text, are the spans
+ * the tokenizer finds in it, one for one. The tokenizer reads `-0` as a
+ * prefix and a number, so a leading `-` is not part of the span it finds.
+ * This comparison deliberately excludes that sign; it does not prove pixel
+ * equality with the fallback. `render` honours the producer's whole run,
+ * including the sign, as the rendering proof and design record specify.
+ * What a producer marks, this holds it to; the proofs of the producers that
+ * mark ask it of every example they have.
+ *
+ * @type {(marked: Marked) => string | null}
+ */
+export const disagreement = marked => {
+    const text = toText(marked)
+    const found = JSON.stringify(spansOf(text))
+    const lengths = marked.map(([chunk]) => Array.from(chunk).length)
+    const starts = toArray(scan(before(0))(lengths))
+    /** @type {readonly Span[]} */
+    const given = marked.flatMap(([chunk, kind], i) => {
+        const dash = chunk.startsWith('-') ? 1 : 0
+        return kind === undefined ? [] : [{ start: starts[i] + dash, length: lengths[i] - dash, kind }]
+    })
+    const marks = JSON.stringify(given)
+    return marks === found ? null : `marked ${marks}, the tokenizer finds ${found}, in ${text}`
 }
 
 /**

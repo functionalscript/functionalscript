@@ -12,6 +12,8 @@
  * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
+import { isSafeInteger } from '../../types/number/is_safe_integer/module.f.js'
+
 /**
  * The unsigned big-endian 32-bit word at `at`, read as arithmetic rather than
  * with shifts.
@@ -22,7 +24,7 @@
  *
  * @type {(b: readonly number[], at: number) => number}
  */
-export const u32be = (b, at) => b[at] * 16_777_216 + b[at + 1] * 65_536 + b[at + 2] * 256 + b[at + 3]
+export const u32be = (b, at) => b[Number(at)] * 0x100_0000 + b[Number(at + 1)] * 0x1_0000 + b[Number(at + 2)] * 0x100 + b[Number(at + 3)]
 
 /**
  * The big-endian 64-bit word at `at`, or `null` where it is above the range a
@@ -37,8 +39,8 @@ export const u32be = (b, at) => b[at] * 16_777_216 + b[at + 1] * 65_536 + b[at +
  * @type {(b: readonly number[], at: number) => Nullable<number>}
  */
 export const u64be = (b, at) => {
-    const v = u32be(b, at) * 4_294_967_296 + u32be(b, at + 4)
-    return Number.isSafeInteger(v) ? v : null
+    const v = u32be(b, at) * 0x1_0000_0000 + u32be(b, at + 4)
+    return isSafeInteger(v) ? v : null
 }
 
 /**
@@ -49,4 +51,4 @@ export const u64be = (b, at) => {
  *
  * @type {(prefix: readonly number[]) => (b: readonly number[]) => boolean}
  */
-export const startsWith = prefix => b => prefix.every((v, i) => b[i] === v)
+export const startsWith = prefix => b => prefix.every((v, i) => b[Number(i)] === v)

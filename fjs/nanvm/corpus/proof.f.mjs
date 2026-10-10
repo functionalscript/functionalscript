@@ -5,7 +5,7 @@
 
 import { assert, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { structurallySame } from '../../types/object/structurally_same/module.f.mjs'
-import { corpus, exceptions, undefinedDefault, withAliasing } from './module.f.mjs'
+import { corpus, exceptions, undefinedDefault, withAliasing, withoutNegativeZero } from './module.f.mjs'
 
 export const proof = {
     corpus: {
@@ -68,6 +68,25 @@ export const proof = {
                     ['a', ['node', 1, 'array', [1]]],
                     ['b', ['node', 2, 'array', [['alias', 1]]]],
                 ]])
+        },
+    },
+    withoutNegativeZero: {
+        writesNegativeZeroAsZero: () => {
+            assert(Object.is(withoutNegativeZero(-0), 0))
+        },
+        keepsEveryOtherLeaf: () => {
+            for (const v of [0, 1, -1, 'a', true, null, undefined, 2n, NaN, 1e21]) {
+                assert(Object.is(withoutNegativeZero(v), v))
+            }
+        },
+        reachesInsideArraysAndObjects: () => {
+            assertStructurallySame(
+                withoutNegativeZero([-0, { a: -0, b: [1, -0], c: 'x' }]),
+                [0, { a: 0, b: [1, 0], c: 'x' }])
+            assert(Object.is(/** @type {any} */ (withoutNegativeZero([-0]))[0], 0))
+        },
+        keepsOrder: () => {
+            assertStructurallySame(Object.keys(/** @type {object} */ (withoutNegativeZero({ b: 1, a: -0 }))), ['b', 'a'])
         },
     },
 }

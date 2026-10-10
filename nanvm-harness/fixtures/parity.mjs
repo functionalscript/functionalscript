@@ -55,6 +55,9 @@ const step = (command, payload, view) => rest => acc => ({
 /** What an operation with no value shows. */
 const none = (/** @type {unknown} */ _) => null;
 
+/** @type {(...a: readonly unknown[]) => never} */
+const fail = (...a) => { throw 'boom'; };
+
 const hi = -59497n;
 const hihi = -3899222121n;
 
@@ -151,6 +154,46 @@ export const readWhole = {
             step('readWhole', [root], none)(
                 step('readWhole', [root + '/none'], none)(end))))([]),
     expected: [['ok', null], ['ok', true], ['error', 'ERR_NOT_A_FILE'], ['error', 'ENOENT']],
+};
+
+export const thunks = {
+    run: (/** @type {string} */ _root) => step('catch', [() => 7], (/** @type {any} */ v) => v[0] === 'ok' && v[1] === 7)(
+        step('catch', [fail], (/** @type {any} */ v) => v[0] === 'error' && v[1] === 'boom')(
+            step('sandbox', [() => 2], (/** @type {any} */ v) => v.result[0] === 'ok' && v.result[1] === 2 && v.duration * 1 === v.duration && v.duration >= 0)(
+                step('sandbox', [fail], (/** @type {any} */ v) => v.result[0] === 'error' && v.result[1] === 'boom' && v.duration * 1 === v.duration && v.duration >= 0)(
+                    step('now', [], (/** @type {any} */ v) => v * 1 === v && v % 1 === 0 && v > 1000000000000 && v < 100000000000000)(end)))))([]),
+    expected: [['ok', true], ['ok', true], ['ok', true], ['ok', true], ['ok', true]],
+};
+
+export const resolution = {
+    run: (/** @type {string} */ root) => step('writeFile', [root + '/m.f.mjs', hi], none)(
+        step('resolveFileModule', [root + '/m.f.mjs', null], (/** @type {any} */ v) => v.id.startsWith('file:///') && v.id.endsWith('/m.f.mjs') && v.path.endsWith('m.f.mjs'))(
+            step('resolveFileModule', [root + '/none.f.mjs', null], none)(end)))([]),
+    expected: [['ok', null], ['ok', true], ['error', 'ENOENT']],
+};
+
+/**
+ * What a program does with a handle it opened: the handle is the host's own
+ * (a `FileHandle` for the Node one, an index for the native one), so the case
+ * passes it along and records only what the operations answer.
+ *
+ * @type {(handle: unknown) => (acc: readonly unknown[]) => unknown}
+ */
+const using = handle => step('fstat', [handle], (/** @type {any} */ v) => v.size === 2 && v.isFile)(
+    step('pread', [handle, 0, 2], (/** @type {unknown} */ v) => v === hi)(
+        step('close', [handle], none)(
+            step('close', [handle], none)(
+                step('fstat', [handle], none)(
+                    step('pread', [handle, 0, 1], none)(end))))));
+
+export const handles = {
+    run: (/** @type {string} */ root) => step('writeFile', [root + '/f', hi], none)(
+        (/** @type {readonly unknown[]} */ acc) => ({
+            command: 'open',
+            payload: [root + '/f'],
+            continuation: (/** @type {any} */ opened) => using(opened[1])(acc),
+        }))([]),
+    expected: [['ok', null], ['ok', true], ['ok', true], ['ok', null], ['ok', null], ['error', 'EBADF'], ['error', 'EBADF']],
 };
 
 export const directory = {
