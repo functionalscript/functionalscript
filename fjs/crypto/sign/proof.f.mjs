@@ -704,7 +704,7 @@ export const proof = {
             for (const v of rfc) { assert(html.includes(`<pre>${v}`) || html.includes(`Ux = ${v}`) || html.includes(`Uy = ${v}`), v) }
             assert(html.includes('✓ The signature verifies'), html)
             // each of k, r and s is explained under its value
-            for (const note of ['A one-time secret.', 'The x coordinate of the point kG', 's = (h + r·x) / k mod q']) { assert(html.includes(note), note) }
+            for (const note of ['two different messages never share a k', 'The x coordinate of the point kG', 's = (h + r·x) / k mod q']) { assert(html.includes(note), note) }
         },
         // Each curve verifies its own signature, as Sign shows it.
         everyCurve: () => {
