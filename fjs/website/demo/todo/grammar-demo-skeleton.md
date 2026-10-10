@@ -16,7 +16,9 @@ with [`railroadDemo`](../railroad/module.f.mjs) over
 first clause; the sentence "Follow a track from left to right; a pill is text the
 input holds, and a box is another diagram — select it to go there." is
 identical across the pages. A reader's guide to railroad diagrams is the
-demo kind's text, not each grammar's.
+demo kind's text, shared by these code-point pages. A token page needs a
+different guide: its pills are tokens, and a grey pill in italics stands for
+any token of its kind.
 
 Some titled diagrams are inline variant branches, not exported source
 rules: JSON and DataJS select `object` and `array` from `value`; JavaScript
@@ -31,9 +33,16 @@ Another grammar page is expected —
 ### Proposal
 
 One `grammarDemo` beside `railroadDemo` takes the grammar, its
-[`Alphabet`](../../../ebnf/railroad/types.ts), its first-clause description
-and an ordered list of titled selections. The current pages pass
-`codePoints`; a token grammar can pass `tokens(encoding, categories)`.
+[`Alphabet`](../../../ebnf/railroad/types.ts), its first-clause description,
+a mandatory guide sentence and an ordered list of titled selections.
+The page supplies both prose inputs separately from the alphabet: the
+alphabet labels symbols and decides which symbols join into one literal;
+it does not supply the intro. The current pages pass `codePoints` and a
+shared `codePointGuide` exported beside `grammarDemo`, containing their
+existing guide sentence. A token grammar can pass
+`tokens(encoding, categories)` and its own guide, such as "Follow a track
+from left to right; a pill is a token, a grey one in italics any token of
+its kind, and a box is another diagram — select it to go there."
 The selections are:
 
 - `[title, rule]` draws a source rule, including the grammar's entry rule.
@@ -45,8 +54,9 @@ and `['array', value, 'array']`. JavaScript passes
 `['star', content, 'star']` among its other selections. Markdown needs only
 source-rule selections.
 
-The helper owns `toData`, `nameOf`, `branch`, the guide sentence and the
-`toDiagrams` call. It lowers once, uses the returned entry for the grammar
+The helper owns `toData`, `nameOf`, `branch` and the `toDiagrams` call. It
+joins the supplied description and guide with a space for the intro. It
+lowers once, uses the returned entry for the grammar
 itself and the returned name map for other source rules, then resolves
 branch selections with `branch(ruleSet)(nameOf(rule), tag)` and draws them
 with `toDiagrams(alphabet)(ruleSet)(diagrams)`. Each page passes source rule
@@ -60,7 +70,10 @@ cycle.
 - [ ] `grammarDemo` with a proof at 100%, covering source-rule and branch
       selections and retaining the existing refusal of missing rules or
       branches; check that the selected alphabet supplies the labels for
-      both kinds of selection.
+      both kinds of selection. Prove that the intro preserves the supplied
+      description and guide for both `codePointGuide` and a token page's
+      guide, including its explanation of category pills.
 - [ ] Move the listed pages onto it, preserving their titled selections and
-      rendered layout; check the diagrams and links in the browser.
+      intro text with `codePointGuide`, and their rendered layout; check the
+      diagrams and links in the browser.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.

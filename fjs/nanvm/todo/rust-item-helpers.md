@@ -62,9 +62,9 @@ either way.
 
 `constSlice` owns the documentation, annotation, declaration, row order,
 indentation, commas and closing line. Rows keep the caller's own type;
-`formatRow(row)` returns a `Result` containing one Rust element expression,
-without indentation or a trailing comma. The helper returns the complete
-slice or propagates the formatter's refusal.
+`formatRow(row)` returns a `Result<string, E>` containing one Rust element
+expression, without indentation or a trailing comma. The helper returns
+`Result<string, E>`: the complete slice or the formatter's refusal.
 
 The generators own their row formatters: a command string, a pair of type
 and method strings, or a harness `Case` row. Each formatter calls
@@ -72,6 +72,24 @@ and method strings, or a harness `Case` row. Each formatter calls
 The harness row keeps its display name separate from its Rust module
 identifier: quote `name`, but emit the `fixture`, `expected`, `json` and
 `throws` references as code, using the harness's existing module naming.
+
+`commands.generate` and `methods.generate` keep their string-returning
+APIs: unwrap each `constSlice` result with
+[`types/result.unwrap`](../../types/result/module.f.mjs) while composing
+the module text. A refused row throws its error, as `nanvm/rust`'s
+`nameLiteral` already does; it is never dropped or coerced into Rust text.
+Command and method names are authored source.
+
+The harness reads live fixture filenames through `fixtures`, so its effect
+boundary handles row refusal as input failure. A private, shared composer
+returns the expected module text as a `Result`; the exported
+`expectedModules(names)` keeps its string API by unwrapping that result.
+`generateExpected` consumes the composer's result directly, converting a
+refusal to `pureError(ioError({ message: ... }))` in its existing `IoChannel`,
+with a diagnostic identifying the refused fixture name. It constructs the
+`writeUtf8File` effect for `gen.expected/mod.rs` only on success. Earlier
+per-fixture writes may already have completed; no rollback is required.
+Loading, interpreting and writing failures keep their existing behavior.
 
 The listed generators call the item helpers. The header helper may
 standardize the comment-line layout; preserve each caller's generation
@@ -94,6 +112,11 @@ blank lines outside the mark.
       in every string field and refuses lone surrogates. For harness rows,
       use a separate valid module identifier and prove the Rust references
       remain unquoted while the display name is escaped.
+- [ ] Keep the exported string APIs and add `throw` proofs for unescapable
+      synthetic rows at their unwrapping module-text boundaries.
+- [ ] Prove the harness effect path reports the refused fixture name through
+      `IoChannel` and never requests the `gen.expected/mod.rs` write; earlier
+      per-fixture files may remain.
 - [ ] Move the listed generators onto them; `npm run gen` and diff the
       generated files. Allow header-only layout changes and changes where
       a name needed escaping; preserve header content and generated Rust
