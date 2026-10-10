@@ -41,7 +41,7 @@
  *
  * @module
  *
- * @import { All, Env, NodeProgramOptions, ReadFile, Readdir, Rm, Write, WriteBytes, WriteFile } from '../effects/node/types.ts'
+ * @import { All, Env, Mkdir, NodeProgramOptions, ReadFile, Readdir, Rm, Write, WriteBytes, WriteFile } from '../effects/node/types.ts'
  * @import { Effect, IoChannel } from '../effects/types.ts'
  * @import { StringSet } from '../types/string_set/types.ts'
  * @import { Vec } from '../types/bit_vec/types.ts'
@@ -52,7 +52,7 @@
  */
 
 import { utf8 } from '../text/module.f.mjs'
-import { allOk, exitStep, isNotFound, readdir, readUtf8File, writeFile, writeUtf8File } from '../effects/node/module.f.mjs'
+import { exitStep, isNotFound, mkdir, readdir, readUtf8File, writeFile, writeUtf8File } from '../effects/node/module.f.mjs'
 import { foldStep, forEachStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../effects/module.f.mjs'
 import { exportsDemo, exportsProof, local, specifiers } from './browser-source/module.f.mjs'
 import { concat as pathConcat } from '../path/module.f.mjs'
@@ -63,7 +63,8 @@ import { log } from '../effects/common/module.f.mjs'
 import { indexPage, isVersion, releasePage, releasePath, releases } from './changelog/module.f.mjs'
 import { tryParse } from '../media/markdown/module.f.mjs'
 import { stylesheet } from './style/module.f.mjs'
-import { changelogDir, demoSection, page, pagePath, sections, shell, siteName, subtree, testSection, testsMain } from './page/module.f.mjs'
+import { changelogDir, demoSection, page, pagePath, prsDir, sections, shell, siteName, subtree, testSection, testsMain } from './page/module.f.mjs'
+import { prsPage } from './prs/module.f.mjs'
 import { toHex, tryFromHexOf } from '../git/oid/module.f.mjs'
 import { fundingPath, parse as parseFunding } from './funding/module.f.mjs'
 import { isThirdParty } from '../dev/module.f.mjs'
@@ -136,7 +137,9 @@ const walk = dir => step(readdir(dir, {}), entries => {
     // somebody left in the tree.
     const files = entries.filter(e => !e.isDirectory).map(e => e.name).toSorted()
     const dirs = entries
-        .filter(e => e.isDirectory && !isThirdParty(e.name))
+        // The root PR route is generated output, not a source directory.
+        // Excluding it keeps consecutive builds' catalogues identical.
+        .filter(e => e.isDirectory && !isThirdParty(e.name) && !(dir === '.' && e.name === prsDir))
         .map(e => e.name)
         .toSorted()
     return foldStep(
@@ -717,7 +720,7 @@ const readFunding = tree => {
  * branch — and the funding channels are added once the tree has been read,
  * so every page builder receives one whole {@link Build}.
  *
- * @type {(env: Omit<Build, 'funding'>) => (note: string) => Effect<Readdir | ReadFile | Rm | WriteBytes | WriteFile | Write | All, 0, number>}
+ * @type {(env: Omit<Build, 'funding'>) => (note: string) => Effect<Readdir | ReadFile | Rm | WriteBytes | WriteFile | Write | All | Mkdir, 0, number>}
  */
 const program = env => note => exitStep(mapStep(
     step(log(note), () => step(walk('.'), tree => step(readFunding(tree), funding => {
@@ -729,16 +732,18 @@ const program = env => note => exitStep(mapStep(
             step(classify([...foundProofs, ...browserProofOf(tree)], foundDemos)(graph),
                 ([proofs, demoProofs]) => {
                     const [demos, refused] = resolveDemos(demoProofs)
-                    return step(reportClassification(proofs), () =>
-                        step(forEachStep(pureOk(refused), log), () =>
-                            step(writePages(build)(tree)(proofs)(demos), () =>
-                                step(writeChangelog(build)(tree), () =>
-                                    writeUtf8File('_main.css', stylesheet)))))
+                    const reported = step(reportClassification(proofs), () =>
+                        forEachStep(pureOk(refused), log))
+                    const pages = step(reported, () => writePages(build)(tree)(proofs)(demos))
+                    const changelog = step(pages, () => writeChangelog(build)(tree))
+                    const prDirectory = step(changelog, () => mkdir(prsDir, { recursive: true }))
+                    const prPage = step(prDirectory, () => writeFile(pagePath(prsDir), prsPage(build)))
+                    return step(prPage, () => writeUtf8File('_main.css', stylesheet))
                 }))
     }))),
     () => undefined))
 
-/** @type {(options: NodeProgramOptions) => Effect<Readdir | ReadFile | Rm | WriteBytes | WriteFile | Write | All, 0, number>} */
+/** @type {(options: NodeProgramOptions) => Effect<Readdir | ReadFile | Rm | WriteBytes | WriteFile | Write | All | Mkdir, 0, number>} */
 export const main = ({ env }) => {
     const commit = commitOf(env)
     return program({ commit, branch: branchOf(env) })(linksNote(env)(commit))

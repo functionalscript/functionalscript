@@ -34,6 +34,34 @@ that issue's concern, for automated runners. Module pages do not depend on it,
 and moving the site under such a root would break every fetch they make — so
 the two are separate, and this one is not quietly migrated into the other.
 
+## Current pull requests
+
+`/prs/` shows the open pull requests in `functionalscript/functionalscript`:
+their linked number, author, and open/draft state with a CI/check summary.
+The shared header links it as **PRs**. The page uses the same frame and
+stylesheet as the directory pages.
+
+The browser reads GitHub's public API only when **Refresh** is clicked;
+opening the page makes no GitHub API requests. No polling, credentials,
+backend or stored snapshot is needed. Checks are read for each PR's current
+head commit, combining latest check runs and commit statuses; a passing
+summary does not assert that the
+PR is mergeable or that every branch protection requirement is met.
+
+A failed read is shown as a failure, not an empty list or a passing result.
+When refreshing the PR list fails, retained rows are marked stale. GitHub's
+unauthenticated API limit applies; the page reports limits and keeps a direct
+link to GitHub available.
+
+The generator reserves the root `prs/` output directory and excludes it from
+source discovery. The implementation's `fjs/website/prs/` directory remains
+an ordinary source page. A repeated build produces the same catalogue.
+
+`prs/load/` defines pagination, rate-limit refusals, worker limits and refresh
+feedback as pure decisions with co-located proofs. The browser adapter reads
+responses, performs requests and DOM updates, and supplies browser clock and
+date-formatting results to that policy.
+
 ## Every directory gets a page
 
 One rule rather than two: whatever a directory holds, it gets an `index.html`
@@ -315,9 +343,11 @@ scheme it would have picked.
 
 ## Every page opens with the same header
 
-The logo and the site's name, linking home; then **Releases** and **GitHub**.
+The logo and the site's name, linking home; then **PRs**, **Releases** and
+**GitHub**.
 It is one element, `header` in [`page/module.f.mjs`](./page/module.f.mjs), and
-every page carries it — the root, a directory's page, and the changelog's.
+every page carries it — the root, a directory's page, the PR queue, and the
+changelog's.
 Before it, the root page had its own "GitHub Repository" and "Releases" links
 and no other page had either.
 
@@ -338,8 +368,8 @@ and no other page had either.
   header only, a framed box, GitHub-style tabs with icons, and bordered
   buttons — and the box won, then went full width.
 - **It wraps rather than hiding behind a menu button.** In a monospace face a
-  phone has no room for the name and both links on one line; a line break
-  costs no script, on a site that is otherwise static files. The two links are
+  phone has no room for the name and all three links on one line; a line break
+  costs no script, on a site that is otherwise static files. The three links are
   one group, so they wrap together under the name rather than one beside it
   and one below.
 - **A header link is not underlined.** Its place in the header is what says it
