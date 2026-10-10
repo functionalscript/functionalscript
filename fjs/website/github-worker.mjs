@@ -55,7 +55,15 @@ export const handleGithubRequest = async (request, env, host = {}) => {
     if (request.method !== method) { return json({ error: 'Method not allowed.' }, 405, { Allow: method }) }
     const redirect = callback(env.GITHUB_REDIRECT_URI)
     if (redirect === null || !env.GITHUB_CLIENT_ID || !env.GITHUB_CLIENT_SECRET) {
-        return json({ error: 'GitHub login is not configured.' }, 503)
+        if (!config) { return json({ error: 'GitHub login is not configured.' }, 503) }
+        const bindingNames = /** @type {const} */ ([
+            'GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET', 'GITHUB_REDIRECT_URI',
+        ])
+        return json({
+            error: 'GitHub login is not configured.',
+            missingBindings: bindingNames.filter(name => env[name] === undefined || env[name] === ''),
+            invalidRedirectUri: env.GITHUB_REDIRECT_URI !== undefined && env.GITHUB_REDIRECT_URI !== '' && redirect === null,
+        }, 503)
     }
     if (url.origin !== redirect.origin) { return json({ error: 'GitHub login is unavailable on this origin.' }, 403) }
     if (config) { return json({ clientId: env.GITHUB_CLIENT_ID, redirectUri: redirect.href }) }

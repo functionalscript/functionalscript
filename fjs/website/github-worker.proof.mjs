@@ -54,6 +54,60 @@ export const proof = /** @type {const} */ ({
         assertStructurallySame(await response.json(), { clientId: 'public-client-id', redirectUri: `${origin}/prs/` })
         assertEq(response.headers.get('Set-Cookie'), null)
     },
+    configurationDiagnosticsNameOnlyMissingBindings: async () => {
+        const cases = /** @type {const} */ ([
+            { configured: {}, missing: ['GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET', 'GITHUB_REDIRECT_URI'] },
+            { configured: { ...env, GITHUB_CLIENT_ID: '' }, missing: ['GITHUB_CLIENT_ID'] },
+            { configured: { ...env, GITHUB_CLIENT_SECRET: '' }, missing: ['GITHUB_CLIENT_SECRET'] },
+            { configured: { ...env, GITHUB_REDIRECT_URI: '' }, missing: ['GITHUB_REDIRECT_URI'] },
+            { configured: { GITHUB_CLIENT_ID: env.GITHUB_CLIENT_ID }, missing: ['GITHUB_CLIENT_SECRET', 'GITHUB_REDIRECT_URI'] },
+        ])
+        for (const { configured, missing } of cases) {
+            const response = await handleGithubRequest(new Request(`${origin}/auth/github/config`), configured, noNetwork)
+            await refused(response.clone(), 503)
+            assertStructurallySame(await response.json(), {
+                error: 'GitHub login is not configured.', missingBindings: missing, invalidRedirectUri: false,
+            })
+        }
+    },
+    configurationDiagnosticsIdentifyInvalidCallbackWithoutValues: async () => {
+        const redirects = /** @type {const} */ ([
+            'invalid', 'http://untrusted.example/prs/', `${origin}/elsewhere/`,
+            `${origin}/prs/?query=true`, `${origin}/prs/#fragment`,
+            'https://user:password@functionalscript.example/prs/',
+        ])
+        for (const redirect of redirects) {
+            const response = await handleGithubRequest(new Request(`${origin}/auth/github/config`), {
+                ...env, GITHUB_CLIENT_ID: 'private-client-detail',
+                GITHUB_CLIENT_SECRET: 'private-secret-detail', GITHUB_REDIRECT_URI: redirect,
+            }, noNetwork)
+            await refused(response.clone(), 503)
+            const text = await response.clone().text()
+            assert(!text.includes('private-client-detail'))
+            assert(!text.includes('private-secret-detail'))
+            assert(!text.includes(JSON.stringify(redirect)))
+            assertStructurallySame(await response.json(), {
+                error: 'GitHub login is not configured.', missingBindings: [], invalidRedirectUri: true,
+            })
+        }
+        const mixed = await handleGithubRequest(new Request(`${origin}/auth/github/config`), {
+            ...env, GITHUB_CLIENT_ID: '', GITHUB_REDIRECT_URI: 'invalid',
+        }, noNetwork)
+        await refused(mixed.clone(), 503)
+        assertStructurallySame(await mixed.json(), {
+            error: 'GitHub login is not configured.', missingBindings: ['GITHUB_CLIENT_ID'], invalidRedirectUri: true,
+        })
+    },
+    tokenConfigurationFailuresKeepGenericShape: async () => {
+        const cases = /** @type {const} */ ([
+            {}, { ...env, GITHUB_CLIENT_SECRET: '' }, { ...env, GITHUB_REDIRECT_URI: 'invalid' },
+        ])
+        for (const configured of cases) {
+            const response = await handleGithubRequest(request(), configured, noNetwork)
+            await refused(response.clone(), 503)
+            assertStructurallySame(await response.json(), { error: 'GitHub login is not configured.' })
+        }
+    },
     exchangesOnlyThroughConfiguredProvider: async () => {
         /** @type {RequestInit | undefined} */
         let options

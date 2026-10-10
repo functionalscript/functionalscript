@@ -152,8 +152,9 @@ PR page and account identity.
 1. Register a [GitHub OAuth App](https://github.com/settings/developers) with
    the site's exact `/prs/` callback, for example
    `https://your-site.example/prs/` (use the actual website origin).
-2. Set `GITHUB_CLIENT_ID` and `GITHUB_REDIRECT_URI` as Cloudflare Worker
-   runtime variables in **Settings → Variables and Secrets**. Build variables
+2. Set `GITHUB_CLIENT_ID` and `GITHUB_REDIRECT_URI` as **Text** Cloudflare Worker
+   runtime variables in **Settings → Variables and Secrets**, outside the
+   **Builds** section. Build variables
    alone do not become Worker bindings. The redirect must be an HTTPS URL
    ending in `/prs/`, with no query, fragment, or embedded credentials.
    The root Wrangler configuration sets `keep_vars: true` so redeploying
@@ -172,10 +173,14 @@ preview. Local development may use HTTP on localhost with its own app;
 
 Open `/auth/github/config` on the site to check the deployed configuration.
 HTTP 200 returns the public client ID and callback URL; HTTP 503 means a
-binding is missing or the callback URL is invalid; HTTP 403 means the site
-origin differs from the configured callback origin. This endpoint never
-returns the application secret. After changing bindings, deploy a version
-with those bindings to the preview being tested.
+binding is missing or the callback URL is invalid. Its `missingBindings`
+array names absent or empty `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, and
+`GITHUB_REDIRECT_URI` bindings; `invalidRedirectUri` is true when a nonempty
+callback fails validation. These diagnostics contain names and a boolean,
+never binding values. HTTP 403 means the site origin differs from the
+configured callback origin. This endpoint never returns the application
+secret. After changing bindings, deploy a version with those bindings to
+the preview being tested.
 
 See [GitHub's OAuth documentation](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps)
 for registration and PKCE details.
