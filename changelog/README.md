@@ -72,8 +72,9 @@ to order them: [RELEASE.md](./RELEASE.md).
   What is missing is the number, not necessarily the pull request: a direct push
   never had one, and a rebase merge drops the reference from a pull request that
   did exist. Either way the SHA is the reference the entry can carry.
-  `RELEASE.md` step 2 says why such commits exist and that the release author
-  declares for them. Mixing the two in one entry is fine. Do not link to, or
+  `RELEASE.md` step 2 says why such commits exist and requires the release author
+  to read their diffs and collect notable changes for release notes. Mixing the
+  two in one entry is fine. Do not link to, or
   name in plain text, an issue or a `todo/` file: issue files are deleted when
   the work is done, so those references rot and mean nothing to a reader of the
   published package.
