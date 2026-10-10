@@ -51,10 +51,34 @@ pub fn sandbox<A: IVm>(thunk: Any<A>) -> Any<A> {
 }
 
 /// `now`: milliseconds since the Unix epoch, as `Date.now()` answers, a whole
-/// number.
+/// number, negative before 1970.
 pub fn now<A: IVm>() -> Any<A> {
-    let since = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("the system clock is before 1970");
-    encode_ok(encode_number(since.as_millis() as f64))
+    encode_ok(encode_number(epoch_millis(SystemTime::now())))
+}
+
+/// The whole milliseconds from the epoch to `time`, rounded down as
+/// `Date.now()` rounds.
+fn epoch_millis(time: SystemTime) -> f64 {
+    match time.duration_since(UNIX_EPOCH) {
+        Ok(since) => since.as_millis() as f64,
+        Err(before) => {
+            let before = before.duration();
+            let whole = before.as_millis() as f64;
+            -(whole + f64::from(u8::from(before.subsec_nanos() % 1_000_000 != 0)))
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::epoch_millis;
+    use std::time::{Duration, UNIX_EPOCH};
+
+    #[test]
+    fn a_time_before_the_epoch_is_negative_and_rounded_down() {
+        assert_eq!(epoch_millis(UNIX_EPOCH + Duration::from_micros(1500)), 1.0);
+        assert_eq!(epoch_millis(UNIX_EPOCH), 0.0);
+        assert_eq!(epoch_millis(UNIX_EPOCH - Duration::from_micros(1500)), -2.0);
+        assert_eq!(epoch_millis(UNIX_EPOCH - Duration::from_millis(3)), -3.0);
+    }
 }

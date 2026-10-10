@@ -791,7 +791,7 @@ mod test {
     fn the_clock_operations_are_not_implemented_without_a_clock() {
         for command in ["sandbox", "now"] {
             assert_eq!(
-                ok(perform(command, [])).to_json(),
+                perform(command, []).unwrap().to_json(),
                 Ok(format!("[\"error\",[\"notImplemented\",\"{command}\"]]"))
             );
         }
