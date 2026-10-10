@@ -18,11 +18,11 @@ Sync before the drop: `File::sync_all` reports what the close would, with no
 Node handler does not make; that cost is accepted for the operations below.
 
 `createExclusive` and `writeExclusive` do it. A sync that fails fails the
-operation, and `writeExclusive` rolls its file back as it does for a failed
-write. A local filesystem reports these errors from `write` already, so the
-sync is not observable in a test there; it is a call in the one place a close
-error can be seen, written so that its failure takes the path a write failure
-takes, which the rollback test exercises.
+operation as a failed `close`, and the file stays, as the Node handler leaves it
+after a failed close; `writeExclusive` removes its file only for a failed write.
+A local filesystem reports these errors from `write` already, so the sync is not
+observable in a test there; it is one call in the one place a close error can be
+seen, and both outcomes are proved through injected failures.
 
 ### Tasks
 
