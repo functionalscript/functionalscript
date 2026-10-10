@@ -290,8 +290,10 @@ and the two are one node, `['.', a, 'b', ['|()', args]]`; any other callee is
 the plain `['()', callee, args]`, its arguments an item list, the one an
 array literal holds. The plain form over an access calls the selected function
 without its receiver. `(a.b)(c)` still keeps the receiver, parentheses preserving
-the property reference, so the structural writer names the selected function
-first, `const f = a.b`, then calls `f(c)`. A call mints identity — two calls are
+the property reference: it lowers to the same method node as `a.b(c)`, and the
+writer emits a method call. For a plain-call node whose EDAG callee is an access,
+the structural writer names the selected function first, `const f = a.b`, then
+calls `f(c)`. A call mints identity — two calls are
 two nodes and a `const` naming one is one — which is what a body's `const`
 keeps. One call lowers to no call at all: a parameterless function written
 at the call and called with no arguments, `(() => { const x = f(); return
