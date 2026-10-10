@@ -20,15 +20,18 @@ need one more option, it is added to the spread at each.
 ### Proposal
 
 [`virtual`](../module.f.mjs) exports `virtualAt = root => virtual({
-...emptyState, root })`, and optionally `runProgram = program => root =>
-args => virtualAt(root)(program(nodeProgramOptions(args)))` for the local
-`run` helpers. A mechanical change, one proof directory per PR if the diff
-is too large for one.
+...emptyState, root })`. Only `virtualAt` is required by this task. A shared
+`runProgram = program => root => args =>
+virtualAt(root)(program(nodeProgramOptions(args)))` may also replace the
+local `run` helpers if that simplifies them. A mechanical change, one proof
+directory per PR if the diff is too large for one.
 
 ### Tasks
 
-- [ ] Export the two helpers, proven.
-- [ ] Move the proofs onto them.
+- [ ] Export and prove `virtualAt`.
+- [ ] Move the repeated root-state setup in proofs onto `virtualAt`.
+- [ ] If `runProgram` is added, export and prove it and move the local
+      `run` helpers onto it.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
 
 ### Related
