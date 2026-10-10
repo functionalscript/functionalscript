@@ -18,6 +18,9 @@
  * **It needs no operations.** Tokenizing is a pure function of the text, so
  * `update` declares `never` and returns through `pureOk`.
  *
+ * **The listing is for inspection**, so it uses a neutral code box without
+ * a copy button.
+ *
  * @module
  *
  * @import { DjsTokenWithMetadata } from './types.ts'
