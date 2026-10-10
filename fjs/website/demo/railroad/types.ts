@@ -38,3 +38,11 @@ export type Diagram =
     | readonly ['sequence', readonly Diagram[]]
     | readonly ['choice', readonly [Diagram, ...Diagram[]]]
     | readonly ['loop', Diagram, Diagram]
+
+/**
+ * The kinds of piece drawn as a box with a label — a terminal's or a
+ * category's pill, a non-terminal's box: the tags of the pieces that carry
+ * a name. The stylesheet selects each by this kind, so a kind it names is
+ * one a diagram draws.
+ */
+export type BoxKind = Extract<Diagram, readonly [string, string]>[0]

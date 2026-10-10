@@ -5,11 +5,12 @@
  * @import { Equal } from '../../../types/ts/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { Items } from './types.ts'
+ * @import { Node } from '../../../media/html/types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
 import { diagramPage } from '../../../ebnf/testlib.f.mjs'
-import { htmlToString } from '../../../media/html/module.f.mjs'
+import { railroadLabelMarker } from '../../../website/style/module.f.mjs'
 import { demo, diagrams } from './demo.f.mjs'
 import { parser } from '../../../ebnf/ll1/module.f.mjs'
 import { repeatFrom0 } from '../../../ebnf/module.f.mjs'
@@ -54,6 +55,22 @@ const read = s => {
     if (at === undefined) { return ['error', 'end'] }
     const { token } = at.meta
     return ['error', token.kind === 'id' ? token.value : token.kind]
+}
+
+/**
+ * The labels a view draws, each as `kind:text`: read from the element tree
+ * the page is rendered from, by the marker the stylesheet selects, rather
+ * than matched in its HTML text.
+ *
+ * @type {(node: Node) => readonly string[]}
+ */
+const labelsOf = node => {
+    if (typeof node === 'string') { return [] }
+    const [, first, ...rest] = node
+    if (first === undefined) { return [] }
+    if (typeof first === 'string' || first instanceof Array) { return [first, ...rest].flatMap(labelsOf) }
+    const kind = first[railroadLabelMarker]
+    return [...(kind === undefined ? [] : [`${kind}:${rest.join('')}`]), ...rest.flatMap(labelsOf)]
 }
 
 export const proof = {
@@ -585,9 +602,9 @@ export const proof = {
         // A token that stands for any token of its kind is a category, and
         // a token that is its own text a terminal.
         labels: () => {
-            const html = htmlToString(demo.view(demo.init))
-            assert(html.includes('data-railroad-label="category">id</text>'), 'id')
-            assert(html.includes('data-railroad-label="terminal">=&gt;</text>'), '=>')
+            const labels = labelsOf(demo.view(demo.init))
+            assert(labels.includes('category:id'), 'id')
+            assert(labels.includes('terminal:=>'), '=>')
         },
     },
     throw: {
