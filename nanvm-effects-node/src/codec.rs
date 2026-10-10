@@ -104,6 +104,17 @@ pub fn decode_bytes<A: IVm>(any: Any<A>) -> Result<Vec<u8>, Malformed> {
     Ok(bytes)
 }
 
+/// An array read element by element.
+pub fn decode_array<A: IVm, T>(
+    any: Any<A>,
+    f: impl Fn(Any<A>) -> Result<T, Malformed>,
+) -> Result<Vec<T>, Malformed> {
+    match Array::try_from(any) {
+        Ok(array) => array.into_iter().map(f).collect(),
+        Err(_) => malformed("not an array"),
+    }
+}
+
 /// A constant: this very string.
 pub fn decode_literal<A: IVm>(any: Any<A>, expected: &str) -> Result<(), Malformed> {
     if decode_string(any)? == expected {
