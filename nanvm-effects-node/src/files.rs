@@ -374,7 +374,7 @@ pub fn write_bytes(path: &str, at: f64, data: &[u8]) -> Result<(), IoError> {
 /// every digit. Otherwise it is Rust's shortest spelling, which differs from
 /// ECMAScript's only on a tie between two same-length candidates, a fractional
 /// value from about 2^50 up (`todo/js-number-spelling.md`).
-fn js_number(value: f64) -> String {
+pub fn js_number(value: f64) -> String {
     if value.is_nan() {
         "NaN".to_string()
     } else if value.is_infinite() {
@@ -429,17 +429,68 @@ pub fn read_bytes(path: &str, at: f64, size: f64) -> Result<Vec<u8>, IoError> {
             message,
         });
     }
-    let mut file = File::open(path).map_err(|e| failure(&e, "open", path))?;
-    // An empty window reads nothing, so it asks nothing of the file either: the
-    // open still happens, but a pipe, which cannot seek, answers it as Node does.
-    if size == 0.0 {
-        return Ok(Vec::new());
-    }
+    let file = File::open(path).map_err(|e| failure(&e, "open", path))?;
+    read_window(&file, at, size, path)
+}
+
+/// `size` bytes at `at` of an open file, fewer at its end. An empty window
+/// reads nothing, so it asks nothing of the file either: a pipe, which cannot
+/// seek, answers it as Node does.
+fn read_window(mut file: &File, at: f64, size: f64, what: &str) -> Result<Vec<u8>, IoError> {
     let mut bytes = Vec::new();
+    if size == 0.0 {
+        return Ok(bytes);
+    }
     file.seek(SeekFrom::Start(at as u64))
         .and_then(|_| file.take(size as u64).read_to_end(&mut bytes))
-        .map_err(|e| failure(&e, "read", path))?;
+        .map_err(|e| failure(&e, "read", what))?;
     Ok(bytes)
+}
+
+/// What a handle's operation answers for one that is closed.
+pub fn bad_descriptor() -> IoError {
+    refusal("EBADF", "bad file descriptor".to_string())
+}
+
+/// `open` of `fjs/effects/node/types.ts`: the file `path` names, for reading.
+/// A FIFO is refused before it is opened, `ERR_NOT_A_FILE` as for `readWhole`:
+/// a plain open of one with no writer blocks, the Node runner opens it without
+/// blocking and lets `fstat` say what it is, and `std` names no flag for that.
+pub fn open(path: &str) -> Result<File, IoError> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::FileTypeExt;
+        if fs::metadata(path).is_ok_and(|m| m.file_type().is_fifo()) {
+            return Err(refusal(
+                "ERR_NOT_A_FILE",
+                format!("{path} is a FIFO, which cannot be opened without blocking"),
+            ));
+        }
+    }
+    File::open(path).map_err(|e| failure(&e, "open", path))
+}
+
+/// `fstat`: what the open file is, as `stat` says of a name.
+pub fn fstat(file: &File) -> Result<Stat, IoError> {
+    let metadata = file
+        .metadata()
+        .map_err(|e| failure(&e, "fstat", "handle"))?;
+    Ok(Stat {
+        size: metadata.len(),
+        is_file: metadata.is_file(),
+        is_directory: metadata.is_dir(),
+    })
+}
+
+/// `pread`: the window `read_bytes` reads, through an open file.
+pub fn pread(file: &File, at: f64, size: f64) -> Result<Vec<u8>, IoError> {
+    if let Some(message) = window_refusal(at, size) {
+        return Err(IoError {
+            code: None,
+            message,
+        });
+    }
+    read_window(file, at, size, "handle")
 }
 
 /// Creates `path` empty and fails if it exists (`O_CREAT|O_EXCL`). The file is
@@ -954,6 +1005,18 @@ mod test {
             }
             // A nonempty window still needs the seek, which this file cannot do.
             assert!(read_bytes(&path, 0.0, 1.0).is_err());
+        }
+
+        /// A FIFO is refused before it is opened, where a plain open of one
+        /// with no writer would never return.
+        #[cfg(target_os = "linux")]
+        #[test]
+        fn a_fifo_is_not_opened() {
+            use std::os::fd::AsRawFd;
+
+            let (reader, _writer) = io::pipe().unwrap();
+            let path = format!("/proc/self/fd/{}", reader.as_raw_fd());
+            assert_eq!(code_of(open(&path)), Some("ERR_NOT_A_FILE".into()));
         }
 
         #[test]

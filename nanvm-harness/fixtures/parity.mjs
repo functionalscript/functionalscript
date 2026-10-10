@@ -172,6 +172,30 @@ export const resolution = {
     expected: [['ok', null], ['ok', true], ['error', 'ENOENT']],
 };
 
+/**
+ * What a program does with a handle it opened: the handle is the host's own
+ * (a `FileHandle` for the Node one, an index for the native one), so the case
+ * passes it along and records only what the operations answer.
+ *
+ * @type {(handle: unknown) => (acc: readonly unknown[]) => unknown}
+ */
+const using = handle => step('fstat', [handle], (/** @type {any} */ v) => v.size === 2 && v.isFile)(
+    step('pread', [handle, 0, 2], (/** @type {unknown} */ v) => v === hi)(
+        step('close', [handle], none)(
+            step('close', [handle], none)(
+                step('fstat', [handle], none)(
+                    step('pread', [handle, 0, 1], none)(end))))));
+
+export const handles = {
+    run: (/** @type {string} */ root) => step('writeFile', [root + '/f', hi], none)(
+        (/** @type {readonly unknown[]} */ acc) => ({
+            command: 'open',
+            payload: [root + '/f'],
+            continuation: (/** @type {any} */ opened) => using(opened[1])(acc),
+        }))([]),
+    expected: [['ok', null], ['ok', true], ['ok', true], ['ok', null], ['ok', null], ['error', 'EBADF'], ['error', 'EBADF']],
+};
+
 export const directory = {
     run: (/** @type {string} */ root) => step('mkdir', [root + '/b', undefined], none)(
         step('mkdir', [root + '/a', undefined], none)(
