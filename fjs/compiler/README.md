@@ -543,7 +543,8 @@ those names directly, so renaming or removing a `_`-prefixed name is not a
 breaking change solely because TypeScript emitted it. The public contract still
 governs transitive effects: if a public type depends on `_Type`, changing
 `_Type` in a way that changes that public type's assignability is a breaking
-change and requires the normal `**BREAKING CHANGES:**` treatment.
+change. Explain that API change and update importers; breaking-change notices
+are optional before 1.0; policy after 1.0 remains undecided.
 
 For example, suppose the generated declaration initially contains:
 

@@ -7,11 +7,12 @@ so that a reader who has used one demo can read the next without learning a
 new page.
 
 The rules here were drawn from the demos already on the site, and where they
-disagreed, one way was picked and the reason written down. So some demos do
-not follow every rule yet; this file states the rules, and
-[`todo/demos-follow-the-spec.md`](./todo/demos-follow-the-spec.md) lists the
-demos that do not. A demo may
-deviate where its subject needs it, and says why in its JSDoc.
+disagreed, one way was picked and the reason written down. The shared builders
+put the required lead before the controls; the shared `refusal` element puts
+`Refused:` above the module's message in its verdict box. The migration is
+partial: [`todo/demos-follow-the-spec.md`](./todo/demos-follow-the-spec.md)
+tracks the remaining refusal and output-box work. A demo may deviate where
+its subject needs it, and says why in its JSDoc.
 
 ## One order, top to bottom
 

@@ -85,7 +85,7 @@ const named = { 9: '\\t', 10: '\\n', 13: '\\r', 32: 'space' }
  * @type {(c: number) => string}
  */
 const symbolText = c => {
-    assert(c <= 0x10FFFF, ['not a code point', c])
+    assert(c <= 0x10_FFFF, ['not a code point', c])
     return at(String(c))(named)
         ?? (c < 0x20 || c > 0x7e ? `U+${c.toString(16).toUpperCase().padStart(4, '0')}` : String.fromCodePoint(c))
 }

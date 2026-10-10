@@ -60,7 +60,7 @@ export const proof = {
     rangeAstral: () => {
         assertStructurallySame(
             boundaries(range(` ${unicodeMax}`)),
-            [c(' '), 0x10FFFF + 1])
+            [c(' '), 0x10_FFFF + 1])
     },
     // `unicodeMax` is the character, not its number: interpolating a number
     // would spell its decimal digits and make the range above eight symbols.
@@ -69,7 +69,7 @@ export const proof = {
     unicodeMax: () => {
         assertStructurallySame([...unicodeMax].length, 1)
         assertStructurallySame(unicodeMax.length, 2)
-        assertStructurallySame(unicodeMax.codePointAt(0), 0x10FFFF)
+        assertStructurallySame(unicodeMax.codePointAt(0), 0x10_FFFF)
     },
     // EOF is the one plain rule that is not a symbol, a string or a container.
     eof: () => {
@@ -101,7 +101,7 @@ export const proof = {
         },
         // A well-formed surrogate pair is one astral symbol, not two units.
         astral: () => {
-            assertStructurallySame(boundaries(set('😀')), [0x1F600, 0x1F601])
+            assertStructurallySame(boundaries(set('😀')), [0x1_F600, 0x1_F601])
         },
     },
     union: {

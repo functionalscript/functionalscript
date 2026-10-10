@@ -47,7 +47,7 @@ import { isValidCodePoint } from '../../../text/code_point/module.f.mjs'
 import { maxLength, maxLengthBytes, tryU8ListToVecMsb } from '../../../types/bit_vec/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.mjs'
 import { toArray } from '../../../types/list/module.f.mjs'
-import { textDemo } from '../module.f.mjs'
+import { textDemo, refusal } from '../module.f.mjs'
 
 /**
  * The stand-in a reader sees for a character they could not: `␠` for a space,
@@ -227,13 +227,13 @@ const orEmpty = s => s === '' ? '(empty)' : s
  *
  * @type {(o: BitGroupDemoOptions) => Demo<string, DemoEvent>}
  */
-export const bitGroupDemo = ({ name, how, scheme, encode }) => {
+export const bitGroupDemo = ({ intro, name, how, scheme, encode }) => {
     const f = bitGroups(scheme, encode)
     const draw = boxes(scheme)
-    return textDemo({ name: 'text', label: 'Text', rows: 2, init: 'hé' })(text => {
+    return textDemo({ intro, name: 'text', label: 'Text', rows: 2, init: 'hé' })(text => {
         const [kind, g] = f(text)
         /** @type {readonly Node[]} */
-        const view = kind === 'error' ? [['p', ['strong', `error: ${g}`]]] : [
+        const view = kind === 'error' ? [refusal(g)] : [
             ['p', ['strong', 'UTF-8 bytes'], ' — each character over its bytes'],
             g.chars.length === 0 ? ['p', '(empty)'] : charUnits(g.chars),
             ['p', ['strong', name], ` — ${how}`],

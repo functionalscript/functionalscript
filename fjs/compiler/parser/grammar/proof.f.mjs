@@ -88,7 +88,7 @@ export const proof = {
         assertEq(new Set(names).size, names.length)
         const all = names.map(sym)
         assertEq(new Set(all).size, names.length)
-        assertEq(all.every(s => s > 0x10FFFF), true)
+        assertEq(all.every(s => s > 0x10_FFFF), true)
         const word = symbolOf({ token: { kind: 'id', value: 'export' }, metadata: { path: 'a.js', line: 1, column: 1 }, newline: false })
         const id = symbolOf({ token: { kind: 'id', value: 'exports' }, metadata: { path: 'a.js', line: 1, column: 1 }, newline: false })
         assertEq(word.symbol, sym('export'))

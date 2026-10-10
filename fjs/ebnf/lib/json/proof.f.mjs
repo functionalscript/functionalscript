@@ -41,11 +41,11 @@ const { keys } = Object
 // The four whitespace symbols, as the run boundaries a set carries: tab and
 // newline are adjacent, so they coalesce into one run, and carriage return and
 // space stay runs of their own.
-const wsSymbolData = /**@type {const}*/(['set', 9, 11, 13, 14, 32, 33])
+const wsSymbolData = /**@type {const}*/(['set', 0x09, 0x0b, 0x0d, 0x0e, 0x20, 0x21])
 
 const wsData = /**@type {const}*/(['repeat', 0, Infinity, wsSymbolData])
 
-const digitData = /**@type {const}*/(['set', 48, 58])
+const digitData = /**@type {const}*/(['set', 0x30, 0x3a])
 
 const digits0Data = /**@type {const}*/(['repeat', 0, Infinity, digitData])
 
@@ -92,7 +92,7 @@ export const proof = {
     uint: () => {
         assertStructurallySame(force(uint), {
             0: '0',
-            onenine: [['set', 49, 58], digits0Data],
+            onenine: [['set', 0x31, 0x3a], digits0Data],
         })
     },
     // Both halves of what may follow an integer are optional and independent:
@@ -101,8 +101,8 @@ export const proof = {
         assertStructurallySame(force(optionFloatSuffix), [
             ['repeat', 0, 1, ['.', digitsData]],
             ['repeat', 0, 1, [
-                ['set', 69, 70, 101, 102],
-                ['repeat', 0, 1, ['set', 43, 44, 45, 46]],
+                ['set', 0x45, 0x46, 0x65, 0x66],
+                ['repeat', 0, 1, ['set', 0x2b, 0x2c, 0x2d, 0x2e]],
                 digitsData]]])
     },
     // A string is quotes around any number of unescaped symbols and escapes.
@@ -119,16 +119,16 @@ export const proof = {
         assertStructurallySame(force(string), [
             '"',
             ['repeat', 0, Infinity, {
-                c: ['set', 32, 34, 35, 92, 93, 0x110000],
+                c: ['set', 0x20, 0x22, 0x23, 0x5c, 0x5d, 0x11_0000],
                 escape: ['\\', {
                     c: [
                         'set',
-                        34, 35, 47, 48, 92, 93, 98, 99,
-                        102, 103, 110, 111, 114, 115, 116, 117],
+                        0x22, 0x23, 0x2f, 0x30, 0x5c, 0x5d, 0x62, 0x63,
+                        0x66, 0x67, 0x6e, 0x6f, 0x72, 0x73, 0x74, 0x75],
                     u: ['u', ['repeat', 4, 4, {
                         digit: digitData,
-                        AF: ['set', 65, 71],
-                        af: ['set', 97, 103],
+                        AF: ['set', 0x41, 0x47],
+                        af: ['set', 0x61, 0x67],
                     }]],
                 }],
             }],
@@ -168,7 +168,7 @@ export const proof = {
     // A delimiter above the BMP is one symbol, not the two UTF-16 units that
     // spell it, because spreading a string walks code points.
     cjAstral: () => {
-        const brace = String.fromCodePoint(0x1D114)
+        const brace = String.fromCodePoint(0x1_D114)
         assertStructurallySame(
             force(cj(`${brace}${brace}`, 'x')),
             containerData(brace, brace, 'x'))

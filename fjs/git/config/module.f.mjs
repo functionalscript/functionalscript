@@ -246,16 +246,16 @@ const prefixes = { b: 2n, x: 16n }
  * @type {StringMap<bigint>}
  */
 const factors = {
-    k: 1024n,
-    m: 1048576n,
-    g: 1073741824n,
+    k: 1_024n,
+    m: 1_048_576n,
+    g: 1_073_741_824n,
 }
 
 /**
  * The magnitude a number may reach: Git reads one into a C `int`, and
  * refuses what does not fit, the scaling by a unit counted in.
  */
-const maxInt = /** @type {const} */ (2147483647n)
+const maxInt = /** @type {const} */ (0x7fff_ffffn)
 
 /**
  * What a character is worth as a digit, and 16 — no digit's worth — where

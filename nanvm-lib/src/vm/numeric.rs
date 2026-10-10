@@ -265,7 +265,7 @@ fn whole_f64_to_bigint<A: IVm>(f: f64) -> BigInt<A> {
     // The value is `significand * 2^(biased_exponent - 1075)`: 1075 is the
     // usual double bias (1023) plus 52, since `significand` already carries
     // the mantissa's 52 fractional bits as whole-number bits of its own.
-    let exponent = biased_exponent as i64 - 1075;
+    let exponent = biased_exponent as i64 - 1_075;
     let magnitude: BigInt<A> = significand.into();
     let magnitude = if exponent >= 0 {
         (magnitude << BigInt::from(exponent as u64))
@@ -353,7 +353,7 @@ mod tests {
         // rounding the `BigInt` to `f64` first could compare equal instead.
         let b = Numeric::BigInt(BigInt::<A>::from(1u64 << 60));
         assert_eq!(
-            both(&b, &n((1u64 << 60) as f64 + 2048.0)),
+            both(&b, &n((1u64 << 60) as f64 + 2_048.0)),
             Some(Ordering::Less)
         );
     }

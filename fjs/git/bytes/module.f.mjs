@@ -22,7 +22,7 @@
  *
  * @type {(b: readonly number[], at: number) => number}
  */
-export const u32be = (b, at) => b[at] * 16777216 + b[at + 1] * 65536 + b[at + 2] * 256 + b[at + 3]
+export const u32be = (b, at) => b[at] * 16_777_216 + b[at + 1] * 65_536 + b[at + 2] * 256 + b[at + 3]
 
 /**
  * The big-endian 64-bit word at `at`, or `null` where it is above the range a
@@ -37,7 +37,7 @@ export const u32be = (b, at) => b[at] * 16777216 + b[at + 1] * 65536 + b[at + 2]
  * @type {(b: readonly number[], at: number) => Nullable<number>}
  */
 export const u64be = (b, at) => {
-    const v = u32be(b, at) * 4294967296 + u32be(b, at + 4)
+    const v = u32be(b, at) * 4_294_967_296 + u32be(b, at + 4)
     return Number.isSafeInteger(v) ? v : null
 }
 

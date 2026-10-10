@@ -152,13 +152,23 @@ const dataText = write => path => mapStep(_transpileDefault(path), okThen(write)
  *
  * @type {(outputFileName: string) => ((inputFileName: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, string>, ParseError>) | null}
  */
-const outputMarked = outputFileName => {
+export const outputMarked = outputFileName => {
     if (outputFileName.endsWith('.json')) { return dataText(tryJsonMarked) }
     if (isEdag(outputFileName)) { return edagText }
     if (isDataJs(outputFileName)) { return dataText(tryMarked) }
     if (isFjs(outputFileName)) { return fjsText }
     if (outputFileName.endsWith('.rs')) { return rustText }
     return null
+}
+
+/**
+ * The output route as plain text, preserving its input and output refusals.
+ *
+ * @type {(outputFileName: string) => ((inputFileName: string) => Effect<ReadWhole | ResolveFileModule, Result<string, string>, ParseError>) | null}
+ */
+export const outputText = outputFileName => {
+    const write = outputMarked(outputFileName)
+    return write === null ? null : inputFileName => mapStep(write(inputFileName), mapOk(toText))
 }
 
 /**

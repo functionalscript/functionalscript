@@ -14,7 +14,7 @@ fn modulo_2_32(number: f64) -> u32 {
     if !number.is_finite() {
         return 0;
     }
-    const TWO_POW_32: f64 = 4294967296.0;
+    const TWO_POW_32: f64 = 4_294_967_296.0;
     let remainder = number.trunc() % TWO_POW_32;
     let non_negative = if remainder < 0.0 {
         remainder + TWO_POW_32
@@ -75,13 +75,13 @@ mod tests {
     fn wraps_at_32_bit_boundary() {
         // 2^31 is the first value ToInt32 reinterprets as negative; ToUint32
         // keeps it as-is, since it never reinterprets the sign bit.
-        assert_eq!(to_int32(2147483648.0), i32::MIN);
-        assert_eq!(to_uint32(2147483648.0), 2147483648);
+        assert_eq!(to_int32(2_147_483_648.0), i32::MIN);
+        assert_eq!(to_uint32(2_147_483_648.0), 2_147_483_648);
         // 2^32 - 1 wraps to -1 as a signed 32-bit value.
-        assert_eq!(to_int32(4294967295.0), -1);
-        assert_eq!(to_uint32(4294967295.0), 4294967295);
+        assert_eq!(to_int32(4_294_967_295.0), -1);
+        assert_eq!(to_uint32(4_294_967_295.0), 4_294_967_295);
         // 2^32 itself reduces to 0.
-        assert_eq!(to_int32(4294967296.0), 0);
-        assert_eq!(to_uint32(4294967296.0), 0);
+        assert_eq!(to_int32(4_294_967_296.0), 0);
+        assert_eq!(to_uint32(4_294_967_296.0), 0);
     }
 }

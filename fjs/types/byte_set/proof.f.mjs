@@ -27,7 +27,7 @@ export const proof = {
         },
         () => {
             const s = set(33)(empty)
-            assertEq(s, 8589934592n)
+            assertEq(s, 8_589_934_592n)
             assert(!(has(0)(s)), s)
             assert(!(has(1)(s)), s)
             assert(has(33)(s), s)

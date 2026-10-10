@@ -75,7 +75,7 @@ const queued = (method, url) => queuedHosted('127.0.0.1:8080')(method, url)
  * @type {(root: Dir, rootArgument?: string) => (req: _QueuedRequest) => RecordedResponse}
  */
 const answerRequest = (root, rootArgument = '.') => req => {
-    const e = step(createServer(respond(rootArgument)), server => listen(server, 8080, '127.0.0.1'))
+    const e = step(createServer(respond(rootArgument)), server => listen(server, 8_080, '127.0.0.1'))
     const [s, result] = virtual({ ...emptyState, root, requests: [req] })(e)
     assert(result[0] === 'ok', result)
     assertEq(s.responses.length, 1)
@@ -164,7 +164,7 @@ const contentLength = ({ headers }) => `${headers['content-length']}`
  *
  * @type {(n: number) => Vec}
  */
-const countingKib = n => u8ListToVecMsb(Array.from({ length: 1024 }, (_, i) => n + i & 0xFF))
+const countingKib = n => u8ListToVecMsb(Array.from({ length: 1_024 }, (_, i) => n + i & 0xFF))
 
 /** A file larger than one `Vec`, as the chunks one `readWhole` answers — a
  * kibibyte each here rather than the 128 KiB a host would give, because the
@@ -589,8 +589,8 @@ export const proof = {
             const r = answer(largeRoot)('GET', '/large.bin')
             // 129 KiB, so two reads: one full `Vec` and the remainder.
             assertEq(r.body.length, 2)
-            assertEq(Number(length(r.body[0])) / 8, 131072)
-            assertEq(Number(length(r.body[1])) / 8, largeBytes.length - 131072)
+            assertEq(Number(length(r.body[0])) / 8, 131_072)
+            assertEq(Number(length(r.body[1])) / 8, largeBytes.length - 131_072)
             // The boundaries are the reader's, not the fixture's: the file is 129
             // chunks as a `Dir` holds it.
             assertEq(largeChunks.length, 129)

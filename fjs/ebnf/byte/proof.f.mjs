@@ -132,7 +132,7 @@ export const proof = {
     byteLength: () => {
         assertEq(byteLength([]), 0)
         assertEq(byteLength([0, 0xFF]), 2)
-        assertEq(byteLength(fromArrayLike(new Uint8Array(1000))), 1000)
+        assertEq(byteLength(fromArrayLike(new Uint8Array(1_000))), 1_000)
         assertEq(byteLength([0, 0x100, 0]), null)
         assertEq(byteLength([0.5]), null)
         assertEq(byteLength(/** @type {List<number>} */ (hole)), null)

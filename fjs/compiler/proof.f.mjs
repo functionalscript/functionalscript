@@ -9,7 +9,7 @@
  */
 
 import { exitCode, readUtf8File, nodeCommands } from '../effects/node/module.f.mjs'
-import { compile } from './module.f.mjs'
+import { compile, outputText } from './module.f.mjs'
 import { transpile } from './transpiler/module.f.mjs'
 import { parse } from './source/module.f.mjs'
 import { resolve, unresolved } from './edag/module.f.mjs'
@@ -26,7 +26,7 @@ import { fromVec } from '../text/utf8/module.f.mjs'
 import { unwrap } from '../types/result/module.f.mjs'
 import { fromEntries, isObject } from '../types/object/module.f.mjs'
 import { toVec } from '../types/uint8array/module.f.mjs'
-import { assert, assertEq, assertOk, assertStructurallySame } from '../asserts/module.f.mjs'
+import { assert, assertEq, assertOk, assertNotNullish, assertStructurallySame } from '../asserts/module.f.mjs'
 import { _compiled, _written, demo, outputs } from './demo.f.mjs'
 import { disagreement } from '../website/demo/highlight/module.f.mjs'
 import { textOfResult } from '../text/marked/module.f.mjs'
@@ -1252,10 +1252,18 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
         // And what a pane marks, the tokenizer agrees with, for the languages
         // it reads; Rust is unmarked until its printer says what it wrote.
         panesAreTheFiles: () => {
+            assertEq(outputText('output.txt'), null)
             for (const [name, source] of examples) {
                 for (const [label, file] of outputs) {
                     const shown = _compiled(source)(file)
                     const written = _written(source)(file)
+                    const route = assertNotNullish(outputText(file))
+                    const [, routed] = virtual({ ...emptyState, root: { 'input.f.js': [utf8(source)] } })(route('input.f.js'))
+                    if (routed[0] === 'ok') {
+                        const [kind, text] = routed[1]
+                        assertEq(written[0], kind, `${name} ${label} text route`)
+                        assertEq(written[1], kind === 'ok' ? text : `${file} - error: ${text}`, `${name} ${label} text route`)
+                    }
                     assertEq(shown[0], written[0], `${name} ${label}`)
                     assertEq(textOfResult(shown), written[1], `${name} ${label}`)
                     if (shown[0] === 'ok' && label !== '.rs') {
@@ -1267,9 +1275,15 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
         view: () => {
             const shown = htmlToString(demo.view(demo.init))
             assert(shown.includes('<h3>.rs</h3>'), shown)
-            assert(shown.includes('<pre>'), shown)
+            assert(shown.includes('<pre data-code="">'), shown)
+            assert(shown.includes('callable materialization requires a target compile/load boundary</pre>'), shown)
+            assert(!shown.includes(' - error:'), shown)
             const refused = htmlToString(demo.view('export default {bad'))
-            assert(refused.includes('Refused: '), refused)
+            assert(refused.includes('Refused:</p><pre data-result="error">unexpected end</pre>'), refused)
+            assert(!refused.includes(' - error:'), refused)
+            const unsupported = htmlToString(demo.view('export default undefined;'))
+            assert(unsupported.includes('Refused:</p><pre data-result="error">no JSON spelling for undefined</pre>'), unsupported)
+            assert(!unsupported.includes(' - error:'), unsupported)
         },
     },
 }
