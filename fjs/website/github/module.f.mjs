@@ -6,7 +6,7 @@
  *
  * @module
  *
- * @import { ExchangeFailure, Pending } from './types.ts'
+ * @import { CallbackOrigin, ExchangeFailure, Pending } from './types.ts'
  */
 
 import { number, open, or, string } from '../../rtti/module.f.mjs'
@@ -37,6 +37,30 @@ export const exchangeFailureSchema = open({ reason: or(
 
 /** Revalidate the signed-in account after each completed authorization. */
 export const userSchema = open({ login: string })
+
+/** @type {string} */
+const dnsLabelCharacters = 'abcdefghijklmnopqrstuvwxyz0123456789-'
+
+/** One normalized DNS label, including the Workers account and preview names. */
+/** @type {(label: string) => boolean} */
+const validDnsLabel = label => label.length > 0 && label.length <= 63
+    && !label.startsWith('-') && !label.endsWith('-')
+    && [...label].every(character => dnsLabelCharacters.includes(character))
+
+/**
+ * Preserve exact callbacks; an HTTPS Workers account callback also admits its
+ * single-label deployments. Other registered hosts never gain subdomains.
+ */
+/** @type {(requested: CallbackOrigin, registered: CallbackOrigin) => boolean} */
+export const allowedCallbackOrigin = ({ protocol, hostname, port }, registered) => {
+    if (protocol !== registered.protocol || port !== registered.port) { return false }
+    if (hostname === registered.hostname) { return true }
+    if (protocol !== 'https:' || !registered.hostname.endsWith('.workers.dev')
+        || !hostname.endsWith(`.${registered.hostname}`)) { return false }
+    const account = registered.hostname.slice(0, -'.workers.dev'.length)
+    const preview = hostname.slice(0, -registered.hostname.length - 1)
+    return validDnsLabel(account) && validDnsLabel(preview)
+}
 
 /** Allow documented provider reasons; arbitrary provider text stays private. */
 /** @type {(error: string) => ExchangeFailure['reason']} */

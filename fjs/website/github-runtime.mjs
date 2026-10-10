@@ -149,6 +149,7 @@ export const startGitHubLogin = (root, host = {}) => {
                     authorize.search = new URLSearchParams({
                         client_id: config.clientId,
                         redirect_uri: config.redirectUri,
+                        prompt: 'select_account',
                         state,
                         code_challenge: challenge,
                         code_challenge_method: 'S256',

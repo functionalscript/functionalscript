@@ -132,8 +132,10 @@ demo renders above the suite.
 
 ## GitHub login
 
-The PR page redirects to GitHub's official authorization page with a random
-state and an S256 PKCE challenge. Its `/prs/` callback consumes a pending
+The PR page redirects to GitHub's official authorization page with
+`prompt=select_account`, so GitHub shows its account picker even when the
+browser already has a signed-in account. The request includes a random state
+and an S256 PKCE challenge. Its `/prs/` callback consumes a pending
 login from tab-local `sessionStorage`, validates state and its ten-minute
 lifetime, and removes authorization parameters from the address bar before
 making requests. Pages set `no-referrer` before loading subresources.
@@ -141,8 +143,8 @@ making requests. Pages set `no-referrer` before loading subresources.
 The Cloudflare Worker in [`github-worker.mjs`](./github-worker.mjs) exposes
 only `/auth/github/config` and `/auth/github/token`. It exchanges the code
 with GitHub using the application secret, the original PKCE verifier, and
-the configured callback. The exchange accepts same-origin JSON POSTs only;
-responses are never cached. Other routes remain static assets. No KV, D1,
+the same deployment's `/prs/` callback. The exchange accepts same-origin JSON
+POSTs only; responses are never cached. Other routes remain static assets. No KV, D1,
 cookies, user sessions, or token database are required.
 
 After the exchange, the browser verifies the account directly with GitHub
@@ -168,14 +170,42 @@ URLs, authorization codes, and credentials never appear in these diagnostics.
 
 ### Configure Cloudflare
 
-1. Register a [GitHub OAuth App](https://github.com/settings/developers) with
-   the site's exact `/prs/` callback, for example
-   `https://your-site.example/prs/` (use the actual website origin).
-2. Set `GITHUB_CLIENT_ID` and `GITHUB_REDIRECT_URI` as **Text** Cloudflare Worker
+1. Register a [GitHub OAuth App](https://github.com/settings/developers).
+   For this Worker's production and PR deployments, set:
+
+   | GitHub setting | Value |
+   | --- | --- |
+   | Homepage URL | `https://functionalscript.com/` |
+   | Production callback URL | `https://functionalscript.com/prs/` (wildcard matching disabled) |
+   | Additional Workers callback URL | `https://functionalscript.workers.dev/prs/` (wildcard matching enabled) |
+
+   The Workers callback value is the account's parent hostname, without a
+   literal `*`.
+   GitHub's wildcard setting permits callbacks on its subdomains. The actual
+   callback always stays on the deployment where login began, for example
+   `https://functionalscript.functionalscript.workers.dev/prs/` or
+   `https://codex-github-login-functionalscript.functionalscript.workers.dev/prs/`.
+   The parent URL is a registration rule; users do not navigate to it.
+   GitHub supports multiple callback URLs. The custom production domain uses
+   its exact callback; the Workers production URL and all PR branch previews
+   use the additional callback rule.
+   PR previews use
+   `https://{branch}-functionalscript.functionalscript.workers.dev/prs/`,
+   where `{branch}` is Cloudflare's normalized branch alias.
+2. Set `GITHUB_CLIENT_ID`, `GITHUB_REDIRECT_URI`, and the optional
+   `GITHUB_PREVIEW_REDIRECT_URI` as **Text** Cloudflare Worker
    runtime variables in **Settings → Variables and Secrets**, outside the
    **Builds** section. Build variables
    alone do not become Worker bindings. The redirect must be an HTTPS URL
    ending in `/prs/`, with no query, fragment, or embedded credentials.
+   Use the same values on production and every preview:
+
+   ```text
+   GITHUB_REDIRECT_URI=https://functionalscript.com/prs/
+   GITHUB_PREVIEW_REDIRECT_URI=https://functionalscript.workers.dev/prs/
+   ```
+
+   Omit `GITHUB_PREVIEW_REDIRECT_URI` when only one callback rule is needed.
    The root Wrangler configuration sets `keep_vars: true` so redeploying
    preserves variables configured in the dashboard.
 3. Set `GITHUB_CLIENT_SECRET` as an encrypted Cloudflare Worker secret,
@@ -184,10 +214,16 @@ URLs, authorization codes, and credentials never appear in these diagnostics.
 4. Deploy the Worker and generated assets using the root `wrangler.jsonc`.
 
 Until those bindings exist, the public PR list works and the login control
-reports that login is unavailable. The Worker serves authentication only on
-the configured callback origin. Configure a separate app and bindings for a
-trusted preview, rather than sharing production credentials with every branch
-preview. Local development may use HTTP on localhost with its own app;
+reports that login is unavailable. Each configured callback permits its own
+origin. An HTTPS callback at `<account>.workers.dev` allows that origin and
+deployments exactly one DNS label below it, with the
+same port. Other configured callbacks allow only their exact origin. Other
+accounts, nested subdomains, and lookalike suffixes are refused. Each deployment
+receives its own callback URL in `/auth/github/config`, and the Worker derives
+the identical URL during token exchange; the browser cannot supply an override.
+Only deploy trusted code with these app bindings: all allowed previews can
+run the login flow and have access to the Worker secret. Local development
+may use HTTP on localhost with its own app;
 `.dev.vars` and `.env` files are excluded from uploads by `.assetsignore`.
 
 Open `/auth/github/config` on the site to check the deployed configuration.
@@ -195,14 +231,19 @@ HTTP 200 returns the public client ID and callback URL; HTTP 503 means a
 binding is missing or the callback URL is invalid. Its `missingBindings`
 array names absent or empty `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, and
 `GITHUB_REDIRECT_URI` bindings; `invalidRedirectUri` is true when a nonempty
-callback fails validation. These diagnostics contain names and a boolean,
-never binding values. HTTP 403 means the site origin differs from the
-configured callback origin. This endpoint never returns the application
-secret. After changing bindings, deploy a version with those bindings to
+primary callback fails validation. When a nonempty optional preview callback
+is configured, `invalidPreviewRedirectUri` reports its validation result.
+An invalid callback rule disables authentication. These diagnostics contain
+names and booleans, never binding values. HTTP 403 means the site origin is
+outside the configured callbacks' permitted deployment origins. This endpoint
+never returns the application secret. After changing bindings, deploy a version with those bindings to
 the preview being tested.
 
 See [GitHub's OAuth documentation](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps)
-for registration and PKCE details.
+for registration, the account picker, PKCE, and callback wildcard settings.
+Changing only the Homepage URL does not change callback matching. After
+updating GitHub's callback, update the Cloudflare bindings and rebuild every
+preview being tested so its uploaded version receives the new configuration.
 
 ### Preview while production only serves assets
 
@@ -211,9 +252,10 @@ deployment, even when a preview version contains the new Worker code. Use
 [`github-preview.mjs`](./github-preview.mjs) to attach the app bindings while
 uploading that preview, without deploying the preview to production:
 
-1. In **Settings → Builds → Variables and secrets**, set `GITHUB_CLIENT_ID`
-   and `GITHUB_REDIRECT_URI` as variables, and `GITHUB_CLIENT_SECRET` as a
-   **Secret**. Use the preview app and its exact `/prs/` callback.
+1. In **Settings → Builds → Variables and secrets**, set `GITHUB_CLIENT_ID`,
+   `GITHUB_REDIRECT_URI`, and `GITHUB_PREVIEW_REDIRECT_URI` as variables, and
+   `GITHUB_CLIENT_SECRET` as a **Secret**. Use the same app and the two
+   callback values above to support both production domains and every preview.
 2. Keep the build command as `npm run website`.
 3. Change the version command to:
 
@@ -227,7 +269,8 @@ uploading that preview, without deploying the preview to production:
 The repository owner approved this helper’s invocation of
 `npx wrangler versions upload` as the Cloudflare Builds version command.
 
-The upload helper passes the two public values as explicit Wrangler variables.
+The upload helper passes the public values, including the optional preview
+callback when configured, as explicit Wrangler variables.
 It writes the app secret to a private temporary JSON file outside the asset
 directory, uploads it with `wrangler versions upload --secrets-file` as an
 encrypted Worker binding, and removes the file after the upload attempt.

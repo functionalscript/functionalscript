@@ -1,7 +1,7 @@
 /**
  * Host proofs for the requested Cloudflare boundary: real Request/Response
- * bodies, origin and method refusals, fixed GitHub exchange parameters, and
- * asset delegation. FunctionalScript cannot observe fetch or HTTP headers.
+ * bodies, parsed callback origins, method refusals, GitHub exchange parameters,
+ * and asset delegation. FunctionalScript cannot observe fetch or HTTP headers.
  * Provider responses are supplied locally; no live credentials are used.
  */
 
@@ -66,6 +66,109 @@ export const proof = /** @type {const} */ ({
         assertStructurallySame(await response.json(), { clientId: 'public-client-id', redirectUri: `${origin}/prs/` })
         assertEq(response.headers.get('Set-Cookie'), null)
     },
+    sharesAccountConfigurationAcrossProductionAndPreviews: async () => {
+        const configured = { ...env, GITHUB_REDIRECT_URI: 'https://functionalscript.workers.dev/prs/' }
+        for (const site of [
+            'https://functionalscript.workers.dev',
+            'https://functionalscript.functionalscript.workers.dev',
+            'https://codex-github-login-functionalscript.functionalscript.workers.dev',
+            'https://codex-github-login-previews-functionalscript.functionalscript.workers.dev',
+        ]) {
+            const config = await handleGithubRequest(new Request(`${site}/auth/github/config`), configured, noNetwork)
+            assertEq(config.status, 200)
+            assertStructurallySame(await config.json(), { clientId: env.GITHUB_CLIENT_ID, redirectUri: `${site}/prs/` })
+            let calls = 0
+            const response = await handleGithubRequest(new Request(`${site}/auth/github/token`, {
+                method: 'POST', headers: { Origin: site, 'Content-Type': 'application/json' },
+                body: JSON.stringify(exchange),
+            }), configured, {
+                fetch: /** @type {typeof fetch} */ (async (input, options) => {
+                    calls += 1
+                    assertEq(input, 'https://github.com/login/oauth/access_token')
+                    assertStructurallySame(Object.fromEntries(new URLSearchParams(String(options?.body))), {
+                        client_id: env.GITHUB_CLIENT_ID, client_secret: env.GITHUB_CLIENT_SECRET,
+                        redirect_uri: `${site}/prs/`, code: exchange.code, code_verifier: verifier,
+                    })
+                    return json({ ...token, scope: '' })
+                }),
+            })
+            assertEq(calls, 1)
+            assertEq(response.status, 200)
+            assertEq(response.headers.get('Access-Control-Allow-Origin'), null)
+            assertStructurallySame(await response.json(), token)
+        }
+    },
+    sharesCustomDomainConfigurationWithWorkerProductionAndPreviews: async () => {
+        const configured = {
+            ...env, GITHUB_REDIRECT_URI: 'https://functionalscript.com/prs/',
+            GITHUB_PREVIEW_REDIRECT_URI: 'https://functionalscript.workers.dev/prs/',
+        }
+        for (const site of [
+            'https://functionalscript.com',
+            'https://functionalscript.functionalscript.workers.dev',
+            'https://codex-github-login-functionalscript.functionalscript.workers.dev',
+            'https://codex-github-login-previews-functionalscript.functionalscript.workers.dev',
+        ]) {
+            const config = await handleGithubRequest(new Request(`${site}/auth/github/config`), configured, noNetwork)
+            assertEq(config.status, 200)
+            assertStructurallySame(await config.json(), { clientId: env.GITHUB_CLIENT_ID, redirectUri: `${site}/prs/` })
+            const response = await handleGithubRequest(new Request(`${site}/auth/github/token`, {
+                method: 'POST', headers: { Origin: site, 'Content-Type': 'application/json' },
+                body: JSON.stringify(exchange),
+            }), configured, {
+                fetch: /** @type {typeof fetch} */ (async (_input, options) => {
+                    assertEq(new URLSearchParams(String(options?.body)).get('redirect_uri'), `${site}/prs/`)
+                    return json({ ...token, scope: '' })
+                }),
+            })
+            assertEq(response.status, 200)
+            assertStructurallySame(await response.json(), token)
+        }
+        for (const site of ['https://preview.functionalscript.com', 'https://preview.otheraccount.workers.dev']) {
+            await refused(await handleGithubRequest(new Request(`${site}/auth/github/config`), configured, noNetwork), 403)
+        }
+    },
+    accountConfigurationRefusesOtherHostsAndTransports: async () => {
+        const configured = { ...env, GITHUB_REDIRECT_URI: 'https://functionalscript.workers.dev/prs/' }
+        for (const site of [
+            'http://preview.functionalscript.workers.dev',
+            'https://preview.functionalscript.workers.dev:8443',
+            'https://preview.otheraccount.workers.dev',
+            'https://previewfunctionalscript.workers.dev',
+            'https://preview.functionalscript.workers.dev.untrusted.example',
+            'https://nested.preview.functionalscript.workers.dev',
+            'https://.functionalscript.workers.dev',
+            'https://-preview.functionalscript.workers.dev',
+            'https://preview-.functionalscript.workers.dev',
+            'https://preview_name.functionalscript.workers.dev',
+            `https://${'a'.repeat(64)}.functionalscript.workers.dev`,
+        ]) {
+            await refused(await handleGithubRequest(new Request(`${site}/auth/github/config`), configured, noNetwork), 403)
+            await refused(await handleGithubRequest(new Request(`${site}/auth/github/token`, {
+                method: 'POST', headers: { Origin: site, 'Content-Type': 'application/json' },
+                body: JSON.stringify(exchange),
+            }), configured, noNetwork), 403)
+        }
+        await refused(await handleGithubRequest(new Request('https://preview.functionalscript.workers.dev/auth/github/token', {
+            method: 'POST', headers: { Origin: 'https://functionalscript.functionalscript.workers.dev', 'Content-Type': 'application/json' },
+            body: JSON.stringify(exchange),
+        }), configured, noNetwork), 403)
+    },
+    preservesExactLegacyPreviewCallback: async () => {
+        const site = 'https://codex-github-login-functionalscript.functionalscript.workers.dev'
+        const configured = { ...env, GITHUB_REDIRECT_URI: `${site}/prs/` }
+        const response = await handleGithubRequest(new Request(`${site}/auth/github/config`), configured, noNetwork)
+        assertEq(response.status, 200)
+        assertStructurallySame(await response.json(), { clientId: env.GITHUB_CLIENT_ID, redirectUri: `${site}/prs/` })
+        for (const other of [
+            'https://functionalscript.workers.dev',
+            'https://functionalscript.functionalscript.workers.dev',
+            'https://another-preview.functionalscript.workers.dev',
+            `https://nested.${new URL(site).hostname}`,
+        ]) {
+            await refused(await handleGithubRequest(new Request(`${other}/auth/github/config`), configured, noNetwork), 403)
+        }
+    },
     configurationDiagnosticsNameOnlyMissingBindings: async () => {
         const cases = /** @type {const} */ ([
             { configured: {}, missing: ['GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET', 'GITHUB_REDIRECT_URI'] },
@@ -108,6 +211,36 @@ export const proof = /** @type {const} */ ({
         await refused(mixed.clone(), 503)
         assertStructurallySame(await mixed.json(), {
             error: 'GitHub login is not configured.', missingBindings: ['GITHUB_CLIENT_ID'], invalidRedirectUri: true,
+        })
+    },
+    invalidPreviewCallbackFailsClosedWithoutLeakingValues: async () => {
+        for (const redirect of [
+            'invalid', 'http://functionalscript.workers.dev/prs/',
+            'https://functionalscript.workers.dev/elsewhere/',
+            'https://functionalscript.workers.dev/prs/?private-provider-detail',
+            'https://functionalscript.workers.dev/prs/#private-provider-detail',
+            'https://user:worker-only-secret@functionalscript.workers.dev/prs/',
+        ]) {
+            const configured = { ...env, GITHUB_PREVIEW_REDIRECT_URI: redirect }
+            const config = await handleGithubRequest(new Request(`${origin}/auth/github/config`), configured, noNetwork)
+            await refused(config.clone(), 503)
+            assertStructurallySame(await config.json(), {
+                error: 'GitHub login is not configured.', missingBindings: [],
+                invalidRedirectUri: false, invalidPreviewRedirectUri: true,
+            })
+            await refused(await handleGithubRequest(request(), configured, noNetwork), 503)
+        }
+        const optionalEmpty = await handleGithubRequest(new Request(`${origin}/auth/github/config`), {
+            ...env, GITHUB_PREVIEW_REDIRECT_URI: '',
+        }, noNetwork)
+        assertEq(optionalEmpty.status, 200)
+        const missingPrimary = await handleGithubRequest(new Request(`${origin}/auth/github/config`), {
+            ...env, GITHUB_REDIRECT_URI: '', GITHUB_PREVIEW_REDIRECT_URI: 'https://functionalscript.workers.dev/prs/',
+        }, noNetwork)
+        await refused(missingPrimary.clone(), 503)
+        assertStructurallySame(await missingPrimary.json(), {
+            error: 'GitHub login is not configured.', missingBindings: ['GITHUB_REDIRECT_URI'],
+            invalidRedirectUri: false, invalidPreviewRedirectUri: false,
         })
     },
     tokenConfigurationFailuresKeepGenericShape: async () => {
