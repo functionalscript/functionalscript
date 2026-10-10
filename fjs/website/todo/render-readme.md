@@ -89,7 +89,8 @@ Every README has a heading, so today's reader renders none of them.
   above a block reader that both use. Writing a README parser beside
   `media/markdown` would be the second implementation that drifts.
   `Document`'s shape changes for this; if that breaks the published API, the
-  pull request that makes it declares the break.
+  pull request that makes it explains the API change. A breaking notice is
+  optional before 1.0.
 - **The README is not restricted to fit the reader.** READMEs are written
   for GitHub first, and a convention for writing them to suit this site is
   the wrong direction of dependence.

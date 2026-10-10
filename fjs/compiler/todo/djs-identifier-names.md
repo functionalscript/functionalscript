@@ -31,8 +31,8 @@ its proof both say `.d.js` "was DJS's spelling and went with the name".
 Rename each identifier to what it names — `ModuleToken`, `moduleTokenKinds`,
 `module`, `toValue` — or pick shorter names where the module already says
 "module". The exported types and `_djsTokenKinds` are API, so the pull
-request that renames them declares the break and updates every importer in
-the same change.
+request that renames them explains the API change and updates every importer
+in the same change. A breaking notice is optional before 1.0.
 
 ### Tasks
 

@@ -39,7 +39,8 @@ directory's `proof.f.mjs`, where `fjs/dev`'s suite and `fjs/mcp`'s case can go
 as they are, and drop the runtime imports that served them. For the
 unreachable branches, restructure so the branch is not there — a type or a
 shape that rules the case out — rather than exporting a private helper to a
-test. Removing an exported `proof` is a breaking change to declare.
+test. Removing an exported `proof` changes the public API; explain it in the
+PR. A breaking notice is optional before 1.0.
 
 ### Tasks
 
@@ -48,7 +49,7 @@ test. Removing an exported `proof` is a breaking change to declare.
 - [ ] `fjs/mcp`: move the `casMcpServer` case into `proof.f.mjs`.
 - [ ] `fjs/compiler/transpiler`, `fjs/types/bigfloat`, `fjs/types/btree/remove`:
       remove the unreachable branches, then the `proof` exports.
-- [ ] Declare the break; `tsc`, `fjs test`, `npm run cov` at 100%.
+- [ ] Explain the API change; `tsc`, `fjs test`, `npm run cov` at 100%.
 
 ### Related
 
