@@ -52,12 +52,13 @@ its string-level `skipFn` is a candidate for this module too, decided
 there.
 
 The indentation moves with the items. `indent`, the one level of
-generated Rust, is exported by `fjs/edag/rust` today and imported by the
-two printers; the item module cannot reach it without importing the
-printer, and spelling the four spaces again would add the copy this issue
+generated Rust, is exported by `fjs/edag/rust` today and imported by
+`nanvm/rust` and `compiler/rust`; the item module cannot reach it without
+importing the printer, and spelling the four spaces again would add the copy this issue
 exists to remove. So `indent` is defined in the item module, and
-`fjs/edag/rust` imports it from there — its two importers follow, or keep
-importing through the printer, which is a re-export either way.
+`fjs/edag/rust` imports it from there — the printers that import it today
+follow, or keep importing through `fjs/edag/rust`, which is a re-export
+either way.
 
 `constSlice` owns the documentation, annotation, declaration, row order,
 indentation, commas and closing line. Rows keep the caller's own type;
