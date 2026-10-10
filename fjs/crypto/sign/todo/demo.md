@@ -1,36 +1,33 @@
-## `sign` demo
+## `sign` demo: an OpenSSL check and nonce reuse
 
-**Priority:** P3
-**Status:** wip
+**Priority:** P4
+**Status:** open
 
 ### Problem
 
-[`fjs/crypto/sign`](../module.f.mjs) signs and verifies RFC 6979
-deterministic ECDSA, but unlike its `hmac`, `sha2` and `vdf` neighbours it has
-no website demo.
+The [`sign` demo](../demo.f.mjs) signs and verifies on a named curve, and
+opens on RFC 6979 A.2.5 so a reader can check its values against the RFC.
+Two things it could show are missing:
+
+- **An independent check.** The hash demos end with an OpenSSL command that
+  reproduces their result; this one has none, so a signature typed into the
+  page can only be checked by the page itself.
+- **Why the nonce matters.** RFC 6979 exists because a repeated or
+  predictable `k` gives the private key away, and the demo only shows the
+  safe case.
 
 ### Proposal
 
-A `demo.f.mjs` in the shape of the `vdf` demo's two halves:
-
-- **Sign:** choose a named curve and a SHA-2 variant, enter a private key in
-  hex and a UTF-8 message, and see the public key `xG`, the deterministic
-  nonce `k` from `computeK`, and the signature `(r, s)`. The same key and
-  message always give the same `k`; one changed character changes it
-  completely, which is the point of RFC 6979.
-- **Verify:** `r` and `s` fields of their own, checked by `verify` against
-  the public key and message above, so editing the message or a signature
-  digit shows a rejection.
-
-It opens on RFC 6979 A.2.5 — P-256, SHA-256, message `sample` — so a reader
-can compare `k`, `r` and `s` with the RFC's published values.
+- An OpenSSL command under Verify that checks the signature: the public key
+  as a PEM SubjectPublicKeyInfo and the signature as a DER SEQUENCE of two
+  INTEGERs, both of which [`asn.1`](../../../asn.1/module.f.mjs) can encode,
+  quoted literally as the hash demos' `opensslVerification` quotes its
+  arguments.
+- A section that signs two messages with one fixed `k`, and recovers the
+  private key from the two signatures as
+  `x = (s1·h2 − s2·h1) / (r·(s2 − s1)) mod q`.
 
 ### Tasks
 
-- [ ] `demo.f.mjs` with its proof.
-- [ ] An OpenSSL command that verifies the signature, as the hash demos have:
-      it needs the public key as PEM and the signature as DER, which
-      [`asn.1`](../../../asn.1/module.f.mjs) can encode.
-- [ ] Optionally, a nonce-reuse section: two messages signed with one fixed
-      `k`, and the private key recovered as
-      `x = (s1·h2 − s2·h1) / (r·(s2 − s1))`.
+- [ ] The OpenSSL command.
+- [ ] The nonce-reuse section.

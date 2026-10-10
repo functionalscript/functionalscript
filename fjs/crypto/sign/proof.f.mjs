@@ -3,6 +3,7 @@
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Curve, Point } from '../secp/types.ts'
  * @import { Sha2 } from '../sha2/types.ts'
+ * @import { DemoSigned } from './types.ts'
  */
 
 import { utf8 } from '../../text/module.f.mjs'
@@ -12,7 +13,12 @@ import { sqrt } from '../../types/prime_field/module.f.mjs'
 import { curve, secp192r1, secp256k1, secp256r1, secp384r1, secp521r1 } from '../secp/module.f.mjs'
 import { computeSync, sha224, sha256, sha384, sha512 } from '../sha2/module.f.mjs'
 import { all, computeK, fromCurve, sign, verify } from './module.f.mjs'
-import { assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
+import { demo, parseHexField, signed } from './demo.f.mjs'
+import { htmlToString } from '../../media/html/module.f.mjs'
+import { runPure } from '../../effects/module.f.mjs'
+import { unwrap } from '../../types/result/module.f.mjs'
+import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
 
 const sample = utf8("sample")
 const test = utf8("test")
@@ -683,5 +689,64 @@ export const proof = {
         signRZero: () => sign(toy1)(sha256)(1n)(utf8("0")),
         // `h + x*r = 0 mod q`, so `s = 0`.
         signSZero: () => sign(toy4)(sha256)(1n)(utf8("14")),
+    },
+    demo: {
+        // RFC 6979 A.2.5, P-256 with SHA-256 over "sample": the demo opens on it.
+        init: () => {
+            const html = htmlToString(demo.view(demo.init))
+            const rfc = [
+                'a6e3c57dd01abe90086538398355dd4c3b17aa873382b0f24d6129493d8aad60',
+                '60fed4ba255a9d31c961eb74c6356d68c049b8923b61fa6ce669622e60f29fb6',
+                '7903fe1008b8bc99a41ae9e95628bc64f2f1b20c2d7e9f5177a3c294d4462299',
+                demo.init.r,
+                demo.init.s,
+            ]
+            for (const v of rfc) { assert(html.includes(`<pre>${v}`) || html.includes(`Ux = ${v}`) || html.includes(`Uy = ${v}`), v) }
+            assert(html.includes('✓ The signature verifies'), html)
+        },
+        // Each curve verifies its own signature, as Sign shows it.
+        everyCurve: () => {
+            for (const curve of ['P-192 (secp192r1)', 'P-256 (secp256r1)', 'P-384 (secp384r1)', 'P-521 (secp521r1)', 'secp256k1']) {
+                const state = { ...demo.init, curve, hash: 'SHA-512', key: '1f' }
+                const [, { r, s }] = /** @type {['ok', DemoSigned]} */ (signed(state))
+                const html = htmlToString(demo.view({ ...state, r: r.toString(16), s: s.toString(16) }))
+                assert(html.includes('✓ The signature verifies'), curve)
+            }
+        },
+        rejected: () => {
+            // a changed message, and a changed `r`, against the same signature
+            assert(htmlToString(demo.view({ ...demo.init, message: 'samplE' })).includes('✗ The signature does not verify'), 'message')
+            assert(htmlToString(demo.view({ ...demo.init, r: `f${demo.init.r.slice(1)}` })).includes('✗ The signature does not verify'), 'r')
+        },
+        update: () => {
+            const next = unwrap(assertNotNullish(runPure(demo.update(demo.init)({ kind: 'input', name: 'message', value: 'test' }))[0]))
+            assertEq(JSON.stringify(next), JSON.stringify({ ...demo.init, message: 'test' }))
+        },
+        parseHexField: () => {
+            const field = parseHexField('x', 4)
+            const value = field('0aF9')
+            assertEq(value[0], 'ok')
+            assertEq(value[1], 0xaf9n)
+            assertEq(JSON.stringify(field('12345')), JSON.stringify(['error', 'Enter x as at most 4 hexadecimal digits.']))
+            assertEq(JSON.stringify(field('')), JSON.stringify(['error', 'Enter x as hexadecimal digits.']))
+            assertEq(JSON.stringify(field('0x1')), JSON.stringify(['error', 'Enter x as hexadecimal digits.']))
+        },
+        refused: () => {
+            /** @type {(state: typeof demo.init, message: string) => void} */
+            const refuses = (state, message) => {
+                const html = htmlToString(demo.view(state))
+                assert(html.includes(message), message)
+                // Sign refused, so Verify has no public key and gives no verdict.
+                assert(!html.includes('The signature'), html)
+            }
+            refuses({ ...demo.init, key: 'xyz' }, 'Enter the private key as hexadecimal digits.')
+            refuses({ ...demo.init, key: '0' }, 'The private key must be at least 1 and less than the curve order q.')
+            refuses({ ...demo.init, key: 'f'.repeat(64) }, 'The private key must be at least 1 and less than the curve order q.')
+            refuses({ ...demo.init, key: '1'.repeat(65) }, 'Enter the private key as at most 64 hexadecimal digits.')
+            refuses({ ...demo.init, message: 'a'.repeat(Number(maxLengthBytes) + 1) }, `The message is too long: more than ${maxLengthBytes} UTF-8 bytes.`)
+            // Verify's own fields
+            assert(htmlToString(demo.view({ ...demo.init, r: 'r' })).includes('Enter r as hexadecimal digits.'), 'r')
+            assert(htmlToString(demo.view({ ...demo.init, s: '' })).includes('Enter s as hexadecimal digits.'), 's')
+        },
     },
 }
