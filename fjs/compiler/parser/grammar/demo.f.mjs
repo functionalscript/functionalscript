@@ -18,11 +18,13 @@
  *
  * **The diagrams are the exported rules, by their export names**, and so
  * are the operator layers of `eagerTail`, one diagram per layer, from
- * `multiplicative` to `bitwiseOr`: each layer's operand is `unary` followed
- * by every layer tighter than it, which is the precedence ladder drawn as
- * boxes. Every
- * rule that reaches itself — a value holds values, a list is
+ * `mul_div_mod` to `or`: each layer's operand is `unary` followed by every
+ * layer tighter than it, which is the precedence ladder drawn as boxes.
+ * Every rule that reaches itself — a value holds values, a list is
  * right-recursive — is titled, so no diagram is drawn forever.
+ * `callArguments` draws the same list as `values`: the grammar reads a
+ * call's arguments through a rule of its own, which the parser maps apart
+ * from an array's items.
  *
  * @module
  *
@@ -30,13 +32,14 @@
  */
 
 import {
-    _ordinaryTokenNames, access, afterValue, array, arrowOrRest, attribute, block, body, circuitTail,
+    _ordinaryTokenNames, access, afterValue, array, arrowOrRest, attribute, block, body, callArguments, circuitTail,
     conditionalTail, constStatement, djsModule, eagerTail, end, entries, entry, func, group, groupOperand,
     identifier, identifierName, importBinding, importBindings, importClause, importStatement, item,
     lastStatement, member, namedImports, object, optionalStep, parameterNames, parameters, paren,
     parenGroup, parenGroupOperand, parenthesized, primitive, statement, terminator, unary, unaryOperand,
     value, values,
 } from './module.f.mjs'
+import { eagerLayers } from '../../ast/module.f.mjs'
 import { toData } from '../../../ebnf/data/module.f.mjs'
 import { encoding } from '../../../ebnf/token_symbol/module.f.mjs'
 import { tokens, toDiagrams } from '../../../ebnf/railroad/module.f.mjs'
@@ -49,21 +52,14 @@ const [ruleSet, entryName, names] = toData(djsModule)
 const nameOf = rule => assertNotNullish(names.get(rule))
 
 /**
- * The names of the `eagerTail` layers, tightest first: ECMAScript's names
- * for the expressions each layer reads, which the grammar's own comment
- * uses too. A title is an anchor a box links to, so it is a word rather
- * than the layer's operators.
- */
-const layerNames = ['multiplicative', 'additive', 'shift', 'relational', 'equality', 'bitwiseAnd', 'bitwiseXor', 'bitwiseOr']
-
-/**
- * One diagram per `eagerTail` layer, under its name. A layer added to
- * `eagerLayers` without a name here has no title, and is refused rather
- * than drawn under a missing one.
+ * One diagram per `eagerTail` layer, titled by the names of its operators
+ * in `eagerLayers` — `mul_div_mod`, `add_sub`, … `or` — so a title is read
+ * from the table the layer is built from and moves with it. A title is an
+ * anchor a box links to, so it is the operators' names, not their tokens.
  *
  * @type {readonly (readonly [string, string])[]}
  */
-const layers = eagerTail.map((rule, i) => [assertNotNullish(layerNames[i], ['an eager layer has no name', i]), nameOf(rule)])
+const layers = eagerTail.map((rule, i) => [Object.keys(assertNotNullish(eagerLayers[i])).join('_'), nameOf(rule)])
 
 /**
  * Each diagram's title and the lowered rule it draws, in the order the page
@@ -106,6 +102,7 @@ export const diagrams = [
     ['conditionalTail', nameOf(conditionalTail)],
     ['access', nameOf(access)],
     ['optionalStep', nameOf(optionalStep)],
+    ['callArguments', nameOf(callArguments)],
     ['array', nameOf(array)],
     ['values', nameOf(values)],
     ['item', nameOf(item)],

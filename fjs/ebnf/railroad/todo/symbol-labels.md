@@ -45,8 +45,9 @@ set: how a set of symbols is labelled, and which symbols join into one literal.
   `category` piece in `website/demo/railroad`.
 - [x] A railroad demo of `compiler/parser/grammar`
   ([`demo.f.mjs`](../../../compiler/parser/grammar/demo.f.mjs)): a diagram per
-  exported rule and per `eagerTail` layer; `id`, `string`, `number` and
-  `bigint` are its categories.
+  exported rule and per `eagerTail` layer, the layers titled by their
+  operators' names in `eagerLayers`; `id`, `string`, `number` and `bigint` are
+  its categories.
 - [ ] A byte alphabet, labelling a byte as `0xE9` outside printable ASCII,
   before any byte grammar (`git/*`) is drawn.
 
