@@ -55,7 +55,25 @@ cases the copies now settle differently:
   `'.'` root label and name pairing stay with the page, as a map over the
   result.
 
-`fjs/website`'s `resolve` goes; the page asks `fjs/path/import`'s.
+`fjs/website`'s `resolve` goes; `importsOf` asks `fjs/path/import`'s for
+each local specifier. A resolved string becomes a `_Imports.local` edge.
+If resolution returns `null`, preserve the original specifier in
+`_Imports.blockers` and add no local edge. Nonlocal specifiers remain
+blockers. Update the `_Imports` contract to include refused relative
+specifiers; keep its two lists string-only. After successful resolution,
+`readModule` keeps its existing handling of missing files.
+
+Use the existing `blockersOf` propagation and reporting: a refused import
+also blocks proofs and demos that reach its importer. A blocked proof is
+listed with the original specifier on its page and in the console, and
+omitted from browser loads; a blocked demo is skipped with a diagnostic.
+
+For `dir/main.f.mjs`, `./dep%20name.mjs` resolves to
+`dir/dep name.mjs`, while `./bad%` becomes the original `./bad%` blocker,
+with no local edge. Preserve the existing repository graph for unescaped
+specifiers admitted by the shared resolver. Valid percent encodings
+intentionally change target edges; refused resolutions become blockers,
+never silent omissions or paths containing `null`.
 
 ### Tasks
 
@@ -63,8 +81,15 @@ cases the copies now settle differently:
       `/x` case stated.
 - [ ] Implement with a proof at 100%, and move the five sites above onto
       the exports in the same PR.
-- [ ] Replace `fjs/website`'s `resolve` with `fjs/path/import`'s and check
-      the site's import graph is unchanged.
+- [ ] Replace `fjs/website`'s `resolve` with `fjs/path/import`'s; implement
+      the explicit resolved-string/refusal split in `importsOf` and update
+      `_Imports`'s documentation.
+- [ ] Prove the decoded target edge for `./dep%20name.mjs` and the original
+      blocker with no local edge for `./bad%`. Cover inherited blockers,
+      page and console diagnostics, and exclusion from browser loads.
+      Check the existing repository graph for admitted unescaped imports is
+      unchanged and review the intended changes for encoded and refused
+      specifiers.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
 
 ### Related
