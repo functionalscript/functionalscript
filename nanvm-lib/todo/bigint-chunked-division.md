@@ -20,14 +20,19 @@ The tests already pin these paths to one another: `radixes` asserts that
 ### Proposal
 
 One function holds the division: the remainders of the words divided by
-`base`, least significant first. `Display` writes them with `{:019}`;
-`to_radix_string` expands each into `width` digits. `DECIMAL_BASE` goes,
-replaced by `chunk(10)`.
+`base`, least significant first. The callers keep their formatting, and
+in particular the exception both already make for the most significant
+chunk, which is written as is while every chunk below it is padded to
+its full width — `255` stays `255`, not nineteen digits of it. `Display`
+writes the first remainder with `{}` and the rest with `{:019}`;
+`to_radix_string` expands every chunk but the most significant to
+`width` digits. `DECIMAL_BASE` goes, replaced by `chunk(10)`.
 
 ### Tasks
 
-- [ ] Extract the loop; the named callers onto it; `cargo test`, `cargo
-      clippy`, `cargo fmt -- --check`.
+- [ ] Extract the loop; the named callers onto it, with a test that a
+      value whose top chunk is short, `255` say, prints unpadded in both;
+      `cargo test`, `cargo clippy`, `cargo fmt -- --check`.
 
 ### Related
 

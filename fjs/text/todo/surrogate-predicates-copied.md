@@ -26,17 +26,21 @@ A Unicode constant written more than once is a constant that drifts, and the rul
 
 ### Proposal
 
-- `effects/node` imports the two predicates it copied.
-- `code_point` exports `isSurrogate`; `media/rust` asks it of the code unit.
-- `text/utf16` gains the two questions these callers actually ask — the
-  last code-point boundary at or before an index, which `_pieces` needs,
-  and whether a string holds a lone surrogate, which `stringLiteral` needs
-  — so neither caller keeps surrogate arithmetic of its own.
+`text/utf16` owns the boundary logic. It gains the two questions these
+callers actually ask — the last code-point boundary at or before an
+index, which `_pieces` needs, and whether a string holds a lone
+surrogate, which `stringLiteral` needs — built on `code_point`'s
+predicates inside `text`. The callers ask those questions and nothing
+lower: `effects/node` drops its predicate copies and imports no predicate
+in their place, `media/rust` drops `loneSurrogate`, and `utf16Units`
+becomes `stringToList`. No surrogate arithmetic remains outside `text`,
+and `code_point`'s private `isSurrogate` stays private.
 
 ### Tasks
 
-- [ ] Export `isSurrogate`; add the two `utf16` helpers with proofs at 100%.
-- [ ] Move `_pieces`, `loneSurrogate` and `utf16Units` onto them.
+- [ ] The two `utf16` helpers with proofs at 100%.
+- [ ] Move `_pieces`, `loneSurrogate` and `utf16Units` onto them, with
+      the copied predicates deleted rather than imported.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
 
 ### Related

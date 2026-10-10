@@ -31,14 +31,23 @@ one of the sites rather than in the module that owns it.
 
 `fjs/path/import` exports the classification — one function answering
 `'relative'`, `'rooted'` or `'bare'`, or a predicate over the first two —
-and the listed callers ask it. The website's narrower rule is then either a
-documented choice made on top of the classification, or gone.
+and the listed callers ask it.
+
+The website keeps its narrower rule, as a documented choice on top of
+the classification: a rooted specifier stays a blocker there. Its graph
+is keyed by repository-relative paths, and a rooted specifier names a
+location under the browser's origin that the scan cannot map to a file,
+so treating it as a local edge would point at a path the graph never
+reads — a silent omission where today's answer is a listed blocker. The
+choice is stated in `local`'s JSDoc, next to the classifier it now
+calls, so a reader can tell it from an oversight.
 
 ### Tasks
 
 - [ ] Export the classifier with a proof at 100%.
-- [ ] Move the listed sites onto it; decide and document `browser-source`'s
-      rooted case.
+- [ ] Move the listed sites onto it; `browser-source`'s `local` becomes
+      "relative" over the classifier, with the rooted case documented as
+      above and a proof that `/dep.mjs` is still a blocker.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
 
 ### Related
