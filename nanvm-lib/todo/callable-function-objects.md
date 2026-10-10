@@ -493,7 +493,7 @@ lazy branches and throws; account for the specified function-text exception
 when native JavaScript is the reference. A future Rust EDAG executor must
 satisfy the same contract, but this parity work does not wait for it.
 
-*Plan (decided: the four decisions below are recorded; step 1 has landed, step 2 is next).*
+*Plan (decided: the five decisions below are recorded; step 1 has landed, step 2 is next).*
 
 **The corpus is the harness fixtures, not a new format.** The operator corpus
 has to be data because its cases are lowered to EDAG by hand. A call-contract
@@ -539,12 +539,16 @@ exports are not compared (decision 3). The `undefinedDefault` table in
 host proof fails on any other fixture whose default is `undefined` and on any
 entry that no longer is, so the gap is a list and not a silence.
 
-**Where the expectation lives (decision 1, decided: the reference's own
-output).** A generator writes the reference's output into a committed `gen.`
-file, drift-checked, so Node is the single author and nothing is retyped. The
-hand-written strings in `src/lib.rs` (`"[1,1,false,true,true,true]"`) are
-exactly the retyping that can drift. Fixtures with no reference (the
-exceptions) keep a hand-written expectation, each with its reason.
+**Where the expectation lives (decisions 1 and 5, decided).** Nothing is
+retyped by hand: a generator writes the expectation into a committed `gen.`
+file, drift-checked, and Node stays the authority. Decision 1 chose that Node's
+output be the source; decision 5 refines how, for step 2: the expectation is
+the FJS interpreter's value printed as Rust, which the step 1 proof ties to
+Node on every corpus fixture, so it is Node's value by proof and not by a
+second conversion (see Step 2 design). The hand-written strings in
+`src/lib.rs` (`"[1,1,false,true,true,true]"`) are exactly the retyping that can
+drift. Fixtures with no corpus comparison (the exceptions) keep a
+hand-written expectation, each with its reason.
 
 **How a callable is observed (decision 2, decided).** A fixture that tests a
 function calls it at module level and exports the observations, as `arity`,
@@ -585,9 +589,9 @@ such a graph as a Rust module through the compiler's backend
 (`generateRust`), the way `gen.values/captures.rs` is made. Printing Node's
 own value instead would need a converter from a host value graph (aliasing
 included) to a represented one, which does not exist, and the host `import`
-in a generator. This deviates from the letter of decision 1 (the reference
-authors the expectation) and keeps its intent (nothing is retyped, Node is
-the authority, and a divergence fails CI); the owner chose it (decision 5).
+in a generator. This refines decision 1, which named Node's output as the
+source, and keeps its intent (nothing is retyped, Node is the authority, and a
+divergence fails CI); the owner chose it (decision 5).
 
 *Why this is not circular.* The program under test reaches Rust by
 compiling its source (`gen.fixtures/<name>.rs`). The expectation reaches Rust
@@ -640,7 +644,9 @@ level.
 **Decisions (all five decided).**
 
 1. ~~Expectation authored by hand beside each fixture, or by the reference and
-   committed?~~ Decided: by the reference, committed and drift-checked.
+   committed?~~ Decided: not by hand; committed and drift-checked, with Node
+   the authority. Refined by decision 5: the interpreter's value, proved equal
+   to Node's, is what step 2 prints.
 2. ~~How a callable export is observed.~~ Decided: the fixture calls it at
    module level; the two harness-call fixtures stay out of the corpus.
 3. ~~Named exports: compare them too?~~ Decided: not yet. The corpus
@@ -650,7 +656,7 @@ level.
    interpreter route and an order-insensitive comparison (a module namespace
    sorts its keys, the export object keeps declaration order), and most named
    exports in the fixtures are functions with no value to compare. Revisit at
-   step 2, when the reference's output is a committed file and adding
+   step 2, when the expectation is a committed file and adding
    data-valued named exports is cheap. The four fixtures whose default is
    `undefined` and test named exports or imports (`effect`, `exports`,
    `named-imports`, `named-imports-math`) stay vacuous in this corpus until
