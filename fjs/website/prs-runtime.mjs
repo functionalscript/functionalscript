@@ -1,5 +1,5 @@
 /**
- * Browser boundary for the public pull-request page: fetch GitHub JSON,
+ * Browser boundary for the pull-request page: fetch GitHub JSON,
  * admit it through the page's schemas, and render its FunctionalScript rows.
  * Loading limits and feedback come from the pure prs/load policy; this
  * adapter drives requests, listeners, clocks and DOM updates.
@@ -44,7 +44,7 @@ const message = error => error instanceof Error
  * failures replace that row's result with Unavailable; a failed list refresh
  * keeps the previous rows and explicitly identifies them as stale.
  *
- * @type {(root: Element, host?: { readonly fetch?: typeof fetch, readonly now?: () => number }) => Promise<void>}
+ * @type {(root: Element, host?: { readonly fetch?: typeof fetch, readonly now?: () => number, readonly token?: () => string | null, readonly onUnauthorized?: () => void }) => Promise<void>}
  */
 export const startPrs = (root, host = {}) => {
     const existing = started.get(root)
@@ -67,7 +67,7 @@ export const startPrs = (root, host = {}) => {
         button.disabled = true
         root.setAttribute('aria-busy', 'true')
         note.textContent = loadingNote
-        // A rate-limit refusal stops all remaining requests in this load,
+        // An authorization or rate-limit refusal stops remaining requests in this load,
         // including the workers that have not started their next PR yet.
         /** @type {Error | null} */
         let blocked = null
@@ -85,8 +85,13 @@ export const startPrs = (root, host = {}) => {
             if (blocked !== null) { throw blocked }
             let response
             try {
+                const token = host.token?.() ?? null
                 response = await fetchRequest(`${api}/${path}`, {
-                    headers: { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' },
+                    headers: {
+                        Accept: 'application/vnd.github+json',
+                        'X-GitHub-Api-Version': '2022-11-28',
+                        ...(token === null ? {} : { Authorization: `Bearer ${token}` }),
+                    },
                     credentials: 'omit',
                     cache: 'no-store',
                     redirect: 'error',
@@ -97,6 +102,7 @@ export const startPrs = (root, host = {}) => {
                 throw new Error(transportFailure(timedOut))
             }
             if (!response.ok) {
+                if (response.status === 401) { host.onUnauthorized?.() }
                 const retryAfter = response.headers.get('retry-after')
                 const decision = refusalDecision({
                     status: response.status,
