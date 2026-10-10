@@ -72,7 +72,7 @@ import { empty, flat, toArray } from '../../../types/list/module.f.mjs'
 import { cmp } from '../../../types/number/module.f.mjs'
 import { error, mapOk, ok, okThen } from '../../../types/result/module.f.mjs'
 import { add, empty as noneStarted, has } from '../../../types/set/module.f.mjs'
-import { chunkStrings, chunksText } from '../../../text/marked/module.f.mjs'
+import { chunkStrings, chunksText, keyword } from '../../../text/marked/module.f.mjs'
 import { arrayWrap, boolSerialize, colon, leafSerialize as leafSerializeWith, nullSerialize, numberSerialize, objectWrap, stringSerialize } from '../../json/serializer/module.f.mjs'
 
 const {
@@ -102,7 +102,7 @@ const undefinedSerialize = [['undefined', 'literal']]
  *
  * @type {(value: number) => List<Chunk>}
  */
-export const _numberSerialize = value => isFinite(value) ? numberSerialize(value) : [`${value}`]
+export const _numberSerialize = value => isFinite(value) ? numberSerialize(value) : [[`${value}`, 'literal']]
 
 /**
  * A leaf as a document spells it — this format's counterpart to JSON's
@@ -462,8 +462,8 @@ const spelled = chunks => chunks
 const write = graph => {
     const names = constNames(graph)
     const { chunks, value } = chunksOf(keySerialize)(leafSerialize)(names)(graph)
-    const statements = [...names].map(([i, name]) => flat([[`const ${name}=`], chunks[i], [';']]))
-    return flat([flat(statements), ['export default '], value(graph.root), [';']])
+    const statements = [...names].map(([i, name]) => flat([[keyword('const'), ` ${name}=`], chunks[i], [';']]))
+    return flat([flat(statements), [keyword('export'), ' ', keyword('default'), ' '], value(graph.root), [';']])
 }
 
 /**

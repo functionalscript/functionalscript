@@ -24,6 +24,20 @@ import { error, ok } from '../../types/result/module.f.mjs'
 export const toText = marked => marked.map(([text]) => text).join('')
 
 /**
+ * A keyword: `const`, `export`, `typeof`, …
+ *
+ * @type {(word: string) => Run}
+ */
+export const keyword = word => [word, 'keyword']
+
+/**
+ * A literal word: `undefined`, `null`, `true`, `false`, `NaN`, `Infinity`.
+ *
+ * @type {(word: string) => Run}
+ */
+export const literal = word => [word, 'literal']
+
+/**
  * The text of a chunk.
  *
  * @type {(chunk: Chunk) => string}
