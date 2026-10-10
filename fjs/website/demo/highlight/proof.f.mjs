@@ -80,6 +80,14 @@ export const proof = {
         assertEq(JSON.stringify(render([['a', 'keyword'], [' b'], ['']])),
             '[["span",{"data-token":"keyword"},"a"]," b"]')
     },
+    signedLeaves: () => {
+        // Producers own the whole literal, including its sign; the JS
+        // tokenizer treats the sign as a separate, unmarked unary operator.
+        assertEq(htmlToString(['pre', ...render([['-0', 'number'], [' '], ['-Infinity', 'literal']])]),
+            '<!DOCTYPE html><pre><span data-token="number">-0</span> <span data-token="literal">-Infinity</span></pre>')
+        assertEq(html('-0 -Infinity'),
+            '<!DOCTYPE html><pre>-<span data-token="number">0</span> -<span data-token="literal">Infinity</span></pre>')
+    },
     disagreement: () => {
         assertEq(disagreement([['const', 'keyword'], [' '], ['a', 'identifier'], [' = '], ['-1', 'number'], [';']]), null)
         // a name the producer left plain, and a word it marked as another kind

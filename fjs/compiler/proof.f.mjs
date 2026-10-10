@@ -9,7 +9,7 @@
  */
 
 import { exitCode, readUtf8File, nodeCommands } from '../effects/node/module.f.mjs'
-import { compile } from './module.f.mjs'
+import { compile, outputText } from './module.f.mjs'
 import { transpile } from './transpiler/module.f.mjs'
 import { parse } from './source/module.f.mjs'
 import { resolve, unresolved } from './edag/module.f.mjs'
@@ -26,7 +26,7 @@ import { fromVec } from '../text/utf8/module.f.mjs'
 import { unwrap } from '../types/result/module.f.mjs'
 import { fromEntries, isObject } from '../types/object/module.f.mjs'
 import { toVec } from '../types/uint8array/module.f.mjs'
-import { assert, assertEq, assertOk, assertStructurallySame } from '../asserts/module.f.mjs'
+import { assert, assertEq, assertOk, assertNotNullish, assertStructurallySame } from '../asserts/module.f.mjs'
 import { _compiled, _written, demo, outputs } from './demo.f.mjs'
 import { disagreement } from '../website/demo/highlight/module.f.mjs'
 import { textOfResult } from '../text/marked/module.f.mjs'
@@ -1252,15 +1252,25 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
         // And what a pane marks, the tokenizer agrees with, for the languages
         // it reads; Rust has no oracle, and its markup is proved by its own module.
         panesAreTheFiles: () => {
+            assertEq(outputText('output.txt'), null)
             for (const [name, source] of examples) {
                 for (const [label, file] of outputs) {
                     const shown = _compiled(source)(file)
-                    const written = _written(source)(file)
-                    assertEq(shown[0], written[0], `${name} ${label}`)
+                    const [shownTag, shownValue] = shown
+                    const [writtenTag, writtenValue] = _written(source)(file)
+                    const route = assertNotNullish(outputText(file))
+                    const [, routed] = virtual({ ...emptyState, root: { 'input.f.js': [utf8(source)] } })(route('input.f.js'))
+                    const [routedTag, routedValue] = routed
+                    if (routedTag === 'ok') {
+                        const [kind, text] = routedValue
+                        assertEq(writtenTag, kind, `${name} ${label} text route`)
+                        assertEq(writtenValue, kind === 'ok' ? text : `${file} - error: ${text}`, `${name} ${label} text route`)
+                    }
+                    assertEq(shownTag, writtenTag, `${name} ${label}`)
                     // a refusal is the command's line without its location
-                    assert(shown[0] === 'ok' ? textOfResult(shown) === written[1] : written[1].endsWith(` - error: ${shown[1]}`), `${name} ${label}`)
-                    if (shown[0] === 'ok' && label !== '.rs') {
-                        assertEq(disagreement(shown[1]), null, `${name} ${label}`)
+                    assert(shownTag === 'ok' ? textOfResult(shown) === writtenValue : writtenValue.endsWith(` - error: ${shownValue}`), `${name} ${label}`)
+                    if (shownTag === 'ok' && label !== '.rs') {
+                        assertEq(disagreement(shownValue), null, `${name} ${label}`)
                     }
                 }
             }
@@ -1268,7 +1278,9 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
         view: () => {
             const shown = htmlToString(demo.view(demo.init))
             assert(shown.includes('<h3>.rs</h3>'), shown)
-            assert(shown.includes('<pre data-code="">'), shown)
+            assert(shown.includes('aria-label="Copy .js output"'), shown)
+            assert(shown.includes('data-copy='), shown)
+            assert(shown.includes('<div data-code="" data-code-block=""><pre>'), shown)
             assert(shown.includes('callable materialization requires a target compile/load boundary</pre>'), shown)
             assert(!shown.includes(' - error:'), shown)
             const refused = htmlToString(demo.view('export default {bad'))

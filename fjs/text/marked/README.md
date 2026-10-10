@@ -180,13 +180,15 @@ text is an addition beside it. The `_`-prefixed functions are linkage, not API.
 | JSON codecs (`fjs/media/json`, `…/extended`) | `serialize`, `stringify` | — | their leaves are marked; `serialize` still answers strings |
 | `.js` writer (`fjs/compiler/serializer`) | `tryStringify`, `tryModuleStringify`, `trySerialize`, `tryModuleSerialize` | `tryMarked`, `tryModuleMarked` | `_trySerialize`, `_tryModuleSerialize` |
 | Rust (`fjs/compiler/rust`) | `toRust`, `generate` | `toRustMarked` | `scopeTagged`, `useLinesTagged` in `fjs/edag/rust` |
-| The compiler (`fjs/compiler`) | the file `compileFile` writes | `_compileMarked(input, output)` | — |
+| The compiler (`fjs/compiler`) | the file `compileFile` writes | `_outputMarked(input, output)`, `_compileMarked(input, output)` | — |
 
-`_compileMarked` is `compile` without its tail, creating the output's
+`_outputMarked` is `compile` without its tail, creating the output's
 directory and writing the file. It answers the output the output name asks
-for as `Marked`, or the diagnostic `fjs compile` would print. `compileFile`
-is it followed by that tail, writing `toText` of the result; so the file is
-the text of the marked output, by construction.
+for as `Marked`, or a refusal as `[message, diagnostic]`: the producer's raw
+message for a demo pane and the diagnostic `fjs compile` would print.
+`_compileMarked` selects the diagnostic on refusal. `compileFile` is it followed
+by the directory and write, writing `toText` of the result; so the file is the
+text of the marked output, by construction.
 
 ## 6. Rendering
 
@@ -203,6 +205,15 @@ renders marked text for the demo pages:
   italic. Both colour schemes are defined, and `--syntax-name` was chosen for contrast on
   the code block's background — about 5.9 to 1 in the light scheme and 7.5 to 1
   in the dark, measured once, not by a proof. A demo never sets a colour.
+
+Signed leaves are a deliberate visible difference from the JavaScript tokenizer
+fallback: a producer's `['-0', 'number']`, `['-1', 'number']` or
+`['-Infinity', 'literal']` colours the sign with the whole literal. JSON's number
+grammar includes the sign; JavaScript tokenization instead reads a unary `-`
+followed by the number or literal word. Keep the producer's run intact.
+`disagreement` excludes this leading sign when comparing with the JavaScript
+oracle, so it establishes agreement modulo that boundary, not identical rendered
+spans. The highlighter's `signedLeaves` proof pins both renderings explicitly.
 
 The compiler (side-by-side), parser, serializer and Rust demos render their
 producers' runs. How a demo's code blocks look is
@@ -236,9 +247,9 @@ Some text has no producer behind it: an example a reader typed. For that,
 
 The fallback is also the **oracle** a producer is held to
 ([§9](#9-proving-a-producer)): `disagreement(marked)` answers where a
-producer's markup and the tokenizer part ways, or `null`. The tokenizer reads
-`-0` as a prefix and a number, so a leading `-` is not part of the span it
-finds, and the comparison allows for it.
+producer's markup and the tokenizer part ways, or `null`. The comparison allows
+for a leading `-` in a producer's signed leaf, so it proves agreement modulo
+that boundary ([§6](#6-rendering)), not identical rendered spans.
 
 ## 8. Invariants
 
@@ -276,8 +287,8 @@ pins:
   it does not mark (`undefined` in the `.js` writer was a gap this found).
 - **The oracle**, for a language the tokenizer reads: for every example in
   [`fjs/compiler/examples`](../../compiler/examples/module.f.js), `disagreement`
-  of its output is `null`. The marked pieces are the tokenizer's spans, one for
-  one.
+  of its output is `null`. The marked pieces agree with the tokenizer's spans
+  apart from the deliberate leading-sign boundary ([§6](#6-rendering)).
 - **Without an oracle** (Rust has no tokenizer here), two checks that need each
   other. Every run is one of the forms the printer says it marks: a list of
   what is *allowed*. And no plain run holds a word the printer marks, `let`,
@@ -439,9 +450,10 @@ points, as the tokenizer's are).
   so that the compiler does not depend on the website.
 - **`fromSpans` answers a `Result`** ([§7](#7-the-fallback-for-text-with-no-producer)).
 - **Markup reaches the page by the compiler's own seam.** A file system carries
-  text, so runs cannot cross it. `compileFile` is `_compileMarked` followed by
-  the directory and the write, so the demo runs the same code to the same point,
-  and its proof runs the whole of `compile` and holds each pane to the file
+  text, so runs cannot cross it. The demo uses `_outputMarked`; `compileFile`
+  uses `_compileMarked`, which selects the CLI diagnostic, followed by the
+  directory and the write. Both run the same output route to the same point,
+  and the proof runs the whole of `compile` and holds each pane to the file
   written, so a pane cannot drift from the command line.
 - **No command-line option** ([§10](#10-the-command-line)).
 

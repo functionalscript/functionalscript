@@ -27,12 +27,14 @@
  */
 
 import { compileFile } from '../../compiler/module.f.mjs'
-import { forEachStep, mapStep, pureOk, step } from '../../effects/module.f.mjs'
+import { interpret } from '../../compiler/transpiler/module.f.mjs'
+import { forEachStep, history, historyStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../../effects/module.f.mjs'
 import { exitStep, mkdir, readdir, writeUtf8File } from '../../effects/node/module.f.mjs'
 import { cmp } from '../../types/string/module.f.mjs'
+import { corpus, fixturesDirectory } from '../corpus/module.f.mjs'
+import { expectation } from '../expected/module.f.mjs'
 
-/** Where the fixtures are: one `.mjs` module each, a helper one imports beside them. */
-export const fixturesDirectory = 'nanvm-harness/fixtures'
+export { fixturesDirectory }
 
 /** Where the compiled fixtures go, a `gen.` name `gen:clean` empties. */
 export const directory = 'nanvm-harness/gen.fixtures'
@@ -81,6 +83,27 @@ export const modules = names => [
 ].join('\n')
 
 /**
+ * The text of `gen.expected/mod.rs`: the `pub mod` of every expectation, as
+ * {@link modules} writes them, and `CASES`, one row per expectation pairing
+ * the compiled fixture of the same name with it, so one Rust test walks the
+ * whole corpus without naming a fixture. The rows are on the VM every
+ * `nanvm-harness` test runs at; `crate::Case` is `src/lib.rs`'s.
+ *
+ * @type {(names: readonly string[]) => string}
+ */
+export const expectedModules = names => [
+    modules(names),
+    'use nanvm_lib::naive::Naive;',
+    '',
+    '/// Every corpus fixture with its expectation.',
+    '#[rustfmt::skip]',
+    'pub const CASES: &[crate::Case] = &[',
+    ...names.map(name => `    crate::Case { name: "${name}", fixture: crate::fixtures::${name}::module::<Naive>, expected: ${name}::module::<Naive>, json: ${name}::JSON, throws: ${name}::THROWS },`),
+    '];',
+    '',
+].join('\n')
+
+/**
  * Compiles every fixture into its `.rs`, in order, stopping at the first the
  * compiler refuses, then writes `mod.rs` naming them all. The output
  * directory is created by the first compile — after `gen:clean` on a fresh
@@ -97,6 +120,47 @@ export const generateFixtures = () => step(fixtures(), names => {
     return step(directoryReady, () => writeUtf8File(modulesPath, modules(names.map(rustName))))
 })
 
+/** Where the corpus fixtures' expectations are: one `.rs` each, a `gen.` name `gen:clean` empties. */
+export const expectedDirectory = 'nanvm-harness/gen.expected'
+
+/** The module file naming every expectation, which `src/lib.rs` includes by path. */
+export const expectedModulesPath = `${expectedDirectory}/mod.rs`
+
+/**
+ * Interprets one fixture and writes its expectation, or fails with the reason
+ * it has none: a fixture the interpreter cannot load, or a value the Rust
+ * backend has no spelling for. A fixture whose initialization throws has an
+ * expectation too, a module that throws.
+ *
+ * @type {(name: string) => Effect<_CompileOp, void, IoChannel>}
+ */
+const writeExpectation = name => resultStep(
+    interpret(`${fixturesDirectory}/${name}`),
+    result => {
+        const text = expectation(name)(result)
+        return text[0] === 'ok'
+            ? writeUtf8File(`${expectedDirectory}/${rustName(name)}.rs`, text[1])
+            : pureError(ioError({ message: text[1] }))
+    })
+
+/**
+ * Writes the expectation of every corpus fixture (see
+ * [`../corpus`](../corpus/module.f.mjs): the fixtures no exception names), in
+ * order, stopping at the first that fails, then `mod.rs` naming them all. The
+ * directory is created first, so an empty corpus still leaves a `mod.rs`.
+ *
+ * @type {() => Effect<_CompileOp, void, IoChannel>}
+ */
+export const generateExpected = () => {
+    const selected = history(mapStep(fixtures(), corpus))
+    const directoryReady = historyStep(selected, () => mkdir(expectedDirectory, { recursive: true }))
+    const written = historyStep(directoryReady, (_, names) => forEachStep(pureOk(names), writeExpectation))
+    return step(written, ([, , names]) => writeUtf8File(expectedModulesPath, expectedModules(names.map(rustName))))
+}
+
+/** The fixtures compiled, then their expectations written. @type {() => Effect<_CompileOp, void, IoChannel>} */
+export const generateAll = () => step(generateFixtures(), generateExpected)
+
 /**
  * The program `npm run gen` runs. It takes the options every `NodeProgram` is
  * given and reads none of them: the directories are fixed above, so there is
@@ -104,4 +168,4 @@ export const generateFixtures = () => step(fixtures(), names => {
  *
  * @type {NodeProgram}
  */
-export const main = _options => exitStep(generateFixtures())
+export const main = _options => exitStep(generateAll())

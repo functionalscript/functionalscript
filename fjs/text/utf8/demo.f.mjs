@@ -20,12 +20,16 @@
  * **It needs no operations.** Encoding is a pure function of the input, so
  * `update` declares `never` and returns its next state through `pureOk`.
  *
+ * **The listing is for inspection**, so it uses a neutral code box without
+ * a copy button.
+ *
  * @module
  *
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
  * @import { CodePoint } from '../code_point/types.ts'
  */
 
+import { codeMarker } from '../../website/style/module.f.mjs'
 import { fromCodePointList } from './module.f.mjs'
 import { stringToCodePointList } from '../utf16/module.f.mjs'
 import { errorMask, isValidCodePoint } from '../code_point/module.f.mjs'
@@ -85,5 +89,5 @@ export const demo = textDemo({
     init: 'hé€😀',
 })(text => [
     caption('Code points, UTF-8 hex:'),
-    ['pre', codePoints(text)],
+    ['pre', { [codeMarker]: '' }, codePoints(text)],
 ])

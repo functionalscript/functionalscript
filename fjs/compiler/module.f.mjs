@@ -37,7 +37,7 @@ import { _numberSerialize, tryJsonMarked, tryMarked } from '../media/datajs/seri
 import { tryMarked as fjsMarked, tryModuleMarked } from './serializer/module.f.mjs'
 import { arrayWrap, boolSerialize, colon, nullSerialize, objectWrap, stringSerialize } from '../media/json/serializer/module.f.mjs'
 import { flat, map } from '../types/list/module.f.mjs'
-import { error, ok, okThen } from '../types/result/module.f.mjs'
+import { error, mapOk, ok, okThen } from '../types/result/module.f.mjs'
 import { concat } from '../types/string/module.f.mjs'
 import { serialize as bigintSerialize } from '../types/bigint/module.f.mjs'
 import { sort } from '../types/object/module.f.mjs'
@@ -166,6 +166,19 @@ const outputMarked = outputFileName => {
     if (isFjs(outputFileName)) { return fjsText }
     if (outputFileName.endsWith('.rs')) { return rustText }
     return null
+}
+
+/** Flatten a successful marked output to plain text. */
+const textResult = mapOk(toText)
+
+/**
+ * The output route as plain text, preserving its input and output refusals.
+ *
+ * @type {(outputFileName: string) => ((inputFileName: string) => Effect<ReadWhole | ResolveFileModule, Result<string, string>, ParseError>) | null}
+ */
+export const outputText = outputFileName => {
+    const write = outputMarked(outputFileName)
+    return write === null ? null : inputFileName => mapStep(write(inputFileName), textResult)
 }
 
 /**
@@ -309,6 +322,9 @@ const check = env => resultStep(
  */
 const refused = message => pureError(ioError({ message }))
 
+/** A raw refusal beside its CLI diagnostic. @type {(message: string, diagnostic: string) => Result<Marked, readonly [string, string]>} */
+const refusal = (message, diagnostic) => error([message, diagnostic])
+
 /**
  * The output `outputFileName` asks for from the module `inputFileName`, as
  * marked text — what {@link compileFile} writes the text of — or why it is
@@ -323,8 +339,6 @@ const refused = message => pureError(ioError({ message }))
  * @type {(inputFileName: string, outputFileName: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, readonly [message: string, diagnostic: string]>, never>}
  */
 export const _outputMarked = (inputFileName, outputFileName) => {
-    /** @type {(message: string, diagnostic: string) => Result<Marked, readonly [string, string]>} */
-    const refusal = (message, diagnostic) => error([message, diagnostic])
     const text = outputMarked(outputFileName)
     if (text === null) {
         return pureOk(refusal(unknownOutput, `${outputFileName} - error: ${unknownOutput}`))
@@ -333,10 +347,23 @@ export const _outputMarked = (inputFileName, outputFileName) => {
         text(inputFileName),
         /** @type {(result: Result<Result<Marked, string>, ParseError>) => Effect<never, Result<Marked, readonly [string, string]>, never>} */
         (result) => {
-            if (result[0] === 'error') { return pureOk(refusal(result[1].message, diagnostic(inputFileName)(result[1]))) }
-            const [tag, content] = result[1]
+            const [kind, value] = result
+            if (kind === 'error') { return pureOk(refusal(value.message, diagnostic(inputFileName)(value))) }
+            const [tag, content] = value
             return pureOk(tag === 'error' ? refusal(content, `${outputFileName} - error: ${content}`) : ok(content))
         })
+}
+
+/** Keep the CLI diagnostic when compilation is refused.
+ * @type {(result: Result<Marked, readonly [message: string, diagnostic: string]>) => Result<Marked, string>}
+ */
+const compileResult = result => {
+    const [tag, value] = result
+    if (tag === 'error') {
+        const [, diagnostic] = value
+        return error(diagnostic)
+    }
+    return result
 }
 
 /**
@@ -345,8 +372,7 @@ export const _outputMarked = (inputFileName, outputFileName) => {
  * @type {(inputFileName: string, outputFileName: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, string>, never>}
  */
 export const _compileMarked = (inputFileName, outputFileName) => mapStep(
-    _outputMarked(inputFileName, outputFileName),
-    result => result[0] === 'error' ? error(result[1][1]) : result)
+    _outputMarked(inputFileName, outputFileName), compileResult)
 
 /**
  * Compiles the FunctionalScript module `inputFileName` into `outputFileName`,
@@ -363,9 +389,10 @@ export const compileFile = (inputFileName, outputFileName) => step(
     _compileMarked(inputFileName, outputFileName),
     /** @type {(result: Result<Marked, string>) => Effect<_CompileOp, void, IoChannel>} */
     (result) => {
-        if (result[0] === 'error') { return refused(result[1]) }
+        const [tag, value] = result
+        if (tag === 'error') { return refused(value) }
         const directoryReady = mkdir(outputDirectory(outputFileName), { recursive: true })
-        return step(directoryReady, () => writeUtf8File(outputFileName, toText(result[1])))
+        return step(directoryReady, () => writeUtf8File(outputFileName, toText(value)))
     })
 
 /**

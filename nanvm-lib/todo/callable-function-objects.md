@@ -618,8 +618,14 @@ cannot distinguish:
    text of the value with `-0` replaced by `0`, `JSON.stringify`'s own rule, a
    small pure function with its own proof. The graph layer distinguishes `-0`
    by bits, but an independent assertion is also required below: normalizing
-   the JSON text loses its sign. In Rust the check is `Any::to_json()` against
-   that text: `nanvm-lib`'s serializer on the compiled result, a path that
+   the JSON text loses its sign. The text is committed as its UTF-8
+   bytes, spelled as numbers, and not as a Rust string literal: the
+   string-literal emitter is the one that spells the compiled fixture's
+   strings, so a text written through it would share an escaping mistake with
+   what it checks (DEL and a bidirectional control, in `escapes`), and `rustc`
+   refuses some characters in a literal. In Rust the check is `Any::to_json()`
+   as bytes against those bytes: `nanvm-lib`'s serializer on the compiled
+   result, a path that
    shares nothing with the literal emitter. JSON text is also ordered, so a
    wrong property order fails here.
 2. *The graph, for what JSON cannot say.* The interpreter's value printed as
@@ -653,8 +659,8 @@ walks the corpus fixtures, also loads each through the interpreter's loader
 (`interpret`, as `_transpileDefault` does), takes the `default` of the
 represented export object, and writes `nanvm-harness/gen.expected/<name>.rs`:
 a module returning the expected `Any` as a graph, as `gen.values/captures.rs`
-does, with, when the default has a JSON form, that JSON text as a string
-constant, plus a `mod.rs` that is the list. A module whose initialization
+does, with, when the default has a JSON form, the UTF-8 bytes of that JSON
+text as a constant, plus a `mod.rs` that is the list. A module whose initialization
 throws gets a module that returns `Err`, so a fixture that throws is expected
 to throw (the thrown value is engine-specific and not compared, as in the
 operator corpus). The corpus rule of `fjs/nanvm/corpus` decides which
@@ -683,6 +689,17 @@ the helper keeps its map of pairs in a list of container pairs compared with
 `==`, with no hashing of an `Any` required. Numbers compare by bits (`NaN`,
 `-0`), as `same` already does.
 
+*As built (2b).* The generated `gen.expected/mod.rs` also holds `CASES`, one
+row per expectation pairing the compiled fixture with it, so the single test
+`corpus_matches_expectations` walks the corpus without naming a fixture and
+reports every difference. The comparison is
+[`nanvm-harness/src/compare.rs`](../../nanvm-harness/src/compare.rs). A module
+without a `default` is read as `undefined`, as the interpreter's
+`read 'default'` is. A default with no JSON form must also give `to_json()` an
+error, so the `None` side is checked too. Every expectation records
+`THROWS`, and whether the fixture throws is compared with it, so two modules
+that both throw because of a regression they share do not pass for a value.
+
 *What 2b deletes.* The hand-written JSON assertion of each fixture whose
 expectation has the JSON layer in `src/lib.rs` (the `read_default(…) ==
 Ok("…")` strings), since it is the same fact Node's text now supplies and
@@ -691,7 +708,8 @@ hand-written assertion, which is its only emitter-independent check. The
 independent leaf assertions above stay even when the fixture has a JSON layer
 (`-0`), since that layer cannot distinguish the value they check. A test
 that checks something else about the same fixture (a named export, a call
-through the harness) stays. A fixture excepted from the corpus keeps its
+through the harness, the whole export object, since the comparison reads only
+`default`) stays. A fixture excepted from the corpus keeps its
 hand-written test and its reason.
 
 *Invariants this relies on, each already checked.* Every corpus default is
@@ -818,8 +836,8 @@ level.
       after resolving embedded data versus lookup; no Rust executor dependency.
 - [x] Stage 8 step 1: the FJS interpreter against the Node reference over the
       harness fixtures ([`fjs/nanvm/corpus`](../../fjs/nanvm/corpus/module.f.mjs)).
-- [ ] Stage 8 step 2a: for each corpus fixture, a committed `gen.expected` Rust module holding the interpreter's value as a graph and, when the default has a JSON form, the compiler's JSON text, and a list of them.
-- [ ] Stage 8 step 2b: one Rust test checks each compiled fixture against both layers of its expectation (JSON text, then an order- and sharing-aware graph comparison) and replaces the hand-written assertions the JSON layer covers.
+- [x] Stage 8 step 2a: for each corpus fixture, a committed `gen.expected` Rust module holding the interpreter's value as a graph and, when the default has a JSON form, the compiler's JSON text, and a list of them.
+- [x] Stage 8 step 2b: one Rust test checks each compiled fixture against both layers of its expectation (JSON text, then an order- and sharing-aware graph comparison) and replaces the hand-written assertions the JSON layer covers.
 - [ ] Stage 8 step 3: the interpreter compiled to Rust runs the corpus (blocked).
 
 ### Related

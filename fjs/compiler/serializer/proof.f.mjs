@@ -1425,15 +1425,16 @@ export const proof = {
     demo: {
         examples: () => {
             for (const [name, source] of examples) {
-                const shown = _sourceOf(source)
-                assertEq(shown[0], ['An import', 'A named import and a call', 'Hex escape', 'Parse error'].includes(name) ? 'error' : 'ok', name)
-                if (shown[0] === 'ok') { assertEq(disagreement(shown[1]), null, name) }
+                const [tag, value] = _sourceOf(source)
+                assertEq(tag, ['An import', 'A named import and a call', 'Hex escape', 'Parse error'].includes(name) ? 'error' : 'ok', name)
+                if (tag === 'ok') { assertEq(disagreement(value), null, name) }
             }
             assertEq(textOfResult(_sourceOf('const a = [1];\nexport default [a, a];')), 'const $0=[1];export default [$0,$0];')
         },
         view: () => {
             const shown = htmlToString(demo.view(demo.init))
-            assert(shown.includes('<p data-caption="">JavaScript module:</p><pre data-code="">'), shown)
+            assert(shown.includes('<p data-caption="">JavaScript module:</p><div data-code="" data-code-block=""><pre>'), shown)
+            assert(shown.includes('aria-label="Copy JavaScript module"'), shown)
             const refused = htmlToString(demo.view('export default {bad'))
             assert(refused.includes('Refused:</p><pre data-result="error">'), refused)
         },

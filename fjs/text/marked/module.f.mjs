@@ -115,7 +115,10 @@ export const withNames = marked => marked.flatMap(run => run[1] === undefined ? 
  *
  * @type {(result: Result<Marked, string>) => string}
  */
-export const textOfResult = result => result[0] === 'ok' ? toText(result[1]) : result[1]
+export const textOfResult = result => {
+    const [tag, value] = result
+    return tag === 'ok' ? toText(value) : value
+}
 
 /**
  * The text of a chunk.
@@ -228,7 +231,11 @@ export const fromSpans = text => spans => {
     /** @type {(from: number, to: number) => readonly Run[]} */
     const plain = (from, to) => from < to ? [[symbols.slice(from, to).join('')]] : []
     /** @type {(i: number) => number} */
-    const endBefore = i => i === 0 ? 0 : spans[i - 1].start + spans[i - 1].length
+    const endBefore = i => {
+        if (i === 0) { return 0 }
+        const { start, length } = spans[i - 1]
+        return start + length
+    }
     /** @type {(span: Span, i: number) => string | null} */
     const problem = ({ start, length }, i) => {
         if (!Number.isInteger(start) || !Number.isInteger(length) || length < 1) {
@@ -242,7 +249,7 @@ export const fromSpans = text => spans => {
     if (failed !== undefined) { return error(failed) }
     const last = endBefore(spans.length)
     return ok([
-        ...spans.flatMap((span, i) => [...plain(endBefore(i), span.start), /** @type {Run} */ ([symbols.slice(span.start, span.start + span.length).join(''), span.kind])]),
+        ...spans.flatMap(({ start, length, kind }, i) => [...plain(endBefore(i), start), /** @type {Run} */ ([symbols.slice(start, start + length).join(''), kind])]),
         ...plain(last, symbols.length),
     ])
 }

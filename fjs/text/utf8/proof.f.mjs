@@ -342,7 +342,8 @@ export const proof = {
         view: () => {
             const html = htmlToString(demo.view(demo.init))
             assert(html.includes('name="text"'), html)
-            assert(html.includes(codePoints(demo.init)), html)
+            assert(html.includes(`<pre data-code="">${codePoints(demo.init)}</pre>`), html)
+            assert(!html.includes('data-copy='), html)
         },
     },
 }

@@ -35,10 +35,10 @@ that code lands.
 `ast/` has no demo of its own: its data is what `parser/` draws.
 
 **Each demo runs the stage it shows, never a lookalike.** The stage demos call
-the stage's own function (`tryModuleStringify`, `toRust`, `tokenize`, `parse`).
-The side-by-side page runs `_compileMarked`, which is `compile` but for its
-tail — the directory and the write — over an in-memory file system, once per
-output name. A file system carries text, so the page takes the output as marked
+the stage's own function (`tryModuleMarked`, `toRust`, `tokenize`, `parse`).
+The side-by-side page runs `_outputMarked`, the output route shared with
+`compile`, over an in-memory file system, once per output name, before CLI
+diagnostic formatting. A file system carries text, so the page takes the output as marked
 text (`fjs/text/marked`) before it is written, which is how a pane is coloured
 by what the producer wrote and not by reading the text again. Its proof runs
 the whole `compile` over the same file system for every example and output

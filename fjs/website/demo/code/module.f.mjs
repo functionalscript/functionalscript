@@ -1,14 +1,16 @@
 /**
  * Copyable code blocks and literal POSIX shell arguments for website demos.
  * @module
- * @import { Element } from '../../../media/html/types.ts'
+ * @import { Element, Node } from '../../../media/html/types.ts'
  */
 
 import { codeMarker } from '../../style/module.f.mjs'
 
-/** @type {(text: string, label: string) => Element} */
-export const codeBlock = (text, label) => ['div', { [codeMarker]: '', 'data-code-block': '' },
-    ['pre', text],
+/** Copy plain text while optionally displaying its highlighted nodes.
+ * @type {(text: string, label: string, content?: readonly Node[]) => Element}
+ */
+export const codeBlock = (text, label, content = [text]) => ['div', { [codeMarker]: '', 'data-code-block': '' },
+    ['pre', ...content],
     ['button', { type: 'button', 'data-copy': text, 'aria-label': label, title: label },
         ['svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.5', 'aria-hidden': 'true' },
             ['path', { d: 'M6 9H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2' }],

@@ -118,11 +118,17 @@ export const spansOf = text => {
     })
 }
 
+/** The starting offset before each run's length. @type {(at: number) => Scan<number, number>} */
+const before = at => length => [at, before(at + length)]
+
 /**
  * Where a producer's markup and the tokenizer part ways, or `null` where
  * they agree: the marked runs, as spans of the whole text, are the spans
  * the tokenizer finds in it, one for one. The tokenizer reads `-0` as a
  * prefix and a number, so a leading `-` is not part of the span it finds.
+ * This comparison deliberately excludes that sign; it does not prove pixel
+ * equality with the fallback. `render` honours the producer's whole run,
+ * including the sign, as the rendering proof and design record specify.
  * What a producer marks, this holds it to; the proofs of the producers that
  * mark ask it of every example they have.
  *
@@ -132,8 +138,6 @@ export const disagreement = marked => {
     const text = toText(marked)
     const found = JSON.stringify(spansOf(text))
     const lengths = marked.map(([chunk]) => Array.from(chunk).length)
-    /** @type {(at: number) => Scan<number, number>} */
-    const before = at => length => [at, before(at + length)]
     const starts = toArray(scan(before(0))(lengths))
     /** @type {readonly Span[]} */
     const given = marked.flatMap(([chunk, kind], i) => {

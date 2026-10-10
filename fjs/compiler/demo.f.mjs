@@ -4,7 +4,7 @@
  * they differ.
  *
  * **It runs the compiler, not a lookalike.** The text is the input file of
- * `_compileMarked`, the real `compile` but for the directory and the write,
+ * `_outputMarked`, the real `compile` but for the directory and the write,
  * run over an in-memory file system, once per output name; each pane is the
  * output that run answers, as marked text so that its words are coloured by
  * what the compiler wrote, or the message it would print. The proof holds each
@@ -28,13 +28,17 @@
  * **It needs no operations.** The in-memory run is a pure function of the
  * text, so `update` declares `never` and returns through `pureOk`.
  *
+ * **The output is copyable**: it is a document or generated source a reader
+ * can save and use elsewhere. Copy keeps the original output text.
+ *
  * @module
  *
  * @import { Result } from '../types/result/types.ts'
  * @import { Marked } from '../text/marked/types.ts'
  */
 
-import { codeMarker } from '../website/style/module.f.mjs'
+import { toText } from '../text/marked/module.f.mjs'
+import { codeBlock } from '../website/demo/code/module.f.mjs'
 import { exitCode } from '../effects/node/module.f.mjs'
 import { emptyState, nodeProgramOptions, virtual } from '../effects/node/virtual/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
@@ -69,7 +73,12 @@ export const outputs = [
  */
 export const _compiled = text => outputFileName => {
     const result = unwrap(virtual({ ...emptyState, root: { 'input.f.js': [utf8(text)] } })(_outputMarked('input.f.js', outputFileName))[1])
-    return result[0] === 'error' ? error(result[1][0]) : result
+    const [tag, value] = result
+    if (tag === 'error') {
+        const [message] = value
+        return error(message)
+    }
+    return result
 }
 
 /**
@@ -96,5 +105,5 @@ export const demo = textDemo({
     examples,
 })(text => outputs.map(([label, outputFileName]) => {
     const [kind, value] = _compiled(text)(outputFileName)
-    return ['section', ['h3', label], kind === 'ok' ? ['pre', { [codeMarker]: '' }, ...render(value)] : refusal(value)]
+    return ['section', ['h3', label], kind === 'ok' ? codeBlock(toText(value), `Copy ${label} output`, render(value)) : refusal(value)]
 }))

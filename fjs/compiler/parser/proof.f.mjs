@@ -1853,10 +1853,10 @@ export const proof = {
     demo: {
         examples: () => {
             for (const [name, source] of examples) {
-                const ast = _astOf(source)
-                assertEq(ast[0], ['Hex escape', 'Parse error'].includes(name) ? 'error' : 'ok')
+                const [tag, value] = _astOf(source)
+                assertEq(tag, ['Hex escape', 'Parse error'].includes(name) ? 'error' : 'ok')
                 // what the pane marks, the tokenizer agrees with
-                if (ast[0] === 'ok') { assertEq(disagreement(ast[1]), null, name) }
+                if (tag === 'ok') { assertEq(disagreement(value), null, name) }
             }
             assertEq(textOfResult(_astOf('export default 1;')), 'export default [[],[["object",[[":","default",1]]]]];')
             assertEq(textOfResult(_astOf('export default "\\x41";')), 'unexpected token')
