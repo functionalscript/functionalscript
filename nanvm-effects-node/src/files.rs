@@ -350,12 +350,11 @@ pub fn write_bytes(path: &str, at: f64, data: &[u8]) -> Result<(), IoError> {
         .write(true)
         .open(path)
         .map_err(|e| failure(&e, "open", path))?;
-    if data.is_empty() {
-        return Ok(());
+    if !data.is_empty() {
+        file.seek(SeekFrom::Start(at))
+            .and_then(|_| file.write_all(data))
+            .map_err(|e| failure(&e, "write", path))?;
     }
-    file.seek(SeekFrom::Start(at))
-        .and_then(|_| file.write_all(data))
-        .map_err(|e| failure(&e, "write", path))?;
     sync(&file).map_err(|e| failure(&e, "close", path))
 }
 
