@@ -107,7 +107,7 @@ impl<A: IVm> Any<A> {
     /// `**`. Not a `core::ops` trait — Rust has no operator for
     /// exponentiation, so this is a plain method, the same as `unary_plus`.
     pub fn pow(self, rhs: Self) -> Result<Self, Self> {
-        Ok(Unpacked::from(self.to_numeric()?.pow(rhs.to_numeric()?)?).into())
+        self.numeric_op(rhs, Numeric::pow)
     }
 
     /// `~`. Not a `core::ops` trait — `Not` is already claimed by this
@@ -115,14 +115,26 @@ impl<A: IVm> Any<A> {
     /// the same as `unary_plus`/`pow`.
     /// <https://tc39.es/ecma262/#sec-bitwise-not-operator>
     pub fn bitwise_not(self) -> Result<Self, Self> {
-        Ok(Unpacked::from(self.to_numeric()?.bitwise_not()).into())
+        Ok(Unpacked::from(self.to_numeric()?.bitwise_not()?).into())
     }
 
     /// `>>>`. Not a `core::ops` trait — Rust has no unsigned-right-shift
     /// operator — so this is a plain method, the same as `pow`/`bitwise_not`.
     /// <https://tc39.es/ecma262/#sec-unsigned-right-shift-operator>
     pub fn unsigned_right_shift(self, rhs: Self) -> Result<Self, Self> {
-        Ok(Unpacked::from(self.to_numeric()?.unsigned_right_shift(rhs.to_numeric()?)?).into())
+        self.numeric_op(rhs, Numeric::unsigned_right_shift)
+    }
+
+    /// The shape every numeric binary operator shares: `ToNumeric` of the
+    /// left operand, then of the right, then `op` on the two (`+` once it
+    /// has ruled out a string concatenation).
+    /// <https://tc39.es/ecma262/#sec-applystringornumericbinaryoperator>
+    fn numeric_op(
+        self,
+        rhs: Self,
+        op: impl FnOnce(Numeric<A>, Numeric<A>) -> Result<Numeric<A>, Self>,
+    ) -> Result<Self, Self> {
+        Ok(Unpacked::from(op(self.to_numeric()?, rhs.to_numeric()?)?).into())
     }
 
     /// The body of the language's `entry` helper, the function the EDAG's

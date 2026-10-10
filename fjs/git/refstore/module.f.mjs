@@ -205,8 +205,8 @@ import { catchStep, foldStep, history, historyStep, mapStep, orElse, pureOk, ref
 import { isDirectory, isNotFound, leadsNowhere, readFile, readWholeBytes, readdir, stat } from '../../effects/node/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { under } from '../../path/module.f.mjs'
-import { fromCodePointList, fromVec } from '../../text/utf8/module.f.mjs'
-import { codePointListToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
+import { fromVec, stringToU8List } from '../../text/utf8/module.f.mjs'
+import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { length, maxLengthBytes, u8ListMsb, u8ListToVecMsb, uint } from '../../types/bit_vec/module.f.mjs'
 import { concat, sameItems, toArray } from '../../types/list/module.f.mjs'
 import { tryPacked, tryRef } from '../ref/module.f.mjs'
@@ -223,7 +223,7 @@ import { hasRefComponents, isWholeName } from '../refname/module.f.mjs'
  * round-trips for every name node decoded from valid UTF-8 bytes.
  *
  * @type {(s: string) => readonly number[]} */
-const nameBytes = s => toArray(fromCodePointList(stringToCodePointList(s)))
+const nameBytes = s => toArray(stringToU8List(s))
 
 /**
  * A ref name as a string that stands for its bytes, for use as a key.
