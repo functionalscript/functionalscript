@@ -153,8 +153,11 @@ PR page and account identity.
    the site's exact `/prs/` callback, for example
    `https://your-site.example/prs/` (use the actual website origin).
 2. Set `GITHUB_CLIENT_ID` and `GITHUB_REDIRECT_URI` as Cloudflare Worker
-   variables. The redirect must be an HTTPS URL ending in `/prs/`, with no
-   query, fragment, or embedded credentials.
+   runtime variables in **Settings → Variables and Secrets**. Build variables
+   alone do not become Worker bindings. The redirect must be an HTTPS URL
+   ending in `/prs/`, with no query, fragment, or embedded credentials.
+   The root Wrangler configuration sets `keep_vars: true` so redeploying
+   preserves variables configured in the dashboard.
 3. Set `GITHUB_CLIENT_SECRET` as an encrypted Cloudflare Worker secret,
    using the dashboard or `wrangler secret put GITHUB_CLIENT_SECRET`.
    Do not place it in source, public assets, or a build-time browser variable.
@@ -166,6 +169,13 @@ the configured callback origin. Configure a separate app and bindings for a
 trusted preview, rather than sharing production credentials with every branch
 preview. Local development may use HTTP on localhost with its own app;
 `.dev.vars` and `.env` files are excluded from uploads by `.assetsignore`.
+
+Open `/auth/github/config` on the site to check the deployed configuration.
+HTTP 200 returns the public client ID and callback URL; HTTP 503 means a
+binding is missing or the callback URL is invalid; HTTP 403 means the site
+origin differs from the configured callback origin. This endpoint never
+returns the application secret. After changing bindings, deploy a version
+with those bindings to the preview being tested.
 
 See [GitHub's OAuth documentation](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps)
 for registration and PKCE details.
