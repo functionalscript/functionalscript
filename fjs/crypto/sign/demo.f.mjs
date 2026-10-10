@@ -20,7 +20,7 @@
  *
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
  * @import { Element, Node } from '../../media/html/types.ts'
- * @import { Curve, Point2D } from '../secp/types.ts'
+ * @import { Curve } from '../secp/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { DemoCurve, DemoSigned, DemoState } from './types.ts'
  */
@@ -35,6 +35,7 @@ import { hexDigitsValue } from '../../text/ascii/module.f.mjs'
 import { tryUtf8 } from '../../text/module.f.mjs'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
+import { assertNotNullish } from '../../asserts/module.f.mjs'
 
 /** A named curve, bound once.
  * @type {(name: string, curve: Curve) => DemoCurve}
@@ -93,7 +94,7 @@ export const signed = state => {
     const m = tryUtf8(state.message)
     if (m === null) { return error(`The message is too long: more than ${maxLengthBytes} UTF-8 bytes.`) }
     // `x` is in `[1, q-1]` and `G` has order `q`, so `xG` is never infinity.
-    const u = /** @type {Point2D} */ (c.curve.mul(x)(c.curve.g))
+    const u = assertNotNullish(c.curve.mul(x)(c.curve.g), 'xG === null')
     const [r, s] = c.sign(hf)(x)(m)
     return ok({ u, m, k: c.computeK(hf)(x)(m), r, s })
 }
@@ -117,7 +118,7 @@ const signView = (c, result) => {
         ['p', 'The x coordinate of the point kG, modulo q: it binds the signature to k without revealing k.'],
         caption('Signature s, hex:'),
         codeBlock(scalar(s), 'Copy s'),
-        ['p', 's = (h + r·x) / k mod q, where h is the hash of the message. Only the holder of x can make s fit r and this message; Verify checks that fit using U alone.'],
+        ['p', 's = (h + r·x) / k mod q, where h is the hash of the message, cut to the bit length of q and reduced modulo q. Only the holder of x can make s fit r and this message; Verify checks that fit using U alone.'],
     ]
 }
 
