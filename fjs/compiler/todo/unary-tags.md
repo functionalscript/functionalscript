@@ -1,4 +1,4 @@
-## unary-tags. `-`, `~`, `!`, `typeof`, `Number` and `throw` each get their own frame kind and work kind
+## unary-tags. Unify the unary operators' frame kinds and work kinds
 
 **Priority:** P4
 **Status:** open
@@ -12,8 +12,8 @@ arm at a time.
 
 The parser's explicit stack in [`parser`](../parser/module.f.mjs) has a
 frame kind per operator — `_NegFrame`, `_BitnotFrame`, `_NotFrame`,
-`_TypeofFrame` and `_ConversionFrame`, the conversion `Number(x)`'s, in its
-`private.ts` — and `enter` and `returned` each have one arm per kind that
+`_TypeofFrame` and `_ConversionFrame`, the `Number(x)` and `String(x)`
+conversions', in its `private.ts` — and `enter` and `returned` each have one arm per kind that
 differs only in the tag (the conversion is entered from a call,
 `conversion`, rather than from a prefix, and closes the same way):
 
@@ -45,9 +45,9 @@ if (work.kind === 'throw') {
 ```
 
 `'neg'` is the same arm plus the constant folding of a negated literal, and
-`'not'`, `'typeof'` and `'Number'` are the `'bitnot'` arm a third, a fourth
-and a fifth time: `!`, `typeof` and the conversion landed in the pattern as
-it stood, one more copy of each arm apiece. `instanceof` is a sixth copy
+`'not'`, `'typeof'` and the shared `'Number'`/`'String'` arm are the `'bitnot'`
+arm a third, a fourth and a fifth time: `!`, `typeof` and the conversions
+landed in the pattern as it stood. `instanceof` is a sixth copy
 with one difference: its frame and its work carry the constructor name the
 AST node holds, so the one unary frame and one unary work below carry a
 tag *and* an optional name, or `instanceof` keeps its own.
@@ -56,8 +56,8 @@ tag *and* an optional name, or `instanceof` keeps its own.
 
 `ast` exports `unaryTags` and `isUnary` beside `binaryTags` and
 `isBinary`. The parser keeps one frame,
-`{ unary: '-' | '~' | '!' | 'typeof' | 'Number' }`, and one `enter` arm and
-one `returned` arm over it — the conversion's frame one more value of the
+`{ unary: '-' | '~' | '!' | 'typeof' | 'Number' | 'String' }`, and one `enter`
+arm and one `returned` arm over it — the conversion's frame one more value of the
 tag, `conversion` still deciding where the call is one. `_LowerWork` keeps one
 `{ kind: 'unary', tag }` work, with negation's literal folding where the
 literal is met, as a leaf case, rather than as a work kind of its own.

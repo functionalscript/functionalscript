@@ -1,6 +1,6 @@
 /**
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
- * @import { AstModule } from '../ast/types.ts'
+ * @import { AstConst, AstModule } from '../ast/types.ts'
  * @import { EdagValue, Values } from '../../edag/value/types.ts'
  */
 
@@ -792,6 +792,62 @@ export const proof = {
             expect('const from = 1;\nexport default from;')
             expect('export default { if: 1, export: 2, with: 3, from: 4, default: 5, this: 6, typeof: 7, instanceof: 8, Array: 9 };')
             expect('const a = {}; export default [a.if, a.export, a.default, a.class, a.typeof, a.instanceof, a.Array];')
+        },
+    },
+    stringConversion: {
+        read: () => {
+            /** @type {readonly (readonly [string, AstConst])[]} */
+            const values = [
+                ['String(42)', ['String', 42]],
+                ['(String)(42)', ['String', 42]],
+                ['String\n(42)', ['String', 42]],
+                ['String(42,)', ['String', 42]],
+                ['String(String(42))', ['String', ['String', 42]]],
+                ['String(Number("42"))', ['String', ['Number', '42']]],
+                ['String(1).length', ['.', ['String', 1], 'length']],
+                ['String(1)(2)', ['()', ['String', 1], [2]]],
+                ['-String(1)', ['-', ['String', 1]]],
+                ['(...a) => String(a[0])', ['=>', 0, [['String', ['.', ['rest'], 0]]]]],
+            ]
+            for (const [source, value] of values) {
+                expectModule(`export default ${source};`, stringifyDjsModule([[], [['object', [[':', 'default', value]]]]]))
+            }
+        },
+        empty: () => {
+            expectModule('export default String();', stringifyDjsModule([[], [['object', [[':', 'default', '']]]]]))
+            expectModule('export default String().length;', stringifyDjsModule([[], [['object', [[':', 'default', ['.', '', 'length']]]]]]))
+        },
+        reserved: () => {
+            /** @type {readonly (readonly [string, number])[]} */
+            const sources = [
+                ['const String = 1; export default 2;', 7],
+                ['export const String = 1;', 14],
+                ['export default (String) => 1;', 17],
+                ['export default (...String) => 1;', 20],
+                ['import String from "./m.f.js"; export default 1;', 8],
+                ['import { String } from "./m.f.js"; export default 1;', 10],
+                ['import { a as String } from "./m.f.js"; export default 1;', 15],
+                ['export default () => { const String = 1; return 2; };', 30],
+                ['export default String;', 16],
+                ['export default [String];', 17],
+                ['export default { String };', 18],
+                ['export default String.fromCharCode(65);', 16],
+                ['export default String?.(1);', 16],
+            ]
+            for (const [source, column] of sources) { expectRefused(source, 'reserved word', column) }
+        },
+        arity: () => {
+            for (const source of ['String(1, 2)', 'String(...[1])', 'String(...[])']) {
+                expectRefused(`export default ${source};`, 'String takes one argument', 16)
+            }
+        },
+        key: () => {
+            expectModule('export default { String: 1 }.String;', stringifyDjsModule([[], [['object', [[':', 'default', ['.', ['object', [[':', 'String', 1]]], 'String']]]]]]))
+            expectModule('export default { String: 1 }["String"];', stringifyDjsModule([[], [['object', [[':', 'default', ['.', ['object', [[':', 'String', 1]]], 'String']]]]]]))
+        },
+        indexRefused: () => {
+            expectRefused('export default [1][String(0)];', 'computed key is not Number(...)', 20)
+            expectRefused('export default [1][String()];', 'computed key is not Number(...)', 20)
         },
     },
     // `Number` is a reserved global: the fold reads the call of the word
