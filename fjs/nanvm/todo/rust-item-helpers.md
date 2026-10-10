@@ -77,6 +77,13 @@ The listed generators call the item helpers. The header helper may
 standardize the comment-line layout; preserve each caller's generation
 provenance and edit instruction, and the generated Rust's behavior.
 
+`generatedHeader` returns plain header comment text; the caller supplies
+separating blank lines. `compiler/rust`'s `generateTagged` wraps that text
+with `tagged('comment')(generatedHeader(source, instruction))` before
+composing the module. The caller keeps syntax marking: `toRustMarked`
+and the Rust demo retain the header's `comment` kind, with separating
+blank lines outside the mark.
+
 ### Tasks
 
 - [ ] The item module with `indent` and the two helpers and a proof at
@@ -91,6 +98,10 @@ provenance and edit instruction, and the generated Rust's behavior.
       generated files. Allow header-only layout changes and changes where
       a name needed escaping; preserve header content and generated Rust
       behavior.
+- [ ] Preserve `compiler/rust`'s marked-output proofs: the header is marked
+      as `comment`, the marked text equals `toRust`'s plain text, and the
+      demo highlights the header as a comment. Update header text and run
+      expectations only for the allowed layout changes.
 - [ ] `tsc`, `fjs test`, `cargo test`.
 
 ### Related

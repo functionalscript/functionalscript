@@ -12,8 +12,8 @@ The railroad pages of [`json`](../../../ebnf/lib/json/demo.f.mjs),
 `const [ruleSet, entry, names] = toData(grammar)` and
 `const nameOf = rule => assertNotNullish(names.get(rule))`, and each ends
 with [`railroadDemo`](../railroad/module.f.mjs) over
-`toDiagrams(ruleSet)(diagrams)`. The intro differs only in its first
-clause; the sentence "Follow a track from left to right; a pill is text the
+`toDiagrams(codePoints)(ruleSet)(diagrams)`. The intro differs only in its
+first clause; the sentence "Follow a track from left to right; a pill is text the
 input holds, and a box is another diagram — select it to go there." is
 identical across the pages. A reader's guide to railroad diagrams is the
 demo kind's text, not each grammar's.
@@ -30,8 +30,11 @@ Another grammar page is expected —
 
 ### Proposal
 
-One `grammarDemo` beside `railroadDemo` takes the grammar, its first-clause
-description and an ordered list of titled selections:
+One `grammarDemo` beside `railroadDemo` takes the grammar, its
+[`Alphabet`](../../../ebnf/railroad/types.ts), its first-clause description
+and an ordered list of titled selections. The current pages pass
+`codePoints`; a token grammar can pass `tokens(encoding, categories)`.
+The selections are:
 
 - `[title, rule]` draws a source rule, including the grammar's entry rule.
 - `[title, rule, tag]` draws the variant branch `tag` of that source rule.
@@ -45,17 +48,19 @@ source-rule selections.
 The helper owns `toData`, `nameOf`, `branch`, the guide sentence and the
 `toDiagrams` call. It lowers once, uses the returned entry for the grammar
 itself and the returned name map for other source rules, then resolves
-branch selections with `branch(ruleSet)(nameOf(rule), tag)`. Each page
-passes source rule identities and branch tags, never guessed lowered
-names. Preserve the current titles, diagram order, intro text, diagrams
-and links, including JavaScript's titled `star` that breaks the recursive
-`content` / `star` cycle.
+branch selections with `branch(ruleSet)(nameOf(rule), tag)` and draws them
+with `toDiagrams(alphabet)(ruleSet)(diagrams)`. Each page passes source rule
+identities and branch tags, never guessed lowered names. Preserve the
+current titles, diagram order, intro text, diagrams and links, including
+JavaScript's titled `star` that breaks the recursive `content` / `star`
+cycle.
 
 ### Tasks
 
 - [ ] `grammarDemo` with a proof at 100%, covering source-rule and branch
       selections and retaining the existing refusal of missing rules or
-      branches.
+      branches; check that the selected alphabet supplies the labels for
+      both kinds of selection.
 - [ ] Move the listed pages onto it, preserving their titled selections and
       rendered layout; check the diagrams and links in the browser.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
