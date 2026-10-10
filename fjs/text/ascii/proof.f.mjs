@@ -1,4 +1,4 @@
-import { digitsValue, hexDigitCodePoint, hexDigitValue, isCanonicalDigits, lowerHexDigitValue, one, range } from './module.f.mjs'
+import { digitsValue, hexDigitCodePoint, hexDigitValue, hexDigitsValue, isCanonicalDigits, lowerHexDigitValue, one, range } from './module.f.mjs'
 import { stringify as jsonStringify } from '../../media/json/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
@@ -133,6 +133,21 @@ export const proof = {
         notAnInteger: () => {
             assertEq(digitsValue(10n)([48.5]), null)
             assertEq(digitsValue(10n)([NaN]), null)
+        },
+    },
+    hexDigitsValue: {
+        digits: () => {
+            assertEq(hexDigitsValue(codePoints('0')), 0n)
+            assertEq(hexDigitsValue(codePoints('aF09')), 0xaf09n)
+            assertEq(hexDigitsValue(codePoints('00ff')), 255n)
+        },
+        empty: () => {
+            assertEq(hexDigitsValue([]), null)
+        },
+        notADigit: () => {
+            assertEq(hexDigitsValue(codePoints('g')), null)
+            assertEq(hexDigitsValue(codePoints('0x1')), null)
+            assertEq(hexDigitsValue(codePoints(' 1')), null)
         },
     },
     throw: {

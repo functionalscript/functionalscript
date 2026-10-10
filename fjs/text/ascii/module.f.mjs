@@ -363,3 +363,18 @@ export const digitsValue = radix => {
         ? digits.reduce((n, d) => n * radix + BigInt(d - digit0), 0n)
         : null
 }
+
+/**
+ * The number a run of hexadecimal digits spells, `0-9`, `a-f` and `A-F`
+ * alike, or `null` where the run is empty or holds a code point that is not
+ * a hexadecimal digit: {@link digitsValue} for radix 16, read through
+ * {@link hexDigitValue}. A leading zero is read, not refused.
+ *
+ * @type {(digits: readonly number[]) => Nullable<bigint>}
+ */
+export const hexDigitsValue = digits => {
+    const values = digits.map(hexDigitValue)
+    return values.length !== 0 && values.every(v => v !== null)
+        ? values.reduce((n, v) => n * 16n + BigInt(/** @type {number} */ (v)), 0n)
+        : null
+}
