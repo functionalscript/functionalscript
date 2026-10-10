@@ -166,7 +166,7 @@ export const thunks = {
 
 export const resolution = {
     run: (/** @type {string} */ root) => step('writeFile', [root + '/m.f.mjs', hi], none)(
-        step('resolveFileModule', [root + '/m.f.mjs', null], (/** @type {any} */ v) => v.id !== undefined && v.path !== undefined)(
+        step('resolveFileModule', [root + '/m.f.mjs', null], (/** @type {any} */ v) => v.id.startsWith('file:///') && v.id.endsWith('/m.f.mjs') && v.path.endsWith('m.f.mjs'))(
             step('resolveFileModule', [root + '/none.f.mjs', null], none)(end)))([]),
     expected: [['ok', null], ['ok', true], ['error', 'ENOENT']],
 };
