@@ -107,7 +107,7 @@ export const tryFromHexOf = oidBytes => {
  * so the bytes are fed to the hash a piece at a time, each well under the
  * bound and long enough that the pieces are few.
  */
-const chunkBytes = /** @type {const} */ (65536)
+const chunkBytes = /** @type {const} */ (65_536)
 
 /**
  * An object's bytes as the `Vec`s the hash takes, {@link chunkBytes} at a

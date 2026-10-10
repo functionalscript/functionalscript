@@ -186,9 +186,9 @@ pub(crate) fn mantissa_exp2(v: f64) -> (u64, i32) {
     let exponent_bits = (bits >> 52) & 0x7ff;
     let mantissa_bits = bits & 0xf_ffff_ffff_ffff;
     if exponent_bits == 0 {
-        (mantissa_bits, -1074) // subnormal: no implicit leading bit
+        (mantissa_bits, -1_074) // subnormal: no implicit leading bit
     } else {
-        (mantissa_bits | (1u64 << 52), exponent_bits as i32 - 1075)
+        (mantissa_bits | (1u64 << 52), exponent_bits as i32 - 1_075)
     }
 }
 
@@ -362,9 +362,9 @@ mod tests {
     /// lower) one.
     #[test]
     fn round_half_to_even_ties() {
-        check(f64::from_bits(0xc23a0480a70a2400), "-111744689930.14062");
-        check(f64::from_bits(0xc24e2a807a3c5a00), "-259124163704.70312");
-        check(f64::from_bits(0xc24ed800216b1200), "-264945812182.14062");
+        check(f64::from_bits(0xc23a_0480_a70a_2400), "-111744689930.14062");
+        check(f64::from_bits(0xc24e_2a80_7a3c_5a00), "-259124163704.70312");
+        check(f64::from_bits(0xc24e_d800_216b_1200), "-264945812182.14062");
     }
 
     /// Non-tie regression guards: an earlier, rejected fix attempt (see

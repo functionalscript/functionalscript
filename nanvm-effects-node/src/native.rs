@@ -300,7 +300,7 @@ mod test {
     /// `"hi"` as the language spells bytes: the bits with a stop bit in front,
     /// negated where the first bit was `0`.
     fn hi() -> V {
-        bigint_any(-59497)
+        bigint_any(-59_497)
     }
 
     fn write(host: &mut Host, stream: &str) -> Result<V, V> {

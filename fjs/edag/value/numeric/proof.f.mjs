@@ -21,7 +21,7 @@ export const proof = {
         const cases = [
             [undefinedValue, NaN], [null, 0], [false, 0], [true, 1],
             [0, 0], [-0, -0], [NaN, NaN], [Infinity, Infinity], [-Infinity, -Infinity],
-            [1.5, 1.5], ['', 0], [' \t-0\n', -0], ['0x10', 16], ['1e3', 1000],
+            [1.5, 1.5], ['', 0], [' \t-0\n', -0], ['0x10', 16], ['1e3', 1_000],
             ['-Infinity', -Infinity], ['value', NaN], ['1n', NaN],
         ]
         for (const operator of /** @type {const} */ (['+', 'Number'])) {
@@ -34,9 +34,9 @@ export const proof = {
         /** @type {readonly (readonly [bigint, number])[]} */
         const cases = [
             [0n, 0], [1n, 1], [-1n, -1],
-            [9007199254740993n, 9007199254740992],
-            [-9007199254740993n, -9007199254740992],
-            [2n ** 1024n, Infinity], [-(2n ** 1024n), -Infinity],
+            [9_007_199_254_740_993n, 9_007_199_254_740_992],
+            [-9_007_199_254_740_993n, -9_007_199_254_740_992],
+            [2n ** 1_024n, Infinity], [-(2n ** 1_024n), -Infinity],
         ]
         for (const [value, expected] of cases) {
             assertStructurallySame(assertError(unary['+'](value)), ['undefined'])
@@ -50,7 +50,7 @@ export const proof = {
             [0, -0], [-0, 0], [NaN, NaN], [Infinity, -Infinity], [-Infinity, Infinity],
             [1.5, -1.5], [-1.5, 1.5], ['', -0], ['-0', 0], ['0x10', -16], ['value', NaN],
             [0n, 0n], [1n, -1n], [-1n, 1n],
-            [9007199254740993n, -9007199254740993n],
+            [9_007_199_254_740_993n, -9_007_199_254_740_993n],
         ]
         for (const [value, expected] of cases) {
             assertEq(Object.is(assertOk(unary['-'](value)), expected), true)
@@ -61,10 +61,10 @@ export const proof = {
         const cases = [
             [undefinedValue, -1], [null, -1], [false, -1], [true, -2],
             [0, -1], [-0, -1], [NaN, -1], [Infinity, -1], [-Infinity, -1],
-            [1.9, -2], [-1.9, 0], [2147483648, 2147483647], [4294967297, -2],
+            [1.9, -2], [-1.9, 0], [2_147_483_648, 2_147_483_647], [4_294_967_297, -2],
             ['', -1], ['1.9', -2], ['value', -1],
-            [0n, -1n], [1n, -2n], [-1n, 0n], [4294967297n, -4294967298n],
-            [9007199254740993n, -9007199254740994n],
+            [0n, -1n], [1n, -2n], [-1n, 0n], [4_294_967_297n, -4_294_967_298n],
+            [9_007_199_254_740_993n, -9_007_199_254_740_994n],
         ]
         for (const [value, expected] of cases) {
             assertEq(Object.is(assertOk(unary['~'](value)), expected), true)
@@ -88,7 +88,7 @@ export const proof = {
         const cases = [
             ['1', '2', '12'], ['1', 2, '12'], [1, '2', '12'],
             ['1', 2n, '12'], [1n, '2', '12'],
-            ['', 9007199254740993n, '9007199254740993'],
+            ['', 9_007_199_254_740_993n, '9007199254740993'],
             [undefinedValue, '', 'undefined'], ['', undefinedValue, 'undefined'],
             [null, '!', 'null!'], ['!', null, '!null'],
             [true, '', 'true'], ['', false, 'false'],
@@ -123,9 +123,9 @@ export const proof = {
     bigintArithmetic: () => {
         /** @type {readonly (readonly [keyof typeof binary, bigint, bigint, bigint])[]} */
         const cases = [
-            ['+', 9007199254740993n, 2n, 9007199254740995n], ['+', 0n, -1n, -1n],
-            ['-', 9007199254740993n, 2n, 9007199254740991n], ['-', -1n, 2n, -3n],
-            ['*', 9007199254740993n, 2n, 18014398509481986n], ['*', -2n, -3n, 6n],
+            ['+', 9_007_199_254_740_993n, 2n, 9_007_199_254_740_995n], ['+', 0n, -1n, -1n],
+            ['-', 9_007_199_254_740_993n, 2n, 9_007_199_254_740_991n], ['-', -1n, 2n, -3n],
+            ['*', 9_007_199_254_740_993n, 2n, 18_014_398_509_481_986n], ['*', -2n, -3n, 6n],
             ['/', 7n, 2n, 3n], ['/', -7n, 2n, -3n],
             ['/', 7n, -2n, -3n], ['/', -7n, -2n, 3n], ['/', -2n, 7n, 0n],
             ['%', 7n, 2n, 1n], ['%', -7n, 2n, -1n],
@@ -140,8 +140,8 @@ export const proof = {
         const cases = [
             // Left, right, AND, OR, XOR.
             [6, 3, 2, 7, 5], [6.9, 3.9, 2, 7, 5], [-6.9, 3.9, 2, -5, -7],
-            [2147483648, -1, -2147483648, -1, 2147483647],
-            [4294967297, 3, 1, 3, 2], [-4294967297, 3, 3, -1, -4],
+            [2_147_483_648, -1, -2_147_483_648, -1, 2_147_483_647],
+            [4_294_967_297, 3, 1, 3, 2], [-4_294_967_297, 3, 3, -1, -4],
             [-0, 0, 0, 0, 0], [null, false, 0, 0, 0],
             [NaN, 5, 0, 5, 5], [Infinity, 5, 0, 5, 5], [-Infinity, 5, 0, 5, 5],
             [undefinedValue, 5, 0, 5, 5], ['value', 5, 0, 5, 5],
@@ -159,8 +159,8 @@ export const proof = {
         /** @type {readonly (readonly [bigint, bigint, bigint, bigint, bigint])[]} */
         const cases = [
             [6n, 3n, 2n, 7n, 5n], [-6n, 3n, 2n, -5n, -7n],
-            [9007199254740993n, 3n, 1n, 9007199254740995n, 9007199254740994n],
-            [9007199254740993n, -1n, 9007199254740993n, -1n, -9007199254740994n],
+            [9_007_199_254_740_993n, 3n, 1n, 9_007_199_254_740_995n, 9_007_199_254_740_994n],
+            [9_007_199_254_740_993n, -1n, 9_007_199_254_740_993n, -1n, -9_007_199_254_740_994n],
             [0n, 0n, 0n, 0n, 0n],
         ]
         for (const [left, right, and, or, xor] of cases) {
@@ -195,7 +195,7 @@ export const proof = {
         const cases = [
             [0n, 0n, 1n], [0n, 3n, 0n], [2n, 0n, 1n],
             [-3n, 3n, -27n], [-3n, 4n, 81n],
-            [3n, 34n, 16677181699666569n],
+            [3n, 34n, 16_677_181_699_666_569n],
         ]
         for (const [base, exponent, expected] of cases) {
             assertEq(assertOk(binary['**'](base, exponent)), expected)
@@ -212,12 +212,12 @@ export const proof = {
         /** @type {readonly (readonly [Primitive, Primitive, number, number, number])[]} */
         const cases = [
             // Value, count, left shift, signed right shift, unsigned right shift.
-            [9, 2, 36, 2, 2], [2, 9, 1024, 0, 0],
-            [-5.9, 1.9, -10, -3, 2147483645],
-            [4294967297, 1, 2, 0, 0],
-            [2147483648, 1, 0, -1073741824, 1073741824],
-            [-1, 0, -1, -1, 4294967295], [-0, -0, 0, 0, 0],
-            [1, 32, 1, 1, 1], [1, 33, 2, 0, 0], [1, -1, -2147483648, 0, 0],
+            [9, 2, 36, 2, 2], [2, 9, 1_024, 0, 0],
+            [-5.9, 1.9, -10, -3, 2_147_483_645],
+            [4_294_967_297, 1, 2, 0, 0],
+            [2_147_483_648, 1, 0, -1_073_741_824, 1_073_741_824],
+            [-1, 0, -1, -1, 4_294_967_295], [-0, -0, 0, 0, 0],
+            [1, 32, 1, 1, 1], [1, 33, 2, 0, 0], [1, -1, -2_147_483_648, 0, 0],
             [NaN, 1, 0, 0, 0], [Infinity, 1, 0, 0, 0], [-Infinity, 1, 0, 0, 0],
             [5, Infinity, 5, 5, 5], [undefinedValue, 2, 0, 0, 0],
             [2, undefinedValue, 2, 2, 2], ['5', '1', 10, 2, 2], ['value', 1, 0, 0, 0],
@@ -234,8 +234,8 @@ export const proof = {
         const cases = [
             [5n, 3n, 40n, 0n], [-5n, 3n, -40n, -1n],
             [5n, -3n, 0n, 40n], [-5n, -3n, -1n, -40n],
-            [5n, 0n, 5n, 5n], [0n, 100n, 0n, 0n], [1n, 33n, 8589934592n, 0n],
-            [18014398509481987n, 1n, 36028797018963974n, 9007199254740993n],
+            [5n, 0n, 5n, 5n], [0n, 100n, 0n, 0n], [1n, 33n, 8_589_934_592n, 0n],
+            [18_014_398_509_481_987n, 1n, 36_028_797_018_963_974n, 9_007_199_254_740_993n],
         ]
         for (const [value, count, left, right] of cases) {
             assertEq(assertOk(binary['<<'](value, count)), left)

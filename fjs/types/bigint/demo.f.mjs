@@ -127,7 +127,7 @@ const string32Log2 = n => {
 const mathLog2 = v => {
     if (v <= 0n) { return -1n }
     let result = -1n
-    let i = 1023n
+    let i = 1_023n
     while (true) {
         const n = v >> i
         if (n === 0n) { break }
@@ -135,7 +135,7 @@ const mathLog2 = v => {
         result += i
         i <<= 1n
     }
-    while (i !== 1023n) {
+    while (i !== 1_023n) {
         i >>= 1n
         const n = v >> i
         if (n !== 0n) {

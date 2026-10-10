@@ -51,10 +51,10 @@ const idBytes = oid => toArray(u8ListMsb(oid))
 
 /** A big-endian 32-bit word as bytes. */
 const u32 = /** @type {(v: number) => readonly number[]} */ (v => [
-    Math.floor(v / 16777216) % 256,
-    Math.floor(v / 65536) % 256,
-    Math.floor(v / 256) % 256,
-    v % 256,
+    Math.floor(v / 0x100_0000) % 0x100,
+    Math.floor(v / 0x1_0000) % 0x100,
+    Math.floor(v / 0x100) % 0x100,
+    v % 0x100,
 ])
 
 /** The checksum {@link packMixed} ends with, which is also what Git named it. */
@@ -893,13 +893,13 @@ export const proof = {
         // the entry at 508 — an index whose offsets are all one number leaves the
         // first entry running to the pack's checksum
         const many = idxOf(Array.from(
-            { length: 5000 },
+            { length: 5_000 },
             (_, k) => [`${k.toString(16).padStart(8, '0')}${'0'.repeat(32)}`, k === 0 ? 508 : 525]))
         assert(many.length > Number(maxLengthBytes))
         // the host hands it back in two, which is what a join has to survive
         assertEq(chunked(many).length, 2)
         const [log, r] = readBy(
-            hostOf(listing, withIdx(many, 5000), inflatedBy(streams)),
+            hostOf(listing, withIdx(many, 5_000), inflatedBy(streams)),
             `00000000${'0'.repeat(32)}`)
         assertEq(hashed(envelope(r)), 'b00a3b66a7a094e6165bfcd39e0b8524042140db')
         assertStructurallySame(log.slice(0, 2), [`readdir ${dirPath}`, `readWhole ${idxPath}`])
