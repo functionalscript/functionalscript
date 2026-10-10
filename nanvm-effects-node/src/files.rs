@@ -414,11 +414,13 @@ pub fn read_bytes(path: &str, at: f64, size: f64) -> Result<Vec<u8>, IoError> {
     Ok(bytes)
 }
 
-/// Creates `path` empty and fails if it exists (`O_CREAT|O_EXCL`).
+/// Creates `path` empty and fails if it exists (`O_CREAT|O_EXCL`). The file is
+/// synced before it is closed, so an error the filesystem would report only at
+/// the close is reported here (`todo/close-errors.md`); it is left in place, as
+/// the Node runner leaves it.
 pub fn create_exclusive(path: &str) -> Result<(), IoError> {
-    exclusive(path)
-        .map(|_| ())
-        .map_err(|e| failure(&e, "open", path))
+    let file = exclusive(path).map_err(|e| failure(&e, "open", path))?;
+    file.sync_all().map_err(|e| failure(&e, "close", path))
 }
 
 fn exclusive(path: &str) -> io::Result<File> {
@@ -428,11 +430,15 @@ fn exclusive(path: &str) -> io::Result<File> {
 /// Creates `path` holding `data`, in one open that fails if the file exists:
 /// the file either exists holding all of `data` or does not exist. A write that
 /// fails after the create removes the file, which is this call's alone because
-/// the create was exclusive; that is why it is not `write_file`. An error the
-/// filesystem reports only when the file is closed is not seen
-/// (`todo/close-errors.md`).
+/// the create was exclusive; that is why it is not `write_file`. The data is
+/// synced before the file is closed, so an error the filesystem reports only at
+/// the close, a delayed `EIO` or `ENOSPC`, fails the write and is rolled back
+/// like any other (`todo/close-errors.md`).
 pub fn write_exclusive(path: &str, data: &[Vec<u8>]) -> Result<(), IoError> {
-    write_exclusive_with(path, |file| data.iter().try_for_each(|d| file.write_all(d)))
+    write_exclusive_with(path, |file| {
+        data.iter().try_for_each(|d| file.write_all(d))?;
+        file.sync_all()
+    })
 }
 
 fn write_exclusive_with(
