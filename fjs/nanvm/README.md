@@ -32,6 +32,7 @@ module.f.mjs ──> an EDAG exp ─┤     (amnesia)
 | [`proof.f.mjs`](proof.f.mjs) | Evaluates each case's expression on a JavaScript engine. |
 | [`rust/module.f.mjs`](rust/module.f.mjs) | Prints each case's expression as Rust, against the `nanvm-lib` API. |
 | [`methods/module.f.mjs`](methods/module.f.mjs) | The member functions `nanvm-lib` does not answer yet, and the completeness table printed from them and [`fjs/js/prototype`](../js/prototype/module.f.js). |
+| [`corpus/module.f.mjs`](corpus/module.f.mjs) | The call-contract corpus: the `nanvm-harness` fixtures, every one compared unless an exception names it and says why. Its host proof runs each in Node and through the FJS interpreter. |
 | [`update/module.f.mjs`](update/module.f.mjs) | Writes both printers' output. Run by `npm run gen`. |
 
 Rust *literal* syntax — string escaping, `f64`/`i64` spelling, `snake_case`
