@@ -1,5 +1,5 @@
 import { assertEq } from '../../asserts/module.f.mjs'
-import { startsWith, u32be, u64be } from './module.f.mjs'
+import { startsWith, u32be, u64be } from './module.f.js'
 
 export const proof = {
     // Most significant byte first, at any offset.
@@ -21,6 +21,18 @@ export const proof = {
         assertEq(u64be([0, 0x1F, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF], 0), Number.MAX_SAFE_INTEGER)
         assertEq(u64be([0, 0x20, 0, 0, 0, 0, 0, 0], 0), null)
         assertEq(u64be([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF], 0), null)
+    },
+    // Preserve the original safe-integer guard across all numeric cases.
+    u64beSafeInteger: () => {
+        for (const value of [
+            0, -0, 1, -1, 1.5,
+            Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER + 1,
+            Number.MIN_SAFE_INTEGER, Number.MIN_SAFE_INTEGER - 1,
+            NaN, Infinity, -Infinity,
+        ]) {
+            assertEq(u64be([0, 0, 0, 0, 0, 0, 0, value], 0),
+                Number.isSafeInteger(value) ? 0 + value : null)
+        }
     },
     // A match, a mismatch at the last byte, and an input shorter than the
     // prefix; the empty prefix starts everything.
