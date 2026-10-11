@@ -14,9 +14,10 @@
 import { resultStep } from '../effects/module.f.mjs'
 import { access, exitStep, mkdir, writeUtf8File } from '../effects/node/module.f.mjs'
 import { step as ioStep } from '../effects/module.f.mjs'
-import { functionalscript, images, jobTimeout } from './config/module.f.js'
+import { functionalscript, images, jobTimeout, node } from './config/module.f.js'
 import {
     architecture,
+    install,
     os,
     test,
     toSteps,
@@ -28,6 +29,7 @@ import {
     shellRustVersionSteps,
 } from './rust/module.f.mjs'
 import {
+    installNode,
     nodeVersionJobs,
     nodeVersionStep,
     platformNodeSteps,
@@ -66,10 +68,10 @@ const workflowText = gha => JSON.stringify(gha, null, '  ')
  * A platform job on the shared shell: every command through `nix develop`, and
  * the runtime asserted first.
  *
- * All four non-Windows platform jobs enter the same shell, and differ in one
+ * The three Nix platform jobs enter the same shell, and differ in one
  * thing: Intel Linux also checks the 32-bit target, because that is the one
- * system whose shell can carry it. Windows is the only platform off Nix, since
- * it does not run there natively.
+ * system whose shell can carry it. Intel macOS installs only Node and native
+ * Rust directly; Windows also installs its tools directly.
  *
  * It runs this commit's suite rather than installing a published
  * FunctionalScript and running that. `npm install -g` writes to the read-only
@@ -96,16 +98,16 @@ const workflowText = gha => JSON.stringify(gha, null, '  ')
  *
  * The version check is worth more here than in any other job. These are the
  * only places the shell is built for a system other than `aarch64-linux`, so
- * this is what turns four shells that were pinned as text into four that are
+ * this is what turns three shells that were pinned as text into three that are
  * known to work.
  *
- * The platform reaches the `cargo` commands because two of the four run more
+ * The platform reaches the `cargo` commands because two of the three run more
  * of them: Intel Linux checks the 32-bit target its shell carries, and ARM
  * Linux checks formatting and every WASM target, asserting both WASM runtimes
  * first. Each was a job of its own — `ubuntu-intel32` until that shell had the
  * target, `wasm` until it was one more runner doing this job's setup again.
  * `../rust/module.f.mjs` decides which platforms those are; everything else
- * about these jobs is still identical across the four.
+ * about these jobs is still identical across the three.
  *
  * @type {(rust: boolean, o: Os, a: Architecture) => readonly MetaStep[]}
  */
@@ -118,6 +120,23 @@ const shellPlatformSteps = (rust, o, a) => [
         ...(rust ? shellRustCommands(o, a) : []),
         'node --test',
     ]),
+]
+
+/**
+ * Intel macOS installs only the tools its working-checkout checks use.
+ *
+ * The shared Node and Rust installers use the same pins as the Nix jobs.
+ * This keeps `npm ci` and `node --test`, with each native Rust check reported
+ * separately. No compiler or WASM tools are needed by this job.
+ *
+ * @type {(rust: boolean) => readonly MetaStep[]}
+ */
+const intelMacSteps = rust => [
+    install(installNode()),
+    test({ run: `test "$(node --version)" = "v${node}"` }),
+    test({ run: 'npm ci' }),
+    ...(rust ? rustPlatformSteps('macos', 'intel') : []),
+    test({ run: 'node --test' }),
 ]
 
 /**
@@ -214,15 +233,16 @@ const mergeQueue = /** @type {const} */ (`github.event_name == 'merge_group'`)
 const job = (rust, nodeExtra, mergeQueueOnly) => o => a => {
     const id = `${o}-${a}`
     const image = images[o][a]
-    // Windows is the one platform with no shell to enter, so it keeps the
-    // runner's toolchain — and its injected steps keep the runner too.
+    // Direct-install jobs keep injected steps on the runner too.
     const result = o === 'windows'
         ? [
             ...(rust ? rustPlatformSteps(o, a) : []),
             ...platformNodeSteps(functionalscript),
             ...nodeExtra,
         ]
-        : [...shellPlatformSteps(rust, o, a), ...nodeExtra.map(inShell)]
+        : o === 'macos' && a === 'intel'
+            ? [...intelMacSteps(rust), ...nodeExtra]
+            : [...shellPlatformSteps(rust, o, a), ...nodeExtra.map(inShell)]
     return [id, {
         'runs-on': image,
         ...(mergeQueueOnly ? { if: mergeQueue } : {}),
@@ -305,8 +325,8 @@ export const ci = ({ nodeExtra, packageConsumer, mergeQueueOnly = [] }) => resul
             () => writeUtf8File(npmPublishPath, workflowText(npmPublishWorkflow)))
         // The shared environment is independent of the project's Rust: even
         // a project without Cargo.toml gets the complete selected toolset.
-        // Seven of the nine jobs enter it; the two Windows jobs and the
-        // packed-consumer steps use tools installed outside Nix.
+        // Six of the nine jobs enter it; Intel macOS, the two Windows jobs
+        // and the packed-consumer steps use tools installed outside Nix.
         const shellWritten = ioStep(publishWritten, () => nixFlake(devNixJob))
         return exitStep(shellWritten)
     })

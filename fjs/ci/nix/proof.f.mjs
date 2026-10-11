@@ -518,6 +518,9 @@ exec nix develop --extra-experimental-features 'nix-command flakes' --no-update-
         // Every per-system addition reaches a shell this environment exposes.
         systems: () => {
             const { systems, perSystem } = devNixJob
+            assert(!systems.includes('x86_64-darwin'), 'unexpected Intel macOS shell')
+            assert(!flakeText(devNixJob).includes('x86_64-darwin'),
+                'unexpected generated Intel macOS shell')
             assertStructurallySame([...systems], [...devSystems])
             assert(systems.includes(nixSystem), nixSystem)
             for (const system of Object.keys(perSystem ?? {})) {

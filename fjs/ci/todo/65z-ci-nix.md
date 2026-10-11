@@ -121,7 +121,8 @@ confirms the override took effect at all.
 
 `dev` carries every tool the jobs use — Node 26, Deno, the pinned Bun,
 TypeScript, the toolchain with its WASM targets, Wasmtime, Wasmer and `git`. It
-is what a developer enters, and what all but the two Windows CI jobs run inside.
+is what developers on Linux and ARM macOS enter. Six of the nine CI jobs run
+inside it; Intel macOS and the two Windows jobs install their tools directly.
 Each prerelease accepts one exact version per tool; preserve each release's
 configuration, locks and tested toolset record. An older tool needs an older
 FunctionalScript release whose record names it. Recent stable candidates must
@@ -151,34 +152,35 @@ realises the whole closure, toolchain included, and there is no binary cache of
 our own yet — `096-ci-caching.md` is where that goes.
 
 **It is why a declaration names systems rather than a system.** A CI job runs on
-one runner image; a developer environment has to work on Linux and macOS, on
-both architectures.
+one runner image; the Nix developer environment supports both architectures
+on Linux and ARM macOS. Intel macOS uses the pinned tools directly.
 
 Each system is its own named `devShells.<system>.default`, and past the first
 they share the shell between them: the body is written once as a function, and
 each entry calls it with the three things that differ — the system, and the
 archive and hash a pinned package takes on it. That keeps `flake-utils` out
-without keeping four copies of twenty lines in. The distinction worth holding
+without keeping three copies of twenty lines in. The distinction worth holding
 is *named entries versus a fold*: which systems a flake serves is still
 something the file says, rather than something a loop over a list computes. A
 single-system flake stays flat, byte for byte what it was, because a function
 called once is indirection for nothing.
 
-Nix does not run natively on Windows, so those four are all there are. A Windows
-developer reaches the shell through WSL2 or works the way this repository has
-always supported natively — nothing here requires Nix.
+The generated flake exposes `aarch64-linux`, `x86_64-linux` and
+`aarch64-darwin`; it no longer exposes Intel macOS. Nix does not run natively
+on Windows. A Windows developer reaches the shell through WSL2 or the Linux
+devcontainer, or installs the pinned tools directly on bare Windows.
 
 There is no `dev` CI job. There was one, and its only reason was that nothing
-else evaluated this flake; seven jobs entering it on every pull request answers
+else evaluated this flake; six jobs entering it on every pull request answers
 that better than one job asserting six versions. Between them they still assert
 all six — `node` and `tsc` from `node26`, `deno` from `deno`, `bun` from `bun`,
 both WASM runtimes from `ubuntu-arm`, which took over the `wasm` job's checks.
 
-And all four shells are now built for real, which was not true when this was
-written. The canonical jobs run on one runner, so they only ever exercised
-`aarch64-linux`; the four platform jobs that joined cover `x86_64-linux` and
-both Darwin systems, each asserting the Node its shell provides before running
-anything.
+All three generated shells are built in CI. The canonical jobs run on
+`aarch64-linux`; `ubuntu-arm` uses that system too, `ubuntu-intel` covers
+`x86_64-linux`, and `macos-arm` covers `aarch64-darwin`. Each Nix platform job
+asserts the Node its shell provides before running anything. Intel macOS
+checks the same Node pin from its direct installation.
 
 One consequence for a project that is not this one: `devNixJob` is a
 constant rather than a function of the project, so a project without a
@@ -188,9 +190,10 @@ generator writes unconditionally.
 
 #### Jobs with no flake
 
-No canonical job is without one any more. The set of jobs that are — the two
-Windows ones below — is asserted by `fjs/ci/proof.f.mjs`'s `nixCoverage`, so a job
-added later has to come here and say which side of the line it falls on.
+No canonical job is without one any more. The set of jobs that are — Intel
+macOS and the two Windows jobs below — is asserted by `fjs/ci/proof.f.mjs`'s
+`nixCoverage`, so a job added later has to come here and say which side of the
+line it falls on.
 
 - **`package-check`** was the canonical one, out of scope by construction: a job
   with no checkout, which was its whole point — with the repository on the runner
@@ -205,23 +208,23 @@ added later has to come here and say which side of the line it falls on.
   reach. Its Node comes from `setup-node`, and the version it names is the one
   `node26` already asserts from the shared shell.
 
-The two Windows platform jobs are the only jobs here, and for one reason: **Nix
-does not run natively on Windows**. `windows-intel` and `windows-arm` keep the runner's
-toolchain, and are the last jobs in the workflow that install one.
+Intel macOS now installs only Node and native Rust directly, retaining its
+working-checkout `npm ci`, `node --test`, and native Rust checks. Its flake
+system is removed ahead of Nixpkgs dropping Intel macOS after 26.05. ARM macOS
+continues to use Nix. The two Windows platform jobs also install tools directly
+because **Nix does not run natively on Windows**.
 
-The other four — `ubuntu-intel`, `ubuntu-arm`, `macos-intel`, `macos-arm` —
-moved into the shared shell, all of them, so the matrix differs by platform and
-by nothing else. They are also what makes `devSystems` mean anything: they are
-the only place its `x86_64-linux`, `aarch64-darwin` and `x86_64-darwin` shells
-are built rather than pinned as text.
+The other three — `ubuntu-intel`, `ubuntu-arm`, `macos-arm` — enter the
+shared shell. They cover every remaining `devSystems` entry: `x86_64-linux`,
+`aarch64-linux` and `aarch64-darwin`.
 
 32-bit Linux became a **job of its own**, `ubuntu-intel32`, with a flake of its
 own — and is now four steps of `ubuntu-intel` again, with neither.
 
 The flake went first. Its linker is `pkgsi686Linux.stdenv.cc`, and that
 attribute throws on every system the shared shell serves but `x86_64-linux`, so
-a job-wide `shellHook` would have broken `nix develop ./gen.nix` on both macOS
-systems and on ARM Linux. That is a fact about the *system*, not about the job,
+a job-wide `shellHook` would break `nix develop ./gen.nix` on ARM macOS
+and ARM Linux. That is a fact about the *system*, not about the job,
 and it is now declared as one: `NixJob`'s `perSystem` gives one system extra
 toolchain targets and a hook of its own, and the flake writes them at that
 system's `devShells` entry. A developer on Intel Linux therefore has the whole
@@ -254,12 +257,11 @@ is escaped. Interpolating the derivation is also what puts it in the closure, so
 it needs no `packages` entry — and should not have one, since a 32-bit `cc` on
 `PATH` would shadow the host one the untargeted `cargo test` needs.
 
-What that cost is worth naming. Those jobs used to measure a stock runner image,
-and now measure a pinned toolchain running *on* one. The distinction is smaller
-than it sounds — `dtolnay/rust-toolchain` and `setup-node` were already pinned to
-the same versions — but the system libraries a Nix build links against are Nix's,
-so "builds with the distro's toolchain" is no longer something CI says. Only
-the Windows jobs still say it.
+The Linux and ARM macOS jobs check a pinned Nix toolchain and its dependencies
+on the runner images. Intel macOS and the two Windows jobs install Node with
+`setup-node` and native Rust with `dtolnay/rust-toolchain` directly, exercising
+those tools against the runner's system libraries. Both paths use the shared
+Node and Rust version pins.
 
 What remains here is the Nixpkgs update command and the cleanup contract for
 consumers whose `gen` is bare `fjs ci`. This repository's integrated clean
@@ -331,7 +333,8 @@ Add only the data needed now:
 The current declaration is `devNixJob` in `../dev/module.f.mjs`:
 
 ```text
-dev: four systems; selected nodejs_<major>, deno, TypeScript/TSGO,
+dev: aarch64-linux, x86_64-linux, aarch64-darwin;
+     selected nodejs_<major>, deno, TypeScript/TSGO,
      wasmtime, wasmer, rust-overlay toolchain, pinned Bun archive and git;
      x86_64-linux adds its 32-bit target and linker through perSystem
 ```
@@ -340,7 +343,7 @@ dev: four systems; selected nodejs_<major>, deno, TypeScript/TSGO,
 its synthetic `id` is gone. `nixFlake(devNixJob)` generates the one shared
 flake. `flakePath`, `runPath`, `runText` and `lockUpdateText` take no selector.
 
-The shared declaration pins Bun's upstream archive for each of its four
+The shared declaration pins Bun's upstream archive for each of its three
 systems rather than taking the snapshot's release. It also names the Rust
 release, components and targets whose `rust-std` the WASM and platform checks
 need. Those go to the second input rather than to Nixpkgs, for the reason above.
@@ -371,7 +374,7 @@ Each generated file should:
 
 - pin the exact Nixpkgs commit;
 - expose one `devShells.<system>.default` per system the declaration names — the
-  shared shell declares four. Past one, the shell body is written once as a function those
+  shared shell declares three. Past one, the shell body is written once as a function those
   entries call; the systems stay named bindings rather than a fold;
 - use `pkgs.mkShell` with the shared shell's declared packages;
 - be readable without inspecting the generator;

@@ -1,8 +1,8 @@
 # Nix environments
 
 One reproducible toolchain, shared by developers and CI, so that what passes on
-your machine is what passes on the runners — except the two Windows platform
-jobs, which run without Nix, the publishing workflow, on the Node `setup-node` installs, and
+your machine is what passes on the runners — except Intel macOS and the two
+Windows platform jobs, which install their tools directly, the publishing workflow, on the Node `setup-node` installs, and
 the packed-package check that closes `node26`, which installs the published
 tarball as a consumer would.
 
@@ -84,6 +84,8 @@ carries different weight is Bun's: Nixpkgs ships a release two of this
 repository's proofs fail on, so its flake overrides the archive, and that check
 is what confirms the override took effect.
 
+The generated shell supports Linux and ARM macOS. Intel macOS installs the
+pinned tools directly ([CONTRIBUTING.md](../../../CONTRIBUTING.md#direct-tools-on-intel-macos)).
 Nix does not run natively on Windows; a Windows developer reaches this shell
 through the repository's devcontainer or WSL2
 ([CONTRIBUTING.md](../../../CONTRIBUTING.md#the-nix-shell)), or works on bare
