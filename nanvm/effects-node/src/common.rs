@@ -7,10 +7,12 @@
 //! there is nothing to await: the Node runner's `Promise` case has no native
 //! twin.
 //!
-//! `sandbox` and `now` read a clock. `wasm32-unknown-unknown` has none, and
-//! `std` panics there, so a host on that target cannot answer them; WASI has
-//! one. The host over `std` has no files on that target either, and refuses
-//! both as not implemented, rather than let `std` panic: see [`CLOCK`].
+//! `sandbox` and `now` read a clock, and `randomInt` a seed. `wasm32-unknown-unknown`
+//! has neither: `std` panics on the clock there, and seeds `RandomState` with a
+//! constant, so a host on that target cannot answer them; WASI has both. The
+//! host over `std` has no files on that target either, and refuses all three as
+//! not implemented, rather than let `std` panic or answer numbers that only look
+//! random: see [`CLOCK`] and [`RANDOM`].
 
 use crate::codec::{encode_number, encode_object, encode_ok, encode_tuple};
 use nanvm_lib::vm::{Any, IVm, ToAny, ToArray};
