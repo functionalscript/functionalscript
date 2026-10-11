@@ -20,8 +20,8 @@ The one build that does not run in the repository's Nix shell is this one.
 Cloudflare's Workers Builds generates the site on its own image and takes
 its Node version from [`.node-version`](../../.node-version) at the repository
 root — the file exists for that reader alone, and nothing else in the
-repository consults it. The rest of what the build needs, `npm run website`
-installs itself ([the build script](#the-build-script)).
+repository consults it. The rest of what the build needs, the build command
+installs first ([the build command](#the-build-command)).
 
 **That is what lets a page load any repository file by its path at run time.**
 A page's proofs are the real `.f.mjs` modules under it, imported by the browser
@@ -64,29 +64,29 @@ feedback as pure decisions with co-located proofs. The browser adapter reads
 responses, performs requests and DOM updates, and supplies browser clock and
 date-formatting results to that policy.
 
-## The build script
+## The build command
 
-`npm run website` is `sh ./gen.website/build.sh`, a generated script: it runs
-`cargo doc --no-deps --workspace`, then the generator, and installs Rust
-first where `cargo` is not on `PATH`. Cloudflare's build command is
-`npm run website`, as it always was, and the script depends on nothing set
-there: a branch without it still builds, a developer's checkout builds the
-same way, and nothing in the dashboard needs changing when the script does.
+Cloudflare's build command is `sh ./gen.cloudflare/build.sh`, a generated
+script: it installs what the build image lacks and then runs
+`npm run website`. The command itself is set in the Cloudflare dashboard, so
+the script is what keeps its steps in the repository, where they are reviewed
+and have a history. `npm run website` stays the generator alone: a checkout
+builds the site with it exactly as before, and only the deploy carries the
+installs.
 
-**The site documents the crates with the Rust CI tests them with.** The build
-image has Node but no Rust, and the script installs one with `rustup`'s
-installer, at exactly `rust` from
-[`fjs/ci/config/module.f.js`](../ci/config/module.f.js) — the one constant the
-shared shell and the platform matrix also take. The script is generated from
-that constant by [`build/module.f.mjs`](./build/module.f.mjs), as
-`gen.nix/flake.nix` is, so the version is written in the script in full and a
-bump of the pin is a diff the drift check guards. In the shared shell `cargo`
-is already that version, so nothing is installed; a checkout outside the
-shell gets the same user-level install under `$HOME` that the build image
-gets. The script is `sh`, like `gen.nix/run`: on Windows, run it where the
-shell runs, in WSL2 or the devcontainer. `target/`, which `cargo doc` writes
-beside the docs, is in [`.assetsignore`](../../.assetsignore) and never
-served.
+**The build has the Rust CI tests with.** The build image has Node but no
+Rust, and the script installs one with `rustup`'s installer, at exactly `rust`
+from [`fjs/ci/config/module.f.js`](../ci/config/module.f.js) — the one
+constant the shared shell and the platform matrix also take. The script is
+generated from that constant by
+[`cloudflare/module.f.mjs`](./cloudflare/module.f.mjs), as `gen.nix/flake.nix`
+is, so the version is written in the script in full, a bump of the pin is a
+diff the drift check guards, and nothing in the dashboard names a version
+that could drift. The toolchain goes into the build container's home, and
+its `cargo` is on the `PATH` the script hands `npm run website`. Running
+`cargo doc` there is [cargo-doc-build-host](todo/cargo-doc-build-host.md)'s
+remaining task; `target/`, which it will write beside the docs, is already
+in [`.assetsignore`](../../.assetsignore) and never served.
 
 Installing Rust in the build was chosen over the alternative, building and
 deploying from CI in the Nix shell with `wrangler`, for what it keeps:
@@ -99,7 +99,7 @@ unprivileged and cannot create `/nix`, and the shell's closure would be
 fetched whole on every deploy against a twenty-minute limit. What this
 choice costs is `rustup`'s download and install on every deploy. The
 repository owner approved the script's invocation of `curl`, `rustup`'s
-installer and `cargo` ([`AGENTS.md` §6](../../AGENTS.md#6-external-tools)).
+installer and `npm` ([`AGENTS.md` §6](../../AGENTS.md#6-external-tools)).
 
 ## Every directory gets a page
 
@@ -306,7 +306,7 @@ uploading that preview, without deploying the preview to production:
    `GITHUB_REDIRECT_URI`, and `GITHUB_PREVIEW_REDIRECT_URI` as variables, and
    `GITHUB_CLIENT_SECRET` as a **Secret**. Use the same app and the two
    callback values above to support both production domains and every preview.
-2. Keep the build command as `npm run website`.
+2. Keep the build command as `sh ./gen.cloudflare/build.sh`.
 3. Change the version command to:
 
    ```sh
