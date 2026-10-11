@@ -148,14 +148,16 @@ pub fn run<A: IVm>(
 mod tests {
     use nanvm_lib::{
         naive::Naive,
-        vm::{Any, Array, Function, IVm, JsonError, Nullish, Number, Object, ToAny, ToArray},
+        vm::{
+            Any, Array, Function, IVm, JsonError, Nullish, Number, Object, ToAny, ToArray, Unpacked,
+        },
     };
 
     use crate::{
         Action, RunError,
         fixtures::{
             bigint, exports, function, function_text, missing, named, named_imports, number,
-            object, rest_function, throw,
+            object, rest_function, special_numbers, throw,
         },
         run,
     };
@@ -439,5 +441,25 @@ mod tests {
                 .unwrap();
             assert_eq!(item.to_string().unwrap(), text.into());
         }
+    }
+
+    /// The numbers JSON cannot spell, asserted against Rust's own constants:
+    /// the generated layers share an emitter that could spell one wrongly in
+    /// both operands.
+    #[test]
+    fn special_numbers() {
+        let list = default_export(special_numbers::module);
+        let number = |i: usize| match Any::dot(list.clone(), Number::from(i as f64).to_any())
+            .end()
+            .unwrap()
+            .into()
+        {
+            Unpacked::Number(n) => f64::from(n),
+            _ => panic!("item {i} is not a number"),
+        };
+        assert_eq!(number(0).to_bits(), (-0.0_f64).to_bits());
+        assert!(number(1).is_nan());
+        assert_eq!(number(2), f64::INFINITY);
+        assert_eq!(number(3), f64::NEG_INFINITY);
     }
 }
