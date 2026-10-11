@@ -6,7 +6,7 @@ from `number` in [`../lambda/number.rs`](../lambda/number.rs) with their
 arithmetic in [`../number/format.rs`](../number/format.rs). Each is ECMAScript
 2025's algorithm on every input a module can build, pinned by the shared corpus
 in [`fjs/nanvm`](../../../../../fjs/nanvm/README.md), and the completeness table in
-[`fjs/nanvm/methods`](../../../../../fjs/nanvm/methods/module.f.js) keeps this set
+[`fjs/nanvm/methods`](../../../../../fjs/nanvm/methods/module.f.mjs) keeps this set
 equal to what the compiler admits. The same arrangement for `Array` is
 [`../array/README.md`](../array/README.md).
 

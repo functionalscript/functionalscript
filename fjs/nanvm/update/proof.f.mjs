@@ -17,7 +17,7 @@ import {
 import { data } from '../module.f.mjs'
 import { directory, generate } from '../rust/module.f.mjs'
 import { generate as generateCommands, path as commandsPath } from '../commands/module.f.mjs'
-import { generate as generateMethods, path as methodsPath } from '../methods/module.f.js'
+import { generate as generateMethods, path as methodsPath } from '../methods/module.f.mjs'
 import { generate as generateValues, path as valuesPath } from '../values/module.f.mjs'
 import { generateRustTests, main } from './module.f.mjs'
 

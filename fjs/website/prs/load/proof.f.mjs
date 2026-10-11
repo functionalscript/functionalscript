@@ -8,7 +8,7 @@ import {
     checkFailure, finishedNote, hasNextLink, listFailure, pageRequest, pageStep,
     refusalDecision, refusalNote, refreshStart, responseMessages, transportFailure,
     unavailableLabel, unavailableMessage, workerCount,
-} from './module.f.js'
+} from './module.f.mjs'
 
 const ordinary = /** @type {const} */ ({
     status: 500,

@@ -31,7 +31,7 @@ module.f.mjs ──> an EDAG exp ─┤     (amnesia)
 | [`constructors/module.f.js`](constructors/module.f.js) | The format's constructors, re-exported by `module.f.mjs`; apart so that `member/` can use them without an import cycle. |
 | [`proof.f.mjs`](proof.f.mjs) | Evaluates each case's expression on a JavaScript engine. |
 | [`rust/module.f.mjs`](rust/module.f.mjs) | Prints each case's expression as Rust, against the `nanvm-lib` API. |
-| [`methods/module.f.js`](methods/module.f.js) | The member functions `nanvm-lib` does not answer yet, and the completeness table printed from them and [`fjs/js/prototype`](../js/prototype/module.f.js). |
+| [`methods/module.f.mjs`](methods/module.f.mjs) | The member functions `nanvm-lib` does not answer yet, and the completeness table printed from them and [`fjs/js/prototype`](../js/prototype/module.f.js). |
 | [`corpus/module.f.mjs`](corpus/module.f.mjs) | The call-contract corpus: the `nanvm-harness` fixtures, every one compared unless an exception names it and says why. Its host proof runs each in Node and through the FJS interpreter. |
 | [`update/module.f.mjs`](update/module.f.mjs) | Writes both printers' output. Run by `npm run gen`. |
 
@@ -89,7 +89,7 @@ host's own built-in and the Rust printer prints as `Any::dot(…).end_call(…)`
 the call a compiled module makes. The method name is typed as
 [`fjs/js/prototype`](../js/prototype/README.md)'s `allowedCalls`, so a refused
 name is a type error; which of them `nanvm-lib` answers is pinned separately,
-by the completeness table [`methods/`](methods/module.f.js) generates.
+by the completeness table [`methods/`](methods/module.f.mjs) generates.
 
 A `functionValue` operand is not an exception. It lowers to `() => undefined`,
 the smallest closure — `['=>', 0, [], ['undefined']]` — which

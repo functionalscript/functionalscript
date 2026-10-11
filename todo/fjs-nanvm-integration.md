@@ -150,47 +150,40 @@ defined there, and the embedded-proof fixture is reported separately again.
 
 | Pass | Implementation leaves checked | Converted to `.f.js` |
 | --- | ---: | --- |
-| 1 | 12 | `nanvm/member`, `website/style`, unchanged; `website/prs/load`, `nanvm/methods`, rewritten |
-| 2 | 9 | None: every remaining leaf is refused |
+| 1 | 12 | `nanvm/member`, `website/style` |
+| 2 | 11 | None: every remaining leaf is refused |
 
-The compatibility rewrites preserve the existing contracts:
+The two conversions change only their extension and references; the
+template literal was each module's one refusal. Converting `website/style`
+exposes `website/demo/code`, refused for the computed key
+`{ [codeMarker]: '' }` the language does not accept. The authored `.f.js`
+population grows from 27 to 29, all accepted by `npm start compile`.
 
-- `website/prs/load`: parameters are read as properties rather than
-  destructured; `Number.isFinite` is spelled with the operators, as a local
-  `isFinite`; `Math.min(3, n)` is a comparison, `n` being a count.
-- `nanvm/methods`: `pending`, and the parameter of `rows`, is a list of
-  `[type, names]` pairs rather than an object keyed by type, so that the
-  count `rows` checks its table against needs no `Object.values`. Every
-  refusal the proof asks for — a name no prototype has, a name on another
-  type's prototype, an unknown type, a pair listed twice — holds for the
-  list as it held for the object. The run-time read of a type's names is
-  a search of the list; tuple callbacks use static-index reads.
-- `nanvm/member`, `website/style`: only their extension and references
-  change.
+This pass converts no module by rewriting it: a module whose source the
+compiler refuses stays `.f.mjs`, readable as written, until the feature it
+uses lands. A rewrite that spells `Number.isFinite` with the operators, or
+reads a destructured parameter property by property, is a second spelling
+of what JavaScript already says, and this migration does not pay for one.
 
-Converting `website/style` exposes `website/demo/code`, refused for the
-computed key `{ [codeMarker]: '' }` the language does not accept, and for a
-default parameter. Converting the other three exposes nothing. The
-authored `.f.js` population grows from 27 to 31, all accepted by
-`npm start compile`.
+The eleven implementation leaves below cannot be renamed with their current
+source. Each row is the first actual refusal from the `resolve()` pipeline;
+where a rewrite in supported syntax was tried on a copy, the last column
+names what it reached before the compiler refused again. Locations are
+`line:column`; paths are relative to `fjs/`.
 
-The nine implementation leaves below cannot be renamed with their current
-source. Each row is the first actual refusal from the `resolve()` pipeline,
-and, where a rewrite in already supported syntax was tried on a copy, the
-refusal that rewrite could not reach past. Locations are `line:column`;
-paths are relative to `fjs/`.
-
-| Leaf file | Location | First refused construct | Past a small rewrite |
+| Leaf file | Location | First refused construct | Behind it |
 | --- | ---: | --- | --- |
 | `ci/package/module.f.mjs` | 114:22 | `JSON.stringify` in `literal` | `JSON` is not admitted; also writes `tsconfig` with it |
-| `git/config/module.f.mjs` | 472:11 | Destructuring `const { sub, after }` | `BigInt(number)` at three sites and `toLowerCase` at six; both replaceable by ASCII tables, a medium rewrite with six destructuring sites besides |
-| `media/rust/module.f.mjs` | 59:5 | `switch` in `character` | `BigInt(number)` in `bitsOf`, which no supported syntax spells; also `toLowerCase` in `snakeCase` and four forward references, each fixable |
-| `types/list/module.f.mjs` | 40:5 | `while` and reassignment in `trampoline` | The generator in `iterable`, `Array.from`, and the imperative `next` |
+| `git/config/module.f.mjs` | 472:11 | Destructuring `const { sub, after }` | `BigInt(number)` at three sites, `toLowerCase` at six, five more destructuring sites |
+| `media/rust/module.f.mjs` | 59:5 | `switch` in `character` | `BigInt(number)` in `bitsOf`, `Array(n)`, `let`/`while`, `Math`, `Number.isNaN`, `Object.is`, `toLowerCase`, four forward references |
+| `nanvm/methods/module.f.mjs` | 97:42 | Computed key `p[type]` in `isPending` | `Object.values` in `rows`; destructured callbacks |
+| `types/list/module.f.mjs` | 40:5 | `while` and reassignment in `trampoline` | The generator in `iterable`, `Array.from`, the imperative `next` |
 | `types/map/module.f.mjs` | 10:42 | `new Map(...)` in `mapSet` | `Map` is not a language type |
 | `types/object/structurally_same/module.f.mjs` | 20:7 | Destructuring `const { entries, is } = Object` | `Object.entries`: the language enumerates no keys; `Map` besides |
-| `types/ts/module.f.mjs` | 22:29 | Default parameter in `printer` | `JSON.stringify` for keys and string literals |
-| `website/browser-source/module.f.mjs` | 54:5 | `let` in `read` | The `let`/`while` lexer in `read`: a recursion would do, but it is not a small rewrite |
-| `website/demo/code/module.f.mjs` | 12:48 | Default parameter in `codeBlock` | The computed key `[codeMarker]`; a literal key would copy the marker's spelling out of `website/style` |
+| `types/ts/module.f.mjs` | 22:29 | Default parameter in `printer` | `switch`, a destructured callback, `JSON.stringify` |
+| `website/browser-source/module.f.mjs` | 54:5 | `let` in `read` | The `let`/`while` lexer in `read` |
+| `website/demo/code/module.f.mjs` | 12:48 | Default parameter in `codeBlock` | The computed key `[codeMarker]` |
+| `website/prs/load/module.f.mjs` | 103:41 | Destructured parameter in `finishedNote` | Two more destructured parameters, `Number.isFinite`, `Math.min` |
 
 The separate fixture `emergent_testing/example.f.mjs` is refused at `15:1`:
 a block body whose only statement is a guard, which the compiler reads to
@@ -207,9 +200,9 @@ import { resolve } from './fjs/compiler/edag/module.f.mjs';
 import { runNodeEffect } from './fjs/effects/node/module.mjs';
 
 const leaves = [
-  'ci/package', 'git/config', 'media/rust', 'types/list', 'types/map',
-  'types/object/structurally_same', 'types/ts', 'website/browser-source',
-  'website/demo/code',
+  'ci/package', 'git/config', 'media/rust', 'nanvm/methods', 'types/list',
+  'types/map', 'types/object/structurally_same', 'types/ts',
+  'website/browser-source', 'website/demo/code', 'website/prs/load',
 ];
 for (const leaf of leaves) {
   const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
