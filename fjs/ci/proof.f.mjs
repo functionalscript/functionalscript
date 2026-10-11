@@ -378,7 +378,7 @@ export const proof = {
         shellSyntaxSurvives: () => {
             for (const cmd of /** @type {const} */ ([
                 'NODE_OPTIONS=--max-old-space-size=4096 node tool.mjs',
-                'cd nanvm-lib && cargo doc',
+                'cd nanvm/lib && cargo doc',
                 'a | b > c',
             ])) {
                 const gha = run(false, () => [test({ run: cmd })])

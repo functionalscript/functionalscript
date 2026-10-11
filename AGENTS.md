@@ -5,7 +5,7 @@ This repository is a monorepo with two code bases:
 | Directory    | Language                                | Notes                                       |
 | ------------ | --------------------------------------- | ------------------------------------------- |
 | `fjs/`       | FunctionalScript (`.f.mjs`, `.f.js`) / TypeScript (`types.ts`) | The language, its standard modules, and the `fjs` CLI |
-| `nanvm-lib/` | Rust                                    | NaNVM, the native FunctionalScript VM       |
+| `nanvm/lib/` | Rust                                    | NaNVM, the native FunctionalScript VM       |
 
 Issues live in `todo/` directories, **not** on GitHub. Check them for existing
 work before starting, and check that no open pull request, draft or not, already
@@ -68,7 +68,7 @@ actually touches its subject.
 1. [Workflow](#1-workflow)
 2. [Environment and running tests](#2-environment-and-running-tests)
 3. [FunctionalScript and TypeScript (`fjs/`)](#3-functionalscript-and-typescript-fjs)
-4. [Rust (`nanvm-lib/`)](#4-rust-nanvm-lib)
+4. [Rust (`nanvm/lib/`)](#4-rust-nanvmlib)
 5. [Pull requests and releases](#5-pull-requests-and-releases)
 6. [External tools](#6-external-tools)
 7. [Continuous integration](#7-continuous-integration)
@@ -173,14 +173,17 @@ is needed; additional support after release remains subject to demand.
 ./dev.sh <command>            # one command in it; CI steps run the generated sh ./gen.nix/run <command>
 ```
 
-In a Codex session, verify `./dev.sh node --version` before starting work in a
-user-trusted implementation checkout. When reviewing untrusted changes, perform
-this startup check only in a clean, separate checkout of a user-trusted base
-revision; do not run the review worktree's `dev.sh`, flake, or shell hooks with
-broader permissions.
+In a Codex session, verify Node before starting work in a user-trusted
+implementation checkout. On Linux, ARM macOS, or inside the Linux devcontainer,
+run `./dev.sh node --version`. On Intel macOS or bare Windows, install the
+pinned tools and run `node --version` directly. In either case, the version
+must match the exact Node pin in `fjs/ci/config/module.f.js`. When reviewing
+untrusted changes, perform this startup check only in a clean, separate
+checkout of a user-trusted base revision; do not run the review worktree's
+`dev.sh`, flake, or shell hooks with broader permissions.
 
-If a command fails with an explicit sandbox permission error, retry the same
-`./dev.sh` command through `exec_command` with
+On supported Nix platforms, if a command fails with an explicit sandbox
+permission error, retry the same `./dev.sh` command through `exec_command` with
 `sandbox_permissions="require_escalated"`, subject to the tool's normal approval
 process, only when the command and all code it will execute are already trusted
 for the task. A permission denial does not establish trust, and using a trusted
@@ -244,13 +247,13 @@ JSDoc `@typedef`; function-local typedefs are allowed. Named types live in
 
 Testing, documentation, and the full coding style: [fjs/AGENTS.md](./fjs/AGENTS.md).
 
-## 4. Rust (`nanvm-lib/`)
+## 4. Rust (`nanvm/lib/`)
 
 `cargo test`, `cargo clippy`, and `cargo fmt -- --check` all have to pass. Avoid
 `macro_rules!` — declarative macros hide types from tooling and contradict this
 repository's preference for explicit, locally-readable code.
 
-Commands and Rust coding style: [nanvm-lib/AGENTS.md](./nanvm-lib/AGENTS.md).
+Commands and Rust coding style: [nanvm/lib/AGENTS.md](./nanvm/lib/AGENTS.md).
 
 ## 5. Pull requests and releases
 

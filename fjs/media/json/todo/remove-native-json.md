@@ -27,7 +27,7 @@ Three reasons to finish the job:
    leaves." That is what happened on the reading side until `parseNative` was
    deleted, and it is what the write side still looks like.
 2. **`JSON` is a host global with no FunctionalScript definition.** Nothing in
-   `fjs/` defines it and NaNVM (`nanvm-lib/src`) has no `JSON` object, so a
+   `fjs/` defines it and NaNVM (`nanvm/lib/src`) has no `JSON` object, so a
    `.f.mjs` module reaching for it depends on the JS host rather than on
    FunctionalScript — and a "FunctionalScript JSON serializer" that calls the
    host to format its strings and numbers is not one.

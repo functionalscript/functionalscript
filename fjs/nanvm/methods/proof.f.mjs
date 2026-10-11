@@ -89,7 +89,7 @@ export const proof = {
         assert(rust.includes('    ("array", "charAt"),\n'), rust)
         assert(rust.endsWith('];\n'), rust)
         assertEq(path, `${directory}/gen.methods.rs`)
-        assertEq(directory, 'nanvm-lib/src/vm/lambda')
+        assertEq(directory, 'nanvm/lib/src/vm/lambda')
     },
     throw: {
         /** A name the type's prototype lacks, `push` being a mutator's. */

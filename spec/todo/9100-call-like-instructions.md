@@ -352,7 +352,7 @@ implementation decisions are possible for the same bytecode specification.
 - [Named and rest parameters](./3120-parameters.md) — syntax, canonical metadata,
   fixed/rest semantics, executor limits and the coordinated migration.
 - [Function frames](./3111-function-frame.md) — private slots and capture lifetime.
-- [Native callables](../../nanvm-lib/todo/callable-function-objects.md) — the same
+- [Native callables](../../nanvm/lib/todo/callable-function-objects.md) — the same
   observable bindings with a separate Rust call-transport implementation.
 - [Mixed-rest bytecode review](https://github.com/functionalscript/functionalscript/pull/2220#discussion_r4096466821)
   — replace the incompatible either/or frame sketch before implementation.

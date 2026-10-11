@@ -168,7 +168,7 @@ scope; the value representation does not expand backend capabilities.
 
 The [interpreted capture fixture](../nanvm/values/module.f.mjs) is checked by
 pure interpreter proofs, JavaScript runtime proofs, and
-[native Rust tests](../../nanvm-harness/tests/values.rs). Additional emitter,
+[native Rust tests](../../nanvm/harness/tests/values.rs). Additional emitter,
 conversion and initializer proofs live beside their APIs.
 
 ## Scope and deferred work
