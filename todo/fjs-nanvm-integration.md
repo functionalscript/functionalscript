@@ -142,7 +142,7 @@ contract and migration strategy.
 
 #### Current leaf migration fixed point
 
-Measured on the head of
+Measured at `6e392d4f2`, the head of
 [#2823](https://github.com/functionalscript/functionalscript/pull/2823), the
 compiler that accepts untagged template literals, which the audit below had
 recorded as the first refusal in nine of its twelve leaves. A leaf is as
