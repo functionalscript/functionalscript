@@ -1193,11 +1193,12 @@ Any other value in the brackets is a **computed key**. `sergey-shandar`
 approved the design in
 [#2828](https://github.com/functionalscript/functionalscript/pull/2828#issuecomment-6111260970),
 as [DESIGN.md §12](../doc/DESIGN.md#new-language-features-start-with-a-todo)
-requires. The key is evaluated where the object is built — after the members before it and before its own value, as
-JavaScript evaluates a literal — and converted to a property key as
-JavaScript's `ToPropertyKey` converts it: a string is the key, and every
-other value is the string it converts to, `[1]` the key `"1"`, `[null]` the
-key `"null"`, `[[1, 2]]` the key `"1,2"`:
+requires. The key is evaluated where the object is built — after the
+members before it and before its own value, as JavaScript evaluates a
+literal — and converted to a property key as JavaScript's `ToPropertyKey`
+converts it: a string is the key, and every other value is the string it
+converts to, `[1]` the key `"1"`, `[null]` the key `"null"`, `[[1, 2]]` the
+key `"1,2"`:
 
 ```js
 const k = 'a';
