@@ -53,6 +53,18 @@ const returned = node => {
 }
 
 export const proof = {
+    templates: () => {
+        const plain = unwrap(parseSyntax(tokenizeString('export default `plain`;')))
+        assert(plain.exported !== null)
+        assertStructurallySame(plain.exported.value, ['primitive', 'plain'])
+        assertEq(plain.exported.first.metadata.column, 16)
+        const one = unwrap(parseSyntax(tokenizeString('export default `a${1}b`;')))
+        assert(one.exported !== null)
+        assertStructurallySame(one.exported.value, ['+', ['+', ['primitive', 'a'], ['String', ['primitive', 1]]], ['primitive', 'b']])
+        const empty = unwrap(parseSyntax(tokenizeString('export default `${1}${2}`;')))
+        assert(empty.exported !== null)
+        assertStructurallySame(empty.exported.value, ['+', ['+', ['+', ['+', ['primitive', ''], ['String', ['primitive', 1]]], ['primitive', '']], ['String', ['primitive', 2]]], ['primitive', '']])
+    },
     // One token that is a whole value, of each kind, folded to its primitive.
     primitives: fromEntries(_valueKinds.map(kind => [kind, () => {
         const [source, expected] = valueSamples[kind]

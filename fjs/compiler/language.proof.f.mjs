@@ -14,6 +14,7 @@ import { transpile } from './transpiler/module.f.mjs'
 import { virtual, emptyState, nodeProgramOptions } from '../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../text/module.f.mjs'
 import { isObject } from '../types/object/module.f.mjs'
+import { tryParse as parseDataJs } from '../media/datajs/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
 import { compileSource, defaultValue, fjsRoundTrip, importing, jsonOf, jsonRefused, moduleRefused, protoValue, readOutput, runtime, stderrOf, withCfg, withSelected } from './proof.f.mjs'
 
@@ -439,6 +440,124 @@ export const proof = {
             assertEq(moduleRefused('export default [1][String(0)];'), 'input.f.js:1:20 - error: computed key is not Number(...)')
             // A property named String is an ordinary own property.
             assertEq(compileSource('export default { String: (x) => x + 1 }.String(2);')('output.json'), '3')
+        },
+    },
+    // Templates use the represented String conversion and ordinary binary +.
+    // Code outputs keep that graph; value outputs run the same conversion.
+    templateLiterals: {
+        primitivesAndContainers: () => {
+            const values = /** @type {const} */ ([null, undefined, true, false, 0, -0, 1.5, NaN, Infinity, -Infinity, 42n, 'already', [], [1, [2, 3], null, undefined], {}, { a: 1 }])
+            /** @type {string} */
+            const source = 'export default [`${null}`, `${undefined}`, `${true}`, `${false}`, `${0}`, `${-0}`, `${1.5}`, `${NaN}`, `${Infinity}`, `${-Infinity}`, `${42n}`, `${"already"}`, `${[]}`, `${[1, [2, 3], null, undefined]}`, `${{}}`, `${{ a: 1 }}`];'
+            const expected = JSON.stringify(values.map(value => `${value}`))
+            assertEq(compileSource(source)('output.json'), expected)
+            assertEq(compileSource(source)('output.data.js'), `export default ${expected};`)
+        },
+        expressionsAndPrecedence: () => {
+            /** @type {string} */
+            const source = 'const f = x => x; export default [`sum: ${1 + 2}`, `${{ x: 1 }.x}`, `${`${1}`}!`, `${(() => { const o = { x: 3 }; return o.x; })()}`, f(`a${1}b`), `a${1}b`.length, `a${1}b`[1], 2 * `${3}` + 1, `${1}` + 2, `${false ? null.x : 7}`];'
+            assertEq(compileSource(source)('output.json'), '["sum: 3","1","1!","3","a1b",3,"1",7,"12","7"]')
+            fjsRoundTrip(source)
+        },
+        cooking: () => {
+            for (const [expression, expected] of /** @type {const} */ ([
+                ['`literal \\${a}`', 'literal ${a}'],
+                ['`\\``', '`'],
+                ['`\\b\\f\\n\\r\\t\\\\\\/\\"\\u0041`', '\b\f\n\r\t\\/"A'],
+                ['`line\nbreak`', 'line\nbreak'],
+                ['`line\rbreak`', 'line\nbreak'],
+                ['`line\r\nbreak`', 'line\nbreak'],
+                ['`line\\rbreak`', 'line\rbreak'],
+                ['`a\u2028b\u2029c`', 'a\u2028b\u2029c'],
+                ['`a\r${1}\r\nb`', 'a\n1\nb'],
+            ])) {
+                const source = `export default ${expression};`
+                assertEq(compileSource(source)('output.json'), JSON.stringify(expected), expression)
+                fjsRoundTrip(source)
+            }
+        },
+        ownMethods: () => {
+            const value = /** @type {const} */ ({ valueOf: () => 7, toString: () => 'a' })
+            /** @type {string} */
+            const declarations = 'const a = { valueOf: () => 7, toString: () => "a" }; '
+            const source = declarations + 'export default ["hello " + a + "!", `hello ${a}!`, "hello " + String(a) + "!"];'
+            assertEq(compileSource(source)('output.json'), JSON.stringify(['hello ' + value + '!', `hello ${value}!`, 'hello ' + String(value) + '!']))
+            assertEq(compileSource(declarations + 'export default `hello ${a}!`;')('output.edag.data.js'), compileSource(declarations + 'export default "hello " + String(a) + "!";')('output.edag.data.js'))
+            const fallbackValues = /** @type {const} */ ([{ toString: () => ({}), valueOf: () => 7n }, { toString: 0, valueOf: () => true }, {}, [{ toString: () => 'x' }, 1]])
+            assertEq(compileSource('export default [`${{ toString: () => ({}), valueOf: () => 7n }}`, `${{ toString: 0, valueOf: () => true }}`, `${{ valueOf: () => { throw "unreached"; } }}`, `${[{ toString: () => "x" }, 1]}`];')('output.json'), JSON.stringify(fallbackValues.map(value => `${value}`)))
+            assertEq(compileSource('const s = "captured"; export default [`${{ toString: () => s, valueOf: () => { throw "unreached"; } }}`, `${{ toString: (...a) => a.length }}`];')('output.json'), '["captured","0"]')
+        },
+        // FJS's existing function-source exception applies to interpolation,
+        // so compare functions with explicit FJS String, not host source text.
+        functionText: () => {
+            /** @type {string} */
+            const declarations = 'const make = x => () => x; '
+            const source = declarations + 'export default [`${() => 1}`, `${[() => 1, 2]}`, `${make(1)}:${make(2)}`];'
+            const expansion = declarations + 'export default ["" + String(() => 1) + "", "" + String([() => 1, 2]) + "", "" + String(make(1)) + ":" + String(make(2)) + ""];'
+            assertEq(compileSource(source)('output.json'), compileSource(expansion)('output.json'))
+            assertEq(compileSource(source)('output.edag.data.js'), compileSource(expansion)('output.edag.data.js'))
+            fjsRoundTrip(source)
+        },
+        // Required failures propagate. Ordinary FJS evaluation may reorder
+        // failures, so neither the thrown payload nor evaluation count is pinned.
+        failure: () => {
+            for (const expression of [
+                '`${null.x}`',
+                '`${(() => { throw "evaluation"; })()}`',
+                '`${{ toString: 1 }}`',
+                '`${{ toString: () => ({}), valueOf: () => [] }}`',
+                '`${{ toString: () => { throw "conversion"; }, valueOf: () => 1 }}`',
+                '`${{ toString: () => ({}), valueOf: () => { throw "fallback"; } }}`',
+                '`${null.x}${(() => { throw "later"; })()}`',
+                '`${{ toString: () => { throw "conversion"; } }}${null.x}`',
+            ]) {
+                assertEq(moduleRefused(`export default ${expression};`), 'input.f.js - error: module initialization failed', expression)
+            }
+        },
+        lazySkippedFailures: () => {
+            /** @type {string} */
+            const source = 'export default [false && `${null.x}`, true || `${null.x}`, 1 ?? `${null.x}`, true ? "yes" : `${{ toString: () => { throw "skipped"; } }}`, `${false ? null.x : 7}`, `${true || null.x}`];'
+            assertEq(compileSource(source)('output.json'), '[false,true,1,"yes","7","true"]')
+            fjsRoundTrip(source)
+        },
+        // Empty chunks stay in the initial lowering, including both ends of
+        // a single substitution and the middle of adjacent substitutions.
+        graphAndOutputs: () => {
+            for (const [expression, expansion] of /** @type {const} */ ([
+                ['``', '""'],
+                ['`abc`', '"abc"'],
+                ['`${1}`', '"" + String(1) + ""'],
+                ['`${1}${2}`', '"" + String(1) + "" + String(2) + ""'],
+                ['`a${""}b`', '"a" + String("") + "b"'],
+                ['`${`${1}`}!`', '"" + String("" + String(1) + "") + "!"'],
+            ])) {
+                const source = `export default ${expression};`
+                const explicit = `export default ${expansion};`
+                for (const output of ['output.f.js', 'output.edag.data.js', 'output.rs', 'output.data.js', 'output.json']) {
+                    assertEq(compileSource(source)(output), compileSource(explicit)(output), expression)
+                }
+                fjsRoundTrip(source)
+            }
+            assertEq(compileSource('export default `${1}${2}`;')('output.edag.data.js'), 'export default ["{}",[[":","default",["+",["+",["+",["+","",["String",1]],""],["String",2]],""]]]];')
+            assertEq(fjsRoundTrip('export default `hello ${1}!`;'), 'export default "hello "+String(1)+"!";')
+            fjsRoundTrip('const s = {}; export default x => () => `head${x ? s : "no"}tail`;')
+            const rust = compileSource('export default `hello ${1}!`;')('output.rs')
+            assert(rust.includes('f64_any(0x3ff0000000000000).to_string().map(|v| v.to_any())'))
+        },
+        // Cooking into a string leaf does not admit template syntax to the
+        // DataJS or JSON readers. Only its normalized output is data syntax.
+        languageBoundary: () => {
+            for (const [expression, expected] of /** @type {const} */ ([['``', ''], ['`abc`', 'abc'], ['`\\u0041`', 'A']])) {
+                const source = `export default ${expression};`
+                const normalized = compileSource(source)('output.data.js')
+                assertEq(parseDataJs(source)[0], 'error')
+                assertStructurallySame(parseDataJs(normalized), ['ok', expected])
+                const root = { 'input.json': [utf8(expression)] }
+                const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.json', 'output.data.js'])))
+                assertEq(exitCode(code), 1)
+                assertEq(state.root['output.data.js'], undefined)
+                assert(state.stderr.startsWith('input.json - error: '))
+            }
         },
     },
     // Negative zero end to end: the tokenizer pins the `-0` lexeme,
