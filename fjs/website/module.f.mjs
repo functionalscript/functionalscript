@@ -63,8 +63,9 @@ import { log } from '../effects/common/module.f.mjs'
 import { indexPage, isVersion, releasePage, releasePath, releases } from './changelog/module.f.mjs'
 import { tryParse } from '../media/markdown/module.f.mjs'
 import { stylesheet } from './style/module.f.mjs'
-import { changelogDir, demoSection, page, pagePath, prsDir, sections, shell, siteName, subtree, testSection, testsMain } from './page/module.f.mjs'
+import { changelogDir, cliDir, demoSection, page, pagePath, prsDir, sections, shell, siteName, subtree, testSection, testsMain } from './page/module.f.mjs'
 import { prsPage } from './prs/module.f.mjs'
+import { cliPage } from './cli/module.f.mjs'
 import { toHex, tryFromHexOf } from '../git/oid/module.f.mjs'
 import { fundingPath, parse as parseFunding } from './funding/module.f.mjs'
 import { isThirdParty } from '../dev/module.f.mjs'
@@ -137,9 +138,9 @@ const walk = dir => step(readdir(dir, {}), entries => {
     // somebody left in the tree.
     const files = entries.filter(e => !e.isDirectory).map(e => e.name).toSorted()
     const dirs = entries
-        // The root PR route is generated output, not a source directory.
+        // The root PR and CLI routes are generated output, not a source directory.
         // Excluding it keeps consecutive builds' catalogues identical.
-        .filter(e => e.isDirectory && !isThirdParty(e.name) && !(dir === '.' && e.name === prsDir))
+        .filter(e => e.isDirectory && !isThirdParty(e.name) && !(dir === '.' && (e.name === prsDir || e.name === cliDir)))
         .map(e => e.name)
         .toSorted()
     return foldStep(
@@ -738,7 +739,9 @@ const program = env => note => exitStep(mapStep(
                     const changelog = step(pages, () => writeChangelog(build)(tree))
                     const prDirectory = step(changelog, () => mkdir(prsDir, { recursive: true }))
                     const prPage = step(prDirectory, () => writeFile(pagePath(prsDir), prsPage(build)))
-                    return step(prPage, () => writeUtf8File('_main.css', stylesheet))
+                    const cliDirectory = step(prPage, () => mkdir(cliDir, { recursive: true }))
+                    const reference = step(cliDirectory, () => writeFile(pagePath(cliDir), cliPage(build)))
+                    return step(reference, () => writeUtf8File('_main.css', stylesheet))
                 }))
     }))),
     () => undefined))

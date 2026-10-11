@@ -34,6 +34,33 @@ that issue's concern, for automated runners. Module pages do not depend on it,
 and moving the site under such a root would break every fetch they make — so
 the two are separate, and this one is not quietly migrated into the other.
 
+## CLI reference
+
+`/cli/` is the standalone **FunctionalScript CLI** reference, linked as **CLI**
+from the shared header. The generator reserves root `cli/` alongside `prs/`
+and excludes both from source discovery on repeated builds. `/fjs/cli/` and
+`/fjs/website/cli/` remain ordinary source-directory pages. A clean build creates
+`cli/index.html`; a leftover reserved directory from a branch switch is never
+catalogued as source.
+
+`cli/module.f.mjs` imports the real `commands` export from `fjs/module.f.mjs`.
+It walks nested command tables and appends the dispatcher's shared `helpMeta`
+at each table level. Imports construct data and effect descriptions without
+calling handlers or interpreting effects. Names, alias order, descriptions and
+nesting therefore have one source of truth, including implicit help behavior.
+
+Usage, examples, explanatory notes and documentation paths stay in the small
+`guides` layer: the CLI does not yet declare positional parameters or options.
+A command with no guide refuses the build, and proofs check complete coverage
+against the current table. Future structured parameters can replace this layer
+without changing command sections or anchors.
+
+All commands are visible in anchored semantic sections without JavaScript.
+Copy buttons enhance the static code blocks, using the shared clipboard helper
+and existing styles; they appear only after binding and report success, failure
+or clipboard unavailability. No command runs in the browser. File documentation
+links use the same commit-aware policy as directory listings.
+
 ## Current pull requests
 
 `/prs/` shows the open pull requests in `functionalscript/functionalscript`:
@@ -492,7 +519,7 @@ scheme it would have picked.
 
 ## Every page opens with the same header
 
-The logo and the site's name, linking home; then **PRs**, **Releases** and
+The logo and the site's name, linking home; then **CLI**, **PRs**, **Releases** and
 **GitHub**.
 It is one element, `header` in [`page/module.f.mjs`](./page/module.f.mjs), and
 every page carries it — the root, a directory's page, the PR queue, and the
@@ -517,8 +544,8 @@ and no other page had either.
   header only, a framed box, GitHub-style tabs with icons, and bordered
   buttons — and the box won, then went full width.
 - **It wraps rather than hiding behind a menu button.** In a monospace face a
-  phone has no room for the name and all three links on one line; a line break
-  costs no script, on a site that is otherwise static files. The three links are
+  phone has no room for the name and all four links on one line; a line break
+  costs no script, on a site that is otherwise static files. The four links are
   one group, so they wrap together under the name rather than one beside it
   and one below.
 - **A header link is not underlined.** Its place in the header is what says it

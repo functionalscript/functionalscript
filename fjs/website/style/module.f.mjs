@@ -527,6 +527,10 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
    the page. */
 [${codeMarker}], [${resultMarker}] { border: 1px solid var(--border); border-radius: 6px; overflow-wrap: anywhere; padding: .5rem .75rem; white-space: pre-wrap }
 [${codeMarker}] { background: color-mix(in srgb, var(--border) 30%, var(--bg)) }
+/* Static reference controls appear only once their browser adapter is bound. */
+[data-cli]:not([data-copy-ready]) [data-copy] { display: none }
+[data-cli] section { border-top: 1px solid var(--border); margin-top: 2rem; padding-top: 1rem; scroll-margin-top: 1rem }
+[data-cli] a:focus-visible { outline: 2px solid var(--link); outline-offset: 2px }
 [data-code-block] { position: relative; margin-block: 1em; padding-right: 3rem }
 [data-code-block] > pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere }
 [data-code-block] > button { position: absolute; top: .25rem; right: .25rem; display: inline-flex; align-items: center; justify-content: center; width: 1.5rem; height: 1.5rem; padding: .125rem; border: 0; border-radius: .25rem; background: transparent; color: var(--muted) }

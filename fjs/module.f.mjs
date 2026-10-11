@@ -18,7 +18,7 @@ import { main as webMain } from './web/module.f.mjs'
 import { resultStep } from './effects/module.f.mjs'
 
 /** @type {Commands<NodeOp>} */
-const commands = [
+export const commands = [
     {
         names: ['test', 't'],
         description: 'Run the FunctionalScript test suite',
