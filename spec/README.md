@@ -1492,11 +1492,12 @@ asks whether a property exists anywhere on the prototype chain, so
 `"toString" in {}` and `"length" in []` are `true`; FunctionalScript has no
 prototype chain to consult, and answering for own entries only would give
 accepted text a different successful result than JavaScript gives it. Neither
-is acceptable, so the operator is refused rather than approximated. To ask
-whether an object holds an entry, use the enumerable-presence pattern
-(`Object.getOwnPropertyDescriptor(a, b)?.enumerable`,
-[2345](./todo/2345-has-own-property.md)) or read it with
-[`entry`](#reading-an-entry-at-run-time). The reasons, the alternatives
+is acceptable, so the operator is refused rather than approximated. To read an
+entry, use [`entry`](#reading-an-entry-at-run-time), which answers `undefined`
+for an absent key. An explicit presence pattern,
+`Object.getOwnPropertyDescriptor(a, b)?.enumerable`, is only proposed
+([2345](./todo/2345-has-own-property.md)): the compiler does not recognize it
+yet. The reasons, the alternatives
 rejected and what a migration does are in
 [the `in` decision](./todo/2346-in-operator.md).
 

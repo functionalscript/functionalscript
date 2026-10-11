@@ -16,7 +16,9 @@ is a different grammar, a statement the language does not have yet (see the
 [Enumerable property presence](./2345-has-own-property.md) already holds this
 boundary for `Object.hasOwn`; this record gives `in` the reasons it stated only
 in passing. The way to ask whether an object has an entry is the explicit
-`hasEntity` pattern proposed there, not a spelling of `in`.
+`hasEntity` pattern proposed there, not a spelling of `in`. That pattern is a
+proposal: the compiler recognizes only the `entry` helper today, so presence
+has no admitted spelling until 2345's tasks land.
 
 ## What `in` answers in JavaScript
 
@@ -83,8 +85,8 @@ convention".
 **4. Simplicity and one way to do it.** The language prefers simplicity and
 safety to ease of use
 ([design principles](./design-principles.md),
-[§1](../../doc/DESIGN.md#1-simplicity-first)). Presence has one spelling
-(`hasEntity`), reads have one (`entry`), and neither needs a chain, a
+[§1](../../doc/DESIGN.md#1-simplicity-first)). Presence will have one spelling
+(`hasEntity`, once admitted), reads have one (`entry`), and neither needs a chain, a
 `TypeError` branch or a second meaning. Adding `in` would give the same
 question two spellings with different answers.
 
@@ -94,7 +96,7 @@ question two spellings with different answers.
 |---|---|
 | `in` as "own enumerable entry" | Same text, different successful result than JavaScript (rule 1 above) |
 | `in` with a built-in `Object.prototype` | Reintroduces the prototype chain and makes names like `toString` observable |
-| `in` recognized only inside a larger pattern | No useful pattern contains it; `hasEntity` already is the pattern |
+| `in` recognized only inside a larger pattern | No useful pattern contains it; the proposed `hasEntity` is the pattern |
 | Defer silently | A refusal that does not say whether it is permanent reads as an open task (§10) |
 
 ## Consequences
@@ -103,9 +105,16 @@ question two spellings with different answers.
   `nanvm-lib` operator or Rust printing for it. The `in` row of
   [`nanvm/lib/README.md`](../../nanvm/lib/README.md#js-operator-implementation-status)
   is not a pending task.
-- A migration from JavaScript replaces `k in o` by `hasEntity(o, k)`, or by
-  `entry(o, k) !== undefined` where an entry holding `undefined` may count as
-  absent; the two differ exactly there.
+- Migration is case by case, because `in` has no single replacement. Where
+  the code meant "this object has an enumerable entry `k`", which is how
+  most uses read, the replacement is `hasEntity(o, k)` once it is admitted,
+  and `entry(o, k) !== undefined` now. They differ: `hasEntity` answers
+  `true` for an entry holding `undefined` and `undefined` (not `false`) for an
+  absent key, so a boolean needs `=== true`, while `entry(...) !== undefined`
+  is `false` for an entry holding `undefined`. Where the code relied on
+  inherited or non-enumerable names (`"toString" in o`, `"length" in a`),
+  neither replacement is equivalent, and it needs a rewrite that states what
+  it really wants to know.
 - The word `in` stays reserved ([lexical grammar](../README.md#identifiers)).
 
 ## When to revisit
