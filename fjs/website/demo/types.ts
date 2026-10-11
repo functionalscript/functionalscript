@@ -16,7 +16,7 @@
  */
 
 import type { Operation, Effect } from '../../effects/types.ts'
-import type { Element } from '../../media/html/types.ts'
+import type { Element, Node } from '../../media/html/types.ts'
 import type { Examples } from './examples/types.ts'
 
 /**
@@ -113,10 +113,16 @@ export type TextDemoOptions = {
     readonly rows?: number | undefined
     readonly init: string
     readonly examples?: Examples | undefined
+    /**
+     * The text as coloured nodes, for a field that holds code: drawn behind
+     * the textarea, so the reader types into the colours. Its nodes spell the
+     * text exactly.
+     */
+    readonly highlight?: ((text: string) => readonly Node[]) | undefined
 }
 
 /** The labelled textarea options used by textDemo and demos with more state. */
-export type TextFieldOptions = Pick<TextDemoOptions, 'name' | 'label' | 'rows'>
+export type TextFieldOptions = Pick<TextDemoOptions, 'name' | 'label' | 'rows' | 'highlight'>
 
 /** Options for a labelled single-line input. */
 export type InputFieldOptions = Pick<TextDemoOptions, 'name' | 'label'>

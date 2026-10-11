@@ -17,7 +17,7 @@
 import { asyncPartialRun } from '../effects/module.mjs'
 import { commonOperationMap } from '../effects/common/module.mjs'
 import { macrotask, patch, toDom } from '../media/html/module.mjs'
-import { demoMarker } from './style/module.f.mjs'
+import { demoMarker, editorMarker, mirrorMarker } from './style/module.f.mjs'
 
 /**
  * What a demo may ask this page for.
@@ -193,6 +193,23 @@ const rescroll = (root, was) => {
 }
 
 /**
+ * Keeps a highlighted field's coloured copy where its textarea is scrolled.
+ *
+ * The copy sits under the textarea and cannot be scrolled by the reader, so
+ * it follows: its offset is set to the textarea's on every scroll, and after
+ * every render, which can change the text the copy holds and the offset the
+ * textarea was put back to.
+ *
+ * @type {(textarea: Element) => void}
+ */
+const follow = textarea => {
+    const mirror = textarea.previousElementSibling
+    if (mirror === null || !mirror.hasAttribute(mirrorMarker)) { return }
+    mirror.scrollTop = textarea.scrollTop
+    mirror.scrollLeft = textarea.scrollLeft
+}
+
+/**
  * Renders a state, and leaves the reader where they were.
  *
  * **Patched, not replaced.** Replacing the section's contents rebuilt the
@@ -226,6 +243,7 @@ const render = (root, view) => {
     resize(root, sizes)
     refocus(root, was)
     rescroll(root, offsets)
+    for (const area of Array.from(root.querySelectorAll(`[${editorMarker}] > textarea`))) { follow(area) }
 }
 
 /**
@@ -422,6 +440,11 @@ export const startDemo = async root => {
         if (demo === undefined) { throw new Error(`${path} exports no demo`) }
         const step = stepper(root, demo)
         render(root, demo.view(demo.init))
+        // A scroll does not bubble, so it is heard in the capture phase.
+        root.addEventListener('scroll', e => {
+            const target = /** @type {Element} */ (e.target)
+            if (target.matches(`[${editorMarker}] > textarea`)) { follow(target) }
+        }, true)
         root.addEventListener('input', e => {
             const target = /** @type {HTMLInputElement} */ (e.target)
             step({ kind: 'input', name: target.name, value: target.value })
