@@ -41,7 +41,7 @@ implementation details remain unspecified here.
   - [x] `createExclusive`, `writeExclusive`, `readBytes`.
   - [x] `sandbox`, `catch`, `now`.
   - [x] `randomInt`, from `std`'s `RandomState`, not cryptographically secure
-        ([doc](../nanvm-effects-node/doc/random-int.md)).
+        ([doc](../nanvm/effects-node/doc/random-int.md)).
   - [ ] `inflate`, `test`.
   - [x] The descriptor handles `open`, `fstat`, `pread`, `close`: a handle is an
         index into the host's table of open files, as `Handle` in
