@@ -972,7 +972,7 @@ mod test {
     fn random_int_is_below_2_to_the_32() {
         for _ in 0..16 {
             let n = f64::from(Number::try_from(ok(perform("randomInt", []))).unwrap());
-            assert!((0.0..4294967296.0).contains(&n) && n.fract() == 0.0);
+            assert!((0.0..0x1_0000_0000_u64 as f64).contains(&n) && n.fract() == 0.0);
         }
     }
 
