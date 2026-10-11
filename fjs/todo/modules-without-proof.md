@@ -12,7 +12,7 @@ do not, and whether §1.2 reaches them is not written down:
 
 - [`fjs/ci/config`](../ci/config/module.f.js) — the pinned versions, images
   and actions.
-- [`fjs/website/style`](../website/style/module.f.mjs) — the stylesheet and
+- [`fjs/website/style`](../website/style/module.f.js) — the stylesheet and
   its links.
 
 ### Tasks

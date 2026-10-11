@@ -5,7 +5,7 @@ The member functions an array answers, one file each, reached from `array` in
 on every input a module can build. Behaviour is pinned by the shared corpus in
 [`fjs/nanvm`](../../../../../fjs/nanvm/README.md), which runs every case on a
 JavaScript engine and on this crate. The completeness table
-[`fjs/nanvm/methods`](../../../../../fjs/nanvm/methods/module.f.mjs) generates,
+[`fjs/nanvm/methods`](../../../../../fjs/nanvm/methods/module.f.js) generates,
 checked by `completeness` in `method.rs`, keeps this set equal to what the
 compiler admits.
 

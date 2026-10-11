@@ -10,7 +10,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
 import { diagramPage } from '../../../ebnf/testlib.f.mjs'
-import { railroadLabelMarker } from '../../../website/style/module.f.mjs'
+import { railroadLabelMarker } from '../../../website/style/module.f.js'
 import { demo, diagrams } from './demo.f.mjs'
 import { parser } from '../../../ebnf/ll1/module.f.mjs'
 import { repeatFrom0 } from '../../../ebnf/module.f.mjs'

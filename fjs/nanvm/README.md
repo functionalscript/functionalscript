@@ -27,11 +27,11 @@ module.f.mjs ──> an EDAG exp ─┤     (amnesia)
 |---|---|
 | [`types.ts`](types.ts) | The shape of the data: `Value`, `Case<N>`, `Group`, `Data`. |
 | [`module.f.mjs`](module.f.mjs) | **The single source of truth** — every operator case as data, plus the format's constructors, eliminators, and lowering. |
-| [`member/module.f.mjs`](member/module.f.mjs) | The member-function cases, one group per method, which `data` appends to the operator groups. A module of its own so that no one file outgrows the repository's 128 KiB file reader. |
+| [`member/module.f.js`](member/module.f.js) | The member-function cases, one group per method, which `data` appends to the operator groups. A module of its own so that no one file outgrows the repository's 128 KiB file reader. |
 | [`constructors/module.f.js`](constructors/module.f.js) | The format's constructors, re-exported by `module.f.mjs`; apart so that `member/` can use them without an import cycle. |
 | [`proof.f.mjs`](proof.f.mjs) | Evaluates each case's expression on a JavaScript engine. |
 | [`rust/module.f.mjs`](rust/module.f.mjs) | Prints each case's expression as Rust, against the `nanvm-lib` API. |
-| [`methods/module.f.mjs`](methods/module.f.mjs) | The member functions `nanvm-lib` does not answer yet, and the completeness table printed from them and [`fjs/js/prototype`](../js/prototype/module.f.js). |
+| [`methods/module.f.js`](methods/module.f.js) | The member functions `nanvm-lib` does not answer yet, and the completeness table printed from them and [`fjs/js/prototype`](../js/prototype/module.f.js). |
 | [`corpus/module.f.mjs`](corpus/module.f.mjs) | The call-contract corpus: the `nanvm-harness` fixtures, every one compared unless an exception names it and says why. Its host proof runs each in Node and through the FJS interpreter. |
 | [`update/module.f.mjs`](update/module.f.mjs) | Writes both printers' output. Run by `npm run gen`. |
 
@@ -89,7 +89,7 @@ host's own built-in and the Rust printer prints as `Any::dot(…).end_call(…)`
 the call a compiled module makes. The method name is typed as
 [`fjs/js/prototype`](../js/prototype/README.md)'s `allowedCalls`, so a refused
 name is a type error; which of them `nanvm-lib` answers is pinned separately,
-by the completeness table [`methods/`](methods/module.f.mjs) generates.
+by the completeness table [`methods/`](methods/module.f.js) generates.
 
 A `functionValue` operand is not an exception. It lowers to `() => undefined`,
 the smallest closure — `['=>', 0, [], ['undefined']]` — which
@@ -144,7 +144,7 @@ outcome and not the program, so it is never part of the case's expression.
 ## The loop
 
 1. Add the case to `data` in [`module.f.mjs`](module.f.mjs), or, for a
-   member function, to its group in [`member/module.f.mjs`](member/module.f.mjs).
+   member function, to its group in [`member/module.f.js`](member/module.f.js).
 2. `npm test` — the JavaScript proof now covers it, which is what makes the
    expectation authoritative: it is JavaScript's answer, not a guess.
 3. `npm run gen` to regenerate, then `cargo test`.

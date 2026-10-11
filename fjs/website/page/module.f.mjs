@@ -35,7 +35,7 @@
 
 import { htmlUtf8 } from '../../media/html/module.f.mjs'
 import { concat as pathConcat } from '../../path/module.f.mjs'
-import { demoMarker, faviconLinks, logoPath, stylesheetLink } from '../style/module.f.mjs'
+import { demoMarker, faviconLinks, logoPath, stylesheetLink } from '../style/module.f.js'
 import { intersperse, toArray } from '../../types/list/module.f.mjs'
 
 /**

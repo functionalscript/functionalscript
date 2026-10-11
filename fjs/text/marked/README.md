@@ -207,7 +207,7 @@ renders marked text for the demo pages:
 - `render(marked)` draws a run with a kind as
   `['span', { 'data-token': kind }, text]` and a run without one as its bare
   string. An empty run draws as nothing.
-- The stylesheet ([`website/style`](../../website/style/module.f.mjs)) owns the
+- The stylesheet ([`website/style`](../../website/style/module.f.js)) owns the
   colours: `keyword` and `literal` in the value colour, `string` in the pass
   colour, `number` in `--syntax-number`, `identifier` in `--syntax-name` (an
   amber in both schemes, apart from the other four), `comment` muted and

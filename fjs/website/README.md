@@ -421,7 +421,7 @@ is what makes their names the ones `fjs t` uses.
 ## A link keeps its colour, whether or not it has been followed
 
 `a, a:visited { color: var(--link) }` in
-[`style/module.f.mjs`](./style/module.f.mjs). Nearly every word on this site is
+[`style/module.f.js`](./style/module.f.js). Nearly every word on this site is
 a link into the tree — a breadcrumb, a file, a subdirectory, an issue — so a
 list of them turned two-toned as it was read, and the second colour said only
 *where this reader has been*, nothing about the file it names. That distinction
@@ -504,7 +504,7 @@ and no other page had either.
   are.** Both stay: the header is the same on every page, and the breadcrumb is
   this page's path.
 - **The logo is the favicon's file**, `logoPath` in
-  [`style/module.f.mjs`](./style/module.f.mjs), so the tab and the page cannot
+  [`style/module.f.js`](./style/module.f.js), so the tab and the page cannot
   show two marks. Its `alt` is empty because the name beside it is the link's
   text.
 - **It spans the window, with one rule under it**, and the menu is bold and a

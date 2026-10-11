@@ -57,33 +57,45 @@ export const hasNextLink = header => (header ?? '').split(',')
     .some(link => link.split(';').slice(1).some(part => part.trim() === 'rel="next"'))
 
 /**
+ * Whether a number is finite: not `NaN`, which alone is unequal to itself,
+ * and neither infinity. `Number.isFinite` spelled with the operators, which
+ * the compiler accepts where the namespace member is not admitted yet.
+ *
+ * @type {(n: number) => boolean}
+ */
+const isFinite = n => n === n && n !== Infinity && n !== -Infinity
+
+/**
  * Interpret refusal headers without consulting a clock or parsing a date.
  * A finite future Retry-After time wins over the primary rate-limit reset.
  *
  * @type {(input: RefusalInput) => RefusalDecision}
  */
-export const refusalDecision = ({ status, remaining, retryAfter, reset, now, retryDateMillis }) => {
-    const limited = status === 429 || remaining === '0' || retryAfter !== null
+export const refusalDecision = input => {
+    const status = input.status
+    const retryAfter = input.retryAfter
+    const now = input.now
+    const limited = status === 429 || input.remaining === '0' || retryAfter !== null
     const seconds = Number(retryAfter)
     const after = retryAfter !== null
-        ? Number.isFinite(seconds) ? now + seconds * 1000 : retryDateMillis
-        : limited && reset !== null ? Number(reset) * 1000 : null
+        ? isFinite(seconds) ? now + seconds * 1000 : input.retryDateMillis
+        : limited && input.reset !== null ? Number(input.reset) * 1000 : null
     return {
         blocked: status === 401 || status === 403 || status === 429,
         reason: limited ? 'GitHub API rate limit reached.' : `GitHub request failed (HTTP ${status}).`,
-        retryAt: after !== null && Number.isFinite(after) && after > now ? after : null,
+        retryAt: after !== null && isFinite(after) && after > now ? after : null,
     }
 }
 
 /** The host supplies the user's locale-formatted future retry time. */
 /** @type {(decision: RefusalDecision, formattedRetry: string) => string} */
-export const refusalNote = ({ reason, retryAt }, formattedRetry) => retryAt === null
-    ? `${reason} Try Refresh again later.`
-    : `${reason} Try Refresh after ${formattedRetry}.`
+export const refusalNote = (decision, formattedRetry) => decision.retryAt === null
+    ? `${decision.reason} Try Refresh again later.`
+    : `${decision.reason} Try Refresh after ${formattedRetry}.`
 
 /** No requests for an empty list, at most three concurrent check workers. */
 /** @type {(pullCount: number) => number} */
-export const workerCount = pullCount => Math.min(3, pullCount)
+export const workerCount = pullCount => pullCount < 3 ? pullCount : 3
 
 /** A busy load refuses another start, including repeated button clicks. */
 /** @type {(busy: boolean, loaded: boolean) => string | null} */
@@ -93,14 +105,16 @@ export const refreshStart = (busy, loaded) => busy ? null : loaded
 
 /** Count unavailable CI summaries and keep the first readable explanation. */
 /** @type {(previous: Failures, message: string) => Failures} */
-export const checkFailure = ({ count, first }, message) => ({
-    count: count + 1,
-    first: first === '' ? message : first,
+export const checkFailure = (previous, message) => ({
+    count: previous.count + 1,
+    first: previous.first === '' ? message : previous.first,
 })
 
 /** Complete and partial CI loads both name the time supplied by the host. */
 /** @type {(pullCount: number, failures: Failures, formattedTime: string) => string} */
-export const finishedNote = (pullCount, { count, first }, formattedTime) => {
+export const finishedNote = (pullCount, failures, formattedTime) => {
+    const count = failures.count
+    const first = failures.first
     const pulls = pullCount === 0 ? 'No open pull requests.'
         : `${pullCount} open pull request${pullCount === 1 ? '' : 's'}.`
     const partial = count === 0 ? ''

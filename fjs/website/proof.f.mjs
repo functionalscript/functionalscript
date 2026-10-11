@@ -10,7 +10,7 @@ import { defaultNodeProgramOptions, emptyState, virtual } from '../effects/node/
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../asserts/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { maxLengthBytes, vec } from '../types/bit_vec/module.f.mjs'
-import { stylesheet } from './style/module.f.mjs'
+import { stylesheet } from './style/module.f.js'
 import { repository } from './page/module.f.mjs'
 
 /**

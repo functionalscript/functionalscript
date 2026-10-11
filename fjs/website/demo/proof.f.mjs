@@ -2,7 +2,7 @@
  * @import { DemoEvent } from './types.ts'
  */
 
-import { codeMarker, resultMarker, stylesheet } from '../style/module.f.mjs'
+import { codeMarker, resultMarker, stylesheet } from '../style/module.f.js'
 import { textDemo, textField, inputField, fieldUpdate, caption, refusal } from './module.f.mjs'
 import { name as exampleName } from './examples/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
