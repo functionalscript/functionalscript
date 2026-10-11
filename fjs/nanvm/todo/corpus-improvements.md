@@ -173,7 +173,7 @@ compared by the existing machinery with nothing retyped.
 - [x] 2: delete the hand-written throw checks the `THROWS` record covers.
 - [x] 1: retire `undefinedDefault`: the host and helper fixtures became exceptions and `named-imports` gained a default.
 - [ ] 1b: compare whole export objects (Node route first, order-sensitive), only if a fixture needs a named export its default cannot show; recommended against.
-- [ ] 4: a special-numbers fixture, with the independent Rust assertion for `-0`, `NaN` and the infinities.
+- [x] 4: special numbers: `special-numbers` (`-0`, `NaN`, the infinities, asserted by hand in Rust) and `number-limits` (finite extremes, checked by their JSON text).
 - [ ] 5: capturing callbacks, guarded built-in calls and the other families' methods through the compile path.
 - [ ] 6: BigInt arithmetic, shift and relational operators, equality and the mixed-type `TypeError` through the compile path.
 - [x] 7: parameter leftovers as fixtures, in `nanvm/harness/fixtures/arguments.mjs`.
