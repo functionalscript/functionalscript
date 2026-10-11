@@ -20,7 +20,7 @@ import { tokenize } from '../../tokenizer/module.f.mjs'
 import {
     _ordinaryTokenNames as names, access, array, attribute, block, body, circuitTail, conditionalTail, constStatement,
     djsModule, func, group, identifier, importStatement, items, lastStatement, entry, member, object, parameters, paren, statement,
-    parenGroup, parenthesized, primitive, sym, symbolOf, value,
+    parenGroup, parenthesized, primitive, sym, symbolOf, template, value,
 } from './module.f.mjs'
 
 // The value names itself, and the tree of a whole module is too deep a
@@ -78,13 +78,17 @@ const labelsOf = element => {
  * The token kinds the demo draws as categories, written out here rather
  * than read from the demo, so a name dropped there is a failure here.
  */
-const categoryNames = /** @type {const} */ (['id', 'string', 'number', 'bigint'])
+const categoryNames = /** @type {const} */ ([
+    'id', 'string', 'number', 'bigint',
+    'noSubstitutionTemplate', 'templateHead', 'templateMiddle', 'templateTail',
+])
 
 export const proof = {
     // The grammar is LL(1): every rule builds, and so does the module.
     ll1: () => {
         parser(identifier)
         parser(primitive)
+        parser(/** @type {Rule} */ (template))
         parser(/** @type {Rule} */ (member))
         parser(access)
         parser(/** @type {Rule} */ (entry))
@@ -182,6 +186,24 @@ export const proof = {
         assertStructurallySame(read('export default\n1\n;'), ['ok'])
         assertStructurallySame(read('export default {};'), ['ok'])
         assertStructurallySame(read('export default [];'), ['ok'])
+    },
+    templates: () => {
+        for (const source of [
+            'export default ``;',
+            'export default `plain`;',
+            'export default `a${1}b${2}c`;',
+            'export default `${a ? b : c}`;',
+            'export default `${({ a: 1 }).a}`;',
+            'export default `${() => { return 1; }}`;',
+            'export default `${`nested${1}`}`;',
+            'export default () => `${1}`;',
+            'export default -`2`; ',
+            'export default 1 + `2` ** 2;',
+            'export default `${1}`.length;',
+        ]) { assertStructurallySame(read(source), ['ok']) }
+        assertStructurallySame(read('export default tag`plain`;'), ['error', 'noSubstitutionTemplate'])
+        assertStructurallySame(read('export default tag`${1}`;'), ['error', 'templateHead'])
+        assertStructurallySame(read('export default `${}`;'), ['error', 'templateTail'])
     },
     // A function: `(`, the parameter list, `)`, `=>`, and a body that is
     // a value less the object — `=> {` opens a block, which `block` below

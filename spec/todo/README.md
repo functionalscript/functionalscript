@@ -184,7 +184,8 @@ information — see [serialization](./serialization.md) and
 ### 3.4. Syntactic Sugar
 
 1. [ ] [assignments](./3430-assignments.md)
-2. [ ] [template-literals](./3440-template-literals.md)
+2. [x] [Untagged template literals](../README.md#template-literals), lowered to
+   the existing `String` and binary `+` operations.
 3. [ ] `async`/`await`. Depends on the implementation of promises.
 
 ### 3.5. Priority 4

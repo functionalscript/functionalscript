@@ -5,10 +5,11 @@
  * @module
  */
 
-import type { TokenMetadata, TriviaKind } from '../../ebnf/lib/js/types.ts'
+import type { TemplateKind, TokenMetadata, TriviaKind } from '../../ebnf/lib/js/types.ts'
+import type { List } from '../../types/list/types.ts'
 
 /** The kind of a token, as the grammar's `token` variant tags it, `slash`'s four resolved. */
-export type _Kind = 'number' | 'string' | 'id' | 'comment' | 'operator' | 'ws' | 'newLine'
+export type _Kind = 'number' | 'string' | 'id' | 'comment' | 'operator' | 'ws' | 'newLine' | TemplateKind
 
 /** A token the grammar read: its kind, its code points, where it began, and whether a block comment closed. */
 export type _Lexeme = {
@@ -47,3 +48,23 @@ export type _StringDecodeState =
     | { readonly kind: 'normal' }
     | { readonly kind: 'escape' }
     | { readonly kind: 'unicode', readonly acc: number, readonly count: number }
+
+/** An active substitution, with braces nested inside it and its opening head. */
+export type _TemplateContext = {
+    readonly braces: number
+    readonly start: TokenMetadata
+}
+
+/** The escape decoder's state inside one template chunk. */
+export type _TemplateDecodeState =
+    | { readonly kind: 'normal' | 'escape' | 'unicodeStart' | 'zero' }
+    | { readonly kind: 'unicode' | 'hex', readonly acc: number, readonly count: number }
+    | { readonly kind: 'codePoint', readonly acc: number }
+
+/** The cooked code points and the JavaScript escape's validity. */
+export type _TemplateDecode = {
+    readonly state: _TemplateDecodeState
+    readonly value: List<number>
+    readonly valid: boolean
+    readonly previous: number | undefined
+}
