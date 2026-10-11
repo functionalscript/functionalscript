@@ -8,7 +8,7 @@ const b = -(5n * 1_000_000_007n);
 const big = 9_223_372_036_854_775_807n + a;
 export default [
     a + b, a - b, a * b, a / b, a % b, b / a, b % a, -b,
-    big + 1n, big - big, big * 3n, big / a, big % a, -big, big ** 2n, a ** 3n,
+    big + 1n, big - (big - a + a), big * 3n, big / a, big % a, -big, big ** 2n, a ** 3n,
     a & b, a | b, a ^ b, ~a, ~b, a << 70n, big << 1n, big >> 3n, b >> 1n,
     a < b, a <= a, big > a, b >= a, a < big, big < b,
     a === 12_000_000_000n, a !== b, big === big + 0n, 0n === -0n, typeof a,
