@@ -68,7 +68,7 @@ import { prsPage } from './prs/module.f.mjs'
 import { toHex, tryFromHexOf } from '../git/oid/module.f.mjs'
 import { fundingPath, parse as parseFunding } from './funding/module.f.mjs'
 import { isThirdParty } from '../dev/module.f.mjs'
-import { cargoDocDir, cargoDocPage, crateHref, crateOf, rustdocDir } from './cargo-doc/module.f.mjs'
+import { cargoDocDir, cargoDocHref, cargoDocPage, crateHref, crateOf, rustdocDir } from './cargo-doc/module.f.mjs'
 
 /**
  * The root page: the project's name, the catalogue every directory page
@@ -522,6 +522,17 @@ const holdsDemo = demos => path => toArray(entries(demos))
     .some(([dir]) => dir === path || dir.startsWith(`${path}/`))
 
 /**
+ * The paths of the directories that hold a crate rustdoc documented: each has
+ * a `Cargo.toml`, and {@link crateOf} its path is among `crates`. The root's
+ * `Cargo.toml` is the workspace's, and `.` names no crate.
+ *
+ * @type {(tree: readonly _Walked[]) => (crates: readonly string[]) => readonly string[]}
+ */
+const crateDirs = tree => crates => tree
+    .filter(walked => walked.files.includes('Cargo.toml') && crates.includes(crateOf(walked.path)))
+    .map(walked => walked.path)
+
+/**
  * What a page needs about one directory, from what the walk found in it and
  * in its `todo/`.
  *
@@ -532,16 +543,15 @@ const holdsDemo = demos => path => toArray(entries(demos))
  * Rust sources, `fjs/types/option/` its `types.ts`. What a directory holds is
  * what the walk found in it, minus the generator's own output.
  *
- * **A directory with a `Cargo.toml` links its crate's API reference** when
- * rustdoc documented a crate by its name: the workspace's crates are each a
- * directory named for the crate. The root's `Cargo.toml` is the workspace's,
- * and `.` names no crate.
+ * **A crate's directory links its API reference, and the directory above it
+ * links the reference's index** — `nanvm/lib` its crate, `nanvm` the list of
+ * all three — so a reader finds the reference from either. `crates` is
+ * {@link crateDirs}'s answer.
  *
  * @type {(tree: _Tree) => (crates: readonly string[]) => (proofs: readonly Proof[]) => (demos: _Demos) => (walked: _Walked) => Dir}
  */
 const toDir = tree => crates => proofs => demos => walked => {
     const dirs = walked.dirs.filter(name => name !== 'todo')
-    const crate = crateOf(walked.path.slice(walked.path.lastIndexOf('/') + 1))
     return {
         path: walked.path,
         files: walked.files.filter(name => !generatedName(name)),
@@ -553,7 +563,8 @@ const toDir = tree => crates => proofs => demos => walked => {
             ?? [],
         proofs: subtree(walked.path)(proofs),
         demo: at(walked.path)(demos),
-        api: walked.files.includes('Cargo.toml') && crates.includes(crate) ? crateHref(crate) : null,
+        api: crates.includes(walked.path) ? crateHref(crateOf(walked.path)) : null,
+        apiIndex: dirs.some(name => crates.includes(pathConcat(walked.path)(name))) ? cargoDocHref : null,
     }
 }
 
@@ -695,7 +706,7 @@ const writePages = build => tree => crates => proofs => demos => {
         /** @type {_Tree} */ (emptyMap))
     const dirs = tree
         .filter(walked => !isTodoDir(walked.path) && walked.path !== changelogDir)
-        .map(toDir(byPath)(crates)(proofs)(demos))
+        .map(toDir(byPath)(crateDirs(tree)(crates))(proofs)(demos))
     return step(
         forEachStep(pureOk(dirs), dir => writeFile(
             pagePath(dir.path),

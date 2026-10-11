@@ -30,12 +30,16 @@ export const rustdocDir = 'target/doc'
 export const cargoDocDir = 'cargo.doc'
 
 /**
- * A crate's directory name as rustdoc spells the crate: `nanvm-lib` is
- * documented as `nanvm_lib`.
+ * The crate a directory holds, as rustdoc spells it: the directory's path with
+ * `/` and `-` read as `_`, so `nanvm/lib` is documented as `nanvm_lib` and
+ * `nanvm/effects-node` as `nanvm_effects_node`. That is the workspace's
+ * convention — the package in `nanvm/lib` is named `nanvm-lib` — and a
+ * directory that breaks it is not linked rather than linked wrong, because
+ * only a crate rustdoc documented is.
  *
- * @type {(name: string) => string}
+ * @type {(path: string) => string}
  */
-export const crateOf = name => name.split('-').join('_')
+export const crateOf = path => path.split('/').join('_').split('-').join('_')
 
 /**
  * A documented crate's page, root-relative.
@@ -43,6 +47,9 @@ export const crateOf = name => name.split('-').join('_')
  * @type {(crate: string) => string}
  */
 export const crateHref = crate => `/${cargoDocDir}/${crate}/index.html`
+
+/** The index of the Rust API reference, root-relative. @type {string} */
+export const cargoDocHref = `/${cargoDocDir}/index.html`
 
 /**
  * The index of the Rust API reference: one link per documented crate.

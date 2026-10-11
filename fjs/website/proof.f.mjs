@@ -115,15 +115,17 @@ export const proof = {
     },
     /**
      * **rustdoc's output is published under `cargo.doc/` when `cargo doc` was
-     * run**, with an index page of ours, and each documented crate's
-     * directory links it.
+     * run**, with an index page of ours. Each documented crate's directory
+     * links its reference, and the directory above it links the index.
      */
     cargoDoc: {
         published: () => {
             const { root, output } = generate({
                 'Cargo.toml': file('[workspace]'),
-                'nanvm-lib': { 'Cargo.toml': file('[package]') },
-                other: { 'Cargo.toml': file('[package]') },
+                nanvm: {
+                    lib: { 'Cargo.toml': file('[package]') },
+                    other: { 'Cargo.toml': file('[package]') },
+                },
                 target: { doc: {
                     'crates.js': file('crates'),
                     'static.files': { 'main.css': file('css') },
@@ -135,18 +137,21 @@ export const proof = {
             assertEq(textOf(/** @type {Dir} */ (cargoDoc['static.files'])['main.css'], 'main.css'), 'css')
             assertEq(textOf(/** @type {Dir} */ (/** @type {Dir} */ (cargoDoc.nanvm_lib).vm)['index.html'], 'a module page'), 'module')
             assert(pageAt(root, ['cargo.doc']).includes('<a href="/cargo.doc/nanvm_lib/index.html">nanvm_lib</a>'), pageAt(root, ['cargo.doc']))
-            assert(pageAt(root, ['nanvm-lib']).includes('<a href="/cargo.doc/nanvm_lib/index.html">API documentation</a>'), pageAt(root, ['nanvm-lib']))
+            assert(pageAt(root, ['nanvm', 'lib']).includes('<a href="/cargo.doc/nanvm_lib/index.html">API documentation</a>'), pageAt(root, ['nanvm', 'lib']))
+            assert(pageAt(root, ['nanvm']).includes('<a href="/cargo.doc/index.html">Rust API documentation</a>'), pageAt(root, ['nanvm']))
             // A crate rustdoc did not document is not linked, and neither is
-            // the workspace's own `Cargo.toml`.
-            assert(!pageAt(root, ['other']).includes('API documentation'), pageAt(root, ['other']))
+            // the workspace's own `Cargo.toml`, nor the root, whose
+            // subdirectory `nanvm` is not a crate.
+            assert(!pageAt(root, ['nanvm', 'other']).includes('API documentation'), pageAt(root, ['nanvm', 'other']))
             assert(!pageAt(root, []).includes('API documentation'), pageAt(root, []))
             assert(output.includes('rust crates: 1'), output)
         },
         // Without `cargo doc`, nothing is written and nothing is linked.
         absent: () => {
-            const { root, output } = generate({ 'nanvm-lib': { 'Cargo.toml': file('[package]') } })
+            const { root, output } = generate({ nanvm: { lib: { 'Cargo.toml': file('[package]') } } })
             assertEq(root['cargo.doc'], undefined)
-            assert(!pageAt(root, ['nanvm-lib']).includes('API documentation'), pageAt(root, ['nanvm-lib']))
+            assert(!pageAt(root, ['nanvm', 'lib']).includes('API documentation'), pageAt(root, ['nanvm', 'lib']))
+            assert(!pageAt(root, ['nanvm']).includes('API documentation'), pageAt(root, ['nanvm']))
             assert(!output.includes('rust crates'), output)
         },
         // The copy is generated output: the next build does not list it.

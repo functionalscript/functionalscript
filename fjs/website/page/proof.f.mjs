@@ -43,7 +43,7 @@ const issues = items => '<body><details data-section="" open=""><summary><h2>Iss
     + `<ul data-links="">${items}</ul></details></body>`
 
 /** @type {Dir} */
-const empty = { path: '.', files: [], dirs: [], demoDirs: [], todo: [], proofs: [], demo: null, api: null }
+const empty = { path: '.', files: [], dirs: [], demoDirs: [], todo: [], proofs: [], demo: null, api: null, apiIndex: null }
 
 export const proof = {
     /**
@@ -414,6 +414,11 @@ export const proof = {
             const html = pageHtml({ ...empty, path: 'nanvm-lib', api: '/cargo.doc/nanvm_lib/index.html' })
             assert(html.includes('<h1>nanvm-lib</h1><p><a href="/cargo.doc/nanvm_lib/index.html">API documentation</a></p>'), html)
             assert(!pageHtml({ ...empty, path: 'a' }).includes('API documentation'), 'no link without a reference')
+        },
+        // The directory above the crates links the reference's index.
+        linksTheApiIndex: () => {
+            const html = pageHtml({ ...empty, path: 'nanvm', apiIndex: '/cargo.doc/index.html' })
+            assert(html.includes('<h1>nanvm</h1><p><a href="/cargo.doc/index.html">Rust API documentation</a></p>'), html)
         },
         // The catalogue is the same one the root page carries.
         carriesSections: () => {

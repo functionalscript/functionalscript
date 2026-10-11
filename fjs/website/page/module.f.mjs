@@ -585,6 +585,7 @@ export const page = build => dir => shell(build)(pageTitle(dir.path))(directoryL
         /** @type {Element} */(['a', { href: pageHref(path) }, name]))))],
     ['h1', dir.path],
     ...(dir.api === null ? [] : [/** @type {Element} */ (['p', ['a', { href: dir.api }, 'API documentation']])]),
+    ...(dir.apiIndex === null ? [] : [/** @type {Element} */ (['p', ['a', { href: dir.apiIndex }, 'Rust API documentation']])]),
     ...(dir.demo === null ? [] : demoSection(dir.demo)),
     ...testSection(dir)([]),
 )))

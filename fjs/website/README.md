@@ -65,8 +65,12 @@ date-formatting results to that policy.
 
 ## The Rust API reference
 
-`/cargo.doc/` is rustdoc's output for the workspace's crates, and each crate's
-directory page links its part of it as **API documentation**.
+`/cargo.doc/` is rustdoc's output for the workspace's crates. Each crate's
+directory page links its part of it as **API documentation**, and the
+directory above the crates — `nanvm/` — links the index as **Rust API
+documentation**. A directory is a crate's when it has a `Cargo.toml` and its
+path, with `/` and `-` read as `_`, names a crate rustdoc documented:
+`nanvm/lib` is `nanvm_lib`.
 
 The generator copies `target/doc` there unchanged and writes one page of its
 own, `cargo.doc/index.html`, listing the crates: stable rustdoc writes no root

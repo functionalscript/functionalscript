@@ -58,6 +58,11 @@ export type Dir = {
      * not built.
      */
     readonly api: string | null
+    /**
+     * The root-relative link to the index of the Rust API reference where a
+     * subdirectory holds a documented crate, or `null` where none does.
+     */
+    readonly apiIndex: string | null
 }
 
 /**
