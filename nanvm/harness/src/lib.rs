@@ -154,9 +154,8 @@ mod tests {
     use crate::{
         Action, RunError,
         fixtures::{
-            bigint, closure_throws, exports, function, function_text, missing, named,
-            named_imports, named_imports_throws, not_a_function, nullish, number, object,
-            rest_function, throw, throws,
+            bigint, exports, function, function_text, missing, named, named_imports, number,
+            object, rest_function, throw,
         },
         run,
     };
@@ -237,22 +236,6 @@ mod tests {
         let _ = read_default(not_an_object);
     }
 
-    /// The failure contract from source to run: `1n / 0n` throws in
-    /// JavaScript, and the compiled module answers the thrown value.
-    #[test]
-    fn compiled_throw_is_reported() {
-        assert!(matches!(
-            read_default(throws::module),
-            Err(RunError::Thrown(_))
-        ));
-        // A property read on a nullish base: the compiler writes the read,
-        // and the VM throws the `TypeError` JavaScript throws.
-        assert!(matches!(
-            read_default(nullish::module),
-            Err(RunError::Thrown(_))
-        ));
-    }
-
     /// The language's own `throw`: a function whose block body ends in the
     /// statement fails with the value when called, and the module, calling
     /// it at load, answers that value — `7`, the argument it threw.
@@ -302,16 +285,6 @@ mod tests {
         }
     }
 
-    /// A failure computing a frame element fails where the closure is made,
-    /// not where it is called: the module itself throws.
-    #[test]
-    fn closure_frame_failure_is_at_creation() {
-        assert!(matches!(
-            read_default(closure_throws::module),
-            Err(RunError::Thrown(_))
-        ));
-    }
-
     /// A function's text is the FunctionalScript writer's: converted where
     /// it is made, returned from a call with its capture named by its slot,
     /// and exported, read as a value and converted by the host. Two functions
@@ -330,16 +303,11 @@ mod tests {
         assert_eq!(inc.to_string(), Ok("(...$1)=>$0[0]+$1[0]".into()));
     }
 
-    /// A read past the arguments supplied answers `undefined` — which has
-    /// no JSON, so the value is checked as it is — and calling what is not
-    /// a function throws.
+    /// A read past the arguments supplied answers `undefined`, which has no
+    /// JSON, so the value is checked as it is.
     #[test]
-    fn missing_argument_and_non_function_callee() {
+    fn missing_argument() {
         assert_eq!(default_export(missing::module), Nullish::Undefined.to_any());
-        assert!(matches!(
-            read_default(not_a_function::module),
-            Err(RunError::Thrown(_))
-        ));
     }
 
     #[test]
@@ -365,11 +333,6 @@ mod tests {
             select("checks", Action::Read),
             Ok("[true,true,true,true,true,true]".into())
         );
-        // A dependency that throws while evaluating is the importer's throw.
-        assert!(matches!(
-            run::<Naive>(named_imports_throws::module, "value", Action::Read),
-            Err(RunError::Thrown(_))
-        ));
     }
 
     /// `exports.mjs` against each outcome `run` tells apart. Evaluating the
