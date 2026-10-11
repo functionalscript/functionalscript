@@ -161,8 +161,9 @@ export const thunks = {
         step('catch', [fail], (/** @type {any} */ v) => v[0] === 'error' && v[1] === 'boom')(
             step('sandbox', [() => 2], (/** @type {any} */ v) => v.result[0] === 'ok' && v.result[1] === 2 && v.duration * 1 === v.duration && v.duration >= 0)(
                 step('sandbox', [fail], (/** @type {any} */ v) => v.result[0] === 'error' && v.result[1] === 'boom' && v.duration * 1 === v.duration && v.duration >= 0)(
-                    step('now', [], (/** @type {any} */ v) => v * 1 === v && v % 1 === 0 && v > 1000000000000 && v < 100000000000000)(end)))))([]),
-    expected: [['ok', true], ['ok', true], ['ok', true], ['ok', true], ['ok', true]],
+                    step('now', [], (/** @type {any} */ v) => v * 1 === v && v % 1 === 0 && v > 1000000000000 && v < 100000000000000)(
+                        step('randomInt', [], (/** @type {any} */ v) => v * 1 === v && v % 1 === 0 && v >= 0 && v < 4294967296)(end))))))([]),
+    expected: [['ok', true], ['ok', true], ['ok', true], ['ok', true], ['ok', true], ['ok', true]],
 };
 
 export const resolution = {
