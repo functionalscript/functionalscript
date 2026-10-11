@@ -14,7 +14,7 @@ import { lazyOp2Id } from '../module.f.mjs'
 import { memo, invoke } from './module.f.mjs'
 import { toData } from '../value/to_unknown/module.f.mjs'
 import { call } from '../value/call/module.f.mjs'
-import { ok } from '../../types/result/module.f.mjs'
+import { ok } from '../../types/result/module.f.js'
 
 const context = { frame: [], args: [10, 20] }
 

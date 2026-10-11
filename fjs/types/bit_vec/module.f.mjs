@@ -30,10 +30,10 @@
  */
 
 import { bitLength, divUp, mask, maxLength, roundUp8, xor } from '../bigint/module.f.mjs'
-import { compose, flip, identity } from '../function/module.f.mjs'
+import { compose, flip, identity } from '../function/module.f.js'
 import { map } from '../list/module.f.mjs'
 import { isByte } from '../number/module.f.mjs'
-import { asBase, asNominal } from '../nominal/module.f.mjs'
+import { asBase, asNominal } from '../nominal/module.f.js'
 import { foldAbsorbing, repeat as mRepeat } from '../../common/monoid/module.f.mjs'
 import { cmp, max, min } from '../function/compare/module.f.mjs'
 import { map as nullableMap, mapUnwrap } from '../nullable/module.f.mjs'

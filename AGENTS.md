@@ -12,9 +12,10 @@ work before starting, and check that no open pull request, draft or not, already
 works on the same `todo/`. Claim a task by opening a draft pull request for it
 at once ([SESSION.md](./doc/SESSION.md#claim-the-task)).
 
-Develop inside the Nix shell `./dev.sh` opens — every developer and every
-agent, on every platform ([§2](#2-environment-and-running-tests)). It carries
-every tool below at the version CI uses; nothing is installed by hand.
+Develop inside the Nix shell `./dev.sh` opens on Linux and ARM macOS; use
+the pinned tools directly on Intel macOS or bare Windows
+([§2](#2-environment-and-running-tests)). The shell carries every tool below
+at the version CI uses.
 
 Run the full check set before submitting:
 
@@ -151,12 +152,15 @@ Install [Nix](https://nixos.org/download/) and work inside the repository's
 shell. `gen.nix/` is a flake carrying every tool the project builds and tests
 with — Node, TypeScript, Rust with its WASM targets, Deno, Bun, the WASM
 runtimes — at the versions CI uses. Every CI job runs inside this very shell, so
-what passes in it is what passes there, except the two Windows platform jobs,
-which run without Nix, and the publishing workflow, which runs on the Node
+what passes in it is what passes there, except the Intel macOS and two Windows
+platform jobs, which install their tools directly, and the publishing workflow,
+which runs on the Node
 `setup-node` installs. The packed-package check that closes `node26` stays out
 of it too, by design: it installs the published tarball with `setup-node`'s
-Node and npm, as a consumer would. Do not install those tools by hand or pick
-their versions; the shell is the one environment.
+Node and npm, as a consumer would. On supported Nix platforms, do not install
+those tools by hand or pick their versions; the shell is the environment.
+Intel macOS uses the same pins
+directly; see [CONTRIBUTING.md](./CONTRIBUTING.md#direct-tools-on-intel-macos).
 
 During prerelease, each release supports one exact accepted version per tool
 from `fjs/ci/config/module.f.js`, chosen close to the latest usable stable
@@ -169,14 +173,17 @@ is needed; additional support after release remains subject to demand.
 ./dev.sh <command>            # one command in it; CI steps run the generated sh ./gen.nix/run <command>
 ```
 
-In a Codex session, verify `./dev.sh node --version` before starting work in a
-user-trusted implementation checkout. When reviewing untrusted changes, perform
-this startup check only in a clean, separate checkout of a user-trusted base
-revision; do not run the review worktree's `dev.sh`, flake, or shell hooks with
-broader permissions.
+In a Codex session, verify Node before starting work in a user-trusted
+implementation checkout. On Linux, ARM macOS, or inside the Linux devcontainer,
+run `./dev.sh node --version`. On Intel macOS or bare Windows, install the
+pinned tools and run `node --version` directly. In either case, the version
+must match the exact Node pin in `fjs/ci/config/module.f.js`. When reviewing
+untrusted changes, perform this startup check only in a clean, separate
+checkout of a user-trusted base revision; do not run the review worktree's
+`dev.sh`, flake, or shell hooks with broader permissions.
 
-If a command fails with an explicit sandbox permission error, retry the same
-`./dev.sh` command through `exec_command` with
+On supported Nix platforms, if a command fails with an explicit sandbox
+permission error, retry the same `./dev.sh` command through `exec_command` with
 `sandbox_permissions="require_escalated"`, subject to the tool's normal approval
 process, only when the command and all code it will execute are already trusted
 for the task. A permission denial does not establish trust, and using a trusted
@@ -189,7 +196,8 @@ follow [CONTRIBUTING.md's Codex environment instructions](./CONTRIBUTING.md#open
 and verify startup through the same command runner sessions use.
 
 `dev.sh` enables flakes itself, so a stock Nix install needs no configuration.
-On macOS and Linux, install Nix on the host. Nix does not run natively on
+On ARM macOS and Linux, install Nix on the host. Intel macOS uses the
+pinned tools directly. Nix does not run natively on
 Windows: open the repository in the devcontainer —
 [`.devcontainer/`](./.devcontainer/devcontainer.json) builds a Debian image
 with Nix and runs `npm ci` in the shell on any host, and VS Code and Codespaces

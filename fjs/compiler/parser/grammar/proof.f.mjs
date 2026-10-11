@@ -5,9 +5,13 @@
  * @import { Equal } from '../../../types/ts/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { Items } from './types.ts'
+ * @import { Element } from '../../../media/html/types.ts'
  */
 
-import { assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { diagramPage } from '../../../ebnf/testlib.f.mjs'
+import { railroadLabelMarker } from '../../../website/style/module.f.mjs'
+import { demo, diagrams } from './demo.f.mjs'
 import { parser } from '../../../ebnf/ll1/module.f.mjs'
 import { repeatFrom0 } from '../../../ebnf/module.f.mjs'
 import { stringToList } from '../../../text/utf16/module.f.mjs'
@@ -16,7 +20,7 @@ import { tokenize } from '../../tokenizer/module.f.mjs'
 import {
     _ordinaryTokenNames as names, access, array, attribute, block, body, circuitTail, conditionalTail, constStatement,
     djsModule, func, group, identifier, importStatement, items, lastStatement, entry, member, object, parameters, paren, statement,
-    parenGroup, parenthesized, primitive, sym, symbolOf, value,
+    parenGroup, parenthesized, primitive, sym, symbolOf, template, value,
 } from './module.f.mjs'
 
 // The value names itself, and the tree of a whole module is too deep a
@@ -53,31 +57,60 @@ const read = s => {
     return ['error', token.kind === 'id' ? token.value : token.kind]
 }
 
+/**
+ * The labels a view draws, each as `kind:text`: read from the element tree
+ * the page is rendered from, by the marker the stylesheet selects, rather
+ * than matched in its HTML text. What follows an element's tag is its
+ * attributes, its text and its child elements, in any mix.
+ *
+ * @type {(element: Element) => readonly string[]}
+ */
+const labelsOf = element => {
+    const [, ...items] = element
+    const text = items.filter(item => typeof item === 'string').join('')
+    return items.flatMap(item =>
+        typeof item === 'string' ? []
+        : item instanceof Array ? labelsOf(item)
+        : item[railroadLabelMarker] === undefined ? [] : [`${item[railroadLabelMarker]}:${text}`])
+}
+
+/**
+ * The token kinds the demo draws as categories, written out here rather
+ * than read from the demo, so a name dropped there is a failure here.
+ */
+const categoryNames = /** @type {const} */ ([
+    'id', 'string', 'number', 'bigint',
+    'noSubstitutionTemplate', 'templateHead', 'templateMiddle', 'templateTail',
+])
+
 export const proof = {
-    // The grammar is LL(1): every rule builds, and so does the module.
-    ll1: () => {
-        parser(identifier)
-        parser(primitive)
-        parser(/** @type {Rule} */ (member))
-        parser(access)
-        parser(/** @type {Rule} */ (entry))
-        parser(/** @type {Rule} */ (value))
-        parser(/** @type {Rule} */ (array))
-        parser(/** @type {Rule} */ (object))
-        parser(parameters)
-        parser(/** @type {Rule} */ (func))
-        parser(/** @type {Rule} */ (group))
-        parser(/** @type {Rule} */ (parenthesized))
-        parser(/** @type {Rule} */ (paren))
-        parser(/** @type {Rule} */ (parenGroup))
-        parser(/** @type {Rule} */ (body))
-        parser(/** @type {Rule} */ (circuitTail))
-        parser(/** @type {Rule} */ (conditionalTail))
-        parser(/** @type {Rule} */ (block))
-        parser(attribute)
-        parser(/** @type {Rule} */ (importStatement))
-        parser(/** @type {Rule} */ (constStatement))
-        parser(/** @type {Rule} */ (lastStatement))
+    // The grammar is LL(1): each rule builds in its own proof, keeping the
+    // external runner's per-test timeout independent of the rule count.
+    // Discard each parser so the returned reader is not a nested proof.
+    ll1: {
+        identifier: () => { parser(identifier) },
+        primitive: () => { parser(primitive) },
+        template: () => { parser(/** @type {Rule} */ (template)) },
+        member: () => { parser(/** @type {Rule} */ (member)) },
+        access: () => { parser(access) },
+        entry: () => { parser(/** @type {Rule} */ (entry)) },
+        value: () => { parser(/** @type {Rule} */ (value)) },
+        array: () => { parser(/** @type {Rule} */ (array)) },
+        object: () => { parser(/** @type {Rule} */ (object)) },
+        parameters: () => { parser(parameters) },
+        func: () => { parser(/** @type {Rule} */ (func)) },
+        group: () => { parser(/** @type {Rule} */ (group)) },
+        parenthesized: () => { parser(/** @type {Rule} */ (parenthesized)) },
+        paren: () => { parser(/** @type {Rule} */ (paren)) },
+        parenGroup: () => { parser(/** @type {Rule} */ (parenGroup)) },
+        body: () => { parser(/** @type {Rule} */ (body)) },
+        circuitTail: () => { parser(/** @type {Rule} */ (circuitTail)) },
+        conditionalTail: () => { parser(/** @type {Rule} */ (conditionalTail)) },
+        block: () => { parser(/** @type {Rule} */ (block)) },
+        attribute: () => { parser(attribute) },
+        importStatement: () => { parser(/** @type {Rule} */ (importStatement)) },
+        constStatement: () => { parser(/** @type {Rule} */ (constStatement)) },
+        lastStatement: () => { parser(/** @type {Rule} */ (lastStatement)) },
     },
     // One symbol per name, all distinct, all above every code point; a
     // framing keyword is not an identifier's symbol, and the token rides
@@ -155,6 +188,24 @@ export const proof = {
         assertStructurallySame(read('export default\n1\n;'), ['ok'])
         assertStructurallySame(read('export default {};'), ['ok'])
         assertStructurallySame(read('export default [];'), ['ok'])
+    },
+    templates: () => {
+        for (const source of [
+            'export default ``;',
+            'export default `plain`;',
+            'export default `a${1}b${2}c`;',
+            'export default `${a ? b : c}`;',
+            'export default `${({ a: 1 }).a}`;',
+            'export default `${() => { return 1; }}`;',
+            'export default `${`nested${1}`}`;',
+            'export default () => `${1}`;',
+            'export default -`2`; ',
+            'export default 1 + `2` ** 2;',
+            'export default `${1}`.length;',
+        ]) { assertStructurallySame(read(source), ['ok']) }
+        assertStructurallySame(read('export default tag`plain`;'), ['error', 'noSubstitutionTemplate'])
+        assertStructurallySame(read('export default tag`${1}`;'), ['error', 'templateHead'])
+        assertStructurallySame(read('export default `${}`;'), ['error', 'templateTail'])
     },
     // A function: `(`, the parameter list, `)`, `=>`, and a body that is
     // a value less the object — `=> {` opens a block, which `block` below
@@ -575,6 +626,17 @@ export const proof = {
         parser(/** @type {Rule} */ (lastStatement))
         // a block's statement: `const` and `if` decide the two in one symbol
         parser(/** @type {Rule} */ (statement))
+    },
+    demo: {
+        // A diagram per title, and a diagram for every box.
+        page: diagramPage(demo, diagrams),
+        // Each token that stands for any token of its kind is a category,
+        // and a token that is its own text a terminal.
+        labels: () => {
+            const labels = labelsOf(demo.view(demo.init))
+            categoryNames.forEach(name => assert(labels.includes(`category:${name}`), name))
+            assert(labels.includes('terminal:=>'), '=>')
+        },
     },
     throw: {
         eofRejected: () => symbolOf({ token: { kind: 'eof' }, metadata: { path: 'a.js', line: 1, column: 1 }, newline: false }),

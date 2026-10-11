@@ -6,7 +6,7 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { element } from '../../media/html/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'
 import { utf8ToString } from '../../text/module.f.mjs'
-import { demoSection, footer, header, page, pageHref, pagePath, repository, sections, subtree, testSection } from './module.f.mjs'
+import { demoSection, directoryLayout, footer, header, page, pageHref, pagePath, repository, sections, subtree, testSection } from './module.f.mjs'
 
 /** @type {(dir: Dir) => string} */
 const sectionsHtml = dir => concat(element(['body', ...sections(null)(dir)]))
@@ -35,11 +35,11 @@ const contents = items => '<body><details data-section="" open=""><summary><h2>C
     + `<ul data-links="">${items}</ul></details></body>`
 
 /**
- * The Issues section around `items`, folded, as the body it is the whole of.
+ * The Issues section around `items`, open, as the body it is the whole of.
  *
  * @type {(items: string) => string}
  */
-const issues = items => '<body><details data-section=""><summary><h2>Issues</h2></summary>'
+const issues = items => '<body><details data-section="" open=""><summary><h2>Issues</h2></summary>'
     + `<ul data-links="">${items}</ul></details></body>`
 
 /** @type {Dir} */
@@ -65,7 +65,7 @@ export const proof = {
         // The footer is the frame's, so a directory's page carries it.
         onEveryPage: () => {
             const html = utf8ToString(page({ ...local, funding: [{ description: 'Patreon', address: 'https://patreon.com/x' }] })(empty))
-            assert(html.endsWith('</main><footer data-funding="">Support FunctionalScript: <a href="https://patreon.com/x">Patreon<span aria-hidden="true"> ↗</span></a></footer></body></html>'), html)
+            assert(html.endsWith('</main></div><footer data-funding="">Support FunctionalScript: <a href="https://patreon.com/x">Patreon<span aria-hidden="true"> ↗</span></a></footer></body></html>'), html)
         },
     },
     /**
@@ -152,16 +152,15 @@ export const proof = {
             contents('<li><a href="/fjs/types/index.html" data-kind="dir">types</a></li>'
                 + '<li><a href="/fjs/module.f.mjs" data-kind="file">module.f.mjs</a></li>')),
         /**
-         * **Issues are a list of their own, after Contents and folded.** The
-         * root has dozens, and an open list would push the suite below it
-         * off the screen.
+         * **Issues are a list of their own, after Contents and open.** Both
+         * lists are available without opening a disclosure control.
          */
-        issuesSeparateAndFolded: () => {
+        issuesSeparateAndOpen: () => {
             const html = sectionsHtml({ ...empty, path: 'fjs', todo: ['a.md'], files: ['module.f.mjs'] })
             assertEq(html,
                 '<body><details data-section="" open=""><summary><h2>Contents</h2></summary>'
                 + '<ul data-links=""><li><a href="/fjs/module.f.mjs" data-kind="file">module.f.mjs</a></li></ul></details>'
-                + '<details data-section=""><summary><h2>Issues</h2></summary>'
+                + '<details data-section="" open=""><summary><h2>Issues</h2></summary>'
                 + '<ul data-links=""><li><a href="/fjs/todo/a.md" data-kind="issue">a.md</a></li></ul></details></body>')
         },
         // A subdirectory link points at a page, and every such page exists —
@@ -350,6 +349,21 @@ export const proof = {
             assert(html.includes("import { startDemo } from '/fjs/website/demo-runtime.mjs'"), html)
         },
     },
+    directoryLayout: {
+        catalogueBesideMain: () => {
+            const dir = { ...empty, path: 'fjs', files: ['module.f.mjs'], todo: ['a.md'] }
+            const html = concat(element(directoryLayout({ ...local, commit })(dir)(['main', ['h1', 'fjs']])))
+            const asideEnd = html.indexOf('</aside>')
+            assert(html.startsWith('<div data-directory-layout=""><aside data-catalogue="" aria-label="Directory catalogue">'), html)
+            assert(html.indexOf('<h2>Contents</h2>') < asideEnd, html)
+            assert(html.indexOf('<h2>Issues</h2>') < asideEnd, html)
+            assert(html.includes(`${repository}/blob/${commit}/fjs/module.f.mjs`), html)
+            assert(html.endsWith('</aside><main><h1>fjs</h1></main></div>'), html)
+        },
+        emptyCatalogue: () => assertEq(
+            concat(element(directoryLayout(local)(empty)(['main']))),
+            '<div data-directory-layout=""><aside data-catalogue="" aria-label="Directory catalogue"></aside><main></main></div>'),
+    },
     page: {
         /**
          * The breadcrumb names every ancestor and stops before the directory
@@ -372,7 +386,7 @@ export const proof = {
         header: () => {
             const html = pageHtml({ ...empty, path: 'fjs' })
             assert(html.includes('<body><header><nav aria-label="Site">'), html)
-            assert(html.includes('</header><main'), html)
+            assert(html.includes('</header><div data-directory-layout=""><aside'), html)
         },
         // The page names its language, names itself in the tab, and links the
         // stylesheet and the favicon.
@@ -387,12 +401,12 @@ export const proof = {
             assert(html.includes('<link rel="icon" href="/favicon.ico" sizes="32x32">'), html)
             assert(html.includes('<link rel="icon" type="image/svg+xml" href="/fjs/website/favicon.svg">'), html)
         },
-        // A page with a demo leads with it, above the catalogue: what a
-        // module does is the quickest answer to what it is.
+        // A demo stays in main while the catalogue lives beside it.
         carriesADemo: () => {
             const html = pageHtml({ ...empty, path: 'a', files: ['demo.f.mjs'], demo: '/a/demo.f.mjs' })
             assert(html.includes('data-demo="/a/demo.f.mjs"'), html)
-            assert(html.indexOf('<h2>Demo</h2>') < html.indexOf('<h2>Contents</h2>'), html)
+            assert(html.indexOf('<h2>Contents</h2>') < html.indexOf('</aside>'), html)
+            assert(html.indexOf('<h2>Demo</h2>') > html.indexOf('<main'), html)
         },
         // A crate's page links its API reference under its heading, and a
         // directory without one says nothing about it.

@@ -14,7 +14,7 @@ import { both, resolveFileModule, access, awaitIfPromise, close, doubledLengthMe
 import { empty, length, maxLengthBytes, msb, vec, vec8 } from '../../../types/bit_vec/module.f.mjs'
 import { history, historyStep, pureError, pureOk, resultMapStep, resultStep, step } from '../../module.f.mjs'
 import { empty as endOfBody, nonEmpty } from '../../list/module.f.mjs'
-import { asNominal as asNominalHandle } from '../../../types/nominal/module.f.mjs'
+import { asNominal as asNominalHandle } from '../../../types/nominal/module.f.js'
 import { byteLength, repeat, u8ListMsb } from '../../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../../types/list/module.f.mjs'
 import { utf8, utf8ToString } from '../../../text/module.f.mjs'
@@ -22,7 +22,7 @@ import { defaultNodeProgramOptions, emptyState, nodeProgramOptions, virtual } fr
 import { do_ } from '../../module.f.mjs'
 import { catchStep } from '../../module.f.mjs'
 import { ioError } from '../../module.f.mjs'
-import { ok, unwrap } from '../../../types/result/module.f.mjs'
+import { ok, unwrap } from '../../../types/result/module.f.js'
 import { asNominal, create as memCreate, read as memRead, write as memWrite } from '../../memory/module.f.mjs'
 
 /**

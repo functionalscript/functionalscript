@@ -11,7 +11,7 @@
 
 import { assertOk } from '../../../asserts/module.f.mjs'
 import { isArray } from '../../../types/array/module.f.mjs'
-import { ok } from '../../../types/result/module.f.mjs'
+import { ok } from '../../../types/result/module.f.js'
 import { analysis } from '../../analysis/module.f.mjs'
 import { functionText } from '../../../compiler/serializer/module.f.mjs'
 import { join } from '../array/module.f.mjs'

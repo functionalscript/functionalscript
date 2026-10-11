@@ -17,7 +17,7 @@
  */
 
 import { analysis, checked } from '../../analysis/module.f.mjs'
-import { mapOk, okThen } from '../../../types/result/module.f.mjs'
+import { mapOk, okThen } from '../../../types/result/module.f.js'
 
 /** Checks closure bindings and body scopes in shape-checked FJS data. @type {(value: EdagValue) => Result<EdagValue, string>} */
 export const validateClosure = value => mapOk(() => value)(okThen(checked)(analysis(value)))

@@ -25,7 +25,7 @@ import {
     wholeBytes,
 } from '../types/bit_vec/module.f.mjs'
 import { assert } from '../asserts/module.f.mjs'
-import { identity } from '../types/function/module.f.mjs'
+import { identity } from '../types/function/module.f.js'
 import { toArray } from '../types/list/module.f.mjs'
 import { at } from '../types/object/module.f.mjs'
 import { max } from '../types/function/compare/module.f.mjs'

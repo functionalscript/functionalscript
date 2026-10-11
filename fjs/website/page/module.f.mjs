@@ -137,8 +137,10 @@ export const subtree = dir => all => {
  * @type {(sources: readonly string[]) => Element}
  */
 const runner = sources => ['script', { type: 'module' },
-    `import { startBrowserTestSources } from '/fjs/emergent_testing/browser/module.mjs'
+    `import { startDirectoryDrawer } from '/fjs/website/directory-runtime.mjs'
+import { startBrowserTestSources } from '/fjs/emergent_testing/browser/module.mjs'
 
+startDirectoryDrawer(document.querySelector('[data-directory-layout]'))
 const root = document.querySelector('[data-browser-tests]')
 const sources = [
 ${sources.map(source => `    '${source}',`).join('\n')}
@@ -379,12 +381,12 @@ const dirItem = dir => name => ['li', ['a', {
  * section away under, over a list of entries — or nothing at all when there
  * are none, so a page says only what is true of its directory.
  *
- * @type {(heading: string) => (open: boolean) => (items: readonly Element[]) => readonly Node[]}
+ * @type {(heading: string) => (items: readonly Element[]) => readonly Node[]}
  */
-const section = heading => open => items =>
+const section = heading => items =>
     items.length === 0
         ? []
-        : [['details', { 'data-section': '', open: open ? '' : undefined },
+        : [['details', { 'data-section': '', open: '' },
             summary(heading)(),
             ['ul', { 'data-links': '' }, ...items]]]
 
@@ -399,11 +401,11 @@ const section = heading => open => items =>
  * then files, as GitHub and a file manager list them: a directory is where a
  * reader goes next, and a file is where the reading stops.
  *
- * **Issues are a list of their own, folded.** An issue is about the
- * directory rather than in it, and the list is not bounded by the directory
- * — the root has dozens — so it opens only when a reader asks, and pushes
- * nothing below it down until then. Its entries keep the issue icon, so an
- * entry looks the same wherever it is listed.
+ * **Issues are a list of their own, open by default.** An issue is about
+ * the directory rather than in it. Showing its open work beside Contents
+ * makes both lists available immediately; a reader can fold either away.
+ * Its entries keep the issue icon, so an entry looks the same wherever it
+ * is listed.
  *
  * The root page inserts these into its own frame; {@link page} wraps them in
  * one. Nothing here depends on which of the two is calling.
@@ -413,12 +415,24 @@ const section = heading => open => items =>
  * @type {(commit: string | null) => (dir: Dir) => readonly Node[]}
  */
 export const sections = commit => dir => [
-    ...section('Contents')(true)([
+    ...section('Contents')([
         ...dir.dirs.map(dirItem(dir)),
         ...dir.files.map(name => item('file')(fileHref(commit)(dir.path)(name))(name)),
     ]),
-    ...section('Issues')(false)(dir.todo.map(name =>
+    ...section('Issues')(dir.todo.map(name =>
         item('issue')(fileHref(commit)(dir.path)(`todo/${name}`))(name))),
+]
+
+/**
+ * A directory's catalogue in the left margin beside its main content.
+ * Contents and Issues keep their own disclosure controls. On a narrow
+ * screen the directory runtime moves the catalogue into a modal drawer.
+ *
+ * @type {(build: Build) => (dir: Dir) => (main: Element) => Element}
+ */
+export const directoryLayout = build => dir => main => ['div', { 'data-directory-layout': '' },
+    ['aside', { 'data-catalogue': '', 'aria-label': 'Directory catalogue' }, ...sections(build.commit)(dir)],
+    main,
 ]
 
 /**
@@ -525,7 +539,7 @@ export const footer = funding => funding.length === 0 ? [] : [['footer', { 'data
 
 /**
  * The frame every page of the site shares: its `<head>`, its {@link header}
- * and its {@link footer}, around the page's own `main`.
+ * and its {@link footer}, around the page's own content.
  *
  * **One builder, so a page cannot drift from the rest.** The root page, a
  * directory's page, a release's page and the release index each used to
@@ -533,13 +547,13 @@ export const footer = funding => funding.length === 0 ? [] : [['footer', { 'data
  * one of them would have been missing from the others with nothing to say
  * so.
  *
- * **`main` is the page's, attributes and all**, because pages differ there on
+ * **The content is the page's, attributes and all**, because pages differ there on
  * purpose: one that runs a suite marks it for the runtime — see
  * {@link testsMain} — and a changelog page does not.
  *
- * @type {(build: Build) => (title: string) => (main: Element) => Vec}
+ * @type {(build: Build) => (title: string) => (content: Element) => Vec}
  */
-export const shell = build => title => main => htmlUtf8(lang)(
+export const shell = build => title => content => htmlUtf8(lang)(
     ['title', title],
     // OAuth callback parameters must not become subresource referrers.
     ['meta', { name: 'referrer', content: 'no-referrer' }],
@@ -547,7 +561,7 @@ export const shell = build => title => main => htmlUtf8(lang)(
     ...faviconLinks,
 )(
     header(build),
-    main,
+    content,
     ...footer(build.funding),
 )
 
@@ -566,12 +580,11 @@ export const testsMain = (...nodes) => ['main', { 'data-browser-tests': '', 'dat
  *
  * @type {(build: Build) => (dir: Dir) => Vec}
  */
-export const page = build => dir => shell(build)(pageTitle(dir.path))(testsMain(
+export const page = build => dir => shell(build)(pageTitle(dir.path))(directoryLayout(build)(dir)(testsMain(
     ['nav', ...toArray(intersperse(' / ')(ancestors(dir.path).map(([path, name]) =>
         /** @type {Element} */(['a', { href: pageHref(path) }, name]))))],
     ['h1', dir.path],
     ...(dir.api === null ? [] : [/** @type {Element} */ (['p', ['a', { href: dir.api }, 'API documentation']])]),
     ...(dir.demo === null ? [] : demoSection(dir.demo)),
-    ...sections(build.commit)(dir),
     ...testSection(dir)([]),
-))
+)))

@@ -23,8 +23,8 @@ import { corpus, main as matrix, modules as corpusModules } from '../../media/da
 import { main as fixtures, modulesPath } from '../../nanvm/harness/module.f.mjs'
 import { tryStringify } from '../../media/datajs/serializer/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
-import { asNominal } from '../../types/nominal/module.f.mjs'
-import { error, ok, unwrap } from '../../types/result/module.f.mjs'
+import { asNominal } from '../../types/nominal/module.f.js'
+import { error, ok, unwrap } from '../../types/result/module.f.js'
 import { generators, lock, lockEnded, main, sequence } from './module.f.mjs'
 
 /** A child as `spawn` would brand one; nothing here looks inside it. @type {Child} */

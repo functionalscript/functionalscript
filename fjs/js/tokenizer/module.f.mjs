@@ -11,9 +11,12 @@
  * The grammar is read by the LL(1) backend resumed where the last token
  * ended ([`fjs/ebnf/ll1`](../../ebnf/ll1/README.md), "A token layer resumes
  * the parser"). A token's text is the input between where it began and
- * where it ended, so nothing walks its tree but the one question a block
- * comment leaves open — whether it closed — and that walk is a loop, since
- * the comment's content is right-recursive and a comment may be long.
+ * where it ended. The only node walks decide whether a block comment
+ * closed or how a template chunk ended, both loops since their content
+ * is right-recursive and may be long. A stack counts braces inside each
+ * substitution, so its matching `}` resumes the chunk grammar and nested
+ * templates resume the enclosing substitution after their tail. Each chunk
+ * retains its exact source spelling alongside its cooked value.
  *
  * What the grammar leaves to the fold above it: a run of whitespace and
  * newlines is one token, `nl` where the run holds a newline and anchored
@@ -46,12 +49,12 @@
  * @import { ErrorToken, JsToken, JsTokenWithMetadata, TokenMetadata, TokenPosition } from '../../ebnf/lib/js/types.ts'
  * @import { StateScan } from '../../types/function/operator/types.ts'
  * @import { List } from '../../types/list/types.ts'
- * @import { _Cursor, _Failure, _Kind, _Lexed, _Lexeme, _StringDecodeState, _Trivia } from './private.ts'
+ * @import { _Cursor, _Failure, _Kind, _Lexed, _Lexeme, _StringDecodeState, _TemplateContext, _TemplateDecode, _Trivia } from './private.ts'
  */
 import { assert } from '../../asserts/module.f.mjs'
 import { parser } from '../../ebnf/ll1/module.f.mjs'
-import { lineTerminators, mergeTrivia, token } from '../../ebnf/lib/js/module.f.mjs'
-import { isKeyword } from '../keywords/module.f.mjs'
+import { lineTerminators, mergeTrivia, templateContinuation, token } from '../../ebnf/lib/js/module.f.mjs'
+import { isKeyword } from '../keywords/module.f.js'
 import { escapeToCodePoint } from '../string_escape/module.f.mjs'
 import {
     apostrophe, asterisk, cr, lf, one,
@@ -67,6 +70,7 @@ import { concat, empty, flat, fold, stateScan, toArray } from '../../types/list/
 
 /** The parser of one token, built once: the grammar is analysed per module, not per parse. */
 const parseToken = parser(token)
+const parseTemplateContinuation = parser(templateContinuation)
 
 /**
  * A variant's node, read untyped: its tag and the branch's node. The tree
@@ -107,6 +111,20 @@ const closed = content => {
     }
 }
 
+/** Whether a template chunk ended with a backtick rather than `${`. */
+/** @type {(content: unknown) => boolean} */
+const templateClosed = content => {
+    let node = content
+    for (;;) {
+        const [tag, rest] = branch(node)
+        switch (tag) {
+            case 'end': { return true }
+            case 'substitution': { return false }
+            default: { node = items(rest)[1] }
+        }
+    }
+}
+
 /**
  * The kind of a token from its node, and whether it closed — which is a
  * question only for a block comment, `true` for every other token. The
@@ -117,6 +135,9 @@ const closed = content => {
  */
 const kindOf = node => {
     const [tag, child] = branch(node)
+    if (tag === 'template') {
+        return [templateClosed(items(child)[1]) ? 'noSubstitutionTemplate' : 'templateHead', true]
+    }
     if (tag !== 'slash') { return [/** @type {_Kind} */ (tag), true] }
     const [sub, rest] = branch(items(child)[1])
     switch (sub) {
@@ -188,8 +209,12 @@ const lex = path => cp => {
     let pos = 0
     /** @type {TokenMetadata} */
     let metadata = { path, line: 1, column: 1 }
+    /** @type {readonly _TemplateContext[]} */
+    let templates = []
     while (pos < cp.length) {
-        const match = parseToken(symbols, pos)
+        const active = templates.at(-1)
+        const continuation = active !== undefined && active.braces === 0 && cp[pos] === one('}')
+        const match = continuation ? parseTemplateContinuation(symbols, pos) : parseToken(symbols, pos)
         const previous = pos === 0 ? undefined : cp[pos - 1]
         if (match[0] === 'error') {
             /** @type {_Failure} */
@@ -202,10 +227,28 @@ const lex = path => cp => {
         }
         const [node, end] = match[1]
         const text = cp.slice(pos, end)
-        const [kind, ok] = kindOf(node)
+        const [kind, ok] = continuation
+            ? /** @type {const} */ ([templateClosed(items(node)[1]) ? 'templateTail' : 'templateMiddle', true])
+            : kindOf(node)
+        if (kind === 'templateHead') {
+            templates = [...templates, { braces: 0, start: metadata }]
+        } else if (kind === 'templateTail') {
+            templates = templates.slice(0, -1)
+        } else if (active !== undefined && kind === 'operator') {
+            if (text[0] === one('{')) {
+                templates = [...templates.slice(0, -1), { ...active, braces: active.braces + 1 }]
+            } else if (text[0] === one('}')) {
+                templates = [...templates.slice(0, -1), { ...active, braces: active.braces - 1 }]
+            }
+        }
         lexemes = concat(lexemes)([{ kind, text, start: metadata, closed: ok }])
         metadata = advance(metadata)(previous)(text)
         pos = end
+    }
+    if (templates.length !== 0) {
+        const active = templates[templates.length - 1]
+        assert(active !== undefined)
+        return { lexemes: toArray(lexemes), failure: { number: false, start: active.start, at: metadata }, final: metadata }
     }
     return { lexemes: toArray(lexemes), failure: null, final: metadata }
 }
@@ -263,6 +306,92 @@ const stringDecodeScan = (cp, state) => {
  */
 const decodeString = codePoints => codePointListToString(flat(stateScan(stringDecodeScan)({ kind: 'normal' })(codePoints.slice(1, -1))))
 
+/** @type {(cp: number) => (decode: _TemplateDecode) => _TemplateDecode} */
+const templateNormal = cp => decode => {
+    if (cp === reverseSolidus) {
+        return { ...decode, state: { kind: 'escape' }, previous: cp }
+    }
+    return {
+        ...decode,
+        state: { kind: 'normal' },
+        value: cp === lf && decode.previous === cr ? decode.value : concat(decode.value)([cp === cr ? lf : cp]),
+        previous: cp,
+    }
+}
+
+/**
+ * Decode the grammar's JavaScript template escapes. Raw CR
+ * and CRLF cook to LF; escaped line terminators cook to nothing. The grammar
+ * supplies complete hex escapes, while the decoder validates the code point
+ * limit and the digit boundary after `\0`.
+ *
+ * @type {(cp: number) => (decode: _TemplateDecode) => _TemplateDecode}
+ */
+const templateDecodeStep = cp => decode => {
+    const { state } = decode
+    switch (state.kind) {
+        case 'normal': { return templateNormal(cp)(decode) }
+        case 'zero': {
+            return templateNormal(cp)({ ...decode, valid: decode.valid && !isDigit(cp) })
+        }
+        case 'escape': {
+            if (cp === latinSmallLetterU) {
+                return { ...decode, state: { kind: 'unicodeStart' }, previous: cp }
+            }
+            if (cp === one('x')) {
+                return { ...decode, state: { kind: 'hex', acc: 0, count: 0 }, previous: cp }
+            }
+            if (lineTerminatorCodePoints.includes(cp)) {
+                return { ...decode, state: { kind: 'normal' }, previous: cp }
+            }
+            const simple = escapeToCodePoint(cp)
+            const value = simple !== null ? simple : cp === one('v') ? 0xb : cp === one('0') ? 0 : cp
+            return {
+                ...decode,
+                state: { kind: cp === one('0') ? 'zero' : 'normal' },
+                value: concat(decode.value)([value]),
+                previous: cp,
+            }
+        }
+        case 'unicodeStart': {
+            return cp === one('{')
+                ? { ...decode, state: { kind: 'codePoint', acc: 0 }, previous: cp }
+                : { ...decode, state: { kind: 'unicode', acc: unwrapHexDigitValue(cp), count: 1 }, previous: cp }
+        }
+        case 'unicode':
+        case 'hex': {
+            const acc = (state.acc << 4) | unwrapHexDigitValue(cp)
+            const count = state.count + 1
+            return count === (state.kind === 'hex' ? 2 : 4)
+                ? { ...decode, state: { kind: 'normal' }, value: concat(decode.value)([acc]), previous: cp }
+                : { ...decode, state: { ...state, acc, count }, previous: cp }
+        }
+        case 'codePoint': {
+            if (cp === one('}')) {
+                return {
+                    ...decode,
+                    state: { kind: 'normal' },
+                    value: state.acc <= 0x10_ffff ? concat(decode.value)([state.acc]) : decode.value,
+                    valid: decode.valid && state.acc <= 0x10_ffff,
+                    previous: cp,
+                }
+            }
+            return {
+                ...decode,
+                state: { kind: 'codePoint', acc: state.acc > 0x10_ffff ? state.acc : state.acc * 16 + unwrapHexDigitValue(cp) },
+                previous: cp,
+            }
+        }
+    }
+}
+
+/** @type {(source: readonly number[]) => _TemplateDecode} */
+const decodeTemplate = source => {
+    /** @type {_TemplateDecode} */
+    const start = { state: { kind: 'normal' }, value: empty, valid: true, previous: undefined }
+    return fold(templateDecodeStep)(start)(source)
+}
+
 /**
  * The token a word is: a string decoded, a word a keyword or an identifier,
  * a number a `number` or a `bigint` by its suffix, a comment its text
@@ -274,6 +403,16 @@ const toJsToken = ({ kind, text }) => {
     const value = codePointListToString(text)
     switch (kind) {
         case 'string': { return { kind: 'string', value: decodeString(text) } }
+        case 'noSubstitutionTemplate':
+        case 'templateHead':
+        case 'templateMiddle':
+        case 'templateTail': {
+            const source = text.slice(1, kind === 'templateHead' || kind === 'templateMiddle' ? -2 : -1)
+            const decoded = decodeTemplate(source)
+            return decoded.valid
+                ? { kind, value: codePointListToString(decoded.value), source: codePointListToString(source) }
+                : { kind: 'error', message: 'invalid token' }
+        }
         case 'id': { return isKeyword(value) ? /** @type {JsToken} */ ({ kind: value }) : { kind: 'id', value } }
         case 'number': {
             return value.endsWith('n') ? { kind: 'bigint', value: BigInt(value.slice(0, -1).replaceAll('_', '')) } : { kind: 'number', value }
@@ -355,6 +494,9 @@ export const tokenize = input => path => {
             return failed('invalid number', start)
         }
         const jsToken = toJsToken(lexeme)
+        if (jsToken.kind === 'error') {
+            return failed(jsToken.message, start, final)
+        }
         out = concat(out)([at(jsToken, start)])
         if (jsToken.kind === '/*' && (jsToken.value.includes('\n') || jsToken.value.includes('\r'))) {
             out = concat(out)([at({ kind: 'nl' }, start)])

@@ -15,10 +15,13 @@ use crate::{
         member, optional_argument, required,
     },
     common,
-    files::{self, Dirent, IoError, Stat, js_number},
+    files::{self, Dirent, IoError, Stat},
     resolve::{FileModule, resolve_file_module},
 };
-use nanvm_lib::vm::{Any, Array, IVm, unstable::string_any};
+use nanvm_lib::vm::{
+    Any, Array, IVm,
+    unstable::{number_text, string_any},
+};
 use std::{
     collections::HashMap,
     fs::File,
@@ -309,6 +312,10 @@ impl<R: Read, O: Write, E: Write> Native<R, O, E> {
                 arity(payload, 0)?;
                 Ok(common::now())
             }
+            "randomInt" if common::RANDOM => {
+                arity(payload, 0)?;
+                Ok(common::random_int())
+            }
             "rm" => {
                 arity(payload, 1)?;
                 let path = decode_string(argument(payload, 0, "path")?)?;
@@ -328,7 +335,7 @@ impl<R: Read, O: Write, E: Write> Native<R, O, E> {
         } else {
             Err(Malformed(format!(
                 "{} is not a file handle",
-                js_number(number)
+                number_text(number)
             )))
         }
     }
@@ -961,6 +968,17 @@ mod test {
         assert!(before <= answer && answer <= after && answer.fract() == 0.0);
     }
 
+    /// `randomInt` is a whole number below 2^32. Needs a seed, which
+    /// `wasm32-unknown-unknown` does not have.
+    #[cfg(not(all(target_family = "wasm", target_os = "unknown")))]
+    #[test]
+    fn random_int_is_below_2_to_the_32() {
+        for _ in 0..16 {
+            let n = f64::from(Number::try_from(ok(perform("randomInt", []))).unwrap());
+            assert!((0.0..0x1_0000_0000_u64 as f64).contains(&n) && n.fract() == 0.0);
+        }
+    }
+
     #[test]
     fn the_thunk_operations_take_exactly_their_arguments() {
         assert_eq!(thrown("catch", []), "missing argument 0, `f`");
@@ -977,13 +995,17 @@ mod test {
             thrown("now", [hi()]),
             "1 arguments where at most 0 are taken"
         );
+        assert_eq!(
+            thrown("randomInt", [hi()]),
+            "1 arguments where at most 0 are taken"
+        );
     }
 
     /// Without a clock the operations are refused, not trapped.
     #[cfg(all(target_family = "wasm", target_os = "unknown"))]
     #[test]
     fn the_clock_operations_are_not_implemented_without_a_clock() {
-        for command in ["sandbox", "now"] {
+        for command in ["sandbox", "now", "randomInt"] {
             assert_eq!(
                 perform(command, []).unwrap().to_json(),
                 Ok(format!("[\"error\",[\"notImplemented\",\"{command}\"]]"))

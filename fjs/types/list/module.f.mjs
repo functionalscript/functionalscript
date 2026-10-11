@@ -8,7 +8,7 @@
  * @import { Accumulator, Indexed, List, NonEmpty, NotLazy, Result, Thunk } from './types.ts'
  */
 
-import { identity, compose } from '../function/module.f.mjs'
+import { identity, compose } from '../function/module.f.js'
 import {
     addition,
     logicalNot,

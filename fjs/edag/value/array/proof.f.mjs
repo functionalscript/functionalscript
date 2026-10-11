@@ -10,7 +10,7 @@
  */
 
 import { assert, assertEq, assertOk, assertError, assertNotNullish, assertStructurallySame } from '../../../asserts/module.f.mjs'
-import { ok, error } from '../../../types/result/module.f.mjs'
+import { ok, error } from '../../../types/result/module.f.js'
 import { primitiveToString } from '../coercion/module.f.mjs'
 import { array, join } from './module.f.mjs'
 

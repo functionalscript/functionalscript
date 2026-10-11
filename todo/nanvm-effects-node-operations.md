@@ -40,7 +40,11 @@ implementation details remain unspecified here.
   - [x] `stat`, `access`, `rename`, `rmdir`.
   - [x] `createExclusive`, `writeExclusive`, `readBytes`.
   - [x] `sandbox`, `catch`, `now`.
-  - [ ] `randomInt`, `inflate`, `test`.
+  - [x] `randomInt`, from `std`'s `RandomState`, not cryptographically secure
+        ([doc](../nanvm/effects-node/doc/random-int.md)).
+  - [ ] `inflate`.
+  - [ ] `test`: proposed to stay unimplemented natively, which has no test framework
+        to register with ([todo](../nanvm/effects-node/todo/test-effect.md)).
   - [x] The descriptor handles `open`, `fstat`, `pread`, `close`: a handle is an
         index into the host's table of open files, as `Handle` in
         `fjs/effects/node/types.ts` allows; it is never reused, and a closed one
@@ -53,9 +57,11 @@ implementation details remain unspecified here.
         holds programs the Node runner (`fjs/nanvm/parity/proof.mjs`) and
         `nanvm-effects-node` (`nanvm/harness/tests/parity.rs`) both perform
         against one `expected`. Add a case there when an operation gains one.
-  - [x] `catch`, `sandbox` and `now`: the `thunks` case, over what they answer
+  - [x] `catch`, `sandbox`, `now` and `randomInt`: the `thunks` case, over what they answer
         rather than the clock's value.
   - [x] `resolveFileModule` of a path: the `resolution` case. A module relative
         to a parent URL is left out, for a file URL is spelled by platform.
-  - [ ] The rest of the scope: console, and what the corpus leaves out on
-        purpose (see its header).
+  - [x] The console: `nanvm/harness/fixtures/console.mjs`, performed over buffers
+        by `nanvm/harness/tests/console.rs` and in a child process with held
+        streams by `fjs/nanvm/parity/console.proof.mjs`.
+  - [ ] What the corpus leaves out on purpose (see its header) stays open.

@@ -35,22 +35,24 @@ last   ::= 'export' ( 'default' value end | const const* [ last ] )
 end    ::= [ ';' ]
 value  ::= '-' unaryOperand tail | '~' unaryOperand tail
          | '!' unaryOperand tail | 'typeof' unaryOperand tail
-         | (primitive | array | object) access* powTail tail
+         | (primitive | template | array | object) access* powTail tail
          | id arrowOrRest
          | '(' (func | value afterValue)
 body   ::= '-' unaryOperand tail | '~' unaryOperand tail
          | '!' unaryOperand tail | 'typeof' unaryOperand tail
-         | (primitive | array) access* powTail tail
+         | (primitive | template | array) access* powTail tail
          | id arrowOrRest
          | '(' (func | value afterValue) | block
 unary  ::= '-' unaryOperand | '~' unaryOperand | '!' unaryOperand
          | 'typeof' unaryOperand
-         | (primitive | id | array | object) access* powTail
+         | (primitive | template | id | array | object) access* powTail
          | '(' group
 unaryOperand ::= '-' unaryOperand | '~' unaryOperand | '!' unaryOperand
          | 'typeof' unaryOperand
-         | (primitive | id | array | object) access*
+         | (primitive | template | id | array | object) access*
          | '(' groupOperand
+template ::= noSubstitutionTemplate
+           | templateHead value { templateMiddle value } templateTail
 block  ::= '{' statement* terminator '}'
 statement ::= const | 'if' '(' value ')' block
 terminator ::= 'return' value end | 'throw' value end
@@ -217,7 +219,7 @@ the fold's:
   anywhere but as the callee of `Number(x)` or `String(x)`
   ([spec: number conversion](../../../spec/README.md#number-conversion),
   [string conversion](../../../spec/README.md#string-conversion)) —
-  [`fjs/js/keywords`](../../js/keywords/module.f.mjs)' `reservedGlobals`, a
+  [`fjs/js/keywords`](../../js/keywords/module.f.js)' `reservedGlobals`, a
   list beside the keywords rather than among them, since JavaScript has no
   such keyword and its tokenizer keeps the word an `id`. The fold reads the
   callee's word before resolving it, so the word alone decides, no scope
@@ -332,6 +334,16 @@ change adds no ASI.
 `parseSyntax`, in `./syntax`, exposes that tree for proofs before the
 fold. It does not establish binding validity, JavaScript early errors or FunctionalScript
 admission; `parseFromTokens` remains the checked compilation entry point.
+
+An untagged template is a primary expression. The shared tokenizer supplies
+cooked head, middle and tail tokens, preserving object and function braces
+inside full-expression substitutions. The compiler tokenizer checks the source
+escape policy before these chunks reach the syntax reader. The reader lowers
+each substitution to an internal unary `String` node and joins it and every
+chunk with left-associated binary `+`, including empty chunks. The fold maps
+that conversion to the existing AST operation, independently of source names.
+A template without substitutions is its cooked string. Tagged templates have
+no suffix production, so the grammar refuses them where their template starts.
 
 Nothing walks the tree. The machine's own stack is on the heap, so nesting
 depth is the input's; a list's mapping puts one item before the list its

@@ -34,7 +34,7 @@
  * @import { Marked } from '../../text/marked/types.ts'
  */
 
-import { error, mapOk, okThen, unwrap } from '../../types/result/module.f.mjs'
+import { error, mapOk, okThen, unwrap } from '../../types/result/module.f.js'
 import { analysis, checked } from '../../edag/analysis/module.f.mjs'
 import { holdsFunction, indent, readsArgs, scopeTagged, useLinesTagged } from '../../edag/rust/module.f.mjs'
 import { fromTagged, tagged, untagged, withNames } from '../../text/marked/module.f.mjs'

@@ -30,7 +30,7 @@ import { remove as btreeRemove } from '../btree/remove/module.f.mjs'
 import { set as btreeSet } from '../btree/set/module.f.mjs'
 import { cmp } from "../string/module.f.mjs"
 import { fold } from '../list/module.f.mjs'
-import { compose } from '../function/module.f.mjs'
+import { compose } from '../function/module.f.js'
 
 /** @type {(s: StringSet) => List<string>} */
 export const values = btValues

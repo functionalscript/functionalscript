@@ -3,7 +3,7 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { exitCode } from '../../effects/node/module.f.mjs'
 import { emptyState, nodeProgramOptions, virtual } from '../../effects/node/virtual/module.f.mjs'
-import { unwrap } from '../../types/result/module.f.mjs'
+import { unwrap } from '../../types/result/module.f.js'
 import { clean, generatedFiles, isGenerated, main } from './module.f.mjs'
 
 /** @type {Dir} */

@@ -3,14 +3,14 @@
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { maxLengthBytes, repeat, uint, vec } from '../../types/bit_vec/module.f.mjs'
-import { flip } from '../../types/function/module.f.mjs'
+import { flip } from '../../types/function/module.f.js'
 import { map } from '../../types/list/module.f.mjs'
 import { computeSync } from '../sha2/module.f.mjs'
 import { sha1 } from './module.f.mjs'
 import { demo, digest } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
-import { unwrap } from '../../types/result/module.f.mjs'
+import { unwrap } from '../../types/result/module.f.js'
 
 const compute = computeSync(sha1)
 

@@ -96,5 +96,5 @@ This is VM and EDAG-printer support. The source parser still does not admit
 | To boolean     | [x]    | [`boolean_coercion.rs`](src/vm/boolean_coercion.rs) — never throws, unlike the others |
 | To primitive   | [x]    | [`primitive_coercion.rs`](src/vm/primitive_coercion.rs) |
 | To numeric     | [x]    | `Any::to_numeric()` |
-| To int32       | [x]    | [`int32_coercion.rs`](src/vm/int32_coercion.rs) — `ToInt32`, operating on the already-coerced `f64` a `Number::` bitwise/shift op needs |
-| To uint32      | [x]    | [`int32_coercion.rs`](src/vm/int32_coercion.rs) — `ToUint32`, shares its `modulo 2^32` step with `ToInt32`; used for `<<`/`>>`'s shift-count operand and both of `>>>`'s operands |
+| To int32       | [x]    | [`int32_coercion.rs`](src/vm/number/int32_coercion.rs) — `ToInt32`, operating on the already-coerced `f64` a `Number::` bitwise/shift op needs |
+| To uint32      | [x]    | [`int32_coercion.rs`](src/vm/number/int32_coercion.rs) — `ToUint32`, shares its `modulo 2^32` step with `ToInt32`; used for `<<`/`>>`'s shift-count operand and both of `>>>`'s operands |

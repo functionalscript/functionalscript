@@ -9,7 +9,7 @@
  *
  * **It reads the text with the real tokenizer**, [`fjs/js/tokenizer`](../../../js/tokenizer/module.f.mjs),
  * not with a lookalike, so a string that holds `//` is a string and a
- * keyword is whatever [`isKeyword`](../../../js/keywords/module.f.mjs) says, and
+ * keyword is whatever [`isKeyword`](../../../js/keywords/module.f.js) says, and
  * a literal word is one of its `literalWords`.
  * The tokenizer keeps a token's value, not its spelling (`'a'` and `"a"` are
  * one string), so each token's text is cut from the input between its start
@@ -39,11 +39,11 @@
 
 import { _positions, tokenize } from '../../../js/tokenizer/module.f.mjs'
 import { assertNotNullish } from '../../../asserts/module.f.mjs'
-import { isKeyword, literalWords } from '../../../js/keywords/module.f.mjs'
+import { isKeyword, literalWords } from '../../../js/keywords/module.f.js'
 import { stringToCodePointList } from '../../../text/utf16/module.f.mjs'
 import { fromSpans, toText } from '../../../text/marked/module.f.mjs'
 import { scan, stateScan, toArray } from '../../../types/list/module.f.mjs'
-import { unwrap } from '../../../types/result/module.f.mjs'
+import { unwrap } from '../../../types/result/module.f.js'
 
 /**
  * Marked text as nodes: a run with a kind as a classed `span`, a run

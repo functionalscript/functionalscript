@@ -34,7 +34,7 @@ import { resultMarker } from '../../website/style/module.f.mjs'
 import { hexDigitsValue } from '../../text/ascii/module.f.mjs'
 import { tryUtf8 } from '../../text/module.f.mjs'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
-import { error, ok } from '../../types/result/module.f.mjs'
+import { error, ok } from '../../types/result/module.f.js'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 
 /** A named curve, bound once.

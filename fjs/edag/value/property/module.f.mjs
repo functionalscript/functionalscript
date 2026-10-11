@@ -21,7 +21,7 @@
 
 import { arrayIndex } from '../../../js/array_index/module.f.js'
 import { isArray } from '../../../types/array/module.f.mjs'
-import { ok, error } from '../../../types/result/module.f.mjs'
+import { ok, error } from '../../../types/result/module.f.js'
 
 /**
  * Find a stored object property, retaining its tuple identity. An absent

@@ -71,13 +71,13 @@
  * @import { _AccessFrame, _BodyFrame, _CallFrame, _ChainFrame, _ChainPart, _ConditionalFrame, _IndexFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _Intrinsic, _Parameter, _Ref, _Scope, _Stack, _State } from './private.ts'
  */
 
-import { error, mapOk, ok } from '../../types/result/module.f.mjs'
+import { error, mapOk, ok } from '../../types/result/module.f.js'
 import { concat, toArray } from '../../types/list/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
 import { at, empty, setReplace } from '../../types/ordered_map/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { maxLength } from '../../types/function/length/module.f.mjs'
-import { isKeyword, isReservedGlobal } from '../../js/keywords/module.f.mjs'
+import { isKeyword, isReservedGlobal } from '../../js/keywords/module.f.js'
 import { prohibitedCalls, prototypeNames } from '../../js/prototype/module.f.js'
 import { nameOf, parseSyntax, textOf } from './syntax/module.f.mjs'
 import { isBinary } from '../ast/module.f.mjs'
@@ -891,6 +891,7 @@ const enter = (stack, scope, node) => {
         case '~': { return [{ top: { bitnot: true }, rest: stack }, scope, ['enter', node[1]]] }
         case '!': { return [{ top: { not: true }, rest: stack }, scope, ['enter', node[1]]] }
         case 'typeof': { return [{ top: { typeof: true }, rest: stack }, scope, ['enter', node[1]]] }
+        case 'String': { return [{ top: { conversion: 'String' }, rest: stack }, scope, ['enter', node[1]]] }
         // the left operand first, as every binary operator's: the right
         // side is checked when the left returns, so a fault in the left is
         // the one reported, the first in document order

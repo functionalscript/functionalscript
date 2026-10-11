@@ -23,8 +23,8 @@
  */
 
 import { assert } from '../../asserts/module.f.mjs'
-import { asBase as nominalAsBase, asNominal as nominalAsNominal } from '../../types/nominal/module.f.mjs'
-import { ok } from '../../types/result/module.f.mjs'
+import { asBase as nominalAsBase, asNominal as nominalAsNominal } from '../../types/nominal/module.f.js'
+import { ok } from '../../types/result/module.f.js'
 import { do_ } from '../module.f.mjs'
 
 const { hasOwn } = Object

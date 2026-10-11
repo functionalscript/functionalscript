@@ -1386,7 +1386,7 @@ are stated instead:
       building; symbolic application is not a strategy on its own. Also confirm that naming every instantiation
       (`const keys = array(key)`), which the name-only rule requires, does not
       become noise across the tree's `@template` uses.
-- [ ] **9. Nominal types.** [`fjs/types/nominal`](../fjs/types/nominal/module.f.mjs)
+- [ ] **9. Nominal types.** [`fjs/types/nominal`](../fjs/types/nominal/module.f.js)
       has no RTTI representation: either RTTI gains a brand-carrying wrapper, or
       nominal types stay a TypeScript-era construct
       ([134-nominal-types-proposal](./134-nominal-types-proposal.md)). Gates
@@ -1460,7 +1460,7 @@ are stated instead:
       | Nominal / branded | `Vec = Nominal<'bit_vec', _Revision, bigint>` ([`bit_vec`](../fjs/types/bit_vec/types.ts)) | stage 9 — branding is a compile-time fiction, so nothing in the value carries it |
       | Generic schema constructors | `pair = t => [t, t]` | stage 8 — the argument-to-result relationship must be reified first |
       | Type-only utilities | `Index`, `FixedArray`, `KeyOf`, `Includes` ([`types/array`](../fjs/types/array/types.ts)) | **nothing yet** — these describe no runtime value, so no schema and no printer produces them |
-      | Polymorphic functions | `identity: <T>(value: T) => T` ([`types/function`](../fjs/types/function/module.f.mjs)) | **nothing yet** — a function schema with concrete parameter and result sets cannot say both positions share one caller-chosen type |
+      | Polymorphic functions | `identity: <T>(value: T) => T` ([`types/function`](../fjs/types/function/module.f.js)) | **nothing yet** — a function schema with concrete parameter and result sets cannot say both positions share one caller-chosen type |
       | Unsettled `unknown` | any exported schema containing `unknown` | **a decision, not a stage** — the module/README, `Ts<>`, the readers and the printer disagree about what it promises; see stage 1 |
       | Inexpressible sets | the closed `{ a: number }`; `rest({ a: number }, string)`; a non-finite or `-0` const | **the policy above**, not a stage — TypeScript cannot name these sets, so the declaration is an upper bound however it is emitted |
 

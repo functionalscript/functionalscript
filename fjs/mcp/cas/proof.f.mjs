@@ -8,14 +8,14 @@
  */
 
 import { casToolRegistry } from './module.f.mjs'
-import { error, ok } from '../../types/result/module.f.mjs'
+import { error, ok } from '../../types/result/module.f.js'
 import { ioError } from '../../effects/node/module.f.mjs'
 import { vec, vec8 } from '../../types/bit_vec/module.f.mjs'
 import { vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { number as rttiNumber, string as rttiString } from '../../rtti/module.f.mjs'
 import { parse as rttiParse } from '../../rtti/parse/module.f.mjs'
-import { unwrap } from '../../types/result/module.f.mjs'
+import { unwrap } from '../../types/result/module.f.js'
 import { parse as parseJson } from '../../media/json/module.f.mjs'
 import { fileCas } from '../../cas/module.f.mjs'
 import { _driveCas } from '../../cas/proof.f.mjs'

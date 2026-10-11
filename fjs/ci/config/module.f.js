@@ -44,16 +44,12 @@ export const bun = '1.4.2'
 // The archive that release publishes for each system a generated flake targets,
 // with the SHA-256 its content must have, as an SRI string.
 //
-// The names are not a free choice. The snapshot's packaging strips a directory
-// whose name it derives from the system — `bun-darwin-x64-baseline` for
-// `x86_64-darwin` — so each archive here is the one that recipe already
-// expects, which is why Intel macOS takes a baseline build rather than the
-// newer one beside it.
+// The snapshot's packaging strips a directory whose name it derives from the
+// system, so each archive here is the one that recipe already expects.
 //
 // Verified rather than copied: every archive was downloaded and hashed here,
-// and three of the four matched an independent packaging of the same release.
-// The fourth, Intel macOS, is one nothing else packages, so our own download is
-// its only source. Recompute them the same way when the version above moves —
+// and matched an independent packaging of the same release.
+// Recompute them the same way when the version above moves —
 // `nix-prefetch-url` where Nix is available, otherwise a download and a
 // `sha256sum` re-encoded as base64.
 /** @type {{ readonly [system: string]: { readonly archive: string, readonly hash: string } }} */
@@ -70,10 +66,6 @@ export const bunSources = {
         archive: 'bun-darwin-aarch64',
         hash: 'sha256-kJh6OhbX21VtiGrD1VHnttPt8KHPQ6yu1iLoZ2vh0S8=',
     },
-    'x86_64-darwin': {
-        archive: 'bun-darwin-x64-baseline',
-        hash: 'sha256-utW71s8U0JgNEV9ZVMn/kE32GdXplNLaH/zNPzFjALA=',
-    },
 }
 
 // The Deno version the pinned Nixpkgs snapshot below provides — read from
@@ -86,7 +78,7 @@ export const deno = '2.8.3'
 // The selected Node version the pinned Nixpkgs snapshot below provides — read
 // from `pkgs/development/web/nodejs/v26.nix` at that commit. It feeds the shared
 // shell, whose jobs assert the version they actually get, as well
-// as every `setup-node` step: the two Windows jobs, the packed-package check
+// as every `setup-node` step: Intel macOS, the two Windows jobs, the packed-package check
 // closing the `node26` job, and the publishing workflow.
 // Nixpkgs usually trails nodejs.org, so bump the snapshot first and copy the
 // version it offers rather than the latest release. Keep package.json's Node

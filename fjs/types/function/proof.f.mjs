@@ -1,5 +1,5 @@
-import { fn, iterate } from './module.f.mjs'
-import { assertEq } from '../../asserts/module.f.mjs'
+import { fn, iterate } from './module.f.js'
+import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 
 export const proof = () => {
     /** @type {(x: string) => readonly [string]} */
@@ -15,6 +15,20 @@ export const proof = () => {
     assertEq(result, 5, r)
 
     assertEq(iterate(0n)(5)(x => x + 1), 5, iterate)
+    assertEq(iterate(1n)(5)(x => x + 1), 6, iterate)
     assertEq(iterate(3n)(5)(x => x + 1), 8, iterate)
     assertEq(iterate(-1n)(5)(x => x + 1), 5, iterate)
+
+    // Each step appends its call number: both even and odd splits preserve
+    // the exact application count and sequential state passed to the next call.
+    /** @type {readonly [number, number]} */
+    const initial = [0, 0]
+    /** @type {(state: readonly [number, number]) => readonly [number, number]} */
+    const next = ([calls, value]) => [calls + 1, value * 10 + calls + 1]
+    assertEq(iterate(0n)(initial)(next), initial, iterate)
+    assertStructurallySame(iterate(4n)(initial)(next), [4, 1234], iterate)
+    assertStructurallySame(iterate(5n)(initial)(next), [5, 12345], iterate)
+
+    // A linear recursive rewrite would exhaust the stack at this count.
+    assertEq(iterate(100_000n)(0n)(x => x + 1n), 100_000n, iterate)
 }

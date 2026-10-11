@@ -27,8 +27,12 @@ export const fixturesDirectory = 'nanvm/harness/fixtures'
  * @type {{ readonly [file: string]: string }}
  */
 export const exceptions = {
+    'console.mjs': 'exports programs for a host to perform, not values: `nanvm/harness/tests/console.rs` and `fjs/nanvm/parity/console.proof.mjs` compare the hosts through them',
+    'effect.mjs': 'exports programs for a host to perform, not values: `nanvm/harness/tests/effects.rs` runs them through `nanvm-effects-node`',
+    'exports.mjs': 'exports one of each kind the harness\'s `run` tells apart (data, a callable, `undefined`): `nanvm/harness/src/lib.rs` tests the selection, and a language value is observed by a fixture with a data default',
     'function-text.mjs': 'a function\'s text is the specified function-text exception: the reference prints the host\'s source, the executors the shared renderer\'s',
     'function.mjs': 'exports a function as its default, which the harness\'s own call action tests; a language call is observed by a fixture that calls at module level',
+    'named-imports-math.mjs': 'a dependency of `named-imports.mjs`, which imports it by name and is the fixture that observes it',
     'parity.mjs': 'exports programs for a host to perform, not values: `nanvm/harness/tests/parity.rs` and `fjs/nanvm/parity/proof.mjs` compare the hosts through them',
     'rest-function.mjs': 'exports a function as its default, which the harness\'s own call action tests; a language call is observed by a fixture that calls at module level',
 }
@@ -52,11 +56,7 @@ export const corpus = names => names.filter(name => name.endsWith(extension) && 
  * @type {{ readonly [file: string]: string }}
  */
 export const undefinedDefault = {
-    'effect.mjs': 'tests a named export, which the corpus does not compare',
-    'exports.mjs': 'tests the export object, which the corpus does not compare',
     'missing.mjs': 'reading past the arguments supplied answers `undefined`, which is the observation',
-    'named-imports.mjs': 'tests a named import, which the corpus does not compare',
-    'named-imports-math.mjs': 'tests a named import, which the corpus does not compare',
 }
 
 /**

@@ -22,7 +22,7 @@
  */
 
 import { assoc, isArray } from '../../../types/array/module.f.mjs'
-import { ok } from '../../../types/result/module.f.mjs'
+import { ok } from '../../../types/result/module.f.js'
 
 /** Copy code arrays once by identity, retaining primitive leaves. @type {(copies: _Copies, part: _Part) => readonly [_Copies, _Part]} */
 const copy = (copies, part) => {

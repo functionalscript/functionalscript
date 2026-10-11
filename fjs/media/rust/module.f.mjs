@@ -32,7 +32,7 @@
  * ```
  */
 
-import { error, ok } from '../../types/result/module.f.mjs'
+import { error, ok } from '../../types/result/module.f.js'
 
 /**
  * A character a Rust string literal cannot hold as it stands: a control

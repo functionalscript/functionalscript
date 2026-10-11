@@ -16,7 +16,7 @@ import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { empty as elEmpty } from '../effects/list/module.f.mjs'
 import { length, u8ListMsb, u8ListToVecMsb } from '../types/bit_vec/module.f.mjs'
 import { toArray } from '../types/list/module.f.mjs'
-import { error, ok, unwrap } from '../types/result/module.f.mjs'
+import { error, ok, unwrap } from '../types/result/module.f.js'
 import { main, resolve, respond } from './module.f.mjs'
 
 /** @type {string} */

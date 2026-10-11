@@ -32,9 +32,9 @@ const isWordChar = c => isDigit(c) || (c >= 'a' && c <= 'z') || (c >= 'A' && c <
  *
  * @type {(text: string) => readonly string[]}
  */
-export const wordsOf = text => Array.from(text).reduce(
+export const wordsOf = text => [...text].reduce(
     (words, c) => isWordChar(c)
-        ? (words.length > 0 && words[words.length - 1] !== '' ? [...words.slice(0, -1), words[words.length - 1] + c] : [...words.slice(0, -1), c])
+        ? (words.length > 0 && words[Number(words.length - 1)] !== '' ? [...words.slice(0, -1), words[Number(words.length - 1)] + c] : [...words.slice(0, -1), c])
         : [...words, ''],
     /** @type {readonly string[]} */([''])).filter(word => word !== '')
 
@@ -45,4 +45,8 @@ export const wordsOf = text => Array.from(text).reduce(
  * @type {(text: Marked) => readonly string[]}
  */
 export const unmarkedWords = text =>
-    text.flatMap(([run, kind]) => kind === undefined ? wordsOf(run).filter(word => marked.includes(word) || isDigit(word[0])) : [])
+    text.flatMap(part => {
+        const run = part[0]
+        const kind = part[1]
+        return kind === undefined ? wordsOf(run).filter(word => marked.includes(word) || isDigit(word[0])) : []
+    })

@@ -25,7 +25,7 @@ import { foldStep, mapStep, pureError, pureOk, step } from '../../effects/module
 import { at, setReplace } from '../../types/ordered_map/module.f.mjs'
 import { drop, includes } from '../../types/list/module.f.mjs'
 import { assertNotNullish, todo } from '../../asserts/module.f.mjs'
-import { unwrap } from '../../types/result/module.f.mjs'
+import { unwrap } from '../../types/result/module.f.js'
 
 const args = /** @type {const} */ (['args'])
 

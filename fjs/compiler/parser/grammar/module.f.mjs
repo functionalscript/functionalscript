@@ -14,22 +14,24 @@
  * end    ::= [ ';' ]
  * value  ::= '-' unaryOperand tail | '~' unaryOperand tail
  *          | '!' unaryOperand tail | 'typeof' unaryOperand tail
- *          | (primitive | array | object) access* powTail tail
+ *          | (primitive | template | array | object) access* powTail tail
  *          | id arrowOrRest
  *          | '(' (func | value afterValue)
  * body   ::= '-' unaryOperand tail | '~' unaryOperand tail
  *          | '!' unaryOperand tail | 'typeof' unaryOperand tail
- *          | (primitive | array) access* powTail tail
+ *          | (primitive | template | array) access* powTail tail
  *          | id arrowOrRest
  *          | '(' (func | value afterValue) | block
  * unary  ::= '-' unaryOperand | '~' unaryOperand | '!' unaryOperand
  *          | 'typeof' unaryOperand
- *          | (primitive | id | array | object) access* powTail
+ *          | (primitive | template | id | array | object) access* powTail
  *          | '(' group
  * unaryOperand ::= '-' unaryOperand | '~' unaryOperand | '!' unaryOperand
  *          | 'typeof' unaryOperand
- *          | (primitive | id | array | object) access*
+ *          | (primitive | template | id | array | object) access*
  *          | '(' groupOperand
+ * template ::= noSubstitutionTemplate
+ *            | templateHead value { templateMiddle value } templateTail
  * block  ::= '{' statement* terminator '}'
  * statement ::= const | 'if' '(' value ')' block
  * terminator ::= 'return' value end | 'throw' value end
@@ -124,13 +126,13 @@
  * @import { Rule, Variant } from '../../../ebnf/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { StringMap } from '../../../types/object/types.ts'
- * @import { Access, AfterValue, ArrowOrRest, Block, Body, CircuitTail, ConditionalTail, EagerTail, End, Func, Group, GroupOperand, InfixTag, Item, Items, LastStatement, Member, Entry, OptionalStep, ParameterNames, Parameters, Paren, ParenGroup, ParenGroupOperand, Parenthesized, PowTail, Statement, Tail, Terminator, Unary, UnaryOperand, Value, ValueBranches } from './types.ts'
+ * @import { Access, AfterValue, ArrowOrRest, Block, Body, CircuitTail, ConditionalTail, EagerTail, End, Func, Group, GroupOperand, InfixTag, Item, Items, LastStatement, Member, Entry, OptionalStep, ParameterNames, Parameters, Paren, ParenGroup, ParenGroupOperand, Parenthesized, PowTail, Statement, Tail, Template, Terminator, Unary, UnaryOperand, Value, ValueBranches } from './types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.mjs'
 import { eof, option, repeatFrom0 } from '../../../ebnf/module.f.mjs'
 import { encoding } from '../../../ebnf/token_symbol/module.f.mjs'
-import { literalWords } from '../../../js/keywords/module.f.mjs'
+import { literalWords } from '../../../js/keywords/module.f.js'
 import { _djsTokenKinds } from '../../tokenizer/module.f.mjs'
 import { definedEntries } from '../../../types/object/module.f.mjs'
 import { eagerLayers, lazyLayers } from '../../ast/module.f.mjs'
@@ -335,6 +337,19 @@ export const value = () => ['const', {
 }]
 
 /**
+ * An untagged template is a primary value. Each substitution reads the full
+ * value rule; the tokenizer distinguishes its closing chunk from an ordinary
+ * brace, including around nested templates, objects and function bodies.
+ * Tagged templates have no access alternative and are refused at their head.
+ *
+ * @type {Template}
+ */
+export const template = () => ['const', {
+    plain: sym('noSubstitutionTemplate'),
+    substitution: [sym('templateHead'), value, repeatFrom0([sym('templateMiddle'), value]), sym('templateTail')],
+}]
+
+/**
  * A call's arguments: the items an array holds, {@link values}, reached
  * through a thunk.
  *
@@ -388,6 +403,9 @@ const accesses = repeatFrom0(access)
 
 /** A primitive value, then its accesses. */
 const primitiveValue = /** @type {const} */ ([primitive, accesses])
+
+/** A template value, then its accesses. */
+const templateValue = /** @type {const} */ ([template, accesses])
 
 /** A reference, then its accesses. */
 const reference = /** @type {const} */ ([identifier, accesses])
@@ -500,6 +518,7 @@ export const unary = () => ['const', {
     not: [sym('!'), unaryOperand],
     typeof: [sym('typeof'), unaryOperand],
     primitive: [primitiveValue, powTail],
+    template: [templateValue, powTail],
     ref: [reference, powTail],
     array: [[array, accesses], powTail],
     object: [[object, accesses], powTail],
@@ -553,6 +572,7 @@ export const unaryOperand = () => ['const', {
     not: [sym('!'), unaryOperand],
     typeof: [sym('typeof'), unaryOperand],
     primitive: [primitiveValue],
+    template: [templateValue],
     ref: [reference],
     array: [[array, accesses]],
     object: [[object, accesses]],
@@ -672,6 +692,7 @@ const valueBranches = () => ({
     not: [sym('!'), unaryOperand, ...tail],
     typeof: [sym('typeof'), unaryOperand, ...tail],
     primitive: [primitiveValue, powTail, ...tail],
+    template: [templateValue, powTail, ...tail],
     name: [identifier, arrowOrRest],
     array: [[array, accesses], powTail, ...tail],
     paren,

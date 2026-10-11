@@ -24,7 +24,7 @@ const isIdentifierStart = codePoint =>
 /**
  * Whether a word is one the tokenizer reads as a single `id` token —
  * `[A-Za-z_$][A-Za-z0-9_$]*`. A keyword is such a word too: whether it may
- * be bound is [`js/keywords`](../keywords/module.f.mjs)' question.
+ * be bound is [`js/keywords`](../keywords/module.f.js)' question.
  *
  * @type {(s: string) => boolean}
  */

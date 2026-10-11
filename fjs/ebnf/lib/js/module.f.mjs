@@ -29,10 +29,15 @@
  * classical grammar swallowed it and split it back out below the
  * grammar. Whitespace is one symbol per token, as it was there.
  *
+ * Templates are chunks: {@link template} begins at a backtick, and
+ * {@link templateContinuation} at a substitution's closing brace. Each
+ * ends at a backtick or `${`. The tokenizer's substitution context selects
+ * the continuation rule; the grammar reads every character inside it.
+ *
  * @module
  *
  * @import { Rule, Tuple } from '../../types.ts'
- * @import { AfterStar, Content, TriviaKind } from './types.ts'
+ * @import { AfterStar, Content, TemplateAfterDollar, TemplateContent, TriviaKind } from './types.ts'
  */
 
 import { literals, option, range, remove, repeatFrom0, set, union, unicodeMax } from '../../module.f.mjs'
@@ -107,6 +112,52 @@ const singleQuoted = /**@type {const}*/(["'", repeatFrom0({
  * quote was used is a spelling, and the token does not keep it.
  */
 export const string = /**@type {const}*/({ double: jsonString, single: singleQuoted })
+
+/**
+ * A template escape. Unlike ordinary strings, templates recognize JavaScript's
+ * additional escapes; tokens retain their exact source spelling alongside
+ * the cooked value. Decimal escapes other than `\0` are
+ * refused here, and `\0`'s following character is checked while decoding.
+ */
+export const templateEscape = /**@type {const}*/(['\\', {
+    unicode: ['u', {
+        braced: ['{', hex, repeatFrom0(hex), '}'],
+        fixed: [hex, hex, hex, hex],
+    }],
+    hex: ['x', hex, hex],
+    other: remove(any, set('ux123456789')),
+}])
+
+const templateCharacter = remove(any, set('`$\\'))
+
+/**
+ * A template chunk's content, including its closing backtick or `${`.
+ * A dollar is left-factored: its following `{` starts a substitution;
+ * every other following character is ordinary template content.
+ *
+ * @type {TemplateContent}
+ */
+export const templateContent = () => ['const', {
+    end: '`',
+    dollar: ['$', templateAfterDollar],
+    escape: [templateEscape, templateContent],
+    other: [templateCharacter, templateContent],
+}]
+
+/** @type {TemplateAfterDollar} */
+export const templateAfterDollar = () => ['const', {
+    substitution: '{',
+    end: '`',
+    dollar: ['$', templateAfterDollar],
+    escape: [templateEscape, templateContent],
+    other: [remove(templateCharacter, set('{')), templateContent],
+}]
+
+/** A no-substitution template or a template head, starting at its backtick. */
+export const template = /**@type {const}*/(['`', templateContent])
+
+/** A template middle or tail, read only at the matching substitution `}`. */
+export const templateContinuation = /**@type {const}*/(['}', templateContent])
 
 /** An identifier, or a keyword: the words are told apart above the grammar. */
 export const id = /**@type {const}*/([idStart, repeatFrom0(idChar)])
@@ -211,4 +262,4 @@ export const operator = literals(operators)
  * own tag says which of its four it was — and the token's text is the
  * symbols under the node.
  */
-export const token = /**@type {const}*/({ number, string, id, slash, operator, ws, newLine })
+export const token = /**@type {const}*/({ number, string, template, id, slash, operator, ws, newLine })

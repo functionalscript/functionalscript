@@ -33,7 +33,7 @@ import { entry as entryRule } from '../../ebnf/lib/markdown/module.f.mjs'
 import { eof } from '../../ebnf/module.f.mjs'
 import { parser } from '../../ebnf/ll1/module.f.mjs'
 import { lexeme, units } from '../../ebnf/utf16/module.f.mjs'
-import { error, ok } from '../../types/result/module.f.mjs'
+import { error, ok } from '../../types/result/module.f.js'
 
 /** @type {RewriteSet<Utf16, never>} */
 const nothing = []

@@ -23,7 +23,7 @@ import { virtual, virtualOperationMap, emptyState, nodeProgramOptions } from '..
 import { partialRun } from '../effects/mock/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { fromVec } from '../text/utf8/module.f.mjs'
-import { unwrap } from '../types/result/module.f.mjs'
+import { unwrap } from '../types/result/module.f.js'
 import { fromEntries, isObject } from '../types/object/module.f.mjs'
 import { toVec } from '../types/uint8array/module.f.mjs'
 import { assert, assertEq, assertOk, assertNotNullish, assertStructurallySame } from '../asserts/module.f.mjs'
@@ -1209,6 +1209,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
                 'Overview': 'xxooo',
                 'Primitives': 'xoooo',
                 'String escapes': 'ooooo',
+                'Template literals': 'ooooo',
                 'Comments': 'ooooo',
                 'Objects': 'ooooo',
                 'A repeated object key': 'ooooo',
