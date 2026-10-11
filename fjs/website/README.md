@@ -66,13 +66,15 @@ date-formatting results to that policy.
 
 ## The build command
 
-Cloudflare's build command is `sh ./gen.cloudflare/build.sh`, a generated
+Cloudflare's build command runs `sh ./gen.cloudflare/build.sh`, a generated
 script: it installs what the build image lacks and then runs
 `npm run website`. The command itself is set in the Cloudflare dashboard, so
 the script is what keeps its steps in the repository, where they are reviewed
 and have a history. `npm run website` stays the generator alone: a checkout
 builds the site with it exactly as before, and only the deploy carries the
-installs.
+installs. The dashboard's command falls back to `npm run website` where the
+script is absent ([Configure Cloudflare](#configure-cloudflare)), so a branch
+from before the script keeps its preview.
 
 **The build has the Rust CI tests with.** The build image has Node but no
 Rust, and the script installs one with `rustup`'s installer, at exactly `rust`
@@ -306,7 +308,13 @@ uploading that preview, without deploying the preview to production:
    `GITHUB_REDIRECT_URI`, and `GITHUB_PREVIEW_REDIRECT_URI` as variables, and
    `GITHUB_CLIENT_SECRET` as a **Secret**. Use the same app and the two
    callback values above to support both production domains and every preview.
-2. Keep the build command as `sh ./gen.cloudflare/build.sh`.
+2. Set the build command to:
+
+   ```sh
+   if [ -f gen.cloudflare/build.sh ]; then sh gen.cloudflare/build.sh; else npm run website; fi
+   ```
+
+   The fallback preserves builds for older branches that lack the script.
 3. Change the version command to:
 
    ```sh
@@ -317,7 +325,8 @@ uploading that preview, without deploying the preview to production:
 4. Rebuild the preview branch after saving those settings.
 
 The repository owner approved this helper’s invocation of
-`npx wrangler versions upload` as the Cloudflare Builds version command.
+`npx wrangler versions upload` as the Cloudflare Builds version command, and
+the build command's `sh gen.cloudflare/build.sh`.
 
 The upload helper passes the public values, including the optional preview
 callback when configured, as explicit Wrangler variables.
