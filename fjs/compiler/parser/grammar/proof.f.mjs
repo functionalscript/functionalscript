@@ -164,9 +164,13 @@ export const proof = {
         assertStructurallySame(read('const a = 1;export default { a };'), ['ok'])
         assertStructurallySame(read('const a = 1;export default { a, b: 2, "c": 3, ["d"]: 4, a, };'), ['ok'])
         assertStructurallySame(read('export default { return };'), ['ok'])
+        // a computed key's brackets hold any value, and nothing less
+        assertStructurallySame(read('const a = 1;export default { [a]: 1, [1 + 1]: 2, [[a]]: 3, [{ a }]: 4, [a => a]: 5 };'), ['ok'])
+        assertStructurallySame(read('export default { []: 1 };'), ['error', ']'])
         // a string or a computed key is a key alone, and wants its `:`
         assertStructurallySame(read('export default { "a" };'), ['error', '}'])
         assertStructurallySame(read('export default { ["a"] };'), ['error', '}'])
+        assertStructurallySame(read('export default { [a] };'), ['error', '}'])
         // the import attribute: `with`, a key, a string, the braces
         assertStructurallySame(read('import x from "m" with { type: "json" };export default x;'), ['ok'])
         assertStructurallySame(read('import x from "m" with{type:"json"};export default x;'), ['ok'])

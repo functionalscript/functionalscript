@@ -67,7 +67,7 @@
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
  * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstNot, AstTypeof, AstInstanceOf, AstNumber, AstString, AstKey, AstSelf, AstCall, AstConditional, AstConst, AstEntryFunction, AstFrameRef, AstEntry, AstFunction, AstItem, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstRest, AstSpread, AstStep, AstThrow } from '../ast/types.ts'
  * @import { ParseError } from './types.ts'
- * @import { Block, Chain, ComputedKey, Container, Entry, If, Import, Item, Key, Module, Node, ParameterBinding, ParameterList, Statement, Step, ValueStatement } from './syntax/types.ts'
+ * @import { Block, Chain, ComputedKey, ConstantMember, Container, Entry, If, Import, Item, Key, Module, Node, ParameterBinding, ParameterList, Statement, Step, ValueStatement } from './syntax/types.ts'
  * @import { _AccessFrame, _BodyFrame, _CallFrame, _ChainFrame, _ChainPart, _ConditionalFrame, _IndexFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _Intrinsic, _Parameter, _Ref, _Scope, _Stack, _State } from './private.ts'
  */
 
@@ -496,14 +496,32 @@ const itemAt = ([kind, items], index) =>
     kind === 'array' ? operandOf(items[index]) : entryOperandOf(items[index])
 
 /**
- * A container's value at `index`, its item's or member's spread put back,
- * {@link itemValue}.
+ * The node a member's computed key is, or `null` where the item at `index`
+ * has none: an array's item, a spread, or a member whose key is a constant.
  *
- * @type {(container: Container, index: number, value: AstConst) => AstItem}
+ * @type {(container: Container, index: number) => Node | null}
  */
-const containerValue = ([kind, items], index, value) => {
+const computedKeyAt = ([kind, items], index) => {
+    if (kind === 'array') { return null }
     const entry = items[index]
-    return entry instanceof Array ? itemValue(entry)(value) : value
+    return entry instanceof Array || entry.spelling !== 'computed' ? null : entry.node
+}
+
+/**
+ * A container's item at `index` as the AST holds it, from its value: an
+ * array's item, its spread put back, {@link itemValue}; an object's spread
+ * likewise, or its member, a property of its name and the value — the
+ * computed key's value, `key`, where the member has one.
+ *
+ * @type {(container: Container, index: number, key: readonly [AstConst] | null, value: AstConst) => AstItem | AstMember}
+ */
+const containerValue = ([kind, items], index, key, value) => {
+    const entry = items[index]
+    if (entry instanceof Array) { return itemValue(entry)(value) }
+    if (kind === 'array') { return value }
+    /** @type {AstMember} */
+    const member = [':', key === null ? /** @type {ConstantMember} */ (entry).name : key[0], value]
+    return member
 }
 
 /**
@@ -521,59 +539,63 @@ const containerValue = ([kind, items], index, value) => {
 const badKey = ([kind, items], index) => {
     if (kind === 'array') { return null }
     const member = items[index]
-    // a spread names no key
-    if (member instanceof Array) { return null }
+    // a spread names no key, and a computed key is an own property's
+    if (member instanceof Array || member.spelling === 'computed') { return null }
     const { key, name, spelling } = member
-    return name === protoKey && (spelling === 'plain' || spelling === 'string') ? protoKeyError(key) : null
+    return name === protoKey && spelling !== 'shorthand' ? protoKeyError(key) : null
 }
 
 /**
- * A member as an entry of the object being closed: a property's name and
- * the value at its index among the resolved values — the leading
- * parameter, so that the step lives here rather than closing over them —
- * or the spread {@link containerValue} put back there.
- *
- * @type {(done: readonly AstItem[]) => (entry: Entry, index: number) => AstEntry}
- */
-const astEntry = done => (entry, index) => entry instanceof Array
-    ? /** @type {AstSpread} */ (done[index])
-    : [':', entry.name, /** @type {AstConst} */ (done[index])]
-
-/**
- * A container of the values its items resolved to: an array, or an object
- * of its members in the order they are written, a repeated key written
+ * A container of the items its rounds built: an array, or an object of
+ * its members in the order they are written, a repeated key written
  * twice. The order is not the parser's to change — it is the order the
  * graph a module denotes has, as JavaScript reads the same literal — and
  * the duplicates are not its to collapse: `run` builds the object
  * JavaScript builds, and EDAG's object constructor takes the members as
- * written, which the syntax alone still has.
+ * written, which the syntax alone still has. The items are the
+ * container's kind's, {@link containerValue}, which the list's one type
+ * does not say.
  *
- * @type {(container: Container, done: readonly AstItem[]) => AstConst}
+ * @type {(container: Container, done: readonly (AstItem | AstMember)[]) => AstConst}
  */
-const close = ([kind, entries], done) => {
+const close = ([kind], done) => {
     if (kind === 'array') {
         /** @type {AstArray} */
-        const array = ['array', done]
+        const array = ['array', /** @type {readonly AstItem[]} */ (done)]
         return array
     }
     /** @type {AstObject} */
-    const object = ['object', entries.map(astEntry(done))]
+    const object = ['object', /** @type {readonly AstEntry[]} */ (done)]
     return object
 }
 
 /**
- * The next item of a container, its key checked first, or the container
- * closed when none is left.
+ * The next round of a container: its item's key checked first, then the
+ * key entered where it is computed and not yet evaluated, or the item's
+ * value — or the container closed when no item is left.
  *
  * @type {(stack: _Stack, scope: _Scope, frame: _ContainerFrame) => _State}
  */
 const round = (stack, scope, frame) => {
-    const { container, index, done } = frame
+    const { container, index, done, key } = frame
     if (index >= container[1].length) { return [stack, scope, ok(close(container, toArray(done)))] }
     const rejected = badKey(container, index)
-    return rejected === null
-        ? [{ top: frame, rest: stack }, scope, ['enter', itemAt(container, index)]]
-        : [stack, scope, error(rejected)]
+    if (rejected !== null) { return [stack, scope, error(rejected)] }
+    const computed = computedKeyAt(container, index)
+    return [{ top: frame, rest: stack }, scope, ['enter', computed !== null && key === null ? computed : itemAt(container, index)]]
+}
+
+/**
+ * A container's frame with a value returned to it: the computed key's,
+ * kept for the value's round, or the item's, which the next round follows.
+ *
+ * @type {(stack: _Stack, scope: _Scope, frame: _ContainerFrame, value: AstConst) => _State}
+ */
+const containerReturned = (stack, scope, frame, value) => {
+    const { container, index, done, key } = frame
+    return computedKeyAt(container, index) !== null && key === null
+        ? round(stack, scope, { ...frame, key: [value] })
+        : round(stack, scope, { ...frame, index: index + 1, done: concat(done)([containerValue(container, index, key, value)]), key: null })
 }
 
 /**
@@ -899,7 +921,7 @@ const enter = (stack, scope, node) => {
         case '=>': { return entered(stack, scope, node, null) }
         // a block stands only as a function's body, which `'=>'` above
         // enters; the mapping writes one nowhere else
-        default: { return round(stack, scope, { container: /** @type {Container} */ (node), index: 0, done: null }) }
+        default: { return round(stack, scope, { container: /** @type {Container} */ (node), index: 0, done: null, key: null }) }
     }
 }
 
@@ -1059,7 +1081,7 @@ const entered = (stack, scope, node, self) => {
  * @type {(stack: _Stack, scope: _Scope, frame: _Frame, value: AstConst) => _State}
  */
 const returned = (stack, scope, frame, value) => {
-    if ('container' in frame) { return round(stack, scope, { ...frame, index: frame.index + 1, done: concat(frame.done)([containerValue(frame.container, frame.index, value)]) }) }
+    if ('container' in frame) { return containerReturned(stack, scope, frame, value) }
     if ('call' in frame) { return callRound(stack, scope, { ...frame, index: frame.index + 1, done: concat(frame.done)([callValue(frame.call, frame.index, value)]) }) }
     if ('conditional' in frame) { return conditionalRound(stack, scope, { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) }) }
     if ('key' in frame) {

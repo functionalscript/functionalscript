@@ -234,15 +234,17 @@ const guardedCall = nodes => ast => {
 }
 
 /**
- * An entry's EDAG: a member's, the EDAG's property over its value's, or
+ * An entry's EDAG: a member's, the EDAG's property over its key's and its
+ * value's — a constant key its own string, a computed one its node — or
  * a spread's, {@link lowerSpread}.
  *
  * @type {(nodes: _Nodes) => (entry: AstEntry) => _LoweredEntry}
  */
 const lowerEntry = nodes => entry => {
     if (isSpread(entry)) { return lowerSpread(nodes)(entry) }
-    const { exp, anchors } = lower(nodes)(entry[2])
-    return { exp: [':', entry[1], exp], anchors }
+    const key = lower(nodes)(entry[1])
+    const value = lower(nodes)(entry[2])
+    return { exp: [':', key.exp, value.exp], anchors: floated([key, value]) }
 }
 
 /**

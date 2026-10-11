@@ -165,19 +165,38 @@ export type Container =
 export type Entry = Member | readonly ['...', Node]
 
 /**
- * A member of an object, `key: value`: the token its key is read from,
- * which anchors the error a plain `__proto__` earns, the name that token
- * spells, the key's spelling — the bare identifier, the string, the
- * computed `["a"]`, or the shorthand `{ a }`, a bare identifier with no
- * value of its own — and the value, the name's own reference for the
- * shorthand. The spelling matters for `__proto__` alone: the computed
- * and the shorthand spellings denote an own property, the other two a
- * prototype.
+ * A member of an object, `key: value`: the token its key begins with,
+ * which anchors the error a plain `__proto__` earns, the key by its
+ * spelling, and the value. A constant key is the name its token spells,
+ * {@link ConstantMember}; a computed key, `[k]`, is the node between the
+ * brackets, {@link ComputedMember}, evaluated before the value as
+ * JavaScript evaluates the two. The spelling matters for `__proto__`
+ * alone: the computed and the shorthand spellings denote an own property,
+ * the other two a prototype.
  */
-export type Member = {
+export type Member = ConstantMember | ComputedMember
+
+/**
+ * A member whose key is a constant: the bare identifier, the string, or
+ * the shorthand `{ a }`, a bare identifier with no value of its own, whose
+ * value is the name's own reference.
+ */
+export type ConstantMember = {
     readonly key: DjsTokenWithMetadata
+    readonly spelling: 'plain' | 'string' | 'shorthand'
     readonly name: string
-    readonly spelling: 'plain' | 'string' | 'computed' | 'shorthand'
+    readonly value: Node
+}
+
+/**
+ * A member whose key is computed, `[k]: v`: the node between the brackets,
+ * any value — `["a"]` is the constant `"a"` by another spelling, and `[a]`
+ * a key read at run time.
+ */
+export type ComputedMember = {
+    readonly key: DjsTokenWithMetadata
+    readonly spelling: 'computed'
+    readonly node: Node
     readonly value: Node
 }
 

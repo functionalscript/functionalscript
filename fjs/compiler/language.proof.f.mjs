@@ -461,6 +461,38 @@ export const proof = {
             assertEq(compileSource('export default -0;')('output.json'), '-0')
         },
     },
+    // A computed key end to end: the graph outputs keep the key as read,
+    // in brackets where it is no constant string, and the value outputs
+    // write the key the value has.
+    computedKey: {
+        // a `const` bound to a literal is that literal, so the key is a
+        // constant by the time the graph holds it, and the brackets are
+        // the number's spelling
+        constant: () => {
+            assertEq(compileSource('const a = 0; export default {[a]: 5};')('output.json'), '{"0":5}')
+            assertEq(compileSource('const a = 0; export default {[a]: 5};')('output.data.js'), 'export default {"0":5};')
+            assertEq(compileSource('const a = 0; export default {[a]: 5};')('output.f.js'), 'export default {[0]:5};')
+        },
+        // a key read at run time, inside a function, stays in brackets in
+        // the graph output
+        parameter: () => {
+            const source = 'export default (k, v) => ({[k]: v, [k + "2"]: v});'
+            assertEq(compileSource(source)('output.f.js'), 'export default ($0,$1)=>{return {[$0]:$1,[$0+"2"]:$1};};')
+        },
+        // the key is the string the value converts to, as JavaScript's
+        // `ToPropertyKey` converts it, and a later member wins
+        conversion: () => {
+            assertEq(
+                compileSource('const k = "x"; export default {[k]: 5, [1 + 1]: 6, [[1, 2]]: 7, [null]: 8, [undefined]: 9, [true]: 10, [{}]: 11, ["a"]: 12, [0.5]: 13, [-0]: 14, x: 15};')('output.json'),
+                '{"0":14,"2":6,"x":15,"1,2":7,"null":8,"undefined":9,"true":10,"[object Object]":11,"a":12,"0.5":13}')
+        },
+        // a key that evaluates to `__proto__` defines an own property, as
+        // the constant computed spelling does, and is written back as it
+        proto: () => {
+            assertEq(compileSource('const k = "__proto__"; export default {[k]: 1};')('output.json'), '{"__proto__":1}')
+            assertEq(compileSource('const k = "__proto__"; export default {[k]: 1};')('output.data.js'), 'export default {["__proto__"]:1};')
+        },
+    },
     // The `__proto__` key end to end: one value, two output languages, and one
     // spelling of the key in each (#2480).
     protoKey: {

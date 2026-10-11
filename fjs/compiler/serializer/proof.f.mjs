@@ -231,12 +231,10 @@ export const proof = {
                 ['{}', [[':', 'Number', 1]]],
                 ['{}', [[':', 'String', 1]]],
                 ['{}', [[':', 'not-a-name', 1]]],
-                ['{}', [[':', 'a', ['{}', [[':', 1, 2]]]]]],
                 ['{}', [[':', 'a', [',', [1]]]]],
                 ['{}', [[':', 'a', ['+', 1]], [':', 'b', 1]]],
                 ['{}', [[':', 'a', ['.', 1, 'constructor']]]],
                 ['{}', [[':', 'a', ['=>', 0, [7], ['frame', 0]]]]],
-                ['{}', [[':', 'default', ['{}', [[':', 1, 2]]]]]],
             ])) { assertEq(tryModuleSerialize(graph)[0], 'error') }
         },
     },
@@ -248,6 +246,12 @@ export const proof = {
         writes('x', 'export default "x";')
         writes(['undefined'], 'export default undefined;')
         writes(['[]', []], 'export default [];')
+        // an object key that is no string is computed, written in brackets
+        // from the operand it is: a number, `null`, or a node
+        writes(['{}', [[':', 1, 2]]], 'export default {[1]:2};')
+        writes(['{}', [[':', null, 2]]], 'export default {[null]:2};')
+        writes(['{}', [[':', ['+', 1, 1], 2]]], 'export default {[1+1]:2};')
+        writes(['{}', [[':', 'a', 1], [':', ['[]', [1]], 2], ['...', ['{}', []]]]], 'export default {"a":1,[[1]]:2,...{}};')
         writes(['{}', []], 'export default {};')
         writes(
             ['[]', [null, true, false, 1, 1.5, 1n, 'a"b', '\u{1f600}']],
@@ -972,13 +976,12 @@ export const proof = {
         // source spelling until the operator lands
         refuses(['[]', [[',', [1, 2]]]], 'a comma outside a scope')
         refuses(['=>', 0, [], ['[]', [[',', [1, 2]]]]], 'a comma outside a scope')
-        // A key no literal spells: a computed one, an object key that is not
-        // a string, and the three numbers the tokenizer does not read back.
+        // An access key no literal spells: a computed one, and the three
+        // numbers the tokenizer does not read back.
         // a key the EDAG's index admits nowhere, which only a graph built
         // by hand holds
         refuses(/** @type {Exp} */ (/** @type {unknown} */ (['=>', 0, [], ['.', ['rest'], ['rest']]])), 'an access key that is no literal')
         refuses(/** @type {Exp} */ (/** @type {unknown} */ (['=>', 0, [], ['.', ['rest'], true]])), 'an access key that is no literal')
-        refuses(['{}', [[':', 1, 2]]], 'an object key that is not a string')
         refuses(['=>', 0, [], ['.', ['rest'], NaN]], 'a number key no literal reads back')
         refuses(['=>', 0, [], ['.', ['rest'], Infinity]], 'a number key no literal reads back')
         refuses(['=>', 0, [], ['.', ['rest'], -0]], 'a number key no literal reads back')
@@ -995,12 +998,12 @@ export const proof = {
         refuses(
             (() => {
                 /** @type {Exp} */
-                const bad = ['{}', [[':', 1, 2]]]
+                const bad = ['{}', [[':', 'a', ['+', 1]]]]
                 /** @type {Exp} */
                 const good = ['{}', []]
                 return ['[]', [bad, bad, good, good]]
             })(),
-            'an object key that is not a string')
+            'a unary + node')
         refuses([',', [['+', 1], 1]], 'a unary + node')
         // A comma with no anchor to write: with one operand it would read
         // back as that operand alone, and with none it is no scope. Linking
