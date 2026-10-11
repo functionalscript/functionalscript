@@ -29,14 +29,15 @@ an item that needs a decision says so.
   [corpus-as-conformance-vectors](./corpus-as-conformance-vectors.md).
 - The `#[should_panic]` set: [should-panic-per-vm](./should-panic-per-vm.md).
 - Refactoring the generators' shared Rust item text, which includes
-  `expectedModules`: [rust-item-helpers](./rust-item-helpers.md), when it
-  lands.
+  `expectedModules`: the `rust-item-helpers` issue that
+  [pull request 2797](https://github.com/functionalscript/functionalscript/pull/2797)
+  files, once it lands.
 - Default function text (the `function-text` exception): the "default-text
   observations" task of `callable-function-objects.md`.
 - Host resource failures such as an oversized BigInt shift:
   [bigint-allocation-failures](../../edag/value/numeric/todo/bigint-allocation-failures.md)
-  and the interpreter resource work it points to. Item 6 below uses the
-  mechanism they define and adds none.
+  and the interpreter resource work it points to. Those mark resources that
+  the host fails on too; item 6 below is not that case.
 - The parity corpus (`parity.mjs`), which checks hosts and not values.
 
 **Sequencing.** The Rust projects are being regrouped under `nanvm/`, which
@@ -85,24 +86,25 @@ compared by the existing machinery with nothing retyped.
    assertion for these leaves (bits against Rust's own constants), because the
    generated layers share an emitter that could spell them wrongly in both
    operands; add it with the fixture.
-5. **Member-function calls through the compile path.** Only two of the allowed
-   calls (`at`, `toString`) have a compiled fixture. The VM's answers are
-   already pinned by the operator corpus, so the gap is the compiled wiring,
-   not each method: the receiver lookup, an own property shadowing the
-   built-in, a guarded call, a method call on a computed receiver, and above
-   all callbacks. Only `entry` passes a function into a built-in, and nothing
-   passes a capturing closure to `map`, `filter` or `reduce`, which is the
-   AOT-compiled closure called by the VM's own code. A few fixtures, one per
-   family (array with callbacks, string, number formatting), rather than one
-   per method. This is the open "corpus cases for every entry" task of
+5. **Member-function calls through the compile path.** A handful of the
+   allowed calls have a compiled fixture (`at`, `toString`, `endsWith`,
+   `startsWith`, `join`, and one `map` in `entry` with a plain, non-capturing
+   callback); most do not. The VM's answers are already pinned by the
+   operator corpus, so the gap is the compiled wiring, not each method: the
+   receiver lookup, an own property shadowing the built-in, a guarded call, a
+   method call on a computed receiver, and above all callbacks that capture
+   state. Nothing passes a capturing closure to `map`, `filter` or `reduce`,
+   which is the AOT-compiled closure called by the VM's own code. A few
+   fixtures, one per family (array with callbacks, string, number
+   formatting), rather than one per method. This is the open "corpus cases for every entry" task of
    [member-functions](../../../nanvm-lib/todo/member-functions.md); tick it
    there, and reword it, since it predates the compiled corpus.
 6. **BigInt operators through the compile path.** Today only literals and a
    division by zero are compiled. Add the arithmetic, shift and comparison
-   operators and the mixed-type `TypeError`. A result the host can hold and
-   the VM refuses (past its word limit) is a resource boundary, not a language
-   difference: mark it the way the operator corpus already marks host
-   allocation failures and do not add a second convention.
+   operators and the mixed-type `TypeError`, with operands inside the native
+   word limit so that Node, the interpreter and the AOT output agree. A
+   result that Node can hold and the VM refuses is a different case: see item
+   11, which this item does not assign.
 7. **Parameter leftovers.** Unused fixed parameters, the identity of a spread
    array against its source, and forwarding rest through a call. These are
    the unchecked fixture items of the Stage 6 follow-through in
@@ -125,6 +127,13 @@ compared by the existing machinery with nothing retyped.
     operator corpus both enumerate the same operators. One table could print
     both, so a new operator is added once. It is a design change to the
     operator corpus's data, so it needs agreement before an implementation.
+11. **Native capacity limits.** The corpus requires Node, the interpreter and
+    the AOT output to agree, and has no per-fixture marker for a result the
+    native VM refuses by design (a BigInt past its word limit). The operator
+    corpus's allocation marker does not fit: it marks operations the host
+    fails on as well. Choose a boundary before any such fixture is written:
+    keep the corpus inside the limits and test the refusal in Rust only, or add
+    a per-fixture marker with a reason, like the exceptions.
 
 ### Tasks
 
@@ -136,7 +145,7 @@ compared by the existing machinery with nothing retyped.
 - [ ] 7: parameter leftovers as fixtures.
 - [ ] 8: key order, empty containers and string edge cases.
 - [ ] 3: record thrown data, if the interpreter can tell it from an engine error.
-- [ ] 9, 10: decide, then file each as its own issue if wanted.
+- [ ] 9, 10, 11: decide, then file each as its own issue if wanted.
 
 ### Related
 
