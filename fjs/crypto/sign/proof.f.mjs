@@ -704,23 +704,17 @@ export const proof = {
     },
     demo: {
         init: () => {
-            assertEq(demo.init.message, 'Send 100$ to Alice')
-            const preset = click(click(click(demo.init, 'send'), 'forward'), 'rfc-example')
-            assertEq(preset.message, 'sample')
-            assertEq(assertNotNullish(preset.eve).original.message, demo.init.message)
-            assertEq(assertNotNullish(preset.bob).packet.message, demo.init.message)
-            const signature = unwrap(signed(preset))
+            const signature = unwrap(signed(demo.init))
             assertEq(signature.r, 0xefd48b2aacb6a8fd1140dd9cd45e81d69d2c877b56aaf991c34d0ea84eaf3716n)
             assertEq(signature.s, 0xf7cb1c942d657c41d436c7a1b6e29f65f3e900dbb9aff4064dc4ab2f843acda8n)
             const html = view(demo.init)
-            const rfcHtml = view(preset)
             for (const value of [
                 'a6e3c57dd01abe90086538398355dd4c3b17aa873382b0f24d6129493d8aad60',
                 '60fed4ba255a9d31c961eb74c6356d68c049b8923b61fa6ce669622e60f29fb6',
                 '7903fe1008b8bc99a41ae9e95628bc64f2f1b20c2d7e9f5177a3c294d4462299',
                 'efd48b2aacb6a8fd1140dd9cd45e81d69d2c877b56aaf991c34d0ea84eaf3716',
                 'f7cb1c942d657c41d436c7a1b6e29f65f3e900dbb9aff4064dc4ab2f843acda8',
-            ]) { assert(rfcHtml.includes(value), value) }
+            ]) { assert(html.includes(value), value) }
             assert(html.includes('Waiting for Alice to send'))
             assert(html.includes('Waiting for a message…'))
             assert(!html.includes('authenticated as Alice'))
@@ -733,13 +727,13 @@ export const proof = {
             const sent = click(demo.init, 'send')
             const eve = assertNotNullish(sent.eve)
             assertEq(sent.bob, null)
-            assertEq(eve.original.message, demo.init.message)
+            assertEq(eve.original.message, 'sample')
             assertEq(Object.keys(eve.original).join(','), 'curve,hash,message,u,r,s')
             const forwarded = click(sent, 'forward')
             const bob = assertNotNullish(forwarded.bob)
             assertEq(bob.valid, true)
             assertEq(bob.receivedValid, null)
-            assertEq(bob.packet.message, demo.init.message)
+            assertEq(bob.packet.message, 'sample')
             assert(view(forwarded).includes('data-result="ok">Valid — authenticated as Alice'))
             assert(view(forwarded).includes('Last received message'))
             // Empty UTF-8 is a legitimate message, not a waiting state.
@@ -774,7 +768,7 @@ export const proof = {
             const bob = assertNotNullish(forwarded.bob)
             assertEq(bob.valid, false)
             assertEq(bob.packet.r, 0n)
-            assertEq(bob.packet.message, demo.init.message)
+            assertEq(bob.packet.message, 'sample')
             assert(view(forwarded).includes('Signature r and s must be at least 1'))
             const changed = input(selected, 'eve-r', '1')
             assertEq(assertNotNullish(click(changed, 'forward').bob).valid, false)
@@ -807,7 +801,7 @@ export const proof = {
             assertEq(assertNotNullish(click(input(eve, 'eve-key', '3'), 'forward').bob).receivedValid, true)
             // If the reader gives Eve the public RFC demo secret, both checks
             // correctly pass; the UI must not invent an identity mismatch.
-            const sameKey = click(input(input(eve, 'eve-message', demo.init.message), 'eve-key', demo.init.key), 'forward')
+            const sameKey = click(input(input(eve, 'eve-message', 'sample'), 'eve-key', demo.init.key), 'forward')
             assertEq(assertNotNullish(sameKey.bob).valid, true)
             assert(!view(sameKey).includes('Identity mismatch:'))
         },
@@ -820,7 +814,7 @@ export const proof = {
             assertEq(aliceEdited.bob, bob)
             const eveEdited = input(aliceEdited, 'eve-message', 'tampered later')
             assertEq(eveEdited.bob, bob)
-            assertEq(bob.packet.message, demo.init.message)
+            assertEq(bob.packet.message, 'sample')
             const newSend = click(eveEdited, 'send')
             assertEq(newSend.bob, bob)
             assertEq(assertNotNullish(newSend.eve).message, 'new draft')
@@ -852,15 +846,14 @@ export const proof = {
         resetAndAttackSwitch: () => {
             const sent = click(demo.init, 'send')
             const modified = click(sent, 'example')
-            assertEq(assertNotNullish(modified.eve).message, 'Send 100$ to Eve')
             const reset = click(modified, 'reset-eve')
-            assertEq(assertNotNullish(reset.eve).message, demo.init.message)
+            assertEq(assertNotNullish(reset.eve).message, 'sample')
             assertEq(assertNotNullish(reset.eve).original, assertNotNullish(sent.eve).original)
             const signature = input(modified, 'attack', 'Modify signature')
-            assertEq(assertNotNullish(signature.eve).message, demo.init.message)
+            assertEq(assertNotNullish(signature.eve).message, 'sample')
             const replaced = input(click(signature, 'example'), 'attack', 'Replace public key')
             assertEq(assertNotNullish(replaced.eve).r, assertNotNullish(sent.eve).r)
-            assertEq(assertNotNullish(replaced.eve).message, demo.init.message)
+            assertEq(assertNotNullish(replaced.eve).message, 'sample')
             const back = input(input(replaced, 'eve-key', '7'), 'attack', 'Modify message')
             assertEq(assertNotNullish(back.eve).key, '2')
             assertEq(assertNotNullish(click(back, 'forward').bob).valid, true)

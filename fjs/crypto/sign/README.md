@@ -127,10 +127,8 @@ The signature is valid if `v = r`.
 
 ### The message exchange demo
 
-[`demo.f.mjs`](./demo.f.mjs) starts with “Send 100$ to Alice” and shows Alice
-signing, Eve changing it to “Send 100$ to Eve” and Bob verifying.
-**Load RFC 6979 example** restores the A.2.5 signing inputs without changing
-intercepted or received packets. Typing updates Alice's local
+[`demo.f.mjs`](./demo.f.mjs) starts from RFC 6979 A.2.5 and shows Alice
+signing, Eve intercepting and Bob verifying. Typing updates Alice's local
 signing output; **Send message** transmits a public snapshot to Eve.
 **Forward to Bob** commits Eve's outgoing packet and verifies it on delivery.
 Neither action transmits a private key or the deterministic nonce.

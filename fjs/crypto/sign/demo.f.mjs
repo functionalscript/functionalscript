@@ -3,7 +3,7 @@
  * key. Signing updates while typing; Send and Forward deliberately commit
  * public snapshots. Eve's substituted key cannot replace Bob's trusted key.
  *
- * Offers RFC 6979 A.2.5, P-256/SHA-256 over `sample`. The nonce is an
+ * Opens on RFC 6979 A.2.5, P-256/SHA-256 over `sample`. The nonce is an
  * advanced local signing detail, never part of a packet. All verdicts use
  * real ECDSA verification; no private key is sent to Eve or Bob.
  *
@@ -159,15 +159,9 @@ const aliceInput = (state, name, value) =>
             : name === 'key' ? { ...state, key: value }
                 : name === 'message' ? { ...state, message: value } : state
 
-/** @type {DemoDraft} */
-const rfcDraft = {
-    curve: 'P-256 (secp256r1)',
-    hash: 'SHA-256',
-    key: 'c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721',
-    message: 'sample',
-}
-
-/** @type {Demo<DemoState, DemoEvent>['update']} */
+/** Immutable events: only Send touches Eve's original and only Forward Bob.
+ * @type {Demo<DemoState, DemoEvent>['update']}
+ */
 const update = state => event => {
     if (event.kind === 'input') {
         const eve = state.eve
@@ -184,7 +178,6 @@ const update = state => event => {
         return pureOk(aliceInput(state, event.name, event.value))
     }
     if (event.kind !== 'click') { return pureOk(state) }
-    if (event.name === 'rfc-example') { return pureOk({ ...state, ...rfcDraft }) }
     if (event.name === 'send') {
         const result = signed(state)
         if (result[0] === 'error') { return pureOk(state) }
@@ -198,7 +191,7 @@ const update = state => event => {
     if (event.name === 'example') {
         return pureOk({ ...state, eve: eve.attack === 'Modify signature'
             ? { ...eve, r: '0' }
-            : { ...eve, message: 'Send 100$ to Eve' } })
+            : { ...eve, message: `${eve.original.message}\nEve changed this message.` } })
     }
     if (event.name === 'forward') {
         const packet = outgoing(eve)
@@ -246,7 +239,7 @@ const signView = (c, result) => {
         ...signatureView(c, r, s),
         ['details',
             ['summary', 'Signing details — RFC 6979'],
-            ['p', 'Message → Hash → ECDSA Sign → (r, s). Load the RFC 6979 example to reproduce A.2.5: P-256, SHA-256 and the message sample. Compare these hexadecimal values with the published example.'],
+            ['p', 'Message → Hash → ECDSA Sign → (r, s). The page opens on RFC 6979 A.2.5: P-256, SHA-256 and the message sample. Compare these hexadecimal values with the published example.'],
             caption('Deterministic nonce k, hex (never transmitted):'),
             codeBlock(hexOf(c.scalarDigits)(k), 'Copy k'),
             ['p', 'Keep k secret: knowing it reveals the private key. RFC 6979 derives k from the private key and message.'],
@@ -314,8 +307,10 @@ const bobView = bob => {
 /** @type {Demo<DemoState, DemoEvent>} */
 export const demo = {
     init: {
-        ...rfcDraft,
-        message: 'Send 100$ to Alice',
+        curve: 'P-256 (secp256r1)',
+        hash: 'SHA-256',
+        key: 'c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721',
+        message: 'sample',
         eve: null,
         bob: null,
     },
@@ -323,7 +318,7 @@ export const demo = {
     view: state => {
         const result = signed(state)
         return ['div',
-            ['p', 'ECDSA signs a message with a private key and verifies it with a public key. Follow Alice → Eve → Bob to see why signature validity and sender identity are different. Load the RFC 6979 example to compare signing values with A.2.5.'],
+            ['p', 'ECDSA signs a message with a private key and verifies it with a public key. Follow Alice → Eve → Bob to see why signature validity and sender identity are different. The initial signing values reproduce RFC 6979 A.2.5.'],
             ['p', 'Alice (sign) → Eve (intercept or tamper) → Bob (verify with Alice’s trusted public key)'],
             ['section', { 'data-sign-stage': 'alice' },
                 ['h3', 'Alice — Sign'],
@@ -334,7 +329,6 @@ export const demo = {
                 textField({ name: 'message', label: 'Message (UTF-8)', rows: 3 }, state.message),
                 ...signView(curveOf(state.curve), result),
                 button('send', 'Send message', result[0] === 'error'),
-                button('rfc-example', 'Load RFC 6979 example', false),
             ],
             ['section', { 'data-sign-stage': 'eve' }, ['h3', 'Eve — Intercept & Attack'], ...eveView(state.eve)],
             ['section', { 'data-sign-stage': 'bob' }, ['h3', 'Bob — Receive & Verify'], ...bobView(state.bob)],
