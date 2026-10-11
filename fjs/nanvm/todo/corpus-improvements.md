@@ -171,7 +171,7 @@ compared by the existing machinery with nothing retyped.
 ### Tasks
 
 - [x] 2: delete the hand-written throw checks the `THROWS` record covers.
-- [ ] 1: retire `undefinedDefault`: Node and interpreter routes for whole export objects first, then the expectation and the Rust comparison (order-sensitive), then the deletions, with decision 3's stale order claim corrected.
+- [ ] 1 (in progress): retire `undefinedDefault`: Node and interpreter routes for whole export objects first, then the expectation and the Rust comparison (order-sensitive), then the deletions, with decision 3's stale order claim corrected.
 - [ ] 4: a special-numbers fixture, with the independent Rust assertion for `-0`, `NaN` and the infinities.
 - [ ] 5: capturing callbacks, guarded built-in calls and the other families' methods through the compile path.
 - [ ] 6: BigInt arithmetic, shift and relational operators, equality and the mixed-type `TypeError` through the compile path.
