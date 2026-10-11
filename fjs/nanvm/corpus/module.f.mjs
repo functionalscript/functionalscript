@@ -27,6 +27,7 @@ export const fixturesDirectory = 'nanvm-harness/fixtures'
  * @type {{ readonly [file: string]: string }}
  */
 export const exceptions = {
+    'console.mjs': 'exports programs for a host to perform, not values: `nanvm-harness/tests/console.rs` and `fjs/nanvm/parity/console.proof.mjs` compare the hosts through them',
     'function-text.mjs': 'a function\'s text is the specified function-text exception: the reference prints the host\'s source, the executors the shared renderer\'s',
     'function.mjs': 'exports a function as its default, which the harness\'s own call action tests; a language call is observed by a fixture that calls at module level',
     'parity.mjs': 'exports programs for a host to perform, not values: `nanvm-harness/tests/parity.rs` and `fjs/nanvm/parity/proof.mjs` compare the hosts through them',

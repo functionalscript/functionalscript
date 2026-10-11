@@ -57,5 +57,7 @@ implementation details remain unspecified here.
         rather than the clock's value.
   - [x] `resolveFileModule` of a path: the `resolution` case. A module relative
         to a parent URL is left out, for a file URL is spelled by platform.
-  - [ ] The rest of the scope: console, and what the corpus leaves out on
-        purpose (see its header).
+  - [x] The console: `nanvm-harness/fixtures/console.mjs`, performed over buffers
+        by `nanvm-harness/tests/console.rs` and in a child process with held
+        streams by `fjs/nanvm/parity/console.proof.mjs`.
+  - [ ] What the corpus leaves out on purpose (see its header) stays open.
