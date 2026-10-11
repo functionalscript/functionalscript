@@ -53,10 +53,12 @@ chunks and converted strings with `+`. For example:
 "hello " + String(a) + "!";
 ```
 
-Evaluate each substitution once, from left to right, and convert it before
-evaluating the next substitution. A failure during evaluation or conversion
-propagates without evaluating later substitutions. The result is always a
-string. Function conversion follows FJS's existing
+Source order determines where each converted string appears in the result.
+A successful result is always a string, and a required evaluation or conversion
+failure makes the template fail. Execution follows FJS's
+[failure contract](../README.md#failure-is-one-outcome): executors may reorder
+or share computations, and template syntax adds no evaluation-order or count
+guarantee. Function conversion follows FJS's existing
 [function-source representation exception](../README.md#function-source-representation-exception).
 
 This is consistent with current FJS, whose
@@ -93,9 +95,8 @@ needed. If `A` is the lowered expression for `a`, the example becomes:
 For cooked chunks `s0` through `sn` and substitutions `e1` through `en`, start
 with `r = s0`. For each substitution in source order, set
 `r = ['+', r, ['String', lower(ei)]]`, then `r = ['+', r, si]`.
-Keep every chunk, including empty chunks, in this initial lowering. These are
-left-associated binary nodes, not a variadic `+` or an eagerly evaluated list.
-Do not fold away a substitution's conversion.
+Keep every chunk, including empty chunks, and each substitution's `String`
+conversion in this initial lowering. Use left-associated binary nodes.
 
 A template with no substitutions lowers directly to its cooked string value:
 `` `abc` `` and `"abc"` have the same EDAG string leaf. Templates with
@@ -173,13 +174,15 @@ semantics.
       unsupported escapes and malformed or unterminated templates with a
       located error.
 - [ ] Lower to the existing `String`/binary `+` forms above, preserving
-      substitution order, failure propagation, empty chunks and nested forms.
+      chunk and substitution placement, conversions, empty chunks and nested
+      forms under the existing failure contract.
 - [ ] Prove parsing, cooking and lowering for the examples, raw CR/CRLF versus
       escaped `\r`, U+2028/U+2029, object and function braces, precedence, and
       malformed or refused forms.
 - [ ] Prove the own-method conversion distinction, nonprimitive or throwing
-      conversion results, and failure before a later substitution; compare
-      values with JavaScript and the explicit FJS expansion.
+      conversion results, and required substitution or conversion failures;
+      compare successful values with JavaScript and success/failure outcomes
+      with the explicit FJS expansion under the existing failure contract.
 - [ ] Prove source round trips and existing EDAG, value and Rust output routes;
       update the specification with the approved semantics and remove this TODO
       when the feature ships.
