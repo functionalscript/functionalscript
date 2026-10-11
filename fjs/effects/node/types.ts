@@ -925,22 +925,16 @@ export type NodeOperationMap = ToAsyncOperationMap<NodeOp>
  */
 export type Env = StringMap<string>
 
-/** Identifies the JavaScript runtime detected at startup. */
-export type Engine = 'node' | 'bun' | 'deno'
-
 /**
  * Runtime options passed to every `NodeProgram`.
  *
  * - `args`: command-line arguments (equivalent to `process.argv.slice(2)`).
  * - `env`: process environment variables.
+ * - `home`: home directory in the repository's portable path format.
  * - `std`: TTY flags for `stdout` and `stderr`, known at startup and used by
  *   `csiWrite` to decide whether to strip ANSI SGR sequences.
- * - `testContext`: Node `--test` context; used by `register` on Node.
- * - `bunTestContext`: Bun-compatible context that flattens nested tests inline,
- *   working around Bun's lack of nested `test()` support.
- * - `engine`: runtime detected at startup; controls which context `register` selects.
- * - `nodeVersion`: detected Node version; absent for other and virtual runtimes.
- * - `inlineTestContext`: whether the selected context flattens nested tests.
+ * - `testContext`: the host-selected external test context. Node and Deno use
+ *   native registration; Bun's adapter runs nested tests inline.
  */
 export type NodeProgramOptions = {
     readonly args: readonly string[]
@@ -948,10 +942,6 @@ export type NodeProgramOptions = {
     readonly home: string
     readonly std: Std
     readonly testContext: TestContext
-    readonly bunTestContext: TestContext
-    readonly engine: Engine
-    readonly nodeVersion?: string
-    readonly inlineTestContext: boolean
 }
 
 /**

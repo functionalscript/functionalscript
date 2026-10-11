@@ -364,48 +364,6 @@
         }
       ]
     },
-    "node22": {
-      "runs-on": "ubuntu-26.04-arm",
-      "timeout-minutes": 15,
-      "steps": [
-        {
-          "uses": "cachix/install-nix-action@v31.11.1"
-        },
-        {
-          "uses": "actions/checkout@v7.0.1"
-        },
-        {
-          "run": "test \"$(sh ./gen.nix/node22/run node --version)\" = \"v22.23.3\""
-        },
-        {
-          "run": "sh ./gen.nix/node22/run npm ci"
-        },
-        {
-          "run": "sh ./gen.nix/node22/run node --test"
-        }
-      ]
-    },
-    "node24": {
-      "runs-on": "ubuntu-26.04-arm",
-      "timeout-minutes": 15,
-      "steps": [
-        {
-          "uses": "cachix/install-nix-action@v31.11.1"
-        },
-        {
-          "uses": "actions/checkout@v7.0.1"
-        },
-        {
-          "run": "test \"$(sh ./gen.nix/node24/run node --version)\" = \"v24.21.0\""
-        },
-        {
-          "run": "sh ./gen.nix/node24/run npm ci"
-        },
-        {
-          "run": "sh ./gen.nix/node24/run node --test"
-        }
-      ]
-    },
     "node26": {
       "runs-on": "ubuntu-26.04-arm",
       "timeout-minutes": 15,

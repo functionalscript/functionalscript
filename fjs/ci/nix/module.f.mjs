@@ -1,11 +1,11 @@
 /**
- * Generates one self-contained Nix flake per declared CI job.
+ * Generates the shared, self-contained Nix development shell.
  *
- * Each job gets its own `gen.nix/<id>/flake.nix` pinning the exact
- * Nixpkgs commit from `../config/module.f.js` and exposing a single
- * `devShells.<system>.default` development shell. The files are static and
- * readable on purpose: no job selection, no shared Nix modules, no helper
- * libraries.
+ * `gen.nix/flake.nix` pins the exact Nixpkgs commit from
+ * `../config/module.f.js` and exposes a `devShells.<system>.default` for
+ * each supported system. Every Nix-backed CI job and developer enters this
+ * environment. The file is static and readable on purpose: no job selection,
+ * shared Nix modules or helper libraries.
  *
  * See `./types.ts` for the `NixJob` type-level API.
  *
@@ -19,9 +19,8 @@
  * @import { _ShellValues } from './private.ts'
  */
 
-import { pureOk } from '../../effects/module.f.mjs'
 import { mkdir, writeUtf8File } from '../../effects/node/module.f.mjs'
-import { forEachStep, step } from '../../effects/module.f.mjs'
+import { step } from '../../effects/module.f.mjs'
 import { nixToString } from '../../media/nix/module.f.mjs'
 import { fromUndefined, unwrap as unwrapNullable } from '../../types/nullable/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
@@ -29,13 +28,8 @@ import { install, test, uses } from '../common/module.f.mjs'
 import { nixpkgs, rustOverlay } from '../config/module.f.js'
 
 /**
- * Directory holding the generated environments, each a `flake.nix` and a `run`
- * script beside it.
- *
- * The shared shell is *this* directory rather than one below it — see
- * {@link nixShell} — and a job that needs a shell of its own gets a
- * subdirectory named after it. So the generator owns `flake.nix`, `run`, and
- * every subdirectory here; `nix/README.md` is written by hand.
+ * Directory holding the generated shared `flake.nix`, `run` and lock-update
+ * script. Everything in it is generated; `nix/README.md` is written by hand.
  */
 export const generatedDirectory = /** @type {const} */ ('gen.nix')
 
@@ -487,11 +481,11 @@ const flake = job => ['set',
 export const flakeText = job =>
     unwrap(nixToString(flake(job)))
 
-/** Where {@link nixFlakes} writes the lock script, as a CI step names it. */
+/** Where {@link nixFlake} writes the lock script, as a CI step names it. */
 export const lockUpdatePath = /** @type {const} */ (`./${generatedDirectory}/lock-update.sh`)
 
 /**
- * The script that regenerates every generated flake's `flake.lock` from
+ * The script that regenerates the shared flake's `flake.lock` from
  * nothing, through real Nix rather than data.
  *
  * `flake.nix` already pins an exact revision — the 40-hex commit in each
@@ -511,19 +505,18 @@ export const lockUpdatePath = /** @type {const} */ (`./${generatedDirectory}/loc
  * one, and a lock that was edited, or left behind by a pin that moved, is a
  * drift-check diff rather than an input `nix flake lock` quietly kept.
  *
- * One `nix flake lock` per generated directory, because Nix has no form that
- * locks several flakes at once. `set -e` stops at the first failure rather
- * than leaving a later directory silently unlocked.
+ * One `nix flake lock` for the one shared environment. `set -e` preserves a
+ * failure from Nix as the script's result.
  *
  * Deleting the shared shell's own lock from inside that shell is fine: the
  * lock is read once, on entry, and `gen`'s process is already in. The step
  * after it, the drift check, is `git`'s and enters no shell.
  *
- * @type {(jobs: readonly NixJob[]) => string}
+ * @type {() => string}
  */
-export const lockUpdateText = jobs => `#!/bin/sh
+export const lockUpdateText = () => `#!/bin/sh
 set -e
-${jobs.map(({ id }) => `nix flake lock ${experimentalFeatures} ${flakePath(id)}`).join('\n')}
+nix flake lock ${experimentalFeatures} ${flakePath()}
 `
 
 /**
@@ -640,14 +633,14 @@ const experimentalFeatures = `--extra-experimental-features 'nix-command flakes'
  * Neither flag reaches the command being run: `--command` execs it with stdio
  * inherited, so a job's own output is exactly what it was.
  *
- * @type {(id: string) => string}
+ * @type {() => string}
  */
-export const runText = id => `#!/bin/sh
-exec nix develop ${experimentalFeatures} --no-update-lock-file --quiet ${flakePath(id)} --command "$@"
+export const runText = () => `#!/bin/sh
+exec nix develop ${experimentalFeatures} --no-update-lock-file --quiet ${flakePath()} --command "$@"
 `
 
 /**
- * Writes a job's flake and the `run` script beside it, stopping at the first
+ * Writes the shared flake and the `run` script beside it, stopping at the first
  * failure.
  *
  * The script carries no executable bit, and nothing depends on one: a step
@@ -657,91 +650,64 @@ exec nix develop ${experimentalFeatures} --no-update-lock-file --quiet ${flakePa
  *
  * @type {(job: NixJob) => Effect<Mkdir | Rm | WriteBytes | WriteFile, void, IoChannel>}
  */
-const writeJob = job => {
+const writeShell = job => {
     // `flakePath` is what a workflow step names, so it is relative; the effects
     // layer writes from the repository root, so the `./` comes off here rather
     // than being a second opinion about where these files go.
-    const directory = flakePath(job.id).slice('./'.length)
+    const directory = flakePath().slice('./'.length)
     const created = mkdir(directory, { recursive: true })
     const flakeWritten = step(
         created,
         () => writeUtf8File(`${directory}/flake.nix`, flakeText(job)))
     return step(
         flakeWritten,
-        () => writeUtf8File(`${directory}/run`, runText(job.id)))
+        () => writeUtf8File(`${directory}/run`, runText()))
 }
 
 /**
- * Writes one generated environment per job, stopping at the first failure, and
- * the `lock-update.sh` script beside the shared shell that covers all of them.
+ * Writes the shared environment and its `lock-update.sh` script, stopping at
+ * the first failure.
  *
  * `flake.lock` is deliberately not written here — see {@link lockUpdateText}
  * — so this leaves whatever lock is already committed alone; only
- * `gen.nix/lock-update.sh` itself, and the generated `flake.nix`/`run` pair each
- * job takes, are this function's output. The locks are the script's, and
+ * `gen.nix/lock-update.sh` itself and the shared `flake.nix`/`run` pair are this
+ * function's output. The lock is the script's, and
  * `npm run gen` runs it after this, through `sh` like every `run`.
  *
- * @type {(jobs: readonly NixJob[]) => Effect<Mkdir | Rm | WriteBytes | WriteFile, void, IoChannel>}
+ * @type {(job: NixJob) => Effect<Mkdir | Rm | WriteBytes | WriteFile, void, IoChannel>}
  */
-export const nixFlakes = jobs => {
-    const written = forEachStep(pureOk(jobs), writeJob)
+export const nixFlake = job => {
+    const written = writeShell(job)
     return step(
         written,
-        () => writeUtf8File(lockUpdatePath.slice('./'.length), lockUpdateText(jobs)))
+        () => writeUtf8File(lockUpdatePath.slice('./'.length), lockUpdateText()))
 }
 
 /**
- * The one generated environment jobs share, and the directory its flake is
- * written to.
- *
- * Most jobs name their runtime on the command line — `deno task cov`, `bun
- * test`, `cargo test`, `tsc` — so what else is on `PATH` cannot decide which
- * one runs, and a shell carrying all of them tests exactly what a narrower one
- * would. Those jobs share this, and it is the same shell a developer enters, so
- * the environment CI proves is the environment people work in.
- *
- * A job whose runtime is resolved from `PATH` rather than named cannot share
- * it, and the Node jobs are that case: `npm ci` and `node --test` run whichever
- * `node` comes first, so Node 22 and Node 24 keep a flake each carrying the one
- * release they exist to test. `../dev/module.f.mjs` has the rest of the
- * reasoning.
- *
- * The name is a label rather than a directory. This shell is written to
- * {@link generatedDirectory} itself — see {@link flakePath} — because it
- * belongs to no single job, and `nix develop ./gen.nix` is the command a
- * developer should have to remember.
- */
-export const nixShell = /** @type {const} */ ('dev')
-
-/**
- * Directory holding the flake and `run` script for the environment of the given
- * id.
+ * Directory holding the shared flake and `run` script.
  *
  * The shared shell is the generated directory itself, so a developer types
  * `nix develop ./gen.nix` — the repository's environment, named after nothing
- * in particular, because it belongs to no single job. The rest get a
- * subdirectory apiece. The directory takes the `gen.` name every generated
- * file has: nothing in it is handwritten, and `gen:clean` empties it.
+ * in particular, because it belongs to no single job. The directory takes the
+ * `gen.` name every generated file has: nothing in it is handwritten, and
+ * `gen:clean` empties it.
  *
- * @type {(id: string) => string}
+ * @type {() => string}
  */
-export const flakePath = id =>
-    id === nixShell
-        ? `./${generatedDirectory}`
-        : `./${generatedDirectory}/${id}`
+export const flakePath = () => `./${generatedDirectory}`
 
-/** The `run` script a workflow step invokes, for the job of the given id. */
-/** @type {(id: string) => string} */
-export const runPath = id => `${flakePath(id)}/run`
+/** The shared `run` script a workflow step invokes. */
+/** @type {() => string} */
+export const runPath = () => `${flakePath()}/run`
 
 /** Installs Nix, with `nix-command` and `flakes` enabled by the action's defaults. */
 export const nixInstall = install(uses('cachix/install-nix-action'))
 
 /**
- * Runs one command inside a job's generated development shell, through that
- * job's `run` script.
+ * Runs one command inside the shared development shell, through its `run`
+ * script.
  *
- * A step reads as the command it runs — `sh ./gen.nix/node26/run npm run cov`
+ * A step reads as the command it runs — `sh ./gen.nix/run npm run cov`
  * — with the `nix develop` spelling and its flags in one generated place rather
  * than repeated fifteen times across the workflow. {@link runText} documents
  * what that spelling is and why.
@@ -757,46 +723,35 @@ export const nixInstall = install(uses('cachix/install-nix-action'))
  * writing, a mismatched one, so only `gen.nix/lock-update.sh` — never a Nix
  * step in CI — ever changes one.
  *
- * @type {(id: string, command: string) => string}
+ * @type {(command: string) => string}
  */
-export const nixDevelop = (id, command) => `sh ${runPath(id)} ${command}`
+export const nixDevelop = command => `sh ${runPath()} ${command}`
 
 /**
- * The Nix system of the runner every job with a flake uses. `ubuntuArm` picks
+ * The Nix system of the canonical jobs' runner. `ubuntuArm` picks
  * the image; this is the same machine named the way a flake names it.
  *
- * A job on another runner declares another system, and its flake gets another
- * explicit `devShells.<system>.default` — not a loop over systems.
+ * The shared shell also serves the other supported Linux and macOS systems,
+ * each through an explicit `devShells.<system>.default`.
  */
 export const nixSystem = /** @type {const} */ ('aarch64-linux')
 
 /**
- * What a CI job declares: the one runner it has, as a list of one.
- *
- * A job on another runner declares another system, and gets another explicit
- * `devShells.<system>.default` — not a loop. The developer environment is the
- * only declaration with more than one entry.
- *
- * @type {readonly [string, ...string[]]}
- */
-export const nixSystems = [nixSystem]
-
-/**
- * One step per command, each entering the job's shell (root `AGENTS.md` §7).
+ * One step per command, each entering the shared shell (root `AGENTS.md` §7).
  *
  * Re-entering per step is the point rather than a cost: the step is what CI
  * reports on, and a bundle would name the wrapper instead of the command that
  * failed. Only commands needing a tool the flake pins go through here — `git`
  * is the runner's, so the Node 26 drift check stays a plain step.
  *
- * @type {(id: string) => (commands: readonly string[]) => readonly MetaStep[]}
+ * @type {(commands: readonly string[]) => readonly MetaStep[]}
  */
-export const nixSteps = id => commands =>
-    commands.map(command => test({ run: nixDevelop(id, command) }))
+export const nixSteps = commands =>
+    commands.map(command => test({ run: nixDevelop(command) }))
 
 /**
  * Asserts that the runtime a job is about to use is the version configured for
- * it, read from inside that job's own generated flake.
+ * it, read from inside the shared generated flake.
  *
  * The flake resolves its package from the pinned Nixpkgs commit, which
  * `../config/module.f.js` only *claims* provides that version. The claim does
@@ -814,7 +769,7 @@ export const nixSteps = id => commands =>
  * and `deno --version` prints three lines, so Deno is asked for the one field
  * instead.
  *
- * @type {(id: string, command: string, expected: string) => MetaStep}
+ * @type {(command: string, expected: string) => MetaStep}
  */
-export const nixVersionStep = (id, command, expected) =>
-    test({ run: `test "$(${nixDevelop(id, command)})" = "${expected}"` })
+export const nixVersionStep = (command, expected) =>
+    test({ run: `test "$(${nixDevelop(command)})" = "${expected}"` })

@@ -3,18 +3,10 @@
  * every system Nix runs on.
  *
  * It is both things at once, and that is the point. It is what a developer
- * enters before running anything, and it is what every CI job but the Node 22,
- * Node 24 and two Windows jobs runs inside — so the environment CI proves is
- * the environment people work in, rather than a fifth arrangement nobody uses.
- *
- * The jobs used to have one flake each, on the reasoning that a shell with five
- * runtimes would let a job pass on whichever `node` reached `PATH` first. That
- * risk is real, and it is narrower than the rule it produced: it applies only
- * where a command resolves its runtime from `PATH`. `deno task cov`, `bun
- * test`, `cargo test` and `tsc` all name theirs, so what else is installed
- * cannot decide what runs them. The two jobs the risk does apply to — Node 22
- * and Node 24, whose `npm ci` and `node --test` take whatever `node` they find
- * — keep a flake each. See `../node/module.f.mjs`.
+ * enters before running anything, and it is what every CI job but the two
+ * Windows jobs runs inside — so the environment CI proves is the environment
+ * people work in. Each tool has one selected version, including the Node
+ * that `npm ci` and `node --test` resolve from `PATH`.
  *
  * Nothing is declared here that no job needs, `git` excepted: `nix develop`
  * builds the environment from what the shell asks for rather than from what the
@@ -41,10 +33,6 @@ import { node, typescript } from '../config/module.f.js'
 import { bunPin } from '../bun/module.f.mjs'
 import { major } from '../node/module.f.mjs'
 import { i686PerSystem, wasmPackages, wasmRust } from '../rust/module.f.mjs'
-import { nixShell } from '../nix/module.f.mjs'
-
-/** The directory name of the generated flake. */
-export const devJobId = nixShell
 
 /**
  * Every system this shell is generated for: two architectures on Linux, two on
@@ -70,8 +58,8 @@ export const devSystems = [
  * the pinned Bun and the Rust toolchain — and, on Intel Linux, the 32-bit
  * target and linker that platform's job needs.
  *
- * The Node here is the default one, which is what makes `node26` able to share
- * this shell and Node 22 and Node 24 unable to.
+ * The Node here is the selected release, which is what the canonical Node job
+ * and every platform job checks.
  *
  * `perSystem` is what makes this *the* environment rather than most of it. Every
  * job a platform runs should be runnable in the shell that platform's developer
@@ -85,10 +73,9 @@ export const devSystems = [
  * @type {NixJob}
  */
 export const devNixJob = {
-    id: devJobId,
     systems: devSystems,
     packages: [
-        `nodejs_${major(node.default)}`,
+        `nodejs_${major(node)}`,
         'deno',
         typescript.attribute,
         ...wasmPackages,

@@ -43,7 +43,7 @@ import { commonOperationMap } from '../common/module.mjs'
 import {
     emptyHost, emptyHostCode, emptyHostMessage, exitCode, fileSizeRefusal, inflateTrailingCode, inflateTrailingMessage,
     notAFileCode, notAFileMessage, refusalMessage, refusedStatus, requestBody, requestBodyOffsetMessage,
-    responseGate, runnerResponse, toIoError, usesInlineTestContext, windowRefusal,
+    responseGate, runnerResponse, toIoError, windowRefusal,
 } from './module.f.mjs'
 import { asBase, asNominal } from '../../types/nominal/module.f.js'
 import { definedEntries } from '../../types/object/module.f.mjs'
@@ -1129,17 +1129,23 @@ const inlineTest = async (name, { expectFailure }, fn) => {
 /** @type {TestContext} */
 const inlineContext = { test: inlineTest }
 
-/** @type {(register: (name: string, fn: () => Promise<void>) => Promise<void>) => TestContext} */
-const wrapInlineTest = register => ({
-    test: (name, opts, fn) => register(name, () => inlineTest(name, opts, fn))
+/**
+ * Bun's external registration adapter. Each ordinary registration executes its
+ * nested tests inline, so ` ...` marks that one reported test may cover more
+ * leaves. Expected-to-throw tests never produce nested tests and keep their name.
+ *
+ * Private linkage lets the co-located host proof's `inlineRegistrationNames`
+ * observe the names handed to the registration callback, which the native
+ * frameworks do not expose back through `TestContext`.
+ *
+ * @internal
+ * @type {(register: (name: string, fn: () => Promise<void>) => Promise<void>) => TestContext}
+ */
+export const _wrapInlineTest = register => ({
+    test: (name, opts, fn) => register(
+        opts.expectFailure ? name : `${name} ...`,
+        () => inlineTest(name, opts, fn)),
 })
-
-const bunTestContext = wrapInlineTest(testContext.test)
-
-const engine = 'Bun' in globalThis ? 'bun' :
-    'Deno' in globalThis ? 'deno' : 'node'
-const nodeVersion = engine === 'node' ? process.version : undefined
-const inlineTestContext = usesInlineTestContext(engine, nodeVersion)
 
 /** @type {NodeProgramOptions} */
 const options = {
@@ -1147,11 +1153,7 @@ const options = {
     env: process.env,
     home: toPosix(os.homedir()),
     std: { stdout: process.stdout, stderr: process.stderr },
-    testContext: inlineTestContext ? wrapInlineTest(testContext.test) : testContext,
-    bunTestContext,
-    engine,
-    ...(nodeVersion === undefined ? {} : { nodeVersion }),
-    inlineTestContext,
+    testContext: 'Bun' in globalThis ? _wrapInlineTest(testContext.test) : testContext,
 }
 
 /**

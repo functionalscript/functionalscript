@@ -24,7 +24,8 @@ install, as this issue predicted it would.
 
 `node22` was another until it lost `fjs test` and the install feeding it. Those
 were there because Node 22 could not run `node --test`, not to check a package,
-and the job runs the suite directly now.
+and the job later ran the suite directly. The Node 22/24 jobs are now removed;
+this is migration history, not a current compatibility promise.
 
 `<version>` is `functionalscript` in `../config/module.f.js`, and its comment
 states the intent: a **published release**, deliberately not
@@ -68,7 +69,7 @@ commit, different working directories.
 
 - **`functionalscript` in `../config/module.f.js` loses its last consumer.** It
   is now read only by `platformNodeSteps`, which is the row
-  above; `denoSteps` and `bunSteps` stopped reading it, and `nodeVersionJobs`
+  above; `denoSteps` and `bunSteps` stopped reading it, and the removed old-Node jobs
   stopped when Node 22 lost its global install. The constant, and the manual
   bump it needs after every release, go away with that row.
 - **Deno's `--minimum-dependency-age=0` is already gone**, for exactly the reason
@@ -86,8 +87,7 @@ commit, different working directories.
   `jobNeeds` in `../proof.f.mjs` pins that count at 0. So the checks of the
   built package run where the tarball is packed, in `node26`, or in a job that
   packs its own — not in a job that waits for one. The runtime jobs gain no
-  ordering either: the checks move out of them rather than making `node22` wait
-  for `node26`.
+  ordering either: the selected Node, Deno and Bun checks stay independent.
 - **Nothing checks the last published release any more.** That is the correct
   trade — a pull request cannot fix a shipped release — but if the check is
   wanted, it belongs in a scheduled run against `main`, not in per-commit CI.
@@ -114,10 +114,12 @@ commit, different working directories.
 - **How each runtime installs a tarball globally.** `npm install -g ./x.tgz`,
   `bun install -g ./x.tgz` and Deno's equivalent need checking against the
   pinned versions rather than assumed; Deno in particular installs from
-  `npm:` specifiers today. Deno 2.8.3 — the version `../config/module.f.js`
-  pins — was reported to break `deno run -A npm:functionalscript` when
+  `npm:` specifiers today. Deno 2.8.3 was reported to break `deno run -A npm:functionalscript` when
   `deno install --frozen` runs first (`package.json … did not exist`), so a Deno
   check of the tarball must be tried in both orders before one is chosen.
+  Use the exact selected Node, Deno, Bun and TypeScript pins for this work;
+  a historical release passing on current tools does not establish the
+  current release's support contract.
 
 ### Tasks
 
@@ -144,8 +146,8 @@ commit, different working directories.
 
 ### Related
 
-- [65Z-ci-nix](65z-ci-nix.md) — the Node jobs, all three of which are now free of
-  published-package steps
+- [65Z-ci-nix](65z-ci-nix.md) — the shared shell migration; the surviving
+  selected-Node job is free of published-package steps
 - An optional per-package self-test hook — `npm run ci:self-test --if-present`
   after installing the tarball — was proposed as `667-ci-self-test-script` and
   deleted: the package-name special case it was filed to replace is gone from
