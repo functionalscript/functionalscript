@@ -38,9 +38,12 @@ export const buildPath = `${generatedDirectory}/build.sh`
  * The script's text.
  *
  * **Rust is installed only where `cargo` is not on `PATH`.** The shared shell
- * has the pinned one, and a developer's `npm run website` must not start
- * downloading toolchains; Cloudflare's build image has none, and gets exactly
- * the pin. The installer is `rustup`'s own, saved to a file and then run —
+ * has the pinned one, so a build there downloads nothing. Cloudflare's build
+ * image has none and gets exactly the pin — and so does a checkout outside
+ * the shell, as `rustup`'s user-level install under `$HOME`: the shell is the
+ * environment ([`AGENTS.md` §2](../../../AGENTS.md#2-environment-and-running-tests)),
+ * and a build outside it gets the toolchain the build needs rather than a
+ * site without its docs. The installer is `rustup`'s own, saved to a file and then run —
  * not piped into `sh`, whose exit status would be the pipeline's whatever
  * `curl` answered, so a refused download would be a silent one. It goes under
  * `$HOME`, which on a build image is a fresh container's, and runs

@@ -81,9 +81,12 @@ shared shell and the platform matrix also take. The script is generated from
 that constant by [`build/module.f.mjs`](./build/module.f.mjs), as
 `gen.nix/flake.nix` is, so the version is written in the script in full and a
 bump of the pin is a diff the drift check guards. In the shared shell `cargo`
-is already that version, so nothing is installed. The toolchain goes into
-the build container's home; `target/`, which `cargo doc` writes beside the
-docs, is in [`.assetsignore`](../../.assetsignore) and never served.
+is already that version, so nothing is installed; a checkout outside the
+shell gets the same user-level install under `$HOME` that the build image
+gets. The script is `sh`, like `gen.nix/run`: on Windows, run it where the
+shell runs, in WSL2 or the devcontainer. `target/`, which `cargo doc` writes
+beside the docs, is in [`.assetsignore`](../../.assetsignore) and never
+served.
 
 Installing Rust in the build was chosen over the alternative, building and
 deploying from CI in the Nix shell with `wrangler`, for what it keeps:
