@@ -13,12 +13,21 @@ meaning.
 Three things hold for every rule:
 
 - **A required function is imported, never copied.** Where a rewrite needs a
-  function — `entry` below, and the helpers later rules name — the
-  repository implements it once, in FunctionalScript, and a converted module
-  imports it from that module. The specification may spell the function out
-  so the compiler can recognize it wherever it is written; that is the
-  compiler's contract, not an invitation to paste it. A copy is a second
-  implementation that will drift ([AGENTS.md §1](../AGENTS.md#1-workflow)).
+  function — `entry` and `isInteger` below, and the helpers later rules
+  name — the repository implements it once, in FunctionalScript, and a
+  converted module imports it from that module. The specification may spell
+  the function out so the compiler can recognize it wherever it is written;
+  that is the compiler's contract, not an invitation to paste it. A copy is
+  a second implementation that will drift
+  ([AGENTS.md §1](../AGENTS.md#1-workflow)).
+
+  This is the strategy for a built-in the language lacks: implement what
+  can be implemented as an ordinary FunctionalScript function first, in an
+  authored `.f.js`, and let the language take it in later, as syntax sugar
+  the compiler recognizes, once its use is understood. Until then the
+  function is what it spells, a function like any other the compiler
+  compiles, and the EDAG and the VM may have no node for it; a module that
+  imports it depends on nothing but the module.
 - **The value is preserved.** FunctionalScript is a subset of JavaScript, and
   a converted module is still JavaScript: it must compute what it computed
   before, in both languages. A rewrite that changes a result is a change to
@@ -132,3 +141,33 @@ The two access rewrites apply to an optional access alike, `a?.[Number(i)]`
 ([optional chaining](../spec/README.md#optional-chaining)), and the
 `Number(...)` form to a call through the access, `a[Number(i)](x)`, which
 calls what it reads with `a` as the receiver, as `a[0](x)` does.
+
+## 2. `Number.isInteger`
+
+Of the `Number` global, only the call `Number(exp)` is in the language
+([number conversion](../spec/README.md#number-conversion)); every member
+of it is an admission of its own, and `Number.isInteger` is refused
+(`reserved word`). Its replacement is `isInteger`, imported from
+[`fjs/types/number/is_integer`](../fjs/types/number/is_integer/module.f.js):
+
+```js
+const even = n => Number.isInteger(n) && n % 2 === 0   // refused
+```
+
+```js
+import { isInteger } from '../types/number/is_integer/module.f.js'
+
+const even = n => isInteger(n) && n % 2 === 0           // accepted
+```
+
+`isInteger(n)` is `typeof n === 'number' && n % 1 === 0`, which is what
+`Number.isInteger` answers, value for value: a non-number is `false` without
+coercion, so is `NaN` and either infinity, whose remainder is `NaN`, and
+both zeros and every integral number beyond the safe range are `true`. The
+module is an ordinary function the compiler compiles, not a helper it
+recognizes; it needs no node of its own.
+
+`Number.isSafeInteger` has the same rewrite, `isSafeInteger` from
+[`fjs/types/number/is_safe_integer`](../fjs/types/number/is_safe_integer/module.f.js),
+which is `isInteger` within the inclusive bound `2^53 - 1` on either side,
+as the built-in is.
