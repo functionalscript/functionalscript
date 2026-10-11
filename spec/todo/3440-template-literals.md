@@ -128,8 +128,11 @@ Use the four token kinds and the `value`/`source` payload specified by the
 chunk delimiters, preserving backslashes and raw line terminators. The compiler
 checks `source` against the scope above before admitting each chunk, then lowers
 `value`. Plain `A` and the deferred escape `\x41` both cook to `A`, but their
-`source` fields remain `'A'` and `'\\x41'`, so the latter is refused. The token
-kind retains that even a substitution-free template is outside JSON and DataJS.
+`source` fields remain `'A'` and `'\\x41'`, so the latter is refused. A chunk
+whose escape has no cooked value, such as `\xG1`, never reaches the compiler:
+the lexing proposal reports an `error` token there, since only a tagged
+template could carry it. The token kind retains that even a substitution-free
+template is outside JSON and DataJS.
 Reuse the shared head/middle/tail boundaries and nesting contexts.
 
 ### Examples
