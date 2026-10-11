@@ -5,100 +5,140 @@ use nanvm_lib::vm::{Any, Array, IStaticFunction, Nullish, ToAny, ToArray, ToObje
 
 #[rustfmt::skip]
 pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
-    let c0: Any<A> = [f64_any(0x4008000000000000), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any();
-    let c1 = || {
-        let c2: Any<A> = A::static_function(|_self, args| { args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()) * f64_any(0x4024000000000000) }, 1, Array::default(), Some("($0)=>$0*10")).to_any();
-        Ok([c2].to_array().to_any())
-    };
-    let c3: Any<A> = Any::dot(c0.clone(), string_any("map")).end_call(c1)?;
-    let c4 = || {
-        let c5: Any<A> = A::static_function(|_self, args| {
-            let c0: Any<A> = (args.clone().into_iter().nth(1).unwrap_or_else(|| Nullish::Undefined.to_any()) * f64_any(0x4024000000000000))?;
-            args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()) + c0
-        }, 2, Array::default(), Some("($0,$1)=>$0+$1*10")).to_any();
-        Ok([c5].to_array().to_any())
-    };
-    let c6: Any<A> = Any::dot(c0.clone(), string_any("map")).end_call(c4)?;
-    let c7 = || {
-        let c8: Any<A> = A::static_function(|_self, args| {
-            let c0: Any<A> = (f64_any(0x4024000000000000) / f64_any(0x4024000000000000))?;
-            Any::gt(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), c0)
-        }, 1, Array::default(), Some("($0)=>$0>10/10")).to_any();
-        Ok([c8].to_array().to_any())
-    };
-    let c9: Any<A> = Any::dot(c0.clone(), string_any("filter")).end_call(c7)?;
-    let c10 = || {
-        let c11: Any<A> = A::static_function(|_self, args| {
-            let c0: Any<A> = (args.clone().into_iter().nth(1).unwrap_or_else(|| Nullish::Undefined.to_any()) * f64_any(0x4024000000000000))?;
-            args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()) + c0
-        }, 2, Array::default(), Some("($0,$1)=>$0+$1*10")).to_any();
-        Ok([c11, f64_any(0x0000000000000000)].to_array().to_any())
-    };
-    let c12: Any<A> = Any::dot(c0.clone(), string_any("reduce")).end_call(c10)?;
-    let c13 = || {
-        let c14: Any<A> = A::static_function(|_self, args| {
-            let c0: Any<A> = (args.clone().into_iter().nth(1).unwrap_or_else(|| Nullish::Undefined.to_any()) * f64_any(0x4024000000000000))?;
-            args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()) + c0
-        }, 2, Array::default(), Some("($0,$1)=>$0+$1*10")).to_any();
-        Ok([c14, string_any("")].to_array().to_any())
-    };
-    let c15: Any<A> = Any::dot(c0.clone(), string_any("reduceRight")).end_call(c13)?;
-    let c16 = || {
-        let c17: Any<A> = A::static_function(|_self, args| {
-            let c0: Any<A> = (Any::lt(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), f64_any(0x4024000000000000)))?;
-            let c1 = || Any::gt(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), f64_any(0x3ff0000000000000));
-            Any::logical_and(c0, c1)
-        }, 1, Array::default(), Some("($0)=>$0<10&&$0>1")).to_any();
-        Ok([c17].to_array().to_any())
-    };
-    let c18: Any<A> = Any::dot(c0.clone(), string_any("find")).end_call(c16)?;
-    let c19 = || {
-        let c20: Any<A> = A::static_function(|_self, args| { strict_eq(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), f64_any(0x4000000000000000)) }, 1, Array::default(), Some("($0)=>$0===2")).to_any();
-        Ok([c20].to_array().to_any())
-    };
-    let c21: Any<A> = Any::dot(c0.clone(), string_any("findIndex")).end_call(c19)?;
-    let c22 = || {
-        let c23: Any<A> = A::static_function(|_self, args| {
-            let c0: Any<A> = (f64_any(0x4024000000000000) - f64_any(0x4022000000000000))?;
-            Any::gt(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), c0)
-        }, 1, Array::default(), Some("($0)=>$0>10-9")).to_any();
-        Ok([c23].to_array().to_any())
-    };
-    let c24: Any<A> = Any::dot(c0.clone(), string_any("findLast")).end_call(c22)?;
-    let c25 = || {
-        let c26: Any<A> = A::static_function(|_self, args| { Any::gt(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), f64_any(0x4024000000000000)) }, 1, Array::default(), Some("($0)=>$0>10")).to_any();
-        Ok([c26].to_array().to_any())
-    };
-    let c27: Any<A> = Any::dot(c0.clone(), string_any("findLastIndex")).end_call(c25)?;
-    let c28 = || {
-        let c29: Any<A> = A::static_function(|_self, args| {
-            let c0: Any<A> = (f64_any(0x4024000000000000) - f64_any(0x4020000000000000))?;
-            strict_eq(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), c0)
-        }, 1, Array::default(), Some("($0)=>$0===10-8")).to_any();
-        Ok([c29].to_array().to_any())
-    };
-    let c30: Any<A> = Any::dot(c0.clone(), string_any("some")).end_call(c28)?;
-    let c31 = || {
-        let c32: Any<A> = A::static_function(|_self, args| { Any::lt(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), f64_any(0x4024000000000000)) }, 1, Array::default(), Some("($0)=>$0<10")).to_any();
-        Ok([c32].to_array().to_any())
-    };
-    let c33: Any<A> = Any::dot(c0.clone(), string_any("every")).end_call(c31)?;
-    let c34 = || {
-        let c35: Any<A> = A::static_function(|_self, args| {
-            let c0: Any<A> = (args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()) * f64_any(0x4024000000000000))?;
-            Ok([args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), c0].to_array().to_any())
-        }, 1, Array::default(), Some("($0)=>[$0,$0*10]")).to_any();
-        Ok([c35].to_array().to_any())
-    };
-    let c36: Any<A> = Any::dot(c0.clone(), string_any("flatMap")).end_call(c34)?;
-    let c37 = || {
-        let c38: Any<A> = A::static_function(|_self, args| {
-            let c0: Any<A> = Any::dot(args.clone().into_iter().nth(2).unwrap_or_else(|| Nullish::Undefined.to_any()), string_any("length")).end()?;
-            c0 + args.clone().into_iter().nth(1).unwrap_or_else(|| Nullish::Undefined.to_any())
-        }, 3, Array::default(), Some("($0,$1,$2)=>$2.length+$1")).to_any();
-        Ok([c38].to_array().to_any())
-    };
-    let c39: Any<A> = Any::dot(c0.clone(), string_any("map")).end_call(c37)?;
-    let c40: Any<A> = [c3, c6, c9, c12, c15, c18, c21, c24, c27, c30, c33, c36, c39].to_array().to_any();
-    Ok([(string_key("default"), c40)].to_object().to_any())
+    let c0: Any<A> = A::static_function(|_self, args| {
+        let rest = args.clone().into_iter().to_array();
+        let c0: Any<A> = [f64_any(0x4008000000000000), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any();
+        let c1: Any<A> = rest.clone().to_any();
+        let c2 = || {
+            let c3: Any<A> = A::static_function(|self_, args| {
+                let c0: Any<A> = Any::dot(A::frame(self_)[0].clone(), f64_any(0x0000000000000000)).end()?;
+                args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()) * c0
+            }, 1, [c1.clone()].to_array(), Some("($1)=>$1*$0[0]")).to_any();
+            Ok([c3].to_array().to_any())
+        };
+        let c4: Any<A> = Any::dot(c0, string_any("map")).end_call(c2)?;
+        let c5: Any<A> = [f64_any(0x4008000000000000), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any();
+        let c6 = || {
+            let c7: Any<A> = A::static_function(|self_, args| {
+                let c0: Any<A> = Any::dot(A::frame(self_)[0].clone(), f64_any(0x0000000000000000)).end()?;
+                let c1: Any<A> = (args.clone().into_iter().nth(1).unwrap_or_else(|| Nullish::Undefined.to_any()) * c0)?;
+                args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()) + c1
+            }, 2, [c1.clone()].to_array(), Some("($1,$2)=>$1+$2*$0[0]")).to_any();
+            Ok([c7].to_array().to_any())
+        };
+        let c8: Any<A> = Any::dot(c5, string_any("map")).end_call(c6)?;
+        let c9: Any<A> = [f64_any(0x4008000000000000), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any();
+        let c10 = || {
+            let c11: Any<A> = A::static_function(|self_, args| {
+                let c0: Any<A> = Any::dot(A::frame(self_)[0].clone(), f64_any(0x0000000000000000)).end()?;
+                let c1: Any<A> = (c0 / f64_any(0x4024000000000000))?;
+                Any::gt(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), c1)
+            }, 1, [c1.clone()].to_array(), Some("($1)=>$1>$0[0]/10")).to_any();
+            Ok([c11].to_array().to_any())
+        };
+        let c12: Any<A> = Any::dot(c9, string_any("filter")).end_call(c10)?;
+        let c13: Any<A> = [f64_any(0x4008000000000000), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any();
+        let c14 = || {
+            let c15: Any<A> = A::static_function(|self_, args| {
+                let c0: Any<A> = Any::dot(A::frame(self_)[0].clone(), f64_any(0x0000000000000000)).end()?;
+                let c1: Any<A> = (args.clone().into_iter().nth(1).unwrap_or_else(|| Nullish::Undefined.to_any()) * c0)?;
+                args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()) + c1
+            }, 2, [c1.clone()].to_array(), Some("($1,$2)=>$1+$2*$0[0]")).to_any();
+            Ok([c15, f64_any(0x0000000000000000)].to_array().to_any())
+        };
+        let c16: Any<A> = Any::dot(c13, string_any("reduce")).end_call(c14)?;
+        let c17: Any<A> = [f64_any(0x4008000000000000), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any();
+        let c18 = || {
+            let c19: Any<A> = A::static_function(|self_, args| {
+                let c0: Any<A> = Any::dot(A::frame(self_)[0].clone(), f64_any(0x0000000000000000)).end()?;
+                let c1: Any<A> = (args.clone().into_iter().nth(1).unwrap_or_else(|| Nullish::Undefined.to_any()) * c0)?;
+                args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()) + c1
+            }, 2, [c1.clone()].to_array(), Some("($1,$2)=>$1+$2*$0[0]")).to_any();
+            Ok([c19, string_any("")].to_array().to_any())
+        };
+        let c20: Any<A> = Any::dot(c17, string_any("reduceRight")).end_call(c18)?;
+        let c21: Any<A> = [f64_any(0x4008000000000000), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any();
+        let c22 = || {
+            let c23: Any<A> = A::static_function(|self_, args| {
+                let c0: Any<A> = Any::dot(A::frame(self_)[0].clone(), f64_any(0x0000000000000000)).end()?;
+                let c1: Any<A> = (Any::lt(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), c0))?;
+                let c2 = || Any::gt(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), f64_any(0x3ff0000000000000));
+                Any::logical_and(c1, c2)
+            }, 1, [c1.clone()].to_array(), Some("($1)=>$1<$0[0]&&$1>1")).to_any();
+            Ok([c23].to_array().to_any())
+        };
+        let c24: Any<A> = Any::dot(c21, string_any("find")).end_call(c22)?;
+        let c25: Any<A> = [f64_any(0x4008000000000000), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any();
+        let c26 = || {
+            let c27: Any<A> = A::static_function(|self_, args| {
+                let c0: Any<A> = Any::dot(A::frame(self_)[0].clone(), f64_any(0x0000000000000000)).end()?;
+                let c1: Any<A> = (c0 - f64_any(0x4020000000000000))?;
+                strict_eq(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), c1)
+            }, 1, [c1.clone()].to_array(), Some("($1)=>$1===$0[0]-8")).to_any();
+            Ok([c27].to_array().to_any())
+        };
+        let c28: Any<A> = Any::dot(c25, string_any("findIndex")).end_call(c26)?;
+        let c29: Any<A> = [f64_any(0x4008000000000000), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any();
+        let c30 = || {
+            let c31: Any<A> = A::static_function(|self_, args| {
+                let c0: Any<A> = Any::dot(A::frame(self_)[0].clone(), f64_any(0x0000000000000000)).end()?;
+                let c1: Any<A> = (c0 - f64_any(0x4022000000000000))?;
+                Any::gt(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), c1)
+            }, 1, [c1.clone()].to_array(), Some("($1)=>$1>$0[0]-9")).to_any();
+            Ok([c31].to_array().to_any())
+        };
+        let c32: Any<A> = Any::dot(c29, string_any("findLast")).end_call(c30)?;
+        let c33: Any<A> = [f64_any(0x4008000000000000), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any();
+        let c34 = || {
+            let c35: Any<A> = A::static_function(|self_, args| {
+                let c0: Any<A> = Any::dot(A::frame(self_)[0].clone(), f64_any(0x0000000000000000)).end()?;
+                Any::gt(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), c0)
+            }, 1, [c1.clone()].to_array(), Some("($1)=>$1>$0[0]")).to_any();
+            Ok([c35].to_array().to_any())
+        };
+        let c36: Any<A> = Any::dot(c33, string_any("findLastIndex")).end_call(c34)?;
+        let c37: Any<A> = [f64_any(0x4008000000000000), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any();
+        let c38 = || {
+            let c39: Any<A> = A::static_function(|self_, args| {
+                let c0: Any<A> = Any::dot(A::frame(self_)[0].clone(), f64_any(0x0000000000000000)).end()?;
+                let c1: Any<A> = (c0 - f64_any(0x4020000000000000))?;
+                strict_eq(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), c1)
+            }, 1, [c1.clone()].to_array(), Some("($1)=>$1===$0[0]-8")).to_any();
+            Ok([c39].to_array().to_any())
+        };
+        let c40: Any<A> = Any::dot(c37, string_any("some")).end_call(c38)?;
+        let c41: Any<A> = [f64_any(0x4008000000000000), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any();
+        let c42 = || {
+            let c43: Any<A> = A::static_function(|self_, args| {
+                let c0: Any<A> = Any::dot(A::frame(self_)[0].clone(), f64_any(0x0000000000000000)).end()?;
+                Any::lt(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), c0)
+            }, 1, [c1.clone()].to_array(), Some("($1)=>$1<$0[0]")).to_any();
+            Ok([c43].to_array().to_any())
+        };
+        let c44: Any<A> = Any::dot(c41, string_any("every")).end_call(c42)?;
+        let c45: Any<A> = [f64_any(0x4008000000000000), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any();
+        let c46 = || {
+            let c47: Any<A> = A::static_function(|self_, args| {
+                let c0: Any<A> = Any::dot(A::frame(self_)[0].clone(), f64_any(0x0000000000000000)).end()?;
+                let c1: Any<A> = (args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()) * c0)?;
+                Ok([args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), c1].to_array().to_any())
+            }, 1, [c1.clone()].to_array(), Some("($1)=>[$1,$1*$0[0]]")).to_any();
+            Ok([c47].to_array().to_any())
+        };
+        let c48: Any<A> = Any::dot(c45, string_any("flatMap")).end_call(c46)?;
+        let c49: Any<A> = [f64_any(0x4008000000000000), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any();
+        let c50 = || {
+            let c51: Any<A> = A::static_function(|self_, args| {
+                let c0: Any<A> = Any::dot(args.clone().into_iter().nth(2).unwrap_or_else(|| Nullish::Undefined.to_any()), string_any("length")).end()?;
+                let c1: Any<A> = (c0 + args.clone().into_iter().nth(1).unwrap_or_else(|| Nullish::Undefined.to_any()))?;
+                let c2: Any<A> = Any::dot(A::frame(self_)[0].clone(), f64_any(0x0000000000000000)).end()?;
+                c1 + c2
+            }, 3, [c1.clone()].to_array(), Some("($1,$2,$3)=>$3.length+$2+$0[0]")).to_any();
+            Ok([c51].to_array().to_any())
+        };
+        let c52: Any<A> = Any::dot(c49, string_any("map")).end_call(c50)?;
+        Ok([c4, c8, c12, c16, c20, c24, c28, c32, c36, c40, c44, c48, c52].to_array().to_any())
+    }, 0, Array::default(), Some("(...$0)=>[[3,1,2].map(($1)=>$1*$0[0]),[3,1,2].map(($2,$3)=>$2+$3*$0[0]),[3,1,2].filter(($4)=>$4>$0[0]/10),[3,1,2].reduce(($5,$6)=>$5+$6*$0[0],0),[3,1,2].reduceRight(($7,$8)=>$7+$8*$0[0],\"\"),[3,1,2].find(($9)=>$9<$0[0]&&$9>1),[3,1,2].findIndex(($10)=>$10===$0[0]-8),[3,1,2].findLast(($11)=>$11>$0[0]-9),[3,1,2].findLastIndex(($12)=>$12>$0[0]),[3,1,2].some(($13)=>$13===$0[0]-8),[3,1,2].every(($14)=>$14<$0[0]),[3,1,2].flatMap(($15)=>[$15,$15*$0[0]]),[3,1,2].map(($16,$17,$18)=>$18.length+$17+$0[0])]")).to_any();
+    let c1: Any<A> = Any::call(c0, [f64_any(0x4024000000000000)].to_array().to_any())?;
+    Ok([(string_key("default"), c1)].to_object().to_any())
 }

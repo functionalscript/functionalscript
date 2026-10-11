@@ -129,8 +129,8 @@ Infrastructure:
 - [x] `toString` applies a radix for `Number` and `BigInt`, with corpus
       cases, lifting the refusal above.
 - [x] Corpus cases for every entry, run on the host engine and as
-      generated Rust: every name of `allowedCalls` is called in a corpus
-      fixture (`callbacks`, `guarded-calls`, `array-methods`,
+      generated Rust: every answered type and name pair of `gen.methods.rs`
+      is called on a receiver of that type in a corpus fixture (`callbacks`, `guarded-calls`, `array-methods`,
       `string-methods`, `number-methods`, beside the older `at`,
       `to-string` and `entry`). A fraction in a radix other than ten is
       refused by design and stays out of the corpus. Default function text

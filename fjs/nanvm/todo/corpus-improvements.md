@@ -113,10 +113,13 @@ compared by the existing machinery with nothing retyped.
    fixture.
 5. **Member-function calls through the compile path.** Done: a fixture for
    capturing callbacks (`map`, `filter`, `reduce` and the other callback
-   members, the AOT-compiled closure called by the VM's own code), one for
+   members, the AOT-compiled closure called by the VM's own code, capturing
+   an argument of an enclosing function, since a module `const` is folded
+   into the callback and leaves its frame empty), one for
    guarded built-in calls (`a?.at(0)`, `a.at?.(0)`, a nullish base), and one
    per family for the members that take arguments (array, string, number),
-   so every name of `allowedCalls` is called in some corpus fixture. A
+   so every answered type and name pair of `gen.methods.rs` is called on a
+   receiver of that type in some corpus fixture. A
    fraction in a radix other than ten (`(0.5).toString(2)`) is refused by
    the VM by design while Node answers it, so it stays out of the corpus:
    it is item 11's case, not this item's. The older fixtures (`at`,

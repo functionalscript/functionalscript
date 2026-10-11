@@ -29,19 +29,27 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
     let c21: Any<A> = Any::dot(string_any("hello, wörld"), string_any("lastIndexOf")).end_call(c20)?;
     let c22 = || Ok([string_any("wör")].to_array().to_any());
     let c23: Any<A> = Any::dot(string_any("hello, wörld"), string_any("includes")).end_call(c22)?;
-    let c24 = || Ok([f64_any(0x3ff0000000000000)].to_array().to_any());
-    let c25: Any<A> = Any::dot(string_any("hello, wörld"), string_any("charAt")).end_call(c24)?;
-    let c26 = || Ok([f64_any(0x3ff0000000000000)].to_array().to_any());
-    let c27: Any<A> = Any::dot(string_any("hello, wörld"), string_any("charCodeAt")).end_call(c26)?;
-    let c28 = || Ok([f64_any(0x4020000000000000)].to_array().to_any());
-    let c29: Any<A> = Any::dot(string_any("hello, wörld"), string_any("codePointAt")).end_call(c28)?;
-    let c30: Any<A> = Any::dot(string_any("  x "), string_any("trim")).end_call(|| Ok(Array::default().to_any()))?;
-    let c31: Any<A> = Any::dot(string_any("  x "), string_any("trimStart")).end_call(|| Ok(Array::default().to_any()))?;
-    let c32: Any<A> = Any::dot(string_any("  x "), string_any("trimEnd")).end_call(|| Ok(Array::default().to_any()))?;
-    let c33 = || Ok([string_any("!"), f64_any(0x3ff0000000000000)].to_array().to_any());
-    let c34: Any<A> = Any::dot(string_any("hello, wörld"), string_any("concat")).end_call(c33)?;
-    let c35: Any<A> = Any::dot(string_any_utf16(&[0x0061, 0xd800]), string_any("isWellFormed")).end_call(|| Ok(Array::default().to_any()))?;
-    let c36: Any<A> = Any::dot(string_any_utf16(&[0x0061, 0xd800]), string_any("toWellFormed")).end_call(|| Ok(Array::default().to_any()))?;
-    let c37: Any<A> = [c1, c3, c5, c7, c9, c11, c13, c15, c17, c19, c21, c23, c25, c27, c29, c30, c31, c32, c34, c35, c36].to_array().to_any();
-    Ok([(string_key("default"), c37)].to_object().to_any())
+    let c24 = || Ok([string_any("hello")].to_array().to_any());
+    let c25: Any<A> = Any::dot(string_any("hello, wörld"), string_any("startsWith")).end_call(c24)?;
+    let c26 = || Ok([string_any("wörld")].to_array().to_any());
+    let c27: Any<A> = Any::dot(string_any("hello, wörld"), string_any("endsWith")).end_call(c26)?;
+    let c28 = || Ok([f64_any(0x3ff0000000000000)].to_array().to_any());
+    let c29: Any<A> = Any::dot(string_any("hello, wörld"), string_any("at")).end_call(c28)?;
+    let c30 = || Ok([f64_any(0xbff0000000000000)].to_array().to_any());
+    let c31: Any<A> = Any::dot(string_any("hello, wörld"), string_any("at")).end_call(c30)?;
+    let c32 = || Ok([f64_any(0x3ff0000000000000)].to_array().to_any());
+    let c33: Any<A> = Any::dot(string_any("hello, wörld"), string_any("charAt")).end_call(c32)?;
+    let c34 = || Ok([f64_any(0x3ff0000000000000)].to_array().to_any());
+    let c35: Any<A> = Any::dot(string_any("hello, wörld"), string_any("charCodeAt")).end_call(c34)?;
+    let c36 = || Ok([f64_any(0x4020000000000000)].to_array().to_any());
+    let c37: Any<A> = Any::dot(string_any("hello, wörld"), string_any("codePointAt")).end_call(c36)?;
+    let c38: Any<A> = Any::dot(string_any("  x "), string_any("trim")).end_call(|| Ok(Array::default().to_any()))?;
+    let c39: Any<A> = Any::dot(string_any("  x "), string_any("trimStart")).end_call(|| Ok(Array::default().to_any()))?;
+    let c40: Any<A> = Any::dot(string_any("  x "), string_any("trimEnd")).end_call(|| Ok(Array::default().to_any()))?;
+    let c41 = || Ok([string_any("!"), f64_any(0x3ff0000000000000)].to_array().to_any());
+    let c42: Any<A> = Any::dot(string_any("hello, wörld"), string_any("concat")).end_call(c41)?;
+    let c43: Any<A> = Any::dot(string_any_utf16(&[0x0061, 0xd800]), string_any("isWellFormed")).end_call(|| Ok(Array::default().to_any()))?;
+    let c44: Any<A> = Any::dot(string_any_utf16(&[0x0061, 0xd800]), string_any("toWellFormed")).end_call(|| Ok(Array::default().to_any()))?;
+    let c45: Any<A> = [c1, c3, c5, c7, c9, c11, c13, c15, c17, c19, c21, c23, c25, c27, c29, c31, c33, c35, c37, c38, c39, c40, c42, c43, c44].to_array().to_any();
+    Ok([(string_key("default"), c45)].to_object().to_any())
 }
