@@ -12,7 +12,7 @@
  * @import { DemoState, DemoSearch } from './types.ts'
  */
 
-import { resultMarker, powResultMarker } from '../../website/style/module.f.mjs'
+import { resultMarker, powResultMarker } from '../../website/style/module.f.js'
 import { sha256Pow, targetFromNBits } from './module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { digitsValue, hexDigitValue } from '../../text/ascii/module.f.mjs'

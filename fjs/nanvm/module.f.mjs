@@ -29,7 +29,7 @@
  * where the group's own `arity` does.
  *
  * The operator groups are written here; the member-function groups are in
- * [`member/module.f.mjs`](./member/module.f.mjs), so that no one file
+ * [`member/module.f.js`](./member/module.f.js), so that no one file
  * outgrows the repository's file reader.
  *
  * Cases `nanvm-lib` does not implement yet carry a `rust` reason and are
@@ -53,7 +53,7 @@
 import { fromValue, op1Id, op3Id } from '../edag/module.f.mjs'
 import { validate } from '../rtti/validate/module.f.mjs'
 import { callback, functionText, functionValue, ref, returns, throws, unreached } from './constructors/module.f.js'
-import { groups as memberGroups } from './member/module.f.mjs'
+import { groups as memberGroups } from './member/module.f.js'
 
 export { callback, functionValue, ref, returns, throws, unreached } from './constructors/module.f.js'
 

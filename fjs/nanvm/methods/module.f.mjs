@@ -45,6 +45,7 @@ import {
     prototypeNames,
     stringPrototype,
 } from '../../js/prototype/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 
 /**
  * Each type a receiver can have, and the prototype a call on it looks in.
@@ -94,7 +95,7 @@ export const rows = p => {
     /** @type {readonly string[]} */
     const prohibited = prohibitedCalls
     /** @type {(type: string, name: string) => boolean} */
-    const isPending = (type, name) => (p[type] ?? []).includes(name)
+    const isPending = (type, name) => (entry(p, type) ?? []).includes(name)
     /** @type {(name: string) => boolean} */
     const isCall = name => allowed.includes(name) || prohibited.includes(name)
     /** @type {(keep: (type: string, name: string) => boolean) => readonly (readonly[string, string])[]} */

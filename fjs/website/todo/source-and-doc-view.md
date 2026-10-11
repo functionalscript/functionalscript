@@ -46,10 +46,12 @@ at the site's own view, and GitHub can stay as a second link.
   grammar replaced the hand-written scanner behind that path.
 - **The grammar must first recognise the sources it will show.** Its string
   rule reads JSON's string between either quote, but no other JavaScript
-  escape, and it has no template literal: `'\x41'` and a template literal
-  alike stop the grammar at an `invalid token`. Many authored modules use one
-  or the other, so the views would show nothing past them or highlight
-  garbage, and the doc extractor would read string contents as
+  escape: `'\x41'` still stops the grammar at an `invalid token`. Template
+  chunks and their nested substitutions are now recognised with escape
+  provenance so the compiler can keep its
+  [FJS escape subset](../../../spec/README.md#template-literals). Many authored
+  modules use the remaining spellings, so the views would show nothing past
+  them or highlight garbage, and the doc extractor would read string contents as
   declarations. Widening the grammar is the
   prerequisite, as a PR of its own in `fjs/ebnf/lib/js`, tracked as
   [single-quote-and-template-lexing](../../ebnf/lib/js/todo/single-quote-and-template-lexing.md).
@@ -82,7 +84,7 @@ at the site's own view, and GitHub can stay as a second link.
 - The page emits `<pre data-source="./module.f.mjs">`, a `<section
   data-doc="./module.f.mjs">`, and one `<script type="module">` for the runner.
 - Highlighting classes are named by token kind (`keyword`, `string`,
-  `comment`, …) and coloured in [`_main.css`](../style/module.f.mjs).
+  `comment`, …) and coloured in [`_main.css`](../style/module.f.js).
 
 ### Tasks
 

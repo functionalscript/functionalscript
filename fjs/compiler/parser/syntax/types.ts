@@ -58,6 +58,8 @@ export type Node =
     | readonly ['~', Node]
     | readonly ['!', Node]
     | readonly ['typeof', Node]
+    // Template interpolation converts independently of any source binding.
+    | readonly ['String', Node]
     | readonly [BinaryTag, Node, Node]
     // `instanceof` with its operator token: the grammar reads its right
     // operand as any relational operator's, and the fold admits one value

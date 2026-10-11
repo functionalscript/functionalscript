@@ -1,6 +1,6 @@
 /** @import { DemoEvent } from '../../website/demo/types.ts' */
 
-import { powResultMarker, stylesheet } from '../../website/style/module.f.mjs'
+import { powResultMarker, stylesheet } from '../../website/style/module.f.js'
 import { utf8 } from '../../text/module.f.mjs'
 import { empty, uint } from '../../types/bit_vec/module.f.mjs'
 import { computeSync, sha224, sha256 } from '../sha2/module.f.mjs'

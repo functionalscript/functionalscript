@@ -9,7 +9,7 @@ import { toArray } from '../../../types/list/module.f.mjs'
 import { unwrap } from '../../../types/result/module.f.js'
 import { repeatFrom0 } from '../../module.f.mjs'
 import { parser } from '../../ll1/module.f.mjs'
-import { content, id, mergeTrivia, newLine, number, operator, operators, slash, token, ws } from './module.f.mjs'
+import { content, id, mergeTrivia, newLine, number, operator, operators, slash, template, templateAfterDollar, templateContent, templateContinuation, templateEscape, token, ws } from './module.f.mjs'
 import { demo, diagrams } from './demo.f.mjs'
 import { diagramPage } from '../../testlib.f.mjs'
 
@@ -83,6 +83,11 @@ export const proof = {
         parser(slash)
         parser(operator)
         parser(content)
+        parser(template)
+        parser(templateContinuation)
+        parser(templateContent)
+        parser(templateAfterDollar)
+        parser(templateEscape)
     },
     // Every kind reads its whole token and no more: the text is the symbols
     // under the node, and the end is where the next token begins.
@@ -117,6 +122,21 @@ export const proof = {
             assertStructurallySame(read('"é😀"'), ['string', '"é😀"', 4])
             assertStructurallySame(read("'a\\'\"b'x"), ['string', "'a\\'\"b'", 7])
             assertStructurallySame(read("''"), ['string', "''", 2])
+        },
+        template: () => {
+            assertStructurallySame(read('``x'), ['template', '``', 2])
+            assertStructurallySame(read('`a${x}'), ['template', '`a${', 4])
+            assertStructurallySame(read('`$$a$\\`\\${`'), ['template', '`$$a$\\`\\${`', 11])
+            const broader = /** @type {const} */ ('`\\x41\\u{1f600}\\v\\0\\q\\\'\\$\\\n`')
+            assertStructurallySame(read(broader), ['template', broader, broader.length])
+            const continuation = parser(templateContinuation)
+            assertEq(unwrap(continuation(cps('}b${x}')))[1], 4)
+            assertEq(unwrap(continuation(cps('}tail`x')))[1], 6)
+            assertStructurallySame(parseToken(cps('`\\u{}`')), ['error', 4])
+            assertStructurallySame(parseToken(cps('`\\xG1`')), ['error', 3])
+            assertStructurallySame(parseToken(cps('`\\8`')), ['error', 2])
+            assertStructurallySame(parseToken(cps('`tail')), ['error', 5])
+            assertStructurallySame(continuation(cps('}tail')), ['error', 5])
         },
         id: () => {
             assertStructurallySame(read('abc$_9 '), ['id', 'abc$_9', 6])

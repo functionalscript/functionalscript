@@ -148,7 +148,7 @@ sharing. Use [`examples`](./examples/module.f.js), through
   how a producer marks one and how it is proved:
   [`../../text/marked/README.md`](../../text/marked/README.md).
 - How each marker looks is the stylesheet's, with its reasons, in
-  [`../style/module.f.mjs`](../style/module.f.mjs); this file names the
+  [`../style/module.f.js`](../style/module.f.js); this file names the
   markers, not the colours.
 - **Values are written the way the reader's own tool prints them**, so they
   can be compared character for character: lower-case hex padded to its full

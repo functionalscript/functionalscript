@@ -27,7 +27,7 @@ export const fromArrayLike =
     array => {
         /** @type {(i: number) => Result<T>} */
         const at = i =>
-            i < array.length ? { first: array[i], tail: () => at(i + 1) } : null
+            i < array.length ? { first: array[Number(i)], tail: () => at(i + 1) } : null
         return at(0)
     }
 

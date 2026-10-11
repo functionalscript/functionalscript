@@ -32,7 +32,7 @@
  * @import { DemoState, DemoRun, DemoVerdict } from './types.ts'
  */
 
-import { resultMarker } from '../../website/style/module.f.mjs'
+import { resultMarker } from '../../website/style/module.f.js'
 import { p, sloth } from './module.f.mjs'
 import { tryUtf8 } from '../../text/module.f.mjs'
 import { digitsValue, hexDigitsValue } from '../../text/ascii/module.f.mjs'

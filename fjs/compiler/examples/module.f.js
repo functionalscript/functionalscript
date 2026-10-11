@@ -34,6 +34,7 @@ export const examples = [
     ['Overview', 'const a = 1 + 2;\nconst checked = a.x;\nexport default [a, a, a * 3, a < 4 && a, (...x) => x, undefined];'],
     ['Primitives', 'export default [1, "hi", true, null, undefined, 1n, -0, 0xFF, 0x10n];'],
     ['String escapes', 'export default ["a\\nb", "\\u0041", "q\\"q", "back\\\\slash"];'],
+    ['Template literals', 'const name = "world";\nexport default [`Hello, ${name}!`, `${1}${2}`, `literal \\${name}`];'],
     ['Comments', '// a line comment\nconst a = 1; /* a block\n   comment */\nexport default a;'],
     ['Objects', 'export default { x: 1, y: { z: "s" } };'],
     ['A repeated object key', 'export default { a: 1, b: 2, a: 3 };'],

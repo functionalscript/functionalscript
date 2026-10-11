@@ -29,7 +29,7 @@
  * @import { CodePoint } from '../code_point/types.ts'
  */
 
-import { codeMarker } from '../../website/style/module.f.mjs'
+import { codeMarker } from '../../website/style/module.f.js'
 import { fromCodePointList } from './module.f.mjs'
 import { stringToCodePointList } from '../utf16/module.f.mjs'
 import { errorMask, isValidCodePoint } from '../code_point/module.f.mjs'

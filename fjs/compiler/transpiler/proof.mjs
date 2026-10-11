@@ -50,6 +50,20 @@ const elements = value => {
 }
 
 export const proof = {
+    templateCallableExports: async () => {
+        const exports = assertOk(await run({
+            main: [utf8('export const template = x => y => `head${x}:${y}tail`; export const explicit = x => y => "head" + String(x) + ":" + String(y) + "tail"; export default x => `own:${{ toString: () => x, valueOf: () => 7 }}`;')],
+        })(transpile('main')))
+        const template = callable(callable(field(exports, 'template'))(1n))
+        const explicit = callable(callable(field(exports, 'explicit'))(1n))
+        for (const value of [null, undefined, true, -0, 'a']) {
+            assertEq(template(value), `head${1n}:${value}tail`)
+            assertEq(template(value), explicit(value))
+        }
+        const own = callable(field(exports, 'default'))
+        assertEq(own('captured'), 'own:captured')
+        assertEq(own(false), 'own:false')
+    },
     importedCallableExports: async () => {
         const root = {
             main: [utf8('import add from "./dep"; const call=add(2); export const apply=callback=>callback(call(3)); export default [call,call];')],

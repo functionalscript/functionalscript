@@ -23,7 +23,7 @@
  * @import { Rule } from '../../types.ts'
  */
 
-import { content, id, newLine, number, operator, slash, string, token, ws } from './module.f.mjs'
+import { content, id, newLine, number, operator, slash, string, template, templateAfterDollar, templateContent, templateEscape, token, ws } from './module.f.mjs'
 import { escape, hex } from '../json/module.f.mjs'
 import { toData } from '../../data/module.f.mjs'
 import { branch, codePoints, toDiagrams } from '../../railroad/module.f.mjs'
@@ -54,6 +54,10 @@ export const diagrams = [
     ['string', stringName],
     ['double', branchOf(stringName, 'double')],
     ['single', branchOf(stringName, 'single')],
+    ['template', nameOf(template)],
+    ['templateContent', nameOf(templateContent)],
+    ['templateAfterDollar', nameOf(templateAfterDollar)],
+    ['templateEscape', nameOf(templateEscape)],
     ['id', nameOf(id)],
     ['slash', nameOf(slash)],
     ['content', contentName],

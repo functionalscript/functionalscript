@@ -60,7 +60,7 @@
  * @import { Const, DemoExample, DemoSchema, DemoState, Type, _Answer } from './types.ts'
  */
 
-import { codeMarker, resultMarker } from '../website/style/module.f.mjs'
+import { codeMarker, resultMarker } from '../website/style/module.f.js'
 import { array, boolean, number, open, option, or, record, rest, string, unknown } from './module.f.mjs'
 import { structSchemaEntries, tupleSchemaEntries } from './common/module.f.mjs'
 import { parse } from './parse/module.f.mjs'

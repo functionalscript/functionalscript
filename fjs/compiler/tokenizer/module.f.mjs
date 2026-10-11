@@ -38,7 +38,10 @@
  * not accepted, and the same is true of every operator token
  * `fjs/js/tokenizer` already carries that this layer does not admit, `,`
  * and the rest of `spec/todo/2340-operators.md`'s later stages among
- * them.
+ * them. The four template chunk kinds keep their cooked text, but only
+ * when their exact `source` spelling uses the accepted escape subset.
+ * Deferred spellings remain located errors even when their cooked value
+ * could also have been written with admitted escapes.
  *
  * @module
  *
@@ -49,6 +52,7 @@
  */
 import { tokenize as tokenizeJs } from '../../js/tokenizer/module.f.mjs'
 import { isKeyword } from '../../js/keywords/module.f.js'
+import { escapeToCodePoint } from '../../js/string_escape/module.f.mjs'
 import { flat, stateScan } from '../../types/list/module.f.mjs'
 
 // -- layer 3: the DjsToken stream -------------------------------------------
@@ -70,6 +74,7 @@ export const _djsTokenKinds = /** @type {const} */ ([
     '&', '|', '^', '~', '<<', '>>', '>>>',
     '!', '&&', '||', '??', '?', '?.',
     'string', 'number', 'error', 'id', 'bigint',
+    'noSubstitutionTemplate', 'templateHead', 'templateMiddle', 'templateTail',
     'eof',
 ])
 
@@ -77,15 +82,46 @@ export const _djsTokenKinds = /** @type {const} */ ([
 const djsTokenKindSet = new Set(_djsTokenKinds)
 
 /**
+ * Whether a lexically valid JS template chunk uses FJS's spelling subset.
+ * The shared lexer already validates escape digits and chunk boundaries, so
+ * this only checks the policy: JSON escapes, escaped backticks and escaped
+ * `${`, with raw CR/LF but no other C0 controls. Checking source preserves
+ * the difference between `A` and `\x41` after both have cooked to `A`.
+ *
+ * @type {(source: string) => boolean}
+ */
+const templateSourceAccepted = source => {
+    let escaped = false
+    for (let i = 0; i < source.length; i++) {
+        const character = source[i]
+        const cp = source.charCodeAt(i)
+        if (escaped) {
+            const admitted = character === 'u' ? source[i + 1] !== '{'
+                : character === '$' ? source[i + 1] === '{'
+                : escapeToCodePoint(cp) !== null || character === '`'
+            if (!admitted) { return false }
+            escaped = false
+        } else if (character === '\\') {
+            escaped = true
+        } else if (cp < 0x20 && cp !== 0xa && cp !== 0xd) {
+            return false
+        }
+    }
+    return true
+}
+
+/**
  * A JavaScript token as a module token: kept when its kind is one of
  * {@link _djsTokenKinds} — the cast is that membership, which `Set#has`
  * cannot state as a narrowing — an `id` when it is any other keyword, and
- * an error otherwise: an operator the language does not admit.
+ * an error otherwise: an operator or template spelling the language does
+ * not admit. Template provenance is checked before the membership test.
  *
  * @type {(input: JsToken) => DjsToken}
  */
 const mapDjsToken = input =>
-    djsTokenKindSet.has(input.kind) ? /** @type {DjsToken} */ (input)
+    'source' in input && !templateSourceAccepted(input.source) ? { kind: 'error', message: 'invalid token' }
+    : djsTokenKindSet.has(input.kind) ? /** @type {DjsToken} */ (input)
     : isKeyword(input.kind) ? { kind: 'id', value: input.kind }
     : { kind: 'error', message: 'invalid token' }
 

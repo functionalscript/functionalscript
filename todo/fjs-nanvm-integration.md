@@ -142,6 +142,93 @@ contract and migration strategy.
 
 #### Current leaf migration fixed point
 
+Measured at `6e392d4f2`, the head of
+[#2823](https://github.com/functionalscript/functionalscript/pull/2823), the
+compiler that accepts untagged template literals, which the audit below had
+recorded as the first refusal in nine of its twelve leaves. A leaf is as
+defined there, and the embedded-proof fixture is reported separately again.
+
+| Pass | Implementation leaves checked | Converted to `.f.js` |
+| --- | ---: | --- |
+| 1 | 12 | `nanvm/member`, `website/style` |
+| 2 | 11 | None: every remaining leaf is refused |
+
+The two conversions change only their extension and references; the
+template literal was each module's one refusal. Converting `website/style`
+exposes `website/demo/code`, refused for the computed key
+`{ [codeMarker]: '' }` the language does not accept. The authored `.f.js`
+population grows from 27 to 29, all accepted by `npm start compile`.
+
+This pass converts no module by rewriting it: a module whose source the
+compiler refuses stays `.f.mjs`, readable as written, until the feature it
+uses lands. A rewrite that spells `Number.isFinite` with the operators, or
+reads a destructured parameter property by property, is a second spelling
+of what JavaScript already says, and this migration does not pay for one.
+
+[#2826](https://github.com/functionalscript/functionalscript/pull/2826)
+then rewrote the two reads of a computed key the leaves still had as the
+language's own spellings: `nanvm/methods` reads `p[type]` as
+`entry(p, type)` and `types/list` reads `array[i]` as `array[Number(i)]`
+([reading an entry at run time](../spec/README.md#reading-an-entry-at-run-time),
+[property access](../spec/README.md#property-access)). That is not a rewrite
+of the kind above: each is the read JavaScript performed, in the one
+spelling the language has for it. `website/demo/code`'s `{ [codeMarker]: '' }`
+is an object-literal key, not a read, and has no such spelling; it stays.
+The `nanvm/methods` row below is measured after that rewrite; `types/list`'s
+first refusal did not move.
+
+The eleven implementation leaves below cannot be renamed with their current
+source. Each row is the first actual refusal from the `resolve()` pipeline;
+where a rewrite in supported syntax was tried on a copy, the last column
+names what it reached before the compiler refused again. Locations are
+`line:column`; paths are relative to `fjs/`.
+
+| Leaf file | Location | First refused construct | Behind it |
+| --- | ---: | --- | --- |
+| `ci/package/module.f.mjs` | 114:22 | `JSON.stringify` in `literal` | `JSON` is not admitted; also writes `tsconfig` with it |
+| `git/config/module.f.mjs` | 472:11 | Destructuring `const { sub, after }` | `BigInt(number)` at three sites, `toLowerCase` at six, five more destructuring sites |
+| `media/rust/module.f.mjs` | 59:5 | `switch` in `character` | `BigInt(number)` in `bitsOf`, `Array(n)`, `let`/`while`, `Math`, `Number.isNaN`, `Object.is`, `toLowerCase`, four forward references |
+| `nanvm/methods/module.f.mjs` | 102:41 | Destructured callback parameter in `pairs` | `Object.values` in `rows`; a second destructured callback in `absent` |
+| `types/list/module.f.mjs` | 40:5 | `while` and reassignment in `trampoline` | The generator in `iterable`, `Array.from`, the imperative `next` |
+| `types/map/module.f.mjs` | 10:42 | `new Map(...)` in `mapSet` | `Map` is not a language type |
+| `types/object/structurally_same/module.f.mjs` | 20:7 | Destructuring `const { entries, is } = Object` | `Object.entries`: the language enumerates no keys; `Map` besides |
+| `types/ts/module.f.mjs` | 22:29 | Default parameter in `printer` | `switch`, a destructured callback, `JSON.stringify` |
+| `website/browser-source/module.f.mjs` | 54:5 | `let` in `read` | The `let`/`while` lexer in `read` |
+| `website/demo/code/module.f.mjs` | 12:48 | Default parameter in `codeBlock` | The computed key `[codeMarker]` |
+| `website/prs/load/module.f.mjs` | 103:41 | Destructured parameter in `finishedNote` | Two more destructured parameters, `Number.isFinite`, `Math.min` |
+
+The separate fixture `emergent_testing/example.f.mjs` is refused at `15:1`:
+a block body whose only statement is a guard, which the compiler reads to
+its end without a `return`. With `return undefined` after each guard it
+compiles; `emergent_testing/todo/todo-property.md` already plans to change
+the fixture. Since the final pass converts nothing, the loop stops.
+
+To recheck the current table without writing generated output, run this from
+the repository root inside `./dev.sh node --input-type=module`:
+
+```js
+import { resolve as absolute } from 'node:path';
+import { resolve } from './fjs/compiler/edag/module.f.mjs';
+import { runNodeEffect } from './fjs/effects/node/module.mjs';
+
+const leaves = [
+  'ci/package', 'git/config', 'media/rust', 'nanvm/methods', 'types/list',
+  'types/map', 'types/object/structurally_same', 'types/ts',
+  'website/browser-source', 'website/demo/code', 'website/prs/load',
+];
+for (const leaf of leaves) {
+  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
+  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
+}
+```
+
+After a compiler feature lands, rediscover the runtime dependency leaves,
+compile every candidate, rename accepted modules and update their references,
+then rediscover and repeat until a pass accepts none. Update this table with
+the remaining refusals.
+
+#### Leaf migration fixed point at `5dcd94b` (historical)
+
 The iterative audit in [#2812](https://github.com/functionalscript/functionalscript/pull/2812)
 starts from `4e663c19c`. A leaf is an authored, non-proof `.f.mjs` with no
 runtime import or re-export of another `.f.mjs`; JSDoc and TypeScript-only
@@ -230,11 +317,6 @@ for (const leaf of leaves) {
   console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
 }
 ```
-
-After a compiler feature lands, rediscover the runtime dependency leaves,
-compile every candidate, rename accepted modules and update their references,
-then rediscover and repeat until a pass accepts none. Update this table with
-the remaining refusals.
 
 #### Leaf check at `e67123d58` (historical)
 
@@ -345,7 +427,7 @@ records that snapshot's blockers, including the since-migrated `array_index`:
 
 | Feature | Tracked in | Leaves it held at `08d013b` |
 | --- | --- | --- |
-| Template literals | [`spec/todo/3440-template-literals.md`](../spec/todo/3440-template-literals.md) | function/operator, ci/package, ts, nanvm/methods, nanvm/member, style, demo/code, git/config, browser-source |
+| Template literals | now implemented ([spec: template literals](../spec/README.md#template-literals)) | function/operator, ci/package, ts, nanvm/methods, nanvm/member, style, demo/code, git/config, browser-source |
 | Destructuring | [`spec/todo/2450-destructuring.md`](../spec/todo/2450-destructuring.md) | structurally_same, result, function/operator, map, demo/examples, ts, git/config, nanvm/methods |
 | A runtime key that is a string, `a[k]` | in the language as the `entry` helper ([spec: entry](../spec/README.md#reading-an-entry-at-run-time)); the module rewrites `a[k]` as `entry(a, k)`, imported from [`fjs/js/entry`](../fjs/js/entry/module.f.js) | git/config, nanvm/methods |
 | A runtime key that is a number, `a[i]` | in the language as the conversion `a[Number(i)]` ([spec: property access](../spec/README.md#property-access)), the EDAG's `['.', a, ['Number', i]]`; the module rewrites `a[i]` as `a[Number(i)]`, not `entry` | structurally_same, function/operator, set, git/bytes, git/config, browser-source |
@@ -469,13 +551,11 @@ The count at `8f78921`, with `main` at `0882d09` merged in, was the same
 table over 227 modules with 93 template literals: one module was added and
 nothing else moved.
 
-Template literals are the first refusal of two modules in five, almost all
-of them error messages and `assert` texts, and they are a feature with open
-questions of its own
-([`3440`](../spec/todo/3440-template-literals.md)) — the case for settling
-those questions, not a license to start before they are. Destructuring is
-next, and the string-escape row is tokenizer work. The leaf table above is
-what this count does not say: a module whose
+Template literals were the first refusal of two modules in five in these
+snapshots, almost all of them error messages and `assert` texts. Untagged
+templates are now implemented ([spec: template literals](../spec/README.md#template-literals)).
+Destructuring was next, and the string-escape row is tokenizer work. The leaf
+table above is what this count does not say: a module whose
 first refusal clears meets its next, and only a leaf whose every feature has
 landed renames.
 
@@ -581,6 +661,10 @@ is on hold and is not part of this completed MVP or a self-hosting prerequisite.
       `js/keywords`, `types/nominal`, `edag/rust/unmarked`, `types/result` and
       `website/demo/examples`; preserve their APIs and record the final twelve
       implementation leaf refusals plus the separate embedded-proof fixture.
+- [x] Read every computed key in the leaves as the language does: a number
+      key as `a[Number(i)]`, a string key as `entry(a, k)` — `nanvm/methods`
+      and `types/list` in #2826. An object-literal key, `{ [k]: v }`, has no
+      such spelling and stays: `website/demo/code`.
 - [ ] Continue `.f.mjs` -> `.f.js` incrementally as compiler support grows.
 
 ### Related

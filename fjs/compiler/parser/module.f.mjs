@@ -913,6 +913,7 @@ const enter = (stack, scope, node) => {
         case '~': { return [{ top: { bitnot: true }, rest: stack }, scope, ['enter', node[1]]] }
         case '!': { return [{ top: { not: true }, rest: stack }, scope, ['enter', node[1]]] }
         case 'typeof': { return [{ top: { typeof: true }, rest: stack }, scope, ['enter', node[1]]] }
+        case 'String': { return [{ top: { conversion: 'String' }, rest: stack }, scope, ['enter', node[1]]] }
         // the left operand first, as every binary operator's: the right
         // side is checked when the left returns, so a fault in the left is
         // the one reported, the first in document order

@@ -34,7 +34,7 @@
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { ParseError } from '../types.ts'
  * @import { Block, BlockStatement, Chain, Const, Entry, Import, ImportBinding, Item, Key, Member, Module, ModuleConst, Node, Out, ParameterBinding, ParameterList, Step, ValueStatement } from './types.ts'
- * @import { ArrowOrRest, Block as BlockRule, Body, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, Member as MemberRule, ParameterNames, Parenthesized, Statement, Unary, UnaryOperand, Value } from '../grammar/types.ts'
+ * @import { ArrowOrRest, Block as BlockRule, Body, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, Member as MemberRule, ParameterNames, Parenthesized, Statement, Template, Unary, UnaryOperand, Value } from '../grammar/types.ts'
  * @import { namedImports, primitive, terminator } from '../grammar/module.f.mjs'
  * @import { _AccessNode, _AttributeNode, _CallBranch, _ChainState, _CircuitNode, _ConditionalNode, _EndNode, _IndexBranch, _NameNode, _KeyBranch, _Leaf, _ListNode, _OptionalBranch, _OptionalList, _ParameterNode, _PowTailNode, _StepRead, _TailRound, _TokenStream } from './private.ts'
  */
@@ -47,7 +47,7 @@ import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.mjs'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
 import {
     binaryOpTag, body, callArguments, constStatement, djsModule, eagerTail, importBinding, importBindings,
-    importStatement, item, lastStatement, entries, entry, member, parameterNames, statement, symbolOf, unary, unaryOperand, value, values,
+    importStatement, item, lastStatement, entries, entry, member, parameterNames, statement, symbolOf, template, unary, unaryOperand, value, values,
 } from '../grammar/module.f.mjs'
 
 /**
@@ -262,6 +262,37 @@ const primitiveOf = ([tag, leaf]) => {
             return token.value
         }
     }
+}
+
+/** The cooked text of a template chunk. @type {(node: _Leaf) => string} */
+const chunkOf = node => {
+    const { token } = tokenAt(node)
+    assert(token.kind === 'noSubstitutionTemplate' || token.kind === 'templateHead' || token.kind === 'templateMiddle' || token.kind === 'templateTail')
+    return token.value
+}
+
+/**
+ * A template lowered to concatenations and explicit string conversions in
+ * source order, retaining every chunk, including an empty head or tail.
+ * Conversion has a syntax node of its own so no reference or source binding
+ * can replace it. The AST and EDAG already represent the same operation.
+ *
+ * @type {(node: Children<Template, DjsTokenWithMetadata, Out>) => Meta<Out>}
+ */
+const toTemplate = ([tag, branch]) => {
+    if (tag === 'plain') {
+        return symbol({ id: 'value', node: ['primitive', chunkOf(branch)], first: tokenAt(branch) })
+    }
+    const [head, firstValue, rounds, tail] = unmapped(branch)
+    /** @type {Node} */
+    const first = ['+', ['primitive', chunkOf(head)], ['String', nodeAt(firstValue)]]
+    const beforeTail = unmapped(rounds).reduce(
+        /** @type {(acc: Node, round: Ast<readonly [number, Value], DjsTokenWithMetadata, Out>) => Node} */
+        ((acc, round) => {
+            const [chunk, v] = unmapped(round)
+            return ['+', ['+', acc, ['primitive', chunkOf(chunk)]], ['String', nodeAt(v)]]
+        }), first)
+    return symbol({ id: 'value', node: ['+', beforeTail, ['primitive', chunkOf(tail)]], first: tokenAt(head) })
 }
 
 /**
@@ -641,6 +672,10 @@ const baseOf = ([tag, branch]) => {
             const p = unmapped(x)[0]
             return ['primitive', primitiveOf(unmapped(p))]
         }
+        case 'template': {
+            const x = unmapped(branch)[0]
+            return nodeAt(unmapped(x)[0])
+        }
         case 'ref': {
             const x = unmapped(branch)[0]
             const p = unmapped(x)[0]
@@ -676,9 +711,9 @@ const firstAt = node => {
  * token, under the alternative it matched, or a container's opening
  * bracket, the first symbol of `[ open [ items ] close ]`.
  *
- * @type {(tag: 'primitive' | 'ref' | 'array' | 'object', base: _Leaf) => DjsTokenWithMetadata}
+ * @type {(tag: 'primitive' | 'template' | 'ref' | 'array' | 'object', base: _Leaf) => DjsTokenWithMetadata}
  */
-const baseFirst = (tag, base) => tokenAt(/** @type {_Leaf} */ (unmapped(base)[tag === 'array' || tag === 'object' ? 0 : 1]))
+const baseFirst = (tag, base) => tag === 'template' ? firstAt(base) : tokenAt(/** @type {_Leaf} */ (unmapped(base)[tag === 'array' || tag === 'object' ? 0 : 1]))
 
 /**
  * A function's parameter list against its `=>`: the list, or the `=>`
@@ -1099,6 +1134,7 @@ const toParameterNames = ([tag, branch]) => {
  * @type {RewriteSet<DjsTokenWithMetadata, Out>}
  */
 export const mappings = [
+    map(template, toTemplate),
     map(value, toNode),
     map(body, toNode),
     // what a prefix takes is a rule of its own, and its branches are the

@@ -5,7 +5,7 @@
  */
 
 import { assertEq } from '../../asserts/module.f.mjs'
-import { groups } from './module.f.mjs'
+import { groups } from './module.f.js'
 
 export const proof = {
     /** One group per method: a second group would split its cases. */
