@@ -7,7 +7,7 @@
 
 What it means for an all-Nix CI job to have migrated onto the shared
 shell — no `setup-<tool>` action, the Nix installer present, every command
-through `runPath(nixShell)`, no flake of its own, no published-package
+through `runPath()`, no flake of its own, no published-package
 step — is a property of the migration, not of any one tool. It is not
 every migration's invariant, though: the migrated Node job deliberately
 runs its generated-file check runner-native

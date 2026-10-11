@@ -5,7 +5,7 @@ This repository is a monorepo with two code bases:
 | Directory    | Language                                | Notes                                       |
 | ------------ | --------------------------------------- | ------------------------------------------- |
 | `fjs/`       | FunctionalScript (`.f.mjs`, `.f.js`) / TypeScript (`types.ts`) | The language, its standard modules, and the `fjs` CLI |
-| `nanvm-lib/` | Rust                                    | NaNVM, the native FunctionalScript VM       |
+| `nanvm/lib/` | Rust                                    | NaNVM, the native FunctionalScript VM       |
 
 Issues live in `todo/` directories, **not** on GitHub. Check them for existing
 work before starting, and check that no open pull request, draft or not, already
@@ -67,7 +67,7 @@ actually touches its subject.
 1. [Workflow](#1-workflow)
 2. [Environment and running tests](#2-environment-and-running-tests)
 3. [FunctionalScript and TypeScript (`fjs/`)](#3-functionalscript-and-typescript-fjs)
-4. [Rust (`nanvm-lib/`)](#4-rust-nanvm-lib)
+4. [Rust (`nanvm/lib/`)](#4-rust-nanvmlib)
 5. [Pull requests and releases](#5-pull-requests-and-releases)
 6. [External tools](#6-external-tools)
 7. [Continuous integration](#7-continuous-integration)
@@ -151,13 +151,18 @@ Install [Nix](https://nixos.org/download/) and work inside the repository's
 shell. `gen.nix/` is a flake carrying every tool the project builds and tests
 with — Node, TypeScript, Rust with its WASM targets, Deno, Bun, the WASM
 runtimes — at the versions CI uses. Every CI job runs inside this very shell, so
-what passes in it is what passes there, except the Node 22 and Node 24
-compatibility jobs, each on a flake of its own, the two Windows platform jobs,
+what passes in it is what passes there, except the two Windows platform jobs,
 which run without Nix, and the publishing workflow, which runs on the Node
 `setup-node` installs. The packed-package check that closes `node26` stays out
 of it too, by design: it installs the published tarball with `setup-node`'s
 Node and npm, as a consumer would. Do not install those tools by hand or pick
 their versions; the shell is the one environment.
+
+During prerelease, each release supports one exact accepted version per tool
+from `fjs/ci/config/module.f.js`, chosen close to the latest usable stable
+release. Updating a pin replaces the supported version. Use an older
+FunctionalScript release with a suitable recorded toolset when an older tool
+is needed; additional support after release remains subject to demand.
 
 ```bash
 ./dev.sh                      # an interactive shell
@@ -234,13 +239,13 @@ JSDoc `@typedef`; function-local typedefs are allowed. Named types live in
 
 Testing, documentation, and the full coding style: [fjs/AGENTS.md](./fjs/AGENTS.md).
 
-## 4. Rust (`nanvm-lib/`)
+## 4. Rust (`nanvm/lib/`)
 
 `cargo test`, `cargo clippy`, and `cargo fmt -- --check` all have to pass. Avoid
 `macro_rules!` — declarative macros hide types from tooling and contradict this
 repository's preference for explicit, locally-readable code.
 
-Commands and Rust coding style: [nanvm-lib/AGENTS.md](./nanvm-lib/AGENTS.md).
+Commands and Rust coding style: [nanvm/lib/AGENTS.md](./nanvm/lib/AGENTS.md).
 
 ## 5. Pull requests and releases
 

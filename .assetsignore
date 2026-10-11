@@ -1,0 +1,9 @@
+.dev.vars
+.dev.vars.*
+.env
+.env.*
+.git/
+.wrangler/
+node_modules/
+work/
+functionalscript-github-preview-*/

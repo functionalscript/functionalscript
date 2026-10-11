@@ -69,7 +69,7 @@ export const refusalDecision = ({ status, remaining, retryAfter, reset, now, ret
         ? Number.isFinite(seconds) ? now + seconds * 1000 : retryDateMillis
         : limited && reset !== null ? Number(reset) * 1000 : null
     return {
-        blocked: status === 403 || status === 429,
+        blocked: status === 401 || status === 403 || status === 429,
         reason: limited ? 'GitHub API rate limit reached.' : `GitHub request failed (HTTP ${status}).`,
         retryAt: after !== null && Number.isFinite(after) && after > now ? after : null,
     }

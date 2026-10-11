@@ -135,6 +135,6 @@ supplies local storage, so AOT does not need this explicit slot layout.
 A private Rust argument array may remain transport but must not expose the
 original fixed-prefix count to the new EDAG body. Neither slot layouts nor
 AOT inherit a JavaScript factory-table arity cap. See
-[callable-function-objects](../../nanvm-lib/todo/callable-function-objects.md)
+[callable-function-objects](../../nanvm/lib/todo/callable-function-objects.md)
 for the matching binding, identity and regression-test obligations. Existing
 frame/self semantics and separate recursion work are not expanded here.

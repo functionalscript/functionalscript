@@ -541,6 +541,8 @@ export const footer = funding => funding.length === 0 ? [] : [['footer', { 'data
  */
 export const shell = build => title => main => htmlUtf8(lang)(
     ['title', title],
+    // OAuth callback parameters must not become subresource referrers.
+    ['meta', { name: 'referrer', content: 'no-referrer' }],
     stylesheetLink,
     ...faviconLinks,
 )(

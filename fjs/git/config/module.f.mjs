@@ -89,7 +89,7 @@ const isSpace = c => isKeySpace(c) || c === '\r'
  *
  * @type {(c: string) => boolean}
  */
-const isCSpace = c => isSpace(c) || c === '\n' || c === '\v' || c === '\f'
+const isCSpace = c => isSpace(c) || c === '\n' || c === '\u000B' || c === '\f'
 
 /**
  * The opposite of a character test, so a search for the first character a
@@ -433,7 +433,7 @@ const valueStart = {
 const tryValue = rest => {
     const end = [...rest].reduce(valueStep, valueStart)
     if (end.bad || end.quoted || end.escape) { return null }
-    const nul = end.value.indexOf('\0')
+    const nul = end.value.indexOf('\u0000')
     return nul === -1 ? end.value : end.value.slice(0, nul)
 }
 
@@ -478,7 +478,7 @@ const trySub = (section, rest) => {
     // and nothing more — a name with no key in it, which an entry of a
     // section, a key and a value cannot spell. Refusing says so, where
     // answering `remote.o\\0p.x` would be a name Git never built.
-    return sub.includes('\0') ? null : [`${section}.${sub}`, after.slice(1)]
+    return sub.includes('\u0000') ? null : [`${section}.${sub}`, after.slice(1)]
 }
 
 /**

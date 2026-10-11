@@ -435,18 +435,20 @@ svg text { font: inherit }
 [data-graph-arrow] { fill: var(--muted) }
 /* A syntax diagram: a track, the pills of the text an input holds and the
    boxes of other diagrams. A terminal is tinted as a value is in a graph,
-   since both are what the input itself spells; a box is hollow, since it
+   since both are what the input itself spells, and so is a category, set
+   in italics, since it is any text of its kind; a box is hollow, since it
    stands for a diagram drawn elsewhere, and it is a link there, so it fills
    under a pointer. A diagram scrolls sideways in its own container, as a
    graph does. */
 [data-railroad] { overflow-x: auto }
 [data-railroad] > svg { display: block }
 [data-railroad-line] { fill: none; stroke: var(--text); stroke-width: 1.5 }
-[data-railroad-box="terminal"] { fill: var(--value-bg); stroke: var(--value); stroke-width: 1.5 }
+[data-railroad-box="terminal"], [data-railroad-box="category"] { fill: var(--value-bg); stroke: var(--value); stroke-width: 1.5 }
 [data-railroad-box="nonTerminal"] { fill: var(--bg); stroke: var(--text); stroke-width: 1.5 }
 a:hover > [data-railroad-box="nonTerminal"] { fill: var(--pass-bg) }
 [data-railroad-label] { dominant-baseline: middle; font-size: .75rem }
 [data-railroad-label="terminal"] { fill: var(--value) }
+[data-railroad-label="category"] { fill: var(--value); font-style: italic }
 [data-railroad-label="nonTerminal"] { fill: var(--text); font-weight: 700 }
 /* A codec's bit groups: a box per group, its bits over the character the
    codec wrote for it, shaded. The borders are what pair a character with its

@@ -27,4 +27,4 @@ export const codeBlock = (text, label, content = [text]) => ['div', { [codeMarke
  * This is a permanent shell limitation; the caller must explain the refusal.
  * @type {(text: string) => string | null}
  */
-export const tryShellQuote = text => text.includes('\0') ? null : `'${text.replaceAll("'", "'\\''")}'`
+export const tryShellQuote = text => text.includes('\u0000') ? null : `'${text.replaceAll("'", "'\\''")}'`

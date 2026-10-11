@@ -13,9 +13,18 @@ declarations beside them, `types.d.ts` for each authored `types.ts`, and no
 other `.js`. The emitted declarations reference `…/types.ts` specifiers that name
 no shipped file, so the thing to prove for every consumer toolchain is that those
 specifiers resolve to the shipped `types.d.ts` — genuinely, not as an `any`
-fallback. This file records the consumer sources and the per-runtime
-install-from-file commands, all verified on tsc 5.9.3 / 7.0.2, Node v22,
-Bun 1.3.11, and Deno 2.9.5.
+fallback. The original procedure was verified on tsc 5.9.3 / 7.0.2, Node v22,
+Bun 1.3.11, and Deno 2.9.5. Those measurements below are historical evidence,
+not the current release's supported toolset.
+
+For current validation, use the exact Node, TypeScript/TSGO, Deno and Bun pins
+in [`config/module.f.js`](./config/module.f.js). Build the tarball inside
+`./dev.sh`, then install it in clean directories outside the checkout. Node's
+CI consumer deliberately installs the selected Node and TypeScript versions
+outside Nix; the manual equivalents must also use those exact versions,
+rather than an unpinned `npx tsc`. Observe each tool's version before its check.
+An older tool requires a FunctionalScript release whose tested toolset record
+names it, such as `npm install -g functionalscript@<release>`.
 
 ## Consumer sources
 
@@ -69,23 +78,28 @@ From a clean checkout (`files` still lists `**/*.js`, so a working tree holding
 stale pre-declaration-only emit would ship it):
 
 ```sh
-npm pack --pack-destination <dir>
+./dev.sh npm pack --pack-destination <dir>
 ```
 
 ## Install from the tarball file and verify
 
 Node (also produces the `node_modules` that Deno checking uses below):
 
+Use the tarball name produced by this checkout in place of `<tarball>` in all
+commands below. `tsc` must be the selected compiler, installed for this clean
+consumer as the CI check does. Check `test.ts` alone for success, then include
+`bad.ts` for the required TS2322 failure.
+
 ```sh
-npm install <dir>/functionalscript-0.44.0.tgz
-npx tsc -p .                          # type-check; must fail on bad.ts only
-node --experimental-strip-types test.ts
+npm install <dir>/<tarball>
+tsc -p .                             # type-check; must fail on bad.ts only
+node test.ts
 ```
 
 Bun (its own installer accepts the tarball directly):
 
 ```sh
-bun add <dir>/functionalscript-0.44.0.tgz
+bun add <dir>/<tarball>
 bun run test.ts
 bun build test.ts --outdir out --target node && node out/test.js
 ```
@@ -120,7 +134,9 @@ console.log(l)
 What makes this form dangerous is that every type checker accepts it — the
 failure is runtime-only, and whether it hits depends on whether the toolchain
 *elides* an import statement left without value bindings or merely *strips*
-the type syntax and keeps the statement. Measured against the packed tarball:
+the type syntax and keeps the statement. The following is the original
+measurement against the packed tarball; rerun it with the selected pins for
+current acceptance rather than assuming the historical runtimes represent them:
 
 | toolchain | type check | runtime |
 | --- | --- | --- |
