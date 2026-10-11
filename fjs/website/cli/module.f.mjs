@@ -95,9 +95,10 @@ export const commandSection = build => entry => guide => ['section', { id: ancho
 
 /** @type {(entry: Entry) => Element} */
 const commandLink = entry => ['li',
-    ['a', { href: `#${encodeURIComponent(anchor(entry))}` }, `fjs ${entry.path.join(' ')}`], ' — ', entry.description]
+    ['a', { href: `#${encodeURIComponent(anchor(entry))}`, 'data-cli-link': '', 'data-cli-search': [entry.path.join(' '), ...entry.aliases, entry.description].join(' ') },
+        ['strong', `fjs ${entry.path.join(' ')}`], ['span', entry.description]]]
 
-/** The page is readable without JavaScript; only copy controls are enhanced.
+/** The page is readable without JavaScript; search, selection and copy controls are enhanced.
  * A missing curated guide stops the build rather than silently omitting a command.
  * @type {(build: Build) => Vec}
  */
@@ -112,12 +113,20 @@ export const cliPage = build => {
         codeBlock('fjs <command> [args]', 'Copy installed invocation'),
         ['p', 'npx functionalscript invokes the package; fjs is the installed executable. Replace angle-bracket placeholders with your values; square brackets mark optional arguments.'],
         ['p', 'Examples execute locally. This website is a reference, not an online shell.'],
+        ['div', { 'data-cli-explorer': '' },
         ['nav', { 'aria-label': 'CLI commands' },
             ['h2', 'Commands'],
+            ['div', { 'data-cli-controls': '', hidden: '' },
+                ['label', { for: 'cli-search' }, 'Search commands'],
+                ['div', { 'data-cli-search-row': '' },
+                    ['input', { id: 'cli-search', type: 'search', placeholder: 'Search commands…', autocomplete: 'off' }],
+                    ['button', { type: 'button', 'data-cli-clear': '', 'aria-label': 'Clear search' }, 'Clear']],
+                ['p', { 'data-cli-count': '', role: 'status', 'aria-live': 'polite', 'aria-atomic': 'true' }, '']],
             ['ul', { 'data-links': '' }, ...entries.map(commandLink)]],
-        ...entries.map(entry => commandSection(build)(entry)(assertNotNullish(
+        ['div', { 'data-cli-details': '' }, ...entries.map(entry => commandSection(build)(entry)(assertNotNullish(
             guides.find(guide => guide.name === entry.path.join(' ')),
-            `No CLI guide for ${entry.path.join(' ')}`))),
+            `No CLI guide for ${entry.path.join(' ')}`)))],
+        ],
         ['script', { type: 'module', src: '/fjs/website/cli-runtime.mjs' }],
     ])
 }

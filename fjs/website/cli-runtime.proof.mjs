@@ -36,6 +36,7 @@ const dom = writeText => {
         },
     }
     const root = {
+        querySelector: () => null,
         querySelectorAll: () => [button, { getAttribute: () => null }],
         setAttribute: (/** @type {string} */ name) => { assertEq(name, 'data-copy-ready'); order.push('ready') },
     }

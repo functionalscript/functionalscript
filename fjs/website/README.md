@@ -708,3 +708,8 @@ in [`module.f.mjs`](./module.f.mjs) and
 
 [`todo/`](./todo/) — the umbrella list is
 [generate-website](./todo/generate-website.md).
+
+The CLI catalogue progressively enhances into a searchable command list and selected
+detail pane. Search matches canonical names, aliases and descriptions without
+changing the selected command. Native fragment links preserve bookmarking and
+browser history; without JavaScript, every detail section remains visible.
