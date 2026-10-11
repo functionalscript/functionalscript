@@ -25,18 +25,17 @@ export const identity = value => value
  * Applies `f` to `value` `n` times sequentially.
  *
  * Unlike monoid `repeat`, this performs every application, taking O(n)
- * applications. A non-positive `n` leaves `value` unchanged.
+ * applications. Balanced recursion uses O(log n) stack frames for positive
+ * `n`. A non-positive `n` leaves `value` unchanged.
  *
  * @type {(n: bigint) => <T>(value: T) => (f: (value: T) => T) => T}
  */
 export const iterate = n => value => f => {
-    let v = value
-    let i = 0n
-    while (i < n) {
-        v = f(v)
-        i = i + 1n
-    }
-    return v
+    if (n <= 0n) { return value }
+    if (n === 1n) { return f(value) }
+    const half = iterate(n / 2n)
+    const result = half(half(value)(f))(f)
+    return n % 2n === 0n ? result : f(result)
 }
 
 /**

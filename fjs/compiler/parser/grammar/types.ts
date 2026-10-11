@@ -13,7 +13,7 @@ import type { Option, RepeatFrom, Rule } from '../../../ebnf/types.ts'
 import type { Equal } from '../../../types/ts/types.ts'
 import type { DjsToken } from '../../tokenizer/types.ts'
 import type { BinaryTag } from '../../ast/types.ts'
-import type { literalWords } from '../../../js/keywords/module.f.mjs'
+import type { literalWords } from '../../../js/keywords/module.f.js'
 import type { eagerLayers } from '../../ast/module.f.mjs'
 import type {
     _framingKeywords,

@@ -1,4 +1,4 @@
-import { unmarkedWords, wordsOf } from './module.f.mjs'
+import { unmarkedWords, wordsOf } from './module.f.js'
 import { assertEq } from '../../../asserts/module.f.mjs'
 
 export const proof = {

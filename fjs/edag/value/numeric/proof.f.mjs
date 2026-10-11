@@ -8,7 +8,7 @@
  */
 
 import { assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.mjs'
-import { ok } from '../../../types/result/module.f.mjs'
+import { ok } from '../../../types/result/module.f.js'
 import { objectToPrimitive } from '../coercion/module.f.mjs'
 import { func } from '../function/module.f.mjs'
 import { binary, unary } from './module.f.mjs'

@@ -69,7 +69,7 @@ import { collectRead } from '../module.f.mjs'
 import { canonicalCBase32, cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
 import { fromVec } from '../../text/utf8/module.f.mjs'
 import { tryUtf8 } from '../../text/module.f.mjs'
-import { ok, error, okThen } from '../../types/result/module.f.mjs'
+import { ok, error } from '../../types/result/module.f.js'
 import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.mjs'
 import { at, definedEntries } from '../../types/object/module.f.mjs'
 import { unwrap } from '../../types/nullable/module.f.mjs'
@@ -440,7 +440,7 @@ const computeGeneration = parents =>
  * left holding only the encode, the write, and the cache fold. Each step also
  * reads values resolved by earlier ones, which is why the guards are a flat
  * sequence rather than an `okThen` chain — see `okThen`'s own note in
- * [`fjs/types/result`](../../types/result/module.f.mjs).
+ * [`fjs/types/result`](../../types/result/module.f.js).
  *
  * @param {RevisionData} input
  * @returns {(parents: readonly Revision[]) => Result<Revision, string>}

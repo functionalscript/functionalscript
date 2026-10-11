@@ -48,7 +48,7 @@
  * @import { DjsToken, DjsTokenWithMetadata } from './types.ts'
  */
 import { tokenize as tokenizeJs } from '../../js/tokenizer/module.f.mjs'
-import { isKeyword } from '../../js/keywords/module.f.mjs'
+import { isKeyword } from '../../js/keywords/module.f.js'
 import { flat, stateScan } from '../../types/list/module.f.mjs'
 
 // -- layer 3: the DjsToken stream -------------------------------------------

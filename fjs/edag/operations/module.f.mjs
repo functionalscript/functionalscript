@@ -12,7 +12,7 @@
  */
 
 import { isArray } from '../../types/array/module.f.mjs'
-import { error, ok, okThen } from '../../types/result/module.f.mjs'
+import { error, ok, okThen } from '../../types/result/module.f.js'
 import { array } from '../value/array/module.f.mjs'
 import { object } from '../value/object/module.f.mjs'
 import { func } from '../value/function/module.f.mjs'

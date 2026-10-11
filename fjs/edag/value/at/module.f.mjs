@@ -14,7 +14,7 @@
  * @import { ValueResult } from '../control/types.ts'
  */
 
-import { ok } from '../../../types/result/module.f.mjs'
+import { ok } from '../../../types/result/module.f.js'
 import { primitiveToNumber } from '../coercion/module.f.mjs'
 
 /** Array.at and String.at over represented receivers. @type {(receiver: ValueArray | string, index: Primitive) => ValueResult} */

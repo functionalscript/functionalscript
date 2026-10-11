@@ -27,8 +27,8 @@ import { assert, assertEq } from '../asserts/module.f.mjs'
 import { createServer, listen } from '../effects/node/module.f.mjs'
 import { runEffect } from '../effects/node/module.mjs'
 import { resultMapStep, step } from '../effects/module.f.mjs'
-import { asBase } from '../types/nominal/module.f.mjs'
-import { error, ok } from '../types/result/module.f.mjs'
+import { asBase } from '../types/nominal/module.f.js'
+import { error, ok } from '../types/result/module.f.js'
 import { respond } from './module.f.mjs'
 
 /** The address this binds, for the reason `Listen` takes one. */

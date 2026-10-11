@@ -31,7 +31,7 @@
 import { array, open, string } from '../../rtti/module.f.mjs'
 import { parse as rttiParse } from '../../rtti/parse/module.f.mjs'
 import { parse as parseJson } from '../../media/json/module.f.mjs'
-import { error, ok } from '../../types/result/module.f.mjs'
+import { error, ok } from '../../types/result/module.f.js'
 
 /**
  * Where the funding channels are read from, relative to the repository root.

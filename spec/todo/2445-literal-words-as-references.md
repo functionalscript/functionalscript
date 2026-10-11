@@ -37,5 +37,5 @@ message would differ.
 - [global-names](./2365-global-names.md) — reserves every global, the
   opposite direction: it lists these three among the names refused already,
   and a rule admitting them as references has to agree with it.
-- [`fjs/js/keywords`](../../fjs/js/keywords/module.f.mjs) — the groups:
+- [`fjs/js/keywords`](../../fjs/js/keywords/module.f.js) — the groups:
   `literalGlobals` are the three words, `restrictedNames` the two.

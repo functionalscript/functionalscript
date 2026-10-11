@@ -8,7 +8,7 @@ import { concat as stringConcat } from '../../types/string/module.f.mjs'
 import { element, htmlToString } from '../../media/html/module.f.mjs'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
-import { unwrap } from '../../types/result/module.f.mjs'
+import { unwrap } from '../../types/result/module.f.js'
 
 const { eval: evalVdf, verify, modSqrt, quadRes } = sloth
 

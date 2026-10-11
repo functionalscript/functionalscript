@@ -13,7 +13,7 @@ import { vm, invoke } from './module.f.mjs'
 import { toData } from '../value/to_unknown/module.f.mjs'
 import { call } from '../value/call/module.f.mjs'
 import { typeOf } from '../value/semantics/module.f.mjs'
-import { ok } from '../../types/result/module.f.mjs'
+import { ok } from '../../types/result/module.f.js'
 
 /** The one value in `context`'s frame, slot `0`. */
 const captured = /** @type {const} */ (['{}', [[':', 'x', 1]]])

@@ -7,7 +7,7 @@
 import { fgRed, reset, bold, sgr, csiWrite, stripSgr } from './module.f.mjs'
 import { run as mockRun } from '../../effects/mock/module.f.mjs'
 import { utf8ToString } from '../module.f.mjs'
-import { ok } from '../../types/result/module.f.mjs'
+import { ok } from '../../types/result/module.f.js'
 import { assertEq } from '../../asserts/module.f.mjs'
 
 /** @type {(isTTY: boolean) => Std} */

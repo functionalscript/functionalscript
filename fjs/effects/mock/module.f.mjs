@@ -11,7 +11,7 @@
 
 import { match, partialMatch } from "../module.f.mjs"
 import { notImplemented } from "../module.f.mjs"
-import { error } from "../../types/result/module.f.mjs"
+import { error } from "../../types/result/module.f.js"
 
 /** @type {<O extends Operation, S>(o: MemOperationMap<O, S>) => RunInstance<O, S>} */
 export const run = o => _loop(match(o))

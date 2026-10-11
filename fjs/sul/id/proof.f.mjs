@@ -2,7 +2,7 @@ import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { mask } from '../../types/bigint/module.f.mjs'
 import { vec } from '../../types/bit_vec/module.f.mjs'
 import { compress, hashId, isHash, isRaw, level3Id, rawId } from './module.f.mjs'
-import { asBase } from '../../types/nominal/module.f.mjs'
+import { asBase } from '../../types/nominal/module.f.js'
 
 // literal3ToVec bit patterns for symbols used below:
 //   0  → vec(8n)(0n)     4  → vec(8n)(3n)

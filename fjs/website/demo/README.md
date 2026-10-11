@@ -98,7 +98,7 @@ empty initial input is right only when empty is itself the point.
 
 **Offer an examples drop-down when the module has several behaviours one
 input cannot show** — the compiler's language features, DataJS's kinds of
-sharing. Use [`examples`](./examples/module.f.mjs), through
+sharing. Use [`examples`](./examples/module.f.js), through
 `textDemo`'s `examples` option where the state is a text.
 
 - The first example is the initial state.

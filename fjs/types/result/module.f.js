@@ -6,7 +6,7 @@
  * @example
  *
  * ```js
- * import { error, ok, okThen, unwrap } from './module.f.mjs'
+ * import { error, ok, okThen, unwrap } from './module.f.js'
  *
  * const success = ok(42)
  * const failure = error('Something went wrong')
@@ -47,20 +47,20 @@ export const error = e => ['error', e]
  *
  * @template T
  * @template E
- * @param {Result<T, E>} param0 - The result to unwrap.
+ * @param {Result<T, E>} result - The result to unwrap.
  * @returns {T} The value if the result is successful. Otherwise, throws the error.
  */
-export const unwrap = ([kind, v]) => {
-    if (kind === 'error') { throw v }
-    return v
+export const unwrap = result => {
+    if (result[0] === 'error') { throw result[1] }
+    return result[1]
 }
 
 /**
  * Swaps the `ok` and `error` cases of a result.
  *
- * @type {<T, E>([k, v]: Result<T, E>) => Result<E, T>}
+ * @type {<T, E>(result: Result<T, E>) => Result<E, T>}
  */
-export const invert = ([k, v]) => k === 'ok' ? error(v) : ok(v)
+export const invert = result => result[0] === 'ok' ? error(result[1]) : ok(result[1])
 
 /**
  * Maps the `ok` case of a result, passing an `error` through unchanged.
@@ -108,8 +108,6 @@ export const okThen = f => r => r[0] === 'error' ? r : f(r[1])
  * @type {<T, E>(list: readonly Result<T, E>[]) => Result<readonly T[], E>}
  */
 export const okList = list => {
-    for (const r of list) {
-        if (r[0] === 'error') { return r }
-    }
-    return ok(list.map(unwrap))
+    const failed = list.find(result => result[0] === 'error')
+    return failed === undefined ? ok(list.map(unwrap)) : failed
 }

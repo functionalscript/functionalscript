@@ -45,7 +45,7 @@ import {
     writeBytes,
 } from '../effects/node/module.f.mjs'
 import { toOption } from '../types/nullable/module.f.mjs'
-import { error, ok } from '../types/result/module.f.mjs'
+import { error, ok } from '../types/result/module.f.js'
 import { splitAt } from '../types/string/module.f.mjs'
 
 const split2 = splitAt(2)

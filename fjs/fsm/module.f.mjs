@@ -17,7 +17,7 @@ import { toRangeMap, range } from '../types/byte_set/module.f.mjs'
 import { has, toKey, union as sortedSetUnion } from '../types/sorted_set/module.f.mjs'
 import { merge, get as rangeMapGet, mapValue, values } from '../types/range_map/module.f.mjs'
 import { range as asciiRange } from '../text/ascii/module.f.mjs'
-import { compose } from '../types/function/module.f.mjs'
+import { compose } from '../types/function/module.f.js'
 import { at } from '../types/object/module.f.mjs'
 import { cmp } from '../types/string/module.f.mjs'
 

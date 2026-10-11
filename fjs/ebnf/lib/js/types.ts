@@ -15,7 +15,7 @@
  */
 
 import type { Set } from '../../types.ts'
-import type { keywords } from '../../../js/keywords/module.f.mjs'
+import type { keywords } from '../../../js/keywords/module.f.js'
 import type { operators } from './module.f.mjs'
 
 /**

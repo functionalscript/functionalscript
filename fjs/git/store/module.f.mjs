@@ -67,7 +67,7 @@
 import { catchStep, ioError, mapStep, pureError, pureOk, resultStep, step, walkStep } from '../../effects/module.f.mjs'
 import { namesNothing, readUtf8File } from '../../effects/node/module.f.mjs'
 import { join, under } from '../../path/module.f.mjs'
-import { error, ok } from '../../types/result/module.f.mjs'
+import { error, ok } from '../../types/result/module.f.js'
 import { alternatesIn } from '../alternates/module.f.mjs'
 import { tryOidBytes } from '../config/module.f.mjs'
 import { tryRead as readLoose } from '../loose/module.f.mjs'

@@ -25,7 +25,7 @@ import { exp } from '../edag/module.f.mjs'
 import { vm, invoke } from '../edag/amnesia/module.f.mjs'
 import { call } from '../edag/value/call/module.f.mjs'
 import { toData } from '../edag/value/to_unknown/module.f.mjs'
-import { ok } from '../types/result/module.f.mjs'
+import { ok } from '../types/result/module.f.js'
 import { validate } from '../rtti/validate/module.f.mjs'
 import {
     callback,

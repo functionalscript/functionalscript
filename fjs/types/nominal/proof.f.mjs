@@ -2,7 +2,7 @@
  * @import { Nominal, _SymbolKeyBranded, _SymbolIntersectionBranded } from "./types.ts"
  */
 
-import { asBase, asNominal } from "./module.f.mjs"
+import { asBase, asNominal } from "./module.f.js"
 import { assert } from '../../asserts/module.f.mjs'
 
 export const proof = {

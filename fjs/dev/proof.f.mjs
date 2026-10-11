@@ -3,7 +3,7 @@
  */
 
 import { assert, assertEq, todo } from '../asserts/module.f.mjs'
-import { unwrap } from '../types/result/module.f.mjs'
+import { unwrap } from '../types/result/module.f.js'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
 import { allFiles, isThirdParty, shouldLoad } from './module.f.mjs'
 

@@ -26,7 +26,7 @@
  * {@link partialMatch} and {@link runPure}.
  *
  * **The error channel is unioned, not unified**, following `okThen`
- * (`fjs/types/result/module.f.mjs`), the pure sibling of this bind: neither
+ * (`fjs/types/result/module.f.js`), the pure sibling of this bind: neither
  * side is pre-widened, and a branch that is passed through stays the very tuple
  * it arrived as rather than being rebuilt to retag it into a wider type.
  * {@link step} unions the error channel and replaces the success type;
@@ -89,7 +89,7 @@
 
 import { assert } from '../asserts/module.f.mjs'
 import { concat, next } from '../types/list/module.f.mjs'
-import { error, mapOk, ok } from '../types/result/module.f.mjs'
+import { error, mapOk, ok } from '../types/result/module.f.js'
 import { at } from '../types/object/module.f.mjs'
 
 /**

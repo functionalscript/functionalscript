@@ -7,7 +7,7 @@
  */
 
 import { assert, assertEq, assertError, assertOk } from '../../asserts/module.f.mjs'
-import { error, ok } from '../../types/result/module.f.mjs'
+import { error, ok } from '../../types/result/module.f.js'
 import { expectation } from './module.f.mjs'
 
 /** The export object a module with this default makes. @type {(value: EdagValue) => EdagValue} */

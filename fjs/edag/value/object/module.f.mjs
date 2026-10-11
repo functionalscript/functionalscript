@@ -21,7 +21,7 @@
  */
 
 import { isArray } from '../../../types/array/module.f.mjs'
-import { mapOk, ok } from '../../../types/result/module.f.mjs'
+import { mapOk, ok } from '../../../types/result/module.f.js'
 
 const { entries, fromEntries } = Object
 

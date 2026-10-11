@@ -10,7 +10,7 @@ import { u8ListToVecMsb, vec } from '../../types/bit_vec/module.f.mjs'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 import { demo, codePoints } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
-import { unwrap } from '../../types/result/module.f.mjs'
+import { unwrap } from '../../types/result/module.f.js'
 import { runPure } from '../../effects/module.f.mjs'
 
 const stringify = jsonStringify(sort)

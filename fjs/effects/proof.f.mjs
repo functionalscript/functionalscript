@@ -10,7 +10,7 @@ import {
     runPure, step, toIoError, unwrapStep,
 } from './module.f.mjs'
 import { run as mockRun } from './mock/module.f.mjs'
-import { error, ok } from '../types/result/module.f.mjs'
+import { error, ok } from '../types/result/module.f.js'
 import { assert, assertEq, assertError, assertOk, todo } from '../asserts/module.f.mjs'
 
 /**

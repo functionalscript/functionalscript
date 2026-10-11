@@ -17,7 +17,7 @@ import {
 } from '../../../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../../../text/module.f.mjs'
 import { toVec } from '../../../../types/uint8array/module.f.mjs'
-import { unwrap } from '../../../../types/result/module.f.mjs'
+import { unwrap } from '../../../../types/result/module.f.js'
 import { tryStringify } from '../../serializer/module.f.mjs'
 import { check, corpus, directory, main, matrix, modules, path, program, sourceDefect, sourceOf, write } from './module.f.mjs'
 

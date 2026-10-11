@@ -9,7 +9,7 @@
  */
 
 import { ioError, match, notImplemented, partialMatch, toIoError } from './module.f.mjs'
-import { error } from '../types/result/module.f.mjs'
+import { error } from '../types/result/module.f.js'
 
 /**
  * The message of a thrown value that could not be read: one whose own code

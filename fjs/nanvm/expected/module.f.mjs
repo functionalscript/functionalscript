@@ -41,7 +41,7 @@ import { tryJsonStringify } from '../../media/datajs/serializer/module.f.mjs'
 import { stringToU8List } from '../../text/utf8/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { assertOk } from '../../asserts/module.f.mjs'
-import { error, ok } from '../../types/result/module.f.mjs'
+import { error, ok } from '../../types/result/module.f.js'
 import { withoutNegativeZero } from '../corpus/module.f.mjs'
 
 /** The first line of a generated expectation. @type {(fixture: string) => string} */

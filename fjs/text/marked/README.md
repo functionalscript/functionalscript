@@ -228,7 +228,7 @@ Some text has no producer behind it: an example a reader typed. For that,
 - `spansOf(text)` answers the `Span`s the tokenizer finds (`keyword`,
   `literal`, `string`, `number`, `comment`, and `identifier` for an `id` token;
   the literal words are `literalWords` of
-  [`js/keywords`](../../js/keywords/module.f.mjs), and a word after `.` or `?.`
+  [`js/keywords`](../../js/keywords/module.f.js), and a word after `.` or `?.`
   is a property name, an `identifier` whatever it spells), or none if the
   tokenizer refuses the text: colouring the tokens before a failure would suggest the text is
   partly valid. It feeds the tokenizer code points and finds each token's
@@ -293,7 +293,7 @@ pins:
   other. Every run is one of the forms the printer says it marks: a list of
   what is *allowed*. And no plain run holds a word the printer marks, `let`,
   `pub`, `fn`, `use`, `true`, `false` or a number
-  ([`edag/rust/unmarked`](../../edag/rust/unmarked/module.f.mjs)): a list of
+  ([`edag/rust/unmarked`](../../edag/rust/unmarked/module.f.js)): a list of
   what is *required*, which the first cannot see, since a mark that goes
   missing changes no text. The second is held to every case the printer's own
   proof prints, not only the shared examples.
