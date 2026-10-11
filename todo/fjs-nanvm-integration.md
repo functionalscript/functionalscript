@@ -155,8 +155,9 @@ defined there, and the embedded-proof fixture is reported separately again.
 
 The two conversions change only their extension and references; the
 template literal was each module's one refusal. Converting `website/style`
-exposes `website/demo/code`, refused for the computed key
-`{ [codeMarker]: '' }` the language does not accept. The authored `.f.js`
+exposes `website/demo/code`, refused first for the default parameter in
+`codeBlock`, with the computed key `{ [codeMarker]: '' }` behind it, as the
+table below records. The authored `.f.js`
 population grows from 27 to 29, all accepted by `npm start compile`.
 
 This pass converts no module by rewriting it: a module whose source the
