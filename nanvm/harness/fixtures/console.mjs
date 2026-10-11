@@ -3,7 +3,7 @@
  * drift-checked by `npm run gen`. The console half of the parity corpus that
  * `parity.mjs` begins: programs a host performs, here against standard streams
  * rather than a directory. `../tests/console.rs` performs them on
- * `nanvm-effects-node` over buffers, and `../../fjs/nanvm/parity/console.proof.mjs`
+ * `nanvm-effects-node` over buffers, and `../../../fjs/nanvm/parity/console.proof.mjs`
  * on the Node runner in a child process whose streams it holds; both must
  * answer what a case says.
  *
