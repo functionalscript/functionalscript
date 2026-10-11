@@ -23,23 +23,25 @@
  * @module
  *
  * @import { Result } from '../../types/result/types.ts'
+ * @import { Marked } from '../../text/marked/types.ts'
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
  */
 
 import { codeBlock } from '../../website/demo/code/module.f.mjs'
-import { parse, stringify } from './module.f.mjs'
+import { marked, parse } from './module.f.mjs'
 import { mapOk } from '../../types/result/module.f.js'
 import { sort } from '../../types/object/module.f.mjs'
 import { textDemo, caption, refusal } from '../../website/demo/module.f.mjs'
-import { highlight } from '../../website/demo/highlight/module.f.mjs'
+import { highlight, render } from '../../website/demo/highlight/module.f.mjs'
+import { toText } from '../../text/marked/module.f.mjs'
 
 /**
  * `text` parsed and written back in normalized form — sorted keys, one line
  * — or the parser's own error, if `text` is not a document.
  *
- * @type {(text: string) => Result<string, string>}
+ * @type {(text: string) => Result<Marked, string>}
  */
-export const roundTrip = text => mapOk(stringify(sort))(parse(text))
+export const roundTrip = text => mapOk(marked(sort))(parse(text))
 
 /**
  * The state is the text itself, not the parse: the parse is a function of
@@ -61,6 +63,6 @@ export const demo = textDemo({
 })(text => {
     const [kind, value] = roundTrip(text)
     return kind === 'ok'
-        ? [caption('Parsed, then written back:'), codeBlock(value, 'Copy JSON')]
+        ? [caption('Parsed, then written back:'), codeBlock(toText(value), 'Copy JSON', render(value))]
         : [refusal(value)]
 })

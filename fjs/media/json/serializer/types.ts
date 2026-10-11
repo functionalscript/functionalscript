@@ -10,7 +10,7 @@ import type { Assert } from '../../../asserts/types.ts'
 import type { Equal } from '../../../types/ts/types.ts'
 import type { List } from '../../../types/list/types.ts'
 import type { Tree, TreeMapEntries } from '../types.ts'
-import type { Chunk } from '../../../text/marked/types.ts'
+import type { Chunk, Marked } from '../../../text/marked/types.ts'
 
 /**
  * A leaf's spelling as chunks. Public: every codec names it for its
@@ -48,11 +48,13 @@ export type _Leaves<X extends _ExtraLeaves> =
 
 /**
  * What a leaf spelling becomes once `treeSerialize` walks the containers around
- * it: `serialize` to chunks and `stringify` to text, both ordered by `sort`.
+ * it: `serialize` to chunks, `stringify` to text and `marked` to runs, each
+ * with the kind its producer knew, all ordered by `sort`.
  */
 export type Codec<P> = {
     readonly serialize: (sort: TreeMapEntries<P>) => (value: Tree<P>) => List<string>
     readonly stringify: (sort: TreeMapEntries<P>) => (value: Tree<P>) => string
+    readonly marked: (sort: TreeMapEntries<P>) => (value: Tree<P>) => Marked
 }
 
 type _Shared = null | boolean | number | string
