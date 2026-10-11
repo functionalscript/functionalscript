@@ -108,6 +108,15 @@ A producer of code ends by calling `withNames` on its runs
 which spells no name, does not need it. A word that starts with a digit is left
 plain, since it is a number the producer did not mark, and a proof can find it.
 
+**Names are ASCII.** `withNames` reads a name as the letters `a`–`z` and `A`–`Z`,
+digits, `_` and `$`, which is what the compiler's tokenizer accepts: a program
+cannot spell a name with any other character. Given text that does, `withNames`
+marks the ASCII part and leaves the rest plain (`café` becomes `caf` and `é`),
+and the tokenizer fallback refuses such text and colours none of it. That is
+no failure of a producer, whose names the compiler or its own templates fix. A
+producer that one day spells a non-ASCII name needs this pass widened, and its
+proof, which holds no word unmarked, will say so.
+
 Two rules keep a piece's text honest:
 
 - **Split a keyword from what surrounds it.** `'export default '` is three
