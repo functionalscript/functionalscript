@@ -4,6 +4,7 @@
 //! differences the doc of the function names. A failure is an [`IoError`], the
 //! `ioError` the language reads.
 
+use nanvm_lib::vm::unstable::number_text;
 use std::{
     fs::{self, File, OpenOptions},
     io::{self, ErrorKind, Read, Seek, SeekFrom, Write},
@@ -369,50 +370,29 @@ pub fn write_bytes(path: &str, at: f64, data: &[u8]) -> Result<(), IoError> {
     sync(&file).map_err(|e| failure(&e, "close", path))
 }
 
-/// A number as JavaScript spells it in a message: `NaN`, `Infinity`, and the
-/// exponent form at and beyond `1e21` and below `1e-6`, where Rust would write
-/// every digit. Otherwise it is Rust's shortest spelling, which differs from
-/// ECMAScript's only on a tie between two same-length candidates, a fractional
-/// value from about 2^50 up (`todo/js-number-spelling.md`).
-pub fn js_number(value: f64) -> String {
-    if value.is_nan() {
-        "NaN".to_string()
-    } else if value.is_infinite() {
-        (if value > 0.0 { "Infinity" } else { "-Infinity" }).to_string()
-    } else if value == 0.0 {
-        "0".to_string()
-    } else if value.abs() >= 1e21 || value.abs() < 1e-6 {
-        let text = format!("{value:e}");
-        if text.contains("e-") {
-            text
-        } else {
-            text.replace('e', "e+")
-        }
-    } else {
-        value.to_string()
-    }
-}
-
 /// `windowRefusal` of `fjs/effects/node/module.f.mjs`: the numbers a positional
 /// read refuses, before a byte is read, in the words both runners use.
 fn window_refusal(at: f64, size: f64) -> Option<String> {
     if at.fract() != 0.0 || !at.is_finite() {
-        Some(format!("Offset {} is not an integer", js_number(at)))
+        Some(format!("Offset {} is not an integer", number_text(at)))
     } else if at < 0.0 {
-        Some(format!("Offset {} is negative", js_number(at)))
+        Some(format!("Offset {} is negative", number_text(at)))
     } else if at > MAX_OFFSET as f64 {
         Some(format!(
             "Offset {} exceeds maximum allowed offset of {MAX_OFFSET}",
-            js_number(at)
+            number_text(at)
         ))
     } else if size.fract() != 0.0 || !size.is_finite() {
-        Some(format!("Chunk size {} is not an integer", js_number(size)))
+        Some(format!(
+            "Chunk size {} is not an integer",
+            number_text(size)
+        ))
     } else if size < 0.0 {
-        Some(format!("Chunk size {} is negative", js_number(size)))
+        Some(format!("Chunk size {} is negative", number_text(size)))
     } else if size > MAX_FILE_SIZE_BYTES as f64 {
         Some(format!(
             "Chunk size {} exceeds maximum allowed size of {MAX_FILE_SIZE_BYTES} bytes",
-            js_number(size)
+            number_text(size)
         ))
     } else {
         None
@@ -660,20 +640,6 @@ mod test {
         ] {
             assert_eq!(normalize(path), expected, "{path:?}");
         }
-    }
-
-    #[test]
-    fn js_numbers() {
-        assert_eq!(js_number(f64::NAN), "NaN");
-        assert_eq!(js_number(f64::INFINITY), "Infinity");
-        assert_eq!(js_number(f64::NEG_INFINITY), "-Infinity");
-        assert_eq!(js_number(-0.0), "0");
-        assert_eq!(js_number(1.5), "1.5");
-        assert_eq!(js_number(-7.0), "-7");
-        assert_eq!(js_number(9007199254740992.0), "9007199254740992");
-        assert_eq!(js_number(1e21), "1e+21");
-        assert_eq!(js_number(1.5e300), "1.5e+300");
-        assert_eq!(js_number(1e-7), "1e-7");
     }
 
     /// The numbers a positional read refuses, in the words of `windowRefusal`.
