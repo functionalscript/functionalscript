@@ -76,6 +76,8 @@ const run = asyncPartialRun(commands)(commonOperationMap)
  * be honoured after the first finished, which is a demo measuring twice
  * because somebody was impatient. Incremental work skips this marker so Stop
  * and input remain available; its updates must be small and pure.
+ * The next render restores the view's disabled attributes. Going idle must
+ * preserve them, rather than enable actions the demo has explicitly refused.
  *
  * @type {(root: Element, working: boolean, note?: string | null) => void}
  */
@@ -86,7 +88,7 @@ const busy = (root, working, note = null) => {
         root.removeAttribute('data-demo-working')
     }
     for (const control of root.querySelectorAll('button')) {
-        control.disabled = working
+        control.disabled = working || control.getAttribute('disabled') !== null
     }
 }
 
