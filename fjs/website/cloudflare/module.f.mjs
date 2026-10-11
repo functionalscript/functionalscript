@@ -81,4 +81,4 @@ export const cloudflare = step(
     () => writeUtf8File(buildPath, buildText()))
 
 /** @type {NodeProgram} */
-export const main = () => exitStep(cloudflare)
+export const main = _options => exitStep(cloudflare)
