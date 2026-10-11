@@ -22,10 +22,10 @@ the same few things, and each file has its own:
   named `withTemporary` in the node proof, and inline several times across
   the web proof and
   [`virtual/readdir/proof.mjs`](../virtual/readdir/proof.mjs).
-- Which engine is running is asked as `'Bun' in globalThis` in the web
-  proof and as `isNode` in the node proof, while
-  [`module.mjs`](../module.mjs) computes `engine` for itself and does not
-  export it.
+- The runtime guards repeat host checks: the web proof asks
+  `'Bun' in globalThis`, and the node proof's `isNode()` excludes both Bun
+  and Deno. [`module.mjs`](../module.mjs) repeats the Bun check when
+  selecting `options.testContext`, without exporting it.
 
 These proofs are `.mjs` by necessity — they reach through to the host's
 `Server` — and that is the one reason given for the file; the scaffolding
@@ -38,19 +38,24 @@ in one copy today.
 One host test library beside the runner, named after
 [`fjs/git/testlib.f.mjs`](../../../git/testlib.f.mjs)'s precedent —
 `testlib.mjs`, since it is impure — exporting `within`, `withServer(listener,
-client)`, `withTemporary(prefix, check)` and `engine`. The web proof calls
-`withServer(respond(root), client)`; the inline brackets become calls.
+client)`, `withTemporary(prefix, check)`, `isBun` and `isNode`. The web proof
+calls `withServer(respond(root), client)`; the inline brackets become calls.
 
-`module.mjs` remains the owner of runtime detection: export its existing
-`engine` binding, then import and re-export it from `testlib.mjs`. The
-proofs compare that shared value with `'node'` or `'bun'`. The production
-runner has no dependency on the test library.
+`module.mjs` names and exports its existing `'Bun' in globalThis` check as
+the boolean `isBun`, and uses it to select `options.testContext`.
+`testlib.mjs` imports and re-exports `isBun`, and owns the exported
+`isNode()` predicate `!isBun && !('Deno' in globalThis)` for Node-only guards.
+The web proof uses `isBun`; the node proof uses `isNode()`, still excluding
+Deno. The production runner keeps one selected `testContext` and has no
+dependency on the test library.
 
 ### Tasks
 
 - [ ] The library, with `within`, `withServer` and `withTemporary` moved
       rather than rewritten.
-- [ ] Export the production `engine` binding and re-export it from the
-      library; replace the proofs' runtime detection with shared-value
-      comparisons.
+- [ ] Name and export the production `isBun` check, use it in
+      `options.testContext`, and re-export it from the library.
+- [ ] Move the Node-only `isNode()` guard to the library, using shared
+      `isBun` and retaining its Deno exclusion; the web proof uses `isBun`
+      and the node proof uses `isNode()`.
 - [ ] Move the listed proof files onto it; `node --test` to exit 0.

@@ -39,8 +39,15 @@ export const letBindings: (bindings: readonly (readonly [Exp, string])[]) => (na
 ```
 
 `nanvm/rust`'s block becomes `letBindings(used.map(binding))(i => snakeCase(used[i][0]))`
-unwrapped, and `scope`'s temporaries could print through the same export
-with `i => \`c${i}\``. If retained after the formatting-policy decision
+unwrapped, retaining its indentation and plain Rust spelling. This helper
+prints the corpus's named bindings. `fjs/compiler/rust` keeps consuming
+`scopeTagged`: the EDAG printer's `letLine` retains the `let` keyword and
+initializer tags, its import-use metadata, thunk typing and operation `?`
+handling. `scope` remains the plain wrapper that removes tags from
+`scopeTagged`'s output. The compiler's temporaries do not pass through the
+plain `letBindings` helper.
+
+If retained after the formatting-policy decision
 below, `skipFn(signature, lines)` — the `#[rustfmt::skip]` item wrapper —
 lives in `fjs/media/rust/item`, and the printers import it.
 
@@ -58,9 +65,15 @@ then imports it.
 
 ### Tasks
 
-- [ ] `letBindings` in `fjs/edag/rust` with proofs, and `indent` imported
-      from the item module rust-item-helpers adds; both printers use the
-      shared binding and indentation output.
+- [ ] `letBindings` in `fjs/edag/rust` with proofs; move `nanvm/rust`'s
+      named bindings onto it. Import `indent` from the item module
+      rust-item-helpers adds; both printers use that indentation.
+- [ ] Preserve `scopeTagged`'s temporary-binding marks and existing
+      `toRustMarked` proofs: `let` is a keyword, initializer strings,
+      numbers and literal words keep their kinds, the marked text equals
+      `toRust`'s plain text, and no words are left unmarked. Keep `scope`'s
+      lines equal to the untagged `scopeTagged` lines and preserve the
+      compiler demo's highlighting.
 - [ ] If retained after the formatting-policy decision, implement and
       prove `skipFn` in `fjs/media/rust/item`; the printers using the
       per-function wrapper import it from there.
