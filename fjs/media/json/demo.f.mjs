@@ -37,11 +37,20 @@ import { toText } from '../../text/marked/module.f.mjs'
 
 /**
  * `text` parsed and written back in normalized form — sorted keys, one line
- * — or the parser's own error, if `text` is not a document.
+ * — as runs, or the parser's own error, if `text` is not a document. What
+ * the demo draws; {@link roundTrip} is its text.
  *
  * @type {(text: string) => Result<Marked, string>}
  */
-export const roundTrip = text => mapOk(marked(sort))(parse(text))
+export const _roundTripMarked = text => mapOk(marked(sort))(parse(text))
+
+/**
+ * `text` parsed and written back in normalized form — sorted keys, one line
+ * — or the parser's own error, if `text` is not a document.
+ *
+ * @type {(text: string) => Result<string, string>}
+ */
+export const roundTrip = text => mapOk(toText)(_roundTripMarked(text))
 
 /**
  * The state is the text itself, not the parse: the parse is a function of
@@ -61,7 +70,7 @@ export const demo = textDemo({
     init: '{\n  "b": 2,\n  "a": [3, 2, 1],\n  "c": "hello"\n}',
     highlight,
 })(text => {
-    const [kind, value] = roundTrip(text)
+    const [kind, value] = _roundTripMarked(text)
     return kind === 'ok'
         ? [caption('Parsed, then written back:'), codeBlock(toText(value), 'Copy JSON', render(value))]
         : [refusal(value)]

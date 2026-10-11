@@ -3,12 +3,11 @@
  */
 
 import { marked, parse, serialize, setProperty, stringify } from './module.f.mjs'
-import { demo, roundTrip } from './demo.f.mjs'
+import { _roundTripMarked, demo, roundTrip } from './demo.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
 import { identity } from '../../types/function/module.f.js'
 import { assert, assertEq, assertNotNullish, assertError, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { htmlToString } from '../html/module.f.mjs'
-import { textOfResult, toText } from '../../text/marked/module.f.mjs'
 import { disagreement } from '../../website/demo/highlight/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
 import { runPure } from '../../effects/module.f.mjs'
@@ -139,13 +138,13 @@ export const proof = {
          * nobody is looking at.
          */
         roundTrip: () => {
-            assertEq(textOfResult(roundTrip('{"b":2,"a":1}')), '{"a":1,"b":2}')
+            assertEq(unwrap(roundTrip('{"b":2,"a":1}')), '{"a":1,"b":2}')
             assertEq(
-                textOfResult(roundTrip('{\n  "b": 2,\n  "a": [3, 2, 1],\n  "c": "hello"\n}')),
+                unwrap(roundTrip('{\n  "b": 2,\n  "a": [3, 2, 1],\n  "c": "hello"\n}')),
                 '{"a":[3,2,1],"b":2,"c":"hello"}')
             // What it marks, the tokenizer agrees with, for every kind a
             // document holds: strings, numbers, `null` and the booleans.
-            assertEq(disagreement(unwrap(roundTrip('{"s":"x","n":-1.5,"z":0,"t":true,"f":false,"u":null,"a":[]}'))), null)
+            assertEq(disagreement(unwrap(_roundTripMarked('{"s":"x","n":-1.5,"z":0,"t":true,"f":false,"u":null,"a":[]}'))), null)
             // A parse failure is shown, not swallowed.
             assertEq(assertError(roundTrip('{')), 'unexpected end')
         },
@@ -181,7 +180,7 @@ export const proof = {
             assert(empty.includes('name="json"'), empty)
             // the output is coloured, so its text is spread over spans: the
             // copy payload keeps it whole
-            assert(empty.includes(`data-copy="${toText(unwrap(roundTrip(demo.init))).replaceAll('"', '&quot;')}"`), empty)
+            assert(empty.includes(`data-copy="${unwrap(roundTrip(demo.init)).replaceAll('"', '&quot;')}"`), empty)
             assert(empty.includes('<span data-token="string">&quot;a&quot;</span>'), empty)
             const typed = htmlToString(demo.view('[1,2]'))
             assert(typed.includes('[1,2]'), typed)
