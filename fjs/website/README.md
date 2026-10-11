@@ -75,6 +75,18 @@ resolves, which is what makes the tree walkable from the root. The root page is
 that page for the repository root — it carries the project's name and the same
 catalogue — rather than a special case beside the rule.
 
+**Contents and Issues use the left margin.** Both sections live in one
+catalogue beside the main column, with Contents and Issues
+open by default. The catalogue stays in view while the demo or test report grows,
+and can scroll when its links are taller than the viewport. On desktop
+it takes a 16rem column, with a full-height divider and content filling the
+remaining width; at 48rem and below a full-width Contents / Issues bar above the breadcrumb
+opens a modal drawer at the selected section. Issues shows its count; Issues · 0 stays visible and disabled when empty. Escape, the close button, and the backdrop dismiss it;
+resizing to desktop restores the sidebar. Without JavaScript the catalogue
+stays above the page. A page with no catalogue keeps
+its centered column. Release pages and the pull request queue keep their own
+layout.
+
 The one exclusion is a `todo/` subtree, by path segment: its issues are its
 parent's open work, so a page of its own would hold nothing else. It is neither
 generated nor linked, so nothing points at a page that was never written.
