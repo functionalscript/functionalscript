@@ -1,22 +1,37 @@
-import { assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { rust } from '../../ci/config/module.f.js'
-import { docArgs, rustupInitArgs, rustupInitUrl, targetTriple } from './module.f.mjs'
+import { step as ioStep } from '../../effects/module.f.mjs'
+import { readUtf8File } from '../../effects/node/module.f.mjs'
+import { defaultNodeProgramOptions, emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'
+import { buildPath, buildText, cloudflare, generatedDirectory, main } from './module.f.mjs'
 
 export const proof = {
-    targetTriple: () => {
-        assertEq(targetTriple('linux', 'x64'), 'x86_64-unknown-linux-gnu')
-        assertEq(targetTriple('linux', 'arm64'), 'aarch64-unknown-linux-gnu')
-        assertEq(targetTriple('darwin', 'x64'), 'x86_64-apple-darwin')
-        assertEq(targetTriple('darwin', 'arm64'), 'aarch64-apple-darwin')
-        assertEq(targetTriple('win32', 'x64'), null)
-        assertEq(targetTriple('linux', 'ia32'), null)
+    // Fixed text: the pin written in full, no pipe to hide a failed download
+    // from `set -e`, and no tool beyond the four approved.
+    buildText: () => assertEq(buildText(), `#!/bin/sh
+set -e
+curl --proto '=https' --tlsv1.2 -sSf https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init -o "$HOME/rustup-init"
+chmod +x "$HOME/rustup-init"
+"$HOME/rustup-init" -y --profile minimal --default-toolchain ${rust} --no-modify-path
+"$HOME/.cargo/bin/cargo" doc --no-deps --workspace
+npm run website
+`),
+    // The pin is the config's, not a copy of it.
+    namesThePin: () => assert(buildText().includes(` --default-toolchain ${rust} `), buildText()),
+    buildPath: () => {
+        assertEq(generatedDirectory, 'gen.cloudflare')
+        assertEq(buildPath, 'gen.cloudflare/build.sh')
     },
-    rustupInitUrl: () => assertEq(
-        rustupInitUrl('x86_64-unknown-linux-gnu'),
-        'https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init'),
-    // The toolchain `rustup-init` installs is the pin, not a copy of it.
-    rustupInitArgs: () => assertEq(
-        rustupInitArgs.join(' '),
-        `-y --profile minimal --default-toolchain ${rust} --no-modify-path`),
-    docArgs: () => assertEq(docArgs.join(' '), 'doc --no-deps --workspace'),
+    // The script is written where the dashboard's command names it.
+    writes: () => {
+        const [, [tag, result]] = virtual(emptyState)(ioStep(cloudflare, () => readUtf8File(buildPath)))
+        assert(tag === 'ok', result)
+        assertEq(result, buildText())
+    },
+    main: () => {
+        const [state, [tag, result]] = virtual(emptyState)(main(defaultNodeProgramOptions))
+        assert(tag === 'ok', result)
+        assertEq(result, 0)
+        assert(state.root[generatedDirectory] !== undefined, 'expected the generated directory')
+    },
 }

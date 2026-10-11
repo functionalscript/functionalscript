@@ -27,6 +27,7 @@ import { main as ci } from '../../ci/self/module.f.mjs'
 import { main as rustTests } from '../../nanvm/update/module.f.mjs'
 import { main as matrix } from '../../media/datajs/vectors/matrix/module.f.mjs'
 import { main as fixtures } from '../../nanvm/harness/module.f.mjs'
+import { main as cloudflare } from '../../website/cloudflare/module.f.mjs'
 
 /**
  * The generators, in the order regeneration needs. Each is a `NodeProgram`
@@ -54,6 +55,8 @@ export const generators = [
     // The `nanvm-harness` fixtures compiled to Rust, and the `mod.rs` naming
     // them: the fixture directory is the list.
     fixtures,
+    // The Cloudflare site build script, from the Rust pin.
+    cloudflare,
 ]
 
 /**
