@@ -136,6 +136,6 @@ blank lines outside the mark.
 - [let-bindings-owner](../../edag/rust/todo/let-bindings-owner.md) — the
   `Exp`-level items the printer keeps; it decides whether to retain
   `skipFn`, whose string-only wrapper belongs in this item module.
-- [generated-rust-module-rustfmt-skip](../../../nanvm-lib/todo/generated-rust-module-rustfmt-skip.md)
+- [generated-rust-module-rustfmt-skip](../../../nanvm/lib/todo/generated-rust-module-rustfmt-skip.md)
   — whether `#[rustfmt::skip]` is written per item or once per module; the
   helper is where that decision would land for every generator at once.

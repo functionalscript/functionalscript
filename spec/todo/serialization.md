@@ -48,7 +48,7 @@ while native code is a cached acceleration of it. Represented FJS values already
 retain that EDAG; compiled native functions carry rendered text for conversion
 without promising full semantic metadata retrieval. Native embedded `Any` data
 versus out-of-band lookup remains open in the
-[roadmap](../../nanvm-lib/todo/mvp-roadmap.md#open-questions). This metadata
+[roadmap](../../nanvm/lib/todo/mvp-roadmap.md#open-questions). This metadata
 requirement does not imply a dependency on the dynamic Rust EDAG library.
 
 Code/content identity is not callable allocation identity. Under a JS-compatible execution
@@ -118,7 +118,7 @@ broader callable serialization work.
    2026-09-30, [recorded on #2418](https://github.com/functionalscript/functionalscript/pull/2418)). A captured
    value is written as its slot's name, so every function one arrow makes has
    one text; see
-   [to-primitive's D2](../../nanvm-lib/todo/to-primitive.md#stage-3-a-functions-text).
+   [to-primitive's D2](../../nanvm/lib/todo/to-primitive.md#stage-3-a-functions-text).
    What the function serializer does with a frame stays with question 1. The
    discussion below is kept for that.
 
@@ -251,7 +251,7 @@ it does not claim lazy strings or frame serialization are implemented today.
   with a fully materialized reference, independently of caches and chunking.
 - [ ] Complete remaining native conversion corpus cases, including a
   function used as a property key, as tracked in
-  [member-functions](../../nanvm-lib/todo/member-functions.md). Native semantic
+  [member-functions](../../nanvm/lib/todo/member-functions.md). Native semantic
   EDAG association remains [separate](../../fjs/compiler/todo/associate-edag-with-functions.md)
   from the compiled function text already supplied.
 

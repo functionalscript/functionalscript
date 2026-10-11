@@ -44,9 +44,9 @@ investigation listed under Tasks before it is.
   above a size — a string of more than *n* code units, a bigint past what
   the VM holds inline. That size is the representation's, not a constant:
   the NaN-box layout of
-  [`nanvm-lib/todo/optimal-nanvm.md`](../../../nanvm-lib/todo/optimal-nanvm.md)
+  [`nanvm/lib/todo/optimal-nanvm.md`](../../../nanvm/lib/todo/optimal-nanvm.md)
   holds 48 bits of bigint inline, and the naive VM of
-  [`nanvm-lib/src/naive`](../../../nanvm-lib/src/naive/mod.rs) boxes every
+  [`nanvm/lib/src/naive`](../../../nanvm/lib/src/naive/mod.rs) boxes every
   bigint, so "64 bits" is no VM's cutoff. The threshold would be a
   parameter of the analysis, not a constant of the graph, so that a VM with
   another value representation asks for its own and a writer whose reader

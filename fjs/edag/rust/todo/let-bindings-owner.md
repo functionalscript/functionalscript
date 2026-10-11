@@ -52,10 +52,10 @@ below, `skipFn(signature, lines)` — the `#[rustfmt::skip]` item wrapper —
 lives in `fjs/media/rust/item`, and the printers import it.
 
 **Open question:**
-[generated-rust-module-rustfmt-skip](../../../../nanvm-lib/todo/generated-rust-module-rustfmt-skip.md)
+[generated-rust-module-rustfmt-skip](../../../../nanvm/lib/todo/generated-rust-module-rustfmt-skip.md)
 proposes the opposite for the corpus printer: `fjs/nanvm/rust` stops emitting
 `#[rustfmt::skip]` per function, and one `#[rustfmt::skip] mod generated;`
-in `nanvm-lib/tests/test/main.rs` covers the generated file. If that lands,
+in `nanvm/lib/tests/test/main.rs` covers the generated file. If that lands,
 `fjs/compiler/rust`'s module alone may not justify a `skipFn` helper.
 Which policy the corpus follows is undecided. The retained helper's owner
 is settled: it consumes strings and already-rendered lines, so it belongs
@@ -85,7 +85,7 @@ then imports it.
   the same principle for literals; this is the item layer.
 - [rust-item-helpers](../../../nanvm/todo/rust-item-helpers.md) — owns
   `indent` and the string-only `skipFn` wrapper if retained.
-- [generated-rust-module-rustfmt-skip](../../../../nanvm-lib/todo/generated-rust-module-rustfmt-skip.md)
+- [generated-rust-module-rustfmt-skip](../../../../nanvm/lib/todo/generated-rust-module-rustfmt-skip.md)
   — proposes the corpus stop emitting `#[rustfmt::skip]` per function, which
   `skipFn` would keep; see the open question above.
 - [`../../todo/identity-shared-walks.md`](../../todo/identity-shared-walks.md) —
