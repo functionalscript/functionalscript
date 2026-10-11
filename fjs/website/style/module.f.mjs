@@ -103,6 +103,66 @@ export const resultMarker = 'data-result'
  */
 export const powResultMarker = 'data-pow-result'
 
+/** The ECDSA card attribute shared by the demo and stylesheet.
+ * @type {string}
+ */
+export const signCardMarker = 'data-sign-card'
+
+/** The ECDSA explanation attribute shared by the demo and stylesheet.
+ * @type {string}
+ */
+export const signExplanationMarker = 'data-sign-explanation'
+
+/** The ECDSA flow attribute shared by the demo and stylesheet.
+ * @type {string}
+ */
+export const signFlowMarker = 'data-sign-flow'
+
+/** The ECDSA packet attribute shared by the demo and stylesheet.
+ * @type {string}
+ */
+export const signPacketMarker = 'data-sign-packet'
+
+/** The ECDSA role attribute shared by the demo and stylesheet.
+ * @type {string}
+ */
+export const signRoleMarker = 'data-sign-role'
+
+/** The ECDSA scheme attribute shared by the demo and stylesheet.
+ * @type {string}
+ */
+export const signSchemeMarker = 'data-sign-scheme'
+
+/** The ECDSA stage attribute shared by the demo and stylesheet.
+ * @type {string}
+ */
+export const signStageMarker = 'data-sign-stage'
+
+/** The ECDSA stage header attribute shared by the demo and stylesheet.
+ * @type {string}
+ */
+export const signStageHeaderMarker = 'data-sign-stage-header'
+
+/** The ECDSA trust attribute shared by the demo and stylesheet.
+ * @type {string}
+ */
+export const signTrustMarker = 'data-sign-trust'
+
+/** The ECDSA trust key attribute shared by the demo and stylesheet.
+ * @type {string}
+ */
+export const signTrustKeyMarker = 'data-sign-trust-key'
+
+/** The ECDSA trust path attribute shared by the demo and stylesheet.
+ * @type {string}
+ */
+export const signTrustPathMarker = 'data-sign-trust-path'
+
+/** The ECDSA verifier attribute shared by the demo and stylesheet.
+ * @type {string}
+ */
+export const signVerifierMarker = 'data-sign-verifier'
+
 /**
  * The attribute a railroad diagram marks each box with, valued by the
  * piece's kind: `fjs/website/demo/railroad` writes it and the stylesheet
@@ -608,42 +668,42 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
 [${codeMarker}] mark { background: var(--fail-bg); border-radius: 3px; color: var(--fail); outline: 1px solid color-mix(in srgb, var(--fail) 40%, transparent) }
 /* ECDSA's diagram separates the intercepted packet from Bob's prior trust.
    Reflow the same semantic content on small screens, preserving reading order. */
-[data-sign-scheme] { border: 1px solid var(--border); border-radius: 12px; margin: 1rem 0 2rem; padding: 1rem; font-size: .875rem }
-[data-sign-scheme] svg { display: block; width: 2.5rem; height: 2.5rem; flex: none; margin: .5rem auto }
-[data-sign-flow] { display: grid; grid-template-columns: minmax(0, 1fr) 4.5rem minmax(0, 1fr) 4.5rem minmax(0, 1fr); gap: .65rem; align-items: start }
-[data-sign-card], [data-sign-stage] { --sign-accent: var(--value); --sign-tint: var(--value-bg) }
-[data-sign-card="eve"], [data-sign-stage="eve"] { --sign-accent: var(--fail); --sign-tint: var(--fail-bg) }
-[data-sign-card="bob"], [data-sign-stage="bob"] { --sign-accent: var(--pass); --sign-tint: var(--pass-bg) }
-[data-sign-card] { border: 1px solid var(--sign-accent); border-radius: 8px; background: var(--sign-tint); padding: .75rem; text-align: center; min-width: 0 }
-[data-sign-card] h4 { color: var(--sign-accent); font-size: 1.2rem; margin: 0 0 .25rem }
-[data-sign-card] small { display: block; margin-top: .35rem }
-[data-sign-card] svg { color: var(--sign-accent) }
-[data-sign-packet] { text-align: center; color: var(--muted); margin-top: 2rem }
-[data-sign-packet] svg { width: 100%; height: 1.5rem }
-[data-sign-verifier] { min-width: 0 }
-[data-sign-explanation] { margin: .75rem 0 0; line-height: 1.5; font-size: .8rem }
-[data-sign-trust] { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, 1fr); align-items: center; gap: .75rem; color: var(--muted); margin-top: 1rem }
-[data-sign-trust-key] { display: flex; align-items: center; gap: .5rem; border: 1px solid var(--border); border-radius: 8px; background: color-mix(in srgb, var(--border) 35%, var(--bg)); color: var(--text); padding: .5rem .75rem }
-[data-sign-trust-key] svg { width: 1.5rem; height: 1.5rem; margin: 0 }
-[data-sign-trust-path] { text-align: center }
-[data-sign-trust-path] svg { width: 100%; height: 1.5rem; margin: .25rem 0 }
-[data-sign-scheme] figcaption { color: var(--muted); font-size: .8rem; line-height: 1.5; margin-top: .75rem }
+[${signSchemeMarker}] { border: 1px solid var(--border); border-radius: 12px; margin: 1rem 0 2rem; padding: 1rem; font-size: .875rem }
+[${signSchemeMarker}] svg { display: block; width: 2.5rem; height: 2.5rem; flex: none; margin: .5rem auto }
+[${signFlowMarker}] { display: grid; grid-template-columns: minmax(0, 1fr) 4.5rem minmax(0, 1fr) 4.5rem minmax(0, 1fr); gap: .65rem; align-items: start }
+[${signCardMarker}], [${signStageMarker}] { --sign-accent: var(--value); --sign-tint: var(--value-bg) }
+[${signCardMarker}="eve"], [${signStageMarker}="eve"] { --sign-accent: var(--fail); --sign-tint: var(--fail-bg) }
+[${signCardMarker}="bob"], [${signStageMarker}="bob"] { --sign-accent: var(--pass); --sign-tint: var(--pass-bg) }
+[${signCardMarker}] { border: 1px solid var(--sign-accent); border-radius: 8px; background: var(--sign-tint); padding: .75rem; text-align: center; min-width: 0 }
+[${signCardMarker}] h4 { color: var(--sign-accent); font-size: 1.2rem; margin: 0 0 .25rem }
+[${signCardMarker}] small { display: block; margin-top: .35rem }
+[${signCardMarker}] svg { color: var(--sign-accent) }
+[${signPacketMarker}] { text-align: center; color: var(--muted); margin-top: 2rem }
+[${signPacketMarker}] svg { width: 100%; height: 1.5rem }
+[${signVerifierMarker}] { min-width: 0 }
+[${signExplanationMarker}] { margin: .75rem 0 0; line-height: 1.5; font-size: .8rem }
+[${signTrustMarker}] { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, 1fr); align-items: center; gap: .75rem; color: var(--muted); margin-top: 1rem }
+[${signTrustMarker}-key] { display: flex; align-items: center; gap: .5rem; border: 1px solid var(--border); border-radius: 8px; background: color-mix(in srgb, var(--border) 35%, var(--bg)); color: var(--text); padding: .5rem .75rem }
+[${signTrustMarker}-key] svg { width: 1.5rem; height: 1.5rem; margin: 0 }
+[${signTrustMarker}-path] { text-align: center }
+[${signTrustMarker}-path] svg { width: 100%; height: 1.5rem; margin: .25rem 0 }
+[${signSchemeMarker}] figcaption { color: var(--muted); font-size: .8rem; line-height: 1.5; margin-top: .75rem }
 @media (max-width: 900px) {
-    [data-sign-flow] { grid-template-columns: minmax(0, 1fr) 3.5rem minmax(0, 1fr) 3.5rem minmax(0, 1fr) }
+    [${signFlowMarker}] { grid-template-columns: minmax(0, 1fr) 3.5rem minmax(0, 1fr) 3.5rem minmax(0, 1fr) }
 }
 @media (max-width: 600px) {
-    [data-sign-flow], [data-sign-trust] { grid-template-columns: minmax(0, 1fr) }
-    [data-sign-packet], [data-sign-trust-path] { display: flex; align-items: center; justify-content: center; gap: .75rem }
-    [data-sign-packet] svg, [data-sign-trust-path] svg { transform: rotate(90deg); width: 1.5rem; height: 1.5rem; margin: .35rem 0 }
-    [data-sign-packet] { margin-top: 0 }
-    [data-sign-trust-key] { justify-content: center }
+    [${signFlowMarker}], [${signTrustMarker}] { grid-template-columns: minmax(0, 1fr) }
+    [${signPacketMarker}], [${signTrustMarker}-path] { display: flex; align-items: center; justify-content: center; gap: .75rem }
+    [${signPacketMarker}] svg, [${signTrustMarker}-path] svg { transform: rotate(90deg); width: 1.5rem; height: 1.5rem; margin: .35rem 0 }
+    [${signPacketMarker}] { margin-top: 0 }
+    [${signTrustMarker}-key] { justify-content: center }
 }
 
 /* Role cards keep long signing outputs and received snapshots in distinct
    sections. Role names and borders distinguish them without relying on color. */
-[data-sign-stage] { border: 1px solid color-mix(in srgb, var(--sign-accent) 45%, var(--border)); border-radius: 10px; margin-block: 1.5rem; padding: 0 1rem 1rem; min-width: 0 }
-[data-sign-stage-header] { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem 1rem; margin: 0 -1rem 1rem; padding: .75rem 1rem; border-radius: 9px 9px 0 0; border-bottom: 1px solid color-mix(in srgb, var(--sign-accent) 25%, var(--border)); background: var(--sign-tint); color: var(--sign-accent) }
-[data-sign-stage-header] h3 { margin: 0; font-size: 1.1rem }
-[data-sign-role] { border: 1px solid color-mix(in srgb, var(--sign-accent) 40%, transparent); border-radius: 999px; font-size: .75rem; padding: .2rem .6rem }
+[${signStageMarker}] { border: 1px solid color-mix(in srgb, var(--sign-accent) 45%, var(--border)); border-radius: 10px; margin-block: 1.5rem; padding: 0 1rem 1rem; min-width: 0 }
+[${signStageMarker}-header] { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem 1rem; margin: 0 -1rem 1rem; padding: .75rem 1rem; border-radius: 9px 9px 0 0; border-bottom: 1px solid color-mix(in srgb, var(--sign-accent) 25%, var(--border)); background: var(--sign-tint); color: var(--sign-accent) }
+[${signStageMarker}-header] h3 { margin: 0; font-size: 1.1rem }
+[${signRoleMarker}] { border: 1px solid color-mix(in srgb, var(--sign-accent) 40%, transparent); border-radius: 999px; font-size: .75rem; padding: .2rem .6rem }
 
 `
