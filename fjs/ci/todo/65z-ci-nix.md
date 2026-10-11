@@ -257,12 +257,11 @@ is escaped. Interpolating the derivation is also what puts it in the closure, so
 it needs no `packages` entry — and should not have one, since a 32-bit `cc` on
 `PATH` would shadow the host one the untargeted `cargo test` needs.
 
-What that cost is worth naming. Those jobs used to measure a stock runner image,
-and now measure a pinned toolchain running *on* one. The distinction is smaller
-than it sounds — `dtolnay/rust-toolchain` and `setup-node` were already pinned to
-the same versions — but the system libraries a Nix build links against are Nix's,
-so "builds with the distro's toolchain" is no longer something CI says. Only
-the Windows jobs still say it.
+The Linux and ARM macOS jobs check a pinned Nix toolchain and its dependencies
+on the runner images. Intel macOS and the two Windows jobs install Node with
+`setup-node` and native Rust with `dtolnay/rust-toolchain` directly, exercising
+those tools against the runner's system libraries. Both paths use the shared
+Node and Rust version pins.
 
 What remains here is the Nixpkgs update command and the cleanup contract for
 consumers whose `gen` is bare `fjs ci`. This repository's integrated clean
