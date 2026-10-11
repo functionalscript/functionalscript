@@ -41,14 +41,29 @@ helps, in the same PR or any later one, with nothing to declare.
 
 A run of hex digits read as one number has the same shape one level down.
 [`fjs/text/ascii`](../../text/ascii/module.f.mjs)'s `digitsValue` stops at
-radix 10 on purpose ("a hexadecimal digit is `hexDigitValue`'s business"), so
-every radix-16 reader sums its own digits:
+radix 10 on purpose ("a hexadecimal digit is `hexDigitValue`'s business").
+The remaining radix-16 readers still sum their own digits:
 [`fjs/git/config`](../../git/config/module.f.mjs)'s `digitValue` and
 `tryDigits` (with their own letter offsets),
 [`fjs/media/json/parser`](../../media/json/parser/module.f.mjs)'s
 `escapeMapping` over the four digits of a `\u`, and
 [`fjs/js/tokenizer`](../../js/tokenizer/module.f.mjs)'s `stringDecodeScan`
 with `(state.acc << 4) | unwrapHexDigitValue(cp)`.
+The demos did it too: `parseHex` in
+[`fjs/crypto/vdf/demo.f.mjs`](../../crypto/vdf/demo.f.mjs) and `parseNBits`
+in [`fjs/crypto/pow/demo.f.mjs`](../../crypto/pow/demo.f.mjs) fold
+`hexDigitValue` over the characters with the same `n * 16n + d` body.
+[#2787](https://github.com/functionalscript/functionalscript/pull/2787)
+added that reader to `text/ascii` as `hexDigitsValue` and moved `parseHex`
+onto it; `parseNBits` and the readers above are what is left.
+
+The writing side has a sibling the codec above does not cover: a scalar
+spelled in fixed-width hex. `hexLiteral` in
+[`fjs/media/rust`](../../media/rust/module.f.mjs), `pathByte` in
+`fjs/text/percent`, `unicodeEscape` in
+[`fjs/media/json/serializer`](../../media/json/serializer/module.f.mjs) and
+`hexOfY` in the `vdf` demo each pad `toString(16)` to a width, upper or
+lower case as each one chose.
 
 ### Proposal
 
@@ -60,8 +75,13 @@ and which stay with the consumer, is the design question. `baseN` in
 [`../module.f.mjs`](../module.f.mjs) is `Vec`-shaped and pads by the bit, so
 it is a neighbour here rather than the answer.
 
-For digit runs, let `digitsValue` take radix 16 through `hexDigitValue`, or
-give it a hexadecimal sibling, so the three readers above ask `text/ascii`.
+For digit runs, the landed `hexDigitsValue` in `text/ascii` is the
+hexadecimal reader: digit code points to `bigint` or `null`. `digitsValue`
+keeps its `0-9` alphabet and radices `2n`..`10n`. The remaining readers use
+`hexDigitsValue` for their hexadecimal runs, keeping their grammar, prefix
+and range rules. JSON and JavaScript's grammar-admitted four-digit `\u`
+escapes still decode to one UTF-16 code unit, including surrogates; convert
+that bounded `bigint` result to `number` at the consumer's boundary.
 
 ### Tasks
 
@@ -69,8 +89,14 @@ give it a hexadecimal sibling, so the three readers above ask `text/ascii`.
 - [ ] Implement it with a proof at 100%, and move every byte-list
       consumer listed above onto it, `fjs/types/uint8array` included;
       `fjs/website`'s `commitOf` uses `hexText` at the least.
-- [ ] A radix-16 digit-run reader in `text/ascii`; move `git/config`,
-      `media/json/parser` and `js/tokenizer` onto it.
+- [x] The radix-16 digit-run reader: `hexDigitsValue` in `text/ascii`,
+      landed by [#2787](https://github.com/functionalscript/functionalscript/pull/2787)
+      with the `vdf` demo on it.
+- [ ] Move the hexadecimal digit runs in `git/config`, `media/json/parser`,
+      `js/tokenizer` and the `pow` demo onto `hexDigitsValue`, preserving
+      their admission and bounds.
+- [ ] Decide whether a fixed-width hex formatter belongs beside it, and if
+      so move the writers above onto it.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
 
 ### Related
@@ -78,5 +104,5 @@ give it a hexadecimal sibling, so the three readers above ask `text/ascii`.
 - [various-basen-encodings.md](./various-basen-encodings.md) — the other
   encodings this directory tracks.
 - [`fjs/text/ascii`](../../text/ascii/module.f.mjs) — `hexDigitValue`,
-  `lowerHexDigitValue`, `hexDigitCodePoint` and `digitsValue`, the digit level
-  every consumer already shares.
+  `lowerHexDigitValue`, `hexDigitCodePoint`, `digitsValue` and the landed
+  `hexDigitsValue`, the shared digit level.
