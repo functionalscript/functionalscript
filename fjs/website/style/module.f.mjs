@@ -576,17 +576,15 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
 [data-sign-card="eve"], [data-sign-stage="eve"] { --sign-accent: var(--fail); --sign-tint: var(--fail-bg) }
 [data-sign-card="bob"], [data-sign-stage="bob"] { --sign-accent: var(--pass); --sign-tint: var(--pass-bg) }
 [data-sign-card] { border: 1px solid var(--sign-accent); border-radius: 8px; background: var(--sign-tint); padding: .75rem; text-align: center; min-width: 0 }
-[data-sign-check] { border: 1px solid var(--value); border-radius: 8px; background: var(--value-bg); padding: .75rem; text-align: center; min-width: 0 }
+[data-sign-check] { border: 1px solid var(--border); border-radius: 8px; background: var(--bg); padding: .75rem; text-align: center; min-width: 0 }
 [data-sign-card] h4 { color: var(--sign-accent); font-size: 1.2rem; margin: 0 0 .25rem }
 [data-sign-card] small, [data-sign-check] small { display: block; margin-top: .35rem }
 [data-sign-card] svg { color: var(--sign-accent) }
 [data-sign-packet] { text-align: center; color: var(--muted) }
 [data-sign-packet] svg { width: 100%; height: 1.5rem }
 [data-sign-checks] { display: grid; gap: .5rem; border-left: 2px solid var(--border); padding-left: .65rem }
-[data-sign-check="trusted"] { border-color: var(--pass); background: var(--pass-bg) }
-[data-sign-check="received"] { border-color: var(--border); background: var(--bg) }
-[data-sign-trust] { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, 1fr); align-items: center; gap: .75rem; color: var(--value); margin-top: 1rem }
-[data-sign-trust-key] { display: flex; align-items: center; gap: .5rem; border: 1px solid var(--value); border-radius: 8px; background: var(--value-bg); padding: .5rem .75rem }
+[data-sign-trust] { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, 1fr); align-items: center; gap: .75rem; color: var(--muted); margin-top: 1rem }
+[data-sign-trust-key] { display: flex; align-items: center; gap: .5rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); padding: .5rem .75rem }
 [data-sign-trust-key] svg { width: 1.5rem; height: 1.5rem; margin: 0 }
 [data-sign-trust-path] { text-align: center }
 [data-sign-trust-path] svg { width: 100%; height: 1.5rem; margin: .25rem 0 }

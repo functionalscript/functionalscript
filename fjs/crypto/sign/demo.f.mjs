@@ -345,7 +345,7 @@ const exchangeScheme = ['figure', { 'data-sign-scheme': '', 'aria-label': 'ECDSA
         ['div', { 'data-sign-trust-path': '' }, ['small', 'Already trusted by Bob'], schemeArrow],
         ['div', { 'data-sign-trust-key': '' }, schemeKey, ['strong', 'Bob’s trusted Alice key']],
     ],
-    ['figcaption', 'The blue path represents trust in Alice’s public key, not a packet sent through Eve. This demo establishes that trusted key when Alice clicks Send.'],
+    ['figcaption', 'The separate key path represents trust in Alice’s public key, not a packet sent through Eve. This demo establishes that trusted key when Alice clicks Send.'],
 ]
 
 /** @type {(title: string, role: string) => Element} */
