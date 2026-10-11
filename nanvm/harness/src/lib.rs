@@ -320,18 +320,15 @@ mod tests {
     }
 
     /// The MVP acceptance example (`todo/fjs-nanvm-integration.md`): a
-    /// named-only module calls a function it imports by name, and the
-    /// harness selects its `main` and calls it with no arguments.
+    /// module calls a function it imports by name, and the harness selects
+    /// its `main` and calls it with no arguments. Its identity checks are the
+    /// default the corpus compares.
     #[test]
     fn named_imports_and_captures() {
         let select = |name, action| run::<Naive>(named_imports::module, name, action);
         assert_eq!(
             select("main", Action::Call(Array::default())),
             Ok("42".into())
-        );
-        assert_eq!(
-            select("checks", Action::Read),
-            Ok("[true,true,true,true,true,true]".into())
         );
     }
 

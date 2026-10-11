@@ -553,27 +553,33 @@ so `f === f` would disagree by design.
 **Measured.** Step 1 below compares every fixture the corpus covers, and each
 agrees: the same value, or both throw. The corpus is whatever
 [`corpus(names)`](../../../fjs/nanvm/corpus/module.f.mjs) selects from the fixture
-directory, so no count is kept here. Four fixtures are excepted, none for a
+directory, so no count is kept here. A few fixtures are excepted, none for a
 disagreement of semantics:
 
 | fixture | why it is not compared |
 |---|---|
 | `function-text` | the specified [function-text exception](../../../spec/README.md#function-source-representation-exception) |
 | `function`, `rest-function` | the default export is a function, which only the harness's own call action observes; see decision 2 |
-| `parity` | exports programs for a host to perform, not values: [`nanvm/harness/tests/parity.rs`](../../harness/tests/parity.rs) and [`fjs/nanvm/parity/proof.mjs`](../../../fjs/nanvm/parity/proof.mjs) compare the hosts through them |
+| `parity`, `console` | export programs for a host to perform, not values: [`nanvm/harness/tests/parity.rs`](../../harness/tests/parity.rs), [`nanvm/harness/tests/console.rs`](../../harness/tests/console.rs) and the proofs in [`fjs/nanvm/parity`](../../../fjs/nanvm/parity/proof.mjs) compare the hosts through them |
+| `effect` | exports effect programs for a host to perform: [`nanvm/harness/tests/effects.rs`](../../harness/tests/effects.rs) runs them through `nanvm-effects-node` |
+| `exports` | one export of each kind the harness's `run` tells apart; [`nanvm/harness/src/lib.rs`](../../harness/src/lib.rs) tests the selection |
+| `named-imports-math` | a dependency of `named-imports`, which imports it by name and is the fixture that observes it |
 
 Two things an earlier draft of this plan listed as exceptions are not.
 `bigint` and `undefined` results need no JSON form: the comparison is
 structural, on the values themselves. `named-imports` and
 `named-imports-throws` run on the interpreter's own loader over a virtual file
-system holding the fixture directory. Four fixtures (`effect`, `exports`, `named-imports`,
-`named-imports-math`) have `undefined` as their default and test named
-exports or imports, so the comparison of their default is trivial; named
-exports are not compared (decision 3). The `undefinedDefault` table in
-[`corpus/module.f.mjs`](../../../fjs/nanvm/corpus/module.f.mjs) names them, and
-`missing` whose `undefined` is the observation, each with its reason, and the
-host proof fails on any other fixture whose default is `undefined` and on any
-entry that no longer is, so the gap is a list and not a silence.
+system holding the fixture directory. A fixture whose default is `undefined`
+would compare nothing, so the host proof fails on any such fixture the
+`undefinedDefault` table in
+[`corpus/module.f.mjs`](../../../fjs/nanvm/corpus/module.f.mjs) does not name,
+and on any entry that no longer is `undefined`, so the gap is a list and not a
+silence. The table holds `missing` alone, whose `undefined` is the observation.
+The fixtures that once sat in it for testing named exports or imports are
+sorted by what they are for: `exports` (the harness's `run` API), `effect` (the
+effects host) and `named-imports-math` (a dependency of `named-imports`) are
+exceptions, and `named-imports` gained `export default checks`, so its identity
+checks are an ordinary default (decision 3).
 
 **Where the expectation lives (decisions 1 and 5, decided).** The generated
 expectation is not retyped by hand: a generator writes it into a committed `gen.`
@@ -755,7 +761,8 @@ corpus fixtures pass. The corpus rule and the generator share one function,
 `undefinedDefault`, so its expectation being `undefined` is a decision and
 not an accident.
 
-*Out of scope.* Named exports (decision 3, revisit after 2b), and a corpus of
+*Out of scope.* Named exports (decision 3, revisited after 2b and still
+not compared), and a corpus of
 programs that need arguments, which decision 2 has fixtures supply at module
 level.
 
@@ -767,18 +774,22 @@ level.
    to Node's, is what step 2 prints.
 2. ~~How a callable export is observed.~~ Decided: the fixture calls it at
    module level; the two harness-call fixtures stay out of the corpus.
-3. ~~Named exports: compare them too?~~ Decided: not yet. The corpus
-   compares `default`, the one projection `fjs compile` makes for a data
-   output (`_transpileDefault`), and the Rust harness tests named exports
-   directly (`named_exports`, `exports`). Comparing them would need a second
-   interpreter route and an order-insensitive comparison (a module namespace
-   sorts its keys, the export object keeps declaration order), and most named
-   exports in the fixtures are functions with no value to compare. Revisit at
-   step 2, when the expectation is a committed file and adding
-   data-valued named exports is cheap. The four fixtures whose default is
-   `undefined` and test named exports or imports (`effect`, `exports`,
-   `named-imports`, `named-imports-math`) stay vacuous in this corpus until
-   then, listed in `undefinedDefault`.
+3. ~~Named exports: compare them too?~~ Decided: not yet, and after 2b not
+   needed. The corpus compares `default`, the one projection `fjs compile`
+   makes for a data output (`_transpileDefault`), and the Rust harness tests
+   named exports directly (`named_exports`, `exports`). Comparing them would
+   need a second interpreter route and a Rust comparison of the export object,
+   and most named exports in the fixtures are functions with no value to
+   compare. The comparison would stay order-sensitive: the compiler's parser
+   sorts the exports before it builds the export object, so its keys are in
+   module-namespace order, as Node's are (an earlier note here said the export
+   object keeps declaration order, which is not so). Revisited after 2b: the
+   four fixtures whose default was `undefined` were reclassified instead
+   (`exports`, `effect` and `named-imports-math` are exceptions; `named-imports`
+   exports its checks as its default), so nothing needs a named export compared
+   today. The whole-export comparison is recorded as item 1b of
+   [corpus-improvements](../../../fjs/nanvm/todo/corpus-improvements.md),
+   recommended against unless a fixture needs it.
 4. ~~Is `memo` the interpreter of record for the identity contract?~~
    Decided: yes, and `amnesia` is out of the identity contract. `memo`
    starts each call with a fresh cache and keeps captures by identity, the
@@ -864,8 +875,15 @@ level.
       twice is the same, a captured object keeps its identity) and the
       [`closure-throws`](../../harness/fixtures/closure-throws.mjs)
       fixture (a failure computing a frame element fails at creation, not at
-      the call). Remaining migration and regression coverage beyond these
-      fixtures stays open.
+      the call). The [`arguments`](../../harness/fixtures/arguments.mjs)
+      fixture adds the call side of the list: extra and omitted arguments to
+      a fixed-only function, a fixed parameter nothing reads, zero arity
+      called with arguments, and a rest array returned, forwarded and
+      spread, which is a new array and not the spread source. Native
+      JavaScript, the evaluator and the generated Rust agree on it. What
+      stays open is the refusal of the legacy positive-arity/full-list
+      graphs, a check of EDAG validation and not of calls, and the
+      migration of zero-arity graphs by scope.
       The [interpreted-value native proofs](../../harness/tests/values.rs)
       additionally pin evaluated and nested captures. Shared direct-AOT
       comparison with reference expectations is implemented in Stage 8 step 2.
