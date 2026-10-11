@@ -73,12 +73,14 @@ The harness row keeps its display name separate from its Rust module
 identifier: quote `name`, but emit the `fixture`, `expected`, `json` and
 `throws` references as code, using the harness's existing module naming.
 
-`commands.generate` and `methods.generate` keep their string-returning
-APIs: unwrap each `constSlice` result with
+`commands.generate()` and `methods.generate()` keep their no-argument,
+string-returning APIs: unwrap each `constSlice` result with
 [`types/result.unwrap`](../../types/result/module.f.mjs) while composing
 the module text. A refused row throws its error, as `nanvm/rust`'s
 `nameLiteral` already does; it is never dropped or coerced into Rust text.
-Command and method names are authored source.
+Command and method names are authored source. Their generated-output proofs
+use those tables. Synthetic escaping and refusal cases belong to
+`stringLiteral` and `constSlice`'s public formatter input.
 
 The harness reads live fixture filenames through `fixtures`, so its effect
 boundary handles row refusal as input failure. A private, shared composer
@@ -108,12 +110,14 @@ blank lines outside the mark.
       100%, including row order and propagation of a row formatter's
       refusal; `fjs/edag/rust` importing `indent` from it; `fjs/media/rust`'s
       doc amended to name it.
-- [ ] Prove each generator's row formatter escapes quotes and backslashes
-      in every string field and refuses lone surrogates. For harness rows,
-      use a separate valid module identifier and prove the Rust references
-      remain unquoted while the display name is escaped.
-- [ ] Keep the exported string APIs and add `throw` proofs for unescapable
-      synthetic rows at their unwrapping module-text boundaries.
+- [ ] Retain `stringLiteral`'s quote, backslash and lone-surrogate proofs;
+      exercise synthetic row refusals through `constSlice`'s `formatRow`
+      input.
+- [ ] Preserve the no-argument string APIs and authored-table output proofs
+      for `commands.generate` and `methods.generate`.
+- [ ] Keep `expectedModules(names)`'s string API and prove a lone-surrogate
+      name throws. With valid module names, prove the `fixture`, `expected`,
+      `json` and `throws` references remain unquoted.
 - [ ] Prove the harness effect path reports the refused fixture name through
       `IoChannel` and never requests the `gen.expected/mod.rs` write; earlier
       per-fixture files may remain.
