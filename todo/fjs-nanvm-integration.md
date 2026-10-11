@@ -174,8 +174,8 @@ language's own spellings: `nanvm/methods` reads `p[type]` as
 of the kind above: each is the read JavaScript performed, in the one
 spelling the language has for it. `website/demo/code`'s `{ [codeMarker]: '' }`
 is an object-literal key, not a read, and has no such spelling; it stays.
-The `nanvm/methods` row below is measured after that rewrite; `types/list`'s
-first refusal did not move.
+The `nanvm/methods` row below is measured at `e97397eb2`, the rewrite's
+commit; `types/list`'s first refusal did not move.
 
 The eleven implementation leaves below cannot be renamed with their current
 source. Each row is the first actual refusal from the `resolve()` pipeline;
