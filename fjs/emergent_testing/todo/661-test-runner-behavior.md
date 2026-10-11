@@ -19,7 +19,11 @@ adapter controls that application and consumes its shared report.
 
 ### Proposal
 
-Document the following differences in the relevant README or doc page.
+Document the following differences in the relevant README or doc page,
+against the exact selected Node, Deno and Bun versions in
+`../../ci/config/module.f.js`. Node 22/24 fallback registration is gone;
+`NodeProgramOptions` receives one already-selected `testContext` from the host.
+The Bun adapter remains necessary for its nested-test behavior.
 
 **Sub-test handling**
 
@@ -41,7 +45,9 @@ Document the following differences in the relevant README or doc page.
 - **`fjs t`**: applies FunctionalScript's expected-failure semantics directly.
 - **Node** and **Deno**: natively understand tests that are expected to fail.
 - **Bun**: has no equivalent native awareness, so the Bun adapter wraps the test to
-  emulate the behavior.
+  emulate the behavior. It adds ` ...` to ordinary externally registered
+  tests and leaves expected-to-throw test names without that suffix; name
+  formatting belongs to the adapter, not shared proof registration.
 - **Browser application**: applies the same FunctionalScript semantics inside the browser
   runner and reports the normalized result to either the HTML UI, `fjs browser-test`, or
   the optional Playwright Test adapter.
@@ -59,8 +65,13 @@ notes for users should say so, rather than describe a per-test sandbox.
 ### Tasks
 
 - [ ] Identify the right location for this documentation.
-- [ ] Document `fjs t`, Node, Deno, and Bun behavior without mentioning the removed
-      Playwright wrapper as a supported runner.
+- [ ] Document `fjs t`, the selected Node and Deno native registration, and
+      Bun's surviving adapter and suffix behavior. Do not document the
+      removed old-Node fallback or Playwright wrapper as supported runners.
+- [ ] Verify failure inversion in each selected runtime with an expected throw
+      that passes and an expected throw that returns normally and fails,
+      alongside ordinary failure and nested-test fixtures; passing an
+      `expectFailure` option alone does not prove that it is honored.
 - [x] Link to [browser-testing](browser-testing.md) for the separate in-browser execution
       and reporting model.
 - [ ] Ensure future Playwright documentation describes the shared browser application,

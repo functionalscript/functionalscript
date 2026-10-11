@@ -69,7 +69,7 @@ Proposed destinations:
 | `fjs/effects/common` (was `effects/sandbox`) | `Sandbox`, `SandboxResult`, `sandbox`, `Await`, `awaitIfPromise`, and `Catch`/`catch_` (landed after this table was written) — the "run foreign code and observe what happened" family. This row is what the browser runner's "shared module" resolved to: a browser gives `Sandbox` and `Catch` their second implementer; `Await` moves on this issue's layering argument alone, since it belongs to the registration path no browser runs |
 | `fjs/effects/common` (was `effects/console`) | `Read`, `Write`, `ReadConsoles`, `WriteConsoles`, `Console`, `log`, `error`, `readLine`, `errorExit`, and a **new named `Std`** (see below) |
 | `fjs/effects/common` (was `effects/test`) | `Test`, `TestFn`, `TestContext`, `test` — registration with an external framework, not I/O |
-| stays in `fjs/effects/node` | `Fs` and its members, `Http`, `Forever`, `RandomInt`, `isNotFound`, `Env`, `Engine`, `NodeOp`, `NodeProgramOptions`, `Program`, `NodeProgram`, `NodeOperationMap` |
+| stays in `fjs/effects/node` | `Fs` and its members, `Http`, `Forever`, `RandomInt`, `isNotFound`, `Env`, `NodeOp`, `NodeProgramOptions`, `Program`, `NodeProgram`, `NodeOperationMap` |
 | `fjs/effects/common` (was staying) | `Module`, `Import`, `import_` — **moved**: a browser page loads modules too, and had been doing it through an injected `importer` callback, which was the operation under another name (see the judgement call below) |
 | stays, now settled | `Now`, `Fetch` — the browser interpreter implements neither: a page measures its own wall clock rather than dispatching `now`, and performs no `fetch` at all |
 | already moved to `fjs/effects` | `OpResult`, `IoChannel`, `IoError`, `IoErrorInfo`, `IoResult`, `ioError`, `toIoError` — the vocabulary every operation is declared in; `effects/node` re-exports them (see the judgement call below) |
@@ -184,7 +184,7 @@ Judgement calls worth deciding explicitly rather than by accident:
   keeps importing `NodeProgram`, `NodeProgramOptions` and `Program` back from
   `effects/node`. `fjs/effects/test/module.f.mjs` sits below both, so both may
   import it and the dependency stays a DAG. (The alternative — moving
-  `NodeProgramOptions`' surviving test contexts up as well — would drag the
+  `NodeProgramOptions`' surviving test context up as well — would drag the
   whole program contract along and is not worth it.)
 
   The Playwright context is not part of that surviving contract: it has already
@@ -293,7 +293,11 @@ Judgement calls worth deciding explicitly rather than by accident:
   re-export for node-side callers does not weaken. The browser runner's move
   into `effects/common` was made under the same policy.
 - **The obsolete Playwright adapter is already gone.** This task must preserve
-  only the process-side `TestContext` fields that still have consumers. It must
+  only the process-side `testContext` field that still has consumers.
+  The old-Node compatibility helper and `Engine`, `nodeVersion`, `engine`,
+  `bunTestContext` and `inlineTestContext` options have been removed. The
+  host runner selects the native Node/Deno context or Bun adapter once; do not
+  restore runtime selection while moving the test operations. It must
   not use relocation as a reason to revive the Playwright engine, context,
   dynamic import, or Node-side proof-registration path.
 - **Verify no new cycles** before each move. In particular `fjs/effects/console`
@@ -383,7 +387,7 @@ the kind of smuggled break this section exists to avoid.
       `fjs/effects/common` — **not** into `fjs/emergent_testing`, which
       would be a cycle (see the judgement call above). Confirm `effects/node`
       still compiles with `NodeOp` and `NodeProgramOptions` importing only the
-      surviving process-runner test contexts from there; no Playwright context
+      surviving process-runner test context from there; no Playwright context
       or engine remains.
 - [ ] Update the `fjs/effects/node` module header to describe only what remains.
       `deno.json` registration is a no-op today and an obligation later: it has

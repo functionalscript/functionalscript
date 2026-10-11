@@ -13,10 +13,7 @@
  */
 
 import { deno } from '../config/module.f.js'
-import { nixInstall, nixShell, nixSteps, nixVersionStep } from '../nix/module.f.mjs'
-
-/** CI job id, and the directory name of its generated flake. */
-export const denoJobId = /** @type {const} */ ('deno')
+import { nixInstall, nixSteps, nixVersionStep } from '../nix/module.f.mjs'
 
 /**
  * Deno prints three lines for `--version` — the runtime, V8 and TypeScript — so
@@ -28,7 +25,6 @@ export const denoJobId = /** @type {const} */ ('deno')
  * only one, since the shared shell has no job of its own to re-check it.
  */
 const denoVersionStep = nixVersionStep(
-    nixShell,
     `deno eval 'console.log(Deno.version.deno)'`,
     deno)
 
@@ -47,7 +43,7 @@ const denoVersionStep = nixVersionStep(
  * invisible until after it shipped. Checking the built package belongs with
  * the packed-package check in `../package/module.f.mjs`, on a tarball this
  * commit packs; `../todo/built-package-checks.md` owns that move. The `bun` job
- * and Node 22 lost the same pair for the same reason.
+ * lost the same pair for the same reason.
  *
  * `--minimum-dependency-age=0` went with them. It existed to let a registry
  * install take a package younger than Deno's 24-hour default, and nothing here
@@ -61,7 +57,7 @@ const denoVersionStep = nixVersionStep(
 export const denoSteps = [
     nixInstall,
     denoVersionStep,
-    ...nixSteps(nixShell)([
+    ...nixSteps([
         'deno install --frozen',
         'deno task cov',
     ]),
