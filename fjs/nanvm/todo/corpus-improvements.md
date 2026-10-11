@@ -170,7 +170,7 @@ compared by the existing machinery with nothing retyped.
 
 ### Tasks
 
-- [ ] 2: delete the hand-written throw checks the `THROWS` record covers.
+- [ ] 2 (in progress): delete the hand-written throw checks the `THROWS` record covers.
 - [ ] 1: retire `undefinedDefault`: Node and interpreter routes for whole export objects first, then the expectation and the Rust comparison (order-sensitive), then the deletions, with decision 3's stale order claim corrected.
 - [ ] 4: a special-numbers fixture, with the independent Rust assertion for `-0`, `NaN` and the infinities.
 - [ ] 5: capturing callbacks, guarded built-in calls and the other families' methods through the compile path.
