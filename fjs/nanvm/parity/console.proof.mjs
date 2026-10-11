@@ -11,15 +11,21 @@ import { spawn } from 'node:child_process'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 import { assertEq } from '../../asserts/module.f.mjs'
 import * as console_ from '../../../nanvm-harness/fixtures/console.mjs'
 
-const child = new URL('./console-child.mjs', import.meta.url).pathname
+// A path for the platform, not the URL's `pathname`, which is `/C:/...` on Windows
+// and percent-encoded where a name has spaces.
+const child = fileURLToPath(new URL('./console-child.mjs', import.meta.url))
 
+// `node` is named rather than `process.execPath`: under Deno and Bun that path is
+// their own binary, which would run the Node reference without the permissions
+// the child needs, and the reference host is Node.
 /** @type {(name: string, input: readonly number[], file: string) => Promise<{ stdout: Buffer, stderr: Buffer }>} */
 const perform = (name, input, file) => new Promise((resolve, reject) => {
-    const p = spawn(process.execPath, [child, name, file])
+    const p = spawn('node', [child, name, file])
     /** @type {Buffer[]} */
     const out = []
     /** @type {Buffer[]} */
