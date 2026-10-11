@@ -1,4 +1,4 @@
-//! The operations every host has, `sandbox`, `catch` and `now`
+//! The operations every host has, `sandbox`, `catch`, `now` and `randomInt`
 //! (`fjs/effects/common/module.mjs`, `fjs/effects/node/module.mjs`).
 //!
 //! `sandbox` and `catch` take a thunk, a function of the program's own, which
@@ -14,10 +14,19 @@
 
 use crate::codec::{encode_number, encode_object, encode_ok, encode_tuple};
 use nanvm_lib::vm::{Any, IVm, ToAny, ToArray};
-use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use std::{
+    hash::RandomState,
+    hash::{BuildHasher, Hasher},
+    time::{Instant, SystemTime, UNIX_EPOCH},
+};
 
 /// Whether this target has a clock for `sandbox` and `now`.
 pub const CLOCK: bool = !cfg!(all(target_family = "wasm", target_os = "unknown"));
+
+/// Whether this target has a source for `randomInt`. `wasm32-unknown-unknown`
+/// has none, and `std` seeds [`RandomState`] there with a constant, so the
+/// numbers would be the same on every run.
+pub const RANDOM: bool = CLOCK;
 
 /// A thunk called with no arguments.
 fn call<A: IVm>(thunk: Any<A>) -> Result<Any<A>, Any<A>> {
@@ -69,10 +78,34 @@ fn epoch_millis(time: SystemTime) -> f64 {
     }
 }
 
+/// `randomInt`: an integer from 0 up to, not including, 2^32, as the Node
+/// runner's `crypto.randomInt(2 ** 32)` answers. **Not cryptographically
+/// secure**: see `doc/random-int.md`.
+pub fn random_int<A: IVm>() -> Any<A> {
+    encode_ok(encode_number(f64::from(random_u32())))
+}
+
+/// The top 32 bits of the hash `RandomState` gives an empty input. Each
+/// `RandomState` has keys the OS seeded once per thread and a counter, so
+/// every call hashes under a different key.
+fn random_u32() -> u32 {
+    (RandomState::new().build_hasher().finish() >> 32) as u32
+}
+
 #[cfg(test)]
 mod test {
     use super::epoch_millis;
     use std::time::{Duration, UNIX_EPOCH};
+
+    /// The numbers vary from call to call. A fixed answer, which is what a
+    /// target without a seed gives, is one value 64 times.
+    #[cfg(not(all(target_family = "wasm", target_os = "unknown")))]
+    #[test]
+    fn random_numbers_vary() {
+        let numbers: std::collections::HashSet<u32> =
+            (0..64).map(|_| super::random_u32()).collect();
+        assert!(numbers.len() > 32, "{} different in 64", numbers.len());
+    }
 
     #[test]
     fn a_time_before_the_epoch_is_negative_and_rounded_down() {
