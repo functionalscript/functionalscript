@@ -73,8 +73,20 @@ the string it names:
 
 ### Reading: say what type the key has
 
-An access with a constant key stays as it is: `a.b`, `a[0]`, `a["b"]`. A key
-the module computes, `a[i]`, is refused (`computed key is not Number(...)`),
+An access with a constant key stays as it is: `a.b`, `a[0]`, `a["b"]`. Two
+constants are the exceptions. A name a built-in prototype gives a value —
+`toString`, `constructor`, `push` and the rest
+[`fjs/js/prototype`](../fjs/js/prototype/module.f.js) lists, `length`
+aside — is refused as a constant key in either spelling
+(`prohibited property name`), even where the object owns the property:
+`const o = { toString: 1 }` followed by `o.toString` does not compile. Where
+the module reads an own property of such a name, `entry(o, "toString")`,
+below, reads it. And a numeric literal that overflows, `a[1e400]`, passes
+the check but names a key the FunctionalScript output refuses to write
+(`a number key no literal reads back`); write the string it is,
+`a["Infinity"]`, which JavaScript reads as the same key.
+
+A key the module computes, `a[i]`, is refused (`computed key is not Number(...)`),
 because the compiler does not know the key's type, and the type decides what
 JavaScript would find
 ([property access](../spec/README.md#property-access)). The rewrite says
@@ -123,9 +135,12 @@ const escape = c => entry(escapes, c)   // accepted
 whose keys are its own. It differs from `a[k]` where JavaScript would reach
 past the own properties, and a conversion checks that the module never did:
 
-- `entry(a, "length")` is `undefined` on an array or a string, whose
-  `length` is own but not enumerable. A module that reads `length` through a
-  computed key writes `a.length`.
+- `entry(a, "length")` is `undefined` on an array, a string or a function,
+  whose `length` is own but not enumerable. A module that reads `length`
+  through a computed key writes `a.length`, and one whose key *may* be
+  `"length"` — a lookup by a name the caller chooses — tests for it first,
+  `k === "length" ? a.length : entry(a, k)`, or shows that the key never
+  is.
 - `entry(a, "toString")` is `undefined`, where JavaScript finds the
   prototype's function. The language has no prototype chains, so a module
   that relied on one was never FunctionalScript; such a read is a change,
@@ -137,10 +152,21 @@ past the own properties, and a conversion checks that the module never did:
 is, `a["-1"]`, `a["NaN"]`. Both are `undefined` on an array, as in
 JavaScript. A grouped literal, `a[(0)]`, is refused too; drop the group.
 
-The two access rewrites apply to an optional access alike, `a?.[Number(i)]`
-([optional chaining](../spec/README.md#optional-chaining)), and the
-`Number(...)` form to a call through the access, `a[Number(i)](x)`, which
-calls what it reads with `a` as the receiver, as `a[0](x)` does.
+The `Number(...)` form applies to an optional access alike, `a?.[Number(i)]`
+([optional chaining](../spec/README.md#optional-chaining)), and to a call
+through the access, `a[Number(i)](x)`, which calls what it reads with `a` as
+the receiver, as `a[0](x)` does. The `entry` form has no optional spelling:
+`a?.[k]` is `undefined` where `a` is `null` or `undefined`, and `entry(a, k)`
+is an error there, so the rewrite keeps the test the `?.` made:
+
+```js
+const read = (a, k) => a?.[k]                                              // refused
+const read = (a, k) => a === null || a === undefined ? undefined : entry(a, k)  // accepted
+```
+
+JavaScript also leaves `k` unevaluated where `a` is nullish; a pure
+expression evaluated or not is no observation, so the conditional reads the
+same.
 
 ## 2. `Number.isInteger`
 
