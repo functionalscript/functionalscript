@@ -99,6 +99,14 @@ in `_rustdoc.css` lean on rustdoc's own layout, and its JSDoc says which; the
 rest of rustdoc's look is its own
 ([rustdoc-site-theme](todo/rustdoc-site-theme.md)).
 
+**`cargo.doc/` is not cleaned between local builds**, as no generated page
+is: the generator only writes. A build without `target/doc` leaves an earlier
+copy in place, and a copy over an earlier one keeps files rustdoc no longer
+writes — its search index's files are named by content hash, so every rebuild
+adds some. Nothing links the leftovers, and a deploy builds from a fresh
+checkout, which has no `cargo.doc/` at all, so none of them ships.
+`git clean -Xd` removes them locally.
+
 `cargo.doc/` is the one generated name outside `index.html` and the
 `_`-prefixed files, so `.gitignore` and `tsconfig.json` name it, and the walk
 excludes it as it excludes `prs/`. Where the published site runs `cargo doc`
