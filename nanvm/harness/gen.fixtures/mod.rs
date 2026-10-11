@@ -10,6 +10,7 @@ pub mod calls;
 pub mod closure;
 pub mod closure_identity;
 pub mod closure_throws;
+pub mod console;
 pub mod effect;
 pub mod entry;
 pub mod escapes;
