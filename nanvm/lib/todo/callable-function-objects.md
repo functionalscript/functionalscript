@@ -864,8 +864,15 @@ level.
       twice is the same, a captured object keeps its identity) and the
       [`closure-throws`](../../harness/fixtures/closure-throws.mjs)
       fixture (a failure computing a frame element fails at creation, not at
-      the call). Remaining migration and regression coverage beyond these
-      fixtures stays open.
+      the call). The [`arguments`](../../harness/fixtures/arguments.mjs)
+      fixture adds the call side of the list: extra and omitted arguments to
+      a fixed-only function, a fixed parameter nothing reads, zero arity
+      called with arguments, and a rest array returned, forwarded and
+      spread, which is a new array and not the spread source. Native
+      JavaScript, the evaluator and the generated Rust agree on it. What
+      stays open is the refusal of the legacy positive-arity/full-list
+      graphs, a check of EDAG validation and not of calls, and the
+      migration of zero-arity graphs by scope.
       The [interpreted-value native proofs](../../harness/tests/values.rs)
       additionally pin evaluated and nested captures. Shared direct-AOT
       comparison with reference expectations is implemented in Stage 8 step 2.
