@@ -52,8 +52,10 @@ result with `wrangler`. Cloudflare's own build is switched off.
 - **Against:** it changes the deploy model `../README.md` describes. The
   workflow needs a Cloudflare API token as a repository secret, and
   `wrangler` as a dependency.
-- **Against:** branch previews have to be rebuilt by hand: a preview upload
-  per branch, its URL reported on the pull request, and the commit and branch
+- **Against:** branch previews move into the workflow. Each same-repository
+  branch is uploaded with `wrangler versions upload --preview-alias`, as
+  [`../github-preview.mjs`](../github-preview.mjs) already uploads a version,
+  its URL is reported on the pull request, and the commit and branch are
   passed to the generator, which today reads Cloudflare's variables.
 - **Against:** a pull request from a fork gets no secrets, so the job cannot
   upload a preview for it.
