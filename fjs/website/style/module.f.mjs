@@ -571,33 +571,32 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
    Reflow the same semantic content on small screens, preserving reading order. */
 [data-sign-scheme] { border: 1px solid var(--border); border-radius: 12px; margin: 1rem 0 2rem; padding: 1rem; font-size: .875rem }
 [data-sign-scheme] svg { display: block; width: 2.5rem; height: 2.5rem; flex: none; margin: .5rem auto }
-[data-sign-flow] { display: grid; grid-template-columns: minmax(0, 1fr) 4.5rem minmax(0, 1.1fr) 4.5rem minmax(0, 1fr) minmax(0, 1.3fr); gap: .65rem; align-items: center }
+[data-sign-flow] { display: grid; grid-template-columns: minmax(0, 1fr) 4.5rem minmax(0, 1fr) 4.5rem minmax(0, 1fr); gap: .65rem; align-items: start }
 [data-sign-card], [data-sign-stage] { --sign-accent: var(--value); --sign-tint: var(--value-bg) }
 [data-sign-card="eve"], [data-sign-stage="eve"] { --sign-accent: var(--fail); --sign-tint: var(--fail-bg) }
 [data-sign-card="bob"], [data-sign-stage="bob"] { --sign-accent: var(--pass); --sign-tint: var(--pass-bg) }
 [data-sign-card] { border: 1px solid var(--sign-accent); border-radius: 8px; background: var(--sign-tint); padding: .75rem; text-align: center; min-width: 0 }
-[data-sign-check] { border: 1px solid var(--border); border-radius: 8px; background: var(--bg); padding: .75rem; text-align: center; min-width: 0 }
 [data-sign-card] h4 { color: var(--sign-accent); font-size: 1.2rem; margin: 0 0 .25rem }
-[data-sign-card] small, [data-sign-check] small { display: block; margin-top: .35rem }
+[data-sign-card] small { display: block; margin-top: .35rem }
 [data-sign-card] svg { color: var(--sign-accent) }
-[data-sign-packet] { text-align: center; color: var(--muted) }
+[data-sign-packet] { text-align: center; color: var(--muted); margin-top: 2rem }
 [data-sign-packet] svg { width: 100%; height: 1.5rem }
-[data-sign-checks] { display: grid; gap: .5rem; border-left: 2px solid var(--border); padding-left: .65rem }
+[data-sign-verifier] { min-width: 0 }
+[data-sign-explanation] { margin: .75rem 0 0; line-height: 1.5; font-size: .8rem }
 [data-sign-trust] { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, 1fr); align-items: center; gap: .75rem; color: var(--muted); margin-top: 1rem }
-[data-sign-trust-key] { display: flex; align-items: center; gap: .5rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); padding: .5rem .75rem }
+[data-sign-trust-key] { display: flex; align-items: center; gap: .5rem; border: 1px solid var(--border); border-radius: 8px; background: color-mix(in srgb, var(--border) 35%, var(--bg)); color: var(--text); padding: .5rem .75rem }
 [data-sign-trust-key] svg { width: 1.5rem; height: 1.5rem; margin: 0 }
 [data-sign-trust-path] { text-align: center }
 [data-sign-trust-path] svg { width: 100%; height: 1.5rem; margin: .25rem 0 }
 [data-sign-scheme] figcaption { color: var(--muted); font-size: .8rem; line-height: 1.5; margin-top: .75rem }
 @media (max-width: 900px) {
     [data-sign-flow] { grid-template-columns: minmax(0, 1fr) 3.5rem minmax(0, 1fr) 3.5rem minmax(0, 1fr) }
-    [data-sign-checks] { grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); border-left: 0; padding-left: 0 }
 }
 @media (max-width: 600px) {
     [data-sign-flow], [data-sign-trust] { grid-template-columns: minmax(0, 1fr) }
-    [data-sign-checks] { grid-template-columns: minmax(0, 1fr) }
     [data-sign-packet], [data-sign-trust-path] { display: flex; align-items: center; justify-content: center; gap: .75rem }
     [data-sign-packet] svg, [data-sign-trust-path] svg { transform: rotate(90deg); width: 1.5rem; height: 1.5rem; margin: .35rem 0 }
+    [data-sign-packet] { margin-top: 0 }
     [data-sign-trust-key] { justify-content: center }
 }
 
