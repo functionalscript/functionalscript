@@ -77,7 +77,8 @@ own, `cargo.doc/index.html`, listing the crates: stable rustdoc writes no root
 page. It does not run `cargo` — whoever builds the site runs
 `cargo doc --no-deps --workspace` first, and a build without `target/doc`
 writes no `cargo.doc/` and no links. `target/` itself is never served: it
-holds build artifacts beside the docs.
+holds build artifacts beside the docs, and `.assetsignore` keeps it out of
+every upload, whichever build made it.
 
 `cargo.doc/` is the one generated name outside `index.html` and the
 `_`-prefixed files, so `.gitignore` and `tsconfig.json` name it, and the walk
