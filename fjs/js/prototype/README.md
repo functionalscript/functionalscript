@@ -14,13 +14,15 @@ compile time:
   which an array, a string and a function own, so the read agrees with
   JavaScript. A detached built-in is a function that only fails, so the
   language never has one as a value, and the VM needs no prototype.
-- **Call** (`a.x(...)`, and `a?.x(...)` once the grammar spells it): a name
+- **Call** (`a.x(...)` and optional-chain forms such as `a?.x(...)`): a name
   in `prohibitedCalls` is refused; every other prototype name but `length` is a
   member function the VM answers by the receiver's type, and `length`, which
   a value owns, is a call of what the value holds. An own property of the
   name on an object shadows the built-in, a type without the built-in throws
-  the `TypeError` JavaScript throws, and a nullish receiver throws before the
-  arguments are evaluated.
+  the `TypeError` JavaScript throws. An unguarded nullish receiver throws before
+  its arguments are evaluated; [optional chaining](../../../spec/README.md#optional-chaining)
+  short-circuits the remaining chain, including arguments, at a nullish receiver
+  or callee guarded by `?.`.
 
 ✅ means allowed and ❌ prohibited. The lists are ECMAScript 2025's, Annex B
 included, string keys only; they grow with the language's types — `Map` and
@@ -64,7 +66,7 @@ included, string keys only; they grow with the language's types — `Map` and
 | `fontcolor` | ❌ | ❌ | String. Annex B. Legacy HTML wrapper. |
 | `fontsize` | ❌ | ❌ | String. Annex B. Legacy HTML wrapper. |
 | `forEach` | ❌ | ❌ | Array. Answers `undefined`, exists for side effects. |
-| `hasOwnProperty` | ❌ | ❌ | Object. Reflection, superseded by the planned `entry` pattern. |
+| `hasOwnProperty` | ❌ | ❌ | Object. Reflection, superseded by the [`entry` pattern](../../../spec/README.md#reading-an-entry-at-run-time). |
 | `includes` | ❌ | ✅ | Array, String. Pure, SameValueZero so `NaN` is found. |
 | `indexOf` | ❌ | ✅ | Array, String. Pure, strict equality so `NaN` is not found. |
 | `isPrototypeOf` | ❌ | ❌ | Object. Prototype reflection. |
@@ -116,7 +118,7 @@ included, string keys only; they grow with the language's types — `Map` and
 | `toReversed` | ❌ | ✅ | Array. Pure, answers a new array. |
 | `toSorted` | ❌ | ✅ | Array. Pure, default order by string conversion. The order an inconsistent comparator gives is the engine's (`todo/to-sorted-inconsistent-comparator.md`). |
 | `toSpliced` | ❌ | ✅ | Array. Pure, answers a new array. |
-| `toString` | ❌ | ✅ | Object, Array, String, Number, Boolean, BigInt, Function. Pure on each type; on a function it answers the conversion's placeholder rather than its source, a stub until a function carries its EDAG (`nanvm-lib/todo/member-functions.md`). |
+| `toString` | ❌ | ✅ | Object, Array, String, Number, Boolean, BigInt, Function. Pure on each type; functions answer [EDAG-derived text](../../edag/function-text.md) in VM execution. The native VM refuses this conversion for functions without associated text. |
 | `toUpperCase` | ❌ | ❌ | String. Depends on the engine's Unicode version. |
 | `toWellFormed` | ❌ | ✅ | String. Pure. |
 | `trim` | ❌ | ✅ | String. Pure. |
@@ -135,3 +137,17 @@ included, string keys only; they grow with the language's types — `Map` and
 | read allowed | 1 |
 | call allowed | 44, and `length` as an own property |
 | call prohibited | 55 |
+
+Memo and Amnesia render represented functions through the shared EDAG-derived
+renderer; the Rust compiler embeds that code-only text in compiled native
+functions. Captures appear as slot names, without their values. The
+[represented conversion proofs](../../edag/value/convert/proof.f.mjs) and
+[native function-text fixture](../../../nanvm-harness/fixtures/function-text.mjs)
+cover direct and indirect conversion. Ordinary JavaScript execution and
+callables produced by [runtime compilation](../../edag/values.md#runtime-compilation)
+retain their host's function text under the
+[function-source exception](../../../spec/README.md#function-source-representation-exception).
+[Native semantic EDAG association](../../compiler/todo/associate-edag-with-functions.md)
+for hashing or retrieval remains separate work: stored text is not a
+retrievable code graph, and current text rendering does not wait for that
+association.

@@ -91,10 +91,8 @@ export type NixArchive = {
     readonly hash: string
 }
 
-/** A development environment, one generated flake each. */
+/** A development environment rendered as the shared generated flake. */
 export type NixJob = {
-    /** Generated directory name under `nix`, matching the CI job id. */
-    readonly id: string
     /**
      * Nix systems the flake exposes a shell for, one named
      * `devShells.<system>.default` each — never a fold over a system list the
@@ -105,12 +103,11 @@ export type NixJob = {
      * read off the flake. One, and the shell is inline, because a function
      * called once is indirection for nothing.
      *
-     * A CI job declares exactly one: it runs on one runner image, and a second
-     * shell there would be one nothing enters. The developer environment is
-     * the reason this is a list at all.
+     * The shared developer environment serves every supported Nix system;
+     * serializer fixtures may declare one system to prove the inline form.
      */
     readonly systems: readonly [string, ...readonly string[]]
-    /** Nixpkgs attribute names made available in the job's shell. */
+    /** Nixpkgs attribute names made available in the shared shell. */
     readonly packages: readonly string[]
     /**
      * What individual systems add, keyed by system.

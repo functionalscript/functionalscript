@@ -44,21 +44,35 @@ work is tracked from then on.
 provides every tool in this table at the version CI uses — install Nix, enter
 the shell, and nothing else is a question. The table says what the shell
 carries and what each tool is for. Intel macOS and bare Windows developers
-install the pinned tools directly. The table's `latest` is the floor; the
-exact versions, the ones CI's direct-install jobs use, are the pins in
+install the pinned tools directly. Every tool has one exact accepted version
+during prerelease. The versions, including those CI's direct-install jobs
+use, are the pins in
 [`fjs/ci/config/module.f.js`](./fjs/ci/config/module.f.js).
 
 | Tool    | Version              | Required for                                                     |
 | ------- | -------------------- | ---------------------------------------------------------------- |
-| [Node.js](https://nodejs.org/en/download) | **latest** (22 min.) | Everything.                                                     |
-| [TypeScript](https://www.typescriptlang.org/) | the pinned version   | Type-checking, `npm test`, `npm pack`.                           |
-| [Rust](https://www.rust-lang.org/tools/install)    | **latest**           | NaNVM (`nanvm-lib`) development only.                            |
-| Deno    | latest               | Updating dependencies; an alternative test runtime.               |
-| Bun     | latest               | Updating dependencies; an alternative test runtime.               |
+| [Node.js](https://nodejs.org/en/download) | selected exact pin | Everything.                                                     |
+| [TypeScript/TSGO](https://github.com/microsoft/typescript-go) | selected exact pin | Type-checking, `npm test`, `npm pack`.                           |
+| [Rust](https://www.rust-lang.org/tools/install) | selected exact pin | NaNVM (`nanvm-lib`) development only.                            |
+| Deno    | selected exact pin | Updating dependencies; an alternative test runtime.               |
+| Bun     | selected exact pin | Updating dependencies; an alternative test runtime.               |
+| Wasmtime / Wasmer | selected exact pins | WASM tests.                                                |
 
-TypeScript is the one row that is not simply "latest", and the only one that is
-**not** an npm dependency of this package, so `npm ci` does not install it: it
-is a tool the shell provides, like the others in this table, at the version
+Select recent stable versions that the project can build and test reliably,
+following [the version-update acceptance procedure](./fjs/ci/update-versions.md).
+An accepted update replaces the previous pin for the next release. Each
+release preserves its configuration and generated locks, and records its
+tested toolset in its release notes or a linked release document as required
+by [the release procedure](./changelog/RELEASE.md#tested-toolset).
+
+If you need an older tool, choose an older FunctionalScript release whose
+recorded toolset includes it, then install that release, for example
+`npm install -g functionalscript@<release>`. Consult that release's record;
+today's pins do not establish what earlier releases supported. Additional
+tool-version support after release remains subject to actual demand.
+
+TypeScript is **not** an npm dependency of this package, so `npm ci` does not
+install it: it is a tool the shell provides, like the others in this table, at the version
 [`fjs/ci/config/module.f.js`](./fjs/ci/config/module.f.js) pins for CI; on Intel
 macOS or bare Windows, install exactly that version globally. Do not reach for `npx tsc`: with
 nothing to resolve in `node_modules` it downloads whatever the registry calls
@@ -69,13 +83,10 @@ latest, which is not the compiler CI runs.
 `gen.nix/` is a development environment carrying every tool in that table at
 the versions CI uses. It is not a convenience built alongside CI: every job runs
 its commands inside this very shell, so what passes here is what passes there,
-except the Node 22 and Node 24 compatibility jobs, each on a flake of its own,
-the Intel macOS and two Windows platform jobs, which install their tools
-directly, and the publishing workflow, which runs on the Node `setup-node`
-installs. The packed-package
+except the Intel macOS and two Windows platform jobs, which install their tools
+directly, and the publishing workflow, which runs on the Node `setup-node` installs. The packed-package
 check that closes `node26` stays out of it too, by design: it installs the
-published tarball with `setup-node`'s Node and npm, as a consumer would. So a
-change that leans on Node 26 passes the shell and still fails CI. Every
+published tarball with `setup-node`'s selected Node and npm, as a consumer would. Every
 developer and every agent on a supported Nix platform works inside the shell.
 
 ```bash
@@ -123,15 +134,12 @@ platform, or in the Linux devcontainer.
 One build runs outside it: Cloudflare's Workers Builds generates the website on
 its own image and reads its Node version from `.node-version`, which is why that
 file exists ([fjs/website/README.md](./fjs/website/README.md#the-site-is-the-repository-served)).
+Keep its exact patch synchronized with the scalar `node` pin and
+`engines.node` in both `package.json` and the root `package-lock.json` metadata.
+That engine pin defines support for the CLI, development and npm consumers;
+npm normally warns on mismatches unless strict engine checking is enabled.
 
 [`fjs/ci/nix/README.md`](./fjs/ci/nix/README.md) explains the shell and how it is generated.
-
-### Node test-runner compatibility
-
-External test registration automatically uses an inline compatibility strategy
-below Node `26.0.0`, so `node --test` and `npm run cov` correctly handle
-`throw`-tagged tests on Node 22. Node `26.0.0` and later use the native
-`expectFailure` strategy and remain the fully supported native baseline.
 
 ### Installing dependencies
 
@@ -159,31 +167,32 @@ environment.
 
 | Command                                 | Runtime  | Needs internet | Notes                                    |
 | --------------------------------------- | -------- | -------------- | ---------------------------------------- |
-| `npm test`                              | Node 22+ | no             | `tsc` + the repo's runner; needs `tsc`.  |
-| `npm start test`                        | Node 22+ | no             | The repo's runner, no type-check step.   |
-| `node --test`                           | Node 22+ | no             | Node's native test runner.               |
-| `npm run cov`                           | Node 22+ | no             | `node --test` plus coverage.             |
-| `npm start compile`                     | Node 22+ | no             | Every authored `.f.js` still compiles.   |
+| `npm test`                              | Node pin | no             | `tsc` + the repo's runner; needs `tsc`.  |
+| `npm start test`                        | Node pin | no             | The repo's runner, no type-check step.   |
+| `node --test`                           | Node pin | no             | Node's native test runner.               |
+| `npm run cov`                           | Node pin | no             | `node --test` plus coverage.             |
+| `npm start compile`                     | Node pin | no             | Every authored `.f.js` still compiles.   |
 | `deno task fjs test`                    | Deno     | no             | The repo's runner under Deno.            |
 | `deno task test` / `deno task cov`      | Deno     | no             | Deno's native test runner / coverage.    |
 | `bun fjs/module.mjs test`                | Bun      | no             | The repo's runner under Bun.             |
 | `bun test`                              | Bun      | no             | Bun's native test runner.                |
-| `fjs test`                              | Node 22+ | to install     | After `npm install -g functionalscript`. |
-| `npx functionalscript test`             | Node 22+ | yes            | No install step.                         |
+| `fjs test`                              | Node pin | to install     | After `npm install -g functionalscript`. |
+| `npx functionalscript test`             | Node pin | yes            | No install step.                         |
 | `deno run -A npm:functionalscript test` | Deno     | yes            | No install step.                         |
 | `bunx functionalscript test`            | Bun      | yes            | No install step.                         |
 
 The last four rows run a **published** FunctionalScript rather than this working
-tree's version. `npx`, `deno run`, and `bunx` resolve the latest release each
-time; `fjs` runs whatever you installed globally, which goes stale as new
-versions ship — re-run `npm install -g functionalscript` to update it.
+tree's version. Use the toolset recorded for the release you select. The
+unversioned `npx`, `deno run`, and `bunx` examples resolve the latest release;
+`fjs` runs the release installed globally. Specify `functionalscript@<release>`
+when selecting an older release and its recorded toolset.
 
 Deno needs explicit permissions: `-A` is the short form, or pass the same set as
 the `fjs` task in [deno.json](./deno.json) (`--allow-read --allow-write
 --allow-env --allow-net --allow-sys`). Deno also holds back very recently
 published versions; add `--minimum-dependency-age=0` to force the newest.
 
-CI exercises these same combinations — see the `node22`, `node24`, `node26`,
+CI exercises these same combinations — see the `node26`,
 `deno`, and `bun` jobs in
 [.github/workflows/gen.ci.yml](./.github/workflows/gen.ci.yml) for the exact commands
 and pinned runtime versions.

@@ -1,6 +1,6 @@
-import { devJobId, devNixJob, devSystems } from './module.f.mjs'
+import { devNixJob, devSystems } from './module.f.mjs'
 import { bunPin } from '../bun/module.f.mjs'
-import { major, nodeNixJobs } from '../node/module.f.mjs'
+import { major } from '../node/module.f.mjs'
 import {
     i686PerSystem,
     i686System,
@@ -8,7 +8,7 @@ import {
     wasmRust,
 } from '../rust/module.f.mjs'
 import { node } from '../config/module.f.js'
-import { nixShell, nixSystem } from '../nix/module.f.mjs'
+import { nixSystem } from '../nix/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 
 export const proof = {
@@ -17,16 +17,14 @@ export const proof = {
     // one a developer leaves to find `git`, is not a developer environment,
     // and this shell is the developer environment as well as the jobs'.
     shape: () => {
-        assertEq(devJobId, nixShell)
-        assertEq(devNixJob.id, nixShell)
         assertStructurallySame([...devNixJob.systems], [...devSystems])
         assertStructurallySame([...devSystems], [
             'aarch64-linux',
             'x86_64-linux',
             'aarch64-darwin',
         ])
-        // The runner CI has is among them, since every job but the Node 22,
-        // Node 24, Intel macOS and two Windows jobs enters this shell from it.
+        // The canonical CI runner is among them; Linux and ARM macOS platform jobs
+        // enter the shell for their own system.
         assert(devSystems.includes(nixSystem), nixSystem)
         assert(devNixJob.packages.includes('git'), devNixJob.packages.join(' '))
         // A pinned archive for every system, and no others: an entry the flake
@@ -36,24 +34,15 @@ export const proof = {
         assertStructurallySame(Object.keys(pin.sources), [...devSystems])
     },
     // The one fact the whole arrangement turns on: this shell has exactly one
-    // `node`, and it is the default. That is why `node26` can run here — its
+    // `node`, and it is the selected release. That is why `node26` can run here — its
     // `npm ci` and `npm run cov` resolve `node` from `PATH` and find the
-    // release they want — and why Node 22 and Node 24 cannot, which is what
-    // their own flakes below are.
+    // release they want.
     //
     // A second `nodejs_*` here would be worse than useless: `mkShell` puts both
     // on `PATH` and one wins silently.
-    oneNodeAndItIsTheDefault: () => {
+    oneSelectedNode: () => {
         const nodes = devNixJob.packages.filter(p => p.startsWith('nodejs_'))
-        assertStructurallySame(nodes, [`nodejs_${major(node.default)}`])
-        // The versions that had to keep a flake are exactly the ones this shell
-        // cannot serve.
-        assertStructurallySame(
-            nodeNixJobs.map(job => job.id),
-            [node.node22, node.node24].map(v => `node${major(v)}`))
-        assert(
-            !nodeNixJobs.some(job => job.id === `node${major(node.default)}`),
-            'the default Node needs no flake of its own')
+        assertStructurallySame(nodes, [`nodejs_${major(node)}`])
     },
     // Nothing here is a second copy. Each tool arrives from the module that
     // owns the commands using it — the Bun override from `../bun`, the

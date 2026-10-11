@@ -7,7 +7,6 @@
  *
  * @import { NodeOp } from '../effects/node/types.ts'
  * @import { Architecture, GitHubAction, Job, Jobs, MetaStep, Os } from './common/types.ts'
- * @import { NixJob } from './nix/types.ts'
  * @import { PackageConsumer, Setup } from './types.ts'
  * @import { Effect } from '../effects/types.ts'
  */
@@ -30,7 +29,6 @@ import {
     shellRustVersionSteps,
 } from './rust/module.f.mjs'
 import {
-    nodeNixJobs,
     installNode,
     nodeVersionJobs,
     nodeVersionStep,
@@ -38,9 +36,8 @@ import {
 } from './node/module.f.mjs'
 import {
     nixDevelop,
-    nixFlakes,
+    nixFlake,
     nixInstall,
-    nixShell,
     nixSteps,
 } from './nix/module.f.mjs'
 import { bunSteps } from './bun/module.f.mjs'
@@ -116,9 +113,9 @@ const workflowText = gha => JSON.stringify(gha, null, '  ')
  */
 const shellPlatformSteps = (rust, o, a) => [
     nixInstall,
-    nodeVersionStep(nixShell, node.default),
+    nodeVersionStep(),
     ...(rust ? shellRustVersionSteps(o, a) : []),
-    ...nixSteps(nixShell)([
+    ...nixSteps([
         'npm ci',
         ...(rust ? shellRustCommands(o, a) : []),
         'node --test',
@@ -136,7 +133,7 @@ const shellPlatformSteps = (rust, o, a) => [
  */
 const intelMacSteps = rust => [
     install(installNode()),
-    test({ run: `test "$(node --version)" = "v${node.default}"` }),
+    test({ run: `test "$(node --version)" = "v${node}"` }),
     test({ run: 'npm ci' }),
     ...(rust ? rustPlatformSteps('macos', 'intel') : []),
     test({ run: 'node --test' }),
@@ -221,7 +218,7 @@ const inShell = step =>
     step.type !== 'rust' && step.step.run !== undefined
         ? test({
             ...step.step,
-            run: nixDevelop(nixShell, `${injectedShell} "$${injectedRun}"`),
+            run: nixDevelop(`${injectedShell} "$${injectedRun}"`),
             env: { ...step.step.env, [injectedRun]: step.step.run },
         })
         : step
@@ -255,53 +252,11 @@ const job = (rust, nodeExtra, mergeQueueOnly) => o => a => {
 }
 
 /**
- * Every generated flake. Three, for the eleven jobs `./proof.f.mjs`'s
- * `matrixShape` counts.
- *
- * `dev` is the one a developer enters and the one **six** of those jobs
- * enter — see `./dev/module.f.mjs` for why sharing is safe where a command
- * names its runtime, and `./node/module.f.mjs` for the two jobs where it is
- * not. **Two** have a flake to themselves: Node 22 and Node 24, whose `node`
- * is the thing under test. **Three** enter none: Intel macOS and the two
- * Windows jobs, which install their tools directly.
- *
- * `ubuntu-intel32` was a fourth flake, and then a fourteenth job. What it
- * needs — a 32-bit `rust-std` and the linker for it — exists on `x86_64-linux`
- * and nowhere else, which is a reason for that *system* to carry more, not for
- * a job to have an environment of its own; and once it had none of its own, the
- * job was `ubuntu-intel`'s runner doing the same setup twice. Its four checks
- * are steps in that job now. See `./dev/module.f.mjs` and
- * `./rust/module.f.mjs`.
- *
- * `./proof.f.mjs`'s `nixCoverage` reads that split off the generated workflow
- * rather than off this comment, so a job changing sides fails there.
- *
- * The list is not a function of the project, so `dev` is written whole whether
- * or not the project has a `Cargo.toml`: a project without Rust gets a shell
- * carrying a toolchain no job of its uses, and no job checking the two WASM
- * runtimes in it. That is the same trade `./todo/ci-generator-audience.md`
- * describes for every job this generator writes unconditionally.
- *
- * Every canonical Node, Deno and Bun job enters one. The packed-package check,
- * which used to be a job with no checkout and so no flake, is the last steps
- * of Node 26's job now,
- * and deliberately enters none — see `./package/module.f.mjs`.
- * `./proof.f.mjs`'s `nixCoverage` keeps the list of jobs off Nix from growing
- * by accident.
- *
- * @type {readonly NixJob[]}
- */
-export const nixJobs = [
-    ...nodeNixJobs,
-    devNixJob,
-]
-
-/**
  * Every job that is not the platform matrix.
  *
  * There is no `dev` job any more. It existed because nothing else entered the
  * developer shell, so that flake would have rotted unnoticed; now every job
- * below but Node 22 and Node 24 enters it, and each asserts the versions it
+ * below enters it, and each asserts the versions it
  * depends on before running anything — `node` and `tsc` from Node 26, `deno`
  * from `deno`, `bun` from `bun`, and both WASM runtimes from the `ubuntu-arm`
  * platform job. A separate job could only repeat those six.
@@ -368,8 +323,12 @@ export const ci = ({ nodeExtra, packageConsumer, mergeQueueOnly = [] }) => resul
         const publishWritten = ioStep(
             workflowWritten,
             () => writeUtf8File(npmPublishPath, workflowText(npmPublishWorkflow)))
-        const flakesWritten = ioStep(publishWritten, () => nixFlakes(nixJobs))
-        return exitStep(flakesWritten)
+        // The shared environment is independent of the project's Rust: even
+        // a project without Cargo.toml gets the complete selected toolset.
+        // Six of the nine jobs enter it; Intel macOS, the two Windows jobs
+        // and the packed-consumer steps use tools installed outside Nix.
+        const shellWritten = ioStep(publishWritten, () => nixFlake(devNixJob))
+        return exitStep(shellWritten)
     })
 
 /**

@@ -1,17 +1,16 @@
 /**
  * CI step builders for Node.js: setup-node installation, platform smoke tests,
- * per-version canonical jobs.
+ * the selected-version canonical job.
  *
  * @module
  *
  * @import { Jobs, MetaStep, Step } from '../common/types.ts'
- * @import { NixJob } from '../nix/types.ts'
  * @import { PackageConsumer } from '../types.ts'
  */
 
 import { node, typescript } from '../config/module.f.js'
 import { install, test, ubuntuArm, uses } from '../common/module.f.mjs'
-import { nixInstall, nixShell, nixSteps, nixSystems, nixVersionStep } from '../nix/module.f.mjs'
+import { nixInstall, nixSteps, nixVersionStep } from '../nix/module.f.mjs'
 import { consumerDirectory, packageCheckSteps } from '../package/module.f.mjs'
 
 /** @type {(v: string) => string} */
@@ -24,18 +23,18 @@ const jobId = version => `node${major(version)}`
  * The job that packs the tarball and checks it as a consumer would. Named
  * here so a proof reading the workflow need not repeat the id.
  */
-export const packageJobId = jobId(node.default)
+export const packageJobId = jobId(node)
 
 /**
  * Installs the pinned Node through `setup-node`. Every job that installs Node
- * this way installs the configured default; `inputs` are any further
+ * this way installs the selected release; `inputs` are any further
  * `setup-node` inputs the job needs, such as the publish job's `registry-url`.
  * The pin is written last, so an input cannot replace it.
  *
  * @type {(inputs?: Record<string, string>) => Step}
  */
 export const installNode = inputs =>
-    uses('actions/setup-node', { ...inputs, 'node-version': node.default })
+    uses('actions/setup-node', { ...inputs, 'node-version': node })
 
 /** @type {(version: string) => MetaStep} */
 const fjsGlobalInstall = version =>
@@ -45,20 +44,17 @@ const fjsGlobalInstall = version =>
  * Asserts the Node a job is about to run on, through the shared check.
  *
  * `node --version` prints a leading `v` the configured version does not carry,
- * so the expected string restores it. The canonical Node jobs and the shell
+ * so the expected string restores it. The canonical Node job and the shell
  * platform jobs run this. The steps that install Node through `setup-node` get
  * no check: the Windows platform jobs, which run `run` steps under PowerShell
  * where this POSIX command would not survive, and the packed-package check
  * closing Node 26's job, which takes its Node as a consumer would and enters
  * no flake to check one from.
  *
- * It takes the shell to enter, because the three canonical jobs no longer enter
- * the same one — see {@link nodeNixJobs}.
- *
- * @type {(shell: string, version: string) => MetaStep}
+ * @type {() => MetaStep}
  */
-export const nodeVersionStep = (shell, version) =>
-    nixVersionStep(shell, 'node --version', `v${version}`)
+export const nodeVersionStep = () =>
+    nixVersionStep('node --version', `v${node}`)
 
 /**
  * Asserts the compiler this job's flake provides.
@@ -74,7 +70,7 @@ export const nodeVersionStep = (shell, version) =>
  * expectation carries that word.
  */
 const tscVersionStep = nixVersionStep(
-    nixShell, 'tsc --version', `Version ${typescript.version}`)
+    'tsc --version', `Version ${typescript.version}`)
 
 /**
  * The platform matrix's Node half: install the pinned Node, install a published
@@ -101,27 +97,8 @@ export const platformNodeSteps = version => [
 ]
 
 /**
- * A Node job that runs the suite and nothing else: install Nix, check the
- * runtime its flake provides, install dependencies, run the proofs. Node 22 and
- * Node 24 differ only in the version they name, so they share this.
- *
- * The check precedes `npm ci`, which runs `preinstall`/`install`/`postinstall`
- * hooks from the project and its dependencies — code that would otherwise
- * execute on a runtime nothing has confirmed. Every command after it enters the
- * shell again, one step each (root `AGENTS.md` §7).
- *
- * @type {(version: string) => readonly MetaStep[]}
- */
-const suiteNixSteps = version => [
-    nixInstall,
-    nodeVersionStep(jobId(version), version),
-    ...nixSteps(jobId(version))(['npm ci', 'node --test']),
-]
-
-/**
- * The generated-file job, migrated. Its commands run on the pinned Node like
- * Node 24's, with two differences that come from what this job does rather than
- * from Nix.
+ * The selected Node job: check the shared shell's runtime and compiler, then
+ * check source, generated files and the packed package.
  *
  * `npm start compile` — `npm start` is this tree's `node ./fjs/module.mjs`,
  * as the other `npm` steps here are this tree's scripts — with no arguments is
@@ -155,13 +132,13 @@ const suiteNixSteps = version => [
  *
  * @type {(consumer: PackageConsumer | undefined) => readonly MetaStep[]}
  */
-const node26Steps = consumer => [
+const nodeSteps = consumer => [
     nixInstall,
-    nodeVersionStep(nixShell, node.default),
+    nodeVersionStep(),
     tscVersionStep,
-    ...nixSteps(nixShell)(['npm ci', 'tsc', 'npm start compile', 'npm run cov']),
+    ...nixSteps(['npm ci', 'tsc', 'npm start compile', 'npm run cov']),
     test({ run: `mkdir ${consumerDirectory}` }),
-    ...nixSteps(nixShell)([`npm pack --pack-destination ${consumerDirectory}`, 'npm run gen']),
+    ...nixSteps([`npm pack --pack-destination ${consumerDirectory}`, 'npm run gen']),
     test({ run: 'git add -A && git diff --cached --exit-code' }),
     // The consumer's Node. `setup-node` reads the checkout's `package.json`
     // to decide whether to restore an npm cache, so caching is off: a
@@ -172,34 +149,5 @@ const node26Steps = consumer => [
 
 /** @type {(consumer: PackageConsumer | undefined) => Jobs} */
 export const nodeVersionJobs = consumer => ({
-    [jobId(node.node22)]: ubuntuArm(suiteNixSteps(node.node22)),
-    [jobId(node.node24)]: ubuntuArm(suiteNixSteps(node.node24)),
-    [jobId(node.default)]: ubuntuArm(node26Steps(consumer)),
+    [packageJobId]: ubuntuArm(nodeSteps(consumer)),
 })
-
-/** @type {(version: string) => NixJob} */
-const nixJob = version => ({
-    id: jobId(version),
-    systems: nixSystems,
-    packages: [`nodejs_${major(version)}`],
-})
-
-/**
- * The Node versions that need a flake of their own, and the whole of why any
- * job still does.
- *
- * `npm ci` and `node --test` name no runtime: they run whichever `node` reaches
- * `PATH` first. That is the one thing a shared shell cannot serve, because one
- * shell has one `node` — so these two get a flake each, carrying the single
- * release each exists to prove this code runs on.
- *
- * Node 26 is absent, and not because it needs less. Its `node` *is* the shared
- * shell's, and the compiler it also needs is there too, so it enters that shell
- * like every other job whose runtime is named rather than resolved.
- *
- * @type {readonly NixJob[]}
- */
-export const nodeNixJobs = [
-    nixJob(node.node22),
-    nixJob(node.node24),
-]

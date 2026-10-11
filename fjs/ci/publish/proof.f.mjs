@@ -56,7 +56,7 @@ export const proof = {
     configuresTheRegistry: () => {
         const setup = steps[usesIndex('actions/setup-node@')]
         assertEq(setup?.with?.['registry-url'], 'https://registry.npmjs.org/')
-        assertEq(setup?.with?.['node-version'], node.default)
+        assertEq(setup?.with?.['node-version'], node)
     },
     // The compiler, which this job has to install because the package does not
     // depend on one. `npm publish` runs `prepack`, which runs `tsc`; without
