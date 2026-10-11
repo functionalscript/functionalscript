@@ -141,6 +141,8 @@ compared by the existing machinery with nothing retyped.
    the unchecked fixture items of the Stage 6 follow-through in
    `callable-function-objects.md`; the legacy-sketch refusal and zero-arity
    migration it lists are compiler proofs, not fixtures.
+   Done: the `arguments` fixture pins all three, with extra and omitted
+   arguments and a zero-arity call.
 8. **Structure and strings.** Integer-like keys in a plain object literal
    (only `object-spread` pins key order today; `entry` has a single such key),
    and a lone surrogate written in fixture source (`object-spread` only
@@ -175,7 +177,7 @@ compared by the existing machinery with nothing retyped.
 - [ ] 4: a special-numbers fixture, with the independent Rust assertion for `-0`, `NaN` and the infinities.
 - [ ] 5: capturing callbacks, guarded built-in calls and the other families' methods through the compile path.
 - [ ] 6: BigInt arithmetic, shift and relational operators, equality and the mixed-type `TypeError` through the compile path.
-- [ ] 7: parameter leftovers as fixtures.
+- [x] 7: parameter leftovers as fixtures, in `nanvm/harness/fixtures/arguments.mjs`.
 - [ ] 8: out-of-order integer-like keys in a plain object literal and a lone surrogate in source.
 - [ ] 3: record thrown data, only with Node's thrown datum compared first and its own JSON bytes, and only if the interpreter can tell it from an engine error.
 - [ ] 9, 10, 11: decide, then file each as its own issue if wanted.
