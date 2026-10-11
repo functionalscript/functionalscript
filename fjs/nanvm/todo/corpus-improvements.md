@@ -49,39 +49,37 @@ corpus should wait for that move, or be rebased over it.
 **Remove vacuous and repeated checks (A).**
 
 1. **Retire `undefinedDefault`.** Four of its entries (`effect`, `exports`,
-   `named-imports`, `named-imports-math`) compare `undefined` with
-   `undefined`, which proves nothing, and the table exists to make that visible
-   until named exports are compared (decision 3 of Stage 8, "revisit after
-   step 2"). Sort each fixture by what it is for. One that exists for a host
-   test (`exports` for the harness's `run` API, `effect` for the effects host)
-   becomes an exception with its reason, like `function` and `rest-function`.
-   One that tests the language (`named-imports`, `named-imports-math`) has its
-   data exports compared, the callable ones named in a list the corpus rule
-   owns, so a callable export is a decision and not an accident. Then delete
-   the hand-written assertions the comparison covers (the whole export object
-   of `number` and `object`, `named`'s exports, the data half of
-   `named-imports`). The expectation would print the export object and not
-   only `default`, and the comparison would read it; this widens
-   `fjs/nanvm/expected` and the Rust comparison, and is the main design risk.
-   The order matters because Node is the authority: first a second Node and
-   interpreter route in `fjs/nanvm/corpus/proof.mjs`, which reads only
-   `default` today, comparing whole export objects; only then the expectation
-   and the Rust comparison; and the hand-written assertions go last, once
-   Node has been shown to agree with the interpreter on them. Decision 3 of
-   Stage 8 says the comparison would have to be order-insensitive because the
-   represented export object keeps declaration order. That is stale: the
-   compiler's parser sorts the exports before it builds the object, so its keys
-   are in module-namespace order, as Node's are (the AST types say so). The
-   comparison therefore stays order-sensitive, which keeps pinning export
-   order, as `named_exports` does today, and the same change corrects decision
-   3's wording.
+   `named-imports`, `named-imports-math`) compared `undefined` with
+   `undefined`, which proves nothing. Done without comparing named exports:
+   `exports` (the harness's `run` API), `effect` (the effects host) and
+   `named-imports-math` (a dependency of `named-imports`) became exceptions
+   with their reasons, like `function` and `rest-function`; and `named-imports`
+   gained `export default checks`, so its identity checks are an ordinary
+   default the corpus compares, and the hand-written read of the same checks
+   went. `undefinedDefault` keeps only `missing`, whose `undefined` is the
+   observation.
+
+   What remains of the original item is comparing whole export objects, to
+   delete the hand-written whole-export checks of `number`, `object` and
+   `named`. It is a large change for three small tests: a second Node and
+   interpreter route in `fjs/nanvm/corpus/proof.mjs` (it reads only `default`
+   today) comparing whole export objects, the expectation printing the export
+   object, the Rust comparison reading it, and a list of callable exports the
+   corpus rule owns. Node must come first, as the authority, and the
+   comparison stays order-sensitive: the compiler's parser sorts the exports
+   before it builds the object, so its keys are in module-namespace order, as
+   Node's are (the AST types say so), and Stage 8 decision 3's claim that the
+   represented export object keeps declaration order is stale and is corrected
+   by whichever change lands this. Recommended: do not build it unless a
+   fixture needs a named export that cannot be observed through its default,
+   which today none does.
 2. **Delete the hand-written throw checks the `THROWS` record covers.** Every
    expectation records whether its fixture throws, and the Rust test compares
    it. The hand-written `Thrown(_)` assertions for the `throws`, `nullish`,
    `closure-throws` and `not-a-function` fixtures repeat that, and so does the
    imported-module throw that `named_imports_and_captures` asserts for
-   `named-imports-throws` (the rest of that test, a call and a read of
-   named exports, stays until item 1). Keep the one
+   `named-imports-throws` (the rest of that test, the call of `main`,
+   stays). Keep the one
    that checks the thrown value (`throw`, which throws `7`) and the test of the
    harness's own `Thrown` reporting over a hand-written module. Small and
    mechanical, the same shape as the JSON deduplication.
@@ -171,7 +169,8 @@ compared by the existing machinery with nothing retyped.
 ### Tasks
 
 - [x] 2: delete the hand-written throw checks the `THROWS` record covers.
-- [ ] 1 (in progress): retire `undefinedDefault`: Node and interpreter routes for whole export objects first, then the expectation and the Rust comparison (order-sensitive), then the deletions, with decision 3's stale order claim corrected.
+- [x] 1: retire `undefinedDefault`: the host and helper fixtures became exceptions and `named-imports` gained a default.
+- [ ] 1b: compare whole export objects (Node route first, order-sensitive), only if a fixture needs a named export its default cannot show; recommended against.
 - [ ] 4: a special-numbers fixture, with the independent Rust assertion for `-0`, `NaN` and the infinities.
 - [ ] 5: capturing callbacks, guarded built-in calls and the other families' methods through the compile path.
 - [ ] 6: BigInt arithmetic, shift and relational operators, equality and the mixed-type `TypeError` through the compile path.
