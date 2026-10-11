@@ -65,7 +65,7 @@ current scope; none is a requirement for MVP.
 
 ### Related
 
-- [MVP roadmap](../nanvm-lib/todo/mvp-roadmap.md) — direct Rust generation and
+- [MVP roadmap](../nanvm/lib/todo/mvp-roadmap.md) — direct Rust generation and
   self-hosting through AOT-compiled FJS.
 - [FJS interpreter](../fjs/compiler/todo/interpret-edag.md) — the existing executor.
 - [function association](../fjs/compiler/todo/associate-edag-with-functions.md) and

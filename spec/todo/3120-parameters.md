@@ -330,7 +330,7 @@ this contract; refuse such input rather than claim a lossless migration.
 
 Reconcile pending design documents in this proposal, before implementation:
 [stage-1 subjects 2 and 7](../../todo/edag-stage1-discussion.md#2-arguments-reference),
-the [native callable plan](../../nanvm-lib/todo/callable-function-objects.md),
+the [native callable plan](../../nanvm/lib/todo/callable-function-objects.md),
 which also covers captured frames in Rust,
 and the [function-frame plan](./3111-function-frame.md) follow this
 `length` / `arg` / `rest` contract, not a count-only extension of complete
@@ -405,7 +405,7 @@ source rest binding in that future case or silently admit initializers now.
       and sharing at the reflection-erasing runtime boundary: see
       [runtime conversion proofs](../../fjs/edag/value/to_unknown/proof.mjs),
       [module export proofs](../../fjs/compiler/transpiler/proof.mjs) and
-      [native text fixtures](../../nanvm-harness/fixtures/function-text.mjs).
+      [native text fixtures](../../nanvm/harness/fixtures/function-text.mjs).
       Host callables retain the host-text exception; these proofs do not
       require overriding their native conversion.
 - [x] Add validation refusals for invalid length metadata (negative,

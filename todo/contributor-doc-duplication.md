@@ -23,7 +23,7 @@ worded a little differently:
   CONTRIBUTING.md's [Running tests](../CONTRIBUTING.md#running-tests), a
   section about running tests.
 - **The pre-submit check set.** Listed in AGENTS.md, CONTRIBUTING.md and
-  [nanvm-lib/AGENTS.md](../nanvm-lib/AGENTS.md). This set has already drifted
+  [nanvm/lib/AGENTS.md](../nanvm/lib/AGENTS.md). This set has already drifted
   — see [check-set-ci-parity](./check-set-ci-parity.md).
 
 AGENTS.md describes itself as a map that "holds the facts you must not violate

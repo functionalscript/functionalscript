@@ -13,7 +13,7 @@ through `amnesia` with the corpus's shared nodes supplied as memoized values.
 Authoring is shared, but the corpus still needs to exercise `fjs/edag/memo`
 and compare direct Rust execution with interpretation of the same EDAG as data.
 
-The [roadmap](../../../nanvm-lib/todo/mvp-roadmap.md) supplies that native path
+The [roadmap](../../../nanvm/lib/todo/mvp-roadmap.md) supplies that native path
 by AOT-compiling the FJS interpreter and its runner to Rust. It does not add
 an interpreter to `nanvm-lib`. The native conformance run depends on the
 [immutable-cache rewrite](../../edag/memo/todo/immutable-cache.md),
@@ -110,7 +110,7 @@ plan or native self-hosting.
   corpus already derives, validates, and shares.
 - [`../../edag/todo/rust-schema-codegen.md`](../../edag/todo/rust-schema-codegen.md)
   — deferred optional Rust validation that may reuse these vectors.
-- [`../../../nanvm-lib/todo/mvp-roadmap.md`](../../../nanvm-lib/todo/mvp-roadmap.md)
+- [`../../../nanvm/lib/todo/mvp-roadmap.md`](../../../nanvm/lib/todo/mvp-roadmap.md)
   — direct Rust AOT and native execution through the compiled FJS interpreter.
 - [`../../compiler/todo/interpret-edag.md`](../../compiler/todo/interpret-edag.md) — the
   FunctionalScript executor run beside the `amnesia` oracle here.

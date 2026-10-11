@@ -288,7 +288,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
          * module answers `false` where a by-value spelling would have
          * thrown. The node comes in directly, as every other node this
          * route is proven on does; the same four from source, through the
-         * whole of `fjs compile`, are `nanvm-harness/fixtures/lazy.mjs`,
+         * whole of `fjs compile`, are `nanvm/harness/fixtures/lazy.mjs`,
          * run against `nanvm-lib`.
          */
         lazyOperator: () => {
@@ -389,7 +389,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
         /**
          * A property read on a nullish base compiles: the `.rs` output is a
          * program, and the throw is the VM's when it runs, reported by the
-         * harness as `RunError::Thrown` — `nanvm-harness/fixtures/nullish.mjs`.
+         * harness as `RunError::Thrown` — `nanvm/harness/fixtures/nullish.mjs`.
          */
         nullishBase: () => {
             assertEq(toRust(['.', null, 'a'])[0], 'ok')

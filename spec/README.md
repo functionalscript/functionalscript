@@ -1589,7 +1589,7 @@ function's `length` is a number — throws the `TypeError` JavaScript throws.
 The represented EDAG interpreters and the Rust VM implement the admitted
 member functions. The native completeness table checks every allowed
 receiver-type/name pair against the compiler's list
-([member-functions](../nanvm-lib/todo/member-functions.md)).
+([member-functions](../nanvm/lib/todo/member-functions.md)).
 
 | Receiver | Admitted methods |
 | --- | --- |
@@ -1620,8 +1620,8 @@ Native execution has these limits:
   associated text is refused when conversion requests it
   ([function-source exception](#function-source-representation-exception)).
 
-The native [array](../nanvm-lib/src/vm/array/README.md) and
-[string/number](../nanvm-lib/src/vm/string/README.md) documentation gives the
+The native [array](../nanvm/lib/src/vm/array/README.md) and
+[string/number](../nanvm/lib/src/vm/string/README.md) documentation gives the
 method-specific details and implementation-defined cases.
 
 ## Optional Chaining
@@ -2326,7 +2326,7 @@ writer — the one that refuses a function.
 
 `fjs compile` writes two more things, neither of them a document of this
 language: the program's EDAG under `.edag.data.js` or `.edag.data.mjs`, and a
-generated Rust module under `.rs`, which [nanvm-lib](../nanvm-lib/README.md)
+generated Rust module under `.rs`, which [nanvm-lib](../nanvm/lib/README.md)
 runs. They are compiler artifacts, and [`fjs/compiler`](../fjs/compiler/README.md)'s to
 describe. A name ending in none of the eight suffixes — `.json`, `.data.js`,
 `.data.mjs`, `.js`, `.mjs`, `.edag.data.js`, `.edag.data.mjs` and `.rs` —

@@ -33,7 +33,7 @@ the classified checks ran, so the bypass narrows to the queue or is removed.
 
 | Area | Paths | Runs |
 |------|-------|------|
-| Rust | everything under a crate directory (`nanvm-lib/`, `nanvm-harness/`, `nanvm-effects-node/`), the root `Cargo.toml` and `Cargo.lock`, `.cargo/` | `cargo fmt`, Clippy, native and WASM tests, the drift check |
+| Rust | everything under a crate directory (`nanvm/lib/`, `nanvm/harness/`, `nanvm/effects-node/`), the root `Cargo.toml` and `Cargo.lock`, `.cargo/` | `cargo fmt`, Clippy, native and WASM tests, the drift check |
 | JavaScript and FunctionalScript | what the suite loads (`shouldLoad` in `fjs/dev/module.f.mjs`), `package.json`, `package-lock.json`, `tsconfig.json`, the Deno and Bun manifests and lockfiles | `tsc`, `npm start compile`, the Node, Deno and Bun suites, the packed-package check, the drift check |
 | Generated | any path with a segment `isGenerated` (`fjs/dev/clean/module.f.mjs`) holds for | the drift check |
 | Documents | markdown outside the crate directories and outside generated paths | nothing |
@@ -119,7 +119,7 @@ What puts a path in an area is what a check *reads*, not the file's extension:
 - [ ] Write the classification as a FunctionalScript module with a proof:
       changed paths in, areas out, the union of every matching row, unknown
       paths mapping to everything. Import `shouldLoad` and `isGenerated`.
-      Cover `nanvm-lib/tests/test/gen.corpus/mod.rs` (Rust and Generated), a
+      Cover `nanvm/lib/tests/test/gen.corpus/mod.rs` (Rust and Generated), a
       rename out of a crate, and a `todo/`-only change (nothing).
 - [ ] Derive each area's non-obvious inputs from what the checks read: Rust's
       from `include_str!`, `include_bytes!`, `#[path]` and any `build.rs`; the

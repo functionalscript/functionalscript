@@ -7,13 +7,13 @@
 
 The checks a contributor is told to run before submitting are listed in three
 places — [AGENTS.md](../AGENTS.md), [CONTRIBUTING.md](../CONTRIBUTING.md) and
-[nanvm-lib/AGENTS.md](../nanvm-lib/AGENTS.md) — and all three are weaker than
+[nanvm/lib/AGENTS.md](../nanvm/lib/AGENTS.md) — and all three are weaker than
 what the generated [CI workflow](../.github/workflows/gen.ci.yml) enforces. A pull
 request that passes every documented check can still fail CI.
 
 - **Clippy warnings.** Every list says `cargo clippy`. CI runs
   `cargo clippy -- -D warnings`, and a `--release` variant, on every platform
-  job. Nothing in `Cargo.toml`, `.cargo/config.toml` or `nanvm-lib/src/lib.rs`
+  job. Nothing in `Cargo.toml`, `.cargo/config.toml` or `nanvm/lib/src/lib.rs`
   denies warnings, so a warning exits zero locally and fails CI.
 - **Proof coverage.** The `node26` job runs `npm run cov`, whose
   `package.json` script sets 100% line, branch and function thresholds over
@@ -26,8 +26,8 @@ request that passes every documented check can still fail CI.
   commands — does not contain it.
 - **Generated Rust.** "`cargo test` — only if you touched Rust" misses Rust
   that `npm run gen` writes from FunctionalScript source: the
-  `nanvm-harness/gen.fixtures/*.rs` modules `fjs/compiler/rust` compiles, and
-  `nanvm-lib/tests/test/gen.corpus/` and `nanvm-lib/src/vm/lambda/gen.methods.rs` from `fjs/nanvm`. A change to either
+  `nanvm/harness/gen.fixtures/*.rs` modules `fjs/compiler/rust` compiles, and
+  `nanvm/lib/tests/test/gen.corpus/` and `nanvm/lib/src/vm/lambda/gen.methods.rs` from `fjs/nanvm`. A change to either
   generator changes Rust without touching a `.rs` file by hand.
 - **Which runner.** AGENTS.md's list starts with `fjs test`, and its §2 sets
   `fjs test` apart from the "published-CLI equivalents". CONTRIBUTING.md's

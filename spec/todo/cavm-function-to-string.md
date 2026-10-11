@@ -200,9 +200,9 @@ CAVM-specific branch would be future work, not a change already present in it.
   — the renderer this rule plugs into.
 - [execution-models](../../fjs/edag/execution-models.md#4-content-addressable-vm)
   — content identity, the premise of one value, one text.
-- [mvp-roadmap](../../nanvm-lib/todo/mvp-roadmap.md#canonical-representation-the-edag-as-data-decided)
+- [mvp-roadmap](../../nanvm/lib/todo/mvp-roadmap.md#canonical-representation-the-edag-as-data-decided)
   — the EDAG as the thing hashed.
-- [member-functions](../../nanvm-lib/todo/member-functions.md) — native compiled
+- [member-functions](../../nanvm/lib/todo/member-functions.md) — native compiled
   function text and conversion coverage, separate from this future CAVM profile.
 - [identifier-safe base64](../../fjs/basen/todo/various-basen-encodings.md)
   — the codec the name is spelled with; this proposal is its first consumer.
