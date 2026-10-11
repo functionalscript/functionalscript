@@ -511,14 +511,14 @@ const computedKeyAt = ([kind, items], index) => {
  * A container's item at `index` as the AST holds it, from its value: an
  * array's item, its spread put back, {@link itemValue}; an object's spread
  * likewise, or its member, a property of its name and the value — the
- * computed key's value, `key`, where the member has one.
+ * computed key's value, `key`, where the member has one. A member is the
+ * one item that is a record: an array's items and a spread are tuples.
  *
  * @type {(container: Container, index: number, key: readonly [AstConst] | null, value: AstConst) => AstItem | AstMember}
  */
-const containerValue = ([kind, items], index, key, value) => {
+const containerValue = ([, items], index, key, value) => {
     const entry = items[index]
     if (entry instanceof Array) { return itemValue(entry)(value) }
-    if (kind === 'array') { return value }
     /** @type {AstMember} */
     const member = [':', key === null ? /** @type {ConstantMember} */ (entry).name : key[0], value]
     return member
