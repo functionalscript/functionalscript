@@ -167,13 +167,13 @@ compared by the existing machinery with nothing retyped.
 ### Tasks
 
 - [ ] 2: delete the hand-written throw checks the `THROWS` record covers.
-- [ ] 1: retire `undefinedDefault`; compare the data exports.
-- [ ] 4: a special-numbers fixture, with the independent Rust assertion.
-- [ ] 5: member-function calls through the compile path, callbacks included.
-- [ ] 6: BigInt operators through the compile path.
+- [ ] 1: retire `undefinedDefault`: Node and interpreter routes for whole export objects first, then the expectation and the Rust comparison, then the deletions.
+- [ ] 4: a special-numbers fixture, with the independent Rust assertion for `-0`, `NaN` and the infinities.
+- [ ] 5: capturing callbacks, guarded built-in calls and the other families' methods through the compile path.
+- [ ] 6: BigInt arithmetic, shift and relational operators, equality and the mixed-type `TypeError` through the compile path.
 - [ ] 7: parameter leftovers as fixtures.
-- [ ] 8: key order, empty containers and string edge cases.
-- [ ] 3: record thrown data, if the interpreter can tell it from an engine error.
+- [ ] 8: out-of-order integer-like keys in a plain object literal and a lone surrogate in source.
+- [ ] 3: record thrown data, only with Node's thrown datum compared first and its own JSON bytes, and only if the interpreter can tell it from an engine error.
 - [ ] 9, 10, 11: decide, then file each as its own issue if wanted.
 
 ### Related
