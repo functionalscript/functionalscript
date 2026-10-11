@@ -4,6 +4,7 @@
 //! differences the doc of the function names. A failure is an [`IoError`], the
 //! `ioError` the language reads.
 
+use nanvm_lib::vm::unstable::number_text;
 use std::{
     fs::{self, File, OpenOptions},
     io::{self, ErrorKind, Read, Seek, SeekFrom, Write},
@@ -369,85 +370,29 @@ pub fn write_bytes(path: &str, at: f64, data: &[u8]) -> Result<(), IoError> {
     sync(&file).map_err(|e| failure(&e, "close", path))
 }
 
-/// A number as ECMAScript's `Number::toString` spells it: the shortest decimal
-/// digits that read back as the same `f64`, the closest to the value when
-/// several have that length and the even one when two are equally close, then
-/// the positional or exponent form the specification picks for their place.
-pub fn js_number(value: f64) -> String {
-    if value.is_nan() {
-        "NaN".to_string()
-    } else if value.is_infinite() {
-        (if value > 0.0 { "Infinity" } else { "-Infinity" }).to_string()
-    } else if value == 0.0 {
-        "0".to_string()
-    } else {
-        let sign = if value < 0.0 { "-" } else { "" };
-        let (digits, exponent) = shortest_digits(value.abs());
-        format!("{sign}{}", spell(&digits, exponent + 1))
-    }
-}
-
-/// The decimal digits of a positive finite `value` and the power of ten of the
-/// first one. Rust's shortest digits break a tie between two candidates of one
-/// length upward; rounding the value to that many digits breaks it to even,
-/// as ECMAScript does, and stands when it still reads back as `value`.
-fn shortest_digits(value: f64) -> (String, i32) {
-    let split = |text: &str| {
-        let (mantissa, exponent) = text.split_once('e').unwrap();
-        (mantissa.replace('.', ""), exponent.parse::<i32>().unwrap())
-    };
-    let shortest = split(&format!("{value:e}"));
-    let rounded = split(&format!("{value:.*e}", shortest.0.len() - 1));
-    let reads_back = format!("{}e{}", rounded.0, rounded.1 - rounded.0.len() as i32 + 1)
-        .parse::<f64>()
-        == Ok(value);
-    if reads_back { rounded } else { shortest }
-}
-
-/// `Number::toString` steps 6 to 12: `digits` with the decimal point `point`
-/// digits in, where `point` is one more than the power of ten of the first.
-fn spell(digits: &str, point: i32) -> String {
-    let len = digits.len() as i32;
-    if len <= point && point <= 21 {
-        format!("{digits}{}", "0".repeat((point - len) as usize))
-    } else if 0 < point && point <= 21 {
-        let (whole, fraction) = digits.split_at(point as usize);
-        format!("{whole}.{fraction}")
-    } else if -6 < point && point <= 0 {
-        format!("0.{}{digits}", "0".repeat(-point as usize))
-    } else {
-        let exponent = point - 1;
-        let sign = if exponent < 0 { '-' } else { '+' };
-        let (first, rest) = digits.split_at(1);
-        let rest = if rest.is_empty() {
-            String::new()
-        } else {
-            format!(".{rest}")
-        };
-        format!("{first}{rest}e{sign}{}", exponent.abs())
-    }
-}
-
 /// `windowRefusal` of `fjs/effects/node/module.f.mjs`: the numbers a positional
 /// read refuses, before a byte is read, in the words both runners use.
 fn window_refusal(at: f64, size: f64) -> Option<String> {
     if at.fract() != 0.0 || !at.is_finite() {
-        Some(format!("Offset {} is not an integer", js_number(at)))
+        Some(format!("Offset {} is not an integer", number_text(at)))
     } else if at < 0.0 {
-        Some(format!("Offset {} is negative", js_number(at)))
+        Some(format!("Offset {} is negative", number_text(at)))
     } else if at > MAX_OFFSET as f64 {
         Some(format!(
             "Offset {} exceeds maximum allowed offset of {MAX_OFFSET}",
-            js_number(at)
+            number_text(at)
         ))
     } else if size.fract() != 0.0 || !size.is_finite() {
-        Some(format!("Chunk size {} is not an integer", js_number(size)))
+        Some(format!(
+            "Chunk size {} is not an integer",
+            number_text(size)
+        ))
     } else if size < 0.0 {
-        Some(format!("Chunk size {} is negative", js_number(size)))
+        Some(format!("Chunk size {} is negative", number_text(size)))
     } else if size > MAX_FILE_SIZE_BYTES as f64 {
         Some(format!(
             "Chunk size {} exceeds maximum allowed size of {MAX_FILE_SIZE_BYTES} bytes",
-            js_number(size)
+            number_text(size)
         ))
     } else {
         None
@@ -695,44 +640,6 @@ mod test {
         ] {
             assert_eq!(normalize(path), expected, "{path:?}");
         }
-    }
-
-    #[test]
-    fn js_numbers() {
-        assert_eq!(js_number(f64::NAN), "NaN");
-        assert_eq!(js_number(f64::INFINITY), "Infinity");
-        assert_eq!(js_number(f64::NEG_INFINITY), "-Infinity");
-        assert_eq!(js_number(-0.0), "0");
-        assert_eq!(js_number(1.5), "1.5");
-        assert_eq!(js_number(-7.0), "-7");
-        assert_eq!(js_number(9007199254740992.0), "9007199254740992");
-        assert_eq!(js_number(1e21), "1e+21");
-        assert_eq!(js_number(1.5e300), "1.5e+300");
-        assert_eq!(js_number(1e-7), "1e-7");
-        assert_eq!(js_number(0.5), "0.5");
-        assert_eq!(js_number(-0.5), "-0.5");
-        assert_eq!(js_number(123456.789), "123456.789");
-        assert_eq!(js_number(1e20), "100000000000000000000");
-        assert_eq!(js_number(999999999999999900000.0), "999999999999999900000");
-        assert_eq!(js_number(1e-6), "0.000001");
-        assert_eq!(js_number(1.5e-6), "0.0000015");
-        assert_eq!(js_number(0.000001234), "0.000001234");
-        assert_eq!(js_number(1.5e-7), "1.5e-7");
-        assert_eq!(js_number(1.23e-18), "1.23e-18");
-        assert_eq!(js_number(-1.25e-10), "-1.25e-10");
-        assert_eq!(js_number(1e300), "1e+300");
-        assert_eq!(js_number(5e-324), "5e-324");
-        assert_eq!(js_number(f64::MAX), "1.7976931348623157e+308");
-        // Two candidates of one length read back as the value; ECMAScript
-        // takes the even digit, where Rust's shortest takes the odd one.
-        assert_eq!(
-            js_number(0x6_b5a4_ff2c_1a40_u64 as f64 + 0.25),
-            "1888570120608320.2"
-        );
-        assert_eq!(
-            js_number(0x6_b5a4_ff2c_1a40_u64 as f64 + 0.75),
-            "1888570120608320.8"
-        );
     }
 
     /// The numbers a positional read refuses, in the words of `windowRefusal`.

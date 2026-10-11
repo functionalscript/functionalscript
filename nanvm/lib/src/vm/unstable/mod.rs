@@ -7,6 +7,12 @@ use crate::{
     },
 };
 
+/// `v` spelled as ECMAScript's `Number::toString` does, the text a host puts
+/// in a message when it names a number a program passed.
+pub fn number_text(v: f64) -> std::string::String {
+    crate::vm::string_coercion::number_text::<crate::naive::Naive>(v)
+}
+
 /// An `Any` holding the string `v`.
 pub fn string_any<A: IVm>(v: &str) -> Any<A> {
     v.into()
@@ -266,6 +272,20 @@ mod test {
         assert_eq!(
             big.to_string().unwrap(),
             "123456789012345678901234567890".into()
+        );
+    }
+
+    #[test]
+    fn numbers_as_text() {
+        assert_eq!(number_text(f64::NAN), "NaN");
+        assert_eq!(number_text(-0.0), "0");
+        assert_eq!(number_text(-1.5), "-1.5");
+        assert_eq!(number_text(1e21), "1e+21");
+        assert_eq!(number_text(1e-7), "1e-7");
+        // A tie between two candidates of one length goes to the even digit.
+        assert_eq!(
+            number_text(0x6_b5a4_ff2c_1a40_u64 as f64 + 0.25),
+            "1888570120608320.2"
         );
     }
 
