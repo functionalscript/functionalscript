@@ -42,8 +42,8 @@ export const generators = [
     // deletion, and a generator that needs a previous output, its own or
     // another's, fails.
     clean,
-    // The CI workflows and the Nix flakes. Writes `gen.nix/`, whose flakes the
-    // lock step at the end locks, so it must precede that step.
+    // The CI workflows and shared Nix flake. Writes `gen.nix/`, which the lock
+    // step at the end locks, so it must precede that step.
     ci,
     // The NaNVM Rust test corpus, methods table and values fixture, from the
     // shared test data.
@@ -83,7 +83,7 @@ export const lockEnded = ([tag, value]) => {
 }
 
 /**
- * The last step: the generated lock script, which locks each flake from its
+ * The last step: the generated lock script, which locks the shared flake from its
  * pinned commit, run on this process's terminal so that what Nix prints
  * reaches the reader as it is printed and in order. A `spawn` rather than an
  * `exec` for exactly that — `exec` buffers both streams until the child exits
