@@ -348,6 +348,9 @@ const exchangeScheme = ['figure', { 'data-sign-scheme': '', 'aria-label': 'ECDSA
     ['figcaption', 'The blue path represents trust in Alice’s public key, not a packet sent through Eve. This demo establishes that trusted key when Alice clicks Send.'],
 ]
 
+/** @type {(title: string, role: string) => Element} */
+const stageHeader = (title, role) => ['header', { 'data-sign-stage-header': '' }, ['h3', title], ['span', { 'data-sign-role': '' }, role]]
+
 /** @type {Demo<DemoState, DemoEvent>} */
 export const demo = {
     init: {
@@ -366,7 +369,7 @@ export const demo = {
             ['p', 'Alice (sign) → Eve (intercept or tamper) → Bob (verify with Alice’s trusted public key)'],
             exchangeScheme,
             ['section', { 'data-sign-stage': 'alice' },
-                ['h3', 'Alice — Sign'],
+                stageHeader('Alice — Sign', 'Signer'),
                 ['p', 'Demo-only keys. Do not enter real private keys into this public website.'],
                 select('curve', 'Curve', curves, state.curve),
                 select('hash', 'Hash', sha2Algorithms, state.hash),
@@ -375,8 +378,8 @@ export const demo = {
                 ...signView(curveOf(state.curve), result),
                 button('send', 'Send message', result[0] === 'error'),
             ],
-            ['section', { 'data-sign-stage': 'eve' }, ['h3', 'Eve — Intercept & Attack'], ...eveView(state.eve)],
-            ['section', { 'data-sign-stage': 'bob' }, ['h3', 'Bob — Receive & Verify'], ...bobView(state.bob)],
+            ['section', { 'data-sign-stage': 'eve' }, stageHeader('Eve — Intercept & Attack', 'Interceptor'), ...eveView(state.eve)],
+            ['section', { 'data-sign-stage': 'bob' }, stageHeader('Bob — Receive & Verify', 'Verifier'), ...bobView(state.bob)],
         ]
     },
 }

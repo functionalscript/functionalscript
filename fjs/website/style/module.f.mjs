@@ -601,4 +601,13 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
     [data-sign-trust-key] { justify-content: center }
 }
 
+/* Role cards keep long signing outputs and received snapshots in distinct
+   sections. Role names and borders distinguish them without relying on color. */
+[data-sign-stage] { --sign-accent: var(--value); --sign-tint: var(--value-bg); border: 1px solid color-mix(in srgb, var(--sign-accent) 45%, var(--border)); border-radius: 10px; margin-block: 1.5rem; padding: 0 1rem 1rem; min-width: 0 }
+[data-sign-stage="eve"] { --sign-accent: var(--fail); --sign-tint: var(--fail-bg) }
+[data-sign-stage="bob"] { --sign-accent: var(--pass); --sign-tint: var(--pass-bg) }
+[data-sign-stage-header] { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem 1rem; margin: 0 -1rem 1rem; padding: .75rem 1rem; border-radius: 9px 9px 0 0; border-bottom: 1px solid color-mix(in srgb, var(--sign-accent) 25%, var(--border)); background: var(--sign-tint); color: var(--sign-accent) }
+[data-sign-stage-header] h3 { margin: 0; font-size: 1.1rem }
+[data-sign-role] { border: 1px solid color-mix(in srgb, var(--sign-accent) 40%, transparent); border-radius: 999px; font-size: .75rem; padding: .2rem .6rem }
+
 `
