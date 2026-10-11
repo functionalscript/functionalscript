@@ -5,21 +5,20 @@
 
 ### Problem
 
-The website generator can publish rustdoc's output under `/cargo.doc/` and
-link each crate's directory page to it
-([#2803](https://github.com/functionalscript/functionalscript/pull/2803),
-`publish-cargo-doc`). It copies `target/doc` and does not run `cargo` itself,
-so whatever builds the site has to run `cargo doc --no-deps --workspace` first.
+[publish-deno-doc-to-website](publish-deno-doc-to-website.md) asks for API
+references on the website: `deno doc` for the FunctionalScript modules and
+`cargo doc` for the Rust crates. Whatever generates them has to run those tools
+as part of the site build.
 
 The site is built by Cloudflare Workers Builds
 ([`../README.md`](../README.md#the-site-is-the-repository-served)), whose
-build image has Node, Bun, Go, Python and Ruby but no Rust. So today neither the
-published site nor a branch preview has `target/doc`, and neither shows the
-reference or the links; only a local build does.
+build image has Node, Bun, Go, Python and Ruby but neither Rust nor Deno. So
+neither the published site nor a branch preview can hold either reference
+today; only a local build, inside the Nix shell, can.
 
-The same question will come back for `deno doc`
-([publish-deno-doc-to-website](publish-deno-doc-to-website.md)): Deno is not
-in that image either. Whatever is chosen here should answer both.
+This issue is where that build runs. How the output is placed on the site is
+the other issue's. The options below name `cargo doc`; whatever is chosen
+should answer `deno doc` as well.
 
 ### Option 1: install Rust in the Cloudflare build
 
