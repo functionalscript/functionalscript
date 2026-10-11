@@ -78,7 +78,9 @@ language accepts, and keep the three constant spellings as they are:
 - [ ] interpreter and VM: `ToPropertyKey` on a number or a string, refusal
       of every other value
 - [ ] spec: property keys and the roadmap item
-- [ ] proofs: the example above, a string-valued key and a refused value
+- [ ] proofs: the example above, a string-valued key, a refused value, and
+      a computed key that evaluates to `"__proto__"`, which defines an own
+      property as JavaScript does
 
 ### Related
 
