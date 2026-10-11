@@ -20,8 +20,9 @@ Most of that job is a documented contract and works as intended.
 [`../README.md`](../README.md) states which commands a consuming `package.json`
 must provide — `cov` and `gen` — shows the typical definitions, and
 explains that a project chains its own generators into `gen` so the drift
-check covers them for free. This repository's own `gen` spells itself
-`node ./fjs/module.mjs ci && …` only to avoid depending on the package bin
+check covers them for free. This repository's own `gen` runs the checked-in
+entry point and `fjs/dev/gen/module.f.mjs`, including `ci/self/module.f.mjs`,
+to avoid depending on the package bin
 before the package is installed, which that README says outright. So
 `npm run gen` and its drift check are an extension point, not a private
 gate. Since the packed-package check moved into `node26`, the job also ends
@@ -71,7 +72,7 @@ the moment one does.
 
 No design agreed; the choice is what `fjs ci` is *for*.
 
-- **Split the job.** `nodeVersionJobs` yields the portable per-version jobs;
+- **Split the job.** `nodeVersionJobs` yields the portable selected-Node job;
   this repository's convention gates — should any be built — move to a
   `nodeExtra`-style hook it passes itself. A consumer keeps the documented
   `cov`/`gen` contract and gets none of our conventions. Under this
@@ -96,7 +97,11 @@ is speculative generality.
 - [ ] With it, whether `fjs ci` empties `gen.nix/` before writing, as this
       repository's `gen` does through `gen:clean`, so a job a new version
       stops writing is a deletion in a consumer's drift check rather than a
-      leftover ([65z-ci-nix](65z-ci-nix.md)).
+      leftover ([65z-ci-nix](65z-ci-nix.md)). The current generator writes one
+      shared shell: consumers upgrading from the old layout must delete
+      `gen.nix/node22/` and `gen.nix/node24/` themselves until that policy
+      changes. Do not restore historical-version jobs or shell selectors to
+      address the audience question.
 - [ ] Apply it, and make [`fjs/README.md`](../../README.md) and
       [`../README.md`](../README.md) agree.
 

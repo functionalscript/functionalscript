@@ -9,6 +9,10 @@
  * runner; compiler traversal and diagnostics are proved synchronously in
  * `compiler/transpiler/proof.f.mjs`.
  *
+ * Bun's adapter also meets a host registration callback. Its proof observes
+ * the emitted names and asynchronous bodies through that callback; a pure
+ * FunctionalScript proof cannot execute the `Promise`-based adapter.
+ *
  * @import { All, Child, Handle, NodeProgram, NodeOp, ReadRequestBytes, RequestListener as Erl, ServerResponse } from './types.ts'
  * @import { ChildProcess } from 'node:child_process'
  * @import { Agent, Server, ServerResponse as NodeServerResponse } from 'node:http'
@@ -49,7 +53,7 @@ import {
     writeFile as writeFileEffect,
 } from './module.f.mjs'
 import { _unreadableThrownValue } from '../module.mjs'
-import { readFlags, runEffect } from './module.mjs'
+import { _wrapInlineTest, readFlags, runEffect } from './module.mjs'
 
 /** @type {(program: NodeProgram) => Promise<number>} */
 const exitCode = runEffect
@@ -627,6 +631,29 @@ const startedChild = async args => {
 }
 
 export const proof = {
+    inlineRegistrationNames: {
+        ordinary: async () => {
+            let called = false
+            const context = _wrapInlineTest(async (name, body) => {
+                assertEq(name, 'ordinary ...')
+                await body()
+            })
+            await context.test('ordinary', { expectFailure: false }, async () => { called = true })
+            assert(called)
+        },
+        expectedThrow: async () => {
+            let called = false
+            const context = _wrapInlineTest(async (name, body) => {
+                assertEq(name, 'expectedThrow')
+                await body()
+            })
+            await context.test('expectedThrow', { expectFailure: true }, async () => {
+                called = true
+                throw 'expected'
+            })
+            assert(called)
+        },
+    },
     resolveFileModule: {
         symlinkIdentity: () => withFixtures(async directory => {
             const root = fileURLToPath(directory)

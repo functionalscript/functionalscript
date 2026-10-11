@@ -90,14 +90,19 @@ The simplest path found so far is two steps.
    pinned build needs.
 
 **Nix is how the shell gets installed.** The repository already pins a Nixpkgs
-commit (`../../ci/config/module.f.js`) and generates one flake per job
-(`../../ci/nix/module.f.mjs`, [fjs/ci/nix/README.md](../../ci/nix/README.md)), so a
-`spidermonkey` job declared there gives the same shell binary locally and in
-CI, at a version the pin decides:
+commit (`../../ci/config/module.f.js`) and generates the shared shell from
+`devNixJob` (`../../ci/dev/module.f.mjs`,
+[fjs/ci/nix/README.md](../../ci/nix/README.md)). Add the selected SpiderMonkey
+package there once the proof runner works. Its commands then use the same
+binary locally and in CI, at a version the accepted pin decides:
 
 ```sh
-sh ./gen.nix/spidermonkey/run js --version
+sh ./gen.nix/run js --version
 ```
+
+The generator now writes only that shared flake. Do not restore `nodeNixJobs`,
+`nixJobs`, `nixFlakes` or per-job path selectors to add this runtime. A separate
+flake would need a concrete reason and a newly scoped design.
 
 Both halves of that line are read off the pinned commit rather than assumed.
 The attribute is versioned — `spidermonkey_115`, `spidermonkey_128`, and
@@ -107,9 +112,9 @@ guessing at all: the package's `preFixup`
 (`pkgs/development/interpreters/spidermonkey/common.nix:174-178`)
 unconditionally symlinks `$out/bin/js` to `js<major>`, so plain `js` and
 `js140` both land on `PATH` and every `js …` command in this issue works as
-written. The job needs Node in its `packages` too, since the generator step
-runs there. A `jsshell` download or jsvu's `sm` is a fine way to try this by
-hand first; Nix is what the committed setup should use.
+written. The shared shell already carries the selected Node for the generator
+step. A `jsshell` download or jsvu's `sm` is a fine way to try this by hand
+first; Nix is what the committed setup should use.
 
 That is the whole first version. It deliberately does **not** port the effects
 layer: no `Effect` runner, no `ModuleMap`, no `sandbox`/`write`/`await`
@@ -135,14 +140,11 @@ version-dependent — `print`, `putstr`, `quit`, `scriptArgs`, `os.getenv`,
 
 ### Tasks
 
-- [ ] Declare a `spidermonkey` `NixJob` pinning the shell and Node from the
-      existing Nixpkgs commit, in a module that owns it the way
-      `nodeNixJobs` (`../../ci/node/module.f.mjs`) owns the Node ones — or,
-      closer in size, the way `denoNixJob` and `bunNixJob` each sit beside the
-      steps that enter them — and add it to `nixJobs` in `../../ci/module.f.mjs`
-      — `nixFlakes` writes the collection it is handed, so a job absent from
-      that list generates no flake. `pkgs.spidermonkey_140` is the newest attribute the pinned commit
-      offers; confirm the version the built shell reports.
+- [ ] Confirm a SpiderMonkey package on the accepted Nixpkgs commit, then
+      add it to `devNixJob`'s shared package list after the runner works.
+      `pkgs.spidermonkey_140` was the newest attribute on the historically
+      inspected `f4f6986`; inspect the current snapshot and confirm the built
+      shell's exact version rather than treating that old result as a pin.
 - [ ] Check what that shell provides — output, exit code, args, environment,
       job queue, module loading. Note anything that makes the generated file
       unnecessary.

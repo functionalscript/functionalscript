@@ -1,9 +1,9 @@
 /**
  * Prints the shared operator test data as Rust.
  *
- * The output is the directory `nanvm-lib/tests/test/gen.corpus/`: a file per
+ * The output is the directory `nanvm/lib/tests/test/gen.corpus/`: a file per
  * group, one statement per case, calling the hand-written helpers in
- * `nanvm-lib/tests/test/harness.rs`, and a `mod.rs` that runs them all. Only
+ * `nanvm/lib/tests/test/harness.rs`, and a `mod.rs` that runs them all. Only
  * the helpers are written by hand — a new operator case is added to
  * [`../module.f.mjs`](../module.f.mjs) and appears on both the JavaScript and
  * the Rust side at once.
@@ -40,7 +40,7 @@
  * import { generate } from './module.f.mjs'
  * import { data } from '../module.f.mjs'
  *
- * generate(data) // the files of `nanvm-lib/tests/test/gen.corpus/`
+ * generate(data) // the files of `nanvm/lib/tests/test/gen.corpus/`
  * ```
  */
 
@@ -103,7 +103,7 @@ const caseText = shared => e => nestsOperation(shared)(e)
  * corpus as one file had grown to within a few kilobytes of it. A group
  * stays far below the cap, and a new group is a new file.
  */
-export const directory = 'nanvm-lib/tests/test/gen.corpus'
+export const directory = 'nanvm/lib/tests/test/gen.corpus'
 
 /**
  * The Rust function name for each group the corpus covers, keyed by

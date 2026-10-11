@@ -117,7 +117,7 @@ See [architecture.md §Human-readable paths](./architecture.md).
    remains.
 3. ~~Rust code generator (FJS)~~ — done: the MVP pipeline, the
    compiler-bootstrap vehicle, and the AOT backend
-   (see [`nanvm-lib/todo/mvp-roadmap.md`](../../nanvm-lib/todo/mvp-roadmap.md))
+   (see [`nanvm/lib/todo/mvp-roadmap.md`](../../nanvm/lib/todo/mvp-roadmap.md))
 4. [FJS module loading](../../fjs/compiler/todo/load-modules-without-import-effect.md)
    and [proof loading](../../fjs/emergent_testing/todo/load-proofs-through-fjs.md)
    through the parser/linker and FJS interpreter. For native self-hosting,

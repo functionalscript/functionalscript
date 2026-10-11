@@ -54,5 +54,5 @@ invocation owns its cache; captured values keep their existing identities.
   and interpreter integration.
 - [FJS module loading](../../../compiler/todo/load-modules-without-import-effect.md) —
   its native path depends on parity and compiler coverage; Node loading can proceed separately.
-- [callable-function-objects](../../../../nanvm-lib/todo/callable-function-objects.md)
+- [callable-function-objects](../../../../nanvm/lib/todo/callable-function-objects.md)
   — the direct AOT captured-frame contract.

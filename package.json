@@ -21,7 +21,7 @@
     "website": "node ./fjs/module.mjs r ./fjs/website/module.f.mjs"
   },
   "engines": {
-    "node": ">=22"
+    "node": "26.10.0"
   },
   "bin": {
     "fjs": "fjs/module.mjs"

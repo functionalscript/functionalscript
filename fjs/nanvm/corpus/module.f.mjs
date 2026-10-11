@@ -4,7 +4,7 @@
  * own identity, laziness and throws as ordinary values, so the same file can
  * be run by Node (the independent reference), by the FJS interpreter and, as
  * generated Rust, by `nanvm-lib`. See
- * [callable-function-objects](../../../nanvm-lib/todo/callable-function-objects.md),
+ * [callable-function-objects](../../../nanvm/lib/todo/callable-function-objects.md),
  * Stage 8.
  *
  * Every fixture is in the corpus unless {@link exceptions} names it and says
@@ -17,7 +17,7 @@
 import { isArray } from '../../types/array/module.f.mjs'
 
 /** Where the fixtures are: one `.mjs` module each, a helper one imports beside them. */
-export const fixturesDirectory = 'nanvm-harness/fixtures'
+export const fixturesDirectory = 'nanvm/harness/fixtures'
 
 /**
  * The fixtures no executor comparison covers, each with its reason. A fixture
@@ -27,10 +27,10 @@ export const fixturesDirectory = 'nanvm-harness/fixtures'
  * @type {{ readonly [file: string]: string }}
  */
 export const exceptions = {
-    'console.mjs': 'exports programs for a host to perform, not values: `nanvm-harness/tests/console.rs` and `fjs/nanvm/parity/console.proof.mjs` compare the hosts through them',
+    'console.mjs': 'exports programs for a host to perform, not values: `nanvm/harness/tests/console.rs` and `fjs/nanvm/parity/console.proof.mjs` compare the hosts through them',
     'function-text.mjs': 'a function\'s text is the specified function-text exception: the reference prints the host\'s source, the executors the shared renderer\'s',
     'function.mjs': 'exports a function as its default, which the harness\'s own call action tests; a language call is observed by a fixture that calls at module level',
-    'parity.mjs': 'exports programs for a host to perform, not values: `nanvm-harness/tests/parity.rs` and `fjs/nanvm/parity/proof.mjs` compare the hosts through them',
+    'parity.mjs': 'exports programs for a host to perform, not values: `nanvm/harness/tests/parity.rs` and `fjs/nanvm/parity/proof.mjs` compare the hosts through them',
     'rest-function.mjs': 'exports a function as its default, which the harness\'s own call action tests; a language call is observed by a fixture that calls at module level',
 }
 

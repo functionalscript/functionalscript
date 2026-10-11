@@ -1,7 +1,7 @@
 # Design principles
 
 These principles are repository-wide: they govern both code bases — `fjs/`
-(FunctionalScript / TypeScript) and `nanvm-lib/` (Rust). Three are restated in
+(FunctionalScript / TypeScript) and `nanvm/lib/` (Rust). Three are restated in
 brief at the top of [AGENTS.md](../AGENTS.md); everything here is their full text.
 
 ## Contents

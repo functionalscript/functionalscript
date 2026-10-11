@@ -1,9 +1,9 @@
 /**
- * The Node host's half of the console parity corpus. `nanvm-harness/fixtures/console.mjs`
+ * The Node host's half of the console parity corpus. `nanvm/harness/fixtures/console.mjs`
  * holds programs that read standard input and write standard output and error;
  * here each runs in a child process (`console-child.mjs`) that is given the
  * case's input and whose output is held. The answers and the bytes written must
- * be what the case says, as `nanvm-harness/tests/console.rs` has the native host
+ * be what the case says, as `nanvm/harness/tests/console.rs` has the native host
  * do over buffers.
  */
 
@@ -14,7 +14,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { assertEq } from '../../asserts/module.f.mjs'
-import * as console_ from '../../../nanvm-harness/fixtures/console.mjs'
+import * as console_ from '../../../nanvm/harness/fixtures/console.mjs'
 
 // A path for the platform, not the URL's `pathname`, which is `/C:/...` on Windows
 // and percent-encoded where a name has spaces.

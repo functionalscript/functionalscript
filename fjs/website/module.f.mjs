@@ -530,7 +530,7 @@ const holdsDemo = demos => path => toArray(entries(demos))
  * **Every directory lists its files.** Listing them only where a
  * `module.f.mjs` sat was a guess at which directories hold something a reader
  * would open, and it was wrong on 42 of the 190 pages: `changelog/` has 104
- * release notes and rendered an empty page, `nanvm-lib/src/vm/array/` five
+ * release notes and rendered an empty page, `nanvm/lib/src/vm/array/` five
  * Rust sources, `fjs/types/option/` its `types.ts`. What a directory holds is
  * what the walk found in it, minus the generator's own output.
  *

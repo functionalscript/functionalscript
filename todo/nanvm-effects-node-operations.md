@@ -17,7 +17,7 @@ added later; do not maintain a separate enumeration here.
 
 The host-JavaScript `import` effect is excluded from this native task. Native
 module loading belongs to the [FJS module loader](../fjs/compiler/todo/load-modules-without-import-effect.md)
-and follows the [native source-loading contract](../nanvm-lib/todo/mvp-roadmap.md#post-mvp-milestone-self-hosting):
+and follows the [native source-loading contract](../nanvm/lib/todo/mvp-roadmap.md#post-mvp-milestone-self-hosting):
 supported FunctionalScript, not arbitrary JavaScript or host modules. This does
 not remove or change `import` support in existing JavaScript runners.
 
@@ -45,19 +45,19 @@ implementation details remain unspecified here.
         index into the host's table of open files, as `Handle` in
         `fjs/effects/node/types.ts` allows; it is never reused, and a closed one
         is `EBADF`. A FIFO is refused rather than opened without blocking
-        ([todo](../nanvm-effects-node/todo/non-blocking-open.md)).
+        ([todo](../nanvm/effects-node/todo/non-blocking-open.md)).
 - [ ] Complete the [asynchronous native-effects task](./nanvm-effects-node-async.md).
 - [ ] Verify equivalent observable behavior against the Node runner for the full
       native scope above.
-  - [x] The file operations through one corpus: `nanvm-harness/fixtures/parity.mjs`
+  - [x] The file operations through one corpus: `nanvm/harness/fixtures/parity.mjs`
         holds programs the Node runner (`fjs/nanvm/parity/proof.mjs`) and
-        `nanvm-effects-node` (`nanvm-harness/tests/parity.rs`) both perform
+        `nanvm-effects-node` (`nanvm/harness/tests/parity.rs`) both perform
         against one `expected`. Add a case there when an operation gains one.
   - [x] `catch`, `sandbox` and `now`: the `thunks` case, over what they answer
         rather than the clock's value.
   - [x] `resolveFileModule` of a path: the `resolution` case. A module relative
         to a parent URL is left out, for a file URL is spelled by platform.
-  - [x] The console: `nanvm-harness/fixtures/console.mjs`, performed over buffers
-        by `nanvm-harness/tests/console.rs` and in a child process with held
+  - [x] The console: `nanvm/harness/fixtures/console.mjs`, performed over buffers
+        by `nanvm/harness/tests/console.rs` and in a child process with held
         streams by `fjs/nanvm/parity/console.proof.mjs`.
   - [ ] What the corpus leaves out on purpose (see its header) stays open.

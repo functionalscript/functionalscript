@@ -1,9 +1,8 @@
 # Nix environments
 
 One reproducible toolchain, shared by developers and CI, so that what passes on
-your machine is what passes on the runners — except the Node 22 and Node 24
-compatibility jobs, on a flake each, the two Windows platform jobs, which run
-without Nix, the publishing workflow, on the Node `setup-node` installs, and
+your machine is what passes on the runners — except Intel macOS and the two
+Windows platform jobs, which install their tools directly, the publishing workflow, on the Node `setup-node` installs, and
 the packed-package check that closes `node26`, which installs the published
 tarball as a consumer would.
 
@@ -16,10 +15,6 @@ Everything the project builds and tests with lives in the shell
 tooling. It is not a convenience assembled alongside CI: every CI job but the
 exceptions named above runs its commands inside this very shell, so it cannot
 drift from them.
-
-Two jobs need something this shell deliberately cannot provide: an older `node`,
-for the commands that resolve their runtime from `PATH`. Those get a
-subdirectory with a flake and a `run` script of their own.
 
 Everything else a job needs is here, including what only one platform can have.
 The shell is not identical on every system — `x86_64-linux` carries a 32-bit
@@ -34,22 +29,35 @@ what each one has is something you read rather than evaluate.
 The directory takes the `gen.` name every generated file has
 ([CONTRIBUTING.md](../../../CONTRIBUTING.md#naming-generated-files)), and
 nothing handwritten lives in it — which is why this README sits beside the
-generator instead. Every `flake.nix` and `run` there is written by
+generator instead. The shared `flake.nix` and `run` are written by
 [`module.f.mjs`](./module.f.mjs) from
 [`../config/module.f.js`](../config/module.f.js), which is also where tool
 versions and pinned commits are chosen. Don't edit them by hand — change the
-generator or the config, run `npm run gen`, and commit the result. CI fails when
+generator or the config, run `./dev.sh npm run gen`, and commit the result. CI fails when
 the committed files no longer match what the generator produces, and
 `gen:clean` empties the directory first, so a job the generator stopped
 writing shows up as deletions.
 
+Run generation directly, without standalone `gen:clean`: the existing lock is
+needed to enter the shell before generation removes and recreates it. An
+unsuccessful lock update is incomplete generation, so commit the resulting
+shared lock only after generation succeeds.
+
 `flake.lock` is generated too, but not by `fjs ci`, which never runs Nix: the
 generator writes [`gen.nix/lock-update.sh`](../../../gen.nix/lock-update.sh),
-which locks each flake from its pinned commit through real Nix, and
+which locks the shared flake from its pinned commit through real Nix, and
 `npm run gen` ends by running it. So a committed lock that differs from what
 the pinned commit produces is a drift-check failure like any other stale
 generated file, and `gen` needs Nix. Forgetting is not silent either way — the
 next CI job into the shell fails rather than quietly resolving a new lock.
+
+`fjs ci` alone does not clean obsolete output in another project. Upgrades
+from the older three-flake layout must delete `gen.nix/node22/` and
+`gen.nix/node24/` themselves; this repository's integrated generation removes
+them. The supported toolset is one exact accepted version per tool for each
+prerelease, preserved in the release's configuration, locks and tested toolset
+record. An older tool requires a FunctionalScript release whose record names
+it; future additional-version support depends on actual demand.
 
 The scripts carry no executable bit: a regeneration from nothing cannot set
 one, so a step runs them as `sh ./gen.nix/run <command>` and the mode never
@@ -60,12 +68,12 @@ project.
 
 ## Why the shells look the way they do
 
-The flakes stay flat and explicit — no job selection, no `flake-utils`, no
+The flake stays explicit — no job selection, no `flake-utils`, no
 shared modules. A reader should be able to see what a shell provides without
 evaluating anything, and a job that needs a second system gets a second
 attribute rather than a loop.
 
-The flakes state pinned commits, not package versions. The version a pin
+The flake states pinned commits, not package versions. The version a pin
 resolves to is asserted by the jobs that enter the shell, which also catches a
 shell that builds but hands over the wrong binary — something a version restated
 in the flake could never catch.
@@ -76,6 +84,8 @@ carries different weight is Bun's: Nixpkgs ships a release two of this
 repository's proofs fail on, so its flake overrides the archive, and that check
 is what confirms the override took effect.
 
+The generated shell supports Linux and ARM macOS. Intel macOS installs the
+pinned tools directly ([CONTRIBUTING.md](../../../CONTRIBUTING.md#direct-tools-on-intel-macos)).
 Nix does not run natively on Windows; a Windows developer reaches this shell
 through the repository's devcontainer or WSL2
 ([CONTRIBUTING.md](../../../CONTRIBUTING.md#the-nix-shell)), or works on bare

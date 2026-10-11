@@ -17,7 +17,7 @@ first.
 
 NaNVM does not detect an inconsistent comparator, since detecting one needs
 every pair compared; it answers what its stable merge sort answers
-(`nanvm-lib/src/vm/array/README.md`). The shared corpus pins only comparators
+(`nanvm/lib/src/vm/array/README.md`). The shared corpus pins only comparators
 whose answer does not depend on the order.
 
 ### Proposal

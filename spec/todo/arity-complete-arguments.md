@@ -6,8 +6,9 @@
 ### Scope: an alternative, not a parameter blocker
 
 The [named-and-rest parameter plan](./3120-parameters.md), implemented in #2237, separates
-`['arg', N]` from `['rest']` and uses hand-written arrow factories. It does
-not expose the original supplied argument count inside a positive-length
+`['arg', N]` from `['rest']`. Its original callable construction used
+hand-written arrow factories; the interpreters now retain represented values.
+It does not expose the original supplied argument count inside a positive-length
 fixed prefix. This file tracks the stronger, alternative requirement below;
 it is not a prerequisite for the fixed/rest implementation.
 
@@ -53,7 +54,8 @@ limits `length` to 16.
 - [Review finding](https://github.com/functionalscript/functionalscript/pull/2133#discussion_r4054015547)
   — the complete-list writer obstruction that motivated the earlier task.
 - [Serialization](./serialization.md#function-text-and-serialization) —
-  callable serialization and default function text have separate open questions.
+  code-only default function text is implemented; broader callable serialization
+  and future execution profiles remain separate design work.
 - [Statement-aware intrinsics](../../fjs/compiler/parser/todo/statement-aware-intrinsics.md),
   [built-in](./2360-built-in.md) — how a complete source pattern is
   recognized; `defineProperty` stays prohibited outside one.
