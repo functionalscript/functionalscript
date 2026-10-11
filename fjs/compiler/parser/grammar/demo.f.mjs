@@ -11,11 +11,11 @@
  *
  * **A terminal is a token, not a character.** The grammar reads the
  * tokenizer's output, each token encoded as a symbol by
- * `fjs/ebnf/token_symbol`, so a pill is a token's name: `=>`, `import`. Four
- * names stand for any token of their kind rather than for their own text —
- * `id`, `string`, `number` and `bigint` — and are drawn as grey pills in
- * italics. Whitespace and comments are no tokens, so no diagram mentions
- * them.
+ * `fjs/ebnf/token_symbol`, so a pill is a token's name: `=>`, `import`.
+ * Names that stand for any token of their kind rather than their own text —
+ * `id`, `string`, `number`, `bigint` and the four template chunks — are
+ * drawn as grey pills in italics. Whitespace and comments are no tokens, so
+ * no diagram mentions them.
  *
  * **The diagrams are the exported rules, by their export names**, and so
  * are the operator layers of `eagerTail`, one diagram per layer, from
@@ -37,7 +37,7 @@ import {
     conditionalTail, constStatement, djsModule, eagerTail, end, entries, entry, func, group, groupOperand,
     identifier, identifierName, importBinding, importBindings, importClause, importStatement, item,
     lastStatement, member, namedImports, object, optionalStep, parameterNames, parameters, paren,
-    parenGroup, parenGroupOperand, parenthesized, primitive, statement, terminator, unary, unaryOperand,
+    parenGroup, parenGroupOperand, parenthesized, primitive, statement, template, terminator, unary, unaryOperand,
     value, values,
 } from './module.f.mjs'
 import { eagerLayers } from '../../ast/module.f.mjs'
@@ -104,6 +104,7 @@ export const diagrams = [
     ['access', nameOf(access)],
     ['optionalStep', nameOf(optionalStep)],
     ['callArguments', nameOf(callArguments)],
+    ['template', nameOf(template)],
     ['array', nameOf(array)],
     ['values', nameOf(values)],
     ['item', nameOf(item)],
@@ -117,6 +118,9 @@ export const diagrams = [
 ]
 
 /** The token kinds that stand for any token of their kind, not for their own text. */
-const categories = /** @type {const} */ (['id', 'string', 'number', 'bigint'])
+const categories = /** @type {const} */ ([
+    'id', 'string', 'number', 'bigint',
+    'noSubstitutionTemplate', 'templateHead', 'templateMiddle', 'templateTail',
+])
 
 export const demo = railroadDemo('The FunctionalScript module grammar, drawn from the rules the parser reads a module with. Follow a track from left to right; a pill is a token, a grey one in italics any token of its kind, and a box is another diagram — select it to go there.')(toDiagrams(tokens(encoding(_ordinaryTokenNames), categories))(ruleSet)(diagrams))

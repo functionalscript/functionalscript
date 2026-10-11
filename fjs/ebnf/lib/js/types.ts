@@ -17,6 +17,7 @@
 import type { Set } from '../../types.ts'
 import type { keywords } from '../../../js/keywords/module.f.js'
 import type { operators } from './module.f.mjs'
+import type { templateEscape } from './module.f.mjs'
 
 /**
  * The content of a block comment: a `*` and what follows it, any other
@@ -39,10 +40,43 @@ export type AfterStar = () => readonly ['const', {
     readonly unterminated: ''
 }]
 
+/** A template chunk up to its backtick or the dollar of a substitution. */
+export type TemplateContent = () => readonly ['const', {
+    readonly end: '`'
+    readonly dollar: readonly ['$', TemplateAfterDollar]
+    readonly escape: readonly [typeof templateEscape, TemplateContent]
+    readonly other: readonly [Set, TemplateContent]
+}]
+
+/** The left-factored character after a template's dollar. */
+export type TemplateAfterDollar = () => readonly ['const', {
+    readonly substitution: '{'
+    readonly end: '`'
+    readonly dollar: readonly ['$', TemplateAfterDollar]
+    readonly escape: readonly [typeof templateEscape, TemplateContent]
+    readonly other: readonly [Set, TemplateContent]
+}]
+
 export type StringToken = {
     readonly kind: 'string'
     readonly value: string
 }
+
+/** The four chunk kinds preserve the template's substitution boundaries. */
+export type TemplateKind = 'noSubstitutionTemplate' | 'templateHead' | 'templateMiddle' | 'templateTail'
+
+/**
+ * A template chunk's cooked value and exact source spelling, both without
+ * its delimiters. `source` preserves escape backslashes and raw CR/CRLF;
+ * consumers can apply their own spelling restrictions independently of cooking.
+ */
+export type TemplateToken = {
+    readonly [K in TemplateKind]: {
+        readonly kind: K
+        readonly value: string
+        readonly source: string
+    }
+}[TemplateKind]
 
 /**
  * A numeric literal, kept as the exact source lexeme.
@@ -173,6 +207,7 @@ export type JsToken = |
     WhitespaceToken |
     NewLineToken |
     StringToken |
+    TemplateToken |
     NumberToken |
     ErrorToken |
     IdToken |
