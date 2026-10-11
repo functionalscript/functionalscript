@@ -63,14 +63,18 @@ corpus should wait for that move, or be rebased over it.
    `named-imports`). The expectation would print the export object and not
    only `default`, and the comparison would read it; this widens
    `fjs/nanvm/expected` and the Rust comparison, and is the main design risk.
-   Decision 3 already names the two obstacles, and the order matters because
-   Node is the authority: first a second Node and interpreter route in
-   `fjs/nanvm/corpus/proof.mjs`, which reads only `default` today, comparing
-   whole export objects with an order-insensitive comparison (a module
-   namespace sorts its keys, the represented export object keeps declaration
-   order); only then the expectation and the Rust comparison, which must
-   compare export objects the same way; and the hand-written assertions go
-   last, once Node has been shown to agree with the interpreter on them.
+   The order matters because Node is the authority: first a second Node and
+   interpreter route in `fjs/nanvm/corpus/proof.mjs`, which reads only
+   `default` today, comparing whole export objects; only then the expectation
+   and the Rust comparison; and the hand-written assertions go last, once
+   Node has been shown to agree with the interpreter on them. Decision 3 of
+   Stage 8 says the comparison would have to be order-insensitive because the
+   represented export object keeps declaration order. That is stale: the
+   compiler's parser sorts the exports before it builds the object, so its keys
+   are in module-namespace order, as Node's are (the AST types say so). The
+   comparison therefore stays order-sensitive, which keeps pinning export
+   order, as `named_exports` does today, and the same change corrects decision
+   3's wording.
 2. **Delete the hand-written throw checks the `THROWS` record covers.** Every
    expectation records whether its fixture throws, and the Rust test compares
    it. The hand-written `Thrown(_)` assertions for the `throws`, `nullish`,
@@ -167,7 +171,7 @@ compared by the existing machinery with nothing retyped.
 ### Tasks
 
 - [ ] 2: delete the hand-written throw checks the `THROWS` record covers.
-- [ ] 1: retire `undefinedDefault`: Node and interpreter routes for whole export objects first, then the expectation and the Rust comparison, then the deletions.
+- [ ] 1: retire `undefinedDefault`: Node and interpreter routes for whole export objects first, then the expectation and the Rust comparison (order-sensitive), then the deletions, with decision 3's stale order claim corrected.
 - [ ] 4: a special-numbers fixture, with the independent Rust assertion for `-0`, `NaN` and the infinities.
 - [ ] 5: capturing callbacks, guarded built-in calls and the other families' methods through the compile path.
 - [ ] 6: BigInt arithmetic, shift and relational operators, equality and the mixed-type `TypeError` through the compile path.
