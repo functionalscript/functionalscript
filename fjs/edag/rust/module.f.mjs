@@ -3,7 +3,7 @@
  *
  * Shared by two generators that print the same node shapes for two different
  * purposes: [`../../nanvm/rust/module.f.mjs`](../../nanvm/rust/module.f.mjs)
- * prints the operator conformance corpus as `nanvm-lib/tests/test/gen.corpus/`,
+ * prints the operator conformance corpus as `nanvm/lib/tests/test/gen.corpus/`,
  * and [`../../compiler/rust/module.f.mjs`](../../compiler/rust/module.f.mjs) prints a
  * compiled module's EDAG as the `.rs` output of `fjs compile`. Both need the
  * same literal rendering, the same operator tables, and the same binding
@@ -45,7 +45,7 @@
  */
 
 import { f64Bits, i64Literal, stringLiteral, u64WordItems, utf16Units } from '../../media/rust/module.f.mjs'
-import { error, mapOk, ok, okList, okThen, unwrap } from '../../types/result/module.f.mjs'
+import { error, mapOk, ok, okList, okThen, unwrap } from '../../types/result/module.f.js'
 import { lazyOp2Id } from '../module.f.mjs'
 import { isIndex, maxLength } from '../../types/function/length/module.f.mjs'
 import { tryFunctionText } from '../../compiler/serializer/module.f.mjs'
@@ -830,7 +830,7 @@ const printer = nested => shared => root => {
         // The function itself, as a value: the closure's `self_` parameter
         // wrapped as the `Function` it is, an `Rc`-cheap clone of the one
         // value every read of `self` is — the identity JavaScript gives a
-        // function for its lifetime, which `nanvm-lib/todo/callable-function-objects.md`
+        // function for its lifetime, which `nanvm/lib/todo/callable-function-objects.md`
         // asks for by threading that handle rather than rebuilding one.
         if (id === 'self') { return ok(cat([vm('Function'), '::new(self_.clone())', toAny])) }
         if (id === '[]' && !hasSpread(a)) { return arrayExpr(a) }

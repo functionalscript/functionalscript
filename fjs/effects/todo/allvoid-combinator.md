@@ -14,7 +14,7 @@ return mapStep(allOk(...sub.map(e => registerOne(t, e))), () => undefined)
 
 return mapStep(allOk(...tests.map(e => registerOne(ctx, e))), () => undefined)
 
-return mapStep(allOk(...modules.map(([k, v]) => registerModule(ctx, k, v, star))), () => undefined)
+return mapStep(allOk(...modules.map(([k, v]) => registerModule(ctx, k, v))), () => undefined)
 ```
 
 `fjs/effects/module.f.mjs` already ships `forEachStep` (the *sequential* void

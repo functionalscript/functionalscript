@@ -333,6 +333,51 @@ Nix-expression shapes it generates from are this repository's build machinery;
 they are recorded because contributors read the notes, not because anyone is
 invited to build against them.
 
+#### Tested toolset
+
+During prerelease, a release supports one exact accepted version of each tool,
+chosen close to the latest stable version the project can build and test
+reliably. Updating a pin replaces that version for the next release. An older
+tool requires an older FunctionalScript release with a suitable recorded
+toolset; additional support after release remains subject to actual demand.
+
+Include the tested toolset in the release notes or link a release document
+that records it. The Markdown format for changelog files remains list items
+only: a toolset list item may contain the versions or link that record. Record
+Node, Deno, Bun, Rust, TypeScript/TSGO, Wasmtime and Wasmer, using
+[`fjs/ci/config/module.f.js`](../fjs/ci/config/module.f.js) from the release
+revision as the source. Preserve that revision's configuration and generated
+locks. Do not infer earlier releases' supported versions from today's pins.
+
+Verify the record against the versions actually used by the passing checks.
+Run each version command in `./dev.sh` on the final release revision:
+
+```sh
+./dev.sh node --version
+./dev.sh deno --version
+./dev.sh bun --version
+./dev.sh rustc --version
+./dev.sh tsc --version
+./dev.sh wasmtime --version
+./dev.sh wasmer --version
+```
+
+Compare their output with the configuration and record. Check the passing CI
+version assertions on each platform too, including `setup-node` and clean
+packed consumers outside Nix. Confirm that `package.json`'s `engines.node`,
+the root `package-lock.json` engine metadata and `.node-version` all equal the
+exact scalar `node` pin, so CLI support, npm consumers and the website build
+use the same selected Node release. Check the generated publishing workflow
+uses that pin. A mismatch or a failing tool update is resolved through
+[the version-update acceptance procedure](../fjs/ci/update-versions.md),
+then the affected checks and this verification are rerun; it is not another
+supported version to add to the record.
+
+Keep the verified version outputs with the release PR's validation evidence.
+If the release revision or pins change while the PR is open, refresh that
+evidence and the record before merging. Historical release records retain
+their original toolsets.
+
 ### 7. Open the release pull request
 
 Titled `Release X.Y.Z`. It bumps `"version"` in `package.json` (and
@@ -340,6 +385,8 @@ Titled `Release X.Y.Z`. It bumps `"version"` in `package.json` (and
 triggers the `npm publish` workflow. Before merging:
 
 - [ ] the version in `package.json` matches the changelog file name
+- [ ] the release notes contain or link the tested toolset, verified against
+      the final release revision's passing checks as described above
 - [ ] for a regular release, every urgent release-line fix is present in `main`,
       adapted if necessary so upgrading preserves it; urgent-fix PRs record
       fixes already present in `main`

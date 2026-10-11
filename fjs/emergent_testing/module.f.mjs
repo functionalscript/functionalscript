@@ -32,7 +32,7 @@ import {
     walkStep,
 } from '../effects/module.f.mjs'
 import { loadModuleMap } from '../dev/module.f.mjs'
-import { invert, ok } from '../types/result/module.f.mjs'
+import { invert, ok } from '../types/result/module.f.js'
 import { definedEntries } from '../types/object/module.f.mjs'
 import { concat } from '../types/list/module.f.mjs'
 import { isIdentifier, isInteger } from '../js/identifier/module.f.mjs'
@@ -180,19 +180,12 @@ export const collectTests = (path, throws, v) => {
  * This is the correct model for Node `--test`, Bun, and Deno, where tests must
  * be declared upfront and the framework drives execution.
  *
- * @type {(ctx: TestContext, k: string, v: unknown, star: string) => Effect<Test | All | Await, void, NotImplemented>}
+ * @type {(ctx: TestContext, k: string, v: unknown) => Effect<Test | All | Await, void, NotImplemented>}
  */
-export const registerModule = (ctx, k, v, star) => {
+export const registerModule = (ctx, k, v) => {
     /** @type {(ctx: TestContext, entry: _TestAndPath) => Effect<Test | All | Await, void, NotImplemented>} */
     const registerOne = (ctx, [path, { fn, throws }]) => {
-        // `star` (non-empty for Bun and for Node below the 26 baseline) signals
-        // that all sub-tests run inline inside this single registration, so an
-        // external runner reports fewer tests than `fjs t` for the same suite.
-        // Not appended to throw-tests since those never produce sub-tests. The
-        // path already contains '.throw' when a test is expected to throw, so no
-        // extra suffix is needed.
-        const base = fmtImport(k, path)
-        const name = throws ? base : `${base}${star}`
+        const name = fmtImport(k, path)
         // The registered callback panics on failure, deliberately. `Test` hands
         // it to an external framework (node `--test`, Bun, Deno) that takes a
         // body which either returns or throws: there is no channel to answer a
@@ -503,12 +496,12 @@ export const testAll = reporter => options =>
  * Registers all modules in `moduleMap` that export a `proof` property with
  * `ctx`. Delegates to `registerModule` for each matching entry.
  *
- * @type {(ctx: TestContext, star: string) => (moduleMap: ModuleMap) => Effect<Test | All | Await, void, NotImplemented>}
+ * @type {(ctx: TestContext) => (moduleMap: ModuleMap) => Effect<Test | All | Await, void, NotImplemented>}
  */
-const registerModuleMap = (ctx, star) => moduleMap => {
+const registerModuleMap = ctx => moduleMap => {
     const modules = proofEntries(moduleMap)
     if (modules.length === 0) { return pureOk(undefined) }
-    return mapStep(allOk(...modules.map(([k, v]) => registerModule(ctx, k, v, star))), () => undefined)
+    return mapStep(allOk(...modules.map(([k, v]) => registerModule(ctx, k, v))), () => undefined)
 }
 
 /** @type {(k: string | null) => string} */
@@ -755,15 +748,12 @@ export const main =
  * Entry point for external test frameworks (Node `--test`, Bun, Deno).
  *
  * Discovers test modules via `loadModuleMap`, then registers each with the
- * framework-appropriate `TestContext` selected from `NodeProgramOptions`
- * based on the detected `engine`.
+ * host-selected `TestContext` supplied through `NodeProgramOptions`.
  *
  * @type {NodeProgram}
  */
 export const register = o => {
-    const star = o.inlineTestContext ? ' ...' : ''
-    const ctx = o.engine === 'bun' ? o.bunTestContext : o.testContext
-    const registered = step(loadModuleMap(o.env), registerModuleMap(ctx, star))
+    const registered = step(loadModuleMap(o.env), registerModuleMap(o.testContext))
     // `exitStep`, not `mapStep(…, () => 0)`: registering is the whole job here,
     // so "registered nothing, exit 0" is the answer this used to give and the
     // one it must not. A success has no code of its own, which is exactly the

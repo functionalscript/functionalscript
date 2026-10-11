@@ -13,7 +13,7 @@
  * @import { IoChannel, ReadWhole, ResolveFileModule } from '../../effects/node/types.ts'
  */
 
-import { error } from '../../types/result/module.f.mjs'
+import { error } from '../../types/result/module.f.js'
 import { tokenize } from '../tokenizer/module.f.mjs'
 import { stringToList } from '../../text/utf16/module.f.mjs'
 import { decode as decodeImportPath } from '../../path/import/module.f.mjs'

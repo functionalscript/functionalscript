@@ -5,18 +5,18 @@
 
 ### Problem
 
-`gen.ci.yml` runs eleven jobs: the six platform jobs (`job` in
-`../module.f.mjs`) and five toolchain jobs (`canonicalJobs`: `deno`, `bun`,
-and `nodeVersionJobs`' `node22`, `node24`, `node26`). The WASM checks were a
-sixth toolchain job, `wasm`, and are steps of `ubuntu-arm` now.
+`gen.ci.yml` runs nine jobs: the six platform jobs (`job` in
+`../module.f.mjs`) and three toolchain jobs (`canonicalJobs`: `deno`, `bun`,
+and `nodeVersionJobs`' `node26`). The WASM checks were a
+separate toolchain job, `wasm`, and are steps of `ubuntu-arm` now.
 `Setup.mergeQueueOnly` can hold the macOS and Windows jobs to the merge queue,
 but `../self/module.f.mjs` passes none, so every pull-request commit starts all
-eleven — and even with them held there it would start seven — and that costs
+nine — and even with them held there it would start five — and that costs
 more than the work in them:
 
-- **A pull request waits for many runners.** Six of the jobs run on
+- **A pull request waits for many runners.** Four of the jobs run on
   `ubuntu-26.04-arm`, the congested pool, so a pull request waits for the
-  slowest of six runner assignments there rather than for its work.
+  slowest of four runner assignments there rather than for its work.
 - **Work is repeated.** Each job installs Nix, checks out, and realizes its
   shell, and `ubuntu-arm`'s `node --test` runs the same suite, on the same
   system, shell and Node, as `node26`'s `npm run cov`, which adds only
@@ -27,11 +27,13 @@ more than the work in them:
 
 ### Proposal
 
-Six jobs, split by what they prove.
+Six jobs, split by what they prove. Each runtime uses the one exact accepted
+version in `../config/module.f.js`; historical Node versions and their flakes
+have already been removed. All Nix steps use the shared shell.
 
 1. **`ubuntu-arm`, the primary job** — runs on every pull-request commit and
    in the merge queue, and runs everything that can run on `aarch64-linux`:
-   `tsc` and `npm start compile`, Node 26 with coverage, Node 22 and Node 24,
+   `tsc` and `npm start compile`, the selected Node with coverage,
    Deno, Bun, Rust native and every WASM target with both WASM runtimes, the
    generated-file drift check, and the packed-package check.
 2. **Five cross-platform jobs** — `ubuntu-intel`, `macos-intel`, `macos-arm`,
@@ -56,8 +58,10 @@ the queue with `ubuntu-intel`.
 
 Measured over the CI runs of 2026-10-08, with `main` between `0b5f6fdf4` and
 `bb2648dbb`. Most of those runs predate `f7b42b9de` (#2688), when macOS and
-Windows still ran on every pull request, so job run times hold for the new
-layout while the runner waits overstate the load it would see:
+Windows still ran on every pull request. These measurements also predate
+removing Node 22 and Node 24. Keep them as evidence of the former layout;
+remeasure serial time, runner waits, disk use and runner-minutes for the
+selected-version layout before treating any estimate as a prediction:
 
 - When ARM waits were longest, dozens of this repository's own ARM jobs were
   queued ahead while only a handful ran: the congestion is this repository's
@@ -89,30 +93,31 @@ layout while the runner waits overstate the load it would see:
   steps come after the drift check, as they ran in a job without one, and
   `setup-node` with the packed-package check comes last, because `setup-node`
   changes `PATH` for every step after it.
-- **One checkout, several installers.** Each Node runs `npm ci` in its own
-  flake directly before its suite, so each suite runs on an install its own
-  npm made, and Deno and Bun each install directly before their own suite.
+- **One checkout, several installers.** The selected Node runs `npm ci`
+  directly before its suite in the shared shell, and Deno and Bun each install
+  directly before their own suite.
   The proof that `deno` and `bun` run no `npm ci` cannot move to a job that
   runs it; that property stays pinned by the exact command lists in
   `../deno/proof.f.mjs` and `../bun/proof.f.mjs`.
 - **One Nix installer.** Each tool's steps (`denoSteps`, `bunSteps`,
-  `suiteNixSteps`, `node26Steps`, `shellPlatformSteps`) carry
+  `node26Steps`, `shellPlatformSteps`) carry
   their own `nixInstall`, and `toSteps` does not merge duplicates. They have to
   split into version checks and commands before one job can carry them all.
-- **Several flakes in one job.** The primary enters the shared shell and the
-  Node 22 and Node 24 flakes, a step at a time. `nixCoverage` asserts one
-  flake per job, and each of those two flakes takes its id from the job that
-  enters it; both rules move from jobs to steps.
+- **One shared shell.** The primary enters `gen.nix/` a step at a time.
+  There are no per-job shell selectors or flake ids to migrate.
+  `nixCoverage` must continue to prove that every Nix-backed job uses the
+  shared shell and Windows stays outside it.
 - **Failures stop the job.** The first red step skips everything after it, and
   `stepSchema` models no step-level `if`. Order the fast gates first —
   `cargo fmt`, `tsc`, `npm start compile` — so the common failures show early;
   the drift check cannot join them.
-- **The run limit.** `jobTimeout` in `../config/module.f.js` is under the
-  primary's serial time. The primary needs a limit of its own; the five and
+- **The run limit.** Remeasure the primary's serial time against `jobTimeout`
+  in `../config/module.f.js` after removing the historical Node suites. Give
+  the primary a suitable limit of its own if needed; the five and
   `publish-npm` keep `jobTimeout`, so a hung shell build still frees its runner.
   The merge queue's status check timeout has to cover the primary's run plus a
   runner wait.
-- **Proofs keyed on job ids.** `matrixShape` counts eleven jobs. An assertion
+- **Proofs keyed on job ids.** `matrixShape` counts nine jobs. An assertion
   that a removed job does *not* run something would pass because the job is
   gone, so each moves to the primary rather than being deleted with it, keyed
   on the wrapped command where it compares a whole `run` line — as the
@@ -135,10 +140,13 @@ layout while the runner waits overstate the load it would see:
 
 Hold all six platform jobs to the merge queue and keep the toolchain jobs
 parallel, giving `ubuntu-arm`'s WASM checks back a job of their own, now
-with the native Rust. Pull requests keep the primary's gate, spread over six
-jobs, and keep the parallel floor; and on the same measurements the ARM load
-falls by about a fifth — but the six toolchain names stay required checks, and
-every commit still waits for six runners.
+with the native Rust. Pull requests keep the primary's gate spread over the
+selected Node, Deno, Bun and ARM native/WASM jobs, and keep the parallel floor. Those four names
+stay required checks and every commit still waits for four ARM runners.
+Remeasure the load reduction against the new baseline; the old measurement
+included the deleted Node suites. That former layout estimated an ARM-load
+reduction of about a fifth; preserve it as historical evidence, not as a
+prediction for the current four-job alternative.
 
 ### Tasks
 
@@ -151,18 +159,18 @@ every commit still waits for six runners.
       plain `node --test`.
 - [ ] Replace `Setup.mergeQueueOnly` with `Setup.mergeQueue`, and declare the
       break: `Setup` loses `mergeQueueOnly`, and the workflow `fjs ci` writes
-      loses the `deno`, `bun`, `node22`, `node24` and `node26` jobs, so a
+      loses the `deno`, `bun` and `node26` jobs, so a
       project that requires any of them as a status check removes it before
       regenerating, in the order the ruleset task gives. Any job-id export that
       no longer names a job goes into the same declaration.
 - [ ] Give the primary a run limit of its own; rework the `jobTimeout` proof
       and the comments that say every job takes `jobTimeout`.
-- [ ] Move `nixCoverage`'s one-flake-per-job rule to steps.
+- [ ] Preserve `nixCoverage`'s shared-shell and off-Nix Windows coverage.
 - [ ] Re-key every proof on a removed job id; update `matrixShape`.
-- [ ] Measure the primary's disk use on a trial run.
-- [ ] Migrate the ruleset: remove `deno`, `bun`, `node22`, `node24` and
-      `node26` from the required checks **before** the switching pull
-      request enters the merge queue. In the other order, the queue waits for
+- [ ] Measure the primary's serial time, runner waits, runner-minutes and disk
+      use on a trial run of the selected-version layout.
+- [ ] Migrate the ruleset: remove `deno`, `bun` and `node26` from the
+      required checks **before** the switching pull request enters the merge queue. In the other order, the queue waits for
       checks nothing reports until its status check timeout ejects every
       entry.
 - [ ] Rewrite every document that names a removed job or the per-OS
@@ -172,7 +180,7 @@ every commit still waits for six runners.
       [the compiler's README](../../compiler/README.md),
       [../README.md](../README.md), [../nix/README.md](../nix/README.md),
       [packed-consumer-validation](../packed-consumer-validation.md), the
-      generator's JSDoc that counts or names jobs (`nixJobs`, `canonicalJobs`,
+      generator's JSDoc that counts or names jobs (`devNixJob`, `canonicalJobs`,
       `../config/module.f.js`), and the `todo/`s that cite them.
 - [ ] Rewrite the rules of
       [ci-package-aware-deno-and-bun-steps](./ci-package-aware-deno-and-bun-steps.md)
@@ -195,14 +203,12 @@ every commit still waits for six runners.
 - [ci-generator-audience](./ci-generator-audience.md) — this changes what
   `fjs ci` writes for every project: its job ids, the `Setup` default, and
   which suite a pull request runs.
-- [readme-after-shell-consolidation](./readme-after-shell-consolidation.md) —
-  rewrites the same `../README.md` sections as the documents task.
 - [65z-ci-nix](./65z-ci-nix.md) — its job-count argument for having no `dev`
   job changes: on a pull request only the primary enters the shell.
 - [wasmtime-threads-cell-until-47](./wasmtime-threads-cell-until-47.md) —
   decides the threads cell whose guard moves to the primary.
 - [096-ci-caching](./096-ci-caching.md) — one runner realizes the shells per
-  pull-request commit instead of seven; the merge queue still realizes them
+  pull-request commit instead of five; the merge queue still realizes them
   per job.
 - [change-aware-ci](./change-aware-ci.md) — runs only the primary's steps a
   change affects, which is what brings its serial time back down.

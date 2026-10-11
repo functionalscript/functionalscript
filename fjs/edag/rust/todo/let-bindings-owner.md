@@ -1,4 +1,4 @@
-## let-bindings-owner. Two Rust printers spell the `let` line `edag/rust` claims to own
+## let-bindings-owner. `nanvm/rust` spells the `let` line `edag/rust` claims to own
 
 **Priority:** P4
 **Status:** open
@@ -23,8 +23,10 @@ bindings before it — is still written by `fjs/nanvm/rust`:
 Both callers also emit `'#[rustfmt::skip]'` immediately before a
 `fn …<A: IVm>` line and document at length why, and both join a
 `// @generated` header over the lines. `fjs/media/rust` deliberately stops
-at literals, so the item layer's owner is this module, and today it owns
-part of it.
+at literals. The binding mechanism takes an `Exp` and belongs here;
+string-only item wrappers and headers belong in
+[rust-item-helpers](../../../nanvm/todo/rust-item-helpers.md)'s EDAG-free
+item module.
 
 ### Proposal
 
@@ -37,30 +39,53 @@ export const letBindings: (bindings: readonly (readonly [Exp, string])[]) => (na
 ```
 
 `nanvm/rust`'s block becomes `letBindings(used.map(binding))(i => snakeCase(used[i][0]))`
-unwrapped, and `scope`'s temporaries could print through the same export
-with `i => \`c${i}\``. A two-line `skipFn(signature, lines)` — the
-`#[rustfmt::skip]` item wrapper — moves beside it, so the invariant both
-files document is stated once.
+unwrapped, retaining its indentation and plain Rust spelling. This helper
+prints the corpus's named bindings. `fjs/compiler/rust` keeps consuming
+`scopeTagged`: the EDAG printer's `letLine` retains the `let` keyword and
+initializer tags, its import-use metadata, thunk typing and operation `?`
+handling. `scope` remains the plain wrapper that removes tags from
+`scopeTagged`'s output. The compiler's temporaries do not pass through the
+plain `letBindings` helper.
+
+If retained after the formatting-policy decision
+below, `skipFn(signature, lines)` — the `#[rustfmt::skip]` item wrapper —
+lives in `fjs/media/rust/item`, and the printers import it.
 
 **Open question:**
-[generated-rust-module-rustfmt-skip](../../../../nanvm-lib/todo/generated-rust-module-rustfmt-skip.md)
+[generated-rust-module-rustfmt-skip](../../../../nanvm/lib/todo/generated-rust-module-rustfmt-skip.md)
 proposes the opposite for the corpus printer: `fjs/nanvm/rust` stops emitting
 `#[rustfmt::skip]` per function, and one `#[rustfmt::skip] mod generated;`
-in `nanvm-lib/tests/test/main.rs` covers the generated file. If that lands,
-`skipFn` has one caller, `fjs/compiler/rust`'s module, and may not earn its place.
-Which of the two the corpus follows is undecided.
+in `nanvm/lib/tests/test/main.rs` covers the generated file. If that lands,
+`fjs/compiler/rust`'s module alone may not justify a `skipFn` helper.
+Which policy the corpus follows is undecided. The retained helper's owner
+is settled: it consumes strings and already-rendered lines, so it belongs
+in [rust-item-helpers](../../../nanvm/todo/rust-item-helpers.md)'s item
+module. That issue also moves `indent` there, below this printer, which
+then imports it.
 
 ### Tasks
 
-- [ ] `letBindings`, `indent`, `skipFn` in `fjs/edag/rust` with proofs;
-      both printers rewritten over them.
+- [ ] `letBindings` in `fjs/edag/rust` with proofs; move `nanvm/rust`'s
+      named bindings onto it. Import `indent` from the item module
+      rust-item-helpers adds; both printers use that indentation.
+- [ ] Preserve `scopeTagged`'s temporary-binding marks and existing
+      `toRustMarked` proofs: `let` is a keyword, initializer strings,
+      numbers and literal words keep their kinds, the marked text equals
+      `toRust`'s plain text, and no words are left unmarked. Keep `scope`'s
+      lines equal to the untagged `scopeTagged` lines and preserve the
+      compiler demo's highlighting.
+- [ ] If retained after the formatting-policy decision, implement and
+      prove `skipFn` in `fjs/media/rust/item`; the printers using the
+      per-function wrapper import it from there.
 - [ ] `npm run gen`; `tsc`, `fjs test`; generated Rust unchanged.
 
 ### Related
 
 - [`../../../types/ts/todo/66c-emit-literals-via-owner-modules.md`](../../../types/ts/todo/66c-emit-literals-via-owner-modules.md) —
   the same principle for literals; this is the item layer.
-- [generated-rust-module-rustfmt-skip](../../../../nanvm-lib/todo/generated-rust-module-rustfmt-skip.md)
+- [rust-item-helpers](../../../nanvm/todo/rust-item-helpers.md) — owns
+  `indent` and the string-only `skipFn` wrapper if retained.
+- [generated-rust-module-rustfmt-skip](../../../../nanvm/lib/todo/generated-rust-module-rustfmt-skip.md)
   — proposes the corpus stop emitting `#[rustfmt::skip]` per function, which
   `skipFn` would keep; see the open question above.
 - [`../../todo/identity-shared-walks.md`](../../todo/identity-shared-walks.md) —

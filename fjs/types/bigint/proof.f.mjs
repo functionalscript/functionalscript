@@ -8,7 +8,7 @@
 import { demo, parseSize, work } from './demo.f.mjs'
 import { partialRun, run } from '../../effects/mock/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
-import { error, ok, unwrap } from '../result/module.f.mjs'
+import { error, ok, unwrap } from '../result/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import {
     sum,

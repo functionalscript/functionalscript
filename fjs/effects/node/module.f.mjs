@@ -21,7 +21,7 @@
  * @import { Commands, CommandSet, Effect, Func, NotImplemented, Operation } from '../types.ts'
  * @import { EffectList } from '../list/types.ts'
  * @import { List } from '../../types/list/types.ts'
- * @import { Access, Await, Catch, ChildWait, Close, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fstat, Fs, Handle, Headers, Http, IncomingMessage, Inflate, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, Open, Pread, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, ReadRequestBytes, RequestBody, ResolveFileModule, ReadWhole, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Rmdir, Sandbox, SandboxResult, Server, ServerResponse, Spawn, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteExclusive, WriteFile, _ChunkSource, _DoubledLength, _FramingHeader, _Gate, _NoBody, _ReadChunks, _Unframed, _UtfList, _WriteLoop } from './types.ts'
+ * @import { Access, Await, Catch, ChildWait, Close, Console, CreateExclusive, CreateServer, Dirent, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fstat, Fs, Handle, Headers, Http, IncomingMessage, Inflate, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, Open, Pread, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, ReadRequestBytes, RequestBody, ResolveFileModule, ReadWhole, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Rmdir, Sandbox, SandboxResult, Server, ServerResponse, Spawn, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteExclusive, WriteFile, _ChunkSource, _DoubledLength, _FramingHeader, _Gate, _NoBody, _ReadChunks, _Unframed, _UtfList, _WriteLoop } from './types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
@@ -31,8 +31,7 @@ import { isInteger } from '../../types/number/is_integer/module.f.js'
 import { definedEntries } from '../../types/object/module.f.mjs'
 import { byteLength, bytesIn, isWholeBytes, isWholeBytesIn, length, maxLengthBytes, u8ListMsb } from '../../types/bit_vec/module.f.mjs'
 import { nonEmpty, empty as elEmpty } from '../list/module.f.mjs'
-import { ok } from '../../types/result/module.f.mjs'
-import { cmp as versionCmp } from '../../types/version/module.f.mjs'
+import { ok } from '../../types/result/module.f.js'
 import { do_, errorMessage, ioError, toIoError } from '../module.f.mjs'
 import {
     all, allOk, both, catch_, error, errorExit, import_, log, read, readLine, sandbox, write,
@@ -1234,47 +1233,3 @@ export const exitStep = e =>
         const code = r[0] === 'error' ? errorExit(errorMessage(r[1])) : pureOk(0)
         return code
     })
-
-/**
- * A Node version as `process.version` prints it — `v`, then a SemVer version
- * that a nightly or release-candidate build suffixes with a pre-release
- * (`-nightly20260930abc`, `-rc.1`) and may suffix with build metadata
- * (`+…`) — as its numeric core and whether it is a pre-release.
- *
- * Build metadata goes first: its identifiers may hold a `-`, and a
- * pre-release's may too, but the core never does, so the first `-` left
- * begins the pre-release.
- *
- * @type {(nodeVersion: string) => readonly [string, boolean]}
- */
-const nodeRelease = nodeVersion => {
-    const version = nodeVersion.startsWith('v') ? nodeVersion.slice(1) : nodeVersion
-    const plus = version.indexOf('+')
-    const release = plus === -1 ? version : version.slice(0, plus)
-    const dash = release.indexOf('-')
-    return dash === -1 ? [release, false] : [release.slice(0, dash), true]
-}
-
-/**
- * Reports whether an external runner needs FunctionalScript's flattened test
- * registration strategy. Node uses the native `expectFailure` option only
- * from the Node 26 baseline; Deno is deliberately exempt from this Node-only
- * version check.
- *
- * A pre-release of 26.0.0 precedes it, as SemVer orders them, so it takes the
- * flattened strategy, which works on every Node.
- *
- * @throws If `engine` is `'node'` and `nodeVersion`, with its `v`, pre-release
- * and build metadata removed, is not a version
- * [`types/version`](../../types/version/module.f.mjs)'s `tryParse` accepts —
- * `''`, `'v'` or `'nightly'`, say. `process.version` always is one.
- *
- * @type {(engine: Engine, nodeVersion?: string) => boolean}
- */
-export const usesInlineTestContext = (engine, nodeVersion) => {
-    if (engine === 'bun') { return true }
-    if (engine !== 'node' || nodeVersion === undefined) { return false }
-    const [core, preRelease] = nodeRelease(nodeVersion)
-    const sign = versionCmp(core)('26.0.0')
-    return sign < 0 || sign === 0 && preRelease
-}

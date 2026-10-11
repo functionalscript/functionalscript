@@ -51,7 +51,7 @@
 import { assert } from '../../asserts/module.f.mjs'
 import { parser } from '../../ebnf/ll1/module.f.mjs'
 import { lineTerminators, mergeTrivia, token } from '../../ebnf/lib/js/module.f.mjs'
-import { isKeyword } from '../keywords/module.f.mjs'
+import { isKeyword } from '../keywords/module.f.js'
 import { escapeToCodePoint } from '../string_escape/module.f.mjs'
 import {
     apostrophe, asterisk, cr, lf, one,

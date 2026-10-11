@@ -10,7 +10,6 @@ import { u8ListToVecMsb, vec8, repeat, empty } from '../../types/bit_vec/module.
 import { runPure } from '../../effects/module.f.mjs'
 import { nonEmpty, empty as emptyList } from '../../effects/list/module.f.mjs'
 import { pureError } from '../../effects/module.f.mjs'
-import { error, ok } from '../../types/result/module.f.mjs'
 import { ioError } from '../../effects/node/module.f.mjs'
 import { detect, detectPath, detectStream, detectVec } from './module.f.mjs'
 

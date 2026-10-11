@@ -9,7 +9,7 @@
  *   EDAG interpretation and cross-checks independent native JavaScript
  *   operations, excluding canonical function text only from that cross-check.
  * - [`rust/module.f.mjs`](./rust/module.f.mjs) prints each case as Rust,
- *   producing `nanvm-lib/tests/test/gen.corpus/`, which runs the same case
+ *   producing `nanvm/lib/tests/test/gen.corpus/`, which runs the same case
  *   against `nanvm-lib`.
  *
  * Beside the data are the format's **constructors** (`functionValue`,

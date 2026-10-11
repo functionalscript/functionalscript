@@ -7,7 +7,7 @@
 
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.mjs'
 import { isArray } from '../../../types/array/module.f.mjs'
-import { ok, error } from '../../../types/result/module.f.mjs'
+import { ok, error } from '../../../types/result/module.f.js'
 import { validateClosure } from '../closure/module.f.mjs'
 import { func } from './module.f.mjs'
 

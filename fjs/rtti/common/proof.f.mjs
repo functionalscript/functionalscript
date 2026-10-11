@@ -4,7 +4,7 @@
  */
 
 import { declaredTest, eachEntry, noDeclared, structSchemaEntries, tupleSchemaEntries, undeclaredMembers } from './module.f.mjs'
-import { error, ok } from '../../types/result/module.f.mjs'
+import { error, ok } from '../../types/result/module.f.js'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 
 /** @type {(k: string, v: number) => Result<number, ValidationError>} */

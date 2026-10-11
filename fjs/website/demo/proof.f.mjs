@@ -4,11 +4,11 @@
 
 import { codeMarker, resultMarker, stylesheet } from '../style/module.f.mjs'
 import { textDemo, textField, inputField, fieldUpdate, caption, refusal } from './module.f.mjs'
-import { name as exampleName } from './examples/module.f.mjs'
+import { name as exampleName } from './examples/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
-import { unwrap } from '../../types/result/module.f.mjs'
+import { unwrap } from '../../types/result/module.f.js'
 
 /** A demo that echoes its text after the textarea, twice, as siblings. */
 const plain = textDemo({ intro: 'Echo <text> & compare.', name: 'src', label: 'Source', init: 'a' })(text => [['p', text], ['pre', text]])

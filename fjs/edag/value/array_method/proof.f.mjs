@@ -4,7 +4,7 @@
  */
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../asserts/module.f.mjs'
-import { error } from '../../../types/result/module.f.mjs'
+import { error } from '../../../types/result/module.f.js'
 import { invoke } from '../../memo/module.f.mjs'
 import { toData } from '../to_unknown/module.f.mjs'
 import { arrayMethod } from './module.f.mjs'

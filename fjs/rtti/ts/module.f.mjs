@@ -21,7 +21,7 @@
 
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { assoc, dedup } from '../../types/array/module.f.mjs'
-import { reservedWords, strictModeReservedWords } from '../../js/keywords/module.f.mjs'
+import { reservedWords, strictModeReservedWords } from '../../js/keywords/module.f.js'
 import { definedEntries } from '../../types/object/module.f.mjs'
 import { primitive, union, printer as tsPrinter } from '../../types/ts/module.f.mjs'
 import {

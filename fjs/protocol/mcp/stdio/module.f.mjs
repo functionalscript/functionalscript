@@ -42,7 +42,6 @@ import { tryUtf8 } from '../../../text/module.f.mjs'
 import { parse, stringify } from '../../../media/json/module.f.mjs'
 import { sort } from '../../../types/object/module.f.mjs'
 import { errorResponseOf, internalError, parseError } from '../../json_rpc/module.f.mjs'
-import { error } from '../../../types/result/module.f.mjs'
 
 const stringifyJson = stringify(sort)
 

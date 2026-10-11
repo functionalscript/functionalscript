@@ -21,7 +21,7 @@ import { resolve as resolveImportPath } from '../../../path/import/module.f.mjs'
 import { utf8ToString } from '../../../text/module.f.mjs'
 import { divUp8 } from '../../../types/bigint/module.f.mjs'
 import { byteLength, bytesIn, empty, isWholeBytes, length, msb, vec } from '../../../types/bit_vec/module.f.mjs'
-import { error, ok, unwrap } from '../../../types/result/module.f.mjs'
+import { error, ok, unwrap } from '../../../types/result/module.f.js'
 import {
     badPortCode, badPortMessage, carriesNoBody, emptyHost, emptyHostError, fileSizeRefusal, ioError, isPort, nodeCommands,
     notAFileCode, notAFileMessage, refusalMessage, refusedStatus, requestBody, requestBodyOffsetMessage,
@@ -29,7 +29,7 @@ import {
 } from '../module.f.mjs'
 import { partialRun } from '../../mock/module.f.mjs'
 import { memoryInitial, memoryOperationMap } from '../../memory/module.f.mjs'
-import { asBase, asNominal } from '../../../types/nominal/module.f.mjs'
+import { asBase, asNominal } from '../../../types/nominal/module.f.js'
 import { _compareNames } from './readdir/module.f.mjs'
 
 /** @type {State} */
@@ -1591,9 +1591,6 @@ export const defaultNodeProgramOptions = {
     home: '.',
     std: { stdout: { isTTY: false }, stderr: { isTTY: false } },
     testContext,
-    bunTestContext: testContext,
-    engine: 'node',
-    inlineTestContext: false,
 }
 
 /**

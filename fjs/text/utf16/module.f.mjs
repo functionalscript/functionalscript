@@ -18,7 +18,7 @@ import {
 } from '../../types/list/module.f.mjs'
 
 import { isUintUpTo } from '../../types/number/module.f.mjs'
-import { compose } from '../../types/function/module.f.mjs'
+import { compose } from '../../types/function/module.f.js'
 import { concat } from '../../types/string/module.f.mjs'
 
 import {

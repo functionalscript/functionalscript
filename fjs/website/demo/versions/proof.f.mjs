@@ -7,7 +7,7 @@
 import { census, decimal, graphOf, stepLine, versionsDemo } from './module.f.mjs'
 import { htmlToString } from '../../../media/html/module.f.mjs'
 import { runPure } from '../../../effects/module.f.mjs'
-import { unwrap } from '../../../types/result/module.f.mjs'
+import { unwrap } from '../../../types/result/module.f.js'
 import { assert, assertEq, assertNotNullish } from '../../../asserts/module.f.mjs'
 
 // The smallest persistent structure that shares: a sorted list whose

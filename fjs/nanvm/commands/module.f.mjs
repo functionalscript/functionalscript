@@ -16,7 +16,7 @@ import { nodeCommands } from '../../effects/node/module.f.mjs'
  * Where {@link generate}'s output goes, relative to the repository root:
  * beside `native.rs`, which includes it by `#[path]`.
  */
-export const directory = 'nanvm-effects-node/src'
+export const directory = 'nanvm/effects-node/src'
 
 /** @type {string} */
 export const path = `${directory}/gen.commands.rs`

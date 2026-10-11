@@ -5,10 +5,10 @@
 import { parse, serialize, setProperty, stringify } from './module.f.mjs'
 import { demo, roundTrip } from './demo.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
-import { identity } from '../../types/function/module.f.mjs'
+import { identity } from '../../types/function/module.f.js'
 import { assert, assertEq, assertNotNullish, assertError, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { htmlToString } from '../html/module.f.mjs'
-import { unwrap } from '../../types/result/module.f.mjs'
+import { unwrap } from '../../types/result/module.f.js'
 import { runPure } from '../../effects/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'
 

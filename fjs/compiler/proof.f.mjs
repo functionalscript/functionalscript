@@ -23,7 +23,7 @@ import { virtual, virtualOperationMap, emptyState, nodeProgramOptions } from '..
 import { partialRun } from '../effects/mock/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { fromVec } from '../text/utf8/module.f.mjs'
-import { unwrap } from '../types/result/module.f.mjs'
+import { unwrap } from '../types/result/module.f.js'
 import { fromEntries, isObject } from '../types/object/module.f.mjs'
 import { toVec } from '../types/uint8array/module.f.mjs'
 import { assert, assertEq, assertOk, assertNotNullish, assertStructurallySame } from '../asserts/module.f.mjs'
@@ -997,7 +997,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
         // the thunk `nanvm-lib` takes — `|| Ok(…)` around a value, an
         // operation's own line bound to a closure — so the `1n / 0n` a
         // `&&` never reaches, or the arm a `?:` does not select, is never
-        // run: `nanvm-harness/fixtures/lazy.mjs` runs each against the VM.
+        // run: `nanvm/harness/fixtures/lazy.mjs` runs each against the VM.
         lazyOperators: () => {
             /** The lines of the module's body. @type {(source: string) => readonly string[]} */
             const body = source => compileSource(source)('output.rs').split('\n').filter(line => line.startsWith('    '))

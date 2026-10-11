@@ -18,7 +18,7 @@ import { sort } from '../../../types/object/module.f.mjs'
 import { internalError, jsonrpc, parseError } from '../../json_rpc/module.f.mjs'
 import { stdioTransport } from './module.f.mjs'
 import { run as mockRun } from '../../../effects/mock/module.f.mjs'
-import { error, ok } from '../../../types/result/module.f.mjs'
+import { error, ok } from '../../../types/result/module.f.js'
 
 const stringifyJson = stringify(sort)
 

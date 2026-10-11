@@ -12,10 +12,10 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { unwrap } from '../../types/result/module.f.mjs'
+import { unwrap } from '../../types/result/module.f.js'
 import { braced, eagerNodesOf, expExpr, expExprTagged, holdsFunction, nestsOperation, nodeExpr, readsArgs, readsFrame, scope, scopeTagged, sharedNodesOf, statementsOf, useLines, useLinesTagged } from './module.f.mjs'
 import { fromTagged, toText } from '../../text/marked/module.f.mjs'
-import { unmarkedWords } from './unmarked/module.f.mjs'
+import { unmarkedWords } from './unmarked/module.f.js'
 
 /** @type {(e: Exp) => string} */
 const printed = e => {

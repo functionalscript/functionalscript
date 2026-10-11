@@ -26,7 +26,7 @@
  */
 
 import { isArray } from '../../../types/array/module.f.mjs'
-import { ok, error } from '../../../types/result/module.f.mjs'
+import { ok, error } from '../../../types/result/module.f.js'
 import { call } from '../call/module.f.mjs'
 import { findProperty } from '../property/module.f.mjs'
 import { isFunction, untagUndefined } from '../semantics/module.f.mjs'

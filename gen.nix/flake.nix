@@ -63,18 +63,5 @@
             url = "https://github.com/oven-sh/bun/releases/download/bun-v1.4.2/bun-darwin-aarch64.zip";
             hash = "sha256-kJh6OhbX21VtiGrD1VHnttPt8KHPQ6yu1iLoZ2vh0S8=";
         };
-        devShells.x86_64-darwin.default = let
-            pkgs = import nixpkgs {
-                system = "x86_64-darwin";
-                overlays = [ rust-overlay.overlays.default ];
-            };
-        in
-        shell {
-            pkgs = pkgs;
-            targets = [ "wasm32-wasip1" "wasm32-wasip2" "wasm32-unknown-unknown" "wasm32-wasip1-threads" ];
-            shellHook = "";
-            url = "https://github.com/oven-sh/bun/releases/download/bun-v1.4.2/bun-darwin-x64-baseline.zip";
-            hash = "sha256-utW71s8U0JgNEV9ZVMn/kE32GdXplNLaH/zNPzFjALA=";
-        };
     };
 }

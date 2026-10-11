@@ -1,11 +1,11 @@
 ## fjs–nanvm integration
 
 **Priority:** P1
-**Status:** open
+**Status:** wip
 
 ### Problem
 
-The MVP ([mvp-roadmap](../nanvm-lib/todo/mvp-roadmap.md)) is reached when
+The MVP ([mvp-roadmap](../nanvm/lib/todo/mvp-roadmap.md)) is reached when
 `fjs compile` can emit Rust code that calls the `nanvm-lib` API, and a
 harness crate builds and runs the generated code with cargo. It is reached:
 the [named-module acceptance](#named-module-acceptance) example runs through
@@ -41,7 +41,7 @@ The embedding crate chooses where to include the generated file.
 exports and aliases from dependency export objects, and the consumer does the
 same: `nanvm-harness::run(module, export, action)` reads or calls one named
 export and renders that one result as JSON
-([`nanvm-harness/src/lib.rs`](../nanvm-harness/src/lib.rs)). Neither feature
+([`nanvm/harness/src/lib.rs`](../nanvm/harness/src/lib.rs)). Neither feature
 requires named function parameters.
 
 ### Named-module acceptance
@@ -59,18 +59,34 @@ import { add as sum } from "./math.f.js";
 export const main = () => sum(20, 22);
 ```
 
-The [named-imports fixture](../nanvm-harness/fixtures/named-imports.mjs)
+The [named-imports fixture](../nanvm/harness/fixtures/named-imports.mjs)
 compiles this pattern to Rust. Its cargo test has the harness's `run` select
 `main` and call it with no arguments, and checks `42`, matching native
 JavaScript and both JavaScript EDAG evaluators (`namedImports.acceptance` in
 [`fjs/compiler/edag/proof.f.mjs`](../fjs/compiler/edag/proof.f.mjs), on its own copy of
 the sources). The harness has no CLI; its
-[`main`](../nanvm-harness/src/main.rs) says why. Source round trips cover the
-serializer's admitted expressions; calls and arithmetic are still refused by
-that serializer. `main` is the fixture's selected
+[`main`](../nanvm/harness/src/main.rs) says why. The structural FJS serializer
+already writes ordinary/method calls and arithmetic; `calls`, `neg`, `operators`
+and `lazy` in the [serializer proofs](../fjs/compiler/serializer/proof.f.mjs)
+cover grouping, bindings and supported source round trips. That profile remains
+partial, unlike total code-only [function text](../fjs/edag/function-text.md);
+[runtime-value compilation](../fjs/edag/values.md#runtime-compilation) has its own
+behavioral contract. Deep source conversion chains retain their
+[host-stack limit](../fjs/compiler/todo/deep-nesting-recursion.md#source-conversion-chains).
+`main` is the fixture's selected
 export, not a required language-level name. The rest-only helper keeps this
 milestone independent of named function parameters. These are synthetic
 fixtures; renaming repository modules to `.f.js` is the migration below.
+
+JSON/DataJS compiler outputs now run represented module initialization,
+including calls and arithmetic, before projecting the default export and
+decoding it as data. Dependencies and unused initializers still run; an
+unselected callable export does not prevent a data output, while a callable
+remaining in the selected result is refused. See `callsAndOperators`,
+`projectBeforeMaterializing` and `unusedInitialization` in the
+[transpiler proofs](../fjs/compiler/transpiler/proof.f.mjs).
+FunctionalScript, EDAG and Rust generation preserve the module computation
+without running it during compilation.
 
 ### Repository compiler-compatibility migration
 
@@ -124,7 +140,103 @@ modules remain `.f.mjs` until the required compiler features land.
 See [`fjs/compiler/README.md`](../fjs/compiler/README.md) for the authoritative extension
 contract and migration strategy.
 
-#### What the next rename waits on
+#### Current leaf migration fixed point
+
+The iterative audit in [#2812](https://github.com/functionalscript/functionalscript/pull/2812)
+starts from `4e663c19c`. A leaf is an authored, non-proof `.f.mjs` with no
+runtime import or re-export of another `.f.mjs`; JSDoc and TypeScript-only
+imports do not count. Demos and supporting FunctionalScript modules do count.
+The embedded-proof test fixture `emergent_testing/example.f.mjs` is reported
+separately, as in the earlier audits.
+
+JavaScript AST dependency discovery found fifteen initial implementation leaves.
+None compiled unchanged. Small, value-preserving rewrites using already supported
+syntax made five of them eligible, and the dependency loop exposed one more
+eligible module. Runtime imports, type references, proofs and documentation follow
+each rename; proofs retain `.f.mjs`. The compiler and exported signatures stay
+unchanged.
+
+| Pass | Implementation leaves checked | Converted to `.f.js` |
+| --- | ---: | --- |
+| 1 | 15 | `types/function`, `js/keywords` |
+| 2 | 15 | `types/nominal`, `edag/rust/unmarked` |
+| 3 | 13 | `types/result` |
+| 4 | 13 | `website/demo/examples` |
+| 5 | 12 | None: every remaining leaf is refused |
+
+The compatibility rewrites preserve the existing contracts:
+
+- `types/function`: `iterate` uses balanced recursion, retaining exactly `n`
+  sequential applications and unchanged results for non-positive counts, with
+  logarithmic stack depth. Its proof also exercises 100,000 iterations.
+- `js/keywords`: membership over the existing fixed string arrays replaces
+  private `Set` instances.
+- `edag/rust/unmarked`: string spread replaces `Array.from`, numeric runtime
+  keys use `Number(...)`, and tuple callbacks bind static-index reads.
+- `types/result`: static tuple reads replace destructured parameters; `okList`
+  finds and returns the first error tuple unchanged, or maps successful values.
+- `website/demo/examples`: array membership detects repeated strings, and tuple
+  callbacks use static-index reads, preserving selections and duplicate refusals.
+- `types/nominal`: only its extension and references change.
+
+Converting `types/function` exposes `types/list` and `types/nominal`; the latter
+converts in the next pass. Converting `types/result` exposes `media/rust`.
+The other conversions expose no additional `.f.mjs` leaves. The authored `.f.js`
+population grows from 21 to 27, all accepted by `npm start compile`.
+
+The final twelve implementation leaves below cannot be renamed with their current
+source. Each row is the first actual refusal from the same `resolve()` pipeline
+that `fjs compile` with no arguments uses, rather than a serializer or Rust-output
+restriction. Locations are `line:column`; paths are relative to `fjs/`.
+Other unsupported constructs may follow the first one. The template literals
+remain readable source pending compiler support; this migration does not replace
+large text templates or substantially rewrite the remaining modules.
+
+| Leaf file | Location | First refused construct |
+| --- | ---: | --- |
+| `ci/package/module.f.mjs` | 32:56 | Template literal in `consumerDirectory` |
+| `git/config/module.f.mjs` | 400:60 | Template literal extending `pending` |
+| `media/rust/module.f.mjs` | 65:44 | Template literal producing a Rust Unicode escape |
+| `nanvm/member/module.f.mjs` | 335:13 | Template literal in a generated test name |
+| `nanvm/methods/module.f.mjs` | 125:21 | Template literal in `path` |
+| `types/list/module.f.mjs` | 40:5 | `while` and reassignment in `trampoline` |
+| `types/map/module.f.mjs` | 10:42 | `new Map(...)` in `mapSet` |
+| `types/object/structurally_same/module.f.mjs` | 20:7 | Destructuring `const { entries, is } = Object` |
+| `types/ts/module.f.mjs` | 13:5 | Template literal in `complex` |
+| `website/browser-source/module.f.mjs` | 89:35 | Template literal assembling browser source |
+| `website/prs/load/module.f.mjs` | 28:5 | Template literal in `pageRequest` |
+| `website/style/module.f.mjs` | 110:27 | Template literal containing the stylesheet |
+
+The separate fixture `emergent_testing/example.f.mjs` also remains refused:
+the template literal in `checkMul` at `14:34`. Since the final pass converts
+nothing, it exposes no new leaves and the loop stops. The older measurements
+below retain their revision-specific paths and diagnostics.
+
+To recheck the current table without writing generated output, run this from
+the repository root inside `./dev.sh node --input-type=module`:
+
+```js
+import { resolve as absolute } from 'node:path';
+import { resolve } from './fjs/compiler/edag/module.f.mjs';
+import { runNodeEffect } from './fjs/effects/node/module.mjs';
+
+const leaves = [
+  'ci/package', 'git/config', 'media/rust', 'nanvm/member', 'nanvm/methods',
+  'types/list', 'types/map', 'types/object/structurally_same', 'types/ts',
+  'website/browser-source', 'website/prs/load', 'website/style',
+];
+for (const leaf of leaves) {
+  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
+  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
+}
+```
+
+After a compiler feature lands, rediscover the runtime dependency leaves,
+compile every candidate, rename accepted modules and update their references,
+then rediscover and repeat until a pass accepts none. Update this table with
+the remaining refusals.
+
+#### Leaf check at `e67123d58` (historical)
 
 The leaf check at `e67123d58`, the `String` PR stacked on the shared integer
 predicate, found seventeen implementation leaves: only `array_index` compiled.
@@ -208,8 +320,10 @@ Compared with the previous measurement at `4c8ec55`, the `08d013b` snapshot
 had the same eighteen leaves and compiler progress on three of them.
 `Number(exp)` is in the language and `Number` a reserved word
 ([number conversion](../spec/README.md#number-conversion)), so
-`array_index`'s `Number(key)` and shared integer predicate compiled at that
-snapshot, while the module still stopped at the `String` global.
+`array_index`'s `Number(key)` compiled at that snapshot, while the module
+still stopped at `Number.isInteger`, before reaching the `String` global.
+The shared integer predicate and admitted `String` call described above are
+later progress, not changes present in that snapshot.
 `git/bytes` still uses `Number.isSafeInteger`,
 a member of `Number` and an admission of its own. A computed key now parses,
 refused unless it is `a[Number(i)]`, and is `git/bytes`' first refusal; every
@@ -394,7 +508,7 @@ ordinary cargo workflow in a Rust project (the harness in this repo, the
 CLI surface, and no Rust toolchain orchestration in the npm-shipped tool.
 The ergonomic single command ("run my FJS on the VM") arrives as the
 self-hosted `nanvm` crate
-([console-program](../nanvm-lib/todo/console-program.md)), which interprets
+([console-program](../nanvm/lib/todo/console-program.md)), which interprets
 via the FJS interpreter compiled to Rust ahead of time — no rustc at the user's
 run time. Its [module loader](../fjs/compiler/todo/load-modules-without-import-effect.md)
 needs no native `import` effect. The optional [Rust EDAG library](./rust-edag.md)
@@ -409,7 +523,7 @@ is on hold and is not part of this completed MVP or a self-hosting prerequisite.
       operators, calls and capturing functions; current coverage lives in
       the [parser](../fjs/compiler/parser/README.md),
       [shared Rust printer](../fjs/edag/rust/module.f.mjs) and
-      [harness fixtures](../nanvm-harness/fixtures).
+      [harness fixtures](../nanvm/harness/fixtures).
 - [x] Create the harness: a crate (`nanvm-harness`) with a thin `main` that
       selects a generated module's `default` property and prints that value
       as JSON; wired into CI via `cargo test`. Exported functions are not
@@ -426,7 +540,7 @@ is on hold and is not part of this completed MVP or a self-hosting prerequisite.
 - [x] Implement harness export selection: `run(module, export, action)`
       reads or calls one named export, and the named-module example runs
       through it. The selection is exposed as the harness API only; a CLI
-      waits for a use ([`main.rs`](../nanvm-harness/src/main.rs)).
+      waits for a use ([`main.rs`](../nanvm/harness/src/main.rs)).
 - [x] Inline source dependencies into one generated Rust output.
       `rustText` in the [compiler](../fjs/compiler/module.f.mjs) resolves the complete
       graph before calling `toRust`; source imports do not become separate
@@ -435,10 +549,10 @@ is on hold and is not part of this completed MVP or a self-hosting prerequisite.
 - [x] Prove the pipeline with a minimal synthetic JavaScript FunctionalScript
       subset: a constant default export compiled by `fjs` to `.rs`, built and
       run by cargo, with the result printed to stdout as JSON —
-      `nanvm-harness/fixtures/{number,boolean,string}.mjs` — then extended to
+      `nanvm/harness/fixtures/{number,boolean,string}.mjs` — then extended to
       arrays, objects, `const`-sharing, and string-keyed property access —
-      `nanvm-harness/fixtures/{array,object,sharing,property}.mjs`, matched
-      by [`Any::to_json`](../nanvm-lib/src/vm/any/to_json.rs) recursing into
+      `nanvm/harness/fixtures/{array,object,sharing,property}.mjs`, matched
+      by [`Any::to_json`](../nanvm/lib/src/vm/any/to_json.rs) recursing into
       arrays/objects instead of refusing them.
 - [x] Complete package support for authored `.f.js`, including direct
       type-checking, declaration emission, packing, and clean-consumer
@@ -463,6 +577,10 @@ is on hold and is not part of this completed MVP or a self-hosting prerequisite.
       integer predicate and `String` conversion made the complete module
       compiler-compatible; update its callers and proof import, keeping
       `proof.f.mjs`.
+- [x] Run the iterative leaf migration in #2812: convert `types/function`,
+      `js/keywords`, `types/nominal`, `edag/rust/unmarked`, `types/result` and
+      `website/demo/examples`; preserve their APIs and record the final twelve
+      implementation leaf refusals plus the separate embedded-proof fixture.
 - [ ] Continue `.f.mjs` -> `.f.js` incrementally as compiler support grows.
 
 ### Related
@@ -472,10 +590,10 @@ is on hold and is not part of this completed MVP or a self-hosting prerequisite.
   of a published `.f.js`.
 - [`fjs/compiler/README.md`](../fjs/compiler/README.md) — the extension contract, and the
   stage-1/stage-2 boundary this migration starts from.
-- [nanvm-lib/todo/mvp-roadmap.md](../nanvm-lib/todo/mvp-roadmap.md) — the
+- [nanvm/lib/todo/mvp-roadmap.md](../nanvm/lib/todo/mvp-roadmap.md) — the
   design decided around the MVP pipeline and the post-MVP tasks; this file
   holds the MVP definition and its tasks.
-- [nanvm-lib/todo/console-program.md](../nanvm-lib/todo/console-program.md) —
+- [nanvm/lib/todo/console-program.md](../nanvm/lib/todo/console-program.md) —
   the self-hosted `nanvm` crate (post-MVP).
 - [authored `.mjs` package support](../fjs/ci/todo/f-mjs-package-support.md) —
   stage-1 validation, declaration, and package prerequisite.

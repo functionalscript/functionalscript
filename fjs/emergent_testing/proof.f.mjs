@@ -22,7 +22,7 @@ import { shouldLoad } from '../dev/module.f.mjs'
 import { parse as parseJson } from '../media/json/module.f.mjs'
 import { number as rttiNumber, or, string as rttiString } from '../rtti/module.f.mjs'
 import { parse as rttiParse } from '../rtti/parse/module.f.mjs'
-import { error, ok, unwrap } from '../types/result/module.f.mjs'
+import { error, ok, unwrap } from '../types/result/module.f.js'
 import { pureError, step } from '../effects/module.f.mjs'
 
 /**
@@ -689,27 +689,23 @@ const makeRegisterRunner = testOp => {
     return runner
 }
 
-// registerModule appends ' ...' for inline runners (Bun).
-// This mock never invokes the registered callback; it only records names.
-export const registerSuffixes = () => {
-    const runner = makeRegisterRunner((_runner, _ctx, name, _xf, _fn) => s => [[...s, name], ok(undefined)])
+// Registration supplies the same names to every host-selected context, with
+// expected failure kept as data for the adapter or native framework to honor.
+export const registerNamesAndExpectations = () => {
+    const runner = makeRegisterRunner((_runner, _ctx, name, xf, _fn) => s => {
+        assertEq(xf, name === 'import("./a.f.ts").proof.throw.a()')
+        return [[...s, name], ok(undefined)]
+    })
 
     const proof = /** @type {const} */ ({
         ok: () => {},
         throw: { a: () => { throw 'expected' } },
     })
 
-    // Node (star = ''): no suffixes
-    const [nodeNames] = runner([])(registerModule(registerNoopCtx, './a.f.ts', proof, ''))
-    assertEq(nodeNames.length, 2)
-    assert(nodeNames[0] === 'import("./a.f.ts").proof.ok()')
-    assertEq(nodeNames[1], 'import("./a.f.ts").proof.throw.a()')
-
-    // Bun (star = ' ...'): ... on normal tests, path shows throw for throw-tests
-    const [inlineNames] = runner([])(registerModule(registerNoopCtx, './a.f.ts', proof, ' ...'))
-    assertEq(inlineNames.length, 2)
-    assert(inlineNames[0] === 'import("./a.f.ts").proof.ok() ...')
-    assertEq(inlineNames[1], 'import("./a.f.ts").proof.throw.a()')
+    const [names] = runner([])(registerModule(registerNoopCtx, './a.f.ts', proof))
+    assertEq(names.length, 2)
+    assertEq(names[0], 'import("./a.f.ts").proof.ok()')
+    assertEq(names[1], 'import("./a.f.ts").proof.throw.a()')
 }
 
 // The registered callback panics when its own effects cannot be dispatched.
@@ -742,7 +738,7 @@ const registerBodyPanicsOnUndispatchableEffect = () => {
     // leaf through the `await` effect unconditionally, and this runner's
     // handler ignores the payload and answers `notImplemented` regardless.
     const proof = /** @type {const} */ ({ a: () => undefined })
-    runner([])(registerModule(registerNoopCtx, './a.f.ts', proof, ''))
+    runner([])(registerModule(registerNoopCtx, './a.f.ts', proof))
 }
 
 // A `throw`-tagged test whose function completes without throwing (the
@@ -752,7 +748,7 @@ const registerBodyPanicsOnUndispatchableEffect = () => {
 // the callback and returns without recursing, rather than treating the
 // returned object as a sub-tree.
 export const registerThrowsWithoutThrowing = () => {
-    // Unlike registerSuffixes' mock, this one actually invokes the registered
+    // Unlike registerNamesAndExpectations' mock, this invokes the registered
     // callback so registerOne's inner `.step` body runs, and asserts the
     // callback is registered with `expectFailure: true`.
     const runner = makeRegisterRunner((runner, ctx, name, xf, fn) => s => {
@@ -764,7 +760,7 @@ export const registerThrowsWithoutThrowing = () => {
     // Returns a sub-tree that would register more tests if it were walked.
     const proof = /** @type {const} */ ({ throw: { a: () => ({ sub: () => {} }) } })
 
-    const [names] = runner([])(registerModule(registerNoopCtx, './a.f.ts', proof, ''))
+    const [names] = runner([])(registerModule(registerNoopCtx, './a.f.ts', proof))
     // Only the throw-test itself is registered; `sub` is never reached.
     assertEq(names.length, 1)
     assertEq(names[0], 'import("./a.f.ts").proof.throw.a()')
@@ -774,7 +770,7 @@ export const registerThrowsWithoutThrowing = () => {
 // returns without invoking the mock's `test` op at all.
 export const registerEmptyProof = () => {
     const runner = makeRegisterRunner((_runner, _ctx, name, _xf, _fn) => s => [[...s, name], ok(undefined)])
-    const [names] = runner([])(registerModule(registerNoopCtx, './a.f.ts', {}, ''))
+    const [names] = runner([])(registerModule(registerNoopCtx, './a.f.ts', {}))
     assertEq(names.length, 0)
 }
 
@@ -788,23 +784,17 @@ export const registerEmptyModuleMap = () => {
     assertEq(exitCode(code), 0)
 }
 
-// register's `star`/`ctx` selection, proven observably: the virtual harness's
-// own `test` op is `todo`, so a non-empty root can't go through `virtual()`
-// here without throwing. Instead this interprets register's effect with a
-// fully synthetic runner (discovery faked via `readdir`/`import`, mirroring
-// makeRegisterRunner's approach to `test`/`all`/`await`) that records which
-// TestContext object and which registered name each `test` call received —
-// so a swapped `engine` ternary or a deleted `inlineTestContext` branch
-// changes what's observed here, not just whether the line ran.
-export const registerSelectsContextAndStar = () => {
+// Discovery passes the supplied context through unchanged. The synthetic
+// runner records context identity without invoking the virtual `test: todo`.
+export const registerUsesSuppliedContext = () => {
     /** @typedef {Test | All | Await} _RegisterMockOps */
     /** @type {TestContext} */
-    const nodeCtx = { test: todo }
+    const firstCtx = { test: todo }
     /** @type {TestContext} */
-    const bunCtx = { test: todo }
+    const secondCtx = { test: todo }
 
-    /** @type {(extra: Partial<NodeProgramOptions>) => readonly (readonly [TestContext, string])[]} */
-    const runRegister = extra => {
+    /** @type {(testContext: TestContext) => readonly (readonly [TestContext, string])[]} */
+    const runRegister = testContext => {
         /** @type {(readonly [TestContext, string])[]} */
         let calls = []
         /** @type {RunInstance<_RegisterMockOps | Readdir | Import, undefined>} */
@@ -826,22 +816,17 @@ export const registerSelectsContextAndStar = () => {
             test: (ctx, name, _xf, _fn) => s => { calls = [...calls, [ctx, name]]; return [s, ok(undefined)] },
         }))
         runner(undefined)(/** @type {Effect<_RegisterMockOps | Readdir | Import, 0, number>} */ (register({
-            ...defaultNodeProgramOptions, env: {}, testContext: nodeCtx, bunTestContext: bunCtx, ...extra,
+            ...defaultNodeProgramOptions, env: {}, testContext,
         })))
         return calls
     }
 
-    // Node engine, non-inline context: registers under nodeCtx, no ' ...' suffix.
-    const nodeCalls = runRegister({})
-    assertEq(nodeCalls.length, 1)
-    assert(nodeCalls[0][0] === nodeCtx)
-    assertEq(nodeCalls[0][1], 'import("./a.proof.f.ts").proof.ok()')
-
-    // Bun engine, inline context: registers under bunCtx, with ' ...' suffix.
-    const bunCalls = runRegister({ inlineTestContext: true, engine: 'bun' })
-    assertEq(bunCalls.length, 1)
-    assert(bunCalls[0][0] === bunCtx)
-    assertEq(bunCalls[0][1], 'import("./a.proof.f.ts").proof.ok() ...')
+    for (const ctx of [firstCtx, secondCtx]) {
+        const calls = runRegister(ctx)
+        assertEq(calls.length, 1)
+        assert(calls[0][0] === ctx)
+        assertEq(calls[0][1], 'import("./a.proof.f.ts").proof.ok()')
+    }
 }
 
 // direct unit tests for the pure path-format helpers
@@ -1014,11 +999,11 @@ export const proof = {
     nothingRunsAfterARunIsAbandoned,
     githubReporterOutput,
     reporterWriteFailure,
-    registerSuffixes,
+    registerNamesAndExpectations,
     registerThrowsWithoutThrowing,
     registerEmptyProof,
     registerEmptyModuleMap,
-    registerSelectsContextAndStar,
+    registerUsesSuppliedContext,
     defaultReporterExpectedToThrow,
     helpers
 }

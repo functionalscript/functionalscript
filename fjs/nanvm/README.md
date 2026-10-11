@@ -1,9 +1,9 @@
 # The FunctionalScript side of NaNVM
 
-`nanvm-lib/` is the Rust crate. This directory is the FunctionalScript that
+`nanvm/lib/` is the Rust crate. This directory is the FunctionalScript that
 targets it — today the shared operator test data and the printer that turns it
 into Rust tests; later the `.rs` output branch of `fjs compile` (see
-[`nanvm-lib/todo/mvp-roadmap.md`](../../nanvm-lib/todo/mvp-roadmap.md)).
+[`nanvm/lib/todo/mvp-roadmap.md`](../../nanvm/lib/todo/mvp-roadmap.md)).
 
 Operator behaviour is described **once**, as data, and checked twice: against a
 standard JavaScript engine and against `nanvm-lib`. Adding an operator or a case
@@ -152,7 +152,7 @@ outcome and not the program, so it is never part of the case's expression.
    generated file keeps it as a commented-out `TODO`, and the JavaScript proof
    keeps running it.
 
-Never edit `nanvm-lib/tests/test/gen.corpus/`: CI regenerates it on every pull
+Never edit `nanvm/lib/tests/test/gen.corpus/`: CI regenerates it on every pull
 request and fails if the committed copy differs (see
 [`fjs/ci/README.md`](../ci/README.md)).
 
@@ -162,7 +162,7 @@ request and fails if the committed copy differs (see
 it with memo, and passes the resulting `EdagValue` to the existing Rust
 compiler. This checks value emission separately from compiling source modules.
 Its pure proofs check primitive, repeated and unused capture slots. The native
-tests in [`nanvm-harness/tests/values.rs`](../../nanvm-harness/tests/values.rs)
+tests in [`nanvm/harness/tests/values.rs`](../../nanvm/harness/tests/values.rs)
 check calls, shared exports and captures, distinct closures, and fresh call and
 module results. The nested factory allocates a capture per factory call; its
 returned closure either includes that array in a fresh result or throws the
@@ -170,7 +170,7 @@ same array. The pure interpreter, JavaScript runtime compilation in
 [`values/proof.mjs`](values/proof.mjs), and native Rust calls check those same
 capture lifetimes, lazy branches and thrown identities.
 
-`npm run gen` writes `nanvm-harness/gen.values/captures.rs` through the existing
+`npm run gen` writes `nanvm/harness/gen.values/captures.rs` through the existing
 updater; `cargo test` compiles and runs it. Change the fixture generator, never
 the generated Rust file.
 
@@ -183,7 +183,7 @@ to compare them with.
 `ToPrimitive` consulting an object's `toString` method, and a function's string
 form (engine-specific source text). `nanvm-lib` has no object methods yet.
 
-**Rust only** — `nanvm-lib/tests/test/main.rs`: `try_into` out of `Any`, `Debug`
+**Rust only** — `nanvm/lib/tests/test/main.rs`: `try_into` out of `Any`, `Debug`
 formatting, multi-limb bigint arithmetic, serialization round-trips, and the
 exact text of `nanvm-lib`'s own error messages. These are properties of the VM,
 not of JavaScript.

@@ -16,7 +16,7 @@ const workflowWritten = ioStep(
     () => writeUtf8File(ciPath, workflowText(gha)))
 const publishWritten = ioStep(workflowWritten,
     () => writeUtf8File(npmPublishPath, workflowText(npmPublishWorkflow)))
-// fjs/ci/nix writeJob
+// fjs/ci/nix writeShell
 const created = mkdir(directory, { recursive: true })
 const flakeWritten = step(created, () => writeUtf8File(`${directory}/flake.nix`, flakeText(job)))
 // fjs/nanvm/update generateRustTests
@@ -55,7 +55,7 @@ A generator then computes its file set as a pure function and hands it
 to `writeFiles`, which is what makes the set provable without a disk.
 Its existing effect-returning exports stay, with their names and
 signatures, as the line that writes that set: `fjs/ci`'s `ci(setup)`,
-`fjs/ci/nix`'s `nixFlakes(jobs)`, `fjs/nanvm/update`'s
+`fjs/ci/nix`'s `nixFlake(job)`, `fjs/nanvm/update`'s
 `generateRustTests()` and the matrix module's `write(text)` are called
 by `fjs/ci/self`, by `main`s and by proofs, and none of them changes, so
 there is nothing to declare. `ci` keeps one effect of its own before

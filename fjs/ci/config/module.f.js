@@ -30,7 +30,7 @@ export const functionalscript = /** @type {const} */ '0.53.0'
 // The one runtime a generated flake takes from outside the pinned snapshot.
 // Nixpkgs ships 1.3.13 — on the pin and on `master` — and two of this
 // repository's proofs fail on it, one of them a real difference in when
-// `Symbol.species` is read rather than a slow machine. So the `bun` job's flake
+// `Symbol.species` is read rather than a slow machine. So the shared flake
 // keeps the snapshot's packaging and replaces only the archive, named by the
 // version here and the table below.
 //
@@ -44,16 +44,12 @@ export const bun = '1.4.2'
 // The archive that release publishes for each system a generated flake targets,
 // with the SHA-256 its content must have, as an SRI string.
 //
-// The names are not a free choice. The snapshot's packaging strips a directory
-// whose name it derives from the system — `bun-darwin-x64-baseline` for
-// `x86_64-darwin` — so each archive here is the one that recipe already
-// expects, which is why Intel macOS takes a baseline build rather than the
-// newer one beside it.
+// The snapshot's packaging strips a directory whose name it derives from the
+// system, so each archive here is the one that recipe already expects.
 //
 // Verified rather than copied: every archive was downloaded and hashed here,
-// and three of the four matched an independent packaging of the same release.
-// The fourth, Intel macOS, is one nothing else packages, so our own download is
-// its only source. Recompute them the same way when the version above moves —
+// and matched an independent packaging of the same release.
+// Recompute them the same way when the version above moves —
 // `nix-prefetch-url` where Nix is available, otherwise a download and a
 // `sha256sum` re-encoded as base64.
 /** @type {{ readonly [system: string]: { readonly archive: string, readonly hash: string } }} */
@@ -70,32 +66,26 @@ export const bunSources = {
         archive: 'bun-darwin-aarch64',
         hash: 'sha256-kJh6OhbX21VtiGrD1VHnttPt8KHPQ6yu1iLoZ2vh0S8=',
     },
-    'x86_64-darwin': {
-        archive: 'bun-darwin-x64-baseline',
-        hash: 'sha256-utW71s8U0JgNEV9ZVMn/kE32GdXplNLaH/zNPzFjALA=',
-    },
 }
 
 // The Deno version the pinned Nixpkgs snapshot below provides — read from
 // `pkgs/by-name/de/deno/package.nix` at that commit. The job asserts the
-// version its flake gives it, so this is checked rather than trusted. Nixpkgs
+// version the shared flake gives it, so this is checked rather than trusted. Nixpkgs
 // trails deno.com, so bump the snapshot first and copy the version it offers.
 // https://deno.com/
 export const deno = '2.8.3'
 
-// The Node versions the pinned Nixpkgs snapshot below provides — read from
-// `pkgs/development/web/nodejs/v{22,24,26}.nix` at that commit. They feed the
-// canonical jobs' flakes, which assert the version they actually get, as well
-// as every `setup-node` step: the two Windows jobs, the packed-package check
+// The selected Node version the pinned Nixpkgs snapshot below provides — read
+// from `pkgs/development/web/nodejs/v26.nix` at that commit. It feeds the shared
+// shell, whose jobs assert the version they actually get, as well
+// as every `setup-node` step: Intel macOS, the two Windows jobs, the packed-package check
 // closing the `node26` job, and the publishing workflow.
 // Nixpkgs usually trails nodejs.org, so bump the snapshot first and copy the
-// versions it offers rather than the latest release.
+// version it offers rather than the latest release. Keep package.json's Node
+// engine, package-lock.json's root engine and .node-version synchronized with
+// this exact pin; an accepted update replaces the supported Node version.
 // https://nodejs.org/en/download
-export const node = /** @type {const} */({
-    default: '26.10.0',
-    node22: '22.23.3',
-    node24: '24.21.0',
-})
+export const node = /** @type {const} */ ('26.10.0')
 
 // The TypeScript this repository type-checks with, and the one the
 // packed-package check installs from npm to check the declarations the packed
@@ -110,12 +100,12 @@ export const node = /** @type {const} */({
 //
 // One version, two package managers, and that is the point of it being here.
 // npm resolves the platform binary for the package check, Nix builds it from
-// source for the shells; nothing in this generator picks a per-platform
+// source for the shared shell; nothing in this generator picks a per-platform
 // artifact, because both tools already do. It is exact rather than a range in
 // both: the package check's consumer project has no lockfile, so a range there
 // would let the registry change the verdict with no change here.
 //
-// The two shells that carry it assert it from inside, since the attribute
+// The shared shell's Node job asserts it from inside, since the attribute
 // names no version — the same tie `deno`, `wasmtime` and `wasmer` have.
 // https://github.com/microsoft/typescript-go
 export const typescript = /** @type {const} */({
@@ -144,9 +134,9 @@ export const rust = '1.99.0'
 // https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idtimeout-minutes
 export const jobTimeout = /** @type {const} */ (15)
 
-// Official Nixpkgs snapshot used by the generated CI flakes. `ref` is the
+// Official Nixpkgs snapshot used by the shared flake. `ref` is the
 // stable channel the commit is accepted from; `commit` is the exact revision
-// every generated `flake.nix` pins. The Node versions above come from this
+// the generated `flake.nix` pins. The Node version above comes from this
 // snapshot, so the two move together.
 //
 // `commit` is the only fact `flake.nix` needs: `inputs.nixpkgs.url` names it
@@ -162,12 +152,7 @@ export const nixpkgs = /** @type {const} */({
     commit: '2efa67fd26b6df417c33e4603185c701f260dd83',
 })
 
-// Wasmtime and Wasmer are installed by their own setup actions, so these are
-// released versions rather than packaged ones. The `wasm` job is not on a flake:
-// Nixpkgs builds no `std` for three of its four WASI targets, so the toolchain it
-// needs cannot come from the snapshot at all. See
-// `../todo/wasm-nix-blocked-on-rust-targets.md`.
-// `rust-overlay`, the second input of the `wasm` job's flake. Nixpkgs builds
+// `rust-overlay`, the second input of the shared flake. Nixpkgs builds
 // one `rustc` and hard-codes the targets it builds `std` for — the host,
 // `wasm32-unknown-unknown` and two bare-metal targets — so three of that job's
 // four targets have no `std` at any Nixpkgs version. This overlay takes the

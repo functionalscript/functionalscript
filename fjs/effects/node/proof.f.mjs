@@ -12,12 +12,12 @@ import { byteLength, empty, isVec, maxLengthBytes, u8ListMsb, u8ListToVecMsb, ui
 import { utf8, utf8ToString } from "../../text/module.f.mjs"
 import { match } from "../module.f.mjs"
 import { mapStep, pureError, pureOk, step as ioStep } from "../module.f.mjs"
-import { badPortCode, badPortMessage, both, carriesNoBody, declaredLength, doubledLengthMessage, errorMessage, errorSummary, exitStep, fetch, framingHeaderMessage, headerValue, inflate, inflateTrailingMessage, ioError, isNotFound, isPort, maxPort, mkdir, now, readdir, readFile, readUtf8File, refusalMessage, refusedStatus, responseGate, rm, runnerResponse, sandbox, unframedBodyMessage, writeFile, writeUtf8File, writeExclusiveUtf8File, _pieces, _vecList, rename, readBytes, randomInt, writeFromStream, plainTextResponse, usesInlineTestContext, readWholeBytes, readChunks, windowRefusal, maxOffset, fileSizeRefusal } from "./module.f.mjs"
+import { badPortCode, badPortMessage, both, carriesNoBody, declaredLength, doubledLengthMessage, errorMessage, errorSummary, exitStep, fetch, framingHeaderMessage, headerValue, inflate, inflateTrailingMessage, ioError, isNotFound, isPort, maxPort, mkdir, now, readdir, readFile, readUtf8File, refusalMessage, refusedStatus, responseGate, rm, runnerResponse, sandbox, unframedBodyMessage, writeFile, writeUtf8File, writeExclusiveUtf8File, _pieces, _vecList, rename, readBytes, randomInt, writeFromStream, plainTextResponse, readWholeBytes, readChunks, windowRefusal, maxOffset, fileSizeRefusal } from "./module.f.mjs"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.mjs"
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.mjs"
 import { emptyState, virtual } from "./virtual/module.f.mjs"
 import { assert, assertEq, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { error, ok } from '../../types/result/module.f.mjs'
+import { error, ok } from '../../types/result/module.f.js'
 import { toArray } from '../../types/list/module.f.mjs'
 
 // Answers the one command the `map` proof below drives. Routing the loop
@@ -157,21 +157,6 @@ export const proof = {
             assertEq(code[1], 1)
             assertEq(state.stderr, 'no such file or directory\n')
         },
-    },
-    externalTestContext: () => {
-        assert(usesInlineTestContext('node', 'v22.20.0'))
-        assert(usesInlineTestContext('node', '25.99.99'))
-        assert(!usesInlineTestContext('node', '26.0.0'))
-        assert(!usesInlineTestContext('node', '26.1.0'))
-        // Nightly and release-candidate builds suffix `process.version`.
-        assert(usesInlineTestContext('node', 'v25.0.0-nightly20260930abc'))
-        assert(usesInlineTestContext('node', 'v26.0.0-rc.1'))
-        assert(usesInlineTestContext('node', 'v26.0.0-rc.1+build-1'))
-        assert(!usesInlineTestContext('node', 'v26.0.0+build-1'))
-        assert(!usesInlineTestContext('node', 'v26.1.0-nightly20260930abc'))
-        assert(!usesInlineTestContext('node'))
-        assert(usesInlineTestContext('bun'))
-        assert(!usesInlineTestContext('deno', '22.0.0'))
     },
     map: () => {
         const e = mapStep(readFile('hello'), v => uint(v) * 2n)

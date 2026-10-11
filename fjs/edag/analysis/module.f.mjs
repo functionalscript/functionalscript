@@ -63,7 +63,7 @@
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { isIndex, maxLength } from '../../types/function/length/module.f.mjs'
 import { mapSet } from '../../types/map/module.f.mjs'
-import { error, ok } from '../../types/result/module.f.mjs'
+import { error, ok } from '../../types/result/module.f.js'
 
 /** @type {_State} */
 const start = { visited: new Map(), entries: [], problem: null }

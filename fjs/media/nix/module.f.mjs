@@ -22,7 +22,7 @@
 
 import { concat } from '../../types/string/module.f.mjs'
 import { includes } from '../../types/array/module.f.mjs'
-import { error, mapOk, ok } from '../../types/result/module.f.mjs'
+import { error, mapOk, ok } from '../../types/result/module.f.js'
 import {
     digitRange,
     latinCapitalLetterRange,

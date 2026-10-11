@@ -23,8 +23,8 @@ import { corpus, main as matrix, modules as corpusModules } from '../../media/da
 import { main as fixtures, modulesPath } from '../../nanvm/harness/module.f.mjs'
 import { tryStringify } from '../../media/datajs/serializer/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
-import { asNominal } from '../../types/nominal/module.f.mjs'
-import { error, ok, unwrap } from '../../types/result/module.f.mjs'
+import { asNominal } from '../../types/nominal/module.f.js'
+import { error, ok, unwrap } from '../../types/result/module.f.js'
 import { generators, lock, lockEnded, main, sequence } from './module.f.mjs'
 
 /** A child as `spawn` would brand one; nothing here looks inside it. @type {Child} */
@@ -70,7 +70,7 @@ const root = {
                 [name, { 'data.f.js': [utf8(unwrap(tryStringify(/** @type {Unknown} */ (imported))))] }])),
         },
     },
-    'nanvm-harness': { 'fixtures': {} },
+    'nanvm': { 'harness': { 'fixtures': {} } },
 }
 
 /** A program that logs `s` and exits `0`. @type {(s: string) => NodeProgram} */
@@ -160,7 +160,9 @@ export const proof = {
             const github = state.root['.github']
             assert(typeof github === 'object' && !(github instanceof Array))
             assert('workflows' in github)
-            const harness = state.root['nanvm-harness']
+            const nanvm = state.root['nanvm']
+            assert(typeof nanvm === 'object' && !(nanvm instanceof Array))
+            const harness = nanvm['harness']
             assert(typeof harness === 'object' && !(harness instanceof Array))
             assert('gen.fixtures' in harness, modulesPath)
         },

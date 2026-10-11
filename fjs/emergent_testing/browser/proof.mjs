@@ -21,7 +21,7 @@ import { demo } from './demo.f.mjs'
 import { asyncRun } from '../../effects/module.mjs'
 import { commonOperationMap } from '../../effects/common/module.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
-import { error, ok, unwrap } from '../../types/result/module.f.mjs'
+import { error, ok, unwrap } from '../../types/result/module.f.js'
 
 /**
  * Builds the DOM stand-in the proofs drive the runner with. A single factory
@@ -188,8 +188,12 @@ const dataModule = body => `data:text/javascript,${encodeURIComponent(body)}`
 
 export const proof = {
     namedThrow: async () => {
-        const named = { throw: () => { throw 'expected' } }.throw
-        const report = await run({ extracted: named })
+        // A named method proves the legacy function-name branch without
+        // relying on an extracted anonymous arrow's inferred name, which Bun
+        // can replace with the variable name.
+        const named = /** @type {const} */ ({ throw() { throw 'expected' } })
+        assertEq(named.throw.name, 'throw')
+        const report = await run({ extracted: named.throw })
         assertEq(report.status, 'passed')
     },
     path: async () => {

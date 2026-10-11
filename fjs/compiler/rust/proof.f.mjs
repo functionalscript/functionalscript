@@ -10,8 +10,8 @@ import { analysis } from '../../edag/analysis/module.f.mjs'
 import { memo } from '../../edag/memo/module.f.mjs'
 import { generate, toRust } from './module.f.mjs'
 import { toText } from '../../text/marked/module.f.mjs'
-import { unmarkedWords, wordsOf } from '../../edag/rust/unmarked/module.f.mjs'
-import { unwrap } from '../../types/result/module.f.mjs'
+import { unmarkedWords, wordsOf } from '../../edag/rust/unmarked/module.f.js'
+import { unwrap } from '../../types/result/module.f.js'
 import { unresolved } from '../edag/module.f.mjs'
 import { parse } from '../transpiler/module.f.mjs'
 import { _rustOf, demo } from './demo.f.mjs'
@@ -288,7 +288,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
          * module answers `false` where a by-value spelling would have
          * thrown. The node comes in directly, as every other node this
          * route is proven on does; the same four from source, through the
-         * whole of `fjs compile`, are `nanvm-harness/fixtures/lazy.mjs`,
+         * whole of `fjs compile`, are `nanvm/harness/fixtures/lazy.mjs`,
          * run against `nanvm-lib`.
          */
         lazyOperator: () => {
@@ -389,7 +389,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
         /**
          * A property read on a nullish base compiles: the `.rs` output is a
          * program, and the throw is the VM's when it runs, reported by the
-         * harness as `RunError::Thrown` — `nanvm-harness/fixtures/nullish.mjs`.
+         * harness as `RunError::Thrown` — `nanvm/harness/fixtures/nullish.mjs`.
          */
         nullishBase: () => {
             assertEq(toRust(['.', null, 'a'])[0], 'ok')
