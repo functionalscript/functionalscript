@@ -99,19 +99,13 @@ const groups = [...reservedWords, ...strictModeReservedWords, ...restrictedNames
  */
 export const keywords = groups.toSorted()
 
-/** @type {ReadonlySet<string>} */
-const keywordSet = new Set(keywords)
-
 /**
  * Whether a word is one of the {@link keywords} — the one membership test
  * every tokenizer and parser asks, so none keeps a set of its own.
  *
  * @type {(word: string) => boolean}
  */
-export const isKeyword = word => keywordSet.has(word)
-
-/** @type {ReadonlySet<string>} */
-const reservedGlobalSet = new Set(reservedGlobals)
+export const isKeyword = word => keywords.some(keyword => keyword === word)
 
 /**
  * Whether a word is one of the {@link reservedGlobals}: never a keyword,
@@ -119,4 +113,4 @@ const reservedGlobalSet = new Set(reservedGlobals)
  *
  * @type {(word: string) => boolean}
  */
-export const isReservedGlobal = word => reservedGlobalSet.has(word)
+export const isReservedGlobal = word => reservedGlobals.some(global => global === word)

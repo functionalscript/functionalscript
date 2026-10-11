@@ -11,7 +11,7 @@
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 import { fromCodePointList } from '../../text/utf8/module.f.mjs'
 import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
-import { unwrap } from '../../types/result/module.f.mjs'
+import { unwrap } from '../../types/result/module.f.js'
 import { concat } from '../../types/string/module.f.mjs'
 import { tryJsonSerialize, tryJsonStringify, tryParse, tryParseBytes, trySerialize, tryStringify } from './module.f.mjs'
 import { _graphOf, demo, examples } from './demo.f.mjs'

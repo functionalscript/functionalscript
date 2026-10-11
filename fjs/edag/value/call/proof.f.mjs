@@ -9,7 +9,7 @@
  */
 
 import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.mjs'
-import { ok, error } from '../../../types/result/module.f.mjs'
+import { ok, error } from '../../../types/result/module.f.js'
 import { func } from '../function/module.f.mjs'
 import { call } from './module.f.mjs'
 

@@ -23,7 +23,7 @@
  * @import { Result } from '../../../types/result/types.ts'
  */
 
-import { ok, error } from '../../../types/result/module.f.mjs'
+import { ok, error } from '../../../types/result/module.f.js'
 import { primitiveToString, primitiveToNumber, primitiveToNumeric } from '../coercion/module.f.mjs'
 
 /** @type {Readonly<Record<'+' | '-' | '~' | 'Number', (value: Primitive) => Result<number | bigint, EdagValue>>>} */

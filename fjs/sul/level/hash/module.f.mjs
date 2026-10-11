@@ -12,7 +12,7 @@
 import { assertNotNullish } from '../../../asserts/module.f.mjs'
 import { emptyState, patriciaTrie } from '../../../types/patricia_trie/module.f.mjs'
 import { compress } from '../../id/module.f.mjs'
-import { asBase } from '../../../types/nominal/module.f.mjs'
+import { asBase } from '../../../types/nominal/module.f.js'
 
 /**
  * Returns a streaming encoder for hash-level symbols.

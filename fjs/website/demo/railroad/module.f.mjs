@@ -30,13 +30,14 @@
  *
  * @module
  *
- * @import { Diagram } from './types.ts'
+ * @import { BoxKind, Diagram } from './types.ts'
  * @import { Demo, DemoEvent } from '../types.ts'
  * @import { Element } from '../../../media/html/types.ts'
  * @import { _Size } from './private.ts'
  */
 
 import { pureOk } from '../../../effects/module.f.mjs'
+import { railroadBoxMarker, railroadLabelMarker } from '../../style/module.f.mjs'
 
 const boxHalf = 11
 const arc = 10
@@ -127,16 +128,16 @@ const measure = d => {
 /**
  * A terminal's or a category's pill, or a non-terminal's box, and its label.
  *
- * @type {(kind: 'terminal' | 'category' | 'nonTerminal', rx: number) => (label: string) => (x: number, y: number) => readonly Element[]}
+ * @type {(kind: BoxKind, rx: number) => (label: string) => (x: number, y: number) => readonly Element[]}
  */
 const box = (kind, rx) => label => (x, y) => {
     const width = labelWidth(label)
     return [
         ['rect', {
             x: String(x), y: String(y - boxHalf), width: String(width), height: String(2 * boxHalf), rx: String(rx),
-            'data-railroad-box': kind,
+            [railroadBoxMarker]: kind,
         }],
-        ['text', { x: String(x + width / 2), y: String(y), 'text-anchor': 'middle', 'data-railroad-label': kind }, label],
+        ['text', { x: String(x + width / 2), y: String(y), 'text-anchor': 'middle', [railroadLabelMarker]: kind }, label],
     ]
 }
 

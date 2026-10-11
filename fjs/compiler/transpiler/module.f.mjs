@@ -16,7 +16,7 @@
  */
 
 import { assertOk } from '../../asserts/module.f.mjs'
-import { ok } from '../../types/result/module.f.mjs'
+import { ok } from '../../types/result/module.f.js'
 import { drop, includes } from '../../types/list/module.f.mjs'
 import { setReplace, at } from '../../types/ordered_map/module.f.mjs'
 import { findProperty, read } from '../../edag/value/property/module.f.mjs'

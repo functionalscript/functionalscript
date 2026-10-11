@@ -12,7 +12,7 @@ import { run } from '../../effects/mock/module.f.mjs'
 import { emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { vec } from '../../types/bit_vec/module.f.mjs'
-import { error, ok } from '../../types/result/module.f.mjs'
+import { error, ok } from '../../types/result/module.f.js'
 import { tryCommonDir } from './module.f.mjs'
 
 /** A file of one line of text, as the virtual filesystem holds one. */

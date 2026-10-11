@@ -13,7 +13,7 @@
 import { analysis } from '../../edag/analysis/module.f.mjs'
 import { memo } from '../../edag/memo/module.f.mjs'
 import { generate as generateRust } from '../../compiler/rust/module.f.mjs'
-import { unwrap } from '../../types/result/module.f.mjs'
+import { unwrap } from '../../types/result/module.f.js'
 
 /** The native harness's interpreted-value fixtures. */
 export const directory = 'nanvm/harness/gen.values'

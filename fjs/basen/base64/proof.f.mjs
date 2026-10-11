@@ -8,7 +8,7 @@ import { empty, vec, repeat, vec8, maxLength } from '../../types/bit_vec/module.
 import { encode, decode } from './module.f.mjs'
 import { demo, groupsOf } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
-import { unwrap } from '../../types/result/module.f.mjs'
+import { unwrap } from '../../types/result/module.f.js'
 
 /**
  * @param {string} s

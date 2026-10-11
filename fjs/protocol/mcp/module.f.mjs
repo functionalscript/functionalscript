@@ -25,7 +25,7 @@
 
 import { boolean, string, open, option, array, record, or } from '../../rtti/module.f.mjs'
 import { mapStep, pureOk, resultMapStep, resultStep } from '../../effects/module.f.mjs'
-import { ok } from '../../types/result/module.f.mjs'
+import { ok } from '../../types/result/module.f.js'
 import { read, write } from '../../effects/memory/module.f.mjs'
 import {
     decodeRequest,

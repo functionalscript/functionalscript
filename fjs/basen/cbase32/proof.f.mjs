@@ -8,7 +8,7 @@ import { canonicalCBase32, cBase32ToVec, cBase32ToVec5x, vec5xToCBase32, vecToCB
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { demo, groupsOf } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
-import { unwrap } from '../../types/result/module.f.mjs'
+import { unwrap } from '../../types/result/module.f.js'
 
 //
 

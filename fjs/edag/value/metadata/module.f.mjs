@@ -21,7 +21,7 @@
 
 import { arrayIndex } from '../../../js/array_index/module.f.js'
 import { prependPath, verror } from '../../../rtti/common/module.f.mjs'
-import { mapOk, ok } from '../../../types/result/module.f.mjs'
+import { mapOk, ok } from '../../../types/result/module.f.js'
 import { add, empty, has } from '../../../types/set/module.f.mjs'
 
 /** @type {(values: Values, visited: _Visited) => Result<_Visited, ValidationError>} */

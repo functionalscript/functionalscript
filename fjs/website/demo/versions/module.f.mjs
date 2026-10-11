@@ -30,7 +30,7 @@
 
 import { refusal } from '../module.f.mjs'
 import { graphSvg } from '../graph/module.f.mjs'
-import { examplePicker, name as exampleName } from '../examples/module.f.mjs'
+import { examplePicker, name as exampleName } from '../examples/module.f.js'
 import { pureOk } from '../../../effects/module.f.mjs'
 import { assertNotNullish } from '../../../asserts/module.f.mjs'
 

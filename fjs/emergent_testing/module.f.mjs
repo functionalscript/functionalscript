@@ -32,7 +32,7 @@ import {
     walkStep,
 } from '../effects/module.f.mjs'
 import { loadModuleMap } from '../dev/module.f.mjs'
-import { invert, ok } from '../types/result/module.f.mjs'
+import { invert, ok } from '../types/result/module.f.js'
 import { definedEntries } from '../types/object/module.f.mjs'
 import { concat } from '../types/list/module.f.mjs'
 import { isIdentifier, isInteger } from '../js/identifier/module.f.mjs'

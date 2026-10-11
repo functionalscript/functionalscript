@@ -11,7 +11,7 @@
 
 import { bsearch } from '../function/compare/module.f.mjs'
 import { next } from '../list/module.f.mjs'
-import { identity } from '../function/module.f.mjs'
+import { identity } from '../function/module.f.js'
 
 /**
  * Two-way sorted-list merge.

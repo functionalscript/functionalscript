@@ -82,7 +82,7 @@
  * @import { StringMap } from '../../types/object/types.ts'
  */
 
-import { ok } from '../../types/result/module.f.mjs'
+import { ok } from '../../types/result/module.f.js'
 import {
     absentMember,
     constPrimitiveValidate,

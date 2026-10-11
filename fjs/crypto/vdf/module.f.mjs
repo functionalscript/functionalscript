@@ -22,7 +22,7 @@
  * @import { Sloth } from './types.ts'
  */
 
-import { iterate } from '../../types/function/module.f.mjs'
+import { iterate } from '../../types/function/module.f.js'
 import { modSqrt, prime_field } from '../../types/prime_field/module.f.mjs'
 
 /** Sloth VDF modulus (3072-bit safe prime, same as reference implementations). */

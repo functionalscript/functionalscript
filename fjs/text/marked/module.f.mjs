@@ -31,7 +31,7 @@
 
 import { map, scan, toArray } from '../../types/list/module.f.mjs'
 import { assert } from '../../asserts/module.f.mjs'
-import { error, ok, unwrap } from '../../types/result/module.f.mjs'
+import { error, ok, unwrap } from '../../types/result/module.f.js'
 
 /**
  * The text the runs spell.

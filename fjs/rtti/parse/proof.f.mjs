@@ -9,7 +9,7 @@
 
 import { parse } from './module.f.mjs'
 import { boolean, number, string, bigint, unknown, array, open, record, rest, or, option } from '../module.f.mjs'
-import { unwrap } from '../../types/result/module.f.mjs'
+import { unwrap } from '../../types/result/module.f.js'
 import {
     assert,
     assertEq,

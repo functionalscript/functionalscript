@@ -7,7 +7,7 @@
  */
 
 import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.mjs'
-import { ok, error } from '../../../types/result/module.f.mjs'
+import { ok, error } from '../../../types/result/module.f.js'
 import { toPrimitive, toString, toNumber } from './module.f.mjs'
 import { tryFunctionText } from '../../../compiler/serializer/module.f.mjs'
 

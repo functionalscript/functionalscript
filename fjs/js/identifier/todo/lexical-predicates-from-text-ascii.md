@@ -18,6 +18,7 @@ module that owns the question was the only one nobody could use:
 |[`fjs/git/tree`](../../../git/tree/module.f.mjs)|`lower`, the capital letters as `0x41`..`0x5A`|
 |[`fjs/rtti/ts`](../../../rtti/ts/module.f.mjs)|`isIdStart` and `isIdPart`, JavaScript's identifier rule over string comparisons, which `isTypeName` reads|
 |[`fjs/web`](../../../web/module.f.mjs)|`isDigits`, the digit range again|
+|[`fjs/effects/node`](../../../effects/node/module.f.mjs)|`isDigits`, the same body as `fjs/web`'s|
 |[`fjs/website/browser-source`](../../../website/browser-source/module.f.mjs)|`nameChar`, JavaScript's identifier characters over string comparisons|
 |[`fjs/website/changelog`](../../../website/changelog/module.f.mjs)|`isDigit` and `isHex`, over `charCodeAt` and named constants|
 |[`fjs/path`](../../../path/module.f.mjs)|`isDriveLetter`, the Latin letters over string comparisons|
@@ -93,7 +94,7 @@ written out again.
       the `-` and `_` it adds; `fjs/git/tree`: `lower` over the same class.
 - [ ] `fjs/rtti/ts`: `isIdStart`/`isIdPart` go; `isTypeName` asks
       `isIdentifier`.
-- [ ] `fjs/web`: `isDigits` over `isDigit`.
+- [ ] `fjs/web` and `fjs/effects/node`: one `isDigits` over `isDigit`.
 - [ ] `fjs/website/browser-source`: `nameChar` over the identifier rule;
       `fjs/website/changelog`: `isDigit` and `isHex` from `text/ascii`.
 - [ ] `fjs/path`: `isDriveLetter` over `isLatinLetter`.

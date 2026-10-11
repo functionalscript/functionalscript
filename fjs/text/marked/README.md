@@ -108,6 +108,15 @@ A producer of code ends by calling `withNames` on its runs
 which spells no name, does not need it. A word that starts with a digit is left
 plain, since it is a number the producer did not mark, and a proof can find it.
 
+**Names are ASCII.** `withNames` reads a name as the letters `a`–`z` and `A`–`Z`,
+digits, `_` and `$`, which is what the compiler's tokenizer accepts: a program
+cannot spell a name with any other character. Given text that does, `withNames`
+marks the ASCII part and leaves the rest plain (`café` becomes `caf` and `é`),
+and the tokenizer fallback refuses such text and colours none of it. That is
+no failure of a producer, whose names the compiler or its own templates fix. A
+producer that one day spells a non-ASCII name needs this pass widened, and its
+proof, which holds no word unmarked, will say so.
+
 Two rules keep a piece's text honest:
 
 - **Split a keyword from what surrounds it.** `'export default '` is three
@@ -228,7 +237,7 @@ Some text has no producer behind it: an example a reader typed. For that,
 - `spansOf(text)` answers the `Span`s the tokenizer finds (`keyword`,
   `literal`, `string`, `number`, `comment`, and `identifier` for an `id` token;
   the literal words are `literalWords` of
-  [`js/keywords`](../../js/keywords/module.f.mjs), and a word after `.` or `?.`
+  [`js/keywords`](../../js/keywords/module.f.js), and a word after `.` or `?.`
   is a property name, an `identifier` whatever it spells), or none if the
   tokenizer refuses the text: colouring the tokens before a failure would suggest the text is
   partly valid. It feeds the tokenizer code points and finds each token's
@@ -293,7 +302,7 @@ pins:
   other. Every run is one of the forms the printer says it marks: a list of
   what is *allowed*. And no plain run holds a word the printer marks, `let`,
   `pub`, `fn`, `use`, `true`, `false` or a number
-  ([`edag/rust/unmarked`](../../edag/rust/unmarked/module.f.mjs)): a list of
+  ([`edag/rust/unmarked`](../../edag/rust/unmarked/module.f.js)): a list of
   what is *required*, which the first cannot see, since a mark that goes
   missing changes no text. The second is held to every case the printer's own
   proof prints, not only the shared examples.

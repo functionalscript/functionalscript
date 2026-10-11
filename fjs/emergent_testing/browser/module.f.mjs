@@ -33,7 +33,7 @@ import {
     addResult, collectTests, defaultTest, formatDuration, runEntries, text, zeroState, zeroTotals,
 } from '../module.f.mjs'
 import { do_, errorMessage, foldStep, mapStep, pureOk, resultStep, step } from '../../effects/module.f.mjs'
-import { error } from '../../types/result/module.f.mjs'
+import { error } from '../../types/result/module.f.js'
 
 /** The page's leaf-landed operation; see `_BrowserReport`.
  * @type {Func<_BrowserReport>} */

@@ -11,7 +11,7 @@
 import { assert, assertEq, assertOk, assertError, assertNotNullish, assertStructurallySame } from '../../../asserts/module.f.mjs'
 import { notImplemented, runPure } from '../../../effects/module.f.mjs'
 import { partialRun, run } from '../../../effects/mock/module.f.mjs'
-import { error, ok } from '../../../types/result/module.f.mjs'
+import { error, ok } from '../../../types/result/module.f.js'
 import { factoryStringify } from '../../../compiler/serializer/value/module.f.mjs'
 import { compileCommands, toData, toUnknown } from './module.f.mjs'
 

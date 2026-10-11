@@ -10,7 +10,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
-import { unwrap } from '../../../types/result/module.f.mjs'
+import { unwrap } from '../../../types/result/module.f.js'
 import { parser } from '../../../ebnf/ll1/module.f.mjs'
 import { units } from '../../../ebnf/utf16/module.f.mjs'
 import { value } from '../../../ebnf/lib/datajs/module.f.mjs'

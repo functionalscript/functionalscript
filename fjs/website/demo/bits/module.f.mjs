@@ -45,7 +45,7 @@ import { fromCodePointList } from '../../../text/utf8/module.f.mjs'
 import { codePointToString, stringToCodePointList } from '../../../text/utf16/module.f.mjs'
 import { isValidCodePoint } from '../../../text/code_point/module.f.mjs'
 import { maxLength, maxLengthBytes, tryU8ListToVecMsb } from '../../../types/bit_vec/module.f.mjs'
-import { error, ok } from '../../../types/result/module.f.mjs'
+import { error, ok } from '../../../types/result/module.f.js'
 import { toArray } from '../../../types/list/module.f.mjs'
 import { textDemo, refusal } from '../module.f.mjs'
 

@@ -13,7 +13,7 @@
  */
 
 import { isArray } from '../../../types/array/module.f.mjs'
-import { ok, error } from '../../../types/result/module.f.mjs'
+import { ok, error } from '../../../types/result/module.f.js'
 import { join } from '../array/module.f.mjs'
 import { at } from '../at/module.f.mjs'
 import { call } from '../call/module.f.mjs'

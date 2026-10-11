@@ -11,7 +11,7 @@
 import { Buffer } from 'node:buffer'
 
 import { _describeThrown } from '../../../effects/module.mjs'
-import { error, ok } from '../../../types/result/module.f.mjs'
+import { error, ok } from '../../../types/result/module.f.js'
 
 /** JavaScript loader for the explicit runtime-compilation effect. @type {ToAsyncOperationMap<CompileValue>} */
 export const javascriptOperationMap = {

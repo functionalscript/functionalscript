@@ -13,7 +13,7 @@
  * @import { Result } from '../../../types/result/types.ts'
  */
 
-import { ok } from '../../../types/result/module.f.mjs'
+import { ok } from '../../../types/result/module.f.js'
 import { primitiveToNumeric } from '../coercion/module.f.mjs'
 
 /** Preserve strings for lexical and bigint/string comparisons. @param {Primitive} value */
