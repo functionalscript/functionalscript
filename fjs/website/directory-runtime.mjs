@@ -26,18 +26,32 @@ export const startDirectoryDrawer = layout => {
     path.setAttribute('data-drawer-path', '')
     path.textContent = main.querySelector('h1')?.textContent ?? ''
     dialog.append(heading, path)
-    const browse = doc.createElement('button')
-    browse.type = 'button'
-    browse.setAttribute('data-browse', '')
-    browse.setAttribute('aria-controls', dialog.id)
-    browse.setAttribute('aria-haspopup', 'dialog')
-    browse.textContent = '☰ Browse'
-    main.prepend(browse)
+    const navigation = doc.createElement('div')
+    navigation.setAttribute('data-directory-navigation', '')
+    navigation.setAttribute('role', 'group')
+    navigation.setAttribute('aria-label', 'Directory navigation')
+    for (const label of ['Contents', 'Issues']) {
+        const section = Array.from(catalogue.querySelectorAll('details')).find(
+            section => section.querySelector('summary')?.textContent === label)
+        const button = doc.createElement('button')
+        button.type = 'button'
+        button.setAttribute('aria-controls', dialog.id)
+        button.setAttribute('aria-haspopup', 'dialog')
+        button.textContent = label === 'Issues'
+            ? `${label} · ${section?.querySelectorAll('li').length ?? 0}`
+            : label
+        button.disabled = !section
+        button.addEventListener('click', () => {
+            if (!section) return
+            dialog.append(catalogue)
+            section.open = true
+            dialog.showModal()
+            section.scrollIntoView({ block: 'start' })
+        })
+        navigation.append(button)
+    }
+    main.prepend(navigation)
     layout.append(dialog)
-    browse.addEventListener('click', () => {
-        dialog.append(catalogue)
-        dialog.showModal()
-    })
     close.addEventListener('click', () => dialog.close())
     dialog.addEventListener('click', event => {
         const bounds = dialog.getBoundingClientRect()

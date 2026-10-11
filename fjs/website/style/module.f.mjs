@@ -130,27 +130,31 @@ body { background-color: var(--bg); color: var(--text); font: 16px ui-monospace,
    as the same directory's view on GitHub. It is in rem, like every other
    length here, so it grows with a reader's own font size. */
 main { margin: 1.5rem auto 3rem; max-width: 63.25rem; padding: 0 1rem }
-/* Use the empty left margin for the directory's catalogue while preserving
-   the centered reading column. Below that width, give the catalogue a
-   fixed column; on a phone, stack it above the page. */
-[data-directory-layout] { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 63.25rem) minmax(0, 1fr); gap: 1.5rem; padding-inline: 1rem }
-[data-directory-layout] > main { margin: 1.5rem 0 3rem; min-width: 0; padding: 0 }
-[data-catalogue] { align-self: start; border-right: 1px solid var(--border); margin-top: 1.5rem; max-height: calc(100dvh - 3rem); overflow: auto; padding-right: 1rem; position: sticky; top: 1.5rem }
+/* Keep the catalogue in a fixed left column and let desktop content fill
+   the remaining width. The divider spans the content, independently of
+   the sticky catalogue's height. Mobile navigation opens a drawer. */
+[data-directory-layout] { display: grid; grid-template-columns: 16rem minmax(0, 1fr); gap: 1.5rem; padding-inline: 1rem }
+[data-directory-layout]::before { content: ""; grid-column: 1; grid-row: 1; border-right: 1px solid var(--border); margin-block: 1.5rem 3rem; pointer-events: none }
+[data-directory-layout] > main { grid-column: 2; grid-row: 1; margin: 1.5rem 0 3rem; max-width: none; min-width: 0; padding: 0 }
+[data-catalogue] { grid-column: 1; grid-row: 1; align-self: start; margin-top: 1.5rem; max-height: calc(100dvh - 3rem); overflow: auto; padding-right: 1rem; position: sticky; top: 1.5rem }
 [data-catalogue] > [data-section]:first-child { margin-top: 0 }
 [data-catalogue] > [data-section]:last-child { margin-bottom: 0 }
 [data-catalogue] li { margin-block: .4rem }
 [data-catalogue] a { font-size: .875rem }
-@media (max-width: 85rem) {
-    [data-directory-layout] { grid-template-columns: 16rem minmax(0, 1fr) }
-}
 @media (max-width: 48rem) {
     [data-directory-layout] { display: block }
+    [data-directory-layout]::before { display: none }
     [data-catalogue] { border-right: 0; border-bottom: 1px solid var(--border); max-height: none; padding: 0 0 1rem; position: static }
 }
-[data-browse], [data-drawer] { display: none }
+[data-directory-navigation], [data-drawer] { display: none }
 @media (max-width: 48rem) {
     [data-drawer-ready] > [data-catalogue] { display: none }
-    [data-browse] { display: inline-flex; align-items: center; gap: .45rem; margin-bottom: 1rem; background: var(--bg); color: var(--link); border: 1px solid var(--border); border-radius: 4px; padding: .65rem .75rem; min-height: 44px; cursor: pointer }
+    [data-directory-navigation] { display: flex; margin-bottom: 1rem; border: 1px solid var(--border); border-radius: 6px; overflow: hidden }
+    [data-directory-navigation] button { flex: 1; font: inherit; font-size: .875rem; min-height: 44px; padding: .65rem 1rem; background: var(--bg); color: var(--link); border: 0; cursor: pointer }
+    [data-directory-navigation] button + button { border-left: 1px solid var(--border) }
+    [data-directory-navigation] button:disabled { color: var(--muted); background: color-mix(in srgb, var(--border) 15%, var(--bg)); cursor: default }
+    [data-directory-navigation] button:not(:disabled):hover { background: color-mix(in srgb, var(--border) 30%, var(--bg)) }
+    [data-directory-navigation] button:focus-visible { outline: 2px solid var(--link); outline-offset: -3px }
     [data-drawer][open] { display: block; position: fixed; inset: 0 auto 0 0; margin: 0; box-sizing: border-box; width: min(86vw, 22rem); height: 100dvh; max-height: 100dvh; max-width: none; border: 0; border-right: 1px solid var(--border); padding: 1rem; background: var(--bg); color: var(--text); overflow: auto }
     [data-drawer]::backdrop { background: rgb(0 0 0 / .42) }
     [data-drawer-top] { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-bottom: .5rem }
@@ -163,7 +167,8 @@ main { margin: 1.5rem auto 3rem; max-width: 63.25rem; padding: 0 1rem }
 }
 [data-catalogue]:empty { display: none }
 [data-directory-layout]:has(> [data-catalogue]:empty) { display: block }
-[data-directory-layout]:has(> [data-catalogue]:empty) > main { margin-inline: auto }
+[data-directory-layout]:has(> [data-catalogue]:empty)::before { display: none }
+[data-directory-layout]:has(> [data-catalogue]:empty) > main { margin-inline: auto; max-width: 63.25rem }
 /* The PR queue keeps the site's three-column table readable on a phone;
    status uses words as well as colour. */
 [data-prs] table { border-collapse: collapse; margin-block: 1rem; table-layout: fixed; width: 100% }
