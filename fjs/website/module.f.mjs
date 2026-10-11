@@ -63,7 +63,7 @@ import { log } from '../effects/common/module.f.mjs'
 import { indexPage, isVersion, releasePage, releasePath, releases } from './changelog/module.f.mjs'
 import { tryParse } from '../media/markdown/module.f.mjs'
 import { stylesheet } from './style/module.f.mjs'
-import { changelogDir, demoSection, page, pagePath, prsDir, sections, shell, siteName, subtree, testSection, testsMain } from './page/module.f.mjs'
+import { changelogDir, demoSection, directoryLayout, page, pagePath, prsDir, shell, siteName, subtree, testSection, testsMain } from './page/module.f.mjs'
 import { prsPage } from './prs/module.f.mjs'
 import { toHex, tryFromHexOf } from '../git/oid/module.f.mjs'
 import { fundingPath, parse as parseFunding } from './funding/module.f.mjs'
@@ -78,11 +78,8 @@ import { isThirdParty } from '../dev/module.f.mjs'
  * keeps its own frame, because the heading and the runner are the site's and
  * not the root directory's.
  *
- * **The demo first, the catalogue next, and the test suite last.** What a
- * module does is the quickest answer to what it is, and what a directory
- * holds is what a reader came for; a run is something they then ask for. It
- * is also the only order in which a run cannot move the catalogue, whatever
- * the report does.
+ * **The catalogue sits beside the demo and test suite.** A reader can
+ * navigate the directory without a growing demo or report moving its links.
  *
  * The heading is the project, not the suite. The suite is one section of the
  * page — named for what it is, with the prose that introduces it inside —
@@ -93,10 +90,9 @@ import { isThirdParty } from '../dev/module.f.mjs'
  *
  * @type {(build: Build) => (dir: Dir) => Vec}
  */
-const rootPage = build => dir => shell(build)(siteName)(testsMain(
+const rootPage = build => dir => shell(build)(siteName)(directoryLayout(build)(dir)(testsMain(
     ['h1', 'FunctionalScript'],
     ...(dir.demo === null ? [] : demoSection(dir.demo)),
-    ...sections(build.commit)(dir),
     ...testSection(dir)([
         ['p',
             'FunctionalScript derives this browser-native unit-test suite from exported proofs. ',
@@ -107,7 +103,7 @@ const rootPage = build => dir => shell(build)(siteName)(testsMain(
             '.'
         ],
     ]),
-))
+)))
 
 /** @type {(path: string) => boolean} */
 const authored = path => path.endsWith('.f.mjs')
