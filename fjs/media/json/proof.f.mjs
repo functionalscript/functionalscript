@@ -8,6 +8,7 @@ import { sort } from '../../types/object/module.f.mjs'
 import { identity } from '../../types/function/module.f.js'
 import { assert, assertEq, assertNotNullish, assertError, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { htmlToString } from '../html/module.f.mjs'
+import { toText } from '../../text/marked/module.f.mjs'
 import { disagreement } from '../../website/demo/highlight/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
 import { runPure } from '../../effects/module.f.mjs'
@@ -39,6 +40,14 @@ export const proof = {
             if (x !== '{"a":"Hello"}') { throw x }
         },
     ],
+    // `marked` is `stringify` as runs: the same text, with the leaves' kinds
+    marked: () => {
+        const value = { b: null, a: 'x', c: [1, true] }
+        assertEq(toText(marked(sort)(value)), stringify(sort)(value))
+        assertEq(
+            JSON.stringify(marked(sort)(value).filter(([, kind]) => kind !== undefined)),
+            '[["\\"a\\"","string"],["\\"x\\"","string"],["\\"b\\"","string"],["null","literal"],["\\"c\\"","string"],["1","number"],["true","literal"]]')
+    },
     stringify: [
         {
             sort: () => {
