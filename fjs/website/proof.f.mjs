@@ -146,6 +146,14 @@ export const proof = {
             assert(!pageAt(root, []).includes('API documentation'), pageAt(root, []))
             assert(output.includes('rust crates: 1'), output)
         },
+        // Every build writes the site's bars and their stylesheet for
+        // `cargo doc` to put on rustdoc's pages, whether or not it ran.
+        rustdocBars: () => {
+            const { root } = generate({ 'funding.json': file('{"funding":{"channels":[{"description":"Support","address":"https://example.com/"}]}}') })
+            assert(textOf(root['_rustdoc-header.html'], 'the header').startsWith('<header>'))
+            assert(textOf(root['_rustdoc-footer.html'], 'the footer').includes('<a href="https://example.com/">Support'))
+            assert(textOf(root['_rustdoc.css'], 'the stylesheet').includes('body.rustdoc > main'))
+        },
         // Without `cargo doc`, nothing is written and nothing is linked.
         absent: () => {
             const { root, output } = generate({ nanvm: { lib: { 'Cargo.toml': file('[package]') } } })

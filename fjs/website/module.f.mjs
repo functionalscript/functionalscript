@@ -62,13 +62,13 @@ import { toArray } from '../types/list/module.f.mjs'
 import { log } from '../effects/common/module.f.mjs'
 import { indexPage, isVersion, releasePage, releasePath, releases } from './changelog/module.f.mjs'
 import { tryParse } from '../media/markdown/module.f.mjs'
-import { stylesheet } from './style/module.f.mjs'
+import { rustdocStylesheet, stylesheet } from './style/module.f.mjs'
 import { changelogDir, demoSection, directoryLayout, page, pagePath, prsDir, shell, siteName, subtree, testSection, testsMain } from './page/module.f.mjs'
 import { prsPage } from './prs/module.f.mjs'
 import { toHex, tryFromHexOf } from '../git/oid/module.f.mjs'
 import { fundingPath, parse as parseFunding } from './funding/module.f.mjs'
 import { isThirdParty } from '../dev/module.f.mjs'
-import { cargoDocDir, cargoDocHref, cargoDocPage, crateHref, crateOf, rustdocDir } from './cargo-doc/module.f.mjs'
+import { cargoDocDir, cargoDocHref, cargoDocPage, crateHref, crateOf, rustdocDir, rustdocFooter, rustdocFooterPath, rustdocHeader, rustdocHeaderPath, rustdocStylesheetPath } from './cargo-doc/module.f.mjs'
 
 /**
  * The root page: the project's name, the catalogue every directory page
@@ -692,6 +692,22 @@ const writeCargoDoc = build => step(copyRustdoc, crates => crates === null
         () => step(log(`rust crates: ${crates.length}`), () => pureOk(crates))))
 
 /**
+ * The site's header, footer and their stylesheet, written for `cargo doc` to
+ * put on every page of rustdoc's — so a build that runs `cargo doc` after
+ * this one, with them, publishes rustdoc's pages inside the site's bars.
+ * Written on every build, as `_main.css` is, whether or not anything uses
+ * them: they cost three small files, and a build that needs them should not
+ * have to ask.
+ *
+ * @type {(build: Build) => Effect<Rm | WriteBytes | WriteFile, void, IoChannel>}
+ */
+const writeRustdocBars = build => step(
+    writeUtf8File(rustdocHeaderPath, rustdocHeader(build)),
+    () => step(
+        writeUtf8File(rustdocFooterPath, rustdocFooter(build.funding)),
+        () => writeUtf8File(rustdocStylesheetPath, rustdocStylesheet)))
+
+/**
  * One `index.html` per directory, so the tree is walkable from the root.
  *
  * The root's page is the site's own — it carries the heading and the test
@@ -813,7 +829,8 @@ const program = env => note => exitStep(mapStep(
                     const changelog = step(pages, () => writeChangelog(build)(tree))
                     const prDirectory = step(changelog, () => mkdir(prsDir, { recursive: true }))
                     const prPage = step(prDirectory, () => writeFile(pagePath(prsDir), prsPage(build)))
-                    return step(prPage, () => writeUtf8File('_main.css', stylesheet))
+                    const css = step(prPage, () => writeUtf8File('_main.css', stylesheet))
+                    return step(css, () => writeRustdocBars(build))
                 })))
     }))),
     () => undefined))

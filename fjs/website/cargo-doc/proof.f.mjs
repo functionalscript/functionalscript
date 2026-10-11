@@ -1,6 +1,6 @@
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { utf8ToString } from '../../text/module.f.mjs'
-import { cargoDocHref, cargoDocPage, crateHref, crateOf } from './module.f.mjs'
+import { cargoDocHref, cargoDocPage, crateHref, crateOf, rustdocFooter, rustdocHeader } from './module.f.mjs'
 
 const local = /** @type {const} */ ({ commit: null, branch: null, funding: [] })
 
@@ -16,5 +16,21 @@ export const proof = {
         assert(html.includes('<title>Rust API · FunctionalScript</title>'), html)
         assert(html.includes('<h1>Rust API</h1>'), html)
         assert(html.includes('<li><a href="/cargo.doc/nanvm_harness/index.html">nanvm_harness</a></li><li><a href="/cargo.doc/nanvm_lib/index.html">nanvm_lib</a></li>'), html)
+    },
+    // The bars rustdoc puts on its pages are the site's own, as HTML
+    // fragments: no document around them, since rustdoc places them.
+    rustdocHeader: () => {
+        const html = rustdocHeader(local)
+        assert(html.startsWith('<header><nav aria-label="Site">'), html)
+        assert(html.endsWith('</header>'), html)
+        assert(html.includes('<a href="/prs/index.html">PRs</a>'), html)
+    },
+    rustdocFooter: {
+        channels: () => {
+            const html = rustdocFooter([{ description: 'Patreon', address: 'https://patreon.com/x' }])
+            assert(html.startsWith('<footer data-funding="">Support FunctionalScript: '), html)
+            assert(html.includes('<a href="https://patreon.com/x">Patreon'), html)
+        },
+        none: () => assertEq(rustdocFooter([]), ''),
     },
 }

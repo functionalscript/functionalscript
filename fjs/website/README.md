@@ -80,6 +80,25 @@ writes no `cargo.doc/` and no links. `target/` itself is never served: it
 holds build artifacts beside the docs, and `.assetsignore` keeps it out of
 every upload, whichever build made it.
 
+**rustdoc's pages carry the site's header and footer.** Every build writes
+them, from the same builders every page uses, as `_rustdoc-header.html` and
+`_rustdoc-footer.html`, with `_rustdoc.css` for their look; `cargo doc` puts
+them on each page it writes when it is given them. So a build with the bars is
+the site, then `cargo doc`, then the site again to copy what it wrote:
+
+```bash
+npm run website
+cargo clean --doc
+RUSTDOCFLAGS="--html-before-content $PWD/_rustdoc-header.html --html-after-content $PWD/_rustdoc-footer.html --extend-css $PWD/_rustdoc.css" cargo doc --no-deps --workspace
+npm run website
+```
+
+`cargo clean --doc` is not optional: `cargo` reuses earlier docs when its
+flags are unchanged, even though the files they name have changed. Two rules
+in `_rustdoc.css` lean on rustdoc's own layout, and its JSDoc says which; the
+rest of rustdoc's look is its own
+([rustdoc-site-theme](todo/rustdoc-site-theme.md)).
+
 `cargo.doc/` is the one generated name outside `index.html` and the
 `_`-prefixed files, so `.gitignore` and `tsconfig.json` name it, and the walk
 excludes it as it excludes `prs/`. Where the published site runs `cargo doc`

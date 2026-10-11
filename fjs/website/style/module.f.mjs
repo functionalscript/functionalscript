@@ -137,13 +137,67 @@ const railroadBox = kind => `[${railroadBoxMarker}="${kind}"]`
 const railroadLabel = kind => `[${railroadLabelMarker}="${kind}"]`
 
 /**
+ * The colour tokens of the light scheme, and of the dark one.
+ *
+ * Named because two stylesheets declare them: {@link stylesheet} on every
+ * page, and {@link rustdocStylesheet} on rustdoc's.
+ */
+const lightTokens = '--graph-new-bg: #aecbfa; --bg: white; --text: black; --muted: #5f6368; --border: #dadce0; --link: #137333; --pass: #137333; --pass-bg: #e6f4ea; --fail: #b3261e; --fail-bg: #fce8e6; --value: #174ea6; --value-bg: #e8f0fe; --syntax-number: #8430ce; --syntax-name: #8a4b00'
+const darkTokens = '--graph-new-bg: #1c2d4d; --bg: #121212; --text: #f1f1f1; --muted: #9aa0a6; --border: #3c4043; --link: #81c995; --pass: #81c995; --pass-bg: #0f2417; --fail: #f28b82; --fail-bg: #2a1414; --value: #8ab4f8; --value-bg: #172033; --syntax-number: #c58af9; --syntax-name: #f0a868'
+
+/**
+ * The rules for the site's two bars, the header and the funding footer,
+ * shared with {@link rustdocStylesheet} so rustdoc's pages carry the same
+ * bars as every other page.
+ */
+const bars = `/* The header every page opens with: the logo and the site's name on the left,
+   the site-wide links on the right, across the full width of the window with
+   one rule under it, as a site's own bar. Its contents go to the window's
+   edges, not the page's column: the bar belongs to the site, and the column
+   to the page under it. The menu is bold and a step larger than the text, as a
+   site's own navigation is set apart from what it navigates.
+   It wraps rather than hiding behind a menu button: in a monospace face a
+   phone has no room for the name and the links on one line, and a line break
+   costs no script.
+   A header link is not underlined: its place in the header is what says it is
+   a link, as a site's own navigation does everywhere, and the underline comes
+   back on hover. Every link in the header is padded to a finger's target,
+   whatever the pointer: it is one row, not a dense list, so the padding
+   costs nothing a mouse would miss. */
+header { border-bottom: 1px solid var(--border) }
+header nav, [data-build] { padding-inline: 1rem }
+header nav, [data-site-links] { align-items: center; display: flex; flex-wrap: wrap; gap: .25rem 1.5rem }
+header nav { font-size: 1.125rem; font-weight: 700; padding-block: .5rem }
+header nav a { padding-block: .25rem; text-decoration: none }
+header nav a:hover { text-decoration: underline }
+[data-home] { align-items: center; display: inline-flex; gap: .5rem; margin-right: auto }
+[data-home] img { height: 1.5rem; width: 1.5rem }
+/* A preview says which build it is — the branch and the commit — so a
+   reader comparing two previews, or a preview with production, knows which
+   one they are looking at. Muted and small: it is about the build, not the
+   page. It is a full-width strip under the menu, tinted from the border and
+   the background rather than a colour of its own, so it follows both
+   schemes, and set to the right, under the links, as a status bar is. */
+[data-build] { background: color-mix(in srgb, var(--border) 30%, var(--bg)); border-top: 1px solid var(--border); color: var(--muted); font-size: .8rem; margin: 0; padding-block: .35rem; text-align: right }
+/* The funding footer closes every page: one muted, centred line under a rule,
+   spanning the window as the header does, so it reads as the site's own bar
+   rather than the last line of the page. Its links keep the page's colour and
+   underline, because unlike the header's they sit in a sentence.
+   A link never breaks inside itself: on a phone "GitHub Sponsors" split
+   across two lines read as two links, so the line breaks between links,
+   never within one. */
+footer[data-funding] { border-top: 1px solid var(--border); color: var(--muted); font-size: .875rem; padding: 1rem; text-align: center }
+footer[data-funding] a { white-space: nowrap }
+`
+
+/**
  * The stylesheet, verbatim.
  *
  * @type {string}
  */
-export const stylesheet = `:root { color-scheme: light dark; --graph-new-bg: #aecbfa; --bg: white; --text: black; --muted: #5f6368; --border: #dadce0; --link: #137333; --pass: #137333; --pass-bg: #e6f4ea; --fail: #b3261e; --fail-bg: #fce8e6; --value: #174ea6; --value-bg: #e8f0fe; --syntax-number: #8430ce; --syntax-name: #8a4b00 }
+export const stylesheet = `:root { color-scheme: light dark; ${lightTokens} }
 @media (prefers-color-scheme: dark) {
-    :root { --graph-new-bg: #1c2d4d; --bg: #121212; --text: #f1f1f1; --muted: #9aa0a6; --border: #3c4043; --link: #81c995; --pass: #81c995; --pass-bg: #0f2417; --fail: #f28b82; --fail-bg: #2a1414; --value: #8ab4f8; --value-bg: #172033; --syntax-number: #c58af9; --syntax-name: #f0a868 }
+    :root { ${darkTokens} }
 }
 /* Every link on the site is coloured the same whether or not it has been
    opened: nearly every word here is a link into the tree, and the visited
@@ -341,45 +395,7 @@ input[type="text"] { box-sizing: border-box; width: 100% }
 /* Search progress supports the current verdict rather than competing with it;
    smaller muted text separates the attempt count and failed range from the result. */
 [data-pow-search-summary] { color: var(--muted); font-size: .875rem; line-height: 1.6; margin-top: .75rem }
-/* The header every page opens with: the logo and the site's name on the left,
-   the site-wide links on the right, across the full width of the window with
-   one rule under it, as a site's own bar. Its contents go to the window's
-   edges, not the page's column: the bar belongs to the site, and the column
-   to the page under it. The menu is bold and a step larger than the text, as a
-   site's own navigation is set apart from what it navigates.
-   It wraps rather than hiding behind a menu button: in a monospace face a
-   phone has no room for the name and the links on one line, and a line break
-   costs no script.
-   A header link is not underlined: its place in the header is what says it is
-   a link, as a site's own navigation does everywhere, and the underline comes
-   back on hover. Every link in the header is padded to a finger's target,
-   whatever the pointer: it is one row, not a dense list, so the padding
-   costs nothing a mouse would miss. */
-header { border-bottom: 1px solid var(--border) }
-header nav, [data-build] { padding-inline: 1rem }
-header nav, [data-site-links] { align-items: center; display: flex; flex-wrap: wrap; gap: .25rem 1.5rem }
-header nav { font-size: 1.125rem; font-weight: 700; padding-block: .5rem }
-header nav a { padding-block: .25rem; text-decoration: none }
-header nav a:hover { text-decoration: underline }
-[data-home] { align-items: center; display: inline-flex; gap: .5rem; margin-right: auto }
-[data-home] img { height: 1.5rem; width: 1.5rem }
-/* A preview says which build it is — the branch and the commit — so a
-   reader comparing two previews, or a preview with production, knows which
-   one they are looking at. Muted and small: it is about the build, not the
-   page. It is a full-width strip under the menu, tinted from the border and
-   the background rather than a colour of its own, so it follows both
-   schemes, and set to the right, under the links, as a status bar is. */
-[data-build] { background: color-mix(in srgb, var(--border) 30%, var(--bg)); border-top: 1px solid var(--border); color: var(--muted); font-size: .8rem; margin: 0; padding-block: .35rem; text-align: right }
-/* The funding footer closes every page: one muted, centred line under a rule,
-   spanning the window as the header does, so it reads as the site's own bar
-   rather than the last line of the page. Its links keep the page's colour and
-   underline, because unlike the header's they sit in a sentence.
-   A link never breaks inside itself: on a phone "GitHub Sponsors" split
-   across two lines read as two links, so the line breaks between links,
-   never within one. */
-footer[data-funding] { border-top: 1px solid var(--border); color: var(--muted); font-size: .875rem; padding: 1rem; text-align: center }
-footer[data-funding] a { white-space: nowrap }
-/* Every section of a page is a disclosure, so a reader can fold away what
+${bars}/* Every section of a page is a disclosure, so a reader can fold away what
    they are not reading — the platform's own collapsible, and no script on a
    site that is static files. Its summary is the section's heading, and is
    sized like one. */
@@ -607,3 +623,31 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
    demo's value written again under a refusal — in the failure's colours. */
 [${codeMarker}] mark { background: var(--fail-bg); border-radius: 3px; color: var(--fail); outline: 1px solid color-mix(in srgb, var(--fail) 40%, transparent) }
 `
+
+/**
+ * The stylesheet rustdoc's pages extend theirs with (`--extend-css`), for the
+ * site's header and footer that the generator hands rustdoc to put on every
+ * page.
+ *
+ * The tokens are declared on `:root` like the site's own, under names rustdoc
+ * does not use. The bars keep the site's face and colours: rustdoc's own
+ * styles are left as they are.
+ *
+ * **Two rules lean on rustdoc's layout**, and are where to look when a Rust
+ * release changes it. rustdoc lays a page out as one flex row, its sidebar
+ * then `main`: each bar takes a row of its own, and `main` shrinks beside the
+ * sidebar instead of wrapping under it when its content is wide. And the bars
+ * sit above rustdoc's sticky sidebar, at z-index 100, which would otherwise
+ * slide over the footer at the end of a long page.
+ *
+ * @type {string}
+ */
+export const rustdocStylesheet = `:root { ${lightTokens} }
+@media (prefers-color-scheme: dark) {
+    :root { ${darkTokens} }
+}
+body.rustdoc { flex-wrap: wrap }
+body.rustdoc > main { flex: 1 1 0; min-width: 0 }
+body.rustdoc > header, body.rustdoc > footer { background-color: var(--bg); flex-basis: 100%; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; position: relative; z-index: 101 }
+body.rustdoc > header a, body.rustdoc > footer a { color: var(--link) }
+${bars}`
