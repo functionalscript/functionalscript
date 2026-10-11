@@ -683,27 +683,27 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
 [${signVerifierMarker}] { min-width: 0 }
 [${signExplanationMarker}] { margin: .75rem 0 0; line-height: 1.5; font-size: .8rem }
 [${signTrustMarker}] { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, 1fr); align-items: center; gap: .75rem; color: var(--muted); margin-top: 1rem }
-[${signTrustMarker}-key] { display: flex; align-items: center; gap: .5rem; border: 1px solid var(--border); border-radius: 8px; background: color-mix(in srgb, var(--border) 35%, var(--bg)); color: var(--text); padding: .5rem .75rem }
-[${signTrustMarker}-key] svg { width: 1.5rem; height: 1.5rem; margin: 0 }
-[${signTrustMarker}-path] { text-align: center }
-[${signTrustMarker}-path] svg { width: 100%; height: 1.5rem; margin: .25rem 0 }
+[${signTrustKeyMarker}] { display: flex; align-items: center; gap: .5rem; border: 1px solid var(--border); border-radius: 8px; background: color-mix(in srgb, var(--border) 35%, var(--bg)); color: var(--text); padding: .5rem .75rem }
+[${signTrustKeyMarker}] svg { width: 1.5rem; height: 1.5rem; margin: 0 }
+[${signTrustPathMarker}] { text-align: center }
+[${signTrustPathMarker}] svg { width: 100%; height: 1.5rem; margin: .25rem 0 }
 [${signSchemeMarker}] figcaption { color: var(--muted); font-size: .8rem; line-height: 1.5; margin-top: .75rem }
 @media (max-width: 900px) {
     [${signFlowMarker}] { grid-template-columns: minmax(0, 1fr) 3.5rem minmax(0, 1fr) 3.5rem minmax(0, 1fr) }
 }
 @media (max-width: 600px) {
     [${signFlowMarker}], [${signTrustMarker}] { grid-template-columns: minmax(0, 1fr) }
-    [${signPacketMarker}], [${signTrustMarker}-path] { display: flex; align-items: center; justify-content: center; gap: .75rem }
-    [${signPacketMarker}] svg, [${signTrustMarker}-path] svg { transform: rotate(90deg); width: 1.5rem; height: 1.5rem; margin: .35rem 0 }
+    [${signPacketMarker}], [${signTrustPathMarker}] { display: flex; align-items: center; justify-content: center; gap: .75rem }
+    [${signPacketMarker}] svg, [${signTrustPathMarker}] svg { transform: rotate(90deg); width: 1.5rem; height: 1.5rem; margin: .35rem 0 }
     [${signPacketMarker}] { margin-top: 0 }
-    [${signTrustMarker}-key] { justify-content: center }
+    [${signTrustKeyMarker}] { justify-content: center }
 }
 
 /* Role cards keep long signing outputs and received snapshots in distinct
    sections. Role names and borders distinguish them without relying on color. */
 [${signStageMarker}] { border: 1px solid color-mix(in srgb, var(--sign-accent) 45%, var(--border)); border-radius: 10px; margin-block: 1.5rem; padding: 0 1rem 1rem; min-width: 0 }
-[${signStageMarker}-header] { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem 1rem; margin: 0 -1rem 1rem; padding: .75rem 1rem; border-radius: 9px 9px 0 0; border-bottom: 1px solid color-mix(in srgb, var(--sign-accent) 25%, var(--border)); background: var(--sign-tint); color: var(--sign-accent) }
-[${signStageMarker}-header] h3 { margin: 0; font-size: 1.1rem }
+[${signStageHeaderMarker}] { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem 1rem; margin: 0 -1rem 1rem; padding: .75rem 1rem; border-radius: 9px 9px 0 0; border-bottom: 1px solid color-mix(in srgb, var(--sign-accent) 25%, var(--border)); background: var(--sign-tint); color: var(--sign-accent) }
+[${signStageHeaderMarker}] h3 { margin: 0; font-size: 1.1rem }
 [${signRoleMarker}] { border: 1px solid color-mix(in srgb, var(--sign-accent) 40%, transparent); border-radius: 999px; font-size: .75rem; padding: .2rem .6rem }
 
 `
