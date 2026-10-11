@@ -32,6 +32,7 @@
 |Comma      |`,`      |1          |
 |Type       |`typeof` |**done**   |
 |           |`instanceof`|**done** — `Array` on the right only ([specification](../README.md#operators))|
+|           |`in`     |not allowed — by design ([decision](./2346-in-operator.md))|
 
 **Stages A and B are in the language** — every row marked **done** — and
 the [specification](../README.md#operators) is the one place their syntax,
