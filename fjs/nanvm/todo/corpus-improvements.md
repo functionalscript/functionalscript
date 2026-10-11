@@ -66,7 +66,10 @@ corpus should wait for that move, or be rebased over it.
 2. **Delete the hand-written throw checks the `THROWS` record covers.** Every
    expectation records whether its fixture throws, and the Rust test compares
    it. The hand-written `Thrown(_)` assertions for the `throws`, `nullish`,
-   `closure-throws` and `not-a-function` fixtures repeat that. Keep the one
+   `closure-throws` and `not-a-function` fixtures repeat that, and so does the
+   imported-module throw that `named_imports_and_captures` asserts for
+   `named-imports-throws` (the rest of that test, a call and a read of
+   named exports, stays until item 1). Keep the one
    that checks the thrown value (`throw`, which throws `7`) and the test of the
    harness's own `Thrown` reporting over a hand-written module. Small and
    mechanical, the same shape as the JSON deduplication.
@@ -90,13 +93,15 @@ compared by the existing machinery with nothing retyped.
    allowed calls have a compiled fixture (`at`, `toString`, `endsWith`,
    `startsWith`, `join`, and one `map` in `entry` with a plain, non-capturing
    callback); most do not. The VM's answers are already pinned by the
-   operator corpus, so the gap is the compiled wiring, not each method: the
-   receiver lookup, an own property shadowing the built-in, a guarded call, a
-   method call on a computed receiver, and above all callbacks that capture
-   state. Nothing passes a capturing closure to `map`, `filter` or `reduce`,
-   which is the AOT-compiled closure called by the VM's own code. A few
-   fixtures, one per family (array with callbacks, string, number
-   formatting), rather than one per method. This is the open "corpus cases for every entry" task of
+   operator corpus, and the compiled wiring of a call on an own property is
+   too: `method` and `optional` pin a method call and a guarded call of an
+   own function, and `to-string` an own `toString` shadowing the built-in. What
+   remains is callbacks that capture state, since nothing passes a capturing
+   closure to `map`, `filter` or `reduce` (the AOT-compiled closure called by
+   the VM's own code), a guarded call of a built-in (`a?.at(0)`, `a.at?.(0)`),
+   and the other families' methods with arguments (string slicing and
+   padding, number formatting). A few fixtures, one per family, rather than
+   one per method. This is the open "corpus cases for every entry" task of
    [member-functions](../../../nanvm-lib/todo/member-functions.md); tick it
    there, and reword it, since it predates the compiled corpus.
 6. **BigInt operators through the compile path.** Today only literals and a
@@ -111,9 +116,10 @@ compared by the existing machinery with nothing retyped.
    `callable-function-objects.md`; the legacy-sketch refusal and zero-arity
    migration it lists are compiler proofs, not fixtures.
 8. **Structure and strings.** Integer-like keys in a plain object literal
-   (only `object-spread` pins key order today), empty containers, lone
-   surrogates and non-BMP characters in fixture source. Extend the existing
-   fixtures where they fit.
+   (only `object-spread` pins key order today), an empty array literal, and
+   a lone surrogate written in fixture source (`object-spread` only produces
+   them, from a spread of a string). Non-BMP text is already covered by
+   `spread`. Extend the existing fixtures where they fit.
 
 **Decisions before any work (C).**
 
