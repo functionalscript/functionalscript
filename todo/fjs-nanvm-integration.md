@@ -345,7 +345,7 @@ records that snapshot's blockers, including the since-migrated `array_index`:
 
 | Feature | Tracked in | Leaves it held at `08d013b` |
 | --- | --- | --- |
-| Template literals | [`spec/todo/3440-template-literals.md`](../spec/todo/3440-template-literals.md) | function/operator, ci/package, ts, nanvm/methods, nanvm/member, style, demo/code, git/config, browser-source |
+| Template literals | now implemented ([spec: template literals](../spec/README.md#template-literals)) | function/operator, ci/package, ts, nanvm/methods, nanvm/member, style, demo/code, git/config, browser-source |
 | Destructuring | [`spec/todo/2450-destructuring.md`](../spec/todo/2450-destructuring.md) | structurally_same, result, function/operator, map, demo/examples, ts, git/config, nanvm/methods |
 | A runtime key that is a string, `a[k]` | in the language as the `entry` helper ([spec: entry](../spec/README.md#reading-an-entry-at-run-time)); the module rewrites `a[k]` as `entry(a, k)`, imported from [`fjs/js/entry`](../fjs/js/entry/module.f.js) | git/config, nanvm/methods |
 | A runtime key that is a number, `a[i]` | in the language as the conversion `a[Number(i)]` ([spec: property access](../spec/README.md#property-access)), the EDAG's `['.', a, ['Number', i]]`; the module rewrites `a[i]` as `a[Number(i)]`, not `entry` | structurally_same, function/operator, set, git/bytes, git/config, browser-source |
@@ -469,13 +469,11 @@ The count at `8f78921`, with `main` at `0882d09` merged in, was the same
 table over 227 modules with 93 template literals: one module was added and
 nothing else moved.
 
-Template literals are the first refusal of two modules in five, almost all
-of them error messages and `assert` texts, and they are a feature with open
-questions of its own
-([`3440`](../spec/todo/3440-template-literals.md)) — the case for settling
-those questions, not a license to start before they are. Destructuring is
-next, and the string-escape row is tokenizer work. The leaf table above is
-what this count does not say: a module whose
+Template literals were the first refusal of two modules in five in these
+snapshots, almost all of them error messages and `assert` texts. Untagged
+templates are now implemented ([spec: template literals](../spec/README.md#template-literals)).
+Destructuring was next, and the string-escape row is tokenizer work. The leaf
+table above is what this count does not say: a module whose
 first refusal clears meets its next, and only a leaf whose every feature has
 landed renames.
 

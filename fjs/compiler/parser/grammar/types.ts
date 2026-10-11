@@ -114,6 +114,12 @@ export type Items<Item extends Rule> = () => readonly ['const', readonly [
 /** An opening symbol, an optional list, and the closing symbol. */
 export type Container<Item extends Rule> = readonly [number, Option<Items<Item>>, number]
 
+/** A cooked template chunk alone, or a head, full-expression substitutions and chunks, and a tail. */
+export type Template = () => readonly ['const', {
+    readonly plain: number
+    readonly substitution: readonly [number, Value, RepeatFrom<0, readonly [number, Value]>, number]
+}]
+
 /** A member of an object, by its key's spelling: a bare identifier and, optionally, `:` and a value, or a string literal or a computed `["a"]`, each with its `:` and value. */
 export type Member = {
     readonly plain: readonly [typeof identifierName, Option<readonly [number, Value]>]
@@ -179,6 +185,7 @@ export type Unary = () => readonly ['const', {
     readonly not: readonly [number, UnaryOperand]
     readonly typeof: readonly [number, UnaryOperand]
     readonly primitive: readonly [readonly [typeof primitive, RepeatFrom<0, Access>], PowTail]
+    readonly template: readonly [readonly [Template, RepeatFrom<0, Access>], PowTail]
     readonly ref: readonly [readonly [typeof identifier, RepeatFrom<0, Access>], PowTail]
     readonly array: readonly [readonly [Container<Item>, RepeatFrom<0, Access>], PowTail]
     readonly object: readonly [readonly [Container<Entry>, RepeatFrom<0, Access>], PowTail]
@@ -199,6 +206,7 @@ export type UnaryOperand = () => readonly ['const', {
     readonly not: readonly [number, UnaryOperand]
     readonly typeof: readonly [number, UnaryOperand]
     readonly primitive: readonly [readonly [typeof primitive, RepeatFrom<0, Access>]]
+    readonly template: readonly [readonly [Template, RepeatFrom<0, Access>]]
     readonly ref: readonly [readonly [typeof identifier, RepeatFrom<0, Access>]]
     readonly array: readonly [readonly [Container<Item>, RepeatFrom<0, Access>]]
     readonly object: readonly [readonly [Container<Entry>, RepeatFrom<0, Access>]]
@@ -319,6 +327,7 @@ export type ValueBranches = {
     readonly not: readonly [number, UnaryOperand, ...Tail]
     readonly typeof: readonly [number, UnaryOperand, ...Tail]
     readonly primitive: readonly [readonly [typeof primitive, RepeatFrom<0, Access>], PowTail, ...Tail]
+    readonly template: readonly [readonly [Template, RepeatFrom<0, Access>], PowTail, ...Tail]
     readonly name: readonly [typeof identifier, ArrowOrRest]
     readonly array: readonly [readonly [Container<Item>, RepeatFrom<0, Access>], PowTail, ...Tail]
     readonly paren: Paren

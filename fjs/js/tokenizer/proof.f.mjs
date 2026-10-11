@@ -7,7 +7,7 @@ import { toArray } from '../../types/list/module.f.mjs'
 import { parser } from '../../ebnf/ll1/module.f.mjs'
 import { token as ebnfToken } from '../../ebnf/lib/js/module.f.mjs'
 import { _positions, tokenize } from './module.f.mjs'
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { _stringifyTree } from '../../compiler/module.f.mjs'
 
 // JsTokenWithMetadata carries bigint fields that JSON.stringify cannot
@@ -80,6 +80,98 @@ const covers = s => {
 }
 
 export const proof = {
+    templates: {
+        chunks: () => {
+            assertEq(tokenizeString('``'), stringify([{ kind: 'noSubstitutionTemplate', value: '', source: '' }, { kind: 'eof' }]))
+            assertEq(tokenizeString('`é😀$ $$ $a { }`'), stringify([{ kind: 'noSubstitutionTemplate', value: 'é😀$ $$ $a { }', source: 'é😀$ $$ $a { }' }, { kind: 'eof' }]))
+            assertEq(tokenizeString('`a${x}b${y}c`'), stringify([
+                { kind: 'templateHead', value: 'a', source: 'a' }, { kind: 'id', value: 'x' },
+                { kind: 'templateMiddle', value: 'b', source: 'b' }, { kind: 'id', value: 'y' },
+                { kind: 'templateTail', value: 'c', source: 'c' }, { kind: 'eof' },
+            ]))
+            assertEq(tokenizeString('`${x}${y}`'), stringify([
+                { kind: 'templateHead', value: '', source: '' }, { kind: 'id', value: 'x' },
+                { kind: 'templateMiddle', value: '', source: '' }, { kind: 'id', value: 'y' },
+                { kind: 'templateTail', value: '', source: '' }, { kind: 'eof' },
+            ]))
+        },
+        escapes: () => {
+            assertEq(tokenizeString('`A`'), stringify([
+                { kind: 'noSubstitutionTemplate', value: 'A', source: 'A' }, { kind: 'eof' },
+            ]))
+            assertEq(tokenizeString('`\\"\\\\\\/\\b\\f\\n\\r\\t\\u0041\\`\\${`'), stringify([
+                { kind: 'noSubstitutionTemplate', value: '"\\/\b\f\n\r\tA`${', source: '\\"\\\\\\/\\b\\f\\n\\r\\t\\u0041\\`\\${' }, { kind: 'eof' },
+            ]))
+            assertEq(tokenizeString('`a\rb\r\nc\nd\u2028e\u2029f`'), stringify([
+                { kind: 'noSubstitutionTemplate', value: 'a\nb\nc\nd\u2028e\u2029f', source: 'a\rb\r\nc\nd\u2028e\u2029f' }, { kind: 'eof' },
+            ]))
+            assertEq(tokenizeString('`\\u000D\r\n`'), stringify([
+                { kind: 'noSubstitutionTemplate', value: '\r\n', source: '\\u000D\r\n' }, { kind: 'eof' },
+            ]))
+            // Each JavaScript spelling cooks correctly, while the exact source
+            // stays distinct from the value for consumers' spelling policies.
+            const cases = /** @type {const} */ ([
+                ['\\x41', 'A'], ['\\v', '\v'], ['\\0', '\0'], ['\\0a', '\0a'],
+                ['\\u{1f600}', '😀'], ['\\u{000000000041}', 'A'],
+                ['\\q', 'q'], ["\\'", "'"], ['\\$', '$'], ['\\$x', '$x'],
+                ['\\\n', ''], ['\\\r', ''], ['\\\r\n', ''], ['\\\u2028', ''], ['\\\u2029', ''],
+                ['\0', '\0'], ['\t', '\t'], ['\x1f', '\x1f'],
+            ])
+            for (const [source, value] of cases) {
+                assertEq(tokenizeString('`' + source + '`'), stringify([
+                    { kind: 'noSubstitutionTemplate', value, source }, { kind: 'eof' },
+                ]), source)
+            }
+            assertEq(tokenizeString('`a${x}\\x41${y}\\v`'), stringify([
+                { kind: 'templateHead', value: 'a', source: 'a' }, { kind: 'id', value: 'x' },
+                { kind: 'templateMiddle', value: 'A', source: '\\x41' }, { kind: 'id', value: 'y' },
+                { kind: 'templateTail', value: '\v', source: '\\v' }, { kind: 'eof' },
+            ]))
+        },
+        nesting: () => {
+            assertEq(tokenizeString('`a${{value:"}"}.value}b${`c${x}d`}e`'), stringify([
+                { kind: 'templateHead', value: 'a', source: 'a' },
+                { kind: '{' }, { kind: 'id', value: 'value' }, { kind: ':' }, { kind: 'string', value: '}' }, { kind: '}' },
+                { kind: '.' }, { kind: 'id', value: 'value' },
+                { kind: 'templateMiddle', value: 'b', source: 'b' },
+                { kind: 'templateHead', value: 'c', source: 'c' }, { kind: 'id', value: 'x' },
+                { kind: 'templateTail', value: 'd', source: 'd' },
+                { kind: 'templateTail', value: 'e', source: 'e' }, { kind: 'eof' },
+            ]))
+            /** @type {(source: string) => readonly string[]} */
+            const kinds = source => toArray(tokenize(stringToCodePointList(source))('')).map(({ token }) => token.kind)
+                .filter(kind => kind !== 'ws' && kind !== 'nl' && kind !== '/*' && kind !== '//')
+            assertStructurallySame(kinds('`${()=>{switch(x){case 0:{return `n`}}}}end`'), [
+                'templateHead', '(', ')', '=>', '{', 'switch', '(', 'id', ')', '{', 'case', 'number', ':', '{',
+                'return', 'noSubstitutionTemplate', '}', '}', '}', 'templateTail', 'eof',
+            ])
+            assertStructurallySame(kinds('`${/* } `${ */"}"// } `${\n}end`'), ['templateHead', 'string', 'templateTail', 'eof'])
+            assertStructurallySame(kinds('`${`plain` + x}end`'), ['templateHead', 'noSubstitutionTemplate', '+', 'id', 'templateTail', 'eof'])
+        },
+        positions: () => {
+            const tokens = toArray(tokenize(stringToCodePointList('`a\r\n${value}b\u2028${other}c` x'))('p'))
+            assertStructurallySame(tokens.map(({ metadata }) => [metadata.line, metadata.column]), [
+                [1, 1], [2, 3], [2, 8], [3, 3], [3, 8], [3, 11], [3, 12], [3, 13],
+            ])
+        },
+        failures: () => {
+            assertEq(errorAt('x `unfinished'), '1:3..1:14')
+            assertEq(errorAt('`a${x'), '1:1..1:6')
+            assertEq(errorAt('`a${`inner'), '1:5..1:11')
+            assertEq(errorAt('`a${x}bad'), '1:6..1:10')
+            assertEq(errorAt('`\\xG1`'), '1:1..1:7')
+            assertEq(errorAt('`\\u{}`'), '1:1..1:7')
+            assertEq(errorAt('`\\01`'), '1:1..1:6')
+            assertEq(errorAt('`\\8`'), '1:1..1:5')
+            assertEq(tokenizeString('`\\u{110000}`'), 'error')
+            assertEq(tokenizeString('`\\u{1100000}`'), 'error')
+            assertEq(tokenizeString('`\\u12`'), 'error')
+            assertEq(tokenizeString('`\\x1`'), 'error')
+            assertEq(tokenizeString('`\\'), 'error')
+            // Ordinary quoted strings retain their existing escape subset.
+            assertEq(tokenizeString('"\\x41"'), 'error')
+        },
+    },
     // What the grammar covers, token by token, whatever the layers above
     // make of the tokens. The token stream itself — kind, text, position —
     // is pinned by every `tokenizeString` and `tokenize` case below, which

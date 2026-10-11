@@ -68,6 +68,17 @@ const pageAt = (root, path) => textOf(
     `the page for ${path.join('/')}`)
 
 export const proof = {
+    rootCatalogue: () => {
+        const { root } = generate({ a: {}, todo: { 'a.md': file('# issue') } })
+        const html = pageAt(root, [])
+        const asideStart = html.indexOf('<aside data-catalogue=""')
+        const asideEnd = html.indexOf('</aside>')
+        const contents = html.indexOf('<h2>Contents</h2>')
+        const issues = html.indexOf('<h2>Issues</h2>')
+        assert(asideStart >= 0 && contents > asideStart && contents < asideEnd, html)
+        assert(issues > asideStart && issues < asideEnd, html)
+        assert(html.indexOf('<h1>FunctionalScript</h1>') > asideEnd, html)
+    },
     pullRequests: {
         page: () => {
             const { root } = generate({})

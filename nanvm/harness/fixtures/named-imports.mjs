@@ -6,3 +6,5 @@ import {} from "./named-imports-math.mjs";
 export const main = () => sum(20, 22);
 export const captured = () => () => first;
 export const checks = [d === first, first === second, d === again, first === repeated, captured()() === first, absent === undefined];
+// The observation the corpus compares: the identity checks, also exported by name for the harness.
+export default checks;
