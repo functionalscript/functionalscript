@@ -128,7 +128,10 @@ The signature is valid if `v = r`.
 ### The message exchange demo
 
 [`demo.f.mjs`](./demo.f.mjs) starts from RFC 6979 A.2.5 and shows Alice
-signing, Eve intercepting and Bob verifying. Typing updates Alice's local
+signing, Eve intercepting and Bob verifying. The diagram separates the packet
+route through Eve from Bob’s trust in Alice’s public key and compares trusted
+and received-key verification. It reflows vertically on narrow screens.
+Typing updates Alice's local
 signing output; **Send message** transmits a public snapshot to Eve.
 **Forward to Bob** commits Eve's outgoing packet and verifies it on delivery.
 Neither action transmits a private key or the deterministic nonce.

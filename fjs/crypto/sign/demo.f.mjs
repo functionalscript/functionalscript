@@ -304,6 +304,50 @@ const bobView = bob => {
     ]
 }
 
+/** Decorative, theme-aware line icons; the diagram's text supplies meaning.
+ * @type {(path: string) => Element}
+ */
+const schemeIcon = path => ['svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.6', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' }, ['path', { d: path }]]
+
+const schemeArrow = schemeIcon('M2 12h20m-7-7 7 7-7 7')
+const schemeKey = schemeIcon('M14 3a7 7 0 1 1-5 12L2 22v-5l7-7a7 7 0 0 1 5-7Zm3 4h.01')
+
+/** The packet route and prior trust are separate: neither forwards a secret
+ * nor promises a successful verification. Send models establishing trust.
+ * @type {Element}
+ */
+const exchangeScheme = ['figure', { 'data-sign-scheme': '', 'aria-label': 'ECDSA message exchange and trusted public key' },
+    ['div', { 'data-sign-flow': '' },
+        ['div', { 'data-sign-card': 'alice' },
+            ['h4', 'Alice'], ['strong', 'Sign message'],
+            schemeIcon('M14 2H4v20h16V8l-6-6Zm0 0v6h6M8 12h8M8 16h5'),
+            ['small', 'Private key stays with Alice'],
+        ],
+        ['div', { 'data-sign-packet': '' }, ['small', 'Message + signature + public key'], schemeArrow],
+        ['div', { 'data-sign-card': 'eve' },
+            ['h4', 'Eve'], ['strong', 'Intercept or tamper'],
+            schemeIcon('m16 3 5 5-12 12-7 2 2-7L16 3Zm-2 2 5 5M4 15l5 5'),
+            ['small', 'Edit message / signature'], ['small', 'Swap public key'],
+        ],
+        ['div', { 'data-sign-packet': '' }, ['small', 'Outgoing packet'], schemeArrow],
+        ['div', { 'data-sign-card': 'bob' },
+            ['h4', 'Bob'], ['strong', 'Verify signature'],
+            schemeIcon('m12 2 9 4v6c0 5-9 10-9 10S3 17 3 12V6l9-4Zm0 5v6m0 4h.01'),
+            ['small', 'Use Alice’s trusted public key'],
+        ],
+        ['div', { 'data-sign-checks': '' },
+            ['div', { 'data-sign-check': 'trusted' }, ['strong', 'Trusted key'], ['small', 'If valid: authenticates Alice']],
+            ['div', { 'data-sign-check': 'received' }, ['strong', 'Received key'], ['small', 'If valid: checks the signature only'], ['small', 'Shown for key substitution']],
+        ],
+    ],
+    ['div', { 'data-sign-trust': '' },
+        ['div', { 'data-sign-trust-key': '' }, schemeKey, ['strong', 'Alice’s public key']],
+        ['div', { 'data-sign-trust-path': '' }, ['small', 'Already trusted by Bob'], schemeArrow],
+        ['div', { 'data-sign-trust-key': '' }, schemeKey, ['strong', 'Bob’s trusted Alice key']],
+    ],
+    ['figcaption', 'The blue path represents trust in Alice’s public key, not a packet sent through Eve. This demo establishes that trusted key when Alice clicks Send.'],
+]
+
 /** @type {Demo<DemoState, DemoEvent>} */
 export const demo = {
     init: {
@@ -320,6 +364,7 @@ export const demo = {
         return ['div',
             ['p', 'ECDSA signs a message with a private key and verifies it with a public key. Follow Alice → Eve → Bob to see why signature validity and sender identity are different. The initial signing values reproduce RFC 6979 A.2.5.'],
             ['p', 'Alice (sign) → Eve (intercept or tamper) → Bob (verify with Alice’s trusted public key)'],
+            exchangeScheme,
             ['section', { 'data-sign-stage': 'alice' },
                 ['h3', 'Alice — Sign'],
                 ['p', 'Demo-only keys. Do not enter real private keys into this public website.'],
