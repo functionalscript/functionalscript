@@ -104,15 +104,15 @@ substitutions have the same graph as their explicit, left-associated
 `String`/`+` expansion. The existing FJS writer can emit that expansion; it
 does not need to reconstruct the original template spelling.
 
-The tokenizer and parser must retain that the source used template syntax
-until its language and escape policy have been checked. In particular, cooked
-text alone cannot distinguish `A` from the deferred escape `\x41`. Coordinate
-that provenance with the
-[template lexing proposal](../../fjs/ebnf/lib/js/todo/single-quote-and-template-lexing.md),
-which currently specifies only chunk text. Its token payload must also
-distinguish admitted escapes from deferred ones. Reuse its head/middle/tail
-token boundaries and nesting contexts rather than defining a competing token
-stream here.
+Use the four token kinds and the `value`/`source` payload specified by the
+[template lexing proposal](../../fjs/ebnf/lib/js/todo/single-quote-and-template-lexing.md#the-token-stream-decided-here-rather-than-at-implementation-time).
+`value` is the cooked chunk text; `source` is its exact spelling between the
+chunk delimiters, preserving backslashes and raw line terminators. The compiler
+checks `source` against the scope above before admitting each chunk, then lowers
+`value`. Plain `A` and the deferred escape `\x41` both cook to `A`, but their
+`source` fields remain `'A'` and `'\\x41'`, so the latter is refused. The token
+kind retains that even a substitution-free template is outside JSON and DataJS.
+Reuse the shared head/middle/tail boundaries and nesting contexts.
 
 ### Examples
 
@@ -166,9 +166,9 @@ semantics.
 - [ ] Obtain and record the approving language designer and approval link under
       [DESIGN.md §12](../../doc/DESIGN.md#new-language-features-start-with-a-todo)
       before implementation.
-- [ ] Complete or reuse the shared template lexing work, retaining enough
-      source provenance to check the accepted escape subset before cooking
-      discards its spelling.
+- [ ] Complete or reuse the shared template lexing work with its `value` and
+      `source` fields; check the accepted spelling subset through `source`
+      before lowering `value`, including refusing `\x41` while admitting `A`.
 - [ ] Admit untagged templates as primary expressions, parse each substitution
       through the existing expression grammar, and refuse tagged templates,
       unsupported escapes and malformed or unterminated templates with a

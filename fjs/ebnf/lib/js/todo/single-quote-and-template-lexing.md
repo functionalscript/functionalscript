@@ -181,8 +181,20 @@ of this code knows, and it makes the head/middle/tail boundaries explicit:
 | `` `a${b}c` `` | `templateHead "a"`, `id b`, `templateTail "c"` |
 | `` `a${b}c${d}e` `` | `templateHead "a"`, `id b`, `templateMiddle "c"`, `id d`, `templateTail "e"` |
 
-Each of the four carries the chunk's text and nothing else; the substitution's
-contents are ordinary tokens between them. Only an *unescaped* `${` opens a
+The table shows each token's kind and cooked `value`. Each of the four carries
+two string fields: `value`, the cooked chunk text, and `source`, the exact chunk
+spelling between its delimiters. `source` excludes the leading backtick or `}`
+and the trailing backtick or `${`; it preserves backslashes and raw CR/CRLF.
+Cooking and line-ending normalization affect only `value`. Thus plain `A` and
+`\x41` both have `value: 'A'`, but their `source` fields are `'A'` and `'\\x41'`.
+[3440](../../../../../spec/todo/3440-template-literals.md) uses `source` to
+check its accepted spelling subset before admitting a chunk. The general JS
+stream keeps recognizing the wider JS spelling set; the compiler still refuses
+all template kinds until that language feature is accepted and implemented.
+This field is source provenance, not a tagged template's `raw` array.
+
+The substitution's contents are ordinary tokens between the chunks.
+Only an *unescaped* `${` opens a
 substitution — `` `\${x}` `` is a single `noSubstitutionTemplate` — which is the
 escape rule below doing the work, not a special case here. Note what this buys
 beyond naming: `}` is not reused. A `templateMiddle` or `templateTail` *begins*
@@ -334,9 +346,12 @@ the source view rests on.
       state above the grammar: an *unescaped* `${` returns to ordinary
       tokens, the matching `}` resumes a chunk. Emit the four ECMAScript
       token kinds above — `noSubstitutionTemplate`, `templateHead`,
-      `templateMiddle`, `templateTail` — in `types.ts`, so the shared stream
+      `templateMiddle`, `templateTail` — with the `value` and `source` string
+      fields above in `types.ts`, so the shared stream
       is the one this issue names rather than one invented at implementation
-      time. Proofs for the six shapes above and the two brace shapes.
+      time. Proofs for the six shapes above and the two brace shapes; pin equal
+      cooked values with different source spellings (`A` versus `\x41`), and
+      raw CR/CRLF retained in `source` while normalized in `value`.
 - [ ] **Do not add rows to `simpleEscapes`** for any of it; the JS decoder is
       a layer above the shared table.
 - [ ] The compiler keeps refusing what it refused: `compiler/tokenizer`'s fold
