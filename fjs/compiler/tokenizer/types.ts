@@ -10,6 +10,7 @@ import type { Equal } from '../../types/ts/types.ts'
 import type { _djsTokenKinds } from './module.f.mjs'
 import type {
     StringToken,
+    TemplateToken,
     NumberToken,
     ErrorToken,
     IdToken,
@@ -48,6 +49,7 @@ export type DjsToken = |
     | '!' | '&&' | '||' | '??' | '?' | '?.'
   } |
   StringToken |
+  TemplateToken |
   NumberToken |
   ErrorToken |
   IdToken |

@@ -1,7 +1,7 @@
 import { stringToList } from '../../text/utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { tokenize } from './module.f.mjs'
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { _tokensOf, demo } from './demo.f.mjs'
 import { examples } from '../examples/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
@@ -12,6 +12,26 @@ import { _stringifyTree } from '../module.f.mjs'
 const stringify = _stringifyTree
 
 export const proof = {
+    templates: {
+        admitted: () => {
+            const tokens = toArray(tokenize(stringToList('`a${1}b${2}c`'))('template.f.js'))
+            assertEq(tokens.map(({ token }) => token.kind).join(' '), 'templateHead number templateMiddle number templateTail eof')
+            assertEq(tokens.map(({ metadata }) => metadata.column).join(' '), '1 5 6 10 11 14')
+            assertEq(tokens.flatMap(({ token }) => 'source' in token ? [token.value] : []).join('|'), 'a|b|c')
+            assertEq(toArray(tokenize(stringToList('`\\` \\${x} \\n \\u0041`'))('')).map(({ token }) => token.kind).join(' '), 'noSubstitutionTemplate eof')
+        },
+        refusedEscapes: () => {
+            // Cooking must not turn a deferred spelling into an admitted one.
+            for (const spelling of ['\\x41', '\\v', '\\0', '\\u{41}', '\\q', "\\'", '\\$', '\\\n', '\\\r\n', '\t', '\0']) {
+                const tokens = toArray(tokenize(stringToList('`' + spelling + '`'))('template.f.js'))
+                assertEq(tokens[0].token.kind, 'error', spelling)
+                assertStructurallySame(tokens[0].metadata, { path: 'template.f.js', line: 1, column: 1 }, spelling)
+            }
+            const middle = toArray(tokenize(stringToList('`a${1}\\x41`'))(''))
+            assertEq(middle.map(({ token }) => token.kind).join(' '), 'templateHead number error eof')
+            assertEq(middle[2].metadata.column, 6)
+        },
+    },
     // Module-level: keyword remapping on top of the JS tokenizer, and nothing
     // else — the layer holds no state, `-` being a token the grammar reads
     // rather than a sign folded into the literal after it. Doesn't re-test

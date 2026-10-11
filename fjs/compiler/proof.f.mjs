@@ -1209,6 +1209,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
                 'Overview': 'xxooo',
                 'Primitives': 'xoooo',
                 'String escapes': 'ooooo',
+                'Template literals': 'ooooo',
                 'Comments': 'ooooo',
                 'Objects': 'ooooo',
                 'A repeated object key': 'ooooo',

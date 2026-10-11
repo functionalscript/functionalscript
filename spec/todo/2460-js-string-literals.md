@@ -62,8 +62,11 @@ Until implemented, they can be normalized into JSON spellings mechanically:
 literal TAB → `\t`, `\v` → `\u000b`, `\x41` → `A`.
 
 **Note**: template literals are not part of this feature — they involve
-expression interpolation, not just lexical syntax. They are tracked separately
-as [template-literals](./3440-template-literals.md).
+expression interpolation, not just lexical syntax. Untagged templates are
+implemented separately ([template literals](../README.md#template-literals));
+that specification owns the template deferral of extra escapes, raw controls
+and line continuations. Any future widening of the common escape set must be
+coordinated across quoted strings and templates.
 
 **Note**: if a universal parser — one that recognizes JSON, DJS, and FJS in a
 single pass — implements any of these spellings, it must still distinguish JS
