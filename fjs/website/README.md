@@ -77,7 +77,7 @@ holds build artifacts beside the docs.
 `cargo.doc/` is the one generated name outside `index.html` and the
 `_`-prefixed files, so `.gitignore` and `tsconfig.json` name it, and the walk
 excludes it as it excludes `prs/`. Where the published site runs `cargo doc`
-is open: [publish-cargo-doc](todo/publish-cargo-doc.md).
+is open: [cargo-doc-build-host](todo/cargo-doc-build-host.md).
 
 ## Every directory gets a page
 
