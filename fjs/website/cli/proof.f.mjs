@@ -32,10 +32,16 @@ export const proof = {
             ] }]
             assertStructurallySame(catalogue(table).map(({ path, aliases }) => [path, aliases]), [
                 [['group'], ['g', 'grp']],
-                [['group', 'nested'], ['group n']],
-                [['group', 'nested', 'leaf'], ['group nested l', 'group nested lf']],
-                [['group', 'nested', 'help'], ['group nested h', 'group nested ?']],
-                [['group', 'help'], ['group h', 'group ?']],
+                [['group', 'nested'], ['group n', 'g nested', 'g n', 'grp nested', 'grp n']],
+                [['group', 'nested', 'leaf'], ['group nested l', 'group nested lf',
+                    'group n leaf', 'group n l', 'group n lf',
+                    'g nested leaf', 'g nested l', 'g nested lf', 'g n leaf', 'g n l', 'g n lf',
+                    'grp nested leaf', 'grp nested l', 'grp nested lf', 'grp n leaf', 'grp n l', 'grp n lf']],
+                [['group', 'nested', 'help'], ['group nested h', 'group nested ?',
+                    'group n help', 'group n h', 'group n ?',
+                    'g nested help', 'g nested h', 'g nested ?', 'g n help', 'g n h', 'g n ?',
+                    'grp nested help', 'grp nested h', 'grp nested ?', 'grp n help', 'grp n h', 'grp n ?']],
+                [['group', 'help'], ['group h', 'group ?', 'g help', 'g h', 'g ?', 'grp help', 'grp h', 'grp ?']],
                 [['help'], ['h', '?']],
             ])
         },
@@ -54,8 +60,8 @@ export const proof = {
             // Literal expectations make additions/removals and changed alias order visible.
             assertStructurallySame(entries.map(({ path, aliases }) => [path.join(' '), aliases]), [
                 ['test', ['t']], ['compile', ['c']], ['cas', ['s']],
-                ['cas add', []], ['cas get', []], ['cas list', []],
-                ['cas help', ['cas h', 'cas ?']], ['mcp', ['m']], ['ci', ['i']],
+                ['cas add', ['s add']], ['cas get', ['s get']], ['cas list', ['s list']],
+                ['cas help', ['cas h', 'cas ?', 's help', 's h', 's ?']], ['mcp', ['m']], ['ci', ['i']],
                 ['web', ['w']], ['run', ['r']], ['help', ['h', '?']],
             ])
             assert(entries.every(({ usage, examples, docs }) => usage.length > 0 && examples.length > 0 && docs.startsWith('fjs/')), 'every command has usage, examples and docs')
@@ -99,6 +105,9 @@ export const proof = {
         assert(!html.includes('npx fjs'), html)
         assert(html.includes('aria-label="CLI commands"'), html)
         assert(!html.includes('data-demo='), html)
+        assert(html.includes('Aliases: fjs s add'), html)
+        assert(html.includes('data-cli-search="cas add s add Store file content and print its hash"'), html)
+        assert(html.includes('fjs s h'), html)
         for (const entry of catalogue(commands)) {
             assert(html.includes(`href="#${anchor(entry)}"`), html)
             assert(html.includes(`id="${anchor(entry)}"`), html)

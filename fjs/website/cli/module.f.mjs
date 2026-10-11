@@ -20,20 +20,22 @@ import { codeBlock } from '../demo/code/module.f.mjs'
 
 /**
  * Preorder command catalogue, including help at every declared table level.
- * Aliases keep their declared order and the canonical parent path.
- * @type {(table: DocumentedCommands<NodeOp>, parent?: readonly string[]) => readonly Entry[]}
+ * Each descendant includes combinations of canonical and aliased parent names.
+ * The canonical path remains first and supplies the stable section anchor.
+ * @type {(table: DocumentedCommands<NodeOp>, parent?: readonly string[], parentPaths?: readonly (readonly string[])[]) => readonly Entry[]}
  */
-export const catalogue = (table, parent = []) => [
+export const catalogue = (table, parent = [], parentPaths = [parent]) => [
     ...table.flatMap(({ names: [name, ...aliases], description, handler, usage, examples, note, docs }) => {
         const path = [...parent, name]
+        const spellings = parentPaths.flatMap(prefix => [name, ...aliases].map(n => [...prefix, n]))
         return [
-            { path, aliases: aliases.map(alias => [...parent, alias].join(' ')), description, usage, examples, note, docs },
-            ...(typeof handler === 'function' ? [] : catalogue(handler, path)),
+            { path, aliases: spellings.slice(1).map(spelling => spelling.join(' ')), description, usage, examples, note, docs },
+            ...(typeof handler === 'function' ? [] : catalogue(handler, path, spellings)),
         ]
     }),
     {
         path: [...parent, helpMeta.names[0]],
-        aliases: helpMeta.names.slice(1).map(alias => [...parent, alias].join(' ')),
+        aliases: parentPaths.flatMap(prefix => helpMeta.names.map(name => [...prefix, name].join(' '))).slice(1),
         description: helpMeta.description,
         ...helpReference(parent),
     },

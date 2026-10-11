@@ -48,6 +48,9 @@ It walks nested command tables and appends the dispatcher's shared `helpMeta`
 at each table level. Imports construct data and effect descriptions without
 calling handlers or interpreting effects. Names, alias order, descriptions and
 nesting therefore have one source of truth, including implicit help behavior.
+Descendant aliases include every parent spelling: `cas add` also accepts
+`s add`, and nested help includes `s help`, `s h` and `s ?`. Canonical paths
+continue to identify sections and bookmark links.
 
 Usage, examples, explanatory notes and documentation paths live beside each
 handler in the CLI's `DocumentedCommands` tables. The type requires these fields
