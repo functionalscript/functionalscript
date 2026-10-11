@@ -49,17 +49,24 @@ at each table level. Imports construct data and effect descriptions without
 calling handlers or interpreting effects. Names, alias order, descriptions and
 nesting therefore have one source of truth, including implicit help behavior.
 
-Usage, examples, explanatory notes and documentation paths stay in the small
-`guides` layer: the CLI does not yet declare positional parameters or options.
-A command with no guide refuses the build, and proofs check complete coverage
-against the current table. Future structured parameters can replace this layer
-without changing command sections or anchors.
+Usage, examples, explanatory notes and documentation paths live beside each
+handler in the CLI's `DocumentedCommands` tables. The type requires these fields
+for every built-in command and nested subcommand. Implicit help reference text
+comes from `helpReference` in `fjs/cli/module.f.mjs`, using the canonical parent
+path. The website consumes these fields directly; it has no separate guide list
+or name-based documentation lookup. A command metadata change therefore appears
+in the next website build, including displayed snippets and copied text.
 
 All commands are visible in anchored semantic sections without JavaScript.
 Copy buttons enhance the static code blocks, using the shared clipboard helper
 and existing styles; they appear only after binding and report success, failure
 or clipboard unavailability. No command runs in the browser. File documentation
 links use the same commit-aware policy as directory listings.
+
+The CLI catalogue progressively enhances into a searchable command list and selected
+detail pane. Search matches canonical names, aliases and descriptions without
+changing the selected command. Native fragment links preserve bookmarking and
+browser history; without JavaScript, every detail section remains visible.
 
 ## Current pull requests
 
@@ -708,8 +715,3 @@ in [`module.f.mjs`](./module.f.mjs) and
 
 [`todo/`](./todo/) — the umbrella list is
 [generate-website](./todo/generate-website.md).
-
-The CLI catalogue progressively enhances into a searchable command list and selected
-detail pane. Search matches canonical names, aliases and descriptions without
-changing the selected command. Native fragment links preserve bookmarking and
-browser history; without JavaScript, every detail section remains visible.

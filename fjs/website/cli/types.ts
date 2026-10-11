@@ -1,19 +1,9 @@
-/**
- * Command metadata and the curated documentation layer of the CLI reference.
- * @module
- */
+/** Command metadata consumed by the CLI reference. @module */
 
-export type Entry = {
+import type { CommandReference } from '../../cli/types.ts'
+
+export type Entry = CommandReference & {
     readonly path: readonly string[]
     readonly aliases: readonly string[]
     readonly description: string
-}
-
-/** Usage stays curated until the CLI declares structured parameters. */
-export type Guide = {
-    readonly name: string
-    readonly usage: string
-    readonly examples: readonly string[]
-    readonly note: string
-    readonly docs: string
 }
