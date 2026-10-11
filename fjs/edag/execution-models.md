@@ -47,14 +47,22 @@ next call starts with fresh values. This preserves observable allocation and
 identity semantics.
 
 There are several implementation strategies. **They preserve the same observable
-allocation and sharing behavior**, including through subsequent calls. The
-function-text exception is independent: FJS VM rendering uses associated EDAG,
-while ordinary generated JavaScript retains its host representation unless an
-FJS runtime implements the VM rendering contract. This does not change `.length`,
-allocation identity, or non-function string conversion. The
-[serializer/frame/`self` questions](../../spec/todo/serialization.md#function-text-and-serialization)
-and conditional lazy-rendering requirement remain open/conditional as recorded
-there; the strategies below do not decide them.
+allocation and sharing behavior**, including through subsequent calls.
+
+The function-text exception is independent of those identity strategies.
+Amnesia and memo use the implemented EDAG-derived, code-only renderer:
+captures appear as slot names, and `self` has a finite named-function spelling
+([function text](./function-text.md)). Compiled native functions carry that
+rendered text. Ordinary generated JavaScript retains its host representation
+unless an FJS runtime implements the VM rendering contract. This does not change
+`.length`, allocation identity, or non-function string conversion.
+
+Broader callable interchange serialization and
+[lazy frame rendering](../../spec/todo/serialization.md#conditional-requirement-lazy-frame-rendering)
+remain future work. The lazy requirement applies only to a future serializer
+that represents captured values; code-only default text never instantiates a
+frame. These follow-ups do not reopen the implemented default-text contract
+([serialization](../../spec/todo/serialization.md#function-text-and-serialization)).
 
 ### 2.1 Memoize every node
 

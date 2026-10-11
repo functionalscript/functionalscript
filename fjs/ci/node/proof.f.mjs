@@ -24,7 +24,7 @@ export const proof = {
             ])
         // The Node these jobs install is the configured one, not the version
         // under test — that argument names the *package* to install globally.
-        assertEq(steps[0]?.with?.['node-version'], node.default)
+        assertEq(steps[0]?.with?.['node-version'], node)
     },
     // No `npm ci`. There is nothing to install: `package.json` declares no
     // runtime dependency, and its one `devDependency` is types. A step that
@@ -48,5 +48,5 @@ export const proof = {
             'registry-url': 'https://registry.example/',
             'node-version': '22.x',
         }).with,
-        { 'registry-url': 'https://registry.example/', 'node-version': node.default }),
+        { 'registry-url': 'https://registry.example/', 'node-version': node }),
 }

@@ -34,8 +34,8 @@ intentionally erases this reflection and promises no reverse lookup. The choices
 below remain open for native/AOT callable association; they do not reopen the
 FJS VM representation.
 
-The [MVP roadmap](../../../nanvm-lib/todo/mvp-roadmap.md#open-questions) and
-[callable-function-objects](../../../nanvm-lib/todo/callable-function-objects.md)
+The [MVP roadmap](../../../nanvm/lib/todo/mvp-roadmap.md#open-questions) and
+[callable-function-objects](../../../nanvm/lib/todo/callable-function-objects.md)
 Stage 7 require semantic EDAG association while leaving its storage open:
 
 - **Embedded metadata:** retain the semantic EDAG with the function value.
@@ -137,5 +137,5 @@ contract, including `edagAdd` / `edagGet` if selected, can be treated as complet
   to EDAG before loading imported values.
 - [`../../../todo/edag-stage1-discussion.md`](../../../todo/edag-stage1-discussion.md)
   — EDAG semantics and function representation design.
-- [MVP roadmap](../../../nanvm-lib/todo/mvp-roadmap.md#open-questions) — the
+- [MVP roadmap](../../../nanvm/lib/todo/mvp-roadmap.md#open-questions) — the
   same open embedded-metadata versus lookup choice, separate from execution.

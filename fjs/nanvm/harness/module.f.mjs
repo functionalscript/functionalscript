@@ -1,7 +1,7 @@
 /**
  * Writes the compiled `nanvm-harness` fixtures: every `.mjs` directly in
- * `nanvm-harness/fixtures/` compiled through the compiler's Rust output into
- * `nanvm-harness/gen.fixtures/<name>.rs`, named after its Rust module, and
+ * `nanvm/harness/fixtures/` compiled through the compiler's Rust output into
+ * `nanvm/harness/gen.fixtures/<name>.rs`, named after its Rust module, and
  * `gen.fixtures/mod.rs` naming each — so the directory is the list of
  * fixtures, and a new one is one file. `src/lib.rs` reaches the whole set
  * through one `#[path]` to that `mod.rs`.
@@ -37,7 +37,7 @@ import { expectation } from '../expected/module.f.mjs'
 export { fixturesDirectory }
 
 /** Where the compiled fixtures go, a `gen.` name `gen:clean` empties. */
-export const directory = 'nanvm-harness/gen.fixtures'
+export const directory = 'nanvm/harness/gen.fixtures'
 
 /** The module file naming every compiled fixture, which `src/lib.rs` includes by path. */
 export const modulesPath = `${directory}/mod.rs`
@@ -121,7 +121,7 @@ export const generateFixtures = () => step(fixtures(), names => {
 })
 
 /** Where the corpus fixtures' expectations are: one `.rs` each, a `gen.` name `gen:clean` empties. */
-export const expectedDirectory = 'nanvm-harness/gen.expected'
+export const expectedDirectory = 'nanvm/harness/gen.expected'
 
 /** The module file naming every expectation, which `src/lib.rs` includes by path. */
 export const expectedModulesPath = `${expectedDirectory}/mod.rs`

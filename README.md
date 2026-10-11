@@ -39,11 +39,17 @@ or run the CLI without installing it, with `npx functionalscript <command>`.
 A FunctionalScript module is already a JavaScript module, so nothing has to be
 compiled to *run* it. `fjs compile` goes the other way: it resolves every
 `import` and writes the language the output name declares. The value outputs,
-`.json` and `.data.js`, evaluate the module and write the data it exports. The
-graph outputs, `.js`, `.edag.data.js` and `.rs`, write the program rather than
-its value, so a function has an output at all; `.edag.data.js` and `.rs` write
-every computation too, while the `.js` writer cannot spell a call or an
-operator other than unary `-` yet.
+`.json` and `.data.js`, initialize the complete module and its required
+dependencies, then serialize only the default export as data. Calls and
+operators can compute that data; a function remaining in the selected result
+is refused.
+
+The graph outputs, `.js`, `.edag.data.js` and `.rs`, preserve the program
+without running module initialization, including functions, calls and
+operators within each output's supported profile. The `.js` writer supports
+ordinary and method calls, spreads and operators, but remains partial: it
+refuses graph shapes it cannot reconstruct as FunctionalScript source. See
+the [output contracts and limits](./spec/README.md#output).
 
 ```js
 // m.f.js

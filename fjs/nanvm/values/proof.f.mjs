@@ -72,8 +72,8 @@ export const proof = {
         }
     },
     generate: () => {
-        assertEq(directory, 'nanvm-harness/gen.values')
-        assertEq(path, 'nanvm-harness/gen.values/captures.rs')
+        assertEq(directory, 'nanvm/harness/gen.values')
+        assertEq(path, 'nanvm/harness/gen.values/captures.rs')
         const rust = generate()
         assert(rust.startsWith('// Fixture source: `fjs/nanvm/values/module.f.mjs`; regenerate with `npm run gen`.'))
         assert(rust.includes('pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>>'))

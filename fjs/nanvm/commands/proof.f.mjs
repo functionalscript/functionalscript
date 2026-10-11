@@ -12,6 +12,6 @@ export const proof = {
         assertEq(rust.split('\n    "').length - 1, nodeCommands.length)
         assert(nodeCommands.every(command => rust.includes(`\n    "${command}",\n`)), rust)
         assertEq(path, `${directory}/gen.commands.rs`)
-        assertEq(directory, 'nanvm-effects-node/src')
+        assertEq(directory, 'nanvm/effects-node/src')
     },
 }

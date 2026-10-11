@@ -16,7 +16,7 @@ import { generate as generateRust } from '../../compiler/rust/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
 
 /** The native harness's interpreted-value fixtures. */
-export const directory = 'nanvm-harness/gen.values'
+export const directory = 'nanvm/harness/gen.values'
 
 /** The Rust module consumed by the native capture proof. */
 export const path = `${directory}/captures.rs`

@@ -3,11 +3,10 @@
 This directory contains the FunctionalScript source that defines the GitHub Actions
 workflows for this repository. Running the generator writes
 `.github/workflows/gen.ci.yml` with the latest matrix of jobs and steps and
-`.github/workflows/gen.npm-publish.yml` with the release job, plus three Nix
-development environments under `gen.nix/`. The first of those, written to `gen.nix/`
-itself, is the shell a developer enters and the shell seven of the eleven
-jobs run inside; the other two exist for the jobs that cannot share it — Node
-22 and Node 24. The two Windows jobs enter none, since Nix does not run there.
+`.github/workflows/gen.npm-publish.yml` with the release job, plus one Nix
+development environment under `gen.nix/`. It is the shell a developer enters
+and the shell six of the nine CI jobs run inside. Intel macOS and the two
+Windows jobs install their tools directly and enter no flake.
 Which jobs have a flake and why the rest do not is
 [`todo/65z-ci-nix.md`](./todo/65z-ci-nix.md), under "Jobs with no flake".
 
@@ -25,6 +24,11 @@ loads every workflow in the directory, so each leftover runs beside its
 replacement. A job the generator stops writing leaves its `gen.nix/<job>/`
 behind the same way: this repository's `gen` empties `gen.nix/` through
 `gen:clean` before `fjs ci` runs, which `fjs ci` alone does not.
+
+Upgrading from the Node 22/24 layout therefore also requires deleting
+`gen.nix/node22/` and `gen.nix/node24/`, including their flakes, locks and
+`run` scripts. Current output contains only the shared shell. Remove obsolete
+`node22` and `node24` required status checks before queuing the upgrade.
 
 That is a deliberate position rather than an oversight, and it is the reason the
 generator carries no migration code for its own past output. Who this command is
@@ -47,10 +51,11 @@ for, and whether that answer should change, is
   `GitHubAction`, `MetaStep`, `Os`, `Architecture`), and step-builder helpers
   (`test`, `install`, `uses`).
 - `config/module.f.js` — runner image matrix (OS × architecture → GitHub-hosted image name), pinned tool/package versions, including the FunctionalScript package version used by generated smoke tests and the exact Nixpkgs commit the generated flakes pin, and `jobTimeout`, the `timeout-minutes` every generated job carries in place of GitHub's six-hour default.
-- `nix/module.f.mjs` — writes one self-contained `gen.nix/<job>/flake.nix`
-  per declared job (`NixJob` in `types.ts`), using the Nix eDSL in `fjs/media/nix`.
+- `nix/module.f.mjs` — writes the self-contained `gen.nix/flake.nix` from
+  `devNixJob` (`NixJob` in `nix/types.ts`), using the Nix eDSL in `fjs/media/nix`,
+  plus its `run` and lock-update scripts.
 - `node/module.f.mjs` — Node.js job steps: platform smoke tests, canonical
-  per-version jobs, coverage, package checks, and the Node flake declarations.
+  selected-version job, coverage and package checks.
   `proof.f.mjs` — its property-based proofs.
 - `publish/module.f.mjs` — the npm publishing workflow, the one generated file
   that is not part of `gen.ci.yml`. See "The publishing workflow" below.
@@ -71,34 +76,32 @@ for, and whether that answer should change, is
   the package. It was a separate job with no checkout, until waiting for
   `node26` put it through the runner queue a second time.
   `proof.f.mjs` — its property-based proofs.
-- `rust/module.f.mjs` — `cargo` build/test steps, the toolchain action the two
-  Windows jobs still need, the formatting and WASM checks ARM Linux adds, and
+- `rust/module.f.mjs` — `cargo` build/test steps, the toolchain action Intel macOS and the two
+  Windows jobs need, the formatting and WASM checks ARM Linux adds, and
   what Intel Linux adds to the shared shell for the 32-bit target. `cargo` now comes from that shell
   everywhere Nix runs, 32-bit Linux included; `i686Target` is the predicate that
   decides which jobs install a toolchain of their own instead, and
   `../module.f.mjs` asks it rather than restating the names. Both paths
   name `config/module.f.js`'s `rust`, so the version cannot differ between
   them.
-- `deno/module.f.mjs` — the `deno` job's steps and its flake declaration.
+- `deno/module.f.mjs` — the `deno` job's steps in the shared shell.
   `proof.f.mjs` — its property-based proofs.
 - `dev/module.f.mjs` — the developer environment: one shell carrying every
-  runtime the canonical jobs use, on all four systems Nix runs on, generated
-  from those jobs' own declarations so it cannot drift from them. The `dev` CI
-  job enters it and asserts every version, which is the only thing that
-  evaluates that flake at all.
-- `bun/module.f.mjs` — the `bun` job's steps and its flake declaration. The one
-  job whose shell is not the pinned snapshot's: Nixpkgs ships a Bun two of this
-  repository's proofs fail on, so the flake keeps that package's recipe and
-  overrides the archive it unpacks with an exact upstream release.
+  runtime the canonical jobs use, on the three supported Nixpkgs systems, generated
+  from those jobs' own declarations so it cannot drift from them. The runtime
+  and platform jobs evaluate its three systems; there is no separate `dev` job.
+- `bun/module.f.mjs` — the `bun` job's steps and the shared shell's Bun override.
+  Nixpkgs ships a Bun two of this repository's proofs fail on, so the shell
+  keeps that package's recipe and overrides the archive it unpacks with an exact upstream release.
   `proof.f.mjs` — its property-based proofs.
 
 ## Usage
 
-1. Ensure dependencies are installed with `npm ci`.
+1. Enter `./dev.sh` and ensure dependencies are installed with `npm ci`.
 2. Regenerate the workflow definitions and the Nix environments with the
    project's `gen` script:
    ```
-   npm run gen
+   ./dev.sh npm run gen
    ```
    In a project that generates with the built-in command, that script is
    `fjs ci`. In this repository it is `fjs run ./fjs/dev/gen/module.f.mjs`
@@ -107,9 +110,14 @@ for, and whether that answer should change, is
    generation passes a `packageConsumer` the built-in command does not have;
    running `fjs ci` here writes the packed-package check without the consumer
    steps.
+   Run this directly: its integrated clean removes generated files before
+   rewriting them and regenerating the shared lock through real Nix. A
+   standalone `gen:clean` would first remove the lock needed to enter the shell.
 3. Commit the updated `.github/workflows/gen.ci.yml`,
-   `.github/workflows/gen.npm-publish.yml` and `gen.nix/*/flake.nix` files if they have
-   changed.
+   `.github/workflows/gen.npm-publish.yml`, `gen.nix/flake.nix`,
+   `gen.nix/flake.lock`, `gen.nix/run` and `gen.nix/lock-update.sh` if changed,
+   including deletions of obsolete output. Failed lock generation leaves
+   generation incomplete; retain a successfully regenerated shared lock.
 
 The generator is idempotent — rerunning it without modifying the source produces the
 same files. It never runs Nix itself, so it stays Windows-compatible: the flakes are
@@ -117,18 +125,16 @@ plain text built from the pinned commit in `config/module.f.js`.
 
 ### Generated Nix environments
 
-Each canonical job with a flake declares a system and its Nixpkgs package attributes
-beside the steps that enter them — `nodeNixJobs` in `node/module.f.mjs`, `denoNixJob`
-in its own module — and `module.f.mjs` composes them into `nixJobs`, the one place the
-whole set is visible. The packed-package check closing `node26` enters none of
-them, deliberately: it runs as a consumer would, on `setup-node`'s Node with
-nothing of the repository on `PATH`.
+`devNixJob` in `dev/module.f.mjs` declares the shared shell's systems and tools;
+`module.f.mjs` passes it to `nixFlake`. Tool-specific modules still own the
+Bun archive override and Rust target declarations. The packed-package check
+closing `node26` enters no shell, deliberately: it runs as a consumer would, on
+`setup-node`'s Node with nothing of the repository on `PATH`.
 
 A declaration names the systems it wants a shell for, and the generator writes
 one explicit `devShells.<system>.default` per system rather than looping. The
-two Node flakes name one each, since their jobs run on one runner image; the
-shared shell names four, because a developer's machine is not a runner — which
-is the reason that field is a list. `nix/module.f.mjs` writes each out as one
+shared shell names three, because a developer's machine is not a runner — which
+is the reason that field is a list. `nix/module.f.mjs` writes one
 static `flake.nix` exposing `devShells.<system>.default`. A declaration may also
 say what a *single* system adds, in `perSystem`: extra toolchain targets, and a
 `shellHook` run on every entry to that system's shell. The shared shell declares
@@ -138,49 +144,64 @@ is why it is a platform's capability rather than the shell's. See
 [nix/README.md](./nix/README.md) for how the generated files are meant to be
 consumed.
 
+During prerelease, each FunctionalScript release supports one exact accepted
+version of Node, Deno, Bun, Rust, TypeScript/TSGO, Wasmtime and Wasmer, recorded
+in `config/module.f.js` and preserved with its generated locks. Choose recent
+stable versions that pass the suite and binary-cache checks in
+[`update-versions.md`](./update-versions.md); the newest usable snapshot may
+trail upstream. An accepted pin update replaces the previous toolset for the
+next release. Platform, Rust build-mode, WASM-target and clean-consumer checks
+continue to use the selected versions. Additional versions after release
+depend on actual demand and the testing needed then.
+
+To use an older tool, select a FunctionalScript release whose release notes or
+linked toolset record names it, for example
+`npm install -g functionalscript@<release>`. Current pins do not establish
+compatibility for older releases. The release procedure records and verifies
+the tested toolset in [`changelog/RELEASE.md`](../../changelog/RELEASE.md).
+
 `config/module.f.js` records the Node, Deno, Wasmtime and Wasmer versions the pinned
 Nixpkgs snapshot provides — not each vendor's latest release, which the snapshot
 usually trails. They feed the flakes' package attributes where the attribute is
-versioned, as well as every `setup-node` step left: the two Windows jobs,
+versioned, as well as every `setup-node` step left: Intel macOS, the two Windows jobs,
 the packed-package check closing `node26`, and the publishing workflow. Bumping any of them therefore means moving the Nixpkgs commit first
 and copying the versions it offers.
 
 `bun` is not one of these, and it is the one package in any generated shell that the
 snapshot does not decide. Nixpkgs ships 1.3.13, which two of this repository's proofs
-fail on, so that job's flake keeps the snapshot's packaging — the unzip, the
+fail on, so the shared shell keeps the snapshot's packaging — the unzip, the
 `autoPatchelfHook`, the wrapper — and replaces only `src`, with the version and SRI
 hash `config/module.f.js` records side by side. That works because Nixpkgs fetches
 Bun as a prebuilt archive rather than building it, so the override moves bytes rather
 than adopting a package definition. It is an exception with an expiry: both constants
 go the day the snapshot carries a Bun this suite passes on.
 
-`rust` is not one of them either, and for the opposite reason. The `wasm` job's flake
+`rust` is not one of them either, and for the opposite reason. The shared shell
 carries a second input, `rust-overlay`, pinned in `config/module.f.js` beside the
 Nixpkgs commit. Nixpkgs builds one `rustc` and hard-codes the targets it builds `std`
-for, and three of that job's four are not among them at any version; the overlay
+for, and three of the four tested WASM targets are not among them at any version; the overlay
 unpacks the same release artifacts `rustup` would, so `rust` is an exact Rust release
 the flake names in full. The platform matrix's `dtolnay/rust-toolchain` reads the same
 constant, so the two cannot drift.
 
-A generated `run` script sits beside every flake, and a workflow step reads as
+A generated `run` script sits beside the shared flake, and a workflow step reads as
 the command it runs — `sh ./gen.nix/run npm run cov` — rather than as a `nix develop`
 invocation repeated once per step. Its flags live in that one generated place,
 and `nix/module.f.mjs` says what each buys: a stale lock fails rather than
 resolving silently, substitution progress stays out of the log, and the script
 works on a stock Nix install rather than only a configured one.
 
-[`dev.sh`](../../dev.sh) at the repository root is the interactive counterpart,
-for a person who wants the shell rather than one command in it. It is committed
-rather than generated: nothing in it varies with a job, a pin or a system, so
+[`dev.sh`](../../dev.sh) at the repository root opens the shell or runs one
+command. It is committed rather than generated: nothing in it varies with a job, a pin or a system, so
 there is nothing for a generator to compose or a drift check to catch. See
 [nix/README.md](./nix/README.md).
 
-A `flake.lock` is committed beside every `flake.nix`, but `fjs ci` never
+A `flake.lock` is committed beside the shared `flake.nix`, but `fjs ci` never
 writes one: `nix flake lock` is a real Nix command. Without a committed lock
 every `nix develop` would compute one, find it differed from nothing, and say
 so — which used to cost two more `--quiet`s and, with them, every Nix warning
-of any kind. Instead the generator writes `gen.nix/lock-update.sh`, one `nix flake lock`
-per generated directory, and this repository's `gen` ends by running it, after
+of any kind. Instead the generator writes `gen.nix/lock-update.sh`, which locks
+the shared flake, and this repository's `gen` ends by running it, after
 `gen:clean` has emptied `gen.nix/`, so the locks are regenerated from nothing
 and covered by the drift check; `gen` needs Nix for that, and does not run on
 Windows for now. See "Expected package scripts" below and
@@ -191,9 +212,8 @@ canonical job asserts, as its first command, that its own shell reports the vers
 `config/module.f.js` records for it:
 
 ```sh
-test "$(sh ./gen.nix/run node --version)" = "v26.8.1"
+test "$(sh ./gen.nix/run node --version)" = "v26.10.0"
 test "$(sh ./gen.nix/run deno eval 'console.log(Deno.version.deno)')" = "2.8.3"
-test "$(sh ./gen.nix/node22/run node --version)" = "v22.23.2"
 ```
 
 The runtimes disagree on both halves, which is why the check takes the command and
@@ -216,22 +236,30 @@ the flake it was meant to test.
 
 What can be established about a generated flake without Nix is asserted by two proofs.
 `proof.f.mjs` reads the file the pipeline wrote and requires it to equal the generator's
-text for that job, and each Node job's package attribute to be the `nodejs_<major>` its
+text for the shared shell, and the Node package attribute to be the `nodejs_<major>` its
 configured version implies. What that text must itself contain — the accepted commit,
-the job's `devShells.<system>.default`, the shell's packages — is pinned character for
+the shell's `devShells.<system>.default`, its packages — is pinned character for
 character by `nix/proof.f.mjs`'s literal fixtures. Every generated flake is also
 evaluated for real, by the job that uses it.
 
 ### Expected package scripts
 
-All four non-Windows platform jobs run `cargo` and the suite in the **same**
-shell, so the matrix differs by platform and by nothing else. They are also the
-only place that shell's `x86_64-linux`, `aarch64-darwin` and `x86_64-darwin`
-outputs get built at all. Only the two Windows jobs are off Nix, because Nix has
-no native Windows.
+Linux and ARM macOS run `cargo` and the suite in the **same** Nix shell.
+Those jobs cover all three generated systems: `aarch64-linux`, `x86_64-linux`
+and `aarch64-darwin`. ARM macOS retains its Nix installer and shell wrappers.
+
+Intel macOS keeps its runner and working-checkout checks, but installs only
+Node with `actions/setup-node` and native Rust with `dtolnay/rust-toolchain`,
+using the shared pins. Its separate steps check Node, run `npm ci`, run native
+Rust tests and Clippy in debug and release modes, and finish with `node --test`.
+Without `Cargo.toml`, it installs only Node. It installs no Nix, published
+FunctionalScript, compiler, alternate runtimes or WASM tools. The flakes omit
+`x86_64-darwin` ahead of Nixpkgs dropping Intel macOS after 26.05, and this
+smaller setup also reduces work on the slow Intel runner. Windows continues
+to install tools directly because Nix has no native Windows support.
 
 32-bit Linux is four more steps on `ubuntu-intel`, and the one thing that makes
-that job differ from its three siblings. It was a job of its own,
+that job differ from its two Nix siblings. It was a job of its own,
 `ubuntu-intel32`, while it needed a shell of its own; once `perSystem` gave
 `x86_64-linux` the target's `rust-std` and the linker for it, what the extra job
 still did was install Nix and substitute that same shell on a second runner —
@@ -263,7 +291,7 @@ runs this commit's suite instead: `npm install -g` writes to the read-only store
 from inside a shell, and the check was the one `deno` and `bun` already dropped
 because it tests a shipped release rather than the commit under review.
 
-The four that moved assert their Node and then run `npm ci` — the version check
+The four working-checkout platform jobs assert their Node and then run `npm ci` — the version check
 first, deliberately, since `npm ci` runs lifecycle hooks and those should not be
 the thing that discovers the runtime. `fjs test` walked the tree for proof
 modules and resolved nothing; `node --test` runs a project's *test entry*, and
@@ -277,12 +305,6 @@ would never have shown the failure, having no such file: its proofs live under
 Every canonical job runs on Ubuntu ARM, and every one through a
 flake:
 
-- Node 22 runs `npm ci` and `node --test` through a flake of its own.
-- Node 24 runs the same pair through its own — one builder emits both jobs,
-  which differ only in the version they name. These two are the only jobs left
-  with a flake to themselves: `npm ci` and `node --test` take whichever `node`
-  reaches `PATH` first, and one shell holds one, so each needs a shell carrying
-  the single release it exists to test.
 - Node 26 runs `npm ci`, `tsc`, `npm start compile`, `npm run cov`, `npm pack`
   and `npm run gen` through the shared shell, then
   `git add -A && git diff --cached --exit-code` as a plain step — `git` is the
@@ -327,7 +349,7 @@ Git, not only the workflows. `fjs ci` covers `.github/workflows/gen.ci.yml`,
 and `run`, deliberately not `flake.lock`, which the generated
 `gen.nix/lock-update.sh` regenerates through Nix — see below); a project with other
 generators chains them into the same script, as this repository does for
-`nanvm-lib/tests/test/gen.corpus/` (see
+`nanvm/lib/tests/test/gen.corpus/` (see
 [`fjs/nanvm/README.md`](../nanvm/README.md)) and for the lock script itself.
 Everything chained there is covered by the drift check below for free.
 
@@ -347,7 +369,7 @@ reflects the generator being reviewed, not the pinned published release.
 
 `fjs ci` itself is Nix-independent — it never shells out to `nix` — which is
 why it cannot be the thing that writes `flake.lock`. It writes
-`gen.nix/lock-update.sh` instead, alongside the flakes: the script locks each
+`gen.nix/lock-update.sh` instead, alongside the flakes: the script locks the shared
 flake from its pinned revision, through real Nix, into the directory
 `gen:clean` has just emptied. This repository runs that script as the last step of `gen`, so a committed lock that
 differs from what the pinned revision produces fails the drift check like any
@@ -360,9 +382,9 @@ step before coverage and package creation. Keep `test` as the fast local
 correctness loop even though generated CI no longer calls `npm test` directly.
 
 Both scripts name `tsc` rather than `npx tsc`, and TypeScript is deliberately not
-a `devDependency`. The compiler comes from the environment — the shared `dev`
-shell for anyone with Nix, a global npm install otherwise — so the two jobs that
-only run the suite do not install one. `npx tsc` would defeat that: with
+a `devDependency`. The compiler comes from the environment — the shared
+shell for anyone with Nix, a global npm install otherwise — rather than from
+an unpinned package resolution. `npx tsc` would defeat that: with
 nothing to resolve in `node_modules` it downloads the registry's latest, which
 is the one version nothing here pins.
 
@@ -417,7 +439,7 @@ The FunctionalScript package version used by the surviving smoke tests is pinned
 in `config/module.f.js` too — nothing about the project reaches the generated
 steps except whether it has a `Cargo.toml`. That one flag reaches further than
 it used to: without Rust there are no 32-bit checks, so `ubuntu-intel` shares
-the shell like the rest and only Windows stays off it.
+the shell, while Intel macOS and Windows install tools directly.
 
 ## The publishing workflow
 
@@ -540,7 +562,7 @@ it still gates the merge, once, in the queue. A project with no merge queue
 would never run those jobs, so the default is none, which is what this
 repository uses.
 
-On every platform but Windows, an injected step that names a **command** runs
+On Linux and ARM macOS, an injected step that names a **command** runs
 inside the shared shell, alongside the job's own — these jobs no longer install
 Node with `setup-node`, so a step left on the runner would find whatever the
 image ships rather than the release the job asserts:
@@ -591,14 +613,15 @@ either.
 **Where it lands instead is worth saying, because it is not symmetric.**
 `toSteps` emits install steps, then the checkout, then test steps, so an
 injected command becomes a test step and runs *after* the job's own
-`node --test` on Linux and macOS — while on Windows, which wraps nothing, the
+`node --test` on Linux and ARM macOS — while on Intel macOS and Windows, the
 same declaration still runs before `actions/checkout`. Declaring `install` no
 longer means "before the tests" anywhere it was moved. `extra.injectedPosition`
 asserts both halves.
 
 A step naming an **action** keeps both its position and its shape —
 there is nothing to wrap, and `actions/cache` and its like want to run early.
-Windows keeps everything as declared, having no shell at all.
+Intel macOS and Windows keep everything as declared, with the pinned tools
+installed directly on the runner.
 Rust steps are included automatically when `Cargo.toml` is present; no flag is needed.
 
 ## Related

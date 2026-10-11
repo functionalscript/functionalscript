@@ -4,8 +4,8 @@
  * `ubuntu-arm` also checks formatting and exercises every WASM target.
  *
  * The jobs get their toolchain from two places, and the reason is packaging
- * rather than preference. The two Windows jobs run where no generated flake can
- * serve them, so they keep `dtolnay/rust-toolchain`. Every other job takes
+ * rather than preference. Intel macOS and the two Windows jobs install only
+ * native Rust through `dtolnay/rust-toolchain`. The other jobs take
  * `cargo` from the shared shell — but not from Nixpkgs alone: Nixpkgs builds a
  * single `rustc` and hard-codes the targets it builds `std` for, and three of
  * the four WASM targets are not among them at any version. The shell takes the
@@ -13,7 +13,7 @@
  * artifacts `rustup` would.
  *
  * Both name `../config/module.f.js`'s `rust`, so the version cannot differ
- * between a Windows job and the rest.
+ * between direct-install jobs and the rest.
  *
  * @module
  *
@@ -23,7 +23,7 @@
 
 import { rust, wasmer, wasmtime } from '../config/module.f.js'
 import { test } from '../common/module.f.mjs'
-import { nixShell, nixVersionStep } from '../nix/module.f.mjs'
+import { nixVersionStep } from '../nix/module.f.mjs'
 
 /**
  * One `cargo` check, run twice: debug, then `--release`.
@@ -194,8 +194,8 @@ const wasmPlatform = (v, a) => v === 'ubuntu' && a === 'arm'
 export const shellRustVersionSteps = (v, a) =>
     wasmPlatform(v, a)
         ? [
-            nixVersionStep(nixShell, 'wasmtime --version', `wasmtime ${wasmtime}`),
-            nixVersionStep(nixShell, 'wasmer --version', `wasmer ${wasmer}`),
+            nixVersionStep('wasmtime --version', `wasmtime ${wasmtime}`),
+            nixVersionStep('wasmer --version', `wasmer ${wasmer}`),
         ]
         : []
 
