@@ -62,13 +62,13 @@ import { toArray } from '../types/list/module.f.mjs'
 import { log } from '../effects/common/module.f.mjs'
 import { indexPage, isVersion, releasePage, releasePath, releases } from './changelog/module.f.mjs'
 import { tryParse } from '../media/markdown/module.f.mjs'
-import { rustdocStylesheet, stylesheet } from './style/module.f.mjs'
+import { stylesheet } from './style/module.f.mjs'
 import { changelogDir, demoSection, directoryLayout, page, pagePath, prsDir, shell, siteName, subtree, testSection, testsMain } from './page/module.f.mjs'
 import { prsPage } from './prs/module.f.mjs'
 import { toHex, tryFromHexOf } from '../git/oid/module.f.mjs'
 import { fundingPath, parse as parseFunding } from './funding/module.f.mjs'
 import { isThirdParty } from '../dev/module.f.mjs'
-import { cargoDocDir, cargoDocHref, cargoDocPage, crateHref, crateOf, rustdocDir, rustdocFooter, rustdocFooterPath, rustdocHeader, rustdocHeaderPath, rustdocStylesheetPath } from './cargo-doc/module.f.mjs'
+import { cargoDocDir, cargoDocHref, cargoDocPage, crateHref, crateOf, rustdocDir } from './cargo-doc/module.f.mjs'
 
 /**
  * The root page: the project's name, the catalogue every directory page
@@ -724,22 +724,6 @@ const writeCargoDocIndex = build => crates => {
 }
 
 /**
- * The site's header, footer and their stylesheet, written for `cargo doc` to
- * put on every page of rustdoc's — so a build that runs `cargo doc` after
- * this one, with them, publishes rustdoc's pages inside the site's bars.
- * Written on every build, as `_main.css` is, whether or not anything uses
- * them: they cost three small files, and a build that needs them should not
- * have to ask.
- *
- * @type {(build: Build) => Effect<Rm | WriteBytes | WriteFile, void, IoChannel>}
- */
-const writeRustdocBars = build => {
-    const headerWritten = writeUtf8File(rustdocHeaderPath, rustdocHeader(build))
-    const footerWritten = step(headerWritten, () => writeUtf8File(rustdocFooterPath, rustdocFooter(build.funding)))
-    return step(footerWritten, () => writeUtf8File(rustdocStylesheetPath, rustdocStylesheet))
-}
-
-/**
  * One `index.html` per directory, so the tree is walkable from the root.
  *
  * The root's page is the site's own — it carries the heading and the test
@@ -778,7 +762,7 @@ const writePages = build => tree => crates => proofs => demos => {
  *
  * @type {(env: Env) => string | null}
  */
-const commitOf = env => {
+export const commitOf = env => {
     const value = env.WORKERS_CI_COMMIT_SHA
     if (value === undefined) { return null }
     const units = value.split('').map(c => c.charCodeAt(0))
@@ -799,7 +783,7 @@ const commitOf = env => {
  *
  * @type {(env: Env) => string | null}
  */
-const branchOf = env => {
+export const branchOf = env => {
     const value = env.WORKERS_CI_BRANCH
     return value === undefined || value === '' ? null : value
 }
@@ -815,26 +799,42 @@ const linksNote = env => commit =>
             : 'file links: this site, because WORKERS_CI_COMMIT_SHA is not a commit id'
 
 /**
+ * The funding channels in `funding.json`, which is there.
+ *
+ * A file that cannot be linked stops the build, so the published site never
+ * quietly lacks a channel.
+ *
+ * @type {Effect<ReadFile, readonly Funding[], IoChannel>}
+ */
+const fundingRead = step(readUtf8File(fundingPath), text => {
+    const funding = parseFunding(text)
+    return funding[0] === 'error'
+        ? pureError(ioError({ message: `${fundingPath}: ${funding[1]}` }))
+        : pureOk(funding[1])
+})
+
+/**
  * The funding channels every page's footer links, read from `funding.json`.
  *
- * **The walk says whether the file is there**, as it does for the changelog:
- * a tree without one — every fixture tree the generator's proofs build — gets
- * pages without a footer rather than no build. A file that is there and
- * cannot be linked stops the build, so the published site never quietly
- * lacks a channel.
+ * **A tree without the file gets no footer rather than no build** — every
+ * fixture tree the generator's proofs build is one. Whether it is there is
+ * asked of the file system, not of the walk, so a program that writes the
+ * site's bars without walking the tree reads the same channels
+ * ([`./rustdoc-bars`](./rustdoc-bars/module.f.mjs)).
  *
- * @type {(tree: readonly _Walked[]) => Effect<ReadFile, readonly Funding[], IoChannel>}
+ * @type {Effect<Access | ReadFile, readonly Funding[], IoChannel>}
  */
-const readFunding = tree => {
-    const present = tree.some(walked => walked.path === '.' && walked.files.includes(fundingPath))
-    if (!present) { return pureOk([]) }
-    return step(readUtf8File(fundingPath), text => {
-        const funding = parseFunding(text)
-        return funding[0] === 'error'
-            ? pureError(ioError({ message: `${fundingPath}: ${funding[1]}` }))
-            : pureOk(funding[1])
-    })
-}
+const readFunding = step(
+    resultStep(access(fundingPath), found => pureOk(found)),
+    found => found[0] === 'error' && isNotFound(found[1]) ? pureOk([]) : fundingRead)
+
+/**
+ * What a build knows about itself: the commit and the branch the environment
+ * names, and the funding channels.
+ *
+ * @type {(env: Env) => Effect<Access | ReadFile, Build, IoChannel>}
+ */
+export const readBuild = env => mapStep(readFunding, funding => ({ commit: commitOf(env), branch: branchOf(env), funding }))
 
 /**
  * The whole build: the walk, then everything written from it.
@@ -846,7 +846,7 @@ const readFunding = tree => {
  * @type {(env: Omit<Build, 'funding'>) => (note: string) => Effect<Access | Readdir | ReadFile | ReadWhole | Rm | WriteBytes | WriteFile | Write | All | Mkdir, 0, number>}
  */
 const program = env => note => exitStep(mapStep(
-    step(log(note), () => step(walk('.'), tree => step(readFunding(tree), funding => {
+    step(log(note), () => step(walk('.'), tree => step(readFunding, funding => {
         const build = { ...env, funding }
         const authored = authoredModules(tree)
         // One graph over both: a page loads a demo the way it loads a proof,
@@ -863,8 +863,7 @@ const program = env => note => exitStep(mapStep(
                     const changelog = step(pages, () => writeChangelog(build)(tree))
                     const prDirectory = step(changelog, () => mkdir(prsDir, { recursive: true }))
                     const prPage = step(prDirectory, () => writeFile(pagePath(prsDir), prsPage(build)))
-                    const css = step(prPage, () => writeUtf8File('_main.css', stylesheet))
-                    return step(css, () => writeRustdocBars(build))
+                    return step(prPage, () => writeUtf8File('_main.css', stylesheet))
                 }))
     }))),
     () => undefined))

@@ -81,18 +81,24 @@ writes no `cargo.doc/` and no links. `target/` itself is never served: it
 holds build artifacts beside the docs, and `.assetsignore` keeps it out of
 every upload, whichever build made it.
 
-**rustdoc's pages carry the site's header and footer.** Every build writes
-them, from the same builders every page uses, as `_rustdoc-header.html` and
-`_rustdoc-footer.html`, with `_rustdoc.css` for their look; `cargo doc` puts
-them on each page it writes when it is given them. So a build with the bars is
-the site, then `cargo doc`, then the site again to copy what it wrote:
+**rustdoc's pages carry the site's header and footer.** `npm run rustdoc-bars`
+writes them, from the same builders every page uses, as `_rustdoc-header.html`
+and `_rustdoc-footer.html`, with `_rustdoc.css` for their look; `cargo doc`
+puts them on each page it writes when it is given them. They have to exist
+before `cargo doc` runs and the site is generated after it, so a build with the
+bars is:
 
 ```bash
-npm run website
+npm run rustdoc-bars
 cargo clean --doc
 RUSTDOCFLAGS="--html-before-content $PWD/_rustdoc-header.html --html-after-content $PWD/_rustdoc-footer.html --extend-css $PWD/_rustdoc.css" cargo doc --no-deps --workspace
 npm run website
 ```
+
+`rustdoc-bars` is a program of its own
+([`rustdoc-bars/`](./rustdoc-bars/module.f.mjs)) so the site is generated
+once: it reads the build the pages are built from — a preview's branch and
+commit, the funding channels — and walks nothing.
 
 `cargo clean --doc` is not optional: `cargo` reuses earlier docs when its
 flags are unchanged, even though the files they name have changed. Two rules

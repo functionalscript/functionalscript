@@ -20,7 +20,7 @@ The header and footer go into the body (`--html-before-content`,
 
 ### Option 1: one more file and flag (recommended)
 
-The generator also writes `_rustdoc-head.html` holding the site's two icon
+`rustdoc-bars` also writes `_rustdoc-head.html` holding the site's two icon
 links — the same `faviconLinks` from [`../style/module.f.mjs`](../style/module.f.mjs)
 every page uses, so the two cannot drift — and `cargo doc` takes it as
 `--html-in-header`, beside the three flags it already takes.
@@ -53,7 +53,7 @@ rustdoc then writes that one link instead of its own.
 ### Tasks
 
 - [ ] Choose an option.
-- [ ] Wire it: for option 1, the generator writes `_rustdoc-head.html` and the
+- [ ] Wire it: for option 1, `rustdoc-bars` writes `_rustdoc-head.html` and the
       build adds `--html-in-header` (the local steps in
       [`../README.md`](../README.md), and the Cloudflare build script if it
       runs `cargo doc` by then).
