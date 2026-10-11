@@ -3,28 +3,32 @@ import { rust } from '../../ci/config/module.f.js'
 import { step as ioStep } from '../../effects/module.f.mjs'
 import { readUtf8File } from '../../effects/node/module.f.mjs'
 import { defaultNodeProgramOptions, emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'
-import { buildPath, buildText, cloudflare, generatedDirectory, main } from './module.f.mjs'
+import { build, buildPath, buildText, generatedDirectory, main } from './module.f.mjs'
 
 export const proof = {
-    // Fixed text: the pin written in full, no pipe to hide a failed download
-    // from `set -e`, and no tool beyond the four approved.
+    // Fixed text: the pin written in full, an install only where `cargo` is
+    // missing, no pipe to hide a failed download from `set -e`, and no tool
+    // beyond the three approved.
     buildText: () => assertEq(buildText(), `#!/bin/sh
 set -e
-curl --proto '=https' --tlsv1.2 -sSf https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init -o "$HOME/rustup-init"
-chmod +x "$HOME/rustup-init"
-"$HOME/rustup-init" -y --profile minimal --default-toolchain ${rust} --no-modify-path
-"$HOME/.cargo/bin/cargo" doc --no-deps --workspace
-npm run website
+if ! command -v cargo > /dev/null
+then
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o "$HOME/rustup-init.sh"
+    sh "$HOME/rustup-init.sh" -y --profile minimal --default-toolchain ${rust} --no-modify-path
+    PATH="$HOME/.cargo/bin:$PATH"
+fi
+cargo doc --no-deps --workspace
+node ./fjs/module.mjs r ./fjs/website/module.f.mjs
 `),
     // The pin is the config's, not a copy of it.
     namesThePin: () => assert(buildText().includes(` --default-toolchain ${rust} `), buildText()),
     buildPath: () => {
-        assertEq(generatedDirectory, 'gen.cloudflare')
-        assertEq(buildPath, 'gen.cloudflare/build.sh')
+        assertEq(generatedDirectory, 'gen.website')
+        assertEq(buildPath, 'gen.website/build.sh')
     },
-    // The script is written where the dashboard's command names it.
+    // The script is written where `npm run website` names it.
     writes: () => {
-        const [, [tag, result]] = virtual(emptyState)(ioStep(cloudflare, () => readUtf8File(buildPath)))
+        const [, [tag, result]] = virtual(emptyState)(ioStep(build, () => readUtf8File(buildPath)))
         assert(tag === 'ok', result)
         assertEq(result, buildText())
     },

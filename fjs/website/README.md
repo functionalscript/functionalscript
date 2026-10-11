@@ -20,8 +20,8 @@ The one build that does not run in the repository's Nix shell is this one.
 Cloudflare's Workers Builds generates the site on its own image and takes
 its Node version from [`.node-version`](../../.node-version) at the repository
 root — the file exists for that reader alone, and nothing else in the
-repository consults it. The rest of what the build needs, it installs itself
-([the build command](#the-build-command)).
+repository consults it. The rest of what the build needs, `npm run website`
+installs itself ([the build script](#the-build-script)).
 
 **That is what lets a page load any repository file by its path at run time.**
 A page's proofs are the real `.f.mjs` modules under it, imported by the browser
@@ -64,38 +64,39 @@ feedback as pure decisions with co-located proofs. The browser adapter reads
 responses, performs requests and DOM updates, and supplies browser clock and
 date-formatting results to that policy.
 
-## The build command
+## The build script
 
-Cloudflare's build command is `sh ./gen.cloudflare/build.sh`, a generated
-script: it installs Rust, runs `cargo doc --no-deps --workspace`, and then
-`npm run website`. The command itself is set in the Cloudflare dashboard, so
-the script is what keeps its steps in the repository, where they are reviewed
-and have a history.
+`npm run website` is `sh ./gen.website/build.sh`, a generated script: it runs
+`cargo doc --no-deps --workspace`, then the generator, and installs Rust
+first where `cargo` is not on `PATH`. Cloudflare's build command is
+`npm run website`, as it always was, and the script depends on nothing set
+there: a branch without it still builds, a developer's checkout builds the
+same way, and nothing in the dashboard needs changing when the script does.
 
 **The site documents the crates with the Rust CI tests them with.** The build
-image has Node but no Rust, and the script installs one with `rustup-init`,
-at exactly `rust` from
+image has Node but no Rust, and the script installs one with `rustup`'s
+installer, at exactly `rust` from
 [`fjs/ci/config/module.f.js`](../ci/config/module.f.js) — the one constant the
 shared shell and the platform matrix also take. The script is generated from
-that constant by [`cloudflare/module.f.mjs`](./cloudflare/module.f.mjs), as
-`gen.nix/flake.nix` is, so the version is written in the script in full, a
-bump of the pin is a diff the drift check guards, and nothing in the
-dashboard names a version that could drift. The toolchain goes into the build
-container's home; `target/`, which `cargo doc` writes beside the docs, is in
-[`.assetsignore`](../../.assetsignore) and never served.
+that constant by [`build/module.f.mjs`](./build/module.f.mjs), as
+`gen.nix/flake.nix` is, so the version is written in the script in full and a
+bump of the pin is a diff the drift check guards. In the shared shell `cargo`
+is already that version, so nothing is installed. The toolchain goes into
+the build container's home; `target/`, which `cargo doc` writes beside the
+docs, is in [`.assetsignore`](../../.assetsignore) and never served.
 
-Installing Rust here was chosen over the alternative, building and deploying
-from CI in the Nix shell with `wrangler`, for what it keeps: Cloudflare builds
-every branch and gives each its preview URL, and no Cloudflare token goes to
-GitHub. The alternative would have one environment for everything, but would
-move branch previews into the generated workflow and leave a fork's pull
-request, which gets no secrets, without one. The build image cannot hold the
-shell itself: it ships no Nix, a build runs unprivileged and cannot create
-`/nix`, and the shell's closure would be fetched whole on every deploy against
-a twenty-minute limit. What this choice costs is `rustup`'s download and
-install on every deploy. The repository owner approved the script's
-invocation of `curl`, `chmod`, `rustup-init` and `cargo` as the Cloudflare
-Builds build command ([`AGENTS.md` §6](../../AGENTS.md#6-external-tools)).
+Installing Rust in the build was chosen over the alternative, building and
+deploying from CI in the Nix shell with `wrangler`, for what it keeps:
+Cloudflare builds every branch and gives each its preview URL, and no
+Cloudflare token goes to GitHub. The alternative would have one environment
+for everything, but would move branch previews into the generated workflow
+and leave a fork's pull request, which gets no secrets, without one. The
+build image cannot hold the shell itself: it ships no Nix, a build runs
+unprivileged and cannot create `/nix`, and the shell's closure would be
+fetched whole on every deploy against a twenty-minute limit. What this
+choice costs is `rustup`'s download and install on every deploy. The
+repository owner approved the script's invocation of `curl`, `rustup`'s
+installer and `cargo` ([`AGENTS.md` §6](../../AGENTS.md#6-external-tools)).
 
 ## Every directory gets a page
 
@@ -302,7 +303,7 @@ uploading that preview, without deploying the preview to production:
    `GITHUB_REDIRECT_URI`, and `GITHUB_PREVIEW_REDIRECT_URI` as variables, and
    `GITHUB_CLIENT_SECRET` as a **Secret**. Use the same app and the two
    callback values above to support both production domains and every preview.
-2. Keep the build command as `sh ./gen.cloudflare/build.sh`.
+2. Keep the build command as `npm run website`.
 3. Change the version command to:
 
    ```sh

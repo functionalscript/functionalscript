@@ -21,7 +21,7 @@ import { main as ci } from '../../ci/self/module.f.mjs'
 import { main as rustTests } from '../../nanvm/update/module.f.mjs'
 import { corpus, main as matrix, modules as corpusModules } from '../../media/datajs/vectors/matrix/module.f.mjs'
 import { main as fixtures, modulesPath } from '../../nanvm/harness/module.f.mjs'
-import { main as cloudflare } from '../../website/cloudflare/module.f.mjs'
+import { main as website } from '../../website/build/module.f.mjs'
 import { tryStringify } from '../../media/datajs/serializer/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { asNominal } from '../../types/nominal/module.f.js'
@@ -87,7 +87,7 @@ export const proof = {
         assert(generators[2] === rustTests)
         assert(generators[3] === matrix)
         assert(generators[4] === fixtures)
-        assert(generators[5] === cloudflare)
+        assert(generators[5] === website)
     },
     sequence: {
         allSucceed: () => {
