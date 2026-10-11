@@ -10,8 +10,15 @@ construct. Each rule is a rewrite the specification already admits, with the
 section that admits it, so a conversion changes the spelling and not the
 meaning.
 
-Two things hold for every rule:
+Three things hold for every rule:
 
+- **A required function is imported, never copied.** Where a rewrite needs a
+  function — `entry` below, and the helpers later rules name — the
+  repository implements it once, in FunctionalScript, and a converted module
+  imports it from that module. The specification may spell the function out
+  so the compiler can recognize it wherever it is written; that is the
+  compiler's contract, not an invitation to paste it. A copy is a second
+  implementation that will drift ([AGENTS.md §1](../AGENTS.md#1-workflow)).
 - **The value is preserved.** FunctionalScript is a subset of JavaScript, and
   a converted module is still JavaScript: it must compute what it computed
   before, in both languages. A rewrite that changes a result is a change to
@@ -80,9 +87,15 @@ and the next form is the one to use. A number's string is never a prototype
 name, so a converted key is never refused as one.
 
 **Anything else — a member of an object by a string, or a key of unknown
-type:** read it with the `entry` helper, imported from
-[`fjs/types/object/entry`](../fjs/types/object/entry/module.f.js)
+type:** read it with the `entry` helper
 ([reading an entry at run time](../spec/README.md#reading-an-entry-at-run-time)).
+Its implementation is
+[`fjs/types/object/entry`](../fjs/types/object/entry/module.f.js), an
+authored `.f.js` the compiler accepts, and the import below is the whole of
+what a module writes for it. The specification spells the function out
+because the compiler recognizes it by its shape; a module does not restate
+it. [`fjs/js/entry`](../fjs/js/entry/module.f.js) is a compatibility
+re-export of the same function, not a second one to choose from.
 
 ```js
 const escapes = { n: '\n', t: '\t' }
