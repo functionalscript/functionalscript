@@ -32,7 +32,25 @@ backticks and the escaped substitution opener `\${`. Allow literal line
 terminators, normalizing raw CR and CRLF to LF, as JavaScript does; raw LF,
 U+2028 and U+2029 keep their values. An escaped `\r` stays CR. Additional JS
 escapes, other raw C0 control characters and line continuations remain deferred
-under [js-string-literals](./2460-js-string-literals.md).
+by this proposal, in coordination with the quoted-string scope in
+[js-string-literals](./2460-js-string-literals.md).
+
+Keep the common escape set uniform with FunctionalScript's single- and
+double-quoted strings: changing the literal delimiter must not admit additional
+escape spellings such as `\0`, `\v`, `\xHH` or `\u{...}`. The exceptions
+serve template syntax: escaping a backtick or `${`, and literal line terminators
+for multiline text. This preserves one accepted escape policy across literal
+forms while providing interpolation and multiline text. Other raw C0 control
+characters and line continuations stay outside that policy too. Any future
+widening of the common escape set must be coordinated across quoted strings
+and templates; this TODO owns the template deferral, since 2460 excludes them.
+
+Some repository templates use deferred spellings. For example,
+[`serializer/names`'s `_name`](../../fjs/compiler/serializer/names/module.f.mjs)
+uses `` `\0${key}\0` ``. Before marking such a module compiler-compatible,
+normalize that spelling to `` `\u0000${key}\u0000` ``, which preserves its
+value and uses the common escape set. Template support alone does not make
+every existing template spelling admissible.
 
 Tagged templates, such as `` tag`a${b}c` ``, remain a separate feature and must
 be refused. This proposal does not add a tag call, a `raw` array, or any new
@@ -131,7 +149,21 @@ These are proposed template forms and their values after cooking and conversion:
 `literal \${a}`;         // "literal ${a}"
 `\``;                    // "`"
 `line\nbreak`;           // "line\nbreak"
+`\u0000${"key"}\u0000`;  // "\u0000key\u0000"
 ```
+
+The common escape policy refuses the following spellings, as it does in
+quoted strings:
+
+| Refused template spelling | Admitted spelling with the same value |
+| --- | --- |
+| `` `\0${"key"}\0` `` | `` `\u0000${"key"}\u0000` `` |
+| `` `\v` `` | `` `\u000b` `` |
+| `` `\x41` `` | `` `A` `` or `` `\u0041` `` |
+| `` `\u{1f600}` `` | `` `\ud83d\ude00` `` |
+
+Line continuations are also refused; join their lines without the continuation
+sequence to preserve the value.
 
 Adjacent substitutions must remain string concatenation:
 `` `${1}${2}` `` expands to `"" + String(1) + "" + String(2) + ""`, never
@@ -173,12 +205,18 @@ semantics.
       through the existing expression grammar, and refuse tagged templates,
       unsupported escapes and malformed or unterminated templates with a
       located error.
+- [ ] Normalize deferred template spellings in modules being migrated to
+      `.f.js`, including `_name`'s `\0` to `\u0000`. Keep any future common
+      escape-set widening coordinated with quoted strings rather than
+      admitting it only in templates.
 - [ ] Lower to the existing `String`/binary `+` forms above, preserving
       chunk and substitution placement, conversions, empty chunks and nested
       forms under the existing failure contract.
 - [ ] Prove parsing, cooking and lowering for the examples, raw CR/CRLF versus
       escaped `\r`, U+2028/U+2029, object and function braces, precedence, and
-      malformed or refused forms.
+      malformed or refused forms. Pin the same common escape admission as
+      quoted strings, including refusal of `\0`, `\v`, `\xHH`, `\u{...}`,
+      other raw C0 control characters and line continuations.
 - [ ] Prove the own-method conversion distinction, nonprimitive or throwing
       conversion results, and required substitution or conversion failures;
       compare successful values with JavaScript and success/failure outcomes
@@ -191,8 +229,8 @@ semantics.
 
 - [Template lexing](../../fjs/ebnf/lib/js/todo/single-quote-and-template-lexing.md)
   — shared token boundaries, cooking and nesting context.
-- [JS string literals](./2460-js-string-literals.md) — other escapes and
-  spellings remain deferred.
+- [JS string literals](./2460-js-string-literals.md) — coordinated common
+  escape policy for quoted strings; this TODO owns the template deferral.
 - [FJS/NaNVM integration](../../todo/fjs-nanvm-integration.md) — compiler
   compatibility and the `.f.mjs` → `.f.js` migration.
 - [String conversion](../README.md#string-conversion) — the operation each
