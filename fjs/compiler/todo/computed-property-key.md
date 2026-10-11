@@ -61,10 +61,8 @@ language accepts, and keep the three constant spellings as they are:
   unsupported value, and at compile time where the parser already sees a
   literal of another type.
 - A key computed from a string literal keeps folding to the constant, so
-  `{ ["__proto__"]: v }` stays the one admitted spelling of that key
-  ([the `__proto__` key](../../../spec/README.md#the-__proto__-key)), and
-  a computed key that evaluates to `"__proto__"` at run time defines an own
-  property, as JavaScript does.
+  the three constant spellings and the existing `__proto__` rule, which is
+  about the plain and quoted spellings of that one key, are untouched.
 - A numeric key written plainly, `{ 0: 5 }`, is refused today at the
   number; it is the roadmap's "property key as number" and the same
   conversion serves it. Whether it lands in this change or its own is the
@@ -80,8 +78,7 @@ language accepts, and keep the three constant spellings as they are:
 - [ ] interpreter and VM: `ToPropertyKey` on a number or a string, refusal
       of every other value
 - [ ] spec: property keys and the roadmap item
-- [ ] proofs: the example above, a string-valued key, a refused value, and
-      the `__proto__` cases
+- [ ] proofs: the example above, a string-valued key and a refused value
 
 ### Related
 
