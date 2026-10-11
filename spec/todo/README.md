@@ -74,8 +74,7 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
    designer approval,
 3. [ ] [operators](./2340-operators.md),
 4. [ ] [enumerable presence](./2345-has-own-property.md) — prohibit
-   `Object.hasOwn`; propose a separate `hasEntity` AST pattern;
-   [`in` stays out](./2346-in-operator.md) by design, pending approval,
+   `Object.hasOwn`; propose a separate `hasEntity` AST pattern,
 5. [ ] [built-in](./2360-built-in.md),
 6. [ ] [global-names](./2365-global-names.md) — a name ECMAScript defines
    globally is never a module's to bind; each name is reserved no later
@@ -90,6 +89,9 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
    constant-string form is implemented
    ([property keys](../README.md#property-keys)); the general one waits
    on expressions.
+10. [ ] [the `in` operator](./2346-in-operator.md) — stays out of the language
+   by design; open for designer approval
+   (its file says P3, not this list's P2).
 
 ### 2.3. Syntactic Sugar
 
