@@ -84,31 +84,33 @@ const categoryNames = /** @type {const} */ ([
 ])
 
 export const proof = {
-    // The grammar is LL(1): every rule builds, and so does the module.
-    ll1: () => {
-        parser(identifier)
-        parser(primitive)
-        parser(/** @type {Rule} */ (template))
-        parser(/** @type {Rule} */ (member))
-        parser(access)
-        parser(/** @type {Rule} */ (entry))
-        parser(/** @type {Rule} */ (value))
-        parser(/** @type {Rule} */ (array))
-        parser(/** @type {Rule} */ (object))
-        parser(parameters)
-        parser(/** @type {Rule} */ (func))
-        parser(/** @type {Rule} */ (group))
-        parser(/** @type {Rule} */ (parenthesized))
-        parser(/** @type {Rule} */ (paren))
-        parser(/** @type {Rule} */ (parenGroup))
-        parser(/** @type {Rule} */ (body))
-        parser(/** @type {Rule} */ (circuitTail))
-        parser(/** @type {Rule} */ (conditionalTail))
-        parser(/** @type {Rule} */ (block))
-        parser(attribute)
-        parser(/** @type {Rule} */ (importStatement))
-        parser(/** @type {Rule} */ (constStatement))
-        parser(/** @type {Rule} */ (lastStatement))
+    // The grammar is LL(1): each rule builds in its own proof, keeping the
+    // external runner's per-test timeout independent of the rule count.
+    // Discard each parser so the returned reader is not a nested proof.
+    ll1: {
+        identifier: () => { parser(identifier) },
+        primitive: () => { parser(primitive) },
+        template: () => { parser(/** @type {Rule} */ (template)) },
+        member: () => { parser(/** @type {Rule} */ (member)) },
+        access: () => { parser(access) },
+        entry: () => { parser(/** @type {Rule} */ (entry)) },
+        value: () => { parser(/** @type {Rule} */ (value)) },
+        array: () => { parser(/** @type {Rule} */ (array)) },
+        object: () => { parser(/** @type {Rule} */ (object)) },
+        parameters: () => { parser(parameters) },
+        func: () => { parser(/** @type {Rule} */ (func)) },
+        group: () => { parser(/** @type {Rule} */ (group)) },
+        parenthesized: () => { parser(/** @type {Rule} */ (parenthesized)) },
+        paren: () => { parser(/** @type {Rule} */ (paren)) },
+        parenGroup: () => { parser(/** @type {Rule} */ (parenGroup)) },
+        body: () => { parser(/** @type {Rule} */ (body)) },
+        circuitTail: () => { parser(/** @type {Rule} */ (circuitTail)) },
+        conditionalTail: () => { parser(/** @type {Rule} */ (conditionalTail)) },
+        block: () => { parser(/** @type {Rule} */ (block)) },
+        attribute: () => { parser(attribute) },
+        importStatement: () => { parser(/** @type {Rule} */ (importStatement)) },
+        constStatement: () => { parser(/** @type {Rule} */ (constStatement)) },
+        lastStatement: () => { parser(/** @type {Rule} */ (lastStatement)) },
     },
     // One symbol per name, all distinct, all above every code point; a
     // framing keyword is not an identifier's symbol, and the token rides

@@ -929,6 +929,10 @@ the path of an `import` statement and the value of its attribute —
 
 ### Template Literals
 
+`sergey-shandar` approved the untagged-template design in
+[#2822](https://github.com/functionalscript/functionalscript/pull/2822#issuecomment-6106236760),
+as [DESIGN.md §12](../doc/DESIGN.md#new-language-features-start-with-a-todo) requires.
+
 An untagged template is a backtick-delimited primary expression, with cooked
 text chunks separated by `${expression}` substitutions:
 
