@@ -5,7 +5,7 @@
  * @import { Equal } from '../../../types/ts/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { Items } from './types.ts'
- * @import { Node } from '../../../media/html/types.ts'
+ * @import { Element } from '../../../media/html/types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
@@ -60,18 +60,25 @@ const read = s => {
 /**
  * The labels a view draws, each as `kind:text`: read from the element tree
  * the page is rendered from, by the marker the stylesheet selects, rather
- * than matched in its HTML text.
+ * than matched in its HTML text. What follows an element's tag is its
+ * attributes, its text and its child elements, in any mix.
  *
- * @type {(node: Node) => readonly string[]}
+ * @type {(element: Element) => readonly string[]}
  */
-const labelsOf = node => {
-    if (typeof node === 'string') { return [] }
-    const [, first, ...rest] = node
-    if (first === undefined) { return [] }
-    if (typeof first === 'string' || first instanceof Array) { return [first, ...rest].flatMap(labelsOf) }
-    const kind = first[railroadLabelMarker]
-    return [...(kind === undefined ? [] : [`${kind}:${rest.join('')}`]), ...rest.flatMap(labelsOf)]
+const labelsOf = element => {
+    const [, ...items] = element
+    const text = items.filter(item => typeof item === 'string').join('')
+    return items.flatMap(item =>
+        typeof item === 'string' ? []
+        : item instanceof Array ? labelsOf(item)
+        : item[railroadLabelMarker] === undefined ? [] : [`${item[railroadLabelMarker]}:${text}`])
 }
+
+/**
+ * The token kinds the demo draws as categories, written out here rather
+ * than read from the demo, so a name dropped there is a failure here.
+ */
+const categoryNames = /** @type {const} */ (['id', 'string', 'number', 'bigint'])
 
 export const proof = {
     // The grammar is LL(1): every rule builds, and so does the module.
@@ -599,11 +606,11 @@ export const proof = {
     demo: {
         // A diagram per title, and a diagram for every box.
         page: diagramPage(demo, diagrams),
-        // A token that stands for any token of its kind is a category, and
-        // a token that is its own text a terminal.
+        // Each token that stands for any token of its kind is a category,
+        // and a token that is its own text a terminal.
         labels: () => {
             const labels = labelsOf(demo.view(demo.init))
-            assert(labels.includes('category:id'), 'id')
+            categoryNames.forEach(name => assert(labels.includes(`category:${name}`), name))
             assert(labels.includes('terminal:=>'), '=>')
         },
     },
