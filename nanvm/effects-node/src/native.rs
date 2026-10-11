@@ -15,10 +15,13 @@ use crate::{
         member, optional_argument, required,
     },
     common,
-    files::{self, Dirent, IoError, Stat, js_number},
+    files::{self, Dirent, IoError, Stat},
     resolve::{FileModule, resolve_file_module},
 };
-use nanvm_lib::vm::{Any, Array, IVm, unstable::string_any};
+use nanvm_lib::vm::{
+    Any, Array, IVm,
+    unstable::{number_text, string_any},
+};
 use std::{
     collections::HashMap,
     fs::File,
@@ -332,7 +335,7 @@ impl<R: Read, O: Write, E: Write> Native<R, O, E> {
         } else {
             Err(Malformed(format!(
                 "{} is not a file handle",
-                js_number(number)
+                number_text(number)
             )))
         }
     }

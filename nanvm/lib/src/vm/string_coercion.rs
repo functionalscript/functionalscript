@@ -92,13 +92,19 @@ fn to_result<A: IVm>(s: &str) -> Result<String<A>, Any<A>> {
 /// `"1e-7"`. `js_digits_to_string` below applies the spec's own notation
 /// rule to the digits Rust already computes.
 pub(crate) fn number_to_string<A: IVm>(v: Number) -> String<A> {
-    match f64::from(v) {
+    number_text::<A>(f64::from(v)).as_str().into()
+}
+
+/// `Number::toString` of `v` as plain text, for a host that has no VM string
+/// to hold it.
+pub(crate) fn number_text<A: IVm>(v: f64) -> std::string::String {
+    match v {
         f64::INFINITY => "Infinity".into(),
         f64::NEG_INFINITY => "-Infinity".into(),
         v if v.is_nan() => "NaN".into(),
         0.0 => "0".into(),
-        v if v < 0.0 => format!("-{}", js_digits_to_string::<A>(-v)).as_str().into(),
-        v => js_digits_to_string::<A>(v).as_str().into(),
+        v if v < 0.0 => format!("-{}", js_digits_to_string::<A>(-v)),
+        v => js_digits_to_string::<A>(v),
     }
 }
 
