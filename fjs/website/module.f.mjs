@@ -53,7 +53,7 @@
 
 import { utf8 } from '../text/module.f.mjs'
 import { access, exitStep, isNotFound, mkdir, readdir, readUtf8File, readWhole, writeChunks, writeFile, writeUtf8File } from '../effects/node/module.f.mjs'
-import { foldStep, forEachStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../effects/module.f.mjs'
+import { foldStep, forEachStep, history, historyStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../effects/module.f.mjs'
 import { exportsDemo, exportsProof, local, specifiers } from './browser-source/module.f.mjs'
 import { concat as pathConcat } from '../path/module.f.mjs'
 import { at, empty as emptyMap, entries, setReplace } from '../types/ordered_map/module.f.mjs'
@@ -641,12 +641,47 @@ const writeChangelog = build => tree => {
  */
 const copyRustdocDir = dir => {
     const to = `${cargoDocDir}${dir.path.slice(rustdocDir.length)}`
-    return step(
-        mkdir(to, { recursive: true }),
-        () => forEachStep(pureOk(dir.files), name => step(
-            readWhole(`${dir.path}/${name}`),
-            chunks => writeChunks(`${to}/${name}`, chunks))))
+    const made = mkdir(to, { recursive: true })
+    return step(made, () => forEachStep(pureOk(dir.files), copyRustdocFile(dir.path)(to)))
 }
+
+/**
+ * One file of rustdoc's output, read whole from directory `from` and written
+ * under the same name in `to`.
+ *
+ * @type {(from: string) => (to: string) => (name: string) => Effect<ReadWhole | Rm | WriteBytes | WriteFile, void, IoChannel>}
+ */
+const copyRustdocFile = from => to => name => step(
+    readWhole(`${from}/${name}`),
+    chunks => writeChunks(`${to}/${name}`, chunks))
+
+/**
+ * The crates a walk of rustdoc's output documents: each top-level directory
+ * with an `index.html`. The others — `static.files`, `src`, `trait.impl` —
+ * are rustdoc's shared assets.
+ *
+ * @type {(tree: readonly _Walked[]) => readonly string[]}
+ */
+const cratesOf = tree => tree
+    .filter(dir => dir.files.includes('index.html')
+        && dir.path.lastIndexOf('/') === rustdocDir.length)
+    .map(dir => dir.path.slice(rustdocDir.length + 1))
+
+/** rustdoc's output walked, the walk kept for the steps after it. */
+const rustdocWalked = history(walk(rustdocDir))
+
+/** Every directory of rustdoc's output copied under {@link cargoDocDir}. */
+const rustdocCopied = historyStep(rustdocWalked, tree => forEachStep(pureOk(tree), copyRustdocDir))
+
+/**
+ * rustdoc's output copied, answering the crates it documents.
+ *
+ * @type {Effect<Readdir | Mkdir | ReadWhole | Rm | WriteBytes | WriteFile, readonly string[], IoChannel>}
+ */
+const copyRustdocTree = mapStep(rustdocCopied, ([, tree]) => cratesOf(tree))
+
+/** Whether rustdoc's output is there, as a result rather than a failure. */
+const rustdocFound = resultStep(access(rustdocDir), found => pureOk(found))
 
 /**
  * rustdoc's output, copied from {@link rustdocDir} to {@link cargoDocDir} as
@@ -658,9 +693,6 @@ const copyRustdocDir = dir => {
  * generator is an external tool ([`AGENTS.md` §6](../../AGENTS.md#6-external-tools)).
  * Whoever builds the site runs `cargo doc --no-deps --workspace` first.
  *
- * A crate is a top-level directory with an `index.html`; the others —
- * `static.files`, `src`, `trait.impl` — are rustdoc's shared assets.
- *
  * **Absence is asked of `access`, not of the walk's `readdir`**, whose
  * `ENOENT` the virtual file system the proofs run on does not yet report
  * ([virtual-error-codes](../effects/node/virtual/todo/virtual-error-codes.md)).
@@ -668,16 +700,8 @@ const copyRustdocDir = dir => {
  *
  * @type {Effect<Access | Readdir | Mkdir | ReadWhole | Rm | WriteBytes | WriteFile, readonly string[] | null, IoChannel>}
  */
-const copyRustdoc = step(
-    resultStep(access(rustdocDir), found => pureOk(found)),
-    found => found[0] === 'error' && isNotFound(found[1])
-        ? pureOk(null)
-        : step(walk(rustdocDir), tree => step(
-            forEachStep(pureOk(tree), copyRustdocDir),
-            () => pureOk(tree
-                .filter(dir => dir.files.includes('index.html')
-                    && dir.path.lastIndexOf('/') === rustdocDir.length)
-                .map(dir => dir.path.slice(rustdocDir.length + 1))))))
+const copyRustdoc = step(rustdocFound, found =>
+    found[0] === 'error' && isNotFound(found[1]) ? pureOk(null) : copyRustdocTree)
 
 /**
  * The Rust API reference, when there is one: rustdoc's output and the index
@@ -685,11 +709,19 @@ const copyRustdoc = step(
  *
  * @type {(build: Build) => Effect<Access | Readdir | Mkdir | ReadWhole | Rm | WriteBytes | WriteFile | Write, readonly string[], IoChannel>}
  */
-const writeCargoDoc = build => step(copyRustdoc, crates => crates === null
-    ? pureOk([])
-    : step(
-        writeFile(pagePath(cargoDocDir), cargoDocPage(build)(crates)),
-        () => step(log(`rust crates: ${crates.length}`), () => pureOk(crates))))
+const writeCargoDoc = build => step(copyRustdoc, crates =>
+    crates === null ? pureOk([]) : writeCargoDocIndex(build)(crates))
+
+/**
+ * The index page over the documented crates, answering them.
+ *
+ * @type {(build: Build) => (crates: readonly string[]) => Effect<Rm | WriteBytes | WriteFile | Write, readonly string[], IoChannel>}
+ */
+const writeCargoDocIndex = build => crates => {
+    const written = writeFile(pagePath(cargoDocDir), cargoDocPage(build)(crates))
+    const logged = step(written, () => log(`rust crates: ${crates.length}`))
+    return mapStep(logged, () => crates)
+}
 
 /**
  * The site's header, footer and their stylesheet, written for `cargo doc` to
@@ -701,11 +733,11 @@ const writeCargoDoc = build => step(copyRustdoc, crates => crates === null
  *
  * @type {(build: Build) => Effect<Rm | WriteBytes | WriteFile, void, IoChannel>}
  */
-const writeRustdocBars = build => step(
-    writeUtf8File(rustdocHeaderPath, rustdocHeader(build)),
-    () => step(
-        writeUtf8File(rustdocFooterPath, rustdocFooter(build.funding)),
-        () => writeUtf8File(rustdocStylesheetPath, rustdocStylesheet)))
+const writeRustdocBars = build => {
+    const headerWritten = writeUtf8File(rustdocHeaderPath, rustdocHeader(build))
+    const footerWritten = step(headerWritten, () => writeUtf8File(rustdocFooterPath, rustdocFooter(build.funding)))
+    return step(footerWritten, () => writeUtf8File(rustdocStylesheetPath, rustdocStylesheet))
+}
 
 /**
  * One `index.html` per directory, so the tree is walkable from the root.
@@ -819,7 +851,9 @@ const program = env => note => exitStep(mapStep(
         const authored = authoredModules(tree)
         // One graph over both: a page loads a demo the way it loads a proof,
         // so what would stop one would stop the other.
-        return step(writeCargoDoc(build), crates => step(scan(authored), ([foundProofs, foundDemos, graph]) =>
+        const documented = history(writeCargoDoc(build))
+        const scanned = historyStep(documented, () => scan(authored))
+        return step(scanned, ([[foundProofs, foundDemos, graph], crates]) =>
             step(classify([...foundProofs, ...browserProofOf(tree)], foundDemos)(graph),
                 ([proofs, demoProofs]) => {
                     const [demos, refused] = resolveDemos(demoProofs)
@@ -831,7 +865,7 @@ const program = env => note => exitStep(mapStep(
                     const prPage = step(prDirectory, () => writeFile(pagePath(prsDir), prsPage(build)))
                     const css = step(prPage, () => writeUtf8File('_main.css', stylesheet))
                     return step(css, () => writeRustdocBars(build))
-                })))
+                }))
     }))),
     () => undefined))
 
