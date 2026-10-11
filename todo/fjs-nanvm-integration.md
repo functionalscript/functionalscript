@@ -165,6 +165,18 @@ uses lands. A rewrite that spells `Number.isFinite` with the operators, or
 reads a destructured parameter property by property, is a second spelling
 of what JavaScript already says, and this migration does not pay for one.
 
+[#2826](https://github.com/functionalscript/functionalscript/pull/2826)
+then rewrote the two reads of a computed key the leaves still had as the
+language's own spellings: `nanvm/methods` reads `p[type]` as
+`entry(p, type)` and `types/list` reads `array[i]` as `array[Number(i)]`
+([reading an entry at run time](../spec/README.md#reading-an-entry-at-run-time),
+[property access](../spec/README.md#property-access)). That is not a rewrite
+of the kind above: each is the read JavaScript performed, in the one
+spelling the language has for it. `website/demo/code`'s `{ [codeMarker]: '' }`
+is an object-literal key, not a read, and has no such spelling; it stays.
+The `nanvm/methods` row below is measured after that rewrite; `types/list`'s
+first refusal did not move.
+
 The eleven implementation leaves below cannot be renamed with their current
 source. Each row is the first actual refusal from the `resolve()` pipeline;
 where a rewrite in supported syntax was tried on a copy, the last column
@@ -176,7 +188,7 @@ names what it reached before the compiler refused again. Locations are
 | `ci/package/module.f.mjs` | 114:22 | `JSON.stringify` in `literal` | `JSON` is not admitted; also writes `tsconfig` with it |
 | `git/config/module.f.mjs` | 472:11 | Destructuring `const { sub, after }` | `BigInt(number)` at three sites, `toLowerCase` at six, five more destructuring sites |
 | `media/rust/module.f.mjs` | 59:5 | `switch` in `character` | `BigInt(number)` in `bitsOf`, `Array(n)`, `let`/`while`, `Math`, `Number.isNaN`, `Object.is`, `toLowerCase`, four forward references |
-| `nanvm/methods/module.f.mjs` | 97:42 | Computed key `p[type]` in `isPending` | `Object.values` in `rows`; destructured callbacks |
+| `nanvm/methods/module.f.mjs` | 102:41 | Destructured callback parameter in `pairs` | `Object.values` in `rows`; a second destructured callback in `absent` |
 | `types/list/module.f.mjs` | 40:5 | `while` and reassignment in `trampoline` | The generator in `iterable`, `Array.from`, the imperative `next` |
 | `types/map/module.f.mjs` | 10:42 | `new Map(...)` in `mapSet` | `Map` is not a language type |
 | `types/object/structurally_same/module.f.mjs` | 20:7 | Destructuring `const { entries, is } = Object` | `Object.entries`: the language enumerates no keys; `Map` besides |
@@ -649,6 +661,10 @@ is on hold and is not part of this completed MVP or a self-hosting prerequisite.
       `js/keywords`, `types/nominal`, `edag/rust/unmarked`, `types/result` and
       `website/demo/examples`; preserve their APIs and record the final twelve
       implementation leaf refusals plus the separate embedded-proof fixture.
+- [x] Read every computed key in the leaves as the language does: a number
+      key as `a[Number(i)]`, a string key as `entry(a, k)` — `nanvm/methods`
+      and `types/list` in #2826. An object-literal key, `{ [k]: v }`, has no
+      such spelling and stays: `website/demo/code`.
 - [ ] Continue `.f.mjs` -> `.f.js` incrementally as compiler support grows.
 
 ### Related
