@@ -85,10 +85,15 @@ compared by the existing machinery with nothing retyped.
 
 4. **Special numbers.** `-0`, `NaN`, the infinities, `5e-324`, `1e21`, and
    integers at the edge of exact representation. No fixture has a special
-   number today. The Stage 8 design requires an independent hand-written Rust
-   assertion for these leaves (bits against Rust's own constants), because the
-   generated layers share an emitter that could spell them wrongly in both
-   operands; add it with the fixture.
+   number today. Finite values such as `5e-324`, `1e21` and the exact-integer
+   boundaries need nothing extra: the JSON bytes the compiler wrote are
+   compared with the compiled result's own serialization, a path that shares
+   nothing with the Rust literal emitter. The Stage 8 design requires an
+   independent hand-written Rust assertion only for the leaves JSON cannot
+   verify, here `-0` (bits against Rust's own constant), `NaN` (`is_nan`) and
+   the infinities (value and sign), because the generated layers share an
+   emitter that could spell them wrongly in both operands; add those with the
+   fixture.
 5. **Member-function calls through the compile path.** A handful of the
    allowed calls have a compiled fixture (`at`, `toString`, `endsWith`,
    `startsWith`, `join`, and one `map` in `entry` with a plain, non-capturing
@@ -104,9 +109,11 @@ compared by the existing machinery with nothing retyped.
    one per method. This is the open "corpus cases for every entry" task of
    [member-functions](../../../nanvm-lib/todo/member-functions.md); tick it
    there, and reword it, since it predates the compiled corpus.
-6. **BigInt operators through the compile path.** Today only literals and a
-   division by zero are compiled. Add the arithmetic, shift and comparison
-   operators and the mixed-type `TypeError`, with operands inside the native
+6. **BigInt operators through the compile path.** Today the corpus
+   compiles literals, a division by zero and a `toString`; strict equality of
+   BigInts appears only in `parity`, which is an exception checked by its
+   hosts and not by this comparison. Add the arithmetic, shift and relational
+   operators, equality inside the corpus, and the mixed-type `TypeError`, with operands inside the native
    word limit so that Node, the interpreter and the AOT output agree. A
    result that Node can hold and the VM refuses is a different case: see item
    11, which this item does not assign.
@@ -116,10 +123,11 @@ compared by the existing machinery with nothing retyped.
    `callable-function-objects.md`; the legacy-sketch refusal and zero-arity
    migration it lists are compiler proofs, not fixtures.
 8. **Structure and strings.** Integer-like keys in a plain object literal
-   (only `object-spread` pins key order today), an empty array literal, and
-   a lone surrogate written in fixture source (`object-spread` only produces
-   them, from a spread of a string). Non-BMP text is already covered by
-   `spread`. Extend the existing fixtures where they fit.
+   (only `object-spread` pins key order today; `entry` has a single such key),
+   and a lone surrogate written in fixture source (`object-spread` only
+   produces them, from a spread of a string). Empty containers (`lazy` has an
+   empty array literal) and non-BMP text (`spread`) are already covered.
+   Extend the existing fixtures where they fit.
 
 **Decisions before any work (C).**
 
