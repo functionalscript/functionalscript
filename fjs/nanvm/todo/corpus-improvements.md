@@ -111,21 +111,19 @@ compared by the existing machinery with nothing retyped.
    the infinities (value and sign), because the generated layers share an
    emitter that could spell them wrongly in both operands; add those with the
    fixture.
-5. **Member-function calls through the compile path.** A handful of the
-   allowed calls have a compiled fixture (`at`, `toString`, `endsWith`,
-   `startsWith`, `join`, and one `map` in `entry` with a plain, non-capturing
-   callback); most do not. The VM's answers are already pinned by the
-   operator corpus, and the compiled wiring of a call on an own property is
-   too: `method` and `optional` pin a method call and a guarded call of an
-   own function, and `to-string` an own `toString` shadowing the built-in. What
-   remains is callbacks that capture state, since nothing passes a capturing
-   closure to `map`, `filter` or `reduce` (the AOT-compiled closure called by
-   the VM's own code), a guarded call of a built-in (`a?.at(0)`, `a.at?.(0)`),
-   and the other families' methods with arguments (string slicing and
-   padding, number formatting). A few fixtures, one per family, rather than
-   one per method. This is the open "corpus cases for every entry" task of
-   [member-functions](../../../nanvm-lib/todo/member-functions.md); tick it
-   there, and reword it, since it predates the compiled corpus.
+5. **Member-function calls through the compile path.** Done: a fixture for
+   capturing callbacks (`map`, `filter`, `reduce` and the other callback
+   members, the AOT-compiled closure called by the VM's own code), one for
+   guarded built-in calls (`a?.at(0)`, `a.at?.(0)`, a nullish base), and one
+   per family for the members that take arguments (array, string, number),
+   so every name of `allowedCalls` is called in some corpus fixture. A
+   fraction in a radix other than ten (`(0.5).toString(2)`) is refused by
+   the VM by design while Node answers it, so it stays out of the corpus:
+   it is item 11's case, not this item's. The older fixtures (`at`,
+   `to-string`, `method`, `optional`, `entry`) already pinned a plain call,
+   an own property's call and the shadowing built-in. Ticked in
+   [member-functions](../../../nanvm/lib/todo/member-functions.md).
+
 6. **BigInt operators through the compile path.** Today the corpus
    compiles literals, a division by zero and a `toString`; strict equality of
    BigInts appears only in `parity`, which is an exception checked by its
@@ -174,7 +172,7 @@ compared by the existing machinery with nothing retyped.
 - [x] 1: retire `undefinedDefault`: the host and helper fixtures became exceptions and `named-imports` gained a default.
 - [ ] 1b: compare whole export objects (Node route first, order-sensitive), only if a fixture needs a named export its default cannot show; recommended against.
 - [x] 4: special numbers: `special-numbers` (`-0`, `NaN`, the infinities, asserted by hand in Rust) and `number-limits` (finite extremes, checked by their JSON text).
-- [ ] 5: capturing callbacks, guarded built-in calls and the other families' methods through the compile path.
+- [x] 5: capturing callbacks, guarded built-in calls and the other families' methods through the compile path (`callbacks`, `guarded-calls`, `array-methods`, `string-methods`, `number-methods`).
 - [ ] 6: BigInt arithmetic, shift and relational operators, equality and the mixed-type `TypeError` through the compile path.
 - [x] 7: parameter leftovers as fixtures, in `nanvm/harness/fixtures/arguments.mjs`.
 - [ ] 8: out-of-order integer-like keys in a plain object literal and a lone surrogate in source.

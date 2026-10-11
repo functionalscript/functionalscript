@@ -2,9 +2,9 @@
 
 **Priority:** P2
 **Status:** open — every call [`fjs/js/prototype`](../../../fjs/js/prototype/module.f.js)
-allows is answered (`vm/lambda/gen.methods.rs` has no pending pair); the
-corpus cases for each entry and the property-key conversion of a function
-remain, as the two unchecked boxes below
+allows is answered (`vm/lambda/gen.methods.rs` has no pending pair) and has
+a corpus case; the property-key conversion of a function remains, as the
+unchecked box below
 
 ### Problem
 
@@ -128,9 +128,14 @@ Infrastructure:
       `(255).toString(16)` while the radix is written.
 - [x] `toString` applies a radix for `Number` and `BigInt`, with corpus
       cases, lifting the refusal above.
-- [ ] Corpus cases for every entry, run on the host engine and as
-      generated Rust. Use the adopted EDAG-rendering contract as the oracle
-      for default function text; native wrapper text is not that oracle.
+- [x] Corpus cases for every entry, run on the host engine and as
+      generated Rust: every name of `allowedCalls` is called in a corpus
+      fixture (`callbacks`, `guarded-calls`, `array-methods`,
+      `string-methods`, `number-methods`, beside the older `at`,
+      `to-string` and `entry`). A fraction in a radix other than ten is
+      refused by design and stays out of the corpus. Default function text
+      is the "default-text observations" task of
+      `callable-function-objects.md`, not this box.
 - [x] `ToPrimitive` calls an object's own `toString` and `valueOf`, the
       lookup the call step uses, so `String(o)` and `o.toString()` agree:
       [`to-primitive.md`](./to-primitive.md).

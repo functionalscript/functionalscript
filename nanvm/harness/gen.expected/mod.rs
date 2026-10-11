@@ -3,10 +3,12 @@
 pub mod arguments;
 pub mod arity;
 pub mod array;
+pub mod array_methods;
 pub mod at;
 pub mod bigint;
 pub mod boolean;
 pub mod call;
+pub mod callbacks;
 pub mod calls;
 pub mod closure;
 pub mod closure_identity;
@@ -14,6 +16,7 @@ pub mod closure_throws;
 pub mod entry;
 pub mod escapes;
 pub mod function_scope;
+pub mod guarded_calls;
 pub mod lazy;
 pub mod length;
 pub mod method;
@@ -26,6 +29,7 @@ pub mod not_a_function;
 pub mod nullish;
 pub mod number;
 pub mod number_limits;
+pub mod number_methods;
 pub mod object;
 pub mod object_spread;
 pub mod operators;
@@ -38,6 +42,7 @@ pub mod sharing;
 pub mod special_numbers;
 pub mod spread;
 pub mod string;
+pub mod string_methods;
 pub mod throw;
 pub mod throws;
 pub mod to_string;
@@ -50,10 +55,12 @@ pub const CASES: &[crate::Case] = &[
     crate::Case { name: "arguments", fixture: crate::fixtures::arguments::module::<Naive>, expected: arguments::module::<Naive>, json: arguments::JSON, throws: arguments::THROWS },
     crate::Case { name: "arity", fixture: crate::fixtures::arity::module::<Naive>, expected: arity::module::<Naive>, json: arity::JSON, throws: arity::THROWS },
     crate::Case { name: "array", fixture: crate::fixtures::array::module::<Naive>, expected: array::module::<Naive>, json: array::JSON, throws: array::THROWS },
+    crate::Case { name: "array_methods", fixture: crate::fixtures::array_methods::module::<Naive>, expected: array_methods::module::<Naive>, json: array_methods::JSON, throws: array_methods::THROWS },
     crate::Case { name: "at", fixture: crate::fixtures::at::module::<Naive>, expected: at::module::<Naive>, json: at::JSON, throws: at::THROWS },
     crate::Case { name: "bigint", fixture: crate::fixtures::bigint::module::<Naive>, expected: bigint::module::<Naive>, json: bigint::JSON, throws: bigint::THROWS },
     crate::Case { name: "boolean", fixture: crate::fixtures::boolean::module::<Naive>, expected: boolean::module::<Naive>, json: boolean::JSON, throws: boolean::THROWS },
     crate::Case { name: "call", fixture: crate::fixtures::call::module::<Naive>, expected: call::module::<Naive>, json: call::JSON, throws: call::THROWS },
+    crate::Case { name: "callbacks", fixture: crate::fixtures::callbacks::module::<Naive>, expected: callbacks::module::<Naive>, json: callbacks::JSON, throws: callbacks::THROWS },
     crate::Case { name: "calls", fixture: crate::fixtures::calls::module::<Naive>, expected: calls::module::<Naive>, json: calls::JSON, throws: calls::THROWS },
     crate::Case { name: "closure", fixture: crate::fixtures::closure::module::<Naive>, expected: closure::module::<Naive>, json: closure::JSON, throws: closure::THROWS },
     crate::Case { name: "closure_identity", fixture: crate::fixtures::closure_identity::module::<Naive>, expected: closure_identity::module::<Naive>, json: closure_identity::JSON, throws: closure_identity::THROWS },
@@ -61,6 +68,7 @@ pub const CASES: &[crate::Case] = &[
     crate::Case { name: "entry", fixture: crate::fixtures::entry::module::<Naive>, expected: entry::module::<Naive>, json: entry::JSON, throws: entry::THROWS },
     crate::Case { name: "escapes", fixture: crate::fixtures::escapes::module::<Naive>, expected: escapes::module::<Naive>, json: escapes::JSON, throws: escapes::THROWS },
     crate::Case { name: "function_scope", fixture: crate::fixtures::function_scope::module::<Naive>, expected: function_scope::module::<Naive>, json: function_scope::JSON, throws: function_scope::THROWS },
+    crate::Case { name: "guarded_calls", fixture: crate::fixtures::guarded_calls::module::<Naive>, expected: guarded_calls::module::<Naive>, json: guarded_calls::JSON, throws: guarded_calls::THROWS },
     crate::Case { name: "lazy", fixture: crate::fixtures::lazy::module::<Naive>, expected: lazy::module::<Naive>, json: lazy::JSON, throws: lazy::THROWS },
     crate::Case { name: "length", fixture: crate::fixtures::length::module::<Naive>, expected: length::module::<Naive>, json: length::JSON, throws: length::THROWS },
     crate::Case { name: "method", fixture: crate::fixtures::method::module::<Naive>, expected: method::module::<Naive>, json: method::JSON, throws: method::THROWS },
@@ -73,6 +81,7 @@ pub const CASES: &[crate::Case] = &[
     crate::Case { name: "nullish", fixture: crate::fixtures::nullish::module::<Naive>, expected: nullish::module::<Naive>, json: nullish::JSON, throws: nullish::THROWS },
     crate::Case { name: "number", fixture: crate::fixtures::number::module::<Naive>, expected: number::module::<Naive>, json: number::JSON, throws: number::THROWS },
     crate::Case { name: "number_limits", fixture: crate::fixtures::number_limits::module::<Naive>, expected: number_limits::module::<Naive>, json: number_limits::JSON, throws: number_limits::THROWS },
+    crate::Case { name: "number_methods", fixture: crate::fixtures::number_methods::module::<Naive>, expected: number_methods::module::<Naive>, json: number_methods::JSON, throws: number_methods::THROWS },
     crate::Case { name: "object", fixture: crate::fixtures::object::module::<Naive>, expected: object::module::<Naive>, json: object::JSON, throws: object::THROWS },
     crate::Case { name: "object_spread", fixture: crate::fixtures::object_spread::module::<Naive>, expected: object_spread::module::<Naive>, json: object_spread::JSON, throws: object_spread::THROWS },
     crate::Case { name: "operators", fixture: crate::fixtures::operators::module::<Naive>, expected: operators::module::<Naive>, json: operators::JSON, throws: operators::THROWS },
@@ -85,6 +94,7 @@ pub const CASES: &[crate::Case] = &[
     crate::Case { name: "special_numbers", fixture: crate::fixtures::special_numbers::module::<Naive>, expected: special_numbers::module::<Naive>, json: special_numbers::JSON, throws: special_numbers::THROWS },
     crate::Case { name: "spread", fixture: crate::fixtures::spread::module::<Naive>, expected: spread::module::<Naive>, json: spread::JSON, throws: spread::THROWS },
     crate::Case { name: "string", fixture: crate::fixtures::string::module::<Naive>, expected: string::module::<Naive>, json: string::JSON, throws: string::THROWS },
+    crate::Case { name: "string_methods", fixture: crate::fixtures::string_methods::module::<Naive>, expected: string_methods::module::<Naive>, json: string_methods::JSON, throws: string_methods::THROWS },
     crate::Case { name: "throw", fixture: crate::fixtures::throw::module::<Naive>, expected: throw::module::<Naive>, json: throw::JSON, throws: throw::THROWS },
     crate::Case { name: "throws", fixture: crate::fixtures::throws::module::<Naive>, expected: throws::module::<Naive>, json: throws::JSON, throws: throws::THROWS },
     crate::Case { name: "to_string", fixture: crate::fixtures::to_string::module::<Naive>, expected: to_string::module::<Naive>, json: to_string::JSON, throws: to_string::THROWS },
