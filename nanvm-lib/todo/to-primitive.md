@@ -1,29 +1,38 @@
 ## to-primitive. Converting an object or a function: stock behavior, refusal, then own methods
 
 **Priority:** P1
-**Status:** open — Stages 1 and 2 are done; Stage 3, a function's text, is planned below and awaits the owner's decisions
+**Status:** open — conversion through Stage 3 is implemented; D1's formal approval and the remaining native function-key corpus coverage are tracked below
 
 ### Problem
 
-Every conversion the VM makes, `ToString`, `ToNumber`, `ToNumeric` and the
-`+` and relational operators, goes through one function,
-`PrimitiveCoercionOp` in `vm/primitive_coercion.rs`
-(`Any::to_primitive`). Before Stage 1 it answered an object or a function
-without looking at what JavaScript looks at. Stage 1 made each of these a
-`TypeError`, and Stages 2 and 3 answer them:
+Object conversion for `ToString`, `ToNumber`, `ToNumeric`, `+` and the
+relational operators goes through `PrimitiveCoercionOp` in
+`vm/primitive_coercion.rs` (`Any::to_primitive`). Before Stage 1 it answered
+an object or a function without looking at what JavaScript looks at.
+Stage 1 refused the unsupported conversions; Stage 2 implemented own object
+methods, and Stage 3 supplies a function's canonical, EDAG-derived text:
 
-| input | JavaScript | NaNVM before Stage 1 | since Stage 1 | since Stage 2 |
-|---|---|---|---|---|
-| `String({ toString: () => "b" })` | `"b"` | `"[object Object]"` | `TypeError` | `"b"` |
-| `+{ valueOf: () => 1 }` | `1` | `NaN` | `TypeError` | `1` |
-| `[0, 1].slice({ valueOf: () => 1 })` | `[1]` | `[0, 1]` | `TypeError` | `[1]` |
-| `String(() => 1)` | `"() => 1"` | `"function"` | `TypeError` | `TypeError` |
-| `(() => 1) + "!"` | `"() => 1!"` | `"function!"` | `TypeError` | `TypeError` |
+| input | JavaScript | NaNVM before Stage 1 | Stage 1 | Stage 2 | current, Stage 3 |
+|---|---|---|---|---|---|
+| `String({ toString: () => "b" })` | `"b"` | `"[object Object]"` | `TypeError` | `"b"` | `"b"` |
+| `+{ valueOf: () => 1 }` | `1` | `NaN` | `TypeError` | `1` | `1` |
+| `[0, 1].slice({ valueOf: () => 1 })` | `[1]` | `[0, 1]` | `TypeError` | `[1]` | `[1]` |
+| `String(() => 1)` | `"() => 1"` | `"function"` | `TypeError` | `TypeError` | `"()=>1"` |
+| `(() => 1) + "!"` | `"() => 1!"` | `"function!"` | `TypeError` | `TypeError` | `"()=>1!"` |
+
+The current function rows describe compiled functions with associated text.
+Their spelling follows the
+[function-source exception](../../spec/README.md#function-source-representation-exception),
+rather than the host's source spelling. A native function with no associated
+text still refuses a conversion that needs it; it does not need to retain the
+semantic EDAG to carry text.
 
 Stage 1 also made one exception to the single entry: a function's
 `ToNumber` is `NaN` for any text, so `NumberCoercion`, `Any::to_numeric` and
-the relational operators answer it without asking `PrimitiveCoercionOp` for
-a text it cannot give.
+the relational operators can answer text-independent cases without asking
+`PrimitiveCoercionOp` for text. This remains true when associated text is
+absent: numeric conversion gives `NaN`, and relational comparison against a
+non-string primitive gives `false`.
 
 Those were plausible wrong values, which
 [DESIGN.md §10](../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
@@ -47,12 +56,13 @@ order the hint sets. That part is already right:
 | `Object.prototype.toString` answers `"[object Object]"` | ✔ | ✔ `TO_STRING`'s stock answer |
 | `Array.prototype.toString` is `join(",")` | ✔ | ✔ `arr_to_string`, through `Array::join` |
 | the `number` hint tries `valueOf` first, `string` tries `toString` first, no hint means `number` | ✔ | ✔ `obj_to_primitive` |
-| `Function.prototype.toString` answers the function's text | ✔ | ❌ refused since Stage 1 (it was the placeholder `"function"`); the text is Stage 3 |
+| `Function.prototype.toString` answers the function's text | ✔ | ✔ associated EDAG-derived text; `error::function_text` when text is absent |
 
 A plain object, `{ a: 1 }`, converts exactly as in JavaScript, and so does
-an array whose elements do: an array converts through `join`, so an element
-with its own `toString`, or a function element, carries its gap into the
-array's text. FunctionalScript has no symbols, so `Symbol.toPrimitive` and
+an array whose elements do: an array converts through `join`, calling an
+object element's own conversion methods and using a function element's text.
+A native function element without text still refuses when that text is read.
+FunctionalScript has no symbols, so `Symbol.toPrimitive` and
 `Symbol.toStringTag` cannot be reached and are out of scope.
 
 ### Where an override can come from
@@ -62,18 +72,24 @@ only the `__proto__` key, so `{ toString: f }` and `{ valueOf: f }` compile.
 An array owns only its elements and `length`, and a function owns only its
 `length` (`vm/lambda/member.rs`). A value is never mutated, so neither can
 gain one later. An own property shadows the built-in, as it already does for
-an explicit call: `{ toString: f }.toString()` calls `f` today (`Member`).
-Only the implicit conversion is missing, and Stage 1 refuses it.
+an explicit call: `{ toString: f }.toString()` calls `f` (`Member`). Stage 2
+also calls it during implicit conversion, in the order the hint selects.
 
-A function's text is a different problem: it is the stock method itself that
-is missing. Its contract is already decided, the EDAG default rendering in
+A function's text uses the stock method and the shared EDAG default rendering in
 [`spec/todo/serialization.md`](../../spec/todo/serialization.md#function-text-and-serialization)
 and
 [`spec/todo/3120-parameters.md`](../../spec/todo/3120-parameters.md#default-function-text-render-or-refuse),
-and `member-functions.md` tracks it. This issue does not restate that
-contract. It only decides what a conversion does until that text exists.
+and `member-functions.md` tracks its remaining corpus coverage. Native
+functions store the compiler-rendered text; represented Amnesia and memo
+functions use the same renderer during conversion. This issue records the
+staged implementation and the refusal boundary when native text is absent.
 
 ### Stage 1: refuse what cannot be answered
+
+This section preserves Stage 1's historical design and proofs. Stage 2
+replaced the own-method refusals with calls, and Stage 3 replaced function
+refusals wherever text is available. The text-independent paths and refusal
+of text-needed conversions without associated text remain current.
 
 The object rule is one change in `primitive_coercion.rs`, which every caller
 inherits. The function rule also needs the callers that can answer without
@@ -210,33 +226,37 @@ results, and the only recursion is the user's own call.
 
 ### Stage 3: a function's text
 
-This stage is the EDAG default rendering that the
+This stage implements the EDAG default rendering that the
 [function-source exception](../../spec/README.md#function-source-representation-exception)
-adopts. When it lands, the function rows of Stage 1 answer the text. The
-refusals are deleted, with the unit tests that pin them, and the function
-cases join the corpus with the renderer's text as their expected value.
+adopts. Native functions with associated text answer the function rows of
+Stage 1, and represented Amnesia and memo functions render their retained
+bodies. The corpus uses canonical text as its expected value. Refusal tests
+remain for native functions without associated text, alongside tests that
+their numeric and non-string relational results remain available.
 
 #### What shapes the plan
 
-- **A renderer mostly exists.** The FunctionalScript writer,
+- **The shared renderer is implemented.** The FunctionalScript writer,
   [`fjs/compiler/serializer`](../../fjs/compiler/serializer/module.f.mjs),
   already wrote a function node as text: `['=>', 1, [], ['arg', 0]]` was
   `($a_0,...$a)=>$a_0` historically (now `($0)=>$0`, with an unused
-  rest parameter omitted), and a shared
-  array in a body became a `const`. It had two gaps. It had no spelling
-  for operators or calls, so most real bodies were refused; steps 1 and 2
-  closed that. And it writes a module, `export default …;`, where a
-  function's text is one expression.
+  rest parameter omitted), and a shared array in a body became a `const`.
+  Historically it had no spelling for operators or calls; steps 1 and 2
+  closed that gap. The current `functionText` renders every admitted body
+  as one expression. Where the partial FJS source serializer cannot
+  reconstruct a body, function text uses general JavaScript with local lazy
+  memo cells ([function-text](../../fjs/edag/function-text.md)). It does not
+  promise a FJS source round trip.
 - **The Rust VM has no EDAG at run time.** A generated function is a code
-  pointer, a `length` and a frame. The text must come from the one renderer,
-  which is FunctionalScript, at compile time. A second renderer written in
-  Rust would drift from it.
+  pointer, a `length`, a frame and optional static text. The text comes from
+  the one renderer, which is FunctionalScript, at compile time. A second
+  renderer written in Rust would drift from it.
 - **A captured primitive is already written into the body**
   ([spec: functions](../../spec/README.md#functions)). So
   `const x = 3; const f = () => x;` gives `f` an empty frame, and its text
-  is the owner's preferred `() => 3` with no frame rendering at all. Only a
-  literal primitive is inlined: every other captured node is a frame slot,
-  and its run-time value can be anything. That includes arrays, objects,
+  is `()=>3` with no frame rendering at all. A primitive known during
+  lowering is inlined; other captured nodes are frame slots, and each slot's
+  run-time value can be anything. That includes arrays, objects,
   functions (an imported helper included), an enclosing function's
   parameters, and computed values such as `x` in
   `(...a) => { const x = a[0] + 1; return () => x; }`, which is a number.
@@ -246,44 +266,46 @@ cases join the corpus with the renderer's text as their expected value.
   landed with it: the renderer spells the node as a named function
   expression, the one spelling of a function that reaches itself without a
   `const` ([function-text](../../fjs/edag/function-text.md)).
-- **The JavaScript evaluators are not FJS VMs.** Amnesia and the operations
-  layer convert a function with the host's wrapper text, so a function-text
-  corpus case cannot be checked on the host side. They cannot carry the
-  text either: a FunctionalScript function has no custom `toString` (step 6).
+- **Represented interpreters share the renderer.** Amnesia and memo retain
+  function bodies and captures as `EdagValue`s. Their shared conversion
+  renders canonical text without creating or modifying a host callable.
+  The independent JavaScript reference and ordinary runtime callables
+  produced across a boundary that erases EDAG reflection keep the host-text
+  exception (step 6).
 
 #### Design: a compile-time template with holes
 
-The renderer turns a function node into an **expression template**: the
-function's canonical text, in which every read of a frame slot is a hole.
-The Rust printer passes the template to the function value as an
-`Option<&'static str>`:
+The original plan described an **expression template** whose frame-slot
+reads were holes. D2 selected code-only text: slot names fill those holes at
+compile time, so the stored template is already the complete canonical text.
+The Rust printer passes it to the function value as an `Option<&'static str>`:
 
-- `None` is a function that has no EDAG, a host or hand-written one. It
-  keeps refusing with `error::function_text`: not every function has an EDAG
-  ([associate-edag-with-functions](../../fjs/compiler/todo/associate-edag-with-functions.md)).
+- `None` means that no text is associated with the function. Text-needed
+  conversion refuses with `error::function_text`; numeric conversion and
+  non-string relational comparison do not need text. A hand-written
+  function can supply `Some(text)` without retaining its semantic EDAG.
 - The template belongs to the code, not to each function value. It is
-  static data in the binary, so it allocates nothing, and no value retains
-  its own complete source, as the
+  static data in the binary, shared by every value from that code, without
+  a per-value text allocation. This does not implement or require the
   [lazy frame rendering](../../spec/todo/serialization.md#conditional-requirement-lazy-frame-rendering)
-  requirement asks.
-- **An empty frame:** the template is the text. That holds under every
-  answer to the open questions in
-  [serialization](../../spec/todo/serialization.md#open-questions).
-- **A non-empty frame:** only filling the holes depends on question 2, and
-  D2 answers it code-only: a hole is a name, and `make(0)` and `make(1)`
-  share one text, as they do in JavaScript. Instantiating the frame, not
-  chosen, would have made a hole the rendered value, needing a run-time
-  value renderer that keeps sharing, a function's frame rendered in place,
-  and lazy text.
+  requirement, which applies if a future profile renders captured values.
+- **An empty frame:** the template is the text.
+- **A non-empty frame:** a slot is its generated name, and `make(0)` and
+  `make(1)` share one text, as they do in JavaScript. Instantiating the
+  frame, not chosen for default text, would instead need a run-time value
+  renderer that keeps sharing, a function's frame rendered in place, and
+  lazy text. That remains a separate serialization-profile question.
 
 Hashing needs the EDAG itself, not its text, so this does not decide
 [Stage 7](./callable-function-objects.md)'s embedded-or-lookup question.
-The template is rendered from the same associated EDAG that choice will
-keep.
+The compiler already has the graph needed to render the template; retaining
+semantic EDAG metadata at run time is separate work and is not a prerequisite
+for this text.
 
 #### Decisions
 
-Each needs the owner's approval before the step that depends on it.
+These record the decisions behind the implemented text. D1's formal approval
+is still tracked below; its proposed spelling is already implemented.
 
 - **D1, the spelling (implemented as proposed).** One line, normalized, with the writer's
   leaves and one `$0`, `$1`, … counter for all generated bindings,
@@ -307,7 +329,9 @@ Each needs the owner's approval before the step that depends on it.
   ([function-text](../../fjs/edag/function-text.md)); the compiler produces
   the node for a function that names itself
   ([functions](../../spec/README.md#functions)).
-- **D4, a function without an EDAG.** Refused, as above.
+- **D4, a function without associated text.** Refused where text is needed,
+  as above. This is independent of retaining a full semantic EDAG; numeric
+  and non-string relational results remain available without text.
 
 #### Steps
 
@@ -316,25 +340,29 @@ Each needs the owner's approval before the step that depends on it.
    it.
 2. **The writer spells calls and chains** (done): `f(a)`, `a.b(c)`, and a
    callee that is an access through a `const`.
-3. **`functionText` in FunctionalScript** (done): `tryFunctionText` in
-   the writer, [`fjs/compiler/serializer`](../../fjs/compiler/serializer/module.f.mjs),
-   a function node to its text, each slot named `$i` (D2). It is the
-   writer itself, so the compiler's output and the Rust printer share one
-   owner; the Rust printer, `fjs/edag/rust`, imports it, which makes no
-   cycle, since the writer imports nothing of the printer. `['self']` is the
-   named function expression's own name there, and the writer refuses any
-   kind it cannot spell.
-   Proofs: a text without a frame is the module text of the same node,
-   which reads back to it.
+3. **`functionText` in FunctionalScript** (done): the trusted, analyzed
+   function entry in [`fjs/compiler/serializer`](../../fjs/compiler/serializer/module.f.mjs)
+   renders every admitted body, each slot named `$i` (D2). Its checked
+   `tryFunctionText` entry returns admission diagnostics for separately
+   supplied expressions. Represented conversion and the Rust printer,
+   `fjs/edag/rust`, share this renderer. `['self']` is the named function
+   expression's own name there. The FJS source serializer remains partial;
+   function text falls back to general JavaScript when source reconstruction
+   is unavailable. The source-reconstructible cases retain the original
+   module-text/read-back proofs; the
+   [function-text proofs](../../fjs/compiler/serializer/function_text/proof.f.mjs)
+   cover the general rendering, which is not a FJS source round trip.
 4. **Rust, for an empty frame** (done). `static_function` takes the text,
    `Option<&'static str>`, and `IFunction::text` answers it. The printer
-   emits the writer's text for every function node, `None` where the
-   writer refuses the body, and the harness's `function_any()` is
+   emits the shared renderer's text for admitted function nodes; its
+   checked entry produces `None` on an admission failure. Hand-written
+   functions may also pass `None`, while the harness's `function_any()` is
    `()=>undefined`. `ToPrimitive` of a function answers its text, and
    refuses a function without one with `error::function_text`; `<` against a
    number or a bigint still answers without it. The corpus's function-text
    cases carry the writer's text as `expected` and a `host` marker that
-   skips the JavaScript side, as `rust` skips the Rust side. They and
+   skips only the independent JavaScript reference, as `rust` skips the
+   Rust side; represented Amnesia and memo check canonical text. They and
    `nanvm-harness/fixtures/function-text.mjs` cover every path in
    [member-functions](./member-functions.md)'s `Function` checklist except
    the property key: `f.toString()`, `String(f)`, `+`, a function in an
@@ -346,16 +374,19 @@ Each needs the owner's approval before the step that depends on it.
 5. **Rust, for a frame** (done, with step 4): under D2's code-only answer
    the text is complete at compile time, so no run-time value renderer is
    needed.
-6. **Follow-up issues** (settled): rendering in the FJS interpreter is
-   ruled out, and so is refusing there
-   ([function-text.md](../../fjs/edag/function-text.md)). A FunctionalScript
-   function cannot be given a custom `toString`, since a `Proxy` is not a
-   FunctionalScript object and setting the property is mutation. The
-   JavaScript-hosted evaluators answer the host's text, so the corpus's
-   `host` marker stays. The property-key conversion needs no issue of its
-   own (below). A `const` only a lazy operand reaches, which
-   the writer refused at first, is now the operand's own block, an IIFE the
-   front end inlines. The corpus's
+6. **Follow-up issues** (settled): Amnesia and memo now render represented
+   functions through shared conversion
+   ([function-text.md](../../fjs/edag/function-text.md)). Historically,
+   changing their host wrappers with a `Proxy` or a custom `toString` was
+   rejected: a `Proxy` is not a FunctionalScript object and setting the
+   property is mutation. Retaining represented code removes the need for
+   those changes. The corpus's `host` marker stays for the independent
+   JavaScript reference, whose host callables have host-defined text; the
+   same exception applies after runtime compilation erases EDAG reflection.
+   The property-key conversion is implemented in `entry`, with native
+   function-key corpus coverage remaining below. A `const` only a lazy
+   operand reaches, which the writer refused at first, is now the operand's
+   own block, an IIFE the front end inlines. The corpus's
    `() => undefined` is now the node a compiled one is (a function's slots
    are a list since #2395), so the Rust printer writes both as
    `function_any()`, whose text is `()=>undefined`.
@@ -367,14 +398,18 @@ that needs a spike first.
 
 ### Related, not covered here
 
-A property key is not converted either. `Object::member_access` answers
-`undefined` for a key that is neither a number nor a string, where
-JavaScript converts it with `ToPropertyKey`: `o[{}]` reads `o["[object
-Object]"]`. A module reaches it through the
-[`entry`](../../spec/README.md#reading-an-entry-at-run-time) helper alone: a
-key is otherwise a literal
-([spec: property access](../../spec/README.md#property-access)), and the
-helper names its key conversion, `entry(o, f)` included, as its own work.
+General property-key conversion is implemented by `Any::entry`, through the
+[`entry`](../../spec/README.md#reading-an-entry-at-run-time) helper.
+`Object::member_access` receives only a string or number under its EDAG
+contract; it is not the general conversion boundary. `entry` checks for a
+nullish receiver before converting its key with `ToString` (FunctionalScript
+has no symbols), then reads an enumerable own entry. An object key invokes
+its own conversion methods. A function key uses associated canonical text,
+or refuses if text is needed and absent. Native function-key corpus proofs
+remain tracked by [member-functions](./member-functions.md); the conversion
+itself is implemented. Direct
+[property access](../../spec/README.md#property-access) has its own restricted
+key syntax.
 
 ### Tasks
 
@@ -396,7 +431,9 @@ helper names its key conversion, `entry(o, f)` included, as its own work.
       frame (tracked with the `Function` checklist in `member-functions.md`).
 - [x] Stage 3 step 5: a function with a frame, per D2 (code-only).
 - [x] Stage 3 step 6: settle the FJS-interpreter rendering issue:
-      [function-text.md](../../fjs/edag/function-text.md) records why the
-      evaluator answers the host's text.
+      [function-text.md](../../fjs/edag/function-text.md) records canonical
+      represented conversion and the separate host-callable exception.
 - [x] Place the property-key conversion: it is
       [`entry`](../../spec/README.md#reading-an-entry-at-run-time)'s key conversion.
+- [ ] Finish native function-key corpus coverage in
+      [member-functions](./member-functions.md)'s `Function` checklist.
