@@ -68,9 +68,9 @@ corpus should wait for that move, or be rebased over it.
    corpus rule owns. Node must come first, as the authority, and the
    comparison stays order-sensitive: the compiler's parser sorts the exports
    before it builds the object, so its keys are in module-namespace order, as
-   Node's are (the AST types say so), and Stage 8 decision 3's claim that the
-   represented export object keeps declaration order is stale and is corrected
-   by whichever change lands this. Recommended: do not build it unless a
+   Node's are (the AST types say so); Stage 8 decision 3's earlier claim that
+   the represented export object keeps declaration order is corrected there.
+   Recommended: do not build it unless a
    fixture needs a named export that cannot be observed through its default,
    which today none does.
 2. **Delete the hand-written throw checks the `THROWS` record covers.** Every
