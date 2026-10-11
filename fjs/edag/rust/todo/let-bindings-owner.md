@@ -1,4 +1,4 @@
-## let-bindings-owner. Two Rust printers spell the `let` line `edag/rust` claims to own
+## let-bindings-owner. `nanvm/rust` spells the `let` line `edag/rust` claims to own
 
 **Priority:** P4
 **Status:** open
