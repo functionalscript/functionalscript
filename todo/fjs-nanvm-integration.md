@@ -65,12 +65,28 @@ compiles this pattern to Rust. Its cargo test has the harness's `run` select
 JavaScript and both JavaScript EDAG evaluators (`namedImports.acceptance` in
 [`fjs/compiler/edag/proof.f.mjs`](../fjs/compiler/edag/proof.f.mjs), on its own copy of
 the sources). The harness has no CLI; its
-[`main`](../nanvm-harness/src/main.rs) says why. Source round trips cover the
-serializer's admitted expressions; calls and arithmetic are still refused by
-that serializer. `main` is the fixture's selected
+[`main`](../nanvm-harness/src/main.rs) says why. The structural FJS serializer
+already writes ordinary/method calls and arithmetic; `calls`, `neg`, `operators`
+and `lazy` in the [serializer proofs](../fjs/compiler/serializer/proof.f.mjs)
+cover grouping, bindings and supported source round trips. That profile remains
+partial, unlike total code-only [function text](../fjs/edag/function-text.md);
+[runtime-value compilation](../fjs/edag/values.md#runtime-compilation) has its own
+behavioral contract. Deep source conversion chains retain their
+[host-stack limit](../fjs/compiler/todo/deep-nesting-recursion.md#source-conversion-chains).
+`main` is the fixture's selected
 export, not a required language-level name. The rest-only helper keeps this
 milestone independent of named function parameters. These are synthetic
 fixtures; renaming repository modules to `.f.js` is the migration below.
+
+JSON/DataJS compiler outputs now run represented module initialization,
+including calls and arithmetic, before projecting the default export and
+decoding it as data. Dependencies and unused initializers still run; an
+unselected callable export does not prevent a data output, while a callable
+remaining in the selected result is refused. See `callsAndOperators`,
+`projectBeforeMaterializing` and `unusedInitialization` in the
+[transpiler proofs](../fjs/compiler/transpiler/proof.f.mjs).
+FunctionalScript, EDAG and Rust generation preserve the module computation
+without running it during compilation.
 
 ### Repository compiler-compatibility migration
 
@@ -208,8 +224,10 @@ Compared with the previous measurement at `4c8ec55`, the `08d013b` snapshot
 had the same eighteen leaves and compiler progress on three of them.
 `Number(exp)` is in the language and `Number` a reserved word
 ([number conversion](../spec/README.md#number-conversion)), so
-`array_index`'s `Number(key)` and shared integer predicate compiled at that
-snapshot, while the module still stopped at the `String` global.
+`array_index`'s `Number(key)` compiled at that snapshot, while the module
+still stopped at `Number.isInteger`, before reaching the `String` global.
+The shared integer predicate and admitted `String` call described above are
+later progress, not changes present in that snapshot.
 `git/bytes` still uses `Number.isSafeInteger`,
 a member of `Number` and an admission of its own. A computed key now parses,
 refused unless it is `a[Number(i)]`, and is `git/bytes`' first refusal; every
