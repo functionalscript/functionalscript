@@ -28,7 +28,7 @@ from `../module.f.mjs`. Commit the output and keep it in step through the
 changing existing canonical forms, and the generated Rust follows.
 
 Keep generated EDAG types in the optional library, with no dependency from
-the VM foundation or the [native effect runner](../../../nanvm-effects-node/).
+the VM foundation or the [native effect runner](../../../nanvm/effects-node/).
 The runner uses VM values directly and requires no schema-generated Rust types
 or operations trait.
 
@@ -48,11 +48,11 @@ or operations trait.
 - [`fjs/rtti/ts/README.md`](../../rtti/ts/README.md) — the TypeScript printer
   this follows.
 - [rust-edag](../../../todo/rust-edag.md) — the deferred consumer of these types.
-- [mvp-roadmap](../../../nanvm-lib/todo/mvp-roadmap.md) — direct AOT and FJS
+- [mvp-roadmap](../../../nanvm/lib/todo/mvp-roadmap.md) — direct AOT and FJS
   self-hosting proceed without this native representation.
 - [corpus-as-conformance-vectors](../../nanvm/todo/corpus-as-conformance-vectors.md)
   — the conformance examples shared by the FunctionalScript and Rust sides.
-- [callable-function-objects](../../../nanvm-lib/todo/callable-function-objects.md)
+- [callable-function-objects](../../../nanvm/lib/todo/callable-function-objects.md)
   — Stage 7's semantic EDAG association is independent of a Rust executor.
 - [`spec/todo/serialization.md`](../../../spec/todo/serialization.md) — the
   EDAG-as-data decision and the two execution paths.

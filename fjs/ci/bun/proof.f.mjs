@@ -1,7 +1,7 @@
-import { bunJobId, bunPin, bunSteps } from './module.f.mjs'
+import { bunPin, bunSteps } from './module.f.mjs'
 import { toSteps } from '../common/module.f.mjs'
 import { bun, bunSources } from '../config/module.f.js'
-import { nixDevelop, nixShell, nixSystem, runPath } from '../nix/module.f.mjs'
+import { nixDevelop, nixSystem, runPath } from '../nix/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 
 const runs = toSteps(bunSteps).flatMap(s => s.run !== undefined ? [s.run] : [])
@@ -14,9 +14,9 @@ export const proof = {
     // look at the tarball this commit builds instead of a release that shipped
     // weeks ago.
     steps: () => assertStructurallySame(runs, [
-        `test "$(${nixDevelop(nixShell, 'bun --version')})" = "${bun}"`,
-        nixDevelop(nixShell, 'bun install --frozen-lockfile'),
-        nixDevelop(nixShell, 'bun test --coverage'),
+        `test "$(${nixDevelop('bun --version')})" = "${bun}"`,
+        nixDevelop('bun install --frozen-lockfile'),
+        nixDevelop('bun test --coverage'),
     ]),
     noPublishedPackage: () => assert(
         !runs.some(run => run.includes('functionalscript@')),
@@ -32,18 +32,14 @@ export const proof = {
     // the shared shell carries cannot decide what runs them.
     sharesTheShell: () => {
         assert(
-            runs.every(run => run.includes(`${runPath(nixShell)} `)),
-            `expected every command in the ${nixShell} shell`)
-        assert(
-            !runs.some(run => run.includes(`${runPath(bunJobId)} `)),
-            'unexpected flake of its own')
+            runs.every(run => run.includes(`${runPath()} `)),
+            'expected every command in the shared shell')
     },
     // The pin covers whatever systems it is asked for, and each entry names the
     // release the job checks for and the archive that system's packaging
-    // expects. Neither half is derivable from the other — Intel macOS takes a
-    // baseline build — so both come from the configured table.
+    // expects. Both come from the configured table.
     pinSources: () => {
-        const { sources } = bunPin(['aarch64-linux', 'x86_64-darwin'])
+        const { sources } = bunPin(['aarch64-linux', 'aarch64-darwin'])
         for (const [system, { url, hash }] of Object.entries(sources)) {
             const configured = bunSources[system]
             assert(configured !== undefined, system)
@@ -54,8 +50,7 @@ export const proof = {
         }
         assertStructurallySame(
             Object.keys(sources),
-            ['aarch64-linux', 'x86_64-darwin'])
-        assertEq(bunSources['x86_64-darwin']?.archive, 'bun-darwin-x64-baseline')
+            ['aarch64-linux', 'aarch64-darwin'])
         assertEq(nixSystem, 'aarch64-linux')
     },
 }

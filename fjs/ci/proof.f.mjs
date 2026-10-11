@@ -5,13 +5,15 @@
  */
 
 import { exitCode } from '../effects/node/module.f.mjs'
-import { ci, ciPath, main, nixJobs } from './module.f.mjs'
-import { actions, bun, deno, functionalscript, jobTimeout, node, typescript, wasmer, wasmtime } from './config/module.f.js'
+import { ci, ciPath, main } from './module.f.mjs'
+import { actions, bun, deno, functionalscript, images, jobTimeout, node, typescript, wasmer, wasmtime } from './config/module.f.js'
 import { main as ownMain, packageConsumer } from './self/module.f.mjs'
-import { installNode, major, nodeNixJobs, packageJobId } from './node/module.f.mjs'
-import { flakePath, flakeText, nixDevelop, nixShell } from './nix/module.f.mjs'
+import { installNode, major, packageJobId } from './node/module.f.mjs'
+import { devNixJob } from './dev/module.f.mjs'
+import { flakePath, flakeText, nixDevelop } from './nix/module.f.mjs'
 import { consumerDirectory, packageCheckSteps } from './package/module.f.mjs'
 import { npmPublishJobId, npmPublishPath, npmPublishWorkflow } from './publish/module.f.mjs'
+import { rustPlatformCommands } from './rust/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { empty as emptyVec } from '../types/bit_vec/module.f.mjs'
 import { install, test, ubuntu, uses, parseGitHubAction } from './common/module.f.mjs'
@@ -35,8 +37,7 @@ const installsNix = job =>
     job?.steps.some(step => step.uses?.startsWith('cachix/install-nix-action@') === true) === true
 
 /**
- * Whether a job actually *enters* its own generated shell — some step's command
- * is `sh gen.nix/<id>/run`.
+ * Whether a job actually enters the shared shell through `sh ./gen.nix/run`.
  *
  * Deliberately not the same question as `installsNix`. A job could install Nix
  * and then run its commands on the runner's own toolchain: it would look
@@ -49,28 +50,15 @@ const installsNix = job =>
  * is: one command (root `AGENTS.md` §7), and `nixSteps` writes `sh` and the
  * script's path as that command. So this compares those fields rather than
  * searching the line — a step that merely names the path,
- * `echo ./gen.nix/deno/run`, is not entry and is not counted. Neither is the
+ * `echo ./gen.nix/run`, is not entry and is not counted. Neither is the
  * version check, whose command is `test` and which reaches the script inside
  * a substitution; a job whose only mention of its flake were that would fail
  * here, which is the right answer rather than a gap.
  *
- * @type {(job: Job | undefined, id: string) => boolean}
+ * @type {(job: Job | undefined) => boolean}
  */
-const entersFlake = (job, id) =>
-    job?.steps.some(step => step.run?.startsWith(`${nixDevelop(id, '')}`) === true) === true
-
-/**
- * Which declared flakes a job enters. Usually one; never, for a job with no
- * checkout.
- *
- * A job no longer enters the flake named after it — all but two share one — so
- * the question `entersFlake` answers for a known id has to be asked of every
- * declared id instead.
- *
- * @type {(job: Job | undefined) => readonly string[]}
- */
-const flakesEntered = job =>
-    nixJobs.map(({ id }) => id).filter(id => entersFlake(job, id))
+const entersFlake = job =>
+    job?.steps.some(step => step.run?.startsWith(nixDevelop('')) === true) === true
 
 /** @type {(jobId: string, cmd: string) => (gha: GitHubAction) => boolean} */
 const hasRunInJob = (jobId, cmd) => gha =>
@@ -85,7 +73,7 @@ const hasExactRunInJob = (jobId, cmd) => gha =>
  * variable and nothing else — the command itself is not in it, which is the
  * property {@link hasInjected} exists to check.
  */
-const injectedLine = nixDevelop(nixShell, 'bash -e -c "$FJS_CI_RUN"')
+const injectedLine = nixDevelop('bash -e -c "$FJS_CI_RUN"')
 
 /**
  * An injected command as it reaches the shell: that one fixed line, and the
@@ -167,9 +155,9 @@ const workflowFile = (state, file) => {
 /** @type {(state: State) => GitHubAction} */
 const workflow = state => workflowFile(state, 'gen.ci.yml')
 
-/** @type {(state: State, id: string) => string} */
-const flake = (state, id) =>
-    text(path(state.root, flakePath(id).slice('./'.length).split('/')), 'flake.nix')
+/** @type {(state: State) => string} */
+const flake = state =>
+    text(path(state.root, flakePath().slice('./'.length).split('/')), 'flake.nix')
 
 // A compiler pin no configuration anywhere holds, written into the fixture
 // project's `package.json` so that the generator can be shown to ignore it.
@@ -179,17 +167,6 @@ const flake = (state, id) =>
 const runPin = /** @type {const} */ ('=9.9.9')
 
 const runPackageJson = `{"name":"other-package","devDependencies":{"typescript":"${runPin}"}}`
-
-/**
- * The version the configuration records for a Node job, by job id — the one its
- * generated flake's package attribute has to agree with.
- *
- * @type {(id: string) => string}
- */
-const configuredVersion = id =>
-    id === `node${major(node.node22)}` ? node.node22
-    : id === `node${major(node.node24)}` ? node.node24
-    : node.default
 
 /** @type {(rust: boolean, nodeExtra?: (o: Os) => readonly MetaStep[]) => GitHubAction} */
 const run = (rust, nodeExtra = () => []) => {
@@ -208,7 +185,7 @@ const runDefault = packageJson => {
 export const proof = {
     matrixShape: () => {
         const gha = run(true)
-        assertEq(Object.keys(gha.jobs).length, 11, 'expected 11 CI jobs')
+        assertEq(Object.keys(gha.jobs).length, 9, 'expected 9 CI jobs')
         assertEq(gha.permissions.contents, 'read', 'expected read-only contents permission')
         assertEq(Object.keys(gha.permissions).length, 1, 'expected least-privilege workflow permissions')
         // A push to a pull request cancels the run it supersedes.
@@ -234,7 +211,7 @@ export const proof = {
         // The WASM checks, in the ARM Linux job, which runs on the image and in
         // the shell the `wasm` job they used to be had. The formatting check
         // came with them, and is in no other job.
-        assert(hasExactRunInJob('ubuntu-arm', nixDevelop(nixShell, 'cargo fmt -- --check'))(gha), 'expected the formatting check')
+        assert(hasExactRunInJob('ubuntu-arm', nixDevelop('cargo fmt -- --check'))(gha), 'expected the formatting check')
         assert(hasRunInJob('ubuntu-arm', 'cargo test --target wasm32-wasip1 --release')(gha), 'expected target-specific WASM release check')
         assert(hasRunInJob('ubuntu-arm', 'cargo clippy --target wasm32-wasip1 -- -D warnings')(gha), 'expected target-specific WASM Rust lint')
         assert(hasRunInJob('ubuntu-arm', 'cargo clippy --target wasm32-wasip1 --release -- -D warnings')(gha), 'expected target-specific WASM release lint')
@@ -248,26 +225,21 @@ export const proof = {
         // `cargo` command it could not fail, since every step is wrapped.
         assert(hasRunInJob('ubuntu-arm', 'cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml')(gha), 'expected Wasmer WASM threads check')
         assert(hasRunInJob('ubuntu-arm', 'cargo clippy --target wasm32-wasip1-threads -- -D warnings')(gha), 'expected WASM threads lint')
-        assert(!hasExactRunInJob('ubuntu-arm', nixDevelop(nixShell, 'cargo test --target wasm32-wasip1-threads'))(gha), 'unexpected Wasmtime WASM threads check')
-        assert(!hasExactRunInJob('ubuntu-arm', nixDevelop(nixShell, 'cargo test --target wasm32-wasip1-threads --release'))(gha), 'unexpected Wasmtime WASM threads release check')
-        // Node 22 runs the suite the way every other Node job does. `fjs test`
-        // and the global install that fed it were there only because Node 22
-        // could not run `node --test`.
-        assert(hasRunInJob('node22', 'node --test')(gha), 'expected the Node 22 suite')
-        assert(!hasRunInJob('node22', 'fjs test')(gha), 'unexpected published-CLI smoke test in node22')
-        assert(!hasRunInJob('node22', 'npm install -g')(gha), 'unexpected global install in node22')
-        assert(hasRunInJob('node26', 'npm pack')(gha), 'expected Node 26 package check')
-        assert(hasRunInJob('node26', 'npm run gen')(gha), 'expected Node 26 workflow regeneration')
-        assert(hasRunInJob('node26', 'git add -A && git diff --cached --exit-code')(gha), 'expected Node 26 generated-file drift check')
+        assert(!hasExactRunInJob('ubuntu-arm', nixDevelop('cargo test --target wasm32-wasip1-threads'))(gha), 'unexpected Wasmtime WASM threads check')
+        assert(!hasExactRunInJob('ubuntu-arm', nixDevelop('cargo test --target wasm32-wasip1-threads --release'))(gha), 'unexpected Wasmtime WASM threads release check')
+        assertStructurallySame(
+            Object.keys(gha.jobs).filter(id => id.startsWith('node')),
+            [packageJobId])
+        assert(hasRunInJob(packageJobId, 'npm pack')(gha), 'expected canonical Node package check')
+        assert(hasRunInJob(packageJobId, 'npm run gen')(gha), 'expected canonical Node workflow regeneration')
+        assert(hasRunInJob(packageJobId, 'git add -A && git diff --cached --exit-code')(gha), 'expected canonical Node generated-file drift check')
         assert(!hasRun('npm publish --dry-run')(gha), 'unexpected npm publish dry-run')
         // `npm ci` belongs to the jobs that need what it installs, and to no
-        // others. The three Node jobs type-check, pack and run the suite; the
-        // four platform jobs that moved into the shared shell run the suite
-        // too. `deno` and `bun` install through their own package managers.
+        // others. The canonical Node job type-checks, packs and runs the suite;
+        // the four working-checkout platform jobs run the suite too.
+        // `deno` and `bun` install through their own package managers.
         for (const id of /** @type {const} */ ([
-            'node22',
-            'node24',
-            'node26',
+            packageJobId,
             // The four platform jobs that run `node --test` need it too, and
             // for a reason this repository cannot show: `node --test` runs a
             // project's test entry, and `./README.md` tells a consumer to
@@ -292,7 +264,7 @@ export const proof = {
         ])) {
             assert(!hasRunInJob(id, 'npm ci')(gha), `unexpected npm ci in ${id}`)
         }
-        // And in the four platform jobs, in that order. The version check goes
+        // And in the three Nix platform jobs, in that order. The version check goes
         // first because `npm ci` runs `preinstall`/`install`/`postinstall`
         // hooks from the project and its dependencies — code that should not be
         // the thing that discovers which runtime it is on. `node --test` goes
@@ -300,14 +272,13 @@ export const proof = {
         for (const id of /** @type {const} */ ([
             'ubuntu-intel',
             'ubuntu-arm',
-            'macos-intel',
             'macos-arm',
         ])) {
             const check = runIndex(
                 id,
-                `test "$(${nixDevelop(nixShell, 'node --version')})" = "v${node.default}"`)(gha)
-            const install = runIndex(id, nixDevelop(nixShell, 'npm ci'))(gha)
-            const suite = runIndex(id, nixDevelop(nixShell, 'node --test'))(gha)
+                `test "$(${nixDevelop('node --version')})" = "v${node}"`)(gha)
+            const install = runIndex(id, nixDevelop('npm ci'))(gha)
+            const suite = runIndex(id, nixDevelop('node --test'))(gha)
             assert(check !== -1 && install !== -1 && suite !== -1, id)
             assert(check < install, `expected the version check before npm ci in ${id}`)
             assert(install < suite, `expected npm ci before node --test in ${id}`)
@@ -319,7 +290,6 @@ export const proof = {
         for (const id of /** @type {const} */ ([
             'ubuntu-intel',
             'ubuntu-arm',
-            'macos-intel',
             'macos-arm',
         ])) {
             assert(
@@ -327,12 +297,36 @@ export const proof = {
                     step => step.uses?.startsWith('dtolnay/rust-toolchain@') !== true) === true,
                 `unexpected runner toolchain in ${id}`)
         }
-        // The two Windows jobs still have it, because they have no shell.
-        for (const id of /** @type {const} */ (['windows-intel', 'windows-arm'])) {
+        // The direct-install jobs get Rust from the shared toolchain action.
+        for (const id of /** @type {const} */ (['macos-intel', 'windows-intel', 'windows-arm'])) {
             assert(
                 gha.jobs[id]?.steps.some(
                     step => step.uses?.startsWith('dtolnay/rust-toolchain@') === true) === true,
                 `expected a runner toolchain in ${id}`)
+        }
+    },
+    intelMacDirectTools: () => {
+        for (const rust of [false, true]) {
+            const gha = run(rust)
+            const job = gha.jobs['macos-intel']
+            assert(job !== undefined, 'expected the Intel macOS job')
+            assertEq(job['runs-on'], images.macos.intel)
+            assert(!installsNix(job), 'unexpected Intel macOS Nix installer')
+            assert(!entersFlake(job), 'unexpected Intel macOS shell commands')
+            assertStructurallySame(job.steps, [
+                ...(rust ? [uses('dtolnay/rust-toolchain', { components: 'rustfmt,clippy' })] : []),
+                installNode(),
+                uses('actions/checkout'),
+                { run: `test "$(node --version)" = "v${node}"` },
+                { run: 'npm ci' },
+                ...(rust ? rustPlatformCommands.map(run => ({ run })) : []),
+                { run: 'node --test' },
+            ])
+            // ARM macOS retains both its Nix installer and shell commands.
+            const arm = gha.jobs['macos-arm']
+            assert(installsNix(arm), 'expected ARM macOS to keep Nix')
+            assert(entersFlake(arm), 'expected ARM macOS shell commands')
+            assertEq(arm?.['runs-on'], images.macos.arm)
         }
     },
     rust: () => {
@@ -357,23 +351,24 @@ export const proof = {
         // the image ships rather than the release every other step asserts.
         //
         // Through `bash -e -c`, because a GitHub `run:` is a shell script
-        // while the `run` script's `--command "$@"` is an argv. Windows is the
-        // exception, and has to be — there is no shell there to put anything
-        // in.
+        // while the `run` script's `--command "$@"` is an argv. Intel macOS and Windows keep commands on the
+        // runner, where the pinned tools are installed directly.
         inTheSameShell: () => {
             const cmd = 'echo hello'
             const gha = run(false, () => [test({ run: cmd })])
-            for (const o of /** @type {const} */ (['ubuntu', 'macos'])) {
-                for (const a of /** @type {const} */ (['intel', 'arm'])) {
-                    assert(
-                        hasInjected(`${o}-${a}`, cmd)(gha),
-                        `expected the extra step in the shell in ${o}-${a}`)
-                }
-            }
-            for (const a of /** @type {const} */ (['intel', 'arm'])) {
+            for (const [o, a] of /** @type {const} */ ([
+                ['ubuntu', 'intel'], ['ubuntu', 'arm'], ['macos', 'arm'],
+            ])) {
                 assert(
-                    hasExactRunInJob(`windows-${a}`, cmd)(gha),
-                    `expected the extra step on the runner in windows-${a}`)
+                    hasInjected(`${o}-${a}`, cmd)(gha),
+                    `expected the extra step in the shell in ${o}-${a}`)
+            }
+            for (const id of /** @type {const} */ ([
+                'macos-intel', 'windows-intel', 'windows-arm',
+            ])) {
+                assert(
+                    hasExactRunInJob(id, cmd)(gha),
+                    `expected the extra step on the runner in ${id}`)
             }
         },
         // The two shapes a bare prefix would have broken, and broken
@@ -383,7 +378,7 @@ export const proof = {
         shellSyntaxSurvives: () => {
             for (const cmd of /** @type {const} */ ([
                 'NODE_OPTIONS=--max-old-space-size=4096 node tool.mjs',
-                'cd nanvm-lib && cargo doc',
+                'cd nanvm/lib && cargo doc',
                 'a | b > c',
             ])) {
                 const gha = run(false, () => [test({ run: cmd })])
@@ -465,28 +460,29 @@ export const proof = {
         // `run` script it names lives there, and therefore after the job's own
         // `node --test` too, since `toSteps` emits install steps, the checkout,
         // then tests. Declaring `install` no longer means "before the tests"
-        // here. On Windows nothing is wrapped, so an `install` step keeps the
-        // pre-checkout position that type buys.
+        // here. On direct-install platforms nothing is wrapped, so an
+        // `install` step keeps the pre-checkout position that type buys.
         injectedPosition: () => {
             const cmd = 'echo hello'
             const gha = run(false, () => [install({ run: cmd })])
-            for (const o of /** @type {const} */ (['ubuntu', 'macos'])) {
-                for (const a of /** @type {const} */ (['intel', 'arm'])) {
-                    const id = `${o}-${a}`
-                    const injected = injectedIndex(id)(gha)
-                    const checkout = checkoutIndex(id)(gha)
-                    const suite = runIndex(id, nixDevelop(nixShell, 'node --test'))(gha)
-                    assert(injected !== -1 && checkout !== -1 && suite !== -1, id)
-                    assert(
-                        injected > checkout,
-                        `expected the injected step after the checkout in ${id}`)
-                    assert(
-                        injected > suite,
-                        `expected the injected step after the suite in ${id}`)
-                }
+            for (const [o, a] of /** @type {const} */ ([
+                ['ubuntu', 'intel'], ['ubuntu', 'arm'], ['macos', 'arm'],
+            ])) {
+                const id = `${o}-${a}`
+                const injected = injectedIndex(id)(gha)
+                const checkout = checkoutIndex(id)(gha)
+                const suite = runIndex(id, nixDevelop('node --test'))(gha)
+                assert(injected !== -1 && checkout !== -1 && suite !== -1, id)
+                assert(
+                    injected > checkout,
+                    `expected the injected step after the checkout in ${id}`)
+                assert(
+                    injected > suite,
+                    `expected the injected step after the suite in ${id}`)
             }
-            for (const a of /** @type {const} */ (['intel', 'arm'])) {
-                const id = `windows-${a}`
+            for (const id of /** @type {const} */ ([
+                'macos-intel', 'windows-intel', 'windows-arm',
+            ])) {
                 const declared = runIndex(id, cmd)(gha)
                 const checkout = checkoutIndex(id)(gha)
                 assert(declared !== -1 && checkout !== -1, id)
@@ -508,22 +504,27 @@ export const proof = {
                 install({ run: cmd }),
                 test(uses('actions/cache')),
             ])
-            for (const o of /** @type {const} */ (['ubuntu', 'macos'])) {
-                for (const a of /** @type {const} */ (['intel', 'arm'])) {
-                    const id = `${o}-${a}`
-                    assert(
-                        hasInjected(id, cmd)(gha),
-                        `expected the install command moved into the shell in ${id}`)
-                    assert(
-                        gha.jobs[id]?.steps.some(
-                            step => step.uses?.startsWith('actions/cache@') === true) === true,
-                        `expected the action step kept in ${id}`)
-                }
+            for (const [o, a] of /** @type {const} */ ([
+                ['ubuntu', 'intel'], ['ubuntu', 'arm'], ['macos', 'arm'],
+            ])) {
+                const id = `${o}-${a}`
+                assert(
+                    hasInjected(id, cmd)(gha),
+                    `expected the install command moved into the shell in ${id}`)
+                assert(
+                    gha.jobs[id]?.steps.some(
+                        step => step.uses?.startsWith('actions/cache@') === true) === true,
+                    `expected the action step kept in ${id}`)
             }
             // Windows has no shell, so both keep their old shape there.
             assert(
                 hasExactRunInJob('windows-arm', cmd)(gha),
                 'expected the install step unwrapped on Windows')
+            assert(hasExactRunInJob('macos-intel', cmd)(gha),
+                'expected the install step unwrapped on Intel macOS')
+            assert(gha.jobs['macos-intel']?.steps.some(
+                step => step.uses?.startsWith('actions/cache@') === true) === true,
+                'expected the action step kept on Intel macOS')
         },
     },
     defaultSetup: {
@@ -553,102 +554,49 @@ export const proof = {
             assert(hasRun(`npm install -g functionalscript@${functionalscript}`)(gha), 'expected configured-version install')
         },
     },
-    // Every generated flake is checked here rather than by a CI job: CI only
-    // uses these files, and a proof reading the generator's own output can say
-    // more about them than a shell can, without a Nix installation.
-    nixFlakes: () => {
+    // The shared flake lands at the path every shell step enters. Equality
+    // reads the complete generated shell, including every tool and platform.
+    nixFlake: () => {
         const [state, result] = virtual(makeState(false, undefined))(main())
         assertEq(exitCode(result), 0)
-        // Every generated flake: `nixJobs` is what the generator was given, so
-        // a family that declares an environment and never has it written fails
-        // here. Three — the shared shell, and one apiece for the two Node
-        // versions it cannot serve.
-        assertEq(nixJobs.length, 3)
-        for (const job of nixJobs) {
-            // The pipeline wrote that job's flake, whole, at the path a
-            // `nix develop` step names. Equality rather than a substring
-            // search: a `pkgs.nodejs_24` occurring in a comment or an unrelated
-            // binding would satisfy `includes` while the shell declared
-            // something else. What the text itself must say — the pinned
-            // commit, the shell, the packages — is pinned character for
-            // character by `nix/proof.f.mjs`.
-            assertEq(flake(state, job.id), flakeText(job))
-        }
-        for (const job of nodeNixJobs) {
-            const [nodePackage] = job.packages
-            // The package attribute the job declares, tied to the version the
-            // configuration records for it: `node24` gets `nodejs_24`, so a job
-            // renamed or repointed without its package following is a failure
-            // here rather than a shell running the wrong Node. This is the
-            // job's own data, not text scanned out of a file. Deno's and Bun's
-            // attributes carry no version, so their checks are the only tie
-            // they have — see `nixVersionChecks`.
-            assertEq(nodePackage, `nodejs_${major(configuredVersion(job.id))}`)
+        assertEq(flake(state), flakeText(devNixJob))
+        assertEq(devNixJob.packages[0], `nodejs_${major(node)}`)
+        // No version-specific directories remain beside the shared shell.
+        const files = Object.keys(path(state.root, flakePath().slice('./'.length).split('/')))
+        assertEq(files.length, 3)
+        for (const file of /** @type {const} */ (['flake.nix', 'lock-update.sh', 'run'])) {
+            assert(files.includes(file), `expected ${file} in the shared shell`)
         }
     },
-    // Every canonical Node job, step for step, each running through its own
-    // generated flake. None installs its runtime with `setup-node` any more:
-    // the one `setup-node` left is the packed-package check's, which closes
-    // Node 26's job with a consumer's Node — see `packageCheck`.
-    migratedNodeJobs: () => {
+    // The canonical Node job enters the shared shell. The packed-package
+    // check closes it behind setup-node, with a consumer's Node.
+    migratedNodeJob: () => {
         const gha = run(false)
-        for (const [version, commands] of /** @type {const} */ ([
-            [node.node22, ['npm ci', 'node --test']],
-            [node.node24, ['npm ci', 'node --test']],
-            [node.default, ['npm ci', 'tsc', 'npm start compile', 'npm run cov']],
-        ])) {
-            const id = `node${major(version)}`
-            // The two older versions run in a flake of their own, because
-            // `npm ci` and `node --test` take whichever `node` reaches `PATH`
-            // first and one shell holds one. Node 26's `node` is the shared
-            // shell's, so it runs there.
-            const shell = version === node.default ? nixShell : id
-            const job = gha.jobs[id]
-            assert(job !== undefined, `expected the ${id} job`)
-            assert(
-                job.steps.some(step => step.uses?.startsWith('cachix/install-nix-action@') === true),
-                `expected a pinned Nix installer in ${id}`)
-            // Node 26's job ends with the packed-package check, whole, behind
-            // the consumer's Node; the rest is the job's own.
-            const check = id === packageJobId
-                ? [installNode({ 'package-manager-cache': 'false' }), ...packageCheckSteps(undefined)]
-                : []
-            const own = job.steps.slice(0, job.steps.length - check.length)
-            assertStructurallySame(job.steps.slice(own.length), check)
-            assert(
-                !own.some(step => step.uses?.startsWith('actions/setup-node@') === true),
-                `unexpected setup-node in ${id}`)
-            // One command per step (root `AGENTS.md` §7), each entering the
-            // shell itself, in the order the job had them, behind the version
-            // check. Node 26's last four are the packing and the drift check.
-            // The `mkdir` making the directory `npm pack` writes into is not a
-            // Nix command, and neither is the drift check closing the list:
-            // `git` is the runner's, and it compares a tree every earlier step
-            // has finished writing.
-            assertStructurallySame(
-                own.flatMap(step => step.run === undefined ? [] : [step.run]),
-                [
-                    `test "$(${nixDevelop(shell, 'node --version')})" = "v${version}"`,
-                    // Node 26 is the one that type-checks and packs, so it is
-                    // the one that also asserts a compiler before running
-                    // anything.
-                    ...(version === node.default
-                        ? [`test "$(${nixDevelop(shell, 'tsc --version')})" = "Version ${typescript.version}"`]
-                        : []),
-                    ...commands.map(command => nixDevelop(shell, command)),
-                    ...(id === packageJobId
-                        ? [
-                            `mkdir ${consumerDirectory}`,
-                            nixDevelop(shell, `npm pack --pack-destination ${consumerDirectory}`),
-                            nixDevelop(shell, 'npm run gen'),
-                            'git add -A && git diff --cached --exit-code',
-                        ]
-                        : []),
-                ])
-        }
+        const job = gha.jobs[packageJobId]
+        assert(job !== undefined, 'expected the canonical Node job')
+        assert(installsNix(job), 'expected a pinned Nix installer')
+        const check = [installNode({ 'package-manager-cache': 'false' }), ...packageCheckSteps(undefined)]
+        const own = job.steps.slice(0, job.steps.length - check.length)
+        assertStructurallySame(job.steps.slice(own.length), check)
+        assert(
+            !own.some(step => step.uses?.startsWith('actions/setup-node@') === true),
+            'unexpected setup-node before the consumer check')
+        // Each tool command enters the shell separately. mkdir prepares the
+        // consumer directory; the final git command compares the whole tree.
+        assertStructurallySame(
+            own.flatMap(step => step.run === undefined ? [] : [step.run]),
+            [
+                `test "$(${nixDevelop('node --version')})" = "v${node}"`,
+                `test "$(${nixDevelop('tsc --version')})" = "Version ${typescript.version}"`,
+                ...['npm ci', 'tsc', 'npm start compile', 'npm run cov'].map(nixDevelop),
+                `mkdir ${consumerDirectory}`,
+                nixDevelop(`npm pack --pack-destination ${consumerDirectory}`),
+                nixDevelop('npm run gen'),
+                'git add -A && git diff --cached --exit-code',
+            ])
     },
     // Every job with a flake asserts the runtime it is about to use, read from
-    // that flake — the four platform jobs included, and they are listed below.
+    // that flake — the three Nix platform jobs included, listed below.
     // The two Windows jobs are not: they run `run` steps under PowerShell,
     // where this POSIX command would not survive. Nothing else ties the
     // versions `fjs/ci/config/module.f.js` records to what a job really runs
@@ -657,65 +605,54 @@ export const proof = {
     nixVersionChecks: () => {
         // With Rust, because the WASM runtimes are checked only where `cargo`
         // runs, and a project without a `Cargo.toml` runs none — while the
-        // shell is generated either way, since `nixJobs` is a list rather than
-        // a function of the project.
+        // shell is generated whole either way.
         const gha = run(true)
         /**
-         * Job, the shell it enters, and what it asserts before running
-         * anything.
+         * Job and what it asserts before running anything.
          *
-         * @type {readonly (readonly [string, string, readonly (readonly [string, string])[]])[]}
+         * @type {readonly (readonly [string, readonly (readonly [string, string])[]])[]}
          */
         const checks = [
-            // The two jobs with a flake of their own, each holding the single
-            // release its `node --test` resolves from `PATH`.
-            [`node${major(node.node22)}`, `node${major(node.node22)}`,
-                [['node --version', `v${node.node22}`]]],
-            [`node${major(node.node24)}`, `node${major(node.node24)}`,
-                [['node --version', `v${node.node24}`]]],
             // Two, because this is the job that type-checks the repository and
             // runs `npm pack`, whose `prepack` emits the declarations the
             // package ships with the same compiler. `typescript-go` names no
             // version, so this check is the whole tie.
-            [`node${major(node.default)}`, nixShell, [
-                ['node --version', `v${node.default}`],
+            [packageJobId, [
+                ['node --version', `v${node}`],
                 ['tsc --version', `Version ${typescript.version}`],
             ]],
             // Deno prints three lines for `--version`, so it is asked for the
             // one field this repository configures.
-            ['deno', nixShell, [[`deno eval 'console.log(Deno.version.deno)'`, deno]]],
+            ['deno', [[`deno eval 'console.log(Deno.version.deno)'`, deno]]],
             // Bun prints the bare version, with no leading `v` and no program
             // name. Its check is also the only one confirming that an override
             // took effect rather than that a snapshot is what it claims: the
             // shell's Bun is not the snapshot's.
-            ['bun', nixShell, [['bun --version', bun]]],
-            // All four platform jobs, in the one shell. These are the only
-            // place its three systems other than the canonical runner's are
+            ['bun', [['bun --version', bun]]],
+            // The three Nix platform jobs, in the one shell. These are the only
+            // place its two systems other than the canonical runner's are
             // built at all.
             // `ubuntu-intel` runs the 32-bit checks too, and asserts nothing
             // more for them: the tool they run is `cargo`, whose release the
             // flake names in full, so a check would restate the flake.
-            ['ubuntu-intel', nixShell, [['node --version', `v${node.default}`]]],
+            ['ubuntu-intel', [['node --version', `v${node}`]]],
             // `ubuntu-arm` runs the WASM checks, so it asserts the two
             // runtimes `cargo` hands their binaries to as well — unversioned
             // attributes of the shell, unlike its Rust.
-            ['ubuntu-arm', nixShell, [
-                ['node --version', `v${node.default}`],
+            ['ubuntu-arm', [
+                ['node --version', `v${node}`],
                 ['wasmtime --version', `wasmtime ${wasmtime}`],
                 ['wasmer --version', `wasmer ${wasmer}`],
             ]],
-            ['macos-intel', nixShell, [['node --version', `v${node.default}`]]],
-            ['macos-arm', nixShell, [['node --version', `v${node.default}`]]],
+            ['macos-arm', [['node --version', `v${node}`]]],
         ]
-        // Between them these name every declared flake, which is what replaced
-        // the `dev` job: the shared shell used to be checked in one place
-        // because nothing else entered it, and is now checked by each job that
-        // does, for the tools that job depends on.
-        assertStructurallySame(
-            nixJobs.map(job => job.id).filter(id =>
-                !checks.some(([, shell]) => shell === id)),
-            [])
-        for (const [id, shell, jobChecks] of checks) {
+        // Every job entering the shared shell checks the tools it depends on.
+        const shellJobs = Object.keys(gha.jobs).filter(id => entersFlake(gha.jobs[id]))
+        assertEq(shellJobs.length, checks.length)
+        for (const id of shellJobs) {
+            assert(checks.some(([checkedId]) => checkedId === id), `expected version checks in ${id}`)
+        }
+        for (const [id, jobChecks] of checks) {
             const runs = (gha.jobs[id]?.steps ?? [])
                 .flatMap(step => step.run === undefined ? [] : [step.run])
             // The job's first commands, with nothing exempted. `npm ci` in
@@ -726,11 +663,10 @@ export const proof = {
             assertStructurallySame(
                 runs.slice(0, jobChecks.length),
                 jobChecks.map(([command, expected]) =>
-                    `test "$(${nixDevelop(shell, command)})" = "${expected}"`))
+                    `test "$(${nixDevelop(command)})" = "${expected}"`))
         }
     },
-    // Deno, step for step. It lost its setup action, and every command it runs
-    // enters its own flake.
+    // Deno, step for step, with every command entering the shared shell.
     migratedDenoJob: () => {
         const gha = run(false)
         const job = gha.jobs.deno
@@ -746,19 +682,11 @@ export const proof = {
                 .flatMap(step => step.run === undefined ? [] : [step.run])
                 .slice(1),
             ['deno install --frozen', 'deno task cov']
-                .map(command => nixDevelop(nixShell, command)))
+                .map(command => nixDevelop(command)))
     },
-    // Every job's Nix status, in one place — the platform matrix included,
-    // which is the thing that changed. Those jobs used to be excluded by
-    // construction, on the grounds that they exist to run on stock runner
-    // images; five of the seven now enter a flake, so excluding them would
-    // leave the half of the workflow this most recently changed unread.
-    //
-    // The whole set splits in two: the jobs that enter a generated flake, and
-    // the three that do not, each with an issue saying why.
-    // `fjs/ci/todo/65z-ci-nix.md` holds those reasons together; this is what
-    // makes a job added later come and declare which side it is on, instead of
-    // joining the second list in silence.
+    // Every job enters the shared shell except Intel macOS and the two Windows
+    // jobs, which install tools directly. Keep these explicit so a new job
+    // cannot silently use the runner's tools.
     nixCoverage: () => {
         const gha = run(true)
         const canonical = Object.keys(gha.jobs)
@@ -768,42 +696,7 @@ export const proof = {
         // lets the split below mean what it says.
         for (const id of canonical) {
             const job = gha.jobs[id]
-            assertEq(flakesEntered(job).length !== 0, installsNix(job), id)
-        }
-        const declared = nixJobs.map(job => job.id)
-        // Exactly one shell per job. Two would mean a job whose commands ran in
-        // different environments from one step to the next, which is the shape
-        // sharing makes newly possible and which nothing else here would catch.
-        for (const id of canonical.filter(id => installsNix(gha.jobs[id]))) {
-            assertEq(flakesEntered(gha.jobs[id]).length, 1, id)
-        }
-        // Every declared flake is entered by some job. A flake nothing enters
-        // is never evaluated, so it would rot unnoticed — which is exactly what
-        // the deleted `dev` job used to prevent for the shell, and what every
-        // job entering that shell now does instead.
-        const entered = canonical.flatMap(id => flakesEntered(gha.jobs[id]))
-        for (const id of declared) {
-            assert(entered.includes(id), `expected some job to enter ${id}`)
-        }
-        // The reverse holds by construction — `flakesEntered` filters the
-        // declared list — so what is left to state is that the list itself has
-        // no repeats. A repeated declaration is a defect in its own right:
-        // `nixFlakes` would write the same file twice.
-        assert(
-            declared.every((id, i) => declared.indexOf(id) === i),
-            'duplicate flake declaration')
-        // The split the whole arrangement rests on. Node 22 and Node 24 run
-        // `npm ci` and `node --test`, which take whichever `node` reaches
-        // `PATH` first, so each needs a shell holding exactly one release.
-        // Every other job names its runtime and shares.
-        assertStructurallySame(
-            declared.filter(id => entered.filter(e => e === id).length > 1),
-            [nixShell])
-        for (const id of declared.filter(id => id !== nixShell)) {
-            assertStructurallySame(
-                canonical.filter(job => flakesEntered(gha.jobs[job]).includes(id)),
-                [id],
-                `expected only ${id} to enter its own flake`)
+            assertEq(entersFlake(job), installsNix(job), id)
         }
         // The whole of what is left off Nix, named rather than counted. Each
         // entry is a fact about the job, and a third appearing here without a
@@ -811,8 +704,9 @@ export const proof = {
         const offNix = canonical.filter(id => !installsNix(gha.jobs[id]))
         /** @type {readonly string[]} */
         const expectedOffNix = [
-            // Nix does not run natively on Windows. That is the whole of what
-            // is left: every other job in this workflow enters a flake.
+            // Intel macOS needs only Node and native Rust, installed directly.
+            'macos-intel',
+            // Nix does not run natively on Windows.
             'windows-intel',
             'windows-arm',
         ]
@@ -827,23 +721,20 @@ export const proof = {
         for (const id of offNix) {
             assert(expectedOffNix.includes(id), `unexplained job off Nix: ${id}`)
         }
-        // The four that joined the shared shell cover every system it declares.
-        // `ubuntu-intel` is its `x86_64-linux`, the two macOS jobs its two
-        // Darwin systems, and `ubuntu-arm` the `aarch64-linux` the canonical
-        // jobs already built. Before this, three of the four were generated as
+        // The three jobs on the shared shell cover every system it declares.
+        // `ubuntu-intel` is its `x86_64-linux`, ARM macOS its
+        // Darwin system, and `ubuntu-arm` the `aarch64-linux` the canonical
+        // jobs already built. Before this, two of the three were generated as
         // text and built nowhere.
         for (const id of /** @type {const} */ ([
             'ubuntu-intel',
             'ubuntu-arm',
-            'macos-intel',
             'macos-arm',
         ])) {
-            assertStructurallySame(flakesEntered(gha.jobs[id]), [nixShell])
+            assert(entersFlake(gha.jobs[id]), `expected ${id} to enter the shared shell`)
         }
     },
-    // Bun, step for step. It lost its setup action, and every command it runs
-    // enters its own flake — whose Bun is the one thing in any generated shell
-    // that does not come from the pinned snapshot.
+    // Bun enters the shared shell, whose Bun is pinned outside Nixpkgs.
     migratedBunJob: () => {
         const gha = run(false)
         const job = gha.jobs.bun
@@ -859,7 +750,7 @@ export const proof = {
                 .flatMap(step => step.run === undefined ? [] : [step.run])
                 .slice(1),
             ['bun install --frozen-lockfile', 'bun test --coverage']
-                .map(command => nixDevelop(nixShell, command)))
+                .map(command => nixDevelop(command)))
     },
     ubuntu: () => {
         const job = ubuntu([test({ run: 'echo hi' })])
@@ -880,11 +771,11 @@ export const proof = {
         for (const gha of [run(false), workflow(own)]) {
             const job = gha.jobs[packageJobId]
             assert(job !== undefined, 'expected the canonical Node job')
-            assertEq(packageJobId, `node${major(node.default)}`)
+            assertEq(packageJobId, `node${major(node)}`)
             /** @type {(f: (step: Step) => boolean) => number} */
             const at = f => job.steps.findIndex(f)
             const made = at(step => step.run === `mkdir ${consumerDirectory}`)
-            const packed = at(step => step.run === nixDevelop(nixShell, `npm pack --pack-destination ${consumerDirectory}`))
+            const packed = at(step => step.run === nixDevelop(`npm pack --pack-destination ${consumerDirectory}`))
             const drift = at(step => step.run === 'git add -A && git diff --cached --exit-code')
             const setup = at(step => step.uses === `actions/setup-node@${actions['actions/setup-node']}`)
             assert(made !== -1 && packed !== -1 && drift !== -1 && setup !== -1, 'expected the directory made, the tarball packed into it, the drift check and the consumer\'s Node')
@@ -898,7 +789,7 @@ export const proof = {
             // not to restore an npm cache: it would decide that from the
             // checkout's `package.json`, making the consumer's setup depend
             // on the repository it consumes.
-            assertEq(job.steps[setup]?.with?.['node-version'], node.default)
+            assertEq(job.steps[setup]?.with?.['node-version'], node)
             assertEq(job.steps[setup]?.with?.['package-manager-cache'], 'false')
             const check = job.steps.slice(setup + 1)
             assert(check.length !== 0, 'expected the check after its Node')

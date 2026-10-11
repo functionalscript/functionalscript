@@ -22,14 +22,16 @@ import { directory, expectedDirectory, expectedModules, expectedModulesPath, fix
  * @type {Dir}
  */
 const root = {
-    'nanvm-harness': {
-        'fixtures': {
-            'rest-function.mjs': [utf8('export default 2;')],
-            'README.md': [utf8('# fixtures')],
-            'function-scope.mjs': [utf8('export default 4;')],
-            'helpers': { 'nested.mjs': [utf8('export default 3;')] },
-            'function.mjs': [utf8('export default 5;')],
-            'at.mjs': [utf8('export default 1;')],
+    'nanvm': {
+        'harness': {
+            'fixtures': {
+                'rest-function.mjs': [utf8('export default 2;')],
+                'README.md': [utf8('# fixtures')],
+                'function-scope.mjs': [utf8('export default 4;')],
+                'helpers': { 'nested.mjs': [utf8('export default 3;')] },
+                'function.mjs': [utf8('export default 5;')],
+                'at.mjs': [utf8('export default 1;')],
+            },
         },
     },
 }
@@ -48,7 +50,7 @@ export const proof = {
     // The corpus owns the directory and the harness re-exports it: one value.
     fixturesDirectory: () => {
         assertEq(fixturesDirectory, corpusDirectory)
-        assertEq(fixturesDirectory, 'nanvm-harness/fixtures')
+        assertEq(fixturesDirectory, 'nanvm/harness/fixtures')
     },
     rustName: () => {
         assertEq(rustName('function-scope.mjs'), 'function_scope')
@@ -94,7 +96,7 @@ export const proof = {
     generateFixturesStopsAtARefusedFixture: () => {
         /** @type {Dir} */
         const broken = {
-            'nanvm-harness': { 'fixtures': { 'a.mjs': [utf8('export default 1;')], 'b.mjs': [utf8('export default (')] } },
+            'nanvm': { 'harness': { 'fixtures': { 'a.mjs': [utf8('export default 1;')], 'b.mjs': [utf8('export default (')] } } },
         }
         const [state, result] = virtual({ ...emptyState, root: broken })(generateFixtures())
         assertEq(result[0], 'error')
@@ -105,7 +107,7 @@ export const proof = {
     // to include.
     generateFixturesWithNoFixtures: () => {
         /** @type {Dir} */
-        const none = { 'nanvm-harness': { 'fixtures': {} } }
+        const none = { 'nanvm': { 'harness': { 'fixtures': {} } } }
         const [state, result] = virtual({ ...emptyState, root: none })(step(generateFixtures(), () => readUtf8File(modulesPath)))
         assertEq(assertOk(result), modules([]))
         assertEq(Object.keys(into(state.root, directory.split('/'))).join(','), 'mod.rs')
@@ -120,12 +122,12 @@ export const proof = {
         const [, modRs] = virtual(state)(readUtf8File(expectedModulesPath))
         assertEq(assertOk(modRs), expectedModules(['at', 'function_scope']))
         const [, atRs] = virtual(state)(readUtf8File(`${expectedDirectory}/at.rs`))
-        assert(assertOk(atRs).startsWith('// Expectation of `nanvm-harness/fixtures/at.mjs`'))
+        assert(assertOk(atRs).startsWith('// Expectation of `nanvm/harness/fixtures/at.mjs`'))
     },
     // A fixture that throws is expected to throw, not refused.
     generateExpectedForAThrowingFixture: () => {
         /** @type {Dir} */
-        const throwing = { 'nanvm-harness': { 'fixtures': { 't.mjs': [utf8('throw 1;')] } } }
+        const throwing = { 'nanvm': { 'harness': { 'fixtures': { 't.mjs': [utf8('throw 1;')] } } } }
         const [state, result] = virtual({ ...emptyState, root: throwing })(generateExpected())
         assertOk(result)
         const [, tRs] = virtual(state)(readUtf8File(`${expectedDirectory}/t.rs`))
@@ -136,7 +138,7 @@ export const proof = {
     generateExpectedStopsAtAFixtureItCannotLoad: () => {
         /** @type {Dir} */
         const broken = {
-            'nanvm-harness': { 'fixtures': { 'a.mjs': [utf8('export default 1;')], 'b.mjs': [utf8('export default (')] } },
+            'nanvm': { 'harness': { 'fixtures': { 'a.mjs': [utf8('export default 1;')], 'b.mjs': [utf8('export default (')] } } },
         }
         const [state, result] = virtual({ ...emptyState, root: broken })(generateExpected())
         assertEq(result[0], 'error')
@@ -146,7 +148,7 @@ export const proof = {
     // No corpus fixtures at all still leaves a `mod.rs`.
     generateExpectedWithNoCorpus: () => {
         /** @type {Dir} */
-        const excepted = { 'nanvm-harness': { 'fixtures': { 'function.mjs': [utf8('export default () => 1;')] } } }
+        const excepted = { 'nanvm': { 'harness': { 'fixtures': { 'function.mjs': [utf8('export default () => 1;')] } } } }
         const [state, result] = virtual({ ...emptyState, root: excepted })(step(generateExpected(), () => readUtf8File(expectedModulesPath)))
         assertEq(assertOk(result), expectedModules([]))
         assertEq(Object.keys(into(state.root, expectedDirectory.split('/'))).join(','), 'mod.rs')

@@ -1,7 +1,7 @@
 /**
  * Which built-in member functions `nanvm-lib` answers, as a table its own
  * test checks the VM against — the completeness test
- * `nanvm-lib/todo/member-functions.md` asks for.
+ * `nanvm/lib/todo/member-functions.md` asks for.
  *
  * The compiler admits a call of every name in `allowedCalls`
  * ([`fjs/js/prototype`](../../js/prototype/module.f.js)), and the VM must
@@ -24,7 +24,7 @@
  *   off its prototype or `length`, and the VM must never have an entry
  *   either.
  *
- * The test beside `method` in `nanvm-lib/src/vm/lambda/method.rs` asserts
+ * The test beside `method` in `nanvm/lib/src/vm/lambda/method.rs` asserts
  * each row, so landing a built-in fails it until its pair leaves
  * {@link pending}, and {@link pending} can only shrink.
  *
@@ -119,7 +119,7 @@ export const rows = p => {
  * beside `method.rs`, whose test reads it, under a `gen.` name that
  * `vm/lambda/mod.rs` includes by `#[path]`.
  */
-export const directory = 'nanvm-lib/src/vm/lambda'
+export const directory = 'nanvm/lib/src/vm/lambda'
 
 /** @type {string} */
 export const path = `${directory}/gen.methods.rs`

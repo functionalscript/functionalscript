@@ -170,31 +170,40 @@
       "timeout-minutes": 15,
       "steps": [
         {
-          "uses": "cachix/install-nix-action@v31.11.1"
+          "uses": "dtolnay/rust-toolchain@1.99.0",
+          "with": {
+            "components": "rustfmt,clippy"
+          }
+        },
+        {
+          "uses": "actions/setup-node@v7.1.0",
+          "with": {
+            "node-version": "26.10.0"
+          }
         },
         {
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.10.0\""
+          "run": "test \"$(node --version)\" = \"v26.10.0\""
         },
         {
-          "run": "sh ./gen.nix/run npm ci"
+          "run": "npm ci"
         },
         {
-          "run": "sh ./gen.nix/run cargo test"
+          "run": "cargo test"
         },
         {
-          "run": "sh ./gen.nix/run cargo test --release"
+          "run": "cargo test --release"
         },
         {
-          "run": "sh ./gen.nix/run cargo clippy -- -D warnings"
+          "run": "cargo clippy -- -D warnings"
         },
         {
-          "run": "sh ./gen.nix/run cargo clippy --release -- -D warnings"
+          "run": "cargo clippy --release -- -D warnings"
         },
         {
-          "run": "sh ./gen.nix/run node --test"
+          "run": "node --test"
         }
       ]
     },
@@ -361,48 +370,6 @@
         },
         {
           "run": "sh ./gen.nix/run bun test --coverage"
-        }
-      ]
-    },
-    "node22": {
-      "runs-on": "ubuntu-26.04-arm",
-      "timeout-minutes": 15,
-      "steps": [
-        {
-          "uses": "cachix/install-nix-action@v31.11.1"
-        },
-        {
-          "uses": "actions/checkout@v7.0.1"
-        },
-        {
-          "run": "test \"$(sh ./gen.nix/node22/run node --version)\" = \"v22.23.3\""
-        },
-        {
-          "run": "sh ./gen.nix/node22/run npm ci"
-        },
-        {
-          "run": "sh ./gen.nix/node22/run node --test"
-        }
-      ]
-    },
-    "node24": {
-      "runs-on": "ubuntu-26.04-arm",
-      "timeout-minutes": 15,
-      "steps": [
-        {
-          "uses": "cachix/install-nix-action@v31.11.1"
-        },
-        {
-          "uses": "actions/checkout@v7.0.1"
-        },
-        {
-          "run": "test \"$(sh ./gen.nix/node24/run node --version)\" = \"v24.21.0\""
-        },
-        {
-          "run": "sh ./gen.nix/node24/run npm ci"
-        },
-        {
-          "run": "sh ./gen.nix/node24/run node --test"
         }
       ]
     },

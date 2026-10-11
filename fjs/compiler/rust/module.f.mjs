@@ -2,7 +2,7 @@
  * The `.rs` output branch of `fjs compile`: a linked EDAG printed as a
  * self-contained Rust module that builds the module's value through the
  * `nanvm-lib` API —
- * [mvp-roadmap](../../../nanvm-lib/todo/mvp-roadmap.md),
+ * [mvp-roadmap](../../../nanvm/lib/todo/mvp-roadmap.md),
  * [fjs-nanvm-integration](../../../todo/fjs-nanvm-integration.md).
  *
  * The node printer, its temporaries and the lines of a scope are not this

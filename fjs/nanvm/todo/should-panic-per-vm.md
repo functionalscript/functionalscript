@@ -26,7 +26,7 @@ The corpus cannot generate that set today. A `#[should_panic]` test is a
 concrete `#[test]` function, and [`rust/module.f.mjs`](../rust/module.f.mjs)
 prints every group as one function generic over `IVm`, `fn
 logical_and<A: IVm>()`, called once per VM from the hand-written `test`
-in `nanvm-lib/tests/test/main.rs` — a shape that has no place for a
+in `nanvm/lib/tests/test/main.rs` — a shape that has no place for a
 per-case attribute. Generating the set means generating the corpus once
 per VM instead of once over `IVm`: a `#[test]` per case per VM, or a
 module per VM instantiating a generic body, with the should-panic cases
@@ -59,6 +59,6 @@ generated file's shape for one VM is not worth the diff to
 - [`corpus-as-conformance-vectors.md`](./corpus-as-conformance-vectors.md)
   — the corpus's other open question, its transport to the `nanvm-lib`
   interpreter.
-- `nanvm-lib/src/vm/any/{and,or,nullish_coalescing,conditional}.rs` — the
+- `nanvm/lib/src/vm/any/{and,or,nullish_coalescing,conditional}.rs` — the
   four signatures, each lazy operand an `impl FnOnce() -> Result<Any<A>,
   Any<A>>`.

@@ -10,8 +10,10 @@ questions remain
 document, a `.data.js` document, a `.js` module, the EDAG, and generated Rust —
 and the README says in prose which one refuses what. A reader could not *see*
 it: that `[a, a]` is one `const` in `.js` and `.data.js` but a node written
-twice in JSON, that a function survives to `.js`, EDAG and Rust and is refused by the value
-outputs, that `!x` stops in the tokenizer and `typeof x` in the parser.
+twice in JSON, that a selected function survives to `.js`, EDAG and Rust and is
+refused by the value outputs, or where an unsupported string escape stops.
+The original comparison described `!x` and `typeof x` as front-end refusals;
+both are implemented now.
 
 ### Design
 
@@ -35,16 +37,20 @@ that code lands.
 `ast/` has no demo of its own: its data is what `parser/` draws.
 
 **Each demo runs the stage it shows, never a lookalike.** The stage demos call
-the stage's own function (`tryModuleMarked`, `toRust`, `tokenize`, `parse`).
+the stage's own function (`tryModuleMarked`, `toRustMarked`, `tokenize`, `parse`).
 The side-by-side page runs `_outputMarked`, the output route shared with
 `compile`, over an in-memory file system, once per output name, before CLI
-diagnostic formatting. A file system carries text, so the page takes the output as marked
-text (`fjs/text/marked`) before it is written, which is how a pane is coloured
-by what the producer wrote and not by reading the text again. Its proof runs
-the whole `compile` over the same file system for every example and output
-and holds the page's text to the file written, so it cannot drift from the
-CLI. See [`text/marked/README.md`](../../text/marked/README.md#12-design-record). **No output logic is
-copied into a demo**; one that is not exported yet is exported, per
+diagnostic formatting
+([`demo.f.mjs`](../demo.f.mjs), [`module.f.mjs`](../module.f.mjs)). A file
+system carries text, so the page takes the output as marked text
+(`fjs/text/marked`) before it is written. JavaScript, DataJS, JSON and Rust
+panes render the producer's markings.
+Its [`proof.f.mjs`](../proof.f.mjs) runs the whole `compile` over the same
+file system for every example and output, pins acceptance and refusal, and
+holds each pane's text to the file written. See
+[`text/marked/README.md`](../../text/marked/README.md#12-design-record).
+**No output logic is copied into a demo**; one that is not exported yet is
+exported, per
 [AGENTS.md §1](../../../AGENTS.md#1-workflow).
 
 **A refusal is shown, in the compiler's own words, not as an empty box.** An
@@ -58,14 +64,19 @@ through the shared picker
 ([`website/demo/examples`](../../website/demo/examples/module.f.mjs)), which
 checks that names and sources are distinct. A reader who picks "Closure" on one
 page finds "Closure" on the others. The first is an overview every page opens
-on, with no import so that no page opens on a refusal. The list holds programs
+on. It has no import, so it needs no dependency file, but its selected function
+makes the side-by-side `.json` and `.data.js` panes open on a refusal; the stage
+pages and the other three output panes accept it. The list holds programs
 for: primitives, string escapes, comments, objects, a repeated object key,
 sharing by `const` and the repeated expression that is not shared, arithmetic,
-operator precedence, laziness in each of its operators, a function with a rest
-parameter, a closure, recursion, a throwing body, an early return, methods and
-properties, named exports, and a failure at run time — and the inputs a stage
-refuses: an import (no file set in a browser), `!x`, a hex escape, `typeof x`,
-and an unfinished module. The EDAG demo's own presets were folded into it:
+operator precedence, logical not, `typeof`, `instanceof`, `Number` conversion,
+laziness in each of its operators, a function with fixed and rest parameters,
+a closure, recursion, a throwing body, an early return, shorthand members,
+methods and properties, optional chaining, the entry helper, named exports,
+and a failure at run time. Its front-end refusal examples are a hex escape and
+an unfinished module; its imports parse and lower, but need dependency files
+that the output demos do not supply. The EDAG demo's own presets were folded
+into it:
 [`../edag/demo.f.mjs`](../edag/demo.f.mjs) documents what each draws as.
 
 **A name says what the program is, and each proof says what its stage
@@ -77,10 +88,17 @@ which outputs accept which example.
 
 ### What the pages show today
 
-- `!x` and a `\x41` string escape stop in the tokenizer, as `error` tokens with
-  a span; `typeof x` passes it as an ordinary name and the parser refuses it.
-- Operators and calls now execute for `.json` and `.data.js`. A selected
-  function is an output refusal, while a failing initializer names its source.
+- The "Logical not" and "typeof" presets pass every stage and all five
+  outputs, as the [side-by-side proof table](../proof.f.mjs) records. A `\x41`
+  string escape stops in the tokenizer as an `error` token with a span; the
+  unfinished module reaches the parser and is refused as `unexpected end`
+  ([tokenizer proof](../tokenizer/proof.f.mjs),
+  [parser proof](../parser/proof.f.mjs)).
+- Operators and calls execute for `.json` and `.data.js`. A selected function
+  is refused during output conversion; a reached failing initializer produces
+  a source failure during module initialization. The side-by-side page shows
+  the underlying error message; the CLI adds the input or output filename and,
+  when available, a source position.
   `.js`, the EDAG and Rust preserve the computation; `undefined` is refused by
   `.json` alone.
 - A shared node is one `const` in `.data.js`, `.js` and the EDAG and one
@@ -88,13 +106,18 @@ which outputs accept which example.
   reference reaches it in `.json`, which carries no identity.
 - A repeated object key keeps its last value in `.json` and `.data.js` and both
   entries in `.js`, the EDAG and Rust.
-- An import is refused by every output: the in-memory file system holds only
-  the input.
+- An import parses and draws in the EDAG demo as unresolved dependency reads.
+  The source and Rust stage demos refuse those unbound reads
+  ([EDAG proof](../edag/proof.f.mjs),
+  [serializer proof](../serializer/proof.f.mjs),
+  [Rust proof](../rust/proof.f.mjs)). On the side-by-side page every output
+  refuses the missing dependency: its in-memory file system holds only the input.
 
 ### Open questions
 
-- **Import linking.** The pages compile one module. Showing `resolve` needs a
-  second file in the box; the in-memory file system already supports it.
+- **Import linking.** The pages accept one module's source. Showing a linked
+  graph or output through `resolve` needs a second file in the box; the
+  in-memory file system already supports it.
 - **Marking sharing across panes.** Highlighting the `const` that sharing
   produced, so the text panes and the EDAG graph show the same fact, is not
   built.

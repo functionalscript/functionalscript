@@ -5,8 +5,10 @@
 
 ### Progress
 
-Flake generation is implemented and **every canonical job is migrated** —
-the three Node jobs, then `deno`, then `wasm`, then `bun`. Each installs Nix through the pinned action and runs its
+Flake generation is implemented and **every canonical job is migrated**.
+The migration originally covered three Node jobs, then `deno`, then `wasm`,
+then `bun`; the historical Node 22/24 checks have since been removed. Each
+surviving canonical job installs Nix through the pinned action and runs its
 command sequence one `nix develop` step per command. Nix runs in CI only where a job uses
 a flake — the temporary `nix-flakes` job that instantiated them to check them is gone,
 and every generated flake is now evaluated by the job that uses it. What needs no Nix is
@@ -16,9 +18,9 @@ closed once all three Node jobs had migrated; its open tasks are this issue's.
 
 `setup-deno` is gone with the Deno migration, and `fjs/ci/config/module.f.js` no longer
 records that action version; its `deno` pin now names what the snapshot provides — 2.8.3
-— rather than deno.com's latest, exactly as the Node pins do. `nixJobs` in
-`fjs/ci/module.f.mjs` composes the flakes of two families rather than aliasing the Node
-list.
+— rather than deno.com's latest, exactly as the Node pin does.
+`fjs/ci/module.f.mjs` now passes the sole `devNixJob` declaration to
+`nixFlake`, generating the shared shell for all Nix-backed jobs.
 
 Separately from Nix, `deno` and `bun` both stopped installing and running a published
 `functionalscript`, and the four platform jobs that moved into the shared shell
@@ -30,7 +32,7 @@ subject, not this issue's, but it is why those jobs are shorter than the
 migration alone would leave them.
 
 Deno brought one thing the Node jobs did not: `pkgs.deno` carries no version, so the
-proof that ties `nodejs_24` to the configured Node has no counterpart for it. Its CI
+proof that ties `nodejs_26` to the configured Node has no counterpart for it. Its CI
 version check is the whole tie, which is why that check is worth more there than it is
 for Node.
 
@@ -49,7 +51,8 @@ reaches it: the constraint is which standard libraries the derivation was config
 to build, not which Rust it builds them with. `pkgsCross` models `wasm32-wasip1`
 only, one target per package set, and a shell holds one `cargo`.
 
-So the job's flake takes its toolchain from a **second input**,
+So the WASM job's original flake took its toolchain from a **second input**,
+now retained by the shared shell,
 `github:oxalica/rust-overlay`, and this issue's "one official Nixpkgs snapshot" scope
 is widened by exactly that much. What the overlay does is not a different build; it is
 a different acquisition. Rust publishes a manifest per release —
@@ -87,7 +90,7 @@ making.
 What changed is the reading of the problem. Nixpkgs fetches Bun as a **prebuilt
 archive** — `stdenvNoCC.mkDerivation`, `dontBuild = true`, unzip, `install -Dm 755`,
 `autoPatchelfHook` — so the gap was a version on a download, not a component nobody
-builds. The job's flake therefore keeps that recipe and replaces only `src`:
+builds. The shared shell therefore keeps that recipe and replaces only `src`:
 
 ```nix
 pinned = pkgs.bun.overrideAttrs {
@@ -118,70 +121,79 @@ confirms the override took effect at all.
 
 `dev` carries every tool the jobs use — Node 26, Deno, the pinned Bun,
 TypeScript, the toolchain with its WASM targets, Wasmtime, Wasmer and `git`. It
-is what a developer enters, and what all but two CI jobs run inside.
+is what developers on Linux and ARM macOS enter. Six of the nine CI jobs run
+inside it; Intel macOS and the two Windows jobs install their tools directly.
+Each prerelease accepts one exact version per tool; preserve each release's
+configuration, locks and tested toolset record. An older tool needs an older
+FunctionalScript release whose record names it. Recent stable candidates must
+pass the binary-cache and suite checks in [update-versions](../update-versions.md);
+additional supported versions after release depend on actual demand.
 
 It is generated rather than hand-written for two reasons. It cannot drift from
 the jobs, since it is built from their own declarations; and the drift check
 covers it, which a hand-written `gen.nix/flake.nix` would have escaped — verifying
 one would mean pattern-matching Nix source, which root `AGENTS.md` §6 rules out.
 
-**Sharing, and its one limit.** Each job started with a flake of its own, on the
+**How the shells became shared.** Each job started with a flake of its own, on the
 reasoning that a shell with five runtimes would let a job pass on whichever
 `node` reached `PATH` first. That risk is real and narrower than the rule it
 produced: it applies only where a command resolves its runtime from `PATH`.
 `deno task cov`, `bun test`, `cargo test` and `tsc` all name theirs, so what
 else is installed cannot decide what runs them.
 
-`npm ci` and `node --test` name nothing, and one shell holds one `node`. So
-Node 22 and Node 24 keep a flake apiece, and everything else shares — which is
-worth more than the uniformity: the environment CI proves is now the one people
-work in, rather than a fifth arrangement nobody uses.
+`npm ci` and `node --test` resolve Node from `PATH`, and one shell holds one
+`node`. That originally required separate Node 22 and Node 24 flakes. Those
+versions are no longer supported by the current prerelease, so their jobs,
+pins and flakes are gone. All surviving Nix-backed jobs share the environment
+people work in, and shell/path helpers no longer take a job selector.
 
 The cost is per-job download. A `deno` job that used to realise one package now
 realises the whole closure, toolchain included, and there is no binary cache of
 our own yet — `096-ci-caching.md` is where that goes.
 
 **It is why a declaration names systems rather than a system.** A CI job runs on
-one runner image; a developer environment has to work on Linux and macOS, on
-both architectures.
+one runner image; the Nix developer environment supports both architectures
+on Linux and ARM macOS. Intel macOS uses the pinned tools directly.
 
 Each system is its own named `devShells.<system>.default`, and past the first
 they share the shell between them: the body is written once as a function, and
 each entry calls it with the three things that differ — the system, and the
 archive and hash a pinned package takes on it. That keeps `flake-utils` out
-without keeping four copies of twenty lines in. The distinction worth holding
+without keeping three copies of twenty lines in. The distinction worth holding
 is *named entries versus a fold*: which systems a flake serves is still
 something the file says, rather than something a loop over a list computes. A
 single-system flake stays flat, byte for byte what it was, because a function
 called once is indirection for nothing.
 
-Nix does not run natively on Windows, so those four are all there are. A Windows
-developer reaches the shell through WSL2 or works the way this repository has
-always supported natively — nothing here requires Nix.
+The generated flake exposes `aarch64-linux`, `x86_64-linux` and
+`aarch64-darwin`; it no longer exposes Intel macOS. Nix does not run natively
+on Windows. A Windows developer reaches the shell through WSL2 or the Linux
+devcontainer, or installs the pinned tools directly on bare Windows.
 
 There is no `dev` CI job. There was one, and its only reason was that nothing
-else evaluated this flake; seven jobs entering it on every pull request answers
+else evaluated this flake; six jobs entering it on every pull request answers
 that better than one job asserting six versions. Between them they still assert
 all six — `node` and `tsc` from `node26`, `deno` from `deno`, `bun` from `bun`,
 both WASM runtimes from `ubuntu-arm`, which took over the `wasm` job's checks.
 
-And all four shells are now built for real, which was not true when this was
-written. The canonical jobs run on one runner, so they only ever exercised
-`aarch64-linux`; the four platform jobs that joined cover `x86_64-linux` and
-both Darwin systems, each asserting the Node its shell provides before running
-anything.
+All three generated shells are built in CI. The canonical jobs run on
+`aarch64-linux`; `ubuntu-arm` uses that system too, `ubuntu-intel` covers
+`x86_64-linux`, and `macos-arm` covers `aarch64-darwin`. Each Nix platform job
+asserts the Node its shell provides before running anything. Intel macOS
+checks the same Node pin from its direct installation.
 
-One consequence for a project that is not this one: `nixJobs` is a list rather
-than a function of the project, so a project without a `Cargo.toml` gets no
-WASM checks and therefore nothing checking the two WASM runtimes in its shell.
+One consequence for a project that is not this one: `devNixJob` is a
+constant rather than a function of the project, so a project without a
+`Cargo.toml` gets no WASM checks and therefore nothing checking the two WASM runtimes in its shell.
 That is the same trade `ci-generator-audience.md` describes for every job this
 generator writes unconditionally.
 
 #### Jobs with no flake
 
-No canonical job is without one any more. The set of jobs that are — the two
-Windows ones below — is asserted by `fjs/ci/proof.f.mjs`'s `nixCoverage`, so a job
-added later has to come here and say which side of the line it falls on.
+No canonical job is without one any more. The set of jobs that are — Intel
+macOS and the two Windows jobs below — is asserted by `fjs/ci/proof.f.mjs`'s
+`nixCoverage`, so a job added later has to come here and say which side of the
+line it falls on.
 
 - **`package-check`** was the canonical one, out of scope by construction: a job
   with no checkout, which was its whole point — with the repository on the runner
@@ -196,23 +208,23 @@ added later has to come here and say which side of the line it falls on.
   reach. Its Node comes from `setup-node`, and the version it names is the one
   `node26` already asserts from the shared shell.
 
-The two Windows platform jobs are the only jobs here, and for one reason: **Nix
-does not run natively on Windows**. `windows-intel` and `windows-arm` keep the runner's
-toolchain, and are the last jobs in the workflow that install one.
+Intel macOS now installs only Node and native Rust directly, retaining its
+working-checkout `npm ci`, `node --test`, and native Rust checks. Its flake
+system is removed ahead of Nixpkgs dropping Intel macOS after 26.05. ARM macOS
+continues to use Nix. The two Windows platform jobs also install tools directly
+because **Nix does not run natively on Windows**.
 
-The other four — `ubuntu-intel`, `ubuntu-arm`, `macos-intel`, `macos-arm` —
-moved into the shared shell, all of them, so the matrix differs by platform and
-by nothing else. They are also what makes `devSystems` mean anything: they are
-the only place its `x86_64-linux`, `aarch64-darwin` and `x86_64-darwin` shells
-are built rather than pinned as text.
+The other three — `ubuntu-intel`, `ubuntu-arm`, `macos-arm` — enter the
+shared shell. They cover every remaining `devSystems` entry: `x86_64-linux`,
+`aarch64-linux` and `aarch64-darwin`.
 
 32-bit Linux became a **job of its own**, `ubuntu-intel32`, with a flake of its
 own — and is now four steps of `ubuntu-intel` again, with neither.
 
 The flake went first. Its linker is `pkgsi686Linux.stdenv.cc`, and that
 attribute throws on every system the shared shell serves but `x86_64-linux`, so
-a job-wide `shellHook` would have broken `nix develop ./gen.nix` on both macOS
-systems and on ARM Linux. That is a fact about the *system*, not about the job,
+a job-wide `shellHook` would break `nix develop ./gen.nix` on ARM macOS
+and ARM Linux. That is a fact about the *system*, not about the job,
 and it is now declared as one: `NixJob`'s `perSystem` gives one system extra
 toolchain targets and a hook of its own, and the flake writes them at that
 system's `devShells` entry. A developer on Intel Linux therefore has the whole
@@ -245,21 +257,24 @@ is escaped. Interpolating the derivation is also what puts it in the closure, so
 it needs no `packages` entry — and should not have one, since a 32-bit `cc` on
 `PATH` would shadow the host one the untargeted `cargo test` needs.
 
-What that cost is worth naming. Those jobs used to measure a stock runner image,
-and now measure a pinned toolchain running *on* one. The distinction is smaller
-than it sounds — `dtolnay/rust-toolchain` and `setup-node` were already pinned to
-the same versions — but the system libraries a Nix build links against are Nix's,
-so "builds with the distro's toolchain" is no longer something CI says. Only
-the Windows jobs still say it.
+The Linux and ARM macOS jobs check a pinned Nix toolchain and its dependencies
+on the runner images. Intel macOS and the two Windows jobs install Node with
+`setup-node` and native Rust with `dtolnay/rust-toolchain` directly, exercising
+those tools against the runner's system libraries. Both paths use the shared
+Node and Rust version pins.
 
-What remains here is the Nixpkgs update command and removing stale generated
-directories, which waits on a recursive `rm` effect — the four directories this
-change orphaned had to be deleted by hand. Every canonical job now runs through a
+What remains here is the Nixpkgs update command and the cleanup contract for
+consumers whose `gen` is bare `fjs ci`. This repository's integrated clean
+already removes obsolete generated directories; the early migration's four
+orphaned directories were deleted by hand. Every canonical job now runs through a
 flake; only the packed-package check closing `node26` stays out of it, by design.
 
-### Problem
+### Original migration problem
 
-The CI environments are currently assembled by workflow-specific setup steps rather than
+The following problem explains how the migration started;
+they are historical, rather than the current flake inventory.
+
+The CI environments were assembled by workflow-specific setup steps rather than
 small, readable, declarative Nix environments. A broad design also risks coupling the
 first useful Node migration to unrelated dependency-updater, browser-testing, Rust, OCI,
 and configuration-migration work.
@@ -270,11 +285,14 @@ We need to prove the smallest independent path:
 current CI config -> generated per-job flake.nix -> direct CI execution
 ```
 
-### Proposal
+### Current proposal
 
-Use one official Nixpkgs snapshot to generate a separate self-contained flake for each
-selected CI job. Start only with Node 22, Node 24, and Node 26, and adopt each job
-independently after its existing commands pass through direct Nix.
+Keep one self-contained shared flake, using the accepted official Nixpkgs
+snapshot and Rust overlay plus the selected Bun archive. The initial migration
+adopted Node 22, Node 24 and Node 26 independently; current CI keeps only the
+selected Node and all surviving Nix-backed jobs enter the shared shell.
+The open work is the explicit Nixpkgs update command and consumer cleanup
+policy, rather than further historical-runtime migration.
 
 #### Scope
 
@@ -282,8 +300,8 @@ This task owns only:
 
 - selecting and pinning an exact Nixpkgs commit;
 - recording package versions provided by that snapshot;
-- declaring simple Nix environments for selected Node CI jobs;
-- generating and committing one `flake.nix` per job;
+- declaring the shared Nix environment's tools and supported systems;
+- generating and committing `gen.nix/flake.nix`;
 - validating and adopting those flakes in CI.
 
 This task does not own:
@@ -310,26 +328,25 @@ Add only the data needed now:
 - stable Nixpkgs update reference;
 - exact accepted Nixpkgs commit;
 - exact package versions copied from that snapshot where native CI needs them;
-- simple per-job system and package declarations.
+- the shared shell's system and package declaration.
 
-The runtime declarations are:
+The current declaration is `devNixJob` in `../dev/module.f.mjs`:
 
 ```text
-node22: aarch64-linux, nodejs_22
-node24: aarch64-linux, nodejs_24
-node26: aarch64-linux, nodejs_26
-deno:   aarch64-linux, deno
-wasm:   aarch64-linux, wasmtime, wasmer, and a rust-overlay toolchain
-bun:    aarch64-linux, bun overridden to an exact upstream release
-dev:    four systems, everything above at once, plus git
+dev: aarch64-linux, x86_64-linux, aarch64-darwin;
+     selected nodejs_<major>, deno, TypeScript/TSGO,
+     wasmtime, wasmer, rust-overlay toolchain, pinned Bun archive and git;
+     x86_64-linux adds its 32-bit target and linker through perSystem
 ```
 
-`bun` is `aarch64-linux, bun`, with the package overridden to an exact upstream
-release rather than taken from the snapshot.
+`NixJob` retains the systems, packages, override and per-system capabilities;
+its synthetic `id` is gone. `nixFlake(devNixJob)` generates the one shared
+flake. `flakePath`, `runPath`, `runText` and `lockUpdateText` take no selector.
 
-`wasm` is the one job whose declaration is not only package names: it also names a
-Rust release, the components it runs and the targets whose `rust-std` its shell must
-carry. Those go to the second input rather than to Nixpkgs, for the reason above.
+The shared declaration pins Bun's upstream archive for each of its three
+systems rather than taking the snapshot's release. It also names the Rust
+release, components and targets whose `rust-std` the WASM and platform checks
+need. Those go to the second input rather than to Nixpkgs, for the reason above.
 
 The Node attributes name a major version; Deno's names nothing. Where the attribute is
 unversioned the configured version is a claim the flake cannot restate, so only the job's
@@ -340,26 +357,26 @@ this TODO does not prescribe which non-Node tools a job needs.
 
 #### Generated environments
 
-Generate one self-contained file for each job:
+Generate one self-contained shared environment:
 
 ```text
 gen.nix/flake.nix
-gen.nix/node22/flake.nix
-gen.nix/node24/flake.nix
+gen.nix/flake.lock
+gen.nix/run
+gen.nix/lock-update.sh
 ```
 
 The shared shell is `gen.nix/` itself rather than a directory under it: it belongs
 to no single job, and `nix develop ./gen.nix` is the command a developer should have
-to remember. The two that do belong to one job are named after it.
+to remember. No generated subdirectory belongs to a historical Node job now.
 
 Each generated file should:
 
 - pin the exact Nixpkgs commit;
-- expose one `devShells.<system>.default` per system the declaration names — a
-  job with a flake of its own declares the one ARM Linux runner it has, and the
-  shared shell declares four. Past one, the shell body is written once as a function those
+- expose one `devShells.<system>.default` per system the declaration names — the
+  shared shell declares three. Past one, the shell body is written once as a function those
   entries call; the systems stay named bindings rather than a fold;
-- use `pkgs.mkShell` with that job's declared packages;
+- use `pkgs.mkShell` with the shared shell's declared packages;
 - be readable without inspecting the generator;
 - contain no job-selection logic;
 - contain no unrelated platform branches;
@@ -377,18 +394,19 @@ The minimal public contract is:
         pkgs = import nixpkgs { system = "aarch64-linux"; };
       in
       pkgs.mkShell {
-        packages = [ pkgs.nodejs_22 ];
+        packages = [ pkgs.nodejs_26 ];
       };
   };
 }
 ```
 
-The generator substitutes the job's packages. If another system is later required, emit
+This minimal example omits the other tools; the generator writes the shared
+declaration's packages. If another system is later required, emit
 another explicit `devShells.<system>.default` attribute rather than adding a loop or
 system-selection framework.
 
-Node 22, Node 24, Node 26 and `deno` remain separate because they use different
-runtimes and run different command sequences.
+Node, Deno and Bun keep distinct selected-version checks because their
+runtimes behave differently, while entering the same shared shell.
 
 One shell declares a `shellHook`, for one of its systems: the shared shell on
 `x86_64-linux`, pointing `cargo` at `pkgsi686Linux.stdenv.cc`. Node 22's, which
@@ -410,19 +428,23 @@ npm run ci-nix-update
 At a high level it:
 
 1. reads the latest commit from the configured official stable Nixpkgs reference;
-2. verifies that `nodejs_22`, `nodejs_24`, `nodejs_26` and `deno` exist;
-3. reads the package versions needed by the currently declared Nix jobs — for the
-   unversioned attributes this is the only way to learn them, and today all five were
-   read from the snapshot's package files by hand;
+2. verifies that the selected `nodejs_<major>`, `deno`, TypeScript/TSGO,
+   Wasmtime and Wasmer attributes exist, and that every declared system has
+   cached binaries under [update-versions](../update-versions.md)'s acceptance
+   checks;
+3. reads the package versions needed by the shared declaration — for
+   unversioned attributes this is the only way to learn them;
 4. updates the Nixpkgs commit and relevant exact versions in
-   `fjs/ci/config/module.f.js`;
-5. runs ordinary CI generation (`npm run gen`) to regenerate the declared
-   flakes' `flake.nix` and, through the generated `gen.nix/lock-update.sh` it
-   ends with, every `flake.lock` against the new commit — see "Generated
-   flake locks" below; this needs Nix;
+   `fjs/ci/config/module.f.js`; a Node update also synchronizes the exact
+   `engines.node` in `package.json` and root `package-lock.json` metadata and
+   `.node-version`;
+5. runs ordinary CI generation directly (`./dev.sh npm run gen`, without
+   standalone `gen:clean`) to regenerate the shared `flake.nix` and, through
+   the generated `gen.nix/lock-update.sh` it ends with, the shared `flake.lock`
+   against the new commit — see "Generated flake locks" below; this needs Nix;
 6. leaves all generated changes for review and commit.
 
-Do not require the generic dependency updater to run this flow. Package-manager manifests
+Do not require the generic dependency updater to run this flow. Other package-manager manifests
 and lockfiles are changed only when a separately scoped task explicitly requires them.
 Browser-runner and browser-package synchronization is outside this Node-only update flow.
 
@@ -432,8 +454,8 @@ A `flake.lock` is committed beside every `flake.nix`, but `fjs ci` never
 writes one — a lock's two facts on top of a pinned revision, `narHash` and
 `lastModified`, are only real Nix's to establish.
 
-So `fjs ci` also writes `gen.nix/lock-update.sh`, one `nix flake lock <path>`
-per generated directory, and this repository's `npm run gen` ends by running
+So `fjs ci` also writes `gen.nix/lock-update.sh`, one `nix flake lock`
+for the shared directory, and this repository's `npm run gen` ends by running
 it — after `gen:clean` has emptied `gen.nix/`, a `gen.` name — so the drift
 check compares the committed locks against ones regenerated from nothing. That makes `gen` need Nix. The
 earlier position — `gen` stays Nix-independent so it runs on Windows — is
@@ -457,15 +479,14 @@ has no short spelling — `--quiet` declares no short name, and the `-Q` that ex
 
 #### Generated `run` scripts
 
-Neither flag is written in a workflow step. Each job directory holds a generated
+Neither flag is written in a workflow step. The shared directory holds a generated
 `run` script beside its flake, and a step invokes that:
 
 ```sh
-sh ./gen.nix/node26/run npm run cov
+sh ./gen.nix/run npm run cov
 ```
 
-The script differs between jobs only in the path it names — written in, since the
-generator knows it — and `exec`s `nix develop … --command "$@"`, so the spelling
+The script names the shared path and `exec`s `nix develop … --command "$@"`, so the spelling
 and its flags have one home instead of fifteen, and a step reads as the command it
 runs. A generated script calls no external tool (§6), and this one has nothing that
 could. It carries no executable bit: nothing in `fjs/effects/node` can set a
@@ -486,7 +507,7 @@ Adopt jobs independently. Each migrated workflow uses:
 3. one step per command of that job's existing sequence, each entering the job's shell:
 
 ```sh
-sh ./gen.nix/<job>/run <command>
+sh ./gen.nix/run <command>
 ```
 
 A CI step runs one command (root [`AGENTS.md`](../../../AGENTS.md) §7), so the sequence
@@ -497,7 +518,7 @@ A step enters the shell only when it needs a tool the flake pins. `git` is the
 runner's, so the Node 26 drift check stays a plain step:
 
 ```sh
-sh ./gen.nix/node26/run npm run gen
+sh ./gen.nix/run npm run gen
 git add -A && git diff --cached --exit-code
 ```
 
@@ -560,6 +581,10 @@ an environment these generated flakes already declare. The one this repository h
 removed; `git log -- docker/` has it.
 
 ### Tasks
+
+Completed migration tasks below retain their original scope as history. The
+open update and cleanup tasks operate on the one current shared declaration;
+they do not retain or restore Node 22/24 support.
 
 - [x] Add the stable Nixpkgs reference and exact accepted commit to the current CI
       configuration, plus the exact Node versions that snapshot provides.

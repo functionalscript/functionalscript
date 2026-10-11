@@ -1,6 +1,6 @@
 /**
  * CI step builder for Bun: runs this repository's suite under the Bun its
- * generated flake provides.
+ * shared flake provides.
  *
  * That Bun is not the pinned snapshot's. Nixpkgs ships 1.3.13, and two of this
  * repository's proofs fail on it — `customSpeciesThatFailsIsReported` in
@@ -17,24 +17,20 @@
  */
 
 import { bun, bunSources } from '../config/module.f.js'
-import { nixInstall, nixShell, nixSteps, nixVersionStep } from '../nix/module.f.mjs'
+import { nixInstall, nixSteps, nixVersionStep } from '../nix/module.f.mjs'
 import { fromUndefined, unwrap as unwrapNullable } from '../../types/nullable/module.f.mjs'
-
-/** CI job id, and the directory name of its generated flake. */
-export const bunJobId = /** @type {const} */ ('bun')
 
 /**
  * The override the shared flake declares, over the systems it targets.
  *
  * It lives here rather than beside that flake because it is knowledge about
- * Bun: which archive each system takes, and why Intel macOS takes a baseline
- * build. `../dev/module.f.mjs` asks for it by name and stays free of all of
- * that.
+ * Bun: which archive each system takes. `../dev/module.f.mjs` asks for it
+ * by name and stays free of that knowledge.
  *
  * The archive name and the hash travel together out of `../config/module.f.js`.
  * Deriving the name from the system while looking the hash up separately is
- * exactly how the two would come apart — and the names are not derivable
- * anyway, since Intel macOS takes a baseline build the others do not.
+ * how the two could come apart; the table records the published archive for
+ * each supported system.
  *
  * @type {(systems: readonly string[]) => NixPin}
  */
@@ -80,8 +76,8 @@ export const bunPin = systems => ({
  */
 export const bunSteps = [
     nixInstall,
-    nixVersionStep(nixShell, 'bun --version', bun),
-    ...nixSteps(nixShell)([
+    nixVersionStep('bun --version', bun),
+    ...nixSteps([
         'bun install --frozen-lockfile',
         'bun test --coverage',
     ]),
