@@ -63,6 +63,14 @@ corpus should wait for that move, or be rebased over it.
    `named-imports`). The expectation would print the export object and not
    only `default`, and the comparison would read it; this widens
    `fjs/nanvm/expected` and the Rust comparison, and is the main design risk.
+   Decision 3 already names the two obstacles, and the order matters because
+   Node is the authority: first a second Node and interpreter route in
+   `fjs/nanvm/corpus/proof.mjs`, which reads only `default` today, comparing
+   whole export objects with an order-insensitive comparison (a module
+   namespace sorts its keys, the represented export object keeps declaration
+   order); only then the expectation and the Rust comparison, which must
+   compare export objects the same way; and the hand-written assertions go
+   last, once Node has been shown to agree with the interpreter on them.
 2. **Delete the hand-written throw checks the `THROWS` record covers.** Every
    expectation records whether its fixture throws, and the Rust test compares
    it. The hand-written `Thrown(_)` assertions for the `throws`, `nullish`,
@@ -76,9 +84,16 @@ corpus should wait for that move, or be rebased over it.
 3. **Compare thrown values that are plain data.** A value the language threw
    (`throw 7`) is data on both sides; an engine's own error (`TypeError`,
    `RangeError`) is not and stays uncompared. The expectation could record the
-   thrown data, which would retire the last hand-written throw check. Confirm
-   first what the interpreter's failure carries for each case; if it cannot
-   tell a thrown datum from an engine error reliably, drop this item.
+   thrown data, which would retire the last hand-written throw check, but only
+   with an independent oracle: `fjs/nanvm/corpus/proof.mjs` reduces every Node
+   exception to "throws" today, and the compiled fixture and the expected graph
+   share the literal emitter, so a shared bug that emitted `7` as another value
+   would pass. So the proof must first keep Node's thrown datum and compare it
+   with the interpreter's, and the datum needs its own JSON bytes beside the
+   graph, like a default. Confirm first what the interpreter's failure carries
+   for each case; if it cannot tell a thrown datum from an engine error
+   reliably, or the two extra layers cost more than the one check they
+   replace, drop this item.
 
 **Fixtures for what no fixture exercises (B).** Each is one fixture or a few,
 compared by the existing machinery with nothing retyped.
