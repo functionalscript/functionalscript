@@ -21,3 +21,18 @@ export type Command<O extends NodeOp> = {
 }
 
 export type Commands<O extends NodeOp> = readonly Command<O>[]
+
+/** Reference text owned by a CLI command, shared with documentation consumers. */
+export type CommandReference = {
+    readonly usage: string
+    readonly examples: readonly string[]
+    readonly note: string
+    readonly docs: string
+}
+
+/** Built-in commands must carry reference text at every table level. */
+export type DocumentedCommand<O extends NodeOp> = Omit<Command<O>, 'handler'> & CommandReference & {
+    readonly handler: Program<O> | DocumentedCommands<O>
+}
+
+export type DocumentedCommands<O extends NodeOp> = readonly DocumentedCommand<O>[]

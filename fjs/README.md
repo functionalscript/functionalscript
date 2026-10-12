@@ -21,6 +21,9 @@ or, once the package is installed globally:
 fjs <command> [args]
 ```
 
+Browse the [website CLI reference](https://functionalscript.functionalscript.workers.dev/cli/)
+for commands, aliases and copyable examples.
+
 ## Commands
 
 | Command | Description | Documentation |

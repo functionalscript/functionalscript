@@ -4,7 +4,7 @@
  * @module
  *
  * @import { NodeOp, NodeProgram } from './effects/node/types.ts'
- * @import { Commands } from './cli/types.ts'
+ * @import { DocumentedCommands } from './cli/types.ts'
  */
 
 import { compile } from './compiler/module.f.mjs'
@@ -17,26 +17,42 @@ import { casMcpServer } from './mcp/module.f.mjs'
 import { main as webMain } from './web/module.f.mjs'
 import { resultStep } from './effects/module.f.mjs'
 
-/** @type {Commands<NodeOp>} */
-const commands = [
+/** @type {DocumentedCommands<NodeOp>} */
+export const commands = [
     {
         names: ['test', 't'],
         description: 'Run the FunctionalScript test suite',
+        usage: 'fjs test',
+        examples: ['fjs test'],
+        note: 'Run from the directory whose proofs you want to test.',
+        docs: 'fjs/emergent_testing/README.md',
         handler: testMain,
     },
     {
         names: ['compile', 'c'],
         description: 'Compile a FunctionalScript module to JavaScript, or check every .f.js with no arguments',
+        usage: 'fjs compile\nfjs compile <input> <output>',
+        examples: ['fjs compile', "printf 'export default 42;\\n' > example.f.js\nfjs compile ./example.f.js ./example.json"],
+        note: 'With no arguments, check every .f.js under the current directory. The POSIX shell example writes example.f.js and example.json in the current directory. The output extension selects its format.',
+        docs: 'fjs/compiler/README.md',
         handler: compile,
     },
     {
         names: ['cas', 's'],
         description: 'Content-addressable storage operations',
+        usage: 'fjs cas <command> [args]',
+        examples: ['fjs help cas'],
+        note: 'Choose add, get or list below. Content is stored under ~/.cas/.',
+        docs: 'fjs/cas/README.md',
         handler: casCommands,
     },
     {
         names: ['mcp', 'm'],
         description: 'Run an MCP server over stdio exposing the CAS and Evo (subjects/heads) as tools',
+        usage: 'fjs mcp',
+        examples: ['npx functionalscript mcp'],
+        note: 'Start the stdio server from an MCP client. It waits for protocol input rather than printing an interactive prompt.',
+        docs: 'fjs/mcp/README.md',
         // `exitStep`, not `resultStep(…, () => pureOk(0))`: the server's
         // bootstrap can fail, and a continuation that ignores its result would
         // report a server that never started as a clean exit.
@@ -52,16 +68,28 @@ const commands = [
     {
         names: ['ci', 'i'],
         description: 'Generate the GitHub Actions CI and npm publishing workflows',
+        usage: 'fjs ci',
+        examples: ['fjs ci'],
+        note: 'Run in the project whose GitHub Actions workflows you want to generate. This writes .github/workflows/gen.ci.yml and gen.npm-publish.yml.',
+        docs: 'fjs/ci/README.md',
         handler: ciMain,
     },
     {
         names: ['web', 'w'],
         description: 'Serve a directory over HTTP',
+        usage: 'fjs web [root] [port]',
+        examples: ['fjs web', 'fjs web . 3000'],
+        note: 'Defaults to the current directory and port 8080 on loopback. Both arguments are positional.',
+        docs: 'fjs/web/README.md',
         handler: webMain,
     },
     {
         names: ['run', 'r'],
         description: 'Run the `main` program or command table a FunctionalScript module exports',
+        usage: 'fjs run <module> [args...]',
+        examples: ['fjs run ./fjs/website/module.f.mjs'],
+        note: 'The module must export main as a program or command table. This repository-checkout example generates the website locally.',
+        docs: 'fjs/README.md',
         // Both ways this can fail are the command line, not a defect: the
         // named file may not import, and a module that does import may export
         // no `main`. Neither deserves a stack trace, so both are reported on
