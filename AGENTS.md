@@ -17,32 +17,40 @@ the pinned tools directly on Intel macOS or bare Windows
 ([§2](#2-environment-and-running-tests)). The shell carries every tool below
 at the version CI uses.
 
-Run the full check set before submitting:
+**Check what the change touches, not the whole tree.** CI runs every suite on
+every platform ([§7](#7-continuous-integration)) and gates the merge; a session
+runs the checks its diff calls for and skips the rest. A scoped run takes
+seconds where the full suite takes minutes, and the full run is CI's job. Read
+the set off the files the change touches, before every commit and push:
 
-```bash
-tsc                      # type-check; the shell's compiler
-fjs test                 # or any equivalent runner
-npm start compile        # every authored .f.js still compiles; the working tree's compiler
-cargo test               # only if you touched Rust
-cargo clippy
-cargo fmt -- --check
-```
+- **Markdown only** — docs, `todo/`, the changelog: no check. No proof reads
+  them.
+- **Any `.mjs`, `.f.mjs`, `.f.js` or `.ts`**: `tsc` over the whole tree, the
+  shell's compiler — one project, one type-check — then the FunctionalScript
+  tests under the changed directory: `cd` into it and run `npm start test`. A
+  new or changed `module.f.mjs` or `module.f.js` also shows its proof coverage
+  at 100%, scoped the same way
+  ([CONTRIBUTING.md](./CONTRIBUTING.md#running-tests-under-a-subtree)). Several
+  changed directories take each one, or their nearest common parent.
+- **An authored `.f.js`, or `fjs/compiler`**: `npm start compile` too — every
+  authored `.f.js` still compiles under the working tree's compiler.
+- **Any `.rs`**, edited by hand or rewritten by `npm run gen`: `cargo test`,
+  `cargo clippy -- -D warnings` and `cargo fmt -- --check`, with
+  `cargo test -p <crate>` where one crate's tests are enough.
+- **A generator's source** — `fjs/dev/gen`, `fjs/ci`, `fjs/nanvm`,
+  `fjs/compiler/rust`: `npm run gen` first, then the rows its output matches.
 
-Before committing, pushing, or opening a behavior-changing PR, run the same
-Node suite CI runs:
-
-```bash
-node --test
-```
-
-It must complete with exit code 0 and an observed final pass/fail summary. A
-targeted suite, partial output, or interrupted run does not satisfy this check.
-After `npm run gen`, rerun `node --test` and every relevant check above
-before publishing. If a check's tool is unavailable, you are outside the shell:
-enter it, or report the PR as unready; do not treat an unavailable required
-check as passing. `tsc` in particular is not a dependency of this package, and
-`npx tsc` does not run the repository's compiler: with nothing to resolve in
-`node_modules` it fetches whatever the registry calls latest.
+The scope is the changed directory, not its importers: a change to a module
+half the tree imports is tested by CI's full run, which is what that run is
+for and why every pull request waits for it. A full local run — `node --test`,
+`npm run cov` — is a choice, never a requirement: take it when an answer CI
+would give later is worth having now. Each check must complete with exit code 0
+and an observed final summary; a partial or interrupted run is not a result. If
+a check's tool is unavailable, you are outside the shell: enter it, or report
+the PR as unready; do not treat an unavailable required check as passing. `tsc`
+in particular is not a dependency of this package, and `npx tsc` does not run
+the repository's compiler: with nothing to resolve in `node_modules` it fetches
+whatever the registry calls latest.
 
 Three principles outrank everything else. **Always prefer simplicity and quality
 over optimization** — never optimize prematurely, and never at the cost of
@@ -210,9 +218,11 @@ the shell and puts the shell's tools on its `PATH` before its first command,
 from [`.claude/hooks/session-start.sh`](./.claude/hooks/session-start.sh).
 
 Inside the shell, `npm ci` installs Node dependencies and `cargo fetch` the
-Rust ones. `npm test` runs `tsc` plus the FunctionalScript suite; `fjs test`
-and its Deno, Bun, and published-CLI equivalents run the same suite. To run
-only the tests under a subtree, `cd` into it and run the runner from there.
+Rust ones. `npm test` runs `tsc` plus the FunctionalScript suite,
+`npm start test` the suite alone, and the Deno, Bun, and published-CLI
+equivalents the same suite. Run from a directory, the runner tests that
+directory alone
+([CONTRIBUTING.md](./CONTRIBUTING.md#running-tests-under-a-subtree)).
 
 Every equivalent way to run the suite and the dependency-update procedure:
 [CONTRIBUTING.md](./CONTRIBUTING.md). How the shell is generated and why it
