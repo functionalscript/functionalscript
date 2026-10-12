@@ -38,11 +38,10 @@ push; these are its usual answers:
 - **A generator's source or input**: `npm run gen` first, then whatever its
   output calls for. CI fails on a stale `gen.*` file.
 
-The judgement is about what reads the file, not about its extension: a
-`Cargo.toml` is Rust, a `package-lock.json` is what `npm ci` checks, a README
-a Rust module includes as its documentation is a doctest. Where you cannot
-tell, run more rather than less — the full `node --test` is always a safe
-answer.
+Whoever writes a change knows what it touches, and that is the judgement asked
+for: what reads the file, not what its extension is — a `Cargo.toml` is Rust,
+a `package-lock.json` is what `npm ci` checks. A wrong guess costs one red CI
+run, which is what CI is there to catch.
 
 The scope is the changed directory, not its importers: a change to a module
 half the tree imports is tested by CI's full run, which is what that run is
