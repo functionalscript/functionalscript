@@ -164,6 +164,7 @@ import { chunkStrings, chunksMarked, chunkText, chunksText, keyword, literal, wi
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { error, mapOk, ok, okList, okThen } from '../../types/result/module.f.js'
 import { _entryChunks as entryChunks, _entryText as entryText, renderFunction } from './function_text/module.f.mjs'
+import { loopOf } from '../../edag/loop/module.f.mjs'
 import { _name as name, _binding as binding, _resolve as resolve } from './names/module.f.mjs'
 
 /** Names the parser refuses to bind: the keywords, the literal words, the reserved globals, and `then` as an export's name. */
@@ -514,7 +515,29 @@ const lazyOperand = (s, path, takes) => v => mapOk(
  *
  * @type {(s: _Scope, path: string) => (v: Operand) => Result<_Written, string>}
  */
-const block = (s, path) => v => {
+const block = (s, path) => v => okThen(
+    /** @type {(inner: _Scope) => Result<_Written, string>} */
+    (inner => okThen(
+        /** @type {(all: _Root) => Result<_Written, string>} */
+        (all => all.length === 1 && hoists(inner)(all[0]).length === 0
+            ? inPlace(s, path)(all[0])
+            : mapOk(
+                /** @type {(st: _Statement) => _Written} */
+                (st => ({ text: flat([['(()=>{'], st.text, ['})()']]), block: true })),
+            )(scope(inner, `${path}/block`, nothing)(all))),
+    )(scopeOperands(s.a, v))),
+)(lazyScope(s)(v))
+
+/**
+ * The scope a lazy operand's block is written in: its names its own and
+ * the names around it visible, its parameter the enclosing function's,
+ * and what the operand reaches eagerly as its own to hoist — or the
+ * refusal {@link block} states, a node under the operand that anything
+ * outside it reaches too.
+ *
+ * @type {(s: _Scope) => (v: Operand) => Result<_Scope, string>}
+ */
+const lazyScope = s => v => {
     /** @type {_Scope} */
     const inner = { a: s.a, allowUnusedCaptures: s.allowUnusedCaptures, outer: visible(s), names: [], frame: s.frame, param: s.param, eager: eagerFrom(s.a)(v), shared: sharedWithin(s.a)(v), self: s.self, binding: null }
     /** @type {(i: number) => boolean} */
@@ -536,15 +559,7 @@ const block = (s, path) => v => {
         && references(s.a, w) > referencesWithin(s.a, v, w)
         && reachableThrough(s.a, unnamed)(['#', w]).some(i => minting(s.a.nodes[i]) || s.a.nodes[i][0] === ','))
     if (outside !== undefined) { return error('a shared node reached from outside the lazy operand that establishes it') }
-    return okThen(
-        /** @type {(all: _Root) => Result<_Written, string>} */
-        (all => all.length === 1 && hoists(inner)(all[0]).length === 0
-            ? inPlace(s, path)(all[0])
-            : mapOk(
-                /** @type {(st: _Statement) => _Written} */
-                (st => ({ text: flat([['(()=>{'], st.text, ['})()']]), block: true })),
-            )(scope(inner, `${path}/block`, nothing)(all))),
-    )(scopeOperands(s.a, v))
+    return ok(inner)
 }
 
 /**
@@ -1145,10 +1160,21 @@ const hoists = s => {
         // every slot but a parameter and a read of this scope's own frame
         // takes a `const`, after what it reaches and before the function: a
         // capture is a name, and those two have one
-        const inner = (node[0] === '=>' ? node[2] : [])
+        /** @type {(ns: readonly _Hoisted[], slots: readonly Operand[]) => readonly _Hoisted[]} */
+        const slotHoists = (ns, slots) => slots
             .filter(x => x instanceof Array && !isName(s.a, x))
-            .reduce((ns, x) => own(/** @type {Ref} */(x)[1]) ? add(found(ns, /** @type {Ref} */(x)), ['entry', /** @type {Ref} */(x)[1]]) : found(ns, /** @type {Ref} */(x)),
-                [...operands(node), ...lazyOperands(node)].reduce(found, names))
+            .reduce((ns, x) => own(/** @type {Ref} */(x)[1]) ? add(found(ns, /** @type {Ref} */(x)), ['entry', /** @type {Ref} */(x)[1]]) : found(ns, /** @type {Ref} */(x)), ns)
+        // a loop written as `let` and `while` names its function nowhere:
+        // what takes a `const` before it is what its function's slots and
+        // its initial value reach, and the loop itself is the `let`,
+        // however many places hold it, as a function reading its `self` is
+        if (isLoopCall(s, i)) {
+            const [, callee, args] = /** @type {Extract<Node, readonly ['()', Operand, readonly ItemOperand[]]>} */ (node)
+            const slots = /** @type {Extract<Node, readonly ['=>', number, readonly Operand[], Operand]>} */ (s.a.nodes[/** @type {Ref} */ (callee)[1]])[2]
+            const inner = slotHoists([...slots, ...args.map(itemOperand)].reduce(found, names), slots)
+            return own(i) ? add(inner, ['entry', i]) : inner
+        }
+        const inner = slotHoists([...operands(node), ...lazyOperands(node)].reduce(found, names), node[0] === '=>' ? node[2] : [])
         // a base or a callee that takes a `const` takes it before the node
         // does, since a call is shared by its own `const`, which reads it
         const named = ((node[0] === '.' || node[0] === '?.') && basedHoisted(s.a, node[1])) || ((node[0] === '()' || node[0] === '?.()') && calleeHoisted(s.a, node[1]))
@@ -1359,14 +1385,18 @@ const hoistedText = (s, path) => h => h[0] === 'leaf'
  * operand reaches eagerly is written where it is read, as the graph
  * establishes it there.
  *
- * @type {(s0: _Scope, path: string, last: boolean, elsewhere: readonly number[]) => (before: _Statement, v: Operand) => Result<_Statement, string>}
+ * `returns` is what the last operand is introduced by where the scope's
+ * own `return` is not it ({@link scope}).
+ *
+ * @type {(s0: _Scope, path: string, last: boolean, elsewhere: readonly number[], returns?: readonly Chunk[] | null) => (before: _Statement, v: Operand) => Result<_Statement, string>}
  */
-const statement = (s0, path, last, elsewhere) => ({ text, names }, v) => {
+const statement = (s0, path, last, elsewhere, returns = null) => ({ text, names }, v) => {
     /** @type {(acc: Result<_Statement, string>, h: _Hoisted) => Result<_Statement, string>} */
     const emit = (acc, h) => {
         if (acc[0] === 'error') { return acc }
         const before = acc[1]
         const s = { ...s0, names: before.names, binding: hoistName(path, before.names.length) }
+        if (h[0] === 'entry' && isLoopCall(s, h[1])) { return loopStatement(s, path, before)(h[1]) }
         return mapOk(
             /** @type {(value: List<Chunk>) => _Statement} */
             (value => ({
@@ -1385,7 +1415,7 @@ const statement = (s0, path, last, elsewhere) => ({ text, names }, v) => {
     }
     if (!last && isName(s.a, v)) { return error('an anchor that is a name') }
     const thrown = last ? thrownValue(s.a, v) : null
-    const lead = thrown !== null ? [keyword('throw'), ' '] : last ? (path === 'module' ? [keyword('export'), ' ', keyword('default'), ' '] : [keyword('return'), ' ']) : [keyword('const'), ` ${binding(hoistName(path, before.names.length))}=`]
+    const lead = thrown !== null ? [keyword('throw'), ' '] : last ? (returns ?? (path === 'module' ? [keyword('export'), ' ', keyword('default'), ' '] : [keyword('return'), ' '])) : [keyword('const'), ` ${binding(hoistName(path, before.names.length))}=`]
     const written = thrown === null ? v : thrown[0]
     return mapOk(
         /** @type {(value: List<Chunk>) => _Statement} */
@@ -1411,15 +1441,108 @@ const statement = (s0, path, last, elsewhere) => ({ text, names }, v) => {
  * the other operands reach eagerly, which decides whether an anchor that
  * is a shared value survives reading back ({@link statement}).
  *
- * @type {(s: _Scope, path: string, start: _Statement) => (all: _Root) => Result<_Statement, string>}
+ * `returns` is what the last operand is introduced by in place of the
+ * scope's own: a loop's block assigns its variable, {@link loopStatement}.
+ *
+ * @type {(s: _Scope, path: string, start: _Statement, returns?: readonly Chunk[] | null) => (all: _Root) => Result<_Statement, string>}
  */
-const scope = (s, path, start) => all => {
+const scope = (s, path, start, returns = null) => all => {
     /** @type {(acc: Result<_Statement, string>, v: Operand, i: number) => Result<_Statement, string>} */
     const step = (acc, v, i) => acc[0] === 'error'
         ? acc
-        : statement(s, path, i === all.length - 1, all.flatMap((w, j) => j === i ? [] : eagerFrom(s.a)(w)))(acc[1], v)
+        : statement(s, path, i === all.length - 1, all.flatMap((w, j) => j === i ? [] : eagerFrom(s.a)(w)), returns)(acc[1], v)
     return all.reduce(step, ok(start))
 }
+
+/**
+ * Whether entry `i` is a loop the scope spells as `let` and `while`
+ * ([spec: loops](../../../spec/README.md#loops)): a call, with one plain
+ * argument, of a function written in place — reached by this one edge —
+ * that is the template `fjs/edag/loop` recognizes, with no assert before
+ * its condition, since a `const` before a `while` runs once where that
+ * assert runs every round, and a next value that is no `throw`, which no
+ * assignment spells; and the scope a function's body, since the language
+ * has no loop at the module level. Anything else keeps the spelling a
+ * function reading its `self` has, a `const` the call reads.
+ *
+ * @type {(s: _Scope, i: number) => boolean}
+ */
+const isLoopCall = (s, i) => {
+    const node = s.a.nodes[i]
+    if (s.param === '' || node[0] !== '()' || node[2].length !== 1) { return false }
+    const [, callee, [init]] = node
+    if (!(callee instanceof Array) || s.shared.includes(callee[1]) || (init instanceof Array && init[0] === '...')) { return false }
+    const loop = loopOf(s.a, callee[1])
+    return loop !== null && loop.before.length === 0 && thrownValue(s.a, loop.next) === null
+}
+
+/**
+ * A loop as the two statements the language reads it from: `let`, its
+ * variable and the initial value; `while`, the condition and the block of
+ * the asserts, as `const`s, and the assignment of the next value — the
+ * text that reads back as the template the loop is
+ * ([spec: loops](../../../spec/README.md#loops)). The variable is the
+ * loop's function's parameter, written as its name wherever the function
+ * reads it, and from the loop on the name of the call, a `const` of the
+ * scope.
+ *
+ * ```js
+ * let $1=0;while($1<$0){$1=$1+1;}return $1;
+ * ```
+ *
+ * The function's slots read as their names in the scope, every one of
+ * which the hoisting walk gave a `const` before the loop
+ * ({@link frameNames}); the block is written in the scope a lazy operand
+ * opens ({@link lazyScope}), the arm being one. Two shapes the template
+ * admits have no text here, and are refused rather than written as the
+ * recursion they would read back as: a condition that shares a value the
+ * block hoists, which a `const` before the `while` would establish once,
+ * and a function whose slots the text reads in another order than its
+ * frame holds them, which reads back as another frame — neither a shape
+ * the front end produces from a loop.
+ *
+ * @type {(s: _Scope, path: string, before: _Statement) => (i: number) => Result<_Statement, string>}
+ */
+const loopStatement = (s, path, before) => i => {
+    const [, callee, [init]] = /** @type {Extract<Node, readonly ['()', Operand, readonly ItemOperand[]]>} */ (s.a.nodes[i])
+    const f = /** @type {Ref} */ (callee)[1]
+    const [, , slots, body] = /** @type {Extract<Node, readonly ['=>', number, readonly Operand[], Operand]>} */ (s.a.nodes[f])
+    const { condition, arm, asserts, next } = assertNotNullish(loopOf(s.a, f), ['a loop statement of no loop', i])
+    const loopPath = `${path}/loop${before.names.length}`
+    const variable = name(`${loopPath}/arg0`)
+    return okThen(
+        /** @type {(names: readonly string[]) => Result<_Statement, string>} */
+        (names => {
+            const inner = bodyScope(s.a, loopPath, names, body, s.allowUnusedCaptures, null)
+            if (hoists(inner)(condition).length !== 0) { return error('a loop whose condition shares a value') }
+            return okThen(
+                /** @type {(parts: readonly [List<Chunk>, List<Chunk>, _Statement]) => Result<_Statement, string>} */
+                (([initial, cond, st]) => {
+                    const order = firstUse(names, flat([cond, st.text]))
+                    if (order.length !== names.length || order.some((x, j) => x !== j)) { return error('a loop reading its captures out of order') }
+                    return ok({
+                        text: flat([before.text, [keyword('let'), ` ${binding(variable)}=`], initial, [';', keyword('while'), '('], cond, ['){'], st.text, ['}']]),
+                        names: [...before.names, [['entry', i], variable]],
+                    })
+                }),
+            )(okList3(
+                operand(s, `${loopPath}/init`)(/** @type {Operand} */ (init)),
+                operand(inner, `${loopPath}/condition`)(condition),
+                okThen(
+                    /** @type {(block: _Scope) => Result<_Statement, string>} */
+                    (block => scope(block, `${loopPath}/block`, nothing, [variable, '='])([...asserts, next])),
+                )(lazyScope(inner)(arm)),
+            ))
+        }),
+    )(frameNames(s)(slots))
+}
+
+/**
+ * Three results as one, the first error of the three.
+ *
+ * @type {<A, B, C>(a: Result<A, string>, b: Result<B, string>, c: Result<C, string>) => Result<readonly [A, B, C], string>}
+ */
+const okList3 = (a, b, c) => a[0] === 'error' ? a : b[0] === 'error' ? b : c[0] === 'error' ? c : ok([a[1], b[1], c[1]])
 
 /** A scope that has written nothing yet. @type {_Statement} */
 const nothing = { text: null, names: [] }

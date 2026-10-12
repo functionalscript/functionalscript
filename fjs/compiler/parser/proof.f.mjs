@@ -245,6 +245,96 @@ export const proof = {
             assertEq(parseFromTokens(tokenizeString(source))[0], 'ok')
         },
     },
+    // A loop, `let r = init; while (c) { …; r = next; }`, is the fold's to
+    // shape as a guard is: the two statements are one entry, the call of a
+    // function of one parameter, the variable, whose body is the
+    // conditional of the condition, the block's call, and the variable —
+    // the block the body of a parameterless function, as a guard's arm is,
+    // ending in the call of the loop's function with the variable's last
+    // binding — and the variable names the entry from the loop on
+    // ([spec: loops](../../../spec/README.md#loops)).
+    loops: {
+        shape: () => {
+            const [tag, value] = parseFromTokens(tokenizeString('export default n => { let r = 0; while (r < n) { const d = [2]; r = r + d[0]; } return [r, r]; };'))
+            assert(tag === 'ok')
+            assertStructurallySame(value, [[], [['object', [[':', 'default', ['=>', 1, [
+                ['()', ['=>', 1, [['?:',
+                    ['<', ['arg', 0], ['fref', 0]],
+                    ['()', ['=>', 0, [['array', [2]], ['+', ['fref', 0], ['.', ['cref', 0], 0]], ['()', ['fref', 1], [['cref', 1]]]], [['arg', 0], ['self']]], []],
+                    ['arg', 0],
+                ]], [['arg', 0]]], [0]],
+                ['array', [['cref', 0], ['cref', 0]]],
+            ]]]]]]])
+            // a block assigning nothing continues with the variable as it is
+            const [tag2, value2] = parseFromTokens(tokenizeString('export default n => { let r = 0; while (r < n) { } return r; };'))
+            assert(tag2 === 'ok')
+            assertStructurallySame(value2, [[], [['object', [[':', 'default', ['=>', 1, [
+                ['()', ['=>', 1, [['?:',
+                    ['<', ['arg', 0], ['fref', 0]],
+                    ['()', ['=>', 0, [['()', ['fref', 0], [['fref', 1]]]], [['self'], ['arg', 0]]], []],
+                    ['arg', 0],
+                ]], [['arg', 0]]], [0]],
+                ['cref', 0],
+            ]]]]]]])
+            // a `const` after the loop is the next entry; the variable is a
+            // name a later function captures, as any `const` is
+            const [tag3, value3] = parseFromTokens(tokenizeString('export default () => { let r = 0; while (r) { r = 1; } const s = [r]; return () => [r, s]; };'))
+            assert(tag3 === 'ok')
+            assertStructurallySame(value3, [[], [['object', [[':', 'default', ['=>', 0, [
+                ['()', ['=>', 1, [['?:', ['arg', 0], ['()', ['=>', 0, [1, ['()', ['fref', 0], [['cref', 0]]]], [['self']]], []], ['arg', 0]]]], [0]],
+                ['array', [['cref', 0]]],
+                ['=>', 0, [['array', [['fref', 0], ['fref', 1]]]], [['cref', 0], ['cref', 1]]],
+            ]]]]]]])
+            // a nested function's own parameter shadows the variable, as in
+            // JavaScript, and reads as itself
+            assertEq(parseFromTokens(tokenizeString('export default n => { let r = 0; while (r < n) { const f = (r) => r; r = f(r); } return r; };'))[0], 'ok')
+            // the block's statements end as every statement does, at `;`
+            // or a newline, and so does the `let`
+            assertEq(parseFromTokens(tokenizeString('export default n => {\n    let r = 0\n    while (r < n) {\n        r = r + 1\n    }\n    return r\n};'))[0], 'ok')
+        },
+        refused: () => {
+            for (const [source, message, column] of /** @type {const} */ ([
+                // the two statements are one loop: neither stands alone
+                ['export default n => { let r = 0; return r; };', 'let without while', 23],
+                ['export default n => { let r = 0; const x = 1; while (r) { } return r; };', 'let without while', 23],
+                ['export default n => { while (n) { } return n; };', 'while without let', 23],
+                // the block rebinds the loop's variable and nothing else
+                ['export default n => { let r = 0; while (r < n) { n = 1; } return r; };', 'not the loop variable', 50],
+                ['export default n => { let r = 0; while (r < n) { const x = 1; x = 2; } return r; };', 'not the loop variable', 63],
+                // nor may it bind the variable's name, which JavaScript would
+                // read as the block's own binding
+                ['export default n => { let r = 0; while (r < n) { const r = 1; } return r; };', 'loop variable shadowed', 56],
+                // a function nested in the loop may not read the variable: its
+                // closure would see the last value where the capture holds the
+                // round's
+                ['export default n => { let r = 0; while (r < n) { const f = () => r; r = r + 1; } return r; };', 'loop variable captured', 66],
+                ['export default n => { let r = 0; while (f => r) { r = r + 1; } return r; };', 'loop variable captured', 46],
+                ['export default n => { let r = 0; while (r < n) { r = [() => r]; } return r; };', 'loop variable captured', 61],
+                // the variable is a name of the body as a `const` is
+                ['export default n => { let r = 0; while (r < n) { r = 1; } const r = 2; return r; };', 'duplicate id', 65],
+                ['export default n => { let n = 0; while (n) { n = 1; } return n; };', 'duplicate id', 27],
+                ['export default n => { const x = r; let r = 0; while (r) { r = 1; } return r; };', 'const not found', 33],
+                ['export default n => { let r = r; while (r) { r = 1; } return r; };', 'const not found', 31],
+                ['export default n => { let r = 0; while (x) { r = 1; } return r; };', 'const not found', 41],
+                ['export default n => { let if = 0; while (n) { } return n; };', 'reserved word', 27],
+                ['export default n => { let r = 0; while (r) { const if = 1; } return r; };', 'reserved word', 52],
+                ['export default n => { let r = 0; while (r) { Array = 1; } return r; };', 'reserved word', 46],
+                // a `let` or a block `const` of a name its initializer read
+                // from outside is refused as a body `const` is
+                ['export default r => () => { let r = r; while (r) { } return r; };', 'capture shadowed', 33],
+                ['export default n => { let r = 0; while (r) { const n = n; } return r; };', 'capture shadowed', 52],
+                // a statement on the line of one that ended without its `;`
+                ['export default n => { let r = 0 while (r) { r = 1; } return r; };', 'unexpected token', 33],
+                ['export default n => { let r = 0; while (r) { r = 1 const x = 1; } return r; };', 'unexpected token', 52],
+                ['export default n => { let r = 0; while (r) { const x = 1 r = x; } return r; };', 'unexpected token', 58],
+            ])) {
+                const result = parseFromTokens(tokenizeString(source))
+                assert(result[0] === 'error', source)
+                assertEq(result[1].message, message, source)
+                assertEq(result[1].metadata?.column, column, source)
+            }
+        },
+    },
     // The corpus that proved parity against the hand-written state machine,
     // kept as fixed expectations now that the state machine is gone.
     //

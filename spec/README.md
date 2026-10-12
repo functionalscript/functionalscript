@@ -66,14 +66,15 @@ or JSON ([output](#output)).
 | Containers | Dense arrays, object literals, shorthand members, constant and computed keys, trailing commas, array/call spread and object spread |
 | Expressions | Grouping; arithmetic, strict comparison, bitwise and lazy operators; `?:`, `!`, `typeof`, `instanceof Array`, `Number(...)` and `String(...)` |
 | Properties | Own-property reads, numeric computed keys through `Number(...)`, optional reads/calls and the enumerable `entry` helper |
-| Functions | Arrow functions, 0–16 fixed parameters, optional rest, closures, self recursion, body constants, terminating `if` guards, `return`, `throw`, ordinary and method calls |
+| Functions | Arrow functions, 0–16 fixed parameters, optional rest, closures, self recursion, body constants, terminating `if` guards, `let`/`while` loops over one variable, `return`, `throw`, ordinary and method calls |
 | Built-ins | Pure array, string and numeric member functions, including callbacks and function text ([member functions](#built-in-member-functions)) |
 | Compiler | JSON/DataJS evaluation; FunctionalScript, EDAG and Rust graph output; import linking and the authored `.f.js` check |
 
 The sections below give the restrictions and executor-specific limits for
 each feature. This overview records compiler support; optional chaining's
 required [language-design approval record](./todo/2335-optional-chaining.md#authorization-and-approval)
-remains open. TypeScript-only syntax, mutation, loops, classes, numeric
+remains open. TypeScript-only syntax, mutation beyond a loop's variable,
+loops beyond the one `let`/`while` form ([loops](#loops)), classes, numeric
 key literals and general forward references remain outside the implemented
 language.
 
@@ -2172,6 +2173,79 @@ are not supported yet. A newline before `=>` is refused.
   or a `throw` as the block opened at the operand (above), so the guarded
   body reads back as the same graph; the EDAG output carries the `?:`,
   and the Rust output prints it as it prints any conditional.
+
+### Loops
+
+```js
+export default n => {
+    let r = 1;
+    while (r < n) { r = r * 2; }
+    return r;
+};
+```
+
+- **`let x = init;` followed by `while (condition) { … }`** is a loop: two
+  statements of a block body, standing where a `const` may, that the
+  compiler reads as one. The `let` declares the loop's variable with its
+  initial value; the `while` runs its block while the condition is truthy,
+  tested as `?:` tests its condition, before each round; and from the loop
+  on the variable is a `const` of the body holding the value the last round
+  left. The block holds `const`s and assignments to the variable,
+  `x = value;`, each ended as every statement is; an assignment rebinds the
+  variable for the statements after it, in order, as JavaScript reads them,
+  and the block's end continues the loop with the variable's last binding
+  — a block assigning nothing continues with it unchanged. This is the one
+  form: one variable per loop, the `while` right after its `let`, no
+  `break`, `continue`, guard, `return`, `throw` or nested loop in the block,
+  no `let` anywhere else, and no loop at the module level — each a step of
+  a plan rather than a guarantee, additive on this one
+  ([`spec/todo/3220-let.md`](./todo/3220-let.md)). No `;` follows the
+  `}`, as none follows a guard's.
+
+- The loop is syntactic sugar and adds no node: `let r = init; while (c)
+  { s…; r = next; } rest` denotes `rest` with `r` the value of
+  `loop(init)`, where `loop` is the function `r => c ? (() => { s…;
+  return loop(next); })() : r` — the recursive spelling, its one parameter
+  the variable, the block the body of a parameterless function called
+  where it stands, as a guard's is, so that a `const` in it is the block's
+  alone and runs only when the condition holds. The graph is the template
+  `['=>', 1, slots, ['?:', c, ['()', ['self'], [next]], ['arg', 0]]]`
+  called with `init`, a comma around the call where the block holds a
+  `const` the next value does not reach — the same graph and hash a
+  function written that way has, and what the block reads from the body
+  around it is the function's frame, as any nested function's captures
+  are ([captures](#captures-and-self-recursion)).
+
+- **A loop runs in constant stack** in the FunctionalScript output and in
+  function text: each writer recognizes the template and spells it as a
+  loop again — the source writer as these two statements, and the
+  code-only text as `for(;;)` ([function text](../fjs/edag/function-text.md))
+  — where a function calling itself last is otherwise recursion, which
+  V8 runs out of stack on after some thousands of rounds, having no tail
+  calls. A hand-written function of the template's shape, `const loop = r
+  => c ? loop(next) : r;`, is the same graph and gets the same loop. The
+  Rust output and the EDAG interpreters still spell the call
+  ([tail-call-loop](../fjs/edag/todo/tail-call-loop.md)).
+
+- Three programs JavaScript admits are refused rather than read another
+  way, each because this reading and JavaScript's would differ:
+  - a function nested in the loop, in its condition or its block, that
+    reads the variable (`loop variable captured`): JavaScript's closure
+    sees the variable's last value, where the function's capture would
+    hold the value of the round it was made in;
+  - a `const` of the variable's name in the block (`loop variable
+    shadowed`): JavaScript's block binding, which the loop never sees,
+    where this reading would take it for the assignment the block's end
+    continues with;
+  - an assignment to any other name (`not the loop variable`), the one
+    name a block may rebind.
+
+  A `let` not followed by its `while`, or a `while` no `let` stands
+  before, is refused (`let without while`, `while without let`): the two
+  are one loop. The variable is a name of the body as a `const` is — bound
+  twice is `duplicate id`, read in its own initializer `const not found`
+  — and a function written after the loop reads it as the value it holds,
+  as it reads any `const`.
 
 ### Names and Identity
 

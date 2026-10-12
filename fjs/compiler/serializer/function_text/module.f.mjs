@@ -14,12 +14,14 @@
  *
  * @module
  * @import { Analysis, ItemOperand, Node, Operand, Step } from '../../../edag/analysis/types.ts'
+ * @import { Loop } from '../../../edag/loop/types.ts'
  * @import { _Scope } from './private.ts'
  * @import { Chunk } from '../../../text/marked/types.ts'
  */
 
 import { leafSerialize } from '../../../media/datajs/serializer/module.f.mjs'
 import { chunksText, keyword, literal } from '../../../text/marked/module.f.mjs'
+import { loopOf } from '../../../edag/loop/module.f.mjs'
 import { _name as name, _binding as binding, _resolve as resolve } from '../names/module.f.mjs'
 
 /** The name of one invocation-local memo cell. @type {(_s: _Scope, k: number) => string} */
@@ -137,16 +139,52 @@ const memoCell = (s, i, k) => {
     return `const ${binding(memoName(s, k))}=(()=>{let ${binding(value)},${binding(done)}=false;return()=>{if(!${done}){${value}=${entry(s, i)};${done}=true;}return ${value};};})();`
 }
 
+/** Whether a node is read as a name: a parameter, the rest array, a slot of the frame, `undefined`. @type {(node: Node) => boolean} */
+const isNameRead = node => ['arg', 'rest', 'frame', 'undefined'].includes(node[0])
+
+/** An assert as a statement: its value established and discarded. @type {(s: _Scope) => (v: Operand) => string} */
+const assert = s => v => `${operand(s, v)};`
+
+/**
+ * A loop's text, `r => COND ? self(NEXT) : r` as the loop it is
+ * (`fjs/edag/loop`): an arrow whose body is `for(;;)` over the parameter,
+ * the `?:` an `if` whose consequent ends in `continue`, so that the
+ * alternative is the fall-through `return`. V8 implements no tail calls,
+ * so the named function expression a self-call is otherwise spelled as
+ * would overflow the stack after some thousands of rounds, where this
+ * runs in constant stack. The memo cells are declared inside the loop, so
+ * each round starts fresh as each call did; the `self` name is gone, since
+ * no read of it survives. A body reading its rest array rebinds it empty
+ * each round, as a call of one argument leaves it.
+ *
+ * ```js
+ * ($0)=>{for(;;){if((($0)<(10))){$0=(($0)+(1));continue;}return $0;}}
+ * ```
+ *
+ * @type {(s: _Scope, list: string, rest: boolean, cells: string, loop: Loop) => string}
+ */
+const loopText = (s, list, rest, cells, { before, condition, asserts, next }) => {
+    const state = name(`${s.path}/arg0`)
+    const step = rest ? `[${state},...${name(`${s.path}/rest`)}]=[${operand(s, next)}]` : `${state}=${operand(s, next)}`
+    return `(${list})=>{for(;;){${cells}${before.map(assert(s)).join('')}if(${operand(s, condition)}){${asserts.map(assert(s)).join('')}${step};continue;}return ${state};}}`
+}
+
 /** One function's body has fresh memo cells and only its own parameters. @type {(a: Analysis, i: number, path: string, frame: readonly string[]) => string} */
 const lambda = (a, i, path, frame) => {
     const [, length, , body] = /** @type {Extract<Node, readonly ['=>', number, readonly Operand[], Operand]>} */ (a.nodes[i])
-    const shared = a.shared.filter(j => a.scope[j] === i)
+    // a name — a parameter, the rest array, a slot of the frame — is the
+    // same value at every read, so it takes no cell however many places
+    // read it
+    const shared = a.shared.filter(j => a.scope[j] === i && !isNameRead(a.nodes[j]))
     const s = { a, path, frame, shared }
     const fixed = Array.from({ length }, (_, k) => binding(name(`${path}/arg${k}`)))
-    const rest = a.nodes.some((n, j) => n[0] === 'rest' && a.scope[j] === i) ? [`...${binding(name(`${path}/rest`))}`] : []
+    const readsRest = a.nodes.some((n, j) => n[0] === 'rest' && a.scope[j] === i)
+    const rest = readsRest ? [`...${binding(name(`${path}/rest`))}`] : []
     const list = [...fixed, ...rest].join(',')
-    const value = operand(s, body)
     const cells = shared.map((j, k) => memoCell(s, j, k)).join('')
+    const loop = loopOf(a, i)
+    if (loop !== null) { return loopText(s, list, readsRest, cells, loop) }
+    const value = operand(s, body)
     // a body reading its own `self` is a named function expression, the
     // name the body's `self` reads, since an arrow function cannot name
     // itself; its body is always a block

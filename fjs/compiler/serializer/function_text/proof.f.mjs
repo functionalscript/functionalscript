@@ -26,6 +26,28 @@ export const proof = {
         assertEq(render(['=>', 1, [], ['()', ['self'], [['arg', 0]]]]), '(function $0($1){return ((0,($0))(($1)));})')
         assertEq(render(['=>', 0, [], ['=>', 0, [['self']], ['frame', 0]]]), '(function $0(){return (($1)=>(()=>($1)))(($0));})')
     },
+    // a loop, `r => COND ? self(NEXT) : r`, is an arrow over `for(;;)`: the
+    // `?:` an `if` ending in `continue`, the alternative the `return`, the
+    // memo cells and the asserts inside the loop, and no `self` name
+    loops: () => {
+        /** @type {(next: Exp) => Exp} */
+        const call = next => ['()', ['self'], [next]]
+        assertEq(render(['=>', 1, [], ['?:', ['<', ['arg', 0], 10], call(['+', ['arg', 0], 1]), ['arg', 0]]]),
+            '($0)=>{for(;;){if((($0)<(10))){$0=(($0)+(1));continue;}return $0;}}')
+        assertEq(render(['=>', 1, [], [',', [['[]', [1]], ['?:', true, [',', [['[]', [2]], call(0)]], ['arg', 0]]]]]),
+            '($0)=>{for(;;){([(1)]);if((true)){([(2)]);$0=(0);continue;}return $0;}}')
+        // a body reading its rest array rebinds it empty each round
+        assertEq(render(['=>', 1, [], ['?:', ['.', ['rest'], 'length'], call(['arg', 0]), ['arg', 0]]]),
+            '($0,...$1)=>{for(;;){if((($1)[("length")])){[$0,...$1]=[($0)];continue;}return $0;}}')
+        // a shared node is a memo cell of each round
+        const shared = /** @type {const} */ (['[]', [['arg', 0]]])
+        assertEq(render(['=>', 1, [], ['?:', ['.', shared, 0], call(['.', shared, 'length']), ['arg', 0]]]),
+            '($0)=>{for(;;){const $1=(()=>{let $2,$3=false;return()=>{if(!$3){$2=([($0)]);$3=true;}return $2;};})();if((($1())[(0)])){$0=(($1())[("length")]);continue;}return $0;}}')
+        // a frame slot reads as its name, as in any body, the slots
+        // numbered before the parameter
+        assertEq(render(['=>', 1, [['[]', []]], ['?:', ['frame', 0], call(['frame', 0]), ['arg', 0]]]),
+            '($1)=>{for(;;){if(($0)){$1=($0);continue;}return $1;}}')
+    },
     names: () => {
         const a = assertOk(analysis(['=>', 0, [], 1]))
         assertEq(resolve([_renderSymbolic(a, /** @type {readonly ['#', number]} */ (a.root)[1], 'test', [])]).join(''), '()=>(1)')
