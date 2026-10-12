@@ -144,7 +144,7 @@ export const jobTimeout = /** @type {const} */ (15)
 // `narHash` and `lastModified` — are for real Nix to fill in, by
 // `gen.nix/lock-update.sh`, rather than data kept here. See
 // `../nix/module.f.mjs`'s `lockUpdateText`.
-// https://channels.nixos.org/nixos-26.05/git-revision
+// https://channels.nixos.org/nixpkgs-26.05-darwin/git-revision
 export const nixpkgs = /** @type {const} */({
     owner: 'NixOS',
     repo: 'nixpkgs',
