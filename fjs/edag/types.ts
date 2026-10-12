@@ -259,7 +259,6 @@ export type Op1 = readonly[Op1Id, Exp]
 // Op2Ids
 
 export type Op2Id =
-    | 'is'
     | '===' | '!==' | '>' | '>=' | '<' | '<='
     | '*' | '/' | '%' | '**'
     | '&' | '|' | '^' | '<<' | '>>' | '>>>'

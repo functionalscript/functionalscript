@@ -1460,10 +1460,13 @@ const scope = (s, path, start, returns = null) => all => {
  * argument, of a function written in place — reached by this one edge —
  * that is the template `fjs/edag/loop` recognizes, with no assert before
  * its condition, since a `const` before a `while` runs once where that
- * assert runs every round, and a next value that is no `throw`, which no
- * assignment spells; and the scope a function's body, since the language
- * has no loop at the module level. Anything else keeps the spelling a
- * function reading its `self` has, a `const` the call reads.
+ * assert runs every round, a next value that is no `throw`, which no
+ * assignment spells, and no read of the rest array, which `let` and
+ * `while` bind nowhere — each round of the recursion is a call of one
+ * argument, so the array is empty from the second round on, and only the
+ * recursion keeps that; and the scope a function's body, since the
+ * language has no loop at the module level. Anything else keeps the
+ * spelling a function reading its `self` has, a `const` the call reads.
  *
  * @type {(s: _Scope, i: number) => boolean}
  */
@@ -1473,8 +1476,11 @@ const isLoopCall = (s, i) => {
     const [, callee, [init]] = node
     if (!(callee instanceof Array) || s.shared.includes(callee[1]) || (init instanceof Array && init[0] === '...')) { return false }
     const loop = loopOf(s.a, callee[1])
-    return loop !== null && loop.before.length === 0 && thrownValue(s.a, loop.next) === null
+    return loop !== null && loop.before.length === 0 && thrownValue(s.a, loop.next) === null && !readsRest(s.a, callee[1])
 }
+
+/** Whether the function that is entry `i` reads its rest array, in its own body's scope. @type {(a: Analysis, i: number) => boolean} */
+const readsRest = (a, i) => a.nodes.some((n, j) => n[0] === 'rest' && a.scope[j] === i)
 
 /**
  * A loop as the two statements the language reads it from: `let`, its

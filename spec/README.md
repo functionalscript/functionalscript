@@ -156,7 +156,10 @@ syntax or API.
 Function text renders code with captured values represented by slot names;
 it does not serialize those values or instantiate their frames. Instances
 of the same function template have the same text even when their captures differ.
-A body reading `self` is rendered as a named function expression. This text
+A body reading `self` is rendered as a named function expression — unless
+the function is a loop, `r => c ? self(next) : r`, which is rendered as the
+loop it is, an arrow over `for(;;)` ([loops](#loops),
+[function text](../fjs/edag/function-text.md)). This text
 need not be accepted by the FunctionalScript source parser: the total text
 renderer and the structural source serializer have separate contracts
 ([function text](../fjs/edag/function-text.md)). The Rust VM also answers

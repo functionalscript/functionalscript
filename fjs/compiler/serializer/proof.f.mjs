@@ -1111,6 +1111,11 @@ export const proof = {
             'export default ()=>{const $0=($1)=>true?$0(0):$1;return $0(0,1);};')
         writes(['=>', 0, [], ['()', loop([], true, call(0)), [['...', ['[]', [0]]]]]],
             'export default ()=>{const $0=($1)=>true?$0(0):$1;return $0(...[0]);};')
+        // a function reading its rest array keeps the recursion, which
+        // gives each round the empty array a call of one argument leaves;
+        // `let` and `while` bind no rest array
+        writes(['=>', 0, [], ['()', loop([], ['.', ['rest'], 'length'], call(0)), [0]]],
+            'export default ()=>{const $0=($1,...$2)=>$2.length?$0(0):$1;return $0(0);};')
         // the loop's three parts are written as any value is, each refusal
         // its own; a call of a primitive is a call
         refuses(['=>', 0, [], ['()', loop([], true, call(0)), [['+', 1]]]], 'a unary + node')

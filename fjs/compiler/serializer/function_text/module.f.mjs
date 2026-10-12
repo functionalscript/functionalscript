@@ -122,7 +122,6 @@ const entry = (s, i) => {
         case 'instanceof': { return `(${operand(s, n[1])} instanceof ${n[2]})` }
         case '+': case '-': { return n.length === 2 ? `(${n[0]} ${operand(s, n[1])})` : `(${operand(s, n[1])}${n[0]}${operand(s, n[2])})` }
         case '?:': { return `(${operand(s, n[1])}?${operand(s, n[2])}:${operand(s, n[3])})` }
-        case 'is': { return `(Object.is(${operand(s, n[1])},${operand(s, n[2])}))` }
         default: {
             // The remaining admitted body nodes are binary operations;
             // `args`, sharing a type union with rest/undefined, is module-only.

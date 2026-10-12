@@ -1476,15 +1476,15 @@ export const proof = {
                 assertEq(thrown.label, 'throw')
                 assertStructurallySame(thrown.children, [['value', ['a']]])
             },
-            // A sample across Op2's range, not all twenty-one tags: the
+            // A sample across Op2's range, not all twenty tags: the
             // dispatch is one membership test per group, so one tag from
-            // each syntactic corner — comparison, arithmetic, bitwise, and
-            // the two named rather than symbolic ones — is what could vary.
+            // each syntactic corner — comparison, arithmetic, bitwise — is
+            // what could vary.
             // The logical corner is not sampled here: `&&`, `||` and `??`
             // mark their right operand, and `lazyRightOperand` above covers
             // all three rather than one standing for them.
             op2: () => {
-                for (const tag of ['===', '*', '&', 'is']) {
+                for (const tag of ['===', '*', '&']) {
                     const shape = nodeShapeOf([tag, ['a'], ['b']], tag)
                     assertEq(shape.label, tag)
                     assertStructurallySame(shape.children, [['left', ['a']], ['right', ['b']]])
