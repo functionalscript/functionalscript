@@ -149,8 +149,10 @@ export const proof = {
         assertEq(JSON.stringify(toArray(arrayWrap([nullSerialize]))), '["[",["null","literal"],"]"]')
     },
     codec: () => {
-        const { serialize, stringify } = codec(plain)
+        const { serialize, stringify, marked } = codec(plain)
         assertEq(stringify(sort)({ b: [1, null], a: 'x' }), '{"a":"x","b":[#1,null]}')
         assertEq(JSON.stringify(toArray(serialize(sort)([true]))), '["[","true","]"]')
+        // the same walk as runs: the leaves with their kinds, the containers plain
+        assertEq(JSON.stringify(marked(sort)([true, 'x'])), '[["["],["true","literal"],[","],["\\"x\\"","string"],["]"]]')
     },
 }

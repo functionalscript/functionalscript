@@ -25,6 +25,7 @@ pub mod nested;
 pub mod not_a_function;
 pub mod nullish;
 pub mod number;
+pub mod number_limits;
 pub mod object;
 pub mod object_spread;
 pub mod operators;
@@ -34,6 +35,7 @@ pub mod property;
 pub mod recursion;
 pub mod rest;
 pub mod sharing;
+pub mod special_numbers;
 pub mod spread;
 pub mod string;
 pub mod throw;
@@ -70,6 +72,7 @@ pub const CASES: &[crate::Case] = &[
     crate::Case { name: "not_a_function", fixture: crate::fixtures::not_a_function::module::<Naive>, expected: not_a_function::module::<Naive>, json: not_a_function::JSON, throws: not_a_function::THROWS },
     crate::Case { name: "nullish", fixture: crate::fixtures::nullish::module::<Naive>, expected: nullish::module::<Naive>, json: nullish::JSON, throws: nullish::THROWS },
     crate::Case { name: "number", fixture: crate::fixtures::number::module::<Naive>, expected: number::module::<Naive>, json: number::JSON, throws: number::THROWS },
+    crate::Case { name: "number_limits", fixture: crate::fixtures::number_limits::module::<Naive>, expected: number_limits::module::<Naive>, json: number_limits::JSON, throws: number_limits::THROWS },
     crate::Case { name: "object", fixture: crate::fixtures::object::module::<Naive>, expected: object::module::<Naive>, json: object::JSON, throws: object::THROWS },
     crate::Case { name: "object_spread", fixture: crate::fixtures::object_spread::module::<Naive>, expected: object_spread::module::<Naive>, json: object_spread::JSON, throws: object_spread::THROWS },
     crate::Case { name: "operators", fixture: crate::fixtures::operators::module::<Naive>, expected: operators::module::<Naive>, json: operators::JSON, throws: operators::THROWS },
@@ -79,6 +82,7 @@ pub const CASES: &[crate::Case] = &[
     crate::Case { name: "recursion", fixture: crate::fixtures::recursion::module::<Naive>, expected: recursion::module::<Naive>, json: recursion::JSON, throws: recursion::THROWS },
     crate::Case { name: "rest", fixture: crate::fixtures::rest::module::<Naive>, expected: rest::module::<Naive>, json: rest::JSON, throws: rest::THROWS },
     crate::Case { name: "sharing", fixture: crate::fixtures::sharing::module::<Naive>, expected: sharing::module::<Naive>, json: sharing::JSON, throws: sharing::THROWS },
+    crate::Case { name: "special_numbers", fixture: crate::fixtures::special_numbers::module::<Naive>, expected: special_numbers::module::<Naive>, json: special_numbers::JSON, throws: special_numbers::THROWS },
     crate::Case { name: "spread", fixture: crate::fixtures::spread::module::<Naive>, expected: spread::module::<Naive>, json: spread::JSON, throws: spread::THROWS },
     crate::Case { name: "string", fixture: crate::fixtures::string::module::<Naive>, expected: string::module::<Naive>, json: string::JSON, throws: string::THROWS },
     crate::Case { name: "throw", fixture: crate::fixtures::throw::module::<Naive>, expected: throw::module::<Naive>, json: throw::JSON, throws: throw::THROWS },

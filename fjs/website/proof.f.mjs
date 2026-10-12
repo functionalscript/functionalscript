@@ -112,6 +112,69 @@ export const proof = {
             assert(code !== 0)
         },
     },
+    /**
+     * **rustdoc's output is published under `cargo.doc/` when `cargo doc` was
+     * run**, with an index page of ours. Each documented crate's directory
+     * links its reference, and the directory above it links the index.
+     */
+    cargoDoc: {
+        published: () => {
+            const { root, output } = generate({
+                'Cargo.toml': file('[workspace]'),
+                nanvm: {
+                    lib: { 'Cargo.toml': file('[package]') },
+                    other: { 'Cargo.toml': file('[package]') },
+                },
+                target: { doc: {
+                    'crates.js': file('crates'),
+                    'static.files': { 'main.css': file('css') },
+                    nanvm_lib: { 'index.html': file('crate'), vm: { 'index.html': file('module') } },
+                } },
+            })
+            const cargoDoc = /** @type {Dir} */ (root['cargo.doc'])
+            assertEq(textOf(cargoDoc['crates.js'], 'crates.js'), 'crates')
+            assertEq(textOf(/** @type {Dir} */ (cargoDoc['static.files'])['main.css'], 'main.css'), 'css')
+            assertEq(textOf(/** @type {Dir} */ (/** @type {Dir} */ (cargoDoc.nanvm_lib).vm)['index.html'], 'a module page'), 'module')
+            assert(pageAt(root, ['cargo.doc']).includes('<a href="/cargo.doc/nanvm_lib/index.html">nanvm_lib</a>'), pageAt(root, ['cargo.doc']))
+            assert(pageAt(root, ['nanvm', 'lib']).includes('<a href="/cargo.doc/nanvm_lib/index.html">API documentation</a>'), pageAt(root, ['nanvm', 'lib']))
+            assert(pageAt(root, ['nanvm']).includes('<a href="/cargo.doc/index.html">Rust API documentation</a>'), pageAt(root, ['nanvm']))
+            // A crate rustdoc did not document is not linked, and neither is
+            // the workspace's own `Cargo.toml`, nor the root, whose
+            // subdirectory `nanvm` is not a crate.
+            assert(!pageAt(root, ['nanvm', 'other']).includes('API documentation'), pageAt(root, ['nanvm', 'other']))
+            assert(!pageAt(root, []).includes('API documentation'), pageAt(root, []))
+            assert(output.includes('rust crates: 1'), output)
+        },
+        // Every build writes the site's bars and their stylesheet for
+        // `cargo doc` to put on rustdoc's pages, whether or not it ran.
+        rustdocBars: () => {
+            const { root } = generate({ 'funding.json': file('{"funding":{"channels":[{"description":"Support","address":"https://example.com/"}]}}') })
+            assert(textOf(root['_rustdoc-header.html'], 'the header').startsWith('<header>'))
+            assert(textOf(root['_rustdoc-footer.html'], 'the footer').includes('<a href="https://example.com/">Support'))
+            assert(textOf(root['_rustdoc.css'], 'the stylesheet').includes('body.rustdoc > main'))
+        },
+        // Without `cargo doc`, nothing is written and nothing is linked.
+        absent: () => {
+            const { root, output } = generate({ nanvm: { lib: { 'Cargo.toml': file('[package]') } } })
+            assertEq(root['cargo.doc'], undefined)
+            assert(!pageAt(root, ['nanvm', 'lib']).includes('API documentation'), pageAt(root, ['nanvm', 'lib']))
+            assert(!pageAt(root, ['nanvm']).includes('API documentation'), pageAt(root, ['nanvm']))
+            assert(!output.includes('rust crates'), output)
+        },
+        // The copy is generated output: the next build does not list it.
+        repeatBuild: () => {
+            const first = generate({ target: { doc: { a: { 'index.html': file('a') } } } })
+            const second = generate(first.root)
+            assertEq(pageAt(second.root, []), pageAt(first.root, []))
+            assert(!pageAt(second.root, []).includes('cargo.doc'), pageAt(second.root, []))
+        },
+        // A `target/doc` that cannot be read is a failed build, not one that
+        // quietly publishes no reference.
+        unreadable: () => {
+            const [, code] = run({ target: { doc: file('not a directory') } })
+            assert(code !== 0)
+        },
+    },
     main: () => {
         assertNotNullish(main(defaultNodeProgramOptions), 'expected a program effect')
     },
