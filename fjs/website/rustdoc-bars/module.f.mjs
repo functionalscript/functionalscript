@@ -14,7 +14,7 @@
  * npm run website
  * ```
  *
- * It reads the same {@link readBuild} the pages are built from — a preview's
+ * It reads the same {@link _readBuild} the pages are built from — a preview's
  * branch and commit, and the funding channels — and walks nothing, so it takes
  * milliseconds where the generator takes seconds.
  *
@@ -29,7 +29,7 @@ import { step } from '../../effects/module.f.mjs'
 import { exitStep, writeUtf8File } from '../../effects/node/module.f.mjs'
 import { rustdocFooter, rustdocFooterPath, rustdocHeader, rustdocHeaderPath, rustdocStylesheetPath } from '../cargo-doc/module.f.mjs'
 import { rustdocStylesheet } from '../style/module.f.mjs'
-import { readBuild } from '../module.f.mjs'
+import { _readBuild } from '../module.f.mjs'
 
 /**
  * The three files, written for `build`.
@@ -43,4 +43,4 @@ export const writeRustdocBars = build => {
 }
 
 /** @type {(options: NodeProgramOptions) => Effect<Access | ReadFile | Rm | Write | WriteBytes | WriteFile, 0, number>} */
-export const main = ({ env }) => exitStep(step(readBuild(env), writeRustdocBars))
+export const main = ({ env }) => exitStep(step(_readBuild(env), writeRustdocBars))

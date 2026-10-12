@@ -772,7 +772,7 @@ const writePages = build => tree => crates => proofs => demos => {
  *
  * @type {(env: Env) => string | null}
  */
-export const commitOf = env => {
+const commitOf = env => {
     const value = env.WORKERS_CI_COMMIT_SHA
     if (value === undefined) { return null }
     const units = value.split('').map(c => c.charCodeAt(0))
@@ -793,7 +793,7 @@ export const commitOf = env => {
  *
  * @type {(env: Env) => string | null}
  */
-export const branchOf = env => {
+const branchOf = env => {
     const value = env.WORKERS_CI_BRANCH
     return value === undefined || value === '' ? null : value
 }
@@ -844,9 +844,13 @@ const readFunding = step(fundingFound, found =>
  * What a build knows about itself: the commit and the branch the environment
  * names, and the funding channels.
  *
+ * Exported for [`./rustdoc-bars`](./rustdoc-bars/module.f.mjs), which writes
+ * the bars from the same build the pages get; `_` because that is linkage,
+ * not API.
+ *
  * @type {(env: Env) => Effect<Access | ReadFile, Build, IoChannel>}
  */
-export const readBuild = env => mapStep(readFunding, funding => ({ commit: commitOf(env), branch: branchOf(env), funding }))
+export const _readBuild = env => mapStep(readFunding, funding => ({ commit: commitOf(env), branch: branchOf(env), funding }))
 
 /**
  * The whole build: the walk, then everything written from it.
