@@ -32,13 +32,18 @@ the set off the files the change touches, before every commit and push:
   at 100%, scoped the same way
   ([CONTRIBUTING.md](./CONTRIBUTING.md#running-tests-under-a-subtree)). Several
   changed directories take each one, or their nearest common parent.
-- **An authored `.f.js`, or `fjs/compiler`**: `npm start compile` too — every
-  authored `.f.js` still compiles under the working tree's compiler.
-- **Any `.rs`**, edited by hand or rewritten by `npm run gen`: `cargo test`,
-  `cargo clippy -- -D warnings` and `cargo fmt -- --check`, with
-  `cargo test -p <crate>` where one crate's tests are enough.
-- **A generator's source** — `fjs/dev/gen`, `fjs/ci`, `fjs/nanvm`,
-  `fjs/compiler/rust`: `npm run gen` first, then the rows its output matches.
+- **An authored `.f.js`, or `fjs/compiler`**: `npm start compile` too, from
+  the repository root — every authored `.f.js` still compiles under the
+  working tree's compiler. Run from a directory, it checks that directory
+  alone, like the runner, which is not what this row is for.
+- **Any `.rs`, `Cargo.toml`, `Cargo.lock` or `.cargo/` file**, edited by hand
+  or rewritten by `npm run gen`: `cargo test`, `cargo clippy -- -D warnings`
+  and `cargo fmt -- --check`, with `cargo test -p <crate>` where one crate's
+  tests are enough.
+- **A generator, or an input one reads** — the programs
+  [`fjs/dev/gen/module.f.mjs`](./fjs/dev/gen/module.f.mjs) lists, and the
+  source and data each reads: `npm run gen` first, then the rows its output
+  matches. CI fails on a `gen.*` file left stale.
 
 The scope is the changed directory, not its importers: a change to a module
 half the tree imports is tested by CI's full run, which is what that run is
