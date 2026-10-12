@@ -144,6 +144,87 @@ contract and migration strategy.
 
 #### Current leaf migration fixed point
 
+Measured at `8c9e264f`, the head of
+[#2836](https://github.com/functionalscript/functionalscript/pull/2836), the
+converting guide, whose rewrites took `Number.isFinite` and `Math.min` out of
+`website/prs/load` and `Number.isNaN` out of `media/rust`. A leaf is as the
+[`5dcd94b` audit](#leaf-migration-fixed-point-at-5dcd94b-historical) defines
+it, and the embedded-proof fixture is reported separately again. Rediscovery
+finds the eleven leaves of the previous table and one more,
+`website/cli/search`, a module added since it. No leaf is accepted.
+
+Where the earlier tables record each leaf's **first** refusal, this one
+records **every** blocker: each construct the compiler refuses, with the
+function it stands in. The list was checked by replacing the listed
+constructs, and only them, with accepted stand-ins on a copy of each leaf,
+which the compiler then accepted whole; so a construct not in a row is one
+the compiler takes. Two things the check turned up that reading alone had not:
+the compiler's refusals are not reported in source order — a grammar
+refusal (`unexpected token`) comes before a parameter-list or name refusal
+later in the pipeline, whatever their lines — and a property read of a name a
+built-in prototype gives, `acc.sub` in `git/config`, is refused as a
+prototype name (`prohibited property name`) although the object owns it;
+[CONVERTING.md §1](../doc/CONVERTING.md#1-computed-keys) already has that
+rewrite.
+
+The last column names what takes the blocker out: a rule
+[`doc/CONVERTING.md`](../doc/CONVERTING.md) has, a feature of the
+[roadmap](../spec/todo/README.md) the module waits for, or nothing yet — a
+construct with no admitted rewrite and no planned feature, which holds the
+module as `.f.mjs` until one is proposed.
+
+| Leaf file | Blockers | Rule or feature |
+| --- | --- | --- |
+| `ci/package/module.f.mjs` | `JSON.stringify`, twice: `literal`, and the `tsconfig.json` line of `declarationCommands` | None: `JSON` is a built-in the language lacks ([built-in](../spec/todo/2360-built-in.md)); the repository's serializer, `fjs/media/json/serializer`, is itself `.f.mjs` |
+| `git/config/module.f.mjs` | Destructuring at six sites: `const { sub, after }` in `trySub`, `const [next, entry]` in `lineStep`, `const [, list]` in `tryEntries`, and the parameters of `lineStep`, `valueAt` and `extensionAt`; `toLowerCase` at five: two in `tryInt`, `isBoolean`, `tryHeader`, `tryLine`; `BigInt(number)` at three, all in `digitValue`; the read `acc.sub` at two in `subStep`, `sub` being a `String.prototype` name | Destructuring: [destructuring](../spec/todo/2450-destructuring.md). `toLowerCase`: a prohibited member function, no rule. `BigInt(number)`: none. `acc.sub`: [CONVERTING.md §1](../doc/CONVERTING.md#1-computed-keys), `entry(acc, "sub")`, or a rename of the private `_SubState` field |
+| `media/rust/module.f.mjs` | `switch` in `character`; `Array(n)` and `.keys()` in `utf16Units`; `let`, `while`, reassignment, `if` … `else` and `Math.floor` in `exponentOf`; `Object.is`, `Math.abs` and `BigInt(number)` at three in `bitsOf`; `toLowerCase` in `snakeCase`; four forward references to a later `const`: `utf16Literal` to `utf16Units`, `f64Bits` to `bitsOf`, `u64Words` to `u64WordItems` and that to `words` | `switch`, `if` … `else`: [`if`](../spec/todo/README.md#32-priority-2)'s follow-ups, or `?:`. `let`, `while`: [let](../spec/todo/3220-let.md), `while`. Forward references: [forward-references](../spec/todo/3140-forward-references.md), or declaration order. `Math.floor`, `Math.abs`, `Object.is`: helpers of [CONVERTING.md §5](../doc/CONVERTING.md#5-mathmin-and-mathmax)'s kind, not written yet. `Array(n).keys()`: none. `BigInt(number)`, `toLowerCase`: none |
+| `nanvm/methods/module.f.mjs` | Destructured callback parameters at three: `pairs` and `absent` in `rows`, and `table`; `Object.values` in `rows` | Destructuring: as above. `Object.values`: none — the language enumerates no keys |
+| `types/list/module.f.mjs` | `let`, `while` and reassignment in `trampoline`, `next`, `last`, `tryFold` and `iterable`; `for` … `of` in `tryFold`; `continue`, `else if`, the destructuring assignment `[head, tail] = …` and the `in` operator in `next`, `in` again in `lengthList`; the generator method `*[Symbol.iterator]()` with `yield` in `iterable`; `const { from } = Array` and `Array.from` in `toArray`; destructured parameters at eight: `flatStep`, `mapStep`, `intersperse`, `mergeAdjacent`, `filterStep`, `takeWhileStep`, `takeStep`, `tryFold`; destructured `const`s at three: `filterMapStep`, `scanStep`, `equal`; nine forward references, each `…Step` to the export after it: `flat`, `map`, `filter`, `filterMap`, `takeWhile`, `take`, `dropWhile`, `drop`, `scan` | `let`, `while`, `for`, destructuring, forward references: as above. `in`: [stays out by design](../spec/todo/2346-in-operator.md), so a rewrite is needed. The iterator protocol, `Symbol` and `Array.from`: host interop with no rule or feature |
+| `types/map/module.f.mjs` | `new Map(…)` in `mapSet` and `mapDelete`; a destructured callback parameter in `mapDelete` | None: `Map` is not a language type ([object-identity](../spec/todo/object-identity.md)) |
+| `types/object/structurally_same/module.f.mjs` | `const { entries, is } = Object`: destructuring, `Object.entries` and `Object.is`; `new Map(…)` and a destructured callback parameter in `structurallySame` | `Object.entries`, `Map`: none — the module's purpose is the key enumeration the language has not. `Object.is`: a helper, as in `media/rust` |
+| `types/ts/module.f.mjs` | The default parameter of `printer`; a destructured callback parameter in `struct`; `JSON.stringify` in `struct` and `primitive`; `switch` in `primitive` | Default parameter: no rule yet (`mut === undefined` is the value-preserving spelling, since a missing argument is `undefined`). `switch`: `?:`. `JSON.stringify`: none |
+| `website/browser-source/module.f.mjs` | The lexer `read`: `let`, `while`, `break`, `continue`, `+=` and `if` bodies that do not terminate. Nothing else: with `read` replaced, the rest of the module compiles | [let](../spec/todo/3220-let.md), `while`; or `read` as a recursion, which is a change of shape, not a rewrite |
+| `website/cli/search/module.f.mjs` | `toLowerCase`, twice in `matches`, its one function | None: a prohibited member function ([prototype names](../fjs/js/prototype/README.md)), and an ASCII fold would change the value for other text |
+| `website/demo/code/module.f.mjs` | The default parameter of `codeBlock`, its one blocker: `{ [codeMarker]: '' }` is accepted since #2828 | Default parameter: as in `types/ts` |
+| `website/prs/load/module.f.mjs` | Destructured parameters at four, its only blockers: `refusalDecision`, `refusalNote`, `checkFailure`, `finishedNote` | Destructuring: as above, or reading the properties by name |
+
+The separate fixture `emergent_testing/example.f.mjs` is refused for three
+block bodies whose only statement is a guard — `checkMul`, `addTest` and the
+closure in `generateSqrTests` — which the compiler reads to their end without
+a `return`; `return undefined` after each guard compiles, and
+`emergent_testing/todo/todo-property.md` already plans to change the fixture.
+
+Read across the rows: destructuring holds seven of the twelve leaves and is
+the only blocker of `website/prs/load`; a default parameter is the only one
+of `website/demo/code`; `toLowerCase`, the only one of `website/cli/search`;
+`JSON.stringify`, the only one of `ci/package`. Every other leaf has at least
+one construct with no rule and no feature — `Map`, key enumeration, the
+iterator protocol, `BigInt(number)` — and stays whatever the guide gains.
+
+To recheck the current table without writing generated output, run this from
+the repository root inside `./dev.sh node --input-type=module`; it prints the
+first refusal the pipeline reports, which the text above explains is not
+always the first in the file:
+
+```js
+import { resolve as absolute } from 'node:path';
+import { resolve } from './fjs/compiler/edag/module.f.mjs';
+import { runNodeEffect } from './fjs/effects/node/module.mjs';
+
+const leaves = [
+  'ci/package', 'git/config', 'media/rust', 'nanvm/methods', 'types/list',
+  'types/map', 'types/object/structurally_same', 'types/ts',
+  'website/browser-source', 'website/cli/search', 'website/demo/code',
+  'website/prs/load',
+];
+for (const leaf of leaves) {
+  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
+  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
+}
+```
+
+#### Leaf migration fixed point at `6e392d4f2` (historical)
+
 Measured at `6e392d4f2`, a commit of
 [#2823](https://github.com/functionalscript/functionalscript/pull/2823), the
 compiler that accepts untagged template literals, which the audit below had
