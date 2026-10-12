@@ -6,7 +6,8 @@
 ## Decision
 
 Prohibit `Object.hasOwn` in FunctionalScript source. Do not change that standard
-operation's meaning to enumerate entries. The `in` operator remains prohibited,
+operation's meaning to enumerate entries. The `in` operator remains prohibited
+([the `in` decision](./2346-in-operator.md)),
 and the `obj.hasOwnProperty(...)` method is not an alternate admitted spelling.
 
 This replaces the earlier proposal to recognize `Object.hasOwn` directly.

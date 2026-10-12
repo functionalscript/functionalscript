@@ -44,7 +44,7 @@ import { emptyState, nodeProgramOptions, virtual } from '../effects/node/virtual
 import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { error, ok, unwrap } from '../types/result/module.f.js'
 import { textDemo, refusal } from '../website/demo/module.f.mjs'
-import { render } from '../website/demo/highlight/module.f.mjs'
+import { highlight, render } from '../website/demo/highlight/module.f.mjs'
 import { examples } from './examples/module.f.js'
 import { _outputMarked, compile } from './module.f.mjs'
 
@@ -103,6 +103,7 @@ export const demo = textDemo({
     label: 'Source',
     init: examples[0][1],
     examples,
+    highlight,
 })(text => outputs.map(([label, outputFileName]) => {
     const [kind, value] = _compiled(text)(outputFileName)
     return ['section', ['h3', label], kind === 'ok' ? codeBlock(toText(value), `Copy ${label} output`, render(value)) : refusal(value)]

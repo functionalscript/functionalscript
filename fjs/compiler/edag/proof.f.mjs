@@ -1748,7 +1748,9 @@ export const proof = {
             hex: () => {
                 const [, source] = assertNotNullish(examples.find(([name]) => name === 'Primitives'))
                 assert(source.includes('0xFF') && source.includes('0x10n'), source)
-                const html = htmlToString(demo.view(source))
+                // the drawing, which follows the field: the field's coloured
+                // copy of the source spells the hex digits
+                const html = htmlToString(demo.view(source)).split('</textarea>')[1]
                 assert(html.includes('>255<') && html.includes('>16n<'), html)
                 assert(!html.includes('>0xFF<') && !html.includes('>0x10n<'), html)
             },

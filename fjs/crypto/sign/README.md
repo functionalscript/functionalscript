@@ -125,6 +125,36 @@ scalars is modulo `q`.
 
 The signature is valid if `v = r`.
 
+### The message exchange demo
+
+[`demo.f.mjs`](./demo.f.mjs) starts from RFC 6979 A.2.5 and shows Alice
+signing, Eve intercepting and Bob verifying. The diagram separates the packet
+route through Eve from Bob’s trust in Alice’s public key. One explanation
+beneath Bob shows why a substituted key cannot authenticate Alice. It reflows vertically on narrow screens.
+Typing updates Alice's local
+signing output; **Send message** transmits a public snapshot to Eve.
+**Forward to Bob** commits Eve's outgoing packet and verifies it on delivery.
+Neither action transmits a private key or the deterministic nonce.
+
+Alice's draft, Eve's original packet and edits, and Bob's last delivery are
+independent immutable values. Switching attacks starts from the intercepted
+packet; Reset Eve restores it in Modify message mode, ready to forward
+unchanged. Another Send replaces Eve's packet without changing Bob's
+last delivery. Bob retains Alice's trusted public key from that exchange,
+separately from the received packet's key.
+
+Eve can modify the message, modify the signature, or replace the public key
+and sign with her own demo-only key. Bob always verifies with Alice's trusted
+key. In the replacement scenario he also verifies with the received key:
+a signature valid under Eve's key proves that key signed the message, not
+that Alice sent it. The demo models trust as Alice's public key established
+at Send; it does not implement a real identity or key-distribution protocol.
+
+Malformed hexadecimal and oversized messages are refused before forwarding.
+Parsed signature scalars, including zero and out-of-range values, reach the
+actual verifier so Bob can show rejection. A changed signature is not assumed
+invalid: ECDSA also admits `(r, q-s)` for the same key and message.
+
 ### Proof
 
 Scalar equalities below are modulo `q`, the order of `G`.

@@ -6,14 +6,27 @@
  * @module
  *
  * @import { NodeOp, Program, Write } from '../effects/node/types.ts'
- * @import { Command, Commands, Main } from './types.ts'
+ * @import { Command, Commands, CommandReference, Main } from './types.ts'
  */
 
 import { errorExit, exitStep, log } from '../effects/node/module.f.mjs'
 import { at, fromEntries, isObject } from '../types/object/module.f.mjs'
 import { isArray } from '../types/array/module.f.mjs'
 
-const helpMeta = { names: ['help', 'h', '?'], description: 'Print this help message' }
+/** Metadata for the help command implicit in every dispatch table. */
+export const helpMeta = /** @type {const} */ { names: ['help', 'h', '?'], description: 'Print this help message' }
+
+/** Reference for the help command implicit in a canonical command path.
+ * @type {(parent: readonly string[]) => CommandReference}
+ */
+export const helpReference = parent => ({
+    usage: parent.length === 0 ? 'fjs help [command]' : `fjs ${parent.join(' ')} help`,
+    examples: parent.length === 0 ? ['fjs help', 'fjs help cas'] : [`fjs help ${parent.join(' ')}`],
+    note: parent.length === 0
+        ? 'A command table target lists its subcommands. For a program target, help lists the top-level commands; it does not describe positional parameters.'
+        : 'Both invocations list the subcommands and their aliases.',
+    docs: 'fjs/README.md',
+})
 
 /** @type {<O extends NodeOp>(commands: Commands<O>) => string} */
 const renderHelp = commands => {
