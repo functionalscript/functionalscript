@@ -5,6 +5,6 @@
 .git/
 .wrangler/
 node_modules/
+target/
 work/
 functionalscript-github-preview-*/
-target/

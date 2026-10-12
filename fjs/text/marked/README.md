@@ -186,7 +186,8 @@ text is an addition beside it. The `_`-prefixed functions are linkage, not API.
 | -------- | ---------- | ----------- | ----------------------------- |
 | DataJS (`fjs/media/datajs`) | `tryStringify`, `trySerialize` | `tryMarked` | `_trySerialize`; `leafSerialize`, `keySerialize` answer chunks |
 | JSON from a value (`fjs/media/datajs`) | `tryJsonStringify`, `tryJsonSerialize` | `tryJsonMarked` | `_tryJsonSerialize` |
-| JSON codecs (`fjs/media/json`, `…/extended`) | `serialize`, `stringify` | — | their leaves are marked; `serialize` still answers strings |
+| JSON codec (`fjs/media/json`) | `serialize`, `stringify` | `marked` | the leaves are marked; `serialize` still answers strings; the JSON demo draws `marked` |
+| extended JSON codec (`fjs/media/json/extended`) | `serialize`, `stringify` | — | its leaves are marked, and its `Codec` has `marked`, which the module does not export yet |
 | `.js` writer (`fjs/compiler/serializer`) | `tryStringify`, `tryModuleStringify`, `trySerialize`, `tryModuleSerialize` | `tryMarked`, `tryModuleMarked` | `_trySerialize`, `_tryModuleSerialize` |
 | Rust (`fjs/compiler/rust`) | `toRust`, `generate` | `toRustMarked` | `scopeTagged`, `useLinesTagged` in `fjs/edag/rust` |
 | The compiler (`fjs/compiler`) | the file `compileFile` writes | `_outputMarked(input, output)`, `_compileMarked(input, output)` | — |

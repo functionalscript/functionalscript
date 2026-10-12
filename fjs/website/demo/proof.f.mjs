@@ -49,6 +49,16 @@ export const proof = {
     },
     textField: () => assertEq(htmlToString(textField({ name: 'text', label: 'Text', rows: 3 }, 'a\nb')),
         '<!DOCTYPE html><p><label for="text">Text </label><textarea id="text" name="text" rows="3">a\nb</textarea></p>'),
+    // With `highlight`, the textarea sits under a coloured copy of its text, in
+    // a wrapper the stylesheet marks; the copy ends in a zero-width space and
+    // is hidden from assistive technology, which reads the textarea.
+    textFieldHighlighted: () => assertEq(
+        htmlToString(textField({ name: 'text', label: 'Text', highlight: text => [['span', { 'data-token': 'keyword' }, text]] }, 'a\nb')),
+        '<!DOCTYPE html><p><label for="text">Text </label><span data-editor=""><span data-mirror="" aria-hidden="true"><span data-token="keyword">a\nb</span>\u200b</span><textarea id="text" name="text" rows="8">a\nb</textarea></span></p>'),
+    textDemoHighlighted: () => {
+        const h = htmlToString(textDemo({ intro: 'x', name: 'src', label: 'Source', init: '', highlight: text => [text] })(() => []).view('q'))
+        assertEq(h.includes('<span data-editor="">'), true)
+    },
     init: () => assertEq(plain.init, 'a'),
     view: {
         // The textarea carries `id` and `name`, 8 rows by default, and what

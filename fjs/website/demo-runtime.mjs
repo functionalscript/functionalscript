@@ -18,7 +18,7 @@ import { asyncPartialRun } from '../effects/module.mjs'
 import { commonOperationMap } from '../effects/common/module.mjs'
 import { macrotask, patch, toDom } from '../media/html/module.mjs'
 import { copy } from './copy-runtime.mjs'
-import { demoMarker } from './style/module.f.mjs'
+import { demoMarker, editorMarker, mirrorMarker } from './style/module.f.mjs'
 
 /**
  * What a demo may ask this page for.
@@ -77,6 +77,8 @@ const run = asyncPartialRun(commands)(commonOperationMap)
  * be honoured after the first finished, which is a demo measuring twice
  * because somebody was impatient. Incremental work skips this marker so Stop
  * and input remain available; its updates must be small and pure.
+ * The next render restores the view's disabled attributes. Going idle must
+ * preserve them, rather than enable actions the demo has explicitly refused.
  *
  * @type {(root: Element, working: boolean, note?: string | null) => void}
  */
@@ -87,7 +89,7 @@ const busy = (root, working, note = null) => {
         root.removeAttribute('data-demo-working')
     }
     for (const control of root.querySelectorAll('button')) {
-        control.disabled = working
+        control.disabled = working || control.getAttribute('disabled') !== null
     }
 }
 
@@ -194,6 +196,52 @@ const rescroll = (root, was) => {
 }
 
 /**
+ * The coloured copy of a highlighted field's text, or `null` for a field that
+ * has none.
+ *
+ * @type {(textarea: Element) => Element | null}
+ */
+const mirrorOf = textarea => {
+    const mirror = textarea.previousElementSibling
+    return mirror?.hasAttribute(mirrorMarker) ? mirror : null
+}
+
+/**
+ * Keeps a highlighted field's coloured copy where its textarea is scrolled.
+ *
+ * The copy sits under the textarea and cannot be scrolled by the reader, so
+ * it follows: its offset is set to the textarea's on every scroll, and after
+ * every render, which can change the text the copy holds and the offset the
+ * textarea was put back to.
+ *
+ * @type {(textarea: Element) => void}
+ */
+const follow = textarea => {
+    const mirror = mirrorOf(textarea)
+    if (mirror === null) { return }
+    mirror.scrollTop = textarea.scrollTop
+    mirror.scrollLeft = textarea.scrollLeft
+}
+
+/**
+ * Shows what the reader typed in a highlighted field's coloured copy at once,
+ * uncoloured.
+ *
+ * The textarea's own text is transparent, so the copy is the only text the
+ * reader sees, and the render that colours it comes later — after the demo's
+ * work, and after every input queued before it. Until then a keystroke would
+ * paint the old text. The render replaces this with the coloured one.
+ *
+ * @type {(textarea: Element) => void}
+ */
+const echo = textarea => {
+    const mirror = mirrorOf(textarea)
+    if (mirror === null) { return }
+    mirror.textContent = `${/** @type {HTMLTextAreaElement} */ (textarea).value}\u200b`
+    follow(textarea)
+}
+
+/**
  * Renders a state, and leaves the reader where they were.
  *
  * **Patched, not replaced.** Replacing the section's contents rebuilt the
@@ -227,6 +275,7 @@ const render = (root, view) => {
     resize(root, sizes)
     refocus(root, was)
     rescroll(root, offsets)
+    for (const area of Array.from(root.querySelectorAll(`[${editorMarker}] > textarea`))) { follow(area) }
 }
 
 /**
@@ -361,8 +410,14 @@ export const startDemo = async root => {
         if (demo === undefined) { throw new Error(`${path} exports no demo`) }
         const step = stepper(root, demo)
         render(root, demo.view(demo.init))
+        // A scroll does not bubble, so it is heard in the capture phase.
+        root.addEventListener('scroll', e => {
+            const target = /** @type {Element} */ (e.target)
+            if (target.matches(`[${editorMarker}] > textarea`)) { follow(target) }
+        }, true)
         root.addEventListener('input', e => {
             const target = /** @type {HTMLInputElement} */ (e.target)
+            echo(target)
             step({ kind: 'input', name: target.name, value: target.value })
         })
         // A click is how a demo is *asked* for work rather than told about

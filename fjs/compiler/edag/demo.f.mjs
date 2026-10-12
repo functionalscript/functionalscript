@@ -89,6 +89,7 @@ import { _defaultExport, _moduleExports, unresolved } from './module.f.mjs'
 import { graphOf, graphSvg } from '../../website/demo/graph/module.f.mjs'
 import { leafSerialize } from '../../media/datajs/serializer/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'
+import { highlight } from '../../website/demo/highlight/module.f.mjs'
 import { textDemo, refusal } from '../../website/demo/module.f.mjs'
 import { chunksText } from '../../text/marked/module.f.mjs'
 
@@ -462,6 +463,7 @@ export const demo = textDemo({
     label: 'Source',
     init: examples[0][1],
     examples,
+    highlight,
 })(text => {
     const g = _graphOf(text)
     return [g.ok ? graphSvg(g) : refusal(g.error)]

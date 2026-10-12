@@ -4,6 +4,7 @@
  * @import { Curve, Point } from '../secp/types.ts'
  * @import { Sha2 } from '../sha2/types.ts'
  * @import { DemoState } from './types.ts'
+ * @import { DemoEvent } from '../../website/demo/types.ts'
  */
 
 import { utf8 } from '../../text/module.f.mjs'
@@ -14,7 +15,7 @@ import { curve, secp192r1, secp256k1, secp256r1, secp384r1, secp521r1 } from '..
 import { computeSync, sha224, sha256, sha384, sha512 } from '../sha2/module.f.mjs'
 import { all, computeK, fromCurve, sign, verify } from './module.f.mjs'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
-import { demo, parseHexField, signed } from './demo.f.mjs'
+import { demo, outgoing, parseHexField, received, signed } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
@@ -60,15 +61,16 @@ const forEachVector = (check, msg0, msg1) => {
     check4(test, msg1)
 }
 
-/**
- * The demo's verdict, marker and text together: the marker sets its colour,
- * so a verdict painted in the other one is a failure too.
- *
- * @type {(verifies: boolean) => string}
+/** Apply one pure demo event, preserving the complete snapshot state.
+ * @type {(state: DemoState, event: DemoEvent) => DemoState}
  */
-const verdict = verifies => verifies
-    ? '<p role="status" data-result="ok">✓ The signature verifies'
-    : '<p role="status" data-result="error">✗ The signature does not verify'
+const next = (state, event) => unwrap(assertNotNullish(runPure(demo.update(state)(event))[0]))
+/** @type {(state: DemoState, name: string) => DemoState} */
+const click = (state, name) => next(state, { kind: 'click', name })
+/** @type {(state: DemoState, name: string, value: string) => DemoState} */
+const input = (state, name, value) => next(state, { kind: 'input', name, value })
+/** @type {(state: DemoState) => string} */
+const view = state => htmlToString(demo.view(state))
 
 export const proof = {
     bits2int: () => {
@@ -701,66 +703,216 @@ export const proof = {
         signSZero: () => sign(toy4)(sha256)(1n)(utf8("14")),
     },
     demo: {
-        // RFC 6979 A.2.5, P-256 with SHA-256 over "sample": the demo opens on it.
         init: () => {
-            const html = htmlToString(demo.view(demo.init))
-            /** @type {readonly string[]} */
-            const rfc = [
+            const signature = unwrap(signed(demo.init))
+            assertEq(signature.r, 0xefd48b2aacb6a8fd1140dd9cd45e81d69d2c877b56aaf991c34d0ea84eaf3716n)
+            assertEq(signature.s, 0xf7cb1c942d657c41d436c7a1b6e29f65f3e900dbb9aff4064dc4ab2f843acda8n)
+            const html = view(demo.init)
+            for (const value of [
                 'a6e3c57dd01abe90086538398355dd4c3b17aa873382b0f24d6129493d8aad60',
                 '60fed4ba255a9d31c961eb74c6356d68c049b8923b61fa6ce669622e60f29fb6',
                 '7903fe1008b8bc99a41ae9e95628bc64f2f1b20c2d7e9f5177a3c294d4462299',
-                demo.init.r,
-                demo.init.s,
-            ]
-            for (const v of rfc) { assert(html.includes(`<pre>${v}`) || html.includes(`Ux = ${v}`) || html.includes(`Uy = ${v}`), v) }
-            assert(html.includes(verdict(true)), html)
-            // each of k, r and s is explained under its value
-            for (const note of ['share a k only with negligible probability', 'The x coordinate of the point kG', 's = (h + r·x) / k mod q']) { assert(html.includes(note), note) }
+                'efd48b2aacb6a8fd1140dd9cd45e81d69d2c877b56aaf991c34d0ea84eaf3716',
+                'f7cb1c942d657c41d436c7a1b6e29f65f3e900dbb9aff4064dc4ab2f843acda8',
+            ]) { assert(html.includes(value), value) }
+            assert(html.includes('Waiting for Alice to send'))
+            assert(html.includes('Waiting for a message…'))
+            assert(!html.includes('authenticated as Alice'))
+            assert(!html.includes('data-result='))
+            assert(html.includes('name="forward" disabled=""'))
+            assert(html.includes('Signing details — RFC 6979'))
+            assert(html.includes('Do not enter real private keys'))
         },
-        // Each curve verifies its own signature, as Sign shows it.
-        everyCurve: () => {
+        unchangedDelivery: () => {
+            const sent = click(demo.init, 'send')
+            const eve = assertNotNullish(sent.eve)
+            assertEq(sent.bob, null)
+            assertEq(eve.original.message, 'sample')
+            assertEq(Object.keys(eve.original).join(','), 'curve,hash,message,u,r,s')
+            const forwarded = click(sent, 'forward')
+            const bob = assertNotNullish(forwarded.bob)
+            assertEq(bob.valid, true)
+            assertEq(bob.receivedValid, null)
+            assertEq(bob.packet.message, 'sample')
+            assert(view(forwarded).includes('data-result="ok">Valid — authenticated as Alice'))
+            assert(view(forwarded).includes('Last received message'))
+            // Empty UTF-8 is a legitimate message, not a waiting state.
+            assertEq(assertNotNullish(click(click({ ...demo.init, message: '' }, 'send'), 'forward').bob).valid, true)
+        },
+        everyCurveAndHash: () => {
             for (const curve of ['P-192 (secp192r1)', 'P-256 (secp256r1)', 'P-384 (secp384r1)', 'P-521 (secp521r1)', 'secp256k1']) {
-                /** @type {DemoState} */
-                const state = { ...demo.init, curve, hash: 'SHA-512', key: '1f' }
-                const { r, s } = unwrap(signed(state))
-                const html = htmlToString(demo.view({ ...state, r: r.toString(16), s: s.toString(16) }))
-                assert(html.includes(verdict(true)), curve)
+                const delivered = click(click({ ...demo.init, curve, hash: 'SHA-512', key: '1f' }, 'send'), 'forward')
+                assertEq(assertNotNullish(delivered.bob).valid, true)
+                assert(view(delivered).includes(curve))
+            }
+            for (const hash of ['SHA-224', 'SHA-256', 'SHA-384', 'SHA-512', 'SHA-512/224', 'SHA-512/256']) {
+                assertEq(assertNotNullish(click(click({ ...demo.init, hash }, 'send'), 'forward').bob).valid, true)
             }
         },
-        rejected: () => {
-            // a changed message, and a changed `r`, against the same signature
-            assert(htmlToString(demo.view({ ...demo.init, message: 'samplE' })).includes(verdict(false)), 'message')
-            assert(htmlToString(demo.view({ ...demo.init, r: `f${demo.init.r.slice(1)}` })).includes(verdict(false)), 'r')
+        modifiedMessage: () => {
+            const sent = click(demo.init, 'send')
+            const edited = input(sent, 'eve-message', 'samplE')
+            const bob = assertNotNullish(click(edited, 'forward').bob)
+            const original = assertNotNullish(sent.eve).original
+            assertEq(bob.valid, false)
+            assertEq(bob.packet.r, original.r)
+            assertEq(bob.packet.s, original.s)
+            assert(view(click(edited, 'forward')).includes('data-result="error">Invalid —'))
+            const example = click(sent, 'example')
+            assertEq(assertNotNullish(click(example, 'forward').bob).valid, false)
         },
-        update: () => {
-            const next = unwrap(assertNotNullish(runPure(demo.update(demo.init)({ kind: 'input', name: 'message', value: 'test' }))[0]))
-            assertEq(JSON.stringify(next), JSON.stringify({ ...demo.init, message: 'test' }))
+        modifiedSignature: () => {
+            const selected = input(click(demo.init, 'send'), 'attack', 'Modify signature')
+            const example = click(selected, 'example')
+            const forwarded = click(example, 'forward')
+            const bob = assertNotNullish(forwarded.bob)
+            assertEq(bob.valid, false)
+            assertEq(bob.packet.r, 0n)
+            assertEq(bob.packet.message, 'sample')
+            assert(view(forwarded).includes('Signature r and s must be at least 1'))
+            const changed = input(selected, 'eve-r', '1')
+            assertEq(assertNotNullish(click(changed, 'forward').bob).valid, false)
+            // ECDSA's other mathematically valid signature is (r, q-s).
+            const original = assertNotNullish(selected.eve).original
+            const validEdit = input(selected, 'eve-s', (secp256r1.nf.p - original.s).toString(16))
+            assertEq(assertNotNullish(click(validEdit, 'forward').bob).valid, true)
+            const zeroS = click(input(selected, 'eve-s', '0'), 'forward')
+            assertEq(assertNotNullish(zeroS.bob).valid, false)
+            assert(view(zeroS).includes('Signature r and s must be at least 1'))
+            const tooLarge = click(input(selected, 'eve-r', secp256r1.nf.p.toString(16)), 'forward')
+            assertEq(assertNotNullish(tooLarge.bob).valid, false)
+            assert(view(tooLarge).includes('Signature r and s must be at least 1'))
+        },
+        replacedKey: () => {
+            const sent = click(demo.init, 'send')
+            const eve = click(input(sent, 'attack', 'Replace public key'), 'example')
+            assertEq(assertNotNullish(eve.eve).key, '2')
+            const forwarded = click(eve, 'forward')
+            const bob = assertNotNullish(forwarded.bob)
+            assertEq(bob.valid, false)
+            assertEq(bob.receivedValid, true)
+            assertEq(bob.trusted, assertNotNullish(sent.eve).original.u)
+            assert(bob.packet.u[0] !== bob.trusted[0])
+            const html = view(forwarded)
+            assert(html.includes('Identity mismatch:'))
+            assert(html.includes('Valid under the received key'))
+            assert(html.includes('Outgoing Eve public key'))
+            assertEq(Object.keys(bob.packet).join(','), 'curve,hash,message,u,r,s')
+            assertEq(assertNotNullish(click(input(eve, 'eve-key', '3'), 'forward').bob).receivedValid, true)
+            // If the reader gives Eve the public RFC demo secret, both checks
+            // correctly pass; the UI must not invent an identity mismatch.
+            const sameKey = click(input(input(eve, 'eve-message', 'sample'), 'eve-key', demo.init.key), 'forward')
+            assertEq(assertNotNullish(sameKey.bob).valid, true)
+            assert(!view(sameKey).includes('Identity mismatch:'))
+        },
+        snapshotIsolation: () => {
+            const sent = click(demo.init, 'send')
+            const forwarded = click(sent, 'forward')
+            const bob = assertNotNullish(forwarded.bob)
+            const aliceEdited = input(input(input(forwarded, 'message', 'new draft'), 'key', '3'), 'curve', 'secp256k1')
+            assertEq(aliceEdited.eve, sent.eve)
+            assertEq(aliceEdited.bob, bob)
+            const eveEdited = input(aliceEdited, 'eve-message', 'tampered later')
+            assertEq(eveEdited.bob, bob)
+            assertEq(bob.packet.message, 'sample')
+            const newSend = click(eveEdited, 'send')
+            assertEq(newSend.bob, bob)
+            assertEq(assertNotNullish(newSend.eve).message, 'new draft')
+            assertEq(assertNotNullish(newSend.eve).attack, 'Modify message')
+            assertEq(assertNotNullish(newSend.eve).original.curve, 'secp256k1')
+            assertEq(assertNotNullish(click(newSend, 'forward').bob).valid, true)
+            // A refused Alice draft cannot erase an already received verdict.
+            const refusedAlice = input(forwarded, 'key', '')
+            assertEq(click(refusedAlice, 'send'), refusedAlice)
+            assertEq(refusedAlice.bob, bob)
+            assert(view(refusedAlice).includes('Valid — authenticated as Alice'))
+        },
+        receivedKeyRejection: () => {
+            const state = input(click(demo.init, 'send'), 'attack', 'Replace public key')
+            const eve = assertNotNullish(state.eve)
+            const packet = unwrap(outgoing(eve))
+            // Real verification must also reject invalid signatures under
+            // the received key; a replacement verdict is never a success flag.
+            const bob = received({ ...packet, s: 0n }, eve)
+            assertEq(bob.valid, false)
+            assertEq(bob.receivedValid, false)
+            const html = view({ ...state, bob })
+            assert(html.includes('Invalid under the received key.'))
+            assert(!html.includes('Identity mismatch:'))
+            const tooLarge = received({ ...packet, s: secp256r1.nf.p }, eve)
+            assertEq(tooLarge.receivedValid, false)
+            assert(view({ ...state, bob: tooLarge }).includes('Signature r and s must be at least 1'))
+        },
+        resetAndAttackSwitch: () => {
+            const sent = click(demo.init, 'send')
+            const modified = click(sent, 'example')
+            const reset = click(modified, 'reset-eve')
+            assertEq(assertNotNullish(reset.eve).message, 'sample')
+            assertEq(assertNotNullish(reset.eve).original, assertNotNullish(sent.eve).original)
+            const signature = input(modified, 'attack', 'Modify signature')
+            assertEq(assertNotNullish(signature.eve).message, 'sample')
+            const replaced = input(click(signature, 'example'), 'attack', 'Replace public key')
+            assertEq(assertNotNullish(replaced.eve).r, assertNotNullish(sent.eve).r)
+            assertEq(assertNotNullish(replaced.eve).message, 'sample')
+            const back = input(input(replaced, 'eve-key', '7'), 'attack', 'Modify message')
+            assertEq(assertNotNullish(back.eve).key, '2')
+            assertEq(assertNotNullish(click(back, 'forward').bob).valid, true)
+            const resetReplacement = click(input(replaced, 'eve-key', '7'), 'reset-eve')
+            assertEq(assertNotNullish(resetReplacement.eve).key, '2')
+            assertEq(assertNotNullish(resetReplacement.eve).attack, 'Modify message')
+            assertEq(assertNotNullish(click(resetReplacement, 'forward').bob).valid, true)
+        },
+        ignoredEvents: () => {
+            assertEq(next(demo.init, { kind: 'start' }), demo.init)
+            for (const name of ['forward', 'reset-eve', 'example', 'unknown']) { assertEq(click(demo.init, name), demo.init) }
+            for (const name of ['attack', 'eve-message', 'eve-r', 'eve-s', 'eve-key', 'unknown']) {
+                assertEq(input(demo.init, name, 'anything'), demo.init)
+            }
+            const sent = click(demo.init, 'send')
+            assertEq(click(sent, 'unknown'), sent)
+            assertEq(input(sent, 'attack', 'unknown'), sent)
+            assertEq(input(sent, 'unknown', 'value'), sent)
+            assertEq(input(sent, 'hash', 'SHA-224').hash, 'SHA-224')
         },
         parseHexField: () => {
             const field = parseHexField('x', 4)
-            const value = field('0aF9')
-            assertEq(value[0], 'ok')
-            assertEq(value[1], 0xaf9n)
+            assertEq(unwrap(field('0aF9')), 0xaf9n)
             assertEq(JSON.stringify(field('12345')), JSON.stringify(['error', 'Enter x as at most 4 hexadecimal digits.']))
             assertEq(JSON.stringify(field('')), JSON.stringify(['error', 'Enter x as hexadecimal digits.']))
             assertEq(JSON.stringify(field('0x1')), JSON.stringify(['error', 'Enter x as hexadecimal digits.']))
         },
         refused: () => {
-            /** @type {(state: typeof demo.init, message: string) => void} */
+            /** @type {(state: DemoState, message: string) => void} */
             const refuses = (state, message) => {
-                const html = htmlToString(demo.view(state))
-                assert(html.includes(message), message)
-                // Sign refused, so Verify has no public key and gives no verdict.
-                assert(!html.includes('The signature'), html)
+                assert(view(state).includes(message), message)
+                assertEq(click(state, 'send'), state)
+                assertEq(state.bob, null)
             }
             refuses({ ...demo.init, key: 'xyz' }, 'Enter the private key as hexadecimal digits.')
             refuses({ ...demo.init, key: '0' }, 'The private key must be at least 1 and less than the curve order q.')
             refuses({ ...demo.init, key: 'f'.repeat(64) }, 'The private key must be at least 1 and less than the curve order q.')
             refuses({ ...demo.init, key: '1'.repeat(65) }, 'Enter the private key as at most 64 hexadecimal digits.')
-            refuses({ ...demo.init, message: 'a'.repeat(Number(maxLengthBytes) + 1) }, `The message is too long: more than ${maxLengthBytes} UTF-8 bytes.`)
-            // Verify's own fields
-            assert(htmlToString(demo.view({ ...demo.init, r: 'r' })).includes('Enter r as hexadecimal digits.'), 'r')
-            assert(htmlToString(demo.view({ ...demo.init, s: '' })).includes('Enter s as hexadecimal digits.'), 's')
+            const long = 'a'.repeat(Number(maxLengthBytes) + 1)
+            const longMessage = `The message is too long: more than ${maxLengthBytes} UTF-8 bytes.`
+            refuses({ ...demo.init, message: long }, longMessage)
+            const sent = click(demo.init, 'send')
+            /** @type {(state: DemoState, message: string) => void} */
+            const forwardRefuses = (state, message) => {
+                const result = outgoing(assertNotNullish(state.eve))
+                assertEq(result[0], 'error')
+                assertEq(result[1], message)
+                assert(view(state).includes(message), message)
+                assertEq(click(state, 'forward'), state)
+            }
+            forwardRefuses(input(sent, 'eve-message', long), longMessage)
+            const sig = input(sent, 'attack', 'Modify signature')
+            forwardRefuses(input(sig, 'eve-r', 'r'), 'Enter r as hexadecimal digits.')
+            forwardRefuses(input(sig, 'eve-s', ''), 'Enter s as hexadecimal digits.')
+            forwardRefuses(input(sig, 'eve-r', '1'.repeat(65)), 'Enter r as at most 64 hexadecimal digits.')
+            const replacement = input(sent, 'attack', 'Replace public key')
+            forwardRefuses(input(replacement, 'eve-key', '0'), 'The private key must be at least 1 and less than the curve order q.')
+            forwardRefuses(input(replacement, 'eve-key', 'xyz'), 'Enter the private key as hexadecimal digits.')
+            forwardRefuses(input(replacement, 'eve-message', long), longMessage)
         },
     },
 }

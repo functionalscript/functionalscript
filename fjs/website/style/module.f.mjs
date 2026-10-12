@@ -93,6 +93,17 @@ export const captionMarker = 'data-caption'
  */
 export const codeMarker = 'data-code'
 
+/** The attribute of a highlighted field's wrapper, shared with its stylesheet rules.
+ * @type {string}
+ */
+export const editorMarker = 'data-editor'
+
+/** The attribute of the coloured copy of a highlighted field's text. The page
+ * runtime keeps its scroll offset equal to the textarea's.
+ * @type {string}
+ */
+export const mirrorMarker = 'data-mirror'
+
 /** The verdict attribute shared by result views and their stylesheet rules.
  * @type {string}
  */
@@ -102,6 +113,66 @@ export const resultMarker = 'data-result'
  * @type {string}
  */
 export const powResultMarker = 'data-pow-result'
+
+/** The ECDSA card attribute shared by the demo and stylesheet.
+ * @type {string}
+ */
+export const signCardMarker = 'data-sign-card'
+
+/** The ECDSA explanation attribute shared by the demo and stylesheet.
+ * @type {string}
+ */
+export const signExplanationMarker = 'data-sign-explanation'
+
+/** The ECDSA flow attribute shared by the demo and stylesheet.
+ * @type {string}
+ */
+export const signFlowMarker = 'data-sign-flow'
+
+/** The ECDSA packet attribute shared by the demo and stylesheet.
+ * @type {string}
+ */
+export const signPacketMarker = 'data-sign-packet'
+
+/** The ECDSA role attribute shared by the demo and stylesheet.
+ * @type {string}
+ */
+export const signRoleMarker = 'data-sign-role'
+
+/** The ECDSA scheme attribute shared by the demo and stylesheet.
+ * @type {string}
+ */
+export const signSchemeMarker = 'data-sign-scheme'
+
+/** The ECDSA stage attribute shared by the demo and stylesheet.
+ * @type {string}
+ */
+export const signStageMarker = 'data-sign-stage'
+
+/** The ECDSA stage header attribute shared by the demo and stylesheet.
+ * @type {string}
+ */
+export const signStageHeaderMarker = 'data-sign-stage-header'
+
+/** The ECDSA trust attribute shared by the demo and stylesheet.
+ * @type {string}
+ */
+export const signTrustMarker = 'data-sign-trust'
+
+/** The ECDSA trust key attribute shared by the demo and stylesheet.
+ * @type {string}
+ */
+export const signTrustKeyMarker = 'data-sign-trust-key'
+
+/** The ECDSA trust path attribute shared by the demo and stylesheet.
+ * @type {string}
+ */
+export const signTrustPathMarker = 'data-sign-trust-path'
+
+/** The ECDSA verifier attribute shared by the demo and stylesheet.
+ * @type {string}
+ */
+export const signVerifierMarker = 'data-sign-verifier'
 
 /**
  * The attribute a railroad diagram marks each box with, valued by the
@@ -137,13 +208,67 @@ const railroadBox = kind => `[${railroadBoxMarker}="${kind}"]`
 const railroadLabel = kind => `[${railroadLabelMarker}="${kind}"]`
 
 /**
+ * The colour tokens of the light scheme, and of the dark one.
+ *
+ * Named because two stylesheets declare them: {@link stylesheet} on every
+ * page, and {@link rustdocStylesheet} on rustdoc's.
+ */
+const lightTokens = '--graph-new-bg: #aecbfa; --bg: white; --text: black; --muted: #5f6368; --border: #dadce0; --link: #137333; --pass: #137333; --pass-bg: #e6f4ea; --fail: #b3261e; --fail-bg: #fce8e6; --value: #174ea6; --value-bg: #e8f0fe; --syntax-number: #8430ce; --syntax-name: #8a4b00'
+const darkTokens = '--graph-new-bg: #1c2d4d; --bg: #121212; --text: #f1f1f1; --muted: #9aa0a6; --border: #3c4043; --link: #81c995; --pass: #81c995; --pass-bg: #0f2417; --fail: #f28b82; --fail-bg: #2a1414; --value: #8ab4f8; --value-bg: #172033; --syntax-number: #c58af9; --syntax-name: #f0a868'
+
+/**
+ * The rules for the site's two bars, the header and the funding footer,
+ * shared with {@link rustdocStylesheet} so rustdoc's pages carry the same
+ * bars as every other page.
+ */
+const bars = `/* The header every page opens with: the logo and the site's name on the left,
+   the site-wide links on the right, across the full width of the window with
+   one rule under it, as a site's own bar. Its contents go to the window's
+   edges, not the page's column: the bar belongs to the site, and the column
+   to the page under it. The menu is bold and a step larger than the text, as a
+   site's own navigation is set apart from what it navigates.
+   It wraps rather than hiding behind a menu button: in a monospace face a
+   phone has no room for the name and the links on one line, and a line break
+   costs no script.
+   A header link is not underlined: its place in the header is what says it is
+   a link, as a site's own navigation does everywhere, and the underline comes
+   back on hover. Every link in the header is padded to a finger's target,
+   whatever the pointer: it is one row, not a dense list, so the padding
+   costs nothing a mouse would miss. */
+header { border-bottom: 1px solid var(--border) }
+header nav, [data-build] { padding-inline: 1rem }
+header nav, [data-site-links] { align-items: center; display: flex; flex-wrap: wrap; gap: .25rem 1.5rem }
+header nav { font-size: 1.125rem; font-weight: 700; padding-block: .5rem }
+header nav a { padding-block: .25rem; text-decoration: none }
+header nav a:hover { text-decoration: underline }
+[data-home] { align-items: center; display: inline-flex; gap: .5rem; margin-right: auto }
+[data-home] img { height: 1.5rem; width: 1.5rem }
+/* A preview says which build it is — the branch and the commit — so a
+   reader comparing two previews, or a preview with production, knows which
+   one they are looking at. Muted and small: it is about the build, not the
+   page. It is a full-width strip under the menu, tinted from the border and
+   the background rather than a colour of its own, so it follows both
+   schemes, and set to the right, under the links, as a status bar is. */
+[data-build] { background: color-mix(in srgb, var(--border) 30%, var(--bg)); border-top: 1px solid var(--border); color: var(--muted); font-size: .8rem; margin: 0; padding-block: .35rem; text-align: right }
+/* The funding footer closes every page: one muted, centred line under a rule,
+   spanning the window as the header does, so it reads as the site's own bar
+   rather than the last line of the page. Its links keep the page's colour and
+   underline, because unlike the header's they sit in a sentence.
+   A link never breaks inside itself: on a phone "GitHub Sponsors" split
+   across two lines read as two links, so the line breaks between links,
+   never within one. */
+footer[data-funding] { border-top: 1px solid var(--border); color: var(--muted); font-size: .875rem; padding: 1rem; text-align: center }
+footer[data-funding] a { white-space: nowrap }
+`
+
+/**
  * The stylesheet, verbatim.
  *
  * @type {string}
  */
-export const stylesheet = `:root { color-scheme: light dark; --graph-new-bg: #aecbfa; --bg: white; --text: black; --muted: #5f6368; --border: #dadce0; --link: #137333; --pass: #137333; --pass-bg: #e6f4ea; --fail: #b3261e; --fail-bg: #fce8e6; --value: #174ea6; --value-bg: #e8f0fe; --syntax-number: #8430ce; --syntax-name: #8a4b00 }
+export const stylesheet = `:root { color-scheme: light dark; ${lightTokens} }
 @media (prefers-color-scheme: dark) {
-    :root { --graph-new-bg: #1c2d4d; --bg: #121212; --text: #f1f1f1; --muted: #9aa0a6; --border: #3c4043; --link: #81c995; --pass: #81c995; --pass-bg: #0f2417; --fail: #f28b82; --fail-bg: #2a1414; --value: #8ab4f8; --value-bg: #172033; --syntax-number: #c58af9; --syntax-name: #f0a868 }
+    :root { ${darkTokens} }
 }
 /* Every link on the site is coloured the same whether or not it has been
    opened: nearly every word here is a link into the tree, and the visited
@@ -341,45 +466,7 @@ input[type="text"] { box-sizing: border-box; width: 100% }
 /* Search progress supports the current verdict rather than competing with it;
    smaller muted text separates the attempt count and failed range from the result. */
 [data-pow-search-summary] { color: var(--muted); font-size: .875rem; line-height: 1.6; margin-top: .75rem }
-/* The header every page opens with: the logo and the site's name on the left,
-   the site-wide links on the right, across the full width of the window with
-   one rule under it, as a site's own bar. Its contents go to the window's
-   edges, not the page's column: the bar belongs to the site, and the column
-   to the page under it. The menu is bold and a step larger than the text, as a
-   site's own navigation is set apart from what it navigates.
-   It wraps rather than hiding behind a menu button: in a monospace face a
-   phone has no room for the name and the links on one line, and a line break
-   costs no script.
-   A header link is not underlined: its place in the header is what says it is
-   a link, as a site's own navigation does everywhere, and the underline comes
-   back on hover. Every link in the header is padded to a finger's target,
-   whatever the pointer: it is one row, not a dense list, so the padding
-   costs nothing a mouse would miss. */
-header { border-bottom: 1px solid var(--border) }
-header nav, [data-build] { padding-inline: 1rem }
-header nav, [data-site-links] { align-items: center; display: flex; flex-wrap: wrap; gap: .25rem 1.5rem }
-header nav { font-size: 1.125rem; font-weight: 700; padding-block: .5rem }
-header nav a { padding-block: .25rem; text-decoration: none }
-header nav a:hover { text-decoration: underline }
-[data-home] { align-items: center; display: inline-flex; gap: .5rem; margin-right: auto }
-[data-home] img { height: 1.5rem; width: 1.5rem }
-/* A preview says which build it is — the branch and the commit — so a
-   reader comparing two previews, or a preview with production, knows which
-   one they are looking at. Muted and small: it is about the build, not the
-   page. It is a full-width strip under the menu, tinted from the border and
-   the background rather than a colour of its own, so it follows both
-   schemes, and set to the right, under the links, as a status bar is. */
-[data-build] { background: color-mix(in srgb, var(--border) 30%, var(--bg)); border-top: 1px solid var(--border); color: var(--muted); font-size: .8rem; margin: 0; padding-block: .35rem; text-align: right }
-/* The funding footer closes every page: one muted, centred line under a rule,
-   spanning the window as the header does, so it reads as the site's own bar
-   rather than the last line of the page. Its links keep the page's colour and
-   underline, because unlike the header's they sit in a sentence.
-   A link never breaks inside itself: on a phone "GitHub Sponsors" split
-   across two lines read as two links, so the line breaks between links,
-   never within one. */
-footer[data-funding] { border-top: 1px solid var(--border); color: var(--muted); font-size: .875rem; padding: 1rem; text-align: center }
-footer[data-funding] a { white-space: nowrap }
-/* Every section of a page is a disclosure, so a reader can fold away what
+${bars}/* Every section of a page is a disclosure, so a reader can fold away what
    they are not reading — the platform's own collapsible, and no script on a
    site that is static files. Its summary is the section's heading, and is
    sized like one. */
@@ -632,7 +719,85 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
 [data-token="number"] { color: var(--syntax-number) }
 [data-token="identifier"] { color: var(--syntax-name) }
 [data-token="comment"] { color: var(--muted); font-style: italic }
+/* A highlighted field is a textarea laid over a coloured copy of its text, so
+   the reader types into the colours and the caret, selection and undo stay the
+   browser's. The two must wrap alike to the pixel, so they share the font, the
+   padding, the border width and the gutter a scrollbar takes; the textarea's
+   own text is transparent and only its caret shows. The copy takes no pointer
+   events, and the page runtime keeps its scroll equal to the textarea's. */
+[${editorMarker}] { display: block; position: relative; background: var(--bg); border-radius: 6px }
+[${editorMarker}] > textarea, [${mirrorMarker}] { box-sizing: border-box; border: 1px solid var(--border); border-radius: 6px; font: .9em/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: normal; margin: 0; overflow-wrap: anywhere; padding: .5rem .75rem; scrollbar-gutter: stable; tab-size: 8; white-space: pre-wrap }
+[${editorMarker}] > textarea { background: transparent; caret-color: var(--text); color: transparent; display: block; position: relative }
+[${mirrorMarker}] { border-color: transparent; color: var(--text); inset: 0; overflow: hidden; pointer-events: none; position: absolute; user-select: none }
 /* The member a failure points at, marked inside a code block — the rtti
    demo's value written again under a refusal — in the failure's colours. */
 [${codeMarker}] mark { background: var(--fail-bg); border-radius: 3px; color: var(--fail); outline: 1px solid color-mix(in srgb, var(--fail) 40%, transparent) }
+/* ECDSA's diagram separates the intercepted packet from Bob's prior trust.
+   Reflow the same semantic content on small screens, preserving reading order. */
+[${signSchemeMarker}] { border: 1px solid var(--border); border-radius: 12px; margin: 1rem 0 2rem; padding: 1rem; font-size: .875rem }
+[${signSchemeMarker}] svg { display: block; width: 2.5rem; height: 2.5rem; flex: none; margin: .5rem auto }
+[${signFlowMarker}] { display: grid; grid-template-columns: minmax(0, 1fr) 4.5rem minmax(0, 1fr) 4.5rem minmax(0, 1fr); gap: .65rem; align-items: start }
+[${signCardMarker}], [${signStageMarker}] { --sign-accent: var(--value); --sign-tint: var(--value-bg) }
+[${signCardMarker}="eve"], [${signStageMarker}="eve"] { --sign-accent: var(--fail); --sign-tint: var(--fail-bg) }
+[${signCardMarker}="bob"], [${signStageMarker}="bob"] { --sign-accent: var(--pass); --sign-tint: var(--pass-bg) }
+[${signCardMarker}] { border: 1px solid var(--sign-accent); border-radius: 8px; background: var(--sign-tint); padding: .75rem; text-align: center; min-width: 0 }
+[${signCardMarker}] h4 { color: var(--sign-accent); font-size: 1.2rem; margin: 0 0 .25rem }
+[${signCardMarker}] small { display: block; margin-top: .35rem }
+[${signCardMarker}] svg { color: var(--sign-accent) }
+[${signPacketMarker}] { text-align: center; color: var(--muted); margin-top: 2rem }
+[${signPacketMarker}] svg { width: 100%; height: 1.5rem }
+[${signVerifierMarker}] { min-width: 0 }
+[${signExplanationMarker}] { margin: .75rem 0 0; line-height: 1.5; font-size: .8rem }
+[${signTrustMarker}] { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, 1fr); align-items: center; gap: .75rem; color: var(--muted); margin-top: 1rem }
+[${signTrustKeyMarker}] { display: flex; align-items: center; gap: .5rem; border: 1px solid var(--border); border-radius: 8px; background: color-mix(in srgb, var(--border) 35%, var(--bg)); color: var(--text); padding: .5rem .75rem }
+[${signTrustKeyMarker}] svg { width: 1.5rem; height: 1.5rem; margin: 0 }
+[${signTrustPathMarker}] { text-align: center }
+[${signTrustPathMarker}] svg { width: 100%; height: 1.5rem; margin: .25rem 0 }
+[${signSchemeMarker}] figcaption { color: var(--muted); font-size: .8rem; line-height: 1.5; margin-top: .75rem }
+@media (max-width: 900px) {
+    [${signFlowMarker}] { grid-template-columns: minmax(0, 1fr) 3.5rem minmax(0, 1fr) 3.5rem minmax(0, 1fr) }
+}
+@media (max-width: 600px) {
+    [${signFlowMarker}], [${signTrustMarker}] { grid-template-columns: minmax(0, 1fr) }
+    [${signPacketMarker}], [${signTrustPathMarker}] { display: flex; align-items: center; justify-content: center; gap: .75rem }
+    [${signPacketMarker}] svg, [${signTrustPathMarker}] svg { transform: rotate(90deg); width: 1.5rem; height: 1.5rem; margin: .35rem 0 }
+    [${signPacketMarker}] { margin-top: 0 }
+    [${signTrustKeyMarker}] { justify-content: center }
+}
+
+/* Role cards keep long signing outputs and received snapshots in distinct
+   sections. Role names and borders distinguish them without relying on color. */
+[${signStageMarker}] { border: 1px solid color-mix(in srgb, var(--sign-accent) 45%, var(--border)); border-radius: 10px; margin-block: 1.5rem; padding: 0 1rem 1rem; min-width: 0 }
+[${signStageHeaderMarker}] { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem 1rem; margin: 0 -1rem 1rem; padding: .75rem 1rem; border-radius: 9px 9px 0 0; border-bottom: 1px solid color-mix(in srgb, var(--sign-accent) 25%, var(--border)); background: var(--sign-tint); color: var(--sign-accent) }
+[${signStageHeaderMarker}] h3 { margin: 0; font-size: 1.1rem }
+[${signRoleMarker}] { border: 1px solid color-mix(in srgb, var(--sign-accent) 40%, transparent); border-radius: 999px; font-size: .75rem; padding: .2rem .6rem }
+
 `
+
+/**
+ * The stylesheet rustdoc's pages extend theirs with (`--extend-css`), for the
+ * site's header and footer that the generator hands rustdoc to put on every
+ * page.
+ *
+ * The tokens are declared on `:root` like the site's own, under names rustdoc
+ * does not use. The bars keep the site's face and colours: rustdoc's own
+ * styles are left as they are.
+ *
+ * **Two rules lean on rustdoc's layout**, and are where to look when a Rust
+ * release changes it. rustdoc lays a page out as one flex row, its sidebar
+ * then `main`: each bar takes a row of its own, and `main` shrinks beside the
+ * sidebar instead of wrapping under it when its content is wide. And the bars
+ * sit above rustdoc's sticky sidebar, at z-index 100, which would otherwise
+ * slide over the footer at the end of a long page.
+ *
+ * @type {string}
+ */
+export const rustdocStylesheet = `:root { ${lightTokens} }
+@media (prefers-color-scheme: dark) {
+    :root { ${darkTokens} }
+}
+body.rustdoc { flex-wrap: wrap }
+body.rustdoc > main { flex: 1 1 0; min-width: 0 }
+body.rustdoc > header, body.rustdoc > footer { background-color: var(--bg); flex-basis: 100%; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; position: relative; z-index: 101 }
+body.rustdoc > header a, body.rustdoc > footer a { color: var(--link) }
+${bars}`
