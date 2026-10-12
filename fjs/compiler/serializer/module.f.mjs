@@ -449,6 +449,23 @@ const instanceOf = (s, path) => (operand, constructor) => mapOk(
 )(leftOperand(s, `${path}/left`, 'instanceof')(operand))
 
 /**
+ * The text of the same-value node, `['is', a, b]`: the call
+ * `Object.is(a,b)` the parser reads it back from
+ * ([spec: `Object.is`](../../../spec/README.md#objectis)), each operand
+ * written as a call's argument is, bare whatever it is, since an argument
+ * is an expression of its own — an operator's text, a function — and the
+ * call binds as a name does, so what holds it never groups it. The word
+ * `Object` is the intrinsic wherever the writer puts it: the writer's own
+ * names are `$0`, `$1`, … and never that word.
+ *
+ * @type {(s: _Scope, path: string) => (left: Operand, right: Operand) => Document}
+ */
+const sameValue = (s, path) => (left, right) => mapOk(
+    /** @type {(parts: readonly List<Chunk>[]) => List<Chunk>} */
+    (([l, r]) => flat([['Object.is('], l, [','], r, [')']])),
+)(okList([operand(s, `${path}/left`)(left), operand(s, `${path}/right`)(right)]))
+
+/**
  * The text of a prefix operator, `-v`, `~v`, `!v` or `typeof v`: the operand
  * in parentheses
  * where it is an operator's text, which binds looser than a prefix,
@@ -1089,6 +1106,7 @@ const entry = (s0, path) => i => {
         }
         case '~': case '!': case 'typeof': { return prefix(s, path)(node[0])(node[1]) }
         case 'instanceof': { return instanceOf(s, path)(node[1], node[2]) }
+        case 'is': { return sameValue(s, path)(node[1], node[2]) }
         case 'Number': case 'String': { return conversion(s, path, false, node[0])(node[1]) }
         case '|': case '^': case '&': case '===': case '!==': case '<': case '<=': case '>': case '>=':
         case '<<': case '>>': case '>>>': case '*': case '/': case '%': case '**': { return binary(s, path)(node[0], node[1], node[2]) }
@@ -1188,7 +1206,7 @@ const operands = node => {
         case '-': case '+': { return node.length === 2 ? [node[1]] : [node[1], node[2]] }
         case ',': { return node[1] }
         case '&&': case '||': case '??': case '?:': { return [node[1]] }
-        case '|': case '^': case '&': case '===': case '!==': case '<': case '<=': case '>': case '>=':
+        case 'is': case '|': case '^': case '&': case '===': case '!==': case '<': case '<=': case '>': case '>=':
         case '<<': case '>>': case '>>>': case '*': case '/': case '%': case '**': { return [node[1], node[2]] }
         default: { return [] }
     }

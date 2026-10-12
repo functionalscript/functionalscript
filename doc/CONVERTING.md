@@ -306,3 +306,23 @@ identity being what `Math.max()` with no arguments is, and `Infinity` for
 `min`. And the built-ins convert their arguments, `Math.min("1", 2)` being
 `1`, where `min` and `max` take numbers: a call on anything else is
 checked, not rewritten.
+
+## 6. `Object.is`
+
+No rewrite: `Object.is(a, b)` is in the language as written
+([`Object.is`](../spec/README.md#objectis)), the one call of the `Object`
+namespace a module spells itself, recognized whole with its two arguments
+and lowered to the EDAG's `is` node. It is not a function to import, and a
+helper spelling it with `===` and `1 / a` would be a second spelling of
+what the language already has.
+
+```js
+const sign = v => v < 0 || Object.is(v, -0) ? 1n : 0n   // accepted as it is
+```
+
+What the compiler refuses is the namespace used any other way, and each is
+a change the conversion makes by hand: `Object.is` passed as a value or
+reached through `Object?.is`; a call of another arity, `Object.is(a)`
+being `Object.is(a, undefined)` in JavaScript, which the module spells
+out; and `const { is } = Object`, which is destructuring besides, whose
+reads become the call.

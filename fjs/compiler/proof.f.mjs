@@ -661,6 +661,12 @@ export const proof = {
             assertEq(fjsRoundTrip('export default Number(" 4 ") + Number(1n) * -Number([7]);'), 'export default Number(" 4 ")+Number(1n)*-Number([7]);')
             assertEq(compileSource('export default Number("0x10");')('output.json'), '16')
             assert(compileSource('export default Number("0x10");')('output.rs').includes('(Any::number(string_any("0x10")))?;\n'))
+            // `Object.is` reads back as the call it is written as, and each
+            // output answers it as `Object.is`: the zeros apart, `NaN` itself
+            assertEq(fjsRoundTrip('export default [Object.is(NaN, NaN), Object.is(0, -0)];'), 'export default [Object.is(NaN,NaN),Object.is(0,-0)];')
+            assertEq(fjsRoundTrip('export default Object.is((...a) => a, 1 < 2).x;'), 'export default Object.is((...$0)=>$0,1<2).x;')
+            assertEq(compileSource('export default [Object.is(NaN, NaN), Object.is(0, -0)];')('output.json'), '[true,false]')
+            assert(compileSource('export default Object.is(0, -0);')('output.rs').includes('(object_is(f64_any(0x0000000000000000), f64_any(0x8000000000000000)))?;\n'))
             assertEq(fjsRoundTrip('export default (1 + 2).x;'), 'export default (1+2).x;')
             assertEq(fjsRoundTrip('export default (-[1])[0];'), 'export default (-[1])[0];')
             assertEq(fjsRoundTrip('export default -((...a) => 1);'), 'export default -(()=>1);')

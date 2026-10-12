@@ -957,6 +957,58 @@ export const proof = {
             expectRefused('export default [1][Number(x)];', 'const not found', 27)
         },
     },
+    // `Object.is(a, b)` is recognized whole, where no scope binds `Object`
+    // — the intrinsic namespace, as the `entry` helper reads it — and is
+    // the AST's `['is', a, b]`, the EDAG's own node; the key in either
+    // spelling, the operands any values (spec/README.md, `Object.is`).
+    sameValue: {
+        read: () => {
+            expectModule('export default Object.is(1, 2);', '[[],[["object",[[":","default",["is",1,2]]]]]]')
+            expectModule('export default Object["is"](1, 2);', '[[],[["object",[[":","default",["is",1,2]]]]]]')
+            expectModule('export default !Object.is(1 + 2, -0) === Object.is("a", "a");', '[[],[["object",[[":","default",["===",["!",["is",["+",1,2],["-",0]]],["is","a","a"]]]]]]]')
+            expectModule('export default Object.is(Object.is(1, 2), true);', '[[],[["object",[[":","default",["is",["is",1,2],true]]]]]]')
+            expectModule('export default (...a) => Object.is(a[0], a[1]);', '[[],[["object",[[":","default",["=>",0,[["is",[".",["rest"],0],[".",["rest"],1]]]]]]]]]')
+            // the statement ends where JavaScript ends it
+            expectModule('export default Object.is(1, 2)\n;', '[[],[["object",[[":","default",["is",1,2]]]]]]')
+        },
+        // the node is `Object.is`: `NaN` is itself, the zeros differ, and
+        // two arrays are two values
+        evaluated: () => {
+            const value = evaluate(unwrap(parseFromTokens(tokenizeString('export default [Object.is(NaN, NaN), Object.is(0, -0), Object.is(1, 1), Object.is("a", "a"), Object.is([], [])];'))))
+            assertStructurallySame(assertOk(read(ok(value), 'default')), ['[]', [true, false, true, true, false]])
+        },
+        // a scope that binds `Object` — a parameter, a `const`, the
+        // function's own name — is JavaScript's own reading: a method call
+        // on that value, whatever it holds
+        bound: () => {
+            expectModule('export default (Object) => Object.is(1, 2);', '[[],[["object",[[":","default",["=>",1,[["()",[".",["arg",0],"is"],[1,2]]]]]]]]]')
+            expectModule('export default (...a) => { const Object = a[0]; return Object.is(1, 2); };', '[[],[["object",[[":","default",["=>",0,[[".",["rest"],0],["()",[".",["cref",0],"is"],[1,2]]]]]]]]]')
+            expectModule('const Object = (...a) => Object.is(a, a); export default Object;', '[[],[["=>",0,[["()",[".",["self"],"is"],[["rest"],["rest"]]]]],["object",[[":","default",["cref",0]]]]]]')
+        },
+        // the call's read of `Object` is remembered in every scope out to
+        // the module's, as the `entry` helper's is: a `const Object` after
+        // it, in any of them, is a capture shadowed
+        shadowed: () => {
+            expectRefused('const x = Object.is(1, 2); const Object = 3; export default x;', 'capture shadowed', 34)
+            expectRefused('export default (...a) => { const x = Object.is(a, 1); const Object = 2; return x; };', 'capture shadowed', 61)
+            expectRefused('const x = (...a) => Object.is(a, 1); const Object = 2; export default x;', 'capture shadowed', 44)
+        },
+        // any other arity, or a spread, is refused by name at the word
+        // rather than read as JavaScript's `undefined` default
+        arity: () => {
+            for (const source of ['export default Object.is(1);', 'export default Object.is();', 'export default Object.is(1, 2, 3);', 'export default Object.is(...[1, 2]);', 'export default Object.is(1, ...[2]);']) {
+                expectRefused(source, 'Object.is takes two arguments', 16)
+            }
+        },
+        // every other use of the namespace reads `Object`, the word
+        // nothing binds: another member, the function as a value, a chain
+        // through it, and the word bare
+        refused: () => {
+            for (const source of ['export default Object.isFrozen(1);', 'export default Object.is;', 'export default Object?.is(1, 2);', 'export default Object.is?.(1)(2, 3);', 'export default Object;']) {
+                expectRefused(source, 'const not found', 16)
+            }
+        },
+    },
     // `with { type: "json" }` is the one import attribute JavaScript
     // defines; the grammar takes any key and any string, and the fold reads
     // both words and names the one it does not know.

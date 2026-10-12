@@ -17,8 +17,14 @@ import { lazyOp2Id } from '../../edag/module.f.mjs'
  * What reads a binary node asks {@link isBinary} instead of listing the
  * tags again, so a new operator is written here and in the grammar, and
  * nowhere a missed `case` would read it as something else.
+ *
+ * `is` is the one tag no operator text spells: `Object.is(a, b)`, the
+ * call the parser recognizes whole and the writer spells back
+ * ([spec: `Object.is`](../../../spec/README.md#objectis)), a binary node
+ * of the EDAG's own `op2` shape between those two, and so in no layer.
  */
 export const binaryTags = /** @type {const} */ ([
+    'is',
     '*', '/', '%', '**',
     '+', '-',
     '===', '!==', '<', '<=', '>', '>=',

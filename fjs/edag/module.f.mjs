@@ -622,7 +622,7 @@ export const lazyOp2Id = /** @type {const} */ (['&&', '||', '??'])
  * `Object.is`, the equality the language's guarantees are stated in —
  * `NaN` is `NaN` and `0` is not `-0`, where `===` says the opposite — as a
  * node, since `Object.is` is a function of a namespace the language cannot
- * name as a value (`./todo/is-operator.md`). The rest
+ * name as a value ([spec: `Object.is`](../../spec/README.md#objectis)). The rest
  * are the JS comparison, arithmetic, bitwise, and logical operators they
  * name — with `&&`/`||`/`??` short-circuiting exactly as in JS: their
  * right operand is conditional, never established eagerly. All this

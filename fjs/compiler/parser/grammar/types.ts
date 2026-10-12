@@ -56,9 +56,11 @@ export type _FramingKeyword = 'import' | 'const' | 'export' | 'default' | 'from'
  * Every infix operator the grammar's binary layers read: the AST's own
  * {@link BinaryTag}s, whose node is two operands, and `instanceof`, whose
  * right operand the fold reads as a constructor name rather than a value —
- * so it is a layer's operator here and not a binary tag there.
+ * so it is a layer's operator here and not a binary tag there. `is` is the
+ * one binary tag that is no operator: `Object.is(a, b)` is a call the fold
+ * recognizes, and the grammar reads it as any call.
  */
-export type InfixTag = BinaryTag | 'instanceof'
+export type InfixTag = Exclude<BinaryTag, 'is'> | 'instanceof'
 
 type _KeywordsAreComplete = Assert<Equal<(typeof _framingKeywords)[number], _FramingKeyword>>
 

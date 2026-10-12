@@ -277,7 +277,17 @@ the fold's:
   `Object` is remembered in every scope out to the module's, as a body
   remembers a word it has read from outside: a `const Object` after the
   helper, in any of them, is `capture shadowed`, since JavaScript would
-  have resolved the helper's `Object` to it.
+  have resolved the helper's `Object` to it;
+- the call `Object.is(a, b)`, recognized whole where no scope binds
+  `Object` ([spec: `Object.is`](../../../spec/README.md#objectis)): the key
+  in either spelling, its two arguments entered as a binary operator's
+  operands, and the node the AST's `['is', a, b]`, the EDAG's own. Its read
+  of `Object` is remembered as the helper's is, so a later `const Object`
+  is `capture shadowed` too. Any other arity, or a spread, is refused at
+  the word with `Object.is takes two arguments`; a scope that binds the
+  word makes the call a method call on what it binds; and every other use
+  of the namespace — another member, the function as a value, a chain —
+  reads `Object` as the word nothing binds, `const not found`.
 
 The fold is where a symbol table already exists, because turning an identifier
 into `['cref', n]` or `['aref', n]` *is* the lookup. Do not contort the grammar

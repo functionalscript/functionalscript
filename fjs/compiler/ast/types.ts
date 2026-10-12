@@ -369,8 +369,9 @@ export type AstString = readonly ['String', AstConst]
  */
 export type AstBinary = readonly [BinaryTag, AstConst, AstConst]
 
-/** Every binary operator Stages A and B admit, the tag doubling as the EDAG's own — `op12Id`'s `-` included, told from the unary `['-', AstConst]` by arity. `../parser/syntax/types.ts`'s `Node` carries the same tags, imported from here, so `toNode`'s fold and `lower`'s dispatch both key off one name per operator. `binaryTags` in `./module.f.mjs` is the same list at run time. */
+/** Every binary operator Stages A and B admit, the tag doubling as the EDAG's own — `op12Id`'s `-` included, told from the unary `['-', AstConst]` by arity — and `is`, `Object.is(a, b)` as the EDAG's `is` node, which no operator text spells. `../parser/syntax/types.ts`'s `Node` carries the same tags, imported from here, so `toNode`'s fold and `lower`'s dispatch both key off one name per operator. `binaryTags` in `./module.f.mjs` is the same list at run time. */
 export type BinaryTag =
+    | 'is'
     | '*' | '/' | '%' | '**'
     | '+' | '-'
     | '===' | '!==' | '<' | '<=' | '>' | '>='
@@ -385,8 +386,8 @@ type _LayerTag = _Values<(typeof eagerLayers)[number] | (typeof lazyLayers)[numb
 /** The values of each record of a union, distributed over it. */
 type _Values<T> = T extends unknown ? T[keyof T] : never
 
-/** The layers and `**` hold every binary operator and `instanceof`, and nothing else. */
-type _LayersAreComplete = Assert<Equal<_LayerTag | '**', BinaryTag | 'instanceof'>>
+/** The layers and `**` hold every binary operator and `instanceof`, and nothing else; `is` is a call's text, in no layer. */
+type _LayersAreComplete = Assert<Equal<_LayerTag | '**' | 'is', BinaryTag | 'instanceof'>>
 
 /**
  * The conditional, `c ? t : e`: the EDAG's `op3`, `['?:', c, t, e]`, the

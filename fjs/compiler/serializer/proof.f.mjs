@@ -1148,6 +1148,16 @@ export const proof = {
         writes(['instanceof', ['+', 1, 2], 'Array'], 'export default 1+2 instanceof Array;')
         writes(['+', ['instanceof', 1, 'Array'], 2], 'export default (1 instanceof Array)+2;')
         writes(['.', ['instanceof', ['[]', []], 'Array'], 'x'], 'export default ([] instanceof Array).x;')
+        // `is` is the call `Object.is(a,b)`: its operands are arguments,
+        // bare whatever they are, and the call binds as a name does, so
+        // nothing holding it groups it
+        writes(['is', 1, 2], 'export default Object.is(1,2);')
+        writes(['is', ['<', 1, 2], ['!', ['[]', []]]], 'export default Object.is(1<2,![]);')
+        writes(['is', identity, ['is', 1, 2]], 'export default Object.is((...$0)=>$0,Object.is(1,2));')
+        writes(['!', ['is', 1, 2]], 'export default !Object.is(1,2);')
+        writes(['**', ['is', 1, 2], 2], 'export default Object.is(1,2)**2;')
+        writes(['.', ['is', 1, 2], 'x'], 'export default Object.is(1,2).x;')
+        writes(fn(['is', r0, ['.', ['rest'], 1]]), 'export default (...$0)=>Object.is($0[0],$0[1]);')
         writes(['!', ['instanceof', 1, 'Array']], 'export default !(1 instanceof Array);')
         writes(['instanceof', ['=>', 0, [], 1], 'Array'], 'export default (()=>1) instanceof Array;')
         // `**` takes no prefix on its left bare, a negative number

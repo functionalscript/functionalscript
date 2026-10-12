@@ -154,6 +154,16 @@ const reservedWord = foldError('reserved word')
 const conversionArity = name => foldError(`${name} takes one argument`)
 
 /**
+ * The call `Object.is` with other than two plain arguments, at the word
+ * `Object`: `Object.is(a)` is `Object.is(a, undefined)` in JavaScript and
+ * `Object.is()` is `true`, a third argument is dropped, and a spread's
+ * arity is its array's — each a spelling the writer would not give back,
+ * refused by name rather than read as another
+ * ([spec: `Object.is`](../../../spec/README.md#objectis)).
+ */
+const sameValueArity = foldError('Object.is takes two arguments')
+
+/**
  * A token on the wrong side of a line break, at that token: the first
  * token of a statement on the line of the statement before it, written
  * without its `;` — the error the grammar reported there when the `;` was
@@ -908,7 +918,7 @@ const enter = (stack, scope, node) => {
                 : chainRound(stack, scope, { chain: node, parts: chainParts(node), index: 0, done: null })
         }
         case '?.': case '?.()': { return chainRound(stack, scope, { chain: node, parts: chainParts(node), index: 0, done: null }) }
-        case '()': { return conversion(stack, scope, node) ?? callRound(stack, scope, { call: node, index: 0, done: null }) }
+        case '()': { return conversion(stack, scope, node) ?? sameValue(stack, scope, node) ?? callRound(stack, scope, { call: node, index: 0, done: null }) }
         case '-': { return [{ top: { neg: true }, rest: stack }, scope, ['enter', node[1]]] }
         case '~': { return [{ top: { bitnot: true }, rest: stack }, scope, ['enter', node[1]]] }
         case '!': { return [{ top: { not: true }, rest: stack }, scope, ['enter', node[1]]] }
@@ -961,6 +971,35 @@ const conversion = (stack, scope, [, callee, args]) => {
  * @type {(key: Key, name: string) => boolean}
  */
 const isKeyNamed = (key, name) => !(key instanceof Array) && keyNamed(key) === name
+
+/**
+ * The call `Object.is(a, b)` entered, or `null` where the call is not it
+ * ([spec: `Object.is`](../../../spec/README.md#objectis)): a call whose
+ * callee is the plain access `Object.is`, the key in either spelling, as
+ * any key is read, {@link isKeyNamed}, where no scope binds `Object` — the
+ * intrinsic namespace, as the `entry` helper reads it,
+ * {@link entryFunction}, and the read is recorded in the scopes around it
+ * the same way, {@link intrinsicRead}, so that a `const` of the word after
+ * the call is refused as a capture shadowed is. Its two arguments are
+ * entered as a binary operator's operands, {@link enter}, under the AST's
+ * `['is', a, b]`, the EDAG's own node. Any other arity, or a spread, is
+ * refused at the word, {@link sameValueArity}. Where a scope binds
+ * `Object` — a parameter, a `const`, a function's own name — the call is
+ * JavaScript's own, a method call on that value, and the ordinary
+ * resolution takes it; so does a callee that is a chain, `Object.is?.(…)`,
+ * or any other access of the namespace, which then reads `Object` as the
+ * word nothing binds, `const not found`.
+ *
+ * @type {(stack: _Stack, scope: _Scope, node: Extract<Node, readonly ['()', Node, readonly Item[]]>) => _State | null}
+ */
+const sameValue = (stack, scope, [, callee, args]) => {
+    if (callee[0] !== '.' || callee.length !== 3 || !isRef(callee[1], 'Object') || !isKeyNamed(callee[2], 'is') || resolve(scope, 'Object') !== null) { return null }
+    const [a, b] = args
+    if (args.length !== 2 || a[0] === '...' || b[0] === '...') { return [stack, scope, error(sameValueArity(/** @type {Extract<Node, readonly ['ref', DjsTokenWithMetadata]>} */ (callee[1])[1]))] }
+    /** @type {Node} */
+    const node = ['is', /** @type {Node} */ (a), /** @type {Node} */ (b)]
+    return [stack, intrinsicRead(scope), ['enter', node]]
+}
 
 /**
  * Whether a node is `Object.getOwnPropertyDescriptor(a, b)`, the helper's

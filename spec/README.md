@@ -64,7 +64,7 @@ or JSON ([output](#output)).
 | Modules | Default, named and combined imports; JSON import attributes; local and exported `const`; named and default exports; terminal `throw` |
 | Literals | JSON values, `undefined`, `NaN`, infinities and arbitrary-width bigints; decimal, hexadecimal and binary integers; numeric separators; single- and double-quoted strings; untagged template literals |
 | Containers | Dense arrays, object literals, shorthand members, constant and computed keys, trailing commas, array/call spread and object spread |
-| Expressions | Grouping; arithmetic, strict comparison, bitwise and lazy operators; `?:`, `!`, `typeof`, `instanceof Array`, `Number(...)` and `String(...)` |
+| Expressions | Grouping; arithmetic, strict comparison, bitwise and lazy operators; `?:`, `!`, `typeof`, `instanceof Array`, `Object.is(...)`, `Number(...)` and `String(...)` |
 | Properties | Own-property reads, numeric computed keys through `Number(...)`, optional reads/calls and the enumerable `entry` helper |
 | Functions | Arrow functions, 0–16 fixed parameters, optional rest, closures, self recursion, body constants, terminating `if` guards, `return`, `throw`, ordinary and method calls |
 | Built-ins | Pure array, string and numeric member functions, including callbacks and function text ([member functions](#built-in-member-functions)) |
@@ -1349,8 +1349,9 @@ language has arithmetic (`+ - * / % **`), comparison
 [operators](./todo/2340-operators.md) — and, above them, the lazy operators
 (`&& || ??`) and the conditional (`?:`), Stage B — and `!` and `typeof`, the
 logical not and the type tag, the prefixes neither stage had — and
-`instanceof Array`, the one instance check ([below](#instanceof)).
-`==`/`!=` stay refused, since neither language reads them the same way
+`instanceof Array`, the one instance check ([below](#instanceof)), and
+`Object.is`, the same-value equality, a call rather than an operator
+([below](#objectis)). `==`/`!=` stay refused, since neither language reads them the same way
 twice, and so does `in` ([below](#in-is-refused)). The comma operator is not
 recognized yet.
 
@@ -1508,6 +1509,40 @@ The EDAG's node is `['instanceof', exp, 'Array']`: the constructor is a
 ([`fjs/edag`](../fjs/edag/README.md)); `nanvm-lib` answers it with
 `Any::instanceof_(x, Constructor::Array)`. The writer spells it with
 spaces around the word, `a instanceof Array`.
+
+### `Object.is`
+
+```js
+export default (...a) => Object.is(a[0], -0);
+```
+
+`Object.is(a, b)` is JavaScript's SameValue: `true` when `a` and `b` are
+the same value — the same primitive, `NaN` with `NaN`, and `0` apart from
+`-0`, which `===` answers the other way on both counts — and the same
+array, object or function, by identity. It is the equality the language's
+own guarantees are stated in ([numbers](#numbers),
+[`fjs/edag`'s analysis](../fjs/edag/todo/analysis.md)), and the one call of
+the `Object` namespace a module spells itself, the `entry` helper's
+descriptor being the other ([reading an entry](#reading-an-entry-at-run-time)).
+`Object` is no value a module can name ([built-ins](./todo/2360-built-in.md)),
+so the call is recognized whole — the key in either spelling,
+`Object["is"]` being the same call — with exactly two plain arguments,
+where no scope binds the word: a parameter, a `const` or a function's own
+name spelling `Object` is JavaScript's own reading, and `Object.is` on it is
+a method call on that value. As with the helper, a `const` of `Object`
+after the call, in the module or in a body the call is written in, is
+refused as a shadowed capture is ([functions](#functions)): JavaScript
+would resolve the call's `Object` to that `const`. `Object.is(a)`,
+`Object.is()`, a third argument and a spread are refused at the word
+(`Object.is takes two arguments`) rather than read as JavaScript's
+`undefined` default, and `Object?.is(a, b)`, `Object.isFrozen(a)` and a
+bare `Object.is` are a read of `Object`, `const not found`.
+
+The EDAG's node is `['is', a, b]`, a binary operation beside `===`
+([`fjs/edag`](../fjs/edag/README.md)), which the represented interpreters
+answer with `Object.is` and `nanvm-lib` with `Any::same_value`. The writer
+spells it back as the call, `Object.is(a,b)`, which binds as a name does:
+`!Object.is(a, b)` and `Object.is(a, b) ** 2` take no parentheses.
 
 ### `in` Is Refused
 
