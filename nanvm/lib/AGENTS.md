@@ -21,10 +21,11 @@ cargo fmt -- --check     # verify formatting
 ```
 
 Run all three checks before submitting any change that touches Rust — a `.rs`
-edited by hand or rewritten by `npm run gen`, or a `Cargo.toml`, `Cargo.lock`
+edited by hand or rewritten by `npm run gen`; a `Cargo.toml`, `Cargo.lock`
 or `.cargo/` file, which changes what the workspace builds without touching a
-`.rs`. A change that touches none of these skips them
-([AGENTS.md](../../AGENTS.md)).
+`.rs`; or a README a module includes as its documentation
+(`#![doc = include_str!("README.md")]`), whose fenced code is a doctest. A
+change that touches none of these skips them ([AGENTS.md](../../AGENTS.md)).
 
 ## 2. Coding style
 

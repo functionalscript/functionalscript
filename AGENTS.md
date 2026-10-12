@@ -24,7 +24,10 @@ seconds where the full suite takes minutes, and the full run is CI's job. Read
 the set off the files the change touches, before every commit and push:
 
 - **Markdown only** — docs, `todo/`, the changelog: no check. No proof reads
-  them.
+  them. The exception is Markdown a Rust module includes as its
+  documentation, `#![doc = include_str!("README.md")]` in
+  `nanvm/lib/src/vm/unstable/mod.rs`: its fenced code is a doctest, so it is
+  Rust and takes the Cargo row.
 - **Any `.mjs`, `.f.mjs`, `.f.js` or `.ts`**: `tsc` over the whole tree, the
   shell's compiler — one project, one type-check — then the FunctionalScript
   tests under the changed directory: `cd` into it and run `npm start test`. A
@@ -44,6 +47,14 @@ the set off the files the change touches, before every commit and push:
   [`fjs/dev/gen/module.f.mjs`](./fjs/dev/gen/module.f.mjs) lists, and the
   source and data each reads: `npm run gen` first, then the rows its output
   matches. CI fails on a `gen.*` file left stale.
+- **A manifest, lockfile or compiler configuration** — `package.json` and
+  `package-lock.json`, `tsconfig.json`, `deno.json` and `deno.lock`,
+  `bun.lock`: the checks that read it, from the repository root — `tsc` for
+  the TypeScript configuration, `npm test` for the Node pair, `deno task test`
+  and `bun test` for theirs. The Cargo manifests are in the Cargo row.
+- **Anything else** — a file no row names: the checks of whatever reads it,
+  and the full `node --test` when that is not known. The list names what is
+  known to matter; it is not a proof that nothing else does.
 
 The scope is the changed directory, not its importers: a change to a module
 half the tree imports is tested by CI's full run, which is what that run is
