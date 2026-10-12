@@ -67,6 +67,28 @@ const pageAt = (root, path) => textOf(
     `the page for ${path.join('/')}`)
 
 export const proof = {
+    cli: {
+        page: () => {
+            const { root } = generate({})
+            const html = pageAt(root, ['cli'])
+            assert(html.includes('<h1>FunctionalScript CLI</h1>'), html)
+            assert(html.includes('id="cas-get"'), html)
+            assert(html.includes('href="/_main.css"'), html)
+            assert(pageAt(root, []).includes('href="/cli/">CLI</a>'), 'shared navigation')
+        },
+        repeatBuild: () => {
+            const first = generate({ fjs: { cli: {}, website: { cli: {} } } })
+            const second = generate(first.root)
+            assertEq(pageAt(second.root, []), pageAt(first.root, []))
+            assertEq(pageAt(second.root, ['cli']), pageAt(first.root, ['cli']))
+            assert(pageAt(second.root, ['fjs']).includes('href="/fjs/cli/index.html"'), 'source CLI page remains')
+            assert(!pageAt(second.root, []).includes('href="/cli/index.html" data-kind="dir"'), 'output is not discovered as source')
+        },
+        routeIsAFile: () => {
+            const [, code] = run({ cli: file('occupied') })
+            assert(code !== 0)
+        },
+    },
     rootCatalogue: () => {
         const { root } = generate({ a: {}, todo: { 'a.md': file('# issue') } })
         const html = pageAt(root, [])
@@ -145,13 +167,14 @@ export const proof = {
             assert(!pageAt(root, []).includes('API documentation'), pageAt(root, []))
             assert(output.includes('rust crates: 1'), output)
         },
-        // Every build writes the site's bars and their stylesheet for
-        // `cargo doc` to put on rustdoc's pages, whether or not it ran.
-        rustdocBars: () => {
-            const { root } = generate({ 'funding.json': file('{"funding":{"channels":[{"description":"Support","address":"https://example.com/"}]}}') })
-            assert(textOf(root['_rustdoc-header.html'], 'the header').startsWith('<header>'))
-            assert(textOf(root['_rustdoc-footer.html'], 'the footer').includes('<a href="https://example.com/">Support'))
-            assert(textOf(root['_rustdoc.css'], 'the stylesheet').includes('body.rustdoc > main'))
+        // The bars for rustdoc have one writer, `rustdoc-bars`, which runs
+        // before `cargo doc`; the generator, which runs after it, does not.
+        rustdocBarsNotHere: () => {
+            const { root } = generate({})
+            assertEq(root['_rustdoc-head.html'], undefined)
+            assertEq(root['_rustdoc-header.html'], undefined)
+            assertEq(root['_rustdoc-footer.html'], undefined)
+            assertEq(root['_rustdoc.css'], undefined)
         },
         // Without `cargo doc`, nothing is written and nothing is linked.
         absent: () => {

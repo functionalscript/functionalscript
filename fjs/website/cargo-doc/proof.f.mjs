@@ -1,6 +1,6 @@
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { utf8ToString } from '../../text/module.f.mjs'
-import { cargoDocHref, cargoDocPage, crateHref, crateOf, rustdocFooter, rustdocHeader } from './module.f.mjs'
+import { cargoDocHref, cargoDocPage, crateHref, crateOf, rustdocHead, rustdocHeadPath, rustdocFooter, rustdocHeader } from './module.f.mjs'
 
 const local = /** @type {const} */ ({ commit: null, branch: null, funding: [] })
 
@@ -19,6 +19,10 @@ export const proof = {
     },
     // The bars rustdoc puts on its pages are the site's own, as HTML
     // fragments: no document around them, since rustdoc places them.
+    rustdocHead: () => {
+        assertEq(rustdocHeadPath, '_rustdoc-head.html')
+        assertEq(rustdocHead, '<link rel="icon" href="/favicon.ico" sizes="32x32"><link rel="icon" type="image/svg+xml" href="/fjs/website/favicon.svg">')
+    },
     rustdocHeader: () => {
         const html = rustdocHeader(local)
         assert(html.startsWith('<header><nav aria-label="Site">'), html)

@@ -7,15 +7,15 @@ import { buildPath, buildText, cloudflare, generatedDirectory, main } from './mo
 
 export const proof = {
     // Fixed text: the pin written in full, no pipe to hide a failed download
-    // from `set -e`, no tool beyond the four approved, and the site written
-    // on both sides of `cargo doc`.
+    // from `set -e`, no tool beyond the four approved, the bars written
+    // before `cargo doc` and the site once, after it.
     buildText: () => assertEq(buildText(), `#!/bin/sh
 set -e
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o "$HOME/rustup-init.sh"
 sh "$HOME/rustup-init.sh" -y --profile minimal --default-toolchain ${rust} --no-modify-path
 export PATH="$HOME/.cargo/bin:$PATH"
-npm run website
-RUSTDOCFLAGS="--html-before-content $PWD/_rustdoc-header.html --html-after-content $PWD/_rustdoc-footer.html --extend-css $PWD/_rustdoc.css" cargo doc --no-deps --workspace
+npm run rustdoc-bars
+RUSTDOCFLAGS="--html-in-header $PWD/_rustdoc-head.html --html-before-content $PWD/_rustdoc-header.html --html-after-content $PWD/_rustdoc-footer.html --extend-css $PWD/_rustdoc.css" cargo doc --no-deps --workspace
 npm run website
 `),
     // The pin is the config's, not a copy of it.

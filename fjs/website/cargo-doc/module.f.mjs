@@ -25,6 +25,7 @@
 import { element } from '../../media/html/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'
 import { footer, header, pageTitle, shell } from '../page/module.f.mjs'
+import { faviconLinks } from '../style/module.f.js'
 
 /**
  * Where `cargo doc` writes, which the build reads and never serves: `target/`
@@ -71,7 +72,7 @@ export const cargoDocPage = build => crates => shell(build)(pageTitle('Rust API'
 ])
 
 /**
- * Where the generator writes the site's header for rustdoc, which `cargo doc`
+ * Where `rustdoc-bars` writes the site's header for rustdoc, which `cargo doc`
  * takes as `--html-before-content`. `_`-prefixed, as `_main.css` is: generated
  * output the site serves and git ignores.
  *
@@ -79,10 +80,16 @@ export const cargoDocPage = build => crates => shell(build)(pageTitle('Rust API'
  */
 export const rustdocHeaderPath = '_rustdoc-header.html'
 
-/** Where the generator writes the site's footer for rustdoc, `--html-after-content`. @type {string} */
+/** Where `rustdoc-bars` writes the favicon links for rustdoc, `--html-in-header`. @type {string} */
+export const rustdocHeadPath = '_rustdoc-head.html'
+
+/** The site's shared favicon links, serialized for rustdoc's `<head>`. @type {string} */
+export const rustdocHead = faviconLinks.map(e => concat(element(e))).join('')
+
+/** Where `rustdoc-bars` writes the site's footer for rustdoc, `--html-after-content`. @type {string} */
 export const rustdocFooterPath = '_rustdoc-footer.html'
 
-/** Where the generator writes the stylesheet for rustdoc, `--extend-css`. @type {string} */
+/** Where `rustdoc-bars` writes the stylesheet for rustdoc, `--extend-css`. @type {string} */
 export const rustdocStylesheetPath = '_rustdoc.css'
 
 /**
