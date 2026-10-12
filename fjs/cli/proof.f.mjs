@@ -6,7 +6,7 @@
 import { exitCode } from '../effects/node/module.f.mjs'
 import { pureError, pureOk } from '../effects/module.f.mjs'
 import { emptyState, nodeProgramOptions, virtual } from '../effects/node/virtual/module.f.mjs'
-import { dispatch, isMain } from './module.f.mjs'
+import { dispatch, helpReference, isMain } from './module.f.mjs'
 import { assert, assertEq } from '../asserts/module.f.mjs'
 
 /** @type {Commands<NodeOp>} */
@@ -22,6 +22,17 @@ const run = (/** @type {Commands<NodeOp>} */ commands) => (/** @type {readonly s
     virtual(emptyState)(dispatch(commands)(nodeProgramOptions(args)))
 
 export const proof = {
+    helpReference: () => {
+        const root = helpReference([])
+        const nested = helpReference(['cas'])
+        assertEq(root.usage, 'fjs help [command]')
+        assertEq(root.examples.join('\n'), 'fjs help\nfjs help cas')
+        assert(root.note.includes('program target'))
+        assertEq(nested.usage, 'fjs cas help')
+        assertEq(nested.examples[0], 'fjs help cas')
+        assert(nested.note.includes('subcommands'))
+        assertEq(nested.docs, 'fjs/README.md')
+    },
     // A `Program` is already what `dispatch` makes, so it runs as itself,
     // arguments untouched — no command name is consumed.
     program: () => {

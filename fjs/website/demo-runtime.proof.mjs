@@ -36,6 +36,8 @@ const dom = path => {
     const listeners = []
     /** @type {((event: any) => void)[]} */
     const clicks = []
+    /** @type {((event: any) => void)[]} */
+    const scrolls = []
     /** @type {string[]} */
     const rendered = []
     /**
@@ -137,6 +139,23 @@ const dom = path => {
             childNodes: [],
             get name() { return self.attributes.get('name') ?? '' },
             getAttribute: (/** @type {string} */ name) => self.attributes.get(name) ?? null,
+            hasAttribute: (/** @type {string} */ name) => self.attributes.has(name),
+            // The element before this one under the same parent, as a DOM
+            // answers it: elements only, `null` for the first.
+            get previousElementSibling() {
+                const siblings = self.parent === null ? [] : self.parent.childNodes.filter((/** @type {any} */ c) => c.nodeType === 1)
+                return siblings[siblings.indexOf(self) - 1] ?? null
+            },
+            // The one selector the runtime asks of an element: a textarea in
+            // a highlighted field's wrapper.
+            matches: (/** @type {string} */ selector) =>
+                selector === '[data-editor] > textarea' && self.localName === 'textarea'
+                    && self.parent !== null && self.parent.attributes !== undefined && self.parent.attributes.has('data-editor'),
+            // As a DOM does: the contents become one text node.
+            set textContent(/** @type {string} */ value) {
+                self.childNodes = [adopt(self, value)]
+                changed(self)
+            },
             getAttributeNames: () => [...self.attributes.keys()],
             setAttribute: (/** @type {string} */ name, /** @type {string} */ value) => {
                 self.attributes.set(name, value)
@@ -226,7 +245,9 @@ const dom = path => {
         contains: (/** @type {any} */ node) => descendants().includes(node),
         querySelectorAll: (/** @type {string} */ selector) =>
             descendants().filter(node =>
-                selector === 'button' ? node.localName === 'button' : selector === '[name]' && node.name !== ''),
+                selector === 'button' ? node.localName === 'button'
+                    : selector === '[data-editor] > textarea' ? node.matches(selector)
+                        : selector === '[name]' && node.name !== ''),
         setAttribute: (/** @type {string} */ name, /** @type {string} */ value) => {
             root.attributes.set(name, value)
             if (name === 'data-demo-working') { workedWith = value; steps.push('working') }
@@ -238,6 +259,7 @@ const dom = path => {
         addEventListener: (/** @type {string} */ kind, /** @type {any} */ f) => {
             if (kind === 'input') { listeners.push(f) }
             if (kind === 'click') { clicks.push(f) }
+            if (kind === 'scroll') { scrolls.push(f) }
         },
         ownerDocument: document,
     }
@@ -287,7 +309,17 @@ const dom = path => {
         input: (name, value) => {
             const field = root.querySelector(`[name="${name}"]`)
             if (field !== null) { field.type(value) }
-            for (const f of listeners) { f({ target: { name, value } }) }
+            for (const f of listeners) { f({ target: field ?? { name, value } }) }
+        },
+        /**
+         * The reader scrolling the field named `name`: its scroll is heard at
+         * the section, as a capturing listener hears it.
+         *
+         * @type {(name: string) => void}
+         */
+        scroll: name => {
+            const field = root.querySelector(`[name="${name}"]`)
+            for (const f of scrolls) { f({ target: field }) }
         },
         touched,
         /**
@@ -357,6 +389,25 @@ export const demo = {
     init: '',
     update: state => event => () => ['ok', event.kind === 'input' ? event.value : state],
     view: text => ['div', ['input', { name: 'text', value: text }], ['pre', text]],
+}
+`)
+
+/**
+ * A demo with a highlighted field: a textarea laid over a coloured copy of its
+ * text, marked as the stylesheet and the runtime know them. The copy colours
+ * the whole text as one keyword.
+ */
+const highlighted = moduleUrl(`
+export const demo = {
+    init: 'a',
+    update: state => event => () => ['ok', event.kind === 'input' ? event.value : event.kind === 'click' ? state + 'x' : state],
+    // the copy is a \`span\` or a \`div\` by the text's length, so a click that
+    // changes the length builds the copy anew, as a patch does when a view's
+    // element changes its place
+    view: text => ['div', ['span', { 'data-editor': '' },
+        [text.length % 2 === 0 ? 'div' : 'span', { 'data-mirror': '' }, ['span', { 'data-token': 'keyword' }, text], '\\u200b'],
+        ['textarea', { name: 'text' }, text]],
+        ['button', { name: 'more' }, 'more']],
 }
 `)
 
@@ -632,6 +683,83 @@ export const proof = {
         assertEq(after.scrollLeft, 30)
     },
     /**
+     * **A keystroke shows in a highlighted field at once.** The textarea's own
+     * text is transparent, so its coloured copy is the only text the reader
+     * sees, and the render that colours it comes after the demo's work and the
+     * inputs queued before it. The copy holds the typed text, uncoloured, in
+     * the turn of the event, and the render replaces it.
+     */
+    echoesATypedValue: async () => {
+        const d = dom(highlighted)
+        await startDemo(d.root)
+        await settle()
+        const mirror = () => d.root.firstElementChild.childNodes[0].childNodes[0]
+        assertEq(mirror().childNodes.length, 2)
+        d.input('text', 'abc')
+        // before any render: the typed text, and no colour
+        assertEq(mirror().childNodes.length, 1)
+        assertEq(mirror().childNodes[0].data, 'abc\u200b')
+        await settle()
+        // after it: coloured
+        assertEq(mirror().childNodes.length, 2)
+        assertEq(mirror().childNodes[0].localName, 'span')
+    },
+    /**
+     * **The copy follows the textarea's scroll**, as the reader scrolls and
+     * across a render, which puts the textarea back where it was and may
+     * change what the copy holds.
+     */
+    followsTheScroll: async () => {
+        const d = dom(highlighted)
+        await startDemo(d.root)
+        await settle()
+        const field = () => d.root.querySelector('[name="text"]')
+        const mirror = () => d.root.firstElementChild.childNodes[0].childNodes[0]
+        field().scrollTop = 120
+        field().scrollLeft = 30
+        d.scroll('text')
+        assertEq(mirror().scrollTop, 120)
+        assertEq(mirror().scrollLeft, 30)
+        // a render: the textarea is put back, and the copy follows it
+        field().scrollTop = 200
+        d.input('text', 'ab')
+        await settle()
+        assertEq(field().scrollTop, 200)
+        assertEq(mirror().scrollTop, 200)
+        assertEq(mirror().scrollLeft, 30)
+    },
+    /**
+     * **A render that builds the copy anew puts it back where the textarea
+     * is**, with no input event to echo: a fresh element starts scrolled to the
+     * top.
+     */
+    followsTheScrollAfterARenderWithoutInput: async () => {
+        const d = dom(highlighted)
+        await startDemo(d.root)
+        await settle()
+        const field = () => d.root.querySelector('[name="text"]')
+        const mirror = () => d.root.firstElementChild.childNodes[0].childNodes[0]
+        field().scrollTop = 150
+        const before = mirror()
+        d.click('more')
+        await settle()
+        assert(mirror() !== before, 'the copy was built anew')
+        assertEq(field().scrollTop, 150)
+        assertEq(mirror().scrollTop, 150)
+    },
+    // A scroll in a field that has no copy, or that is no highlighted field,
+    // is none of the runtime's business.
+    ignoresAScrollOutsideAHighlightedField: async () => {
+        const d = dom(echo)
+        await startDemo(d.root)
+        await settle()
+        const renders = d.rendered.length
+        d.scroll('text')
+        d.input('text', 'x')
+        await settle()
+        assert(d.rendered.length > renders)
+    },
+    /**
      * **Only a button asks.** A click in a field places a caret or ends a
      * mouse selection; sending it to the demo re-rendered the field under the
      * reader's hands for an event no demo acts on.
@@ -777,6 +905,27 @@ export const demo = {
      * a queued second click would be honoured after the first finished, which
      * is a demo doing its work twice because somebody was impatient.
      */
+    preservesDisabledActions: async () => {
+        const d = dom(moduleUrl(`
+export const demo = {
+    init: 'waiting',
+    update: state => event => () => ['ok', event.kind === 'input' ? event.value : state],
+    view: state => ['div',
+        ['input', { name: 'text', value: state }],
+        ['button', { name: 'go', ...(state === 'ready' ? {} : { disabled: '' }) }, 'Go'],
+    ],
+}
+`))
+        await startDemo(d.root)
+        await settle()
+        assertStructurallySame(d.disabled(), [true])
+        d.input('text', 'ready')
+        await settle()
+        assertStructurallySame(d.disabled(), [false])
+        d.input('text', 'invalid')
+        await settle()
+        assertStructurallySame(d.disabled(), [true])
+    },
     saysItIsWorking: async () => {
         const d = dom(moduleUrl(`
 export const demo = {

@@ -17,7 +17,8 @@
 import { asyncPartialRun } from '../effects/module.mjs'
 import { commonOperationMap } from '../effects/common/module.mjs'
 import { macrotask, patch, toDom } from '../media/html/module.mjs'
-import { demoMarker } from './style/module.f.js'
+import { copy } from './copy-runtime.mjs'
+import { demoMarker, editorMarker, mirrorMarker } from './style/module.f.js'
 
 /**
  * What a demo may ask this page for.
@@ -76,6 +77,8 @@ const run = asyncPartialRun(commands)(commonOperationMap)
  * be honoured after the first finished, which is a demo measuring twice
  * because somebody was impatient. Incremental work skips this marker so Stop
  * and input remain available; its updates must be small and pure.
+ * The next render restores the view's disabled attributes. Going idle must
+ * preserve them, rather than enable actions the demo has explicitly refused.
  *
  * @type {(root: Element, working: boolean, note?: string | null) => void}
  */
@@ -86,7 +89,7 @@ const busy = (root, working, note = null) => {
         root.removeAttribute('data-demo-working')
     }
     for (const control of root.querySelectorAll('button')) {
-        control.disabled = working
+        control.disabled = working || control.getAttribute('disabled') !== null
     }
 }
 
@@ -193,6 +196,52 @@ const rescroll = (root, was) => {
 }
 
 /**
+ * The coloured copy of a highlighted field's text, or `null` for a field that
+ * has none.
+ *
+ * @type {(textarea: Element) => Element | null}
+ */
+const mirrorOf = textarea => {
+    const mirror = textarea.previousElementSibling
+    return mirror?.hasAttribute(mirrorMarker) ? mirror : null
+}
+
+/**
+ * Keeps a highlighted field's coloured copy where its textarea is scrolled.
+ *
+ * The copy sits under the textarea and cannot be scrolled by the reader, so
+ * it follows: its offset is set to the textarea's on every scroll, and after
+ * every render, which can change the text the copy holds and the offset the
+ * textarea was put back to.
+ *
+ * @type {(textarea: Element) => void}
+ */
+const follow = textarea => {
+    const mirror = mirrorOf(textarea)
+    if (mirror === null) { return }
+    mirror.scrollTop = textarea.scrollTop
+    mirror.scrollLeft = textarea.scrollLeft
+}
+
+/**
+ * Shows what the reader typed in a highlighted field's coloured copy at once,
+ * uncoloured.
+ *
+ * The textarea's own text is transparent, so the copy is the only text the
+ * reader sees, and the render that colours it comes later — after the demo's
+ * work, and after every input queued before it. Until then a keystroke would
+ * paint the old text. The render replaces this with the coloured one.
+ *
+ * @type {(textarea: Element) => void}
+ */
+const echo = textarea => {
+    const mirror = mirrorOf(textarea)
+    if (mirror === null) { return }
+    mirror.textContent = `${/** @type {HTMLTextAreaElement} */ (textarea).value}\u200b`
+    follow(textarea)
+}
+
+/**
  * Renders a state, and leaves the reader where they were.
  *
  * **Patched, not replaced.** Replacing the section's contents rebuilt the
@@ -226,6 +275,7 @@ const render = (root, view) => {
     resize(root, sizes)
     refocus(root, was)
     rescroll(root, offsets)
+    for (const area of Array.from(root.querySelectorAll(`[${editorMarker}] > textarea`))) { follow(area) }
 }
 
 /**
@@ -337,68 +387,6 @@ const unwrapState = result => {
 }
 
 /**
- * Copy the text declared by a demo's code block, directly from the click so
- * the browser keeps the reader's clipboard permission gesture. This is a
- * page control rather than a demo event: copying does not change demo state.
- * Pending copies ignore re-entry without disabling the focused button. Every
- * outcome gets visible feedback; resetting it clears the live region rather
- * than announcing the button's label as another status.
- *
- * @type {(button: HTMLButtonElement | HTMLInputElement, text: string) => Promise<void>}
- */
-const copy = async (button, text) => {
-    const view = button.ownerDocument.defaultView
-    if (view === null) { throw new Error('copy control has no window') }
-    if (copyPending.has(button)) { return }
-
-    const status = button.querySelector('[data-copy-status]')
-    /** @type {(result: 'copied' | 'failed' | null, message: string) => void} */
-    const setFeedback = (result, message) => {
-        if (result === null) { button.removeAttribute('data-copy-feedback') }
-        else { button.setAttribute('data-copy-feedback', result) }
-        if (status !== null) { status.textContent = message }
-    }
-
-    copyPending.add(button)
-    button.setAttribute('aria-disabled', 'true')
-    view.clearTimeout(copyTimers.get(button))
-    copyTimers.delete(button)
-    setFeedback(null, '')
-
-    try {
-        const [result, message] = await write(view, text)
-        setFeedback(result, message)
-        copyTimers.set(button, view.setTimeout(() => {
-            setFeedback(null, '')
-            copyTimers.delete(button)
-        }, copyFeedbackDurationMs))
-    } finally {
-        copyPending.delete(button)
-        button.removeAttribute('aria-disabled')
-    }
-}
-
-/** @type {(view: Window, text: string) => Promise<readonly ['copied' | 'failed', string]>} */
-const write = async (view, text) => {
-    try {
-        const clipboard = view.navigator.clipboard
-        if (clipboard === undefined) { return ['failed', 'Copy unavailable'] }
-        await clipboard.writeText(text)
-        return ['copied', 'Copied!']
-    } catch {
-        return ['failed', 'Copy failed']
-    }
-}
-
-const copyFeedbackDurationMs = 2_000
-
-/** @type {WeakMap<HTMLButtonElement | HTMLInputElement, number>} */
-const copyTimers = new WeakMap()
-
-/** @type {WeakSet<HTMLButtonElement | HTMLInputElement>} */
-const copyPending = new WeakSet()
-
-/**
  * Starts the demo named by `demoMarker` inside `root`.
  *
  * The path is root-relative and taken verbatim: a relative specifier in the
@@ -422,8 +410,14 @@ export const startDemo = async root => {
         if (demo === undefined) { throw new Error(`${path} exports no demo`) }
         const step = stepper(root, demo)
         render(root, demo.view(demo.init))
+        // A scroll does not bubble, so it is heard in the capture phase.
+        root.addEventListener('scroll', e => {
+            const target = /** @type {Element} */ (e.target)
+            if (target.matches(`[${editorMarker}] > textarea`)) { follow(target) }
+        }, true)
         root.addEventListener('input', e => {
             const target = /** @type {HTMLInputElement} */ (e.target)
+            echo(target)
             step({ kind: 'input', name: target.name, value: target.value })
         })
         // A click is how a demo is *asked* for work rather than told about

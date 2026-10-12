@@ -41,8 +41,8 @@
  *
  * @module
  *
- * @import { All, Env, Mkdir, NodeProgramOptions, ReadFile, Readdir, Rm, Write, WriteBytes, WriteFile } from '../effects/node/types.ts'
- * @import { Effect, IoChannel } from '../effects/types.ts'
+ * @import { Access, All, Env, Mkdir, NodeProgramOptions, ReadFile, ReadWhole, Readdir, Rm, Write, WriteBytes, WriteFile } from '../effects/node/types.ts'
+ * @import { Effect, IoChannel, IoResult } from '../effects/types.ts'
  * @import { StringSet } from '../types/string_set/types.ts'
  * @import { Vec } from '../types/bit_vec/types.ts'
  * @import { _Demos, _Graph, _Imports, _Tree, _Walked } from './private.ts'
@@ -52,8 +52,8 @@
  */
 
 import { utf8 } from '../text/module.f.mjs'
-import { exitStep, isNotFound, mkdir, readdir, readUtf8File, writeFile, writeUtf8File } from '../effects/node/module.f.mjs'
-import { foldStep, forEachStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../effects/module.f.mjs'
+import { access, exitStep, isNotFound, mkdir, readdir, readUtf8File, readWhole, writeChunks, writeFile, writeUtf8File } from '../effects/node/module.f.mjs'
+import { foldStep, forEachStep, history, historyStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../effects/module.f.mjs'
 import { exportsDemo, exportsProof, local, specifiers } from './browser-source/module.f.mjs'
 import { concat as pathConcat } from '../path/module.f.mjs'
 import { at, empty as emptyMap, entries, setReplace } from '../types/ordered_map/module.f.mjs'
@@ -63,11 +63,13 @@ import { log } from '../effects/common/module.f.mjs'
 import { indexPage, isVersion, releasePage, releasePath, releases } from './changelog/module.f.mjs'
 import { tryParse } from '../media/markdown/module.f.mjs'
 import { stylesheet } from './style/module.f.js'
-import { changelogDir, demoSection, page, pagePath, prsDir, sections, shell, siteName, subtree, testSection, testsMain } from './page/module.f.mjs'
+import { changelogDir, cliDir, demoSection, directoryLayout, page, pagePath, prsDir, shell, siteName, subtree, testSection, testsMain } from './page/module.f.mjs'
 import { prsPage } from './prs/module.f.mjs'
+import { cliPage } from './cli/module.f.mjs'
 import { toHex, tryFromHexOf } from '../git/oid/module.f.mjs'
 import { fundingPath, parse as parseFunding } from './funding/module.f.mjs'
 import { isThirdParty } from '../dev/module.f.mjs'
+import { cargoDocDir, cargoDocHref, cargoDocPage, crateHref, crateOf, rustdocDir } from './cargo-doc/module.f.mjs'
 
 /**
  * The root page: the project's name, the catalogue every directory page
@@ -78,11 +80,8 @@ import { isThirdParty } from '../dev/module.f.mjs'
  * keeps its own frame, because the heading and the runner are the site's and
  * not the root directory's.
  *
- * **The demo first, the catalogue next, and the test suite last.** What a
- * module does is the quickest answer to what it is, and what a directory
- * holds is what a reader came for; a run is something they then ask for. It
- * is also the only order in which a run cannot move the catalogue, whatever
- * the report does.
+ * **The catalogue sits beside the demo and test suite.** A reader can
+ * navigate the directory without a growing demo or report moving its links.
  *
  * The heading is the project, not the suite. The suite is one section of the
  * page — named for what it is, with the prose that introduces it inside —
@@ -93,10 +92,9 @@ import { isThirdParty } from '../dev/module.f.mjs'
  *
  * @type {(build: Build) => (dir: Dir) => Vec}
  */
-const rootPage = build => dir => shell(build)(siteName)(testsMain(
+const rootPage = build => dir => shell(build)(siteName)(directoryLayout(build)(dir)(testsMain(
     ['h1', 'FunctionalScript'],
     ...(dir.demo === null ? [] : demoSection(dir.demo)),
-    ...sections(build.commit)(dir),
     ...testSection(dir)([
         ['p',
             'FunctionalScript derives this browser-native unit-test suite from exported proofs. ',
@@ -107,7 +105,7 @@ const rootPage = build => dir => shell(build)(siteName)(testsMain(
             '.'
         ],
     ]),
-))
+)))
 
 /** @type {(path: string) => boolean} */
 const authored = path => path.endsWith('.f.mjs')
@@ -137,9 +135,10 @@ const walk = dir => step(readdir(dir, {}), entries => {
     // somebody left in the tree.
     const files = entries.filter(e => !e.isDirectory).map(e => e.name).toSorted()
     const dirs = entries
-        // The root PR route is generated output, not a source directory.
-        // Excluding it keeps consecutive builds' catalogues identical.
-        .filter(e => e.isDirectory && !isThirdParty(e.name) && !(dir === '.' && e.name === prsDir))
+        // The root PR route, the CLI reference and the Rust API reference
+        // are generated output, not source directories. Excluding them
+        // keeps consecutive builds' catalogues identical.
+        .filter(e => e.isDirectory && !isThirdParty(e.name) && !(dir === '.' && (e.name === prsDir || e.name === cliDir || e.name === cargoDocDir)))
         .map(e => e.name)
         .toSorted()
     return foldStep(
@@ -524,6 +523,17 @@ const holdsDemo = demos => path => toArray(entries(demos))
     .some(([dir]) => dir === path || dir.startsWith(`${path}/`))
 
 /**
+ * The paths of the directories that hold a crate rustdoc documented: each has
+ * a `Cargo.toml`, and {@link crateOf} its path is among `crates`. The root's
+ * `Cargo.toml` is the workspace's, and `.` names no crate.
+ *
+ * @type {(tree: readonly _Walked[]) => (crates: readonly string[]) => readonly string[]}
+ */
+const crateDirs = tree => crates => tree
+    .filter(walked => walked.files.includes('Cargo.toml') && crates.includes(crateOf(walked.path)))
+    .map(walked => walked.path)
+
+/**
  * What a page needs about one directory, from what the walk found in it and
  * in its `todo/`.
  *
@@ -534,9 +544,14 @@ const holdsDemo = demos => path => toArray(entries(demos))
  * Rust sources, `fjs/types/option/` its `types.ts`. What a directory holds is
  * what the walk found in it, minus the generator's own output.
  *
- * @type {(tree: _Tree) => (proofs: readonly Proof[]) => (demos: _Demos) => (walked: _Walked) => Dir}
+ * **A crate's directory links its API reference, and the directory above it
+ * links the reference's index** — `nanvm/lib` its crate, `nanvm` the list of
+ * all three — so a reader finds the reference from either. `crates` is
+ * {@link crateDirs}'s answer.
+ *
+ * @type {(tree: _Tree) => (crates: readonly string[]) => (proofs: readonly Proof[]) => (demos: _Demos) => (walked: _Walked) => Dir}
  */
-const toDir = tree => proofs => demos => walked => {
+const toDir = tree => crates => proofs => demos => walked => {
     const dirs = walked.dirs.filter(name => name !== 'todo')
     return {
         path: walked.path,
@@ -549,6 +564,8 @@ const toDir = tree => proofs => demos => walked => {
             ?? [],
         proofs: subtree(walked.path)(proofs),
         demo: at(walked.path)(demos),
+        api: crates.includes(walked.path) ? crateHref(crateOf(walked.path)) : null,
+        apiIndex: dirs.some(name => crates.includes(pathConcat(walked.path)(name))) ? cargoDocHref : null,
     }
 }
 
@@ -617,21 +634,122 @@ const writeChangelog = build => tree => {
 }
 
 /**
+ * Whether `path` is there, as a result rather than a failure: `access`
+ * answers a missing path with an error, which would end the build, and the
+ * callers read a missing path as an answer — no docs to copy, no funding to
+ * link — and every other error as the failure it is.
+ *
+ * @type {(path: string) => Effect<Access, IoResult<void>, IoChannel>}
+ */
+const foundAt = path => resultStep(access(path), found => pureOk(found))
+
+/**
+ * One directory of rustdoc's output, copied to the same place under
+ * {@link cargoDocDir}, its files byte for byte. Whole and in chunks, because
+ * a rustdoc page outgrows one `Vec`.
+ *
+ * @type {(dir: _Walked) => Effect<Mkdir | ReadWhole | Rm | WriteBytes | WriteFile, void, IoChannel>}
+ */
+const copyRustdocDir = dir => {
+    const to = `${cargoDocDir}${dir.path.slice(rustdocDir.length)}`
+    const made = mkdir(to, { recursive: true })
+    return step(made, () => forEachStep(pureOk(dir.files), copyRustdocFile(dir.path)(to)))
+}
+
+/**
+ * One file of rustdoc's output, read whole from directory `from` and written
+ * under the same name in `to`.
+ *
+ * @type {(from: string) => (to: string) => (name: string) => Effect<ReadWhole | Rm | WriteBytes | WriteFile, void, IoChannel>}
+ */
+const copyRustdocFile = from => to => name => step(
+    readWhole(`${from}/${name}`),
+    chunks => writeChunks(`${to}/${name}`, chunks))
+
+/**
+ * The crates a walk of rustdoc's output documents: each top-level directory
+ * with an `index.html`. The others — `static.files`, `src`, `trait.impl` —
+ * are rustdoc's shared assets.
+ *
+ * @type {(tree: readonly _Walked[]) => readonly string[]}
+ */
+const cratesOf = tree => tree
+    .filter(dir => dir.files.includes('index.html')
+        && dir.path.lastIndexOf('/') === rustdocDir.length)
+    .map(dir => dir.path.slice(rustdocDir.length + 1))
+
+/** rustdoc's output walked, the walk kept for the steps after it. */
+const rustdocWalked = history(walk(rustdocDir))
+
+/** Every directory of rustdoc's output copied under {@link cargoDocDir}. */
+const rustdocCopied = historyStep(rustdocWalked, tree => forEachStep(pureOk(tree), copyRustdocDir))
+
+/**
+ * rustdoc's output copied, answering the crates it documents.
+ *
+ * @type {Effect<Readdir | Mkdir | ReadWhole | Rm | WriteBytes | WriteFile, readonly string[], IoChannel>}
+ */
+const copyRustdocTree = mapStep(rustdocCopied, ([, tree]) => cratesOf(tree))
+
+/** Whether rustdoc's output is there, as a result rather than a failure. */
+const rustdocFound = foundAt(rustdocDir)
+
+/**
+ * rustdoc's output, copied from {@link rustdocDir} to {@link cargoDocDir} as
+ * it is, answering the crates it documents — or `null` when `cargo doc` was
+ * not run, which writes nothing and links nothing.
+ *
+ * **Copied, not served from `target/`**, which holds build artifacts beside
+ * the docs; and not produced here, because running `cargo` from the
+ * generator is an external tool ([`AGENTS.md` §6](../../AGENTS.md#6-external-tools)).
+ * Whoever builds the site runs `cargo doc --no-deps --workspace` first.
+ *
+ * **Absence is asked of `access`, not of the walk's `readdir`**, whose
+ * `ENOENT` the virtual file system the proofs run on does not yet report
+ * ([virtual-error-codes](../effects/node/virtual/todo/virtual-error-codes.md)).
+ * Any other failure is left to the walk to report, and stops the build.
+ *
+ * @type {Effect<Access | Readdir | Mkdir | ReadWhole | Rm | WriteBytes | WriteFile, readonly string[] | null, IoChannel>}
+ */
+const copyRustdoc = step(rustdocFound, found =>
+    found[0] === 'error' && isNotFound(found[1]) ? pureOk(null) : copyRustdocTree)
+
+/**
+ * The Rust API reference, when there is one: rustdoc's output and the index
+ * page over it. Answers the documented crates, none when there is none.
+ *
+ * @type {(build: Build) => Effect<Access | Readdir | Mkdir | ReadWhole | Rm | WriteBytes | WriteFile | Write, readonly string[], IoChannel>}
+ */
+const writeCargoDoc = build => step(copyRustdoc, crates =>
+    crates === null ? pureOk([]) : writeCargoDocIndex(build)(crates))
+
+/**
+ * The index page over the documented crates, answering them.
+ *
+ * @type {(build: Build) => (crates: readonly string[]) => Effect<Rm | WriteBytes | WriteFile | Write, readonly string[], IoChannel>}
+ */
+const writeCargoDocIndex = build => crates => {
+    const written = writeFile(pagePath(cargoDocDir), cargoDocPage(build)(crates))
+    const logged = step(written, () => log(`rust crates: ${crates.length}`))
+    return mapStep(logged, () => crates)
+}
+
+/**
  * One `index.html` per directory, so the tree is walkable from the root.
  *
  * The root's page is the site's own — it carries the heading and the test
  * runner — and every other directory's is {@link page}'s. Both write the same
  * catalogue.
  *
- * @type {(build: Build) => (tree: readonly _Walked[]) => (proofs: readonly Proof[]) => (demos: _Demos) => Effect<Rm | WriteBytes | WriteFile | Write, void, IoChannel>}
+ * @type {(build: Build) => (tree: readonly _Walked[]) => (crates: readonly string[]) => (proofs: readonly Proof[]) => (demos: _Demos) => Effect<Rm | WriteBytes | WriteFile | Write, void, IoChannel>}
  */
-const writePages = build => tree => proofs => demos => {
+const writePages = build => tree => crates => proofs => demos => {
     const byPath = tree.reduce(
         (map, walked) => setReplace(walked.path)(walked)(map),
         /** @type {_Tree} */ (emptyMap))
     const dirs = tree
         .filter(walked => !isTodoDir(walked.path) && walked.path !== changelogDir)
-        .map(toDir(byPath)(proofs)(demos))
+        .map(toDir(byPath)(crateDirs(tree)(crates))(proofs)(demos))
     return step(
         forEachStep(pureOk(dirs), dir => writeFile(
             pagePath(dir.path),
@@ -692,26 +810,48 @@ const linksNote = env => commit =>
             : 'file links: this site, because WORKERS_CI_COMMIT_SHA is not a commit id'
 
 /**
+ * The funding channels in `funding.json`, which is there.
+ *
+ * A file that cannot be linked stops the build, so the published site never
+ * quietly lacks a channel.
+ *
+ * @type {Effect<ReadFile, readonly Funding[], IoChannel>}
+ */
+const fundingRead = step(readUtf8File(fundingPath), text => {
+    const funding = parseFunding(text)
+    return funding[0] === 'error'
+        ? pureError(ioError({ message: `${fundingPath}: ${funding[1]}` }))
+        : pureOk(funding[1])
+})
+
+/** Whether `funding.json` is there, as a result rather than a failure. */
+const fundingFound = foundAt(fundingPath)
+
+/**
  * The funding channels every page's footer links, read from `funding.json`.
  *
- * **The walk says whether the file is there**, as it does for the changelog:
- * a tree without one — every fixture tree the generator's proofs build — gets
- * pages without a footer rather than no build. A file that is there and
- * cannot be linked stops the build, so the published site never quietly
- * lacks a channel.
+ * **A tree without the file gets no footer rather than no build** — every
+ * fixture tree the generator's proofs build is one. Whether it is there is
+ * asked of the file system, not of the walk, so a program that writes the
+ * site's bars without walking the tree reads the same channels
+ * ([`./rustdoc-bars`](./rustdoc-bars/module.f.mjs)).
  *
- * @type {(tree: readonly _Walked[]) => Effect<ReadFile, readonly Funding[], IoChannel>}
+ * @type {Effect<Access | ReadFile, readonly Funding[], IoChannel>}
  */
-const readFunding = tree => {
-    const present = tree.some(walked => walked.path === '.' && walked.files.includes(fundingPath))
-    if (!present) { return pureOk([]) }
-    return step(readUtf8File(fundingPath), text => {
-        const funding = parseFunding(text)
-        return funding[0] === 'error'
-            ? pureError(ioError({ message: `${fundingPath}: ${funding[1]}` }))
-            : pureOk(funding[1])
-    })
-}
+const readFunding = step(fundingFound, found =>
+    found[0] === 'error' && isNotFound(found[1]) ? pureOk([]) : fundingRead)
+
+/**
+ * What a build knows about itself: the commit and the branch the environment
+ * names, and the funding channels.
+ *
+ * Exported for [`./rustdoc-bars`](./rustdoc-bars/module.f.mjs), which writes
+ * the bars from the same build the pages get; `_` because that is linkage,
+ * not API.
+ *
+ * @type {(env: Env) => Effect<Access | ReadFile, Build, IoChannel>}
+ */
+export const _readBuild = env => mapStep(readFunding, funding => ({ commit: commitOf(env), branch: branchOf(env), funding }))
 
 /**
  * The whole build: the walk, then everything written from it.
@@ -720,30 +860,34 @@ const readFunding = tree => {
  * branch — and the funding channels are added once the tree has been read,
  * so every page builder receives one whole {@link Build}.
  *
- * @type {(env: Omit<Build, 'funding'>) => (note: string) => Effect<Readdir | ReadFile | Rm | WriteBytes | WriteFile | Write | All | Mkdir, 0, number>}
+ * @type {(env: Omit<Build, 'funding'>) => (note: string) => Effect<Access | Readdir | ReadFile | ReadWhole | Rm | WriteBytes | WriteFile | Write | All | Mkdir, 0, number>}
  */
 const program = env => note => exitStep(mapStep(
-    step(log(note), () => step(walk('.'), tree => step(readFunding(tree), funding => {
+    step(log(note), () => step(walk('.'), tree => step(readFunding, funding => {
         const build = { ...env, funding }
         const authored = authoredModules(tree)
         // One graph over both: a page loads a demo the way it loads a proof,
         // so what would stop one would stop the other.
-        return step(scan(authored), ([foundProofs, foundDemos, graph]) =>
+        const documented = history(writeCargoDoc(build))
+        const scanned = historyStep(documented, () => scan(authored))
+        return step(scanned, ([[foundProofs, foundDemos, graph], crates]) =>
             step(classify([...foundProofs, ...browserProofOf(tree)], foundDemos)(graph),
                 ([proofs, demoProofs]) => {
                     const [demos, refused] = resolveDemos(demoProofs)
                     const reported = step(reportClassification(proofs), () =>
                         forEachStep(pureOk(refused), log))
-                    const pages = step(reported, () => writePages(build)(tree)(proofs)(demos))
+                    const pages = step(reported, () => writePages(build)(tree)(crates)(proofs)(demos))
                     const changelog = step(pages, () => writeChangelog(build)(tree))
                     const prDirectory = step(changelog, () => mkdir(prsDir, { recursive: true }))
                     const prPage = step(prDirectory, () => writeFile(pagePath(prsDir), prsPage(build)))
-                    return step(prPage, () => writeUtf8File('_main.css', stylesheet))
+                    const cliDirectory = step(prPage, () => mkdir(cliDir, { recursive: true }))
+                    const reference = step(cliDirectory, () => writeFile(pagePath(cliDir), cliPage(build)))
+                    return step(reference, () => writeUtf8File('_main.css', stylesheet))
                 }))
     }))),
     () => undefined))
 
-/** @type {(options: NodeProgramOptions) => Effect<Readdir | ReadFile | Rm | WriteBytes | WriteFile | Write | All | Mkdir, 0, number>} */
+/** @type {(options: NodeProgramOptions) => Effect<Access | Readdir | ReadFile | ReadWhole | Rm | WriteBytes | WriteFile | Write | All | Mkdir, 0, number>} */
 export const main = ({ env }) => {
     const commit = commitOf(env)
     return program({ commit, branch: branchOf(env) })(linksNote(env)(commit))

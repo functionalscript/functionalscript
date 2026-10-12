@@ -1351,7 +1351,8 @@ language has arithmetic (`+ - * / % **`), comparison
 logical not and the type tag, the prefixes neither stage had — and
 `instanceof Array`, the one instance check ([below](#instanceof)).
 `==`/`!=` stay refused, since neither language reads them the same way
-twice. The comma operator is not recognized yet.
+twice, and so does `in` ([below](#in-is-refused)). The comma operator is not
+recognized yet.
 
 Precedence and associativity follow JavaScript's own. From the tightest, the
 levels are the prefixes `-`, `~`, `!` and `typeof`; `**`; `* / %`; `+ -`;
@@ -1507,6 +1508,22 @@ The EDAG's node is `['instanceof', exp, 'Array']`: the constructor is a
 ([`fjs/edag`](../fjs/edag/README.md)); `nanvm-lib` answers it with
 `Any::instanceof_(x, Constructor::Array)`. The writer spells it with
 spaces around the word, `a instanceof Array`.
+
+### `in` Is Refused
+
+`"a" in o` is a compilation error, and stays one by design. JavaScript's `in`
+asks whether a property exists anywhere on the prototype chain, so
+`"toString" in {}` and `"length" in []` are `true`; FunctionalScript has no
+prototype chain to consult, and answering for own entries only would give
+accepted text a different successful result than JavaScript gives it. Neither
+is acceptable, so the operator is refused rather than approximated. To read an
+entry, use [`entry`](#reading-an-entry-at-run-time), which answers `undefined`
+for an absent key. An explicit presence pattern,
+`Object.getOwnPropertyDescriptor(a, b)?.enumerable`, is only proposed
+([2345](./todo/2345-has-own-property.md)): the compiler does not recognize it
+yet. The reasons, the alternatives
+rejected and what a migration does are in
+[the `in` decision](./todo/2346-in-operator.md).
 
 ## Number Conversion
 

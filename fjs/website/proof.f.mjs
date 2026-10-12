@@ -67,6 +67,39 @@ const pageAt = (root, path) => textOf(
     `the page for ${path.join('/')}`)
 
 export const proof = {
+    cli: {
+        page: () => {
+            const { root } = generate({})
+            const html = pageAt(root, ['cli'])
+            assert(html.includes('<h1>FunctionalScript CLI</h1>'), html)
+            assert(html.includes('id="cas-get"'), html)
+            assert(html.includes('href="/_main.css"'), html)
+            assert(pageAt(root, []).includes('href="/cli/">CLI</a>'), 'shared navigation')
+        },
+        repeatBuild: () => {
+            const first = generate({ fjs: { cli: {}, website: { cli: {} } } })
+            const second = generate(first.root)
+            assertEq(pageAt(second.root, []), pageAt(first.root, []))
+            assertEq(pageAt(second.root, ['cli']), pageAt(first.root, ['cli']))
+            assert(pageAt(second.root, ['fjs']).includes('href="/fjs/cli/index.html"'), 'source CLI page remains')
+            assert(!pageAt(second.root, []).includes('href="/cli/index.html" data-kind="dir"'), 'output is not discovered as source')
+        },
+        routeIsAFile: () => {
+            const [, code] = run({ cli: file('occupied') })
+            assert(code !== 0)
+        },
+    },
+    rootCatalogue: () => {
+        const { root } = generate({ a: {}, todo: { 'a.md': file('# issue') } })
+        const html = pageAt(root, [])
+        const asideStart = html.indexOf('<aside data-catalogue=""')
+        const asideEnd = html.indexOf('</aside>')
+        const contents = html.indexOf('<h2>Contents</h2>')
+        const issues = html.indexOf('<h2>Issues</h2>')
+        assert(asideStart >= 0 && contents > asideStart && contents < asideEnd, html)
+        assert(issues > asideStart && issues < asideEnd, html)
+        assert(html.indexOf('<h1>FunctionalScript</h1>') > asideEnd, html)
+    },
     pullRequests: {
         page: () => {
             const { root } = generate({})
@@ -98,6 +131,69 @@ export const proof = {
         // success that leaves its navigation link pointing nowhere.
         routeIsAFile: () => {
             const [, code] = run({ prs: file('occupied') })
+            assert(code !== 0)
+        },
+    },
+    /**
+     * **rustdoc's output is published under `cargo.doc/` when `cargo doc` was
+     * run**, with an index page of ours. Each documented crate's directory
+     * links its reference, and the directory above it links the index.
+     */
+    cargoDoc: {
+        published: () => {
+            const { root, output } = generate({
+                'Cargo.toml': file('[workspace]'),
+                nanvm: {
+                    lib: { 'Cargo.toml': file('[package]') },
+                    other: { 'Cargo.toml': file('[package]') },
+                },
+                target: { doc: {
+                    'crates.js': file('crates'),
+                    'static.files': { 'main.css': file('css') },
+                    nanvm_lib: { 'index.html': file('crate'), vm: { 'index.html': file('module') } },
+                } },
+            })
+            const cargoDoc = /** @type {Dir} */ (root['cargo.doc'])
+            assertEq(textOf(cargoDoc['crates.js'], 'crates.js'), 'crates')
+            assertEq(textOf(/** @type {Dir} */ (cargoDoc['static.files'])['main.css'], 'main.css'), 'css')
+            assertEq(textOf(/** @type {Dir} */ (/** @type {Dir} */ (cargoDoc.nanvm_lib).vm)['index.html'], 'a module page'), 'module')
+            assert(pageAt(root, ['cargo.doc']).includes('<a href="/cargo.doc/nanvm_lib/index.html">nanvm_lib</a>'), pageAt(root, ['cargo.doc']))
+            assert(pageAt(root, ['nanvm', 'lib']).includes('<a href="/cargo.doc/nanvm_lib/index.html">API documentation</a>'), pageAt(root, ['nanvm', 'lib']))
+            assert(pageAt(root, ['nanvm']).includes('<a href="/cargo.doc/index.html">Rust API documentation</a>'), pageAt(root, ['nanvm']))
+            // A crate rustdoc did not document is not linked, and neither is
+            // the workspace's own `Cargo.toml`, nor the root, whose
+            // subdirectory `nanvm` is not a crate.
+            assert(!pageAt(root, ['nanvm', 'other']).includes('API documentation'), pageAt(root, ['nanvm', 'other']))
+            assert(!pageAt(root, []).includes('API documentation'), pageAt(root, []))
+            assert(output.includes('rust crates: 1'), output)
+        },
+        // The bars for rustdoc have one writer, `rustdoc-bars`, which runs
+        // before `cargo doc`; the generator, which runs after it, does not.
+        rustdocBarsNotHere: () => {
+            const { root } = generate({})
+            assertEq(root['_rustdoc-header.html'], undefined)
+            assertEq(root['_rustdoc-footer.html'], undefined)
+            assertEq(root['_rustdoc.css'], undefined)
+        },
+        // Without `cargo doc`, nothing is written and nothing is linked.
+        absent: () => {
+            const { root, output } = generate({ nanvm: { lib: { 'Cargo.toml': file('[package]') } } })
+            assertEq(root['cargo.doc'], undefined)
+            assert(!pageAt(root, ['nanvm', 'lib']).includes('API documentation'), pageAt(root, ['nanvm', 'lib']))
+            assert(!pageAt(root, ['nanvm']).includes('API documentation'), pageAt(root, ['nanvm']))
+            assert(!output.includes('rust crates'), output)
+        },
+        // The copy is generated output: the next build does not list it.
+        repeatBuild: () => {
+            const first = generate({ target: { doc: { a: { 'index.html': file('a') } } } })
+            const second = generate(first.root)
+            assertEq(pageAt(second.root, []), pageAt(first.root, []))
+            assert(!pageAt(second.root, []).includes('cargo.doc'), pageAt(second.root, []))
+        },
+        // A `target/doc` that cannot be read is a failed build, not one that
+        // quietly publishes no reference.
+        unreadable: () => {
+            const [, code] = run({ target: { doc: file('not a directory') } })
             assert(code !== 0)
         },
     },

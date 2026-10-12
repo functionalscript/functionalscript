@@ -2,12 +2,14 @@
  * @import { DemoEvent } from '../../website/demo/types.ts'
  */
 
-import { parse, serialize, setProperty, stringify } from './module.f.mjs'
-import { demo, roundTrip } from './demo.f.mjs'
+import { marked, parse, serialize, setProperty, stringify } from './module.f.mjs'
+import { _roundTripMarked, demo, roundTrip } from './demo.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
 import { identity } from '../../types/function/module.f.js'
 import { assert, assertEq, assertNotNullish, assertError, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { htmlToString } from '../html/module.f.mjs'
+import { toText } from '../../text/marked/module.f.mjs'
+import { disagreement } from '../../website/demo/highlight/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
 import { runPure } from '../../effects/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'
@@ -38,6 +40,14 @@ export const proof = {
             if (x !== '{"a":"Hello"}') { throw x }
         },
     ],
+    // `marked` is `stringify` as runs: the same text, with the leaves' kinds
+    marked: () => {
+        const value = { b: null, a: 'x', c: [1, true] }
+        assertEq(toText(marked(sort)(value)), stringify(sort)(value))
+        assertEq(
+            JSON.stringify(marked(sort)(value).filter(([, kind]) => kind !== undefined)),
+            '[["\\"a\\"","string"],["\\"x\\"","string"],["\\"b\\"","string"],["null","literal"],["\\"c\\"","string"],["1","number"],["true","literal"]]')
+    },
     stringify: [
         {
             sort: () => {
@@ -141,6 +151,9 @@ export const proof = {
             assertEq(
                 unwrap(roundTrip('{\n  "b": 2,\n  "a": [3, 2, 1],\n  "c": "hello"\n}')),
                 '{"a":[3,2,1],"b":2,"c":"hello"}')
+            // What it marks, the tokenizer agrees with, for every kind a
+            // document holds: strings, numbers, `null` and the booleans.
+            assertEq(disagreement(unwrap(_roundTripMarked('{"s":"x","n":-1.5,"z":0,"t":true,"f":false,"u":null,"a":[]}'))), null)
             // A parse failure is shown, not swallowed.
             assertEq(assertError(roundTrip('{')), 'unexpected end')
         },
@@ -174,12 +187,15 @@ export const proof = {
         view: () => {
             const empty = htmlToString(demo.view(demo.init))
             assert(empty.includes('name="json"'), empty)
-            assert(empty.includes(unwrap(roundTrip(demo.init)).replaceAll('"', '&quot;')), empty)
+            // the output is coloured, so its text is spread over spans: the
+            // copy payload keeps it whole
+            assert(empty.includes(`data-copy="${unwrap(roundTrip(demo.init)).replaceAll('"', '&quot;')}"`), empty)
+            assert(empty.includes('<span data-token="string">&quot;a&quot;</span>'), empty)
             const typed = htmlToString(demo.view('[1,2]'))
             assert(typed.includes('[1,2]'), typed)
             assert(typed.includes('data-copy="[1,2]"'), typed)
             assert(typed.includes('aria-label="Copy JSON"'), typed)
-            assert(typed.includes(unwrap(roundTrip('[1,2]'))), typed)
+            assert(typed.includes('<span data-token="number">1</span>,<span data-token="number">2</span>'), typed)
             const refused = htmlToString(demo.view('{'))
             assert(refused.includes('Refused:</p><pre data-result="error">unexpected end</pre>'), refused)
             assert(!refused.includes('Parsed, then written back:'), refused)
