@@ -10,7 +10,6 @@ import { defaultNodeProgramOptions, emptyState, virtual } from '../effects/node/
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../asserts/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { maxLengthBytes, vec } from '../types/bit_vec/module.f.mjs'
-import { stylesheet } from './style/module.f.mjs'
 import { repository } from './page/module.f.mjs'
 
 /**
@@ -68,6 +67,28 @@ const pageAt = (root, path) => textOf(
     `the page for ${path.join('/')}`)
 
 export const proof = {
+    cli: {
+        page: () => {
+            const { root } = generate({})
+            const html = pageAt(root, ['cli'])
+            assert(html.includes('<h1>FunctionalScript CLI</h1>'), html)
+            assert(html.includes('id="cas-get"'), html)
+            assert(html.includes('href="/_main.css"'), html)
+            assert(pageAt(root, []).includes('href="/cli/">CLI</a>'), 'shared navigation')
+        },
+        repeatBuild: () => {
+            const first = generate({ fjs: { cli: {}, website: { cli: {} } } })
+            const second = generate(first.root)
+            assertEq(pageAt(second.root, []), pageAt(first.root, []))
+            assertEq(pageAt(second.root, ['cli']), pageAt(first.root, ['cli']))
+            assert(pageAt(second.root, ['fjs']).includes('href="/fjs/cli/index.html"'), 'source CLI page remains')
+            assert(!pageAt(second.root, []).includes('href="/cli/index.html" data-kind="dir"'), 'output is not discovered as source')
+        },
+        routeIsAFile: () => {
+            const [, code] = run({ cli: file('occupied') })
+            assert(code !== 0)
+        },
+    },
     rootCatalogue: () => {
         const { root } = generate({ a: {}, todo: { 'a.md': file('# issue') } })
         const html = pageAt(root, [])
@@ -150,6 +171,7 @@ export const proof = {
         // before `cargo doc`; the generator, which runs after it, does not.
         rustdocBarsNotHere: () => {
             const { root } = generate({})
+            assertEq(root['_rustdoc-head.html'], undefined)
             assertEq(root['_rustdoc-header.html'], undefined)
             assertEq(root['_rustdoc-footer.html'], undefined)
             assertEq(root['_rustdoc.css'], undefined)

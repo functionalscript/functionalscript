@@ -10,7 +10,7 @@
 import type { List } from '../../types/list/types.ts'
 import type { OrderedMap } from '../../types/ordered_map/types.ts'
 import type { Result } from '../../types/result/types.ts'
-import type { AstConst, AstFrameRef, AstItem, AstModuleRef, AstRest, AstSelf, BinaryTag } from '../ast/types.ts'
+import type { AstConst, AstFrameRef, AstItem, AstMember, AstModuleRef, AstRest, AstSelf, BinaryTag } from '../ast/types.ts'
 import type { DjsTokenWithMetadata } from '../tokenizer/types.ts'
 import type { ParseError } from './types.ts'
 import type { Block, Chain, Container, If, Item, Key, Node } from './syntax/types.ts'
@@ -66,13 +66,18 @@ export type _Scope = {
 
 /**
  * A container being built: `container[1][index]` is being evaluated, and
- * `done` holds the values of the items before it — a list, since appending
- * to an array per item would copy the whole prefix each time.
+ * `done` holds the items before it as the AST has them — an array's items,
+ * or an object's members and spreads — a list, since appending to an array
+ * per item would copy the whole prefix each time. A member with a computed
+ * key is evaluated in two rounds, the key's and then the value's: `key`
+ * holds the key's value between them, boxed since `null` and `undefined`
+ * are values too, and is `null` otherwise.
  */
 export type _ContainerFrame = {
     readonly container: Container
     readonly index: number
-    readonly done: List<AstItem>
+    readonly done: List<AstItem | AstMember>
+    readonly key: readonly [AstConst] | null
 }
 
 /**

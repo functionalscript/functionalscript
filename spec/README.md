@@ -63,7 +63,7 @@ or JSON ([output](#output)).
 | --- | --- |
 | Modules | Default, named and combined imports; JSON import attributes; local and exported `const`; named and default exports; terminal `throw` |
 | Literals | JSON values, `undefined`, `NaN`, infinities and arbitrary-width bigints; decimal, hexadecimal and binary integers; numeric separators; single- and double-quoted strings; untagged template literals |
-| Containers | Dense arrays, object literals, shorthand members, constant string keys, trailing commas, array/call spread and object spread |
+| Containers | Dense arrays, object literals, shorthand members, constant and computed keys, trailing commas, array/call spread and object spread |
 | Expressions | Grouping; arithmetic, strict comparison, bitwise and lazy operators; `?:`, `!`, `typeof`, `instanceof Array`, `Number(...)` and `String(...)` |
 | Properties | Own-property reads, numeric computed keys through `Number(...)`, optional reads/calls and the enumerable `entry` helper |
 | Functions | Arrow functions, 0–16 fixed parameters, optional rest, closures, self recursion, body constants, terminating `if` guards, `return`, `throw`, ordinary and method calls |
@@ -73,9 +73,9 @@ or JSON ([output](#output)).
 The sections below give the restrictions and executor-specific limits for
 each feature. This overview records compiler support; optional chaining's
 required [language-design approval record](./todo/2335-optional-chaining.md#authorization-and-approval)
-remains open. TypeScript-only syntax, mutation, loops, classes, general
-computed object keys and general forward references remain outside the
-implemented language.
+remains open. TypeScript-only syntax, mutation, loops, classes, numeric
+key literals and general forward references remain outside the implemented
+language.
 
 ## Principles
 
@@ -1173,19 +1173,45 @@ DataJS or FunctionalScript output writes the member, `{"x":undefined}`; a
 
 #### Property Keys
 
-A key is a constant, written in one of three ways:
+A key is written in one of three ways:
 
 |Form|Example|
 |----|-------|
 |string literal|`{ "a": 1 }`|
 |identifier|`{ a: 1 }`|
-|bracketed string literal|`{ ["a"]: 1 }`|
+|computed|`{ ["a"]: 1 }`, `{ [k]: 1 }`|
 
-The three spellings denote the same key and mix freely inside one object. An
+The first two spell a constant key. The brackets of a computed key hold any
+value, as an index's do: a string literal there is the same constant key by
+a third spelling, and the three spellings mix freely inside one object. An
 identifier key is an [identifier](#identifiers) — ASCII letters, digits, `_`
 and `$`, not starting with a digit — and may be a reserved word, `{ if: 1 }`,
 as it may in JavaScript. A key no identifier spells is written as a string:
 `{ "é": 1 }`, `{ "a-b": 1 }`.
+
+Any other value in the brackets is a **computed key**. `sergey-shandar`
+approved the design in
+[#2828](https://github.com/functionalscript/functionalscript/pull/2828#issuecomment-6111260970),
+as [DESIGN.md §12](../doc/DESIGN.md#new-language-features-start-with-a-todo)
+requires. The key is evaluated where the object is built — after the
+members before it and before its own value, as JavaScript evaluates a
+literal — and converted to a property key as JavaScript's `ToPropertyKey`
+converts it: a string is the key, and every other value is the string it
+converts to, `[1]` the key `"1"`, `[null]` the key `"null"`, `[[1, 2]]` the
+key `"1,2"`:
+
+```js
+const k = 'a';
+export default (i) => ({ [k]: 1, [k + 'b']: 2, [i]: 3 });
+// ({ a: 1, ab: 2, [i]: 3 }); called with 0, { a: 1, ab: 2, 0: 3 }
+```
+
+A computed key that is a constant is that constant: `{ ["a"]: 1 }` and
+`{ a: 1 }` are the same literal, and so is
+`const k = 'a'; export default { [k]: 1 };`, `k` being the literal it is
+bound to. The graph outputs write a key that is no constant string in
+brackets, as it was read, `{ [i]: 3 }` and `{ [0]: 1 }`; the value outputs
+write the key the value has, `{ "0": 1 }` ([output](#output)).
 
 A key may be any name, including one a built-in prototype gives a value:
 `{ constructor: 1, toString: 2, push: 3 }` is an object that owns those three
@@ -1194,10 +1220,8 @@ properties, as in JavaScript, whichever spelling each key takes. What
 not owning it, and `__proto__` is the one key with a rule of its own
 ([below](#the-__proto__-key)).
 
-The brackets hold a **string literal**, not an expression: a key is a constant
-in every form. A key computed from a reference or any other expression, and a
-numeric key such as `{ 3e7: true }`, are not recognized yet — see the
-[roadmap](./todo/README.md).
+A numeric key literal such as `{ 3e7: true }` is not recognized yet — see
+the [roadmap](./todo/README.md); `{ [3e7]: true }` is the same object.
 
 #### The `__proto__` Key
 
@@ -1327,7 +1351,8 @@ language has arithmetic (`+ - * / % **`), comparison
 logical not and the type tag, the prefixes neither stage had — and
 `instanceof Array`, the one instance check ([below](#instanceof)).
 `==`/`!=` stay refused, since neither language reads them the same way
-twice. The comma operator is not recognized yet.
+twice, and so does `in` ([below](#in-is-refused)). The comma operator is not
+recognized yet.
 
 Precedence and associativity follow JavaScript's own. From the tightest, the
 levels are the prefixes `-`, `~`, `!` and `typeof`; `**`; `* / %`; `+ -`;
@@ -1483,6 +1508,22 @@ The EDAG's node is `['instanceof', exp, 'Array']`: the constructor is a
 ([`fjs/edag`](../fjs/edag/README.md)); `nanvm-lib` answers it with
 `Any::instanceof_(x, Constructor::Array)`. The writer spells it with
 spaces around the word, `a instanceof Array`.
+
+### `in` Is Refused
+
+`"a" in o` is a compilation error, and stays one by design. JavaScript's `in`
+asks whether a property exists anywhere on the prototype chain, so
+`"toString" in {}` and `"length" in []` are `true`; FunctionalScript has no
+prototype chain to consult, and answering for own entries only would give
+accepted text a different successful result than JavaScript gives it. Neither
+is acceptable, so the operator is refused rather than approximated. To read an
+entry, use [`entry`](#reading-an-entry-at-run-time), which answers `undefined`
+for an absent key. An explicit presence pattern,
+`Object.getOwnPropertyDescriptor(a, b)?.enumerable`, is only proposed
+([2345](./todo/2345-has-own-property.md)): the compiler does not recognize it
+yet. The reasons, the alternatives
+rejected and what a migration does are in
+[the `in` decision](./todo/2346-in-operator.md).
 
 ## Number Conversion
 

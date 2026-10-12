@@ -35,6 +35,43 @@ that issue's concern, for automated runners. Module pages do not depend on it,
 and moving the site under such a root would break every fetch they make — so
 the two are separate, and this one is not quietly migrated into the other.
 
+## CLI reference
+
+`/cli/` is the standalone **FunctionalScript CLI** reference, linked as **CLI**
+from the shared header. The generator reserves root `cli/` alongside `prs/`
+and excludes both from source discovery on repeated builds. `/fjs/cli/` and
+`/fjs/website/cli/` remain ordinary source-directory pages. A clean build creates
+`cli/index.html`; a leftover reserved directory from a branch switch is never
+catalogued as source.
+
+`cli/module.f.mjs` imports the real `commands` export from `fjs/module.f.mjs`.
+It walks nested command tables and appends the dispatcher's shared `helpMeta`
+at each table level. Imports construct data and effect descriptions without
+calling handlers or interpreting effects. Names, alias order, descriptions and
+nesting therefore have one source of truth, including implicit help behavior.
+Descendant aliases include every parent spelling: `cas add` also accepts
+`s add`, and nested help includes `s help`, `s h` and `s ?`. Canonical paths
+continue to identify sections and bookmark links.
+
+Usage, examples, explanatory notes and documentation paths live beside each
+handler in the CLI's `DocumentedCommands` tables. The type requires these fields
+for every built-in command and nested subcommand. Implicit help reference text
+comes from `helpReference` in `fjs/cli/module.f.mjs`, using the canonical parent
+path. The website consumes these fields directly; it has no separate guide list
+or name-based documentation lookup. A command metadata change therefore appears
+in the next website build, including displayed snippets and copied text.
+
+All commands are visible in anchored semantic sections without JavaScript.
+Copy buttons enhance the static code blocks, using the shared clipboard helper
+and existing styles; they appear only after binding and report success, failure
+or clipboard unavailability. No command runs in the browser. File documentation
+links use the same commit-aware policy as directory listings.
+
+The CLI catalogue progressively enhances into a searchable command list and selected
+detail pane. Search matches canonical names, aliases and descriptions without
+changing the selected command. Native fragment links preserve bookmarking and
+browser history; without JavaScript, every detail section remains visible.
+
 ## Current pull requests
 
 `/prs/` shows the open pull requests in `functionalscript/functionalscript`:
@@ -81,17 +118,18 @@ writes no `cargo.doc/` and no links. `target/` itself is never served: it
 holds build artifacts beside the docs, and `.assetsignore` keeps it out of
 every upload, whichever build made it.
 
-**rustdoc's pages carry the site's header and footer.** `npm run rustdoc-bars`
+**rustdoc's pages carry the site's favicon, header and footer.** `npm run rustdoc-bars`
 writes them, from the same builders every page uses, as `_rustdoc-header.html`
-and `_rustdoc-footer.html`, with `_rustdoc.css` for their look; `cargo doc`
+and `_rustdoc-footer.html`, with `_rustdoc.css` for their look. It also writes
+`_rustdoc-head.html` from the shared favicon links; `cargo doc`
 puts them on each page it writes when it is given them. They have to exist
 before `cargo doc` runs and the site is generated after it, so a build with the
-bars is:
+favicon and bars is:
 
 ```bash
 npm run rustdoc-bars
 cargo clean --doc
-RUSTDOCFLAGS="--html-before-content $PWD/_rustdoc-header.html --html-after-content $PWD/_rustdoc-footer.html --extend-css $PWD/_rustdoc.css" cargo doc --no-deps --workspace
+RUSTDOCFLAGS="--html-in-header $PWD/_rustdoc-head.html --html-before-content $PWD/_rustdoc-header.html --html-after-content $PWD/_rustdoc-footer.html --extend-css $PWD/_rustdoc.css" cargo doc --no-deps --workspace
 npm run website
 ```
 
@@ -105,6 +143,11 @@ flags are unchanged, even though the files they name have changed. Two rules
 in `_rustdoc.css` lean on rustdoc's own layout, and its JSDoc says which; the
 rest of rustdoc's look is its own
 ([rustdoc-site-theme](todo/rustdoc-site-theme.md)).
+
+`--html-in-header` adds the site’s ICO and SVG links after rustdoc’s own
+icons in the pinned rustdoc. The original links remain; the HTML icon
+selection rule prefers the last equally appropriate icon. Verify the tab
+icon after a hard refresh when changing the rustdoc pin.
 
 **`cargo.doc/` is not cleaned between local builds**, as no generated page
 is: the generator only writes. A build without `target/doc` leaves an earlier
@@ -536,7 +579,7 @@ is what makes their names the ones `fjs t` uses.
 ## A link keeps its colour, whether or not it has been followed
 
 `a, a:visited { color: var(--link) }` in
-[`style/module.f.mjs`](./style/module.f.mjs). Nearly every word on this site is
+[`style/module.f.js`](./style/module.f.js). Nearly every word on this site is
 a link into the tree — a breadcrumb, a file, a subdirectory, an issue — so a
 list of them turned two-toned as it was read, and the second colour said only
 *where this reader has been*, nothing about the file it names. That distinction
@@ -607,7 +650,7 @@ scheme it would have picked.
 
 ## Every page opens with the same header
 
-The logo and the site's name, linking home; then **PRs**, **Releases** and
+The logo and the site's name, linking home; then **CLI**, **PRs**, **Releases** and
 **GitHub**.
 It is one element, `header` in [`page/module.f.mjs`](./page/module.f.mjs), and
 every page carries it — the root, a directory's page, the PR queue, and the
@@ -619,7 +662,7 @@ and no other page had either.
   are.** Both stay: the header is the same on every page, and the breadcrumb is
   this page's path.
 - **The logo is the favicon's file**, `logoPath` in
-  [`style/module.f.mjs`](./style/module.f.mjs), so the tab and the page cannot
+  [`style/module.f.js`](./style/module.f.js), so the tab and the page cannot
   show two marks. Its `alt` is empty because the name beside it is the link's
   text.
 - **It spans the window, with one rule under it**, and the menu is bold and a
@@ -632,8 +675,8 @@ and no other page had either.
   header only, a framed box, GitHub-style tabs with icons, and bordered
   buttons — and the box won, then went full width.
 - **It wraps rather than hiding behind a menu button.** In a monospace face a
-  phone has no room for the name and all three links on one line; a line break
-  costs no script, on a site that is otherwise static files. The three links are
+  phone has no room for the name and all four links on one line; a line break
+  costs no script, on a site that is otherwise static files. The four links are
   one group, so they wrap together under the name rather than one beside it
   and one below.
 - **A header link is not underlined.** Its place in the header is what says it

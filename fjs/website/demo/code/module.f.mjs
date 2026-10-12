@@ -4,7 +4,7 @@
  * @import { Element, Node } from '../../../media/html/types.ts'
  */
 
-import { codeMarker } from '../../style/module.f.mjs'
+import { codeMarker } from '../../style/module.f.js'
 
 /** Copy plain text while optionally displaying its highlighted nodes.
  * @type {(text: string, label: string, content?: readonly Node[]) => Element}

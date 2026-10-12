@@ -34,6 +34,7 @@ import { u8ListMsb, u8ListToVecMsb, uint } from '../../types/bit_vec/module.f.mj
 import { flat } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
 import { isOidOf } from '../oid/module.f.mjs'
+import { min } from '../../types/number/min/module.f.js'
 
 const octalDigit = range('07')
 
@@ -179,7 +180,7 @@ const sortKey = e => mode(e) === subtree ? [...byteArray(e.name), slash] : byteA
  * @type {(a: readonly number[], b: readonly number[]) => number}
  */
 const compare = (a, b) => {
-    const n = Math.min(a.length, b.length)
+    const n = min(a.length, b.length)
     const i = a.findIndex((x, i) => i < n && x !== b[i])
     return i === -1 ? a.length - b.length : a[i] - b[i]
 }

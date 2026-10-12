@@ -32,7 +32,7 @@
 import { at } from '../../types/object/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
 import { examplePicker, name as exampleName } from './examples/module.f.js'
-import { captionMarker, editorMarker, mirrorMarker, resultMarker } from '../style/module.f.mjs'
+import { captionMarker, editorMarker, mirrorMarker, resultMarker } from '../style/module.f.js'
 
 /**
  * A demo whose state is the text in a labelled textarea, followed by what

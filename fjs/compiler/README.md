@@ -383,7 +383,9 @@ first/follow check, found three of the eight.
 - [x] identifiers `{a:5}`
 - [x] computed keys `{["a"]:5}`, the only keyed spelling of a `__proto__` key;
   the short form `{ __proto__ }` below is the other
-  ([spec: the `__proto__` key](../../spec/README.md#the-__proto__-key))
+  ([spec: the `__proto__` key](../../spec/README.md#the-__proto__-key)) —
+  and `{[k]:5}`, a key computed from any value
+  ([spec: property keys](../../spec/README.md#property-keys))
 - [x] big int
 - [x] `export default ...`
 - [x] constants
@@ -675,7 +677,9 @@ and its runtime and declaration dependencies must satisfy the compiler migration
 rules. `fjs compile` with no arguments is what holds every `.f.js` to it, and CI
 runs that check once per revision. Unsupported modules remain `.f.mjs` until
 the required compiler features land. A sibling authored `types.ts` remains
-unchanged across this rename.
+unchanged across this rename. The rewrites that bring a module to what the
+compiler accepts, one per construct, are
+[`doc/CONVERTING.md`](../../doc/CONVERTING.md).
 
 A synthetic JavaScript compiler fixture may be used before repository migration;
 it does not change the extension contract for repository source.

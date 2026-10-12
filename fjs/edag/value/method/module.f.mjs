@@ -11,11 +11,13 @@
 
 import { isArray } from '../../../types/array/module.f.mjs'
 import { ok, error } from '../../../types/result/module.f.js'
+import { isFinite_ } from '../../../types/number/is_finite/module.f.js'
 import { allowedCalls, arrayPrototype, stringPrototype, numberPrototype, booleanPrototype, bigintPrototype, functionPrototype, objectPrototype } from '../../../js/prototype/module.f.js'
 import { call } from '../call/module.f.mjs'
 import { isFunction, typeOf } from '../semantics/module.f.mjs'
 import { toNumber, toString } from '../convert/module.f.mjs'
 import { arrayMethod } from '../array_method/module.f.mjs'
+import { max } from '../../../types/number/max/module.f.js'
 
 /** Built-in availability, before an optional call evaluates arguments. @type {(receiver: EdagValue, key: string) => boolean} */
 export const hasMethod = (receiver, key) => {
@@ -57,7 +59,7 @@ const numberMethod = (receiver, key, value, invoke) => {
     const [kind, digits] = result
     if (kind === 'error') { return result }
     const count = integer(digits)
-    if (key !== 'toFixed' && !Number.isFinite(number)) { return ok(String(number)) }
+    if (key !== 'toFixed' && !isFinite_(number)) { return ok(String(number)) }
     if (count < (key === 'toPrecision' ? 1 : 0) || count > 100) { return error(['undefined']) }
     return ok(key === 'toFixed' ? number.toFixed(count) : key === 'toPrecision' ? number.toPrecision(count) : number.toExponential(count))
 }
@@ -85,7 +87,7 @@ const replace = (receiver, search, replacement, all, invoke) => {
         text += receiver.slice(copied, at) + part
         copied = at + search.length
         if (!all) { return ok(text + receiver.slice(copied)) }
-        start = at + Math.max(1, search.length)
+        start = at + max(1, search.length)
     }
 }
 

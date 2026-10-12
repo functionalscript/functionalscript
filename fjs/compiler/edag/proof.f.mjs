@@ -823,6 +823,15 @@ export const proof = {
         expectEdag(compile('const n = [5]; export default [n[Number((() => { const x = [7]; return 0; })())], 1];').edag, [',', [['[]', [7]], ['[]', [['.', ['[]', [5]], ['Number', 0]], 1]]]])
         expectEdag(compile('const f = [(...x) => x]; export default f[Number("0")](7);').edag, ['.', ['[]', [['=>', 0, [], ['rest']]]], ['Number', '0'], ['|()', [7]]])
         assertStructurallySame(execute(compile('const xs = [10, 20]; export default [xs[Number("1")], null?.[Number(null.x)]];').edag), [20, undefined])
+        // a computed object key is the property's own key operand, lowered
+        // as its value is: eager, so an inlined body's anchors float to the
+        // object's root from the key as from the value, and a `const` read
+        // there alone is inlined there
+        expectEdag(compile('const c = [1]; export default {[c]: 2};').edag, ['{}', [[':', ['[]', [1]], 2]]])
+        expectEdag(compile('export default {[1 + 1]: 2, ["a"]: 3};').edag, ['{}', [[':', ['+', 1, 1], 2], [':', 'a', 3]]])
+        expectEdag(compile('export default {[(() => { const x = [7]; return 0; })()]: 1};').edag, [',', [['[]', [7]], ['{}', [[':', 0, 1]]]]])
+        expectEdag(compile('export default {[1 + 1]: (() => { const x = [7]; return 0; })()};').edag, [',', [['[]', [7]], ['{}', [[':', ['+', 1, 1], 0]]]]])
+        assertStructurallySame(execute(compile('const k = "a"; export default {[k + "b"]: 1, [null]: 2, [[1, 2]]: 3}["ab"];').edag), 1)
         // unary `-` still folds over a numeric literal, even nested inside
         // a binary operator the lowering does not fold
         expectEdag(compile('export default -1 * 2;').edag, ['*', -1, 2])

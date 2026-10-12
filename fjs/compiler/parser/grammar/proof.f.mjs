@@ -10,7 +10,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
 import { diagramPage } from '../../../ebnf/testlib.f.mjs'
-import { railroadLabelMarker } from '../../../website/style/module.f.mjs'
+import { railroadLabelMarker } from '../../../website/style/module.f.js'
 import { demo, diagrams } from './demo.f.mjs'
 import { parser } from '../../../ebnf/ll1/module.f.mjs'
 import { repeatFrom0 } from '../../../ebnf/module.f.mjs'
@@ -170,9 +170,13 @@ export const proof = {
         assertStructurallySame(read('const a = 1;export default { a };'), ['ok'])
         assertStructurallySame(read('const a = 1;export default { a, b: 2, "c": 3, ["d"]: 4, a, };'), ['ok'])
         assertStructurallySame(read('export default { return };'), ['ok'])
+        // a computed key's brackets hold any value, and nothing less
+        assertStructurallySame(read('const a = 1;export default { [a]: 1, [1 + 1]: 2, [[a]]: 3, [{ a }]: 4, [a => a]: 5 };'), ['ok'])
+        assertStructurallySame(read('export default { []: 1 };'), ['error', ']'])
         // a string or a computed key is a key alone, and wants its `:`
         assertStructurallySame(read('export default { "a" };'), ['error', '}'])
         assertStructurallySame(read('export default { ["a"] };'), ['error', '}'])
+        assertStructurallySame(read('export default { [a] };'), ['error', '}'])
         // the import attribute: `with`, a key, a string, the braces
         assertStructurallySame(read('import x from "m" with { type: "json" };export default x;'), ['ok'])
         assertStructurallySame(read('import x from "m" with{type:"json"};export default x;'), ['ok'])

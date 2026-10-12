@@ -8,6 +8,9 @@
  * @import { Failures, ListFailure, PageStep, RefusalDecision, RefusalInput } from './types.ts'
  */
 
+import { isFinite_ } from '../../../types/number/is_finite/module.f.js'
+import { min } from '../../../types/number/min/module.f.js'
+
 const maxPages = 10
 
 /** Messages for failures observed at the host's JSON and admission boundary. */
@@ -66,12 +69,12 @@ export const refusalDecision = ({ status, remaining, retryAfter, reset, now, ret
     const limited = status === 429 || remaining === '0' || retryAfter !== null
     const seconds = Number(retryAfter)
     const after = retryAfter !== null
-        ? Number.isFinite(seconds) ? now + seconds * 1000 : retryDateMillis
+        ? isFinite_(seconds) ? now + seconds * 1000 : retryDateMillis
         : limited && reset !== null ? Number(reset) * 1000 : null
     return {
         blocked: status === 401 || status === 403 || status === 429,
         reason: limited ? 'GitHub API rate limit reached.' : `GitHub request failed (HTTP ${status}).`,
-        retryAt: after !== null && Number.isFinite(after) && after > now ? after : null,
+        retryAt: after !== null && isFinite_(after) && after > now ? after : null,
     }
 }
 
@@ -83,7 +86,7 @@ export const refusalNote = ({ reason, retryAt }, formattedRetry) => retryAt === 
 
 /** No requests for an empty list, at most three concurrent check workers. */
 /** @type {(pullCount: number) => number} */
-export const workerCount = pullCount => Math.min(3, pullCount)
+export const workerCount = pullCount => min(3, pullCount)
 
 /** A busy load refuses another start, including repeated button clicks. */
 /** @type {(busy: boolean, loaded: boolean) => string | null} */

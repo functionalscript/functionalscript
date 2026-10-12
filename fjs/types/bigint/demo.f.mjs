@@ -25,7 +25,7 @@
  * @import { DemoRow, DemoState } from './types.ts'
  */
 
-import { codeMarker } from '../../website/style/module.f.mjs'
+import { codeMarker } from '../../website/style/module.f.js'
 import { log2 } from './module.f.mjs'
 import { sandbox } from '../../effects/common/module.f.mjs'
 import { foldStep, pureOk, resultStep } from '../../effects/module.f.mjs'

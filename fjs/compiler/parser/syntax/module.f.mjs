@@ -916,14 +916,15 @@ const toStatement = ([kind, branch]) => {
 const valueStatementOf = ([keyword, v, end]) =>
     ({ start: tokenAt(keyword), semicolon: ended(end), first: firstAt(v), value: nodeAt(v) })
 
-/** A member's record as the rewrite returns it. @type {(key: DjsTokenWithMetadata, name: string, spelling: Member['spelling'], value: Node) => Meta<Out>} */
-const memberOf = (key, name, spelling, value) => symbol({ id: 'member', member: { key, name, spelling, value } })
+/** A member's record as the rewrite returns it. @type {(member: Member) => Meta<Out>} */
+const memberOf = member => symbol({ id: 'member', member })
 
 /**
- * A member: the token its key is read from, the name it spells, the key's
- * spelling, and its value, by the branch the key's spelling chose. A bare
- * identifier with no `: value` after it is the shorthand `{ a }`, whose
- * value is the name's own reference, read from the key's token.
+ * A member: the token its key begins with, the key by its spelling, and
+ * its value, by the branch the key's spelling chose. A bare identifier
+ * with no `: value` after it is the shorthand `{ a }`, whose value is the
+ * name's own reference, read from the key's token. A computed key's token
+ * is the first of the value between the brackets, as an index's is.
  *
  * @type {(node: Children<MemberRule, DjsTokenWithMetadata, Out>) => Meta<Out>}
  */
@@ -934,18 +935,17 @@ const toMember = ([tag, branch]) => {
             const key = tokenAt(unmapped(id)[1])
             const rounds = unmapped(rest)
             return rounds.length === 0
-                ? memberOf(key, nameOf(key), 'shorthand', ['ref', key])
-                : memberOf(key, nameOf(key), 'plain', nodeAt(unmapped(rounds[0])[1]))
+                ? memberOf({ key, spelling: 'shorthand', name: nameOf(key), value: ['ref', key] })
+                : memberOf({ key, spelling: 'plain', name: nameOf(key), value: nodeAt(unmapped(rounds[0])[1]) })
         }
         case 'string': {
             const [s, , v] = unmapped(branch)
             const key = tokenAt(s)
-            return memberOf(key, textOf(key), 'string', nodeAt(v))
+            return memberOf({ key, spelling: 'string', name: textOf(key), value: nodeAt(v) })
         }
         case 'computed': {
-            const [, s, , , v] = unmapped(branch)
-            const key = tokenAt(s)
-            return memberOf(key, textOf(key), 'computed', nodeAt(v))
+            const [, k, , , v] = unmapped(branch)
+            return memberOf({ key: firstAt(k), spelling: 'computed', node: nodeAt(k), value: nodeAt(v) })
         }
     }
 }

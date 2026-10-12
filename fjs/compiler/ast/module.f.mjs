@@ -146,13 +146,13 @@ const chainEager = ast => ast[0] === '.' ? [ast[1], ...keyOperands(ast[2])] : [a
 const bit = i => 1n << BigInt(i)
 
 /**
- * Every node an object's entries hold, as written: a member's value, a
- * shadowed member's among them, and a spread's operand — what the EDAG
- * constructor takes, since it applies every entry and evaluates each.
+ * Every node an object's entries hold, as written: a member's key and its
+ * value, a shadowed member's among them, and a spread's operand — what the
+ * EDAG constructor takes, since it applies every entry and evaluates each.
  *
  * @type {(entries: readonly AstEntry[]) => readonly AstConst[]}
  */
-const entryOperands = entries => entries.map(entry => isSpread(entry) ? entry[1] : entry[2])
+const entryOperands = entries => entries.flatMap(entry => isSpread(entry) ? [entry[1]] : [entry[1], entry[2]])
 
 /**
  * The operands an EDAG establishes only when an operator decides to — the

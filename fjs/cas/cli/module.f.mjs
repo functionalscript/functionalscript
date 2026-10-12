@@ -4,7 +4,7 @@
  * @module
  *
  * @import { All, Read, Write, WriteFile } from '../../effects/node/types.ts'
- * @import { Commands } from '../../cli/types.ts'
+ * @import { DocumentedCommands } from '../../cli/types.ts'
  * @import { MemOp } from '../../effects/memory/types.ts'
  * @import { FileCasOperation } from '../types.ts'
  */
@@ -16,11 +16,15 @@ import { errorExit, exitStep, log, writeFromStream } from '../../effects/node/mo
 import { forEachStep, step as ioStep } from '../../effects/module.f.mjs'
 import { casAddFile, fileCas } from '../module.f.mjs'
 
-/** @type {Commands<FileCasOperation | WriteFile | Write | All | MemOp | Read>} */
+/** @type {DocumentedCommands<FileCasOperation | WriteFile | Write | All | MemOp | Read>} */
 export const commands = [
     {
         names: ['add'],
         description: 'Store file content and print its hash',
+        usage: 'fjs cas add <path>',
+        examples: ['fjs cas add ./README.md'],
+        note: 'Store an existing file and print its hash; this example uses a repository checkout.',
+        docs: 'fjs/cas/cli/module.f.mjs',
         handler: ({ home, args: [path, ...rest] }) => {
             if (path === undefined || rest.length !== 0) {
                 return errorExit("'cas add' expects one parameter")
@@ -34,6 +38,10 @@ export const commands = [
     {
         names: ['get'],
         description: 'Restore content by hash into a file',
+        usage: 'fjs cas get <hash> <path>',
+        examples: ['hash=$(fjs cas add ./README.md)\nfjs cas get "$hash" ./restored-README.md'],
+        note: 'Restore a stored hash to a file. This POSIX shell example requires a repository checkout and writes restored-README.md.',
+        docs: 'fjs/cas/cli/module.f.mjs',
         handler: ({ home, args: [hashCBase32, path, ...rest] }) => {
             if (hashCBase32 === undefined || path === undefined || rest.length !== 0) {
                 return errorExit("'cas get' expects two parameters")
@@ -50,6 +58,10 @@ export const commands = [
     {
         names: ['list'],
         description: 'List all stored content hashes',
+        usage: 'fjs cas list',
+        examples: ['fjs cas list'],
+        note: 'Print all hashes in the local store.',
+        docs: 'fjs/cas/cli/module.f.mjs',
         handler: ({ home }) => {
             const c = fileCas(sha256)(home)
             // The fold's `items` is deliberately a raw effect, so a fallible
