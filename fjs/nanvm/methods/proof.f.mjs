@@ -75,6 +75,12 @@ export const proof = {
         // An empty pending list answers every allowed pair.
         assertEq(rows({}).pending.length, 0)
         assertEq(rows({}).answered.length, r.answered.length + r.pending.length)
+        // A listed pair moves from `answered` to `pending`: `isPending` reads
+        // the type's own list, not a name `Object.prototype` has.
+        const one = rows({ array: ['at'] })
+        assertEq(keys(one.pending).join(), 'array.at')
+        assert(!keys(one.answered).includes('array.at'))
+        assertEq(one.answered.length, r.answered.length - 1)
     },
     generate: () => {
         const rust = generate()
