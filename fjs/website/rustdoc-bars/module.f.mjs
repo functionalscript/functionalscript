@@ -43,4 +43,8 @@ export const writeRustdocBars = build => {
 }
 
 /** @type {(options: NodeProgramOptions) => Effect<Access | ReadFile | Rm | Write | WriteBytes | WriteFile, 0, number>} */
-export const main = ({ env }) => exitStep(step(_readBuild(env), writeRustdocBars))
+export const main = ({ env }) => {
+    const build = _readBuild(env)
+    const written = step(build, writeRustdocBars)
+    return exitStep(written)
+}
