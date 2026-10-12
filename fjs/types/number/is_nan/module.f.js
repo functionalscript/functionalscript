@@ -10,8 +10,9 @@
  * Whether `n` is `NaN`. `NaN` is the one value that is not strictly equal to
  * itself, so the comparison alone is the test: every other number, and every
  * value of another type, is `false`, without coercion, as `Number.isNaN`
- * answers and the global `isNaN` does not.
+ * answers and the global `isNaN` does not. The name ends in `_` so that it
+ * never shadows that global ([`doc/CONVERTING.md`](../../../../doc/CONVERTING.md)).
  *
  * @type {(n: unknown) => boolean}
  */
-export const isNaN = n => n !== n
+export const isNaN_ = n => n !== n

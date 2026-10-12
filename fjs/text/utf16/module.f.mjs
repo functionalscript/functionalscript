@@ -18,7 +18,7 @@ import {
 } from '../../types/list/module.f.mjs'
 
 import { isUintUpTo } from '../../types/number/module.f.mjs'
-import { isNaN } from '../../types/number/is_nan/module.f.js'
+import { isNaN_ } from '../../types/number/is_nan/module.f.js'
 import { compose } from '../../types/function/module.f.js'
 import { concat } from '../../types/string/module.f.mjs'
 
@@ -262,7 +262,7 @@ export const stringToList = s => {
     /** @type {(i: number) => Result<number>} */
     const at = i => {
         const first = s.charCodeAt(i)
-        return isNaN(first) ? empty : { first, tail: () => at(i + 1) }
+        return isNaN_(first) ? empty : { first, tail: () => at(i + 1) }
     }
     return at(0)
 }

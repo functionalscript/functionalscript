@@ -11,7 +11,7 @@
 
 import { isArray } from '../../../types/array/module.f.mjs'
 import { ok, error } from '../../../types/result/module.f.js'
-import { isFinite } from '../../../types/number/is_finite/module.f.js'
+import { isFinite_ } from '../../../types/number/is_finite/module.f.js'
 import { allowedCalls, arrayPrototype, stringPrototype, numberPrototype, booleanPrototype, bigintPrototype, functionPrototype, objectPrototype } from '../../../js/prototype/module.f.js'
 import { call } from '../call/module.f.mjs'
 import { isFunction, typeOf } from '../semantics/module.f.mjs'
@@ -59,7 +59,7 @@ const numberMethod = (receiver, key, value, invoke) => {
     const [kind, digits] = result
     if (kind === 'error') { return result }
     const count = integer(digits)
-    if (key !== 'toFixed' && !isFinite(number)) { return ok(String(number)) }
+    if (key !== 'toFixed' && !isFinite_(number)) { return ok(String(number)) }
     if (count < (key === 'toPrecision' ? 1 : 0) || count > 100) { return error(['undefined']) }
     return ok(key === 'toFixed' ? number.toFixed(count) : key === 'toPrecision' ? number.toPrecision(count) : number.toExponential(count))
 }

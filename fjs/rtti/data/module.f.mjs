@@ -29,7 +29,7 @@ import { cmp as cmpValue } from '../../types/function/compare/module.f.mjs'
 import { strictEqual as strictEqualCurried } from '../../types/function/operator/module.f.js'
 import { at, definedEntries, definedValues } from '../../types/object/module.f.mjs'
 import { ok } from '../../types/result/module.f.js'
-import { isNaN } from '../../types/number/is_nan/module.f.js'
+import { isNaN_ } from '../../types/number/is_nan/module.f.js'
 import { declaredTest, eachEntry, hasUndeclaredMember, isArray, undeclaredMembers, verror } from '../common/module.f.mjs'
 
 /**
@@ -154,8 +154,8 @@ const cmpString = (a, b) => cmpValue(a)(b)
  */
 const cmpNumber = (a, b) => {
     if (Object.is(a, b)) { return 0 }
-    if (isNaN(a)) { return 1 }
-    if (isNaN(b)) { return -1 }
+    if (isNaN_(a)) { return 1 }
+    if (isNaN_(b)) { return -1 }
     if (a < b) { return -1 }
     if (a > b) { return 1 }
     // `a` and `b` are `+0` and `-0`, in one of the two orders
