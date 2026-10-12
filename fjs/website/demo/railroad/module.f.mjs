@@ -37,7 +37,7 @@
  */
 
 import { pureOk } from '../../../effects/module.f.mjs'
-import { railroadBoxMarker, railroadLabelMarker } from '../../style/module.f.mjs'
+import { railroadBoxMarker, railroadLabelMarker } from '../../style/module.f.js'
 
 const boxHalf = 11
 const arc = 10

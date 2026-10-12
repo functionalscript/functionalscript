@@ -35,7 +35,7 @@ import {
     signTrustKeyMarker,
     signTrustPathMarker,
     signVerifierMarker,
-} from '../../website/style/module.f.mjs'
+} from '../../website/style/module.f.js'
 import { hexDigitsValue } from '../../text/ascii/module.f.mjs'
 import { tryUtf8 } from '../../text/module.f.mjs'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'

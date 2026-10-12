@@ -10,7 +10,7 @@
       [render-readme](render-readme.md)
 - [ ] Source code highlighting and per-module JSDoc — see
       [source-and-doc-view](source-and-doc-view.md)
-- [x] One `main.css` (`fjs/website/style/module.f.mjs`, written to the root as `_main.css` and linked root-relative)
+- [x] One `main.css` (`fjs/website/style/module.f.js`, written to the root as `_main.css` and linked root-relative)
 - [x] One monospace face for the whole site (`ui-monospace` first, `pre`
       inheriting it; the reasoning is [`../README.md`](../README.md))
 - [x] Pages fit a phone screen (any line may break inside a word; the
@@ -18,7 +18,7 @@
 - [x] Touch-sized links in a page's lists, padded for `any-pointer: coarse`
       (the reasoning is [`../README.md`](../README.md))
 - [x] A link looks the same once it has been followed, in the site's own
-      green (`--link` in `fjs/website/style/module.f.mjs`)
+      green (`--link` in `fjs/website/style/module.f.js`)
 - [x] A favicon, two committed files linked from every head ("fjs", the
       reasoning is [`../README.md`](../README.md))
 - [x] One header on every page: the logo and the name, Releases, GitHub, and

@@ -12,7 +12,7 @@ directory page to its crate's reference crosses from one design into another.
 
 `_rustdoc.css`, which `cargo doc` takes as `--extend-css`, styles only the bars
 today, plus the two layout rules the bars need
-([`../style/module.f.mjs`](../style/module.f.mjs)'s `rustdocStylesheet`). The
+([`../style/module.f.js`](../style/module.f.js)'s `rustdocStylesheet`). The
 same file can restyle the rest.
 
 ### Ideas

@@ -26,7 +26,7 @@
  * @import { DjsTokenWithMetadata } from './types.ts'
  */
 
-import { codeMarker } from '../../website/style/module.f.mjs'
+import { codeMarker } from '../../website/style/module.f.js'
 import { stringToList } from '../../text/utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { highlight } from '../../website/demo/highlight/module.f.mjs'

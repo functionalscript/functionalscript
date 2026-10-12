@@ -18,7 +18,7 @@ import { asyncPartialRun } from '../effects/module.mjs'
 import { commonOperationMap } from '../effects/common/module.mjs'
 import { macrotask, patch, toDom } from '../media/html/module.mjs'
 import { copy } from './copy-runtime.mjs'
-import { demoMarker, editorMarker, mirrorMarker } from './style/module.f.mjs'
+import { demoMarker, editorMarker, mirrorMarker } from './style/module.f.js'
 
 /**
  * What a demo may ask this page for.

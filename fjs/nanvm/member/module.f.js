@@ -12,7 +12,7 @@
  * @example
  *
  * ```js
- * import { groups } from './module.f.mjs'
+ * import { groups } from './module.f.js'
  *
  * groups.length // 44
  * ```
