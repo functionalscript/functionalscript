@@ -14,79 +14,99 @@ Node, Chromium, Deno, Bun on it — implements no tail calls, and neither does
 Rust, so a function that iterates by calling itself last overflows the stack
 after some thousands of rounds in either output.
 
-The shape is what a loop lowers to
+A `const` whose function calls itself is the one way FunctionalScript
+expresses a loop today, so every loop a program writes is affected. It is
+also the shape a `while` lowers to
 ([stage 1 discussion §11](../../../todo/edag-stage1-discussion.md#11-let-loops-and-tail-calls)),
-so the serializers must spell it as a loop before any lowering can land. It
-is a property of the graph, not a mark the compiler leaves, so a hand-written
-tail-recursive function gets the same loop.
+so the serializers must spell it as a loop before a `while` can land.
 
 ### Proposal
 
-**Recognize** the shape in the analysis table
-([`fjs/edag/analysis`](../analysis/module.f.mjs)) with one exported
-predicate both serializers import — `tailCalls` in a new `fjs/edag/loop`
-module: the entries of a function's tail self-calls, or `null` where the
-function is not a loop.
-
-A position is *tail* when it is the body root, an arm of a `?:` in tail
-position, or the last operand of a `,` in tail position; nothing else is. A
-*tail self-call* is a `['()', ['self'], args]` in tail position whose `args`
-do not reach `self`. A function is a *loop* when it reads its `self` at all,
-and every read is the callee of a tail self-call reached by one edge and
-through unshared nodes only — a shared `?:` or `,` on the path is written
-once, as an expression, where no statement can stand. Every condition and
-every assert on the path must not reach `self` either, which also keeps
-`self` from escaping as a value: into an argument, an array, or a nested
-function's frame. Anything else is not a loop and stays the recursion it is
-today, the author's own.
-
-Whether an entry reaches `self` is one pass over the table, an entry coming
-after its operands; the walk then follows tail positions from the root,
-collecting the self-calls and refusing on the first read of `self` anywhere
-else. The right operand of `&&`, `||` and `??` is left non-tail for now:
-treating it as tail would need a statement spelling for each.
-
-**Write** a loop-shaped function in statement form, the parameters its loop
-variables:
+**One template.** The first implementation recognizes one shape of function,
+the loop over one state value whose condition continues it:
 
 ```js
-($0)=>{for(;;){if((($0)<(10))){[$0]=[(($0)+(1))];continue;}return ($0);}}
+['=>', 1, FRAME, ['?:', COND, ['()', ['self'], [NEXT]], ['arg', 0]]]
 ```
 
-A `?:` on the tail path is an `if` whose consequent ends in `continue` or
-`return`, so the alternative follows it as the fall-through; a `,` is its
-asserts as expression statements and then its last operand; a tail
-self-call is a parallel assignment of the parameters, `[$0,...$1]=[…]`, and
-`continue` — the array on the right is built before any parameter changes,
-as a call's arguments are evaluated before the call; any other tail operand
-is `return`ed. Everything off the tail path is the expression the writer
-emits today. The invocation-local memo cells are declared inside the `for`,
-so each round starts fresh as each call did. The function needs no name: no
-`self` read survives the rewrite, so it is an arrow again.
+which is `r => COND ? self(NEXT) : r`, the recursive spelling of
+`while (COND) { r = NEXT; }`. `COND` and `NEXT` are any nodes over
+`['arg', 0]` and the frame, and `self` is read nowhere but as that one
+callee. Every node on the path — the `?:` and the call — is reached by one
+edge: the writers spell the path as statements, and a shared node is written
+once, as an expression, where no statement can stand.
 
-The Rust output spells the same verdict in its own form: the closure's body
-becomes `loop { … }`; a `?:` on the tail path is
-`if c.to_boolean() { … } else { … }` instead of `Any::conditional` over
-thunks, so the arms are blocks that can `continue`; a tail self-call rebinds
-`args` and `continue`s; the temporaries a round binds are declared inside the
-loop.
+A `const` the next value does not reach, an assert, lowers to a comma, so the
+template admits one around the call, `[',', [...ASSERTS, CALL]]`, which is a
+`const` inside the loop body, and one at the root, `[',', [...ASSERTS, TAIL]]`,
+established before the condition each round. Without the first, the first
+`const` written in a loop body would silently turn the loop back into
+recursion.
+
+The template is recognized in the analysis table
+([`fjs/edag/analysis`](../analysis/module.f.mjs)) by one exported function in
+a new `fjs/edag/loop` module, which both serializers import: the template's
+parts for a function entry that matches, and `null` for any other function.
+Anything else stays the recursion it is today, the author's own.
+
+**The function text** writes a matching function as an arrow whose body is a
+loop, the parameter its state. The `?:` is an `if` whose consequent ends in
+`continue`, so the alternative is the fall-through `return`; the invocation
+memo cells are declared inside the loop, so each round starts fresh as each
+call did; the `self` name is gone, since no read of it survives:
+
+```js
+($0)=>{for(;;){if(COND){$0=NEXT;continue;}return $0;}}
+```
+
+**The Rust output** writes the closure's body as `loop { … }`: the `?:` is
+`if COND.to_boolean() { … } else { … }` instead of `Any::conditional` over
+thunks, so the consequent can rebind the argument and `continue`; the
+temporaries a round binds are declared inside the loop.
+
+**The source** spells the template as `let` and `while` only in one context,
+the function called where it is written with one argument and referenced
+from nowhere else:
+
+```js
+['()', LOOP, [INIT]]   →   let r = INIT; while (COND) { …; r = NEXT; }
+```
+
+and `r` is a `const` after the loop, the call's value. The context excludes
+the root comma: a `const` before `while` runs once, where a root assert runs
+every round. A loop function in any other position keeps the
+`const loop = …` spelling, which round-trips today. This half waits on the
+grammar: `let`, `while` and assignment are a language feature with a
+proposal of their own under
+[DESIGN.md §12](../../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions),
+and the round trip of a `while` — source to EDAG to source to the same
+EDAG — is its proof.
+
+**Later.** The template is a strict subset of the general rule, under which
+a function is a loop whenever every reference to `self` is the callee of a
+call in tail position — the body root, an arm of a `?:` there, the last
+operand of a `,` there — whatever the number of state values, the arm the
+call stands in, or the number of exits. Widening to it changes no spelling
+written for the template, so it is a later step, taken with the grammar for
+`break` that the swapped arm needs.
 
 ### Tasks
 
-- [ ] `fjs/edag/loop`: `tailCalls` and `tailOperands`, with the refusals
-      proven: a non-tail self-call, `self` escaping into a nested function's
-      frame, a shared node on the tail path, a self-reaching condition,
-      assert or argument.
-- [ ] `fjs/compiler/serializer/function_text`: the statement form for a
-      loop-shaped function; a host proof runs a million rounds, which the
-      named function expression could not.
+- [ ] `fjs/edag/loop`: recognize the template, with the refusals proven:
+      another length, `self` read anywhere else, a call in the alternative,
+      a shared `?:` or call, a comma whose last operand is not the call.
+- [ ] `fjs/compiler/serializer/function_text`: the loop form; a host proof
+      runs a million rounds, which the named function expression could not.
 - [ ] `fjs/edag/rust`: the `loop` form, and a `cargo test` over a generated
       module running a million rounds.
+- [ ] `fjs/compiler/serializer`: the `let`/`while` spelling in call context,
+      once the grammar lands, proven by the round trip.
 
 ### Related
 
 - [stage 1 discussion §11](../../../todo/edag-stage1-discussion.md#11-let-loops-and-tail-calls)
   — why a loop is a tail call and not a node.
+- [spec: let](../../../spec/todo/3220-let.md) — the grammar half.
 - [`function-text.md`](../function-text.md) — the text contract the
   JavaScript form lives under.
 - [stack-safety](./stack-safety.md) — the writers' own recursion, a separate
