@@ -154,7 +154,10 @@ past the own properties, and a conversion checks that the module never did:
 **A negative or non-finite literal**, `a[-1]`, `a[NaN]`: these are no
 `Number(...)` and no constant the grammar reads, so write the string the key
 is, `a["-1"]`, `a["NaN"]`. Both are `undefined` on an array, as in
-JavaScript. A grouped literal, `a[(0)]`, is refused too; drop the group.
+JavaScript. The string is the one JavaScript's conversion gives, not the
+source text: `a[-0]` is `a["0"]`, since `-0` converts to `"0"`, and
+`a["-0"]` would name a different property. A grouped literal, `a[(0)]`, is
+refused too; drop the group.
 
 The `Number(...)` form applies to an optional access alike, `a?.[Number(i)]`
 ([optional chaining](../spec/README.md#optional-chaining)), and to a call
