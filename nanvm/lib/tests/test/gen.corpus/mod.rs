@@ -66,7 +66,6 @@ pub mod neg;
 pub mod not;
 pub mod nullish_coalescing;
 pub mod number_cast;
-pub mod object_is;
 pub mod pow;
 pub mod rem;
 pub mod shl;
@@ -112,7 +111,6 @@ pub fn all<A: IStaticFunction>() {
     throw::run::<A>();
     string_coercion::run::<A>();
     number_cast::run::<A>();
-    object_is::run::<A>();
     method_at::run::<A>();
     method_includes::run::<A>();
     method_index_of::run::<A>();

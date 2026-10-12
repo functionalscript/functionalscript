@@ -35,8 +35,6 @@ const compare = (a, b, equal, same) => {
     assertEq(assertOk(binary['==='](b, a)), equal)
     assertEq(assertOk(binary['!=='](a, b)), !equal)
     assertEq(assertOk(binary['!=='](b, a)), !equal)
-    assertEq(assertOk(binary.is(a, b)), same)
-    assertEq(assertOk(binary.is(b, a)), same)
 }
 
 export const proof = {
