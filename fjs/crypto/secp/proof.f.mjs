@@ -95,22 +95,22 @@ export const proof = {
         assertEq(transition(initial, { kind: 'click', name: 'point:13,12' }).p, '13,12')
         assertEq(transition({ ...initial, target: 'Q' }, { kind: 'click', name: 'point:13,12' }).q, '13,12')
         const adding = /** @type {const} */ ({ ...initial, operation: 'P + Q' })
-        assert(!JSON.stringify(demo.view(adding)).includes('Calculation modulo 23:'))
-        const calculating = transition(adding, { kind: 'click', name: 'next' })
-        const calculatedView = JSON.stringify(demo.view(calculating))
-        assert(calculatedView.includes('Calculation modulo 23:'))
-        assert(calculatedView.includes('x₃ = ('))
-        assert(JSON.stringify(demo.view(transition(calculating, { kind: 'click', name: 'next' }))).includes('Calculation modulo 23:'))
+        assertEq(lastStep(adding), 1)
+        const result = transition(adding, { kind: 'click', name: 'next' })
+        const resultView = JSON.stringify(demo.view(result))
+        assert(resultView.includes('The result is'))
+        assert(resultView.includes('x₃ = ('))
+        assertEq(lastStep({ ...initial, view: 'Geometric View' }), 0)
         const views = [
             { ...initial, k: '0' }, { ...initial, k: '29', step: 29 }, { ...initial, k: 'bad' },
             { ...initial, p: 'bad' }, { ...initial, q: 'bad' },
-            ...['P + Q', '2P', '−P'].flatMap(operation => [0, 1, 2].map(step => ({ ...initial, operation, step }))),
+            ...['P + Q', '2P', '−P'].flatMap(operation => [0, 1].map(step => ({ ...initial, operation, step }))),
             { ...initial, operation: 'P + Q', target: 'Q' }, { ...initial, operation: 'P + Q', p: 'O' }, { ...initial, operation: 'P + Q', q: '0,21' },
-            ...['P + Q', '2P'].flatMap(operation => [0, 1, 2, 3, 4].map(step => ({ ...initial, view: 'Geometric View', operation, step }))),
+            ...['P + Q', '2P'].map(operation => ({ ...initial, view: 'Geometric View', operation })),
             { ...initial, view: 'Geometric View', realP: '-2' },
-            { ...initial, view: 'Geometric View', realQ: '0', branchQ: '-1', step: 2 },
-            { ...initial, view: 'Geometric View', realQ: '0.00000001', step: 2 },
-            { ...initial, view: 'Geometric View', realQ: '0.001', branchQ: '-1', step: 4 },
+            { ...initial, view: 'Geometric View', realQ: '0', branchQ: '-1' },
+            { ...initial, view: 'Geometric View', realQ: '0.00000001' },
+            { ...initial, view: 'Geometric View', realQ: '0.001', branchQ: '-1' },
             ...['secp192r1', 'secp256k1', 'secp256r1', 'secp384r1', 'secp521r1', 'missing'].map(curve => ({ ...initial, view: 'Real Curves', curve })),
             { ...initial, view: 'Real Curves', privateKey: 'bad' }, { ...initial, view: 'Real Curves', privateKey: '0' },
         ]

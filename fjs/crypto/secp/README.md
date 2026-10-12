@@ -74,14 +74,15 @@ The module page discovers `demo.f.mjs` automatically. Build with
   `y² = x³ + x + 4 mod 23`. Select addition, doubling, negation, or `kG`;
   use the grid or point selectors, then Previous/Next or Play/Pause.
   The inline P/Q radios choose which input a graph click sets. For point
-  operations, the calculation step reveals the substituted formulas beside
-  the graph; they stay visible when the result is plotted.
+  operations, the only animation step plots the result. Show Math contains
+  the substituted formulas.
   The default `3G` is `(11,9)`. Scalars 0 and 29 illustrate infinity, which
   is `null` in the module and has no plotted coordinates. Show Math explains
   substituted modular calculations and each repeated-addition frame.
 - **Geometric View** uses the distinct real curve `y² = x³ − x + 1`.
   Drag inputs horizontally along their branch or use the sliders and branch
-  radios (Upper/Lower). Step through secant/tangent, third intersection, and reflection.
+  radios (Upper/Lower). The secant or tangent, third intersection, and reflected
+  result update immediately as P or Q changes.
   Vertical lines give infinity; unstable constructions are refused and
   off-screen results are reported rather than squeezed into the graph.
   This is an analogy, not a continuous picture of finite-field arithmetic.

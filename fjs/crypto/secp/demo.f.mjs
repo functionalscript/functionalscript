@@ -53,8 +53,8 @@ const pointSelect = (name, label, value) => ['p', ['label', { for: `secp-${name}
 
 /** @type {(state: State) => number} */
 export const lastStep = state => {
-    if (state.view === 'Geometric View') { return 4 }
-    if (state.operation !== 'kG') { return 2 }
+    if (state.view === 'Geometric View') { return 0 }
+    if (state.operation !== 'kG') { return 1 }
     const k = scalar(state.k, 29n)
     return k[0] === 'ok' ? Number(k[1]) : 0
 }
@@ -150,7 +150,7 @@ const finiteView = state => {
         ['p', 'y² = x³ + x + 4 mod 23 · p = 23 · a = 1 · b = 4 · G = (0, 2) · n = 29'],
         ['p', 'These are discrete field elements. A smooth curve or ordinary secant would be misleading here.'],
         ['div', { 'data-secp-layout': '' },
-            ['div', finiteGraph(state, shownP, shownQ, multiplication || state.step === 2 ? calculation.result : null, multiplication ? current : null),
+            ['div', finiteGraph(state, shownP, shownQ, multiplication || state.step === 1 ? calculation.result : null, multiplication ? current : null),
                 ['p', 'Legend: G (base), P/Q (inputs), Result, Step. O has no XY coordinates.']],
             ['div',
                 select('operation', 'Operation', ['kG', 'P + Q', '2P', '−P'], state.operation),
@@ -163,13 +163,9 @@ const finiteView = state => {
                     codeBlock(pointText(calculation.result), 'Copy result'),
                     ...(multiplication ? [caption(`Animation: ${state.step}G:`), status(pointText(current)),
                         paragraph('This educational sequence adds G repeatedly. Production multiplication can use faster algorithms such as double-and-add.')]
-                        : [paragraph(state.step === 0 ? 'Choose the inputs.' : state.step === 1 ? 'Calculate using arithmetic modulo 23.' : `The result is ${pointText(calculation.result)}.`)]),
+                        : [paragraph(state.step === 0 ? 'Choose the inputs.' : `The result is ${pointText(calculation.result)}.`)]),
                 ]),
                 controls(state),
-                ...(!multiplication && state.step >= 1 ? [
-                    caption('Calculation modulo 23:'),
-                    codeBlock(calculation.lines.join('\n'), 'Copy calculation'),
-                ] : []),
             ],
         ],
         ['details', ['summary', 'Show Math'],
@@ -203,8 +199,8 @@ const realSamples = Array.from({ length: 481 }, (_, i) => assertNotNullish(realP
 /** @type {(branch: number) => string} */
 const curvePath = branch => realSamples.map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${realXY([x, branch * y]).join(' ')}`).join(' ')
 
-/** @type {(state: State, p: RealPoint, q: RealPoint, c: Construction) => Element} */
-const realGraph = (state, p, q, c) => ['svg', { viewBox: '0 0 530 530', 'data-secp-graph': '', 'data-demo-x-min': '-1.5', 'data-demo-x-max': '3.5', 'data-demo-x-left': '40', 'data-demo-x-right': '480', role: 'img', 'aria-label': 'Real-number curve, secant or tangent, third intersection and reflection' },
+/** @type {(operation: string, p: RealPoint, q: RealPoint, c: Construction) => Element} */
+const realGraph = (operation, p, q, c) => ['svg', { viewBox: '0 0 530 530', 'data-secp-graph': '', 'data-demo-x-min': '-1.5', 'data-demo-x-max': '3.5', 'data-demo-x-left': '40', 'data-demo-x-right': '480', role: 'img', 'aria-label': 'Real-number curve, secant or tangent, third intersection and reflection' },
     ['title', 'Geometric analogy over the real numbers: y² = x³ − x + 1'],
     ['defs', ['clipPath', { id: 'secp-real-clip' }, ['rect', { x: '40', y: '40', width: '440', height: '440' }]]],
     ['g', { 'clip-path': 'url(#secp-real-clip)' },
@@ -212,13 +208,12 @@ const realGraph = (state, p, q, c) => ['svg', { viewBox: '0 0 530 530', 'data-se
         ['path', { d: 'M40 260H480M172 40V480', stroke: 'currentColor' }],
         ['path', { d: curvePath(1), 'data-secp-real-curve': '', fill: 'none' }],
         ['path', { d: curvePath(-1), 'data-secp-real-curve': '', fill: 'none' }],
-        ...(state.step >= 1 && c.kind !== 'refused' ? [c.kind === 'infinity'
+        ...(c.kind !== 'refused' ? [c.kind === 'infinity'
             ? /** @type {Element} */ (['path', { d: `M${realXY(p)[0]} 40V480`, 'data-secp-line': '' }])
             : /** @type {Element} */ (['path', { d: `M${realXY([-1.5, c.slope * (-1.5 - p[0]) + p[1]]).join(' ')}L${realXY([3.5, c.slope * (3.5 - p[0]) + p[1]]).join(' ')}`, 'data-secp-line': '' }])] : []),
-        ...(c.kind === 'finite' && state.step >= 2 ? realMark(c.third, 'S', 'step') : []),
-        ...(c.kind === 'finite' && state.step >= 3 ? [/** @type {Element} */ (['path', { d: `M${realXY(c.third).join(' ')}L${realXY(c.result).join(' ')}`, 'data-secp-reflection': '' }]), ...realMark(c.result, 'R = −S', 'result')] : []),
+        ...(c.kind === 'finite' ? [...realMark(c.third, 'S', 'step'), /** @type {Element} */ (['path', { d: `M${realXY(c.third).join(' ')}L${realXY(c.result).join(' ')}`, 'data-secp-reflection': '' }]), ...realMark(c.result, 'R = −S', 'result')] : []),
         ...realMark(p, 'P', 'input', 'realP'),
-        ...(state.operation === '2P' ? [] : realMark(q, 'Q', 'base', 'realQ')),
+        ...(operation === '2P' ? [] : realMark(q, 'Q', 'base', 'realQ')),
     ],
     ['text', { x: '486', y: '264' }, 'X'], ['text', { x: '176', y: '30' }, 'Y'],
     ...[-1, 0, 1, 2, 3].map(/** @returns {Element} */ x => ['text', { x: realXY([x, 0])[0], y: '500' }, String(x)]),
@@ -235,21 +230,18 @@ const geometricView = state => {
     const q = state.operation === '2P' ? p : realPoint(Number(state.realQ), Number(state.branchQ))
     if (p === null || q === null) { return ['div', refusal('Select points on the real curve.')] }
     const c = construction(p, q)
-    const steps = /** @type {const} */ (['Choose P and Q on the real curve.', state.operation === '2P' ? 'Draw the tangent at P.' : 'Draw the secant through P and Q.', 'Find the third intersection S.', 'Reflect S across the X axis.', 'R = P + Q = −S.'])
     return ['div',
         ['p', 'y² = x³ − x + 1 over the real numbers. This geometric analogy uses a different field and curve from the finite-field toy example.'],
         ['div', { 'data-secp-layout': '' },
-            ['div', realGraph(state, p, q, c), ['p', 'Drag P/Q horizontally along their branch, or use the keyboard-accessible sliders. Change a branch to reflect an input.']],
+            ['div', realGraph(state.operation, p, q, c), ['p', 'Drag P/Q horizontally along their branch, or use the keyboard-accessible sliders. The complete construction updates immediately.']],
             ['div',
                 select('operation', 'Construction', ['P + Q', '2P'], state.operation === '2P' ? '2P' : 'P + Q'),
                 range('realP', 'P x', state.realP), radios('branchP', 'P branch', [{ value: '1', label: 'Upper' }, { value: '-1', label: 'Lower' }], state.branchP),
                 ...(state.operation === '2P' ? [] : [range('realQ', 'Q x', state.realQ), radios('branchQ', 'Q branch', [{ value: '1', label: 'Upper' }, { value: '-1', label: 'Lower' }], state.branchQ)]),
                 ['p', `P = (${p.map(v => v.toFixed(3)).join(', ')}), Q = (${q.map(v => v.toFixed(3)).join(', ')})`],
-                ['p', { role: 'status' }, steps[state.step]],
                 ...(c.kind === 'refused' ? [refusal(c.message)] : c.kind === 'infinity' ? [paragraph('Vertical line: the result is O (point at infinity), with no XY coordinates.')]
                     : [caption('Sum R:'), paragraph(`(${c.result.map(v => v.toFixed(6)).join(', ')})`),
                         ...(!visible(c.result) || !visible(c.third) ? [paragraph('The third intersection and result are outside these graph bounds. Their coordinates are reported; the drawing is clipped.')] : [])]),
-                controls(state),
             ],
         ],
         ['details', ['summary', 'Show Math'],
