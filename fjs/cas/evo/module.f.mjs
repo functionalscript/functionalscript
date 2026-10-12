@@ -75,6 +75,7 @@ import { at, definedEntries } from '../../types/object/module.f.mjs'
 import { unwrap } from '../../types/nullable/module.f.mjs'
 import { errorSummary, isNotFound } from '../../effects/node/module.f.mjs'
 import { decodeText, encodeText, dialect, checkReferences, isHash, mapHashes } from '../../media/revision/module.f.mjs'
+import { max } from '../../types/number/max/module.f.js'
 
 /**
  * A rejected revision, tagged so it renders alongside `notImplemented` and
@@ -406,14 +407,14 @@ const resolveSnapshot = input => subject => parents => {
  * [`fjs/media/revision/README.md`](../../media/revision/README.md), where a
  * deviation is a readable epoch-reset signal rather than an invalid blob).
  *
- * The max is a `reduce`, not `Math.max(...parents.map(...))`: `parents` is
+ * The max is a `reduce`, not `max(...parents.map(...))`: `parents` is
  * caller-sized (the direct API or the `evo_add` MCP tool), and argument-spread
  * of a large array overflows the JS call stack with a `RangeError` before the
  * documented `Result` error path can run — a `reduce` has no such limit.
  * @type {(parents: readonly Revision[]) => number}
  */
 const computeGeneration = parents =>
-    parents.length === 0 ? 0 : 1 + parents.reduce((max, p) => Math.max(max, p.generation), 0)
+    parents.length === 0 ? 0 : 1 + parents.reduce((m, p) => max(m, p.generation), 0)
 
 /**
  * The pure half of {@link addRevision}: turns already-resolved `parents` into

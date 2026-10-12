@@ -38,6 +38,7 @@
 
 import { pureOk } from '../../../effects/module.f.mjs'
 import { railroadBoxMarker, railroadLabelMarker } from '../../style/module.f.js'
+import { max } from '../../../types/number/max/module.f.js'
 
 const boxHalf = 11
 const arc = 10
@@ -51,10 +52,10 @@ const stub = 8
 const sum = values => values.reduce((s, v) => s + v, 0)
 
 /** @type {(values: readonly number[]) => number} */
-const max = values => values.reduce((m, v) => Math.max(m, v), 0)
+const maxOf = values => values.reduce((m, v) => max(m, v), 0)
 
 /** @type {(label: string) => number} */
-const labelWidth = label => Math.max(28, label.length * charWidth + 16)
+const labelWidth = label => max(28, label.length * charWidth + 16)
 
 /**
  * The id of the element that holds the diagram named `name`: what a
@@ -77,7 +78,7 @@ const line = (x0, x1, y) => path(`M${x0} ${y}L${x1} ${y}`)
  *
  * @type {(above: _Size, below: _Size) => number}
  */
-const drop = (above, below) => Math.max(2 * arc, above.down + rowGap + below.up)
+const drop = (above, below) => max(2 * arc, above.down + rowGap + below.up)
 
 /**
  * Where each row of a choice runs, below the first row's track.
@@ -102,16 +103,16 @@ const measure = d => {
         case 'sequence': {
             const sizes = d[1].map(measure)
             return {
-                width: sum(sizes.map(s => s.width)) + itemGap * Math.max(0, sizes.length - 1),
-                up: max(sizes.map(s => s.up)),
-                down: max(sizes.map(s => s.down)),
+                width: sum(sizes.map(s => s.width)) + itemGap * max(0, sizes.length - 1),
+                up: maxOf(sizes.map(s => s.up)),
+                down: maxOf(sizes.map(s => s.down)),
             }
         }
         case 'choice': {
             const sizes = d[1].map(measure)
             const last = sizes.length - 1
             return {
-                width: max(sizes.map(s => s.width)) + 4 * arc,
+                width: maxOf(sizes.map(s => s.width)) + 4 * arc,
                 up: sizes[0].up,
                 down: rowOffsets(sizes)[last] + sizes[last].down,
             }
@@ -120,7 +121,7 @@ const measure = d => {
             const [, item, separator] = d
             const i = measure(item)
             const s = measure(separator)
-            return { width: Math.max(i.width, s.width) + 4 * arc, up: i.up, down: drop(i, s) + s.down }
+            return { width: max(i.width, s.width) + 4 * arc, up: i.up, down: drop(i, s) + s.down }
         }
     }
 }
@@ -193,7 +194,7 @@ const draw = backward => d => (x, y) => {
             const [first, ...rest] = d[1]
             const sizes = d[1].map(measure)
             const offsets = rowOffsets(sizes)
-            const inner = max(sizes.map(s => s.width))
+            const inner = maxOf(sizes.map(s => s.width))
             const row = padded(inner, backward)
             const left = x + 2 * arc
             const right = left + inner
@@ -214,7 +215,7 @@ const draw = backward => d => (x, y) => {
             const [, item, separator] = d
             const i = measure(item)
             const s = measure(separator)
-            const inner = Math.max(i.width, s.width)
+            const inner = max(i.width, s.width)
             const left = x + 2 * arc
             const right = left + inner
             const end = right + 2 * arc
@@ -246,10 +247,10 @@ const draw = backward => d => (x, y) => {
 export const railroadSvg = d => {
     const { width, up, down } = measure(d)
     const x = margin + stub
-    const y = margin + Math.max(up, stub)
+    const y = margin + max(up, stub)
     const end = x + width
     const svgWidth = end + stub + margin
-    const svgHeight = y + Math.max(down, stub) + margin
+    const svgHeight = y + max(down, stub) + margin
     return ['div', { 'data-railroad': '' }, ['svg', {
         viewBox: `0 0 ${svgWidth} ${svgHeight}`, width: String(svgWidth), height: String(svgHeight),
     },

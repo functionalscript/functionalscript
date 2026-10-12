@@ -33,6 +33,8 @@ import { byteLength, bytesIn, empty as emptyVec, isWholeBytes, isWholeBytesIn, l
 import { nonEmpty, empty as elEmpty } from '../list/module.f.mjs'
 import { ok } from '../../types/result/module.f.js'
 import { do_, errorMessage, ioError, toIoError } from '../module.f.mjs'
+import { min } from '../../types/number/min/module.f.js'
+import { max } from '../../types/number/max/module.f.js'
 import {
     all, allOk, both, catch_, error, errorExit, import_, log, read, readLine, sandbox, write,
 } from '../common/module.f.mjs'
@@ -544,7 +546,7 @@ export const _pieces = units => s => {
             : isHighSurrogate(s.charCodeAt(at - 1)) && isLowSurrogate(s.charCodeAt(at)) ? at - 1 : at
     }
     return Array.from(
-        { length: Math.max(1, Math.ceil(s.length / units)) },
+        { length: max(1, Math.ceil(s.length / units)) },
         (_, k) => s.slice(cutAt(k), cutAt(k + 1)))
 }
 
@@ -650,7 +652,7 @@ export const readChunks = (source, bound) => {
         // the whole chain is constructed up front and a large bound overflows
         // the stack. That is the list representation's property, not this
         // loop's — every chunk source with a real host behind it is a command.
-        return ioStep(source(offset, Math.min(chunkBytes, remaining)), chunk => cell(chunk, offset))
+        return ioStep(source(offset, min(chunkBytes, remaining)), chunk => cell(chunk, offset))
     }
     return loop(0)
 }

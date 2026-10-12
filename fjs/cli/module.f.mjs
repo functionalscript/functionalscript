@@ -12,6 +12,7 @@
 import { errorExit, exitStep, log } from '../effects/node/module.f.mjs'
 import { at, fromEntries, isObject } from '../types/object/module.f.mjs'
 import { isArray } from '../types/array/module.f.mjs'
+import { max } from '../types/number/max/module.f.js'
 
 /** Metadata for the help command implicit in every dispatch table. */
 export const helpMeta = /** @type {const} */ { names: ['help', 'h', '?'], description: 'Print this help message' }
@@ -32,7 +33,7 @@ export const helpReference = parent => ({
 const renderHelp = commands => {
     const rows = [...commands, helpMeta]
     const nameCol = rows.map(({ names }) => names.join(', '))
-    const width = Math.max(...nameCol.map(({ length }) => length))
+    const width = nameCol.reduce((m, { length }) => max(m, length), -Infinity)
     return [
         'Available commands:',
         ...rows.map(({ description }, i) => `  ${nameCol[i].padEnd(width)}  ${description}`)

@@ -9,7 +9,9 @@ Authored FunctionalScript has two extensions: `.f.mjs`, and `.f.js` for source
 the current compiler accepts ([`compiler/README.md`](./compiler/README.md) defines
 both). Every rule below stated for `.f.mjs` applies to `.f.js` alike; the one
 difference, that a proof stays `proof.f.mjs`, is in
-[§1.2](#12-proof-coverage-is-mandatory).
+[§1.2](#12-proof-coverage-is-mandatory). What to write instead of what the
+compiler refuses, construct by construct, is
+[CONVERTING.md](../doc/CONVERTING.md).
 
 ## Contents
 

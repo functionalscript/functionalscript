@@ -35,6 +35,7 @@
 
 import { cmp as numberCmp } from '../number/module.f.mjs'
 import { digit0, digitsValue, one } from '../../text/ascii/module.f.mjs'
+import { max } from '../number/max/module.f.js'
 
 const decimalValue = digitsValue(10n)
 
@@ -94,7 +95,7 @@ const parse = version => {
  */
 export const cmp = a => b => {
     const [p, q] = [parse(a), parse(b)]
-    const n = Math.max(p.length, q.length)
+    const n = max(p.length, q.length)
     for (let i = 0; i < n; i++) {
         const s = numberCmp(p[i] ?? 0)(q[i] ?? 0)
         if (s !== 0) { return s }

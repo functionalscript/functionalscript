@@ -135,7 +135,9 @@ in the same repository revision. Migration remains incremental: select a
 compiler-supported dependency-closed `.f.mjs` module or coherent group, rename
 it to `.f.js`, update runtime and type references plus callers, and keep it as a
 permanent end-to-end compiler regression input. Unsupported FunctionalScript
-modules remain `.f.mjs` until the required compiler features land.
+modules remain `.f.mjs` until the required compiler features land. The
+value-preserving rewrites a module takes on the way, one per construct, are
+[`doc/CONVERTING.md`](../doc/CONVERTING.md).
 
 See [`fjs/compiler/README.md`](../fjs/compiler/README.md) for the authoritative extension
 contract and migration strategy.
