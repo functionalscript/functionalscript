@@ -33,7 +33,7 @@
 
 import { flat, map, reduce, empty } from '../../../types/list/module.f.mjs'
 import { concat } from '../../../types/string/module.f.mjs'
-import { chunkStrings, chunksText } from '../../../text/marked/module.f.mjs'
+import { chunkStrings, chunksMarked, chunksText } from '../../../text/marked/module.f.mjs'
 import { codePointToString, stringToCodePointList } from '../../../text/utf16/module.f.mjs'
 import { errorMask } from '../../../text/code_point/module.f.mjs'
 import { definedEntries, isObject } from '../../../types/object/module.f.mjs'
@@ -258,5 +258,6 @@ export const codec = leaf => {
     return {
         serialize: sort => compose(serialize(sort))(chunkStrings),
         stringify: sort => compose(serialize(sort))(chunksText),
+        marked: sort => compose(serialize(sort))(chunksMarked),
     }
 }
