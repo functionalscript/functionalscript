@@ -98,7 +98,7 @@ export const proof = {
             { ...initial, k: '0' }, { ...initial, k: '29', step: 29 }, { ...initial, k: 'bad' },
             { ...initial, p: 'bad' }, { ...initial, q: 'bad' },
             ...['P + Q', '2P', '−P'].flatMap(operation => [0, 1, 2].map(step => ({ ...initial, operation, step }))),
-            { ...initial, operation: 'P + Q', p: 'O' }, { ...initial, operation: 'P + Q', q: '0,21' },
+            { ...initial, operation: 'P + Q', target: 'Q' }, { ...initial, operation: 'P + Q', p: 'O' }, { ...initial, operation: 'P + Q', q: '0,21' },
             ...['P + Q', '2P'].flatMap(operation => [0, 1, 2, 3, 4].map(step => ({ ...initial, view: 'Geometric View', operation, step }))),
             { ...initial, view: 'Geometric View', realP: '-2' },
             { ...initial, view: 'Geometric View', realQ: '0', branchQ: '-1', step: 2 },

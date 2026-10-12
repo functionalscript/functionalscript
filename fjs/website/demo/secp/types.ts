@@ -2,7 +2,7 @@
  * @module
  */
 
-import type { Point } from '../types.ts'
+import type { Point } from '../../../crypto/secp/types.ts'
 
 export type RealPoint = readonly [number, number]
 export type Construction =

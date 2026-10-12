@@ -7,18 +7,29 @@
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
  * @import { Element, Node } from '../../media/html/types.ts'
  * @import { Point, Point2D } from './types.ts'
- * @import { State, RealPoint, Construction } from './playground/types.ts'
+ * @import { State, RealPoint, Construction } from '../../website/demo/secp/types.ts'
  */
 
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
 import { inputField, caption, refusal } from '../../website/demo/module.f.mjs'
 import { codeBlock } from '../../website/demo/code/module.f.mjs'
-import { toy, points, pointText, pointOf, scalar, sequence, addition, negative, realPoint, construction, namedCurves, publicKey } from './playground/module.f.mjs'
+import { toy, points, pointText, pointOf, scalar, sequence, addition, negative, realPoint, construction, namedCurves, publicKey } from '../../website/demo/secp/module.f.mjs'
 
 /** @type {(name: string, label: string, options: readonly string[], value: string) => Element} */
 const select = (name, label, options, value) => ['p', ['label', { for: `secp-${name}` }, `${label} `],
     ['select', { id: `secp-${name}`, name }, ...options.map(/** @returns {Element} */ o => ['option', { value: o, ...(o === value ? { selected: '' } : {}) }, o])]]
+
+/** Two choices stay visible, with native radio-group keyboard behavior.
+ * @type {(name: string, label: string, options: readonly { readonly value: string, readonly label: string }[], value: string) => Element}
+ */
+const radios = (name, label, options, value) => ['fieldset', { 'data-secp-radios': '' },
+    ['legend', label],
+    ['div', ...options.map(/** @returns {Element} */ option => ['label', { for: `secp-${name}-${option.value}` },
+        ['input', { type: 'radio', id: `secp-${name}-${option.value}`, name, value: option.value, ...(option.value === value ? { checked: '' } : {}) }],
+        option.label,
+    ])],
+]
 
 /** @type {(name: string, label: string, disabled?: boolean) => Element} */
 const button = (name, label, disabled = false) => ['button', { type: 'button', name, ...(disabled ? { disabled: '' } : {}) }, label]
@@ -145,7 +156,7 @@ const finiteView = state => {
                 select('operation', 'Operation', ['kG', 'P + Q', '2P', '−P'], state.operation),
                 ...(multiplication ? [inputField({ name: 'k', label: 'Scalar k (decimal, 0–29)' }, state.k)] : [
                     pointSelect('p', 'Point P', state.p),
-                    ...(state.operation === 'P + Q' ? [pointSelect('q', 'Point Q', state.q), select('target', 'Select graph points for', ['P', 'Q'], state.target)] : []),
+                    ...(state.operation === 'P + Q' ? [pointSelect('q', 'Point Q', state.q), radios('target', 'Graph click sets', [{ value: 'P', label: 'P' }, { value: 'Q', label: 'Q' }], state.target)] : []),
                 ]),
                 ...(multiplication && k[0] === 'error' ? [refusal(k[1])] : [
                     caption(multiplication ? `Public key Q = ${state.k}G:` : 'Result:'),
@@ -227,8 +238,8 @@ const geometricView = state => {
             ['div', realGraph(state, p, q, c), ['p', 'Drag P/Q horizontally along their branch, or use the keyboard-accessible sliders. Change a branch to reflect an input.']],
             ['div',
                 select('operation', 'Construction', ['P + Q', '2P'], state.operation === '2P' ? '2P' : 'P + Q'),
-                range('realP', 'P x', state.realP), select('branchP', 'P branch', ['1', '-1'], state.branchP),
-                ...(state.operation === '2P' ? [] : [range('realQ', 'Q x', state.realQ), select('branchQ', 'Q branch', ['1', '-1'], state.branchQ)]),
+                range('realP', 'P x', state.realP), radios('branchP', 'P branch', [{ value: '1', label: 'Upper' }, { value: '-1', label: 'Lower' }], state.branchP),
+                ...(state.operation === '2P' ? [] : [range('realQ', 'Q x', state.realQ), radios('branchQ', 'Q branch', [{ value: '1', label: 'Upper' }, { value: '-1', label: 'Lower' }], state.branchQ)]),
                 ['p', `P = (${p.map(v => v.toFixed(3)).join(', ')}), Q = (${q.map(v => v.toFixed(3)).join(', ')})`],
                 ['p', { role: 'status' }, steps[state.step]],
                 ...(c.kind === 'refused' ? [refusal(c.message)] : c.kind === 'infinity' ? [paragraph('Vertical line: the result is O (point at infinity), with no XY coordinates.')]

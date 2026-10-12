@@ -1,5 +1,5 @@
 import { assert, assertEq, assertOk, assertError, assertNotNullish } from '../../../asserts/module.f.mjs'
-import { eq, curve } from '../module.f.mjs'
+import { eq, curve } from '../../../crypto/secp/module.f.mjs'
 import { toy, points, pointText, pointOf, scalar, sequence, addition, negative, realPoint, onRealCurve, construction, namedCurves, publicKey } from './module.f.mjs'
 
 export const proof = {

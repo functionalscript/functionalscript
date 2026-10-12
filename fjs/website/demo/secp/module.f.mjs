@@ -2,12 +2,12 @@
  * Educational calculations use the actual secp module over F₂₃. Real-number
  * constructions are a separate analogy on y² = x³ − x + 1.
  * @module
- * @import { Point, Point2D, Curve } from '../types.ts'
+ * @import { Point, Point2D, Curve } from '../../../crypto/secp/types.ts'
  * @import { RealPoint, Construction, Calculation } from './types.ts'
  * @import { Result } from '../../../types/result/types.ts'
  */
 
-import { curve, isPublicKey, secp192r1, secp256k1, secp256r1, secp384r1, secp521r1 } from '../module.f.mjs'
+import { curve, isPublicKey, secp192r1, secp256k1, secp256r1, secp384r1, secp521r1 } from '../../../crypto/secp/module.f.mjs'
 import { assert, assertNotNullish } from '../../../asserts/module.f.mjs'
 import { ok, error } from '../../../types/result/module.f.js'
 

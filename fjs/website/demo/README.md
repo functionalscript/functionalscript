@@ -69,8 +69,11 @@ The lead is plain prose, not a caption: no trailing colon, no bold.
   textarea, the examples drop-down and their wiring. One short value — a
   message to hash, a key, a number — is a single-line `<input
   type="text">`, as the SHA-2, bigint and versions demos use. A choice from
-  a fixed set is a `<select>`, as SHA-2's algorithm is.
-- **Every field has a unique `name`.** The runtime finds a field by its
+  a fixed set is a `<select>`, as SHA-2's algorithm is. For two short
+  alternatives, inline radio buttons keep both choices visible, as secp's
+  graph target and geometric branches do.
+- **Every independent field or radio group has a unique `name`.** Radios
+  within a group share that name and each option has a unique `id`. The runtime finds a field by its
   `name` to keep the reader's focus and the field's size across a render, a
   textarea, an input and a select alike, so two fields sharing one would
   lose them.
