@@ -51,6 +51,7 @@
  * @import { Funding } from './funding/types.ts'
  */
 
+import { assert } from '../asserts/module.f.mjs'
 import { utf8 } from '../text/module.f.mjs'
 import { access, exitStep, isNotFound, mkdir, readdir, readUtf8File, readWhole, writeChunks, writeFile, writeUtf8File } from '../effects/node/module.f.mjs'
 import { foldStep, forEachStep, history, historyStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../effects/module.f.mjs'
@@ -69,6 +70,7 @@ import { cliPage } from './cli/module.f.mjs'
 import { toHex, tryFromHexOf } from '../git/oid/module.f.mjs'
 import { fundingPath, parse as parseFunding } from './funding/module.f.mjs'
 import { isThirdParty } from '../dev/module.f.mjs'
+import { inputDir as denoDocInput, outputDir as denoDocDir, manifestName, readManifest, moduleHref } from './deno-doc/module.f.mjs'
 import { cargoDocDir, cargoDocHref, cargoDocPage, crateHref, crateOf, rustdocDir } from './cargo-doc/module.f.mjs'
 
 /**
@@ -138,7 +140,7 @@ const walk = dir => step(readdir(dir, {}), entries => {
         // The root PR route, the CLI reference and the Rust API reference
         // are generated output, not source directories. Excluding them
         // keeps consecutive builds' catalogues identical.
-        .filter(e => e.isDirectory && !isThirdParty(e.name) && !(dir === '.' && (e.name === prsDir || e.name === cliDir || e.name === cargoDocDir)))
+        .filter(e => e.isDirectory && !isThirdParty(e.name) && !(dir === '.' && (e.name === prsDir || e.name === cliDir || e.name === cargoDocDir || e.name === denoDocDir)))
         .map(e => e.name)
         .toSorted()
     return foldStep(
@@ -667,6 +669,36 @@ const copyRustdocFile = from => to => name => step(
     chunks => writeChunks(`${to}/${name}`, chunks))
 
 /**
+ * Consume the external Deno build, preserving all HTML and shared assets.
+ * The manifest records observed module pages, never assumed URL conventions.
+ * An absent build produces no links; unreadable or incomplete output fails.
+ *
+ * @type {Effect<Access | Readdir | ReadFile | ReadWhole | Mkdir | Rm | WriteBytes | WriteFile, readonly (readonly [string, string])[], IoChannel>}
+ */
+const copyDenoDoc = step(foundAt(denoDocInput), found => {
+    if (found[0] === 'error' && isNotFound(found[1])) { return pureOk([]) }
+    return step(readUtf8File(`${denoDocInput}/${manifestName}`), text => {
+        const modules = readManifest(text)
+        return step(walk(denoDocInput), tree => {
+            const files = allFiles(tree)
+            assertDenoFiles(files)(modules)
+            return mapStep(forEachStep(pureOk(tree), dir => {
+                const to = `${denoDocDir}${dir.path.slice(denoDocInput.length)}`
+                return step(mkdir(to, { recursive: true }), () =>
+                    forEachStep(pureOk(dir.files.filter(name => name !== manifestName)), copyRustdocFile(dir.path)(to)))
+            }), () => modules)
+        })
+    })
+})
+
+/** @type {(files: readonly string[]) => (modules: readonly (readonly [string, string])[]) => void} */
+const assertDenoFiles = files => modules => {
+    assert(files.includes(`${denoDocInput}/index.html`), 'missing Deno index')
+    assert(modules.length > 0, 'empty Deno manifest')
+    assert(modules.every(([, page]) => files.includes(`${denoDocInput}/${page}`)), 'missing Deno module page')
+}
+
+/**
  * The crates a walk of rustdoc's output documents: each top-level directory
  * with an `index.html`. The others — `static.files`, `src`, `trait.impl` —
  * are rustdoc's shared assets.
@@ -741,7 +773,7 @@ const writeCargoDocIndex = build => crates => {
  * runner — and every other directory's is {@link page}'s. Both write the same
  * catalogue.
  *
- * @type {(build: Build) => (tree: readonly _Walked[]) => (crates: readonly string[]) => (proofs: readonly Proof[]) => (demos: _Demos) => Effect<Rm | WriteBytes | WriteFile | Write, void, IoChannel>}
+ * @type {(build: Build & { readonly jsApi: readonly (readonly [string, string])[] }) => (tree: readonly _Walked[]) => (crates: readonly string[]) => (proofs: readonly Proof[]) => (demos: _Demos) => Effect<Rm | WriteBytes | WriteFile | Write, void, IoChannel>}
  */
 const writePages = build => tree => crates => proofs => demos => {
     const byPath = tree.reduce(
@@ -750,6 +782,7 @@ const writePages = build => tree => crates => proofs => demos => {
     const dirs = tree
         .filter(walked => !isTodoDir(walked.path) && walked.path !== changelogDir)
         .map(toDir(byPath)(crateDirs(tree)(crates))(proofs)(demos))
+        .map(dir => ({ ...dir, api: dir.api ?? moduleHref(build.jsApi)(dir.path) }))
     return step(
         forEachStep(pureOk(dirs), dir => writeFile(
             pagePath(dir.path),
@@ -863,8 +896,8 @@ export const _readBuild = env => mapStep(readFunding, funding => ({ commit: comm
  * @type {(env: Omit<Build, 'funding'>) => (note: string) => Effect<Access | Readdir | ReadFile | ReadWhole | Rm | WriteBytes | WriteFile | Write | All | Mkdir, 0, number>}
  */
 const program = env => note => exitStep(mapStep(
-    step(log(note), () => step(walk('.'), tree => step(readFunding, funding => {
-        const build = { ...env, funding }
+    step(log(note), () => step(walk('.'), tree => step(readFunding, funding => step(copyDenoDoc, jsApi => {
+        const build = { ...env, funding, jsApi }
         const authored = authoredModules(tree)
         // One graph over both: a page loads a demo the way it loads a proof,
         // so what would stop one would stop the other.
@@ -884,7 +917,7 @@ const program = env => note => exitStep(mapStep(
                     const reference = step(cliDirectory, () => writeFile(pagePath(cliDir), cliPage(build)))
                     return step(reference, () => writeUtf8File('_main.css', stylesheet))
                 }))
-    }))),
+    })))),
     () => undefined))
 
 /** @type {(options: NodeProgramOptions) => Effect<Access | Readdir | ReadFile | ReadWhole | Rm | WriteBytes | WriteFile | Write | All | Mkdir, 0, number>} */

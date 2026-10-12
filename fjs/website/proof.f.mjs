@@ -67,6 +67,44 @@ const pageAt = (root, path) => textOf(
     `the page for ${path.join('/')}`)
 
 export const proof = {
+    denoDoc: {
+        published: () => {
+            const docs = {
+                'index.html': file('Deno index'),
+                '_modules.txt': file('fjs/crypto/sha2/module.f.mjs\tobserved/sha2/index.html\n'),
+                'search.js': file('native search'),
+                observed: { sha2: { 'index.html': file('Deno module'), '~': { 'maj.html': file('maj') } } },
+            }
+            const first = generate({ target: { 'deno-doc': docs }, fjs: { crypto: { sha2: { 'module.f.mjs': file('export const maj = () => 0') } } } })
+            const rootHtml = pageAt(first.root, [])
+            assert(rootHtml.includes('href="/deno.doc/">JS API'), rootHtml)
+            const source = pageAt(first.root, ['fjs', 'crypto', 'sha2'])
+            assert(source.includes('href="/deno.doc/observed/sha2/index.html">API documentation'), source)
+            const published = /** @type {Dir} */ (first.root['deno.doc'])
+            assertEq(textOf(published['index.html'], 'Deno index'), 'Deno index')
+            assertEq(textOf(published['search.js'], 'Deno search'), 'native search')
+            assertEq(published['_modules.txt'], undefined)
+            assertEq(textOf(/** @type {Dir} */ (/** @type {Dir} */ (/** @type {Dir} */ (published.observed).sha2)['~'])['maj.html'], 'maj'), 'maj')
+            const second = generate(first.root)
+            assertEq(pageAt(second.root, []), rootHtml)
+            assertEq(pageAt(second.root, ['fjs', 'crypto', 'sha2']), source)
+            const withoutDocs = generate({ ...second.root, target: {} })
+            assert(!pageAt(withoutDocs.root, []).includes('JS API'), 'absent docs must not be linked')
+            assert(!pageAt(withoutDocs.root, ['fjs', 'crypto', 'sha2']).includes('API documentation'), 'absent module must not be linked')
+        },
+        reserved: () => {
+            const { root } = generate({ 'deno.doc': { nested: { 'module.f.mjs': file('export const proof = {}') } } })
+            assert(!pageAt(root, []).includes('deno.doc'), 'reserved output must not be catalogued')
+            assertEq(/** @type {Dir} */ (/** @type {Dir} */ (root['deno.doc']).nested)['index.html'], undefined)
+        },
+        unreadable: () => assert(run({ target: { 'deno-doc': file('not a directory') } })[1] !== 0),
+        missingManifest: () => assert(run({ target: { 'deno-doc': { 'index.html': file('index') } } })[1] !== 0),
+        throw: {
+            missingIndex: () => generate({ target: { 'deno-doc': { '_modules.txt': file('fjs/a/types.ts\ta/index.html\n'), a: { 'index.html': file('a') } } } }),
+            emptyManifest: () => generate({ target: { 'deno-doc': { '_modules.txt': file(''), 'index.html': file('index') } } }),
+            missingModule: () => generate({ target: { 'deno-doc': { '_modules.txt': file('fjs/a/types.ts\ta/index.html\n'), 'index.html': file('index') } } }),
+        },
+    },
     cli: {
         page: () => {
             const { root } = generate({})

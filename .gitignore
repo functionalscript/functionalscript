@@ -129,6 +129,7 @@ _*
 .vscode
 /docs
 /cargo.doc
+/deno.doc
 .DS_Store
 **/*.d.mts
 **/*.d.ts

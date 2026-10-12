@@ -1,5 +1,5 @@
 import { assert, assertEq } from '../../asserts/module.f.mjs'
-import { rust } from '../../ci/config/module.f.js'
+import { deno, rust } from '../../ci/config/module.f.js'
 import { step as ioStep } from '../../effects/module.f.mjs'
 import { readUtf8File } from '../../effects/node/module.f.mjs'
 import { defaultNodeProgramOptions, emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'
@@ -16,6 +16,9 @@ sh "$HOME/rustup-init.sh" -y --profile minimal --default-toolchain ${rust} --no-
 export PATH="$HOME/.cargo/bin:$PATH"
 npm run rustdoc-bars
 RUSTDOCFLAGS="--html-in-header $PWD/_rustdoc-head.html --html-before-content $PWD/_rustdoc-header.html --html-after-content $PWD/_rustdoc-footer.html --extend-css $PWD/_rustdoc.css" cargo doc --no-deps --workspace
+npm install --prefix "$HOME/deno-toolchain" --no-save deno@${deno}
+export PATH="$HOME/deno-toolchain/node_modules/.bin:$PATH"
+npm run deno-doc
 npm run website
 `),
     // The pin is the config's, not a copy of it.

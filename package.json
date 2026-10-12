@@ -7,7 +7,9 @@
     "**/*.d.ts",
     "**/*.mjs",
     "**/*.d.mts",
-    "!**/private.d.ts"
+    "!**/private.d.ts",
+    "!deno.doc/**",
+    "!target/deno-doc/**"
   ],
   "description": "FunctionalScript is a purely functional subset of JavaScript",
   "scripts": {
@@ -18,6 +20,7 @@
     "gen:clean": "node ./fjs/module.mjs r ./fjs/dev/clean/module.f.mjs",
     "gen": "node ./fjs/module.mjs r ./fjs/dev/gen/module.f.mjs",
     "lock-update": "npm run gen && npm install && deno install && bun install && cargo update && npx --yes @devcontainers/cli@0.89.0 upgrade --workspace-folder .",
+    "deno-doc": "node ./fjs/website/deno-doc/build.mjs",
     "website": "node ./fjs/module.mjs r ./fjs/website/module.f.mjs",
     "rustdoc-bars": "node ./fjs/module.mjs r ./fjs/website/rustdoc-bars/module.f.mjs"
   },

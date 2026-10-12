@@ -103,5 +103,5 @@
     // "skipDefaultLibCheck": true,                      /* Skip type checking .d.ts files that are included with TypeScript. */
     "skipLibCheck": true                                 /* Skip type checking all .d.ts files. */
   },
-  "exclude": ["target", "cargo.doc"]
+  "exclude": ["target", "cargo.doc", "deno.doc"]
 }

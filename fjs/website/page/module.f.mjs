@@ -486,7 +486,8 @@ const buildLine = ({ branch, commit }) => branch === null || branch === producti
 
 /**
  * The header every page opens with: the logo and the site's name, linking
- * home, then the CLI reference, pull requests, releases and repository.
+ * home, then the CLI reference, available JS API, pull requests, releases
+ * and repository.
  *
  * **One element for every page**, as {@link stylesheetLink} is one link: the
  * root page, a directory's page and a release's page each used to carry their
@@ -509,6 +510,7 @@ export const header = build => ['header',
         // together under the name rather than one beside it and one below.
         ['span', { 'data-site-links': '' },
             ['a', { href: `/${cliDir}/` }, 'CLI'],
+            ...(build.jsApi === undefined || build.jsApi.length === 0 ? [] : [/** @type {Element} */ (['a', { href: '/deno.doc/' }, 'JS API'])]),
             ['a', { href: pageHref(prsDir) }, 'PRs'],
             ['a', { href: pageHref(changelogDir) }, 'Releases'],
             ['a', { href: repository }, 'GitHub', ['span', { 'aria-hidden': 'true' }, ' ↗']]]],

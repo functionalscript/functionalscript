@@ -101,6 +101,84 @@ feedback as pure decisions with co-located proofs. The browser adapter reads
 responses, performs requests and DOM updates, and supplies browser clock and
 date-formatting results to that policy.
 
+## The JavaScript API reference
+
+`/deno.doc/` publishes the official **Deno 2.8.3** HTML reference with its
+native module navigation, symbol pages and search. The shared site header
+links **JS API** only when the input docs exist. Source-directory pages link
+**API documentation** to their observed module page, preferring the runtime
+module to the type companion; type-only directories link their `types.ts`.
+
+```bash
+npm run deno-doc
+npm run website
+```
+
+Run these in `./dev.sh`'s pinned shell locally. Cloudflare installs the exact
+`deno` pin from `fjs/ci/config/module.f.js` via the official npm distribution
+outside the served repository, runs `npm run deno-doc` after `cargo doc`, and
+then generates the website once. Rust's generation order is preserved.
+`npm run website` consumes external output; it never invokes Deno itself.
+
+Discovery takes `module.f.mjs`, `module.f.js` and public `types.ts` under
+`fjs/`, in sorted path order. It excludes the root CLI dispatcher, `ci/`,
+`dev/`, `website/`, every `todo/`, `examples/`, hidden or `gen.*` directory,
+and dependency/build directories. Proofs, demos, private type files, generated
+declarations and host `module.mjs` adapters are not entrypoints. Deno follows
+imports and re-exports; public type companions are explicit entrypoints so
+readers can inspect declarations that JSDoc imports reference. The policy and
+its inclusion/exclusion proof live in [`deno-doc/`](./deno-doc/module.f.mjs).
+
+The invocation is `deno doc --no-npm --no-remote --html
+--name=FunctionalScript --output=target/deno-doc <sorted entrypoints>`.
+Disabling npm and remote resolution avoids unrelated automatic Node type
+loading; these library sources need neither network resolution nor npm
+packages. The build checks Deno's version, reports diagnostics, and refuses
+warnings or nonzero exit status. It clears its intermediate output before each
+run, so removed entrypoints cannot enter the next manifest.
+
+**URLs are observed, not constructed from a naming convention.** The host
+build reads actual module-index titles, matches their labels to selected source
+files, and writes a source-to-generated-file manifest. Every selected source
+must have exactly one observed index. For the pinned toolchain the SHA-2 page
+is `/deno.doc/crypto/sha2/module.f.mjs/index.html`, and its `maj` symbol is
+`/deno.doc/crypto/sha2/module.f.mjs/~/maj.html`. These are examples inspected
+from output, not rules used to create links. Including a fixed set of library
+roots keeps Deno's common source prefix stable across builds.
+
+The website validates the manifest's targets and root index, copies HTML and
+assets from `target/deno-doc` to `deno.doc/`, and omits the build-only manifest.
+`target/` is excluded by `.assetsignore`; `deno.doc/` is gitignored and reserved
+by the website walk. `tsconfig.json` excludes its generated JavaScript, and
+the npm package excludes both `deno.doc/**` and `target/deno-doc/**`. It is served as documentation, never
+listed as source.
+A missing intermediate build omits JS API links even if an earlier public
+copy remains locally. Like the Rust reference, local copies are overwritten
+without deleting old files; a deploy starts with a fresh checkout.
+
+**Deno has no CLI header/footer customization hook.** Each generated HTML
+page receives only an independent return-to-site link immediately after its
+single `<body>` marker; module and symbol pages also link the source directory.
+The build refuses an unexpected body template. Deno's DOM, styles, navigation,
+relative asset paths and search index otherwise remain unchanged. The site's
+full header/footer and styling are deliberately not imposed on its layout.
+
+**Rendering limitations:** Deno keeps JSDoc descriptions and module prose, but
+the pinned generator often omits function signatures declared with JSDoc
+`@type`, displaying an unnamed parameter. Public `types.ts` pages retain their
+TypeScript declarations. Native source icons use local `file:` URLs, and
+relative Markdown links written for source files may not resolve inside the
+reference. The added source-directory link is the usable return to source.
+These are generator limitations, not suppressed diagnostics; follow-up work is
+tracked in [`todo/deno-doc-rendering.md`](./todo/deno-doc-rendering.md).
+
+To verify a build, open `/deno.doc/`, search for `maj`, inspect `framing`,
+`framed`, `ch` and `maj`, and follow the API link from `/fjs/crypto/sha2/`.
+Inspect `/deno.doc/types/list/types.ts/index.html` for public type declarations
+and `/deno.doc/media/datajs/module.f.mjs/~/tryParse.html` for a re-exported
+function with imported types, then refresh a nested symbol URL.
+Check the return/source links, `/cargo.doc/`, `/cli/` and `/prs/`.
+
 ## The Rust API reference
 
 `/cargo.doc/` is rustdoc's output for the workspace's crates. Each crate's
@@ -167,8 +245,8 @@ these steps, without `cargo clean --doc`, which a fresh checkout does not need
 
 Cloudflare's build command runs `sh ./gen.cloudflare/build.sh`, a generated
 script: it installs what the build image lacks, then runs
-`npm run rustdoc-bars`, `cargo doc` and `npm run website`, which publishes
-the Rust API reference ([the Rust API reference](#the-rust-api-reference)). The command itself is set in the Cloudflare dashboard, so
+`npm run rustdoc-bars`, `cargo doc`, `npm run deno-doc` and `npm run website`,
+which publishes both API references. The command itself is set in the Cloudflare dashboard, so
 the script is what keeps its steps in the repository, where they are reviewed
 and have a history. `npm run website` stays the generator alone: a checkout
 builds the site with it exactly as before, and only the deploy carries the
@@ -650,8 +728,8 @@ scheme it would have picked.
 
 ## Every page opens with the same header
 
-The logo and the site's name, linking home; then **CLI**, **PRs**, **Releases** and
-**GitHub**.
+The logo and the site's name, linking home; then **CLI**, **JS API** when built,
+**PRs**, **Releases** and **GitHub**.
 It is one element, `header` in [`page/module.f.mjs`](./page/module.f.mjs), and
 every page carries it — the root, a directory's page, the PR queue, and the
 changelog's.

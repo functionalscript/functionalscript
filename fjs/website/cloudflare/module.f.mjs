@@ -1,7 +1,7 @@
 /**
  * The Cloudflare build, generated: `gen.cloudflare/build.sh` is the build
  * command Cloudflare's Workers Builds runs. It installs what the build image
- * lacks — Rust today — documents the workspace's crates with `cargo doc`, and
+ * lacks — Rust and Deno — documents the workspace's crates with `cargo doc`, and
  * runs `npm run website`, which stays the generator alone, so a checkout
  * builds the site with `npm run website` exactly as before and only the
  * deploy carries the installs.
@@ -19,7 +19,7 @@
  * @import { Mkdir, NodeProgram, Rm, WriteBytes, WriteFile } from '../../effects/node/types.ts'
  */
 
-import { rust } from '../../ci/config/module.f.js'
+import { deno, rust } from '../../ci/config/module.f.js'
 import { rustdocHeadPath, rustdocFooterPath, rustdocHeaderPath, rustdocStylesheetPath } from '../cargo-doc/module.f.mjs'
 import { step } from '../../effects/module.f.mjs'
 import { exitStep, mkdir, writeUtf8File } from '../../effects/node/module.f.mjs'
@@ -48,7 +48,7 @@ export const buildPath = `${generatedDirectory}/build.sh`
  * pinned toolchain, and no edit to a shell profile nothing would read: the
  * script puts the new `cargo` on its own `PATH` instead.
  *
- * **Then the site's bars, `cargo doc`, and the site** — the order
+ * **Then the site's bars, `cargo doc`, Deno docs, and the site** — the order
  * [`../README.md`](../README.md#the-rust-api-reference) gives.
  * `npm run rustdoc-bars` writes the site's favicon links, header, footer and their
  * stylesheet, which `cargo doc` puts on every page of rustdoc's, and
@@ -60,10 +60,11 @@ export const buildPath = `${generatedDirectory}/build.sh`
  * `set -e` makes the first failing step the script's result, so a build that
  * could not install does not go on to publish as if it had.
  *
- * The script calls external tools — `curl`, `rustup`'s installer, `npm` and
- * `cargo` —
+ * The script calls external tools — `curl`, `rustup`'s installer, `npm`,
+ * `cargo`, and Deno via `npm run deno-doc` —
  * which the repository owner approved for this one script
- * ([`AGENTS.md` §6](../../../AGENTS.md#6-external-tools)). Its proof pins the
+ * ([`AGENTS.md` §6](../../../AGENTS.md#6-external-tools)); the Deno
+ * addition is authorized by the documentation task. Its proof pins the
  * text exactly, so no tool joins it unseen.
  *
  * @type {() => string}
@@ -75,6 +76,9 @@ sh "$HOME/rustup-init.sh" -y --profile minimal --default-toolchain ${rust} --no-
 export PATH="$HOME/.cargo/bin:$PATH"
 npm run rustdoc-bars
 RUSTDOCFLAGS="--html-in-header $PWD/${rustdocHeadPath} --html-before-content $PWD/${rustdocHeaderPath} --html-after-content $PWD/${rustdocFooterPath} --extend-css $PWD/${rustdocStylesheetPath}" cargo doc --no-deps --workspace
+npm install --prefix "$HOME/deno-toolchain" --no-save deno@${deno}
+export PATH="$HOME/deno-toolchain/node_modules/.bin:$PATH"
+npm run deno-doc
 npm run website
 `
 

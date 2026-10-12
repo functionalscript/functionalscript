@@ -53,9 +53,9 @@ export type Dir = {
      */
     readonly demo: string | null
     /**
-     * The root-relative link to the API reference of the crate this
-     * directory holds, or `null` where it holds none, or its reference was
-     * not built.
+     * The root-relative link to the API reference of the JS module, public
+     * type companion or Rust crate this directory holds, or `null` where
+     * there is none or its reference was not built.
      */
     readonly api: string | null
     /**
@@ -88,6 +88,8 @@ export type Proof = {
  * GitHub.
  */
 export type Build = {
+    /** Observed JS module pages, empty or absent when Deno docs were not built. */
+    readonly jsApi?: readonly (readonly [string, string])[]
     /**
      * The commit the site was built from, as the lowercase hex GitHub links
      * it by. A listed file opens on GitHub at this commit.
