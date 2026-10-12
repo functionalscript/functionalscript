@@ -123,9 +123,9 @@ these steps, without `cargo clean --doc`, which a fresh checkout does not need
 ## The build command
 
 Cloudflare's build command runs `sh ./gen.cloudflare/build.sh`, a generated
-script: it installs what the build image lacks, then runs `npm run website`,
-`cargo doc` and `npm run website` again, which publishes the Rust API
-reference ([the Rust API reference](#the-rust-api-reference)). The command itself is set in the Cloudflare dashboard, so
+script: it installs what the build image lacks, then runs
+`npm run rustdoc-bars`, `cargo doc` and `npm run website`, which publishes
+the Rust API reference ([the Rust API reference](#the-rust-api-reference)). The command itself is set in the Cloudflare dashboard, so
 the script is what keeps its steps in the repository, where they are reviewed
 and have a history. `npm run website` stays the generator alone: a checkout
 builds the site with it exactly as before, and only the deploy carries the
@@ -155,8 +155,7 @@ and leave a fork's pull request, which gets no secrets, without one. The
 build image cannot hold the shell itself: it ships no Nix, a build runs
 unprivileged and cannot create `/nix`, and the shell's closure would be
 fetched whole on every deploy against a twenty-minute limit. What this
-choice costs is `rustup`'s download and install on every deploy, and a
-second run of the generator. The repository owner approved the script's
+choice costs is `rustup`'s download and install on every deploy. The repository owner approved the script's
 invocation of `curl`, `rustup`'s installer, `npm` and `cargo`
 ([`AGENTS.md` §6](../../AGENTS.md#6-external-tools)).
 
