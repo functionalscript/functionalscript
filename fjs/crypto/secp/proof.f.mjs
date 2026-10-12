@@ -94,6 +94,13 @@ export const proof = {
         }
         assertEq(transition(initial, { kind: 'click', name: 'point:13,12' }).p, '13,12')
         assertEq(transition({ ...initial, target: 'Q' }, { kind: 'click', name: 'point:13,12' }).q, '13,12')
+        const adding = /** @type {const} */ ({ ...initial, operation: 'P + Q' })
+        assert(!JSON.stringify(demo.view(adding)).includes('Calculation modulo 23:'))
+        const calculating = transition(adding, { kind: 'click', name: 'next' })
+        const calculatedView = JSON.stringify(demo.view(calculating))
+        assert(calculatedView.includes('Calculation modulo 23:'))
+        assert(calculatedView.includes('x₃ = ('))
+        assert(JSON.stringify(demo.view(transition(calculating, { kind: 'click', name: 'next' }))).includes('Calculation modulo 23:'))
         const views = [
             { ...initial, k: '0' }, { ...initial, k: '29', step: 29 }, { ...initial, k: 'bad' },
             { ...initial, p: 'bad' }, { ...initial, q: 'bad' },

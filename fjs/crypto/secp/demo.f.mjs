@@ -163,9 +163,13 @@ const finiteView = state => {
                     codeBlock(pointText(calculation.result), 'Copy result'),
                     ...(multiplication ? [caption(`Animation: ${state.step}G:`), status(pointText(current)),
                         paragraph('This educational sequence adds G repeatedly. Production multiplication can use faster algorithms such as double-and-add.')]
-                        : [paragraph(state.step === 0 ? 'Choose the inputs.' : state.step === 1 ? 'Compute in the field; division means a modular inverse.' : `The result is ${pointText(calculation.result)}.`)]),
+                        : [paragraph(state.step === 0 ? 'Choose the inputs.' : state.step === 1 ? 'Calculate using arithmetic modulo 23.' : `The result is ${pointText(calculation.result)}.`)]),
                 ]),
                 controls(state),
+                ...(!multiplication && state.step >= 1 ? [
+                    caption('Calculation modulo 23:'),
+                    codeBlock(calculation.lines.join('\n'), 'Copy calculation'),
+                ] : []),
             ],
         ],
         ['details', ['summary', 'Show Math'],

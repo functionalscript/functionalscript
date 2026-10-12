@@ -73,7 +73,9 @@ The module page discovers `demo.f.mjs` automatically. Build with
 - **Finite Field View** plots all 28 finite points of
   `y² = x³ + x + 4 mod 23`. Select addition, doubling, negation, or `kG`;
   use the grid or point selectors, then Previous/Next or Play/Pause.
-  The inline P/Q radios choose which input a graph click sets.
+  The inline P/Q radios choose which input a graph click sets. For point
+  operations, the calculation step reveals the substituted formulas beside
+  the graph; they stay visible when the result is plotted.
   The default `3G` is `(11,9)`. Scalars 0 and 29 illustrate infinity, which
   is `null` in the module and has no plotted coordinates. Show Math explains
   substituted modular calculations and each repeated-addition frame.
