@@ -1512,6 +1512,12 @@ spaces around the word, `a instanceof Array`.
 
 ### `Object.is`
 
+`sergey-shandar` approved the `Object.is` design in
+[#2850](https://github.com/functionalscript/functionalscript/pull/2850#issuecomment-6130408240),
+as [DESIGN.md §12](../doc/DESIGN.md#new-language-features-start-with-a-todo)
+requires; the proposal was `fjs/edag/todo/is-operator.md`, closed by the
+same pull request.
+
 ```js
 export default (...a) => Object.is(a[0], -0);
 ```
