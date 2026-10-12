@@ -40,7 +40,7 @@ export const proof = {
         /** @type {Exp} */
         const fact = ['=>', 1, [], ['?:', ['<', ['arg', 0], 2], 1, ['*', ['arg', 0], ['()', ['self'], [['-', ['arg', 0], 1]]]]]]
         eq(['()', fact, [5]], 120)
-        eq(['()', ['=>', 0, [], ['is', ['self'], ['self']]], []], true)
+        eq(['()', ['=>', 0, [], ['===', ['self'], ['self']]], []], true)
         // a nested function reaches its parent's `self` through a slot
         eq(['()', ['=>', 1, [], ['?:', ['arg', 0], ['()', ['=>', 0, [['self']], ['()', ['frame', 0], [0]]], []], 'base']], [1]], 'base')
         failure(['self'])
@@ -70,8 +70,6 @@ export const proof = {
         eq(['%', 7, 3], 1)
         eq(['**', 2, 3], 8)
         eq(['===', 2, 2], true)
-        eq(['is', NaN, NaN], true)
-        eq(['is', 0, -0], false)
         eq(['!==', 2, 3], true)
         eq(['<', 2, 3], true)
         eq(['<=', 3, 3], true)

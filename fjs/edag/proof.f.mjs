@@ -104,7 +104,6 @@ const op1Ids = /** @type {const} */ (['String', 'Number', '!', '~', 'typeof', 't
 
 /** Same purpose as `op0Ids`, for `op2`. */
 const op2Ids = /** @type {const} */ ([
-    'is',
     '===', '!==', '>', '>=', '<', '<=',
     '*', '/', '%', '**',
     '&', '|', '^', '<<', '>>', '>>>',

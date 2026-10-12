@@ -23,7 +23,7 @@ export const proof = {
         /** @type {readonly (readonly [Exp, unknown])[]} */
         const cases = [
             [['!', 0], true], [['+', '3'], 3], [['typeof', ['[]', []]], 'object'],
-            [['String', 4n], '4'], [['Number', '5'], 5], [['is', 0, -0], false],
+            [['String', 4n], '4'], [['Number', '5'], 5],
             [[',', []], undefined], [[',', [2]], 2], [[',', [1, 2]], 2],
             [['[]', [['...', 'ab'], [',', [1, 2]]]], ['a', 'b', 2]],
             [['.', ['[]', [8]], ['Number', '0']], 8],

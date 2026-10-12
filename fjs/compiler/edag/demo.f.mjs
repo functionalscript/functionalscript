@@ -100,7 +100,6 @@ import { chunksText } from '../../text/marked/module.f.mjs'
 const op0 = new Set(['undefined', 'args', 'rest', 'self', 'entry'])
 const op1 = new Set(['String', 'Number', '!', '~', 'typeof'])
 const op2 = new Set([
-    'is',
     '===', '!==', '>', '>=', '<', '<=',
     '*', '/', '%', '**',
     '&', '|', '^', '<<', '>>', '>>>',

@@ -79,7 +79,6 @@ const js = {
     typeof: a => typeof a,
     'instanceof Array': a => a instanceof Array,
     throw: a => { throw a },
-    is: (a, b) => Object.is(a, b),
     String: a => String(a),
     Number: a => Number(a),
     '*': (a, b) => a * b,

@@ -108,7 +108,7 @@ export const proof = {
         assertEq(ev(['()', fact, [5]]), 120)
         const f = value(['=>', 0, [], ['self']])
         assert(apply(f) === f)
-        assertEq(ev(['()', ['=>', 0, [], ['is', ['self'], ['self']]], []]), true)
+        assertEq(ev(['()', ['=>', 0, [], ['===', ['self'], ['self']]], []]), true)
         fails(['self'])
     },
     // A primitive is its own represented value, wrapped in success.
@@ -189,21 +189,16 @@ export const proof = {
         eq(['**', 2, 3], 8)
         eq(['===', 2, 2], true)
         eq(['!==', 2, 3], true)
-        // `is` beside `===`, on the four inputs where the two part or meet:
-        // `NaN` with itself, `0` with `-0`, an object with itself, and two
-        // equal objects.
-        eq(['is', NaN, NaN], true)
+        // `===` on the inputs JavaScript's two equalities part on: `NaN`
+        // with itself, `0` with `-0`, an object with itself, and two equal
+        // objects.
         eq(['===', NaN, NaN], false)
-        eq(['is', 0, -0], false)
         eq(['===', 0, -0], true)
-        eq(['is', 2, 2], true)
         /** @type {Exp} */
         const o = ['{}', []]
         /** @type {readonly (readonly[Exp, EdagValue])[]} */
         const one = [[o, value(o)]]
-        assertEq(assertOk(vm({ ...context, memo: one })(['is', o, o])), true)
         assertEq(assertOk(vm({ ...context, memo: one })(['===', o, o])), true)
-        eq(['is', ['{}', []], ['{}', []]], false)
         eq(['===', ['{}', []], ['{}', []]], false)
         eq(['<', 2, 3], true)
         eq(['<=', 3, 3], true)
