@@ -23,7 +23,7 @@
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.10.0\""
+          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.11.1\""
         },
         {
           "run": "sh ./gen.nix/run npm ci"
@@ -68,7 +68,7 @@
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.10.0\""
+          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.11.1\""
         },
         {
           "run": "test \"$(sh ./gen.nix/run wasmtime --version)\" = \"wasmtime 45.0.2\""
@@ -178,14 +178,14 @@
         {
           "uses": "actions/setup-node@v7.1.0",
           "with": {
-            "node-version": "26.10.0"
+            "node-version": "26.11.1"
           }
         },
         {
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "test \"$(node --version)\" = \"v26.10.0\""
+          "run": "test \"$(node --version)\" = \"v26.11.1\""
         },
         {
           "run": "npm ci"
@@ -218,7 +218,7 @@
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.10.0\""
+          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.11.1\""
         },
         {
           "run": "sh ./gen.nix/run npm ci"
@@ -254,11 +254,11 @@
         {
           "uses": "actions/setup-node@v7.1.0",
           "with": {
-            "node-version": "26.10.0"
+            "node-version": "26.11.1"
           }
         },
         {
-          "run": "npm install -g functionalscript@0.53.0"
+          "run": "npm install -g functionalscript@0.55.0"
         },
         {
           "uses": "actions/checkout@v7.0.1"
@@ -305,11 +305,11 @@
         {
           "uses": "actions/setup-node@v7.1.0",
           "with": {
-            "node-version": "26.10.0"
+            "node-version": "26.11.1"
           }
         },
         {
-          "run": "npm install -g functionalscript@0.53.0"
+          "run": "npm install -g functionalscript@0.55.0"
         },
         {
           "uses": "actions/checkout@v7.0.1"
@@ -363,7 +363,7 @@
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "test \"$(sh ./gen.nix/run bun --version)\" = \"1.4.2\""
+          "run": "test \"$(sh ./gen.nix/run bun --version)\" = \"1.4.3\""
         },
         {
           "run": "sh ./gen.nix/run bun install --frozen-lockfile"
@@ -384,7 +384,7 @@
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.10.0\""
+          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.11.1\""
         },
         {
           "run": "test \"$(sh ./gen.nix/run tsc --version)\" = \"Version 7.0.2\""
@@ -417,7 +417,7 @@
           "uses": "actions/setup-node@v7.1.0",
           "with": {
             "package-manager-cache": "false",
-            "node-version": "26.10.0"
+            "node-version": "26.11.1"
           }
         },
         {
