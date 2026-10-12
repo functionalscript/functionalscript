@@ -37,52 +37,56 @@ chain**, enumerable or not:
 
 ## Why FunctionalScript does not want it
 
-**1. It cannot keep the language's first rule.** Successful FunctionalScript
-and JavaScript executions have the same observable result
+**1. Two ways to implement it break the language's first rule, and the third
+is compatible but not worth its cost.** Successful FunctionalScript and
+JavaScript executions have the same observable result
 ([principles](../README.md#principles)), and a text JavaScript gives a meaning
 FunctionalScript cannot reproduce "is a compilation error, not an invitation to
 give it a second, more convenient meaning." There are three ways to implement
-`in`, and each breaks something:
+`in`:
 
-- *Answer for own entries only.* Then `"toString" in {}` is `false` where
-  JavaScript says `true`, and `"length" in []` is `false` where JavaScript
-  says `true`. The same accepted text gets a different successful result, which
-  is exactly what the rule forbids.
-- *Answer as JavaScript does.* Then the language needs the prototype chain, so
-  that `"toString" in {}` can be `true`. The language was built without one:
-  "FunctionalScript has no prototype chains"
+- *Answer for own entries only.* This breaks the rule. `"toString" in {}` is
+  `false` where JavaScript says `true`, and `"length" in []` is `false` where
+  JavaScript says `true`. The same accepted text gets a different successful
+  result, which is exactly what the rule forbids.
+- *Answer as JavaScript does, with a prototype chain.* This keeps the rule at
+  the price of the chain, so that `"toString" in {}` can be `true`. The language
+  was built without one: "FunctionalScript has no prototype chains"
   ([specification](../README.md#property-access)), and a name a prototype would
   give a value reads as absent, as the [`entry` helper](../README.md#reading-an-entry-at-run-time)
   states. A chain that exists only to answer `in` is the whole feature
   smuggled back for one operator, and every VM would have to carry it.
+- *Answer by receiver-type dispatch.* This is compatible, within the
+  execution profile the principles require a language to declare. The language
+  already knows, per receiver type, the names a built-in prototype gives
+  ([`fjs/js/prototype`](../../fjs/js/prototype/module.f.js), fixed to
+  ECMAScript 2025), and VMs dispatch inherited method calls on the receiver's
+  type, so `in` could be "an own entry, or a name in that type's inventory"
+  with no chain stored. For the closed value set this reproduces every row of
+  the table above. It is rejected on design grounds, not for a compatibility
+  failure:
+  - *It reopens what the language closed.* Reading such a name is a
+    compilation error, `o.toString` and `o["toString"]` alike, because
+    "JavaScript would find a function there and this language nothing, and a
+    module must mean one thing in both"
+    ([property access](../README.md#property-access)). `in` would answer the
+    same question about the same name as data, `true` for `"toString"` and
+    `"push"` where the read of that name is refused, and the dynamic key
+    `k in o` cannot be refused at compile time as the literal read can.
+  - *Its agreement is the declared profile's, and only that.* A name a newer
+    or older engine owns differs from the inventory, so `"toSorted" in []`
+    would be `false` on an engine that predates it. That is a profile-bound
+    exception, which the principles permit and treat as the exception, and
+    it would be a new one on an operator that has none.
+  - *It buys nothing a program should want.* The names an inventory adds are
+    exactly the ones a program has no reason to test (`"toString" in o`);
+    the legitimate question, an entry the program put there, is answered by
+    `hasEntity`, so the machinery would exist to answer only the questions
+    better left unasked.
 
-- *Answer by receiver-type dispatch.* The language already knows, per receiver
-  type, the names a built-in prototype gives
-  ([`fjs/js/prototype`](../../fjs/js/prototype/module.f.js)), and VMs dispatch
-  inherited method calls on the receiver's type, so `in` could be "an own
-  entry, or a name in that type's inventory" with no chain stored. For the
-  closed value set this reproduces every row of the table above, so it is the
-  one design that could be compatible, and it is rejected for three reasons.
-  *It reopens what the language closed.* Reading such a name is a compilation
-  error, `o.toString` and `o["toString"]` alike, because "JavaScript would find
-  a function there and this language nothing, and a module must mean one thing
-  in both" ([property access](../README.md#property-access)). `in` would
-  answer the same question about the same name as data, `true` for `"toString"`
-  and `"push"` where the read of that name is refused, and the dynamic key
-  `k in o` cannot be refused at compile time as the literal read can.
-  *It cannot stay compatible.* The inventory is ECMAScript 2025's, deliberately
-  not the running engine's, "whose prototypes grow with each release", so that a
-  module means one thing on every engine. `"toSorted" in []` is `true` on a
-  current engine and `false` on an older one, and a name a newer engine adds
-  is `true` there and `false` here. JavaScript's own answer depends on the
-  engine's version, which is the thing the rule against engine-dependent
-  results exists to keep out. *It buys nothing a program should want.* The
-  names an inventory adds are exactly the ones a program has no reason to test
-  (`"toString" in o`); the legitimate question, an entry the program put there,
-  is answered by `hasEntity`, so the machinery would exist to answer only the
-  questions better left unasked.
-
-So the operator is refused rather than approximated.
+So the first two are refused because they break the rule, and the third because
+the language would pay for a construct whose only new answers are ones a
+program should not ask. The operator is refused rather than approximated.
 
 **2. It does not match any pattern the language whitelists.** The language is a
 whitelist of *complete semantic patterns*, not of operations in isolation
@@ -121,7 +125,7 @@ question two spellings with different answers.
 |---|---|
 | `in` as "own enumerable entry" | Same text, different successful result than JavaScript (rule 1 above) |
 | `in` with a built-in `Object.prototype` | Reintroduces the prototype chain and makes names like `toString` observable |
-| `in` by receiver-type dispatch (own entry, or a name in the type's prototype inventory) | Compatible only against one ECMAScript edition's inventory, and it answers as data a name whose read the language refuses |
+| `in` by receiver-type dispatch (own entry, or a name in the type's prototype inventory) | Compatible within the declared ECMAScript 2025 profile, but it answers as data a name whose read the language refuses, and it buys no question worth asking |
 | `in` recognized only inside a larger pattern | No useful pattern contains it; the proposed `hasEntity` is the pattern |
 | Defer silently | A refusal that does not say whether it is permanent reads as an open task (§10) |
 
@@ -148,8 +152,8 @@ question two spellings with different answers.
 Only if the language gains a prototype chain, if the rule that a prototype
 name is refused as the key of a read is itself changed, or if the principles'
 first rule is. None is planned. Receiver-type dispatch alone does not reopen
-this: it rests on the same engine-edition dependence that the property-access
-rule exists to avoid.
+this: it is compatible, but rejected for reopening the read rule and for the
+questions it adds.
 
 ## Tasks
 
