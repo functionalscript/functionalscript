@@ -618,20 +618,17 @@ export const op1 = /** @type {const} */ ([op1Id, exp])
 export const lazyOp2Id = /** @type {const} */ (['&&', '||', '??'])
 
 /**
- * `is` is
- * `Object.is`, the equality the language's guarantees are stated in —
- * `NaN` is `NaN` and `0` is not `-0`, where `===` says the opposite — as a
- * node, since `Object.is` is a function of a namespace the language cannot
- * name as a value (`./todo/is-operator.md`). The rest
- * are the JS comparison, arithmetic, bitwise, and logical operators they
+ * The JS comparison, arithmetic, bitwise, and logical operators they
  * name — with `&&`/`||`/`??` short-circuiting exactly as in JS: their
  * right operand is conditional, never established eagerly. All this
  * laziness is positional, not nodal — the same node referenced from an
  * eager position elsewhere is still evaluated there. `+` and `-` are not
- * here: each is also a unary operator, so both are `op12` below.
+ * here: each is also a unary operator, so both are `op12` below. There
+ * is no `Object.is` node: the language spells it with these operators,
+ * once, in `fjs/types/object/is`, which a module imports
+ * ([`doc/CONVERTING.md`](../../doc/CONVERTING.md#6-objectis)).
  */
 export const op2Id = or(
-    'is',
     '===', '!==', '>', '>=', '<', '<=',
     '*', '/', '%', '**',
     '&', '|', '^', '<<', '>>', '>>>',

@@ -8,16 +8,18 @@
  * deliberately says nothing about dates, maps, sets, typed arrays, prototypes,
  * or property descriptors; see the README for what it does *not* promise.
  *
- * This module is a dependency-free leaf on purpose. `fjs/asserts` needs the
- * comparison for `assertStructurallySame`, and the public object module
- * (`../module.f.mjs`) reaches `fjs/asserts` through `types/nullable`, so
- * importing anything here would close the cycle
- * `asserts -> object -> nullable -> asserts`. Keep it importing nothing.
+ * This module is a leaf on purpose. `fjs/asserts` needs the comparison for
+ * `assertStructurallySame`, and the public object module (`../module.f.mjs`)
+ * reaches `fjs/asserts` through `types/nullable`, so importing it here
+ * would close the cycle `asserts -> object -> nullable -> asserts`. The one
+ * import is `../is`, a leaf that imports nothing, which closes none.
  *
  * @module
  */
 
-const { entries, is } = Object
+import { is } from '../is/module.f.js'
+
+const { entries } = Object
 
 /**
  * Compares two values structurally.

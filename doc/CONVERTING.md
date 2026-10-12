@@ -306,3 +306,36 @@ identity being what `Math.max()` with no arguments is, and `Infinity` for
 `min`. And the built-ins convert their arguments, `Math.min("1", 2)` being
 `1`, where `min` and `max` take numbers: a call on anything else is
 checked, not rewritten.
+
+## 6. `Object.is`
+
+The `Object` namespace is not admitted outside the `entry` helper
+([reading an entry](../spec/README.md#reading-an-entry-at-run-time)), so
+`Object.is` is refused (`const not found`), and so is the destructuring
+`const { is } = Object`. The replacement is `is` from
+[`fjs/types/object/is`](../fjs/types/object/is/module.f.js):
+
+```js
+const sign = v => v < 0 || Object.is(v, -0) ? 1n : 0n   // refused
+```
+
+```js
+import { is } from '../types/object/is/module.f.js'
+
+const sign = v => v < 0 || is(v, -0) ? 1n : 0n           // accepted
+```
+
+`is(a, b)` is SameValue, as `Object.is` is: `===`, except that `NaN` is
+itself and `0` is not `-0`. It is spelled with the operators the language
+has — `a === b ? a !== 0 || 1 / a === 1 / b : a !== a && b !== b`, the zeros
+told apart through `1 / a` as `min` and `max` tell them — and its proof
+compares every pair of a list spanning every type, the zeros, `NaN`, the
+bigint zero and two containers of one shape, against the built-in. A
+module that read `is` off the namespace with `const { is } = Object` imports
+the same function under the same name, and changes nothing else.
+
+The EDAG has no node for it: the function is the one spelling, as the
+strategy above says, and the language may take `Object.is(a, b)` in as
+sugar for it later. Until then `Object` stands in a module only as the
+helper's descriptor, and every other member of it is a change the
+conversion makes by hand.
