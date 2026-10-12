@@ -777,6 +777,27 @@ export const demo = {
      * a queued second click would be honoured after the first finished, which
      * is a demo doing its work twice because somebody was impatient.
      */
+    preservesDisabledActions: async () => {
+        const d = dom(moduleUrl(`
+export const demo = {
+    init: 'waiting',
+    update: state => event => () => ['ok', event.kind === 'input' ? event.value : state],
+    view: state => ['div',
+        ['input', { name: 'text', value: state }],
+        ['button', { name: 'go', ...(state === 'ready' ? {} : { disabled: '' }) }, 'Go'],
+    ],
+}
+`))
+        await startDemo(d.root)
+        await settle()
+        assertStructurallySame(d.disabled(), [true])
+        d.input('text', 'ready')
+        await settle()
+        assertStructurallySame(d.disabled(), [false])
+        d.input('text', 'invalid')
+        await settle()
+        assertStructurallySame(d.disabled(), [true])
+    },
     saysItIsWorking: async () => {
         const d = dom(moduleUrl(`
 export const demo = {

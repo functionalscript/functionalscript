@@ -32,16 +32,51 @@ export type Signer = {
 export type _Signature = FixedArray<2, bigint>
 
 /**
- * The `sign` demo's state: the text of every control, as the reader left it.
- * `curve` and `hash` are option names; `key`, `r` and `s` are hexadecimal.
+ * Alice's editable signing inputs. Keys are hexadecimal; algorithm names
+ * come from the demo's selectors. This private draft is never transmitted.
  */
-export type DemoState = {
+export type DemoDraft = {
     readonly curve: string
     readonly hash: string
     readonly key: string
     readonly message: string
+}
+
+/** Public packet sent at a button press; no private key or nonce. */
+export type DemoPacket = {
+    readonly curve: string
+    readonly hash: string
+    readonly message: string
+    readonly u: Point2D
+    readonly r: bigint
+    readonly s: bigint
+}
+
+export type DemoAttack = 'Modify message' | 'Modify signature' | 'Replace public key'
+
+/** Eve's edits, always based on the untouched intercepted public packet. */
+export type DemoIntercepted = {
+    readonly original: DemoPacket
+    readonly attack: DemoAttack
+    readonly message: string
     readonly r: string
     readonly s: string
+    readonly key: string
+}
+
+/** Bob's last delivery and the actual verification results computed then. */
+export type DemoReceived = {
+    readonly packet: DemoPacket
+    readonly trusted: Point2D
+    readonly attack: DemoAttack
+    readonly valid: boolean
+    readonly receivedValid: boolean | null
+}
+
+/** Independent Alice draft, Eve workspace and Bob delivery snapshots. */
+export type DemoState = DemoDraft & {
+    readonly eve: DemoIntercepted | null
+    readonly bob: DemoReceived | null
 }
 
 /**
