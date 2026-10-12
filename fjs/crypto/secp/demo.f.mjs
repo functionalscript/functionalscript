@@ -2,7 +2,7 @@
  * Elliptic Curve Playground: discrete prime-field arithmetic, a separate
  * real-number geometric analogy, and client-side named-curve public keys.
  * A graph beside controls departs from the usual linear demo layout so inputs
- * and geometric steps can be compared directly; mobile retains linear order.
+ * and geometric constructions can be compared directly; mobile retains linear order.
  * @module
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
  * @import { Element, Node } from '../../media/html/types.ts'
@@ -14,7 +14,7 @@ import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
 import { inputField, caption, refusal } from '../../website/demo/module.f.mjs'
 import { codeBlock } from '../../website/demo/code/module.f.mjs'
-import { toy, points, pointText, pointOf, scalar, sequence, addition, negative, realPoint, construction, namedCurves, publicKey } from '../../website/demo/secp/module.f.mjs'
+import { toy, points, pointText, pointOf, scalar, sequence, modularLine, addition, negative, realPoint, construction, namedCurves, publicKey } from '../../website/demo/secp/module.f.mjs'
 
 /** @type {(name: string, label: string, options: readonly string[], value: string) => Element} */
 const select = (name, label, options, value) => ['p', ['label', { for: `secp-${name}` }, `${label} `],
@@ -44,64 +44,35 @@ const paragraph = text => ['p', text]
 /** @type {(text: string) => Element} */
 const pre = text => ['pre', text]
 
-/** @type {(text: string) => Element} */
-const status = text => ['p', { role: 'status' }, text]
-
 /** @type {(name: string, label: string, value: string) => Element} */
 const pointSelect = (name, label, value) => ['p', ['label', { for: `secp-${name}` }, `${label} `],
     ['select', { id: `secp-${name}`, name }, ...pointOptions.map(/** @returns {Element} */ o => ['option', { value: o, ...(value === o ? { selected: '' } : {}) }, pointText(pointOf(o) ?? null)])]]
-
-/** @type {(state: State) => number} */
-export const lastStep = state => {
-    if (state.view === 'Geometric View') { return 0 }
-    if (state.operation !== 'kG') { return 1 }
-    const k = scalar(state.k, 29n)
-    return k[0] === 'ok' ? Number(k[1]) : 0
-}
 
 /** @type {(state: State, event: DemoEvent) => State} */
 export const transition = (state, event) => {
     if (event.kind === 'start') { return state }
     if (event.kind === 'input') {
         const { name, value } = event
-        /** @type {State} */
-        const reset = { ...state, step: 0, playing: false }
-        if (name === 'view') { return { ...reset, view: value } }
-        if (name === 'operation') { return { ...reset, operation: value } }
-        if (name === 'k') { return { ...reset, k: value } }
-        if (name === 'p' || name === 'q') { return { ...reset, [name]: value } }
-        if (name === 'target') { return { ...reset, target: value } }
-        if (name === 'realP' || name === 'realQ' || name === 'branchP' || name === 'branchQ') { return { ...reset, [name]: value } }
-        if (name === 'curve' || name === 'privateKey') { return { ...reset, [name]: value, generated: null } }
+        if (name === 'view') { return { ...state, view: value } }
+        if (name === 'operation') { return { ...state, operation: value } }
+        if (name === 'k') { return { ...state, k: value } }
+        if (name === 'p' || name === 'q') { return { ...state, [name]: value } }
+        if (name === 'target') { return { ...state, target: value } }
+        if (name === 'realP' || name === 'realQ' || name === 'branchP' || name === 'branchQ') { return { ...state, [name]: value } }
+        if (name === 'curve' || name === 'privateKey') { return { ...state, [name]: value, generated: null } }
         return state
     }
     const { name } = event
-    const end = lastStep(state)
-    if (name === 'reset') { return { ...state, step: 0, playing: false } }
-    if (name === 'previous') { return { ...state, step: Math.max(0, state.step - 1), playing: false } }
-    if (name === 'next' || name === 'tick') {
-        const step = Math.min(end, state.step + 1)
-        return { ...state, step, playing: name === 'tick' && state.playing && step < end }
-    }
-    if (name === 'play') { return { ...state, step: state.step >= end ? 0 : state.step, playing: !state.playing && end > 0 } }
     if (name === 'generate') {
         const result = publicKey(state.curve, state.privateKey)
         return { ...state, generated: result[0] === 'ok' ? result[1] : null }
     }
     if (name.startsWith('point:')) {
         const value = name.slice(6)
-        return pointOf(value) === undefined ? state : { ...state, [state.target === 'Q' ? 'q' : 'p']: value, step: 0, playing: false }
+        return pointOf(value) === undefined ? state : { ...state, [state.target === 'Q' ? 'q' : 'p']: value }
     }
     return state
 }
-
-/** @type {(state: State) => Element} */
-const controls = state => ['div', { 'data-secp-controls': '' },
-    button('previous', 'Previous', state.step === 0), button('next', 'Next', state.step >= lastStep(state)),
-    button('play', state.playing ? 'Pause' : 'Play', lastStep(state) === 0), button('reset', 'Reset'),
-    ['span', { role: 'status' }, ` Step ${state.step} of ${lastStep(state)}`],
-    ['span', { 'data-secp-reduced': '' }, 'Reduced motion: use Previous and Next.'],
-]
 
 /** @type {(p: Point, label: string, role: string) => readonly Element[]} */
 const finiteMark = (p, label, role) => p === null ? [] : [
@@ -110,9 +81,9 @@ const finiteMark = (p, label, role) => p === null ? [] : [
 ]
 
 /** SVG buttons have textual, keyboard and native select equivalents.
- * @type {(state: State, p: Point, q: Point, result: Point, current: Point) => Element}
+ * @type {(state: State, p: Point, q: Point, result: Point, third: Point, line: readonly Point2D[]) => Element}
  */
-const finiteGraph = (state, p, q, result, current) => ['svg', { viewBox: '0 0 530 530', 'data-secp-graph': '', role: 'group', 'aria-label': 'Finite field grid: y² = x³ + x + 4 modulo 23' },
+const finiteGraph = (state, p, q, result, third, line) => ['svg', { viewBox: '0 0 530 530', 'data-secp-graph': '', role: 'group', 'aria-label': 'Finite field grid: y² = x³ + x + 4 modulo 23' },
     ['title', 'Discrete points over F₂₃; no continuous curve or Euclidean secants'],
     ...Array.from({ length: 23 }, /** @returns {Element} */ (_, i) => ['g',
         ['path', { d: `M${40 + i * 20} 40V480M40 ${480 - i * 20}H480`, 'data-secp-grid': '', fill: 'none' }],
@@ -120,13 +91,14 @@ const finiteGraph = (state, p, q, result, current) => ['svg', { viewBox: '0 0 53
         ['text', { x: '25', y: String(484 - i * 20), 'text-anchor': 'end' }, String(i)],
     ]),
     ['text', { x: '505', y: '485' }, 'X'], ['text', { x: '30', y: '25' }, 'Y'],
+    ...line.map(/** @returns {Element} */ ([x, y]) => ['rect', { x: String(36 + Number(x) * 20), y: String(476 - Number(y) * 20), width: '8', height: '8', 'data-secp-modular-line': '', 'pointer-events': 'none' }]),
     ...points.map(/** @returns {Element} */ ([x, y]) => ['circle', {
         cx: String(40 + Number(x) * 20), cy: String(480 - Number(y) * 20), r: '7',
         'data-demo-click': `point:${x},${y}`, tabindex: '0', role: 'button',
         'aria-label': `Select ${state.target} = (${x}, ${y})`, 'data-secp-dot': '',
     }, ['title', `(${x}, ${y})`]]),
     ...finiteMark(toy.g, 'G', 'base'), ...(state.operation === 'kG' ? [] : finiteMark(p, 'P', 'input')), ...finiteMark(q, 'Q', 'input'),
-    ...finiteMark(result, 'Result', 'result'), ...finiteMark(current, 'Step', 'step'),
+    ...finiteMark(third, 'S', 'third'), ...finiteMark(result, state.operation === 'kG' ? 'kG' : state.operation === '−P' ? '−P' : 'R', 'result'),
 ]
 
 /** @type {(state: State) => Element} */
@@ -141,17 +113,17 @@ const finiteView = state => {
         : state.operation === '2P' ? addition(p, p)
             : multiplication ? addition(frames[Math.max(0, frames.length - 2)] ?? null, frames.length > 1 ? toy.g : null)
                 : addition(p, q)
-    const current = frames[state.step] ?? null
-    const math = multiplication && state.step > 0
-        ? addition(frames[state.step - 1] ?? null, toy.g) : calculation
     const shownP = multiplication ? toy.g : p
     const shownQ = state.operation === 'P + Q' ? q : null
+    const chordQ = state.operation === '2P' ? p : shownQ
+    const line = chordQ === null ? [] : modularLine(shownP, chordQ)
+    const third = line.length === 0 ? null : negative(calculation.result).result
     return ['div',
         ['p', 'y² = x³ + x + 4 mod 23 · p = 23 · a = 1 · b = 4 · G = (0, 2) · n = 29'],
         ['p', 'These are discrete field elements. A smooth curve or ordinary secant would be misleading here.'],
         ['div', { 'data-secp-layout': '' },
-            ['div', finiteGraph(state, shownP, shownQ, multiplication || state.step === 1 ? calculation.result : null, multiplication ? current : null),
-                ['p', 'Legend: G (base), P/Q (inputs), Result, Step. O has no XY coordinates.']],
+            ['div', finiteGraph(state, shownP, shownQ, calculation.result, third, line),
+                ['p', 'Legend: squares (modular line), G (base), P/Q (inputs), S (third intersection), blue label (result). O has no XY coordinates.']],
             ['div',
                 select('operation', 'Operation', ['kG', 'P + Q', '2P', '−P'], state.operation),
                 ...(multiplication ? [inputField({ name: 'k', label: 'Scalar k (decimal, 0–29)' }, state.k)] : [
@@ -161,17 +133,17 @@ const finiteView = state => {
                 ...(multiplication && k[0] === 'error' ? [refusal(k[1])] : [
                     caption(multiplication ? `Public key Q = ${state.k}G:` : 'Result:'),
                     codeBlock(pointText(calculation.result), 'Copy result'),
-                    ...(multiplication ? [caption(`Animation: ${state.step}G:`), status(pointText(current)),
-                        paragraph('This educational sequence adds G repeatedly. Production multiplication can use faster algorithms such as double-and-add.')]
-                        : [paragraph(state.step === 0 ? 'Choose the inputs.' : `The result is ${pointText(calculation.result)}.`)]),
+                    paragraph(multiplication
+                        ? 'The grid shows G and kG. Show Math lists the repeated additions; production multiplication can use faster algorithms such as double-and-add.'
+                        : line.length === 0 ? `The result is ${pointText(calculation.result)}.`
+                            : 'The squares satisfy the modular secant or tangent equation. S is the third curve intersection, and R = −S.'),
                 ]),
-                controls(state),
             ],
         ],
         ['details', ['summary', 'Show Math'],
             ['p', 'A modular inverse of t is a number u with t·u mod p = 1. Multiplication by u replaces division by t. Zero has no inverse.'],
             ...(multiplication && k[0] === 'error' ? [] : [
-                pre(math.lines.join('\n')),
+                pre(calculation.lines.join('\n')),
                 ...(multiplication ? [paragraph(state.k === '0' ? '0G = O (identity).' : `${state.k}G = ${pointText(calculation.result)}. 29G = O because G has order 29.`),
                     pre(frames.map((p, i) => `${i}G = ${pointText(p)}`).join('\n'))] : []),
             ]),
@@ -211,7 +183,7 @@ const realGraph = (operation, p, q, c) => ['svg', { viewBox: '0 0 530 530', 'dat
         ...(c.kind !== 'refused' ? [c.kind === 'infinity'
             ? /** @type {Element} */ (['path', { d: `M${realXY(p)[0]} 40V480`, 'data-secp-line': '' }])
             : /** @type {Element} */ (['path', { d: `M${realXY([-1.5, c.slope * (-1.5 - p[0]) + p[1]]).join(' ')}L${realXY([3.5, c.slope * (3.5 - p[0]) + p[1]]).join(' ')}`, 'data-secp-line': '' }])] : []),
-        ...(c.kind === 'finite' ? [...realMark(c.third, 'S', 'step'), /** @type {Element} */ (['path', { d: `M${realXY(c.third).join(' ')}L${realXY(c.result).join(' ')}`, 'data-secp-reflection': '' }]), ...realMark(c.result, 'R = −S', 'result')] : []),
+        ...(c.kind === 'finite' ? [...realMark(c.third, 'S', 'third'), /** @type {Element} */ (['path', { d: `M${realXY(c.third).join(' ')}L${realXY(c.result).join(' ')}`, 'data-secp-reflection': '' }]), ...realMark(c.result, 'R = −S', 'result')] : []),
         ...realMark(p, 'P', 'input', 'realP'),
         ...(operation === '2P' ? [] : realMark(q, 'Q', 'base', 'realQ')),
     ],
@@ -271,14 +243,12 @@ const productionView = state => {
 
 /** @type {Demo<State, DemoEvent>} */
 export const demo = {
-    init: { view: 'Finite Field View', operation: 'kG', k: '3', p: '0,2', q: '13,12', target: 'P', realP: '0', realQ: '1', branchP: '1', branchQ: '1', curve: 'secp256k1', privateKey: '3', generated: null, step: 0, playing: false },
+    init: { view: 'Geometric View', operation: 'kG', k: '3', p: '0,2', q: '13,12', target: 'P', realP: '0', realQ: '1', branchP: '1', branchQ: '1', curve: 'secp256k1', privateKey: '3', generated: null },
     update: state => event => pureOk(transition(state, event)),
-    nextEvent: state => state.playing ? { kind: 'click', name: 'tick' } : null,
-    nextDelay: () => 700,
     view: state => ['div', { 'data-secp-playground': '' },
         caption('Elliptic Curve Playground'),
         ['p', 'Explore point addition, scalar multiplication, and public key generation.'],
-        select('view', 'View', ['Finite Field View', 'Geometric View', 'Real Curves'], state.view),
+        select('view', 'View', ['Geometric View', 'Finite Field View', 'Real Curves'], state.view),
         state.view === 'Real Curves' ? productionView(state) : state.view === 'Geometric View' ? geometricView(state) : finiteView(state),
         ['p', ['a', { href: 'https://github.com/functionalscript/functionalscript/blob/main/fjs/crypto/secp/README.md' }, 'Read the crypto/secp documentation']],
     ],

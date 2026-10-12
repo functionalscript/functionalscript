@@ -72,10 +72,11 @@ The module page discovers `demo.f.mjs` automatically. Build with
 
 - **Finite Field View** plots all 28 finite points of
   `y² = x³ + x + 4 mod 23`. Select addition, doubling, negation, or `kG`;
-  use the grid or point selectors, then Previous/Next or Play/Pause.
+  use the grid or point selectors and the result updates immediately.
   The inline P/Q radios choose which input a graph click sets. For point
-  operations, the only animation step plots the result. Show Math contains
-  the substituted formulas.
+  addition and doubling, square markers show the 23 discrete positions on the
+  modular secant or tangent; S marks its third curve intersection and R = −S.
+  Show Math contains the substituted formulas and scalar multiples.
   The default `3G` is `(11,9)`. Scalars 0 and 29 illustrate infinity, which
   is `null` in the module and has no plotted coordinates. Show Math explains
   substituted modular calculations and each repeated-addition frame.
@@ -91,8 +92,7 @@ The module page discovers `demo.f.mjs` automatically. Build with
   and copy the padded hexadecimal coordinates. Everything stays client-side;
   never enter real wallet keys or private secrets.
 
-Input changes reset playback. Reduced-motion preferences disable automatic
-playback while preserving manual steps. SVG point controls have keyboard and
-native selector equivalents; geometry sliders support keyboard and touch input.
+SVG point controls have keyboard and native selector equivalents; geometry
+sliders support keyboard and touch input.
 The pure calculation helpers and their proofs live in [`website/demo/secp`](../../website/demo/secp/); the
-shared website runtime owns DOM events, pointer capture, and delayed turns.
+shared website runtime owns DOM events and pointer capture.

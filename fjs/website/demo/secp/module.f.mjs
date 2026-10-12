@@ -48,6 +48,27 @@ export const scalar = (text, max) => {
  */
 export const sequence = k => Array.from({ length: Number(k) + 1 }, (_, i) => mul(BigInt(i))(g))
 
+/** Every grid position on the finite-field secant or tangent. These are
+ * discrete solutions of a modular equation, not samples of a Euclidean line.
+ * @type {(p: Point, q: Point) => readonly Point2D[]}
+ */
+export const modularLine = (p, q) => {
+    if (p === null || q === null) { return [] }
+    const [x1, y1] = p
+    const [x2, y2] = q
+    const same = x1 === x2 && y1 === y2
+    const denominator = reduce(same ? 2n * y1 : x2 - x1)
+    if (denominator === 0n) {
+        return Array.from({ length: 23 }, (_, y) => /** @type {const} */ ([x1, BigInt(y)]))
+    }
+    const numerator = reduce(same ? 3n * x1 * x1 + 1n : y2 - y1)
+    const m = reduce(numerator * reciprocal(denominator))
+    return Array.from({ length: 23 }, (_, x) => {
+        const bx = BigInt(x)
+        return /** @type {const} */ ([bx, reduce(y1 + m * (bx - x1))])
+    })
+}
+
 /** Substituted modular formulas, with identity/inverse cases before division.
  * @type {(p: Point, q: Point) => Calculation}
  */

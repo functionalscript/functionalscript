@@ -24,6 +24,4 @@ export type State = {
     readonly curve: string
     readonly privateKey: string
     readonly generated: string | null
-    readonly step: number
-    readonly playing: boolean
 }

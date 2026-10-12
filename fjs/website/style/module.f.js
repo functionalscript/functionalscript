@@ -740,19 +740,18 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
 [data-secp-graph] { width: 100%; height: auto; display: block; font-size: 11px; overflow: hidden }
 [data-secp-graph] text { fill: currentColor }
 [data-secp-grid] { stroke: var(--border); stroke-width: 1 }
+[data-secp-modular-line] { fill: #d97706; opacity: .55 }
 [data-secp-dot] { fill: var(--muted); cursor: pointer; stroke: transparent; stroke-width: 8 }
 [data-secp-point="input"] { stroke: #d97706; fill: #d97706 }
 [data-secp-point="base"] { stroke: #8b5cf6; fill: #8b5cf6 }
 [data-secp-point="result"] { stroke: #0284c7; fill: #0284c7 }
-[data-secp-point="step"] { stroke: #dc2626; fill: #dc2626 }
+[data-secp-point="third"] { stroke: #dc2626; fill: #dc2626 }
 [data-secp-graph] circle[fill="none"] { fill: none }
 [data-secp-label] { font-weight: bold; paint-order: stroke; stroke: var(--bg); stroke-width: 3px }
 [data-secp-real-curve] { stroke: currentColor; stroke-width: 2 }
 [data-secp-line] { stroke: #d97706; stroke-width: 2; fill: none }
 [data-secp-reflection] { stroke: #0284c7; stroke-width: 2; stroke-dasharray: 5 4 }
 [data-demo-drag] { cursor: ew-resize; touch-action: none }
-[data-secp-controls] { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: 1rem 0 }
-[data-secp-controls] button { min-height: 44px; min-width: 44px }
 [data-secp-radios] { border: 0; margin: 1rem 0; padding: 0; min-width: 0 }
 [data-secp-radios] legend { font-weight: bold; padding: 0 }
 [data-secp-radios] > div { display: flex; flex-wrap: wrap; gap: 1rem }
@@ -761,8 +760,6 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
 [data-secp-playground] select { max-width: 100%; min-height: 44px }
 [data-secp-playground] input[type="range"] { width: 100%; min-height: 44px }
 [data-secp-playground] pre { white-space: pre-wrap; overflow-wrap: anywhere }
-[data-secp-reduced] { display: none }
-@media (prefers-reduced-motion: reduce) { [data-secp-controls] button[name="play"] { display: none } [data-secp-reduced] { display: inline } }
 [data-demo-click]:focus-visible { outline: 3px solid currentColor; outline-offset: 3px }
 @media (max-width: 760px) { [data-secp-layout] { grid-template-columns: minmax(0, 1fr) } }
 

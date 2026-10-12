@@ -3,7 +3,7 @@
  */
 
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
-import { demo, transition, lastStep } from './demo.f.mjs'
+import { demo, transition } from './demo.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
 import { prime_field } from '../../types/prime_field/module.f.mjs'
 import { curve, secp256k1, secp192r1, secp256r1, eq, isPublicKey, secp384r1, secp521r1 } from './module.f.mjs'
@@ -66,46 +66,28 @@ export const proof = {
     playground: () => {
         const initial = demo.init
         const text = JSON.stringify(demo.view(initial))
-        assert(text.includes('(11, 9)'))
-        assertEq(lastStep(initial), 3)
+        assert(text.includes('The complete construction updates immediately.'))
+        assert(!text.includes('data-secp-controls'))
         assertEq(transition(initial, { kind: 'start' }), initial)
         assertEq(transition(initial, { kind: 'click', name: 'unknown' }), initial)
         assertEq(transition(initial, { kind: 'input', name: 'unknown', value: 'x' }), initial)
         assertEq(transition(initial, { kind: 'click', name: 'point:bad' }), initial)
-        const play = transition(initial, { kind: 'click', name: 'play' })
-        assert(play.playing)
-        assert(demo.nextEvent?.(play) !== null)
-        assertEq(demo.nextDelay?.(play), 700)
-        let state = play
-        for (let i = 0; i < 3; ++i) { state = transition(state, { kind: 'click', name: 'tick' }); demo.view(state) }
-        assert(!state.playing)
-        assertEq(state.step, 3)
-        assertEq(demo.nextEvent?.(state), null)
-        assertEq(transition(state, { kind: 'click', name: 'play' }).step, 0)
-        assertEq(transition(state, { kind: 'click', name: 'previous' }).step, 2)
-        assertEq(transition(state, { kind: 'click', name: 'reset' }).step, 0)
-        assertEq(transition(initial, { kind: 'click', name: 'previous' }).step, 0)
-        assert(!transition(play, { kind: 'click', name: 'play' }).playing)
-        assert(!transition(play, { kind: 'click', name: 'next' }).playing)
+        assertEq(transition(initial, { kind: 'click', name: 'play' }), initial)
         for (const name of ['view', 'operation', 'k', 'p', 'q', 'target', 'realP', 'realQ', 'branchP', 'branchQ', 'curve', 'privateKey']) {
-            const next = transition(play, { kind: 'input', name, value: 'x' })
-            assertEq(next.step, 0)
-            assert(!next.playing)
+            transition(initial, { kind: 'input', name, value: 'x' })
         }
         assertEq(transition(initial, { kind: 'click', name: 'point:13,12' }).p, '13,12')
         assertEq(transition({ ...initial, target: 'Q' }, { kind: 'click', name: 'point:13,12' }).q, '13,12')
-        const adding = /** @type {const} */ ({ ...initial, operation: 'P + Q' })
-        assertEq(lastStep(adding), 1)
-        const result = transition(adding, { kind: 'click', name: 'next' })
-        const resultView = JSON.stringify(demo.view(result))
-        assert(resultView.includes('The result is'))
+        const adding = /** @type {const} */ ({ ...initial, view: 'Finite Field View', operation: 'P + Q' })
+        const resultView = JSON.stringify(demo.view(adding))
+        assert(resultView.includes('data-secp-modular-line'))
+        assert(resultView.includes('S is the third curve intersection'))
         assert(resultView.includes('x₃ = ('))
-        assertEq(lastStep({ ...initial, view: 'Geometric View' }), 0)
         const views = [
-            { ...initial, k: '0' }, { ...initial, k: '29', step: 29 }, { ...initial, k: 'bad' },
-            { ...initial, p: 'bad' }, { ...initial, q: 'bad' },
-            ...['P + Q', '2P', '−P'].flatMap(operation => [0, 1].map(step => ({ ...initial, operation, step }))),
-            { ...initial, operation: 'P + Q', target: 'Q' }, { ...initial, operation: 'P + Q', p: 'O' }, { ...initial, operation: 'P + Q', q: '0,21' },
+            { ...initial, view: 'Finite Field View', k: '0' }, { ...initial, view: 'Finite Field View', k: '29' }, { ...initial, view: 'Finite Field View', k: 'bad' },
+            { ...initial, view: 'Finite Field View', p: 'bad' }, { ...initial, view: 'Finite Field View', q: 'bad' },
+            ...['P + Q', '2P', '−P'].map(operation => ({ ...initial, view: 'Finite Field View', operation })),
+            { ...initial, view: 'Finite Field View', operation: 'P + Q', target: 'Q' }, { ...initial, view: 'Finite Field View', operation: 'P + Q', p: 'O' }, { ...initial, view: 'Finite Field View', operation: 'P + Q', q: '0,21' },
             ...['P + Q', '2P'].map(operation => ({ ...initial, view: 'Geometric View', operation })),
             { ...initial, view: 'Geometric View', realP: '-2' },
             { ...initial, view: 'Geometric View', realQ: '0', branchQ: '-1' },
@@ -119,8 +101,6 @@ export const proof = {
         assert(generated.generated?.includes('f9308a') === true)
         demo.view(generated)
         assertEq(transition({ ...initial, privateKey: 'bad' }, { kind: 'click', name: 'generate' }).generated, null)
-        assertEq(lastStep({ ...initial, k: 'bad' }), 0)
-        assert(!transition({ ...initial, k: '0' }, { kind: 'click', name: 'play' }).playing)
         const effect = runPure(demo.update(initial)({ kind: 'start' }))
         assertEq(effect[0]?.[0], 'ok')
     },

@@ -1,6 +1,8 @@
+/** @import { Point } from '../../../crypto/secp/types.ts' */
+
 import { assert, assertEq, assertOk, assertError, assertNotNullish } from '../../../asserts/module.f.mjs'
 import { eq, curve } from '../../../crypto/secp/module.f.mjs'
-import { toy, points, pointText, pointOf, scalar, sequence, addition, negative, realPoint, onRealCurve, construction, namedCurves, publicKey } from './module.f.mjs'
+import { toy, points, pointText, pointOf, scalar, sequence, modularLine, addition, negative, realPoint, onRealCurve, construction, namedCurves, publicKey } from './module.f.mjs'
 
 export const proof = {
     finite: () => {
@@ -21,6 +23,19 @@ export const proof = {
         assert(eq(doubling.result)([13n, 12n]))
         assert(doubling.lines.includes('m = (3 · 0² + 1) · (4)⁻¹ mod 23 = 6'))
         assert(eq(addition(toy.g, [13n, 12n]).result)([11n, 9n]))
+        const chord = modularLine(toy.g, [13n, 12n])
+        assertEq(chord.length, 23)
+        const intersections = /** @type {readonly Point[]} */ ([toy.g, [13n, 12n], [11n, 14n]])
+        for (const expected of intersections) {
+            assert(chord.some(p => eq(p)(expected)))
+        }
+        const tangent = modularLine(toy.g, toy.g)
+        assertEq(tangent.length, 23)
+        assert(tangent.some(p => eq(p)([13n, 11n])))
+        const vertical = modularLine(toy.g, toy.neg(toy.g))
+        assertEq(vertical.length, 23)
+        assert(vertical.every(([x]) => x === 0n))
+        assertEq(modularLine(null, toy.g).length, 0)
         assert(eq(negative(toy.g).result)([0n, 21n]))
         assertEq(negative(null).result, null)
         assertEq(addition(null, null).result, null)
