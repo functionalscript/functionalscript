@@ -20,7 +20,8 @@ The one build that does not run in the repository's Nix shell is this one.
 Cloudflare's Workers Builds generates the site on its own image and takes
 its Node version from [`.node-version`](../../.node-version) at the repository
 root — the file exists for that reader alone, and nothing else in the
-repository consults it.
+repository consults it. The rest of what the build needs, the build command
+installs first ([the build command](#the-build-command)).
 
 **That is what lets a page load any repository file by its path at run time.**
 A page's proofs are the real `.f.mjs` modules under it, imported by the browser
@@ -62,6 +63,101 @@ an ordinary source page. A repeated build produces the same catalogue.
 feedback as pure decisions with co-located proofs. The browser adapter reads
 responses, performs requests and DOM updates, and supplies browser clock and
 date-formatting results to that policy.
+
+## The Rust API reference
+
+`/cargo.doc/` is rustdoc's output for the workspace's crates. Each crate's
+directory page links its part of it as **API documentation**, and the
+directory above the crates — `nanvm/` — links the index as **Rust API
+documentation**. A directory is a crate's when it has a `Cargo.toml` and its
+path, with `/` and `-` read as `_`, names a crate rustdoc documented:
+`nanvm/lib` is `nanvm_lib`.
+
+The generator copies `target/doc` there unchanged and writes one page of its
+own, `cargo.doc/index.html`, listing the crates: stable rustdoc writes no root
+page. It does not run `cargo` — whoever builds the site runs
+`cargo doc --no-deps --workspace` first, and a build without `target/doc`
+writes no `cargo.doc/` and no links. `target/` itself is never served: it
+holds build artifacts beside the docs, and `.assetsignore` keeps it out of
+every upload, whichever build made it.
+
+**rustdoc's pages carry the site's header and footer.** `npm run rustdoc-bars`
+writes them, from the same builders every page uses, as `_rustdoc-header.html`
+and `_rustdoc-footer.html`, with `_rustdoc.css` for their look; `cargo doc`
+puts them on each page it writes when it is given them. They have to exist
+before `cargo doc` runs and the site is generated after it, so a build with the
+bars is:
+
+```bash
+npm run rustdoc-bars
+cargo clean --doc
+RUSTDOCFLAGS="--html-before-content $PWD/_rustdoc-header.html --html-after-content $PWD/_rustdoc-footer.html --extend-css $PWD/_rustdoc.css" cargo doc --no-deps --workspace
+npm run website
+```
+
+`rustdoc-bars` is a program of its own
+([`rustdoc-bars/`](./rustdoc-bars/module.f.mjs)) so the site is generated
+once: it reads the build the pages are built from — a preview's branch and
+commit, the funding channels — and walks nothing.
+
+`cargo clean --doc` is not optional: `cargo` reuses earlier docs when its
+flags are unchanged, even though the files they name have changed. Two rules
+in `_rustdoc.css` lean on rustdoc's own layout, and its JSDoc says which; the
+rest of rustdoc's look is its own
+([rustdoc-site-theme](todo/rustdoc-site-theme.md)).
+
+**`cargo.doc/` is not cleaned between local builds**, as no generated page
+is: the generator only writes. A build without `target/doc` leaves an earlier
+copy in place, and a copy over an earlier one keeps files rustdoc no longer
+writes — its search index's files are named by content hash, so every rebuild
+adds some. Nothing links the leftovers, and a deploy builds from a fresh
+checkout, which has no `cargo.doc/` at all, so none of them ships.
+`git clean -Xd` removes them locally.
+
+`cargo.doc/` is the one generated name outside `index.html` and the
+`_`-prefixed files, so `.gitignore` and `tsconfig.json` name it, and the walk
+excludes it as it excludes `prs/`. The deploy installs the pinned Rust and runs
+these steps, without `cargo clean --doc`, which a fresh checkout does not need
+([the build command](#the-build-command)).
+
+## The build command
+
+Cloudflare's build command runs `sh ./gen.cloudflare/build.sh`, a generated
+script: it installs what the build image lacks, then runs
+`npm run rustdoc-bars`, `cargo doc` and `npm run website`, which publishes
+the Rust API reference ([the Rust API reference](#the-rust-api-reference)). The command itself is set in the Cloudflare dashboard, so
+the script is what keeps its steps in the repository, where they are reviewed
+and have a history. `npm run website` stays the generator alone: a checkout
+builds the site with it exactly as before, and only the deploy carries the
+installs. The dashboard's command falls back to `npm run website` where the
+script is absent ([Configure Cloudflare](#configure-cloudflare)), so a branch
+from before the script keeps its preview.
+
+**The build has the Rust CI tests with.** The build image has Node but no
+Rust, and the script installs one with `rustup`'s installer, at exactly `rust`
+from [`fjs/ci/config/module.f.js`](../ci/config/module.f.js) — the one
+constant the shared shell and the platform matrix also take. The script is
+generated from that constant by
+[`cloudflare/module.f.mjs`](./cloudflare/module.f.mjs), as `gen.nix/flake.nix`
+is, so the version is written in the script in full, a bump of the pin is a
+diff the drift check guards, and nothing in the dashboard names a version
+that could drift. The toolchain goes into the build container's home, and
+its `cargo` is on the script's `PATH`. `target/`, which `cargo doc` writes
+beside the docs, is in [`.assetsignore`](../../.assetsignore) and never
+served.
+
+Installing Rust in the build was chosen over the alternative, building and
+deploying from CI in the Nix shell with `wrangler`, for what it keeps:
+Cloudflare builds every branch and gives each its preview URL, and no
+Cloudflare token goes to GitHub. The alternative would have one environment
+for everything, but would move branch previews into the generated workflow
+and leave a fork's pull request, which gets no secrets, without one. The
+build image cannot hold the shell itself: it ships no Nix, a build runs
+unprivileged and cannot create `/nix`, and the shell's closure would be
+fetched whole on every deploy against a twenty-minute limit. What this
+choice costs is `rustup`'s download and install on every deploy. The repository owner approved the script's
+invocation of `curl`, `rustup`'s installer, `npm` and `cargo`
+([`AGENTS.md` §6](../../AGENTS.md#6-external-tools)).
 
 ## Every directory gets a page
 
@@ -268,7 +364,13 @@ uploading that preview, without deploying the preview to production:
    `GITHUB_REDIRECT_URI`, and `GITHUB_PREVIEW_REDIRECT_URI` as variables, and
    `GITHUB_CLIENT_SECRET` as a **Secret**. Use the same app and the two
    callback values above to support both production domains and every preview.
-2. Keep the build command as `npm run website`.
+2. Set the build command to:
+
+   ```sh
+   if [ -f gen.cloudflare/build.sh ]; then sh gen.cloudflare/build.sh; else npm run website; fi
+   ```
+
+   The fallback preserves builds for older branches that lack the script.
 3. Change the version command to:
 
    ```sh
@@ -279,7 +381,8 @@ uploading that preview, without deploying the preview to production:
 4. Rebuild the preview branch after saving those settings.
 
 The repository owner approved this helper’s invocation of
-`npx wrangler versions upload` as the Cloudflare Builds version command.
+`npx wrangler versions upload` as the Cloudflare Builds version command, and
+the build command's `sh gen.cloudflare/build.sh`.
 
 The upload helper passes the public values, including the optional preview
 callback when configured, as explicit Wrangler variables.

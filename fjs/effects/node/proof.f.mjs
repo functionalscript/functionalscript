@@ -12,7 +12,7 @@ import { byteLength, empty, isVec, maxLengthBytes, u8ListMsb, u8ListToVecMsb, ui
 import { utf8, utf8ToString } from "../../text/module.f.mjs"
 import { match } from "../module.f.mjs"
 import { mapStep, pureError, pureOk, step as ioStep } from "../module.f.mjs"
-import { badPortCode, badPortMessage, both, carriesNoBody, declaredLength, doubledLengthMessage, errorMessage, errorSummary, exitStep, fetch, framingHeaderMessage, headerValue, inflate, inflateTrailingMessage, ioError, isNotFound, isPort, maxPort, mkdir, now, readdir, readFile, readUtf8File, refusalMessage, refusedStatus, responseGate, rm, runnerResponse, sandbox, unframedBodyMessage, writeFile, writeUtf8File, writeExclusiveUtf8File, _pieces, _vecList, rename, readBytes, randomInt, writeFromStream, plainTextResponse, readWholeBytes, readChunks, windowRefusal, maxOffset, fileSizeRefusal } from "./module.f.mjs"
+import { badPortCode, badPortMessage, both, carriesNoBody, declaredLength, doubledLengthMessage, errorMessage, errorSummary, exitStep, fetch, framingHeaderMessage, headerValue, inflate, inflateTrailingMessage, ioError, isNotFound, isPort, maxPort, mkdir, now, readdir, readFile, readUtf8File, refusalMessage, refusedStatus, responseGate, rm, runnerResponse, sandbox, unframedBodyMessage, writeFile, writeChunks, writeUtf8File, writeExclusiveUtf8File, _pieces, _vecList, rename, readBytes, randomInt, writeFromStream, plainTextResponse, readWholeBytes, readChunks, windowRefusal, maxOffset, fileSizeRefusal } from "./module.f.mjs"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.mjs"
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.mjs"
 import { emptyState, virtual } from "./virtual/module.f.mjs"
@@ -388,6 +388,25 @@ export const proof = {
             assert(t === 'error', result)
             assertIoMessage(result, 'invalid buffer size')
             assertStructurallySame(state.root, root)
+        },
+    },
+    // `readWhole`'s chunks written back are the same file, and no chunks is
+    // an empty one.
+    writeChunks: {
+        several: () => {
+            const chunks = [utf8('a'.repeat(Number(maxLengthBytes))), utf8('b')]
+            const [state, [t, result]] = virtual(emptyState)(writeChunks('f', chunks))
+            assert(t === 'ok', result)
+            const file = state.root.f
+            assert(Array.isArray(file), file)
+            assertEq(file.map(utf8ToString).join(''), `${'a'.repeat(Number(maxLengthBytes))}b`)
+        },
+        none: () => {
+            const [state, [t, result]] = virtual(emptyState)(writeChunks('f', []))
+            assert(t === 'ok', result)
+            const file = state.root.f
+            assert(Array.isArray(file), file)
+            assertEq(file.map(utf8ToString).join(''), '')
         },
     },
     writeUtf8File: {
