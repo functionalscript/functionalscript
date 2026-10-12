@@ -327,7 +327,8 @@ const sign = v => v < 0 || is(v, -0) ? 1n : 0n           // accepted
 
 `is(a, b)` is SameValue, as `Object.is` is: `===`, except that `NaN` is
 itself and `0` is not `-0`. It is spelled with the operators the language
-has — `a === b ? a !== 0 || 1 / a === 1 / b : a !== a && b !== b`, the zeros
+has and the helper of rule 3 —
+`a === b ? a !== 0 || 1 / a === 1 / b : isNaN_(a) && isNaN_(b)`, the zeros
 told apart through `1 / a` as `min` and `max` tell them — and its proof
 compares every pair of a list spanning every type, the zeros, `NaN`, the
 bigint zero and two containers of one shape, against the built-in. A
