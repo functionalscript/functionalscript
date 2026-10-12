@@ -64,11 +64,62 @@ feedback as pure decisions with co-located proofs. The browser adapter reads
 responses, performs requests and DOM updates, and supplies browser clock and
 date-formatting results to that policy.
 
+## The Rust API reference
+
+`/cargo.doc/` is rustdoc's output for the workspace's crates. Each crate's
+directory page links its part of it as **API documentation**, and the
+directory above the crates — `nanvm/` — links the index as **Rust API
+documentation**. A directory is a crate's when it has a `Cargo.toml` and its
+path, with `/` and `-` read as `_`, names a crate rustdoc documented:
+`nanvm/lib` is `nanvm_lib`.
+
+The generator copies `target/doc` there unchanged and writes one page of its
+own, `cargo.doc/index.html`, listing the crates: stable rustdoc writes no root
+page. It does not run `cargo` — whoever builds the site runs
+`cargo doc --no-deps --workspace` first, and a build without `target/doc`
+writes no `cargo.doc/` and no links. `target/` itself is never served: it
+holds build artifacts beside the docs, and `.assetsignore` keeps it out of
+every upload, whichever build made it.
+
+**rustdoc's pages carry the site's header and footer.** Every build writes
+them, from the same builders every page uses, as `_rustdoc-header.html` and
+`_rustdoc-footer.html`, with `_rustdoc.css` for their look; `cargo doc` puts
+them on each page it writes when it is given them. So a build with the bars is
+the site, then `cargo doc`, then the site again to copy what it wrote:
+
+```bash
+npm run website
+cargo clean --doc
+RUSTDOCFLAGS="--html-before-content $PWD/_rustdoc-header.html --html-after-content $PWD/_rustdoc-footer.html --extend-css $PWD/_rustdoc.css" cargo doc --no-deps --workspace
+npm run website
+```
+
+`cargo clean --doc` is not optional: `cargo` reuses earlier docs when its
+flags are unchanged, even though the files they name have changed. Two rules
+in `_rustdoc.css` lean on rustdoc's own layout, and its JSDoc says which; the
+rest of rustdoc's look is its own
+([rustdoc-site-theme](todo/rustdoc-site-theme.md)).
+
+**`cargo.doc/` is not cleaned between local builds**, as no generated page
+is: the generator only writes. A build without `target/doc` leaves an earlier
+copy in place, and a copy over an earlier one keeps files rustdoc no longer
+writes — its search index's files are named by content hash, so every rebuild
+adds some. Nothing links the leftovers, and a deploy builds from a fresh
+checkout, which has no `cargo.doc/` at all, so none of them ships.
+`git clean -Xd` removes them locally.
+
+`cargo.doc/` is the one generated name outside `index.html` and the
+`_`-prefixed files, so `.gitignore` and `tsconfig.json` name it, and the walk
+excludes it as it excludes `prs/`. The deploy installs the pinned Rust and runs
+these steps, without `cargo clean --doc`, which a fresh checkout does not need
+([the build command](#the-build-command)).
+
 ## The build command
 
 Cloudflare's build command runs `sh ./gen.cloudflare/build.sh`, a generated
-script: it installs what the build image lacks and then runs
-`npm run website`. The command itself is set in the Cloudflare dashboard, so
+script: it installs what the build image lacks, then runs `npm run website`,
+`cargo doc` and `npm run website` again, which publishes the Rust API
+reference ([the Rust API reference](#the-rust-api-reference)). The command itself is set in the Cloudflare dashboard, so
 the script is what keeps its steps in the repository, where they are reviewed
 and have a history. `npm run website` stays the generator alone: a checkout
 builds the site with it exactly as before, and only the deploy carries the
@@ -85,10 +136,9 @@ generated from that constant by
 is, so the version is written in the script in full, a bump of the pin is a
 diff the drift check guards, and nothing in the dashboard names a version
 that could drift. The toolchain goes into the build container's home, and
-its `cargo` is on the `PATH` the script hands `npm run website`. Running
-`cargo doc` there is [cargo-doc-build-host](todo/cargo-doc-build-host.md)'s
-remaining task; `target/`, which it will write beside the docs, is already
-in [`.assetsignore`](../../.assetsignore) and never served.
+its `cargo` is on the script's `PATH`. `target/`, which `cargo doc` writes
+beside the docs, is in [`.assetsignore`](../../.assetsignore) and never
+served.
 
 Installing Rust in the build was chosen over the alternative, building and
 deploying from CI in the Nix shell with `wrangler`, for what it keeps:
@@ -99,9 +149,10 @@ and leave a fork's pull request, which gets no secrets, without one. The
 build image cannot hold the shell itself: it ships no Nix, a build runs
 unprivileged and cannot create `/nix`, and the shell's closure would be
 fetched whole on every deploy against a twenty-minute limit. What this
-choice costs is `rustup`'s download and install on every deploy. The
-repository owner approved the script's invocation of `curl`, `rustup`'s
-installer and `npm` ([`AGENTS.md` §6](../../AGENTS.md#6-external-tools)).
+choice costs is `rustup`'s download and install on every deploy, and a
+second run of the generator. The repository owner approved the script's
+invocation of `curl`, `rustup`'s installer, `npm` and `cargo`
+([`AGENTS.md` §6](../../AGENTS.md#6-external-tools)).
 
 ## Every directory gets a page
 
