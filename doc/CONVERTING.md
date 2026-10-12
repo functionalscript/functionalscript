@@ -221,3 +221,26 @@ in JavaScript, `isNaN(undefined)` too. A module that called the global on a
 value that is already a number may take the rewrite as it is; one that
 called it on anything else checks what the conversion did there, because
 that is a change of value, not of spelling.
+
+## 4. `Number.isFinite`
+
+The same again: `isFinite` from
+[`fjs/types/number/is_finite`](../fjs/types/number/is_finite/module.f.js).
+
+```js
+const retryAt = after => Number.isFinite(after) ? after : null   // refused
+```
+
+```js
+import { isFinite } from '../types/number/is_finite/module.f.js'
+
+const retryAt = after => isFinite(after) ? after : null          // accepted
+```
+
+`isFinite(n)` is `typeof n === 'number' && n - n === 0`: a finite number
+less itself is `0`, an infinity or `NaN` less itself is `NaN`, and a value
+of another type is `false` without coercion, as `Number.isFinite` answers.
+The global `isFinite` converts first, as the global `isNaN` does, and the
+same caution applies: `isFinite("1")` is `true` in JavaScript and
+`isFinite(null)` too, so a call of the global on anything but a number is
+checked, not rewritten.

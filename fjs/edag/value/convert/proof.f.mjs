@@ -8,6 +8,7 @@
 
 import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.mjs'
 import { ok, error } from '../../../types/result/module.f.js'
+import { isNaN } from '../../../types/number/is_nan/module.f.js'
 import { toPrimitive, toString, toNumber } from './module.f.mjs'
 import { tryFunctionText } from '../../../compiler/serializer/module.f.mjs'
 
@@ -49,7 +50,7 @@ export const proof = {
         const closure = ['=>', 1, [7, 7, ['{}', []]], ['+', ['arg', 0], ['frame', 1]]]
         assertEq(assertOk(toString(closure, skipped)), '($3)=>$3+$1')
         assertEq(assertOk(toString(fn, skipped)), '()=>5')
-        assertEq(Number.isNaN(assertOk(toNumber(fn, skipped))), true)
+        assertEq(isNaN(assertOk(toNumber(fn, skipped))), true)
     },
     completeFunctionText: () => {
         /** @type {ValueFunction} */
@@ -57,7 +58,7 @@ export const proof = {
         const text = assertOk(tryFunctionText(optional))
         assertEq(assertOk(toString(optional, skipped)), text)
         assertEq(assertOk(toString(['[]', [optional]], skipped)), text)
-        assertEq(Number.isNaN(assertOk(toNumber(optional, skipped))), true)
+        assertEq(isNaN(assertOk(toNumber(optional, skipped))), true)
         const shared = /** @type {const} */ (['[]', []])
         /** @type {ValueFunction} */
         const lazy = ['=>', 0, [], ['[]', [['&&', true, shared], ['||', false, shared]]]]

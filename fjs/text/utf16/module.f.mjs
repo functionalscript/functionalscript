@@ -18,6 +18,7 @@ import {
 } from '../../types/list/module.f.mjs'
 
 import { isUintUpTo } from '../../types/number/module.f.mjs'
+import { isNaN } from '../../types/number/is_nan/module.f.js'
 import { compose } from '../../types/function/module.f.js'
 import { concat } from '../../types/string/module.f.mjs'
 
