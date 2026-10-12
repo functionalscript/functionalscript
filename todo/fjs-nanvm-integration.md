@@ -144,7 +144,7 @@ contract and migration strategy.
 
 #### Current leaf migration fixed point
 
-Measured at `6e392d4f2`, the head of
+Measured at `6e392d4f2`, a commit of
 [#2823](https://github.com/functionalscript/functionalscript/pull/2823), the
 compiler that accepts untagged template literals, which the audit below had
 recorded as the first refusal in nine of its twelve leaves. A leaf is as
@@ -157,8 +157,9 @@ defined there, and the embedded-proof fixture is reported separately again.
 
 The two conversions change only their extension and references; the
 template literal was each module's one refusal. Converting `website/style`
-exposes `website/demo/code`, refused for the computed key
-`{ [codeMarker]: '' }` the language does not accept. The authored `.f.js`
+exposes `website/demo/code`, refused first for the default parameter in
+`codeBlock`, with the computed key `{ [codeMarker]: '' }` behind it, as the
+table below records. The authored `.f.js`
 population grows from 27 to 29, all accepted by `npm start compile`.
 
 This pass converts no module by rewriting it: a module whose source the
@@ -176,8 +177,8 @@ language's own spellings: `nanvm/methods` reads `p[type]` as
 of the kind above: each is the read JavaScript performed, in the one
 spelling the language has for it. `website/demo/code`'s `{ [codeMarker]: '' }`
 is an object-literal key, not a read, and has no such spelling; it stays.
-The `nanvm/methods` row below is measured after that rewrite; `types/list`'s
-first refusal did not move.
+The `nanvm/methods` row below is measured at `e97397eb2`, the rewrite's
+commit; `types/list`'s first refusal did not move.
 
 The eleven implementation leaves below cannot be renamed with their current
 source. Each row is the first actual refusal from the `resolve()` pipeline;

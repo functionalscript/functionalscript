@@ -1,6 +1,6 @@
 ## Computed property keys from expressions
 
-**Priority:** P3
+**Priority:** P2
 **Status:** open
 
 ### Problem
@@ -60,19 +60,27 @@ language accepts, and keep the three constant spellings as they are:
   ([`ast`](../ast/types.ts)), becomes a constant **or** an operand, as
   `AstKey` already is for an access. EDAG's `Property` is `[':', Exp, Exp]`
   ([`edag`](../../edag/types.ts)), so the output format needs no change;
-  only the compiler's lowering, the serializer and the Rust output learn
-  the non-constant key.
+  only the compiler's lowering and the serializer learn the non-constant
+  key. The Rust output prints one already: a property whose key is no
+  string goes through `computed_item` in
+  [`edag/rust`](../../edag/rust/module.f.mjs)'s `propertyExpr`, which the
+  compiler's Rust output delegates to.
 - The key's value is converted where the object is built, by the
   interpreter and the VM as they already do: `ToString` on every value,
-  nothing refused. The compiler passes the node through, so the constant
-  spellings and the computed one meet the same contract.
+  and the literal fails where that conversion does — an object whose
+  `toString` throws or yields no primitive, `{ [{ toString: 0 }]: 1 }` —
+  as `computed_item` propagates its `to_string` error and
+  [`edag/memo`](../../edag/memo/proof.f.mjs)'s `keyFailure` pins for the
+  interpreter. The compiler refuses nothing of its own and passes the node
+  through, so the constant spellings and the computed one meet the same
+  contract.
 - A key computed from a string literal keeps folding to the constant, so
   the three constant spellings and the existing `__proto__` rule, which is
   about the plain and quoted spellings of that one key, are untouched.
-- A numeric key written plainly, `{ 0: 5 }`, is refused today at the
-  number; it is the roadmap's "property key as number" and the same
-  conversion serves it. Whether it lands in this change or its own is the
-  implementer's call.
+- A numeric key written plainly, `{ 0: 5 }`, stays refused at the number.
+  It is the roadmap's own "property key as number" item, a second feature
+  with a grammar change of its own, and lands in its own pull request;
+  `{ [0]: 5 }` spells the same object through this one.
 
 #### Drawbacks
 
@@ -107,16 +115,21 @@ key folds to the constant spelling.
 ### Tasks
 
 - [ ] grammar: the computed member takes a `value` between the brackets
-- [ ] syntax and parser: a member whose key is a node, folded through the
-      same frame an access's `Number(...)` key uses
-- [ ] AST, EDAG lowering, serializer and Rust output: a member with an
-      operand key
-- [ ] interpreter and VM: nothing, both convert the key already; proofs
-      that the compiled form reaches them
+- [ ] syntax and parser: a member whose key is a node. The access path
+      does not serve: `keyEntered` admits only a node it recognises as
+      `Number(...)`, and `_IndexFrame` closes into an `AstAccess`, not a
+      member. The container frame instead reads a computed member in two
+      rounds, the key's and then the value's, keeping the key's value
+      between them and building the member itself — after the members
+      before it and before its own value, as JavaScript evaluates a literal
+- [ ] AST, EDAG lowering and serializer: a member with an operand key
+- [ ] interpreter, VM and Rust output: nothing, all three take the key
+      already; proofs that the compiled form reaches them
 - [ ] spec: property keys and the roadmap item
 - [ ] proofs: the example above, a string-valued key, a key of each other
-      type and the string it converts to, and a computed key that evaluates
-      to `"__proto__"`, which defines an own property as JavaScript does
+      type and the string it converts to, a key whose conversion fails and
+      the literal failing with it, and a computed key that evaluates to
+      `"__proto__"`, which defines an own property as JavaScript does
 
 ### Related
 

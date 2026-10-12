@@ -8,6 +8,7 @@ import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { exitCode } from '../../effects/node/module.f.mjs'
 import { defaultNodeProgramOptions, emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'
 import { utf8, utf8ToString } from '../../text/module.f.mjs'
+import { rustdocHead } from '../cargo-doc/module.f.mjs'
 import { rustdocStylesheet } from '../style/module.f.js'
 import { main } from './module.f.mjs'
 
@@ -27,11 +28,12 @@ const run = (root, env = {}) => {
 const funding = { 'funding.json': [utf8('{"funding":{"channels":[{"description":"Support","address":"https://example.com/"}]}}')] }
 
 export const proof = {
-    // The three files `cargo doc` takes, from the same builders every page
-    // uses: the header, the funding footer, and the bars' stylesheet.
+    // The four files `cargo doc` takes, from the same builders every page
+    // uses: the favicon links, header, funding footer, and bars' stylesheet.
     writes: () => {
         const [root, code] = run(funding)
         assertEq(code, 0)
+        assertEq(textOf(root, '_rustdoc-head.html'), rustdocHead)
         assert(textOf(root, '_rustdoc-header.html').startsWith('<header><nav aria-label="Site">'))
         assert(textOf(root, '_rustdoc-footer.html').includes('<a href="https://example.com/">Support'))
         assertEq(textOf(root, '_rustdoc.css'), rustdocStylesheet)
