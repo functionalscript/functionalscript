@@ -1,5 +1,5 @@
 /**
- * Compiled by `fjs compile` into `../gen.fixtures/string-methods.rs`, committed and
+ * Compiled by `fjs compile` into `../gen.fixtures/string_methods.rs`, committed and
  * drift-checked by `npm run gen` (see `../../../fjs/ci/README.md`). Consumed by
  * `../src/lib.rs`. Pins one family's members that take arguments: a string's slicing, padding, searching, splitting and replacing, and its code units and points.
  */

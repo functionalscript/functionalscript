@@ -1,5 +1,5 @@
 /**
- * Compiled by `fjs compile` into `../gen.fixtures/array-methods.rs`, committed and
+ * Compiled by `fjs compile` into `../gen.fixtures/array_methods.rs`, committed and
  * drift-checked by `npm run gen` (see `../../../fjs/ci/README.md`). Consumed by
  * `../src/lib.rs`. Pins one family's members that take arguments and no callback: an array's, answered by the VM and by Node alike, each producing a new array.
  */

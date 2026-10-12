@@ -1,5 +1,5 @@
 /**
- * Compiled by `fjs compile` into `../gen.fixtures/guarded-calls.rs`, committed and
+ * Compiled by `fjs compile` into `../gen.fixtures/guarded_calls.rs`, committed and
  * drift-checked by `npm run gen` (see `../../../fjs/ci/README.md`). Consumed by
  * `../src/lib.rs`. Pins a guarded call of a built-in: `a?.at(0)` and `a.at?.(0)` on an array that has the member, and the same chains on a nullish base, which skip the call. `undefined` has no JSON, so each skipped chain is read through `??`.
  */

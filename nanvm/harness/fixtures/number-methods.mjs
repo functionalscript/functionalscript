@@ -1,5 +1,5 @@
 /**
- * Compiled by `fjs compile` into `../gen.fixtures/number-methods.rs`, committed and
+ * Compiled by `fjs compile` into `../gen.fixtures/number_methods.rs`, committed and
  * drift-checked by `npm run gen` (see `../../../fjs/ci/README.md`). Consumed by
  * `../src/lib.rs`. Pins a number's formatting members with arguments: fixed, precision and exponent forms, and the radix of `toString`.
  */
