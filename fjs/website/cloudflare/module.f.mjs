@@ -48,11 +48,12 @@ export const buildPath = `${generatedDirectory}/build.sh`
  * pinned toolchain, and no edit to a shell profile nothing would read: the
  * script puts the new `cargo` on its own `PATH` instead.
  *
- * **Then the site, `cargo doc`, and the site again** — the order
- * [`../README.md`](../README.md#the-rust-api-reference) gives. The first
- * `npm run website` writes the site's header, footer and their stylesheet,
- * which `cargo doc` puts on every page of rustdoc's; the second copies
- * `target/doc` onto the site and links it. `--no-deps` documents the
+ * **Then the site's bars, `cargo doc`, and the site** — the order
+ * [`../README.md`](../README.md#the-rust-api-reference) gives.
+ * `npm run rustdoc-bars` writes the site's header, footer and their
+ * stylesheet, which `cargo doc` puts on every page of rustdoc's, and
+ * `npm run website` then copies `target/doc` onto the site and links it, so
+ * the site is generated once. `--no-deps` documents the
  * workspace's crates and not their dependencies. No `cargo clean --doc`:
  * the build starts from a fresh checkout, with no earlier docs to reuse.
  *
@@ -72,7 +73,7 @@ set -e
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o "$HOME/rustup-init.sh"
 sh "$HOME/rustup-init.sh" -y --profile minimal --default-toolchain ${rust} --no-modify-path
 export PATH="$HOME/.cargo/bin:$PATH"
-npm run website
+npm run rustdoc-bars
 RUSTDOCFLAGS="--html-before-content $PWD/${rustdocHeaderPath} --html-after-content $PWD/${rustdocFooterPath} --extend-css $PWD/${rustdocStylesheetPath}" cargo doc --no-deps --workspace
 npm run website
 `
