@@ -42,7 +42,7 @@
  * @module
  *
  * @import { Access, All, Env, Mkdir, NodeProgramOptions, ReadFile, ReadWhole, Readdir, Rm, Write, WriteBytes, WriteFile } from '../effects/node/types.ts'
- * @import { Effect, IoChannel } from '../effects/types.ts'
+ * @import { Effect, IoChannel, IoResult } from '../effects/types.ts'
  * @import { StringSet } from '../types/string_set/types.ts'
  * @import { Vec } from '../types/bit_vec/types.ts'
  * @import { _Demos, _Graph, _Imports, _Tree, _Walked } from './private.ts'
@@ -633,6 +633,16 @@ const writeChangelog = build => tree => {
 }
 
 /**
+ * Whether `path` is there, as a result rather than a failure: `access`
+ * answers a missing path with an error, which would end the build, and the
+ * callers read a missing path as an answer — no docs to copy, no funding to
+ * link — and every other error as the failure it is.
+ *
+ * @type {(path: string) => Effect<Access, IoResult<void>, IoChannel>}
+ */
+const foundAt = path => resultStep(access(path), found => pureOk(found))
+
+/**
  * One directory of rustdoc's output, copied to the same place under
  * {@link cargoDocDir}, its files byte for byte. Whole and in chunks, because
  * a rustdoc page outgrows one `Vec`.
@@ -681,7 +691,7 @@ const rustdocCopied = historyStep(rustdocWalked, tree => forEachStep(pureOk(tree
 const copyRustdocTree = mapStep(rustdocCopied, ([, tree]) => cratesOf(tree))
 
 /** Whether rustdoc's output is there, as a result rather than a failure. */
-const rustdocFound = resultStep(access(rustdocDir), found => pureOk(found))
+const rustdocFound = foundAt(rustdocDir)
 
 /**
  * rustdoc's output, copied from {@link rustdocDir} to {@link cargoDocDir} as
@@ -813,6 +823,9 @@ const fundingRead = step(readUtf8File(fundingPath), text => {
         : pureOk(funding[1])
 })
 
+/** Whether `funding.json` is there, as a result rather than a failure. */
+const fundingFound = foundAt(fundingPath)
+
 /**
  * The funding channels every page's footer links, read from `funding.json`.
  *
@@ -824,9 +837,8 @@ const fundingRead = step(readUtf8File(fundingPath), text => {
  *
  * @type {Effect<Access | ReadFile, readonly Funding[], IoChannel>}
  */
-const readFunding = step(
-    resultStep(access(fundingPath), found => pureOk(found)),
-    found => found[0] === 'error' && isNotFound(found[1]) ? pureOk([]) : fundingRead)
+const readFunding = step(fundingFound, found =>
+    found[0] === 'error' && isNotFound(found[1]) ? pureOk([]) : fundingRead)
 
 /**
  * What a build knows about itself: the commit and the branch the environment
