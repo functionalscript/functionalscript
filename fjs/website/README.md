@@ -20,7 +20,8 @@ The one build that does not run in the repository's Nix shell is this one.
 Cloudflare's Workers Builds generates the site on its own image and takes
 its Node version from [`.node-version`](../../.node-version) at the repository
 root — the file exists for that reader alone, and nothing else in the
-repository consults it.
+repository consults it. The rest of what the build needs, the build command
+installs first ([the build command](#the-build-command)).
 
 **That is what lets a page load any repository file by its path at run time.**
 A page's proofs are the real `.f.mjs` modules under it, imported by the browser
@@ -33,6 +34,43 @@ JavaScript only and deliberately does *not* serve the working tree. That is
 that issue's concern, for automated runners. Module pages do not depend on it,
 and moving the site under such a root would break every fetch they make — so
 the two are separate, and this one is not quietly migrated into the other.
+
+## CLI reference
+
+`/cli/` is the standalone **FunctionalScript CLI** reference, linked as **CLI**
+from the shared header. The generator reserves root `cli/` alongside `prs/`
+and excludes both from source discovery on repeated builds. `/fjs/cli/` and
+`/fjs/website/cli/` remain ordinary source-directory pages. A clean build creates
+`cli/index.html`; a leftover reserved directory from a branch switch is never
+catalogued as source.
+
+`cli/module.f.mjs` imports the real `commands` export from `fjs/module.f.mjs`.
+It walks nested command tables and appends the dispatcher's shared `helpMeta`
+at each table level. Imports construct data and effect descriptions without
+calling handlers or interpreting effects. Names, alias order, descriptions and
+nesting therefore have one source of truth, including implicit help behavior.
+Descendant aliases include every parent spelling: `cas add` also accepts
+`s add`, and nested help includes `s help`, `s h` and `s ?`. Canonical paths
+continue to identify sections and bookmark links.
+
+Usage, examples, explanatory notes and documentation paths live beside each
+handler in the CLI's `DocumentedCommands` tables. The type requires these fields
+for every built-in command and nested subcommand. Implicit help reference text
+comes from `helpReference` in `fjs/cli/module.f.mjs`, using the canonical parent
+path. The website consumes these fields directly; it has no separate guide list
+or name-based documentation lookup. A command metadata change therefore appears
+in the next website build, including displayed snippets and copied text.
+
+All commands are visible in anchored semantic sections without JavaScript.
+Copy buttons enhance the static code blocks, using the shared clipboard helper
+and existing styles; they appear only after binding and report success, failure
+or clipboard unavailability. No command runs in the browser. File documentation
+links use the same commit-aware policy as directory listings.
+
+The CLI catalogue progressively enhances into a searchable command list and selected
+detail pane. Search matches canonical names, aliases and descriptions without
+changing the selected command. Native fragment links preserve bookmarking and
+browser history; without JavaScript, every detail section remains visible.
 
 ## Current pull requests
 
@@ -63,6 +101,107 @@ feedback as pure decisions with co-located proofs. The browser adapter reads
 responses, performs requests and DOM updates, and supplies browser clock and
 date-formatting results to that policy.
 
+## The Rust API reference
+
+`/cargo.doc/` is rustdoc's output for the workspace's crates. Each crate's
+directory page links its part of it as **API documentation**, and the
+directory above the crates — `nanvm/` — links the index as **Rust API
+documentation**. A directory is a crate's when it has a `Cargo.toml` and its
+path, with `/` and `-` read as `_`, names a crate rustdoc documented:
+`nanvm/lib` is `nanvm_lib`.
+
+The generator copies `target/doc` there unchanged and writes one page of its
+own, `cargo.doc/index.html`, listing the crates: stable rustdoc writes no root
+page. It does not run `cargo` — whoever builds the site runs
+`cargo doc --no-deps --workspace` first, and a build without `target/doc`
+writes no `cargo.doc/` and no links. `target/` itself is never served: it
+holds build artifacts beside the docs, and `.assetsignore` keeps it out of
+every upload, whichever build made it.
+
+**rustdoc's pages carry the site's favicon, header and footer.** `npm run rustdoc-bars`
+writes them, from the same builders every page uses, as `_rustdoc-header.html`
+and `_rustdoc-footer.html`, with `_rustdoc.css` for their look. It also writes
+`_rustdoc-head.html` from the shared favicon links; `cargo doc`
+puts them on each page it writes when it is given them. They have to exist
+before `cargo doc` runs and the site is generated after it, so a build with the
+favicon and bars is:
+
+```bash
+npm run rustdoc-bars
+cargo clean --doc
+RUSTDOCFLAGS="--html-in-header $PWD/_rustdoc-head.html --html-before-content $PWD/_rustdoc-header.html --html-after-content $PWD/_rustdoc-footer.html --extend-css $PWD/_rustdoc.css" cargo doc --no-deps --workspace
+npm run website
+```
+
+`rustdoc-bars` is a program of its own
+([`rustdoc-bars/`](./rustdoc-bars/module.f.mjs)) so the site is generated
+once: it reads the build the pages are built from — a preview's branch and
+commit, the funding channels — and walks nothing.
+
+`cargo clean --doc` is not optional: `cargo` reuses earlier docs when its
+flags are unchanged, even though the files they name have changed. Two rules
+in `_rustdoc.css` lean on rustdoc's own layout, and its JSDoc says which; the
+rest of rustdoc's look is its own
+([rustdoc-site-theme](todo/rustdoc-site-theme.md)).
+
+`--html-in-header` adds the site’s ICO and SVG links after rustdoc’s own
+icons in the pinned rustdoc. The original links remain; the HTML icon
+selection rule prefers the last equally appropriate icon. Verify the tab
+icon after a hard refresh when changing the rustdoc pin.
+
+**`cargo.doc/` is not cleaned between local builds**, as no generated page
+is: the generator only writes. A build without `target/doc` leaves an earlier
+copy in place, and a copy over an earlier one keeps files rustdoc no longer
+writes — its search index's files are named by content hash, so every rebuild
+adds some. Nothing links the leftovers, and a deploy builds from a fresh
+checkout, which has no `cargo.doc/` at all, so none of them ships.
+`git clean -Xd` removes them locally.
+
+`cargo.doc/` is the one generated name outside `index.html` and the
+`_`-prefixed files, so `.gitignore` and `tsconfig.json` name it, and the walk
+excludes it as it excludes `prs/`. The deploy installs the pinned Rust and runs
+these steps, without `cargo clean --doc`, which a fresh checkout does not need
+([the build command](#the-build-command)).
+
+## The build command
+
+Cloudflare's build command runs `sh ./gen.cloudflare/build.sh`, a generated
+script: it installs what the build image lacks, then runs
+`npm run rustdoc-bars`, `cargo doc` and `npm run website`, which publishes
+the Rust API reference ([the Rust API reference](#the-rust-api-reference)). The command itself is set in the Cloudflare dashboard, so
+the script is what keeps its steps in the repository, where they are reviewed
+and have a history. `npm run website` stays the generator alone: a checkout
+builds the site with it exactly as before, and only the deploy carries the
+installs. The dashboard's command falls back to `npm run website` where the
+script is absent ([Configure Cloudflare](#configure-cloudflare)), so a branch
+from before the script keeps its preview.
+
+**The build has the Rust CI tests with.** The build image has Node but no
+Rust, and the script installs one with `rustup`'s installer, at exactly `rust`
+from [`fjs/ci/config/module.f.js`](../ci/config/module.f.js) — the one
+constant the shared shell and the platform matrix also take. The script is
+generated from that constant by
+[`cloudflare/module.f.mjs`](./cloudflare/module.f.mjs), as `gen.nix/flake.nix`
+is, so the version is written in the script in full, a bump of the pin is a
+diff the drift check guards, and nothing in the dashboard names a version
+that could drift. The toolchain goes into the build container's home, and
+its `cargo` is on the script's `PATH`. `target/`, which `cargo doc` writes
+beside the docs, is in [`.assetsignore`](../../.assetsignore) and never
+served.
+
+Installing Rust in the build was chosen over the alternative, building and
+deploying from CI in the Nix shell with `wrangler`, for what it keeps:
+Cloudflare builds every branch and gives each its preview URL, and no
+Cloudflare token goes to GitHub. The alternative would have one environment
+for everything, but would move branch previews into the generated workflow
+and leave a fork's pull request, which gets no secrets, without one. The
+build image cannot hold the shell itself: it ships no Nix, a build runs
+unprivileged and cannot create `/nix`, and the shell's closure would be
+fetched whole on every deploy against a twenty-minute limit. What this
+choice costs is `rustup`'s download and install on every deploy. The repository owner approved the script's
+invocation of `curl`, `rustup`'s installer, `npm` and `cargo`
+([`AGENTS.md` §6](../../AGENTS.md#6-external-tools)).
+
 ## Every directory gets a page
 
 One rule rather than two: whatever a directory holds, it gets an `index.html`
@@ -74,6 +213,18 @@ Because every directory has a page, every subdirectory link on every page
 resolves, which is what makes the tree walkable from the root. The root page is
 that page for the repository root — it carries the project's name and the same
 catalogue — rather than a special case beside the rule.
+
+**Contents and Issues use the left margin.** Both sections live in one
+catalogue beside the main column, with Contents and Issues
+open by default. The catalogue stays in view while the demo or test report grows,
+and can scroll when its links are taller than the viewport. On desktop
+it takes a 16rem column, with a full-height divider and content filling the
+remaining width; at 48rem and below a full-width Contents / Issues bar above the breadcrumb
+opens a modal drawer at the selected section. Issues shows its count; Issues · 0 stays visible and disabled when empty. Escape, the close button, and the backdrop dismiss it;
+resizing to desktop restores the sidebar. Without JavaScript the catalogue
+stays above the page. A page with no catalogue keeps
+its centered column. Release pages and the pull request queue keep their own
+layout.
 
 The one exclusion is a `todo/` subtree, by path segment: its issues are its
 parent's open work, so a page of its own would hold nothing else. It is neither
@@ -256,7 +407,13 @@ uploading that preview, without deploying the preview to production:
    `GITHUB_REDIRECT_URI`, and `GITHUB_PREVIEW_REDIRECT_URI` as variables, and
    `GITHUB_CLIENT_SECRET` as a **Secret**. Use the same app and the two
    callback values above to support both production domains and every preview.
-2. Keep the build command as `npm run website`.
+2. Set the build command to:
+
+   ```sh
+   if [ -f gen.cloudflare/build.sh ]; then sh gen.cloudflare/build.sh; else npm run website; fi
+   ```
+
+   The fallback preserves builds for older branches that lack the script.
 3. Change the version command to:
 
    ```sh
@@ -267,7 +424,8 @@ uploading that preview, without deploying the preview to production:
 4. Rebuild the preview branch after saving those settings.
 
 The repository owner approved this helper’s invocation of
-`npx wrangler versions upload` as the Cloudflare Builds version command.
+`npx wrangler versions upload` as the Cloudflare Builds version command, and
+the build command's `sh gen.cloudflare/build.sh`.
 
 The upload helper passes the public values, including the optional preview
 callback when configured, as explicit Wrangler variables.
@@ -492,7 +650,7 @@ scheme it would have picked.
 
 ## Every page opens with the same header
 
-The logo and the site's name, linking home; then **PRs**, **Releases** and
+The logo and the site's name, linking home; then **CLI**, **PRs**, **Releases** and
 **GitHub**.
 It is one element, `header` in [`page/module.f.mjs`](./page/module.f.mjs), and
 every page carries it — the root, a directory's page, the PR queue, and the
@@ -517,8 +675,8 @@ and no other page had either.
   header only, a framed box, GitHub-style tabs with icons, and bordered
   buttons — and the box won, then went full width.
 - **It wraps rather than hiding behind a menu button.** In a monospace face a
-  phone has no room for the name and all three links on one line; a line break
-  costs no script, on a site that is otherwise static files. The three links are
+  phone has no room for the name and all four links on one line; a line break
+  costs no script, on a site that is otherwise static files. The four links are
   one group, so they wrap together under the name rather than one beside it
   and one below.
 - **A header link is not underlined.** Its place in the header is what says it

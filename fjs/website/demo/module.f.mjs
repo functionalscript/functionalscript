@@ -32,7 +32,7 @@
 import { at } from '../../types/object/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
 import { examplePicker, name as exampleName } from './examples/module.f.js'
-import { captionMarker, resultMarker } from '../style/module.f.js'
+import { captionMarker, editorMarker, mirrorMarker, resultMarker } from '../style/module.f.js'
 
 /**
  * A demo whose state is the text in a labelled textarea, followed by what
@@ -40,7 +40,7 @@ import { captionMarker, resultMarker } from '../style/module.f.js'
  *
  * @type {(o: TextDemoOptions) => (render: (text: string) => readonly Node[]) => Demo<string, DemoEvent>}
  */
-export const textDemo = ({ intro, name, label, rows, init, examples }) => render => {
+export const textDemo = ({ intro, name, label, rows, init, examples, highlight }) => render => {
     if (examples !== undefined && name === exampleName) { throw 'textDemo: the textarea is named like the examples drop-down' }
     const picker = examples === undefined ? undefined : examplePicker(examples)
     return {
@@ -53,7 +53,7 @@ export const textDemo = ({ intro, name, label, rows, init, examples }) => render
         view: text => ['div',
             ['p', intro],
             ...(picker === undefined ? [] : [picker.view(text)]),
-            textField({ name, label, rows }, text),
+            textField({ name, label, rows, highlight }, text),
             ...render(text),
         ],
     }
@@ -61,12 +61,26 @@ export const textDemo = ({ intro, name, label, rows, init, examples }) => render
 
 /**
  * The labelled multiline field shared by textDemo and demos with more state.
+ *
+ * **With `highlight`, the textarea is drawn over a coloured copy of its text**:
+ * a `span` the stylesheet marks as the field's mirror (a `span`, so the label's
+ * `p` stays valid HTML), laid under a textarea
+ * whose own text is transparent, so the reader types into the colours and the
+ * caret, selection and undo stay the browser's. The mirror ends in a zero-width
+ * space, so a final empty line takes the room it takes in the textarea. It is
+ * hidden from assistive technology, which reads the textarea.
+ *
  * @type {(o: TextFieldOptions, text: string) => Element}
  */
-export const textField = ({ name, label, rows = 8 }, text) => ['p',
-    ['label', { for: name }, `${label} `],
-    ['textarea', { id: name, name, rows: String(rows) }, text],
-]
+export const textField = ({ name, label, rows = 8, highlight }, text) => {
+    /** @type {Element} */
+    const area = ['textarea', { id: name, name, rows: String(rows) }, text]
+    /** @type {Element} */
+    const field = highlight === undefined ? area : ['span', { [editorMarker]: '' },
+        ['span', { [mirrorMarker]: '', 'aria-hidden': 'true' }, ...highlight(text), '\u200b'],
+        area]
+    return ['p', ['label', { for: name }, `${label} `], field]
+}
 
 /** A labelled single-line field filling its containing column.
  * @type {(o: InputFieldOptions, value: string) => Element}
