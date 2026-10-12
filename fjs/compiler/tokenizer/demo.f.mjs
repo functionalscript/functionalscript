@@ -29,6 +29,7 @@
 import { codeMarker } from '../../website/style/module.f.mjs'
 import { stringToList } from '../../text/utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
+import { highlight } from '../../website/demo/highlight/module.f.mjs'
 import { textDemo, caption } from '../../website/demo/module.f.mjs'
 import { examples } from '../examples/module.f.js'
 import { tokenize } from './module.f.mjs'
@@ -59,6 +60,7 @@ export const demo = textDemo({
     label: 'Source',
     init: examples[0][1],
     examples,
+    highlight,
 })(text => [
     caption('Tokens, line:column, kind and value:'),
     ['pre', { [codeMarker]: '' }, _tokensOf(text)],

@@ -31,6 +31,7 @@ import { parse, stringify } from './module.f.mjs'
 import { mapOk } from '../../types/result/module.f.js'
 import { sort } from '../../types/object/module.f.mjs'
 import { textDemo, caption, refusal } from '../../website/demo/module.f.mjs'
+import { highlight } from '../../website/demo/highlight/module.f.mjs'
 
 /**
  * `text` parsed and written back in normalized form — sorted keys, one line
@@ -56,6 +57,7 @@ export const demo = textDemo({
     name: 'json',
     label: 'JSON',
     init: '{\n  "b": 2,\n  "a": [3, 2, 1],\n  "c": "hello"\n}',
+    highlight,
 })(text => {
     const [kind, value] = roundTrip(text)
     return kind === 'ok'

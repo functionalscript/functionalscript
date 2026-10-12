@@ -93,6 +93,17 @@ export const captionMarker = 'data-caption'
  */
 export const codeMarker = 'data-code'
 
+/** The attribute of a highlighted field's wrapper, shared with its stylesheet rules.
+ * @type {string}
+ */
+export const editorMarker = 'data-editor'
+
+/** The attribute of the coloured copy of a highlighted field's text. The page
+ * runtime keeps its scroll offset equal to the textarea's.
+ * @type {string}
+ */
+export const mirrorMarker = 'data-mirror'
+
 /** The verdict attribute shared by result views and their stylesheet rules.
  * @type {string}
  */
@@ -679,6 +690,16 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
 [data-token="number"] { color: var(--syntax-number) }
 [data-token="identifier"] { color: var(--syntax-name) }
 [data-token="comment"] { color: var(--muted); font-style: italic }
+/* A highlighted field is a textarea laid over a coloured copy of its text, so
+   the reader types into the colours and the caret, selection and undo stay the
+   browser's. The two must wrap alike to the pixel, so they share the font, the
+   padding, the border width and the gutter a scrollbar takes; the textarea's
+   own text is transparent and only its caret shows. The copy takes no pointer
+   events, and the page runtime keeps its scroll equal to the textarea's. */
+[${editorMarker}] { display: block; position: relative; background: var(--bg); border-radius: 6px }
+[${editorMarker}] > textarea, [${mirrorMarker}] { box-sizing: border-box; border: 1px solid var(--border); border-radius: 6px; font: .9em/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: normal; margin: 0; overflow-wrap: anywhere; padding: .5rem .75rem; scrollbar-gutter: stable; tab-size: 8; white-space: pre-wrap }
+[${editorMarker}] > textarea { background: transparent; caret-color: var(--text); color: transparent; display: block; position: relative }
+[${mirrorMarker}] { border-color: transparent; color: var(--text); inset: 0; overflow: hidden; pointer-events: none; position: absolute; user-select: none }
 /* The member a failure points at, marked inside a code block — the rtti
    demo's value written again under a refusal — in the failure's colours. */
 [${codeMarker}] mark { background: var(--fail-bg); border-radius: 3px; color: var(--fail); outline: 1px solid color-mix(in srgb, var(--fail) 40%, transparent) }
