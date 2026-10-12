@@ -42,7 +42,7 @@
  * @module
  *
  * @import { Access, All, Env, Mkdir, NodeProgramOptions, ReadFile, ReadWhole, Readdir, Rm, Write, WriteBytes, WriteFile } from '../effects/node/types.ts'
- * @import { Effect, IoChannel } from '../effects/types.ts'
+ * @import { Effect, IoChannel, IoResult } from '../effects/types.ts'
  * @import { StringSet } from '../types/string_set/types.ts'
  * @import { Vec } from '../types/bit_vec/types.ts'
  * @import { _Demos, _Graph, _Imports, _Tree, _Walked } from './private.ts'
@@ -62,14 +62,14 @@ import { toArray } from '../types/list/module.f.mjs'
 import { log } from '../effects/common/module.f.mjs'
 import { indexPage, isVersion, releasePage, releasePath, releases } from './changelog/module.f.mjs'
 import { tryParse } from '../media/markdown/module.f.mjs'
-import { rustdocStylesheet, stylesheet } from './style/module.f.mjs'
+import { stylesheet } from './style/module.f.mjs'
 import { changelogDir, cliDir, demoSection, directoryLayout, page, pagePath, prsDir, shell, siteName, subtree, testSection, testsMain } from './page/module.f.mjs'
 import { prsPage } from './prs/module.f.mjs'
 import { cliPage } from './cli/module.f.mjs'
 import { toHex, tryFromHexOf } from '../git/oid/module.f.mjs'
 import { fundingPath, parse as parseFunding } from './funding/module.f.mjs'
 import { isThirdParty } from '../dev/module.f.mjs'
-import { cargoDocDir, cargoDocHref, cargoDocPage, crateHref, crateOf, rustdocDir, rustdocFooter, rustdocFooterPath, rustdocHeader, rustdocHeaderPath, rustdocStylesheetPath } from './cargo-doc/module.f.mjs'
+import { cargoDocDir, cargoDocHref, cargoDocPage, crateHref, crateOf, rustdocDir } from './cargo-doc/module.f.mjs'
 
 /**
  * The root page: the project's name, the catalogue every directory page
@@ -634,6 +634,16 @@ const writeChangelog = build => tree => {
 }
 
 /**
+ * Whether `path` is there, as a result rather than a failure: `access`
+ * answers a missing path with an error, which would end the build, and the
+ * callers read a missing path as an answer — no docs to copy, no funding to
+ * link — and every other error as the failure it is.
+ *
+ * @type {(path: string) => Effect<Access, IoResult<void>, IoChannel>}
+ */
+const foundAt = path => resultStep(access(path), found => pureOk(found))
+
+/**
  * One directory of rustdoc's output, copied to the same place under
  * {@link cargoDocDir}, its files byte for byte. Whole and in chunks, because
  * a rustdoc page outgrows one `Vec`.
@@ -682,7 +692,7 @@ const rustdocCopied = historyStep(rustdocWalked, tree => forEachStep(pureOk(tree
 const copyRustdocTree = mapStep(rustdocCopied, ([, tree]) => cratesOf(tree))
 
 /** Whether rustdoc's output is there, as a result rather than a failure. */
-const rustdocFound = resultStep(access(rustdocDir), found => pureOk(found))
+const rustdocFound = foundAt(rustdocDir)
 
 /**
  * rustdoc's output, copied from {@link rustdocDir} to {@link cargoDocDir} as
@@ -722,22 +732,6 @@ const writeCargoDocIndex = build => crates => {
     const written = writeFile(pagePath(cargoDocDir), cargoDocPage(build)(crates))
     const logged = step(written, () => log(`rust crates: ${crates.length}`))
     return mapStep(logged, () => crates)
-}
-
-/**
- * The site's header, footer and their stylesheet, written for `cargo doc` to
- * put on every page of rustdoc's — so a build that runs `cargo doc` after
- * this one, with them, publishes rustdoc's pages inside the site's bars.
- * Written on every build, as `_main.css` is, whether or not anything uses
- * them: they cost three small files, and a build that needs them should not
- * have to ask.
- *
- * @type {(build: Build) => Effect<Rm | WriteBytes | WriteFile, void, IoChannel>}
- */
-const writeRustdocBars = build => {
-    const headerWritten = writeUtf8File(rustdocHeaderPath, rustdocHeader(build))
-    const footerWritten = step(headerWritten, () => writeUtf8File(rustdocFooterPath, rustdocFooter(build.funding)))
-    return step(footerWritten, () => writeUtf8File(rustdocStylesheetPath, rustdocStylesheet))
 }
 
 /**
@@ -816,26 +810,48 @@ const linksNote = env => commit =>
             : 'file links: this site, because WORKERS_CI_COMMIT_SHA is not a commit id'
 
 /**
+ * The funding channels in `funding.json`, which is there.
+ *
+ * A file that cannot be linked stops the build, so the published site never
+ * quietly lacks a channel.
+ *
+ * @type {Effect<ReadFile, readonly Funding[], IoChannel>}
+ */
+const fundingRead = step(readUtf8File(fundingPath), text => {
+    const funding = parseFunding(text)
+    return funding[0] === 'error'
+        ? pureError(ioError({ message: `${fundingPath}: ${funding[1]}` }))
+        : pureOk(funding[1])
+})
+
+/** Whether `funding.json` is there, as a result rather than a failure. */
+const fundingFound = foundAt(fundingPath)
+
+/**
  * The funding channels every page's footer links, read from `funding.json`.
  *
- * **The walk says whether the file is there**, as it does for the changelog:
- * a tree without one — every fixture tree the generator's proofs build — gets
- * pages without a footer rather than no build. A file that is there and
- * cannot be linked stops the build, so the published site never quietly
- * lacks a channel.
+ * **A tree without the file gets no footer rather than no build** — every
+ * fixture tree the generator's proofs build is one. Whether it is there is
+ * asked of the file system, not of the walk, so a program that writes the
+ * site's bars without walking the tree reads the same channels
+ * ([`./rustdoc-bars`](./rustdoc-bars/module.f.mjs)).
  *
- * @type {(tree: readonly _Walked[]) => Effect<ReadFile, readonly Funding[], IoChannel>}
+ * @type {Effect<Access | ReadFile, readonly Funding[], IoChannel>}
  */
-const readFunding = tree => {
-    const present = tree.some(walked => walked.path === '.' && walked.files.includes(fundingPath))
-    if (!present) { return pureOk([]) }
-    return step(readUtf8File(fundingPath), text => {
-        const funding = parseFunding(text)
-        return funding[0] === 'error'
-            ? pureError(ioError({ message: `${fundingPath}: ${funding[1]}` }))
-            : pureOk(funding[1])
-    })
-}
+const readFunding = step(fundingFound, found =>
+    found[0] === 'error' && isNotFound(found[1]) ? pureOk([]) : fundingRead)
+
+/**
+ * What a build knows about itself: the commit and the branch the environment
+ * names, and the funding channels.
+ *
+ * Exported for [`./rustdoc-bars`](./rustdoc-bars/module.f.mjs), which writes
+ * the bars from the same build the pages get; `_` because that is linkage,
+ * not API.
+ *
+ * @type {(env: Env) => Effect<Access | ReadFile, Build, IoChannel>}
+ */
+export const _readBuild = env => mapStep(readFunding, funding => ({ commit: commitOf(env), branch: branchOf(env), funding }))
 
 /**
  * The whole build: the walk, then everything written from it.
@@ -847,7 +863,7 @@ const readFunding = tree => {
  * @type {(env: Omit<Build, 'funding'>) => (note: string) => Effect<Access | Readdir | ReadFile | ReadWhole | Rm | WriteBytes | WriteFile | Write | All | Mkdir, 0, number>}
  */
 const program = env => note => exitStep(mapStep(
-    step(log(note), () => step(walk('.'), tree => step(readFunding(tree), funding => {
+    step(log(note), () => step(walk('.'), tree => step(readFunding, funding => {
         const build = { ...env, funding }
         const authored = authoredModules(tree)
         // One graph over both: a page loads a demo the way it loads a proof,
@@ -866,8 +882,7 @@ const program = env => note => exitStep(mapStep(
                     const prPage = step(prDirectory, () => writeFile(pagePath(prsDir), prsPage(build)))
                     const cliDirectory = step(prPage, () => mkdir(cliDir, { recursive: true }))
                     const reference = step(cliDirectory, () => writeFile(pagePath(cliDir), cliPage(build)))
-                    const css = step(reference, () => writeUtf8File('_main.css', stylesheet))
-                    return step(css, () => writeRustdocBars(build))
+                    return step(reference, () => writeUtf8File('_main.css', stylesheet))
                 }))
     }))),
     () => undefined))

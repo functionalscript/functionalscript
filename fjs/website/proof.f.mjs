@@ -168,13 +168,13 @@ export const proof = {
             assert(!pageAt(root, []).includes('API documentation'), pageAt(root, []))
             assert(output.includes('rust crates: 1'), output)
         },
-        // Every build writes the site's bars and their stylesheet for
-        // `cargo doc` to put on rustdoc's pages, whether or not it ran.
-        rustdocBars: () => {
-            const { root } = generate({ 'funding.json': file('{"funding":{"channels":[{"description":"Support","address":"https://example.com/"}]}}') })
-            assert(textOf(root['_rustdoc-header.html'], 'the header').startsWith('<header>'))
-            assert(textOf(root['_rustdoc-footer.html'], 'the footer').includes('<a href="https://example.com/">Support'))
-            assert(textOf(root['_rustdoc.css'], 'the stylesheet').includes('body.rustdoc > main'))
+        // The bars for rustdoc have one writer, `rustdoc-bars`, which runs
+        // before `cargo doc`; the generator, which runs after it, does not.
+        rustdocBarsNotHere: () => {
+            const { root } = generate({})
+            assertEq(root['_rustdoc-header.html'], undefined)
+            assertEq(root['_rustdoc-footer.html'], undefined)
+            assertEq(root['_rustdoc.css'], undefined)
         },
         // Without `cargo doc`, nothing is written and nothing is linked.
         absent: () => {

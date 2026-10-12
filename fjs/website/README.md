@@ -118,18 +118,24 @@ writes no `cargo.doc/` and no links. `target/` itself is never served: it
 holds build artifacts beside the docs, and `.assetsignore` keeps it out of
 every upload, whichever build made it.
 
-**rustdoc's pages carry the site's header and footer.** Every build writes
-them, from the same builders every page uses, as `_rustdoc-header.html` and
-`_rustdoc-footer.html`, with `_rustdoc.css` for their look; `cargo doc` puts
-them on each page it writes when it is given them. So a build with the bars is
-the site, then `cargo doc`, then the site again to copy what it wrote:
+**rustdoc's pages carry the site's header and footer.** `npm run rustdoc-bars`
+writes them, from the same builders every page uses, as `_rustdoc-header.html`
+and `_rustdoc-footer.html`, with `_rustdoc.css` for their look; `cargo doc`
+puts them on each page it writes when it is given them. They have to exist
+before `cargo doc` runs and the site is generated after it, so a build with the
+bars is:
 
 ```bash
-npm run website
+npm run rustdoc-bars
 cargo clean --doc
 RUSTDOCFLAGS="--html-before-content $PWD/_rustdoc-header.html --html-after-content $PWD/_rustdoc-footer.html --extend-css $PWD/_rustdoc.css" cargo doc --no-deps --workspace
 npm run website
 ```
+
+`rustdoc-bars` is a program of its own
+([`rustdoc-bars/`](./rustdoc-bars/module.f.mjs)) so the site is generated
+once: it reads the build the pages are built from — a preview's branch and
+commit, the funding channels — and walks nothing.
 
 `cargo clean --doc` is not optional: `cargo` reuses earlier docs when its
 flags are unchanged, even though the files they name have changed. Two rules
@@ -154,9 +160,9 @@ these steps, without `cargo clean --doc`, which a fresh checkout does not need
 ## The build command
 
 Cloudflare's build command runs `sh ./gen.cloudflare/build.sh`, a generated
-script: it installs what the build image lacks, then runs `npm run website`,
-`cargo doc` and `npm run website` again, which publishes the Rust API
-reference ([the Rust API reference](#the-rust-api-reference)). The command itself is set in the Cloudflare dashboard, so
+script: it installs what the build image lacks, then runs
+`npm run rustdoc-bars`, `cargo doc` and `npm run website`, which publishes
+the Rust API reference ([the Rust API reference](#the-rust-api-reference)). The command itself is set in the Cloudflare dashboard, so
 the script is what keeps its steps in the repository, where they are reviewed
 and have a history. `npm run website` stays the generator alone: a checkout
 builds the site with it exactly as before, and only the deploy carries the
@@ -186,8 +192,7 @@ and leave a fork's pull request, which gets no secrets, without one. The
 build image cannot hold the shell itself: it ships no Nix, a build runs
 unprivileged and cannot create `/nix`, and the shell's closure would be
 fetched whole on every deploy against a twenty-minute limit. What this
-choice costs is `rustup`'s download and install on every deploy, and a
-second run of the generator. The repository owner approved the script's
+choice costs is `rustup`'s download and install on every deploy. The repository owner approved the script's
 invocation of `curl`, `rustup`'s installer, `npm` and `cargo`
 ([`AGENTS.md` §6](../../AGENTS.md#6-external-tools)).
 
