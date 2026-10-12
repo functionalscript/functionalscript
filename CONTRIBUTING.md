@@ -213,10 +213,12 @@ npm test                 # the same, after a whole-tree tsc
 ```
 
 Coverage scopes the same way, at the thresholds `npm run cov` sets, with the
-report kept to the directory's own modules:
+report kept to the directory's own modules. This one runs from the repository
+root, where `node --test` finds the suite's entry file; `cd` back first if the
+block above left you in the directory:
 
 ```bash
-d=fjs/basen
+d=fjs/basen              # at the repository root
 INIT_CWD=$d node --test --experimental-test-coverage \
   --test-coverage-include="$d/**/module.f.mjs" \
   --test-coverage-include="$d/**/module.f.js" \
