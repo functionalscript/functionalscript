@@ -1,6 +1,6 @@
 /**
- * Writes the site's header, footer and their stylesheet for `cargo doc`, and
- * nothing else: `npm run rustdoc-bars`.
+ * Writes the site's favicon links, header, footer and their stylesheet for
+ * `cargo doc`, and nothing else: `npm run rustdoc-bars`.
  *
  * rustdoc puts the bars on every page it writes when `cargo doc` is given
  * these files, so they have to exist before it runs, and the generator copies
@@ -10,7 +10,7 @@
  * ```bash
  * npm run rustdoc-bars
  * cargo clean --doc
- * RUSTDOCFLAGS="--html-before-content $PWD/_rustdoc-header.html --html-after-content $PWD/_rustdoc-footer.html --extend-css $PWD/_rustdoc.css" cargo doc --no-deps --workspace
+ * RUSTDOCFLAGS="--html-in-header $PWD/_rustdoc-head.html --html-before-content $PWD/_rustdoc-header.html --html-after-content $PWD/_rustdoc-footer.html --extend-css $PWD/_rustdoc.css" cargo doc --no-deps --workspace
  * npm run website
  * ```
  *
@@ -27,17 +27,18 @@
 
 import { step } from '../../effects/module.f.mjs'
 import { exitStep, writeUtf8File } from '../../effects/node/module.f.mjs'
-import { rustdocFooter, rustdocFooterPath, rustdocHeader, rustdocHeaderPath, rustdocStylesheetPath } from '../cargo-doc/module.f.mjs'
+import { rustdocHead, rustdocHeadPath, rustdocFooter, rustdocFooterPath, rustdocHeader, rustdocHeaderPath, rustdocStylesheetPath } from '../cargo-doc/module.f.mjs'
 import { rustdocStylesheet } from '../style/module.f.mjs'
 import { _readBuild } from '../module.f.mjs'
 
 /**
- * The three files, written for `build`.
+ * The four files, written for `build`.
  *
  * @type {(build: Build) => Effect<Rm | WriteBytes | WriteFile, void, IoChannel>}
  */
 export const writeRustdocBars = build => {
-    const headerWritten = writeUtf8File(rustdocHeaderPath, rustdocHeader(build))
+    const headWritten = writeUtf8File(rustdocHeadPath, rustdocHead)
+    const headerWritten = step(headWritten, () => writeUtf8File(rustdocHeaderPath, rustdocHeader(build)))
     const footerWritten = step(headerWritten, () => writeUtf8File(rustdocFooterPath, rustdocFooter(build.funding)))
     return step(footerWritten, () => writeUtf8File(rustdocStylesheetPath, rustdocStylesheet))
 }

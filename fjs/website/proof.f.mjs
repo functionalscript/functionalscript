@@ -150,6 +150,7 @@ export const proof = {
         // before `cargo doc`; the generator, which runs after it, does not.
         rustdocBarsNotHere: () => {
             const { root } = generate({})
+            assertEq(root['_rustdoc-head.html'], undefined)
             assertEq(root['_rustdoc-header.html'], undefined)
             assertEq(root['_rustdoc-footer.html'], undefined)
             assertEq(root['_rustdoc.css'], undefined)

@@ -20,7 +20,7 @@
  */
 
 import { rust } from '../../ci/config/module.f.js'
-import { rustdocFooterPath, rustdocHeaderPath, rustdocStylesheetPath } from '../cargo-doc/module.f.mjs'
+import { rustdocHeadPath, rustdocFooterPath, rustdocHeaderPath, rustdocStylesheetPath } from '../cargo-doc/module.f.mjs'
 import { step } from '../../effects/module.f.mjs'
 import { exitStep, mkdir, writeUtf8File } from '../../effects/node/module.f.mjs'
 
@@ -50,7 +50,7 @@ export const buildPath = `${generatedDirectory}/build.sh`
  *
  * **Then the site's bars, `cargo doc`, and the site** — the order
  * [`../README.md`](../README.md#the-rust-api-reference) gives.
- * `npm run rustdoc-bars` writes the site's header, footer and their
+ * `npm run rustdoc-bars` writes the site's favicon links, header, footer and their
  * stylesheet, which `cargo doc` puts on every page of rustdoc's, and
  * `npm run website` then copies `target/doc` onto the site and links it, so
  * the site is generated once. `--no-deps` documents the
@@ -74,7 +74,7 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o "$HOME/rustup-init.
 sh "$HOME/rustup-init.sh" -y --profile minimal --default-toolchain ${rust} --no-modify-path
 export PATH="$HOME/.cargo/bin:$PATH"
 npm run rustdoc-bars
-RUSTDOCFLAGS="--html-before-content $PWD/${rustdocHeaderPath} --html-after-content $PWD/${rustdocFooterPath} --extend-css $PWD/${rustdocStylesheetPath}" cargo doc --no-deps --workspace
+RUSTDOCFLAGS="--html-in-header $PWD/${rustdocHeadPath} --html-before-content $PWD/${rustdocHeaderPath} --html-after-content $PWD/${rustdocFooterPath} --extend-css $PWD/${rustdocStylesheetPath}" cargo doc --no-deps --workspace
 npm run website
 `
 
