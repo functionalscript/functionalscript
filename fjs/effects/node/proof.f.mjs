@@ -19,6 +19,7 @@ import { emptyState, virtual } from "./virtual/module.f.mjs"
 import { assert, assertEq, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
 import { toArray } from '../../types/list/module.f.mjs'
+import { min } from '../../types/number/min/module.f.js'
 
 // Answers the one command the `map` proof below drives. Routing the loop
 // through `match` keeps the `Pure`/`Do` layout out of this module: the map key
@@ -873,7 +874,7 @@ export const proof = {
             // bytes it did not return — a hole in a body whose length the
             // client has already been told.
             /** @type {_ChunkSource<never>} */
-            const source = (_, size) => pureOk(bytes(Math.min(size, 100)))
+            const source = (_, size) => pureOk(bytes(min(size, 100)))
             assertStructurallySame(lengths(source, 250), [100, 100, 50])
         },
         aBoundedStreamThatEndsShortFailsTheCell: () => {

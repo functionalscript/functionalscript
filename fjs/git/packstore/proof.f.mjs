@@ -21,6 +21,7 @@ import { error, ok } from '../../types/result/module.f.js'
 import { digestOf, of, toHex, tryFromHex } from '../oid/module.f.mjs'
 import { hexBytes, latin1, packMixed, packMixedIdx } from '../testlib.f.mjs'
 import { packEntryCode, packFileCode, packIdxCode, packsIn, tryRead } from './module.f.mjs'
+import { max } from '../../types/number/max/module.f.js'
 
 /** How many bytes of a file one chunk of a `readWhole` carries at most. */
 const chunkBytes = Number(maxLengthBytes)
@@ -33,7 +34,7 @@ const chunkBytes = Number(maxLengthBytes)
  * @type {(b: readonly number[]) => readonly Vec[]}
  */
 const chunked = b => Array.from(
-    { length: Math.max(1, Math.ceil(b.length / chunkBytes)) },
+    { length: max(1, Math.ceil(b.length / chunkBytes)) },
     (_, k) => u8ListToVecMsb(b.slice(k * chunkBytes, (k + 1) * chunkBytes)))
 
 /** How wide an id is in every fixture here, and so how long each checksum is. */

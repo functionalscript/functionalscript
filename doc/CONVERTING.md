@@ -244,3 +244,35 @@ The global `isFinite` converts first, as the global `isNaN` does, and the
 same caution applies: `isFinite("1")` is `true` in JavaScript and
 `isFinite(null)` too, so a call of the global on anything but a number is
 checked, not rewritten.
+
+## 5. `Math.min` and `Math.max`
+
+The `Math` global is not admitted: `Number` is a reserved word with one
+admitted call, `Math` is no name at all, and `Math.min` is refused as
+`const not found`. On two numbers the replacements are `min` from
+[`fjs/types/number/min`](../fjs/types/number/min/module.f.js) and `max`
+from [`fjs/types/number/max`](../fjs/types/number/max/module.f.js):
+
+```js
+const workers = count => Math.min(3, count)   // refused
+```
+
+```js
+import { min } from '../types/number/min/module.f.js'
+
+const workers = count => min(3, count)        // accepted
+```
+
+A plain `a < b ? a : b` is not the rewrite: it is not what `Math.min`
+answers for `NaN`, which the built-in propagates, nor for the two zeros,
+where `-0` is the lesser and `<` cannot tell them apart. `min` and `max`
+answer both as the built-ins do, and their proofs compare every pair of
+`NaN`, the infinities, the zeros and ordinary numbers against `Math.min`
+and `Math.max`.
+
+Two spellings of the built-in are not a call on two numbers. A variadic
+call, `Math.max(...xs)`, is a reduce, `xs.reduce(max, -Infinity)`, the
+identity being what `Math.max()` with no arguments is, and `Infinity` for
+`min`. And the built-ins convert their arguments, `Math.min("1", 2)` being
+`1`, where `min` and `max` take numbers: a call on anything else is
+checked, not rewritten.

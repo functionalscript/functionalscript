@@ -9,6 +9,7 @@
  */
 
 import { isFinite } from '../../../types/number/is_finite/module.f.js'
+import { min } from '../../../types/number/min/module.f.js'
 
 const maxPages = 10
 
@@ -85,7 +86,7 @@ export const refusalNote = ({ reason, retryAt }, formattedRetry) => retryAt === 
 
 /** No requests for an empty list, at most three concurrent check workers. */
 /** @type {(pullCount: number) => number} */
-export const workerCount = pullCount => Math.min(3, pullCount)
+export const workerCount = pullCount => min(3, pullCount)
 
 /** A busy load refuses another start, including repeated button clicks. */
 /** @type {(busy: boolean, loaded: boolean) => string | null} */

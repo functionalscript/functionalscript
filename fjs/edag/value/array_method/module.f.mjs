@@ -20,6 +20,8 @@ import { call } from '../call/module.f.mjs'
 import { toNumber, toString } from '../convert/module.f.mjs'
 import { is, isFunction, strictEqual, truthy, typeOf } from '../semantics/module.f.mjs'
 import { slice } from '../slice/module.f.mjs'
+import { min } from '../../../types/number/min/module.f.js'
+import { max } from '../../../types/number/max/module.f.js'
 
 /** @type {(args: Values, index: number) => EdagValue} */
 const argument = (args, index) => args[index] === undefined ? ['undefined'] : args[index]
@@ -34,7 +36,7 @@ const callable = isFunction
 const integer = value => Math.trunc(value) || 0
 
 /** A relative position clamped to a length. @type {(value: number, length: number) => number} */
-const position = (value, length) => value < 0 ? Math.max(length + value, 0) : Math.min(value, length)
+const position = (value, length) => value < 0 ? max(length + value, 0) : min(value, length)
 
 /** @type {(fn: ValueFunction, args: Values, invoke: Invoke) => ValueResult} */
 const apply = (fn, args, invoke) => call(ok(fn), args.map(value => () => ok(value)), invoke)
@@ -102,7 +104,7 @@ const search = (receiver, key, args, invoke) => {
     const [kind, number] = result
     if (kind === 'error') { return result }
     const start = integer(number)
-    const index = reverse ? Math.min(start < 0 ? values.length + start : start, values.length - 1) : position(start, values.length)
+    const index = reverse ? min(start < 0 ? values.length + start : start, values.length - 1) : position(start, values.length)
     const sought = argument(args, 0)
     for (let i = index; i >= 0 && i < values.length; i += reverse ? -1 : 1) {
         const value = values[i]
@@ -186,7 +188,7 @@ export const arrayMethod = (receiver, key, args, invoke) => {
             const removed = args.length < 2 ? ok(args.length === 0 ? 0 : values.length - start) : toNumber(second, invoke)
             const [removedKind, count] = removed
             if (removedKind === 'error') { return removed }
-            const end = start + Math.min(Math.max(integer(count), 0), values.length - start)
+            const end = start + min(max(integer(count), 0), values.length - start)
             return ok(['[]', [...values.slice(0, start), ...args.slice(2), ...values.slice(end)]])
         }
         case 'every': case 'filter': case 'find': case 'findIndex': case 'findLast':

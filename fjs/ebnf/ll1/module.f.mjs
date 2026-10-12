@@ -34,6 +34,7 @@ import { contains, empty, intersection, union } from '../../types/range_set/modu
 import { error, ok } from '../../types/result/module.f.js'
 import { contains as visiting, empty as noNames, set as visit } from '../../types/string_set/module.f.mjs'
 import { _fixpoint, _nullable as nullable, emptyTagMap, eofSymbol, isSymbol, matchRule, toData, validate } from '../data/module.f.mjs'
+import { min as minNumber } from '../../types/number/min/module.f.js'
 
 const { keys, fromEntries } = Object
 const { isSafeInteger } = Number
@@ -427,7 +428,7 @@ const build = (ruleSet, empty, entry, mappers) => {
          *
          * @type {(pos: number) => number}
          */
-        const physical = pos => Math.min(pos, length)
+        const physical = pos => minNumber(pos, length)
 
         /** @type {_State} */
         let state = [null, ['enter', entry, start]]

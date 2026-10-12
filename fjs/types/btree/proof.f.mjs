@@ -16,6 +16,7 @@ import { htmlToString } from '../../media/html/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
 import { unwrap } from '../result/module.f.js'
 import { jsonStr, set, squares } from './testlib.f.mjs'
+import { max } from '../number/max/module.f.js'
 
 /** @type {(sequence: List<Unknown>) => string} */
 const stringify = sequence => jsonStr(toArray(sequence))
@@ -228,7 +229,7 @@ const demoProof = {
     // column in order of its nodes' average keys.
     layout: () => {
         const { nodes, edges } = _graphOf(follow('Big tree').versions)
-        const last = nodes.reduce((m, n) => Math.max(m, n.rank), 0)
+        const last = nodes.reduce((m, n) => max(m, n.rank), 0)
         /** @type {(id: number) => boolean} */
         const isLeaf = id => edges.every(e => e.from !== id || typeof e.to !== 'number')
         assert(nodes.every(n => (n.rank === last) === isLeaf(n.id)), '')
