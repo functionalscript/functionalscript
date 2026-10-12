@@ -50,8 +50,12 @@ the set off the files the change touches, before every commit and push:
 - **A manifest, lockfile or compiler configuration** — `package.json` and
   `package-lock.json`, `tsconfig.json`, `deno.json` and `deno.lock`,
   `bun.lock`: the checks that read it, from the repository root — `tsc` for
-  the TypeScript configuration, `npm test` for the Node pair, `deno task test`
-  and `bun test` for theirs. The Cargo manifests are in the Cargo row.
+  the TypeScript configuration; for the Node pair `npm ci`, which fails when
+  the lock disagrees with the manifest where `npm test` would run on the
+  `node_modules` already there, then `npm test`; `deno install --frozen` then
+  `deno task test`, and `bun install --frozen-lockfile` then `bun test`, for
+  theirs, the installs spelled as CI runs them. The Cargo manifests are in
+  the Cargo row.
 - **Anything else** — a file no row names: the checks of whatever reads it,
   and the full `node --test` when that is not known. The list names what is
   known to matter; it is not a proof that nothing else does.
