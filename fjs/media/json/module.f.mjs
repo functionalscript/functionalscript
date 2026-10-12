@@ -51,6 +51,9 @@ export const setProperty = value => {
  * JSON's. The containers around it are `treeSerialize`'s, shared with every
  * other JSON codec.
  *
+ * `marked` is `stringify` as runs: the same text, its strings, numbers and
+ * `null` and booleans marked with their kinds, for a page to colour.
+ *
  * `stringify` follows the standard `JSON.stringify` rules determined by
  * https://262.ecma-international.org/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-ownpropertykeys
  * https://tc39.es/ecma262/#sec-serializejsonproperty
@@ -59,7 +62,7 @@ export const setProperty = value => {
  *
  * @type {Codec<Primitive>}
  */
-export const { serialize, stringify } = codec(leafSerialize(numberSerialize)({}))
+export const { serialize, stringify, marked } = codec(leafSerialize(numberSerialize)({}))
 
 /**
  * The standard codec's numeric policy: every JSON number becomes a

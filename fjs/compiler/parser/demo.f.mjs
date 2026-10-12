@@ -30,7 +30,7 @@ import { codeMarker } from '../../website/style/module.f.js'
 import { tryMarked } from '../../media/datajs/module.f.mjs'
 import { error } from '../../types/result/module.f.js'
 import { textDemo, refusal, caption } from '../../website/demo/module.f.mjs'
-import { render } from '../../website/demo/highlight/module.f.mjs'
+import { highlight, render } from '../../website/demo/highlight/module.f.mjs'
 import { examples } from '../examples/module.f.js'
 import { parse } from '../transpiler/module.f.mjs'
 
@@ -50,6 +50,7 @@ export const demo = textDemo({
     label: 'Source',
     init: examples[0][1],
     examples,
+    highlight,
 })(text => {
     const [kind, value] = _astOf(text)
     return kind === 'ok'

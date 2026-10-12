@@ -89,6 +89,9 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
    constant-string form is implemented
    ([property keys](../README.md#property-keys)); the general one waits
    on expressions.
+10. [ ] [the `in` operator](./2346-in-operator.md) — stays out of the language
+   by design; open for designer approval
+   (its file says P3, not this list's P2).
 
 ### 2.3. Syntactic Sugar
 

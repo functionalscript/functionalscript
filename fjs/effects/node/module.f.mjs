@@ -29,7 +29,7 @@ import { tryUtf8, utf8, utf8ToString } from '../../text/module.f.mjs'
 import { concat } from '../../types/list/module.f.mjs'
 import { isInteger } from '../../types/number/is_integer/module.f.js'
 import { definedEntries } from '../../types/object/module.f.mjs'
-import { byteLength, bytesIn, isWholeBytes, isWholeBytesIn, length, maxLengthBytes, u8ListMsb } from '../../types/bit_vec/module.f.mjs'
+import { byteLength, bytesIn, empty as emptyVec, isWholeBytes, isWholeBytesIn, length, maxLengthBytes, u8ListMsb } from '../../types/bit_vec/module.f.mjs'
 import { nonEmpty, empty as elEmpty } from '../list/module.f.mjs'
 import { ok } from '../../types/result/module.f.js'
 import { do_, errorMessage, ioError, toIoError } from '../module.f.mjs'
@@ -557,27 +557,42 @@ export const _pieces = units => s => {
 export const _vecList = (vs, i) => () => ok(i < vs.length ? { first: vs[i], tail: _vecList(vs, i + 1) } : undefined)
 
 /**
+ * Writes `chunks` to `path`, one after another, replacing what it held — the
+ * write mirror of {@link readWhole}, whose chunks it takes as they come.
+ *
+ * {@link writeFile} takes the first chunk and {@link writeBytes} each next at
+ * the offset where the last ended, which is why a file's size is not bounded
+ * by a `Vec`'s. No chunks is an empty file. **It fails closed**, as
+ * {@link writeFromStream} does: once the first chunk is written, a failure
+ * removes `path` before the error is returned, so no truncated file is left
+ * behind for a reader to mistake for the whole. The removal's own outcome is
+ * discarded.
+ *
+ * @type {(path: string, chunks: readonly Vec[]) => Effect<WriteFile | WriteBytes | Rm, void, IoChannel>}
+ */
+export const writeChunks = (path, chunks) => {
+    if (chunks.length === 0) { return writeFile(path, emptyVec) }
+    const [first, ...rest] = chunks
+    const written = catchStep(
+        writeLoop(path)(Number(byteLength(first)), _vecList(rest, 0)),
+        err => resultStep(rm(path), () => pureError(err)))
+    return ioStep(writeFile(path, first), () => written)
+}
+
+/**
  * Writes a string to `path` as UTF-8 bytes, replacing what it held.
  *
  * A text whose UTF-8 fits one `Vec` is a single {@link writeFile}, however close
  * to the limit it comes. A larger one is encoded in pieces of at most one `Vec`
- * each, which is why its size is not bounded by a `Vec`'s: {@link writeFile}
- * takes the first piece and {@link writeBytes} each next at the offset where the
- * last ended. **A larger text fails closed**, as {@link writeFromStream} does:
- * once the first piece is written, a failure removes `path` before the error
- * is returned, so no truncated file is left behind for a reader to mistake for
- * the whole. The removal's own outcome is discarded.
+ * each and written by {@link writeChunks}, so it fails closed as that does.
  *
  * @type {(path: string, content: string) => Effect<WriteFile | WriteBytes | Rm, void, IoChannel>}
  */
 export const writeUtf8File = (path, content) => {
     const whole = tryUtf8(content)
-    if (whole !== null) { return writeFile(path, whole) }
-    const [first, ...rest] = _pieces(chunkUnits)(content).map(utf8)
-    const written = catchStep(
-        writeLoop(path)(Number(byteLength(first)), _vecList(rest, 0)),
-        err => resultStep(rm(path), () => pureError(err)))
-    return ioStep(writeFile(path, first), () => written)
+    return whole !== null
+        ? writeFile(path, whole)
+        : writeChunks(path, _pieces(chunkUnits)(content).map(utf8))
 }
 
 /**

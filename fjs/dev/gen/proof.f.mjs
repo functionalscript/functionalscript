@@ -21,6 +21,7 @@ import { main as ci } from '../../ci/self/module.f.mjs'
 import { main as rustTests } from '../../nanvm/update/module.f.mjs'
 import { corpus, main as matrix, modules as corpusModules } from '../../media/datajs/vectors/matrix/module.f.mjs'
 import { main as fixtures, modulesPath } from '../../nanvm/harness/module.f.mjs'
+import { main as cloudflare } from '../../website/cloudflare/module.f.mjs'
 import { tryStringify } from '../../media/datajs/serializer/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { asNominal } from '../../types/nominal/module.f.js'
@@ -80,12 +81,13 @@ export const proof = {
     // The order is the design's: cleanup, then the generators, the one that
     // writes the flakes before the lock step that reads them.
     generators: () => {
-        assertEq(generators.length, 5)
+        assertEq(generators.length, 6)
         assert(generators[0] === clean)
         assert(generators[1] === ci)
         assert(generators[2] === rustTests)
         assert(generators[3] === matrix)
         assert(generators[4] === fixtures)
+        assert(generators[5] === cloudflare)
     },
     sequence: {
         allSucceed: () => {
