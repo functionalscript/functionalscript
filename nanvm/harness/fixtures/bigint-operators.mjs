@@ -1,5 +1,5 @@
 /**
- * Compiled by `fjs compile` into `../gen.fixtures/bigint-operators.rs`, committed and
+ * Compiled by `fjs compile` into `../gen.fixtures/bigint_operators.rs`, committed and
  * drift-checked by `npm run gen` (see `../../../fjs/ci/README.md`). Consumed by
  * `../src/lib.rs`. Pins the operators on bigints through the compile path: arithmetic, bitwise and shift operators across the end of `i64`, the sign rules of division and remainder, relational operators and strict equality with a bigint of another size, and `typeof`. Operands are kept inside the native word limit. Operands come from an operation, as `operators.mjs` does, so that no literal is substituted.
  */
