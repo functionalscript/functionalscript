@@ -118,17 +118,18 @@ writes no `cargo.doc/` and no links. `target/` itself is never served: it
 holds build artifacts beside the docs, and `.assetsignore` keeps it out of
 every upload, whichever build made it.
 
-**rustdoc's pages carry the site's header and footer.** `npm run rustdoc-bars`
+**rustdoc's pages carry the site's favicon, header and footer.** `npm run rustdoc-bars`
 writes them, from the same builders every page uses, as `_rustdoc-header.html`
-and `_rustdoc-footer.html`, with `_rustdoc.css` for their look; `cargo doc`
+and `_rustdoc-footer.html`, with `_rustdoc.css` for their look. It also writes
+`_rustdoc-head.html` from the shared favicon links; `cargo doc`
 puts them on each page it writes when it is given them. They have to exist
 before `cargo doc` runs and the site is generated after it, so a build with the
-bars is:
+favicon and bars is:
 
 ```bash
 npm run rustdoc-bars
 cargo clean --doc
-RUSTDOCFLAGS="--html-before-content $PWD/_rustdoc-header.html --html-after-content $PWD/_rustdoc-footer.html --extend-css $PWD/_rustdoc.css" cargo doc --no-deps --workspace
+RUSTDOCFLAGS="--html-in-header $PWD/_rustdoc-head.html --html-before-content $PWD/_rustdoc-header.html --html-after-content $PWD/_rustdoc-footer.html --extend-css $PWD/_rustdoc.css" cargo doc --no-deps --workspace
 npm run website
 ```
 
@@ -142,6 +143,11 @@ flags are unchanged, even though the files they name have changed. Two rules
 in `_rustdoc.css` lean on rustdoc's own layout, and its JSDoc says which; the
 rest of rustdoc's look is its own
 ([rustdoc-site-theme](todo/rustdoc-site-theme.md)).
+
+`--html-in-header` adds the site’s ICO and SVG links after rustdoc’s own
+icons in the pinned rustdoc. The original links remain; the HTML icon
+selection rule prefers the last equally appropriate icon. Verify the tab
+icon after a hard refresh when changing the rustdoc pin.
 
 **`cargo.doc/` is not cleaned between local builds**, as no generated page
 is: the generator only writes. A build without `target/doc` leaves an earlier

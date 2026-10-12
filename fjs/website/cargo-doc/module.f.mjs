@@ -25,6 +25,7 @@
 import { element } from '../../media/html/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'
 import { footer, header, pageTitle, shell } from '../page/module.f.mjs'
+import { faviconLinks } from '../style/module.f.mjs'
 
 /**
  * Where `cargo doc` writes, which the build reads and never serves: `target/`
@@ -78,6 +79,12 @@ export const cargoDocPage = build => crates => shell(build)(pageTitle('Rust API'
  * @type {string}
  */
 export const rustdocHeaderPath = '_rustdoc-header.html'
+
+/** Where `rustdoc-bars` writes the favicon links for rustdoc, `--html-in-header`. @type {string} */
+export const rustdocHeadPath = '_rustdoc-head.html'
+
+/** The site's shared favicon links, serialized for rustdoc's `<head>`. @type {string} */
+export const rustdocHead = faviconLinks.map(e => concat(element(e))).join('')
 
 /** Where `rustdoc-bars` writes the site's footer for rustdoc, `--html-after-content`. @type {string} */
 export const rustdocFooterPath = '_rustdoc-footer.html'
