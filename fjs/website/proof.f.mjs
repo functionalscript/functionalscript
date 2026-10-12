@@ -68,6 +68,28 @@ const pageAt = (root, path) => textOf(
     `the page for ${path.join('/')}`)
 
 export const proof = {
+    cli: {
+        page: () => {
+            const { root } = generate({})
+            const html = pageAt(root, ['cli'])
+            assert(html.includes('<h1>FunctionalScript CLI</h1>'), html)
+            assert(html.includes('id="cas-get"'), html)
+            assert(html.includes('href="/_main.css"'), html)
+            assert(pageAt(root, []).includes('href="/cli/">CLI</a>'), 'shared navigation')
+        },
+        repeatBuild: () => {
+            const first = generate({ fjs: { cli: {}, website: { cli: {} } } })
+            const second = generate(first.root)
+            assertEq(pageAt(second.root, []), pageAt(first.root, []))
+            assertEq(pageAt(second.root, ['cli']), pageAt(first.root, ['cli']))
+            assert(pageAt(second.root, ['fjs']).includes('href="/fjs/cli/index.html"'), 'source CLI page remains')
+            assert(!pageAt(second.root, []).includes('href="/cli/index.html" data-kind="dir"'), 'output is not discovered as source')
+        },
+        routeIsAFile: () => {
+            const [, code] = run({ cli: file('occupied') })
+            assert(code !== 0)
+        },
+    },
     rootCatalogue: () => {
         const { root } = generate({ a: {}, todo: { 'a.md': file('# issue') } })
         const html = pageAt(root, [])
