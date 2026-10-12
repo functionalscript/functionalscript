@@ -197,3 +197,27 @@ recognizes; it needs no node of its own.
 [`fjs/types/number/is_safe_integer`](../fjs/types/number/is_safe_integer/module.f.js),
 which is `isInteger` within the inclusive bound `2^53 - 1` on either side,
 as the built-in is.
+
+## 3. `Number.isNaN`
+
+Refused as `Number.isInteger` is, and replaced the same way, by `isNaN`
+from [`fjs/types/number/is_nan`](../fjs/types/number/is_nan/module.f.js):
+
+```js
+const canonical = v => Number.isNaN(v) ? 0 : v   // refused
+```
+
+```js
+import { isNaN } from '../types/number/is_nan/module.f.js'
+
+const canonical = v => isNaN(v) ? 0 : v          // accepted
+```
+
+`isNaN(n)` is `n !== n`: `NaN` is the one value not strictly equal to
+itself, so every other number and every value of another type is `false`,
+without coercion, which is what `Number.isNaN` answers. It is not what the
+**global** `isNaN` answers, which converts first — `isNaN("x")` is `true`
+in JavaScript, `isNaN(undefined)` too. A module that called the global on a
+value that is already a number may take the rewrite as it is; one that
+called it on anything else checks what the conversion did there, because
+that is a change of value, not of spelling.
