@@ -103,7 +103,9 @@ pattern lowers to it without changing what it means.
 **3. A restriction must name the mistake it prevents.**
 [Design principles §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
 admits a restriction only for a concrete benefit: a guarantee it protects or a
-mistake it prevents. The guarantee is rule 1 above. The mistakes are the ones
+mistake it prevents. The guarantee is rule 1 above, which every
+implementation short of a prototype chain or an edition-bound inventory
+breaks. The mistakes are the ones
 the table above shows: `in` on an array tests indices, not elements, so
 `2 in [1, 2]` is `false`; it throws on a string or `null` where a reader
 expects a boolean; it answers `true` for every object and `"toString"`; and
