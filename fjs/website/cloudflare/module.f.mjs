@@ -1,9 +1,10 @@
 /**
  * The Cloudflare build, generated: `gen.cloudflare/build.sh` is the build
  * command Cloudflare's Workers Builds runs. It installs what the build image
- * lacks — Rust today — and then runs `npm run website`, which stays the
- * generator alone, so a checkout builds the site with `npm run website`
- * exactly as before and only the deploy carries the installs.
+ * lacks — Rust today — documents the workspace's crates with `cargo doc`, and
+ * runs `npm run website`, which stays the generator alone, so a checkout
+ * builds the site with `npm run website` exactly as before and only the
+ * deploy carries the installs.
  *
  * **Generated rather than written**, because of the version in it. The
  * toolchain it installs is {@link rust} from `fjs/ci/config` — the constant
@@ -19,6 +20,7 @@
  */
 
 import { rust } from '../../ci/config/module.f.js'
+import { rustdocFooterPath, rustdocHeaderPath, rustdocStylesheetPath } from '../cargo-doc/module.f.mjs'
 import { step } from '../../effects/module.f.mjs'
 import { exitStep, mkdir, writeUtf8File } from '../../effects/node/module.f.mjs'
 
@@ -44,13 +46,21 @@ export const buildPath = `${generatedDirectory}/build.sh`
  * the build image is a fresh container's, and runs non-interactively with
  * the smallest profile that carries `cargo` and `rustdoc`, exactly the
  * pinned toolchain, and no edit to a shell profile nothing would read: the
- * script puts the new `cargo` on the `PATH` it hands `npm run website`
- * instead, so the generator and whatever it runs find it.
+ * script puts the new `cargo` on its own `PATH` instead.
+ *
+ * **Then the site, `cargo doc`, and the site again** — the order
+ * [`../README.md`](../README.md#the-rust-api-reference) gives. The first
+ * `npm run website` writes the site's header, footer and their stylesheet,
+ * which `cargo doc` puts on every page of rustdoc's; the second copies
+ * `target/doc` onto the site and links it. `--no-deps` documents the
+ * workspace's crates and not their dependencies. No `cargo clean --doc`:
+ * the build starts from a fresh checkout, with no earlier docs to reuse.
  *
  * `set -e` makes the first failing step the script's result, so a build that
  * could not install does not go on to publish as if it had.
  *
- * The script calls external tools — `curl`, `rustup`'s installer and `npm` —
+ * The script calls external tools — `curl`, `rustup`'s installer, `npm` and
+ * `cargo` —
  * which the repository owner approved for this one script
  * ([`AGENTS.md` §6](../../../AGENTS.md#6-external-tools)). Its proof pins the
  * text exactly, so no tool joins it unseen.
@@ -61,7 +71,10 @@ export const buildText = () => `#!/bin/sh
 set -e
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o "$HOME/rustup-init.sh"
 sh "$HOME/rustup-init.sh" -y --profile minimal --default-toolchain ${rust} --no-modify-path
-PATH="$HOME/.cargo/bin:$PATH" npm run website
+export PATH="$HOME/.cargo/bin:$PATH"
+npm run website
+RUSTDOCFLAGS="--html-before-content $PWD/${rustdocHeaderPath} --html-after-content $PWD/${rustdocFooterPath} --extend-css $PWD/${rustdocStylesheetPath}" cargo doc --no-deps --workspace
+npm run website
 `
 
 /**

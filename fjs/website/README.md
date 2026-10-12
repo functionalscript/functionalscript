@@ -110,16 +110,16 @@ checkout, which has no `cargo.doc/` at all, so none of them ships.
 
 `cargo.doc/` is the one generated name outside `index.html` and the
 `_`-prefixed files, so `.gitignore` and `tsconfig.json` name it, and the walk
-excludes it as it excludes `prs/`. The deploy installs the pinned Rust
-([the build command](#the-build-command)); running `cargo doc` there, in the
-order above, is [cargo-doc-build-host](todo/cargo-doc-build-host.md)'s
-remaining task.
+excludes it as it excludes `prs/`. The deploy installs the pinned Rust and runs
+these steps, without `cargo clean --doc`, which a fresh checkout does not need
+([the build command](#the-build-command)).
 
 ## The build command
 
 Cloudflare's build command runs `sh ./gen.cloudflare/build.sh`, a generated
-script: it installs what the build image lacks and then runs
-`npm run website`. The command itself is set in the Cloudflare dashboard, so
+script: it installs what the build image lacks, then runs `npm run website`,
+`cargo doc` and `npm run website` again, which publishes the Rust API
+reference ([the Rust API reference](#the-rust-api-reference)). The command itself is set in the Cloudflare dashboard, so
 the script is what keeps its steps in the repository, where they are reviewed
 and have a history. `npm run website` stays the generator alone: a checkout
 builds the site with it exactly as before, and only the deploy carries the
@@ -136,10 +136,9 @@ generated from that constant by
 is, so the version is written in the script in full, a bump of the pin is a
 diff the drift check guards, and nothing in the dashboard names a version
 that could drift. The toolchain goes into the build container's home, and
-its `cargo` is on the `PATH` the script hands `npm run website`. Running
-`cargo doc` there is [cargo-doc-build-host](todo/cargo-doc-build-host.md)'s
-remaining task; `target/`, which it will write beside the docs, is already
-in [`.assetsignore`](../../.assetsignore) and never served.
+its `cargo` is on the script's `PATH`. `target/`, which `cargo doc` writes
+beside the docs, is in [`.assetsignore`](../../.assetsignore) and never
+served.
 
 Installing Rust in the build was chosen over the alternative, building and
 deploying from CI in the Nix shell with `wrangler`, for what it keeps:
@@ -150,9 +149,10 @@ and leave a fork's pull request, which gets no secrets, without one. The
 build image cannot hold the shell itself: it ships no Nix, a build runs
 unprivileged and cannot create `/nix`, and the shell's closure would be
 fetched whole on every deploy against a twenty-minute limit. What this
-choice costs is `rustup`'s download and install on every deploy. The
-repository owner approved the script's invocation of `curl`, `rustup`'s
-installer and `npm` ([`AGENTS.md` §6](../../AGENTS.md#6-external-tools)).
+choice costs is `rustup`'s download and install on every deploy, and a
+second run of the generator. The repository owner approved the script's
+invocation of `curl`, `rustup`'s installer, `npm` and `cargo`
+([`AGENTS.md` §6](../../AGENTS.md#6-external-tools)).
 
 ## Every directory gets a page
 
