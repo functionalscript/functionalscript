@@ -734,6 +734,33 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
 [${codeMarker}] mark { background: var(--fail-bg); border-radius: 3px; color: var(--fail); outline: 1px solid color-mix(in srgb, var(--fail) 40%, transparent) }
 /* ECDSA's diagram separates the intercepted packet from Bob's prior trust.
    Reflow the same semantic content on small screens, preserving reading order. */
+[data-secp-playground] { min-width: 0 }
+[data-secp-layout] { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 1.5rem; align-items: start }
+[data-secp-layout] > div { min-width: 0 }
+[data-secp-graph] { width: 100%; height: auto; display: block; font-size: 11px; overflow: hidden }
+[data-secp-graph] text { fill: currentColor }
+[data-secp-grid] { stroke: var(--border); stroke-width: 1 }
+[data-secp-dot] { fill: var(--muted); cursor: pointer; stroke: transparent; stroke-width: 8 }
+[data-secp-point="input"] { stroke: #d97706; fill: #d97706 }
+[data-secp-point="base"] { stroke: #8b5cf6; fill: #8b5cf6 }
+[data-secp-point="result"] { stroke: #0284c7; fill: #0284c7 }
+[data-secp-point="step"] { stroke: #dc2626; fill: #dc2626 }
+[data-secp-graph] circle[fill="none"] { fill: none }
+[data-secp-label] { font-weight: bold; paint-order: stroke; stroke: var(--bg); stroke-width: 3px }
+[data-secp-real-curve] { stroke: currentColor; stroke-width: 2 }
+[data-secp-line] { stroke: #d97706; stroke-width: 2; fill: none }
+[data-secp-reflection] { stroke: #0284c7; stroke-width: 2; stroke-dasharray: 5 4 }
+[data-demo-drag] { cursor: ew-resize; touch-action: none }
+[data-secp-controls] { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: 1rem 0 }
+[data-secp-controls] button { min-height: 44px; min-width: 44px }
+[data-secp-playground] select { max-width: 100%; min-height: 44px }
+[data-secp-playground] input[type="range"] { width: 100%; min-height: 44px }
+[data-secp-playground] pre { white-space: pre-wrap; overflow-wrap: anywhere }
+[data-secp-reduced] { display: none }
+@media (prefers-reduced-motion: reduce) { [data-secp-controls] button[name="play"] { display: none } [data-secp-reduced] { display: inline } }
+[data-demo-click]:focus-visible { outline: 3px solid currentColor; outline-offset: 3px }
+@media (max-width: 760px) { [data-secp-layout] { grid-template-columns: minmax(0, 1fr) } }
+
 [${signSchemeMarker}] { border: 1px solid var(--border); border-radius: 12px; margin: 1rem 0 2rem; padding: 1rem; font-size: .875rem }
 [${signSchemeMarker}] svg { display: block; width: 2.5rem; height: 2.5rem; flex: none; margin: .5rem auto }
 [${signFlowMarker}] { display: grid; grid-template-columns: minmax(0, 1fr) 4.5rem minmax(0, 1fr) 4.5rem minmax(0, 1fr); gap: .65rem; align-items: start }

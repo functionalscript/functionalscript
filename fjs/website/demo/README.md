@@ -193,3 +193,19 @@ an input — for one refused input, so a change that breaks any of them is
 caught where it is made rather than on the page. A module that answers every
 input has no refusal to drive: the tokenizer reads text it cannot tokenize
 as an `error` token among the others, a line of its output, not a refusal.
+
+## Stepped visualizations
+
+A demo can request paced playback with `nextEvent` and an optional `nextDelay`
+in milliseconds. The runtime cancels a pending turn when a reader changes an
+input or clicks a control. Delayed turns respect reduced-motion preferences;
+undelayed incremental computation keeps its existing scheduling behavior.
+
+An SVG control can send a click event through `data-demo-click`, with `role`,
+`tabindex`, and a visible/textual equivalent supplied by its demo. Enter and
+Space activate it. A horizontally draggable SVG handle names a corresponding
+native range input in `data-demo-drag`; its SVG supplies `data-demo-x-min`,
+`data-demo-x-max`, `data-demo-x-left`, and `data-demo-x-right`. The runtime
+transforms screen coordinates into SVG coordinates, clamps to the range input,
+and sends an ordinary input event. The demo constrains that value to its model.
+Keep the native input available for keyboard and assistive-technology users.

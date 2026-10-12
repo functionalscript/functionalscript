@@ -64,3 +64,31 @@ Node16:
     256k1: 5839
     256r1: 5746
 ```
+
+## Elliptic Curve Playground
+
+The module page discovers `demo.f.mjs` automatically. Build with
+`npm run website`, serve the repository root, and open `/fjs/crypto/secp/`.
+
+- **Finite Field View** plots all 28 finite points of
+  `y² = x³ + x + 4 mod 23`. Select addition, doubling, negation, or `kG`;
+  use the grid or point selectors, then Previous/Next or Play/Pause.
+  The default `3G` is `(11,9)`. Scalars 0 and 29 illustrate infinity, which
+  is `null` in the module and has no plotted coordinates. Show Math explains
+  substituted modular calculations and each repeated-addition frame.
+- **Geometric View** uses the distinct real curve `y² = x³ − x + 1`.
+  Drag inputs horizontally along their branch or use the sliders and branch
+  selectors. Step through secant/tangent, third intersection, and reflection.
+  Vertical lines give infinity; unstable constructions are refused and
+  off-screen results are reported rather than squeezed into the graph.
+  This is an analogy, not a continuous picture of finite-field arithmetic.
+- **Real Curves** derives and SEC 1 validates `dG` for all five named curves.
+  Enter a demo-only decimal scalar in `1 ≤ d < n`, then Generate Public Key
+  and copy the padded hexadecimal coordinates. Everything stays client-side;
+  never enter real wallet keys or private secrets.
+
+Input changes reset playback. Reduced-motion preferences disable automatic
+playback while preserving manual steps. SVG point controls have keyboard and
+native selector equivalents; geometry sliders support keyboard and touch input.
+The pure calculation helpers and their proofs live in `playground/`; the
+shared website runtime owns DOM events, pointer capture, and delayed turns.
