@@ -8,6 +8,8 @@
  * @import { Printer } from './types.ts'
  */
 
+import { isFinite_ } from '../number/is_finite/module.f.js'
+
 /** @type {(open: string, close: string) => (i: readonly string[]) => string} */
 const complex = (open, close) => i =>
     `${open}${i.join(',')}${close}`
@@ -40,7 +42,7 @@ export const primitive = c => {
     switch (typeof c) {
         case 'bigint': return `${c}n`
         case 'string': return JSON.stringify(c)
-        case 'number': return isFinite(c) ? String(c) : 'number'
+        case 'number': return isFinite_(c) ? String(c) : 'number'
         case 'undefined':
         case 'boolean': return String(c)
     }
