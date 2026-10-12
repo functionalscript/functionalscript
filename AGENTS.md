@@ -123,8 +123,9 @@ direction and consistency: a `todo/` that contradicts the code or another
 `todo/` is corrected, not built on, and deviating from a design is fine where
 deviating silently is not
 ([DESIGN.md §3](./doc/DESIGN.md#3-design-before-implementation)). Write the
-code plus its proof, run `npm run gen` after changing source, run the check
-set above, and delete the `todo/` issue file the PR fixes, if there is one.
+code plus its proof, run `npm run gen` where a generator or its input changed,
+run the checks above, and delete the `todo/` issue file the PR fixes, if there
+is one.
 
 A file or directory whose name starts with `gen.` is generated, and so is
 everything inside a `gen.*` directory: change its generator, never the output,

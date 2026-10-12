@@ -231,7 +231,9 @@ The includes matter: what the directory imports from elsewhere runs too, only
 partly covered by these proofs, and the thresholds would fail on it. A scoped
 run takes seconds where the full suite takes minutes, and it is what
 [AGENTS.md](./AGENTS.md) asks of a change under one directory; the full
-`npm run cov` is CI's.
+`npm run cov` is CI's. The block is POSIX shell; on bare Windows, `npm run cov`
+measures the whole tree, and the command this stands in for is proposed in
+[`fjs/emergent_testing/todo/per-module-coverage.md`](./fjs/emergent_testing/todo/per-module-coverage.md).
 
 To validate the packed npm package itself against clean Node, Deno, and Bun
 consumers — for example after changing `prepack`, `files`, or anything that
