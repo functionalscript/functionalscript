@@ -24,8 +24,7 @@ seconds where the full suite takes minutes, and the full run is CI's job.
 Which checks a diff calls for is a judgement, made before every commit and
 push; these are its usual answers:
 
-- **Markdown only** — docs, `todo/`, the changelog: nothing. No proof reads
-  them.
+- **Markdown only** — docs, `todo/`, the changelog: nothing.
 - **FunctionalScript, JavaScript or TypeScript**: `tsc`, then the tests under
   the changed directory — `cd` into it and run `npm start test` — and, for a
   new or changed module, its proof coverage scoped the same way
@@ -40,7 +39,8 @@ push; these are its usual answers:
 
 Whoever writes a change knows what it touches, and that is the judgement asked
 for: what reads the file, not what its extension is — a `Cargo.toml` is Rust,
-a `package-lock.json` is what `npm ci` checks. A wrong guess costs one red CI
+and so is a README a module pulls in with `include_str!`; a
+`package-lock.json` is what `npm ci` checks. A wrong guess costs one red CI
 run, which is what CI is there to catch.
 
 The scope is the changed directory, not its importers: a change to a module
