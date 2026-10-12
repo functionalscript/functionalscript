@@ -316,24 +316,40 @@ The `Object` namespace is not admitted outside the `entry` helper
 [`fjs/types/object/is`](../fjs/types/object/is/module.f.js):
 
 ```js
-const sign = v => v < 0 || Object.is(v, -0) ? 1n : 0n   // refused
+const same = (a, b) => Object.is(a, b) ? 0 : 1          // refused
 ```
 
 ```js
 import { is } from '../types/object/is/module.f.js'
 
-const sign = v => v < 0 || is(v, -0) ? 1n : 0n           // accepted
+const same = (a, b) => is(a, b) ? 0 : 1                  // accepted
 ```
 
-`is(a, b)` is SameValue, as `Object.is` is: `===`, except that `NaN` is
-itself and `0` is not `-0`. It is spelled with the operators the language
-has and the helper of rule 3 —
-`a === b ? a !== 0 || 1 / a === 1 / b : isNaN_(a) && isNaN_(b)`, the zeros
-told apart through `1 / a` as `min` and `max` tell them — and its proof
-compares every pair of a list spanning every type, the zeros, `NaN`, the
-bigint zero and two containers of one shape, against the built-in. A
-module that read `is` off the namespace with `const { is } = Object` imports
-the same function under the same name, and changes nothing else.
+`is(a, b)` is SameValue, as `Object.is` is: `===`, except on the two
+values `===` reads the other way, and it is spelled from the two helpers
+that name them —
+`a === b ? isNegativeZero(a) === isNegativeZero(b) : isNaN_(a) && isNaN_(b)`
+— with `isNaN_` from rule 3 and `isNegativeZero` from
+[`fjs/types/number/is_negative_zero`](../fjs/types/number/is_negative_zero/module.f.js),
+which is `n === 0 && 1 / n < 0`, the zeros told apart through `1 / n` as
+`min` and `max` tell them. Its proof compares every pair of a list spanning
+every type, the zeros, `NaN`, the bigint zero and two containers of one
+shape, against the built-in. A module that read `is` off the namespace
+with `const { is } = Object` imports the same function under the same
+name, and changes nothing else.
+
+The test for `-0` alone, `Object.is(x, -0)`, is the built-in's most common
+use, and `isNegativeZero(x)` says it directly:
+
+```js
+const sign = v => v < 0 || Object.is(v, -0) ? 1n : 0n        // refused
+```
+
+```js
+import { isNegativeZero } from '../types/number/is_negative_zero/module.f.js'
+
+const sign = v => v < 0 || isNegativeZero(v) ? 1n : 0n       // accepted
+```
 
 The EDAG has no node for it: the function is the one spelling, as the
 strategy above says, and the language may take `Object.is(a, b)` in as
