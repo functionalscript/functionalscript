@@ -85,10 +85,8 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
    until a representation is chosen; `Number(...[])` is `0`
    (its file says P3, not this list's P2),
 8. [ ] property key as number — `{ 3e+7: true }` (no leading sign allowed),
-9. [ ] computed property key from an expression — `{ [name]: 0 }`. The
-   constant-string form is implemented
-   ([property keys](../README.md#property-keys)); the general one waits
-   on expressions.
+9. [x] computed property key from an expression — `{ [name]: 0 }`
+   ([property keys](../README.md#property-keys)).
 10. [ ] [the `in` operator](./2346-in-operator.md) — stays out of the language
    by design; open for designer approval
    (its file says P3, not this list's P2).

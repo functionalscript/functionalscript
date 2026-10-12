@@ -608,16 +608,19 @@ const item = (s, path) => v => v instanceof Array && v[0] === '...'
 
 /**
  * An object's entry: a property, `k: v`, or a spread, `...` before its
- * operand. A key that is not a string has no literal.
+ * operand. A string key is written as DataJS writes one; any other key is
+ * computed, written in brackets, `[k]: v`, from the operand it is — a
+ * number, or a node evaluated where the object is built — as JavaScript
+ * reads it back.
  *
  * @type {(s: _Scope, path: string) => (p: readonly [':', Operand, Operand] | readonly ['...', Operand]) => Document}
  */
 const property = (s, path) => p => {
     if (p[0] === '...') { return mapOk(value => flat([['...'], value]))(operand(s, path)(p[1])) }
     const [, k, v] = p
-    return typeof k !== 'string'
-        ? error('an object key that is not a string')
-        : mapOk(value => flat([keySerialize(k), colon, value]))(operand(s, path)(v))
+    return typeof k === 'string'
+        ? mapOk(value => flat([keySerialize(k), colon, value]))(operand(s, path)(v))
+        : okThen(/** @type {(key: List<Chunk>) => Document} */ (key => mapOk(value => flat([['['], key, [']'], colon, value]))(operand(s, path)(v))))(operand(s, `${path}/key`)(k))
 }
 
 /** A key in brackets, `[k]`, where no word follows a `.`. @type {(k: string | number) => Document} */

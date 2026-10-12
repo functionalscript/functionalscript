@@ -357,7 +357,7 @@ export const proof = {
                 ["import x from y\nexport default x", "unexpected token", [1, 15]],
                 ["export x from \"m\"\nexport default 1", "unexpected token", [1, 8]],
                 ["const = 1\nexport default 1", "unexpected token", [1, 7]],
-                ["export default {[1]:2}", "unexpected token", [1, 18]],
+                ["export default {[]:2}", "unexpected token", [1, 18]],
                 // one terminator per statement: a second `;` is not an empty
                 // statement, it is a stray token the next rule rejects,
                 // however much trivia separates it from the first
@@ -1125,7 +1125,10 @@ export const proof = {
         }
     ],
     // A computed key `["a"]` is a third spelling of an ordinary key, next to
-    // the identifier and the string literal (#2470).
+    // the identifier and the string literal (#2470). Any other value in the
+    // brackets is a key computed where the object is built, `{ [k]: v }`:
+    // the AST holds the key's value in the string's place, and the EDAG's
+    // constructor converts it to a property key as JavaScript does.
     computedKey: [
         () => {
             const tokenList = tokenizeString('export default {["a"]:1};')
@@ -1157,6 +1160,32 @@ export const proof = {
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
             assertEq(result, '[[],[["object",[[":","default",["object",[[":","__proto__",["object",[[":","a",42]]]]]]]]]]]')
+        },
+        () => {
+            // a reference resolves as it does anywhere: a `const` to its
+            // node, a parameter to its slot
+            expectModule('const a = 0; export default {[a]: 5};', '[[],[0,["object",[[":","default",["object",[[":",["cref",0],5]]]]]]]]')
+            expectModule('const a = [1]; export default {[a]: 5};', '[[],[["array",[1]],["object",[[":","default",["object",[[":",["cref",0],5]]]]]]]]')
+            expectModule('export default (k) => ({[k]: 1});', '[[],[["object",[[":","default",["=>",1,[["object",[[":",["arg",0],1]]]]]]]]]]')
+            // a literal of any type is itself, and an expression its node
+            expectModule('export default {["a"]: 1, [0]: 2, [null]: 3};', '[[],[["object",[[":","default",["object",[[":","a",1],[":",0,2],[":",null,3]]]]]]]]')
+            expectModule('export default {[1 + 1]: 2};', '[[],[["object",[[":","default",["object",[[":",["+",1,1],2]]]]]]]]')
+            expectModule('export default {[[1][Number(0)]]: 2};', '[[],[["object",[[":","default",["object",[[":",[".",["array",[1]],["Number",0]],2]]]]]]]]')
+            expectModule('export default {[(() => { const c = [1]; return c; })()]: 2};', '[[],[["object",[[":","default",["object",[[":",["()",["=>",0,[["array",[1]],["cref",0]]],[]],2]]]]]]]]')
+        },
+        () => {
+            // a key that evaluates to `__proto__` is no spelling of the
+            // key JavaScript reads as a prototype: it defines an own
+            // property, as the constant computed spelling does
+            expectModule('const k = "__proto__"; export default {[k]: 1};', '[[],["__proto__",["object",[[":","default",["object",[[":",["cref",0],1]]]]]]]]')
+        },
+        () => {
+            // the key is evaluated before the value, and after the members
+            // before it, as JavaScript evaluates them: the first fault in
+            // document order is the one reported
+            expectRefused('export default {[missing]: alsoMissing};', 'const not found', 18)
+            expectRefused('export default {a: missing, [b]: 1};', 'const not found', 20)
+            expectRefused('const a = 1; export default {[a]: missing};', 'const not found', 35)
         },
     ],
     // A shorthand member, `{ a }`, is `a: a` as it is in JavaScript: the
@@ -1197,8 +1226,8 @@ export const proof = {
     ],
     invalidComputedKey: [
         () => {
-            // the brackets hold a string literal, not a number
-            const tokenList = tokenizeString('export default {[1]:2}')
+            // the brackets hold a value, not nothing
+            const tokenList = tokenizeString('export default {[]:2}')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
             assertEq(obj[1].message, 'unexpected token')
@@ -1230,6 +1259,10 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
             assertEq(obj[1].message, 'unexpected token')
+        },
+        () => {
+            // …whatever value the brackets hold
+            expectRefused('export default {[a]};', 'unexpected token', 20)
         },
     ],
     // `{__proto__: v}` and `{"__proto__": v}` assign a prototype in JavaScript

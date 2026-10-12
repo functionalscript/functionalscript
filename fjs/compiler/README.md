@@ -383,7 +383,9 @@ first/follow check, found three of the eight.
 - [x] identifiers `{a:5}`
 - [x] computed keys `{["a"]:5}`, the only keyed spelling of a `__proto__` key;
   the short form `{ __proto__ }` below is the other
-  ([spec: the `__proto__` key](../../spec/README.md#the-__proto__-key))
+  ([spec: the `__proto__` key](../../spec/README.md#the-__proto__-key)) —
+  and `{[k]:5}`, a key computed from any value
+  ([spec: property keys](../../spec/README.md#property-keys))
 - [x] big int
 - [x] `export default ...`
 - [x] constants

@@ -157,11 +157,15 @@ export type AstArray = readonly ['array', readonly AstItem[]]
 
 /**
  * One member of an object, tagged `:` as the EDAG's property is: the key it
- * is written under — spelled bare, quoted or computed — and its value. The
- * tag keeps a member apart from a spread, `['...', v]`, which a key `...`
- * would otherwise spell too: `{ "...": 1 }` is a property.
+ * is written under and its value. A key spelled bare, quoted or as a
+ * string in brackets is the constant string; a key computed from any other
+ * value, `{ [k]: v }`, is that value, evaluated before the member's own
+ * and converted to a property key where the object is built, as
+ * JavaScript's `ToPropertyKey` converts it. The tag keeps a member apart
+ * from a spread, `['...', v]`, which a key `...` would otherwise spell
+ * too: `{ "...": 1 }` is a property.
  */
-export type AstMember = readonly [':', string, AstConst]
+export type AstMember = readonly [':', AstConst, AstConst]
 
 /**
  * An entry of an object literal: a member, or a spread, `...v`, whose

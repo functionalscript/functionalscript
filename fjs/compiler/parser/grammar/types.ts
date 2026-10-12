@@ -120,11 +120,11 @@ export type Template = () => readonly ['const', {
     readonly substitution: readonly [number, Value, RepeatFrom<0, readonly [number, Value]>, number]
 }]
 
-/** A member of an object, by its key's spelling: a bare identifier and, optionally, `:` and a value, or a string literal or a computed `["a"]`, each with its `:` and value. */
+/** A member of an object, by its key's spelling: a bare identifier and, optionally, `:` and a value, or a string literal or a computed `[k]`, any value in brackets, each with its `:` and value. */
 export type Member = {
     readonly plain: readonly [typeof identifierName, Option<readonly [number, Value]>]
     readonly string: readonly [number, number, Value]
-    readonly computed: readonly [number, number, number, number, Value]
+    readonly computed: readonly [number, Value, number, number, Value]
 }
 
 /** An entry of an object: `...` and a value, or a member. */

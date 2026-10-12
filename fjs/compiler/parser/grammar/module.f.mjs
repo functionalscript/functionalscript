@@ -62,7 +62,7 @@
  * item   ::= '...' value | value
  * object ::= '{' [ items(entry) ] '}'
  * entry  ::= '...' value | member
- * member ::= id [ ':' value ] | string ':' value | '[' string ']' ':' value
+ * member ::= id [ ':' value ] | string ':' value | '[' value ']' ':' value
  * items(x) ::= x [ ',' [ items(x) ] ]
  * ```
  *
@@ -898,18 +898,20 @@ const valued = /** @type {const} */ ([sym(':'), value])
 
 /**
  * A member of an object, `key: value`, by the key's spelling: a bare
- * identifier, a string literal, or a computed `["a"]`, the three spellings
- * of one constant key. The bare one alone may stand without a value,
- * `{ a }`, the shorthand JavaScript reads as `a: a`: the name is a reference
- * as well as a key, which a string or a bracket spells no more than a
- * string does after `.`.
+ * identifier or a string literal, the two spellings of a constant key, or
+ * a computed `[k]`, whose brackets hold any value, {@link value}, as an
+ * index's do — `["a"]` is the constant `"a"` again, and `[a]` a key read
+ * at run time, converted to a property key as JavaScript converts it. The
+ * bare one alone may stand without a value, `{ a }`, the shorthand
+ * JavaScript reads as `a: a`: the name is a reference as well as a key,
+ * which a string or a bracket spells no more than a string does after `.`.
  *
  * @type {Member}
  */
 export const member = /** @type {const} */ ({
     plain: [identifierName, option(valued)],
     string: [sym('string'), ...valued],
-    computed: [sym('['), sym('string'), sym(']'), ...valued],
+    computed: [sym('['), value, sym(']'), ...valued],
 })
 
 /**
