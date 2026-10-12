@@ -37,8 +37,8 @@ chain**, enumerable or not:
 
 ## Why FunctionalScript does not want it
 
-**1. Two ways to implement it break the language's first rule, and the third
-is compatible but not worth its cost.** Successful FunctionalScript and
+**1. Only one way to implement it breaks the language's first rule; the other
+two are compatible and not worth their cost.** Successful FunctionalScript and
 JavaScript executions have the same observable result
 ([principles](../README.md#principles)), and a text JavaScript gives a meaning
 FunctionalScript cannot reproduce "is a compilation error, not an invitation to
@@ -49,9 +49,9 @@ give it a second, more convenient meaning." There are three ways to implement
   `false` where JavaScript says `true`, and `"length" in []` is `false` where
   JavaScript says `true`. The same accepted text gets a different successful
   result, which is exactly what the rule forbids.
-- *Answer as JavaScript does, with a prototype chain.* This keeps the rule at
-  the price of the chain, so that `"toString" in {}` can be `true`. The language
-  was built without one: "FunctionalScript has no prototype chains"
+- *Answer as JavaScript does, with a prototype chain.* This is compatible, at
+  the price of the chain, so that `"toString" in {}` can be `true`. It is
+  rejected because the language was built without one: "FunctionalScript has no prototype chains"
   ([specification](../README.md#property-access)), and a name a prototype would
   give a value reads as absent, as the [`entry` helper](../README.md#reading-an-entry-at-run-time)
   states. A chain that exists only to answer `in` is the whole feature
@@ -84,9 +84,11 @@ give it a second, more convenient meaning." There are three ways to implement
     `hasEntity`, so the machinery would exist to answer only the questions
     better left unasked.
 
-So the first two are refused because they break the rule, and the third because
-the language would pay for a construct whose only new answers are ones a
-program should not ask. The operator is refused rather than approximated.
+So the own-entries answer is refused because it breaks the rule. The chain and
+the dispatch design keep it, and are refused because the language would pay
+for them, with a chain it was built without or with a read rule it would
+reopen, for a construct whose only new answers are ones a program should not
+ask. The operator is refused rather than approximated.
 
 **2. It does not match any pattern the language whitelists.** The language is a
 whitelist of *complete semantic patterns*, not of operations in isolation
