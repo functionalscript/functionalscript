@@ -175,6 +175,20 @@ JavaScript also leaves `k` unevaluated where `a` is nullish; a pure
 expression evaluated or not is no observation, so the conditional reads the
 same.
 
+The test covers the **whole chain**, not the one access. In JavaScript a
+nullish `a` short-circuits every step after the `?.`, so `a?.[k].x` is
+`undefined`, never a read of `x` on `undefined`; the rest of the chain
+therefore goes inside the non-nullish branch, and only what stands outside
+the chain applies to the conditional's result:
+
+```js
+const read = (a, k) => a?.[k].x ?? 0                                                   // refused
+const read = (a, k) => (a === null || a === undefined ? undefined : entry(a, k).x) ?? 0  // accepted
+```
+
+Written as `(… ? undefined : entry(a, k)).x`, the rewrite would read `x`
+on `undefined` where the chain read nothing, and throw where it returned.
+
 ## 2. `Number.isInteger`
 
 Of the `Number` global, only the call `Number(exp)` is in the language
