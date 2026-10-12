@@ -20,12 +20,9 @@ cargo clippy -- -D warnings   # lint, as CI does: a warning fails there
 cargo fmt -- --check     # verify formatting
 ```
 
-Run all three checks before submitting any change that touches Rust — a `.rs`
-edited by hand or rewritten by `npm run gen`; a `Cargo.toml`, `Cargo.lock`
-or `.cargo/` file, which changes what the workspace builds without touching a
-`.rs`; or a README a module includes as its documentation
-(`#![doc = include_str!("README.md")]`), whose fenced code is a doctest. A
-change that touches none of these skips them ([AGENTS.md](../../AGENTS.md)).
+Run all three checks before submitting any change that touches Rust — a `.rs`,
+a Cargo manifest, Rust that `npm run gen` rewrites. A change that touches no
+Rust skips them ([AGENTS.md](../../AGENTS.md)).
 
 ## 2. Coding style
 

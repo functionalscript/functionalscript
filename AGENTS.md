@@ -20,45 +20,29 @@ at the version CI uses.
 **Check what the change touches, not the whole tree.** CI runs every suite on
 every platform ([§7](#7-continuous-integration)) and gates the merge; a session
 runs the checks its diff calls for and skips the rest. A scoped run takes
-seconds where the full suite takes minutes, and the full run is CI's job. Read
-the set off the files the change touches, before every commit and push:
+seconds where the full suite takes minutes, and the full run is CI's job.
+Which checks a diff calls for is a judgement, made before every commit and
+push; these are its usual answers:
 
-- **Markdown only** — docs, `todo/`, the changelog: no check. No proof reads
-  them. The exception is Markdown a Rust module includes as its
-  documentation, `#![doc = include_str!("README.md")]` in
-  `nanvm/lib/src/vm/unstable/mod.rs`: its fenced code is a doctest, so it is
-  Rust and takes the Cargo row.
-- **Any `.mjs`, `.f.mjs`, `.f.js` or `.ts`**: `tsc` over the whole tree, the
-  shell's compiler — one project, one type-check — then the FunctionalScript
-  tests under the changed directory: `cd` into it and run `npm start test`. A
-  new or changed `module.f.mjs` or `module.f.js` also shows its proof coverage
-  at 100%, scoped the same way
-  ([CONTRIBUTING.md](./CONTRIBUTING.md#running-tests-under-a-subtree)). Several
-  changed directories take each one, or their nearest common parent.
-- **An authored `.f.js`, or `fjs/compiler`**: `npm start compile` too, from
-  the repository root — every authored `.f.js` still compiles under the
-  working tree's compiler. Run from a directory, it checks that directory
-  alone, like the runner, which is not what this row is for.
-- **Any `.rs`, `Cargo.toml`, `Cargo.lock` or `.cargo/` file**, edited by hand
-  or rewritten by `npm run gen`: `cargo test`, `cargo clippy -- -D warnings`
-  and `cargo fmt -- --check`, with `cargo test -p <crate>` where one crate's
-  tests are enough.
-- **A generator, or an input one reads** — the programs
-  [`fjs/dev/gen/module.f.mjs`](./fjs/dev/gen/module.f.mjs) lists, and the
-  source and data each reads: `npm run gen` first, then the rows its output
-  matches. CI fails on a `gen.*` file left stale.
-- **A manifest, lockfile or compiler configuration** — `package.json` and
-  `package-lock.json`, `tsconfig.json`, `deno.json` and `deno.lock`,
-  `bun.lock`: the checks that read it, from the repository root — `tsc` for
-  the TypeScript configuration; for the Node pair `npm ci`, which fails when
-  the lock disagrees with the manifest where `npm test` would run on the
-  `node_modules` already there, then `npm test`; `deno install --frozen` then
-  `deno task test`, and `bun install --frozen-lockfile` then `bun test`, for
-  theirs, the installs spelled as CI runs them. The Cargo manifests are in
-  the Cargo row.
-- **Anything else** — a file no row names: the checks of whatever reads it,
-  and the full `node --test` when that is not known. The list names what is
-  known to matter; it is not a proof that nothing else does.
+- **Markdown only** — docs, `todo/`, the changelog: nothing. No proof reads
+  them.
+- **FunctionalScript, JavaScript or TypeScript**: `tsc`, then the tests under
+  the changed directory — `cd` into it and run `npm start test` — and, for a
+  new or changed module, its proof coverage scoped the same way
+  ([CONTRIBUTING.md](./CONTRIBUTING.md#running-tests-under-a-subtree)). An
+  authored `.f.js` or the compiler adds `npm start compile`, from the
+  repository root.
+- **Rust**: `cargo test`, `cargo clippy -- -D warnings` and
+  `cargo fmt -- --check`, with `cargo test -p <crate>` where one crate is
+  enough.
+- **A generator's source or input**: `npm run gen` first, then whatever its
+  output calls for. CI fails on a stale `gen.*` file.
+
+The judgement is about what reads the file, not about its extension: a
+`Cargo.toml` is Rust, a `package-lock.json` is what `npm ci` checks, a README
+a Rust module includes as its documentation is a doctest. Where you cannot
+tell, run more rather than less — the full `node --test` is always a safe
+answer.
 
 The scope is the changed directory, not its importers: a change to a module
 half the tree imports is tested by CI's full run, which is what that run is
