@@ -45,9 +45,13 @@ run, which is what CI is there to catch.
 
 The scope is the changed directory, not its importers: a change to a module
 half the tree imports is tested by CI's full run, which is what that run is
-for and why every pull request waits for it. A full local run — `node --test`,
-`npm run cov` — is a choice, never a requirement: take it when an answer CI
-would give later is worth having now. Each check must complete with exit code 0
+for and why every pull request waits for it. The pull request waits; the
+session does not: push, and go on with the next step or hand the dialog back
+to the owner, rather than sitting on a run that can take tens of minutes. A
+red result comes back as an event, or the owner brings it, and is handled
+then. A full local run — `node --test`, `npm run cov` — is a choice, never a
+requirement: take it when an answer CI would give later is worth having now.
+Each check must complete with exit code 0
 and an observed final summary; a partial or interrupted run is not a result. If
 a check's tool is unavailable, you are outside the shell: enter it, or report
 the PR as unready; do not treat an unavailable required check as passing. `tsc`
