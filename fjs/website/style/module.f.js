@@ -235,12 +235,12 @@ const bars = `/* The header every page opens with: the logo and the site's name 
    back on hover. Every link in the header is padded to a finger's target,
    whatever the pointer: it is one row, not a dense list, so the padding
    costs nothing a mouse would miss. */
-header { border-bottom: 1px solid var(--border) }
-header nav, [data-build] { padding-inline: 1rem }
-header nav, [data-site-links] { align-items: center; display: flex; flex-wrap: wrap; gap: .25rem 1.5rem }
-header nav { font-size: 1.125rem; font-weight: 700; padding-block: .5rem }
-header nav a { padding-block: .25rem; text-decoration: none }
-header nav a:hover { text-decoration: underline }
+body > header { border-bottom: 1px solid var(--border) }
+body > header nav, [data-build] { padding-inline: 1rem }
+body > header nav, [data-site-links] { align-items: center; display: flex; flex-wrap: wrap; gap: .25rem 1.5rem }
+body > header nav { font-size: 1.125rem; font-weight: 700; padding-block: .5rem }
+body > header nav a { padding-block: .25rem; text-decoration: none }
+body > header nav a:hover { text-decoration: underline }
 [data-home] { align-items: center; display: inline-flex; gap: .5rem; margin-right: auto }
 [data-home] img { height: 1.5rem; width: 1.5rem }
 /* A preview says which build it is — the branch and the commit — so a
@@ -260,6 +260,21 @@ header nav a:hover { text-decoration: underline }
 footer[data-funding] { border-top: 1px solid var(--border); color: var(--muted); font-size: .875rem; padding: 1rem; text-align: center }
 footer[data-funding] a { white-space: nowrap }
 `
+
+/**
+ * The shared bars on a generated documentation page that owns the rest of its
+ * styling. It supplies only the site's tokens, typeface and bars; the external
+ * generator keeps its own page, navigation and content rules.
+ *
+ * @type {string}
+ */
+export const documentationBarsStylesheet = `:root { ${lightTokens} }
+@media (prefers-color-scheme: dark) {
+    :root { ${darkTokens} }
+}
+body > header, body > footer { background-color: var(--bg); color: var(--text); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; position: relative; z-index: 101 }
+body > header a, body > footer a { color: var(--link) }
+${bars}`
 
 /**
  * The stylesheet, verbatim.

@@ -13,6 +13,8 @@ export const inputDir = 'target/deno-doc'
 export const outputDir = 'deno.doc'
 /** A build-time manifest of source files and observed generated pages. */
 export const manifestName = '_modules.txt'
+/** The bars' scoped stylesheet, copied with Deno's own assets. */
+export const stylesheetName = '_functional-script.css'
 
 /**
  * Library entrypoints and public type companions, in deterministic order.
@@ -63,20 +65,26 @@ export const moduleSource = html => sources => {
 }
 
 /**
- * Add only a small, independent return link at the body boundary. Deno has no
- * CLI header/footer hook. Refuse a changed template instead of silently
- * altering its navigation, search, styling or asset references.
+ * Add the shared site chrome at Deno's document boundaries. Deno has no CLI
+ * header/footer hook. Refuse a changed template instead of silently altering
+ * its navigation, search, styling or asset references.
  *
- * @type {(html: string) => (source: string | null) => string}
+ * @type {(chrome: { readonly head: string, readonly header: string, readonly footer: string }) => (html: string) => (source: string | null) => string}
  */
-export const withReturnLink = html => source => {
-    const body = html.split('<body>')
-    assert(body.length === 2, 'unsupported Deno HTML body')
+export const withSiteChrome = chrome => html => source => {
+    const head = html.split('</head>')
+    const bodyOpen = html.split('<body>')
+    const bodyClose = html.split('</body>')
+    assert(head.length === 2, 'unsupported Deno HTML head')
+    assert(bodyOpen.length === 2 && bodyClose.length === 2, 'unsupported Deno HTML body')
     const dir = source === null ? null : source.slice(0, source.lastIndexOf('/'))
     // Symbol pages have the same module label in their metadata; module index
     // pages use their title. The host resolves either to the real source.
-    const sourceLink = dir === null ? '' : ` · <a href="/${dir.split('/').map(encodeURIComponent).join('/')}/">Source directory</a>`
-    return `${body[0]}<body>\n<nav aria-label="FunctionalScript site"><a href="/">FunctionalScript site</a>${sourceLink}</nav>${body[1]}`
+    const sourceLink = dir === null ? '' : `\n<nav aria-label="Source"><a href="/${dir.split('/').map(encodeURIComponent).join('/')}/">Source directory</a></nav>`
+    const headed = `${head[0]}${chrome.head}</head>${head[1]}`
+    const opened = headed.split('<body>')
+    const closed = opened[1].split('</body>')
+    return `${opened[0]}<body>\n${chrome.header}${sourceLink}${closed[0]}${chrome.footer}</body>${closed[1]}`
 }
 
 /** A symbol page's source, from Deno's own metadata. @type {(html: string) => (sources: readonly string[]) => string | null} */

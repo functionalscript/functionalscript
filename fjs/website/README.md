@@ -156,20 +156,22 @@ A missing intermediate build omits JS API links even if an earlier public
 copy remains locally. Like the Rust reference, local copies are overwritten
 without deleting old files; a deploy starts with a fresh checkout.
 
-**Deno has no CLI header/footer customization hook.** Each generated HTML
-page receives only an independent return-to-site link immediately after its
-single `<body>` marker; module and symbol pages also link the source directory.
-The build refuses an unexpected body template. Deno's DOM, styles, navigation,
-relative asset paths and search index otherwise remain unchanged. The site's
-full header/footer and styling are deliberately not imposed on its layout.
+**Deno has no CLI header/footer customization hook.** The host build therefore
+validates the single head and body boundaries on every generated page, then
+adds the shared favicon links and shared site header and footer at those
+boundaries. Module and symbol pages retain a separate source-directory link.
+The bars use a small scoped stylesheet copied with Deno's assets; Deno's DOM,
+styles, navigation, relative asset paths and search index otherwise remain
+unchanged. A broader visual integration is tracked separately in
+[`todo/deno-doc-site-theme.md`](./todo/deno-doc-site-theme.md).
 
 **Rendering limitations:** Deno keeps JSDoc descriptions and module prose, but
 the pinned generator often omits function signatures declared with JSDoc
 `@type`, displaying an unnamed parameter. Public `types.ts` pages retain their
 TypeScript declarations. Native source icons use local `file:` URLs, and
 relative Markdown links written for source files may not resolve inside the
-reference. The added source-directory link is the usable return to source.
-These are generator limitations, not suppressed diagnostics; follow-up work is
+reference. The source-directory link is the usable return to source. These are
+generator limitations, not suppressed diagnostics; follow-up work is
 tracked in [`todo/deno-doc-rendering.md`](./todo/deno-doc-rendering.md).
 
 To verify a build, open `/deno.doc/`, search for `maj`, inspect `framing`,
@@ -177,7 +179,8 @@ To verify a build, open `/deno.doc/`, search for `maj`, inspect `framing`,
 Inspect `/deno.doc/types/list/types.ts/index.html` for public type declarations
 and `/deno.doc/media/datajs/module.f.mjs/~/tryParse.html` for a re-exported
 function with imported types, then refresh a nested symbol URL.
-Check the return/source links, `/cargo.doc/`, `/cli/` and `/prs/`.
+Check the shared header, footer, favicon and source link, then `/cargo.doc/`,
+`/cli/` and `/prs/`.
 
 ## The Rust API reference
 

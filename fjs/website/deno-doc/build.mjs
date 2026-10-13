@@ -8,7 +8,11 @@ import { spawnSync } from 'node:child_process'
 
 import { cmp } from '../../types/string/module.f.mjs'
 import { deno } from '../../ci/config/module.f.js'
-import { entrypoints, inputDir, manifestName, moduleSource, symbolSource, withReturnLink } from './module.f.mjs'
+import { rustdocFooter, rustdocHead, rustdocHeader } from '../cargo-doc/module.f.mjs'
+import { fundingPath, parse as parseFunding } from '../funding/module.f.mjs'
+import { documentationBarsStylesheet } from '../style/module.f.js'
+import { _buildIdentity } from '../module.f.mjs'
+import { entrypoints, inputDir, manifestName, moduleSource, outputDir, stylesheetName, symbolSource, withSiteChrome } from './module.f.mjs'
 
 /** @type {(dir: string) => Promise<readonly string[]>} */
 const files = async dir => (await Promise.all((await readdir(dir, { withFileTypes: true })).map(async entry => {
@@ -42,10 +46,19 @@ const modules = (await Promise.all(pages.filter(path => path.endsWith('/index.ht
 if (modules.length !== sources.length || sources.some(source => modules.filter(([name]) => name === source).length !== 1)) {
     throw Error('Deno output does not map every public entrypoint exactly once')
 }
+const [fundingTag, fundingValue] = parseFunding(await readFile(fundingPath, 'utf8'))
+if (fundingTag === 'error') { throw Error(`${fundingPath}: ${fundingValue}`) }
+const build = { ..._buildIdentity(process.env), funding: fundingValue, jsApi: modules }
+const chrome = {
+    head: `${rustdocHead}<link rel="stylesheet" href="/${outputDir}/${stylesheetName}">`,
+    header: rustdocHeader(build),
+    footer: rustdocFooter(build.funding),
+}
 await Promise.all(pages.filter(path => path.endsWith('.html')).map(async path => {
     const html = await readFile(path, 'utf8')
     const source = moduleSource(html)(sources) ?? symbolSource(html)(sources)
-    await writeFile(path, withReturnLink(html)(source))
+    await writeFile(path, withSiteChrome(chrome)(html)(source))
 }))
+await writeFile(`${inputDir}/${stylesheetName}`, documentationBarsStylesheet)
 await writeFile(`${inputDir}/${manifestName}`, modules.map(([source, page]) => `${source}\t${page}\n`).join(''))
 console.log(`Deno API: ${sources.length} entrypoints, ${pages.length} files`)

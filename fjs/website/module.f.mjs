@@ -833,6 +833,14 @@ const branchOf = env => {
 }
 
 /**
+ * The commit and branch shared by independently generated parts of one site.
+ * `_` marks build linkage rather than public library API.
+ *
+ * @type {(env: Env) => Omit<Build, 'funding'>}
+ */
+export const _buildIdentity = env => ({ commit: commitOf(env), branch: branchOf(env) })
+
+/**
  * What the build says about where files link, so a deploy log answers it.
  *
  * @type {(env: Env) => (commit: string | null) => string}
@@ -884,7 +892,7 @@ const readFunding = step(fundingFound, found =>
  *
  * @type {(env: Env) => Effect<Access | ReadFile, Build, IoChannel>}
  */
-export const _readBuild = env => mapStep(readFunding, funding => ({ commit: commitOf(env), branch: branchOf(env), funding }))
+export const _readBuild = env => mapStep(readFunding, funding => ({ ..._buildIdentity(env), funding }))
 
 /**
  * The whole build: the walk, then everything written from it.
