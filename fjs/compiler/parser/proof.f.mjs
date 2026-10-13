@@ -1339,6 +1339,14 @@ export const proof = {
             expectRefused('export default (y) => { const [y] = []; return y; };', 'duplicate id', 32)
             expectRefused('export default () => { const [a, a] = []; return a; };', 'duplicate id', 34)
             expectRefused('export const { then } = {}; export default 1;', 'reserved export name then', 16)
+            // an exported pattern exports the names it binds: none, and the
+            // module exports nothing, which the grammar's `export` no longer
+            // rules out — refused at the last `export`, unless a name or the
+            // default follows
+            expectRefused('export const {} = {};', 'module exports nothing', 1)
+            expectRefused('const x = []; export const [] = x; export const {} = x;', 'module exports nothing', 36)
+            expectModule('export const {} = {}; export default 1;', '[[],[["object",[]],[".",["cref",0],"length"],["object",[[":","default",1]]]]]')
+            expectModule('export const [] = []; export const a = 1;', '[[],[["array",[["...",["array",[]]]]],1,["object",[[":","a",["cref",1]]]]]]')
             expectRefused('const x = {}; const { toString } = x; export default 1;', 'prohibited property name', 23)
             expectRefused('const x = {}; const { __proto__: p } = x; export default 1;', 'prohibited property name', 23)
             // the initializer read the name from outside, and the pattern

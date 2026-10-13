@@ -199,6 +199,16 @@ const conversionArity = name => foldError(`${name} takes one argument`)
 const unexpectedToken = foldError('unexpected token')
 
 /**
+ * A module that neither throws nor exports a name, at its last `export`:
+ * every exported `const` was a pattern binding no name, `export const {} = o;`,
+ * and no `export default` followed. A module that does not throw exports at
+ * least one name ([spec: exports](../../../spec/README.md#exporting-a-value)),
+ * which the grammar asked of the `export` keyword while a `const` always
+ * bound one.
+ */
+const noExport = foldError('module exports nothing')
+
+/**
  * The entry a `throw` statement makes of its value: a body's last, in a
  * function or the module, in place of what it would return
  * ([spec: functions](../../../spec/README.md#functions)).
@@ -1570,6 +1580,12 @@ const foldModule = ({ imports, consts, exported, thrown: failing }) => {
         const [resolved, last] = evaluate(env, null)(exported.value)
         if (resolved === 'error') { return error(last) }
         exports = [...exports, ['default', last[1]]]
+    }
+    // an exported pattern binding no name exports nothing, and the grammar
+    // saw only the `export`: the module is refused where a name was owed
+    if (exports.length === 0) {
+        const last = assertNotNullish(consts.findLast(c => c.exported), ['a module with no export and no throw', consts])
+        return error(noExport(last.declaration.start))
     }
     // annotated rather than inferred: a bare `[modules, body]` widens to an
     // array, because `readonly string[]` is itself assignable to `AstBody`.

@@ -451,7 +451,10 @@ has none — so `export const __proto__ = 7;` returns `{ ["__proto__"]: 7 }`, an
 own property like any other export, and an importer selects it the same way
 ([importing](#importing-other-modules)).
 
-Unless a module ends in `throw`, at least one export is required.
+Unless a module ends in `throw`, at least one export is required
+(`module exports nothing`): a `const` of a name exports it, and an exported
+pattern exports each name it binds ([destructuring](#destructuring)), so a
+module whose only exports bind no name is refused at its last `export`.
 A named-only module needs no default:
 `export const a = 5;` returns `{ a: 5 }`. When present, `export default` is
 **last**; only [trivia](#whitespace-and-line-terminators) — whitespace,
@@ -742,7 +745,11 @@ its conditional ([functions](#functions)).
   binding nothing — the read that fails where `v` is `null` or
   `undefined`, as `RequireObjectCoercible` fails, and whose value is no
   observation. The graph outputs write the two reads, `const $0=[...v];`
-  and `const $0=v.length;`.
+  and `const $0=v.length;`. An exported pattern exports each name it binds,
+  so `export const {} = o;` exports nothing, and a module whose exports all
+  bind no name is refused, as one with no export is
+  ([exports](#exporting-a-value)): `module exports nothing`, at its last
+  `export`.
 - A pattern names no function as its whole value, so no name in it is a
   function's own ([captures and self recursion](#captures-and-self-recursion)):
   `const { f } = { f: () => f };` is `const not found`.

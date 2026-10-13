@@ -252,7 +252,9 @@ the fold's:
   target`) — a literal, an access, a call, or a group, `[(a)]`, JavaScript's
   early error — a name bound twice in one pattern, a key a prototype gives
   a value, and what the language does not read yet, a rest element and a
-  computed key beyond a literal alone in its brackets, each by name. The fold then writes the
+  computed key beyond a literal alone in its brackets, each by name — and a
+  module whose exports are all patterns binding no name, which exports
+  nothing where a name was owed (`module exports nothing`). The fold then writes the
   reads the pattern is sugar for, one entry per name and one hidden entry
   per nested source, as it writes a guard's conditional;
 - an access naming a property of a built-in prototype, `a.push`,
