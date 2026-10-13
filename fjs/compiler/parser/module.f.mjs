@@ -955,7 +955,8 @@ const enter = (stack, scope, node) => {
             if (found === null) { return [stack, scope, error(constNotFound(node[1]))] }
             // a read of a loop's variable from a nested function is noted,
             // and refused when the function closes held as a value
-            const read = capturedLoopVariable(scope, word) && found[0].loopRead === null ? loopVariableCaptured(node[1]) : found[0].loopRead
+            /** @type {_Scope['loopRead']} */
+            const read = capturedLoopVariable(scope, word) && found[0].loopRead === null ? [word, loopVariableCaptured(node[1])] : found[0].loopRead
             return [stack, { ...found[0], loopRead: read }, ok(found[1])]
         }
         case '.': {
@@ -1388,14 +1389,20 @@ const capturedLoopVariable = (scope, word) => {
  */
 const closed = (stack, scope, body) => {
     const outer = assertNotNullish(scope.outer, ['a function body with no scope around it', body])
-    // a function that read a loop's variable is refused unless it is the
-    // callee of a call: called where it is written, its closure sees the
-    // round's value as JavaScript's does; held as a value, it may outlive
-    // the round, when JavaScript's would see the variable's last value
-    if (scope.loopRead !== null && !(stack !== null && 'call' in stack.top && stack.top.index === 0)) { return [stack, outer, error(scope.loopRead)] }
     /** @type {AstFunction} */
     const fn = scope.captures.length === 0 ? ['=>', scope.count, body] : ['=>', scope.count, body, scope.captures]
-    return [stack, outer, ok(fn)]
+    if (scope.loopRead === null) { return [stack, outer, ok(fn)] }
+    // a function that read a loop's variable is refused unless it is
+    // called where it is written — the callee of a call, or a loop's own
+    // function or block, which the loop calls — since called at once its
+    // closure sees the round's value as JavaScript's does, where held as
+    // a value it may outlive the round, when JavaScript's would see the
+    // variable's last value; and the read is the enclosing function's
+    // too, whose frame holds the variable for this one's, out to the
+    // scope the variable is the loop's in
+    const [word, refusal] = scope.loopRead
+    if (!(scope.loop !== null || (stack !== null && 'call' in stack.top && stack.top.index === 0))) { return [stack, outer, error(refusal)] }
+    return [stack, outer.loop === word || outer.loopRead !== null ? outer : { ...outer, loopRead: scope.loopRead }, ok(fn)]
 }
 
 /**

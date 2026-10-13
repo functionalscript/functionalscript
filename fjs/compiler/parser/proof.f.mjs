@@ -310,6 +310,10 @@ export const proof = {
                 'export default n => { let r = 0; while ((() => r < n)()) { r = r + 1; } return r; };',
                 'export default n => { let r = 0; while (r < n) { r = ((x) => r + x)(1); } return r; };',
                 'export default n => { let r = 0; while (r < n) { r = (() => (() => r + 1)())(); } return r; };',
+                // a loop in such a function may read the outer variable, in
+                // its condition or in a function its block calls where written
+                'export default n => { let r = 0; while (r < n) { r = (() => { let s = 0; while (s < r + 1) { s = s + 1; } return s; })(); } return r; };',
+                'export default n => { let r = 0; while (r < n) { r = (() => { let s = 0; while (s < n) { s = (() => s + r)(); } return s; })(); } return r; };',
             ]) { assertEq(parseFromTokens(tokenizeString(source))[0], 'ok', source) }
             // the block's statements end as every statement does, at `;`
             // or a newline, and so does the `let`
@@ -339,6 +343,12 @@ export const proof = {
                 ['export default n => { let r = 0; while (r < n) { r = ((f) => f())(() => r); } return r; };', 'loop variable captured', 73],
                 ['export default n => { let r = 0; while (r < n) { r = (() => () => r)()(); } return r; };', 'loop variable captured', 67],
                 ['export default n => { let r = 0; while (r < n) { r = (() => { const g = () => r; return g(); })(); } return r; };', 'loop variable captured', 79],
+                // the read is every enclosing function's up to the loop: a
+                // function held as a value is refused for a read a function
+                // it calls where written makes, and so is one holding a loop
+                // whose condition reads the outer variable
+                ['export default n => { let r = 0; while (typeof r === "number") { r = () => ((() => r)()); } return r(); };', 'loop variable captured', 84],
+                ['export default n => { let r = 0; while (r < n) { r = (() => { const f = () => { let s = 0; while (s < r + 1) { s = s + 1; } return s; }; return f(); })(); } return r; };', 'loop variable captured', 103],
                 // the variable is a name of the body as a `const` is
                 ['export default n => { let r = 0; while (r < n) { r = 1; } const r = 2; return r; };', 'duplicate id', 65],
                 ['export default n => { let n = 0; while (n) { n = 1; } return n; };', 'duplicate id', 27],
