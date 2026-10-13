@@ -326,8 +326,10 @@ export const proof = {
         },
     },
     selection: {
-        // Every `.f.mjs` that exports a `proof` and imports nothing a browser
-        // cannot resolve, in path order — and nothing else in the tree.
+        // Every authored module, `.f.mjs` or `.f.js`, that exports a `proof`
+        // and imports nothing a browser cannot resolve, in path order — and
+        // nothing else in the tree: a `.mjs` is a host's, a `.js` is not
+        // FunctionalScript, and `fjs t` runs neither.
         selectsProofModules: () => {
             const { root, output } = generate({
                 a: {
@@ -336,9 +338,11 @@ export const proof = {
                 },
                 'b.f.mjs': file('export const proof = []'),
                 'c.mjs': file('export const proof = []'),
+                'd.f.js': file('export const proof = []'),
+                'e.js': file('export const proof = []'),
             })
-            assertStructurallySame(listed(pageAt(root, [])), ['a/proof.f.mjs', 'b.f.mjs'])
-            assert(output.includes('browser proof modules: 2 of 2'), output)
+            assertStructurallySame(listed(pageAt(root, [])), ['a/proof.f.mjs', 'b.f.mjs', 'd.f.js'])
+            assert(output.includes('browser proof modules: 3 of 3'), output)
         },
         // A module a browser cannot link is dropped rather than emitted, with
         // the reason said out loud: emitting it would fail the page *while it
@@ -369,11 +373,11 @@ export const proof = {
         },
         /**
          * **A blocker reached only through a non-authored dependency still
-         * counts.** `scan` reads only `.f.mjs` files, so a `.mjs` a proof
-         * imports has no entry in the graph it seeds — `readGraph` has to
-         * discover and read it starting from the seeded proof module's own
-         * `local` imports, not from a walk that starts as if nothing were
-         * known yet.
+         * counts.** `scan` reads only authored modules, `.f.mjs` and `.f.js`,
+         * so a `.mjs` a proof imports has no entry in the graph it seeds —
+         * `readGraph` has to discover and read it starting from the seeded
+         * proof module's own `local` imports, not from a walk that starts as
+         * if nothing were known yet.
          */
         blockerThroughANonAuthoredDependency: () => {
             const { root } = generate({

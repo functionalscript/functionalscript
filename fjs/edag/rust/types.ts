@@ -36,10 +36,15 @@ export type Scope = {
  * — a primitive's literal, a bound node's name, any other node's own
  * construction — and `block` prints the lines of a node's block, a `let`
  * per temporary the node binds and the node as the `Result` the block
- * answers. Both answer the refusal instead where a node has no `nanvm-lib`
- * spelling, and both report the names they spell.
+ * answers. `lets` and `value` are that block in two parts, for a
+ * statement that answers otherwise — a loop's round: the `let` lines
+ * alone, and the node as the `Any<A>` a statement reads after them, a
+ * `let` line's right side. All answer the refusal instead where a node
+ * has no `nanvm-lib` spelling, and all report the names they spell.
  */
 export type Printer = {
     readonly f: (e: Exp) => Result<Printed<string>, readonly unknown[]>
     readonly block: (e: Exp) => Result<Printed<readonly string[]>, readonly unknown[]>
+    readonly lets: (e: Exp) => Result<Printed<readonly string[]>, readonly unknown[]>
+    readonly value: (e: Exp) => Result<Printed<string>, readonly unknown[]>
 }

@@ -27,8 +27,8 @@
  * read the same module again just for its specifiers. {@link scan} asks
  * both export questions of one read and keeps the specifiers as a byproduct,
  * and {@link readGraph} is seeded with that, so it reads only what a
- * `.f.mjs`-only scan could not already have answered — a non-authored
- * dependency, most often.
+ * scan of the {@link authored} modules alone could not already have answered
+ * — a non-authored dependency, most often.
  *
  * **An empty page is probably a directory that no longer exists.** The
  * generator only ever writes: a page sits next to the source it describes, so
@@ -109,8 +109,14 @@ const rootPage = build => dir => shell(build)(siteName)(directoryLayout(build)(d
     ]),
 )))
 
-/** @type {(path: string) => boolean} */
-const authored = path => path.endsWith('.f.mjs')
+/**
+ * Authored FunctionalScript source, `.f.mjs` or `.f.js`
+ * ([`fjs/compiler/README.md`](../compiler/README.md) defines both); a proof
+ * or a demo lives in nothing else a browser could run.
+ *
+ * @type {(path: string) => boolean}
+ */
+const authored = path => path.endsWith('.f.mjs') || path.endsWith('.f.js')
 
 /**
  * Every directory under `dir`, itself first, with everything each one holds;
@@ -343,8 +349,8 @@ const browserProofOf = tree =>
  * thing seeding skips. A seeded root's own imports would otherwise never
  * reach the frontier at all: `readGraph` sees it is already in the graph,
  * stops there, and a `.mjs` dependency two hops from a proof — outside
- * `scan`'s `.f.mjs`-only reach — is never read, never refused if it cannot
- * be, and never counted as a blocker either. Widening this to every
+ * `scan`'s reach over the {@link authored} modules — is never read, never
+ * refused if it cannot be, and never counted as a blocker either. Widening this to every
  * module `scan` touched, not just the selected roots, would pull in a
  * module that is neither a proof nor a demo nor reachable from one; if
  * such a module imports something `readFile` refuses — over the 128 KiB

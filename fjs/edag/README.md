@@ -45,12 +45,12 @@ proofs](memo/proof.f.mjs) exercise actual throwing callbacks through array
 methods and an enclosing operand; [compiler proofs](../compiler/transpiler/proof.f.mjs)
 cover direct and imported module initialization.
 
-[`value/semantics`](value/semantics/module.f.mjs) provides truthiness, `typeof`,
-strict equality and `Object.is` for represented values. Distinct
+[`value/semantics`](value/semantics/module.f.mjs) provides truthiness, `typeof`
+and strict equality for represented values. Distinct
 `['undefined']` tuples denote the same primitive; arrays, objects and functions
 compare by their value-node identity. These infallible helpers are shared
 building blocks for the VM operation layer. Its `unary` table supplies `!`
-and `typeof`; its `binary` table supplies `===`, `!==` and `is`. Both tables
+and `typeof`; its `binary` table supplies `===` and `!==`. Both tables
 accept evaluated values and return `Result` successes. Callers own operand
 evaluation and failure propagation.
 
@@ -311,7 +311,7 @@ vocabularies.
 | `['\|()', items[], k?]`, `['\|.', index, k?]`, `['\|?.()', items[], k?]`, `['\|!()', items[]]` | a chain step and, where the chain continues, its continuation — only valid in the continuation operand of a node above, or of another step |
 | `[',', exps]` | comma: establish all operands, take the value of the last |
 | `[id, exp]` | unary operation, `id` one of `String` `Number` `!` `~` `typeof` `throw` — `throw` establishes its operand and fails with it as the thrown value, so it is the one node that never has a value |
-| `[id, exp, exp]` | binary operation, `id` one of `is` `===` `!==` `>` `>=` `<` `<=` `*` `/` `%` `**` `&` `\|` `^` `<<` `>>` `>>>` `&&` `\|\|` `??` |
+| `[id, exp, exp]` | binary operation, `id` one of `===` `!==` `>` `>=` `<` `<=` `*` `/` `%` `**` `&` `\|` `^` `<<` `>>` `>>>` `&&` `\|\|` `??` |
 | `[id, exp]`, `[id, exp, exp]` | `id` one of `+` `-`: unary plus or negation, addition or subtraction — one tag at two arities, the node's length deciding, as a chain step's does; unary `+` is JS's and throws on a bigint where `Number` converts |
 | `['?:', exp, exp, exp]` | conditional: the condition, then exactly one arm — the one `ToBoolean` selects; the other is never established |
 | `['instanceof', exp, constructor]` | instance check, `x instanceof Array`: `true` of an array, `false` of every other value, never throws; `constructor` is a *name* from a closed list — `'Array'` alone today, not an operand — since no global is a value here. A reader walking operands generically needs an arm for it, or walks the name as a string literal |

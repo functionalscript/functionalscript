@@ -1,6 +1,6 @@
 /**
  * Basic semantics of evaluated EDAG values: truthiness, type classification
- * and equality. Tagged undefined has primitive semantics; represented arrays,
+ * and strict equality. Tagged undefined has primitive semantics; represented arrays,
  * objects and functions retain their node identities.
  *
  * The helpers and operation tables consume valid EdagValue forms without
@@ -36,7 +36,7 @@ export const typeOf = value => isFunction(value) ? 'function' : typeof untagUnde
 /** Strict equality, with containers and functions compared by identity. @type {(a: EdagValue, b: EdagValue) => boolean} */
 export const strictEqual = (a, b) => untagUndefined(a) === untagUndefined(b)
 
-/** SameValue: NaN equals itself and signed zeroes differ. @type {(a: EdagValue, b: EdagValue) => boolean} */
+/** SameValue, for `includes`'s SameValueZero: NaN equals itself and signed zeroes differ. @type {(a: EdagValue, b: EdagValue) => boolean} */
 export const is = (a, b) => Object.is(untagUndefined(a), untagUndefined(b))
 
 /** @type {Readonly<Record<'!' | 'typeof', (value: EdagValue) => Result<boolean | string, EdagValue>>>} */
@@ -57,9 +57,8 @@ export const instanceOf = {
     Array: value => isArray(value) && value[0] === '[]',
 }
 
-/** @type {Readonly<Record<'===' | '!==' | 'is', (a: EdagValue, b: EdagValue) => Result<boolean, EdagValue>>>} */
+/** @type {Readonly<Record<'===' | '!==', (a: EdagValue, b: EdagValue) => Result<boolean, EdagValue>>>} */
 export const binary = {
     '===': (a, b) => ok(strictEqual(a, b)),
     '!==': (a, b) => ok(!strictEqual(a, b)),
-    is: (a, b) => ok(is(a, b)),
 }

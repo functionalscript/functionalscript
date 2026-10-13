@@ -13,7 +13,7 @@ import type { Result } from '../../types/result/types.ts'
 import type { AstConst, AstFrameRef, AstItem, AstMember, AstModuleRef, AstRest, AstSelf, BinaryTag } from '../ast/types.ts'
 import type { DjsTokenWithMetadata } from '../tokenizer/types.ts'
 import type { ParseError } from './types.ts'
-import type { Block, Chain, Container, If, Item, Key, Node } from './syntax/types.ts'
+import type { Block, Chain, Const, Container, If, Item, Key, LoopBlock, Node, While } from './syntax/types.ts'
 
 /** A named parameter, `i` of the function whose body names it: what the body reads it as, the `i`th argument. */
 export type _Parameter = readonly ['arg', number]
@@ -61,6 +61,26 @@ export type _Scope = {
     readonly outer: _Scope | null
     /** The word the function whose body this is was the whole value of a `const` under, or `null`: what the body reads as the function itself, where nothing nearer binds the word. */
     readonly self: string | null
+    /**
+     * The word of a loop's variable, in the scope of the function the loop
+     * lowers to and in its block's, and `null` in every other: a read of
+     * the word from a function nested in either is refused unless the
+     * function is called where it is written, since JavaScript's closure
+     * would see the variable's last value where the function's capture
+     * holds the round's ([spec: loops](../../../spec/README.md#loops)).
+     */
+    readonly loop: string | null
+    /**
+     * The reads of loop variables from this scope, a function nested in
+     * one loop or more, in document order: each variable's first read, by
+     * its word and the refusal of the read. The first refusal is raised
+     * when the function closes anywhere but as the callee of a call,
+     * where its closure, called at once, sees the round's value as
+     * JavaScript's does; closed as a callee, each read passes to the
+     * scope around it, whose frame holds the variable for the function's,
+     * out to the scope the variable is the loop's in.
+     */
+    readonly loopReads: readonly (readonly [word: string, refusal: ParseError])[]
 }
 
 
@@ -168,7 +188,60 @@ export type _BodyFrame = {
     readonly statements: Block[1]
     readonly first: number
     readonly index: number
+    /** How many statements before `index` made no entry of their own: each loop's `while`, whose entry its `let` makes. */
+    readonly skipped: number
     readonly word: string
+    readonly done: List<AstConst>
+}
+
+/**
+ * A loop's `let` whose initial value is being evaluated: the block body's
+ * frame at the `let`, the statement, and the word it binds.
+ */
+export type _LetFrame = {
+    readonly let: Const
+    readonly body: _BodyFrame
+    readonly word: string
+}
+
+/**
+ * A loop whose condition or block is being evaluated, in the scope of the
+ * function it lowers to: the `while`, the block body's frame at the
+ * `let`, the word, the initial value resolved, and the condition once it
+ * is — `null` while it is being evaluated, and the value while the block
+ * is, as the body of a parameterless function of its own.
+ */
+export type _LoopFrame = {
+    readonly loop: While
+    readonly body: _BodyFrame
+    readonly word: string
+    readonly init: AstConst
+    readonly condition: AstConst | null
+}
+
+/**
+ * A loop whose function is being closed: the block body's frame at the
+ * `let`, the word, and the initial value, for the call of the function
+ * that is the entry the two statements make.
+ */
+export type _LoopCallFrame = {
+    readonly called: While
+    readonly body: _BodyFrame
+    readonly word: string
+    readonly init: AstConst
+}
+
+/**
+ * A loop's block being evaluated as the body of a parameterless function:
+ * `block[index]` is the statement being evaluated, `bound` the name it
+ * binds or rebinds, taken before its value was entered, `word` the loop's
+ * variable, and `done` the entries before it.
+ */
+export type _LoopBodyFrame = {
+    readonly block: LoopBlock[1]
+    readonly index: number
+    readonly word: string
+    readonly bound: string
     readonly done: List<AstConst>
 }
 
@@ -262,6 +335,10 @@ export type _Frame =
     | _FunctionFrame
     | _BodyFrame
     | _GuardFrame
+    | _LetFrame
+    | _LoopFrame
+    | _LoopCallFrame
+    | _LoopBodyFrame
 
 /** The containers, calls, accesses, operators, conditionals and functions suspended around the node being evaluated, innermost on top. */
 export type _Stack = { readonly top: _Frame, readonly rest: _Stack } | null

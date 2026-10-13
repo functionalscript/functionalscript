@@ -200,11 +200,19 @@ names what it reached before the compiler refused again. Locations are
 | `website/demo/code/module.f.mjs` | 12:48 | Default parameter in `codeBlock` | The computed key `[codeMarker]` |
 | `website/prs/load/module.f.mjs` | 103:41 | Destructured parameter in `finishedNote` | Two more destructured parameters, `Number.isFinite`, `Math.min` |
 
-The separate fixture `emergent_testing/example.f.mjs` is refused at `15:1`:
+The separate fixture `emergent_testing/example.f.mjs` was refused at `15:1`:
 a block body whose only statement is a guard, which the compiler reads to
-its end without a `return`. With `return undefined` after each guard it
-compiles; `emergent_testing/todo/todo-property.md` already plans to change
-the fixture. Since the final pass converts nothing, the loop stops.
+its end without a `return`.
+[#2856](https://github.com/functionalscript/functionalscript/pull/2856)
+converts it to `example.f.js` with `return undefined` after each guard — a
+rewrite, unlike the two conversions above, and the one kind this migration
+pays for: it spells the value JavaScript already answered there rather than
+a second spelling of an expression
+([CONVERTING rule 7](../doc/CONVERTING.md#7-a-body-that-ends-without-return)).
+Since the fixture is the one `.f.js` that exports a `proof`, the same change
+widens the website's `authored` selector to `.f.js`, so the browser suite
+keeps it. The authored `.f.js` population is 30. The eleven implementation
+leaves above are untouched by it, so the loop still stops there.
 
 To recheck the current table without writing generated output, run this from
 the repository root inside `./dev.sh node --input-type=module`:
@@ -441,7 +449,7 @@ records that snapshot's blockers, including the since-migrated `array_index`:
 | A non-terminating `if`, `break`, `continue` | [roadmap §3.2](../spec/todo/README.md#32-priority-2), the guard's follow-ups; `break` and `continue` are `while`'s | set, browser-source |
 | `for … of` | nothing proposes it | result |
 | `switch`, a default parameter | neither proposed; [`3120-parameters.md`](../spec/todo/3120-parameters.md) leaves a default parameter for later | ts |
-| A prohibited member function, `toLowerCase`, or property name, `sub` | [`fjs/js/prototype`](../fjs/js/prototype/module.f.js)'s `prohibitedCalls` and `prototypeNames` ([spec: property access](../spec/README.md#property-access)); the module rewrites, not the language | git/config |
+| A prohibited member function, `toLowerCase`, or property name, `sub` | `toLowerCase` is now admitted ([spec: built-in member functions](../spec/README.md#built-in-member-functions)); `sub` stays a prohibited property name, [`fjs/js/prototype`](../fjs/js/prototype/module.f.js)'s `prototypeNames` ([spec: property access](../spec/README.md#property-access)), and the module rewrites it, not the language | git/config |
 
 A leaf renames only when every feature it uses has landed. In that historical
 snapshot, these leaves waited on one feature alone: `style` on template literals,

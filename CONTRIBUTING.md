@@ -154,11 +154,14 @@ cargo fetch   # Rust dependencies
 tsc                      # type-check
 npm test                 # tsc + the FunctionalScript test suite
 cargo test               # only if you touched Rust
-cargo clippy
+cargo clippy -- -D warnings
 cargo fmt -- --check
 ```
 
-Both of the first two need `tsc` on `PATH`, which the Nix shell provides.
+Both of the first two need `tsc` on `PATH`, which the Nix shell provides. Which
+of them a change needs — none for Markdown alone, the tests under its own
+directory for FunctionalScript, the Cargo rows for Rust — is
+[AGENTS.md](./AGENTS.md)'s list; CI runs everything.
 
 #### Ways to run the FunctionalScript test suite
 
@@ -197,9 +200,48 @@ CI exercises these same combinations — see the `node26`,
 [.github/workflows/gen.ci.yml](./.github/workflows/gen.ci.yml) for the exact commands
 and pinned runtime versions.
 
-To run only the tests under a subtree, `cd` into that directory and run the
-runner from there (e.g. `cd fjs/base64 && fjs test`). Module discovery starts at
-the current working directory, and results are reported per test.
+#### Running tests under a subtree
+
+Module discovery starts at the directory the runner is invoked from — `npm`
+hands it over as `INIT_CWD` — so to test one directory, `cd` into it and run
+the runner there; results are reported per test:
+
+```bash
+cd fjs/basen
+npm start test           # this directory's proofs
+npm test                 # the same, after a whole-tree tsc
+```
+
+Coverage scopes the same way, at the thresholds `npm run cov` sets, with the
+report kept to the directory's own modules. This one runs from the repository
+root, where `node --test` finds the suite's entry file; `cd` back first if the
+block above left you in the directory:
+
+```bash
+d=fjs/basen              # at the repository root
+INIT_CWD=$d node --test --experimental-test-coverage \
+  --test-coverage-include="$d/**/module.f.mjs" \
+  --test-coverage-include="$d/**/module.f.js" \
+  --test-coverage-lines=100 \
+  --test-coverage-branches=100 \
+  --test-coverage-functions=100
+```
+
+The includes matter: what the directory imports from elsewhere runs too, only
+partly covered by these proofs, and the thresholds would fail on it. A scoped
+run takes seconds where the full suite takes minutes, and it is what
+[AGENTS.md](./AGENTS.md) asks of a change under one directory; the full
+`npm run cov` is CI's. The block is POSIX shell; on bare Windows, `npm run cov`
+measures the whole tree, and the command this stands in for is proposed in
+[`fjs/emergent_testing/todo/per-module-coverage.md`](./fjs/emergent_testing/todo/per-module-coverage.md).
+
+`npm run cov` reports through
+[`fjs/emergent_testing/node/module.mjs`](./fjs/emergent_testing/node/module.mjs):
+Node's `spec` reporter with the passed tests and the fully covered files
+filtered out, so a green run prints its summary — the test counts and the
+`all files` coverage row — and a red one prints each failure and each file
+under a threshold. The block above uses Node's default reporter, which lists
+every test; add the same `--test-reporter` for the same output.
 
 To validate the packed npm package itself against clean Node, Deno, and Bun
 consumers — for example after changing `prepack`, `files`, or anything that

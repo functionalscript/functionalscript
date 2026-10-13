@@ -46,6 +46,28 @@ Keeping code as represented data removes that need. Both interpreters now
 check canonical text, including the corpus's cases that the independent
 JavaScript reference still skips because its function text is host-defined.
 
+## A loop
+
+A function of the template `fjs/edag/loop` recognizes,
+`r => COND ? self(NEXT) : r`, is written as the loop it is rather than as a
+function that names itself: an arrow whose body is the language's loop, a
+`let` of the parameter, the `while` over that variable — the asserts and
+the memo cells inside the body so that each round starts fresh as each
+call did, the assignment omitted where the next value is the variable
+itself — and the `return` of the variable:
+`($0)=>{let $1=$0;while((($1)<(10))){$1=(($1)+(1));}return $1;}`. The text
+is FunctionalScript where no cell stands in it. No read of `self` survives,
+so the function needs no name. V8 implements no tail calls, so
+this runs a million rounds where the named function expression below
+overflows after some thousands. It is the one loop spelling every writer
+has: a body holding such a loop called where it stands is spelled by the
+source writer as `let` and `while` ([spec: loops](../../spec/README.md#loops)),
+the same text in both outputs, and the same shapes keep the recursion in
+every writer — a root assert, a condition reaching a value a memo cell
+establishes, a read of the rest array
+([tail-call-loop](./todo/tail-call-loop.md)); a next value that throws is
+assigned as the applied function a throw is spelled as anywhere.
+
 ## A function that names itself
 
 A body that reads `["self"]` has no arrow spelling, since an arrow function

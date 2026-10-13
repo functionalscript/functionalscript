@@ -15,12 +15,14 @@ principles both code bases follow live in [DESIGN.md](../../doc/DESIGN.md).
 
 ```bash
 cargo fetch              # install dependencies
-cargo test               # test the nanvm-lib crate
-cargo clippy             # lint
+cargo test               # test every crate; -p nanvm-lib for this one alone
+cargo clippy -- -D warnings   # lint, as CI does: a warning fails there
 cargo fmt -- --check     # verify formatting
 ```
 
-Run all three checks before submitting any change that touches Rust.
+Run all three checks before submitting any change that touches Rust — a `.rs`,
+a Cargo manifest, Rust that `npm run gen` rewrites. A change that touches no
+Rust skips them ([AGENTS.md](../../AGENTS.md)).
 
 ## 2. Coding style
 
