@@ -1466,9 +1466,14 @@ const scope = (s, path, start, returns = null, yields = true) => all => {
  * assignment spells, and no read of the rest array, which `let` and
  * `while` bind nowhere — each round of the recursion is a call of one
  * argument, so the array is empty from the second round on, and only the
- * recursion keeps that; and the scope a function's body, since the
- * language has no loop at the module level. Anything else keeps the
- * spelling a function reading its `self` has, a `const` the call reads.
+ * recursion keeps that; no function nested in it whose frame reads the
+ * variable, since a nested function is written capturing by name, and a
+ * closure inside a `while` holds the binding, the variable's last value,
+ * where the recursion's holds the parameter of the call that made it —
+ * the capture the language refuses in source, `loop variable captured`;
+ * and the scope a function's body, since the language has no loop at the
+ * module level. Anything else keeps the spelling a function reading its
+ * `self` has, a `const` the call reads.
  *
  * @type {(s: _Scope, i: number) => boolean}
  */
@@ -1478,11 +1483,23 @@ const isLoopCall = (s, i) => {
     const [, callee, [init]] = node
     if (!(callee instanceof Array) || s.shared.includes(callee[1]) || (init instanceof Array && init[0] === '...')) { return false }
     const loop = loopOf(s.a, callee[1])
-    return loop !== null && loop.before.length === 0 && thrownValue(s.a, loop.next) === null && !readsRest(s.a, callee[1])
+    return loop !== null && loop.before.length === 0 && thrownValue(s.a, loop.next) === null && !readsRest(s.a, callee[1]) && !capturesParameter(s.a, callee[1])
 }
 
 /** Whether the function that is entry `i` reads its rest array, in its own body's scope. @type {(a: Analysis, i: number) => boolean} */
 const readsRest = (a, i) => a.nodes.some((n, j) => n[0] === 'rest' && a.scope[j] === i)
+
+/**
+ * Whether a function nested in the body of the function that is entry `i`
+ * captures that function's first parameter: a slot of its frame that is
+ * the read `['arg', 0]`, as `() => r` lowers to. A slot computed from the
+ * parameter, `() => r + 1`, is a `const` of the scope where written, and
+ * captured by value.
+ *
+ * @type {(a: Analysis, i: number) => boolean}
+ */
+const capturesParameter = (a, i) => a.nodes.some((n, j) => n[0] === '=>' && a.scope[j] === i
+    && n[2].some(v => v instanceof Array && a.nodes[v[1]][0] === 'arg' && a.nodes[v[1]][1] === 0))
 
 /**
  * A loop as the two statements the language reads it from: `let`, its

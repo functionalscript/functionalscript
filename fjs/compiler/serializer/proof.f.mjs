@@ -1076,6 +1076,19 @@ export const proof = {
         const counted = /** @type {const} */ (['()', counting, [0]])
         writes(['=>', 1, [], ['[]', [counted, counted]]], 'export default ($0)=>{let $1=0;while($1<$0){$1=$1+2;}return [$1,$1];};')
         writes(['=>', 1, [], counted], 'export default ($0)=>{let $1=0;while($1<$0){$1=$1+2;}return $1;};')
+        // a nested function whose frame reads the variable keeps the
+        // recursion: written by name, it would hold the variable's last
+        // value, where the recursion's holds the value of its round — and
+        // the language refuses the capture, so the loop would read back as
+        // nothing; a slot computed from the variable is a `const` of the
+        // block, captured by value, and loops
+        const closure = /** @type {const} */ (['=>', 0, [['arg', 0]], ['frame', 0]])
+        writes(['=>', 1, [], ['()', loop([], ['===', ['typeof', ['arg', 0]], 'number'], call(closure)), [['arg', 0]]]],
+            'export default ($0)=>{const $1=($2)=>typeof $2==="number"?$1(()=>$2):$2;return $1($0);};')
+        writes(['=>', 1, [], ['()', loop([], true, [',', [['()', closure, []], call(1)]]), [0]]],
+            'export default ($0)=>{const $1=($2)=>true?(()=>{const $3=()=>$2;const $4=$3();return $1(1);})():$2;return $1(0);};')
+        writes(['=>', 1, [], ['()', loop([], ['<', ['arg', 0], 3], call(['=>', 0, [['+', ['arg', 0], 1]], ['frame', 0]])), [0]]],
+            'export default ($0)=>{let $1=0;while($1<3){const $2=$1+1;$1=()=>$2;}return $1;};')
         // an assert in the block is a `const` there; a shared value the
         // next value reads takes one too
         const shared = /** @type {const} */ (['[]', [['arg', 0]]])
