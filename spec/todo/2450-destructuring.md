@@ -75,10 +75,6 @@ read partially ([DESIGN.md §10](../../doc/DESIGN.md#10-refuse-what-you-cannot-h
   parameter whatever its elements default to. Neither spelling parses
   today: `=` is no operator in a literal, so there is nothing to refuse
   by hand;
-- an **empty pattern**, `{}` and `[]`, which binds nothing and exists for
-  its failure alone. JavaScript throws on `const {} = null` with no
-  property read to carry the throw, so a faithful lowering would be a read
-  made up for the purpose; refusing it costs nothing a program wants;
 - a **computed key** beyond a constant. A string or a number literal
   standing alone in the brackets, `{ ["a"]: t }` and `{ [3]: t }`, is the
   constant key an access admits in brackets, `o["a"]` and `o[3]`
@@ -137,6 +133,16 @@ is the property of the read it lowers to:
   the reads of one pattern is no promise, since all are pure and only
   which failure fires first could tell them apart
   ([failure is one outcome](../README.md#failure-is-one-outcome)).
+- **An empty pattern binds nothing and keeps its failure**, the check
+  `([]) => 0` and `({}) => 0` give a caller in JavaScript, which is a use
+  and not a mistake, so [DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
+  has no restriction to justify. `[]` is the spread of its source alone,
+  failing where the source is not iterable. `{}` is one read of its
+  source, its `length` — the one name every kind of value may own —
+  binding nothing: the read that fails on `null` and `undefined` as
+  `RequireObjectCoercible` fails, and whose value is no observation. The
+  graph outputs write the two reads, `const $0=[...v];` and
+  `const $0=v.length;`.
 - **A parameter pattern counts as one fixed parameter** toward `length`
   and toward the limit of 16, as JavaScript counts it, and its reads are
   the first entries of the function's body, the fixed argument their
@@ -202,8 +208,7 @@ by `const` and parameters.
 
 **Drawbacks.** The outputs no longer spell what the source spelled, as with
 `if`; an array pattern materializes the whole array it reads two elements
-of; and three familiar spellings — rest, defaults, the empty pattern — are
-refused for now, each with a message that says so and a follow-up here.
+of; and two familiar spellings — rest and defaults — are refused for now, each with a message that says so and a follow-up here.
 
 ### Tasks
 
