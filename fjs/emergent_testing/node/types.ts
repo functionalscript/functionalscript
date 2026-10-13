@@ -48,7 +48,11 @@ export type Pass = {
     }
 }
 
-/** Every other event Node emits; the filter reads nothing but its name. */
+/**
+ * Every other event Node emits; the filter reads nothing but its name.
+ * `test:log`, what `TestContext.log()` emits, is one Node 26 emits and the
+ * pinned `@types/node` does not yet declare.
+ */
 export type Other = {
     readonly type:
         | 'test:complete'
@@ -57,6 +61,7 @@ export type Other = {
         | 'test:enqueue'
         | 'test:fail'
         | 'test:interrupted'
+        | 'test:log'
         | 'test:plan'
         | 'test:start'
         | 'test:stderr'
