@@ -649,7 +649,9 @@ written.
 - Every ordinary or exported `const` comes after every `import` and before
   `export default`, when present
   ([module structure](#module-structure)).
-- `let` and `var` are not part of the language ([let](./todo/3220-let.md)).
+- `let` is part of the language only as the first statement of a loop,
+  `let x = init;` followed by `while` ([loops](#loops)), and `var` not at
+  all ([let](./todo/3220-let.md)).
 
 Sharing is a property of the *value*, not of the name, so what the compiler
 preserves is what the graph actually shares. A DataJS document writes it in
