@@ -2,8 +2,8 @@
 
 **Priority:** P2
 **Status:** wip — the recognizer, the function text and the source
-spelling with its grammar are implemented, the grammar awaiting the
-approval its proposal records; the Rust output is open
+spelling with its grammar are implemented, the grammar's proposal
+approved; the Rust output is open
 
 ### Problem
 
