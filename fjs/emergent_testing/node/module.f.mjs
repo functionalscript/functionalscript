@@ -5,14 +5,15 @@
  * which on this repository's suite is twelve thousand lines of passes and
  * `100.00`s around the few lines that matter. {@link quiet} is the filter
  * `module.mjs` puts in front of it. A passed test is dropped unless it was
- * skipped or left `todo`; a log names the test that wrote it, and a test's
- * diagnostic names where that test is; the coverage report keeps the files
- * that miss a threshold, and its totals; everything else — a failure, the
- * run's summary, a threshold error — passes through unchanged.
+ * skipped or left `todo`; a log names the test that wrote it, a test's
+ * diagnostic names where that test is, and what a test wrote to standard
+ * output or error names the file it ran in; the coverage report keeps the
+ * files that miss a threshold, and its totals; everything else — a failure,
+ * the run's summary, a threshold error — passes through unchanged.
  *
  * @module
  *
- * @import { Coverage, Diagnostic, Event, Log, Pass } from './types.ts'
+ * @import { Coverage, Diagnostic, Event, Log, Output, Pass } from './types.ts'
  */
 
 /**
@@ -86,6 +87,16 @@ const diagnostic = cwd => event =>
     }
 
 /**
+ * What a test wrote to standard output or error, with the file it ran in
+ * before it. Node names no test on the event, only the file, and the `spec`
+ * reporter prints the text alone.
+ *
+ * @type {(cwd: string) => (event: Output) => Output}
+ */
+const output = cwd => event =>
+    ({ ...event, data: { ...event.data, message: `${located(cwd, event.data.file)}: ${event.data.message}` } })
+
+/**
  * The event as the report should see it, or `null` for one it should not.
  *
  * Every `test:start` goes, not only a passed test's: the `spec` reporter
@@ -102,5 +113,6 @@ export const quiet = cwd => event =>
     event.type === 'test:pass' ? pass(event) :
     event.type === 'test:log' ? log(event) :
     event.type === 'test:diagnostic' ? diagnostic(cwd)(event) :
+    event.type === 'test:stdout' || event.type === 'test:stderr' ? output(cwd)(event) :
     event.type === 'test:coverage' ? coverage(event) :
     event

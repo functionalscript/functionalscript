@@ -72,6 +72,14 @@ export const proof = {
         assertStructurallySame(quiet(checkpoint('/repo/a/proof.mjs')), checkpointAt('/repo/a/proof.mjs', 'a/proof.mjs'))
         assertStructurallySame(quietIn('C:\\repo')(checkpoint('C:\\repo\\a.mjs')), checkpointAt('C:\\repo\\a.mjs', 'a.mjs'))
     },
+    outputNamesItsFile: () => {
+        assertStructurallySame(
+            quiet({ type: 'test:stdout', data: { file: '/repo/a.mjs', message: 'hello\n' } }),
+            { type: 'test:stdout', data: { file: '/repo/a.mjs', message: 'a.mjs: hello\n' } })
+        assertStructurallySame(
+            quiet({ type: 'test:stderr', data: { file: '/repo/a.mjs', message: 'oops\n' } }),
+            { type: 'test:stderr', data: { file: '/repo/a.mjs', message: 'a.mjs: oops\n' } })
+    },
     aTestDiagnosticOutsideTheDirectoryKeepsItsPath: () => {
         assertStructurallySame(quiet(checkpoint('/elsewhere/a.mjs')), checkpointAt('/elsewhere/a.mjs', '/elsewhere/a.mjs'))
         assertStructurallySame(quiet(checkpoint('/repository/a.mjs')), checkpointAt('/repository/a.mjs', '/repository/a.mjs'))

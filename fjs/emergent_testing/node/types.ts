@@ -76,6 +76,18 @@ export type Diagnostic = {
     }
 }
 
+/**
+ * What a test wrote to the process's standard output or error, with the
+ * file it ran in and nothing else to name it by.
+ */
+export type Output = {
+    readonly type: 'test:stdout' | 'test:stderr'
+    readonly data: {
+        readonly file: string
+        readonly message: string
+    }
+}
+
 /** Every other event Node emits; the filter reads nothing but its name. */
 export type Other = {
     readonly type:
@@ -86,11 +98,9 @@ export type Other = {
         | 'test:interrupted'
         | 'test:plan'
         | 'test:start'
-        | 'test:stderr'
-        | 'test:stdout'
         | 'test:summary'
         | 'test:watch:drained'
         | 'test:watch:restarted'
 }
 
-export type Event = Coverage | Pass | Log | Diagnostic | Other
+export type Event = Coverage | Pass | Log | Diagnostic | Output | Other
