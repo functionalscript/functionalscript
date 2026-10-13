@@ -62,8 +62,9 @@ at the site's own view, and GitHub can stay as a second link.
   post-processing its HTML, which is more machinery than the extractor. It is
   also an external tool in the generator, which
   [`AGENTS.md` §6](../../../AGENTS.md#6-external-tools) requires approval for.
-  [publish-deno-doc-to-website](publish-deno-doc-to-website.md) is a separate
-  question — a full type reference — and stays open on its own.
+  [publish-deno-doc-to-website](../../../todo/blocked/publish-deno-doc-to-website.md)
+  is a separate question — a full type reference — and remains blocked until
+  Deno renders FunctionalScript's JSDoc types.
 - **The extractor's scope is what the tokens give.** The leading `@module`
   block, then one entry per `export const <name>` with the JSDoc block
   immediately before it and its `@type` line verbatim. No type resolution, no
@@ -111,8 +112,8 @@ at the site's own view, and GitHub can stay as a second link.
 
 - [`fjs/website`](../README.md) — the pages this renders into, and the
   serving model that lets one fetch its own source.
-- [Publish `deno doc` to website](publish-deno-doc-to-website.md) — the full
-  type reference, deliberately not this.
+- [Publish `deno doc` to website](../../../todo/blocked/publish-deno-doc-to-website.md)
+  — the full type reference, deliberately not this.
 - [Generate website](generate-website.md) — "Source code highlighting" is this issue.
 - [`fjs/js/tokenizer`](../../js/tokenizer/module.f.mjs) — the token stream
   both views read, over the grammar [`fjs/ebnf/lib/js`](../../ebnf/lib/js/module.f.mjs).
