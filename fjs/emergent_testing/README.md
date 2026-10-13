@@ -123,6 +123,13 @@ Then invoke the runner:
 This repository's filesystem proofs need write permission to create and remove
 their temporary fixtures; `deno task test` and the coverage tasks grant it.
 
+`node --test` names every passed test and, under coverage, every file; on a
+suite this size that is a log nobody reads. `node/module.mjs` is a reporter
+that keeps what a reader acts on — the failures, the run's summary, the files
+under a coverage threshold — and drops the rest; `npm run cov` passes it as
+`--test-reporter=./fjs/emergent_testing/node/module.mjs`, and a consumer can
+name the package's copy the same way.
+
 You can also implement your own runner, as long as it follows the proof-tree
 conventions described below.
 
