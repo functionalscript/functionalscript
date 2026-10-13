@@ -762,8 +762,9 @@ read yet ([functions](#functions)). A value in a binding position —
 a literal, an access, a call, an operator, or a group, `[(a)]`, which
 JavaScript admits in an assignment and refuses in a binding — is the error
 JavaScript names (`invalid destructuring target`), at the token it begins
-with. An elision, `[a, , b]`, is no array of this language
-([arrays](#arrays)).
+with. An elision, `[, b]`, is not read yet and stops at its second
+comma, as it does in an array literal; it is a follow-up in the record,
+not a rule.
 
 See
 <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Destructuring_assignment>.
