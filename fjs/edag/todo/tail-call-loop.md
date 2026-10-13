@@ -43,7 +43,12 @@ template admits one around the call, `[',', [...ASSERTS, CALL]]`, which is a
 `const` inside the loop body, and one at the root, `[',', [...ASSERTS, TAIL]]`,
 established before the condition each round. Without the first, the first
 `const` written in a loop body would silently turn the loop back into
-recursion.
+recursion. The two are divided between recognition and emission: the
+recognizer reports both, the root's as the parts' `before`, so that the
+parts say what the function is; every writer spells the body's and keeps
+the recursion where `before` is not empty, since no loop written as
+`let`/`while` runs a `const` before its condition every round — a writer
+with a spelling for it would be the one to use the parts it already has.
 
 **One spelling, or the recursion.** Every writer has two forms for a
 function of the template and no third: the loop, spelled one way —
@@ -57,15 +62,20 @@ variable itself — or the recursion the graph already is. The source writer
 spells the loop as `let` and `while` where the function is called in
 place; the function text as an arrow whose body is that same `let` and
 `while`, the variable a `let` of the parameter, so that the text is
-FunctionalScript as the source writer's is; the Rust output, when its turn
-comes, as `let mut` and `while`. Each keeps the
-recursion for the same shapes, which no loop written as `let`/`while`
-produces:
+FunctionalScript as the source writer's is; the Rust output as the
+function's closure whose body is Rust's `loop`. Each keeps the recursion
+for the same shapes, which no loop written as `let`/`while` produces:
 
 - a root assert, a `const` before the `while` running every round;
-- a condition reaching a value shared with the block, which a `const`
-  before the `while` would establish once, and which the function text
-  would have to establish before the `while` tests it;
+- a condition reaching a shared value — one the block reads too, or one
+  the condition itself reads twice, `x === x` over a `const x = f()`:
+  the recursion establishes it afresh per call, in the function text's
+  memo cell, where a `const` before the `while` would establish it once,
+  and a cell inside the body does not exist when the `while` tests the
+  condition. Only the Rust output loops here, by construction rather
+  than by a second spelling: it has no cell, every temporary of the
+  condition is a `let` inside the `loop` before the test, rebound each
+  round;
 - a read of the rest array: each round of the recursion is a call of one
   argument, so from the second round on the array is empty
   ([spec: parameters](../../../spec/README.md#parameters)), and a loop
@@ -117,8 +127,10 @@ variable — and `Ok(r)`. A `loop` with the test at its top rather than a
 `while`, since a `while` cannot hold the condition's temporaries, which
 every round must rebind; a closure whether the function is called in
 place or held as a value, one form rather than two, the call of a closure
-costing one frame where the recursion cost one per round. Which function
-is a loop the Rust writer decides on the graph it walks, where sharing is
+costing one frame where the recursion cost one per round. A rest read
+keeps the recursion as in every writer: the closure binds the rest array
+once per call, and a loop would keep the first call's. Which function is
+a loop the Rust writer decides on the graph it walks, where sharing is
 identity: the function text and the source writer decide on the analysis
 table, where two reads of one property are one shared node, so a function
 the table shows a condition sharing with its block may still loop in Rust,
