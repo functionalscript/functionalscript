@@ -99,11 +99,17 @@ Two alternatives, and why not:
 
 Independent of this decision, the protocol-deciding callers want an ASCII
 case fold, not Unicode's: `text/ascii` could export it over code points
-today, beside its hexadecimal fold, and each of those would be served
-without waiting on a language change. The text-normalizing callers would
-not: `matches('Ä', 'ä')` holds today through Unicode's lowercasing and
-would not through ASCII's, so they wait on this proposal. The fold is a
-module's task, filed where it lands, not this one's.
+today, beside its hexadecimal fold, and each of those could take it
+without waiting on a language change. The fold is not behavior-neutral
+for them, and the follow-up says what it retires: `cBase32ToVec5x`
+decodes the Kelvin sign today, since `normalizeChar` lowercases it to
+`k`, a letter of the alphabet, and would answer `null` through an ASCII
+fold — the Kelvin-sign hole above, in a codec whose alphabet is ASCII, so
+an acceptance to retire by name rather than assume away. The
+text-normalizing callers would not be served: `matches('Ä', 'ä')` holds
+today through Unicode's lowercasing and would not through ASCII's, so
+they wait on this proposal. The fold is a module's task, filed where it
+lands, not this one's.
 
 Benefits: the most-asked-for string operation compiles as written,
 JavaScript's meaning and JavaScript's spelling, and about a dozen modules
