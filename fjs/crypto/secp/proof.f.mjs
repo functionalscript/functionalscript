@@ -3,6 +3,8 @@
  */
 
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
+import { demo, transition } from './demo.f.mjs'
+import { runPure } from '../../effects/module.f.mjs'
 import { prime_field } from '../../types/prime_field/module.f.mjs'
 import { curve, secp256k1, secp192r1, secp256r1, eq, isPublicKey, secp384r1, secp521r1 } from './module.f.mjs'
 
@@ -61,6 +63,74 @@ const poker = param => () => {
 }
 
 export const proof = {
+    playground: () => {
+        const initial = demo.init
+        const text = JSON.stringify(demo.view(initial))
+        assert(text.includes('The complete construction updates immediately.'))
+        assert(!text.includes('data-secp-controls'))
+        assertEq(transition(initial, { kind: 'start' }), initial)
+        assertEq(transition(initial, { kind: 'click', name: 'unknown' }), initial)
+        assertEq(transition(initial, { kind: 'input', name: 'unknown', value: 'x' }), initial)
+        assertEq(transition(initial, { kind: 'click', name: 'point:bad' }), initial)
+        assertEq(transition(initial, { kind: 'click', name: 'play' }), initial)
+        for (const name of ['view', 'operation', 'k', 'p', 'q', 'target', 'realP', 'realQ', 'branchP', 'branchQ', 'curve', 'privateKey']) {
+            transition(initial, { kind: 'input', name, value: 'x' })
+        }
+        assertEq(transition(initial, { kind: 'click', name: 'point:13,12' }).p, '13,12')
+        assertEq(transition({ ...initial, target: 'Q' }, { kind: 'click', name: 'point:13,12' }).q, '13,12')
+        assertEq(transition(initial, { kind: 'input', name: 'operation', value: '2P' }).p, '4,16')
+        const qTarget = /** @type {const} */ ({ ...initial, target: 'Q' })
+        for (const operation of ['2P', '−P']) {
+            const operationState = transition(qTarget, { kind: 'input', name: 'operation', value: operation })
+            assertEq(operationState.target, 'P')
+            assertEq(transition(operationState, { kind: 'click', name: 'point:13,12' }).p, '13,12')
+        }
+        const additionDefaults = transition(initial, { kind: 'input', name: 'operation', value: 'P + Q' })
+        assertEq(additionDefaults.p, '10,18')
+        assertEq(additionDefaults.q, '13,12')
+        for (const k of ['0', '29']) {
+            const identityView = JSON.stringify(demo.view({ ...initial, view: 'Finite Field View', operation: 'kG', k }))
+            assert(identityView.includes(`Scalar result ${k}G:`))
+            assert(!identityView.includes('Public key'))
+            assert(identityView.includes('O (point at infinity)'))
+            assert(!identityView.includes('point:'))
+            assert(!identityView.includes('Select P ='))
+        }
+        const adding = /** @type {const} */ ({ ...initial, view: 'Finite Field View', operation: 'P + Q' })
+        const resultView = JSON.stringify(demo.view(adding))
+        assert(resultView.includes('point:13,12'))
+        assert(resultView.includes('Select P ='))
+        assertEq(resultView.split('data-secp-modular-line').length - 1, 24)
+        assert(resultView.includes('secp-finite-clip'))
+        assert(resultView.includes('orange segments'))
+        assert(resultView.includes('data-secp-finite-negation'))
+        assert(resultView.includes('S is the third curve intersection'))
+        const doublingView = JSON.stringify(demo.view({ ...adding, operation: '2P', p: '4,16' }))
+        assertEq(doublingView.split('data-secp-modular-line').length - 1, 29)
+        assert(doublingView.includes('broken where it wraps'))
+        assert(resultView.includes('x₃ = ('))
+        assert(JSON.stringify(demo.view({ ...initial, view: 'Finite Field View', operation: '−P' })).includes('data-secp-finite-negation'))
+        const views = [
+            { ...initial, view: 'Finite Field View', k: '0' }, { ...initial, view: 'Finite Field View', k: '29' }, { ...initial, view: 'Finite Field View', k: 'bad' },
+            { ...initial, view: 'Finite Field View', p: 'bad' }, { ...initial, view: 'Finite Field View', q: 'bad' },
+            ...['P + Q', '2P', '−P'].map(operation => ({ ...initial, view: 'Finite Field View', operation })),
+            { ...initial, view: 'Finite Field View', operation: 'P + Q', target: 'Q' }, { ...initial, view: 'Finite Field View', operation: 'P + Q', p: 'O' }, { ...initial, view: 'Finite Field View', operation: 'P + Q', q: '0,21' },
+            ...['P + Q', '2P'].map(operation => ({ ...initial, view: 'Geometric View', operation })),
+            { ...initial, view: 'Geometric View', realP: '-2' },
+            { ...initial, view: 'Geometric View', realQ: '0', branchQ: '-1' },
+            { ...initial, view: 'Geometric View', realQ: '0.00000001' },
+            { ...initial, view: 'Geometric View', realQ: '0.001', branchQ: '-1' },
+            ...['secp192r1', 'secp256k1', 'secp256r1', 'secp384r1', 'secp521r1', 'missing'].map(curve => ({ ...initial, view: 'Real Curves', curve })),
+            { ...initial, view: 'Real Curves', privateKey: 'bad' }, { ...initial, view: 'Real Curves', privateKey: '0' },
+        ]
+        for (const view of views) { demo.view(view) }
+        const generated = transition({ ...initial, view: 'Real Curves' }, { kind: 'click', name: 'generate' })
+        assert(generated.generated?.includes('f9308a') === true)
+        demo.view(generated)
+        assertEq(transition({ ...initial, privateKey: 'bad' }, { kind: 'click', name: 'generate' }).generated, null)
+        const effect = runPure(demo.update(initial)({ kind: 'start' }))
+        assertEq(effect[0]?.[0], 'ok')
+    },
     example: () => {
         /** @type {Init} */
         const curveParams = {
