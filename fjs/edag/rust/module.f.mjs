@@ -1285,7 +1285,7 @@ const loopParts = fn => {
     if (length !== 1 || !(body instanceof Array) || body[0] !== '?:') { return null }
     const [, condition, arm, otherwise] = body
     if (!isArg0(otherwise) || reads('rest')(/** @type {Exp} */ (/** @type {unknown} */ (body)))) { return null }
-    const [asserts, call] = isComma(arm) ? [arm[1].slice(0, -1), last(arm)] : [[], arm]
+    const call = isComma(arm) ? last(arm) : arm
     if (!(call instanceof Array) || call[0] !== '()' || !(call[1] instanceof Array) || call[1][0] !== 'self' || call[2].length !== 1) { return null }
     const next = call[2][0]
     if (next instanceof Array && (next[0] === '...' || next[0] === 'throw')) { return null }
