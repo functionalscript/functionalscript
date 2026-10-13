@@ -48,6 +48,8 @@
 import { f64Bits, i64Literal, stringLiteral, u64WordItems, utf16Units } from '../../media/rust/module.f.mjs'
 import { error, mapOk, ok, okList, okThen, unwrap } from '../../types/result/module.f.js'
 import { lazyOp2Id } from '../module.f.mjs'
+import { analysis } from '../analysis/module.f.mjs'
+import { keepsRecursion, loopOf } from '../loop/module.f.mjs'
 import { isIndex, maxLength } from '../../types/function/length/module.f.mjs'
 import { tryFunctionText } from '../../compiler/serializer/module.f.mjs'
 import { tagged, untagged } from '../../text/marked/module.f.mjs'
@@ -1376,36 +1378,29 @@ export const nodeExpr = expExpr([])
 const isArg0 = e => e instanceof Array && e[0] === 'arg' && e[1] === 0
 
 /**
- * The parts of a loop read off its function node — the template
- * `fjs/edag/loop` recognizes in the analysis table, read here on the graph
- * this printer walks: `['=>', 1, slots, ['?:', COND, ARM, ['arg', 0]]]`,
- * `ARM` the call `['()', ['self'], [NEXT]]` or a comma holding asserts
- * before it — and `null` where the function is not one, or is a shape
- * every writer keeps the recursion for (`fjs/edag/todo/tail-call-loop.md`):
- * `self` read anywhere else, a shared `?:`, comma or call on the path, a
- * root assert, a condition and an arm sharing a node that is no atom, a
- * read of the rest array, a next value that is a spread. A next value that
- * throws is assigned as any is, the `Err` the round's `?` returns.
+ * The parts of a loop read off its function node, by the one recognizer
+ * every writer asks, `fjs/edag/loop`, of the function's own table: the
+ * template `['=>', 1, slots, ['?:', COND, ARM, ['arg', 0]]]`, `ARM` the
+ * call `['()', ['self'], [NEXT]]` or a comma holding asserts before it —
+ * the condition, the arm and the next value as the graph holds them, the
+ * nodes this printer prints — and `null` where the function is no loop,
+ * or one every writer keeps the recursion for (`keepsRecursion`), or no
+ * table at all, a fragment sharing a node across its own boundary. A next
+ * value that throws is assigned as any is, the `Err` the round's `?`
+ * returns.
  *
  * @type {(fn: readonly unknown[]) => _LoopParts | null}
  */
 const loopParts = fn => {
-    const [, length, , body] = /** @type {readonly any[]} */ (fn)
-    if (length !== 1 || !(body instanceof Array) || body[0] !== '?:') { return null }
-    const [, condition, arm, otherwise] = body
-    if (!isArg0(otherwise) || reads('rest')(/** @type {Exp} */ (/** @type {unknown} */ (body)))) { return null }
+    const a = analysis(/** @type {Exp} */ (/** @type {unknown} */ (fn)))
+    if (a[0] === 'error') { return null }
+    const i = /** @type {readonly ['#', number]} */ (a[1].root)[1]
+    const loop = loopOf(a[1], i)
+    if (loop === null || keepsRecursion(a[1], i, loop)) { return null }
+    const [, , , body] = /** @type {readonly any[]} */ (fn)
+    const [, condition, arm] = isComma(body) ? last(body) : body
     const call = isComma(arm) ? last(arm) : arm
-    if (!(call instanceof Array) || call[0] !== '()' || !(call[1] instanceof Array) || call[1][0] !== 'self' || call[2].length !== 1) { return null }
-    const next = call[2][0]
-    if (next instanceof Array && next[0] === '...') { return null }
-    const visited = visit(operandsOf)([])(body)
-    /** Whether one place reaches the node, which is under `body`. @type {(n: unknown) => boolean} */
-    const once = n => visited.some(([m, count]) => m === n && count === 1)
-    const selves = visited.filter(([n]) => tagOf(n) === 'self')
-    if (selves.length !== 1 || /** @type {unknown} */ (selves[0][0]) !== call[1] || !once(call[1]) || !once(arm) || !once(call)) { return null }
-    const inCondition = visit(operandsOf)([])(condition).map(([n]) => n)
-    const shared = visit(operandsOf)([])(arm).some(([n]) => !atomic(n) && inCondition.includes(n))
-    return shared ? null : { condition, arm, next }
+    return { condition, arm, next: call[2][0] }
 }
 
 /**
