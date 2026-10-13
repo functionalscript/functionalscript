@@ -9,14 +9,26 @@
 import { isInteger } from '../../number/is_integer/module.f.js'
 
 /**
- * The bigint of a non-negative integral number, bit by bit: the lowest bit
- * is `n % 2`, and the bits above it are those of `(n - n % 2) / 2`, both
- * exact on an integral double, since halving one drops no bit. One level
- * of recursion per bit, at most 1024 for the largest double.
+ * The bigint of a non-negative integral number, bit by bit from the lowest:
+ * a round takes the lowest bit of the rest, `rest % 2`, exact on an integral
+ * double, adds it to the result at the bit's weight, and halves the rest,
+ * `(rest - bit) / 2`, which drops no bit. One round per bit, at most 1024
+ * for the largest double, in one loop over one variable, the state.
  *
  * @type {(n: number) => bigint}
  */
-const bits = n => n === 0 ? 0n : bits((n - n % 2) / 2) << 1n | (n % 2 === 0 ? 0n : 1n)
+const bits = n => {
+    let s = { rest: n, result: 0n, weight: 1n }
+    while (s.rest !== 0) {
+        const bit = s.rest % 2
+        s = {
+            rest: (s.rest - bit) / 2,
+            result: bit === 0 ? s.result : s.result | s.weight,
+            weight: s.weight << 1n,
+        }
+    }
+    return s.result
+}
 
 /**
  * The bigint with the value of `n`, an integral number: what `BigInt(n)`

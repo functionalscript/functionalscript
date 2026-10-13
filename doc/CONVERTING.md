@@ -357,7 +357,46 @@ sugar for it later. Until then `Object` stands in a module only as the
 helper's descriptor, and every other member of it is a change the
 conversion makes by hand.
 
-## 7. `BigInt`
+## 7. A body that ends without `return`
+
+A block body ends in a terminating statement, a `return` or a `throw`, and
+every statement before it is a `const` or a guard
+([bodies and guards](../spec/README.md#bodies-and-guards)). JavaScript lets
+a body run off its closing brace and answers `undefined`; the compiler
+refuses to infer that return, and reports the brace (`unexpected token`).
+The rewrite spells the value JavaScript supplied:
+
+```js
+const check = (a, b) => {
+    if (a !== b) { throw [a, b] }
+}                                   // refused at the `}`
+```
+
+```js
+const check = (a, b) => {
+    if (a !== b) { throw [a, b] }
+    return undefined                // accepted
+}
+```
+
+The value is preserved exactly — the function returned `undefined` on that
+path before, and returns it now — and the compiler lowers the body to the
+conditional the guard already denotes, `a !== b ? (() => { throw [a, b] })()
+: undefined`. The same rewrite closes a body whose last statement is a
+`const`, and a guard's own block, `if (c) { return undefined }`, where the
+guarded path is the one that answers nothing. A bare `return` is not the
+spelling: `return` and its value share a line and the value is required, so
+`return;` is refused as the brace was.
+
+Such a body is nearly always a procedure — a proof that asserts by throwing,
+as [`fjs/emergent_testing/example.f.js`](../fjs/emergent_testing/example.f.js)
+does — and a module may find it reads better as an expression once the
+`return` is written,
+`(a, b) => a !== b ? (() => { throw [a, b] })() : undefined`. Either spelling
+is in the language; the conversion adds the `return` and changes nothing
+else.
+
+## 8. `BigInt`
 
 The `BigInt` global is not admitted, and `BigInt(n)` is refused
 (`const not found`). On an integral number the replacement is `bigint`
@@ -376,8 +415,9 @@ const twoPow = exp => 1n << bigint(exp)   // accepted
 
 `bigint(n)` is the bigint with the value of `n`, exact at every magnitude:
 the lowest bit of an integral double is `n % 2`, the bits above it are
-those of `(n - n % 2) / 2`, both exact, and a self-recursion reads them one
-per level, at most 1024 for the largest double. `-0` gives `0n`, as
+those of `(n - n % 2) / 2`, both exact, and a `let`/`while` loop over one
+variable ([loops](../spec/README.md#loops)) reads them one per round, at
+most 1024 for the largest double. `-0` gives `0n`, as
 `BigInt(-0)` does. A fraction, `NaN` or an infinity has no bigint:
 `BigInt` throws a `RangeError` on it, and `bigint` throws too
 ([failure is one outcome](../spec/README.md#failure-is-one-outcome)), so

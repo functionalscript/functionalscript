@@ -74,7 +74,7 @@ name not yet decided, or, where it says so, never admitted.
 - [ ] `BigInt` — not decided. `BigInt(n)` on an integral number is the
       importable function
       [`bigint`](../../fjs/types/bigint/from_number/module.f.js)
-      meanwhile ([`doc/CONVERTING.md` §7](../../doc/CONVERTING.md#7-bigint)),
+      meanwhile ([`doc/CONVERTING.md` §8](../../doc/CONVERTING.md#8-bigint)),
       as `isInteger` stands in for `Number.isInteger` above
 - [ ] `Math`
 - [ ] `Date`

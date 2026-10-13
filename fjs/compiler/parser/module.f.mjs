@@ -51,7 +51,12 @@
  * two, `c ? (() => { …block… })() : (() => { …rest… })()`, so a `const` of
  * either arm is the arm's alone and the graph is the one that spelling
  * has ([spec: functions](../../../spec/README.md#functions)). No node is
- * added to the AST for it.
+ * added to the AST for it. A loop, `let r = init; while (c) block`, is
+ * the fold's the same way: the two statements are one entry, the call of
+ * the function `r => c ? (() => { …block…; return self(next); })() : r`
+ * with `init`, the block the body of a parameterless function as a
+ * guard's arm is, {@link loopRound}, and the variable names the call from
+ * the loop on ([spec: loops](../../../spec/README.md#loops)).
  *
  * The resolution walks a value over an explicit stack of frames, so
  * nesting depth stays the input's.
@@ -67,8 +72,8 @@
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
  * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstNot, AstTypeof, AstInstanceOf, AstNumber, AstString, AstKey, AstSelf, AstCall, AstConditional, AstConst, AstEntryFunction, AstFrameRef, AstEntry, AstFunction, AstItem, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstRest, AstSpread, AstStep, AstThrow } from '../ast/types.ts'
  * @import { ParseError } from './types.ts'
- * @import { Block, Chain, ComputedKey, ConstantMember, Container, Entry, If, Import, Item, Key, Module, Node, ParameterBinding, ParameterList, Statement, Step, ValueStatement } from './syntax/types.ts'
- * @import { _AccessFrame, _BodyFrame, _CallFrame, _ChainFrame, _ChainPart, _ConditionalFrame, _IndexFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _Intrinsic, _Parameter, _Ref, _Scope, _Stack, _State } from './private.ts'
+ * @import { Block, Chain, ComputedKey, ConstantMember, Container, Entry, If, Import, Item, Key, Module, Node, ParameterBinding, ParameterList, Statement, Step, ValueStatement, While } from './syntax/types.ts'
+ * @import { _AccessFrame, _BodyFrame, _CallFrame, _ChainFrame, _ChainPart, _ConditionalFrame, _IndexFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _Intrinsic, _LoopBodyFrame, _Parameter, _Ref, _Scope, _Stack, _State } from './private.ts'
  */
 
 import { error, mapOk, ok } from '../../types/result/module.f.js'
@@ -105,6 +110,42 @@ const constNotFound = foldError('const not found')
 
 /** A name bound twice, at the second binding. */
 const duplicateId = foldError('duplicate id')
+
+/**
+ * A `let` the statement after it is not a `while`, at the `let`: the two
+ * are one loop, and the language has no `let` on its own
+ * ([spec: loops](../../../spec/README.md#loops)).
+ */
+const letWithoutWhile = foldError('let without while')
+
+/** A `while` no `let` stands before, at the `while`, for the same reason. */
+const whileWithoutLet = foldError('while without let')
+
+/** An assignment to a name that is not the loop's variable, at the name: the one name a loop's block may rebind. */
+const notTheLoopVariable = foldError('not the loop variable')
+
+/**
+ * A `const` of the loop's variable in the loop's block, at the name: in
+ * JavaScript the block's own binding, which the loop never sees, where
+ * this fold would read it as the assignment the block's end continues
+ * with — so it is refused rather than read another way.
+ */
+const loopVariableShadowed = foldError('loop variable shadowed')
+
+/**
+ * A read of a loop's variable from a function nested in the loop, at the
+ * reference: JavaScript's closure sees the variable's last value, where the
+ * function's capture holds the value of the round it was made in, so the
+ * program is refused rather than read another way.
+ */
+const loopVariableCaptured = foldError('loop variable captured')
+
+/**
+ * The word the function a loop lowers to is bound to in its own scope,
+ * which its block reads it back as to call it: one no identifier can
+ * spell, so that no word of the source resolves to it.
+ */
+const loopSelf = '\0loop'
 
 /**
  * A parameter list whose first parameter is no plain name, at the `(` that
@@ -193,7 +234,7 @@ const brokenLine = statement => statement.first.newline
  * asked; nor is a guard, which ends at its `}` and takes no `;`, so the
  * statement after one may share its line, as in JavaScript.
  *
- * @type {(previous: Statement | If | null, next: Statement | If) => boolean}
+ * @type {(previous: Statement | If | While | null, next: Statement | If | While) => boolean}
  */
 const unterminated = (previous, next) => previous !== null && 'semicolon' in previous && !previous.semicolon && !next.start.newline
 
@@ -866,6 +907,17 @@ const bodyRound = (stack, scope, frame) => {
         return [stack, scope, error(unexpectedToken(statement.start))]
     }
     if (kind === 'if') { return [{ top: frame, rest: stack }, scope, ['enter', statement.condition]] }
+    // a `while` reached here has no `let` before it: a `let` takes its
+    // `while` with it, below
+    if (kind === 'while') { return [stack, scope, error(whileWithoutLet(statement.start))] }
+    if (kind === 'let') {
+        // the statement after the `let` is its `while`; the block ends in a
+        // terminator, so there is one
+        if (statements[index + 1][0] !== 'while') { return [stack, scope, error(letWithoutWhile(statement.start))] }
+        const [tag, word] = bodyBindable(scope)(statement.name)
+        if (tag === 'error') { return [stack, scope, error(word)] }
+        return [{ top: { let: statement, body: frame, word }, rest: stack }, scope, ['enter', statement.value]]
+    }
     if (kind !== 'const') {
         return brokenLine(statement)
             ? [stack, scope, error(unexpectedToken(statement.first))]
@@ -900,7 +952,12 @@ const enter = (stack, scope, node) => {
             const [tag, word] = identifierOf(node[1])
             if (tag === 'error') { return [stack, scope, error(word)] }
             const found = resolve(scope, word)
-            return found === null ? [stack, scope, error(constNotFound(node[1]))] : [stack, found[0], ok(found[1])]
+            if (found === null) { return [stack, scope, error(constNotFound(node[1]))] }
+            // the first read of each loop variable from a nested function is
+            // noted, and refused when the function closes held as a value
+            const reads = found[0].loopReads
+            const noted = capturedLoopVariable(scope, word) && !readsOf(reads, word)
+            return [stack, noted ? { ...found[0], loopReads: [...reads, [word, loopVariableCaptured(node[1])]] } : found[0], ok(found[1])]
         }
         case '.': {
             return node.length === 3
@@ -1067,10 +1124,10 @@ const entered = (stack, scope, node, self) => {
     if (tag === 'error') { return [stack, scope, error(bound)] }
     const [names, count] = bound
     /** @type {_Scope} */
-    const inner = { names, count, captures: [], enclosing: null, outer: scope, self }
+    const inner = { names, count, captures: [], enclosing: null, outer: scope, self, loop: null, loopReads: [] }
     const body = node[2]
     return body[0] === 'block'
-        ? bodyRound(stack, inner, { statements: body[1], first: 0, index: 0, word: '', done: null })
+        ? bodyRound(stack, inner, { statements: body[1], first: 0, index: 0, skipped: 0, word: '', done: null })
         : [{ top: { function: true }, rest: stack }, inner, ['enter', body]]
 }
 
@@ -1136,6 +1193,52 @@ const returned = (stack, scope, frame, value) => {
         const binary = [frame.tag, frame.left, value]
         return [stack, scope, ok(binary)]
     }
+    if ('let' in frame) { return loopEntered(stack, scope, frame, value) }
+    if ('loop' in frame) {
+        if (frame.condition === null) {
+            // the condition resolved in the loop's own scope: its block is
+            // the body of a parameterless function inside it, a block of
+            // JavaScript's own, marked with the variable as the loop's scope
+            // is, {@link loopRound}
+            return loopRound(
+                { top: { ...frame, condition: value }, rest: stack },
+                { names: empty, count: 0, captures: [], enclosing: null, outer: scope, self: null, loop: frame.word, loopReads: [] },
+                { block: frame.loop.block[1], index: 0, word: frame.word, bound: '', done: null })
+        }
+        // the block closed, as the function it is the body of: the loop's
+        // function is the conditional of the condition, the block's call,
+        // and the variable itself — `r => c ? (() => { …; return self(next);
+        // })() : r` — closed over its one entry, in the scope around it
+        /** @type {AstCall} */
+        const call = ['()', value, []]
+        /** @type {AstConditional} */
+        const conditional = ['?:', frame.condition, call, ['arg', 0]]
+        return closed({ top: { called: frame.loop, body: frame.body, word: frame.word, init: frame.init }, rest: stack }, scope, [conditional])
+    }
+    if ('called' in frame) {
+        // the loop's function closed: the two statements make one entry, its
+        // call with the initial value, which the variable names from here
+        // on, a `const` from the loop's end — and the `while` made no entry
+        // of its own
+        const { body, word } = frame
+        /** @type {AstCall} */
+        const call = ['()', value, [frame.init]]
+        return bodyRound(
+            stack,
+            { ...scope, names: extended(scope.names)(word, ['cref', body.index - body.first - body.skipped]) },
+            { ...body, index: body.index + 2, skipped: body.skipped + 1, done: concat(body.done)([call]) })
+    }
+    if ('block' in frame) {
+        const [kind, statement] = frame.block[frame.index]
+        // a `const` of a name its own initializer read from outside, as a
+        // body's; an assignment rebinds the loop's variable, which the
+        // block may have read already
+        if (kind === 'const' && at(frame.bound)(scope.names) !== null) { return [stack, scope, error(captureShadowed(statement.name))] }
+        return loopRound(
+            stack,
+            { ...scope, names: extended(scope.names)(frame.bound, ['cref', frame.index]) },
+            { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) })
+    }
     if ('statements' in frame) {
         const [kind, statement] = frame.statements[frame.index]
         if (kind === 'const') {
@@ -1147,7 +1250,7 @@ const returned = (stack, scope, frame, value) => {
             // makes, counted from the body's first
             return bodyRound(
                 stack,
-                { ...scope, names: extended(scope.names)(frame.word, ['cref', frame.index - frame.first]) },
+                { ...scope, names: extended(scope.names)(frame.word, ['cref', frame.index - frame.first - frame.skipped]) },
                 { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) })
         }
         // a guard's condition: its block is the first arm, a block of
@@ -1190,7 +1293,91 @@ const returned = (stack, scope, frame, value) => {
  * @type {(stack: _Stack, scope: _Scope, frame: _GuardFrame, statements: Block[1], first: number, enclosing: List<_Env>) => _State}
  */
 const arm = (stack, scope, frame, statements, first, enclosing) =>
-    bodyRound({ top: frame, rest: stack }, { names: empty, count: 0, captures: [], enclosing, outer: scope, self: null }, { statements, first, index: first, word: '', done: null })
+    bodyRound({ top: frame, rest: stack }, { names: empty, count: 0, captures: [], enclosing, outer: scope, self: null, loop: null, loopReads: [] }, { statements, first, index: first, skipped: 0, word: '', done: null })
+
+/**
+ * A loop's initial value resolved: the `while` after the `let`, with the
+ * line rule every statement keeps, and then its condition, in the scope
+ * of the function the loop lowers to — its one parameter the variable,
+ * bound to the first argument, the function itself under {@link loopSelf},
+ * and the variable marked, {@link capturedLoopVariable}
+ * ([spec: loops](../../../spec/README.md#loops)). A `let` whose initializer
+ * read the word from outside is refused as a `const`'s is.
+ *
+ * @type {(stack: _Stack, scope: _Scope, frame: Extract<_Frame, { readonly let: unknown }>, init: AstConst) => _State}
+ */
+const loopEntered = (stack, scope, frame, init) => {
+    const { body, word } = frame
+    if (at(word)(scope.names) !== null) { return [stack, scope, error(captureShadowed(frame.let.name))] }
+    const next = body.statements[body.index + 1]
+    // the `let` is followed by its `while`: {@link bodyRound} refused it otherwise
+    const loop = /** @type {While} */ (next[1])
+    if (unterminated(frame.let, loop)) { return [stack, scope, error(unexpectedToken(loop.start))] }
+    /** @type {_Scope} */
+    const inner = { names: extended(empty)(word, ['arg', 0]), count: 1, captures: [], enclosing: null, outer: scope, self: loopSelf, loop: word, loopReads: [] }
+    return [{ top: { loop, body, word, init, condition: null }, rest: stack }, inner, ['enter', loop.condition]]
+}
+
+/**
+ * The next step of a loop's block, the body of a parameterless function
+ * inside the loop's: the `const` at `index`, its name checked before its
+ * value is entered, as a body's is; or the assignment, which may name the
+ * loop's variable alone and rebinds it for the statements after — in the
+ * graph a new entry the word names, as a `const` is, so that the
+ * statements read the value in order, as JavaScript reads them. The
+ * block's end continues the loop: the body closes over the call of the
+ * loop's function, {@link loopSelf}, with the variable's binding then —
+ * the last assignment's entry, or the argument as it came in — each a
+ * capture of the block's function as any read from outside is.
+ *
+ * @type {(stack: _Stack, scope: _Scope, frame: _LoopBodyFrame) => _State}
+ */
+const loopRound = (stack, scope, frame) => {
+    const { block, index, word } = frame
+    if (index === block.length) {
+        // both bound in the loop's scope around this one, so neither read is `null`
+        const callee = assertNotNullish(resolve(scope, loopSelf), ['a loop block outside its loop', word])
+        const next = assertNotNullish(resolve(callee[0], word), ['a loop block outside its loop', word])
+        /** @type {AstCall} */
+        const call = ['()', callee[1], [next[1]]]
+        return closed(stack, next[0], [...toArray(frame.done), call])
+    }
+    const [kind, statement] = block[index]
+    if (unterminated(index === 0 ? null : block[index - 1][1], statement)) {
+        return [stack, scope, error(unexpectedToken(statement.start))]
+    }
+    if (kind === 'const') {
+        const [tag, bound] = bodyBindable(scope)(statement.name)
+        if (tag === 'error') { return [stack, scope, error(bound)] }
+        if (bound === word) { return [stack, scope, error(loopVariableShadowed(statement.name))] }
+        return [{ top: { ...frame, bound }, rest: stack }, scope, ['define', statement.value, bound]]
+    }
+    const [tag, bound] = identifierOf(statement.name)
+    if (tag === 'error') { return [stack, scope, error(bound)] }
+    if (bound !== word) { return [stack, scope, error(notTheLoopVariable(statement.name))] }
+    return [{ top: { ...frame, bound }, rest: stack }, scope, ['enter', statement.value]]
+}
+
+/**
+ * Whether a read of `word` in `scope` is a loop's variable read from a
+ * function nested in the loop — in its condition or its block — and not
+ * from the loop's own scope or its block's: out from `scope` to the
+ * nearest scope that binds the word or is marked with it, the read is
+ * noted, {@link closed} refusing it, where that scope is marked and is not
+ * `scope` itself. A nearer
+ * binding of the word, a nested function's own parameter say, shadows the
+ * variable as it does in JavaScript.
+ *
+ * @type {(scope: _Scope, word: string) => boolean}
+ */
+const capturedLoopVariable = (scope, word) => {
+    let s = scope
+    while (s.loop !== word) {
+        if (s.outer === null || at(word)(s.names) !== null) { return false }
+        s = s.outer
+    }
+    return s !== scope
+}
 
 /**
  * A function closed over its body, resolved in `scope`: the scope around
@@ -1204,8 +1391,28 @@ const closed = (stack, scope, body) => {
     const outer = assertNotNullish(scope.outer, ['a function body with no scope around it', body])
     /** @type {AstFunction} */
     const fn = scope.captures.length === 0 ? ['=>', scope.count, body] : ['=>', scope.count, body, scope.captures]
-    return [stack, outer, ok(fn)]
+    if (scope.loopReads.length === 0) { return [stack, outer, ok(fn)] }
+    // a function that read a loop's variable is refused, at its first such
+    // read, unless it is called where it is written — the callee of a
+    // call, or a loop's own function or block, which the loop calls —
+    // since called at once its closure sees the round's value as
+    // JavaScript's does, where held as a value it may outlive the round,
+    // when JavaScript's would see the variable's last value; and each
+    // read is the enclosing function's too, whose frame holds the
+    // variable for this one's, out to the scope the variable is the
+    // loop's in
+    if (!(scope.loop !== null || (stack !== null && 'call' in stack.top && stack.top.index === 0))) { return [stack, outer, error(scope.loopReads[0][1])] }
+    const passed = scope.loopReads.filter(([word]) => word !== outer.loop && !readsOf(outer.loopReads, word))
+    return [stack, { ...outer, loopReads: [...outer.loopReads, ...passed] }, ok(fn)]
 }
+
+/**
+ * Whether `reads`, a scope's reads of loop variables, holds a read of
+ * `word`.
+ *
+ * @type {(reads: _Scope['loopReads'], word: string) => boolean}
+ */
+const readsOf = (reads, word) => reads.some(([read]) => read === word)
 
 /**
  * The value a node denotes under `env`, or the first error met in document
@@ -1231,7 +1438,7 @@ const closed = (stack, scope, body) => {
  */
 const evaluate = (env, self) => root => {
     /** @type {_State} */
-    let state = [null, { names: env, count: 0, captures: [], enclosing: null, outer: null, self: null }, self === null ? ['enter', root] : ['define', root, self]]
+    let state = [null, { names: env, count: 0, captures: [], enclosing: null, outer: null, self: null, loop: null, loopReads: [] }, self === null ? ['enter', root] : ['define', root, self]]
     while (true) {
         const [stack, scope, step] = state
         const [tag, payload] = step

@@ -97,7 +97,9 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
    whether a reserved word that denotes a value, `NaN`, may stand as one is
    [literal-words-as-references](./2445-literal-words-as-references.md),
    at P5,
-2. [ ] [destructuring](./2450-destructuring.md),
+2. [ ] [destructuring](./2450-destructuring.md) — binding patterns in
+   `const` and parameters, lowered to property reads and the spread; the
+   design is proposed, open for designer approval,
 3. [ ] [js-string-literals](./2460-js-string-literals.md),
 4. [ ] number spellings beyond JSON's — `0o7`, `.5`, `1.`
    ([numbers](../README.md#numbers)); hexadecimal, binary and numeric separators are implemented;
@@ -158,8 +160,12 @@ information — see [serialization](./serialization.md) and
    node ([functions](../README.md#functions)). The bare consequent, a
    non-terminating branch with `else`, and the module-level guard are
    follow-ups.
-2. [ ] [let](./3220-let.md)
-3. [ ] `while`
+2. [x] [let](./3220-let.md) — the one-variable loop, `let x = init;` and
+   its `while`, is in the language ([loops](../README.md#loops)); several
+   variables, `break`, `continue`, `for` and a `let` outside a loop are
+   open in the record
+3. [x] `while` — with `let` above; `while` over several variables, and
+   `break` and `continue` in its block, are open there
 4. [ ] Ownership of Mutable Objects (Singletons). Wanted for local mutability
    ([mutability](./mutability.md)), **not** for I/O: effects keep I/O state in
    the runner ([io-effects](./io-effects.md)).

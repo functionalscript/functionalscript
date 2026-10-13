@@ -42,6 +42,31 @@ export const proof = {
         assertEq(object.x, 6)
         throws(() => run(['()', ['entry'], [null, 'x']]))
     },
+    // a million rounds, which the named function expression a self-call is
+    // otherwise spelled as could not run on V8, which implements no tail
+    // calls
+    loops: () => {
+        /** @type {(next: Exp) => Exp} */
+        const call = next => ['()', ['self'], [next]]
+        assertEq(compile(['=>', 1, [], ['?:', ['<', ['arg', 0], 1_000_000], call(['+', ['arg', 0], 1]), ['arg', 0]]])(0), 1_000_000)
+        // a function reading its rest array keeps the recursion, which gives
+        // each round the empty array a call of one argument leaves
+        const sum = compile(['=>', 1, [], ['?:', ['.', ['rest'], 'length'], call(['+', ['arg', 0], ['.', ['rest'], 0]]), ['arg', 0]]])
+        assertEq(sum(1, 2, 3), 3)
+        assertEq(sum(1), 1)
+        // each round shares its own node and starts fresh
+        const shared = /** @type {const} */ (['[]', [['arg', 0]]])
+        assertEq(compile(['=>', 1, [], ['?:', ['<', ['arg', 0], 3], call(['+', ['.', shared, 0], ['.', shared, 'length']]), ['arg', 0]]])(0), 3)
+        // and so does the recursion a condition reaching the shared node keeps
+        const pairs = compile(['=>', 1, [], ['?:', ['<', ['.', shared, 0], 2], call(['+', ['.', shared, 0], 1]), ['[]', [shared, shared]]]])
+        const result = pairs(0)
+        assertEq(result[0], result[1])
+        assertStructurallySame(result, [[2], [2]])
+        // an assert that fails stops the loop at its round
+        const failing = compile(['=>', 1, [], ['?:', ['<', ['arg', 0], 5], [',', [['?:', ['===', ['arg', 0], 3], ['throw', 'three'], 0], call(['+', ['arg', 0], 1])]], ['arg', 0]]])
+        assertEq(failing(4), 5)
+        throws(() => failing(0), e => e === 'three')
+    },
     captures: () => {
         const captured = Object.freeze([9])
         /** @type {FunctionExp} */

@@ -7,9 +7,9 @@ any other value.
 
 ## Scope
 
-**In a browser, this framework runs authored FunctionalScript — `.f.mjs` — and
-nothing else.** `website/module.f.mjs` selects on the extension, so the
-proof list it writes into a page contains only those modules. That is the design, not a first
+**In a browser, this framework runs authored FunctionalScript — `.f.mjs` and
+`.f.js` — and nothing else.** `website/module.f.mjs` selects on the extension,
+so the proof list it writes into a page contains only those modules. That is the design, not a first
 iteration: an impure `.mjs` proof means whatever its host gives it — `node:fs`,
 `node:vm`, `process`, `node:test`, a filesystem, a subprocess — and a page has
 none of those. Loading Node-targeted JavaScript into a browser and expecting it
@@ -29,12 +29,13 @@ not defend against them. Each case is measured and recorded in
 a runner does without the defence, and a guard is written the day an input needs
 one.
 
-FunctionalScript has no parser or compiler yet, so that rule is held up by the
-`.f.mjs` suffix and by review rather than by a check — the browser's selector
-matches the suffix and a named `proof` export, nothing more. **A `.f.mjs` that
-breaks the rule is a defect to fix, not an exception to design around.** Where
-one is found it gets a `todo/` and is removed; the rule is not weakened to
-accommodate it.
+That rule is held up by the authored suffixes, `.f.mjs` and `.f.js`, and by
+review — the compiler holds a `.f.js` to the language, and an `.f.mjs` only
+review does — rather than by a check of the selector's own: the browser's
+selector matches either suffix and a named `proof` export, nothing more. **An
+authored module that breaks the rule is a defect to fix, not an exception to
+design around.** Where one is found it gets a `todo/` and is removed; the rule
+is not weakened to accommodate it.
 
 The two runners are meant to agree. Where they cannot, the difference is
 recorded with the reason.
@@ -122,6 +123,15 @@ Then invoke the runner:
 
 This repository's filesystem proofs need write permission to create and remove
 their temporary fixtures; `deno task test` and the coverage tasks grant it.
+
+`node --test` names every passed test and, under coverage, every file; on a
+suite this size that is a log nobody reads. `node/module.mjs` is a reporter
+that keeps what a reader acts on — the failures, the skipped and `todo` tests,
+a test's logs with its name on them, its diagnostics with its location and
+what it printed with its file, the run's summary, the files under a coverage
+threshold — and drops the rest; `npm run cov` passes it as
+`--test-reporter=./fjs/emergent_testing/node/module.mjs`, and a consumer can
+name the package's copy the same way.
 
 You can also implement your own runner, as long as it follows the proof-tree
 conventions described below.
