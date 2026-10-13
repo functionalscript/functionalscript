@@ -21,7 +21,6 @@ import type {
     _tokenKindNames,
     _valueKinds,
     assignment,
-    constStatement,
     identifier,
     identifierName,
     primitive,
@@ -431,7 +430,7 @@ export type End = Option<readonly [number]>
 /**
  * `{`, the body's statements, its {@link Terminator}, and `}`.
  *
- * A statement is a `const`, {@link constStatement}, the module's own rule
+ * A statement is a `const`, {@link ConstStatement}, the module's own rule
  * — a body binds names the way a module does, and which scope a name lands
  * in is the fold's answer, not the grammar's — or a guard, `if`, `(`, the
  * condition, `)` and a block, this same rule.
@@ -440,9 +439,9 @@ export type Block = readonly [number, RepeatFrom<0, Statement>, Terminator, numb
 
 /** A block's statement before its terminator: a `const`, a guard whose block is a {@link Block}, a loop's `let`, or its `while` whose block is a {@link LoopBlock}. A thunk, as {@link Value} is, since it names itself through the block. */
 export type Statement = () => readonly ['const', {
-    readonly const: typeof constStatement
+    readonly const: ConstStatement
     readonly if: readonly [number, number, Value, number, Block]
-    readonly let: readonly [number, typeof identifierName, number, Value, End]
+    readonly let: LetStatement
     readonly while: readonly [number, number, Value, number, LoopBlock]
 }]
 
@@ -451,9 +450,30 @@ export type LoopBlock = readonly [number, RepeatFrom<0, LoopStatement>, number]
 
 /** A loop block's statement: a `const`, or the assignment to the loop's variable. A thunk, since it holds a value. */
 export type LoopStatement = () => readonly ['const', {
-    readonly const: typeof constStatement
+    readonly const: ConstStatement
     readonly assign: typeof assignment
 }]
+
+/**
+ * What a `const` binds: a name, or an array or an object pattern, each
+ * the literal's own rule — the same {@link Container} a value's branch
+ * holds, since a pattern spells the literal the same text would.
+ *
+ * Spelled here rather than inferred, as {@link Value} is and for the same
+ * reason: a pattern holds values, a value's block holds statements, and a
+ * statement holds this, so none can be read off its own initializer.
+ */
+export type BindingTarget = {
+    readonly name: typeof identifierName
+    readonly array: Container<Item>
+    readonly object: Container<Entry>
+}
+
+/** A `const` statement: `const`, what it binds, `=`, the value, and {@link End}. */
+export type ConstStatement = readonly [number, BindingTarget, number, Value, End]
+
+/** A loop's `let`: `let`, the one variable's name — a name and never a pattern, the loop having one variable — `=`, the initial value, and {@link End}. */
+export type LetStatement = readonly [number, typeof identifierName, number, Value, End]
 
 /** The statement a block ends with: `return` or `throw`, its value, and {@link End}. */
 export type Terminator = {
@@ -505,7 +525,7 @@ type _FuncParameterIsAName = Assert<Equal<Parameter[1], typeof identifierName>>
 export type LastStatement = () => readonly ['const', {
     readonly export: readonly [number, {
         readonly default: readonly [number, Value, End]
-        readonly named: readonly [typeof constStatement, RepeatFrom<0, typeof constStatement>, Option<Rule>]
+        readonly named: readonly [ConstStatement, RepeatFrom<0, ConstStatement>, Option<Rule>]
     }]
     readonly throw: readonly [number, Value, End]
 }]

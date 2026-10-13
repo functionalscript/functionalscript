@@ -1,7 +1,9 @@
 ## Destructuring in `const` and parameters
 
 **Priority:** P2
-**Status:** open — design proposed; language-design approval pending
+**Status:** wip — the design approved and `const` destructuring
+implemented ([destructuring](../README.md#destructuring)); parameters
+remain
 
 ```js
 const { a, "%": [c, d] } = { a: null, "%": [true, false] };
@@ -229,12 +231,13 @@ of; and two familiar spellings — rest and defaults — are refused for now, ea
 
 ### Tasks
 
-- [ ] Obtain and link explicit language-design approval from
-      `sergey-shandar` for the syntax, the lowering and the stage boundary
-      above ([DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)).
-- [ ] `const` destructuring: syntax tree, grammar, binding, proofs, and the
-      specification's [constants](../README.md#shared-values-constants)
-      section.
+- [x] Language-design approval: `sergey-shandar` approved the syntax, the
+      lowering and the stage boundary above
+      ([approval](https://github.com/functionalscript/functionalscript/pull/2861#issuecomment-6152917345)),
+      as [DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
+      asks.
+- [x] `const` destructuring: syntax tree, grammar, binding, proofs, and the
+      specification's [destructuring](../README.md#destructuring) section.
 - [ ] Parameter destructuring: the parameter grammar and the `length` rule,
       over the same converter and binder; the specification's
       [functions](../README.md#functions) section loses "destructuring is

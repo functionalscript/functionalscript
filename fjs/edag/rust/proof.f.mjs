@@ -110,10 +110,12 @@ export const proof = {
             assertEq(printed(counting).split('\n')[2], '    loop {')
         },
         // the asserts are the round's discarded temporaries, the next
-        // value being the variable, no assignment; the condition's own
-        // temporaries precede the test, a comma's included
+        // value being the variable, no assignment — and no `mut`, which
+        // `rustc` would warn of; the condition's own temporaries precede
+        // the test, a comma's included
         asserts: () => {
-            assertStructurallySame(scoped(loop(true, [',', [['+', 1, 2], ['[]', [['arg', 0]]], call(['arg', 0])]])).slice(2, 7), [
+            assertStructurallySame(scoped(loop(true, [',', [['+', 1, 2], ['[]', [['arg', 0]]], call(['arg', 0])]])).slice(1, 7), [
+                '    let r: Any<A> = args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any());',
                 '    loop {',
                 '        if !true.to_any().to_boolean() { break }',
                 '        let _: Any<A> = (f64_any(0x3ff0000000000000) + f64_any(0x4000000000000000))?;',
@@ -161,23 +163,203 @@ export const proof = {
                 '        let c1: Any<A> = (c0.clone() + c0.clone())?;',
             ])
         },
+        // the recognizer is asked of the function's own table: a fragment
+        // that has none — a slot shared with the body, across the
+        // function's own boundary — is no loop, and a comma around the
+        // body holding the `?:` alone is the loop's body
+        table: () => {
+            /** @type {Exp} */
+            const s = ['[]', [1]]
+            assert(!scoped(['=>', 1, [s], ['?:', s, call(1), ['arg', 0]]]).some(line => line.endsWith('loop {')))
+            assertEq(scoped(['=>', 1, [], [',', [['?:', true, call(1), ['arg', 0]]]]])[2], '    loop {')
+        },
+        /**
+         * A loop function called where it is written, the one place
+         * reaching it, is the loop where the call stands: no closure is
+         * built and none called, the call's own temporary is the
+         * variable, bound to the argument, and the value after the loop.
+         */
+        inPlace: {
+            // the scope's root, answered by name after the loop
+            root: () => {
+                assertStructurallySame(scoped(['()', counting, [0]]), [
+                    'let mut c0: Any<A> = f64_any(0x0000000000000000);',
+                    'loop {',
+                    '    if !(Any::lt(c0.clone(), f64_any(0x4024000000000000)))?.to_boolean() { break }',
+                    '    let c1: Any<A> = (c0.clone() + f64_any(0x3ff0000000000000))?;',
+                    '    c0 = c1;',
+                    '}',
+                    'Ok(c0)',
+                ])
+                assertStructurallySame(usedBy(['()', counting, [0]]), { vm: [], unstable: ['f64_any'] })
+            },
+            // a temporary referenced twice, cloned as any is; and one in a
+            // thunk's block, bound there
+            referenced: () => {
+                /** @type {Exp} */
+                const c = ['()', counting, [0]]
+                assertEq(scoped(['[]', [c, c]]).at(-1), 'Ok([c0.clone(), c0.clone()].to_array().to_any())')
+                assertStructurallySame(scoped(['&&', true, ['[]', [c]]]), [
+                    'let c0 = || {',
+                    '    let mut c1: Any<A> = f64_any(0x0000000000000000);',
+                    '    loop {',
+                    '        if !(Any::lt(c1.clone(), f64_any(0x4024000000000000)))?.to_boolean() { break }',
+                    '        let c2: Any<A> = (c1.clone() + f64_any(0x3ff0000000000000))?;',
+                    '        c1 = c2;',
+                    '    }',
+                    '    Ok([c1].to_array().to_any())',
+                    '};',
+                    'Any::logical_and(true.to_any(), c0)',
+                ])
+            },
+            // a slot is a temporary of the scope around, an atom too, bound
+            // once as a frame is built once, and cloned at every read; a
+            // primitive slot is read as its literal; a slot shared with the
+            // scope is the one temporary
+            slots: () => {
+                assertStructurallySame(scoped(['()', ['=>', 1, [['[]', []], 5], ['?:', ['frame', 0], call(['frame', 1]), ['arg', 0]]], [1]]), [
+                    'let c0: Any<A> = Array::default().to_any();',
+                    'let mut c1: Any<A> = f64_any(0x3ff0000000000000);',
+                    'loop {',
+                    '    if !c0.clone().to_boolean() { break }',
+                    '    c1 = f64_any(0x4014000000000000);',
+                    '}',
+                    'Ok(c1)',
+                ])
+                /** @type {Exp} */
+                const shared = ['+', 1, 2]
+                assertStructurallySame(scoped(['[]', [shared, ['()', ['=>', 1, [shared], ['?:', ['frame', 0], call(['frame', 0]), ['arg', 0]]], [1]]]]), [
+                    'let c0: Any<A> = (f64_any(0x3ff0000000000000) + f64_any(0x4000000000000000))?;',
+                    'let mut c1: Any<A> = f64_any(0x3ff0000000000000);',
+                    'loop {',
+                    '    if !c0.clone().to_boolean() { break }',
+                    '    c1 = c0.clone();',
+                    '}',
+                    'Ok([c0.clone(), c1].to_array().to_any())',
+                ])
+            },
+            // in a function's body, the shape a `while` lowers to: the
+            // function's argument is the slot, and the closure reads no
+            // frame of its own
+            body: () => {
+                assertStructurallySame(scoped(['=>', 1, [], ['()', ['=>', 1, [['arg', 0]], ['?:', ['<', ['arg', 0], ['frame', 0]], call(['+', ['arg', 0], 1]), ['arg', 0]]], [0]]]), [
+                    'Ok(A::static_function(|_self, args| {',
+                    '    let c0: Any<A> = args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any());',
+                    '    let mut c1: Any<A> = f64_any(0x0000000000000000);',
+                    '    loop {',
+                    '        if !(Any::lt(c1.clone(), c0.clone()))?.to_boolean() { break }',
+                    '        let c2: Any<A> = (c1.clone() + f64_any(0x3ff0000000000000))?;',
+                    '        c1 = c2;',
+                    '    }',
+                    '    Ok(c1)',
+                    '}, 1, Array::default(), Some("($0)=>{let $1=0;while($1<$0){$1=$1+1;}return $1;}")).to_any())',
+                ])
+            },
+            // a loop in a loop's round: the round's temporaries are
+            // numbered after the scope's around it, which the round's
+            // block must not shadow — the outer variable read in the inner
+            // round through the slot bound before it
+            nested: () => {
+                /** @type {Exp} */
+                const inner = ['=>', 1, [['arg', 0]], ['?:', ['<', ['arg', 0], ['+', ['frame', 0], 1]], call(['+', ['arg', 0], 1]), ['arg', 0]]]
+                assertStructurallySame(scoped(['()', loop(['<', ['arg', 0], 10], call(['()', inner, [['arg', 0]]])), [0]]), [
+                    'let mut c0: Any<A> = f64_any(0x0000000000000000);',
+                    'loop {',
+                    '    if !(Any::lt(c0.clone(), f64_any(0x4024000000000000)))?.to_boolean() { break }',
+                    '    let c1: Any<A> = c0.clone();',
+                    '    let mut c2: Any<A> = c0.clone();',
+                    '    loop {',
+                    '        let c3: Any<A> = (c1.clone() + f64_any(0x3ff0000000000000))?;',
+                    '        if !(Any::lt(c2.clone(), c3))?.to_boolean() { break }',
+                    '        let c3: Any<A> = (c2.clone() + f64_any(0x3ff0000000000000))?;',
+                    '        c2 = c3;',
+                    '    }',
+                    '    c0 = c2;',
+                    '}',
+                    'Ok(c0)',
+                ])
+                // and in the round of a loop held as a value
+                assertStructurallySame(scoped(loop(['<', ['arg', 0], 10], call(['()', inner, [['arg', 0]]]))).slice(4, 8), [
+                    '        let c0: Any<A> = r.clone();',
+                    '        let mut c1: Any<A> = r.clone();',
+                    '        loop {',
+                    '            let c2: Any<A> = (c0.clone() + f64_any(0x3ff0000000000000))?;',
+                ])
+            },
+            // an argument past the first is `undefined`, as a call of one
+            // argument binds it; a next value that is the variable needs no
+            // assignment and no `mut`
+            arguments: () => {
+                assertStructurallySame(scoped(['()', ['=>', 1, [], ['?:', ['arg', 1], call(['arg', 1]), ['arg', 0]]], [1]]).slice(2, 4), [
+                    '    if !Nullish::Undefined.to_any().to_boolean() { break }',
+                    '    c0 = Nullish::Undefined.to_any();',
+                ])
+                assertStructurallySame(scoped(['()', loop(true, [',', [['+', 1, 2], call(['arg', 0])]]), [1]]), [
+                    'let c0: Any<A> = f64_any(0x3ff0000000000000);',
+                    'loop {',
+                    '    if !true.to_any().to_boolean() { break }',
+                    '    let _: Any<A> = (f64_any(0x3ff0000000000000) + f64_any(0x4000000000000000))?;',
+                    '}',
+                    'Ok(c0)',
+                ])
+            },
+            // the closure is built and called where the call is no loop in
+            // place: of two arguments or none, of a spread, of a function
+            // reached from elsewhere too or reading its `args`, of no loop,
+            // as a thunk's own root, as a comma's discarded operand, and in
+            // the corpus's mode, where the root is one expression
+            closure: () => {
+                /** @type {Exp} */
+                const held = counting
+                /** @type {readonly Exp[]} */
+                const cases = [
+                    ['()', counting, [1, 2]],
+                    ['()', counting, []],
+                    ['()', counting, [['...', ['[]', []]]]],
+                    ['[]', [held, ['()', held, [1]]]],
+                    ['()', ['=>', 1, [], ['?:', ['args'], call(1), ['arg', 0]]], [1]],
+                    ['()', ['=>', 1, [], ['arg', 0]], [1]],
+                    ['&&', true, ['()', counting, [1]]],
+                    [',', [['()', counting, [1]], 1]],
+                ]
+                for (const e of cases) { assert(scoped(e).some(line => line.includes('A::static_function(')), JSON.stringify(e)) }
+                assert(printed(['()', counting, [0]]).startsWith('Any::call(A::static_function('))
+            },
+        },
         /**
          * The recursion is kept, `Function::new(self_)` called, for what
          * is not the template, and for the shapes every writer keeps it
-         * for: a root assert, a node the condition shares with the round
-         * — bound before the condition, where a `loop` could not bind it
-         * once — and a rest read, or a spread as the next value.
+         * for (`keepsRecursion` in `fjs/edag/loop`, asked of the
+         * function's own table): a root assert, a value minting identity
+         * the condition shares with the round — a container, which bound
+         * in each would be two where the graph has one — a rest read, or
+         * a spread as the next value. A shared operation merges, one
+         * value however many times it is evaluated, and is bound in the
+         * condition and in the round alike.
          */
         recursion: () => {
             /** @type {Exp} */
-            const n = ['+', ['arg', 0], 1]
-            assertStructurallySame(scoped(loop(['<', n, 10], call(n))), [
+            const minted = ['[]', [['arg', 0]]]
+            assertStructurallySame(scoped(loop(['.', minted, 0], call(['.', minted, 'length']))), [
                 'Ok(A::static_function(|self_, args| {',
-                '    let c0: Any<A> = (args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()) + f64_any(0x3ff0000000000000))?;',
-                '    let c1: Any<A> = (Any::lt(c0.clone(), f64_any(0x4024000000000000)))?;',
-                '    let c2 = || Any::call(Function::new(self_.clone()).to_any(), [c0.clone()].to_array().to_any());',
+                '    let c0: Any<A> = [args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any())].to_array().to_any();',
+                '    let c1: Any<A> = Any::dot(c0.clone(), f64_any(0x0000000000000000)).end()?;',
+                '    let c2 = || {',
+                '        let c3: Any<A> = Any::dot(c0.clone(), string_any("length")).end()?;',
+                '        Any::call(Function::new(self_.clone()).to_any(), [c3].to_array().to_any())',
+                '    };',
                 '    Any::conditional(c1, c2, || Ok(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any())))',
-                '}, 1, Array::default(), Some("(function $0($1){const $2=(()=>{let $3,$4=false;return()=>{if(!$4){$3=(($1)+(1));$4=true;}return $3;};})();return ((($2())<(10))?((0,($0))(($2()))):($1));})")).to_any())',
+                '}, 1, Array::default(), Some("(function $0($1){const $2=(()=>{let $3,$4=false;return()=>{if(!$4){$3=([($1)]);$4=true;}return $3;};})();return ((($2())[(0)])?((0,($0))((($2())[(\\"length\\")]))):($1));})")).to_any())',
+            ])
+            /** @type {Exp} */
+            const n = ['+', ['arg', 0], 1]
+            assertStructurallySame(scoped(loop(['<', n, 10], call(n))).slice(2, 8), [
+                '    loop {',
+                '        let c0: Any<A> = (r.clone() + f64_any(0x3ff0000000000000))?;',
+                '        if !(Any::lt(c0, f64_any(0x4024000000000000)))?.to_boolean() { break }',
+                '        let c0: Any<A> = (r.clone() + f64_any(0x3ff0000000000000))?;',
+                '        r = c0;',
+                '    }',
             ])
             /** @type {Exp} */
             const c = call(1)

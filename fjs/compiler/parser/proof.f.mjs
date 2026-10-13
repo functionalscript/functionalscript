@@ -60,11 +60,13 @@ const numberedMembers = count =>
     Array.from({ length: count }, (_, i) => `k${i}:${i}`).join(',')
 
 /**
- * A module read to the tree the proofs pin, a refusal thrown.
+ * A module read to the tree the proofs pin, a refusal thrown. Exported,
+ * with {@link expectRefused}, for `./destructuring.proof.f.mjs`, split off
+ * this file as the others were.
  *
  * @type {(source: string, expected: string) => void}
  */
-const expectModule = (source, expected) => {
+export const expectModule = (source, expected) => {
     const [tag, value] = parseFromTokens(tokenizeString(source))
     assert(tag === 'ok', value)
     assertEq(stringifyDjsModule(value), expected)
@@ -75,7 +77,7 @@ const expectModule = (source, expected) => {
  *
  * @type {(source: string, message: string, column: number) => void}
  */
-const expectRefused = (source, message, column) => {
+export const expectRefused = (source, message, column) => {
     const [tag, value] = parseFromTokens(tokenizeString(source))
     assert(tag === 'error', tag)
     assertEq(value.message, message, source)

@@ -438,6 +438,64 @@ export const startDemo = async root => {
             if (button.name === '') { return }
             step({ kind: 'click', name: button.name })
         })
+        // SVG controls describe events as data; all state remains in the demo.
+        root.addEventListener('click', e => {
+            const target = /** @type {Element} */ (e.target).closest('[data-demo-click]')
+            const name = target?.getAttribute('data-demo-click')
+            if (target !== null && name !== undefined && name !== null) {
+                step({ kind: 'click', name })
+                // Pointer selection is already visible in the updated graph.
+                // Remove its focus ring; keyboard activation keeps focus.
+                if (/** @type {MouseEvent} */ (e).detail > 0 && 'blur' in target && typeof target.blur === 'function') { target.blur() }
+            }
+        })
+        root.addEventListener('keydown', e => {
+            const key = /** @type {KeyboardEvent} */ (e).key
+            const target = /** @type {Element} */ (e.target).closest('[data-demo-click]')
+            const name = target?.getAttribute('data-demo-click')
+            if ((key === 'Enter' || key === ' ') && name !== undefined && name !== null) {
+                e.preventDefault()
+                step({ kind: 'click', name })
+            }
+        })
+        // Native range controls provide the same input for keyboard users.
+        // Capture on the stable root because rendering may patch the handle.
+        /** @type {{ name: string, svg: SVGSVGElement, pointer: number } | null} */
+        let drag = null
+        root.addEventListener('pointerdown', e => {
+            const pointer = /** @type {PointerEvent} */ (e)
+            const target = /** @type {Element} */ (e.target).closest('[data-demo-drag]')
+            const name = target?.getAttribute('data-demo-drag')
+            const svg = target?.closest('svg')
+            if (name === undefined || name === null || svg === null || svg === undefined) { return }
+            drag = { name, svg: /** @type {SVGSVGElement} */ (svg), pointer: pointer.pointerId }
+            root.setPointerCapture(pointer.pointerId)
+            e.preventDefault()
+        })
+        root.addEventListener('pointermove', e => {
+            const pointer = /** @type {PointerEvent} */ (e)
+            if (drag === null || pointer.pointerId !== drag.pointer) { return }
+            const { name, svg } = drag
+            const matrix = svg.getScreenCTM()
+            if (matrix === null) { return }
+            const location = svg.createSVGPoint()
+            location.x = pointer.clientX
+            location.y = pointer.clientY
+            const x = location.matrixTransform(matrix.inverse()).x
+            const min = Number(svg.getAttribute('data-demo-x-min'))
+            const max = Number(svg.getAttribute('data-demo-x-max'))
+            const left = Number(svg.getAttribute('data-demo-x-left'))
+            const right = Number(svg.getAttribute('data-demo-x-right'))
+            // The slider's minimum can be inside the graph's left boundary.
+            const range = /** @type {HTMLInputElement | null} */ (root.querySelector(`[name="${name}"]`))
+            if (range === null || right <= left) { return }
+            const value = Math.min(Number(range.max), Math.max(Number(range.min), min + (x - left) / (right - left) * (max - min)))
+            step({ kind: 'input', name, value: value.toFixed(3) })
+        })
+        const endDrag = () => { drag = null }
+        root.addEventListener('pointerup', endDrag)
+        root.addEventListener('pointercancel', endDrag)
+        root.addEventListener('lostpointercapture', endDrag)
         // After the first render, so a demo that needs an operation before it
         // can show anything has somewhere to ask without `init` becoming an
         // effect.

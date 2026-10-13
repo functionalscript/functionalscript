@@ -24,6 +24,8 @@ import { startDemo } from './demo-runtime.mjs'
  * @type {(path: string) => any}
  */
 const dom = path => {
+    /** @type {Map<string, ((event: any) => void)[]>} */
+    const events = new Map()
     /** @type {Map<number, { reset: () => void, delay: number }>} */
     const copyTimers = new Map()
     let nextTimer = 0
@@ -256,7 +258,9 @@ const dom = path => {
             root.attributes.delete(name)
             if (name === 'data-demo-working') { steps.push('idle') }
         },
+        setPointerCapture: (/** @type {number} */ id) => { steps.push(`capture ${id}`) },
         addEventListener: (/** @type {string} */ kind, /** @type {any} */ f) => {
+            events.set(kind, [...(events.get(kind) ?? []), f])
             if (kind === 'input') { listeners.push(f) }
             if (kind === 'click') { clicks.push(f) }
             if (kind === 'scroll') { scrolls.push(f) }
@@ -265,6 +269,9 @@ const dom = path => {
     }
     return {
         root,
+        dispatch: (/** @type {string} */ kind, /** @type {any} */ event) => {
+            for (const f of events.get(kind) ?? []) { f(event) }
+        },
         resetCopies: () => {
             assert(copyTimers.size > 0)
             for (const [id, { reset, delay }] of copyTimers) {
@@ -442,6 +449,51 @@ export const demo = {
 `)
 
 export const proof = {
+    svgControls: async () => {
+        const d = dom(moduleUrl(`
+export const demo = {
+    init: '',
+    update: s => e => () => ['ok', e.kind === 'input' ? e.value : e.kind === 'click' ? e.name : s],
+    view: s => ['div', ['input', { type: 'range', name: 'x', value: s }], ['pre', s]],
+}
+`))
+        await startDemo(d.root)
+        await settle()
+        let blurred = 0
+        const control = { getAttribute: () => 'point:0,2', blur: () => { blurred += 1 } }
+        const target = { closest: (/** @type {string} */ s) => s === '[data-demo-click]' ? control : null }
+        d.dispatch('click', { target, detail: 1 })
+        await settle()
+        assert(d.root.innerHTML.includes('<pre>point:0,2</pre>'))
+        assertEq(blurred, 1)
+        let prevented = 0
+        d.dispatch('keydown', { target, key: ' ', preventDefault: () => { prevented += 1 } })
+        await settle()
+        assertEq(prevented, 1)
+        assertEq(blurred, 1)
+        d.dispatch('keydown', { target, key: 'Escape', preventDefault: () => { prevented += 1 } })
+        assertEq(prevented, 1)
+        const field = d.root.querySelector('[name="x"]')
+        field.min = '-1'
+        field.max = '3'
+        const svg = {
+            getAttribute: (/** @type {string} */ name) => new Map([['data-demo-x-min', '-2'], ['data-demo-x-max', '4'], ['data-demo-x-left', '0'], ['data-demo-x-right', '600']]).get(name),
+            getScreenCTM: () => ({ inverse: () => ({}) }),
+            createSVGPoint: () => ({ x: 0, y: 0, matrixTransform() { return { x: this.x } } }),
+        }
+        const handle = { getAttribute: () => 'x', closest: () => svg }
+        const pointerTarget = { closest: () => handle }
+        d.dispatch('pointerdown', { target: pointerTarget, pointerId: 1, preventDefault: () => {} })
+        assert(d.steps.includes('capture 1'))
+        d.dispatch('pointermove', { pointerId: 2, clientX: 300, clientY: 0 })
+        d.dispatch('pointermove', { pointerId: 1, clientX: 800, clientY: 0 })
+        await settle()
+        assert(d.root.innerHTML.includes('<pre>3.000</pre>'))
+        d.dispatch('pointerup', {})
+        d.dispatch('pointermove', { pointerId: 1, clientX: 0, clientY: 0 })
+        await settle()
+        assert(d.root.innerHTML.includes('<pre>3.000</pre>'))
+    },
     automaticEvents: async () => {
         const d = dom(incremental(3))
         await startDemo(d.root)

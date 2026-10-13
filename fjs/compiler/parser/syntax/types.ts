@@ -81,12 +81,12 @@ export type Node =
 export type Block = readonly ['block', readonly [...(readonly BlockStatement[]), readonly ['return' | 'throw', ValueStatement]]]
 
 /** A block's statement before the one that ends it, tagged by its keyword: a `const`, a guard, a loop's `let`, or its `while`. */
-export type BlockStatement = readonly ['const', Const] | readonly ['if', If] | readonly ['let', Const] | readonly ['while', While]
+export type BlockStatement = readonly ['const', Const] | readonly ['if', If] | readonly ['let', Let] | readonly ['while', While]
 
 /**
  * A loop, `while (condition) block`: the token it begins with, its
  * condition, and its block, {@link LoopBlock}. It records no `;`, as a
- * guard does not. The `let` before it, a {@link Const} tagged `let`,
+ * guard does not. The `let` before it, a {@link Let},
  * declares the variable the block assigns; the fold reads the two
  * statements as one loop and refuses either alone
  * ([spec: loops](../../../../spec/README.md#loops)).
@@ -265,13 +265,62 @@ export type ImportBinding = {
 }
 
 /**
- * A `const`: the token naming what it binds, and its value. It begins at
- * its `const`, or at the `export` before one a module exports.
+ * A `const`: what it binds — a name, or a binding pattern,
+ * {@link BindingTarget} — and its value. It begins at its `const`, or at
+ * the `export` before one a module exports.
  */
 export type Const = Statement & {
+    readonly target: BindingTarget
+    readonly value: Node
+}
+
+/**
+ * A loop's `let`, `let x = init;`: the token naming the one variable the
+ * loop's block assigns, and its initial value. It begins at its `let`. A
+ * name and never a pattern, the loop having one variable
+ * ([spec: loops](../../../../spec/README.md#loops)).
+ */
+export type Let = Statement & {
     readonly name: DjsTokenWithMetadata
     readonly value: Node
 }
+
+/**
+ * What a binding binds, as written: a name, by its token; an array
+ * pattern, `[t, …]`, by its `[` and its elements; or an object pattern,
+ * `{ p, … }`, by its `{` and its properties
+ * ([spec: destructuring](../../../../spec/README.md#destructuring)). A
+ * pattern is read by the value rules — one symbol cannot tell a
+ * parenthesized parameter list from a group, so the grammar reads a value
+ * and the mappings keep this reading of it beside the node, as
+ * JavaScript's cover grammar does — and a value that is no target is
+ * recorded as `invalid`, at the token it begins with, for the fold to
+ * refuse: a literal, an access, a call, an operator, a function, or a
+ * group, `[(a)]`, which JavaScript refuses in a binding pattern though it
+ * admits it in an assignment.
+ */
+export type BindingTarget =
+    | readonly ['name', DjsTokenWithMetadata]
+    | readonly ['array', DjsTokenWithMetadata, readonly BindingElement[]]
+    | readonly ['object', DjsTokenWithMetadata, readonly BindingProperty[]]
+    | readonly ['invalid', DjsTokenWithMetadata]
+
+/**
+ * An element of an array pattern: a target, or a rest element,
+ * `...target`, by its `...` — JavaScript's, which the fold refuses for now
+ * ([destructuring](../../../../spec/todo/2450-destructuring.md)).
+ */
+export type BindingElement = BindingTarget | readonly ['...', DjsTokenWithMetadata, BindingTarget]
+
+/**
+ * A property of an object pattern: its key, as an access's — the token a
+ * constant key is read from, or a computed key — and the target it binds,
+ * the shorthand `{ a }` binding the key's own name; or a rest property,
+ * `...target`, by its `...`, which the fold refuses for now.
+ */
+export type BindingProperty =
+    | { readonly key: Key, readonly target: BindingTarget }
+    | readonly ['...', DjsTokenWithMetadata, BindingTarget]
 
 /**
  * A statement that is a value: a block's `return` or `throw`, and a
@@ -327,16 +376,24 @@ export type ParameterBinding = { readonly name: DjsTokenWithMetadata, readonly r
  * parentheses, and what tells the parameter `(a)` from `((a))`, which
  * JavaScript refuses. Either carries the token it begins with, `first`,
  * which a `return` asks for its line.
+ *
+ * A value, an item, a member and their lists each carry a second reading
+ * beside the node: the {@link BindingTarget} the same text is where a
+ * binding is wanted, built as the node is, one mapping at a time, so that
+ * a `const` or a parameter list reads it off the value it was read as. A
+ * group has none: `(a)` is no target, so a `paren` is `invalid` wherever a
+ * target is read, and the grouped item inside an array keeps that fact
+ * through its own mapping.
  */
 export type Out =
-    | { readonly id: 'value', readonly node: Node, readonly first: DjsTokenWithMetadata }
+    | { readonly id: 'value', readonly node: Node, readonly first: DjsTokenWithMetadata, readonly target: BindingTarget }
     | { readonly id: 'paren', readonly node: Node, readonly first: DjsTokenWithMetadata }
     | { readonly id: 'parameters', readonly items: List<ParameterBinding> }
-    | { readonly id: 'item', readonly item: Item }
-    | { readonly id: 'values', readonly items: List<Item> }
-    | { readonly id: 'member', readonly member: Member }
-    | { readonly id: 'entry', readonly entry: Entry }
-    | { readonly id: 'entries', readonly items: List<Entry> }
+    | { readonly id: 'item', readonly item: Item, readonly target: BindingElement }
+    | { readonly id: 'values', readonly items: List<Item>, readonly targets: List<BindingElement> }
+    | { readonly id: 'member', readonly member: Member, readonly target: BindingProperty }
+    | { readonly id: 'entry', readonly entry: Entry, readonly target: BindingProperty }
+    | { readonly id: 'entries', readonly items: List<Entry>, readonly targets: List<BindingProperty> }
     | { readonly id: 'importBinding', readonly binding: ImportBinding }
     | { readonly id: 'importBindings', readonly items: List<ImportBinding> }
     | { readonly id: 'import', readonly statement: Import }

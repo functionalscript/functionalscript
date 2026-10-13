@@ -21,6 +21,14 @@
  * a shared node is written once, as an expression, where no statement can
  * stand.
  *
+ * One recognizer for every writer: the function text and the source
+ * writer ask it of the table they write from, and the Rust writer, which
+ * walks the graph by node identity, builds the table of the one function
+ * it asks about. {@link keepsRecursion} is the other half of the rule,
+ * the shapes every writer spells as the recursion though they match: the
+ * writers agree on every function, and a shape kept in one is kept in
+ * all.
+ *
  * `fjs/edag/todo/tail-call-loop.md` has the design and the consumers.
  *
  * @module
@@ -29,7 +37,7 @@
  * @import { Loop } from './types.ts'
  */
 
-import { operandsOf } from '../analysis/module.f.mjs'
+import { mergeable, operandsOf } from '../analysis/module.f.mjs'
 
 /**
  * The node an operand names where it is reached by one edge, and `null`
@@ -106,4 +114,52 @@ export const loopOf = (a, i) => {
     const [next] = /** @type {readonly [ItemOperand]} */ (args)
     if (next instanceof Array && next[0] === '...') { return null }
     return { before: root.before, condition, arm: then, asserts: step.before, next }
+}
+
+/**
+ * Whether the function that is entry `i` reads its rest array, in its own
+ * body's scope.
+ *
+ * @type {(a: Analysis, i: number) => boolean}
+ */
+export const readsRest = (a, i) => a.nodes.some((n, j) => n[0] === 'rest' && a.scope[j] === i)
+
+/**
+ * Whether an operand reaches an entry among `shared` in its own scope — a
+ * nested function's body is that function's own, its slots this scope's.
+ *
+ * @type {(a: Analysis, shared: readonly number[]) => (v: Operand) => boolean}
+ */
+export const reaches = (a, shared) => {
+    /** @type {(v: Operand) => boolean} */
+    const go = v => {
+        if (!(v instanceof Array)) { return false }
+        const [, i] = v
+        return shared.includes(i) || own(a.nodes[i]).some(go)
+    }
+    return go
+}
+
+/**
+ * Whether every writer keeps the recursion for function `i`, a loop by
+ * {@link loopOf}, rather than spell it as the loop
+ * (`fjs/edag/todo/tail-call-loop.md`): an assert before the condition,
+ * which runs every round where a `const` before the loop would run once;
+ * a read of the rest array, which each round of the recursion sees empty
+ * from the second on, where a loop would keep the first call's; and a
+ * value the condition shares with the block that mints identity — a
+ * container, a function, a call (`mergeable` in `fjs/edag/analysis`),
+ * an entry of the function's own scope both reach — which the recursion
+ * establishes once a round, where a loop tests the condition before the
+ * block and would establish it twice, two values where the graph has
+ * one. A shared entry that merges, a read the condition and the block
+ * repeat, `r[0]`, is one value however many times it is evaluated, and
+ * loops. A writer may keep the recursion for more, for a reason of its
+ * own spelling, and never for less.
+ *
+ * @type {(a: Analysis, i: number, loop: Loop) => boolean}
+ */
+export const keepsRecursion = (a, i, { before, condition, arm }) => {
+    const minted = a.shared.filter(j => a.scope[j] === i && !mergeable(a.nodes[j]))
+    return before.length !== 0 || readsRest(a, i) || minted.some(j => reaches(a, [j])(condition) && reaches(a, [j])(arm))
 }
