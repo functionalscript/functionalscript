@@ -243,7 +243,7 @@ const productionView = state => {
 
 /** @type {Demo<State, DemoEvent>} */
 export const demo = {
-    init: { view: 'Geometric View', operation: 'kG', k: '3', p: '0,2', q: '13,12', target: 'P', realP: '0', realQ: '1', branchP: '1', branchQ: '1', curve: 'secp256k1', privateKey: '3', generated: null },
+    init: { view: 'Geometric View', operation: 'kG', k: '3', p: '4,7', q: '13,12', target: 'P', realP: '0', realQ: '1', branchP: '1', branchQ: '1', curve: 'secp256k1', privateKey: '3', generated: null },
     update: state => event => pureOk(transition(state, event)),
     view: state => ['div', { 'data-secp-playground': '' },
         caption('Elliptic Curve Playground'),
