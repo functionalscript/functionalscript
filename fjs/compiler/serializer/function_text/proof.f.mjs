@@ -49,16 +49,17 @@ export const proof = {
         assertEq(render(['=>', 1, [['[]', []]], ['?:', ['frame', 0], call(['frame', 0]), ['arg', 0]]]),
             '($1)=>{let $2=$1;while(($0)){$2=($0);}return $2;}')
         // the shapes that keep the recursion, in every writer: a root
-        // assert, a condition reaching a cell, a read of the rest array,
-        // and a next value that throws
+        // assert, a condition reaching a cell, and a read of the rest array
         assertEq(render(['=>', 1, [], [',', [['[]', [1]], ['?:', true, call(0), ['arg', 0]]]]]),
             '(function $0($1){return (([(1)]),((true)?((0,($0))((0))):($1)));})')
         assertEq(render(['=>', 1, [], ['?:', ['.', shared, 0], call(['.', shared, 'length']), ['arg', 0]]]),
             '(function $0($1){const $2=(()=>{let $3,$4=false;return()=>{if(!$4){$3=([($1)]);$4=true;}return $3;};})();return ((($2())[(0)])?((0,($0))((($2())[("length")]))):($1));})')
         assertEq(render(['=>', 1, [], ['?:', ['.', ['rest'], 'length'], call(['arg', 0]), ['arg', 0]]]),
             '(function $0($1,...$2){return ((($2)[("length")])?((0,($0))(($1))):($1));})')
+        // a next value that throws is assigned as the applied function a
+        // throw is spelled as anywhere, and throws there
         assertEq(render(['=>', 1, [], ['?:', true, call(['throw', 1]), ['arg', 0]]]),
-            '(function $0($1){return ((true)?((0,($0))((()=>{throw (1);})())):($1));})')
+            '($0)=>{let $1=$0;while((true)){$1=(()=>{throw (1);})();}return $1;}')
         // a condition reaches a cell through a nested function's slot too,
         // and not through one holding something else
         assertEq(render(['=>', 1, [], ['?:', ['()', ['=>', 0, [shared], ['frame', 0]], []], call(['.', shared, 0]), ['arg', 0]]]),
