@@ -85,12 +85,11 @@ for the same shapes, which no loop written as `let`/`while` produces:
   position, and the writer writes the condition as that function again,
   as it writes any lazy operand holding such a `const`, so the value is
   established afresh at every test and the text reads back as the
-  condition — unless the function would read the variable, which the
-  language reads as a capture and refuses, when the recursion, which
-  reads back as itself, is kept. No `while` written in source produces
-  the shapes the source writer keeps the recursion for: a named value
-  the condition shares with the block would be the `const` of a
-  function called where written in both, two functions and two values.
+  condition, a function called where written being admitted to read the
+  variable. No `while` written in source produces the shape the source
+  writer keeps the recursion for: a named value the condition shares
+  with the block would be the `const` of a function called where
+  written in both, two functions and two values.
   The Rust output loops for a condition sharing a value with itself as
   it prints any scope, by construction rather than by a second spelling:
   it has no cell, a value the condition reaches eagerly is a `let`
@@ -117,7 +116,8 @@ for the same shapes, which no loop written as `let`/`while` produces:
   the recursion's closure holds the parameter of the call that made it,
   `loop(1)()` answering `1`, where a closure written inside a `while`
   holds the binding, the variable's last value — the capture the language
-  proposal refuses in source ([spec: let](../../../spec/todo/3220-let.md),
+  proposal refuses in source, a function held as a value rather than
+  called where written ([spec: let](../../../spec/todo/3220-let.md),
   refusals), so the spelling would read back as nothing. The function
   text captures by value, through the applied wrapper every nested
   function's frame is written as, `(($2)=>()=>$2)($1)`, and the Rust
