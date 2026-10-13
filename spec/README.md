@@ -723,8 +723,8 @@ its conditional ([functions](#functions)).
 
 - An object pattern's property is the [property access](#property-access)
   its key spells, with every rule of one: a `null` or `undefined` source
-  throws, as JavaScript's `RequireObjectCoercible` throws; a primitive source binds what it owns — a string its code units by
-  index, `const { [0]: first } = "ab";` binding `"a"`, and its `length`;
+  throws, as JavaScript's `RequireObjectCoercible` throws; a primitive
+  source binds what it owns — a string its code units by index, `const { [0]: first } = "ab";` binding `"a"`, and its `length`;
   a number, a boolean or a `bigint` nothing — and `undefined` for a
   property it does not own, as `GetV` reads through `ToObject`;
   `length` reads an array's, a string's or a function's; and a key a
