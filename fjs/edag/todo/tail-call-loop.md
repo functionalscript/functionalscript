@@ -10,9 +10,12 @@ code-only JavaScript text
 ([`fjs/compiler/serializer/function_text`](../../compiler/serializer/function_text/module.f.mjs))
 spells it as a named function expression, and the Rust output
 ([`fjs/edag/rust`](../rust/module.f.mjs)) as `Any::call` of `self_`. V8 —
-Node, Chromium, Deno, Bun on it — implements no tail calls, and neither does
+Node, Chromium, Deno on it — implements no tail calls, and neither does
 Rust, so a function that iterates by calling itself last overflows the stack
-after some thousands of rounds in either output.
+after some thousands of rounds in either output. JavaScriptCore, Bun's
+engine, implements the proper tail calls ES2015 specifies, in strict code,
+which a module is: the recursion runs in constant stack there alone, and a
+program cannot count on one host of four.
 
 A `const` whose function calls itself is the one way FunctionalScript
 expresses a loop today, so every loop a program writes is affected. It is
@@ -86,11 +89,18 @@ condition's cell before the condition each round, was considered and
 dropped: it is a second spelling for graphs the front end never produces,
 and the recursion is still correct for them.
 
-The template is recognized in the analysis table
-([`fjs/edag/analysis`](../analysis/module.f.mjs)) by one exported function in
-a new `fjs/edag/loop` module, which both serializers import: the template's
-parts for a function entry that matches, and `null` for any other function.
-Anything else stays the recursion it is today, the author's own.
+The template is one rule, this document's, recognized over two walks.
+In the analysis table ([`fjs/edag/analysis`](../analysis/module.f.mjs)) by
+one exported function in a new `fjs/edag/loop` module, which the function
+text and the source writer import: the template's parts for a function
+entry that matches, and `null` for any other function. On the graph by the
+Rust writer, which never builds the table and walks the graph by node
+identity, as it decides everything: it reads the same parts off the
+function node, under the same rules, and consumes nothing from the table's
+recognizer, since the table's indices name nothing in its walk. The two
+agree on every function the front end produces, except where what is
+shared differs — the Rust paragraph below says how. Anything else stays
+the recursion it is today, the author's own.
 
 **The function text** writes a matching function as an arrow whose body is
 the language's loop: a `let` of the parameter, the `while`, and the
