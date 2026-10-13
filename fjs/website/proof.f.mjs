@@ -335,11 +335,11 @@ export const proof = {
         },
         /**
          * **A blocker reached only through a non-authored dependency still
-         * counts.** `scan` reads only `.f.mjs` files, so a `.mjs` a proof
-         * imports has no entry in the graph it seeds — `readGraph` has to
-         * discover and read it starting from the seeded proof module's own
-         * `local` imports, not from a walk that starts as if nothing were
-         * known yet.
+         * counts.** `scan` reads only authored modules, `.f.mjs` and `.f.js`,
+         * so a `.mjs` a proof imports has no entry in the graph it seeds —
+         * `readGraph` has to discover and read it starting from the seeded
+         * proof module's own `local` imports, not from a walk that starts as
+         * if nothing were known yet.
          */
         blockerThroughANonAuthoredDependency: () => {
             const { root } = generate({
