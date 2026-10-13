@@ -25,7 +25,12 @@ const kept = async function* (source) {
     }
 }
 
-/** @type {(source: AsyncIterable<Event>) => AsyncGenerator<string>} */
+/**
+ * The encoding makes the stream yield strings: without one, a stream's
+ * chunks are `Buffer`s, whatever the reporter pushed into it.
+ *
+ * @type {(source: AsyncIterable<Event>) => AsyncGenerator<string>}
+ */
 export default async function* (source) {
-    yield* Readable.from(kept(source)).pipe(spec())
+    yield* Readable.from(kept(source)).pipe(spec()).setEncoding('utf8')
 }
