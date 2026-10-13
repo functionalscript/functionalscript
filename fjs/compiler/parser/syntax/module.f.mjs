@@ -14,10 +14,13 @@
  * per value — a primitive, a reference by the token that spells it, a
  * container of nodes — and a record per statement, and the names are
  * resolved where the statements are read, after the grammar has matched
- * the whole module. A mapping reports no error: what it cannot say is
- * recorded for the fold to refuse — a parameter list whose head is no
- * name, `{ invalid }`, and a statement's first token and whether a `;`
- * ended it, `Statement`.
+ * the whole module. Beside each value's node it keeps the binding target
+ * the same text is, `BindingTarget`, built the same way, so that a `const`
+ * reads its pattern off the literal the grammar read. A mapping reports no
+ * error: what it cannot say is recorded for the fold to refuse — a
+ * parameter list whose head is no name, `{ invalid }`, a value where a
+ * target was wanted, `['invalid', token]`, and a statement's first token
+ * and whether a `;` ended it, `Statement`.
  *
  * Every walk is a mapping of one node, and a list's mapping puts one item
  * before the list its tail's mapping returned, so nesting depth and width
@@ -33,8 +36,8 @@
  * @import { Primitive } from '../../../media/datajs/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { ParseError } from '../types.ts'
- * @import { Block, BlockStatement, Chain, Const, Entry, Import, ImportBinding, Item, Key, Member, Module, ModuleConst, Node, Out, ParameterBinding, ParameterList, Step, ValueStatement } from './types.ts'
- * @import { ArrowOrRest, Block as BlockRule, Body, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, Member as MemberRule, ParameterNames, Parenthesized, Statement, Template, Unary, UnaryOperand, Value } from '../grammar/types.ts'
+ * @import { BindingElement, BindingProperty, BindingTarget, Block, BlockStatement, Chain, Const, Entry, Import, ImportBinding, Item, Key, Member, Module, ModuleConst, Node, Out, ParameterBinding, ParameterList, Step, ValueStatement } from './types.ts'
+ * @import { ArrowOrRest, BindingTarget as BindingTargetRule, Block as BlockRule, Body, ConstStatement, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, Member as MemberRule, ParameterNames, Parenthesized, Statement, Template, Unary, UnaryOperand, Value } from '../grammar/types.ts'
  * @import { namedImports, primitive, terminator } from '../grammar/module.f.mjs'
  * @import { _AccessNode, _AttributeNode, _CallBranch, _ChainState, _CircuitNode, _ConditionalNode, _EndNode, _IndexBranch, _NameNode, _KeyBranch, _Leaf, _ListNode, _OptionalBranch, _OptionalList, _ParameterNode, _PowTailNode, _StepRead, _TailRound, _TokenStream } from './private.ts'
  */
@@ -166,6 +169,61 @@ const entriesAt = node => {
     return out.items
 }
 
+/**
+ * The target a value is where a binding is wanted: its own reading, or
+ * `invalid` where a `(` opened it — a group is no binding in a pattern,
+ * `const [(a)] = x;` being a syntax error in JavaScript, so the `paren`
+ * id is what decides it, at the `(`.
+ *
+ * @type {(node: _Leaf) => BindingTarget}
+ */
+const valueTargetAt = node => {
+    const out = outAt(node)
+    assert(out.id === 'value' || out.id === 'paren')
+    return out.id === 'value' ? out.target : ['invalid', out.first]
+}
+
+/** @type {(node: _Leaf) => BindingElement} */
+const itemTargetAt = node => {
+    const out = outAt(node)
+    assert(out.id === 'item')
+    return out.target
+}
+
+/** @type {(node: _Leaf) => List<BindingElement>} */
+const valueTargetsAt = node => {
+    const out = outAt(node)
+    assert(out.id === 'values')
+    return out.targets
+}
+
+/** @type {(node: _Leaf) => BindingProperty} */
+const memberTargetAt = node => {
+    const out = outAt(node)
+    assert(out.id === 'member')
+    return out.target
+}
+
+/** @type {(node: _Leaf) => BindingProperty} */
+const entryTargetAt = node => {
+    const out = outAt(node)
+    assert(out.id === 'entry')
+    return out.target
+}
+
+/** @type {(node: _Leaf) => List<BindingProperty>} */
+const entryTargetsAt = node => {
+    const out = outAt(node)
+    assert(out.id === 'entries')
+    return out.targets
+}
+
+/** A value that is no binding target, at the token it begins with. @type {(first: DjsTokenWithMetadata) => BindingTarget} */
+const invalid = first => ['invalid', first]
+
+/** A name as a binding target, by its token. @type {(token: DjsTokenWithMetadata) => BindingTarget} */
+const named = token => ['name', token]
+
 /** @type {(node: _Leaf) => Import} */
 const importAt = node => {
     const out = outAt(node)
@@ -281,7 +339,8 @@ const chunkOf = node => {
  */
 const toTemplate = ([tag, branch]) => {
     if (tag === 'plain') {
-        return symbol({ id: 'value', node: ['primitive', chunkOf(branch)], first: tokenAt(branch) })
+        const start = tokenAt(branch)
+        return symbol({ id: 'value', node: ['primitive', chunkOf(branch)], first: start, target: invalid(start) })
     }
     const [head, firstValue, rounds, tail] = unmapped(branch)
     /** @type {Node} */
@@ -292,7 +351,8 @@ const toTemplate = ([tag, branch]) => {
             const [chunk, v] = unmapped(round)
             return ['+', ['+', acc, ['primitive', chunkOf(chunk)]], ['String', nodeAt(v)]]
         }), first)
-    return symbol({ id: 'value', node: ['+', beforeTail, ['primitive', chunkOf(tail)]], first: tokenAt(head) })
+    const start = tokenAt(head)
+    return symbol({ id: 'value', node: ['+', beforeTail, ['primitive', chunkOf(tail)]], first: start, target: invalid(start) })
 }
 
 /**
@@ -330,8 +390,32 @@ const valueItems = optionalItems(valuesAt)
 /** The entries an object's optional list holds. */
 const entryItems = optionalItems(entriesAt)
 
+/** The targets an array's optional list holds, beside its items. */
+const valueTargets = optionalItems(valueTargetsAt)
+
+/** The targets an object's optional list holds, beside its entries. */
+const entryTargets = optionalItems(entryTargetsAt)
+
 /** The items of a list of values, its tail already mapped. */
 const valuesOf = listOf(itemAt, valuesAt)
+
+/** The targets of a list of values, beside its items. */
+const valueTargetsOf = listOf(itemTargetAt, valueTargetsAt)
+
+/** The targets of a list of entries, beside its entries. */
+const entryTargetsOf = listOf(entryTargetAt, entryTargetsAt)
+
+/**
+ * The pattern an array or an object literal is where a binding is wanted:
+ * its bracket, and the targets its list's mapping kept beside the items,
+ * `[ open [ items ] close ]`'s list at the second position.
+ *
+ * @type {(tag: 'array' | 'object', open: DjsTokenWithMetadata, list: _OptionalList) => BindingTarget}
+ */
+const containerTarget = (tag, open, list) => {
+    if (tag === 'array') { return ['array', open, toArray(valueTargets(list))] }
+    return ['object', open, toArray(entryTargets(list))]
+}
 
 /** The names a parameter list's optional tail holds, `[ ',' [ names ] ]` after the first. */
 const parameterItems = optionalItems(parametersAt)
@@ -830,25 +914,38 @@ const toNode = node => {
     if (node[0] === 'name') {
         const [id, after] = unmapped(node[1])
         const token = tokenAt(unmapped(id)[1])
-        return symbol({ id: 'value', node: continued([{ name: token, rest: false }], ['ref', token], false, after), first: token })
+        const made = continued([{ name: token, rest: false }], ['ref', token], false, after)
+        // the name alone is a target; with a step, an operator or an `=>`
+        // after it, it is the value those make
+        return symbol({ id: 'value', node: made, first: token, target: made[0] === 'ref' ? named(token) : invalid(token) })
     }
     if (node[0] === 'group') {
         const [open, g] = unmapped(node[1])
-        return symbol({ id: 'value', node: groupNode(g), first: tokenAt(open) })
+        const first = tokenAt(open)
+        return symbol({ id: 'value', node: groupNode(g), first, target: invalid(first) })
     }
     if (node[0] === 'neg' || node[0] === 'bitnot' || node[0] === 'not' || node[0] === 'typeof') {
         const [op, v, ...tailLists] = unmapped(node[1])
-        return symbol({ id: 'value', node: applyTail([prefixOps[node[0]], nodeAt(v)], tailLists), first: tokenAt(op) })
+        const first = tokenAt(op)
+        return symbol({ id: 'value', node: applyTail([prefixOps[node[0]], nodeAt(v)], tailLists), first, target: invalid(first) })
     }
     if (node[0] === 'block') {
         const [block, first] = blockOf(unmapped(node[1]))
-        return symbol({ id: 'value', node: block, first })
+        return symbol({ id: 'value', node: block, first, target: invalid(first) })
     }
     const x = unmapped(node[1])[0]
     const [base, accesses] = unmapped(x)
     const [, powTail, ...tailLists] = unmapped(node[1])
-    const withSteps = steps(baseOf(node), unmapped(accesses), false)
-    return symbol({ id: 'value', node: applyTail(withPow(withSteps, powTail), tailLists), first: baseFirst(node[0], base) })
+    const made = applyTail(withPow(steps(baseOf(node), unmapped(accesses), false), powTail), tailLists)
+    const first = baseFirst(node[0], base)
+    // an array or an object literal is a pattern where nothing follows it
+    // — a step, a power or an operator makes it the value those make, and
+    // changes its node's tag — and a `unary`'s bare name is a target as a
+    // value's is; everything else is no target
+    const target = (node[0] === 'array' || node[0] === 'object') && made[0] === node[0]
+        ? containerTarget(node[0], first, /** @type {_OptionalList} */ (unmapped(base)[1]))
+        : made[0] === 'ref' ? named(made[1]) : invalid(first)
+    return symbol({ id: 'value', node: made, first, target })
 }
 
 /**
@@ -866,16 +963,20 @@ const toNode = node => {
 const operandToNode = node => {
     if (node[0] === 'neg' || node[0] === 'bitnot' || node[0] === 'not' || node[0] === 'typeof') {
         const [op, v] = unmapped(node[1])
-        return symbol({ id: 'value', node: [prefixOps[node[0]], nodeAt(v)], first: tokenAt(op) })
+        const first = tokenAt(op)
+        return symbol({ id: 'value', node: [prefixOps[node[0]], nodeAt(v)], first, target: invalid(first) })
     }
     if (node[0] === 'group') {
         const [open, g] = unmapped(node[1])
         const [v, , accesses] = unmapped(g)
-        return symbol({ id: 'value', node: steps(nodeAt(v), unmapped(accesses), true), first: tokenAt(open) })
+        const first = tokenAt(open)
+        return symbol({ id: 'value', node: steps(nodeAt(v), unmapped(accesses), true), first, target: invalid(first) })
     }
     const x = unmapped(node[1])[0]
     const [base, accesses] = unmapped(x)
-    return symbol({ id: 'value', node: steps(baseOf(node), unmapped(accesses), false), first: baseFirst(node[0], base) })
+    const first = baseFirst(node[0], base)
+    // a prefix's operand stands in no binding position, so it is no target
+    return symbol({ id: 'value', node: steps(baseOf(node), unmapped(accesses), false), first, target: invalid(first) })
 }
 
 /**
@@ -916,8 +1017,8 @@ const toStatement = ([kind, branch]) => {
 const valueStatementOf = ([keyword, v, end]) =>
     ({ start: tokenAt(keyword), semicolon: ended(end), first: firstAt(v), value: nodeAt(v) })
 
-/** A member's record as the rewrite returns it. @type {(member: Member) => Meta<Out>} */
-const memberOf = member => symbol({ id: 'member', member })
+/** A member's record as the rewrite returns it, with the property it is where a binding is wanted. @type {(member: Member, target: BindingProperty) => Meta<Out>} */
+const memberOf = (member, target) => symbol({ id: 'member', member, target })
 
 /**
  * A member: the token its key begins with, the key by its spelling, and
@@ -925,6 +1026,10 @@ const memberOf = member => symbol({ id: 'member', member })
  * with no `: value` after it is the shorthand `{ a }`, whose value is the
  * name's own reference, read from the key's token. A computed key's token
  * is the first of the value between the brackets, as an index's is.
+ *
+ * Beside the member, the property it is in an object pattern: the same
+ * key, as an access's — the token, or the computed key an index holds —
+ * and the target its value is, the shorthand binding the key's own name.
  *
  * @type {(node: Children<MemberRule, DjsTokenWithMetadata, Out>) => Meta<Out>}
  */
@@ -934,32 +1039,37 @@ const toMember = ([tag, branch]) => {
             const [id, rest] = unmapped(branch)
             const key = tokenAt(unmapped(id)[1])
             const rounds = unmapped(rest)
-            return rounds.length === 0
-                ? memberOf({ key, spelling: 'shorthand', name: nameOf(key), value: ['ref', key] })
-                : memberOf({ key, spelling: 'plain', name: nameOf(key), value: nodeAt(unmapped(rounds[0])[1]) })
+            if (rounds.length === 0) {
+                return memberOf({ key, spelling: 'shorthand', name: nameOf(key), value: ['ref', key] }, { key, target: ['name', key] })
+            }
+            const v = unmapped(rounds[0])[1]
+            return memberOf({ key, spelling: 'plain', name: nameOf(key), value: nodeAt(v) }, { key, target: valueTargetAt(v) })
         }
         case 'string': {
             const [s, , v] = unmapped(branch)
             const key = tokenAt(s)
-            return memberOf({ key, spelling: 'string', name: textOf(key), value: nodeAt(v) })
+            return memberOf({ key, spelling: 'string', name: textOf(key), value: nodeAt(v) }, { key, target: valueTargetAt(v) })
         }
         case 'computed': {
             const [, k, , , v] = unmapped(branch)
-            return memberOf({ key: firstAt(k), spelling: 'computed', node: nodeAt(k), value: nodeAt(v) })
+            const first = firstAt(k)
+            return memberOf({ key: first, spelling: 'computed', node: nodeAt(k), value: nodeAt(v) }, { key: ['[]', nodeAt(k), first], target: valueTargetAt(v) })
         }
     }
 }
 
 /**
  * An entry: the member's record, or a spread of the value at the second
- * position of `... value`.
+ * position of `... value` — and beside it the property it is in an object
+ * pattern, a spread being the rest property `...target`, by its `...`.
  *
  * @type {(node: Children<EntryRule, DjsTokenWithMetadata, Out>) => Meta<Out>}
  */
-const toEntry = ([tag, branch]) => symbol({
-    id: 'entry',
-    entry: tag === 'member' ? memberAt(branch) : ['...', nodeAt(unmapped(branch)[1])],
-})
+const toEntry = ([tag, branch]) => {
+    if (tag === 'member') { return symbol({ id: 'entry', entry: memberAt(branch), target: memberTargetAt(branch) }) }
+    const [dots, v] = unmapped(branch)
+    return symbol({ id: 'entry', entry: ['...', nodeAt(v)], target: ['...', tokenAt(dots), valueTargetAt(v)] })
+}
 
 /**
  * An import's attribute, when the optional list holds one round: the key at
@@ -1042,9 +1152,23 @@ const toImport = ([first, clause, , module, attribute, end]) => {
     })
 }
 
-/** @type {(node: Children<typeof constStatement, DjsTokenWithMetadata, Out>) => Meta<Out>} */
-const toConst = ([first, name, , v, end]) =>
-    symbol({ id: 'const', statement: { start: tokenAt(first), semicolon: ended(end), name: tokenAt(unmapped(name)[1]), value: nodeAt(v) } })
+/**
+ * What a `const` binds, from `bindingTarget`'s branch: a name's token,
+ * under the alternative its word matched, or the pattern an array or an
+ * object literal is, `[ open [ items ] close ]`, read from its list's
+ * mapping as a value's is, {@link containerTarget}.
+ *
+ * @type {(node: Children<BindingTargetRule, DjsTokenWithMetadata, Out>) => BindingTarget}
+ */
+const constTarget = ([tag, branch]) => {
+    if (tag === 'name') { return ['name', tokenAt(unmapped(branch)[1])] }
+    const [open, list] = unmapped(branch)
+    return containerTarget(tag, tokenAt(open), list)
+}
+
+/** @type {(node: Children<ConstStatement, DjsTokenWithMetadata, Out>) => Meta<Out>} */
+const toConst = ([first, target, , v, end]) =>
+    symbol({ id: 'const', statement: { start: tokenAt(first), semicolon: ended(end), target: constTarget(unmapped(target)), value: nodeAt(v) } })
 
 /** @type {(node: _Leaf) => ModuleConst} */
 const ordinaryConst = node => ({ declaration: constAt(node), exported: false })
@@ -1103,20 +1227,23 @@ const map = mapping
 
 /**
  * An item: the value's node, or a spread of it, the value at the second
- * position of `... value`.
+ * position of `... value` — and beside it the element it is in an array
+ * pattern, the value's target, or the rest element `...target` by its
+ * `...`.
  *
  * @type {(node: Children<ItemRule, DjsTokenWithMetadata, Out>) => Meta<Out>}
  */
-const toItem = ([tag, branch]) => symbol({
-    id: 'item',
-    item: tag === 'value' ? nodeAt(branch) : ['...', nodeAt(unmapped(branch)[1])],
-})
+const toItem = ([tag, branch]) => {
+    if (tag === 'value') { return symbol({ id: 'item', item: nodeAt(branch), target: valueTargetAt(branch) }) }
+    const [dots, v] = unmapped(branch)
+    return symbol({ id: 'item', item: ['...', nodeAt(v)], target: ['...', tokenAt(dots), valueTargetAt(v)] })
+}
 
 /** @type {(node: Children<Items<ItemRule>, DjsTokenWithMetadata, Out>) => Meta<Out>} */
-const toValues = node => symbol({ id: 'values', items: valuesOf(node) })
+const toValues = node => symbol({ id: 'values', items: valuesOf(node), targets: valueTargetsOf(node) })
 
 /** @type {(node: Children<Items<EntryRule>, DjsTokenWithMetadata, Out>) => Meta<Out>} */
-const toEntries = node => symbol({ id: 'entries', items: entriesOf(node) })
+const toEntries = node => symbol({ id: 'entries', items: entriesOf(node), targets: entryTargetsOf(node) })
 
 /** @type {(node: Children<ParameterNames, DjsTokenWithMetadata, Out>) => Meta<Out>} */
 const toParameterNames = ([tag, branch]) => {

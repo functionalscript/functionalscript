@@ -1,7 +1,9 @@
 ## Destructuring in `const` and parameters
 
 **Priority:** P2
-**Status:** open — design proposed; language-design approval pending
+**Status:** wip — `const` destructuring implemented
+([destructuring](../README.md#destructuring)); parameters and
+language-design approval remain
 
 ```js
 const { a, "%": [c, d] } = { a: null, "%": [true, false] };
@@ -42,8 +44,8 @@ A **binding target** is one of
 - a name, under the [binding rule](../README.md#shared-values-constants) a
   `const` and a parameter already follow;
 - an **object pattern**, `{ p, … }`, each property a shorthand name `a`, or
-  a key and a target, `a: t`, `"a": t`, `[Number(i)]: t`, with the trailing
-  comma an object literal allows;
+  a key and a target, `a: t`, `"a": t`, with the trailing comma an object
+  literal allows;
 - an **array pattern**, `[t, …]`, each item a target, with the trailing
   comma an array literal allows.
 
@@ -72,9 +74,12 @@ read partially ([DESIGN.md §10](../../doc/DESIGN.md#10-refuse-what-you-cannot-h
   its failure alone. JavaScript throws on `const {} = null` with no
   property read to carry the throw, so a faithful lowering would be a read
   made up for the purpose; refusing it costs nothing a program wants;
-- a **computed key** other than the `Number(…)` conversion, refused as the
-  same key is in an access (`computed key is not Number(...)`): a key of
-  any type is the `entry` helper's to read
+- a **computed key**, `{ [k]: a }`, the conversion `Number(i)` an access
+  admits included. The fold resolves a statement's value as one walk over
+  an explicit stack, and a key would be a second value to resolve inside
+  the statement, at every nesting of the pattern; the conversion key is
+  rare enough in a pattern that the machinery is not worth it yet. A key
+  of any type is the `entry` helper's to read
   ([reading an entry at run time](../README.md#reading-an-entry-at-run-time)).
 
 Elisions, `[a, , b]`, are already no array of this language, and stay out.
@@ -193,9 +198,8 @@ refused for now, each with a message that says so and a follow-up here.
 - [ ] Obtain and link explicit language-design approval from
       `sergey-shandar` for the syntax, the lowering and the stage boundary
       above ([DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)).
-- [ ] `const` destructuring: syntax tree, grammar, binding, proofs, and the
-      specification's [constants](../README.md#shared-values-constants)
-      section.
+- [x] `const` destructuring: syntax tree, grammar, binding, proofs, and the
+      specification's [destructuring](../README.md#destructuring) section.
 - [ ] Parameter destructuring: the parameter grammar and the `length` rule,
       over the same converter and binder; the specification's
       [functions](../README.md#functions) section loses "destructuring is

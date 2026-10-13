@@ -28,6 +28,30 @@ export type _Env = OrderedMap<_Ref | _Intrinsic>
 export type _Ref = AstModuleRef | AstRest | _Parameter | AstFrameRef | AstSelf
 
 /**
+ * A binding pattern the fold has checked, as the lowering reads it: a
+ * name, by its token — the word is the token's, and the token is what a
+ * refusal after the value is read is anchored at — the elements of an
+ * array pattern, or the properties of an object pattern, each key a
+ * constant an access admits. Nothing the language does not read is in it:
+ * a rest element, an empty pattern, a computed key and a value in a
+ * binding position were refused making it.
+ */
+export type _Pattern =
+    | readonly ['name', DjsTokenWithMetadata]
+    | readonly ['array', readonly _Pattern[]]
+    | readonly ['object', readonly (readonly [string | number, _Pattern])[]]
+
+/**
+ * What a checked pattern makes of its source: the entries, in order, the
+ * body being built takes, and the words bound, each to the entry holding
+ * its value.
+ */
+export type _Lowered = {
+    readonly entries: readonly AstConst[]
+    readonly bound: readonly (readonly [string, AstModuleRef])[]
+}
+
+/**
  * The scope a node is resolved in: the names it binds itself — its own,
  * and the words it has read from the scope around it, each bound to the
  * slot of its frame that holds the value, so that a read of one stops at
@@ -149,26 +173,26 @@ export type _FunctionFrame = {
 
 /**
  * A function whose block body is being evaluated: the statements to work
- * through — `statements[index]` is the statement being evaluated and `word`
- * the name it binds, taken before its value was entered so that a statement
- * wrong in both halves answers for the half a reader meets first; `done`
- * holds the entries before it, a list for the reason a container's is.
+ * through — `statements[index]` is the statement being evaluated and
+ * `pattern` what it binds, checked before its value was entered so that a
+ * statement wrong in both halves answers for the half a reader meets first,
+ * `null` under a guard's condition or the terminator, which bind nothing;
+ * `done` holds the entries before it, a list for the reason a container's
+ * is, and `entries` how many, which is where the next statement's land —
+ * a `const` of one name makes one entry, a pattern several.
  *
  * The body begins at `first`: `0` for a function's body, and for the
  * statements after a guard the position after it in the same list, which
  * the continuation shares with the body it continues rather than copies —
- * a body of many guards would otherwise copy its tail once per guard. The
- * entry a statement makes is numbered from `first`.
- *
- * The current statement's tag distinguishes a declaration's initializer
- * from the final return value, where `word` names nothing.
+ * a body of many guards would otherwise copy its tail once per guard.
  */
 export type _BodyFrame = {
     /** The statements of the block, the grammar's list, the terminator last. */
     readonly statements: Block[1]
     readonly first: number
     readonly index: number
-    readonly word: string
+    readonly pattern: _Pattern | null
+    readonly entries: number
     readonly done: List<AstConst>
 }
 

@@ -990,6 +990,67 @@ export const proof = {
         assert(inner instanceof Array && inner[0] === '=>', nested)
         assert(inner[3] !== outer[1][1], nested)
     },
+    // A `const` of a binding pattern is sugar over reads the EDAG has: an
+    // object pattern's property an access of the source, an array pattern a
+    // spread of the source and accesses of the array it made, nested
+    // patterns reading through — no node of its own, and the written form
+    // is the lowered one (spec/README.md#destructuring).
+    destructuring: {
+        lowered: () => {
+            /** @type {Exp} */
+            const source = ['{}', [[':', 'a', null], [':', '%', ['[]', [true, false]]]]]
+            /** @type {Exp} */
+            const spread = ['[]', [['...', ['.', source, '%']]]]
+            const graph = compile('const { a, "%": [c, d] } = { a: null, "%": [true, false] }; export default [a, c, d];').edag
+            expectEdag(graph, ['[]', [['.', source, 'a'], ['.', spread, 0], ['.', spread, 1]]])
+            // the initializer is one node, however many names read it
+            assert(graph instanceof Array && graph[0] === '[]', graph)
+            const [first, second, third] = graph[1]
+            assert(first instanceof Array && second instanceof Array && third instanceof Array, graph)
+            assert(second[1] === third[1] && first[1] === second[1][1][0][1][1], graph)
+            assertStructurallySame(execute(graph), [null, true, false])
+            expectEdag(compile('export default (o) => { const { a: { b }, c } = o; return [b, c]; };').edag,
+                ['=>', 1, [], ['[]', [['.', ['.', ['arg', 0], 'a'], 'b'], ['.', ['arg', 0], 'c']]]])
+            // a property reads the source as any access does, so a `const`
+            // naming the source is the source
+            expectEdag(compile('const o = { a: [1] }; const { a } = o; export default [a, o.a];').edag,
+                ['[]', [['.', ['{}', [[':', 'a', ['[]', [1]]]]], 'a'], ['.', ['{}', [[':', 'a', ['[]', [1]]]]], 'a']]])
+            assertStructurallySame(execute(compile('const x = [1, 2]; const [a, b] = x; export default [b, a];').edag), [2, 1])
+            assertStructurallySame(execute(compile('const { length } = "a😀"; export default length;').edag), 3)
+        },
+        written: () => {
+            /** @type {(source: string, expected: string) => void} */
+            const writes = (source, expected) => assertEq(unwrap(tryModuleStringify(unresolved(unwrap(parse('')(source))).edag)), expected)
+            writes('const x = [1, 2]; const [a, b] = x; export default [b, a];', 'const $0=[...[1,2]];export default [$0[1],$0[0]];')
+            writes('const { a, "%": [c, d] } = { a: null, "%": [true, false] }; export default [a, c, d];',
+                'const $0={"a":null,"%":[true,false]};const $1=[...$0["%"]];export default [$0.a,$1[0],$1[1]];')
+            writes('export default (...r) => { const [x, y] = r; return [y, x]; };', 'export default (...$0)=>{const $1=[...$0];return [$1[1],$1[0]];};')
+        },
+        // JavaScript's own semantics, which the two reads give: an array
+        // pattern runs through `GetIterator` as a spread does, so a string
+        // yields code points and a source that is not iterable fails; an
+        // object pattern reads through `RequireObjectCoercible`, so a
+        // nullish source fails and a primitive one owns nothing it names.
+        semantics: () => {
+            assertStructurallySame(execute(compile('const [a, b] = "a😀"; export default [a, b];').edag), ['a', '😀'])
+            assertStructurallySame(execute(compile('const { a } = 1; export default a;').edag), undefined)
+            /** @type {(source: string) => void} */
+            const fails = source => { assertError(memo(assertOk(analysis(compile(source).edag)))({ args: [] })) }
+            fails('const [a] = {}; export default a;')
+            fails('const { a } = null; export default a;')
+            // every read is established, read or not: a nested pattern over
+            // a missing property fails at load, as in JavaScript
+            fails('const { a: { b } } = {}; export default 1;')
+            fails('const [a] = {}; export default 1;')
+            // a body's pattern, at every call
+            const fn = value(compile('export default (...r) => { const [x, y] = r; return [y, x]; };').edag)
+            assertStructurallySame(assertOk(toData(apply(fn, [1, 2]))), [2, 1])
+            const chars = value(compile('export default (s) => { const [x, y] = s; return [y, x]; };').edag)
+            assertStructurallySame(assertOk(toData(apply(chars, ['ab']))), ['b', 'a'])
+            const swapped = value(compile('export default (o) => { const { a: { b }, c } = o; return [b, c]; };').edag)
+            assertStructurallySame(assertOk(toData(apply(swapped, [['{}', [[':', 'a', ['{}', [[':', 'b', 1]]]], [':', 'c', 2]]]]))), [1, 2])
+        },
+    },
     // The imports bound: the linked program is one EDAG, the imported
     // module's node where the importer's parameter was, and no path in it.
     resolve: {

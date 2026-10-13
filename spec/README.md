@@ -46,7 +46,8 @@ or JSON ([output](#output)).
 - [Principles](#principles)
 - [Lexical grammar](#lexical-grammar) and [comments](#comments)
 - [Module structure](#module-structure), [exports](#exporting-a-value),
-  [imports](#importing-other-modules) and [constants](#shared-values-constants)
+  [imports](#importing-other-modules), [constants](#shared-values-constants)
+  and [destructuring](#destructuring)
 - [Values and literals](#supported-value-types), including
   [template literals](#template-literals)
 - [Grouping](#grouping), [operators](#operators),
@@ -686,6 +687,74 @@ gives what it computes more names than normalized form does
 
 See
 <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const>.
+
+### Destructuring
+
+```js
+const { a, "%": [c, d], length } = { a: null, "%": [true, false] };
+export const { x, y } = { x: 1, y: [2] };
+export default [a, c, d, length, (...r) => { const [first] = r; return first; }];
+```
+
+A `const`, a module's or a body's, exported or not, may bind a **pattern**
+in place of a name: an object pattern, `{ p, … }`, each property a
+shorthand name or a key and a target, `a: t`, `"a": t`; or an array
+pattern, `[t, …]`, each item a target; a target a name or a pattern again,
+and a trailing comma allowed as the literals allow one. Each name is a
+binding by the rule above — reserved, refused twice, exported as `then`,
+or shadowing a capture, it is refused as a name alone is — and it names
+the part of the value its path reads, as in JavaScript. The initializer is
+evaluated once, however many names read it.
+
+A pattern is sugar over reads the language has, and that is its whole
+semantics: the graph outputs write the reads, `const [c, d] = v;` as
+`const $0=[...v];const c=$0[0];const d=$0[1];`, as a guard is written as
+its conditional ([functions](#functions)).
+
+- An object pattern's property is the [property access](#property-access)
+  its key spells, with every rule of one: a `null` or `undefined` source
+  throws, as JavaScript's `RequireObjectCoercible` throws; a primitive
+  source owns no property the pattern names and binds `undefined`;
+  `length` reads an array's, a string's or a function's; and a key a
+  built-in prototype gives a value, `toString`, `constructor` or
+  `__proto__`, is the compilation error the access is (`prohibited
+  property name`), since JavaScript would read a function there and this
+  language nothing.
+- An array pattern is the [spread](#spread) of its source and reads of the
+  array the spread made, which is JavaScript's own reading: array
+  destructuring runs through `GetIterator` as a spread does, so a source
+  that is not iterable throws the same `TypeError` — `const [a] = {};`
+  fails here as it fails there — and a string yields its code points,
+  `const [a] = '😀';` binding the two-unit string. The spread reads every
+  element where JavaScript's destructuring stops at the last target; no
+  program here can observe the difference, there being no generator, no
+  side effect and no infinite iterable.
+- Every read is established whether or not a name reads it, as every
+  `const` is ([shared values](#shared-values-constants)):
+  `const { a: { b } } = {};` throws at load, as it throws in JavaScript.
+  Which of a pattern's reads fails first is no observation
+  ([failure is one outcome](#failure-is-one-outcome)).
+- A pattern names no function as its whole value, so no name in it is a
+  function's own ([captures and self recursion](#captures-and-self-recursion)):
+  `const { f } = { f: () => f };` is `const not found`.
+
+Refused, each by name, and open in
+[destructuring](./todo/2450-destructuring.md): a **rest element**,
+`[a, ...r]` or `{ a, ...r }` (`rest element not supported`); a
+**default**, `{ a = 1 }` or `[a = 1]`, which is no literal and stops at
+its `=`; an **empty pattern**, `{}` or `[]`, which binds nothing and
+exists for its failure alone (`empty binding pattern`); a **computed key**,
+`{ [k]: a }`, the conversion `Number(i)` included (`computed key in a
+binding pattern not supported`); and a pattern in a **parameter**, which
+is not read yet ([functions](#functions)). A value in a binding position —
+a literal, an access, a call, an operator, or a group, `[(a)]`, which
+JavaScript admits in an assignment and refuses in a binding — is the error
+JavaScript names (`invalid destructuring target`), at the token it begins
+with. An elision, `[a, , b]`, is no array of this language
+([arrays](#arrays)).
+
+See
+<https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Destructuring_assignment>.
 
 ## Supported Value Types
 
@@ -1914,7 +1983,8 @@ export default (a, b, c, ...x) => [a, b, c, x];
 
 Bare `a => a`, `(a) => a`, and a fixed list with a trailing comma are also
 accepted. No parameter or comma may follow rest. Defaults and destructuring
-are not supported yet. A newline before `=>` is refused.
+parameters are not supported yet; a body `const` takes a pattern
+([destructuring](#destructuring)). A newline before `=>` is refused.
 
 ### Parameters
 

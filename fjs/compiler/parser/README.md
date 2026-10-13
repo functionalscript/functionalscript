@@ -29,7 +29,8 @@ import ::= 'import' clause 'from' string [ 'with' '{' id ':' string '}' ] end
 clause ::= named | id [ ',' named ]
 named  ::= '{' [ items(binding) ] '}'
 binding ::= id [ 'as' id ]
-const  ::= 'const' id '=' value end
+const  ::= 'const' target '=' value end
+target ::= id | array | object
 last   ::= 'export' ( 'default' value end | const const* [ last ] )
          | 'throw' value end
 end    ::= [ ';' ]
@@ -243,6 +244,17 @@ the fold's:
 - a bare or string `__proto__` key, which JavaScript reads as an instruction to
   replace the prototype. The computed spelling `{ ["__proto__"]: v }` denotes an
   ordinary property and is accepted, so this is not a lexical rule either;
+- a binding pattern, `const { a, b: [c] } = v;`
+  ([spec: destructuring](../../../spec/README.md#destructuring)): the
+  grammar reads the array or object literal the same text spells, and the
+  reader keeps the pattern reading of it beside the node, so the fold is
+  what refuses a value in a binding position (`invalid destructuring
+  target`) — a literal, an access, a call, or a group, `[(a)]`, JavaScript's
+  early error — a name bound twice in one pattern, a key a prototype gives
+  a value, and what the language does not read yet, a rest element, an
+  empty pattern and a computed key, each by name. The fold then writes the
+  reads the pattern is sugar for, one entry per name and one hidden entry
+  per nested source, as it writes a guard's conditional;
 - an access naming a property of a built-in prototype, `a.push`,
   `a["toString"]` or `a.__proto__` in either spelling — every name
   [`fjs/js/prototype`](../../js/prototype/module.f.js) lists but `length`,

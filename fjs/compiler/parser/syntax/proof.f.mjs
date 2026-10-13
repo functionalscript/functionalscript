@@ -92,12 +92,14 @@ export const proof = {
                 assert(body[0] === 'block')
                 const [first, second, last] = body[1]
                 assert(first[0] === 'const' && second[0] === 'const' && last[0] === 'return')
-                assertStructurallySame(first[1].name.token, { kind: 'id', value: 'x' })
-                assertStructurallySame(second[1].name.token, { kind: 'id', value: 'y' })
+                const [xTarget, yTarget] = [first[1].target, second[1].target]
+                assert(xTarget[0] === 'name' && yTarget[0] === 'name')
+                assertStructurallySame(xTarget[1].token, { kind: 'id', value: 'x' })
+                assertStructurallySame(yTarget[1].token, { kind: 'id', value: 'y' })
                 assertStructurallySame(first[1].value, ['primitive', 1])
                 assertStructurallySame(second[1].value, ['primitive', 2])
-                assertEq(first[1].name.metadata.column, 30)
-                assertEq(second[1].name.metadata.column, 43)
+                assertEq(xTarget[1].metadata.column, 30)
+                assertEq(yTarget[1].metadata.column, 43)
                 // each statement begins at its keyword and ended with its `;`
                 assertEq(first[1].start.metadata.column, 24)
                 assertEq(last[1].start.metadata.column, 50)
@@ -106,8 +108,8 @@ export const proof = {
                 assert(array[0] === 'array')
                 const [x, y] = array[1]
                 assert(x[0] === 'ref' && y[0] === 'ref')
-                assertStructurallySame(x[1].token, first[1].name.token)
-                assertStructurallySame(y[1].token, second[1].name.token)
+                assertStructurallySame(x[1].token, xTarget[1].token)
+                assertStructurallySame(y[1].token, yTarget[1].token)
             },
             nestedBlocks: () => {
                 const { exported } = unwrap(parseSyntax(tokenizeString(
@@ -170,12 +172,38 @@ export const proof = {
         assertEq(exported.thrown, null)
     },
     // A module's statements as records, each with its export marker.
+    // Beside every value's node, the reader keeps the binding target the
+    // same text is: a name, a pattern of the literal's items, or `invalid`
+    // at the token a value that is no target begins with — a group among
+    // them, by its `paren` id, which the node itself no longer shows.
+    targets: () => {
+        const { consts } = unwrap(parseSyntax(tokenizeString(
+            'const { a, "b": [c, (d), ...e], [k]: f, ...g } = v; const [h] = v; const i = v; export default 1;')))
+        const [pattern, array, name] = consts.map(c => c.declaration.target)
+        assert(pattern[0] === 'object' && array[0] === 'array' && name[0] === 'name')
+        assertEq(pattern[1].token.kind, '{')
+        const [a, b, k, g] = pattern[2]
+        assert('key' in a && 'key' in b && 'key' in k && !('key' in g))
+        assert(!(a.key instanceof Array) && !(b.key instanceof Array) && k.key instanceof Array)
+        assertEq(a.key.token.value, 'a')
+        assertStructurallySame(a.target[0], 'name')
+        assertEq(b.key.token.kind, 'string')
+        assert(b.target[0] === 'array')
+        const [c, d, e] = b.target[2]
+        assertStructurallySame([c[0], d[0], e[0]], ['name', 'invalid', '...'])
+        assertEq(d[1].token.kind, '(')
+        assert(e[0] === '...' && e[2][0] === 'name')
+        assertEq(k.key[0], '[]')
+        assertEq(g[0], '...')
+        assertStructurallySame(array[2].map(t => t[0]), ['name'])
+        assertEq(name[1].token.value, 'i')
+    },
     namedExports: {
         syntax: () => {
             const source = unwrap(parseSyntax(tokenizeString('const x=1; export const a=x; const y=a; export const b=y;')))
             assertEq(source.exported, null)
             assertStructurallySame(source.consts.map(c => c.exported), [false, true, false, true])
-            assertStructurallySame(source.consts.map(c => c.declaration.name.token), [
+            assertStructurallySame(source.consts.map(c => c.declaration.target[1].token), [
                 { kind: 'id', value: 'x' }, { kind: 'id', value: 'a' }, { kind: 'id', value: 'y' }, { kind: 'id', value: 'b' },
             ])
         },
