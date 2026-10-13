@@ -97,7 +97,7 @@ const finiteGraph = (state, p, q, result, third, line) => ['svg', { viewBox: '0 
         'data-demo-click': `point:${x},${y}`, tabindex: '0', role: 'button',
         'aria-label': `Select ${state.target} = (${x}, ${y})`, 'data-secp-dot': '',
     }, ['title', `(${x}, ${y})`]]),
-    ...finiteMark(toy.g, 'G', 'base'), ...(state.operation === 'kG' ? [] : finiteMark(p, 'P', 'input')), ...finiteMark(q, 'Q', 'input'),
+    ...(state.operation === 'kG' ? finiteMark(toy.g, 'G', 'base') : finiteMark(p, 'P', 'input')), ...finiteMark(q, 'Q', 'base'),
     ...finiteMark(third, 'S', 'third'), ...finiteMark(result, state.operation === 'kG' ? 'kG' : state.operation === '−P' ? '−P' : 'R', 'result'),
 ]
 
@@ -123,7 +123,7 @@ const finiteView = state => {
         ['p', 'These are discrete field elements. A smooth curve or ordinary secant would be misleading here.'],
         ['div', { 'data-secp-layout': '' },
             ['div', finiteGraph(state, shownP, shownQ, calculation.result, third, line),
-                ['p', 'Legend: squares (modular line), G (base), P/Q (inputs), S (third intersection), blue label (result). O has no XY coordinates.']],
+                ['p', 'Legend: orange squares (modular line), P (orange), Q/G (purple), S (fuchsia), result (blue). O has no XY coordinates.']],
             ['div',
                 select('operation', 'Operation', ['kG', 'P + Q', '2P', '−P'], state.operation),
                 ...(multiplication ? [inputField({ name: 'k', label: 'Scalar k (decimal, 0–29)' }, state.k)] : [
