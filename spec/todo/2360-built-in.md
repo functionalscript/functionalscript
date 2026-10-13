@@ -71,7 +71,11 @@ name not yet decided, or, where it says so, never admitted.
       [operator-based predicate](../../fjs/types/number/is_integer/module.f.js),
       without admitting `Number.isInteger`. Remaining global-member users
       are not `.f.js`, the files the compiler holds to the reserved word today
-- [ ] `BigInt`
+- [ ] `BigInt` — not decided. `BigInt(n)` on an integral number is the
+      importable function
+      [`bigint`](../../fjs/types/bigint/from_number/module.f.js)
+      meanwhile ([`doc/CONVERTING.md` §8](../../doc/CONVERTING.md#8-bigint)),
+      as `isInteger` stands in for `Number.isInteger` above
 - [ ] `Math`
 - [ ] `Date`
 

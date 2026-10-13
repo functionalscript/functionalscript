@@ -35,6 +35,7 @@
 import { error, ok } from '../../types/result/module.f.js'
 import { isNaN_ } from '../../types/number/is_nan/module.f.js'
 import { isNegativeZero } from '../../types/number/is_negative_zero/module.f.js'
+import { bigint } from '../../types/bigint/from_number/module.f.js'
 
 /**
  * A character a Rust string literal cannot hold as it stands: a control
@@ -174,10 +175,10 @@ const bitsOf = v => {
     if (a === Infinity) { return sign | 0x7ff0_0000_0000_0000n }
     if (a === 0) { return sign }
     // scaled in two exact steps: `2 ** 1074` itself is past the largest double
-    if (a < 2 ** -1_022) { return sign | BigInt(a * 2 ** 1_023 * 2 ** 51) }
+    if (a < 2 ** -1_022) { return sign | bigint(a * 2 ** 1_023 * 2 ** 51) }
     const exponent = exponentOf(a)
-    const fraction = BigInt((a / 2 ** exponent - 1) * 2 ** 52)
-    return sign | BigInt(exponent + 1_023) << 52n | fraction
+    const fraction = bigint((a / 2 ** exponent - 1) * 2 ** 52)
+    return sign | bigint(exponent + 1_023) << 52n | fraction
 }
 
 const i64Min = -(2n ** 63n)
