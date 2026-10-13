@@ -447,7 +447,12 @@ export const startDemo = async root => {
         root.addEventListener('click', e => {
             const target = /** @type {Element} */ (e.target).closest('[data-demo-click]')
             const name = target?.getAttribute('data-demo-click')
-            if (name !== undefined && name !== null) { step({ kind: 'click', name }) }
+            if (target !== null && name !== undefined && name !== null) {
+                step({ kind: 'click', name })
+                // Pointer selection is already visible in the updated graph.
+                // Remove its focus ring; keyboard activation keeps focus.
+                if (/** @type {MouseEvent} */ (e).detail > 0 && 'blur' in target && typeof target.blur === 'function') { target.blur() }
+            }
         })
         root.addEventListener('keydown', e => {
             const key = /** @type {KeyboardEvent} */ (e).key

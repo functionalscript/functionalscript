@@ -491,15 +491,18 @@ export const demo = {
 `))
         await startDemo(d.root)
         await settle()
-        const control = { getAttribute: () => 'point:0,2' }
+        let blurred = 0
+        const control = { getAttribute: () => 'point:0,2', blur: () => { blurred += 1 } }
         const target = { closest: (/** @type {string} */ s) => s === '[data-demo-click]' ? control : null }
-        d.dispatch('click', { target })
+        d.dispatch('click', { target, detail: 1 })
         await settle()
         assert(d.root.innerHTML.includes('<pre>point:0,2</pre>'))
+        assertEq(blurred, 1)
         let prevented = 0
         d.dispatch('keydown', { target, key: ' ', preventDefault: () => { prevented += 1 } })
         await settle()
         assertEq(prevented, 1)
+        assertEq(blurred, 1)
         d.dispatch('keydown', { target, key: 'Escape', preventDefault: () => { prevented += 1 } })
         assertEq(prevented, 1)
         const field = d.root.querySelector('[name="x"]')
