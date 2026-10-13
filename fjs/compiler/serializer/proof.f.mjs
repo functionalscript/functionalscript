@@ -1131,7 +1131,10 @@ export const proof = {
         // code-only text spells a loop the same way inside a body, and a
         // loop function on its own as the loop `function_text` spells
         assertEq(assertOk(tryFunctionText(['=>', 1, [], counted])), '($0)=>{let $1=0;while($1<$0){$1=$1+2;}return $1;}')
-        assertEq(assertOk(tryFunctionText(loop([], ['<', ['arg', 0], 2], call(['+', ['arg', 0], 1])))), '($0)=>{while((($0)<(2))){$0=(($0)+(1));}return $0;}')
+        const text = assertOk(tryFunctionText(loop([], ['<', ['arg', 0], 2], call(['+', ['arg', 0], 1]))))
+        assertEq(text, '($0)=>{let $1=$0;while((($1)<(2))){$1=(($1)+(1));}return $1;}')
+        // which is FunctionalScript: the front end reads it
+        assertEq(parse(path)(`export default ${text};`)[0], 'ok')
     },
     self: () => {
         writes(['=>', 0, [], ['()', ['self'], []]], 'const $0=()=>$0();export default $0;')

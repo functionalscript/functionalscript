@@ -26,27 +26,28 @@ export const proof = {
         assertEq(render(['=>', 1, [], ['()', ['self'], [['arg', 0]]]]), '(function $0($1){return ((0,($0))(($1)));})')
         assertEq(render(['=>', 0, [], ['=>', 0, [['self']], ['frame', 0]]]), '(function $0(){return (($1)=>(()=>($1)))(($0));})')
     },
-    // a loop, `r => COND ? self(NEXT) : r`, is an arrow over `while`, the
-    // one spelling every writer has: the asserts and the memo cells inside
+    // a loop, `r => COND ? self(NEXT) : r`, is an arrow whose body is the
+    // language's loop, the one spelling every writer has: a `let` of the
+    // parameter, the `while` over it, the asserts and the memo cells inside
     // the body, the assignment omitted where the next value is the
-    // parameter, and no `self` name
+    // variable, and no `self` name
     loops: () => {
         /** @type {(next: Exp) => Exp} */
         const call = next => ['()', ['self'], [next]]
         assertEq(render(['=>', 1, [], ['?:', ['<', ['arg', 0], 10], call(['+', ['arg', 0], 1]), ['arg', 0]]]),
-            '($0)=>{while((($0)<(10))){$0=(($0)+(1));}return $0;}')
+            '($0)=>{let $1=$0;while((($1)<(10))){$1=(($1)+(1));}return $1;}')
         assertEq(render(['=>', 1, [], ['?:', true, [',', [['[]', [2]], call(0)]], ['arg', 0]]]),
-            '($0)=>{while((true)){([(2)]);$0=(0);}return $0;}')
+            '($0)=>{let $1=$0;while((true)){([(2)]);$1=(0);}return $1;}')
         assertEq(render(['=>', 1, [], ['?:', ['arg', 0], call(['arg', 0]), ['arg', 0]]]),
-            '($0)=>{while(($0)){}return $0;}')
+            '($0)=>{let $1=$0;while(($1)){}return $1;}')
         // a shared node of the body is a memo cell of each round
         const shared = /** @type {const} */ (['[]', [['arg', 0]]])
         assertEq(render(['=>', 1, [], ['?:', ['<', ['arg', 0], 3], call(['+', ['.', shared, 0], ['.', shared, 'length']]), ['arg', 0]]]),
-            '($0)=>{while((($0)<(3))){const $1=(()=>{let $2,$3=false;return()=>{if(!$3){$2=([($0)]);$3=true;}return $2;};})();$0=((($1())[(0)])+(($1())[("length")]));}return $0;}')
+            '($0)=>{let $1=$0;while((($1)<(3))){const $2=(()=>{let $3,$4=false;return()=>{if(!$4){$3=([($1)]);$4=true;}return $3;};})();$1=((($2())[(0)])+(($2())[("length")]));}return $1;}')
         // a frame slot reads as its name, as in any body, the slots
         // numbered before the parameter
         assertEq(render(['=>', 1, [['[]', []]], ['?:', ['frame', 0], call(['frame', 0]), ['arg', 0]]]),
-            '($1)=>{while(($0)){$1=($0);}return $1;}')
+            '($1)=>{let $2=$1;while(($0)){$2=($0);}return $2;}')
         // the shapes that keep the recursion, in every writer: a root
         // assert, a condition reaching a cell, a read of the rest array,
         // and a next value that throws
@@ -63,7 +64,7 @@ export const proof = {
         assertEq(render(['=>', 1, [], ['?:', ['()', ['=>', 0, [shared], ['frame', 0]], []], call(['.', shared, 0]), ['arg', 0]]]),
             '(function $0($1){const $2=(()=>{let $3,$4=false;return()=>{if(!$4){$3=([($1)]);$4=true;}return $3;};})();return (((0,(($5)=>(()=>($5)))(($2())))())?((0,($0))((($2())[(0)]))):($1));})')
         assertEq(render(['=>', 1, [], ['?:', ['()', ['=>', 0, [['[]', [1]]], ['frame', 0]], []], call(0), ['arg', 0]]]),
-            '($0)=>{while(((0,(($1)=>(()=>($1)))(([(1)])))())){$0=(0);}return $0;}')
+            '($0)=>{let $1=$0;while(((0,(($2)=>(()=>($2)))(([(1)])))())){$1=(0);}return $1;}')
     },
     names: () => {
         const a = assertOk(analysis(['=>', 0, [], 1]))

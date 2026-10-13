@@ -50,12 +50,14 @@ JavaScript reference still skips because its function text is host-defined.
 
 A function of the template `fjs/edag/loop` recognizes,
 `r => COND ? self(NEXT) : r`, is written as the loop it is rather than as a
-function that names itself: an arrow whose body is `while` over the
-parameter, the asserts and the memo cells inside the body so that each
-round starts fresh as each call did, and the assignment omitted where the
-next value is the parameter itself —
-`($0)=>{while((($0)<(10))){$0=(($0)+(1));}return $0;}`. No read of `self`
-survives, so the function needs no name. V8 implements no tail calls, so
+function that names itself: an arrow whose body is the language's loop, a
+`let` of the parameter, the `while` over that variable — the asserts and
+the memo cells inside the body so that each round starts fresh as each
+call did, the assignment omitted where the next value is the variable
+itself — and the `return` of the variable:
+`($0)=>{let $1=$0;while((($1)<(10))){$1=(($1)+(1));}return $1;}`. The text
+is FunctionalScript where no cell stands in it. No read of `self` survives,
+so the function needs no name. V8 implements no tail calls, so
 this runs a million rounds where the named function expression below
 overflows after some thousands. It is the one loop spelling every writer
 has: a body holding such a loop called where it stands is spelled by the

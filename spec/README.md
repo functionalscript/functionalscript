@@ -158,7 +158,7 @@ it does not serialize those values or instantiate their frames. Instances
 of the same function template have the same text even when their captures differ.
 A body reading `self` is rendered as a named function expression — unless
 the function is a loop, `r => c ? self(next) : r`, which is rendered as the
-loop it is, an arrow over `while` ([loops](#loops),
+loop it is, `let` and `while` over a `let` of its parameter ([loops](#loops),
 [function text](../fjs/edag/function-text.md)). This text
 need not be accepted by the FunctionalScript source parser: the total text
 renderer and the structural source serializer have separate contracts
@@ -2222,8 +2222,8 @@ export default n => {
 - **A loop runs in constant stack** in the FunctionalScript output and in
   function text: each writer recognizes the template and spells it as the
   one loop, `while (c) { …; r = next; }` — the source writer as these two
-  statements, and the code-only text as that `while` over the function's
-  parameter ([function text](../fjs/edag/function-text.md)) — where a
+  statements, and the code-only text as the same two over a `let` of the
+  function's parameter ([function text](../fjs/edag/function-text.md)) — where a
   function calling itself last is otherwise recursion, which V8 runs out
   of stack on after some thousands of rounds, having no tail calls. A
   hand-written function of the template's shape, `const loop = r => c ?
