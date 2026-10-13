@@ -2,8 +2,8 @@
 
 **Priority:** P2
 **Status:** wip — the design approved and `const` destructuring
-implemented ([destructuring](../README.md#destructuring)); parameters
-remain
+implemented ([destructuring](../README.md#destructuring)); parameter
+destructuring in progress
 
 ```js
 const { a, "%": [c, d] } = { a: null, "%": [true, false] };
