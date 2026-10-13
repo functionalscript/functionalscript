@@ -336,4 +336,67 @@ export const proof = {
             expect('export default zzz ?? 1;', 'const not found', 16)
         },
     },
+    // Operators JavaScript has and the language refuses *by design*, not for
+    // want of work: the specification names each and the reason
+    // (`spec/todo/2346-in-operator.md`, `spec/todo/2340-operators.md`). A
+    // refusal is pinned as an accepted form is, with the message and the
+    // column it is reported at, so that admitting one by accident, or moving
+    // its error, fails a proof.
+    refusedByDesign: {
+        in: () => {
+            /** @type {(source: string, column: number) => void} */
+            const expect = (source, column) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'error', tag)
+                assertEq(value.message, 'unexpected token')
+                assertEq(value.metadata?.column, column)
+            }
+            // the operator, at the `in`, whatever stands either side of it:
+            // a literal key and an object, an array, a name, an element of
+            // the arguments, inside a body
+            expect('export default "a" in {};', 20)
+            expect('export default 1 in [];', 18)
+            expect('const o = { a: 1 }; export default "a" in o;', 40)
+            expect('export default (...a) => "a" in a[0];', 30)
+            // with an operand missing, the refusal is still at the `in`: it
+            // is the token no rule takes, not a half-formed expression
+            expect('export default "a" in;', 20)
+            expect('export default in 1;', 19)
+            // `for (k in o)` is the other place JavaScript uses the word, a
+            // statement the language has no rule for. It is refused at the
+            // `for`, which says nothing about the operator.
+            expect('export default (...a) => { for (const k in a) { return k } };', 28)
+            expect('for (const k in {}) {}\nexport default 1;', 1)
+        },
+        // `in` is reserved, so it names no binding, but it stays a key and a
+        // property name as every reserved word does: the refusal is of the
+        // operator and not of the word
+        inAsAName: () => {
+            const [tag, value] = parseFromTokens(tokenizeString('const in = 1; export default in;'))
+            assert(tag === 'error', tag)
+            assertEq(value.message, 'reserved word')
+            assertEq(value.metadata?.column, 7)
+            /** @type {(source: string, ast: string) => void} */
+            const expect = (source, ast) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'ok', value)
+                assertEq(stringifyDjsModule(value), ast)
+            }
+            expect('export default { in: 1 };', '[[],[["object",[[":","default",["object",[[":","in",1]]]]]]]]')
+        },
+        // `==` and `!=` are refused too, since neither language reads them
+        // the same way twice (`spec/README.md#operators`), at the operator
+        looseEquality: () => {
+            /** @type {(source: string, column: number) => void} */
+            const expect = (source, column) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'error', tag)
+                assertEq(value.message, 'unexpected token')
+                assertEq(value.metadata?.column, column)
+            }
+            expect('export default 1 == 1;', 18)
+            expect('export default 1 != 1;', 18)
+            expect('export default 1 == ;', 18)
+        },
+    },
 }
