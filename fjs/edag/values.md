@@ -86,6 +86,22 @@ operations demand only selected operands. This is the evaluator protocol,
 consistent with [failure equivalence](../../spec/README.md#failure-is-one-outcome);
 it adds no source-level catch or throw-inspection feature.
 
+A call in tail position of an invocation — a bare `()` or `?.()`, or the
+last call step of a chain, whose callee is a represented function, where
+the body's value would be the call's: at the body's root, in an arm of a
+`?:` there, as the last operand of a `,` or the right operand of `&&`, `||`
+or `??` there, and so on through those positions — is prepared and left for
+the executor, [`value/call`](value/call/module.f.mjs)'s `Call`, rather than
+made inside the invocation; the executor makes it in the invocation's place,
+one after the other, so a chain of tail calls however long holds one set of
+host frames. A body's outcome is therefore a value, a throw, or such a call.
+Each call made this way is a fresh invocation with its own bindings and
+state, as the recursion's was, so nothing a program observes changes: a
+function that iterates by calling itself last runs in constant host stack,
+as [tail-call-loop](todo/tail-call-loop.md) has the writers' outputs do for
+one template of it. A built-in method is answered as a value, as every other
+operation is.
+
 Admission, loading and output diagnostics have their own channels. Host
 resource exhaustion is a deferred boundary described below, not a promised
 represented language failure.

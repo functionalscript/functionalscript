@@ -5,13 +5,13 @@
  * @import { EdagValue, Values } from '../types.ts'
  * @import { ItemsOver } from '../../types.ts'
  * @import { ValueThunk } from '../control/types.ts'
- * @import { Invoke } from './types.ts'
+ * @import { Body, Invoke } from './types.ts'
  */
 
 import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.mjs'
 import { ok, error } from '../../../types/result/module.f.js'
 import { func } from '../function/module.f.mjs'
-import { call } from './module.f.mjs'
+import { call, invoker, prepare, settle } from './module.f.mjs'
 
 /** An argument or invocation that must never be demanded. @type {() => never} */
 const skipped = () => { assert(false, 'a skipped call step was evaluated') }
@@ -133,5 +133,39 @@ export const proof = {
         assertStructurallySame(assertError(call(ok(functionValue), [
             () => ok(data), ['...', () => ok(record)], skipped,
         ], skipped)), ['undefined'])
+    },
+    // `prepare` is the binding alone, the call left to make: the function
+    // and its bindings, as the invoker receives them; a failure is the
+    // call's, as before any invoker
+    prepared: () => {
+        const prepared = prepare(ok(functionValue), [() => ok(data), () => ok(record)])
+        assert(prepared[0] === 'call')
+        assertEq(prepared[1], functionValue)
+        assertEq(prepared[2][0], data)
+        assertStructurallySame(prepared[3], ['[]', [record]])
+        const failure = error(record)
+        assertEq(prepare(failure, [skipped]), failure)
+        assertStructurallySame(prepare(ok(data), []), ['error', ['undefined']])
+    },
+    // `settle` makes the one call an outcome leaves and passes a value or a
+    // throw through; `invoker` makes every call a body leaves, one after
+    // the other, as many as the chain is long — far more than the host
+    // stack holds frames, since none is made inside another
+    tailCalls: () => {
+        /** A body counting its function's `length` down through a call each, to the array of its fixed values. @type {Body} */
+        const body = (fn, fixed, rest) => {
+            assert(fn[0] === '=>')
+            return fn[1] === 0 ? ok(['[]', fixed]) : ['call', ['=>', fn[1] - 1, [], 0], fixed, rest]
+        }
+        const invoke = invoker(body)
+        const value = ok(data)
+        assertEq(settle(invoke)(value), value)
+        const failure = error(record)
+        assertEq(settle(invoke)(failure), failure)
+        assertStructurallySame(settle(invoke)(['call', ['=>', 2, [], 0], [data], ['[]', []]]), ['ok', ['[]', [data]]])
+        assertStructurallySame(invoke(['=>', 100_000, [], 0], [record], ['[]', []]), ['ok', ['[]', [record]]])
+        assertStructurallySame(invoke(['=>', 0, [], 0], [], ['[]', []]), ['ok', ['[]', []]])
+        // `call` is the two composed, through a prepared call of `length` 2
+        assertStructurallySame(call(ok(['=>', 2, [], 0]), [() => ok(data)], invoke), ['ok', ['[]', [data, undefinedValue]]])
     },
 }

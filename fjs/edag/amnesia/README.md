@@ -9,7 +9,10 @@ Both executors use the same represented [operations](../operations/module.f.mjs)
 `vm(context)(expression)` receives evaluated `frame` and module `args` values,
 optional fixed arguments and a represented rest array. Functions retain their
 body graphs and evaluated captures. `invoke` supplies the same represented
-call interface as Memo, but evaluates each body through Amnesia again.
+call interface as Memo, but evaluates each body through Amnesia again. Both
+make a call in tail position of a body in the invocation's place
+([values.md](../values.md#operations-and-failures)), so a function that
+iterates by calling itself last runs in constant host stack here too.
 Function conversion uses the shared EDAG-derived text, including conversion
 through arrays and admitted built-in methods.
 

@@ -88,6 +88,10 @@ arguments with tagged undefined and creates a fresh rest array per call.
 Callee and argument failures propagate unchanged; arguments resolve before
 a non-function fails. An executor callback receives the original function
 and its fixed/rest bindings and owns body evaluation and invocation state.
+A call in tail position of a body is prepared and left for the executor,
+which makes it in the invocation's place
+([values.md](values.md#operations-and-failures)); `invoker` builds that
+callback, the loop over the calls a body leaves, from a body evaluator.
 The memo interpreter threads its immutable cache around these stateless helpers.
 
 [`value/property`](value/property/module.f.mjs) reads resolved string keys
@@ -232,9 +236,11 @@ pinned before anything executed an EDAG. [amnesia](amnesia/README.md) now
 does — a tree-walking evaluator for testing the semantics, and deliberately
 not a VM to run FunctionalScript on — over represented
 [operations](operations/module.f.mjs), parameterized by how an
-operand is evaluated and which interpreter invokes a function. Both Amnesia
-and memo return `Result<EdagValue, EdagValue>`; their different reuse policies
-are preserved. [Module initialization](values.md#module-initialization) uses
+operand is evaluated, how one in tail position is, and which interpreter
+invokes a function. Both Amnesia
+and memo return `Result<EdagValue, EdagValue>`, each making the calls a body
+leaves in tail position in the invocation's place; their different reuse
+policies are preserved. [Module initialization](values.md#module-initialization) uses
 memo with represented dependency exports.
 [analysis](analysis/module.f.mjs) reads
 a graph into one table — every operation node once, in walk order, its
