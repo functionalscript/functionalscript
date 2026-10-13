@@ -79,6 +79,12 @@ export const proof = {
         assertEq(transition(initial, { kind: 'click', name: 'point:13,12' }).p, '13,12')
         assertEq(transition({ ...initial, target: 'Q' }, { kind: 'click', name: 'point:13,12' }).q, '13,12')
         assertEq(transition(initial, { kind: 'input', name: 'operation', value: '2P' }).p, '4,16')
+        const qTarget = /** @type {const} */ ({ ...initial, target: 'Q' })
+        for (const operation of ['2P', '−P']) {
+            const operationState = transition(qTarget, { kind: 'input', name: 'operation', value: operation })
+            assertEq(operationState.target, 'P')
+            assertEq(transition(operationState, { kind: 'click', name: 'point:13,12' }).p, '13,12')
+        }
         const additionDefaults = transition(initial, { kind: 'input', name: 'operation', value: 'P + Q' })
         assertEq(additionDefaults.p, '10,18')
         assertEq(additionDefaults.q, '13,12')

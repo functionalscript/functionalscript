@@ -63,8 +63,8 @@ export const transition = (state, event) => {
         if (name === 'view') { return { ...state, view: value } }
         if (name === 'operation') {
             if (value === 'P + Q') { return { ...state, operation: value, p: '10,18', q: '13,12' } }
-            if (value === '2P') { return { ...state, operation: value, p: '4,16' } }
-            return { ...state, operation: value }
+            if (value === '2P') { return { ...state, operation: value, p: '4,16', target: 'P' } }
+            return { ...state, operation: value, ...(value === '−P' ? { target: 'P' } : {}) }
         }
         if (name === 'k') { return { ...state, k: value } }
         if (name === 'p' || name === 'q') { return { ...state, [name]: value } }
