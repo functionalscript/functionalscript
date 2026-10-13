@@ -9,7 +9,7 @@
  *
  * @module
  *
- * @import { TestEvent } from 'node:test/reporters'
+ * @import { Event } from './types.ts'
  */
 
 import { spec } from 'node:test/reporters'
@@ -17,7 +17,7 @@ import { Readable } from 'node:stream'
 
 import { quiet } from './module.f.mjs'
 
-/** @type {(source: AsyncIterable<TestEvent>) => AsyncGenerator<TestEvent>} */
+/** @type {(source: AsyncIterable<Event>) => AsyncGenerator<Event>} */
 const kept = async function* (source) {
     for await (const event of source) {
         const k = quiet(event)
@@ -25,7 +25,7 @@ const kept = async function* (source) {
     }
 }
 
-/** @type {(source: AsyncIterable<TestEvent>) => AsyncGenerator<string>} */
+/** @type {(source: AsyncIterable<Event>) => AsyncGenerator<string>} */
 export default async function* (source) {
     yield* Readable.from(kept(source)).pipe(spec())
 }

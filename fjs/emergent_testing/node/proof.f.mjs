@@ -1,86 +1,53 @@
 /**
- * @import { EventData } from 'node:test'
- * @import { TestEvent } from 'node:test/reporters'
+ * @import { Event, File, Thresholds } from './types.ts'
  */
 
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { quiet } from './module.f.mjs'
 
-/**
- * A file's coverage row with the three percentages a threshold is checked
- * against; the counts behind them are not what the filter reads.
- *
- * @type {(path: string, line: number, branch: number, fn: number) =>
- *     Extract<TestEvent, { readonly type: 'test:coverage' }>['data']['summary']['files'][number]}
- */
-const file = (path, line, branch, fn) => ({
-    path,
-    totalLineCount: 0,
-    totalBranchCount: 0,
-    totalFunctionCount: 0,
-    coveredLineCount: 0,
-    coveredBranchCount: 0,
-    coveredFunctionCount: 0,
+/** @type {(line: number, branch: number, fn: number) => File} */
+const file = (line, branch, fn) => ({
     coveredLinePercent: line,
     coveredBranchPercent: branch,
     coveredFunctionPercent: fn,
-    functions: [],
-    branches: [],
-    lines: [],
 })
 
-const files = [
-    file('full', 100, 100, 100),
-    file('lines', 99, 100, 100),
-    file('branches', 100, 99, 100),
-    file('functions', 100, 100, 99),
-]
+/** One file meeting every threshold of 100, then one missing each. */
+const files = [file(100, 100, 100), file(99, 100, 100), file(100, 99, 100), file(100, 100, 99)]
 
-/** @type {(thresholds: { readonly line: number, readonly branch: number, readonly function: number }) => TestEvent} */
-const report = thresholds => ({
-    type: 'test:coverage',
-    data: {
-        nesting: 0,
-        summary: {
-            workingDirectory: '/',
-            files,
-            totals: {
-                totalLineCount: 0,
-                totalBranchCount: 0,
-                totalFunctionCount: 0,
-                coveredLineCount: 0,
-                coveredBranchCount: 0,
-                coveredFunctionCount: 0,
-                coveredLinePercent: 100,
-                coveredBranchPercent: 100,
-                coveredFunctionPercent: 100,
-            },
-            thresholds,
-        },
-    },
-})
+/** @type {(thresholds: Thresholds, files: readonly File[]) => Event} */
+const report = (thresholds, files) => ({ type: 'test:coverage', data: { summary: { files, thresholds } } })
 
-/**
- * Node declares a failure's `error` with a required `cause`, which `Error`
- * leaves optional; the cast states that this one has one.
- */
-const error = /** @type {EventData.Error} */ (/** @type {unknown} */ (new Error('boom', { cause: 'the proof' })))
+/** @type {Thresholds} */
+const all = { line: 100, branch: 100, function: 100 }
 
-/** @type {TestEvent} */
-const fail = {
-    type: 'test:fail',
-    data: { name: 'a', nesting: 0, testNumber: 1, details: { duration_ms: 1, error } },
-}
+/** @type {Thresholds} */
+const none = { line: 0, branch: 0, function: 0 }
 
-/** @type {TestEvent} */
-const summary = { type: 'test:diagnostic', data: { nesting: 0, message: 'tests 1', level: 'info' } }
+/** @type {Event} */
+const skipped = { type: 'test:pass', data: { skip: 'not here' } }
+
+/** @type {Event} */
+const todo = { type: 'test:pass', data: { todo: true } }
+
+/** @type {Event} */
+const fail = { type: 'test:fail' }
+
+/** @type {Event} */
+const summary = { type: 'test:diagnostic' }
 
 export const proof = {
     aStartIsDropped: () => {
-        assertEq(quiet({ type: 'test:start', data: { name: 'a', nesting: 0 } }), null)
+        assertEq(quiet({ type: 'test:start' }), null)
     },
     aPassIsDropped: () => {
-        assertEq(quiet({ type: 'test:pass', data: { name: 'a', nesting: 0, testNumber: 1, details: { duration_ms: 1 } } }), null)
+        assertEq(quiet({ type: 'test:pass', data: {} }), null)
+    },
+    aSkippedTestIsKeptAsIs: () => {
+        assertEq(quiet(skipped), skipped)
+    },
+    aTodoTestIsKeptAsIs: () => {
+        assertEq(quiet(todo), todo)
     },
     aFailIsKeptAsIs: () => {
         assertEq(quiet(fail), fail)
@@ -89,14 +56,9 @@ export const proof = {
         assertEq(quiet(summary), summary)
     },
     coverageKeepsTheFilesMissingAThreshold: () => {
-        const kept = quiet(report({ line: 100, branch: 100, function: 100 }))
-        if (kept?.type !== 'test:coverage') { throw kept }
-        assertStructurallySame(kept.data.summary.files.map(f => f.path), ['lines', 'branches', 'functions'])
-        assertEq(kept.data.summary.totals.coveredLinePercent, 100)
+        assertStructurallySame(quiet(report(all, files)), report(all, files.slice(1)))
     },
-    coverageWithoutThresholdsKeepsOnlyTheTotals: () => {
-        const kept = quiet(report({ line: 0, branch: 0, function: 0 }))
-        if (kept?.type !== 'test:coverage') { throw kept }
-        assertStructurallySame(kept.data.summary.files, [])
+    coverageWithoutThresholdsKeepsNoFile: () => {
+        assertStructurallySame(quiet(report(none, files)), report(none, []))
     },
 }
