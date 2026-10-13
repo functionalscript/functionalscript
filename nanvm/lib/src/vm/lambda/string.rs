@@ -8,7 +8,7 @@ use crate::vm::{Any, Array, IVm, Number, String, ToAny};
 
 /// `String.prototype`'s.
 pub(super) fn string<A: IVm>(key: &Any<A>) -> Option<Method<A>> {
-    let table: [(&str, Method<A>); 23] = [
+    let table: [(&str, Method<A>); 25] = [
         ("at", at),
         ("charAt", char_at),
         ("charCodeAt", char_code_at),
@@ -28,6 +28,8 @@ pub(super) fn string<A: IVm>(key: &Any<A>) -> Option<Method<A>> {
         ("split", split),
         ("startsWith", starts_with),
         ("substring", substring),
+        ("toLowerCase", to_lower_case),
+        ("toUpperCase", to_upper_case),
         ("toWellFormed", to_well_formed),
         ("trim", trim),
         ("trimEnd", trim_end),
@@ -67,6 +69,14 @@ fn is_well_formed<A: IVm>(s: Any<A>, _: Array<A>) -> Result<Any<A>, Any<A>> {
 
 fn to_well_formed<A: IVm>(s: Any<A>, _: Array<A>) -> Result<Any<A>, Any<A>> {
     Ok(receiver(s)?.to_well_formed().to_any())
+}
+
+fn to_lower_case<A: IVm>(s: Any<A>, _: Array<A>) -> Result<Any<A>, Any<A>> {
+    Ok(receiver(s)?.to_lower_case()?.to_any())
+}
+
+fn to_upper_case<A: IVm>(s: Any<A>, _: Array<A>) -> Result<Any<A>, Any<A>> {
+    Ok(receiver(s)?.to_upper_case()?.to_any())
 }
 
 fn includes<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {

@@ -1750,7 +1750,7 @@ receiver-type/name pair against the compiler's list
 | Receiver | Admitted methods |
 | --- | --- |
 | Array | `at`, `concat`, `every`, `filter`, `find`, `findIndex`, `findLast`, `findLastIndex`, `flat`, `flatMap`, `includes`, `indexOf`, `join`, `lastIndexOf`, `map`, `reduce`, `reduceRight`, `slice`, `some`, `toReversed`, `toSorted`, `toSpliced`, `with` |
-| String | `at`, `charAt`, `charCodeAt`, `codePointAt`, `concat`, `endsWith`, `includes`, `indexOf`, `isWellFormed`, `lastIndexOf`, `padEnd`, `padStart`, `repeat`, `replace`, `replaceAll`, `slice`, `split`, `startsWith`, `substring`, `toWellFormed`, `trim`, `trimEnd`, `trimStart` |
+| String | `at`, `charAt`, `charCodeAt`, `codePointAt`, `concat`, `endsWith`, `includes`, `indexOf`, `isWellFormed`, `lastIndexOf`, `padEnd`, `padStart`, `repeat`, `replace`, `replaceAll`, `slice`, `split`, `startsWith`, `substring`, `toLowerCase`, `toUpperCase`, `toWellFormed`, `trim`, `trimEnd`, `trimStart` |
 | Number | `toExponential`, `toFixed`, `toPrecision` |
 | Object, Array, String, Number, Boolean, BigInt, Function | `toString` |
 
@@ -1770,6 +1770,12 @@ Native execution has these limits:
   implementation-defined formatting.
 - `toSorted` with an inconsistent comparator has the order the executor's
   sorting algorithm gives it, as ECMAScript permits.
+- `toLowerCase` and `toUpperCase` are the Unicode Default Case Conversion at
+  **Unicode 17.0.0**, the version the pinned Rust standard library carries
+  and `nanvm-lib` asserts at compile time
+  ([prototype names](../fjs/js/prototype/README.md#unicode-version)). A host
+  engine on another Unicode version may case a character assigned since
+  then differently. A lone surrogate, which has no case, is kept.
 - Native strings hold at most 2³² − 1 UTF-16 code units; a host engine may
   exhaust its resources sooner.
 - Compiled functions carry EDAG-derived text. A native function without
@@ -2227,29 +2233,33 @@ export default n => {
   around it is the function's frame, as any nested function's captures
   are ([captures](#captures-and-self-recursion)).
 
-- **A loop runs in constant stack** in the FunctionalScript output and in
-  function text: each writer recognizes the template and spells it as the
-  one loop, `while (c) { …; r = next; }` — the source writer as these two
-  statements, and the code-only text as the same two over a `let` of the
-  function's parameter ([function text](../fjs/edag/function-text.md)) — where a
-  function calling itself last is otherwise recursion, which V8 runs out
-  of stack on after some thousands of rounds, having no tail calls. A
-  hand-written function of the template's shape, `const loop = r => c ?
-  loop(next) : r;`, is the same graph and gets the same loop; one of a
-  shape no `while` writes — a `const` before the condition running every
-  round, a condition sharing a value with the block that a `const` would
-  name, a read of the rest array — keeps the recursion in every writer; a
-  read the condition and the block repeat, `r[0]`, one value of the graph,
-  is written where each read stands and loops. A condition sharing a value
-  of its own, the `const` of a function called where written, is the
-  FunctionalScript output's loop still, the condition written as that
-  function again, so that the value is established afresh at every test;
-  the function text keeps the recursion for it. The FunctionalScript
-  output alone keeps the recursion for a nested function that reads the
-  variable, `self(() => r)`, since its nested function captures by name
-  where the recursion's holds the value of its round — the function text's
-  captures by value, through the wrapper it applies. The Rust output and
-  the EDAG interpreters still spell the call
+- **A loop runs in constant stack** in the FunctionalScript output, in
+  function text and in the Rust output: each writer recognizes the template
+  and spells it as the one loop, `while (c) { …; r = next; }` — the source
+  writer as these two statements, the code-only text as the same two over a
+  `let` of the function's parameter
+  ([function text](../fjs/edag/function-text.md)), and the Rust output as
+  the function's closure whose body is Rust's `loop` over a `let mut` of
+  its argument, no round a call — where a function calling itself last is
+  otherwise recursion, which V8 runs out of stack on after some thousands
+  of rounds, having no tail calls, and Rust likewise. A hand-written
+  function of the template's shape, `const loop = r => c ? loop(next) :
+  r;`, is the same graph and gets the same loop; one of a shape no `while`
+  writes — a `const` before the condition running every round, a condition
+  sharing a value with the block that a `const` would name, a read of the
+  rest array — keeps the recursion in every writer; a read the condition
+  and the block repeat, `r[0]`, one value of the graph, is written where
+  each read stands and loops. A condition sharing a value of its own, the
+  `const` of a function called where written, is the FunctionalScript
+  output's loop still, the condition written as that function again, so
+  that the value is established afresh at every test, and the Rust
+  output's, whose `loop` rebinds it; the function text keeps the recursion
+  for it. The FunctionalScript output alone keeps the recursion for a
+  nested function that reads the variable, `self(() => r)`, since its
+  nested function captures by name where the recursion's holds the value
+  of its round — the function text's captures by value, through the
+  wrapper it applies, and the Rust output's frame is a value. The EDAG
+  interpreters still run the call
   ([tail-call-loop](../fjs/edag/todo/tail-call-loop.md)).
 
 - Three programs JavaScript admits are refused rather than read another

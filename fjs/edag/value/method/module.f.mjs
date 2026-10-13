@@ -104,6 +104,10 @@ const stringMethod = (receiver, key, args, invoke) => {
         case 'trim': { return ok(receiver.trim()) }
         case 'trimStart': { return ok(receiver.trimStart()) }
         case 'trimEnd': { return ok(receiver.trimEnd()) }
+        // The host's Unicode Default Case Conversion; the language pins its
+        // Unicode version, which NaNVM asserts at compile time.
+        case 'toLowerCase': { return ok(receiver.toLowerCase()) }
+        case 'toUpperCase': { return ok(receiver.toUpperCase()) }
         case 'concat': {
             let text = receiver
             for (const value of args) {
