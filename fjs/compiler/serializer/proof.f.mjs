@@ -1121,8 +1121,11 @@ export const proof = {
             'export default ($0)=>{const $1=($2)=>$2<$0?$1($2+2):$2;return [$1(0),$1(1)];};')
         writes(['=>', 0, [], ['()', ['=>', 1, [], [',', [['[]', []], ['?:', true, call(0), ['arg', 0]]]]], [0]]],
             'export default ()=>{const $0=($1)=>{const $2=[];return true?$0(0):$1;};return $0(0);};')
+        // a next value that throws is assigned as the applied function a
+        // throw is spelled as in expression position, never as the `throw`
+        // statement a block refuses
         writes(['=>', 0, [], ['()', loop([], true, call(['throw', 1])), [0]]],
-            'export default ()=>{const $0=($1)=>true?$0((()=>{throw 1;})()):$1;return $0(0);};')
+            'export default ()=>{let $0=0;while(true){$0=(()=>{throw 1;})();}return $0;};')
         writes(['=>', 0, [], ['()', loop([], true, call(0)), [0, 1]]],
             'export default ()=>{const $0=($1)=>true?$0(0):$1;return $0(0,1);};')
         writes(['=>', 0, [], ['()', loop([], true, call(0)), [['...', ['[]', [0]]]]]],

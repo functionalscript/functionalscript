@@ -61,7 +61,7 @@ so the function needs no name. V8 implements no tail calls, so
 this runs a million rounds where the named function expression below
 overflows after some thousands. It is the one loop spelling every writer
 has: a body holding such a loop called where it stands is spelled by the
-source writer as `let` and `while` ([spec: loops](../../../spec/README.md#loops)),
+source writer as `let` and `while` ([spec: loops](../../spec/README.md#loops)),
 the same text in both outputs, and the same shapes keep the recursion in
 every writer — a root assert, a condition reaching a value a memo cell
 establishes, a read of the rest array, a next value that throws

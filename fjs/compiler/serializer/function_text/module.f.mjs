@@ -170,14 +170,15 @@ const reaches = (a, shared) => {
  * rather than as the recursion it is: the same shapes keep the recursion
  * in every writer (`fjs/edag/todo/tail-call-loop.md`) — a root assert and a
  * condition reaching a value a cell establishes, which would have to be
- * established before the `while` tests the condition each round; a read
- * of the rest array, which each round of the recursion sees empty from
- * the second on; and a next value that throws.
+ * established before the `while` tests the condition each round; and a
+ * read of the rest array, which each round of the recursion sees empty
+ * from the second on. A next value that throws is assigned as the applied
+ * function the throw is spelled as anywhere, and throws there.
  *
  * @type {(a: Analysis, shared: readonly number[], rest: boolean, loop: Loop) => boolean}
  */
-const asLoop = (a, shared, rest, { before, condition, next }) =>
-    before.length === 0 && !rest && !reaches(a, shared)(condition) && !(next instanceof Array && a.nodes[next[1]][0] === 'throw')
+const asLoop = (a, shared, rest, { before, condition }) =>
+    before.length === 0 && !rest && !reaches(a, shared)(condition)
 
 /**
  * A loop's text, `r => COND ? self(NEXT) : r` as the loop it is

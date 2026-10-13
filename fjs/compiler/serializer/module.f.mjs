@@ -1415,7 +1415,10 @@ const statement = (s0, path, last, elsewhere, returns = null) => ({ text, names 
         return namedBefore || elsewhere.includes(v[1]) ? error('an anchor that repeats a hoisted value') : ok(before)
     }
     if (!last && isName(s.a, v)) { return error('an anchor that is a name') }
-    const thrown = last ? thrownValue(s.a, v) : null
+    // a scope's own last `throw` is the statement; a value a loop's block
+    // assigns is assigned whatever it is, a throw as the applied function
+    // the throw is spelled as anywhere
+    const thrown = last && returns === null ? thrownValue(s.a, v) : null
     const lead = thrown !== null ? [keyword('throw'), ' '] : last ? (returns ?? (path === 'module' ? [keyword('export'), ' ', keyword('default'), ' '] : [keyword('return'), ' '])) : [keyword('const'), ` ${binding(hoistName(path, before.names.length))}=`]
     const written = thrown === null ? v : thrown[0]
     return mapOk(
@@ -1463,8 +1466,7 @@ const scope = (s, path, start, returns = null, yields = true) => all => {
  * argument, of a function written in place — reached by this one edge —
  * that is the template `fjs/edag/loop` recognizes, with no assert before
  * its condition, since a `const` before a `while` runs once where that
- * assert runs every round, a next value that is no `throw`, which no
- * assignment spells, and no read of the rest array, which `let` and
+ * assert runs every round, and no read of the rest array, which `let` and
  * `while` bind nowhere — each round of the recursion is a call of one
  * argument, so the array is empty from the second round on, and only the
  * recursion keeps that; no function nested in it whose frame reads the
@@ -1484,7 +1486,7 @@ const isLoopCall = (s, i) => {
     const [, callee, [init]] = node
     if (!(callee instanceof Array) || s.shared.includes(callee[1]) || (init instanceof Array && init[0] === '...')) { return false }
     const loop = loopOf(s.a, callee[1])
-    return loop !== null && loop.before.length === 0 && thrownValue(s.a, loop.next) === null && !readsRest(s.a, callee[1]) && !capturesParameter(s.a, callee[1])
+    return loop !== null && loop.before.length === 0 && !readsRest(s.a, callee[1]) && !capturesParameter(s.a, callee[1])
         && !blockReadsParameter(s, callee[1], loop)
 }
 
