@@ -49,12 +49,15 @@ export const proof = {
         /** @type {(next: Exp) => Exp} */
         const call = next => ['()', ['self'], [next]]
         assertEq(compile(['=>', 1, [], ['?:', ['<', ['arg', 0], 1_000_000], call(['+', ['arg', 0], 1]), ['arg', 0]]])(0), 1_000_000)
-        // the rest array is empty from the second round on
+        // a function reading its rest array keeps the recursion, which gives
+        // each round the empty array a call of one argument leaves
         const sum = compile(['=>', 1, [], ['?:', ['.', ['rest'], 'length'], call(['+', ['arg', 0], ['.', ['rest'], 0]]), ['arg', 0]]])
         assertEq(sum(1, 2, 3), 3)
         assertEq(sum(1), 1)
         // each round shares its own node and starts fresh
         const shared = /** @type {const} */ (['[]', [['arg', 0]]])
+        assertEq(compile(['=>', 1, [], ['?:', ['<', ['arg', 0], 3], call(['+', ['.', shared, 0], ['.', shared, 'length']]), ['arg', 0]]])(0), 3)
+        // and so does the recursion a condition reaching the shared node keeps
         const pairs = compile(['=>', 1, [], ['?:', ['<', ['.', shared, 0], 2], call(['+', ['.', shared, 0], 1]), ['[]', [shared, shared]]]])
         const result = pairs(0)
         assertEq(result[0], result[1])

@@ -50,17 +50,20 @@ JavaScript reference still skips because its function text is host-defined.
 
 A function of the template `fjs/edag/loop` recognizes,
 `r => COND ? self(NEXT) : r`, is written as the loop it is rather than as a
-function that names itself: an arrow whose body is `for(;;)` over the
-parameter, the `?:` an `if` whose consequent assigns the next value and
-`continue`s, the alternative the `return`, and the memo cells declared inside
-the loop so that each round starts fresh as each call did —
-`($0)=>{for(;;){if((($0)<(10))){$0=(($0)+(1));continue;}return $0;}}`. No
-read of `self` survives, so the function needs no name. V8 implements no
-tail calls, so this runs a million rounds where the named function
-expression below overflows after some thousands. A body holding such a
-loop called where it stands is spelled by the source writer as `let` and
-`while` ([spec: loops](../../../spec/README.md#loops)), the same text in
-both outputs.
+function that names itself: an arrow whose body is `while` over the
+parameter, the asserts and the memo cells inside the body so that each
+round starts fresh as each call did, and the assignment omitted where the
+next value is the parameter itself —
+`($0)=>{while((($0)<(10))){$0=(($0)+(1));}return $0;}`. No read of `self`
+survives, so the function needs no name. V8 implements no tail calls, so
+this runs a million rounds where the named function expression below
+overflows after some thousands. It is the one loop spelling every writer
+has: a body holding such a loop called where it stands is spelled by the
+source writer as `let` and `while` ([spec: loops](../../../spec/README.md#loops)),
+the same text in both outputs, and the same shapes keep the recursion in
+every writer — a root assert, a condition reaching a value a memo cell
+establishes, a read of the rest array, a next value that throws
+([tail-call-loop](./todo/tail-call-loop.md)).
 
 ## A function that names itself
 

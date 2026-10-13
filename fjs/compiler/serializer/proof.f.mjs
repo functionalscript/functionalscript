@@ -1081,10 +1081,13 @@ export const proof = {
         const shared = /** @type {const} */ (['[]', [['arg', 0]]])
         writes(['=>', 0, [], ['()', loop([], true, [',', [['[]', [1]], call(['+', ['.', shared, 0], ['.', shared, 'length']])]]), [0]]],
             'export default ()=>{let $0=0;while(true){const $1=[1];const $2=[$0];$0=$2[0]+$2.length;}return $0;};')
-        // the initial value and the condition are any value; the block may
-        // leave the variable as it is
+        // the initial value and the condition are any value; a block that
+        // leaves the variable as it is is empty, as one of asserts alone is
+        // its asserts
         writes(['=>', 1, [], ['()', loop([['arg', 0]], ['()', ['frame', 0], [['arg', 0]]], call(['arg', 0])), [['[]', [1]]]]],
-            'export default ($0)=>{let $1=[1];while($0($1)){$1=$1;}return $1;};')
+            'export default ($0)=>{let $1=[1];while($0($1)){}return $1;};')
+        writes(['=>', 0, [], ['()', loop([], true, [',', [['[]', [1]], call(['arg', 0])]]), [0]]],
+            'export default ()=>{let $0=0;while(true){const $1=[1];}return $0;};')
         // a loop under a lazy operand is the block's, as any value there
         writes(['=>', 1, [], ['?:', ['arg', 0], counted, 1]],
             'export default ($0)=>$0?(()=>{let $1=0;while($1<$0){$1=$1+2;}return $1;})():1;')
@@ -1128,7 +1131,7 @@ export const proof = {
         // code-only text spells a loop the same way inside a body, and a
         // loop function on its own as the loop `function_text` spells
         assertEq(assertOk(tryFunctionText(['=>', 1, [], counted])), '($0)=>{let $1=0;while($1<$0){$1=$1+2;}return $1;}')
-        assertEq(assertOk(tryFunctionText(loop([], ['<', ['arg', 0], 2], call(['+', ['arg', 0], 1])))), '($0)=>{for(;;){if((($0)<(2))){$0=(($0)+(1));continue;}return $0;}}')
+        assertEq(assertOk(tryFunctionText(loop([], ['<', ['arg', 0], 2], call(['+', ['arg', 0], 1])))), '($0)=>{while((($0)<(2))){$0=(($0)+(1));}return $0;}')
     },
     self: () => {
         writes(['=>', 0, [], ['()', ['self'], []]], 'const $0=()=>$0();export default $0;')

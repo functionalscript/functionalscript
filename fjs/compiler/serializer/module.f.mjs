@@ -1442,15 +1442,17 @@ const statement = (s0, path, last, elsewhere, returns = null) => ({ text, names 
  * is a shared value survives reading back ({@link statement}).
  *
  * `returns` is what the last operand is introduced by in place of the
- * scope's own: a loop's block assigns its variable, {@link loopStatement}.
+ * scope's own: a loop's block assigns its variable, {@link loopStatement}
+ * — and `yields` whether there is a last operand at all, a loop's block
+ * leaving the variable as it is being anchors alone.
  *
- * @type {(s: _Scope, path: string, start: _Statement, returns?: readonly Chunk[] | null) => (all: _Root) => Result<_Statement, string>}
+ * @type {(s: _Scope, path: string, start: _Statement, returns?: readonly Chunk[] | null, yields?: boolean) => (all: _Root) => Result<_Statement, string>}
  */
-const scope = (s, path, start, returns = null) => all => {
+const scope = (s, path, start, returns = null, yields = true) => all => {
     /** @type {(acc: Result<_Statement, string>, v: Operand, i: number) => Result<_Statement, string>} */
     const step = (acc, v, i) => acc[0] === 'error'
         ? acc
-        : statement(s, path, i === all.length - 1, all.flatMap((w, j) => j === i ? [] : eagerFrom(s.a)(w)), returns)(acc[1], v)
+        : statement(s, path, yields && i === all.length - 1, all.flatMap((w, j) => j === i ? [] : eagerFrom(s.a)(w)), returns)(acc[1], v)
     return all.reduce(step, ok(start))
 }
 
@@ -1485,12 +1487,12 @@ const readsRest = (a, i) => a.nodes.some((n, j) => n[0] === 'rest' && a.scope[j]
 /**
  * A loop as the two statements the language reads it from: `let`, its
  * variable and the initial value; `while`, the condition and the block of
- * the asserts, as `const`s, and the assignment of the next value — the
- * text that reads back as the template the loop is
- * ([spec: loops](../../../spec/README.md#loops)). The variable is the
- * loop's function's parameter, written as its name wherever the function
- * reads it, and from the loop on the name of the call, a `const` of the
- * scope.
+ * the asserts, as `const`s, and the assignment of the next value, omitted
+ * where that value is the variable itself — the text that reads back as
+ * the template the loop is ([spec: loops](../../../spec/README.md#loops)).
+ * The variable is the loop's function's parameter, written as its name
+ * wherever the function reads it, and from the loop on the name of the
+ * call, a `const` of the scope.
  *
  * ```js
  * let $1=0;while($1<$0){$1=$1+1;}return $1;
@@ -1516,6 +1518,9 @@ const loopStatement = (s, path, before) => i => {
     const { condition, arm, asserts, next } = assertNotNullish(loopOf(s.a, f), ['a loop statement of no loop', i])
     const loopPath = `${path}/loop${before.names.length}`
     const variable = name(`${loopPath}/arg0`)
+    // a block leaving the variable as it is: the next value the parameter
+    // itself, which the lowering gives a block assigning nothing
+    const unchanged = next instanceof Array && s.a.nodes[next[1]][0] === 'arg'
     return okThen(
         /** @type {(names: readonly string[]) => Result<_Statement, string>} */
         (names => {
@@ -1536,7 +1541,9 @@ const loopStatement = (s, path, before) => i => {
                 operand(inner, `${loopPath}/condition`)(condition),
                 okThen(
                     /** @type {(block: _Scope) => Result<_Statement, string>} */
-                    (block => scope(block, `${loopPath}/block`, nothing, [variable, '='])([...asserts, next])),
+                    (block => unchanged
+                        ? scope(block, `${loopPath}/block`, nothing, null, false)(asserts)
+                        : scope(block, `${loopPath}/block`, nothing, [variable, '='])([...asserts, next])),
                 )(lazyScope(inner)(arm)),
             ))
         }),

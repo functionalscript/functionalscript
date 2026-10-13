@@ -22,6 +22,7 @@
 import { leafSerialize } from '../../../media/datajs/serializer/module.f.mjs'
 import { chunksText, keyword, literal } from '../../../text/marked/module.f.mjs'
 import { loopOf } from '../../../edag/loop/module.f.mjs'
+import { operandsOf } from '../../../edag/analysis/module.f.mjs'
 import { _name as name, _binding as binding, _resolve as resolve } from '../names/module.f.mjs'
 
 /** The name of one invocation-local memo cell. @type {(_s: _Scope, k: number) => string} */
@@ -144,28 +145,61 @@ const isNameRead = node => ['arg', 'rest', 'frame', 'undefined'].includes(node[0
 /** An assert as a statement: its value established and discarded. @type {(s: _Scope) => (v: Operand) => string} */
 const assert = s => v => `${operand(s, v)};`
 
+/** Whether an operand names the function's first parameter, `['arg', 0]`. @type {(a: Analysis, v: Operand) => boolean} */
+const isArg0 = (a, v) => v instanceof Array && a.nodes[v[1]][0] === 'arg' && a.nodes[v[1]][1] === 0
+
+/**
+ * Whether an operand reaches an entry among `shared` in its own scope — a
+ * nested function's body is that function's own, its slots this scope's.
+ *
+ * @type {(a: Analysis, shared: readonly number[]) => (v: Operand) => boolean}
+ */
+const reaches = (a, shared) => {
+    /** @type {(v: Operand) => boolean} */
+    const go = v => {
+        if (!(v instanceof Array)) { return false }
+        const [, i] = v
+        const node = a.nodes[i]
+        return shared.includes(i) || (node[0] === '=>' ? node[2] : operandsOf(node)).some(go)
+    }
+    return go
+}
+
+/**
+ * Whether a loop (`fjs/edag/loop`) is written as one, {@link loopText},
+ * rather than as the recursion it is: the same shapes keep the recursion
+ * in every writer (`fjs/edag/todo/tail-call-loop.md`) — a root assert and a
+ * condition reaching a value a cell establishes, which would have to be
+ * established before the `while` tests the condition each round; a read
+ * of the rest array, which each round of the recursion sees empty from
+ * the second on; and a next value that throws.
+ *
+ * @type {(a: Analysis, shared: readonly number[], rest: boolean, loop: Loop) => boolean}
+ */
+const asLoop = (a, shared, rest, { before, condition, next }) =>
+    before.length === 0 && !rest && !reaches(a, shared)(condition) && !(next instanceof Array && a.nodes[next[1]][0] === 'throw')
+
 /**
  * A loop's text, `r => COND ? self(NEXT) : r` as the loop it is
- * (`fjs/edag/loop`): an arrow whose body is `for(;;)` over the parameter,
- * the `?:` an `if` whose consequent ends in `continue`, so that the
- * alternative is the fall-through `return`. V8 implements no tail calls,
- * so the named function expression a self-call is otherwise spelled as
- * would overflow the stack after some thousands of rounds, where this
- * runs in constant stack. The memo cells are declared inside the loop, so
- * each round starts fresh as each call did; the `self` name is gone, since
- * no read of it survives. A body reading its rest array rebinds it empty
- * each round, as a call of one argument leaves it.
+ * (`fjs/edag/loop`), the one spelling every writer has for it: an arrow
+ * whose body is `while` over the parameter, the asserts and the memo cells
+ * inside the body, so that each round starts fresh as each call did, and
+ * the assignment omitted where the next value is the variable itself. V8
+ * implements no tail calls, so the named function expression a self-call
+ * is otherwise spelled as would overflow the stack after some thousands of
+ * rounds, where this runs in constant stack. The `self` name is gone,
+ * since no read of it survives.
  *
  * ```js
- * ($0)=>{for(;;){if((($0)<(10))){$0=(($0)+(1));continue;}return $0;}}
+ * ($0)=>{while((($0)<(10))){$0=(($0)+(1));}return $0;}
  * ```
  *
- * @type {(s: _Scope, list: string, rest: boolean, cells: string, loop: Loop) => string}
+ * @type {(s: _Scope, list: string, cells: string, loop: Loop) => string}
  */
-const loopText = (s, list, rest, cells, { before, condition, asserts, next }) => {
+const loopText = (s, list, cells, { condition, asserts, next }) => {
     const state = name(`${s.path}/arg0`)
-    const step = rest ? `[${state},...${name(`${s.path}/rest`)}]=[${operand(s, next)}]` : `${state}=${operand(s, next)}`
-    return `(${list})=>{for(;;){${cells}${before.map(assert(s)).join('')}if(${operand(s, condition)}){${asserts.map(assert(s)).join('')}${step};continue;}return ${state};}}`
+    const step = isArg0(s.a, next) ? '' : `${state}=${operand(s, next)};`
+    return `(${list})=>{while(${operand(s, condition)}){${cells}${asserts.map(assert(s)).join('')}${step}}return ${state};}`
 }
 
 /** One function's body has fresh memo cells and only its own parameters. @type {(a: Analysis, i: number, path: string, frame: readonly string[]) => string} */
@@ -182,7 +216,7 @@ const lambda = (a, i, path, frame) => {
     const list = [...fixed, ...rest].join(',')
     const cells = shared.map((j, k) => memoCell(s, j, k)).join('')
     const loop = loopOf(a, i)
-    if (loop !== null) { return loopText(s, list, readsRest, cells, loop) }
+    if (loop !== null && asLoop(a, shared, readsRest, loop)) { return loopText(s, list, cells, loop) }
     const value = operand(s, body)
     // a body reading its own `self` is a named function expression, the
     // name the body's `self` reads, since an arrow function cannot name
