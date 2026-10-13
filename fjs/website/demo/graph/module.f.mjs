@@ -51,6 +51,8 @@
  */
 
 import { stateScan, toArray } from '../../../types/list/module.f.mjs'
+import { min } from '../../../types/number/min/module.f.js'
+import { max } from '../../../types/number/max/module.f.js'
 
 /**
  * Every node's rank: the longest path from the root, so every edge points
@@ -78,7 +80,7 @@ export const ranked = (nodes, edges) => {
     for (let round = 0; round < nodes.length; round++) {
         const prior = current
         current = prior.map((node, i) => {
-            const best = incomingOf[i].reduce((m, e) => Math.max(m, prior[e.from].rank + 1), node.rank)
+            const best = incomingOf[i].reduce((m, e) => max(m, prior[e.from].rank + 1), node.rank)
             return best === node.rank ? node : { ...node, rank: best }
         })
         if (current.every((node, i) => node === prior[i])) { break }
@@ -169,16 +171,16 @@ const charWidth = /** @type {const} */ (7)
 const entryLength = /** @type {const} */ (24)
 
 /** @type {(label: string) => number} */
-const widthOf = label => Math.max(50, label.length * charWidth + 16)
+const widthOf = label => max(50, label.length * charWidth + 16)
 
 /** @type {(label: string) => number} */
-const cellWidthOf = label => Math.max(24, label.length * charWidth + 12)
+const cellWidthOf = label => max(24, label.length * charWidth + 12)
 
 /** @type {(edge: Edge) => string | null} */
 const inlineOf = ({ to }) => typeof to === 'number' ? null : to.inline
 
 /** @type {(values: readonly number[]) => number} */
-const max = values => values.reduce((m, v) => Math.max(m, v), 0)
+const maxOf = values => values.reduce((m, v) => max(m, v), 0)
 
 /**
  * The attribute an inline value's kind draws with, on its cell and its
@@ -239,11 +241,10 @@ const portsOf = label => all => {
         const inline = inlineOf(edge)
         return inline === null ? [] : [{ keyed: edge.label !== '', key: cellWidthOf(edge.label), value: cellWidthOf(inline) }]
     })
-    const keyColumn = max(inlines.flatMap(c => c.keyed ? [c.key] : []))
-    const width = Math.max(
-        widthOf(label),
-        max(inlines.map(c => (c.keyed ? keyColumn : 0) + c.value)),
-        max(out.flatMap(({ edge }) => inlineOf(edge) === null ? [cellWidthOf(edge.label)] : [])))
+    const keyColumn = maxOf(inlines.flatMap(c => c.keyed ? [c.key] : []))
+    const width = max(widthOf(label), max(
+        maxOf(inlines.map(c => (c.keyed ? keyColumn : 0) + c.value)),
+        maxOf(out.flatMap(({ edge }) => inlineOf(edge) === null ? [cellWidthOf(edge.label)] : []))))
     /** @type {Record<Corner, number>} */
     const exitAt = { top: 0, middle: height / 2, bottom: height }
     return {
@@ -312,8 +313,8 @@ const treeTopsOf = ranks => edges => rankOf => sizeOf => childrenOf => {
             const last = children[children.length - 1]
             const above = children.slice(0, -1).reduce((sum, child) => sum + at(child).band, 0)
             const y = (at(children[0]).top + above + at(last).top + sizeOf(last).height - height) / 2
-            const shift = Math.max(0, -y)
-            const band = Math.max(above + at(last).band + shift, y + shift + height + nodeGap)
+            const shift = max(0, -y)
+            const band = max(above + at(last).band + shift, y + shift + height + nodeGap)
             return /** @type {const} */ ([id, { band, top: y + shift, shift }])
         })
         return [bands, new Map(bands)]
@@ -396,7 +397,7 @@ const layout = left => nodes => edges => {
     const rankOf = /** @type {(id: number) => number} */ (id => /** @type {number} */ (ranks.get(id)))
     const spans = edges.map(({ from, to }) =>
         ({ from: rankOf(from), to: typeof to === 'number' ? rankOf(to) : rankOf(from), key: from + 0.5 }))
-    const maxRank = nodes.reduce((m, n) => Math.max(m, n.rank), 0)
+    const maxRank = nodes.reduce((m, n) => max(m, n.rank), 0)
     const sizes = new Map(nodes.map(n => [n.id, portsOf(n.label)(outgoingOf(n.id))]))
     const sizeOf = /** @type {(id: number) => _Size} */ (id => /** @type {_Size} */ (sizes.get(id)))
     /** @type {readonly (readonly _Slot[])[]} */
@@ -421,7 +422,7 @@ const layout = left => nodes => edges => {
     /** @type {StateScan<readonly _Slot[], number, _Column>} */
     const placeColumn = (column, left) => {
         const sized = column.map(slot => ({ slot, size: slot.node === undefined ? null : sizeOf(slot.node.id) }))
-        const widest = sized.reduce((m, { size }) => Math.max(m, size === null ? laneSize : size.width), 0)
+        const widest = sized.reduce((m, { size }) => max(m, size === null ? laneSize : size.width), 0)
         const slots = toArray(stateScan(placeSlot(left)(widest))(margin)(sized))
         return [{ end: left + widest, slots }, left + widest + rankGap]
     }
@@ -503,8 +504,8 @@ export const _crossesBox = box => ([x0, y0]) => ([x1, y1]) => {
     ]
     const [t0, t1] = sides.reduce(([lo, hi], [p, q]) =>
         p === 0 ? (q < 0 ? [1, 0] : [lo, hi])
-            : p < 0 ? [Math.max(lo, q / p), hi]
-                : [lo, Math.min(hi, q / p)],
+            : p < 0 ? [max(lo, q / p), hi]
+                : [lo, min(hi, q / p)],
         /** @type {readonly [number, number]} */ ([0, 1]))
     return t0 < t1
 }
@@ -602,11 +603,11 @@ const clipIdOf = p => `graph-clip-${p.x}-${p.y}-${p.width}-${p.height}`
 export const graphSvg = g => {
     const placed = placedOf(g)
     const positioned = placed.nodes
-    const width = margin + max([
+    const width = margin + maxOf([
         ...positioned.map(p => p.x + p.width),
         ...placed.lanes.map(lane => lane.right),
     ])
-    const height = margin + max([
+    const height = margin + maxOf([
         ...positioned.map(p => p.y + p.height),
         ...placed.lanes.map(lane => lane.y + laneSize / 2),
     ])

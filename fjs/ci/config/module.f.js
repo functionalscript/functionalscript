@@ -25,7 +25,7 @@ export const images = /** @type {const} */({
 // published FunctionalScript release; do not tie it to package.json's current
 // in-repo version.
 // https://www.npmjs.com/package/functionalscript
-export const functionalscript = /** @type {const} */ '0.53.0'
+export const functionalscript = /** @type {const} */ '0.55.0'
 
 // The one runtime a generated flake takes from outside the pinned snapshot.
 // Nixpkgs ships 1.3.13 — on the pin and on `master` — and two of this
@@ -39,7 +39,7 @@ export const functionalscript = /** @type {const} */ '0.53.0'
 // package definition. Delete this and the table below the day the snapshot
 // carries a Bun this suite passes on.
 // https://bun.sh/
-export const bun = '1.4.2'
+export const bun = '1.4.3'
 
 // The archive that release publishes for each system a generated flake targets,
 // with the SHA-256 its content must have, as an SRI string.
@@ -56,15 +56,15 @@ export const bun = '1.4.2'
 export const bunSources = {
     'aarch64-linux': {
         archive: 'bun-linux-aarch64',
-        hash: 'sha256-VDKLvC2cjgyfiSxUTWbFeoO4QTnjSQnl7oF1jxrI/ac=',
+        hash: 'sha256-76mBPaXtckI7+Ef5FujSxHwNd2rdlyNUAmp14Q2pqiE=',
     },
     'x86_64-linux': {
         archive: 'bun-linux-x64',
-        hash: 'sha256-NjaPrvdSeHXV/6UuU81IAhdB8qg+tiCKjdZAaNQiqRM=',
+        hash: 'sha256-PnMFKNiXdfA/h/BcBnh8TfQJnQo38/JS57gpyyOBbhg=',
     },
     'aarch64-darwin': {
         archive: 'bun-darwin-aarch64',
-        hash: 'sha256-kJh6OhbX21VtiGrD1VHnttPt8KHPQ6yu1iLoZ2vh0S8=',
+        hash: 'sha256-gK/UwGm0am+o8+xSC+vHUKeEPkqNW5WD0prUNsAKNAM=',
     },
 }
 
@@ -85,7 +85,7 @@ export const deno = '2.8.3'
 // engine, package-lock.json's root engine and .node-version synchronized with
 // this exact pin; an accepted update replaces the supported Node version.
 // https://nodejs.org/en/download
-export const node = /** @type {const} */ ('26.10.0')
+export const node = /** @type {const} */ ('26.11.1')
 
 // The TypeScript this repository type-checks with, and the one the
 // packed-package check installs from npm to check the declarations the packed
@@ -144,12 +144,12 @@ export const jobTimeout = /** @type {const} */ (15)
 // `narHash` and `lastModified` — are for real Nix to fill in, by
 // `gen.nix/lock-update.sh`, rather than data kept here. See
 // `../nix/module.f.mjs`'s `lockUpdateText`.
-// https://channels.nixos.org/nixos-26.05/git-revision
+// https://channels.nixos.org/nixpkgs-26.05-darwin/git-revision
 export const nixpkgs = /** @type {const} */({
     owner: 'NixOS',
     repo: 'nixpkgs',
-    ref: 'nixos-26.05',
-    commit: '2efa67fd26b6df417c33e4603185c701f260dd83',
+    ref: 'nixpkgs-26.05-darwin',
+    commit: '240fddad86d7a0520319f21d8be1b43db426b18d',
 })
 
 // `rust-overlay`, the second input of the shared flake. Nixpkgs builds
@@ -163,7 +163,7 @@ export const rustOverlay = /** @type {const} */({
     owner: 'oxalica',
     repo: 'rust-overlay',
     ref: 'master',
-    commit: '4ca2963243427cb86bd6b4d9ca6010db0162a619',
+    commit: '404b7a5537f0adc6e5c558a1b94612e683dec504',
 })
 
 // Moving either `commit` above needs `npm run lock-update` (real Nix) to

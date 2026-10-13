@@ -46,6 +46,7 @@ pub mod string_methods;
 pub mod throw;
 pub mod throws;
 pub mod to_string;
+pub mod while_loop;
 
 use nanvm_lib::naive::Naive;
 
@@ -98,4 +99,5 @@ pub const CASES: &[crate::Case] = &[
     crate::Case { name: "throw", fixture: crate::fixtures::throw::module::<Naive>, expected: throw::module::<Naive>, json: throw::JSON, throws: throw::THROWS },
     crate::Case { name: "throws", fixture: crate::fixtures::throws::module::<Naive>, expected: throws::module::<Naive>, json: throws::JSON, throws: throws::THROWS },
     crate::Case { name: "to_string", fixture: crate::fixtures::to_string::module::<Naive>, expected: to_string::module::<Naive>, json: to_string::JSON, throws: to_string::THROWS },
+    crate::Case { name: "while_loop", fixture: crate::fixtures::while_loop::module::<Naive>, expected: while_loop::module::<Naive>, json: while_loop::JSON, throws: while_loop::THROWS },
 ];

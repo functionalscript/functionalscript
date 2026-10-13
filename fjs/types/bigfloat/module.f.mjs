@@ -9,6 +9,7 @@
  */
 
 import { abs, bitLength, mask, sign } from '../bigint/module.f.mjs'
+import { max } from '../number/max/module.f.js'
 
 /** @type {(exp: number) => bigint} */
 const twoPow = exp => 1n << BigInt(exp)
@@ -162,7 +163,7 @@ const renormalize = precision => ([m, e]) =>
 const roundedMagnitude = precision => minExp => magnitude => {
     const scaled = scale(precision)(magnitude)
     const [, e] = scaled[0]
-    return renormalize(precision)(round(Math.max(minExp - e, 1))(scaled))
+    return renormalize(precision)(round(max(minExp - e, 1))(scaled))
 }
 
 /**

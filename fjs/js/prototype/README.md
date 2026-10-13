@@ -113,13 +113,13 @@ included, string keys only; they grow with the language's types — `Map` and
 | `toLocaleLowerCase` | ❌ | ❌ | String. Reads the host locale. |
 | `toLocaleString` | ❌ | ❌ | Object, Array, Number, BigInt. Reads the host locale. |
 | `toLocaleUpperCase` | ❌ | ❌ | String. Reads the host locale. |
-| `toLowerCase` | ❌ | ❌ | String. Depends on the engine's Unicode version. |
+| `toLowerCase` | ❌ | ✅ | String. Pure: the Unicode Default Case Conversion at the [pinned Unicode version](#unicode-version). Full mappings, so the result can be longer; a lone surrogate is kept. A predicate asking it whether a character is a letter accepts the Kelvin sign, which lowercases to `k`. |
 | `toPrecision` | ❌ | ✅ | Number. Specified exactly. |
 | `toReversed` | ❌ | ✅ | Array. Pure, answers a new array. |
 | `toSorted` | ❌ | ✅ | Array. Pure, default order by string conversion. The order an inconsistent comparator gives is the engine's (`todo/to-sorted-inconsistent-comparator.md`). |
 | `toSpliced` | ❌ | ✅ | Array. Pure, answers a new array. |
 | `toString` | ❌ | ✅ | Object, Array, String, Number, Boolean, BigInt, Function. Pure on each type; functions answer [EDAG-derived text](../../edag/function-text.md) in VM execution. The native VM refuses this conversion for functions without associated text. |
-| `toUpperCase` | ❌ | ❌ | String. Depends on the engine's Unicode version. |
+| `toUpperCase` | ❌ | ✅ | String. Pure: the same conversion upward, `'ß'.toUpperCase()` is `'SS'`. |
 | `toWellFormed` | ❌ | ✅ | String. Pure. |
 | `trim` | ❌ | ✅ | String. Pure. |
 | `trimEnd` | ❌ | ✅ | String. Pure. |
@@ -135,8 +135,34 @@ included, string keys only; they grow with the language's types — `Map` and
 |---|---|
 | all | 100 |
 | read allowed | 1 |
-| call allowed | 44, and `length` as an own property |
-| call prohibited | 55 |
+| call allowed | 46, and `length` as an own property |
+| call prohibited | 53 |
+
+## Unicode version
+
+`toLowerCase` and `toUpperCase` are defined over "the latest version of the
+Unicode Standard", so two engines shipping different Unicode versions can
+case a newly assigned character differently. A module must mean one thing
+everywhere, so the language pins the version: **Unicode 17.0.0**, the one the
+pinned Rust standard library carries
+([`fjs/ci/config`](../../ci/config/module.f.js)). NaNVM converts through that
+library and asserts the version at compile time
+([`nanvm/lib/src/vm/string/casing.rs`](../../../nanvm/lib/src/vm/string/casing.rs)),
+so a build whose library carries another version does not build; the pin
+moves only with the toolchain. A host engine on another Unicode version is an
+engine-defined edge the spec documents
+([built-in member functions](../../../spec/README.md#built-in-member-functions)),
+reachable through text the module does not control, such as a search query.
+`normalize` stays refused: nothing pins the engine's normalization tables.
+
+The admission was proposed as a `todo/` and
+[approved by `sergey-shandar`](https://github.com/functionalscript/functionalscript/pull/2863#issuecomment-6139577755),
+the language designer
+([DESIGN.md §12](../../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)).
+The alternatives it rejected: an ASCII-only meaning, since the same source
+would then answer differently on a JavaScript engine and on NaNVM; and a
+run-time refusal of a non-ASCII receiver, which would throw on ordinary text
+where the host engine running the source directly does not.
 
 Memo and Amnesia render represented functions through the shared EDAG-derived
 renderer; the Rust compiler embeds that code-only text in compiled native

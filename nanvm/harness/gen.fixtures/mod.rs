@@ -54,3 +54,4 @@ pub mod string_methods;
 pub mod throw;
 pub mod throws;
 pub mod to_string;
+pub mod while_loop;

@@ -14,7 +14,7 @@
  * ```js
  * import { groups } from './module.f.js'
  *
- * groups.length // 44
+ * groups.length // 46
  * ```
  */
 
@@ -599,6 +599,47 @@ const toWellFormedCases = [
 ]
 
 /**
+ * `String.prototype.toLowerCase`: the Unicode Default Case Conversion at the
+ * Unicode version the language pins — full mappings, so a dotted capital I
+ * grows a combining dot, a final sigma reads its context, and the Kelvin
+ * sign is `k`; a pair is one character and a lone surrogate is kept.
+ *
+ * @type {readonly MethodCase[]}
+ */
+const toLowerCaseCases = [
+    { name: 'ascii', args: ['aBc'], expected: 'abc' },
+    { name: 'latin1', args: ['ÄÖ'], expected: 'äö' },
+    { name: 'finalSigma', args: ['ΟΔΟΣ'], expected: 'οδος' },
+    { name: 'sigmaAlone', args: ['Σ'], expected: 'σ' },
+    { name: 'dottedI', args: ['İ'], expected: 'i̇' },
+    { name: 'kelvinSign', args: ['K'], expected: 'k' },
+    { name: 'titlecase', args: ['ǅ'], expected: 'ǆ' },
+    { name: 'pair', args: ['𐐀'], expected: '𐐨' },
+    { name: 'loneSurrogate', args: ['A\uD800B\uDC00'], expected: 'a\uD800b\uDC00' },
+    { name: 'empty', args: [''], expected: '' },
+    { name: 'argumentIgnored', args: ['A', 1], expected: 'a' },
+]
+
+/**
+ * `String.prototype.toUpperCase`: the same conversion upward — `ß` is `SS`,
+ * the Kelvin sign is its own uppercase.
+ *
+ * @type {readonly MethodCase[]}
+ */
+const toUpperCaseCases = [
+    { name: 'ascii', args: ['aBc'], expected: 'ABC' },
+    { name: 'latin1', args: ['äö'], expected: 'ÄÖ' },
+    { name: 'sharpS', args: ['ß'], expected: 'SS' },
+    { name: 'apostropheN', args: ['ŉ'], expected: 'ʼN' },
+    { name: 'kelvinSign', args: ['K'], expected: 'K' },
+    { name: 'titlecase', args: ['ǅ'], expected: 'Ǆ' },
+    { name: 'pair', args: ['𐐨'], expected: '𐐀' },
+    { name: 'loneSurrogate', args: ['a\uD800b\uDC00'], expected: 'A\uD800B\uDC00' },
+    { name: 'empty', args: [''], expected: '' },
+    { name: 'argumentIgnored', args: ['a', 1], expected: 'A' },
+]
+
+/**
  * `String.prototype.startsWith`: the search string at a position clamped
  * into the string, `0` when `undefined`.
  *
@@ -966,6 +1007,8 @@ export const groups = [
     { method: 'codePointAt', cases: codePointAtCases },
     { method: 'isWellFormed', cases: isWellFormedCases },
     { method: 'toWellFormed', cases: toWellFormedCases },
+    { method: 'toLowerCase', cases: toLowerCaseCases },
+    { method: 'toUpperCase', cases: toUpperCaseCases },
     { method: 'startsWith', cases: startsWithCases },
     { method: 'endsWith', cases: endsWithCases },
     { method: 'substring', cases: substringCases },

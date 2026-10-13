@@ -45,12 +45,15 @@ does not fix this: it only lets the compile run longer.
 
 Three things let this through:
 
-- **The pin follows a Linux channel.** `nixpkgs.ref` in
-  `../config/module.f.js` is `nixos-26.05`, which advances when the NixOS
+- **The pin followed a Linux channel.** `nixpkgs.ref` in
+  `../config/module.f.js` was `nixos-26.05`, which advances when the NixOS
   tests pass. Those tests are Linux only. Hydra evaluates the Darwin jobset
   (`nixpkgs-26.05-darwin`) less often and skips commits. It has built
   `nodejs-slim-26.11.1` for both Darwin systems, and it never built
-  26.11.0 at `7c8764b7`.
+  26.11.0 at `7c8764b7`. The pin now follows `nixpkgs-26.05-darwin`
+  ([#2849](https://github.com/functionalscript/functionalscript/pull/2849)),
+  whose commits are ones Hydra evaluated for Darwin; step 1's dry run per
+  system still decides whether a commit is covered.
 - **`--quiet` hides the miss.** `runText` in `../nix/module.f.mjs` takes
   this cost knowingly: "a cache miss looks like a cache hit: Nix compiles
   from source in silence". It calls that cost bounded because only the first

@@ -33,6 +33,7 @@ import { graphSvg } from '../graph/module.f.mjs'
 import { examplePicker, name as exampleName } from '../examples/module.f.js'
 import { pureOk } from '../../../effects/module.f.mjs'
 import { assertNotNullish } from '../../../asserts/module.f.mjs'
+import { max } from '../../../types/number/max/module.f.js'
 
 /**
  * Keys as a reader types them unless a demo says otherwise: any safe
@@ -83,9 +84,9 @@ export const graphOf = structure => versions => {
     const kindOf = node => old.includes(node) ? 'shared' : 'new'
     const all = current.toSorted((a, b) => order(a) - order(b))
     /** @type {(node: N) => number} */
-    const heightOf = node => childrenOf(node).reduce((m, child) => Math.max(m, heightOf(child) + 1), 0)
+    const heightOf = node => childrenOf(node).reduce((m, child) => max(m, heightOf(child) + 1), 0)
     /** @type {(node: N) => number} */
-    const depthOf = node => all.filter(p => childrenOf(p).includes(node)).reduce((m, p) => Math.max(m, depthOf(p) + 1), 0)
+    const depthOf = node => all.filter(p => childrenOf(p).includes(node)).reduce((m, p) => max(m, depthOf(p) + 1), 0)
     const top = newRoot === null ? 0 : heightOf(newRoot)
     /** @type {Record<Layout, (node: N) => number>} */
     const rankOf = { leaves: node => top - heightOf(node), depth: depthOf }

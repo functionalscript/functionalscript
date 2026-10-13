@@ -39,6 +39,7 @@
 import { emptyState, patriciaTrie } from './module.f.mjs'
 import { versionsDemo } from '../../website/demo/versions/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
+import { max } from '../number/max/module.f.js'
 
 /** A key's bits: the trie branches on them, most significant first. */
 const bits = 8
@@ -116,7 +117,7 @@ const structure = {
         // there.
         /** @type {(id: string) => number} */
         const inherited = id => [...after.nodes].reduce(
-            (m, [p, n]) => n[0] === 'branch' && (n[1] === id || n[2] === id) ? Math.max(m, prefixLength(p)) : m, 0)
+            (m, [p, n]) => n[0] === 'branch' && (n[1] === id || n[2] === id) ? max(m, prefixLength(p)) : m, 0)
         /** @type {(id: string) => Row<string>} */
         const prefixRow = id => {
             const text = binary(firstKey(id)).slice(0, prefixLength(id))

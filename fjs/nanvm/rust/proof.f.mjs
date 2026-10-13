@@ -343,7 +343,7 @@ export const proof = {
          * function name to print, so `generate` refuses before printing a
          * single case.
          */
-        noRustNameForGroup: () => generate({ shared: {}, groups: [{ op: /** @type {'is'} */ (/** @type {unknown} */ ('==')), cases: [] }] }),
+        noRustNameForGroup: () => generate({ shared: {}, groups: [{ op: /** @type {'==='} */ (/** @type {unknown} */ ('==')), cases: [] }] }),
         /** A bare corpus expression has no Result-returning scope for key coercion. */
         computedKey: () => nodeExpr(['{}', [[':', ['undefined'], 1]]]),
         /**

@@ -264,7 +264,6 @@ const handlers = {
     throw: o1,
     '+': o12,
     '-': o12,
-    is: o2,
     '===': o2,
     '!==': o2,
     '>': o2,

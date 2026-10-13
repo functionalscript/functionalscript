@@ -677,7 +677,9 @@ and its runtime and declaration dependencies must satisfy the compiler migration
 rules. `fjs compile` with no arguments is what holds every `.f.js` to it, and CI
 runs that check once per revision. Unsupported modules remain `.f.mjs` until
 the required compiler features land. A sibling authored `types.ts` remains
-unchanged across this rename.
+unchanged across this rename. The rewrites that bring a module to what the
+compiler accepts, one per construct, are
+[`doc/CONVERTING.md`](../../doc/CONVERTING.md).
 
 A synthetic JavaScript compiler fixture may be used before repository migration;
 it does not change the extension contract for repository source.

@@ -259,7 +259,7 @@ export const proof = {
     // Inputs are the same by `Object.is`: `0` and `-0` are different inputs,
     // so `1 / 0` and `1 / -0` stay two entries, `Infinity` and `-Infinity`;
     // `NaN` is the same as `NaN`, so two operators over it are one.
-    is: () => {
+    sameValue: () => {
         assertStructurallySame(nodesOf(['[]', [['/', 1, 0], ['/', 1, -0]]]), [['/', 1, 0], ['/', 1, -0], ['[]', [['#', 0], ['#', 1]]]])
         assertStructurallySame(nodesOf(['[]', [['+', NaN, 1], ['+', NaN, 1]]]), [['+', NaN, 1], ['[]', [['#', 0], ['#', 0]]]])
         // ... and a different arity or a different primitive is a different spelling.
@@ -276,7 +276,6 @@ export const proof = {
         assertEq(nodesOf(['[]', [['undefined'], ['undefined']]]).length, 2)
         assertEq(nodesOf(['[]', [[',', [1, 2]], [',', [1, 2]]]]).length, 2)
         assertEq(nodesOf(['[]', [['?:', 1, 2, 3], ['?:', 1, 2, 3]]]).length, 2)
-        assertEq(nodesOf(['[]', [['is', 1, 1], ['is', 1, 1]]]).length, 2)
         /** @type {Exp} */
         const s = ['[]', [1]]
         table(['[]', [['&&', ['args'], s], ['&&', ['args'], s]]], {
