@@ -17,32 +17,47 @@ the pinned tools directly on Intel macOS or bare Windows
 ([§2](#2-environment-and-running-tests)). The shell carries every tool below
 at the version CI uses.
 
-Run the full check set before submitting:
+**Check what the change touches, not the whole tree.** CI runs every suite on
+every platform ([§7](#7-continuous-integration)) and gates the merge; a session
+runs the checks its diff calls for and skips the rest. A scoped run takes
+seconds where the full suite takes minutes, and the full run is CI's job.
+Which checks a diff calls for is a judgement, made before every commit and
+push; these are its usual answers:
 
-```bash
-tsc                      # type-check; the shell's compiler
-fjs test                 # or any equivalent runner
-npm start compile        # every authored .f.js still compiles; the working tree's compiler
-cargo test               # only if you touched Rust
-cargo clippy
-cargo fmt -- --check
-```
+- **Markdown only** — docs, `todo/`, the changelog: nothing.
+- **FunctionalScript, JavaScript or TypeScript**: `tsc`, then the tests under
+  the changed directory — `cd` into it and run `npm start test` — and, for a
+  new or changed module, its proof coverage scoped the same way
+  ([CONTRIBUTING.md](./CONTRIBUTING.md#running-tests-under-a-subtree)). An
+  authored `.f.js` or the compiler adds `npm start compile`, from the
+  repository root.
+- **Rust**: `cargo test`, `cargo clippy -- -D warnings` and
+  `cargo fmt -- --check`, with `cargo test -p <crate>` where one crate is
+  enough.
+- **A generator's source or input**: `npm run gen` first, then whatever its
+  output calls for. CI fails on a stale `gen.*` file.
 
-Before committing, pushing, or opening a behavior-changing PR, run the same
-Node suite CI runs:
+Whoever writes a change knows what it touches, and that is the judgement asked
+for: what reads the file, not what its extension is — a `Cargo.toml` is Rust,
+and so is a README a module pulls in with `include_str!`; a
+`package-lock.json` is what `npm ci` checks. A wrong guess costs one red CI
+run, which is what CI is there to catch.
 
-```bash
-node --test
-```
-
-It must complete with exit code 0 and an observed final pass/fail summary. A
-targeted suite, partial output, or interrupted run does not satisfy this check.
-After `npm run gen`, rerun `node --test` and every relevant check above
-before publishing. If a check's tool is unavailable, you are outside the shell:
-enter it, or report the PR as unready; do not treat an unavailable required
-check as passing. `tsc` in particular is not a dependency of this package, and
-`npx tsc` does not run the repository's compiler: with nothing to resolve in
-`node_modules` it fetches whatever the registry calls latest.
+The scope is the changed directory, not its importers: a change to a module
+half the tree imports is tested by CI's full run, which is what that run is
+for and why every pull request waits for it. The pull request waits; the
+session does not: push, and go on with the next step or hand the dialog back
+to the owner, rather than sitting on a run that can take tens of minutes. A
+red result comes back as an event, or the owner brings it, and is handled
+then. A full local run — `node --test`, `npm run cov` — is a choice, never a
+requirement: take it when an answer CI would give later is worth having now.
+Each check must complete with exit code 0
+and an observed final summary; a partial or interrupted run is not a result. If
+a check's tool is unavailable, you are outside the shell: enter it, or report
+the PR as unready; do not treat an unavailable required check as passing. `tsc`
+in particular is not a dependency of this package, and `npx tsc` does not run
+the repository's compiler: with nothing to resolve in `node_modules` it fetches
+whatever the registry calls latest.
 
 Three principles outrank everything else. **Always prefer simplicity and quality
 over optimization** — never optimize prematurely, and never at the cost of
@@ -108,8 +123,9 @@ direction and consistency: a `todo/` that contradicts the code or another
 `todo/` is corrected, not built on, and deviating from a design is fine where
 deviating silently is not
 ([DESIGN.md §3](./doc/DESIGN.md#3-design-before-implementation)). Write the
-code plus its proof, run `npm run gen` after changing source, run the check
-set above, and delete the `todo/` issue file the PR fixes, if there is one.
+code plus its proof, run `npm run gen` where a generator or its input changed,
+run the checks above, and delete the `todo/` issue file the PR fixes, if there
+is one.
 
 A file or directory whose name starts with `gen.` is generated, and so is
 everything inside a `gen.*` directory: change its generator, never the output,
@@ -210,9 +226,11 @@ the shell and puts the shell's tools on its `PATH` before its first command,
 from [`.claude/hooks/session-start.sh`](./.claude/hooks/session-start.sh).
 
 Inside the shell, `npm ci` installs Node dependencies and `cargo fetch` the
-Rust ones. `npm test` runs `tsc` plus the FunctionalScript suite; `fjs test`
-and its Deno, Bun, and published-CLI equivalents run the same suite. To run
-only the tests under a subtree, `cd` into it and run the runner from there.
+Rust ones. `npm test` runs `tsc` plus the FunctionalScript suite,
+`npm start test` the suite alone, and the Deno, Bun, and published-CLI
+equivalents the same suite. Run from a directory, the runner tests that
+directory alone
+([CONTRIBUTING.md](./CONTRIBUTING.md#running-tests-under-a-subtree)).
 
 Every equivalent way to run the suite and the dependency-update procedure:
 [CONTRIBUTING.md](./CONTRIBUTING.md). How the shell is generated and why it
