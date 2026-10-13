@@ -76,7 +76,9 @@ The module page discovers `demo.f.mjs` automatically. Build with
   The inline P/Q radios choose which input a graph click sets. For point
   addition and doubling, square markers show the 23 discrete positions on the
   modular secant or tangent; S marks its third curve intersection and R = −S.
-  Show Math contains the substituted formulas and scalar multiples.
+  Dotted blue connectors show modular negation for S → R and P → −P. The `kG`
+  slider selects integer scalars from 0 through 29. Show Math contains the
+  substituted formulas and scalar multiples.
   The default `3G` is `(11,9)`. Scalars 0 and 29 illustrate infinity, which
   is `null` in the module and has no plotted coordinates. Show Math explains
   substituted modular calculations and each repeated-addition frame.

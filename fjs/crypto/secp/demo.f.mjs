@@ -48,6 +48,13 @@ const pre = text => ['pre', text]
 const pointSelect = (name, label, value) => ['p', ['label', { for: `secp-${name}` }, `${label} `],
     ['select', { id: `secp-${name}`, name }, ...pointOptions.map(/** @returns {Element} */ o => ['option', { value: o, ...(value === o ? { selected: '' } : {}) }, pointText(pointOf(o) ?? null)])]]
 
+/** @type {(value: string) => Element} */
+const scalarRange = value => ['p',
+    ['label', { for: 'secp-k' }, `Scalar k: ${value}`],
+    ['input', { id: 'secp-k', name: 'k', type: 'range', min: '0', max: '29', step: '1', value, list: 'secp-k-ticks' }],
+    ['datalist', { id: 'secp-k-ticks' }, ...Array.from({ length: 30 }, /** @returns {Element} */ (_, k) => ['option', { value: String(k) }])],
+]
+
 /** @type {(state: State, event: DemoEvent) => State} */
 export const transition = (state, event) => {
     if (event.kind === 'start') { return state }
@@ -85,16 +92,16 @@ const finiteMark = (p, label, role) => p === null ? [] : [
 ]
 
 /** The dotted connector denotes modular negation, not Euclidean distance.
- * @type {(third: Point, result: Point) => readonly Element[]}
+ * @type {(from: Point, result: Point) => readonly Element[]}
  */
-const finiteNegation = (third, result) => third === null || result === null ? [] : [
-    ['path', { d: `M${40 + Number(third[0]) * 20} ${480 - Number(third[1]) * 20}L${40 + Number(result[0]) * 20} ${480 - Number(result[1]) * 20}`, 'data-secp-finite-negation': '', 'pointer-events': 'none' }],
+const finiteNegation = (from, result) => from === null || result === null ? [] : [
+    ['path', { d: `M${40 + Number(from[0]) * 20} ${480 - Number(from[1]) * 20}L${40 + Number(result[0]) * 20} ${480 - Number(result[1]) * 20}`, 'data-secp-finite-negation': '', 'pointer-events': 'none' }],
 ]
 
 /** SVG buttons have textual, keyboard and native select equivalents.
- * @type {(state: State, p: Point, q: Point, result: Point, third: Point, line: readonly Point2D[]) => Element}
+ * @type {(state: State, p: Point, q: Point, result: Point, third: Point, negationFrom: Point, line: readonly Point2D[]) => Element}
  */
-const finiteGraph = (state, p, q, result, third, line) => ['svg', { viewBox: '0 0 530 530', 'data-secp-graph': '', role: 'group', 'aria-label': 'Finite field grid: y² = x³ + x + 4 modulo 23' },
+const finiteGraph = (state, p, q, result, third, negationFrom, line) => ['svg', { viewBox: '0 0 530 530', 'data-secp-graph': '', role: 'group', 'aria-label': 'Finite field grid: y² = x³ + x + 4 modulo 23' },
     ['title', 'Discrete points over F₂₃; no continuous curve or Euclidean secants'],
     ...Array.from({ length: 23 }, /** @returns {Element} */ (_, i) => ['g',
         ['path', { d: `M${40 + i * 20} 40V480M40 ${480 - i * 20}H480`, 'data-secp-grid': '', fill: 'none' }],
@@ -103,7 +110,7 @@ const finiteGraph = (state, p, q, result, third, line) => ['svg', { viewBox: '0 
     ]),
     ['text', { x: '505', y: '485' }, 'X'], ['text', { x: '30', y: '25' }, 'Y'],
     ...line.map(/** @returns {Element} */ ([x, y]) => ['rect', { x: String(36 + Number(x) * 20), y: String(476 - Number(y) * 20), width: '8', height: '8', 'data-secp-modular-line': '', 'pointer-events': 'none' }]),
-    ...finiteNegation(third, result),
+    ...finiteNegation(negationFrom, result),
     ...points.map(/** @returns {Element} */ ([x, y]) => ['circle', {
         cx: String(40 + Number(x) * 20), cy: String(480 - Number(y) * 20), r: '7',
         'data-demo-click': `point:${x},${y}`, tabindex: '0', role: 'button',
@@ -130,15 +137,16 @@ const finiteView = state => {
     const chordQ = state.operation === '2P' ? p : shownQ
     const line = chordQ === null ? [] : modularLine(shownP, chordQ)
     const third = line.length === 0 ? null : negative(calculation.result).result
+    const negationFrom = state.operation === '−P' ? p : third
     return ['div',
         ['p', 'y² = x³ + x + 4 mod 23 · p = 23 · a = 1 · b = 4 · G = (0, 2) · n = 29'],
         ['p', 'These are discrete field elements. A smooth curve or ordinary secant would be misleading here.'],
         ['div', { 'data-secp-layout': '' },
-            ['div', finiteGraph(state, shownP, shownQ, calculation.result, third, line),
-                ['p', 'Legend: orange squares (modular line), P (orange), Q/G (purple), S (fuchsia), result and dotted S → R connector (blue). O has no XY coordinates.']],
+            ['div', finiteGraph(state, shownP, shownQ, calculation.result, third, negationFrom, line),
+                ['p', 'Legend: orange squares (modular line), P (orange), Q/G (purple), S (fuchsia), result and dotted modular-negation connector (blue). O has no XY coordinates.']],
             ['div',
                 select('operation', 'Operation', ['kG', 'P + Q', '2P', '−P'], state.operation),
-                ...(multiplication ? [inputField({ name: 'k', label: 'Scalar k (decimal, 0–29)' }, state.k)] : [
+                ...(multiplication ? [scalarRange(state.k)] : [
                     pointSelect('p', 'Point P', state.p),
                     ...(state.operation === 'P + Q' ? [pointSelect('q', 'Point Q', state.q), radios('target', 'Graph click sets', [{ value: 'P', label: 'P' }, { value: 'Q', label: 'Q' }], state.target)] : []),
                 ]),
@@ -147,7 +155,8 @@ const finiteView = state => {
                     codeBlock(pointText(calculation.result), 'Copy result'),
                     paragraph(multiplication
                         ? 'The grid shows G and kG. Show Math lists the repeated additions; production multiplication can use faster algorithms such as double-and-add.'
-                        : line.length === 0 ? `The result is ${pointText(calculation.result)}.`
+                        : state.operation === '−P' ? 'The dotted blue connector shows y ↦ −y mod 23 from P to −P.'
+                            : line.length === 0 ? `The result is ${pointText(calculation.result)}.`
                             : 'The squares satisfy the modular secant or tangent equation. S is the third curve intersection; the dotted blue connector shows y ↦ −y mod 23 from S to R.'),
                 ]),
             ],

@@ -88,6 +88,7 @@ export const proof = {
         assert(resultView.includes('data-secp-finite-negation'))
         assert(resultView.includes('S is the third curve intersection'))
         assert(resultView.includes('x₃ = ('))
+        assert(JSON.stringify(demo.view({ ...initial, view: 'Finite Field View', operation: '−P' })).includes('data-secp-finite-negation'))
         const views = [
             { ...initial, view: 'Finite Field View', k: '0' }, { ...initial, view: 'Finite Field View', k: '29' }, { ...initial, view: 'Finite Field View', k: 'bad' },
             { ...initial, view: 'Finite Field View', p: 'bad' }, { ...initial, view: 'Finite Field View', q: 'bad' },
