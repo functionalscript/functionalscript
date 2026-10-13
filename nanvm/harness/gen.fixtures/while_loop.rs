@@ -6,56 +6,50 @@ use nanvm_lib::vm::{Any, Array, IStaticFunction, Nullish, ToAny, ToArray, ToObje
 #[rustfmt::skip]
 pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
     let c0: Any<A> = A::static_function(|_self, args| {
-        let c0: Any<A> = A::static_function(|self_, args| {
-            let mut r: Any<A> = args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any());
-            loop {
-                if !(Any::lt(r.clone(), A::frame(self_)[0].clone()))?.to_boolean() { break }
-                let c0: Any<A> = (r.clone() + f64_any(0x3ff0000000000000))?;
-                r = c0;
-            }
-            Ok(r)
-        }, 1, [args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any())].to_array(), Some("($1)=>{let $2=$1;while((($2)<($0))){$2=(($2)+(1));}return $2;}")).to_any();
-        Any::call(c0, [f64_any(0x0000000000000000)].to_array().to_any())
+        let c0: Any<A> = args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any());
+        let mut c1: Any<A> = f64_any(0x0000000000000000);
+        loop {
+            if !(Any::lt(c1.clone(), c0.clone()))?.to_boolean() { break }
+            let c2: Any<A> = (c1.clone() + f64_any(0x3ff0000000000000))?;
+            c1 = c2;
+        }
+        Ok(c1)
     }, 1, Array::default(), Some("($0)=>{let $1=0;while($1<$0){$1=$1+1;}return $1;}")).to_any();
     let c1: Any<A> = Any::call(c0.clone(), [f64_any(0x4059000000000000)].to_array().to_any())?;
     let c2: Any<A> = A::static_function(|_self, args| {
-        let c0: Any<A> = A::static_function(|self_, args| {
-            let mut r: Any<A> = args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any());
-            loop {
-                let c0: Any<A> = Any::dot(r.clone(), f64_any(0x0000000000000000)).end()?;
-                if !(Any::lt(c0, A::frame(self_)[0].clone()))?.to_boolean() { break }
-                let c0: Any<A> = r.clone();
-                let c1: Any<A> = Any::dot(c0.clone(), f64_any(0x0000000000000000)).end()?;
-                let c2: Any<A> = (c1 + f64_any(0x3ff0000000000000))?;
-                let c3: Any<A> = Any::dot(c0.clone(), f64_any(0x3ff0000000000000)).end()?;
-                let c4: Any<A> = (c3 + c2.clone())?;
-                let c5: Any<A> = [c2.clone(), c4].to_array().to_any();
-                r = c5;
-            }
-            Ok(r)
-        }, 1, [args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any())].to_array(), Some("(function $1($2){const $3=(()=>{let $4,$5=false;return()=>{if(!$5){$4=(($2)[(0)]);$5=true;}return $4;};})();const $6=(()=>{let $7,$8=false;return()=>{if(!$8){$7=(($3())+(1));$8=true;}return $7;};})();return ((($3())<($0))?((0,($1))(([($6()),((($2)[(1)])+($6()))]))):($2));})")).to_any();
+        let c0: Any<A> = args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any());
         let c1: Any<A> = [f64_any(0x0000000000000000), f64_any(0x0000000000000000)].to_array().to_any();
-        Any::call(c0, [c1].to_array().to_any())
+        let mut c2: Any<A> = c1;
+        loop {
+            let c3: Any<A> = Any::dot(c2.clone(), f64_any(0x0000000000000000)).end()?;
+            if !(Any::lt(c3, c0.clone()))?.to_boolean() { break }
+            let c3: Any<A> = c2.clone();
+            let c4: Any<A> = Any::dot(c3.clone(), f64_any(0x0000000000000000)).end()?;
+            let c5: Any<A> = (c4 + f64_any(0x3ff0000000000000))?;
+            let c6: Any<A> = Any::dot(c3.clone(), f64_any(0x3ff0000000000000)).end()?;
+            let c7: Any<A> = (c6 + c5.clone())?;
+            let c8: Any<A> = [c5.clone(), c7].to_array().to_any();
+            c2 = c8;
+        }
+        Ok(c2)
     }, 1, Array::default(), Some("($0)=>{let $1=[0,0];while($1[0]<$0){$1=[$1[0]+1,$1[1]+($1[0]+1)];}return $1;}")).to_any();
     let c3: Any<A> = Any::call(c2.clone(), [f64_any(0x4024000000000000)].to_array().to_any())?;
     let c4: Any<A> = A::static_function(|_self, args| {
-        let c0: Any<A> = A::static_function(|self_, args| {
-            let mut r: Any<A> = args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any());
-            loop {
-                let c0: Any<A> = (Any::lt(r.clone(), A::frame(self_)[0].clone()))?;
-                let c1 = || Any::ge(r.clone(), f64_any(0x0000000000000000));
-                if !(Any::logical_and(c0, c1))?.to_boolean() { break }
-                let c0: Any<A> = r.clone();
-                let c1: Any<A> = (c0.clone() % f64_any(0x4000000000000000))?;
-                let c2: Any<A> = (strict_eq(c1, f64_any(0x0000000000000000)))?;
-                let c3 = || c0.clone() + f64_any(0x3ff0000000000000);
-                let c4 = || c0.clone() + f64_any(0x4008000000000000);
-                let c5: Any<A> = (Any::conditional(c2, c3, c4))?;
-                r = c5;
-            }
-            Ok(r)
-        }, 1, [args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any())].to_array(), Some("($1)=>{let $2=$1;while(((($2)<($0))&&(($2)>=(0)))){$2=(((($2)%(2))===(0))?(($2)+(1)):(($2)+(3)));}return $2;}")).to_any();
-        Any::call(c0, [f64_any(0x0000000000000000)].to_array().to_any())
+        let c0: Any<A> = args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any());
+        let mut c1: Any<A> = f64_any(0x0000000000000000);
+        loop {
+            let c2: Any<A> = (Any::lt(c1.clone(), c0.clone()))?;
+            let c3 = || Any::ge(c1.clone(), f64_any(0x0000000000000000));
+            if !(Any::logical_and(c2, c3))?.to_boolean() { break }
+            let c2: Any<A> = c1.clone();
+            let c3: Any<A> = (c2.clone() % f64_any(0x4000000000000000))?;
+            let c4: Any<A> = (strict_eq(c3, f64_any(0x0000000000000000)))?;
+            let c5 = || c2.clone() + f64_any(0x3ff0000000000000);
+            let c6 = || c2.clone() + f64_any(0x4008000000000000);
+            let c7: Any<A> = (Any::conditional(c4, c5, c6))?;
+            c1 = c7;
+        }
+        Ok(c1)
     }, 1, Array::default(), Some("($0)=>{let $1=0;while($1<$0&&$1>=0){$1=$1%2===0?$1+1:$1+3;}return $1;}")).to_any();
     let c5: Any<A> = Any::call(c4.clone(), [f64_any(0x4024000000000000)].to_array().to_any())?;
     let c6: Any<A> = [c1, c3, c5].to_array().to_any();
