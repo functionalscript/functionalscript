@@ -2262,7 +2262,11 @@ export default n => {
     (`loop variable captured`): JavaScript's closure sees the variable's
     last value, where the function's capture would hold the value of the
     round it was made in. A function called where it is written, `r = (()
-    => r + 1)();`, reads the round's value in both, and is admitted;
+    => r + 1)();`, reads the round's value in both, and is admitted; so
+    is a read from any depth of such functions, since each closure is
+    made and called in the round, where a function held as a value is
+    refused for a read a function it calls where written makes, `r = ()
+    => (() => r)();`, its closure outliving the round all the same;
   - a `const` of the variable's name in the block (`loop variable
     shadowed`): a block may shadow any other name, as a guard's block
     may ([bodies and guards](#bodies-and-guards)), but the loop's block
