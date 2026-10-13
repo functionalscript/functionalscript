@@ -43,17 +43,36 @@ established before the condition each round. Without the first, the first
 `const` written in a loop body would silently turn the loop back into
 recursion.
 
-A function of the template may read its rest array, in the condition, an
-assert or the next value, and each round of the recursion is a call of one
-argument, so from the second round on the array is empty
-([spec: parameters](../../../spec/README.md#parameters)). A loop that kept
-the first call's array would answer differently where that array had
-members — an assert reading it would throw on one form and not the other —
-so a writer either rebinds it empty every round or keeps the recursion.
-The function text rebinds: `[$0,...$1]=[NEXT]`, which leaves the rest
-array as a call of one argument leaves it. The source spelling keeps the
-recursion for such a function, since `let` and `while` bind no rest array;
-the front end never produces one from a loop.
+**One spelling, or the recursion.** Every writer has two forms for a
+function of the template and no third: the loop, spelled one way —
+
+```js
+while (COND) { ASSERTS; r = NEXT; }
+```
+
+the asserts as `const`s, the assignment omitted where the next value is the
+variable itself — or the recursion the graph already is. The source writer
+spells the loop as `let` and `while` where the function is called in
+place; the function text as an arrow whose parameter is the variable; the
+Rust output, when its turn comes, as `let mut` and `while`. Each keeps the
+recursion for the same shapes, which no loop written as `let`/`while`
+produces:
+
+- a root assert, a `const` before the `while` running every round;
+- a condition reaching a value shared with the block, which a `const`
+  before the `while` would establish once, and which the function text
+  would have to establish before the `while` tests it;
+- a read of the rest array: each round of the recursion is a call of one
+  argument, so from the second round on the array is empty
+  ([spec: parameters](../../../spec/README.md#parameters)), and a loop
+  that kept the first call's array would answer differently where that
+  array had members;
+- a next value that throws, a spread, or a second argument.
+
+A `for(;;)` with `continue`, which could run a root assert or a shared
+condition's cell before the condition each round, was considered and
+dropped: it is a second spelling for graphs the front end never produces,
+and the recursion is still correct for them.
 
 The template is recognized in the analysis table
 ([`fjs/edag/analysis`](../analysis/module.f.mjs)) by one exported function in
@@ -61,14 +80,13 @@ a new `fjs/edag/loop` module, which both serializers import: the template's
 parts for a function entry that matches, and `null` for any other function.
 Anything else stays the recursion it is today, the author's own.
 
-**The function text** writes a matching function as an arrow whose body is a
-loop, the parameter its state. The `?:` is an `if` whose consequent ends in
-`continue`, so the alternative is the fall-through `return`; the invocation
-memo cells are declared inside the loop, so each round starts fresh as each
-call did; the `self` name is gone, since no read of it survives:
+**The function text** writes a matching function as an arrow whose body is
+the loop, the parameter its variable; the invocation memo cells are
+declared inside the loop's body, so each round starts fresh as each call
+did; the `self` name is gone, since no read of it survives:
 
 ```js
-($0)=>{for(;;){if(COND){$0=NEXT;continue;}return $0;}}
+($0)=>{while(COND){$0=NEXT;}return $0;}
 ```
 
 That text is program-visible: `String(f)`, `f.toString()` and every
@@ -83,10 +101,12 @@ renders as a named function expression unless it is a loop, which renders
 as the loop above. No program can tell the two texts apart by anything but
 the text itself, which the exception already makes the VM's to choose.
 
-**The Rust output** writes the closure's body as `loop { … }`: the `?:` is
-`if COND.to_boolean() { … } else { … }` instead of `Any::conditional` over
-thunks, so the consequent can rebind the argument and `continue`; the
-temporaries a round binds are declared inside the loop.
+**The Rust output** writes the loop as `let mut r = init; while
+COND.to_boolean() { … }` into the enclosing closure's body where the
+function is called in place — the function is then no `static_function`
+at all, and nothing could observe one, the program never holding it — and
+as that `while` inside its own closure where the function is held as a
+value; the temporaries a round binds are declared inside the loop.
 
 **The source** spells the template as `let` and `while` only in one context,
 the function called where it is written with one argument and referenced
@@ -122,15 +142,14 @@ written for the template, so it is a later step, taken with the grammar for
 - [ ] `fjs/edag/loop`: recognize the template, with the refusals proven:
       another length, `self` read anywhere else, a call in the alternative,
       a shared `?:` or call, a comma whose last operand is not the call.
-- [ ] `fjs/compiler/serializer/function_text`: the loop form, the rest
-      array rebound each round; a host proof runs a million rounds, which
-      the named function expression could not, and one reads the rest
-      array past the first round.
+- [ ] `fjs/compiler/serializer/function_text`: the loop form; a host proof
+      runs a million rounds, which the named function expression could not,
+      and the shapes above keep the recursion.
 - [ ] `fjs/edag/function-text.md` and the function-source paragraph of
       `spec/README.md`: a body reading its `self` renders as a named
       function expression unless it is a loop, which renders as the loop.
-- [ ] `fjs/edag/rust`: the `loop` form, and a `cargo test` over a generated
-      module running a million rounds.
+- [ ] `fjs/edag/rust`: the `while` form, in place and in a closure, and a
+      `cargo test` over a generated module running a million rounds.
 - [ ] `fjs/compiler/serializer`: the `let`/`while` spelling in call context,
       a rest-reading function left as recursion, once the grammar's
       proposal is approved and lands, proven by the round trip.
