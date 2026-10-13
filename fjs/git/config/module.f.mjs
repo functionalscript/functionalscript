@@ -39,6 +39,7 @@
  */
 
 import { entry as objectEntry } from '../../types/object/entry/module.f.js'
+import { bigint } from '../../types/bigint/from_number/module.f.js'
 
 /** The value Git gives a key written without one. */
 const bareValue = /** @type {const} */ ('true')
@@ -266,9 +267,9 @@ const maxInt = /** @type {const} */ (0x7fff_ffffn)
  * @type {(c: string) => bigint}
  */
 const digitValue = c =>
-    isDigit(c) ? BigInt(c.charCodeAt(0) - 0x30)
-        : c >= 'a' && c <= 'f' ? BigInt(c.charCodeAt(0) - 0x57)
-            : c >= 'A' && c <= 'F' ? BigInt(c.charCodeAt(0) - 0x37)
+    isDigit(c) ? bigint(c.charCodeAt(0) - 0x30)
+        : c >= 'a' && c <= 'f' ? bigint(c.charCodeAt(0) - 0x57)
+            : c >= 'A' && c <= 'F' ? bigint(c.charCodeAt(0) - 0x37)
                 : 16n
 
 /**
