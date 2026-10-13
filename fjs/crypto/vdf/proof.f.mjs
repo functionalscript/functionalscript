@@ -1,4 +1,9 @@
-/** @import { DemoEvent } from '../../website/demo/types.ts' */
+/**
+ * @import { DemoEvent } from '../../website/demo/types.ts'
+ * @import { OpResult } from '../../effects/types.ts'
+ * @import { SandboxResult } from '../../effects/common/types.ts'
+ * @import { DemoState } from './types.ts'
+ */
 
 import { sloth, p } from './module.f.mjs'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
@@ -34,10 +39,22 @@ const y4 =
     64_401_150_265_223_443_694_244_964_595_084_197_237_814_157_534_040_219_819_342_647_664_782_563_317_539_559_768_554_855_806_938_965_782_018_778_040_933_157_632_467_146_168_153_951_260_465_261_118_025_222_264_314_070_274_636_967_492_909_984_790_708_532_033_331_622_332_323_767_105_919_809_000_393_624_013_423_095_812_833_452_440_384_602_112_677_364_631_962_445_309_757_177_309_466_319_657_219_548_312_354_433_189n
 
 /** @type {(state: typeof demo.init, event: DemoEvent) => typeof demo.init} */
-const next = (state, event) => unwrap(assertNotNullish(runPure(demo.update(state)(event))[0]))
+const next = (state, event) => {
+    let effect = demo.update(state)(event)
+    // A deterministic virtual sandbox executes the real thunk but supplies
+    // a known duration: neither timing formulas nor state proofs read a clock.
+    while (typeof effect !== 'function') {
+        const { payload: [f], continuation } = effect
+        effect = continuation(['ok', { result: ['ok', f()], duration: 2 }])
+    }
+    return unwrap(effect())
+}
 
 /** @type {(state: typeof demo.init, name: string) => typeof demo.init} */
-const click = (state, name) => next(state, { kind: 'click', name })
+const click = (state, name) => {
+    const changed = next(state, { kind: 'click', name })
+    return name === 'verify' && changed.verification?.running ? settle(changed) : changed
+}
 
 /** Run scheduled turns until the demo stops asking for one.
  * @type {(state: typeof demo.init) => typeof demo.init}
@@ -50,8 +67,93 @@ const settle = state => {
 // `printf '%s' 'Hello, FunctionalScript!' | sha256sum`
 const helloX = 0xa22d_1ef8_834e_3024_bb56_53a1_dbeb_3830_5bef_6d1c_ef48_6e45_0e0d_fab7_18b4_7afdn
 
+/** Answer one requested sandbox without executing its thunk, to exercise
+ * refused operations and caught computation/verifier errors.
+ * @type {(state: DemoState, name: string, answer: OpResult<SandboxResult<bigint | boolean | null>>) => DemoState}
+ */
+const respond = (state, name, answer) => {
+    const effect = demo.update(state)({ kind: 'click', name })
+    assert(typeof effect !== 'function')
+    return unwrap(assertNotNullish(runPure(effect.continuation(answer))[0]))
+}
+
 export const proof = {
     demo: {
+        timing: () => {
+            const initial = htmlToString(demo.view(demo.init))
+            assert(!initial.includes('Performance comparison'))
+            const done = click({ ...demo.init, steps: '4' }, 'evaluate')
+            assertEq(done.run?.duration, 2)
+            const ready = next(done, { kind: 'input', name: 'claimed', value: hexOfY(assertNotNullish(done.run).value) })
+            const first = next(ready, { kind: 'click', name: 'verify' })
+            assertEq(first.verdict, null)
+            assertEq(first.verification?.samples.length, 1)
+            assert(htmlToString(demo.view(first)).includes('Verifying:'))
+            assertEq(next(first, { kind: 'click', name: 'verify' }), first)
+            assertEq(next(first, { kind: 'click', name: 'evaluate' }), first)
+            const verified = settle(first)
+            assertEq(verified.verification?.samples.length, 5)
+            const html = htmlToString(demo.view(verified))
+            assert(html.includes('Median verification time (5 runs): 2.00 ms'))
+            assert(html.includes('verification was not faster'))
+            const edited = next(verified, { kind: 'input', name: 'claimed', value: '0' })
+            assertEq(edited.verification, null)
+            assert(!htmlToString(demo.view(edited)).includes('work / verification'))
+            const restarted = click(verified, 'evaluate')
+            assertEq(restarted.verification, null)
+            assertEq(restarted.verdict, null)
+            const cancelled = next(first, { kind: 'input', name: 'steps', value: '2' })
+            assertEq(cancelled.run, null)
+            assertEq(cancelled.verification, null)
+            assertEq(next(cancelled, { kind: 'click', name: 'verify-next' }), cancelled)
+        },
+        failedMeasurements: () => {
+            const input = { ...demo.init, steps: '1', claimed: '1' }
+            const unavailable = respond(input, 'evaluate', ['error', ['notImplemented', 'sandbox']])
+            assertEq(unavailable.run, null)
+            assert(htmlToString(demo.view(unavailable)).includes('Evaluation error'))
+            const thrown = respond(input, 'evaluate', ['ok', { result: ['error', 'failed'], duration: 1 }])
+            assertEq(thrown.run, null)
+            const invalid = respond(input, 'evaluate', ['ok', { result: ['ok', null], duration: 1 }])
+            assertEq(invalid.run, null)
+            assert(htmlToString(demo.view(invalid)).includes('measurable result'))
+            assertEq(respond(input, 'evaluate', ['ok', { result: ['ok', 1n], duration: NaN }]).run, null)
+            for (const answer of /** @type {const} */ ([
+                ['error', ['notImplemented', 'sandbox']],
+                ['ok', { result: ['error', 'thrown'], duration: 1 }],
+                ['ok', { result: ['ok', true], duration: NaN }],
+            ])) {
+                const failed = respond(input, 'verify', answer)
+                assertEq(failed.verdict, 'error')
+                assertEq(failed.verification, null)
+                assert(!htmlToString(demo.view(failed)).includes('× faster'))
+                assert(htmlToString(demo.view(failed)).includes('Verification error'))
+            }
+            const first = respond(input, 'verify', ['ok', { result: ['ok', true], duration: 2 }])
+            const rejected = respond(first, 'verify-next', ['ok', { result: ['ok', false], duration: 2 }])
+            assertEq(rejected.verdict, 'rejected')
+            assertEq(rejected.verification, null)
+        },
+        comparison: () => {
+            const done = respond({ ...demo.init, steps: '0' }, 'evaluate', ['ok', { result: ['ok', helloX], duration: 1_000 }])
+            const ready = { ...done, claimed: hexOfY(helloX) }
+            const fast = { ...ready, verdict: /** @type {const} */ ('verified'), verification: { running: false, samples: [2, 3, 1, 4, 2] } }
+            const html = htmlToString(demo.view(fast))
+            assert(html.includes('500.0× faster verification'))
+            assert(html.includes('width="0.2"'))
+            assert(html.includes('a line marks bars below 1%'))
+            assert(!htmlToString(demo.view({ ...fast, claimed: '1' })).includes('× faster'))
+            assert(!htmlToString(demo.view({ ...fast, run: null })).includes('× faster'))
+            const tiny = htmlToString(demo.view({ ...fast, verification: { running: false, samples: [0] } }))
+            assert(tiny.includes('timer resolution'))
+            assert(!tiny.includes('× faster'))
+            const zero = htmlToString(demo.view({ ...fast, run: { ...assertNotNullish(done.run), duration: 0 }, verification: { running: false, samples: [0] } }))
+            assert(zero.includes('width="0"'))
+            const slow = respond(ready, 'verify', ['ok', { result: ['ok', true], duration: 50 }])
+            assertEq(slow.verdict, 'verified')
+            assertEq(slow.verification?.samples.length, 1)
+            assertEq(assertNotNullish(demo.nextEvent)(slow), null)
+        },
         xOf: () => {
             assertEq(xOf(demo.init.text), helloX)
         },
@@ -125,7 +227,8 @@ export const proof = {
             assert(finished.includes('Evaluated 25 sequential square roots.'), finished)
             assert(finished.includes('>Evaluate</button>'), finished)
             assert(finished.includes(`<p data-caption="">Result y, hex:</p><div data-code="" data-code-block=""><pre>${hexOfY(assertNotNullish(done.run).value)}</pre>`), finished)
-            assert(!finished.includes('data-result'), finished)
+            assert(finished.includes('Work (active evaluation): 6.00 ms'), finished)
+            assert(!finished.includes('× faster'), finished)
             const restarted = click(done, 'evaluate')
             assertEq(restarted.run?.done, 10n)
             assertEq(restarted.run?.running, true)

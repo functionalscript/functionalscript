@@ -92,8 +92,9 @@ export type Demo<State, Event, O extends Operation = never> = {
      * An event to run on a later browser turn after rendering this state,
      * or null to stop. Automatic turns keep controls available, so input or
      * a stop button can interrupt incremental work. Updates during incremental
-     * work, including reader events, must be small and pure: return a state
-     * without requesting operations. Queued reader input cancels a scheduled turn.
+     * work, including reader events, must stay small: pure computation or a
+     * bounded synchronous `sandbox` call for timing. Never request blocking I/O
+     * on these turns. Queued reader input cancels a scheduled turn.
      */
     readonly nextEvent?: ((state: State) => Event | null) | undefined
 }

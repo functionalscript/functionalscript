@@ -76,7 +76,8 @@ const run = asyncPartialRun(commands)(commonOperationMap)
  * Buttons are disabled rather than merely dimmed. A queued second click would
  * be honoured after the first finished, which is a demo measuring twice
  * because somebody was impatient. Incremental work skips this marker so Stop
- * and input remain available; its updates must be small and pure.
+ * and input remain available; its updates must stay small, including any
+ * timed synchronous calls.
  * The next render restores the view's disabled attributes. Going idle must
  * preserve them, rather than enable actions the demo has explicitly refused.
  *
@@ -341,8 +342,8 @@ const stepper = (root, demo) => {
             // and total by construction, so one that throws is a defect in the
             // demo, and the page says so where its output would have gone.
             try {
-                // Incremental work yields between small pure updates. Keep
-                // controls available for its automatic and reader events alike.
+                // Incremental work yields between small updates, possibly timed
+                // by sandbox. Keep controls available for its reader events too.
                 if (!keepControls) {
                     // Read the warning before the update; afterwards is too late.
                     // Then yield: `sandbox` calls the thunk the moment it is

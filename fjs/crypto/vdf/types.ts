@@ -28,14 +28,16 @@ export type DemoRun = {
     readonly done: bigint
     readonly value: bigint
     readonly running: boolean
+    /** Sum of wall-clock intervals around evaluation calls; excludes pauses/rendering. */
+    readonly duration: number
 }
 
 /**
  * What pressing Verify found for the claimed `y`: it verifies, it does not,
  * it has more hex digits than `p`, it is not hexadecimal, or it is not below
- * `p`.
+ * `p`, or the timed verifier failed.
  */
-export type DemoVerdict = 'verified' | 'rejected' | 'tooLong' | 'notHex' | 'notBelowP'
+export type DemoVerdict = 'verified' | 'rejected' | 'tooLong' | 'notHex' | 'notBelowP' | 'error'
 
 /**
  * State of the interactive VDF demo. `run` holds the prover's evaluation and
@@ -49,4 +51,12 @@ export type DemoState = {
     readonly claimed: string
     readonly run: DemoRun | null
     readonly verdict: DemoVerdict | null
+    readonly verification: DemoVerification | null
+    readonly note: string | null
+}
+
+/** Samples check the same claimed y; a slow call ends the bounded batch. */
+export type DemoVerification = {
+    readonly samples: readonly number[]
+    readonly running: boolean
 }
