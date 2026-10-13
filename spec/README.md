@@ -735,6 +735,14 @@ its conditional ([functions](#functions)).
   `const { a: { b } } = {};` throws at load, as it throws in JavaScript.
   Which of a pattern's reads fails first is no observation
   ([failure is one outcome](#failure-is-one-outcome)).
+- An **empty pattern** binds nothing and keeps its failure, the check
+  JavaScript gives a caller through it: `const [] = v;` is the spread of
+  `v` alone and fails where `v` is not iterable, and `const {} = v;` reads
+  one property of `v`, its `length`, which every kind of value may own,
+  binding nothing — the read that fails where `v` is `null` or
+  `undefined`, as `RequireObjectCoercible` fails, and whose value is no
+  observation. The graph outputs write the two reads, `const $0=[...v];`
+  and `const $0=v.length;`.
 - A pattern names no function as its whole value, so no name in it is a
   function's own ([captures and self recursion](#captures-and-self-recursion)):
   `const { f } = { f: () => f };` is `const not found`.
@@ -743,8 +751,7 @@ Refused, each by name, and open in
 [destructuring](./todo/2450-destructuring.md): a **rest element**,
 `[a, ...r]` or `{ a, ...r }` (`rest element not supported`); a
 **default**, `{ a = 1 }` or `[a = 1]`, which is no literal and stops at
-its `=`; an **empty pattern**, `{}` or `[]`, which binds nothing and
-exists for its failure alone (`empty binding pattern`); a **computed key**
+its `=`; a **computed key**
 beyond a constant — a string or a number literal alone in the brackets,
 `{ ["a"]: t }` or `{ [3]: t }`, is the constant key an access admits in
 brackets ([property access](#property-access)), read by the literal's

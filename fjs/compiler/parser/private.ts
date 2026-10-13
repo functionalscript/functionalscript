@@ -13,7 +13,7 @@ import type { Result } from '../../types/result/types.ts'
 import type { AstConst, AstFrameRef, AstItem, AstMember, AstModuleRef, AstRest, AstSelf, BinaryTag } from '../ast/types.ts'
 import type { DjsTokenWithMetadata } from '../tokenizer/types.ts'
 import type { ParseError } from './types.ts'
-import type { Block, Chain, Container, If, Item, Key, Node } from './syntax/types.ts'
+import type { BindingElement, BindingProperty, BindingTarget, Block, Chain, Container, If, Item, Key, Node } from './syntax/types.ts'
 
 /** A named parameter, `i` of the function whose body names it: what the body reads it as, the `i`th argument. */
 export type _Parameter = readonly ['arg', number]
@@ -28,18 +28,50 @@ export type _Env = OrderedMap<_Ref | _Intrinsic>
 export type _Ref = AstModuleRef | AstRest | _Parameter | AstFrameRef | AstSelf
 
 /**
- * A binding pattern the fold has checked, as the lowering reads it: a
- * name, by its token — the word is the token's, and the token is what a
- * refusal after the value is read is anchored at — the elements of an
- * array pattern, or the properties of an object pattern, each key a
- * constant an access admits. Nothing the language does not read is in it:
- * a rest element, an empty pattern, a computed key and a value in a
+ * Where an entry of a pattern reads from: the source value itself, `null`,
+ * or a property of an earlier entry of the same pattern — its position
+ * among the pattern's entries, and the key, a constant an access admits.
+ */
+export type _Source = null | readonly [number, string | number]
+
+/**
+ * One entry a checked pattern makes: what it reads, {@link _Source}, and
+ * whether the entry is the spread of that read — an array pattern's own
+ * entry, the array its elements are read from — or the read itself.
+ */
+export type _Read = {
+    readonly source: _Source
+    readonly spread: boolean
+}
+
+/**
+ * A binding pattern the fold has checked, flat, as the lowering reads it:
+ * its entries in order, each a read of the source or of an earlier entry,
+ * and the names it binds, each by its token — the word is the token's, and
+ * the token is what a refusal after the value is read is anchored at — with
+ * the position of the entry holding its value. Nothing the language does
+ * not read is in it: a rest element, a computed key and a value in a
  * binding position were refused making it.
  */
-export type _Pattern =
-    | readonly ['name', DjsTokenWithMetadata]
-    | readonly ['array', readonly _Pattern[]]
-    | readonly ['object', readonly (readonly [string | number, _Pattern])[]]
+export type _Plan = {
+    readonly reads: readonly _Read[]
+    readonly names: readonly (readonly [DjsTokenWithMetadata, number])[]
+}
+
+/**
+ * What the plan's walk has still to judge, in document order: a target
+ * with the read it is the target of; an element of an array pattern, a
+ * rest element refused where it stands; or a property of an object
+ * pattern, its key judged before its target, with the entry its source
+ * is read from.
+ */
+export type _Pending =
+    | { readonly target: BindingTarget, readonly source: _Source }
+    | { readonly element: BindingElement, readonly source: _Source }
+    | { readonly property: BindingProperty, readonly parent: number }
+
+/** What the plan's walk has still to judge, the next on top, as {@link _Stack} holds the frames of a resolution. */
+export type _PendingStack = { readonly top: _Pending, readonly rest: _PendingStack } | null
 
 /**
  * What a checked pattern makes of its source: the entries, in order, the
@@ -174,7 +206,7 @@ export type _FunctionFrame = {
 /**
  * A function whose block body is being evaluated: the statements to work
  * through — `statements[index]` is the statement being evaluated and
- * `pattern` what it binds, checked before its value was entered so that a
+ * `plan` what it binds, checked before its value was entered so that a
  * statement wrong in both halves answers for the half a reader meets first,
  * `null` under a guard's condition or the terminator, which bind nothing;
  * `done` holds the entries before it, a list for the reason a container's
@@ -191,7 +223,7 @@ export type _BodyFrame = {
     readonly statements: Block[1]
     readonly first: number
     readonly index: number
-    readonly pattern: _Pattern | null
+    readonly plan: _Plan | null
     readonly entries: number
     readonly done: List<AstConst>
 }

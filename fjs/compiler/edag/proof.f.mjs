@@ -1025,6 +1025,7 @@ export const proof = {
             writes('const { a, "%": [c, d] } = { a: null, "%": [true, false] }; export default [a, c, d];',
                 'const $0={"a":null,"%":[true,false]};const $1=[...$0["%"]];export default [$0.a,$1[0],$1[1]];')
             writes('export default (...r) => { const [x, y] = r; return [y, x]; };', 'export default (...$0)=>{const $1=[...$0];return [$1[1],$1[0]];};')
+            writes('const x = {}; const {} = x; const [] = x; export default 1;', 'const $0={};const $1=$0.length;const $2=[...$0];export default 1;')
         },
         // JavaScript's own semantics, which the two reads give: an array
         // pattern runs through `GetIterator` as a spread does, so a string
@@ -1042,6 +1043,10 @@ export const proof = {
             // a missing property fails at load, as in JavaScript
             fails('const { a: { b } } = {}; export default 1;')
             fails('const [a] = {}; export default 1;')
+            // an empty pattern keeps its failure, and nothing else
+            assertStructurallySame(execute(compile('const [] = [1]; const {} = 1; export default 2;').edag), 2)
+            fails('const {} = null; export default 1;')
+            fails('const [] = {}; export default 1;')
             // a body's pattern, at every call
             const fn = value(compile('export default (...r) => { const [x, y] = r; return [y, x]; };').edag)
             assertStructurallySame(assertOk(toData(apply(fn, [1, 2]))), [2, 1])

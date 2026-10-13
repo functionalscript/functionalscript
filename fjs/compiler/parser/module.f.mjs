@@ -71,12 +71,12 @@
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
  * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstNot, AstTypeof, AstInstanceOf, AstNumber, AstString, AstKey, AstSelf, AstCall, AstConditional, AstConst, AstEntryFunction, AstFrameRef, AstEntry, AstFunction, AstItem, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstRest, AstSpread, AstStep, AstThrow } from '../ast/types.ts'
  * @import { ParseError } from './types.ts'
- * @import { BindingTarget, Block, Chain, ComputedKey, ConstantMember, Container, Entry, If, Import, Item, Key, Module, Node, ParameterBinding, ParameterList, Statement, Step, ValueStatement } from './syntax/types.ts'
- * @import { _AccessFrame, _BodyFrame, _CallFrame, _ChainFrame, _ChainPart, _ConditionalFrame, _IndexFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _Intrinsic, _Lowered, _Parameter, _Pattern, _Ref, _Scope, _Stack, _State } from './private.ts'
+ * @import { BindingElement, BindingProperty, BindingTarget, Block, Chain, ComputedKey, ConstantMember, Container, Entry, If, Import, Item, Key, Module, Node, ParameterBinding, ParameterList, Statement, Step, ValueStatement } from './syntax/types.ts'
+ * @import { _AccessFrame, _BodyFrame, _CallFrame, _ChainFrame, _ChainPart, _ConditionalFrame, _IndexFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _Intrinsic, _Lowered, _Parameter, _Pending, _PendingStack, _Plan, _Read, _Ref, _Scope, _Stack, _State } from './private.ts'
  */
 
 import { error, mapOk, ok } from '../../types/result/module.f.js'
-import { concat, toArray } from '../../types/list/module.f.mjs'
+import { concat, reverse, toArray } from '../../types/list/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
 import { at, empty, setReplace } from '../../types/ordered_map/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
@@ -134,15 +134,6 @@ const invalidTarget = foldError('invalid destructuring target')
  * by name rather than read in part.
  */
 const restTarget = foldError('rest element not supported')
-
-/**
- * An empty pattern, `{}` or `[]`, at its bracket: it binds nothing and
- * exists for its failure alone — `const {} = null;` throws in JavaScript,
- * with no property read to carry the throw — so it is refused rather than
- * given a read made up for the purpose
- * ([spec: destructuring](../../../spec/README.md#destructuring)).
- */
-const emptyPattern = foldError('empty binding pattern')
 
 /**
  * A computed key in a binding pattern that is no constant, `{ [k]: a }`,
@@ -414,103 +405,113 @@ const checkedKey = (key, method) => {
     return ok(named)
 }
 
-/**
- * A checked pattern and the words bound so far, as one result.
- *
- * @type {(pattern: _Pattern, words: readonly string[]) => Result<readonly [_Pattern, readonly string[]], ParseError>}
- */
-const checked = (pattern, words) => ok([pattern, words])
+/** The pending stack with one more item on top, {@link planned}'s. @type {(stack: _PendingStack, item: _Pending) => _PendingStack} */
+const pushed = (stack, item) => ({ top: item, rest: stack })
 
 /**
- * A binding target checked, as the pattern the lowering follows,
+ * A binding target checked, as the plan the lowering follows,
  * {@link lowered}: each name is checked as a `const`'s is, `check` —
  * {@link bindable} for a module's, {@link bodyBindable} for a body's — and
  * refused as `duplicate id` where the pattern itself has bound the word
  * already, `const { a, b: a } = o;` being a syntax error in JavaScript;
  * each key as an access's is, {@link checkedKey}, since an access is what
  * the lowering makes of it; and what the language does not read is
- * refused by name — a value that is no target, a rest element, an empty
- * pattern and a computed key. The first refusal in document order is the
- * one reported, so a property's key comes before its target, and a name
- * before the names after it.
+ * refused by name — a value that is no target, a rest element and a
+ * computed key. An empty pattern is admitted: it binds nothing and keeps
+ * its failure, `[]` as the spread of its source alone, `{}` as one read of
+ * its source, its `length`, the one name every kind of value may own —
+ * the read that fails on `null` and `undefined` as `RequireObjectCoercible`
+ * fails, and whose value is no observation
+ * ([spec: destructuring](../../../spec/README.md#destructuring)).
  *
- * Recursive over the pattern, whose depth is the pattern's own nesting;
- * the words bound so far are threaded through, so that a word bound twice
- * is found at its second token.
+ * One walk over an explicit stack of what is pending, {@link _Pending}, in
+ * document order — an element or a property is judged where it is read,
+ * so the first refusal in document order is the one reported, a property's
+ * key before its target and a name before the names after it — so a
+ * pattern nested as deep as the input allows costs no call stack, as a
+ * value's resolution costs none. The reads and the names are collected as
+ * lists and the words bound so far as an environment, so a pattern as wide
+ * as the input allows costs its width and not its square.
  *
- * @type {(check: (name: DjsTokenWithMetadata) => Result<string, ParseError>) => (target: BindingTarget) => Result<_Pattern, ParseError>}
+ * @type {(check: (name: DjsTokenWithMetadata) => Result<string, ParseError>) => (target: BindingTarget) => Result<_Plan, ParseError>}
  */
-const planned = check => {
-    /** @type {(target: BindingTarget, words: readonly string[]) => Result<readonly [_Pattern, readonly string[]], ParseError>} */
-    const plan = (target, words) => {
-        switch (target[0]) {
-            case 'invalid': { return error(invalidTarget(target[1])) }
-            case 'name': {
-                const [tag, word] = check(target[1])
-                if (tag === 'error') { return error(word) }
-                if (words.includes(word)) { return error(duplicateId(target[1])) }
-                return checked(['name', target[1]], [...words, word])
-            }
-            case 'array': {
-                if (target[2].length === 0) { return error(emptyPattern(target[1])) }
-                /** @type {readonly _Pattern[]} */
-                let elements = []
-                let seen = words
-                for (const element of target[2]) {
-                    if (element[0] === '...') { return error(restTarget(element[1])) }
-                    const [tag, result] = plan(element, seen)
-                    if (tag === 'error') { return error(result) }
-                    elements = [...elements, result[0]]
-                    seen = result[1]
+const planned = check => target => {
+    /** @type {_PendingStack} */
+    let pending = pushed(null, { target, source: null })
+    /** The reads so far, the last first. @type {List<_Read>} */
+    let reads = null
+    /** The names so far, the last first, each with its read's position. @type {List<readonly [DjsTokenWithMetadata, number]>} */
+    let names = null
+    /** The words the pattern has bound so far. @type {_Env} */
+    let seen = empty
+    let count = 0
+    while (pending !== null) {
+        /** @type {_Pending} */
+        const item = pending.top
+        pending = pending.rest
+        if ('property' in item) {
+            const { property, parent } = item
+            if (property instanceof Array) { return error(restTarget(property[1])) }
+            const { key, target: element } = property
+            if (key instanceof Array) { return error(computedPatternKey(key[2])) }
+            const [tag, named] = checkedKey(key, false)
+            if (tag === 'error') { return error(named) }
+            pending = pushed(pending, { target: element, source: [parent, named] })
+        } else if ('element' in item) {
+            const { element, source } = item
+            if (element[0] === '...') { return error(restTarget(element[1])) }
+            pending = pushed(pending, { target: element, source })
+        } else {
+            const { target: t, source } = item
+            switch (t[0]) {
+                case 'invalid': { return error(invalidTarget(t[1])) }
+                case 'name': {
+                    const [tag, word] = check(t[1])
+                    if (tag === 'error') { return error(word) }
+                    if (at(word)(seen) !== null) { return error(duplicateId(t[1])) }
+                    seen = extended(seen)(word, ['cref', count])
+                    reads = { first: { source, spread: false }, tail: reads }
+                    names = { first: [t[1], count], tail: names }
+                    count += 1
+                    break
                 }
-                return checked(['array', elements], seen)
-            }
-            case 'object': {
-                if (target[2].length === 0) { return error(emptyPattern(target[1])) }
-                /** @type {readonly (readonly [string | number, _Pattern])[]} */
-                let properties = []
-                let seen = words
-                for (const property of target[2]) {
-                    if (property instanceof Array) { return error(restTarget(property[1])) }
-                    const { key, target: element } = property
-                    if (key instanceof Array) { return error(computedPatternKey(key[2])) }
-                    const [named, name] = checkedKey(key, false)
-                    if (named === 'error') { return error(name) }
-                    const [tag, result] = plan(element, seen)
-                    if (tag === 'error') { return error(result) }
-                    properties = [...properties, [name, result[0]]]
-                    seen = result[1]
+                case 'array': {
+                    const parent = count
+                    reads = { first: { source, spread: true }, tail: reads }
+                    count += 1
+                    pending = t[2].reduceRight(
+                        /** @type {(after: _PendingStack, element: BindingElement, i: number) => _PendingStack} */
+                        ((after, element, i) => pushed(after, { element, source: [parent, i] })),
+                        pending)
+                    break
                 }
-                return checked(['object', properties], seen)
+                case 'object': {
+                    const parent = count
+                    reads = { first: { source, spread: false }, tail: reads }
+                    count += 1
+                    if (t[2].length === 0) {
+                        // the empty pattern's one read, binding nothing
+                        reads = { first: { source: [parent, 'length'], spread: false }, tail: reads }
+                        count += 1
+                    }
+                    pending = t[2].reduceRight(
+                        /** @type {(after: _PendingStack, property: BindingProperty) => _PendingStack} */
+                        ((after, property) => pushed(after, { property, parent })),
+                        pending)
+                    break
+                }
             }
         }
     }
-    return target => mapOk(/** @type {(result: readonly [_Pattern, readonly string[]]) => _Pattern} */ (([pattern]) => pattern))(plan(target, []))
+    return ok({ reads: toArray(reverse(reads)), names: toArray(reverse(names)) })
 }
-
-/**
- * The tokens of the names a checked pattern binds, in the order written:
- * what a refusal after the value is read — a name the value read from
- * outside, `capture shadowed` — is anchored at.
- *
- * @type {(pattern: _Pattern) => readonly DjsTokenWithMetadata[]}
- */
-const namesOf = pattern => {
-    switch (pattern[0]) {
-        case 'name': { return [pattern[1]] }
-        case 'array': { return pattern[1].flatMap(namesOf) }
-        case 'object': { return pattern[1].flatMap(([, element]) => namesOf(element)) }
-    }
-}
-
-/** Two lowerings in sequence: the entries of the first, then the second's, and the words of both. @type {(a: _Lowered, b: _Lowered) => _Lowered} */
-const joined = (a, b) => ({ entries: [...a.entries, ...b.entries], bound: [...a.bound, ...b.bound] })
 
 /**
  * The entries a checked pattern makes of its source, numbered from `base`
  * — the position the first takes in the body being built — and the words
  * it binds, each to the entry holding its value, in the order written
- * ([spec: destructuring](../../../spec/README.md#destructuring)).
+ * ([spec: destructuring](../../../spec/README.md#destructuring)): one
+ * entry per read of the plan, one binding per name, linear in both.
  *
  * A name's one entry is the source itself, which is what a `const` of a
  * name has always made. An array pattern's first entry is the spread of
@@ -523,29 +524,23 @@ const joined = (a, b) => ({ entries: [...a.entries, ...b.entries], bound: [...a.
  * access `$0.key`, with every rule of an access: a `null` or `undefined`
  * source fails there, as `RequireObjectCoercible` fails. Every entry is
  * established whether or not a name reads it, as every `const` is, so
- * `const { a: { b } } = {};` fails as it fails in JavaScript.
+ * `const { a: { b } } = {};` fails as it fails in JavaScript, and an empty
+ * pattern's one read keeps its failure.
  *
- * @type {(pattern: _Pattern, source: AstConst, base: number) => _Lowered}
+ * @type {(plan: _Plan, value: AstConst, base: number) => _Lowered}
  */
-const lowered = (pattern, source, base) => {
-    switch (pattern[0]) {
-        case 'name': { return { entries: [source], bound: [[nameOf(pattern[1]), ['cref', base]]] } }
-        case 'array': {
-            /** @type {AstArray} */
-            const spread = ['array', [['...', source]]]
-            return pattern[1].reduce(
-                /** @type {(acc: _Lowered, element: _Pattern, i: number) => _Lowered} */
-                ((acc, element, i) => joined(acc, lowered(element, ['.', ['cref', base], i], base + acc.entries.length))),
-                { entries: [spread], bound: [] })
-        }
-        case 'object': {
-            return pattern[1].reduce(
-                /** @type {(acc: _Lowered, property: readonly [string | number, _Pattern]) => _Lowered} */
-                ((acc, [key, element]) => joined(acc, lowered(element, ['.', ['cref', base], key], base + acc.entries.length))),
-                { entries: [source], bound: [] })
-        }
-    }
-}
+const lowered = ({ reads, names }, value, base) => ({
+    entries: reads.map(
+        /** @type {(read: _Read) => AstConst} */
+        (({ source, spread }) => {
+            /** @type {AstConst} */
+            const read = source === null ? value : ['.', ['cref', base + source[0]], source[1]]
+            return spread ? ['array', [['...', read]]] : read
+        })),
+    bound: names.map(
+        /** @type {(name: readonly [DjsTokenWithMetadata, number]) => readonly [string, AstModuleRef]} */
+        (([token, i]) => [nameOf(token), ['cref', base + i]])),
+})
 
 /** Whether the step after a key makes the key a call's: any step but a property. @type {(step: Step | undefined) => boolean} */
 const isCallStep = step => step !== undefined && step[0] !== '|.'
@@ -1045,11 +1040,12 @@ const bodyRound = (stack, scope, frame) => {
             ? [stack, scope, error(unexpectedToken(statement.first))]
             : [{ top: frame, rest: stack }, scope, ['enter', statement.value]]
     }
-    const [tag, pattern] = planned(bodyBindable(scope))(statement.target)
-    if (tag === 'error') { return [stack, scope, error(pattern)] }
+    const { target } = statement
+    const [tag, plan] = planned(bodyBindable(scope))(target)
+    if (tag === 'error') { return [stack, scope, error(plan)] }
     // a function that is the whole value of a `const` of one name is
     // entered under that name, its `self`; a pattern names no function
-    return [{ top: { ...frame, pattern }, rest: stack }, scope, pattern[0] === 'name' ? ['define', statement.value, nameOf(pattern[1])] : ['enter', statement.value]]
+    return [{ top: { ...frame, plan }, rest: stack }, scope, target[0] === 'name' ? ['define', statement.value, nameOf(target[1])] : ['enter', statement.value]]
 }
 
 /**
@@ -1249,7 +1245,7 @@ const entered = (stack, scope, node, self) => {
     const inner = { names, count, captures: [], enclosing: null, outer: scope, self }
     const body = node[2]
     return body[0] === 'block'
-        ? bodyRound(stack, inner, { statements: body[1], first: 0, index: 0, pattern: null, entries: 0, done: null })
+        ? bodyRound(stack, inner, { statements: body[1], first: 0, index: 0, plan: null, entries: 0, done: null })
         : [{ top: { function: true }, rest: stack }, inner, ['enter', body]]
 }
 
@@ -1318,15 +1314,15 @@ const returned = (stack, scope, frame, value) => {
     if ('statements' in frame) {
         const [kind, statement] = frame.statements[frame.index]
         if (kind === 'const') {
-            const pattern = assertNotNullish(frame.pattern, ['a const statement with no pattern', statement])
+            const plan = assertNotNullish(frame.plan, ['a const statement with no plan', statement])
             // a name its own initializer read from outside: unbound when the
             // statement began, bound now only by the capture that read took
-            const shadowed = namesOf(pattern).find(name => at(nameOf(name))(scope.names) !== null)
-            if (shadowed !== undefined) { return [stack, scope, error(captureShadowed(shadowed))] }
+            const shadowed = plan.names.find(([name]) => at(nameOf(name))(scope.names) !== null)
+            if (shadowed !== undefined) { return [stack, scope, error(captureShadowed(shadowed[0]))] }
             // the bindings land after the value, keeping the names out of
             // their own initializer's scope, and name the entries this
             // statement makes, after the ones the body has made so far
-            const { entries, bound } = lowered(pattern, value, frame.entries)
+            const { entries, bound } = lowered(plan, value, frame.entries)
             return bodyRound(
                 stack,
                 { ...scope, names: bound.reduce((names, [word, ref]) => extended(names)(word, ref), scope.names) },
@@ -1372,7 +1368,7 @@ const returned = (stack, scope, frame, value) => {
  * @type {(stack: _Stack, scope: _Scope, frame: _GuardFrame, statements: Block[1], first: number, enclosing: List<_Env>) => _State}
  */
 const arm = (stack, scope, frame, statements, first, enclosing) =>
-    bodyRound({ top: frame, rest: stack }, { names: empty, count: 0, captures: [], enclosing, outer: scope, self: null }, { statements, first, index: first, pattern: null, entries: 0, done: null })
+    bodyRound({ top: frame, rest: stack }, { names: empty, count: 0, captures: [], enclosing, outer: scope, self: null }, { statements, first, index: first, plan: null, entries: 0, done: null })
 
 /**
  * A function closed over its body, resolved in `scope`: the scope around
@@ -1542,21 +1538,20 @@ const foldModule = ({ imports, consts, exported, thrown: failing }) => {
         // first
         if (unterminated(previous, declaration)) { return error(unexpectedToken(declaration.start)) }
         previous = declaration
-        const [tag, pattern] = planned(bindable(env))(target)
-        if (tag === 'error') { return error(pattern) }
-        const names = namesOf(pattern)
-        const then = named ? names.find(name => nameOf(name) === 'then') : undefined
-        if (then !== undefined) { return error({ message: 'reserved export name then', metadata: then.metadata }) }
+        const [tag, plan] = planned(bindable(env))(target)
+        if (tag === 'error') { return error(plan) }
+        const then = named ? plan.names.find(([name]) => nameOf(name) === 'then') : undefined
+        if (then !== undefined) { return error({ message: 'reserved export name then', metadata: then[0].metadata }) }
         // a function that is the whole value of a `const` of one name is
         // entered under that name, its `self`; a pattern names no function
-        const [resolved, evaluated] = evaluate(env, pattern[0] === 'name' ? nameOf(pattern[1]) : null)(node)
+        const [resolved, evaluated] = evaluate(env, target[0] === 'name' ? nameOf(target[1]) : null)(node)
         if (resolved === 'error') { return error(evaluated) }
         const [read, value] = evaluated
         // a name its own initializer read as the intrinsic: unbound when the
         // statement began, bound now only by that read
-        const shadowed = names.find(name => at(nameOf(name))(read) !== null)
-        if (shadowed !== undefined) { return error(captureShadowed(shadowed)) }
-        const { entries, bound } = lowered(pattern, value, body.length)
+        const shadowed = plan.names.find(([name]) => at(nameOf(name))(read) !== null)
+        if (shadowed !== undefined) { return error(captureShadowed(shadowed[0])) }
+        const { entries, bound } = lowered(plan, value, body.length)
         env = bound.reduce((names, [word, ref]) => extended(names)(word, ref), read)
         if (named) { exports = [...exports, ...bound] }
         body = [...body, ...entries]

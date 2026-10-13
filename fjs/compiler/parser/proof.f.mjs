@@ -1243,6 +1243,10 @@ export const proof = {
                 '[[],[["array",[1]],["array",[["...",["cref",0]]]],[".",["cref",1],0],["object",[[":","default",["cref",2]]]]]]')
             // `length` is the one prototype name an access reads, so a pattern reads it
             expectModule('const { length } = "abc"; export default length;', '[[],["abc",[".",["cref",0],"length"],["object",[[":","default",["cref",1]]]]]]')
+            // an empty pattern binds nothing and keeps its failure: the spread
+            // of the source alone, and one read of the source's `length`
+            expectModule('const x = {}; const {} = x; const [] = x; export default 1;',
+                '[[],[["object",[]],["cref",0],[".",["cref",1],"length"],["array",[["...",["cref",0]]]],["object",[[":","default",1]]]]]')
             // a literal alone in the brackets is the constant key an access
             // admits in brackets, by its spelling: `[1.0]` names `1`
             expectModule('const o = { "3": 1, a: 2 }; const { [3]: x, ["a"]: y, [1.0]: z } = o; export default [x, y, z];',
@@ -1291,15 +1295,13 @@ export const proof = {
             expectRefused('export default () => { const { x: 1 } = {}; return 1; };', 'invalid destructuring target', 35)
         },
         // What the language does not read yet, refused by name: a rest
-        // element at its `...`, an empty pattern at its bracket, a computed
+        // element at its `...`, a computed
         // key at the token it begins with, the conversion included
         // (spec/todo/2450-destructuring.md).
         unsupported: () => {
             expectRefused('const x = []; const [a, ...r] = x; export default 1;', 'rest element not supported', 25)
             expectRefused('const x = {}; const { a, ...r } = x; export default 1;', 'rest element not supported', 26)
             expectRefused('export default () => { const [a, ...r] = [1]; return a; };', 'rest element not supported', 34)
-            expectRefused('const x = {}; const {} = x; export default 1;', 'empty binding pattern', 21)
-            expectRefused('const x = []; const [] = x; export default 1;', 'empty binding pattern', 21)
             expectRefused('const x = {}; const k = 1; const { [k]: a } = x; export default 1;', 'computed key in a binding pattern not supported', 37)
             expectRefused('const x = {}; const { [Number(1)]: a } = x; export default 1;', 'computed key in a binding pattern not supported', 24)
             // a grouped or a signed literal is no constant, as `o[(3)]` and
@@ -1312,6 +1314,17 @@ export const proof = {
             expectRefused('const x = []; const [a = 1] = x; export default 1;', 'unexpected token', 24)
             expectRefused('const x = {}; const { a = 1 } = x; export default 1;', 'unexpected token', 25)
             expectRefused('const x = []; const [a, , b] = x; export default 1;', 'unexpected token', 25)
+        },
+        // The walk is one over an explicit stack, so a pattern as deep as
+        // the lazy operators' bar costs no call stack, and its names are
+        // collected as lists against an environment, so one as wide as that
+        // bar costs its width — the two shapes the resolution's own stack
+        // and `containerStackCost` already hold a value to.
+        stackCost: () => {
+            const deep = `const x = []; const ${'['.repeat(20000)}a${']'.repeat(20000)} = x; export default a;`
+            assertEq(parseFromTokens(tokenizeString(deep))[0], 'ok')
+            const wide = `const x = {}; const { ${Array.from({ length: 20000 }, (_, i) => `a${i}`).join(', ')} } = x; export default a0;`
+            assertEq(parseFromTokens(tokenizeString(wide))[0], 'ok')
         },
         // A name in a pattern is a binding by every rule a `const`'s name
         // follows: reserved, bound twice — in the pattern itself, against
