@@ -71,11 +71,16 @@ no longer a hand-written list: `js/prototype` keeps the prototype name
 lists and `prohibitedCalls`, which exist for the parser alone — the
 receiver's type is unknown at compile time, so the parser admits a call by
 name and refuses a prohibited one with the error that names the reason. A
-VM never sees a prohibited name, since no EDAG carries one; whether the
-EDAG reader checks it as well is its own choice, and a native VM does not
-care. The completeness table `nanvm/methods` generates and its four rows
-(`gen.methods.rs`) exist to keep two hand-written lists in agreement, and
-retire: with one list there is nothing to compare.
+VM never sees a prohibited name, because two boundaries refuse it before
+any VM runs: the parser, for source, and for EDAG supplied as data, which
+no parser made, the admission `validate`
+[`compiler/todo/interpret-edag.md`](../../compiler/todo/interpret-edag.md)
+requires to reject a key on either list — a check that stays mandatory
+there, since it is the one place such a key could enter. Behind those two
+a native VM does not care. The completeness table `nanvm/methods`
+generates and its four rows (`gen.methods.rs`) exist to keep two
+hand-written lists in agreement, and retire: with one list there is
+nothing to compare.
 
 **The compiler is the generator.** The module is an authored `.f.js` the
 current compiler accepts, so `fjs compile` through the Rust backend
@@ -112,8 +117,11 @@ language has
 name with no body yet — the ones waiting on a static function, below —
 carries the same marker, since a VM has the same duty towards both: bind
 it natively. Which of the two a marker is, and why, is a comment beside
-it. An entry is a body or the marker, never both, and the one check left
-is that a VM binds every marked name, a test over the short list alone.
+it. An entry is a body or the marker, never both, and the check left runs
+both ways over short lists: every marked name has a native binding, and
+every native binding is a key of its type's object — so a stale or
+mistyped entry, an array `charAt` say, cannot answer ahead of the body or
+the `TypeError` the runtime would give.
 
 **A VM binds the object dynamically.** It reads the compiled runtime's
 keys and installs each function value as the fallback member function of
@@ -188,7 +196,8 @@ own `todo/` when its turn comes, and neither is designed here.
       enumerate an object's keys in a `.f.js`; until then `types.ts` pins
       the two equal. `nanvm/methods`, `gen.methods.rs` and the four-row
       test beside `method` in `nanvm/lib/src/vm/lambda/method.rs` then
-      retire, replaced by the one test that every marked name is bound.
+      retire, replaced by the two-way test above: every marked name
+      bound, every native binding a key of its type's object.
 - [ ] The compile CLI's data outputs interpret a module with no runtime, so
       one whose initialization calls a body's name fails to initialize
       there ([`compiler/todo/cli-runtime.md`](../../compiler/todo/cli-runtime.md)).
