@@ -627,6 +627,7 @@ export const proof = {
                 '(a, b) => { const x = Object(a, b); return x?.enumerable ? x.value : undefined; }',
                 '(a, b, c) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? x.value : undefined; }',
                 '(a, ...b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? x.value : undefined; }',
+                '(a, b, ...r) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? x.value : undefined; }',
                 '(a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); const y = x; return x?.enumerable ? x.value : undefined; }',
                 '(a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); throw x?.enumerable ? x.value : undefined; }',
                 '(a, b) => { if (a) { return b; } return Object.getOwnPropertyDescriptor(a, b); }',
