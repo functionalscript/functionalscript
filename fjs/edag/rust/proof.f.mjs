@@ -128,8 +128,13 @@ export const proof = {
             ])
         },
         // a frame read is the one read of `self_`; the argument read twice
-        // is one temporary of the round, as any shared atom is
+        // is one temporary of the round, as any shared atom is; an argument
+        // past the length is read as any argument is
         reads: () => {
+            assertStructurallySame(scoped(['=>', 1, [], ['?:', ['arg', 1], call(['arg', 1]), ['arg', 0]]]).slice(3, 5), [
+                '        if !args.clone().into_iter().nth(1).unwrap_or_else(|| Nullish::Undefined.to_any()).to_boolean() { break }',
+                '        r = args.clone().into_iter().nth(1).unwrap_or_else(|| Nullish::Undefined.to_any());',
+            ])
             assertStructurallySame(scoped(['=>', 1, [1, 2], ['?:', ['frame', 0], call(['frame', 1]), ['arg', 0]]]).slice(0, 6), [
                 'Ok(A::static_function(|self_, args| {',
                 '    let mut r: Any<A> = args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any());',
@@ -176,9 +181,11 @@ export const proof = {
                 ['=>', 2, [], ['?:', true, c, ['arg', 0]]],
                 ['=>', 1, [], ['?:', true, c, 1]],
                 ['=>', 1, [], c],
+                ['=>', 1, [], 1],
                 // a consequent that is no call of `self` with one argument,
                 // and a call shared by the comma around it
                 loop(true, ['()', ['arg', 0], [1]]),
+                loop(true, ['()', 1, [1]]),
                 loop(true, ['()', ['self'], [1, 2]]),
                 loop(true, [',', [c, c]]),
                 // `self` read anywhere else: in the condition, as the next

@@ -1154,8 +1154,15 @@ const printer = (nested, arg = argRead) => shared => root => {
      */
     const letLine = n => isThunk(n)
         ? map1(s => `${kw('let')} ${nameOf(n)} = ${s};`)(thunk(n))
-        : map1(s => `${kw('let')} ${nameOf(n)}: Any<A> = ${
-            !isOperation(n) ? s : isChain(tagOf(n)) || tagOf(n) === '()' || tagOf(n) === '[]' ? `${s}?` : `(${s})?`};`)(node(n))
+        : map1(s => `${kw('let')} ${nameOf(n)}: Any<A> = ${!isOperation(n) ? s : checked(n)(s)};`)(node(n))
+    /**
+     * An operation's text as the `Any<A>` it answers: its call followed
+     * by `?` — an operator's text parenthesized first, a chain's or a
+     * call's as it is.
+     *
+     * @type {(n: Exp) => (s: string) => string}
+     */
+    const checked = n => s => isChain(tagOf(n)) || tagOf(n) === '()' || tagOf(n) === '[]' ? `${s}?` : `(${s})?`
     /**
      * The `Result` an argument list's thunk answers: the array it builds,
      * `Ok(…)`, or `spread_array`'s own, which may throw, where it holds a
@@ -1203,16 +1210,16 @@ const printer = (nested, arg = argRead) => shared => root => {
             : flat(map2((x, y) => cat([unstable('computed_item'), `(${x}, ${y})?`]))(f(k), f(v)))
     }
     /**
-     * A node as the `Any<A>` a statement reads, after the `let` lines of
-     * its block: a bound node's name, a value's construction, a comma's
-     * last operand's, and an operation's call followed by `?` — what
+     * A node as the `Any<A>` a statement reads after the `let` lines of
+     * its block, {@link lets}, which bound the operands before a comma's
+     * last: a bound node's name, a value's construction, a comma's last
+     * operand's, and an unbound operation's call, {@link checked} — what
      * {@link letLine} binds, for a statement that is no `let`.
      *
      * @type {(e: Exp) => Result<Printed<string>, readonly unknown[]>}
      */
-    const value = e => isComma(e) && !inline.includes(e) ? value(last(e))
-        : isOperation(e) && bound.every(([n]) => n !== e)
-        ? map1(s => isChain(tagOf(e)) || tagOf(e) === '()' || tagOf(e) === '[]' ? `${s}?` : `(${s})?`)(node(e))
+    const value = e => isComma(e) ? value(last(e))
+        : isOperation(e) && bound.every(([n]) => n !== e) ? map1(checked(e))(node(e))
         : f(e)
     return ok({ f, block, lets, value })
 }
@@ -1283,10 +1290,10 @@ const loopParts = fn => {
     const next = call[2][0]
     if (next instanceof Array && (next[0] === '...' || next[0] === 'throw')) { return null }
     const visited = visit(operandsOf)([])(body)
-    /** @type {(n: unknown) => number} */
-    const count = n => visited.find(([m]) => m === n)?.[1] ?? 0
+    /** Whether one place reaches the node, which is under `body`. @type {(n: unknown) => boolean} */
+    const once = n => visited.some(([m, count]) => m === n && count === 1)
     const selves = visited.filter(([n]) => tagOf(n) === 'self')
-    if (selves.length !== 1 || /** @type {unknown} */ (selves[0][0]) !== call[1] || selves[0][1] !== 1 || count(arm) !== 1 || count(call) !== 1) { return null }
+    if (selves.length !== 1 || /** @type {unknown} */ (selves[0][0]) !== call[1] || !once(call[1]) || !once(arm) || !once(call)) { return null }
     const inCondition = visit(operandsOf)([])(condition).map(([n]) => n)
     const shared = visit(operandsOf)([])(arm).some(([n]) => !atomic(n) && inCondition.includes(n))
     return shared ? null : { condition, arm, next }
