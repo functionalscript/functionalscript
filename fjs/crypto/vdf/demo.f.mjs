@@ -109,7 +109,7 @@ const advance = (state, run) => {
 const toggle = state => {
     const { run } = state
     if (run !== null && run.done < run.steps) {
-        return pureOk({ ...state, run: { ...run, running: !run.running }, verificationDuration: null, verdict: null })
+        return pureOk({ ...state, run: { ...run, running: !run.running } })
     }
     const steps = parseSteps(state.steps)
     const x = xOf(state.text)

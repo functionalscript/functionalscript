@@ -106,6 +106,30 @@ export const proof = {
             assertEq(changed.run, null)
             assertEq(changed.verificationDuration, null)
         },
+        resumePreservesVerification: () => {
+            const completed = settle(click({ ...demo.init, steps: '25' }, 'evaluate'))
+            const y = hexOfY(assertNotNullish(completed.run).value)
+            const stopped = click(click(completed, 'evaluate'), 'evaluate')
+            return [y, '0'].map(claimed => {
+                const checked = click(next(stopped, { kind: 'input', name: 'claimed', value: claimed }), 'verify')
+                assertEq(checked.verdict, claimed === y ? 'verified' : 'rejected')
+                assertEq(checked.verificationDuration, 2)
+                const resumed = click(checked, 'evaluate')
+                assertEq(resumed.run?.running, true)
+                assertEq(resumed.verdict, checked.verdict)
+                assertEq(resumed.verificationDuration, checked.verificationDuration)
+                const paused = click(resumed, 'evaluate')
+                assertEq(paused.run?.running, false)
+                assertEq(paused.verdict, checked.verdict)
+                assertEq(paused.verificationDuration, checked.verificationDuration)
+                const done = settle(click(paused, 'evaluate'))
+                assertEq(done.verdict, checked.verdict)
+                assertEq(done.verificationDuration, checked.verificationDuration)
+                const restarted = click(done, 'evaluate')
+                assertEq(restarted.verdict, null)
+                assertEq(restarted.verificationDuration, null)
+            })
+        },
         failedMeasurements: () => {
             const input = { ...demo.init, steps: '1', claimed: '1' }
             const unavailable = respond(input, 'evaluate', ['error', ['notImplemented', 'sandbox']])
@@ -113,6 +137,7 @@ export const proof = {
             assert(htmlToString(demo.view(unavailable)).includes('Evaluation error'))
             const thrown = respond(input, 'evaluate', ['ok', { result: ['error', 'failed'], duration: 1 }])
             assertEq(thrown.run, null)
+            assert(htmlToString(demo.view(thrown)).includes('Evaluation error'))
             const invalid = respond(input, 'evaluate', ['ok', { result: ['ok', null], duration: 1 }])
             assertEq(invalid.run, null)
             assert(htmlToString(demo.view(invalid)).includes('measurable result'))
