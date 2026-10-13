@@ -93,10 +93,16 @@ for the same shapes, which no loop written as `let`/`while` produces:
   the shapes the source writer keeps the recursion for: a named value
   the condition shares with the block would be the `const` of a
   function called where written in both, two functions and two values.
-  The Rust output loops for every shared condition, by construction
-  rather than by a second spelling: it has no cell, every temporary of
-  the condition is a `let` inside the `loop` before the test, rebound
-  each round;
+  The Rust output loops for a condition sharing a value with itself as
+  it prints any scope, by construction rather than by a second spelling:
+  it has no cell, a value the condition reaches eagerly is a `let`
+  inside the `loop` before the test, rebound each round, a lazy operand
+  a thunk there, established only when the operation establishes it,
+  and a value reached only through lazy operands is refused as it is
+  anywhere, since a `let` would establish what the program may not — so
+  `false && x` with `x` thrown reaches no `x`, in the loop as in the
+  recursion. A value the condition shares with the arm keeps the
+  recursion in Rust, as in every writer;
 - a read of the rest array: each round of the recursion is a call of one
   argument, so from the second round on the array is empty
   ([spec: parameters](../../../spec/README.md#parameters)), and a loop
