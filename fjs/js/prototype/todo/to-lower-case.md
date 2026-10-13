@@ -35,10 +35,18 @@ segment, [`website/cli/search`](../../../website/cli/search/module.f.mjs)
 on a query. Each holds at the pre-compiler state, and
 [`todo/fjs-nanvm-integration.md`](../../../../todo/fjs-nanvm-integration.md)
 counts the call as a rewrite the module owes, not a feature the language
-lacks. Every one of those receivers is ASCII, or is meant to be: a
-protocol name, a unit letter, a hexadecimal digit. On ASCII every engine of
-every Unicode version answers the same, so the rule refuses the whole
-operation for a divergence none of its callers can reach.
+lacks. The receivers are of two kinds. Most decide a protocol over ASCII —
+a scheme name, a unit letter, a hexadecimal digit, a dot segment, a file
+extension — and the caller then compares the answer with ASCII literals,
+so a receiver outside ASCII fails that comparison on every engine alike.
+On ASCII every engine of every Unicode version answers the same, and for
+these the rule refuses the whole operation for a divergence they cannot
+reach. The rest normalize text the module does not control: the query a
+user types into `website/cli/search`, the header names and hosts a
+request carries to `effects/node` and `web`. There a non-ASCII receiver
+is ordinary input, and the divergence the rule guards against is reachable
+in principle, for a character one engine's Unicode version cases and
+another's does not — which is what the proposal pins.
 
 The refusal protects a real guarantee, that a module means one thing
 everywhere, and the proposal has to keep it. It also protects, by accident,
@@ -77,12 +85,13 @@ Two alternatives, and why not:
 - **Refuse a non-ASCII receiver** at run time
   ([DESIGN.md §10](../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)):
   admit the names, and throw on a receiver with a code unit at or above
-  `0x80`, where the engines could disagree. Honest, and every current
-  caller passes, but it replaces a reproducible answer with a throw on
-  ordinary text, and the host engine running the source directly does not
-  throw, so it is the ASCII alternative's divergence moved from the value
-  to the completion. Kept as the fallback should a pinned Unicode version
-  be judged too weak a guarantee.
+  `0x80`, where the engines could disagree. Honest, and the
+  protocol-deciding callers pass, but the text-normalizing ones do not: a
+  search query with one non-ASCII letter would throw where it answers
+  today, and the host engine running the source directly does not throw,
+  so it is the ASCII alternative's divergence moved from the value to the
+  completion. Kept as the fallback should a pinned Unicode version be
+  judged too weak a guarantee.
 
 Independent of this decision, the callers above want an ASCII case fold,
 not Unicode's: `text/ascii` could export it over code points today, beside
@@ -95,7 +104,8 @@ JavaScript's meaning and JavaScript's spelling, and about a dozen modules
 lose a rewrite. Drawbacks: the language names a Unicode version and carries
 it forward with the toolchain; a host engine ahead of the pin is an
 engine-defined edge the spec documents rather than a divergence the
-compiler refuses; and the Kelvin-sign class of mistake becomes writable,
+compiler refuses, and the text-normalizing callers can reach it; and the
+Kelvin-sign class of mistake becomes writable,
 which the row in [`../README.md`](../README.md) warns about.
 
 ### Approval
