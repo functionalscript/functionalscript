@@ -358,10 +358,10 @@ export const proof = {
             expect('export default 1 in [];', 18)
             expect('const o = { a: 1 }; export default "a" in o;', 40)
             expect('export default (...a) => "a" in a[0];', 30)
-            // with an operand missing, the refusal is still at the `in`: it
-            // is the token no rule takes, not a half-formed expression
+            // with the right operand missing, the refusal is still at the
+            // `in`: it is the token no rule takes, not a half-formed
+            // expression
             expect('export default "a" in;', 20)
-            expect('export default in 1;', 19)
             // `for (k in o)` is the other place JavaScript uses the word, a
             // statement the language has no rule for. It is refused at the
             // `for`, which says nothing about the operator.
@@ -376,6 +376,14 @@ export const proof = {
             assert(tag === 'error', tag)
             assertEq(value.message, 'reserved word')
             assertEq(value.metadata?.column, 7)
+            // an `in` with nothing to its left is read as a name, which a
+            // reserved word cannot be: refused as the word, at the `in`
+            {
+                const [tag, value] = parseFromTokens(tokenizeString('export default in;'))
+                assert(tag === 'error', tag)
+                assertEq(value.message, 'reserved word')
+                assertEq(value.metadata?.column, 16)
+            }
             /** @type {(source: string, ast: string) => void} */
             const expect = (source, ast) => {
                 const [tag, value] = parseFromTokens(tokenizeString(source))
