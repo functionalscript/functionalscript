@@ -55,7 +55,7 @@ export const transition = (state, event) => {
         const { name, value } = event
         if (name === 'view') { return { ...state, view: value } }
         if (name === 'operation') {
-            if (value === 'P + Q') { return { ...state, operation: value, p: '4,7', q: '13,12' } }
+            if (value === 'P + Q') { return { ...state, operation: value, p: '10,18', q: '13,12' } }
             if (value === '2P') { return { ...state, operation: value, p: '4,16' } }
             return { ...state, operation: value }
         }
@@ -84,6 +84,13 @@ const finiteMark = (p, label, role) => p === null ? [] : [
     ['text', { x: String(51 + Number(p[0]) * 20), y: String(475 - Number(p[1]) * 20), 'data-secp-label': role, 'pointer-events': 'none' }, label],
 ]
 
+/** The dotted connector denotes modular negation, not Euclidean distance.
+ * @type {(third: Point, result: Point) => readonly Element[]}
+ */
+const finiteNegation = (third, result) => third === null || result === null ? [] : [
+    ['path', { d: `M${40 + Number(third[0]) * 20} ${480 - Number(third[1]) * 20}L${40 + Number(result[0]) * 20} ${480 - Number(result[1]) * 20}`, 'data-secp-finite-negation': '', 'pointer-events': 'none' }],
+]
+
 /** SVG buttons have textual, keyboard and native select equivalents.
  * @type {(state: State, p: Point, q: Point, result: Point, third: Point, line: readonly Point2D[]) => Element}
  */
@@ -96,6 +103,7 @@ const finiteGraph = (state, p, q, result, third, line) => ['svg', { viewBox: '0 
     ]),
     ['text', { x: '505', y: '485' }, 'X'], ['text', { x: '30', y: '25' }, 'Y'],
     ...line.map(/** @returns {Element} */ ([x, y]) => ['rect', { x: String(36 + Number(x) * 20), y: String(476 - Number(y) * 20), width: '8', height: '8', 'data-secp-modular-line': '', 'pointer-events': 'none' }]),
+    ...finiteNegation(third, result),
     ...points.map(/** @returns {Element} */ ([x, y]) => ['circle', {
         cx: String(40 + Number(x) * 20), cy: String(480 - Number(y) * 20), r: '7',
         'data-demo-click': `point:${x},${y}`, tabindex: '0', role: 'button',
@@ -127,7 +135,7 @@ const finiteView = state => {
         ['p', 'These are discrete field elements. A smooth curve or ordinary secant would be misleading here.'],
         ['div', { 'data-secp-layout': '' },
             ['div', finiteGraph(state, shownP, shownQ, calculation.result, third, line),
-                ['p', 'Legend: orange squares (modular line), P (orange), Q/G (purple), S (fuchsia), result (blue). O has no XY coordinates.']],
+                ['p', 'Legend: orange squares (modular line), P (orange), Q/G (purple), S (fuchsia), result and dotted S → R connector (blue). O has no XY coordinates.']],
             ['div',
                 select('operation', 'Operation', ['kG', 'P + Q', '2P', '−P'], state.operation),
                 ...(multiplication ? [inputField({ name: 'k', label: 'Scalar k (decimal, 0–29)' }, state.k)] : [
@@ -140,7 +148,7 @@ const finiteView = state => {
                     paragraph(multiplication
                         ? 'The grid shows G and kG. Show Math lists the repeated additions; production multiplication can use faster algorithms such as double-and-add.'
                         : line.length === 0 ? `The result is ${pointText(calculation.result)}.`
-                            : 'The squares satisfy the modular secant or tangent equation. S is the third curve intersection, and R = −S.'),
+                            : 'The squares satisfy the modular secant or tangent equation. S is the third curve intersection; the dotted blue connector shows y ↦ −y mod 23 from S to R.'),
                 ]),
             ],
         ],
@@ -247,7 +255,7 @@ const productionView = state => {
 
 /** @type {Demo<State, DemoEvent>} */
 export const demo = {
-    init: { view: 'Geometric View', operation: 'kG', k: '3', p: '4,7', q: '13,12', target: 'P', realP: '0', realQ: '1', branchP: '1', branchQ: '1', curve: 'secp256k1', privateKey: '3', generated: null },
+    init: { view: 'Geometric View', operation: 'kG', k: '3', p: '10,18', q: '13,12', target: 'P', realP: '0', realQ: '1', branchP: '1', branchQ: '1', curve: 'secp256k1', privateKey: '3', generated: null },
     update: state => event => pureOk(transition(state, event)),
     view: state => ['div', { 'data-secp-playground': '' },
         caption('Elliptic Curve Playground'),
