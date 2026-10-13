@@ -12,6 +12,7 @@
  * @import { Event } from './types.ts'
  */
 
+import process from 'node:process'
 import { spec } from 'node:test/reporters'
 import { Readable } from 'node:stream'
 
@@ -19,8 +20,9 @@ import { quiet } from './module.f.mjs'
 
 /** @type {(source: AsyncIterable<Event>) => AsyncGenerator<Event>} */
 const kept = async function* (source) {
+    const keep = quiet(process.cwd())
     for await (const event of source) {
-        const k = quiet(event)
+        const k = keep(event)
         if (k !== null) yield k
     }
 }

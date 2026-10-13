@@ -3,7 +3,9 @@
  */
 
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { quiet } from './module.f.mjs'
+import { quiet as quietIn } from './module.f.mjs'
+
+const quiet = quietIn('/repo')
 
 /** @type {(line: number, branch: number, fn: number) => File} */
 const file = (line, branch, fn) => ({
@@ -34,7 +36,18 @@ const todo = { type: 'test:pass', data: { todo: true } }
 const fail = { type: 'test:fail' }
 
 /** @type {Event} */
-const summary = { type: 'test:diagnostic' }
+const summary = { type: 'test:diagnostic', data: { message: 'tests 1' } }
+
+/** @type {(file: string) => Event} */
+const checkpoint = file => ({ type: 'test:diagnostic', data: { message: 'checkpoint', file, line: 3, column: 1 } })
+
+/**
+ * The same diagnostic with the test's location, as `at` spells it, before
+ * the message.
+ *
+ * @type {(file: string, at: string) => Event}
+ */
+const checkpointAt = (file, at) => ({ type: 'test:diagnostic', data: { message: `${at}:3:1: checkpoint`, file, line: 3, column: 1 } })
 
 export const proof = {
     aStartIsDropped: () => {
@@ -52,8 +65,16 @@ export const proof = {
     aFailIsKeptAsIs: () => {
         assertEq(quiet(fail), fail)
     },
-    aDiagnosticIsKeptAsIs: () => {
+    aSummaryDiagnosticIsKeptAsIs: () => {
         assertEq(quiet(summary), summary)
+    },
+    aTestDiagnosticIsLocated: () => {
+        assertStructurallySame(quiet(checkpoint('/repo/a/proof.mjs')), checkpointAt('/repo/a/proof.mjs', 'a/proof.mjs'))
+        assertStructurallySame(quietIn('C:\\repo')(checkpoint('C:\\repo\\a.mjs')), checkpointAt('C:\\repo\\a.mjs', 'a.mjs'))
+    },
+    aTestDiagnosticOutsideTheDirectoryKeepsItsPath: () => {
+        assertStructurallySame(quiet(checkpoint('/elsewhere/a.mjs')), checkpointAt('/elsewhere/a.mjs', '/elsewhere/a.mjs'))
+        assertStructurallySame(quiet(checkpoint('/repository/a.mjs')), checkpointAt('/repository/a.mjs', '/repository/a.mjs'))
     },
     aLogNamesItsTest: () => {
         assertStructurallySame(

@@ -5,14 +5,14 @@
  * which on this repository's suite is twelve thousand lines of passes and
  * `100.00`s around the few lines that matter. {@link quiet} is the filter
  * `module.mjs` puts in front of it. A passed test is dropped unless it was
- * skipped or left `todo`; a log names the test that wrote it; the coverage
- * report keeps the files that miss a threshold, and its totals; everything
- * else — a failure, the run's summary, a threshold error — passes through
- * unchanged.
+ * skipped or left `todo`; a log names the test that wrote it, and a test's
+ * diagnostic names where that test is; the coverage report keeps the files
+ * that miss a threshold, and its totals; everything else — a failure, the
+ * run's summary, a threshold error — passes through unchanged.
  *
  * @module
  *
- * @import { Coverage, Event, Log, Pass } from './types.ts'
+ * @import { Coverage, Diagnostic, Event, Log, Pass } from './types.ts'
  */
 
 /**
@@ -53,6 +53,39 @@ const log = ({ type, data }) =>
     ({ type, data: { ...data, message: `${data.name}: ${data.message}` } })
 
 /**
+ * A file's path relative to the working directory, where the file is under
+ * it; otherwise the path as given. The `spec` reporter prints a failing
+ * test's location the same way.
+ *
+ * @type {(cwd: string, file: string) => string}
+ */
+const located = (cwd, file) => {
+    const separator = file[cwd.length]
+    return file.startsWith(cwd) && (separator === '/' || separator === '\\')
+        ? file.slice(cwd.length + 1)
+        : file
+}
+
+/**
+ * A test's diagnostic with the test's location before the message. Node
+ * emits it after the test's own result, which this filter drops for a
+ * passed test, and without the test's name; the file, line and column where
+ * the test is defined are what it carries, and the location `spec` names a
+ * failing test by. The run's summary diagnostics carry no location and pass
+ * unchanged.
+ *
+ * @type {(cwd: string) => (event: Diagnostic) => Diagnostic}
+ */
+const diagnostic = cwd => event =>
+    event.data.file === undefined ? event : {
+        ...event,
+        data: {
+            ...event.data,
+            message: `${located(cwd, event.data.file)}:${event.data.line}:${event.data.column}: ${event.data.message}`,
+        },
+    }
+
+/**
  * The event as the report should see it, or `null` for one it should not.
  *
  * Every `test:start` goes, not only a passed test's: the `spec` reporter
@@ -60,11 +93,14 @@ const log = ({ type, data }) =>
  * dropped the pairing cannot hold. A failure then prints at its indentation,
  * without the `▶` line naming its suite.
  *
- * @type {(event: Event) => Event | null}
+ * `cwd` is the working directory a test's location is printed relative to.
+ *
+ * @type {(cwd: string) => (event: Event) => Event | null}
  */
-export const quiet = event =>
+export const quiet = cwd => event =>
     event.type === 'test:start' ? null :
     event.type === 'test:pass' ? pass(event) :
     event.type === 'test:log' ? log(event) :
+    event.type === 'test:diagnostic' ? diagnostic(cwd)(event) :
     event.type === 'test:coverage' ? coverage(event) :
     event

@@ -61,12 +61,26 @@ export type Log = {
     }
 }
 
+/**
+ * A diagnostic: one of the run's summary lines at the root, or what
+ * `TestContext.diagnostic()` wrote, which carries the location of its test
+ * and nothing else to name it by.
+ */
+export type Diagnostic = {
+    readonly type: 'test:diagnostic'
+    readonly data: {
+        readonly message: string
+        readonly file?: string
+        readonly line?: number
+        readonly column?: number
+    }
+}
+
 /** Every other event Node emits; the filter reads nothing but its name. */
 export type Other = {
     readonly type:
         | 'test:complete'
         | 'test:dequeue'
-        | 'test:diagnostic'
         | 'test:enqueue'
         | 'test:fail'
         | 'test:interrupted'
@@ -79,4 +93,4 @@ export type Other = {
         | 'test:watch:restarted'
 }
 
-export type Event = Coverage | Pass | Log | Other
+export type Event = Coverage | Pass | Log | Diagnostic | Other
