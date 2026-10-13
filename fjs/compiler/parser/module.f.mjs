@@ -145,10 +145,13 @@ const restTarget = foldError('rest element not supported')
 const emptyPattern = foldError('empty binding pattern')
 
 /**
- * A computed key in a binding pattern, `{ [k]: a }`, at the token the key
- * begins with: not read yet, the conversion `Number(i)` an access admits
- * included — a body's statement is resolved as one value, and the key
- * would be a second value to resolve inside the statement
+ * A computed key in a binding pattern that is no constant, `{ [k]: a }`,
+ * at the token the key begins with. A string or a number literal alone in
+ * the brackets, `{ ["a"]: t }` or `{ [3]: t }`, is the constant key an
+ * access admits in brackets and never reaches here; the rest is not read
+ * yet, the conversion `Number(i)` an access admits included — a body's
+ * statement is resolved as one value, and the key would be a second value
+ * to resolve inside the statement
  * ([destructuring](../../../spec/todo/2450-destructuring.md)).
  */
 const computedPatternKey = foldError('computed key in a binding pattern not supported')

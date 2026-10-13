@@ -698,9 +698,10 @@ export default [a, c, d, length, (...r) => { const [first] = r; return first; }]
 
 A `const`, a module's or a body's, exported or not, may bind a **pattern**
 in place of a name: an object pattern, `{ p, … }`, each property a
-shorthand name or a key and a target, `a: t`, `"a": t`; or an array
-pattern, `[t, …]`, each item a target; a target a name or a pattern again,
-and a trailing comma allowed as the literals allow one. Each name is a
+shorthand name or a key and a target, `a: t`, `"a": t`, `["a"]: t`,
+`[3]: t`; or an array pattern, `[t, …]`, each item a target; a target a
+name or a pattern again, and a trailing comma allowed as the literals
+allow one. Each name is a
 binding by the rule above — reserved, refused twice, exported as `then`,
 or shadowing a capture, it is refused as a name alone is — and it names
 the part of the value its path reads, as in JavaScript. The initializer is
@@ -743,10 +744,14 @@ Refused, each by name, and open in
 `[a, ...r]` or `{ a, ...r }` (`rest element not supported`); a
 **default**, `{ a = 1 }` or `[a = 1]`, which is no literal and stops at
 its `=`; an **empty pattern**, `{}` or `[]`, which binds nothing and
-exists for its failure alone (`empty binding pattern`); a **computed key**,
-`{ [k]: a }`, the conversion `Number(i)` included (`computed key in a
-binding pattern not supported`); and a pattern in a **parameter**, which
-is not read yet ([functions](#functions)). A value in a binding position —
+exists for its failure alone (`empty binding pattern`); a **computed key**
+beyond a constant — a string or a number literal alone in the brackets,
+`{ ["a"]: t }` or `{ [3]: t }`, is the constant key an access admits in
+brackets ([property access](#property-access)), read by the literal's
+spelling as `"a": t` is, while `{ [k]: a }`, `{ [Number(i)]: a }` and a
+grouped literal, `{ [(3)]: a }`, are refused (`computed key in a binding
+pattern not supported`); and a pattern in a **parameter**, which is not
+read yet ([functions](#functions)). A value in a binding position —
 a literal, an access, a call, an operator, or a group, `[(a)]`, which
 JavaScript admits in an assignment and refuses in a binding — is the error
 JavaScript names (`invalid destructuring target`), at the token it begins

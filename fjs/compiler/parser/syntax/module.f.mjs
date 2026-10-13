@@ -441,21 +441,29 @@ const symbol = out => ({ symbol: 0, meta: out })
 const accessKey = branch => tokenAt(unmapped(unmapped(branch)[1])[1])
 
 /**
- * The key an index names, `[ value ]`, the value at the second position:
+ * The key a value in brackets names, an index's or a pattern property's:
  * the token of a string or a number literal standing alone, a constant key
  * as `.name`'s word is — what its name is read from, and what a refusal of
  * the name is anchored at — and any other value a computed key, with the
  * token it begins with. A group is no constant, `a[("x")]` being a value
  * the reader cannot tell from any other.
  *
+ * @type {(node: _Leaf) => Key}
+ */
+const bracketKey = node => {
+    const out = outAt(node)
+    const { node: value, first } = /** @type {Extract<Out, { readonly node: Node }>} */ (out)
+    const { kind } = first.token
+    return out.id === 'value' && value[0] === 'primitive' && (kind === 'string' || kind === 'number') ? first : ['[]', value, first]
+}
+
+/**
+ * The key an index names, `[ value ]`, the value at the second position,
+ * {@link bracketKey}.
+ *
  * @type {(branch: _IndexBranch) => Key}
  */
-const indexKey = branch => {
-    const out = outAt(unmapped(branch)[1])
-    const { node, first } = /** @type {Extract<Out, { readonly node: Node }>} */ (out)
-    const { kind } = first.token
-    return out.id === 'value' && node[0] === 'primitive' && (kind === 'string' || kind === 'number') ? first : ['[]', node, first]
-}
+const indexKey = branch => bracketKey(unmapped(branch)[1])
 
 /**
  * A function's parameter list where it begins with no value: the rest
@@ -1028,8 +1036,10 @@ const memberOf = (member, target) => symbol({ id: 'member', member, target })
  * is the first of the value between the brackets, as an index's is.
  *
  * Beside the member, the property it is in an object pattern: the same
- * key, as an access's — the token, or the computed key an index holds —
- * and the target its value is, the shorthand binding the key's own name.
+ * key, as an access's — the token, a literal alone in the brackets being
+ * the constant an index's is, {@link bracketKey}, or the computed key an
+ * index holds — and the target its value is, the shorthand binding the
+ * key's own name.
  *
  * @type {(node: Children<MemberRule, DjsTokenWithMetadata, Out>) => Meta<Out>}
  */
@@ -1053,7 +1063,7 @@ const toMember = ([tag, branch]) => {
         case 'computed': {
             const [, k, , , v] = unmapped(branch)
             const first = firstAt(k)
-            return memberOf({ key: first, spelling: 'computed', node: nodeAt(k), value: nodeAt(v) }, { key: ['[]', nodeAt(k), first], target: valueTargetAt(v) })
+            return memberOf({ key: first, spelling: 'computed', node: nodeAt(k), value: nodeAt(v) }, { key: bracketKey(k), target: valueTargetAt(v) })
         }
     }
 }

@@ -1243,6 +1243,10 @@ export const proof = {
                 '[[],[["array",[1]],["array",[["...",["cref",0]]]],[".",["cref",1],0],["object",[[":","default",["cref",2]]]]]]')
             // `length` is the one prototype name an access reads, so a pattern reads it
             expectModule('const { length } = "abc"; export default length;', '[[],["abc",[".",["cref",0],"length"],["object",[[":","default",["cref",1]]]]]]')
+            // a literal alone in the brackets is the constant key an access
+            // admits in brackets, by its spelling: `[1.0]` names `1`
+            expectModule('const o = { "3": 1, a: 2 }; const { [3]: x, ["a"]: y, [1.0]: z } = o; export default [x, y, z];',
+                '[[],[["object",[[":","3",1],[":","a",2]]],["cref",0],[".",["cref",1],3],[".",["cref",1],"a"],[".",["cref",1],1],["object",[[":","default",["array",[["cref",2],["cref",3],["cref",4]]]]]]]]')
             // a trailing comma, as the literals allow one; an exported
             // pattern exports each of its names, and the hidden entry none
             expectModule('export const { a, b, } = { a: 1, b: 2 };',
@@ -1298,6 +1302,11 @@ export const proof = {
             expectRefused('const x = []; const [] = x; export default 1;', 'empty binding pattern', 21)
             expectRefused('const x = {}; const k = 1; const { [k]: a } = x; export default 1;', 'computed key in a binding pattern not supported', 37)
             expectRefused('const x = {}; const { [Number(1)]: a } = x; export default 1;', 'computed key in a binding pattern not supported', 24)
+            // a grouped or a signed literal is no constant, as `o[(3)]` and
+            // `o[-1]` are none; a constant one is checked as any key is
+            expectRefused('const x = {}; const { [(3)]: a } = x; export default 1;', 'computed key in a binding pattern not supported', 24)
+            expectRefused('const x = {}; const { [-1]: a } = x; export default 1;', 'computed key in a binding pattern not supported', 24)
+            expectRefused('const x = {}; const { ["toString"]: a } = x; export default 1;', 'prohibited property name', 24)
             // a default is no literal, so the grammar stops at its `=`; an
             // elision is no array of this language
             expectRefused('const x = []; const [a = 1] = x; export default 1;', 'unexpected token', 24)
