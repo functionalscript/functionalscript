@@ -2219,19 +2219,21 @@ export default n => {
   around it is the function's frame, as any nested function's captures
   are ([captures](#captures-and-self-recursion)).
 
-- **A loop runs in constant stack** in the FunctionalScript output and in
-  function text: each writer recognizes the template and spells it as the
-  one loop, `while (c) { …; r = next; }` — the source writer as these two
-  statements, and the code-only text as the same two over a `let` of the
-  function's parameter ([function text](../fjs/edag/function-text.md)) — where a
-  function calling itself last is otherwise recursion, which V8 runs out
-  of stack on after some thousands of rounds, having no tail calls. A
-  hand-written function of the template's shape, `const loop = r => c ?
-  loop(next) : r;`, is the same graph and gets the same loop; one of a
-  shape no `while` writes — a `const` before the condition running every
-  round, a condition sharing a value with the block, a read of the rest
-  array — keeps the recursion in every writer. The Rust output and the
-  EDAG interpreters still spell the call
+- **A loop runs in constant stack** in the FunctionalScript output, in
+  function text and in the Rust output: each writer recognizes the template
+  and spells it as the one loop, `while (c) { …; r = next; }` — the source
+  writer as these two statements, the code-only text as the same two over a
+  `let` of the function's parameter
+  ([function text](../fjs/edag/function-text.md)), and the Rust output as
+  the function's closure whose body is Rust's `loop` over a `let mut` of
+  its argument, no round a call — where a function calling itself last is
+  otherwise recursion, which V8 runs out of stack on after some thousands
+  of rounds, having no tail calls, and Rust likewise. A hand-written
+  function of the template's shape, `const loop = r => c ? loop(next) :
+  r;`, is the same graph and gets the same loop; one of a shape no `while`
+  writes — a `const` before the condition running every round, a condition
+  sharing a value with the block, a read of the rest array — keeps the
+  recursion in every writer. The EDAG interpreters still run the call
   ([tail-call-loop](../fjs/edag/todo/tail-call-loop.md)).
 
 - Three programs JavaScript admits are refused rather than read another

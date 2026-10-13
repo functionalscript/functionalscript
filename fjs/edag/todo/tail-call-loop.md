@@ -1,9 +1,9 @@
 ## Write a tail self-call as a loop
 
 **Priority:** P2
-**Status:** wip — the recognizer, the function text and the source
-spelling with its grammar are implemented, the grammar awaiting the
-approval its proposal records; the Rust output is open
+**Status:** wip — the recognizer, the function text, the Rust output and
+the source spelling with its grammar are implemented, the grammar awaiting
+the approval its proposal records
 
 ### Problem
 
@@ -108,12 +108,21 @@ renders as a named function expression unless it is a loop, which renders
 as the loop above. No program can tell the two texts apart by anything but
 the text itself, which the exception already makes the VM's to choose.
 
-**The Rust output** writes the loop as `let mut r = init; while
-COND.to_boolean() { … }` into the enclosing closure's body where the
-function is called in place — the function is then no `static_function`
-at all, and nothing could observe one, the program never holding it — and
-as that `while` inside its own closure where the function is held as a
-value; the temporaries a round binds are declared inside the loop.
+**The Rust output** writes a matching function as the closure it is,
+`A::static_function`, whose body is the loop: `let mut r` bound to the
+first argument, Rust's `loop` — the condition's temporaries, `if
+!COND.to_boolean() { break }`, the round's temporaries, the asserts among
+them discarded, and `r = NEXT;`, omitted where the next value is the
+variable — and `Ok(r)`. A `loop` with the test at its top rather than a
+`while`, since a `while` cannot hold the condition's temporaries, which
+every round must rebind; a closure whether the function is called in
+place or held as a value, one form rather than two, the call of a closure
+costing one frame where the recursion cost one per round. Which function
+is a loop the Rust writer decides on the graph it walks, where sharing is
+identity: the function text and the source writer decide on the analysis
+table, where two reads of one property are one shared node, so a function
+the table shows a condition sharing with its block may still loop in Rust,
+the two reads rebound each round — the same value either way.
 
 **The source** spells the template as `let` and `while` only in one context,
 the function called where it is written with one argument and referenced
@@ -155,8 +164,9 @@ written for the template, so it is a later step, taken with the grammar for
 - [x] `fjs/edag/function-text.md` and the function-source paragraph of
       `spec/README.md`: a body reading its `self` renders as a named
       function expression unless it is a loop, which renders as the loop.
-- [ ] `fjs/edag/rust`: the `while` form, in place and in a closure, and a
-      `cargo test` over a generated module running a million rounds.
+- [x] `fjs/edag/rust`: the loop form as the closure's body, and a
+      `cargo test` over a generated module running a million rounds
+      (`nanvm/harness/tests/while_loop.rs`).
 - [x] `fjs/compiler/serializer`: the `let`/`while` spelling in call context,
       a rest-reading function left as recursion, with the grammar
       ([spec: loops](../../../spec/README.md#loops)), proven by the round
