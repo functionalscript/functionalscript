@@ -66,6 +66,16 @@ read partially ([DESIGN.md §10](../../doc/DESIGN.md#10-refuse-what-you-cannot-h
   spread array below, sliced past the fixed items — and is the next stage;
   the object form needs "the own properties but these", which no node
   spells, and gets a node or a helper of its own when it comes;
+- an **elision**, `[, b]` and `[a, , c]`, which skips a position of the
+  iteration — a read the spread lowering gives for free, the element after
+  it taking the next index, `$0[1]`, so nothing is a hole. What it costs
+  is the grammar: an array literal has no elision, since an array of this
+  language has no hole ([arrays](../README.md#arrays)), and the pattern is
+  read as the literal is, so the literal rule would have to admit the
+  elision for the fold to refuse it in a value and read it in a pattern.
+  That is the next stage with rest, and no rule of the language: an
+  elision in a pattern is harmless JavaScript
+  ([DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions));
 - a **default**, `{ a = 1 }` and `[a = 1]`, deferred with default
   parameters ([named and rest parameters](./3120-parameters.md)), since
   both lower to the same `undefined` test and are best designed once. The
@@ -92,7 +102,8 @@ read partially ([DESIGN.md §10](../../doc/DESIGN.md#10-refuse-what-you-cannot-h
   of any type is the `entry` helper's to read
   ([reading an entry at run time](../README.md#reading-an-entry-at-run-time)).
 
-Elisions, `[a, , b]`, are already no array of this language, and stay out.
+Until then an elision stops at its second comma, as it does in an array
+literal.
 
 #### Semantics, by lowering
 
@@ -223,8 +234,11 @@ of; and two familiar spellings — rest and defaults — are refused for now, ea
       over the same converter and binder; the specification's
       [functions](../README.md#functions) section loses "destructuring is
       not supported yet".
-- [ ] Array rest, `[a, ...r]`, as a slice of the spread array; file the
-      object rest and the defaults as follow-ups of their own.
+- [ ] Array rest, `[a, ...r]`, as a slice of the spread array, and
+      elisions, `[, b]`, the element after one taking the next index, the
+      array literal's rule admitting the elision for the fold to refuse in
+      a value; file the object rest and the defaults as follow-ups of
+      their own.
 
 ### Related
 
