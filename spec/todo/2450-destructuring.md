@@ -44,8 +44,8 @@ A **binding target** is one of
 - a name, under the [binding rule](../README.md#shared-values-constants) a
   `const` and a parameter already follow;
 - an **object pattern**, `{ p, … }`, each property a shorthand name `a`, or
-  a key and a target, `a: t`, `"a": t`, with the trailing comma an object
-  literal allows;
+  a key and a target, `a: t`, `"a": t`, `["a"]: t`, `[3]: t`, with the
+  trailing comma an object literal allows;
 - an **array pattern**, `[t, …]`, each item a target, with the trailing
   comma an array literal allows.
 
@@ -81,11 +81,18 @@ read partially ([DESIGN.md §10](../../doc/DESIGN.md#10-refuse-what-you-cannot-h
   its failure alone. JavaScript throws on `const {} = null` with no
   property read to carry the throw, so a faithful lowering would be a read
   made up for the purpose; refusing it costs nothing a program wants;
-- a **computed key**, `{ [k]: a }`, the conversion `Number(i)` an access
-  admits included. The fold resolves a statement's value as one walk over
-  an explicit stack, and a key would be a second value to resolve inside
-  the statement, at every nesting of the pattern; the conversion key is
-  rare enough in a pattern that the machinery is not worth it yet. A key
+- a **computed key** beyond a constant. A string or a number literal
+  standing alone in the brackets, `{ ["a"]: t }` and `{ [3]: t }`, is the
+  constant key an access admits in brackets, `o["a"]` and `o[3]`
+  ([property access](../README.md#property-access)), and is read as
+  `"a": t` is — by the literal's spelling, so `{ [1.0]: t }` names `"1"`
+  as `o[1.0]` does, and a grouped literal, `{ [(3)]: t }`, is no constant
+  as `o[(3)]` is none. Every other computed key is refused for now
+  (`computed key in a binding pattern not supported`), the conversion
+  `Number(i)` an access admits included: the fold resolves a statement's
+  value as one walk over an explicit stack, and a key would be a second
+  value to resolve inside the statement, at every nesting of the pattern —
+  machinery a conversion key, rare in a pattern, does not yet earn. A key
   of any type is the `entry` helper's to read
   ([reading an entry at run time](../README.md#reading-an-entry-at-run-time)).
 
