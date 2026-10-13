@@ -84,7 +84,20 @@ for the same shapes, which no loop written as `let`/`while` produces:
   ([spec: parameters](../../../spec/README.md#parameters)), and a loop
   that kept the first call's array would answer differently where that
   array had members;
-- a next value that throws, a spread, or a second argument.
+- a next value that throws, a spread, or a second argument;
+- in the source writer alone, a function nested in the loop whose frame
+  reads the variable, `r => typeof r === 'number' ? self(() => r) : r`:
+  the recursion's closure holds the parameter of the call that made it,
+  `loop(1)()` answering `1`, where a closure written inside a `while`
+  holds the binding, the variable's last value — the capture the language
+  proposal refuses in source ([spec: let](../../../spec/todo/3220-let.md),
+  refusals), so the spelling would read back as nothing. The function
+  text captures by value, through the applied wrapper every nested
+  function's frame is written as, `(($2)=>()=>$2)($1)`, and the Rust
+  output's frame is a value, so both loop; the source writer, whose
+  nested function captures by name, keeps the `const` the call reads. A
+  computed slot, `() => r + 1`, is a `const` of the block in every
+  writer, and loops.
 
 A `for(;;)` with `continue`, which could run a root assert or a shared
 condition's cell before the condition each round, was considered and
