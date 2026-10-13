@@ -466,10 +466,6 @@ input[type="text"] { box-sizing: border-box; width: 100% }
 /* Search progress supports the current verdict rather than competing with it;
    smaller muted text separates the attempt count and failed range from the result. */
 [data-pow-search-summary] { color: var(--muted); font-size: .875rem; line-height: 1.6; margin-top: .75rem }
-/* Timing values wrap into one column on narrow screens; SVG bars retain their
-   numeric proportions independently of the card width. */
-[data-vdf-timings] { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); gap: 1rem }
-[data-vdf-timings] svg { display: block; color: var(--link) }
 ${bars}/* Every section of a page is a disclosure, so a reader can fold away what
    they are not reading — the platform's own collapsible, and no script on a
    site that is static files. Its summary is the section's heading, and is

@@ -51,12 +51,7 @@ export type DemoState = {
     readonly claimed: string
     readonly run: DemoRun | null
     readonly verdict: DemoVerdict | null
-    readonly verification: DemoVerification | null
+    /** Duration of the single verifier call in milliseconds, including rejection. */
+    readonly verificationDuration: number | null
     readonly note: string | null
-}
-
-/** Samples check the same claimed y; a slow call ends the bounded batch. */
-export type DemoVerification = {
-    readonly samples: readonly number[]
-    readonly running: boolean
 }
