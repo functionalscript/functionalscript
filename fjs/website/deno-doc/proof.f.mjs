@@ -2,7 +2,7 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { _buildIdentity } from '../module.f.mjs'
 import { rustdocFooter, rustdocHead, rustdocHeader } from '../cargo-doc/module.f.mjs'
 import { documentationBarsStylesheet } from '../style/module.f.js'
-import { entrypoints, inputDir, outputDir, manifestName, stylesheetName, moduleSource, symbolSource, withSiteChrome, readManifest, moduleHref } from './module.f.mjs'
+import { entrypoints, inputDir, outputDir, manifestName, stylesheetName, moduleSource, symbolSource, withSiteChrome, readManifest, moduleHref, publishedPath, publishedRenames, rewritePublishedPaths } from './module.f.mjs'
 
 const sources = ['fjs/crypto/sha2/module.f.mjs', 'fjs/types/result/module.f.js', 'fjs/types/result/types.ts']
 
@@ -22,6 +22,21 @@ export const proof = {
         'fjs/website/a/module.f.js', 'fjs/crypto/todo/types.ts', 'fjs/compiler/examples/module.f.js',
         'fjs/crypto/gen.test/module.f.mjs', 'fjs/.hidden/types.ts', 'fjs/node_modules/a/types.ts', 'fjs/target/a/types.ts',
     ]), sources),
+    publishedPaths: () => {
+        assertEq(publishedPath('a/symbol.html'), 'a/symbol.html')
+        assertEq(publishedPath('a/binary.<<.html'), 'a/binary.%3C%3C.html')
+        assertEq(publishedPath('a/rustName.%.html'), 'a/rustName.%25.html')
+        assertEq(publishedPath('a/rustName.instanceof Array.html'), 'a/rustName.instanceof%20Array.html')
+        assertEq(publishedPath('a/rustName.+/1.html'), 'a/rustName.%2B/1.html')
+        assertEq(publishedPath('a/rustName./.html'), 'a/rustName.%2F.html')
+        assertEq(publishedPath('a/П.html'), 'a/%D0%9F.html')
+        assertStructurallySame(publishedRenames(['a.html', 'a/?.html']), [['a/?.html', 'a/%3F.html']])
+    },
+    rewritePublishedPaths: () => {
+        const renames = publishedRenames(['a/rustName.%.html', 'a/rustName.%25.html', 'a/rustName./.html'])
+        const text = '"./a/rustName.%.html" "./a/rustName.%25.html" href="a&#x2F;rustName.&#x2F;.html"'
+        assertEq(rewritePublishedPaths(renames)(text), '"./a/rustName.%25.html" "./a/rustName.%2525.html" href="a&#x2F;rustName.%2F.html"')
+    },
     moduleSource: () => {
         assertEq(moduleSource('<title>crypto&#x2F;sha2&#x2F;module.f.mjs - FunctionalScript documentation</title>')(sources), sources[0])
         assertEq(moduleSource('<title>fjs/types/result/types.ts - FunctionalScript documentation</title>')(sources), sources[2])
@@ -71,5 +86,7 @@ export const proof = {
         traversal: () => readManifest(`${sources[0]}\t../x/index.html`),
         absolute: () => readManifest(`${sources[0]}\t/x/index.html`),
         dot: () => readManifest(`${sources[0]}\t./x/index.html`),
+        invalidOutputPath: () => publishedPath('a/\uD800.html'),
+        nullTextAsset: () => rewritePublishedPaths([])('\0'),
     },
 }

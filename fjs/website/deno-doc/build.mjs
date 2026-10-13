@@ -3,8 +3,9 @@
  * mapping and the additive return link are pure policies in module.f.mjs.
  */
 
-import { readdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { spawnSync } from 'node:child_process'
+import { dirname } from 'node:path'
 
 import { cmp } from '../../types/string/module.f.mjs'
 import { deno } from '../../ci/config/module.f.js'
@@ -12,7 +13,7 @@ import { rustdocFooter, rustdocHead, rustdocHeader } from '../cargo-doc/module.f
 import { fundingPath, parse as parseFunding } from '../funding/module.f.mjs'
 import { documentationBarsStylesheet } from '../style/module.f.js'
 import { _buildIdentity } from '../module.f.mjs'
-import { entrypoints, inputDir, manifestName, moduleSource, outputDir, stylesheetName, symbolSource, withSiteChrome } from './module.f.mjs'
+import { entrypoints, inputDir, manifestName, moduleSource, outputDir, publishedPath, publishedRenames, rewritePublishedPaths, stylesheetName, symbolSource, withSiteChrome } from './module.f.mjs'
 
 /** @type {(dir: string) => Promise<readonly string[]>} */
 const files = async dir => (await Promise.all((await readdir(dir, { withFileTypes: true })).map(async entry => {
@@ -29,6 +30,7 @@ if (version.status !== 0 || !version.stdout.startsWith(`deno ${deno} `)) {
 const sources = entrypoints(await files('fjs'))
 if (sources.length === 0) { throw Error('no public Deno entrypoints') }
 await rm(inputDir, { recursive: true, force: true })
+await mkdir(inputDir, { recursive: true })
 // Do not suppress diagnostics. Warnings are failures too: a partial type graph
 // must not be published as if it were complete.
 const generated = spawnSync('deno', ['doc', '--no-npm', '--no-remote', '--html', '--name=FunctionalScript', `--output=${inputDir}`, ...sources], { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 })
@@ -37,6 +39,27 @@ process.stderr.write(generated.stderr ?? '')
 if (generated.error || generated.status !== 0 || generated.stderr.includes('Warning')) {
     throw Error('Deno documentation generation failed; see diagnostics above')
 }
+const generatedPages = await files(inputDir)
+const relativePages = generatedPages.map(path => path.slice(inputDir.length + 1))
+const publishedPages = relativePages.map(publishedPath)
+if (new Set(publishedPages).size !== publishedPages.length) {
+    throw Error('Deno output paths collide after URI encoding')
+}
+const renames = publishedRenames(relativePages)
+const stagedDir = `${inputDir}.published`
+await rm(stagedDir, { recursive: true, force: true })
+await Promise.all(generatedPages.map(async (source, index) => {
+    const relative = relativePages[index]
+    const target = `${stagedDir}/${publishedPages[index]}`
+    await mkdir(dirname(target), { recursive: true })
+    if (relative.endsWith('.html') || relative === 'search_index.js') {
+        await writeFile(target, rewritePublishedPaths(renames)(await readFile(source, 'utf8')))
+    } else {
+        await copyFile(source, target)
+    }
+}))
+await rm(inputDir, { recursive: true, force: true })
+await rename(stagedDir, inputDir)
 const pages = await files(inputDir)
 /** @type {readonly (readonly [string, string])[]} */
 const modules = (await Promise.all(pages.filter(path => path.endsWith('/index.html')).map(async path => {
@@ -61,4 +84,4 @@ await Promise.all(pages.filter(path => path.endsWith('.html')).map(async path =>
 }))
 await writeFile(`${inputDir}/${stylesheetName}`, documentationBarsStylesheet)
 await writeFile(`${inputDir}/${manifestName}`, modules.map(([source, page]) => `${source}\t${page}\n`).join(''))
-console.log(`Deno API: ${sources.length} entrypoints, ${pages.length} files`)
+console.log(`Deno API: ${sources.length} entrypoints, ${pages.length} files, ${renames.length} URI-encoded paths`)

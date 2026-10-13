@@ -148,6 +148,12 @@ roots keeps Deno's common source prefix stable across builds.
 
 The website validates the manifest's targets and root index, copies HTML and
 assets from `target/deno-doc` to `deno.doc/`, and omits the build-only manifest.
+Some exported objects use JavaScript operators as property keys, which Deno
+writes verbatim into symbol-page filenames. Before copying, the host build
+percent-encodes those filenames and rewrites Deno's HTML links and search
+index. This keeps every native symbol page searchable while producing a
+URI-encoded asset manifest that Cloudflare accepts. The build also refuses
+collisions after encoding.
 `target/` is excluded by `.assetsignore`; `deno.doc/` is gitignored and reserved
 by the website walk. `tsconfig.json` excludes its generated JavaScript, and
 the npm package excludes both `deno.doc/**` and `target/deno-doc/**`. It is served as documentation, never

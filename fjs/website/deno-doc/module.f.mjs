@@ -6,6 +6,7 @@
  */
 
 import { assert } from '../../asserts/module.f.mjs'
+import { percentEncodePath } from '../../text/percent/module.f.mjs'
 
 /** Deno's intermediate output, excluded from uploads with all of target/. */
 export const inputDir = 'target/deno-doc'
@@ -15,6 +16,52 @@ export const outputDir = 'deno.doc'
 export const manifestName = '_modules.txt'
 /** The bars' scoped stylesheet, copied with Deno's own assets. */
 export const stylesheetName = '_functional-script.css'
+
+/**
+ * A generated file path as Cloudflare's asset manifest accepts it. Deno uses
+ * property names verbatim in symbol-page filenames, including operators and
+ * spaces. Encode those UTF-8 bytes while preserving path separators.
+ *
+ * A slash property is the one ambiguous case: Deno writes `name./.html`, as
+ * though the property were a directory. Collapse that observed shape into the
+ * single filename `name.%2F.html`; the page's own relative assets were already
+ * written for that shallower location.
+ *
+ * @type {(path: string) => string}
+ */
+export const publishedPath = path => {
+    const slashSuffix = '/.html'
+    const slashProperty = path.endsWith(`.${slashSuffix}`)
+    const literal = slashProperty ? path.slice(0, -slashSuffix.length) : path
+    // `percentEncodePath` keeps existing escapes. These are raw filesystem
+    // names, so make every literal percent an escape of percent first.
+    const encoded = percentEncodePath(literal.split('%').join('%25'))
+    assert(encoded !== null, ['Deno wrote a path that is not UTF-8', path])
+    return slashProperty ? `${encoded}%2F.html` : encoded
+}
+
+/** Only the paths whose published spelling differs. @type {(paths: readonly string[]) => readonly (readonly [string, string])[]} */
+export const publishedRenames = paths => paths
+    .map(path => /** @type {const} */ ([path, publishedPath(path)]))
+    .filter(([source, target]) => source !== target)
+
+/** Deno HTML spells path separators as entities. @type {(path: string) => string} */
+const htmlPath = path => path.split('/').join('&#x2F;')
+
+/**
+ * Rewrite Deno's links to renamed assets, both in its JSON search index and
+ * in HTML attributes. Full output-relative paths make each replacement
+ * unambiguous even when several modules expose the same operator property.
+ *
+ * @type {(renames: readonly (readonly [string, string])[]) => (text: string) => string}
+ */
+export const rewritePublishedPaths = renames => text => {
+    assert(!text.includes('\0'), ['Deno wrote a null byte in a text asset', text])
+    const marked = renames.reduce((result, [source], index) =>
+        result.split(source).join(`\0${index}r\0`).split(htmlPath(source)).join(`\0${index}h\0`), text)
+    return renames.reduce((result, [, target], index) =>
+        result.split(`\0${index}r\0`).join(target).split(`\0${index}h\0`).join(htmlPath(target)), marked)
+}
 
 /**
  * Library entrypoints and public type companions, in deterministic order.
