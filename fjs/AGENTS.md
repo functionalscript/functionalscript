@@ -9,7 +9,9 @@ Authored FunctionalScript has two extensions: `.f.mjs`, and `.f.js` for source
 the current compiler accepts ([`compiler/README.md`](./compiler/README.md) defines
 both). Every rule below stated for `.f.mjs` applies to `.f.js` alike; the one
 difference, that a proof stays `proof.f.mjs`, is in
-[§1.2](#12-proof-coverage-is-mandatory).
+[§1.2](#12-proof-coverage-is-mandatory). What to write instead of what the
+compiler refuses, construct by construct, is
+[CONVERTING.md](../doc/CONVERTING.md).
 
 ## Contents
 
@@ -26,9 +28,12 @@ difference, that a proof stays `proof.f.mjs`, is in
 - `tsc` — type-check. The compiler is the Nix developer shell's (`./dev.sh`),
   not a dependency of this package. Not `npx tsc`, which resolves nothing
   locally and fetches the registry's latest.
-- `fjs test` (or any equivalent from
+- `npm start test` (or any equivalent from
   [CONTRIBUTING.md](../CONTRIBUTING.md#ways-to-run-the-functionalscript-test-suite))
-  — test FunctionalScript (`.f.mjs`) files.
+  — test FunctionalScript (`.f.mjs`) files. Run from a directory, it tests
+  that directory alone, which is what a change under one directory needs;
+  coverage scopes the same way
+  ([CONTRIBUTING.md](../CONTRIBUTING.md#running-tests-under-a-subtree)).
 
 ### 1.2 Proof coverage is mandatory
 

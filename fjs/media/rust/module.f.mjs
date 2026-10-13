@@ -33,6 +33,8 @@
  */
 
 import { error, ok } from '../../types/result/module.f.js'
+import { isNaN_ } from '../../types/number/is_nan/module.f.js'
+import { isNegativeZero } from '../../types/number/is_negative_zero/module.f.js'
 
 /**
  * A character a Rust string literal cannot hold as it stands: a control
@@ -166,8 +168,8 @@ export const f64Bits = v => u64Hex(bitsOf(v))
 
 /** @type {(v: number) => bigint} */
 const bitsOf = v => {
-    if (Number.isNaN(v)) { return canonicalNan }
-    const sign = v < 0 || Object.is(v, -0) ? 1n << 63n : 0n
+    if (isNaN_(v)) { return canonicalNan }
+    const sign = v < 0 || isNegativeZero(v) ? 1n << 63n : 0n
     const a = Math.abs(v)
     if (a === Infinity) { return sign | 0x7ff0_0000_0000_0000n }
     if (a === 0) { return sign }

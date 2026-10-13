@@ -212,7 +212,7 @@ canonical job asserts, as its first command, that its own shell reports the vers
 `config/module.f.js` records for it:
 
 ```sh
-test "$(sh ./gen.nix/run node --version)" = "v26.10.0"
+test "$(sh ./gen.nix/run node --version)" = "v26.11.1"
 test "$(sh ./gen.nix/run deno eval 'console.log(Deno.version.deno)')" = "2.8.3"
 ```
 

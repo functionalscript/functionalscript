@@ -24,9 +24,9 @@ repository consults it. The rest of what the build needs, the build command
 installs first ([the build command](#the-build-command)).
 
 **That is what lets a page load any repository file by its path at run time.**
-A page's proofs are the real `.f.mjs` modules under it, imported by the browser
-from where they actually live; the source and documentation views planned in
-`todo/` fetch the same files. None of that works from a directory of copies.
+A page's proofs are the real `.f.mjs` and `.f.js` modules under it, imported by
+the browser from where they actually live; the source and documentation views
+planned in `todo/` fetch the same files. None of that works from a directory of copies.
 
 [`emergent_testing/todo/browser-testing.md`](../emergent_testing/todo/browser-testing.md)
 describes an eventual isolated application root that exposes HTML and

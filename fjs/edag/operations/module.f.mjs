@@ -223,7 +223,7 @@ export const operation = evaluator => {
         then(operand(node[2], next), (right, after) => {
             const [tag] = node
             switch (tag) {
-                case '===': case '!==': case 'is': { return [after, semanticBinary[tag](left, right)] }
+                case '===': case '!==': { return [after, semanticBinary[tag](left, right)] }
                 default: {
                     const a = toPrimitive(left, 'number', invoke)
                     const [kind, x] = a

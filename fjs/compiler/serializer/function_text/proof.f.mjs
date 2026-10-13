@@ -26,6 +26,47 @@ export const proof = {
         assertEq(render(['=>', 1, [], ['()', ['self'], [['arg', 0]]]]), '(function $0($1){return ((0,($0))(($1)));})')
         assertEq(render(['=>', 0, [], ['=>', 0, [['self']], ['frame', 0]]]), '(function $0(){return (($1)=>(()=>($1)))(($0));})')
     },
+    // a loop, `r => COND ? self(NEXT) : r`, is an arrow whose body is the
+    // language's loop, the one spelling every writer has: a `let` of the
+    // parameter, the `while` over it, the asserts and the memo cells inside
+    // the body, the assignment omitted where the next value is the
+    // variable, and no `self` name
+    loops: () => {
+        /** @type {(next: Exp) => Exp} */
+        const call = next => ['()', ['self'], [next]]
+        assertEq(render(['=>', 1, [], ['?:', ['<', ['arg', 0], 10], call(['+', ['arg', 0], 1]), ['arg', 0]]]),
+            '($0)=>{let $1=$0;while((($1)<(10))){$1=(($1)+(1));}return $1;}')
+        assertEq(render(['=>', 1, [], ['?:', true, [',', [['[]', [2]], call(0)]], ['arg', 0]]]),
+            '($0)=>{let $1=$0;while((true)){([(2)]);$1=(0);}return $1;}')
+        assertEq(render(['=>', 1, [], ['?:', ['arg', 0], call(['arg', 0]), ['arg', 0]]]),
+            '($0)=>{let $1=$0;while(($1)){}return $1;}')
+        // a shared node of the body is a memo cell of each round
+        const shared = /** @type {const} */ (['[]', [['arg', 0]]])
+        assertEq(render(['=>', 1, [], ['?:', ['<', ['arg', 0], 3], call(['+', ['.', shared, 0], ['.', shared, 'length']]), ['arg', 0]]]),
+            '($0)=>{let $1=$0;while((($1)<(3))){const $2=(()=>{let $3,$4=false;return()=>{if(!$4){$3=([($1)]);$4=true;}return $3;};})();$1=((($2())[(0)])+(($2())[("length")]));}return $1;}')
+        // a frame slot reads as its name, as in any body, the slots
+        // numbered before the parameter
+        assertEq(render(['=>', 1, [['[]', []]], ['?:', ['frame', 0], call(['frame', 0]), ['arg', 0]]]),
+            '($1)=>{let $2=$1;while(($0)){$2=($0);}return $2;}')
+        // the shapes that keep the recursion, in every writer: a root
+        // assert, a condition reaching a cell, and a read of the rest array
+        assertEq(render(['=>', 1, [], [',', [['[]', [1]], ['?:', true, call(0), ['arg', 0]]]]]),
+            '(function $0($1){return (([(1)]),((true)?((0,($0))((0))):($1)));})')
+        assertEq(render(['=>', 1, [], ['?:', ['.', shared, 0], call(['.', shared, 'length']), ['arg', 0]]]),
+            '(function $0($1){const $2=(()=>{let $3,$4=false;return()=>{if(!$4){$3=([($1)]);$4=true;}return $3;};})();return ((($2())[(0)])?((0,($0))((($2())[("length")]))):($1));})')
+        assertEq(render(['=>', 1, [], ['?:', ['.', ['rest'], 'length'], call(['arg', 0]), ['arg', 0]]]),
+            '(function $0($1,...$2){return ((($2)[("length")])?((0,($0))(($1))):($1));})')
+        // a next value that throws is assigned as the applied function a
+        // throw is spelled as anywhere, and throws there
+        assertEq(render(['=>', 1, [], ['?:', true, call(['throw', 1]), ['arg', 0]]]),
+            '($0)=>{let $1=$0;while((true)){$1=(()=>{throw (1);})();}return $1;}')
+        // a condition reaches a cell through a nested function's slot too,
+        // and not through one holding something else
+        assertEq(render(['=>', 1, [], ['?:', ['()', ['=>', 0, [shared], ['frame', 0]], []], call(['.', shared, 0]), ['arg', 0]]]),
+            '(function $0($1){const $2=(()=>{let $3,$4=false;return()=>{if(!$4){$3=([($1)]);$4=true;}return $3;};})();return (((0,(($5)=>(()=>($5)))(($2())))())?((0,($0))((($2())[(0)]))):($1));})')
+        assertEq(render(['=>', 1, [], ['?:', ['()', ['=>', 0, [['[]', [1]]], ['frame', 0]], []], call(0), ['arg', 0]]]),
+            '($0)=>{let $1=$0;while(((0,(($2)=>(()=>($2)))(([(1)])))())){$1=(0);}return $1;}')
+    },
     names: () => {
         const a = assertOk(analysis(['=>', 0, [], 1]))
         assertEq(resolve([_renderSymbolic(a, /** @type {readonly ['#', number]} */ (a.root)[1], 'test', [])]).join(''), '()=>(1)')
@@ -50,7 +91,6 @@ export const proof = {
             [['+', 1], '(+ (1))'], [['-', 1], '(- (1))'],
             [['+', 1, 2], '((1)+(2))'], [['-', 1, 2], '((1)-(2))'],
             [['String', 1], '(String((1)))'], [['Number', '2'], '(Number(("2")))'],
-            [['is', 1, 2], '(Object.is((1),(2)))'],
             [['?:', true, 1, 2], '((true)?(1):(2))'],
             [[',', []], '(undefined)'], [[',', [1]], '((1))'], [[',', [1, 2]], '((1),(2))'],
             [['throw', 1], '(()=>{throw (1);})()'],

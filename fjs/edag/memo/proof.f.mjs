@@ -61,7 +61,7 @@ export const proof = {
         /** @type {Exp} */
         const fact = ['=>', 1, [], ['?:', ['<', ['arg', 0], 2], 1, ['*', ['arg', 0], ['()', ['self'], [['-', ['arg', 0], 1]]]]]]
         eq(['()', fact, [5]], 120)
-        agrees(['()', ['=>', 0, [], ['is', ['self'], ['self']]], []])
+        agrees(['()', ['=>', 0, [], ['===', ['self'], ['self']]], []])
         agrees(['()', ['=>', 1, [], ['?:', ['arg', 0], ['()', ['=>', 0, [['self']], ['()', ['frame', 0], [0]]], []], 'base']], [1]])
     },
     // The model: one node reached twice is one value. Amnesia gives two
@@ -156,7 +156,7 @@ export const proof = {
         agrees(['typeof', ['&&', 1, 'a']])
     },
     operations: () => {
-        for (const tag of /** @type {const} */ (['+', '-', '*', '/', '%', '**', '&', '|', '^', '<<', '>>', '>>>', '<', '<=', '>', '>=', '===', '!==', 'is'])) {
+        for (const tag of /** @type {const} */ (['+', '-', '*', '/', '%', '**', '&', '|', '^', '<<', '>>', '>>>', '<', '<=', '>', '>=', '===', '!=='])) {
             agrees([tag, 6, 2])
         }
         for (const tag of /** @type {const} */ (['!', 'typeof', 'String', 'Number', '~', '+', '-'])) { agrees([tag, '2']) }

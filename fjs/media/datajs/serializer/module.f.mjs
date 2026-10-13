@@ -83,6 +83,7 @@ import { error, mapOk, ok, okThen } from '../../../types/result/module.f.js'
 import { add, empty as noneStarted, has } from '../../../types/set/module.f.mjs'
 import { chunksMarked, chunkStrings, chunksText, keyword, withNames } from '../../../text/marked/module.f.mjs'
 import { arrayWrap, boolSerialize, colon, leafSerialize as leafSerializeWith, nullSerialize, numberSerialize, objectWrap, stringSerialize } from '../../json/serializer/module.f.mjs'
+import { isFinite_ } from '../../../types/number/is_finite/module.f.js'
 
 const {
     entries,
@@ -111,7 +112,7 @@ const undefinedSerialize = [['undefined', 'literal']]
  *
  * @type {(value: number) => List<Chunk>}
  */
-export const _numberSerialize = value => isFinite(value) ? numberSerialize(value) : [[`${value}`, 'literal']]
+export const _numberSerialize = value => isFinite_(value) ? numberSerialize(value) : [[`${value}`, 'literal']]
 
 /**
  * A leaf as a document spells it — this format's counterpart to JSON's
@@ -569,7 +570,7 @@ const jsonLeaf = value => {
     switch (typeof value) {
         case 'boolean': { return ok(boolSerialize(value)) }
         case 'string': { return ok(stringSerialize(value)) }
-        case 'number': { return isFinite(value) ? ok(numberSerialize(value)) : noJson(`${value}`) }
+        case 'number': { return isFinite_(value) ? ok(numberSerialize(value)) : noJson(`${value}`) }
         case 'bigint': { return noJson(`${value}n`) }
         case 'undefined': { return noJson('undefined') }
         default: { return ok(nullSerialize) }

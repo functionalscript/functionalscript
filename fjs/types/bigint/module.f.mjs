@@ -24,6 +24,7 @@
 import { cmp } from '../function/compare/module.f.mjs'
 import { addition as additionOp } from '../function/operator/module.f.js'
 import { fold } from '../../common/monoid/module.f.mjs'
+import { isFinite_ } from '../number/is_finite/module.f.js'
 
 /**
  * Adds two `bigint` values.
@@ -79,7 +80,6 @@ export const sign = a => cmp(a)(0n)
  */
 export const serialize = a => `${a}n`
 
-const { isFinite } = Number
 
 const { log2: mathLog2 } = Math
 
@@ -146,7 +146,7 @@ export const log2 = v => {
     // We know that `v` is less than `1n << 1024` so we can calculate a remainder using
     // `Math.log2`.
     const nl = mathLog2(Number(v))
-    if (isFinite(nl)) {
+    if (isFinite_(nl)) {
         const rem = BigInt(nl | 0)
         // (v >> rem) is either `0` or `1`, and it's used as a correction for
         // Math.log2 rounding.

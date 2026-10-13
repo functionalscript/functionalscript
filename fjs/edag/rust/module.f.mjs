@@ -41,6 +41,7 @@
  *
  * @import { Exp, Index, OpId, Primitive, Properties } from '../types.ts'
  * @import { Printed, Printer, Scope, Use, Uses } from './types.ts'
+ * @import { _LoopParts } from './private.ts'
  * @import { Result } from '../../types/result/types.ts'
  */
 
@@ -191,10 +192,6 @@ export const op2Rust = {
     // operator returns.
     '===': (a, b) => cat([unstable('strict_eq'), `(${a}, ${b})`]),
     '!==': (a, b) => cat([unstable('strict_ne'), `(${a}, ${b})`]),
-    // `Object.is` is `SameValue`, which no Rust operator spells; like `===`
-    // its `Any::same_value` answers a `bool`, and `object_is` lifts it into
-    // the `Result` every operator returns.
-    is: (a, b) => cat([unstable('object_is'), `(${a}, ${b})`]),
 }
 
 /**
@@ -599,9 +596,13 @@ const restLine = length => cat([`${kw('let')} rest = args.clone().into_iter()${l
  * temporaries there. A composed operand is parenthesized then, since
  * `a * b * c` is not `a * (b * c)` — see {@link composed}.
  *
- * @type {(nested: boolean) => (shared: readonly (readonly[Exp, string])[]) => (root: Exp) => Result<Printer, readonly unknown[]>}
+ * `arg` prints a fixed argument's read, {@link argRead} unless the scope
+ * holds one by another name: a loop's state, the variable of a `loop`
+ * ({@link loopClosure}).
+ *
+ * @type {(nested: boolean, arg?: (k: number) => Printed<string>) => (shared: readonly (readonly[Exp, string])[]) => (root: Exp) => Result<Printer, readonly unknown[]>}
  */
-const printer = nested => shared => root => {
+const printer = (nested, arg = argRead) => shared => root => {
     /** @type {(e: Exp) => boolean} */
     const isBound = e => shared.some(([n]) => n === e)
     /**
@@ -811,7 +812,7 @@ const printer = nested => shared => root => {
         // `undefined` past the end as JavaScript does.
         if (id === 'args') { return ok(cat(['args.clone()', toAny])) }
         if (id === 'rest') { return ok(cat(['rest.clone()', toAny])) }
-        if (id === 'arg') { return ok(argRead(a)) }
+        if (id === 'arg') { return ok(arg(a)) }
         // The `entry` helper as a value: the closure `A::static_function`
         // binds, as {@link closure} binds every function, answering
         // `Any::entry` of its two fixed arguments — `nanvm-lib`'s own
@@ -876,7 +877,9 @@ const printer = nested => shared => root => {
             // Only the corpus's expression mode has the `function_any`
             // harness helper. A module scope constructs every function
             // through the VM, including `() => undefined`.
-            return nested && a === 0 && isSmallestLambda(b, c) ? plain('function_any()') : closure(a, c, textExpr(e))(frameExpr(b))
+            if (nested && a === 0 && isSmallestLambda(b, c)) { return plain('function_any()') }
+            const parts = loopParts(/** @type {readonly unknown[]} */ (e))
+            return parts === null ? closure(a, c, textExpr(e))(frameExpr(b)) : loopClosure(parts, c, textExpr(e))(frameExpr(b))
         }
         return bare(/** @type {readonly any[]} */ (e))
     }
@@ -950,6 +953,34 @@ const printer = nested => shared => root => {
     const closure = (length, body, text) => frame => flat(map2((/** @type {readonly string[]} */ lines, /** @type {string} */ fr) =>
         cat([`A::static_function(|${readsFrame(body) || readsSelf(body) ? 'self_' : '_self'}, ${readsArgs(body) ? 'args' : '_args'}| ${braced(lines)}, ${num(`${length}`)}, ${fr}, ${text})`, toAny])
     )(reads('rest')(body) ? map2((/** @type {string} */ rest, /** @type {readonly string[]} */ s) => [rest, ...s])(ok(restLine(length)), statements(body)) : statements(body), frame))
+    /**
+     * A loop, `r => COND ? self(NEXT) : r` ({@link loopParts}), as the
+     * closure of its function whose body is the loop it is, the one
+     * spelling every writer has for it (`fjs/edag/todo/tail-call-loop.md`):
+     * the variable `r` bound to the first argument, then Rust's `loop` —
+     * the condition's temporaries, the condition tested at the top,
+     * `break` where it is falsy, the asserts and the next value's
+     * temporaries, the assignment, omitted where the next value is the
+     * variable itself — and `Ok(r)`. A `loop` rather than a `while`, since
+     * a `while` cannot hold the condition's temporaries. No round is a
+     * call, so a million rounds cost no stack, where `Any::call` of
+     * `self_` per round overflows it; `self_` is read only for the frame.
+     *
+     * @type {(parts: _LoopParts, body: Exp, text: string) => (frame: Result<Printed<string>, readonly unknown[]>) => Result<Printed<string>, readonly unknown[]>}
+     */
+    const loopClosure = ({ condition, arm, next }, body, text) => frame => {
+        /** @type {(k: number) => Printed<string>} */
+        const variable = k => k === 0 ? code('r.clone()') : argRead(k)
+        const test = okThen(p => map2((/** @type {readonly string[]} */ lines, /** @type {string} */ c) =>
+            [...lines, `${kw('if')} !${c}.to_boolean() { ${kw('break')} }`])(p.lets(condition), p.value(condition)))(printer(false, variable)([])(condition))
+        const step = okThen(p => map2((/** @type {readonly string[]} */ lines, /** @type {string} */ n) =>
+            [...lines, ...(isArg0(next) ? [] : [`r = ${n};`])])(p.lets(arm), p.value(next)))(printer(false, variable)([])(arm))
+        const init = cat([`${kw('let')} ${kw('mut')} r: Any<A> = `, argRead(0), ';'])
+        return flat(map4((/** @type {readonly string[]} */ t, /** @type {readonly string[]} */ s, /** @type {string} */ fr, /** @type {string} */ first) => cat([
+            `A::static_function(|${readsFrame(body) ? 'self_' : '_self'}, args| ${braced([first, `${kw('loop')} ${braced([...t, ...s])}`, 'Ok(r)'])}, ${num('1')}, ${fr}, ${text})`,
+            toAny,
+        ]))(test, step, frame, ok(init)))
+    }
     /**
      * A function's frame as the `Array<A>` its construction takes: the
      * empty `Array::default()` for no slots, and otherwise the slots, each
@@ -1123,8 +1154,15 @@ const printer = nested => shared => root => {
      */
     const letLine = n => isThunk(n)
         ? map1(s => `${kw('let')} ${nameOf(n)} = ${s};`)(thunk(n))
-        : map1(s => `${kw('let')} ${nameOf(n)}: Any<A> = ${
-            !isOperation(n) ? s : isChain(tagOf(n)) || tagOf(n) === '()' || tagOf(n) === '[]' ? `${s}?` : `(${s})?`};`)(node(n))
+        : map1(s => `${kw('let')} ${nameOf(n)}: Any<A> = ${!isOperation(n) ? s : checked(n)(s)};`)(node(n))
+    /**
+     * An operation's text as the `Any<A>` it answers: its call followed
+     * by `?` — an operator's text parenthesized first, a chain's or a
+     * call's as it is.
+     *
+     * @type {(n: Exp) => (s: string) => string}
+     */
+    const checked = n => s => isChain(tagOf(n)) || tagOf(n) === '()' || tagOf(n) === '[]' ? `${s}?` : `(${s})?`
     /**
      * The `Result` an argument list's thunk answers: the array it builds,
      * `Ok(…)`, or `spread_array`'s own, which may throw, where it holds a
@@ -1142,8 +1180,15 @@ const printer = nested => shared => root => {
      *
      * @type {(e: Exp) => Result<Printed<readonly string[]>, readonly unknown[]>}
      */
-    const block = e => map2((/** @type {readonly string[]} */ lets, /** @type {string} */ value) => [...lets, value])(
-        all(declaredBy(e).map(letLine)), result(e))
+    const block = e => map2((/** @type {readonly string[]} */ lets, /** @type {string} */ value) => [...lets, value])(lets(e), result(e))
+    /**
+     * The `let` lines of `e`'s block: one per temporary it binds, in
+     * dependency order — the block without its answer, for a statement
+     * that answers otherwise.
+     *
+     * @type {(e: Exp) => Result<Printed<readonly string[]>, readonly unknown[]>}
+     */
+    const lets = e => all(declaredBy(e).map(letLine))
     /**
      * One object property, `(key, value)` called through `call`: a tuple
      * for `to_object`, or `property_item(key, value)` beside a spread, whose
@@ -1164,7 +1209,19 @@ const printer = nested => shared => root => {
             ? flat(map1(x => cat([call, '(', literalKey(k), `, ${x})`]))(f(v)))
             : flat(map2((x, y) => cat([unstable('computed_item'), `(${x}, ${y})?`]))(f(k), f(v)))
     }
-    return ok({ f, block })
+    /**
+     * A node as the `Any<A>` a statement reads after the `let` lines of
+     * its block, {@link lets}, which bound the operands before a comma's
+     * last: a bound node's name, a value's construction, a comma's last
+     * operand's, and an unbound operation's call, {@link checked} — what
+     * {@link letLine} binds, for a statement that is no `let`.
+     *
+     * @type {(e: Exp) => Result<Printed<string>, readonly unknown[]>}
+     */
+    const value = e => isComma(e) ? value(last(e))
+        : isOperation(e) && bound.every(([n]) => n !== e) ? map1(checked(e))(node(e))
+        : f(e)
+    return ok({ f, block, lets, value })
 }
 
 /**
@@ -1206,6 +1263,42 @@ const isSmallestLambda = (slots, body) =>
  * @type {(e: Exp) => Result<string, readonly unknown[]>}
  */
 export const nodeExpr = expExpr([])
+
+/** Whether a node is the read of the first fixed argument, `['arg', 0]`. @type {(e: unknown) => boolean} */
+const isArg0 = e => e instanceof Array && e[0] === 'arg' && e[1] === 0
+
+/**
+ * The parts of a loop read off its function node — the template
+ * `fjs/edag/loop` recognizes in the analysis table, read here on the graph
+ * this printer walks: `['=>', 1, slots, ['?:', COND, ARM, ['arg', 0]]]`,
+ * `ARM` the call `['()', ['self'], [NEXT]]` or a comma holding asserts
+ * before it — and `null` where the function is not one, or is a shape
+ * every writer keeps the recursion for (`fjs/edag/todo/tail-call-loop.md`):
+ * `self` read anywhere else, a shared `?:`, comma or call on the path, a
+ * root assert, a condition and an arm sharing a node that is no atom, a
+ * read of the rest array, a next value that is a spread. A next value that
+ * throws is assigned as any is, the `Err` the round's `?` returns.
+ *
+ * @type {(fn: readonly unknown[]) => _LoopParts | null}
+ */
+const loopParts = fn => {
+    const [, length, , body] = /** @type {readonly any[]} */ (fn)
+    if (length !== 1 || !(body instanceof Array) || body[0] !== '?:') { return null }
+    const [, condition, arm, otherwise] = body
+    if (!isArg0(otherwise) || reads('rest')(/** @type {Exp} */ (/** @type {unknown} */ (body)))) { return null }
+    const call = isComma(arm) ? last(arm) : arm
+    if (!(call instanceof Array) || call[0] !== '()' || !(call[1] instanceof Array) || call[1][0] !== 'self' || call[2].length !== 1) { return null }
+    const next = call[2][0]
+    if (next instanceof Array && next[0] === '...') { return null }
+    const visited = visit(operandsOf)([])(body)
+    /** Whether one place reaches the node, which is under `body`. @type {(n: unknown) => boolean} */
+    const once = n => visited.some(([m, count]) => m === n && count === 1)
+    const selves = visited.filter(([n]) => tagOf(n) === 'self')
+    if (selves.length !== 1 || /** @type {unknown} */ (selves[0][0]) !== call[1] || !once(call[1]) || !once(arm) || !once(call)) { return null }
+    const inCondition = visit(operandsOf)([])(condition).map(([n]) => n)
+    const shared = visit(operandsOf)([])(arm).some(([n]) => !atomic(n) && inCondition.includes(n))
+    return shared ? null : { condition, arm, next }
+}
 
 /**
  * `visited` with `root`'s subgraph folded in: every distinct node it reaches

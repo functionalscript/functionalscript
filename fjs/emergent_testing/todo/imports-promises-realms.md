@@ -10,14 +10,14 @@ lost behaviour it had: that is a regression, and a regression may not be
 deferred (root [AGENTS.md](../../../AGENTS.md) §5), which is why this is P2
 although no authored proof does this.
 
-> **Scope.** In a browser this framework runs `.f.mjs` and nothing else; under
-> `fjs t` it also runs a few impure `.mjs` proofs; and covering every edge case
-> of plain JavaScript is not a goal. See
-> [the README](../README.md#scope) — everything below is read under that rule.
-> A `.f.mjs` that breaks it is a defect, not an exception — the one known case,
-> two `Promise.resolve` fixtures in `../proof.f.mjs`, is fixed: neither promise
-> was ever consumed, since the mocks intercept the effects and read the context
-> as data.
+> **Scope.** In a browser this framework runs authored FunctionalScript,
+> `.f.mjs` and `.f.js`, and nothing else; under `fjs t` it also runs a few
+> impure `.mjs` proofs; and covering every edge case of plain JavaScript is
+> not a goal. See [the README](../README.md#scope) — everything below is read
+> under that rule. An authored module that breaks it is a defect, not an
+> exception — the one known case, two `Promise.resolve` fixtures in
+> `../proof.f.mjs`, is fixed: neither promise was ever consumed, since the
+> mocks intercept the effects and read the context as data.
 
 ### Problem
 
@@ -78,8 +78,8 @@ subscribe to.
   looked right and misclassifies an ordinary identity-`resolve` tree, hanging
   the run; and no brand check reaches the case where the value *is* a promise
   and the subscription is the defect. See Findings. The question stopped
-  mattering once the scope was written down: the browser runs `.f.mjs` only, so
-  it never meets a promise it did not create.
+  mattering once the scope was written down: the browser runs authored
+  FunctionalScript only, so it never meets a promise it did not create.
 - [ ] **Decide whether the runner should see namespace objects at all.** If
   discovery handed the runner a plain record of proofs rather than the module
   namespace, the `then` export hazard would not reach it — and the `then`-export
@@ -184,13 +184,13 @@ shadow in `runPromise` are for. They are not decoration.
 **FunctionalScript as specified has no promises, and nothing enforces that.** A
 conforming `.f.mjs` proof is pure: no `async`, no `await`, nothing that
 constructs a `Promise`. But selection is by filename —
-`website/module.f.mjs`'s `authored` is a bare `.endsWith('.f.mjs')` with no
-content check — so a module that does not conform is loaded anyway. Verified: a
-`.f.mjs` returning `Promise.resolve(...)` is selected (138 of 138) and awaited
-correctly. Treat what follows as a statement about the *convention*, which is
-why proofs are scarce, not as a guarantee the toolchain provides. So every
-promise this runner has ever awaited comes from a hand-written *impure* `.mjs`
-proof. Counted:
+`website/module.f.mjs`'s `authored` is a bare extension check, `.f.mjs` or
+`.f.js`, with no content check — so a module that does not conform is loaded
+anyway. Verified: a `.f.mjs` returning `Promise.resolve(...)` is selected
+(138 of 138) and awaited correctly. Treat what follows as a statement about
+the *convention*, which is why proofs are scarce, not as a guarantee the
+toolchain provides. So every promise this runner has ever awaited comes from a
+hand-written *impure* `.mjs` proof. Counted:
 
 | | pure `.f.mjs` | impure `.mjs` |
 | --- | --- | --- |
@@ -210,7 +210,7 @@ own fixtures**, and deleting both leaves nothing uncovered.
 
 **In the browser it is stronger than that: by convention a promise does not
 occur.** The browser suite runs authored FunctionalScript and nothing else —
-`website/module.f.mjs`'s `authored` is `path.endsWith('.f.mjs')`, and the
+`website/module.f.mjs`'s `authored` matches `.f.mjs` and `.f.js`, and the
 proof list a page carries holds those and the one browser-realm proof the
 website ships, nothing else. Impure
 `.mjs` proofs are excluded by construction, and rightly so: a browser has no
@@ -219,11 +219,12 @@ wrong. So every leaf the browser runner executes is pure FunctionalScript, and
 pure FunctionalScript has no promises.
 
 Which means the machinery is circular twice over. It lives in the runner that
-*only* executes `.f.mjs`; it is exercised by `species.proof.mjs` and the
-cross-realm proofs, which are `.mjs` and therefore **never run in a browser at
-all** — they run under `fjs t`, in Node, against the browser runner called as a
-library. Machinery in the browser path, tested by fixtures that never reach the
-browser, guarding values the browser cannot produce.
+*only* executes authored FunctionalScript; it is exercised by
+`species.proof.mjs` and the cross-realm proofs, which are `.mjs` and therefore
+**never run in a browser at all** — they run under `fjs t`, in Node, against
+the browser runner called as a library. Machinery in the browser path, tested
+by fixtures that never reach the browser, guarding values the browser cannot
+produce.
 
 The one promise-adjacent value *pure* FunctionalScript can produce is an object
 with a key named `then` — a proof called `then`. `p instanceof Promise` refuses
@@ -268,9 +269,10 @@ rather than the browser defending alone, and `spoofedPromiseTag` and
 real, shared, and recorded here.
 
 Strictly, the browser needs no promise handling whatever — it runs only
-`.f.mjs`. `instanceof` is kept anyway: one expression, and it keeps the two
-runners' `sandbox` identical rather than "identical except the browser omits a
-branch", which is the kind of small asymmetry drift starts from.
+authored FunctionalScript, `.f.mjs` and `.f.js`. `instanceof` is kept anyway:
+one expression, and it keeps the two runners' `sandbox` identical rather than
+"identical except the browser omits a branch", which is the kind of small
+asymmetry drift starts from.
 
 That is not a compromise on correctness. It is correct for every value the
 language can produce, and for every value any proof in this repository actually
@@ -429,7 +431,8 @@ deleting it looked free:
 Three things to consider first, if the day comes:
 
 - **Ask what changed, before restoring any of it.** The reason this was deleted
-  is that the browser suite runs authored `.f.mjs` only. If that is still true,
+  is that the browser suite runs authored FunctionalScript, `.f.mjs` and
+  `.f.js`, only. If that is still true,
   the answer is still no machinery. If it is not, the scope rule in
   [browser testing](browser-testing.md) is what actually moved, and this
   follows from it rather than the other way round.

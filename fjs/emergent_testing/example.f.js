@@ -11,12 +11,14 @@ export const todo = () => { throw "not implemented" }
 
 /** @type {(a: number, b: number, r: number) => void} */
 const checkMul = (a, b, r) => {
-    if (mul(a, b) !== r) { throw `mul(${a}, ${b}) !== ${r}` } 
+    if (mul(a, b) !== r) { throw `mul(${a}, ${b}) !== ${r}` }
+    return undefined
 }
 
 export const proof = {
   addTest: () => {
     if (add(2, 2) !== 4) { throw "something wrong with the math" }
+    return undefined
   },
   mulTest: [
     () => checkMul(2, 3, 6),
@@ -30,5 +32,6 @@ export const proof = {
   },
   generateSqrTests: () => [1, 2, 3, 5].map(a => () => {
     if (sqr(a) !== a * a) { throw `sqr(${a})` }
+    return undefined
   })
 }

@@ -1060,6 +1060,144 @@ export const proof = {
         writes(['=>', 1, [], ['[]', [['arg', 0], '$a_0', '$0', '\0!binding\0']]],
             'export default ($0)=>[$0,"$a_0","$0","\\u0000!binding\\u0000"];')
     },
+    // A loop — a call, written in place in a function's body, of the
+    // template `fjs/edag/loop` recognizes — is `let` and `while`: the
+    // function's parameter the variable, its slots the names around the
+    // loop, its block's asserts `const`s and its next value the
+    // assignment, and the call's value the variable from the loop on. The
+    // text reads back as the same graph, the loop being what the front end
+    // lowers the two statements to.
+    loops: () => {
+        /** @type {(next: Exp) => Exp} */
+        const call = next => ['()', ['self'], [next]]
+        /** @type {(slots: readonly Exp[], condition: Exp, step: Exp) => Exp} */
+        const loop = (slots, condition, step) => ['=>', 1, slots, ['?:', condition, step, ['arg', 0]]]
+        const counting = loop([['arg', 0]], ['<', ['arg', 0], ['frame', 0]], call(['+', ['arg', 0], 2]))
+        const counted = /** @type {const} */ (['()', counting, [0]])
+        writes(['=>', 1, [], ['[]', [counted, counted]]], 'export default ($0)=>{let $1=0;while($1<$0){$1=$1+2;}return [$1,$1];};')
+        writes(['=>', 1, [], counted], 'export default ($0)=>{let $1=0;while($1<$0){$1=$1+2;}return $1;};')
+        // a nested function whose frame reads the variable keeps the
+        // recursion: written by name, it would hold the variable's last
+        // value, where the recursion's holds the value of its round — and
+        // the language refuses the capture, so the loop would read back as
+        // nothing; a slot computed from the variable is a `const` of the
+        // block, captured by value, and loops
+        const closure = /** @type {const} */ (['=>', 0, [['arg', 0]], ['frame', 0]])
+        writes(['=>', 1, [], ['()', loop([], ['===', ['typeof', ['arg', 0]], 'number'], call(closure)), [['arg', 0]]]],
+            'export default ($0)=>{const $1=($2)=>typeof $2==="number"?$1(()=>$2):$2;return $1($0);};')
+        writes(['=>', 1, [], ['()', loop([], true, [',', [['()', closure, []], call(1)]]), [0]]],
+            'export default ($0)=>{const $1=($2)=>true?(()=>{const $3=()=>$2;const $4=$3();return $1(1);})():$2;return $1(0);};')
+        writes(['=>', 1, [], ['()', loop([], ['<', ['arg', 0], 3], call(['=>', 0, [['+', ['arg', 0], 1]], ['frame', 0]])), [0]]],
+            'export default ($0)=>{let $1=0;while($1<3){const $2=$1+1;$1=()=>$2;}return $1;};')
+        // an assert in the block is a `const` there; a shared value the
+        // next value reads takes one too
+        const shared = /** @type {const} */ (['[]', [['arg', 0]]])
+        writes(['=>', 0, [], ['()', loop([], true, [',', [['[]', [1]], call(['+', ['.', shared, 0], ['.', shared, 'length']])]]), [0]]],
+            'export default ()=>{let $0=0;while(true){const $1=[1];const $2=[$0];$0=$2[0]+$2.length;}return $0;};')
+        // the initial value and the condition are any value; a block that
+        // leaves the variable as it is is empty, as one of asserts alone is
+        // its asserts
+        writes(['=>', 1, [], ['()', loop([['arg', 0]], ['()', ['frame', 0], [['arg', 0]]], call(['arg', 0])), [['[]', [1]]]]],
+            'export default ($0)=>{let $1=[1];while($0($1)){}return $1;};')
+        writes(['=>', 0, [], ['()', loop([], true, [',', [['[]', [1]], call(['arg', 0])]]), [0]]],
+            'export default ()=>{let $0=0;while(true){const $1=[1];}return $0;};')
+        // a loop under a lazy operand is the block's, as any value there
+        writes(['=>', 1, [], ['?:', ['arg', 0], counted, 1]],
+            'export default ($0)=>$0?(()=>{let $1=0;while($1<$0){$1=$1+2;}return $1;})():1;')
+        // the names around the loop are the function's slots, each with
+        // its `const` before the loop; the loop's own `self` is the
+        // function's name
+        const base = /** @type {const} */ (['[]', [3]])
+        writes(['=>', 0, [], ['()', loop([base], ['frame', 0], call(['frame', 0])), [base]]],
+            'export default ()=>{const $0=[3];let $1=$0;while($0){$1=$0;}return $1;};')
+        writes(['=>', 0, [], ['()', loop([['self']], true, call(['()', ['frame', 0], []])), [0]]],
+            'const $0=()=>{let $1=0;while(true){$1=$0();}return $1;};export default $0;')
+        // what the template admits and this text does not keeps the
+        // recursion: a loop at the module level, one reached by two edges,
+        // an assert before the condition, a next value that throws, and a
+        // function of the shape called some other way
+        writes(['()', loop([], ['<', ['arg', 0], 9], call(['+', ['arg', 0], 2])), [0]], 'const $0=($1)=>$1<9?$0($1+2):$1;export default $0(0);')
+        writes(['=>', 1, [], ['[]', [['()', counting, [0]], ['()', counting, [1]]]]],
+            'export default ($0)=>{const $1=($2)=>$2<$0?$1($2+2):$2;return [$1(0),$1(1)];};')
+        writes(['=>', 0, [], ['()', ['=>', 1, [], [',', [['[]', []], ['?:', true, call(0), ['arg', 0]]]]], [0]]],
+            'export default ()=>{const $0=($1)=>{const $2=[];return true?$0(0):$1;};return $0(0);};')
+        // a next value that throws is assigned as the applied function a
+        // throw is spelled as in expression position, never as the `throw`
+        // statement a block refuses
+        writes(['=>', 0, [], ['()', loop([], true, call(['throw', 1])), [0]]],
+            'export default ()=>{let $0=0;while(true){$0=(()=>{throw 1;})();}return $0;};')
+        writes(['=>', 0, [], ['()', loop([], true, call(0)), [0, 1]]],
+            'export default ()=>{const $0=($1)=>true?$0(0):$1;return $0(0,1);};')
+        writes(['=>', 0, [], ['()', loop([], true, call(0)), [['...', ['[]', [0]]]]]],
+            'export default ()=>{const $0=($1)=>true?$0(0):$1;return $0(...[0]);};')
+        // a function reading its rest array keeps the recursion, which
+        // gives each round the empty array a call of one argument leaves;
+        // `let` and `while` bind no rest array
+        writes(['=>', 0, [], ['()', loop([], ['.', ['rest'], 'length'], call(0)), [0]]],
+            'export default ()=>{const $0=($1,...$2)=>$2.length?$0(0):$1;return $0(0);};')
+        // the loop's three parts are written as any value is, each refusal
+        // its own; a call of a primitive is a call
+        refuses(['=>', 0, [], ['()', loop([], true, call(0)), [['+', 1]]]], 'a unary + node')
+        refuses(['=>', 0, [], ['()', loop([], ['+', 1], call(0)), [0]]], 'a unary + node')
+        refuses(['=>', 0, [], ['()', loop([], true, call(['+', 1])), [0]]], 'a unary + node')
+        writes(['=>', 0, [], ['()', 'f', [0]]], 'export default ()=>"f"(0);')
+        // a condition sharing a value of its own is written as its block,
+        // the value established afresh at every test — as the whole
+        // condition and as a lazy operand of it
+        const one = /** @type {const} */ (['[]', [1]])
+        writes(['=>', 1, [], ['()', loop([], ['===', one, one], call(['+', ['arg', 0], 1])), [0]]],
+            'export default ($0)=>{let $1=0;while((()=>{const $2=[1];return $2===$2;})()){$1=$1+1;}return $1;};')
+        writes(['=>', 1, [], ['()', loop([], ['&&', ['<', ['arg', 0], 3], ['===', one, one]], call(['+', ['arg', 0], 1])), [0]]],
+            'export default ($0)=>{let $1=0;while($1<3&&(()=>{const $2=[1];return $2===$2;})()){$1=$1+1;}return $1;};')
+        const over = /** @type {const} */ (['[]', [['arg', 0]]])
+        // a block reading the variable is a function called where it is
+        // written, which the language admits in a loop: the condition's
+        // own block, a lazy operand's in the condition, and one in the arm;
+        // a lazy operand reading the variable with nothing to hoist is
+        // written in place
+        writes(['=>', 1, [], ['()', loop([], ['<', ['.', over, 0], ['.', over, 'length']], call(['+', ['arg', 0], 1])), [0]]],
+            'export default ($0)=>{let $1=0;while((()=>{const $2=[$1];return $2[0]<$2.length;})()){$1=$1+1;}return $1;};')
+        writes(['=>', 1, [], ['()', loop([], ['&&', ['<', ['arg', 0], 3], ['===', ['.', over, 0], ['.', over, 0]]], call(['+', ['arg', 0], 1])), [0]]],
+            'export default ($0)=>{let $1=0;while($1<3&&(()=>{const $2=[$1];return $2[0]===$2[0];})()){$1=$1+1;}return $1;};')
+        writes(['=>', 1, [], ['()', loop([], ['<', ['arg', 0], 3], call(['&&', true, ['+', ['.', over, 0], ['.', over, 0]]])), [0]]],
+            'export default ($0)=>{let $1=0;while($1<3){$1=true&&(()=>{const $2=[$1];return $2[0]+$2[0];})();}return $1;};')
+        writes(['=>', 1, [], ['()', loop([], ['<', ['arg', 0], 3], call(['&&', true, ['.', over, 0]])), [0]]],
+            'export default ($0)=>{let $1=0;while($1<3){$1=true&&[$1][0];}return $1;};')
+        writes(['=>', 1, [], ['()', loop([], ['&&', one, ['===', one, one]], call(['+', ['arg', 0], 1])), [0]]],
+            'export default ($0)=>{let $1=0;while((()=>{const $2=[1];return $2&&$2===$2;})()){$1=$1+1;}return $1;};')
+        // a loop called in another loop's block — as an assert, or as the
+        // next value — keeps the recursion there, since the block holds
+        // `const`s and assignments alone; called in a lazy operand's block,
+        // a function body, it is the loop
+        /** @type {(limit: number) => Exp} */
+        const countTo = limit => ['()', loop([], ['<', ['arg', 0], limit], call(['+', ['arg', 0], 1])), [0]]
+        writes(['=>', 1, [], ['()', loop([], ['<', ['arg', 0], 3], [',', [countTo(2), call(['+', ['arg', 0], 1])]]), [0]]],
+            'export default ($0)=>{let $1=0;while($1<3){const $2=($3)=>$3<2?$2($3+1):$3;const $4=$2(0);$1=$1+1;}return $1;};')
+        writes(['=>', 1, [], ['()', loop([], ['<', ['arg', 0], 3], call(countTo(2))), [0]]],
+            'export default ($0)=>{let $1=0;while($1<3){const $2=($3)=>$3<2?$2($3+1):$3;$1=$2(0);}return $1;};')
+        writes(['=>', 1, [], ['()', loop([], ['<', ['arg', 0], 3], call(['&&', true, ['()', loop([], ['<', ['arg', 0], 2], call(['+', ['arg', 0], 1])), [['[]', [1]]]]])), [0]]],
+            'export default ($0)=>{let $1=0;while($1<3){$1=true&&(()=>{let $2=[1];while($2<2){$2=$2+1;}return $2;})();}return $1;};')
+        // a frame slot no name stands for is refused as it is anywhere
+        refuses(['=>', 1, [], ['()', loop([1], true, call(0)), [0]]], 'a frame slot holding a primitive')
+        // a value the condition shares with the block that the block would
+        // name keeps the recursion, which establishes it every round where
+        // a `const` before the `while` would establish it once — whether or
+        // not the value reads the variable
+        writes(['=>', 0, [], ['()', loop([], ['.', one, 0], call(['.', one, 1])), [0]]],
+            'export default ()=>{const $0=($1)=>{const $2=[1];return $2[0]?$0($2[1]):$1;};return $0(0);};')
+        writes(['=>', 0, [], ['()', loop([], ['.', shared, 0], call(['.', shared, 1])), [0]]],
+            'export default ()=>{const $0=($1)=>{const $2=[$1];return $2[0]?$0($2[1]):$1;};return $0(0);};')
+        // the one shape refused rather than written as recursion: captures
+        // read out of order
+        refuses(['=>', 1, [], ['()', loop([['arg', 0], ['[]', []]], ['frame', 1], call(['frame', 0])), [0]]], 'a loop reading its captures out of order')
+        // code-only text spells a loop the same way inside a body, and a
+        // loop function on its own as the loop `function_text` spells
+        assertEq(assertOk(tryFunctionText(['=>', 1, [], counted])), '($0)=>{let $1=0;while($1<$0){$1=$1+2;}return $1;}')
+        const text = assertOk(tryFunctionText(loop([], ['<', ['arg', 0], 2], call(['+', ['arg', 0], 1]))))
+        assertEq(text, '($0)=>{let $1=$0;while((($1)<(2))){$1=(($1)+(1));}return $1;}')
+        // which is FunctionalScript: the front end reads it
+        assertEq(parse(path)(`export default ${text};`)[0], 'ok')
+    },
     self: () => {
         writes(['=>', 0, [], ['()', ['self'], []]], 'const $0=()=>$0();export default $0;')
         writes(['=>', 1, [], ['?:', ['<', ['arg', 0], 2], 1, ['*', ['arg', 0], ['()', ['self'], [['-', ['arg', 0], 1]]]]]],
