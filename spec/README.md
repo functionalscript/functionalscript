@@ -2230,13 +2230,18 @@ export default n => {
   loop(next) : r;`, is the same graph and gets the same loop; one of a
   shape no `while` writes — a `const` before the condition running every
   round, a condition sharing a value with the block, a read of the rest
-  array — keeps the recursion in every writer, and one holding a nested
-  function that reads the variable, `self(() => r)`, keeps it in the
-  FunctionalScript output, whose nested function captures by name where
-  the recursion's holds the value of its round; the function text's
-  captures by value, through the wrapper it applies. The Rust output and
-  the EDAG interpreters still spell the call
-  ([tail-call-loop](../fjs/edag/todo/tail-call-loop.md)).
+  array — keeps the recursion in every writer. A condition sharing a value
+  of its own, the `const` of a function called where written, is the
+  FunctionalScript output's loop still, the condition written as that
+  function again, so that the value is established afresh at every test;
+  the function text keeps the recursion for it. The FunctionalScript
+  output alone keeps the recursion for a nested function that reads the
+  variable, `self(() => r)`, since its nested function captures by name
+  where the recursion's holds the value of its round — the function text's
+  captures by value, through the wrapper it applies — and for a block it
+  would write as such a function reading the variable, which the language
+  reads as that capture. The Rust output and the EDAG interpreters still
+  spell the call ([tail-call-loop](../fjs/edag/todo/tail-call-loop.md)).
 
 - Three programs JavaScript admits are refused rather than read another
   way, each because this reading and JavaScript's would differ:
