@@ -740,7 +740,7 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
 [data-secp-graph] { width: 100%; height: auto; display: block; font-size: 11px; overflow: hidden }
 [data-secp-graph] text { fill: currentColor }
 [data-secp-grid] { stroke: var(--border); stroke-width: 1 }
-[data-secp-modular-line] { fill: #d97706 }
+[data-secp-modular-line] { stroke: #d97706; stroke-width: 3; stroke-linecap: round; fill: none }
 [data-secp-dot] { fill: var(--muted); cursor: pointer; stroke: transparent; stroke-width: 8 }
 [data-secp-point="input"] { stroke: #d97706; fill: #d97706 }
 [data-secp-point="base"] { stroke: #8b5cf6; fill: #8b5cf6 }

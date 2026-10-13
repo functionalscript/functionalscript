@@ -96,9 +96,14 @@ export const proof = {
         }
         const adding = /** @type {const} */ ({ ...initial, view: 'Finite Field View', operation: 'P + Q' })
         const resultView = JSON.stringify(demo.view(adding))
-        assert(resultView.includes('data-secp-modular-line'))
+        assertEq(resultView.split('data-secp-modular-line').length - 1, 24)
+        assert(resultView.includes('secp-finite-clip'))
+        assert(resultView.includes('orange segments'))
         assert(resultView.includes('data-secp-finite-negation'))
         assert(resultView.includes('S is the third curve intersection'))
+        const doublingView = JSON.stringify(demo.view({ ...adding, operation: '2P', p: '4,16' }))
+        assertEq(doublingView.split('data-secp-modular-line').length - 1, 29)
+        assert(doublingView.includes('broken where it wraps'))
         assert(resultView.includes('x₃ = ('))
         assert(JSON.stringify(demo.view({ ...initial, view: 'Finite Field View', operation: '−P' })).includes('data-secp-finite-negation'))
         const views = [

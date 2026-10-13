@@ -98,18 +98,40 @@ const finiteNegation = (from, result) => from === null || result === null ? [] :
     ['path', { d: `M${40 + Number(from[0]) * 20} ${480 - Number(from[1]) * 20}L${40 + Number(result[0]) * 20} ${480 - Number(result[1]) * 20}`, 'data-secp-finite-negation': '', 'pointer-events': 'none' }],
 ]
 
+/** Continue a modular line to one edge of the fundamental cell and resume it
+ * from the opposite edge. Half-integer edges surround the residues 0 through 22.
+ * @type {(line: readonly Point2D[]) => readonly Element[]}
+ */
+const finiteLine = line => line.slice(1).flatMap(/** @returns {readonly Element[]} */ (to, i) => {
+    const from = line[i]
+    if (from === undefined) { return [] }
+    const y1 = Number(from[1])
+    const raw = Number(to[1] - from[1])
+    const rise = raw > 11 ? raw - 23 : raw < -11 ? raw + 23 : raw
+    const point = (/** @type {number} */ x, /** @type {number} */ y) => `${40 + x * 20} ${480 - y * 20}`
+    if (rise === raw) { return [['path', { d: `M${point(Number(from[0]), y1)}L${point(Number(to[0]), Number(to[1]))}`, 'data-secp-modular-line': '', 'pointer-events': 'none' }]] }
+    const edge = rise > 0 ? 22.5 : -0.5
+    const opposite = rise > 0 ? -0.5 : 22.5
+    const crossing = Number(from[0]) + (edge - y1) / rise
+    return [
+        ['path', { d: `M${point(Number(from[0]), y1)}L${point(crossing, edge)}`, 'data-secp-modular-line': '', 'pointer-events': 'none' }],
+        ['path', { d: `M${point(crossing, opposite)}L${point(Number(to[0]), Number(to[1]))}`, 'data-secp-modular-line': '', 'pointer-events': 'none' }],
+    ]
+})
+
 /** SVG buttons have textual, keyboard and native select equivalents.
  * @type {(state: State, p: Point, q: Point, result: Point, third: Point, negationFrom: Point, line: readonly Point2D[]) => Element}
  */
 const finiteGraph = (state, p, q, result, third, negationFrom, line) => ['svg', { viewBox: '0 0 530 530', 'data-secp-graph': '', role: 'group', 'aria-label': 'Finite field grid: y² = x³ + x + 4 modulo 23' },
     ['title', 'Discrete points over F₂₃; no continuous curve or Euclidean secants'],
+    ['defs', ['clipPath', { id: 'secp-finite-clip' }, ['rect', { x: '40', y: '40', width: '440', height: '440' }]]],
     ...Array.from({ length: 23 }, /** @returns {Element} */ (_, i) => ['g',
         ['path', { d: `M${40 + i * 20} 40V480M40 ${480 - i * 20}H480`, 'data-secp-grid': '', fill: 'none' }],
         ['text', { x: String(40 + i * 20), y: '502', 'text-anchor': 'middle' }, String(i)],
         ['text', { x: '25', y: String(484 - i * 20), 'text-anchor': 'end' }, String(i)],
     ]),
     ['text', { x: '505', y: '485' }, 'X'], ['text', { x: '30', y: '25' }, 'Y'],
-    ...line.map(/** @returns {Element} */ ([x, y]) => ['rect', { x: String(36 + Number(x) * 20), y: String(476 - Number(y) * 20), width: '8', height: '8', 'data-secp-modular-line': '', 'pointer-events': 'none' }]),
+    ['g', { 'clip-path': 'url(#secp-finite-clip)' }, ...finiteLine(line)],
     ...finiteNegation(negationFrom, result),
     ...points.map(/** @returns {Element} */ ([x, y]) => ['circle', {
         cx: String(40 + Number(x) * 20), cy: String(480 - Number(y) * 20), r: '7',
@@ -143,7 +165,7 @@ const finiteView = state => {
         ['p', 'These are discrete field elements. A smooth curve or ordinary secant would be misleading here.'],
         ['div', { 'data-secp-layout': '' },
             ['div', finiteGraph(state, shownP, shownQ, calculation.result, third, negationFrom, line),
-                ['p', 'Legend: orange squares (modular line), P (orange), Q/G (purple), S (fuchsia), result and dotted modular-negation connector (blue). O has no XY coordinates.']],
+                ['p', 'Legend: orange segments (modular line, broken where it wraps), P (orange), Q/G (purple), S (fuchsia), result and dotted modular-negation connector (blue). O has no XY coordinates.']],
             ['div',
                 select('operation', 'Operation', ['kG', 'P + Q', '2P', '−P'], state.operation),
                 ...(multiplication ? [scalarRange(state.k)] : [
@@ -157,7 +179,7 @@ const finiteView = state => {
                         ? 'The grid shows G and kG. Show Math lists the repeated additions; production multiplication can use faster algorithms such as double-and-add.'
                         : state.operation === '−P' ? 'The dotted blue connector shows y ↦ −y mod 23 from P to −P.'
                             : line.length === 0 ? `The result is ${pointText(calculation.result)}.`
-                            : 'The squares satisfy the modular secant or tangent equation. S is the third curve intersection; the dotted blue connector shows y ↦ −y mod 23 from S to R.'),
+                            : 'The orange segments show the modular secant or tangent, broken where it wraps. S is the third curve intersection; the dotted blue connector shows y ↦ −y mod 23 from S to R.'),
                 ]),
             ],
         ],

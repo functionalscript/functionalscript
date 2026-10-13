@@ -74,8 +74,8 @@ The module page discovers `demo.f.mjs` automatically. Build with
   `y² = x³ + x + 4 mod 23`. Select addition, doubling, negation, or `kG`;
   use the grid or point selectors and the result updates immediately.
   The inline P/Q radios choose which input a graph click sets. For point
-  addition and doubling, square markers show the 23 discrete positions on the
-  modular secant or tangent; S marks its third curve intersection and R = −S.
+  addition and doubling, solid segments show the modular secant or tangent,
+  broken where it wraps; S marks its third curve intersection and R = −S.
   Dotted blue connectors show modular negation for S → R and P → −P. The `kG`
   slider selects integer scalars from 0 through 29. Show Math contains the
   substituted formulas and scalar multiples.
