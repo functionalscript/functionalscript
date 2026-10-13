@@ -144,6 +144,76 @@ contract and migration strategy.
 
 #### Current leaf migration fixed point
 
+Measured on [#2858](https://github.com/functionalscript/functionalscript/pull/2858),
+the pull request that adds `bigint`, `BigInt(n)` on an integral number as
+an importable function
+([`doc/CONVERTING.md` §7](../doc/CONVERTING.md#7-bigint)), after
+[#2851](https://github.com/functionalscript/functionalscript/pull/2851)
+made `Object.is` one. A leaf is as defined in the `5dcd94b` audit below,
+and the embedded-proof fixture is reported separately again.
+
+| Pass | Implementation leaves checked | Converted to `.f.js` |
+| --- | ---: | --- |
+| 1 | 12 | None: every leaf is refused |
+
+The helper imports move what stands behind a first refusal, not the
+refusal itself: `git/config` and `media/rust` import `bigint` in place of
+`BigInt(number)`, `media/rust` and `website/prs/load` had already taken
+`isNaN_`, `isNegativeZero`, `isFinite_` and `min`, and
+`types/object/structurally_same` imports `is`. `website/cli/search`, a
+leaf the audit at `6e392d4f2` did not list, joins the table: its one
+refusal is a prohibited member call.
+
+Each row is the first actual refusal from the `resolve()` pipeline, and
+the last column what else the compiler does not accept in the module.
+Locations are `line:column`; paths are relative to `fjs/`.
+
+| Leaf file | Location | First refused construct | Behind it |
+| --- | ---: | --- | --- |
+| `ci/package/module.f.mjs` | 114:22 | `JSON.stringify` in `literal` | `JSON` is not admitted; also writes `tsconfig` with it |
+| `git/config/module.f.mjs` | 473:11 | Destructuring `const { sub, after }` in `trySub` | `toLowerCase` at six sites, a prohibited member call; four more destructuring sites |
+| `media/rust/module.f.mjs` | 62:5 | `switch` in `character` | `let`/`while` in the exponent search, `Math.floor`, `Math.abs`, `toLowerCase`, four forward references |
+| `nanvm/methods/module.f.mjs` | 102:41 | Destructured callback parameter in `pairs` | `Object.values` in `listed`; destructured callbacks in `absent` and `table` |
+| `types/list/module.f.mjs` | 40:5 | `while` and reassignment in `trampoline` | The generator in `iterable`, `const { from } = Array`, `let`/`while` in `next` and `fold`, `for…of` in `tryFold`, destructured `({ first, tail })` callbacks throughout |
+| `types/map/module.f.mjs` | 10:42 | `new Map(...)` in `mapSet` | `Map` is not a language type |
+| `types/object/structurally_same/module.f.mjs` | 22:7 | Destructuring `const { entries } = Object` | `Object.entries`: the language enumerates no keys; `new Map` with `has` and `get` besides |
+| `types/ts/module.f.mjs` | 24:29 | Default parameter in `printer` | `switch`, a destructured callback, `JSON.stringify` |
+| `website/browser-source/module.f.mjs` | 54:5 | `let` in `read` | The `let`/`while` lexer in `read` |
+| `website/cli/search/module.f.mjs` | 4:46 | `toLowerCase` in `matches`, a prohibited member call | Nothing else |
+| `website/demo/code/module.f.mjs` | 12:48 | Default parameter in `codeBlock` | The computed key `[codeMarker]` |
+| `website/prs/load/module.f.mjs` | 106:41 | Destructured parameter in `finishedNote` | Three more destructured parameters |
+
+The separate fixture `emergent_testing/example.f.mjs` is refused at `15:1`,
+as before: a block body whose only statement is a guard, which the
+compiler reads to its end without a `return`.
+
+To recheck the current table without writing generated output, run this from
+the repository root inside `./dev.sh node --input-type=module`:
+
+```js
+import { resolve as absolute } from 'node:path';
+import { resolve } from './fjs/compiler/edag/module.f.mjs';
+import { runNodeEffect } from './fjs/effects/node/module.mjs';
+
+const leaves = [
+  'ci/package', 'git/config', 'media/rust', 'nanvm/methods', 'types/list',
+  'types/map', 'types/object/structurally_same', 'types/ts',
+  'website/browser-source', 'website/cli/search', 'website/demo/code',
+  'website/prs/load',
+];
+for (const leaf of leaves) {
+  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
+  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
+}
+```
+
+After a compiler feature lands, rediscover the runtime dependency leaves,
+compile every candidate, rename accepted modules and update their references,
+then rediscover and repeat until a pass accepts none. Update this table with
+the remaining refusals.
+
+#### Leaf migration fixed point at `6e392d4f2` (historical)
+
 Measured at `6e392d4f2`, a commit of
 [#2823](https://github.com/functionalscript/functionalscript/pull/2823), the
 compiler that accepts untagged template literals, which the audit below had
