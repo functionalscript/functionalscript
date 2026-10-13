@@ -1138,8 +1138,41 @@ export const proof = {
         refuses(['=>', 0, [], ['()', loop([], ['+', 1], call(0)), [0]]], 'a unary + node')
         refuses(['=>', 0, [], ['()', loop([], true, call(['+', 1])), [0]]], 'a unary + node')
         writes(['=>', 0, [], ['()', 'f', [0]]], 'export default ()=>"f"(0);')
-        // the two shapes refused rather than written as recursion
-        refuses(['=>', 0, [], ['()', loop([], ['.', shared, 0], call(['.', shared, 1])), [0]]], 'a loop whose condition shares a value')
+        // a condition sharing a value of its own is written as its block,
+        // the value established afresh at every test — as the whole
+        // condition and as a lazy operand of it
+        const one = /** @type {const} */ (['[]', [1]])
+        writes(['=>', 1, [], ['()', loop([], ['===', one, one], call(['+', ['arg', 0], 1])), [0]]],
+            'export default ($0)=>{let $1=0;while((()=>{const $2=[1];return $2===$2;})()){$1=$1+1;}return $1;};')
+        writes(['=>', 1, [], ['()', loop([], ['&&', ['<', ['arg', 0], 3], ['===', one, one]], call(['+', ['arg', 0], 1])), [0]]],
+            'export default ($0)=>{let $1=0;while($1<3&&(()=>{const $2=[1];return $2===$2;})()){$1=$1+1;}return $1;};')
+        const over = /** @type {const} */ (['[]', [['arg', 0]]])
+        // a block that would read the variable keeps the recursion, since
+        // the language reads a nested function reading the variable as a
+        // capture: the condition's own block, a lazy operand's in the
+        // condition, and one in the arm; a lazy operand reading the
+        // variable with nothing to hoist is written in place, and a lazy
+        // operand whose scope is refused hoists nothing, the condition
+        // around it hoisting instead
+        writes(['=>', 1, [], ['()', loop([], ['<', ['.', over, 0], ['.', over, 'length']], call(['+', ['arg', 0], 1])), [0]]],
+            'export default ($0)=>{const $1=($2)=>{const $3=[$2];return $3[0]<$3.length?$1($2+1):$2;};return $1(0);};')
+        writes(['=>', 1, [], ['()', loop([], ['&&', ['<', ['arg', 0], 3], ['===', ['.', over, 0], ['.', over, 0]]], call(['+', ['arg', 0], 1])), [0]]],
+            'export default ($0)=>{const $1=($2)=>$2<3&&(()=>{const $3=[$2];return $3[0]===$3[0];})()?$1($2+1):$2;return $1(0);};')
+        writes(['=>', 1, [], ['()', loop([], ['<', ['arg', 0], 3], call(['&&', true, ['+', ['.', over, 0], ['.', over, 0]]])), [0]]],
+            'export default ($0)=>{const $1=($2)=>$2<3?$1(true&&(()=>{const $3=[$2];return $3[0]+$3[0];})()):$2;return $1(0);};')
+        writes(['=>', 1, [], ['()', loop([], ['<', ['arg', 0], 3], call(['&&', true, ['.', over, 0]])), [0]]],
+            'export default ($0)=>{let $1=0;while($1<3){$1=true&&[$1][0];}return $1;};')
+        writes(['=>', 1, [], ['()', loop([], ['&&', one, ['===', one, one]], call(['+', ['arg', 0], 1])), [0]]],
+            'export default ($0)=>{let $1=0;while((()=>{const $2=[1];return $2&&$2===$2;})()){$1=$1+1;}return $1;};')
+        // a frame slot no name stands for is refused as it is anywhere
+        refuses(['=>', 1, [], ['()', loop([1], true, call(0)), [0]]], 'a frame slot holding a primitive')
+        // the two shapes refused rather than written as recursion: a value
+        // the condition shares with the block, refused as any lazy
+        // operand's block is, and captures read out of order
+        refuses(['=>', 0, [], ['()', loop([], ['.', one, 0], call(['.', one, 1])), [0]]], 'a shared node reached from outside the lazy operand that establishes it')
+        // and where that value reads the variable, the recursion first
+        writes(['=>', 0, [], ['()', loop([], ['.', shared, 0], call(['.', shared, 1])), [0]]],
+            'export default ()=>{const $0=($1)=>{const $2=[$1];return $2[0]?$0($2[1]):$1;};return $0(0);};')
         refuses(['=>', 1, [], ['()', loop([['arg', 0], ['[]', []]], ['frame', 1], call(['frame', 0])), [0]]], 'a loop reading its captures out of order')
         // code-only text spells a loop the same way inside a body, and a
         // loop function on its own as the loop `function_text` spells

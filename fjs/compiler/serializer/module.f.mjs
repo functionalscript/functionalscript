@@ -142,6 +142,7 @@
  *
  * @import { Analysis, ItemOperand, Node, Operand, Ref, Step } from '../../edag/analysis/types.ts'
  * @import { Exp } from '../../edag/types.ts'
+ * @import { Loop } from '../../edag/loop/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { Chunk, Marked } from '../../text/marked/types.ts'
  * @import { Result } from '../../types/result/types.ts'
@@ -1484,6 +1485,37 @@ const isLoopCall = (s, i) => {
     if (!(callee instanceof Array) || s.shared.includes(callee[1]) || (init instanceof Array && init[0] === '...')) { return false }
     const loop = loopOf(s.a, callee[1])
     return loop !== null && loop.before.length === 0 && thrownValue(s.a, loop.next) === null && !readsRest(s.a, callee[1]) && !capturesParameter(s.a, callee[1])
+        && !blockReadsParameter(s, callee[1], loop)
+}
+
+/**
+ * Whether a block written as an applied function inside the loop's text
+ * would read the variable: the condition's own block, where the condition
+ * hoists a value it shares ({@link block}), or a lazy operand's under the
+ * condition or the arm. The language reads a function nested in a loop
+ * that reads the variable as a capture and refuses it, the applied
+ * function included, so such a text reads back as nothing; the recursion
+ * reads back as itself. The scope of a lazy operand nested in another is
+ * taken as the loop body's, which may count a value the outer block names
+ * as hoisted, and keep the recursion for a loop that had a text — a
+ * graph the front end never produces from a loop. A lazy operand whose
+ * scope is refused hoists nothing here: the refusal is the writer's
+ * answer whichever spelling it takes.
+ *
+ * @type {(s: _Scope, f: number, loop: Loop) => boolean}
+ */
+const blockReadsParameter = (s, f, { condition, arm }) => {
+    const [, , slots, body] = /** @type {Extract<Node, readonly ['=>', number, readonly Operand[], Operand]>} */ (s.a.nodes[f])
+    // what a scope hoists does not depend on what its frame's slots are
+    // named, only that each has a name, so the names are left blank: the
+    // hoisting walk asks before it has named them
+    const inner = bodyScope(s.a, `${s.param}/loop`, slots.map(() => ''), body, s.allowUnusedCaptures, null)
+    /** @type {(v: Operand) => boolean} */
+    const reads = v => reachableFrom(s.a)(v).some(j => s.a.nodes[j][0] === 'arg' && s.a.nodes[j][1] === 0 && s.a.scope[j] === f)
+    /** @type {(scope: Result<_Scope, string>, v: Operand) => boolean} */
+    const wrapped = (scope, v) => scope[0] === 'ok' && hoists(scope[1])(v).length !== 0 && reads(v)
+    return wrapped(ok(inner), condition)
+        || [condition, arm].flatMap(reachableFrom(s.a)).flatMap(j => lazyOperands(s.a.nodes[j])).some(u => wrapped(lazyScope(inner)(u), u))
 }
 
 /** Whether the function that is entry `i` reads its rest array, in its own body's scope. @type {(a: Analysis, i: number) => boolean} */
@@ -1518,13 +1550,18 @@ const capturesParameter = (a, i) => a.nodes.some((n, j) => n[0] === '=>' && a.sc
  * The function's slots read as their names in the scope, every one of
  * which the hoisting walk gave a `const` before the loop
  * ({@link frameNames}); the block is written in the scope a lazy operand
- * opens ({@link lazyScope}), the arm being one. Two shapes the template
- * admits have no text here, and are refused rather than written as the
- * recursion they would read back as: a condition that shares a value the
- * block hoists, which a `const` before the `while` would establish once,
- * and a function whose slots the text reads in another order than its
- * frame holds them, which reads back as another frame — neither a shape
- * the front end produces from a loop.
+ * opens ({@link lazyScope}), the arm being one, and so is the condition,
+ * {@link block}: in place where it hoists nothing, and otherwise as the
+ * applied function whose `const`s establish what it shares afresh at
+ * every test, `while((()=>{const $2=[1];return $2===$2;})())`, which
+ * reads back as the condition again. Two shapes the template admits have
+ * no text here, and are refused rather than written as the recursion they
+ * would read back as: a condition that shares a value the block hoists,
+ * which {@link lazyScope} refuses as it refuses any lazy operand's
+ * block, since a `const` before the `while` would establish it once, and
+ * a function whose slots the text reads in another order than its frame
+ * holds them, which reads back as another frame — neither a shape the
+ * front end produces from a loop.
  *
  * @type {(s: _Scope, path: string, before: _Statement) => (i: number) => Result<_Statement, string>}
  */
@@ -1542,7 +1579,6 @@ const loopStatement = (s, path, before) => i => {
         /** @type {(names: readonly string[]) => Result<_Statement, string>} */
         (names => {
             const inner = bodyScope(s.a, loopPath, names, body, s.allowUnusedCaptures, null)
-            if (hoists(inner)(condition).length !== 0) { return error('a loop whose condition shares a value') }
             return okThen(
                 /** @type {(parts: readonly [List<Chunk>, List<Chunk>, _Statement]) => Result<_Statement, string>} */
                 (([initial, cond, st]) => {
@@ -1555,7 +1591,7 @@ const loopStatement = (s, path, before) => i => {
                 }),
             )(okList3(
                 operand(s, `${loopPath}/init`)(/** @type {Operand} */ (init)),
-                operand(inner, `${loopPath}/condition`)(condition),
+                mapOk((/** @type {_Written} */ w) => w.text)(block(inner, `${loopPath}/condition`)(condition)),
                 okThen(
                     /** @type {(block: _Scope) => Result<_Statement, string>} */
                     (block => unchanged
