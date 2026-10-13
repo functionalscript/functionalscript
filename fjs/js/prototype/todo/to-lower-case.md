@@ -72,9 +72,19 @@ case a character the pinned version leaves uncased, as it may already format
 a large-integer radix string differently. Rust's standard library carries
 the tables, at the Unicode version the pinned toolchain ships
 ([`fjs/ci/config`](../../../ci/config/module.f.js)), so the VM writes no
-table of its own and the toolchain pin is the Unicode pin; the pinned
-version is named in the spec and in [`../README.md`](../README.md)'s rows,
-and moves only when the toolchain does. A lone surrogate has no case and
+table of its own. The toolchain pin reaches this repository's builds
+alone: the crate is built on every user's machine
+([`nanvm/lib`'s roadmap](../../../../nanvm/lib/todo/mvp-roadmap.md)), by
+whatever `rustc` is there, and a `rust-version` in its manifest is a
+floor, not a pin. So the version is checked, not trusted, as
+`fjs/ci/config` checks Node's: the crate asserts the standard library's
+`char::UNICODE_VERSION` against the pinned version at compile time, and a
+build whose library carries another version does not build, rather than
+give the same module another meaning
+([DESIGN.md §10](../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)).
+The pinned version is named in the spec and in
+[`../README.md`](../README.md)'s rows, and moves only when the toolchain
+does, the assertion with it. A lone surrogate has no case and
 no Rust `char`, and the VM's lossy conversion to a Rust string
 (`vm/string/from.rs`) would replace it with U+FFFD, which JavaScript does
 not: the VM converts each well-formed run and copies a lone surrogate
@@ -113,8 +123,9 @@ lands, not this one's.
 
 Benefits: the most-asked-for string operation compiles as written,
 JavaScript's meaning and JavaScript's spelling, and about a dozen modules
-lose a rewrite. Drawbacks: the language names a Unicode version and carries
-it forward with the toolchain; a host engine ahead of the pin is an
+lose a rewrite. Drawbacks: the language names a Unicode version, carries
+it forward with the toolchain, and a build of the crate elsewhere needs a
+standard library at that version or does not build; a host engine ahead of the pin is an
 engine-defined edge the spec documents rather than a divergence the
 compiler refuses, and the text-normalizing callers can reach it; and the
 Kelvin-sign class of mistake becomes writable,
@@ -138,7 +149,8 @@ record the designer and a link to the approval here.
       limits
 - [ ] `nanvm/lib`: answer both on a string in `vm/string`, through the
       standard library's conversion of each well-formed run, a lone
-      surrogate copied unchanged; drop the row from its README's
+      surrogate copied unchanged, with a compile-time assertion of
+      `char::UNICODE_VERSION` against the pin; drop the row from its README's
       "out by design" table; take the pair through
       [`fjs/nanvm/methods`](../../../nanvm/methods/module.f.mjs)'s pending
       list and the shared corpus, with cases for the full mappings, the
