@@ -185,7 +185,7 @@ export const proof = {
         const [a, b, k, g] = pattern[2]
         assert('key' in a && 'key' in b && 'key' in k && !('key' in g))
         assert(!(a.key instanceof Array) && !(b.key instanceof Array) && k.key instanceof Array)
-        assertEq(a.key.token.value, 'a')
+        assertStructurallySame(a.key.token, { kind: 'id', value: 'a' })
         assertStructurallySame(a.target[0], 'name')
         assertEq(b.key.token.kind, 'string')
         assert(b.target[0] === 'array')
@@ -196,7 +196,7 @@ export const proof = {
         assertEq(k.key[0], '[]')
         assertEq(g[0], '...')
         assertStructurallySame(array[2].map(t => t[0]), ['name'])
-        assertEq(name[1].token.value, 'i')
+        assertStructurallySame(name[1].token, { kind: 'id', value: 'i' })
     },
     namedExports: {
         syntax: () => {

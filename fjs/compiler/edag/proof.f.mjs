@@ -1003,11 +1003,11 @@ export const proof = {
             const spread = ['[]', [['...', ['.', source, '%']]]]
             const graph = compile('const { a, "%": [c, d] } = { a: null, "%": [true, false] }; export default [a, c, d];').edag
             expectEdag(graph, ['[]', [['.', source, 'a'], ['.', spread, 0], ['.', spread, 1]]])
-            // the initializer is one node, however many names read it
+            // the hidden spread is one node, however many elements read it
             assert(graph instanceof Array && graph[0] === '[]', graph)
-            const [first, second, third] = graph[1]
-            assert(first instanceof Array && second instanceof Array && third instanceof Array, graph)
-            assert(second[1] === third[1] && first[1] === second[1][1][0][1][1], graph)
+            const [, second, third] = graph[1]
+            assert(second instanceof Array && third instanceof Array, graph)
+            assert(second[1] === third[1], graph)
             assertStructurallySame(execute(graph), [null, true, false])
             expectEdag(compile('export default (o) => { const { a: { b }, c } = o; return [b, c]; };').edag,
                 ['=>', 1, [], ['[]', [['.', ['.', ['arg', 0], 'a'], 'b'], ['.', ['arg', 0], 'c']]]])

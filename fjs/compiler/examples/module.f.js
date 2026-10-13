@@ -55,6 +55,7 @@ export const examples = [
     ['Throw', 'export default (...a) => {\n    const reason = ["not implemented", a[0]];\n    throw reason;\n};'],
     ['Early return', 'export default (n) => {\n    if (n < 0) { return -1; }\n    if (n > 0) { return 1; }\n    return 0;\n};'],
     ['Shorthand members', 'const x = 1;\nconst y = [x];\nexport default { x, y };'],
+    ['Destructuring', 'const { a, "b": [c, d] } = { a: 1, b: [2, 3] };\nconst [e] = "hi";\nexport default [a, c, d, e];'],
     ['Methods and properties', 'export default ["abc".length, [1, 2, 3].at(0), (1).toString()];'],
     ['Optional chaining', 'const o = { a: { b: 1 }, f: x => [x, x] };\nconst n = null;\nexport default [o?.a.b, n?.a.b, n?.[0], o.f?.(2), n?.(2), (o?.a).b];'],
     ['The entry helper', 'const entry = (a, b) => {\n    const x = Object.getOwnPropertyDescriptor(a, b);\n    return x?.enumerable ? x.value : undefined;\n};\nexport default [entry({ k: 1 }, "k"), entry([7, 8], 1), entry("ab", 1), typeof entry];'],
