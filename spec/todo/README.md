@@ -99,7 +99,8 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
    at P5,
 2. [ ] [destructuring](./2450-destructuring.md) — binding patterns in
    `const` and parameters, lowered to property reads and the spread; the
-   design is proposed, open for designer approval,
+   design is approved and the `const` half implemented
+   ([destructuring](../README.md#destructuring)), parameters are open,
 3. [ ] [js-string-literals](./2460-js-string-literals.md),
 4. [ ] number spellings beyond JSON's — `0o7`, `.5`, `1.`
    ([numbers](../README.md#numbers)); hexadecimal, binary and numeric separators are implemented;

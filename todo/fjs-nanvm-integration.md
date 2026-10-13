@@ -144,6 +144,156 @@ contract and migration strategy.
 
 #### Current leaf migration fixed point
 
+Measured at `8d86959`, the head of `main` after
+[#2861](https://github.com/functionalscript/functionalscript/pull/2861)
+admitted destructuring in `const`. A leaf is as defined in the `5dcd94b`
+audit below, and the embedded-proof fixture is `example.f.js`, converted, so
+there is none to report separately.
+
+| Pass | Implementation leaves checked | Converted to `.f.js` |
+| --- | ---: | --- |
+| 1 | 13 | `website/cli/search` |
+| 2 | 12 | None: every remaining leaf is refused |
+
+`website/cli/search` compiles whole: `toLowerCase`, `includes` and `trim`
+are on [`fjs/js/prototype`](../fjs/js/prototype/module.f.js)'s
+`allowedCalls`, so a call of one is a method call the language admits, and
+only a detached read of the name stays refused. The conversion changes the
+extension and its two importers, `website/cli-runtime.mjs` and the proof;
+no `.f.mjs` imports the module, so its rename exposes no new leaf. The
+authored `.f.js` population under `fjs/` grows from 31 to 32, and `npm start
+compile` checks 38 with the specification's vectors.
+
+Destructuring in `const` moves three first refusals. `emergent_testing/node`
+is refused at the destructured parameter the `const` pattern stood behind;
+`git/config` passes its five `const` patterns and stops at the elision in
+`const [, list]`, a hole the pattern grammar does not read; and
+`types/object/structurally_same` passes `const { entries } = Object` as a
+pattern and stops at `new Map`, with the `Object` global, a prohibited
+property name, behind it. The `toLowerCase` sites the `#2858` table counted
+behind `git/config` and `media/rust` are no longer refusals.
+
+Each row is the first actual refusal from the `resolve()` pipeline, and
+the last column what else the compiler does not accept in the module.
+Locations are `line:column`; paths are relative to `fjs/`.
+
+| Leaf file | Location | First refused construct | Behind it |
+| --- | ---: | --- | --- |
+| `ci/package/module.f.mjs` | 114:22 | `JSON.stringify` in `literal` | `JSON` is not admitted; also writes `tsconfig` with it |
+| `emergent_testing/node/module.f.mjs` | 25:18 | Destructured parameter in `coverage` | The computed key `file[cwd.length]` in `located`, no `Number(...)`; a destructured parameter in `log` |
+| `git/config/module.f.mjs` | 563:12 | Elision in `const [, list]` in `tryEntries` | Destructured parameters in `lineStep`, `valueAt` and `extensionAt` |
+| `media/rust/module.f.mjs` | 62:5 | `switch` in `character` | `let`/`while` in the exponent search, `Math.floor`, `Math.abs`, four forward references |
+| `nanvm/methods/module.f.mjs` | 102:41 | Destructured callback parameter in `pairs` | `Object.values` in `listed`; destructured callbacks in `absent` and `table` |
+| `types/list/module.f.mjs` | 51:9 | Assignment to `head`, not the loop's variable, in `next` | `while` over a parameter in `trampoline`, the generator in `iterable`, `const { from } = Array`, `for…of` in `tryFold`, destructured `({ first, tail })` callbacks throughout |
+| `types/map/module.f.mjs` | 10:42 | `new Map(...)` in `mapSet` | `Map` is not a language type |
+| `types/object/structurally_same/module.f.mjs` | 58:20 | `new Map(entries(b))` | `const { entries } = Object`: the `Object` global is a prohibited property name, and the language enumerates no keys; the destructured `([k, v])` callback |
+| `types/ts/module.f.mjs` | 24:29 | Default parameter in `printer` | `switch`, a destructured callback, `JSON.stringify` |
+| `website/browser-source/module.f.mjs` | 63:9 | Guard with `break` inside the loop in `read` | The lexer's two loop variables, nested loops and guards in `read` |
+| `website/demo/code/module.f.mjs` | 12:48 | Default parameter in `codeBlock` | The computed key `[codeMarker]` |
+| `website/prs/load/module.f.mjs` | 106:41 | Destructured parameter in `finishedNote` | Three more destructured parameters |
+
+To recheck the current table without writing generated output, run this from
+the repository root inside `./dev.sh node --input-type=module`:
+
+```js
+import { resolve as absolute } from 'node:path';
+import { resolve } from './fjs/compiler/edag/module.f.mjs';
+import { runNodeEffect } from './fjs/effects/node/module.mjs';
+
+const leaves = [
+  'ci/package', 'emergent_testing/node', 'git/config', 'media/rust',
+  'nanvm/methods', 'types/list', 'types/map',
+  'types/object/structurally_same', 'types/ts', 'website/browser-source',
+  'website/demo/code', 'website/prs/load',
+];
+for (const leaf of leaves) {
+  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
+  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
+}
+```
+
+After a compiler feature lands, rediscover the runtime dependency leaves,
+compile every candidate, rename accepted modules and update their references,
+then rediscover and repeat until a pass accepts none. Update this table with
+the remaining refusals.
+
+#### Leaf migration fixed point on #2858 (historical)
+
+Measured on [#2858](https://github.com/functionalscript/functionalscript/pull/2858),
+the pull request that adds `bigint`, `BigInt(n)` on an integral number as
+an importable function
+([`doc/CONVERTING.md` §8](../doc/CONVERTING.md#8-bigint)), after
+[#2851](https://github.com/functionalscript/functionalscript/pull/2851)
+made `Object.is` one and
+[#2854](https://github.com/functionalscript/functionalscript/pull/2854)
+admitted the one-variable `let`/`while` loop. A leaf is as defined in the
+`5dcd94b` audit below. The embedded-proof fixture is `example.f.js` since
+[#2856](https://github.com/functionalscript/functionalscript/pull/2856),
+converted, so there is none to report separately.
+
+| Pass | Implementation leaves checked | Converted to `.f.js` |
+| --- | ---: | --- |
+| 1 | 13 | None: every leaf is refused |
+
+The helper imports move what stands behind a first refusal, not the
+refusal itself: `git/config` and `media/rust` import `bigint` in place of
+`BigInt(number)`, `media/rust` and `website/prs/load` had already taken
+`isNaN_`, `isNegativeZero`, `isFinite_` and `min`, and
+`types/object/structurally_same` imports `is`. The loop moves two first
+refusals past a module's first `let`: `types/list` is refused at the
+assignment to a second name inside its loop, and `website/browser-source`
+at the guard inside its, each a shape the one form does not admit. Two
+leaves the audit at `6e392d4f2` did not list join the table:
+`website/cli/search`, whose one refusal is a prohibited member call, and
+`emergent_testing/node`, new since.
+
+Each row is the first actual refusal from the `resolve()` pipeline, and
+the last column what else the compiler does not accept in the module.
+Locations are `line:column`; paths are relative to `fjs/`.
+
+| Leaf file | Location | First refused construct | Behind it |
+| --- | ---: | --- | --- |
+| `ci/package/module.f.mjs` | 114:22 | `JSON.stringify` in `literal` | `JSON` is not admitted; also writes `tsconfig` with it |
+| `emergent_testing/node/module.f.mjs` | 26:11 | Destructuring `const { summary } = data` in `coverage` | A destructured parameter before it, more destructuring after |
+| `git/config/module.f.mjs` | 473:11 | Destructuring `const { sub, after }` in `trySub` | `toLowerCase` at six sites, a prohibited member call; four more destructuring sites |
+| `media/rust/module.f.mjs` | 62:5 | `switch` in `character` | `let`/`while` in the exponent search, `Math.floor`, `Math.abs`, `toLowerCase`, four forward references |
+| `nanvm/methods/module.f.mjs` | 102:41 | Destructured callback parameter in `pairs` | `Object.values` in `listed`; destructured callbacks in `absent` and `table` |
+| `types/list/module.f.mjs` | 51:9 | Assignment to `head`, not the loop's variable, in `next` | `while` over a parameter in `trampoline`, the generator in `iterable`, `const { from } = Array`, `for…of` in `tryFold`, destructured `({ first, tail })` callbacks throughout |
+| `types/map/module.f.mjs` | 10:42 | `new Map(...)` in `mapSet` | `Map` is not a language type |
+| `types/object/structurally_same/module.f.mjs` | 22:7 | Destructuring `const { entries } = Object` | `Object.entries`: the language enumerates no keys; `new Map` with `has` and `get` besides |
+| `types/ts/module.f.mjs` | 24:29 | Default parameter in `printer` | `switch`, a destructured callback, `JSON.stringify` |
+| `website/browser-source/module.f.mjs` | 63:9 | Guard with `break` inside the loop in `read` | The lexer's two loop variables, nested loops and guards in `read` |
+| `website/cli/search/module.f.mjs` | 4:46 | `toLowerCase` in `matches`, a prohibited member call | Nothing else |
+| `website/demo/code/module.f.mjs` | 12:48 | Default parameter in `codeBlock` | The computed key `[codeMarker]` |
+| `website/prs/load/module.f.mjs` | 106:41 | Destructured parameter in `finishedNote` | Three more destructured parameters |
+
+To recheck the current table without writing generated output, run this from
+the repository root inside `./dev.sh node --input-type=module`:
+
+```js
+import { resolve as absolute } from 'node:path';
+import { resolve } from './fjs/compiler/edag/module.f.mjs';
+import { runNodeEffect } from './fjs/effects/node/module.mjs';
+
+const leaves = [
+  'ci/package', 'emergent_testing/node', 'git/config', 'media/rust',
+  'nanvm/methods', 'types/list', 'types/map',
+  'types/object/structurally_same', 'types/ts', 'website/browser-source',
+  'website/cli/search', 'website/demo/code', 'website/prs/load',
+];
+for (const leaf of leaves) {
+  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
+  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
+}
+```
+
+After a compiler feature lands, rediscover the runtime dependency leaves,
+compile every candidate, rename accepted modules and update their references,
+then rediscover and repeat until a pass accepts none. Update this table with
+the remaining refusals.
+
+#### Leaf migration fixed point at `6e392d4f2` (historical)
+
 Measured at `6e392d4f2`, a commit of
 [#2823](https://github.com/functionalscript/functionalscript/pull/2823), the
 compiler that accepts untagged template literals, which the audit below had

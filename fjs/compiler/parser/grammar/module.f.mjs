@@ -8,7 +8,8 @@
  * clause ::= named | id [ ',' named ]
  * named  ::= '{' [ items(binding) ] '}'
  * binding ::= id [ 'as' id ]
- * const  ::= 'const' id '=' value end
+ * const  ::= 'const' target '=' value end
+ * target ::= id | array | object
  * last   ::= 'export' ( 'default' value end | const const* [ last ] )
  *          | 'throw' value end
  * end    ::= [ ';' ]
@@ -129,7 +130,7 @@
  * @import { Rule, Variant } from '../../../ebnf/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { StringMap } from '../../../types/object/types.ts'
- * @import { Access, AfterValue, ArrowOrRest, Block, Body, CircuitTail, ConditionalTail, EagerTail, End, Entry, Func, Group, GroupOperand, InfixTag, Item, Items, LastStatement, LoopBlock, LoopStatement, Member, OptionalStep, ParameterNames, Parameters, Paren, ParenGroup, ParenGroupOperand, Parenthesized, PowTail, Statement, Tail, Template, Terminator, Unary, UnaryOperand, Value, ValueBranches } from './types.ts'
+ * @import { Access, AfterValue, ArrowOrRest, BindingTarget, Block, Body, CircuitTail, ConditionalTail, ConstStatement, EagerTail, End, Entry, Func, Group, GroupOperand, InfixTag, Item, Items, LastStatement, LoopBlock, LoopStatement, Member, OptionalStep, ParameterNames, Parameters, Paren, ParenGroup, ParenGroupOperand, Parenthesized, PowTail, Statement, Tail, Template, Terminator, Unary, UnaryOperand, Value, ValueBranches } from './types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.mjs'
@@ -965,18 +966,33 @@ export const object = /** @type {const} */ ([sym('{'), option(entries), sym('}')
 export const end = option([sym(';')])
 
 /**
- * A `const` statement: the name, `=`, the value, and its {@link end}. A
- * module's statement and a function body's alike — {@link djsModule} takes
- * a run of them after the imports, and {@link block} a run of them before
- * the `return`.
+ * What a `const` binds: a name, or a binding pattern — an array or an
+ * object, {@link array} and {@link object}, the value rules' own, since a
+ * pattern spells the literal the same text would and JavaScript reads the
+ * two apart by position alone
+ * ([spec: destructuring](../../../../spec/README.md#destructuring)). A
+ * name's word, `[` and `{` begin nothing else here, so one symbol decides.
+ * What the literal reads that no pattern may hold — a value in a binding
+ * position, a spread, a computed key — is the reader's to record and the
+ * fold's to refuse, as a parameter list's head is.
+ *
+ * @type {BindingTarget}
+ */
+export const bindingTarget = { name: identifierName, array, object }
+
+/**
+ * A `const` statement: what it binds, {@link bindingTarget}, `=`, the
+ * value, and its {@link end}. A module's statement and a function body's
+ * alike — {@link djsModule} takes a run of them after the imports, and
+ * {@link block} a run of them before the `return`.
  *
  * Declared here, above {@link block}, rather than with the other module
  * statements below: `block` holds it directly, where the recursion back
  * into `value` goes through a thunk.
+ *
+ * @type {ConstStatement}
  */
-export const constStatement = /** @type {const} */ ([
-    sym('const'), identifierName, sym('='), value, end,
-])
+export const constStatement = [sym('const'), bindingTarget, sym('='), value, end]
 
 /**
  * The statement a block ends with, {@link terminator}: `return value`, or

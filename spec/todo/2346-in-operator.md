@@ -165,8 +165,10 @@ questions it adds.
       ([design principles §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)).
       This record states the decision the language already implements; the
       approval confirms it and its reasons.
-- [ ] A proof that `a in b` and `for (k in o)` are refused at the compiler, if
-      none exists.
+- [x] A proof that `a in b` and `for (k in o)` are refused at the compiler:
+      `refusedByDesign` in
+      [`operators.proof.f.mjs`](../../fjs/compiler/parser/operators.proof.f.mjs)
+      pins the message and column of each, and that `in` stays a key.
 
 ## Related
 

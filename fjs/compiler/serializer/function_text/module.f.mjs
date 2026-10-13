@@ -21,7 +21,7 @@
 
 import { leafSerialize } from '../../../media/datajs/serializer/module.f.mjs'
 import { chunksText, keyword, literal } from '../../../text/marked/module.f.mjs'
-import { loopOf } from '../../../edag/loop/module.f.mjs'
+import { keepsRecursion, loopOf, reaches, readsRest } from '../../../edag/loop/module.f.mjs'
 import { operandsOf } from '../../../edag/analysis/module.f.mjs'
 import { _name as name, _binding as binding, _resolve as resolve } from '../names/module.f.mjs'
 
@@ -149,36 +149,18 @@ const assert = s => v => `${operand(s, v)};`
 const isArg0 = (a, v) => v instanceof Array && a.nodes[v[1]][0] === 'arg' && a.nodes[v[1]][1] === 0
 
 /**
- * Whether an operand reaches an entry among `shared` in its own scope — a
- * nested function's body is that function's own, its slots this scope's.
- *
- * @type {(a: Analysis, shared: readonly number[]) => (v: Operand) => boolean}
- */
-const reaches = (a, shared) => {
-    /** @type {(v: Operand) => boolean} */
-    const go = v => {
-        if (!(v instanceof Array)) { return false }
-        const [, i] = v
-        const node = a.nodes[i]
-        return shared.includes(i) || (node[0] === '=>' ? node[2] : operandsOf(node)).some(go)
-    }
-    return go
-}
-
-/**
  * Whether a loop (`fjs/edag/loop`) is written as one, {@link loopText},
- * rather than as the recursion it is: the same shapes keep the recursion
- * in every writer (`fjs/edag/todo/tail-call-loop.md`) — a root assert and a
- * condition reaching a value a cell establishes, which would have to be
- * established before the `while` tests the condition each round; and a
- * read of the rest array, which each round of the recursion sees empty
- * from the second on. A next value that throws is assigned as the applied
- * function the throw is spelled as anywhere, and throws there.
+ * rather than as the recursion it is: the shapes every writer keeps the
+ * recursion for (`keepsRecursion`), and one of this text's own — a
+ * condition reaching any value a cell establishes, shared with the block
+ * or not, since the cells are declared inside the `while`, after the
+ * condition is tested, so no value the condition reaches has one to be
+ * read from. A next value that throws is assigned as the applied function
+ * the throw is spelled as anywhere, and throws there.
  *
- * @type {(a: Analysis, shared: readonly number[], rest: boolean, loop: Loop) => boolean}
+ * @type {(a: Analysis, i: number, shared: readonly number[], loop: Loop) => boolean}
  */
-const asLoop = (a, shared, rest, { before, condition }) =>
-    before.length === 0 && !rest && !reaches(a, shared)(condition)
+const asLoop = (a, i, shared, loop) => !keepsRecursion(a, i, loop) && !reaches(a, shared)(loop.condition)
 
 /**
  * A loop's text, `r => COND ? self(NEXT) : r` as the loop it is
@@ -217,12 +199,11 @@ const lambda = (a, i, path, frame) => {
     const shared = a.shared.filter(j => a.scope[j] === i && !isNameRead(a.nodes[j]))
     const s = { a, path, frame, shared }
     const fixed = Array.from({ length }, (_, k) => binding(name(`${path}/arg${k}`)))
-    const readsRest = a.nodes.some((n, j) => n[0] === 'rest' && a.scope[j] === i)
-    const rest = readsRest ? [`...${binding(name(`${path}/rest`))}`] : []
+    const rest = readsRest(a, i) ? [`...${binding(name(`${path}/rest`))}`] : []
     const list = [...fixed, ...rest].join(',')
     const cells = shared.map((j, k) => memoCell(s, j, k)).join('')
     const loop = loopOf(a, i)
-    if (loop !== null && asLoop(a, shared, readsRest, loop)) { return loopText(s, cells, loop) }
+    if (loop !== null && asLoop(a, i, shared, loop)) { return loopText(s, cells, loop) }
     const value = operand(s, body)
     // a body reading its own `self` is a named function expression, the
     // name the body's `self` reads, since an arrow function cannot name
