@@ -315,6 +315,7 @@ export const proof = {
                 ['export default n => { let n = 0; while (n) { n = 1; } return n; };', 'duplicate id', 27],
                 ['export default n => { const x = r; let r = 0; while (r) { r = 1; } return r; };', 'const not found', 33],
                 ['export default n => { let r = r; while (r) { r = 1; } return r; };', 'const not found', 31],
+                ['export default n => { let r = () => r; while (typeof r === "function") { r = [r]; } return r; };', 'const not found', 37],
                 ['export default n => { let r = 0; while (x) { r = 1; } return r; };', 'const not found', 41],
                 ['export default n => { let if = 0; while (n) { } return n; };', 'reserved word', 27],
                 ['export default n => { let r = 0; while (r) { const if = 1; } return r; };', 'reserved word', 52],

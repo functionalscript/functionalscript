@@ -75,19 +75,28 @@ for the same shapes, which no loop written as `let`/`while` produces:
   the recursion establishes it afresh per call, in the function text's
   memo cell, where a `const` before the `while` would establish it once,
   and a cell inside the body does not exist when the `while` tests the
-  condition. The function text keeps the recursion for both. The source
-  writer keeps it for the first alone: a value the condition shares
-  with itself is the `const` of a function called where written, the
-  one way source spells a scope in expression position, and the writer
-  writes the condition as that function again, as it writes any lazy
-  operand holding such a `const`, so the value is established afresh at
-  every test and the text reads back as the condition — unless the
-  function would read the variable, which the language reads as a
-  capture and refuses, when the recursion, which reads back as itself,
-  is kept. The Rust output loops for both, by construction rather than
-  by a second spelling: it has no cell, every temporary of the
-  condition is a `let` inside the `loop` before the test, rebound each
-  round;
+  condition. The function text keeps the recursion for both, a shared
+  value being a cell there whatever it holds. The source writer keeps
+  it for one value only, a value it would name — a container, a
+  function, a call, what a `const` establishes once — that the
+  condition shares with the block; a shared read, `r[0]` in the
+  condition and in the block, which the analysis table holds once, is
+  written where each read stands, as it is written anywhere, and loops.
+  A value the condition shares with itself is the `const` of a function
+  called where written, the one way source spells a scope in expression
+  position, and the writer writes the condition as that function again,
+  as it writes any lazy operand holding such a `const`, so the value is
+  established afresh at every test and the text reads back as the
+  condition — unless the function would read the variable, which the
+  language reads as a capture and refuses, when the recursion, which
+  reads back as itself, is kept. No `while` written in source produces
+  the shapes the source writer keeps the recursion for: a named value
+  the condition shares with the block would be the `const` of a
+  function called where written in both, two functions and two values.
+  The Rust output loops for every shared condition, by construction
+  rather than by a second spelling: it has no cell, every temporary of
+  the condition is a `let` inside the `loop` before the test, rebound
+  each round;
 - a read of the rest array: each round of the recursion is a call of one
   argument, so from the second round on the array is empty
   ([spec: parameters](../../../spec/README.md#parameters)), and a loop

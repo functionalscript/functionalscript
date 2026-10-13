@@ -2232,8 +2232,10 @@ export default n => {
   function of the template's shape, `const loop = r => c ? loop(next) :
   r;`, is the same graph and gets the same loop; one of a shape no `while`
   writes — a `const` before the condition running every round, a condition
-  sharing a value with the block, a read of the rest array — keeps the
-  recursion in every writer. A condition sharing a value of its own, the
+  sharing a value with the block that a `const` would name, a read of the
+  rest array — keeps the recursion in every writer; a read the condition
+  and the block repeat, `r[0]`, one value of the graph, is written where
+  each read stands and loops. A condition sharing a value of its own, the
   `const` of a function called where written, is the FunctionalScript
   output's loop still, the condition written as that function again, so
   that the value is established afresh at every test, and the Rust
@@ -2269,9 +2271,10 @@ export default n => {
   A `let` not followed by its `while`, or a `while` no `let` stands
   before, is refused (`let without while`, `while without let`): the two
   are one loop. The variable is a name of the body as a `const` is — bound
-  twice is `duplicate id`, read in its own initializer `const not found`
-  — and a function written after the loop reads it as the value it holds,
-  as it reads any `const`.
+  twice is `duplicate id`, read in its own initializer `const not found`,
+  by a nested function there too, `let r = () => r;`, whose closure
+  JavaScript lets see the variable's last value — and a function written
+  after the loop reads it as the value it holds, as it reads any `const`.
 
 ### Names and Identity
 
