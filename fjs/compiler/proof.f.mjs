@@ -1227,6 +1227,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
                 'Function with a rest parameter': 'xxooo',
                 'Closure': 'xxooo',
                 'Recursion': 'ooooo',
+                'Loop': 'xxooo',
                 'Throw': 'xxooo',
                 'Early return': 'xxooo',
                 'Shorthand members': 'ooooo',

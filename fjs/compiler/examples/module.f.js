@@ -52,6 +52,7 @@ export const examples = [
     ['Function with a rest parameter', 'export default (a, b, ...r) => [a, b, r];'],
     ['Closure', 'const k = 5;\nexport default x => y => x + y + k;'],
     ['Recursion', 'const fact = n => n < 2 ? 1 : n * fact(n - 1);\nexport default fact(5);'],
+    ['Loop', 'export default n => {\n    let r = 1;\n    while (r < n) {\n        r = r * 2;\n    }\n    return r;\n};'],
     ['Throw', 'export default (...a) => {\n    const reason = ["not implemented", a[0]];\n    throw reason;\n};'],
     ['Early return', 'export default (n) => {\n    if (n < 0) { return -1; }\n    if (n > 0) { return 1; }\n    return 0;\n};'],
     ['Shorthand members', 'const x = 1;\nconst y = [x];\nexport default { x, y };'],
