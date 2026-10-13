@@ -65,9 +65,16 @@ read partially ([DESIGN.md §10](../../doc/DESIGN.md#10-refuse-what-you-cannot-h
   the object form needs "the own properties but these", which no node
   spells, and gets a node or a helper of its own when it comes;
 - a **default**, `{ a = 1 }` and `[a = 1]`, deferred with default
-  parameters ([named and rest parameters](./3120-parameters.md)), whose
-  effect on `length` the two share. Neither spelling parses today: `=` is
-  no operator in a literal, so there is nothing to refuse by hand;
+  parameters ([named and rest parameters](./3120-parameters.md)), since
+  both lower to the same `undefined` test and are best designed once. The
+  two differ on `length`, and the follow-up must keep them apart: a
+  default on a parameter itself ends JavaScript's count, so
+  `((a = 1) => 0).length` is `0`, while a default nested inside a
+  pattern does not, so `(({ a = 1 }) => 0).length` and
+  `(([a = 1]) => 0).length` are both `1` — the pattern stays one fixed
+  parameter whatever its elements default to. Neither spelling parses
+  today: `=` is no operator in a literal, so there is nothing to refuse
+  by hand;
 - an **empty pattern**, `{}` and `[]`, which binds nothing and exists for
   its failure alone. JavaScript throws on `const {} = null` with no
   property read to carry the throw, so a faithful lowering would be a read
