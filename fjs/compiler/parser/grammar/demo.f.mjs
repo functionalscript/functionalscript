@@ -33,8 +33,8 @@
  */
 
 import {
-    _ordinaryTokenNames, access, afterValue, array, arrowOrRest, attribute, block, body, callArguments, circuitTail,
-    conditionalTail, constStatement, djsModule, eagerTail, end, entries, entry, func, group, groupOperand,
+    _ordinaryTokenNames, access, afterValue, array, arrowOrRest, attribute, bindingTarget, block, body, callArguments,
+    circuitTail, conditionalTail, constStatement, djsModule, eagerTail, end, entries, entry, func, group, groupOperand,
     identifier, identifierName, importBinding, importBindings, importClause, importStatement, item,
     lastStatement, member, namedImports, object, optionalStep, parameterNames, parameters, paren,
     parenGroup, parenGroupOperand, parenthesized, primitive, statement, template, terminator, unary, unaryOperand,
@@ -78,6 +78,7 @@ export const diagrams = [
     ['importBinding', nameOf(importBinding)],
     ['attribute', nameOf(attribute)],
     ['constStatement', nameOf(constStatement)],
+    ['bindingTarget', nameOf(bindingTarget)],
     ['lastStatement', nameOf(lastStatement)],
     ['end', nameOf(end)],
     ['value', nameOf(value)],

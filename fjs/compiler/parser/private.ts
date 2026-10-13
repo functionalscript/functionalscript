@@ -13,7 +13,7 @@ import type { Result } from '../../types/result/types.ts'
 import type { AstConst, AstFrameRef, AstItem, AstMember, AstModuleRef, AstRest, AstSelf, BinaryTag } from '../ast/types.ts'
 import type { DjsTokenWithMetadata } from '../tokenizer/types.ts'
 import type { ParseError } from './types.ts'
-import type { Block, Chain, Const, Container, If, Item, Key, LoopBlock, Node, While } from './syntax/types.ts'
+import type { BindingElement, BindingProperty, BindingTarget, Block, Chain, Container, If, Item, Key, Let, LoopBlock, Node, While } from './syntax/types.ts'
 
 /** A named parameter, `i` of the function whose body names it: what the body reads it as, the `i`th argument. */
 export type _Parameter = readonly ['arg', number]
@@ -26,6 +26,62 @@ export type _Env = OrderedMap<_Ref | _Intrinsic>
 
 /** What a name resolves to where it is written: a name bound in its own scope, or a slot of the function's frame. */
 export type _Ref = AstModuleRef | AstRest | _Parameter | AstFrameRef | AstSelf
+
+/**
+ * Where an entry of a pattern reads from: the source value itself, `null`,
+ * or a property of an earlier entry of the same pattern — its position
+ * among the pattern's entries, and the key, a constant an access admits.
+ */
+export type _Source = null | readonly [number, string | number]
+
+/**
+ * One entry a checked pattern makes: what it reads, {@link _Source}, and
+ * whether the entry is the spread of that read — an array pattern's own
+ * entry, the array its elements are read from — or the read itself.
+ */
+export type _Read = {
+    readonly source: _Source
+    readonly spread: boolean
+}
+
+/**
+ * A binding pattern the fold has checked, flat, as the lowering reads it:
+ * its entries in order, each a read of the source or of an earlier entry,
+ * and the names it binds, each by its token — the word is the token's, and
+ * the token is what a refusal after the value is read is anchored at — with
+ * the position of the entry holding its value. Nothing the language does
+ * not read is in it: a rest element, a computed key and a value in a
+ * binding position were refused making it.
+ */
+export type _Plan = {
+    readonly reads: readonly _Read[]
+    readonly names: readonly (readonly [DjsTokenWithMetadata, number])[]
+}
+
+/**
+ * What the plan's walk has still to judge, in document order: a target
+ * with the read it is the target of; an element of an array pattern, a
+ * rest element refused where it stands; or a property of an object
+ * pattern, its key judged before its target, with the entry its source
+ * is read from.
+ */
+export type _Pending =
+    | { readonly target: BindingTarget, readonly source: _Source }
+    | { readonly element: BindingElement, readonly source: _Source }
+    | { readonly property: BindingProperty, readonly parent: number }
+
+/** What the plan's walk has still to judge, the next on top, as {@link _Stack} holds the frames of a resolution. */
+export type _PendingStack = { readonly top: _Pending, readonly rest: _PendingStack } | null
+
+/**
+ * What a checked pattern makes of its source: the entries, in order, the
+ * body being built takes, and the words bound, each to the entry holding
+ * its value.
+ */
+export type _Lowered = {
+    readonly entries: readonly AstConst[]
+    readonly bound: readonly (readonly [string, AstModuleRef])[]
+}
 
 /**
  * The scope a node is resolved in: the names it binds itself — its own,
@@ -169,28 +225,26 @@ export type _FunctionFrame = {
 
 /**
  * A function whose block body is being evaluated: the statements to work
- * through — `statements[index]` is the statement being evaluated and `word`
- * the name it binds, taken before its value was entered so that a statement
- * wrong in both halves answers for the half a reader meets first; `done`
- * holds the entries before it, a list for the reason a container's is.
+ * through — `statements[index]` is the statement being evaluated and
+ * `plan` what it binds, checked before its value was entered so that a
+ * statement wrong in both halves answers for the half a reader meets first,
+ * `null` under a guard's condition or the terminator, which bind nothing;
+ * `done` holds the entries before it, a list for the reason a container's
+ * is, and `entries` how many, which is where the next statement's land —
+ * a `const` of one name makes one entry, a pattern several.
  *
  * The body begins at `first`: `0` for a function's body, and for the
  * statements after a guard the position after it in the same list, which
  * the continuation shares with the body it continues rather than copies —
- * a body of many guards would otherwise copy its tail once per guard. The
- * entry a statement makes is numbered from `first`.
- *
- * The current statement's tag distinguishes a declaration's initializer
- * from the final return value, where `word` names nothing.
+ * a body of many guards would otherwise copy its tail once per guard.
  */
 export type _BodyFrame = {
     /** The statements of the block, the grammar's list, the terminator last. */
     readonly statements: Block[1]
     readonly first: number
     readonly index: number
-    /** How many statements before `index` made no entry of their own: each loop's `while`, whose entry its `let` makes. */
-    readonly skipped: number
-    readonly word: string
+    readonly plan: _Plan | null
+    readonly entries: number
     readonly done: List<AstConst>
 }
 
@@ -199,7 +253,7 @@ export type _BodyFrame = {
  * frame at the `let`, the statement, and the word it binds.
  */
 export type _LetFrame = {
-    readonly let: Const
+    readonly let: Let
     readonly body: _BodyFrame
     readonly word: string
 }
@@ -233,15 +287,18 @@ export type _LoopCallFrame = {
 
 /**
  * A loop's block being evaluated as the body of a parameterless function:
- * `block[index]` is the statement being evaluated, `bound` the name it
- * binds or rebinds, taken before its value was entered, `word` the loop's
- * variable, and `done` the entries before it.
+ * `block[index]` is the statement being evaluated — a `const`, with the
+ * plan of what it binds, checked before its value was entered, or the
+ * assignment, which rebinds the loop's variable, `word`, and has no plan —
+ * `done` the entries before it, and `entries` how many, which is where the
+ * next statement's land.
  */
 export type _LoopBodyFrame = {
     readonly block: LoopBlock[1]
     readonly index: number
     readonly word: string
-    readonly bound: string
+    readonly plan: _Plan | null
+    readonly entries: number
     readonly done: List<AstConst>
 }
 
