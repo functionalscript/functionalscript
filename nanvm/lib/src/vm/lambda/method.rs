@@ -2,7 +2,7 @@ use crate::{
     common::sized_index::SizedIndex,
     vm::{
         Any, Array, Function, IVm, Nullish, Number, String, ToAny, ToArray, Unpacked,
-        array::callback::callback, error,
+        array::callback::callback, error, runtime::type_name,
     },
 };
 
@@ -31,6 +31,14 @@ pub(crate) fn method<A: IVm>(receiver: &Any<A>, key: &Any<A>) -> Option<Method<A
         Unpacked::Number(_) => super::number::number(key),
         _ => None,
     }
+}
+
+/// The runtime's body for the receiver's type and the key, the VM's
+/// [`IVm::runtime_method`]: what a call step calls after the native table
+/// has no entry, with the receiver as the body's first argument. `None`
+/// for a nullish receiver, which has no type the runtime keys.
+pub(crate) fn runtime<A: IVm>(receiver: &Any<A>, key: &Any<A>) -> Option<Any<A>> {
+    type_name(receiver).and_then(|name| A::runtime_method(name, key))
 }
 
 /// The entry of `table` whose name is `key`.
@@ -538,15 +546,18 @@ mod tests {
         }
     }
 
-    /// The table matches `allowedCalls` and `prohibitedCalls`, both ways:
-    /// every answered pair has an entry, no pending pair has one yet, so
-    /// landing a built-in fails here until its pair leaves the pending list
-    /// in `fjs/nanvm/methods`, and no prohibited pair has one ever.
+    /// The table and the runtime match `allowedCalls` and `prohibitedCalls`,
+    /// both ways: every answered pair has an entry, native or the runtime's
+    /// body, no pending pair has one yet, so landing a built-in fails here
+    /// until its pair leaves the pending list in `fjs/nanvm/methods`, and
+    /// no prohibited pair has one ever.
     #[test]
     fn completeness() {
         use super::super::methods_table::{ABSENT, ANSWERED, PENDING, PROHIBITED};
         let has = |(type_, name): &(&str, &str)| {
-            super::method::<A>(&receiver(type_), &(*name).into()).is_some()
+            let r = receiver(type_);
+            let key: Any<A> = (*name).into();
+            super::method::<A>(&r, &key).is_some() || super::runtime::<A>(&r, &key).is_some()
         };
         for pair in ANSWERED {
             assert!(has(pair), "{pair:?} is answered but has no entry");
@@ -566,6 +577,33 @@ mod tests {
                 "{pair:?} is no member function of the type but has an entry"
             );
         }
+    }
+
+    /// The runtime answers `startsWith` on a string and nothing on a
+    /// nullish receiver, and a call step reaches the body: through the
+    /// native table first, which has no entry, then the runtime, with the
+    /// receiver first; and `?.()` sees the body as a callee.
+    #[test]
+    fn runtime_starts_with() {
+        let key: Any<A> = "startsWith".into();
+        assert!(super::method::<A>(&"abc".into(), &key).is_none());
+        assert!(super::runtime::<A>(&"abc".into(), &key).is_some());
+        assert!(super::runtime::<A>(&Any::undefined(), &key).is_none());
+        let abc: Any<A> = "abc".into();
+        let args = || Ok(["ab".into()].to_array().to_any());
+        assert_eq!(
+            abc.clone().dot(key.clone()).end_call(args),
+            Ok(true.to_any())
+        );
+        assert_eq!(
+            abc.clone().dot(key.clone()).option_call(args).end(),
+            Ok(true.to_any())
+        );
+        assert_eq!(
+            abc.dot(key)
+                .end_call(|| Ok(["bc".into(), 1.0.to_any()].to_array().to_any())),
+            Ok(true.to_any())
+        );
     }
 
     /// A name is a method of its receiver's type alone: `at` is an

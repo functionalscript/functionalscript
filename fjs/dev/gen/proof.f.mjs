@@ -60,7 +60,9 @@ const withSubprocess = (started, ended) => {
 /**
  * The corpus sources as the matrix generator reads them, written as its own
  * writer spells them, so that generator succeeds in memory — the matrix proof
- * does the same — and an empty fixture directory for the harness generator.
+ * does the same — an empty fixture directory for the harness generator, and
+ * a stand-in for `fjs/js/runtime` at its path, which the Rust writer
+ * compiles and the harness loads.
  *
  * @type {Dir}
  */
@@ -72,6 +74,7 @@ const root = {
         },
     },
     'nanvm': { 'harness': { 'fixtures': {} } },
+    'fjs': { 'js': { 'runtime': { 'module.f.js': [utf8('export const runtime = {};')] } } },
 }
 
 /** A program that logs `s` and exits `0`. @type {(s: string) => NodeProgram} */
@@ -168,15 +171,15 @@ export const proof = {
             assert(typeof harness === 'object' && !(harness instanceof Array))
             assert('gen.fixtures' in harness, modulesPath)
         },
-        // A generator that fails stops the regeneration there: the matrix
-        // generator cannot read its corpus from an empty filesystem, and the
-        // lock script is never started.
+        // A generator that fails stops the regeneration there: the Rust
+        // writer cannot compile the runtime from an empty filesystem, and
+        // the lock script is never started.
         stopsAtAFailedGenerator: () => {
             const { run, spawned } = withSubprocess(ok(child), ok(['exited', 0]))
             const [state, code] = run(emptyState)(main(defaultNodeProgramOptions))
             assertEq(exitCode(code), 1)
             assertEq(spawned(), 0)
-            assert(state.stderr.includes('cannot be read'), state.stderr)
+            assert(state.stderr.includes('fjs/js/runtime/module.f.js'), state.stderr)
         },
     },
 }

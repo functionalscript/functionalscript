@@ -1,5 +1,5 @@
 import type { Exp } from '../types.ts'
-import type { Array, EdagValue, Function, Values } from '../value/types.ts'
+import type { Array, EdagValue, Function, Runtime, Values } from '../value/types.ts'
 
 /**
  * What an invocation holds: the captured frame and the arguments, and the
@@ -23,4 +23,10 @@ export type Context = {
      * from entries before it, since this is consulted and never extended.
      */
     readonly memo?: readonly (readonly [Exp, EdagValue])[],
+    /**
+     * The runtime whose bodies answer the member functions the dispatcher
+     * has no native implementation of (`../operations/types.ts`), handed on
+     * to every function this invocation calls.
+     */
+    readonly runtime?: Runtime | undefined,
 }

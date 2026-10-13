@@ -61,7 +61,7 @@ export const entryCall = ([receiver, key], invoke) =>
  */
 export const operation = evaluator => {
     const { context, operand, expression, invoke } = evaluator
-    const { args, frame, fixed, rest, self } = context
+    const { args, frame, fixed, rest, self, runtime } = context
     const moduleArgs = /** @type {ValueArray} */ (['[]', args])
 
     /** Resolve spreads before demanding the next item. @type {(items: ItemsOver<E>, state: S) => Evaluation<S>} */
@@ -115,7 +115,7 @@ export const operation = evaluator => {
             if (tag === '|?.()' && !builtin && nullish(callee)) { return skip(continuation, next) }
             return then(items(arg, next), (args, afterArgs) => {
                 const values = /** @type {ValueArray} */ (args)[1]
-                const result = builtin ? method(receiver, name, values, invoke)
+                const result = builtin ? method(receiver, name, values, invoke, runtime)
                     : call(ok(callee), values.map(v => () => ok(v)), invoke)
                 return then([afterArgs, result], (v, afterCall) => continueValue(v, continuation, afterCall))
             })

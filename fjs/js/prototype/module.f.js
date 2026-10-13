@@ -123,7 +123,9 @@ export const prohibitedCalls = /** @type {const} */ ([
  * such built-in the call throws the `TypeError` JavaScript throws, and an
  * own property of the name on an object shadows the built-in, as in
  * JavaScript; the reads stay refused, since a detached built-in is a
- * function that only fails.
+ * function that only fails. What answers each is `fjs/js/runtime`, whose
+ * keys per type are these names on that type's prototype, pinned by its
+ * `types.ts`.
  */
 export const allowedCalls = /** @type {const} */ ([
     'at', 'charAt', 'charCodeAt', 'codePointAt', 'concat', 'endsWith', 'every', 'filter', 'find',

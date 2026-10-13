@@ -8,6 +8,7 @@
 
 import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.mjs'
 import { ok, error } from '../../../types/result/module.f.js'
+import { invoke } from '../../amnesia/module.f.mjs'
 import { hasMethod, method } from './module.f.mjs'
 
 const undefinedValue = /** @type {const} */ (['undefined'])
@@ -17,9 +18,13 @@ const failure = error(/** @type {const} */ (['[]', ['failure']]))
 /** @type {Invoke} */
 const skipped = () => { assert(false, 'unexpected callback') }
 /** @type {(receiver: EdagValue, key: string, args: Values, expected: EdagValue) => void} */
-const check = (receiver, key, args, expected) => assertStructurallySame(assertOk(method(receiver, key, args, skipped)), expected)
+const check = (receiver, key, args, expected) => assertStructurallySame(assertOk(method(receiver, key, args, skipped, undefined)), expected)
 /** @type {(receiver: EdagValue, key: string, args: Values) => void} */
-const refuses = (receiver, key, args) => assertStructurallySame(assertError(method(receiver, key, args, skipped)), undefinedValue)
+const refuses = (receiver, key, args) => assertStructurallySame(assertError(method(receiver, key, args, skipped, undefined)), undefinedValue)
+/** A body answering its second argument, the search a `startsWith` call passes. @type {ValueFunction} */
+const second = ['=>', 2, [], ['arg', 1]]
+/** @type {(entries: readonly (readonly [string, EdagValue])[]) => import('../types.ts').Runtime} */
+const table = entries => ['{}', entries.map(([name, value]) => [':', name, value])]
 
 export const proof = {
     availability: () => {
@@ -46,7 +51,7 @@ export const proof = {
             check(receiver, 'toString', [undefinedValue], '255')
             check(receiver, 'toString', ['16.9'], 'ff')
             for (const radix of [1, 37, NaN, Infinity, 2n]) { refuses(receiver, 'toString', [radix]) }
-            assertEq(method(receiver, 'toString', [coercible], () => failure), failure)
+            assertEq(method(receiver, 'toString', [coercible], () => failure, undefined), failure)
         }
     },
     numberFormatting: () => {
@@ -61,8 +66,8 @@ export const proof = {
             refuses(1, key, [-1])
             refuses(1, key, [101])
             refuses(1, key, [1n])
-            assertEq(method(1, key, [coercible], () => failure), failure)
-            assertEq(assertOk(method(1, key, [coercible], () => ok(2))), key === 'toFixed' ? '1.00' : key === 'toPrecision' ? '1.0' : '1.00e+0')
+            assertEq(method(1, key, [coercible], () => failure, undefined), failure)
+            assertEq(assertOk(method(1, key, [coercible], () => ok(2), undefined)), key === 'toFixed' ? '1.00' : key === 'toPrecision' ? '1.0' : '1.00e+0')
         }
         refuses(Infinity, 'toFixed', [101])
         check(Infinity, 'toExponential', [101], 'Infinity')
@@ -80,7 +85,7 @@ export const proof = {
         check('aBß\ud800', 'toUpperCase', [], 'ABSS\ud800')
         check('x', 'concat', [1, null, undefinedValue], 'x1nullundefined')
         check('x', 'concat', [], 'x')
-        assertEq(method('x', 'concat', [coercible, coercible], () => failure), failure)
+        assertEq(method('x', 'concat', [coercible, coercible], () => failure, undefined), failure)
     },
     indexing: () => {
         check('a😀b', 'at', [-1], 'b')
@@ -93,11 +98,11 @@ export const proof = {
         check('abc', 'slice', [-2, -1], 'b')
         check('abc', 'substring', [2, 1], 'b')
         check('abc', 'substring', [1], 'bc')
-        assertEq(assertOk(method('abc', 'slice', [0, coercible], () => ok(undefinedValue))), '')
+        assertEq(assertOk(method('abc', 'slice', [0, coercible], () => ok(undefinedValue), undefined)), '')
         for (const key of ['at', 'charAt', 'charCodeAt', 'codePointAt', 'slice', 'substring']) {
-            assertEq(method('abc', key, [coercible], () => failure), failure)
+            assertEq(method('abc', key, [coercible], () => failure, undefined), failure)
         }
-        for (const key of ['slice', 'substring']) { assertEq(method('abc', key, [0, coercible], () => failure), failure) }
+        for (const key of ['slice', 'substring']) { assertEq(method('abc', key, [0, coercible], () => failure, undefined), failure) }
     },
     repetitionAndPadding: () => {
         check('ab', 'repeat', [2.9], 'abab')
@@ -111,7 +116,7 @@ export const proof = {
         for (const key of ['padStart', 'padEnd']) {
             check('ab', key, [2.9, coercible], 'ab')
             check('ab', key, [NaN, coercible], 'ab')
-            assertEq(method('ab', key, [4, coercible], () => failure), failure)
+            assertEq(method('ab', key, [4, coercible], () => failure, undefined), failure)
         }
     },
     searches: () => {
@@ -119,27 +124,42 @@ export const proof = {
         check('abcabc', 'indexOf', ['bc', 2], 4)
         check('abcabc', 'lastIndexOf', ['bc'], 4)
         check('abcabc', 'lastIndexOf', ['bc', NaN], 4)
-        check('abcabc', 'startsWith', ['bc', 1], true)
         check('abcabc', 'endsWith', ['bc'], true)
-        for (const key of ['includes', 'indexOf', 'lastIndexOf', 'startsWith', 'endsWith']) {
-            assertEq(method('abc', key, [coercible], () => failure), failure)
-            assertEq(method('abc', key, ['x', coercible], () => failure), failure)
+        for (const key of ['includes', 'indexOf', 'lastIndexOf', 'endsWith']) {
+            assertEq(method('abc', key, [coercible], () => failure, undefined), failure)
+            assertEq(method('abc', key, ['x', coercible], () => failure, undefined), failure)
         }
+    },
+    // `startsWith` has no native case: the runtime's body answers it, called
+    // with the receiver first, and without a body the call is the
+    // `TypeError` of a VM that binds nothing — no runtime at all, one
+    // without the type, one whose type lacks the name, or the marker.
+    runtime: () => {
+        const runtime = table([['string', table([['slice', 'native'], ['startsWith', second]])]])
+        assertEq(hasMethod('abc', 'startsWith'), true)
+        assertEq(assertOk(method('abc', 'startsWith', ['ab'], invoke, runtime)), 'ab')
+        assertStructurallySame(assertOk(method('abc', 'startsWith', [], invoke, runtime)), undefinedValue)
+        refuses('abc', 'startsWith', ['ab'])
+        for (const missing of [table([]), table([['string', table([])]]), table([['string', table([['startsWith', 'native']])]])]) {
+            assertStructurallySame(assertError(method('abc', 'startsWith', ['ab'], invoke, missing)), undefinedValue)
+        }
+        // a native name is answered natively whatever the runtime holds
+        assertEq(assertOk(method('abc', 'slice', [1], invoke, runtime)), 'bc')
     },
     splitting: () => {
         check('a,b,c', 'split', [','], ['[]', ['a', 'b', 'c']])
         check('a,b,c', 'split', [',', 2], ['[]', ['a', 'b']])
         check('a,b,c', 'split', [], ['[]', ['a,b,c']])
         check('a,b,c', 'split', [',', 0], ['[]', []])
-        assertEq(method('a,b', 'split', [coercible], () => failure), failure)
-        assertEq(method('a,b', 'split', [',', coercible], () => failure), failure)
+        assertEq(method('a,b', 'split', [coercible], () => failure, undefined), failure)
+        assertEq(method('a,b', 'split', [',', coercible], () => failure, undefined), failure)
     },
     replacementStrings: () => {
         check('aba', 'replace', ['a', '$&!'], 'a!ba')
         check('aba', 'replaceAll', ['a', '$&!'], 'a!ba!')
         check('ab', 'replaceAll', ['', '-'], '-a-b-')
-        assertEq(method('aba', 'replace', [coercible, '!'], () => failure), failure)
-        assertEq(method('aba', 'replace', ['x', coercible], () => failure), failure)
+        assertEq(method('aba', 'replace', [coercible, '!'], () => failure, undefined), failure)
+        assertEq(method('aba', 'replace', ['x', coercible], () => failure, undefined), failure)
     },
     replacementCallbacks: () => {
         /** @type {ValueFunction} */
@@ -151,11 +171,11 @@ export const proof = {
             assertStructurallySame(rest, ['[]', []])
             return ok(`${fixed[0]}${fixed[1]}`)
         }
-        assertEq(assertOk(method('aba', 'replace', ['a', callback], replacement)), 'a0ba')
-        assertEq(assertOk(method('aba', 'replaceAll', ['a', callback], replacement)), 'a0ba2')
+        assertEq(assertOk(method('aba', 'replace', ['a', callback], replacement, undefined)), 'a0ba')
+        assertEq(assertOk(method('aba', 'replaceAll', ['a', callback], replacement, undefined)), 'a0ba2')
         check('aba', 'replace', ['x', callback], 'aba')
-        assertEq(assertOk(method('ab', 'replaceAll', ['', callback], () => ok('-'))), '-a-b-')
-        assertEq(method('aba', 'replace', ['a', callback], () => failure), failure)
-        assertEq(method('aba', 'replace', ['a', callback], f => f === callback ? ok(coercible) : failure), failure)
+        assertEq(assertOk(method('ab', 'replaceAll', ['', callback], () => ok('-'), undefined)), '-a-b-')
+        assertEq(method('aba', 'replace', ['a', callback], () => failure, undefined), failure)
+        assertEq(method('aba', 'replace', ['a', callback], f => f === callback ? ok(coercible) : failure, undefined), failure)
     },
 }

@@ -1,7 +1,7 @@
 /** The state-independent interface shared by EDAG interpreters. @module */
 
 import type { Exp } from '../types.ts'
-import type { Array, Function, Values } from '../value/types.ts'
+import type { Array, Function, Runtime, Values } from '../value/types.ts'
 import type { ValueResult } from '../value/control/types.ts'
 import type { Invoke } from '../value/call/types.ts'
 
@@ -17,6 +17,13 @@ export type Context = {
     readonly fixed?: Values
     readonly rest?: Array
     readonly self?: Function
+    /**
+     * The runtime whose bodies answer the member functions the dispatcher
+     * has no native implementation of, reaching every invocation under this
+     * one. Absent, such a call throws the `TypeError` a VM that binds
+     * nothing throws.
+     */
+    readonly runtime?: Runtime | undefined
 }
 
 /** A successful or thrown language value together with the resulting VM state. */

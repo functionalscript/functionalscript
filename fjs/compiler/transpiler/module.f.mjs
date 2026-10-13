@@ -7,7 +7,7 @@
  * @import { AstModule } from '../ast/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { Unknown } from '../../media/datajs/types.ts'
- * @import { EdagValue, Object as ValueObject } from '../../edag/value/types.ts'
+ * @import { EdagValue, Object as ValueObject, Runtime } from '../../edag/value/types.ts'
  * @import { CompileValue } from '../../edag/value/to_unknown/types.ts'
  * @import { _ImportSource, _Source } from '../source/types.ts'
  * @import { SourceError, ParseContext } from './types.ts'
@@ -36,6 +36,7 @@ const moduleAt = context => id => /** @type {ValueObject} */ (at(id)(context.com
 const completed = (id, value, context) => ({
     complete: setReplace(id)(value)(context.complete),
     stack: drop(1)(context.stack),
+    runtime: context.runtime,
 })
 
 /** Check a selected export before loading the next dependency. @type {(source: _ImportSource) => (context: ParseContext) => Effect<ReadWhole | ResolveFileModule, ParseContext, SourceError>} */
@@ -53,7 +54,7 @@ const interpretModule = (source, module, context) => {
         // An unresolved module selects its imports from complete export
         // objects. Shared imported values keep their established identities.
         const graph = unresolved(module).edag
-        const result = memo(assertOk(analysis(graph)))({ args: imports.map(({ id }) => moduleAt(next)(id)) })
+        const result = memo(assertOk(analysis(graph)))({ args: imports.map(({ id }) => moduleAt(next)(id)), runtime: context.runtime })
         const [kind, value] = result
         return kind === 'error'
             ? pureError({ ..._fileError(path)('module initialization failed'), thrown: value })
@@ -74,13 +75,24 @@ const foldModule = source => context => {
         : step(_parseModule(path), module => interpretModule(source, module, entered))
 }
 
-/** Direct JSON is a document; modules yield their complete export object. @type {(source: _Source) => Effect<ReadWhole | ResolveFileModule, EdagValue, SourceError>} */
-const interpretSource = source => source.json
+/** Direct JSON is a document; modules yield their complete export object. @type {(runtime: Runtime | undefined) => (source: _Source) => Effect<ReadWhole | ResolveFileModule, EdagValue, SourceError>} */
+const interpretSource = runtime => source => source.json
     ? mapStep(_parseJson(source.path), jsonValue)
-    : mapStep(foldModule(source)({ stack: null, complete: null }), context => moduleAt(context)(source.id))
+    : mapStep(foldModule(source)({ stack: null, complete: null, runtime }), context => moduleAt(context)(source.id))
 
-/** Interpret a source without erasing represented functions or thrown values. @type {(path: string) => Effect<ReadWhole | ResolveFileModule, EdagValue, SourceError>} */
-export const interpret = path => step(_rootSource(path), interpretSource)
+/**
+ * Interpret a source without erasing represented functions or thrown
+ * values, every module's initialization under `runtime`: the bodies of
+ * [`fjs/js/runtime`](../../js/runtime/module.f.js) answer the member
+ * functions the interpreter has no native implementation of
+ * ([`edag/memo/types.ts`](../../edag/memo/types.ts)).
+ *
+ * @type {(runtime: Runtime | undefined) => (path: string) => Effect<ReadWhole | ResolveFileModule, EdagValue, SourceError>}
+ */
+export const interpretWith = runtime => path => step(_rootSource(path), interpretSource(runtime))
+
+/** {@link interpretWith} no runtime: a module whose initialization calls a member function only the runtime answers fails to initialize. @type {(path: string) => Effect<ReadWhole | ResolveFileModule, EdagValue, SourceError>} */
+export const interpret = interpretWith(undefined)
 
 /**
  * Compile the complete module export object, or a direct JSON document, into
@@ -92,11 +104,15 @@ export const interpret = path => step(_rootSource(path), interpretSource)
 export const transpile = path => step(interpret(path), toUnknown)
 
 /**
- * Select a represented default only after initializing the complete module,
- * then decode data for JSON/DataJS output. Named callable exports do not block
- * data outputs; a selected callable returns an output refusal in the Result.
+ * Select a represented default only after initializing the complete module
+ * under `runtime`, then decode data for JSON/DataJS output. Named callable
+ * exports do not block data outputs; a selected callable returns an output
+ * refusal in the Result.
  *
- * @type {(path: string) => Effect<ReadWhole | ResolveFileModule, Result<Unknown, string>, SourceError>}
+ * @type {(runtime: Runtime | undefined) => (path: string) => Effect<ReadWhole | ResolveFileModule, Result<Unknown, string>, SourceError>}
  */
-export const _transpileDefault = path => step(_rootSource(path), source =>
-    mapStep(interpretSource(source), value => toData(source.json ? value : assertOk(read(ok(value), 'default')))))
+export const _transpileDefaultWith = runtime => path => step(_rootSource(path), source =>
+    mapStep(interpretSource(runtime)(source), value => toData(source.json ? value : assertOk(read(ok(value), 'default')))))
+
+/** {@link _transpileDefaultWith} no runtime, what `fjs compile` has ([`../todo/cli-runtime.md`](../todo/cli-runtime.md)). @type {(path: string) => Effect<ReadWhole | ResolveFileModule, Result<Unknown, string>, SourceError>} */
+export const _transpileDefault = _transpileDefaultWith(undefined)

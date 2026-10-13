@@ -100,6 +100,21 @@ const methods = ['{}', [
 const constMethods = ['=>', 0, [], methods]
 
 export const proof = {
+    // A context's runtime reaches a member call in the expression and in
+    // every function it calls: the body under `string.startsWith`, which
+    // answers its receiver, is what `'abc'.startsWith('b')` calls at both
+    // depths; without a runtime the same call throws.
+    runtime: () => {
+        /** @type {import('../value/types.ts').Runtime} */
+        const runtime = ['{}', [[':', 'string', ['{}', [[':', 'startsWith', ['=>', 1, [], ['arg', 0]]]]]]]]
+        /** @type {Exp} */
+        const direct = ['.', 'abc', 'startsWith', ['|()', ['b']]]
+        /** @type {Exp} */
+        const nested = ['()', ['=>', 0, [], direct], []]
+        assertEq(assertOk(vm({ frame: [], args: [], runtime })(direct)), 'abc')
+        assertEq(assertOk(vm({ frame: [], args: [], runtime })(nested)), 'abc')
+        assertStructurallySame(assertError(vm({ frame: [], args: [] })(nested)), ['undefined'])
+    },
     // `self` is the invoked function itself, by identity, in every reading
     // of the body; at the module's scope there is none to read
     self: () => {

@@ -1757,7 +1757,10 @@ receiver-type/name pair against the compiler's list
 Methods follow JavaScript's argument, callback and coercion rules. Array
 callbacks can be closures, missing arguments differ from explicitly passed
 `undefined` where the method specifies that distinction, and string positions
-count UTF-16 code units. Mutation methods, iterator-producing methods,
+count UTF-16 code units. Each is defined once, in
+[`fjs/js/runtime`](../fjs/js/runtime/README.md): as a FunctionalScript body
+every executor answers it from — `startsWith` the first — or, until its body
+is written, as a name each executor implements natively. Mutation methods, iterator-producing methods,
 locale-sensitive operations, regular-expression methods and namespace APIs
 such as `Array.isArray` remain outside this set. The complete name-by-name
 admission rationale is in [prototype names](../fjs/js/prototype/README.md).

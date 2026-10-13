@@ -33,6 +33,14 @@ export type EntryFunction = readonly ['entry']
 
 export type Function = Closure | EntryFunction
 
+/**
+ * The runtime an executor answers member functions from: the evaluated
+ * `runtime` export of `fjs/js/runtime`, an object keyed by receiver type
+ * and then by name, each entry a function value or the string `'native'`.
+ * Its shape is the module's, which `fjs/js/runtime/types.ts` pins.
+ */
+export type Runtime = Object
+
 type _Value = Assert<Check3<EdagValue, typeof _value, typeof value>>
 type _Values = Assert<Check<Values, typeof values>>
 type _Array = Assert<Check<Array, typeof array>>

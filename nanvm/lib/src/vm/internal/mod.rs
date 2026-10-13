@@ -41,4 +41,19 @@ pub trait IVm:
     type InternalFunction: IFunction<Self>;
     // functions
     fn to_unpacked(self) -> Unpacked<Self>;
+    /// The member function the VM's runtime binds for a receiver of the
+    /// type `type_name` names — `object`, `array`, `string`, `number`,
+    /// `boolean`, `bigint` or `function`, as `fjs/js/runtime` keys them —
+    /// and the key, or `None`. A call step asks it after the receiver's own
+    /// property and the native table ([`method`](crate::vm::lambda) in
+    /// `vm/lambda/method.rs`), and before the `TypeError` for calling
+    /// `undefined`. The default binds nothing: a VM that makes functions
+    /// out of Rust static functions answers it with
+    /// [`runtime_method`](crate::vm::runtime_method), the compiled
+    /// runtime's entry, as `naive` does; a VM that cannot run a body
+    /// leaves the default.
+    fn runtime_method(type_name: &str, key: &Any<Self>) -> Option<Any<Self>> {
+        let _ = (type_name, key);
+        None
+    }
 }

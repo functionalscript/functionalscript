@@ -8,10 +8,10 @@
  * @import { PartialMemOperationMap } from '../../effects/mock/types.ts'
  * @import { ParseError } from '../parser/types.ts'
  * @import { InitializationError } from './types.ts'
- * @import { EdagValue } from '../../edag/value/types.ts'
+ * @import { EdagValue, Runtime } from '../../edag/value/types.ts'
  */
 
-import { _transpileDefault, interpret, parse, transpile } from './module.f.mjs'
+import { _transpileDefault, interpret, interpretWith, parse, transpile } from './module.f.mjs'
 import { _importSources } from '../source/module.f.mjs'
 import { _defaultExport, resolve, unresolved } from '../edag/module.f.mjs'
 import { invoke } from '../../edag/memo/module.f.mjs'
@@ -29,7 +29,7 @@ import { error, ok, unwrap } from '../../types/result/module.f.js'
 import { virtual, virtualOperationMap, emptyState, nodeProgramOptions } from '../../effects/node/virtual/module.f.mjs'
 import { partialRun } from '../../effects/mock/module.f.mjs'
 import { utf8, utf8ToString } from '../../text/module.f.mjs'
-import { assert, assertEq, assertError, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
 
 // The virtual host declares lexical path identities; native URL behavior has host proofs.
 /** @type {(path: string) => (imports: readonly import('../ast/types.ts').AstImport[]) => Result<readonly import('../source/types.ts')._Source[], ParseError>} */
@@ -68,6 +68,23 @@ const refusedSpecifier = (specifier, source, root) => {
 }
 
 export const proof = {
+    // The runtime an interpretation is given reaches every module it loads:
+    // a body under `string.startsWith` answering its receiver is what the
+    // importer's and the dependency's initializations call, and without a
+    // runtime the same call fails the dependency's initialization.
+    interpretWith: () => {
+        /** @type {Runtime} */
+        const runtime = ['{}', [[':', 'string', ['{}', [[':', 'startsWith', ['=>', 1, [], ['arg', 0]]]]]]]]
+        const root = {
+            'main.f.js': [utf8("import d from './dep.f.js'; export default [d, 'xy'.startsWith('x')];")],
+            'dep.f.js': [utf8("export default 'abc'.startsWith('b');")],
+        }
+        const [, result] = virtual({ ...emptyState, root })(interpretWith(runtime)('main.f.js'))
+        assertStructurallySame(assertOk(result), ['{}', [[':', 'default', ['[]', ['abc', 'xy']]]]])
+        assertStructurallySame(represented(root, 'main.f.js'), error({
+            message: 'module initialization failed', metadata: null, path: 'dep.f.js', thrown: ['undefined'],
+        }))
+    },
     runtimeConversion: {
         callableRequest: () => {
             const root = {

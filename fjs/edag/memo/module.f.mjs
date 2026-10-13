@@ -7,6 +7,7 @@
  * @import { Analysis, Node, Operand, Step } from '../analysis/types.ts'
  * @import { ValueResult } from '../value/control/types.ts'
  * @import { Invoke } from '../value/call/types.ts'
+ * @import { Runtime } from '../value/types.ts'
  * @import { Invocation } from './types.ts'
  * @import { Context, Evaluation } from '../operations/types.ts'
  * @import { _Cache } from './private.ts'
@@ -81,18 +82,31 @@ const evaluate = (a, context, root) => {
         return [kind === 'ok' && shared.includes(index) ? [...next, [index, value]] : next, result]
     }
 
-    const run = operation({ context, operand, expression: e => expression(code, e), invoke })
+    const run = operation({ context, operand, expression: e => expression(code, e), invoke: invoker(context.runtime) })
     return operand(root, [])[1]
 }
 
-/** Invoke a represented function, with fresh body state and retained captures — or the `entry` helper, answered in place. @type {Invoke} */
-export const invoke = (fn, fixed, rest) => {
-    if (fn[0] === 'entry') { return entryCall(fixed, invoke) }
-    const a = assertOk(analysis(fn))
-    const [, index] = /** @type {import('../analysis/types.ts').Ref} */ (a.root)
-    const [, , , body] = /** @type {Over<import('../types.ts').Function, Operand>} */ (a.nodes[index])
-    return evaluate(a, { frame: fn[2], args: [], fixed, rest, self: fn }, body)
+/**
+ * The invoker of an executor given `runtime`: a represented function
+ * invoked, with fresh body state and retained captures, under the same
+ * runtime — or the `entry` helper, answered in place.
+ *
+ * @type {(runtime: Runtime | undefined) => Invoke}
+ */
+export const invoker = runtime => {
+    /** @type {Invoke} */
+    const invoke = (fn, fixed, rest) => {
+        if (fn[0] === 'entry') { return entryCall(fixed, invoke) }
+        const a = assertOk(analysis(fn))
+        const [, index] = /** @type {import('../analysis/types.ts').Ref} */ (a.root)
+        const [, , , body] = /** @type {Over<import('../types.ts').Function, Operand>} */ (a.nodes[index])
+        return evaluate(a, { frame: fn[2], args: [], fixed, rest, self: fn, runtime }, body)
+    }
+    return invoke
 }
+
+/** {@link invoker} with no runtime: every member function it answers is one the dispatcher implements natively. @type {Invoke} */
+export const invoke = invoker(undefined)
 
 /** Interpret a complete analyzed graph. Binding admission happens once here. @type {(a: Analysis) => (context: Invocation) => ValueResult} */
 export const memo = a => {
