@@ -13,8 +13,11 @@ const durationText = formatDuration(2)
  */
 export const _validDuration = duration => Number.isFinite(duration) && duration >= 0
 
-/** Units and precision appropriate to a measured duration.
+/** Format a recorded interval without bounding unresolved elapsed time.
+ * A zero reading may reflect browser clock quantization, whose resolution
+ * varies. Intervals below the display precision therefore get words, not
+ * an unsupported numeric upper bound.
  * @type {(duration: number) => string}
  */
-export const _formatDuration = duration => duration < 0.01 ? '<0.01 ms'
+export const _formatDuration = duration => duration < 0.01 ? 'too small to report reliably'
     : durationText(duration)
