@@ -15,6 +15,12 @@ import { parseFromTokens } from './module.f.mjs'
 import { expectModule, expectRefused, tokenizeString } from './proof.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
 
+/** An array pattern nested as deep as the parser's bar, binding `a` at the bottom. */
+const deep = `${'['.repeat(20000)}a${']'.repeat(20000)}`
+
+/** An object pattern as wide as the parser's bar, binding `a0` to `a19999`. */
+const wide = `{ ${Array.from({ length: 20000 }, (_, i) => `a${i}`).join(', ')} }`
+
 export const proof = {
     // A `const` of a binding pattern, `const { a, b: [c] } = v;`: the fold
     // writes the reads the pattern is sugar for — a hidden entry per source,
@@ -177,14 +183,14 @@ export const proof = {
         // collected as lists against an environment, so one as wide as that
         // bar costs its width — the two shapes the resolution's own stack
         // and `containerStackCost` already hold a value to.
-        stackCost: () => {
-            const deep = `const x = []; const ${'['.repeat(20000)}a${']'.repeat(20000)} = x; export default a;`
-            assertEq(parseFromTokens(tokenizeString(deep))[0], 'ok')
-            const wide = `const x = {}; const { ${Array.from({ length: 20000 }, (_, i) => `a${i}`).join(', ')} } = x; export default a0;`
-            assertEq(parseFromTokens(tokenizeString(wide))[0], 'ok')
+        // Each input is a test of its own: one takes seconds, and a runner
+        // may hold a test to five.
+        stackCost: {
+            constDeep: () => { assertEq(parseFromTokens(tokenizeString(`const x = []; const ${deep} = x; export default a;`))[0], 'ok') },
+            constWide: () => { assertEq(parseFromTokens(tokenizeString(`const x = {}; const ${wide} = x; export default a0;`))[0], 'ok') },
             // and the same two as a parameter, the head of a list and after it
-            assertEq(parseFromTokens(tokenizeString(`export default (${'['.repeat(20000)}a${']'.repeat(20000)}) => a;`))[0], 'ok')
-            assertEq(parseFromTokens(tokenizeString(`export default (x, { ${Array.from({ length: 20000 }, (_, i) => `a${i}`).join(', ')} }) => a0;`))[0], 'ok')
+            parameterDeep: () => { assertEq(parseFromTokens(tokenizeString(`export default (${deep}) => a;`))[0], 'ok') },
+            parameterWide: () => { assertEq(parseFromTokens(tokenizeString(`export default (x, ${wide}) => a0;`))[0], 'ok') },
         },
         // A name in a pattern is a binding by every rule a `const`'s name
         // follows: reserved, bound twice — in the pattern itself, against
