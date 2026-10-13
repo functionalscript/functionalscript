@@ -64,3 +64,37 @@ Node16:
     256k1: 5839
     256r1: 5746
 ```
+
+## Elliptic Curve Playground
+
+The module page discovers `demo.f.mjs` automatically. Build with
+`npm run website`, serve the repository root, and open `/fjs/crypto/secp/`.
+
+- **Finite Field View** plots all 28 finite points of
+  `y² = x³ + x + 4 mod 23`. Select addition, doubling, negation, or `kG`;
+  use the grid or point selectors and the result updates immediately.
+  The inline P/Q radios choose which input a graph click sets. For point
+  addition and doubling, solid segments show the modular secant or tangent,
+  broken where it wraps; S marks its third curve intersection and R = −S.
+  Dotted blue connectors show modular negation for S → R and P → −P. The `kG`
+  slider selects integer scalars from 0 through 29. Show Math contains the
+  substituted formulas and scalar multiples.
+  The default `3G` is `(11,9)`. Scalars 0 and 29 illustrate infinity, which
+  is `null` in the module and has no plotted coordinates. Show Math explains
+  substituted modular calculations and each repeated-addition frame.
+- **Geometric View** uses the distinct real curve `y² = x³ − x + 1`.
+  Drag inputs horizontally along their branch or use the sliders and branch
+  radios (Upper/Lower). The secant or tangent, third intersection, and reflected
+  result update immediately as P or Q changes.
+  Vertical lines give infinity; unstable constructions are refused and
+  off-screen results are reported rather than squeezed into the graph.
+  This is an analogy, not a continuous picture of finite-field arithmetic.
+- **Real Curves** derives and SEC 1 validates `dG` for all five named curves.
+  Enter a demo-only decimal scalar in `1 ≤ d < n`, then Generate Public Key
+  and copy the padded hexadecimal coordinates. Everything stays client-side;
+  never enter real wallet keys or private secrets.
+
+SVG point controls have keyboard and native selector equivalents; geometry
+sliders support keyboard and touch input.
+The pure calculation helpers and their proofs live in [`website/demo/secp`](../../website/demo/secp/); the
+shared website runtime owns DOM events and pointer capture.
