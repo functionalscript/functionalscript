@@ -1,9 +1,9 @@
 ## Destructuring in `const` and parameters
 
 **Priority:** P2
-**Status:** wip — the design approved and `const` destructuring
-implemented ([destructuring](../README.md#destructuring)); parameter
-destructuring in progress
+**Status:** wip — the design approved, and `const` and parameter
+destructuring implemented ([destructuring](../README.md#destructuring));
+the rest element and the elision remain
 
 ```js
 const { a, "%": [c, d] } = { a: null, "%": [true, false] };
@@ -62,7 +62,8 @@ exports `a` and `b`, and `then` is refused among them as it is alone.
 read partially ([DESIGN.md §10](../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)):
 
 - a **rest element**, `[a, ...r]` and `{ a, ...r }`, and a pattern under
-  the rest parameter, `(...[a, b]) => …`. The array form is cheap — the
+  the rest parameter, `(...[a, b]) => …`, which stops at the grammar, the
+  rest parameter's rule taking a name. The array form is cheap — the
   spread array below, sliced past the fixed items — and is the next stage;
   the object form needs "the own properties but these", which no node
   spells, and gets a node or a helper of its own when it comes;
@@ -238,7 +239,7 @@ of; and two familiar spellings — rest and defaults — are refused for now, ea
       asks.
 - [x] `const` destructuring: syntax tree, grammar, binding, proofs, and the
       specification's [destructuring](../README.md#destructuring) section.
-- [ ] Parameter destructuring: the parameter grammar and the `length` rule,
+- [x] Parameter destructuring: the parameter grammar and the `length` rule,
       over the same converter and binder; the specification's
       [functions](../README.md#functions) section loses "destructuring is
       not supported yet".

@@ -286,9 +286,10 @@ export type Let = Statement & {
 }
 
 /**
- * What a binding binds, as written: a name, by its token; an array
- * pattern, `[t, …]`, by its `[` and its elements; or an object pattern,
- * `{ p, … }`, by its `{` and its properties
+ * What a binding binds, as written — a `const`'s, or a fixed parameter's:
+ * a name, by its token; an array pattern, `[t, …]`, by its `[` and its
+ * elements; or an object pattern, `{ p, … }`, by its `{` and its
+ * properties
  * ([spec: destructuring](../../../../spec/README.md#destructuring)). A
  * pattern is read by the value rules — one symbol cannot tell a
  * parenthesized parameter list from a group, so the grammar reads a value
@@ -352,24 +353,36 @@ export type Module = {
 }
 
 /**
- * Ordered fixed names and an optional final rest name, with source tokens.
- * An invalid expression in a binding position retains its opening token so
- * the binding pass reports the early error at the parameter list; an `=>`
- * on a line after the list, which JavaScript refuses, retains the `=>`.
+ * A function's parameter list as written, {@link Parameters}; or what
+ * keeps it from being one, for the fold to refuse: a list whose head is no
+ * binding target — a literal, an access, an operator, or a group,
+ * `((a)) => 1`, JavaScript's early error — retains the `(` that opened it,
+ * and an `=>` on a line after the list, which JavaScript refuses, retains
+ * the `=>`.
  */
 export type ParameterList =
     | { readonly invalid: DjsTokenWithMetadata }
     | { readonly arrow: DjsTokenWithMetadata }
-    | readonly ParameterBinding[]
+    | Parameters
 
-/** A parameter token and whether it binds the tail. */
-export type ParameterBinding = { readonly name: DjsTokenWithMetadata, readonly rest: boolean }
+/**
+ * The fixed parameters in order, each a binding target — a name, or a
+ * pattern, {@link BindingTarget} — and the rest parameter's token, or
+ * `null` where the list has none. A rest parameter keeps a plain name
+ * ([spec: destructuring](../../../../spec/README.md#destructuring)).
+ */
+export type Parameters = {
+    readonly fixed: readonly BindingTarget[]
+    readonly rest: DjsTokenWithMetadata | null
+}
 
 /**
  * The output alphabet: what the mappings return, each tagged by the rule it
- * came from. The input alphabet's metadata is the token itself, which has
- * no `id`, and that is what tells the two apart at a position typed as
- * either.
+ * came from. A `parameters` symbol is the list after a named list's first
+ * parameter, its fixed targets and its rest parameter's token, which the
+ * list's reader puts the first before. The input alphabet's metadata is
+ * the token itself, which has no `id`, and that is what tells the two
+ * apart at a position typed as either.
  *
  * A value a `(` opened is `paren` rather than `value`, holding the same
  * node: a group is no node of its own, so this id is the one trace of the
@@ -388,7 +401,7 @@ export type ParameterBinding = { readonly name: DjsTokenWithMetadata, readonly r
 export type Out =
     | { readonly id: 'value', readonly node: Node, readonly first: DjsTokenWithMetadata, readonly target: BindingTarget }
     | { readonly id: 'paren', readonly node: Node, readonly first: DjsTokenWithMetadata }
-    | { readonly id: 'parameters', readonly items: List<ParameterBinding> }
+    | { readonly id: 'parameters', readonly fixed: List<BindingTarget>, readonly rest: DjsTokenWithMetadata | null }
     | { readonly id: 'item', readonly item: Item, readonly target: BindingElement }
     | { readonly id: 'values', readonly items: List<Item>, readonly targets: List<BindingElement> }
     | { readonly id: 'member', readonly member: Member, readonly target: BindingProperty }

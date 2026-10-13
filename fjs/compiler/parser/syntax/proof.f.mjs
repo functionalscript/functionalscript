@@ -1,7 +1,7 @@
 /**
  * @import { Primitive } from '../../../media/datajs/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
- * @import { Node } from './types.ts'
+ * @import { Node, ParameterList } from './types.ts'
  */
 
 import { parseSyntax } from './module.f.mjs'
@@ -81,7 +81,7 @@ export const proof = {
                 const expression = unwrap(parseSyntax(tokenizeString('export default () => 7;')))
                 const block = unwrap(parseSyntax(tokenizeString('export default () => { return 7; };')))
                 assert(expression.exported !== null && block.exported !== null)
-                assertStructurallySame(expression.exported.value, ['=>', [], ['primitive', 7]])
+                assertStructurallySame(expression.exported.value, ['=>', { fixed: [], rest: null }, ['primitive', 7]])
                 assertStructurallySame(returned(block.exported.value), ['primitive', 7])
             },
             orderedDeclarations: () => {
@@ -197,6 +197,44 @@ export const proof = {
         assertEq(g[0], '...')
         assertStructurallySame(array[2].map(t => t[0]), ['name'])
         assertStructurallySame(name[1].token, { kind: 'id', value: 'i' })
+    },
+    // A parameter list is its fixed targets, the head read off the value
+    // the grammar read as a `const`'s pattern is and the others as targets
+    // outright, and its rest parameter's token; a head that is no target —
+    // a value, or a group — leaves the list `invalid` at its `(`.
+    parameters: () => {
+        const { exported } = unwrap(parseSyntax(tokenizeString(
+            'export default ({ a, b: [c] }, d, [e], ...f) => 1;')))
+        assert(exported !== null && exported.value[0] === '=>')
+        const list = exported.value[1]
+        assert('fixed' in list && list.rest !== null)
+        assertStructurallySame(list.fixed.map(t => t[0]), ['object', 'name', 'array'])
+        const [pattern, d] = list.fixed
+        assert(pattern[0] === 'object' && d[0] === 'name')
+        assertEq(pattern[1].metadata.column, 17)
+        const [a, b] = pattern[2]
+        assert('key' in a && 'key' in b)
+        assertStructurallySame([a.target[0], b.target[0]], ['name', 'array'])
+        assertStructurallySame(d[1].token, { kind: 'id', value: 'd' })
+        assertStructurallySame(list.rest.token, { kind: 'id', value: 'f' })
+        /** @type {(source: string) => ParameterList} */
+        const listOf = source => {
+            const { exported } = unwrap(parseSyntax(tokenizeString(source)))
+            assert(exported !== null && exported.value[0] === '=>')
+            return exported.value[1]
+        }
+        const bare = listOf('export default a => 1;')
+        assert('fixed' in bare && bare.rest === null)
+        assertStructurallySame(bare.fixed.map(t => t[0]), ['name'])
+        assertEq(bare.fixed[0][1].metadata.column, 16)
+        const rest = listOf('export default (...r) => 1;')
+        assert('fixed' in rest && rest.rest !== null)
+        assertStructurallySame(rest.fixed, [])
+        assertEq(rest.rest.metadata.column, 20)
+        for (const source of ['export default (1) => 1;', 'export default ((a)) => 1;', 'export default (a.b, c) => 1;']) {
+            const list = listOf(source)
+            assert('invalid' in list && list.invalid.metadata.column === 16, source)
+        }
     },
     namedExports: {
         syntax: () => {

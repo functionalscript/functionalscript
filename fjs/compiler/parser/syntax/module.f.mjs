@@ -16,11 +16,11 @@
  * resolved where the statements are read, after the grammar has matched
  * the whole module. Beside each value's node it keeps the binding target
  * the same text is, `BindingTarget`, built the same way, so that a `const`
- * reads its pattern off the literal the grammar read. A mapping reports no
- * error: what it cannot say is recorded for the fold to refuse — a
- * parameter list whose head is no name, `{ invalid }`, a value where a
- * target was wanted, `['invalid', token]`, and a statement's first token
- * and whether a `;` ended it, `Statement`.
+ * or a parameter list reads its pattern off the literal the grammar read.
+ * A mapping reports no error: what it cannot say is recorded for the fold
+ * to refuse — a parameter list whose head is no target, `{ invalid }`, a
+ * value where a target was wanted, `['invalid', token]`, and a statement's
+ * first token and whether a `;` ended it, `Statement`.
  *
  * Every walk is a mapping of one node, and a list's mapping puts one item
  * before the list its tail's mapping returned, so nesting depth and width
@@ -36,10 +36,10 @@
  * @import { Primitive } from '../../../media/datajs/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { ParseError } from '../types.ts'
- * @import { BindingElement, BindingProperty, BindingTarget, Block, BlockStatement, Chain, Const, Entry, Import, ImportBinding, Item, Key, Let, LoopBlock, LoopStatement, Member, Module, ModuleConst, Node, Out, ParameterBinding, ParameterList, Step, ValueStatement } from './types.ts'
+ * @import { BindingElement, BindingProperty, BindingTarget, Block, BlockStatement, Chain, Const, Entry, Import, ImportBinding, Item, Key, Let, LoopBlock, LoopStatement, Member, Module, ModuleConst, Node, Out, ParameterList, Parameters, Step, ValueStatement } from './types.ts'
  * @import { ArrowOrRest, BindingTarget as BindingTargetRule, Block as BlockRule, Body, ConstStatement, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, LetStatement, LoopBlock as LoopBlockRule, LoopStatement as LoopStatementRule, Member as MemberRule, ParameterNames, Parenthesized, Statement, Template, Unary, UnaryOperand, Value } from '../grammar/types.ts'
  * @import { namedImports, primitive, terminator } from '../grammar/module.f.mjs'
- * @import { _AccessNode, _AttributeNode, _CallBranch, _ChainState, _CircuitNode, _ConditionalNode, _EndNode, _IndexBranch, _NameNode, _KeyBranch, _Leaf, _ListNode, _OptionalBranch, _OptionalList, _ParameterNode, _PowTailNode, _StepRead, _TailRound, _TokenStream } from './private.ts'
+ * @import { _AccessNode, _AttributeNode, _CallBranch, _ChainState, _CircuitNode, _ConditionalNode, _EndNode, _IndexBranch, _NameNode, _KeyBranch, _Leaf, _ListNode, _OptionalBranch, _OptionalList, _ParameterNode, _ParameterTail, _PowTailNode, _StepRead, _TailRound, _TokenStream } from './private.ts'
  */
 
 import { error, ok } from '../../../types/result/module.f.js'
@@ -127,11 +127,11 @@ const nodeAt = node => {
     return out.node
 }
 
-/** @type {(node: _Leaf) => List<ParameterBinding>} */
+/** @type {(node: _Leaf) => _ParameterTail} */
 const parametersAt = node => {
     const out = outAt(node)
     assert(out.id === 'parameters')
-    return out.items
+    return { fixed: out.fixed, rest: out.rest }
 }
 
 /** @type {(node: _Leaf) => Item} */
@@ -424,14 +424,14 @@ const containerTarget = (tag, open, list) => {
     return ['object', open, toArray(entryTargets(list))]
 }
 
-/** The names a parameter list's optional tail holds, `[ ',' [ names ] ]` after the first. */
-const parameterItems = optionalItems(parametersAt)
+/** The end of a parameter list, where nothing follows the comma: no fixed parameter and no rest. @type {_ParameterTail} */
+const noParameters = { fixed: null, rest: null }
 
-/** The token of a named parameter after the first: under the alternative its word matched. @type {(node: _Leaf) => DjsTokenWithMetadata} */
-const nameTokenAt = node => tokenAt(unmapped(/** @type {_NameNode} */ (node))[1])
-
-/** The names of a parameter list after the first, its tail already mapped. */
-const parametersOf = listOf(node => ({ name: nameTokenAt(node), rest: false }), parametersAt)
+/** The parameters a list's optional tail holds after the comma, `[ parameters ]`: none where the comma is trailing. @type {(node: _OptionalList) => _ParameterTail} */
+const parameterItems = node => {
+    const rounds = unmapped(node)
+    return rounds.length === 0 ? noParameters : parametersAt(rounds[0])
+}
 
 /** The entries of a list of entries, its tail already mapped. */
 const entriesOf = listOf(entryAt, entriesAt)
@@ -479,25 +479,29 @@ const indexKey = branch => bracketKey(unmapped(branch)[1])
  * name is — or the empty list, which has no token, and the fold has no
  * word to bind, so a body under it names nothing.
  *
- * @type {(node: _ParameterNode) => ParameterList}
+ * @type {(node: _ParameterNode) => Parameters}
  */
 const parameterOf = node => {
     const rounds = unmapped(node)
-    return rounds.length === 0 ? [] : [{ name: tokenAt(unmapped(unmapped(rounds[0])[1])[1]), rest: true }]
+    return { fixed: [], rest: rounds.length === 0 ? null : tokenAt(unmapped(unmapped(rounds[0])[1])[1]) }
 }
 
 /**
- * A named parameter list from the value at its head and the names after
- * it: the head is a parameter where it is a plain name — a reference, and
- * not one a `(` opened again, `((a)) => 1` being a syntax error in
- * JavaScript — and otherwise the list is malformed, anchored at the `(`
- * that opened it for the fold to refuse.
+ * A named parameter list from the value at its head and the parameters
+ * after it: the head is a parameter where it is a binding target — a
+ * name, or a pattern, read off the value as a `const`'s is, and not one a
+ * `(` opened again, `((a)) => 1` being a syntax error in JavaScript — and
+ * otherwise the list is malformed, anchored at the `(` that opened it for
+ * the fold to refuse. A value that is no target inside a pattern,
+ * `([(a)]) => 1`, is the pattern's to carry and the fold's to refuse where
+ * it stands, as it is in a `const`.
  *
- * @type {(open: DjsTokenWithMetadata, head: _Leaf, more: List<ParameterBinding>) => ParameterList}
+ * @type {(open: DjsTokenWithMetadata, head: _Leaf, more: _ParameterTail) => ParameterList}
  */
 const namedList = (open, head, more) => {
     const out = outAt(head)
-    return out.id === 'value' && out.node[0] === 'ref' ? [{ name: out.node[1], rest: false }, ...toArray(more)] : { invalid: open }
+    if (out.id !== 'value' || out.target[0] === 'invalid') { return { invalid: open } }
+    return { fixed: [out.target, ...toArray(more.fixed)], rest: more.rest }
 }
 
 /**
@@ -877,7 +881,7 @@ const parenNode = (open, [tag, branch]) => {
         return ['=>', arrowed(namedList(open, v, parameterItems(names)), tokenAt(arrow)), nodeAt(b)]
     }
     const [, next] = unmapped(rest)
-    return continued(namedList(open, v, null), nodeAt(v), true, next)
+    return continued(namedList(open, v, noParameters), nodeAt(v), true, next)
 }
 
 /**
@@ -929,7 +933,7 @@ const toNode = node => {
     if (node[0] === 'name') {
         const [id, after] = unmapped(node[1])
         const token = tokenAt(unmapped(id)[1])
-        const made = continued([{ name: token, rest: false }], ['ref', token], false, after)
+        const made = continued({ fixed: [named(token)], rest: null }, ['ref', token], false, after)
         // the name alone is a target; with a step, an operator or an `=>`
         // after it, it is the value those make
         return symbol({ id: 'value', node: made, first: token, target: made[0] === 'ref' ? named(token) : invalid(token) })
@@ -1201,14 +1205,15 @@ const toImport = ([first, clause, , module, attribute, end]) => {
 }
 
 /**
- * What a `const` binds, from `bindingTarget`'s branch: a name's token,
- * under the alternative its word matched, or the pattern an array or an
- * object literal is, `[ open [ items ] close ]`, read from its list's
- * mapping as a value's is, {@link containerTarget}.
+ * What a `const` or a fixed parameter after the first binds, from
+ * `bindingTarget`'s branch: a name's token, under the alternative its word
+ * matched, or the pattern an array or an object literal is,
+ * `[ open [ items ] close ]`, read from its list's mapping as a value's
+ * is, {@link containerTarget}.
  *
  * @type {(node: Children<BindingTargetRule, DjsTokenWithMetadata, Out>) => BindingTarget}
  */
-const constTarget = ([tag, branch]) => {
+const targetOf = ([tag, branch]) => {
     if (tag === 'name') { return ['name', tokenAt(unmapped(branch)[1])] }
     const [open, list] = unmapped(branch)
     return containerTarget(tag, tokenAt(open), list)
@@ -1216,7 +1221,7 @@ const constTarget = ([tag, branch]) => {
 
 /** @type {(node: Children<ConstStatement, DjsTokenWithMetadata, Out>) => Meta<Out>} */
 const toConst = ([first, target, , v, end]) =>
-    symbol({ id: 'const', statement: { start: tokenAt(first), semicolon: ended(end), target: constTarget(unmapped(target)), value: nodeAt(v) } })
+    symbol({ id: 'const', statement: { start: tokenAt(first), semicolon: ended(end), target: targetOf(unmapped(target)), value: nodeAt(v) } })
 
 /**
  * A loop's `let` from `let name = value end`: the record a `const` of a
@@ -1303,11 +1308,26 @@ const toValues = node => symbol({ id: 'values', items: valuesOf(node), targets: 
 /** @type {(node: Children<Items<EntryRule>, DjsTokenWithMetadata, Out>) => Meta<Out>} */
 const toEntries = node => symbol({ id: 'entries', items: entriesOf(node), targets: entryTargetsOf(node) })
 
-/** @type {(node: Children<ParameterNames, DjsTokenWithMetadata, Out>) => Meta<Out>} */
+/**
+ * The parameters after a named list's first, from `parameterNames`'s
+ * branch: a fixed parameter's target, {@link targetOf}, before the
+ * parameters its tail's mapping already returned, `target [ ',' [
+ * parameters ] ]` — so a list of any length costs one step at each of its
+ * nodes, as an array's items do — or the rest parameter's token, which
+ * ends the list.
+ *
+ * @type {(node: Children<ParameterNames, DjsTokenWithMetadata, Out>) => Meta<Out>}
+ */
 const toParameterNames = ([tag, branch]) => {
-    if (tag === 'fixed') { return symbol({ id: 'parameters', items: parametersOf(unmapped(branch)) }) }
-    const [, name] = unmapped(branch)
-    return symbol({ id: 'parameters', items: [{ name: tokenAt(unmapped(name)[1]), rest: true }] })
+    if (tag === 'rest') {
+        const [, name] = unmapped(branch)
+        return symbol({ id: 'parameters', fixed: null, rest: tokenAt(unmapped(name)[1]) })
+    }
+    const [target, more] = unmapped(branch)
+    const rounds = unmapped(more)
+    // no round, or the one holding the comma and the optional rest of the list
+    const tail = rounds.length === 0 ? noParameters : parameterItems(unmapped(rounds[0])[1])
+    return symbol({ id: 'parameters', fixed: { first: targetOf(unmapped(target)), tail: tail.fixed }, rest: tail.rest })
 }
 
 /**
@@ -1336,8 +1356,8 @@ export const mappings = [
     map(member, toMember),
     map(entry, toEntry),
     map(entries, toEntries),
-    // the names after a named list's first, a list of its own so that a
-    // list of any length is read in as many steps
+    // the parameters after a named list's first, a list of its own so that
+    // a list of any length is read in as many steps
     map(parameterNames, toParameterNames),
     map(importBinding, toImportBinding),
     map(importBindings, toImportBindings),

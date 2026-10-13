@@ -63,7 +63,7 @@ loopStatement ::= const | id '=' value end
 func   ::= [ '...' id ] ')' '=>' body
 afterValue ::= ',' [ names ] ')' '=>' body | ')' arrowOrRest
 arrowOrRest ::= '=>' body | access* powTail tail
-names  ::= '...' id | id [ ',' [ names ] ]
+names  ::= '...' id | target [ ',' [ names ] ]
 group  ::= value ')' access* powTail
 groupOperand ::= value ')' access*
 powTail ::= [ '**' unary ]
@@ -96,13 +96,14 @@ refuses a grammar where it would not, before any input.
 A `(` opens an empty/rest-only function or a shared expression/parameter
 prefix. `afterValue` factors the comma and closing parenthesis; `arrowOrRest`
 then selects the arrow or the ordinary expression continuation. The binding
-pass requires a name where that prefix becomes a parameter, rejecting
-`(a + b) => 1` while preserving `(a + b)`. Bare `a => a` uses the same arrow
-continuation. A final rest name is allowed after fixed names; it cannot be
-followed by another parameter or a comma. The no-newline rule before `=>` is
-the fold's, not the grammar's: trivia is no symbol of the grammar, and the
-`=>` token says whether a line break stood before it, a line comment's end or
-a block comment holding one included.
+pass requires a binding target — a name, or a pattern — where that prefix
+becomes a parameter, rejecting `(a + b) => 1` while preserving `(a + b)`.
+Bare `a => a` uses the same arrow continuation. The fixed parameters after
+the first are targets outright, and a final rest name is allowed after
+them; it cannot be followed by another parameter or a comma. The
+no-newline rule before `=>` is the fold's, not the grammar's: trivia is no
+symbol of the grammar, and the `=>` token says whether a line break stood
+before it, a line comment's end or a block comment holding one included.
 
 A prefix takes the group under its `(` and not `paren`, the two
 differing by the function: `-(...a) => 1` is a syntax error in JavaScript
@@ -247,19 +248,21 @@ the fold's:
 - a bare or string `__proto__` key, which JavaScript reads as an instruction to
   replace the prototype. The computed spelling `{ ["__proto__"]: v }` denotes an
   ordinary property and is accepted, so this is not a lexical rule either;
-- a binding pattern, `const { a, b: [c] } = v;`
+- a binding pattern, `const { a, b: [c] } = v;` or `({ a, b: [c] }) => a`
   ([spec: destructuring](../../../spec/README.md#destructuring)): the
   grammar reads the array or object literal the same text spells, and the
   reader keeps the pattern reading of it beside the node, so the fold is
   what refuses a value in a binding position (`invalid destructuring
   target`) — a literal, an access, a call, or a group, `[(a)]`, JavaScript's
-  early error — a name bound twice in one pattern, a key a prototype gives
-  a value, and what the language does not read yet, a rest element and a
-  computed key beyond a literal alone in its brackets, each by name — and a
-  module whose exports are all patterns binding no name, which exports
-  nothing where a name was owed (`module exports nothing`). The fold then writes the
-  reads the pattern is sugar for, one entry per name and one hidden entry
-  per nested source, as it writes a guard's conditional;
+  early error — a name bound twice in one pattern or across a parameter
+  list, a key a prototype gives a value, and what the language does not
+  read yet, a rest element and a computed key beyond a literal alone in its
+  brackets, each by name — and a module whose exports are all patterns
+  binding no name, which exports nothing where a name was owed (`module
+  exports nothing`). The fold then writes the reads the pattern is sugar
+  for, one entry per name and one hidden entry per nested source, as it
+  writes a guard's conditional — a parameter's as the first entries of the
+  function's body, the argument their source;
 - an access naming a property of a built-in prototype, `a.push`,
   `a["toString"]` or `a.__proto__` in either spelling — every name
   [`fjs/js/prototype`](../../js/prototype/module.f.js) lists but `length`,

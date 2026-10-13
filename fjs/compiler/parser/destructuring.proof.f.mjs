@@ -1,6 +1,7 @@
 /**
  * The proof of the parser's destructuring — binding patterns in `const`, a
- * module's, a body's and a loop block's — split off `./proof.f.mjs` when
+ * module's, a body's and a loop block's, and in a fixed parameter — split
+ * off `./proof.f.mjs` when
  * that file outgrew what the website's build accepts in one file — 128 KiB,
  * which it passed at `37cd4b33` — along the seam its own section drew, as
  * `./func.proof.f.mjs` was. It reads the parser as that proof does,
@@ -64,13 +65,74 @@ export const proof = {
             expectModule('const f = (...r) => { if (r[0]) { const [a] = r; return a; } const [b] = r; return b; }; export default f;',
                 '[[],[["=>",0,[["?:",[".",["rest"],0],["()",["=>",0,[["array",[["...",["fref",0]]]],[".",["cref",0],0],["cref",1]],[["rest"]]],[]],["()",["=>",0,[["array",[["...",["fref",0]]]],[".",["cref",0],0],["cref",1]],[["rest"]]],[]]]]],["object",[[":","default",["cref",0]]]]]]')
         },
+        // A fixed parameter binds a pattern as a `const` does, the argument
+        // its source: the pattern's reads are the first entries of the
+        // function's body — the source itself, hidden, and one entry per
+        // name — under an expression body and a block body alike, whose
+        // own entries count from after them; and a pattern counts as one
+        // parameter toward the function's `length`
+        // (spec/README.md#destructuring).
+        parameters: () => {
+            expectModule('export default ({ a }) => a;', '[[],[["object",[[":","default",["=>",1,[["arg",0],[".",["cref",0],"a"],["cref",1]]]]]]]]')
+            expectModule('export default ({ a }, [b, c], ...r) => [a, b, c, r];',
+                '[[],[["object",[[":","default",["=>",2,[["arg",0],[".",["cref",0],"a"],["array",[["...",["arg",1]]]],[".",["cref",2],0],[".",["cref",2],1],["array",[["cref",1],["cref",3],["cref",4],["rest"]]]]]]]]]]')
+            expectModule('export default (x, { a: [b] }) => { const c = b; return [x, c]; };',
+                '[[],[["object",[[":","default",["=>",2,[["arg",1],["array",[["...",[".",["cref",0],"a"]]]],[".",["cref",1],0],["cref",2],["array",[["arg",0],["cref",3]]]]]]]]]]')
+            // a trailing comma, as the list allows one
+            expectModule('export default ({ a },) => a;', '[[],[["object",[[":","default",["=>",1,[["arg",0],[".",["cref",0],"a"],["cref",1]]]]]]]]')
+            // an empty pattern keeps its failure: the spread of the argument
+            // alone, and one read of the argument's `length`
+            expectModule('export default ([]) => 0;', '[[],[["object",[[":","default",["=>",1,[["array",[["...",["arg",0]]]],0]]]]]]]')
+            expectModule('export default ({}) => 0;', '[[],[["object",[[":","default",["=>",1,[["arg",0],[".",["cref",0],"length"],0]]]]]]]')
+            // the function's own name and a capture are read from the body
+            // as under a name, and a nested function captures a pattern's
+            // name as it captures any parameter
+            expectModule('const f = ({ a }) => a ? f : 0; export default f;',
+                '[[],[["=>",1,[["arg",0],[".",["cref",0],"a"],["?:",["cref",1],["self"],0]]],["object",[[":","default",["cref",0]]]]]]')
+            expectModule('const k = 1; export default ({ a }) => [a, k];',
+                '[[],[1,["object",[[":","default",["=>",1,[["arg",0],[".",["cref",0],"a"],["array",[["cref",1],["fref",0]]]],[["cref",0]]]]]]]]')
+            expectModule('export default ({ a }) => ({ b }) => [a, b];',
+                '[[],[["object",[[":","default",["=>",1,[["arg",0],[".",["cref",0],"a"],["=>",1,[["arg",0],[".",["cref",0],"b"],["array",[["fref",0],["cref",1]]]],[["cref",1]]]]]]]]]]')
+        },
+        // A parameter pattern's name is a parameter by every rule of one,
+        // and the pattern itself one fixed parameter: bound twice — across
+        // the list, in the pattern, against the body — reserved, a
+        // prototype's name, or the 17th fixed parameter, at its bracket. A
+        // value inside the pattern is refused where it stands, as in a
+        // `const`, and a head that is no target at all for the list, as
+        // before; the rest parameter keeps a plain name, and the line rule
+        // before `=>` holds after a pattern.
+        parametersRefused: () => {
+            expectRefused('export default ({ a }, a) => 1;', 'duplicate id', 24)
+            expectRefused('export default (a, [a]) => 1;', 'duplicate id', 21)
+            expectRefused('export default ({ a, b: a }) => 1;', 'duplicate id', 25)
+            expectRefused('export default ([a], ...a) => 1;', 'duplicate id', 25)
+            expectRefused('export default ({ a }) => { const a = 1; return a; };', 'duplicate id', 35)
+            expectRefused('export default ({ if }) => 1;', 'reserved word', 19)
+            expectRefused('export default ({ toString }) => 1;', 'prohibited property name', 19)
+            expectRefused('export default (a0,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15,{a16})=>1;', 'more than 16 fixed parameters', 71)
+            expectRefused('export default ([(a)]) => 1;', 'invalid destructuring target', 18)
+            expectRefused('export default ({ a: 1 }) => 1;', 'invalid destructuring target', 22)
+            expectRefused('export default (a, { b: c.d }) => 1;', 'invalid destructuring target', 25)
+            expectRefused('export default ((a)) => 1;', 'malformed parameter list', 16)
+            expectRefused('export default ([a].length) => 1;', 'malformed parameter list', 16)
+            expectRefused('export default ({ a, ...r }) => 1;', 'rest element not supported', 22)
+            expectRefused('export default ([a, ...r]) => 1;', 'rest element not supported', 21)
+            expectRefused('export default ({ [k]: a }) => 1;', 'computed key in a binding pattern not supported', 20)
+            expectRefused('export default (...[a]) => 1;', 'unexpected token', 20)
+            expectRefused('export default ({ a = 1 }) => 1;', 'unexpected token', 21)
+            expectRefused('export default ({ a })\n=> 1;', 'unexpected token', 1)
+        },
         // A pattern names no function as its whole value, so no name in it
         // is the function's own; and the `entry` helper is recognized whole,
-        // so a pattern where its one `const` stands makes it an ordinary
-        // function, in which `Object` is a name nothing binds.
+        // so a pattern where its one `const` or either of its two
+        // parameters stands makes it an ordinary function, in which
+        // `Object` is a name nothing binds.
         noSelf: () => {
             expectRefused('const { a: f } = { a: () => f }; export default f;', 'const not found', 29)
             expectRefused('export default (a, b) => { const { x } = Object.getOwnPropertyDescriptor(a, b); return x; };', 'const not found', 42)
+            expectRefused('export default ({ a }, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? x.value : undefined; };', 'const not found', 42)
+            expectRefused('export default (a, { b }) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? x.value : undefined; };', 'const not found', 42)
         },
         // A value in a binding position is JavaScript's early error, at the
         // token it begins with: a literal, an access, a call, a prefix, a
@@ -120,6 +182,9 @@ export const proof = {
             assertEq(parseFromTokens(tokenizeString(deep))[0], 'ok')
             const wide = `const x = {}; const { ${Array.from({ length: 20000 }, (_, i) => `a${i}`).join(', ')} } = x; export default a0;`
             assertEq(parseFromTokens(tokenizeString(wide))[0], 'ok')
+            // and the same two as a parameter, the head of a list and after it
+            assertEq(parseFromTokens(tokenizeString(`export default (${'['.repeat(20000)}a${']'.repeat(20000)}) => a;`))[0], 'ok')
+            assertEq(parseFromTokens(tokenizeString(`export default (x, { ${Array.from({ length: 20000 }, (_, i) => `a${i}`).join(', ')} }) => a0;`))[0], 'ok')
         },
         // A name in a pattern is a binding by every rule a `const`'s name
         // follows: reserved, bound twice — in the pattern itself, against
