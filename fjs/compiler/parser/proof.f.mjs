@@ -301,6 +301,16 @@ export const proof = {
             // a nested function's own parameter shadows the variable, as in
             // JavaScript, and reads as itself
             assertEq(parseFromTokens(tokenizeString('export default n => { let r = 0; while (r < n) { const f = (r) => r; r = f(r); } return r; };'))[0], 'ok')
+            // a function called where it is written may read the variable:
+            // its closure, called at once, sees the round's value as
+            // JavaScript's does — in the block, in the condition, with an
+            // argument, and nested in another called where written
+            for (const source of [
+                'export default n => { let r = 0; while (r < n) { r = (() => r + 1)(); } return r; };',
+                'export default n => { let r = 0; while ((() => r < n)()) { r = r + 1; } return r; };',
+                'export default n => { let r = 0; while (r < n) { r = ((x) => r + x)(1); } return r; };',
+                'export default n => { let r = 0; while (r < n) { r = (() => (() => r + 1)())(); } return r; };',
+            ]) { assertEq(parseFromTokens(tokenizeString(source))[0], 'ok', source) }
             // the block's statements end as every statement does, at `;`
             // or a newline, and so does the `let`
             assertEq(parseFromTokens(tokenizeString('export default n => {\n    let r = 0\n    while (r < n) {\n        r = r + 1\n    }\n    return r\n};'))[0], 'ok')
@@ -317,12 +327,18 @@ export const proof = {
                 // nor may it bind the variable's name, which JavaScript would
                 // read as the block's own binding
                 ['export default n => { let r = 0; while (r < n) { const r = 1; } return r; };', 'loop variable shadowed', 56],
-                // a function nested in the loop may not read the variable: its
-                // closure would see the last value where the capture holds the
-                // round's
+                // a function nested in the loop that reads the variable is
+                // refused unless called where it is written: held as a value,
+                // its closure would see the last value where the capture
+                // holds the round's — a `const`, a condition, an item, an
+                // argument, a value a function called where written returns,
+                // and one held inside such a function
                 ['export default n => { let r = 0; while (r < n) { const f = () => r; r = r + 1; } return r; };', 'loop variable captured', 66],
                 ['export default n => { let r = 0; while (f => r) { r = r + 1; } return r; };', 'loop variable captured', 46],
                 ['export default n => { let r = 0; while (r < n) { r = [() => r]; } return r; };', 'loop variable captured', 61],
+                ['export default n => { let r = 0; while (r < n) { r = ((f) => f())(() => r); } return r; };', 'loop variable captured', 73],
+                ['export default n => { let r = 0; while (r < n) { r = (() => () => r)()(); } return r; };', 'loop variable captured', 67],
+                ['export default n => { let r = 0; while (r < n) { r = (() => { const g = () => r; return g(); })(); } return r; };', 'loop variable captured', 79],
                 // the variable is a name of the body as a `const` is
                 ['export default n => { let r = 0; while (r < n) { r = 1; } const r = 2; return r; };', 'duplicate id', 65],
                 ['export default n => { let n = 0; while (n) { n = 1; } return n; };', 'duplicate id', 27],

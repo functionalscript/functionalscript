@@ -1474,9 +1474,11 @@ const scope = (s, path, start, returns = null, yields = true) => all => {
  * closure inside a `while` holds the binding, the variable's last value,
  * where the recursion's holds the parameter of the call that made it —
  * the capture the language refuses in source, `loop variable captured`;
- * and the scope a function's body, since the language has no loop at the
- * module level. Anything else keeps the spelling a function reading its
- * `self` has, a `const` the call reads.
+ * no value the condition shares with the block that the block would name,
+ * which a `const` before the `while` would establish once; and the scope
+ * a function's body, since the language has no loop at the module level.
+ * Anything else keeps the spelling a function reading its `self` has, a
+ * `const` the call reads.
  *
  * @type {(s: _Scope, i: number) => boolean}
  */
@@ -1487,37 +1489,31 @@ const isLoopCall = (s, i) => {
     if (!(callee instanceof Array) || s.shared.includes(callee[1]) || (init instanceof Array && init[0] === '...')) { return false }
     const loop = loopOf(s.a, callee[1])
     return loop !== null && loop.before.length === 0 && !readsRest(s.a, callee[1]) && !capturesParameter(s.a, callee[1])
-        && !blockReadsParameter(s, callee[1], loop)
+        && !sharesWithBlock(s, callee[1], loop)
 }
 
 /**
- * Whether a block written as an applied function inside the loop's text
- * would read the variable: the condition's own block, where the condition
- * hoists a value it shares ({@link block}), or a lazy operand's under the
- * condition or the arm. The language reads a function nested in a loop
- * that reads the variable as a capture and refuses it, the applied
- * function included, so such a text reads back as nothing; the recursion
- * reads back as itself. The scope of a lazy operand nested in another is
- * taken as the loop body's, which may count a value the outer block names
- * as hoisted, and keep the recursion for a loop that had a text — a
- * graph the front end never produces from a loop. A lazy operand whose
- * scope is refused hoists nothing here: the refusal is the writer's
- * answer whichever spelling it takes.
+ * Whether the loop's condition hoists a value its block reaches too — a
+ * value the body would name, {@link hoists}, a container, a function, a
+ * call — which the condition's own block ({@link block}) would establish
+ * afresh at every test and the block once more, two values where the
+ * graph has one, and which a `const` before the `while` would establish
+ * once where the recursion establishes it every round. The recursion
+ * keeps the graph. No `while` written in source produces the shape: a
+ * named value shared by the condition and the block would be the `const`
+ * of a function called where written in both, two functions and two
+ * values.
  *
  * @type {(s: _Scope, f: number, loop: Loop) => boolean}
  */
-const blockReadsParameter = (s, f, { condition, arm }) => {
+const sharesWithBlock = (s, f, { condition, arm }) => {
     const [, , slots, body] = /** @type {Extract<Node, readonly ['=>', number, readonly Operand[], Operand]>} */ (s.a.nodes[f])
     // what a scope hoists does not depend on what its frame's slots are
     // named, only that each has a name, so the names are left blank: the
     // hoisting walk asks before it has named them
     const inner = bodyScope(s.a, `${s.param}/loop`, slots.map(() => ''), body, s.allowUnusedCaptures, null)
-    /** @type {(v: Operand) => boolean} */
-    const reads = v => reachableFrom(s.a)(v).some(j => s.a.nodes[j][0] === 'arg' && s.a.nodes[j][1] === 0 && s.a.scope[j] === f)
-    /** @type {(scope: Result<_Scope, string>, v: Operand) => boolean} */
-    const wrapped = (scope, v) => scope[0] === 'ok' && hoists(scope[1])(v).length !== 0 && reads(v)
-    return wrapped(ok(inner), condition)
-        || [condition, arm].flatMap(reachableFrom(s.a)).flatMap(j => lazyOperands(s.a.nodes[j])).some(u => wrapped(lazyScope(inner)(u), u))
+    const reached = reachableFrom(s.a)(arm)
+    return hoists(inner)(condition).some(h => h[0] === 'entry' && reached.includes(h[1]))
 }
 
 /** Whether the function that is entry `i` reads its rest array, in its own body's scope. @type {(a: Analysis, i: number) => boolean} */
