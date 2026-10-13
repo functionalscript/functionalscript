@@ -197,12 +197,7 @@ caught where it is made rather than on the page. A module that answers every
 input has no refusal to drive: the tokenizer reads text it cannot tokenize
 as an `error` token among the others, a line of its output, not a refusal.
 
-## Stepped visualizations
-
-A demo can request paced playback with `nextEvent` and an optional `nextDelay`
-in milliseconds. The runtime cancels a pending turn when a reader changes an
-input or clicks a control. Delayed turns respect reduced-motion preferences;
-undelayed incremental computation keeps its existing scheduling behavior.
+## Interactive SVG controls
 
 An SVG control can send a click event through `data-demo-click`, with `role`,
 `tabindex`, and a visible/textual equivalent supplied by its demo. Enter and

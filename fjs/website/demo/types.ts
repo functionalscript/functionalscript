@@ -96,11 +96,6 @@ export type Demo<State, Event, O extends Operation = never> = {
      * without requesting operations. Queued reader input cancels a scheduled turn.
      */
     readonly nextEvent?: ((state: State) => Event | null) | undefined
-    /** Optional playback delay in milliseconds. Delayed automatic turns stop
-     * when the browser requests reduced motion; manual steps remain available.
-     * Omit for incremental computation that should run as quickly as possible.
-     */
-    readonly nextDelay?: ((state: State) => number) | undefined
 }
 
 /**

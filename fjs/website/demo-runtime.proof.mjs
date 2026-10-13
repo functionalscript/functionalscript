@@ -449,38 +449,6 @@ export const demo = {
 `)
 
 export const proof = {
-    delayedPlayback: async () => {
-        const delayed = dom(moduleUrl(`
-export const demo = {
-    init: { count: 0, running: false },
-    nextEvent: s => s.running ? { kind: 'click', name: 'tick' } : null,
-    nextDelay: () => 40,
-    update: s => e => () => ['ok', e.kind === 'input' ? { ...s, running: false }
-        : e.kind === 'click' ? e.name === 'go' ? { ...s, running: true }
-            : { count: s.count + 1, running: s.count < 1 } : s],
-    view: s => ['div', ['input', { name: 'text', value: '' }], ['button', { name: 'go' }, 'Go'], ['pre', String(s.count)]],
-}
-`))
-        await startDemo(delayed.root)
-        await settle()
-        delayed.click('go')
-        await settle()
-        assert(delayed.root.innerHTML.includes('<pre>0</pre>'))
-        delayed.input('text', 'stop')
-        await settle()
-        await new Promise(resolve => setTimeout(resolve, 70))
-        assert(delayed.root.innerHTML.includes('<pre>0</pre>'))
-        delayed.root.ownerDocument.defaultView = { matchMedia: () => ({ matches: true }) }
-        delayed.click('go')
-        await settle()
-        await new Promise(resolve => setTimeout(resolve, 70))
-        assert(delayed.root.innerHTML.includes('<pre>0</pre>'))
-        delayed.root.ownerDocument.defaultView = { matchMedia: () => ({ matches: false }) }
-        delayed.click('go')
-        await settle()
-        await new Promise(resolve => setTimeout(resolve, 120))
-        assert(delayed.root.innerHTML.includes('<pre>2</pre>'))
-    },
     svgControls: async () => {
         const d = dom(moduleUrl(`
 export const demo = {

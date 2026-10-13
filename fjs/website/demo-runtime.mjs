@@ -356,13 +356,7 @@ const stepper = (root, demo) => {
                     render(root, demo.view(state))
                     const next = demo.nextEvent === undefined ? null : demo.nextEvent(state)
                     incremental = next !== null
-                    if (next !== null) {
-                        const delay = demo.nextDelay === undefined ? 0 : demo.nextDelay(state)
-                        const reduced = demo.nextDelay !== undefined
-                            && root.ownerDocument.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true
-                        if (!reduced) { scheduled = setTimeout(() => step(next, true), delay) }
-                        else { incremental = false }
-                    }
+                    if (next !== null) { scheduled = setTimeout(() => step(next, true), 0) }
                 }
             } catch (cause) {
                 incremental = false
