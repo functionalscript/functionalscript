@@ -45,7 +45,8 @@ On ASCII every engine of every Unicode version answers the same, and for
 these the rule refuses the whole operation for a divergence they cannot
 reach. The rest normalize text the module does not control: the query a
 user types into `website/cli/search`, the header names and hosts a
-request carries to `effects/node` and `web`. There a non-ASCII receiver
+request carries to `effects/node` and `web`, the identifier `media/rust`
+snake-cases, which Rust lets be Unicode. There a non-ASCII receiver
 is ordinary input, and the divergence the rule guards against is reachable
 in principle, for a character one engine's Unicode version cases and
 another's does not — which is what the proposal pins.
@@ -111,20 +112,21 @@ Two alternatives, and why not:
 
 Independent of this decision, the protocol-deciding callers want an ASCII
 case fold, not Unicode's: `text/ascii` could export it over code points
-today, beside its hexadecimal fold, and each of those could take it
-without waiting on a language change. The fold is not behavior-neutral
-for them, and the follow-up names every acceptance it retires, each the
-Kelvin-sign hole above in a protocol whose alphabet is ASCII:
+today, beside its hexadecimal fold, and a caller whose alphabet is ASCII
+could take it without waiting on a language change. Which callers those
+are is the follow-up's to establish, one by one, since the list above is
+not it: `media/rust`'s `snakeCase` reads as one and is not, a Rust
+identifier being Unicode, so `snakeCase('Ä')` answers `_ä` today and
+would not through an ASCII fold. Nor is the fold behavior-neutral where it
+fits: it retires every acceptance that is the Kelvin-sign hole above in a
+protocol whose alphabet is ASCII, and the follow-up names each —
 `cBase32ToVec5x` decodes the Kelvin sign today, since `normalizeChar`
 lowercases it to `k`, a letter of the alphabet, and `git/config`'s
-`tryInt` reads it as the unit suffix `k`, so a count may end in it. An
-ASCII fold answers `null` for both, an acceptance to retire by name rather
-than assume away, and the follow-up checks each protocol-deciding caller
-for the same before it lands. The
-text-normalizing callers would not be served: `matches('Ä', 'ä')` holds
-today through Unicode's lowercasing and would not through ASCII's, so
-they wait on this proposal. The fold is a module's task, filed where it
-lands, not this one's.
+`tryInt` reads it as the unit suffix `k`, so a count may end in it; an
+ASCII fold answers `null` for both. The text-normalizing callers stay on
+`toLowerCase`: `matches('Ä', 'ä')` holds today through Unicode's
+lowercasing and would not through ASCII's, so they wait on this proposal.
+The fold is a module's task, filed where it lands, not this one's.
 
 Benefits: the most-asked-for string operation compiles as written,
 JavaScript's meaning and JavaScript's spelling, and about a dozen modules
