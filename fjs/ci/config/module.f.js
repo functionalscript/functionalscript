@@ -144,12 +144,12 @@ export const jobTimeout = /** @type {const} */ (15)
 // `narHash` and `lastModified` — are for real Nix to fill in, by
 // `gen.nix/lock-update.sh`, rather than data kept here. See
 // `../nix/module.f.mjs`'s `lockUpdateText`.
-// https://channels.nixos.org/nixpkgs-26.05-darwin/git-revision
+// https://channels.nixos.org/nixos-26.05/git-revision
 export const nixpkgs = /** @type {const} */({
     owner: 'NixOS',
     repo: 'nixpkgs',
-    ref: 'nixpkgs-26.05-darwin',
-    commit: '240fddad86d7a0520319f21d8be1b43db426b18d',
+    ref: 'nixos-26.05',
+    commit: '7993f34ee47e28a3d607a525aadc6c94b73be728',
 })
 
 // `rust-overlay`, the second input of the shared flake. Nixpkgs builds
@@ -163,7 +163,7 @@ export const rustOverlay = /** @type {const} */({
     owner: 'oxalica',
     repo: 'rust-overlay',
     ref: 'master',
-    commit: '404b7a5537f0adc6e5c558a1b94612e683dec504',
+    commit: '3100cf6ff140fb298f09192de610f4037d3bab0f',
 })
 
 // Moving either `commit` above needs `npm run lock-update` (real Nix) to

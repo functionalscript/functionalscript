@@ -50,10 +50,11 @@ Three things let this through:
   tests pass. Those tests are Linux only. Hydra evaluates the Darwin jobset
   (`nixpkgs-26.05-darwin`) less often and skips commits. It has built
   `nodejs-slim-26.11.1` for both Darwin systems, and it never built
-  26.11.0 at `7c8764b7`. The pin now follows `nixpkgs-26.05-darwin`
-  ([#2849](https://github.com/functionalscript/functionalscript/pull/2849)),
-  whose commits are ones Hydra evaluated for Darwin; step 1's dry run per
-  system still decides whether a commit is covered.
+  26.11.0 at `7c8764b7`. The pin now takes the newest release of either
+  `nixos-26.05` or `nixpkgs-26.05-darwin` that step 1's dry run shows
+  covered for every system
+  ([`../update-versions.md`](../update-versions.md)), so a Linux-channel
+  commit is pinned only once Darwin is known to substitute it.
 - **`--quiet` hides the miss.** `runText` in `../nix/module.f.mjs` takes
   this cost knowingly: "a cache miss looks like a cache hit: Nix compiles
   from source in silence". It calls that cost bounded because only the first
