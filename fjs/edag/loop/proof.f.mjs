@@ -6,9 +6,9 @@
  * @import { Loop } from './types.ts'
  */
 
-import { assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assertEq, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { analysis } from '../analysis/module.f.mjs'
-import { loopOf } from './module.f.mjs'
+import { keepsRecursion, loopOf } from './module.f.mjs'
 
 /** The parts of a function at the root of its own table, or `null`. @type {(e: FunctionExp) => Loop | null} */
 const parts = e => {
@@ -24,6 +24,13 @@ const loop = (condition, step) => ['=>', 1, [], ['?:', condition, step, ['arg', 
 
 /** `r => r < 10 ? self(r + 1) : r`, the loop. @type {FunctionExp} */
 const counting = loop(['<', ['arg', 0], 10], call(['+', ['arg', 0], 1]))
+
+/** Whether every writer keeps the recursion for a function at the root of its own table, which is a loop. @type {(e: FunctionExp) => boolean} */
+const kept = e => {
+    const a = assertOk(analysis(e))
+    const i = /** @type {readonly ['#', number]} */ (a.root)[1]
+    return keepsRecursion(a, i, assertNotNullish(loopOf(a, i), ['no loop', e]))
+}
 
 export const proof = {
     template: () => {
@@ -73,5 +80,37 @@ export const proof = {
             loop(true, call(['=>', 0, [['self']], 1])),
         ]
         for (const e of cases) { assertEq(parts(e), null, JSON.stringify(e)) }
+    },
+    /**
+     * The shapes every writer keeps the recursion for, though they match:
+     * an assert before the condition, a read of the rest array, and a
+     * value minting identity that the condition shares with the block.
+     */
+    kept: () => {
+        /** @type {Exp} */
+        const a0 = ['arg', 0]
+        /** @type {Exp} */
+        const minted = ['[]', [a0]]
+        /** @type {Exp} */
+        const merged = ['.', a0, 0]
+        /** @type {Exp} */
+        const inner = ['[]', [1]]
+        for (const e of /** @type {readonly FunctionExp[]} */ ([
+            ['=>', 1, [], [',', [['[]', []], ['?:', true, call(0), a0]]]],
+            loop(['.', ['rest'], 'length'], call(a0)),
+            loop(['.', minted, 0], call(['.', minted, 'length'])),
+            loop(['()', minted, []], call(['[]', [minted]])),
+        ])) { assertEq(kept(e), true, JSON.stringify(e)) }
+        for (const e of /** @type {readonly FunctionExp[]} */ ([
+            counting,
+            // a read the condition and the block repeat merges, one value
+            // however many times it is evaluated
+            loop(['<', merged, 10], call(['+', merged, 1])),
+            // a minted value shared within the condition alone, or within
+            // the block alone, and one of a nested function's own scope
+            loop(['.', ['[]', [minted, minted]], 0], call(['+', a0, 1])),
+            loop(['<', a0, 10], call(['[]', [minted, minted]])),
+            loop(['()', ['=>', 0, [], ['[]', [inner, inner]]], []], call(['+', a0, 1])),
+        ])) { assertEq(kept(e), false, JSON.stringify(e)) }
     },
 }

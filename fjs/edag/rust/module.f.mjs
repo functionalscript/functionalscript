@@ -41,13 +41,15 @@
  *
  * @import { Exp, Index, OpId, Primitive, Properties } from '../types.ts'
  * @import { Printed, Printer, Scope, Use, Uses } from './types.ts'
- * @import { _LoopParts } from './private.ts'
+ * @import { _LoopInPlace, _LoopParts } from './private.ts'
  * @import { Result } from '../../types/result/types.ts'
  */
 
 import { f64Bits, i64Literal, stringLiteral, u64WordItems, utf16Units } from '../../media/rust/module.f.mjs'
 import { error, mapOk, ok, okList, okThen, unwrap } from '../../types/result/module.f.js'
 import { lazyOp2Id } from '../module.f.mjs'
+import { analysis } from '../analysis/module.f.mjs'
+import { keepsRecursion, loopOf } from '../loop/module.f.mjs'
 import { isIndex, maxLength } from '../../types/function/length/module.f.mjs'
 import { tryFunctionText } from '../../compiler/serializer/module.f.mjs'
 import { tagged, untagged } from '../../text/marked/module.f.mjs'
@@ -346,6 +348,49 @@ const stringCall = name => v => {
 const argRead = k => cat([`args.clone().into_iter().${k === 0 ? 'next()' : `nth(${num(`${k}`)})`}.unwrap_or_else(|| `, undefinedAny, ')'])
 
 /**
+ * Slot `i` of the frame the function was built with, read through the
+ * closure's `self_` parameter, {@link closure}: the `Array<A>`
+ * {@link frameExpr} built, indexed directly — the slot exists, since
+ * `checked` refuses a read past the slots, so no `undefined` case as an
+ * `args` read has.
+ *
+ * @type {(i: number) => Result<Printed<string>, readonly unknown[]>}
+ */
+const frameRead = i => plain(`A::frame(self_)[${num(`${i}`)}].clone()`)
+
+/**
+ * The `mut` of a loop's variable, and none where the next value is the
+ * variable itself, which no round assigns: `rustc` warns of a `mut` never
+ * needed, and a generated module is built under `-D warnings`.
+ *
+ * @type {(next: Exp) => string}
+ */
+const mutable = next => isArg0(next) ? '' : `${kw('mut')} `
+
+/**
+ * The statements of a loop's `loop` block, over the loop's parts
+ * ({@link loopParts}): the condition's temporaries and the test, `break`
+ * where the condition is falsy, then the round's temporaries — the
+ * asserts among them, discarded — and the assignment of the next value to
+ * `name`, the variable, omitted where the next value is the variable
+ * itself. A `loop` rather than a `while`, since a `while` cannot hold the
+ * condition's temporaries, which every round must rebind. The condition
+ * and the arm are each a scope of the round, {@link printer}: `variable`
+ * prints a read of the loop's state, `slot` one of a slot of its frame,
+ * and `base` numbers the round's temporaries.
+ *
+ * @type {(parts: _LoopParts, name: string, variable: (k: number) => Printed<string>, slot: (i: number) => Result<Printed<string>, readonly unknown[]>, base: number) => Result<Printed<readonly string[]>, readonly unknown[]>}
+ */
+const loopLines = ({ condition, arm, next }, name, variable, slot, base) => {
+    const round = printer(false, variable, slot, base)([])
+    const test = okThen(p => map2((/** @type {readonly string[]} */ lines, /** @type {string} */ c) =>
+        [...lines, `${kw('if')} !${c}.to_boolean() { ${kw('break')} }`])(p.lets(condition), p.value(condition)))(round(condition))
+    const step = okThen(p => map2((/** @type {readonly string[]} */ lines, /** @type {string} */ n) =>
+        [...lines, ...(isArg0(next) ? [] : [`${name} = ${n};`])])(p.lets(arm), p.value(next)))(round(arm))
+    return map2((/** @type {readonly string[]} */ t, /** @type {readonly string[]} */ s) => [...t, ...s])(test, step)
+}
+
+/**
  * A function's source text as the `Option<&'static str>` `IStaticFunction`
  * takes: `Some` over the FunctionalScript writer's spelling
  * (`tryFunctionText`, its captured slots `$0`, `$1`, …), always a `&str`
@@ -598,11 +643,16 @@ const restLine = length => cat([`${kw('let')} rest = args.clone().into_iter()${l
  *
  * `arg` prints a fixed argument's read, {@link argRead} unless the scope
  * holds one by another name: a loop's state, the variable of a `loop`
- * ({@link loopClosure}).
+ * ({@link loopLines}); `frame` a slot's read, {@link frameRead} unless
+ * the scope around holds the slot by a name of its own, a loop in place
+ * ({@link loopInPlace}); and `base` is the number the first temporary
+ * takes, `c0` for a scope of its own and the next free number for a
+ * loop's round, a block inside the scope around it, whose names a round
+ * must not shadow.
  *
- * @type {(nested: boolean, arg?: (k: number) => Printed<string>) => (shared: readonly (readonly[Exp, string])[]) => (root: Exp) => Result<Printer, readonly unknown[]>}
+ * @type {(nested: boolean, arg?: (k: number) => Printed<string>, frame?: (i: number) => Result<Printed<string>, readonly unknown[]>, base?: number) => (shared: readonly (readonly[Exp, string])[]) => (root: Exp) => Result<Printer, readonly unknown[]>}
  */
-const printer = (nested, arg = argRead) => shared => root => {
+const printer = (nested, arg = argRead, frame = frameRead, base = 0) => shared => root => {
     /** @type {(e: Exp) => boolean} */
     const isBound = e => shared.some(([n]) => n === e)
     /**
@@ -688,14 +738,6 @@ const printer = (nested, arg = argRead) => shared => root => {
     const valueNodes = e => isArgs(e) || !isComma(e) || isShared(last(e)) ? [e] : [e, ...valueNodes(last(e))]
     /** @type {(e: Exp) => boolean} */
     const isThunk = e => thunks.includes(e)
-    /**
-     * The nodes printed where they stand as a block's own answer, never a
-     * temporary: the scope's root, and — in the corpus's mode, where a
-     * thunk stands in its statement — every thunk's root; otherwise a
-     * thunk is a temporary of its own, `let cN = || …;`, and only what a
-     * root answers through a comma stands.
-     */
-    const structural = [root, ...thunks].flatMap(valueNodes).filter(n => nested || !isThunk(n))
     /** The nodes printed where they stand, nested: every eager one in the corpus's mode; none otherwise. */
     const inline = nested ? eager : []
     /**
@@ -706,6 +748,54 @@ const printer = (nested, arg = argRead) => shared => root => {
     const discarded = order.flatMap(([n]) => isComma(n) && !inline.includes(n)
         ? /** @type {readonly Exp[]} */ (/** @type {readonly any[]} */ (n)[1].slice(0, -1))
         : [])
+    /**
+     * The calls printed as the loop their callee is, where each stands —
+     * the call's own temporary bound to the argument and the `loop` over
+     * it, {@link loopInPlace} — rather than as a closure built and called
+     * once: each the one place reaching a loop function
+     * ({@link loopParts}), called with one argument and no spread, in a
+     * block — not the corpus's mode, whose root is one expression — and
+     * named: a thunk's root is the thunk's own name, and a comma's
+     * discarded operand has none to be the variable. The function is a
+     * value nowhere, so no identity or text of it is lost; its slots the
+     * scope binds by names of its own, {@link slots}, and its `args` it
+     * has none of, so a body reading them keeps the closure.
+     *
+     * @type {readonly _LoopInPlace[]}
+     */
+    const inPlace = nested ? [] : order.flatMap(([n, count]) => {
+        const [id, callee, args] = /** @type {readonly any[]} */ (n)
+        if (id !== '()' || !(callee instanceof Array) || callee[0] !== '=>' || args.length !== 1 || hasSpread(args)) { return [] }
+        const fn = /** @type {Exp} */ (/** @type {unknown} */ (callee))
+        const parts = order.some(([m, c]) => m === fn && c === 1) ? loopParts(callee) : null
+        return parts !== null && !reads('args')(callee[3]) && !isThunk(n) && count > discarded.filter(d => d === n).length
+            ? [/** @type {_LoopInPlace} */ ([n, fn, parts])]
+            : []
+    })
+    /** @type {(e: Exp) => boolean} */
+    const isInPlace = e => inPlace.some(([call]) => call === e)
+    /** The function of a loop in place: printed nowhere, its body being the loop's lines. @type {(e: Exp) => boolean} */
+    const isInPlaceFunction = e => inPlace.some(([, callee]) => callee === e)
+    /**
+     * The slots of the loops in place, each a temporary of the scope
+     * however it is reached — an atom too, bound once as a frame is built
+     * once, so a round reads the one value — and cloned at every read,
+     * since the rounds read it as many times as they run.
+     *
+     * @type {readonly unknown[]}
+     */
+    const slots = inPlace.flatMap(([, callee]) => /** @type {readonly any[]} */ (callee)[2])
+    /** @type {(e: Exp) => boolean} */
+    const isSlot = e => slots.includes(e)
+    /**
+     * The nodes printed where they stand as a block's own answer, never a
+     * temporary: the scope's root, and — in the corpus's mode, where a
+     * thunk stands in its statement — every thunk's root; otherwise a
+     * thunk is a temporary of its own, `let cN = || …;`, and only what a
+     * root answers through a comma stands. A loop in place is a temporary
+     * wherever it stands, its name the loop's variable.
+     */
+    const structural = [root, ...thunks].flatMap(valueNodes).filter(n => (nested || !isThunk(n)) && !isInPlace(n))
     /**
      * The temporaries in dependency order, each with how many places
      * reference it by name: among the nodes, and each argument list right
@@ -719,11 +809,13 @@ const printer = (nested, arg = argRead) => shared => root => {
         ...argListsOf(/** @type {readonly unknown[]} */ (/** @type {unknown} */ (entry[0])))
             .map(list => /** @type {readonly [Exp, number]} */ ([list, 1])),
         entry,
-    ]).flatMap(([n, count]) =>
-        (isArgs(n) ? /** @type {readonly unknown[]} */ (n).length === 0 : (atomic(n) && count < 2))
-            || structural.includes(n) || inline.includes(n)
+    ]).flatMap(([n, count]) => {
+        const refs = count - discarded.filter(d => d === n).length
+        return (isArgs(n) ? /** @type {readonly unknown[]} */ (n).length === 0 : (atomic(n) && count < 2 && !isSlot(n)))
+            || structural.includes(n) || inline.includes(n) || isInPlaceFunction(n)
             ? []
-            : [/** @type {readonly [Exp, number]} */ ([n, count - discarded.filter(d => d === n).length])])
+            : [/** @type {readonly [Exp, number]} */ ([n, isSlot(n) ? Math.max(refs, 2) : refs])]
+    })
     /** @type {(e: Exp) => boolean} */
     const isTemporary = e => temporaries.some(([n]) => n === e)
     /**
@@ -740,13 +832,14 @@ const printer = (nested, arg = argRead) => shared => root => {
      * ones the scope's block already holds — a value reached eagerly
      * elsewhere, a shared atom, and the thunks over that value's own lazy
      * operands, which the scope's block makes where the value is — and
-     * less the thunk itself, the block's own answer.
+     * less the thunk itself, the block's own answer — unless the root is
+     * a loop in place, which its own block binds, and answers by name.
      *
      * @type {(e: Exp) => readonly Exp[]}
      */
     const declaredBy = e => {
         const own = e === root ? outer : held(e)
-        return temporaries.filter(([n]) => n !== e && own.includes(n) && (e === root || !outer.includes(n))).map(([n]) => n)
+        return temporaries.filter(([n]) => (n !== e || isInPlace(n)) && own.includes(n) && (e === root || !outer.includes(n))).map(([n]) => n)
     }
     /**
      * The temporaries in the order their `let` lines print: a block's own,
@@ -761,15 +854,15 @@ const printer = (nested, arg = argRead) => shared => root => {
     ]
     const named = printOrder(root).filter(n => temporaries.some(([m, refs]) => m === n && refs > 0))
     /**
-     * A temporary's name: `c0`, `c1`, … in the order the `let` lines
-     * print, or `_` for one nothing references, a comma's discarded
-     * operand.
+     * A temporary's name: `c0`, `c1`, … from `base` in the order the
+     * `let` lines print, or `_` for one nothing references, a comma's
+     * discarded operand.
      *
      * @type {(n: Exp) => string}
      */
     const nameOf = n => {
         const i = named.indexOf(n)
-        return i === -1 ? '_' : `c${i}`
+        return i === -1 ? '_' : `c${base + i}`
     }
     /**
      * Every value printed by name where it is referenced: the caller's
@@ -822,12 +915,9 @@ const printer = (nested, arg = argRead) => shared => root => {
         if (id === 'entry') {
             return ok(cat(['A::static_function(|_self, args| Any::entry(', argRead(0), ', ', argRead(1), '), ', num('2'), ', ', vm('Array'), `::default(), ${textExpr(e)})`, toAny]))
         }
-        // Slot `i` of the frame the function was built with, read through
-        // the closure's `self_` parameter, {@link closure}: the `Array<A>`
-        // {@link frameExpr} built, indexed directly — the slot exists, since
-        // `checked` refuses a read past the slots, so no `undefined`
-        // case as an `args` read has.
-        if (id === 'frame') { return plain(`A::frame(self_)[${num(`${a}`)}].clone()`) }
+        // Slot `i` of the frame the function was built with, `frame`:
+        // {@link frameRead} unless the scope is a loop in place's round.
+        if (id === 'frame') { return frame(a) }
         // The function itself, as a value: the closure's `self_` parameter
         // wrapped as the `Function` it is, an `Rc`-cheap clone of the one
         // value every read of `self` is — the identity JavaScript gives a
@@ -954,32 +1044,49 @@ const printer = (nested, arg = argRead) => shared => root => {
         cat([`A::static_function(|${readsFrame(body) || readsSelf(body) ? 'self_' : '_self'}, ${readsArgs(body) ? 'args' : '_args'}| ${braced(lines)}, ${num(`${length}`)}, ${fr}, ${text})`, toAny])
     )(reads('rest')(body) ? map2((/** @type {string} */ rest, /** @type {readonly string[]} */ s) => [rest, ...s])(ok(restLine(length)), statements(body)) : statements(body), frame))
     /**
-     * A loop, `r => COND ? self(NEXT) : r` ({@link loopParts}), as the
-     * closure of its function whose body is the loop it is, the one
-     * spelling every writer has for it (`fjs/edag/todo/tail-call-loop.md`):
-     * the variable `r` bound to the first argument, then Rust's `loop` —
-     * the condition's temporaries, the condition tested at the top,
-     * `break` where it is falsy, the asserts and the next value's
-     * temporaries, the assignment, omitted where the next value is the
-     * variable itself — and `Ok(r)`. A `loop` rather than a `while`, since
-     * a `while` cannot hold the condition's temporaries. No round is a
-     * call, so a million rounds cost no stack, where `Any::call` of
-     * `self_` per round overflows it; `self_` is read only for the frame.
+     * A loop function held as a value, `r => COND ? self(NEXT) : r`
+     * ({@link loopParts}), as the closure whose body is the loop it is,
+     * the one spelling every writer has for it
+     * (`fjs/edag/todo/tail-call-loop.md`): the variable `r` bound to the
+     * first argument, then the `loop`, {@link loopLines}, and `Ok(r)`. No
+     * round is a call, so a million rounds cost no stack, where
+     * `Any::call` of `self_` per round overflows it; `self_` is read only
+     * for the frame. A loop function called where it is written is no
+     * value, and is printed as the loop where the call stands,
+     * {@link loopInPlace}.
      *
      * @type {(parts: _LoopParts, body: Exp, text: string) => (frame: Result<Printed<string>, readonly unknown[]>) => Result<Printed<string>, readonly unknown[]>}
      */
-    const loopClosure = ({ condition, arm, next }, body, text) => frame => {
+    const loopClosure = (parts, body, text) => frame => {
         /** @type {(k: number) => Printed<string>} */
         const variable = k => k === 0 ? code('r.clone()') : argRead(k)
-        const test = okThen(p => map2((/** @type {readonly string[]} */ lines, /** @type {string} */ c) =>
-            [...lines, `${kw('if')} !${c}.to_boolean() { ${kw('break')} }`])(p.lets(condition), p.value(condition)))(printer(false, variable)([])(condition))
-        const step = okThen(p => map2((/** @type {readonly string[]} */ lines, /** @type {string} */ n) =>
-            [...lines, ...(isArg0(next) ? [] : [`r = ${n};`])])(p.lets(arm), p.value(next)))(printer(false, variable)([])(arm))
-        const init = cat([`${kw('let')} ${kw('mut')} r: Any<A> = `, argRead(0), ';'])
-        return flat(map4((/** @type {readonly string[]} */ t, /** @type {readonly string[]} */ s, /** @type {string} */ fr, /** @type {string} */ first) => cat([
-            `A::static_function(|${readsFrame(body) ? 'self_' : '_self'}, args| ${braced([first, `${kw('loop')} ${braced([...t, ...s])}`, 'Ok(r)'])}, ${num('1')}, ${fr}, ${text})`,
+        const init = cat([`${kw('let')} ${mutable(parts.next)}r: Any<A> = `, argRead(0), ';'])
+        return flat(map3((/** @type {readonly string[]} */ round, /** @type {string} */ fr, /** @type {string} */ first) => cat([
+            `A::static_function(|${readsFrame(body) ? 'self_' : '_self'}, args| ${braced([first, `${kw('loop')} ${braced(round)}`, 'Ok(r)'])}, ${num('1')}, ${fr}, ${text})`,
             toAny,
-        ]))(test, step, frame, ok(init)))
+        ]))(loopLines(parts, 'r', variable, frameRead, 0), frame, ok(init)))
+    }
+    /**
+     * A call of a loop function where it stands, as the loop,
+     * {@link inPlace}: the call's own temporary bound to the argument,
+     * `let mut cN: Any<A> = INIT;`, then the `loop`, {@link loopLines},
+     * over it — the variable read as the call's name, a slot as the name
+     * this scope binds the slot's node to, an argument past the first as
+     * `undefined`, which a call of one argument binds it to, and the
+     * round's temporaries numbered after this scope's, whose names the
+     * round, a block inside it, must not shadow — one statement of
+     * several lines.
+     *
+     * @type {(loop: _LoopInPlace) => Result<Printed<string>, readonly unknown[]>}
+     */
+    const loopInPlace = ([call, callee, parts]) => {
+        const name = nameOf(call)
+        const slotsOf = /** @type {readonly Exp[]} */ (/** @type {readonly any[]} */ (callee)[2])
+        /** @type {(k: number) => Printed<string>} */
+        const variable = k => k === 0 ? code(`${name}.clone()`) : undefinedAny
+        const init = map1(s => `${kw('let')} ${mutable(parts.next)}${name}: Any<A> = ${s};`)(f(/** @type {readonly any[]} */ (call)[2][0]))
+        return map2((/** @type {string} */ first, /** @type {readonly string[]} */ round) =>
+            `${first}\n${kw('loop')} ${braced(round)}`)(init, loopLines(parts, name, variable, i => f(slotsOf[i]), base + named.length))
     }
     /**
      * A function's frame as the `Array<A>` its construction takes: the
@@ -1145,16 +1252,19 @@ const printer = (nested, arg = argRead) => shared => root => {
         : map1(s => `Ok(${s})`)(f(e))
     /**
      * A temporary's `let` line: a thunk's closure, its type the operation's
-     * to infer; an operation's call followed by `?`, so the temporary is
-     * the `Any<A>` it answers — an operator's text parenthesized first, a
-     * chain's or a call's as it is — and any other node's construction
-     * as it is.
+     * to infer; a loop in place, {@link loopInPlace}; an operation's call
+     * followed by `?`, so the temporary is the `Any<A>` it answers — an
+     * operator's text parenthesized first, a chain's or a call's as it is
+     * — and any other node's construction as it is.
      *
      * @type {(n: Exp) => Result<Printed<string>, readonly unknown[]>}
      */
-    const letLine = n => isThunk(n)
-        ? map1(s => `${kw('let')} ${nameOf(n)} = ${s};`)(thunk(n))
-        : map1(s => `${kw('let')} ${nameOf(n)}: Any<A> = ${!isOperation(n) ? s : checked(n)(s)};`)(node(n))
+    const letLine = n => {
+        const loop = inPlace.find(([call]) => call === n)
+        return isThunk(n) ? map1(s => `${kw('let')} ${nameOf(n)} = ${s};`)(thunk(n))
+            : loop !== undefined ? loopInPlace(loop)
+            : map1(s => `${kw('let')} ${nameOf(n)}: Any<A> = ${!isOperation(n) ? s : checked(n)(s)};`)(node(n))
+    }
     /**
      * An operation's text as the `Any<A>` it answers: its call followed
      * by `?` — an operator's text parenthesized first, a chain's or a
@@ -1268,36 +1378,29 @@ export const nodeExpr = expExpr([])
 const isArg0 = e => e instanceof Array && e[0] === 'arg' && e[1] === 0
 
 /**
- * The parts of a loop read off its function node — the template
- * `fjs/edag/loop` recognizes in the analysis table, read here on the graph
- * this printer walks: `['=>', 1, slots, ['?:', COND, ARM, ['arg', 0]]]`,
- * `ARM` the call `['()', ['self'], [NEXT]]` or a comma holding asserts
- * before it — and `null` where the function is not one, or is a shape
- * every writer keeps the recursion for (`fjs/edag/todo/tail-call-loop.md`):
- * `self` read anywhere else, a shared `?:`, comma or call on the path, a
- * root assert, a condition and an arm sharing a node that is no atom, a
- * read of the rest array, a next value that is a spread. A next value that
- * throws is assigned as any is, the `Err` the round's `?` returns.
+ * The parts of a loop read off its function node, by the one recognizer
+ * every writer asks, `fjs/edag/loop`, of the function's own table: the
+ * template `['=>', 1, slots, ['?:', COND, ARM, ['arg', 0]]]`, `ARM` the
+ * call `['()', ['self'], [NEXT]]` or a comma holding asserts before it —
+ * the condition, the arm and the next value as the graph holds them, the
+ * nodes this printer prints — and `null` where the function is no loop,
+ * or one every writer keeps the recursion for (`keepsRecursion`), or no
+ * table at all, a fragment sharing a node across its own boundary. A next
+ * value that throws is assigned as any is, the `Err` the round's `?`
+ * returns.
  *
  * @type {(fn: readonly unknown[]) => _LoopParts | null}
  */
 const loopParts = fn => {
-    const [, length, , body] = /** @type {readonly any[]} */ (fn)
-    if (length !== 1 || !(body instanceof Array) || body[0] !== '?:') { return null }
-    const [, condition, arm, otherwise] = body
-    if (!isArg0(otherwise) || reads('rest')(/** @type {Exp} */ (/** @type {unknown} */ (body)))) { return null }
+    const a = analysis(/** @type {Exp} */ (/** @type {unknown} */ (fn)))
+    if (a[0] === 'error') { return null }
+    const i = /** @type {readonly ['#', number]} */ (a[1].root)[1]
+    const loop = loopOf(a[1], i)
+    if (loop === null || keepsRecursion(a[1], i, loop)) { return null }
+    const [, , , body] = /** @type {readonly any[]} */ (fn)
+    const [, condition, arm] = isComma(body) ? last(body) : body
     const call = isComma(arm) ? last(arm) : arm
-    if (!(call instanceof Array) || call[0] !== '()' || !(call[1] instanceof Array) || call[1][0] !== 'self' || call[2].length !== 1) { return null }
-    const next = call[2][0]
-    if (next instanceof Array && next[0] === '...') { return null }
-    const visited = visit(operandsOf)([])(body)
-    /** Whether one place reaches the node, which is under `body`. @type {(n: unknown) => boolean} */
-    const once = n => visited.some(([m, count]) => m === n && count === 1)
-    const selves = visited.filter(([n]) => tagOf(n) === 'self')
-    if (selves.length !== 1 || /** @type {unknown} */ (selves[0][0]) !== call[1] || !once(call[1]) || !once(arm) || !once(call)) { return null }
-    const inCondition = visit(operandsOf)([])(condition).map(([n]) => n)
-    const shared = visit(operandsOf)([])(arm).some(([n]) => !atomic(n) && inCondition.includes(n))
-    return shared ? null : { condition, arm, next }
+    return { condition, arm, next: call[2][0] }
 }
 
 /**
@@ -1634,7 +1737,9 @@ const namesIn = uses => module => [...new Set(uses.flatMap(([m, n]) => m === mod
  *
  * Every operator prints, the lazy four included, and so does a function:
  * a `=>` node is a closure, its body a scope of its own printed by this
- * same function, and a call is `Any::call`. Nothing here polices an
+ * same function, and a call is `Any::call` — unless it calls a loop
+ * function where it stands, which is the loop in place
+ * ({@link printer}). Nothing here polices an
  * operand's laziness: the `nanvm-lib` signature does, since a value
  * printed where a thunk is due does not compile.
  *

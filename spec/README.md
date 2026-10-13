@@ -46,7 +46,8 @@ or JSON ([output](#output)).
 - [Principles](#principles)
 - [Lexical grammar](#lexical-grammar) and [comments](#comments)
 - [Module structure](#module-structure), [exports](#exporting-a-value),
-  [imports](#importing-other-modules) and [constants](#shared-values-constants)
+  [imports](#importing-other-modules), [constants](#shared-values-constants)
+  and [destructuring](#destructuring)
 - [Values and literals](#supported-value-types), including
   [template literals](#template-literals)
 - [Grouping](#grouping), [operators](#operators),
@@ -454,7 +455,10 @@ has none — so `export const __proto__ = 7;` returns `{ ["__proto__"]: 7 }`, an
 own property like any other export, and an importer selects it the same way
 ([importing](#importing-other-modules)).
 
-Unless a module ends in `throw`, at least one export is required.
+Unless a module ends in `throw`, at least one export is required
+(`module exports nothing`): a `const` of a name exports it, and an exported
+pattern exports each name it binds ([destructuring](#destructuring)), so a
+module whose only exports bind no name is refused at its last `export`.
 A named-only module needs no default:
 `export const a = 5;` returns `{ a: 5 }`. When present, `export default` is
 **last**; only [trivia](#whitespace-and-line-terminators) — whitespace,
@@ -692,6 +696,93 @@ gives what it computes more names than normalized form does
 
 See
 <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const>.
+
+### Destructuring
+
+```js
+const { a, "%": [c, d], length } = { a: null, "%": [true, false] };
+export const { x, y } = { x: 1, y: [2] };
+export default [a, c, d, length, (...r) => { const [first] = r; return first; }];
+```
+
+A `const`, a module's or a body's, exported or not, may bind a **pattern**
+in place of a name: an object pattern, `{ p, … }`, each property a
+shorthand name or a key and a target, `a: t`, `"a": t`, `["a"]: t`,
+`[3]: t`; or an array pattern, `[t, …]`, each item a target; a target a
+name or a pattern again, and a trailing comma allowed as the literals
+allow one. Each name is a
+binding by the rule above — reserved, refused twice, exported as `then`,
+or shadowing a capture, it is refused as a name alone is — and it names
+the part of the value its path reads, as in JavaScript. The initializer is
+evaluated once, however many names read it.
+
+A pattern is sugar over reads the language has, and that is its whole
+semantics: the graph outputs write the reads, `const [c, d] = v;` as
+`const $0=[...v];const c=$0[0];const d=$0[1];`, as a guard is written as
+its conditional ([functions](#functions)).
+
+- An object pattern's property is the [property access](#property-access)
+  its key spells, with every rule of one: a `null` or `undefined` source
+  throws, as JavaScript's `RequireObjectCoercible` throws; a primitive
+  source binds what it owns — a string its code units by index, `const { [0]: first } = "ab";` binding `"a"`, and its `length`;
+  a number, a boolean or a `bigint` nothing — and `undefined` for a
+  property it does not own, as `GetV` reads through `ToObject`;
+  `length` reads an array's, a string's or a function's; and a key a
+  built-in prototype gives a value, `toString`, `constructor` or
+  `__proto__`, is the compilation error the access is (`prohibited
+  property name`), since JavaScript would read a function there and this
+  language nothing.
+- An array pattern is the [spread](#spread) of its source and reads of the
+  array the spread made, which is JavaScript's own reading: array
+  destructuring runs through `GetIterator` as a spread does, so a source
+  that is not iterable throws the same `TypeError` — `const [a] = {};`
+  fails here as it fails there — and a string yields its code points,
+  `const [a] = '😀';` binding the two-unit string. The spread reads every
+  element where JavaScript's destructuring stops at the last target; no
+  program here can observe the difference, there being no generator, no
+  side effect and no infinite iterable.
+- Every read is established whether or not a name reads it, as every
+  `const` is ([shared values](#shared-values-constants)):
+  `const { a: { b } } = {};` throws at load, as it throws in JavaScript.
+  Which of a pattern's reads fails first is no observation
+  ([failure is one outcome](#failure-is-one-outcome)).
+- An **empty pattern** binds nothing and keeps its failure, the check
+  JavaScript gives a caller through it: `const [] = v;` is the spread of
+  `v` alone and fails where `v` is not iterable, and `const {} = v;` reads
+  one property of `v`, its `length`, which every kind of value may own,
+  binding nothing — the read that fails where `v` is `null` or
+  `undefined`, as `RequireObjectCoercible` fails, and whose value is no
+  observation. The graph outputs write the two reads, `const $0=[...v];`
+  and `const $0=v.length;`. An exported pattern exports each name it binds,
+  so `export const {} = o;` exports nothing, and a module whose exports all
+  bind no name is refused, as one with no export is
+  ([exports](#exporting-a-value)): `module exports nothing`, at its last
+  `export`.
+- A pattern names no function as its whole value, so no name in it is a
+  function's own ([captures and self recursion](#captures-and-self-recursion)):
+  `const { f } = { f: () => f };` is `const not found`.
+
+Refused, each by name, and open in
+[destructuring](./todo/2450-destructuring.md): a **rest element**,
+`[a, ...r]` or `{ a, ...r }` (`rest element not supported`); a
+**default**, `{ a = 1 }` or `[a = 1]`, which is no literal and stops at
+its `=`; a **computed key**
+beyond a constant — a string or a number literal alone in the brackets,
+`{ ["a"]: t }` or `{ [3]: t }`, is the constant key an access admits in
+brackets ([property access](#property-access)), read by the literal's
+spelling as `"a": t` is, while `{ [k]: a }`, `{ [Number(i)]: a }` and a
+grouped literal, `{ [(3)]: a }`, are refused (`computed key in a binding
+pattern not supported`); and a pattern in a **parameter**, which is not
+read yet ([functions](#functions)). A value in a binding position —
+a literal, an access, a call, an operator, or a group, `[(a)]`, which
+JavaScript admits in an assignment and refuses in a binding — is the error
+JavaScript names (`invalid destructuring target`), at the token it begins
+with. An elision, `[, b]`, is not read yet and stops at its second
+comma, as it does in an array literal; it is a follow-up in the record,
+not a rule.
+
+See
+<https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Destructuring_assignment>.
 
 ## Supported Value Types
 
@@ -1929,7 +2020,8 @@ export default (a, b, c, ...x) => [a, b, c, x];
 
 Bare `a => a`, `(a) => a`, and a fixed list with a trailing comma are also
 accepted. No parameter or comma may follow rest. Defaults and destructuring
-are not supported yet. A newline before `=>` is refused.
+parameters are not supported yet; a body `const` takes a pattern
+([destructuring](#destructuring)). A newline before `=>` is refused.
 
 ### Parameters
 
@@ -2242,15 +2334,18 @@ export default n => {
   writer as these two statements, the code-only text as the same two over a
   `let` of the function's parameter
   ([function text](../fjs/edag/function-text.md)), and the Rust output as
-  the function's closure whose body is Rust's `loop` over a `let mut` of
-  its argument, no round a call — where a function calling itself last is
+  Rust's `loop` over a `let mut` of the initial value where the function
+  is called where it is written, and as the function's closure whose body
+  is that loop over its argument where it is held as a value, no round a
+  call either way — where a function calling itself last is
   otherwise recursion, which V8 runs out of stack on after some thousands
   of rounds, having no tail calls, and Rust likewise. A hand-written
   function of the template's shape, `const loop = r => c ? loop(next) :
   r;`, is the same graph and gets the same loop; one of a shape no `while`
   writes — a `const` before the condition running every round, a condition
-  sharing a value with the block that a `const` would name, a read of the
-  rest array — keeps the recursion in every writer; a read the condition
+  sharing a value with the block that mints identity, a container, a
+  function or a call, a read of the rest array — keeps the recursion in
+  every writer, which ask one recognizer; a read the condition
   and the block repeat, `r[0]`, one value of the graph, is written where
   each read stands and loops. A condition sharing a value of its own, the
   `const` of a function called where written, is the FunctionalScript

@@ -66,9 +66,17 @@ where `fjs/js/prototype`'s README has its row.
 
 **The keys are the admitted set.** A type has exactly the member functions
 its object holds — every one of them, whether the entry is a body or the
-marker below — and `allowedCalls` is derived from the union of the keys,
-no longer a hand-written list: `js/prototype` keeps the prototype name
-lists and `prohibitedCalls`, which exist for the parser alone — the
+marker below — and `allowedCalls` names the same functions. Deriving the
+list from the keys needs an operation the language does not have: nothing
+in a `.f.js` enumerates an object's keys — `Object.keys` is a call of a
+global the parser refuses, and `entry` reads a key already supplied — so
+until key enumeration is admitted, as a primitive the static-function step
+could bring, `allowedCalls` stays the hand-written list in `js/prototype`
+and the runtime's `types.ts` pins, at the type level, each type's keys
+equal to the allowed names on that type's prototype: a name added to one
+side alone fails `tsc`. The derivation replaces the pin when it can be
+written. `js/prototype` keeps the prototype name lists and
+`prohibitedCalls` either way, which exist for the parser alone — the
 receiver's type is unknown at compile time, so the parser admits a call by
 name and refuses a prohibited one with the error that names the reason. A
 VM never sees a prohibited name, because two boundaries refuse it before
@@ -194,10 +202,12 @@ own `todo/` when its turn comes, and neither is designed here.
 - [ ] The array batch: every admitted `array` name, `toString` as `join`.
 - [ ] `allowedCalls` derived from the runtime's keys, once the language can
       enumerate an object's keys in a `.f.js`; until then `types.ts` pins
-      the two equal. `nanvm/methods`, `gen.methods.rs` and the four-row
-      test beside `method` in `nanvm/lib/src/vm/lambda/method.rs` then
-      retire, replaced by the two-way test above: every marked name
-      bound, every native binding a key of its type's object.
+      the two equal. `js/prototype` keeps the prototype lists and
+      `prohibitedCalls` for the parser.
+      `nanvm/methods`, `gen.methods.rs` and the four-row test beside
+      `method` in `nanvm/lib/src/vm/lambda/method.rs` then retire,
+      replaced by the two-way test above: every marked name bound, every
+      native binding a key of its type's object.
 - [ ] The compile CLI's data outputs interpret a module with no runtime, so
       one whose initialization calls a body's name fails to initialize
       there ([`compiler/todo/cli-runtime.md`](../../compiler/todo/cli-runtime.md)).

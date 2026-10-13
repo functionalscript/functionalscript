@@ -3,7 +3,7 @@
  * @module
  */
 
-import { matches } from './cli/search/module.f.mjs'
+import { matches } from './cli/search/module.f.js'
 import { copy } from './copy-runtime.mjs'
 
 /** Bind each copy button before making the controls visible.
