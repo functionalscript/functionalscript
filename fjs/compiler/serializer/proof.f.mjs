@@ -1165,6 +1165,18 @@ export const proof = {
             'export default ($0)=>{let $1=0;while($1<3){$1=true&&[$1][0];}return $1;};')
         writes(['=>', 1, [], ['()', loop([], ['&&', one, ['===', one, one]], call(['+', ['arg', 0], 1])), [0]]],
             'export default ($0)=>{let $1=0;while((()=>{const $2=[1];return $2&&$2===$2;})()){$1=$1+1;}return $1;};')
+        // a loop called in another loop's block — as an assert, or as the
+        // next value — keeps the recursion there, since the block holds
+        // `const`s and assignments alone; called in a lazy operand's block,
+        // a function body, it is the loop
+        /** @type {(limit: number) => Exp} */
+        const countTo = limit => ['()', loop([], ['<', ['arg', 0], limit], call(['+', ['arg', 0], 1])), [0]]
+        writes(['=>', 1, [], ['()', loop([], ['<', ['arg', 0], 3], [',', [countTo(2), call(['+', ['arg', 0], 1])]]), [0]]],
+            'export default ($0)=>{let $1=0;while($1<3){const $2=($3)=>$3<2?$2($3+1):$3;const $4=$2(0);$1=$1+1;}return $1;};')
+        writes(['=>', 1, [], ['()', loop([], ['<', ['arg', 0], 3], call(countTo(2))), [0]]],
+            'export default ($0)=>{let $1=0;while($1<3){const $2=($3)=>$3<2?$2($3+1):$3;$1=$2(0);}return $1;};')
+        writes(['=>', 1, [], ['()', loop([], ['<', ['arg', 0], 3], call(['&&', true, ['()', loop([], ['<', ['arg', 0], 2], call(['+', ['arg', 0], 1])), [['[]', [1]]]]])), [0]]],
+            'export default ($0)=>{let $1=0;while($1<3){$1=true&&(()=>{let $2=[1];while($2<2){$2=$2+1;}return $2;})();}return $1;};')
         // a frame slot no name stands for is refused as it is anywhere
         refuses(['=>', 1, [], ['()', loop([1], true, call(0)), [0]]], 'a frame slot holding a primitive')
         // a value the condition shares with the block that the block would

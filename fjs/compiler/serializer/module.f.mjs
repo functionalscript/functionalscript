@@ -540,7 +540,7 @@ const block = (s, path) => v => okThen(
  */
 const lazyScope = s => v => {
     /** @type {_Scope} */
-    const inner = { a: s.a, allowUnusedCaptures: s.allowUnusedCaptures, outer: visible(s), names: [], frame: s.frame, param: s.param, eager: eagerFrom(s.a)(v), shared: sharedWithin(s.a)(v), self: s.self, binding: null }
+    const inner = { a: s.a, allowUnusedCaptures: s.allowUnusedCaptures, outer: visible(s), names: [], frame: s.frame, param: s.param, eager: eagerFrom(s.a)(v), shared: sharedWithin(s.a)(v), self: s.self, binding: null, loopBlock: false }
     /** @type {(i: number) => boolean} */
     const unnamed = i => nameOf(inner.outer, ['entry', i]) === null
     // Reached from outside by an edge the operand's subgraph does not
@@ -891,10 +891,10 @@ const aliasedBody = (a, path, names, allowUnusedCaptures, self) => b => {
  * reads as, or `null` for a function with no name.
  * @type {(a: Analysis, path: string, frame: readonly string[], b: Operand, allowUnusedCaptures: boolean, self: string | null) => _Scope}
  */
-const bodyScope = (a, path, frame, b, allowUnusedCaptures, self) => ({ a, allowUnusedCaptures, outer: [], names: [], frame, param: path, eager: eagerFrom(a)(b), shared: a.shared, self, binding: null })
+const bodyScope = (a, path, frame, b, allowUnusedCaptures, self) => ({ a, allowUnusedCaptures, outer: [], names: [], frame, param: path, eager: eagerFrom(a)(b), shared: a.shared, self, binding: null, loopBlock: false })
 
 /** The scope a module is written in, over the names written so far. @type {(a: Analysis, names: _Names) => _Scope} */
-const moduleScope = (a, names) => ({ a, allowUnusedCaptures: false, outer: [], names, frame: [], param: '', eager: eagerFrom(a)(a.root), shared: a.shared, self: null, binding: null })
+const moduleScope = (a, names) => ({ a, allowUnusedCaptures: false, outer: [], names, frame: [], param: '', eager: eagerFrom(a)(a.root), shared: a.shared, self: null, binding: null, loopBlock: false })
 
 /**
  * A function's body at `path`, in a scope of its own: the `const`s it needs
@@ -1476,7 +1476,8 @@ const scope = (s, path, start, returns = null, yields = true) => all => {
  * the capture the language refuses in source, `loop variable captured`;
  * no value the condition shares with the block that the block would name,
  * which a `const` before the `while` would establish once; and the scope
- * a function's body, since the language has no loop at the module level.
+ * a function's body, since the language has no loop at the module level,
+ * and no loop's block, which holds `const`s and assignments alone.
  * Anything else keeps the spelling a function reading its `self` has, a
  * `const` the call reads.
  *
@@ -1484,7 +1485,7 @@ const scope = (s, path, start, returns = null, yields = true) => all => {
  */
 const isLoopCall = (s, i) => {
     const node = s.a.nodes[i]
-    if (s.param === '' || node[0] !== '()' || node[2].length !== 1) { return false }
+    if (s.param === '' || s.loopBlock || node[0] !== '()' || node[2].length !== 1) { return false }
     const [, callee, [init]] = node
     if (!(callee instanceof Array) || s.shared.includes(callee[1]) || (init instanceof Array && init[0] === '...')) { return false }
     const loop = loopOf(s.a, callee[1])
@@ -1593,8 +1594,8 @@ const loopStatement = (s, path, before) => i => {
                 okThen(
                     /** @type {(block: _Scope) => Result<_Statement, string>} */
                     (block => unchanged
-                        ? scope(block, `${loopPath}/block`, nothing, null, false)(asserts)
-                        : scope(block, `${loopPath}/block`, nothing, [variable, '='])([...asserts, next])),
+                        ? scope({ ...block, loopBlock: true }, `${loopPath}/block`, nothing, null, false)(asserts)
+                        : scope({ ...block, loopBlock: true }, `${loopPath}/block`, nothing, [variable, '='])([...asserts, next])),
                 )(lazyScope(inner)(arm)),
             ))
         }),
