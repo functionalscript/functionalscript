@@ -106,7 +106,12 @@ for the same shapes, which no loop written as `let`/`while` produces:
   ([spec: parameters](../../../spec/README.md#parameters)), and a loop
   that kept the first call's array would answer differently where that
   array had members;
-- a next value that throws, a spread, or a second argument;
+- a spread or a second argument as the next value. A next value that
+  throws is no such shape: the grammar admits `r = (() => { throw 0; })();`,
+  the lowering inlines the call, and every writer assigns the throw as it
+  spells one in expression position — the source writer and the function
+  text as that applied function, the Rust output as the `Err` the round's
+  `?` returns — so the loop throws where the recursion threw;
 - in the source writer alone, a function nested in the loop whose frame
   reads the variable, `r => typeof r === 'number' ? self(() => r) : r`:
   the recursion's closure holds the parameter of the call that made it,
