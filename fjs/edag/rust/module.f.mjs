@@ -1276,7 +1276,8 @@ const isArg0 = e => e instanceof Array && e[0] === 'arg' && e[1] === 0
  * every writer keeps the recursion for (`fjs/edag/todo/tail-call-loop.md`):
  * `self` read anywhere else, a shared `?:`, comma or call on the path, a
  * root assert, a condition and an arm sharing a node that is no atom, a
- * read of the rest array, a next value that throws or is a spread.
+ * read of the rest array, a next value that is a spread. A next value that
+ * throws is assigned as any is, the `Err` the round's `?` returns.
  *
  * @type {(fn: readonly unknown[]) => _LoopParts | null}
  */
@@ -1288,7 +1289,7 @@ const loopParts = fn => {
     const call = isComma(arm) ? last(arm) : arm
     if (!(call instanceof Array) || call[0] !== '()' || !(call[1] instanceof Array) || call[1][0] !== 'self' || call[2].length !== 1) { return null }
     const next = call[2][0]
-    if (next instanceof Array && (next[0] === '...' || next[0] === 'throw')) { return null }
+    if (next instanceof Array && next[0] === '...') { return null }
     const visited = visit(operandsOf)([])(body)
     /** Whether one place reaches the node, which is under `body`. @type {(n: unknown) => boolean} */
     const once = n => visited.some(([m, count]) => m === n && count === 1)

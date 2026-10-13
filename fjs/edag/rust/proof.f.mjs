@@ -127,6 +127,16 @@ export const proof = {
                 '        r = f64_any(0x3ff0000000000000);',
             ])
         },
+        // a next value that throws is assigned as any is: the `Err` the
+        // round's `?` returns, so the loop throws where the recursion threw
+        throwing: () => {
+            assertStructurallySame(scoped(loop(true, call(['throw', 1]))).slice(2, 6), [
+                '    loop {',
+                '        if !true.to_any().to_boolean() { break }',
+                '        let c0: Any<A> = (Err(f64_any(0x3ff0000000000000)))?;',
+                '        r = c0;',
+            ])
+        },
         // a frame read is the one read of `self_`; the argument read twice
         // is one temporary of the round, as any shared atom is; an argument
         // past the length is read as any argument is
@@ -156,7 +166,7 @@ export const proof = {
          * is not the template, and for the shapes every writer keeps it
          * for: a root assert, a node the condition shares with the round
          * — bound before the condition, where a `loop` could not bind it
-         * once — and a rest read, a throw or a spread as the next value.
+         * once — and a rest read, or a spread as the next value.
          */
         recursion: () => {
             /** @type {Exp} */
@@ -175,7 +185,6 @@ export const proof = {
             const cases = [
                 ['=>', 1, [], [',', [['+', 1, 2], ['?:', true, c, ['arg', 0]]]]],
                 loop(['rest'], c),
-                loop(true, call(['throw', 1])),
                 loop(true, ['()', ['self'], [['...', ['[]', []]]]]),
                 // another length, another alternate, a body that is no `?:`
                 ['=>', 2, [], ['?:', true, c, ['arg', 0]]],
