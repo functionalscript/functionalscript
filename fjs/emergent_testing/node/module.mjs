@@ -26,6 +26,11 @@ const kept = async function* (source) {
 }
 
 /**
+ * A reporter for Node to call, not an API for events built by hand: the
+ * parameter's `Event` is what the filter decides by, and the events Node
+ * passes carry the rest of what `spec` prints — a failure's error, a file's
+ * uncovered lines — which this module neither reads nor declares.
+ *
  * The encoding makes the stream yield strings: without one, a stream's
  * chunks are `Buffer`s, whatever the reporter pushed into it.
  *
