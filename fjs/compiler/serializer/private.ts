@@ -62,6 +62,13 @@ export type _Scope = {
      * reach itself.
      */
     readonly binding: string | null
+    /**
+     * Whether the scope is a loop's block, which holds `const`s and
+     * assignments to the variable alone: a loop called in it is written
+     * as the recursion, a `const` the call reads, since the language
+     * admits no `let` and `while` there, where any other body admits them.
+     */
+    readonly loopBlock: boolean
 }
 
 /**

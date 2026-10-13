@@ -1,7 +1,9 @@
 ## Write a tail self-call as a loop
 
 **Priority:** P2
-**Status:** wip
+**Status:** wip — the recognizer, the function text and the source
+spelling with its grammar are implemented, the grammar's proposal
+approved; the Rust output is open
 
 ### Problem
 
@@ -216,20 +218,21 @@ written for the template, so it is a later step, taken with the grammar for
 
 ### Tasks
 
-- [ ] `fjs/edag/loop`: recognize the template, with the refusals proven:
+- [x] `fjs/edag/loop`: recognize the template, with the refusals proven:
       another length, `self` read anywhere else, a call in the alternative,
       a shared `?:` or call, a comma whose last operand is not the call.
-- [ ] `fjs/compiler/serializer/function_text`: the loop form; a host proof
+- [x] `fjs/compiler/serializer/function_text`: the loop form; a host proof
       runs a million rounds, which the named function expression could not,
       and the shapes above keep the recursion.
-- [ ] `fjs/edag/function-text.md` and the function-source paragraph of
+- [x] `fjs/edag/function-text.md` and the function-source paragraph of
       `spec/README.md`: a body reading its `self` renders as a named
       function expression unless it is a loop, which renders as the loop.
 - [ ] `fjs/edag/rust`: the loop form as the closure's body, and a
       `cargo test` over a generated module running a million rounds.
-- [ ] `fjs/compiler/serializer`: the `let`/`while` spelling in call context,
-      a rest-reading function left as recursion, with the grammar, its
-      proposal approved, proven by the round trip.
+- [x] `fjs/compiler/serializer`: the `let`/`while` spelling in call context,
+      a rest-reading function left as recursion, with the grammar
+      ([spec: loops](../../../spec/README.md#loops)), its proposal
+      approved, proven by the round trip.
 
 ### Related
 
