@@ -151,7 +151,7 @@ const finiteView = state => {
                     ...(state.operation === 'P + Q' ? [pointSelect('q', 'Point Q', state.q), radios('target', 'Graph click sets', [{ value: 'P', label: 'P' }, { value: 'Q', label: 'Q' }], state.target)] : []),
                 ]),
                 ...(multiplication && k[0] === 'error' ? [refusal(k[1])] : [
-                    caption(multiplication ? `Public key Q = ${state.k}G:` : 'Result:'),
+                    caption(multiplication ? `Scalar result ${state.k}G:` : 'Result:'),
                     codeBlock(pointText(calculation.result), 'Copy result'),
                     paragraph(multiplication
                         ? 'The grid shows G and kG. Show Math lists the repeated additions; production multiplication can use faster algorithms such as double-and-add.'

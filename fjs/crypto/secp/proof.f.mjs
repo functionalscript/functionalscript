@@ -88,6 +88,12 @@ export const proof = {
         const additionDefaults = transition(initial, { kind: 'input', name: 'operation', value: 'P + Q' })
         assertEq(additionDefaults.p, '10,18')
         assertEq(additionDefaults.q, '13,12')
+        for (const k of ['0', '29']) {
+            const identityView = JSON.stringify(demo.view({ ...initial, view: 'Finite Field View', operation: 'kG', k }))
+            assert(identityView.includes(`Scalar result ${k}G:`))
+            assert(!identityView.includes('Public key'))
+            assert(identityView.includes('O (point at infinity)'))
+        }
         const adding = /** @type {const} */ ({ ...initial, view: 'Finite Field View', operation: 'P + Q' })
         const resultView = JSON.stringify(demo.view(adding))
         assert(resultView.includes('data-secp-modular-line'))
