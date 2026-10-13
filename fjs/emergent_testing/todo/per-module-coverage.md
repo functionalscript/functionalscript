@@ -58,5 +58,3 @@ Fix the proofs the switch exposes instead of allowing exceptions.
 ### Related
 
 - [run-subset-of-tests](./run-subset-of-tests.md) — general test selection
-- [check-set-ci-parity](../../../todo/check-set-ci-parity.md) — coverage in the
-  local check set

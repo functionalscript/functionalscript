@@ -22,9 +22,9 @@ worded a little differently:
   [fjs/AGENTS.md §3.2](../fjs/AGENTS.md#32-types), and again in
   CONTRIBUTING.md's [Running tests](../CONTRIBUTING.md#running-tests), a
   section about running tests.
-- **The pre-submit check set.** Listed in AGENTS.md, CONTRIBUTING.md and
-  [nanvm/lib/AGENTS.md](../nanvm/lib/AGENTS.md). This set has already drifted
-  — see [check-set-ci-parity](./check-set-ci-parity.md).
+- **The pre-submit check set.** AGENTS.md owns which checks a change runs;
+  CONTRIBUTING.md and [nanvm/lib/AGENTS.md](../nanvm/lib/AGENTS.md) restate
+  the commands and link to it for the rule.
 
 AGENTS.md describes itself as a map that "holds the facts you must not violate
 and links to the document that holds the rest", so some restatement there is
@@ -40,7 +40,5 @@ down anywhere, which is how the check set came to differ between copies.
 
 ### Related
 
-- [check-set-ci-parity](./check-set-ci-parity.md) — the restated rule that
-  has already drifted
 - [contributor-docs-stale-references](./contributor-docs-stale-references.md)
   — stale references in the same documents
