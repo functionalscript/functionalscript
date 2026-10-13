@@ -497,7 +497,8 @@ A demo can request incremental work through `nextEvent(state)`: return an
 event to run on a later browser turn, or `null` to stop. These automatic turns
 and reader events during incremental work keep controls available, so a reader
 can stop the work or edit an input. Updates during incremental work must be
-small and pure: return a state without requesting operations. Queuing a reader
+small: pure computation or a bounded synchronous `sandbox` call for timing.
+Do not request blocking I/O on these turns. Queuing a reader
 event cancels a scheduled turn; the latest rendered state decides whether to schedule another one.
 
 Events are serialized: one `update` at a time, the next queued behind it. That
