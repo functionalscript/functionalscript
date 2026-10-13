@@ -33,12 +33,13 @@ plans to admit, and any operator whose semantics a VM need not own natively.
 
 ### Proposal
 
-**One module, in FunctionalScript, is the definition.** A new
-`fjs/js/runtime/module.f.js`, beside the admission list, exports `runtime`:
-an object keyed by the seven receiver types `nanvm/methods` already names —
-`object`, `array`, `string`, `number`, `boolean`, `bigint`, `function` —
-each an object keyed by member name, each entry a function of the receiver
-and then the arguments as the call passed them, `undefined` past the end:
+**One module, in FunctionalScript, is the definition — of each body and
+of which functions each type has.** A new `fjs/js/runtime/module.f.js`,
+beside the admission list, exports `runtime`: an object keyed by the seven
+receiver types `nanvm/methods` already names — `object`, `array`, `string`,
+`number`, `boolean`, `bigint`, `function` — each an object keyed by member
+name, each entry a function of the receiver and then the arguments as the
+call passed them, `undefined` past the end:
 
 ```js
 export const runtime = {
@@ -57,9 +58,20 @@ export const runtime = {
 A FunctionalScript function reads no `this`, so the receiver is a parameter,
 which is the shape NaNVM's `Method<A>` — `fn(Any<A>, Array<A>)` — has
 already. The second level is keyed by name rather than closed over so that
-the table is data: a generator enumerates it, the completeness test derives
-*answered* from its keys, and a reader finds `string.startsWith` where
-`fjs/js/prototype`'s README has its row.
+the table is data: a VM enumerates it, and a reader finds `string.startsWith`
+where `fjs/js/prototype`'s README has its row.
+
+**The keys are the admitted set.** A type has exactly the member functions
+its object holds, and `allowedCalls` is derived from the union of the keys,
+no longer a hand-written list: `js/prototype` keeps the prototype name
+lists and `prohibitedCalls`, which exist for the parser alone — the
+receiver's type is unknown at compile time, so the parser admits a call by
+name and refuses a prohibited one with the error that names the reason. A
+VM never sees a prohibited name, since no EDAG carries one; whether the
+EDAG reader checks it as well is its own choice, and a native VM does not
+care. The completeness table `nanvm/methods` generates and its four rows
+(`gen.methods.rs`) exist to keep two hand-written lists in agreement, and
+retire: with one list there is nothing to compare.
 
 **The compiler is the generator.** The module is an authored `.f.js` the
 current compiler accepts, so `fjs compile` through the Rust backend
@@ -78,14 +90,18 @@ as a property each value owns, and for strings a code-unit read
 (`charCodeAt`) and a substring (`slice`); for arrays an element read by a
 runtime number index, which the language has
 ([spec: property access](../../../spec/README.md#property-access)). An
-entry is either a primitive or has a body, never both, and the
-completeness test checks that the pairs `allowedCalls` admits are exactly
-the primitives plus the bodies plus the pending list, which is what it
-checks today with a different partition.
+entry is either a primitive or has a body, never both; the one check left
+is that a VM binds every primitive, a test over the short list alone.
 
-**A VM chooses how to answer a derived function.** The interpreter runs
-the body; the AOT Rust output links the compiled runtime; and a VM may keep
-or add a native binding of its own where it measures the gain — NaNVM's
+**A VM binds the object dynamically.** It reads the compiled runtime's
+keys and installs each value as the fallback member function of its type:
+a call step resolves an own property, then the type's primitive, then the
+runtime's entry, then throws the `TypeError` for calling `undefined`, as
+it does today with a hand-written table in the third place. The tables in
+`nanvm/lib/src/vm/lambda`'s `method.rs`, `string.rs` and `number.rs`
+shrink to the primitives; the interpreter runs the body, the AOT Rust
+output links the compiled runtime, and a VM may still bind a native
+implementation of a derived name where it measures the gain — NaNVM's
 current Rust implementations become exactly that, optimizations, each one
 free to go when the compiled body is fast enough. Either way the corpus in
 `nanvm/member` checks the native answer against the body, as it checks it
@@ -135,17 +151,18 @@ own `todo/` when its turn comes, and neither is designed here.
       accepts it. One pull request per few functions, as
       [SESSION.md](../../../doc/SESSION.md) asks.
 - [ ] The array batch: every admitted `array` name, `toString` as `join`.
-- [ ] `nanvm/methods` reads `primitives` and `runtime` and generates the
-      native/runtime/pending partition; `gen.methods.rs` and the test
-      beside `method` in `nanvm/lib/src/vm/lambda/method.rs` follow.
+- [ ] `allowedCalls` is derived from the runtime's keys; `js/prototype`
+      keeps the prototype lists and `prohibitedCalls` for the parser.
+      `nanvm/methods`, `gen.methods.rs` and the four-row test beside
+      `method` in `nanvm/lib/src/vm/lambda/method.rs` retire, replaced by
+      the one test that every primitive is bound.
 - [ ] `edag/value/method` answers derived names from the generated EDAG and
       stops calling the host engine for them; `edag/value/array_method`
       likewise.
-- [ ] The Rust backend's output links the compiled runtime; the corpus
-      runs it; decide per function, with a measurement, whether the
-      hand-written Rust stays.
-- [ ] Decide whether `allowedCalls` is derived from the runtime's keys, so
-      `js/prototype` keeps only `prohibitedCalls` and the reasons.
+- [ ] NaNVM binds the compiled runtime's keys as each type's fallback
+      member functions; its hand tables shrink to the primitives; the
+      corpus runs the bound runtime; decide per function, with a
+      measurement, whether a native implementation stays.
 - [ ] File the static-function table and the operator step as their own
       `todo/`s when the first batch has landed.
 
@@ -154,7 +171,7 @@ own `todo/` when its turn comes, and neither is designed here.
 - [`js/prototype`](../prototype/module.f.js) — the admission list; its
   README holds the reason for each name.
 - [`nanvm/lib/todo/member-functions.md`](../../../nanvm/lib/todo/member-functions.md)
-  — the native completeness table this design re-partitions.
+  — the native completeness table this design retires.
 - [`nanvm/methods`](../../nanvm/methods/module.f.mjs) and
   [`nanvm/member`](../../nanvm/member/module.f.js) — the generator and the
   parity corpus.
