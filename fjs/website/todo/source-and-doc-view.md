@@ -64,7 +64,8 @@ at the site's own view, and GitHub can stay as a second link.
   [`AGENTS.md` §6](../../../AGENTS.md#6-external-tools) requires approval for.
   [publish-deno-doc-to-website](../../../todo/blocked/publish-deno-doc-to-website.md)
   is a separate question — a full type reference — and remains blocked until
-  Deno renders FunctionalScript's JSDoc types.
+  Deno renders FunctionalScript's JSDoc types and the generated reference
+  covers public `types.ts` entrypoints, including type-only modules.
 - **The extractor's scope is what the tokens give.** The leading `@module`
   block, then one entry per `export const <name>` with the JSDoc block
   immediately before it and its `@type` line verbatim. No type resolution, no
