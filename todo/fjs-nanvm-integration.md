@@ -200,11 +200,19 @@ names what it reached before the compiler refused again. Locations are
 | `website/demo/code/module.f.mjs` | 12:48 | Default parameter in `codeBlock` | The computed key `[codeMarker]` |
 | `website/prs/load/module.f.mjs` | 103:41 | Destructured parameter in `finishedNote` | Two more destructured parameters, `Number.isFinite`, `Math.min` |
 
-The separate fixture `emergent_testing/example.f.mjs` is refused at `15:1`:
+The separate fixture `emergent_testing/example.f.mjs` was refused at `15:1`:
 a block body whose only statement is a guard, which the compiler reads to
-its end without a `return`. With `return undefined` after each guard it
-compiles; `emergent_testing/todo/todo-property.md` already plans to change
-the fixture. Since the final pass converts nothing, the loop stops.
+its end without a `return`.
+[#2856](https://github.com/functionalscript/functionalscript/pull/2856)
+converts it to `example.f.js` with `return undefined` after each guard — a
+rewrite, unlike the two conversions above, and the one kind this migration
+pays for: it spells the value JavaScript already answered there rather than
+a second spelling of an expression
+([CONVERTING rule 7](../doc/CONVERTING.md#7-a-body-that-ends-without-return)).
+Since the fixture is the one `.f.js` that exports a `proof`, the same change
+widens the website's `authored` selector to `.f.js`, so the browser suite
+keeps it. The authored `.f.js` population is 30. The eleven implementation
+leaves above are untouched by it, so the loop still stops there.
 
 To recheck the current table without writing generated output, run this from
 the repository root inside `./dev.sh node --input-type=module`:
