@@ -198,9 +198,8 @@ grammar: `let`, `while` and the assignment are a language feature, and
 proposal under
 [DESIGN.md §12](../../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
 — the syntax, the lowering to this template, the benefits and the
-drawbacks, and the approval it waits on; the source task below lands only
-once that approval is recorded there. The round trip of a `while` — source
-to EDAG to source to the same EDAG — is its proof.
+drawbacks, and the approval, recorded there. The round trip of a `while` —
+source to EDAG to source to the same EDAG — is its proof.
 
 **Later.** The template is a strict subset of the general rule, under which
 a function is a loop whenever every reference to `self` is the callee of a
@@ -224,8 +223,8 @@ written for the template, so it is a later step, taken with the grammar for
 - [ ] `fjs/edag/rust`: the loop form as the closure's body, and a
       `cargo test` over a generated module running a million rounds.
 - [ ] `fjs/compiler/serializer`: the `let`/`while` spelling in call context,
-      a rest-reading function left as recursion, once the grammar's
-      proposal is approved and lands, proven by the round trip.
+      a rest-reading function left as recursion, with the grammar, its
+      proposal approved, proven by the round trip.
 
 ### Related
 
