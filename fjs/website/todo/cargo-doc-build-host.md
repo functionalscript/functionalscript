@@ -5,7 +5,7 @@
 
 ### Problem
 
-[publish-deno-doc-to-website](publish-deno-doc-to-website.md) asks for API
+[publish-deno-doc-to-website](../../../todo/blocked/publish-deno-doc-to-website.md) asks for API
 references on the website: `deno doc` for the FunctionalScript modules and
 `cargo doc` for the Rust crates. Whatever generates them has to run those tools
 as part of the site build.
@@ -26,5 +26,5 @@ too. What remains is `deno doc`.
       footer flags that
       [`../README.md`](../README.md#the-rust-api-reference) describes.
 - [ ] Run `deno doc` the same way, once
-      [publish-deno-doc-to-website](publish-deno-doc-to-website.md) settles
-      how its output is published.
+      [publish-deno-doc-to-website](../../../todo/blocked/publish-deno-doc-to-website.md)
+      resumes and settles how its output is published.

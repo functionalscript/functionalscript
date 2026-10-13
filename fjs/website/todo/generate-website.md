@@ -5,7 +5,7 @@
 
 - [x] A minimal webpage (`fjs/website/module.f.mjs` writes an `index.html` with a single GitHub link)
 - [ ] Generate Deno and Rust docs and publish them — see
-      [publish-deno-doc-to-website](publish-deno-doc-to-website.md)
+      [publish-deno-doc-to-website](../../../todo/blocked/publish-deno-doc-to-website.md)
 - [ ] Convert `README.md` files into HTML and publish them — see
       [render-readme](render-readme.md)
 - [ ] Source code highlighting and per-module JSDoc — see

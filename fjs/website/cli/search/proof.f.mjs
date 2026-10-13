@@ -1,5 +1,5 @@
 import { assertEq } from '../../../asserts/module.f.mjs'
-import { matches } from './module.f.mjs'
+import { matches } from './module.f.js'
 
 export const proof = {
     search: () => {
