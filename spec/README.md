@@ -1744,7 +1744,7 @@ receiver-type/name pair against the compiler's list
 | Receiver | Admitted methods |
 | --- | --- |
 | Array | `at`, `concat`, `every`, `filter`, `find`, `findIndex`, `findLast`, `findLastIndex`, `flat`, `flatMap`, `includes`, `indexOf`, `join`, `lastIndexOf`, `map`, `reduce`, `reduceRight`, `slice`, `some`, `toReversed`, `toSorted`, `toSpliced`, `with` |
-| String | `at`, `charAt`, `charCodeAt`, `codePointAt`, `concat`, `endsWith`, `includes`, `indexOf`, `isWellFormed`, `lastIndexOf`, `padEnd`, `padStart`, `repeat`, `replace`, `replaceAll`, `slice`, `split`, `startsWith`, `substring`, `toWellFormed`, `trim`, `trimEnd`, `trimStart` |
+| String | `at`, `charAt`, `charCodeAt`, `codePointAt`, `concat`, `endsWith`, `includes`, `indexOf`, `isWellFormed`, `lastIndexOf`, `padEnd`, `padStart`, `repeat`, `replace`, `replaceAll`, `slice`, `split`, `startsWith`, `substring`, `toLowerCase`, `toUpperCase`, `toWellFormed`, `trim`, `trimEnd`, `trimStart` |
 | Number | `toExponential`, `toFixed`, `toPrecision` |
 | Object, Array, String, Number, Boolean, BigInt, Function | `toString` |
 
@@ -1764,6 +1764,12 @@ Native execution has these limits:
   implementation-defined formatting.
 - `toSorted` with an inconsistent comparator has the order the executor's
   sorting algorithm gives it, as ECMAScript permits.
+- `toLowerCase` and `toUpperCase` are the Unicode Default Case Conversion at
+  **Unicode 17.0.0**, the version the pinned Rust standard library carries
+  and `nanvm-lib` asserts at compile time
+  ([prototype names](../fjs/js/prototype/README.md#unicode-version)). A host
+  engine on another Unicode version may case a character assigned since
+  then differently. A lone surrogate, which has no case, is kept.
 - Native strings hold at most 2³² − 1 UTF-16 code units; a host engine may
   exhaust its resources sooner.
 - Compiled functions carry EDAG-derived text. A native function without
