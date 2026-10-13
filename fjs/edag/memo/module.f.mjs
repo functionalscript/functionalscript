@@ -1,14 +1,16 @@
 /**
  * Interpret analyzed EDAG with an immutable cache of demanded shared nodes.
  * Each call starts a fresh cache while retaining evaluated captures by identity.
+ * A call in tail position of a body is made in the invocation's place, so a
+ * chain of tail calls holds one cache and one set of host frames at a time.
  *
  * @module
  * @import { Exp, ExpOp, StepOver, ItemsOver, Over } from '../types.ts'
  * @import { Analysis, Node, Operand, Step } from '../analysis/types.ts'
  * @import { ValueResult } from '../value/control/types.ts'
- * @import { Invoke } from '../value/call/types.ts'
+ * @import { Body, Invoke, Outcome } from '../value/call/types.ts'
  * @import { Invocation } from './types.ts'
- * @import { Context, Evaluation } from '../operations/types.ts'
+ * @import { Context, Evaluation, Tail } from '../operations/types.ts'
  * @import { _Cache } from './private.ts'
  */
 
@@ -17,6 +19,7 @@ import { isArray } from '../../types/array/module.f.mjs'
 import { ok, unwrap } from '../../types/result/module.f.js'
 import { analysis, checked } from '../analysis/module.f.mjs'
 import { entryCall, operation } from '../operations/module.f.mjs'
+import { invoker, settle } from '../value/call/module.f.mjs'
 
 /** Restore one operand from the already restored prefix of the analysis. @type {(code: readonly ExpOp[], operand: Operand) => Exp} */
 const expression = (code, operand) => isArray(operand) ? code[operand[1]] : operand
@@ -65,37 +68,74 @@ const codeNode = (code, node) => {
     }
 }
 
-/** @type {(a: Analysis, context: Context, root: Operand) => ValueResult} */
+/** The root in tail position: its value, or the call it leaves. @type {(a: Analysis, context: Context, root: Operand) => Outcome} */
 const evaluate = (a, context, root) => {
     const { nodes, shared } = a
     const code = nodes.reduce((/** @type {readonly ExpOp[]} */ prefix, node) => [...prefix, codeNode(prefix, node)], [])
+
+    /** A shared node's established value, where it has one. @type {(index: number, cache: _Cache) => Evaluation<_Cache> | undefined} */
+    const established = (index, cache) => {
+        const entry = cache.find(([i]) => i === index)
+        return entry === undefined ? undefined : [cache, ok(entry[1])]
+    }
+
+    /**
+     * Retain a shared node's value once run — a call it leaves is not
+     * retained, as the invocation ends with it.
+     * @template {Outcome} R
+     * @param {number} index
+     * @param {_Cache} cache
+     * @param {R} outcome
+     * @returns {readonly [_Cache, R]}
+     */
+    const retained = (index, cache, outcome) =>
+        [outcome[0] === 'ok' && shared.includes(index) ? [...cache, [index, outcome[1]]] : cache, outcome]
+
+    // `operand` and `tail` each call `run` themselves rather than through
+    // one helper taking the settling as a parameter: that helper would be
+    // one more host frame per level of a nested graph, the margin
+    // `../todo/stack-safety.md` counts.
 
     /** @type {(operand: Operand, cache: _Cache) => Evaluation<_Cache>} */
     const operand = (operand, cache) => {
         if (!isArray(operand)) { return [cache, ok(operand)] }
         const [, index] = operand
-        const established = cache.find(([i]) => i === index)
-        if (established !== undefined) { return [cache, ok(established[1])] }
-        const [next, result] = run(nodes[index], cache)
-        const [kind, value] = result
-        return [kind === 'ok' && shared.includes(index) ? [...next, [index, value]] : next, result]
+        const found = established(index, cache)
+        if (found !== undefined) { return found }
+        const [next, outcome] = run(nodes[index], cache)
+        return retained(index, next, settled(outcome))
     }
 
-    const run = operation({ context, operand, expression: e => expression(code, e), invoke })
-    return operand(root, [])[1]
+    /** @type {(operand: Operand, cache: _Cache) => Tail<_Cache>} */
+    const tail = (operand, cache) => {
+        if (!isArray(operand)) { return [cache, ok(operand)] }
+        const [, index] = operand
+        const found = established(index, cache)
+        if (found !== undefined) { return found }
+        const [next, outcome] = run(nodes[index], cache)
+        return retained(index, next, outcome)
+    }
+
+    const run = operation({ context, operand, tail, expression: e => expression(code, e), invoke })
+    return tail(root, [])[1]
 }
 
-/** Invoke a represented function, with fresh body state and retained captures — or the `entry` helper, answered in place. @type {Invoke} */
-export const invoke = (fn, fixed, rest) => {
+/** A body evaluated with fresh state and retained captures — or the `entry` helper, answered in place. @type {Body} */
+const body = (fn, fixed, rest) => {
     if (fn[0] === 'entry') { return entryCall(fixed, invoke) }
     const a = assertOk(analysis(fn))
     const [, index] = /** @type {import('../analysis/types.ts').Ref} */ (a.root)
-    const [, , , body] = /** @type {Over<import('../types.ts').Function, Operand>} */ (a.nodes[index])
-    return evaluate(a, { frame: fn[2], args: [], fixed, rest, self: fn }, body)
+    const [, , , root] = /** @type {Over<import('../types.ts').Function, Operand>} */ (a.nodes[index])
+    return evaluate(a, { frame: fn[2], args: [], fixed, rest, self: fn }, root)
 }
+
+/** Invoke a represented function: its body, and every call the body leaves in tail position, made in its place. @type {Invoke} */
+export const invoke = invoker(body)
+
+const settled = settle(invoke)
 
 /** Interpret a complete analyzed graph. Binding admission happens once here. @type {(a: Analysis) => (context: Invocation) => ValueResult} */
 export const memo = a => {
     const table = unwrap(checked(a))
-    return context => evaluate(table, { ...context, frame: [] }, table.root)
+    return context => settled(evaluate(table, { ...context, frame: [] }, table.root))
 }

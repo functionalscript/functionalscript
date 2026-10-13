@@ -11,6 +11,7 @@
 import { assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { operation } from './module.f.mjs'
 import { invoke, vm } from '../amnesia/module.f.mjs'
+import { settle } from '../value/call/module.f.mjs'
 
 /** @type {Context} */
 const context = { frame: ['F'], args: [10, 20], fixed: [4], rest: ['[]', [5]] }
@@ -18,10 +19,17 @@ const context = { frame: ['F'], args: [10, 20], fixed: [4], rest: ['[]', [5]] }
 const evaluator = {
     context,
     operand: (e, state) => [[...state, e], vm(context)(e)],
+    tail: (e, state) => [[...state, e], vm(context)(e)],
     expression: e => e,
     invoke,
 }
-const run = operation(evaluator)
+const dispatch = operation(evaluator)
+
+/** The node's outcome with the call it leaves, if one, made. @type {(e: ExpOp, state: readonly Exp[]) => readonly [readonly Exp[], import('../value/control/types.ts').ValueResult]} */
+const run = (e, state) => {
+    const [next, outcome] = dispatch(e, state)
+    return [next, settle(invoke)(outcome)]
+}
 
 /** @type {(e: ExpOp, expected: EdagValue) => void} */
 const eq = (e, expected) => { assertStructurallySame(run(e, [])[1], ['ok', expected]) }
