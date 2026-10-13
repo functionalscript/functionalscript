@@ -235,6 +235,14 @@ run takes seconds where the full suite takes minutes, and it is what
 measures the whole tree, and the command this stands in for is proposed in
 [`fjs/emergent_testing/todo/per-module-coverage.md`](./fjs/emergent_testing/todo/per-module-coverage.md).
 
+`npm run cov` reports through
+[`fjs/emergent_testing/node/module.mjs`](./fjs/emergent_testing/node/module.mjs):
+Node's `spec` reporter with the passed tests and the fully covered files
+filtered out, so a green run prints its summary — the test counts and the
+`all files` coverage row — and a red one prints each failure and each file
+under a threshold. The block above uses Node's default reporter, which lists
+every test; add the same `--test-reporter` for the same output.
+
 To validate the packed npm package itself against clean Node, Deno, and Bun
 consumers — for example after changing `prepack`, `files`, or anything that
 affects emitted declarations — follow

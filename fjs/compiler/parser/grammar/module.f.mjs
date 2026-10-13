@@ -35,7 +35,10 @@
  *            | templateHead value { templateMiddle value } templateTail
  * block  ::= '{' statement* terminator '}'
  * statement ::= const | 'if' '(' value ')' block
+ *             | 'let' id '=' value end | 'while' '(' value ')' loopBlock
  * terminator ::= 'return' value end | 'throw' value end
+ * loopBlock ::= '{' loopStatement* '}'
+ * loopStatement ::= const | id '=' value end
  * func   ::= [ '...' id ] ')' '=>' body
  * afterValue ::= ',' [ names ] ')' '=>' body | ')' arrowOrRest
  * arrowOrRest ::= '=>' body | access* powTail tail
@@ -127,7 +130,7 @@
  * @import { Rule, Variant } from '../../../ebnf/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { StringMap } from '../../../types/object/types.ts'
- * @import { Access, AfterValue, ArrowOrRest, BindingTarget, Block, Body, CircuitTail, ConditionalTail, ConstStatement, EagerTail, End, Func, Group, GroupOperand, InfixTag, Item, Items, LastStatement, Member, Entry, OptionalStep, ParameterNames, Parameters, Paren, ParenGroup, ParenGroupOperand, Parenthesized, PowTail, Statement, Tail, Template, Terminator, Unary, UnaryOperand, Value, ValueBranches } from './types.ts'
+ * @import { Access, AfterValue, ArrowOrRest, BindingTarget, Block, Body, CircuitTail, ConditionalTail, ConstStatement, EagerTail, End, Entry, Func, Group, GroupOperand, InfixTag, Item, Items, LastStatement, LoopBlock, LoopStatement, Member, OptionalStep, ParameterNames, Parameters, Paren, ParenGroup, ParenGroupOperand, Parenthesized, PowTail, Statement, Tail, Template, Terminator, Unary, UnaryOperand, Value, ValueBranches } from './types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.mjs'
@@ -164,7 +167,7 @@ export const _tokenKindNames = _djsTokenKinds.filter(kind => kind !== 'eof')
  * own list because {@link symbolOf} has to recognize exactly these values,
  * not merely encode them. Six frame a module, `return` and `throw` end a
  * function's block body — `throw` a module too — `if` opens a guard in
- * one, and `as` introduces an import alias.
+ * one, `let` and `while` a loop, and `as` introduces an import alias.
  *
  * **A grammar over this alphabet owes them an identifier rule.** Once each
  * carries its own symbol, a rule whose identifier terminal is the bare `id`
@@ -186,7 +189,7 @@ export const _tokenKindNames = _djsTokenKinds.filter(kind => kind !== 'eof')
  * and a binding takes that wider rule too, so `const typeof = 1;` still
  * reaches the fold and is refused as a `reserved word`, as `const if = 1;` is.
  */
-export const _framingKeywords = /** @type {const} */ (['import', 'const', 'export', 'default', 'from', 'with', 'return', 'throw', 'if', 'as', 'typeof', 'instanceof'])
+export const _framingKeywords = /** @type {const} */ (['import', 'const', 'export', 'default', 'from', 'with', 'return', 'throw', 'if', 'let', 'while', 'as', 'typeof', 'instanceof'])
 
 /**
  * The complete alphabet: one name per `DjsToken` kind except `eof`, plus
@@ -236,6 +239,8 @@ export const identifier = /** @type {const} */ ({
     return: sym('return'),
     throw: sym('throw'),
     if: sym('if'),
+    let: sym('let'),
+    while: sym('while'),
     as: sym('as'),
     // required only where a tail continues, after an operand, where no
     // reference may stand — so unlike `typeof` it opens no second branch
@@ -1020,12 +1025,63 @@ export const terminator = /** @type {const} */ ({
  * guard admits one form, and the others are follow-ups
  * ([spec: functions](../../../../spec/README.md#functions)).
  *
+ * A loop is two statements, `let name = value;` and `while (condition)
+ * loopBlock`, the second right after the first — one form, read by the
+ * fold as one ([spec: loops](../../../../spec/README.md#loops)); the
+ * grammar reads each as a statement of its own, since one symbol decides
+ * each, and leaves their adjacency to the fold, as it leaves the guard's
+ * block's ending to it. No {@link end} follows the loop's `}`, as none
+ * follows the guard's.
+ *
  * @type {Statement}
  */
 export const statement = () => ['const', {
     const: constStatement,
     if: [sym('if'), sym('('), value, sym(')'), block],
+    let: [sym('let'), identifierName, sym('='), value, end],
+    while: [sym('while'), sym('('), value, sym(')'), loopBlock],
 }]
+
+/**
+ * The words a loop's assignment may name: `id`, and the two framing
+ * keywords JavaScript leaves ordinary, `from` and `as` — the words a `let`
+ * may bind. Not {@link identifier}: `const` opens the loop block's other
+ * statement, so the two would open on one symbol, and the reserved words
+ * among the rest are refused by the fold wherever they are bound.
+ */
+export const assignable = /** @type {const} */ ({ id: sym('id'), from: sym('from'), as: sym('as') })
+
+/**
+ * The assignment to a loop's variable, `name = value`, with its
+ * {@link end}: the one statement that rebinds a name, and it stands in a
+ * loop's block alone ([spec: loops](../../../../spec/README.md#loops)).
+ */
+export const assignment = /** @type {const} */ ([assignable, sym('='), value, end])
+
+/**
+ * A statement of a loop's block: a `const`, or the {@link assignment}.
+ * `const` and a name decide the two in one symbol. A thunk, as
+ * {@link statement} is, since the block holds this rule and this rule
+ * holds a value.
+ *
+ * @type {LoopStatement}
+ */
+export const loopStatement = () => ['const', {
+    const: constStatement,
+    assign: assignment,
+}]
+
+/**
+ * A loop's block, `{ const x = …; r = …; }`: any number of
+ * {@link loopStatement}s and no terminator, since reaching the `}`
+ * continues the loop. A guard, a `return` or a `throw` in it, and a nested
+ * loop, are follow-ups, each additive on this form.
+ *
+ * @type {LoopBlock}
+ */
+export const loopBlock = /** @type {const} */ ([
+    sym('{'), repeatFrom0(loopStatement), sym('}'),
+])
 
 /**
  * A function's block body: `{ const x = 1; return value; }` — any number of

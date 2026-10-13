@@ -56,7 +56,10 @@ template ::= noSubstitutionTemplate
            | templateHead value { templateMiddle value } templateTail
 block  ::= '{' statement* terminator '}'
 statement ::= const | 'if' '(' value ')' block
+            | 'let' id '=' value end | 'while' '(' value ')' loopBlock
 terminator ::= 'return' value end | 'throw' value end
+loopBlock ::= '{' loopStatement* '}'
+loopStatement ::= const | id '=' value end
 func   ::= [ '...' id ] ')' '=>' body
 afterValue ::= ',' [ names ] ')' '=>' body | ')' arrowOrRest
 arrowOrRest ::= '=>' body | access* powTail tail

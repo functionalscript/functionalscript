@@ -161,8 +161,12 @@ information — see [serialization](./serialization.md) and
    node ([functions](../README.md#functions)). The bare consequent, a
    non-terminating branch with `else`, and the module-level guard are
    follow-ups.
-2. [ ] [let](./3220-let.md)
-3. [ ] `while`
+2. [x] [let](./3220-let.md) — the one-variable loop, `let x = init;` and
+   its `while`, is in the language ([loops](../README.md#loops)); several
+   variables, `break`, `continue`, `for` and a `let` outside a loop are
+   open in the record
+3. [x] `while` — with `let` above; `while` over several variables, and
+   `break` and `continue` in its block, are open there
 4. [ ] Ownership of Mutable Objects (Singletons). Wanted for local mutability
    ([mutability](./mutability.md)), **not** for I/O: effects keep I/O state in
    the runner ([io-effects](./io-effects.md)).

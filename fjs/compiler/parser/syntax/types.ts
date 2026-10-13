@@ -80,8 +80,38 @@ export type Node =
  */
 export type Block = readonly ['block', readonly [...(readonly BlockStatement[]), readonly ['return' | 'throw', ValueStatement]]]
 
-/** A block's statement before the one that ends it, tagged by its keyword: a `const`, or a guard. */
-export type BlockStatement = readonly ['const', Const] | readonly ['if', If]
+/** A block's statement before the one that ends it, tagged by its keyword: a `const`, a guard, a loop's `let`, or its `while`. */
+export type BlockStatement = readonly ['const', Const] | readonly ['if', If] | readonly ['let', Let] | readonly ['while', While]
+
+/**
+ * A loop, `while (condition) block`: the token it begins with, its
+ * condition, and its block, {@link LoopBlock}. It records no `;`, as a
+ * guard does not. The `let` before it, a {@link Let},
+ * declares the variable the block assigns; the fold reads the two
+ * statements as one loop and refuses either alone
+ * ([spec: loops](../../../../spec/README.md#loops)).
+ */
+export type While = {
+    readonly start: DjsTokenWithMetadata
+    readonly condition: Node
+    readonly block: LoopBlock
+}
+
+/** A loop's block: its statements in order, `const`s and assignments, and no terminator. */
+export type LoopBlock = readonly ['loop', readonly LoopStatement[]]
+
+/** A loop block's statement, tagged: a `const`, or an assignment. */
+export type LoopStatement = readonly ['const', Const] | readonly ['assign', Assignment]
+
+/**
+ * An assignment, `name = value`: the token naming the variable, which the
+ * statement begins at, and its value. The fold admits the loop's own
+ * variable and refuses every other name.
+ */
+export type Assignment = Statement & {
+    readonly name: DjsTokenWithMetadata
+    readonly value: Node
+}
 
 /**
  * A guard, `if (condition) block`: the token it begins with, its condition,
@@ -245,6 +275,17 @@ export type Const = Statement & {
 }
 
 /**
+ * A loop's `let`, `let x = init;`: the token naming the one variable the
+ * loop's block assigns, and its initial value. It begins at its `let`. A
+ * name and never a pattern, the loop having one variable
+ * ([spec: loops](../../../../spec/README.md#loops)).
+ */
+export type Let = Statement & {
+    readonly name: DjsTokenWithMetadata
+    readonly value: Node
+}
+
+/**
  * What a binding binds, as written: a name, by its token; an array
  * pattern, `[t, …]`, by its `[` and its elements; or an object pattern,
  * `{ p, … }`, by its `{` and its properties
@@ -358,5 +399,6 @@ export type Out =
     | { readonly id: 'import', readonly statement: Import }
     | { readonly id: 'const', readonly statement: Const }
     | { readonly id: 'statement', readonly statement: BlockStatement }
+    | { readonly id: 'loopStatement', readonly statement: LoopStatement }
     | { readonly id: 'last', readonly consts: List<ModuleConst>, readonly default: ValueStatement | null, readonly thrown: ValueStatement | null }
     | { readonly id: 'module', readonly module: Module }

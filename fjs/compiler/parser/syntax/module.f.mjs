@@ -36,8 +36,8 @@
  * @import { Primitive } from '../../../media/datajs/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { ParseError } from '../types.ts'
- * @import { BindingElement, BindingProperty, BindingTarget, Block, BlockStatement, Chain, Const, Entry, Import, ImportBinding, Item, Key, Member, Module, ModuleConst, Node, Out, ParameterBinding, ParameterList, Step, ValueStatement } from './types.ts'
- * @import { ArrowOrRest, BindingTarget as BindingTargetRule, Block as BlockRule, Body, ConstStatement, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, Member as MemberRule, ParameterNames, Parenthesized, Statement, Template, Unary, UnaryOperand, Value } from '../grammar/types.ts'
+ * @import { BindingElement, BindingProperty, BindingTarget, Block, BlockStatement, Chain, Const, Entry, Import, ImportBinding, Item, Key, Let, LoopBlock, LoopStatement, Member, Module, ModuleConst, Node, Out, ParameterBinding, ParameterList, Step, ValueStatement } from './types.ts'
+ * @import { ArrowOrRest, BindingTarget as BindingTargetRule, Block as BlockRule, Body, ConstStatement, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, LetStatement, LoopBlock as LoopBlockRule, LoopStatement as LoopStatementRule, Member as MemberRule, ParameterNames, Parenthesized, Statement, Template, Unary, UnaryOperand, Value } from '../grammar/types.ts'
  * @import { namedImports, primitive, terminator } from '../grammar/module.f.mjs'
  * @import { _AccessNode, _AttributeNode, _CallBranch, _ChainState, _CircuitNode, _ConditionalNode, _EndNode, _IndexBranch, _NameNode, _KeyBranch, _Leaf, _ListNode, _OptionalBranch, _OptionalList, _ParameterNode, _PowTailNode, _StepRead, _TailRound, _TokenStream } from './private.ts'
  */
@@ -50,7 +50,7 @@ import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.mjs'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
 import {
     binaryOpTag, body, callArguments, constStatement, djsModule, eagerTail, importBinding, importBindings,
-    importStatement, item, lastStatement, entries, entry, member, parameterNames, statement, symbolOf, template, unary, unaryOperand, value, values,
+    importStatement, item, lastStatement, entries, entry, loopStatement, member, parameterNames, statement, symbolOf, template, unary, unaryOperand, value, values,
 } from '../grammar/module.f.mjs'
 
 /**
@@ -242,6 +242,13 @@ const constAt = node => {
 const statementAt = node => {
     const out = outAt(node)
     assert(out.id === 'statement')
+    return out.statement
+}
+
+/** @type {(node: _Leaf) => LoopStatement} */
+const loopStatementAt = node => {
+    const out = outAt(node)
+    assert(out.id === 'loopStatement')
     return out.statement
 }
 
@@ -1001,17 +1008,48 @@ const blockOf = ([open, statements, term]) => {
 }
 
 /**
- * A block's statement, tagged by its keyword: a `const`, its record; or a
+ * A loop's block from its children, `{`, the statements and `}`: its
+ * statements in order, `const`s and assignments.
+ *
+ * @type {(node: Children<LoopBlockRule, DjsTokenWithMetadata, Out>) => LoopBlock}
+ */
+const loopBlockOf = ([, statements]) => ['loop', unmapped(statements).map(loopStatementAt)]
+
+/**
+ * A block's statement, tagged by its keyword: a `const`, its record; a
  * guard, `if ( condition ) block` — the `if` it begins at, its condition,
- * and its block read as a body's is.
+ * and its block read as a body's is; a loop's `let`, the record a `const`
+ * has; or its `while ( condition ) loopBlock`, read as the guard is.
  *
  * @type {(node: Children<Statement, DjsTokenWithMetadata, Out>) => Meta<Out>}
  */
 const toStatement = ([kind, branch]) => {
-    if (kind === 'const') { return symbol({ id: 'statement', statement: ['const', constAt(branch)] }) }
-    const [first, , condition, , blk] = unmapped(branch)
-    const [block] = blockOf(unmapped(blk))
-    return symbol({ id: 'statement', statement: ['if', { start: tokenAt(first), condition: nodeAt(condition), block }] })
+    switch (kind) {
+        case 'const': { return symbol({ id: 'statement', statement: ['const', constAt(branch)] }) }
+        case 'let': { return symbol({ id: 'statement', statement: ['let', letOf(unmapped(branch))] }) }
+        case 'while': {
+            const [first, , condition, , blk] = unmapped(branch)
+            return symbol({ id: 'statement', statement: ['while', { start: tokenAt(first), condition: nodeAt(condition), block: loopBlockOf(unmapped(blk)) }] })
+        }
+        default: {
+            const [first, , condition, , blk] = unmapped(branch)
+            const [block] = blockOf(unmapped(blk))
+            return symbol({ id: 'statement', statement: ['if', { start: tokenAt(first), condition: nodeAt(condition), block }] })
+        }
+    }
+}
+
+/**
+ * A loop block's statement, tagged: a `const`, its record; or the
+ * assignment, `name = value end`, which begins at the name.
+ *
+ * @type {(node: Children<LoopStatementRule, DjsTokenWithMetadata, Out>) => Meta<Out>}
+ */
+const toLoopStatement = ([kind, branch]) => {
+    if (kind === 'const') { return symbol({ id: 'loopStatement', statement: ['const', constAt(branch)] }) }
+    const [name, , v, end] = unmapped(branch)
+    const token = tokenAt(unmapped(name)[1])
+    return symbol({ id: 'loopStatement', statement: ['assign', { start: token, semicolon: ended(end), name: token, value: nodeAt(v) }] })
 }
 
 /**
@@ -1180,6 +1218,16 @@ const constTarget = ([tag, branch]) => {
 const toConst = ([first, target, , v, end]) =>
     symbol({ id: 'const', statement: { start: tokenAt(first), semicolon: ended(end), target: constTarget(unmapped(target)), value: nodeAt(v) } })
 
+/**
+ * A loop's `let` from `let name = value end`: the record a `const` of a
+ * name has, {@link Let}, its name the token under the alternative its word
+ * matched; it begins at the `let`.
+ *
+ * @type {(node: Children<LetStatement, DjsTokenWithMetadata, Out>) => Let}
+ */
+const letOf = ([first, name, , v, end]) =>
+    ({ start: tokenAt(first), semicolon: ended(end), name: tokenAt(unmapped(name)[1]), value: nodeAt(v) })
+
 /** @type {(node: _Leaf) => ModuleConst} */
 const ordinaryConst = node => ({ declaration: constAt(node), exported: false })
 
@@ -1296,6 +1344,7 @@ export const mappings = [
     map(importStatement, toImport),
     map(constStatement, toConst),
     map(statement, toStatement),
+    map(loopStatement, toLoopStatement),
     map(lastStatement, toLast),
     map(djsModule, toModule),
 ]

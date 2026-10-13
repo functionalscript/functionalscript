@@ -20,6 +20,7 @@ import type {
     _ordinaryTokenNames,
     _tokenKindNames,
     _valueKinds,
+    assignment,
     identifier,
     identifierName,
     primitive,
@@ -38,8 +39,8 @@ import type {
 /**
  * The words a rule requires in some position — six framing a module,
  * `return` and `throw` ending a function's block body, `throw` a module
- * too, `if` opening a guard in one, `as` an import alias, and `typeof` a
- * prefix opening a value — which the
+ * too, `if` opening a guard in one, `let` and `while` a loop, `as` an
+ * import alias, and `typeof` a prefix opening a value — which the
  * grammar has to tell apart from an ordinary identifier.
  *
  * The tokenizer emits these words as `{ kind: 'id' }` with the word in `value`, so
@@ -49,7 +50,7 @@ import type {
  * their own, which is what a registered alphabet allows: a name's symbol comes
  * from its position in the list, so a name has no length limit.
  */
-export type _FramingKeyword = 'import' | 'const' | 'export' | 'default' | 'from' | 'with' | 'return' | 'throw' | 'if' | 'as' | 'typeof' | 'instanceof'
+export type _FramingKeyword = 'import' | 'const' | 'export' | 'default' | 'from' | 'with' | 'return' | 'throw' | 'if' | 'let' | 'while' | 'as' | 'typeof' | 'instanceof'
 
 /**
  * Every infix operator the grammar's binary layers read: the AST's own
@@ -436,10 +437,21 @@ export type End = Option<readonly [number]>
  */
 export type Block = readonly [number, RepeatFrom<0, Statement>, Terminator, number]
 
-/** A block's statement before its terminator: a `const`, or a guard whose block is a {@link Block}. A thunk, as {@link Value} is, since it names itself through the block. */
+/** A block's statement before its terminator: a `const`, a guard whose block is a {@link Block}, a loop's `let`, or its `while` whose block is a {@link LoopBlock}. A thunk, as {@link Value} is, since it names itself through the block. */
 export type Statement = () => readonly ['const', {
     readonly const: ConstStatement
     readonly if: readonly [number, number, Value, number, Block]
+    readonly let: LetStatement
+    readonly while: readonly [number, number, Value, number, LoopBlock]
+}]
+
+/** `{`, a loop's statements, and `}`: no terminator, since the `}` continues the loop. */
+export type LoopBlock = readonly [number, RepeatFrom<0, LoopStatement>, number]
+
+/** A loop block's statement: a `const`, or the assignment to the loop's variable. A thunk, since it holds a value. */
+export type LoopStatement = () => readonly ['const', {
+    readonly const: ConstStatement
+    readonly assign: typeof assignment
 }]
 
 /**
@@ -459,6 +471,9 @@ export type BindingTarget = {
 
 /** A `const` statement: `const`, what it binds, `=`, the value, and {@link End}. */
 export type ConstStatement = readonly [number, BindingTarget, number, Value, End]
+
+/** A loop's `let`: `let`, the one variable's name — a name and never a pattern, the loop having one variable — `=`, the initial value, and {@link End}. */
+export type LetStatement = readonly [number, typeof identifierName, number, Value, End]
 
 /** The statement a block ends with: `return` or `throw`, its value, and {@link End}. */
 export type Terminator = {
