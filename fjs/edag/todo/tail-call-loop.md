@@ -55,8 +55,10 @@ while (COND) { ASSERTS; r = NEXT; }
 the asserts as `const`s, the assignment omitted where the next value is the
 variable itself — or the recursion the graph already is. The source writer
 spells the loop as `let` and `while` where the function is called in
-place; the function text as an arrow whose parameter is the variable; the
-Rust output, when its turn comes, as `let mut` and `while`. Each keeps the
+place; the function text as an arrow whose body is that same `let` and
+`while`, the variable a `let` of the parameter, so that the text is
+FunctionalScript as the source writer's is; the Rust output, when its turn
+comes, as `let mut` and `while`. Each keeps the
 recursion for the same shapes, which no loop written as `let`/`while`
 produces:
 
@@ -83,12 +85,15 @@ parts for a function entry that matches, and `null` for any other function.
 Anything else stays the recursion it is today, the author's own.
 
 **The function text** writes a matching function as an arrow whose body is
-the loop, the parameter its variable; the invocation memo cells are
-declared inside the loop's body, so each round starts fresh as each call
-did; the `self` name is gone, since no read of it survives:
+the language's loop: a `let` of the parameter, the `while`, and the
+`return` of the variable — the text the source writer writes for the same
+loop called in place, and FunctionalScript where no memo cell stands in it.
+The invocation memo cells are declared inside the loop's body, so each
+round starts fresh as each call did; the `self` name is gone, since no read
+of it survives:
 
 ```js
-($0)=>{while(COND){$0=NEXT;}return $0;}
+($0)=>{let $1=$0;while(COND){$1=NEXT;}return $1;}
 ```
 
 That text is program-visible: `String(f)`, `f.toString()` and every
