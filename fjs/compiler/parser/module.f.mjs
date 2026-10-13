@@ -953,11 +953,11 @@ const enter = (stack, scope, node) => {
             if (tag === 'error') { return [stack, scope, error(word)] }
             const found = resolve(scope, word)
             if (found === null) { return [stack, scope, error(constNotFound(node[1]))] }
-            // a read of a loop's variable from a nested function is noted,
-            // and refused when the function closes held as a value
-            /** @type {_Scope['loopRead']} */
-            const read = capturedLoopVariable(scope, word) && found[0].loopRead === null ? [word, loopVariableCaptured(node[1])] : found[0].loopRead
-            return [stack, { ...found[0], loopRead: read }, ok(found[1])]
+            // the first read of each loop variable from a nested function is
+            // noted, and refused when the function closes held as a value
+            const reads = found[0].loopReads
+            const noted = capturedLoopVariable(scope, word) && !readsOf(reads, word)
+            return [stack, noted ? { ...found[0], loopReads: [...reads, [word, loopVariableCaptured(node[1])]] } : found[0], ok(found[1])]
         }
         case '.': {
             return node.length === 3
@@ -1124,7 +1124,7 @@ const entered = (stack, scope, node, self) => {
     if (tag === 'error') { return [stack, scope, error(bound)] }
     const [names, count] = bound
     /** @type {_Scope} */
-    const inner = { names, count, captures: [], enclosing: null, outer: scope, self, loop: null, loopRead: null }
+    const inner = { names, count, captures: [], enclosing: null, outer: scope, self, loop: null, loopReads: [] }
     const body = node[2]
     return body[0] === 'block'
         ? bodyRound(stack, inner, { statements: body[1], first: 0, index: 0, skipped: 0, word: '', done: null })
@@ -1202,7 +1202,7 @@ const returned = (stack, scope, frame, value) => {
             // is, {@link loopRound}
             return loopRound(
                 { top: { ...frame, condition: value }, rest: stack },
-                { names: empty, count: 0, captures: [], enclosing: null, outer: scope, self: null, loop: frame.word, loopRead: null },
+                { names: empty, count: 0, captures: [], enclosing: null, outer: scope, self: null, loop: frame.word, loopReads: [] },
                 { block: frame.loop.block[1], index: 0, word: frame.word, bound: '', done: null })
         }
         // the block closed, as the function it is the body of: the loop's
@@ -1293,7 +1293,7 @@ const returned = (stack, scope, frame, value) => {
  * @type {(stack: _Stack, scope: _Scope, frame: _GuardFrame, statements: Block[1], first: number, enclosing: List<_Env>) => _State}
  */
 const arm = (stack, scope, frame, statements, first, enclosing) =>
-    bodyRound({ top: frame, rest: stack }, { names: empty, count: 0, captures: [], enclosing, outer: scope, self: null, loop: null, loopRead: null }, { statements, first, index: first, skipped: 0, word: '', done: null })
+    bodyRound({ top: frame, rest: stack }, { names: empty, count: 0, captures: [], enclosing, outer: scope, self: null, loop: null, loopReads: [] }, { statements, first, index: first, skipped: 0, word: '', done: null })
 
 /**
  * A loop's initial value resolved: the `while` after the `let`, with the
@@ -1314,7 +1314,7 @@ const loopEntered = (stack, scope, frame, init) => {
     const loop = /** @type {While} */ (next[1])
     if (unterminated(frame.let, loop)) { return [stack, scope, error(unexpectedToken(loop.start))] }
     /** @type {_Scope} */
-    const inner = { names: extended(empty)(word, ['arg', 0]), count: 1, captures: [], enclosing: null, outer: scope, self: loopSelf, loop: word, loopRead: null }
+    const inner = { names: extended(empty)(word, ['arg', 0]), count: 1, captures: [], enclosing: null, outer: scope, self: loopSelf, loop: word, loopReads: [] }
     return [{ top: { loop, body, word, init, condition: null }, rest: stack }, inner, ['enter', loop.condition]]
 }
 
@@ -1391,19 +1391,28 @@ const closed = (stack, scope, body) => {
     const outer = assertNotNullish(scope.outer, ['a function body with no scope around it', body])
     /** @type {AstFunction} */
     const fn = scope.captures.length === 0 ? ['=>', scope.count, body] : ['=>', scope.count, body, scope.captures]
-    if (scope.loopRead === null) { return [stack, outer, ok(fn)] }
-    // a function that read a loop's variable is refused unless it is
-    // called where it is written — the callee of a call, or a loop's own
-    // function or block, which the loop calls — since called at once its
-    // closure sees the round's value as JavaScript's does, where held as
-    // a value it may outlive the round, when JavaScript's would see the
-    // variable's last value; and the read is the enclosing function's
-    // too, whose frame holds the variable for this one's, out to the
-    // scope the variable is the loop's in
-    const [word, refusal] = scope.loopRead
-    if (!(scope.loop !== null || (stack !== null && 'call' in stack.top && stack.top.index === 0))) { return [stack, outer, error(refusal)] }
-    return [stack, outer.loop === word || outer.loopRead !== null ? outer : { ...outer, loopRead: scope.loopRead }, ok(fn)]
+    if (scope.loopReads.length === 0) { return [stack, outer, ok(fn)] }
+    // a function that read a loop's variable is refused, at its first such
+    // read, unless it is called where it is written — the callee of a
+    // call, or a loop's own function or block, which the loop calls —
+    // since called at once its closure sees the round's value as
+    // JavaScript's does, where held as a value it may outlive the round,
+    // when JavaScript's would see the variable's last value; and each
+    // read is the enclosing function's too, whose frame holds the
+    // variable for this one's, out to the scope the variable is the
+    // loop's in
+    if (!(scope.loop !== null || (stack !== null && 'call' in stack.top && stack.top.index === 0))) { return [stack, outer, error(scope.loopReads[0][1])] }
+    const passed = scope.loopReads.filter(([word]) => word !== outer.loop && !readsOf(outer.loopReads, word))
+    return [stack, { ...outer, loopReads: [...outer.loopReads, ...passed] }, ok(fn)]
 }
+
+/**
+ * Whether `reads`, a scope's reads of loop variables, holds a read of
+ * `word`.
+ *
+ * @type {(reads: _Scope['loopReads'], word: string) => boolean}
+ */
+const readsOf = (reads, word) => reads.some(([read]) => read === word)
 
 /**
  * The value a node denotes under `env`, or the first error met in document
@@ -1429,7 +1438,7 @@ const closed = (stack, scope, body) => {
  */
 const evaluate = (env, self) => root => {
     /** @type {_State} */
-    let state = [null, { names: env, count: 0, captures: [], enclosing: null, outer: null, self: null, loop: null, loopRead: null }, self === null ? ['enter', root] : ['define', root, self]]
+    let state = [null, { names: env, count: 0, captures: [], enclosing: null, outer: null, self: null, loop: null, loopReads: [] }, self === null ? ['enter', root] : ['define', root, self]]
     while (true) {
         const [stack, scope, step] = state
         const [tag, payload] = step

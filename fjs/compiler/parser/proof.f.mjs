@@ -314,6 +314,10 @@ export const proof = {
                 // its condition or in a function its block calls where written
                 'export default n => { let r = 0; while (r < n) { r = (() => { let s = 0; while (s < r + 1) { s = s + 1; } return s; })(); } return r; };',
                 'export default n => { let r = 0; while (r < n) { r = (() => { let s = 0; while (s < n) { s = (() => s + r)(); } return s; })(); } return r; };',
+                // every variable read is noted, the inner loop's and the
+                // outer's alike, and each once however many functions read it
+                'export default n => { let r = 0; while (r < n) { r = (() => { let s = 0; while (s < n) { s = (() => (() => s)() + (() => r)())(); } return s; })(); } return r; };',
+                'export default n => { let r = 0; while (r < n) { r = (() => { const a = (() => r)(); const b = (() => r)(); return a + b; })(); } return r; };',
             ]) { assertEq(parseFromTokens(tokenizeString(source))[0], 'ok', source) }
             // the block's statements end as every statement does, at `;`
             // or a newline, and so does the `let`
@@ -349,6 +353,9 @@ export const proof = {
                 // whose condition reads the outer variable
                 ['export default n => { let r = 0; while (typeof r === "number") { r = () => ((() => r)()); } return r(); };', 'loop variable captured', 84],
                 ['export default n => { let r = 0; while (r < n) { r = (() => { const f = () => { let s = 0; while (s < r + 1) { s = s + 1; } return s; }; return f(); })(); } return r; };', 'loop variable captured', 103],
+                // a read of the outer variable after the inner loop's own is
+                // the held function's all the same
+                ['export default n => { let r = 0; while (typeof r === "number") { r = () => { let s = 0; while (s < 1) { s = (() => s + (typeof r === "number" ? 1 : 2))(); } return s; }; } return r(); };', 'loop variable captured', 128],
                 // the variable is a name of the body as a `const` is
                 ['export default n => { let r = 0; while (r < n) { r = 1; } const r = 2; return r; };', 'duplicate id', 65],
                 ['export default n => { let n = 0; while (n) { n = 1; } return n; };', 'duplicate id', 27],
