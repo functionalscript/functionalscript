@@ -38,7 +38,9 @@ counts the call as a rewrite the module owes, not a feature the language
 lacks. The receivers are of two kinds. Most decide a protocol over ASCII —
 a scheme name, a unit letter, a hexadecimal digit, a dot segment, a file
 extension — and the caller then compares the answer with ASCII literals,
-so a receiver outside ASCII fails that comparison on every engine alike.
+so only an answer inside ASCII matters; the few characters outside ASCII
+that case into it, the Kelvin sign among them, have done so since long
+before any version an engine ships, so the engines agree here too.
 On ASCII every engine of every Unicode version answers the same, and for
 these the rule refuses the whole operation for a divergence they cannot
 reach. The rest normalize text the module does not control: the query a
@@ -111,11 +113,14 @@ Independent of this decision, the protocol-deciding callers want an ASCII
 case fold, not Unicode's: `text/ascii` could export it over code points
 today, beside its hexadecimal fold, and each of those could take it
 without waiting on a language change. The fold is not behavior-neutral
-for them, and the follow-up says what it retires: `cBase32ToVec5x`
-decodes the Kelvin sign today, since `normalizeChar` lowercases it to
-`k`, a letter of the alphabet, and would answer `null` through an ASCII
-fold — the Kelvin-sign hole above, in a codec whose alphabet is ASCII, so
-an acceptance to retire by name rather than assume away. The
+for them, and the follow-up names every acceptance it retires, each the
+Kelvin-sign hole above in a protocol whose alphabet is ASCII:
+`cBase32ToVec5x` decodes the Kelvin sign today, since `normalizeChar`
+lowercases it to `k`, a letter of the alphabet, and `git/config`'s
+`tryInt` reads it as the unit suffix `k`, so a count may end in it. An
+ASCII fold answers `null` for both, an acceptance to retire by name rather
+than assume away, and the follow-up checks each protocol-deciding caller
+for the same before it lands. The
 text-normalizing callers would not be served: `matches('Ä', 'ä')` holds
 today through Unicode's lowercasing and would not through ASCII's, so
 they wait on this proposal. The fold is a module's task, filed where it
