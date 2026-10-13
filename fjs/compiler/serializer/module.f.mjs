@@ -165,7 +165,7 @@ import { chunkStrings, chunksMarked, chunkText, chunksText, keyword, literal, wi
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { error, mapOk, ok, okList, okThen } from '../../types/result/module.f.js'
 import { _entryChunks as entryChunks, _entryText as entryText, renderFunction } from './function_text/module.f.mjs'
-import { loopOf } from '../../edag/loop/module.f.mjs'
+import { keepsRecursion, loopOf } from '../../edag/loop/module.f.mjs'
 import { _name as name, _binding as binding, _resolve as resolve } from './names/module.f.mjs'
 
 /** Names the parser refuses to bind: the keywords, the literal words, the reserved globals, and `then` as an export's name. */
@@ -1464,20 +1464,17 @@ const scope = (s, path, start, returns = null, yields = true) => all => {
  * Whether entry `i` is a loop the scope spells as `let` and `while`
  * ([spec: loops](../../../spec/README.md#loops)): a call, with one plain
  * argument, of a function written in place — reached by this one edge —
- * that is the template `fjs/edag/loop` recognizes, with no assert before
- * its condition, since a `const` before a `while` runs once where that
- * assert runs every round, and no read of the rest array, which `let` and
- * `while` bind nowhere — each round of the recursion is a call of one
- * argument, so the array is empty from the second round on, and only the
- * recursion keeps that; no function nested in it whose frame reads the
- * variable, since a nested function is written capturing by name, and a
- * closure inside a `while` holds the binding, the variable's last value,
- * where the recursion's holds the parameter of the call that made it —
- * the capture the language refuses in source, `loop variable captured`;
- * no value the condition shares with the block that the block would name,
- * which a `const` before the `while` would establish once; and the scope
- * a function's body, since the language has no loop at the module level,
- * and no loop's block, which holds `const`s and assignments alone.
+ * that is the template `fjs/edag/loop` recognizes and no shape every
+ * writer keeps the recursion for (`keepsRecursion` there: an assert
+ * before the condition, a read of the rest array, a value minting
+ * identity the condition shares with the block); no function nested in
+ * it whose frame reads the variable, since a nested function is written
+ * capturing by name, and a closure inside a `while` holds the binding,
+ * the variable's last value, where the recursion's holds the parameter
+ * of the call that made it — the capture the language refuses in source,
+ * `loop variable captured`; and the scope a function's body, since the
+ * language has no loop at the module level, and no loop's block, which
+ * holds `const`s and assignments alone.
  * Anything else keeps the spelling a function reading its `self` has, a
  * `const` the call reads.
  *
@@ -1489,36 +1486,8 @@ const isLoopCall = (s, i) => {
     const [, callee, [init]] = node
     if (!(callee instanceof Array) || s.shared.includes(callee[1]) || (init instanceof Array && init[0] === '...')) { return false }
     const loop = loopOf(s.a, callee[1])
-    return loop !== null && loop.before.length === 0 && !readsRest(s.a, callee[1]) && !capturesParameter(s.a, callee[1])
-        && !sharesWithBlock(s, callee[1], loop)
+    return loop !== null && !keepsRecursion(s.a, callee[1], loop) && !capturesParameter(s.a, callee[1])
 }
-
-/**
- * Whether the loop's condition hoists a value its block reaches too — a
- * value the body would name, {@link hoists}, a container, a function, a
- * call — which the condition's own block ({@link block}) would establish
- * afresh at every test and the block once more, two values where the
- * graph has one, and which a `const` before the `while` would establish
- * once where the recursion establishes it every round. The recursion
- * keeps the graph. No `while` written in source produces the shape: a
- * named value shared by the condition and the block would be the `const`
- * of a function called where written in both, two functions and two
- * values.
- *
- * @type {(s: _Scope, f: number, loop: Loop) => boolean}
- */
-const sharesWithBlock = (s, f, { condition, arm }) => {
-    const [, , slots, body] = /** @type {Extract<Node, readonly ['=>', number, readonly Operand[], Operand]>} */ (s.a.nodes[f])
-    // what a scope hoists does not depend on what its frame's slots are
-    // named, only that each has a name, so the names are left blank: the
-    // hoisting walk asks before it has named them
-    const inner = bodyScope(s.a, `${s.param}/loop`, slots.map(() => ''), body, s.allowUnusedCaptures, null)
-    const reached = reachableFrom(s.a)(arm)
-    return hoists(inner)(condition).some(h => h[0] === 'entry' && reached.includes(h[1]))
-}
-
-/** Whether the function that is entry `i` reads its rest array, in its own body's scope. @type {(a: Analysis, i: number) => boolean} */
-const readsRest = (a, i) => a.nodes.some((n, j) => n[0] === 'rest' && a.scope[j] === i)
 
 /**
  * Whether a function nested in the body of the function that is entry `i`

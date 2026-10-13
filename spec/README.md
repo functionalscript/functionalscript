@@ -2340,8 +2340,9 @@ export default n => {
   function of the template's shape, `const loop = r => c ? loop(next) :
   r;`, is the same graph and gets the same loop; one of a shape no `while`
   writes — a `const` before the condition running every round, a condition
-  sharing a value with the block that a `const` would name, a read of the
-  rest array — keeps the recursion in every writer; a read the condition
+  sharing a value with the block that mints identity, a container, a
+  function or a call, a read of the rest array — keeps the recursion in
+  every writer, which ask one recognizer; a read the condition
   and the block repeat, `r[0]`, one value of the graph, is written where
   each read stands and loops. A condition sharing a value of its own, the
   `const` of a function called where written, is the FunctionalScript

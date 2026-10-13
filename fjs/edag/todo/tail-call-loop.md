@@ -133,18 +133,25 @@ condition's cell before the condition each round, was considered and
 dropped: it is a second spelling for graphs the front end never produces,
 and the recursion is still correct for them.
 
-The template is one rule, this document's, recognized over two walks.
-In the analysis table ([`fjs/edag/analysis`](../analysis/module.f.mjs)) by
-one exported function in a new `fjs/edag/loop` module, which the function
-text and the source writer import: the template's parts for a function
-entry that matches, and `null` for any other function. On the graph by the
-Rust writer, which never builds the table and walks the graph by node
-identity, as it decides everything: it reads the same parts off the
-function node, under the same rules, and consumes nothing from the table's
-recognizer, since the table's indices name nothing in its walk. The two
-agree on every function the front end produces, except where what is
-shared differs — the Rust paragraph below says how. Anything else stays
-the recursion it is today, the author's own.
+The template is one rule, this document's, recognized by one function:
+`loopOf` in `fjs/edag/loop`, over the analysis table
+([`fjs/edag/analysis`](../analysis/module.f.mjs)) — the template's parts
+for a function entry that matches, and `null` for any other function. The
+function text and the source writer ask it of the table they write from;
+the Rust writer, which walks the graph by node identity and never builds
+a table of the module, builds the table of the one function it asks
+about, and reads the parts off the graph node once the table says it is
+a loop. The shapes every writer keeps the recursion for, above, are the
+second function of the same module, `keepsRecursion`, asked beside the
+first: a root assert, a rest read, and a value minting identity — a
+container, a function, a call, what the table's `mergeable` refuses to
+merge — that the condition shares with the block. A shared read the
+condition and the block repeat, `r[0]`, merges in the table, one value
+however many times it is evaluated, and loops. So the writers agree on
+every function: a shape kept in one is kept in all, and a writer keeps
+the recursion for more only for a reason of its own spelling, said at
+its own decision. Anything else stays the recursion it is today, the
+author's own.
 
 **The function text** writes a matching function as an arrow whose body is
 the language's loop: a `let` of the parameter, the `while`, and the
@@ -186,11 +193,10 @@ rather than a `while`, since a `while` cannot hold the condition's
 temporaries, which every round must rebind. A rest read
 keeps the recursion as in every writer: the closure binds the rest array
 once per call, and a loop would keep the first call's. Which function is
-a loop the Rust writer decides on the graph it walks, where sharing is
-identity: the function text and the source writer decide on the analysis
-table, where two reads of one property are one shared node, so a function
-the table shows a condition sharing with its block may still loop in Rust,
-the two reads rebound each round — the same value either way.
+a loop, and which keeps the recursion, the Rust writer asks of the one
+recognizer as the other writers do, over the table of the function it
+builds for the question; a merged read the condition and the block
+repeat is rebound each round, the same value either way.
 
 **The source** spells the template as `let` and `while` only in one context,
 the function called where it is written with one argument and referenced
@@ -236,6 +242,10 @@ written for the template, so it is a later step, taken with the grammar for
       (`nanvm/harness/tests/while_loop.rs`).
 - [x] `fjs/edag/rust`: the loop in place where the function is called
       where it is written, no closure built for it.
+- [x] `fjs/edag/loop`: `keepsRecursion`, the shapes every writer keeps the
+      recursion for, asked by every writer; the Rust writer asks `loopOf`
+      of the function's own table rather than recognize the template on
+      the graph again.
 - [x] `fjs/compiler/serializer`: the `let`/`while` spelling in call context,
       a rest-reading function left as recursion, with the grammar
       ([spec: loops](../../../spec/README.md#loops)), its proposal
