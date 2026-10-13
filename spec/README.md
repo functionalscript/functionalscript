@@ -2243,9 +2243,15 @@ export default n => {
     sees the variable's last value, where the function's capture would
     hold the value of the round it was made in;
   - a `const` of the variable's name in the block (`loop variable
-    shadowed`): JavaScript's block binding, which the loop never sees,
-    where this reading would take it for the assignment the block's end
-    continues with;
+    shadowed`): a block may shadow any other name, as a guard's block
+    may ([bodies and guards](#bodies-and-guards)), but the loop's block
+    has one job, to assign the variable, and a `const` of its name
+    declares that it cannot — JavaScript throws on an assignment after
+    it and refuses a read before it. The round leaves the state as it
+    was, and the state being all the condition reads, every round after
+    it is the same round: a loop that never ends, or throws at once.
+    This compiler names the slip, a `const` written for the step, rather
+    than compile a loop that cannot advance;
   - an assignment to any other name (`not the loop variable`), the one
     name a block may rebind.
 
