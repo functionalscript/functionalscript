@@ -16,6 +16,7 @@ equal to what the compiler admits. The same arrangement for `Array` is
 | [`search.rs`](search.rs) | `includes`, `indexOf`, `lastIndexOf`, `startsWith`, `endsWith` |
 | [`building.rs`](building.rs) | `slice`, `substring`, `concat`, `repeat`, `padStart`, `padEnd`, `trim`, `trimStart`, `trimEnd` |
 | [`patterns.rs`](patterns.rs) | `replace`, `replaceAll`, `split` |
+| [`casing.rs`](casing.rs) | `toLowerCase`, `toUpperCase` |
 
 ## What is out, by design
 
@@ -26,7 +27,7 @@ this crate grows no entry for any of them:
 | names | why |
 |---|---|
 | `match`, `matchAll`, `search` | Coerce the argument to a `RegExp`, a type the language lacks. |
-| `toLowerCase`, `toUpperCase`, `normalize` | Depend on the engine's Unicode version. |
+| `normalize` | Depends on the engine's Unicode version, which nothing pins for it ([case conversion](#case-conversion) pins one for `toLowerCase` and `toUpperCase`). |
 | `toLocaleLowerCase`, `toLocaleUpperCase`, `localeCompare` | Read the host locale. |
 | `substr`, `trimLeft`, `trimRight` | Annex B aliases. |
 | `anchor`, `big`, `blink`, `bold`, `fixed`, `fontcolor`, `fontsize`, `italics`, `link`, `small`, `strike`, `sub`, `sup` | Annex B HTML wrappers. |
@@ -50,6 +51,22 @@ surrogate pair is two positions, `"😀".split("")` is two lone surrogates. Only
 `codePointAt`, `isWellFormed` and `toWellFormed` look at pairs. A lone surrogate
 has no Rust `&str` spelling, so the corpus and `fjs compile` write such a string
 as its code units, `string_any_utf16(&[…])`.
+
+## Case conversion
+
+`toLowerCase` and `toUpperCase` are the Unicode Default Case Conversion, full
+mappings included — `"ß".toUpperCase()` is `"SS"`, a final sigma reads its
+context — through `str::to_lowercase` and `str::to_uppercase`, at the Unicode
+version the language pins: `casing.rs` names it and asserts
+`char::UNICODE_VERSION` against it at compile time, so a build whose standard
+library carries another version does not build
+([`fjs/js/prototype/README.md`](../../../../../fjs/js/prototype/README.md#unicode-version)).
+The receiver is converted a well-formed run at a time, a lone surrogate copied
+unchanged between runs: it has no case, and the lossy conversion to a Rust
+string would make it U+FFFD. A lone surrogate is neither cased nor
+case-ignorable, so a run ending at one leaves the final-sigma context as
+JavaScript reads it. A full mapping can lengthen the result, which is counted
+and refused past the limit like any other.
 
 ## When an argument is read
 

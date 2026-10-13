@@ -86,7 +86,8 @@ export const prototypeNames = lists.toSorted().filter((name, i, sorted) => i ===
 /**
  * The names of {@link prototypeNames} a module may not *call* as a member
  * function either, `a.x(...)`: the mutators, the prototype and coercion
- * protocol, everything that reads the host's locale or Unicode version,
+ * protocol, everything that reads the host's locale, `normalize`, which
+ * reads its Unicode version where the case conversions pin one,
  * the regular-expression methods, the `this`-passing function methods,
  * the iterator factories, `forEach`, Annex B's legacy methods, and the
  * five data properties a read refuses, which are no functions. Each name's
@@ -111,8 +112,7 @@ export const prohibitedCalls = /** @type {const} */ ([
     'isPrototypeOf', 'italics', 'keys', 'link', 'localeCompare', 'match', 'matchAll',
     'name', 'normalize', 'pop', 'propertyIsEnumerable', 'push', 'reverse', 'search', 'shift',
     'small', 'sort', 'splice', 'strike', 'sub', 'substr', 'sup', 'toLocaleLowerCase',
-    'toLocaleString', 'toLocaleUpperCase', 'toLowerCase', 'toUpperCase', 'trimLeft', 'trimRight',
-    'unshift', 'valueOf', 'values',
+    'toLocaleString', 'toLocaleUpperCase', 'trimLeft', 'trimRight', 'unshift', 'valueOf', 'values',
 ])
 
 /**
@@ -130,6 +130,6 @@ export const allowedCalls = /** @type {const} */ ([
     'findIndex', 'findLast', 'findLastIndex', 'flat', 'flatMap', 'includes', 'indexOf',
     'isWellFormed', 'join', 'lastIndexOf', 'map', 'padEnd', 'padStart', 'reduce', 'reduceRight',
     'repeat', 'replace', 'replaceAll', 'slice', 'some', 'split', 'startsWith', 'substring',
-    'toExponential', 'toFixed', 'toPrecision', 'toReversed', 'toSorted', 'toSpliced', 'toString',
-    'toWellFormed', 'trim', 'trimEnd', 'trimStart', 'with',
+    'toExponential', 'toFixed', 'toLowerCase', 'toPrecision', 'toReversed', 'toSorted', 'toSpliced',
+    'toString', 'toUpperCase', 'toWellFormed', 'trim', 'trimEnd', 'trimStart', 'with',
 ])

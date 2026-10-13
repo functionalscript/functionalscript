@@ -1,9 +1,9 @@
 ## Write a tail self-call as a loop
 
 **Priority:** P2
-**Status:** wip — the recognizer, the function text and the source
-spelling with its grammar are implemented, the grammar's proposal
-approved; the Rust output is open
+**Status:** wip — the recognizer, the function text, the Rust output and
+the source spelling with its grammar are implemented, the grammar's
+proposal approved
 
 ### Problem
 
@@ -227,8 +227,9 @@ written for the template, so it is a later step, taken with the grammar for
 - [x] `fjs/edag/function-text.md` and the function-source paragraph of
       `spec/README.md`: a body reading its `self` renders as a named
       function expression unless it is a loop, which renders as the loop.
-- [ ] `fjs/edag/rust`: the loop form as the closure's body, and a
-      `cargo test` over a generated module running a million rounds.
+- [x] `fjs/edag/rust`: the loop form as the closure's body, and a
+      `cargo test` over a generated module running a million rounds
+      (`nanvm/harness/tests/while_loop.rs`).
 - [x] `fjs/compiler/serializer`: the `let`/`while` spelling in call context,
       a rest-reading function left as recursion, with the grammar
       ([spec: loops](../../../spec/README.md#loops)), its proposal

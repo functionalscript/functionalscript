@@ -1,5 +1,6 @@
 mod add;
 mod building;
+pub mod casing;
 mod cmp;
 pub(crate) mod code_unit;
 pub(crate) mod create;
