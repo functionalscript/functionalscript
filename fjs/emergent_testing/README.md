@@ -7,9 +7,9 @@ any other value.
 
 ## Scope
 
-**In a browser, this framework runs authored FunctionalScript — `.f.mjs` — and
-nothing else.** `website/module.f.mjs` selects on the extension, so the
-proof list it writes into a page contains only those modules. That is the design, not a first
+**In a browser, this framework runs authored FunctionalScript — `.f.mjs` and
+`.f.js` — and nothing else.** `website/module.f.mjs` selects on the extension,
+so the proof list it writes into a page contains only those modules. That is the design, not a first
 iteration: an impure `.mjs` proof means whatever its host gives it — `node:fs`,
 `node:vm`, `process`, `node:test`, a filesystem, a subprocess — and a page has
 none of those. Loading Node-targeted JavaScript into a browser and expecting it
@@ -29,12 +29,13 @@ not defend against them. Each case is measured and recorded in
 a runner does without the defence, and a guard is written the day an input needs
 one.
 
-FunctionalScript has no parser or compiler yet, so that rule is held up by the
-`.f.mjs` suffix and by review rather than by a check — the browser's selector
-matches the suffix and a named `proof` export, nothing more. **A `.f.mjs` that
-breaks the rule is a defect to fix, not an exception to design around.** Where
-one is found it gets a `todo/` and is removed; the rule is not weakened to
-accommodate it.
+That rule is held up by the authored suffixes, `.f.mjs` and `.f.js`, and by
+review — the compiler holds a `.f.js` to the language, and an `.f.mjs` only
+review does — rather than by a check of the selector's own: the browser's
+selector matches either suffix and a named `proof` export, nothing more. **An
+authored module that breaks the rule is a defect to fix, not an exception to
+design around.** Where one is found it gets a `todo/` and is removed; the rule
+is not weakened to accommodate it.
 
 The two runners are meant to agree. Where they cannot, the difference is
 recorded with the reason.
