@@ -119,7 +119,7 @@ const finiteLine = line => line.slice(1).flatMap(/** @returns {readonly Element[
     ]
 })
 
-/** SVG buttons have textual, keyboard and native select equivalents.
+/** Interactive SVG points have textual, keyboard and native select equivalents.
  * @type {(state: State, p: Point, q: Point, result: Point, third: Point, negationFrom: Point, line: readonly Point2D[]) => Element}
  */
 const finiteGraph = (state, p, q, result, third, negationFrom, line) => ['svg', { viewBox: '0 0 530 530', 'data-secp-graph': '', role: 'group', 'aria-label': 'Finite field grid: y² = x³ + x + 4 modulo 23' },
@@ -135,8 +135,11 @@ const finiteGraph = (state, p, q, result, third, negationFrom, line) => ['svg', 
     ...finiteNegation(negationFrom, result),
     ...points.map(/** @returns {Element} */ ([x, y]) => ['circle', {
         cx: String(40 + Number(x) * 20), cy: String(480 - Number(y) * 20), r: '7',
-        'data-demo-click': `point:${x},${y}`, tabindex: '0', role: 'button',
-        'aria-label': `Select ${state.target} = (${x}, ${y})`, 'data-secp-dot': '',
+        ...(state.operation === 'kG' ? {} : {
+            'data-demo-click': `point:${x},${y}`, tabindex: '0', role: 'button',
+            'aria-label': `Select ${state.target} = (${x}, ${y})`,
+        }),
+        'data-secp-dot': '',
     }, ['title', `(${x}, ${y})`]]),
     ...(state.operation === 'kG' ? finiteMark(toy.g, 'G', 'base') : finiteMark(p, 'P', 'input')), ...finiteMark(q, 'Q', 'base'),
     ...finiteMark(third, 'S', 'third'), ...finiteMark(result, state.operation === 'kG' ? 'kG' : state.operation === '−P' ? '−P' : 'R', 'result'),

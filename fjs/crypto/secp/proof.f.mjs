@@ -93,9 +93,13 @@ export const proof = {
             assert(identityView.includes(`Scalar result ${k}G:`))
             assert(!identityView.includes('Public key'))
             assert(identityView.includes('O (point at infinity)'))
+            assert(!identityView.includes('point:'))
+            assert(!identityView.includes('Select P ='))
         }
         const adding = /** @type {const} */ ({ ...initial, view: 'Finite Field View', operation: 'P + Q' })
         const resultView = JSON.stringify(demo.view(adding))
+        assert(resultView.includes('point:13,12'))
+        assert(resultView.includes('Select P ='))
         assertEq(resultView.split('data-secp-modular-line').length - 1, 24)
         assert(resultView.includes('secp-finite-clip'))
         assert(resultView.includes('orange segments'))
