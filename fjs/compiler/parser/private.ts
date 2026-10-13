@@ -71,16 +71,16 @@ export type _Scope = {
      */
     readonly loop: string | null
     /**
-     * The first read of a loop's variable from this scope, a function
-     * nested in the loop, by the word and the refusal of the read — or
-     * `null` where it read none. The refusal is raised when the function
-     * closes anywhere but as the callee of a call, where its closure,
-     * called at once, sees the round's value as JavaScript's does; closed
-     * as a callee, the read passes to the scope around it, whose frame
-     * holds the variable for the function's, out to the scope the variable
-     * is the loop's in.
+     * The reads of loop variables from this scope, a function nested in
+     * one loop or more, in document order: each variable's first read, by
+     * its word and the refusal of the read. The first refusal is raised
+     * when the function closes anywhere but as the callee of a call,
+     * where its closure, called at once, sees the round's value as
+     * JavaScript's does; closed as a callee, each read passes to the
+     * scope around it, whose frame holds the variable for the function's,
+     * out to the scope the variable is the loop's in.
      */
-    readonly loopRead: readonly [word: string, refusal: ParseError] | null
+    readonly loopReads: readonly (readonly [word: string, refusal: ParseError])[]
 }
 
 
