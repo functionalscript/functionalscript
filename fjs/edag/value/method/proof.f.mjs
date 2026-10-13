@@ -76,6 +76,8 @@ export const proof = {
         check(' x ', 'trim', [], 'x')
         check(' x ', 'trimStart', [], 'x ')
         check(' x ', 'trimEnd', [], ' x')
+        check('aBß\ud800', 'toLowerCase', [], 'abß\ud800')
+        check('aBß\ud800', 'toUpperCase', [], 'ABSS\ud800')
         check('x', 'concat', [1, null, undefinedValue], 'x1nullundefined')
         check('x', 'concat', [], 'x')
         assertEq(method('x', 'concat', [coercible, coercible], () => failure), failure)
