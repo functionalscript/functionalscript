@@ -45,7 +45,7 @@ import { textField, inputField, caption, refusal } from '../../website/demo/modu
 import { codeBlock } from '../../website/demo/code/module.f.mjs'
 import { computeSync, sha256 } from '../sha2/module.f.mjs'
 import { sandbox } from '../../effects/common/module.f.mjs'
-import { formatDuration, validDuration } from './performance/module.f.mjs'
+import { _formatDuration, _validDuration } from './performance/module.f.mjs'
 import { maxLengthBytes, uint } from '../../types/bit_vec/module.f.mjs'
 
 /** Steps evaluated per browser turn: a few tens of milliseconds. */
@@ -92,7 +92,7 @@ const advance = (state, run) => {
             return pureOk({ ...state, run: null, verificationDuration: null, verdict: null, note: 'Evaluation error: no timing is available.' })
         }
         const { result: [, value], duration } = measured[1]
-        if (typeof value !== 'bigint' || !validDuration(duration)) {
+        if (typeof value !== 'bigint' || !_validDuration(duration)) {
             return pureOk({ ...state, run: null, verificationDuration: null, verdict: null, note: 'Evaluation did not produce a measurable result.' })
         }
         const done = run.done + count
@@ -139,7 +139,7 @@ const verify = state => {
             return pureOk({ ...cleared, verdict: 'error' })
         }
         const { result: [, valid], duration } = measured[1]
-        if (typeof valid !== 'boolean' || !validDuration(duration)) {
+        if (typeof valid !== 'boolean' || !_validDuration(duration)) {
             return pureOk({ ...cleared, verdict: 'error' })
         }
         return pureOk({ ...state, verdict: valid ? 'verified' : 'rejected', verificationDuration: duration })
@@ -170,7 +170,7 @@ const xView = x => x === null
 const result = run =>
     run === null || run.done < run.steps ? []
         : [caption('Result y, hex:'), codeBlock(hexOfY(run.value), 'Copy y'),
-            ['p', `Evaluation time (active computation): ${formatDuration(run.duration)}`]]
+            ['p', `Evaluation time (active computation): ${_formatDuration(run.duration)}`]]
 
 /**
  * How long a verification at this many steps takes, when it is long enough
@@ -229,7 +229,7 @@ export const demo = {
             textField({ name: 'claimed', label: 'Claimed y, hex', rows: 6 }, state.claimed),
             ['p', ['button', { type: 'button', name: 'verify', ...(state.run?.running ? { disabled: '' } : {}) }, 'Verify']],
             ...verdictView(state),
-            ...(state.verificationDuration === null ? [] : [/** @type {const} */ (['p', `Verification time: ${formatDuration(state.verificationDuration)}`])]),
+            ...(state.verificationDuration === null ? [] : [/** @type {const} */ (['p', `Verification time: ${_formatDuration(state.verificationDuration)}`])]),
         ],
         ...(state.note === null ? [] : [refusal(state.note)]),
     ],
