@@ -64,12 +64,20 @@ export type _Scope = {
     /**
      * The word of a loop's variable, in the scope of the function the loop
      * lowers to and in its block's, and `null` in every other: a read of
-     * the word from a function nested in either is refused, since
-     * JavaScript's closure would see the variable's last value where the
-     * function's capture holds the round's
-     * ([spec: loops](../../../spec/README.md#loops)).
+     * the word from a function nested in either is refused unless the
+     * function is called where it is written, since JavaScript's closure
+     * would see the variable's last value where the function's capture
+     * holds the round's ([spec: loops](../../../spec/README.md#loops)).
      */
     readonly loop: string | null
+    /**
+     * The refusal of the first read of a loop's variable from this scope,
+     * a function nested in the loop, or `null` where it read none: raised
+     * when the function closes anywhere but as the callee of a call, where
+     * its closure, called at once, sees the round's value as JavaScript's
+     * does.
+     */
+    readonly loopRead: ParseError | null
 }
 
 

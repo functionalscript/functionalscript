@@ -2250,17 +2250,19 @@ export default n => {
   nested function that reads the variable, `self(() => r)`, since its
   nested function captures by name where the recursion's holds the value
   of its round — the function text's captures by value, through the
-  wrapper it applies, and the Rust output's frame is a value — and for a
-  block it would write as such a function reading the variable, which the
-  language reads as that capture. The EDAG interpreters still run the call
+  wrapper it applies, and the Rust output's frame is a value. The EDAG
+  interpreters still run the call
   ([tail-call-loop](../fjs/edag/todo/tail-call-loop.md)).
 
 - Three programs JavaScript admits are refused rather than read another
   way, each because this reading and JavaScript's would differ:
   - a function nested in the loop, in its condition or its block, that
-    reads the variable (`loop variable captured`): JavaScript's closure
-    sees the variable's last value, where the function's capture would
-    hold the value of the round it was made in;
+    reads the variable and is held as a value — a `const`, an item, an
+    argument, a value returned — rather than called where it is written
+    (`loop variable captured`): JavaScript's closure sees the variable's
+    last value, where the function's capture would hold the value of the
+    round it was made in. A function called where it is written, `r = (()
+    => r + 1)();`, reads the round's value in both, and is admitted;
   - a `const` of the variable's name in the block (`loop variable
     shadowed`): a block may shadow any other name, as a guard's block
     may ([bodies and guards](#bodies-and-guards)), but the loop's block
