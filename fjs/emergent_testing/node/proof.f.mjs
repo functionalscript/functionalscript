@@ -55,6 +55,11 @@ export const proof = {
     aDiagnosticIsKeptAsIs: () => {
         assertEq(quiet(summary), summary)
     },
+    aLogNamesItsTest: () => {
+        assertStructurallySame(
+            quiet({ type: 'test:log', data: { name: 'talker', message: 'hello' } }),
+            { type: 'test:log', data: { name: 'talker', message: 'talker: hello' } })
+    },
     coverageKeepsTheFilesMissingAThreshold: () => {
         assertStructurallySame(quiet(report(all, files)), report(all, files.slice(1)))
     },

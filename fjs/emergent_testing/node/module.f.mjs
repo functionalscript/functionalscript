@@ -5,13 +5,14 @@
  * which on this repository's suite is twelve thousand lines of passes and
  * `100.00`s around the few lines that matter. {@link quiet} is the filter
  * `module.mjs` puts in front of it. A passed test is dropped unless it was
- * skipped or left `todo`; the coverage report keeps the files that miss a
- * threshold, and its totals; everything else — a failure, the run's summary,
- * a threshold error — passes through unchanged.
+ * skipped or left `todo`; a log names the test that wrote it; the coverage
+ * report keeps the files that miss a threshold, and its totals; everything
+ * else — a failure, the run's summary, a threshold error — passes through
+ * unchanged.
  *
  * @module
  *
- * @import { Coverage, Event, Pass } from './types.ts'
+ * @import { Coverage, Event, Log, Pass } from './types.ts'
  */
 
 /**
@@ -41,6 +42,17 @@ const pass = event =>
     event.data.skip !== undefined || event.data.todo !== undefined ? event : null
 
 /**
+ * A log with its test's name before the message. The `spec` reporter prints
+ * a log as the message alone, and names the test only on the pass that
+ * follows, which this filter drops; the name on the line stands in for it,
+ * and does not depend on the order tests ran in.
+ *
+ * @type {(event: Log) => Log}
+ */
+const log = ({ type, data }) =>
+    ({ type, data: { ...data, message: `${data.name}: ${data.message}` } })
+
+/**
  * The event as the report should see it, or `null` for one it should not.
  *
  * Every `test:start` goes, not only a passed test's: the `spec` reporter
@@ -53,5 +65,6 @@ const pass = event =>
 export const quiet = event =>
     event.type === 'test:start' ? null :
     event.type === 'test:pass' ? pass(event) :
+    event.type === 'test:log' ? log(event) :
     event.type === 'test:coverage' ? coverage(event) :
     event

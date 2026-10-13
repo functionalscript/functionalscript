@@ -49,10 +49,19 @@ export type Pass = {
 }
 
 /**
- * Every other event Node emits; the filter reads nothing but its name.
- * `test:log`, what `TestContext.log()` emits, is one Node 26 emits and the
- * pinned `@types/node` does not yet declare.
+ * What `TestContext.log()` emits: the message, and the name of the test that
+ * logged it. Node 26 emits the event; the pinned `@types/node` does not yet
+ * declare it, so `private.ts` cannot check this shape against Node's.
  */
+export type Log = {
+    readonly type: 'test:log'
+    readonly data: {
+        readonly name: string
+        readonly message: string
+    }
+}
+
+/** Every other event Node emits; the filter reads nothing but its name. */
 export type Other = {
     readonly type:
         | 'test:complete'
@@ -61,7 +70,6 @@ export type Other = {
         | 'test:enqueue'
         | 'test:fail'
         | 'test:interrupted'
-        | 'test:log'
         | 'test:plan'
         | 'test:start'
         | 'test:stderr'
@@ -71,4 +79,4 @@ export type Other = {
         | 'test:watch:restarted'
 }
 
-export type Event = Coverage | Pass | Other
+export type Event = Coverage | Pass | Log | Other
