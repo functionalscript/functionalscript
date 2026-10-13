@@ -127,12 +127,11 @@ compared by the existing machinery with nothing retyped.
    an own property's call and the shadowing built-in. Ticked in
    [member-functions](../../../nanvm/lib/todo/member-functions.md).
 
-6. **BigInt operators through the compile path.** Today the corpus
-   compiles literals, a division by zero and a `toString`; strict equality of
-   BigInts appears only in `parity`, which is an exception checked by its
-   hosts and not by this comparison. Add the arithmetic, shift and relational
-   operators, equality inside the corpus, and the mixed-type `TypeError`, with operands inside the native
-   word limit so that Node, the interpreter and the AOT output agree. A
+6. **BigInt operators through the compile path.** Done: `bigint-operators`
+   compiles the arithmetic, bitwise, shift and relational operators and
+   strict equality across the end of `i64`, with operands inside the native
+   word limit, and `bigint-mixed` the `TypeError` of a bigint added to a
+   number, recorded by `THROWS`. Division by zero was already `throws`. A
    result that Node can hold and the VM refuses is a different case: see item
    11, which this item does not assign.
 7. **Parameter leftovers.** Unused fixed parameters, the identity of a spread
@@ -176,7 +175,7 @@ compared by the existing machinery with nothing retyped.
 - [ ] 1b: compare whole export objects (Node route first, order-sensitive), only if a fixture needs a named export its default cannot show; recommended against.
 - [x] 4: special numbers: `special-numbers` (`-0`, `NaN`, the infinities, asserted by hand in Rust) and `number-limits` (finite extremes, checked by their JSON text).
 - [x] 5: capturing callbacks, guarded built-in calls and the other families' methods through the compile path (`callbacks`, `guarded-calls`, `array-methods`, `string-methods`, `number-methods`).
-- [ ] 6: BigInt arithmetic, shift and relational operators, equality and the mixed-type `TypeError` through the compile path.
+- [x] 6: BigInt arithmetic, shift and relational operators, equality and the mixed-type `TypeError` through the compile path (`bigint-operators`, `bigint-mixed`).
 - [x] 7: parameter leftovers as fixtures, in `nanvm/harness/fixtures/arguments.mjs`.
 - [ ] 8: out-of-order integer-like keys in a plain object literal and a lone surrogate in source.
 - [ ] 3: record thrown data, only with Node's thrown datum compared first and its own JSON bytes, and only if the interpreter can tell it from an engine error.

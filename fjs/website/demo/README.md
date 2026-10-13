@@ -69,8 +69,11 @@ The lead is plain prose, not a caption: no trailing colon, no bold.
   textarea, the examples drop-down and their wiring. One short value — a
   message to hash, a key, a number — is a single-line `<input
   type="text">`, as the SHA-2, bigint and versions demos use. A choice from
-  a fixed set is a `<select>`, as SHA-2's algorithm is.
-- **Every field has a unique `name`.** The runtime finds a field by its
+  a fixed set is a `<select>`, as SHA-2's algorithm is. For two short
+  alternatives, inline radio buttons keep both choices visible, as secp's
+  graph target and geometric branches do.
+- **Every independent field or radio group has a unique `name`.** Radios
+  within a group share that name and each option has a unique `id`. The runtime finds a field by its
   `name` to keep the reader's focus and the field's size across a render, a
   textarea, an input and a select alike, so two fields sharing one would
   lose them.
@@ -193,3 +196,14 @@ an input — for one refused input, so a change that breaks any of them is
 caught where it is made rather than on the page. A module that answers every
 input has no refusal to drive: the tokenizer reads text it cannot tokenize
 as an `error` token among the others, a line of its output, not a refusal.
+
+## Interactive SVG controls
+
+An SVG control can send a click event through `data-demo-click`, with `role`,
+`tabindex`, and a visible/textual equivalent supplied by its demo. Enter and
+Space activate it. A horizontally draggable SVG handle names a corresponding
+native range input in `data-demo-drag`; its SVG supplies `data-demo-x-min`,
+`data-demo-x-max`, `data-demo-x-left`, and `data-demo-x-right`. The runtime
+transforms screen coordinates into SVG coordinates, clamps to the range input,
+and sends an ordinary input event. The demo constrains that value to its model.
+Keep the native input available for keyboard and assistive-technology users.
