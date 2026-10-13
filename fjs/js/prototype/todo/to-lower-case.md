@@ -74,7 +74,11 @@ the tables, at the Unicode version the pinned toolchain ships
 ([`fjs/ci/config`](../../../ci/config/module.f.js)), so the VM writes no
 table of its own and the toolchain pin is the Unicode pin; the pinned
 version is named in the spec and in [`../README.md`](../README.md)'s rows,
-and moves only when the toolchain does.
+and moves only when the toolchain does. A lone surrogate has no case and
+no Rust `char`, and the VM's lossy conversion to a Rust string
+(`vm/string/from.rs`) would replace it with U+FFFD, which JavaScript does
+not: the VM converts each well-formed run and copies a lone surrogate
+unchanged, so `'\ud800A'.toLowerCase()` keeps its first code unit.
 
 Two alternatives, and why not:
 
@@ -93,11 +97,13 @@ Two alternatives, and why not:
   completion. Kept as the fallback should a pinned Unicode version be
   judged too weak a guarantee.
 
-Independent of this decision, the callers above want an ASCII case fold,
-not Unicode's: `text/ascii` could export it over code points today, beside
-its hexadecimal fold, and each of them would be served without waiting on
-a language change. That is a module's task, filed where it lands, not
-this one's.
+Independent of this decision, the protocol-deciding callers want an ASCII
+case fold, not Unicode's: `text/ascii` could export it over code points
+today, beside its hexadecimal fold, and each of those would be served
+without waiting on a language change. The text-normalizing callers would
+not: `matches('Ä', 'ä')` holds today through Unicode's lowercasing and
+would not through ASCII's, so they wait on this proposal. The fold is a
+module's task, filed where it lands, not this one's.
 
 Benefits: the most-asked-for string operation compiles as written,
 JavaScript's meaning and JavaScript's spelling, and about a dozen modules
@@ -125,11 +131,12 @@ record the designer and a link to the approval here.
       member functions table, and the version pin to native execution's
       limits
 - [ ] `nanvm/lib`: answer both on a string in `vm/string`, through the
-      standard library's conversion; drop the row from its README's
+      standard library's conversion of each well-formed run, a lone
+      surrogate copied unchanged; drop the row from its README's
       "out by design" table; take the pair through
       [`fjs/nanvm/methods`](../../../nanvm/methods/module.f.mjs)'s pending
-      list and the shared corpus, with cases for the full mappings and the
-      final sigma
+      list and the shared corpus, with cases for the full mappings, the
+      final sigma and a lone surrogate
 - [ ] [`todo/fjs-nanvm-integration.md`](../../../../todo/fjs-nanvm-integration.md):
       the `toLowerCase` row no longer names a rewrite
 - [ ] the callers above compile as written; whichever rewrote meanwhile may
