@@ -54,7 +54,11 @@ export const transition = (state, event) => {
     if (event.kind === 'input') {
         const { name, value } = event
         if (name === 'view') { return { ...state, view: value } }
-        if (name === 'operation') { return { ...state, operation: value } }
+        if (name === 'operation') {
+            if (value === 'P + Q') { return { ...state, operation: value, p: '4,7', q: '13,12' } }
+            if (value === '2P') { return { ...state, operation: value, p: '4,16' } }
+            return { ...state, operation: value }
+        }
         if (name === 'k') { return { ...state, k: value } }
         if (name === 'p' || name === 'q') { return { ...state, [name]: value } }
         if (name === 'target') { return { ...state, target: value } }

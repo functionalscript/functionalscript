@@ -78,6 +78,10 @@ export const proof = {
         }
         assertEq(transition(initial, { kind: 'click', name: 'point:13,12' }).p, '13,12')
         assertEq(transition({ ...initial, target: 'Q' }, { kind: 'click', name: 'point:13,12' }).q, '13,12')
+        assertEq(transition(initial, { kind: 'input', name: 'operation', value: '2P' }).p, '4,16')
+        const additionDefaults = transition(initial, { kind: 'input', name: 'operation', value: 'P + Q' })
+        assertEq(additionDefaults.p, '4,7')
+        assertEq(additionDefaults.q, '13,12')
         const adding = /** @type {const} */ ({ ...initial, view: 'Finite Field View', operation: 'P + Q' })
         const resultView = JSON.stringify(demo.view(adding))
         assert(resultView.includes('data-secp-modular-line'))
