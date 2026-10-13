@@ -189,10 +189,16 @@ spread they already answer; nothing changes below the compiler.
 
 1. **Syntax tree.** The `const`'s and the parameter's name become a target
    in [`parser/syntax/types.ts`](../../fjs/compiler/parser/syntax/types.ts),
-   the opening token kept for errors. The syntax reader's conversion of the
-   list's head from a value — today `namedList`, which admits a reference
-   alone — becomes the one converter from an object or array value to a
-   target, or to `invalid`.
+   the opening token kept for errors. The reader builds the target *beside*
+   the node, one mapping at a time, as JavaScript refines its cover grammar:
+   each value's mapping records the target the same text is — a name, a
+   pattern of its items' targets, or `invalid` at the token a value that is
+   no target begins with — and an item's or a member's mapping reads it off
+   the value's output symbol, where the `paren` id still says a `(` opened
+   it. A converter run on the finished node could not: `nodeAt` erases the
+   group, since a group is no node, and `[(a)]` and `{ a: (b) }`, which
+   JavaScript refuses in a binding pattern, would pass. The list's head,
+   today `namedList`, reads the same target.
 2. **Grammar.** Two productions widen in
    [`parser/grammar`](../../fjs/compiler/parser/grammar/module.f.mjs):
    `constStatement`'s name position and `parameterNames`' fixed names take
