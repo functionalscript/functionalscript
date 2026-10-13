@@ -87,11 +87,14 @@ export const hexOfY = y => y.toString(16).padStart(yDigits, '0')
  */
 const advance = (state, run) => {
     const count = run.steps - run.done < batch ? run.steps - run.done : batch
+    /** @type {DemoState} */
+    const errorState = { ...state, run: null, verificationDuration: null, verdict: null, note: 'Evaluation error: no timing is available.' }
     return resultStep(sandbox(() => sloth.eval(count)(run.value)), /** @returns {Effect<never, DemoState, never>} */ measured => {
-        if (measured[0] === 'error' || measured[1].result[0] === 'error') {
-            return pureOk({ ...state, run: null, verificationDuration: null, verdict: null, note: 'Evaluation error: no timing is available.' })
-        }
-        const { result: [, value], duration } = measured[1]
+        const [tag, payload] = measured
+        if (tag === 'error') { return pureOk(errorState) }
+        const { result, duration } = payload
+        const [resultTag, value] = result
+        if (resultTag === 'error') { return pureOk(errorState) }
         if (typeof value !== 'bigint' || !_validDuration(duration)) {
             return pureOk({ ...state, run: null, verificationDuration: null, verdict: null, note: 'Evaluation did not produce a measurable result.' })
         }
@@ -134,13 +137,16 @@ const verify = state => {
     if (y === null) { return pureOk({ ...cleared, verdict: 'notHex' }) }
     if (y >= p) { return pureOk({ ...cleared, verdict: 'notBelowP' }) }
     const check = sloth.verify(steps)(x)
+    /** @type {DemoState} */
+    const errorState = { ...cleared, verdict: 'error' }
     return resultStep(sandbox(() => check(y)), /** @returns {Effect<never, DemoState, never>} */ measured => {
-        if (measured[0] === 'error' || measured[1].result[0] === 'error') {
-            return pureOk({ ...cleared, verdict: 'error' })
-        }
-        const { result: [, valid], duration } = measured[1]
+        const [tag, payload] = measured
+        if (tag === 'error') { return pureOk(errorState) }
+        const { result, duration } = payload
+        const [resultTag, valid] = result
+        if (resultTag === 'error') { return pureOk(errorState) }
         if (typeof valid !== 'boolean' || !_validDuration(duration)) {
-            return pureOk({ ...cleared, verdict: 'error' })
+            return pureOk(errorState)
         }
         return pureOk({ ...state, verdict: valid ? 'verified' : 'rejected', verificationDuration: duration })
     })
