@@ -170,16 +170,20 @@ renders as a named function expression unless it is a loop, which renders
 as the loop above. No program can tell the two texts apart by anything but
 the text itself, which the exception already makes the VM's to choose.
 
-**The Rust output** writes a matching function as the closure it is,
-`A::static_function`, whose body is the loop: `let mut r` bound to the
-first argument, Rust's `loop` — the condition's temporaries, `if
+**The Rust output** writes a matching function called where it is
+written — the one place reaching it, with one argument — as the loop
+where the call stands: the call's temporary bound to the argument, `let
+mut cN = INIT;`, then Rust's `loop` — the condition's temporaries, `if
 !COND.to_boolean() { break }`, the round's temporaries, the asserts among
-them discarded, and `r = NEXT;`, omitted where the next value is the
-variable — and `Ok(r)`. A `loop` with the test at its top rather than a
-`while`, since a `while` cannot hold the condition's temporaries, which
-every round must rebind; a closure whether the function is called in
-place or held as a value, one form rather than two, the call of a closure
-costing one frame where the recursion cost one per round. A rest read
+them discarded, and `cN = NEXT;`, omitted where the next value is the
+variable — the call's value the variable after it. No closure is built
+and no call made, the function being a value nowhere; its slots are
+temporaries of the scope around, bound once as a frame is built once. A
+matching function held as a value is the closure it is,
+`A::static_function`, whose body is the same loop over `let mut r` bound
+to the first argument, and `Ok(r)`. A `loop` with the test at its top
+rather than a `while`, since a `while` cannot hold the condition's
+temporaries, which every round must rebind. A rest read
 keeps the recursion as in every writer: the closure binds the rest array
 once per call, and a loop would keep the first call's. Which function is
 a loop the Rust writer decides on the graph it walks, where sharing is
@@ -230,6 +234,8 @@ written for the template, so it is a later step, taken with the grammar for
 - [x] `fjs/edag/rust`: the loop form as the closure's body, and a
       `cargo test` over a generated module running a million rounds
       (`nanvm/harness/tests/while_loop.rs`).
+- [x] `fjs/edag/rust`: the loop in place where the function is called
+      where it is written, no closure built for it.
 - [x] `fjs/compiler/serializer`: the `let`/`while` spelling in call context,
       a rest-reading function left as recursion, with the grammar
       ([spec: loops](../../../spec/README.md#loops)), its proposal

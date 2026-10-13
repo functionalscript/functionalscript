@@ -2239,8 +2239,10 @@ export default n => {
   writer as these two statements, the code-only text as the same two over a
   `let` of the function's parameter
   ([function text](../fjs/edag/function-text.md)), and the Rust output as
-  the function's closure whose body is Rust's `loop` over a `let mut` of
-  its argument, no round a call — where a function calling itself last is
+  Rust's `loop` over a `let mut` of the initial value where the function
+  is called where it is written, and as the function's closure whose body
+  is that loop over its argument where it is held as a value, no round a
+  call either way — where a function calling itself last is
   otherwise recursion, which V8 runs out of stack on after some thousands
   of rounds, having no tail calls, and Rust likewise. A hand-written
   function of the template's shape, `const loop = r => c ? loop(next) :

@@ -17,3 +17,11 @@ export type _LoopParts = {
     readonly arm: Exp
     readonly next: Exp
 }
+
+/**
+ * A call printed as the loop its callee is, where the call stands: the
+ * call, whose temporary is the loop's variable; the function called, a
+ * value nowhere, whose slots the scope binds by names of its own; and the
+ * loop's parts.
+ */
+export type _LoopInPlace = readonly [call: Exp, callee: Exp, parts: _LoopParts]
