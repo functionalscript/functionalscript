@@ -6,6 +6,8 @@ pub mod array;
 pub mod array_methods;
 pub mod at;
 pub mod bigint;
+pub mod bigint_mixed;
+pub mod bigint_operators;
 pub mod boolean;
 pub mod call;
 pub mod callbacks;
@@ -59,6 +61,8 @@ pub const CASES: &[crate::Case] = &[
     crate::Case { name: "array_methods", fixture: crate::fixtures::array_methods::module::<Naive>, expected: array_methods::module::<Naive>, json: array_methods::JSON, throws: array_methods::THROWS },
     crate::Case { name: "at", fixture: crate::fixtures::at::module::<Naive>, expected: at::module::<Naive>, json: at::JSON, throws: at::THROWS },
     crate::Case { name: "bigint", fixture: crate::fixtures::bigint::module::<Naive>, expected: bigint::module::<Naive>, json: bigint::JSON, throws: bigint::THROWS },
+    crate::Case { name: "bigint_mixed", fixture: crate::fixtures::bigint_mixed::module::<Naive>, expected: bigint_mixed::module::<Naive>, json: bigint_mixed::JSON, throws: bigint_mixed::THROWS },
+    crate::Case { name: "bigint_operators", fixture: crate::fixtures::bigint_operators::module::<Naive>, expected: bigint_operators::module::<Naive>, json: bigint_operators::JSON, throws: bigint_operators::THROWS },
     crate::Case { name: "boolean", fixture: crate::fixtures::boolean::module::<Naive>, expected: boolean::module::<Naive>, json: boolean::JSON, throws: boolean::THROWS },
     crate::Case { name: "call", fixture: crate::fixtures::call::module::<Naive>, expected: call::module::<Naive>, json: call::JSON, throws: call::THROWS },
     crate::Case { name: "callbacks", fixture: crate::fixtures::callbacks::module::<Naive>, expected: callbacks::module::<Naive>, json: callbacks::JSON, throws: callbacks::THROWS },
