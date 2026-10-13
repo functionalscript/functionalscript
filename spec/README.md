@@ -2197,7 +2197,13 @@ export default n => {
   `x = value;`, each ended as every statement is; an assignment rebinds the
   variable for the statements after it, in order, as JavaScript reads them,
   and the block's end continues the loop with the variable's last binding
-  — a block assigning nothing continues with it unchanged. This is the one
+  — a block assigning nothing continues with it unchanged. A value nothing
+  after it reads, a `const` the block never uses or an assignment
+  overwritten before any read, `r = null.x; r = 1;`, is established all the
+  same, for what it does, as an unused `const` is anywhere
+  ([bodies and guards](#bodies-and-guards)): the throw JavaScript throws
+  there is thrown here, and the writer writes the value back as a `const`
+  of the block, the same graph. This is the one
   form: one variable per loop, the `while` right after its `let`, no
   `break`, `continue`, guard, `return`, `throw` or nested loop in the block,
   no `let` anywhere else, and no loop at the module level — each a step of

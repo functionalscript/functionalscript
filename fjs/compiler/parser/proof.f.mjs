@@ -265,6 +265,19 @@ export const proof = {
                 ]], [['arg', 0]]], [0]],
                 ['array', [['cref', 0], ['cref', 0]]],
             ]]]]]]])
+            // an assignment overwritten before any read is an anchor of
+            // the block, established for what it does, as an unused
+            // `const` is
+            const [tag4, value4] = parseFromTokens(tokenizeString('export default n => { let r = 0; while (r < 1) { r = null.x; r = 1; } return r; };'))
+            assert(tag4 === 'ok')
+            assertStructurallySame(value4, [[], [['object', [[':', 'default', ['=>', 1, [
+                ['()', ['=>', 1, [['?:',
+                    ['<', ['arg', 0], 1],
+                    ['()', ['=>', 0, [['.', null, 'x'], 1, ['()', ['fref', 0], [['cref', 1]]]], [['self']]], []],
+                    ['arg', 0],
+                ]]], [0]],
+                ['cref', 0],
+            ]]]]]]])
             // a block assigning nothing continues with the variable as it is
             const [tag2, value2] = parseFromTokens(tokenizeString('export default n => { let r = 0; while (r < n) { } return r; };'))
             assert(tag2 === 'ok')
