@@ -395,3 +395,39 @@ does — and a module may find it reads better as an expression once the
 `(a, b) => a !== b ? (() => { throw [a, b] })() : undefined`. Either spelling
 is in the language; the conversion adds the `return` and changes nothing
 else.
+
+## 8. `BigInt`
+
+The `BigInt` global is not admitted, and `BigInt(n)` is refused
+(`const not found`). On an integral number the replacement is `bigint`
+from
+[`fjs/types/bigint/from_number`](../fjs/types/bigint/from_number/module.f.js):
+
+```js
+const twoPow = exp => 1n << BigInt(exp)   // refused
+```
+
+```js
+import { bigint } from '../types/bigint/from_number/module.f.js'
+
+const twoPow = exp => 1n << bigint(exp)   // accepted
+```
+
+`bigint(n)` is the bigint with the value of `n`, exact at every magnitude:
+the lowest bit of an integral double is `n % 2`, the bits above it are
+those of `(n - n % 2) / 2`, both exact, and a `let`/`while` loop over one
+variable ([loops](../spec/README.md#loops)) reads them one per round, at
+most 1024 for the largest double. `-0` gives `0n`, as
+`BigInt(-0)` does. A fraction, `NaN` or an infinity has no bigint:
+`BigInt` throws a `RangeError` on it, and `bigint` throws too
+([failure is one outcome](../spec/README.md#failure-is-one-outcome)), so
+the rewrite preserves the failure with the value. It is a function the
+compiler compiles, with no node of its own, as the strategy above says;
+the language may take `BigInt(n)` in as sugar for it later, beside
+`Number(n)` and `String(n)`.
+
+One spelling of the built-in is not a call on a number. `BigInt("12")` is
+`12n` and `BigInt(true)` is `1n`: the built-in converts its argument,
+where `bigint` takes a number and throws on anything else, so a call on a
+value of another type is checked, not rewritten — the module says what it
+converts, as it does for `min` and `max` on strings.

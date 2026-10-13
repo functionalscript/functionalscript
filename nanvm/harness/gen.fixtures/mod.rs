@@ -6,6 +6,8 @@ pub mod array;
 pub mod array_methods;
 pub mod at;
 pub mod bigint;
+pub mod bigint_mixed;
+pub mod bigint_operators;
 pub mod boolean;
 pub mod call;
 pub mod callbacks;
