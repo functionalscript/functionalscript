@@ -1,7 +1,7 @@
 ## Directory, name and ancestor helpers are written outside `fjs/path`
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
