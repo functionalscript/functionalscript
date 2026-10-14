@@ -33,7 +33,7 @@ import { definedEntries } from '../../types/object/module.f.mjs'
 import { byteLength, bytesIn, empty as emptyVec, isWholeBytes, isWholeBytesIn, length, maxLengthBytes, u8ListMsb } from '../../types/bit_vec/module.f.mjs'
 import { nonEmpty, empty as elEmpty } from '../list/module.f.mjs'
 import { ok } from '../../types/result/module.f.js'
-import { do_, errorMessage, ioError, toIoError } from '../module.f.mjs'
+import { commandsOf, do_, errorMessage, ioError, toIoError } from '../module.f.mjs'
 import { min } from '../../types/number/min/module.f.js'
 import { max } from '../../types/number/max/module.f.js'
 import {
@@ -274,12 +274,11 @@ const nodeCommandSet = {
 
 /**
  * The commands of {@link nodeCommandSet}, in the form a partial runner tests
- * membership against. The cast is the one `Object.keys` always needs: it
- * answers `string[]` for a record whose keys the type system knows exactly.
+ * membership against.
  *
  * @type {Commands<NodeOp>}
  */
-export const nodeCommands = /** @type {Commands<NodeOp>} */ (Object.keys(nodeCommandSet))
+export const nodeCommands = commandsOf(nodeCommandSet)
 
 // `all`, `allOk` and `both` are `../common`'s, re-exported above: fan-out is an
 // interpreter's job whoever the host is, which is the whole of why they are

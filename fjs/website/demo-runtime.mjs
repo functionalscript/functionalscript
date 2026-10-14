@@ -15,6 +15,7 @@
  */
 
 import { asyncPartialRun } from '../effects/module.mjs'
+import { commandsOf } from '../effects/module.f.mjs'
 import { commonOperationMap } from '../effects/common/module.mjs'
 import { macrotask, patch, toDom } from '../media/html/module.mjs'
 import { copy } from './copy-runtime.mjs'
@@ -49,12 +50,11 @@ const commandSet = { sandbox: null, catch: null }
 
 /**
  * The commands of {@link commandSet}, in the form a partial runner tests
- * membership against. The cast is the one `Object.keys` always needs: it
- * answers `string[]` for a record whose keys the type system knows exactly.
+ * membership against.
  *
  * @type {Commands<Sandbox | Catch>}
  */
-const commands = /** @type {Commands<Sandbox | Catch>} */ (Object.keys(commandSet))
+const commands = commandsOf(commandSet)
 
 const run = asyncPartialRun(commands)(commonOperationMap)
 
