@@ -21,7 +21,7 @@ tracks the current and proposed P1 violations and their root-cause corrections.
 These rules apply at every stage, regardless of a feature's priority below.
 
 [Refused constructs](./refused-constructs.md) lists the valid JavaScript the
-compiler refuses, why, and whether a proof pins each refusal.
+compiler refuses, and why.
 
 [Statement-aware intrinsics](../../fjs/compiler/parser/todo/statement-aware-intrinsics.md)
 requires every instruction pattern to match already-recognized statements and
