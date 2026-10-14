@@ -105,10 +105,18 @@ a function, a one-key path a global that is a function, so one
 representation names every admitted binding and a VM, the runtime's
 `types.ts` and the completeness walk below probe the same object the
 same way, by walking the keys, with no second classification of what a
-global is. The parser admits `G.n(args)` where `[G, n]` is listed and
-`G(args)` where `[G, '']` or `[G]` is, and refuses every other member of a
-reserved global as it refuses `String.fromCharCode` today (`reserved
-word`). That is the opposite of the prototype side, where an own-property
+global is. The parser admits a call of a listed path, in every spelling
+JavaScript gives the same call: `G.n(args)` and `G['n'](args)`, the
+constant key being the same key the property access already treats it
+as, and the guarded forms `G?.n(args)`, `G.n?.(args)` and `G?.['n']?.(args)`,
+which lower to the same node, since a reserved global and its listed
+member are never nullish and a harmless spelling is refused only for a
+reason the design has
+([DESIGN.md §12](../../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)).
+It refuses every other member of a reserved global as it refuses
+`String.fromCharCode` today (`reserved word`), and a computed key,
+`G[k](args)`, since the namespace is closed at compile time and a key
+known only at run time cannot be looked up in a list. That is the opposite of the prototype side, where an own-property
 call is admitted by default and only a `prohibitedCalls` name is refused:
 a global's namespace is closed, so there is no prohibited list, and a name
 is admitted a name at a time, each reserving its global no later than it
@@ -124,13 +132,9 @@ definition, and need no row. The runtime's `types.ts` pins every path the
 against `allowedCalls`, so a body for a path the language does not admit
 fails `tsc`. A global is not a value: `const f = Object.is` and `Object`
 alone stay refused, as `String` is, so a global never reaches a module as
-a first-class function. The guarded spelling, `Object.is?.(a, b)`, is
-admitted and lowers to the same call: the binding is never nullish, so
-the two spellings mean the same, and refusing a harmless JavaScript
-spelling needs a reason the design does not have
-([DESIGN.md §12](../../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions));
-no run-time guard exists, because nothing is guarded. `String?.(x)` stays
-as the spec has it, a question for the conversion node, not this one.
+a first-class function. No run-time guard exists for the guarded
+spellings, because nothing is guarded. `String?.(x)` stays as the spec
+has it, a question for the conversion node, not this one.
 
 **One node, a callee.** The EDAG spells a static function as a value node
 carrying its path into the table, `['static', ['Object', 'is']]`,
@@ -236,11 +240,12 @@ this proposal does not take.
       `vm/runtime.rs` and `type_name`, `nanvm/methods`'s type column,
       and the README.
 - [ ] `js/static` with `statics = [['Object', 'is']]`; the parser admits
-      `Object.is(a, b)` and `Object.is?.(a, b)` as
-      `['()', ['static', ['Object', 'is']], [a, b]]`, reserves `Object`,
-      and refuses every other member and `Object` alone; the spec's
-      reserved-word and built-in sections say so; `validate` rejects an
-      unlisted `static` path and a `static` node outside callee position.
+      `Object.is(a, b)`, `Object['is'](a, b)` and the guarded spellings
+      as `['()', ['static', ['Object', 'is']], [a, b]]`, reserves
+      `Object`, and refuses every other member, a computed key and
+      `Object` alone; the spec's reserved-word and built-in sections say
+      so; `validate` rejects an unlisted `static` path and a `static`
+      node outside callee position.
 - [ ] `runtime.static.Object.is` as the imported `is`, `types.ts` pinned
       against `statics`, the proof at full coverage; the executors resolve
       a `static` node natively or from the runtime and report a missing

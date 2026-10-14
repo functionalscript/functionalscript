@@ -198,18 +198,22 @@ host's was native. DESIGN prefers simplicity, the VM keeps its option to
 bind natively, and the measurement that would change the trade is one the
 corpus can take.
 
-**What waits on the next step.** Some bodies need a primitive the member
+**What waits on the next step.** Two bodies need a primitive the member
 functions do not give: a string from a code unit (`String.fromCharCode`)
-for `toLowerCase`, `toUpperCase` and `toWellFormed`, whose casing table
-would then be a `gen.*` module from the Unicode data files, pinning the
-version in this repository rather than in rustc's standard library; a
-bigint from a number (`BigInt`) for `toFixed`, `toPrecision`,
+for `toLowerCase` and `toUpperCase`, whose casing table would then be a
+`gen.*` module from the Unicode data files, pinning the version in this
+repository rather than in rustc's standard library. These two stay
+native, and admitted, until the static section admits that primitive. The
+rest wait on nothing: `toWellFormed` reads code units and joins slices
+with the literal `'\uFFFD'`, and `toFixed`, `toPrecision`,
 `toExponential` and a nondecimal `toString` radix, which are exact decimal
-expansions of a double. These stay native, and admitted, until the
-static-function table lands. That table is the second step of this
-design — the same split, keyed by global and name — and operators whose
-semantics the floor can carry, `**` the example, the third; each gets its
-own `todo/` when its turn comes, and neither is designed here.
+expansions of a double, take the bigint of an integral double from the
+helper [`bigint`](../../types/bigint/from_number/module.f.js), already
+written in FunctionalScript, which the runtime imports as any module does.
+The static section is the second step of this design, filed as
+[`runtime-static.md`](./runtime-static.md) — the same split, keyed by
+global and name — and operators whose semantics the floor can carry, `**`
+the example, the third, which gets its own `todo/` when its turn comes.
 
 ### Tasks
 
