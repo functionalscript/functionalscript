@@ -24,6 +24,7 @@ mod primitive_coercion;
 mod runtime;
 mod string;
 mod string_coercion;
+mod string_numeric_literal;
 mod unpacked;
 pub mod unstable;
 
