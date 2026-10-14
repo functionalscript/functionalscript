@@ -1,11 +1,28 @@
 /**
  * @import { Result } from '../../types/result/types.ts'
- * @import { ValidationError } from './types.ts'
+ * @import { Unknown } from '../ts/types.ts'
+ * @import { StringMap } from '../../types/object/types.ts'
+ * @import { Reader, ValidateE, ValidationError } from './types.ts'
  */
 
-import { declaredTest, eachEntry, noDeclared, structSchemaEntries, tupleSchemaEntries, undeclaredMembers } from './module.f.mjs'
+import {
+    constContainerRead,
+    containerRead,
+    declaredTest,
+    eachEntry,
+    isArray,
+    isObject,
+    noAccumulate,
+    noDeclared,
+    restContainerRead,
+    structSchemaEntries,
+    tupleSchemaEntries,
+    undeclaredMembers,
+    verror,
+} from './module.f.mjs'
+import { option, or } from '../module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertErrorPath, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
 
 /** @type {(k: string, v: number) => Result<number, ValidationError>} */
 const item = (k, v) =>
@@ -14,6 +31,46 @@ const item = (k, v) =>
 /** Mirrors `parse`'s accumulate step, kept simple (a small test list, not a `List`). */
 /** @type {(acc: ReadonlyArray<readonly [string, number]>, k: string, v: number) => ReadonlyArray<readonly [string, number]>} */
 const collect = (acc, k, v) => [...acc, [k, v]]
+
+/**
+ * A reader for the container skeletons that knows only primitive `Const`
+ * schemas, matched with `Object.is`, and collects every member it reads in
+ * order — so a proof sees exactly which members a skeleton read, and in what
+ * order.
+ *
+ * @type {Reader<ReadonlyArray<readonly [string, Unknown]>>}
+ */
+const listing = {
+    read: t => value => Object.is(t, value) ? ok(value) : verror('unexpected value'),
+    empty: [],
+    cons: (acc, k, v) => [...acc, [k, v]],
+}
+
+/** Answers with what the reader collected, ignoring the container. */
+/** @type {(acc: ReadonlyArray<readonly [string, Unknown]>) => Unknown} */
+const collected = acc => acc
+
+/** Every length fits: what the struct kind and an admitting rest say. */
+const anyLength = () => true
+
+/** No length fits: what an empty element set says of a non-empty array. */
+const noLength = () => false
+
+/** Reads a tuple position. */
+/** @type {(value: ReadonlyArray<Unknown>, k: string) => Unknown} */
+const tupleItem = (value, k) => value[Number(k)]
+
+/** Reads a struct member. */
+/** @type {(value: StringMap<Unknown>, k: string) => Unknown} */
+const structItem = (value, k) => value[k]
+
+const arrayRead = containerRead(listing)(isArray, () => anyLength, collected)
+
+const tupleRead = constContainerRead(listing)(isArray, tupleSchemaEntries, tupleItem, (value, declared) => value.length <= declared, collected)
+
+const structRead = constContainerRead(listing)(isObject, structSchemaEntries, structItem, anyLength, collected)
+
+const restStructRead = restContainerRead(listing)(isObject, structSchemaEntries, structItem, () => anyLength, collected)
 
 export const proof = {
     empty: () => {
@@ -32,7 +89,7 @@ export const proof = {
     },
     // Mirrors `validate`'s usage: nothing is collected, only pass/fail matters.
     noAccumulate: () => {
-        const r = eachEntry([['a', 1]], item, undefined, () => undefined)
+        const r = eachEntry([['a', 1]], item, undefined, noAccumulate)
         assert(r[0] === 'ok')
         assertEq(r[1], undefined)
     },
@@ -121,5 +178,78 @@ export const proof = {
         assertEq(r[1].path.length, 2)
         assertEq(r[1].path[0], 'outer')
         assertEq(r[1].path[1], 'inner')
+    },
+    // The three container skeletons, read with `listing`, which shows what
+    // each one read and collected. The acceptance tables in
+    // `../validate/proof.f.mjs` hold `validate` and `parse` to them through
+    // the readers; these hold the skeletons to their own contracts.
+    containerRead: {
+        // Every member is read and collected, in member order.
+        collects: () => assertStructurallySame(
+            assertOk(arrayRead(1)([1, 1])),
+            [['0', 1], ['1', 1]],
+        ),
+        // The first bad member answers, under its key.
+        memberError: () => assertErrorPath(['1'])(arrayRead(1)([1, 2])),
+        notAContainer: () => assertErrorPath([])(arrayRead(1)({})),
+        // With no member to read, `restFits` decides — and `finish` is handed
+        // the container — and the item reader is never instantiated, which is
+        // what lets a recursive schema stop at an empty container.
+        empty: () => {
+            let reads = 0
+            /** @type {typeof listing} */
+            const counting = { ...listing, read: t => { reads += 1; return listing.read(t) } }
+            const empty = /** @type {const} */ ([])
+            /** @type {(acc: unknown, value: Unknown) => Unknown} */
+            const keep = (_, value) => value
+            assert(Object.is(assertOk(containerRead(counting)(isArray, () => anyLength, keep)(1)(empty)), empty))
+            assertErrorPath([])(containerRead(counting)(isArray, () => noLength, keep)(1)(empty))
+            assertEq(reads, 0)
+        },
+    },
+    constContainerRead: {
+        // An absent member its schema admits is legal, and collected by
+        // nothing, so a rebuild omits it rather than materializing it.
+        absentIsNotCollected: () => assertStructurallySame(
+            assertOk(structRead({ a: 1, b: or(option, 2) })({ a: 1 })),
+            [['a', 1]],
+        ),
+        memberError: () => assertErrorPath(['0'])(tupleRead([1])([2])),
+        notAContainer: () => assertErrorPath([])(structRead({ a: 1 })(1)),
+        // The shape is settled before any member is read, cheapest question
+        // first: the bound, then an illegal absence, then an undeclared
+        // member — each answering ahead of a bad member it would otherwise
+        // have to read past.
+        shapeFirst: () => {
+            assertErrorPath([])(tupleRead([1])([2, 1]))
+            assertErrorPath(['1'])(tupleRead([1, 1])([2]))
+            assertErrorPath([])(structRead({ a: 1 })({ a: 2, b: 1 }))
+            assertErrorPath(['a'])(structRead({ a: 1 })({ b: 1 }))
+        },
+    },
+    restContainerRead: {
+        // The declared members are read **first**, absence included, and only
+        // then are the leftovers held to the rest: a value failing both ways
+        // reports its declared member. A leftovers-first skeleton would
+        // report `b` here.
+        declaredFirst: () => {
+            assertErrorPath(['a'])(restStructRead({ a: 1 }, 2)({ a: 3, b: 4 }))
+            assertErrorPath(['a'])(restStructRead({ a: 1 }, 2)({ b: 4 }))
+        },
+        leftoverIsHeldToTheRest: () => assertErrorPath(['b'])(restStructRead({ a: 1 }, 2)({ a: 1, b: 4 })),
+        // A leftover that passes, and an absent member, are collected by
+        // nothing.
+        collectsDeclaredOnly: () => assertStructurallySame(
+            assertOk(restStructRead({ a: 1, c: or(option, 3) }, 2)({ a: 1, b: 2 })),
+            [['a', 1]],
+        ),
+        notAContainer: () => assertErrorPath([])(restStructRead({ a: 1 }, 2)(1)),
+        // With nothing past the prefix, `restFits` decides.
+        nothingPastThePrefix: () => {
+            /** @type {(fits: () => boolean) => ValidateE} */
+            const read = fits => restContainerRead(listing)(isArray, tupleSchemaEntries, tupleItem, () => fits, collected)([1], 2)
+            assertOk(read(anyLength)([1]))
+            assertErrorPath([])(read(noLength)([1]))
+        },
     },
 }

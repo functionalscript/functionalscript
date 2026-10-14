@@ -10,7 +10,7 @@
 import type { List } from '../../types/list/types.ts'
 import type { OrderedMap } from '../../types/ordered_map/types.ts'
 import type { Result } from '../../types/result/types.ts'
-import type { AstConst, AstFrameRef, AstItem, AstMember, AstModuleRef, AstRest, AstSelf, BinaryTag } from '../ast/types.ts'
+import type { AstConst, AstFrameRef, AstItem, AstMember, AstModuleRef, AstRest, AstSelf, BinaryTag, UnaryTag } from '../ast/types.ts'
 import type { DjsTokenWithMetadata } from '../tokenizer/types.ts'
 import type { ParseError } from './types.ts'
 import type { BindingElement, BindingProperty, BindingTarget, Block, Chain, Container, If, Item, Key, Let, LoopBlock, Node, While } from './syntax/types.ts'
@@ -333,29 +333,12 @@ export type _GuardFrame = {
 }
 
 /**
- * A negation whose operand is being evaluated. It carries nothing: the
- * node is the operand's value negated, and one is enough to tell the frame
- * from the others.
+ * A unary operator whose operand is being evaluated: its tag, which is all
+ * the node adds to the operand's value. A conversion, `Number(x)` or
+ * `String(x)`, is entered from a call rather than from a prefix, and
+ * closes the same way.
  */
-export type _NegFrame = { readonly neg: true }
-
-/**
- * A bitwise not whose operand is being evaluated. It carries nothing, for
- * the same reason {@link _NegFrame} does not.
- */
-export type _BitnotFrame = { readonly bitnot: true }
-
-/**
- * A logical not whose operand is being evaluated. It carries nothing, for
- * the same reason {@link _NegFrame} does not.
- */
-export type _NotFrame = { readonly not: true }
-
-/**
- * A `typeof` whose operand is being evaluated. It carries nothing, for the
- * same reason {@link _NegFrame} does not.
- */
-export type _TypeofFrame = { readonly typeof: true }
+export type _UnaryFrame = { readonly unary: UnaryTag }
 
 /**
  * An `instanceof` whose left operand is being evaluated: its right operand,
@@ -363,13 +346,6 @@ export type _TypeofFrame = { readonly typeof: true }
  * first, and the operator token the refusal is reported at.
  */
 export type _InstanceOfFrame = { readonly instanceof: Node, readonly at: DjsTokenWithMetadata }
-
-/**
- * A `Number` or `String` conversion whose operand is being evaluated: the word, so
- * that the frame is the node's tag and a second conversion joins it rather
- * than adding a frame.
- */
-export type _ConversionFrame = { readonly conversion: 'Number' | 'String' }
 
 /** A binary operator whose left operand is being evaluated: the tag, and the right operand to enter once it resolves. */
 export type _BinaryLeftFrame = { readonly tag: BinaryTag, readonly right: Node }
@@ -394,12 +370,8 @@ export type _Frame =
     | _AccessFrame
     | _IndexFrame
     | _ChainFrame
-    | _NegFrame
-    | _BitnotFrame
-    | _NotFrame
-    | _TypeofFrame
+    | _UnaryFrame
     | _InstanceOfFrame
-    | _ConversionFrame
     | _BinaryLeftFrame
     | _BinaryRightFrame
     | _ConditionalFrame

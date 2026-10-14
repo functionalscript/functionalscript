@@ -28,7 +28,7 @@ bytes, not only one at 256.
 Found while checking a review finding on
 [#2115](https://github.com/functionalscript/functionalscript/pull/2115) about
 ref names too long to convert to a `Vec`. That one is fixed in
-[`fjs/git/refstore`](../../../../git/refstore/module.f.mjs), whose `nameText`
+[`fjs/git/refstore/name`](../../../../git/refstore/name/module.f.mjs), whose `nameText`
 now answers `null` past `maxLengthBytes` — but the bound it enforces is the *bit
 vector's*, 131,072 bytes, not the host's 255, so a `refstore` proof can still
 write a ref whose name no host could hold. `writeNameTooLong`'s control, in
@@ -72,6 +72,6 @@ known to be relying on something production would refuse.
   [reads-enotdir-through-a-file](./reads-enotdir-through-a-file.md) — the three
   path issues this joins. Those are about what a path *means*; this is about how
   long it may be.
-- `nameText` in [`fjs/git/refstore`](../../../../git/refstore/module.f.mjs) — the
+- `nameText` in [`fjs/git/refstore/name`](../../../../git/refstore/name/module.f.mjs) — the
   caller that bounds ref names at the bit vector's limit, and why that is not the
   host's.

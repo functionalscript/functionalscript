@@ -40,16 +40,19 @@
  * against a wire format someone else may extend says `open`. The reader that
  * keeps every member is `../validate/module.f.mjs`.
  *
- * The error shape, path bookkeeping, primitive checks, and schema
- * recognition (`visit`) come from `../common/module.f.mjs`.
+ * The error shape, path bookkeeping, primitive checks, schema recognition
+ * (`visit`) and the container handlers come from `../common/module.f.mjs`.
+ * The handlers are one skeleton per container shape, shared with
+ * `../validate/module.f.mjs` so the two readers read a container in one order;
+ * `parse` supplies a `Reader` that collects the parsed members, and a rebuild
+ * per kind.
  *
  * See `./types.ts` for the `Result`/`Parse` type-level API.
  *
  * @module
  *
- * @import { ConstObject, Info1, Tag1, Type } from '../types.ts'
- * @import { StringMap } from '../../types/object/types.ts'
- * @import { Container, Fits, IsContainer, SchemaEntries, ValidateE, ValidationError, Visitor } from '../common/types.ts'
+ * @import { ConstObject, Type } from '../types.ts'
+ * @import { Reader, ValidateE } from '../common/types.ts'
  * @import { Unknown } from '../ts/types.ts'
  * @import { Parse } from './types.ts'
  * @import { _Entries, _Rebuild } from './private.ts'
@@ -57,19 +60,16 @@
 
 import { ok } from '../../types/result/module.f.js'
 import {
-    absentMember,
+    constContainerRead,
     constPrimitiveValidate,
-    declaredTest,
-    eachEntry,
-    hasUndeclaredMember,
+    containerRead,
     isArray,
     isObject,
-    noDeclared,
     orVisit,
     primitive0Validate,
+    restContainerRead,
     structSchemaEntries,
     tupleSchemaEntries,
-    undeclaredMembers,
     verror,
     visit,
 } from '../common/module.f.mjs'
@@ -123,254 +123,76 @@ const tupleRebuild = entries => {
     return result
 }
 
-/** `eachEntry`'s accumulator seed: entries are consed on in reverse as they parse. */
-/** @type {_Entries} */
-const emptyEntries = null
-
-/** `eachEntry`'s accumulate step: an O(1) prepend, unlike rebuilding an array on every entry. */
-/** @type {(acc: _Entries, k: string, v: Unknown) => _Entries} */
-const consEntry = (acc, k, v) =>
-    ({ first: [k, v], tail: acc })
+/**
+ * What `parse` brings to the container skeletons in `../common/module.f.mjs`:
+ * itself, for each member's schema, and the parsed members, consed on in
+ * reverse as they are read — an O(1) prepend, unlike rebuilding an array on
+ * every member. A declared member that is absent is collected by nothing, so
+ * it leaves no entry and the rebuilds omit it.
+ *
+ * @type {Reader<_Entries>}
+ */
+const reader = {
+    // Through the erased `ValidateE`: `parse(t)` at `Type` would instantiate
+    // `Ts<Type>` (TS2589) — the boundary `orVisit` describes.
+    read: t => /** @type {any} */ (parse(t)),
+    empty: null,
+    cons: (acc, k, v) => ({ first: [k, v], tail: acc }),
+}
 
 /**
- * `eachEntry`'s accumulate step over *declared* members, whose item wraps a
- * present member's parsed value in a one-element list and an absent member
- * in an empty one: the present value is kept, the absent member leaves no
- * entry. The wrapping is what stands in for a sentinel — every value,
- * `undefined` included, is a legal parse result, so no value could mark
- * absence.
+ * The uniform containers: every member is parsed, so a fresh container is
+ * always returned even if the inner type is a primitive.
  */
-/** @type {(acc: _Entries, k: string, vs: ReadonlyArray<Unknown>) => _Entries} */
-const consDeclared = (acc, k, vs) =>
-    vs.length === 0 ? acc : { first: [k, vs[0]], tail: acc }
-
-/**
- * Builds a parser for `array` or `record` schemas: rebuilds a fresh container
- * from each item's parsed result. The inner item parser is instantiated lazily
- * (only when the container is non-empty) so recursive schemas don't recurse
- * forever on empty containers.
- *
- * The members are `undeclaredMembers`', not `Object.entries`', so `array(t)`
- * and `rest([], t)` walk a value the same way — see `containerValidate` in
- * `../validate/module.f.mjs`, which says what an own-entry walk got wrong.
- *
- * `fits` bounds the array kind's length when its element set admits nothing —
- * the same rule on the other reader.
- */
-const containerParse =
-    /**
-     * @template {Tag1} K
-     * @param {IsContainer<Container<K>>} isContainer
-     * @param {_Rebuild} rebuild
-     * @param {(item: Type) => Fits<Container<K>>} restFits
-     * @returns {<I extends Type>(item: I) => Parse<Info1<K, I>>}
-     */
-    (isContainer, rebuild, restFits) =>
-    item => {
-        // Depends on the schema alone, so it is built once per schema rather
-        // than once per parsed value.
-        const fits = restFits(item)
-        return value => {
-            if (!isContainer(value)) {
-                return verror('unexpected value')
-            }
-            const e = undeclaredMembers(noDeclared, value)
-            if (e.length === 0) {
-                return fits(value, 0)
-                    ? /** @type {any} */ (ok(rebuild(null)))
-                    : verror('unexpected value')
-            }
-            const itemParse = /** @type {any} */ (parse(item))
-            const r = eachEntry(e, (_k, v) => itemParse(v), emptyEntries, consEntry)
-            return r[0] === 'error' ? r : /** @type {any} */ (ok(rebuild(r[1])))
-        }
-    }
-
-const arrayParse = containerParse(
+const arrayParse = containerRead(reader)(
     isArray,
+    item => (value, declared) => value.length <= declared || !emptyRest([], item),
     arrayRebuild,
-    // The cast is the price of one factory over two kinds: `Container<K>` is
-    // the union until `K` is bound, and only the array arm has a `length`.
-    item => (value, declared) =>
-        /** @type {ReadonlyArray<Unknown>} */ (value).length <= declared || !emptyRest([], item),
 )
 
-const recordParse = containerParse(isObject, recordRebuild, () => () => true)
-
-/** A container has nothing to collect from an undeclared member — only pass/fail matters. */
-const noAccumulate = () => undefined
+const recordParse = containerRead(reader)(isObject, () => () => true, recordRebuild)
 
 /**
- * Builds a parser for `Tuple` or `Struct` const schemas — **closed**: the
- * members the schema declares and no others. It reads each declared member
- * into the rebuilt result, then answers for every member of the value the
- * schema does not name.
- *
- * `fits` is the one thing the two kinds do not share. An undeclared member is
- * a member on both, but an array is also *as long as it is*: a hole past the
- * prefix is no member and would slip through the member check alone, so the
- * array kind answers with its length as well.
- *
- * A declared member is **absent** when its key or index is neither an own
- * property nor an inherited one — the same HasProperty test
- * `../validate/module.f.mjs` dispatches on — and absence is decided here,
- * before dispatch, since the recursive reader is handed only the value read.
- * An absent member is legal exactly when its schema admits absence, and is
- * **omitted** from what is built rather than materialized as `undefined`:
- * the struct kind drops the key, and the array kind preserves indices —
- * a trailing absent run shortens the result, an interior one stays a hole
- * (see `tupleRebuild`).
+ * The closed const containers. An absent member is **omitted** from what is
+ * built rather than materialized as `undefined`: the struct kind drops the
+ * key, and the array kind preserves indices — a trailing absent run shortens
+ * the result, an interior one stays a hole (see `tupleRebuild`).
  */
-const constContainerParse =
-    /**
-     * @template {ReadonlyArray<Unknown> | StringMap<Unknown>} C
-     * @template {ConstObject} S
-     * @param {IsContainer<C>} isContainer
-     * @param {SchemaEntries<S>} schemaEntries
-     * @param {(value: C, k: string) => Unknown} getItem
-     * @param {_Rebuild} rebuild
-     * @param {Fits<C>} fits
-     * @returns {<T extends S>(rtti: T) => Parse<T>}
-     */
-    (isContainer, schemaEntries, getItem, rebuild, fits) =>
-    rtti => {
-        // Depend on `rtti` alone, so they are computed once per schema.
-        const rttiEntries = schemaEntries(rtti)
-        const declared = rttiEntries.map(([k]) => k)
-        // One lookup per key at the gate, rather than a scan of `declared`.
-        const isDeclared = declaredTest(declared)
-        return value => {
-            if (!isContainer(value)) {
-                return verror('unexpected value')
-            }
-            // The bound, absence, the undeclared check, then the reads.
-            // See the comment on the same shape in
-            // `../validate/module.f.mjs`, including what settling the shape
-            // first assumes of the value.
-            // Cheapest structural question first, for the reason
-            // `../validate`'s copy states.
-            if (!fits(value, declared.length)) {
-                return verror('unexpected value')
-            }
-            // Absence before any read, and carrying nothing forward so it
-            // stops at the first illegal one — for the reasons
-            // `../validate`'s copy of this comment gives.
-            const a = eachEntry(
-                rttiEntries,
-                (k, t) => k in value ? ok(undefined) : absentMember(t),
-                undefined,
-                acc => acc,
-            )
-            if (a[0] === 'error') { return a }
-            if (hasUndeclaredMember(isDeclared, value)) {
-                return verror('unexpected value')
-            }
-            const r = eachEntry(
-                rttiEntries,
-                (k, t) => {
-                    // Absence is settled above, so this one is legal.
-                    if (!(k in value)) { return ok([]) }
-                    const p = /** @type {any} */ (parse(t))(getItem(value, k))
-                    return p[0] === 'error' ? p : ok([p[1]])
-                },
-                emptyEntries,
-                consDeclared,
-            )
-            return r[0] === 'error' ? r : /** @type {any} */ (ok(rebuild(r[1])))
-        }
-    }
-
-const tupleParse = constContainerParse(
+const tupleParse = constContainerRead(reader)(
     isArray,
     tupleSchemaEntries,
     (value, k) => value[Number(k)],
-    tupleRebuild,
     (value, declared) => value.length <= declared,
+    tupleRebuild,
 )
 
-const structParse = constContainerParse(
+const structParse = constContainerRead(reader)(
     isObject,
     structSchemaEntries,
     (value, k) => value[k],
-    recordRebuild,
     () => true,
+    recordRebuild,
 )
 
 /**
- * Builds a parser for a container with a stated `rest`. The declared members
- * are read exactly as the bare form reads them, and every member the schema
- * does not name is held to `rest` — checked on the way in and absent from what
- * is built, since `rest` says what an undeclared member must be and not that
- * the result should carry it.
- *
- * `restFits` carries the array kind's length bound, which a `rest` removes
- * only while it admits something — see `restContainerValidate` in
- * `../validate/module.f.mjs`, the same rule on the other reader.
+ * The containers with a stated `rest`: what is built carries the declared
+ * members and nothing else, since `rest` says what an undeclared member must
+ * be and not that the result should carry it.
  */
-const restContainerParse =
-    /**
-     * @template {ReadonlyArray<Unknown> | StringMap<Unknown>} C
-     * @template {ConstObject} S
-     * @param {IsContainer<C>} isContainer
-     * @param {SchemaEntries<S>} schemaEntries
-     * @param {(value: C, k: string) => Unknown} getItem
-     * @param {_Rebuild} rebuild
-     * @param {(rtti: S, r: Type) => Fits<C>} restFits
-     * @returns {(rtti: S, r: Type) => ValidateE}
-     */
-    (isContainer, schemaEntries, getItem, rebuild, restFits) =>
-    (rtti, r) => {
-        // Depend on the schema alone, so they are computed once per schema.
-        const rttiEntries = schemaEntries(rtti)
-        const declared = rttiEntries.map(([k]) => k)
-        const isDeclared = declaredTest(declared)
-        const fits = restFits(rtti, r)
-        return value => {
-            if (!isContainer(value)) {
-                return verror('unexpected value')
-            }
-            const d = eachEntry(
-                rttiEntries,
-                (k, t) => {
-                    if (!(k in value)) {
-                        const a = absentMember(t)
-                        return a[0] === 'error' ? a : ok([])
-                    }
-                    const p = /** @type {any} */ (parse(t))(getItem(value, k))
-                    return p[0] === 'error' ? p : ok([p[1]])
-                },
-                emptyEntries,
-                consDeclared,
-            )
-            if (d[0] === 'error') { return d }
-            const extra = undeclaredMembers(isDeclared, value)
-            if (extra.length === 0) {
-                if (!fits(value, declared.length)) {
-                    return verror('unexpected value')
-                }
-            } else {
-                const restParse = /** @type {any} */ (parse(r))
-                const e = eachEntry(extra, (_k, v) => restParse(v), undefined, noAccumulate)
-                if (e[0] === 'error') { return e }
-            }
-            return ok(rebuild(d[1]))
-        }
-    }
-
-const restTupleParse = restContainerParse(
+const restTupleParse = restContainerRead(reader)(
     isArray,
     tupleSchemaEntries,
     (value, k) => value[Number(k)],
-    tupleRebuild,
     (rtti, r) => (value, declared) => value.length <= declared || !emptyRest(rtti, r),
+    tupleRebuild,
 )
 
-const restStructParse = restContainerParse(
+const restStructParse = restContainerRead(reader)(
     isObject,
     structSchemaEntries,
     (value, k) => value[k],
-    recordRebuild,
     () => () => true,
+    recordRebuild,
 )
 
 /** @type {(rtti: ConstObject, r: Type) => ValidateE} */

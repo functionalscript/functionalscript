@@ -1,47 +1,13 @@
 /**
  * @import { Nullable } from '../../types/nullable/types.ts'
+ * @import { Result } from '../../types/result/types.ts'
+ * @import { Entry } from './types.ts'
  */
 
-import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { tryEntries, tryOidBytes } from './module.f.mjs'
-
-/**
- * What `git init` writes, on Git 2.43 and a case-insensitive filesystem.
- *
- * @type {readonly string[]}
- */
-const initial = [
-    '[core]',
-    '\trepositoryformatversion = 0',
-    '\tfilemode = true',
-    '\tbare = false',
-    '\tlogallrefupdates = true',
-    '\tignorecase = true',
-    '\tprecomposeunicode = true',
-]
-
-/**
- * What `git init --object-format=sha256` writes.
- *
- * @type {readonly string[]}
- */
-const sha256 = [
-    '[core]',
-    '\trepositoryformatversion = 1',
-    '\tfilemode = true',
-    '\tbare = false',
-    '\tlogallrefupdates = true',
-    '[extensions]',
-    '\tobjectformat = sha256',
-]
-
-/**
- * A file setting one key of `[extensions]` under a version.
- *
- * @type {(version: number | string, key: string, value: string) => string}
- */
-const extension = (version, key, value) =>
-    `[core]\n\trepositoryformatversion = ${version}\n[extensions]\n\t${key} = ${value}`
+import { assertEq, assertError, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { error, ok } from '../../types/result/module.f.js'
+import { initConfig } from '../testlib.f.mjs'
+import { lastBool, lastInt, lastValue, tryEntries, values } from './module.f.mjs'
 
 /**
  * The one value a file of one `[core]` key holds.
@@ -53,11 +19,87 @@ const value = text => {
     return entries === null ? null : entries[0][2]
 }
 
+/**
+ * The entries of a file Git reads.
+ *
+ * @type {(text: string) => readonly Entry[]}
+ */
+const entriesOf = text => assertNotNullish(tryEntries(text))
+
+/**
+ * A typed reader asked for `core.x` in a file of that one key.
+ *
+ * @type {<T>(reader: (entries: readonly Entry[], section: string, key: string) => T) => (text: string) => T}
+ */
+const one = reader => text => reader(entriesOf(`[core]\n\tx = ${text}`), 'core', 'x')
+
+/** `lastInt` of one value. */
+const int = one(lastInt)
+
+/** `lastBool` of one value. */
+const bool = one(lastBool)
+
+/**
+ * The spellings both typed readers read as a number, with the number each
+ * spells: C's own bases, signed or not, scaled by a unit or not. The
+ * whitespace before one is the conversion's, which only a quoted value
+ * keeps, and its class is the C library's — wider than the parser's by a
+ * `\v` and a `\f`. `0b` is binary, which is glibc's extension to C's
+ * grammar rather than Git's own, and the Git measured here is built
+ * against one that has it.
+ *
+ * @type {readonly (readonly [string, bigint])[]}
+ */
+const numbers = [
+    ['0', 0n],
+    ['1', 1n],
+    ['-1', -1n],
+    ['+5', 5n],
+    ['01', 1n],
+    ['017', 0o17n],
+    ['-017', -0o17n],
+    ['0x1f', 0x1fn],
+    ['0X1f', 0x1fn],
+    ['0xFF', 0xffn],
+    ['0b1', 1n],
+    ['0B11', 0b11n],
+    ['-0b1', -1n],
+    ['0b1k', 1_024n],
+    ['1k', 1_024n],
+    ['1K', 1_024n],
+    ['1m', 1_048_576n],
+    ['1g', 1_073_741_824n],
+    ['2097151k', 2_097_151n * 1_024n],
+    ['2147483647', 0x7fff_ffffn],
+    ['-2147483647', -0x7fff_ffffn],
+    ['1 # c', 1n],
+    ['"1"', 1n],
+    ['" 1"', 1n],
+    ['"\t0"', 0n],
+    ['"\v1"', 1n],
+    ['"\f-1"', -1n],
+    ['"\r1"', 1n],
+    ['"  +1"', 1n],
+    ['" 0x1"', 1n],
+    ['" 0b1"', 1n],
+    ['" -1"', -1n],
+]
+
+/**
+ * Spellings no typed reader reads as a number: `8` is no octal digit, `0x`,
+ * `0b` and `k` spell no number, a number too large for the `int` Git reads
+ * it into is none either, and the conversion's whitespace comes off the
+ * front alone, so a trailing space is read as a unit and found to be none.
+ *
+ * @type {readonly string[]}
+ */
+const noNumbers = ['08', '0x', '0b', '0b2', 'k', '-', '1kb', '8g', '2097152k', '2147483648', '-2147483648', '9999999999999999999999', '1.5', '"1 "', '" "']
+
 export const proof = {
     // Every entry, in order, with its section: a tab before the key, the
     // section lowercased, the value as text.
     entries: () => {
-        assertStructurallySame(tryEntries(initial.join('\n')), [
+        assertStructurallySame(tryEntries(initConfig), [
             ['core', 'repositoryformatversion', '0'],
             ['core', 'filemode', 'true'],
             ['core', 'bare', 'false'],
@@ -160,13 +202,9 @@ export const proof = {
         assertEq(tryEntries('[remote "\0o"]\n\tx = 1'), null)
         assertStructurallySame(tryEntries('[remote "op"]\n\tx = 1'), [['remote.op', 'x', '1']])
         assertEq(tryEntries('\0[c]\n\tx = 1'), null)
-        // A format the NUL cuts short is the format before it, which is
-        // the one Git reads.
-        assertEq(tryOidBytes(extension(1, 'objectFormat', 'sha256\0junk')), 32)
-        assertEq(tryOidBytes(extension(1, 'objectFormat', 'sha256 \0junk')), null)
     },
     // A value as Git's own parser reads it, a character at a time.
-    values: () => {
+    value: () => {
         // Quotes quote: a comment mark inside them is a character of the
         // value, the whitespace inside them is the value's, and a value may
         // be quoted in part.
@@ -242,137 +280,64 @@ export const proof = {
         // both read.
         assertStructurallySame(tryEntries('[branch "feature/x y"]\n\tmerge-base-2 = 1'), [['branch.feature/x y', 'merge-base-2', '1']])
     },
-    // An extension Git does not know refuses the repository under version 1,
-    // as Git refuses it; under version 0 it is ignored, as Git ignores it.
-    // `compatobjectformat` is one Git 2.43 does not know.
-    extensions: () => {
-        assertEq(tryOidBytes(extension(1, 'frobnicate', 'yes')), null)
-        assertEq(tryOidBytes(extension(1, 'compatObjectFormat', 'sha256')), null)
-        assertEq(tryOidBytes('[core]\n\trepositoryformatversion = 1\n[extensions]\n\tobjectformat = sha256\n\tfrobnicate = yes'), null)
-        assertEq(tryOidBytes(extension(1, 'worktreeconfig', 'true')), 20)
-        assertEq(tryOidBytes(extension(1, 'partialclone', 'origin')), 20)
-        assertEq(tryOidBytes(extension(1, 'noop-v1', 'anything')), 20)
-        assertEq(tryOidBytes(extension(0, 'frobnicate', 'yes')), 20)
-        // A subsection is part of an extension's name, not a section of
-        // its own: `[extensions "x"]` with `noop` names `x.noop`, which
-        // Git knows none of, so version 1 refuses it and version 0 ignores
-        // it — the key alone being one Git knows changes nothing. Nor is
-        // there a value to read under one: `objectFormat` there is not the
-        // key of that name, so its value is never judged and never read.
-        assertEq(tryOidBytes('[core]\n\trepositoryformatversion = 1\n[extensions "x"]\n\tnoop = true'), null)
-        assertEq(tryOidBytes('[core]\n\trepositoryformatversion = 1\n[extensions "x"]\n\tobjectFormat = sha256'), null)
-        assertEq(tryOidBytes('[core]\n\trepositoryformatversion = 1\n[extensions "x"]\n\tobjectFormat = wat'), null)
-        assertEq(tryOidBytes('[core]\n\trepositoryformatversion = 0\n[extensions "x"]\n\tnoop = true'), 20)
-        assertEq(tryOidBytes('[core]\n\trepositoryformatversion = 0\n[extensions "x"]\n\tobjectFormat = wat'), 20)
-        assertEq(tryOidBytes('[core]\n\trepositoryformatversion = 0\n[extensions "x"]\n\tworktreeConfig = maybe'), 20)
+    // Every value a key is given, in file order, and only that key's in that
+    // section. An entry holds the section and the key lowercased and a
+    // subsection as written, and they are asked for as it holds them.
+    values: () => {
+        const entries = entriesOf('[core]\n\tx = 1\n[Core]\n\tX = 2\n[core "A"]\n\tx = 3\n[other]\n\tx = 4\n\ty = 5')
+        assertStructurallySame(values(entries, 'core', 'x'), ['1', '2'])
+        assertStructurallySame(values(entries, 'core.A', 'x'), ['3'])
+        assertStructurallySame(values(entries, 'other', 'y'), ['5'])
+        assertStructurallySame(values(entries, 'core', 'y'), [])
     },
-    // An extension whose value Git reads as a boolean refuses the repository
-    // where the value is none, whatever the version says.
-    booleans: () => {
-        assertEq(tryOidBytes(extension(1, 'worktreeConfig', 'maybe')), null)
-        assertEq(tryOidBytes(extension(0, 'preciousObjects', 'maybe')), null)
-        assertEq(tryOidBytes(extension(0, 'preciousObjects', '1.5')), null)
-        // The words, however cased, and an empty value.
-        for (const v of ['true', 'FALSE', 'yes', 'no', 'ON', 'oFf', '']) {
-            assertEq(tryOidBytes(extension(0, 'preciousObjects', v)), 20)
-        }
-        // A number in C's own bases, signed or not, scaled by a unit or not.
-        for (const v of ['0', '1', '-1', '+5', '017', '-017', '0x1f', '0X1f', '0xFF', '0b1', '0B11', '0b1k', '1k', '1K', '1m', '1g', '2097151k', '2147483647', '-2147483647']) {
-            assertEq(tryOidBytes(extension(0, 'preciousObjects', v)), 20)
-        }
-        // A boolean reads a number the same way, whitespace and all, where
-        // a word beside one is compared as it is written and stays no
-        // boolean at all.
-        for (const v of ['" 1"', '"\t0"', '"\f-1"']) {
-            assertEq(tryOidBytes(extension(0, 'preciousObjects', v)), 20)
-        }
-        for (const v of ['" true"', '"true "', '" yes"']) {
-            assertEq(tryOidBytes(extension(0, 'preciousObjects', v)), null)
-        }
-        // `8` is no octal digit, `0x` and `k` spell no number, and a number
-        // too large for the `int` Git reads it into is none either.
-        for (const v of ['08', '0x', '0b', '0b2', 'k', '-', '1kb', '8g', '2097152k', '2147483648', '-2147483648', '9999999999999999999999']) {
-            assertEq(tryOidBytes(extension(0, 'preciousObjects', v)), null)
-        }
+    // The value that wins is the last, and none is judged on the way.
+    lastValue: () => {
+        const entries = entriesOf('[core]\n\tx = 1\n\tx = 2\n[Core]\n\tX = abc')
+        assertEq(lastValue(entries, 'core', 'x'), 'abc')
+        assertEq(lastValue(entries, 'core', 'y'), null)
+        // A key written without `=` is `true`.
+        assertEq(lastValue(entriesOf('[core]\n\tx'), 'core', 'x'), 'true')
     },
-    // The version is a number, not text, so every spelling Git's parser
-    // reads is the version it spells; and every assignment must spell one,
-    // since Git reads each as it comes to it.
-    version: () => {
-        for (const v of ['1', '01', '+1', '0x1', '0X1', '1 # c', '"1"']) {
-            assertEq(tryOidBytes(extension(v, 'objectFormat', 'sha256')), 32)
+    // A value as Git's `int`: the number it spells, or the value itself as
+    // the error where it spells none. The last assignment wins, and the
+    // first that spells no number refuses the file however good the ones
+    // after it, since Git reads each as it comes to it.
+    lastInt: () => {
+        for (const [v, n] of numbers) {
+            assertStructurallySame(int(v), ok(n))
         }
-        // The conversion skips the whitespace the value begins with, which
-        // only a quoted value keeps, and the class is the C library's:
-        // wider than the parser's by a `\v` and a `\f`. It comes off the
-        // front alone, so a trailing space is read as a unit and refuses
-        // the file.
-        // `0b` is binary, which is glibc's extension to C's grammar rather
-        // than Git's own, and the Git measured here is built against one
-        // that has it.
-        for (const v of ['0b1', '0B1', '" 0b1"']) {
-            assertEq(tryOidBytes(extension(v, 'objectFormat', 'sha256')), 32)
+        for (const v of noNumbers) {
+            assertError(int(v))
         }
-        assertEq(tryOidBytes(extension('-0b1', 'objectFormat', 'sha256')), 20)
-        for (const v of ['0b10', '0b11', '0b1k', '0b', '0b2']) {
-            assertEq(tryOidBytes('[core]\n\trepositoryformatversion = ' + v), null)
-        }
-        for (const v of ['" 1"', '"\t1"', '"\v1"', '"\f1"', '"\r1"', '"  +1"', '" 0x1"']) {
-            assertEq(tryOidBytes(extension(v, 'objectFormat', 'sha256')), 32)
-        }
-        assertEq(tryOidBytes('[core]\n\trepositoryformatversion = "1 "'), null)
-        assertEq(tryOidBytes('[core]\n\trepositoryformatversion = " "'), null)
-        // A signed number is signed after the whitespace, so `" -1"` is the
-        // version that gives up the format it read.
-        assertEq(tryOidBytes(extension('" -1"', 'objectFormat', 'sha256')), 20)
-        // Over 1 refuses the file, and so does an assignment that spells no
-        // number, however good the one after it.
-        assertEq(tryOidBytes('[core]\n\trepositoryformatversion = 2'), null)
-        assertEq(tryOidBytes('[core]\n\trepositoryformatversion = 1k'), null)
-        assertEq(tryOidBytes('[core]\n\trepositoryformatversion = abc\n\trepositoryformatversion = 1'), null)
-        // The last version wins.
-        assertEq(tryOidBytes('[core]\n\trepositoryformatversion = 2\n\trepositoryformatversion = 1\n[extensions]\n\tobjectformat = sha256'), 32)
-        // A file naming no version, and one naming `-1`, are the same file
-        // to Git: it gives up the format it read, so both are SHA-1.
-        assertEq(tryOidBytes('[extensions]\n\tobjectformat = sha256'), 20)
-        assertEq(tryOidBytes(extension(-1, 'objectFormat', 'sha256')), 20)
-        // Any other version below 0 keeps it, and refuses nothing.
-        assertEq(tryOidBytes(extension(-2, 'objectFormat', 'sha256')), 32)
-        assertEq(tryOidBytes(extension(-2, 'frobnicate', 'yes')), 20)
+        assertStructurallySame(int('"1 "'), error('1 '))
+        assertStructurallySame(int('abc'), error('abc'))
+        // A key written without `=` is `true`, which is no number.
+        assertStructurallySame(lastInt(entriesOf('[core]\n\tx'), 'core', 'x'), error('true'))
+        assertStructurallySame(lastInt(entriesOf('[core]\n\tx = 2\n\tx = 1'), 'core', 'x'), ok(1n))
+        assertStructurallySame(lastInt(entriesOf('[core]\n\tx = abc\n\tx = 1\n\tx = def'), 'core', 'x'), error('abc'))
+        assertStructurallySame(lastInt(entriesOf('[core]\n\ty = 1'), 'core', 'x'), ok(null))
     },
-    // The width: absent is SHA-1, `sha256` under version 1 is SHA-256, and
-    // what Git refuses is refused — a value in the wrong case, a value this
-    // module does not know, the extension under version 0, a bad line. The
-    // section and the key are case-insensitive, the last of two values
-    // wins, and the key outside `[extensions]` is another key.
-    oidBytes: () => {
-        assertEq(tryOidBytes(initial.join('\n')), 20)
-        assertEq(tryOidBytes(sha256.join('\n')), 32)
-        assertEq(tryOidBytes(''), 20)
-        assertEq(tryOidBytes(extension(1, 'objectFormat', 'sha1')), 20)
-        assertEq(tryOidBytes('[Core]\n\tRepositoryFormatVersion = 1\n[Extensions]\n\tObjectFormat = sha256'), 32)
-        assertEq(tryOidBytes(extension(1, 'objectformat', 'SHA256')), null)
-        assertEq(tryOidBytes(extension(1, 'objectformat', 'sha3')), null)
-        // A value is any text the file holds, so a key of `Object.prototype`
-        // names no hash either.
-        for (const v of ['toString', '__proto__', 'constructor', 'valueOf', 'hasOwnProperty']) {
-            assertEq(tryOidBytes(extension(1, 'objectFormat', v)), null)
+    // A value as Git's `bool`: a word, however cased, or a number, which is
+    // true where it is not zero. A word is compared as it is written, so
+    // the whitespace a number may begin with is no part of one.
+    lastBool: () => {
+        for (const v of ['true', 'TRUE', 'yes', 'ON']) {
+            assertStructurallySame(bool(v), ok(true))
         }
-        // And a format that ends in the space an empty pair of quotes keeps
-        // is a format Git does not know.
-        assertEq(tryOidBytes(extension(1, 'objectFormat', 'sha256 ""')), null)
-        assertEq(tryOidBytes('\uFEFF' + extension(1, 'objectFormat', 'sha256')), 32)
-        assertEq(tryOidBytes(extension(0, 'objectformat', 'sha256')), null)
-        assertEq(tryOidBytes(extension(0, 'noop-v1', 'x')), null)
-        assertEq(tryOidBytes('[core]\n\trepositoryformatversion = 1\n[extensions]\n\tobjectformat = sha256\n\tobjectformat = sha1'), 20)
-        assertEq(tryOidBytes('[core]\n\tobjectformat = sha256'), 20)
-        assertEq(tryOidBytes('[extensions'), null)
-        // An `objectFormat` Git does not know refuses the file wherever it
-        // sits, since Git reads each assignment as it comes to it: a good
-        // one after it does not hide it, and neither does a version that
-        // reads no format at all.
-        assertEq(tryOidBytes('[core]\n\trepositoryformatversion = 1\n[extensions]\n\tobjectformat = wat\n\tobjectformat = sha1'), null)
-        assertEq(tryOidBytes(extension(-2, 'objectFormat', 'wat')), null)
-        assertEq(tryOidBytes('[core]\n\trepositoryformatversion = 0\n[extensions]\n\tpreciousObjects = maybe\n\tpreciousObjects = true'), null)
+        for (const v of ['false', 'FALSE', 'no', 'oFf', '']) {
+            assertStructurallySame(bool(v), ok(false))
+        }
+        for (const [v, n] of numbers) {
+            assertStructurallySame(bool(v), ok(n !== 0n))
+        }
+        for (const v of ['maybe', '" true"', '"true "', '" yes"', ...noNumbers]) {
+            assertError(bool(v))
+        }
+        // A key written without `=` is `true`, where one written with `=` and
+        // nothing after it is `false`.
+        assertStructurallySame(lastBool(entriesOf('[core]\n\tx'), 'core', 'x'), ok(true))
+        assertStructurallySame(lastBool(entriesOf('[core]\n\tx = true\n\tx = off'), 'core', 'x'), ok(false))
+        assertStructurallySame(lastBool(entriesOf('[core]\n\tx = maybe\n\tx = true'), 'core', 'x'), error('maybe'))
+        assertStructurallySame(lastBool(entriesOf('[core]\n\ty = 1'), 'core', 'x'), ok(null))
     },
 }

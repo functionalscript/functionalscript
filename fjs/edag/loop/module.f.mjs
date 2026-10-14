@@ -37,7 +37,7 @@
  * @import { Loop } from './types.ts'
  */
 
-import { mergeable, operandsOf } from '../analysis/module.f.mjs'
+import { mergeable, operandsOf, scopeHolds } from '../analysis/module.f.mjs'
 
 /**
  * The node an operand names where it is reached by one edge, and `null`
@@ -117,14 +117,6 @@ export const loopOf = (a, i) => {
 }
 
 /**
- * Whether the function that is entry `i` reads its rest array, in its own
- * body's scope.
- *
- * @type {(a: Analysis, i: number) => boolean}
- */
-export const readsRest = (a, i) => a.nodes.some((n, j) => n[0] === 'rest' && a.scope[j] === i)
-
-/**
  * Whether an operand reaches an entry among `shared` in its own scope — a
  * nested function's body is that function's own, its slots this scope's.
  *
@@ -161,5 +153,5 @@ export const reaches = (a, shared) => {
  */
 export const keepsRecursion = (a, i, { before, condition, arm }) => {
     const minted = a.shared.filter(j => a.scope[j] === i && !mergeable(a.nodes[j]))
-    return before.length !== 0 || readsRest(a, i) || minted.some(j => reaches(a, [j])(condition) && reaches(a, [j])(arm))
+    return before.length !== 0 || scopeHolds(a, i, 'rest') || minted.some(j => reaches(a, [j])(condition) && reaches(a, [j])(arm))
 }
