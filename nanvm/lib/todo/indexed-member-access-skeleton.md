@@ -1,7 +1,7 @@
 ## indexed-member-access-skeleton. `Array` and `String` spell the same indexed read
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
