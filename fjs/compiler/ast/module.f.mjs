@@ -4,7 +4,7 @@
  * @module
  *
  * @import { List } from '../../types/list/types.ts'
- * @import { AstBinary, AstBitnot, AstNot, AstTypeof, AstInstanceOf, AstNumber, AstString, AstKey, AstCall, AstConditional, AstConst, AstBody, AstEntry, AstFunction, AstItem, AstModule, AstModuleRef, AstNeg, AstSpread, AstStep, AstThrow, BinaryTag, Anchors } from './types.ts'
+ * @import { AstBinary, AstInstanceOf, AstKey, AstCall, AstConditional, AstConst, AstBody, AstEntry, AstFunction, AstItem, AstModule, AstModuleRef, AstNeg, AstSpread, AstStep, AstThrow, AstUnary, BinaryTag, UnaryTag, Anchors } from './types.ts'
  * @import { _Lazy, _OperandStack, _Reach, _RefNode } from './private.ts'
  */
 
@@ -70,6 +70,25 @@ export const lazyLayers = /** @type {const} */ ([
  * @returns {node is readonly [BinaryTag, unknown, unknown]}
  */
 export const isBinary = node => node.length === 3 && binaryTags.some(tag => tag === node[0])
+
+/**
+ * Every unary operator's tag, {@link UnaryTag} at run time — pinned to it in
+ * `./types.ts` as {@link binaryTags} is to its own: the prefixes `-`, `~`,
+ * `!` and `typeof`, and the `Number` and `String` conversions, each a node
+ * of one operand. `instanceof` is not one: its node carries the constructor
+ * name too. Nor is `throw`, which ends a body rather than computing a value.
+ */
+export const unaryTags = /** @type {const} */ (['-', '~', '!', 'typeof', 'Number', 'String'])
+
+/**
+ * Whether a node is a unary operator, {@link AstUnary} or the parser's own
+ * node of the same shape: a tag of {@link unaryTags} and one operand. The
+ * arity is what tells the negation `['-', a]` from a subtraction.
+ *
+ * @param {readonly unknown[]} node
+ * @returns {node is readonly [UnaryTag, unknown]}
+ */
+export const isUnary = node => node.length === 2 && unaryTags.some(tag => tag === node[0])
 
 /**
  * Whether a binary operator establishes its right operand only when the
@@ -209,12 +228,12 @@ const pushedAll = (operands, rest) => operands.reduceRight(pushed, rest)
  * condition and a prefix operator's operand, established whatever the
  * value, are every reader's.
  *
- * @type {(lazy: _Lazy) => (ast: AstConst) => List<Exclude<AstConst, AstNeg | AstBitnot | AstNot | AstTypeof | AstInstanceOf | AstNumber | AstString | AstBinary | AstConditional | AstThrow>>}
+ * @type {(lazy: _Lazy) => (ast: AstConst) => List<Exclude<AstConst, AstUnary | AstInstanceOf | AstBinary | AstConditional | AstThrow>>}
  */
 const operandsOf = lazy => ast => {
     /** @type {_OperandStack} */
     let stack = { top: ast, rest: null }
-    /** @type {List<Exclude<AstConst, AstNeg | AstBitnot | AstNot | AstTypeof | AstInstanceOf | AstNumber | AstString | AstBinary | AstConditional | AstThrow>>} */
+    /** @type {List<Exclude<AstConst, AstUnary | AstInstanceOf | AstBinary | AstConditional | AstThrow>>} */
     let bottom = empty
     while (stack !== null) {
         const node = stack.top
@@ -264,7 +283,7 @@ const refsOf = lazy => ast => flat(map(refsOfOperand(lazy))(operandsOf(lazy)(ast
  * access chain nests only as deep as the source that built it, which is a
  * separate, narrower concern than an operator chain's unbounded length.
  *
- * @type {(lazy: _Lazy) => (ast: Exclude<AstConst, AstNeg | AstBitnot | AstNot | AstTypeof | AstInstanceOf | AstNumber | AstString | AstBinary | AstConditional | AstThrow>) => List<_RefNode>}
+ * @type {(lazy: _Lazy) => (ast: Exclude<AstConst, AstUnary | AstInstanceOf | AstBinary | AstConditional | AstThrow>) => List<_RefNode>}
  */
 const refsOfOperand = lazy => ast => {
     if (ast === null || typeof ast !== 'object') { return empty }
@@ -337,7 +356,7 @@ export const isInlinedCall = ([, callee, args]) =>
  */
 const readsRest = body => body.some(entry => toArray(operandsOf(every)(entry)).some(operandReadsRest))
 
-/** @type {(ast: Exclude<AstConst, AstNeg | AstBitnot | AstNot | AstTypeof | AstInstanceOf | AstNumber | AstString | AstBinary | AstConditional>) => boolean} */
+/** @type {(ast: Exclude<AstConst, AstUnary | AstInstanceOf | AstBinary | AstConditional>) => boolean} */
 const operandReadsRest = ast => {
     if (ast === null || typeof ast !== 'object') { return false }
     switch (ast[0]) {
