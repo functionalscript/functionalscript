@@ -3,7 +3,9 @@
  * each run with a kind wrapped in a `span` marked `data-token`, every other
  * run left as plain text. {@link render} draws runs a producer supplied;
  * {@link highlight} is the fallback for a text with no producer behind it,
- * which finds the runs by tokenizing.
+ * which finds the runs by tokenizing. {@link codeOutput} is the view a demo
+ * that prints code ends in: the drawn runs in a copyable block, or the
+ * producer's refusal.
  *
  * What marked text is, and why: [`fjs/text/marked`](../../../text/marked/README.md).
  *
@@ -35,6 +37,7 @@
  * @import { JsToken } from '../../../ebnf/lib/js/types.ts'
  * @import { Scan, StateScan } from '../../../types/function/operator/types.ts'
  * @import { Marked, Span, TokenKind } from '../../../text/marked/types.ts'
+ * @import { Result } from '../../../types/result/types.ts'
  */
 
 import { _positions, tokenize } from '../../../js/tokenizer/module.f.mjs'
@@ -44,6 +47,8 @@ import { stringToCodePointList } from '../../../text/utf16/module.f.mjs'
 import { fromSpans, toText } from '../../../text/marked/module.f.mjs'
 import { scan, stateScan, toArray } from '../../../types/list/module.f.mjs'
 import { unwrap } from '../../../types/result/module.f.js'
+import { codeBlock } from '../code/module.f.mjs'
+import { caption, refusal } from '../module.f.mjs'
 
 /**
  * Marked text as nodes: a run with a kind as a classed `span`, a run
@@ -53,6 +58,17 @@ import { unwrap } from '../../../types/result/module.f.js'
  */
 export const render = marked => marked.flatMap(([text, kind]) =>
     text === '' ? [] : [kind === undefined ? text : ['span', { 'data-token': kind }, text]])
+
+/**
+ * A producer's answer as a demo shows it: marked text under `title`, in a
+ * code block whose copy button, named `label`, copies the plain text; or
+ * the producer's refusal, in its own words.
+ *
+ * @type {(title: string, label: string) => (result: Result<Marked, string>) => readonly Node[]}
+ */
+export const codeOutput = (title, label) => ([kind, value]) => kind === 'ok'
+    ? [caption(title), codeBlock(toText(value), label, render(value))]
+    : [refusal(value)]
 
 /**
  * The kind of a token, or `undefined` for one that stays plain.
