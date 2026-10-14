@@ -61,5 +61,5 @@ One module owns the layout, `vm/number/binary64.rs` or beside `Number`:
 
 - [`BigInt::to_number`](../src/vm/bigint/to_f64.rs)
   — bigint conversion is a potential caller of compose.
-- [string-numeric-literal-scanner](./string-numeric-literal-scanner.md)
+- [`scan`](../src/vm/string_numeric_literal.rs)
   — the text scan in front of `parse_non_decimal`; independent.
