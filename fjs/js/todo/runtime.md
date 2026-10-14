@@ -219,13 +219,19 @@ own `todo/` when its turn comes, and neither is designed here.
 - [ ] The array batch: every admitted `array` name, `toString` as `join`.
 - [ ] NaNVM evaluates the compiled module on every call it answers from the
       runtime; hold the object once a measurement asks for it.
-- [ ] File the static-function table and the operator step as their own
-      `todo/`s when the first batch has landed.
+- [x] File the static-function table as its own `todo/`:
+      [`runtime-static.md`](./runtime-static.md), which also nests this
+      table under `runtime.member`, keyed by the global's name, to make
+      room for `runtime.static`.
+- [ ] File the operator step as its own `todo/` when the first batch has
+      landed.
 
 ### Related
 
 - [`js/prototype`](../prototype/module.f.js) — the admission list; its
   README holds the reason for each name.
+- [`runtime-static.md`](./runtime-static.md) — the second step: the
+  static section, `Object.is` the first body.
 - [`nanvm/lib/todo/member-functions.md`](../../../nanvm/lib/todo/member-functions.md)
   — the native completeness table this design retires.
 - [`nanvm/methods`](../../nanvm/methods/module.f.mjs) and

@@ -52,7 +52,9 @@ name not yet decided, or, where it says so, never admitted.
 
 ### Fundamental Objects
 
-- [x] `Object`
+- [x] `Object` — `Object.is(a, b)` is proposed as the first static call,
+      its body in the runtime
+      ([`fjs/js/todo/runtime-static.md`](../../fjs/js/todo/runtime-static.md))
 - [ ] `Function`
 - [ ] `Boolean`
 - [ ] `Symbol`
