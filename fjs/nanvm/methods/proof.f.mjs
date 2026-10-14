@@ -4,7 +4,7 @@
 
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { allowedCalls, prohibitedCalls, prototypeNames } from '../../js/prototype/module.f.js'
-import { directory, generate, path, pending, rows, types } from './module.f.mjs'
+import { generate, path, pending, rows, types } from './module.f.mjs'
 
 /** @type {(pairs: readonly (readonly[string, string])[]) => readonly string[]} */
 const keys = pairs => pairs.map(([t, n]) => `${t}.${n}`)
@@ -95,8 +95,7 @@ export const proof = {
         assert(rust.includes('    ("Array", "charAt"),\n'), rust)
         assert(rust.includes('pub const STATICS: &[&[&str]] = &[\n    &["Object", "is"],\n];\n'), rust)
         assert(rust.endsWith('];\n'), rust)
-        assertEq(path, `${directory}/gen.methods.rs`)
-        assertEq(directory, 'nanvm/lib/src/vm/lambda')
+        assertEq(path, 'nanvm/lib/src/vm/lambda/gen.methods.rs')
     },
     throw: {
         /** A name the type's prototype lacks, `push` being a mutator's. */

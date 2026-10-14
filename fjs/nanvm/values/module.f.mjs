@@ -15,11 +15,13 @@ import { memo } from '../../edag/memo/module.f.mjs'
 import { generate as generateRust } from '../../compiler/rust/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
 
-/** The native harness's interpreted-value fixtures. */
-export const directory = 'nanvm/harness/gen.values'
-
-/** The Rust module consumed by the native capture proof. */
-export const path = `${directory}/captures.rs`
+/**
+ * The Rust module consumed by the native capture proof, among the native
+ * harness's interpreted-value fixtures.
+ *
+ * @type {string}
+ */
+export const path = 'nanvm/harness/gen.values/captures.rs'
 
 /**
  * Compute a fresh export graph, retaining captures and repeated references.
