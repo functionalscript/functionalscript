@@ -4,7 +4,9 @@
 **Status:** wip — the shape is `sergey-shandar`'s, who approved the
 proposal by merging it and asking for the implementation
 ([#2885](https://github.com/functionalscript/functionalscript/pull/2885));
-the member table is nested under `member`, keyed by the global's name
+the member table is nested under `member`, keyed by the global's name;
+`sergey-shandar` then made the node a value, `['Object.is']`, in place of
+the callee-only `['static', path]`, and destructuring sugar over it
 
 ### Problem
 
@@ -110,18 +112,18 @@ a function, a one-key path a global that is a function, so one
 representation names every admitted binding and a VM, the runtime's
 `types.ts` and the completeness walk below probe the same object the
 same way, by walking the keys, with no second classification of what a
-global is. The parser admits a call of a listed path, in every spelling
-JavaScript gives the same call: `G.n(args)` and `G['n'](args)`, the
-constant key being the same key the property access already treats it
-as, and the guarded forms `G?.n(args)`, `G.n?.(args)` and `G?.['n']?.(args)`,
-which lower to the same node, since a reserved global and its listed
-member are never nullish and a harmless spelling is refused only for a
-reason the design has
-([DESIGN.md §12](../../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)).
-It refuses every other member of a reserved global as it refuses
-`String.fromCharCode` today (`reserved word`), and a computed key,
-`G[k](args)`, since the namespace is closed at compile time and a key
-known only at run time cannot be looked up in a list. That is the opposite of the prototype side, where an own-property
+global is. The parser admits a listed member as a value, in every
+spelling JavaScript gives the same read: `G.n` and `G['n']`, the constant
+key being the same key the property access already treats it as, and the
+guarded forms `G?.n` and `G?.['n']`, which lower to the same node, since
+a reserved global is never nullish and a harmless spelling is refused
+only for a reason the design has
+([DESIGN.md §12](../../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions));
+a call of it, guarded or not, is a call of that value. It refuses every
+other member of a reserved global as it refuses `String.fromCharCode`
+today (`reserved word`), and a computed key, `G[k]`, since the namespace
+is closed at compile time and a key known only at run time cannot be
+looked up in a list. That is the opposite of the prototype side, where an own-property
 call is admitted by default and only a `prohibitedCalls` name is refused:
 a global's namespace is closed, so there is no prohibited list, and a name
 is admitted a name at a time, each reserving its global no later than it
@@ -135,40 +137,46 @@ are the floor's `['Number', '']` and `['String', '']`, native by
 definition, and need no row. The runtime's `types.ts` pins every path the
 `static` section holds against the list, as it pins every `member` key
 against `allowedCalls`, so a body for a path the language does not admit
-fails `tsc`. A global is not a value: `const f = Object.is` and `Object`
-alone stay refused, as `String` is, so a global never reaches a module as
-a first-class function. No run-time guard exists for the guarded
-spellings, because nothing is guarded. `String?.(x)` stays as the spec
+fails `tsc`. A global is not a value: `Object` alone stays refused, as
+`String` is, and only its admitted members reach a module, each a
+first-class function as it is in JavaScript. Destructuring is sugar, so
+`const { is } = Object` is `const is = Object.is`, one entry, and the
+namespace is read nowhere else: an array pattern over it, or a member it
+does not admit, is refused at the word. No run-time guard exists for the
+guarded spellings, because nothing is guarded. `String?.(x)` stays as the spec
 has it, a question for the conversion node, not this one.
 
-**One node, a callee.** The EDAG spells a static function as a value node
-carrying its path into the table, `['static', ['Object', 'is']]`,
-`['static', ['isNaN']]`, `['static', ['Object', '']]`, as it spells the
-language's helper `['entry']`: a function of fixed `length` capturing
-nothing, fresh where it stands. The parser emits it only as the callee of
-the ordinary call, `['()', ['static', ['Object', 'is']], [a, b]]`, so the
-call node, the argument list and spread are the ones every call has, and
-a new static name is a row in two tables, not a node kind. The admission
-`validate` [`compiler/todo/interpret-edag.md`](../../compiler/todo/interpret-edag.md)
-requires enforces both halves on EDAG supplied as data, the one place a
-node could enter without a parser: a `static` node whose path is not
-listed is rejected, as a prohibited member key is, and so is a `static`
-node anywhere but the callee position of a `()` node — a root, an
-argument, an element, a captured value — so that no supplied graph makes
-a static a first-class value either. The restriction is the node's
-placement, which `validate` sees, not the parser's habit.
+**One node per name, a value.** The EDAG spells each admitted static
+function as a parameterless value node of its own, `['Object.is']`, as
+it spells the language's helper `['entry']`: an `op0`, a function of
+fixed `length` capturing nothing. It is a first-class value, as it is in
+JavaScript — the root, an argument, an element, a captured slot — and a
+call of it is the ordinary call, `['()', ['Object.is'], [a, b]]`, so the
+call node, the argument list and spread are the ones every call has.
+Unlike `entry` it is one function, not fresh where it stands:
+`Object.is === Object.is` holds in JavaScript, so two occurrences merge
+and an executor answers the same function on every read. The path into
+the runtime's `static` section is the tag's, `['Object', 'is']`, and no
+graph carries one of its own, so the schema alone refuses a name the
+language does not admit, and there is no placement for the admission
+`validate` of
+[`compiler/todo/interpret-edag.md`](../../compiler/todo/interpret-edag.md)
+to check. A later static name is a node of its own, admitted with its
+name. This replaced a first design, `['static', path]` valid only as a
+call's callee: the owner preferred the value, which JavaScript has and
+destructuring needs.
 
 **Executors answer it as they answer a member.** An executor resolves a
-`static` node to its native binding where it has one, else to the entry
-at that path in the `static` section of the runtime its context carries,
-and calls the body with the arguments. A path with neither is the
+static node to its native binding where it has one, else to the entry
+at its path in the `static` section of the runtime its context carries,
+and a call calls the body with the arguments. A path with neither is the
 executor's error, not the module's: the parser admitted it, so an executor
 given no runtime, or one without the body, reports a missing binding the
 way the transpiler reports a package without a runtime (`no runtime
 export`), never a `TypeError` and never a plausible value. NaNVM gains
 `IVm::runtime_static(path)` beside `runtime_method`, which `naive` answers
 by walking the compiled object's `static` section; the Rust backend emits
-the lookup for a `static` callee; and a body bound this way is exactly the
+the lookup for the node; and a body bound this way is exactly the
 non-capturing function
 [`callable-function-objects.md`](../../../nanvm/lib/todo/callable-function-objects.md)'s
 `static function` tag anticipates. The native static table, if NaNVM keeps
@@ -228,8 +236,9 @@ this proposal does not take.
 
 - Reserving `Object`, and each global after it, breaks a module that
   binds the word; `2365-global-names.md` accepts this one name at a time.
-- A new node kind, `['static', path]`, with its validation rows, printer
-  case, and one more branch in each executor and in the Rust backend.
+- A node kind per static name, `['Object.is']` the first, each with its
+  printer cases and one more branch in each executor and in the Rust
+  backend.
 - Two admission lists where one might do; they stay separate because a
   prototype's names are open by default and a global's are closed, and
   one list cannot say both.
@@ -261,12 +270,22 @@ this proposal does not take.
       naming the path as the interpreter does; the Rust backend emits the
       lookup; the completeness test checks every admitted path is bound.
       NaNVM keeps no native static table, so there is no reverse walk.
-- [ ] The parser admits `Object.is(a, b)`, `Object['is'](a, b)` and the
-      guarded spellings as `['()', ['static', ['Object', 'is']], [a, b]]`,
-      reserves `Object`, and refuses every other member, a computed key
-      and `Object` alone; the FunctionalScript writer spells the node
-      back; the spec's reserved-word and built-in sections say so; the
-      corpus runs `Object.is` on the interpreter and on NaNVM.
+- [ ] The node is a value, `['Object.is']`, an `op0`, in place of
+      `['static', path]`: the schema, the analysis, the executors, the
+      Rust backend and function text; the analysis's path and placement
+      checks go.
+- [ ] The parser reserves `Object`, reads `Object.is`, `Object['is']`,
+      `Object?.is` and `Object?.['is']` as `['Object.is']`, and
+      `const { is } = Object` as `const is = Object.is`; it refuses every
+      other member, a computed key and `Object` alone; the `entry`
+      helper's intrinsic `Object` goes, since no scope can bind the word;
+      the FunctionalScript writer spells the node back; the spec's
+      reserved-word and built-in sections say so.
+- [ ] The corpus runs `Object.is` on the interpreter and on NaNVM.
+- [ ] NaNVM answers one function for every read: `naive` evaluates the
+      runtime on each lookup, so `Object.is` read in two invocations is
+      two closures there, and `===` between them is `false` where
+      JavaScript and the interpreter say `true`.
 - [ ] Decide `String.fromCharCode` in `2360-built-in.md`; admitted, it is
       the native primitive, and the casing pair follows as bodies over a
       generated casing table.
@@ -291,5 +310,4 @@ this proposal does not take.
 - [`nanvm/lib/todo/callable-function-objects.md`](../../../nanvm/lib/todo/callable-function-objects.md)
   — the `static function` tag and `IStaticFunction`.
 - [`edag/README.md`](../../edag/README.md#nodes) — `['entry']`, the value
-  node `['static', path]` is modelled on, and the call node it is a
-  callee of.
+  node `['Object.is']` is modelled on.
