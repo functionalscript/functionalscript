@@ -45,20 +45,12 @@ impl<A: IVm> BigInt<A> {
     }
 }
 
-// TODO: The unit tests should not use `naive` or other VM implementations.
-//       We should move these tests into integration tests.
 #[cfg(test)]
 mod tests {
-    use crate::{
-        naive::Naive,
-        vm::{bigint::BigInt, error},
+    use crate::vm::{
+        bigint::test_util::{T, int},
+        error,
     };
-
-    type T = BigInt<Naive>;
-
-    fn int(value: i64) -> T {
-        value.into()
-    }
 
     /// A power past the size limit is the `RangeError` `*` throws, not a
     /// result grown without bound: `2^(2^20)` has 16385 words.

@@ -95,17 +95,7 @@ impl<A: IVm> Shr for BigInt<A> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{naive::Naive, sign::Sign, vm::bigint::BigInt};
-
-    type T = BigInt<Naive>;
-
-    fn pos(items: Vec<u64>) -> T {
-        T::unchecked_new(Sign::Positive, items)
-    }
-
-    fn neg(items: Vec<u64>) -> T {
-        T::unchecked_new(Sign::Negative, items)
-    }
+    use crate::vm::bigint::test_util::{T, neg, pos};
 
     #[test]
     fn zero_shr_zero() {
