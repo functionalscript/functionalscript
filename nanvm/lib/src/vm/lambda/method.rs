@@ -532,13 +532,13 @@ mod tests {
     /// A receiver of each type the completeness table names.
     fn receiver(type_: &str) -> Any<A> {
         match type_ {
-            "object" => [].to_object().to_any(),
-            "array" => [].to_array().to_any(),
-            "string" => "".into(),
-            "number" => 0.0.to_any(),
-            "boolean" => true.to_any(),
-            "bigint" => BigInt::<A>::from(0i64).to_any(),
-            "function" => {
+            "Object" => [].to_object().to_any(),
+            "Array" => [].to_array().to_any(),
+            "String" => "".into(),
+            "Number" => 0.0.to_any(),
+            "Boolean" => true.to_any(),
+            "BigInt" => BigInt::<A>::from(0i64).to_any(),
+            "Function" => {
                 A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array(), None).to_any()
             }
             _ => panic!("no receiver of type {type_}"),
@@ -566,9 +566,9 @@ mod tests {
                 );
             }
         };
-        bound("array", &super::array::<A>());
-        bound("string", &super::super::string::string::<A>());
-        bound("number", &super::super::number::number::<A>());
+        bound("Array", &super::array::<A>());
+        bound("String", &super::super::string::string::<A>());
+        bound("Number", &super::super::number::number::<A>());
         let has = |(type_, name): &(&str, &str)| {
             let r = receiver(type_);
             let key: Any<A> = (*name).into();
