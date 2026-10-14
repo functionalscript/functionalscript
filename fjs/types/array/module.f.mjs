@@ -3,7 +3,7 @@
  *
  * @module
  *
- * @import { FixedArray } from './types.ts'
+ * @import { FixedArray, Occurrences } from './types.ts'
  */
 
 import { toArray, repeat as listRepeat } from '../list/module.f.mjs'
@@ -142,6 +142,29 @@ export const repeat =
  * @type {<T>(a: readonly T[]) => readonly T[]}
  */
 export const dedup = a => a.filter((v, i) => a.slice(0, i).every(x => x !== v))
+
+/**
+ * Where each name of `names` first and last occurs: `Array`'s `indexOf` and
+ * `lastIndexOf` over `names`, `-1` for a name it does not hold, answered from
+ * one pass over the list rather than a scan per question. Asking either for
+ * every name of a list is quadratic through `Array`'s own methods, and linear
+ * here.
+ *
+ * A `Map` keeps the later of two entries with one key, so the names' positions
+ * in order are their last ones and in reverse their first. Names are strings,
+ * which a `Map` and `===` compare alike.
+ *
+ * @type {(names: readonly string[]) => Occurrences}
+ */
+export const occurrences = names => {
+    const positions = names.map((n, i) => /** @type {const} */ ([n, i]))
+    const first = new Map(positions.toReversed())
+    const last = new Map(positions)
+    return {
+        indexOf: n => first.get(n) ?? -1,
+        lastIndexOf: n => last.get(n) ?? -1,
+    }
+}
 
 /**
  * The value of the first entry whose key is `key`, compared with `===`, or
