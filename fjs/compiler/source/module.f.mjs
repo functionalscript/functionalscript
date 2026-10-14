@@ -19,7 +19,7 @@ import { stringToList } from '../../text/utf16/module.f.mjs'
 import { decode as decodeImportPath } from '../../path/import/module.f.mjs'
 import { parseFromTokens } from '../parser/module.f.mjs'
 import { parse as jsonParse } from '../../media/json/module.f.mjs'
-import { catchStep, foldStep, mapStep, pure, pureError, pureOk, step } from '../../effects/module.f.mjs'
+import { catchStep, foldStep, history, historyStep, mapStep, pure, pureError, pureOk, step } from '../../effects/module.f.mjs'
 import { errorMessage, isNotFound, readWholeBytes, resolveFileModule } from '../../effects/node/module.f.mjs'
 import { fromU8List } from '../../text/utf8/module.f.mjs'
 import { drop, includes } from '../../types/list/module.f.mjs'
@@ -219,10 +219,6 @@ export const _walk = load => {
             ? pureError(_missingExport(source))
             : pureOk({ context: next, imports: [...imports, selected] })
     })
-    /** @type {(source: _Source, context: _Context<T>) => (module: AstModule) => Effect<ReadWhole | ResolveFileModule, readonly [_Context<T>, T], ParseError | E>} */
-    const walkModule = (source, context) => module => step(
-        foldStep(_importSources(source)(module[0]), { context, imports: [] }, walkImport),
-        ({ context: next, imports }) => mapStep(pure(load.module(source, imports, module)), completed(source.id, next)))
     /** @type {(source: _Source) => (context: _Context<T>) => Effect<ReadWhole | ResolveFileModule, readonly [_Context<T>, T], ParseError | E>} */
     const walk = source => context => {
         const { id, path, json } = source
@@ -232,9 +228,11 @@ export const _walk = load => {
         const done = at(id)(context.complete)
         if (done !== null) { return pureOk([context, done]) }
         const entered = { ...context, stack: { first: id, tail: context.stack } }
-        return json
-            ? mapStep(_parseJson(path), value => completed(id, entered)(load.json(value)))
-            : step(_parseModule(path), walkModule(source, entered))
+        if (json) { return mapStep(_parseJson(path), value => completed(id, entered)(load.json(value))) }
+        const parsed = history(_parseModule(path))
+        const loaded = historyStep(parsed, module => foldStep(_importSources(source)(module[0]), { context: entered, imports: [] }, walkImport))
+        const initialized = historyStep(loaded, ({ imports }, module) => pure(load.module(source, imports, module)))
+        return mapStep(initialized, ([value, { context: next }]) => completed(id, next)(value))
     }
     return walk
 }
