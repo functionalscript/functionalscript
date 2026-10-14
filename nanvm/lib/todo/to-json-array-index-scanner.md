@@ -1,7 +1,7 @@
 ## to-json-array-index-scanner. `to_json` rescans array-index keys `member_access` already scans
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
