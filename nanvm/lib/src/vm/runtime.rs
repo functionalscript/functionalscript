@@ -47,6 +47,19 @@ pub fn runtime_static<A: IStaticFunction>(path: &[&str]) -> Option<Any<A>> {
     at(["static"].iter().chain(path).map(|key| (*key).into()))
 }
 
+/// The function a compiled static call calls: the VM's binding for `path`,
+/// [`IVm::runtime_static`], or the failure naming the path, which the
+/// call propagates — the parser admitted the path, so a VM without a
+/// binding fails rather than answer the `TypeError` of calling
+/// `undefined`. The represented interpreter fails with the same message.
+pub fn static_binding<A: IVm>(path: &[&str]) -> Result<Any<A>, Any<A>> {
+    A::runtime_static(path).ok_or_else(|| {
+        format!("no binding for the static {}", path.join("."))
+            .as_str()
+            .into()
+    })
+}
+
 /// The receiver's type as the runtime keys it, the name of its global;
 /// `None` for a nullish receiver, which has no type there and no member
 /// function anywhere.
@@ -65,7 +78,7 @@ pub(crate) fn type_name<A: IVm>(receiver: &Any<A>) -> Option<&'static str> {
 
 #[cfg(test)]
 mod tests {
-    use super::{runtime_method, runtime_static, type_name};
+    use super::{runtime_method, runtime_static, static_binding, type_name};
     use crate::{
         naive::Naive,
         vm::{Any, BigInt, IStaticFunction, ToAny, ToArray, ToObject},
@@ -121,6 +134,13 @@ mod tests {
         assert!(runtime_static::<A>(&["Object", "keys"]).is_none());
         assert!(runtime_static::<A>(&["Object", "is", "x"]).is_none());
         assert!(runtime_static::<A>(&["Number", "is"]).is_none());
+        // a compiled static call's callee: the body, or the failure naming
+        // the path, as the represented interpreter's
+        assert!(static_binding::<A>(&["Object", "is"]).is_ok());
+        assert_eq!(
+            static_binding::<A>(&["Object", "keys"]),
+            Err("no binding for the static Object.keys".into())
+        );
     }
 
     /// The body called as a call step calls it, the receiver first: the

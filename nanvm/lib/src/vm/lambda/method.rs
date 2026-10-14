@@ -621,6 +621,20 @@ mod tests {
         );
     }
 
+    /// Every static path the parser admits is bound, natively or by the
+    /// runtime: a static call never reaches a VM that cannot answer it.
+    /// NaNVM keeps no native static table, so there is no reverse walk.
+    #[test]
+    fn static_completeness() {
+        use super::super::methods_table::STATICS;
+        for path in STATICS {
+            assert!(
+                crate::vm::static_binding::<A>(path).is_ok(),
+                "{path:?} is admitted but has no binding"
+            );
+        }
+    }
+
     /// A name is a method of its receiver's type alone: `at` is an
     /// array's, not an object's or a number's, and a key that is no name
     /// is nobody's.

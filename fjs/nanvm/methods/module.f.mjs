@@ -46,6 +46,7 @@ import {
     stringPrototype,
 } from '../../js/prototype/module.f.js'
 import { entry } from '../../types/object/entry/module.f.js'
+import { statics } from '../../js/static/module.f.js'
 
 /**
  * Each type a receiver can have, by the name of its global as
@@ -137,7 +138,24 @@ const table = (name, doc, pairs) => [
 ]
 
 /**
- * The table as Rust: four constants of `(type, name)` pairs.
+ * The admitted static paths as Rust, each a slice of keys: what the VM must
+ * bind, natively or through its runtime, for every static call the parser
+ * admits.
+ *
+ * @type {() => readonly string[]}
+ */
+const staticTable = () => [
+    '/// Admitted static paths, `fjs/js/static`\'s: the VM binds each one.',
+    '#[rustfmt::skip]',
+    'pub const STATICS: &[&[&str]] = &[',
+    ...statics.map(path => `    &[${path.map(key => `"${key}"`).join(', ')}],`),
+    '];',
+    '',
+]
+
+/**
+ * The table as Rust: four constants of `(type, name)` pairs, and the
+ * admitted static paths.
  *
  * @type {() => string}
  */
@@ -151,5 +169,6 @@ export const generate = () => {
         ...table('PENDING', 'Allowed, and not answered yet: `method` has no entry.', r.pending),
         ...table('PROHIBITED', 'Refused by the compiler: `method` never has an entry.', r.prohibited),
         ...table('ABSENT', 'A known name that is no member function of the type: `method` never has an entry.', r.absent),
+        ...staticTable(),
     ].join('\n')
 }

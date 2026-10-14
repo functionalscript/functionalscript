@@ -92,7 +92,7 @@ const same = (a, b) => a instanceof Array
  */
 export const mergeable = node => {
     switch (node[0]) {
-        case '[]': case '{}': case '=>': case 'entry': case 'static': case '()': case '?.()': { return false }
+        case '[]': case '{}': case '=>': case 'entry': case '()': case '?.()': { return false }
         case '.': case '?.': { return node.length === 3 }
         default: { return true }
     }

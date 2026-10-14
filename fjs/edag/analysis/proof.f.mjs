@@ -110,7 +110,8 @@ export const proof = {
     // A static function is admitted only as a call's callee, at a path
     // `fjs/js/static` admits: anywhere else — the root, an argument, an
     // element, a captured slot, a receiver — it would be a first-class
-    // value. Each occurrence is its own entry, never merged with a twin.
+    // value. Its identity is never observable, so twins merge into one
+    // entry, as any value no node mints does.
     staticFunction: () => {
         /** @type {Exp} */
         const is = ['static', ['Object', 'is']]
@@ -118,7 +119,8 @@ export const proof = {
         assertOk(checked(an(['()', is, [-0, 0]])))
         assertOk(checked(an(['=>', 0, [], ['()', is, [1, 1]]])))
         const twice = an(['[]', [['()', is, [1]], ['()', ['static', ['Object', 'is']], [2]]]])
-        assertEq(twice.nodes.filter(node => node[0] === 'static').length, 2)
+        assertEq(twice.nodes.filter(node => node[0] === 'static').length, 1)
+        assertOk(checked(twice))
         for (const e of /** @type {readonly Exp[]} */ ([
             is, ['[]', [is]], ['()', ['=>', 1, [], ['arg', 0]], [is]], ['=>', 0, [is], 1],
             ['.', is, 'length'], ['()', ['=>', 0, [], is], []],

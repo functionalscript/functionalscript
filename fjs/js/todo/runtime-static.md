@@ -239,20 +239,28 @@ this proposal does not take.
       global's name: the module, `types.ts`, `edag/value/method`'s `body`,
       `vm/runtime.rs` and `type_name`, `nanvm/methods`'s type column,
       and the README.
-- [ ] `js/static` with `statics = [['Object', 'is']]`; the parser admits
-      `Object.is(a, b)`, `Object['is'](a, b)` and the guarded spellings
-      as `['()', ['static', ['Object', 'is']], [a, b]]`, reserves
-      `Object`, and refuses every other member, a computed key and
-      `Object` alone; the spec's reserved-word and built-in sections say
-      so; `validate` rejects an unlisted `static` path and a `static`
-      node outside callee position.
-- [ ] `runtime.static.Object.is` as the imported `is`, `types.ts` pinned
-      against `statics`, the proof at full coverage; the executors resolve
-      a `static` node natively or from the runtime and report a missing
-      binding as the executor's error.
-- [ ] NaNVM: `IVm::runtime_static`, the backend emits the lookup, the
-      completeness test covers the static paths both ways; the corpus
-      runs `Object.is`.
+- [x] `js/static` with `statics = [['Object', 'is']]` and `isStatic`;
+      the `['static', path]` EDAG node in the schema and the types; the
+      analysis's binding check, `checked`, refuses an unlisted path and a
+      `static` node outside callee position, which the admission
+      `validate` of
+      [`compiler/todo/interpret-edag.md`](../../compiler/todo/interpret-edag.md)
+      composes once it exists.
+- [x] `runtime.static.Object.is` as the imported `is`, `types.ts` pinned
+      against `statics`, the proof at full coverage; the represented
+      executors resolve a `static` node from the runtime, through
+      `functionAt`, and fail naming the path without a binding; function
+      text spells the node as the source calls it.
+- [x] NaNVM: `IVm::runtime_static` and `static_binding`, which fails
+      naming the path as the interpreter does; the Rust backend emits the
+      lookup; the completeness test checks every admitted path is bound.
+      NaNVM keeps no native static table, so there is no reverse walk.
+- [ ] The parser admits `Object.is(a, b)`, `Object['is'](a, b)` and the
+      guarded spellings as `['()', ['static', ['Object', 'is']], [a, b]]`,
+      reserves `Object`, and refuses every other member, a computed key
+      and `Object` alone; the FunctionalScript writer spells the node
+      back; the spec's reserved-word and built-in sections say so; the
+      corpus runs `Object.is` on the interpreter and on NaNVM.
 - [ ] Decide `String.fromCharCode` in `2360-built-in.md`; admitted, it is
       the native primitive, and the casing pair follows as bodies over a
       generated casing table.

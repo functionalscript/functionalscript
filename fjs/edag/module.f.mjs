@@ -153,9 +153,10 @@ export const frame = /** @type {const} */ (['frame', number])
  * A static function, as a value: the function the runtime's `static`
  * section holds at `path`, the keys `../js/static` admits it under —
  * `['static', ['Object', 'is']]` is `Object.is`. The path is metadata, as
- * `arg`'s index is, not an operand. It captures nothing and is fresh where
- * it is established, as `entry` is, and it is valid only as the callee of
- * a `()` node: no graph makes a static a first-class value. The analysis
+ * `arg`'s index is, not an operand. It captures nothing, and it is valid
+ * only as the callee of a `()` node: no graph makes a static a
+ * first-class value, so its identity is never observable and two
+ * occurrences of one path merge, unlike `entry`'s. The analysis
  * checks the path is admitted and the placement; this schema checks the
  * tuple's shape. An executor answers it from its own native binding or
  * from the runtime its context carries, and with neither it fails.
