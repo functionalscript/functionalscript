@@ -32,6 +32,7 @@ export const proof = {
             [['()', ['entry'], [['[]', [7]], 0]], 7],
             [['()', ['entry'], [['[]', [7]], 'length']], undefined],
             [['.', ['entry'], 'length'], 2],
+            [['()', ['Object.is'], [0, -0]], false], [['()', ['Object.is'], [NaN, NaN]], true],
         ]
         for (const [body, expected] of cases) { assertStructurallySame(run(body), expected) }
         const object = /** @type {Record<string, unknown>} */ (run(['{}', [

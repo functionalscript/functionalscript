@@ -133,12 +133,13 @@ export const proof = {
         // is the function's own; and the `entry` helper is recognized whole,
         // so a pattern where its one `const` or either of its two
         // parameters stands makes it an ordinary function, in which
-        // `Object` is a name nothing binds.
+        // `Object` is a reserved global, refused where it is no namespace of
+        // `Object.is`.
         noSelf: () => {
             expectRefused('const { a: f } = { a: () => f }; export default f;', 'const not found', 29)
-            expectRefused('export default (a, b) => { const { x } = Object.getOwnPropertyDescriptor(a, b); return x; };', 'const not found', 42)
-            expectRefused('export default ({ a }, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? x.value : undefined; };', 'const not found', 42)
-            expectRefused('export default (a, { b }) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? x.value : undefined; };', 'const not found', 42)
+            expectRefused('export default (a, b) => { const { x } = Object.getOwnPropertyDescriptor(a, b); return x; };', 'reserved word', 42)
+            expectRefused('export default ({ a }, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? x.value : undefined; };', 'reserved word', 42)
+            expectRefused('export default (a, { b }) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? x.value : undefined; };', 'reserved word', 42)
         },
         // A value in a binding position is JavaScript's early error, at the
         // token it begins with: a literal, an access, a call, a prefix, a
@@ -224,9 +225,9 @@ export const proof = {
             // as by name
             expectRefused('export default n => { let r = 0; while (r < n) { const [r] = [1]; } return r; };', 'loop variable shadowed', 57)
             expectRefused('export default n => { let r = 0; while (r < n) { const { a: [r] } = {}; } return r; };', 'loop variable shadowed', 62)
-            // and the module's `Object`, read as the intrinsic by an `entry`
-            // helper, bound after by a pattern
-            expectRefused('const e = (a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? x.value : undefined; }; const { Object } = {}; export default e;', 'capture shadowed', 127)
+            // and `Object`, a reserved global, bound by a pattern after an
+            // `entry` helper read it
+            expectRefused('const e = (a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? x.value : undefined; }; const { Object } = {}; export default e;', 'reserved word', 127)
             // the statement before it, written without its `;`, still ends
             // at a newline and not at a pattern on the same line
             expectRefused('const x = {}; const [a] = x const { b } = x; export default [a, b];', 'unexpected token', 29)

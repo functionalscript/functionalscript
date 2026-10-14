@@ -69,9 +69,13 @@ export const literalWords = /** @type {const} */ ([
  * keywords: a module may not bind, assign or shadow one, and none is a
  * value a module can name — each is spelled only where the language admits
  * it: `Array` as the right operand of `instanceof`
- * ([spec: instanceof](../../../spec/README.md#instanceof)), and `Number` as
+ * ([spec: instanceof](../../../spec/README.md#instanceof)), `Number` as
  * the callee of the conversion `Number(exp)`
  * ([spec: number conversion](../../../spec/README.md#number-conversion)),
+ * `Object` as the namespace of `Object.is`, the one static function
+ * [`../static`](../static/module.f.js) admits, and the `entry` helper's
+ * `Object.getOwnPropertyDescriptor`
+ * ([spec: built-in static functions](../../../spec/README.md#built-in-static-functions)),
  * and `String` as the callee of the conversion `String(exp)`
  * ([spec: string conversion](../../../spec/README.md#string-conversion)).
  * The first names under
@@ -82,7 +86,7 @@ export const literalWords = /** @type {const} */ ([
  * parser asks {@link isReservedGlobal} beside {@link isKeyword} where a
  * name is bound or referenced.
  */
-export const reservedGlobals = /** @type {const} */ (['Array', 'Number', 'String'])
+export const reservedGlobals = /** @type {const} */ (['Array', 'Number', 'Object', 'String'])
 
 /** The four groups in declaration order, each name once. */
 const groups = [...reservedWords, ...strictModeReservedWords, ...restrictedNames, ...literalGlobals]

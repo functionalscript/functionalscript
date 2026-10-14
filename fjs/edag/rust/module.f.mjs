@@ -915,17 +915,6 @@ const printer = (nested, arg = argRead, frame = frameRead, base = 0) => shared =
         if (id === 'entry') {
             return ok(cat(['A::static_function(|_self, args| Any::entry(', argRead(0), ', ', argRead(1), '), ', num('2'), ', ', vm('Array'), `::default(), ${textExpr(e)})`, toAny]))
         }
-        // A static function: `nanvm-lib`'s `static_binding`, the VM's
-        // binding for the path — `IVm::runtime_static`, the compiled
-        // runtime's body — or the failure naming it, which the call's `?`
-        // propagates. A key no `&str` holds has no spelling, and is refused.
-        if (id === 'static') {
-            const keys = /** @type {readonly string[]} */ (a).map(stringLiteral)
-            const refused = keys.findIndex(r => r[0] === 'error')
-            return refused !== -1
-                ? error(['no Rust for a static path key no &str holds', a[refused]])
-                : ok(cat([vm('static_binding'), `::<A>(&[${keys.map(r => str(/** @type {string} */ (r[1]))).join(', ')}])`]))
-        }
         // Slot `i` of the frame the function was built with, `frame`:
         // {@link frameRead} unless the scope is a loop in place's round.
         if (id === 'frame') { return frame(a) }
@@ -1119,6 +1108,12 @@ const printer = (nested, arg = argRead, frame = frameRead, base = 0) => shared =
      */
     const bare = e => {
         const [id, a, b, c] = e
+        // A static function as a value: `nanvm-lib`'s `static_binding`,
+        // the VM's binding for its path — `IVm::runtime_static`, the
+        // compiled runtime's body — or the failure naming it, a `Result`
+        // as every operation's is, here where a block answers it as well
+        // as where a `let` reads it.
+        if (id === 'Object.is') { return ok(cat([vm('static_binding'), '::<A>(&["Object", "is"])'])) }
         // A chain: the node's entry point, then its continuation's steps,
         // then the exit — `Any::dot(a, key).end()` for a bare `a.b`, one
         // spelling whether or not a continuation follows. What the read
@@ -1283,7 +1278,7 @@ const printer = (nested, arg = argRead, frame = frameRead, base = 0) => shared =
      *
      * @type {(n: Exp) => (s: string) => string}
      */
-    const checked = n => s => isChain(tagOf(n)) || tagOf(n) === '()' || tagOf(n) === '[]' || tagOf(n) === 'static' ? `${s}?` : `(${s})?`
+    const checked = n => s => isChain(tagOf(n)) || tagOf(n) === '()' || tagOf(n) === '[]' || tagOf(n) === 'Object.is' ? `${s}?` : `(${s})?`
     /**
      * The `Result` an argument list's thunk answers: the array it builds,
      * `Ok(…)`, or `spread_array`'s own, which may throw, where it holds a
@@ -1541,8 +1536,7 @@ export const holdsFunction = root => visit(withBodies)([])(root)
 const operandsOf = node => {
     const [id] = node
     return id === '=>' ? /** @type {readonly unknown[]} */ (node[2])
-        // a static's path is metadata, not an operand
-        : id === 'arg' || id === 'entry' || id === 'static' ? []
+        : id === 'arg' || id === 'entry' ? []
         // the constructor name is metadata, not a string-literal operand
         : id === 'instanceof' ? [node[1]]
         : id === ',' ? /** @type {readonly unknown[]} */ (node[1])

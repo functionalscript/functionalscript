@@ -24,7 +24,9 @@ today. Implemented reserved globals are `Infinity`, `NaN` and `undefined`
 conversions `Number(exp)` and `String(exp)` alone, their words reserved
 ([number conversion](../README.md#number-conversion),
 [string conversion](../README.md#string-conversion)), and `Array`, as the
-right operand of [`instanceof`](../README.md#instanceof). Other global uses need
+right operand of [`instanceof`](../README.md#instanceof), and `Object`, as the
+namespace of `Object.is` alone, a value
+([built-in static functions](../README.md#built-in-static-functions)). Other global uses need
 a complete recognized pattern; an unrecognized global is refused as an
 unbound name (`const not found`), so
 `export default isFinite(1);` does not compile yet. An unticked box is a
@@ -52,9 +54,13 @@ name not yet decided, or, where it says so, never admitted.
 
 ### Fundamental Objects
 
-- [x] `Object` — `Object.is(a, b)` is proposed as the first static call,
-      its body in the runtime
-      ([`fjs/js/todo/runtime-static.md`](../../fjs/js/todo/runtime-static.md))
+- [x] `Object` — `Object.is` is implemented, the first static function: a
+      value, read in every spelling of the access and through
+      `const { is } = Object`, its body in the runtime, the word reserved
+      ([built-in static functions](../README.md#built-in-static-functions),
+      [`fjs/js/todo/runtime-static.md`](../../fjs/js/todo/runtime-static.md)).
+      The namespace's other members stay unticked, each an admission of
+      its own
 - [ ] `Function`
 - [ ] `Boolean`
 - [ ] `Symbol`
