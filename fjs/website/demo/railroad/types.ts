@@ -6,6 +6,9 @@
  * @module
  */
 
+import type { Rule } from '../../../ebnf/types.ts'
+import type { Alphabet } from '../../../ebnf/railroad/types.ts'
+
 /**
  * One piece of track. A diagram is read left to right, and every piece is
  * entered on the left and left on the right, on one horizontal line: its
@@ -46,3 +49,34 @@ export type Diagram =
  * one a diagram draws.
  */
 export type BoxKind = Extract<Diagram, readonly [string, string]>[0]
+
+/**
+ * A rule a grammar's page draws, under its title:
+ *
+ * - `[title, rule]` — a source rule, the grammar itself or one it reaches;
+ * - `[title, rule, tag]` — the branch `tag` of the source variant `rule`,
+ *   a rule the grammar writes inline rather than names.
+ */
+export type Selection =
+    | readonly [string, Rule]
+    | readonly [string, Rule, string]
+
+/**
+ * What `grammarDemo` needs to draw a grammar's page:
+ *
+ * - `grammar` — the rule the page draws, lowered once;
+ * - `alphabet` — what its symbols are: their labels, and which join into
+ *   one literal;
+ * - `description` — the intro's first clause, saying what the grammar is;
+ * - `guide` — the intro's last sentence, saying how to read the diagrams:
+ *   a page over text passes `codePointGuide`, and a page over tokens says
+ *   what its category pills are;
+ * - `selections` — the diagrams, in the order the page shows them.
+ */
+export type GrammarPage = {
+    readonly grammar: Rule
+    readonly alphabet: Alphabet
+    readonly description: string
+    readonly guide: string
+    readonly selections: readonly Selection[]
+}
