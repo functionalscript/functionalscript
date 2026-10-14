@@ -81,6 +81,63 @@ host. Nothing the compiler imports reads a generated file: `npm run gen`
 deletes every `gen.*` before it regenerates, and a generator whose own
 imports needed one could not start.
 
+## How it is compiled and used
+
+One source, three forms, and each executor runs the one it can:
+
+```mermaid
+flowchart LR
+    src["fjs/js/runtime/module.f.js<br/>the source"]
+    compiler["fjs compile<br/>on the host engine, no runtime needed"]
+    host["host function<br/>import"]
+    edag["gen.edag.data.mjs<br/>EDAG"]
+    rust["nanvm/lib/src/vm/gen.runtime.rs<br/>Rust"]
+    proof["runtime proof<br/>the body on host values"]
+    corpus["corpus proofs<br/>evaluate once, pass as the context's runtime"]
+    harness["harness<br/>interpretWith, compiled live"]
+    interpreter["EDAG interpreter<br/>amnesia and memo"]
+    naive["naive<br/>IVm::runtime_method"]
+    step["a call step<br/>own property, native, body, TypeError"]
+    src -->|import| host --> proof
+    src --> compiler
+    compiler -->|npm run gen| edag --> corpus --> interpreter
+    src -->|interpret| harness --> interpreter
+    compiler -->|npm run gen| rust --> naive
+    interpreter --> step
+    naive --> step
+```
+
+The host function is what `import` gives and runs on host values only;
+the runtime's own proof uses it and nothing else does. The EDAG is what
+the interpreter uses: a consumer evaluates it once to the module's export
+object and passes that in the executor's context, or, where it already
+has the compiler loaded, interprets the source on the spot, as the
+harness does. The Rust is what NaNVM binds. Whatever the form, a call
+step resolves the same way: the receiver's own property, the VM's native
+implementation, the runtime's body, the `TypeError`.
+
+## Two invariants
+
+The shape is a bootstrap — the compiler writes the runtime, and a
+compiled compiler runs under it — and two invariants keep it from being a
+cycle:
+
+- **Compiling needs no runtime; only running does.** Parsing and lowering
+  run no body. The host engine runs the compiler as JavaScript, its own
+  built-ins answering the compiler's `.map` and `.slice`, so `npm run gen`
+  can delete every generated file and still write the runtime's EDAG and
+  Rust from source. A runtime is needed to *run*: an executor evaluating a
+  module whose initialization calls a body's name, or the compiler itself
+  once compiled and run on a VM, where the runtime the previous compiler
+  wrote is the fixed point. An optimizing pass that evaluated at compile
+  time would be the one place the compiler runs bodies; it takes the
+  runtime as an input, as the executors do, and folds nothing a body
+  answers when given none, so the runtime is always compiled with no
+  runtime, whatever the pass does elsewhere.
+- **The runtime's initialization calls no member function.** It builds
+  closures and nothing else, so it can be interpreted from nothing, which
+  is what loading it from source relies on.
+
 ## Giving a name its body
 
 1. Write the body here, with its proof case by case, and `npm start
