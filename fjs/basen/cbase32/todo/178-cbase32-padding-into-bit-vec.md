@@ -1,7 +1,7 @@
 ## 178. `cbase32`: move bit-vector padding/trailing-zero logic into `bit_vec`
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 `fjs/basen/cbase32/module.f.mjs` hand-rolls two pieces of pure bit-vector arithmetic
 that are conceptually `bit_vec` operations, not Base32 semantics: padding a
