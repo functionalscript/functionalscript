@@ -2,17 +2,16 @@
 //! shares in `method`: the formatters, whose contracts are
 //! `vm/string/README.md`'s and whose arithmetic is `vm/number/format.rs`'s.
 
-use super::method::{Method, argument, lookup};
+use super::method::{Method, argument};
 use crate::vm::{Any, Array, IVm, Nullish, Number, ToAny, Unpacked};
 
 /// `Number.prototype`'s.
-pub(super) fn number<A: IVm>(key: &Any<A>) -> Option<Method<A>> {
-    let table: [(&str, Method<A>); 3] = [
+pub(super) fn number<A: IVm>() -> [(&'static str, Method<A>); 3] {
+    [
         ("toExponential", to_exponential),
         ("toFixed", to_fixed),
         ("toPrecision", to_precision),
-    ];
-    lookup(table, key)
+    ]
 }
 
 /// The receiver `method` matched as a number, so the conversion cannot throw.

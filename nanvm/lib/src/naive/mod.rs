@@ -28,6 +28,12 @@ impl IVm for Naive {
     fn to_unpacked(self) -> Unpacked<Self> {
         self.0
     }
+
+    /// The compiled runtime's entry: `naive` makes a function out of a Rust
+    /// static function, which every compiled body is.
+    fn runtime_method(type_name: &str, key: &Any<Naive>) -> Option<Any<Naive>> {
+        crate::vm::runtime_method(type_name, key)
+    }
 }
 
 /// `naive` holds a static function, and makes a function no other way.

@@ -14,30 +14,39 @@ import { fixturesDirectory as corpusDirectory } from '../corpus/module.f.mjs'
 import { directory, expectedDirectory, expectedModules, expectedModulesPath, fixtures, fixturesDirectory, generateAll, generateExpected, generateFixtures, main, modules, modulesPath, rustName } from './module.f.mjs'
 
 /**
- * Four fixtures and the things the walk must leave alone: a file that is not
+ * A stand-in for `fjs/js/runtime`, at its path: a `startsWith` body
+ * answering `7` whatever it is called on, so an expectation that holds `7`
+ * was computed by the body. The expectations read the runtime from this
+ * file, so every root below carries it.
+ *
+ * @type {(fixtures: Dir) => Dir}
+ */
+const withRuntime = fixtures => ({
+    'nanvm': { 'harness': { 'fixtures': fixtures } },
+    'fjs': { 'js': { 'runtime': { 'module.f.js': [utf8('export const runtime = { string: { startsWith: () => 7 } };')] } } },
+})
+
+/**
+ * Five fixtures and the things the walk must leave alone: a file that is not
  * a module, a subdirectory, and the file system's own order, which is not the
  * sorted one. `function-scope.mjs` and `function.mjs` sort one way as file
  * names and the other as Rust names, and `rustfmt` wants the latter.
+ * `starts-with.mjs` initializes through the runtime's body.
  *
  * @type {Dir}
  */
-const root = {
-    'nanvm': {
-        'harness': {
-            'fixtures': {
-                'rest-function.mjs': [utf8('export default 2;')],
-                'README.md': [utf8('# fixtures')],
-                'function-scope.mjs': [utf8('export default 4;')],
-                'helpers': { 'nested.mjs': [utf8('export default 3;')] },
-                'function.mjs': [utf8('export default 5;')],
-                'at.mjs': [utf8('export default 1;')],
-            },
-        },
-    },
-}
+const root = withRuntime({
+    'rest-function.mjs': [utf8('export default 2;')],
+    'README.md': [utf8('# fixtures')],
+    'function-scope.mjs': [utf8('export default 4;')],
+    'helpers': { 'nested.mjs': [utf8('export default 3;')] },
+    'function.mjs': [utf8('export default 5;')],
+    'starts-with.mjs': [utf8("export default 'abc'.startsWith('a');")],
+    'at.mjs': [utf8('export default 1;')],
+})
 
 /** The fixtures above as Rust module names, in the order `mod.rs` lists them. @type {readonly string[]} */
-const names = ['at', 'function', 'function_scope', 'rest_function']
+const names = ['at', 'function', 'function_scope', 'rest_function', 'starts_with']
 
 /** @type {(dir: Dir, path: readonly string[]) => Dir} */
 const into = (dir, path) => path.reduce((d, name) => {
@@ -61,7 +70,7 @@ export const proof = {
     // whatever order the listing came in.
     fixtures: () => {
         const [, result] = virtual({ ...emptyState, root })(fixtures())
-        assertEq(assertOk(result).join(','), 'at.mjs,function.mjs,function-scope.mjs,rest-function.mjs')
+        assertEq(assertOk(result).join(','), 'at.mjs,function.mjs,function-scope.mjs,rest-function.mjs,starts-with.mjs')
     },
     modules: () => {
         assertEq(modules(['at', 'rest_function']), [
@@ -85,7 +94,7 @@ export const proof = {
         const [state, result] = virtual({ ...emptyState, root })(generateFixtures())
         assertOk(result)
         const written = into(state.root, directory.split('/'))
-        assertEq(Object.keys(written).toSorted().join(','), 'at.rs,function.rs,function_scope.rs,mod.rs,rest_function.rs')
+        assertEq(Object.keys(written).toSorted().join(','), 'at.rs,function.rs,function_scope.rs,mod.rs,rest_function.rs,starts_with.rs')
         const [, modRs] = virtual(state)(readUtf8File(modulesPath))
         assertEq(assertOk(modRs), modules(names))
         const [, atRs] = virtual(state)(readUtf8File(`${directory}/at.rs`))
@@ -94,10 +103,7 @@ export const proof = {
     // A fixture the compiler refuses stops the sequence before `mod.rs` is
     // written: a list naming a module that does not exist would not build.
     generateFixturesStopsAtARefusedFixture: () => {
-        /** @type {Dir} */
-        const broken = {
-            'nanvm': { 'harness': { 'fixtures': { 'a.mjs': [utf8('export default 1;')], 'b.mjs': [utf8('export default (')] } } },
-        }
+        const broken = withRuntime({ 'a.mjs': [utf8('export default 1;')], 'b.mjs': [utf8('export default (')] })
         const [state, result] = virtual({ ...emptyState, root: broken })(generateFixtures())
         assertEq(result[0], 'error')
         const written = into(state.root, directory.split('/'))
@@ -106,28 +112,40 @@ export const proof = {
     // No fixtures at all still leaves a `mod.rs`, so `src/lib.rs` has a file
     // to include.
     generateFixturesWithNoFixtures: () => {
-        /** @type {Dir} */
-        const none = { 'nanvm': { 'harness': { 'fixtures': {} } } }
+        const none = withRuntime({})
         const [state, result] = virtual({ ...emptyState, root: none })(step(generateFixtures(), () => readUtf8File(modulesPath)))
         assertEq(assertOk(result), modules([]))
         assertEq(Object.keys(into(state.root, directory.split('/'))).join(','), 'mod.rs')
     },
     // The corpus only: `function.mjs` and `rest-function.mjs` are excepted, so
-    // they get no expectation and `mod.rs` does not name them.
+    // they get no expectation and `mod.rs` does not name them. The
+    // `startsWith` fixture's expectation is the runtime body's answer.
     generateExpected: () => {
         const [state, result] = virtual({ ...emptyState, root })(generateExpected())
         assertOk(result)
         const written = into(state.root, expectedDirectory.split('/'))
-        assertEq(Object.keys(written).toSorted().join(','), 'at.rs,function_scope.rs,mod.rs')
+        assertEq(Object.keys(written).toSorted().join(','), 'at.rs,function_scope.rs,mod.rs,starts_with.rs')
         const [, modRs] = virtual(state)(readUtf8File(expectedModulesPath))
-        assertEq(assertOk(modRs), expectedModules(['at', 'function_scope']))
+        assertEq(assertOk(modRs), expectedModules(['at', 'function_scope', 'starts_with']))
         const [, atRs] = virtual(state)(readUtf8File(`${expectedDirectory}/at.rs`))
         assert(assertOk(atRs).startsWith('// Expectation of `nanvm/harness/fixtures/at.mjs`'))
+        const [, startsWithRs] = virtual(state)(readUtf8File(`${expectedDirectory}/starts_with.rs`))
+        assert(assertOk(startsWithRs).includes('f64_any(0x401c000000000000)'))
+    },
+    // No runtime to load, or one exporting no object, is the generator's
+    // failure, before any expectation is written.
+    generateExpectedWithoutARuntime: () => {
+        /** @type {Dir} */
+        const missing = { 'nanvm': { 'harness': { 'fixtures': { 'at.mjs': [utf8('export default 1;')] } } } }
+        const [state, result] = virtual({ ...emptyState, root: missing })(generateExpected())
+        assertEq(result[0], 'error')
+        assertEq(Object.keys(into(state.root, expectedDirectory.split('/'))).join(','), '')
+        const notAnObject = { ...missing, 'fjs': { 'js': { 'runtime': { 'module.f.js': [utf8('export const runtime = 1;')] } } } }
+        assertEq(virtual({ ...emptyState, root: notAnObject })(generateExpected())[1][0], 'error')
     },
     // A fixture that throws is expected to throw, not refused.
     generateExpectedForAThrowingFixture: () => {
-        /** @type {Dir} */
-        const throwing = { 'nanvm': { 'harness': { 'fixtures': { 't.mjs': [utf8('throw 1;')] } } } }
+        const throwing = withRuntime({ 't.mjs': [utf8('throw 1;')] })
         const [state, result] = virtual({ ...emptyState, root: throwing })(generateExpected())
         assertOk(result)
         const [, tRs] = virtual(state)(readUtf8File(`${expectedDirectory}/t.rs`))
@@ -136,10 +154,7 @@ export const proof = {
     // A fixture the interpreter cannot load stops the sequence before `mod.rs`
     // is written, as for the compiled fixtures.
     generateExpectedStopsAtAFixtureItCannotLoad: () => {
-        /** @type {Dir} */
-        const broken = {
-            'nanvm': { 'harness': { 'fixtures': { 'a.mjs': [utf8('export default 1;')], 'b.mjs': [utf8('export default (')] } } },
-        }
+        const broken = withRuntime({ 'a.mjs': [utf8('export default 1;')], 'b.mjs': [utf8('export default (')] })
         const [state, result] = virtual({ ...emptyState, root: broken })(generateExpected())
         assertEq(result[0], 'error')
         const written = into(state.root, expectedDirectory.split('/'))
@@ -147,8 +162,7 @@ export const proof = {
     },
     // No corpus fixtures at all still leaves a `mod.rs`.
     generateExpectedWithNoCorpus: () => {
-        /** @type {Dir} */
-        const excepted = { 'nanvm': { 'harness': { 'fixtures': { 'function.mjs': [utf8('export default () => 1;')] } } } }
+        const excepted = withRuntime({ 'function.mjs': [utf8('export default () => 1;')] })
         const [state, result] = virtual({ ...emptyState, root: excepted })(step(generateExpected(), () => readUtf8File(expectedModulesPath)))
         assertEq(assertOk(result), expectedModules([]))
         assertEq(Object.keys(into(state.root, expectedDirectory.split('/'))).join(','), 'mod.rs')

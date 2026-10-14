@@ -26,7 +26,11 @@ compile time:
 
 ✅ means allowed and ❌ prohibited. The lists are ECMAScript 2025's, Annex B
 included, string keys only; they grow with the language's types — `Map` and
-`Set` would add their prototypes here.
+`Set` would add their prototypes here. An allowed call is answered by a
+body written once in FunctionalScript, in
+[`js/runtime`](../runtime/README.md), keyed by receiver type and name and
+pinned inside these lists, or, until its body is written, by each VM's own
+native implementation.
 
 | name | read | call | where, why |
 |---|---|---|---|
@@ -102,7 +106,7 @@ included, string keys only; they grow with the language's types — `Map` and
 | `sort` | ❌ | ❌ | Array. Mutates. `toSorted` is the pure form. |
 | `splice` | ❌ | ❌ | Array. Mutates. `toSpliced` is the pure form. |
 | `split` | ❌ | ✅ | String. Pure with a string separator, the only one this language can spell. |
-| `startsWith` | ❌ | ✅ | String. Pure. |
+| `startsWith` | ❌ | ✅ | String. Pure. Defined once, in [`js/runtime`](../runtime/module.f.js). |
 | `strike` | ❌ | ❌ | String. Annex B. Legacy HTML wrapper. |
 | `sub` | ❌ | ❌ | String. Annex B. Legacy HTML wrapper. |
 | `substr` | ❌ | ❌ | String. Annex B. Deprecated alias of `substring` and `slice`. |

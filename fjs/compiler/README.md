@@ -93,16 +93,24 @@ imports retain the selected export in `AstImport.name`; aliases resolve to the
 same selected value, and `name: null` anchors an empty import list. A declaration
 with several bindings contributes one record per selection, all resolved through
 the same host module identity.
-`interpret(path)` in [`transpiler`](./transpiler/module.f.mjs) loads imports,
-then evaluates each module's unresolved EDAG with their complete represented
-export objects as arguments. Its successful result is an `EdagValue`; each
-module identity is evaluated once, and imported values keep their identity.
-An initialization failure retains its represented `thrown` payload and source
-path. The CLI reports `module initialization failed` at that path; parse and
-resolution errors keep their existing diagnostics.
+`interpret(load)(path)` in [`transpiler`](./transpiler/module.f.mjs) loads
+imports, then evaluates each module's unresolved EDAG with their complete
+represented export objects as arguments. `load` is the runtime the
+initializations run under, a `RuntimeLoad` run once the root is known to be
+a module: `packageRuntime(packageRoot)` for the package's own
+[`fjs/js/runtime`](../js/runtime/README.md), whose bodies answer the member
+functions the interpreter has no native implementation of; `pureOk(runtime)`
+for a runtime the caller holds; or `noRuntime`, under which a module whose
+initialization calls such a name fails to initialize. Its successful result
+is an `EdagValue`; each module identity is evaluated once, and imported
+values keep their identity. An initialization failure retains its
+represented `thrown` payload and source path. The CLI reports `module
+initialization failed` at that path; parse and resolution errors keep their
+existing diagnostics.
 
-`transpile(path)` composes `interpret` with `toUnknown` and returns the complete
-ordinary runtime value, including callable exports, with EDAG reflection erased:
+`transpile(load)(path)` composes `interpret` with `toUnknown` and returns the
+complete ordinary runtime value, including callable exports, with EDAG
+reflection erased:
 
 ```ts
 Effect<ReadWhole | ResolveFileModule | CompileValue, unknown, SourceError | IoChannel>
@@ -113,9 +121,9 @@ no compile/load operation. Source failures retain their paths and represented
 payloads; runtime compilation failures use `IoChannel`, including
 `['notImplemented', 'compileValue']` when a partial runner lacks the operation.
 
-JSON/DataJS output uses `_transpileDefault`, which initializes the complete
-module before selecting its represented default and applying synchronous
-`toData`. Every required dependency and initializer runs, including an unused
+JSON/DataJS output uses `_transpileDefault(load)`, which initializes the
+complete module, under the same `load`, before selecting its represented
+default and applying synchronous `toData`. Every required dependency and initializer runs, including an unused
 `const` or an unselected named export. Its inner `Result` separates a conversion
 refusal from a source failure. This allows
 `export const f = x => x; export default 1;` to produce JSON `1`, while a callable

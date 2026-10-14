@@ -935,6 +935,11 @@ export type Env = StringMap<string>
  *   `csiWrite` to decide whether to strip ANSI SGR sequences.
  * - `testContext`: the host-selected external test context. Node and Deno use
  *   native registration; Bun's adapter runs nested tests inline.
+ * - `packageRoot`: the directory of the package the program runs from, in
+ *   the repository's portable path format — the repository checkout, or
+ *   the installed package — where the program's own sources are, among
+ *   them `fjs/js/runtime/module.f.js`, which `fjs compile` interprets a
+ *   data output under.
  */
 export type NodeProgramOptions = {
     readonly args: readonly string[]
@@ -942,6 +947,7 @@ export type NodeProgramOptions = {
     readonly home: string
     readonly std: Std
     readonly testContext: TestContext
+    readonly packageRoot: string
 }
 
 /**

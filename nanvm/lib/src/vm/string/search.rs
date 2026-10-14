@@ -61,15 +61,6 @@ impl<A: IVm> String<A> {
         Ok((0..=start).rev().find(|&k| self.occurs_at(&needle, k)))
     }
 
-    /// `String.prototype.startsWith(search, pos)`
-    /// (<https://tc39.es/ecma262/#sec-string.prototype.startswith>): whether
-    /// `ToString(search)` occurs at `pos`, clamped into the string.
-    pub(crate) fn starts_with(&self, search: Any<A>, pos: Any<A>) -> Result<bool, Any<A>> {
-        let needle = search.to_string()?;
-        let k = clamped(pos.to_integer_or_infinity()?, self.length());
-        Ok(self.occurs_at(&needle, k))
-    }
-
     /// `String.prototype.endsWith(search, end)`
     /// (<https://tc39.es/ecma262/#sec-string.prototype.endswith>): whether
     /// `ToString(search)` occurs ending at `end`, clamped into the string, the
@@ -142,10 +133,8 @@ mod tests {
     }
 
     #[test]
-    fn starts_and_ends() {
+    fn ends() {
         let abc: String<A> = "abc".into();
-        assert_eq!(abc.starts_with(s("b"), n(1.0)), Ok(true));
-        assert_eq!(abc.starts_with(s("abcd"), Any::undefined()), Ok(false));
         assert_eq!(abc.ends_with(s("b"), n(2.0)), Ok(true));
         assert_eq!(abc.ends_with(s("c"), Any::undefined()), Ok(true));
         assert_eq!(abc.ends_with(s("abc"), n(2.0)), Ok(false));

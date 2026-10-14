@@ -46,7 +46,23 @@ import { error, ok, unwrap } from '../types/result/module.f.js'
 import { textDemo, refusal } from '../website/demo/module.f.mjs'
 import { highlight, render } from '../website/demo/highlight/module.f.mjs'
 import { examples } from './examples/module.f.js'
-import { _outputMarked, compile } from './module.f.mjs'
+import { _outputMarked, compileFile } from './module.f.mjs'
+import { vm } from '../edag/amnesia/module.f.mjs'
+import { read } from '../edag/value/property/module.f.mjs'
+import { errorMessage, pureOk } from '../effects/module.f.mjs'
+import runtimeEdag from '../js/runtime/gen.edag.data.mjs'
+
+/**
+ * The runtime a data output interprets the example under: `fjs/js/runtime`'s
+ * EDAG, which `npm run gen` writes beside its source, evaluated to its export
+ * object and read for `runtime`, as the corpus proofs do — the demo has no
+ * file system to load the source from.
+ *
+ * @type {import('./types.ts').RuntimeLoad}
+ */
+const runtime = pureOk(/** @type {import('../edag/value/types.ts').Runtime} */ (unwrap(read(
+    vm({ frame: [], args: [] })(/** @type {import('../edag/types.ts').Exp} */ (/** @type {unknown} */ (runtimeEdag))),
+    'runtime'))))
 
 /**
  * The outputs, each under the file name that selects its language: what a
@@ -72,7 +88,7 @@ export const outputs = [
  * @type {(text: string) => (outputFileName: string) => Result<Marked, string>}
  */
 export const _compiled = text => outputFileName => {
-    const result = unwrap(virtual({ ...emptyState, root: { 'input.f.js': [utf8(text)] } })(_outputMarked('input.f.js', outputFileName))[1])
+    const result = unwrap(virtual({ ...emptyState, root: { 'input.f.js': [utf8(text)] } })(_outputMarked(runtime)('input.f.js', outputFileName))[1])
     const [tag, value] = result
     if (tag === 'error') {
         const [message] = value
@@ -89,12 +105,12 @@ export const _compiled = text => outputFileName => {
  * @type {(text: string) => (outputFileName: string) => Result<string, string>}
  */
 export const _written = text => outputFileName => {
-    const [state, code] = virtual({ ...emptyState, root: { 'input.f.js': [utf8(text)] } })(
-        compile(nodeProgramOptions(['input.f.js', outputFileName])))
+    const [state, result] = virtual({ ...emptyState, root: { 'input.f.js': [utf8(text)] } })(
+        compileFile(runtime)('input.f.js', outputFileName))
     const file = state.root[outputFileName]
-    return exitCode(code) === 0 && Array.isArray(file) && file.length > 0
+    return result[0] === 'ok' && Array.isArray(file) && file.length > 0
         ? ok(utf8ToString(file[0]))
-        : error(state.stderr.trim())
+        : error(result[0] === 'error' ? errorMessage(result[1]) : '')
 }
 
 export const demo = textDemo({

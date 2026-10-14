@@ -1591,6 +1591,9 @@ export const defaultNodeProgramOptions = {
     home: '.',
     std: { stdout: { isTTY: false }, stderr: { isTTY: false } },
     testContext,
+    // the virtual root is the package: a proof that compiles a data output
+    // puts `fjs/js/runtime/module.f.js` there
+    packageRoot: '.',
 }
 
 /**
