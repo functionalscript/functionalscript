@@ -29,8 +29,7 @@ import { once } from 'node:events'
 import { constants as fsConstants } from 'node:fs'
 import process from 'node:process'
 import zlib from 'node:zlib'
-import { lstat, mkdir, mkdtemp, readFile, readdir, realpath, rm, symlink, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { lstat, mkdir, readFile, readdir, realpath, symlink, writeFile } from 'node:fs/promises'
 import { join, relative, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
@@ -46,14 +45,15 @@ import { utf8, utf8ToString } from '../../text/module.f.mjs'
 import { write as writeEnvelope } from '../../git/object/module.f.mjs'
 import { tagLoose, tagPayload } from '../../git/testlib.f.mjs'
 import {
-    awaitIfPromise, both, catch_, childWait, close, createServer, doubledLengthMessage, errorMessage,
+    awaitIfPromise, both, catch_, childWait, close, doubledLengthMessage, errorMessage,
     framingHeaderMessage, fstat, import_,
-    inflate, inflateTrailingCode, listen, open, pread, readWhole, rename, requestBodyOffsetMessage,
+    inflate, inflateTrailingCode, open, pread, readWhole, rename, requestBodyOffsetMessage,
     resolveFileModule, maxOffset, readBytes, rmdir, spawn, unframedBodyMessage, writeBytes, writeExclusive,
     writeFile as writeFileEffect,
 } from './module.f.mjs'
 import { _unreadableThrownValue } from '../module.mjs'
 import { _wrapInlineTest, readFlags, runEffect } from './module.mjs'
+import { isNode, loopback, within, withServer, withTemporary } from './testlib.mjs'
 
 /** @type {(program: NodeProgram) => Promise<number>} */
 const exitCode = runEffect
@@ -114,22 +114,6 @@ const fixtures = {
 }
 
 /**
- * A unique temporary directory for one proof, removed even when writing a
- * fixture, importing it or an assertion fails. Nothing a proof leaves behind
- * reaches the repository, its npm declarations or Cloudflare's asset manifest.
- *
- * @type {(prefix: string, check: (root: string) => Promise<void>) => Promise<void>}
- */
-const withTemporary = async (prefix, check) => {
-    const temporary = await mkdtemp(join(tmpdir(), prefix))
-    try {
-        await check(temporary)
-    } finally {
-        await rm(temporary, { recursive: true, force: true })
-    }
-}
-
-/**
  * The module-resolution tree, in a directory of its own so that native
  * module-cache keys differ between proofs. Deliberately unusual filenames stay
  * out of the repository.
@@ -184,90 +168,6 @@ const assertSameBytes = (actual, expected) => {
  * @type {(chunks: readonly Vec[]) => bigint}
  */
 const chunkLength = chunks => chunks.reduce((n, v) => n + byteLength(v), 0n)
-
-/** The address every proof here binds, for the reason `Listen` takes one. */
-const loopback = '127.0.0.1'
-
-/**
- * Fails rather than hangs.
- *
- * Every proof below is about a pump, and the failure mode a pump has is *not
- * finishing*: a park nothing releases, a body nobody pulls, a socket that never
- * closes. A proof that waited for such a thing would stop the whole suite with no
- * verdict, which is the one outcome worse than a red one. So each of them runs
- * inside a deadline that rejects, and the message says which wait it was.
- *
- * @template T
- * @param {string} label
- * @param {number} ms
- * @param {Promise<T>} p
- * @returns {Promise<T>}
- */
-const within = async (label, ms, p) => {
-    /** @type {ReturnType<typeof setTimeout> | undefined} */
-    let timer
-    try {
-        return await Promise.race([
-            p,
-            /** @type {Promise<never>} */ (new Promise((_, reject) => {
-                timer = setTimeout(() => reject(new Error(`${label}: nothing happened within ${ms} ms`)), ms)
-            })),
-        ])
-    } finally {
-        clearTimeout(timer)
-    }
-}
-
-/**
- * Runs `listener` behind a real socket, hands `client` the port it bound, and
- * closes the server afterwards whatever the client did.
- *
- * **The server is closed by this function and not by the program**, because
- * there is no operation that closes one: a `NodeProgram` answers an exit code,
- * so the handle is taken out of it here and unwrapped to the `http.Server`
- * underneath. That reach-through is why these proofs live in the impure shell
- * beside the runner rather than in a `.f.mjs`.
- *
- * Port `0` asks the host for a free one — a fixed port makes a proof fail when
- * something else on the machine happens to hold it. `fjs web` refusing `0` is
- * its own command-line policy and not this operation's.
- *
- * Connections are destroyed before the close, since half of these proofs leave a
- * keep-alive socket open on purpose and `server.close` waits for the last one.
- *
- * @template T
- * @param {Erl<NodeOp>} listener
- * @param {(port: number, server: Server) => Promise<T>} client
- * @returns {Promise<T>}
- */
-const withServer = async (listener, client) => {
-    /** @type {(server: Server) => void} */
-    let created = () => { }
-    /** @type {Promise<Server>} */
-    const held = new Promise(resolve => { created = resolve })
-    /** @type {NodeProgram} */
-    const program = () => resultMapStep(
-        step(
-            createServer(listener),
-            server => {
-                // The one cast, and the boundary the runner itself crosses the
-                // same way: a `Server` is a `Nominal` over the host's own
-                // object, and `asBase` is how the runner reads it back.
-                created(/** @type {Server} */ (asBase(server)))
-                return listen(server, 0, loopback)
-            }),
-        r => r[0] === 'ok' ? ok(0) : error(1))
-    assertEq(await runEffect(program), 0)
-    const server = await held
-    try {
-        const address = server.address()
-        assert(address !== null && typeof address !== 'string', address)
-        return await client(address.port, server)
-    } finally {
-        server.closeAllConnections()
-        await new Promise(resolve => { server.close(() => resolve(undefined)) })
-    }
-}
 
 /**
  * The chunks given, as a body already in hand: every cell is pure, so the whole
@@ -465,16 +365,6 @@ const overAnAgent = (port, method, body, agent) => new Promise((resolve, reject)
     request.on('error', e => { if (!answered) { reject(e) } })
     request.end(body ?? undefined)
 })
-
-/**
- * Whether this run is the one whose host behaviour the HTTP proofs below are
- * about. They bind a real socket and read what Node does with a body it was
- * given; Bun and Deno answer the same operations through their own `node:http`,
- * which is a separate claim and not this runner's.
- *
- * @type {() => boolean}
- */
-const isNode = () => !('Bun' in globalThis) && !('Deno' in globalThis)
 
 /**
  * What one ordinary request came back with: the status, the declared length, and
@@ -1541,7 +1431,8 @@ export const proof = {
                     async (port, server) => {
                         // The runner awaits the listener before pulling, so this
                         // observer sees the response before its first body cell.
-                        server.once('request', (_, res) => { response = res })
+                        // The host's own server, unwrapped as `withServer` does.
+                        /** @type {Server} */ (asBase(server)).once('request', (_, res) => { response = res })
                         const socket = net.connect(port, loopback, () => {
                             socket.write('GET / HTTP/1.1\r\nHost: x\r\n\r\n')
                         })

@@ -7,7 +7,7 @@
 import {
     catchStep, do_, finallyStep, foldStep, forEachStep, history, historyStep, mapStep, walkStep,
     match, orElse, partialMatch, pure, pureError, pureOk, refuse, resultMapStep, resultStep,
-    runPure, step, toIoError, unwrapStep,
+    runPure, step, toIoError, unwrapStep, commandsOf,
 } from './module.f.mjs'
 import { run as mockRun } from './mock/module.f.mjs'
 import { error, ok } from '../types/result/module.f.js'
@@ -338,6 +338,13 @@ export const proof = {
                 anyPartial(doAny('nope')(1))
             },
         },
+    },
+    // The list is the set's keys, in declaration order.
+    commandsOf: () => {
+        const [add, sub, ...rest] = commandsOf({ add: null, sub: null })
+        assertEq(add, 'add')
+        assertEq(sub, 'sub')
+        assertEq(rest.length, 0)
     },
     pureOk: () => {
         assertEq(assertOk(pureResult(pureOk(5))), 5)

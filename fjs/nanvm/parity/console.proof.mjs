@@ -8,12 +8,12 @@
  */
 
 import { spawn } from 'node:child_process'
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { assertEq } from '../../asserts/module.f.mjs'
+import { withTemporary } from '../../effects/node/testlib.mjs'
 import * as console_ from '../../../nanvm/harness/fixtures/console.mjs'
 
 // A path for the platform, not the URL's `pathname`, which is `/C:/...` on Windows
@@ -40,20 +40,15 @@ const perform = (name, input, file) => new Promise((resolve, reject) => {
 })
 
 /** @type {(name: string, c: { readonly input: readonly number[], readonly expected: unknown, readonly stdout: readonly number[], readonly stderr: readonly number[] }) => Promise<void>} */
-const check = async (name, { input, expected, stdout, stderr }) => {
-    const directory = await mkdtemp(join(tmpdir(), `nanvm-console-${name}-`))
-    try {
-        const file = join(directory, 'answers.json')
-        const written = await perform(name, input, file)
-        const [tag, answers] = JSON.parse(await readFile(file, 'utf8'))
-        assertEq(tag, 'ok', name)
-        assertEq(JSON.stringify(answers), JSON.stringify(expected), name)
-        assertEq(JSON.stringify([...written.stdout]), JSON.stringify(stdout), name)
-        assertEq(JSON.stringify([...written.stderr]), JSON.stringify(stderr), name)
-    } finally {
-        await rm(directory, { recursive: true, force: true })
-    }
-}
+const check = (name, { input, expected, stdout, stderr }) => withTemporary(`nanvm-console-${name}-`, async directory => {
+    const file = join(directory, 'answers.json')
+    const written = await perform(name, input, file)
+    const [tag, answers] = JSON.parse(await readFile(file, 'utf8'))
+    assertEq(tag, 'ok', name)
+    assertEq(JSON.stringify(answers), JSON.stringify(expected), name)
+    assertEq(JSON.stringify([...written.stdout]), JSON.stringify(stdout), name)
+    assertEq(JSON.stringify([...written.stderr]), JSON.stringify(stderr), name)
+})
 
 export const proof = Object.fromEntries(
     Object.entries(console_).map(([name, c]) => [name, () => check(name, c)]))

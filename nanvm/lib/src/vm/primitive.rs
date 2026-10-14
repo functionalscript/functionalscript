@@ -1,4 +1,4 @@
-use crate::vm::{BigInt, IVm, Number, String, Unpacked, nullish::Nullish};
+use crate::vm::{Any, BigInt, IVm, Number, String, Unpacked, nullish::Nullish};
 
 /// <https://developer.mozilla.org/en-US/docs/Glossary/Primitive>
 /// A primitive value is a subset of Unpacked that excludes Object, Array, and Function.
@@ -21,5 +21,11 @@ impl<A: IVm> From<Primitive<A>> for Unpacked<A> {
             Primitive::String(s) => Unpacked::String(s),
             Primitive::BigInt(i) => Unpacked::BigInt(i),
         }
+    }
+}
+
+impl<A: IVm> From<Primitive<A>> for Any<A> {
+    fn from(value: Primitive<A>) -> Self {
+        Unpacked::from(value).into()
     }
 }

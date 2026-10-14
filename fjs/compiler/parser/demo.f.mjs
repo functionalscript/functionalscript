@@ -28,29 +28,20 @@
 
 import { codeMarker } from '../../website/style/module.f.js'
 import { tryMarked } from '../../media/datajs/module.f.mjs'
-import { error } from '../../types/result/module.f.js'
-import { textDemo, refusal, caption } from '../../website/demo/module.f.mjs'
-import { highlight, render } from '../../website/demo/highlight/module.f.mjs'
-import { examples } from '../examples/module.f.js'
-import { parse } from '../transpiler/module.f.mjs'
+import { refusal, caption } from '../../website/demo/module.f.mjs'
+import { render } from '../../website/demo/highlight/module.f.mjs'
+import { parsed, stageDemo } from '../stage_demo/module.f.mjs'
 
 /**
  * `text` as its AST, in DataJS, or the parser's message.
  *
  * @type {(text: string) => Result<Marked, string>}
  */
-export const _astOf = text => {
-    const result = parse('')(text)
-    return result[0] === 'error' ? error(result[1].message) : tryMarked(result[1])
-}
+export const _astOf = parsed(tryMarked)
 
-export const demo = textDemo({
+export const demo = stageDemo({
     intro: 'Parses a FunctionalScript module and shows its abstract syntax tree as DataJS. The constants and imports describe the structure passed to the next compiler stage.',
     name: 'parser',
-    label: 'Source',
-    init: examples[0][1],
-    examples,
-    highlight,
 })(text => {
     const [kind, value] = _astOf(text)
     return kind === 'ok'

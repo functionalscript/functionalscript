@@ -12,27 +12,17 @@
  *   virtual file system's non-regular entry opens and is refused from its `fstat`,
  *   as a FIFO and a device are on a host. A Unix-domain socket is the kind whose
  *   `open` is what fails, and only a real one is.
- *
- * @import { NodeProgram, NodeOp } from '../effects/node/types.ts'
  */
 
 import http from 'node:http'
 import net from 'node:net'
 import process from 'node:process'
-import { lstat, mkdtemp, open, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { lstat, open } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { assert, assertEq } from '../asserts/module.f.mjs'
-import { createServer, listen } from '../effects/node/module.f.mjs'
-import { runEffect } from '../effects/node/module.mjs'
-import { resultMapStep, step } from '../effects/module.f.mjs'
-import { asBase } from '../types/nominal/module.f.js'
-import { error, ok } from '../types/result/module.f.js'
+import { isBun, loopback, within, withServer, withTemporary } from '../effects/node/testlib.mjs'
 import { respond } from './module.f.mjs'
-
-/** The address this binds, for the reason `Listen` takes one. */
-const loopback = '127.0.0.1'
 
 /**
  * The file the two byte-for-byte proofs read: sixteen 131,072-byte chunks and a
@@ -163,46 +153,6 @@ const writeFixture = async path => {
 }
 
 /**
- * Serves `root` behind a real socket and hands `client` the port, closing the
- * server afterwards whatever the client did.
- *
- * The server handle is taken out of the program and unwrapped to Node's own
- * object, because no operation closes a server — the same reach-through
- * [`../effects/node/proof.mjs`](../effects/node/proof.mjs) performs, and the
- * reason this file is not a `.f.mjs`.
- *
- * @template T
- * @param {string} root
- * @param {(port: number) => Promise<T>} client
- * @returns {Promise<T>}
- */
-const withServer = async (root, client) => {
-    /** @type {(server: import('node:http').Server) => void} */
-    let created = () => { }
-    /** @type {Promise<import('node:http').Server>} */
-    const held = new Promise(resolve => { created = resolve })
-    /** @type {NodeProgram} */
-    const program = () => resultMapStep(
-        step(
-            createServer(respond(root)),
-            server => {
-                created(/** @type {import('node:http').Server} */ (asBase(server)))
-                return listen(server, 0, loopback)
-            }),
-        r => r[0] === 'ok' ? ok(0) : error(1))
-    assertEq(await runEffect(program), 0)
-    const server = await held
-    try {
-        const address = server.address()
-        assert(address !== null && typeof address !== 'string', address)
-        return await client(address.port)
-    } finally {
-        server.closeAllConnections()
-        await new Promise(resolve => { server.close(() => resolve(undefined)) })
-    }
-}
-
-/**
  * Requests `name` over a raw socket and answers once the response **headers** are
  * in, or once the whole body is, depending on `stopAtTheHeaders`.
  *
@@ -282,8 +232,7 @@ const refusal = (port, name) => new Promise((resolve, reject) => {
  *
  * @type {(check: (root: string, name: string) => Promise<void>) => Promise<void>}
  */
-const withSocket = async check => {
-    const root = await mkdtemp(join(tmpdir(), 'fjs-web-socket-'))
+const withSocket = check => withTemporary('fjs-web-socket-', async root => {
     const server = net.createServer()
     try {
         const name = 'sock'
@@ -300,9 +249,8 @@ const withSocket = async check => {
         await check(root, name)
     } finally {
         await new Promise(resolve => { server.close(() => resolve(undefined)) })
-        await rm(root, { recursive: true, force: true })
     }
-}
+})
 
 /**
  * A temporary directory holding one file of {@link served} bytes, removed even
@@ -310,15 +258,10 @@ const withSocket = async check => {
  *
  * @type {(check: (root: string, name: string, expected: number) => Promise<void>) => Promise<void>}
  */
-const withLargeFile = async check => {
-    const root = await mkdtemp(join(tmpdir(), 'fjs-web-large-'))
-    try {
-        const name = 'large.bin'
-        await check(root, name, await writeFixture(join(root, name)))
-    } finally {
-        await rm(root, { recursive: true, force: true })
-    }
-}
+const withLargeFile = check => withTemporary('fjs-web-large-', async root => {
+    const name = 'large.bin'
+    await check(root, name, await writeFixture(join(root, name)))
+})
 
 /**
  * The same, for a file of {@link vast} bytes that nothing reads: a hole rather
@@ -326,23 +269,18 @@ const withLargeFile = async check => {
  *
  * @type {(check: (root: string, vastName: string, smallName: string) => Promise<void>) => Promise<void>}
  */
-const withVastFile = async check => {
-    const root = await mkdtemp(join(tmpdir(), 'fjs-web-vast-'))
-    try {
-        const vastName = 'vast.bin'
-        const fh = await open(join(root, vastName), 'w')
-        try { await fh.truncate(vast) } finally { await fh.close() }
-        // A file to warm the path up with, so the baseline is taken after the
-        // one-time cost of compiling `respond` rather than before it.
-        const smallName = 'small.bin'
-        const small = await open(join(root, smallName), 'w')
-        try { await small.write(Uint8Array.from({ length: 64 }, (_, i) => i)) }
-        finally { await small.close() }
-        await check(root, vastName, smallName)
-    } finally {
-        await rm(root, { recursive: true, force: true })
-    }
-}
+const withVastFile = check => withTemporary('fjs-web-vast-', async root => {
+    const vastName = 'vast.bin'
+    const fh = await open(join(root, vastName), 'w')
+    try { await fh.truncate(vast) } finally { await fh.close() }
+    // A file to warm the path up with, so the baseline is taken after the
+    // one-time cost of compiling `respond` rather than before it.
+    const smallName = 'small.bin'
+    const small = await open(join(root, smallName), 'w')
+    try { await small.write(Uint8Array.from({ length: 64 }, (_, i) => i)) }
+    finally { await small.close() }
+    await check(root, vastName, smallName)
+})
 
 /**
  * Whether Bun's own test runner is what is running this, because it gives one
@@ -365,30 +303,7 @@ const withVastFile = async check => {
  *
  * @type {boolean}
  */
-const bunGivesFiveSeconds = 'Bun' in globalThis
-
-/** Fails rather than hangs — see `within` in `../effects/node/proof.mjs`.
- *
- * @template T
- * @param {string} label
- * @param {number} ms
- * @param {Promise<T>} p
- * @returns {Promise<T>}
- */
-const within = async (label, ms, p) => {
-    /** @type {ReturnType<typeof setTimeout> | undefined} */
-    let timer
-    try {
-        return await Promise.race([
-            p,
-            /** @type {Promise<never>} */ (new Promise((_, reject) => {
-                timer = setTimeout(() => reject(new Error(`${label}: nothing happened within ${ms} ms`)), ms)
-            })),
-        ])
-    } finally {
-        clearTimeout(timer)
-    }
-}
+const bunGivesFiveSeconds = isBun
 
 export const proof = {
     // **A socket is answered exactly as an absent name is**, which is the whole
@@ -417,7 +332,7 @@ export const proof = {
     socketIsAnsweredAsAbsent: async () => {
         if (process.platform === 'win32') { return }
         await withSocket(async (root, name) => {
-            const [sock, absent] = await withServer(root, async port => [
+            const [sock, absent] = await withServer(respond(root), async port => [
                 await within('a socket', 30_000, refusal(port, name)),
                 await within('an absent name', 30_000, refusal(port, 'nope')),
             ])
@@ -432,7 +347,7 @@ export const proof = {
     // the digest is what checks. The client holds one slice at a time, as the
     // server does.
     servesEveryByteInOrder: () => withLargeFile(async (root, name, expected) => {
-        const answer = await withServer(root, port => within(
+        const answer = await withServer(respond(root), port => within(
             `a ${served}-byte body`,
             120_000,
             /** @type {Promise<{ readonly status: number, readonly length: string, readonly count: number, readonly digest: number, readonly parts: number }>} */
@@ -492,7 +407,7 @@ export const proof = {
     boundedByTheFstat: async () => {
         if (bunGivesFiveSeconds) { return }
         await withLargeFile(async (root, name, expected) => {
-            const answer = await withServer(root, port => within(
+            const answer = await withServer(respond(root), port => within(
                 'a body bounded by the fstat',
                 60_000,
                 /** @type {Promise<{ readonly count: number, readonly digest: number, readonly length: string }>} */
@@ -581,7 +496,7 @@ export const proof = {
     holdsNothingLikeTheFile: async () => {
         if (bunGivesFiveSeconds) { return }
         await withVastFile(async (root, vastName, smallName) => {
-            const held = await withServer(root, async port => {
+            const held = await withServer(respond(root), async port => {
                 await within('a warm-up request', 30_000, read(port, smallName, false))
                 const before = process.memoryUsage().rss
                 const answer = await within('a vast file', 30_000, read(port, vastName, true))

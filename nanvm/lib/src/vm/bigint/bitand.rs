@@ -9,17 +9,9 @@ impl<A: IVm> BitAnd for BigInt<A> {
     }
 }
 
-// TODO: The unit tests should not use `naive` or other VM implementations.
-//       We should move these tests into integration tests.
 #[cfg(test)]
 mod tests {
-    use crate::{naive::Naive, sign::Sign, vm::bigint::BigInt};
-
-    type T = BigInt<Naive>;
-
-    fn int(value: i64) -> T {
-        value.into()
-    }
+    use crate::vm::bigint::test_util::{int, neg};
 
     #[test]
     fn both_positive() {
@@ -56,9 +48,9 @@ mod tests {
         // and y's is 0xFFFFFFFF00000000, which AND to all-zero across that
         // single word — so decoding the negative result must carry a
         // brand-new second word into existence, giving -(2^64).
-        let x = T::unchecked_new(Sign::Negative, [0xFFFF_FFFF_0000_0001u64]);
-        let y = T::unchecked_new(Sign::Negative, [0x1_0000_0000u64]);
-        let expected = T::unchecked_new(Sign::Negative, [0u64, 1u64]);
+        let x = neg([0xFFFF_FFFF_0000_0001u64]);
+        let y = neg([0x1_0000_0000u64]);
+        let expected = neg([0u64, 1u64]);
         assert_eq!(x & y, expected);
     }
 }
