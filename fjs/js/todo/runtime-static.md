@@ -281,11 +281,15 @@ this proposal does not take.
       helper's intrinsic `Object` goes, since no scope can bind the word;
       the FunctionalScript writer spells the node back; the spec's
       reserved-word and built-in sections say so.
-- [ ] The corpus runs `Object.is` on the interpreter and on NaNVM.
-- [ ] NaNVM answers one function for every read: `naive` evaluates the
-      runtime on each lookup, so `Object.is` read in two invocations is
-      two closures there, and `===` between them is `false` where
-      JavaScript and the interpreter say `true`.
+- [x] The corpus runs `Object.is` on the interpreter and on NaNVM:
+      `nanvm/harness/fixtures/object-is.mjs`, Node against the
+      interpreter and NaNVM against the interpreter's expectation.
+- [x] NaNVM answers one function for every read: `naive` holds the
+      runtime object per thread, `vm::runtime_object` evaluated on the
+      thread's first lookup, where it evaluated the module on each lookup
+      and `Object.is` read in two invocations was two closures there; the
+      Rust backend prints the read where a block answers it, as a
+      function's body that returns it.
 - [ ] Decide `String.fromCharCode` in `2360-built-in.md`; admitted, it is
       the native primitive, and the casing pair follows as bodies over a
       generated casing table.

@@ -1,12 +1,13 @@
 //! The runtime, `fjs/js/runtime`, bound: the module `npm run gen` compiles
 //! from it into `gen.runtime.rs` beside this file, through the compiler's
-//! Rust backend, [`runtime_method`], which reads the compiled object's
-//! entry for a receiver type and a key, and [`runtime_static`], which reads
-//! its `static` section at a path. A VM with static functions, which
-//! every compiled function is, answers [`IVm::runtime_method`] with it; the
-//! native tables in `vm/lambda` keep every name without a body, and may
-//! keep a name that has one where a measurement justifies the second
-//! implementation.
+//! Rust backend; [`runtime_object`], its `runtime` export evaluated;
+//! [`runtime_method`], which reads that object's entry for a receiver type
+//! and a key; and [`runtime_static`], which reads its `static` section at a
+//! path. A VM with static functions, which every compiled function is,
+//! holds the object and answers [`IVm::runtime_method`] and
+//! [`IVm::runtime_static`] from it; the native tables in `vm/lambda` keep
+//! every name without a body, and may keep a name that has one where a
+//! measurement justifies the second implementation.
 
 use crate::vm::{Any, IStaticFunction, IVm, Unpacked};
 
@@ -15,13 +16,22 @@ use crate::vm::{Any, IStaticFunction, IVm, Unpacked};
 #[path = "gen.runtime.rs"]
 mod compiled;
 
-/// The function value at a path of keys into the compiled runtime's
-/// export object, `None` where a key is missing, a step is no object, or
-/// the end is no function. The module is evaluated on every call; a VM
-/// that measures the cost may hold the object instead.
-fn at<A: IStaticFunction>(path: impl IntoIterator<Item = Any<A>>) -> Option<Any<A>> {
-    let module = compiled::module::<A>().ok()?;
-    let mut value = Any::dot(module, "runtime".into()).end().ok()?;
+/// The compiled module's `runtime` export, evaluated, or `None` where the
+/// module fails: the object a VM holds and reads every body from. Its
+/// evaluation builds closures and runs no body, so it never asks the VM
+/// for a binding. A VM holds one object, not one per lookup, so a body
+/// read twice is one function: `Object.is === Object.is`, as JavaScript
+/// and the represented interpreter answer.
+pub fn runtime_object<A: IStaticFunction>() -> Option<Any<A>> {
+    Any::dot(compiled::module::<A>().ok()?, "runtime".into())
+        .end()
+        .ok()
+}
+
+/// The function value at a path of keys into the runtime object, `None`
+/// where a key is missing, a step is no object, or the end is no function.
+fn at<A: IVm>(runtime: Any<A>, path: impl IntoIterator<Item = Any<A>>) -> Option<Any<A>> {
+    let mut value = runtime;
     for key in path {
         value = Any::dot(value, key).end().ok()?;
     }
@@ -31,20 +41,24 @@ fn at<A: IStaticFunction>(path: impl IntoIterator<Item = Any<A>>) -> Option<Any<
     }
 }
 
-/// The body the runtime holds under the receiver type and the key, if a
-/// function: `runtime.member[type_name][key]` of the compiled module's
-/// export object. `None` for a name the type's object lacks, for a type
-/// the section does not key, and for an entry that is no function.
-pub fn runtime_method<A: IStaticFunction>(type_name: &str, key: &Any<A>) -> Option<Any<A>> {
-    at(["member".into(), type_name.into(), key.clone()])
+/// The body `runtime`, a [`runtime_object`], holds under the receiver
+/// type and the key, if a function: `runtime.member[type_name][key]`.
+/// `None` for a name the type's object lacks, for a type the section does
+/// not key, and for an entry that is no function.
+pub fn runtime_method<A: IVm>(runtime: Any<A>, type_name: &str, key: &Any<A>) -> Option<Any<A>> {
+    at(runtime, ["member".into(), type_name.into(), key.clone()])
 }
 
-/// The body the runtime's `static` section holds at `path`, if a function:
-/// `runtime.static.Object.is` for `["Object", "is"]`, the path
-/// `fjs/js/static` admits the static under. `None` for a path the section
-/// lacks, a step that is no object, and an entry that is no function.
-pub fn runtime_static<A: IStaticFunction>(path: &[&str]) -> Option<Any<A>> {
-    at(["static"].iter().chain(path).map(|key| (*key).into()))
+/// The body the `static` section of `runtime`, a [`runtime_object`],
+/// holds at `path`, if a function: `runtime.static.Object.is` for
+/// `["Object", "is"]`, the path `fjs/js/static` admits the static under.
+/// `None` for a path the section lacks, a step that is no object, and an
+/// entry that is no function.
+pub fn runtime_static<A: IVm>(runtime: Any<A>, path: &[&str]) -> Option<Any<A>> {
+    at(
+        runtime,
+        ["static"].iter().chain(path).map(|key| (*key).into()),
+    )
 }
 
 /// The function a compiled read of a static function answers: the VM's
@@ -78,10 +92,10 @@ pub(crate) fn type_name<A: IVm>(receiver: &Any<A>) -> Option<&'static str> {
 
 #[cfg(test)]
 mod tests {
-    use super::{runtime_method, runtime_static, static_binding, type_name};
+    use super::{runtime_object, runtime_static, static_binding, type_name};
     use crate::{
         naive::Naive,
-        vm::{Any, BigInt, IStaticFunction, ToAny, ToArray, ToObject},
+        vm::{Any, BigInt, IStaticFunction, IVm, ToAny, ToArray, ToObject},
     };
 
     type A = Naive;
@@ -107,14 +121,19 @@ mod tests {
     }
 
     /// A body is found by its type and name; a name without a body, an
-    /// unknown name and an unknown type are not.
+    /// unknown name and an unknown type are not. Read twice, a body is one
+    /// function: the VM holds the runtime object.
     #[test]
     fn lookup() {
-        assert!(runtime_method::<A>("String", &"startsWith".into()).is_some());
-        assert!(runtime_method::<A>("String", &"slice".into()).is_none());
-        assert!(runtime_method::<A>("String", &"nothing".into()).is_none());
-        assert!(runtime_method::<A>("Symbol", &"startsWith".into()).is_none());
-        assert!(runtime_method::<A>("string", &"startsWith".into()).is_none());
+        assert!(A::runtime_method("String", &"startsWith".into()).is_some());
+        assert!(A::runtime_method("String", &"slice".into()).is_none());
+        assert!(A::runtime_method("String", &"nothing".into()).is_none());
+        assert!(A::runtime_method("Symbol", &"startsWith".into()).is_none());
+        assert!(A::runtime_method("string", &"startsWith".into()).is_none());
+        assert_eq!(
+            A::runtime_method("String", &"startsWith".into()),
+            A::runtime_method("String", &"startsWith".into())
+        );
     }
 
     /// A static body is found at its path; a path the section lacks, a
@@ -122,7 +141,7 @@ mod tests {
     /// The body found is the compiled `Object.is`, SameValue.
     #[test]
     fn static_lookup() {
-        let is = runtime_static::<A>(&["Object", "is"]).unwrap();
+        let is = A::runtime_static(&["Object", "is"]).unwrap();
         let call = |a: Any<A>, b: Any<A>| is.clone().call([a, b].to_array().to_any());
         assert_eq!(call((-0.0).to_any(), 0.0.to_any()), Ok(false.to_any()));
         assert_eq!(
@@ -130,10 +149,10 @@ mod tests {
             Ok(true.to_any())
         );
         assert_eq!(call("a".into(), "a".into()), Ok(true.to_any()));
-        assert!(runtime_static::<A>(&["Object"]).is_none());
-        assert!(runtime_static::<A>(&["Object", "keys"]).is_none());
-        assert!(runtime_static::<A>(&["Object", "is", "x"]).is_none());
-        assert!(runtime_static::<A>(&["Number", "is"]).is_none());
+        assert!(A::runtime_static(&["Object"]).is_none());
+        assert!(A::runtime_static(&["Object", "keys"]).is_none());
+        assert!(A::runtime_static(&["Object", "is", "x"]).is_none());
+        assert!(A::runtime_static(&["Number", "is"]).is_none());
         // a compiled read of a static function: the body, or the failure
         // naming the path, as the represented interpreter's
         assert!(static_binding::<A>(&["Object", "is"]).is_ok());
@@ -143,11 +162,23 @@ mod tests {
         );
     }
 
+    /// Two reads of a static function are one function, as `Object.is ===
+    /// Object.is` is in JavaScript: the VM holds one runtime object, where
+    /// two evaluations of the module are two, whose bodies differ.
+    #[test]
+    fn static_identity() {
+        let first = static_binding::<A>(&["Object", "is"]).unwrap();
+        assert_eq!(first, static_binding::<A>(&["Object", "is"]).unwrap());
+        assert!(first.same_value(&A::runtime_static(&["Object", "is"]).unwrap()));
+        let fresh = |object: Option<Any<A>>| runtime_static(object.unwrap(), &["Object", "is"]);
+        assert_ne!(fresh(runtime_object::<A>()), fresh(runtime_object::<A>()));
+    }
+
     /// The body called as a call step calls it, the receiver first: the
     /// compiled `startsWith`, on NaNVM.
     #[test]
     fn starts_with() {
-        let f = runtime_method::<A>("String", &"startsWith".into()).unwrap();
+        let f = A::runtime_method("String", &"startsWith".into()).unwrap();
         fn call<const N: usize>(f: &Any<A>, args: [Any<A>; N]) -> Result<Any<A>, Any<A>> {
             f.clone().call(args.to_array().to_any())
         }
