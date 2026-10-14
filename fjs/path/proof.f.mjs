@@ -471,6 +471,11 @@ const nameTest = [
     () => {
         assertEq(name('../..'), '..')
     },
+    // Folding `./C:/` leaves the bare drive `C:`, an ordinary segment here,
+    // and not the root `C:/`: it is named.
+    () => {
+        assertEq(name('./C:/'), 'C:')
+    },
     // A root, or the empty path, has no name.
     () => {
         assertEq(name('/'), '')
@@ -483,7 +488,7 @@ const nameTest = [
     },
     // A path with a name is its parent and its name again.
     () => {
-        for (const p of ['a/b/x.rs', 'x.rs', '/x', 'C:/a/x', '../a']) {
+        for (const p of ['a/b/x.rs', 'x.rs', '/x', 'C:/a/x', '../a', './C:/x']) {
             assertEq(concat(parent(p))(name(p)), normalize(p))
         }
     },
@@ -528,9 +533,17 @@ const ancestorsTest = [
     () => {
         assertStructurallySame(ancestors('../..'), [])
     },
+    // The root is read once the path is folded: `./C:/a` is `C:/a`, rooted at
+    // `C:/`, so `C:` is its root and not a directory it lies under.
+    () => {
+        assertStructurallySame(ancestors('./C:/a'), [])
+    },
+    () => {
+        assertStructurallySame(ancestors('./C:/a/b'), ['C:/a'])
+    },
     // The last of them is the path's parent, wherever it has one to list.
     () => {
-        for (const p of ['a/b/c', '/a/b', '../a/b', 'C:/a/b']) {
+        for (const p of ['a/b/c', '/a/b', '../a/b', 'C:/a/b', './C:/a/b']) {
             assertEq(ancestors(p).at(-1), parent(p))
         }
     },

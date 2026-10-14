@@ -223,6 +223,16 @@ export const escapes = path => posixSegments(false)(parts(path)[1]).includes('..
 export const normalize = path => rejoin(parts(path))
 
 /**
+ * {@link normalize}, then {@link split}: the root a path has once it is
+ * folded. Folding can expose a drive root, so this is not {@link parts}:
+ * `./C:/a` is relative as written and rooted at `C:/` once folded — see
+ * {@link root}.
+ *
+ * @type {(path: string) => readonly [root: string, rest: string]}
+ */
+const folded = path => split(normalize(path))
+
+/**
  * Concatenates two path fragments and returns a normalized path.
  *
  * An absolute `b` names a path on its own, so it replaces `a` rather than being
@@ -240,7 +250,7 @@ export const concat = a => b => {
     // the join and only the folded form answers that: `./C:` and `x/../C:` are
     // both the bare drive `C:`, and reading them unfolded would insert the
     // separator that makes a drive root out of one.
-    const [ra, resta] = split(normalize(a))
+    const [ra, resta] = folded(a)
     return rejoin([ra, stringConcat([resta, isBareDrive(resta) ? '' : '/', pb[1]])])
 }
 
@@ -283,10 +293,13 @@ export const name = path => last('')(parse(path))
  * path's base, as `.` is a relative path's, so the list starts below it:
  * `../../a` for `../../a/b`.
  *
+ * The root is read once the path is folded, as {@link parent} reads it:
+ * `./C:/a/b` is under `C:/a` alone, because folding makes `C:/` its root.
+ *
  * @type {(path: string) => readonly string[]}
  */
 export const ancestors = path => {
-    const p = parts(path)
+    const p = folded(path)
     const segments = segmentsOf(p)
     // A `..` survives folding only at the start, so this is how many there are.
     const base = segments.lastIndexOf('..') + 1
