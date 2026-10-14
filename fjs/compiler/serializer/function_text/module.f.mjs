@@ -22,7 +22,7 @@
 import { leafSerialize } from '../../../media/datajs/serializer/module.f.mjs'
 import { chunksText, keyword, literal } from '../../../text/marked/module.f.mjs'
 import { keepsRecursion, loopOf, reaches } from '../../../edag/loop/module.f.mjs'
-import { operandsOf, scopeHolds } from '../../../edag/analysis/module.f.mjs'
+import { scopeHolds } from '../../../edag/analysis/module.f.mjs'
 import { _name as name, _binding as binding, _resolve as resolve, _arg as argName, _rest as restName, _parameters as parameters } from '../names/module.f.mjs'
 
 /** The name of one invocation-local memo cell. @type {(_s: _Scope, k: number) => string} */
