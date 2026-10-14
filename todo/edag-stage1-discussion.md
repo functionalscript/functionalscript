@@ -1480,7 +1480,12 @@ Two shapes to decide between:
    self-tail-calls become a `while` loop, mutual recursion a trampoline.
    Keeps the EDAG minimal and iteration single-spelled; costs a required
    transformation in every non-TCO backend, and trampolining overhead
-   where the simple case does not apply.
+   where the simple case does not apply. The EDAG interpreters, memo and
+   amnesia, take this route in full: a call in tail position is made in
+   the invocation's place, whatever the callee
+   ([values.md](../fjs/edag/values.md#operations-and-failures)); the
+   writers spell one template as a loop
+   ([tail-call-loop](../fjs/edag/todo/tail-call-loop.md)).
 
 Note that A2 does *not* rescue option 2 by itself: a stack overflow is
 an engine artifact an engine may report as a failure, but a language

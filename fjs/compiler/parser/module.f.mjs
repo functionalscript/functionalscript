@@ -11,10 +11,12 @@
  * Each `import` binds its local names, each `const` resolves its value
  * against the names bound so far and then binds its own — so `const a = a`
  * is `const not found`, as it is a reference before its declaration in
- * JavaScript. A `const` of a binding pattern binds every name in it, each
- * to an entry reading its part of the value, {@link lowered}: the fold
- * writes the reads the pattern is sugar for, as it writes a guard's
- * conditional, and no node is added to the AST for it. Export names select
+ * JavaScript. A `const` or a fixed parameter of a binding pattern binds
+ * every name in it, each to an entry reading its part of the value,
+ * {@link lowered}: the fold writes the reads the pattern is sugar for, as
+ * it writes a guard's conditional, and no node is added to the AST for it.
+ * A parameter's reads are the first entries of the function's body, the
+ * argument their source, {@link functionScope}. Export names select
  * those bindings into the module result, with an optional final default
  * expression.
  *
@@ -76,8 +78,8 @@
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
  * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstNot, AstTypeof, AstInstanceOf, AstNumber, AstString, AstKey, AstSelf, AstCall, AstConditional, AstConst, AstEntryFunction, AstFrameRef, AstEntry, AstFunction, AstItem, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstRest, AstSpread, AstStep, AstThrow } from '../ast/types.ts'
  * @import { ParseError } from './types.ts'
- * @import { BindingElement, BindingProperty, BindingTarget, Block, Chain, ComputedKey, ConstantMember, Container, Entry, If, Import, Item, Key, Module, Node, ParameterBinding, ParameterList, Statement, Step, ValueStatement, While } from './syntax/types.ts'
- * @import { _AccessFrame, _BodyFrame, _CallFrame, _ChainFrame, _ChainPart, _ConditionalFrame, _IndexFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _Intrinsic, _LoopBodyFrame, _Lowered, _Parameter, _Pending, _PendingStack, _Plan, _Read, _Ref, _Scope, _Stack, _State } from './private.ts'
+ * @import { BindingElement, BindingProperty, BindingTarget, Block, Chain, ComputedKey, ConstantMember, Container, Entry, If, Import, Item, Key, Module, Node, ParameterList, Statement, Step, ValueStatement, While } from './syntax/types.ts'
+ * @import { _AccessFrame, _BodyFrame, _Bound, _CallFrame, _ChainFrame, _ChainPart, _ConditionalFrame, _IndexFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _Intrinsic, _LoopBodyFrame, _Lowered, _Parameter, _Pending, _PendingStack, _Plan, _Read, _Ref, _Scope, _Stack, _State } from './private.ts'
  */
 
 import { error, mapOk, ok } from '../../types/result/module.f.js'
@@ -152,11 +154,14 @@ const loopVariableCaptured = foldError('loop variable captured')
 const loopSelf = '\0loop'
 
 /**
- * A parameter list whose first parameter is no plain name, at the `(` that
- * opened it — `(1) => 2`, `(a.b) => 1`, `((a)) => 1` — JavaScript's own
- * early error, by its own name. The grammar admits the value there so
- * that one symbol can decide between a list and a group (`afterValue` in
- * `./grammar/module.f.mjs`), and this is the check that decision left.
+ * A parameter list whose first parameter is no binding target — no name
+ * and no pattern — at the `(` that opened it: `(1) => 2`, `(a.b) => 1`,
+ * `((a)) => 1`, JavaScript's own early error, by its own name. The grammar
+ * admits the value there so that one symbol can decide between a list and
+ * a group (`afterValue` in `./grammar/module.f.mjs`), and this is the
+ * check that decision left. A value that is no target inside the head's
+ * pattern, `([(a)]) => 1`, is {@link invalidTarget} where it stands, as in
+ * a `const`.
  */
 const malformedParameters = foldError('malformed parameter list')
 
@@ -1018,12 +1023,18 @@ const intrinsicRead = scope => {
 }
 
 /**
- * The names a function's body begins with, and the function's `length`:
- * a rest parameter bound to `['rest']`, and each fixed parameter
- * bound to its position — the read of that argument, `['arg', i]`,
- * the name erased — and nothing else of its own; a name bound outside is a
- * capture, {@link resolve}. The `length` is what JavaScript gives the
- * function, the named parameters counted, the rest parameter not.
+ * The names a function's body begins with, the function's `length`, and
+ * the entries the body begins with, {@link _Bound}: a rest parameter bound
+ * to `['rest']`, each fixed parameter that is a name bound to its position
+ * — the read of that argument, `['arg', i]`, the name erased — and each
+ * fixed parameter that is a pattern checked and lowered as a `const`'s is,
+ * {@link planned} and {@link lowered}, its source the argument, so that
+ * its reads are the first entries of the body and each name it binds is
+ * bound to the entry holding its value
+ * ([spec: destructuring](../../../spec/README.md#destructuring)). Nothing
+ * else is the body's own; a name bound outside is a capture,
+ * {@link resolve}. The `length` is what JavaScript gives the function, the
+ * fixed parameters counted, a pattern as one, the rest parameter not.
  *
  * An empty parameter list binds nothing, so a body under it starts from no
  * names of its own: the arguments are unreachable, having no name, and
@@ -1033,29 +1044,43 @@ const intrinsicRead = scope => {
  * parameter gives it, `0`, so nothing downstream can tell the two lists
  * apart.
  *
- * A named parameter is refused as a `const` is: a reserved word, or a
- * name the list already binds, `(a, a) => 1` being a syntax error in
- * JavaScript for an arrow function. A list whose head is no name was
- * refused before any word of it, {@link malformedParameters}, and so is
- * an `=>` on a line after the list, {@link arrowed}. A fixed parameter
- * past the language's limit is refused, {@link tooManyParameters}.
+ * A parameter's name is refused as a `const` is: a reserved word, or a
+ * name the list already binds — in a parameter before it, or in the same
+ * pattern — `(a, a) => 1` being a syntax error in JavaScript for an arrow
+ * function. A list whose head is no target was refused before any word of
+ * it, {@link malformedParameters}, and so is an `=>` on a line after the
+ * list, {@link arrowed}. A fixed parameter past the language's limit is
+ * refused, {@link tooManyParameters}, a pattern at its opening bracket.
  *
- * @type {(list: ParameterList) => Result<readonly [_Env, number], ParseError>}
+ * @type {(list: ParameterList) => Result<_Bound, ParseError>}
  */
 const functionScope = list => {
     if ('invalid' in list) { return error(malformedParameters(list.invalid)) }
     if ('arrow' in list) { return error(unexpectedToken(list.arrow)) }
-    /** @type {(acc: Result<_Env, ParseError>, binding: ParameterBinding, i: number) => Result<_Env, ParseError>} */
-    const bind = (acc, { name, rest }, i) => {
-        if (acc[0] === 'error') { return acc }
-        if (!rest && i === maxLength) { return error(tooManyParameters(name)) }
-        const [tag, word] = bindable(acc[1])(name)
-        return tag === 'error' ? error(word) : ok(extended(acc[1])(word, rest ? restBinding : ['arg', i]))
+    /** @type {_Bound} */
+    let bound = { names: empty, count: list.fixed.length, entries: [] }
+    for (const [i, target] of list.fixed.entries()) {
+        if (i === maxLength) { return error(tooManyParameters(target[1])) }
+        /** @type {_Parameter} */
+        const arg = ['arg', i]
+        if (target[0] === 'name') {
+            const [tag, word] = bindable(bound.names)(target[1])
+            if (tag === 'error') { return error(word) }
+            bound = { ...bound, names: extended(bound.names)(word, arg) }
+            continue
+        }
+        const [tag, plan] = planned(bindable(bound.names))(target)
+        if (tag === 'error') { return error(plan) }
+        const { entries, bound: names } = lowered(plan, arg, bound.entries.length)
+        bound = {
+            ...bound,
+            names: names.reduce((env, [word, ref]) => extended(env)(word, ref), bound.names),
+            entries: [...bound.entries, ...entries],
+        }
     }
-    return mapOk(
-        /** @type {(env: _Env) => readonly [_Env, number]} */
-        (env => [env, list.filter(p => !p.rest).length]),
-    )(list.reduce(bind, ok(empty)))
+    if (list.rest === null) { return ok(bound) }
+    const [tag, word] = bindable(bound.names)(list.rest)
+    return tag === 'error' ? error(word) : ok({ ...bound, names: extended(bound.names)(word, restBinding) })
 }
 
 /**
@@ -1261,17 +1286,19 @@ const isEntryOf = (node, x) => {
  * @type {(scope: _Scope, self: string | null, node: Extract<Node, readonly ['=>', ParameterList, Node]>) => Result<AstEntryFunction, ParseError> | null}
  */
 const entryFunction = (scope, self, [, list, body]) => {
-    if (!(list instanceof Array) || list.length !== 2 || list.some(p => p.rest) || body[0] !== 'block' || body[1].length !== 2) { return null }
+    if (!('fixed' in list) || list.fixed.length !== 2 || list.rest !== null || body[0] !== 'block' || body[1].length !== 2) { return null }
+    const [p, q] = list.fixed
     const first = body[1][0]
     const last = body[1][1]
     if (first[0] !== 'const' || last[0] !== 'return') { return null }
     const [, declaration] = first
     const [, returned] = last
-    // the descriptor is bound to one name: a pattern is a step away from
-    // the helper, so the function is an ordinary one
-    if (declaration.target[0] !== 'name') { return null }
-    const a = nameOf(list[0].name)
-    const b = nameOf(list[1].name)
+    // the two parameters and the descriptor are each bound to one name: a
+    // pattern is a step away from the helper, so the function is an
+    // ordinary one
+    if (p[0] !== 'name' || q[0] !== 'name' || declaration.target[0] !== 'name') { return null }
+    const a = nameOf(p[1])
+    const b = nameOf(q[1])
     const x = nameOf(declaration.target[1])
     const names = [a, b, x]
     if (new Set(names).size !== names.length || names.some(word => isKeyword(word) || isReservedGlobal(word) || word === 'Object')) { return null }
@@ -1297,6 +1324,10 @@ const entryFunction = (scope, self, [, list, body]) => {
  * or the result of calling one, is not in its own initializer's scope,
  * `const not found`, since neither is a function with a `self` to read.
  *
+ * The entries a parameter pattern makes, {@link functionScope}, are the
+ * first of the body: a block body's statements count from after them, and
+ * an expression body's value follows them as the last entry.
+ *
  * @type {(stack: _Stack, scope: _Scope, node: Extract<Node, readonly ['=>', ParameterList, Node]>, self: string | null) => _State}
  */
 const entered = (stack, scope, node, self) => {
@@ -1307,13 +1338,13 @@ const entered = (stack, scope, node, self) => {
     if (entry !== null) { return [stack, intrinsicRead(scope), entry] }
     const [tag, bound] = functionScope(node[1])
     if (tag === 'error') { return [stack, scope, error(bound)] }
-    const [names, count] = bound
+    const { names, count, entries } = bound
     /** @type {_Scope} */
     const inner = { names, count, captures: [], enclosing: null, outer: scope, self, loop: null, loopReads: [] }
     const body = node[2]
     return body[0] === 'block'
-        ? bodyRound(stack, inner, { statements: body[1], first: 0, index: 0, plan: null, entries: 0, done: null })
-        : [{ top: { function: true }, rest: stack }, inner, ['enter', body]]
+        ? bodyRound(stack, inner, { statements: body[1], first: 0, index: 0, plan: null, entries: entries.length, done: entries })
+        : [{ top: { function: entries }, rest: stack }, inner, ['enter', body]]
 }
 
 /**
@@ -1468,7 +1499,9 @@ const returned = (stack, scope, frame, value) => {
         const conditional = ['?:', frame.condition, frame.then, call]
         return closed(stack, scope, [...toArray(frame.body.done), conditional])
     }
-    return closed(stack, scope, [value])
+    // an expression body: its value is the last entry, after the ones the
+    // function's parameter patterns made
+    return closed(stack, scope, [...frame.function, value])
 }
 
 /**

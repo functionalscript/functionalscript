@@ -215,12 +215,26 @@ export type _ChainFrame = {
 }
 
 /**
- * A function whose body is being evaluated. It carries nothing: the scope
- * around the body is the body's scope's `outer`, which the body's captures
- * update, and one is enough to tell the frame from the others.
+ * A function whose expression body is being evaluated: the entries its
+ * parameter patterns made, {@link _Bound}, which the body's value follows
+ * as the last entry. The scope around the body is the body's scope's
+ * `outer`, which the body's captures update, so the frame holds nothing
+ * else.
  */
 export type _FunctionFrame = {
-    readonly function: true
+    readonly function: readonly AstConst[]
+}
+
+/**
+ * A parameter list bound: the names the function's body begins with, the
+ * function's `length`, and the entries its patterns make — the reads of
+ * the fixed arguments a pattern is sugar for, which the body's own entries
+ * follow — none for a list of names alone.
+ */
+export type _Bound = {
+    readonly names: _Env
+    readonly count: number
+    readonly entries: readonly AstConst[]
 }
 
 /**
