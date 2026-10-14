@@ -506,7 +506,9 @@ const pushed = (stack, item) => ({ top: item, rest: stack })
  * function itself, {@link objectMember}, as the access `Object.is` does —
  * so `const { is } = Object` makes the one entry `const is = Object.is`
  * makes, and a key the namespace does not admit is refused at the word,
- * as `Object.keys` is.
+ * as `Object.keys` is — once {@link checkedKey} has passed it, so a key
+ * that is a prototype name, `keys` or `toString`, is refused first, at
+ * the key, as in any pattern.
  *
  * @type {(check: (name: DjsTokenWithMetadata) => Result<string, ParseError>) => (target: BindingTarget, namespace: DjsTokenWithMetadata | null) => Result<_Plan, ParseError>}
  */

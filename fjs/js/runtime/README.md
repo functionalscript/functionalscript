@@ -151,7 +151,7 @@ sequenceDiagram
     T-->>L: None, once map has a body
     L->>A: runtime_method("Array", "map")
     A->>R: module::<A>(), on the thread's first lookup
-    R-->>A: the export object, held from then on
+    R-->>A: the export's runtime object, held from then on
     A-->>L: the closure under runtime.member.Array.map
     L->>L: body.call([receiver, ...args])
     L-->>M: the answer, or Err(thrown)

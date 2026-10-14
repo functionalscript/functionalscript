@@ -19,10 +19,10 @@ thread_local! {
     static RUNTIME: OnceCell<Option<Any<Naive>>> = const { OnceCell::new() };
 }
 
-/// The runtime object this thread holds, cloned out of the cell before any
-/// body can run, so no lookup ever finds the cell borrowed. Evaluating it
-/// runs no body and asks for no binding, so its initialization never
-/// reaches back here.
+/// The runtime object this thread holds, cloned out, since a reference
+/// into a `thread_local` cannot leave `with`. Evaluating it runs no body
+/// and asks for no binding, so its initialization never reaches back here,
+/// which `get_or_init` would refuse with a panic.
 fn runtime() -> Option<Any<Naive>> {
     RUNTIME.with(|cell| cell.get_or_init(crate::vm::runtime_object).clone())
 }
@@ -51,7 +51,7 @@ impl IVm for Naive {
 
     /// The compiled runtime's entry: `naive` makes a function out of a Rust
     /// static function, which every compiled body is, and holds the
-    /// runtime object it reads, [`runtime`].
+    /// runtime object it reads, `runtime()`.
     fn runtime_method(type_name: &str, key: &Any<Naive>) -> Option<Any<Naive>> {
         crate::vm::runtime_method(runtime()?, type_name, key)
     }

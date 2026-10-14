@@ -142,7 +142,9 @@ fails `tsc`. A global is not a value: `Object` alone stays refused, as
 first-class function as it is in JavaScript. Destructuring is sugar, so
 `const { is } = Object` is `const is = Object.is`, one entry, and the
 namespace is read nowhere else: an array pattern over it, or a member it
-does not admit, is refused at the word. No run-time guard exists for the
+does not admit, is refused at the word — but a key that is a prototype
+name, `keys` or `toString`, is refused first, at the key, as in any
+pattern (`prohibited property name`). No run-time guard exists for the
 guarded spellings, because nothing is guarded. `String?.(x)` stays as the spec
 has it, a question for the conversion node, not this one.
 
