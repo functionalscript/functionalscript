@@ -145,7 +145,8 @@ describes:
 | `decl.accessor` | `{ get a() { return 1 } }`, `{ set a(v) {} }` | open | unexpected token | none |
 | `decl.method` | `{ f() { return 1 } }` | open | unexpected token | none |
 | `decl.parameter-default` | `(a = 1) => a` | open ([parameters](./3120-parameters.md) mentions defaults only as a later possibility) | unexpected token | exact: parser `grammar/proof` |
-| `decl.pattern-rest` | `[a, ...r]`, `{ a, ...r }` in a pattern or a parameter | open ([destructuring](./2450-destructuring.md)) | rest element not supported | exact: parser `destructuring.proof` |
+| `decl.pattern-array-rest` | `[a, ...r]` in a pattern or a parameter | planned ([destructuring](./2450-destructuring.md), the next task) | rest element not supported | exact: parser `destructuring.proof` |
+| `decl.pattern-object-rest` | `{ a, ...r }` in a pattern or a parameter | open ([destructuring](./2450-destructuring.md) files it as a follow-up) | rest element not supported | exact: parser `destructuring.proof` |
 | `decl.pattern-default` | `{ a = 1 }`, `[a = 1]` in a pattern | open ([destructuring](./2450-destructuring.md)) | unexpected token | exact: parser `destructuring.proof` |
 | `decl.pattern-computed-key` | `{ [k]: a }`, `{ [Number(i)]: a }`, `{ [(3)]: a }` | open ([destructuring](./2450-destructuring.md)) | computed key in a binding pattern not supported | exact: parser `destructuring.proof` |
 | `decl.pattern-elision` | `[, b]`, `[a, , b]` | planned ([destructuring](./2450-destructuring.md), a follow-up) | unexpected token | exact: parser `destructuring.proof` |
@@ -156,12 +157,14 @@ describes:
 | ID | Construct | Why | Diagnostic | Pin |
 |---|---|---|---|---|
 | `mod.no-export` | an empty module, `const a = 1;` alone | design ([module structure](../README.md#module-structure)) | unexpected end | exact: parser `proof` |
+| `mod.empty-pattern-export` | `export const {} = {};` | design ([module structure](../README.md#module-structure): at least one export, and a pattern exports each name it binds) | module exports nothing | exact: parser `destructuring.proof` |
 | `mod.export-after-default` | `export default 1; export const a = 2;` | design ([module structure](../README.md#module-structure)) | unexpected token | loose: parser `proof`, `errors` |
 | `mod.import-after-export` | `export const a = 1; import b from "m";` | design ([module structure](../README.md#module-structure)) | unexpected token | exact: parser `grammar/proof` |
 | `mod.throw-position` | `throw 1; export default 2;`, `export default 2; throw 1;` | design ([module structure](../README.md#module-structure)) | unexpected token | exact: parser `proof` |
 | `mod.export-list` | `const a = 1; export { a };` | open (investigated in [export lists](./export-lists.md)) | unexpected token | none for the bound form; loose for an unbound `export { a };`: parser `proof`, `errors` |
 | `mod.export-let` | `export let a = 1;` | design (`let` only opens a loop, [let](./3220-let.md)) | unexpected token | loose: parser `proof`, `errors` |
 | `mod.reexport` | `export { a } from "m"`, `export * from "m"` | open (whether it belongs is a question in [export lists](./export-lists.md)) | unexpected token | none |
+| `mod.import-attribute-spelling` | `with { "type": "json" }`, `with { type: "json", }`, `with {}` | planned ([roadmap](./README.md), import attribute spellings) | unexpected token | exact: parser `grammar/proof` |
 | `mod.namespace-import` | `import * as ns from "m"` | planned ([namespace import](./2220-namespace-import.md)) | unexpected token | none |
 | `mod.top-level-await` | `await 1;` | open (related: [promise](./3380-promise.md)) | unexpected token | none |
 
