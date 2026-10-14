@@ -37,6 +37,7 @@
  * @import { Marked, Span, TokenKind } from '../../../text/marked/types.ts'
  */
 
+import { isTrivia } from '../../../ebnf/lib/js/module.f.mjs'
 import { _positions, tokenize } from '../../../js/tokenizer/module.f.mjs'
 import { assertNotNullish } from '../../../asserts/module.f.mjs'
 import { isKeyword, literalWords } from '../../../js/keywords/module.f.js'
@@ -68,9 +69,6 @@ const kindOf = ({ kind }) => {
         default: return literalWords.some(word => word === kind) ? 'literal' : isKeyword(kind) ? 'keyword' : undefined
     }
 }
-
-/** Whether a token is no part of the program's words: whitespace, a newline or a comment. @type {(token: JsToken) => boolean} */
-const isTrivia = ({ kind }) => kind === 'ws' || kind === 'nl' || kind === '//' || kind === '/*'
 
 /**
  * The spans the tokenizer finds in `text`: none if it refuses the text, as
@@ -106,7 +104,7 @@ export const spansOf = text => {
     const kept = tokens.flatMap(({ token }, i) => i > 0 && starts[i] === starts[i - 1] ? [] : [{ token, start: starts[i] }])
     // The kind of the word before each token, trivia skipped, in one pass.
     /** @type {StateScan<{ token: JsToken }, string, string>} */
-    const word = ({ token }, prior) => [prior, isTrivia(token) ? prior : token.kind]
+    const word = ({ token }, prior) => [prior, isTrivia(token.kind) ? prior : token.kind]
     const afterWords = toArray(stateScan(word)('')(kept))
     // The last token is `eof`, which stays plain, so every token that has a
     // kind has a next one to end at.
