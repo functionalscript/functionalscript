@@ -1,12 +1,15 @@
-use crate::vm::{
-    Array, BigInt, Function, IVm, Number, Object, String, ToAny,
-    any::Any,
-    dispatch::Dispatch,
-    error,
-    nullish::Nullish,
-    primitive::Primitive,
-    primitive_coercion::ToPrimitivePreferredType,
-    string_numeric_literal::{StringNumericLiteral, scan},
+use crate::{
+    sign::Sign,
+    vm::{
+        Array, BigInt, Function, IVm, Number, Object, String, ToAny,
+        any::Any,
+        dispatch::Dispatch,
+        error,
+        nullish::Nullish,
+        primitive::Primitive,
+        primitive_coercion::ToPrimitivePreferredType,
+        string_numeric_literal::{StringNumericLiteral, scan},
+    },
 };
 
 /// Coerces the value to a `Number`, possibly producing an error result.
@@ -112,24 +115,20 @@ fn string_to_number(s: &str) -> f64 {
 /// the very end — not, as a naive `fold(0.0, |acc, d| acc * radix + d)`
 /// would, once per digit. Folding in `f64` rounds after every digit, and
 /// those roundings compound: `0b1111111101110111011101101101011011010110110100010000011`,
-/// a 59-bit literal, folds to `35953735677732992.0`, but its correctly
+/// a 55-bit literal, folds to `35953735677732992.0`, but its correctly
 /// rounded value (and JS's) is `35953735677732996.0`.
 ///
 /// Because the radix is a power of two, every digit contributes a fixed
 /// number of bits, so the digits are accumulated as one big integer (a
 /// `u128` window over the leading bits, plus a `sticky` flag for whether
-/// any bit beyond that window is set) and only that integer is rounded to
-/// `f64` — round-to-nearest-even from the top 53 significant bits, the
-/// next bit, and whether anything below that is nonzero.
+/// any bit beyond that window is set) and only that integer is rounded, by
+/// [`Number::compose`].
 fn parse_non_decimal(digits: &str, radix: u32) -> f64 {
     if digits.is_empty() || !digits.chars().all(|c| c.is_digit(radix)) {
         return f64::NAN;
     }
     let bits_per_digit = radix.trailing_zeros();
     let significant = digits.trim_start_matches('0');
-    if significant.is_empty() {
-        return 0.0;
-    }
     let mut acc: u128 = 0;
     let mut filled_bits = 0u32;
     let mut extra_bits = 0u64;
@@ -144,31 +143,10 @@ fn parse_non_decimal(digits: &str, radix: u32) -> f64 {
             sticky |= d != 0;
         }
     }
-    let true_bits = 128 - acc.leading_zeros();
-    if true_bits <= 53 && extra_bits == 0 {
-        // Fewer than a `f64` mantissa's worth of significant bits: exact,
-        // no rounding needed at all.
-        return acc as f64;
-    }
-    // The bits of `acc` below position `true_bits - 1` (its own top bit)
-    // down to `shift` become the 53-bit mantissa; `round_bit` and
-    // `sticky`/`sticky_low` are everything below that, which round-to-
-    // nearest-even needs and nothing else.
-    let shift = true_bits - 53;
-    let mut mantissa = (acc >> shift) as u64;
-    let round_bit = (acc >> (shift - 1)) & 1 != 0;
-    let sticky_low = (acc & ((1u128 << (shift - 1)) - 1)) != 0;
-    let mut exponent = shift as u64 + extra_bits;
-    if round_bit && (sticky_low || sticky || mantissa & 1 != 0) {
-        mantissa += 1;
-        if mantissa == 1u64 << 53 {
-            // The round-up carried out of the 53-bit mantissa (all-ones
-            // rounding up to a power of two): renormalize.
-            mantissa >>= 1;
-            exponent += 1;
-        }
-    }
-    (mantissa as f64) * 2f64.powi(i32::try_from(exponent).unwrap_or(i32::MAX))
+    // `sticky` is set only past a full window, whose leading digit is not
+    // zero: `acc` holds over 120 significant bits then, as `compose` asks.
+    let exponent = i32::try_from(extra_bits).unwrap_or(i32::MAX);
+    Number::compose(Sign::Positive, acc, exponent, sticky).into()
 }
 
 /// `StrUnsignedDecimalLiteral` minus the `Infinity` alternative (handled by
@@ -240,7 +218,7 @@ mod test {
 
     #[test]
     fn non_decimal_rounds_once() {
-        // A 59-bit literal beyond `f64`'s 53-bit mantissa: rounding after
+        // A 55-bit literal beyond `f64`'s 53-bit mantissa: rounding after
         // every digit (`acc * radix + digit` folded in `f64`) gives
         // 35953735677732992, but the correctly-rounded value — rounding
         // the exact mathematical value exactly once — is 35953735677732996,
@@ -277,6 +255,22 @@ mod test {
         assert_eq!(
             string_to_number(&format!("0x1{}", "0".repeat(40))),
             (16f64).powi(40)
+        );
+        // `2^53 + 1` followed by forty zero digits is a tie, as above; a
+        // set digit past the 128-bit window breaks it upward.
+        let tie = format!("0x20000000000001{}", "0".repeat(40));
+        assert_eq!(
+            string_to_number(&tie),
+            9_007_199_254_740_992.0 * (16f64).powi(40)
+        );
+        assert_eq!(
+            string_to_number(&format!("{tie}1")),
+            9_007_199_254_740_994.0 * (16f64).powi(41)
+        );
+        // `2^1024` is past the largest finite value.
+        assert_eq!(
+            string_to_number(&format!("0x1{}", "0".repeat(256))),
+            f64::INFINITY
         );
     }
 

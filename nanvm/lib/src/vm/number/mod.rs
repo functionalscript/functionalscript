@@ -1,4 +1,5 @@
 mod add;
+mod binary64;
 mod debug;
 mod div;
 mod format;

@@ -225,7 +225,7 @@ impl<A: IVm> Numeric<A> {
 /// comparison IsLessThan's step (k) asks for, not `bi.to_f64() < f`, which
 /// would round `bi` and could be wrong for a magnitude a `f64` mantissa can't
 /// hold exactly. `bi`'s order against `f.floor()` (itself exact, via
-/// [`whole_f64_to_bigint`]) settles it, except when they're equal: `f` is
+/// [`BigInt::from_integral`]) settles it, except when they're equal: `f` is
 /// still strictly greater whenever it has a fractional part.
 fn partial_cmp_bigint_number<A: IVm>(bi: &BigInt<A>, f: Number) -> Option<Ordering> {
     if f.is_nan() {
@@ -240,49 +240,10 @@ fn partial_cmp_bigint_number<A: IVm>(bi: &BigInt<A>, f: Number) -> Option<Orderi
     }
     let f: f64 = f.into();
     let floor = f.floor();
-    Some(match bi.cmp(&whole_f64_to_bigint::<A>(floor)) {
+    Some(match bi.cmp(&BigInt::from_integral(floor.into())) {
         Ordering::Equal if f != floor => Ordering::Less,
         order => order,
     })
-}
-
-/// The exact `BigInt` value of a finite, whole-number `f64`, built from its
-/// IEEE 754 bit pattern rather than any decimal round-trip — a `f64` beyond
-/// 2^53 is still an exact integer, just one with known trailing zero bits,
-/// and this reads those bits directly instead of trusting that a `Display`
-/// implementation preserves them.
-fn whole_f64_to_bigint<A: IVm>(f: f64) -> BigInt<A> {
-    if f == 0.0 {
-        return BigInt::default();
-    }
-    let bits = f.to_bits();
-    let biased_exponent = (bits >> 52) & 0x7FF;
-    debug_assert!(
-        biased_exponent != 0,
-        "a nonzero whole f64 is never subnormal"
-    );
-    let significand = (bits & 0x000F_FFFF_FFFF_FFFF) | (1u64 << 52);
-    // The value is `significand * 2^(biased_exponent - 1075)`: 1075 is the
-    // usual double bias (1023) plus 52, since `significand` already carries
-    // the mantissa's 52 fractional bits as whole-number bits of its own.
-    let exponent = biased_exponent as i64 - 1_075;
-    let magnitude: BigInt<A> = significand.into();
-    let magnitude = if exponent >= 0 {
-        (magnitude << BigInt::from(exponent as u64))
-            .expect("a finite f64's exponent cannot overflow BigInt::shl's word-count limit")
-    } else {
-        // The shift amount here is always non-negative (`-exponent` where
-        // `exponent < 0`), so `BigInt::shr` never takes its
-        // negative-shift-amount path into `<<` — the one path that can
-        // return `Err` — and this can't fail.
-        (magnitude >> BigInt::from((-exponent) as u64))
-            .expect("a non-negative BigInt::shr shift amount cannot fail")
-    };
-    if f.is_sign_negative() {
-        -magnitude
-    } else {
-        magnitude
-    }
 }
 
 #[cfg(test)]

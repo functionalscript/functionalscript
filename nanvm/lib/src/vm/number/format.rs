@@ -11,15 +11,11 @@
 use super::Number;
 use crate::vm::{
     Any, BigInt, IVm, String, error,
-    string_coercion::{mantissa_exp2, number_to_string, shortest_digits},
+    string_coercion::{number_to_string, shortest_digits},
 };
 
 fn big<A: IVm>(v: u64) -> BigInt<A> {
     BigInt::from(v)
-}
-
-fn pow2<A: IVm>(e: u32) -> BigInt<A> {
-    (big::<A>(1) << big(u64::from(e))).expect("a double's exponent is far under the size limit")
 }
 
 fn pow10<A: IVm>(e: u32) -> BigInt<A> {
@@ -33,11 +29,11 @@ fn pow10<A: IVm>(e: u32) -> BigInt<A> {
 /// cross-multiplied so nothing is divided but the one `div_mod`, and a
 /// remainder of at least half the divisor rounds up.
 fn scaled<A: IVm>(x: f64, s: i64) -> BigInt<A> {
-    let (mantissa, exp2) = mantissa_exp2(x);
+    let (_, mantissa, exp2) = Number::from(x).decompose().expect("`x` is finite");
     let (num2, den2) = if exp2 >= 0 {
-        (pow2::<A>(exp2 as u32), big(1))
+        (BigInt::<A>::pow2(exp2.unsigned_abs()), big(1))
     } else {
-        (big(1), pow2::<A>(exp2.unsigned_abs()))
+        (big(1), BigInt::<A>::pow2(exp2.unsigned_abs()))
     };
     let (num10, den10) = if s >= 0 {
         (pow10::<A>(s as u32), big(1))
@@ -197,8 +193,8 @@ impl Number {
 
     /// `Number::toString(x, radix)` for a radix other than ten, already
     /// checked to be `2` to `36`. `NaN` and the infinities are as in radix
-    /// ten, and an integer converts exactly — `mantissa × 2^exp2` is an
-    /// integer `BigInt` then. A number with a fraction is refused:
+    /// ten, and an integer converts exactly, as the `BigInt` of
+    /// [`BigInt::from_integral`]. A number with a fraction is refused:
     /// ECMAScript leaves its digits in another radix to the engine
     /// (`vm/string/README.md`).
     pub(crate) fn to_radix_string<A: IVm>(self, radix: u32) -> Result<String<A>, Any<A>> {
@@ -213,13 +209,7 @@ impl Number {
             return Err(error::fraction_radix());
         }
         Ok(signed(x, |x| {
-            let (mantissa, exp2) = mantissa_exp2(x);
-            let magnitude = if exp2 >= 0 {
-                big::<A>(mantissa).mul_bounded(pow2(exp2 as u32))
-            } else {
-                big::<A>(mantissa >> exp2.unsigned_abs())
-            };
-            magnitude.to_radix_string(radix)
+            BigInt::<A>::from_integral(x.into()).to_radix_string(radix)
         }))
     }
 }
