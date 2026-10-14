@@ -254,3 +254,12 @@ type _Y_3 = Assert<Equal<
 type _Y__ = Assert<Equal<OptionalTailArray<number, number, true>, readonly true[]>>
 
 export type Includes<I, T extends readonly I[]> = (v: I) => v is T[number]
+
+/**
+ * `Array`'s `indexOf` and `lastIndexOf` over one list of names, each `-1` for
+ * a name the list does not hold.
+ */
+export type Occurrences = {
+    readonly indexOf: (name: string) => number
+    readonly lastIndexOf: (name: string) => number
+}

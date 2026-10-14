@@ -275,6 +275,18 @@ export const proof = {
         duplicatePattern: () => assertEq(
             reason(['lambda', ['open-set-pattern', 'x', 'x'], ['set']]),
             'duplicate pattern name: x'),
+        // A pattern's names are checked in order and the first violation is
+        // the one reported: the first repeat, and a repeat before a name that
+        // is no identifier, or that name before a later repeat.
+        firstDuplicatePattern: () => assertEq(
+            reason(['lambda', ['open-set-pattern', 'a', 'b', 'b', 'a'], ['set']]),
+            'duplicate pattern name: b'),
+        duplicateBeforeBadPatternName: () => assertEq(
+            reason(['lambda', ['open-set-pattern', 'a', 'a', 'not valid'], ['set']]),
+            'duplicate pattern name: a'),
+        badPatternNameBeforeDuplicate: () => assertEq(
+            reason(['lambda', ['open-set-pattern', 'not valid', 'a', 'a'], ['set']]),
+            'pattern name is not an identifier: "not valid"'),
         duplicateBinding: () => assertEq(
             reason(['set', ['=', ['x'], 'a'], ['=', ['x'], 'b']]),
             'conflicting attribute paths: x and x'),

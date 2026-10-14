@@ -1,7 +1,7 @@
-import { at, first, last, head, tail, splitFirst, splitLast, empty, repeat, dedup, assoc } from './module.f.mjs'
+import { at, first, last, head, tail, splitFirst, splitLast, empty, includes, repeat, dedup, assoc, occurrences } from './module.f.mjs'
 import { stringify as jsonStringify } from '../../media/json/module.f.mjs'
 import { sort } from '../object/module.f.mjs'
-import { assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
 
 const stringify = jsonStringify(sort)
 
@@ -121,6 +121,11 @@ export const proof = {
         const c = [...a, ...b, ...x]
         assertEq(c.length, 0, c)
     },
+    includes: () => {
+        const ab = includes(/** @type {const} */ (['a', 'b']))
+        assert(ab('b'))
+        assert(!ab('c'))
+    },
     repeat: [
         () => assertStructurallySame(repeat(0)('x'), []),
         () => assertStructurallySame(repeat(3)('x'), ['x', 'x', 'x'])
@@ -150,5 +155,25 @@ export const proof = {
         // a stored `undefined` is a value, not absence
         () => assertEq(assoc('a')([['a', undefined]]), undefined),
         () => assertEq(assoc('a')([['a', null]]), null),
+    ],
+    occurrences: [
+        () => {
+            const { indexOf, lastIndexOf } = occurrences(['a', 'b', 'b', 'a', 'c'])
+            assertStructurallySame(['a', 'b', 'c'].map(indexOf), [0, 1, 4])
+            assertStructurallySame(['a', 'b', 'c'].map(lastIndexOf), [3, 2, 4])
+        },
+        // the answers `Array`'s own methods give, absent names included
+        () => {
+            const names = ['x', 'y', 'x', 'z', 'y', 'x']
+            const { indexOf, lastIndexOf } = occurrences(names)
+            const asked = [...names, 'w']
+            assertStructurallySame(asked.map(indexOf), asked.map(n => names.indexOf(n)))
+            assertStructurallySame(asked.map(lastIndexOf), asked.map(n => names.lastIndexOf(n)))
+        },
+        () => {
+            const { indexOf, lastIndexOf } = occurrences([])
+            assertEq(indexOf('a'), -1)
+            assertEq(lastIndexOf('a'), -1)
+        },
     ]
 }

@@ -37,12 +37,14 @@ plans to admit, and any operator whose semantics a VM need not own natively.
 ### Proposal
 
 **One module, in FunctionalScript, is the definition.** A new
-`fjs/js/runtime/module.f.js`, beside the admission list, exports `runtime`:
-an object keyed by receiver type, the names `nanvm/methods` already uses —
-`object`, `array`, `string`, `number`, `boolean`, `bigint`, `function` —
-each an object keyed by member name, each entry a body: a function of the
-receiver and then the arguments as the call passed them, `undefined` past
-the end:
+`fjs/js/runtime/module.f.js`, beside the admission list, exports `runtime`,
+whose `member` section is keyed by receiver type, by the name of its
+global — `Object`, `Array`, `String`, `Number`, `Boolean`, `BigInt`,
+`Function`, the names `nanvm/methods` uses too — each an object keyed by
+member name, each entry a body: a function of the receiver and then the
+arguments as the call passed them, `undefined` past the end. The section
+leaves room for the `static` one [`runtime-static.md`](./runtime-static.md)
+adds, keyed by the same names:
 
 ```js
 export const runtime = {
