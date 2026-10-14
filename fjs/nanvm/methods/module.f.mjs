@@ -48,20 +48,21 @@ import {
 import { entry } from '../../types/object/entry/module.f.js'
 
 /**
- * Each type a receiver can have, and the prototype a call on it looks in.
- * An object's is `Object.prototype`; every other type's is its own, which
- * is where its own member functions are, `toString` among them.
+ * Each type a receiver can have, by the name of its global as
+ * `fjs/js/runtime` keys it, and the prototype a call on it looks in. An
+ * object's is `Object.prototype`; every other type's is its own, which is
+ * where its own member functions are, `toString` among them.
  *
  * @type {readonly (readonly[string, readonly PrototypeName[]])[]}
  */
 export const types = [
-    ['object', objectPrototype],
-    ['array', arrayPrototype],
-    ['string', stringPrototype],
-    ['number', numberPrototype],
-    ['boolean', booleanPrototype],
-    ['bigint', bigintPrototype],
-    ['function', functionPrototype],
+    ['Object', objectPrototype],
+    ['Array', arrayPrototype],
+    ['String', stringPrototype],
+    ['Number', numberPrototype],
+    ['Boolean', booleanPrototype],
+    ['BigInt', bigintPrototype],
+    ['Function', functionPrototype],
 ]
 
 /**

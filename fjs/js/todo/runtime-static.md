@@ -1,10 +1,10 @@
 ## A static section of the runtime: `Object.is` the first
 
 **Priority:** P2
-**Status:** open — the shape is `sergey-shandar`'s; the first static
-call, `Object.is(a, b)`, is a new language feature and needs explicit
-approval from another language designer before its task starts
-([DESIGN.md §12](../../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions))
+**Status:** wip — the shape is `sergey-shandar`'s, who approved the
+proposal by merging it and asking for the implementation
+([#2885](https://github.com/functionalscript/functionalscript/pull/2885));
+the member table is nested under `member`, keyed by the global's name
 
 ### Problem
 
@@ -233,9 +233,9 @@ this proposal does not take.
 
 ### Tasks
 
-- [ ] File this proposal, and obtain approval from another language
-      designer for the mechanism and `Object.is` before the next task.
-- [ ] Nest the member table under `runtime.member` and key it by the
+- [x] File this proposal, and obtain approval for the mechanism and
+      `Object.is` before the next task.
+- [x] Nest the member table under `runtime.member` and key it by the
       global's name: the module, `types.ts`, `edag/value/method`'s `body`,
       `vm/runtime.rs` and `type_name`, `nanvm/methods`'s type column,
       and the README.

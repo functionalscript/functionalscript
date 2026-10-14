@@ -42,8 +42,9 @@ pub trait IVm:
     // functions
     fn to_unpacked(self) -> Unpacked<Self>;
     /// The member function the VM's runtime binds for a receiver of the
-    /// type `type_name` names — `object`, `array`, `string`, `number`,
-    /// `boolean`, `bigint` or `function`, as `fjs/js/runtime` keys them —
+    /// type `type_name` names — `Object`, `Array`, `String`, `Number`,
+    /// `Boolean`, `BigInt` or `Function`, the globals' names, as the
+    /// `member` section of `fjs/js/runtime` keys them —
     /// and the key, or `None`. A call step asks it after the receiver's own
     /// property and the native table ([`method`](crate::vm::lambda) in
     /// `vm/lambda/method.rs`), and before the `TypeError` for calling

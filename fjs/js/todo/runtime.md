@@ -46,11 +46,14 @@ the end:
 
 ```js
 export const runtime = {
-    string: {
-        startsWith: (self, search, position) => {
-            const s = String(search)
-            const start = clamp(position, self.length)
-            return self.slice(start, start + s.length) === s
+    member: {
+        String: {
+            startsWith: (self, search, position) => {
+                const s = String(search)
+                const start = clamp(position, self.length)
+                return self.slice(start, start + s.length) === s
+            },
+            // ...
         },
         // ...
     },
@@ -76,7 +79,7 @@ parameter list drops what it does not name; a body that is neither names
 its parameters, and reads `undefined` past the
 end. The second level is keyed by name rather
 than closed over so that the table is data: a VM enumerates it, and a
-reader finds `string.startsWith` where `fjs/js/prototype`'s README has its
+reader finds `member.String.startsWith` where `fjs/js/prototype`'s README has its
 row.
 
 **Bodies only; the admitted set stays where it is.** The table holds a

@@ -1,8 +1,9 @@
 /**
  * Type-level API for `fjs/js/runtime/module.f.js`: the pins that keep the
- * table inside the admitted set — every type it keys is a receiver type,
- * every key under a type is a name `allowedCalls` admits on that type's
- * prototype — and every entry a body. A compile-time claim about exports
+ * table inside the admitted set — `member` is its one section, every type
+ * `member` keys is a receiver type by its global's name, every key under a
+ * type is a name `allowedCalls` admits on that type's prototype — and
+ * every entry a body. A compile-time claim about exports
  * lives here, at module scope, where `tsc` checks it whatever a proof body
  * does.
  *
@@ -23,11 +24,14 @@ import type {
 } from '../prototype/module.f.js'
 import type { runtime } from './module.f.js'
 
-/** The table: a receiver type, then a member name, then its body. */
+/** The table: `member`, then a receiver type, then a member name, then its body. */
 export type Runtime = typeof runtime
 
-/** A receiver type the table keys. */
-export type ReceiverType = keyof Runtime
+/** The member section: a receiver type by its global's name, then a member name, then its body. */
+export type Member = Runtime['member']
+
+/** A receiver type the member section keys: the name of its global. */
+export type ReceiverType = keyof Member
 
 /**
  * A body: a function of the receiver and then the arguments as the call
@@ -35,28 +39,30 @@ export type ReceiverType = keyof Runtime
  */
 export type Body = (self: never, ...args: never[]) => unknown
 
-/** The prototype each receiver type's names come from, by the name `fjs/nanvm/methods` uses. */
+/** The prototype each receiver type's names come from, by its global's name, as `fjs/nanvm/methods` keys it too. */
 type Prototypes = {
-    readonly object: typeof objectPrototype
-    readonly array: typeof arrayPrototype
-    readonly string: typeof stringPrototype
-    readonly number: typeof numberPrototype
-    readonly boolean: typeof booleanPrototype
-    readonly bigint: typeof bigintPrototype
-    readonly function: typeof functionPrototype
+    readonly Object: typeof objectPrototype
+    readonly Array: typeof arrayPrototype
+    readonly String: typeof stringPrototype
+    readonly Number: typeof numberPrototype
+    readonly Boolean: typeof booleanPrototype
+    readonly BigInt: typeof bigintPrototype
+    readonly Function: typeof functionPrototype
 }
 
 /** The names `allowedCalls` admits on a prototype. */
 type Admitted<P extends readonly string[]> = Extract<AllowedCall, P[number]>
 
+type _Sections = Assert<Equal<keyof Runtime, 'member'>>
+
 type _Types = Assert<Equal<ReceiverType extends keyof Prototypes ? true : false, true>>
 
 /** Whether every key of every type is an allowed name on that type's prototype. */
-type _KeysAdmitted = { readonly [T in ReceiverType]: keyof Runtime[T] extends Admitted<Prototypes[T]> ? true : false }[ReceiverType]
+type _KeysAdmitted = { readonly [T in ReceiverType]: keyof Member[T] extends Admitted<Prototypes[T]> ? true : false }[ReceiverType]
 
 type _Keys = Assert<Equal<_KeysAdmitted, true>>
 
 /** Every entry of every type. */
-type Entry = { readonly [T in ReceiverType]: Runtime[T][keyof Runtime[T]] }[ReceiverType]
+type Entry = { readonly [T in ReceiverType]: Member[T][keyof Member[T]] }[ReceiverType]
 
 type _Entries = Assert<Equal<Entry extends Body ? true : false, true>>
