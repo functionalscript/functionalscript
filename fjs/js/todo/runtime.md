@@ -34,13 +34,13 @@ plans to admit, and any operator whose semantics a VM need not own natively.
 
 ### Proposal
 
-**One module, in FunctionalScript, is the definition — of each body and
-of which functions each type has.** A new `fjs/js/runtime/module.f.js`,
-beside the admission list, exports `runtime`: an object keyed by the seven
-receiver types `nanvm/methods` already names — `object`, `array`, `string`,
-`number`, `boolean`, `bigint`, `function` — each an object keyed by member
-name, each entry a function of the receiver and then the arguments as the
-call passed them, `undefined` past the end:
+**One module, in FunctionalScript, is the definition.** A new
+`fjs/js/runtime/module.f.js`, beside the admission list, exports `runtime`:
+an object keyed by receiver type, the names `nanvm/methods` already uses —
+`object`, `array`, `string`, `number`, `boolean`, `bigint`, `function` —
+each an object keyed by member name, each entry a body: a function of the
+receiver and then the arguments as the call passed them, `undefined` past
+the end:
 
 ```js
 export const runtime = {
@@ -62,31 +62,29 @@ already. The second level is keyed by name rather than closed over so that
 the table is data: a VM enumerates it, and a reader finds `string.startsWith`
 where `fjs/js/prototype`'s README has its row.
 
-**The keys are the admitted set.** A type has exactly the member functions
-its object holds — every one of them, whether the entry is a body or the
-marker below — and `allowedCalls` names the same functions. Deriving the
-list from the keys needs an operation the language does not have: nothing
-in a `.f.js` enumerates an object's keys — `Object.keys` is a call of a
-global the parser refuses, and `entry` reads a key already supplied — so
-until key enumeration is admitted, as a primitive the static-function step
-could bring, `allowedCalls` stays the hand-written list in `js/prototype`
-and the runtime's `types.ts` pins, at the type level, each type's keys
-equal to the allowed names on that type's prototype: a name added to one
-side alone fails `tsc`. The derivation replaces the pin when it can be
-written. `js/prototype` keeps the prototype name lists and
-`prohibitedCalls` either way, which exist for the parser alone — the
-receiver's type is unknown at compile time, so the parser admits a call by
-name and refuses a prohibited one with the error that names the reason. A
-VM never sees a prohibited name, because two boundaries refuse it before
-any VM runs: the parser, for source, and for EDAG supplied as data, which
-no parser made, the admission `validate`
+**Bodies only; the admitted set stays where it is.** The table holds a
+name once its body is written and nothing before: a name without a body is
+absent, and each VM answers it from its own native table as it does today.
+Which names a module may call stays `js/prototype`'s — the prototype name
+lists and `prohibitedCalls` for the parser, `allowedCalls` for every
+executor — and the runtime's `types.ts` pins, at the type level, that
+every key is an allowed name on its type's prototype, so a body for a name
+the language does not admit, or on the wrong type, fails `tsc`. The keys
+are not the admitted set, and need not be: nothing in a `.f.js`
+enumerates an object's keys, so a list could not be derived from them, and
+a table that keyed every admitted name with a marker in place of a body
+would only duplicate the list the parser already has. A VM never sees a
+prohibited name, because two boundaries refuse it before any VM runs: the
+parser, for source, and for EDAG supplied as data, which no parser made,
+the admission `validate`
 [`compiler/todo/interpret-edag.md`](../../compiler/todo/interpret-edag.md)
 requires to reject a key on either list — a check that stays mandatory
 there, since it is the one place such a key could enter. Behind those two
 a native VM does not care. The completeness table `nanvm/methods`
-generates and its four rows (`gen.methods.rs`) exist to keep two
-hand-written lists in agreement, and retire: with one list there is
-nothing to compare.
+generates and its four rows (`gen.methods.rs`) stay, and count a body as
+an answer: every admitted pair is answered natively or by a body, no
+prohibited or absent pair is answered at all, and a stale native entry
+for a name a type does not have is caught there as it is today.
 
 **The compiler is the generator.** The module is an authored `.f.js` the
 current compiler accepts, so `fjs compile` through the Rust backend
@@ -99,35 +97,16 @@ for, as every authored `.f.js` does.
 has as nodes — the operators, `String` and `Number`, `typeof`, property
 access, array literals and spread, calls, `?:`, `throw`, the loop form —
 and over a few member functions no body can define in terms of the rest.
-Those are the primitives a VM must bind natively, and the module keys
-them in the same object, with the string `'native'` where a body would
-be, so that an admitted name is a key whichever kind it is:
-
-```js
-export const runtime = {
-    string: {
-        charCodeAt: 'native',
-        slice: 'native',
-        startsWith: (self, search, position) => { /* ... */ },
-        // ...
-    },
-    // ...
-}
-```
-
-`length` stays a property each value owns and is on no list; the string
-primitives are a code-unit read (`charCodeAt`) and a substring (`slice`),
-and for arrays an element read by a runtime number index, which the
-language has
+Those are the primitives a VM must bind natively, and the runtime's
+README names them: `length` stays a property each value owns and is on no
+list; the string primitives are a code-unit read (`charCodeAt`) and a
+substring (`slice`), and for arrays an element read by a runtime number
+index, which the language has
 ([spec: property access](../../../spec/README.md#property-access)). A
-name with no body yet — the ones waiting on a static function, below —
-carries the same marker, since a VM has the same duty towards both: bind
-it natively. Which of the two a marker is, and why, is a comment beside
-it. An entry is a body or the marker, never both, and the check left runs
-both ways over short lists: every marked name has a native binding, and
-every native binding is a key of its type's object — so a stale or
-mistyped entry, an array `charAt` say, cannot answer ahead of the body or
-the `TypeError` the runtime would give.
+name with no body yet — the ones waiting on a static function, below — is
+absent from the table for the same reason a primitive is, and a VM has the
+same duty towards both: bind it natively. The README says which is which,
+and why.
 
 **A VM binds the object dynamically.** It reads the compiled runtime's
 keys and installs each function value as the fallback member function of
@@ -135,7 +114,7 @@ its type: a call step resolves an own property, then the type's native
 binding, then the runtime's body, then throws the `TypeError` for calling
 `undefined`, as it does today with a hand-written table in the third
 place. The tables in `nanvm/lib/src/vm/lambda`'s `method.rs`, `string.rs`
-and `number.rs` shrink to the marked names; the interpreter runs the body,
+and `number.rs` shrink to the names without a body; the interpreter runs the body,
 the AOT Rust output links the compiled runtime, and a VM may still bind a
 native implementation of a name that has a body where it measures the gain
 — NaNVM's current Rust implementations become exactly that, optimizations,
@@ -170,9 +149,8 @@ would then be a `gen.*` module from the Unicode data files, pinning the
 version in this repository rather than in rustc's standard library; a
 bigint from a number (`BigInt`) for `toFixed`, `toPrecision`,
 `toExponential` and a nondecimal `toString` radix, which are exact decimal
-expansions of a double. These stay keyed with the `'native'` marker, so
-they remain admitted throughout, until the static-function table lands.
-That table is the second step of this
+expansions of a double. These stay native, and admitted, until the
+static-function table lands. That table is the second step of this
 design — the same split, keyed by global and name — and operators whose
 semantics the floor can carry, `**` the example, the third; each gets its
 own `todo/` when its turn comes, and neither is designed here.
@@ -180,10 +158,8 @@ own `todo/` when its turn comes, and neither is designed here.
 ### Tasks
 
 - [ ] File this proposal.
-- [ ] `fjs/js/runtime/module.f.js` with every admitted name keyed — the
-      marked ones first, so the derived list `allowedCalls` never loses a
-      name — and the first derived batch: the string searches and
-      comparisons (`startsWith`, `endsWith`,
+- [ ] `fjs/js/runtime/module.f.js` with the first batch of bodies: the
+      string searches and comparisons (`startsWith`, `endsWith`,
       `includes`, `indexOf`, `lastIndexOf`), `at`, `charAt`, `codePointAt`,
       `substring`, `padStart`, `padEnd`, `repeat`, `concat`, `trim`,
       `trimStart`, `trimEnd`, `split`, `replace`, `replaceAll`,
@@ -191,19 +167,12 @@ own `todo/` when its turn comes, and neither is designed here.
       accepts it. One pull request per few functions, as
       [SESSION.md](../../../doc/SESSION.md) asks.
 - [ ] The array batch: every admitted `array` name, `toString` as `join`.
-- [ ] `allowedCalls` derived from the runtime's keys, once the language can
-      enumerate an object's keys in a `.f.js`; until then `types.ts` pins
-      the two equal. `js/prototype` keeps the prototype lists and
-      `prohibitedCalls` for the parser.
-      `nanvm/methods`, `gen.methods.rs` and the four-row test beside
-      `method` in `nanvm/lib/src/vm/lambda/method.rs` retire, replaced by
-      the two-way test above: every marked name bound, every native
-      binding a key of its type's object.
 - [ ] `edag/value/method` answers derived names from the generated EDAG and
       stops calling the host engine for them; `edag/value/array_method`
       likewise.
 - [ ] NaNVM binds the compiled runtime's keys as each type's fallback
-      member functions; its hand tables shrink to the marked names; the
+      member functions; its hand tables shrink to the names without a
+      body; the
       corpus runs the bound runtime; decide per function, with a
       measurement, whether a native implementation stays.
 - [ ] File the static-function table and the operator step as their own
