@@ -107,6 +107,30 @@ export const proof = {
         assertEq(assertOk(checked(a)), a)
         assertEq(assertError(checked(an(['frame', 0]))), 'invalid frame slot index or scope')
     },
+    // A static function is admitted only as a call's callee, at a path
+    // `fjs/js/static` admits: anywhere else — the root, an argument, an
+    // element, a captured slot, a receiver — it would be a first-class
+    // value. Its identity is never observable, so twins merge into one
+    // entry, as any value no node mints does.
+    staticFunction: () => {
+        /** @type {Exp} */
+        const is = ['static', ['Object', 'is']]
+        const callee = 'a static function outside a call'
+        assertOk(checked(an(['()', is, [-0, 0]])))
+        assertOk(checked(an(['=>', 0, [], ['()', is, [1, 1]]])))
+        const twice = an(['[]', [['()', is, [1]], ['()', ['static', ['Object', 'is']], [2]]]])
+        assertEq(twice.nodes.filter(node => node[0] === 'static').length, 1)
+        assertOk(checked(twice))
+        for (const e of /** @type {readonly Exp[]} */ ([
+            is, ['[]', [is]], ['()', ['=>', 1, [], ['arg', 0]], [is]], ['=>', 0, [is], 1],
+            ['.', is, 'length'], ['()', ['=>', 0, [], is], []],
+        ])) { assertEq(assertError(checked(an(e))), callee) }
+        assertEq(assertError(checked(an(['()', ['static', ['Object', 'keys']], [1]]))), 'a static function not admitted')
+        assertEq(assertError(checked(an(['()', ['static', []], []]))), 'a static function not admitted')
+        // a check limited to one function sees a misplaced static inside it
+        const nested = an(['=>', 0, [], ['[]', [is]]])
+        assertEq(assertError(checked(nested, nested.nodes.findIndex(node => node[0] === '=>'))), callee)
+    },
     validation: () => {
         for (const e of /** @type {readonly Exp[]} */ ([
             ['rest'], ['arg',0], ['=>',0,[],['arg',0]], ['=>',1,[],['arg',1]],

@@ -31,6 +31,16 @@ const memoName = (s, k) => name(`${s.path}/memo${k}`)
 const selfName = path => name(`${path}/self`)
 
 /**
+ * A static function's path as the source calls it: `Object.is` for
+ * `['Object', 'is']`, the global alone for `['isNaN']` and for the global
+ * called as a function, `['Object', '']`. The keys are an admitted path's,
+ * which the analysis checked: identifiers, the empty key last.
+ *
+ * @type {(path: readonly string[]) => string}
+ */
+export const _staticText = path => path.filter(key => key !== '').join('.')
+
+/**
  * The `entry` helper's text, the one spelling of `['entry']` — the
  * FunctionalScript writer's and this renderer's alike, so that `String(f)`
  * and the source output agree — over the symbolic names of its three
@@ -99,6 +109,7 @@ const entry = (s, i) => {
         case 'frame': { return `(${s.frame[n[1]]})` }
         case 'self': { return `(${selfName(s.path)})` }
         case 'entry': { return `(${_entryText(`${s.path}/function${i}`)})` }
+        case 'static': { return `(${_staticText(n[1])})` }
         case '[]': { return `([${items(s, n[1])}])` }
         case '{}': { return `({${n[1].map(p => p[0] === '...'
             ? `...${operand(s, p[1])}` : `[${operand(s, p[1])}]:${operand(s, p[2])}`).join(',')}})` }

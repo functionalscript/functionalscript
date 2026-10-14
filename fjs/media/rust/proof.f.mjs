@@ -11,6 +11,8 @@ export const proof = {
     items: () => {
         assertStructurallySame(utf16Units('a\ud800'), ['0x0061', '0xd800'])
         assertStructurallySame(utf16Units(''), [])
+        // a pair is listed as its two code units, high first
+        assertStructurallySame(utf16Units('\u{1F600}\udc00'), ['0xd83d', '0xde00', '0xdc00'])
         assertStructurallySame(u64WordItems(2n ** 64n), ['0x0000000000000000', '0x0000000000000001'])
         assertStructurallySame(u64WordItems(-1n), ['0x0000000000000001'])
         assertStructurallySame(u64WordItems(0n), [])

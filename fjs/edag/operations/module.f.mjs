@@ -31,7 +31,7 @@ import { truthy, typeOf, instanceOf, unary as semanticUnary, binary as semanticB
 import { unary as numericUnary, binary as numericBinary } from '../value/numeric/module.f.mjs'
 import { binary as relational } from '../value/relational/module.f.mjs'
 import { toPrimitive, toString } from '../value/convert/module.f.mjs'
-import { hasMethod, method } from '../value/method/module.f.mjs'
+import { functionAt, hasMethod, method } from '../value/method/module.f.mjs'
 
 /** Propagate failures without running the continuation.
  * @template S
@@ -63,6 +63,14 @@ const nullish = value => value === null || typeOf(value) === 'undefined'
  */
 export const entryCall = ([receiver, key], invoke) =>
     nullish(receiver) ? error(['undefined']) : okThen(name => entry(receiver, name))(toString(key, invoke))
+
+/**
+ * The failure of a static call no binding answers, naming the path:
+ * the parser admitted it, so the binding is the executor's to supply.
+ *
+ * @type {(path: readonly string[]) => string}
+ */
+export const noStatic = path => `no binding for the static ${path.join('.')}`
 
 /** A node in tail position: its value, or the call it leaves for the executor.
  * @template E, S
@@ -181,6 +189,14 @@ export const operation = evaluator => {
             case 'self': { return [state, self === undefined ? error(['undefined']) : ok(self)] }
             // the helper as a value: a fresh function each time, as `=>` makes one
             case 'entry': { return [state, ok(['entry'])] }
+            // a static function, the body the runtime's `static` section
+            // holds at the path; with none — no runtime, or one without the
+            // path — the executor fails naming the path, never the `TypeError`
+            // of calling `undefined` and never a plausible value
+            case 'static': {
+                const fn = functionAt(runtime, ['static', ...node[1]])
+                return [state, fn === undefined ? error(noStatic(node[1])) : ok(fn)]
+            }
             case '[]': { return items(node[1], state) }
             case '{}': { return properties(node[1], state) }
             case '=>': {
