@@ -111,5 +111,13 @@ mod tests {
             )
             .is_err()
         );
+        // The search is converted before the position: its own `toString`'s
+        // throw wins over the bigint position's `TypeError`.
+        let boom = A::static_function(|_, _| Err("A".into()), 0, [].to_array(), None).to_any();
+        let search: Any<A> = [("toString".into(), boom)].to_object().to_any();
+        assert_eq!(
+            call(&f, ["abc".into(), search, BigInt::<A>::from(0i64).to_any()]),
+            Err("A".into())
+        );
     }
 }

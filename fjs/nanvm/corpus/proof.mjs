@@ -65,6 +65,16 @@ const interpreted = name => {
 const aliased = ([tag, value]) => tag === 'ok' ? [tag, withAliasing(value)] : [tag, value]
 
 export const proof = {
+    // The body converts the search before the position, as the algorithm
+    // orders them: a search whose own `toString` throws `'A'` and a bigint
+    // position, which `ToNumber` refuses, throw `'A'`, on the interpreter
+    // running the compiled body as `vm/runtime.rs` pins it on NaNVM.
+    searchBeforePosition: () => {
+        const order = { 'order.f.js': [utf8("export default 'abc'.startsWith({ toString: () => { throw 'A' } }, 0n);")] }
+        const [, result] = virtual({ ...emptyState, root: order })(_transpileDefault(pureOk(runtime))('order.f.js'))
+        assertEq(result[0], 'error')
+        assertStructurallySame(/** @type {{ thrown: unknown }} */ (result[1]).thrown, 'A')
+    },
     /** An exception for a fixture that is gone would excuse nothing. */
     exceptionsNameFixtures: () => {
         for (const file of Object.keys(exceptions)) { assert(names.includes(file), file) }

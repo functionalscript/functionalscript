@@ -56,5 +56,9 @@ export const proof = {
     throw: {
         // A bigint position is the `TypeError` `ToNumber` throws.
         bigintPosition: () => { runtime.string.startsWith('abc', 'a', 0n) },
+        // The search is converted through its own `toString`, whose throw
+        // is the call's; which of two throws wins is pinned where the
+        // executors run the body, in `nanvm/corpus` and `vm/runtime.rs`.
+        searchConversion: () => { runtime.string.startsWith('abc', { toString: () => { throw 'A' } }, 0) },
     },
 }
