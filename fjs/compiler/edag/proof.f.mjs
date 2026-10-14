@@ -1704,9 +1704,7 @@ export const proof = {
         // `0` and `1`, reaching `+` past the row `*` sits in — and neither
         // passes through a box: each runs down a lane of its own.
         noEdgeCrossesABox: () => {
-            const g = _graphOf(demo.init)
-            assert(g.ok, g)
-            assertEq(_crossings(g), 0)
+            assertEq(_crossings(unwrap(_graphOf(demo.init))), 0)
         },
         lazyEdgeInTheInitialSource: () => {
             const html = htmlToString(demo.view(demo.init))
@@ -1833,8 +1831,7 @@ export const proof = {
             // an example exists to show what it can.
             draw: () => {
                 for (const [name, source] of examples) {
-                    const g = _graphOf(source)
-                    assertEq(g.ok, !['Hex escape', 'Parse error'].includes(name), name)
+                    assertEq(_graphOf(source)[0] === 'ok', !['Hex escape', 'Parse error'].includes(name), name)
                     assert(!htmlToString(demo.view(source)).includes('not yet drawn'), name)
                 }
             },
