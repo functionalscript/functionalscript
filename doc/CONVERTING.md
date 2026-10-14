@@ -250,8 +250,8 @@ stays refused.
 
 ## 5. `Math.min` and `Math.max`
 
-The `Math` global is not admitted: `Number` is a reserved word with one
-admitted call, `Math` is no name at all, and `Math.min` is refused as
+The `Math` global is not admitted: `Number` is a reserved word admitting
+the conversion and the four predicates above, `Math` is no name at all, and `Math.min` is refused as
 `const not found`. On two numbers the replacements are `min` from
 [`fjs/types/number/min`](../fjs/types/number/min/module.f.js) and `max`
 from [`fjs/types/number/max`](../fjs/types/number/max/module.f.js):

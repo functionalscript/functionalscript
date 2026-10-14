@@ -300,8 +300,11 @@ this proposal does not take.
       `statics`, their bodies the helpers in the `static` section, each the
       EDAG node of its name, `['Number.isInteger']`, read in every spelling
       `Object.is` is and through `const { isInteger } = Number`; the arms
-      that name `Object.is` alone become one table of static names; the
-      spec, `doc/CONVERTING.md` §2–§4 and a harness fixture say so.
+      that named `Object.is` alone become one table of static names, the
+      EDAG's `staticIds`, which every reader of a node asks through
+      `isStatic` — but the interpreter's `switch` and the analysis's
+      handlers, which `tsc` holds to the list; the spec,
+      `doc/CONVERTING.md` §2–§4 and a harness fixture say so.
 - [ ] Decide the global `isNaN` and `isFinite` there, which convert their
       argument as the `Number` predicates do not.
 

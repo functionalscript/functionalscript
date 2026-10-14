@@ -32,6 +32,7 @@ import { _defaultExport, unresolved } from '../edag/module.f.mjs'
 import { parse } from '../transpiler/module.f.mjs'
 import { _tryModuleSerialize, _trySerialize, functionText, tryFunctionText, trySerialize, tryStringify, tryModuleSerialize, tryModuleStringify, tryMarked, tryModuleMarked } from './module.f.mjs'
 import { keywords } from '../../js/keywords/module.f.js'
+import { staticIds } from '../../edag/module.f.mjs'
 import { disagreement } from '../../website/demo/highlight/module.f.mjs'
 import { textOfResult, toText } from '../../text/marked/module.f.mjs'
 
@@ -465,6 +466,8 @@ export const proof = {
         /** @type {Exp} */
         const is = ['Object.is']
         writes(['[]', [['()', is, [1, 1]], ['()', is, [2, 2]]]], 'export default [Object.is(1,1),Object.is(2,2)];')
+        // every static, each its own tag, with no case of its own to miss
+        for (const id of staticIds) { writes([id], `export default ${id};`) }
     },
     // A function's `length` is at most 16: 16 reads back, and a larger one,
     // top-level or nested, is an error from every entry point, not a throw

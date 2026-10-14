@@ -1,7 +1,9 @@
 /**
  * The `NaN` predicate: `Number.isNaN` written with the language's own
- * operators, so a module can import it where the `Number` global is not
- * admitted ([`doc/CONVERTING.md`](../../../../doc/CONVERTING.md)).
+ * operators, the body the runtime's `static` section binds `Number.isNaN`
+ * to ([`fjs/js/runtime`](../../../js/runtime/module.f.js)), and a function a
+ * module may import as well, answering alike by construction
+ * ([`doc/CONVERTING.md`](../../../../doc/CONVERTING.md#3-numberisnan)).
  *
  * @module
  */

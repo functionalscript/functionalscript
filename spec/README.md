@@ -1710,8 +1710,8 @@ yields none, as `Number()` is, a call of a runtime arity no node expresses
 yet ([number-spread](./todo/2363-number-spread.md)). Nor is the guarded call `Number?.(x)`,
 which is `Number(x)` in JavaScript, the word never being nullish: it is
 refused at the word (`reserved word`) as every other spelling of `Number`
-but the call is, until a pull request reads the guard away, a spelling no
-module writes.
+is but the call and the four predicates' reads, until a pull request reads
+the guard away, a spelling no module writes.
 
 The word is reserved for the guarantee `undefined`, `NaN` and `Infinity`
 already have ([numbers](#numbers)): a global word means one thing wherever
@@ -1720,8 +1720,8 @@ agent or a tool reads it without resolving a scope, where a JavaScript module
 that binds the word — `const Number = x => x;`, the shadowing JavaScript's
 linters flag — makes every `Number(…)` after it something else. And it keeps
 the language free to grow: a member of the namespace admitted later,
-`Number.isInteger` ([built-ins](./todo/2360-built-in.md)), cannot change
-what an existing module means, since no module could have bound the word
+`Number.parseFloat` say ([built-ins](./todo/2360-built-in.md)), cannot
+change what an existing module means, since no module could have bound the word
 ([global names](./todo/2365-global-names.md)). The one JavaScript spelling it
 costs, a module rebinding a standard global, is refused at compile time
 rather than read another way.
@@ -1960,11 +1960,14 @@ Each read reaches the graph as the node of its name, `['Object.is']` or
 `['()', ['Object.is'], [a, b]]` ([`fjs/edag`](../fjs/edag/README.md)). Each
 body is written once, in the `static` section of
 [`fjs/js/runtime`](../fjs/js/runtime/README.md), as a helper a module may
-import as well — [`fjs/types/object/is`](../fjs/types/object/is/module.f.js)
-and the predicates of [`fjs/types/number`](../fjs/types/number/module.f.mjs)
-— and every executor answers the node from it; an executor with no binding
+import as well — [`fjs/types/object/is`](../fjs/types/object/is/module.f.js),
+and [`is_integer`](../fjs/types/number/is_integer/module.f.js),
+[`is_safe_integer`](../fjs/types/number/is_safe_integer/module.f.js),
+[`is_nan`](../fjs/types/number/is_nan/module.f.js) and
+[`is_finite`](../fjs/types/number/is_finite/module.f.js) under
+`fjs/types/number` — and every executor answers the node from it; an executor with no binding
 for it fails, naming it, rather than answer. The graph outputs write the
-node back: the FunctionalScript one as `Object.is`,
+node back: the FunctionalScript one as its name, `Object.is`,
 the Rust one as the binding the VM answers, which NaNVM reads from the one
 runtime object it holds, so every read there is one function too.
 

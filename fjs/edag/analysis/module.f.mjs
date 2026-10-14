@@ -64,6 +64,7 @@ import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { isIndex, maxLength } from '../../types/function/length/module.f.mjs'
 import { mapSet } from '../../types/map/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
+import { isStatic } from '../module.f.mjs'
 
 /** @type {_State} */
 const start = { visited: new Map(), entries: [], problem: null }
@@ -376,9 +377,10 @@ const propertyOperands = p => p[0] === ':' ? [p[1], p[2]] : [p[1]]
  * @type {(node: Node) => readonly Operand[]}
  */
 export const operandsOf = node => {
+    // a static function, as `entry`, is a function of its parameters alone
+    if (isStatic(node)) { return [] }
     switch (node[0]) {
-        case 'undefined': case 'args': case 'frame': case 'rest': case 'arg': case 'self': case 'entry':
-        case 'Object.is': case 'Number.isInteger': case 'Number.isSafeInteger': case 'Number.isNaN': case 'Number.isFinite': { return [] }
+        case 'undefined': case 'args': case 'frame': case 'rest': case 'arg': case 'self': case 'entry': { return [] }
         case '[]': { return node[1].map(itemOperand) }
         case '{}': { return node[1].flatMap(propertyOperands) }
         case ',': { return node[1] }

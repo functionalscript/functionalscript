@@ -554,13 +554,20 @@ export const staticIds = /** @type {const} */ (['Object.is', 'Number.isInteger',
 export const staticId = or(...staticIds)
 
 /**
- * Whether a node's tag is a static function's, {@link staticIds}: the one
- * test every executor and writer dispatches a static on, so a new static
- * is a row of the list and no new arm.
+ * Whether a node — the EDAG's, or the AST's, which shares it — is a static
+ * function, `['Object.is']`: one tag of {@link staticIds} and nothing
+ * else. What reads a static node asks this, before its `switch` on the
+ * tag, instead of listing the tags again, so a new static is a row of the
+ * list, and nowhere a missed `case` would read it as something else. Two
+ * places name every tag still, each one `tsc` holds to the list, a
+ * missing tag a type error: the analysis's table of handlers, keyed by
+ * every tag, and the interpreter's `switch`, where `Op0` is one tuple
+ * whatever its tag, so this test could not narrow a static away.
  *
- * @type {(tag: unknown) => boolean}
+ * @param {unknown} node
+ * @returns {node is readonly [StaticId]}
  */
-export const isStaticId = tag => staticIds.some(id => id === tag)
+export const isStatic = node => node instanceof Array && node.length === 1 && staticIds.some(id => id === node[0])
 
 /**
  * A static function's path into the runtime's `static` section, its tag's

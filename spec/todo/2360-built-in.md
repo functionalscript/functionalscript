@@ -21,8 +21,8 @@ no later than this file admits any of it, a name at a time
 A ticked box below marks a name the language is to admit, not one it admits
 today. Implemented reserved globals are `Infinity`, `NaN` and `undefined`
 ([numbers](../README.md#numbers)), `Number` and `String`, as the
-conversions `Number(exp)` and `String(exp)` alone, their words reserved
-([number conversion](../README.md#number-conversion),
+conversions `Number(exp)` and `String(exp)` — `String`'s alone — their
+words reserved ([number conversion](../README.md#number-conversion),
 [string conversion](../README.md#string-conversion)), and `Array`, as the
 right operand of [`instanceof`](../README.md#instanceof), and `Object` and
 `Number`, as the namespaces of the static functions `Object.is` and the
@@ -75,11 +75,16 @@ name not yet decided, or, where it says so, never admitted.
       ([built-in static functions](../README.md#built-in-static-functions),
       the record below); the namespace's other members, its value
       properties `Number.MAX_SAFE_INTEGER` among them, stay unticked, each
-      an admission of its own. A module reading one of the four, or
-      `const { isFinite } = Number` as the three
-      [global-names](./2365-global-names.md) names do, needs no rewrite to
-      compile; a module reading another member is rewritten when that
-      member is admitted or equivalent code can use existing syntax
+      an admission of its own. A module reading one of the four, through
+      `const { isFinite } = Number` as well, needs no rewrite to compile;
+      a module reading another member is rewritten when that member is
+      admitted or equivalent code can use existing syntax
+- [ ] `BigInt` — not decided. `BigInt(n)` on an integral number is the
+      importable function
+      [`bigint`](../../fjs/types/bigint/from_number/module.f.js)
+      meanwhile ([`doc/CONVERTING.md` §8](../../doc/CONVERTING.md#8-bigint))
+- [ ] `Math`
+- [ ] `Date`
 
 #### Number predicates proposal and approval
 
@@ -108,23 +113,16 @@ imported helpers, with one body per predicate shared by the runtime and the
 modules that import it, so the two answer alike by construction. A module
 reading one of the four needs no rewrite to compile.
 
-**Drawbacks.** Four more EDAG node kinds, each an arm of every executor and
-writer, unless the arms share one table of static names. The namespace
-grows to a member that is a number, `Number.MAX_SAFE_INTEGER`, which stays
-refused: a value property is a different admission from a function.
+**Drawbacks.** Four more EDAG node kinds, each a tag every executor and
+writer has to read, unless they share one table of static names. The
+namespace grows to a member that is a number, `Number.MAX_SAFE_INTEGER`,
+which stays refused: a value property is a different admission from a
+function.
 
 **Language-design approval.** **sergey-shandar** chose "all four Number
-predicates" when asked which function to admit next, in the working session
-of [#2914](https://github.com/functionalscript/functionalscript/pull/2914)'s
-stacked follow-up, before implementation began.
-
-- [ ] `BigInt` — not decided. `BigInt(n)` on an integral number is the
-      importable function
-      [`bigint`](../../fjs/types/bigint/from_number/module.f.js)
-      meanwhile ([`doc/CONVERTING.md` §8](../../doc/CONVERTING.md#8-bigint)),
-      as `isInteger` stands in for `Number.isInteger` above
-- [ ] `Math`
-- [ ] `Date`
+predicates" when asked which function to admit next, in
+[the LLM working session](https://claude.ai/code/session_01DCMj3aMojA86V6qjvW9fXs),
+before implementation began.
 
 ### Text Processing
 

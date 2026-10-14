@@ -7,7 +7,7 @@
 // value, none converting its argument — `"1"` is no integer and `"NaN"` no
 // `NaN` — and each one function on every read, destructured or not.
 const { isInteger, isSafeInteger } = Number;
-const values = [0, -0, 1, 1.5, 9007199254740991, 9007199254740992, NaN, Infinity, -Infinity, 1n, "1", "NaN", true, null, undefined, [], {}];
+const values = [0, -0, 1, 1.5, 0x1f_ffff_ffff_ffff, 0x20_0000_0000_0000, NaN, Infinity, -Infinity, 1n, "1", "NaN", true, null, undefined, [], {}];
 const read = () => Number.isFinite;
 export default [
     values.map(v => isInteger(v)),
