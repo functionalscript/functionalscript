@@ -57,10 +57,16 @@ export const runtime = {
 ```
 
 A FunctionalScript function reads no `this`, so the receiver is a parameter,
-which is the shape NaNVM's `Method<A>` — `fn(Any<A>, Array<A>)` — has
-already. The second level is keyed by name rather than closed over so that
-the table is data: a VM enumerates it, and a reader finds `string.startsWith`
-where `fjs/js/prototype`'s README has its row.
+the first, which is where NaNVM's `Method<A>` — `fn(Any<A>, Array<A>)` —
+takes it too. The rest differ: a native method takes the call's arguments
+as one array, a body takes them positionally, as a function in the
+language must. So a VM does not treat a body as a `Method<A>`; it calls
+the body as it calls any function value, with `[receiver, ...args]`, the
+receiver prepended to the arguments the call spread, which `Member::call`
+in `vm/lambda/member.rs` does. The second level is keyed by name rather
+than closed over so that the table is data: a VM enumerates it, and a
+reader finds `string.startsWith` where `fjs/js/prototype`'s README has its
+row.
 
 **Bodies only; the admitted set stays where it is.** The table holds a
 name once its body is written and nothing before: a name without a body is
@@ -114,8 +120,9 @@ its type: a call step resolves an own property, then the type's native
 binding, then the runtime's body, then throws the `TypeError` for calling
 `undefined`, as it does today with a hand-written table in the third
 place. The tables in `nanvm/lib/src/vm/lambda`'s `method.rs`, `string.rs`
-and `number.rs` shrink to the names without a body; the interpreter runs the body,
-the AOT Rust output links the compiled runtime, and a VM may still bind a
+and `number.rs` shrink to the names without a body; the interpreter runs
+the body, the AOT Rust output links the compiled runtime, and a VM may
+still bind a
 native implementation of a name that has a body where it measures the gain
 — NaNVM's current Rust implementations become exactly that, optimizations,
 each one free to go when the compiled body is fast enough. Either way the
