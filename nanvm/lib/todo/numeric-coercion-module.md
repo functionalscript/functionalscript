@@ -18,16 +18,12 @@ pub fn to_numeric(self) -> Result<Numeric<A>, Any<A>> {
     let prim_value = self.to_primitive(Some(ToPrimitivePreferredType::Number))?;
     match prim_value {
         Primitive::BigInt(bi) => Ok(Numeric::BigInt(bi)),
-        _ => {
-            let u: Unpacked<A> = prim_value.into();
-            let any: Any<A> = u.into();
-            Ok(Numeric::Number(any.to_number()?))
-        }
+        other => Ok(Numeric::Number(Any::from(other).to_number()?)),
     }
 }
 ```
 
-Besides the placement, the `_` arm packs a value it has fully in hand —
+Besides the placement, the `other` arm packs a value it has fully in hand —
 `Primitive → Unpacked → Any` (allocating through `to_any`) — purely so
 `to_number` can start by unpacking it again and re-running `to_primitive` on
 a value already known to be primitive.

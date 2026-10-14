@@ -230,11 +230,7 @@ impl<A: IVm> Any<A> {
         let prim_value = self.to_primitive(Some(ToPrimitivePreferredType::Number))?;
         match prim_value {
             Primitive::BigInt(bi) => Ok(Numeric::BigInt(bi)),
-            _ => {
-                let u: Unpacked<A> = prim_value.into();
-                let any: Any<A> = u.into();
-                Ok(Numeric::Number(any.to_number()?))
-            }
+            other => Ok(Numeric::Number(Any::from(other).to_number()?)),
         }
     }
 
