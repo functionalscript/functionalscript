@@ -9,7 +9,9 @@ use crate::{
 /// A built-in member function: the receiver and the arguments, already the
 /// `Array` a call spreads — `Member::call` converts them before any
 /// built-in runs, throwing for a non-array as `Any::call` does — answering
-/// the value or the throw.
+/// the value or the throw. The receiver is of the type whose table
+/// [`method`] found the function in, so an adapter's `T::try_from(receiver)?`
+/// cannot throw.
 pub(crate) type Method<A> = fn(Any<A>, Array<A>) -> Result<Any<A>, Any<A>>;
 
 /// The built-in member function a key names on the receiver's type, for
@@ -111,6 +113,23 @@ pub(super) fn index_or_minus_one<A: IVm>(found: Option<u32>) -> Any<A> {
     Number::from(found.map_or(-1.0, f64::from)).to_any()
 }
 
+/// `Ok(x?.to_any())`, the last step of an adapter whose typed method
+/// answers a value the VM converts: `s.slice(…).to_any_result()`. It
+/// converts through `Unpacked`, as `Any::from` does, so it asks of the
+/// value only that it is one of `Unpacked`'s variants.
+pub(super) trait ToAnyResult<A: IVm> {
+    fn to_any_result(self) -> Result<Any<A>, Any<A>>;
+}
+
+impl<A: IVm, T> ToAnyResult<A> for Result<T, Any<A>>
+where
+    Unpacked<A>: From<T>,
+{
+    fn to_any_result(self) -> Result<Any<A>, Any<A>> {
+        self.map(|value| Any::from(Unpacked::from(value)))
+    }
+}
+
 /// `toString()`: a dispatch to `Any::to_string`, the `String(x)` conversion,
 /// which answers what the method answers for a number, a boolean, a
 /// bigint, a string, an object and an array — except that a number and a
@@ -148,16 +167,16 @@ fn radix<A: IVm>(radix: Any<A>) -> Result<u32, Any<A>> {
     Ok(r as u32)
 }
 
-/// `Array.prototype.at`, `vm/array/at.rs`. The receiver is the array
-/// [`method`] matched, so the conversion cannot throw.
+/// `Array.prototype.at`, `vm/array/at.rs`.
 fn array_at<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     Array::try_from(receiver)?.at(argument(&args, 0))
 }
 
 /// `Array.prototype.includes`, `vm/array/includes.rs`.
 fn array_includes<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
-    let found = Array::try_from(receiver)?.includes(&argument(&args, 0), argument(&args, 1))?;
-    Ok(found.to_any())
+    Array::try_from(receiver)?
+        .includes(&argument(&args, 0), argument(&args, 1))
+        .to_any_result()
 }
 
 /// `Array.prototype.indexOf`, `vm/array/index_of.rs`.
@@ -168,13 +187,14 @@ fn array_index_of<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, An
 
 /// `Array.prototype.concat`, `vm/array/concat.rs`: every argument an item.
 fn array_concat<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
-    Ok(Array::try_from(receiver)?.concat(args)?.to_any())
+    Array::try_from(receiver)?.concat(args).to_any_result()
 }
 
 /// `Array.prototype.slice`, `vm/array/slice.rs`.
 fn array_slice<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
-    let a = Array::try_from(receiver)?;
-    Ok(a.slice(argument(&args, 0), argument(&args, 1))?.to_any())
+    Array::try_from(receiver)?
+        .slice(argument(&args, 0), argument(&args, 1))
+        .to_any_result()
 }
 
 /// `Array.prototype.toReversed`, `vm/array/to_reversed.rs`.
@@ -186,17 +206,16 @@ fn array_to_reversed<A: IVm>(receiver: Any<A>, _: Array<A>) -> Result<Any<A>, An
 /// and `skip` were passed decides how many elements go, so both are read
 /// as present or not.
 fn array_to_spliced<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
-    let a = Array::try_from(receiver)?;
-    Ok(
-        a.to_spliced(present(&args, 0), present(&args, 1), rest(&args, 2))?
-            .to_any(),
-    )
+    Array::try_from(receiver)?
+        .to_spliced(present(&args, 0), present(&args, 1), rest(&args, 2))
+        .to_any_result()
 }
 
 /// `Array.prototype.with`, `vm/array/with.rs`.
 fn array_with<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
-    let a = Array::try_from(receiver)?;
-    Ok(a.with(argument(&args, 0), argument(&args, 1))?.to_any())
+    Array::try_from(receiver)?
+        .with(argument(&args, 0), argument(&args, 1))
+        .to_any_result()
 }
 
 /// The receiver and the callback of an iteration or a fold, the callback
@@ -212,13 +231,13 @@ fn with_callback<A: IVm>(
 /// `Array.prototype.every`, `vm/array/every.rs`.
 fn array_every<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     let (a, f) = with_callback(receiver, &args)?;
-    Ok(a.every(&f)?.to_any())
+    a.every(&f).to_any_result()
 }
 
 /// `Array.prototype.some`, `vm/array/some.rs`.
 fn array_some<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     let (a, f) = with_callback(receiver, &args)?;
-    Ok(a.some(&f)?.to_any())
+    a.some(&f).to_any_result()
 }
 
 /// `Array.prototype.find`, `vm/array/find.rs`.
@@ -248,13 +267,13 @@ fn array_find_last_index<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any
 /// `Array.prototype.map`, `vm/array/map.rs`.
 fn array_map<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     let (a, f) = with_callback(receiver, &args)?;
-    Ok(a.map(&f)?.to_any())
+    a.map(&f).to_any_result()
 }
 
 /// `Array.prototype.filter`, `vm/array/filter.rs`.
 fn array_filter<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     let (a, f) = with_callback(receiver, &args)?;
-    Ok(a.filter(&f)?.to_any())
+    a.filter(&f).to_any_result()
 }
 
 /// `Array.prototype.reduce`, `vm/array/reduce.rs`: the initial value read
@@ -279,13 +298,13 @@ fn array_flat<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>
     let depth = argument(&args, 0)
         .defined()
         .map_or(Ok(1.0), Any::to_integer_or_infinity)?;
-    Ok(a.flat(depth)?.to_any())
+    a.flat(depth).to_any_result()
 }
 
 /// `Array.prototype.flatMap`, `vm/array/flat.rs`.
 fn array_flat_map<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     let (a, f) = with_callback(receiver, &args)?;
-    Ok(a.flat_map(&f)?.to_any())
+    a.flat_map(&f).to_any_result()
 }
 
 /// `Array.prototype.toSorted`, `vm/array/to_sorted.rs`: the comparator
@@ -299,7 +318,9 @@ fn array_to_sorted<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, A
             _ => Err(error::invalid_comparison_function()),
         })
         .transpose()?;
-    Ok(Array::try_from(receiver)?.to_sorted(compare)?.to_any())
+    Array::try_from(receiver)?
+        .to_sorted(compare)
+        .to_any_result()
 }
 
 /// `Array.prototype.join`, `vm/array/join.rs`: the separator `","` when
@@ -319,7 +340,7 @@ fn array_join<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>
         // a function's text, and refuses a function without one.
         Some(separator) => separator.to_string()?,
     };
-    Ok(a.join(separator)?.to_any())
+    a.join(separator).to_any_result()
 }
 
 /// `Array.prototype.lastIndexOf`, `vm/array/last_index_of.rs`: the one of
