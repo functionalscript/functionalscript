@@ -1,7 +1,7 @@
 ## The grammar demos repeat their setup and their intro
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
