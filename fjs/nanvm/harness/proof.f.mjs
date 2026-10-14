@@ -8,7 +8,7 @@
 import { assert, assertEq, assertOk } from '../../asserts/module.f.mjs'
 import { exitCode, readUtf8File } from '../../effects/node/module.f.mjs'
 import { step } from '../../effects/module.f.mjs'
-import { defaultNodeProgramOptions, emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'
+import { defaultNodeProgramOptions, emptyState, virtual, virtualAt } from '../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { fixturesDirectory as corpusDirectory } from '../corpus/module.f.mjs'
 import { directory, expectedDirectory, expectedModules, expectedModulesPath, fixtures, fixturesDirectory, generateAll, generateExpected, generateFixtures, main, modules, modulesPath, rustName } from './module.f.mjs'
@@ -69,7 +69,7 @@ export const proof = {
     // Files only, modules only, directly in the directory, and sorted
     // whatever order the listing came in.
     fixtures: () => {
-        const [, result] = virtual({ ...emptyState, root })(fixtures())
+        const [, result] = virtualAt(root)(fixtures())
         assertEq(assertOk(result).join(','), 'at.mjs,function.mjs,function-scope.mjs,rest-function.mjs,starts-with.mjs')
     },
     modules: () => {
@@ -91,7 +91,7 @@ export const proof = {
         assert(expectedModules([]).endsWith('&[crate::Case] = &[\n];\n'))
     },
     generateFixtures: () => {
-        const [state, result] = virtual({ ...emptyState, root })(generateFixtures())
+        const [state, result] = virtualAt(root)(generateFixtures())
         assertOk(result)
         const written = into(state.root, directory.split('/'))
         assertEq(Object.keys(written).toSorted().join(','), 'at.rs,function.rs,function_scope.rs,mod.rs,rest_function.rs,starts_with.rs')
@@ -104,7 +104,7 @@ export const proof = {
     // written: a list naming a module that does not exist would not build.
     generateFixturesStopsAtARefusedFixture: () => {
         const broken = withRuntime({ 'a.mjs': [utf8('export default 1;')], 'b.mjs': [utf8('export default (')] })
-        const [state, result] = virtual({ ...emptyState, root: broken })(generateFixtures())
+        const [state, result] = virtualAt(broken)(generateFixtures())
         assertEq(result[0], 'error')
         const written = into(state.root, directory.split('/'))
         assertEq(Object.keys(written).join(','), 'a.rs')
@@ -113,7 +113,7 @@ export const proof = {
     // to include.
     generateFixturesWithNoFixtures: () => {
         const none = withRuntime({})
-        const [state, result] = virtual({ ...emptyState, root: none })(step(generateFixtures(), () => readUtf8File(modulesPath)))
+        const [state, result] = virtualAt(none)(step(generateFixtures(), () => readUtf8File(modulesPath)))
         assertEq(assertOk(result), modules([]))
         assertEq(Object.keys(into(state.root, directory.split('/'))).join(','), 'mod.rs')
     },
@@ -121,7 +121,7 @@ export const proof = {
     // they get no expectation and `mod.rs` does not name them. The
     // `startsWith` fixture's expectation is the runtime body's answer.
     generateExpected: () => {
-        const [state, result] = virtual({ ...emptyState, root })(generateExpected())
+        const [state, result] = virtualAt(root)(generateExpected())
         assertOk(result)
         const written = into(state.root, expectedDirectory.split('/'))
         assertEq(Object.keys(written).toSorted().join(','), 'at.rs,function_scope.rs,mod.rs,starts_with.rs')
@@ -137,16 +137,16 @@ export const proof = {
     generateExpectedWithoutARuntime: () => {
         /** @type {Dir} */
         const missing = { 'nanvm': { 'harness': { 'fixtures': { 'at.mjs': [utf8('export default 1;')] } } } }
-        const [state, result] = virtual({ ...emptyState, root: missing })(generateExpected())
+        const [state, result] = virtualAt(missing)(generateExpected())
         assertEq(result[0], 'error')
         assertEq(Object.keys(into(state.root, expectedDirectory.split('/'))).join(','), '')
         const notAnObject = { ...missing, 'fjs': { 'js': { 'runtime': { 'module.f.js': [utf8('export const runtime = 1;')] } } } }
-        assertEq(virtual({ ...emptyState, root: notAnObject })(generateExpected())[1][0], 'error')
+        assertEq(virtualAt(notAnObject)(generateExpected())[1][0], 'error')
     },
     // A fixture that throws is expected to throw, not refused.
     generateExpectedForAThrowingFixture: () => {
         const throwing = withRuntime({ 't.mjs': [utf8('throw 1;')] })
-        const [state, result] = virtual({ ...emptyState, root: throwing })(generateExpected())
+        const [state, result] = virtualAt(throwing)(generateExpected())
         assertOk(result)
         const [, tRs] = virtual(state)(readUtf8File(`${expectedDirectory}/t.rs`))
         assert(assertOk(tRs).includes('Err(Nullish::Undefined.to_any())'))
@@ -155,7 +155,7 @@ export const proof = {
     // is written, as for the compiled fixtures.
     generateExpectedStopsAtAFixtureItCannotLoad: () => {
         const broken = withRuntime({ 'a.mjs': [utf8('export default 1;')], 'b.mjs': [utf8('export default (')] })
-        const [state, result] = virtual({ ...emptyState, root: broken })(generateExpected())
+        const [state, result] = virtualAt(broken)(generateExpected())
         assertEq(result[0], 'error')
         const written = into(state.root, expectedDirectory.split('/'))
         assertEq(Object.keys(written).join(','), 'a.rs')
@@ -163,19 +163,19 @@ export const proof = {
     // No corpus fixtures at all still leaves a `mod.rs`.
     generateExpectedWithNoCorpus: () => {
         const excepted = withRuntime({ 'function.mjs': [utf8('export default () => 1;')] })
-        const [state, result] = virtual({ ...emptyState, root: excepted })(step(generateExpected(), () => readUtf8File(expectedModulesPath)))
+        const [state, result] = virtualAt(excepted)(step(generateExpected(), () => readUtf8File(expectedModulesPath)))
         assertEq(assertOk(result), expectedModules([]))
         assertEq(Object.keys(into(state.root, expectedDirectory.split('/'))).join(','), 'mod.rs')
     },
     // The compiled fixtures and their expectations, both directories.
     generateAll: () => {
-        const [state, result] = virtual({ ...emptyState, root })(generateAll())
+        const [state, result] = virtualAt(root)(generateAll())
         assertOk(result)
         assertEq(Object.keys(into(state.root, directory.split('/'))).length > 0, true)
         assertEq(Object.keys(into(state.root, expectedDirectory.split('/'))).length > 0, true)
     },
     main: () => {
-        const [, code] = virtual({ ...emptyState, root })(main(defaultNodeProgramOptions))
+        const [, code] = virtualAt(root)(main(defaultNodeProgramOptions))
         assertEq(exitCode(code), 0)
     },
     // The fixture directory missing is the failure `fjs run` reports: exit

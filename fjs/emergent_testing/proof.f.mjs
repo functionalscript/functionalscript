@@ -10,7 +10,7 @@
 
 import { exitCode } from '../effects/node/module.f.mjs'
 import { log } from '../effects/node/module.f.mjs'
-import { defaultNodeProgramOptions, emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
+import { defaultNodeProgramOptions, emptyState, virtual, virtualAt } from '../effects/node/virtual/module.f.mjs'
 import { assert, assertEq, todo } from '../asserts/module.f.mjs'
 import {
     testAll, fmtPath, fmtImport, ghEscape,
@@ -504,7 +504,7 @@ export const failuresSurviveARunThatDies = () => {
                 : reporter.test(file, path, entry),
     }
     const root = { 'a.proof.f.ts': () => ({ proof: { bad: fail0, later: ok0 } }) }
-    const [finalState, code] = virtual({ ...emptyState, root })(testAll(dying)(opts))
+    const [finalState, code] = virtualAt(root)(testAll(dying)(opts))
     assertEq(exitCode(code), 1)
     assertEq(
         finalState.stdout,
@@ -539,7 +539,7 @@ export const aLeafSurvivesItsOwnReportFailing = () => {
         result: () => pureError(/** @type {const} */ (['ioError', { message: 'cannot report' }])),
     }
     const root = { 'a.proof.f.ts': () => ({ proof: { bad: fail0 } }) }
-    const [finalState, code] = virtual({ ...emptyState, root })(testAll(mute)(opts))
+    const [finalState, code] = virtualAt(root)(testAll(mute)(opts))
     assertEq(exitCode(code), 1)
     assertEq(
         finalState.stdout,
@@ -576,7 +576,7 @@ export const nothingRunsAfterARunIsAbandoned = () => {
         'a.proof.f.ts': () => ({ proof: { stop: ok0, after: ok0 } }),
         'b.proof.f.ts': () => ({ proof: { never: ok0 } }),
     }
-    const [finalState, code] = virtual({ ...emptyState, root })(testAll(dying)(opts))
+    const [finalState, code] = virtualAt(root)(testAll(dying)(opts))
     assertEq(exitCode(code), 1)
     assertEq(finalState.stdout, 'import("./a.proof.f.ts").proof.stop(): \n')
 }

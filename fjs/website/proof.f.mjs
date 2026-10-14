@@ -6,7 +6,7 @@
 
 import { exitCode } from '../effects/node/module.f.mjs'
 import { main } from './module.f.mjs'
-import { defaultNodeProgramOptions, emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
+import { defaultNodeProgramOptions, emptyState, virtual, virtualAt } from '../effects/node/virtual/module.f.mjs'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../asserts/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { maxLengthBytes, vec } from '../types/bit_vec/module.f.mjs'
@@ -36,7 +36,7 @@ const textOf = (entity, name) => {
  * @type {(tree: Dir, env?: Env) => readonly [State, number]}
  */
 const run = (tree, env = {}) => {
-    const [generated, result] = virtual({ ...emptyState, root: tree })(
+    const [generated, result] = virtualAt(tree)(
         main({ ...defaultNodeProgramOptions, env }))
     return [generated, exitCode(result)]
 }
