@@ -91,6 +91,7 @@ describes:
 | `op.arguments` | `arguments` | open | reserved word | none |
 | `op.eval` | `eval("1")` | design ([built-ins](./2360-built-in.md): never admitted, it runs source at run time) | reserved word | none |
 | `op.number-spread` | `Number(...a)`, `Number(1, 2)` | planned ([number-spread](./2363-number-spread.md), roadmap) | Number takes one argument | exact: parser `proof`, `arity` |
+| `op.string-call-shape` | `String(1, 2)`, `String(...[1])`, `String(...[])` | open (the specification leaves them unrecognized; no record plans them) | String takes one argument | exact: parser `proof`, `arity` |
 | `op.unary-plus` | `+1`, `+a` | open ([operators](./2340-operators.md) leaves unary `+` on the other side of the line; no record plans it) | unexpected token | none |
 | `op.import-call` | `import("m")` | open | reserved word | none |
 | `op.import-meta` | `import.meta` | open | reserved word | none |
@@ -112,6 +113,7 @@ describes:
 | `name.intrinsic` | `const String = 1`, `export default String` | design ([built-ins](./2360-built-in.md)) | reserved word | exact: `language.proof` |
 | `name.unbound` | `zzz`, `Math`, `JSON`, `Object`, `globalThis`, `Promise` | design; a bare global stays refused after [global names](./2365-global-names.md), which only improves the diagnostic | const not found | exact for an unbound name; none for a global by name |
 | `name.forward-reference` | `export const a = b; export const b = 1;` | open ([forward references](./3140-forward-references.md) resolves only the object grouping and keeps refusing a later `const`) | const not found | exact for `const a = a`; loose for a later `const` |
+| `name.body-forward-reference` | `() => { const y = x; const x = 2; return y; }` with an outer `x` | planned ([body const forward reference](../../fjs/compiler/parser/todo/body-const-forward-reference.md)) | capture shadowed | exact: parser `func.proof` |
 | `name.reserved-export` | `export const then = 1` | design ([exporting a value](../README.md#exporting-a-value)) | reserved export name then | loose: parser `proof` asserts tag and column, not the message |
 
 ## Statements
