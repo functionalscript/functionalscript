@@ -28,7 +28,7 @@
  */
 
 import { compileFile, noRuntime } from '../../compiler/module.f.mjs'
-import { interpretWith } from '../../compiler/transpiler/module.f.mjs'
+import { interpret } from '../../compiler/transpiler/module.f.mjs'
 import { forEachStep, history, historyStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../../effects/module.f.mjs'
 import { exitStep, mkdir, readdir, writeUtf8File } from '../../effects/node/module.f.mjs'
 import { cmp } from '../../types/string/module.f.mjs'
@@ -137,7 +137,7 @@ export const expectedModulesPath = `${expectedDirectory}/mod.rs`
  * @type {(runtime: Runtime) => (name: string) => Effect<_CompileOp, void, IoChannel>}
  */
 const writeExpectation = runtime => name => resultStep(
-    interpretWith(runtime)(`${fixturesDirectory}/${name}`),
+    interpret(pureOk(runtime))(`${fixturesDirectory}/${name}`),
     result => {
         const text = expectation(name)(result)
         return text[0] === 'ok'

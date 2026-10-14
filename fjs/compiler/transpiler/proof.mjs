@@ -16,7 +16,7 @@ import { asyncRun } from '../../effects/module.mjs'
 import { emptyState, virtualOperationMap } from '../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { isObject } from '../../types/object/module.f.mjs'
-import { transpile } from './module.f.mjs'
+import { noRuntime, transpile } from './module.f.mjs'
 
 /** @param {Dir} root */
 const run = root => {
@@ -53,7 +53,7 @@ export const proof = {
     templateCallableExports: async () => {
         const exports = assertOk(await run({
             main: [utf8('export const template = x => y => `head${x}:${y}tail`; export const explicit = x => y => "head" + String(x) + ":" + String(y) + "tail"; export default x => `own:${{ toString: () => x, valueOf: () => 7 }}`;')],
-        })(transpile('main')))
+        })(transpile(noRuntime)('main')))
         const template = callable(callable(field(exports, 'template'))(1n))
         const explicit = callable(callable(field(exports, 'explicit'))(1n))
         for (const value of [null, undefined, true, -0, 'a']) {
@@ -69,7 +69,7 @@ export const proof = {
             main: [utf8('import add from "./dep"; const call=add(2); export const apply=callback=>callback(call(3)); export default [call,call];')],
             dep: [utf8('export default x=>y=>x+y;')],
         }
-        const exports = assertOk(await run(root)(transpile('main')))
+        const exports = assertOk(await run(root)(transpile(noRuntime)('main')))
         const [first, repeated] = elements(field(exports, 'default'))
         const call = callable(first)
         assertEq(call(3), 5)
@@ -83,8 +83,8 @@ export const proof = {
         const runtime = run({
             main: [utf8('const shared=[]; export const value=shared; export default x=>{const fresh=[x]; return [shared,fresh,fresh];};')],
         })
-        const first = assertOk(await runtime(transpile('main')))
-        const second = assertOk(await runtime(transpile('main')))
+        const first = assertOk(await runtime(transpile(noRuntime)('main')))
+        const second = assertOk(await runtime(transpile(noRuntime)('main')))
         const shared = field(first, 'value')
         const make = callable(field(first, 'default'))
         const freshMake = callable(field(second, 'default'))

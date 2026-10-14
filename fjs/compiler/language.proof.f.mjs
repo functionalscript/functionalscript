@@ -10,7 +10,7 @@
 
 import { exitCode } from '../effects/node/module.f.mjs'
 import { compile } from './module.f.mjs'
-import { transpile } from './transpiler/module.f.mjs'
+import { noRuntime, transpile } from './transpiler/module.f.mjs'
 import { virtual, emptyState, nodeProgramOptions } from '../effects/node/virtual/module.f.mjs'
 /** @import { Dir } from '../effects/node/virtual/types.ts' */
 
@@ -239,7 +239,7 @@ export const proof = {
     specialNumbers: {
         value: () => {
             const root = { 'input.f.js': [utf8('export default [NaN, Infinity, -Infinity];')] }
-            const [, result] = runtime({ ...emptyState, root })(transpile('input.f.js'))
+            const [, result] = runtime({ ...emptyState, root })(transpile(noRuntime)('input.f.js'))
             assert(result[0] === 'ok', result[1])
             const value = defaultValue(result[1])
             assert(value instanceof Array && value.length === 3, value)
@@ -579,7 +579,7 @@ export const proof = {
     negativeZero: {
         value: () => {
             const root = { 'input.f.js': [utf8('export default -0;')] }
-            const [, result] = runtime({ ...emptyState, root })(transpile('input.f.js'))
+            const [, result] = runtime({ ...emptyState, root })(transpile(noRuntime)('input.f.js'))
             assert(result[0] === 'ok', result[1])
             assert(is(defaultValue(result[1]), -0), result[1])
         },
@@ -701,7 +701,7 @@ export const proof = {
         // alone would also pass for a spelling that merely looks right.
         value: () => {
             const root = { 'input.f.js': [utf8('export default {["__proto__"]:{"a":42}};')] }
-            const [, result] = runtime({ ...emptyState, root })(transpile('input.f.js'))
+            const [, result] = runtime({ ...emptyState, root })(transpile(noRuntime)('input.f.js'))
             assert(result[0] === 'ok', result[1])
             const value = defaultValue(result[1])
             assert(isObject(value), value)

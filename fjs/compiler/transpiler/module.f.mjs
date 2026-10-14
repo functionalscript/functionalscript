@@ -83,18 +83,37 @@ const interpretSource = runtime => source => source.json
     : mapStep(foldModule(source)({ stack: null, complete: null, runtime }), context => moduleAt(context)(source.id))
 
 /**
- * Interpret a source without erasing represented functions or thrown
- * values, every module's initialization under `runtime`: the bodies of
- * [`fjs/js/runtime`](../../js/runtime/module.f.js) answer the member
- * functions the interpreter has no native implementation of
- * ([`edag/memo/types.ts`](../../edag/memo/types.ts)).
+ * A source under the runtime `load` answers, run once the source is known
+ * to be a module, so a JSON document never loads one.
  *
- * @type {(runtime: Runtime | undefined) => (path: string) => Effect<ReadWhole | ResolveFileModule, EdagValue, SourceError>}
+ * @type {(load: RuntimeLoad) => (source: _Source) => Effect<ReadWhole | ResolveFileModule, EdagValue, SourceError>}
  */
-export const interpretWith = runtime => path => step(_rootSource(path), interpretSource(runtime))
+const interpretLoaded = load => source => source.json
+    ? interpretSource(undefined)(source)
+    : step(load, runtime => interpretSource(runtime)(source))
 
-/** {@link interpretWith} no runtime: a module whose initialization calls a member function only the runtime answers fails to initialize. @type {(path: string) => Effect<ReadWhole | ResolveFileModule, EdagValue, SourceError>} */
-export const interpret = interpretWith(undefined)
+/**
+ * No runtime: for a caller that compiles code outputs alone, which
+ * interpret nothing, as the generators do, or whose modules call no member
+ * function only the runtime answers. Under it such a call fails the
+ * module's initialization.
+ *
+ * @type {RuntimeLoad}
+ */
+export const noRuntime = pureOk(undefined)
+
+/**
+ * Interpret a source without erasing represented functions or thrown
+ * values, every module's initialization under the runtime `load` answers:
+ * the bodies of [`fjs/js/runtime`](../../js/runtime/module.f.js) answer
+ * the member functions the interpreter has no native implementation of
+ * ([`edag/memo/types.ts`](../../edag/memo/types.ts)). A caller passes the
+ * package's runtime, `packageRuntime` in [`compiler`](../module.f.mjs), a
+ * runtime it holds as `pureOk(runtime)`, or {@link noRuntime}.
+ *
+ * @type {(load: RuntimeLoad) => (path: string) => Effect<ReadWhole | ResolveFileModule, EdagValue, SourceError>}
+ */
+export const interpret = load => path => step(_rootSource(path), interpretLoaded(load))
 
 /**
  * The runtime at `path`, `fjs/js/runtime`'s source or a stand-in for it:
@@ -105,7 +124,7 @@ export const interpret = interpretWith(undefined)
  *
  * @type {(path: string) => Effect<ReadWhole | ResolveFileModule, Runtime, SourceError>}
  */
-export const runtimeAt = path => resultStep(interpret(path), result => {
+export const runtimeAt = path => resultStep(interpret(noRuntime)(path), result => {
     const [kind, value] = result
     if (kind === 'error') { return pureError(value) }
     const [exportKind, runtime] = read(ok(value), 'runtime')
@@ -116,12 +135,13 @@ export const runtimeAt = path => resultStep(interpret(path), result => {
 
 /**
  * Compile the complete module export object, or a direct JSON document, into
- * ordinary runtime values. Callable graphs request the target's CompileValue
+ * ordinary runtime values, under the runtime `load` answers as
+ * {@link interpret} does. Callable graphs request the target's CompileValue
  * operation; its host failures stay separate from source initialization errors.
  *
- * @type {(path: string) => Effect<ReadWhole | ResolveFileModule | CompileValue, unknown, SourceError | IoChannel>}
+ * @type {(load: RuntimeLoad) => (path: string) => Effect<ReadWhole | ResolveFileModule | CompileValue, unknown, SourceError | IoChannel>}
  */
-export const transpile = path => step(interpret(path), toUnknown)
+export const transpile = load => path => step(interpret(load)(path), toUnknown)
 
 /**
  * Select a represented default only after initializing the complete module
@@ -132,9 +152,6 @@ export const transpile = path => step(interpret(path), toUnknown)
  *
  * @type {(load: RuntimeLoad) => (path: string) => Effect<ReadWhole | ResolveFileModule, Result<Unknown, string>, SourceError>}
  */
-export const _transpileDefaultWith = load => path => step(_rootSource(path), source => source.json
-    ? mapStep(interpretSource(undefined)(source), toData)
-    : step(load, runtime => mapStep(interpretSource(runtime)(source), value => toData(assertOk(read(ok(value), 'default'))))))
-
-/** {@link _transpileDefaultWith} no runtime: a module whose initialization calls a member function only the runtime answers fails to initialize. @type {(path: string) => Effect<ReadWhole | ResolveFileModule, Result<Unknown, string>, SourceError>} */
-export const _transpileDefault = _transpileDefaultWith(pureOk(undefined))
+export const _transpileDefault = load => path => step(_rootSource(path), source => mapStep(
+    interpretLoaded(load)(source),
+    value => toData(source.json ? value : assertOk(read(ok(value), 'default')))))

@@ -11,14 +11,14 @@
  * @import { EdagValue, Runtime } from '../../edag/value/types.ts'
  */
 
-import { _transpileDefault, interpret, interpretWith, parse, transpile, runtimeAt } from './module.f.mjs'
+import { _transpileDefault, interpret, noRuntime, parse, transpile, runtimeAt } from './module.f.mjs'
 import { _importSources } from '../source/module.f.mjs'
 import { _defaultExport, resolve, unresolved } from '../edag/module.f.mjs'
 import { invoke } from '../../edag/memo/module.f.mjs'
 import { read } from '../../edag/value/property/module.f.mjs'
 import { compileCommands } from '../../edag/value/to_unknown/module.f.mjs'
 import { factoryStringify } from '../serializer/value/module.f.mjs'
-import { notImplemented } from '../../effects/module.f.mjs'
+import { notImplemented, pureOk } from '../../effects/module.f.mjs'
 import { isArray } from '../../types/array/module.f.mjs'
 import { isObject } from '../../types/object/module.f.mjs'
 import { compile, runtimeSource } from '../module.f.mjs'
@@ -50,7 +50,7 @@ const runtimeCommands = [...nodeCommands, ...compileCommands]
 const runtime = partialRun(runtimeCommands)(virtualOperationMap)
 
 /** @type {(root: Dir) => (path: string) => Result<unknown, ParseError | InitializationError | IoChannel>} */
-const run = root => path => runtime({ ...emptyState, root })(transpile(path))[1]
+const run = root => path => runtime({ ...emptyState, root })(transpile(noRuntime)(path))[1]
 
 /** The fixtures passed here contain only data. @type {(value: unknown) => string} */
 const dataText = value => unwrap(tryStringify(/** @type {Unknown} */ (value)))
@@ -62,7 +62,7 @@ const defaultValue = value => {
 }
 
 /** @type {(root: Dir, path: string) => Result<EdagValue, ParseError | InitializationError>} */
-const represented = (root, path) => virtual({ ...emptyState, root })(interpret(path))[1]
+const represented = (root, path) => virtual({ ...emptyState, root })(interpret(noRuntime)(path))[1]
 
 /** Both public compiler paths report the same unsupported-specifier error. @type {(specifier: string, source: string, root: Dir) => void} */
 const refusedSpecifier = (specifier, source, root) => {
@@ -82,14 +82,14 @@ export const proof = {
     // a body under `string.startsWith` answering its receiver is what the
     // importer's and the dependency's initializations call, and without a
     // runtime the same call fails the dependency's initialization.
-    interpretWith: () => {
+    interpret: () => {
         /** @type {Runtime} */
         const runtime = ['{}', [[':', 'string', ['{}', [[':', 'startsWith', ['=>', 1, [], ['arg', 0]]]]]]]]
         const root = {
             'main.f.js': [utf8("import d from './dep.f.js'; export default [d, 'xy'.startsWith('x')];")],
             'dep.f.js': [utf8("export default 'abc'.startsWith('b');")],
         }
-        const [, result] = virtual({ ...emptyState, root })(interpretWith(runtime)('main.f.js'))
+        const [, result] = virtual({ ...emptyState, root })(interpret(pureOk(runtime))('main.f.js'))
         assertStructurallySame(assertOk(result), ['{}', [[':', 'default', ['[]', ['abc', 'xy']]]]])
         assertStructurallySame(represented(root, 'main.f.js'), error({
             message: 'module initialization failed', metadata: null, path: 'dep.f.js', thrown: ['undefined'],
@@ -124,7 +124,7 @@ export const proof = {
                     return [state, ok(loaded)]
                 },
             }
-            const [, result] = partialRun(runtimeCommands)(operations)({ ...emptyState, root })(transpile('main'))
+            const [, result] = partialRun(runtimeCommands)(operations)({ ...emptyState, root })(transpile(noRuntime)('main'))
             assertEq(unwrap(result), loaded)
         },
         runtimeFailure: () => {
@@ -135,7 +135,7 @@ export const proof = {
                 compileValue: () => state => [state, error(failure)],
             }
             const root = { main: [utf8('export default ()=>42;')] }
-            const [, result] = partialRun(runtimeCommands)(operations)({ ...emptyState, root })(transpile('main'))
+            const [, result] = partialRun(runtimeCommands)(operations)({ ...emptyState, root })(transpile(noRuntime)('main'))
             assertEq(assertError(result), failure)
         },
         initializationBeforeRuntime: () => {
@@ -188,8 +188,8 @@ export const proof = {
         projectBeforeMaterializing: () => {
             const root = withRuntime({ main: [utf8('export const callback=x=>x; export default 42;')] })
             const runner = runtime({ ...emptyState, root })
-            assertStructurallySame(runner(_transpileDefault('main'))[1], ok(ok(42)))
-            assertStructurallySame(runner(transpile('main'))[1], error(notImplemented('compileValue')))
+            assertStructurallySame(runner(_transpileDefault(noRuntime)('main'))[1], ok(ok(42)))
+            assertStructurallySame(runner(transpile(noRuntime)('main'))[1], error(notImplemented('compileValue')))
             for (const output of ['output.json', 'output.data.js']) {
                 const [state, code] = runner(compile(nodeProgramOptions(['main', output])))
                 assertEq(exitCode(code), 0, state.stderr)
@@ -198,7 +198,7 @@ export const proof = {
                 assertEq(utf8ToString(bytes[0]), output.endsWith('.json') ? '42' : 'export default 42;')
             }
             const named = { main: [utf8('export const callback=x=>x;')] }
-            assertStructurallySame(virtual({ ...emptyState, root: named })(_transpileDefault('main'))[1], ok(ok(undefined)))
+            assertStructurallySame(virtual({ ...emptyState, root: named })(_transpileDefault(noRuntime)('main'))[1], ok(ok(undefined)))
         },
         initializationPayload: () => {
             for (const imported of [false, true]) {
@@ -228,7 +228,7 @@ export const proof = {
                 assertStructurallySame(result[1].thrown, ['undefined'])
             }
             const root = { main: [utf8('const discarded=null.x; export default 1;')] }
-            const result = virtual({ ...emptyState, root })(_transpileDefault('main'))[1]
+            const result = virtual({ ...emptyState, root })(_transpileDefault(noRuntime)('main'))[1]
             assert(result[0] === 'error' && 'thrown' in result[1])
             assertEq(result[1].path, 'main')
             assertStructurallySame(result[1].thrown, ['undefined'])
@@ -238,7 +238,7 @@ export const proof = {
                 const root = { main: [utf8(`export default ${value};`)] }
                 assertEq(represented(root, 'main')[0], 'ok')
                 const diagnostic = 'callable materialization requires a target compile/load boundary'
-                assertStructurallySame(virtual({ ...emptyState, root })(_transpileDefault('main'))[1], ok(error(diagnostic)))
+                assertStructurallySame(virtual({ ...emptyState, root })(_transpileDefault(noRuntime)('main'))[1], ok(error(diagnostic)))
                 for (const output of ['output.json', 'output.data.js']) {
                     const [state, code] = virtual({ ...emptyState, root: withRuntime(root) })(compile(nodeProgramOptions(['main', output])))
                     assertEq(exitCode(code), 1)
@@ -252,7 +252,7 @@ export const proof = {
             assertStructurallySame(represented(root, 'input.json'), ok(['{}', [
                 [':', 'default', ['[]', [7]]], [':', 'other', 8],
             ]]))
-            assertStructurallySame(virtual({ ...emptyState, root })(_transpileDefault('input.json'))[1],
+            assertStructurallySame(virtual({ ...emptyState, root })(_transpileDefault(noRuntime)('input.json'))[1],
                 ok(ok({ default: [7], other: 8 })))
         },
     },
@@ -406,7 +406,7 @@ export const proof = {
             },
         }
         const runner = partialRun(runtimeCommands)(host)(null)
-        const value = defaultValue(unwrap(runner(transpile('entry'))[1]))
+        const value = defaultValue(unwrap(runner(transpile(noRuntime)('entry'))[1]))
         assert(value instanceof Array)
         assert(value[0] === value[2] && value[0] !== value[1])
         const graph = _defaultExport(unwrap(runner(resolve('entry'))[1]))
@@ -427,12 +427,12 @@ export const proof = {
             },
         }
         const runner = partialRun(runtimeCommands)(host)(null)
-        assertStructurallySame(unwrap(runner(transpile('input.json'))[1]), [1, 2])
+        assertStructurallySame(unwrap(runner(transpile(noRuntime)('input.json'))[1]), [1, 2])
         assertStructurallySame(unwrap(runner(resolve('input.json'))[1]), ['[]', [1, 2]])
     },
     missingResolver: () => {
         const runner = partialRun(runtimeCommands)({})(null)
-        const value = runner(transpile('entry'))[1]
+        const value = runner(transpile(noRuntime)('entry'))[1]
         assertStructurallySame(value, ['error', {
             message: 'module resolution failed: operation not implemented: resolveFileModule',
             metadata: null, path: 'entry',
@@ -490,7 +490,7 @@ export const proof = {
                 },
             }
             const runner = partialRun(runtimeCommands)(host)('')
-            for (const result of [runner(transpile('main.f.js'))[1], runner(resolve('main.f.js'))[1]]) {
+            for (const result of [runner(transpile(noRuntime)('main.f.js'))[1], runner(resolve('main.f.js'))[1]]) {
                 assert(result[0] === 'error' && !isArray(result[1]))
                 assertEq(errorLocation('main.f.js')(result[1]), location)
                 assertEq(result[1].message, message)

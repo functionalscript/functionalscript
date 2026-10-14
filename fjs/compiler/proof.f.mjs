@@ -1191,7 +1191,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
     roundTrip: roundTripCorpus.map(value => () => {
         const source = moduleText(value)
         const root = { 'input.f.js': [utf8(source)] }
-        const [, result] = runtime({ ...emptyState, root })(transpile('input.f.js'))
+        const [, result] = runtime({ ...emptyState, root })(transpile(noRuntime)('input.f.js'))
         assert(result[0] === 'ok', result[1])
         assertStructurallySame(result[1], { default: value }, source)
     }),

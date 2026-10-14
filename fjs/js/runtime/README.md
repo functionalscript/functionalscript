@@ -48,7 +48,8 @@ then the **runtime's body**, then the `TypeError` for calling `undefined`.
 A native implementation may stand beside a body where the VM measures the
 gain; the body is the reference, and the corpus in
 [`../../nanvm/member`](../../nanvm/member/module.f.js) checks the native
-answer against it. The completeness table
+answer against it. A name without a body keeps the host engine as its
+oracle there, as every name had before, until its body lands. The completeness table
 [`../../nanvm/methods`](../../nanvm/methods/module.f.mjs) generates counts
 a body as an answer: every admitted pair is answered, natively or by a
 body, and no other pair is.
@@ -60,7 +61,8 @@ body, and no other pair is.
   `runtime` field of an `amnesia` or `memo` context
   ([`edag/operations/types.ts`](../../edag/operations/types.ts)), which
   reaches every function the invocation calls. The transpiler takes it as
-  `interpretWith(runtime)`; `fjs compile` loads it from the package it runs
+  `interpret(load)`, a `RuntimeLoad` run once the root is known to be a
+  module; `fjs compile` loads it from the package it runs
   from, `fjs/js/runtime/module.f.js` there, when a data output interprets a
   module and not before; `fjs/nanvm/harness` loads it the same way, from
   the repository root, for the fixture expectations it writes; and the
@@ -97,7 +99,7 @@ flowchart LR
     rust["nanvm/lib/src/vm/gen.runtime.rs<br/>Rust"]
     proof["runtime proof<br/>the body on host values"]
     corpus["corpus proofs<br/>evaluate once, pass as the context's runtime"]
-    harness["harness<br/>interpretWith, compiled live"]
+    harness["harness<br/>interpret(pureOk(runtime)), compiled live"]
     interpreter["EDAG interpreter<br/>amnesia and memo"]
     naive["naive<br/>IVm::runtime_method"]
     step["a call step<br/>own property, native, body, TypeError"]
@@ -203,9 +205,13 @@ cycle:
   runtime as an input, as the executors do, and folds nothing a body
   answers when given none, so the runtime is always compiled with no
   runtime, whatever the pass does elsewhere.
-- **The runtime's initialization calls no member function.** It builds
-  closures and nothing else, so it can be interpreted from nothing, which
-  is what loading it from source relies on.
+- **No initializer in the runtime's closure calls a member function.**
+  The module builds closures and nothing else, and so does every module it
+  imports, transitively — a helper shared with the rest of `fjs/` must hold
+  this too, or be inlined — so the runtime can be interpreted from nothing.
+  Loading it from source relies on exactly that: `runtimeAt` interprets it
+  under `noRuntime`, so a member call in any initializer of the closure
+  fails the load rather than passing unnoticed.
 
 ## Giving a name its body
 
