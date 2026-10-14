@@ -121,6 +121,20 @@ export const proof = {
         assertStructurallySame(assertOk(vm({ frame: [], args: [] })(optional)), ['undefined'])
         assertStructurallySame(assertError(vm({ frame: [], args: [], runtime })(optional)), 'evaluated')
     },
+    // A static call answers from the runtime's `static` section, in the
+    // expression and in a function it calls; with no runtime, or one
+    // without the path, it fails naming the path.
+    static: () => {
+        /** @type {import('../value/types.ts').Runtime} */
+        const runtime = ['{}', [[':', 'static', ['{}', [[':', 'Object', ['{}', [[':', 'is', ['=>', 2, [], ['===', ['arg', 0], ['arg', 1]]]]]]]]]]]]
+        /** @type {Exp} */
+        const direct = ['()', ['static', ['Object', 'is']], ['a', 'a']]
+        assertEq(assertOk(vm({ frame: [], args: [], runtime })(direct)), true)
+        assertEq(assertOk(vm({ frame: [], args: [], runtime })(['()', ['=>', 0, [], direct], []])), true)
+        const missing = 'no binding for the static Object.is'
+        assertEq(assertError(vm({ frame: [], args: [] })(direct)), missing)
+        assertEq(assertError(vm({ frame: [], args: [], runtime: ['{}', [[':', 'static', ['{}', []]]]] })(direct)), missing)
+    },
     // `self` is the invoked function itself, by identity, in every reading
     // of the body; at the module's scope there is none to read
     self: () => {

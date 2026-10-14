@@ -720,3 +720,9 @@ pub const ABSENT: &[(&str, &str)] = &[
     ("Function", "values"),
     ("Function", "with"),
 ];
+
+/// Admitted static paths, `fjs/js/static`'s: the VM binds each one.
+#[rustfmt::skip]
+pub const STATICS: &[&[&str]] = &[
+    &["Object", "is"],
+];

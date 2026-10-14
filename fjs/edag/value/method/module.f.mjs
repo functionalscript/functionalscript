@@ -49,16 +49,18 @@ const typeName = receiver => typeof receiver === 'string' ? 'String'
 
 /**
  * The function value at a path of keys into an object, or `undefined`
- * where a key is missing, a step is no object, or the end is no function.
+ * where a key is missing, a step is no object, or the end is no function:
+ * how an executor reads its runtime, `['member', type, key]` for a member
+ * function's body and `['static', ...path]` for a static function's.
  *
  * @type {(object: EdagValue | undefined, path: readonly string[]) => ValueFunction | undefined}
  */
-const at = (object, path) => {
+export const functionAt = (object, path) => {
     if (object === undefined) { return undefined }
     if (path.length === 0) { return isFunction(object) ? /** @type {ValueFunction} */ (object) : undefined }
     if (!isArray(object) || object[0] !== '{}') { return undefined }
     const entry = findProperty(/** @type {Runtime} */ (object), path[0])
-    return entry === undefined ? undefined : at(entry[2], path.slice(1))
+    return entry === undefined ? undefined : functionAt(entry[2], path.slice(1))
 }
 
 /**
@@ -69,7 +71,7 @@ const at = (object, path) => {
  *
  * @type {(runtime: Runtime | undefined, type: string, key: string) => ValueFunction | undefined}
  */
-const body = (runtime, type, key) => at(runtime, ['member', type, key])
+const body = (runtime, type, key) => functionAt(runtime, ['member', type, key])
 
 /**
  * The admitted names this dispatcher has no native implementation of, by

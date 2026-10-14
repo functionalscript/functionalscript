@@ -95,6 +95,11 @@ export const proof = {
             [[',', []], '(undefined)'], [[',', [1]], '((1))'], [[',', [1, 2]], '((1),(2))'],
             [['throw', 1], '(()=>{throw (1);})()'],
             [['()', ['entry'], [['{}', []], 'x']], '((0,(($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}))(({}),("x")))'],
+            // a static is written as the source calls it, the empty key of
+            // a global called as a function left out
+            [['()', ['static', ['Object', 'is']], [1, 2]], '((0,(Object.is))((1),(2)))'],
+            [['()', ['static', ['Object', '']], [1]], '((0,(Object))((1)))'],
+            [['()', ['static', ['isNaN']], [1]], '((0,(isNaN))((1)))'],
         ]
         for (const [body, expected] of cases) { assertEq(text(body), `()=>${expected}`) }
         for (const op of /** @type {readonly Op2Id[]} */ ([
