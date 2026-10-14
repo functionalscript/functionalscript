@@ -79,18 +79,18 @@
  * @import { Primitive } from '../../media/datajs/types.ts'
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
  * @import { Graph, Shape } from '../../website/demo/graph/types.ts'
+ * @import { Result } from '../../types/result/types.ts'
  * @import { _Chain, _Child } from './private.ts'
  */
 
-import { parse } from '../transpiler/module.f.mjs'
 import { lazyOp2Id } from '../../edag/module.f.mjs'
-import { examples } from '../examples/module.f.js'
 import { _defaultExport, _moduleExports, unresolved } from './module.f.mjs'
 import { graphOf, graphSvg } from '../../website/demo/graph/module.f.mjs'
 import { leafSerialize } from '../../media/datajs/serializer/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'
-import { highlight } from '../../website/demo/highlight/module.f.mjs'
-import { textDemo, refusal } from '../../website/demo/module.f.mjs'
+import { refusal } from '../../website/demo/module.f.mjs'
+import { ok } from '../../types/result/module.f.js'
+import { parsed, stageDemo } from '../stage_demo/module.f.mjs'
 import { chunksText } from '../../text/marked/module.f.mjs'
 
 // The operator tag groups `fjs/edag/types.ts` names, read here rather than
@@ -377,14 +377,9 @@ const drawn = module => {
  * `text` as the EDAG its module lowers to, or the parser's own error if it
  * does not compile.
  *
- * @type {(text: string) => ({ readonly ok: true } & Graph) | { readonly ok: false, readonly error: string }}
+ * @type {(text: string) => Result<Graph, string>}
  */
-export const _graphOf = text => {
-    const result = parse('')(text)
-    return result[0] === 'error'
-        ? { ok: false, error: result[1].message }
-        : { ok: true, ...graphOf(_shapeOf)(drawn(unresolved(result[1]).edag)) }
-}
+export const _graphOf = parsed(ast => ok(graphOf(_shapeOf)(drawn(unresolved(ast).edag))))
 
 /**
  * The drop-down is [the compiler's shared list](../examples/module.f.js), one
@@ -456,14 +451,10 @@ export const _graphOf = text => {
  *
  * @type {Demo<string, DemoEvent>}
  */
-export const demo = textDemo({
+export const demo = stageDemo({
     intro: 'Lowers a FunctionalScript module to an expression graph. Arrows point to operands, multiple arrows to one node show sharing, and dashed arrows mark operands that may not be evaluated.',
     name: 'edag',
-    label: 'Source',
-    init: examples[0][1],
-    examples,
-    highlight,
 })(text => {
-    const g = _graphOf(text)
-    return [g.ok ? graphSvg(g) : refusal(g.error)]
+    const [kind, value] = _graphOf(text)
+    return [kind === 'ok' ? graphSvg(value) : refusal(value)]
 })
