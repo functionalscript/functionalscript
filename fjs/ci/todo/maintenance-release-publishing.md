@@ -47,9 +47,9 @@ continue to work when this path is added.
 - [ ] Update the maintenance release procedure with the implemented path and
       required configuration. Carry fixes into main before the next regular
       release, adapting them if needed or recording that main already has them.
-      After publication, retain the urgent release's changelog file unchanged
-      on main for the website's history, keeping its package version changes
-      on the maintenance branch.
+      After publication, the urgent release's notes reach main through its
+      notes pull request, for the website's history; its package version
+      changes stay on the maintenance branch.
 - [ ] Check newer released lines for the same defect and promptly publish an
       urgent fix on every affected newer line, including the newest line used
       by `latest`. Do not leave those users waiting for the next regular release.

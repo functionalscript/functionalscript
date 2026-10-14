@@ -1,66 +1,47 @@
-# Collecting the changelog at release time
+# Releasing
 
-The changelog is written **once per release**, from the pull requests that
-shipped in it — not once per pull request. This file is the procedure.
-[README.md](./README.md) is the format those entries are written in and the
-versioning rule they feed.
+A release is **two pull requests**:
+
+1. **The bump** changes the version and nothing else. It goes against its
+   release line: `main` for a regular release, the maintenance branch for an
+   [urgent fix](#urgent-fixes-before-10). Merging it into `main` publishes.
+   The publish workflow runs on `main` alone, so an urgent fix's bump publishes
+   nothing until
+   [maintenance release publishing](../fjs/ci/todo/maintenance-release-publishing.md)
+   is implemented.
+2. **The notes**, opened once the version has published, write
+   `changelog/X.Y.Z.md` from the pull requests that shipped in it. They always
+   go against `main`.
+
+[README.md](./README.md) is the format the notes are written in and the
+versioning rule the bump follows.
 
 Before 1.0, `Changelog:` sections and `**BREAKING CHANGES:**` notices are
 optional. Read descriptions and diffs for notable changes rather than treating
 absence of a marker as evidence of compatibility. The release policy after 1.0
 remains [undecided](../todo/post-1.0-release-policy.md).
 
-**The release author's job is to collect the net changes and choose the release
-number.** Read every pull request in the window, group by net effect, and write
-the file. A release PR carries the version bump, the changelog file, and deletion
-of `changelog/unreleased/` when it exists. Fixes discovered while preparing a
-regular release belong in their own PR, not in the release metadata PR.
+## Why the notes come after the release
 
-## Urgent fixes before 1.0
+`npm publish` runs on every push to `main` and packs that tree, so a release is
+whatever `main` holds when its bump merges. Notes written before that merge
+describe a `main` that keeps moving: a pull request that lands while the release
+is open ships in it, and its note is missing unless someone re-scans in time.
 
-The numbered procedure below describes regular releases from `main`. An urgent
-fix deliberately uses a different branch and window:
+Written afterwards, the notes cover a window that can no longer change. npm
+records the commit it published from as the version's `gitHead`, so the window
+is the published one, read once.
 
-1. Find and verify the corresponding `0.X.0` release commit using step 1.
-   Branch from that exact commit, not today's `main`. For a further urgent fix,
-   find and verify the preceding `0.X.P` fix release commit in the maintenance
-   branch's first-parent history and branch from that commit instead.
-2. Apply only the urgent fixes, updating importers and running the full checks
-   required by [AGENTS.md](../AGENTS.md). Review fix PRs against this maintenance
-   branch. Once maintenance publishing is implemented, backport only the
-   workflow support it needs; do not merge later development into the branch.
-3. Collect the notes over `<previous-release>..<maintenance-tip>`, using that
-   tip instead of `origin/main` throughout steps 2–4 and the final scan. Bump
-   `package.json` and `package-lock.json` to `0.X.1` (then `0.X.2`, etc.) and
-   write the matching changelog file in a release PR against the maintenance
-   branch. Verify its final scanned tip before merging.
-4. Publishing this maintenance branch is tracked separately in
-   [maintenance release publishing](../fjs/ci/todo/maintenance-release-publishing.md).
-   The current generated workflow publishes only pushes to `main`; it does not
-   provide a maintenance-branch trigger. Implement and verify that follow-up
-   before publishing a maintenance release. Never merge later development into
-   the maintenance branch just to use the main publisher, or overwrite a
-   published version.
-5. Carry every fix forward to `main` through a separate PR **before the next
-   regular release**, adapting it to current code if needed so upgrading retains
-   the fix. Leave urgent `package.json` and `package-lock.json` version changes
-   on the maintenance branch. After publication, copy `changelog/0.X.P.md`
-   unchanged into `main` in the forward-port PR, or in a separate archival PR
-   if the fix is already on `main`. Retain that file even if the maintenance
-   branch is deleted, so the website keeps the urgent release in its history.
-   If `main` already contains a fix, record that in the urgent-fix PR.
-   The next regular release collects the forward-port PR normally and uses the
-   next minor with patch zero.
-6. Check newer released lines for the same defect and promptly publish an urgent
-   fix on every affected newer line, including the newest line used by `latest`.
-   Do not leave those users waiting for the next regular release.
+Before 1.0 nothing about a release depends on its notes: every regular release
+is `0.X.0` and every urgent fix is the next patch on its line, whatever the
+window holds. A post-1.0 policy that chooses the bump from breaking changes
+would need the window read before the bump again.
 
-## Why the collection happens here
+## Why the notes are written once per release
 
 A pull request author knows their own change and not the release. Several pull
 requests routinely move the same thing, and entries written one at a time record
-the moves instead of the destination. The window since the `0.48.0` release —
-the one this convention arrives in, not the one `changelog/0.48.0.md` records — is
+the moves instead of the destination. The window since the `0.48.0` release is
 the worked example:
 [#1807](https://github.com/functionalscript/functionalscript/pull/1807) made the
 generated `run` scripts pass `--quiet` three times,
@@ -72,85 +53,124 @@ the pinned-hash lock generation with `nix flake lock`, and
 `--extra-experimental-features`. Four entries describing a path; the reader
 needs one describing where it ended.
 
-Writing at release time also lets a break introduced and undone inside one
-window be reported as what it is — nothing — rather than as two entries that
-cancel out.
+Writing per release also lets a break introduced and undone inside one window be
+reported as what it is — nothing — rather than as two entries that cancel out.
 
-## The procedure
+## The bump
 
-### 1. Find the release boundary
+### 1. Choose the version
 
-The repository has no tags and is not getting any
-([README.md](./README.md#breaking-changes-and-versioning)), so the boundary is
-the previous release's merge commit on `main`.
+`package.json`'s `"version"` is the last version released from `main`: only the
+bump changes it. The policy is in
+[README.md](./README.md#breaking-changes-and-versioning). Before 1.0, a regular
+release increments the minor and resets the patch: `0.X.0`. Urgent fixes follow
+[their own procedure](#urgent-fixes-before-10).
 
-`package.json`'s `"version"` is the previously released number: the release
-commit bumps it and nothing else touches it, so the version you are releasing
-*from* is already in the working tree.
+### 2. Open the bump pull request
+
+Titled `Release X.Y.Z`. It changes `"version"` in `package.json` and both
+version fields at the root of `package-lock.json` —
+`npm version X.Y.Z --no-git-tag-version` writes all three — and nothing else.
+Fixes discovered while preparing a release belong in their own pull request.
+
+Before merging:
+
+- [ ] CI is green.
+- [ ] `package.json`'s `engines.node`, the root `package-lock.json` engine
+      metadata and `.node-version` all equal the exact `node` pin in
+      [`fjs/ci/config/module.f.js`](../fjs/ci/config/module.f.js), and the
+      generated publishing workflow uses that pin. These gate what ships: a
+      mismatch is fixed first, in its own pull request, through
+      [the version-update acceptance procedure](../fjs/ci/update-versions.md).
+- [ ] For a regular release, every urgent release-line fix is present in `main`,
+      adapted if necessary so upgrading preserves it; urgent-fix pull requests
+      record fixes already present in `main`.
+
+Nothing else has to be scanned: whatever `main` holds when this merges is the
+release, and the notes read it afterwards.
+
+### 3. Confirm the publish
 
 ```sh
-node -p "require('./package.json').version"          # e.g. 0.48.0
-git log --first-parent --format='%H %s' | grep 'Release 0.48.0'
+npm view functionalscript@X.Y.Z gitHead
 ```
 
-Then **confirm the candidate rather than trusting its title** — a text match is
-a search, not an analysis ([AGENTS.md §6](../AGENTS.md#6-external-tools)):
+It answers the commit npm packed. **A green publish workflow is not evidence**:
+its publish step absorbs failures
+([publish-only-a-new-version](../fjs/ci/todo/publish-only-a-new-version.md)),
+and release `0.53.0`'s first run was green with nothing published. If the
+version is missing, fix the cause and re-run the publish workflow run of the
+bump's merge commit, not a later one, so the version holds the release's tree.
+
+## The notes
+
+A session that writes notes writes **every missing file**, not only the newest.
+If a release's notes were skipped, or their pull request never merged, the next
+release's notes session, or any later one, fills the gap:
 
 ```sh
-git show --first-parent <candidate> -- package.json
+npm view functionalscript versions --json
+ls changelog/
 ```
 
-It is the boundary only if that diff is the bump to the version you searched
-for.
+Every published version above `0.55.0` without a `changelog/<version>.md` is
+missing; older gaps are history and stay as they are. Write each missing file
+over its own window, in one notes pull request or one each. Never close a gap
+by widening a later release's window over it: each file describes the version
+it is named for.
 
-**`--first-parent` is required on both commands, for two different reasons.**
-On the search, the release branch's own commit carries the same title as the
-merge that landed it and is not the boundary. On `git show`, every commit this
-procedure walks is a merge, and `git show` prints no diff for a merge by
-default — without the flag it emits nothing at all, on the right commit and the
-wrong one alike, which reads exactly like "not the boundary".
+### 1. Find the window
+
+The notes for a version cover the commits between two `gitHead`s: the previous
+version's and this one's.
+
+- For a regular `0.X.0`, the previous version is the highest published
+  `0.W.0` below it.
+- For an urgent `0.X.P`, it is `0.X.(P-1)`, or `0.X.0` for `0.X.1`.
+
+```sh
+npm view functionalscript@<previous> gitHead
+npm view functionalscript@X.Y.Z gitHead
+git fetch origin main                                # or the maintenance branch
+git show <gitHead>:package.json                      # for each of the two
+```
+
+Each `gitHead` is a boundary only if `package.json` at it carries the version
+you asked npm about. A version npm answers without a `gitHead` has no window: stop
+and ask the owner rather than guessing one.
+
+The `gitHead` is usually the bump's merge commit. It can be a later commit:
+two pushes to `main` close together start two publish runs of one version, and
+the first to reach `npm publish` decides the tree. The `gitHead` names the tree
+that was actually packed, so the window stays right either way; say so in the
+notes pull request when it happens.
 
 ### 2. List the pull requests in the window
 
 ```sh
-git fetch origin main
-git log --first-parent --reverse --format='%H %s' <boundary>..origin/main
+git log --first-parent --reverse --format='%H %s' <previous gitHead>..<gitHead>
 ```
 
-Each line is one thing that landed on `main`, and the trailing `(#NNN)` is its
-pull request number. Three cautions, each of which has cost a release note:
+Each line is one thing that landed on the release's line, and the trailing
+`(#NNN)` is its pull request number.
 
-- **List `origin/main`, never the release branch's `HEAD`.** Once `main` is
-  merged into an open release branch, the pull requests that arrived on `main`
-  are reachable only through that merge's *second* parent, so a first-parent
-  walk from the branch tip does not list them — they are in the release's code
-  and absent from its window. This is not hypothetical: the pull request that
-  wrote this paragraph merged `main` in and three pull requests, #1841 through
-  #1843, vanished from its own listing.
-
-  `main` is the authority, not the release branch, and the asymmetry is worth
-  stating: the release lands *by merging into* `main`, and `npm publish` runs on
-  a push to `main` and packs that tree, so whatever sits on `main` when the
-  release merges is in the released package. A commit on `main` is therefore
-  never a change that "will not ship", and this listing cannot err by including
-  one — it can only err by missing one, which is the whole reason the range ends
-  at `origin/main` and step 7 re-derives it immediately before merging.
+- **`--first-parent`**, because every commit this walks is a merge, and the
+  branch commits behind each merge are that pull request's, not the window's.
 - **`--reverse`, or read bottom-to-top.** `git log` prints newest first, and
   step 4 depends on reading in the order things happened: without it a
   superseded state is read as the release's final effect.
 - **A line with no `(#NNN)` gives you no pull request to open.** It still
   shipped, and the line names nothing to read, so **read its diff and collect
   its notable changes for the release notes**. Group them by net effect in
-  step 4, like changes from pull requests. Before 1.0, a formal breaking notice
-  is optional and does not select the version bump. Two things produce such a
-  line, and they differ in what exists behind
-  it: a direct push never had a pull request, so no reviewed description exists
-  anywhere; a rebase merge had one whose description the line does not name — if
-  you can find it, read it, but the diff is what you are guaranteed. Until the
-  repository settings in
+  step 4, like changes from pull requests. Two things produce such a line, and
+  they differ in what exists behind it: a direct push never had a pull request,
+  so no reviewed description exists anywhere; a rebase merge had one whose
+  description the line does not name — if you can find it, read it, but the
+  diff is what you are guaranteed. Until the repository settings in
   [commit-message-enforcement](../todo/commit-message-enforcement.md) forbid
   both, its description — if one was ever written — is not reachable from the
-  line, which is what makes the diff the thing you read. Release `0.41.0` (`7b979e74`) landed this way.
+  line, which is what makes the diff the thing you read. Release `0.41.0`
+  (`7b979e74`) landed this way.
 
 Merge order is not pull-request-number order — a pull request opened earlier can
 merge later — and merge order is the one to use.
@@ -174,112 +194,10 @@ would notice:
    full context. It is raw material, not final text.
 2. the rest of the description — motivation and design.
 3. the diff (`git show --first-parent <commit>`), when the description does not
-   settle it — the flag for the same reason as in step 1.
+   settle it. `git show` prints no diff for a merge by default, so without the
+   flag it emits nothing at all.
 
 Collect notable API changes, including any optional breaking-change notices.
-
-**While `changelog/unreleased/` can still receive files, it is a fourth source,
-and it is not optional.** That is the transitional release and any release after
-it in which the directory reappears: a pull request opened under the old policy
-can merge long after the transition, recreating the directory with an entry
-whose declaration exists nowhere else. Scope this to "the first release" and
-such a file is ignored by every later one. Read the directory whenever
-`git ls-tree origin/main -- changelog/unreleased/` returns anything; when it
-returns nothing there is no work, so the rule costs one command per release and
-retires itself.
-
-`0.49.0` consumed the thirty files the transition left, and they are the worked
-example: thirteen declared a break, and four of those — 1811, 1817, 1824 and
-1825 — declared it *nowhere else*, in two different ways: 1824 and 1825 carried
-no `Changelog:` section in their merge bodies at all, while 1811 and 1817
-carried one that did not mention the break.
-The second is the worse failure, because a section that is present reads as
-complete — which is the argument for reading the files rather than trusting a
-section to be exhaustive. Reading only the merge commits would undercount the
-breaks by four — four breaking changes a reader of the release notes never
-learns about.
-
-Under the former declaration-driven policy, those omissions could also choose
-an incorrect patch version. Regular pre-1.0 releases now always advance the
-minor; the files still matter for complete release notes.
-
-Read those files **from `origin/main`, not from the working tree**, for the same
-reason step 2 lists `origin/main`: a pull request opened under the old policy can
-still land its entry file on `main` after this branch was cut, and `git fetch`
-updates remote-tracking refs without touching a checked-out directory, so `ls
-changelog/unreleased/` here answers for the branch rather than for the release.
-
-```sh
-git ls-tree origin/main -- changelog/unreleased/     # blob id per path
-git show origin/main:changelog/unreleased/<PR>.md
-```
-
-**Record that listing**, because the final scan in step 7 compares against it
-and not against the branch. Record it **even when it is empty**: an empty record
-is what makes a legacy file that lands after this step register as a line that is
-not in it, and that late arrival is the whole reason this fourth source exists.
-Recording nothing because there was nothing to record leaves the final scan with
-no baseline and silently retires it. Once this branch deletes
-`changelog/unreleased/`, every file it consumed is still on `origin/main` — the
-deletion does not reach `main` until the release merges — so "`origin/main` holds
-a file this branch does not" becomes true of all of them and separates nothing.
-A late arrival is a **line** in the new listing that is not in the recorded one;
-that comparison is the whole signal.
-
-Compare whole `ls-tree` lines, not path names — which is why the command above
-drops `--name-only`. A late pull request can *correct* an entry that is already
-recorded, adding the `**BREAKING CHANGES:**` its author first left out, and the
-path is then identical in both listings while the content is not. Paths alone
-call that unchanged and never re-read it, and the branch has already deleted its
-copy, so the correction never reaches the notes. The blob id
-moves whenever the content does, so the line comparison catches an amended entry
-and a new one alike.
-
-For each such line, update the branch from `main`, read that file into the
-entries, delete it with the rest, and **replace its line in the record** — a
-correction supersedes the entry already accounted for rather than adding to it.
-What it supersedes is the raw notes. A declaration the amendment *drops* — the
-rewrite that follows the new policy and takes the only `**BREAKING CHANGES:**`
-marker with it — is governed by the withdrawal rule below, because an edit that
-removes a declaration is a deletion of that declaration and nothing more. An
-amendment can always add or sharpen; it cannot withdraw on its own.
-
-**Compare in both directions.** A recorded path that is *absent* from the new
-listing was deleted on `main`, and that needs reading rather than obeying:
-**deleting the note is not retracting the change.** The likeliest reason for a
-legacy entry file to disappear is housekeeping — the new policy adds no such
-files, so someone tidied one away — and the API change it described still
-shipped. Dropping its note would hide that change from readers.
-
-So content that disappears removes **raw notes only** — a whole path gone from
-the listing, or the declaration alone gone from a path that is still there. The
-declaration stands unless one of two things is true: the pull request that
-deleted or amended the file says it is retracting it, or step 4's reading of the
-window shows the break itself was undone. Either way the reason is stated in the
-release pull request, because a file or a marker going missing is not evidence
-of anything on its own.
-
-**An empty new listing is not an exemption from this.** It means every recorded
-path was deleted, which is this rule at full stretch rather than a case where it
-does not apply — and it is the shape the deletion takes when the window tidied
-away the last legacy file. Nothing about what either side holds decides whether
-the comparison runs; it always runs.
-
-The record is what the release has accounted for, not a snapshot of when it
-started: a processed file stays on `origin/main` until the release merges, so
-leaving its line out means the next scan calls it new again and it is read and
-deleted on every pass. Keep the record current and each scan reports only what
-changed since the last one.
-
-The scan is what protects both cases; the merge is only a backstop, and an
-unreliable one. A file **added** on `main` after the branch deleted the directory
-touches a path the branch never touched, so it merges cleanly, survives, and is
-missing from the notes with nothing to announce it. An **amended** entry is a
-modify against a delete, which git reports as `CONFLICT (modify/delete)` — but
-loud is not the same as safe: resolved the obvious way, keeping the delete
-because the branch meant to remove the directory, it discards the correction and
-lands in the same place. Neither case is caught by the merge. See "Transition"
-below for what happens to the directory.
 
 Most pull requests produce no entry. Internal refactors, test-only changes,
 coverage, CI, `todo/` and documentation are invisible to a user of the package,
@@ -295,20 +213,10 @@ release, not its history:
 - A feature added and then renamed before it shipped is reported under the name
   it shipped with.
 - A break introduced and reverted inside the window is **not a break** in the
-  entries. Say so in the release
-  pull request's description, so that the reasoning is reviewed rather than inferred
-  from an absence.
+  entries. Say so in the notes pull request's description, so that the
+  reasoning is reviewed rather than inferred from an absence.
 
-### 5. Choose the version number
-
-The policy is in
-[README.md](./README.md#breaking-changes-and-versioning). Before 1.0, regular
-releases increment the highest released minor and reset the patch: `0.X.0`.
-Markers do not select the bump. Urgent fixes follow the maintenance-branch
-procedure above. The release policy after 1.0 remains undecided; this procedure
-does not choose future notice requirements or version-bump rules.
-
-### 6. Write `changelog/X.Y.Z.md`
+### 5. Write `changelog/X.Y.Z.md`
 
 One file, list items only, most important first. Format and the Markdown subset:
 [README.md](./README.md#entries). Keep an entry to about three wrapped lines —
@@ -317,14 +225,13 @@ carry a reader to the full story.
 
 **Do not write a migration of your own.** A breaking entry carries the migration
 its declaring pull request gave, and where that pull request gave none the entry
-says what changed and stops. The release author has the whole window in view,
+says what changed and stops. The notes author has the whole window in view,
 which is what step 4 needs, but not the change — inventing a migration from a
-diff at release time publishes untested advice under the authority of the
-release notes, and the reader cannot tell it from the author's. That is the
-division of labour this file opens with: the declaration is the pull request's,
-the notes are the release's. If a break plainly needs a migration and has none,
-say so in the release pull request and ask the author, rather than supplying
-one.
+diff publishes untested advice under the authority of the release notes, and
+the reader cannot tell it from the author's. The declaration is the pull
+request's; the notes are the release's. If a break plainly needs a migration
+and has none, say so in the notes pull request and ask the author, rather than
+supplying one.
 
 **CI generation is not stable for third-party consumption**, so its breaking
 entries owe no migration at all
@@ -344,13 +251,14 @@ toolset; additional support after release remains subject to actual demand.
 Include the tested toolset in the release notes or link a release document
 that records it. The Markdown format for changelog files remains list items
 only: a toolset list item may contain the versions or link that record. Record
-Node, Deno, Bun, Rust, TypeScript/TSGO, Wasmtime and Wasmer, using
-[`fjs/ci/config/module.f.js`](../fjs/ci/config/module.f.js) from the release
-revision as the source. Preserve that revision's configuration and generated
-locks. Do not infer earlier releases' supported versions from today's pins.
+Node, Deno, Bun, Rust, TypeScript/TSGO, Wasmtime and Wasmer from
+[`fjs/ci/config/module.f.js`](../fjs/ci/config/module.f.js) at the release's
+`gitHead` — `git show <gitHead>:fjs/ci/config/module.f.js` — not from today's
+tree. Do not infer earlier releases' supported versions from today's pins.
 
-Verify the record against the versions actually used by the passing checks.
-Run each version command in `./dev.sh` on the final release revision:
+Verify the record against the versions the release's own checks used. Run each
+version command in `./dev.sh` in a worktree at the `gitHead`
+(`git worktree add <dir> <gitHead>`):
 
 ```sh
 ./dev.sh node --version
@@ -362,99 +270,99 @@ Run each version command in `./dev.sh` on the final release revision:
 ./dev.sh wasmer --version
 ```
 
-Compare their output with the configuration and record. Check the passing CI
-version assertions on each platform too, including `setup-node` and clean
-packed consumers outside Nix. Confirm that `package.json`'s `engines.node`,
-the root `package-lock.json` engine metadata and `.node-version` all equal the
-exact scalar `node` pin, so CLI support, npm consumers and the website build
-use the same selected Node release. Check the generated publishing workflow
-uses that pin. A mismatch or a failing tool update is resolved through
-[the version-update acceptance procedure](../fjs/ci/update-versions.md),
-then the affected checks and this verification are rerun; it is not another
-supported version to add to the record.
+Compare their output with the record. Check the passing CI version assertions
+for that commit on each platform too, including `setup-node` and clean packed
+consumers outside Nix. A mismatch is recorded as what shipped and fixed for the
+next release through
+[the version-update acceptance procedure](../fjs/ci/update-versions.md); it is
+not another supported version to add to the record.
 
-Keep the verified version outputs with the release PR's validation evidence.
-If the release revision or pins change while the PR is open, refresh that
-evidence and the record before merging. Historical release records retain
-their original toolsets.
+Keep the verified version outputs in the notes pull request's description.
+Historical release records retain their original toolsets.
 
-### 7. Open the release pull request
+### 6. Open the notes pull request
 
-Titled `Release X.Y.Z`. It bumps `"version"` in `package.json` (and
-`package-lock.json`) and adds `changelog/X.Y.Z.md`; merging it to `main`
-triggers the `npm publish` workflow. Before merging:
+Titled `changelog: write the X.Y.Z notes`, naming each version it writes,
+against `main`, adding `changelog/X.Y.Z.md` for each. Its description names each
+window — both `gitHead`s — and carries the toolset evidence. Before merging:
 
-- [ ] the version in `package.json` matches the changelog file name
-- [ ] the release notes contain or link the tested toolset, verified against
-      the final release revision's passing checks as described above
-- [ ] for a regular release, every urgent release-line fix is present in `main`,
-      adapted if necessary so upgrading preserves it; urgent-fix PRs record
-      fixes already present in `main`
-- [ ] every pull request in the window was read, and the count was cross-checked
+- [ ] each file name is a published version, and no published version above
+      `0.55.0` is left without a file
+- [ ] each window runs between two `gitHead`s, and `package.json` at each
+      carries its version
+- [ ] every pull request in each window was read, and the count was
+      cross-checked
 - [ ] every notable API change is covered, and any optional breaking notices
-      are accounted for as shipped or undone — including the ones that exist
-      only in `changelog/unreleased/` (step 3)
-- [ ] **immediately before merging, fetch and re-run step 2 against
-      `origin/main` one last time** — and again after any update from `main`,
-      which is *a* reason to re-list rather than the only one. A pull request
-      that lands on `main` while the release pull request sits there ships with
-      this release whether or not the release branch ever merged it, because the
-      release lands by merging *into* `main` and `main`'s tip at that moment is
-      what publishes. Tying the re-list to updates of the branch misses exactly
-      that case: the branch never moved, so nothing prompts a rescan, and the
-      note is absent from a release that carries the code. Extend
-      `changelog/X.Y.Z.md` with whatever the final listing adds, and re-check
-      the version number under the current policy. Before 1.0 this remains a
-      regular minor release, regardless of late breaking changes.
-- [ ] **record the tip you scanned, and merge only that tip.** "Immediately
-      before" narrows the race between the scan and the merge; it does not close
-      it, and a pull request that lands in between still becomes an ancestor of
-      the release and still publishes:
+      are accounted for as shipped or undone
+- [ ] the release notes contain or link the tested toolset, verified at the
+      `gitHead` as described above
 
-      ```sh
-      git fetch origin main && git rev-parse origin/main   # note it
-      git fetch origin main && git rev-parse origin/main   # again, before merging
-      ```
+The window is fixed, so nothing that merges while this pull request is open
+changes it.
 
-      **The fetch is the check.** `origin/main` is a local remote-tracking ref
-      that moves only when you fetch, so re-reading it without one compares the
-      recorded value against itself and reports "unchanged" however far the
-      remote has actually advanced — a test that cannot fail.
+## Urgent fixes before 1.0
 
-      If `main` has moved, the scan is stale: re-list, extend the entries, and
-      re-check the version before merging.
+The procedure above describes regular releases from `main`. An urgent fix
+deliberately uses a different branch and window:
 
-      Even fetched, this narrows the race rather than closing it: `main` can
-      advance between that last fetch and the merge itself. Closing it needs the
-      platform — GitHub's **"Require branches to be up to date before merging"**
-      blocks the merge button whenever `main` has advanced past the release
-      branch, which turns the residual window into a forced re-scan. Enable it
-      ([commit-message-enforcement](../todo/commit-message-enforcement.md));
-      until it is on, the fetch-to-merge interval is an accepted exposure, and
-      it is smallest when the two happen back to back.
-- [ ] the final scan compared the new `ls-tree` against step 3's record —
-      **unconditionally, whatever either side holds**. Neither emptiness is an
-      exemption; each is a case. Nothing recorded and a line now is the late
-      arrival. Something recorded and nothing now is the deletion. Every guard
-      this item has carried — a non-empty directory, then a non-empty record —
-      turned off the scan in one of those two, which is why it has none.
-- [ ] `changelog/unreleased/` is deleted in this same pull request, if it exists,
-      after its content has been read into the entries. The reading and the
-      comparison are step 3's, deliberately not restated here, because this
-      document has twice drifted by fixing a rule and leaving its paraphrase
-      behind.
+1. Branch from the `gitHead` of the corresponding `0.X.0` release, not from
+   today's `main`. For a further urgent fix, branch from the `gitHead` of the
+   preceding `0.X.P` instead.
+2. Apply only the urgent fixes, updating importers and running the full checks
+   required by [AGENTS.md](../AGENTS.md). Review fix PRs against this maintenance
+   branch. Once maintenance publishing is implemented, backport only the
+   workflow support it needs; do not merge later development into the branch.
+3. Open the bump against the maintenance branch: `0.X.1`, then `0.X.2`, etc.,
+   in `package.json` and `package-lock.json`, and nothing else.
+4. Publishing this maintenance branch is tracked separately in
+   [maintenance release publishing](../fjs/ci/todo/maintenance-release-publishing.md).
+   The current generated workflow publishes only pushes to `main`; it does not
+   provide a maintenance-branch trigger. Implement and verify that follow-up
+   before publishing a maintenance release. Never merge later development into
+   the maintenance branch just to use the main publisher, or overwrite a
+   published version.
+5. Once it publishes, write its notes like any other release's: a notes pull
+   request to `main` adding `changelog/0.X.P.md`, over the window from the
+   previous version on its line. The file lives on `main` for the website's
+   history. **Keep the maintenance branch**: its releases' `gitHead`s are
+   reachable from nothing else, and a later session filling in skipped notes
+   fetches that window from it.
+6. Carry every fix forward to `main` through a separate PR **before the next
+   regular release**, adapting it to current code if needed so upgrading retains
+   the fix. Leave urgent `package.json` and `package-lock.json` version changes
+   on the maintenance branch. If `main` already contains a fix, record that in
+   the urgent-fix PR. The next regular release collects the forward-port PR
+   normally and uses the next minor with patch zero.
+7. Check newer released lines for the same defect and promptly publish an urgent
+   fix on every affected newer line, including the newest line used by `latest`.
+   Do not leave those users waiting for the next regular release.
 
 ## What this replaced, and what was rejected
 
-Through the release made under the previous scheme, every behavior-changing pull
-request added `changelog/unreleased/<PR>.md` and repeated it in a `Changelog:`
-section, and releasing renamed the directory to `changelog/<version>/` — those
-directories are single files now. It was dropped because it charged
-every pull request for an entry no one had the context to write well, and
-because the duplication rule did not hold in practice — in the last full window,
-17 of 29 entry files had no matching section in the merge commit.
+Through `0.48.0`, every behavior-changing pull request added
+`changelog/unreleased/<PR>.md` and repeated it in a `Changelog:` section, and
+releasing renamed the directory to `changelog/<version>/` — those directories
+are single files now. It was dropped because it charged every pull request for
+an entry no one had the context to write well, and because the duplication rule
+did not hold in practice — in the last full window, 17 of 29 entry files had no
+matching section in the merge commit.
 
-Two other designs were considered and rejected:
+`0.49.0` read the files that scheme left as raw material and deleted the
+directory. A pull request opened under the old scheme could recreate it by
+merging later, so releases kept reading `changelog/unreleased/` until this
+procedure. It dropped the source once the directory was empty and every open
+pull request had been opened long after `0.49.0`.
+
+From `0.49.0` until this procedure, one release pull request carried both the
+bump and the notes. The notes were written before the merge, so the window
+ended at whatever `main` held when the release merged, and keeping them
+complete took a re-scan immediately before merging, a recorded tip compared
+after a fresh fetch, and a repository setting to block the merge once `main`
+moved. Writing
+the notes after the version publishes, over the `gitHead` window, removes the
+race those steps managed.
+
+Three other designs were considered and rejected:
 
 - **Generating entries from diffs at build time.** The published notes would be
   non-deterministic and unreviewed, and Git history is immutable, so a badly
@@ -464,25 +372,19 @@ Two other designs were considered and rejected:
   but it is the per-pull-request scheme again with a different storage: the
   sections are written one pull request at a time, so they carry the churn of
   step 4 into the release notes.
+- **A `changelog` branch holding the release files.** It would keep one
+  Markdown pull request per release out of `main`'s history and CI, and that is
+  all it gains. Everything that reads `changelog/` on `main` would have to
+  follow it:
+  - the website build would read the branch, with a `git fetch` added to the
+    Cloudflare build;
+  - CI would ignore pull requests into it;
+  - it would need an entry check of its own, since the website build stops on a
+    release file it cannot parse;
+  - the format and procedure documents, and the links into released files,
+    would move.
+
+  The `gitHead` window removes the race wherever the files live.
 
 Every released file stays as published. Breaking-change markers remain useful
-optional context before 1.0; the release policy after 1.0 remains undecided. The old
-pre-1.0 declaration-driven versioning rule has been replaced by regular minor
-releases and urgent fixes on maintenance branches.
-
-## Transition
-
-`changelog/unreleased/` held entry files written under the previous scheme.
-They were the authors' own notes for pull requests in that window — exactly what
-a `Changelog:` section is — so `0.49.0` read them as step 3 raw material and
-**deleted the directory in the release pull request**. They did not survive as
-published entries: `changelog/0.49.0.md` is written by the procedure above, over
-the whole window, including the pull requests that left no file.
-
-Nothing *adds* to `changelog/unreleased/` any more: the policy that created
-those files is gone. It can still **reappear**, and that is not a
-contradiction — a pull request opened under the old policy carries its entry
-file on its branch and recreates the directory whenever it merges, however long
-after. That is why step 3 scopes its fourth source the way it does rather than
-to this release — its wording is that step's, not repeated here — and why the
-check costs one `git ls-tree` in the releases where it finds nothing.
+optional context before 1.0; the release policy after 1.0 remains undecided.

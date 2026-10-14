@@ -284,13 +284,13 @@ A PR implements only one feature or improvement, with minimal code changes, and
 every check above passing. Its title and description become the merge commit
 on `main`, so write them as one: a `<topic>: <short description>` title and a
 description. **A PR adds no changelog file** — the changelog is written once per
-release, from the PRs that shipped in it. Release PRs write those files;
-forward-port or archival PRs may copy already-published urgent-release notes
-unchanged to `main` ([release procedure](./changelog/RELEASE.md#urgent-fixes-before-10)).
+release, from the PRs that shipped in it. A release is two PRs: one bumps the
+version, and once that version has published, a notes PR writes its file
+([release procedure](./changelog/RELEASE.md)).
 Before 1.0, `Changelog:` sections and
 `**BREAKING CHANGES:**` notices are optional; regular releases are `0.X.0`,
 regardless of whether their changes break the API. Urgent fixes start at
-`0.X.1`, based on the corresponding `0.X.0` release commit; further fixes
+`0.X.1`, based on the `gitHead` of the corresponding `0.X.0` release; further fixes
 increment the patch from the previous fix release. A PR that changes no
 observable behavior omits the section. Breaking changes are welcome when they
 improve the API — explain them and update every importer in the same PR.
@@ -312,7 +312,7 @@ Commit-message format and the PR checklist:
 [CONTRIBUTING.md](./CONTRIBUTING.md#opening-a-pull-request).
 Changelog entry rules, breaking changes, and versioning:
 [changelog/README.md](./changelog/README.md).
-How a release collects its entries: [changelog/RELEASE.md](./changelog/RELEASE.md).
+How a release is published and its notes written: [changelog/RELEASE.md](./changelog/RELEASE.md).
 
 ## 6. External tools
 
