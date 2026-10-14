@@ -1,7 +1,7 @@
 ## One Base16 codec for byte lists
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
