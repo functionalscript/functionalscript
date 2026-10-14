@@ -22,6 +22,12 @@ impl<A: IVm> Unpacked<A> {
         matches!(self, Unpacked::Nullish(_))
     }
 
+    /// Whether this is `undefined`, and not `null`: the absent value an
+    /// optional argument takes its default on. A match, as `is_nullish` is.
+    pub fn is_undefined(&self) -> bool {
+        matches!(self, Unpacked::Nullish(Nullish::Undefined))
+    }
+
     pub fn dispatch<T: Dispatch<A>>(self, o: T) -> T::Result {
         match self {
             Unpacked::Nullish(v) => o.nullish(v),

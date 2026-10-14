@@ -37,7 +37,7 @@ export const force = r => {
  * in the element its boxes link to, and a section for every box — a box
  * whose rule has no diagram on the page would be a link to nothing.
  *
- * @type {(demo: Demo<null, DemoEvent>, titles: readonly (readonly [string, unknown])[]) => () => void}
+ * @type {(demo: Demo<null, DemoEvent>, titles: readonly (readonly [string, ...unknown[]])[]) => () => void}
  */
 export const diagramPage = ({ init, view }, titles) => () => {
     const html = htmlToString(view(init))

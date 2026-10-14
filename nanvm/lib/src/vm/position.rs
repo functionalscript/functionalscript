@@ -4,7 +4,7 @@
 
 use core::ops::Range;
 
-use crate::vm::{Any, IVm, Nullish, Unpacked};
+use crate::vm::{Any, IVm};
 
 impl<A: IVm> Any<A> {
     /// `ToIntegerOrInfinity(ToNumber(self))`, the reading every index, count
@@ -51,10 +51,11 @@ pub(crate) fn relative_range<A: IVm>(
     len: u32,
 ) -> Result<Range<u32>, Any<A>> {
     let from = clamped(relative(start, len)?, len);
-    let to = match Unpacked::from(end.clone()) {
-        Unpacked::Nullish(Nullish::Undefined) => len,
-        _ => clamped(relative(end, len)?, len),
-    };
+    let to = end
+        .defined()
+        .map(|e| relative(e, len))
+        .transpose()?
+        .map_or(len, |k| clamped(k, len));
     Ok(from..to.max(from))
 }
 
