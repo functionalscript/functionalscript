@@ -55,7 +55,7 @@ import { utf8 } from '../text/module.f.mjs'
 import { access, exitStep, isNotFound, mkdir, readdir, readUtf8File, readWhole, writeChunks, writeFile, writeUtf8File } from '../effects/node/module.f.mjs'
 import { foldStep, forEachStep, history, historyStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../effects/module.f.mjs'
 import { exportsDemo, exportsProof, local, specifiers } from './browser-source/module.f.mjs'
-import { concat as pathConcat, name as pathName, parent } from '../path/module.f.mjs'
+import { basename, concat as pathConcat, parent } from '../path/module.f.mjs'
 import { at, empty as emptyMap, entries, setReplace } from '../types/ordered_map/module.f.mjs'
 import { contains, empty as noPaths, set as addPath, values as paths } from '../types/string_set/module.f.mjs'
 import { toArray } from '../types/list/module.f.mjs'
@@ -670,7 +670,7 @@ const copyRustdocFile = from => to => name => step(
  */
 const cratesOf = tree => tree
     .filter(dir => dir.files.includes('index.html') && parent(dir.path) === rustdocDir)
-    .map(dir => pathName(dir.path))
+    .map(dir => basename(dir.path))
 
 /** rustdoc's output walked, the walk kept for the steps after it. */
 const rustdocWalked = history(walk(rustdocDir))

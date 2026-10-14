@@ -1,4 +1,4 @@
-import { _dotSegmentFold, ancestors, concat, escapes, isBareDrive, isDriveLetter, isDriveRoot, isProperPrefix, join, name, normalize, parent, parse, relativize, root, toPosix, under } from "./module.f.mjs"
+import { _dotSegmentFold, ancestors, basename, concat, escapes, isBareDrive, isDriveLetter, isDriveRoot, isProperPrefix, join, normalize, parent, parse, relativize, root, toPosix, under } from "./module.f.mjs"
 import { assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
 import { fold, toArray } from '../types/list/module.f.mjs'
 
@@ -448,48 +448,48 @@ const parentTest = [
     },
 ]
 
-const nameTest = [
+const basenameTest = [
     () => {
-        assertEq(name('a/b/x.rs'), 'x.rs')
+        assertEq(basename('a/b/x.rs'), 'x.rs')
     },
     () => {
-        assertEq(name('x.rs'), 'x.rs')
+        assertEq(basename('x.rs'), 'x.rs')
     },
     () => {
-        assertEq(name('/x'), 'x')
+        assertEq(basename('/x'), 'x')
     },
     () => {
-        assertEq(name('a\\x'), 'x')
+        assertEq(basename('a\\x'), 'x')
     },
     // A trailing separator names nothing of its own.
     () => {
-        assertEq(name('a/b/x.rs/'), 'x.rs')
+        assertEq(basename('a/b/x.rs/'), 'x.rs')
     },
     () => {
-        assertEq(name('a/b/..'), 'a')
+        assertEq(basename('a/b/..'), 'a')
     },
     () => {
-        assertEq(name('../..'), '..')
+        assertEq(basename('../..'), '..')
     },
     // Folding `./C:/` leaves the bare drive `C:`, an ordinary segment here,
     // and not the root `C:/`: it is named.
     () => {
-        assertEq(name('./C:/'), 'C:')
+        assertEq(basename('./C:/'), 'C:')
     },
     // A root, or the empty path, has no name.
     () => {
-        assertEq(name('/'), '')
+        assertEq(basename('/'), '')
     },
     () => {
-        assertEq(name('C:/'), '')
+        assertEq(basename('C:/'), '')
     },
     () => {
-        assertEq(name(''), '')
+        assertEq(basename(''), '')
     },
     // A path with a name is its parent and its name again.
     () => {
         for (const p of ['a/b/x.rs', 'x.rs', '/x', 'C:/a/x', '../a', './C:/x']) {
-            assertEq(concat(parent(p))(name(p)), normalize(p))
+            assertEq(concat(parent(p))(basename(p)), normalize(p))
         }
     },
 ]
@@ -711,4 +711,4 @@ const underThrowTest = {
     },
 }
 
-export const proof = { dotSegmentFoldTest, normalizeTest, escapesTest, rootTest, driveTest, parseTest, concatTest, parentTest, nameTest, ancestorsTest, joinTest, underTest, underThrowTest, relativizeTest, toPosixTest, isProperPrefixTest }
+export const proof = { dotSegmentFoldTest, normalizeTest, escapesTest, rootTest, driveTest, parseTest, concatTest, parentTest, basenameTest, ancestorsTest, joinTest, underTest, underThrowTest, relativizeTest, toPosixTest, isProperPrefixTest }

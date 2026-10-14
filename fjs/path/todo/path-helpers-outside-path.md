@@ -6,7 +6,7 @@
 ### Problem
 
 > **Progress:** `fjs/path` now answers the first three questions below as
-> `parent`, `name` and `ancestors`, and every copy listed calls them. The
+> `parent`, `basename` and `ancestors`, and every copy listed calls them. The
 > copied `resolve` is what remains.
 
 [`fjs/path`](../module.f.mjs) owns path manipulation: `concat`, `join`,

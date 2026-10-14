@@ -281,7 +281,7 @@ export const parent = path => {
  *
  * @type {(path: string) => string}
  */
-export const name = path => last('')(parse(path))
+export const basename = path => last('')(parse(path))
 
 /**
  * The directories a path lies under, between its root and itself, shortest

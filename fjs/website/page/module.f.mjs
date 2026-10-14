@@ -34,7 +34,7 @@
  */
 
 import { htmlUtf8 } from '../../media/html/module.f.mjs'
-import { ancestors, concat as pathConcat, name as pathName } from '../../path/module.f.mjs'
+import { ancestors, basename, concat as pathConcat } from '../../path/module.f.mjs'
 import { demoMarker, faviconLinks, logoPath, stylesheetLink } from '../style/module.f.js'
 import { intersperse, toArray } from '../../types/list/module.f.mjs'
 
@@ -447,7 +447,7 @@ export const directoryLayout = build => dir => main => ['div', { 'data-directory
  */
 const breadcrumbs = path => [
     /** @type {const} */ (['.', 'root']),
-    ...ancestors(path).map(a => /** @type {const} */ ([a, pathName(a)])),
+    ...ancestors(path).map(a => /** @type {const} */ ([a, basename(a)])),
 ]
 
 /**
