@@ -63,7 +63,8 @@ index, which is what it is.
 
 ### Related
 
-- [indexed-member-access-skeleton.md](./indexed-member-access-skeleton.md) —
-  the other half of finishing `vm/member_access.rs` as the owner.
+- [`indexed_member_access`](../src/vm/member_access.rs) — the indexed read
+  `Array` and `String` share, the other half of finishing
+  `vm/member_access.rs` as the owner.
 - [to-json-fjs-migration.md](./to-json-fjs-migration.md) — retires
   `to_json` eventually; this change is three tokens and holds until then.
