@@ -93,6 +93,7 @@ export const proof = {
         assert(rust.includes('pub const PROHIBITED: &[(&str, &str)] = &[\n    ("Object", "__defineGetter__"),\n'), rust)
         assert(rust.includes('pub const ABSENT: &[(&str, &str)] = &[\n'), rust)
         assert(rust.includes('    ("Array", "charAt"),\n'), rust)
+        assert(rust.includes('pub const STATICS: &[&[&str]] = &[\n    &["Object", "is"],\n];\n'), rust)
         assert(rust.endsWith('];\n'), rust)
         assertEq(path, `${directory}/gen.methods.rs`)
         assertEq(directory, 'nanvm/lib/src/vm/lambda')

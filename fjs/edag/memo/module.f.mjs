@@ -44,6 +44,8 @@ const codeStep = (code, step) => {
 /** Restore code, retaining table sharing, for the bodies carried by values. @type {(code: readonly ExpOp[], node: Node) => ExpOp} */
 const codeNode = (code, node) => {
     switch (node[0]) {
+        // the path is metadata, carried as it is
+        case 'static': { return node }
         case '[]': { return ['[]', codeItems(code, node[1])] }
         case '{}': { return ['{}', node[1].map(p => p[0] === '...'
             ? ['...', expression(code, p[1])]

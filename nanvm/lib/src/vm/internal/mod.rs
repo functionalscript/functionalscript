@@ -57,4 +57,14 @@ pub trait IVm:
         let _ = (type_name, key);
         None
     }
+    /// The static function the VM's runtime binds at `path`, the keys
+    /// `fjs/js/static` admits it under — `["Object", "is"]` for
+    /// `Object.is` — or `None`. A static call asks it after the VM's own
+    /// native binding of the path, if any. The default binds nothing; a VM
+    /// that makes functions out of Rust static functions answers it with
+    /// [`runtime_static`](crate::vm::runtime_static), as `naive` does.
+    fn runtime_static(path: &[&str]) -> Option<Any<Self>> {
+        let _ = path;
+        None
+    }
 }
