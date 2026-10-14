@@ -15,7 +15,7 @@
  *
  * @import { All, Child, Handle, NodeProgram, NodeOp, ReadRequestBytes, RequestListener as Erl, ServerResponse } from './types.ts'
  * @import { ChildProcess } from 'node:child_process'
- * @import { Agent, ServerResponse as NodeServerResponse } from 'node:http'
+ * @import { Agent, Server, ServerResponse as NodeServerResponse } from 'node:http'
  * @import { Effect, IoChannel, Operation } from '../types.ts'
  * @import { EffectList, Next } from '../list/types.ts'
  * @import { Result } from '../../types/result/types.ts'
@@ -1431,7 +1431,8 @@ export const proof = {
                     async (port, server) => {
                         // The runner awaits the listener before pulling, so this
                         // observer sees the response before its first body cell.
-                        server.once('request', (_, res) => { response = res })
+                        // The host's own server, unwrapped as `withServer` does.
+                        /** @type {Server} */ (asBase(server)).once('request', (_, res) => { response = res })
                         const socket = net.connect(port, loopback, () => {
                             socket.write('GET / HTTP/1.1\r\nHost: x\r\n\r\n')
                         })

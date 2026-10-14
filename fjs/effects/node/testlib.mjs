@@ -10,8 +10,8 @@
  *
  * @module
  *
- * @import { NodeProgram, NodeOp, RequestListener } from './types.ts'
- * @import { Server } from 'node:http'
+ * @import { NodeProgram, NodeOp, RequestListener, Server } from './types.ts'
+ * @import { Server as HostServer } from 'node:http'
  */
 
 import { mkdtemp, rm } from 'node:fs/promises'
@@ -105,6 +105,11 @@ export const within = async (label, ms, p) => {
  * proofs leave a keep-alive socket open on purpose and `server.close` waits for
  * the last one.
  *
+ * `client` is handed the `Server` the program created, not the host's object:
+ * a declaration this package publishes names no `node:` type, because its
+ * consumers need not have Node's. A client that observes the host server
+ * unwraps it with `asBase`, as this function does.
+ *
  * @template T
  * @param {RequestListener<NodeOp>} listener
  * @param {(port: number, server: Server) => Promise<T>} client
@@ -120,21 +125,22 @@ export const withServer = async (listener, client) => {
         step(
             createServer(listener),
             server => {
-                // The one cast, and the boundary the runner itself crosses the
-                // same way: a `Server` is a `Nominal` over the host's own
-                // object, and `asBase` is how the runner reads it back.
-                created(/** @type {Server} */ (asBase(server)))
+                created(server)
                 return listen(server, 0, loopback)
             }),
         r => r[0] === 'ok' ? ok(0) : error(1))
     assertEq(await runEffect(program), 0)
     const server = await held
+    // The boundary the runner itself crosses the same way: a `Server` is a
+    // `Nominal` over the host's own object, and `asBase` is how the runner
+    // reads it back.
+    const host = /** @type {HostServer} */ (asBase(server))
     try {
-        const address = server.address()
+        const address = host.address()
         assert(address !== null && typeof address !== 'string', address)
         return await client(address.port, server)
     } finally {
-        server.closeAllConnections()
-        await new Promise(resolve => { server.close(() => resolve(undefined)) })
+        host.closeAllConnections()
+        await new Promise(resolve => { host.close(() => resolve(undefined)) })
     }
 }
