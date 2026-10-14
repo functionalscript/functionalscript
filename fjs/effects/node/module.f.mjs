@@ -26,6 +26,7 @@
  */
 
 import { tryUtf8, utf8, utf8ToString } from '../../text/module.f.mjs'
+import { floorCodePointBoundary } from '../../text/utf16/module.f.mjs'
 import { concat } from '../../types/list/module.f.mjs'
 import { isInteger } from '../../types/number/is_integer/module.f.js'
 import { definedEntries } from '../../types/object/module.f.mjs'
@@ -522,12 +523,6 @@ const chunkBytes = Number(maxLengthBytes)
  */
 const chunkUnits = Math.floor(chunkBytes / 3) - 1
 
-/** @type {(c: number) => boolean} */
-const isHighSurrogate = c => c >= 0xd800 && c <= 0xdbff
-
-/** @type {(c: number) => boolean} */
-const isLowSurrogate = c => c >= 0xdc00 && c <= 0xdfff
-
 /**
  * The pieces of `s`, each of at most `units + 1` code units: the cut after
  * `k * units` units, moved back one unit where it would fall between the two
@@ -540,11 +535,7 @@ const isLowSurrogate = c => c >= 0xdc00 && c <= 0xdfff
  */
 export const _pieces = units => s => {
     /** @type {(k: number) => number} */
-    const cutAt = k => {
-        const at = k * units
-        return at >= s.length ? s.length
-            : isHighSurrogate(s.charCodeAt(at - 1)) && isLowSurrogate(s.charCodeAt(at)) ? at - 1 : at
-    }
+    const cutAt = k => floorCodePointBoundary(s)(k * units)
     return Array.from(
         { length: max(1, Math.ceil(s.length / units)) },
         (_, k) => s.slice(cutAt(k), cutAt(k + 1)))
