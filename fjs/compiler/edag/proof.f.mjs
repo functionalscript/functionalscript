@@ -27,7 +27,7 @@ import { parse } from '../transpiler/module.f.mjs'
 import { exp } from '../../edag/module.f.mjs'
 import { validate } from '../../rtti/validate/module.f.mjs'
 import { ok, unwrap } from '../../types/result/module.f.js'
-import { virtual, emptyState } from '../../effects/node/virtual/module.f.mjs'
+import { virtualAt } from '../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { assert, assertEq, assertError, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
@@ -54,7 +54,7 @@ const compile = source => {
 const file = text => [utf8(text)]
 
 /** The program at `path` linked over a virtual file system, as the linker reports it. @type {(root: Dir) => (path: string) => Result<Exp, ParseError>} */
-const linked = root => path => virtual({ ...emptyState, root })(resolve(path))[1]
+const linked = root => path => virtualAt(root)(resolve(path))[1]
 
 /** The linked default export (or direct JSON document), refusals thrown. @type {(root: Dir) => (path: string) => Exp} */
 const program = root => path => {

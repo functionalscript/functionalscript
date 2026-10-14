@@ -13,7 +13,7 @@ import { read } from '../../edag/value/property/module.f.mjs'
 import { toData } from '../../edag/value/to_unknown/module.f.mjs'
 import { isArray } from '../../types/array/module.f.mjs'
 import { maxLength } from '../../types/function/length/module.f.mjs'
-import { virtual, emptyState } from '../../effects/node/virtual/module.f.mjs'
+import { virtualAt } from '../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { ok, unwrap } from '../../types/result/module.f.js'
 import { parse } from '../transpiler/module.f.mjs'
@@ -54,7 +54,7 @@ const forInterpreter = (interpret, invoke) => {
                 'a.f.mjs': [utf8('export default [1];')],
                 'b.f.mjs': [utf8('export default [2];')],
             }
-            const linked = unwrap(virtual({ ...emptyState, root })(resolve('main.f.mjs'))[1])
+            const linked = unwrap(virtualAt(root)(resolve('main.f.mjs'))[1])
             assert(assertOk(analysis(linked)).nodes.every(n => n[0] !== 'args'))
             const e = _defaultExport(linked)
             const represented = apply(apply(interpret(e), [3,4,5]), [6])

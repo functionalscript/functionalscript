@@ -9,7 +9,7 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { ioError } from '../../effects/module.f.mjs'
 import { run } from '../../effects/mock/module.f.mjs'
-import { emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'
+import { virtualAt } from '../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { vec } from '../../types/bit_vec/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
@@ -33,7 +33,7 @@ const repo = /** @type {State['root'][string]} */ ({ config: file('[core]\n\trep
  * @type {(root: State['root']) => (worktree: string) => Result<Nullable<string>, IoChannel>}
  */
 const resultAt = root => worktree => {
-    const [, result] = virtual({ ...emptyState, root })(tryCommonDir(worktree))
+    const [, result] = virtualAt(root)(tryCommonDir(worktree))
     return result
 }
 

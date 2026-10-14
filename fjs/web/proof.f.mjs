@@ -8,7 +8,7 @@
 
 import { assert, assertEq } from '../asserts/module.f.mjs'
 import { createServer, exitCode, ioError, listen, open, readBytes } from '../effects/node/module.f.mjs'
-import { emptyState, nodeProgramOptions, virtual } from '../effects/node/virtual/module.f.mjs'
+import { emptyState, nodeProgramOptions, virtual, virtualAt } from '../effects/node/virtual/module.f.mjs'
 import { nodeCommands } from '../effects/node/module.f.mjs'
 import { partialRun } from '../effects/mock/module.f.mjs'
 import { step } from '../effects/module.f.mjs'
@@ -568,7 +568,7 @@ export const proof = {
              * @type {Dir}
              */
             const other = { 'large.bin': Array.from({ length: 129 }, (_, n) => countingKib(n + 200)) }
-            const [afterListener, answered] = virtual({ ...emptyState, root: largeRoot })(
+            const [afterListener, answered] = virtualAt(largeRoot)(
                 respond('.')(request('GET', '/large.bin')))
             const r = unwrap(answered)
             assertEq(r.status, 200)
@@ -600,7 +600,7 @@ export const proof = {
         replacementCannotLengthenIt: () => {
             /** @type {Dir} */
             const grown = { 'large.bin': [...largeChunks, countingKib(500)] }
-            const [afterListener, answered] = virtual({ ...emptyState, root: largeRoot })(
+            const [afterListener, answered] = virtualAt(largeRoot)(
                 respond('.')(request('GET', '/large.bin')))
             const r = unwrap(answered)
             const [, chunks] = drain(afterListener, r.body, s => ({ ...s, root: grown }))
@@ -806,7 +806,7 @@ export const proof = {
         // line as well as in what gets served.
         emptyRoot: () => {
             const options = nodeProgramOptions([''])
-            const [s] = virtual({ ...emptyState, root: site })(main(options))
+            const [s] = virtualAt(site)(main(options))
             assertEq(s.stdout, 'serving . on http://127.0.0.1:8080/\n')
         },
         // Both arguments given, and a root that is not the working directory.
@@ -837,7 +837,7 @@ export const proof = {
             /** @type {(argument: string, reason: string) => void} */
             const rejects = (argument, reason) => {
                 const options = nodeProgramOptions([argument])
-                const [s, result] = virtual({ ...emptyState, root })(main(options))
+                const [s, result] = virtualAt(root)(main(options))
                 assertEq(exitCode(result), 1)
                 assertEq(s.stderr, `invalid root "${argument}": ${reason}\n`)
                 // Nothing was bound, and nothing announced: the root is checked

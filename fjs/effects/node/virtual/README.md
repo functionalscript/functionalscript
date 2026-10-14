@@ -5,10 +5,13 @@ A synchronous, in-memory implementation of the `NodeOp` effect runner, primarily
 ## Usage
 
 ```ts
-import { virtual, emptyState } from './module.f.mjs'
+import { virtual, virtualAt, emptyState } from './module.f.mjs'
 
 const [finalState, result] = virtual(emptyState)(myEffect)
 ```
+
+When all a run needs is a tree of files, `virtualAt(root)` is
+`virtual({ ...emptyState, root })`.
 
 State carries in-memory representations of the filesystem (`root`), stdout/stderr output (`stdout`, `stderr`), network responses (`internet`), and a simulated clock (`epochNs`).
 
