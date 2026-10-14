@@ -1,4 +1,7 @@
-use crate::vm::{Any, Array, IVm, Object, Unpacked, container_fmt::ContainerFmt};
+use crate::vm::{
+    Any, Array, IVm, Object, Unpacked, container_fmt::ContainerFmt, impls::unpack,
+    numeric::Numeric, primitive::Primitive,
+};
 use core::fmt::{Debug, Formatter, Result};
 
 impl<A: IVm> Debug for Any<A> {
@@ -32,5 +35,17 @@ impl<A: IVm> Debug for Unpacked<A> {
             Self::Array(x) => x.fmt(f),
             Self::Function(x) => x.fmt(f),
         }
+    }
+}
+
+impl<A: IVm> Debug for Primitive<A> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        unpack(self).fmt(f)
+    }
+}
+
+impl<A: IVm> Debug for Numeric<A> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        unpack(self).fmt(f)
     }
 }
