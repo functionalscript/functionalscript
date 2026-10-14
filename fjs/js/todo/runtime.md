@@ -134,16 +134,18 @@ place. The guard of an optional call, `a.map?.(f)`, asks the same lookup,
 native or runtime, so a name whose native entry has gone to a body is
 still called, not skipped, and a name neither binds skips with its
 arguments unevaluated — the represented executors' `hasMethod` and
-NaNVM's `Member::is_nullish` in #2880 both do. The tables in `nanvm/lib/src/vm/lambda`'s `method.rs`, `string.rs`
-and `number.rs` shrink to the names without a body; the interpreter runs
-the body, the AOT Rust output links the compiled runtime, and a VM may
-still bind a
-native implementation of a name that has a body where it measures the gain
-— NaNVM's current Rust implementations become exactly that, optimizations,
-each one free to go when the compiled body is fast enough. Either way the
-corpus in
-`nanvm/member` checks the native answer against the body, as it checks it
-against the host today, and the body is the reference. That fixes two
+NaNVM's `Member::is_nullish` in #2880 both do. The tables in
+`nanvm/lib/src/vm/lambda`'s `method.rs`, `string.rs` and `number.rs` are
+the one place a native binding lives, and hold two kinds of name: the
+names without a body, which they must, and the names a measurement keeps
+native, which they may — a native entry for a name that has a body is an
+optimization, and it stays in the same table, ahead of the body, for as
+long as the measurement says so and leaves when the compiled body is fast
+enough. NaNVM's current Rust implementations become exactly that. There
+is no second table: the interpreter runs the body, the AOT Rust output
+links the compiled runtime, and whatever the native table holds, the
+corpus in `nanvm/member` checks the native answer against the body, as it
+checks it against the host today, and the body is the reference. That fixes two
 things the spec currently lists as implementation-defined: an inconsistent
 `toSorted` comparator gets the one order the runtime's sort gives, on every
 executor, and the interpreter no longer answers with the host's Unicode
@@ -210,10 +212,9 @@ own `todo/` when its turn comes, and neither is designed here.
       stops calling the host engine for them; `edag/value/array_method`
       likewise.
 - [ ] NaNVM binds the compiled runtime's keys as each type's fallback
-      member functions; its hand tables shrink to the names without a
-      body; the
-      corpus runs the bound runtime; decide per function, with a
-      measurement, whether a native implementation stays.
+      member functions; the corpus runs the bound runtime; a name whose
+      body lands leaves the hand tables unless a measurement keeps it,
+      in the same table, as an optimization.
 - [ ] File the static-function table and the operator step as their own
       `todo/`s when the first batch has landed.
 
