@@ -1,7 +1,7 @@
 ## Every proof spells `virtual({ ...emptyState, root })`
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
