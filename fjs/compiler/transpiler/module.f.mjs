@@ -11,11 +11,13 @@
  * @import { CompileValue } from '../../edag/value/to_unknown/types.ts'
  * @import { _ImportSource, _Source } from '../source/types.ts'
  * @import { SourceError, ParseContext } from './types.ts'
+ * @import { RuntimeLoad } from '../types.ts'
  * @import { Effect, IoChannel } from '../../effects/types.ts'
  * @import { ReadWhole, ResolveFileModule } from '../../effects/node/types.ts'
  */
 
 import { assertOk } from '../../asserts/module.f.mjs'
+import { isArray } from '../../types/array/module.f.mjs'
 import { ok } from '../../types/result/module.f.js'
 import { drop, includes } from '../../types/list/module.f.mjs'
 import { setReplace, at } from '../../types/ordered_map/module.f.mjs'
@@ -25,7 +27,7 @@ import { analysis } from '../../edag/analysis/module.f.mjs'
 import { memo } from '../../edag/memo/module.f.mjs'
 import { unresolved, jsonValue } from '../edag/module.f.mjs'
 import { _attributeError, _fileError, _importSources, _missingExport, _rootSource, _parseJson, _parseModule } from '../source/module.f.mjs'
-import { foldStep, history, historyStep, mapStep, pureError, pureOk, step } from '../../effects/module.f.mjs'
+import { foldStep, history, historyStep, mapStep, pureError, pureOk, resultStep, step } from '../../effects/module.f.mjs'
 
 export { parse } from '../source/module.f.mjs'
 
@@ -95,6 +97,24 @@ export const interpretWith = runtime => path => step(_rootSource(path), interpre
 export const interpret = interpretWith(undefined)
 
 /**
+ * The runtime at `path`, `fjs/js/runtime`'s source or a stand-in for it:
+ * its `runtime` export, as an executor takes it, interpreted under no
+ * runtime, since the module's own initialization calls no member function.
+ * A source the interpreter cannot load is that failure; one exporting no
+ * `runtime` object is a failure naming the file.
+ *
+ * @type {(path: string) => Effect<ReadWhole | ResolveFileModule, Runtime, SourceError>}
+ */
+export const runtimeAt = path => resultStep(interpret(path), result => {
+    const [kind, value] = result
+    if (kind === 'error') { return pureError(value) }
+    const [exportKind, runtime] = read(ok(value), 'runtime')
+    return exportKind === 'ok' && isArray(runtime) && runtime[0] === '{}'
+        ? pureOk(runtime)
+        : pureError(_fileError(path)('no runtime export'))
+})
+
+/**
  * Compile the complete module export object, or a direct JSON document, into
  * ordinary runtime values. Callable graphs request the target's CompileValue
  * operation; its host failures stay separate from source initialization errors.
@@ -105,14 +125,16 @@ export const transpile = path => step(interpret(path), toUnknown)
 
 /**
  * Select a represented default only after initializing the complete module
- * under `runtime`, then decode data for JSON/DataJS output. Named callable
- * exports do not block data outputs; a selected callable returns an output
- * refusal in the Result.
+ * under the runtime `load` answers — run once the source is known to be a
+ * module, so a JSON document never loads one — then decode data for
+ * JSON/DataJS output. Named callable exports do not block data outputs; a
+ * selected callable returns an output refusal in the Result.
  *
- * @type {(runtime: Runtime | undefined) => (path: string) => Effect<ReadWhole | ResolveFileModule, Result<Unknown, string>, SourceError>}
+ * @type {(load: RuntimeLoad) => (path: string) => Effect<ReadWhole | ResolveFileModule, Result<Unknown, string>, SourceError>}
  */
-export const _transpileDefaultWith = runtime => path => step(_rootSource(path), source =>
-    mapStep(interpretSource(runtime)(source), value => toData(source.json ? value : assertOk(read(ok(value), 'default')))))
+export const _transpileDefaultWith = load => path => step(_rootSource(path), source => source.json
+    ? mapStep(interpretSource(undefined)(source), toData)
+    : step(load, runtime => mapStep(interpretSource(runtime)(source), value => toData(assertOk(read(ok(value), 'default'))))))
 
-/** {@link _transpileDefaultWith} no runtime, what `fjs compile` has ([`../todo/cli-runtime.md`](../todo/cli-runtime.md)). @type {(path: string) => Effect<ReadWhole | ResolveFileModule, Result<Unknown, string>, SourceError>} */
-export const _transpileDefault = _transpileDefaultWith(undefined)
+/** {@link _transpileDefaultWith} no runtime: a module whose initialization calls a member function only the runtime answers fails to initialize. @type {(path: string) => Effect<ReadWhole | ResolveFileModule, Result<Unknown, string>, SourceError>} */
+export const _transpileDefault = _transpileDefaultWith(pureOk(undefined))

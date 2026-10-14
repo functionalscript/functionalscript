@@ -60,10 +60,13 @@ body, and no other pair is.
   `runtime` field of an `amnesia` or `memo` context
   ([`edag/operations/types.ts`](../../edag/operations/types.ts)), which
   reaches every function the invocation calls. The transpiler takes it as
-  `interpretWith(runtime)`, and `fjs/nanvm/harness` loads it from this
-  module's source for the fixture expectations it writes. An executor given
-  no runtime answers a body's name with the `TypeError` of a VM that binds
-  nothing, never with a host built-in.
+  `interpretWith(runtime)`; `fjs compile` loads it from the package it runs
+  from, `fjs/js/runtime/module.f.js` there, when a data output interprets a
+  module and not before; `fjs/nanvm/harness` loads it the same way, from
+  the repository root, for the fixture expectations it writes; and the
+  compiler's demo, which has no file system, takes the generated EDAG. An
+  executor given no runtime answers a body's name with the `TypeError` of a
+  VM that binds nothing, never with a host built-in.
 - **NaNVM** — `npm run gen` compiles this module to
   `nanvm/lib/src/vm/gen.runtime.rs` through the Rust backend, the compiler
   being the generator, and `nanvm-lib`'s `IVm::runtime_method` is the hook

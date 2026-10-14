@@ -6,9 +6,10 @@
  * expectations [`../harness`](../harness/module.f.mjs) interprets under it.
  *
  * The compiles go through [`compileFile`](../../compiler/module.f.mjs), the
- * compiler being the generator; and the load through the same interpreter
- * the harness runs its fixtures on, with no runtime of its own, since the
- * runtime's initialization calls no member function.
+ * compiler being the generator, under no runtime, since a code output
+ * interprets nothing; and the load through the transpiler's `runtimeAt`,
+ * which the compile command uses too, with the repository root as the
+ * package the generators run from.
  *
  * @module
  *
@@ -18,15 +19,12 @@
  * @import { Runtime } from '../../edag/value/types.ts'
  */
 
-import { isArray } from '../../types/array/module.f.mjs'
-import { ok } from '../../types/result/module.f.js'
 import { ioError, pureError, pureOk, resultStep, step } from '../../effects/module.f.mjs'
-import { compileFile } from '../../compiler/module.f.mjs'
-import { interpret } from '../../compiler/transpiler/module.f.mjs'
-import { read } from '../../edag/value/property/module.f.mjs'
+import { compileFile, noRuntime, runtimeSource } from '../../compiler/module.f.mjs'
+import { runtimeAt } from '../../compiler/transpiler/module.f.mjs'
 
-/** Where the runtime is authored. */
-export const source = 'fjs/js/runtime/module.f.js'
+/** Where the runtime is authored, from the repository root the generators run from. */
+export const source = runtimeSource('.')
 
 /**
  * Where its Rust goes: beside the binder `vm/runtime.rs`, which includes
@@ -36,15 +34,15 @@ export const rustPath = 'nanvm/lib/src/vm/gen.runtime.rs'
 
 /**
  * Where its EDAG goes, beside its source, for the corpus proof
- * [`../proof.f.mjs`](../proof.f.mjs): the one consumer that needs the
- * runtime as data without the compiler. Nothing the compiler imports reads
- * it — `npm run gen` deletes every `gen.*` first, and a generator whose own
- * imports needed one could not start.
+ * [`../proof.f.mjs`](../proof.f.mjs) and the compiler's demo: the consumers
+ * that need the runtime as data without a file system. Nothing the compiler
+ * imports reads it — `npm run gen` deletes every `gen.*` first, and a
+ * generator whose own imports needed one could not start.
  */
 export const edagPath = 'fjs/js/runtime/gen.edag.data.mjs'
 
 /** Compiles the runtime to Rust, then to EDAG. @type {() => Effect<_CompileOp, void, IoChannel>} */
-export const generate = () => step(compileFile(source, rustPath), () => compileFile(source, edagPath))
+export const generate = () => step(compileFile(noRuntime)(source, rustPath), () => compileFile(noRuntime)(source, edagPath))
 
 /**
  * The runtime interpreted from its source: its `runtime` export, as an
@@ -53,11 +51,7 @@ export const generate = () => step(compileFile(source, rustPath), () => compileF
  *
  * @type {() => Effect<ReadWhole | ResolveFileModule, Runtime, IoChannel>}
  */
-export const load = () => resultStep(interpret(source), result => {
+export const load = () => resultStep(runtimeAt(source), result => {
     const [kind, value] = result
-    if (kind === 'error') { return pureError(ioError({ message: `${source}: ${value.message}` })) }
-    const [exportKind, runtime] = read(ok(value), 'runtime')
-    return exportKind === 'ok' && isArray(runtime) && runtime[0] === '{}'
-        ? pureOk(runtime)
-        : pureError(ioError({ message: `${source}: no runtime export` }))
+    return kind === 'ok' ? pureOk(value) : pureError(ioError({ message: `${value.path}: ${value.message}` }))
 })

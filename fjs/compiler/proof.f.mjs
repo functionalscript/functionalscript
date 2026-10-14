@@ -1,5 +1,6 @@
 /**
  * @import { Unknown } from '../media/datajs/types.ts'
+ * @import { Dir } from '../effects/node/virtual/types.ts'
  * @import { Accept, Document, Normalize } from '../media/datajs/vectors/types.ts'
  * @import { Analysis } from '../edag/analysis/types.ts'
  * @import { Vec } from '../types/bit_vec/types.ts'
@@ -9,7 +10,7 @@
  */
 
 import { exitCode, readUtf8File, nodeCommands } from '../effects/node/module.f.mjs'
-import { compile, outputText } from './module.f.mjs'
+import { compile, outputText, noRuntime, runtimeSource } from './module.f.mjs'
 import { transpile } from './transpiler/module.f.mjs'
 import { parse } from './source/module.f.mjs'
 import { resolve, unresolved } from './edag/module.f.mjs'
@@ -35,6 +36,19 @@ import { htmlToString } from '../media/html/module.f.mjs'
 import { maxLengthBytes } from '../types/bit_vec/module.f.mjs'
 import accept from '../../spec/datajs/vectors/accept/data.f.js'
 import normalize from '../../spec/datajs/vectors/normalize/data.f.js'
+
+/**
+ * The package's runtime at its path, beside a root's files, for the compiles
+ * of a data output: `fjs compile` interprets the module under it, and the
+ * virtual root is the package. A stand-in holding one body, so a module
+ * calling `startsWith` at initialization compiles too.
+ *
+ * @type {(root: Dir) => Dir}
+ */
+const withRuntime = root => ({
+    ...root,
+    'fjs': { 'js': { 'runtime': { 'module.f.js': [utf8("export const runtime = { string: { startsWith: (self, s) => self.slice(0, s.length) === s } };")] } } },
+})
 
 /** @type {Commands<NodeOp | CompileValue>} */
 const runtimeCommands = [...nodeCommands, ...compileCommands]
@@ -93,7 +107,7 @@ export const readOutput = (root, path) => {
 /** @type {(source: string) => (outputFileName: string) => string} */
 export const compileSource = source => outputFileName => {
     const root = { 'input.f.js': [utf8(source)] }
-    const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', outputFileName])))
+    const [state, code] = virtual({ ...emptyState, root: withRuntime(root) })(compile(nodeProgramOptions(['input.f.js', outputFileName])))
     assertEq(exitCode(code), 0, state.stderr)
     return readOutput(state.root, outputFileName)
 }
@@ -106,7 +120,7 @@ export const compileSource = source => outputFileName => {
  * @type {(root: typeof emptyState.root) => string}
  */
 export const stderrOf = root => {
-    const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.data.js'])))
+    const [state, code] = virtual({ ...emptyState, root: withRuntime(root) })(compile(nodeProgramOptions(['input.f.js', 'output.data.js'])))
     assertEq(exitCode(code), 1)
     assertEq(state.root['output.data.js'], undefined)
     return state.stderr.trim()
@@ -133,7 +147,7 @@ export const withSelected = source => `const x = []; const a = { selected: 1, ot
  */
 export const jsonRefused = source => {
     const root = { 'input.f.js': [utf8(source)] }
-    const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.json'])))
+    const [state, code] = virtual({ ...emptyState, root: withRuntime(root) })(compile(nodeProgramOptions(['input.f.js', 'output.json'])))
     assertEq(exitCode(code), 1, state.stderr)
     assertEq(state.root['output.json'], undefined)
     return state.stderr.trim()
@@ -222,7 +236,7 @@ const fjsCorpus = [
 
 /** The `.json` document `fjs compile` writes for the module `a.f.js` in `root`. @type {(root: typeof emptyState.root) => string} */
 export const jsonOf = root => {
-    const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['a.f.js', 'output.json'])))
+    const [state, code] = virtual({ ...emptyState, root: withRuntime(root) })(compile(nodeProgramOptions(['a.f.js', 'output.json'])))
     assertEq(exitCode(code), 0, state.stderr)
     return readOutput(state.root, 'output.json')
 }
@@ -269,6 +283,25 @@ const roundTripCorpus = [
 ]
 
 export const proof = {
+    // A data output interprets the module under the package's runtime: a
+    // module calling `startsWith` at initialization writes its value. The
+    // runtime is loaded then and only then — a code output of the same
+    // module, and a JSON input, compile from a package without one — and a
+    // package without one fails a data output naming the runtime.
+    runtime: () => {
+        const root = { 'input.f.js': [utf8("export default 'ab'.startsWith('a');")] }
+        const [state, code] = virtual({ ...emptyState, root: withRuntime(root) })(compile(nodeProgramOptions(['input.f.js', 'output.json'])))
+        assertEq(exitCode(code), 0, state.stderr)
+        assertEq(readOutput(state.root, 'output.json'), 'true')
+        const [codeState, codeCode] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.f.js'])))
+        assertEq(exitCode(codeCode), 0, codeState.stderr)
+        const [jsonState, jsonCode] = virtual({ ...emptyState, root: { 'input.json': [utf8('1')] } })(compile(nodeProgramOptions(['input.json', 'output.data.js'])))
+        assertEq(exitCode(jsonCode), 0, jsonState.stderr)
+        const [missingState, missingCode] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.json'])))
+        assertEq(exitCode(missingCode), 1)
+        assertEq(missingState.stderr.trim(), `${runtimeSource('.')} - error: file not found`)
+        assertEq(runtimeSource('/pkg'), '/pkg/fjs/js/runtime/module.f.js')
+    },
     namedRestOutput: () => {
         const source = 'export default (a,b,c,...x)=>[a,b,c,x];'
         assert(compileSource(source)('parameters.edag.data.mjs').includes('["=>",3,[],'))
@@ -293,7 +326,7 @@ export const proof = {
         imports: () => {
             const input = 'import a from "./dep.f.js"; export default a;'
             const root = { 'input.f.js': [utf8(input)], 'dep.f.js': [utf8('export const x=[]; export default x;')] }
-            const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.json'])))
+            const [state, code] = virtual({ ...emptyState, root: withRuntime(root) })(compile(nodeProgramOptions(['input.f.js', 'output.json'])))
             assertEq(exitCode(code), 0, state.stderr)
             assertEq(readOutput(state.root, 'output.json'), '[]')
             const [source, sourceCode] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.f.js'])))
@@ -301,7 +334,7 @@ export const proof = {
             assertStructurallySame(evaluate(readOutput(source.root, 'output.f.js')), ['ok', []])
             assertEq(stderrOf({ ...root, 'dep.f.js': [utf8('export const x=7;')] }), 'dep.f.js - error: module has no default export')
             assertEq(stderrOf({ ...root, 'dep.f.js': [utf8('export const bad=null.x; export default 7;')] }), 'dep.f.js - error: module initialization failed')
-            const [defined, definedCode] = virtual({ ...emptyState, root: { ...root, 'dep.f.js': [utf8('export const x=1; export default undefined;')] } })(compile(nodeProgramOptions(['input.f.js', 'output.data.js'])))
+            const [defined, definedCode] = virtual({ ...emptyState, root: withRuntime({ ...root, 'dep.f.js': [utf8('export const x=1; export default undefined;')] }) })(compile(nodeProgramOptions(['input.f.js', 'output.data.js'])))
             assertEq(exitCode(definedCode), 0, defined.stderr)
             assertEq(readOutput(defined.root, 'output.data.js'), 'export default undefined;')
         },
@@ -329,7 +362,7 @@ export const proof = {
             for (const document of ['7', 'null', '{"default":7}']) {
                 for (const output of ['output.json', 'output.data.js', 'output.f.js']) {
                     const root = { 'input.json': [utf8(document)] }
-                    const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.json', output])))
+                    const [state, code] = virtual({ ...emptyState, root: withRuntime(root) })(compile(nodeProgramOptions(['input.json', output])))
                     assertEq(exitCode(code), 0, state.stderr)
                     const expected = output.endsWith('.json') ? document : `export default ${document};`
                     assertEq(readOutput(state.root, output), expected)
@@ -462,7 +495,7 @@ export const proof = {
             ]
             for (const [input, bytes, named] of cases) {
                 const root = { [input]: [bytes] }
-                const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions([input, 'output.json'])))
+                const [state, code] = virtual({ ...emptyState, root: withRuntime(root) })(compile(nodeProgramOptions([input, 'output.json'])))
                 assertEq(exitCode(code), 1, state.stderr)
                 assert(state.stderr.includes(`${named} - error: not UTF-8 text`), state.stderr)
                 assertEq(state.root['output.json'], undefined)
@@ -471,13 +504,13 @@ export const proof = {
                 'input.f.js': [utf8('import a from "./a.json" with { type: "json" };\nexport default a;')],
                 'a.json': [source('"a', bad, '"')],
             }
-            const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.json'])))
+            const [state, code] = virtual({ ...emptyState, root: withRuntime(root) })(compile(nodeProgramOptions(['input.f.js', 'output.json'])))
             assertEq(exitCode(code), 1, state.stderr)
             assert(state.stderr.includes('a.json - error: not UTF-8 text'), state.stderr)
         }
         // Correct UTF-8 beyond ASCII still reads, a four-byte sequence included.
         const root = { 'input.f.js': [utf8('export default "é中😀";')] }
-        const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.json'])))
+        const [state, code] = virtual({ ...emptyState, root: withRuntime(root) })(compile(nodeProgramOptions(['input.f.js', 'output.json'])))
         assertEq(exitCode(code), 0, state.stderr)
         assertEq(readOutput(state.root, 'output.json'), '"é中😀"')
     },
@@ -486,14 +519,14 @@ export const proof = {
         // it, so a success would claim work the command line asked for and
         // never did (DESIGN.md §10). No output is written.
         const root = { 'input.f.js': [utf8('export default 42;')] }
-        const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.json', '--tree'])))
+        const [state, code] = virtual({ ...emptyState, root: withRuntime(root) })(compile(nodeProgramOptions(['input.f.js', 'output.json', '--tree'])))
         assertEq(exitCode(code), 1)
         assert(state.stderr.includes('unexpected argument --tree'), state.stderr)
         assertEq(state.root['output.json'], undefined)
     },
     success: () => {
         const root = { 'input.f.js': [utf8('export default 42;')] }
-        const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.data.js'])))
+        const [state, code] = virtual({ ...emptyState, root: withRuntime(root) })(compile(nodeProgramOptions(['input.f.js', 'output.data.js'])))
         assertEq(exitCode(code), 0)
         const content = readOutput(state.root, 'output.data.js')
         assertEq(content, 'export default 42;')
@@ -501,14 +534,14 @@ export const proof = {
     // The output's directory is created when it does not exist, however deep.
     missingDirectory: () => {
         const root = { 'input.f.js': [utf8('export default 42;')] }
-        const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'gen.out/sub/output.data.js'])))
+        const [state, code] = virtual({ ...emptyState, root: withRuntime(root) })(compile(nodeProgramOptions(['input.f.js', 'gen.out/sub/output.data.js'])))
         assertEq(exitCode(code), 0, state.stderr)
         const [, read] = virtual(state)(readUtf8File('gen.out/sub/output.data.js'))
         assertStructurallySame(read, ['ok', 'export default 42;'])
     },
     jsonOutput: () => {
         const root = { 'input.f.js': [utf8('export default 42;')] }
-        const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.json'])))
+        const [state, code] = virtual({ ...emptyState, root: withRuntime(root) })(compile(nodeProgramOptions(['input.f.js', 'output.json'])))
         assertEq(exitCode(code), 0)
         const content = readOutput(state.root, 'output.json')
         assertEq(content, '42')
@@ -574,7 +607,7 @@ export const proof = {
             /** @type {(outputFileName: string) => string} */
             const refused = outputFileName => {
                 const root = { 'input.f.js': [utf8('export default 1;')] }
-                const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', outputFileName])))
+                const [state, code] = virtual({ ...emptyState, root: withRuntime(root) })(compile(nodeProgramOptions(['input.f.js', outputFileName])))
                 assertEq(exitCode(code), 1)
                 assertEq(state.root[outputFileName], undefined)
                 return state.stderr.trim()
@@ -750,7 +783,7 @@ export const proof = {
             const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.edag.data.js'])))
             assertEq(exitCode(code), 0, state.stderr)
             assertEq(readOutput(state.root, 'output.edag.data.js'), 'const $0=["[]",["text"]];export default ["{}",[[":","default",["[]",[1,1,$0,["{}",[[":","x",$0]]]]]]]];')
-            const [moduleState, moduleCode] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.data.js'])))
+            const [moduleState, moduleCode] = virtual({ ...emptyState, root: withRuntime(root) })(compile(nodeProgramOptions(['input.f.js', 'output.data.js'])))
             assertEq(exitCode(moduleCode), 0, moduleState.stderr)
             assertEq(readOutput(moduleState.root, 'output.data.js'), 'const $0=["text"];export default [1,1,$0,{"x":$0}];')
         },
@@ -760,7 +793,7 @@ export const proof = {
             const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.edag.data.mjs'])))
             assertEq(exitCode(code), 0, state.stderr)
             assertEq(readOutput(state.root, 'output.edag.data.mjs'), 'export default ["{}",[[":","default",["{}",[[":","a",["undefined"]]]]]]];')
-            const [moduleState, moduleCode] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.data.mjs'])))
+            const [moduleState, moduleCode] = virtual({ ...emptyState, root: withRuntime(root) })(compile(nodeProgramOptions(['input.f.js', 'output.data.mjs'])))
             assertEq(exitCode(moduleCode), 0, moduleState.stderr)
             assertEq(readOutput(moduleState.root, 'output.data.mjs'), 'export default {"a":undefined};')
         },
@@ -1092,7 +1125,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
     // separately.
     fileNotFound: {
         module: () => {
-            const [state, code] = virtual(emptyState)(compile(nodeProgramOptions(['missing.f.js', 'output.data.js'])))
+            const [state, code] = virtual({ ...emptyState, root: withRuntime({}) })(compile(nodeProgramOptions(['missing.f.js', 'output.data.js'])))
             assertEq(exitCode(code), 1)
             assertEq(state.stderr.trim(), 'missing.f.js - error: file not found')
             assertEq(state.root['output.data.js'], undefined)
@@ -1106,7 +1139,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
         // A file that is there is never reported missing: the read's own
         // failure is what the error says.
         directory: () => {
-            const [state, code] = virtual({ ...emptyState, root: { 'dir.f.js': {} } })(compile(nodeProgramOptions(['dir.f.js', 'output.data.js'])))
+            const [state, code] = virtual({ ...emptyState, root: withRuntime({ 'dir.f.js': {} }) })(compile(nodeProgramOptions(['dir.f.js', 'output.data.js'])))
             assertEq(exitCode(code), 1)
             assertEq(state.stderr.trim(), 'dir.f.js - error: dir.f.js is not a regular file')
         },
@@ -1116,7 +1149,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
     largeInput: () => {
         const comment = `// ${'x'.repeat(80000)}\n`
         const root = { 'input.f.js': [utf8(comment), utf8(`${comment}export default 7;`)] }
-        const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.data.js'])))
+        const [state, code] = virtual({ ...emptyState, root: withRuntime(root) })(compile(nodeProgramOptions(['input.f.js', 'output.data.js'])))
         assertEq(exitCode(code), 0, state.stderr)
         assertEq(readOutput(state.root, 'output.data.js'), 'export default 7;')
     },
@@ -1128,7 +1161,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
     parseError: {
         spanOneLine: () => {
             const root = { 'bad.f.js': [utf8('export default @')] }
-            const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['bad.f.js', 'output.data.js'])))
+            const [state, code] = virtual({ ...emptyState, root: withRuntime(root) })(compile(nodeProgramOptions(['bad.f.js', 'output.data.js'])))
             assertEq(exitCode(code), 1)
             assertEq(state.stderr.trim(), 'bad.f.js:1:16-17 - error: unexpected token')
             assertEq(state.root['output.data.js'], undefined)
@@ -1137,7 +1170,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             // an unterminated string swallowing a newline: the far end names its
             // own line, because repeating the start's would place it wrongly
             const root = { 'bad.f.js': [utf8('export default "a\nb"')] }
-            const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['bad.f.js', 'output.data.js'])))
+            const [state, code] = virtual({ ...emptyState, root: withRuntime(root) })(compile(nodeProgramOptions(['bad.f.js', 'output.data.js'])))
             assertEq(exitCode(code), 1)
             assertEq(state.stderr.trim(), 'bad.f.js:1:16-2:3 - error: unexpected token')
             assertEq(state.root['output.data.js'], undefined)
@@ -1146,7 +1179,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             // a *grammar* failure points at one token and has no span — see
             // `ParseError` in fjs/compiler/parser/types.ts for why
             const root = { 'bad.f.js': [utf8('export default ]')] }
-            const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['bad.f.js', 'output.data.js'])))
+            const [state, code] = virtual({ ...emptyState, root: withRuntime(root) })(compile(nodeProgramOptions(['bad.f.js', 'output.data.js'])))
             assertEq(exitCode(code), 1)
             assertEq(state.stderr.trim(), 'bad.f.js:1:16 - error: unexpected token')
             assertEq(state.root['output.data.js'], undefined)
@@ -1255,13 +1288,13 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
         // And what a pane marks, the tokenizer agrees with, for the languages
         // it reads; Rust has no oracle, and its markup is proved by its own module.
         panesAreTheFiles: () => {
-            assertEq(outputText('output.txt'), null)
+            assertEq(outputText(noRuntime)('output.txt'), null)
             for (const [name, source] of examples) {
                 for (const [label, file] of outputs) {
                     const shown = _compiled(source)(file)
                     const [shownTag, shownValue] = shown
                     const [writtenTag, writtenValue] = _written(source)(file)
-                    const route = assertNotNullish(outputText(file))
+                    const route = assertNotNullish(outputText(noRuntime)(file))
                     const [, routed] = virtual({ ...emptyState, root: { 'input.f.js': [utf8(source)] } })(route('input.f.js'))
                     const [routedTag, routedValue] = routed
                     if (routedTag === 'ok') {

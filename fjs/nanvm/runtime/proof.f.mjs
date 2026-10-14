@@ -10,7 +10,7 @@ const withRuntime = text => ({ ...emptyState, root: { 'fjs': { 'js': { 'runtime'
 
 export const proof = {
     paths: () => {
-        assertEq(source, 'fjs/js/runtime/module.f.js')
+        assertEq(source, './fjs/js/runtime/module.f.js')
         assertEq(rustPath, 'nanvm/lib/src/vm/gen.runtime.rs')
         assertEq(edagPath, 'fjs/js/runtime/gen.edag.data.mjs')
     },

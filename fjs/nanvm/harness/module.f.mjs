@@ -27,7 +27,7 @@
  * @import { Runtime } from '../../edag/value/types.ts'
  */
 
-import { compileFile } from '../../compiler/module.f.mjs'
+import { compileFile, noRuntime } from '../../compiler/module.f.mjs'
 import { interpretWith } from '../../compiler/transpiler/module.f.mjs'
 import { forEachStep, history, historyStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../../effects/module.f.mjs'
 import { exitStep, mkdir, readdir, writeUtf8File } from '../../effects/node/module.f.mjs'
@@ -117,7 +117,7 @@ export const expectedModules = names => [
 export const generateFixtures = () => step(fixtures(), names => {
     const compiled = forEachStep(
         pureOk(names),
-        name => compileFile(`${fixturesDirectory}/${name}`, `${directory}/${rustName(name)}.rs`))
+        name => compileFile(noRuntime)(`${fixturesDirectory}/${name}`, `${directory}/${rustName(name)}.rs`))
     const directoryReady = step(compiled, () => mkdir(directory, { recursive: true }))
     return step(directoryReady, () => writeUtf8File(modulesPath, modules(names.map(rustName))))
 })

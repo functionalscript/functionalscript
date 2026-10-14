@@ -8,6 +8,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { _transpileDefaultWith } from '../../compiler/transpiler/module.f.mjs'
+import { pureOk } from '../../effects/module.f.mjs'
 import { vm } from '../../edag/amnesia/module.f.mjs'
 import { read } from '../../edag/value/property/module.f.mjs'
 import { emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'
@@ -52,7 +53,7 @@ const runtime = /** @type {import('../../edag/value/types.ts').Runtime} */ (asse
  * @type {(name: string) => readonly [string, unknown?]}
  */
 const interpreted = name => {
-    const [, result] = virtual({ ...emptyState, root })(_transpileDefaultWith(runtime)(name))
+    const [, result] = virtual({ ...emptyState, root })(_transpileDefaultWith(pureOk(runtime))(name))
     if (result[0] === 'error') {
         return 'thrown' in result[1] ? ['throws'] : ['failed', result[1]]
     }

@@ -202,9 +202,6 @@ own `todo/` when its turn comes, and neither is designed here.
       `padStart`, `padEnd`, `repeat`, `concat`, `trim`, `trimStart`,
       `trimEnd`, `split`, `replace`, `replaceAll`, `isWellFormed`.
 - [ ] The array batch: every admitted `array` name, `toString` as `join`.
-- [ ] The compile CLI's data outputs interpret a module with no runtime, so
-      one whose initialization calls a body's name fails to initialize
-      there ([`compiler/todo/cli-runtime.md`](../../compiler/todo/cli-runtime.md)).
 - [ ] NaNVM evaluates the compiled module on every call it answers from the
       runtime; hold the object once a measurement asks for it.
 - [ ] File the static-function table and the operator step as their own

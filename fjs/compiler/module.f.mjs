@@ -23,13 +23,14 @@
  * @import { Chunk, Marked } from '../text/marked/types.ts'
  * @import { Result } from '../types/result/types.ts'
  * @import { Unknown } from '../media/datajs/types.ts'
- * @import { _Checked, _CompileOp } from './types.ts'
+ * @import { _Checked, _CompileOp, RuntimeLoad } from './types.ts'
  * @import { ParseError } from './parser/types.ts'
+ * @import { SourceError } from './transpiler/types.ts'
  * @import { Effect, IoChannel, IoError } from '../effects/types.ts'
  * @import { Env, Program, ReadWhole, ResolveFileModule, Write } from '../effects/node/types.ts'
  */
 
-import { _transpileDefault } from './transpiler/module.f.mjs'
+import { _transpileDefaultWith, runtimeAt } from './transpiler/module.f.mjs'
 import { errorLocation } from './parser/module.f.mjs'
 import { resolve } from './edag/module.f.mjs'
 import { toRustMarked } from './rust/module.f.mjs'
@@ -137,10 +138,12 @@ const fjsText = path => mapStep(resolve(path), graph => path.endsWith('.json') ?
 /**
  * Write the default export of a module, or the whole document for a direct
  * JSON input. Input language decides the boundary, never an object's keys.
+ * A module is interpreted under the runtime `load` answers, loaded then and
+ * not before, so a JSON input never loads it.
  *
- * @type {(write: (value: Unknown) => Result<Marked, string>) => (path: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, string>, ParseError>}
+ * @type {(write: (value: Unknown) => Result<Marked, string>) => (load: RuntimeLoad) => (path: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, string>, SourceError>}
  */
-const dataText = write => path => mapStep(_transpileDefault(path), okThen(write))
+const dataText = write => load => path => mapStep(_transpileDefaultWith(load)(path), okThen(write))
 
 /**
  * The text an output name asks for, from the input, or `null` when the name
@@ -157,12 +160,12 @@ const dataText = write => path => mapStep(_transpileDefault(path), okThen(write)
  * input is the effect's; and a name with no language here is neither, since
  * there is nothing to read the input for.
  *
- * @type {(outputFileName: string) => ((inputFileName: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, string>, ParseError>) | null}
+ * @type {(load: RuntimeLoad) => (outputFileName: string) => ((inputFileName: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, string>, SourceError>) | null}
  */
-const outputMarked = outputFileName => {
-    if (outputFileName.endsWith('.json')) { return dataText(tryJsonMarked) }
+const outputMarked = load => outputFileName => {
+    if (outputFileName.endsWith('.json')) { return dataText(tryJsonMarked)(load) }
     if (isEdag(outputFileName)) { return edagText }
-    if (isDataJs(outputFileName)) { return dataText(tryMarked) }
+    if (isDataJs(outputFileName)) { return dataText(tryMarked)(load) }
     if (isFjs(outputFileName)) { return fjsText }
     if (outputFileName.endsWith('.rs')) { return rustText }
     return null
@@ -172,12 +175,13 @@ const outputMarked = outputFileName => {
 const textResult = mapOk(toText)
 
 /**
- * The output route as plain text, preserving its input and output refusals.
+ * The output route as plain text, preserving its input and output refusals,
+ * a data output interpreting the module under the runtime `load` answers.
  *
- * @type {(outputFileName: string) => ((inputFileName: string) => Effect<ReadWhole | ResolveFileModule, Result<string, string>, ParseError>) | null}
+ * @type {(load: RuntimeLoad) => (outputFileName: string) => ((inputFileName: string) => Effect<ReadWhole | ResolveFileModule, Result<string, string>, SourceError>) | null}
  */
-export const outputText = outputFileName => {
-    const write = outputMarked(outputFileName)
+export const outputText = load => outputFileName => {
+    const write = outputMarked(load)(outputFileName)
     return write === null ? null : inputFileName => mapStep(write(inputFileName), textResult)
 }
 
@@ -336,16 +340,16 @@ const refusal = (message, diagnostic) => error([message, diagnostic])
  * `fjs compile` writes runs this and the text it shows is the file's, which
  * its proof pins. Exported for linkage, as the other `_` exports are.
  *
- * @type {(inputFileName: string, outputFileName: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, readonly [message: string, diagnostic: string]>, never>}
+ * @type {(load: RuntimeLoad) => (inputFileName: string, outputFileName: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, readonly [message: string, diagnostic: string]>, never>}
  */
-export const _outputMarked = (inputFileName, outputFileName) => {
-    const text = outputMarked(outputFileName)
+export const _outputMarked = load => (inputFileName, outputFileName) => {
+    const text = outputMarked(load)(outputFileName)
     if (text === null) {
         return pureOk(refusal(unknownOutput, `${outputFileName} - error: ${unknownOutput}`))
     }
     return resultStep(
         text(inputFileName),
-        /** @type {(result: Result<Result<Marked, string>, ParseError>) => Effect<never, Result<Marked, readonly [string, string]>, never>} */
+        /** @type {(result: Result<Result<Marked, string>, SourceError>) => Effect<never, Result<Marked, readonly [string, string]>, never>} */
         (result) => {
             const [kind, value] = result
             if (kind === 'error') { return pureOk(refusal(value.message, diagnostic(inputFileName)(value))) }
@@ -369,24 +373,39 @@ const compileResult = result => {
 /**
  * {@link _outputMarked} with a refusal as the line the command prints.
  *
- * @type {(inputFileName: string, outputFileName: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, string>, never>}
+ * @type {(load: RuntimeLoad) => (inputFileName: string, outputFileName: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, string>, never>}
  */
-export const _compileMarked = (inputFileName, outputFileName) => mapStep(
-    _outputMarked(inputFileName, outputFileName), compileResult)
+export const _compileMarked = load => (inputFileName, outputFileName) => mapStep(
+    _outputMarked(load)(inputFileName, outputFileName), compileResult)
+
+/**
+ * The runtime of the package at `packageRoot`, `fjs/js/runtime/module.f.js`
+ * there: what `fjs compile` interprets a data output under.
+ *
+ * @type {(packageRoot: string) => string}
+ */
+export const runtimeSource = packageRoot => `${packageRoot}/fjs/js/runtime/module.f.js`
+
+/** The runtime of the package at `packageRoot`, loaded when a data output interprets its module. @type {(packageRoot: string) => RuntimeLoad} */
+export const packageRuntime = packageRoot => runtimeAt(runtimeSource(packageRoot))
+
+/** No runtime: for a caller that compiles code outputs alone, which interpret nothing, as the generators do. @type {RuntimeLoad} */
+export const noRuntime = pureOk(undefined)
 
 /**
  * Compiles the FunctionalScript module `inputFileName` into `outputFileName`,
  * in the language the output's extension declares — what {@link compile} does
  * with two arguments, as one effect a program can sequence: `fjs/nanvm/harness`
- * compiles every harness fixture through it. The output's directory is created
+ * compiles every harness fixture through it, under {@link noRuntime}, since a
+ * code output interprets nothing. The output's directory is created
  * first. A failure is the diagnostic the command prints, carried as the
  * message of an `IoError`: an output extension naming no language, a parse
  * error, or a refused output, each as {@link compile} describes.
  *
- * @type {(inputFileName: string, outputFileName: string) => Effect<_CompileOp, void, IoChannel>}
+ * @type {(load: RuntimeLoad) => (inputFileName: string, outputFileName: string) => Effect<_CompileOp, void, IoChannel>}
  */
-export const compileFile = (inputFileName, outputFileName) => step(
-    _compileMarked(inputFileName, outputFileName),
+export const compileFile = load => (inputFileName, outputFileName) => step(
+    _compileMarked(load)(inputFileName, outputFileName),
     /** @type {(result: Result<Marked, string>) => Effect<_CompileOp, void, IoChannel>} */
     (result) => {
         const [tag, value] = result
@@ -401,7 +420,9 @@ export const compileFile = (inputFileName, outputFileName) => step(
  * Rust module calling the `nanvm-lib` API for `.rs`, the program's EDAG for
  * `.edag.data.js` and `.edag.data.mjs`, a DataJS document for `.data.js`
  * and `.data.mjs`, and a FunctionalScript module for every other `.js` and
- * `.mjs`.
+ * `.mjs`. A data output interprets the module under the runtime of the
+ * package the command runs from, {@link packageRuntime}, loaded then and
+ * only then; the other outputs interpret nothing.
  * Each of the three module outputs is in normalized form — one line, shared
  * nodes hoisted into `$0`, `$1`, … and an object's members in the order the
  * module gave them. FunctionalScript uses that same counter for parameters
@@ -434,7 +455,7 @@ export const compileFile = (inputFileName, outputFileName) => step(
  *
  * @type {Program<_CompileOp>}
  */
-export const compile = ({ args, env }) => {
+export const compile = ({ args, env, packageRoot }) => {
     if (args.length === 0) {
         return check(env)
     }
@@ -444,5 +465,5 @@ export const compile = ({ args, env }) => {
     if (args.length > 2) {
         return errorExit(`Error: unexpected argument ${args[2]}: fjs compile <input> <output>`)
     }
-    return exitStep(compileFile(args[0], args[1]))
+    return exitStep(compileFile(packageRuntime(packageRoot))(args[0], args[1]))
 }
