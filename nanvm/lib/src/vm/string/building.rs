@@ -2,20 +2,12 @@ use super::{String, create::create};
 use crate::{
     common::sized_index::SizedIndex,
     vm::{
-        Any, Array, IVm, Nullish, ToString, Unpacked,
+        Any, Array, IVm, ToString,
         ecma_whitespace::is_ecma_whitespace,
         error,
         position::{clamped, relative_range},
     },
 };
-
-/// Whether `v` is `undefined`, the absent value several arguments default on.
-fn is_undefined<A: IVm>(v: &Any<A>) -> bool {
-    matches!(
-        Unpacked::from(v.clone()),
-        Unpacked::Nullish(Nullish::Undefined)
-    )
-}
 
 /// Whether the code unit `u` is ECMAScript `WhiteSpace` or `LineTerminator`.
 /// Every such character is one code unit, so a surrogate never is.
@@ -45,11 +37,11 @@ impl<A: IVm> String<A> {
     pub(crate) fn substring(&self, start: Any<A>, end: Any<A>) -> Result<String<A>, Any<A>> {
         let len = self.length();
         let start = clamped(start.to_integer_or_infinity()?, len);
-        let end = if is_undefined(&end) {
-            len
-        } else {
-            clamped(end.to_integer_or_infinity()?, len)
-        };
+        let end = end
+            .defined()
+            .map(Any::to_integer_or_infinity)
+            .transpose()?
+            .map_or(len, |k| clamped(k, len));
         Ok(self.units(start.min(end), start.max(end)))
     }
 
@@ -101,11 +93,11 @@ impl<A: IVm> String<A> {
         if target <= f64::from(len) {
             return Ok(self.clone());
         }
-        let fill: String<A> = if is_undefined(&fill) {
-            " ".into()
-        } else {
-            fill.to_string()?
-        };
+        let fill: String<A> = fill
+            .defined()
+            .map(Any::to_string)
+            .transpose()?
+            .unwrap_or_else(|| " ".into());
         if fill.length() == 0 {
             return Ok(self.clone());
         }

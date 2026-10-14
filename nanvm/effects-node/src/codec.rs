@@ -156,13 +156,7 @@ pub fn decode_optional<A: IVm, T>(
     any: Option<Any<A>>,
     f: impl FnOnce(Any<A>) -> Result<T, Malformed>,
 ) -> Result<Option<T>, Malformed> {
-    match any {
-        None => Ok(None),
-        Some(any) => match Unpacked::from(any.clone()) {
-            Unpacked::Nullish(Nullish::Undefined) => Ok(None),
-            _ => f(any).map(Some),
-        },
-    }
+    any.and_then(Any::defined).map(f).transpose()
 }
 
 /// A flag, `or(option, true)`: left out is `false`, `true` is `true`.

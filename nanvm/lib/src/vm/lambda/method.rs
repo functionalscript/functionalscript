@@ -1,7 +1,7 @@
 use crate::{
     common::sized_index::SizedIndex,
     vm::{
-        Any, Array, Function, IVm, Nullish, Number, String, ToAny, ToArray, Unpacked,
+        Any, Array, Function, IVm, Number, String, ToAny, ToArray, Unpacked,
         array::callback::callback, error, runtime::type_name,
     },
 };
@@ -138,12 +138,9 @@ fn to_string<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>>
 /// throws — checked before the number is looked at, so `NaN.toString(1)`
 /// throws too.
 fn radix<A: IVm>(radix: Any<A>) -> Result<u32, Any<A>> {
-    if matches!(
-        Unpacked::from(radix.clone()),
-        Unpacked::Nullish(Nullish::Undefined)
-    ) {
+    let Some(radix) = radix.defined() else {
         return Ok(10);
-    }
+    };
     let r = radix.to_integer_or_infinity()?;
     if !(2.0..=36.0).contains(&r) {
         return Err(error::argument_out_of_range("toString", 2, 36));
@@ -279,11 +276,9 @@ fn array_reduce_right<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>
 /// included.
 fn array_flat<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     let a = Array::try_from(receiver)?;
-    let depth = argument(&args, 0);
-    let depth = match Unpacked::from(depth.clone()) {
-        Unpacked::Nullish(Nullish::Undefined) => 1.0,
-        _ => depth.to_integer_or_infinity()?,
-    };
+    let depth = argument(&args, 0)
+        .defined()
+        .map_or(Ok(1.0), Any::to_integer_or_infinity)?;
     Ok(a.flat(depth)?.to_any())
 }
 
@@ -297,14 +292,13 @@ fn array_flat_map<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, An
 /// `undefined`, passed or not, or a function, and anything else — `null`
 /// included — the `TypeError` JavaScript throws before any element is read.
 fn array_to_sorted<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
-    let compare = argument(&args, 0);
-    let compare = match Unpacked::from(compare.clone()) {
-        Unpacked::Nullish(Nullish::Undefined) => None,
-        Unpacked::Function(f) => Some(f),
-        _ => {
-            return Err(error::invalid_comparison_function());
-        }
-    };
+    let compare = argument(&args, 0)
+        .defined()
+        .map(|c| match Unpacked::from(c) {
+            Unpacked::Function(f) => Ok(f),
+            _ => Err(error::invalid_comparison_function()),
+        })
+        .transpose()?;
     Ok(Array::try_from(receiver)?.to_sorted(compare)?.to_any())
 }
 
@@ -313,18 +307,17 @@ fn array_to_sorted<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, A
 /// with `"null"`.
 fn array_join<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     let a = Array::try_from(receiver)?;
-    let separator = argument(&args, 0);
-    let separator = match Unpacked::from(separator.clone()) {
-        Unpacked::Nullish(Nullish::Undefined) => ",".into(),
+    let separator = match argument(&args, 0).defined() {
+        None => ",".into(),
         // Fewer than two elements never place the separator, so it is
         // converted for its throws alone.
-        _ if a.length() < 2 => {
+        Some(separator) if a.length() < 2 => {
             separator.to_string_unused()?;
             "".into()
         }
         // The shared conversion calls an object's own `toString`, answers
         // a function's text, and refuses a function without one.
-        _ => separator.to_string()?,
+        Some(separator) => separator.to_string()?,
     };
     Ok(a.join(separator)?.to_any())
 }

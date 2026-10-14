@@ -1,7 +1,7 @@
 use super::String;
 use crate::{
     common::sized_index::SizedIndex,
-    vm::{Any, IVm, Nullish, Unpacked, position::clamped},
+    vm::{Any, IVm, position::clamped},
 };
 
 impl<A: IVm> String<A> {
@@ -68,10 +68,11 @@ impl<A: IVm> String<A> {
     pub(crate) fn ends_with(&self, search: Any<A>, end: Any<A>) -> Result<bool, Any<A>> {
         let needle = search.to_string()?;
         let len = self.length();
-        let end = match Unpacked::from(end.clone()) {
-            Unpacked::Nullish(Nullish::Undefined) => len,
-            _ => clamped(end.to_integer_or_infinity()?, len),
-        };
+        let end = end
+            .defined()
+            .map(Any::to_integer_or_infinity)
+            .transpose()?
+            .map_or(len, |k| clamped(k, len));
         Ok(end
             .checked_sub(needle.length())
             .is_some_and(|k| self.occurs_at(&needle, k)))
