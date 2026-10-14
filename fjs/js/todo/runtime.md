@@ -37,20 +37,25 @@ plans to admit, and any operator whose semantics a VM need not own natively.
 ### Proposal
 
 **One module, in FunctionalScript, is the definition.** A new
-`fjs/js/runtime/module.f.js`, beside the admission list, exports `runtime`:
-an object keyed by receiver type, the names `nanvm/methods` already uses —
-`object`, `array`, `string`, `number`, `boolean`, `bigint`, `function` —
-each an object keyed by member name, each entry a body: a function of the
-receiver and then the arguments as the call passed them, `undefined` past
-the end:
+`fjs/js/runtime/module.f.js`, beside the admission list, exports `runtime`,
+whose `member` section is keyed by receiver type, by the name of its
+global — `Object`, `Array`, `String`, `Number`, `Boolean`, `BigInt`,
+`Function`, the names `nanvm/methods` uses too — each an object keyed by
+member name, each entry a body: a function of the receiver and then the
+arguments as the call passed them, `undefined` past the end. The section
+leaves room for the `static` one [`runtime-static.md`](./runtime-static.md)
+adds, keyed by the same names:
 
 ```js
 export const runtime = {
-    string: {
-        startsWith: (self, search, position) => {
-            const s = String(search)
-            const start = clamp(position, self.length)
-            return self.slice(start, start + s.length) === s
+    member: {
+        String: {
+            startsWith: (self, search, position) => {
+                const s = String(search)
+                const start = clamp(position, self.length)
+                return self.slice(start, start + s.length) === s
+            },
+            // ...
         },
         // ...
     },
@@ -76,7 +81,7 @@ parameter list drops what it does not name; a body that is neither names
 its parameters, and reads `undefined` past the
 end. The second level is keyed by name rather
 than closed over so that the table is data: a VM enumerates it, and a
-reader finds `string.startsWith` where `fjs/js/prototype`'s README has its
+reader finds `member.String.startsWith` where `fjs/js/prototype`'s README has its
 row.
 
 **Bodies only; the admitted set stays where it is.** The table holds a

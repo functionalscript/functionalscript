@@ -34,10 +34,12 @@ export type EntryFunction = readonly ['entry']
 export type Function = Closure | EntryFunction
 
 /**
- * The runtime an executor answers member functions from: the evaluated
- * `runtime` export of `fjs/js/runtime`, an object keyed by receiver type
- * and then by name, each entry the function value that is the member
- * function's body; a name without a body has no entry.
+ * The runtime an executor answers member and static functions from: the
+ * evaluated `runtime` export of `fjs/js/runtime`, an object whose `member`
+ * section is keyed by receiver type, by its global's name, and then by
+ * name, and whose `static` section holds each static at the path
+ * `fjs/js/static` admits it under; each entry is the function value that
+ * is the function's body, and a name without a body has no entry.
  * Its shape is the module's, which `fjs/js/runtime/types.ts` pins.
  */
 export type Runtime = Object

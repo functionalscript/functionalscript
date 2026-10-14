@@ -6,14 +6,14 @@
  * @import { Dir } from '../types.ts'
  */
 
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname, join, relative, sep } from 'node:path'
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../../../asserts/module.f.mjs'
 import { resultMapStep } from '../../../module.f.mjs'
 import { ok } from '../../../../types/result/module.f.js'
 import { readdir } from '../../module.f.mjs'
 import { runEffect } from '../../module.mjs'
+import { withTemporary } from '../../testlib.mjs'
 import { emptyState, virtualOperationMap } from '../module.f.mjs'
 
 export const proof = {
@@ -21,8 +21,7 @@ export const proof = {
         // A backslash cannot be a filename character on Windows. The pure
         // structural-parent proof covers this distinction on every platform.
         if (sep !== '/') { return }
-        const temporary = await mkdtemp(join(tmpdir(), 'fjs-readdir-backslash-'))
-        try {
+        await withTemporary('fjs-readdir-backslash-', async temporary => {
             // The read root itself also contains a literal backslash and dots.
             const root = join(temporary, 'root\\..')
             /** @type {readonly string[]} */
@@ -48,13 +47,10 @@ export const proof = {
                     return ok(0)
                 })), 0)
             }
-        } finally {
-            await rm(temporary, { recursive: true, force: true })
-        }
+        })
     },
     portableOrder: async () => {
-        const root = await mkdtemp(join(tmpdir(), 'fjs-readdir-'))
-        try {
+        await withTemporary('fjs-readdir-', async root => {
             // No case-only collisions: these names also coexist on Windows.
             /** @type {readonly string[]} */
             const files = ['z', 'B', '10', '9', 'a/f', 'a/x/deep/h', 'a!/g', 'a!/y', '\uE000/file', '\u{10000}/file']
@@ -101,8 +97,6 @@ export const proof = {
                 assertEq(result[1][1].code, 'ENOENT')
                 return ok(0)
             })), 0)
-        } finally {
-            await rm(root, { recursive: true, force: true })
-        }
+        })
     },
 }

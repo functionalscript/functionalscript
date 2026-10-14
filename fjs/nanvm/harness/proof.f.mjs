@@ -23,7 +23,7 @@ import { directory, expectedDirectory, expectedModules, expectedModulesPath, fix
  */
 const withRuntime = fixtures => ({
     'nanvm': { 'harness': { 'fixtures': fixtures } },
-    'fjs': { 'js': { 'runtime': { 'module.f.js': [utf8('export const runtime = { string: { startsWith: () => 7 } };')] } } },
+    'fjs': { 'js': { 'runtime': { 'module.f.js': [utf8('export const runtime = { member: { String: { startsWith: () => 7 } } };')] } } },
 })
 
 /**

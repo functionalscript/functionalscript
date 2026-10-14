@@ -147,8 +147,11 @@ sharing. Use [`examples`](./examples/module.f.js), through
   a `span` marked `data-token` and leaves the text itself unchanged. The demo
   does not read the text again to find the words. Only a text with no producer
   behind it, such as an example a reader typed, goes through `highlight`,
-  which tokenizes it; a text the tokenizer refuses stays plain. What a kind is,
-  how a producer marks one and how it is proved:
+  which tokenizes it; a text the tokenizer refuses stays plain. A demo whose
+  output is one producer's answer — the marked text or the producer's
+  refusal — ends in `codeOutput` beside `render`, which draws the caption and
+  the copyable block, or the [refusal](#refusals), from the producer's
+  `Result`. What a kind is, how a producer marks one and how it is proved:
   [`../../text/marked/README.md`](../../text/marked/README.md).
 - How each marker looks is the stylesheet's, with its reasons, in
   [`../style/module.f.js`](../style/module.f.js); this file names the

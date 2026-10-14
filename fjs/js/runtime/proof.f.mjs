@@ -3,28 +3,32 @@ import {
     allowedCalls, arrayPrototype, bigintPrototype, booleanPrototype, functionPrototype, numberPrototype,
     objectPrototype, stringPrototype,
 } from '../prototype/module.f.js'
+import { isStatic } from '../static/module.f.js'
+import { is } from '../../types/object/is/module.f.js'
 import { runtime } from './module.f.js'
 
 const { entries, values } = Object
 
-/** The prototype each receiver type's names come from. @type {Readonly<Record<string, readonly string[] | undefined>>} */
+/** The prototype each receiver type's names come from, by its global's name. @type {Readonly<Record<string, readonly string[] | undefined>>} */
 const prototypes = {
-    object: objectPrototype, array: arrayPrototype, string: stringPrototype, number: numberPrototype,
-    boolean: booleanPrototype, bigint: bigintPrototype, function: functionPrototype,
+    Object: objectPrototype, Array: arrayPrototype, String: stringPrototype, Number: numberPrototype,
+    Boolean: booleanPrototype, BigInt: bigintPrototype, Function: functionPrototype,
 }
 
 /** @type {readonly string[]} */
 const allowed = allowedCalls
 
-/** The table by type name, for a proof that walks it. @type {Readonly<Record<string, Readonly<Record<string, unknown>>>>} */
-const tables = runtime
+/** The member section by type name, for a proof that walks it. @type {Readonly<Record<string, Readonly<Record<string, unknown>>>>} */
+const tables = runtime.member
 
 export const proof = {
-    // Every type the table keys is a receiver type, and every key under it
+    // `member` and `static` are the two sections; every type `member`
+    // keys is a receiver type by its global's name, and every key under it
     // is a name `allowedCalls` admits on that type's prototype — the same
     // claim `./types.ts` makes at the type level — and every entry is a
     // body.
     keys: () => {
+        assertEq(Object.keys(runtime).toSorted().join(), 'member,static')
         for (const [type, table] of entries(tables)) {
             const names = prototypes[type]
             assert(names !== undefined, type)
@@ -35,11 +39,35 @@ export const proof = {
         }
         assert(values(tables).length > 0)
     },
-    // The one body so far, on the host: `String.prototype.startsWith`'s
+    // Every path the static section holds is admitted, and every entry is
+    // a body: a namespace's members, or the function a global is.
+    staticPaths: () => {
+        /** @type {Readonly<Record<string, unknown>>} */
+        const section = runtime.static
+        for (const [global, value] of entries(section)) {
+            if (typeof value === 'function') {
+                assert(isStatic([global]), global)
+                continue
+            }
+            for (const [name, entry] of entries(/** @type {Readonly<Record<string, unknown>>} */ (value))) {
+                assert(isStatic([global, name]), `${global}.${name}`)
+                assertEq(typeof entry, 'function')
+            }
+        }
+    },
+    // `Object.is` is the helper itself, SameValue: `-0` and `0` differ,
+    // `NaN` is itself.
+    objectIs: () => {
+        assertEq(runtime.static.Object.is, is)
+        assertEq(runtime.static.Object.is(-0, 0), false)
+        assertEq(runtime.static.Object.is(NaN, NaN), true)
+        assertEq(runtime.static.Object.is('a', 'a'), true)
+    },
+    // The one member body so far, on the host: `String.prototype.startsWith`'s
     // algorithm, case by case — the search converted, the position clamped
     // and truncated, an empty search found anywhere.
     startsWith: () => {
-        const { startsWith } = runtime.string
+        const { startsWith } = runtime.member.String
         assertEq(startsWith('abc', 'ab', undefined), true)
         assertEq(startsWith('abc', 'bc', undefined), false)
         assertEq(startsWith('abc', 'bc', 1), true)
@@ -55,10 +83,10 @@ export const proof = {
     },
     throw: {
         // A bigint position is the `TypeError` `ToNumber` throws.
-        bigintPosition: () => { runtime.string.startsWith('abc', 'a', 0n) },
+        bigintPosition: () => { runtime.member.String.startsWith('abc', 'a', 0n) },
         // The search is converted through its own `toString`, whose throw
         // is the call's; which of two throws wins is pinned where the
         // executors run the body, in `nanvm/corpus` and `vm/runtime.rs`.
-        searchConversion: () => { runtime.string.startsWith('abc', { toString: () => { throw 'A' } }, 0) },
+        searchConversion: () => { runtime.member.String.startsWith('abc', { toString: () => { throw 'A' } }, 0) },
     },
 }
