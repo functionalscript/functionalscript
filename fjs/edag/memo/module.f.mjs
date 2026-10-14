@@ -9,6 +9,7 @@
  * @import { Analysis, Node, Operand, Step } from '../analysis/types.ts'
  * @import { ValueResult } from '../value/control/types.ts'
  * @import { Body, Invoke, Outcome } from '../value/call/types.ts'
+ * @import { Runtime } from '../value/types.ts'
  * @import { Invocation } from './types.ts'
  * @import { Context, Evaluation, Tail } from '../operations/types.ts'
  * @import { _Cache } from './private.ts'
@@ -71,6 +72,8 @@ const codeNode = (code, node) => {
 /** The root in tail position: its value, or the call it leaves. @type {(a: Analysis, context: Context, root: Operand) => Outcome} */
 const evaluate = (a, context, root) => {
     const { nodes, shared } = a
+    const invoke = invokeWith(context.runtime)
+    const settled = settle(invoke)
     const code = nodes.reduce((/** @type {readonly ExpOp[]} */ prefix, node) => [...prefix, codeNode(prefix, node)], [])
 
     /** A shared node's established value, where it has one. @type {(index: number, cache: _Cache) => Evaluation<_Cache> | undefined} */
@@ -120,22 +123,32 @@ const evaluate = (a, context, root) => {
     return tail(root, [])[1]
 }
 
-/** A body evaluated with fresh state and retained captures — or the `entry` helper, answered in place. @type {Body} */
-const body = (fn, fixed, rest) => {
-    if (fn[0] === 'entry') { return entryCall(fixed, invoke) }
-    const a = assertOk(analysis(fn))
-    const [, index] = /** @type {import('../analysis/types.ts').Ref} */ (a.root)
-    const [, , , root] = /** @type {Over<import('../types.ts').Function, Operand>} */ (a.nodes[index])
-    return evaluate(a, { frame: fn[2], args: [], fixed, rest, self: fn }, root)
+/**
+ * The invoker of an executor given `runtime`: a represented function
+ * invoked — its body evaluated with fresh state and retained captures
+ * under the same runtime, or the `entry` helper answered in place — and
+ * every call the body leaves in tail position, made in its place.
+ *
+ * @type {(runtime: Runtime | undefined) => Invoke}
+ */
+export const invokeWith = runtime => {
+    /** @type {Body} */
+    const body = (fn, fixed, rest) => {
+        if (fn[0] === 'entry') { return entryCall(fixed, invoke) }
+        const a = assertOk(analysis(fn))
+        const [, index] = /** @type {import('../analysis/types.ts').Ref} */ (a.root)
+        const [, , , root] = /** @type {Over<import('../types.ts').Function, Operand>} */ (a.nodes[index])
+        return evaluate(a, { frame: fn[2], args: [], fixed, rest, self: fn, runtime }, root)
+    }
+    const invoke = invoker(body)
+    return invoke
 }
 
-/** Invoke a represented function: its body, and every call the body leaves in tail position, made in its place. @type {Invoke} */
-export const invoke = invoker(body)
-
-const settled = settle(invoke)
+/** {@link invokeWith} no runtime: every member function it answers is one the dispatcher implements natively. @type {Invoke} */
+export const invoke = invokeWith(undefined)
 
 /** Interpret a complete analyzed graph. Binding admission happens once here. @type {(a: Analysis) => (context: Invocation) => ValueResult} */
 export const memo = a => {
     const table = unwrap(checked(a))
-    return context => settled(evaluate(table, { ...context, frame: [] }, table.root))
+    return context => settle(invokeWith(context.runtime))(evaluate(table, { ...context, frame: [] }, table.root))
 }

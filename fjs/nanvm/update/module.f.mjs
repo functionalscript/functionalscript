@@ -1,5 +1,5 @@
 /**
- * Writes the generated Rust tests.
+ * Writes the generated Rust tests, and the runtime compiled for the VM.
  *
  * The printer in [`../rust/module.f.mjs`](../rust/module.f.mjs) is pure; this
  * module is the thin effectful shell around it, invoked from `gen` so
@@ -8,8 +8,9 @@
  *
  * @module
  *
- * @import { IoChannel, Mkdir, NodeProgram, Rm, WriteBytes, WriteFile } from '../../effects/node/types.ts'
+ * @import { IoChannel, NodeProgram } from '../../effects/node/types.ts'
  * @import { Effect } from '../../effects/types.ts'
+ * @import { _CompileOp } from '../../compiler/types.ts'
  */
 
 
@@ -20,15 +21,17 @@ import { directory, generate } from '../rust/module.f.mjs'
 import { directory as commandsDirectory, generate as generateCommands, path as commandsPath } from '../commands/module.f.mjs'
 import { directory as methodsDirectory, generate as generateMethods, path as methodsPath } from '../methods/module.f.mjs'
 import { directory as valuesDirectory, generate as generateValues, path as valuesPath } from '../values/module.f.mjs'
+import { generate as generateRuntime } from '../runtime/module.f.mjs'
 
 /**
  * Regenerates `nanvm/lib/tests/test/gen.corpus/` from the shared test data,
  * one file at a time, stopping at the first that fails, and then the
  * completeness table `nanvm/lib/src/vm/lambda/gen.methods.rs` and interpreted
- * value fixture `nanvm/harness/gen.values/captures.rs`, and the command set
- * `nanvm/effects-node/src/gen.commands.rs`.
+ * value fixture `nanvm/harness/gen.values/captures.rs`, the command set
+ * `nanvm/effects-node/src/gen.commands.rs`, and the runtime compiled for
+ * `nanvm-lib` and as EDAG ([`../runtime`](../runtime/module.f.mjs)).
  *
- * @type {() => Effect<Mkdir | Rm | WriteBytes | WriteFile, void, IoChannel>}
+ * @type {() => Effect<_CompileOp, void, IoChannel>}
  */
 export const generateRustTests = () => {
     const directoryReady = mkdir(directory, { recursive: true })
@@ -40,7 +43,8 @@ export const generateRustTests = () => {
     const valuesReady = step(methods, () => mkdir(valuesDirectory, { recursive: true }))
     const values = step(valuesReady, () => writeUtf8File(valuesPath, generateValues()))
     const commandsReady = step(values, () => mkdir(commandsDirectory, { recursive: true }))
-    return step(commandsReady, () => writeUtf8File(commandsPath, generateCommands()))
+    const commands = step(commandsReady, () => writeUtf8File(commandsPath, generateCommands()))
+    return step(commands, generateRuntime)
 }
 
 /** @type {NodeProgram} */

@@ -1,14 +1,16 @@
-//! `String.prototype`'s member functions: the table `method` consults for a
-//! string receiver, and one adapter per built-in reading the call's
-//! arguments into the typed method it calls, under `vm/string/`. The
-//! contracts are `vm/string/README.md`'s.
+//! `String.prototype`'s member functions the VM answers natively: the table
+//! `method` consults for a string receiver, and one adapter per built-in
+//! reading the call's arguments into the typed method it calls, under
+//! `vm/string/`. The contracts are `vm/string/README.md`'s. A name the
+//! runtime defines — `startsWith` — has no entry here: the call step
+//! finds its body through `vm/runtime.rs`.
 
-use super::method::{Method, argument, index_or_minus_one, lookup, rest};
+use super::method::{Method, argument, index_or_minus_one, rest};
 use crate::vm::{Any, Array, IVm, Number, String, ToAny};
 
 /// `String.prototype`'s.
-pub(super) fn string<A: IVm>(key: &Any<A>) -> Option<Method<A>> {
-    let table: [(&str, Method<A>); 25] = [
+pub(super) fn string<A: IVm>() -> [(&'static str, Method<A>); 24] {
+    [
         ("at", at),
         ("charAt", char_at),
         ("charCodeAt", char_code_at),
@@ -26,7 +28,6 @@ pub(super) fn string<A: IVm>(key: &Any<A>) -> Option<Method<A>> {
         ("replaceAll", replace_all),
         ("slice", slice),
         ("split", split),
-        ("startsWith", starts_with),
         ("substring", substring),
         ("toLowerCase", to_lower_case),
         ("toUpperCase", to_upper_case),
@@ -34,8 +35,7 @@ pub(super) fn string<A: IVm>(key: &Any<A>) -> Option<Method<A>> {
         ("trim", trim),
         ("trimEnd", trim_end),
         ("trimStart", trim_start),
-    ];
-    lookup(table, key)
+    ]
 }
 
 /// The receiver `method` matched as a string, so the conversion cannot throw.
@@ -92,11 +92,6 @@ fn index_of<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
 fn last_index_of<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     let found = receiver(s)?.last_index_of(argument(&args, 0), argument(&args, 1))?;
     Ok(index_or_minus_one(found))
-}
-
-fn starts_with<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
-    let found = receiver(s)?.starts_with(argument(&args, 0), argument(&args, 1))?;
-    Ok(found.to_any())
 }
 
 fn ends_with<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {

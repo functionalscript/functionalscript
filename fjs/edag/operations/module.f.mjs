@@ -71,7 +71,7 @@ export const entryCall = ([receiver, key], invoke) =>
  */
 export const operation = evaluator => {
     const { context, operand, tail, expression, invoke } = evaluator
-    const { args, frame, fixed, rest, self } = context
+    const { args, frame, fixed, rest, self, runtime } = context
     const moduleArgs = /** @type {ValueArray} */ (['[]', args])
     const made = settle(invoke)
 
@@ -127,14 +127,14 @@ export const operation = evaluator => {
         const [tag, arg, continuation] = step
         if (tag === '|.') { return then([state, value], (v, next) => continueValue(v, step, next)) }
         const own = isArray(receiver) && receiver[0] === '{}' && findProperty(receiver, name) !== undefined
-        const builtin = !own && hasMethod(receiver, name)
+        const builtin = !own && hasMethod(receiver, name, runtime)
         return then([state, value], (callee, next) => {
             if (tag === '|?.()' && !builtin && nullish(callee)) { return skip(continuation, next) }
             return then(items(arg, next), (args, afterArgs) => {
                 const values = /** @type {ValueArray} */ (args)[1]
                 // a built-in method is answered as a value; a represented
                 // function's call is left for the executor
-                const result = builtin ? method(receiver, name, values, invoke)
+                const result = builtin ? method(receiver, name, values, invoke, runtime)
                     : prepare(ok(callee), values.map(v => () => ok(v)))
                 return continued([afterArgs, result], continuation)
             })

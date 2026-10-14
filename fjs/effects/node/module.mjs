@@ -1154,6 +1154,8 @@ const options = {
     home: toPosix(os.homedir()),
     std: { stdout: process.stdout, stderr: process.stderr },
     testContext: 'Bun' in globalThis ? _wrapInlineTest(testContext.test) : testContext,
+    // this file is `fjs/effects/node/module.mjs` of the package it runs from
+    packageRoot: toPosix(fileURLToPath(new URL('../../..', import.meta.url))),
 }
 
 /**

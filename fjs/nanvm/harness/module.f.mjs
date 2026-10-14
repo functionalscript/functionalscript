@@ -24,15 +24,17 @@
  * @import { IoChannel, NodeProgram, Readdir } from '../../effects/node/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { _CompileOp } from '../../compiler/types.ts'
+ * @import { Runtime } from '../../edag/value/types.ts'
  */
 
-import { compileFile } from '../../compiler/module.f.mjs'
+import { compileFile, noRuntime } from '../../compiler/module.f.mjs'
 import { interpret } from '../../compiler/transpiler/module.f.mjs'
 import { forEachStep, history, historyStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../../effects/module.f.mjs'
 import { exitStep, mkdir, readdir, writeUtf8File } from '../../effects/node/module.f.mjs'
 import { cmp } from '../../types/string/module.f.mjs'
 import { corpus, fixturesDirectory } from '../corpus/module.f.mjs'
 import { expectation } from '../expected/module.f.mjs'
+import { load as loadRuntime } from '../runtime/module.f.mjs'
 
 export { fixturesDirectory }
 
@@ -115,7 +117,7 @@ export const expectedModules = names => [
 export const generateFixtures = () => step(fixtures(), names => {
     const compiled = forEachStep(
         pureOk(names),
-        name => compileFile(`${fixturesDirectory}/${name}`, `${directory}/${rustName(name)}.rs`))
+        name => compileFile(noRuntime)(`${fixturesDirectory}/${name}`, `${directory}/${rustName(name)}.rs`))
     const directoryReady = step(compiled, () => mkdir(directory, { recursive: true }))
     return step(directoryReady, () => writeUtf8File(modulesPath, modules(names.map(rustName))))
 })
@@ -127,15 +129,15 @@ export const expectedDirectory = 'nanvm/harness/gen.expected'
 export const expectedModulesPath = `${expectedDirectory}/mod.rs`
 
 /**
- * Interprets one fixture and writes its expectation, or fails with the reason
- * it has none: a fixture the interpreter cannot load, or a value the Rust
- * backend has no spelling for. A fixture whose initialization throws has an
- * expectation too, a module that throws.
+ * Interprets one fixture under the runtime and writes its expectation, or
+ * fails with the reason it has none: a fixture the interpreter cannot load,
+ * or a value the Rust backend has no spelling for. A fixture whose
+ * initialization throws has an expectation too, a module that throws.
  *
- * @type {(name: string) => Effect<_CompileOp, void, IoChannel>}
+ * @type {(runtime: Runtime) => (name: string) => Effect<_CompileOp, void, IoChannel>}
  */
-const writeExpectation = name => resultStep(
-    interpret(`${fixturesDirectory}/${name}`),
+const writeExpectation = runtime => name => resultStep(
+    interpret(pureOk(runtime))(`${fixturesDirectory}/${name}`),
     result => {
         const text = expectation(name)(result)
         return text[0] === 'ok'
@@ -147,15 +149,18 @@ const writeExpectation = name => resultStep(
  * Writes the expectation of every corpus fixture (see
  * [`../corpus`](../corpus/module.f.mjs): the fixtures no exception names), in
  * order, stopping at the first that fails, then `mod.rs` naming them all. The
- * directory is created first, so an empty corpus still leaves a `mod.rs`.
+ * directory is created first, so an empty corpus still leaves a `mod.rs`,
+ * and the runtime is loaded once, from its source, for every fixture to
+ * initialize under.
  *
  * @type {() => Effect<_CompileOp, void, IoChannel>}
  */
 export const generateExpected = () => {
     const selected = history(mapStep(fixtures(), corpus))
     const directoryReady = historyStep(selected, () => mkdir(expectedDirectory, { recursive: true }))
-    const written = historyStep(directoryReady, (_, names) => forEachStep(pureOk(names), writeExpectation))
-    return step(written, ([, , names]) => writeUtf8File(expectedModulesPath, expectedModules(names.map(rustName))))
+    const runtimeReady = historyStep(directoryReady, () => loadRuntime())
+    const written = historyStep(runtimeReady, (runtime, _, names) => forEachStep(pureOk(names), writeExpectation(runtime)))
+    return step(written, ([, , , names]) => writeUtf8File(expectedModulesPath, expectedModules(names.map(rustName))))
 }
 
 /** The fixtures compiled, then their expectations written. @type {() => Effect<_CompileOp, void, IoChannel>} */

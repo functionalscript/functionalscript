@@ -6,9 +6,13 @@
 
 import { readdirSync, readFileSync } from 'node:fs'
 
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { _transpileDefault } from '../../compiler/transpiler/module.f.mjs'
+import { pureOk } from '../../effects/module.f.mjs'
+import { vm } from '../../edag/amnesia/module.f.mjs'
+import { read } from '../../edag/value/property/module.f.mjs'
 import { emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'
+import runtimeEdag from '../../js/runtime/gen.edag.data.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { corpus, exceptions, fixturesDirectory, undefinedDefault, withAliasing } from './module.f.mjs'
 
@@ -30,15 +34,26 @@ const reference = async name => {
 }
 
 /**
- * What the interpreter makes of it, in the same shapes. Only the error a
- * module's own initialization raises is a throw; a parser or loader error
- * carries no `thrown` and stays a failure, so a fixture the interpreter never
- * ran cannot pass as one that throws.
+ * The runtime the interpreter answers `startsWith` from: `fjs/js/runtime`'s
+ * EDAG, which `npm run gen` writes beside its source, evaluated to its
+ * export object and read for `runtime`, as `../proof.f.mjs` does.
+ *
+ * @type {import('../../edag/value/types.ts').Runtime}
+ */
+const runtime = /** @type {import('../../edag/value/types.ts').Runtime} */ (assertOk(read(
+    vm({ frame: [], args: [] })(/** @type {import('../../edag/types.ts').Exp} */ (/** @type {unknown} */ (runtimeEdag))),
+    'runtime')))
+
+/**
+ * What the interpreter makes of it, in the same shapes, under the runtime.
+ * Only the error a module's own initialization raises is a throw; a parser
+ * or loader error carries no `thrown` and stays a failure, so a fixture the
+ * interpreter never ran cannot pass as one that throws.
  *
  * @type {(name: string) => readonly [string, unknown?]}
  */
 const interpreted = name => {
-    const [, result] = virtual({ ...emptyState, root })(_transpileDefault(name))
+    const [, result] = virtual({ ...emptyState, root })(_transpileDefault(pureOk(runtime))(name))
     if (result[0] === 'error') {
         return 'thrown' in result[1] ? ['throws'] : ['failed', result[1]]
     }
@@ -50,6 +65,16 @@ const interpreted = name => {
 const aliased = ([tag, value]) => tag === 'ok' ? [tag, withAliasing(value)] : [tag, value]
 
 export const proof = {
+    // The body converts the search before the position, as the algorithm
+    // orders them: a search whose own `toString` throws `'A'` and a bigint
+    // position, which `ToNumber` refuses, throw `'A'`, on the interpreter
+    // running the compiled body as `vm/runtime.rs` pins it on NaNVM.
+    searchBeforePosition: () => {
+        const order = { 'order.f.js': [utf8("export default 'abc'.startsWith({ toString: () => { throw 'A' } }, 0n);")] }
+        const [, result] = virtual({ ...emptyState, root: order })(_transpileDefault(pureOk(runtime))('order.f.js'))
+        assertEq(result[0], 'error')
+        assertStructurallySame(/** @type {{ thrown: unknown }} */ (result[1]).thrown, 'A')
+    },
     /** An exception for a fixture that is gone would excuse nothing. */
     exceptionsNameFixtures: () => {
         for (const file of Object.keys(exceptions)) { assert(names.includes(file), file) }

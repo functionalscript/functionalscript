@@ -1,5 +1,5 @@
-use super::method::method;
-use crate::vm::{Any, Array, IVm, Unpacked, error};
+use super::method::{method, runtime};
+use crate::vm::{Any, Array, IVm, ToAny, ToArray, Unpacked, error};
 
 /// A property step's live state: the receiver and the key, the read
 /// deferred to the exit that needs it. `end` reads the property; a call
@@ -67,19 +67,23 @@ impl<A: IVm> Member<A> {
 
     /// The guard of `|?.()`: whether the callee the call would find is
     /// nullish — an own property that is, or nothing at all, no own
-    /// property and no built-in of the name. `({}).at?.()` skips;
-    /// `({}).toString?.()` calls.
+    /// property and no built-in of the name, native or the runtime's.
+    /// `({}).at?.()` skips; `({}).toString?.()` calls.
     pub(crate) fn is_nullish(&self) -> bool {
         match self.own() {
             Some(v) => v.is_nullish(),
-            None => method(&self.receiver, &self.key).is_none(),
+            None => {
+                method(&self.receiver, &self.key).is_none()
+                    && runtime(&self.receiver, &self.key).is_none()
+            }
         }
     }
 
     /// The call, its arguments already evaluated: the own property or
     /// element if there is one — `Any::call` throwing for a value that is
-    /// no function — else the receiver type's built-in of the name with the
-    /// receiver, else the `TypeError` for calling `undefined`, as
+    /// no function — else the receiver type's native built-in of the name
+    /// with the receiver, else the runtime's body with the receiver as its
+    /// first argument, else the `TypeError` for calling `undefined`, as
     /// JavaScript throws on a type without the method. The arguments are
     /// the array a call spreads, and a value that is no array throws on
     /// every path, through `Array::try_from` as `Any::call` throws, before
@@ -89,7 +93,13 @@ impl<A: IVm> Member<A> {
             Some(callee) => callee.call(args),
             None => match method(&self.receiver, &self.key) {
                 Some(f) => f(self.receiver, Array::try_from(args)?),
-                None => Any::undefined().call(args),
+                None => match runtime(&self.receiver, &self.key) {
+                    Some(body) => {
+                        let args = Array::try_from(args)?;
+                        body.call([self.receiver].into_iter().chain(args).to_array().to_any())
+                    }
+                    None => Any::undefined().call(args),
+                },
             },
         }
     }
