@@ -47,7 +47,7 @@
 import { catchStep, finallyStep, foldStep, history, historyStep, ioError, mapStep, orElse, pureError, pureOk, refuse, resultStep, step } from '../../../effects/module.f.mjs'
 import { createExclusive, isNotFound, mkdir, rename, rm, rmdir, writeExclusive } from '../../../effects/node/module.f.mjs'
 import { byteArray } from '../../../ebnf/byte/module.f.mjs'
-import { under } from '../../../path/module.f.mjs'
+import { ancestors, parent, under } from '../../../path/module.f.mjs'
 import { length, maxLengthBytes, u8ListToVecMsb } from '../../../types/bit_vec/module.f.mjs'
 import { solidus as slash } from '../../../text/ascii/module.f.mjs'
 import { toArray } from '../../../types/list/module.f.mjs'
@@ -72,13 +72,9 @@ const refuseZeroId = refuse(zeroIdCode)
  * repository holding no `refs/heads/a` writes the file and both directories
  * above it, at exit 0.
  *
- * There is always a slash to cut at, because {@link tryWrite} has already
- * refused a name that does not begin with `refs/` — so this answers no name of
- * one component and has no second case.
- *
  * @type {(dir: string, text: string) => string}
  */
-const parentOf = (dir, text) => under(dir, text.slice(0, text.lastIndexOf('/')))
+const parentOf = (dir, text) => under(dir, parent(text))
 
 /**
  * The compensation {@link unlocked} runs: remove `lock`, drop whatever that
@@ -569,17 +565,6 @@ const dropped = e => resultStep(e, () => pureOk(undefined))
  * @returns {Effect<O | CreateExclusive | Rm, T, IoChannel>}
  */
 const holding = (lock, e) => step(createExclusive(lock), () => finallyStep(e, () => rm(lock)))
-
-/**
- * The directories a ref named `text` sits in, from the top: `refs`,
- * `refs/heads`, `refs/heads/a` for `refs/heads/a/b`.
- *
- * @type {(text: string) => readonly string[]}
- */
-const ancestors = text => {
-    const parts = text.split('/')
-    return Array.from({ length: parts.length - 1 }, (_, i) => parts.slice(0, i + 1).join('/'))
-}
 
 /**
  * The directories a delete of `text` may leave empty, deepest first: each one

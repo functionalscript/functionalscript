@@ -1,5 +1,8 @@
 use super::method::{method, runtime};
-use crate::vm::{Any, Array, IVm, ToAny, ToArray, Unpacked, error};
+use crate::vm::{
+    Any, Array, IVm, ToAny, ToArray, Unpacked,
+    member_access::{non_nullish_receiver, undefined_if_absent},
+};
 
 /// A property step's live state: the receiver and the key, the read
 /// deferred to the exit that needs it. `end` reads the property; a call
@@ -20,13 +23,12 @@ pub(crate) struct Member<A: IVm> {
 }
 
 impl<A: IVm> Member<A> {
-    /// The `.` node's own step: a nullish receiver throws the `TypeError`
-    /// `Any::entry` does — real JS's `[]` runs the same `ToObject`
-    /// failure ahead of any key handling — and any other opens the step.
+    /// The `.` node's own step: a nullish receiver throws
+    /// (`member_access::non_nullish_receiver`) — real JS's `[]` runs the
+    /// same `ToObject` failure ahead of any key handling — and any other
+    /// opens the step.
     pub(crate) fn new(receiver: Any<A>, key: Any<A>) -> Result<Self, Any<A>> {
-        if receiver.is_nullish() {
-            return Err(error::nullish_to_object());
-        }
+        non_nullish_receiver(receiver.clone())?;
         Ok(Member { receiver, key })
     }
 
@@ -59,10 +61,10 @@ impl<A: IVm> Member<A> {
         }
     }
 
-    /// The property read, `a.b`: the own property, or `undefined` — the
-    /// same fallback `Any::entry` has.
+    /// The property read, `a.b`: the own property, or `undefined`
+    /// (`member_access::undefined_if_absent`).
     pub(crate) fn read(self) -> Any<A> {
-        self.own().unwrap_or_else(Any::undefined)
+        undefined_if_absent(self.own())
     }
 
     /// The guard of `|?.()`: whether the callee the call would find is

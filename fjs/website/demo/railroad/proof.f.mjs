@@ -2,7 +2,10 @@
  * @import { Diagram } from './types.ts'
  */
 
-import { anchor, railroadDemo, railroadSection, railroadSvg } from './module.f.mjs'
+import { anchor, codePointGuide, grammarDemo, railroadDemo, railroadSection, railroadSvg } from './module.f.mjs'
+import { codePoints, tokens } from '../../../ebnf/railroad/module.f.mjs'
+import { encoding } from '../../../ebnf/token_symbol/module.f.mjs'
+import { range, set } from '../../../ebnf/module.f.mjs'
 import { htmlToString } from '../../../media/html/module.f.mjs'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../../asserts/module.f.mjs'
 import { runPure } from '../../../effects/module.f.mjs'
@@ -47,6 +50,24 @@ const leftOf = (d, first, second) => {
     return labelX(html, first) < labelX(html, second)
 }
 
+/** @type {(title: string) => Diagram} */
+const box = title => ['nonTerminal', title]
+
+const digit = range('09')
+
+/** A grammar over text with a source rule and a branch worth a diagram. */
+const number = { one: digit, signed: [set('+-'), digit] }
+
+const tokenEncoding = encoding(['=>', 'id'])
+
+const id = tokenEncoding.encode('id')
+
+/** A grammar over tokens with a branch worth a diagram. */
+const lambda = { name: id, arrow: [id, tokenEncoding.encode('=>')] }
+
+/** A token page's guide: its grey pills are any token of their kind. */
+const tokenGuide = 'Follow a track from left to right; a pill is a token, a grey one in italics any token of its kind, and a box is another diagram — select it to go there.'
+
 export const proof = {
     anchor: () => assertEq(anchor('value'), 'railroad-value'),
     // A section is the element a box links to: its id is the title's anchor.
@@ -63,6 +84,60 @@ export const proof = {
         update: () => {
             const { init, update } = railroadDemo('intro')([])
             assertEq(unwrap(assertNotNullish(runPure(update(init)({ kind: 'start' }))[0])), init)
+        },
+    },
+    grammar: {
+        // The intro is the description, then the code-point guide; the
+        // grammar, a source rule and a branch are drawn in the order
+        // selected, their symbols labelled as code points.
+        codePoints: () => {
+            const { init, view } = grammarDemo({
+                grammar: number,
+                alphabet: codePoints,
+                description: 'The number grammar.',
+                guide: codePointGuide,
+                selections: [['number', number], ['digit', digit], ['signed', number, 'signed']],
+            })
+            assertStructurallySame(view(init), ['div',
+                ['p', 'The number grammar. Follow a track from left to right; a pill is text the input holds, and a box is another diagram — select it to go there.'],
+                railroadSection(['number', ['choice', [box('digit'), box('signed')]]]),
+                railroadSection(['digit', t('0 … 9')]),
+                railroadSection(['signed', ['sequence', [['choice', [t('+'), t('-')]], box('digit')]]]),
+            ])
+        },
+        // A token page's guide explains its category pills, and its
+        // alphabet labels the grammar and a branch alike: `id` as a
+        // category, `=>` as the text it is.
+        tokens: () => {
+            const { init, view } = grammarDemo({
+                grammar: lambda,
+                alphabet: tokens(tokenEncoding, ['id']),
+                description: 'The lambda grammar.',
+                guide: tokenGuide,
+                selections: [['lambda', lambda], ['arrow', lambda, 'arrow']],
+            })
+            assertStructurallySame(view(init), ['div',
+                ['p', `The lambda grammar. ${tokenGuide}`],
+                railroadSection(['lambda', ['choice', [['category', 'id'], box('arrow')]]]),
+                railroadSection(['arrow', ['sequence', [['category', 'id'], t('=>')]]]),
+            ])
+        },
+        throw: {
+            // A rule the grammar never reaches has no name to draw.
+            missingRule: () => grammarDemo({
+                grammar: number, alphabet: codePoints, description: '', guide: codePointGuide,
+                selections: [['letter', range('az')]],
+            }),
+            // A branch is a branch of a variant.
+            notAVariant: () => grammarDemo({
+                grammar: number, alphabet: codePoints, description: '', guide: codePointGuide,
+                selections: [['digit', digit, 'one']],
+            }),
+            // A variant reaches no branch by a tag it lacks.
+            noSuchBranch: () => grammarDemo({
+                grammar: number, alphabet: codePoints, description: '', guide: codePointGuide,
+                selections: [['zero', number, 'zero']],
+            }),
         },
     },
     // A terminal in full: the start bar, its pill and label, the end bar.

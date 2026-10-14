@@ -174,6 +174,8 @@ resolved the same way, recursively, and bound in its parameter's place — the
 binding happens where a reference is lowered, so the graph is built once with
 the imported module's node where its parameter would be — and a module met
 twice in one link is one node, so a diamond of imports joins where it should.
+`resolve` and `interpret` load a program by one walk, `_walk` in
+[`source`](./source/module.f.mjs), and differ only in what a module becomes.
 A property access, `a.b` or `a[0]`, is the EDAG's `['.', base, key]`, its
 key a constant the parser admitted — `__proto__` and `constructor` refused at
 the key.

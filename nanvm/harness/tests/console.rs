@@ -7,7 +7,6 @@
 use nanvm_effects_node::{Native, run};
 use nanvm_harness::fixtures::console;
 use nanvm_lib::{
-    common::sized_index::SizedIndex,
     naive::Naive,
     vm::{Any, Array, Function, Number, Object, ToArray, unstable::string_any},
 };
@@ -24,10 +23,7 @@ fn names(exports: &Object<Naive>) -> Vec<String> {
     exports
         .own_entries()
         .into_iter()
-        .map(|(key, _)| {
-            let units: Vec<u16> = (0..key.length()).map(|i| key[i]).collect();
-            String::from_utf16_lossy(&units)
-        })
+        .map(|(key, _)| key.into())
         .collect()
 }
 
