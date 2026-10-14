@@ -33,20 +33,13 @@
  */
 
 import { array, open, option, or, string } from '../../rtti/module.f.mjs'
-import { parse as rttiParse } from '../../rtti/parse/module.f.mjs'
-import { parse as parseJson, stringify } from '../json/module.f.mjs'
-import { okThen } from '../../types/result/module.f.js'
-import { dialectEntry } from '../module.f.mjs'
-import { sort } from '../../types/object/module.f.mjs'
+import { jsonDialect } from '../module.f.mjs'
 
 /**
  * Format tag: names the dialect of this BLOB. The media type it is served
- * with is derived mechanically: `application/` + `dialect` + `+json`.
+ * with, {@link mediaType}, is derived from it.
  */
 export const dialect = /** @type {const} */ ('vnd.fjs.note')
-
-/** The media type derived from {@link dialect}: `application/vnd.fjs.note+json`. */
-export const mediaType = /** @type {const} */ (`application/${dialect}+json`)
 
 /**
  * rtti schema for a `note` BLOB: the dialect tag, the text, and optionally
@@ -105,10 +98,16 @@ export const noteSchema = open(/** @type {const} */ ({
     priority: or(option, ...priorities),
 }))
 
+/** The dialect's kit: {@link noteSchema} with no semantic refinement. */
+const kit = jsonDialect(noteSchema)
+
+/** The media type derived from {@link dialect}: `application/vnd.fjs.note+json`. */
+export const mediaType = kit.mediaType
+
 /** Serializes a note canonically, sorting every object's property names.
  * @type {(note: Note) => string}
  */
-export const encodeText = stringify(sort)
+export const encodeText = kit.encodeText
 
 /**
  * Validates an already-parsed JSON value as a `note` BLOB. Structural (rtti)
@@ -117,7 +116,7 @@ export const encodeText = stringify(sort)
  *
  * @type {(value: Unknown) => Result<Note, ValidationError>}
  */
-export const validate = rttiParse(noteSchema)
+export const validate = kit.validate
 
 /**
  * Decodes `text` as a `note` BLOB: JSON-parses it, then validates it per
@@ -126,7 +125,7 @@ export const validate = rttiParse(noteSchema)
  *
  * @type {(text: string) => Result<Note, NoteError>}
  */
-export const decodeText = text => okThen(validate)(parseJson(text))
+export const decodeText = kit.decodeText
 
 /**
  * This dialect as a registry entry for `fjs/media`'s `detect`. Registered
@@ -135,4 +134,4 @@ export const decodeText = text => okThen(validate)(parseJson(text))
  *
  * @type {DialectEntry}
  */
-export const noteDialect = dialectEntry(noteSchema)
+export const noteDialect = kit.entry

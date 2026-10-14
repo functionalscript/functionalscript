@@ -117,6 +117,13 @@ export const proof = {
             assertEq(t, 'error')
         },
 
+        // `generation` is a count, which is never `-0`: the dialect refuses
+        // it, though the value itself round-trips through JSON.
+        negativeZeroGenerationRejected: () => {
+            const [t] = decodeText(`{"dialect":"${dialect}","subject":"${h1}","parents":[],"snapshot":"${h2}","generation":-0}`)
+            assertEq(t, 'error')
+        },
+
         // A positive integer generation is accepted.
         positiveGenerationAccepted: () => {
             const r = validate(revisionOf({ parents: [h1], generation: 3 }))

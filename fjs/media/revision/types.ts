@@ -17,8 +17,10 @@
 import type { Assert } from '../../asserts/types.ts'
 import type { ValidationError } from '../../rtti/common/types.ts'
 import type { Check, Ts } from '../../rtti/ts/types.ts'
-import type { String as RttiString } from '../../rtti/types.ts'
-import type { lock, lockField, revisionSchema } from './module.f.mjs'
+import type { Rest, String as RttiString, Type } from '../../rtti/types.ts'
+import type { Equal } from '../../types/ts/types.ts'
+import type { JsonDialect } from '../types.ts'
+import type { decodeText, encodeText, lock, lockField, mediaType, revisionSchema, validate } from './module.f.mjs'
 
 // The two pins below were `./proof.f.mjs`'s `consistency` entry, a body of
 // nothing but typedefs — so neither bound to a statement and both were green
@@ -67,3 +69,21 @@ export type HashEntry = readonly [readonly string[], string]
 
 /** Either a structural validation error or a semantic (hash / generation) error message. */
 export type RevisionError = ValidationError | string
+
+/**
+ * `JsonDialect` at `revisionSchema`'s container: the type `jsonDialect` gives
+ * the module's kit. Its refinement, `checkReferences`,
+ * raises `string`.
+ *
+ * The module writes each re-exported member's type out, so its declarations
+ * stay what they were; assigning the kit's member to that annotation fails
+ * if the call inferred a wider value or error type, and the pins below hold
+ * each annotation to exactly the kit's member. The media type is not
+ * annotated, so its pin is on the literal the kit itself derives.
+ */
+type _Kit = JsonDialect<typeof revisionSchema extends Rest<infer S, Type> ? S : never, string>
+
+type _MediaType = Assert<Equal<typeof mediaType, 'application/vnd.fjs.revision+json'>>
+type _EncodeText = Assert<Equal<typeof encodeText, _Kit['encodeText']>>
+type _Validate = Assert<Equal<typeof validate, _Kit['validate']>>
+type _DecodeText = Assert<Equal<typeof decodeText, _Kit['decodeText']>>
