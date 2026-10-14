@@ -1,7 +1,7 @@
 ## binary64-layer. Three modules take an `f64` apart by hand
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
