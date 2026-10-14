@@ -1,4 +1,4 @@
-import { _dotSegmentFold, ancestors, basename, concat, escapes, isBareDrive, isDriveLetter, isDriveRoot, isProperPrefix, join, normalize, parent, parse, relativize, root, toPosix, under } from "./module.f.mjs"
+import { _dotSegmentFold, _foldRejoin, ancestors, basename, concat, escapes, isBareDrive, isDriveLetter, isDriveRoot, isProperPrefix, join, normalize, parent, parse, relativize, root, toPosix, under } from "./module.f.mjs"
 import { assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
 import { fold, toArray } from '../types/list/module.f.mjs'
 
@@ -41,6 +41,54 @@ const dotSegmentFoldTest = [
     },
     () => {
         assertEq(dots(true)(['a', '~', '~', '~']), '')
+    },
+]
+
+/**
+ * Keeps every segment, except that `!` cannot be decoded and `x` decodes to `y`.
+ *
+ * @type {(segment: string) => string | null}
+ */
+const bang = segment => segment === '!' ? null : segment === 'x' ? 'y' : segment
+
+const tildeFoldRejoin = _foldRejoin(tilde)(bang)
+
+const foldRejoinTest = [
+    // The fold is the classifier's, and decoding comes after it: `!` refuses
+    // the path only when it survives.
+    () => {
+        assertEq(tildeFoldRejoin('a/-/x'), 'a/y')
+    },
+    () => {
+        assertEq(tildeFoldRejoin('a/!'), null)
+    },
+    () => {
+        assertEq(tildeFoldRejoin('!/~/a'), 'a')
+    },
+    // The root is this module's: each one stays put and clamps the `up`s
+    // below it, while a relative path keeps them.
+    () => {
+        assertEq(tildeFoldRejoin('~/a'), '../a')
+    },
+    () => {
+        assertEq(tildeFoldRejoin('/~/a'), '/a')
+    },
+    // `//` is a root of its own and stops at the two slashes, so `server`
+    // is a segment that an `up` cancels and a second one cannot leave.
+    () => {
+        assertEq(tildeFoldRejoin('//server/~/~/a'), '//a')
+    },
+    // Three slashes are the ordinary root and empty segments, which this
+    // classifier keeps.
+    () => {
+        assertEq(tildeFoldRejoin('///a'), '///a')
+    },
+    () => {
+        assertEq(tildeFoldRejoin('C:/~/x'), 'C:/y')
+    },
+    // The path is already POSIX: `\` is no separator here.
+    () => {
+        assertEq(tildeFoldRejoin('a\\~/x'), 'a\\~/y')
     },
 ]
 
@@ -711,4 +759,4 @@ const underThrowTest = {
     },
 }
 
-export const proof = { dotSegmentFoldTest, normalizeTest, escapesTest, rootTest, driveTest, parseTest, concatTest, parentTest, basenameTest, ancestorsTest, joinTest, underTest, underThrowTest, relativizeTest, toPosixTest, isProperPrefixTest }
+export const proof = { dotSegmentFoldTest, foldRejoinTest, normalizeTest, escapesTest, rootTest, driveTest, parseTest, concatTest, parentTest, basenameTest, ancestorsTest, joinTest, underTest, underThrowTest, relativizeTest, toPosixTest, isProperPrefixTest }

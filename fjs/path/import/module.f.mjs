@@ -5,11 +5,11 @@
  * @module
  */
 
-import { fold, map, toArray } from '../../types/list/module.f.mjs'
+import { map } from '../../types/list/module.f.mjs'
 import { codePointListToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { isValidCodePoint } from '../../text/code_point/module.f.mjs'
 import { percentDecode } from '../../text/percent/module.f.mjs'
-import { concat as pathConcat, _dotSegmentFold } from '../module.f.mjs'
+import { concat as pathConcat, root, _foldRejoin } from '../module.f.mjs'
 
 /** A literal URL string replaces lone surrogates; percent-encoded bytes stay strict UTF-8. @type {(c: number) => number} */
 const scalarValue = c => isValidCodePoint(c) ? c : 0xfffd
@@ -47,7 +47,7 @@ const importSegmentKind = segment => {
     }
 }
 
-const importDotSegments = _dotSegmentFold(importSegmentKind)
+const importFoldRejoin = _foldRejoin(importSegmentKind)(importSegment)
 
 /**
  * Resolve an import's URL-path spelling against its importing file, or return
@@ -72,16 +72,17 @@ export const resolve = path => specifier => {
  * dot processing: suffix text must neither be decoded nor canceled as a path.
  * Percent-encoded `?` and `#` are filename data, not URL delimiters.
  *
+ * The root is `fjs/path`'s, so `..` cannot climb above it. A leading `//` is
+ * refused like a colon: to a URL it is a network-path reference, not a path,
+ * and to `fjs/path` it is a UNC root, so neither reading is the relative or
+ * rooted path the specifier spells. Three or more leading slashes are the
+ * ordinary root followed by empty components.
+ *
  * @type {(specifier: string) => string | null}
  */
-export const decode = specifier => {
-    if (specifier.includes(':') || specifier.includes('\\')
-        || specifier.includes('?') || specifier.includes('#')) { return null }
-    const rooted = specifier.startsWith('/')
-    const raw = specifier.split('/')
-    const components = toArray(fold(importDotSegments(rooted))([])(rooted ? raw.slice(1) : raw))
-    const segments = components.map(importSegment)
-    return segments.every(segment => segment !== null)
-        ? `${rooted ? '/' : ''}${segments.join('/')}`
-        : null
-}
+export const decode = specifier =>
+    specifier.includes(':') || specifier.includes('\\')
+    || specifier.includes('?') || specifier.includes('#')
+    || root(specifier) === '//'
+        ? null
+        : importFoldRejoin(specifier)
