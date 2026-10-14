@@ -1,7 +1,6 @@
 use super::BigInt;
 use crate::{
     common::sized_index::SizedIndex,
-    sign::Sign,
     vm::{IVm, Number},
 };
 
@@ -10,45 +9,25 @@ impl<A: IVm> BigInt<A> {
     /// significand, and `Infinity` or `-Infinity` past the range.
     /// <https://tc39.es/ecma262/#sec-numberbigint>
     ///
-    /// Up to 64 bits the conversion is Rust's own `u64 as f64`, which rounds
-    /// to nearest even. Past that, the top 64 bits are converted the same way
-    /// and the bits below them only decide a tie: any of them set is folded
-    /// into the lowest of the 64, which sits more than two bits under the
-    /// 53 the significand keeps, so it breaks a tie upward and can do
-    /// nothing else. The rest is a power of two, exact until it overflows.
+    /// The top two words are the significand [`Number::compose`] rounds, and
+    /// any word below them set is its sticky bit: with the top word not
+    /// zero, the two hold at least 65 significant bits, more than the 54 the
+    /// sticky bit needs.
     pub fn to_number(&self) -> Number {
         let length = self.length();
-        let magnitude = if length == 0 {
-            0.0
-        } else {
-            let top = self[length - 1];
-            let zeros = top.leading_zeros();
-            // The top 64 bits of the magnitude, and what lies below them.
-            let (head, below) = if length == 1 {
-                (top << zeros, 0)
-            } else {
-                let next = self[length - 2];
-                let head = if zeros == 0 {
-                    top
-                } else {
-                    (top << zeros) | (next >> (64 - zeros))
-                };
-                let rest = if zeros == 0 { next } else { next << zeros };
-                let lower = (0..length - 2).any(|i| self[i] != 0);
-                (head, rest | u64::from(lower))
-            };
-            // `head`'s lowest bit takes the sticky bit; `length == 1` shifted
-            // the word up, so its low bits are zeros and `below` is `0`.
-            let bits = 64 * (length - 1) + (64 - zeros);
-            let value = (head | u64::from(below != 0)) as f64;
-            let exponent = i32::try_from(bits).map_or(i32::MAX, |b| b - 64);
-            value * 2f64.powi(exponent)
+        let (significand, words_below, sticky) = match length {
+            0 => (0, 0, false),
+            1 => (u128::from(self[0]), 0, false),
+            _ => (
+                (u128::from(self[length - 1]) << 64) | u128::from(self[length - 2]),
+                length - 2,
+                (0..length - 2).any(|i| self[i] != 0),
+            ),
         };
-        Number::from(if self.sign() == Sign::Negative {
-            -magnitude
-        } else {
-            magnitude
-        })
+        let exponent =
+            i32::try_from(64 * words_below).expect("a BigInt's words are far under 2^31 bits");
+        Number::compose(self.sign(), significand, exponent, sticky)
+            .expect("`sticky` is set only under a nonzero top word: over 64 significant bits")
     }
 }
 

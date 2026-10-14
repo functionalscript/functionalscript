@@ -163,7 +163,7 @@ pub(crate) fn shortest_digits<A: IVm>(v: f64) -> (std::string::String, i64) {
         .parse::<u64>()
         .expect("`digits` is a run of ASCII decimal characters");
     let m = n - k;
-    let (mant, exp2) = mantissa_exp2(v);
+    let (_, mant, exp2) = Number::from(v).decompose().expect("`v` is finite");
     let corrected = round_tie_to_even::<A>(v, mant, exp2, s, m);
     if corrected == s {
         (digits, n)
@@ -176,25 +176,6 @@ pub(crate) fn shortest_digits<A: IVm>(v: f64) -> (std::string::String, i64) {
         let digits = corrected.to_string();
         let k = digits.len() as i64;
         (digits, m + k)
-    }
-}
-
-/// `v`'s exact value as `mantissa * 2^exp2` — the plain IEEE 754 binary64
-/// decomposition (`mantissa` folds in the implicit leading bit for a normal
-/// `v`, and is the raw significand for a subnormal one), used only by
-/// [`round_tie_to_even`] below. Not reduced to lowest terms — `mantissa` may
-/// have trailing zero bits, so `exp2` is not necessarily the *smallest*
-/// exponent that works, only *a* correct one — but the tie-break comparison
-/// that consumes it is exact either way, so reducing it first would only
-/// spend work without changing the answer.
-pub(crate) fn mantissa_exp2(v: f64) -> (u64, i32) {
-    let bits = v.to_bits();
-    let exponent_bits = (bits >> 52) & 0x7ff;
-    let mantissa_bits = bits & 0xf_ffff_ffff_ffff;
-    if exponent_bits == 0 {
-        (mantissa_bits, -1_074) // subnormal: no implicit leading bit
-    } else {
-        (mantissa_bits | (1u64 << 52), exponent_bits as i32 - 1_075)
     }
 }
 
@@ -266,10 +247,6 @@ fn round_tie_to_even<A: IVm>(v: f64, mantissa: u64, exp2: i32, s: u64, m: i64) -
     // cannot tell apart (an earlier attempt at exactly that approximation
     // broke `Number.MAX_VALUE` and `Number.MIN_VALUE`).
     let one = || BigInt::<A>::from(1u64);
-    let pow2 = |e: i32| -> BigInt<A> {
-        (one() << BigInt::from(e as u64))
-            .expect("a binary64 exponent's magnitude is far under BigInt's size limit")
-    };
     let pow10 = |e: i64| -> BigInt<A> {
         BigInt::<A>::from(10u64)
             .pow(BigInt::from(e as u64))
@@ -277,9 +254,9 @@ fn round_tie_to_even<A: IVm>(v: f64, mantissa: u64, exp2: i32, s: u64, m: i64) -
     };
     // v == mantissa * 2^exp2 == (mantissa * v_extra) / v_den.
     let (v_extra, v_den) = if exp2 >= 0 {
-        (pow2(exp2), one())
+        (BigInt::pow2(exp2.unsigned_abs()), one())
     } else {
-        (one(), pow2(-exp2))
+        (one(), BigInt::pow2(exp2.unsigned_abs()))
     };
     // A candidate's `target * 10^m == (target * s_extra) / s_den`.
     let (s_extra, s_den) = if m >= 0 {
