@@ -133,10 +133,11 @@ export const proof = {
     // `startsWith` has no native case: the runtime's body answers it, called
     // with the receiver first, and without a body the call is the
     // `TypeError` of a VM that binds nothing — no runtime at all, one
+    // without a `member` section, one whose section is no object, one
     // without the type, one whose type lacks the name, or an entry that is
     // no function.
     runtime: () => {
-        const runtime = table([['string', table([['slice', 'x'], ['startsWith', second]])]])
+        const runtime = table([['member', table([['String', table([['slice', 'x'], ['startsWith', second]])]])]])
         // bound only where a body is: the guard of `'abc'.startsWith?.()`
         assertEq(hasMethod('abc', 'startsWith', runtime), true)
         assertEq(hasMethod('abc', 'startsWith', undefined), false)
@@ -144,7 +145,8 @@ export const proof = {
         assertEq(assertOk(method('abc', 'startsWith', ['ab'], invoke, runtime)), 'ab')
         assertStructurallySame(assertOk(method('abc', 'startsWith', [], invoke, runtime)), undefinedValue)
         refuses('abc', 'startsWith', ['ab'])
-        for (const missing of [table([]), table([['string', table([])]]), table([['string', table([['startsWith', 'x']])]])]) {
+        const members = [table([]), table([['String', table([])]]), table([['String', table([['startsWith', 'x']])]])]
+        for (const missing of [table([]), table([['member', 'x']]), ...members.map(member => table([['member', member]]))]) {
             assertStructurallySame(assertError(method('abc', 'startsWith', ['ab'], invoke, missing)), undefinedValue)
         }
         // a native name is answered natively whatever the runtime holds

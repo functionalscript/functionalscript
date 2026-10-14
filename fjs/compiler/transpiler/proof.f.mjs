@@ -38,7 +38,7 @@ import { assert, assertEq, assertError, assertOk, assertStructurallySame } from 
  */
 const withRuntime = root => ({
     ...root,
-    'fjs': { 'js': { 'runtime': { 'module.f.js': [utf8("export const runtime = { string: { startsWith: (self, s) => self.slice(0, s.length) === s } };")] } } },
+    'fjs': { 'js': { 'runtime': { 'module.f.js': [utf8("export const runtime = { member: { String: { startsWith: (self, s) => self.slice(0, s.length) === s } } };")] } } },
 })
 
 // The virtual host declares lexical path identities; native URL behavior has host proofs.
@@ -79,12 +79,12 @@ const refusedSpecifier = (specifier, source, root) => {
 
 export const proof = {
     // The runtime an interpretation is given reaches every module it loads:
-    // a body under `string.startsWith` answering its receiver is what the
+    // a body under `member.String.startsWith` answering its receiver is what the
     // importer's and the dependency's initializations call, and without a
     // runtime the same call fails the dependency's initialization.
     interpret: () => {
         /** @type {Runtime} */
-        const runtime = ['{}', [[':', 'string', ['{}', [[':', 'startsWith', ['=>', 1, [], ['arg', 0]]]]]]]]
+        const runtime = ['{}', [[':', 'member', ['{}', [[':', 'String', ['{}', [[':', 'startsWith', ['=>', 1, [], ['arg', 0]]]]]]]]]]]
         const root = {
             'main.f.js': [utf8("import d from './dep.f.js'; export default [d, 'xy'.startsWith('x')];")],
             'dep.f.js': [utf8("export default 'abc'.startsWith('b');")],
@@ -101,7 +101,7 @@ export const proof = {
     runtimeAt: () => {
         const at = /** @type {(text: string) => Result<EdagValue, ParseError | InitializationError>} */ (text =>
             virtual({ ...emptyState, root: { 'r.f.js': [utf8(text)] } })(runtimeAt('r.f.js'))[1])
-        assertStructurallySame(at('export const runtime = { string: {} };'), ok(['{}', [[':', 'string', ['{}', []]]]]))
+        assertStructurallySame(at('export const runtime = { member: {} };'), ok(['{}', [[':', 'member', ['{}', []]]]]))
         const refused = { message: 'no runtime export', metadata: null, path: 'r.f.js' }
         assertStructurallySame(at('export const runtime = 1;'), error(refused))
         assertStructurallySame(at('export default 1;'), error(refused))
