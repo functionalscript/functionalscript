@@ -69,10 +69,9 @@ export const runtime = {
         Object: {
             /**
              * [`Object.is`](https://tc39.es/ecma262/#sec-object.is):
-             * SameValue. The body is the helper a module imports where
-             * `Object` is not admitted, imported rather than copied, so a
-             * module calling `Object.is` and one importing `is` answer
-             * alike by construction.
+             * SameValue. The body is the helper `fjs/types/object/is`,
+             * imported rather than copied, so a module calling `Object.is`
+             * and one importing `is` answer alike by construction.
              */
             is,
         },

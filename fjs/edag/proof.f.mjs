@@ -97,7 +97,7 @@ const vOptionPropertyLambda = value => validate(optionPropertyLambda)(value)
 /** Every id `op0` currently accepts — kept as a literal list, not derived
  * from `op0Id`, so deleting one from the schema reddens exactly its own
  * assertion below rather than silently shrinking this list too. */
-const op0Ids = /** @type {const} */ (['undefined', 'args', 'rest', 'self', 'entry'])
+const op0Ids = /** @type {const} */ (['undefined', 'args', 'rest', 'self', 'entry', 'Object.is'])
 
 /** Same purpose as `op0Ids`, for `op1`. */
 const op1Ids = /** @type {const} */ (['String', 'Number', '!', '~', 'typeof', 'throw'])
@@ -218,17 +218,15 @@ export const proof = {
         assertNoMatch(v(['frame', 0, 1]))
         assertNoMatch(v(['.', ['frame'], 0]))
     },
-    // A static function carries its path as metadata, an array of string
-    // keys, and is a node wherever its shape is; where it may stand is the
-    // analysis's to check, not this schema's.
-    static: () => {
-        assertOk(v(['static', ['Object', 'is']]))
-        assertOk(v(['()', ['static', ['Object', 'is']], [1, 2]]))
-        assertOk(v(['static', []]))
-        assertNoMatch(v(['static']))
-        assertNoMatch(v(['static', 'Object']))
-        assertNoMatch(v(['static', ['Object', 1]]))
-        assertNoMatch(v(['static', ['Object', 'is'], 1]))
+    // `Object.is` is a value wherever a value stands, the callee of a call
+    // or not, and its tag is the whole of it: no operand and no path, and
+    // the first design's `['static', path]` is no node.
+    objectIs: () => {
+        assertOk(v(['()', ['Object.is'], [1, 2]]))
+        assertOk(v(['[]', [['Object.is'], ['Object.is']]]))
+        assertNoMatch(v(['Object.is', 1]))
+        assertNoMatch(v(['Object.keys']))
+        assertNoMatch(v(['static', ['Object', 'is']]))
     },
     primitive: {
         ok: () => {
@@ -638,7 +636,7 @@ export const proof = {
     op0: {
         ok: () => {
             // Every id `op0` accepts, pinned individually: deleting any one
-            // of these three from `op0Id` reddens exactly this loop, not
+            // of these from `op0Id` reddens exactly this loop, not
             // some other assertion that happens to still pass.
             for (const id of op0Ids) {
                 assertOk(v([id]))
@@ -649,7 +647,7 @@ export const proof = {
             assertNoMatch(v(['argz']))
         },
         // `op0Id` is a real constraint, not a stand-in for `string`: an id
-        // outside its three members is rejected, both directly and as part
+        // outside its members is rejected, both directly and as part
         // of a full `exp` value.
         unknownIdIsRejected: () => {
             assertNoMatch(vOp0Id('xyz'))

@@ -1,8 +1,6 @@
-/** Boundaries and state for represented module interpretation. @module */
+/** Errors of represented module interpretation. @module */
 
-import type { List } from '../../types/list/types.ts'
-import type { OrderedMap } from '../../types/ordered_map/types.ts'
-import type { EdagValue, Object as ValueObject, Runtime } from '../../edag/value/types.ts'
+import type { EdagValue } from '../../edag/value/types.ts'
 import type { ParseError } from '../parser/types.ts'
 
 /** A module initialization failure retains its language value and source. */
@@ -14,10 +12,3 @@ export type InitializationError = {
 }
 
 export type SourceError = ParseError | InitializationError
-
-/** Initialized export objects, plus the current import chain, and the runtime every module initializes under. */
-export type ParseContext = {
-    readonly complete: OrderedMap<ValueObject>
-    readonly stack: List<string>
-    readonly runtime: Runtime | undefined
-}

@@ -21,8 +21,8 @@ export type Context = {
      * The runtime whose bodies answer the member functions the dispatcher
      * has no native implementation of, and every static function, reaching
      * every invocation under this one. Absent, such a member call throws
-     * the `TypeError` a VM that binds nothing throws, and a static call
-     * fails naming its path.
+     * the `TypeError` a VM that binds nothing throws, and a read of a
+     * static function fails naming it.
      */
     readonly runtime?: Runtime | undefined
 }

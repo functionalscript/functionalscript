@@ -35,7 +35,7 @@ use crate::vm::{
     IVm, Number, String, ToAny, Unpacked,
     boolean_coercion::BooleanCoercion,
     dispatch::Dispatch,
-    error,
+    member_access::{non_nullish_receiver, undefined_if_absent},
     nullish::Nullish,
     number_coercion::NumberCoercion,
     numeric::Numeric,
@@ -157,29 +157,25 @@ impl<A: IVm> Any<A> {
     /// property lookup — so this is a plain method, the same as
     /// `pow`/`bitwise_not`/`unsigned_right_shift`.
     ///
-    /// The receiver is checked before the key is converted: real `ToObject`
-    /// runs before `ToPropertyKey`
-    /// (<https://tc39.es/ecma262/#sec-object.getownpropertydescriptor>), so
-    /// a nullish receiver throws regardless of what the key is, and a key
-    /// whose conversion throws does so under a receiver that is not. The
-    /// key converts as `ToPropertyKey` converts it, which is `to_string`
-    /// here, the language having no symbols: `0` and `"0"` name one entry,
-    /// and an object converts through its own `toString`. A `Number`,
+    /// The receiver is checked before the key is converted
+    /// (`member_access::non_nullish_receiver`), so a nullish receiver
+    /// throws regardless of what the key is, and a key whose conversion
+    /// throws does so under a receiver that is not. The key converts as
+    /// `ToPropertyKey` converts it, which is `to_string` here, the language
+    /// having no symbols: `0` and `"0"` name one entry, and an object
+    /// converts through its own `toString`. A `Number`,
     /// `Boolean` or `BigInt` receiver owns no entry and answers
-    /// `undefined`, as every absent key does.
+    /// `undefined`, as every absent key does
+    /// (`member_access::undefined_if_absent`).
     pub fn entry(self, key: Self) -> Result<Self, Self> {
-        let unpacked: Unpacked<A> = self.into();
-        if unpacked.is_nullish() {
-            return Err(error::nullish_to_object());
-        }
+        let unpacked = non_nullish_receiver(self)?;
         let key = key.to_string()?;
-        Ok(match unpacked {
+        Ok(undefined_if_absent(match unpacked {
             Unpacked::Object(o) => o.own_property(&key),
             Unpacked::Array(a) => a.entry(&key),
             Unpacked::String(s) => s.entry(&key),
             _ => None,
-        }
-        .unwrap_or_else(Any::undefined))
+        }))
     }
 
     /// Same as `Number.isNaN` in ECMAScript.

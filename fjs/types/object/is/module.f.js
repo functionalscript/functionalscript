@@ -1,7 +1,9 @@
 /**
- * `Object.is` on two values, written with the language's own operators, so
- * a module can import it where the `Object` namespace is not admitted
- * ([`doc/CONVERTING.md`](../../../../doc/CONVERTING.md)).
+ * `Object.is` on two values, written with the language's own operators:
+ * the body the runtime's `static` section binds `Object.is` to
+ * ([`fjs/js/runtime`](../../../js/runtime/module.f.js)), and a function a
+ * module may import as well, answering alike by construction
+ * ([`doc/CONVERTING.md`](../../../../doc/CONVERTING.md#6-objectis)).
  *
  * @module
  */

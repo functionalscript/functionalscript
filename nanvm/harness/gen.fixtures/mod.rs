@@ -39,6 +39,7 @@ pub mod number;
 pub mod number_limits;
 pub mod number_methods;
 pub mod object;
+pub mod object_is;
 pub mod object_spread;
 pub mod operators;
 pub mod optional;

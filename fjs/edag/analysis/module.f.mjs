@@ -53,7 +53,7 @@
  *
  * @module
  *
- * @import { Arg, Exp, ExpOp, Frame, Index, Items, Op0, Op1, Op2, Op3, Op12, Primitive, Properties, Static, TagMap } from '../types.ts'
+ * @import { Arg, Exp, ExpOp, Frame, Index, Items, Op0, Op1, Op2, Op3, Op12, Primitive, Properties, TagMap } from '../types.ts'
  * @import { OptionLambda, OptionPropertyLambda, PropertyLambda } from '../types.ts'
  * @import { Analysis, IndexOperand, ItemOperand, Node, Operand, PropertyOperand, Ref, Step } from './types.ts'
  * @import { _Entry, _Handlers, _Scope, _State, _Walk } from './private.ts'
@@ -62,7 +62,6 @@
 
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { isIndex, maxLength } from '../../types/function/length/module.f.mjs'
-import { isStatic } from '../../js/static/module.f.js'
 import { mapSet } from '../../types/map/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
 
@@ -215,7 +214,7 @@ const step = scope => (state, k) => {
 /** An operation with no operands is its own entry. @type {_Walk<Op0, Node>} */
 const o0 = () => (state, e) => [state, e]
 
-/** A leaf with metadata — a binding read's index, a static's path — and no operand: its own entry. @type {_Walk<Arg | Frame | Static, Node>} */
+/** A leaf with metadata — a binding read's index — and no operand: its own entry. @type {_Walk<Arg | Frame, Node>} */
 const indexed = () => (state, e) => [state, e]
 
 /** @type {_Walk<Op1, Node>} */
@@ -255,7 +254,7 @@ const handlers = {
     rest: o0,
     self: o0,
     entry: o0,
-    static: indexed,
+    'Object.is': o0,
     arg: indexed,
     frame: indexed,
     '!': o1,
@@ -372,9 +371,7 @@ const propertyOperands = p => p[0] === ':' ? [p[1], p[2]] : [p[1]]
  */
 export const operandsOf = node => {
     switch (node[0]) {
-        // a static's path is metadata, not an operand — and an array, which
-        // the default arm below would list as an operand
-        case 'undefined': case 'args': case 'frame': case 'rest': case 'arg': case 'self': case 'entry': case 'static': { return [] }
+        case 'undefined': case 'args': case 'frame': case 'rest': case 'arg': case 'self': case 'entry': case 'Object.is': { return [] }
         case '[]': { return node[1].map(itemOperand) }
         case '{}': { return node[1].flatMap(propertyOperands) }
         case ',': { return node[1] }
@@ -468,23 +465,11 @@ const withinScope = (scope, root, i) => {
  * excluded, including captured functions' bodies. The index must name a
  * `=>` entry in a table returned by analysis; omitted, checks cover the
  * complete graph.
- *
- * A static function's path must be one `fjs/js/static` admits, and the
- * node may stand only as the callee of a `()` node: the root, an argument,
- * an element, a captured slot or any other operand would make a static a
- * first-class value, which no graph may.
  * @type {(a: Analysis, root?: number) => string | null}
  */
-const bindingError = ({ root: top, nodes, scope }, root = -1) => {
-    /** @type {(operand: Operand) => boolean} */
-    const isStaticRef = operand => operand instanceof Array && nodes[operand[1]][0] === 'static'
-    if (root === -1 && isStaticRef(top)) { return 'a static function outside a call' }
+const bindingError = ({ nodes, scope }, root = -1) => {
     for (const [i, node] of nodes.entries()) {
         if (root !== -1 && !withinScope(scope, root, i)) { continue }
-        if (operandsOf(node).some((operand, k) => isStaticRef(operand) && !(node[0] === '()' && k === 0))) {
-            return 'a static function outside a call'
-        }
-        if (node[0] === 'static' && !isStatic(node[1])) { return 'a static function not admitted' }
         const owner = scope[i] === -1 ? null : nodes[scope[i]]
         if (node[0] === 'args' && owner !== null) { return 'module args in a function' }
         if (node[0] === 'rest' && owner === null) { return 'the arguments outside a function' }

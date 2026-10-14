@@ -150,8 +150,8 @@ sequenceDiagram
     L->>T: method(receiver, "map")
     T-->>L: None, once map has a body
     L->>A: runtime_method("Array", "map")
-    A->>R: module::<A>()
-    R-->>A: the export object
+    A->>R: module::<A>(), on the thread's first lookup
+    R-->>A: the export's runtime object, held from then on
     A-->>L: the closure under runtime.member.Array.map
     L->>L: body.call([receiver, ...args])
     L-->>M: the answer, or Err(thrown)
@@ -162,32 +162,37 @@ receiver's own property, the native table in `vm/lambda/method.rs`, the
 runtime, the `TypeError` for calling `undefined` — and the `?.()` guard
 asks the same lookup to decide whether a callee exists.
 
-**A static call has no receiver and no guard.** The EDAG spells
-`Object.is` as the callee `['static', ['Object', 'is']]`, and the Rust
-backend prints it as `static_binding::<A>(&["Object", "is"])?`:
-`nanvm-lib` asks `IVm::runtime_static` for the path, which `naive`
-answers by reading the compiled object's `static` section, and fails
-naming the path where nothing is bound. The parser admitted the path, so
-a missing binding is the VM's failure, never the `TypeError` of calling
-`undefined`; the represented interpreter fails with the same message,
-reading its context's runtime through `functionAt`. NaNVM keeps no native
-static table, and its completeness test checks every path
+**A static function is a value with no receiver.** The EDAG spells
+`Object.is` as the value `['Object.is']`, and the Rust backend prints it
+as `static_binding::<A>(&["Object", "is"])?`: `nanvm-lib` asks
+`IVm::runtime_static` for the path, which `naive` answers by reading the
+compiled object's `static` section, and fails naming the path where
+nothing is bound. The parser admitted the name, so a missing binding is
+the VM's failure, never `undefined`; the represented interpreter fails
+with the same message, reading its context's runtime through
+`functionAt`. Every read answers one function, as in JavaScript, since
+`naive` holds the runtime object, below: `Object.is === Object.is`, in
+one invocation or two, which `nanvm/harness/fixtures/object-is.mjs`
+checks on NaNVM against the interpreter. NaNVM keeps no native static
+table, and its completeness test checks every path
 [`../static`](../static/module.f.js) admits is bound.
 
 **The VM type binds the runtime.** `IVm::runtime_method` is a method on
 the type, with no instance and no argument carrying a runtime, so which
 runtime a VM has is decided by its `impl`: `naive` answers with
-`vm/runtime.rs`, which evaluates `gen.runtime.rs` — included into the
-crate by `#[path]`, which is why the generated file says
+`vm/runtime.rs`, whose `runtime_object` evaluates `gen.runtime.rs` —
+included into the crate by `#[path]`, which is why the generated file says
 `use nanvm_lib::…` and the crate declares `extern crate self as nanvm_lib`
-— and reads the entry for the type and the key; a VM that leaves the
-default binds nothing, and answers a body's name with the `TypeError` a VM
-that binds nothing should. Linked in at build time, then, but not a
-`static` value: the bound function builds the object when asked, and today
-every answered call evaluates the whole module. That is the measurement
-the design's task list names; `naive` holding the evaluated object in a
-`thread_local`, or an index from type and key to the closures, changes
-nothing generated and nothing in the trait.
+— and whose lookups read the entry for the type and the key from that
+object; a VM that leaves the default binds nothing, and answers a body's
+name with the `TypeError` a VM that binds nothing should. Linked in at
+build time, then, but not a Rust `static`: a value is an `Rc`, which no
+`static` can hold, so `naive` evaluates the object on a thread's first
+lookup and holds it in a `thread_local` from then on. Holding it is what
+makes a body one function, however often it is read — `Object.is` is a
+value a module compares — and it costs one evaluation per thread, where
+evaluating per lookup cost one per call. An index from type and key to the
+closures would change nothing generated and nothing in the trait.
 
 Three places the binding could have lived, and why this one:
 
@@ -204,9 +209,9 @@ Three places the binding could have lived, and why this one:
   helper, as `startsWith` has `position`, is a closure with a frame, and
   a frame is a VM array, an allocated value.
 
-The decision is in one `impl`, three lines in `naive`, and a VM that
-wants a different runtime, a cached one, or a native implementation of a
-name that has a body, changes only that.
+The decision is in one `impl`, a few lines in `naive`, and a VM that
+wants a different runtime, one held another way, or a native
+implementation of a name that has a body, changes only that.
 
 ## Two invariants
 
@@ -226,13 +231,16 @@ cycle:
   runtime as an input, as the executors do, and folds nothing a body
   answers when given none, so the runtime is always compiled with no
   runtime, whatever the pass does elsewhere.
-- **No initializer in the runtime's closure calls a member function.**
-  The module builds closures and nothing else, and so does every module it
-  imports, transitively — a helper shared with the rest of `fjs/` must hold
-  this too, or be inlined — so the runtime can be interpreted from nothing.
-  Loading it from source relies on exactly that: `runtimeAt` interprets it
-  under `noRuntime`, so a member call in any initializer of the closure
-  fails the load rather than passing unnoticed.
+- **No initializer in the runtime's closure calls a member function or
+  reads a static function.** The module builds closures and nothing else,
+  and so does every module it imports, transitively — a helper shared with
+  the rest of `fjs/` must hold this too, or be inlined — so the runtime can
+  be interpreted from nothing. Loading it from source relies on exactly
+  that: `runtimeAt` interprets it under `noRuntime`, so a member call or a
+  static read in any initializer of the closure fails the load rather than
+  passing unnoticed. `naive` relies on it too: the object it holds is
+  evaluated inside its own first lookup, which a lookup during the
+  evaluation would re-enter.
 
 ## Giving a name its body
 

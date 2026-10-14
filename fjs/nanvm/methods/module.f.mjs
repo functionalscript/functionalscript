@@ -139,8 +139,8 @@ const table = (name, doc, pairs) => [
 
 /**
  * The admitted static paths as Rust, each a slice of keys: what the VM must
- * bind, natively or through its runtime, for every static call the parser
- * admits.
+ * bind, natively or through its runtime, for every static function the
+ * parser admits.
  *
  * @type {() => readonly string[]}
  */

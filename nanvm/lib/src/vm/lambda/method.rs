@@ -622,7 +622,8 @@ mod tests {
     }
 
     /// Every static path the parser admits is bound, natively or by the
-    /// runtime: a static call never reaches a VM that cannot answer it.
+    /// runtime: a static function is never read on a VM that cannot answer
+    /// it.
     /// NaNVM keeps no native static table, so there is no reverse walk.
     #[test]
     fn static_completeness() {

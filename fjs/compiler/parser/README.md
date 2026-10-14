@@ -234,6 +234,16 @@ the fold's:
   Guarded calls, standalone references, and namespace members are refused
   as reserved-word uses. A key or property name remains ordinary,
   `{ String: 1 }.String` being valid;
+- the reserved global `Object`, bound or referenced anywhere but as the
+  namespace of `Object.is` or in the `entry` helper below
+  ([spec: built-in static functions](../../../spec/README.md#built-in-static-functions)).
+  The read of `Object.is`, in either key spelling and guarded or not, is
+  the AST's value `['Object.is']`, a chain's steps after it going on over
+  that value; an object pattern over the bare word reads each key as that
+  access does, so `const { is } = Object;` is `const is = Object.is;` and
+  the namespace, no value, is never resolved. Any other member, a computed
+  key, the word alone and any other pattern over it are refused as
+  reserved-word uses;
 - an import attribute other than `type: "json"`, the one JavaScript defines,
   read from the key's and the value's words;
 - a body `const` that takes a name the body already binds, its parameter
@@ -289,15 +299,10 @@ the fold's:
   `Object.getOwnPropertyDescriptor` answers for them and returns the value
   an enumerable one holds — under any three distinct names, the keys in
   either spelling, with or without its semicolons where JavaScript inserts
-  them, and only where no scope binds `Object`, a parameter, a `const` or
-  the function's own name of that word being JavaScript's own reading — is
-  the AST's `['entry']`. A function that is not the helper, by shape or by
-  binding, is resolved as every function is, where the `Object` nothing
-  binds is `const not found` as any unbound word is. The helper's read of
-  `Object` is remembered in every scope out to the module's, as a body
-  remembers a word it has read from outside: a `const Object` after the
-  helper, in any of them, is `capture shadowed`, since JavaScript would
-  have resolved the helper's `Object` to it.
+  them — is the AST's `['entry']`; `Object` is reserved, so no scope binds
+  the word and the shape alone decides. A function that is not the helper,
+  by shape or by its names, is resolved as every function is, where
+  `Object` is refused as the reserved word it is.
 
 The fold is where a symbol table already exists, because turning an identifier
 into `['cref', n]` or `['aref', n]` *is* the lookup. Do not contort the grammar

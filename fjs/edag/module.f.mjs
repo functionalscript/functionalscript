@@ -58,7 +58,6 @@ import {
  *  typeof func,
  *  typeof arg,
  *  typeof frame,
- *  typeof staticFunction,
  * ]}
  */
 export const _exp = () => (['or',
@@ -79,7 +78,6 @@ export const _exp = () => (['or',
     func,
     arg,
     frame,
-    staticFunction,
 ])
 
 /** @type {Phantom<typeof _exp, Exp>} */
@@ -149,19 +147,6 @@ export const arg = /** @type {const} */ (['arg', number])
  * value the body can name.
  */
 export const frame = /** @type {const} */ (['frame', number])
-/**
- * A static function, as a value: the function the runtime's `static`
- * section holds at `path`, the keys `../js/static` admits it under —
- * `['static', ['Object', 'is']]` is `Object.is`. The path is metadata, as
- * `arg`'s index is, not an operand. It captures nothing, and it is valid
- * only as the callee of a `()` node: no graph makes a static a
- * first-class value, so its identity is never observable and two
- * occurrences of one path merge, unlike `entry`'s. The analysis
- * checks the path is admitted and the placement; this schema checks the
- * tuple's shape. An executor answers it from its own native binding or
- * from the runtime its context carries, and with neither it fails.
- */
-export const staticFunction = /** @type {const} */ (['static', rttiArray(string)])
 
 // Spread
 
@@ -551,9 +536,9 @@ export const comma = /** @type {const} */ ([',', exps])
 /**
  * `op0`/`op1`/`op2` group operation nodes by their `exp`-operand count —
  * zero, one, or two. `undefined`, module imports (`args`), invocation
- * rest (`rest`), the owning function itself (`self`) and the `entry`
- * helper (`entry`) have no expression
- * operands. `self` is the function whose body holds it, as a value — the
+ * rest (`rest`), the owning function itself (`self`), the `entry`
+ * helper (`entry`) and the static function `Object.is` (`Object.is`) have
+ * no expression operands. `self` is the function whose body holds it, as a value — the
  * same value every read, so recursion is `['()', ['self'], args]` and a
  * nested function captures its parent's `self` as a slot — and it is what
  * keeps a recursive function an acyclic graph: without it a function would
@@ -584,8 +569,18 @@ export const comma = /** @type {const} */ ([',', exps])
  * for the helper written in source, and the writer spells it back as the
  * helper and no other way: the source has no other spelling of a key
  * computed at run time.
+ *
+ * `Object.is` is the static function of that name, as a value: the
+ * function the runtime's `static` section holds at `['Object', 'is']`,
+ * the path `../js/static` admits it under, capturing nothing and called
+ * as any function is, `['()', ['Object.is'], [a, b]]`. Unlike `entry` it
+ * is one function, not fresh where it is established — `Object.is ===
+ * Object.is` holds in JavaScript — so two occurrences merge, and an
+ * executor answers the same function on every read: its own native
+ * binding, or the body the runtime its context carries holds, and with
+ * neither it fails naming the path rather than answer.
  */
-export const op0Id = or('undefined', 'args', 'rest', 'self', 'entry')
+export const op0Id = or('undefined', 'args', 'rest', 'self', 'entry', 'Object.is')
 
 export const op0 = /** @type {const} */ ([op0Id])
 
