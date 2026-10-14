@@ -43,6 +43,17 @@ const position = (value, length) => {
     return p < 0 ? 0 : p > length ? length : p - p % 1
 }
 
+/**
+ * Whether `s` is the substring of `self` at `start`, a position already
+ * clamped into it. An empty `s` is found anywhere, past the end included.
+ *
+ * @type {(self: string, s: string, start: number) => boolean}
+ */
+const found = (self, s, start) => {
+    const end = start + s.length
+    return end > self.length ? false : self.slice(start, end) === s
+}
+
 /** The table: a type, then a name, then the body. */
 export const runtime = {
     string: {
@@ -50,16 +61,14 @@ export const runtime = {
          * [`String.prototype.startsWith`](https://tc39.es/ecma262/#sec-string.prototype.startswith):
          * whether `ToString(search)` occurs at `position`, clamped into the
          * string. The search string is converted before the position, as
-         * the algorithm orders them, and an empty one is found anywhere,
-         * past the end included.
+         * the algorithm orders them, and either conversion can throw — a
+         * search whose own `toString` throws, a bigint position — so the
+         * order is observable. The two are a call's arguments, which every
+         * executor evaluates left to right; two `const`s would be evaluated
+         * as the result demands them, the position first.
          *
          * @type {(self: string, search: unknown, at: unknown) => boolean}
          */
-        startsWith: (self, search, at) => {
-            const s = String(search)
-            const start = position(at, self.length)
-            const end = start + s.length
-            return end > self.length ? false : self.slice(start, end) === s
-        },
+        startsWith: (self, search, at) => found(self, String(search), position(at, self.length)),
     },
 }

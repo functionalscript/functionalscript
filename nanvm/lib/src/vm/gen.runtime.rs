@@ -5,11 +5,23 @@ use nanvm_lib::vm::{Any, Array, IStaticFunction, Nullish, ToAny, ToArray, ToObje
 
 #[rustfmt::skip]
 pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
-    let c0: Any<A> = A::static_function(|_self, args| { args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()) - f64_any(0x0000000000000000) }, 1, Array::default(), Some("($0)=>$0-0")).to_any();
-    let c1: Any<A> = A::static_function(|_self, args| { strict_ne(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any())) }, 1, Array::default(), Some("($0)=>$0!==$0")).to_any();
-    let c2: Any<A> = [(string_key("isNaN_"), c1)].to_object().to_any();
-    let c3: Any<A> = Any::dot(c2, string_any("isNaN_")).end()?;
-    let c4: Any<A> = A::static_function(|self_, args| {
+    let c0: Any<A> = A::static_function(|_self, args| {
+        let c0: Any<A> = Any::dot(args.clone().into_iter().nth(1).unwrap_or_else(|| Nullish::Undefined.to_any()), string_any("length")).end()?;
+        let c1: Any<A> = (args.clone().into_iter().nth(2).unwrap_or_else(|| Nullish::Undefined.to_any()) + c0)?;
+        let c2: Any<A> = Any::dot(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), string_any("length")).end()?;
+        let c3: Any<A> = (Any::gt(c1.clone(), c2))?;
+        let c4 = || {
+            let c5 = || Ok([args.clone().into_iter().nth(2).unwrap_or_else(|| Nullish::Undefined.to_any()), c1.clone()].to_array().to_any());
+            let c6: Any<A> = Any::dot(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), string_any("slice")).end_call(c5)?;
+            strict_eq(c6, args.clone().into_iter().nth(1).unwrap_or_else(|| Nullish::Undefined.to_any()))
+        };
+        Any::conditional(c3, || Ok(false.to_any()), c4)
+    }, 3, Array::default(), Some("($0,$1,$2)=>$2+$1.length>$0.length?false:$0.slice($2,$2+$1.length)===$1")).to_any();
+    let c1: Any<A> = A::static_function(|_self, args| { args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()) - f64_any(0x0000000000000000) }, 1, Array::default(), Some("($0)=>$0-0")).to_any();
+    let c2: Any<A> = A::static_function(|_self, args| { strict_ne(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any())) }, 1, Array::default(), Some("($0)=>$0!==$0")).to_any();
+    let c3: Any<A> = [(string_key("isNaN_"), c2)].to_object().to_any();
+    let c4: Any<A> = Any::dot(c3, string_any("isNaN_")).end()?;
+    let c5: Any<A> = A::static_function(|self_, args| {
         let c0: Any<A> = Any::call(A::frame(self_)[0].clone(), [args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any())].to_array().to_any())?;
         let c1: Any<A> = Any::call(A::frame(self_)[1].clone(), [c0.clone()].to_array().to_any())?;
         let c2: Any<A> = (Any::conditional(c1, || Ok(f64_any(0x0000000000000000)), || Ok(c0.clone())))?;
@@ -23,23 +35,14 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
             Any::conditional(c5, || Ok(args.clone().into_iter().nth(1).unwrap_or_else(|| Nullish::Undefined.to_any())), c6)
         };
         Any::conditional(c3, || Ok(f64_any(0x0000000000000000)), c4)
-    }, 2, [c0, c3].to_array(), Some("($2,$3)=>{const $4=$0($2);const $5=$1($4);const $6=$5?0:$4;return $6<0?0:$6>$3?$3:$6-$6%1;}")).to_any();
-    let c5: Any<A> = A::static_function(|self_, args| {
-        let c0: Any<A> = Any::dot(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), string_any("length")).end()?;
-        let c1: Any<A> = Any::call(A::frame(self_)[0].clone(), [args.clone().into_iter().nth(2).unwrap_or_else(|| Nullish::Undefined.to_any()), c0].to_array().to_any())?;
-        let c2: Any<A> = (args.clone().into_iter().nth(1).unwrap_or_else(|| Nullish::Undefined.to_any()).to_string().map(|v| v.to_any()))?;
-        let c3: Any<A> = Any::dot(c2.clone(), string_any("length")).end()?;
-        let c4: Any<A> = (c1.clone() + c3)?;
-        let c5: Any<A> = Any::dot(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), string_any("length")).end()?;
-        let c6: Any<A> = (Any::gt(c4.clone(), c5))?;
-        let c7 = || {
-            let c8 = || Ok([c1.clone(), c4.clone()].to_array().to_any());
-            let c9: Any<A> = Any::dot(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), string_any("slice")).end_call(c8)?;
-            strict_eq(c9, c2.clone())
-        };
-        Any::conditional(c6, || Ok(false.to_any()), c7)
-    }, 3, [c4].to_array(), Some("($1,$2,$3)=>{const $4=$0($3,$1.length);return $4+String($2).length>$1.length?false:$1.slice($4,$4+String($2).length)===String($2);}")).to_any();
-    let c6: Any<A> = [(string_key("startsWith"), c5)].to_object().to_any();
-    let c7: Any<A> = [(string_key("string"), c6)].to_object().to_any();
-    Ok([(string_key("runtime"), c7)].to_object().to_any())
+    }, 2, [c1, c4].to_array(), Some("($2,$3)=>{const $4=$0($2);const $5=$1($4);const $6=$5?0:$4;return $6<0?0:$6>$3?$3:$6-$6%1;}")).to_any();
+    let c6: Any<A> = A::static_function(|self_, args| {
+        let c0: Any<A> = (args.clone().into_iter().nth(1).unwrap_or_else(|| Nullish::Undefined.to_any()).to_string().map(|v| v.to_any()))?;
+        let c1: Any<A> = Any::dot(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), string_any("length")).end()?;
+        let c2: Any<A> = Any::call(A::frame(self_)[1].clone(), [args.clone().into_iter().nth(2).unwrap_or_else(|| Nullish::Undefined.to_any()), c1].to_array().to_any())?;
+        Any::call(A::frame(self_)[0].clone(), [args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), c0, c2].to_array().to_any())
+    }, 3, [c0, c5].to_array(), Some("($2,$3,$4)=>$0($2,String($3),$1($4,$2.length))")).to_any();
+    let c7: Any<A> = [(string_key("startsWith"), c6)].to_object().to_any();
+    let c8: Any<A> = [(string_key("string"), c7)].to_object().to_any();
+    Ok([(string_key("runtime"), c8)].to_object().to_any())
 }

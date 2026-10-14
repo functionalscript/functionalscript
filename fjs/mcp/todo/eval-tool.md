@@ -12,11 +12,15 @@ read the result back. That needs a shell, and the server exists so an agent
 does not need one.
 
 The compiler and interpreter are now connected.
-[`compiler/transpiler.interpret(path)`](../../compiler/transpiler/module.f.mjs)
+[`compiler/transpiler.interpret(load)(path)`](../../compiler/transpiler/module.f.mjs)
 loads dependencies, lowers each module with `unresolved`, and initializes its
-complete represented export object through [Memo](../../edag/memo/module.f.mjs).
-Its `_transpileDefault` selects the default only after initialization and decodes
-it with `toData` for JSON/DataJS output. Calls, operators and callbacks already
+complete represented export object through [Memo](../../edag/memo/module.f.mjs)
+under the runtime `load` answers — the package's
+[`fjs/js/runtime`](../../js/runtime/README.md), whose bodies answer the
+member functions the interpreter has no native implementation of, or
+`noRuntime`, under which a module calling one fails to initialize.
+Its `_transpileDefault(load)` selects the default only after initialization and
+decodes it with `toData` for JSON/DataJS output. Calls, operators and callbacks already
 compute data; `export default 2 + 2;` no longer fails with the historical
 `an operator has no value` refusal. See `callsAndOperators`,
 `projectBeforeMaterializing` and `unusedInitialization` in the
@@ -25,8 +29,8 @@ proofs in [`compiler/proof.f.mjs`](../../compiler/proof.f.mjs).
 
 The MCP tool remains unimplemented: the
 [server registry](../module.f.mjs) still contains only CAS and Evo tools.
-`interpret(path)` is an effectful file/dependency loader, not a pure source-text
-API. The compiler already exposes pure
+`interpret(load)(path)` is an effectful file/dependency loader, not a pure
+source-text API. The compiler already exposes pure
 [`source.parse(path)(text)`](../../compiler/source/module.f.mjs) and
 [`edag.unresolved(module)`](../../compiler/edag/module.f.mjs); the reusable
 text-evaluation entry and its MCP response/error contract are remaining work.
@@ -64,7 +68,9 @@ text
        -> refuse any import
        -> unresolved(module).edag (compiler/edag)
        -> analysis                (edag/analysis)
-       -> memo(...)({ args: [] })  (complete represented module exports)
+       -> memo(...)({ args: [], runtime })  (complete represented module exports,
+                                          under the package's runtime, which the
+                                          tool loads once as `fjs compile` does)
        -> read "default"          (edag/value/property)
        -> toData                  (edag/value/to_unknown)
        -> tryJsonStringify)       (media/datajs/serializer)
@@ -89,8 +95,8 @@ This also keeps the tool within the server's
 An import specifier is a path the client names, and resolving one would read a
 local file. Supporting imports later needs a resolution that stays inside that
 invariant, such as modules named by CAS hash. Neither the effectful
-`interpret(path)` nor `edag.resolve(path)` is an appropriate source-text entry
-for this tool.
+`interpret(load)(path)` nor `edag.resolve(path)` is an appropriate source-text
+entry for this tool.
 
 **Language failures and host failures are separate.** Memo returns
 `Result<EdagValue, EdagValue>`; `null.x` is a represented failure with the
