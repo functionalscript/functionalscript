@@ -1,7 +1,7 @@
 ## string-numeric-literal-scanner. One `StringNumericLiteral` scanner for `StringToNumber` and `StringToBigInt`
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
