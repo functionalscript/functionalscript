@@ -10,7 +10,6 @@
  * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
-
 /** @type {(i: number) => boolean} */
 const isIndexValue = i => Number.isInteger(i) && 0 <= i && i <= 2 ** 32 - 2
 

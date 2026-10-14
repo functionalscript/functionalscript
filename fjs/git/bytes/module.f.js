@@ -12,7 +12,6 @@
  * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
-
 /**
  * The unsigned big-endian 32-bit word at `at`, read as arithmetic rather than
  * with shifts.

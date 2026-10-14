@@ -15,19 +15,19 @@ FunctionalScript, and names its second step without designing it: "the
 static-function table — the same split, keyed by global and name". Three
 things wait on that step.
 
-The language admits no static function. `Number` and `String` are the
-conversions alone, and every other member of a global is refused —
-`Number.isInteger` as a `reserved word`, `Object.is` as an unbound name
-(`const not found`), since `Object` is not reserved yet. Authored modules
-spell what they need as imported helpers
-([`doc/CONVERTING.md` §2](../../../doc/CONVERTING.md#2-numberisinteger)):
-`is` in `fjs/types/object/is` for `Object.is`, `isInteger` in
+When this was proposed, the language admitted no static function.
+`Number` and `String` were the conversions alone, and every other member
+of a global was refused — `Number.isInteger` as a `reserved word`,
+`Object.is` as an unbound name (`const not found`), since `Object` was not
+reserved yet. Authored modules spelled what they needed as imported
+helpers: `is` in `fjs/types/object/is` for `Object.is`, `isInteger` in
 `fjs/types/number/is_integer` for `Number.isInteger`,
 [`bigint`](../../types/bigint/from_number/module.f.js) for `BigInt(n)`.
-The helpers are the right answer for a module and the right body for the
-runtime: an admitted `Object.is` that did not reuse `is` would be a second
-implementation of SameValue, free to drift from the first, which is what
-the runtime exists to prevent.
+Each helper was the right body for the runtime: an admitted `Object.is`
+that did not reuse `is` would have been a second implementation of
+SameValue, free to drift from the first, which is what the runtime exists
+to prevent — so the helpers became the bodies, and moved into the runtime
+once the built-ins were admitted.
 
 The casing pair, `toLowerCase` and `toUpperCase`, stays native because no
 body can build a string from a code unit: `String.fromCharCode` is a

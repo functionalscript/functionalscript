@@ -27,10 +27,12 @@ Three things hold for every rule:
   the compiler recognizes, once its use is understood. Until then the
   function is what it spells, a function like any other the compiler
   compiles, and the EDAG and the VM may have no node for it; a module that
-  imports it depends on nothing but the module. Once the language takes it
-  in, its body moves into the runtime, a VM's and no module's, and modules
-  call the built-in: `Object.is` and the `Number` predicates did (rules 2–4
-  and 6).
+  imports it depends on nothing but the module. A helper that stood in for
+  a JavaScript built-in moves into the runtime once the language admits
+  that built-in, its body a VM's and no module's, and modules call the
+  built-in: `Object.is`'s and the `Number` predicates' did (rules 2–4 and
+  6). A helper the compiler recognizes by its shape, as `entry`, stays the
+  module it is.
 - **The value is preserved.** FunctionalScript is a subset of JavaScript, and
   a converted module is still JavaScript: it must compute what it computed
   before, in both languages. A rewrite that changes a result is a change to

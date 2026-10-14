@@ -6,7 +6,6 @@
  * @module
  */
 
-
 /**
  * The bigint of a non-negative integral number, bit by bit from the lowest:
  * a round takes the lowest bit of the rest, `rest % 2`, exact on an integral
