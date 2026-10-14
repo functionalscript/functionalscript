@@ -1,7 +1,7 @@
 ## name-and-scope-modules. `refstore` is a name codec, a scope policy and a walk in one file
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
