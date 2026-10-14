@@ -52,6 +52,7 @@
  * @import { _Cursor, _Failure, _Kind, _Lexed, _Lexeme, _StringDecodeState, _TemplateContext, _TemplateDecode, _Trivia } from './private.ts'
  */
 import { assert } from '../../asserts/module.f.mjs'
+import { unmapped, variant } from '../../ebnf/ast/module.f.mjs'
 import { parser } from '../../ebnf/ll1/module.f.mjs'
 import { lineTerminators, mergeTrivia, templateContinuation, token } from '../../ebnf/lib/js/module.f.mjs'
 import { isKeyword } from '../keywords/module.f.js'
@@ -73,24 +74,6 @@ const parseToken = parser(token)
 const parseTemplateContinuation = parser(templateContinuation)
 
 /**
- * A variant's node, read untyped: its tag and the branch's node. The tree
- * is the grammar's by construction, so a shape that is not a variant's is
- * a broken invariant, not bad input.
- *
- * @type {(node: unknown) => readonly [string, unknown]}
- */
-const branch = node => {
-    assert(node instanceof Array && node.length === 2 && typeof node[0] === 'string', node)
-    return [node[0], node[1]]
-}
-
-/** @type {(node: unknown) => readonly unknown[]} */
-const items = node => {
-    assert(node instanceof Array, node)
-    return node
-}
-
-/**
  * Whether a block comment's content, the node after its `/*`, reached the
  * `*​/` that closes it before the input ended. Each node is a `*` and what
  * follows it, or another symbol and more content, or the end: `end` after
@@ -102,11 +85,11 @@ const items = node => {
 const closed = content => {
     let node = content
     for (;;) {
-        const [tag, rest] = branch(node)
+        const [tag, rest] = variant(node)
         switch (tag) {
             case 'end': { return true }
             case 'unterminated': { return false }
-            default: { node = items(rest)[1] }
+            default: { node = unmapped(rest)[1] }
         }
     }
 }
@@ -116,11 +99,11 @@ const closed = content => {
 const templateClosed = content => {
     let node = content
     for (;;) {
-        const [tag, rest] = branch(node)
+        const [tag, rest] = variant(node)
         switch (tag) {
             case 'end': { return true }
             case 'substitution': { return false }
-            default: { node = items(rest)[1] }
+            default: { node = unmapped(rest)[1] }
         }
     }
 }
@@ -134,15 +117,15 @@ const templateClosed = content => {
  * @type {(node: unknown) => readonly [_Kind, boolean]}
  */
 const kindOf = node => {
-    const [tag, child] = branch(node)
+    const [tag, child] = variant(node)
     if (tag === 'template') {
-        return [templateClosed(items(child)[1]) ? 'noSubstitutionTemplate' : 'templateHead', true]
+        return [templateClosed(unmapped(child)[1]) ? 'noSubstitutionTemplate' : 'templateHead', true]
     }
     if (tag !== 'slash') { return [/** @type {_Kind} */ (tag), true] }
-    const [sub, rest] = branch(items(child)[1])
+    const [sub, rest] = variant(unmapped(child)[1])
     switch (sub) {
         case 'oneline': { return ['comment', true] }
-        case 'multiline': { return ['comment', closed(items(rest)[1])] }
+        case 'multiline': { return ['comment', closed(unmapped(rest)[1])] }
         default: { return ['operator', true] }
     }
 }
@@ -228,7 +211,7 @@ const lex = path => cp => {
         const [node, end] = match[1]
         const text = cp.slice(pos, end)
         const [kind, ok] = continuation
-            ? /** @type {const} */ ([templateClosed(items(node)[1]) ? 'templateTail' : 'templateMiddle', true])
+            ? /** @type {const} */ ([templateClosed(unmapped(node)[1]) ? 'templateTail' : 'templateMiddle', true])
             : kindOf(node)
         if (kind === 'templateHead') {
             templates = [...templates, { braces: 0, start: metadata }]

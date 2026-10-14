@@ -5,7 +5,10 @@
  * the rule at that position, so its shape is the rule's by construction.
  * {@link unmapped} asserts the second where a mapping knows a position is
  * scaffolding nothing mapped, and {@link symbolAt} the first where it
- * expects a symbol. `./README.md` holds the argument.
+ * expects a symbol. {@link variant} is {@link unmapped} for a reader that
+ * walks a tree untyped and knows the position is a variant's: it asserts
+ * the `[tag, node]` shape the type would otherwise have said.
+ * `./README.md` holds the argument.
  *
  * @module
  *
@@ -18,13 +21,29 @@ import { assert } from '../../asserts/module.f.mjs'
  * The node at a position no mapping filled: an array the machine built, so
  * its shape is the rule's. The one test a mapping makes where it knows a
  * position is unmapped — the scaffolding a combinator builds and hands to
- * nobody.
+ * nobody. A reader that walks a tree untyped, holding `unknown`, gets
+ * the node as `readonly unknown[]`.
  *
- * @type {<T extends readonly unknown[]>(node: T | Meta<unknown>) => T}
+ * @type {{
+ *     <T extends readonly unknown[]>(node: T | Meta<unknown>): T
+ *     (node: unknown): readonly unknown[]
+ * }}
  */
-export const unmapped = node => {
+export const unmapped = (/** @type {unknown} */ node) => {
     assert(node instanceof Array)
     return node
+}
+
+/**
+ * The node of a variant at a position no mapping filled, read untyped: its
+ * tag and the branch's node. The tree is the grammar's by construction, so
+ * a shape that is not a variant's is a broken invariant, not bad input.
+ *
+ * @type {(node: unknown) => readonly [string, unknown]}
+ */
+export const variant = node => {
+    assert(node instanceof Array && node.length === 2 && typeof node[0] === 'string')
+    return [node[0], node[1]]
 }
 
 /**
