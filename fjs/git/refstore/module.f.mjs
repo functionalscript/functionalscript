@@ -6,8 +6,10 @@
  * has no effects. This module finds and opens the files, which is the half
  * that needs a filesystem, and it is where every rule lives that no reader of
  * a single file can decide: which of two files holding the same name wins,
- * when a symbolic ref stops being followed, how a name and a path spell each
- * other, and which names a target may take.
+ * when a symbolic ref stops being followed, and which names a target may take.
+ * The two such rules that need no filesystem are its private siblings: how a
+ * name and a path spell each other is [`./name`](./name/module.f.mjs), and
+ * which directory a name's file sits in is [`./scope`](./scope/module.f.mjs).
  *
  * Every rule below was measured against Git 2.43.0 rather than read off a
  * manual page.
@@ -83,19 +85,14 @@
  * it, and nothing in these effects can see where a link points.
  *
  * **A ref name is bytes and a path is text, joined by UTF-8 in both
- * directions.** A directory entry called `é` is the name `0xC3 0xA9`, and that
- * name reads back as the path `é`. Reading a byte as a code point instead
- * spells the same name `Ã©`, which is a file no repository has — so the
- * listing and the lookup would disagree about one ref, each right about its
- * own half.
- *
- * The join is lossless only for a name that *is* UTF-8, and Git requires no
- * such thing: `refs/heads/\x80` is a name `git check-ref-format` accepts and
- * `rev-parse` resolves, measured. Such a name can only arrive here in a
- * `packed-refs` line, which never becomes a path, and **the two halves answer it
- * differently on purpose**. {@link tryRoots} lists it: the walk read every entry
- * of `refs/` and would have refused a file it could not name, so it knows no
- * loose file shadows that line. {@link tryResolve} answers `null`: it does not
+ * directions**, and [`./name`](./name/module.f.mjs) is that join. It is lossless
+ * only for a name that *is* UTF-8, and Git requires no such thing —
+ * `refs/heads/\x80` is a name Git accepts and resolves, measured there. Such a
+ * name can only arrive here in a `packed-refs` line, which never becomes a path,
+ * and **the two halves answer it differently on purpose**. {@link tryRoots}
+ * lists it: the walk read every entry of `refs/` and would have refused a file
+ * it could not name, so it knows no loose file shadows that line.
+ * {@link tryResolve} answers `null`: it does not
  * look, and no path can be built to ask whether a loose file of that name is
  * there, so the packed id would be a stale answer in exactly the state this host
  * cannot observe. A *loose* file of the name is unreachable either way, because
@@ -184,9 +181,9 @@
  *
  * **Writing and deleting a ref are [`./write`](./write/module.f.mjs)**, which
  * holds `tryWrite` and `tryDelete`, the codes they refuse with, and the
- * measurements behind each. They share this module's name rules — which
- * directory a name belongs to, how its path is spelled, which names are refused
- * — and those are exported for them rather than written twice.
+ * measurements behind each. They share this module's name rules, and none is
+ * written twice: both halves import `./name` and `./scope`, and the reads and
+ * the refusal codes they share are exported from here.
  *
  * @module
  *
@@ -198,52 +195,20 @@
  * @import { Bytes, Oid, OidBytes } from '../types.ts'
  * @import { PackedRef, Ref } from '../ref/types.ts'
  * @import { Dirs, Root } from './types.ts'
- * @import { _Entry, _Found, _Lookup, _Scope, _Walked } from './private.ts'
+ * @import { _Entry, _Found, _Lookup, _Walked } from './private.ts'
+ * @import { _Scope } from './scope/types.ts'
  */
 
 import { catchStep, foldStep, history, historyStep, mapStep, orElse, pureOk, refuse, step, walkStep } from '../../effects/module.f.mjs'
 import { isDirectory, isNotFound, leadsNowhere, readFile, readWholeBytes, readdir, stat } from '../../effects/node/module.f.mjs'
-import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { under } from '../../path/module.f.mjs'
-import { fromVec, stringToU8List } from '../../text/utf8/module.f.mjs'
-import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { occurrences } from '../../types/array/module.f.mjs'
-import { length, maxLengthBytes, u8ListMsb, u8ListToVecMsb, uint } from '../../types/bit_vec/module.f.mjs'
+import { u8ListMsb, uint } from '../../types/bit_vec/module.f.mjs'
 import { concat, sameItems, toArray } from '../../types/list/module.f.mjs'
 import { tryPacked, tryRef } from '../ref/module.f.mjs'
 import { hasRefComponents, isWholeName } from '../refname/module.f.mjs'
-
-
-/**
- * A ref name as the bytes Git stores it as, from the text a path is.
- *
- * A loose ref's name is a file name, which the host hands over as a string
- * because node decodes a directory entry as UTF-8. A `packed-refs` name
- * never leaves the byte world. Encoding back to UTF-8 here makes the two one
- * name, which is what lets a loose ref shadow a packed one, and it
- * round-trips for every name node decoded from valid UTF-8 bytes.
- *
- * @type {(s: string) => readonly number[]} */
-const nameBytes = s => toArray(stringToU8List(s))
-
-/**
- * A ref name as a string that stands for its bytes, for use as a key.
- *
- * One code unit per byte, which is **not** a decoding and never becomes a path —
- * {@link nameText} is the decoding, and it is UTF-8. This is only an injective
- * encoding: two names give the same key exactly when they are the same bytes, so
- * a `Map` or a `Set` over it answers what {@link sameItems} answers, in one
- * lookup rather than a pass per name.
- *
- * That matters at the size a repository reaches. Comparing every packed line
- * against every other is quadratic in the count and allocates a tail array per
- * line, where this is one pass and a lookup each: measured over 20,000 names,
- * the pairwise shape is two orders of magnitude slower, and `git pack-refs` on
- * a busy repository writes more lines than that.
- *
- * @type {(name: Bytes) => string}
- */
-const nameKey = name => codePointListToString(toArray(name))
+import { askable, head, headName, isUnderRefs, nameBytes, nameForMessage, nameKey } from './name/module.f.mjs'
+import { dirOf, sharedScope, worktreeScope } from './scope/module.f.mjs'
 
 /**
  * The bytes of a file, or `null` where there is no loose *file* at that name.
@@ -381,128 +346,6 @@ const packedId = (packed, name) => {
     return hits.length === 0 ? null : hits[hits.length - 1].id
 }
 
-/** The one ref name whose target Git constrains. */
-const head = /** @type {const} */ ('HEAD')
-
-/** The prefix `HEAD`'s target must carry. */
-export const refsPrefix = /** @type {const} */ ('refs/')
-
-/**
- * Whether a name is spelled the way Git spells a *pseudoref*: every character an
- * upper-case letter, `-` or `_`, and at least one of them.
- *
- * This is a rule about spelling and not a list of names, which an earlier
- * revision had it as — nine names Git's own documentation calls the ones the
- * rule is "usually useful" for. Measured on Git 2.43.0 by writing a different id
- * into each directory and asking a linked worktree:
- *
- * | name | both present | shared only | worktree only |
- * | --- | --- | --- | --- |
- * | `ORIG_HEAD` | the worktree's | no such ref | the worktree's |
- * | `BISECT_EXPECTED_REV` | the worktree's | no such ref | the worktree's |
- * | `MERGE_AUTOSTASH` | the worktree's | no such ref | the worktree's |
- * | `FOO_BAR`, `FOO-BAR`, `_FOO`, `FOO_`, `F` | the worktree's | no such ref | the worktree's |
- * | `FOO1`, `Foo`, `lowercase` | the shared one | the shared one | no such ref |
- *
- * So a name nobody has ever heard of is per worktree if it is spelled like one,
- * and a name with a digit in it is not. The last row is what makes it a syntax
- * rule rather than a longer list: `FOO1` differs from `FOO_BAR` only in a
- * character class.
- *
- * The other direction matters too. A pseudoref-shaped name is read from the
- * worktree's directory *only* — the shared-only column is "no such ref", not a
- * fallback — which is why {@link dirOf} chooses one directory rather than trying
- * both.
- *
- * @type {(text: string) => boolean}
- */
-const isPseudoref = text =>
-    text.length !== 0
-    && [...text].every(c => (c >= 'A' && c <= 'Z') || c === '-' || c === '_')
-
-/**
- * The prefixes under `refs/` that are per worktree.
- *
- * Not pseudorefs — they are lower-case and hold a `/` — and still the
- * worktree's: measured, a linked worktree answers its own `refs/bisect/good`,
- * and one left in the *shared* directory is invisible to that worktree
- * entirely. So "per worktree" is these two rules and neither alone.
- */
-const perWorktreePrefixes = /** @type {readonly string[]} */ ([
-    'refs/bisect/', 'refs/worktree/', 'refs/rewritten/',
-])
-
-/** @type {(text: string) => boolean} */
-const isPerWorktree = text =>
-    isPseudoref(text) || perWorktreePrefixes.some(p => text.startsWith(p))
-
-/** @type {(text: string) => boolean} */
-const isShared = text => !isPerWorktree(text)
-
-/**
- * The two walks of `refs/` divide the names between them, and a *directory* is
- * where that division has to be asked differently: `keep` is a rule about a
- * whole ref name, and a directory is a prefix of names that do not exist yet.
- *
- * `refs/bisect` is the case. It is not itself a per-worktree name — the rule is
- * the prefix `refs/bisect/`, with the slash — so the shared walk's `isShared`
- * says "mine" about the directory and "not mine" about every ref inside it. It
- * listed a subtree it then dropped whole, which is a `readdir` of a directory
- * this walk has no name to take from it, and a directory another worktree is
- * free to remove while a `git bisect reset` runs: a listing that fails there is
- * the channel's, so a lookup could fail over refs it would never have answered.
- *
- * So each walk carries a second rule, about a prefix rather than a name:
- *
- * - the shared walk descends unless **every** name under the prefix is per
- *   worktree, which is {@link holdsPerWorktreeOnly};
- * - the worktree's walk descends only where **some** name under it could be,
- *   which is {@link mayHoldPerWorktree} — so it no longer walks `refs/heads`
- *   and the rest of the tree to drop every leaf, and in a main worktree, where
- *   both walks read one directory, the tree is listed once rather than twice.
- *
- * The pseudoref half of {@link isPerWorktree} is no part of either: a walk that
- * starts at `refs` produces names holding a `/`, and those are never spelled
- * like a pseudoref.
- *
- * @type {(text: string) => boolean}
- */
-const holdsPerWorktreeOnly = text => perWorktreePrefixes.some(p => `${text}/`.startsWith(p))
-
-/** @type {(text: string) => boolean} */
-const mayHoldPerWorktree = text =>
-    perWorktreePrefixes.some(p => p.startsWith(`${text}/`) || `${text}/`.startsWith(p))
-
-/** What the walk of the shared directory owns: every name no worktree keeps for itself. */
-const sharedScope = /** @type {_Scope} */ ({
-    keep: isShared,
-    descend: text => !holdsPerWorktreeOnly(text),
-})
-
-/** And what a worktree's own walk owns: the per-worktree names, and nothing else. */
-const worktreeScope = /** @type {_Scope} */ ({
-    keep: isPerWorktree,
-    descend: mayHoldPerWorktree,
-})
-
-/**
- * Which of the two directories a name's loose file sits in.
- *
- * For a main worktree the answer is the same either way, since a caller passes
- * one directory twice. For a linked worktree it is the whole difference between
- * its own `HEAD` and the main worktree's — see {@link Dirs}.
- *
- * One directory and not both, because Git reads one: a pseudoref-shaped name
- * present only in the shared directory is no ref at all to a linked worktree,
- * measured — see {@link isPseudoref}.
- *
- * @type {(dirs: Dirs, text: string) => string}
- */
-export const dirOf = (dirs, text) => isPerWorktree(text) ? dirs.gitdir : dirs.common
-
-/** @type {(name: readonly number[]) => boolean} */
-const isUnderRefs = name => nameText(name)?.startsWith(refsPrefix) === true
-
 /**
  * Whether a ref read from the file called `text` is one Git allows to be there.
  *
@@ -532,51 +375,7 @@ const isUnderRefs = name => nameText(name)?.startsWith(refsPrefix) === true
  * @type {(text: string, r: Ref) => boolean}
  */
 const targetAllowed = (text, r) =>
-    r.kind !== 'symbolic' || text !== head || isUnderRefs(byteArray(r.target))
-
-/**
- * The text of a ref name, for the path its loose file sits at, or `null` where
- * the bytes are no UTF-8.
- *
- * Decoded as UTF-8 and not a byte per code point, which is the inverse of
- * {@link nameBytes} and has to be: a name of the two bytes `0xC3 0xA9` is the
- * one character `é` on the filesystem, and reading each byte as a code point
- * would ask the host for `Ã©` instead and miss the file. Bytes that are no
- * UTF-8 name no file node could have handed us, so they answer `null` rather
- * than a path built from replacement characters.
- *
- * `null` means *no path can be built*, not that the name is bad. A ref name is
- * bytes and Git takes any byte the name rule allows —
- * `git check-ref-format refs/heads/\x80` is accepted, and `show-ref` and
- * `rev-parse` both handle such a ref, measured. What cannot carry one is this
- * host's path: node reads a directory entry as UTF-8 with replacement, so the
- * same byte comes back as U+FFFD and a `readFile` of that string answers
- * `ENOENT`, measured. The consequence for a *lookup* is
- * {@link resolveWith}'s to state, and it is a refusal;
- * [`todo/byte-ref-names.md`](./todo/byte-ref-names.md) has the rest.
- *
- * **A name past `maxLengthBytes` is `null` too**, and the check has to come
- * before the conversion: `Bytes` is unbounded and `u8ListToVecMsb` asserts, so one
- * byte over escaped both [`tryWrite`](./write/module.f.mjs) and {@link tryResolve} as a bare
- * `'assertion failed'` rather than as an answer — measured, at 131,073 bytes.
- * Found by review of
- * [#2115](https://github.com/functionalscript/functionalscript/pull/2115).
- *
- * `null` rather than a code of its own because it is the same *kind* of answer:
- * there is no string to build a path from. It is **not** that the name is too
- * long for a filesystem — that is a different refusal and comes from one. A
- * name of 300 bytes converts, spells a path, and is refused by the host with
- * `ENAMETOOLONG`; measured, `git update-ref` is refused the same way and five
- * bytes earlier than `NAME_MAX` would suggest, because the lock file is what
- * fails: a last component of 250 bytes succeeds and 251 gives
- * `Unable to create '….lock': File name too long`. This writer inherits that
- * limit from the same `.lock`, which is parity rather than narrowness. Neither
- * bound is the other's, and only the conversion one is decided here.
- *
- * @type {(name: readonly number[]) => Nullable<string>}
- */
-export const nameText = name =>
-    name.length > Number(maxLengthBytes) ? null : fromVec(u8ListToVecMsb(name))
+    r.kind !== 'symbolic' || text !== head || isUnderRefs(r.target)
 
 /**
  * A chain that has its answer: the id, and no lookups left to spend and no name
@@ -592,40 +391,6 @@ export const nameText = name =>
  * @type {(id: Nullable<Oid>, packed: Nullable<readonly PackedRef[]>) => readonly [_Lookup, List<Bytes>]}
  */
 const answered = (id, packed) => [{ id, left: 0, packed }, null]
-
-/**
- * The path spelling of a name this module can answer for, or `null` where it
- * cannot — which is one answer and not two, because both reasons mean the same
- * thing to a caller: no file of this repository is that ref's.
- *
- * Asked *before* anything is read, by both callers. {@link tryResolve} promises
- * that a name which is no ref name is `null` "before any file is opened", and
- * that promise was not kept: the `packed-refs` read came first, so a
- * `packed-refs` the host refuses for any reason other than absence made the
- * answer for `../secret` a channel error rather than `null` — a value known not
- * to be a ref, answered out of the filesystem's state.
- *
- * @type {(name: Bytes) => Nullable<string>}
- */
-const askable = name => {
-    const dense = byteArray(name)
-    // A name that is no ref name never reaches the filesystem. `..` is
-    // one of the byte pairs `isWholeName` refuses, so this is also what
-    // keeps `../secret` from being joined below either directory and read: a path
-    // that leaves the repository is not a ref this can answer for, and
-    // the file at the other end of it could begin with something that
-    // looks like an id.
-    if (!isWholeName(dense)) { return null }
-    // No path can name this ref's loose file, so whether one exists is not a
-    // question this host can put to the filesystem — and a loose file
-    // shadows a packed line by existing, so the packed line is the answer
-    // only if there is no loose file. Unknowable, not absent: answering the
-    // packed line would be a stale id whenever the loose file is there, and
-    // that state cannot even be constructed in a proof here, since the
-    // virtual filesystem spells a directory entry as a string too.
-    // Refused instead. See {@link nameText} and `todo/byte-ref-names.md`.
-    return nameText(dense)
-}
 
 /**
  * `HEAD`'s bytes, or a refusal where it is not a regular file.
@@ -834,7 +599,7 @@ const resolveWith = (dirs, oidBytes, packed) => {
  *   paragraph below;
  * - a name no path can spell: bytes that are no UTF-8 name a file no host here
  *   can be asked about, so whether one exists is unknowable rather than
- *   answered from the packed line — {@link nameText} and
+ *   answered from the packed line — `nameText` in [`./name`](./name/module.f.mjs) and
  *   [`todo/byte-ref-names.md`](./todo/byte-ref-names.md);
  * - `FETCH_HEAD` or `MERGE_HEAD` with no file, which do not fall back to a
  *   packed line of that name: Git reads those two from the file alone —
@@ -1147,8 +912,8 @@ const statted = (readRef, name, item, found) => step(
  * neither lists one twice. In a main worktree both walks read the same
  * directory, and the division is still exactly one walk per name. Its `descend`
  * is the same division asked of a *directory*, which is a prefix rather than a
- * name: see {@link holdsPerWorktreeOnly} for why that is a second rule and not
- * the same one.
+ * name: see `holdsPerWorktreeOnly` in [`./scope`](./scope/module.f.mjs) for why
+ * that is a second rule and not the same one.
  *
  * @type {(oidBytes: OidBytes, scope: _Scope) => (item: _Entry) => (state: Nullable<_Found>) => Effect<Stat | Readdir | ReadFile, _Walked, IoChannel>}
  */
@@ -1164,7 +929,7 @@ const looseOf = (oidBytes, scope) => {
         if (!hasRefComponents(name)) { return pureOk(walked(found, null)) }
         if (item.isDirectory) {
             // and the scope's own prefix rule, so a walk lists no directory it
-            // has no name to take from: see {@link holdsPerWorktreeOnly}
+            // has no name to take from: see `./scope`'s `holdsPerWorktreeOnly`
             return scope.descend(item.name)
                 ? descendInto(item, found)
                 : pureOk(walked(found, null))
@@ -1174,18 +939,6 @@ const looseOf = (oidBytes, scope) => {
             ? readAsRef(readRef, name, item, found)
             : statted(readRef, name, item, found)
     }
-}
-
-/**
- * A name for a message, which a ref name is not always: one that is no UTF-8
- * names no file and cannot be written as a path, so it is written as its bytes
- * in hex instead. See {@link nameText}.
- *
- * @type {(name: Bytes) => string}
- */
-export const nameForMessage = name => {
-    const dense = byteArray(name)
-    return nameText(dense) ?? dense.map(b => b.toString(16).padStart(2, '0')).join('')
 }
 
 /** The id no object has, which a ref may none the less hold: forty or sixty-four zeros. */
@@ -1429,9 +1182,6 @@ const packedHeadMessage = dirs =>
  * @type {(entries: readonly Dirent[]) => boolean}
  */
 const headIsFile = entries => entries.every(d => d.name !== head || d.isFile)
-
-/** The ref name `HEAD` is, as the bytes the rest of this module compares. */
-const headName = nameBytes(head)
 
 /**
  * What `HEAD` contributes to the walk's findings: one root where it holds an id,
