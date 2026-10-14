@@ -25,14 +25,9 @@
  * @import { Marked } from '../../text/marked/types.ts'
  */
 
-import { codeBlock } from '../../website/demo/code/module.f.mjs'
-import { toText } from '../../text/marked/module.f.mjs'
-import { parse } from '../transpiler/module.f.mjs'
 import { unresolved } from '../edag/module.f.mjs'
-import { error } from '../../types/result/module.f.js'
-import { textDemo, refusal, caption } from '../../website/demo/module.f.mjs'
-import { highlight, render } from '../../website/demo/highlight/module.f.mjs'
-import { examples } from '../examples/module.f.js'
+import { codeOutput } from '../../website/demo/highlight/module.f.mjs'
+import { parsed, stageDemo } from '../stage_demo/module.f.mjs'
 import { toRustMarked } from './module.f.mjs'
 
 /**
@@ -41,21 +36,9 @@ import { toRustMarked } from './module.f.mjs'
  *
  * @type {(text: string) => Result<Marked, string>}
  */
-export const _rustOf = text => {
-    const result = parse('')(text)
-    return result[0] === 'error' ? error(result[1].message) : toRustMarked(unresolved(result[1]).edag)
-}
+export const _rustOf = parsed(ast => toRustMarked(unresolved(ast).edag))
 
-export const demo = textDemo({
+export const demo = stageDemo({
     intro: 'Compiles a FunctionalScript module without imports into Rust calls that build its value in NaNVM. Compare the output with the .rs module written by fjs compile.',
     name: 'rust',
-    label: 'Source',
-    init: examples[0][1],
-    examples,
-    highlight,
-})(text => {
-    const [kind, value] = _rustOf(text)
-    return kind === 'ok'
-        ? [caption('Rust module:'), codeBlock(toText(value), 'Copy Rust module', render(value))]
-        : [refusal(value)]
-})
+})(text => codeOutput('Rust module:', 'Copy Rust module')(_rustOf(text)))

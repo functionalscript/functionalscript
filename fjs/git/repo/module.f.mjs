@@ -40,10 +40,10 @@
  * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
-import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { catchStep, history, historyStep, mapStep, orElse, pureOk, step } from '../../effects/module.f.mjs'
 import { isNotFound, readFile, stat } from '../../effects/node/module.f.mjs'
 import { isBareDrive, isDriveRoot, under } from '../../path/module.f.mjs'
+import { isWellFormed } from '../../text/utf16/module.f.mjs'
 import { fromVec } from '../../text/utf8/module.f.mjs'
 import { u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
@@ -150,15 +150,9 @@ const isAbsolute = path => path.startsWith('/') || isDriveRoot(path)
  * a file cannot, since UTF-8 has no spelling for a surrogate and
  * {@link read} refuses the bytes that try.
  *
- * A surrogate pair iterates as one character above U+FFFF, so what is left
- * in the surrogate range is unpaired.
- *
  * @type {(path: string) => boolean}
  */
-const reachesHost = path => [...path].every(c => {
-    const n = assertNotNullish(c.codePointAt(0))
-    return n < 0xD800 || n > 0xDFFF
-})
+const reachesHost = isWellFormed
 
 /**
  * A path one of these files names, read where it was found: an absolute

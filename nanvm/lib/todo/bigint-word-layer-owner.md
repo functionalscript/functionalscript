@@ -19,7 +19,7 @@ word-level versions and got new ones instead of a shared layer:
 - **Trim leading zero words**, three spellings: `normalize` in `mod.rs`, the
   inline `while a.last() == Some(&0) { a.pop() }` at the end of
   `sub_words_assign`, and the same `while`
-  again in `display.rs`'s division loop.
+  again in `radix.rs`'s division loop, `chunks`.
 - **±1 ripple**, three loops: the `+ 1` carry inside
   `magnitude_from_twos_complement`, the `- 1` borrow inside
   `twos_complement_words` (both in `mod.rs`), and `shr.rs`'s
@@ -39,7 +39,7 @@ functions next to `normalize`:
 - one borrow-loop primitive that both `sub_words_assign` and `abs_sub_vec`
   are expressed through;
 - `normalize`/a `trim(&mut Vec<u64>)` used everywhere leading zeros are
-  dropped, `display.rs` included;
+  dropped, `radix.rs`'s `chunks` included;
 - `add_one`/`sub_one` ripple helpers used by
   `magnitude_from_twos_complement`, `twos_complement_words`, and
   `shr::increment`.

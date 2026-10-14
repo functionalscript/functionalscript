@@ -3,7 +3,7 @@
  */
 
 import { actions, images, jobTimeout } from '../config/module.f.js'
-import { install, parseGitHubAction, test, toSteps, ubuntu, ubuntuArm, uses } from './module.f.mjs'
+import { install, job, parseGitHubAction, test, toSteps, ubuntu, ubuntuArm, uses } from './module.f.mjs'
 import { assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
 
 /** @type {Step} */
@@ -52,14 +52,23 @@ export const proof = {
             )
         },
     },
-    /** Each runner image takes the job's steps and the shared timeout. */
-    jobs: () => {
-        for (const [f, image] of /** @type {const} */ ([[ubuntu, images.ubuntu.intel], [ubuntuArm, images.ubuntu.arm]])) {
+    job: {
+        /** Each runner image takes the job's steps and the shared timeout. */
+        ubuntu: () => {
+            for (const [f, image] of /** @type {const} */ ([[ubuntu, images.ubuntu.intel], [ubuntuArm, images.ubuntu.arm]])) {
+                assertStructurallySame(
+                    f([test(check)]),
+                    { 'runs-on': image, 'timeout-minutes': jobTimeout, steps: [checkout, check] },
+                )
+            }
+        },
+        /** A condition becomes the job's `if`. */
+        condition: () => {
             assertStructurallySame(
-                f([test(check)]),
-                { 'runs-on': image, 'timeout-minutes': jobTimeout, steps: [checkout, check] },
+                job(images.macos.arm, 'c')([test(check)]),
+                { 'runs-on': images.macos.arm, if: 'c', 'timeout-minutes': jobTimeout, steps: [checkout, check] },
             )
-        }
+        },
     },
     parseGitHubAction: {
         /** A workflow the generator could have written is read back. */

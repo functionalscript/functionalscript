@@ -9,7 +9,7 @@ import { toArray } from '../../../types/list/module.f.mjs'
 import { unwrap } from '../../../types/result/module.f.js'
 import { repeatFrom0 } from '../../module.f.mjs'
 import { parser } from '../../ll1/module.f.mjs'
-import { content, id, mergeTrivia, newLine, number, operator, operators, slash, template, templateAfterDollar, templateContent, templateContinuation, templateEscape, token, ws } from './module.f.mjs'
+import { content, id, isTrivia, mergeTrivia, newLine, number, operator, operators, slash, template, templateAfterDollar, templateContent, templateContinuation, templateEscape, token, ws } from './module.f.mjs'
 import { demo, diagrams } from './demo.f.mjs'
 import { diagramPage } from '../../testlib.f.mjs'
 
@@ -97,6 +97,16 @@ export const proof = {
         assertEq(mergeTrivia('ws', 'nl'), 'nl')
         assertEq(mergeTrivia('nl', 'ws'), 'nl')
         assertEq(mergeTrivia('nl', 'nl'), 'nl')
+    },
+    // whitespace, newlines and both comments are trivia; nothing else is
+    isTrivia: () => {
+        assertEq(isTrivia('ws'), true)
+        assertEq(isTrivia('nl'), true)
+        assertEq(isTrivia('//'), true)
+        assertEq(isTrivia('/*'), true)
+        assertEq(isTrivia('/'), false)
+        assertEq(isTrivia('id'), false)
+        assertEq(isTrivia('eof'), false)
     },
     kinds: {
         number: () => {

@@ -14,13 +14,13 @@
 import { resultStep } from '../effects/module.f.mjs'
 import { access, exitStep, mkdir, writeUtf8File } from '../effects/node/module.f.mjs'
 import { step as ioStep } from '../effects/module.f.mjs'
-import { functionalscript, images, jobTimeout, node } from './config/module.f.js'
+import { functionalscript, images, node } from './config/module.f.js'
 import {
     architecture,
     install,
+    job,
     os,
     test,
-    toSteps,
     ubuntuArm
 } from './common/module.f.mjs'
 import {
@@ -230,7 +230,7 @@ const inShell = step =>
 const mergeQueue = /** @type {const} */ (`github.event_name == 'merge_group'`)
 
 /** @type {(rust: boolean, nodeExtra: readonly MetaStep[], mergeQueueOnly: boolean) => (o: Os) => (a: Architecture) => readonly [string, Job]} */
-const job = (rust, nodeExtra, mergeQueueOnly) => o => a => {
+const platformJob = (rust, nodeExtra, mergeQueueOnly) => o => a => {
     const id = `${o}-${a}`
     const image = images[o][a]
     // Direct-install jobs keep injected steps on the runner too.
@@ -243,12 +243,7 @@ const job = (rust, nodeExtra, mergeQueueOnly) => o => a => {
         : o === 'macos' && a === 'intel'
             ? [...intelMacSteps(rust), ...nodeExtra]
             : [...shellPlatformSteps(rust, o, a), ...nodeExtra.map(inShell)]
-    return [id, {
-        'runs-on': image,
-        ...(mergeQueueOnly ? { if: mergeQueue } : {}),
-        'timeout-minutes': jobTimeout,
-        steps: toSteps(result),
-    }]
+    return [id, job(image, mergeQueueOnly ? mergeQueue : undefined)(result)]
 }
 
 /**
@@ -286,7 +281,7 @@ export const ci = ({ nodeExtra, packageConsumer, mergeQueueOnly = [] }) => resul
         /** @type {Jobs} */
         const jobs = {
             ...Object.fromEntries(os.flatMap(o =>
-                architecture.map(job(rust, nodeExtra(o), mergeQueueOnly.includes(o))(o)))),
+                architecture.map(platformJob(rust, nodeExtra(o), mergeQueueOnly.includes(o))(o)))),
             ...canonicalJobs(packageConsumer),
         }
         /** @type {GitHubAction} */

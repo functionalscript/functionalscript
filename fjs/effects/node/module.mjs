@@ -1147,13 +1147,21 @@ export const _wrapInlineTest = register => ({
         () => inlineTest(name, opts, fn)),
 })
 
+/**
+ * Whether Bun is the runtime running this module, whose test runner is the one
+ * that registers through {@link _wrapInlineTest}.
+ *
+ * @type {boolean}
+ */
+export const isBun = 'Bun' in globalThis
+
 /** @type {NodeProgramOptions} */
 const options = {
     args: process.argv.slice(2),
     env: process.env,
     home: toPosix(os.homedir()),
     std: { stdout: process.stdout, stderr: process.stderr },
-    testContext: 'Bun' in globalThis ? _wrapInlineTest(testContext.test) : testContext,
+    testContext: isBun ? _wrapInlineTest(testContext.test) : testContext,
     // this file is `fjs/effects/node/module.mjs` of the package it runs from
     packageRoot: toPosix(fileURLToPath(new URL('../../..', import.meta.url))),
 }
