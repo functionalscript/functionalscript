@@ -295,7 +295,7 @@ this proposal does not take.
 - [ ] Decide `String.fromCharCode` in `2360-built-in.md`; admitted, it is
       the native primitive, and the casing pair follows as bodies over a
       generated casing table.
-- [ ] Admit `Number.isInteger`, `Number.isSafeInteger`, `Number.isNaN`
+- [x] Admit `Number.isInteger`, `Number.isSafeInteger`, `Number.isNaN`
       and `Number.isFinite`, decided in `2360-built-in.md`: their paths in
       `statics`, their bodies the helpers in the `static` section, each the
       EDAG node of its name, `['Number.isInteger']`, read in every spelling

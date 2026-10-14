@@ -163,8 +163,9 @@ runtime, the `TypeError` for calling `undefined` — and the `?.()` guard
 asks the same lookup to decide whether a callee exists.
 
 **A static function is a value with no receiver.** The EDAG spells
-`Object.is` as the value `['Object.is']`, and the Rust backend prints it
-as `static_binding::<A>(&["Object", "is"])?`: `nanvm-lib` asks
+`Object.is` as the value `['Object.is']`, and `Number.isInteger` as
+`['Number.isInteger']`, and the Rust backend prints each as the binding
+of its path, `static_binding::<A>(&["Object", "is"])?`: `nanvm-lib` asks
 `IVm::runtime_static` for the path, which `naive` answers by reading the
 compiled object's `static` section, and fails naming the path where
 nothing is bound. The parser admitted the name, so a missing binding is
@@ -173,7 +174,9 @@ with the same message, reading its context's runtime through
 `functionAt`. Every read answers one function, as in JavaScript, since
 `naive` holds the runtime object, below: `Object.is === Object.is`, in
 one invocation or two, which `nanvm/harness/fixtures/object-is.mjs`
-checks on NaNVM against the interpreter. NaNVM keeps no native static
+checks on NaNVM against the interpreter, and
+`nanvm/harness/fixtures/number-predicates.mjs` for the `Number`
+predicates over every kind of value. NaNVM keeps no native static
 table, and its completeness test checks every path
 [`../static`](../static/module.f.js) admits is bound.
 

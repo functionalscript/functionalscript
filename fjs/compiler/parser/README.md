@@ -231,19 +231,22 @@ the fold's:
   ever binding it. `Number()` is the literal `0`, and `String()` is the
   empty-string literal. Multiple arguments and spreads are refused at the
   callee with `Number takes one argument` or `String takes one argument`.
-  Guarded calls, standalone references, and namespace members are refused
-  as reserved-word uses. A key or property name remains ordinary,
-  `{ String: 1 }.String` being valid;
-- the reserved global `Object`, bound or referenced anywhere but as the
-  namespace of `Object.is` or in the `entry` helper below
+  Guarded calls, standalone references, and namespace members other than the
+  static functions below are refused as reserved-word uses. A key or
+  property name remains ordinary, `{ String: 1 }.String` being valid;
+- the reserved globals `Object` and `Number`, bound or referenced anywhere
+  but as the namespace of a static function — `Object.is` and the four
+  `Number` predicates, `Number.isInteger` — beside `Number`'s conversion
+  and `Object` in the `entry` helper below
   ([spec: built-in static functions](../../../spec/README.md#built-in-static-functions)).
-  The read of `Object.is`, in either key spelling and guarded or not, is
-  the AST's value `['Object.is']`, a chain's steps after it going on over
-  that value; an object pattern over the bare word reads each key as that
-  access does, so `const { is } = Object;` is `const is = Object.is;` and
-  the namespace, no value, is never resolved. Any other member, a computed
-  key, the word alone and any other pattern over it are refused as
-  reserved-word uses;
+  The read of a static function, in either key spelling and guarded or
+  not, is the AST's value of its name, `['Object.is']`, a chain's steps
+  after it going on over that value; an object pattern over the bare word
+  reads each key as that access does, so `const { is } = Object;` is
+  `const is = Object.is;` and the namespace, no value, is never resolved.
+  Which members a namespace has is the EDAG's `staticIds`. Any other
+  member, a computed key, the word alone and any other pattern over it are
+  refused as reserved-word uses;
 - an import attribute other than `type: "json"`, the one JavaScript defines,
   read from the key's and the value's words;
 - a body `const` that takes a name the body already binds, its parameter

@@ -24,8 +24,9 @@ today. Implemented reserved globals are `Infinity`, `NaN` and `undefined`
 conversions `Number(exp)` and `String(exp)` alone, their words reserved
 ([number conversion](../README.md#number-conversion),
 [string conversion](../README.md#string-conversion)), and `Array`, as the
-right operand of [`instanceof`](../README.md#instanceof), and `Object`, as the
-namespace of `Object.is` alone, a value
+right operand of [`instanceof`](../README.md#instanceof), and `Object` and
+`Number`, as the namespaces of the static functions `Object.is` and the
+four `Number` predicates, each a value
 ([built-in static functions](../README.md#built-in-static-functions)). Other global uses need
 a complete recognized pattern; an unrecognized global is refused as an
 unbound name (`const not found`), so
@@ -67,18 +68,18 @@ name not yet decided, or, where it says so, never admitted.
 
 ### Number and Math
 
-- [x] `Number` — the call `Number(exp)` alone, the conversion
-      ([number conversion](../README.md#number-conversion)); the
-      namespace's members stay unticked, each an admission of its own.
-      About thirty `.f.mjs` modules read one — `Number.isInteger`,
-      `Number.isSafeInteger`, `Number.MAX_SAFE_INTEGER`, `Number.isNaN`,
-      and `const { isFinite } = Number` in the three
-      [global-names](./2365-global-names.md) names — and each is rewritten
-      when its member is admitted or equivalent code can use existing syntax.
-      Integer checks already use the importable
-      [operator-based predicate](../../fjs/types/number/is_integer/module.f.js),
-      without admitting `Number.isInteger`. Remaining global-member users
-      are not `.f.js`, the files the compiler holds to the reserved word today
+- [x] `Number` — the call `Number(exp)`, the conversion
+      ([number conversion](../README.md#number-conversion)), and the four
+      predicates `Number.isInteger`, `Number.isSafeInteger`, `Number.isNaN`
+      and `Number.isFinite`, static functions
+      ([built-in static functions](../README.md#built-in-static-functions),
+      the record below); the namespace's other members, its value
+      properties `Number.MAX_SAFE_INTEGER` among them, stay unticked, each
+      an admission of its own. A module reading one of the four, or
+      `const { isFinite } = Number` as the three
+      [global-names](./2365-global-names.md) names do, needs no rewrite to
+      compile; a module reading another member is rewritten when that
+      member is admitted or equivalent code can use existing syntax
 
 #### Number predicates proposal and approval
 
