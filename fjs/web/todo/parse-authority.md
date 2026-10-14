@@ -1,7 +1,7 @@
 ## parse-authority. The authority grammar is split across two readers
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
