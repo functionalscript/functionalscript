@@ -477,7 +477,7 @@ it. A `const` that is never exported reaches no emitted declaration and no
 consumer, so it has nothing to disclaim and takes no prefix: `toNode` and
 `accessed` in
 [`fjs/compiler/parser`](./compiler/parser/module.f.mjs) are the
-ordinary shape, beside the exported `_Frame` and `_NegFrame` in its
+ordinary shape, beside the exported `_Frame` and `_UnaryFrame` in its
 [`private.ts`](./compiler/parser/private.ts), which are the rule's. Measured across `fjs/`, module-private constants run about 1,900
 unprefixed to eight prefixed — so reading the rule as reaching them would put
 nearly every `.f.mjs` in the tree in violation, which is the check that the
