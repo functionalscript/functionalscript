@@ -68,59 +68,47 @@ enum ShiftAmount {
     Words(u64, u64),
 }
 
-// TODO: change it to Iterator/SizedIndex-based implementation.
-fn normalize(vec: &[u64]) -> &[u64] {
-    let last_nonzero_index = vec.iter().rposition(|&x| x != 0);
-    match last_nonzero_index {
-        Some(index) => &vec[..=index],
-        None => &[], // All elements are zero, return an empty slice
+// The word layer: magnitude arithmetic over plain little-endian words (least
+// significant first). It is the single owner of these algorithms; the
+// `BigInt`-level methods below only convert their operands and delegate, so
+// [`abs_divmod_vec`](BigInt::abs_divmod_vec) can run its inner loop on words
+// without rebuilding a `BigInt` on every bit.
+
+/// Drops `words`' leading (most-significant) zero words, so a magnitude is
+/// normalized: zero becomes empty.
+fn trim(words: &mut Vec<u64>) {
+    while words.last() == Some(&0) {
+        words.pop();
     }
 }
 
-/// Compares two magnitudes with no leading (most-significant) zero words, by
-/// length first and then from the most-significant word down — the same rule
-/// [`BigInt::abs_cmp_vec`] uses, but over plain words instead of `BigInt`s, so
-/// [`abs_divmod_vec`](BigInt::abs_divmod_vec) can compare its running
-/// remainder against the divisor on every bit without rebuilding a `BigInt`
-/// each time.
-fn cmp_words(a: &[u64], b: &[u64]) -> Ordering {
-    let len_cmp = a.len().cmp(&b.len());
-    if len_cmp != Ordering::Equal {
-        return len_cmp;
-    }
-    for i in (0..a.len()).rev() {
-        let word_cmp = a[i].cmp(&b[i]);
-        if word_cmp != Ordering::Equal {
-            return word_cmp;
-        }
-    }
-    Ordering::Equal
+/// Compares two magnitudes with no leading (most-significant) zero words: the
+/// longer one (more significant words) is greater; at equal length, the first
+/// differing word from the most-significant end decides.
+fn cmp_words<T: SizedIndex<usize, Output = u64> + ?Sized>(a: &T, b: &T) -> Ordering {
+    a.length().cmp(&b.length()).then_with(|| {
+        let words = (0..a.length()).rev();
+        words.clone().map(|i| a[i]).cmp(words.map(|i| b[i]))
+    })
 }
 
-/// The positive magnitude a negative `bitwise_op` result's two's-complement
-/// word pattern decodes to: flip every bit, then add one — the standard
-/// two's-complement negation, over words instead of a single machine
-/// integer. The `+ 1` can carry a new word into existence (`!x` all-ones
-/// becomes all-zeros, and `+ 1` then carries out past the last word) —
-/// tracked explicitly here since `words` isn't pre-sized for it the way
-/// [`BigInt::add_to_vec`]'s caller in `mul.rs` pre-sizes its target.
-fn magnitude_from_twos_complement(mut words: Vec<u64>) -> Vec<u64> {
-    for word in words.iter_mut() {
-        *word = !*word;
+/// `a -= b` word by word, in place, with `b` read as zero past its end: the
+/// one borrow loop behind both [`sub_words_assign`] and
+/// [`abs_sub_vec`](BigInt::abs_sub_vec). Returns the borrow out of `a`'s most
+/// significant word: `true` iff `b > a` (when `b` is no longer than `a`), in
+/// which case `a` holds the difference wrapped modulo `2^(64 * a.len())`.
+/// Words of `b` beyond `a`'s length are not read, so the caller rules out a
+/// longer `b` itself.
+fn sub_words_borrow(a: &mut [u64], b: impl IntoIterator<Item = u64>) -> bool {
+    let mut b = b.into_iter();
+    let mut borrow = false;
+    for word in a.iter_mut() {
+        let (diff, under_b) = word.overflowing_sub(b.next().unwrap_or(0));
+        let (diff, under_borrow) = diff.overflowing_sub(borrow as u64);
+        *word = diff;
+        borrow = under_b || under_borrow;
     }
-    let mut carry = 1u64;
-    for word in words.iter_mut() {
-        let (sum, overflow) = word.overflowing_add(carry);
-        *word = sum;
-        carry = overflow as u64;
-        if carry == 0 {
-            break;
-        }
-    }
-    if carry != 0 {
-        words.push(carry);
-    }
-    normalize(&words).to_vec()
+    borrow
 }
 
 /// `a -= b`, in place, trimming any leading zero words the subtraction
@@ -128,21 +116,49 @@ fn magnitude_from_twos_complement(mut words: Vec<u64>) -> Vec<u64> {
 ///
 /// Precondition: `cmp_words(a, b)` is not `Ordering::Less`.
 fn sub_words_assign(a: &mut Vec<u64>, b: &[u64]) {
-    let mut borrow = 0u64;
-    for (i, word) in a.iter_mut().enumerate() {
-        let subtrahend = b.get(i).copied().unwrap_or(0) as u128 + borrow as u128;
-        let minuend = *word as u128;
-        if minuend >= subtrahend {
-            *word = (minuend - subtrahend) as u64;
-            borrow = 0;
-        } else {
-            *word = (minuend + (1u128 << 64) - subtrahend) as u64;
-            borrow = 1;
+    sub_words_borrow(a, b.iter().copied());
+    trim(a);
+}
+
+/// `words += 1`, in place: the carry ripples up until a word does not
+/// overflow, and becomes a new most-significant word if every word did.
+fn add_one(words: &mut Vec<u64>) {
+    for word in words.iter_mut() {
+        let (sum, overflow) = word.overflowing_add(1);
+        *word = sum;
+        if !overflow {
+            return;
         }
     }
-    while a.last() == Some(&0) {
-        a.pop();
+    words.push(1);
+}
+
+/// `words -= 1`, in place: the borrow ripples up until a word does not
+/// underflow. The length never changes, and no trim is made; an all-zero
+/// `words` wraps to all ones (callers pass a nonzero magnitude).
+fn sub_one(words: &mut [u64]) {
+    for word in words.iter_mut() {
+        let (diff, underflow) = word.overflowing_sub(1);
+        *word = diff;
+        if !underflow {
+            return;
+        }
     }
+}
+
+/// The positive magnitude a negative `bitwise_op` result's two's-complement
+/// word pattern decodes to: flip every bit, then add one — the standard
+/// two's-complement negation, over words instead of a single machine
+/// integer. The `+ 1` can carry a new word into existence (`!x` all-ones
+/// becomes all-zeros, and `+ 1` then carries out past the last word), which
+/// [`add_one`] does.
+fn magnitude_from_twos_complement(mut words: Vec<u64>) -> Vec<u64> {
+    for word in words.iter_mut() {
+        *word = !*word;
+    }
+    add_one(&mut words);
+    trim(&mut words);
+    words
 }
 
 /// ```
@@ -201,13 +217,13 @@ impl<A: IVm> BigInt<A> {
     /// Note: this function accepts an iterator in least-significant-word-first order,
     /// i.e. the first item is the least significant word!
     pub fn normalize_new(sign: Sign, items: impl IntoIterator<Item = u64>) -> Self {
-        let vec: Vec<u64> = items.into_iter().collect();
+        let mut vec: Vec<u64> = items.into_iter().collect();
         // TODO: Don't allocate vector for the normalization.
-        let r = normalize(&vec);
-        if r.is_empty() {
+        trim(&mut vec);
+        if vec.is_empty() {
             Self::default()
         } else {
-            Self::unchecked_new(sign, r.iter().copied())
+            Self::unchecked_new(sign, vec)
         }
     }
 
@@ -302,16 +318,7 @@ impl<A: IVm> BigInt<A> {
     /// not contain leading (most-significant) zero words.
     fn abs_cmp_vec(self, rhs: Self) -> Ordering {
         self.assert_normalized_with(&rhs);
-
-        let a = self.0.items();
-        let b = rhs.0.items();
-
-        // The longer one (more significant words) is greater; at equal length,
-        // the first differing word from the most-significant end decides.
-        a.length().cmp(&b.length()).then_with(|| {
-            let words = (0..a.length()).rev();
-            words.clone().map(|i| a[i]).cmp(words.map(|i| b[i]))
-        })
+        cmp_words(self.0.items(), rhs.0.items())
     }
 
     fn abs_add_vec(self, rhs: Self) -> Vec<u64> {
@@ -337,32 +344,24 @@ impl<A: IVm> BigInt<A> {
         out
     }
 
+    /// `|self| - |rhs|`, normalized.
+    ///
+    /// Precondition: both operands are normalized, and `|rhs| <= |self|`;
+    /// panics with [`RHS_GREATER`] otherwise.
     fn abs_sub_vec(self, rhs: Self) -> Vec<u64> {
         self.assert_normalized_with(&rhs);
 
-        let mut borrow: u64 = 0;
-        let out: Vec<u64> = self
-            .index_iter()
-            .zip_longest(rhs.index_iter())
-            .map(|(a, b)| {
-                let a = a.expect(RHS_GREATER);
-                let b_plus_borrow = b.unwrap_or_default() as u128 + borrow as u128;
-                let mut a_extended = a as u128;
-                if a_extended >= b_plus_borrow {
-                    borrow = 0;
-                } else {
-                    a_extended += 1u128 << 64;
-                    borrow = 1;
-                }
-                (a_extended - b_plus_borrow) as u64
-            })
-            .collect();
-
-        if borrow != 0 {
+        // Normalized, a longer `rhs` is a greater one; `sub_words_borrow`
+        // would not read its extra words.
+        if rhs.length() > self.length() {
             panic!("{RHS_GREATER}");
         }
-
-        normalize(&out).to_vec()
+        let mut out: Vec<u64> = self.index_iter().collect();
+        if sub_words_borrow(&mut out, rhs.index_iter()) {
+            panic!("{RHS_GREATER}");
+        }
+        trim(&mut out);
+        out
     }
 
     /// `(|self| / |rhs|, |self| % |rhs|)`, via schoolbook binary long
@@ -392,13 +391,14 @@ impl<A: IVm> BigInt<A> {
                 remainder.push(carry);
             }
 
-            if cmp_words(&remainder, &denom) != Ordering::Less {
+            if cmp_words(remainder.as_slice(), denom.as_slice()) != Ordering::Less {
                 sub_words_assign(&mut remainder, &denom);
                 quotient[(bit / 64) as usize] |= 1u64 << (bit % 64);
             }
         }
 
-        (normalize(&quotient).to_vec(), remainder)
+        trim(&mut quotient);
+        (quotient, remainder)
     }
 
     /// This BigInt's infinite-precision two's-complement bit pattern, sliced
@@ -414,15 +414,7 @@ impl<A: IVm> BigInt<A> {
         let mut words: Vec<u64> = self.index_iter().collect();
         words.resize(len as usize, 0);
         if sign == Sign::Negative {
-            let mut borrow = 1u64;
-            for word in words.iter_mut() {
-                let (diff, overflow) = word.overflowing_sub(borrow);
-                *word = diff;
-                borrow = overflow as u64;
-                if borrow == 0 {
-                    break;
-                }
-            }
+            sub_one(&mut words);
             for word in words.iter_mut() {
                 *word = !*word;
             }
@@ -473,8 +465,100 @@ fn assert_slice_normalized<I: Uint, T: SizedIndex<I, Output = u64> + ?Sized>(v: 
 
 #[cfg(test)]
 mod tests {
-    use super::test_util::{T, int, pos};
+    use super::{
+        add_one, cmp_words, sub_one, sub_words_assign, sub_words_borrow,
+        test_util::{T, int, pos},
+        trim,
+    };
     use core::cmp::Ordering;
+
+    // Tests for the word layer
+
+    #[test]
+    fn test_trim() {
+        for (words, trimmed) in [
+            ([].to_vec(), [].to_vec()),
+            ([0].to_vec(), [].to_vec()),
+            ([0, 0].to_vec(), [].to_vec()),
+            ([1, 0, 0].to_vec(), [1].to_vec()),
+            ([0, 1].to_vec(), [0, 1].to_vec()),
+            ([0, 1, 0].to_vec(), [0, 1].to_vec()),
+        ] {
+            let mut words: Vec<u64> = words;
+            trim(&mut words);
+            assert_eq!(words, trimmed);
+        }
+    }
+
+    #[test]
+    fn test_cmp_words() {
+        let cmp = |a: &[u64], b: &[u64]| cmp_words(a, b);
+        assert_eq!(cmp(&[], &[]), Ordering::Equal);
+        assert_eq!(cmp(&[], &[1]), Ordering::Less);
+        assert_eq!(cmp(&[u64::MAX], &[0, 1]), Ordering::Less);
+        assert_eq!(cmp(&[5, 10], &[20, 9]), Ordering::Greater);
+        assert_eq!(cmp(&[20, 9], &[5, 10]), Ordering::Less);
+        assert_eq!(cmp(&[2, 7], &[1, 7]), Ordering::Greater);
+        assert_eq!(cmp(&[1, 7], &[1, 7]), Ordering::Equal);
+    }
+
+    #[test]
+    fn test_sub_words_borrow() {
+        // No borrow, and a shorter `b` read as zero past its end.
+        let mut a = [300u64, 2];
+        assert!(!sub_words_borrow(&mut a, [100u64]));
+        assert_eq!(a, [200, 2]);
+        // A borrow that ripples through a zero word.
+        let mut a = [0u64, 0, 1];
+        assert!(!sub_words_borrow(&mut a, [1u64]));
+        assert_eq!(a, [u64::MAX, u64::MAX, 0]);
+        // `b > a`: the borrow comes out, and `a` wraps.
+        let mut a = [1u64];
+        assert!(sub_words_borrow(&mut a, [2u64]));
+        assert_eq!(a, [u64::MAX]);
+        // A borrow plus a word subtraction in the same word.
+        let mut a = [0u64, 5];
+        assert!(!sub_words_borrow(&mut a, [1u64, 4]));
+        assert_eq!(a, [u64::MAX, 0]);
+    }
+
+    #[test]
+    fn test_sub_words_assign_trims() {
+        let mut a = [0u64, 5].to_vec();
+        sub_words_assign(&mut a, &[1, 4]);
+        assert_eq!(a, [u64::MAX]);
+        let mut a = [7u64, 3].to_vec();
+        sub_words_assign(&mut a, &[7, 3]);
+        assert_eq!(a, []);
+    }
+
+    #[test]
+    fn test_add_one() {
+        for (words, sum) in [
+            ([].to_vec(), [1].to_vec()),
+            ([41].to_vec(), [42].to_vec()),
+            ([u64::MAX, 3].to_vec(), [0, 4].to_vec()),
+            ([u64::MAX, u64::MAX].to_vec(), [0, 0, 1].to_vec()),
+        ] {
+            let mut words: Vec<u64> = words;
+            add_one(&mut words);
+            assert_eq!(words, sum);
+        }
+    }
+
+    #[test]
+    fn test_sub_one() {
+        let mut words = [42u64];
+        sub_one(&mut words);
+        assert_eq!(words, [41]);
+        // The borrow ripples, and the length stays: no trim.
+        let mut words = [0u64, 0, 1];
+        sub_one(&mut words);
+        assert_eq!(words, [u64::MAX, u64::MAX, 0]);
+        let mut words = [0u64, 4];
+        sub_one(&mut words);
+        assert_eq!(words, [u64::MAX, 3]);
+    }
 
     #[test]
     fn test_abs_cmp_vec_equal_numbers() {

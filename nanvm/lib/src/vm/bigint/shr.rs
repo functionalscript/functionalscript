@@ -6,7 +6,7 @@ use crate::{
     vm::{Any, BigInt, IVm},
 };
 
-use super::ShiftAmount;
+use super::{ShiftAmount, add_one};
 
 /// The result of shifting a nonzero-magnitude `self` right by a shift
 /// amount that reaches or exceeds `self`'s own bit length, i.e. the entire
@@ -20,21 +20,6 @@ fn shifted_to_extreme<A: IVm>(sign: Sign) -> BigInt<A> {
         Sign::Positive => BigInt::default(),
         Sign::Negative => BigInt::unchecked_new(Sign::Negative, [1u64]),
     }
-}
-
-/// `vec += 1`, in place, propagating carry into a new word if it overflows
-/// the last one. Used only to round a negative `self`'s shifted magnitude
-/// up (away from zero) when a nonzero bit was shifted out from under it —
-/// see [`BigInt::shr`]'s doc comment for why.
-fn increment(vec: &mut Vec<u64>) {
-    for word in vec.iter_mut() {
-        let (sum, overflow) = word.overflowing_add(1);
-        *word = sum;
-        if !overflow {
-            return;
-        }
-    }
-    vec.push(1);
 }
 
 /// `>>`. <https://tc39.es/ecma262/#sec-numeric-types-bigint-signedRightShift>
@@ -86,7 +71,9 @@ impl<A: IVm> Shr for BigInt<A> {
         }
 
         if sign == Sign::Negative && sticky {
-            increment(&mut value);
+            // Round the magnitude up (away from zero): see the doc comment
+            // above for why.
+            add_one(&mut value);
         }
 
         Ok(Self::normalize_new(sign, value))

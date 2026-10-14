@@ -4,6 +4,8 @@ use crate::{
     vm::{BigInt, IContainer, IVm},
 };
 
+use super::trim;
+
 impl<A: IVm> BigInt<A> {
     /// The integer's digits in `radix`, `2` to `36`, `0-9` then `a-z`, a
     /// `-` first when negative: `Number::toString` and `BigInt::toString`
@@ -58,9 +60,7 @@ impl<A: IVm> BigInt<A> {
                 remainder = dividend % u128::from(base);
             }
             chunks.push(remainder as u64);
-            while words.last() == Some(&0) {
-                words.pop();
-            }
+            trim(&mut words);
         }
         chunks
     }
