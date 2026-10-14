@@ -32,9 +32,13 @@ do not have to be written first.
 1. **The bump**, against its release line: `main` for a regular release, the
    maintenance branch for an urgent fix. A pull request titled `Release X.Y.Z`
    changes `version` in `package.json` and `package-lock.json` and nothing
-   else. Merging it publishes through the existing workflow. Whatever `main`
-   holds at that merge is the release by definition, and nobody has to have
-   scanned it first.
+   else. Merging a regular release's bump publishes through the existing
+   workflow, and whatever `main` holds at that merge is the release by
+   definition, so nobody has to have scanned it first. That workflow publishes
+   only `main`: an urgent fix's bump publishes nothing until
+   [maintenance release publishing](../fjs/ci/todo/maintenance-release-publishing.md)
+   is implemented, and then its release is the maintenance branch at that
+   merge.
 2. **The notes**, always against `main`. Opened only once the bump has merged
    and the version has published, because its window comes from what npm
    published (below). An AI session writes `changelog/<version>.md` for every
