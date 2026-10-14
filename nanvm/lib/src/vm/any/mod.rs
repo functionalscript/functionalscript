@@ -81,6 +81,13 @@ impl<A: IVm> Any<A> {
         Unpacked::from(self.clone()).is_nullish()
     }
 
+    /// `None` for `undefined`, `Some(self)` for every other value, `null`
+    /// included: the argument an optional parameter was passed, if it was
+    /// passed one. `Unpacked::is_undefined` over one unpack of a clone.
+    pub fn defined(self) -> Option<Self> {
+        (!Unpacked::from(self.clone()).is_undefined()).then_some(self)
+    }
+
     /// Unary plus is nothing but coercion to number.
     /// We use unary_plus as ECMAScript unary plus operator, and we use coerce_to_number for
     /// internals in places where ECMAScript's abstract function ToNumber is needed, and also when
@@ -246,7 +253,7 @@ impl<A: IVm> Any<A> {
 mod tests {
     use crate::{
         naive::Naive,
-        vm::{Any, Nullish, ToAny, ToArray, ToObject, error},
+        vm::{Any, Nullish, ToAny, ToArray, ToObject, Unpacked, error},
     };
 
     type A = Naive;
@@ -309,6 +316,26 @@ mod tests {
             [].to_object().to_any(),
         ] {
             assert!(!v.is_nullish());
+        }
+    }
+
+    /// `undefined` alone is absent: `null` and the falsy values are
+    /// arguments that were passed, and come back unchanged.
+    #[test]
+    fn defined() {
+        assert!(Unpacked::from(Any::<A>::undefined()).is_undefined());
+        assert!(!Unpacked::from(Nullish::Null.to_any::<A>()).is_undefined());
+        assert_eq!(Any::<A>::undefined().defined(), None);
+        for v in [
+            Nullish::Null.to_any::<A>(),
+            false.to_any(),
+            0.0.to_any(),
+            "".into(),
+            [].to_array().to_any(),
+            [].to_object().to_any(),
+        ] {
+            assert!(!Unpacked::from(v.clone()).is_undefined());
+            assert_eq!(v.clone().defined(), Some(v));
         }
     }
 }
