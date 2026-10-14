@@ -60,8 +60,7 @@ pub fn decode_string<A: IVm>(any: Any<A>) -> Result<String, Malformed> {
     let Ok(string) = VmString::try_from(any) else {
         return malformed("not a string");
     };
-    let units: Vec<u16> = (0..string.length()).map(|i| string[i]).collect();
-    Ok(String::from_utf16_lossy(&units))
+    Ok(string.into())
 }
 
 /// A `Vec` as its bytes: the magnitude's bits, big-endian, with the stop bit
