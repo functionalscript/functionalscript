@@ -121,11 +121,10 @@ export const rows = p => {
  * Where {@link generate}'s output goes, relative to the repository root:
  * beside `method.rs`, whose test reads it, under a `gen.` name that
  * `vm/lambda/mod.rs` includes by `#[path]`.
+ *
+ * @type {string}
  */
-export const directory = 'nanvm/lib/src/vm/lambda'
-
-/** @type {string} */
-export const path = `${directory}/gen.methods.rs`
+export const path = 'nanvm/lib/src/vm/lambda/gen.methods.rs'
 
 /** @type {(name: string, doc: string, pairs: readonly (readonly[string, string])[]) => readonly string[]} */
 const table = (name, doc, pairs) => [

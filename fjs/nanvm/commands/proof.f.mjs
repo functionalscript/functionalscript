@@ -1,6 +1,6 @@
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { nodeCommands } from '../../effects/node/module.f.mjs'
-import { directory, generate, path } from './module.f.mjs'
+import { generate, path } from './module.f.mjs'
 
 export const proof = {
     generate: () => {
@@ -11,7 +11,6 @@ export const proof = {
         // Every command of the set is printed once, and nothing else is.
         assertEq(rust.split('\n    "').length - 1, nodeCommands.length)
         assert(nodeCommands.every(command => rust.includes(`\n    "${command}",\n`)), rust)
-        assertEq(path, `${directory}/gen.commands.rs`)
-        assertEq(directory, 'nanvm/effects-node/src')
+        assertEq(path, 'nanvm/effects-node/src/gen.commands.rs')
     },
 }
