@@ -116,6 +116,72 @@ harness does. The Rust is what NaNVM binds. Whatever the form, a call
 step resolves the same way: the receiver's own property, the VM's native
 implementation, the runtime's body, the `TypeError`.
 
+## How NaNVM finds it
+
+A compiled module never names the runtime. It names `nanvm-lib`'s API and
+the VM type parameter `A`, and those two are where the runtime is found.
+For `[1].map(() => 5)`, the output is
+`Any::dot(c0, string_any("map")).end_call(c1)`, and the library takes it
+from there:
+
+```mermaid
+sequenceDiagram
+    participant M as compiled module
+    participant L as nanvm-lib call step
+    participant T as native table
+    participant A as A::runtime_method
+    participant R as gen.runtime.rs
+    M->>L: Any::dot([1], "map").end_call(args)
+    L->>L: own property? none on an array
+    L->>T: method(receiver, "map")
+    T-->>L: None, once map has a body
+    L->>A: runtime_method("array", "map")
+    A->>R: module::<A>()
+    R-->>A: the export object
+    A-->>L: the closure under runtime.array.map
+    L->>L: body.call([receiver, ...args])
+    L-->>M: the answer, or Err(thrown)
+```
+
+`Member::call` in `vm/lambda/member.rs` resolves in that order — the
+receiver's own property, the native table in `vm/lambda/method.rs`, the
+runtime, the `TypeError` for calling `undefined` — and the `?.()` guard
+asks the same lookup to decide whether a callee exists.
+
+**The VM type binds the runtime.** `IVm::runtime_method` is a method on
+the type, with no instance and no argument carrying a runtime, so which
+runtime a VM has is decided by its `impl`: `naive` answers with
+`vm/runtime.rs`, which evaluates `gen.runtime.rs` — included into the
+crate by `#[path]`, which is why the generated file says
+`use nanvm_lib::…` and the crate declares `extern crate self as nanvm_lib`
+— and reads the entry for the type and the key; a VM that leaves the
+default binds nothing, and answers a body's name with the `TypeError` a VM
+that binds nothing should. Linked in at build time, then, but not a
+`static` value: the bound function builds the object when asked, and today
+every answered call evaluates the whole module. That is the measurement
+the design's task list names; `naive` holding the evaluated object in a
+`thread_local`, or an index from type and key to the closures, changes
+nothing generated and nothing in the trait.
+
+Three places the binding could have lived, and why this one:
+
+- **On the type**, as now. Generated code already carries `A` everywhere
+  and nothing else, so the runtime reaches a call step with no change to
+  the compiler's output or to the chain API. One VM type means one
+  runtime, chosen when the VM is built, which is the trade.
+- **In a context passed at call time**, as the interpreter does with its
+  `runtime` field. In Rust every `Any::dot(..).end_call(..)` would take a
+  runtime handle, so every generated call step and every hand-written
+  test would thread one through. The interpreter can afford it because
+  its executor already has a context; the Rust output has none.
+- **In a static table of function pointers.** Not possible: a body with a
+  helper, as `startsWith` has `position`, is a closure with a frame, and
+  a frame is a VM array, an allocated value.
+
+The decision is in one `impl`, three lines in `naive`, and a VM that
+wants a different runtime, a cached one, or a native implementation of a
+name that has a body, changes only that.
+
 ## Two invariants
 
 The shape is a bootstrap — the compiler writes the runtime, and a
