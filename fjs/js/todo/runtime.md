@@ -132,7 +132,11 @@ keys and installs each function value as the fallback member function of
 its type: a call step resolves an own property, then the type's native
 binding, then the runtime's body, then throws the `TypeError` for calling
 `undefined`, as it does today with a hand-written table in the third
-place. The tables in `nanvm/lib/src/vm/lambda`'s `method.rs`, `string.rs`
+place. The guard of an optional call, `a.map?.(f)`, asks the same lookup,
+native or runtime, so a name whose native entry has gone to a body is
+still called, not skipped, and a name neither binds skips with its
+arguments unevaluated — the represented executors' `hasMethod` and
+NaNVM's `Member::is_nullish` in #2880 both do. The tables in `nanvm/lib/src/vm/lambda`'s `method.rs`, `string.rs`
 and `number.rs` shrink to the names without a body; the interpreter runs
 the body, the AOT Rust output links the compiled runtime, and a VM may
 still bind a
