@@ -6,10 +6,11 @@
 ### Problem
 
 `fjs compile` creates its output's directory before writing, so it can write
-into a `gen.*` directory that does not exist yet. `outputDirectory` in
-[`../module.f.mjs`](../module.f.mjs) finds that directory by normalizing the
-output path's parent, and normalizing folds `..` away. The file itself is then
-opened at the path as given.
+into a `gen.*` directory that does not exist yet. `compileFile` in
+[`../module.f.mjs`](../module.f.mjs) finds that directory with
+[`fjs/path`](../../path/module.f.mjs)'s `parent`, which normalizes the output
+path, and normalizing folds `..` away. The file itself is then opened at the
+path as given.
 
 For an output such as `a/../b/out.json` with no `a/` on disk, `compile`
 creates `b/`, then fails to open `a/../b/out.json` with `ENOENT` and exits
