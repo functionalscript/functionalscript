@@ -14,7 +14,7 @@
 //! not implemented, rather than let `std` panic or answer numbers that only look
 //! random: see [`CLOCK`] and [`RANDOM`].
 
-use crate::codec::{encode_number, encode_object, encode_ok, encode_tuple};
+use crate::codec::{encode_number, encode_object, encode_ok, encode_result};
 use nanvm_lib::vm::{Any, IVm, ToAny, ToArray};
 use std::{
     hash::RandomState,
@@ -35,17 +35,9 @@ fn call<A: IVm>(thunk: Any<A>) -> Result<Any<A>, Any<A>> {
     thunk.call([].to_array().to_any())
 }
 
-/// A thunk's outcome as the language's `Result`.
-fn result<A: IVm>(outcome: Result<Any<A>, Any<A>>) -> Any<A> {
-    match outcome {
-        Ok(value) => encode_tuple("ok", value),
-        Err(thrown) => encode_tuple("error", thrown),
-    }
-}
-
 /// `catch`: what the thunk did, as the answer's `Result`.
 pub fn catch<A: IVm>(thunk: Any<A>) -> Any<A> {
-    encode_ok(result(call(thunk)))
+    encode_ok(encode_result(call(thunk)))
 }
 
 /// `sandbox`: what the thunk did and how long it took, in milliseconds.
@@ -56,7 +48,7 @@ pub fn sandbox<A: IVm>(thunk: Any<A>) -> Any<A> {
     let outcome = call(thunk);
     let duration = before.elapsed().as_secs_f64() * 1000.0;
     encode_ok(encode_object([
-        Some(("result", result(outcome))),
+        Some(("result", encode_result(outcome))),
         Some(("duration", encode_number(duration))),
     ]))
 }

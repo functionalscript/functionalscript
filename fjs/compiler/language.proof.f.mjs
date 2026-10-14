@@ -11,7 +11,7 @@
 import { exitCode } from '../effects/node/module.f.mjs'
 import { compile } from './module.f.mjs'
 import { noRuntime, transpile } from './transpiler/module.f.mjs'
-import { virtual, emptyState, nodeProgramOptions } from '../effects/node/virtual/module.f.mjs'
+import { virtualAt, emptyState, nodeProgramOptions } from '../effects/node/virtual/module.f.mjs'
 /** @import { Dir } from '../effects/node/virtual/types.ts' */
 
 import { utf8 } from '../text/module.f.mjs'
@@ -161,7 +161,7 @@ export const proof = {
             assertEq(stderrOf({ ...importing, 'm.f.js': [utf8('export default @')] }), 'm.f.js:1:16-17 - error: unexpected token')
             // a malformed JSON module likewise, under both readers
             const json = { 'input.f.js': [utf8('import d from "./d.json" with { type: "json" }; export default [d];')], 'd.json': [utf8('{')] }
-            const [edagState, edagCode] = virtual({ ...emptyState, root: json })(compile(nodeProgramOptions(['input.f.js', 'output.edag.data.js'])))
+            const [edagState, edagCode] = virtualAt(json)(compile(nodeProgramOptions(['input.f.js', 'output.edag.data.js'])))
             assertEq(exitCode(edagCode), 1)
             assertEq(edagState.stderr.trim(), 'd.json - error: unexpected end')
             assertEq(stderrOf(json), 'd.json - error: unexpected end')
@@ -171,27 +171,27 @@ export const proof = {
         // imported with it, is refused under both readers
         jsonImport: () => {
             const root = { 'input.f.js': [utf8('import d from "./d.json" with { type: "json" }; export default [d, 1];')], 'd.json': [utf8('{"a": [null]}')] }
-            const [state, code] = virtual({ ...emptyState, root: withRuntime(root) })(compile(nodeProgramOptions(['input.f.js', 'output.json'])))
+            const [state, code] = virtualAt(withRuntime(root))(compile(nodeProgramOptions(['input.f.js', 'output.json'])))
             assertEq(exitCode(code), 0)
             assertEq(readOutput(state.root, 'output.json'), '[{"a":[null]},1]')
-            const [edagState, edagCode] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.edag.data.js'])))
+            const [edagState, edagCode] = virtualAt(root)(compile(nodeProgramOptions(['input.f.js', 'output.edag.data.js'])))
             assertEq(exitCode(edagCode), 0)
             assertEq(readOutput(edagState.root, 'output.edag.data.js'), 'export default ["{}",[[":","default",["[]",[["{}",[[":","a",["[]",[null]]]]],1]]]]];')
             const missing = { ...root, 'input.f.js': [utf8('import d from "./d.json"; export default [d, 1];')] }
             assertEq(stderrOf(missing), 'd.json - error: a JSON module needs the import attribute with { type: "json" }')
-            const [missingState, missingCode] = virtual({ ...emptyState, root: missing })(compile(nodeProgramOptions(['input.f.js', 'output.edag.data.js'])))
+            const [missingState, missingCode] = virtualAt(missing)(compile(nodeProgramOptions(['input.f.js', 'output.edag.data.js'])))
             assertEq(exitCode(missingCode), 1)
             assertEq(missingState.stderr.trim(), 'd.json - error: a JSON module needs the import attribute with { type: "json" }')
             const incompatible = { 'input.f.js': [utf8('import m from "./m.f.js" with { type: "json" }; export default [m];')], 'm.f.js': [utf8('export default 1;')] }
             assertEq(stderrOf(incompatible), 'm.f.js - error: only a JSON module is imported with { type: "json" }')
-            const [incompatibleState, incompatibleCode] = virtual({ ...emptyState, root: incompatible })(compile(nodeProgramOptions(['input.f.js', 'output.edag.data.js'])))
+            const [incompatibleState, incompatibleCode] = virtualAt(incompatible)(compile(nodeProgramOptions(['input.f.js', 'output.edag.data.js'])))
             assertEq(exitCode(incompatibleCode), 1)
             assertEq(incompatibleState.stderr.trim(), 'm.f.js - error: only a JSON module is imported with { type: "json" }')
             // a file met before is refused all the same when a later import
             // misspells it: the contract is the import's, not the file's
             const twice = { ...root, 'input.f.js': [utf8('import d from "./d.json" with { type: "json" }; import e from "./d.json"; export default [d, e];')] }
             assertEq(stderrOf(twice), 'd.json - error: a JSON module needs the import attribute with { type: "json" }')
-            const [twiceState, twiceCode] = virtual({ ...emptyState, root: twice })(compile(nodeProgramOptions(['input.f.js', 'output.edag.data.js'])))
+            const [twiceState, twiceCode] = virtualAt(twice)(compile(nodeProgramOptions(['input.f.js', 'output.edag.data.js'])))
             assertEq(exitCode(twiceCode), 1)
             assertEq(twiceState.stderr.trim(), 'd.json - error: a JSON module needs the import attribute with { type: "json" }')
         },
@@ -565,7 +565,7 @@ export const proof = {
                 assertEq(parseDataJs(source)[0], 'error')
                 assertStructurallySame(parseDataJs(normalized), ['ok', expected])
                 const root = { 'input.json': [utf8(expression)] }
-                const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.json', 'output.data.js'])))
+                const [state, code] = virtualAt(root)(compile(nodeProgramOptions(['input.json', 'output.data.js'])))
                 assertEq(exitCode(code), 1)
                 assertEq(state.root['output.data.js'], undefined)
                 assert(state.stderr.startsWith('input.json - error: '))
@@ -649,7 +649,7 @@ export const proof = {
         // denotes one. Each hop uses its own language's spelling of the key.
         jsonInput: () => {
             const root = { 'proto.json': [utf8('{"__proto__":5}')] }
-            const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['proto.json', 'a.data.js'])))
+            const [state, code] = virtualAt(root)(compile(nodeProgramOptions(['proto.json', 'a.data.js'])))
             assertEq(exitCode(code), 0, state.stderr)
             assertEq(readOutput(state.root, 'a.data.js'), 'export default {["__proto__"]:5};')
         },
@@ -659,7 +659,7 @@ export const proof = {
         jsonInputRoundTrip: () => {
             const document = '{"__proto__":{"a":42}}'
             const root = { 'proto.json': [utf8(document)] }
-            const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['proto.json', 'a.data.js'])))
+            const [state, code] = virtualAt(root)(compile(nodeProgramOptions(['proto.json', 'a.data.js'])))
             assertEq(exitCode(code), 0, state.stderr)
             const module = readOutput(state.root, 'a.data.js')
             assertEq(module, 'export default {["__proto__"]:{"a":42}};')
@@ -673,7 +673,7 @@ export const proof = {
                 'main.f.js': [utf8('import a from "./a.json" with { type: "json" };\nexport default [a];')],
                 'a.json': [utf8('{"__proto__":{"a":42}}')],
             }
-            const [state, code] = virtual({ ...emptyState, root: withRuntime(root) })(compile(nodeProgramOptions(['main.f.js', 'out.json'])))
+            const [state, code] = virtualAt(withRuntime(root))(compile(nodeProgramOptions(['main.f.js', 'out.json'])))
             assertEq(exitCode(code), 0, state.stderr)
             assertEq(readOutput(state.root, 'out.json'), '[{"__proto__":{"a":42}}]')
         },
@@ -683,7 +683,7 @@ export const proof = {
         // named by its file instead.
         jsonInputIdKeyRejected: () => {
             const root = { 'proto.json': [utf8('{__proto__:5}')] }
-            const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['proto.json', 'a.data.js'])))
+            const [state, code] = virtualAt(root)(compile(nodeProgramOptions(['proto.json', 'a.data.js'])))
             assertEq(exitCode(code), 1)
             assertEq(state.stderr.trim(), 'proto.json - error: unexpected symbol at 1')
             assertEq(state.root['a.data.js'], undefined)
@@ -692,7 +692,7 @@ export const proof = {
         // a bigint is not JSON, whatever a module makes of it.
         jsonInputRejectsDjsExtensions: () => {
             const root = { 'a.json': [utf8('{"a":1n}')] }
-            const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['a.json', 'a.data.js'])))
+            const [state, code] = virtualAt(root)(compile(nodeProgramOptions(['a.json', 'a.data.js'])))
             assertEq(exitCode(code), 1)
             assertEq(state.root['a.data.js'], undefined)
         },
@@ -712,14 +712,14 @@ export const proof = {
         // compilation errors, not silently accepted properties.
         idKeyRejected: () => {
             const root = { 'input.f.js': [utf8('export default {__proto__:{"a":42}};')] }
-            const [state, code] = virtual({ ...emptyState, root: withRuntime(root) })(compile(nodeProgramOptions(['input.f.js', 'output.data.js'])))
+            const [state, code] = virtualAt(withRuntime(root))(compile(nodeProgramOptions(['input.f.js', 'output.data.js'])))
             assertEq(exitCode(code), 1)
             assert(state.stderr.includes('__proto__ requires the computed key form'), state.stderr)
             assertEq(state.root['output.data.js'], undefined)
         },
         stringKeyRejected: () => {
             const root = { 'input.f.js': [utf8('export default {"__proto__":{"a":42}};')] }
-            const [state, code] = virtual({ ...emptyState, root: withRuntime(root) })(compile(nodeProgramOptions(['input.f.js', 'output.data.js'])))
+            const [state, code] = virtualAt(withRuntime(root))(compile(nodeProgramOptions(['input.f.js', 'output.data.js'])))
             assertEq(exitCode(code), 1)
             assert(state.stderr.includes('__proto__ requires the computed key form'), state.stderr)
             assertEq(state.root['output.data.js'], undefined)
@@ -741,7 +741,7 @@ export const proof = {
             /** @type {(source: string) => string} */
             const compiled = source => {
                 const root = { 'input.f.js': [utf8(source)], 'm.f.js': [utf8('export default [1];')] }
-                const [state, code] = virtual({ ...emptyState, root: withRuntime(root) })(compile(nodeProgramOptions(['input.f.js', 'output.data.js'])))
+                const [state, code] = virtualAt(withRuntime(root))(compile(nodeProgramOptions(['input.f.js', 'output.data.js'])))
                 assertEq(exitCode(code), 0, state.stderr)
                 return readOutput(state.root, 'output.data.js')
             }

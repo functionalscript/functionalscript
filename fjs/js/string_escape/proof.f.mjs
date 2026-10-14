@@ -20,6 +20,7 @@ import {
     escapeToCodePoint,
     optionalEscape,
     simpleEscapes,
+    stringLiteral,
 } from './module.f.mjs'
 
 /**
@@ -65,4 +66,34 @@ export const proof = {
     // The letters are distinct — a repeated letter would silently shadow an
     // entry in the decode view, and the table is small enough to say so.
     lettersAreDistinct: () => assertEq(new Set(simpleEscapes.map(([letter]) => letter)).size, simpleEscapes.length),
+    // The expected literals below are what the host's `JSON.stringify` produces
+    // for the same input; `stringLiteral` has to reproduce them exactly, so any
+    // divergence in the FunctionalScript escaping shows up here as a failure.
+    stringLiteral: [
+        () => assertEq(stringLiteral('abc'), '"abc"'),
+        () => assertEq(stringLiteral('123'), '"123"'),
+        () => assertEq(stringLiteral(''), '""'),
+        // the two escapes JSON requires outside the control block
+        () => assertEq(stringLiteral('a"b'), '"a\\"b"'),
+        () => assertEq(stringLiteral('a\\b'), '"a\\\\b"'),
+        // every named control escape
+        () => assertEq(stringLiteral('\b\f\n\r\t'), '"\\b\\f\\n\\r\\t"'),
+        // control code points without a named escape, covering both hex-digit
+        // halves: '0'-'9' and 'a'-'f'
+        () => assertEq(stringLiteral('\u0000'), '"\\u0000"'),
+        () => assertEq(stringLiteral('\u000b'), '"\\u000b"'),
+        () => assertEq(stringLiteral('\u001f'), '"\\u001f"'),
+        // `space` is the first code point copied through unescaped, and DEL is
+        // not a JSON escape at all
+        () => assertEq(stringLiteral(' \u007f'), '" \u007f"'),
+        // a surrogate pair decodes to one code point and survives unchanged
+        () => assertEq(stringLiteral('😀'), '"😀"'),
+        // unpaired surrogates, well-formed-stringify escaped: leading, trailing,
+        // in the middle, doubled, and left over at end of input
+        () => assertEq(stringLiteral('\ud800'), '"\\ud800"'),
+        () => assertEq(stringLiteral('\udfff'), '"\\udfff"'),
+        () => assertEq(stringLiteral('a\udc00b'), '"a\\udc00b"'),
+        () => assertEq(stringLiteral('\ud800\ud800'), '"\\ud800\\ud800"'),
+        () => assertEq(stringLiteral('a\ud83d'), '"a\\ud83d"'),
+    ],
 }

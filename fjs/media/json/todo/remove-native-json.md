@@ -45,7 +45,7 @@ phase starts.
 | **Leaf serializer** | `fjs/media/json/serializer`'s `numberSerialize` | FunctionalScript number formatting — blocks everything below |
 | Expected-output comparison | the proofs of `fjs/media/json/serializer`, `fjs/js/tokenizer`, `fjs/rtti/data`, `fjs/rtti/ts`, `fjs/text/code_point`; `fjs/media/revision` and `fjs/media/lock` build test input with it | `stringify(identity)` |
 | Assertion messages | `fjs/rtti/ts`'s proof; `fjs/media/datajs/vectors` and its `matrix` quote values in their reports | pass the value, or `fjs/compiler`'s `_stringifyTree` |
-| Source-text quoting | `fjs/emergent_testing/module.f.mjs`, `fjs/types/ts/module.f.mjs`, `fjs/edag/rust/module.f.mjs` | `stringSerialize` — already designed in `fjs/types/ts/todo/66c-emit-literals-via-owner-modules.md` |
+| Source-text quoting | done: `fjs/types/ts`, `fjs/emergent_testing` and `fjs/ci/package` | `fjs/js/string_escape`'s `stringLiteral`, which `stringSerialize` also wraps |
 | JSON line framing | `fjs/emergent_testing/proof.f.mjs`'s `writeEvent`, `fjs/mcp/proof.f.mjs`, `fjs/ci/package`'s `tsconfig.json` line | `stringify(identity)` |
 | Pretty-printed file output | `fjs/ci/module.f.mjs`'s `workflowText` | needs indentation support, which `serialize` does not have |
 
@@ -110,9 +110,9 @@ and the non-finite cases differ between the two host entry points —
 today's callers see.
 
 **3. Migrate the write sites** by the shape table above, once 1 and 2 land.
-The source-text-quoting row is already designed in
-`fjs/types/ts/todo/66c-emit-literals-via-owner-modules.md` — route those through it
-instead of duplicating the decision. The assertion-message row is the cheapest:
+The source-text-quoting row is done: `fjs/js/string_escape`'s
+`stringLiteral` is the one quoting writer, and a new quoting site goes
+through it. The assertion-message row is the cheapest:
 [`fjs/AGENTS.md` §1.5](../../../AGENTS.md#15-never-use-trycatch-test-throwing-with-the-throw-key)
 says a thrown payload is read only by a human after something already went
 wrong, so most of those sites can pass the value itself — but note that the
@@ -151,9 +151,9 @@ Consider a guard so it does not come back — the cheapest is a proof in
   leaf `JSON.stringify` phases 1 and 2 replace; only `numberSerialize` is left.
 - [`fjs/text/utf16/module.f.mjs`](../../../text/utf16/module.f.mjs) — where the
   escaping reads code points, and where phase 1 added `codePointToString`.
-- [`fjs/types/ts/todo/66c-emit-literals-via-owner-modules.md`](../../../types/ts/todo/66c-emit-literals-via-owner-modules.md)
-  — already owns the source-text-quoting sites (`fjs/types/ts`,
-  `fjs/emergent_testing`); phase 3 defers to it rather than re-deciding.
+- [`fjs/js/string_escape/module.f.mjs`](../../../js/string_escape/module.f.mjs)
+  — `stringLiteral`, the escaping `stringSerialize` wraps and the
+  source-text-quoting row's replacement.
 - [`fjs/types/object/structurally_same/README.md`](../../../types/object/structurally_same/README.md)
   — done: `fjs/cas/evo/proof.f.mjs` stringified two values only to compare
   them, and now uses `assertStructurallySame`. The proofs that still compare a

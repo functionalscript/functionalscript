@@ -21,39 +21,37 @@ impl<A: IVm> Ord for BigInt<A> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{naive::Naive, vm::bigint::BigInt};
+    use crate::vm::bigint::test_util::T;
     use std::cmp::Ordering;
-
-    type TestBigInt = BigInt<Naive>;
 
     #[test]
     fn cmp_positive_vs_negative() {
-        let lhs: TestBigInt = 1u64.into();
-        let rhs: TestBigInt = (-1i64).into();
+        let lhs: T = 1u64.into();
+        let rhs: T = (-1i64).into();
         assert_eq!(lhs.cmp(&rhs), Ordering::Greater);
         assert_eq!(rhs.cmp(&lhs), Ordering::Less);
     }
 
     #[test]
     fn cmp_positive_by_absolute_value() {
-        let lhs: TestBigInt = 5u64.into();
-        let rhs: TestBigInt = 6u64.into();
+        let lhs: T = 5u64.into();
+        let rhs: T = 6u64.into();
         assert_eq!(lhs.cmp(&rhs), Ordering::Less);
         assert_eq!(rhs.cmp(&lhs), Ordering::Greater);
     }
 
     #[test]
     fn cmp_negative_reverses_absolute_order() {
-        let lhs: TestBigInt = (-5i64).into();
-        let rhs: TestBigInt = (-6i64).into();
+        let lhs: T = (-5i64).into();
+        let rhs: T = (-6i64).into();
         assert_eq!(lhs.cmp(&rhs), Ordering::Greater);
         assert_eq!(rhs.cmp(&lhs), Ordering::Less);
     }
 
     #[test]
     fn cmp_equal_values() {
-        let lhs: TestBigInt = 0u64.into();
-        let rhs: TestBigInt = 0u64.into();
+        let lhs: T = 0u64.into();
+        let rhs: T = 0u64.into();
         assert_eq!(lhs.cmp(&rhs), Ordering::Equal);
     }
 }

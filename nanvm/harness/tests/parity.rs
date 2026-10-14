@@ -71,12 +71,7 @@ mod host {
             let mut host = Native::new(Cursor::new(Vec::new()), Vec::new(), Vec::new());
             let result = run(effect, |command, payload| host.perform(command, payload))
                 .unwrap_or_else(|thrown| panic!("{case} threw {thrown:?}"));
-            let [tag, answers]: [V; 2] = Array::try_from(result)
-                .unwrap()
-                .into_iter()
-                .collect::<Vec<_>>()
-                .try_into()
-                .unwrap();
+            let [tag, answers]: [V; 2] = Array::try_from(result).unwrap().try_into().unwrap();
             assert_eq!(tag, string_any("ok"), "{case}");
             assert_eq!(
                 answers.to_json().unwrap(),

@@ -381,9 +381,17 @@ and not the other. So an absolute-form target for a name this server does not
 answer for is `403` even when the header says something reassuring.
 
 Anything else is `400`: the asterisk-form `*`, an authority-form `host:port` from
-a `CONNECT`, an empty target, and a target whose scheme is missing or is not one
+a `CONNECT`, an empty target, a target whose scheme is missing or is not one
 this server speaks — `://localhost/x` and `1://localhost/x` name no scheme at
-all, and reading "whatever precedes `://`" as one served them.
+all, and reading "whatever precedes `://`" as one served them — and an
+absolute-form target whose authority names no host. The authority is read by
+the same grammar as a `Host` header
+([below](#binding-loopback-is-not-the-whole-check)), so
+`http://localhost:bad/x` is refused as a target for the reason `Host:
+localhost:bad` is refused as a header. A target that does not parse names no
+host to check, so the host check falls back to the `Host` header, as it does for
+every malformed target: the request is `400` when that header names a served
+host, and `403` when it does not — `Host: localhost:bad` included.
 
 ### Request bodies
 
@@ -503,11 +511,12 @@ an empty authority and the path `/index.html` here, and as the host
 `index.html` and the path `/` to a URL parser — two readings, neither of them
 the client's — so it is `400`, as RFC 9110 §4.2.1 requires of a recipient given
 an `http` URI with an empty host. `http://:80/index.html` is the same target
-wearing a port, and `new URL` refuses that one outright.
+wearing a port, and `new URL` refuses that one outright. A lone `.` is the DNS
+root and no host in it, so `http://./x` is `400` too, and `Host: .` is `403`.
 
 What may follow a name is a **port and nothing else**, and a port is digits
 **below 65536**: `localhost:bad`, `localhost:8080:999` and `localhost:65536` are
-all `403`, the last because a URL parser refuses the same authority
+all `403` as a `Host`, the last because a URL parser refuses the same authority
 (`new URL('http://localhost:65536/')` throws). The digits are read as a number
 rather than counted, since a parser reads `:00008080` as port 8080 and a length
 test would not. Reading a name and discarding whatever follows it is not a

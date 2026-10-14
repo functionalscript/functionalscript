@@ -173,9 +173,8 @@ prints nothing for any identifier already resolved.
 names, and the collision is not theoretical — an earlier revision of this issue
 listed one of them as a citation to repair. None of these is a citation:
 
-- Rust integer types: `i64` in `fjs/nanvm/README.md` and
-  `nanvm/lib/todo/bigint-operator-test-scaffolding.md` (`f64`/`i64` spelling
-  and `From<i64>`); `i64` and `i128` in `spec/datajs/vectors/README.md`.
+- Rust integer types: `i64` in `fjs/nanvm/README.md` (`f64`/`i64`
+  spelling); `i64` and `i128` in `spec/datajs/vectors/README.md`.
 - CPU architectures: `i386` and `i686` in `fjs/ci/README.md` and
   `fjs/ci/todo/65z-ci-nix.md`, and the `i686-…` target triples in `fjs/ci`
   source.
