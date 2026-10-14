@@ -1,7 +1,7 @@
 ## grammar-and-format-policy. The config grammar and the repository-format gate share one module, and the grammar is private
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
