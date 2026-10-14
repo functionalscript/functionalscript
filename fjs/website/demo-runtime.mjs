@@ -504,7 +504,7 @@ export const startDemo = async root => {
             const left = Number(svg.getAttribute('data-demo-x-left'))
             const right = Number(svg.getAttribute('data-demo-x-right'))
             // The slider's minimum can be inside the graph's left boundary.
-            const range = /** @type {HTMLInputElement | null} */ (root.querySelector(`[name="${name}"]`))
+            const range = byName(root, name)
             if (range === null || right <= left) { return }
             const value = Math.min(Number(range.max), Math.max(Number(range.min), min + (x - left) / (right - left) * (max - min)))
             step({ kind: 'input', name, value: value.toFixed(3) })
