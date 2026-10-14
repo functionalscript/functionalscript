@@ -5,7 +5,7 @@
  */
 
 import { assertEq } from '../../asserts/module.f.mjs'
-import { symbolAt, unmapped, variant } from './module.f.mjs'
+import { items, symbolAt, unmapped, variant } from './module.f.mjs'
 
 /** @type {Meta<{ readonly id: 'i' }, 42>} */
 const leaf = { symbol: 42, meta: { id: 'i' } }
@@ -23,11 +23,12 @@ export const proof = {
         /** @type {readonly [Meta<{ readonly id: 'i' }>, Meta<{ readonly id: 'o' }>] | Meta<unknown>} */
         const tuple = [leaf, mapped]
         assertEq(unmapped(tuple), tuple)
-        // Untyped, the node is still the node, as an array of unknowns.
+    },
+    // Untyped, the node is still the node, as an array of unknowns.
+    items: () => {
         /** @type {unknown} */
-        const untyped = tuple
-        /** @typedef {Assert<Equal<ReturnType<typeof unmapped>, readonly unknown[]>>} _Untyped */
-        assertEq(unmapped(untyped), tuple)
+        const node = [leaf, leaf]
+        assertEq(items(node), node)
     },
     // A variant's node, read untyped: the tag and the branch's node.
     variant: () => {
@@ -54,6 +55,7 @@ export const proof = {
     throw: {
         unmappedRejectsSymbol: () => unmapped(leaf),
         symbolAtRejectsNode: () => symbolAt([leaf]),
+        itemsRejectsSymbol: () => items(leaf),
         // A variant's node is an array of two, its tag a string.
         variantRejectsSymbol: () => variant(leaf),
         variantRejectsLength: () => variant(['a', leaf, leaf]),

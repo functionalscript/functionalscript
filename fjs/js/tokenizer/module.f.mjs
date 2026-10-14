@@ -52,7 +52,7 @@
  * @import { _Cursor, _Failure, _Kind, _Lexed, _Lexeme, _StringDecodeState, _TemplateContext, _TemplateDecode, _Trivia } from './private.ts'
  */
 import { assert } from '../../asserts/module.f.mjs'
-import { unmapped, variant } from '../../ebnf/ast/module.f.mjs'
+import { items, variant } from '../../ebnf/ast/module.f.mjs'
 import { parser } from '../../ebnf/ll1/module.f.mjs'
 import { lineTerminators, mergeTrivia, templateContinuation, token } from '../../ebnf/lib/js/module.f.mjs'
 import { isKeyword } from '../keywords/module.f.js'
@@ -89,7 +89,7 @@ const closed = content => {
         switch (tag) {
             case 'end': { return true }
             case 'unterminated': { return false }
-            default: { node = unmapped(rest)[1] }
+            default: { node = items(rest)[1] }
         }
     }
 }
@@ -103,7 +103,7 @@ const templateClosed = content => {
         switch (tag) {
             case 'end': { return true }
             case 'substitution': { return false }
-            default: { node = unmapped(rest)[1] }
+            default: { node = items(rest)[1] }
         }
     }
 }
@@ -119,13 +119,13 @@ const templateClosed = content => {
 const kindOf = node => {
     const [tag, child] = variant(node)
     if (tag === 'template') {
-        return [templateClosed(unmapped(child)[1]) ? 'noSubstitutionTemplate' : 'templateHead', true]
+        return [templateClosed(items(child)[1]) ? 'noSubstitutionTemplate' : 'templateHead', true]
     }
     if (tag !== 'slash') { return [/** @type {_Kind} */ (tag), true] }
-    const [sub, rest] = variant(unmapped(child)[1])
+    const [sub, rest] = variant(items(child)[1])
     switch (sub) {
         case 'oneline': { return ['comment', true] }
-        case 'multiline': { return ['comment', closed(unmapped(rest)[1])] }
+        case 'multiline': { return ['comment', closed(items(rest)[1])] }
         default: { return ['operator', true] }
     }
 }
@@ -211,7 +211,7 @@ const lex = path => cp => {
         const [node, end] = match[1]
         const text = cp.slice(pos, end)
         const [kind, ok] = continuation
-            ? /** @type {const} */ ([templateClosed(unmapped(node)[1]) ? 'templateTail' : 'templateMiddle', true])
+            ? /** @type {const} */ ([templateClosed(items(node)[1]) ? 'templateTail' : 'templateMiddle', true])
             : kindOf(node)
         if (kind === 'templateHead') {
             templates = [...templates, { braces: 0, start: metadata }]

@@ -5,9 +5,10 @@
  * the rule at that position, so its shape is the rule's by construction.
  * {@link unmapped} asserts the second where a mapping knows a position is
  * scaffolding nothing mapped, and {@link symbolAt} the first where it
- * expects a symbol. {@link variant} is {@link unmapped} for a reader that
- * walks a tree untyped and knows the position is a variant's: it asserts
- * the `[tag, node]` shape the type would otherwise have said.
+ * expects a symbol. {@link items} and {@link variant} are {@link unmapped}
+ * for a reader that walks a tree untyped; {@link variant} knows the position
+ * is a variant's and asserts the `[tag, node]` shape the type would
+ * otherwise have said.
  * `./README.md` holds the argument.
  *
  * @module
@@ -21,15 +22,23 @@ import { assert } from '../../asserts/module.f.mjs'
  * The node at a position no mapping filled: an array the machine built, so
  * its shape is the rule's. The one test a mapping makes where it knows a
  * position is unmapped — the scaffolding a combinator builds and hands to
- * nobody. A reader that walks a tree untyped, holding `unknown`, gets
- * the node as `readonly unknown[]`.
+ * nobody.
  *
- * @type {{
- *     <T extends readonly unknown[]>(node: T | Meta<unknown>): T
- *     (node: unknown): readonly unknown[]
- * }}
+ * @type {<T extends readonly unknown[]>(node: T | Meta<unknown>) => T}
  */
-export const unmapped = (/** @type {unknown} */ node) => {
+export const unmapped = node => {
+    assert(node instanceof Array)
+    return node
+}
+
+/**
+ * {@link unmapped} for a reader that walks a tree untyped, holding
+ * `unknown`: the node as `readonly unknown[]`. A separate reader, so
+ * {@link unmapped} keeps checking a typed caller's argument.
+ *
+ * @type {(node: unknown) => readonly unknown[]}
+ */
+export const items = node => {
     assert(node instanceof Array)
     return node
 }
