@@ -23,7 +23,8 @@
  * {@link historyStep} for a chain whose later links read earlier values, and
  * {@link foldStep} / {@link forEachStep} for iteration. The operation
  * constructor is {@link do_}, and the eliminators are {@link match},
- * {@link partialMatch} and {@link runPure}.
+ * {@link partialMatch} — over the command list {@link commandsOf} derives —
+ * and {@link runPure}.
  *
  * **The error channel is unioned, not unified**, following `okThen`
  * (`fjs/types/result/module.f.js`), the pure sibling of this bind: neither
@@ -84,7 +85,7 @@
  * @import { List } from '../types/list/types.ts'
  * @import { Option } from '../types/option/types.ts'
  * @import { Result } from '../types/result/types.ts'
- * @import { Commands, Effect, ErrOf, Func, IoChannel, IoError, IoErrorInfo, MatchResult, NotImplemented, OkOf, Operation, OperationMap, PartialOperationMap } from './types.ts'
+ * @import { CommandSet, Commands, Effect, ErrOf, Func, IoChannel, IoError, IoErrorInfo, MatchResult, NotImplemented, OkOf, Operation, OperationMap, PartialOperationMap } from './types.ts'
  */
 
 import { assert } from '../asserts/module.f.mjs'
@@ -314,6 +315,24 @@ const _matchWith = onMissing =>
                 continuation,
             ]
         }
+
+/**
+ * The commands of a {@link CommandSet}, in the form {@link partialMatch} tests
+ * membership against.
+ *
+ * A set is declared as a record so that it is checked for completeness, and
+ * the list is derived from it so that the two cannot disagree. The cast is the
+ * one `Object.keys` always needs: it answers `string[]` for a record whose keys
+ * the type system knows exactly.
+ *
+ * Generic over the set's own type `S` rather than the operation set `O`: a
+ * `CommandSet<O>` mentions only `O[0]`, from which `O` cannot be inferred.
+ *
+ * @template {CommandSet<Operation>} S
+ * @param {S} set
+ * @returns {readonly (keyof S)[]}
+ */
+export const commandsOf = set => /** @type {readonly (keyof S)[]} */ (Object.keys(set))
 
 /**
  * Lifts a value into a successful `Effect` — `pure(ok(v))` written once.
