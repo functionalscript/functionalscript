@@ -1,7 +1,7 @@
 ## one-module-resolution-walk. The transpiler and the linker walk imports the same way twice
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
