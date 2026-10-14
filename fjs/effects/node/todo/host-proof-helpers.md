@@ -1,7 +1,7 @@
 ## The host proofs copy their scaffolding
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
