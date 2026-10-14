@@ -24,9 +24,9 @@ equal to what the compiler admits. The same arrangement for `Array` is
 [`fjs/js/runtime`](../../../../../fjs/js/runtime/README.md), which
 `npm run gen` compiles into [`../gen.runtime.rs`](../gen.runtime.rs), and
 the call step reaches it through [`../runtime.rs`](../runtime.rs) after the
-table above has no entry. The names still here are the runtime's `'native'`
-ones: the primitives a body is written over, and the names whose bodies wait
-on a primitive the language has not admitted. A name moves out of this table
+table above has no entry. The names still here have no body yet: the
+primitives a body is written over, and the names whose bodies wait on a
+primitive the language has not admitted. A name moves out of this table
 when its body lands, or stays beside the body where a measurement justifies
 the second implementation.
 

@@ -1,22 +1,19 @@
 /**
- * The built-in member functions, defined once: for each of the seven
- * receiver types, every name a module may call on it, and what answers
- * the call. An entry is a body — a FunctionalScript function of the
+ * The built-in member functions, defined once: for a receiver type, the
+ * names whose body is written, each a FunctionalScript function of the
  * receiver and then the arguments as the call passed them, `undefined`
- * past the end — or the marker `'native'`, a name every VM binds itself:
- * a primitive no body can define in terms of the rest, or a name whose
- * body waits on a primitive the language has not admitted yet. Which of
- * the two a marker is, and why, is the comment beside it.
+ * past the end. A name without a body is absent — a primitive no body
+ * can define in terms of the rest, or a name whose body waits on a
+ * primitive the language has not admitted yet, [`README.md`](./README.md)
+ * says which — and each VM answers it from its own native table.
  *
- * The keys are the admitted set: a type has exactly the member functions
- * its object holds, which [`./types.ts`](./types.ts) pins against the
- * prototype lists of [`../prototype`](../prototype/module.f.js), and the
- * parser's `allowedCalls` there names the same functions. Every executor
- * reads this one table — the represented interpreter runs a body as EDAG
- * through the runtime its executor is given, and NaNVM binds the module
- * compiled to Rust by `npm run gen` — so a member function is written
- * here and nowhere else. [`README.md`](./README.md) says how each binds it
- * and how a name moves from the marker to a body.
+ * Which names a module may call stays [`../prototype`](../prototype/module.f.js)'s;
+ * [`./types.ts`](./types.ts) pins every key here an allowed name on its
+ * type's prototype. Every executor reads this one table — the represented
+ * interpreter runs a body as EDAG through the runtime its executor is
+ * given, and NaNVM binds the module compiled to Rust by `npm run gen` — so
+ * a member function is written here and nowhere else. The README says how
+ * each binds it and how a name gets its body.
  *
  * @module
  */
@@ -46,61 +43,9 @@ const position = (value, length) => {
     return p < 0 ? 0 : p > length ? length : p - p % 1
 }
 
-/**
- * The table: a type, then a name, then the body or the marker.
- */
-export const runtime = /** @type {const} */ ({
-    object: {
-        toString: 'native',
-    },
-    array: {
-        at: 'native',
-        concat: 'native',
-        every: 'native',
-        filter: 'native',
-        find: 'native',
-        findIndex: 'native',
-        findLast: 'native',
-        findLastIndex: 'native',
-        flat: 'native',
-        flatMap: 'native',
-        includes: 'native',
-        indexOf: 'native',
-        join: 'native',
-        lastIndexOf: 'native',
-        map: 'native',
-        reduce: 'native',
-        reduceRight: 'native',
-        slice: 'native',
-        some: 'native',
-        toReversed: 'native',
-        toSorted: 'native',
-        toSpliced: 'native',
-        toString: 'native',
-        with: 'native',
-    },
+/** The table: a type, then a name, then the body. */
+export const runtime = {
     string: {
-        at: 'native',
-        charAt: 'native',
-        // A primitive: the code unit read every other string body is
-        // written over.
-        charCodeAt: 'native',
-        codePointAt: 'native',
-        concat: 'native',
-        endsWith: 'native',
-        includes: 'native',
-        indexOf: 'native',
-        isWellFormed: 'native',
-        lastIndexOf: 'native',
-        padEnd: 'native',
-        padStart: 'native',
-        repeat: 'native',
-        replace: 'native',
-        replaceAll: 'native',
-        // A primitive: the substring every other string body is written
-        // over — the language has no other way to take part of a string.
-        slice: 'native',
-        split: 'native',
         /**
          * [`String.prototype.startsWith`](https://tc39.es/ecma262/#sec-string.prototype.startswith):
          * whether `ToString(search)` occurs at `position`, clamped into the
@@ -116,34 +61,5 @@ export const runtime = /** @type {const} */ ({
             const end = start + s.length
             return end > self.length ? false : self.slice(start, end) === s
         },
-        substring: 'native',
-        // Waits on a string from a code unit, `String.fromCharCode`, which
-        // the static-function step admits: the Unicode case tables are
-        // written over it.
-        toLowerCase: 'native',
-        toString: 'native',
-        toUpperCase: 'native',
-        toWellFormed: 'native',
-        trim: 'native',
-        trimEnd: 'native',
-        trimStart: 'native',
     },
-    number: {
-        // The three formatters and a nondecimal radix wait on `BigInt`,
-        // which the static-function step admits: the exact decimal
-        // expansion of a double is written over it.
-        toExponential: 'native',
-        toFixed: 'native',
-        toPrecision: 'native',
-        toString: 'native',
-    },
-    boolean: {
-        toString: 'native',
-    },
-    bigint: {
-        toString: 'native',
-    },
-    function: {
-        toString: 'native',
-    },
-})
+}

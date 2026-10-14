@@ -26,11 +26,11 @@ compile time:
 
 ✅ means allowed and ❌ prohibited. The lists are ECMAScript 2025's, Annex B
 included, string keys only; they grow with the language's types — `Map` and
-`Set` would add their prototypes here. What answers an allowed call is
-[`js/runtime`](../runtime/README.md): a table keyed by receiver type and
-name, each entry a body written once in FunctionalScript or the marker of a
-name every VM binds itself, whose keys are exactly the allowed names on each
-prototype.
+`Set` would add their prototypes here. An allowed call is answered by a
+body written once in FunctionalScript, in
+[`js/runtime`](../runtime/README.md), keyed by receiver type and name and
+pinned inside these lists, or, until its body is written, by each VM's own
+native implementation.
 
 | name | read | call | where, why |
 |---|---|---|---|

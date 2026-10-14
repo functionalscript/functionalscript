@@ -56,9 +56,10 @@ export const hasMethod = (receiver, key) => {
 
 /**
  * The runtime's body for a receiver type and a name: the function value
- * under the type's object, or `undefined` — the marker, a name the type's
- * object lacks, or no runtime at all. The runtime's shape is
- * `fjs/js/runtime`'s, an object per type, which its `types.ts` pins.
+ * under the type's object, or `undefined` — a name or a type the runtime
+ * lacks, an entry that is no function, or no runtime at all. The
+ * runtime's shape is `fjs/js/runtime`'s, an object per type, which its
+ * `types.ts` pins.
  *
  * @type {(runtime: Runtime | undefined, type: string, key: string) => ValueFunction | undefined}
  */

@@ -133,14 +133,15 @@ export const proof = {
     // `startsWith` has no native case: the runtime's body answers it, called
     // with the receiver first, and without a body the call is the
     // `TypeError` of a VM that binds nothing — no runtime at all, one
-    // without the type, one whose type lacks the name, or the marker.
+    // without the type, one whose type lacks the name, or an entry that is
+    // no function.
     runtime: () => {
-        const runtime = table([['string', table([['slice', 'native'], ['startsWith', second]])]])
+        const runtime = table([['string', table([['slice', 'x'], ['startsWith', second]])]])
         assertEq(hasMethod('abc', 'startsWith'), true)
         assertEq(assertOk(method('abc', 'startsWith', ['ab'], invoke, runtime)), 'ab')
         assertStructurallySame(assertOk(method('abc', 'startsWith', [], invoke, runtime)), undefinedValue)
         refuses('abc', 'startsWith', ['ab'])
-        for (const missing of [table([]), table([['string', table([])]]), table([['string', table([['startsWith', 'native']])]])]) {
+        for (const missing of [table([]), table([['string', table([])]]), table([['string', table([['startsWith', 'x']])]])]) {
             assertStructurallySame(assertError(method('abc', 'startsWith', ['ab'], invoke, missing)), undefinedValue)
         }
         // a native name is answered natively whatever the runtime holds

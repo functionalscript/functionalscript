@@ -3,9 +3,9 @@
 //! Rust backend, and [`runtime_method`], which reads the compiled object's
 //! entry for a receiver type and a key. A VM with static functions, which
 //! every compiled function is, answers [`IVm::runtime_method`] with it; the
-//! native tables in `vm/lambda` keep every name the runtime marks
-//! `'native'`, and may keep a name that has a body where a measurement
-//! justifies the second implementation.
+//! native tables in `vm/lambda` keep every name without a body, and may
+//! keep a name that has one where a measurement justifies the second
+//! implementation.
 
 use crate::vm::{Any, IStaticFunction, IVm, Unpacked};
 
@@ -16,10 +16,10 @@ mod compiled;
 
 /// The body the runtime holds under the receiver type and the key, if a
 /// function: `runtime[type_name][key]` of the compiled module's export
-/// object. `None` for a marker — the string `'native'`, a name the native
-/// table answers — for a name the type's object lacks, and for a type the
-/// runtime does not key. The module is evaluated on every call; a VM that
-/// measures the cost may hold the object instead.
+/// object. `None` for a name the type's object lacks, for a type the
+/// runtime does not key, and for an entry that is no function. The module
+/// is evaluated on every call; a VM that measures the cost may hold the
+/// object instead.
 pub fn runtime_method<A: IStaticFunction>(type_name: &str, key: &Any<A>) -> Option<Any<A>> {
     let module = compiled::module::<A>().ok()?;
     let table = Any::dot(module, "runtime".into()).end().ok()?;
@@ -76,8 +76,8 @@ mod tests {
         assert_eq!(type_name(&Any::<A>::undefined()), None);
     }
 
-    /// A body is found by its type and name; a marker, an unknown name and
-    /// an unknown type are not.
+    /// A body is found by its type and name; a name without a body, an
+    /// unknown name and an unknown type are not.
     #[test]
     fn lookup() {
         assert!(runtime_method::<A>("string", &"startsWith".into()).is_some());

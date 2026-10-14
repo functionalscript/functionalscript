@@ -5,13 +5,13 @@ import {
 } from '../prototype/module.f.js'
 import { runtime } from './module.f.js'
 
-const { keys, values } = Object
+const { entries, values } = Object
 
-/** The prototype each type's names come from, in the table's order. @type {readonly (readonly [string, readonly string[]])[]} */
-const prototypes = [
-    ['object', objectPrototype], ['array', arrayPrototype], ['string', stringPrototype], ['number', numberPrototype],
-    ['boolean', booleanPrototype], ['bigint', bigintPrototype], ['function', functionPrototype],
-]
+/** The prototype each receiver type's names come from. @type {Readonly<Record<string, readonly string[] | undefined>>} */
+const prototypes = {
+    object: objectPrototype, array: arrayPrototype, string: stringPrototype, number: numberPrototype,
+    boolean: booleanPrototype, bigint: bigintPrototype, function: functionPrototype,
+}
 
 /** @type {readonly string[]} */
 const allowed = allowedCalls
@@ -20,22 +20,20 @@ const allowed = allowedCalls
 const tables = runtime
 
 export const proof = {
-    // The keys are the admitted set: for each type, exactly the names
-    // `allowedCalls` admits on its prototype, in the prototype's order,
-    // which is sorted — the same claim `./types.ts` makes at the type level.
+    // Every type the table keys is a receiver type, and every key under it
+    // is a name `allowedCalls` admits on that type's prototype — the same
+    // claim `./types.ts` makes at the type level — and every entry is a
+    // body.
     keys: () => {
-        assertEq(keys(tables).join(), prototypes.map(([type]) => type).join())
-        for (const [type, names] of prototypes) {
-            assertEq(keys(tables[type]).join(), names.filter(name => allowed.includes(name)).join())
-        }
-    },
-    // Every entry is a body or the marker, nothing else.
-    entries: () => {
-        for (const table of values(tables)) {
-            for (const entry of values(table)) {
-                assert(entry === 'native' || typeof entry === 'function')
+        for (const [type, table] of entries(tables)) {
+            const names = prototypes[type]
+            assert(names !== undefined, type)
+            for (const [name, entry] of entries(table)) {
+                assert(names.includes(name) && allowed.includes(name), name)
+                assertEq(typeof entry, 'function')
             }
         }
+        assert(values(tables).length > 0)
     },
     // The one body so far, on the host: `String.prototype.startsWith`'s
     // algorithm, case by case — the search converted, the position clamped
