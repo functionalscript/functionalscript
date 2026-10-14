@@ -640,15 +640,16 @@ leaf, directly or not — what a leaf's rename opens up, since a proof stays
 | `fjs/git/config` | 1 | `\v` and `\0` escapes, destructuring, the `BigInt` global, runtime string keys `escapes[c]`, `factors[…]` and `prefixes[…]`, a runtime number key `values[values.length - 1]`, `toLowerCase` (a prohibited member function), `acc.sub` (a prohibited property name), template literals |
 | `fjs/website/browser-source` | 1 | `let`, `+=`, `while` with `break` and `continue`, a non-terminating `if`, eight runtime number keys, `source[index]` and `list[at]` among them, template literals |
 
-The table above is a historical measurement. `array_index` now imports
-[`types/number/is_integer`](../fjs/types/number/is_integer/module.f.js), whose
-`isInteger` uses `typeof` and `%` rather than `Number.isInteger`. Its bounds
-and canonical string round-trip are unchanged. With
+The table above is a historical measurement. `array_index` now calls
+`Number.isInteger`, admitted as a static function
+([spec: built-in static functions](../spec/README.md#built-in-static-functions)),
+in place of the shared helper it once imported. Its bounds and canonical
+string round-trip are unchanged. With
 [`String` conversion](../spec/README.md#string-conversion) admitted,
-`array_index` now compiles through its shared integer predicate and canonical
-string check; the rename above completes that migration step.
-`types/number`, ASCII digit parsing, Unicode surrogate
-conversion, and Node/web validation reuse the same predicate.
+`array_index` now compiles through the predicate and its canonical string
+check; the rename above completes that migration step. `types/number`,
+ASCII digit parsing, Unicode surrogate conversion, and Node/web validation
+call the same built-in.
 
 Compared with the previous measurement at `4c8ec55`, the `08d013b` snapshot
 had the same eighteen leaves and compiler progress on three of them.

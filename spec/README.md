@@ -1959,13 +1959,9 @@ Each read reaches the graph as the node of its name, `['Object.is']` or
 `['Number.isInteger']`, and a call of it as the ordinary call,
 `['()', ['Object.is'], [a, b]]` ([`fjs/edag`](../fjs/edag/README.md)). Each
 body is written once, in the `static` section of
-[`fjs/js/runtime`](../fjs/js/runtime/README.md), as a helper a module may
-import as well — [`fjs/types/object/is`](../fjs/types/object/is/module.f.js),
-and [`is_integer`](../fjs/types/number/is_integer/module.f.js),
-[`is_safe_integer`](../fjs/types/number/is_safe_integer/module.f.js),
-[`is_nan`](../fjs/types/number/is_nan/module.f.js) and
-[`is_finite`](../fjs/types/number/is_finite/module.f.js) under
-`fjs/types/number` — and every executor answers the node from it; an executor with no binding
+[`fjs/js/runtime`](../fjs/js/runtime/README.md), a VM's and no module's —
+a module calls the built-in — and checked there against the host's own;
+every executor answers the node from it, and an executor with no binding
 for it fails, naming it, rather than answer. The graph outputs write the
 node back: the FunctionalScript one as its name, `Object.is`,
 the Rust one as the binding the VM answers, which NaNVM reads from the one

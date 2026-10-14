@@ -15,7 +15,6 @@ import { parser } from '../../../ebnf/ll1/module.f.mjs'
 import { units } from '../../../ebnf/utf16/module.f.mjs'
 import { escape, json, string } from '../../../ebnf/lib/json/module.f.mjs'
 import { mappings, parse as parseWithPolicy, stringMappings, syntaxError, textAt } from './module.f.mjs'
-import { isFinite_ } from '../../../types/number/is_finite/module.f.js'
 
 const { is } = Object
 
@@ -28,7 +27,7 @@ const { is } = Object
  */
 const numberPolicy = lexeme => {
     const n = Number(lexeme)
-    return isFinite_(n) ? ok(n) : error(`out of range: ${lexeme}`)
+    return Number.isFinite(n) ? ok(n) : error(`out of range: ${lexeme}`)
 }
 
 const parse = parseWithPolicy(numberPolicy)

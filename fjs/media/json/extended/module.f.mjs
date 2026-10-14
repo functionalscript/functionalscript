@@ -65,7 +65,6 @@ import { error, ok } from '../../../types/result/module.f.js'
 import { parse as parseWith } from '../parser/module.f.mjs'
 import { isBareInteger, numberLexeme } from '../number/module.f.mjs'
 import { codec, leafSerialize, nullSerialize } from '../serializer/module.f.mjs'
-import { isFinite_ } from '../../../types/number/is_finite/module.f.js'
 
 
 const { is } = Object
@@ -85,7 +84,7 @@ const numberPolicy = value => {
         return ok(value === '-0' ? -0 : BigInt(value))
     }
     const n = Number(value)
-    return isFinite_(n) ? ok(n) : error(`number is out of the finite range: ${value}`)
+    return Number.isFinite(n) ? ok(n) : error(`number is out of the finite range: ${value}`)
 }
 
 /**
@@ -113,7 +112,7 @@ const negativeZeroSerialize = [['-0', 'number']]
  */
 const numberSerialize = value => {
     if (is(value, -0)) { return negativeZeroSerialize }
-    if (!isFinite_(value)) { return nullSerialize }
+    if (!Number.isFinite(value)) { return nullSerialize }
     const text = `${value}`
     return [[isBareInteger(numberLexeme(text)) ? `${text}.0` : text, 'number']]
 }

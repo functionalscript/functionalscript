@@ -10,7 +10,6 @@
  */
 
 import { number, open, or, string } from '../../rtti/module.f.mjs'
-import { isFinite_ } from '../../types/number/is_finite/module.f.js'
 
 /** Public configuration, with no application secret. */
 export const configSchema = open({ clientId: string, redirectUri: string })
@@ -105,7 +104,7 @@ export const validVerifier = verifier => verifier.length >= 43
 export const validPending = ({ state: expected, verifier, createdAt }, state, now) => state !== ''
     && state === expected
     && validVerifier(verifier)
-    && isFinite_(createdAt)
-    && isFinite_(now)
+    && Number.isFinite(createdAt)
+    && Number.isFinite(now)
     && createdAt <= now
     && now - createdAt <= 600_000

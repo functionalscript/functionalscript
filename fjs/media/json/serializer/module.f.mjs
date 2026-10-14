@@ -36,7 +36,6 @@ import { definedEntries, isObject } from '../../../types/object/module.f.mjs'
 import { compose, fn } from '../../../types/function/module.f.js'
 import { stringLiteral } from '../../../js/string_escape/module.f.mjs'
 import { assertNotNullish } from '../../../asserts/module.f.mjs'
-import { isFinite_ } from '../../../types/number/is_finite/module.f.js'
 
 const jsonStringify = JSON.stringify
 
@@ -68,7 +67,7 @@ export const stringSerialize
  * @type {(_: number) => List<Chunk>}
  */
 export const numberSerialize
-    = input => isFinite_(input) ? [[is(input, -0) ? '-0' : jsonStringify(input), 'number']] : nullSerialize
+    = input => Number.isFinite(input) ? [[is(input, -0) ? '-0' : jsonStringify(input), 'number']] : nullSerialize
 
 /**
  * Shared serialized representation for `null`.

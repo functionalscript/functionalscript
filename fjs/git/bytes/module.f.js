@@ -12,7 +12,6 @@
  * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
-import { isSafeInteger } from '../../types/number/is_safe_integer/module.f.js'
 
 /**
  * The unsigned big-endian 32-bit word at `at`, read as arithmetic rather than
@@ -40,7 +39,7 @@ export const u32be = (b, at) => b[Number(at)] * 0x100_0000 + b[Number(at + 1)] *
  */
 export const u64be = (b, at) => {
     const v = u32be(b, at) * 0x1_0000_0000 + u32be(b, at + 4)
-    return isSafeInteger(v) ? v : null
+    return Number.isSafeInteger(v) ? v : null
 }
 
 /**

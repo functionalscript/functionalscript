@@ -21,13 +21,13 @@ conversions alone, and every other member of a global is refused —
 (`const not found`), since `Object` is not reserved yet. Authored modules
 spell what they need as imported helpers
 ([`doc/CONVERTING.md` §2](../../../doc/CONVERTING.md#2-numberisinteger)):
-[`is`](../../types/object/is/module.f.js) for `Object.is`,
-[`isInteger`](../../types/number/is_integer/module.f.js) for
-`Number.isInteger`, [`bigint`](../../types/bigint/from_number/module.f.js)
-for `BigInt(n)`. The helpers are the right answer for a module and the
-right body for the runtime: an admitted `Object.is` that did not reuse `is`
-would be a second implementation of SameValue, free to drift from the
-first, which is what the runtime exists to prevent.
+`is` in `fjs/types/object/is` for `Object.is`, `isInteger` in
+`fjs/types/number/is_integer` for `Number.isInteger`,
+[`bigint`](../../types/bigint/from_number/module.f.js) for `BigInt(n)`.
+The helpers are the right answer for a module and the right body for the
+runtime: an admitted `Object.is` that did not reuse `is` would be a second
+implementation of SameValue, free to drift from the first, which is what
+the runtime exists to prevent.
 
 The casing pair, `toLowerCase` and `toUpperCase`, stays native because no
 body can build a string from a code unit: `String.fromCharCode` is a
@@ -52,7 +52,7 @@ holds `member`, where the first task moved the member table, and the
 `static` section this proposal adds beside it:
 
 ```js
-import { is } from '../../types/object/is/module.f.js'
+const is = (a, b) => /* SameValue */
 
 export const runtime = {
     static: {
@@ -77,11 +77,14 @@ export const runtime = {
 either a namespace — an object keyed by member name, `Object.is` — or a
 function the global itself is, `isNaN`, and the two are told apart by what
 the value is. Inside a namespace the empty key `''` is the global called
-as a function: `static.Object['']` is `Object(a)`. A body is the existing
-helper where one exists — `is` for `Object.is`, `isInteger` for
-`Number.isInteger` — imported, not copied, so the runtime and the module
-that imports the helper directly answer alike by construction; a body with
-no helper is written in the module, as `isNaN` is above, over `toNumber`,
+as a function: `static.Object['']` is `Object(a)`. A body is written in
+the module, and the helper a built-in replaced moves into it rather than
+being copied — `is` for `Object.is`, `isInteger` for `Number.isInteger` —
+since, the built-in admitted, a module calls it and imports nothing: the
+body is a VM's, and a helper beside it would be a second public spelling
+of one function. The runtime's proof checks every body against the
+host's own built-in. A body with no helper is written the same way, as
+`isNaN` is above, over `toNumber`,
 the module's own `ToNumber` that throws on a bigint as the global `isNaN`
 does and `Number(x)` does not. `member` is keyed by the same names —
 `Array`, `String`, `Number`, `Object`, `Boolean`, `BigInt`, `Function` —
@@ -224,8 +227,8 @@ this proposal does not take.
 
 - One definition of each static function, in FunctionalScript, run by
   every executor and compiled for every target, as the member functions
-  have; the existing helpers are the bodies, so a module importing `is`
-  and one calling `Object.is` answer alike by construction.
+  have; the existing helpers become the bodies, so a module calling
+  `Object.is` reaches the one SameValue the repository writes.
 - A familiar JavaScript spelling for what modules already do through
   imported helpers.
 - Static calls are closed by a list of paths, so the parser's work is one
@@ -305,6 +308,11 @@ this proposal does not take.
       `isStatic` — but the interpreter's `switch` and the analysis's
       handlers, which `tsc` holds to the list; the spec,
       `doc/CONVERTING.md` §2–§4 and a harness fixture say so.
+- [x] Move the five bodies into the runtime, out of `fjs/types/object/is`
+      and `fjs/types/number`'s `is_integer`, `is_safe_integer`, `is_nan`
+      and `is_finite`, which no module imports any more: every importer
+      calls the built-in, and the runtime's proof checks each body against
+      the host's on every pair of a list spanning every type.
 - [ ] Decide the global `isNaN` and `isFinite` there, which convert their
       argument as the `Number` predicates do not.
 
@@ -319,9 +327,9 @@ this proposal does not take.
   `String` conversion's proposal record, the model for this one.
 - [`2365-global-names.md`](../../../spec/todo/2365-global-names.md) — why
   a global is reserved no later than any of it is admitted.
-- [`doc/CONVERTING.md`](../../../doc/CONVERTING.md) — the helpers modules
-  use today in place of `Object.is`, `Number.isInteger` and `BigInt`, and
-  the bodies the static section reuses.
+- [`doc/CONVERTING.md`](../../../doc/CONVERTING.md) — the built-ins a
+  converted module keeps as written, `Object.is` and the `Number`
+  predicates, and the helper it imports in place of `BigInt`.
 - [`nanvm/lib/todo/callable-function-objects.md`](../../../nanvm/lib/todo/callable-function-objects.md)
   — the `static function` tag and `IStaticFunction`.
 - [`edag/README.md`](../../edag/README.md#nodes) — `['entry']`, the value

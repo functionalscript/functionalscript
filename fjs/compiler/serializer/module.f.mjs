@@ -158,7 +158,6 @@ import { keySerialize, leafSerialize } from '../../media/datajs/serializer/modul
 import { arrayWrap, colon, objectWrap, wrap } from '../../media/json/serializer/module.f.mjs'
 import { first, flat, toArray } from '../../types/list/module.f.mjs'
 import { definedValues } from '../../types/object/module.f.mjs'
-import { isFinite_ } from '../../types/number/is_finite/module.f.js'
 import { eagerLayers, lazyLayers } from '../ast/module.f.mjs'
 import { _prohibitedCallNames, _prohibitedNames } from '../parser/module.f.mjs'
 import { isIdentifier } from '../../js/identifier/module.f.mjs'
@@ -685,7 +684,7 @@ const key = (s, path, lazy) => method => k => {
         return isIdentifier(k) ? ok([`.${k}`]) : bracketed(k)
     }
     if (typeof k === 'number') {
-        return isFinite_(k) && !Object.is(k, -0)
+        return Number.isFinite(k) && !Object.is(k, -0)
             ? bracketed(k)
             : error('a number key no literal reads back')
     }

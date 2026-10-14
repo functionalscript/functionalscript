@@ -13,7 +13,6 @@
  */
 
 import { assert } from '../../asserts/module.f.mjs'
-import { isInteger } from '../../types/number/is_integer/module.f.js'
 import { contains } from '../../types/range/module.f.js'
 
 /** @type {(s: string) => (i: number) => number} */
@@ -298,7 +297,7 @@ const latinCapitalLetterAFOffset = latinCapitalLetterA - 10
  * @type {(codePoint: number) => Nullable<number>}
  */
 export const hexDigitValue = codePoint =>
-    !isInteger(codePoint) ? null
+    !Number.isInteger(codePoint) ? null
         : isDigit(codePoint) ? codePoint - digit0
             : isLatinSmallLetterAF(codePoint) ? codePoint - latinSmallLetterAFOffset
                 : isLatinCapitalLetterAF(codePoint) ? codePoint - latinCapitalLetterAFOffset
@@ -314,7 +313,7 @@ export const hexDigitValue = codePoint =>
  * @type {(codePoint: number) => Nullable<number>}
  */
 export const lowerHexDigitValue = codePoint =>
-    !isInteger(codePoint) ? null
+    !Number.isInteger(codePoint) ? null
         : isDigit(codePoint) ? codePoint - digit0
             : isLatinSmallLetterAF(codePoint) ? codePoint - latinSmallLetterAFOffset
                 : null
@@ -341,7 +340,7 @@ export const hexDigitCodePoint = value =>
  */
 export const isCanonicalDigits = digits =>
     digits.length !== 0
-    && digits.every(d => isInteger(d) && isDigit(d))
+    && digits.every(d => Number.isInteger(d) && isDigit(d))
     && (digits.length === 1 || digits[0] !== digit0)
 
 /**
@@ -360,7 +359,7 @@ export const digitsValue = radix => {
     assert(2n <= radix && radix <= 10n, ['radix out of range', radix])
     const end = digit0 + Number(radix)
     /** @type {(d: number) => boolean} */
-    const isRadixDigit = d => isInteger(d) && digit0 <= d && d < end
+    const isRadixDigit = d => Number.isInteger(d) && digit0 <= d && d < end
     return digits => digits.length !== 0 && digits.every(isRadixDigit)
         ? digits.reduce((n, d) => n * radix + BigInt(d - digit0), 0n)
         : null

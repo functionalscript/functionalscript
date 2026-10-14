@@ -124,6 +124,13 @@ predicates" when asked which function to admit next, in
 [the LLM working session](https://claude.ai/code/session_01DCMj3aMojA86V6qjvW9fXs),
 before implementation began.
 
+**Follow-up.** The bodies have since moved into the runtime, with
+`Object.is`'s, out of `fjs/types/number` and `fjs/types/object/is`: once
+the built-ins were admitted, a helper beside each was a second public
+spelling of one function, so modules call the built-in, and the runtime's
+proof checks each body against the host's. **sergey-shandar** proposed
+the move in the same session, after the admission.
+
 ### Text Processing
 
 - [x] `String` — implemented as `String(exp)`, the string conversion,

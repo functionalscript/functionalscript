@@ -671,10 +671,9 @@ export const lazyOp2Id = /** @type {const} */ (['&&', '||', '??'])
  * right operand is conditional, never established eagerly. All this
  * laziness is positional, not nodal — the same node referenced from an
  * eager position elsewhere is still evaluated there. `+` and `-` are not
- * here: each is also a unary operator, so both are `op12` below. There
- * is no `Object.is` node: the language spells it with these operators,
- * once, in `fjs/types/object/is`, which a module imports
- * ([`doc/CONVERTING.md`](../../doc/CONVERTING.md#6-objectis)).
+ * here: each is also a unary operator, so both are `op12` below.
+ * `Object.is` is no operator: it is a static function, {@link staticIds},
+ * whose body the runtime spells with these operators.
  */
 export const op2Id = or(
     '===', '!==', '>', '>=', '<', '<=',

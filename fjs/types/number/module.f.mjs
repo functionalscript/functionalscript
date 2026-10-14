@@ -14,7 +14,6 @@ import { reduce } from '../list/module.f.mjs'
 import { addition } from '../function/operator/module.f.js'
 import { cmp as uCmp, min as uMin, max as uMax } from '../function/compare/module.f.mjs'
 import { fold } from '../../common/monoid/module.f.mjs'
-import { isInteger } from './is_integer/module.f.js'
 
 const { is: sameValue } = Object
 
@@ -71,7 +70,7 @@ export const isUintUpTo = max =>
      * @param {unknown} n
      * @returns {n is number}
      */
-    n => typeof n === 'number' && isInteger(n) && 0 <= n && n <= max && !sameValue(n, -0)
+    n => typeof n === 'number' && Number.isInteger(n) && 0 <= n && n <= max && !sameValue(n, -0)
 
 /**
  * Whether `b` is a byte: an integer in `0..255`. The one byte predicate, for
