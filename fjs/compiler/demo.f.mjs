@@ -40,7 +40,7 @@
 import { toText } from '../text/marked/module.f.mjs'
 import { codeBlock } from '../website/demo/code/module.f.mjs'
 import { exitCode } from '../effects/node/module.f.mjs'
-import { nodeProgramOptions, virtualAt } from '../effects/node/virtual/module.f.mjs'
+import { virtualAt } from '../effects/node/virtual/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { error, ok, unwrap } from '../types/result/module.f.js'
 import { textDemo, refusal } from '../website/demo/module.f.mjs'

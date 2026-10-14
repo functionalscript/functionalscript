@@ -10,7 +10,7 @@
 
 import { exitCode } from '../effects/node/module.f.mjs'
 import { log } from '../effects/node/module.f.mjs'
-import { defaultNodeProgramOptions, emptyState, virtual, virtualAt } from '../effects/node/virtual/module.f.mjs'
+import { defaultNodeProgramOptions, virtualAt } from '../effects/node/virtual/module.f.mjs'
 import { assert, assertEq, todo } from '../asserts/module.f.mjs'
 import {
     testAll, fmtPath, fmtImport, ghEscape,
@@ -83,8 +83,7 @@ const ok1 = () => ({ result: /** @type {const} */ (['ok', undefined]), duration:
 /** @type {(dir: Record<string, JsModule>, initCwd?: string) => readonly [readonly Ts<typeof event>[], number]} */
 const run = (dir, initCwd = '.') => {
     const reporter = makeReporter()
-    const state = { ...emptyState, root: dir }
-    const [finalState, code] = virtual(state)(testAll(reporter)(options(initCwd)))
+    const [finalState, code] = virtualAt(dir)(testAll(reporter)(options(initCwd)))
     return [parseEvents(finalState.stdout), exitCode(code)]
 }
 
@@ -92,9 +91,8 @@ const run = (dir, initCwd = '.') => {
 // so the terminal and GitHub output formats can be asserted directly.
 /** @type {(dir: Record<string, JsModule>, github?: boolean) => readonly [string, string, number]} */
 const runMain = (dir, github = false) => {
-    const state = { ...emptyState, root: dir }
     const opts = options('.', github)
-    const [finalState, code] = virtual(state)(main(opts))
+    const [finalState, code] = virtualAt(dir)(main(opts))
     return [finalState.stdout, finalState.stderr, exitCode(code)]
 }
 
@@ -423,8 +421,7 @@ export const defaultReporterOutputDuringATest = () => {
         test: (file, path, entry) =>
             step(log('a line from inside the test'), () => reporter.test(file, path, entry)),
     }
-    const state = { ...emptyState, root: { 'a.proof.f.ts': () => ({ proof: { x: ok0 } }) } }
-    const [finalState, code] = virtual(state)(testAll(noisy)(opts))
+    const [finalState, code] = virtualAt({ 'a.proof.f.ts': () => ({ proof: { x: ok0 } }) })(testAll(noisy)(opts))
     assertEq(exitCode(code), 0)
     assertEq(
         finalState.stdout,
@@ -462,8 +459,7 @@ export const startSurvivesARunThatDies = () => {
                 ? pureError(/** @type {const} */ (['ioError', { message: 'the run died here' }]))
                 : reporter.test(file, path, entry),
     }
-    const state = { ...emptyState, root: { 'a.proof.f.ts': () => ({ proof: { x: ok0, y: ok0 } }) } }
-    const [finalState, code] = virtual(state)(testAll(dying)(opts))
+    const [finalState, code] = virtualAt({ 'a.proof.f.ts': () => ({ proof: { x: ok0, y: ok0 } }) })(testAll(dying)(opts))
     assertEq(exitCode(code), 1)
     // No result for `y`, and no summary: the run stopped inside it. The name is
     // there anyway.
@@ -779,8 +775,7 @@ export const registerEmptyProof = () => {
 // calling the selected TestContext's `test` op, so this reaches that branch
 // without hitting the virtual harness's `test: todo` stub.
 export const registerEmptyModuleMap = () => {
-    const state = { ...emptyState, root: {} }
-    const [, code] = virtual(state)(register(options('.')))
+    const [, code] = virtualAt({})(register(options('.')))
     assertEq(exitCode(code), 0)
 }
 
