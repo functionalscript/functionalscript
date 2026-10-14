@@ -3,7 +3,7 @@
  */
 
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { quiet as quietIn } from './module.f.mjs'
+import { quiet as quietIn } from './module.f.js'
 
 const quiet = quietIn('/repo')
 

@@ -16,7 +16,7 @@ import process from 'node:process'
 import { spec } from 'node:test/reporters'
 import { Readable } from 'node:stream'
 
-import { quiet } from './module.f.mjs'
+import { quiet } from './module.f.js'
 
 /** @type {(source: AsyncIterable<Event>) => AsyncGenerator<Event>} */
 const kept = async function* (source) {

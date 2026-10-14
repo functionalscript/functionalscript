@@ -16,6 +16,8 @@
  * @import { Coverage, Diagnostic, Event, Log, Output, Pass } from './types.ts'
  */
 
+import { entry } from '../../types/object/entry/module.f.js'
+
 /**
  * The coverage report without the files that meet every threshold. Its totals
  * still count them, so the `all files` row stays the summary of the whole run.
@@ -48,10 +50,15 @@ const pass = event =>
  * follows, which this filter drops; the name on the line stands in for it,
  * and does not depend on the order tests ran in.
  *
+ * The name is read through `entry`: `name` is a name `Function.prototype`
+ * gives a value, so the language refuses it as a constant key and reads
+ * the own property by the helper instead
+ * ([CONVERTING.md](../../../doc/CONVERTING.md#reading-say-what-type-the-key-has)).
+ *
  * @type {(event: Log) => Log}
  */
 const log = ({ type, data }) =>
-    ({ type, data: { ...data, message: `${data.name}: ${data.message}` } })
+    ({ type, data: { ...data, message: `${entry(data, 'name')}: ${data.message}` } })
 
 /**
  * A file's path relative to the working directory, where the file is under
@@ -61,7 +68,7 @@ const log = ({ type, data }) =>
  * @type {(cwd: string, file: string) => string}
  */
 const located = (cwd, file) => {
-    const separator = file[cwd.length]
+    const separator = file[Number(cwd.length)]
     return file.startsWith(cwd) && (separator === '/' || separator === '\\')
         ? file.slice(cwd.length + 1)
         : file
