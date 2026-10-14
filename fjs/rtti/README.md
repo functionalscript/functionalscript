@@ -105,7 +105,8 @@ siblings there are single data structures and type-level helpers.
 - `ts/module.f.mjs` — the runtime printer: a schema's TypeScript type as text,
   through the data form
 - `common/module.f.mjs` — shared kernel for runtime consumers: error shape, path
-  bookkeeping, primitive checks, and `visit`/`orVisit` (the `Type` dispatchers)
+  bookkeeping, primitive checks, `visit`/`orVisit` (the `Type` dispatchers),
+  and the container skeletons the two schema-form readers read through
 - `parse/module.f.mjs` — runtime deserialization: `parse(schema)(value)` returns
   a freshly constructed value containing only the declared fields/elements
 - `validate/module.f.mjs` — runtime validation: `validate(schema)(value)`
@@ -159,11 +160,14 @@ check the part it understands without discarding the part it does not.
 
 Neither is more fundamental than the other; `validate` is not a `parse` whose
 result is thrown away. It shares the kernel rather than the pass: `visit` for
-schema recognition, `eachEntry` in the no-accumulator mode `common` documents
-for pass/fail callers, `orVisit`, and the primitive checks. The data form's
-`validate` (`data/module.f.mjs`) is the same shape over `Data`, and
-`validate/proof.f.mjs` pins the acceptance agreement with `parse` as a table so
-the two cannot drift.
+schema recognition, `orVisit`, the primitive checks, and the container
+skeletons — `containerRead`, `constContainerRead` and `restContainerRead` in
+`common`, one per container shape. Each skeleton states its shape's read order
+once, so the two readers read a container in the same order by construction;
+what differs is the `Reader` each passes in, which collects nothing for
+`validate` and the parsed members for `parse`. The data form's `validate`
+(`data/module.f.mjs`) is the same shape over `Data`, and `validate/proof.f.mjs`
+pins the acceptance agreement of all three as a table so they cannot drift.
 
 For reading a value straight from JSON text against a schema, see
 [`../media/json/todo/rtti-parse.md`](../media/json/todo/rtti-parse.md) —

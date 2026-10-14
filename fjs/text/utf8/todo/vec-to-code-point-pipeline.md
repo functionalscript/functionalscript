@@ -76,7 +76,7 @@ layer, so the `Vec` forms are now a `u8ListMsb` unpack in front of it:
 `fromVec` is `fromU8List` after the alignment check, and `utf8ToString`
 is `u8ListToString`. The code-point validation lives once, in
 `fromU8List`, and `vecToCodePointList` is left with no caller but its
-proof. `git/refstore` still imports `utf16`'s `codePointListToString` for
+proof. `git/refstore/name` still imports `utf16`'s `codePointListToString` for
 `nameKey`, which is a byte-per-code-unit key, not a decoding.
 
 ### Tasks
@@ -94,7 +94,7 @@ proof. `git/refstore` still imports `utf16`'s `codePointListToString` for
       `fjs/effects/common`'s `utf8ListToString` and the inline decode in
       `fjs/media/datajs/parser`'s `tryParseBytes`; a byte-list encoder
       (`string → bytes`, the inner pipeline of `tryUtf8`) replaces
-      `fjs/text/percent`'s `utf8Bytes` and `fjs/git/refstore`'s `nameBytes`.
+      `fjs/text/percent`'s `utf8Bytes` and `fjs/git/refstore/name`'s `nameBytes`.
       Then those modules stop importing the utf8/utf16 primitives directly.
       `stringToU8List` and `u8ListToString` (unchecked) are named after
       `utf16`'s `stringToCodePointList`/`codePointListToString` pair, so each

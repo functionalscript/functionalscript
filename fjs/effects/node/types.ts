@@ -14,7 +14,7 @@ import type {
     Operation, ToAsyncOperationMap,
 } from '../types.ts'
 import type { Nullable } from '../../types/nullable/types.ts';
-import type { EffectList } from '../list/types.ts'
+import type { EffectList, NonEmpty } from '../list/types.ts'
 import type {
     All, Catch, Console, Import, Module, Read, ReadConsoles, Sandbox, SandboxResult, Std, Write,
     WriteConsoles, _UtfList,
@@ -801,6 +801,51 @@ export type _DoubledLength = readonly['doubledLength']
  * @internal
  */
 export type _Pump = readonly['pump', Nullable<number>]
+
+/**
+ * A cell that would have carried the body past its declared length. None of that
+ * chunk goes out: a body exactly as long as it promised is a body every client
+ * reads as whole, so a runner leaves it **short** over a socket no client can
+ * read a whole body from rather than cutting the chunk to fit. The number is the
+ * length that was declared.
+ */
+export type Overrun = readonly['overrun', number]
+
+/**
+ * A body that ended before the length it declared, which nothing on a host's
+ * server side notices: `res.end()` raises nothing and the socket goes back into
+ * the keep-alive pool, so what tells the client is the idle timeout — or, for a
+ * pipelined connection, the next response's status line read as the tail of this
+ * body. The virtual runner's record states it rather than a proof deriving it,
+ * because the subtraction is wrong exactly where it would matter: a `HEAD` or a
+ * `304` declares a length and records an empty body, and a proof comparing the
+ * two would fail the responses the gates were written to let through. The number
+ * is the declared length again.
+ */
+export type Underrun = readonly['underrun', number]
+
+/**
+ * What one pulled cell of a response body does to the pump — see `pumpCell`
+ * ([`./module.f.mjs`](./module.f.mjs)).
+ *
+ * @internal
+ */
+export type _PumpStep<O extends Operation> = _Take<O> | _Stop
+
+/**
+ * Take the cell's chunk; the number is the count of bytes sent once it is.
+ *
+ * @internal
+ */
+export type _Take<O extends Operation> = readonly['take', number, NonEmpty<O, Vec, IoChannel>]
+
+/**
+ * Stop pulling, on `null` for a body a client reads as whole or on what made it
+ * incomplete: the producer's failure, or the runner's refusal of the count.
+ *
+ * @internal
+ */
+export type _Stop = readonly['stop', Nullable<IoChannel | Overrun | Underrun>]
 
 /**
  * The tuple itself is a documented exception to the repo-wide `readonly`

@@ -2,11 +2,11 @@
  * @import { Assert } from '../../../asserts/types.ts'
  * @import { Result } from '../../../types/result/types.ts'
  * @import { Equal } from '../../../types/ts/types.ts'
- * @import { Ast, Meta } from '../../../ebnf/ast/types.ts'
+ * @import { Ast } from '../../../ebnf/ast/types.ts'
  * @import { Parser } from '../../../ebnf/ll1/types.ts'
  * @import { Utf16 } from '../../../ebnf/utf16/types.ts'
  * @import { Unknown } from '../types.ts'
- * @import { Node, Out, Value } from './types.ts'
+ * @import { Out } from './types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
@@ -14,7 +14,7 @@ import { unwrap } from '../../../types/result/module.f.js'
 import { parser } from '../../../ebnf/ll1/module.f.mjs'
 import { units } from '../../../ebnf/utf16/module.f.mjs'
 import { value } from '../../../ebnf/lib/datajs/module.f.mjs'
-import { mappings, tryParse, tryParseBytes } from './module.f.mjs'
+import { _valueSymbol as valueSymbol, mappings, tryParse, tryParseBytes } from './module.f.mjs'
 
 const { is, keys, hasOwn, getPrototypeOf } = Object
 
@@ -58,9 +58,6 @@ const asObject = value => {
     assert(typeof value === 'object' && value !== null && !(value instanceof Array))
     return value
 }
-
-/** @type {(node: Node) => Meta<Value>} */
-const valueSymbol = node => ({ symbol: 0, meta: { id: 'value', node } })
 
 /**
  * The value rule alone, with the set folded: it stops where the rule does,

@@ -152,7 +152,7 @@
 
 import { _defaultExport, _moduleExports, _moduleThrows } from '../edag/module.f.mjs'
 import { keywords, literalWords, reservedGlobals } from '../../js/keywords/module.f.js'
-import { analysis, checked, itemOperand, mergeable, operandsOf, stepOperands } from '../../edag/analysis/module.f.mjs'
+import { analysis, checked, itemOperand, mergeable, operandsOf, scopeHolds, stepOperands } from '../../edag/analysis/module.f.mjs'
 import { keySerialize, leafSerialize } from '../../media/datajs/serializer/module.f.mjs'
 import { arrayWrap, colon, objectWrap, wrap } from '../../media/json/serializer/module.f.mjs'
 import { first, flat, toArray } from '../../types/list/module.f.mjs'
@@ -166,7 +166,7 @@ import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { error, mapOk, ok, okList, okThen } from '../../types/result/module.f.js'
 import { _entryChunks as entryChunks, _entryText as entryText, renderFunction } from './function_text/module.f.mjs'
 import { keepsRecursion, loopOf } from '../../edag/loop/module.f.mjs'
-import { _name as name, _binding as binding, _resolve as resolve } from './names/module.f.mjs'
+import { _name as name, _binding as binding, _resolve as resolve, _arg as argName, _rest as restName, _parameters as parameters } from './names/module.f.mjs'
 
 /** Names the parser refuses to bind: the keywords, the literal words, the reserved globals, and `then` as an export's name. */
 const reservedExports = new Set([...keywords, ...literalWords, ...reservedGlobals, 'then'])
@@ -244,8 +244,8 @@ const slotOf = (names, h) => {
  */
 const parameterName = (param, node) => {
     switch (node[0]) {
-        case 'rest': { return name(`${param}/rest`) }
-        case 'arg': { return name(`${param}/arg${node[1]}`) }
+        case 'rest': { return restName(param) }
+        case 'arg': { return argName(param, node[1]) }
         default: { return null }
     }
 }
@@ -261,9 +261,6 @@ const nameOf = (names, h) => {
     const i = slotOf(names, h)
     return i === null ? null : names[i][1]
 }
-
-/** Whether the function that is entry `i` reads its own `['self']`, in its own body's scope. @type {(a: Analysis, i: number) => boolean} */
-const readsSelf = (a, i) => a.nodes.some((n, j) => n[0] === 'self' && a.scope[j] === i)
 
 /** Whether an entry reads a slot of the frame, `['frame', i]`. @type {(a: Analysis, v: Ref) => boolean} */
 const isSlotRead = (a, v) => a.nodes[v[1]][0] === 'frame'
@@ -1016,21 +1013,6 @@ const calleeHoisted = (a, callee) => basedHoisted(a, callee)
     || (callee instanceof Array && receiverLive(a.nodes[callee[1]]))
 
 /**
- * A function's parameter list, `($0,$1,...$2)=>`: one name per fixed
- * parameter, and the rest parameter only where the body reads it — `()=>1`
- * and not `(...$0)=>1`, the two being one node, and the shorter what a
- * reader expects. The function is entry `i`, and the body's nodes are the
- * ones its scope names.
- *
- * @type {(a: Analysis, path: string, i: number, length: number) => string}
- */
-const parameterList = (a, path, i, length) => {
-    const fixed = Array.from({ length }, (_, k) => binding(name(`${path}/arg${k}`)))
-    const rest = a.nodes.some((n, j) => n[0] === 'rest' && a.scope[j] === i) ? [`...${binding(name(`${path}/rest`))}`] : []
-    return `(${[...fixed, ...rest].join(',')})=>`
-}
-
-/**
  * The function that is entry `i`, of `length` fixed parameters, at `path`,
  * over the names its frame's slots read as: its parameter list, then its
  * body.
@@ -1039,11 +1021,11 @@ const parameterList = (a, path, i, length) => {
  * its own `['self']` needs one, and is refused without it.
  * @type {(a: Analysis, path: string, i: number, length: number, names: readonly string[], allowUnusedCaptures: boolean, self: string | null) => (body: Operand) => Document}
  */
-const lambda = (a, path, i, length, names, allowUnusedCaptures, self) => body => readsSelf(a, i) && self === null
+const lambda = (a, path, i, length, names, allowUnusedCaptures, self) => body => scopeHolds(a, i, 'self') && self === null
     ? error('a self-referencing function with no name')
     : mapOk(
         /** @type {(text: List<Chunk>) => List<Chunk>} */
-        (text => flat([[parameterList(a, path, i, length)], text])),
+        (text => flat([[`(${parameters(a, path, i, length)})=>`], text])),
     )(closureBody(a, path, names, allowUnusedCaptures, self)(body))
 
 /**
@@ -1186,7 +1168,7 @@ const hoists = s => {
             : inner
         // a function reading its own `self` takes a `const` however many
         // places hold it: only a name gives its body a way to reach it
-        return ((hoistedKind(s.a, i) && s.shared.includes(i)) || (node[0] === '=>' && readsSelf(s.a, i))) && own(i) ? add(based, ['entry', i]) : based
+        return ((hoistedKind(s.a, i) && s.shared.includes(i)) || (node[0] === '=>' && scopeHolds(s.a, i, 'self'))) && own(i) ? add(based, ['entry', i]) : based
     }
     return v => found(/** @type {readonly _Hoisted[]} */([]), v)
 }
@@ -1541,7 +1523,7 @@ const loopStatement = (s, path, before) => i => {
     const [, , slots, body] = /** @type {Extract<Node, readonly ['=>', number, readonly Operand[], Operand]>} */ (s.a.nodes[f])
     const { condition, arm, asserts, next } = assertNotNullish(loopOf(s.a, f), ['a loop statement of no loop', i])
     const loopPath = `${path}/loop${before.names.length}`
-    const variable = name(`${loopPath}/arg0`)
+    const variable = argName(loopPath, 0)
     // a block leaving the variable as it is: the next value the parameter
     // itself, which the lowering gives a block assigning nothing
     const unchanged = next instanceof Array && s.a.nodes[next[1]][0] === 'arg'

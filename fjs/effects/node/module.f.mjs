@@ -19,9 +19,9 @@
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { Commands, CommandSet, Effect, Func, NotImplemented, Operation } from '../types.ts'
- * @import { EffectList } from '../list/types.ts'
+ * @import { EffectList, Next } from '../list/types.ts'
  * @import { List } from '../../types/list/types.ts'
- * @import { Access, Await, Catch, ChildWait, Close, Console, CreateExclusive, CreateServer, Dirent, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fstat, Fs, Handle, Headers, Http, IncomingMessage, Inflate, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, Open, Pread, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, ReadRequestBytes, RequestBody, ResolveFileModule, ReadWhole, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Rmdir, Sandbox, SandboxResult, Server, ServerResponse, Spawn, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteExclusive, WriteFile, _ChunkSource, _DoubledLength, _FramingHeader, _Gate, _NoBody, _ReadChunks, _Unframed, _UtfList, _WriteLoop } from './types.ts'
+ * @import { Access, Await, Catch, ChildWait, Close, Console, CreateExclusive, CreateServer, Dirent, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fstat, Fs, Handle, Headers, Http, IncomingMessage, Inflate, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, Open, Overrun, Pread, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, ReadRequestBytes, RequestBody, ResolveFileModule, ReadWhole, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Rmdir, Sandbox, SandboxResult, Server, ServerResponse, Spawn, Stat, Test, TestContext, TestFn, Underrun, Write, WriteBytes, WriteConsoles, WriteExclusive, WriteFile, _ChunkSource, _DoubledLength, _FramingHeader, _Gate, _NoBody, _PumpStep, _ReadChunks, _Unframed, _UtfList, _WriteLoop } from './types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
@@ -1020,6 +1020,69 @@ export const plainTextResponse = (status, message) => {
 export const runnerResponse = (status, message) => {
     const { headers, body } = plainTextResponse(status, message)
     return { status, headers: { ...headers, connection: 'close' }, body }
+}
+
+/**
+ * The bytes one response chunk puts on the wire, which is **not** its
+ * {@link byteLength}.
+ *
+ * `ServerResponse` admits any `Vec`, and a `Vec` is a count of *bits*. The node
+ * runner writes `fromVec(chunk)`, which pads a partial byte out to a whole one, so
+ * a one-bit chunk reaches the client as one byte. `byteLength` rounds the other way
+ * and calls it nought. Measured: a 1-bit `Vec` has `byteLength` `0n` and
+ * `fromVec(...).length` `1`; a 9-bit `Vec`, `1n` and `2`.
+ *
+ * Counting the rounded-down figure gave two contradictory answers for one response.
+ * Against `Content-Length: 1` and a one-bit body the host completed and the virtual
+ * runner recorded an underrun; against `Content-Length: 0` the virtual runner
+ * accepted a body the host destroys as an overrun. Either way a proof could pass on
+ * a frame the host does not produce.
+ *
+ * It is not `fromVec(chunk).length` because that would build the array to measure
+ * it. This is the same arithmetic — the whole bytes in the bits, rounded up.
+ *
+ * **The response side pads where the request side refuses**, and that asymmetry is
+ * the host's rather than a runner's. {@link readChunks} refuses a request chunk
+ * that is not whole bytes — `chunk at N is B bits, not whole bytes` — because it
+ * is `fjs`'s own reader and can. A response chunk goes through `fromVec` into
+ * `res.write`, which pads and says nothing, so there is no refusal to mirror and
+ * counting what the padding sends is the only answer that matches the host.
+ *
+ * @type {(v: Vec) => bigint}
+ */
+const sentBytes = v => bytesIn(length(v) + 7n)
+
+/**
+ * What one pulled cell of a response body does to the pump: take its chunk, with
+ * the count of bytes sent once it is, or stop. `written` is the count before the
+ * cell, and `bound` the length {@link responseGate} answered `pump` with.
+ *
+ * **Both runners pump by it**, for the reason they both gate by `responseGate`: a
+ * body one runner sends whole is then a body the other records whole. The node
+ * runner ends the response on a clean stop and destroys the socket on any other,
+ * and the virtual runner records the stop as the response's `failure`. What they
+ * do not share is the pace — the node runner parks on `drain`, and the virtual one
+ * has no socket to take a pace from.
+ *
+ * A stop is clean only for a body that ended at its declared length, or that
+ * declared none. **A chunk that would carry the count past the length stops the
+ * pump with none of it taken** — an {@link Overrun}: taking its first
+ * `bound − written` bytes and ending cleanly is the other choice and the wrong one,
+ * because a body exactly as long as it promised is a body every client reads as
+ * whole. A body that ends short of the length is an {@link Underrun}, and stops
+ * the same way. A failed cell stops with the producer's own failure.
+ *
+ * @type {<O extends Operation>(bound: Nullable<number>, written: number, cell: Result<Next<O, Vec, IoChannel>, IoChannel>) => _PumpStep<O>}
+ */
+export const pumpCell = (bound, written, cell) => {
+    if (cell[0] === 'error') { return ['stop', cell[1]] }
+    const node = cell[1]
+    if (node === undefined) {
+        return ['stop', bound !== null && written !== bound ? ['underrun', bound] : null]
+    }
+    const count = written + Number(sentBytes(node.first))
+    if (bound !== null && count > bound) { return ['stop', ['overrun', bound]] }
+    return ['take', count, node]
 }
 
 // stat

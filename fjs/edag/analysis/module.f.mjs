@@ -439,6 +439,15 @@ export const analysis = e => {
     })
 }
 
+/**
+ * Whether the function that is entry `i` holds a node of `kind` in its own
+ * body's scope — a nested function's body is that function's own. The
+ * question every writer asks of a function's `['rest']` and `['self']`.
+ *
+ * @type {(a: Analysis, i: number, kind: Node[0]) => boolean}
+ */
+export const scopeHolds = ({ nodes, scope }, i, kind) => nodes.some((n, j) => n[0] === kind && scope[j] === i)
+
 /** Whether an entry belongs to a function or a nested body it creates. @type {(scope: readonly number[], root: number, i: number) => boolean} */
 const withinScope = (scope, root, i) => {
     while (i !== root && i !== -1) { i = scope[i] }

@@ -9,7 +9,7 @@ import type { Assert } from '../../asserts/types.ts'
 import type { ConstructorId } from '../../edag/types.ts'
 import type { Primitive } from '../../media/datajs/types.ts'
 import type { Equal } from '../../types/ts/types.ts'
-import type { binaryTags, eagerLayers, lazyLayers } from './module.f.mjs'
+import type { binaryTags, eagerLayers, lazyLayers, unaryTags } from './module.f.mjs'
 
 /**
  * An imported binding: the selected export name, the specifier as written, and
@@ -360,6 +360,19 @@ export type AstNumber = readonly ['Number', AstConst]
  * word's call with one argument; `String()` is the empty string literal.
  */
 export type AstString = readonly ['String', AstConst]
+
+/**
+ * A unary operator: a node of one operand, the EDAG's `op1` or `op12`'s
+ * one-operand arity, whose tag is the EDAG's own. `../parser/syntax/types.ts`'s
+ * `Node` carries the same tags but `Number`, which the parser writes from a
+ * call. `unaryTags` in `./module.f.mjs` is its tags at run time.
+ */
+export type AstUnary = AstNeg | AstBitnot | AstNot | AstTypeof | AstNumber | AstString
+
+/** Every unary operator's tag, {@link AstUnary}'s. */
+export type UnaryTag = AstUnary[0]
+
+type _UnaryTagsAreComplete = Assert<Equal<(typeof unaryTags)[number], UnaryTag>>
 
 /**
  * A binary operator, Stages A and B of
