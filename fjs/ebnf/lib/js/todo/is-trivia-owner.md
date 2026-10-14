@@ -1,7 +1,7 @@
 ## `isTrivia` is copied outside the grammar that defines trivia
 
 **Priority:** P5
-**Status:** open
+**Status:** wip
 
 ### Problem
 
