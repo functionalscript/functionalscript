@@ -12,12 +12,19 @@
  * A chunk may be a marked run, `[text, kind]` (`fjs/text/marked`): a symbol
  * inside one is resolved in its text, and the run keeps its kind.
  *
+ * A function's parameters are named here once, by the function's rendering
+ * scope: {@link _arg} and {@link _rest} for a read and {@link _parameters}
+ * for the declarations, so that every writer reads a parameter by the name
+ * its list declares.
+ *
  * @module
  *
  * @import { Chunk } from '../../../text/marked/types.ts'
+ * @import { Analysis } from '../../../edag/analysis/types.ts'
  */
 
 import { assertNotNullish } from '../../../asserts/module.f.mjs'
+import { scopeHolds } from '../../../edag/analysis/module.f.mjs'
 import { chunkText } from '../../../text/marked/module.f.mjs'
 
 /** A reference to a binding identified by its rendering scope and slot. @type {(key: string) => string} */
@@ -25,6 +32,27 @@ export const _name = key => `\0${key}\0`
 
 /** Mark the declaration of a symbolic reference. @type {(reference: string) => string} */
 export const _binding = reference => _name(`!${reference.slice(1, -1)}`)
+
+/** A reference to fixed parameter `k` of the function at `path`. @type {(path: string, k: number) => string} */
+export const _arg = (path, k) => _name(`${path}/arg${k}`)
+
+/** A reference to the rest parameter of the function at `path`. @type {(path: string) => string} */
+export const _rest = path => _name(`${path}/rest`)
+
+/**
+ * The parameter declarations of the function that is entry `i`, of `length`
+ * fixed parameters, at `path`, comma-separated: one per fixed parameter,
+ * and the rest parameter only where the body reads it — `()=>1` and not
+ * `(...$0)=>1`, the two being one node, and the shorter what a reader
+ * expects.
+ *
+ * @type {(a: Analysis, path: string, i: number, length: number) => string}
+ */
+export const _parameters = (a, path, i, length) => {
+    const fixed = Array.from({ length }, (_, k) => _binding(_arg(path, k)))
+    const rest = scopeHolds(a, i, 'rest') ? [`...${_binding(_rest(path))}`] : []
+    return [...fixed, ...rest].join(',')
+}
 
 /**
  * Resolve symbolic chunks, preserving chunk boundaries. Forward references
