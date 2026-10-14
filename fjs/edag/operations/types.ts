@@ -19,9 +19,10 @@ export type Context = {
     readonly self?: Function
     /**
      * The runtime whose bodies answer the member functions the dispatcher
-     * has no native implementation of, reaching every invocation under this
-     * one. Absent, such a call throws the `TypeError` a VM that binds
-     * nothing throws.
+     * has no native implementation of, and every static function, reaching
+     * every invocation under this one. Absent, such a member call throws
+     * the `TypeError` a VM that binds nothing throws, and a static call
+     * fails naming its path.
      */
     readonly runtime?: Runtime | undefined
 }

@@ -1,6 +1,7 @@
-import { disagreement, highlight, render, spansOf } from './module.f.mjs'
+import { codeOutput, disagreement, highlight, render, spansOf } from './module.f.mjs'
 import { htmlToString } from '../../../media/html/module.f.mjs'
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
+import { error, ok } from '../../../types/result/module.f.js'
 
 /** @type {(nodes: readonly import('../../../media/html/types.ts').Node[]) => string} */
 const text = nodes => nodes.map(n => typeof n === 'string' ? n : n.slice(n.length === 3 ? 2 : 1).join('')).join('')
@@ -79,6 +80,19 @@ export const proof = {
         assertEq(render([]).length, 0)
         assertEq(JSON.stringify(render([['a', 'keyword'], [' b'], ['']])),
             '[["span",{"data-token":"keyword"},"a"]," b"]')
+    },
+    codeOutput: () => {
+        const view = codeOutput('JavaScript module:', 'Copy JavaScript module')
+        const shown = htmlToString(['div', ...view(ok([['export', 'keyword'], [' default 1;']]))])
+        assert(shown.includes('JavaScript module:</p>'), shown)
+        assert(shown.includes('<pre><span data-token="keyword">export</span> default 1;</pre>'), shown)
+        assert(shown.includes('data-copy="export default 1;"'), shown)
+        assert(shown.includes('aria-label="Copy JavaScript module"'), shown)
+        assert(!shown.includes('role="status"'), shown)
+        const refused = htmlToString(['div', ...view(error('unexpected end'))])
+        assert(refused.includes('role="status"'), refused)
+        assert(refused.includes('unexpected end</pre>'), refused)
+        assert(!refused.includes('JavaScript module'), refused)
     },
     signedLeaves: () => {
         // Producers own the whole literal, including its sign; the JS

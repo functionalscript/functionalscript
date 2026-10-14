@@ -27,12 +27,11 @@
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
  */
 
-import { codeBlock } from '../../website/demo/code/module.f.mjs'
 import { marked, parse } from './module.f.mjs'
 import { mapOk } from '../../types/result/module.f.js'
 import { sort } from '../../types/object/module.f.mjs'
-import { textDemo, caption, refusal } from '../../website/demo/module.f.mjs'
-import { highlight, render } from '../../website/demo/highlight/module.f.mjs'
+import { textDemo } from '../../website/demo/module.f.mjs'
+import { codeOutput, highlight } from '../../website/demo/highlight/module.f.mjs'
 import { toText } from '../../text/marked/module.f.mjs'
 
 /**
@@ -69,9 +68,4 @@ export const demo = textDemo({
     label: 'JSON',
     init: '{\n  "b": 2,\n  "a": [3, 2, 1],\n  "c": "hello"\n}',
     highlight,
-})(text => {
-    const [kind, value] = _roundTripMarked(text)
-    return kind === 'ok'
-        ? [caption('Parsed, then written back:'), codeBlock(toText(value), 'Copy JSON', render(value))]
-        : [refusal(value)]
-})
+})(text => codeOutput('Parsed, then written back:', 'Copy JSON')(_roundTripMarked(text)))

@@ -43,9 +43,9 @@ import { exitCode } from '../effects/node/module.f.mjs'
 import { emptyState, nodeProgramOptions, virtual } from '../effects/node/virtual/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { error, ok, unwrap } from '../types/result/module.f.js'
-import { textDemo, refusal } from '../website/demo/module.f.mjs'
-import { highlight, render } from '../website/demo/highlight/module.f.mjs'
-import { examples } from './examples/module.f.js'
+import { refusal } from '../website/demo/module.f.mjs'
+import { render } from '../website/demo/highlight/module.f.mjs'
+import { stageDemo } from './stage_demo/module.f.mjs'
 import { _outputMarked, compileFile } from './module.f.mjs'
 import { vm } from '../edag/amnesia/module.f.mjs'
 import { read } from '../edag/value/property/module.f.mjs'
@@ -113,13 +113,9 @@ export const _written = text => outputFileName => {
         : error(result[0] === 'error' ? errorMessage(result[1]) : '')
 }
 
-export const demo = textDemo({
+export const demo = stageDemo({
     intro: 'Compiles a FunctionalScript module into JSON, DataJS, JavaScript, an expression graph and Rust, with each output under its file extension. Compare the output with fjs compile for a module without imports.',
     name: 'compiler',
-    label: 'Source',
-    init: examples[0][1],
-    examples,
-    highlight,
 })(text => outputs.map(([label, outputFileName]) => {
     const [kind, value] = _compiled(text)(outputFileName)
     return ['section', ['h3', label], kind === 'ok' ? codeBlock(toText(value), `Copy ${label} output`, render(value)) : refusal(value)]

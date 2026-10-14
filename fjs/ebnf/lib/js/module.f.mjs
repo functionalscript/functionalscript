@@ -37,7 +37,7 @@
  * @module
  *
  * @import { Rule, Tuple } from '../../types.ts'
- * @import { AfterStar, Content, TemplateAfterDollar, TemplateContent, TriviaKind } from './types.ts'
+ * @import { AfterStar, Content, JsToken, TemplateAfterDollar, TemplateContent, TriviaKind } from './types.ts'
  */
 
 import { literals, option, range, remove, repeatFrom0, set, union, unicodeMax } from '../../module.f.mjs'
@@ -76,6 +76,16 @@ export const newLine = set('\n\r')
  * @type {(a: TriviaKind, b: TriviaKind) => TriviaKind}
  */
 export const mergeTrivia = (a, b) => a === 'nl' || b === 'nl' ? 'nl' : 'ws'
+
+/**
+ * Whether a token kind is trivia: whitespace, a newline or a comment — what
+ * stands between two tokens without being one of them. Stated here, beside
+ * {@link mergeTrivia}, so that a new comment kind changes every reader of
+ * the grammar at once rather than one copy at a time.
+ *
+ * @type {(kind: JsToken['kind']) => boolean}
+ */
+export const isTrivia = kind => kind === 'ws' || kind === 'nl' || kind === '//' || kind === '/*'
 
 const idStart = /**@type {const}*/({
     smallLetter: range('az'),

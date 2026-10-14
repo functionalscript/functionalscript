@@ -218,6 +218,18 @@ export const proof = {
         assertNoMatch(v(['frame', 0, 1]))
         assertNoMatch(v(['.', ['frame'], 0]))
     },
+    // A static function carries its path as metadata, an array of string
+    // keys, and is a node wherever its shape is; where it may stand is the
+    // analysis's to check, not this schema's.
+    static: () => {
+        assertOk(v(['static', ['Object', 'is']]))
+        assertOk(v(['()', ['static', ['Object', 'is']], [1, 2]]))
+        assertOk(v(['static', []]))
+        assertNoMatch(v(['static']))
+        assertNoMatch(v(['static', 'Object']))
+        assertNoMatch(v(['static', ['Object', 1]]))
+        assertNoMatch(v(['static', ['Object', 'is'], 1]))
+    },
     primitive: {
         ok: () => {
             assertOk(v(null))

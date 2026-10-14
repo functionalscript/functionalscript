@@ -29,9 +29,8 @@
 import { codeMarker } from '../../website/style/module.f.js'
 import { stringToList } from '../../text/utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
-import { highlight } from '../../website/demo/highlight/module.f.mjs'
-import { textDemo, caption } from '../../website/demo/module.f.mjs'
-import { examples } from '../examples/module.f.js'
+import { caption } from '../../website/demo/module.f.mjs'
+import { stageDemo } from '../stage_demo/module.f.mjs'
 import { tokenize } from './module.f.mjs'
 
 /**
@@ -54,13 +53,9 @@ export const _line = ({ token, metadata }) => {
  */
 export const _tokensOf = text => toArray(tokenize(stringToList(text))('')).map(_line).join('\n')
 
-export const demo = textDemo({
+export const demo = stageDemo({
     intro: 'Reads FunctionalScript source as tokens, one per line. Each line shows the starting line and column, the token kind, and its value or diagnostic; whitespace and comments are omitted.',
     name: 'tokenizer',
-    label: 'Source',
-    init: examples[0][1],
-    examples,
-    highlight,
 })(text => [
     caption('Tokens, line:column, kind and value:'),
     ['pre', { [codeMarker]: '' }, _tokensOf(text)],

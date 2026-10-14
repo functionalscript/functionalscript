@@ -8,34 +8,23 @@ impl<A: IVm> BigInt<A> {
     /// The integer's digits in `radix`, `2` to `36`, `0-9` then `a-z`, a
     /// `-` first when negative: `Number::toString` and `BigInt::toString`
     /// with a radix (<https://tc39.es/ecma262/#sec-numeric-types-bigint-tostring>),
-    /// which ECMAScript specifies exactly for an integer. The words are
-    /// divided by the largest power of `radix` a word holds until none is
-    /// left, each remainder a chunk of that many digits, as `Display`
-    /// divides by `10¹⁹`.
+    /// which ECMAScript specifies exactly for an integer. The digits are
+    /// read a chunk at a time, the [`chunks`](Self::chunks) in the largest
+    /// power of `radix` a word holds, as `Display` reads them in `10¹⁹`.
     pub(crate) fn to_radix_string(&self, radix: u32) -> std::string::String {
         assert!((2..=36).contains(&radix), "a radix is 2 to 36");
         if self.is_zero() {
             return "0".into();
         }
         let (base, width) = chunk(radix);
-        let items = self.0.items();
-        let mut words: Vec<u64> = (0..items.length()).map(|i| items[i]).collect();
+        let chunks = self.chunks(base);
+        let top = chunks.len() - 1;
         let mut digits = Vec::new();
-        while !words.is_empty() {
-            let mut remainder = 0u128;
-            for word in words.iter_mut().rev() {
-                let dividend = (remainder << 64) | *word as u128;
-                *word = (dividend / u128::from(base)) as u64;
-                remainder = dividend % u128::from(base);
-            }
-            while words.last() == Some(&0) {
-                words.pop();
-            }
-            let mut r = remainder as u64;
+        for (i, mut r) in chunks.into_iter().enumerate() {
             // Every chunk but the most significant is `width` digits wide,
             // its leading zeros included.
             for _ in 0..width {
-                if words.is_empty() && r == 0 {
+                if i == top && r == 0 {
                     break;
                 }
                 let d = (r % u64::from(radix)) as u32;
@@ -53,10 +42,32 @@ impl<A: IVm> BigInt<A> {
             digits.iter().rev().collect::<std::string::String>()
         )
     }
+
+    /// The magnitude in `base`, least significant chunk first: the
+    /// remainders of dividing the words by `base` until none is left. The
+    /// most significant chunk is never `0`; a zero magnitude has no chunks.
+    pub(super) fn chunks(&self, base: u64) -> Vec<u64> {
+        let items = self.0.items();
+        let mut words: Vec<u64> = (0..items.length()).map(|i| items[i]).collect();
+        let mut chunks = Vec::new();
+        while !words.is_empty() {
+            let mut remainder = 0u128;
+            for word in words.iter_mut().rev() {
+                let dividend = (remainder << 64) | *word as u128;
+                *word = (dividend / u128::from(base)) as u64;
+                remainder = dividend % u128::from(base);
+            }
+            chunks.push(remainder as u64);
+            while words.last() == Some(&0) {
+                words.pop();
+            }
+        }
+        chunks
+    }
 }
 
 /// The largest power of `radix` a `u64` holds, and how many digits it has.
-fn chunk(radix: u32) -> (u64, u32) {
+pub(super) fn chunk(radix: u32) -> (u64, usize) {
     let radix = u64::from(radix);
     let mut base = radix;
     let mut width = 1;
@@ -93,6 +104,19 @@ mod tests {
             b(36i64.pow(12)).to_radix_string(36),
             format!("1{}", "0".repeat(12))
         );
+    }
+
+    #[test]
+    fn unpadded_top_chunk() {
+        // Only the most significant chunk drops its leading zeros.
+        let b = |v: u64| BigInt::<A>::from(v);
+        for (v, s) in [
+            (255, "255"),
+            (10_000_000_000_000_000_005, "10000000000000000005"),
+        ] {
+            assert_eq!(b(v).to_string(), s);
+            assert_eq!(b(v).to_radix_string(10), s);
+        }
     }
 
     #[test]
