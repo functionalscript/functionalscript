@@ -600,6 +600,11 @@ export const proof = {
             'Ok([c0.clone(), c0.clone()].to_array().to_any())',
         ])
         assertStructurallySame(usedBy(['()', ['Object.is'], [1, 2]]), { vm: ['ToAny', 'ToArray', 'static_binding'], unstable: ['f64_any'] })
+        // the answer of a block — the root, a function's body, a lazy
+        // operand's thunk — is the binding's `Result` itself
+        assertStructurallySame(scoped(['Object.is']), ['static_binding::<A>(&["Object", "is"])'])
+        assertStructurallySame(scoped(['=>', 0, [], ['Object.is']]), ['Ok(A::static_function(|_self, _args| { static_binding::<A>(&["Object", "is"]) }, 0, Array::default(), Some("()=>Object.is")).to_any())'])
+        assertStructurallySame(scoped(['&&', true, ['Object.is']]), ['let c0 = || static_binding::<A>(&["Object", "is"]);', 'Any::logical_and(true.to_any(), c0)'])
     },
     /** A module scope and each nested body construct their own functions. */
     undefinedFunction: () => {

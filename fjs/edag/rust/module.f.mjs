@@ -915,11 +915,6 @@ const printer = (nested, arg = argRead, frame = frameRead, base = 0) => shared =
         if (id === 'entry') {
             return ok(cat(['A::static_function(|_self, args| Any::entry(', argRead(0), ', ', argRead(1), '), ', num('2'), ', ', vm('Array'), `::default(), ${textExpr(e)})`, toAny]))
         }
-        // A static function as a value: `nanvm-lib`'s `static_binding`,
-        // the VM's binding for its path — `IVm::runtime_static`, the
-        // compiled runtime's body — or the failure naming it, which the
-        // `?` its read takes propagates.
-        if (id === 'Object.is') { return ok(cat([vm('static_binding'), '::<A>(&["Object", "is"])'])) }
         // Slot `i` of the frame the function was built with, `frame`:
         // {@link frameRead} unless the scope is a loop in place's round.
         if (id === 'frame') { return frame(a) }
@@ -1113,6 +1108,12 @@ const printer = (nested, arg = argRead, frame = frameRead, base = 0) => shared =
      */
     const bare = e => {
         const [id, a, b, c] = e
+        // A static function as a value: `nanvm-lib`'s `static_binding`,
+        // the VM's binding for its path — `IVm::runtime_static`, the
+        // compiled runtime's body — or the failure naming it, a `Result`
+        // as every operation's is, here where a block answers it as well
+        // as where a `let` reads it.
+        if (id === 'Object.is') { return ok(cat([vm('static_binding'), '::<A>(&["Object", "is"])'])) }
         // A chain: the node's entry point, then its continuation's steps,
         // then the exit — `Any::dot(a, key).end()` for a bare `a.b`, one
         // spelling whether or not a continuation follows. What the read
