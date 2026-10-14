@@ -56,6 +56,7 @@ import { pureOk, step as ioStep } from '../../effects/module.f.mjs'
 import { isValidCodePoint, isTextCodePoint } from '../../text/code_point/module.f.mjs'
 import { utf8ByteToCodePointOp } from '../../text/utf8/module.f.mjs'
 import { at } from '../../types/object/module.f.mjs'
+import { name as pathName } from '../../path/module.f.mjs'
 
 // ── Magic-byte signatures ─────────────────────────────────────────────────────────
 //
@@ -320,7 +321,7 @@ const octetStream = 'application/octet-stream'
  * @type {(path: string) => string}
  */
 const extension = path => {
-    const name = path.slice(path.lastIndexOf('/') + 1)
+    const name = pathName(path)
     const dot = name.lastIndexOf('.')
     return dot > 0 ? name.slice(dot + 1).toLowerCase() : ''
 }

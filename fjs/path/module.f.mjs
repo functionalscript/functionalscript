@@ -147,8 +147,15 @@ const posixSegments = rooted => rest => toArray(fold(pathDotSegments(rooted))([]
  */
 const segmentsOf = p => posixSegments(isRooted(p))(p[1])
 
+/**
+ * Already-folded segments written below a root, without folding them again.
+ *
+ * @type {(root: string) => (segments: readonly string[]) => string}
+ */
+const spell = r => segments => stringConcat([r, listJoin('/')(segments)])
+
 /** @type {(p: readonly [root: string, rest: string]) => string} */
-const rejoin = p => stringConcat([p[0], listJoin('/')(segmentsOf(p))])
+const rejoin = p => spell(p[0])(segmentsOf(p))
 
 /**
  * The root of a path, carrying its trailing separator: `'/'` for a POSIX
@@ -235,6 +242,55 @@ export const concat = a => b => {
     // separator that makes a drive root out of one.
     const [ra, resta] = split(normalize(a))
     return rejoin([ra, stringConcat([resta, isBareDrive(resta) ? '' : '/', pb[1]])])
+}
+
+/**
+ * The directory a path sits in: `a/b` for `a/b/x.rs`, `.` for a bare name,
+ * and the root for a name directly below one — `/` for `/x`, `C:/` for
+ * `C:/x`. The root is its own parent, because `..` cannot escape it, so
+ * `parent('/')` is `/`.
+ *
+ * It is {@link concat} with `..`, so it answers for the place the path names,
+ * not for the text before its last separator: `parent('a/../b/x')` is `b`,
+ * and `parent('..')` is `../..`. The one answer of `concat` this does not
+ * pass on is the empty path, the parent of a bare name, which is `.` here
+ * because no host takes an empty path for a directory.
+ *
+ * @type {(path: string) => string}
+ */
+export const parent = path => {
+    const directory = concat(path)('..')
+    return directory === '' ? '.' : directory
+}
+
+/**
+ * The last segment of a path, or `''` for a path with none — a root, or the
+ * empty path: `x.rs` for `a/b/x.rs` and for `a/b/x.rs/`, `x` for `/x`. It is
+ * the last of what {@link parse} answers, so `a/b/..` is named `a`, and a
+ * path that ends in a `..` with nothing to cancel is named `..`.
+ *
+ * @type {(path: string) => string}
+ */
+export const name = path => last('')(parse(path))
+
+/**
+ * The directories a path lies under, between its root and itself, shortest
+ * first: `a` and `a/b` for `a/b/c`, and `/a` for `/a/b`. Neither the root —
+ * nor `.`, a relative path's — nor the path itself is one of them.
+ *
+ * A path that climbs is not under the `..` it starts with: `../../a/b` is
+ * below `../..`, and `..` is above that, not below. That run of `..` is the
+ * path's base, as `.` is a relative path's, so the list starts below it:
+ * `../../a` for `../../a/b`.
+ *
+ * @type {(path: string) => readonly string[]}
+ */
+export const ancestors = path => {
+    const p = parts(path)
+    const segments = segmentsOf(p)
+    // A `..` survives folding only at the start, so this is how many there are.
+    const base = segments.lastIndexOf('..') + 1
+    return segments.slice(base + 1).map((_, i) => spell(p[0])(segments.slice(0, base + 1 + i)))
 }
 
 /**

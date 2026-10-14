@@ -1,5 +1,5 @@
-import { _dotSegmentFold, concat, escapes, isBareDrive, isDriveLetter, isDriveRoot, isProperPrefix, join, normalize, parse, relativize, root, toPosix, under } from "./module.f.mjs"
-import { assertEq } from '../asserts/module.f.mjs'
+import { _dotSegmentFold, ancestors, concat, escapes, isBareDrive, isDriveLetter, isDriveRoot, isProperPrefix, join, name, normalize, parent, parse, relativize, root, toPosix, under } from "./module.f.mjs"
+import { assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
 import { fold, toArray } from '../types/list/module.f.mjs'
 
 /**
@@ -407,6 +407,135 @@ const concatTest = [
     },
 ]
 
+const parentTest = [
+    () => {
+        assertEq(parent('a/b/x.rs'), 'a/b')
+    },
+    // A bare name sits in `.`: the empty path `concat` folds it to is no
+    // directory a host takes.
+    () => {
+        assertEq(parent('x.rs'), '.')
+    },
+    // A name directly below a root sits in the root, whichever root it is.
+    () => {
+        assertEq(parent('/x'), '/')
+    },
+    () => {
+        assertEq(parent('//x'), '//')
+    },
+    () => {
+        assertEq(parent('C:/x'), 'C:/')
+    },
+    () => {
+        assertEq(parent('C:\\a\\x'), 'C:/a')
+    },
+    // The root is its own parent: `..` cannot escape it.
+    () => {
+        assertEq(parent('/'), '/')
+    },
+    // The place the path names, not the text before its last separator.
+    () => {
+        assertEq(parent('a/../b/x'), 'b')
+    },
+    () => {
+        assertEq(parent('a/b/'), 'a')
+    },
+    () => {
+        assertEq(parent('..'), '../..')
+    },
+    () => {
+        assertEq(parent(''), '..')
+    },
+]
+
+const nameTest = [
+    () => {
+        assertEq(name('a/b/x.rs'), 'x.rs')
+    },
+    () => {
+        assertEq(name('x.rs'), 'x.rs')
+    },
+    () => {
+        assertEq(name('/x'), 'x')
+    },
+    () => {
+        assertEq(name('a\\x'), 'x')
+    },
+    // A trailing separator names nothing of its own.
+    () => {
+        assertEq(name('a/b/x.rs/'), 'x.rs')
+    },
+    () => {
+        assertEq(name('a/b/..'), 'a')
+    },
+    () => {
+        assertEq(name('../..'), '..')
+    },
+    // A root, or the empty path, has no name.
+    () => {
+        assertEq(name('/'), '')
+    },
+    () => {
+        assertEq(name('C:/'), '')
+    },
+    () => {
+        assertEq(name(''), '')
+    },
+    // A path with a name is its parent and its name again.
+    () => {
+        for (const p of ['a/b/x.rs', 'x.rs', '/x', 'C:/a/x', '../a']) {
+            assertEq(concat(parent(p))(name(p)), normalize(p))
+        }
+    },
+]
+
+const ancestorsTest = [
+    () => {
+        assertStructurallySame(ancestors('refs/heads/a/b'), ['refs', 'refs/heads', 'refs/heads/a'])
+    },
+    // Below the root, which is not one of them, and keeping it.
+    () => {
+        assertStructurallySame(ancestors('/a/b/c'), ['/a', '/a/b'])
+    },
+    () => {
+        assertStructurallySame(ancestors('C:/a/b'), ['C:/a'])
+    },
+    // A path with one segment, or none, lies under no directory but its base.
+    () => {
+        assertStructurallySame(ancestors('a'), [])
+    },
+    () => {
+        assertStructurallySame(ancestors('/a'), [])
+    },
+    () => {
+        assertStructurallySame(ancestors(''), [])
+    },
+    () => {
+        assertStructurallySame(ancestors('/'), [])
+    },
+    // Folded first, like every other question this module answers.
+    () => {
+        assertStructurallySame(ancestors('a//b/./c/../d/'), ['a', 'a/b'])
+    },
+    // A path that climbs is not under the `..` it starts with: the run of
+    // `..` is its base, and the list starts below it.
+    () => {
+        assertStructurallySame(ancestors('../../a/b'), ['../../a'])
+    },
+    () => {
+        assertStructurallySame(ancestors('../a/b'), ['../a'])
+    },
+    () => {
+        assertStructurallySame(ancestors('../..'), [])
+    },
+    // The last of them is the path's parent, wherever it has one to list.
+    () => {
+        for (const p of ['a/b/c', '/a/b', '../a/b', 'C:/a/b']) {
+            assertEq(ancestors(p).at(-1), parent(p))
+        }
+    },
+]
+
 const joinTest = [
     () => {
         const r = join('a', 'b')
@@ -569,4 +698,4 @@ const underThrowTest = {
     },
 }
 
-export const proof = { dotSegmentFoldTest, normalizeTest, escapesTest, rootTest, driveTest, parseTest, concatTest, joinTest, underTest, underThrowTest, relativizeTest, toPosixTest, isProperPrefixTest }
+export const proof = { dotSegmentFoldTest, normalizeTest, escapesTest, rootTest, driveTest, parseTest, concatTest, parentTest, nameTest, ancestorsTest, joinTest, underTest, underThrowTest, relativizeTest, toPosixTest, isProperPrefixTest }

@@ -5,6 +5,10 @@
 
 ### Problem
 
+> **Progress:** `fjs/path` now answers the first three questions below as
+> `parent`, `name` and `ancestors`, and every copy listed calls them. The
+> copied `resolve` is what remains.
+
 [`fjs/path`](../module.f.mjs) owns path manipulation: `concat`, `join`,
 `under`, `relativize`, `isProperPrefix`. It has no function for the three
 questions a file path is asked most often — its directory, its last name,
@@ -77,10 +81,11 @@ never silent omissions or paths containing `null`.
 
 ### Tasks
 
-- [ ] Decide the names and the edge rules, in `fjs/path`'s JSDoc, with the
+- [x] Decide the names and the edge rules, in `fjs/path`'s JSDoc, with the
       `/x` case stated.
-- [ ] Implement with a proof at 100%, and move the sites above onto
-      the exports in the same PR.
+- [x] Implement with a proof at 100%, and move the sites above onto
+      the exports in the same PR. `fjs/website`'s `cratesOf`, which asked
+      the same two questions with `lastIndexOf('/')`, moved as well.
 - [ ] Replace `fjs/website`'s `resolve` with `fjs/path/import`'s; implement
       the explicit resolved-string/refusal split in `importsOf` and update
       `_Imports`'s documentation.
