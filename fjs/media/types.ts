@@ -59,7 +59,8 @@ type DialectOf<S extends Struct> =
  *   `bigint`, `undefined`, a function, `NaN` or `±Infinity` — rather than
  *   answering with a plausible wrong text.
  * - `validate` checks the shape, then that every number has an exact JSON
- *   spelling (finite; `-0` included), then runs the refinement. Its output is
+ *   spelling (finite; `-0` included), then runs the refinement and puts
+ *   whatever it returns through both checks again. Its output is
  *   a fixpoint: `decodeText(encodeText(v))` is `ok(v)` for every `v` it
  *   returns.
  * - `decodeText` parses JSON text, then validates it; a parse failure is a

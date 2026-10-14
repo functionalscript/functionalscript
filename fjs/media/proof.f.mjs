@@ -273,6 +273,14 @@ export const proof = {
             assertInexact(['list', '1'])(kindsIdentity.validate({ ...kindsBlob, list: [1, NaN] }))
         },
 
+        // A refinement may return a new value. The factory checks that value
+        // again, so a refinement that swaps a finite number for `NaN` gets a
+        // path error instead of an `ok` that `encodeText` would refuse.
+        refinedValueRechecked: () => {
+            const nanList = jsonDialect(kindsSchema, v => ok({ ...v, list: [NaN] }))
+            assertInexact(['list', '0'])(nanList.validate(kindsBlob))
+        },
+
         // The fixpoint is on `validate`'s output: re-encoding and decoding it
         // gives the same value back, `-0` and all.
         fixpoint: () => {

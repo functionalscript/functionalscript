@@ -276,7 +276,9 @@ const stringifySorted = stringify(sort)
  * what the type cannot see.
  *
  * `checkReferences` runs after the shape and exact-number checks, on the
- * dialect's own value type; its error type joins the kit's. `entry` matches
+ * dialect's own value type; its error type joins the kit's. It may return a
+ * value other than its input, which then passes both checks again, so a
+ * refinement cannot make `validate` return a value `encodeText` refuses. `entry` matches
  * through the kit's own `validate`, so detection and decoding are one
  * acceptance rule.
  *
@@ -292,14 +294,23 @@ export const jsonDialect = (schema, checkReferences = ok) => {
     assert(nonJson.length === 0, `jsonDialect: a member admits a value JSON cannot spell: ${nonJson.join(', ')}`)
     // An erased cast, paid for by the construction checks above, as in
     // `dialectEntry`: the parsed value is the schema's.
-    const shape = /** @type {(value: JsonUnknown) => Result<Ts<S>, ValidationError>} */ (rttiParse(schema))
-    /** @type {(v: Ts<S>) => Result<Ts<S>, ValidationError | E>} */
-    const exactThenRefined = v => {
+    const shape = /** @type {(value: unknown) => Result<Ts<S>, ValidationError>} */ (rttiParse(schema))
+    /** @type {(v: Ts<S>) => Result<Ts<S>, ValidationError>} */
+    const exact = v => {
         const path = inexactNumber(v)
-        return path === null ? checkReferences(v) : error({ path, message: 'number has no exact JSON spelling' })
+        return path === null ? ok(v) : error({ path, message: 'number has no exact JSON spelling' })
     }
+    /**
+     * The shape and exact-number checks. They run on the input and again on
+     * whatever the refinement returns: a refinement may hand back a new
+     * value, and `validate`'s output must stay something `encodeText` takes
+     * and `decodeText` reads back.
+     *
+     * @type {(v: unknown) => Result<Ts<S>, ValidationError>}
+     */
+    const checked = v => okThen(exact)(shape(v))
     /** @type {JsonDialect<S, E>['validate']} */
-    const validate = value => okThen(exactThenRefined)(shape(value))
+    const validate = value => okThen(checked)(okThen(checkReferences)(checked(value)))
     /** @type {JsonDialect<S, E>['encodeText']} */
     const encodeText = value => {
         const path = unencodableLeaf(value)
