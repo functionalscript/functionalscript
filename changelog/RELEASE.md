@@ -97,6 +97,21 @@ bump's merge commit, not a later one, so the version holds the release's tree.
 
 ## The notes
 
+A session that writes notes writes **every missing file**, not only the newest.
+If a release's notes were skipped, or their pull request never merged, the next
+release's notes session, or any later one, fills the gap:
+
+```sh
+npm view functionalscript versions --json
+ls changelog/
+```
+
+Every published version above `0.55.0` without a `changelog/<version>.md` is
+missing; older gaps are history and stay as they are. Write each missing file
+over its own window, in one notes pull request or one each. Never close a gap
+by widening a later release's window over it: each file describes the version
+it is named for.
+
 ### 1. Find the window
 
 The notes for a version cover the commits between two `gitHead`s: the previous
@@ -105,9 +120,6 @@ version's and this one's.
 - For a regular `0.X.0`, the previous version is the highest published
   `0.W.0` below it.
 - For an urgent `0.X.P`, it is `0.X.(P-1)`, or `0.X.0` for `0.X.1`.
-
-The previous version must already have its notes; if it has none, write those
-first. Windows chain, so a gap is filled in order and no version is skipped.
 
 ```sh
 npm view functionalscript@<previous> gitHead
@@ -263,14 +275,16 @@ Historical release records retain their original toolsets.
 
 ### 6. Open the notes pull request
 
-Titled `changelog: write the X.Y.Z notes`, against `main`, adding
-`changelog/X.Y.Z.md`. Its description names the window — both `gitHead`s — and
-carries the toolset evidence. Before merging:
+Titled `changelog: write the X.Y.Z notes`, naming each version it writes,
+against `main`, adding `changelog/X.Y.Z.md` for each. Its description names each
+window — both `gitHead`s — and carries the toolset evidence. Before merging:
 
-- [ ] the file name is the published version
-- [ ] the window runs between the two `gitHead`s, and `package.json` at each
+- [ ] each file name is a published version, and no published version above
+      `0.55.0` is left without a file
+- [ ] each window runs between two `gitHead`s, and `package.json` at each
       carries its version
-- [ ] every pull request in the window was read, and the count was cross-checked
+- [ ] every pull request in each window was read, and the count was
+      cross-checked
 - [ ] every notable API change is covered, and any optional breaking notices
       are accounted for as shipped or undone
 - [ ] the release notes contain or link the tested toolset, verified at the
