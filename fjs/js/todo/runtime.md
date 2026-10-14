@@ -143,9 +143,12 @@ optimization, and it stays in the same table, ahead of the body, for as
 long as the measurement says so and leaves when the compiled body is fast
 enough. NaNVM's current Rust implementations become exactly that. There
 is no second table: the interpreter runs the body, the AOT Rust output
-links the compiled runtime, and whatever the native table holds, the
-corpus in `nanvm/member` checks the native answer against the body, as it
-checks it against the host today, and the body is the reference. That fixes two
+links the compiled runtime, and the corpus in `nanvm/member` has one
+oracle per kind of name. A name with a body is checked against the body,
+whether the VM answers it natively or not, and the body is the reference;
+a name without one — a primitive, or a name waiting on the static-function
+step — is checked against the host engine, as every name is today, until
+its body lands and the oracle changes with it. That fixes two
 things the spec currently lists as implementation-defined: an inconsistent
 `toSorted` comparator gets the one order the runtime's sort gives, on every
 executor, and the interpreter no longer answers with the host's Unicode
