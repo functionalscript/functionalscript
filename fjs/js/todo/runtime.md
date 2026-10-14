@@ -67,8 +67,11 @@ in `vm/lambda/member.rs` does. That call keeps the arguments' count, so a
 body whose algorithm tells an omitted argument from an explicit
 `undefined` — `lastIndexOf`'s position, `reduce`'s initial value,
 `toSpliced`'s count — takes a rest parameter, `(self, ...args)`, and reads
-`args.length`, as the native adapter reads its array's; a body that need
-not tell them apart names its parameters, and reads `undefined` past the
+`args.length`, as the native adapter reads its array's, and so does a
+variadic body — `concat`'s items, `push`-like shapes the language may yet
+admit — since a function in the language has no `arguments` and a named
+parameter list drops what it does not name; a body that is neither names
+its parameters, and reads `undefined` past the
 end. The second level is keyed by name rather
 than closed over so that the table is data: a VM enumerates it, and a
 reader finds `string.startsWith` where `fjs/js/prototype`'s README has its
@@ -173,9 +176,16 @@ every generated file and still write the runtime's EDAG and Rust from
 source. A runtime is needed only to *run*: an executor evaluating a module
 whose initialization calls a body's name, or the compiler itself once it
 is compiled and run on a VM, where the runtime the previous compiler
-wrote is the fixed point, as a Rust `core` is for `rustc`. Second, the
-runtime module's own initialization calls no member function, so it can
-always be interpreted from nothing. An optimizing pass that evaluated at
+wrote is the fixed point, as a Rust `core` is for `rustc`. Second, no
+initializer in the runtime module's closure — the module and every module
+it imports, transitively — calls a member function, so the runtime can
+always be interpreted from nothing. The invariant is over the closure
+because the compiler runs every imported module's initializer before the
+importer's, and a helper the runtime shares with the rest of `fjs/` must
+hold it too or be inlined; it is checked mechanically rather than by
+reading, since the transpiler's `runtimeAt` interprets the module with no
+runtime, and a member call in any initializer of the closure fails that
+load. An optimizing pass that evaluated at
 compile time would be the one place the compiler runs bodies; it takes
 the runtime as an input as the executors do, folds only what the
 interpreter answers natively when given none, and so the runtime is
