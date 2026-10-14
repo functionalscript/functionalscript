@@ -35,14 +35,19 @@ table stays rustc's. The number formatters wait on no static function —
 and the runtime imports helpers as any module does — so they are
 `runtime.md`'s batches, not this proposal's.
 
-And the runtime object's shape is the one its first pull request gave it:
-a table keyed by receiver type at the top level, with no room for a second
-section, so adding one later is a shape break every binding pays.
+And the runtime object's shape was the one its first pull request gave
+it: a table keyed by receiver type at the top level, with no room for a
+second section, so adding one later would have been a shape break every
+binding paid. This proposal's first task paid it once, before any static
+existed: the member table now sits under `member`, keyed by the global's
+name, and the static section adds a key beside it rather than breaking a
+shape.
 
 ### Proposal
 
 **Two sections, both keyed by the global's name.** The runtime object
-gains a `static` section, and the member table moves under `member`:
+holds `member`, where the first task moved the member table, and the
+`static` section this proposal adds beside it:
 
 ```js
 import { is } from '../../types/object/is/module.f.js'
