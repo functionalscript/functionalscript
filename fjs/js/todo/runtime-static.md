@@ -1,10 +1,10 @@
 ## A static section of the runtime: `Object.is` the first
 
 **Priority:** P2
-**Status:** open — the shape is `sergey-shandar`'s; the first static
-call, `Object.is(a, b)`, is a new language feature and needs explicit
-approval from another language designer before its task starts
-([DESIGN.md §12](../../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions))
+**Status:** wip — the shape is `sergey-shandar`'s, who approved the
+proposal by merging it and asking for the implementation
+([#2885](https://github.com/functionalscript/functionalscript/pull/2885));
+the member table is nested under `member`, keyed by the global's name
 
 ### Problem
 
@@ -35,14 +35,19 @@ table stays rustc's. The number formatters wait on no static function —
 and the runtime imports helpers as any module does — so they are
 `runtime.md`'s batches, not this proposal's.
 
-And the runtime object's shape is the one its first pull request gave it:
-a table keyed by receiver type at the top level, with no room for a second
-section, so adding one later is a shape break every binding pays.
+And the runtime object's shape was the one its first pull request gave
+it: a table keyed by receiver type at the top level, with no room for a
+second section, so adding one later would have been a shape break every
+binding paid. This proposal's first task paid it once, before any static
+existed: the member table now sits under `member`, keyed by the global's
+name, and the static section adds a key beside it rather than breaking a
+shape.
 
 ### Proposal
 
 **Two sections, both keyed by the global's name.** The runtime object
-gains a `static` section, and the member table moves under `member`:
+holds `member`, where the first task moved the member table, and the
+`static` section this proposal adds beside it:
 
 ```js
 import { is } from '../../types/object/is/module.f.js'
@@ -80,20 +85,20 @@ does and `Number(x)` does not. `member` is keyed by the same names —
 `Array`, `String`, `Number`, `Object`, `Boolean`, `BigInt`, `Function` —
 rather than the `typeof`-style `array` and `string` the first pull request
 used, so one global has both halves under one key: `static.Array.isArray`
-and `member.Array.map`. A VM maps a receiver's type to that name once,
-which is what NaNVM's `type_name` and `nanvm/methods`'s type column
-already do under the old spelling; renaming them is part of the first
-task. A static body takes the arguments as the call passed them,
+and `member.Array.map`. A VM maps a receiver's type to that name once:
+NaNVM's `type_name` and `nanvm/methods`'s type column did so under the
+old spelling, and the first task renamed both to the globals' names. A
+static body takes the arguments as the call passed them,
 positionally, `undefined` past the end, with a rest parameter where the
 algorithm tells an omitted argument from an explicit `undefined` or is
 variadic — `Math.max`'s values, `String.fromCharCode`'s units — exactly as
 a member body does minus the receiver. `static` is a reserved word in
 strict-mode binding positions and an ordinary property key, which the
 current compiler accepts; the shape above, `''` and the bare `isNaN`
-included, compiles today. The nesting and the rename are the first task,
-made before the static section exists so that `types.ts`, the executors
-and `vm/runtime.rs` read `runtime.member[type][name]` once and never move
-again.
+included, compiles today. The nesting and the rename were the first
+task, made before the static section existed, so `types.ts`, the
+executors and `vm/runtime.rs` read `runtime.member[type][name]` and the
+static section adds a key without moving them again.
 
 **Admission is a list of paths; the namespace is closed.** Which static
 names a module may call is a new list beside `js/prototype`, `js/static`'s
@@ -228,14 +233,15 @@ this proposal does not take.
 - Two admission lists where one might do; they stay separate because a
   prototype's names are open by default and a global's are closed, and
   one list cannot say both.
-- Nesting the member table under `member` and renaming its keys is a
-  shape change the bindings of #2880 pay once, before any consumer exists.
+- Nesting the member table under `member` and renaming its keys was a
+  shape change the bindings of #2880 paid once, in the first task, before
+  any consumer existed.
 
 ### Tasks
 
-- [ ] File this proposal, and obtain approval from another language
-      designer for the mechanism and `Object.is` before the next task.
-- [ ] Nest the member table under `runtime.member` and key it by the
+- [x] File this proposal, and obtain approval for the mechanism and
+      `Object.is` before the next task.
+- [x] Nest the member table under `runtime.member` and key it by the
       global's name: the module, `types.ts`, `edag/value/method`'s `body`,
       `vm/runtime.rs` and `type_name`, `nanvm/methods`'s type column,
       and the README.

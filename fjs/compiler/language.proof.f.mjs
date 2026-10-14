@@ -27,7 +27,7 @@ import { compileSource, defaultValue, fjsRoundTrip, importing, jsonOf, jsonRefus
  */
 const withRuntime = root => ({
     ...root,
-    'fjs': { 'js': { 'runtime': { 'module.f.js': [utf8("export const runtime = { string: { startsWith: (self, s) => self.slice(0, s.length) === s } };")] } } },
+    'fjs': { 'js': { 'runtime': { 'module.f.js': [utf8("export const runtime = { member: { String: { startsWith: (self, s) => self.slice(0, s.length) === s } } };")] } } },
 })
 
 const { getPrototypeOf, is, prototype: objectPrototype } = Object

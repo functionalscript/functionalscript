@@ -35,9 +35,10 @@ export type Function = Closure | EntryFunction
 
 /**
  * The runtime an executor answers member functions from: the evaluated
- * `runtime` export of `fjs/js/runtime`, an object keyed by receiver type
- * and then by name, each entry the function value that is the member
- * function's body; a name without a body has no entry.
+ * `runtime` export of `fjs/js/runtime`, an object whose `member` section
+ * is keyed by receiver type, by its global's name, and then by name, each
+ * entry the function value that is the member function's body; a name
+ * without a body has no entry.
  * Its shape is the module's, which `fjs/js/runtime/types.ts` pins.
  */
 export type Runtime = Object

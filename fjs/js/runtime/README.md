@@ -1,9 +1,13 @@
 # The runtime
 
 The built-in member functions, defined once. [`module.f.js`](./module.f.js)
-exports `runtime`: for a receiver type, the names whose **body** is
-written, each a FunctionalScript function of the receiver and then the
-arguments as the call passed them, `undefined` past the end. A name
+exports `runtime`, whose `member` section holds, for a receiver's type
+keyed by the name of its global — `String`, `Array`, `Number` — the names
+whose **body** is written, each a FunctionalScript function of the
+receiver and then the arguments as the call passed them, `undefined` past
+the end. The section's name leaves room for a `static` one, keyed the
+same way, which [`../todo/runtime-static.md`](../todo/runtime-static.md)
+proposes. A name
 without a body is absent, and each VM answers it from its own native
 table. The proposal and the steps still to take are
 [`../todo/runtime.md`](../todo/runtime.md).
@@ -13,9 +17,10 @@ table. The proposal and the steps still to take are
 Which names a module may call stays
 [`../prototype`](../prototype/module.f.js)'s: the prototype name lists and
 `prohibitedCalls` for the parser, `allowedCalls` for every executor.
-[`types.ts`](./types.ts) pins every key here to that set — each type the
-table keys is a receiver type, each key under it an allowed name on that
-type's prototype — so a body for a name the language does not admit, or
+[`types.ts`](./types.ts) pins every key here to that set — `member` is
+the one section, each type it keys is a receiver type by its global's
+name, each key under it an allowed name on that type's prototype — so a
+body for a name the language does not admit, or
 on the wrong type, fails `tsc`, and [`proof.f.mjs`](./proof.f.mjs) checks
 the same at run time. The keys are not the admitted set and need not be:
 nothing in a `.f.js` enumerates an object's keys, so a list could not be
@@ -140,10 +145,10 @@ sequenceDiagram
     L->>L: own property? none on an array
     L->>T: method(receiver, "map")
     T-->>L: None, once map has a body
-    L->>A: runtime_method("array", "map")
+    L->>A: runtime_method("Array", "map")
     A->>R: module::<A>()
     R-->>A: the export object
-    A-->>L: the closure under runtime.array.map
+    A-->>L: the closure under runtime.member.Array.map
     L->>L: body.call([receiver, ...args])
     L-->>M: the answer, or Err(thrown)
 ```

@@ -43,6 +43,7 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
         Any::call(A::frame(self_)[0].clone(), [args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), c0, c2].to_array().to_any())
     }, 3, [c0, c5].to_array(), Some("($2,$3,$4)=>$0($2,String($3),$1($4,$2.length))")).to_any();
     let c7: Any<A> = [(string_key("startsWith"), c6)].to_object().to_any();
-    let c8: Any<A> = [(string_key("string"), c7)].to_object().to_any();
-    Ok([(string_key("runtime"), c8)].to_object().to_any())
+    let c8: Any<A> = [(string_key("String"), c7)].to_object().to_any();
+    let c9: Any<A> = [(string_key("member"), c8)].to_object().to_any();
+    Ok([(string_key("runtime"), c9)].to_object().to_any())
 }
