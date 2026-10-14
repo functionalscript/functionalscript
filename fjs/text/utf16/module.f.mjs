@@ -1,7 +1,8 @@
 /**
  * UTF-16 utilities: convert between strings, UTF-16 code units, and Unicode
  * code points, including surrogate-pair encoding/decoding via streaming
- * `stateScan` operations.
+ * `stateScan` operations, and answer the two questions a string's surrogates
+ * raise: whether each is paired, and where its code points begin.
  *
  * @module
  *
@@ -15,6 +16,7 @@ import {
     map,
     flatMap,
     empty,
+    none,
 } from '../../types/list/module.f.mjs'
 
 import { isUintUpTo } from '../../types/number/module.f.mjs'
@@ -28,6 +30,7 @@ import {
     errorMask,
     isBmpCodePoint,
     isHighSurrogate,
+    isLowSurrogate,
     restart,
     tryFromSurrogatePair,
     tryToSurrogatePair,
@@ -285,6 +288,51 @@ export const stringToList = s => {
  */
 export const stringToCodePointList = input =>
     toCodePointList(stringToList(input))
+
+/**
+ * Whether a string is well-formed UTF-16: none of its surrogates is unpaired,
+ * so it has an encoding in UTF-8 — the question `String.prototype.isWellFormed`
+ * answers. {@link stringToCodePointList} decides it, since it tags each
+ * unpaired surrogate with `errorMask`.
+ *
+ * @example
+ *
+ * ```js
+ * isWellFormed('a😀')      // true
+ * isWellFormed('a\ud800b') // false
+ * ```
+ *
+ * @type {(s: string) => boolean}
+ */
+export const isWellFormed = s =>
+    none(codePoint => (codePoint & errorMask) !== 0)(stringToCodePointList(s))
+
+/**
+ * The greatest code-point boundary of `s` at or below `index`, a count of
+ * code units: `index` itself, unless it falls between the two halves of a
+ * surrogate pair, where it is the pair's start, `index - 1`. An index past
+ * the end is the end. Rust's `str::floor_char_boundary` answers the same
+ * question over UTF-8.
+ *
+ * An unpaired surrogate is a code point of its own here, as
+ * {@link toCodePointList} decodes it, so either side of one is a boundary. At
+ * `0` there is no unit before the index, which `charCodeAt` reads as `NaN`,
+ * no surrogate.
+ *
+ * @example
+ *
+ * ```js
+ * floorCodePointBoundary('a😀')(2) // 1: inside the pair
+ * floorCodePointBoundary('a😀')(3) // 3
+ * floorCodePointBoundary('a😀')(9) // 3: past the end
+ * ```
+ *
+ * @type {(s: string) => (index: number) => number}
+ */
+export const floorCodePointBoundary = s => index =>
+    index >= s.length ? s.length
+    : isHighSurrogate(s.charCodeAt(index - 1)) && isLowSurrogate(s.charCodeAt(index)) ? index - 1
+    : index
 
 /**
  * Converts a list of UTF-16 code units (U16) to a string.
