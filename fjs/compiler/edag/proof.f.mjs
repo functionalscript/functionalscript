@@ -534,6 +534,21 @@ export const proof = {
         // and the helper's text is the helper, in the writer's spelling
         assertStructurallySame(execute(compile(`${helper} export default entry.toString();`).edag), '($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}')
     },
+    // `Object.is` is the EDAG's own node for it, `['Object.is']`, in every
+    // spelling and through destructuring, which reads the namespace's
+    // member as the access does; the graph runs under a runtime whose
+    // `static` section binds it — the one function on every read — and
+    // fails naming it under none.
+    objectIs: () => {
+        expectEdag(compile('export default Object.is;').edag, ['Object.is'])
+        expectEdag(compile('export default Object?.["is"](0, -0);').edag, ['()', ['Object.is'], [0, -0]])
+        expectEdag(compile('const { is } = Object; export default [is, Object.is];').edag, ['[]', [['Object.is'], ['Object.is']]])
+        /** @type {import('../../edag/value/types.ts').Runtime} */
+        const runtime = ['{}', [[':', 'static', ['{}', [[':', 'Object', ['{}', [[':', 'is', ['=>', 2, [], ['===', ['arg', 0], ['arg', 1]]]]]]]]]]]]
+        const run = memo(assertOk(analysis(compile('const { is } = Object; const f = () => Object.is; export default [is(1, 1), Object.is(1, 2), is === f(), [1].map(x => f()(x, 1))];').edag)))
+        assertStructurallySame(assertOk(toData(unwrap(run({ args: [], runtime })))), [true, false, true, [true]])
+        assertEq(assertError(run({ args: [] })), 'no binding for the static Object.is')
+    },
     // A function that captures is `['=>', length, slots, body]`: each slot
     // the enclosing scope's own node for a captured value — one per node,
     // in the order the body first names them — and each read of it in the
