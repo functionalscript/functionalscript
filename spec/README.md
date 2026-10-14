@@ -768,7 +768,9 @@ its conditional ([functions](#functions)).
   value to read them from: `const { is } = Object;` is
   `const is = Object.is;`, one entry, and `const {} = Object;` reads
   nothing, the namespace being never nullish. An array pattern over it,
-  and a key it does not admit, are refused at the word (`reserved word`).
+  and a key it does not admit, are refused at the word (`reserved word`) —
+  but a key that is a prototype name, `keys` or `toString`, is refused
+  first, at the key, as in any pattern (`prohibited property name`).
 - A **parameter pattern** is one fixed parameter, its source the argument
   in its position: `([a, { b }], c) => …` binds `a` and `b` from the first
   argument as `const [a, { b }] = arg;` would, its reads the first entries
@@ -1948,10 +1950,8 @@ helper [`fjs/types/object/is`](../fjs/types/object/is/module.f.js), which a
 module may import as well, and every executor answers the node from it; an
 executor with no binding for it fails, naming it, rather than answer. The
 graph outputs write the node back: the FunctionalScript one as `Object.is`,
-the Rust one as the binding the VM answers. NaNVM builds that binding afresh
-on each read for now, so two reads made in two invocations of a function are
-two functions there and `===` between them is `false`
-([runtime-static](../fjs/js/todo/runtime-static.md)).
+the Rust one as the binding the VM answers, which NaNVM reads from the one
+runtime object it holds, so every read there is one function too.
 
 ## Optional Chaining
 
