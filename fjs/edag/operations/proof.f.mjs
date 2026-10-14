@@ -127,19 +127,19 @@ export const proof = {
         failure(['()', ['entry'], [null, 'a']])
         failure(['.', null, 'a', ['|()', []]])
     },
-    // A static node is the body the runtime's `static` section holds at its
-    // path, called as the callee it stands as; with no runtime, or none at
-    // the path, the dispatcher fails naming the path.
-    static: () => {
-        failure(['()', ['static', ['Object', 'is']], [1, 1]], noStatic(['Object', 'is']))
-        failure(['static', ['Object', 'is']], 'no binding for the static Object.is')
+    // `Object.is` is the body the runtime's `static` section holds at its
+    // path, a value whether called or not; with no runtime, or none at the
+    // path, the dispatcher fails naming it.
+    objectIs: () => {
+        failure(['()', ['Object.is'], [1, 1]], noStatic('Object.is'))
+        failure(['Object.is'], 'no binding for the static Object.is')
         /** @type {Context} */
         const withRuntime = {
             ...context,
             runtime: ['{}', [[':', 'static', ['{}', [[':', 'Object', ['{}', [[':', 'is', ['=>', 2, [], ['===', ['arg', 0], ['arg', 1]]]]]]]]]]]],
         }
         const bound = operation({ ...evaluator, context: withRuntime, operand: (e, state) => [[...state, e], vm(withRuntime)(e)] })
-        assertStructurallySame(settle(invoke)(bound(['()', ['static', ['Object', 'is']], ['a', 'a']], [])[1]), ['ok', true])
+        assertStructurallySame(settle(invoke)(bound(['()', ['Object.is'], ['a', 'a']], [])[1]), ['ok', true])
     },
     calls: () => {
         const at = /** @type {const} */ (['[]', [42]])

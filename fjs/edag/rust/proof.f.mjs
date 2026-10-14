@@ -582,18 +582,24 @@ export const proof = {
         assertEq(printed(['()', ['entry'], [1, 2]]), 'Any::call(A::static_function(|_self, args| Any::entry(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), args.clone().into_iter().nth(1).unwrap_or_else(|| Nullish::Undefined.to_any())), 2, Array::default(), Some("($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}")).to_any(), [f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any())')
     },
     /**
-     * A static function: `static_binding` of its path, the VM's binding or
-     * the failure naming it, which the call's `?` propagates; the item is
-     * spelled from `nanvm_lib::vm`. A key no `&str` holds is refused.
+     * `Object.is`: `static_binding` of its path, the VM's binding or the
+     * failure naming it, which the `?` its read takes propagates — as a
+     * callee and as any other value; the item is spelled from
+     * `nanvm_lib::vm`.
      */
-    static: () => {
-        assertEq(printed(['static', ['Object', 'is']]), 'static_binding::<A>(&["Object", "is"])')
-        assertStructurallySame(scoped(['()', ['static', ['Object', 'is']], [1, 2]]), [
+    objectIs: () => {
+        assertEq(printed(['Object.is']), 'static_binding::<A>(&["Object", "is"])')
+        assertStructurallySame(scoped(['()', ['Object.is'], [1, 2]]), [
             'let c0: Any<A> = static_binding::<A>(&["Object", "is"])?;',
             'Any::call(c0, [f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any())',
         ])
-        assertStructurallySame(usedBy(['()', ['static', ['Object', 'is']], [1, 2]]), { vm: ['ToAny', 'ToArray', 'static_binding'], unstable: ['f64_any'] })
-        assertStructurallySame(refusalReason(['()', ['static', ['Object', '\ud800']], []]), ['no Rust for a static path key no &str holds', '\ud800'])
+        /** @type {Exp} */
+        const is = ['Object.is']
+        assertStructurallySame(scoped(['[]', [is, is]]), [
+            'let c0: Any<A> = static_binding::<A>(&["Object", "is"])?;',
+            'Ok([c0.clone(), c0.clone()].to_array().to_any())',
+        ])
+        assertStructurallySame(usedBy(['()', ['Object.is'], [1, 2]]), { vm: ['ToAny', 'ToArray', 'static_binding'], unstable: ['f64_any'] })
     },
     /** A module scope and each nested body construct their own functions. */
     undefinedFunction: () => {

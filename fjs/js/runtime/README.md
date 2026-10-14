@@ -162,15 +162,18 @@ receiver's own property, the native table in `vm/lambda/method.rs`, the
 runtime, the `TypeError` for calling `undefined` — and the `?.()` guard
 asks the same lookup to decide whether a callee exists.
 
-**A static call has no receiver and no guard.** The EDAG spells
-`Object.is` as the callee `['static', ['Object', 'is']]`, and the Rust
-backend prints it as `static_binding::<A>(&["Object", "is"])?`:
-`nanvm-lib` asks `IVm::runtime_static` for the path, which `naive`
-answers by reading the compiled object's `static` section, and fails
-naming the path where nothing is bound. The parser admitted the path, so
-a missing binding is the VM's failure, never the `TypeError` of calling
-`undefined`; the represented interpreter fails with the same message,
-reading its context's runtime through `functionAt`. NaNVM keeps no native
+**A static function is a value with no receiver.** The EDAG spells
+`Object.is` as the value `['Object.is']`, and the Rust backend prints it
+as `static_binding::<A>(&["Object", "is"])?`: `nanvm-lib` asks
+`IVm::runtime_static` for the path, which `naive` answers by reading the
+compiled object's `static` section, and fails naming the path where
+nothing is bound. The parser admitted the name, so a missing binding is
+the VM's failure, never `undefined`; the represented interpreter fails
+with the same message, reading its context's runtime through
+`functionAt`. `naive` evaluates the runtime on every lookup, so two reads
+in two invocations are two closures there, where JavaScript and the
+interpreter answer one function
+([`../todo/runtime-static.md`](../todo/runtime-static.md)). NaNVM keeps no native
 static table, and its completeness test checks every path
 [`../static`](../static/module.f.js) admits is bound.
 

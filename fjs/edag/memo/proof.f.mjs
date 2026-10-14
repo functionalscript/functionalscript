@@ -66,16 +66,21 @@ export const proof = {
         assertEq(assertOk(run({ args: [], runtime })), 'abc')
         assertStructurallySame(assertError(run({ args: [] })), ['undefined'])
     },
-    // A static call under memoization: the runtime's body in a function the
-    // module calls, and the named failure without a runtime, as `amnesia`'s.
-    static: () => {
+    // `Object.is` under memoization: the runtime's body in a function the
+    // module calls, a function returning it read twice as one value, and
+    // the named failure without a runtime, as `amnesia`'s.
+    objectIs: () => {
         /** @type {import('../value/types.ts').Runtime} */
         const runtime = ['{}', [[':', 'static', ['{}', [[':', 'Object', ['{}', [[':', 'is', ['=>', 2, [], ['===', ['arg', 0], ['arg', 1]]]]]]]]]]]]
         /** @type {Exp} */
-        const nested = ['()', ['=>', 0, [], ['()', ['static', ['Object', 'is']], [1, 1]]], []]
+        const nested = ['()', ['=>', 0, [], ['()', ['Object.is'], [1, 1]]], []]
         const run = memo(assertOk(analysis(nested)))
         assertEq(assertOk(run({ args: [], runtime })), true)
         assertEq(assertError(run({ args: [] })), 'no binding for the static Object.is')
+        /** @type {Exp} */
+        const f = ['=>', 0, [], ['Object.is']]
+        const twice = memo(assertOk(analysis(['===', ['()', f, []], ['()', f, []]])))
+        assertEq(assertOk(twice({ args: [], runtime })), true)
     },
     // `self` under memoization: the invoked function, the one node reused
     // across a body's shared reads, agreeing with the amnesia oracle
