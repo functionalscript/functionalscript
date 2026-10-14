@@ -88,6 +88,7 @@ describes:
 | `op.this` | `this` | design ([design principles](./design-principles.md)) | reserved word | exact: parser `proof`, `reservedWords.refused` |
 | `op.arguments` | `arguments` | open | reserved word | none |
 | `op.eval` | `eval("1")` | design ([built-ins](./2360-built-in.md): never admitted, it runs source at run time) | reserved word | none |
+| `op.number-spread` | `Number(...a)`, `Number(1, 2)` | planned ([number-spread](./2363-number-spread.md), roadmap) | Number takes one argument | exact: parser `proof`, `arity` |
 | `op.import-call` | `import("m")` | open | reserved word | none |
 | `op.import-meta` | `import.meta` | open | reserved word | none |
 | `op.regex` | `/a/g` | planned (roadmap, regular expressions) | unexpected token | none |
@@ -151,7 +152,7 @@ describes:
 | `mod.export-after-default` | `export default 1; export const a = 2;` | design ([module structure](../README.md#module-structure)) | unexpected token | loose: parser `proof`, `errors` |
 | `mod.import-after-export` | `export const a = 1; import b from "m";` | design ([module structure](../README.md#module-structure)) | unexpected token | exact: parser `grammar/proof` |
 | `mod.throw-position` | `throw 1; export default 2;`, `export default 2; throw 1;` | design ([module structure](../README.md#module-structure)) | unexpected token | exact: parser `proof` |
-| `mod.export-list` | `export { a };` | open (investigated in [export lists](./export-lists.md)) | unexpected token | loose: parser `proof`, `errors` |
+| `mod.export-list` | `const a = 1; export { a };` | open (investigated in [export lists](./export-lists.md)) | unexpected token | none for the bound form; loose for an unbound `export { a };`: parser `proof`, `errors` |
 | `mod.export-let` | `export let a = 1;` | design (`let` only opens a loop, [let](./3220-let.md)) | unexpected token | loose: parser `proof`, `errors` |
 | `mod.reexport` | `export { a } from "m"`, `export * from "m"` | open (whether it belongs is a question in [export lists](./export-lists.md)) | unexpected token | none |
 | `mod.namespace-import` | `import * as ns from "m"` | planned ([namespace import](./2220-namespace-import.md)) | unexpected token | none |
