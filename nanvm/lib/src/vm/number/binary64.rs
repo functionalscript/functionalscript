@@ -69,18 +69,24 @@ impl Number {
     /// `sticky` says the exact value is a little more than that: some bit
     /// under `significand`'s lowest is set. It can only break a tie upward,
     /// so it needs a rounded-away bit of `significand` above it to say where
-    /// the half is: a caller sets it only with at least 54 significant bits.
-    pub fn compose(sign: Sign, significand: u128, exponent: i32, sticky: bool) -> Self {
-        debug_assert!(
-            !sticky || significand >> PRECISION != 0,
-            "a sticky bit needs a significand wider than a Number's"
-        );
+    /// the half is. With 53 significant bits or fewer the extra could be as
+    /// much as a whole unit of the result, so that call is refused with
+    /// `None`, in every build: the types can't carry the precondition.
+    pub(crate) fn compose(
+        sign: Sign,
+        significand: u128,
+        exponent: i32,
+        sticky: bool,
+    ) -> Option<Self> {
+        if sticky && significand >> PRECISION == 0 {
+            return None;
+        }
         let sign_bit = match sign {
             Sign::Positive => 0,
             Sign::Negative => SIGN_BIT,
         };
         if significand == 0 {
-            return Number(f64::from_bits(sign_bit));
+            return Some(Number(f64::from_bits(sign_bit)));
         }
         let width = 128 - significand.leading_zeros();
         // The exponent of the result's lowest significand bit: `PRECISION`
@@ -128,7 +134,7 @@ impl Number {
                 ((biased as u64) << FRACTION_BITS) | (kept & FRACTION_MASK)
             }
         };
-        Number(f64::from_bits(sign_bit | magnitude))
+        Some(Number(f64::from_bits(sign_bit | magnitude)))
     }
 }
 
@@ -141,18 +147,16 @@ mod tests {
     }
 
     fn compose(significand: u128, exponent: i32, sticky: bool) -> f64 {
-        Number::compose(Sign::Positive, significand, exponent, sticky).into()
+        Number::compose(Sign::Positive, significand, exponent, sticky)
+            .unwrap()
+            .into()
     }
 
     /// Every value `decompose` reads, `compose` rebuilds bit for bit.
     fn round_trip(v: f64) {
         let (sign, significand, exponent) = decompose(v).unwrap();
-        let back = f64::from(Number::compose(
-            sign,
-            u128::from(significand),
-            exponent,
-            false,
-        ));
+        let back =
+            f64::from(Number::compose(sign, u128::from(significand), exponent, false).unwrap());
         assert_eq!(back.to_bits(), v.to_bits(), "{v:e}");
     }
 
@@ -230,7 +234,7 @@ mod tests {
         assert_eq!(compose(3, -1, false), 1.5);
         assert_eq!(compose(1 << 53, 0, false), 9_007_199_254_740_992.0);
         assert_eq!(compose(1 << 100, -100, false), 1.0);
-        let zero = f64::from(Number::compose(Sign::Negative, 0, 5, false));
+        let zero = f64::from(Number::compose(Sign::Negative, 0, 5, false).unwrap());
         assert_eq!(zero.to_bits(), 0x8000_0000_0000_0000);
     }
 
@@ -271,8 +275,21 @@ mod tests {
         assert_eq!(compose(1, 1_024, false), f64::INFINITY);
         assert_eq!(compose(1, i32::MAX, false), f64::INFINITY);
         assert_eq!(compose(u128::MAX, i32::MAX, true), f64::INFINITY);
-        let negative = f64::from(Number::compose(Sign::Negative, 1, 1_024, false));
+        let negative = f64::from(Number::compose(Sign::Negative, 1, 1_024, false).unwrap());
         assert_eq!(negative, f64::NEG_INFINITY);
+    }
+
+    /// A sticky bit under 53 significant bits or fewer has no rounded-away
+    /// bit to place the half, so the call is refused.
+    #[test]
+    fn narrow_sticky_refused() {
+        assert_eq!(Number::compose(Sign::Positive, 1, -1_074, true), None);
+        assert_eq!(Number::compose(Sign::Positive, 0, 0, true), None);
+        assert_eq!(
+            Number::compose(Sign::Positive, (1 << 53) - 1, 0, true),
+            None
+        );
+        assert!(Number::compose(Sign::Positive, 1 << 53, 0, true).is_some());
     }
 
     #[test]

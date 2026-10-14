@@ -146,7 +146,9 @@ fn parse_non_decimal(digits: &str, radix: u32) -> f64 {
     // `sticky` is set only past a full window, whose leading digit is not
     // zero: `acc` holds over 120 significant bits then, as `compose` asks.
     let exponent = i32::try_from(extra_bits).unwrap_or(i32::MAX);
-    Number::compose(Sign::Positive, acc, exponent, sticky).into()
+    Number::compose(Sign::Positive, acc, exponent, sticky)
+        .expect("`sticky` is set only past a full window")
+        .into()
 }
 
 /// `StrUnsignedDecimalLiteral` minus the `Infinity` alternative (handled by

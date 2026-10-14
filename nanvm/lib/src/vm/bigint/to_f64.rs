@@ -27,6 +27,7 @@ impl<A: IVm> BigInt<A> {
         let exponent =
             i32::try_from(64 * words_below).expect("a BigInt's words are far under 2^31 bits");
         Number::compose(self.sign(), significand, exponent, sticky)
+            .expect("`sticky` is set only under a nonzero top word: over 64 significant bits")
     }
 }
 
