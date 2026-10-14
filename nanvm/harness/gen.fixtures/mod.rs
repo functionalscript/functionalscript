@@ -38,6 +38,7 @@ pub mod nullish;
 pub mod number;
 pub mod number_limits;
 pub mod number_methods;
+pub mod number_predicates;
 pub mod object;
 pub mod object_is;
 pub mod object_spread;

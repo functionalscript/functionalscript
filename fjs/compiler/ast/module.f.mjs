@@ -9,7 +9,7 @@
  */
 
 import { concat, empty, flat, map, toArray } from '../../types/list/module.f.mjs'
-import { lazyOp2Id } from '../../edag/module.f.mjs'
+import { isStatic, lazyOp2Id } from '../../edag/module.f.mjs'
 
 /**
  * Every binary operator's tag, {@link BinaryTag} at run time — pinned to it
@@ -287,6 +287,9 @@ const refsOf = lazy => ast => flat(map(refsOfOperand(lazy))(operandsOf(lazy)(ast
  */
 const refsOfOperand = lazy => ast => {
     if (ast === null || typeof ast !== 'object') { return empty }
+    // a static function names nothing, as the `entry` helper below: a
+    // function of its parameters alone
+    if (isStatic(ast)) { return empty }
     switch (ast[0]) {
         // a spread's operand is reached where the spread stands
         case 'array': { return flat(ast[1].map(itemOperand).map(refsOf(lazy))) }
@@ -312,13 +315,11 @@ const refsOfOperand = lazy => ast => {
             return captures === undefined ? empty : flat(readCaptures(ast).map(i => refsOf(lazy)(captures[i])))
         }
         // its arguments and itself are its own, and the `entry` helper
-        // and `Object.is` name nothing: each a function of its parameters
-        // alone
+        // names nothing: a function of its parameters alone
         case 'arg':
         case 'rest':
         case 'self':
-        case 'entry':
-        case 'Object.is': { return empty }
+        case 'entry': { return empty }
         // a slot of its frame is a reference too, one the sweep of the body
         // ignores and the sweep of a scope the body is inlined into follows
         // into the capture the slot holds ({@link inlinedRefs})

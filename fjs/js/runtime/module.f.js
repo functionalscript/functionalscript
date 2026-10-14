@@ -5,25 +5,86 @@
  * FunctionalScript function of the receiver and then the arguments as the
  * call passed them, `undefined` past the end. `static` holds the static
  * functions by the path [`../static`](../static/module.f.js) admits them
- * under, `Object.is` at `static.Object.is`, each a function of the
- * arguments alone. A name without a body is absent — a primitive no body
- * can define in terms of the rest, or a name whose body waits on a
- * primitive the language has not admitted yet, [`README.md`](./README.md)
- * says which — and each VM answers it from its own native table.
+ * under, `Object.is` at `static.Object.is` and `Number.isInteger` at
+ * `static.Number.isInteger`, each a function of the arguments alone. Each
+ * body is a VM's and no module's: a module calls the built-in, `Object.is`
+ * or `Number.isInteger`, and every executor answers it from here, so
+ * nothing else exports the body. A name without a body is absent — a
+ * primitive no body can define in terms of the rest, or a name whose body
+ * waits on a primitive the language has not admitted yet,
+ * [`README.md`](./README.md) says which — and each VM answers it from its
+ * own native table.
  *
  * Which names a module may call stays [`../prototype`](../prototype/module.f.js)'s;
  * [`./types.ts`](./types.ts) pins every key here an allowed name on its
  * type's prototype. Every executor reads this one table — the represented
  * interpreter runs a body as EDAG through the runtime its executor is
  * given, and NaNVM binds the module compiled to Rust by `npm run gen` — so
- * a member function is written here and nowhere else. The README says how
+ * a built-in function is written here and nowhere else. The README says how
  * each binds it and how a name gets its body.
  *
  * @module
  */
 
-import { isNaN_ } from '../../types/number/is_nan/module.f.js'
-import { is } from '../../types/object/is/module.f.js'
+import { isNegativeZero } from '../../types/number/is_negative_zero/module.f.js'
+
+/**
+ * [`Number.isNaN`](https://tc39.es/ecma262/#sec-number.isnan): whether `n`
+ * is `NaN`. `NaN` is the one value that is not strictly equal to itself, so
+ * the comparison alone is the test: every other number, and every value of
+ * another type, is `false`, without coercion, as the global `isNaN`, which
+ * converts first, does not answer. The name ends in `_` so that it never
+ * shadows that global.
+ *
+ * @type {(n: unknown) => boolean}
+ */
+const isNaN_ = n => n !== n
+
+/**
+ * [`Number.isFinite`](https://tc39.es/ecma262/#sec-number.isfinite):
+ * whether `n` is a finite number. A number times `0` is `0` exactly when it
+ * is finite: an infinity times `0` and `NaN` times `0` are both `NaN`, and
+ * `-0` is `0` under `===`. A value of another type is `false` without
+ * coercion, as the global `isFinite`, which converts first, does not
+ * answer; the `_` is `isNaN_`'s.
+ *
+ * @type {(n: unknown) => boolean}
+ */
+const isFinite_ = n => typeof n === 'number' && n * 0 === 0
+
+/**
+ * [`Number.isInteger`](https://tc39.es/ecma262/#sec-number.isinteger):
+ * whether `n` is a finite integral number, both zeros and integers beyond
+ * the safe range included. A fraction, an infinity and `NaN` all leave a
+ * remainder that is not `0`; a value of another type is `false` without
+ * coercion.
+ *
+ * @type {(n: unknown) => boolean}
+ */
+const isInteger = n => typeof n === 'number' && n % 1 === 0
+
+/**
+ * [`Number.isSafeInteger`](https://tc39.es/ecma262/#sec-number.issafeinteger):
+ * an integer within the exact integer range of a double, whose 53 bits of
+ * precision make the inclusive bound `2^53 - 1` on either side.
+ *
+ * @type {(n: unknown) => boolean}
+ */
+const isSafeInteger = n => typeof n === 'number' && isInteger(n) && -0x1f_ffff_ffff_ffff <= n && n <= 0x1f_ffff_ffff_ffff
+
+/**
+ * [`Object.is`](https://tc39.es/ecma262/#sec-object.is): whether `a` and
+ * `b` are the same value, SameValue, which is `===` except on the two
+ * values `===` reads the other way. Two values equal under `===` are the
+ * same unless one is `-0` and the other is not, and two values unequal
+ * under `===` are the same only where both are `NaN`. An array, an object
+ * and a function compare by identity, as `===` compares them.
+ *
+ * @type {(a: unknown, b: unknown) => boolean}
+ */
+const is = (a, b) => a === b
+    ? isNegativeZero(a) === isNegativeZero(b)
+    : isNaN_(a) && isNaN_(b)
 
 /**
  * `ToNumber`, as the operators apply it: a bigint throws the `TypeError`
@@ -66,15 +127,8 @@ const found = (self, s, start) => {
  */
 export const runtime = {
     static: {
-        Object: {
-            /**
-             * [`Object.is`](https://tc39.es/ecma262/#sec-object.is):
-             * SameValue. The body is the helper `fjs/types/object/is`,
-             * imported rather than copied, so a module calling `Object.is`
-             * and one importing `is` answer alike by construction.
-             */
-            is,
-        },
+        Object: { is },
+        Number: { isInteger, isSafeInteger, isNaN: isNaN_, isFinite: isFinite_ },
     },
     member: {
         String: {

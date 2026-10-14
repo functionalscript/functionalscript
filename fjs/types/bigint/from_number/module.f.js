@@ -6,8 +6,6 @@
  * @module
  */
 
-import { isInteger } from '../../number/is_integer/module.f.js'
-
 /**
  * The bigint of a non-negative integral number, bit by bit from the lowest:
  * a round takes the lowest bit of the rest, `rest % 2`, exact on an integral
@@ -44,6 +42,6 @@ const bits = n => {
  * @type {(n: number) => bigint}
  */
 export const bigint = n => {
-    if (!isInteger(n)) { throw 'not an integral number' }
+    if (!Number.isInteger(n)) { throw 'not an integral number' }
     return n < 0 ? -bits(-n) : bits(n)
 }

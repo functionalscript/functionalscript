@@ -33,6 +33,8 @@ export const proof = {
             [['()', ['entry'], [['[]', [7]], 'length']], undefined],
             [['.', ['entry'], 'length'], 2],
             [['()', ['Object.is'], [0, -0]], false], [['()', ['Object.is'], [NaN, NaN]], true],
+            [['()', ['Number.isInteger'], [1.5]], false], [['()', ['Number.isSafeInteger'], [2 ** 53]], false],
+            [['()', ['Number.isNaN'], ['NaN']], false], [['()', ['Number.isFinite'], [1]], true],
         ]
         for (const [body, expected] of cases) { assertStructurallySame(run(body), expected) }
         const object = /** @type {Record<string, unknown>} */ (run(['{}', [

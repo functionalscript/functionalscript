@@ -6,7 +6,7 @@
 ### Problem
 
 `utf8ByteToCodePointOp` and `utf16ByteToCodePointOp` now both check
-the shared `types/number/is_integer` predicate before dispatching, because
+`Number.isInteger` before dispatching, because
 their range partitions cover only the *integers* in range and a fraction falls
 between two arms.
 

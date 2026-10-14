@@ -32,6 +32,7 @@ pub mod nullish;
 pub mod number;
 pub mod number_limits;
 pub mod number_methods;
+pub mod number_predicates;
 pub mod object;
 pub mod object_is;
 pub mod object_spread;
@@ -88,6 +89,7 @@ pub const CASES: &[crate::Case] = &[
     crate::Case { name: "number", fixture: crate::fixtures::number::module::<Naive>, expected: number::module::<Naive>, json: number::JSON, throws: number::THROWS },
     crate::Case { name: "number_limits", fixture: crate::fixtures::number_limits::module::<Naive>, expected: number_limits::module::<Naive>, json: number_limits::JSON, throws: number_limits::THROWS },
     crate::Case { name: "number_methods", fixture: crate::fixtures::number_methods::module::<Naive>, expected: number_methods::module::<Naive>, json: number_methods::JSON, throws: number_methods::THROWS },
+    crate::Case { name: "number_predicates", fixture: crate::fixtures::number_predicates::module::<Naive>, expected: number_predicates::module::<Naive>, json: number_predicates::JSON, throws: number_predicates::THROWS },
     crate::Case { name: "object", fixture: crate::fixtures::object::module::<Naive>, expected: object::module::<Naive>, json: object::JSON, throws: object::THROWS },
     crate::Case { name: "object_is", fixture: crate::fixtures::object_is::module::<Naive>, expected: object_is::module::<Naive>, json: object_is::JSON, throws: object_is::THROWS },
     crate::Case { name: "object_spread", fixture: crate::fixtures::object_spread::module::<Naive>, expected: object_spread::module::<Naive>, json: object_spread::JSON, throws: object_spread::THROWS },

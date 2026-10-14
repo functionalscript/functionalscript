@@ -42,8 +42,8 @@
 import { validate } from '../rtti/validate/module.f.mjs'
 import { assert, assertEq, assertError, assertErrorPath, assertOk, assertStructurallySame, todo } from '../asserts/module.f.mjs'
 import {
-    exp, fromValue, op0Id, op1Id, op12Id, op2Id, op3Id,
-    optionLambda, optionPropertyLambda, propertyLambda,
+    exp, fromValue, isStatic, op0Id, op1Id, op12Id, op2Id, op3Id,
+    optionLambda, optionPropertyLambda, propertyLambda, staticIds, staticPath,
 } from './module.f.mjs'
 
 /**
@@ -97,7 +97,7 @@ const vOptionPropertyLambda = value => validate(optionPropertyLambda)(value)
 /** Every id `op0` currently accepts — kept as a literal list, not derived
  * from `op0Id`, so deleting one from the schema reddens exactly its own
  * assertion below rather than silently shrinking this list too. */
-const op0Ids = /** @type {const} */ (['undefined', 'args', 'rest', 'self', 'entry', 'Object.is'])
+const op0Ids = /** @type {const} */ (['undefined', 'args', 'rest', 'self', 'entry', 'Object.is', 'Number.isInteger', 'Number.isSafeInteger', 'Number.isNaN', 'Number.isFinite'])
 
 /** Same purpose as `op0Ids`, for `op1`. */
 const op1Ids = /** @type {const} */ (['String', 'Number', '!', '~', 'typeof', 'throw'])
@@ -226,7 +226,18 @@ export const proof = {
         assertOk(v(['[]', [['Object.is'], ['Object.is']]]))
         assertNoMatch(v(['Object.is', 1]))
         assertNoMatch(v(['Object.keys']))
+        assertNoMatch(v(['Number.MAX_VALUE']))
         assertNoMatch(v(['static', ['Object', 'is']]))
+    },
+    // Each static tag is its path's keys joined by `.`, and the test a
+    // reader dispatches a static node on is the node of one tag of the
+    // list: a tag's own spelling and nothing near it, alone.
+    staticIds: () => {
+        assertStructurallySame(staticIds.map(staticPath), [['Object', 'is'], ['Number', 'isInteger'], ['Number', 'isSafeInteger'], ['Number', 'isNaN'], ['Number', 'isFinite']])
+        for (const id of staticIds) { assert(isStatic([id]), id) }
+        for (const node of [['Object'], ['Number.is'], ['Number.isinteger'], ['entry'], ['Object.is', 0], [], [['Object.is']], 'Object.is', undefined]) {
+            assert(!isStatic(node), JSON.stringify(node))
+        }
     },
     primitive: {
         ok: () => {

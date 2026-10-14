@@ -21,11 +21,12 @@ no later than this file admits any of it, a name at a time
 A ticked box below marks a name the language is to admit, not one it admits
 today. Implemented reserved globals are `Infinity`, `NaN` and `undefined`
 ([numbers](../README.md#numbers)), `Number` and `String`, as the
-conversions `Number(exp)` and `String(exp)` alone, their words reserved
-([number conversion](../README.md#number-conversion),
+conversions `Number(exp)` and `String(exp)` — `String`'s alone — their
+words reserved ([number conversion](../README.md#number-conversion),
 [string conversion](../README.md#string-conversion)), and `Array`, as the
-right operand of [`instanceof`](../README.md#instanceof), and `Object`, as the
-namespace of `Object.is` alone, a value
+right operand of [`instanceof`](../README.md#instanceof), and `Object` and
+`Number`, as the namespaces of the static functions `Object.is` and the
+four `Number` predicates, each a value
 ([built-in static functions](../README.md#built-in-static-functions)). Other global uses need
 a complete recognized pattern; an unrecognized global is refused as an
 unbound name (`const not found`), so
@@ -67,25 +68,68 @@ name not yet decided, or, where it says so, never admitted.
 
 ### Number and Math
 
-- [x] `Number` — the call `Number(exp)` alone, the conversion
-      ([number conversion](../README.md#number-conversion)); the
-      namespace's members stay unticked, each an admission of its own.
-      About thirty `.f.mjs` modules read one — `Number.isInteger`,
-      `Number.isSafeInteger`, `Number.MAX_SAFE_INTEGER`, `Number.isNaN`,
-      and `const { isFinite } = Number` in the three
-      [global-names](./2365-global-names.md) names — and each is rewritten
-      when its member is admitted or equivalent code can use existing syntax.
-      Integer checks already use the importable
-      [operator-based predicate](../../fjs/types/number/is_integer/module.f.js),
-      without admitting `Number.isInteger`. Remaining global-member users
-      are not `.f.js`, the files the compiler holds to the reserved word today
+- [x] `Number` — the call `Number(exp)`, the conversion
+      ([number conversion](../README.md#number-conversion)), and the four
+      predicates `Number.isInteger`, `Number.isSafeInteger`, `Number.isNaN`
+      and `Number.isFinite`, static functions
+      ([built-in static functions](../README.md#built-in-static-functions),
+      the record below); the namespace's other members, its value
+      properties `Number.MAX_SAFE_INTEGER` among them, stay unticked, each
+      an admission of its own. A module reading one of the four, through
+      `const { isFinite } = Number` as well, needs no rewrite to compile;
+      a module reading another member is rewritten when that member is
+      admitted or equivalent code can use existing syntax
 - [ ] `BigInt` — not decided. `BigInt(n)` on an integral number is the
       importable function
       [`bigint`](../../fjs/types/bigint/from_number/module.f.js)
-      meanwhile ([`doc/CONVERTING.md` §8](../../doc/CONVERTING.md#8-bigint)),
-      as `isInteger` stands in for `Number.isInteger` above
+      meanwhile ([`doc/CONVERTING.md` §8](../../doc/CONVERTING.md#8-bigint))
 - [ ] `Math`
 - [ ] `Date`
+
+#### Number predicates proposal and approval
+
+**Problem.** Four `Number` members are pure predicates a module reaches for
+by name — `Number.isInteger`, `Number.isSafeInteger`, `Number.isNaN` and
+`Number.isFinite` — and the compiler refuses each (`reserved word`), so a
+module imports a helper in its place
+([`doc/CONVERTING.md`](../../doc/CONVERTING.md) §2–§4) and an `.f.mjs` that
+reads the member cannot be renamed `.f.js` as written.
+
+**Proposal.** Admit the four as static functions, as `Object.is` is
+([built-in static functions](../README.md#built-in-static-functions)): each
+a value in every spelling of the read, `Number.isInteger`,
+`Number["isInteger"]` and the guarded forms, and through
+`const { isInteger } = Number`; each the EDAG node of its name,
+`['Number.isInteger']`; each body the existing helper the runtime's `static`
+section imports — `isInteger`, `isSafeInteger`, `isNaN_` and `isFinite_` of
+`fjs/types/number` — which answer as the built-ins do for every kind of
+value, none converting its argument. `Number` is reserved already, for the
+conversion; it becomes a namespace beside it, `Number(x)` unchanged. The
+global `isNaN` and `isFinite`, which convert, are not these and stay
+undecided.
+
+**Benefits.** The JavaScript spelling for what modules write today through
+imported helpers, with one body per predicate shared by the runtime and the
+modules that import it, so the two answer alike by construction. A module
+reading one of the four needs no rewrite to compile.
+
+**Drawbacks.** Four more EDAG node kinds, each a tag every executor and
+writer has to read, unless they share one table of static names. The
+namespace grows to a member that is a number, `Number.MAX_SAFE_INTEGER`,
+which stays refused: a value property is a different admission from a
+function.
+
+**Language-design approval.** **sergey-shandar** chose "all four Number
+predicates" when asked which function to admit next, in
+[the LLM working session](https://claude.ai/code/session_01DCMj3aMojA86V6qjvW9fXs),
+before implementation began.
+
+**Follow-up.** The bodies have since moved into the runtime, with
+`Object.is`'s, out of `fjs/types/number` and `fjs/types/object/is`: once
+the built-ins were admitted, a helper beside each was a second public
+spelling of one function, so modules call the built-in, and the runtime's
+proof checks each body against the host's. **sergey-shandar** proposed
+the move in the same session, after the admission.
 
 ### Text Processing
 

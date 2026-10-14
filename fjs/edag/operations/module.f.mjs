@@ -32,6 +32,7 @@ import { unary as numericUnary, binary as numericBinary } from '../value/numeric
 import { binary as relational } from '../value/relational/module.f.mjs'
 import { toPrimitive, toString } from '../value/convert/module.f.mjs'
 import { functionAt, hasMethod, method } from '../value/method/module.f.mjs'
+import { staticPath } from '../module.f.mjs'
 
 /** Propagate failures without running the continuation.
  * @template S
@@ -193,10 +194,14 @@ export const operation = evaluator => {
             // section holds at its path — the same node every read, so the
             // same function; with none — no runtime, or one without the
             // path — the executor fails naming it, never `undefined` and
-            // never a plausible value
-            case 'Object.is': {
-                const fn = functionAt(runtime, ['static', 'Object', 'is'])
-                return [state, fn === undefined ? error(noStatic('Object.is')) : ok(fn)]
+            // never a plausible value. Named here, unlike everywhere else
+            // a node is read, since `Op0` is one tuple whatever its tag: a
+            // static `isStatic` turned away would still reach `binary`
+            // below as far as `tsc` can tell, and a tag missing here is a
+            // type error for the same reason
+            case 'Object.is': case 'Number.isInteger': case 'Number.isSafeInteger': case 'Number.isNaN': case 'Number.isFinite': {
+                const fn = functionAt(runtime, ['static', ...staticPath(node[0])])
+                return [state, fn === undefined ? error(noStatic(node[0])) : ok(fn)]
             }
             case '[]': { return items(node[1], state) }
             case '{}': { return properties(node[1], state) }

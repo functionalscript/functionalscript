@@ -153,11 +153,11 @@
 import { _defaultExport, _moduleExports, _moduleThrows } from '../edag/module.f.mjs'
 import { keywords, literalWords, reservedGlobals } from '../../js/keywords/module.f.js'
 import { analysis, checked, itemOperand, mergeable, operandsOf, scopeHolds, stepOperands } from '../../edag/analysis/module.f.mjs'
+import { isStatic } from '../../edag/module.f.mjs'
 import { keySerialize, leafSerialize } from '../../media/datajs/serializer/module.f.mjs'
 import { arrayWrap, colon, objectWrap, wrap } from '../../media/json/serializer/module.f.mjs'
 import { first, flat, toArray } from '../../types/list/module.f.mjs'
 import { definedValues } from '../../types/object/module.f.mjs'
-import { isFinite_ } from '../../types/number/is_finite/module.f.js'
 import { eagerLayers, lazyLayers } from '../ast/module.f.mjs'
 import { _prohibitedCallNames, _prohibitedNames } from '../parser/module.f.mjs'
 import { isIdentifier } from '../../js/identifier/module.f.mjs'
@@ -684,7 +684,7 @@ const key = (s, path, lazy) => method => k => {
         return isIdentifier(k) ? ok([`.${k}`]) : bracketed(k)
     }
     if (typeof k === 'number') {
-        return isFinite_(k) && !Object.is(k, -0)
+        return Number.isFinite(k) && !Object.is(k, -0)
             ? bracketed(k)
             : error('a number key no literal reads back')
     }
@@ -1040,6 +1040,8 @@ const entry = (s0, path) => i => {
     // alone: what it holds is written in place, under no name
     const s = { ...s0, binding: null }
     const node = s.a.nodes[i]
+    // a static function, as the source reads it, its tag
+    if (isStatic(node)) { return ok([node[0]]) }
     switch (node[0]) {
         case 'undefined': { return ok([literal('undefined')]) }
         // the name the function was bound to: the hoisting walk gave one to
@@ -1049,8 +1051,6 @@ const entry = (s0, path) => i => {
         // the `entry` helper, in its one spelling, under names of this
         // function's own as every function's parameters are
         case 'entry': { return ok(entryChunks(`${path}/function${i}`)) }
-        // a static function, as the source reads it, its tag
-        case 'Object.is': { return ok([node[0]]) }
         case 'arg': case 'rest': { return ok([assertNotNullish(parameterName(s.param, node))]) }
         case '[]': { return mapOk(arrayWrap)(okList(node[1].map((v, k) => item(s, `${path}/item${k}`)(v)))) }
         case '{}': { return mapOk(objectWrap)(okList(node[1].map((p, k) => property(s, `${path}/property${k}`)(p)))) }

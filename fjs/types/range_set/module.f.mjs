@@ -12,7 +12,6 @@ import { assert } from '../../asserts/module.f.mjs'
 import { bsearch } from '../function/compare/module.f.mjs'
 import { toArray } from '../list/module.f.mjs'
 import { cmp } from '../number/module.f.mjs'
-import { isFinite_ } from '../number/is_finite/module.f.js'
 import { merge } from '../sorted_list/module.f.mjs'
 
 /**
@@ -38,7 +37,7 @@ export const full = [-Infinity]
  *
  * @type {(v: number) => boolean}
  */
-const inUniverse = v => v === -Infinity || isFinite_(v)
+const inUniverse = v => v === -Infinity || Number.isFinite(v)
 
 /**
  * A boundary is a number of the universe that spells its run exactly once. That

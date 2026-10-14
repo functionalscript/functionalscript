@@ -10,7 +10,7 @@
 import type { List } from '../../types/list/types.ts'
 import type { OrderedMap } from '../../types/ordered_map/types.ts'
 import type { Result } from '../../types/result/types.ts'
-import type { AstConst, AstFrameRef, AstItem, AstMember, AstModuleRef, AstObjectIs, AstRest, AstSelf, BinaryTag, UnaryTag } from '../ast/types.ts'
+import type { AstConst, AstFrameRef, AstItem, AstMember, AstModuleRef, AstRest, AstStatic, AstSelf, BinaryTag, UnaryTag } from '../ast/types.ts'
 import type { DjsTokenWithMetadata } from '../tokenizer/types.ts'
 import type { ParseError } from './types.ts'
 import type { BindingElement, BindingProperty, BindingTarget, Block, Chain, Container, If, Item, Key, Let, LoopBlock, Node, While } from './syntax/types.ts'
@@ -28,10 +28,10 @@ export type _Ref = AstModuleRef | AstRest | _Parameter | AstFrameRef | AstSelf
  * Where an entry of a pattern reads from: the source value itself, `null`;
  * a property of an earlier entry of the same pattern — its position among
  * the pattern's entries, and the key, a constant an access admits; or a
- * member of the `Object` namespace, the static function it is, which a
+ * member of a namespace, the static function it is, which a
  * pattern over the namespace reads in place of a property of a value.
  */
-export type _Source = null | readonly [number, string | number] | AstObjectIs
+export type _Source = null | readonly [number, string | number] | AstStatic
 
 /**
  * One entry a checked pattern makes: what it reads, {@link _Source}, and

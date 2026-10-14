@@ -6,6 +6,7 @@
 
 import { assertEq, assertOk } from '../../../asserts/module.f.mjs'
 import { analysis } from '../../../edag/analysis/module.f.mjs'
+import { staticIds } from '../../../edag/module.f.mjs'
 import { renderFunction, _renderSymbolic } from './module.f.mjs'
 import { _resolve as resolve } from '../names/module.f.mjs'
 
@@ -98,8 +99,11 @@ export const proof = {
             // a static function is written as the source reads it
             [['()', ['Object.is'], [1, 2]], '((0,(Object.is))((1),(2)))'],
             [['Object.is'], '(Object.is)'],
+            [['()', ['Number.isInteger'], [1]], '((0,(Number.isInteger))((1)))'],
         ]
         for (const [body, expected] of cases) { assertEq(text(body), `()=>${expected}`) }
+        // every static, each its own tag, with no case of its own to miss
+        for (const id of staticIds) { assertEq(text([id]), `()=>(${id})`) }
         for (const op of /** @type {readonly Op2Id[]} */ ([
             '===', '!==', '<', '<=', '>', '>=', '*', '/', '%', '**',
             '&', '|', '^', '<<', '>>', '>>>', '&&', '||', '??',

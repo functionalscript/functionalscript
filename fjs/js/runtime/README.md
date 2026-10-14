@@ -8,10 +8,12 @@ function of the receiver and then the arguments as the call passed them,
 `undefined` past the end. Its `static` section holds the static
 functions at the path [`../static`](../static/module.f.js) admits each
 under — `Object.is` at `static.Object.is` — each a function of the
-arguments alone; a body is the existing helper where one exists,
-imported rather than copied, as `Object.is` is
-[`is`](../../types/object/is/module.f.js). The design of the static
-section is [`../todo/runtime-static.md`](../todo/runtime-static.md). A name
+arguments alone, written here and exported nowhere else: a module calls
+the built-in, `Object.is` or `Number.isInteger`, never the body, so the
+body is a VM's and the helper a built-in replaced moves in here when the
+built-in is admitted. The proof checks every static body against the
+host's own built-in at the same path. The design of the static section
+is [`../todo/runtime-static.md`](../todo/runtime-static.md). A name
 without a body is absent, and each VM answers it from its own native
 table. The proposal and the steps still to take are
 [`../todo/runtime.md`](../todo/runtime.md).
@@ -163,8 +165,9 @@ runtime, the `TypeError` for calling `undefined` — and the `?.()` guard
 asks the same lookup to decide whether a callee exists.
 
 **A static function is a value with no receiver.** The EDAG spells
-`Object.is` as the value `['Object.is']`, and the Rust backend prints it
-as `static_binding::<A>(&["Object", "is"])?`: `nanvm-lib` asks
+`Object.is` as the value `['Object.is']`, and `Number.isInteger` as
+`['Number.isInteger']`, and the Rust backend prints each as the binding
+of its path, `static_binding::<A>(&["Object", "is"])?`: `nanvm-lib` asks
 `IVm::runtime_static` for the path, which `naive` answers by reading the
 compiled object's `static` section, and fails naming the path where
 nothing is bound. The parser admitted the name, so a missing binding is
@@ -173,7 +176,9 @@ with the same message, reading its context's runtime through
 `functionAt`. Every read answers one function, as in JavaScript, since
 `naive` holds the runtime object, below: `Object.is === Object.is`, in
 one invocation or two, which `nanvm/harness/fixtures/object-is.mjs`
-checks on NaNVM against the interpreter. NaNVM keeps no native static
+checks on NaNVM against the interpreter, and
+`nanvm/harness/fixtures/number-predicates.mjs` for the `Number`
+predicates over every kind of value. NaNVM keeps no native static
 table, and its completeness test checks every path
 [`../static`](../static/module.f.js) admits is bound.
 

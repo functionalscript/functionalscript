@@ -640,15 +640,16 @@ leaf, directly or not — what a leaf's rename opens up, since a proof stays
 | `fjs/git/config` | 1 | `\v` and `\0` escapes, destructuring, the `BigInt` global, runtime string keys `escapes[c]`, `factors[…]` and `prefixes[…]`, a runtime number key `values[values.length - 1]`, `toLowerCase` (a prohibited member function), `acc.sub` (a prohibited property name), template literals |
 | `fjs/website/browser-source` | 1 | `let`, `+=`, `while` with `break` and `continue`, a non-terminating `if`, eight runtime number keys, `source[index]` and `list[at]` among them, template literals |
 
-The table above is a historical measurement. `array_index` now imports
-[`types/number/is_integer`](../fjs/types/number/is_integer/module.f.js), whose
-`isInteger` uses `typeof` and `%` rather than `Number.isInteger`. Its bounds
-and canonical string round-trip are unchanged. With
+The table above is a historical measurement. `array_index` now calls
+`Number.isInteger`, admitted as a static function
+([spec: built-in static functions](../spec/README.md#built-in-static-functions)),
+in place of the shared helper it once imported. Its bounds and canonical
+string round-trip are unchanged. With
 [`String` conversion](../spec/README.md#string-conversion) admitted,
-`array_index` now compiles through its shared integer predicate and canonical
-string check; the rename above completes that migration step.
-`types/number`, ASCII digit parsing, Unicode surrogate
-conversion, and Node/web validation reuse the same predicate.
+`array_index` now compiles through the predicate and its canonical string
+check; the rename above completes that migration step. `types/number`,
+ASCII digit parsing, Unicode surrogate conversion, and Node/web validation
+call the same built-in.
 
 Compared with the previous measurement at `4c8ec55`, the `08d013b` snapshot
 had the same eighteen leaves and compiler progress on three of them.
@@ -683,7 +684,7 @@ records that snapshot's blockers, including the since-migrated `array_index`:
 | Destructuring | [`spec/todo/2450-destructuring.md`](../spec/todo/2450-destructuring.md) | structurally_same, result, function/operator, map, demo/examples, ts, git/config, nanvm/methods |
 | A runtime key that is a string, `a[k]` | in the language as the `entry` helper ([spec: entry](../spec/README.md#reading-an-entry-at-run-time)); the module rewrites `a[k]` as `entry(a, k)`, imported from [`fjs/js/entry`](../fjs/js/entry/module.f.js) | git/config, nanvm/methods |
 | A runtime key that is a number, `a[i]` | in the language as the conversion `a[Number(i)]` ([spec: property access](../spec/README.md#property-access)), the EDAG's `['.', a, ['Number', i]]`; the module rewrites `a[i]` as `a[Number(i)]`, not `entry` | structurally_same, function/operator, set, git/bytes, git/config, browser-source |
-| Globals and built-ins | [`spec/todo/2365-global-names.md`](../spec/todo/2365-global-names.md), [`2360-built-in.md`](../spec/todo/2360-built-in.md); of `Number`, only the call `Number(exp)` is in the language ([spec: number conversion](../spec/README.md#number-conversion)), each member an admission of its own | structurally_same, array_index, ts, git/bytes, nanvm/methods, ci/package, git/config |
+| Globals and built-ins | [`spec/todo/2365-global-names.md`](../spec/todo/2365-global-names.md), [`2360-built-in.md`](../spec/todo/2360-built-in.md); of `Number`, the call `Number(exp)` is in the language ([spec: number conversion](../spec/README.md#number-conversion)), and so are the four predicates `Number.isInteger`, `Number.isSafeInteger`, `Number.isNaN` and `Number.isFinite`, with `Object.is` ([spec: built-in static functions](../spec/README.md#built-in-static-functions)), each other member an admission of its own | structurally_same, array_index, ts, git/bytes, nanvm/methods, ci/package, git/config |
 | `new` with a built-in constructor | nothing proposes it; `Map` and `Set` are undecided in [`2360-built-in.md`](../spec/todo/2360-built-in.md) | structurally_same, keywords, map, set, demo/examples |
 | `let`, reassignment, `+=`, `while` | [`spec/todo/3220-let.md`](../spec/todo/3220-let.md); `+=` is [`3430-assignments.md`](../spec/todo/3430-assignments.md); `while` is [roadmap §3.2](../spec/todo/README.md#32-priority-2) | function, set, browser-source |
 | String escapes `\u{…}`, `\v`, `\0` | [`spec/todo/2460-js-string-literals.md`](../spec/todo/2460-js-string-literals.md) | nanvm/member, demo/code, git/config |

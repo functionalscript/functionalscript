@@ -93,7 +93,7 @@ export const proof = {
         assert(rust.includes('pub const PROHIBITED: &[(&str, &str)] = &[\n    ("Object", "__defineGetter__"),\n'), rust)
         assert(rust.includes('pub const ABSENT: &[(&str, &str)] = &[\n'), rust)
         assert(rust.includes('    ("Array", "charAt"),\n'), rust)
-        assert(rust.includes('pub const STATICS: &[&[&str]] = &[\n    &["Object", "is"],\n];\n'), rust)
+        assert(rust.includes('pub const STATICS: &[&[&str]] = &[\n    &["Object", "is"],\n    &["Number", "isInteger"],\n    &["Number", "isSafeInteger"],\n    &["Number", "isNaN"],\n    &["Number", "isFinite"],\n];\n'), rust)
         assert(rust.endsWith('];\n'), rust)
         assertEq(path, 'nanvm/lib/src/vm/lambda/gen.methods.rs')
     },

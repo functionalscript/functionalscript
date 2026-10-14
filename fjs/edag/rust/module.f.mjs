@@ -47,7 +47,7 @@
 
 import { f64Bits, i64Literal, stringLiteral, u64WordItems, utf16Units } from '../../media/rust/module.f.mjs'
 import { error, mapOk, ok, okList, okThen, unwrap } from '../../types/result/module.f.js'
-import { lazyOp2Id } from '../module.f.mjs'
+import { isStatic, lazyOp2Id, staticPath } from '../module.f.mjs'
 import { analysis } from '../analysis/module.f.mjs'
 import { keepsRecursion, loopOf } from '../loop/module.f.mjs'
 import { isIndex, maxLength } from '../../types/function/length/module.f.mjs'
@@ -1112,8 +1112,9 @@ const printer = (nested, arg = argRead, frame = frameRead, base = 0) => shared =
         // the VM's binding for its path — `IVm::runtime_static`, the
         // compiled runtime's body — or the failure naming it, a `Result`
         // as every operation's is, here where a block answers it as well
-        // as where a `let` reads it.
-        if (id === 'Object.is') { return ok(cat([vm('static_binding'), '::<A>(&["Object", "is"])'])) }
+        // as where a `let` reads it. A path's keys are identifiers, so
+        // each is its own `&str` literal.
+        if (isStatic(e)) { return ok(cat([vm('static_binding'), `::<A>(&[${staticPath(e[0]).map(key => `"${key}"`).join(', ')}])`])) }
         // A chain: the node's entry point, then its continuation's steps,
         // then the exit — `Any::dot(a, key).end()` for a bare `a.b`, one
         // spelling whether or not a continuation follows. What the read
@@ -1278,7 +1279,7 @@ const printer = (nested, arg = argRead, frame = frameRead, base = 0) => shared =
      *
      * @type {(n: Exp) => (s: string) => string}
      */
-    const checked = n => s => isChain(tagOf(n)) || tagOf(n) === '()' || tagOf(n) === '[]' || tagOf(n) === 'Object.is' ? `${s}?` : `(${s})?`
+    const checked = n => s => isChain(tagOf(n)) || tagOf(n) === '()' || tagOf(n) === '[]' || isStatic(n) ? `${s}?` : `(${s})?`
     /**
      * The `Result` an argument list's thunk answers: the array it builds,
      * `Ok(…)`, or `spread_array`'s own, which may throw, where it holds a

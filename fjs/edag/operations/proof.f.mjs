@@ -10,6 +10,7 @@
 
 import { assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { noStatic, operation } from './module.f.mjs'
+import { staticIds } from '../module.f.mjs'
 import { invoke, vm } from '../amnesia/module.f.mjs'
 import { settle } from '../value/call/module.f.mjs'
 
@@ -127,12 +128,13 @@ export const proof = {
         failure(['()', ['entry'], [null, 'a']])
         failure(['.', null, 'a', ['|()', []]])
     },
-    // `Object.is` is the body the runtime's `static` section holds at its
-    // path, a value whether called or not; with no runtime, or none at the
-    // path, the dispatcher fails naming it.
+    // A static function is the body the runtime's `static` section holds
+    // at its path, a value whether called or not; with no runtime, or none
+    // at the path, the dispatcher fails naming it — every static alike.
     objectIs: () => {
         failure(['()', ['Object.is'], [1, 1]], noStatic('Object.is'))
         failure(['Object.is'], 'no binding for the static Object.is')
+        for (const id of staticIds) { failure([id], noStatic(id)) }
         /** @type {Context} */
         const withRuntime = {
             ...context,

@@ -72,8 +72,8 @@ export const literalWords = /** @type {const} */ ([
  * ([spec: instanceof](../../../spec/README.md#instanceof)), `Number` as
  * the callee of the conversion `Number(exp)`
  * ([spec: number conversion](../../../spec/README.md#number-conversion)),
- * `Object` as the namespace of `Object.is`, the one static function
- * [`../static`](../static/module.f.js) admits, and the `entry` helper's
+ * `Object` and `Number` as the namespaces of the static functions
+ * [`../static`](../static/module.f.js) admits, and `Object` as the `entry` helper's
  * `Object.getOwnPropertyDescriptor`
  * ([spec: built-in static functions](../../../spec/README.md#built-in-static-functions)),
  * and `String` as the callee of the conversion `String(exp)`

@@ -11,13 +11,11 @@
  * This module is a leaf on purpose. `fjs/asserts` needs the comparison for
  * `assertStructurallySame`, and the public object module (`../module.f.mjs`)
  * reaches `fjs/asserts` through `types/nullable`, so importing it here
- * would close the cycle `asserts -> object -> nullable -> asserts`. The one
- * import is `../is`, a leaf that imports nothing, which closes none.
+ * would close the cycle `asserts -> object -> nullable -> asserts`. It
+ * imports nothing: SameValue is the built-in `Object.is`.
  *
  * @module
  */
-
-import { is } from '../is/module.f.js'
 
 const { entries } = Object
 
@@ -42,7 +40,7 @@ const { entries } = Object
  * @type {(a: unknown, b: unknown) => boolean}
  */
 export const structurallySame = (a, b) => {
-    if (is(a, b)) { return true }
+    if (Object.is(a, b)) { return true }
     if (
         typeof a !== 'object' || a === null ||
         typeof b !== 'object' || b === null

@@ -548,6 +548,13 @@ export const proof = {
         const run = memo(assertOk(analysis(compile('const { is } = Object; const f = () => Object.is; export default [is(1, 1), Object.is(1, 2), is === f(), [1].map(x => f()(x, 1))];').edag)))
         assertStructurallySame(assertOk(toData(unwrap(run({ args: [], runtime })))), [true, false, true, [true]])
         assertEq(assertError(run({ args: [] })), 'no binding for the static Object.is')
+        // a `Number` predicate the same way, read at its own path
+        expectEdag(compile('const { isInteger } = Number; export default [isInteger, Number?.["isFinite"]];').edag, ['[]', [['Number.isInteger'], ['Number.isFinite']]])
+        /** @type {import('../../edag/value/types.ts').Runtime} */
+        const numbers = ['{}', [[':', 'static', ['{}', [[':', 'Number', ['{}', [[':', 'isNaN', ['=>', 1, [], ['typeof', ['arg', 0]]]]]]]]]]]]
+        const typed = memo(assertOk(analysis(compile('const { isNaN } = Number; export default [isNaN("x"), Number.isNaN(1)];').edag)))
+        assertStructurallySame(assertOk(toData(unwrap(typed({ args: [], runtime: numbers })))), ['string', 'number'])
+        assertEq(assertError(typed({ args: [], runtime })), 'no binding for the static Number.isNaN')
     },
     // A function that captures is `['=>', length, slots, body]`: each slot
     // the enclosing scope's own node for a captured value — one per node,

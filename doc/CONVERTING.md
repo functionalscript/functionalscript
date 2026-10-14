@@ -13,7 +13,7 @@ meaning.
 Three things hold for every rule:
 
 - **A required function is imported, never copied.** Where a rewrite needs a
-  function — `entry` and `isInteger` below, and the helpers later rules
+  function — `entry` and `min` below, and the helpers later rules
   name — the repository implements it once, in FunctionalScript, and a
   converted module imports it from that module. The specification may spell
   the function out so the compiler can recognize it wherever it is written;
@@ -27,7 +27,12 @@ Three things hold for every rule:
   the compiler recognizes, once its use is understood. Until then the
   function is what it spells, a function like any other the compiler
   compiles, and the EDAG and the VM may have no node for it; a module that
-  imports it depends on nothing but the module.
+  imports it depends on nothing but the module. A helper that stood in for
+  a JavaScript built-in moves into the runtime once the language admits
+  that built-in, its body a VM's and no module's, and modules call the
+  built-in: `Object.is`'s and the `Number` predicates' did (rules 2–4 and
+  6). A helper the compiler recognizes by its shape, as `entry`, stays the
+  module it is.
 - **The value is preserved.** FunctionalScript is a subset of JavaScript, and
   a converted module is still JavaScript: it must compute what it computed
   before, in both languages. A rewrite that changes a result is a change to
@@ -191,94 +196,58 @@ on `undefined` where the chain read nothing, and throw where it returned.
 
 ## 2. `Number.isInteger`
 
-Of the `Number` global, only the call `Number(exp)` is in the language
-([number conversion](../spec/README.md#number-conversion)); every member
-of it is an admission of its own, and `Number.isInteger` is refused
-(`reserved word`). Its replacement is `isInteger`, imported from
-[`fjs/types/number/is_integer`](../fjs/types/number/is_integer/module.f.js):
+`Number.isInteger` is admitted, with `Number.isSafeInteger`,
+`Number.isNaN` and `Number.isFinite`
+([built-in static functions](../spec/README.md#built-in-static-functions)),
+so a module keeps each as written: the call, the function as a value, and
+the destructuring `const { isInteger } = Number` alike. Nothing is
+converted, and nothing is imported in its place: each body is the
+runtime's ([`fjs/js/runtime`](../fjs/js/runtime/module.f.js)), a VM's to
+bind and no module's to import, and the runtime's proof checks each
+against the host's own built-in on every kind of value.
 
 ```js
-const even = n => Number.isInteger(n) && n % 2 === 0   // refused
+const even = n => Number.isInteger(n) && n % 2 === 0   // accepted
 ```
 
-```js
-import { isInteger } from '../types/number/is_integer/module.f.js'
-
-const even = n => isInteger(n) && n % 2 === 0           // accepted
-```
-
-`isInteger(n)` is `typeof n === 'number' && n % 1 === 0`, which is what
-`Number.isInteger` answers, value for value: a non-number is `false` without
-coercion, so is `NaN` and either infinity, whose remainder is `NaN`, and
-both zeros and every integral number beyond the safe range are `true`. The
-module is an ordinary function the compiler compiles, not a helper it
-recognizes; it needs no node of its own.
-
-`Number.isSafeInteger` has the same rewrite, `isSafeInteger` from
-[`fjs/types/number/is_safe_integer`](../fjs/types/number/is_safe_integer/module.f.js),
-which is `isInteger` within the inclusive bound `2^53 - 1` on either side,
-as the built-in is.
+The body of `Number.isInteger` is `typeof n === 'number' && n % 1 === 0`,
+which is what the built-in answers, value for value — a non-number is
+`false` without coercion, so is `NaN` and either infinity, whose remainder
+is `NaN`, and both zeros and every integral number beyond the safe range
+are `true`. `Number.isSafeInteger`'s is the same within the inclusive
+bound `2^53 - 1` on either side, as the built-in is. The namespace's value properties,
+`Number.MAX_SAFE_INTEGER` among them, are not admitted (`reserved word`),
+and the bound is written as the number it is.
 
 ## 3. `Number.isNaN`
 
-Refused as `Number.isInteger` is, and replaced the same way, by `isNaN_`
-from [`fjs/types/number/is_nan`](../fjs/types/number/is_nan/module.f.js):
+Admitted as `Number.isInteger` is, and kept as written. Its body is
+`n !== n`: `NaN` is the one value not strictly equal to itself, so every
+other number and every value of another type is `false`, without
+coercion, which is what `Number.isNaN` answers.
 
-```js
-const canonical = v => Number.isNaN(v) ? 0 : v   // refused
-```
-
-```js
-import { isNaN_ } from '../types/number/is_nan/module.f.js'
-
-const canonical = v => isNaN_(v) ? 0 : v         // accepted
-```
-
-`isNaN_(n)` is `n !== n`: `NaN` is the one value not strictly equal to
-itself, so every other number and every value of another type is `false`,
-without coercion, which is what `Number.isNaN` answers. It is not what the
-**global** `isNaN` answers, which converts first — `isNaN("x")` is `true`
-in JavaScript, `isNaN(undefined)` too.
-
-The trailing `_` keeps the two apart. JavaScript has a global `isNaN`, so
-a helper of that name would shadow it: a bare `isNaN(x)` left in a module
-being converted would silently become the helper's call, and its value
-would change where `x` is not a number. Under its own name the helper
-shadows nothing, a bare `isNaN(x)` stays the global's call, and the
-compiler goes on refusing it (`const not found`) until the module deals
-with it: on a value that is already a number it takes the rewrite as it is;
-on anything else the conversion changed the value there, so the module
-checks what it meant. The name is also one the language can reserve, as it
-reserves `Number`, so that no module binds a `const isNaN_` of its own
-([`fjs/compiler/todo/reserve-helper-names.md`](../fjs/compiler/todo/reserve-helper-names.md)).
+It is not what the **global** `isNaN` answers, which converts first —
+`isNaN("x")` is `true` in JavaScript, `isNaN(undefined)` too — and the
+global stays refused (`const not found`), a decision of its own. A bare
+`isNaN(x)` in a module being converted is therefore no `Number.isNaN(x)`:
+on a value that is already a number it is `Number.isNaN(x)`; on anything
+else the conversion changed the value there, so the module checks what it
+meant.
 
 ## 4. `Number.isFinite`
 
-The same again: `isFinite_` from
-[`fjs/types/number/is_finite`](../fjs/types/number/is_finite/module.f.js),
-named with the `_` for the same reason, the global `isFinite` converting
-first as the global `isNaN` does, `isFinite("1")` being `true` in
-JavaScript and `isFinite(null)` too.
-
-```js
-const retryAt = after => Number.isFinite(after) ? after : null   // refused
-```
-
-```js
-import { isFinite_ } from '../types/number/is_finite/module.f.js'
-
-const retryAt = after => isFinite_(after) ? after : null         // accepted
-```
-
-`isFinite_(n)` is `typeof n === 'number' && n * 0 === 0`: a finite number
-times `0` is `0`, and `-0` is `0` under `===`; an infinity or `NaN` times
-`0` is `NaN`; and a value of another type is `false` without coercion, as
-`Number.isFinite` answers.
+The same again: admitted, kept as written, its body
+`typeof n === 'number' && n * 0 === 0` — a finite number times `0` is `0`,
+and `-0` is `0` under `===`; an infinity or `NaN` times `0` is `NaN`; and a
+value of another type is `false` without coercion, as `Number.isFinite`
+answers. The global `isFinite` converts first, as the global `isNaN` does,
+`isFinite("1")` being `true` in JavaScript and `isFinite(null)` too, and
+stays refused.
 
 ## 5. `Math.min` and `Math.max`
 
-The `Math` global is not admitted: `Number` is a reserved word with one
-admitted call, `Math` is no name at all, and `Math.min` is refused as
+The `Math` global is not admitted: `Number` is a reserved word admitting
+the conversion and the four predicates above, `Math` is no name at all, and `Math.min` is refused as
 `const not found`. On two numbers the replacements are `min` from
 [`fjs/types/number/min`](../fjs/types/number/min/module.f.js) and `max`
 from [`fjs/types/number/max`](../fjs/types/number/max/module.f.js):
@@ -315,18 +284,16 @@ so a module keeps it as written: the call `Object.is(a, b)`, the function
 as a value, and the destructuring `const { is } = Object` alike, which is
 sugar for `const is = Object.is`. Nothing is converted.
 
-Its body is [`fjs/types/object/is`](../fjs/types/object/is/module.f.js),
-which the runtime's `static` section imports rather than copies, and which
-a module may import too, answering alike by construction. `is(a, b)` is
-SameValue, as `Object.is` is: `===`, except on the two values `===` reads
-the other way, and it is spelled from the two helpers that name them —
+Its body is the runtime's, as rule 2's are, SameValue: `===`, except on
+the two values `===` reads the other way, and it is spelled from the two
+tests that name them —
 `a === b ? isNegativeZero(a) === isNegativeZero(b) : isNaN_(a) && isNaN_(b)`
-— with `isNaN_` from rule 3 and `isNegativeZero` from
+— with `isNaN_` the body of rule 3 and `isNegativeZero` from
 [`fjs/types/number/is_negative_zero`](../fjs/types/number/is_negative_zero/module.f.js),
 which is `n === 0 && 1 / n < 0`, the zeros told apart through `1 / n` as
-`min` and `max` tell them. Its proof compares every pair of a list spanning
-every type, the zeros, `NaN`, the bigint zero and two containers of one
-shape, against the built-in.
+`min` and `max` tell them. The runtime's proof compares it on every pair
+of a list spanning every type, the zeros, `NaN`, the bigint zero and two
+containers of one shape, against the host's built-in.
 
 The test for `-0` alone, `Object.is(x, -0)`, is the built-in's most common
 use, and `isNegativeZero(x)` says it directly, where a module prefers the
