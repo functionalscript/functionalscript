@@ -1,7 +1,7 @@
 ## ivm-from-unpacked. Collapse `IVm`'s eight `From` bounds to `From<Unpacked<Self>>`
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
