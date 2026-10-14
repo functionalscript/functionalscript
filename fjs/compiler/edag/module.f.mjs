@@ -7,25 +7,23 @@
  *
  * @import { Exp, Index, Op12, Op2, Spread, StepOver } from '../../edag/types.ts'
  * @import { AstAccess, AstBinary, AstInstanceOf, AstKey, AstBody, AstCall, AstConditional, AstConst, AstEntry, AstFunction, AstGuardedCall, AstImport, AstItem, AstModule, AstSpread, AstStep, AstThrow, AstUnary, UnaryTag } from '../ast/types.ts'
- * @import { _ImportSource, _Source } from '../source/types.ts'
+ * @import { _Load } from '../source/types.ts'
  * @import { ParseError } from '../parser/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { ReadWhole, ResolveFileModule } from '../../effects/node/types.ts'
  * @import { EdagValue } from '../../edag/value/types.ts'
  * @import { Unknown as JsonUnknown } from '../../media/json/types.ts'
  * @import { Unresolved } from './types.ts'
- * @import { _Binding, _Entries, _Link, _Lowered, _LoweredEntry, _LoweredItem, _LoweredOver, _LowerResults, _LowerWork, _Nodes, _Resolved } from './private.ts'
+ * @import { _Entries, _Lowered, _LoweredEntry, _LoweredItem, _LoweredOver, _LowerResults, _LowerWork, _Nodes, _Resolved } from './private.ts'
  */
 
 import { anchors, isBinary, isInlinedCall, isLazy, isSpread, isUnary, readCaptures } from '../ast/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
 import { fromValue } from '../../edag/module.f.mjs'
-import { _attributeError, _fileError, _importSources, _missingExport, _rootSource, _parseJson, _parseModule } from '../source/module.f.mjs'
-import { foldStep, mapStep, pureError, pureOk, step } from '../../effects/module.f.mjs'
-import { at, setReplace } from '../../types/ordered_map/module.f.mjs'
-import { drop, includes } from '../../types/list/module.f.mjs'
+import { _rootSource, _parseJson, _walk } from '../source/module.f.mjs'
+import { mapStep, step } from '../../effects/module.f.mjs'
 import { assertNotNullish, todo } from '../../asserts/module.f.mjs'
-import { unwrap } from '../../types/result/module.f.js'
+import { ok, unwrap } from '../../types/result/module.f.js'
 
 const args = /** @type {const} */ (['args'])
 
@@ -651,74 +649,26 @@ const jsonLiteral = fromValue(todo)
  */
 export const jsonValue = value => /** @type {EdagValue} */ (jsonLiteral(value))
 
-/**
- * A module's EDAG recorded under its identity, and the chain of imports left as
- * it was before the module was entered.
- *
- * @type {(id: string) => (context: _Link) => (edag: Exp) => readonly [_Link, _Resolved]}
- */
-const completed = id => context => edag => {
-    /** @type {_Resolved} */
-    const resolved = {
-        exports: edag,
-        bindings: _moduleExports(edag).map(([, key]) => [key, key === 'default' ? _defaultExport(edag) : ['.', edag, key]]),
-    }
-    return [{
-        complete: setReplace(id)(resolved)(context.complete),
-        stack: drop(1)(context.stack),
-    }, resolved]
-}
-
-/** @type {(id: string) => (context: _Link) => (value: JsonUnknown) => readonly [_Link, _Resolved]} */
-const completedJson = id => context => value => completed(id)(context)(['{}', [[':', 'default', jsonValue(value)]]])
-
-/** Require the selected export even if its binding is unused. @type {(source: _ImportSource) => (binding: _Binding) => Effect<ReadWhole | ResolveFileModule, _Binding, ParseError>} */
-const linkImport = source => ({ context, bound }) => step(link(source)(context), ([linked, resolved]) => {
-    const selected = source.name === null ? resolved.exports : resolved.bindings.find(([key]) => key === source.name)?.[1]
-    return selected === undefined
-        ? pureError(_missingExport(source))
-        : pureOk({ context: linked, bound: [...bound, selected] })
+/** A module's EDAG and its bindings, each export selected as an import reads it. @type {(edag: Exp) => _Resolved} */
+const resolved = edag => ({
+    exports: edag,
+    bindings: _moduleExports(edag).map(([, key]) => [key, key === 'default' ? _defaultExport(edag) : ['.', edag, key]]),
 })
 
 /**
- * A parsed module linked: its imports resolved in source order, each to its
- * own EDAG, and the module lowered over them — the binding happens where a
- * reference is lowered, so the graph is built once, with the imported
- * module's node where its parameter would be.
+ * What the linker makes of a module: its EDAG, lowered over the EDAGs its
+ * imports select — the binding happens where a reference is lowered, so the
+ * graph is built once, with the imported module's node where its parameter
+ * would be, and a diamond of imports joins at one node. A JSON module is the
+ * tree its document denotes, under `default`.
  *
- * @type {(source: _Source) => (context: _Link) => (module: AstModule) => Effect<ReadWhole | ResolveFileModule, readonly [_Link, _Resolved], ParseError>}
+ * @type {_Load<_Resolved, Exp, never>}
  */
-const linkModule = source => context => module => mapStep(
-    foldStep(_importSources(source)(module[0]), { context, bound: [] }, linkImport),
-    ({ context: linked, bound }) => completed(source.id)(linked)(lowered(bound)(module)))
-
-/**
- * The source resolved to its EDAG within one link: a module identity met
- * again is the node it resolved to the first time, so a diamond of imports
- * joins at one node, and a module met again while it is still being entered
- * is a cycle. A JSON module is read as a document, as its import says with
- * `with { type: "json" }`; a `.json` file imported without it, or another
- * file imported with it, is refused as JavaScript refuses it.
- *
- * @type {(source: _Source) => (context: _Link) => Effect<ReadWhole | ResolveFileModule, readonly [_Link, _Resolved], ParseError>}
- */
-const link = source => context => {
-    const { id, path, json } = source
-    // the import's own contract, checked before the file's state: a file
-    // met before is refused all the same when this import misspells it
-    const mismatch = _attributeError(source)
-    if (mismatch !== null) { return pureError(mismatch) }
-    if (includes(id)(context.stack)) { return pureError(_fileError(path)('circular dependency')) }
-    const done = at(id)(context.complete)
-    if (done !== null) { return pureOk([context, done]) }
-    const entered = { ...context, stack: { first: id, tail: context.stack } }
-    return json
-        ? mapStep(_parseJson(path), completedJson(id)(entered))
-        : step(_parseModule(path), linkModule(source)(entered))
+const linking = {
+    json: value => resolved(['{}', [[':', 'default', jsonValue(value)]]]),
+    select: ({ exports, bindings }, name) => name === null ? exports : bindings.find(([key]) => key === name)?.[1],
+    module: (_, imports, module) => ok(resolved(lowered(imports)(module))),
 }
-
-/** @type {(linked: readonly [_Link, _Resolved]) => Exp} */
-const edagOf = ([, resolved]) => resolved.exports
 
 /**
  * The program at `path` as one EDAG: the module read and parsed, each of
@@ -740,4 +690,4 @@ export const resolve = path => step(_rootSource(path), source => source.json
     // The CLI extension selects JSON input even when realpath follows an alias
     // to a differently named file. Import attributes still use the target path.
     ? mapStep(_parseJson(source.path), jsonValue)
-    : mapStep(link(source)({ complete: null, stack: null }), edagOf))
+    : mapStep(_walk(linking)(source)({ complete: null, stack: null }), ([, { exports }]) => exports))
