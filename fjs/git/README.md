@@ -107,13 +107,13 @@ what a grammar can and cannot do for the formats.
   name one stored *after* it, which is where `index-pack --fix-thin` appends
   the base a fetched pack arrived without, so nothing here assumes a base
   precedes the delta and a chain is bounded by the pack's object count instead.
-- [`config/`](config/module.f.mjs) — the repository's `config` as
+- [`config/`](config/module.f.mjs) — Git's `config` grammar: the file as
   `(section, key, value)` entries, read a character at a time as Git's own
   parser reads it — quoted values and their escapes, a header that ends
-  mid-line, a key without a value — and the id width it names:
-  `extensions.objectFormat` absent is SHA-1, `sha256` under
-  `repositoryformatversion = 1` is SHA-256, and what Git refuses is
-  refused.
+  mid-line, a key without a value — and the readers of one key over them,
+  which read it as Git does: every assignment in order, the last one
+  winning, and as Git's `int` or `bool` each assignment judged as the reader
+  reaches it. What a key means is its reader's, not the grammar's.
 - [`alternates/`](alternates/module.f.mjs) — an `objects/info/alternates`
   file as the object directories it names, decoded line shape by line shape
   as Git reads it: comments and blank lines skipped, a C-quoted line
@@ -123,7 +123,10 @@ what a grammar can and cannot do for the formats.
   checked: the loose file at the id's path or the packs through
   [`packstore/`](packstore/module.f.mjs), whichever answers, hashed with
   `oid`'s `of` and refused where the hash is not the id; and the width from
-  `config`. The loose file is read first and anything but a good object there
+  `config`, read through [`config/`](config/module.f.mjs)'s readers:
+  `extensions.objectFormat` absent is SHA-1, `sha256` under
+  `repositoryformatversion = 1` is SHA-256, and a repository format Git
+  refuses is refused. The loose file is read first and anything but a good object there
   — no file, no stream, no object, another object — asks the packs, since Git
   answers a packed copy over a loose one that cannot be read and the hash
   check stands behind either, and the same two questions are put to each

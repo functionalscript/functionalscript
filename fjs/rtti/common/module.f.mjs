@@ -1,10 +1,12 @@
 /**
  * Shared kernel for RTTI consumers.
  *
- * `parse` (`../parse/module.f.mjs`) is the schema-form consumer; the data form
- * (`../data/module.f.mjs`) is the other, walking a `Data` instead of a thunk
- * graph. They produce the same `Result<T, ValidationError>` outcome and differ
- * in how they dispatch, so this module hosts the parts that do not differ:
+ * `validate` (`../validate/module.f.mjs`) and `parse`
+ * (`../parse/module.f.mjs`) are the schema-form consumers, reading a value
+ * against a thunk graph; the data form (`../data/module.f.mjs`) is the other,
+ * walking a `Data` instead. They produce the same `Result<T, ValidationError>`
+ * outcome and differ in how they dispatch, so this module hosts the parts that
+ * do not differ:
  *
  * - The error shape (`ValidationError`, `Path`) and path bookkeeping
  *   (`verror`, `prependPath`).
@@ -13,17 +15,21 @@
  *   (`Parse<T> = Validate<T>`).
  * - `visit`: a visitor over the `Type` ADT. Callers supply a `Visitor<R>`
  *   with one handler per variant; `visit(v)(rtti)` recognizes `rtti` and
- *   calls the matching handler. `parse` composes its top-level function from
- *   a visitor.
+ *   calls the matching handler. Both schema-form readers compose their
+ *   top-level function from a visitor.
  * - `eachEntry`: the container entry loop (array/record/tuple/struct). Callers
  *   choose what (if anything) to accumulate, so a caller that only needs
- *   pass/fail pays no allocation per entry.
+ *   pass/fail passes `noAccumulate` and pays no allocation per entry.
  * - `tupleSchemaEntries`/`structSchemaEntries`: what a container schema
  *   declares, per kind — the entry list its readers walk.
  * - `undeclaredMembers`: the other half of the loop — the members a container
  *   schema does not name, which a bare schema rejects and a `rest` one holds
  *   to its rest. The data form walks it too, so the two readers state one
  *   rule.
+ * - `containerRead`, `constContainerRead`, `restContainerRead`: the
+ *   schema-form readers' container handlers, one skeleton per shape. Each
+ *   states its shape's read order once, and a `Reader` supplies what differs
+ *   between `validate` and `parse`.
  * - `orVisit`: the shared `or` handler — try each variant's recursive walker,
  *   return the first match.
  *
@@ -33,10 +39,10 @@
  * @module
  *
  * @import { Primitive, Unknown } from '../ts/types.ts'
- * @import { Const, Info0, Primitive0, Struct, Tag1, Tuple, Type } from '../types.ts'
+ * @import { ConstObject, Const, Info0, Primitive0, Struct, Tuple, Type } from '../types.ts'
  * @import { Error, Result as CommonResult } from '../../types/result/types.ts'
  * @import { StringMap } from '../../types/object/types.ts'
- * @import { Validate, Visitor, IsContainer, Container, ResultE, SchemaEntries, ValidateE, ValidationError } from './types.ts'
+ * @import { Finish, Fits, Validate, Visitor, IsContainer, Reader, ResultE, SchemaEntries, ValidateE, ValidationError } from './types.ts'
  */
 
 import { assert } from '../../asserts/module.f.mjs'
@@ -349,6 +355,239 @@ export const admitsAbsence = rtti => absenceIn([], rtti)
  */
 export const absentMember = rtti =>
     admitsAbsence(rtti) ? ok(undefined) : verror('unexpected value')
+
+/**
+ * `eachEntry`'s accumulate step for a walk that collects nothing — only
+ * pass/fail matters.
+ *
+ * @type {() => undefined}
+ */
+export const noAccumulate = () => undefined
+
+/**
+ * `cons` over a container's declared members, passing the absent ones by: a
+ * legally absent member is collected by nothing, so what a reader builds
+ * omits it rather than materializing it as `undefined`.
+ *
+ * @type {<A>(cons: Reader<A>['cons'], value: ReadonlyArray<Unknown> | StringMap<Unknown>) => Reader<A>['cons']}
+ */
+const consPresent = (cons, value) => (acc, k, v) => k in value ? cons(acc, k, v) : acc
+
+/**
+ * The container handler for `array` and `record` schemas: every member of the
+ * value is read as `item`. `finish` builds the result from what `reader`
+ * collected.
+ *
+ * The item reader is instantiated lazily, only once the container is known to
+ * have a member to read: an empty container never asks for it, so a recursive
+ * schema such as `const list = () => ['array', list]` does not recurse forever.
+ *
+ * The members are `undeclaredMembers`', not `Object.entries`': `array(t)` is
+ * `rest([], t)`, so the two have to walk a value the same way. An own-entry
+ * walk here skipped an index the prototype supplies while the data form's
+ * reader found it, which broke the acceptance agreement the three readers are
+ * pinned on.
+ *
+ * `restFits` bounds the array kind's length when its element set admits
+ * nothing, which is what the data form says by normalizing such a `rest`
+ * away: an `array(or())` is the *empty* array and not "any number of holes".
+ * It is consulted only where it can change the answer — no member present,
+ * and the value reaching further than that — so an ordinary array never asks.
+ * The readers build it over the data form's `emptyRest` and pass it in: this
+ * module must not import `../data/module.f.mjs`, which imports it.
+ */
+export const containerRead =
+    /**
+     * @template A
+     * @param {Reader<A>} reader
+     * @returns {<C extends ReadonlyArray<Unknown> | StringMap<Unknown>>(isContainer: IsContainer<C>, restFits: (item: Type) => Fits<C>, finish: Finish<C, A>) => (item: Type) => ValidateE}
+     */
+    ({ read, empty, cons }) =>
+    (isContainer, restFits, finish) =>
+    item => {
+        // Depends on the schema alone, so it is built once per schema rather
+        // than once per value read.
+        const fits = restFits(item)
+        return value => {
+            if (!isContainer(value)) {
+                return verror('unexpected value')
+            }
+            const e = undeclaredMembers(noDeclared, value)
+            if (e.length === 0) {
+                return fits(value, 0) ? ok(finish(empty, value)) : verror('unexpected value')
+            }
+            const itemRead = read(item)
+            const r = eachEntry(e, (_k, v) => itemRead(v), empty, cons)
+            return r[0] === 'error' ? r : ok(finish(r[1], value))
+        }
+    }
+
+/**
+ * The container handler for `Tuple` and `Struct` const schemas — **closed**:
+ * the members the schema declares and no others. It settles the container's
+ * shape, then reads each declared member, then lets `finish` build the result
+ * from what `reader` collected.
+ *
+ * `fits` is the one thing the two kinds do not share. An undeclared member is
+ * a member on both, but an array is also *as long as it is*: a hole past the
+ * prefix is no member and would slip through the member check alone, so the
+ * array kind answers with its length as well.
+ *
+ * A declared member is **absent** when its key or index is neither an own
+ * property nor an inherited one — HasProperty, since `getItem` reads through
+ * the prototype, so a member the prototype supplies is still held to what the
+ * schema says a present value is. Absence is decided here, before dispatch:
+ * the recursive reader is handed only the value read, and an absent key reads
+ * `undefined`, so it cannot tell `{}` from `{ a: undefined }`. An absent
+ * member is legal exactly when its schema admits absence ({@link admitsAbsence})
+ * and is collected by nothing; a present one is read and collected.
+ *
+ * **The order.** The shape is settled before any member is read: the value is
+ * bounded, an illegal absence is rejected, an undeclared member is rejected —
+ * and only then are the members read. That order is what makes an `or` of two
+ * arities linear instead of 2^depth, which is the shape a schema uses to say a
+ * trailing operand may be left out (`fjs/edag`'s chain nodes). The bound
+ * settles the arm whose value has too much — an extra index, an undeclared
+ * key — and the absence pass settles the arm whose value has too little.
+ * Neither alone suffices, and each was measured missing: without the bound,
+ * and without deciding absence early, a chain stays exponential in one
+ * direction or the other. It is also what decides which error a value failing
+ * several ways reports, so both readers report the same one.
+ *
+ * Reading `length` and enumerating the keys before the members assumes those
+ * reads have no effect — true of every DataJS value, and the assumption the
+ * readers are written under. What that gives up for a value built by arbitrary
+ * JavaScript is stated in "What the readers assume of a value" in
+ * `../README.md`.
+ */
+export const constContainerRead =
+    /**
+     * @template A
+     * @param {Reader<A>} reader
+     * @returns {<C extends ReadonlyArray<Unknown> | StringMap<Unknown>, S extends ConstObject>(isContainer: IsContainer<C>, schemaEntries: SchemaEntries<S>, getItem: (value: C, k: string) => Unknown, fits: Fits<C>, finish: Finish<C, A>) => (rtti: S) => ValidateE}
+     */
+    ({ read, empty, cons }) =>
+    (isContainer, schemaEntries, getItem, fits, finish) =>
+    rtti => {
+        // Depend on `rtti` alone, so they are computed once per schema rather
+        // than once per value read.
+        const rttiEntries = schemaEntries(rtti)
+        const declared = rttiEntries.map(([k]) => k)
+        // One lookup per key at the gate, rather than a scan of `declared`.
+        const isDeclared = declaredTest(declared)
+        return value => {
+            if (!isContainer(value)) {
+                return verror('unexpected value')
+            }
+            // The structural questions run cheapest-first, since any of them
+            // settles the container and none of them recurses: `fits` reads
+            // one `length`; the absence pass probes and consults the schema
+            // once per *declared* member; only the undeclared check
+            // enumerates the **value's** keys, which is O(its size) and has no
+            // lazy form in JavaScript — `Object.keys` on 500 000 keys is 185ms
+            // whether or not the scan stops at the first. So a value one
+            // question answers never pays for the ones after it, and the
+            // constant-time bound precedes everything else.
+            if (!fits(value, declared.length)) {
+                return verror('unexpected value')
+            }
+            // Reaching an illegal absence through the reading walk would
+            // first recurse into the members that come before it, and those
+            // are the operands the longer arm shares — so the two arms would
+            // walk them once each at every level, which is the exponential
+            // all over again. Measured on a chain of `['.', exp, index]` with
+            // a leaf no arm accepts: 2.5s at depth 16 without this.
+            //
+            // The pass carries nothing forward, so it stops at the first
+            // illegal absence having touched only the members before it: a
+            // 500 000-position schema against `[]` answers at index 0. The
+            // reading walk asks `in` again — to read a member and to collect
+            // it — rather than being handed a recorded flag: a `HasProperty`
+            // on a value whose reads have no effect, which is the assumption
+            // stated in `../README.md`, and cheaper than a list the
+            // short-circuit would waste.
+            const a = eachEntry(
+                rttiEntries,
+                (k, t) => k in value ? ok(undefined) : absentMember(t),
+                undefined,
+                noAccumulate,
+            )
+            if (a[0] === 'error') { return a }
+            if (hasUndeclaredMember(isDeclared, value)) {
+                return verror('unexpected value')
+            }
+            const r = eachEntry(
+                rttiEntries,
+                // Absence is settled above, so an absent member here is legal.
+                (k, t) => k in value ? read(t)(getItem(value, k)) : ok(undefined),
+                empty,
+                consPresent(cons, value),
+            )
+            return r[0] === 'error' ? r : ok(finish(r[1], value))
+        }
+    }
+
+/**
+ * The container handler for a schema with a stated `rest`. The declared
+ * members are read as the bare form reads them, and every member the schema
+ * does not name is held to `rest`: checked, and collected by nothing, since
+ * `rest` says what an undeclared member must be and not that a result should
+ * carry it.
+ *
+ * **The order** is not the bare form's. The declared members are read
+ * **first**, absence decided inline as the walk reaches each one; only then
+ * are the undeclared members computed, and held to `rest` — or, where there
+ * are none, to `restFits`. A value failing both ways therefore reports its
+ * declared member, not its leftover. The two orders are kept apart on
+ * purpose: reading either shape in the other's order would change which
+ * error such a value reports.
+ *
+ * `restFits` carries the array kind's length bound, which a `rest` removes
+ * only while it admits something. An empty one says what the bare form says,
+ * so `rest(c, or())` and `c` stay one set — the criterion for "empty" is the
+ * data form's `emptyRest`, and it is consulted only when nothing is present
+ * past the prefix, since a member that got there and passed is itself the
+ * proof that the rest admits something. As for {@link containerRead}, the
+ * readers build it and pass it in.
+ */
+export const restContainerRead =
+    /**
+     * @template A
+     * @param {Reader<A>} reader
+     * @returns {<C extends ReadonlyArray<Unknown> | StringMap<Unknown>, S extends ConstObject>(isContainer: IsContainer<C>, schemaEntries: SchemaEntries<S>, getItem: (value: C, k: string) => Unknown, restFits: (rtti: S, r: Type) => Fits<C>, finish: Finish<C, A>) => (rtti: S, r: Type) => ValidateE}
+     */
+    ({ read, empty, cons }) =>
+    (isContainer, schemaEntries, getItem, restFits, finish) =>
+    (rtti, r) => {
+        // Depend on the schema alone, so they are computed once per schema.
+        const rttiEntries = schemaEntries(rtti)
+        const declared = rttiEntries.map(([k]) => k)
+        const isDeclared = declaredTest(declared)
+        const fits = restFits(rtti, r)
+        return value => {
+            if (!isContainer(value)) {
+                return verror('unexpected value')
+            }
+            const d = eachEntry(
+                rttiEntries,
+                (k, t) => k in value ? read(t)(getItem(value, k)) : absentMember(t),
+                empty,
+                consPresent(cons, value),
+            )
+            if (d[0] === 'error') { return d }
+            const extra = undeclaredMembers(isDeclared, value)
+            if (extra.length === 0) {
+                if (!fits(value, declared.length)) {
+                    return verror('unexpected value')
+                }
+            } else {
+                const restRead = read(r)
+                const e = eachEntry(extra, (_k, v) => restRead(v), undefined, noAccumulate)
+                if (e[0] === 'error') { return e }
+            }
+            return ok(finish(d[1], value))
+        }
+    }
 
 /**
  * First variant in `variants` that `recurse` accepts, else `verror('no match')`.

@@ -1,5 +1,6 @@
-import { assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
-import { _name as name, _binding as binding, _resolve as resolve } from './module.f.mjs'
+import { assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { analysis } from '../../../edag/analysis/module.f.mjs'
+import { _name as name, _binding as binding, _resolve as resolve, _arg as arg, _rest as rest, _parameters as parameters } from './module.f.mjs'
 
 export const proof = {
     manyBindings: () => {
@@ -39,6 +40,19 @@ export const proof = {
         const a = name('a')
         // a marked chunk keeps its kind, and a symbol in its text is resolved
         assertStructurallySame(resolve([[`${binding(a)}`, 'string'], [a], [`x${a}`], 'y']), [['$0', 'string'], ['$0'], ['x$0'], 'y'])
+    },
+    parameters: () => {
+        // `(a, b, ...c) => c`: the rest parameter is declared where the body reads it
+        const withRest = assertOk(analysis(['=>', 2, [], ['rest']]))
+        assertEq(resolve([`(${parameters(withRest, 'f', 1, 2)})=>${rest('f')}`]).join(''), '($0,$1,...$2)=>$2')
+        // `(a) => a`: and not where it does not
+        const fixed = assertOk(analysis(['=>', 1, [], ['arg', 0]]))
+        assertEq(resolve([`(${parameters(fixed, 'f', 1, 1)})=>${arg('f', 0)}`]).join(''), '($0)=>$0')
+        // `() => 1`: no parameters at all
+        const none = assertOk(analysis(['=>', 0, [], 1]))
+        assertEq(resolve([`(${parameters(none, 'f', 0, 0)})=>1`]).join(''), '()=>1')
+        // a read is the name its function's list declares, and no other function's
+        assertEq(resolve([`${binding(arg('f', 1))},${binding(arg('g', 1))},${arg('f', 1)}`]).join(''), '$0,$1,$0')
     },
     throw: {
         missing: () => resolve([name('missing')]),

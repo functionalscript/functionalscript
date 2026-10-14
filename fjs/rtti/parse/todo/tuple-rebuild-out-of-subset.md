@@ -47,9 +47,9 @@ chosen:
 **The out-of-subset branch serves one input: an interior hole.** The only
 thing `tupleRebuild` does that the subset-legal `arrayRebuild` beside it does
 not is keep a declared member absent with a present one after it. Presence
-is decided in `constContainerParse` by `k in value`, and for a dense array
-that is true at every index below `length` and false at every index at or
-above it. So on a dense input an absent declared member is only ever part of
+is decided in `fjs/rtti/common`'s `constContainerRead` by `k in value`, and
+for a dense array that is true at every index below `length` and false at
+every index at or above it. So on a dense input an absent declared member is only ever part of
 a trailing run, `entries` never has a gap, and `arrayRebuild` builds the
 same value. An interior gap needs a hole in the input.
 

@@ -33,9 +33,11 @@
  * A string is folded rule by rule: an `escape` to the character it
  * spells, a `character` to its text, and the `string` to the text of its
  * characters, so the three mappings are one unit, {@link stringMappings},
- * that a grammar built over JSON's rules folds the same way, and
- * {@link syntaxError} names where a parse failed. `../../datajs/parser` is
- * the reader built over them.
+ * that a grammar built over JSON's rules folds the same way, {@link textAt}
+ * reads the text they return, and {@link syntaxError} names where a parse
+ * failed. `../../datajs/parser` is the reader built over them, and builds
+ * its own output symbol with {@link tagged}, as this reader builds both of
+ * its own.
  *
  * @module
  *
@@ -45,7 +47,7 @@
  * @import { Utf16 } from '../../../ebnf/utf16/types.ts'
  * @import { hex } from '../../../ebnf/lib/json/module.f.mjs'
  * @import { Entry, JsonValue } from '../../../ebnf/lib/json/types.ts'
- * @import { Json, NumberPolicy, Out, ParseUnknown, Text } from './types.ts'
+ * @import { _LiteralId, _Member, _OnlyKey, Json, NumberPolicy, Out, ParseUnknown, Tagged, Text } from './types.ts'
  */
 
 import { assert, assertNotNullish } from '../../../asserts/module.f.mjs'
@@ -61,25 +63,54 @@ import { character, escape, items, json, number, string, value } from '../../../
 const { fromCharCode } = String
 const { fromEntries } = Object
 
-/** @type {(value: string) => Meta<Text>} */
-const text = value => ({ symbol: 0, meta: { id: 'text', value } })
+/**
+ * The wrap/read pair of a single-payload member of an output alphabet `O`:
+ * `symbol` wraps a payload as that member under its `id`, and `at` reads
+ * the payload back from a node, asserting the `id` — the one runtime check
+ * the convention that an `id` names one metadata type leaves to make.
+ *
+ * `O` appears in no argument, so an instance is a `const` annotated with
+ * its {@link Tagged} type, which supplies `O`, `Id` and `K` together.
+ *
+ * @template {{ readonly id: string }} O
+ * @template {_LiteralId<O>} Id
+ * @template {_OnlyKey<_Member<O, Id>>} K
+ * @param {Id} id
+ * @param {K} key
+ * @returns {Tagged<O, Id, K>}
+ */
+export const tagged = (id, key) => ({
+    // `_OnlyKey` makes `key` the member's one field besides `id`, so this is
+    // the whole member, which TypeScript cannot follow through `Extract`.
+    symbol: payload => /** @type {Meta<_Member<O, Id>>} */ ({ symbol: 0, meta: { id, [key]: payload } }),
+    at: node => {
+        const { meta } = symbolAt(node)
+        assert(meta.id === id)
+        // `_Admits` leaves no member of the node's alphabet but this one to
+        // carry `id`, so the assert has narrowed `meta` to it.
+        const member = /** @type {_Member<O, Id>} */ (/** @type {unknown} */ (meta))
+        return member[key]
+    },
+})
 
-/** @type {<P>(result: Result<ParseUnknown<P>, string>) => Meta<Json<P>>} */
-const jsonSymbol = result => ({ symbol: 0, meta: { id: 'json', result } })
+/** @type {Tagged<Text, 'text', 'value'>} */
+const textTag = tagged('text', 'value')
 
-/** @type {(node: Meta<Utf16 | Out<unknown>> | readonly unknown[]) => string} */
-const textAt = node => {
-    const { meta } = symbolAt(node)
-    assert(meta.id === 'text')
-    return meta.value
-}
+/**
+ * The string a `Text` node carries: what {@link stringMappings} return for a
+ * string, so every reader built over them reads it with this.
+ *
+ * @type {Tagged<Text, 'text', 'value'>['at']}
+ */
+export const textAt = textTag.at
 
-/** @type {<P>(node: Meta<Utf16 | Out<P>> | readonly unknown[]) => Result<ParseUnknown<P>, string>} */
-const jsonAt = node => {
-    const { meta } = symbolAt(node)
-    assert(meta.id === 'json')
-    return meta.result
-}
+/**
+ * The pair of a value's symbol over the domain `P`: a thunk, since a value
+ * cannot be generic, so each use binds it where `P` is bound.
+ *
+ * @type {<P>() => Tagged<Out<P>, 'json', 'result'>}
+ */
+const jsonTag = () => tagged('json', 'result')
 
 /**
  * The value of a hex digit node. The grammar admits only a hex digit here,
@@ -107,9 +138,9 @@ const textMapping = mapping
  */
 const escapeMapping = textMapping(escape, ([, e]) => {
     const branch = unmapped(e)
-    if (branch[0] === 'c') { return text(fromCharCode(assertNotNullish(escapeToCodePoint(unitAt(branch[1]))))) }
+    if (branch[0] === 'c') { return textTag.symbol(fromCharCode(assertNotNullish(escapeToCodePoint(unitAt(branch[1]))))) }
     const [, digits] = unmapped(branch[1])
-    return text(fromCharCode(unmapped(digits).reduce((code, digit) => code * 16 + hexDigit(digit), 0)))
+    return textTag.symbol(fromCharCode(unmapped(digits).reduce((code, digit) => code * 16 + hexDigit(digit), 0)))
 })
 
 /**
@@ -119,7 +150,7 @@ const escapeMapping = textMapping(escape, ([, e]) => {
  * @type {Mapping<Utf16, Text>}
  */
 const characterMapping = textMapping(character, node =>
-    node[0] === 'c' ? text(fromCharCode(unitAt(node[1]))) : symbolAt(node[1]))
+    node[0] === 'c' ? textTag.symbol(fromCharCode(unitAt(node[1]))) : symbolAt(node[1]))
 
 /**
  * The mapping of the grammar's `string` rule: to the text of its characters,
@@ -127,7 +158,7 @@ const characterMapping = textMapping(character, node =>
  *
  * @type {Mapping<Utf16, Text>}
  */
-const stringMapping = textMapping(string, ([, characters]) => text(unmapped(characters).map(textAt).join('')))
+const stringMapping = textMapping(string, ([, characters]) => textTag.symbol(unmapped(characters).map(textAt).join('')))
 
 /**
  * The mappings of the grammar's `string` rule and the rules under it, an
@@ -158,11 +189,15 @@ const pair = key => value => [key, value]
 /**
  * One entry of an object: its key, and its value where the value is one.
  *
- * @type {<P>(node: Ast<Entry<typeof string, JsonValue>, Utf16, Out<P>>) => Result<readonly [string, ParseUnknown<P>], string>}
+ * @template P
+ * @param {Ast<Entry<typeof string, JsonValue>, Utf16, Out<P>>} node
+ * @returns {Result<readonly [string, ParseUnknown<P>], string>}
  */
 const entry = node => {
+    /** @type {Tagged<Out<P>, 'json', 'result'>} */
+    const { at } = jsonTag()
     const [key, , , , v] = unmapped(node)
-    return mapOk(pair(textAt(key)))(jsonAt(v))
+    return mapOk(pair(textAt(key)))(at(v))
 }
 
 /**
@@ -178,15 +213,15 @@ const entry = node => {
  */
 const toJson = node => {
     // Bound to this value's domain once, so that a keyword's constant is a
-    // leaf of that domain rather than the domain `jsonSymbol` would infer
-    // from the constant alone.
-    /** @type {(result: Result<ParseUnknown<P>, string>) => Meta<Json<P>>} */
-    const symbol = jsonSymbol
+    // leaf of that domain rather than the domain a generic constructor would
+    // infer from the constant alone.
+    /** @type {Tagged<Out<P>, 'json', 'result'>} */
+    const { symbol, at } = jsonTag()
     switch (node[0]) {
-        case 'array': { return symbol(okList(items(unmapped(node[1])).map(jsonAt))) }
+        case 'array': { return symbol(okList(items(unmapped(node[1])).map(at))) }
         case 'object': { return symbol(mapOk(fromEntries)(okList(items(unmapped(node[1])).map(entry)))) }
         case 'string': { return symbol(ok(textAt(node[1]))) }
-        case 'number': { return symbol(jsonAt(node[1])) }
+        case 'number': { return symbol(at(node[1])) }
         case 'true': { return symbol(ok(true)) }
         case 'false': { return symbol(ok(false)) }
         case 'null': { return symbol(ok(null)) }
@@ -207,11 +242,13 @@ const toJson = node => {
 export const mappings = policy => {
     /** @type {Mappings<Utf16, Out<P>>} */
     const map = mapping
+    /** @type {Tagged<Out<P>, 'json', 'result'>} */
+    const { symbol, at } = jsonTag()
     return [
         ...stringMappings,
-        map(number, node => jsonSymbol(numberOf(policy)(node))),
+        map(number, node => symbol(numberOf(policy)(node))),
         map(value, toJson),
-        map(json, ([, v]) => jsonSymbol(jsonAt(v))),
+        map(json, ([, v]) => symbol(at(v))),
     ]
 }
 
@@ -248,8 +285,10 @@ export const syntaxError = text => at =>
  */
 export const parse = policy => {
     const parseDocument = parser(document, mappings(policy))
+    /** @type {Tagged<Out<P>, 'json', 'result'>} */
+    const { at } = jsonTag()
     return text => {
         const match = parseDocument(units(text))
-        return match[0] === 'error' ? error(syntaxError(text)(match[1])) : jsonAt(unmapped(match[1][0])[0])
+        return match[0] === 'error' ? error(syntaxError(text)(match[1])) : at(unmapped(match[1][0])[0])
     }
 }

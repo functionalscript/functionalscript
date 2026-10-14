@@ -6,7 +6,7 @@
  * @module
  *
  * @import { Exp, Index, Op12, Op2, Spread, StepOver } from '../../edag/types.ts'
- * @import { AstAccess, AstBinary, AstBitnot, AstNot, AstTypeof, AstInstanceOf, AstNumber, AstString, AstKey, AstBody, AstCall, AstConditional, AstConst, AstEntry, AstFunction, AstGuardedCall, AstImport, AstItem, AstModule, AstNeg, AstSpread, AstStep, AstThrow } from '../ast/types.ts'
+ * @import { AstAccess, AstBinary, AstInstanceOf, AstKey, AstBody, AstCall, AstConditional, AstConst, AstEntry, AstFunction, AstGuardedCall, AstImport, AstItem, AstModule, AstSpread, AstStep, AstThrow, AstUnary, UnaryTag } from '../ast/types.ts'
  * @import { _ImportSource, _Source } from '../source/types.ts'
  * @import { ParseError } from '../parser/types.ts'
  * @import { Effect } from '../../effects/types.ts'
@@ -17,7 +17,7 @@
  * @import { _Binding, _Entries, _Link, _Lowered, _LoweredEntry, _LoweredItem, _LoweredOver, _LowerResults, _LowerWork, _Nodes, _Resolved } from './private.ts'
  */
 
-import { anchors, isBinary, isInlinedCall, isLazy, isSpread, readCaptures } from '../ast/module.f.mjs'
+import { anchors, isBinary, isInlinedCall, isLazy, isSpread, isUnary, readCaptures } from '../ast/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
 import { fromValue } from '../../edag/module.f.mjs'
 import { _attributeError, _fileError, _importSources, _missingExport, _rootSource, _parseJson, _parseModule } from '../source/module.f.mjs'
@@ -312,7 +312,7 @@ const slotKeys = nodes => {
  * length ({@link lower}'s own comment has why that one gets an explicit
  * stack instead).
  *
- * @type {(nodes: _Nodes) => (ast: Exclude<AstConst, AstNeg | AstBitnot | AstNot | AstTypeof | AstInstanceOf | AstNumber | AstString | AstBinary | AstConditional | AstThrow>) => _Lowered}
+ * @type {(nodes: _Nodes) => (ast: Exclude<AstConst, AstUnary | AstInstanceOf | AstBinary | AstConditional | AstThrow>) => _Lowered}
  */
 const lowerLeaf = nodes => ast => {
     if (ast === undefined) { return plain(undefinedNode()) }
@@ -350,6 +350,17 @@ const lowerLeaf = nodes => ast => {
         default: { return access(nodes)(ast) }
     }
 }
+
+/**
+ * A unary operator's or a `throw`'s EDAG over its lowered operand, the
+ * EDAG's own `op1` or one-operand `op12` under the same tag — but for a
+ * negation of a numeric literal, which folds to the number, {@link lower}.
+ * The fold reads the operand lowered, not as written, so `-a` over
+ * `const a = 1` folds as `-1` does, and `- -1` to `1`.
+ *
+ * @type {(tag: UnaryTag | 'throw', exp: Exp) => Exp}
+ */
+const unaryExp = (tag, exp) => tag === '-' && (typeof exp === 'number' || typeof exp === 'bigint') ? -exp : [tag, exp]
 
 /**
  * One entry's EDAG. A reference is the node it names — a `const` is one
@@ -413,14 +424,12 @@ const lower = nodes => root => {
                 work = { kind: 'expand', ast: ast[1], rest: { kind: 'expand', ast: ast[2], rest: { kind: 'binary', tag: ast[0], rest } } }
                 continue
             }
+            if (isUnary(ast) || ast[0] === 'throw') {
+                work = { kind: 'expand', ast: ast[1], rest: { kind: 'unary', tag: ast[0], rest } }
+                continue
+            }
             switch (ast[0]) {
-                case '-': { work = { kind: 'expand', ast: ast[1], rest: { kind: 'neg', rest } }; break }
-                case '~': { work = { kind: 'expand', ast: ast[1], rest: { kind: 'bitnot', rest } }; break }
-                case '!': { work = { kind: 'expand', ast: ast[1], rest: { kind: 'not', rest } }; break }
-                case 'typeof': { work = { kind: 'expand', ast: ast[1], rest: { kind: 'typeof', rest } }; break }
                 case 'instanceof': { work = { kind: 'expand', ast: ast[1], rest: { kind: 'instanceof', name: ast[2], rest } }; break }
-                case 'Number': case 'String': { work = { kind: 'expand', ast: ast[1], rest: { kind: ast[0], rest } }; break }
-                case 'throw': { work = { kind: 'expand', ast: ast[1], rest: { kind: 'throw', rest } }; break }
                 case '?:': {
                     work = { kind: 'expand', ast: ast[1], rest: { kind: 'expand', ast: ast[2], rest: { kind: 'expand', ast: ast[3], rest: { kind: 'ternary', rest } } } }
                     break
@@ -432,38 +441,12 @@ const lower = nodes => root => {
             }
             continue
         }
-        if (work.kind === 'neg') {
+        if (work.kind === 'unary') {
             /** @type {_LowerWork} */
             const rest = work.rest
-            const operand = assertNotNullish(results, ['no operand for a negation', root])
-            const { exp, anchors } = operand.top
-            /** @type {Exp} */
-            const value = typeof exp === 'number' || typeof exp === 'bigint' ? -exp : ['-', exp]
-            results = { top: { exp: value, anchors }, rest: operand.rest }
-            work = rest
-            continue
-        }
-        if (work.kind === 'bitnot') {
-            /** @type {_LowerWork} */
-            const rest = work.rest
-            const operand = assertNotNullish(results, ['no operand for a bitwise not', root])
-            results = { top: { exp: ['~', operand.top.exp], anchors: operand.top.anchors }, rest: operand.rest }
-            work = rest
-            continue
-        }
-        if (work.kind === 'not') {
-            /** @type {_LowerWork} */
-            const rest = work.rest
-            const operand = assertNotNullish(results, ['no operand for a logical not', root])
-            results = { top: { exp: ['!', operand.top.exp], anchors: operand.top.anchors }, rest: operand.rest }
-            work = rest
-            continue
-        }
-        if (work.kind === 'typeof') {
-            /** @type {_LowerWork} */
-            const rest = work.rest
-            const operand = assertNotNullish(results, ['no operand for a typeof', root])
-            results = { top: { exp: ['typeof', operand.top.exp], anchors: operand.top.anchors }, rest: operand.rest }
+            const tag = work.tag
+            const operand = assertNotNullish(results, ['no operand for', tag, root])
+            results = { top: { exp: unaryExp(tag, operand.top.exp), anchors: operand.top.anchors }, rest: operand.rest }
             work = rest
             continue
         }
@@ -474,22 +457,6 @@ const lower = nodes => root => {
             // the constructor name is carried across as it is: the EDAG's
             // own node names it, and nothing folds
             results = { top: { exp: ['instanceof', operand.top.exp, work.name], anchors: operand.top.anchors }, rest: operand.rest }
-            work = rest
-            continue
-        }
-        if (work.kind === 'Number' || work.kind === 'String') {
-            /** @type {_LowerWork} */
-            const rest = work.rest
-            const operand = assertNotNullish(results, ['no operand for a conversion', work.kind, root])
-            results = { top: { exp: [work.kind, operand.top.exp], anchors: operand.top.anchors }, rest: operand.rest }
-            work = rest
-            continue
-        }
-        if (work.kind === 'throw') {
-            /** @type {_LowerWork} */
-            const rest = work.rest
-            const operand = assertNotNullish(results, ['no value for a throw', root])
-            results = { top: { exp: ['throw', operand.top.exp], anchors: operand.top.anchors }, rest: operand.rest }
             work = rest
             continue
         }
