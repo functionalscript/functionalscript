@@ -24,7 +24,7 @@
 
 import { assert } from '../../asserts/module.f.mjs'
 import { ioError } from '../../effects/module.f.mjs'
-import { emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'
+import { virtualAt } from '../../effects/node/virtual/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { error } from '../../types/result/module.f.js'
@@ -63,7 +63,7 @@ export const ref = /** @type {(hex: string) => readonly Vec[]} */ (hex => file(`
  * @type {<T>(root: Dir, e: Effect<NodeOp, T, IoChannel>) => readonly [Dir, Result<T, IoChannel>]}
  */
 export const ran = (root, e) => {
-    const [state, r] = virtual({ ...emptyState, root })(e)
+    const [state, r] = virtualAt(root)(e)
     return [state.root, r]
 }
 

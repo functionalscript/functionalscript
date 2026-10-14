@@ -10,9 +10,9 @@ use crate::{
     codec::{
         Malformed, argument, arity, decode_array, decode_bytes, decode_choice, decode_flag,
         decode_literal, decode_nullable, decode_number, decode_object, decode_optional,
-        decode_string, decode_true, encode_array, encode_bool, encode_bytes, encode_nothing,
-        encode_nullable, encode_number, encode_object, encode_ok, encode_string, encode_tuple,
-        member, optional_argument, required,
+        decode_string, decode_true, encode_array, encode_bool, encode_bytes, encode_error,
+        encode_nothing, encode_nullable, encode_number, encode_object, encode_ok, encode_result,
+        encode_string, encode_tuple, member, optional_argument, required,
     },
     common,
     files::{self, Dirent, IoError, Stat},
@@ -83,10 +83,10 @@ impl<R, O, E> Native<R, O, E> {
 /// ['notImplemented', command]]`, through the ordinary continuation, so the
 /// program decides what that means.
 fn not_implemented<A: IVm>(command: &str) -> Any<A> {
-    encode_tuple(
-        "error",
-        encode_tuple("notImplemented", encode_string(command.to_string())),
-    )
+    encode_error(encode_tuple(
+        "notImplemented",
+        encode_string(command.to_string()),
+    ))
 }
 
 fn malformed_command<T>(command: &str) -> Result<T, Malformed> {
@@ -96,19 +96,18 @@ fn malformed_command<T>(command: &str) -> Result<T, Malformed> {
 /// An operation's answer as the language reads a `Result`: a failure is
 /// `['error', ['ioError', {code?, message}]]`.
 fn answer<A: IVm, T>(result: Result<T, IoError>, ok: impl FnOnce(T) -> Any<A>) -> Any<A> {
-    match result {
-        Ok(value) => encode_ok(ok(value)),
-        Err(IoError { code, message }) => encode_tuple(
-            "error",
-            encode_tuple(
-                "ioError",
-                encode_object([
-                    code.map(|code| ("code", encode_string(code))),
-                    Some(("message", encode_string(message))),
-                ]),
-            ),
-        ),
-    }
+    encode_result(result.map(ok).map_err(encode_io_error))
+}
+
+/// `['ioError', {code?, message}]`.
+fn encode_io_error<A: IVm>(IoError { code, message }: IoError) -> Any<A> {
+    encode_tuple(
+        "ioError",
+        encode_object([
+            code.map(|code| ("code", encode_string(code))),
+            Some(("message", encode_string(message))),
+        ]),
+    )
 }
 
 fn encode_file_module<A: IVm>(module: FileModule) -> Any<A> {
@@ -402,12 +401,12 @@ mod test {
 
     /// The value of an `['ok', value]` answer.
     fn ok(result: Result<V, V>) -> V {
-        let answer: Vec<V> = Array::try_from(result.unwrap())
+        let [tag, value]: [V; 2] = Array::try_from(result.unwrap())
             .unwrap()
-            .into_iter()
-            .collect();
-        assert_eq!(answer[0], string_any("ok"));
-        answer[1].clone()
+            .try_into()
+            .unwrap();
+        assert_eq!(tag, string_any("ok"));
+        value
     }
 
     /// `"hi"` as the language spells bytes: the bits with a stop bit in front,
@@ -674,25 +673,7 @@ mod test {
         assert_eq!(ok(perform("rm", [at("f")])), undefined());
 
         let missing = perform("readFile", [at("f")]).unwrap();
-        let [tag, error]: [V; 2] = Array::try_from(missing)
-            .unwrap()
-            .into_iter()
-            .collect::<Vec<_>>()
-            .try_into()
-            .unwrap();
-        assert_eq!(tag, string_any("error"));
-        let [kind, info]: [V; 2] = Array::try_from(error)
-            .unwrap()
-            .into_iter()
-            .collect::<Vec<_>>()
-            .try_into()
-            .unwrap();
-        assert_eq!(kind, string_any("ioError"));
-        let code = nanvm_lib::vm::Object::try_from(info)
-            .unwrap()
-            .own_property(&"code".into())
-            .unwrap();
-        assert_eq!(code, string_any("ENOENT"));
+        assert_eq!(error_code(missing), string_any("ENOENT"));
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
@@ -726,20 +707,7 @@ mod test {
         assert_eq!(ok(perform("rmdir", [at("d")])), undefined());
 
         let missing = perform("stat", [at("d")]).unwrap();
-        let [tag, error]: [V; 2] = Array::try_from(missing)
-            .unwrap()
-            .into_iter()
-            .collect::<Vec<_>>()
-            .try_into()
-            .unwrap();
-        assert_eq!(tag, string_any("error"));
-        let [_, info]: [V; 2] = Array::try_from(error)
-            .unwrap()
-            .into_iter()
-            .collect::<Vec<_>>()
-            .try_into()
-            .unwrap();
-        assert_eq!(member(info, "code"), string_any("ENOENT"));
+        assert_eq!(error_code(missing), string_any("ENOENT"));
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
@@ -767,13 +735,7 @@ mod test {
 
         // A second create of the same name is EEXIST, answered as an error.
         let again = perform("createExclusive", [at("a")]).unwrap();
-        let [tag, _]: [V; 2] = Array::try_from(again)
-            .unwrap()
-            .into_iter()
-            .collect::<Vec<_>>()
-            .try_into()
-            .unwrap();
-        assert_eq!(tag, string_any("error"));
+        assert_eq!(error_code(again), string_any("EEXIST"));
         assert_eq!(thrown("writeExclusive", [at("c"), hi()]), "not an array");
         std::fs::remove_dir_all(&dir).unwrap();
     }
@@ -781,19 +743,10 @@ mod test {
     /// The `{code?, message}` of an `['error', ['ioError', info]]` answer.
     #[cfg(not(target_family = "wasm"))]
     fn error_info(answer: V) -> V {
-        let [tag, error]: [V; 2] = Array::try_from(answer)
-            .unwrap()
-            .into_iter()
-            .collect::<Vec<_>>()
-            .try_into()
-            .unwrap();
+        let [tag, error]: [V; 2] = Array::try_from(answer).unwrap().try_into().unwrap();
         assert_eq!(tag, string_any("error"));
-        let [_, info]: [V; 2] = Array::try_from(error)
-            .unwrap()
-            .into_iter()
-            .collect::<Vec<_>>()
-            .try_into()
-            .unwrap();
+        let [kind, info]: [V; 2] = Array::try_from(error).unwrap().try_into().unwrap();
+        assert_eq!(kind, string_any("ioError"));
         info
     }
 
@@ -919,12 +872,7 @@ mod test {
         assert_eq!(threw.to_json(), Ok("[\"error\",\"boom\"]".into()));
         // A value that is no function throws when it is called, which `catch` catches.
         let not_callable = ok(perform("catch", [string_any("x")]));
-        let [tag, _]: [V; 2] = Array::try_from(not_callable)
-            .unwrap()
-            .into_iter()
-            .collect::<Vec<_>>()
-            .try_into()
-            .unwrap();
+        let [tag, _]: [V; 2] = Array::try_from(not_callable).unwrap().try_into().unwrap();
         assert_eq!(tag, string_any("error"));
     }
 

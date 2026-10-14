@@ -36,6 +36,7 @@ import { invert, ok } from '../types/result/module.f.js'
 import { definedEntries } from '../types/object/module.f.mjs'
 import { concat } from '../types/list/module.f.mjs'
 import { isIdentifier, isInteger } from '../js/identifier/module.f.mjs'
+import { stringLiteral } from '../js/string_escape/module.f.mjs'
 
 /**
  * The empty {@link RunTotals}: what a run's totals are before any leaf lands.
@@ -509,7 +510,7 @@ const fmtKey = k =>
     k === null ? '()'
     : isInteger(k) ? `[${k}]`
     : isIdentifier(k) ? `.${k}`
-    : `[${JSON.stringify(k)}]`
+    : `[${stringLiteral(k)}]`
 
 /**
  * Renders a key chain as a JS property-access expression: identifier keys use
@@ -530,7 +531,7 @@ export const fmtPath = path =>
  * @type {(file: string, path: Path) => string}
  */
 export const fmtImport = (file, path) =>
-    `import(${JSON.stringify(file)}).proof${fmtPath(path)}()`
+    `import(${stringLiteral(file)}).proof${fmtPath(path)}()`
 
 /**
  * Percent-encodes characters that GitHub workflow-command property values

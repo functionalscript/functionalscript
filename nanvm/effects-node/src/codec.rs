@@ -281,3 +281,16 @@ pub fn encode_object<A: IVm, const N: usize>(members: [Option<(&str, Any<A>)>; N
 pub fn encode_ok<A: IVm>(value: Any<A>) -> Any<A> {
     encode_tuple("ok", value)
 }
+
+/// The `Result` of an operation that failed: `['error', error]`.
+pub fn encode_error<A: IVm>(error: Any<A>) -> Any<A> {
+    encode_tuple("error", error)
+}
+
+/// A `Result` as the language reads one: `['ok', value]` or `['error', error]`.
+pub fn encode_result<A: IVm>(result: Result<Any<A>, Any<A>>) -> Any<A> {
+    match result {
+        Ok(value) => encode_ok(value),
+        Err(error) => encode_error(error),
+    }
+}

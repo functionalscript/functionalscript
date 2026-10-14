@@ -6,7 +6,7 @@
 
 import { exitCode } from '../effects/node/module.f.mjs'
 import { main } from './module.f.mjs'
-import { defaultNodeProgramOptions, emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
+import { defaultNodeProgramOptions, virtualAt } from '../effects/node/virtual/module.f.mjs'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../asserts/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { maxLengthBytes, vec } from '../types/bit_vec/module.f.mjs'
@@ -36,7 +36,7 @@ const textOf = (entity, name) => {
  * @type {(tree: Dir, env?: Env) => readonly [State, number]}
  */
 const run = (tree, env = {}) => {
-    const [generated, result] = virtual({ ...emptyState, root: tree })(
+    const [generated, result] = virtualAt(tree)(
         main({ ...defaultNodeProgramOptions, env }))
     return [generated, exitCode(result)]
 }
@@ -881,8 +881,7 @@ export const proof = {
     run: () => {
         /** @type {Dir} */
         const root = { '.github': { workflows: {} }, fjs: { website: { 'browser.mjs': file('export const proof = {}') } } }
-        const state = { ...emptyState, root }
-        const [generated, result] = virtual(state)(main(defaultNodeProgramOptions))
+        const [generated, result] = virtualAt(root)(main(defaultNodeProgramOptions))
         assertEq(exitCode(result), 0)
         const source = pageAt(generated.root, [])
         assert(source.includes('emergent-testing-in-javascript-e44760d71688'))

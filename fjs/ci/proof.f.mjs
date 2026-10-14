@@ -18,7 +18,7 @@ import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { empty as emptyVec } from '../types/bit_vec/module.f.mjs'
 import { install, test, ubuntu, uses, parseGitHubAction } from './common/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
-import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
+import { virtualAt } from '../effects/node/virtual/module.f.mjs'
 import { unwrap } from '../types/result/module.f.js'
 import { definedValues } from '../types/object/module.f.mjs'
 import { parse as jsonParse } from '../media/json/module.f.mjs'
@@ -118,12 +118,10 @@ const checkoutIndex = jobId =>
 /** @type {(jobId: string) => (gha: GitHubAction) => number} */
 const injectedIndex = jobId => stepIndex(jobId, step => step.run === injectedLine)
 
-const makeState = (/** @type {boolean} */ rust, /** @type {string | undefined} */ packageJson) => ({
-    ...emptyState,
-    root: {
-        ...(packageJson !== undefined ? { 'package.json': [utf8(packageJson)] } : {}),
-        ...(rust ? { 'Cargo.toml': [emptyVec] } : {}),
-    },
+/** @type {(rust: boolean, packageJson: string | undefined) => Dir} */
+const makeRoot = (rust, packageJson) => ({
+    ...(packageJson !== undefined ? { 'package.json': [utf8(packageJson)] } : {}),
+    ...(rust ? { 'Cargo.toml': [emptyVec] } : {}),
 })
 
 /** @type {(dir: Dir, name: string) => Dir} */
@@ -170,14 +168,14 @@ const runPackageJson = `{"name":"other-package","devDependencies":{"typescript":
 
 /** @type {(rust: boolean, nodeExtra?: (o: Os) => readonly MetaStep[]) => GitHubAction} */
 const run = (rust, nodeExtra = () => []) => {
-    const [state, result] = virtual(makeState(rust, runPackageJson))(ci({ nodeExtra }))
+    const [state, result] = virtualAt(makeRoot(rust, runPackageJson))(ci({ nodeExtra }))
     assertEq(exitCode(result), 0)
     return workflow(state)
 }
 
 /** @type {(packageJson?: string) => GitHubAction} */
 const runDefault = packageJson => {
-    const [state, result] = virtual(makeState(false, packageJson))(main())
+    const [state, result] = virtualAt(makeRoot(false, packageJson))(main())
     assertEq(exitCode(result), 0)
     return workflow(state)
 }
@@ -557,7 +555,7 @@ export const proof = {
     // The shared flake lands at the path every shell step enters. Equality
     // reads the complete generated shell, including every tool and platform.
     nixFlake: () => {
-        const [state, result] = virtual(makeState(false, undefined))(main())
+        const [state, result] = virtualAt(makeRoot(false, undefined))(main())
         assertEq(exitCode(result), 0)
         assertEq(flake(state), flakeText(devNixJob))
         assertEq(devNixJob.packages[0], `nodejs_${major(node)}`)
@@ -766,7 +764,7 @@ export const proof = {
     packageCheck: () => {
         // Both shapes: the built-in generator's check, which names no
         // consumer, and the one this repository ships, which does.
-        const [own, ownResult] = virtual(makeState(false, runPackageJson))(ownMain())
+        const [own, ownResult] = virtualAt(makeRoot(false, runPackageJson))(ownMain())
         assertEq(exitCode(ownResult), 0)
         for (const gha of [run(false), workflow(own)]) {
             const job = gha.jobs[packageJobId]
@@ -826,13 +824,13 @@ export const proof = {
         /** @type {(job: Job | undefined) => boolean} */
         const hasConsumer = job => job?.steps.some(step => step.run?.includes(' good.mts') === true) === true
         assert(!hasConsumer(run(false).jobs[packageJobId]), 'expected no consumer step without a consumer in Setup')
-        const [state, result] = virtual(makeState(false, runPackageJson))(ci({ nodeExtra: () => [], packageConsumer }))
+        const [state, result] = virtualAt(makeRoot(false, runPackageJson))(ci({ nodeExtra: () => [], packageConsumer }))
         assertEq(exitCode(result), 0)
         assert(hasConsumer(workflow(state).jobs[packageJobId]), 'expected the consumer step when Setup names one')
-        const [builtIn, builtInResult] = virtual(makeState(false, runPackageJson))(main())
+        const [builtIn, builtInResult] = virtualAt(makeRoot(false, runPackageJson))(main())
         assertEq(exitCode(builtInResult), 0)
         assert(!hasConsumer(workflow(builtIn).jobs[packageJobId]), 'expected the built-in command to name no consumer')
-        const [own, ownResult] = virtual(makeState(false, runPackageJson))(ownMain())
+        const [own, ownResult] = virtualAt(makeRoot(false, runPackageJson))(ownMain())
         assertEq(exitCode(ownResult), 0)
         assert(hasConsumer(workflow(own).jobs[packageJobId]), 'expected this repository\'s own generation to name its consumer')
     },
@@ -856,7 +854,7 @@ export const proof = {
             '{"devDependencies":{"typescript":"^7.0.0"}}',   // a range of its own
             '{"devDependencies":{"typescript":"=1.2.3"}}',   // a pin of its own
         ])) {
-            const [state, result] = virtual(makeState(false, packageJson))(ci({ nodeExtra: () => [] }))
+            const [state, result] = virtualAt(makeRoot(false, packageJson))(ci({ nodeExtra: () => [] }))
             assertEq(exitCode(result), 0)
             const job = workflow(state).jobs[packageJobId]
             assert(job !== undefined, `expected the check for ${packageJson}`)
@@ -875,7 +873,7 @@ export const proof = {
      * not at all.
      */
     publishWorkflow: () => {
-        const [state, result] = virtual(makeState(true, runPackageJson))(main())
+        const [state, result] = virtualAt(makeRoot(true, runPackageJson))(main())
         assertEq(exitCode(result), 0)
         // The path is a constant of the module rather than a literal here, so
         // the two cannot name different files.
@@ -899,7 +897,7 @@ export const proof = {
      * through `workflow`, so the condition also survives the schema.
      */
     mergeQueueOnly: () => {
-        const [state, result] = virtual(makeState(true, runPackageJson))(
+        const [state, result] = virtualAt(makeRoot(true, runPackageJson))(
             ci({ nodeExtra: () => [], mergeQueueOnly: ['macos', 'windows'] }))
         assertEq(exitCode(result), 0)
         const jobs = workflow(state).jobs

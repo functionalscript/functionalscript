@@ -1,17 +1,67 @@
-//! Key classification shared by every receiver's `.` / `[]`
-//! (`Any::dot`): `Array::member_access` and
-//! `String::member_access` both index by an in-bounds integer, given as a
-//! `Number` or its canonical decimal string, so the classification lives
-//! once here rather than twice.
+//! The indexed read every receiver's `.` / `[]` (`Any::dot`) and the
+//! `entry` helper (`Any::entry`) share: an `Array` and a `String` both index
+//! by an in-bounds integer, given as a `Number` or its canonical decimal
+//! string, and both answer `"length"`, so the rule lives once here and each
+//! receiver supplies only how it reads an element.
 
 use crate::{
     common::sized_index::SizedIndex,
-    vm::{IVm, Number, String},
+    vm::{Any, IVm, Number, String, ToAny, Unpacked},
 };
 
 /// The one name every indexed receiver and a function answer besides their
 /// indices: `Array`'s, `String`'s and `Function`'s `.length`.
 pub(crate) const LENGTH: &str = "length";
+
+/// `container[key]` for an indexed receiver: an in-bounds index — given as
+/// a `Number` or its canonical decimal string — is `read`, the string key
+/// `"length"` reads the length, and every other key is `None`, for the
+/// caller (`Any::dot`) to turn into `undefined` — the same contract
+/// `Object::member_access` and `Function::member_access` have.
+///
+/// `.length` is reachable only through the string key `"length"` — never
+/// through a number, the way JS itself never lets
+/// `array[array.length]` collide with `array["length"]`.
+pub(crate) fn indexed_member_access<A: IVm, T: SizedIndex<u32>>(
+    container: &T,
+    key: Any<A>,
+    read: impl FnOnce(&T, u32) -> Any<A>,
+) -> Option<Any<A>> {
+    match Unpacked::from(key) {
+        Unpacked::Number(n) => in_bounds(container, canonical_index(n), read),
+        Unpacked::String(s) if s.is_str(LENGTH) => Some(Number::from(container.length()).to_any()),
+        Unpacked::String(s) => indexed_entry(container, &s, read),
+        _ => None,
+    }
+}
+
+/// The element a canonical index string names, `container["0"]`,
+/// `container["1"]`, …, in bounds, as `read` reads it: the one kind of own
+/// property an indexed receiver enumerates, and so what the `entry` helper
+/// (`Any::entry`) reads of one — `.length` is own but not enumerable, and
+/// `indexed_member_access` alone answers it.
+pub(crate) fn indexed_entry<A: IVm, T: SizedIndex<u32>>(
+    container: &T,
+    key: &String<A>,
+    read: impl FnOnce(&T, u32) -> Any<A>,
+) -> Option<Any<A>> {
+    in_bounds(container, string_to_index(key), read)
+}
+
+/// The element at `index`, when there is one and it is below
+/// `container.length()`. The bound is checked before `read` runs, so a
+/// receiver's own `Index<u32>`, which panics out of bounds by ordinary Rust
+/// convention (`vm/array/index.rs`, `vm/string/index.rs`), is never
+/// reached with a bad index.
+fn in_bounds<A: IVm, T: SizedIndex<u32>>(
+    container: &T,
+    index: Option<u32>,
+    read: impl FnOnce(&T, u32) -> Any<A>,
+) -> Option<Any<A>> {
+    index
+        .filter(|&i| i < container.length())
+        .map(|i| read(container, i))
+}
 
 /// A `Number` key that denotes a valid array/string index: a non-negative
 /// integer that fits in `u32`. `-0.0` passes (`-0.0 < 0.0` is `false` and
@@ -63,4 +113,122 @@ pub(crate) fn string_to_index<A: IVm>(s: &String<A>) -> Option<u32> {
         value = value.checked_mul(10)?.checked_add(digit(s[i])?)?;
     }
     Some(value)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{indexed_entry, indexed_member_access};
+    use crate::{
+        naive::Naive,
+        vm::{Any, Array, Number, String, ToAny, ToArray},
+    };
+
+    type A = Naive;
+
+    /// What the element `i` reads as here: its index, so a check expects
+    /// which element the rule reads rather than what it holds. What a read
+    /// returns is each receiver's own (`vm/array/member_access.rs`,
+    /// `vm/string/member_access.rs`).
+    fn element(i: u32) -> Any<A> {
+        Number::from(i).to_any()
+    }
+
+    /// `check`, against an `Array` and a `String` three elements long,
+    /// handed `receiver[key]` and the entry a key names, each reading an
+    /// element as `element`.
+    fn each(check: impl Fn(&dyn Fn(Any<A>) -> Option<Any<A>>, &dyn Fn(&str) -> Option<Any<A>>)) {
+        let array: Array<A> = ["a", "b", "c"].map(Any::from).to_array();
+        check(
+            &|key| indexed_member_access(&array, key, |_, i| element(i)),
+            &|key| indexed_entry(&array, &key.into(), |_, i| element(i)),
+        );
+        let string: String<A> = "abc".into();
+        check(
+            &|key| indexed_member_access(&string, key, |_, i| element(i)),
+            &|key| indexed_entry(&string, &key.into(), |_, i| element(i)),
+        );
+    }
+
+    #[test]
+    fn numeric_index_reads_element() {
+        each(|get, _| {
+            assert_eq!(get(0.0.to_any()), Some(element(0)));
+            assert_eq!(get(2.0.to_any()), Some(element(2)));
+        });
+    }
+
+    /// A numeric `-0` key stringifies to `"0"` before it is ever used as a
+    /// key, in real JS as here, so it reads the same element `0` does —
+    /// unlike the *string* key `"-0"`, which `non_canonical_string_index_is_none`
+    /// below covers.
+    #[test]
+    fn negative_zero_index_reads_first_element() {
+        each(|get, _| assert_eq!(get((-0.0f64).to_any()), Some(element(0))));
+    }
+
+    #[test]
+    fn non_integer_or_negative_numeric_index_is_none() {
+        each(|get, _| {
+            assert_eq!(get(0.5.to_any()), None);
+            assert_eq!(get((-1.0f64).to_any()), None);
+        });
+    }
+
+    #[test]
+    fn canonical_string_index_reads_element() {
+        each(|get, _| {
+            assert_eq!(get("0".into()), Some(element(0)));
+            assert_eq!(get("2".into()), Some(element(2)));
+        });
+    }
+
+    /// None of these round-trip to themselves through `ToNumber` then
+    /// `ToString` the way `"0"`/`"1"`/… do, so none of them is the
+    /// canonical form of any index — admitting them would let two
+    /// different strings read the same element.
+    #[test]
+    fn non_canonical_string_index_is_none() {
+        each(|get, _| {
+            for key in ["01", "+0", "1.0", " 0", "-0", ""] {
+                assert_eq!(
+                    get(key.into()),
+                    None,
+                    "key {key:?} must not read an element"
+                );
+            }
+        });
+    }
+
+    /// The index `3` on a receiver three elements long is out of range,
+    /// as a number or as a string. `.length` is looked up only through the
+    /// string key `"length"`, so the number `3` is not a second spelling
+    /// of it.
+    #[test]
+    fn out_of_range_index_is_none() {
+        each(|get, _| {
+            assert_eq!(get(3.0.to_any()), None);
+            assert_eq!(get("3".into()), None);
+        });
+    }
+
+    #[test]
+    fn length_key_reads_length() {
+        each(|get, _| assert_eq!(get("length".into()), Some(3.0.to_any())));
+    }
+
+    #[test]
+    fn unrelated_key_is_none() {
+        each(|get, _| assert_eq!(get(true.to_any()), None));
+    }
+
+    /// An entry is an element and never the length.
+    #[test]
+    fn entry_reads_element_not_length() {
+        each(|_, entry| {
+            assert_eq!(entry("1"), Some(element(1)));
+            assert_eq!(entry("3"), None);
+            assert_eq!(entry("01"), None);
+            assert_eq!(entry("length"), None);
+        });
+    }
 }

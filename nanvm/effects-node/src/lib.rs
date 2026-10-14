@@ -72,10 +72,6 @@ mod test {
         Naive::static_function(code, 0, frame.to_array(), None).to_any()
     }
 
-    fn items(any: V) -> Vec<V> {
-        Array::try_from(any).unwrap().into_iter().collect()
-    }
-
     /// `['ok', v]` or `['error', e]`, as the language builds a `Result`.
     fn result(tag: &str, v: V) -> V {
         [string_any(tag), v].to_array().to_any()
@@ -138,10 +134,11 @@ mod test {
         .unwrap();
         assert_eq!(seen, [string_any("a"), string_any("b"), string_any("c")]);
         // The last answer is the third one, a `['ok', 3]`, inside the `['ok', _]`.
-        let inner = items(items(done)[1].clone());
-        assert_eq!(inner[0], string_any("ok"));
+        let [_, answer]: [V; 2] = Array::try_from(done).unwrap().try_into().unwrap();
+        let [tag, value]: [V; 2] = Array::try_from(answer).unwrap().try_into().unwrap();
+        assert_eq!(tag, string_any("ok"));
         assert_eq!(
-            f64::from(Number::try_from(inner[1].clone()).unwrap()),
+            f64::from(Number::try_from(value).unwrap()),
             f64::from_bits(0x1) * 0.0 + 3.0_f64.min(3.0)
         );
     }
@@ -154,9 +151,9 @@ mod test {
         let effect = node("readFile", empty(), ends_with_the_answer());
         let answer = error.clone();
         let done = run(effect, move |_, _| Ok(answer.clone())).unwrap();
-        let parts = items(done);
-        assert_eq!(parts[0], string_any("ok"));
-        assert_eq!(parts[1], error);
+        let [tag, answer]: [V; 2] = Array::try_from(done).unwrap().try_into().unwrap();
+        assert_eq!(tag, string_any("ok"));
+        assert_eq!(answer, error);
     }
 
     /// The loop is told neither the command nor the payload by a copy: the
@@ -179,9 +176,9 @@ mod test {
         })
         .unwrap();
         assert_eq!(got, Some(kept));
-        let parts = items(done);
-        assert_eq!(parts[1], callable);
-        assert!(Function::try_from(parts[1].clone()).is_ok());
+        let [_, value]: [V; 2] = Array::try_from(done).unwrap().try_into().unwrap();
+        assert_eq!(value, callable);
+        assert!(Function::try_from(value).is_ok());
     }
 
     /// A language throw is the outer `Err`: from a `Pure`, from a continuation,
@@ -237,7 +234,10 @@ mod test {
                     Ok(result("ok", Nullish::Undefined.to_any()))
                 },
             );
-            let ended = done.is_ok_and(|r| items(r)[0] == string_any("ok"));
+            let ended = done.is_ok_and(|r| {
+                let [tag, _]: [V; 2] = Array::try_from(r).unwrap().try_into().unwrap();
+                tag == string_any("ok")
+            });
             (ended, ticks)
         };
         #[cfg(not(target_family = "wasm"))]
