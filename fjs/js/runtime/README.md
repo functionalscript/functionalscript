@@ -1,13 +1,17 @@
 # The runtime
 
-The built-in member functions, defined once. [`module.f.js`](./module.f.js)
-exports `runtime`, whose `member` section holds, for a receiver's type
-keyed by the name of its global — `String`, `Array`, `Number` — the names
-whose **body** is written, each a FunctionalScript function of the
-receiver and then the arguments as the call passed them, `undefined` past
-the end. The section's name leaves room for a `static` one, keyed the
-same way, which [`../todo/runtime-static.md`](../todo/runtime-static.md)
-proposes. A name
+The built-in functions, defined once. [`module.f.js`](./module.f.js)
+exports `runtime`, in two sections keyed by the name of a global. Its
+`member` section holds, for a receiver's type — `String`, `Array`,
+`Number` — the names whose **body** is written, each a FunctionalScript
+function of the receiver and then the arguments as the call passed them,
+`undefined` past the end. Its `static` section holds the static
+functions at the path [`../static`](../static/module.f.js) admits each
+under — `Object.is` at `static.Object.is` — each a function of the
+arguments alone; a body is the existing helper where one exists,
+imported rather than copied, as `Object.is` is
+[`is`](../../types/object/is/module.f.js). The design of the static
+section is [`../todo/runtime-static.md`](../todo/runtime-static.md). A name
 without a body is absent, and each VM answers it from its own native
 table. The proposal and the steps still to take are
 [`../todo/runtime.md`](../todo/runtime.md).
@@ -157,6 +161,18 @@ sequenceDiagram
 receiver's own property, the native table in `vm/lambda/method.rs`, the
 runtime, the `TypeError` for calling `undefined` — and the `?.()` guard
 asks the same lookup to decide whether a callee exists.
+
+**A static call has no receiver and no guard.** The EDAG spells
+`Object.is` as the callee `['static', ['Object', 'is']]`, and the Rust
+backend prints it as `static_binding::<A>(&["Object", "is"])?`:
+`nanvm-lib` asks `IVm::runtime_static` for the path, which `naive`
+answers by reading the compiled object's `static` section, and fails
+naming the path where nothing is bound. The parser admitted the path, so
+a missing binding is the VM's failure, never the `TypeError` of calling
+`undefined`; the represented interpreter fails with the same message,
+reading its context's runtime through `functionAt`. NaNVM keeps no native
+static table, and its completeness test checks every path
+[`../static`](../static/module.f.js) admits is bound.
 
 **The VM type binds the runtime.** `IVm::runtime_method` is a method on
 the type, with no instance and no argument carrying a runtime, so which

@@ -1,9 +1,12 @@
 /**
- * The built-in member functions, defined once, under `member`: for a
- * receiver's type, keyed by the name of its global — `String`, `Array`,
- * `Number` — the names whose body is written, each a FunctionalScript
- * function of the receiver and then the arguments as the call passed
- * them, `undefined` past the end. A name without a body is absent — a primitive no body
+ * The built-in functions, defined once, in two sections keyed by the
+ * name of a global. `member` holds, for a receiver's type — `String`,
+ * `Array`, `Number` — the names whose body is written, each a
+ * FunctionalScript function of the receiver and then the arguments as the
+ * call passed them, `undefined` past the end. `static` holds the static
+ * functions by the path [`../static`](../static/module.f.js) admits them
+ * under, `Object.is` at `static.Object.is`, each a function of the
+ * arguments alone. A name without a body is absent — a primitive no body
  * can define in terms of the rest, or a name whose body waits on a
  * primitive the language has not admitted yet, [`README.md`](./README.md)
  * says which — and each VM answers it from its own native table.
@@ -20,6 +23,7 @@
  */
 
 import { isNaN_ } from '../../types/number/is_nan/module.f.js'
+import { is } from '../../types/object/is/module.f.js'
 
 /**
  * `ToNumber`, as the operators apply it: a bigint throws the `TypeError`
@@ -55,8 +59,24 @@ const found = (self, s, start) => {
     return end > self.length ? false : self.slice(start, end) === s
 }
 
-/** The table: `member`, then a receiver's type by its global's name, then a name, then the body. */
+/**
+ * The table: `static`, then a static path's keys, then the body; and
+ * `member`, then a receiver's type by its global's name, then a name, then
+ * the body.
+ */
 export const runtime = {
+    static: {
+        Object: {
+            /**
+             * [`Object.is`](https://tc39.es/ecma262/#sec-object.is):
+             * SameValue. The body is the helper a module imports where
+             * `Object` is not admitted, imported rather than copied, so a
+             * module calling `Object.is` and one importing `is` answer
+             * alike by construction.
+             */
+            is,
+        },
+    },
     member: {
         String: {
             /**

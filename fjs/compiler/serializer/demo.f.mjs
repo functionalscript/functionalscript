@@ -25,14 +25,9 @@
  * @import { Marked } from '../../text/marked/types.ts'
  */
 
-import { toText } from '../../text/marked/module.f.mjs'
-import { codeBlock } from '../../website/demo/code/module.f.mjs'
-import { error } from '../../types/result/module.f.js'
-import { textDemo, refusal, caption } from '../../website/demo/module.f.mjs'
-import { highlight, render } from '../../website/demo/highlight/module.f.mjs'
+import { codeOutput } from '../../website/demo/highlight/module.f.mjs'
 import { unresolved } from '../edag/module.f.mjs'
-import { examples } from '../examples/module.f.js'
-import { parse } from '../transpiler/module.f.mjs'
+import { parsed, stageDemo } from '../stage_demo/module.f.mjs'
 import { tryModuleMarked } from './module.f.mjs'
 
 /**
@@ -40,21 +35,9 @@ import { tryModuleMarked } from './module.f.mjs'
  *
  * @type {(text: string) => Result<Marked, string>}
  */
-export const _sourceOf = text => {
-    const result = parse('')(text)
-    return result[0] === 'error' ? error(result[1].message) : tryModuleMarked(unresolved(result[1]).edag)
-}
+export const _sourceOf = parsed(ast => tryModuleMarked(unresolved(ast).edag))
 
-export const demo = textDemo({
+export const demo = stageDemo({
     intro: 'Compiles a FunctionalScript module without imports into JavaScript. Compare the output with the .js module written by fjs compile.',
     name: 'serializer',
-    label: 'Source',
-    init: examples[0][1],
-    examples,
-    highlight,
-})(text => {
-    const [kind, value] = _sourceOf(text)
-    return kind === 'ok'
-        ? [caption('JavaScript module:'), codeBlock(toText(value), 'Copy JavaScript module', render(value))]
-        : [refusal(value)]
-})
+})(text => codeOutput('JavaScript module:', 'Copy JavaScript module')(_sourceOf(text)))
