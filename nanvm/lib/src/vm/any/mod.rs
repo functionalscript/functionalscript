@@ -39,6 +39,7 @@ use crate::vm::{
     nullish::Nullish,
     number_coercion::NumberCoercion,
     numeric::Numeric,
+    numeric_coercion,
     primitive::Primitive,
     primitive_coercion::{PrimitiveCoercionOp, ToPrimitivePreferredType},
     string_coercion::StringCoercion,
@@ -230,11 +231,7 @@ impl<A: IVm> Any<A> {
         if let Unpacked::Function(_) = self.clone().into() {
             return Ok(Numeric::Number(self.to_number()?));
         }
-        let prim_value = self.to_primitive(Some(ToPrimitivePreferredType::Number))?;
-        match prim_value {
-            Primitive::BigInt(bi) => Ok(Numeric::BigInt(bi)),
-            other => Ok(Numeric::Number(Any::from(other).to_number()?)),
-        }
+        numeric_coercion::to_numeric(self.to_primitive(Some(ToPrimitivePreferredType::Number))?)
     }
 
     pub fn to_primitive(

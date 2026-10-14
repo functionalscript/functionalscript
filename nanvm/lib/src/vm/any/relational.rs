@@ -1,7 +1,7 @@
 use core::cmp::Ordering;
 
 use crate::vm::{
-    Any, IVm, ToAny, Unpacked, error, numeric::Numeric, primitive::Primitive,
+    Any, IVm, ToAny, Unpacked, error, numeric_coercion::to_numeric, primitive::Primitive,
     primitive_coercion::ToPrimitivePreferredType, string_numeric_literal::string_to_bigint,
 };
 
@@ -83,17 +83,7 @@ fn compare_primitives<A: IVm>(
             let s: std::string::String = sx.into();
             Ok(string_to_bigint(&s)?.map(|bx| bx.cmp(&by)))
         }
-        (px, py) => Ok(primitive_to_numeric(px)?.compare(&primitive_to_numeric(py)?)),
-    }
-}
-
-/// The non-`BigInt` half of `Any::to_numeric` — `px`/`py` are already
-/// primitives here, so this skips the `ToPrimitive` call `to_numeric` would
-/// otherwise repeat.
-fn primitive_to_numeric<A: IVm>(p: Primitive<A>) -> Result<Numeric<A>, Any<A>> {
-    match p {
-        Primitive::BigInt(bi) => Ok(Numeric::BigInt(bi)),
-        other => Ok(Numeric::Number(Any::from(other).to_number()?)),
+        (px, py) => Ok(to_numeric(px)?.compare(&to_numeric(py)?)),
     }
 }
 

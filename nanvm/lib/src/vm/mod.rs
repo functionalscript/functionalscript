@@ -16,6 +16,7 @@ mod nullish;
 mod number;
 mod number_coercion;
 mod numeric;
+mod numeric_coercion;
 mod object;
 mod object_spread;
 mod position;
