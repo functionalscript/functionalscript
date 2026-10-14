@@ -18,6 +18,18 @@
  * and every other member of a reserved global is refused. The design is
  * [`../todo/runtime-static.md`](../todo/runtime-static.md).
  *
+ * **An admitted static reads no `this`.** Destructuring is sugar,
+ * `const { is } = Object` being `const is = Object.is`, so JavaScript runs
+ * a module's static detached, `this` undefined, as readily as on its
+ * namespace, and the two calls must answer alike. A built-in that builds
+ * with `this` as its constructor — `Promise.resolve`, `Promise.all`,
+ * `Uint8Array.from`, `Uint8Array.of` — throws a `TypeError` detached on
+ * every engine, so it is not admissible here: the compiler would accept
+ * the pattern, and the module would answer under the compiler and throw
+ * under JavaScript. `Array.from` reads `this` too, but builds an array
+ * where it is no constructor, and answers detached. The runtime's proof
+ * calls every admitted built-in both ways.
+ *
  * @module
  */
 

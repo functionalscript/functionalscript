@@ -88,14 +88,25 @@ export const proof = {
     // Every admitted static is bound, and each body answers as the host's
     // own built-in at the same path — its `length`, and its answer on every
     // pair of values — so a body is the built-in, value for value, and not
-    // only on the cases written out for it.
+    // only on the cases written out for it. The built-in is called both
+    // ways JavaScript calls it: as a method of its namespace, `Object.is(a,
+    // b)`, and detached, `this` undefined, as `const { is } = Object;
+    // is(a, b)` calls it — destructuring being sugar for the read, an
+    // admitted static must answer alike either way
+    // (`../static/module.f.js`), and a built-in that reads `this` throws
+    // here on every engine the suite runs on.
     host: () => {
         for (const [global, name] of statics) {
             const body = section[global][name]
-            const builtIn = host[global][name]
-            assertEq(body.length, builtIn.length, [global, name])
+            const namespace = host[global]
+            const detached = namespace[name]
+            assertEq(body.length, detached.length, [global, name])
             for (const a of samples) {
-                for (const b of samples) { assertEq(body(a, b), builtIn(a, b), [global, name, a, b]) }
+                for (const b of samples) {
+                    const expected = body(a, b)
+                    assertEq(namespace[name](a, b), expected, [global, name, 'method', a, b])
+                    assertEq(detached(a, b), expected, [global, name, 'detached', a, b])
+                }
             }
         }
     },
@@ -131,6 +142,13 @@ export const proof = {
         assertEq(startsWith('undefinedx', undefined, undefined), true)
     },
     throw: {
+        // The detached call `host` makes is a real one: a built-in that
+        // builds with `this` as its constructor, which no static may be,
+        // throws called so.
+        detachedThis: () => {
+            const { from } = Uint8Array
+            from([1])
+        },
         // A bigint position is the `TypeError` `ToNumber` throws.
         bigintPosition: () => { runtime.member.String.startsWith('abc', 'a', 0n) },
         // The search is converted through its own `toString`, whose throw

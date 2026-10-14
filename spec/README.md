@@ -1938,7 +1938,13 @@ they would after the plain one. Destructuring is sugar
 ([destructuring](#destructuring)): `const { is } = Object;` is
 `const is = Object.is;`, and an object pattern over a namespace reads each
 of its keys as that access does, a nested pattern reading through the
-function as through any value.
+function as through any value. The sugar holds because no admitted static
+reads `this`: JavaScript runs `const { is } = Object; is(a, b)` with
+`this` undefined, and each admitted function answers alike detached and on
+its namespace, which the runtime's proof checks on every engine the suite
+runs on ([`fjs/js/static`](../fjs/js/static/module.f.js)). A built-in that
+builds with `this` as its constructor — `Promise.resolve`,
+`Uint8Array.from` — throws detached, and is not admissible.
 
 **`Object` is a reserved word**, under the same
 [global-name rule](./todo/2365-global-names.md) as `Number` and `String`,
