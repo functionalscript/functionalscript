@@ -151,7 +151,7 @@ describes:
 | `decl.pattern-object-rest` | `{ a, ...r }` in a pattern or a parameter | open ([destructuring](./2450-destructuring.md) files it as a follow-up) | rest element not supported | exact: parser `destructuring.proof` |
 | `decl.pattern-default` | `{ a = 1 }`, `[a = 1]` in a pattern | open ([destructuring](./2450-destructuring.md)) | unexpected token | exact: parser `destructuring.proof` |
 | `decl.pattern-computed-key` | `{ [k]: a }`, `{ [Number(i)]: a }`, `{ [(3)]: a }` | open ([destructuring](./2450-destructuring.md)) | computed key in a binding pattern not supported | exact: parser `destructuring.proof` |
-| `decl.pattern-elision` | `[, b]`, `[a, , b]` | planned ([destructuring](./2450-destructuring.md), a follow-up) | unexpected token | exact: parser `destructuring.proof` |
+| `decl.pattern-elision` | `[, b]`, `[a, , b]` | planned ([destructuring](./2450-destructuring.md), a follow-up) | unexpected token | exact for `[a, , b]`: parser `destructuring.proof`; none for a leading `[, b]` |
 | `decl.parameter-limit` | 17 fixed parameters | design ([functions](../README.md#functions)) | more than 16 fixed parameters | exact: parser `proof` |
 
 ## Module structure
