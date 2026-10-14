@@ -9,17 +9,9 @@ impl<A: IVm> BitOr for BigInt<A> {
     }
 }
 
-// TODO: The unit tests should not use `naive` or other VM implementations.
-//       We should move these tests into integration tests.
 #[cfg(test)]
 mod tests {
-    use crate::{naive::Naive, sign::Sign, vm::bigint::BigInt};
-
-    type T = BigInt<Naive>;
-
-    fn int(value: i64) -> T {
-        value.into()
-    }
+    use crate::vm::bigint::test_util::{int, neg};
 
     #[test]
     fn both_positive() {
@@ -51,7 +43,7 @@ mod tests {
         // x = -(2^64), a two-word magnitude; y = -1, a one-word magnitude
         // zero-extended to match. -1's all-ones two's-complement word ORs
         // with anything to stay all-ones, so the result is -1.
-        let x = T::unchecked_new(Sign::Negative, [0u64, 1u64]);
+        let x = neg([0u64, 1u64]);
         let y = int(-1);
         let expected = int(-1);
         assert_eq!(x | y, expected);
