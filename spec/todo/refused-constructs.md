@@ -59,7 +59,9 @@ refusal naming the construct, and a search proves nothing about absence. A
 was read. The survey ran at `b714c66b1`; the examples were compiled and the first
 error read back: an expression as the `default` export of a one-line module, a
 statement as the body of a function exported by default, and a module-order
-case as a whole module.
+case as a whole module. In the property rows, and wherever a row names
+one, `a`, `i` and `k` stand for constants in scope (`const a = {}`): an
+unbound name is `const not found`, ahead of the refusal the row records.
 
 **Keeping it true.** A row changes in the pull request that changes what it
 describes:
@@ -89,6 +91,7 @@ describes:
 | `op.arguments` | `arguments` | open | reserved word | none |
 | `op.eval` | `eval("1")` | design ([built-ins](./2360-built-in.md): never admitted, it runs source at run time) | reserved word | none |
 | `op.number-spread` | `Number(...a)`, `Number(1, 2)` | planned ([number-spread](./2363-number-spread.md), roadmap) | Number takes one argument | exact: parser `proof`, `arity` |
+| `op.unary-plus` | `+1`, `+a` | open ([operators](./2340-operators.md) leaves unary `+` on the other side of the line; no record plans it) | unexpected token | none |
 | `op.import-call` | `import("m")` | open | reserved word | none |
 | `op.import-meta` | `import.meta` | open | reserved word | none |
 | `op.regex` | `/a/g` | planned (roadmap, regular expressions) | unexpected token | none |
@@ -142,6 +145,10 @@ describes:
 | `decl.accessor` | `{ get a() { return 1 } }`, `{ set a(v) {} }` | open | unexpected token | none |
 | `decl.method` | `{ f() { return 1 } }` | open | unexpected token | none |
 | `decl.parameter-default` | `(a = 1) => a` | open ([parameters](./3120-parameters.md) mentions defaults only as a later possibility) | unexpected token | exact: parser `grammar/proof` |
+| `decl.pattern-rest` | `[a, ...r]`, `{ a, ...r }` in a pattern or a parameter | open ([destructuring](./2450-destructuring.md)) | rest element not supported | exact: parser `destructuring.proof` |
+| `decl.pattern-default` | `{ a = 1 }`, `[a = 1]` in a pattern | open ([destructuring](./2450-destructuring.md)) | unexpected token | exact: parser `destructuring.proof` |
+| `decl.pattern-computed-key` | `{ [k]: a }`, `{ [Number(i)]: a }`, `{ [(3)]: a }` | open ([destructuring](./2450-destructuring.md)) | computed key in a binding pattern not supported | exact: parser `destructuring.proof` |
+| `decl.pattern-elision` | `[, b]`, `[a, , b]` | planned ([destructuring](./2450-destructuring.md), a follow-up) | unexpected token | exact: parser `destructuring.proof` |
 | `decl.parameter-limit` | 17 fixed parameters | design ([functions](../README.md#functions)) | more than 16 fixed parameters | exact: parser `proof` |
 
 ## Module structure
