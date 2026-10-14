@@ -65,6 +65,8 @@ export const proof = {
         assertEq(parsed('"\\u0041\\u00e9\\u00E9\\u4e2d"'), 'Aéé中')
         assertEq(parsed('"\\u0000"'), '\0')
         assertEq(parsed('"\\uFFFF"'), '￿')
+        // The escape is four digits and no more: a fifth is a character.
+        assertEq(parsed('"\\u00411"'), 'A1')
     },
     // The alphabet is code units, so a text is read as `JSON.parse` reads
     // it: an astral character is two units in and the same two out, raw or
@@ -154,6 +156,8 @@ export const proof = {
         assertStructurallySame(parse('10-5'), ['error', 'unexpected symbol at 2'])
         assertStructurallySame(parse('"\\x"'), ['error', 'unexpected symbol at 2'])
         assertStructurallySame(parse('"\\u12"'), ['error', 'unexpected symbol at 5'])
+        assertStructurallySame(parse('"\\u004g"'), ['error', 'unexpected symbol at 6'])
+        assertStructurallySame(parse('"\\u{41}"'), ['error', 'unexpected symbol at 3'])
         assertStructurallySame(parse('"a\nb"'), ['error', 'unexpected symbol at 2'])
         assertStructurallySame(parse('{"a" 1}'), ['error', 'unexpected symbol at 5'])
         assertStructurallySame(parse('{1: 2}'), ['error', 'unexpected symbol at 1'])

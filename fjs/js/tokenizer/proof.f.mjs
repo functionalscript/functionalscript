@@ -113,6 +113,8 @@ export const proof = {
             const cases = /** @type {const} */ ([
                 ['\\x41', 'A'], ['\\v', '\v'], ['\\0', '\0'], ['\\0a', '\0a'],
                 ['\\u{1f600}', '😀'], ['\\u{000000000041}', 'A'],
+                ['\\u{0}', '\0'], ['\\u{10FFFF}', '\u{10ffff}'], ['\\u{0000000000000010fFfF}', '\u{10ffff}'],
+                ['\\xfF', '\xff'], ['\\u00411', 'A1'], ['\\uD83D\\uDE00', '😀'], ['\\x411', 'A1'],
                 ['\\q', 'q'], ["\\'", "'"], ['\\$', '$'], ['\\$x', '$x'],
                 ['\\\n', ''], ['\\\r', ''], ['\\\r\n', ''], ['\\\u2028', ''], ['\\\u2029', ''],
                 ['\0', '\0'], ['\t', '\t'], ['\x1f', '\x1f'],
@@ -165,6 +167,9 @@ export const proof = {
             assertEq(errorAt('`\\8`'), '1:1..1:5')
             assertEq(tokenizeString('`\\u{110000}`'), 'error')
             assertEq(tokenizeString('`\\u{1100000}`'), 'error')
+            assertEq(tokenizeString('`\\u{0000000000000000110000}`'), 'error')
+            assertEq(tokenizeString('`\\u{FFFFFFFFFFFFFFFFFFFFFFFF}`'), 'error')
+            assertEq(tokenizeString('`\\u{12G}`'), 'error')
             assertEq(tokenizeString('`\\u12`'), 'error')
             assertEq(tokenizeString('`\\x1`'), 'error')
             assertEq(tokenizeString('`\\'), 'error')
@@ -311,6 +316,10 @@ export const proof = {
         () => {
             const result = tokenizeString('"\\uEeFg"')
             assertEq(result, 'error')
+        },
+        () => {
+            const result = tokenizeString('"\\u0000\\uFFFF\\uD83D\\uDE00"')
+            assertEq(result, '[{"kind":"string","value":"\\u0000\uffff😀"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('0')

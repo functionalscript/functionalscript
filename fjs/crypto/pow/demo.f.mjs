@@ -15,7 +15,7 @@
 import { resultMarker, powResultMarker } from '../../website/style/module.f.js'
 import { sha256Pow, targetFromNBits } from './module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
-import { digitsValue, hexDigitValue } from '../../text/ascii/module.f.mjs'
+import { digitsValue, hexDigitsValue } from '../../text/ascii/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
 import { textField, inputField, caption, refusal } from '../../website/demo/module.f.mjs'
 import { codeBlock } from '../../website/demo/code/module.f.mjs'
@@ -40,10 +40,8 @@ export const parseNonce = text => decimalValue([...text].map(c => c.charCodeAt(0
  */
 export const parseNBits = text => {
     if (!text.startsWith('0x') && !text.startsWith('0X')) { return null }
-    const digits = [...text.slice(2)].map(c => hexDigitValue(c.charCodeAt(0)))
-    if (digits.length === 0 || digits.some(d => d === null)) { return null }
-    const value = digits.reduce((n, d) => n * 16n + BigInt(/** @type {number} */ (d)), 0n)
-    return value <= 0xffff_ffffn ? value : null
+    const value = hexDigitsValue([...text.slice(2)].map(c => c.charCodeAt(0)))
+    return value !== null && value <= 0xffff_ffffn ? value : null
 }
 
 /** @type {(state: DemoState) => bigint | null} */

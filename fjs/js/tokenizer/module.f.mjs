@@ -60,7 +60,7 @@ import { escapeToCodePoint } from '../string_escape/module.f.mjs'
 import {
     apostrophe, asterisk, cr, lf, one,
     reverseSolidus,
-    hexDigitValue, isDigit,
+    hexDigitValue, hexDigitsValue, isDigit,
     latinSmallLetterU,
 } from '../../text/ascii/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
@@ -238,11 +238,26 @@ const lex = path => cp => {
 
 // -- layer 2: the JsToken stream --------------------------------------------
 
+const unwrapHexDigitsValue = mapUnwrap(hexDigitsValue)
+
 /**
- * A `\uXXXX` escape reaches the `unicode` state only after the grammar has
- * accepted its four hex digits, so a non-hex code point here is a tokenizer
- * bug rather than bad input — assert instead of decoding it to a garbage
- * value, which is what the hand-rolled ternary chain used to do.
+ * The code unit or code point a fixed-width escape's digits spell: four
+ * after `\u`, at most `0xffff`, or two after `\x`, at most `0xff`, so the
+ * `bigint` always converts to a `number` exactly. The grammar has accepted
+ * the run before it reaches the decoders, so a non-hex code point here is a
+ * tokenizer bug rather than bad input: assert instead of decoding it to a
+ * garbage value.
+ *
+ * @type {(digits: readonly number[]) => number}
+ */
+const fixedHexValue = digits => Number(unwrapHexDigitsValue(digits))
+
+/**
+ * One digit of a braced `\u{…}` escape, which the grammar has accepted as a
+ * hex digit, asserted as {@link fixedHexValue} asserts its run. The braced
+ * run alone is read a digit at a time: it may be any length, so its decoder
+ * stops growing the value once it leaves Unicode's range, where reading the
+ * whole run as one number would take time quadratic in its length.
  */
 const unwrapHexDigitValue = mapUnwrap(hexDigitValue)
 
@@ -269,12 +284,12 @@ const stringDecodeScan = (cp, state) => {
             // for: the four hex digits that follow decide its meaning.
             assert(codePoint !== null || cp === latinSmallLetterU, cp)
             return codePoint === null
-                ? [null, { kind: 'unicode', acc: 0, count: 0 }]  // \u → start 4 hex digits
+                ? [null, { kind: 'unicode', digits: [] }]  // \u → start 4 hex digits
                 : [[codePoint], { kind: 'normal' }]
         }
         case 'unicode': {
-            const acc = (state.acc << 4) | unwrapHexDigitValue(cp)
-            return state.count === 3 ? [[acc], { kind: 'normal' }] : [null, { kind: 'unicode', acc, count: state.count + 1 }]
+            const digits = [...state.digits, cp]
+            return digits.length === 4 ? [[fixedHexValue(digits)], { kind: 'normal' }] : [null, { kind: 'unicode', digits }]
         }
         default:
             return cp === reverseSolidus ? [null, { kind: 'escape' }] : [[cp], { kind: 'normal' }]
@@ -322,7 +337,7 @@ const templateDecodeStep = cp => decode => {
                 return { ...decode, state: { kind: 'unicodeStart' }, previous: cp }
             }
             if (cp === one('x')) {
-                return { ...decode, state: { kind: 'hex', acc: 0, count: 0 }, previous: cp }
+                return { ...decode, state: { kind: 'hex', digits: [] }, previous: cp }
             }
             if (lineTerminatorCodePoints.includes(cp)) {
                 return { ...decode, state: { kind: 'normal' }, previous: cp }
@@ -339,15 +354,14 @@ const templateDecodeStep = cp => decode => {
         case 'unicodeStart': {
             return cp === one('{')
                 ? { ...decode, state: { kind: 'codePoint', acc: 0 }, previous: cp }
-                : { ...decode, state: { kind: 'unicode', acc: unwrapHexDigitValue(cp), count: 1 }, previous: cp }
+                : { ...decode, state: { kind: 'unicode', digits: [cp] }, previous: cp }
         }
         case 'unicode':
         case 'hex': {
-            const acc = (state.acc << 4) | unwrapHexDigitValue(cp)
-            const count = state.count + 1
-            return count === (state.kind === 'hex' ? 2 : 4)
-                ? { ...decode, state: { kind: 'normal' }, value: concat(decode.value)([acc]), previous: cp }
-                : { ...decode, state: { ...state, acc, count }, previous: cp }
+            const digits = [...state.digits, cp]
+            return digits.length === (state.kind === 'hex' ? 2 : 4)
+                ? { ...decode, state: { kind: 'normal' }, value: concat(decode.value)([fixedHexValue(digits)]), previous: cp }
+                : { ...decode, state: { ...state, digits }, previous: cp }
         }
         case 'codePoint': {
             if (cp === one('}')) {

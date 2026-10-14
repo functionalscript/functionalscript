@@ -51,7 +51,7 @@
  */
 
 import { assert, assertNotNullish } from '../../../asserts/module.f.mjs'
-import { hexDigitValue } from '../../../text/ascii/module.f.mjs'
+import { hexDigitsValue } from '../../../text/ascii/module.f.mjs'
 import { escapeToCodePoint } from '../../../js/string_escape/module.f.mjs'
 import { error, mapOk, ok, okList } from '../../../types/result/module.f.js'
 import { eof } from '../../../ebnf/module.f.mjs'
@@ -113,14 +113,14 @@ export const textAt = textTag.at
 const jsonTag = () => tagged('json', 'result')
 
 /**
- * The value of a hex digit node. The grammar admits only a hex digit here,
- * so `hexDigitValue` never answers `null`.
+ * The code unit of a hex digit node: the digit as written, for
+ * `hexDigitsValue` to read.
  *
  * @type {(node: Ast<typeof hex, Utf16, Text>) => number}
  */
-const hexDigit = node => {
+const hexDigitUnit = node => {
     const [, digit] = unmapped(node)
-    return assertNotNullish(hexDigitValue(unitAt(digit)))
+    return unitAt(digit)
 }
 
 /** @type {Mappings<Utf16, Text>} */
@@ -140,7 +140,10 @@ const escapeMapping = textMapping(escape, ([, e]) => {
     const branch = unmapped(e)
     if (branch[0] === 'c') { return textTag.symbol(fromCharCode(assertNotNullish(escapeToCodePoint(unitAt(branch[1]))))) }
     const [, digits] = unmapped(branch[1])
-    return textTag.symbol(fromCharCode(unmapped(digits).reduce((code, digit) => code * 16 + hexDigit(digit), 0)))
+    // The grammar admits exactly four hex digits here, so `hexDigitsValue`
+    // never answers `null` and the value fits one code unit.
+    const unit = assertNotNullish(hexDigitsValue(unmapped(digits).map(hexDigitUnit)))
+    return textTag.symbol(fromCharCode(Number(unit)))
 })
 
 /**

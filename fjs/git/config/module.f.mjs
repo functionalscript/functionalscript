@@ -47,7 +47,7 @@
  */
 
 import { entry as objectEntry } from '../../types/object/entry/module.f.js'
-import { bigint } from '../../types/bigint/from_number/module.f.js'
+import { digitsValue, hexDigitsValue } from '../../text/ascii/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
 
 /** The value Git gives a key written without one. */
@@ -205,18 +205,6 @@ const factors = {
 const maxInt = /** @type {const} */ (0x7fff_ffffn)
 
 /**
- * What a character is worth as a digit, and 16 — no digit's worth — where
- * it is none.
- *
- * @type {(c: string) => bigint}
- */
-const digitValue = c =>
-    isDigit(c) ? bigint(c.charCodeAt(0) - 0x30)
-        : c >= 'a' && c <= 'f' ? bigint(c.charCodeAt(0) - 0x57)
-            : c >= 'A' && c <= 'F' ? bigint(c.charCodeAt(0) - 0x37)
-                : 16n
-
-/**
  * One split element with the `\r` a `\n` followed taken off it, where `last`
  * is the index of the element no `\n` followed.
  *
@@ -239,27 +227,17 @@ const lines = text => {
 }
 
 /**
- * One digit read into the number before it, in a radix the caller binds
- * first. `null` stays `null`, and a character that is no digit of the radix
- * makes it so.
- *
- * @type {(radix: bigint) => (acc: Nullable<bigint>, c: string) => Nullable<bigint>}
- */
-const digitStep = radix => (acc, c) => {
-    if (acc === null) { return null }
-    const v = digitValue(c)
-    return v >= radix ? null : acc * radix + v
-}
-
-/**
  * The number digits spell in a radix, or `null` where they are none or
- * one of them is no digit of it.
+ * one of them is no digit of it: `0-9` below the radix, and for 16 the
+ * letters `a-f` in either case as well, each through
+ * [`fjs/text/ascii`](../../text/ascii/module.f.mjs)'s digit-run readers.
  *
  * @type {(digits: string, radix: bigint) => Nullable<bigint>}
  */
-const tryDigits = (digits, radix) => digits.length === 0
-    ? null
-    : [...digits].reduce(digitStep(radix), /** @type {Nullable<bigint>} */(0n))
+const tryDigits = (digits, radix) => {
+    const codes = [...digits].map(c => c.charCodeAt(0))
+    return radix === 16n ? hexDigitsValue(codes) : digitsValue(radix)(codes)
+}
 
 /**
  * The number a value spells as Git's parser reads one, or `null` where it
