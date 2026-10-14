@@ -47,13 +47,6 @@ const typeName = receiver => typeof receiver === 'string' ? 'string'
     : isFunction(receiver) ? 'function'
     : 'object'
 
-/** Built-in availability, before an optional call evaluates arguments. @type {(receiver: EdagValue, key: string) => boolean} */
-export const hasMethod = (receiver, key) => {
-    if (receiver === null || typeOf(receiver) === 'undefined') { return false }
-    const prototype = prototypes[typeName(receiver)]
-    return prototype.some(name => name === key) && allowedCalls.some(name => name === key)
-}
-
 /**
  * The runtime's body for a receiver type and a name: the function value
  * under the type's object, or `undefined` — a name or a type the runtime
@@ -67,6 +60,31 @@ const body = (runtime, type, key) => {
     const table = runtime === undefined ? undefined : findProperty(runtime, type)
     const entry = table === undefined ? undefined : findProperty(/** @type {Runtime} */ (table[2]), key)
     return entry !== undefined && isFunction(entry[2]) ? /** @type {ValueFunction} */ (entry[2]) : undefined
+}
+
+/**
+ * The admitted names this dispatcher has no native implementation of, by
+ * type: each is answered by the runtime's body, and by nothing without
+ * one. The list is what `native` below leaves out, named once so the
+ * guard of an optional call can ask it.
+ */
+const left = { string: ['startsWith'] }
+
+/**
+ * Whether a call of `key` on the receiver has an implementation bound, the
+ * guard of an optional call asks before it evaluates arguments: the name
+ * is admitted on the receiver's type, and either this dispatcher answers
+ * it natively or the runtime holds its body — the same question NaNVM's
+ * `Member::is_nullish` asks of its table and its runtime.
+ *
+ * @type {(receiver: EdagValue, key: string, runtime: Runtime | undefined) => boolean}
+ */
+export const hasMethod = (receiver, key, runtime) => {
+    if (receiver === null || typeOf(receiver) === 'undefined') { return false }
+    const type = typeName(receiver)
+    const admitted = prototypes[type].some(name => name === key) && allowedCalls.some(name => name === key)
+    const native = !(type === 'string' && left.string.some(name => name === key))
+    return admitted && (native || body(runtime, type, key) !== undefined)
 }
 
 /** @type {(args: Values, index: number) => EdagValue} */
@@ -213,7 +231,7 @@ const stringMethod = (receiver, key, args, invoke) => {
                 default: { return ok(receiver.endsWith(search, index)) }
             }
         }
-        // `startsWith`: the runtime's body, no host built-in.
+        // `left`'s: the runtime's body, no host built-in.
         default: { return undefined }
     }
 }
@@ -230,14 +248,14 @@ const native = (receiver, key, args, invoke) => {
 /**
  * Call an admitted built-in after operands have been evaluated: natively
  * where this dispatcher implements the name, else the runtime's body with
- * the receiver first, else the `TypeError` of a VM that binds nothing.
+ * the receiver first, else — no implementation bound, which
+ * {@link hasMethod} has said — the `TypeError` of a VM that binds nothing.
  *
  * @type {(receiver: EdagValue, key: string, args: Values, invoke: Invoke, runtime: Runtime | undefined) => ValueResult}
  */
 export const method = (receiver, key, args, invoke, runtime) => {
-    if (!hasMethod(receiver, key)) { return error(['undefined']) }
+    if (!hasMethod(receiver, key, runtime)) { return error(['undefined']) }
     const answer = native(receiver, key, args, invoke)
-    if (answer !== undefined) { return answer }
-    const fn = body(runtime, typeName(receiver), key)
-    return fn === undefined ? error(['undefined']) : call(ok(fn), [receiver, ...args].map(v => () => ok(v)), invoke)
+    return answer !== undefined ? answer
+        : call(ok(/** @type {ValueFunction} */ (body(runtime, typeName(receiver), key))), [receiver, ...args].map(v => () => ok(v)), invoke)
 }

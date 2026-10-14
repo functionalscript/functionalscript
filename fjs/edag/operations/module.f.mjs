@@ -127,7 +127,7 @@ export const operation = evaluator => {
         const [tag, arg, continuation] = step
         if (tag === '|.') { return then([state, value], (v, next) => continueValue(v, step, next)) }
         const own = isArray(receiver) && receiver[0] === '{}' && findProperty(receiver, name) !== undefined
-        const builtin = !own && hasMethod(receiver, name)
+        const builtin = !own && hasMethod(receiver, name, runtime)
         return then([state, value], (callee, next) => {
             if (tag === '|?.()' && !builtin && nullish(callee)) { return skip(continuation, next) }
             return then(items(arg, next), (args, afterArgs) => {

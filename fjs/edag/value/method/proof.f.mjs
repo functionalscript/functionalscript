@@ -28,14 +28,14 @@ const table = entries => ['{}', entries.map(([name, value]) => [':', name, value
 
 export const proof = {
     availability: () => {
-        for (const receiver of [null, undefinedValue]) { assertEq(hasMethod(receiver, 'toString'), false) }
+        for (const receiver of [null, undefinedValue]) { assertEq(hasMethod(receiver, 'toString', undefined), false) }
         for (const receiver of [1, 'x', true, 1n, fn, ['[]', []], ['{}', []]]) {
-            assertEq(hasMethod(/** @type {EdagValue} */ (receiver), 'toString'), true)
-            assertEq(hasMethod(/** @type {EdagValue} */ (receiver), 'valueOf'), false)
-            assertEq(hasMethod(/** @type {EdagValue} */ (receiver), 'missing'), false)
+            assertEq(hasMethod(/** @type {EdagValue} */ (receiver), 'toString', undefined), true)
+            assertEq(hasMethod(/** @type {EdagValue} */ (receiver), 'valueOf', undefined), false)
+            assertEq(hasMethod(/** @type {EdagValue} */ (receiver), 'missing', undefined), false)
         }
-        assertEq(hasMethod(['[]', []], 'map'), true)
-        assertEq(hasMethod('x', 'map'), false)
+        assertEq(hasMethod(['[]', []], 'map', undefined), true)
+        assertEq(hasMethod('x', 'map', undefined), false)
         refuses(null, 'toString', [])
         refuses(1n, 'toFixed', [])
         refuses(1, 'missing', [])
@@ -137,7 +137,10 @@ export const proof = {
     // no function.
     runtime: () => {
         const runtime = table([['string', table([['slice', 'x'], ['startsWith', second]])]])
-        assertEq(hasMethod('abc', 'startsWith'), true)
+        // bound only where a body is: the guard of `'abc'.startsWith?.()`
+        assertEq(hasMethod('abc', 'startsWith', runtime), true)
+        assertEq(hasMethod('abc', 'startsWith', undefined), false)
+        assertEq(hasMethod('abc', 'slice', undefined), true)
         assertEq(assertOk(method('abc', 'startsWith', ['ab'], invoke, runtime)), 'ab')
         assertStructurallySame(assertOk(method('abc', 'startsWith', [], invoke, runtime)), undefinedValue)
         refuses('abc', 'startsWith', ['ab'])

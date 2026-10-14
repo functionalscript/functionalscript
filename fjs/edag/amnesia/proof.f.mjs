@@ -114,6 +114,12 @@ export const proof = {
         assertEq(assertOk(vm({ frame: [], args: [], runtime })(direct)), 'abc')
         assertEq(assertOk(vm({ frame: [], args: [], runtime })(nested)), 'abc')
         assertStructurallySame(assertError(vm({ frame: [], args: [] })(nested)), ['undefined'])
+        // an optional call sees the body as a callee only where one is
+        // bound: without a runtime it skips, its argument never evaluated
+        /** @type {Exp} */
+        const optional = ['.', 'abc', 'startsWith', ['|?.()', [['throw', 'evaluated']]]]
+        assertStructurallySame(assertOk(vm({ frame: [], args: [] })(optional)), ['undefined'])
+        assertStructurallySame(assertError(vm({ frame: [], args: [], runtime })(optional)), 'evaluated')
     },
     // `self` is the invoked function itself, by identity, in every reading
     // of the body; at the module's scope there is none to read
