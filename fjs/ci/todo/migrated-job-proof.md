@@ -1,7 +1,7 @@
 ## migrated-job-proof. One definition of "this job migrated onto the shared Nix shell"
 
 **Priority:** P5
-**Status:** open
+**Status:** wip
 
 ### Problem
 
