@@ -144,6 +144,85 @@ contract and migration strategy.
 
 #### Current leaf migration fixed point
 
+Measured at `e40fa58`, the head of `main` after
+[#2878](https://github.com/functionalscript/functionalscript/pull/2878)
+admitted destructuring in parameters. A leaf is as defined in the `5dcd94b`
+audit below, and the embedded-proof fixture is `example.f.js`, converted, so
+there is none to report separately.
+
+| Pass | Implementation leaves checked | Converted to `.f.js` |
+| --- | ---: | --- |
+| 1 | 12 | `website/prs/load` |
+| 2 | 11 | None: every remaining leaf is refused |
+
+`website/prs/load` compiles whole: its four destructured parameters were
+its only refusals, and the parameter pattern is admitted now. The conversion
+changes the extension and its two importers, `website/prs-runtime.mjs` and
+the proof; no `.f.mjs` imports the module, so its rename exposes no new
+leaf. The authored `.f.js` population under `fjs/` grows from 32 to 33, and
+`npm start compile` checks 39 with the specification's vectors.
+
+Destructuring in parameters moves two more first refusals, and each lands
+on a prohibited property name the earlier pattern had hidden.
+`emergent_testing/node` passes its two destructured parameters and stops
+at the read `data.name` in `log`: `name` is on
+[`fjs/js/prototype`](../fjs/js/prototype/module.f.js)'s `prohibitedCalls`,
+and a read of such a name is refused as its call is. `nanvm/methods` passes
+its three destructured callbacks and stops at `Object.values`, its one
+refusal now. The destructured callbacks the `8d86959` table counted behind
+`git/config`, `types/list`, `types/object/structurally_same` and `types/ts`
+are no longer refusals, and `git/config`'s elision now stands in front of
+another prohibited name: every read of its `sub` field, `String.prototype`'s
+`sub`.
+
+Each row is the first actual refusal from the `resolve()` pipeline, and
+the last column what else the compiler does not accept in the module. The
+last column was measured, not read: each refusal was removed on a scratch
+copy, in turn, until the copy was accepted, so a construct is listed only
+where the compiler reported it. Locations are `line:column`; paths are
+relative to `fjs/`.
+
+| Leaf file | Location | First refused construct | Behind it |
+| --- | ---: | --- | --- |
+| `ci/package/module.f.mjs` | 114:22 | `JSON.stringify` in `literal` | `JSON` is not admitted; also writes `tsconfig` with it |
+| `emergent_testing/node/module.f.mjs` | 54:48 | The read `data.name` in `log`, a prohibited property name | The computed key `file[cwd.length]` in `located`, no `Number(...)` |
+| `git/config/module.f.mjs` | 563:12 | Elision in `const [, list]` in `tryEntries` | Every read of the `sub` field, `acc.sub` in `subStep` first, a prohibited property name |
+| `media/rust/module.f.mjs` | 62:5 | `switch` in `character` | The loop in `exponentOf`: two `let` variables, an `if … else` assigning inside it, `Math.floor`; `Math.abs`; `Array(…).keys()`, a reserved word and a prohibited call; four forward references, `utf16Literal` to `utf16Units`, `f64Bits` to `bitsOf`, `u64Words` to `u64WordItems`, `u64WordItems` to `words` |
+| `nanvm/methods/module.f.mjs` | 113:20 | `Object.values` in `rows` | Nothing: the one refusal |
+| `types/list/module.f.mjs` | 51:9 | `if … else if` assigning to the parameter `head` inside the loop in `next` | In `next`, the tuple assignment, `continue` and `'head' in head`; `while` over a parameter in `trampoline`; the generator, `Symbol` and `yield` in `iterable`; a `return` guard inside the loop in `last`; `for…of` in `tryFold`; `'first' in notLazy` in `lengthList`; `const { from } = Array`; nine forward references, each `…Step` to the export after it |
+| `types/map/module.f.mjs` | 10:42 | `new Map(...)` in `mapSet` | `new Map(...)` in `mapDelete`; `Map` is not a language type |
+| `types/object/structurally_same/module.f.mjs` | 58:20 | `new Map(entries(b))` | `const { entries } = Object`: the `Object` global is a prohibited property name, and the language enumerates no keys |
+| `types/ts/module.f.mjs` | 24:29 | Default parameter in `printer` | `switch` with fallthrough in `primitive`; `JSON.stringify` in `struct` and `primitive` |
+| `website/browser-source/module.f.mjs` | 63:9 | Guard with `break` inside the loop in `read` | All in `read`: two loop variables and a `let` inside the loop, `continue`, `+=`, nested loops, and an `if` whose body neither returns nor throws |
+| `website/demo/code/module.f.mjs` | 12:48 | Default parameter in `codeBlock` | Nothing: the one refusal |
+
+To recheck the current table without writing generated output, run this from
+the repository root inside `./dev.sh node --input-type=module`:
+
+```js
+import { resolve as absolute } from 'node:path';
+import { resolve } from './fjs/compiler/edag/module.f.mjs';
+import { runNodeEffect } from './fjs/effects/node/module.mjs';
+
+const leaves = [
+  'ci/package', 'emergent_testing/node', 'git/config', 'media/rust',
+  'nanvm/methods', 'types/list', 'types/map',
+  'types/object/structurally_same', 'types/ts', 'website/browser-source',
+  'website/demo/code',
+];
+for (const leaf of leaves) {
+  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
+  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
+}
+```
+
+After a compiler feature lands, rediscover the runtime dependency leaves,
+compile every candidate, rename accepted modules and update their references,
+then rediscover and repeat until a pass accepts none. Update this table with
+the remaining refusals.
+
+#### Leaf migration fixed point at `8d86959` (historical)
+
 Measured at `8d86959`, the head of `main` after
 [#2861](https://github.com/functionalscript/functionalscript/pull/2861)
 admitted destructuring in `const`. A leaf is as defined in the `5dcd94b`
