@@ -19,20 +19,21 @@
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { Commands, CommandSet, Effect, Func, NotImplemented, Operation } from '../types.ts'
- * @import { EffectList } from '../list/types.ts'
+ * @import { EffectList, Next } from '../list/types.ts'
  * @import { List } from '../../types/list/types.ts'
- * @import { Access, Await, Catch, ChildWait, Close, Console, CreateExclusive, CreateServer, Dirent, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fstat, Fs, Handle, Headers, Http, IncomingMessage, Inflate, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, Open, Pread, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, ReadRequestBytes, RequestBody, ResolveFileModule, ReadWhole, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Rmdir, Sandbox, SandboxResult, Server, ServerResponse, Spawn, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteExclusive, WriteFile, _ChunkSource, _DoubledLength, _FramingHeader, _Gate, _NoBody, _ReadChunks, _Unframed, _UtfList, _WriteLoop } from './types.ts'
+ * @import { Access, Await, Catch, ChildWait, Close, Console, CreateExclusive, CreateServer, Dirent, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fstat, Fs, Handle, Headers, Http, IncomingMessage, Inflate, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, Open, Overrun, Pread, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, ReadRequestBytes, RequestBody, ResolveFileModule, ReadWhole, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Rmdir, Sandbox, SandboxResult, Server, ServerResponse, Spawn, Stat, Test, TestContext, TestFn, Underrun, Write, WriteBytes, WriteConsoles, WriteExclusive, WriteFile, _ChunkSource, _DoubledLength, _FramingHeader, _Gate, _NoBody, _PumpStep, _ReadChunks, _Unframed, _UtfList, _WriteLoop } from './types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
 import { tryUtf8, utf8, utf8ToString } from '../../text/module.f.mjs'
+import { floorCodePointBoundary } from '../../text/utf16/module.f.mjs'
 import { concat } from '../../types/list/module.f.mjs'
 import { isInteger } from '../../types/number/is_integer/module.f.js'
 import { definedEntries } from '../../types/object/module.f.mjs'
 import { byteLength, bytesIn, empty as emptyVec, isWholeBytes, isWholeBytesIn, length, maxLengthBytes, u8ListMsb } from '../../types/bit_vec/module.f.mjs'
 import { nonEmpty, empty as elEmpty } from '../list/module.f.mjs'
 import { ok } from '../../types/result/module.f.js'
-import { do_, errorMessage, ioError, toIoError } from '../module.f.mjs'
+import { commandsOf, do_, errorMessage, ioError, toIoError } from '../module.f.mjs'
 import { min } from '../../types/number/min/module.f.js'
 import { max } from '../../types/number/max/module.f.js'
 import {
@@ -274,12 +275,11 @@ const nodeCommandSet = {
 
 /**
  * The commands of {@link nodeCommandSet}, in the form a partial runner tests
- * membership against. The cast is the one `Object.keys` always needs: it
- * answers `string[]` for a record whose keys the type system knows exactly.
+ * membership against.
  *
  * @type {Commands<NodeOp>}
  */
-export const nodeCommands = /** @type {Commands<NodeOp>} */ (Object.keys(nodeCommandSet))
+export const nodeCommands = commandsOf(nodeCommandSet)
 
 // `all`, `allOk` and `both` are `../common`'s, re-exported above: fan-out is an
 // interpreter's job whoever the host is, which is the whole of why they are
@@ -523,12 +523,6 @@ const chunkBytes = Number(maxLengthBytes)
  */
 const chunkUnits = Math.floor(chunkBytes / 3) - 1
 
-/** @type {(c: number) => boolean} */
-const isHighSurrogate = c => c >= 0xd800 && c <= 0xdbff
-
-/** @type {(c: number) => boolean} */
-const isLowSurrogate = c => c >= 0xdc00 && c <= 0xdfff
-
 /**
  * The pieces of `s`, each of at most `units + 1` code units: the cut after
  * `k * units` units, moved back one unit where it would fall between the two
@@ -541,11 +535,7 @@ const isLowSurrogate = c => c >= 0xdc00 && c <= 0xdfff
  */
 export const _pieces = units => s => {
     /** @type {(k: number) => number} */
-    const cutAt = k => {
-        const at = k * units
-        return at >= s.length ? s.length
-            : isHighSurrogate(s.charCodeAt(at - 1)) && isLowSurrogate(s.charCodeAt(at)) ? at - 1 : at
-    }
+    const cutAt = k => floorCodePointBoundary(s)(k * units)
     return Array.from(
         { length: max(1, Math.ceil(s.length / units)) },
         (_, k) => s.slice(cutAt(k), cutAt(k + 1)))
@@ -1052,6 +1042,69 @@ export const plainTextResponse = (status, message) => {
 export const runnerResponse = (status, message) => {
     const { headers, body } = plainTextResponse(status, message)
     return { status, headers: { ...headers, connection: 'close' }, body }
+}
+
+/**
+ * The bytes one response chunk puts on the wire, which is **not** its
+ * {@link byteLength}.
+ *
+ * `ServerResponse` admits any `Vec`, and a `Vec` is a count of *bits*. The node
+ * runner writes `fromVec(chunk)`, which pads a partial byte out to a whole one, so
+ * a one-bit chunk reaches the client as one byte. `byteLength` rounds the other way
+ * and calls it nought. Measured: a 1-bit `Vec` has `byteLength` `0n` and
+ * `fromVec(...).length` `1`; a 9-bit `Vec`, `1n` and `2`.
+ *
+ * Counting the rounded-down figure gave two contradictory answers for one response.
+ * Against `Content-Length: 1` and a one-bit body the host completed and the virtual
+ * runner recorded an underrun; against `Content-Length: 0` the virtual runner
+ * accepted a body the host destroys as an overrun. Either way a proof could pass on
+ * a frame the host does not produce.
+ *
+ * It is not `fromVec(chunk).length` because that would build the array to measure
+ * it. This is the same arithmetic — the whole bytes in the bits, rounded up.
+ *
+ * **The response side pads where the request side refuses**, and that asymmetry is
+ * the host's rather than a runner's. {@link readChunks} refuses a request chunk
+ * that is not whole bytes — `chunk at N is B bits, not whole bytes` — because it
+ * is `fjs`'s own reader and can. A response chunk goes through `fromVec` into
+ * `res.write`, which pads and says nothing, so there is no refusal to mirror and
+ * counting what the padding sends is the only answer that matches the host.
+ *
+ * @type {(v: Vec) => bigint}
+ */
+const sentBytes = v => bytesIn(length(v) + 7n)
+
+/**
+ * What one pulled cell of a response body does to the pump: take its chunk, with
+ * the count of bytes sent once it is, or stop. `written` is the count before the
+ * cell, and `bound` the length {@link responseGate} answered `pump` with.
+ *
+ * **Both runners pump by it**, for the reason they both gate by `responseGate`: a
+ * body one runner sends whole is then a body the other records whole. The node
+ * runner ends the response on a clean stop and destroys the socket on any other,
+ * and the virtual runner records the stop as the response's `failure`. What they
+ * do not share is the pace — the node runner parks on `drain`, and the virtual one
+ * has no socket to take a pace from.
+ *
+ * A stop is clean only for a body that ended at its declared length, or that
+ * declared none. **A chunk that would carry the count past the length stops the
+ * pump with none of it taken** — an {@link Overrun}: taking its first
+ * `bound − written` bytes and ending cleanly is the other choice and the wrong one,
+ * because a body exactly as long as it promised is a body every client reads as
+ * whole. A body that ends short of the length is an {@link Underrun}, and stops
+ * the same way. A failed cell stops with the producer's own failure.
+ *
+ * @type {<O extends Operation>(bound: Nullable<number>, written: number, cell: Result<Next<O, Vec, IoChannel>, IoChannel>) => _PumpStep<O>}
+ */
+export const pumpCell = (bound, written, cell) => {
+    if (cell[0] === 'error') { return ['stop', cell[1]] }
+    const node = cell[1]
+    if (node === undefined) {
+        return ['stop', bound !== null && written !== bound ? ['underrun', bound] : null]
+    }
+    const count = written + Number(sentBytes(node.first))
+    if (bound !== null && count > bound) { return ['stop', ['overrun', bound]] }
+    return ['take', count, node]
 }
 
 // stat

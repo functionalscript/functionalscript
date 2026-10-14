@@ -7,8 +7,8 @@
 import type { Unknown } from '../ts/types.ts'
 
 /**
- * The parsed `[key, parsedValue]` pairs as `consEntry` and `consDeclared` fold
- * them: a cons list in **reverse** member order, so its head is the last member
+ * The parsed `[key, parsedValue]` pairs as `parse`'s reader collects them: a
+ * cons list in **reverse** member order, so its head is the last member
  * parsed — for the array kinds, the highest present index.
  */
 export type _Entries =

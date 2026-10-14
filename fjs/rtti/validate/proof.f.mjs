@@ -295,11 +295,11 @@ export const proof = {
     // present, and omit a required position with everything after it present.
     //
     // Every case runs against the `open` form too. A stated rest is a separate
-    // reader on all three — `restContainerValidate`/`restContainerParse`, and
-    // its own conversion in the data form — and it widens *which values are
-    // members*, not which positions are required, so it must answer these
-    // identically. The one case where opening does change the answer is at the
-    // end.
+    // reader on all three — `restContainerRead` in `../common/module.f.mjs`
+    // for the schema-form two, and its own conversion in the data form — and
+    // it widens *which values are members*, not which positions are required,
+    // so it must answer these identically. The one case where opening does
+    // change the answer is at the end.
     optionalPositions: () => {
         const t = /** @type {const} */ ([number, bigint, or(option, string), or(option, null)])
         /** @type {(rtti: Type) => (check: (r: ResultE) => void) => (value: Unknown) => void} */
@@ -884,6 +884,18 @@ export const proof = {
         for (const read of [v, p]) { assertErrorPath(['a'])(read(one)({ b: 1 })) }
         // and a value that fits is read as before
         for (const read of [v, p, d]) { assertOk(read(t)([42])) }
+    },
+    // A stated rest reads in the other order: the declared members first,
+    // absence decided as the walk reaches each one, and only then the
+    // leftovers held to the rest. So a value failing both ways reports its
+    // declared member — where a leftovers-first reader would report `b` or
+    // `1`. All three readers read this way, and report it identically.
+    restReadsDeclaredMembersFirst: () => {
+        for (const read of [v, p, d]) {
+            assertErrorPath(['a'])(read(rest({ a: number }, string))({ a: 'bad', b: 1 }))
+            assertErrorPath(['0'])(read(rest([number], string))(['bad', 1]))
+            assertErrorPath(['a'])(read(rest({ a: number }, string))({ b: 1 }))
+        }
     },
     // Every row above is about error **attribution**, and a regression that
     // walked a shared operand once per arm while reporting the same paths

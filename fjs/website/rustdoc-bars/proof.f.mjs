@@ -6,7 +6,7 @@
 
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { exitCode } from '../../effects/node/module.f.mjs'
-import { defaultNodeProgramOptions, emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'
+import { defaultNodeProgramOptions, virtualAt } from '../../effects/node/virtual/module.f.mjs'
 import { utf8, utf8ToString } from '../../text/module.f.mjs'
 import { rustdocHead } from '../cargo-doc/module.f.mjs'
 import { rustdocStylesheet } from '../style/module.f.js'
@@ -21,7 +21,7 @@ const textOf = (root, name) => {
 
 /** @type {(root: Dir, env?: Env) => readonly [Dir, number]} */
 const run = (root, env = {}) => {
-    const [state, result] = virtual({ ...emptyState, root })(main({ ...defaultNodeProgramOptions, env }))
+    const [state, result] = virtualAt(root)(main({ ...defaultNodeProgramOptions, env }))
     return [state.root, exitCode(result)]
 }
 

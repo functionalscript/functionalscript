@@ -8,7 +8,7 @@
 
 import { assert, assertEq } from '../asserts/module.f.mjs'
 import { createServer, exitCode, ioError, listen, open, readBytes } from '../effects/node/module.f.mjs'
-import { emptyState, nodeProgramOptions, virtual } from '../effects/node/virtual/module.f.mjs'
+import { emptyState, nodeProgramOptions, virtual, virtualAt } from '../effects/node/virtual/module.f.mjs'
 import { nodeCommands } from '../effects/node/module.f.mjs'
 import { partialRun } from '../effects/mock/module.f.mjs'
 import { step } from '../effects/module.f.mjs'
@@ -292,6 +292,18 @@ export const proof = {
             assertEq(reason('http:///index.html'), '400 malformed request URL')
             assertEq(reason('http://:80/index.html'), '400 malformed request URL')
             assertEq(reason('http://'), '400 malformed request URL')
+            // A lone root dot is the DNS root, and no host in it.
+            assertEq(reason('http://./x'), '400 malformed request URL')
+            assertEq(reason('http://.:80/x'), '400 malformed request URL')
+            // The authority is read by the grammar a `Host` header is, so one
+            // that names no host is no target: an unclosed bracket, a port
+            // that is not digits or not in range, two ports, and bytes after
+            // an IPv6 literal.
+            assertEq(reason('http://[::1/x'), '400 malformed request URL')
+            assertEq(reason('http://localhost:bad/x'), '400 malformed request URL')
+            assertEq(reason('http://localhost:65536/x'), '400 malformed request URL')
+            assertEq(reason('http://localhost:8080:999/x'), '400 malformed request URL')
+            assertEq(reason('http://[::1]evil/x'), '400 malformed request URL')
             // A NUL is a bad request, not a host failure: left to the file
             // system it comes back as an `ERR_INVALID_ARG_VALUE` and a `500`.
             assertEq(reason('/main.css%00'), '400 malformed request URL')
@@ -348,6 +360,8 @@ export const proof = {
             assertEq(status('localhost.'), 200)
             assertEq(status('localhost.:8080'), 200)
             assertEq(status('[::1]:8080'), 200)
+            // A dot alone is the root, and no name this server answers for.
+            assertEq(status('.'), 403)
             // Userinfo names a credential, not a host: read from the left,
             // `127.0.0.1:8080@attacker.example` looks like loopback, and the
             // host it actually names is the attacker's.
@@ -386,6 +400,20 @@ export const proof = {
                 chunkedResponse: true,
             })
             assertEq(credentialed.status, 400)
+            // So is any authority that names no host. Such a target names no
+            // host to check, so the check reads the `Host` header instead: a
+            // served one lets the target through to its `400`, and an unserved
+            // one — a proxy repeating the authority there — is `403`.
+            /** @type {(host: string) => number} */
+            const unreadable = host => answerRequest(site)({
+                method: 'GET',
+                url: 'http://localhost:bad/index.html',
+                headers: { host },
+                body: [],
+                chunkedResponse: true,
+            }).status
+            assertEq(unreadable('localhost:8080'), 400)
+            assertEq(unreadable('localhost:bad'), 403)
             const spoofed = answerRequest(site)({
                 method: 'GET',
                 url: 'http://attacker.example/index.html',
@@ -540,7 +568,7 @@ export const proof = {
              * @type {Dir}
              */
             const other = { 'large.bin': Array.from({ length: 129 }, (_, n) => countingKib(n + 200)) }
-            const [afterListener, answered] = virtual({ ...emptyState, root: largeRoot })(
+            const [afterListener, answered] = virtualAt(largeRoot)(
                 respond('.')(request('GET', '/large.bin')))
             const r = unwrap(answered)
             assertEq(r.status, 200)
@@ -572,7 +600,7 @@ export const proof = {
         replacementCannotLengthenIt: () => {
             /** @type {Dir} */
             const grown = { 'large.bin': [...largeChunks, countingKib(500)] }
-            const [afterListener, answered] = virtual({ ...emptyState, root: largeRoot })(
+            const [afterListener, answered] = virtualAt(largeRoot)(
                 respond('.')(request('GET', '/large.bin')))
             const r = unwrap(answered)
             const [, chunks] = drain(afterListener, r.body, s => ({ ...s, root: grown }))
@@ -778,7 +806,7 @@ export const proof = {
         // line as well as in what gets served.
         emptyRoot: () => {
             const options = nodeProgramOptions([''])
-            const [s] = virtual({ ...emptyState, root: site })(main(options))
+            const [s] = virtualAt(site)(main(options))
             assertEq(s.stdout, 'serving . on http://127.0.0.1:8080/\n')
         },
         // Both arguments given, and a root that is not the working directory.
@@ -809,7 +837,7 @@ export const proof = {
             /** @type {(argument: string, reason: string) => void} */
             const rejects = (argument, reason) => {
                 const options = nodeProgramOptions([argument])
-                const [s, result] = virtual({ ...emptyState, root })(main(options))
+                const [s, result] = virtualAt(root)(main(options))
                 assertEq(exitCode(result), 1)
                 assertEq(s.stderr, `invalid root "${argument}": ${reason}\n`)
                 // Nothing was bound, and nothing announced: the root is checked

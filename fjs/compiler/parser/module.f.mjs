@@ -76,7 +76,7 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
- * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstNot, AstTypeof, AstInstanceOf, AstNumber, AstString, AstKey, AstSelf, AstCall, AstConditional, AstConst, AstEntryFunction, AstFrameRef, AstEntry, AstFunction, AstItem, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstRest, AstSpread, AstStep, AstThrow } from '../ast/types.ts'
+ * @import { AstAccess, AstArray, AstBinary, AstInstanceOf, AstKey, AstSelf, AstCall, AstConditional, AstConst, AstEntryFunction, AstFrameRef, AstEntry, AstFunction, AstItem, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstRest, AstSpread, AstStep, AstThrow, AstUnary } from '../ast/types.ts'
  * @import { ParseError } from './types.ts'
  * @import { BindingElement, BindingProperty, BindingTarget, Block, Chain, ComputedKey, ConstantMember, Container, Entry, If, Import, Item, Key, Module, Node, ParameterList, Statement, Step, ValueStatement, While } from './syntax/types.ts'
  * @import { _AccessFrame, _BodyFrame, _Bound, _CallFrame, _ChainFrame, _ChainPart, _ConditionalFrame, _IndexFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _Intrinsic, _LoopBodyFrame, _Lowered, _Parameter, _Pending, _PendingStack, _Plan, _Read, _Ref, _Scope, _Stack, _State } from './private.ts'
@@ -91,7 +91,7 @@ import { maxLength } from '../../types/function/length/module.f.mjs'
 import { isKeyword, isReservedGlobal } from '../../js/keywords/module.f.js'
 import { prohibitedCalls, prototypeNames } from '../../js/prototype/module.f.js'
 import { nameOf, parseSyntax, textOf } from './syntax/module.f.mjs'
-import { isBinary } from '../ast/module.f.mjs'
+import { isBinary, isUnary } from '../ast/module.f.mjs'
 
 // -- resolving the names ------------------------------------------------------
 
@@ -1153,6 +1153,7 @@ const bodyRound = (stack, scope, frame) => {
  */
 const enter = (stack, scope, node) => {
     if (isBinary(node)) { return [{ top: { tag: node[0], right: node[2] }, rest: stack }, scope, ['enter', node[1]]] }
+    if (isUnary(node)) { return [{ top: { unary: node[0] }, rest: stack }, scope, ['enter', node[1]]] }
     switch (node[0]) {
         case 'primitive': { return [stack, scope, ok(node[1])] }
         case 'ref': {
@@ -1173,11 +1174,6 @@ const enter = (stack, scope, node) => {
         }
         case '?.': case '?.()': { return chainRound(stack, scope, { chain: node, parts: chainParts(node), index: 0, done: null }) }
         case '()': { return conversion(stack, scope, node) ?? callRound(stack, scope, { call: node, index: 0, done: null }) }
-        case '-': { return [{ top: { neg: true }, rest: stack }, scope, ['enter', node[1]]] }
-        case '~': { return [{ top: { bitnot: true }, rest: stack }, scope, ['enter', node[1]]] }
-        case '!': { return [{ top: { not: true }, rest: stack }, scope, ['enter', node[1]]] }
-        case 'typeof': { return [{ top: { typeof: true }, rest: stack }, scope, ['enter', node[1]]] }
-        case 'String': { return [{ top: { conversion: 'String' }, rest: stack }, scope, ['enter', node[1]]] }
         // the left operand first, as every binary operator's: the right
         // side is checked when the left returns, so a fault in the left is
         // the one reported, the first in document order
@@ -1198,7 +1194,7 @@ const isRef = (node, word) => node[0] === 'ref' && nameOf(node[1]) === word
  * is no conversion: a call whose callee is one of those words — which no scope
  * binds, since each word is refused at every binding, {@link identifierOf},
  * so the word alone decides — its one plain argument entered under a frame
- * holding the tag, {@link _ConversionFrame}. `Number()` is the literal `0`
+ * holding the tag, {@link _UnaryFrame}. `Number()` is the literal `0`
  * and `String()` the empty-string literal, as JavaScript has them, folded
  * here as unary `-` over a literal is
  * folded, since a node of no operand would be a second spelling of the
@@ -1215,7 +1211,7 @@ const conversion = (stack, scope, [, callee, args]) => {
     if (args.length === 0) { return [stack, scope, ok(name === 'Number' ? 0 : '')] }
     const operand = args.length === 1 ? args[0] : null
     if (operand === null || operand[0] === '...') { return [stack, scope, error(conversionArity(name)(callee[1]))] }
-    return [{ top: { conversion: name }, rest: stack }, scope, ['enter', operand]]
+    return [{ top: { unary: name }, rest: stack }, scope, ['enter', operand]]
 }
 
 /**
@@ -1368,25 +1364,10 @@ const returned = (stack, scope, frame, value) => {
         return [stack, scope, ok(access)]
     }
     if ('chain' in frame) { return chainRound(stack, scope, { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) }) }
-    if ('neg' in frame) {
-        /** @type {AstNeg} */
-        const negated = ['-', value]
-        return [stack, scope, ok(negated)]
-    }
-    if ('bitnot' in frame) {
-        /** @type {AstBitnot} */
-        const complemented = ['~', value]
-        return [stack, scope, ok(complemented)]
-    }
-    if ('not' in frame) {
-        /** @type {AstNot} */
-        const negated = ['!', value]
-        return [stack, scope, ok(negated)]
-    }
-    if ('typeof' in frame) {
-        /** @type {AstTypeof} */
-        const tagged = ['typeof', value]
-        return [stack, scope, ok(tagged)]
+    if ('unary' in frame) {
+        /** @type {AstUnary} */
+        const applied = [frame.unary, value]
+        return [stack, scope, ok(applied)]
     }
     if ('instanceof' in frame) {
         // the right operand is a name, not a value: the one reference the
@@ -1397,11 +1378,6 @@ const returned = (stack, scope, frame, value) => {
         /** @type {AstInstanceOf} */
         const checked = ['instanceof', value, 'Array']
         return [stack, scope, ok(checked)]
-    }
-    if ('conversion' in frame) {
-        /** @type {AstNumber | AstString} */
-        const converted = [frame.conversion, value]
-        return [stack, scope, ok(converted)]
     }
     if ('right' in frame) { return [{ top: { tag: frame.tag, left: value }, rest: stack }, scope, ['enter', frame.right]] }
     if ('left' in frame) {

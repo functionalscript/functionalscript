@@ -25,7 +25,7 @@ import { fileCas } from '../cas/module.f.mjs'
 import { dialect as revisionDialect, mediaType as revisionMediaType } from '../media/revision/module.f.mjs'
 import { sha256 } from '../crypto/sha2/module.f.mjs'
 import { nonEmpty, empty as elEmpty } from '../effects/list/module.f.mjs'
-import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
+import { emptyState, virtual, virtualAt } from '../effects/node/virtual/module.f.mjs'
 import { _casMcpSession } from './module.f.mjs'
 import { unwrap, unwrap as unwrapResult } from '../types/result/module.f.js'
 import { stdioTransport } from '../protocol/mcp/stdio/module.f.mjs'
@@ -79,7 +79,7 @@ const runSessionVirtual =
         const effect = _casMcpSession(home)(h => feed(h)(msgs))
         // A proof has nobody to report a channel failure to, so it panics: the
         // session either ran or the test is meaningless.
-        return unwrapResult(virtual({ ...emptyState, root })(effect)[1])
+        return unwrapResult(virtualAt(root)(effect)[1])
     }
 
 // Seeds a blob directly into the virtual store via `c.write`, bypassing the
@@ -94,7 +94,7 @@ const seedBlob = (root, home = '/home/user') => chunks => {
     const stream = chunks.reduceRight(
         (/** @type {EffectList<never, Vec, IoChannel>} */ tail, chunk) => nonEmpty(chunk, tail),
         /** @satisfies {EffectList<never, Vec, IoChannel>} */ (elEmpty()))
-    const [state, result] = virtual({ ...emptyState, root })(c.write(stream))
+    const [state, result] = virtualAt(root)(c.write(stream))
     assert(result[0] === 'ok', result)
     return [state.root, vecToCBase32(result[1])]
 }

@@ -9,17 +9,9 @@ impl<A: IVm> BitXor for BigInt<A> {
     }
 }
 
-// TODO: The unit tests should not use `naive` or other VM implementations.
-//       We should move these tests into integration tests.
 #[cfg(test)]
 mod tests {
-    use crate::{naive::Naive, sign::Sign, vm::bigint::BigInt};
-
-    type T = BigInt<Naive>;
-
-    fn int(value: i64) -> T {
-        value.into()
-    }
+    use crate::vm::bigint::test_util::{int, neg, pos};
 
     #[test]
     fn both_positive() {
@@ -55,9 +47,9 @@ mod tests {
         // pattern is its own value). XORing equal words gives an all-zero
         // pattern, so decoding the negative result must carry a brand-new
         // second word into existence, giving -(2^64).
-        let x = T::unchecked_new(Sign::Negative, [0xFFFF_FFFF_0000_0001u64]);
-        let y = T::unchecked_new(Sign::Positive, [0x0000_0000_FFFF_FFFFu64]);
-        let expected = T::unchecked_new(Sign::Negative, [0u64, 1u64]);
+        let x = neg([0xFFFF_FFFF_0000_0001u64]);
+        let y = pos([0x0000_0000_FFFF_FFFFu64]);
+        let expected = neg([0u64, 1u64]);
         assert_eq!(x ^ y, expected);
     }
 }

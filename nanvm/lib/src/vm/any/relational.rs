@@ -93,10 +93,7 @@ fn compare_primitives<A: IVm>(
 fn primitive_to_numeric<A: IVm>(p: Primitive<A>) -> Result<Numeric<A>, Any<A>> {
     match p {
         Primitive::BigInt(bi) => Ok(Numeric::BigInt(bi)),
-        other => {
-            let any: Any<A> = Unpacked::from(other).into();
-            Ok(Numeric::Number(any.to_number()?))
-        }
+        other => Ok(Numeric::Number(Any::from(other).to_number()?)),
     }
 }
 

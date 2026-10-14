@@ -40,7 +40,7 @@
 import { toText } from '../text/marked/module.f.mjs'
 import { codeBlock } from '../website/demo/code/module.f.mjs'
 import { exitCode } from '../effects/node/module.f.mjs'
-import { emptyState, nodeProgramOptions, virtual } from '../effects/node/virtual/module.f.mjs'
+import { virtualAt } from '../effects/node/virtual/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { error, ok, unwrap } from '../types/result/module.f.js'
 import { refusal } from '../website/demo/module.f.mjs'
@@ -88,7 +88,7 @@ export const outputs = [
  * @type {(text: string) => (outputFileName: string) => Result<Marked, string>}
  */
 export const _compiled = text => outputFileName => {
-    const result = unwrap(virtual({ ...emptyState, root: { 'input.f.js': [utf8(text)] } })(_outputMarked(runtime)('input.f.js', outputFileName))[1])
+    const result = unwrap(virtualAt({ 'input.f.js': [utf8(text)] })(_outputMarked(runtime)('input.f.js', outputFileName))[1])
     const [tag, value] = result
     if (tag === 'error') {
         const [message] = value
@@ -105,7 +105,7 @@ export const _compiled = text => outputFileName => {
  * @type {(text: string) => (outputFileName: string) => Result<string, string>}
  */
 export const _written = text => outputFileName => {
-    const [state, result] = virtual({ ...emptyState, root: { 'input.f.js': [utf8(text)] } })(
+    const [state, result] = virtualAt({ 'input.f.js': [utf8(text)] })(
         compileFile(runtime)('input.f.js', outputFileName))
     const file = state.root[outputFileName]
     return result[0] === 'ok' && Array.isArray(file) && file.length > 0

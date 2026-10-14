@@ -39,10 +39,6 @@ fn a_language_throw_ends_the_run() {
     assert!(run(export("thrown"), |_, payload| Ok(payload)).is_err());
 }
 
-fn items(any: Any<Naive>) -> Vec<Any<Naive>> {
-    Array::try_from(any).unwrap().into_iter().collect()
-}
-
 fn host() -> Native<std::io::Cursor<Vec<u8>>, Vec<u8>, Vec<u8>> {
     Native::new(std::io::Cursor::new(Vec::new()), Vec::new(), Vec::new())
 }
@@ -58,12 +54,10 @@ fn a_program_writes_to_the_console() {
     .unwrap();
     assert_eq!(host.stdout().as_slice(), b"hibye");
     assert!(host.stderr().is_empty());
-    let [tag, answer] = items(result).try_into().unwrap();
+    let [tag, answer]: [Any<Naive>; 2] = Array::try_from(result).unwrap().try_into().unwrap();
     assert_eq!(tag, string_any("ok"));
-    assert_eq!(
-        items(answer),
-        [string_any("ok"), Nullish::Undefined.to_any()]
-    );
+    let answer: [Any<Naive>; 2] = Array::try_from(answer).unwrap().try_into().unwrap();
+    assert_eq!(answer, [string_any("ok"), Nullish::Undefined.to_any()]);
 }
 
 /// A command the host lacks is answered through the continuation as
@@ -75,10 +69,10 @@ fn a_command_the_host_lacks() {
         host.perform(command, payload)
     })
     .unwrap();
-    let answer = items(result);
-    assert_eq!(answer[0], string_any("ok"));
+    let [tag, answer]: [Any<Naive>; 2] = Array::try_from(result).unwrap().try_into().unwrap();
+    assert_eq!(tag, string_any("ok"));
     assert_eq!(
-        answer[1].clone().to_json(),
+        answer.to_json(),
         Ok("[\"error\",[\"notImplemented\",\"fetch\"]]".into())
     );
 }

@@ -25,7 +25,7 @@
 
 import { assoc, isArray } from '../../../types/array/module.f.mjs'
 import { error, mapOk, ok } from '../../../types/result/module.f.js'
-import { do_, pureOk } from '../../../effects/module.f.mjs'
+import { commandsOf, do_, pureOk } from '../../../effects/module.f.mjs'
 import { factoryStringify } from '../../../compiler/serializer/value/module.f.mjs'
 import { isFunction, untagUndefined } from '../semantics/module.f.mjs'
 
@@ -66,7 +66,7 @@ const compileValue = do_('compileValue')
 const compileCommandSet = { compileValue: null }
 
 /** Commands a partial runtime may explicitly decline. @type {Commands<CompileValue>} */
-export const compileCommands = /** @type {Commands<CompileValue>} */ (Object.keys(compileCommandSet))
+export const compileCommands = commandsOf(compileCommandSet)
 
 /** Convert data directly or request target compilation of the complete callable graph. @type {(value: EdagValue) => Effect<CompileValue, unknown, IoChannel>} */
 export const toUnknown = value => {

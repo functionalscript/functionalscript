@@ -1,4 +1,4 @@
-import { anchors, binaryTags, eagerLayers, isBinary, isInlinedCall, isLazy, lazyLayers, readCaptures } from './module.f.mjs'
+import { anchors, binaryTags, eagerLayers, isBinary, isInlinedCall, isLazy, isUnary, lazyLayers, readCaptures, unaryTags } from './module.f.mjs'
 import { definedValues } from '../../types/object/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 
@@ -171,6 +171,15 @@ export const proof = {
         assert(!isBinary(['-', 1]))
         assert(!isBinary(['.', 1, 'x']))
         assertEq(binaryTags.filter(isLazy).join(), '&&,||,??')
+    },
+    // Every tag of `unaryTags` with one operand is a unary operator, and
+    // nothing else is: the subtraction shares `-` and has two, and neither
+    // `instanceof`, which names its constructor too, nor `throw` is one.
+    unary: () => {
+        for (const tag of unaryTags) { assert(isUnary([tag, 1])) }
+        assert(!isUnary(['-', 1, 2]))
+        assert(!isUnary(['instanceof', 1, 'Array']))
+        assert(!isUnary(['throw', 1]))
     },
     // The lazy layers hold exactly the lazy operators, as `isLazy` reads
     // them from the EDAG, and no eager layer holds one.

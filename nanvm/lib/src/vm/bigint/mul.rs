@@ -63,24 +63,12 @@ impl<A: IVm> BigInt<A> {
     }
 }
 
-// TODO: The unit tests should not use `naive` or other VM implementations.
-//       We should move these tests into integration tests.
 #[cfg(test)]
 mod tests {
-    use crate::{
-        naive::Naive,
-        vm::{bigint::BigInt, error},
+    use crate::vm::{
+        bigint::test_util::{T, int, pow2},
+        error,
     };
-
-    type T = BigInt<Naive>;
-
-    fn int(value: i64) -> T {
-        value.into()
-    }
-
-    fn pow2(bit: i64) -> T {
-        (int(1) << int(bit)).unwrap()
-    }
 
     #[test]
     fn sign_combinations() {

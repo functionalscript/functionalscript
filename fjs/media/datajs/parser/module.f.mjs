@@ -44,40 +44,32 @@
  * @import { constStatement, property } from '../../../ebnf/lib/datajs/module.f.mjs'
  * @import { Primitive, Unknown } from '../types.ts'
  * @import { _Binding, _Env, _Frame, _Stack, _State } from './private.ts'
+ * @import { Tagged } from '../../json/parser/types.ts'
  * @import { Container, Entry, Node, Out, Value } from './types.ts'
  */
 
-import { assert } from '../../../asserts/module.f.mjs'
 import { concat, toArray } from '../../../types/list/module.f.mjs'
 import { at, empty, setReplace } from '../../../types/ordered_map/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.js'
 import { eof } from '../../../ebnf/module.f.mjs'
-import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.mjs'
+import { unmapped } from '../../../ebnf/ast/module.f.mjs'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
 import { lexeme, units } from '../../../ebnf/utf16/module.f.mjs'
 import { fromU8List } from '../../../text/utf8/module.f.mjs'
 import { items } from '../../../ebnf/lib/json/module.f.mjs'
 import { dataJs, number, value } from '../../../ebnf/lib/datajs/module.f.mjs'
-import { stringMappings, syntaxError } from '../../json/parser/module.f.mjs'
+import { stringMappings, syntaxError, tagged, textAt } from '../../json/parser/module.f.mjs'
 
 const { fromEntries } = Object
 
-/** @type {(node: Node) => Meta<Value>} */
-const valueSymbol = node => ({ symbol: 0, meta: { id: 'value', node } })
+/** @type {Tagged<Out, 'value', 'node'>} */
+const valueTag = tagged('value', 'node')
 
-/** @type {(node: Meta<Utf16 | Out> | readonly unknown[]) => string} */
-const textAt = node => {
-    const { meta } = symbolAt(node)
-    assert(meta.id === 'text')
-    return meta.value
-}
+/** The symbol a value's mapping returns: the node it built. */
+export const _valueSymbol = valueTag.symbol
 
-/** @type {(node: Meta<Utf16 | Out> | readonly unknown[]) => Node} */
-const nodeAt = node => {
-    const { meta } = symbolAt(node)
-    assert(meta.id === 'value')
-    return meta.node
-}
+/** The node a value's symbol carries. */
+const nodeAt = valueTag.at
 
 const protoKey = /** @type {const} */ ('__proto__')
 
@@ -130,16 +122,16 @@ const member = node => {
  */
 const toNode = node => {
     switch (node[0]) {
-        case 'array': { return valueSymbol(['array', items(unmapped(node[1])).map(nodeAt)]) }
-        case 'object': { return valueSymbol(['object', items(unmapped(node[1])).map(member)]) }
-        case 'string': { return valueSymbol(textAt(node[1])) }
-        case 'number': { return valueSymbol(nodeAt(node[1])) }
-        case 'true': { return valueSymbol(true) }
-        case 'false': { return valueSymbol(false) }
-        case 'null': { return valueSymbol(null) }
-        case 'nan': { return valueSymbol(NaN) }
-        case 'undefined': { return valueSymbol(undefined) }
-        case 'id': { return valueSymbol(['ref', lexeme(node[1])]) }
+        case 'array': { return _valueSymbol(['array', items(unmapped(node[1])).map(nodeAt)]) }
+        case 'object': { return _valueSymbol(['object', items(unmapped(node[1])).map(member)]) }
+        case 'string': { return _valueSymbol(textAt(node[1])) }
+        case 'number': { return _valueSymbol(nodeAt(node[1])) }
+        case 'true': { return _valueSymbol(true) }
+        case 'false': { return _valueSymbol(false) }
+        case 'null': { return _valueSymbol(null) }
+        case 'nan': { return _valueSymbol(NaN) }
+        case 'undefined': { return _valueSymbol(undefined) }
+        case 'id': { return _valueSymbol(['ref', lexeme(node[1])]) }
     }
 }
 
@@ -157,7 +149,7 @@ const map = mapping
  */
 export const mappings = [
     ...stringMappings,
-    map(number, node => valueSymbol(numberOf(node))),
+    map(number, node => _valueSymbol(numberOf(node))),
     map(value, toNode),
 ]
 

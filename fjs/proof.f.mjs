@@ -7,12 +7,12 @@
 import { exitCode } from './effects/node/module.f.mjs'
 import { assert, assertEq } from './asserts/module.f.mjs'
 import { pureError, pureOk } from './effects/module.f.mjs'
-import { emptyState, nodeProgramOptions, virtual } from './effects/node/virtual/module.f.mjs'
+import { nodeProgramOptions, virtualAt } from './effects/node/virtual/module.f.mjs'
 import { main } from './module.f.mjs'
 import { vec8 } from './types/bit_vec/module.f.mjs'
 
 const run = (/** @type {Dir} */ root) => (/** @type {readonly string[]} */ args) =>
-    virtual({ ...emptyState, root })(main(nodeProgramOptions(args)))
+    virtualAt(root)(main(nodeProgramOptions(args)))
 
 // A program whose exit code is its argument count — non-zero, so it leaves
 // through the error branch like any other failing program.

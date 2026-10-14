@@ -14,7 +14,7 @@ import { error, ok, unwrap } from '../../../types/result/module.f.js'
 import { parser } from '../../../ebnf/ll1/module.f.mjs'
 import { units } from '../../../ebnf/utf16/module.f.mjs'
 import { escape, json, string } from '../../../ebnf/lib/json/module.f.mjs'
-import { mappings, parse as parseWithPolicy, stringMappings, syntaxError } from './module.f.mjs'
+import { mappings, parse as parseWithPolicy, stringMappings, syntaxError, textAt } from './module.f.mjs'
 import { isFinite_ } from '../../../types/number/is_finite/module.f.js'
 
 const { is } = Object
@@ -199,12 +199,14 @@ export const proof = {
         assertStructurallySame(parseValue(units(' "a" ')), ['ok', [jsonSymbol('a'), 5]])
     },
     // What a grammar built over JSON's rules folds the same way: the
-    // `string` mappings alone, folded into the rules they are keyed by; and
-    // where a parse failed, by the index the backend reports.
+    // `string` mappings alone, folded into the rules they are keyed by, and
+    // the text they return read back by `textAt`; and where a parse failed,
+    // by the index the backend reports.
     shared: () => {
         /** @typedef {Assert<Equal<typeof stringMappings, readonly Mapping<Utf16, Text>[]>>} _String */
         const parseString = parser(string, stringMappings)
         assertStructurallySame(parseString(units('"a\\u0062"')), ['ok', [{ symbol: 0, meta: { id: 'text', value: 'ab' } }, 9]])
+        assertEq(textAt(unwrap(parseString(units('"a\\u0062"')))[0]), 'ab')
         assertEq(syntaxError('abc')(3), 'unexpected end')
         assertEq(syntaxError('abc')(1), 'unexpected symbol at 1')
     },
@@ -219,5 +221,8 @@ export const proof = {
         // mapping of a rule the grammar does not hold, and a grammar whose
         // entry is `escape` holds neither `character` nor `string`.
         stringMappingsAreOneUnit: () => parser(escape, stringMappings),
+        // `textAt` reads a node by its tag: a value's symbol carries no
+        // text, and is refused rather than read for a field it lacks.
+        textAtAnotherId: () => textAt(jsonSymbol(1)),
     },
 }

@@ -1098,7 +1098,8 @@ buffering half is what this stage answered.
       gates, their order, the count, and the release. — The predicates both
       runners read are `headerValue`, `carriesNoBody` and `responseGate` in
       [`../module.f.mjs`](../module.f.mjs), so the gate order is the design's and
-      not each runner's; the Node runner's `recordClose`, `park`, `pumpBody` and
+      not each runner's, and `pumpCell` beside them decides each body cell for
+      both, so the count is too; the Node runner's `recordClose`, `park`, `pumpBody` and
       `deliver` are in [`../module.mjs`](../module.mjs), and `release` runs in a
       `finally` so a continuation that *throws* releases on its way to `failSafe`.
       The host proofs bind a real socket ([`../proof.mjs`](../proof.mjs),

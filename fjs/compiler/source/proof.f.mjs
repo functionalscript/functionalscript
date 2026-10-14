@@ -1,7 +1,7 @@
 /** Shared reader behavior stays independent of module execution. */
 
 import { _attributeError, _importSources, _missingExport, _parseJson, _parseModule, _rootSource, parse } from './module.f.mjs'
-import { virtual, emptyState } from '../../effects/node/virtual/module.f.mjs'
+import { virtual, virtualAt, emptyState } from '../../effects/node/virtual/module.f.mjs'
 import { partialRun } from '../../effects/mock/module.f.mjs'
 import { nodeCommands } from '../../effects/node/module.f.mjs'
 import { toVec } from '../../types/uint8array/module.f.mjs'
@@ -14,21 +14,21 @@ const imported = { specifier: './dep.f.js', json: false, name: 'default' }
 export const proof = {
     module: () => {
         const text = 'export default 7;'
-        const run = virtual({ ...emptyState, root: { 'main.f.js': [utf8(text)] } })
+        const run = virtualAt({ 'main.f.js': [utf8(text)] })
         assertStructurallySame(run(_parseModule('main.f.js'))[1], parse('main.f.js')(text))
         assertEq(parse('main.f.js')('not a module')[0], 'error')
-        const [, invalid] = virtual({ ...emptyState, root: { 'bad.f.js': [toVec(new Uint8Array([255]))] } })(_parseModule('bad.f.js'))
+        const [, invalid] = virtualAt({ 'bad.f.js': [toVec(new Uint8Array([255]))] })(_parseModule('bad.f.js'))
         assertStructurallySame(invalid, ['error', { message: 'not UTF-8 text', metadata: null, path: 'bad.f.js' }])
         const [, missing] = virtual(emptyState)(_parseModule('missing'))
         assertStructurallySame(missing, ['error', { message: 'file not found', metadata: null, path: 'missing' }])
         // Any other failure keeps the host's words: the file may be there.
-        const [, directory] = virtual({ ...emptyState, root: { dir: {} } })(_parseModule('dir'))
+        const [, directory] = virtualAt({ dir: {} })(_parseModule('dir'))
         assertStructurallySame(directory, ['error', { message: 'dir is not a regular file', metadata: null, path: 'dir' }])
         const [, unsupported] = partialRun(nodeCommands)({})(null)(_parseModule('main.f.js'))
         assertStructurallySame(unsupported, ['error', { message: 'operation not implemented: readWhole', metadata: null, path: 'main.f.js' }])
     },
     json: () => {
-        const run = virtual({ ...emptyState, root: { 'data.json': [utf8('{"x":[1]}')], 'bad.json': [utf8('[')] } })
+        const run = virtualAt({ 'data.json': [utf8('{"x":[1]}')], 'bad.json': [utf8('[')] })
         assertStructurallySame(run(_parseJson('data.json'))[1], ['ok', { x: [1] }])
         const [, invalid] = run(_parseJson('bad.json'))
         assertEq(invalid[0], 'error')

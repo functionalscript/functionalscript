@@ -8,7 +8,7 @@
  */
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { analysis, checked, itemOperand, operandsOf } from './module.f.mjs'
+import { analysis, checked, itemOperand, operandsOf, scopeHolds } from './module.f.mjs'
 
 /**
  * What every table satisfies, checked on every case: an entry names only
@@ -367,6 +367,17 @@ export const proof = {
         })
         // A body's primitive root is an operand of the `=>`, and no entry.
         table(['=>', 0, [], 5], { root: ['#', 0], nodes: [['=>', 0, [], 5]], scope: [-1], shared: [] })
+    },
+    // A function's own scope holds what its body reads, and not what a
+    // nested function's body reads: `(...a) => [a, () => self]`.
+    scopeHolds: () => {
+        const a = an(['=>', 0, [], ['[]', [['rest'], ['=>', 0, [], ['self']]]]])
+        assertStructurallySame(a.scope, [4, 2, 4, 4, -1])
+        assert(scopeHolds(a, 4, 'rest'))
+        assert(!scopeHolds(a, 4, 'self'))
+        assert(scopeHolds(a, 2, 'self'))
+        assert(!scopeHolds(a, 2, 'rest'))
+        assert(!scopeHolds(a, 4, 'arg'))
     },
     // Every node kind and every step, walked in written order — the shapes
     // `order`, `access`, `calls` and `scope` do not reach.

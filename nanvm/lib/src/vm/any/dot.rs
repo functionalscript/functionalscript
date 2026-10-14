@@ -52,7 +52,8 @@ mod tests {
     }
 
     /// The dispatch wiring itself, as opposed to `Array::member_access`'s
-    /// own behavior, which is tested in `vm/array/member_access.rs`.
+    /// own behavior, which is tested in `vm/member_access.rs` and
+    /// `vm/array/member_access.rs`.
     #[test]
     fn array_receiver_dispatches_to_array_member_access() {
         let array: Any<A> = [10.0.to_any(), 20.0.to_any()].to_array().to_any();
@@ -61,7 +62,8 @@ mod tests {
     }
 
     /// The dispatch wiring itself, as opposed to `String::member_access`'s
-    /// own behavior, which is tested in `vm/string/member_access.rs`.
+    /// own behavior, which is tested in `vm/member_access.rs` and
+    /// `vm/string/member_access.rs`.
     #[test]
     fn string_receiver_dispatches_to_string_member_access() {
         let s: Any<A> = "ab".into();

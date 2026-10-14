@@ -3,10 +3,11 @@
  * name at an id and {@link tryDelete} takes one out.
  *
  * [`fjs/git/refstore`](../module.f.mjs) is the reading half, and the rules both
- * halves must agree on live there — which directory a name belongs to, how a
- * name and a path spell each other, which names are refused — so a name this
- * writes is one those readers find. Every rule below was measured against Git
- * 2.43.0 rather than read off a manual page.
+ * halves must agree on live beside it — which directory a name belongs to in
+ * [`../scope`](../scope/module.f.mjs), how a name and a path spell each other in
+ * [`../name`](../name/module.f.mjs), which names are refused in the store — so a
+ * name this writes is one those readers find. Every rule below was measured
+ * against Git 2.43.0 rather than read off a manual page.
  *
  * **Writing a ref is one file and a lock, and it is not the mirror of reading
  * one.** {@link tryWrite} writes the loose file below whichever of the two
@@ -55,7 +56,9 @@ import { startsWith } from '../../bytes/module.f.js'
 import { isOidOf } from '../../oid/module.f.mjs'
 import { tryPackedWithout, tryRef, writeLoose } from '../../ref/module.f.mjs'
 import { isWholeName, lockSuffix } from '../../refname/module.f.mjs'
-import { badNameCode, badNameMessage, dirOf, isDirectoryAt, nameForMessage, nameText, packedRefs, refsPrefix, tryBytes, tryPackedRefs, tryWholeBytes, zeroId, zeroIdCode } from '../module.f.mjs'
+import { badNameCode, badNameMessage, isDirectoryAt, packedRefs, tryBytes, tryPackedRefs, tryWholeBytes, zeroId, zeroIdCode } from '../module.f.mjs'
+import { nameForMessage, nameText, refsPrefix } from '../name/module.f.mjs'
+import { dirOf } from '../scope/module.f.mjs'
 
 /** Refuses with {@link zeroIdCode}. */
 const refuseZeroId = refuse(zeroIdCode)

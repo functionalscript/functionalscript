@@ -9,6 +9,8 @@
  */
 
 import { isFinite_ } from '../number/is_finite/module.f.js'
+import { serialize as bigintSerialize } from '../bigint/module.f.mjs'
+import { stringLiteral } from '../../js/string_escape/module.f.mjs'
 
 /** @type {(open: string, close: string) => (i: readonly string[]) => string} */
 const complex = (open, close) => i =>
@@ -26,7 +28,7 @@ export const printer = (mut = undefined) => {
     return {
         tuple: complex(`${ro}[`, ']'),
         struct: fields =>
-            structX(fields.map(([k, v, opt]) => `${ro}${JSON.stringify(k)}${opt === true ? '?' : ''}:${v}`)),
+            structX(fields.map(([k, v, opt]) => `${ro}${stringLiteral(k)}${opt === true ? '?' : ''}:${v}`)),
         array: type => `${ro}(${type})[]`,
         // `[k:string]?:` is invalid TypeScript — optional keys on an infinite
         // key set require mapped-type syntax.
@@ -40,8 +42,8 @@ export const printer = (mut = undefined) => {
 export const primitive = c => {
     if (c === null) { return 'null' }
     switch (typeof c) {
-        case 'bigint': return `${c}n`
-        case 'string': return JSON.stringify(c)
+        case 'bigint': return bigintSerialize(c)
+        case 'string': return stringLiteral(c)
         case 'number': return isFinite_(c) ? String(c) : 'number'
         case 'undefined':
         case 'boolean': return String(c)

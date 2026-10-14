@@ -11,7 +11,7 @@ import { _transpileDefault } from '../../compiler/transpiler/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
 import { vm } from '../../edag/amnesia/module.f.mjs'
 import { read } from '../../edag/value/property/module.f.mjs'
-import { emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'
+import { virtualAt } from '../../effects/node/virtual/module.f.mjs'
 import runtimeEdag from '../../js/runtime/gen.edag.data.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { corpus, exceptions, fixturesDirectory, undefinedDefault, withAliasing } from './module.f.mjs'
@@ -53,7 +53,7 @@ const runtime = /** @type {import('../../edag/value/types.ts').Runtime} */ (asse
  * @type {(name: string) => readonly [string, unknown?]}
  */
 const interpreted = name => {
-    const [, result] = virtual({ ...emptyState, root })(_transpileDefault(pureOk(runtime))(name))
+    const [, result] = virtualAt(root)(_transpileDefault(pureOk(runtime))(name))
     if (result[0] === 'error') {
         return 'thrown' in result[1] ? ['throws'] : ['failed', result[1]]
     }
@@ -71,7 +71,7 @@ export const proof = {
     // running the compiled body as `vm/runtime.rs` pins it on NaNVM.
     searchBeforePosition: () => {
         const order = { 'order.f.js': [utf8("export default 'abc'.startsWith({ toString: () => { throw 'A' } }, 0n);")] }
-        const [, result] = virtual({ ...emptyState, root: order })(_transpileDefault(pureOk(runtime))('order.f.js'))
+        const [, result] = virtualAt(order)(_transpileDefault(pureOk(runtime))('order.f.js'))
         assertEq(result[0], 'error')
         assertStructurallySame(/** @type {{ thrown: unknown }} */ (result[1]).thrown, 'A')
     },

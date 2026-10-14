@@ -11,17 +11,9 @@ impl<A: IVm> Div for BigInt<A> {
     }
 }
 
-// TODO: The unit tests should not use `naive` or other VM implementations.
-//       We should move these tests into integration tests.
 #[cfg(test)]
 mod tests {
-    use crate::{naive::Naive, sign::Sign, vm::bigint::BigInt};
-
-    type T = BigInt<Naive>;
-
-    fn int(value: i64) -> T {
-        value.into()
-    }
+    use crate::vm::bigint::test_util::{T, int, pos};
 
     #[test]
     fn truncates_toward_zero() {
@@ -54,7 +46,7 @@ mod tests {
     #[test]
     fn multi_word_dividend() {
         // 2^64 / 2 = 2^63
-        let a = T::unchecked_new(Sign::Positive, [0, 1]);
+        let a = pos([0, 1]);
         let b: T = 2u64.into();
         assert_eq!((a / b).unwrap(), (1u64 << 63).into());
     }
@@ -62,8 +54,8 @@ mod tests {
     #[test]
     fn multi_word_result() {
         // (3 * 2^64) / 3 = 2^64
-        let a = T::unchecked_new(Sign::Positive, [0, 3]);
+        let a = pos([0, 3]);
         let b: T = 3u64.into();
-        assert_eq!((a / b).unwrap(), T::unchecked_new(Sign::Positive, [0, 1]));
+        assert_eq!((a / b).unwrap(), pos([0, 1]));
     }
 }

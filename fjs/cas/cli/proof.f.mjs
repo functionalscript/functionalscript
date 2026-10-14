@@ -2,7 +2,7 @@ import { exitCode } from '../../effects/node/module.f.mjs'
 import { commands } from './module.f.mjs'
 import { computeSync, sha256 } from '../../crypto/sha2/module.f.mjs'
 import { maxLength, vec, vec8 } from '../../types/bit_vec/module.f.mjs'
-import { emptyState, nodeProgramOptions, virtual } from '../../effects/node/virtual/module.f.mjs'
+import { emptyState, nodeProgramOptions, virtual, virtualAt } from '../../effects/node/virtual/module.f.mjs'
 import { dispatch } from '../../cli/module.f.mjs'
 import { vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
@@ -12,17 +12,15 @@ const main = dispatch(commands)
 export const proof = {
     mainAdd: () => {
         const content = vec8(0x2An)
-        const state = { ...emptyState, root: { myfile: [content] } }
-        const [finalState, code] = virtual(state)(main(nodeProgramOptions(['add', 'myfile'])))
+        const [finalState, code] = virtualAt({ myfile: [content] })(main(nodeProgramOptions(['add', 'myfile'])))
         assertEq(exitCode(code), 0, ['expected exit 0', code])
         assert(finalState.stdout.length !== 0, 'expected hash in stdout')
     },
     mainAddGetBig: () => {
         const chunk = vec(maxLength)(1n)
         const content = [chunk, chunk]
-        const state = { ...emptyState, root: { myfile: content } }
         //
-        const [finalState, code] = virtual(state)(main(nodeProgramOptions(['add', 'myfile'])))
+        const [finalState, code] = virtualAt({ myfile: content })(main(nodeProgramOptions(['add', 'myfile'])))
         assertEq(exitCode(code), 0)
         const stdout = finalState.stdout
         assert(stdout.length !== 0)
@@ -54,8 +52,7 @@ export const proof = {
     },
     mainGetFound: () => {
         const content = vec8(0x2An)
-        const state = { ...emptyState, root: { myfile: [content] } }
-        const [state1, exitCode1] = virtual(state)(main(nodeProgramOptions(['add', 'myfile'])))
+        const [state1, exitCode1] = virtualAt({ myfile: [content] })(main(nodeProgramOptions(['add', 'myfile'])))
         assertEq(exitCode(exitCode1), 0, ['expected add exit 0', exitCode1])
         const hashStr = state1.stdout.trim()
         const [, exitCode2] = virtual(state1)(main(nodeProgramOptions(['get', hashStr, 'output'])))
@@ -64,8 +61,7 @@ export const proof = {
     mainGetNotFound: () => {
         // valid cBase32 hash that has not been stored
         const content = vec8(0x2An)
-        const state = { ...emptyState, root: { myfile: [content] } }
-        const [state1] = virtual(state)(main(nodeProgramOptions(['add', 'myfile'])))
+        const [state1] = virtualAt({ myfile: [content] })(main(nodeProgramOptions(['add', 'myfile'])))
         const hashStr = state1.stdout.trim()
         // use an empty store so the hash is not found
         const [finalState, code] = virtual(emptyState)(main(nodeProgramOptions(['get', hashStr, 'output'])))
@@ -87,8 +83,7 @@ export const proof = {
     },
     mainList: () => {
         const content = vec8(0x2An)
-        const state = { ...emptyState, root: { myfile: [content] } }
-        const [state1] = virtual(state)(main(nodeProgramOptions(['add', 'myfile'])))
+        const [state1] = virtualAt({ myfile: [content] })(main(nodeProgramOptions(['add', 'myfile'])))
         const [, code] = virtual(state1)(main(nodeProgramOptions(['list'])))
         assertEq(exitCode(code), 0, ['expected exit 0', code])
     },
@@ -115,7 +110,7 @@ export const proof = {
     // and exits 1, which is why this is an ordinary proof rather than a
     // `throw` one.
     mainListCorruptStore: () => {
-        const [state, code] = virtual({ ...emptyState, root: { '.cas': [vec8(0x2An)] } })(main(nodeProgramOptions(['list'])))
+        const [state, code] = virtualAt({ '.cas': [vec8(0x2An)] })(main(nodeProgramOptions(['list'])))
         assertEq(exitCode(code), 1)
         assert(state.stderr !== '', ['expected the storage error reported on stderr', state.stderr])
         assertEq(state.stdout, '')
