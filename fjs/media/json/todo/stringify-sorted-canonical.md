@@ -12,10 +12,9 @@ re-named at every use site instead of existing once under one name.
 Source modules:
 
 - `fjs/protocol/mcp/stdio/module.f.mjs` — `const stringifyJson = stringify(sort)`
-- `fjs/media/revision`, `fjs/media/lock` and `fjs/media/note` — each module's
-  `encodeText = stringify(sort)`, which
-  [json-dialect-factory](../../todo/json-dialect-factory.md) would collapse
-  into one factory
+- `fjs/media/module.f.mjs` — `const stringifySorted = stringify(sort)`, the
+  one `encodeText` serializer `jsonDialect` gives `fjs/media/revision`,
+  `fjs/media/lock` and `fjs/media/note`
 
 (`fjs/compiler/module.f.mjs` was another site; the compiler's `.json` output no
 longer sorts, since key order is part of the value it writes, so it is gone.)
@@ -61,8 +60,7 @@ applications once.
       coverage in `fjs/media/json/proof.f.mjs` (which itself calls
       `stringify(sort)` several times).
 - [ ] Migrate the source-module sites — `fjs/protocol/mcp/stdio/module.f.mjs`,
-      and the three dialects' `encodeText` through json-dialect-factory's kit
-      if it lands first — then the proof files.
+      and `jsonDialect`'s in `fjs/media/module.f.mjs` — then the proof files.
 - [ ] Run `tsc` and `fjs t`.
 
 ### Related

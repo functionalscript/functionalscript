@@ -23,23 +23,17 @@
  */
 
 import { array, number, open, option, or, string } from '../../rtti/module.f.mjs'
-import { parse as rttiParse } from '../../rtti/parse/module.f.mjs'
-import { parse as parseJson } from '../json/module.f.mjs'
 import { cBase32ToVec } from '../../basen/cbase32/module.f.mjs'
-import { error, ok, okThen } from '../../types/result/module.f.js'
-import { dialectEntry } from '../module.f.mjs'
-import { definedEntries, sort } from '../../types/object/module.f.mjs'
-import { stringify } from '../json/module.f.mjs'
+import { error, ok } from '../../types/result/module.f.js'
+import { jsonDialect } from '../module.f.mjs'
+import { definedEntries } from '../../types/object/module.f.mjs'
 import { entries, find, flat, map, toArray } from '../../types/list/module.f.mjs'
 
 /**
  * Format tag: names the dialect of this BLOB. The media type it is served
- * with is derived mechanically: `application/` + `dialect` + `+json`.
+ * with, {@link mediaType}, is derived from it.
  */
 export const dialect = /** @type {const} */ ('vnd.fjs.revision')
-
-/** The media type derived from {@link dialect}: `application/vnd.fjs.revision+json`. */
-export const mediaType = /** @type {const} */ (`application/${dialect}+json`)
 
 /**
  * rtti schema for the snapshot-reference type: a cbase32 CAS hash string.
@@ -131,14 +125,6 @@ export const revisionSchema = open(/** @type {const} */ ({
     archived: or(option, true),
     lock: or(option, lockField),
 }))
-
-/** Serializes a revision canonically, recursively sorting every object's property names.
- * @type {(revision: Revision) => string}
- */
-export const encodeText = stringify(sort)
-
-/** Structural-only validator: checks the shape, not the hash / generation semantics. */
-const validateShape = rttiParse(revisionSchema)
 
 /**
  * The walk over a `lock` field's hashes, generic in what it builds: `leaf`
@@ -288,7 +274,7 @@ const hashMessage = ([field, ...rest]) => h =>
  * decode as a cbase32 hash ({@link isHash}), the `lock` field must too —
  * every direct value at every depth of an inline map, or the shared-lock
  * reference itself ({@link lockFieldError}) — and `generation` must be a
- * non-negative *safe* integer. `subject` is not checked — it is an identity
+ * non-negative *safe* integer, and not `-0`. `subject` is not checked — it is an identity
  * string, never a snapshot reference, so any string is valid, and the same
  * goes for a lock map's keys, which are subjects.
  *
@@ -296,7 +282,8 @@ const hashMessage = ([field, ...rest]) => h =>
  * or above `2 ** 53` passes `isInteger` but is no longer uniquely
  * representable, so `1 + max(parents' generations)` — how a writer derives the
  * next generation — can round back to the parent's value and fail to advance.
- * Rejecting unsafe integers keeps stored generations exact.
+ * Rejecting unsafe integers keeps stored generations exact. `-0` round-trips
+ * through JSON, but `1 + max(…)` never yields it, so it is not a count.
  *
  * Both `snapshot` and `generation` are required by the schema, so no absence
  * ever has to be resolved here: a revision states its content and its
@@ -319,21 +306,38 @@ export const checkReferences = r => {
     if (!Number.isSafeInteger(r.generation) || r.generation < 0) {
         return error(`generation must be a non-negative safe integer: ${r.generation}`)
     }
+    if (Object.is(r.generation, -0)) { return error('generation must not be -0') }
     return ok(r)
 }
 
+/** The dialect's kit: {@link revisionSchema} refined by {@link checkReferences}. */
+const kit = jsonDialect(revisionSchema, checkReferences)
+
+/** The media type derived from {@link dialect}: `application/vnd.fjs.revision+json`. */
+export const mediaType = kit.mediaType
+
+/**
+ * Serializes a revision canonically, recursively sorting every object's
+ * property names. Panics, naming the path, on a leaf JSON cannot spell: a
+ * `NaN` `generation`, which the serializer alone would write as `null`, or a
+ * `bigint` in an extra member, which it alone would refuse without a path.
+ *
+ * @type {(revision: Revision) => string}
+ */
+export const encodeText = kit.encodeText
+
 /**
  * Validates an already-parsed JSON value as a `revision` BLOB: structural
- * (rtti) validation followed by the hash / generation semantic checks.
+ * (rtti) validation, a number without an exact JSON spelling refused, then
+ * the hash / generation semantic checks.
  *
- * `RevisionError` is the union of the two stages' own error types, so each
+ * `RevisionError` is the union of the stages' own error types, so each
  * failure reaches the caller as it was raised — `ValidationError` from the
- * schema, `string` from {@link checkReferences} — which is exactly what
- * `okThen` produces here.
+ * schema and the number check, `string` from {@link checkReferences}.
  *
  * @type {(value: Unknown) => Result<Revision, RevisionError>}
  */
-export const validate = value => okThen(checkReferences)(validateShape(value))
+export const validate = kit.validate
 
 /**
  * Decodes `text` as a `revision` BLOB: JSON-parses it, then validates it per
@@ -342,22 +346,14 @@ export const validate = value => okThen(checkReferences)(validateShape(value))
  *
  * @type {(text: string) => Result<Revision, RevisionError>}
  */
-export const decodeText = text => okThen(validate)(parseJson(text))
-
-/** {@link checkReferences} as the `boolean` refinement a {@link DialectEntry} takes.
- * @type {(r: Revision) => boolean}
- */
-const isValidRevision = r => {
-    const [tag] = checkReferences(r)
-    return tag === 'ok'
-}
+export const decodeText = kit.decodeText
 
 /**
- * This dialect as a registry entry for `fjs/media`'s `detect`. It carries the
- * semantic checks too, so a blob is detected as `vnd.fjs.revision` exactly when
- * {@link decodeText} would accept it — a structurally valid revision whose
- * `snapshot` is not a cbase32 hash is not one.
+ * This dialect as a registry entry for `fjs/media`'s `detect`. It matches
+ * through {@link validate}, so a blob is detected as `vnd.fjs.revision`
+ * exactly when {@link decodeText} would accept it — a structurally valid
+ * revision whose `snapshot` is not a cbase32 hash is not one.
  *
  * @type {DialectEntry}
  */
-export const revisionDialect = dialectEntry(revisionSchema, isValidRevision)
+export const revisionDialect = kit.entry

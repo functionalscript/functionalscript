@@ -15,7 +15,10 @@
  * This module therefore knows no dialect of its own — `fjs/media/revision`,
  * `fjs/media/lock`, and `fjs/media/note` each export their own
  * {@link DialectEntry} (`revisionDialect`, `lockDialect`, `noteDialect`), and
- * a caller passes the list it wants recognized. Any format following the `vnd.fjs.<name>` convention (see
+ * a caller passes the list it wants recognized. What it does own is the
+ * mechanics those dialects share: {@link jsonDialect} derives a JSON
+ * dialect's tag, media type, canonical encoder, validator, decoder and entry
+ * from its schema, so each dialect module states only its format. Any format following the `vnd.fjs.<name>` convention (see
  * `fjs/media/revision/README.md`), in this repo or downstream, is registerable
  * the same way.
  *
@@ -46,15 +49,22 @@
  * @import { DetectMeta } from './type/types.ts'
  * @import { Rest, Struct, Type } from '../rtti/types.ts'
  * @import { Ts, Unknown } from '../rtti/ts/types.ts'
- * @import { ValidateE } from '../rtti/common/types.ts'
- * @import { DialectEntry } from './types.ts'
+ * @import { Path, ValidateE, ValidationError } from '../rtti/common/types.ts'
+ * @import { Node, UnionAlgebra, Data } from '../rtti/data/types.ts'
+ * @import { Result } from '../types/result/types.ts'
+ * @import { Unknown as JsonUnknown } from './json/types.ts'
+ * @import { DialectEntry, JsonDialect } from './types.ts'
  */
 
 import { fromVec } from '../text/utf8/module.f.mjs'
 import { detectVec } from './type/module.f.mjs'
-import { parse } from './json/module.f.mjs'
+import { parse, stringify } from './json/module.f.mjs'
 import { assert, assertNotNullish } from '../asserts/module.f.mjs'
 import { parse as rttiParse } from '../rtti/parse/module.f.mjs'
+import { toData, unionFold } from '../rtti/data/module.f.mjs'
+import { definedEntries, definedValues, isObject, sort } from '../types/object/module.f.mjs'
+import { find, map } from '../types/list/module.f.mjs'
+import { error, ok, okThen } from '../types/result/module.f.js'
 
 /** The default refinement: structural validation alone decides the match. */
 const always = () => true
@@ -129,11 +139,197 @@ const matchWith = v => extraValidate => u => {
  * @returns {DialectEntry}
  */
 export const dialectEntry = (type, extraValidate = always) => {
-    const [, container] = type()
-    const { dialect } = /** @type {Struct} */ (container)
-    assert(typeof dialect === 'string', 'dialectEntry: schema has no direct string `dialect` member')
+    const { dialect } = schemaDialect(type)
     const v = /** @type {ValidateE} */ (rttiParse(type))
     return { dialect, match: matchWith(v)(extraValidate) }
+}
+
+/**
+ * A dialect schema's container and the `dialect` it pins, asserted to be a
+ * direct string: the one check {@link dialectEntry} and {@link jsonDialect}
+ * both make before anything else, so neither can register a schema the other
+ * refuses for it.
+ *
+ * @template {Struct} S
+ * @param {Rest<S, Type>} type
+ * @returns {{ readonly container: Struct, readonly dialect: string }}
+ */
+const schemaDialect = type => {
+    const [, c] = type()
+    const container = /** @type {Struct} */ (c)
+    const { dialect } = container
+    assert(typeof dialect === 'string', 'dialect schema has no direct string `dialect` member')
+    return { container, dialect }
+}
+
+/**
+ * The media type a dialect is served with: `application/${dialect}+json`, the
+ * mechanical derivation `fjs/media/revision/README.md` documents. The one
+ * spelling of that rule — {@link detect} reports a matched entry under it, and
+ * {@link jsonDialect} publishes a dialect's `mediaType` with it.
+ *
+ * @template {string} D
+ * @param {D} dialect
+ * @returns {`application/${D}+json`}
+ */
+const dialectMediaType = dialect => `application/${dialect}+json`
+
+/**
+ * Whether a data-form node admits JSON values only. A named node is a rule
+ * of the enclosing {@link Data}, checked there once, so the walk never
+ * follows a name and a recursive schema cannot loop.
+ *
+ * @type {(n: Node) => boolean}
+ */
+const jsonNode = n => typeof n === 'string' || jsonUnion(n)
+
+/**
+ * What {@link jsonNode} says about each part of a union: a JSON kind — `null`,
+ * a boolean, a number, a string, an array or object of such — passes;
+ * `undefined`, a `bigint`, and the top (which admits both) do not.
+ *
+ * @type {UnionAlgebra<boolean>}
+ */
+const jsonKinds = {
+    top: false,
+    unit: name => name !== 'undefined',
+    whole: kind => kind === 'number' || kind === 'string',
+    number: () => true,
+    string: () => true,
+    bigint: () => false,
+    array: ({ prefix, rest }) => [...prefix, ...(rest === undefined ? [] : [rest])].every(jsonNode),
+    object: ({ props, rest }) => [...definedValues(props), ...(rest === undefined ? [] : [rest])].every(jsonNode),
+    join: members => members.every(m => m),
+}
+
+const jsonUnion = unionFold(jsonKinds)
+
+/**
+ * Whether a schema's data form admits JSON values only: its entry and every
+ * rule it names. `toData` keeps only the rules its entry reaches, closing
+ * reference cycles by identity, so each is checked once and the check ends.
+ *
+ * @type {(data: Data) => boolean}
+ */
+const jsonData = ([rules, entry]) => [...definedValues(rules), entry].every(jsonNode)
+
+/**
+ * The path to the first leaf of a runtime value `leaf` refuses, or `null`.
+ * Arrays and objects are descended, everything else is a leaf. The walk is
+ * over a value, which FunctionalScript builds acyclic, so it ends; it stops
+ * at the first refusal.
+ *
+ * @type {(leaf: (x: unknown) => boolean) => (path: Path) => (v: unknown) => Path | null}
+ */
+const refusedLeaf = leaf => {
+    /** @type {(path: Path) => (v: unknown) => Path | null} */
+    const walk = path => v =>
+        v instanceof Array ? first(path)(v.map((x, i) => [`${i}`, x]))
+        : isObject(v) ? first(path)(Object.entries(v))
+        : leaf(v) ? null
+        : path
+    /** @type {(path: Path) => (children: readonly (readonly [string, unknown])[]) => Path | null} */
+    const first = path => children =>
+        find(null)(p => p !== null)(map(([k, x]) => walk([...path, k])(x))(children))
+    return walk
+}
+
+/**
+ * A number the standard JSON serializer spells without changing it: `NaN`
+ * and `±Infinity` become `null`, every other number — `-0` included — reads
+ * back as itself.
+ */
+const jsonExact = Number.isFinite
+
+/**
+ * The first number in a parsed value without an exact JSON spelling.
+ * {@link jsonDialect}'s `validate` receives JSON-kind leaves only, so a
+ * number is the one leaf that can be wrong.
+ */
+const inexactNumber = refusedLeaf(x => typeof x !== 'number' || jsonExact(x))([])
+
+/**
+ * The first leaf of an arbitrary value JSON cannot spell: anything but
+ * `null`, a boolean, a string, or a number {@link jsonExact} accepts.
+ */
+const unencodableLeaf = refusedLeaf(x =>
+    x === null || typeof x === 'boolean' || typeof x === 'string'
+    || (typeof x === 'number' && jsonExact(x)))([])
+
+const stringifySorted = stringify(sort)
+
+/**
+ * Everything a JSON dialect derives from its schema and its optional semantic
+ * refinement — the dialect tag, its media type, the canonical encoder, the
+ * validator, the decoder, and the {@link DialectEntry} for {@link detect} —
+ * stated once, so a dialect module states only its format. See
+ * {@link JsonDialect} for what each part guarantees.
+ *
+ * The schema is the one {@link dialectEntry} takes, and refused the same way
+ * when its `dialect` is not a direct string. It is also refused, at
+ * construction, when a declared member admits a value JSON cannot spell — a
+ * `bigint`, `undefined`, or `unknown` (which admits both) — so such a schema
+ * fails at module load naming the member, not at the first `encodeText`. The
+ * `open` rest is not walked: it reaches no member of the value type. The
+ * parameter type refuses such a schema first where it can — a schema whose
+ * value type is not JSON is typed `never` — and the runtime check stays for
+ * what the type cannot see.
+ *
+ * `checkReferences` runs after the shape and exact-number checks, on the
+ * dialect's own value type; its error type joins the kit's. It may return a
+ * value other than its input, which then passes both checks again, so a
+ * refinement cannot make `validate` return a value `encodeText` refuses. `entry` matches
+ * through the kit's own `validate`, so detection and decoding are one
+ * acceptance rule.
+ *
+ * @template {Struct} S
+ * @template [E=never]
+ * @param {Rest<S, Type> & ([Ts<S>] extends [JsonUnknown] ? unknown : never)} schema
+ * @param {(value: Ts<S>) => Result<Ts<S>, E>} [checkReferences]
+ * @returns {JsonDialect<S, E>}
+ */
+export const jsonDialect = (schema, checkReferences = ok) => {
+    const { container, dialect } = schemaDialect(schema)
+    const nonJson = definedEntries(container).flatMap(([k, t]) => jsonData(toData(t)) ? [] : [k])
+    assert(nonJson.length === 0, `jsonDialect: a member admits a value JSON cannot spell: ${nonJson.join(', ')}`)
+    // An erased cast, paid for by the construction checks above, as in
+    // `dialectEntry`: the parsed value is the schema's.
+    const shape = /** @type {(value: unknown) => Result<Ts<S>, ValidationError>} */ (rttiParse(schema))
+    /** @type {(v: Ts<S>) => Result<Ts<S>, ValidationError>} */
+    const exact = v => {
+        const path = inexactNumber(v)
+        return path === null ? ok(v) : error({ path, message: 'number has no exact JSON spelling' })
+    }
+    /**
+     * The shape and exact-number checks. They run on the input and again on
+     * whatever the refinement returns: a refinement may hand back a new
+     * value, and `validate`'s output must stay something `encodeText` takes
+     * and `decodeText` reads back.
+     *
+     * @type {(v: unknown) => Result<Ts<S>, ValidationError>}
+     */
+    const checked = v => okThen(exact)(shape(v))
+    /** @type {JsonDialect<S, E>['validate']} */
+    const validate = value => okThen(checked)(okThen(checkReferences)(checked(value)))
+    /** @type {JsonDialect<S, E>['encodeText']} */
+    const encodeText = value => {
+        const path = unencodableLeaf(value)
+        assert(path === null, `encodeText: no JSON spelling for the value at /${path === null ? '' : path.join('/')}`)
+        // The walk above found every leaf JSON-spellable.
+        return stringifySorted(/** @type {JsonUnknown} */ (value))
+    }
+    // The literal `DialectOf<S>` names is the string asserted above.
+    const tag = /** @type {JsonDialect<S, E>['dialect']} */ (dialect)
+    return {
+        dialect: tag,
+        mediaType: dialectMediaType(tag),
+        encodeText,
+        validate,
+        decodeText: text => okThen(validate)(parse(text)),
+        // `match` takes rtti's `Unknown`; the construction check leaves no
+        // `bigint` or `undefined` the shape check could accept.
+        entry: { dialect, match: u => validate(/** @type {JsonUnknown} */ (u))[0] === 'ok' },
+    }
 }
 
 /**
@@ -162,5 +358,5 @@ export const detect = dialects => bytes => {
     const matched = dialects.find(({ match }) => match(value))
     return matched === undefined
         ? base
-        : { ...base, mime_type: `application/${matched.dialect}+json` }
+        : { ...base, mime_type: dialectMediaType(matched.dialect) }
 }

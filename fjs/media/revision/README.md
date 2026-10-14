@@ -153,7 +153,7 @@ Because rtti struct schemas can't express string-content refinements, `hash`
 is `string` at the schema level and `generation` is `number`; cbase32
 decodability (and the rejection of non-cbase32 strings such as `https://`
 URLs), plus `generation` being a **non-negative safe integer** (`≤ 2 ** 53 −
-1`, so `1 + max(...)` stays exact), are enforced by `isHash` / `validate`,
+1`, so `1 + max(...)` stays exact, and never `-0`), are enforced by `isHash` / `validate`,
 layered on top of the structural schema.
 
 Which fields hold hashes — every `parents` entry, `snapshot`, and every hash in
@@ -219,9 +219,13 @@ contributes `revisionDialect` — `revisionSchema` plus `checkReferences` as its
 refinement — so a blob is classified as `application/vnd.fjs.revision+json`
 exactly when `decodeText` would accept it, and the media type is derived from
 the schema's own `dialect` literal by the rule above rather than named a second
-time. Any format following this convention registers the same way, with
-`dialectEntry`; a caller that already knows what it is validating needs none of
-this and calls `decodeText` / `validate` directly.
+time. The module builds its whole kit — `mediaType`, `encodeText`,
+`validate`, `decodeText` and `revisionDialect` — with `fjs/media`'s
+`jsonDialect` from `revisionSchema` and `checkReferences`, so a format
+following this convention states its schema and refinement and gets the same
+kit; one that wants only detection registers with `dialectEntry`. A caller that
+already knows what it is validating needs none of this and calls `decodeText` /
+`validate` directly.
 
 **Versioning rule:** additive, compatible changes keep the tag — rtti struct
 validation accepts undeclared keys by design, so a blob with extra fields

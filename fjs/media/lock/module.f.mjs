@@ -31,21 +31,15 @@
  */
 
 import { open } from '../../rtti/module.f.mjs'
-import { parse as rttiParse } from '../../rtti/parse/module.f.mjs'
-import { parse as parseJson, stringify } from '../json/module.f.mjs'
-import { error, ok, okThen } from '../../types/result/module.f.js'
-import { dialectEntry } from '../module.f.mjs'
-import { sort } from '../../types/object/module.f.mjs'
+import { error, ok } from '../../types/result/module.f.js'
+import { jsonDialect } from '../module.f.mjs'
 import { lock, lockMapError } from '../revision/module.f.mjs'
 
 /**
  * Format tag: names the dialect of this BLOB. The media type it is served
- * with is derived mechanically: `application/` + `dialect` + `+json`.
+ * with, {@link mediaType}, is derived from it.
  */
 export const dialect = /** @type {const} */ ('vnd.fjs.lock')
-
-/** The media type derived from {@link dialect}: `application/vnd.fjs.lock+json`. */
-export const mediaType = /** @type {const} */ (`application/${dialect}+json`)
 
 /**
  * rtti schema for a `lock` BLOB: the dialect tag and the map.
@@ -71,14 +65,6 @@ export const lockSchema = open(/** @type {const} */ ({
     lock,
 }))
 
-/** Serializes a lock blob canonically, recursively sorting every object's property names.
- * @type {(lock: Lock) => string}
- */
-export const encodeText = stringify(sort)
-
-/** Structural-only validator: checks the shape, not the hash semantics. */
-const validateShape = rttiParse(lockSchema)
-
 /**
  * Checks the semantic refinement the structural schema can't express on an
  * already shape-valid lock blob: every direct value at every depth of the map
@@ -96,13 +82,24 @@ export const checkReferences = l => {
     return message === null ? ok(l) : error(message)
 }
 
+/** The dialect's kit: {@link lockSchema} refined by {@link checkReferences}. */
+const kit = jsonDialect(lockSchema, checkReferences)
+
+/** The media type derived from {@link dialect}: `application/vnd.fjs.lock+json`. */
+export const mediaType = kit.mediaType
+
+/** Serializes a lock blob canonically, recursively sorting every object's property names.
+ * @type {(lock: Lock) => string}
+ */
+export const encodeText = kit.encodeText
+
 /**
  * Validates an already-parsed JSON value as a `lock` BLOB: structural (rtti)
  * validation followed by the hash semantic check.
  *
  * @type {(value: Unknown) => Result<Lock, LockError>}
  */
-export const validate = value => okThen(checkReferences)(validateShape(value))
+export const validate = kit.validate
 
 /**
  * Decodes `text` as a `lock` BLOB: JSON-parses it, then validates it per
@@ -111,21 +108,13 @@ export const validate = value => okThen(checkReferences)(validateShape(value))
  *
  * @type {(text: string) => Result<Lock, LockError>}
  */
-export const decodeText = text => okThen(validate)(parseJson(text))
-
-/** {@link checkReferences} as the `boolean` refinement a {@link DialectEntry} takes.
- * @type {(l: Lock) => boolean}
- */
-const isValidLock = l => {
-    const [tag] = checkReferences(l)
-    return tag === 'ok'
-}
+export const decodeText = kit.decodeText
 
 /**
- * This dialect as a registry entry for `fjs/media`'s `detect`. It carries the
- * semantic check too, so a blob is detected as `vnd.fjs.lock` exactly when
- * {@link decodeText} would accept it.
+ * This dialect as a registry entry for `fjs/media`'s `detect`. It matches
+ * through {@link validate}, so a blob is detected as `vnd.fjs.lock` exactly
+ * when {@link decodeText} would accept it.
  *
  * @type {DialectEntry}
  */
-export const lockDialect = dialectEntry(lockSchema, isValidLock)
+export const lockDialect = kit.entry
