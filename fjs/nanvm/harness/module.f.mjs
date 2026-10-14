@@ -30,7 +30,7 @@
 import { compileFile, noRuntime } from '../../compiler/module.f.mjs'
 import { interpret } from '../../compiler/transpiler/module.f.mjs'
 import { forEachStep, history, historyStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../../effects/module.f.mjs'
-import { exitStep, mkdir, readdir, writeUtf8File } from '../../effects/node/module.f.mjs'
+import { exitStep, mkdir, readdir, writeFiles, writeUtf8File } from '../../effects/node/module.f.mjs'
 import { cmp } from '../../types/string/module.f.mjs'
 import { corpus, fixturesDirectory } from '../corpus/module.f.mjs'
 import { expectation } from '../expected/module.f.mjs'
@@ -107,10 +107,9 @@ export const expectedModules = names => [
 
 /**
  * Compiles every fixture into its `.rs`, in order, stopping at the first the
- * compiler refuses, then writes `mod.rs` naming them all. The output
- * directory is created by the first compile — after `gen:clean` on a fresh
- * checkout nothing else does — and again here, so an empty fixture set still
- * leaves a `mod.rs`.
+ * compiler refuses, then writes `mod.rs` naming them all. Each write creates
+ * the output directory first — after `gen:clean` on a fresh checkout nothing
+ * else does — so an empty fixture set still leaves a `mod.rs`.
  *
  * @type {() => Effect<_CompileOp, void, IoChannel>}
  */
@@ -118,8 +117,7 @@ export const generateFixtures = () => step(fixtures(), names => {
     const compiled = forEachStep(
         pureOk(names),
         name => compileFile(noRuntime)(`${fixturesDirectory}/${name}`, `${directory}/${rustName(name)}.rs`))
-    const directoryReady = step(compiled, () => mkdir(directory, { recursive: true }))
-    return step(directoryReady, () => writeUtf8File(modulesPath, modules(names.map(rustName))))
+    return step(compiled, () => writeFiles([[modulesPath, modules(names.map(rustName))]]))
 })
 
 /** Where the corpus fixtures' expectations are: one `.rs` each, a `gen.` name `gen:clean` empties. */
@@ -152,6 +150,14 @@ const writeExpectation = runtime => name => resultStep(
  * directory is created first, so an empty corpus still leaves a `mod.rs`,
  * and the runtime is loaded once, from its source, for every fixture to
  * initialize under.
+ *
+ * It makes the directory and writes each file itself, where
+ * {@link generateFixtures} hands its `mod.rs` to `writeFiles`. An
+ * expectation is known only once its fixture is interpreted, so there is no
+ * file set to hand over before the writes begin. And the directory is made
+ * before the runtime loads, so a run whose runtime fails to load still leaves
+ * it, empty, as the proof pins; `writeFiles` would make it only at the first
+ * write.
  *
  * @type {() => Effect<_CompileOp, void, IoChannel>}
  */
