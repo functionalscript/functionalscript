@@ -68,6 +68,6 @@ disappears. The duplicated grammar comment survives once, on `scan`.
 
 ### Related
 
-- [numeric-coercion-module](./numeric-coercion-module.md) — the other
-  ToNumeric-adjacent logic currently living outside its own module; same
+- [`numeric_coercion.rs`](../src/vm/numeric_coercion.rs) — ToNumeric,
+  moved out of `Any` and `relational.rs` into its own module; same
   placement smell, different operation.
