@@ -1,7 +1,7 @@
 ## 66C-emit-literals-via-owner-modules. Route source-literal rendering through the owning modules
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
