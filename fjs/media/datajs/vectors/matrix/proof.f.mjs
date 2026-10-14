@@ -418,6 +418,16 @@ export const proof = {
             notApplicable: [],
         }
         assertStructurallySame(failure(thrice), ['the set a: named twice, so a set scope cannot tell its two sets apart'])
+        // in the order of each name's last occurrence
+        /** @type {Corpus} */
+        const crossed = {
+            roles: [{ role: 'reader', sets: [['a', [v('i', 'x')]], ['b', [v('j', 'x')]], ['b', [v('k', 'x')]], ['a', [v('l', 'x')]]] }],
+            notApplicable: [],
+        }
+        assertStructurallySame(failure(crossed), [
+            'the set b: named twice, so a set scope cannot tell its two sets apart',
+            'the set a: named twice, so a set scope cannot tell its two sets apart',
+        ])
         // and the real corpus names nothing twice
         assert(matrix(corpus)[0] === 'ok')
         assertStructurallySame(check(corpus), [])

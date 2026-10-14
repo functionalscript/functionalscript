@@ -34,6 +34,11 @@ impl IVm for Naive {
     fn runtime_method(type_name: &str, key: &Any<Naive>) -> Option<Any<Naive>> {
         crate::vm::runtime_method(type_name, key)
     }
+
+    /// The compiled runtime's static entry, for the same reason.
+    fn runtime_static(path: &[&str]) -> Option<Any<Naive>> {
+        crate::vm::runtime_static(path)
+    }
 }
 
 /// `naive` holds a static function, and makes a function no other way.
