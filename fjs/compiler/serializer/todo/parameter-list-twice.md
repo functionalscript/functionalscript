@@ -1,7 +1,7 @@
 ## The writers repeat parameter lists and `rest` and `self` reads
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
