@@ -3,7 +3,7 @@
  * @import { LockMap, Revision } from './types.ts'
  */
 
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertError } from '../../asserts/module.f.mjs'
 import { dialect, mediaType, isHash, validate, decodeText, encodeText, hashEntries, mapHashes, checkReferences } from './module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 
@@ -120,8 +120,8 @@ export const proof = {
         // `generation` is a count, which is never `-0`: the dialect refuses
         // it, though the value itself round-trips through JSON.
         negativeZeroGenerationRejected: () => {
-            const [t] = decodeText(`{"dialect":"${dialect}","subject":"${h1}","parents":[],"snapshot":"${h2}","generation":-0}`)
-            assertEq(t, 'error')
+            const r = decodeText(`{"dialect":"${dialect}","subject":"${h1}","parents":[],"snapshot":"${h2}","generation":-0}`)
+            assertEq(assertError(r), 'generation must not be -0')
         },
 
         // A positive integer generation is accepted.

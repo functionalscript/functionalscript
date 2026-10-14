@@ -303,9 +303,10 @@ const hashMessage = ([field, ...rest]) => h =>
 export const checkReferences = r => {
     const invalid = firstInvalid(hashEntries(r))
     if (invalid !== null) { return error(hashMessage(invalid[0])(invalid[1])) }
-    if (!Number.isSafeInteger(r.generation) || r.generation < 0 || Object.is(r.generation, -0)) {
+    if (!Number.isSafeInteger(r.generation) || r.generation < 0) {
         return error(`generation must be a non-negative safe integer: ${r.generation}`)
     }
+    if (Object.is(r.generation, -0)) { return error('generation must not be -0') }
     return ok(r)
 }
 
