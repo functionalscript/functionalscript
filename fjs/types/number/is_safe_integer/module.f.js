@@ -1,7 +1,9 @@
 /**
  * The safe-integer predicate: an integer within the exact integer range of a
  * JavaScript number. Non-numbers, fractions, infinities and NaN are refused;
- * both spellings of zero are accepted, as by `Number.isSafeInteger`.
+ * both spellings of zero are accepted, as by `Number.isSafeInteger`, whose
+ * body in the runtime's `static` section this is
+ * ([`fjs/js/runtime`](../../../js/runtime/module.f.js)).
  *
  * @module
  */

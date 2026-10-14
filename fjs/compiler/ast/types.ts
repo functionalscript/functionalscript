@@ -6,7 +6,7 @@
  */
 
 import type { Assert } from '../../asserts/types.ts'
-import type { ConstructorId } from '../../edag/types.ts'
+import type { ConstructorId, StaticId } from '../../edag/types.ts'
 import type { Primitive } from '../../media/datajs/types.ts'
 import type { Equal } from '../../types/ts/types.ts'
 import type { binaryTags, eagerLayers, lazyLayers, unaryTags } from './module.f.mjs'
@@ -32,8 +32,8 @@ export type AstImport = {
  */
 export type AstModule = readonly [readonly AstImport[], AstBody]
 
-/** A value in a module body: a primitive, a reference, an array, an object, a property access, a call, a negation, a bitwise not, a logical not, a `typeof`, an `instanceof`, a `Number` or `String` conversion, the function's own `self`, a binary operator, a conditional, a function, the `entry` helper, `Object.is`, a fixed parameter, a rest array, a slot of its frame — or a `throw`, which a body may end with in place of a value. */
-export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstGuardedAccess|AstCall|AstGuardedCall|AstNeg|AstBitnot|AstNot|AstTypeof|AstInstanceOf|AstNumber|AstString|AstSelf|AstBinary|AstConditional|AstFunction|AstEntryFunction|AstObjectIs|AstRest|AstArg|AstFrameRef|AstThrow
+/** A value in a module body: a primitive, a reference, an array, an object, a property access, a call, a negation, a bitwise not, a logical not, a `typeof`, an `instanceof`, a `Number` or `String` conversion, the function's own `self`, a binary operator, a conditional, a function, the `entry` helper, a static function, a fixed parameter, a rest array, a slot of its frame — or a `throw`, which a body may end with in place of a value. */
+export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstGuardedAccess|AstCall|AstGuardedCall|AstNeg|AstBitnot|AstNot|AstTypeof|AstInstanceOf|AstNumber|AstString|AstSelf|AstBinary|AstConditional|AstFunction|AstEntryFunction|AstStatic|AstRest|AstArg|AstFrameRef|AstThrow
 
 /**
  * The `entry` helper, which the parser recognizes whole
@@ -58,16 +58,17 @@ export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstGu
 export type AstEntryFunction = readonly ['entry']
 
 /**
- * `Object.is`, the one static function the language admits, as a value:
- * what every spelling of the read is — `Object.is`, `Object['is']`, the
- * guarded `Object?.is`, and the destructuring `const { is } = Object`,
- * which is sugar for `const is = Object.is` — since `Object` is a
- * reserved global, never nullish and no value of its own. One function
- * however often it is read, as in JavaScript. The lowering spells it as
- * the EDAG's own node, `['Object.is']`, and the writer spells that back
- * as `Object.is`.
+ * A static function the language admits, as a value — `Object.is` or one
+ * of the four `Number` predicates, `Number.isInteger`, by its tag: what
+ * every spelling of the read is — `Object.is`, `Object['is']`, the guarded
+ * `Object?.is`, and the destructuring `const { is } = Object`, which is
+ * sugar for `const is = Object.is` — since a namespace is a reserved
+ * global, never nullish and no value of its own. One function however
+ * often it is read, as in JavaScript. The lowering spells it as the
+ * EDAG's own node, `['Object.is']`, and the writer spells that back as
+ * `Object.is`.
  */
-export type AstObjectIs = readonly ['Object.is']
+export type AstStatic = readonly [StaticId]
 
 /**
  * A `throw`, `throw v;`: the statement a function's block body, or a

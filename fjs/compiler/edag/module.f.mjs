@@ -19,7 +19,7 @@
 
 import { anchors, isBinary, isInlinedCall, isLazy, isSpread, isUnary, readCaptures } from '../ast/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
-import { fromValue } from '../../edag/module.f.mjs'
+import { fromValue, isStatic } from '../../edag/module.f.mjs'
 import { _attributeError, _fileError, _importSources, _missingExport, _rootSource, _parseJson, _parseModule } from '../source/module.f.mjs'
 import { foldStep, mapStep, pureError, pureOk, step } from '../../effects/module.f.mjs'
 import { at, setReplace } from '../../types/ordered_map/module.f.mjs'
@@ -317,6 +317,10 @@ const slotKeys = nodes => {
 const lowerLeaf = nodes => ast => {
     if (ast === undefined) { return plain(undefinedNode()) }
     if (ast === null || typeof ast !== 'object') { return plain(ast) }
+    // a static function, the EDAG's own node for it — a node per read,
+    // each answered by every executor with the one function its runtime
+    // holds, however often it is read
+    if (isStatic(ast)) { return plain([ast[0]]) }
     switch (ast[0]) {
         case 'aref': { return plain(nodes.parameters[ast[1]]) }
         case 'cref': { return plain(nodes.consts[ast[1]]) }
@@ -340,10 +344,6 @@ const lowerLeaf = nodes => ast => {
         // the `entry` helper, the EDAG's own node for it — a fresh one per
         // helper written, as every arrow is a node of its own
         case 'entry': { return plain(['entry']) }
-        // `Object.is`, the EDAG's own node for it — a node per read, each
-        // answered by every executor with the one function its runtime
-        // holds, however often it is read
-        case 'Object.is': { return plain(['Object.is']) }
         case '()': { return call(nodes)(ast) }
         case '?.()': { return guardedCall(nodes)(ast) }
         // an access, plain or guarded: the EDAG's own form already, its key

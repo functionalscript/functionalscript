@@ -725,4 +725,8 @@ pub const ABSENT: &[(&str, &str)] = &[
 #[rustfmt::skip]
 pub const STATICS: &[&[&str]] = &[
     &["Object", "is"],
+    &["Number", "isInteger"],
+    &["Number", "isSafeInteger"],
+    &["Number", "isNaN"],
+    &["Number", "isFinite"],
 ];

@@ -1039,7 +1039,9 @@ export const proof = {
             expectRefused('const n = Number; export default n;', 'reserved word', 11)
             expectRefused('export default [Number];', 'reserved word', 17)
             expectRefused('export default { Number };', 'reserved word', 18)
-            expectRefused('export default Number.isFinite(1);', 'reserved word', 16)
+            // a member the namespace does not admit; its four predicates
+            // are `./static.proof.f.mjs`'s
+            expectRefused('export default Number.parseFloat(1);', 'reserved word', 16)
             // the guarded call is not read as the conversion yet
             expectRefused('export default Number?.(1);', 'reserved word', 16)
             // the `entry` helper under a reserved name is no helper: the

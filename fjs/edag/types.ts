@@ -48,7 +48,9 @@ import type {
     property,
     propertyLambda,
     spread,
+    staticId,
 } from './module.f.mjs'
+import type { StaticPath } from '../js/static/types.ts'
 
 // exp
 
@@ -236,7 +238,15 @@ export type Comma = readonly[',', Exps]
 // Op0Ids
 
 export type Op0Id =
-    | 'undefined' | 'args' | 'rest' | 'self' | 'entry' | 'Object.is'
+    | 'undefined' | 'args' | 'rest' | 'self' | 'entry' | StaticId
+
+/** A static function's tag, its path's keys joined by `.`: `'Object.is'`, `'Number.isInteger'`. */
+export type StaticId = 'Object.is' | 'Number.isInteger' | 'Number.isSafeInteger' | 'Number.isNaN' | 'Number.isFinite'
+
+/** A path's keys joined by `.`, the tag a static node carries for it. */
+type Joined<P> = P extends readonly [infer G extends string, infer N extends string] ? `${G}.${N}`
+    : P extends readonly [infer G extends string] ? G
+    : never
 
 export type Op0 = readonly[Op0Id]
 
@@ -432,6 +442,10 @@ type _OptionDot = Assert<Check<OptionDot, typeof optionDot>>
 type _OptionCall = Assert<Check<OptionCall, typeof optionCall>>
 type _Comma = Assert<Check<Comma, typeof comma>>
 type _Op0Id = Assert<Check<Op0Id, typeof op0Id>>
+type _StaticId = Assert<Check<StaticId, typeof staticId>>
+// The tags are the admitted paths, one for one: a path with no tag, or a
+// tag no path admits, fails here.
+type _StaticIds = Assert<Equal<StaticId, Joined<StaticPath>>>
 type _Op0 = Assert<Check<Op0, typeof op0>>
 type _Op1Id = Assert<Check<Op1Id, typeof op1Id>>
 type _Op1 = Assert<Check<Op1, typeof op1>>

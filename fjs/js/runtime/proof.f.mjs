@@ -5,6 +5,10 @@ import {
 } from '../prototype/module.f.js'
 import { isStatic } from '../static/module.f.js'
 import { is } from '../../types/object/is/module.f.js'
+import { isFinite_ } from '../../types/number/is_finite/module.f.js'
+import { isInteger } from '../../types/number/is_integer/module.f.js'
+import { isNaN_ } from '../../types/number/is_nan/module.f.js'
+import { isSafeInteger } from '../../types/number/is_safe_integer/module.f.js'
 import { runtime } from './module.f.js'
 
 const { entries, values } = Object
@@ -62,6 +66,20 @@ export const proof = {
         assertEq(runtime.static.Object.is(-0, 0), false)
         assertEq(runtime.static.Object.is(NaN, NaN), true)
         assertEq(runtime.static.Object.is('a', 'a'), true)
+    },
+    // The four `Number` predicates are the helpers themselves, and each
+    // answers as the built-in on every kind of value, none converting:
+    // `"1"` and `1n` are no integer, `"NaN"` is no `NaN`.
+    numberPredicates: () => {
+        const { Number: predicates } = runtime.static
+        assertEq(predicates.isInteger, isInteger)
+        assertEq(predicates.isSafeInteger, isSafeInteger)
+        assertEq(predicates.isNaN, isNaN_)
+        assertEq(predicates.isFinite, isFinite_)
+        const values = [0, -0, 1, 1.5, 2 ** 53, 2 ** 53 - 1, NaN, Infinity, -Infinity, 1n, '1', 'NaN', true, null, undefined, [], {}]
+        for (const name of /** @type {const} */ (['isInteger', 'isSafeInteger', 'isNaN', 'isFinite'])) {
+            for (const value of values) { assertEq(predicates[name](value), Number[name](value), [name, value]) }
+        }
     },
     // The one member body so far, on the host: `String.prototype.startsWith`'s
     // algorithm, case by case — the search converted, the position clamped

@@ -114,6 +114,10 @@ export const proof = {
         assertEq(anchorsOf([[], [['fref', 0], 1]]), 'consts ; imports ')
         assertEq(anchorsOf([[], [['rest'], 1]]), 'consts ; imports ')
         assertEq(anchorsOf([[], [['arg', 0], 1]]), 'consts ; imports ')
+        // a static function is a value, anchored unused as a value is, and
+        // names nothing: a call of it reaches its arguments alone
+        assertEq(anchorsOf([[], [['Object.is'], 1]]), 'consts 0; imports ')
+        assertEq(anchorsOf([[a], [['array', []], ['()', ['Number.isNaN'], [['cref', 0]]]]]), 'consts ; imports 0')
     },
     // The captures a body reads, by index, each once in first-use order:
     // the slots of the function's frame. A capture the body names only

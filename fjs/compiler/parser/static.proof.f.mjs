@@ -1,16 +1,19 @@
 /**
- * The proof of the parser's reading of `Object.is`, the one static function
- * the language admits ([spec: built-in static
- * functions](../../../spec/README.md#built-in-static-functions)): a value,
- * the AST's `['Object.is']`, in every spelling JavaScript reads it in, and
- * the namespace `Object` refused everywhere else. It reads the parser as
- * `./proof.f.mjs` does, through the helpers it exports.
+ * The proof of the parser's reading of the static functions the language
+ * admits, `Object.is` and the four `Number` predicates ([spec: built-in
+ * static functions](../../../spec/README.md#built-in-static-functions)):
+ * each a value, the AST's `['Object.is']`, in every spelling JavaScript
+ * reads it in, and each namespace refused everywhere else. It reads the
+ * parser as `./proof.f.mjs` does, through the helpers it exports.
  *
  * No `@module`: a proof's documentation reaches no reader of the published
  * API, which is the case that rule names outright.
  */
 
 import { expectModule, expectRefused } from './proof.f.mjs'
+import { assert } from '../../asserts/module.f.mjs'
+import { isReservedGlobal } from '../../js/keywords/module.f.js'
+import { staticIds, staticPath } from '../../edag/module.f.mjs'
 
 /** The module whose default export is `value`, as the proofs pin it. @type {(value: string) => string} */
 const exported = value => `[[],[["object",[[":","default",${value}]]]]]`
@@ -67,6 +70,35 @@ export const proof = {
         expectRefused('const { is, ...r } = Object; export default r;', 'rest element not supported', 13)
         expectRefused('const { [k]: a } = Object; export default a;', 'computed key in a binding pattern not supported', 10)
         expectRefused('const { keys } = Object; export default 1;', 'prohibited property name', 9)
+    },
+    // The four `Number` predicates are read as `Object.is` is, in every
+    // spelling and through destructuring, beside the conversion `Number(x)`,
+    // which the namespace leaves as it was; a member it does not admit, a
+    // value property included, is refused at the word, and so is a
+    // predicate under the other namespace.
+    number: () => {
+        for (const name of ['isInteger', 'isSafeInteger', 'isNaN', 'isFinite']) {
+            for (const source of [`Number.${name}`, `Number["${name}"]`, `Number?.${name}`, `Number?.["${name}"]`]) {
+                expectModule(`export default ${source};`, exported(`["Number.${name}"]`))
+            }
+        }
+        expectModule('export default [Number.isInteger(1), Number.isNaN?.(NaN), Number(1)];',
+            exported('["array",[["()",["Number.isInteger"],[1]],["?.()",["Number.isNaN"],[NaN]],["Number",1]]]'))
+        expectModule('const { isInteger, isFinite: f } = Number; export default [isInteger, f];',
+            '[[],[["Number.isInteger"],["Number.isFinite"],["object",[[":","default",["array",[["cref",0],["cref",1]]]]]]]]')
+        for (const source of [
+            'export default Number.MAX_SAFE_INTEGER;',
+            'export default Number.parseFloat("1");',
+            'export default Number.is;',
+            'export default Number?.(1);',
+        ]) { expectRefused(source, 'reserved word', 16) }
+        expectRefused('export default Object.isInteger;', 'reserved word', 16)
+        expectRefused('const { foo } = Number; export default 1;', 'reserved word', 17)
+    },
+    // Every namespace is a reserved global, so no scope binds the word a
+    // static read is decided by.
+    namespaces: () => {
+        for (const id of staticIds) { assert(isReservedGlobal(staticPath(id)[0]), id) }
     },
     // Every other read of the word is refused at it: a member the
     // namespace does not admit, in a pattern too, a computed or numeric
