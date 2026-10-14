@@ -153,7 +153,8 @@ there is none to report separately.
 | Pass | Implementation leaves checked | Converted to `.f.js` |
 | --- | ---: | --- |
 | 1 | 12 | `website/prs/load` |
-| 2 | 11 | None: every remaining leaf is refused |
+| 2 | 11 | `emergent_testing/node`, by two admitted rewrites |
+| 3 | 10 | None: every remaining leaf is refused |
 
 `website/prs/load` compiles whole: its four destructured parameters were
 its only refusals, and the parameter pattern is admitted now. The conversion
@@ -175,6 +176,19 @@ are no longer refusals, and `git/config`'s elision now stands in front of
 another prohibited name: every read of its `sub` field, `String.prototype`'s
 `sub`.
 
+`emergent_testing/node` is then converted by the two rewrites
+[`doc/CONVERTING.md` §1](../doc/CONVERTING.md#reading-say-what-type-the-key-has)
+prescribes, each the one spelling the language has for the read it
+replaces, as [#2826](https://github.com/functionalscript/functionalscript/pull/2826)'s
+were: `data.name` in `log` becomes `entry(data, 'name')`, the own-property
+read of a name a built-in prototype gives a value, and `file[cwd.length]`
+in `located` becomes `file[Number(cwd.length)]`, the index being a number.
+Both read what JavaScript read before. The rename follows into its two
+importers, the reporter `module.mjs` and the proof; no `.f.mjs` imports the
+module, so the third pass checks the same ten and converts none. The
+authored `.f.js` population grows from 33 to 34, and `npm start compile`
+checks 40.
+
 Each row is the first actual refusal from the `resolve()` pipeline, and
 the last column what else the compiler does not accept in the module. The
 last column was measured, not read: each refusal was removed on a scratch
@@ -185,7 +199,6 @@ relative to `fjs/`.
 | Leaf file | Location | First refused construct | Behind it |
 | --- | ---: | --- | --- |
 | `ci/package/module.f.mjs` | 114:22 | `JSON.stringify` in `literal` | `JSON` is not admitted; also writes `tsconfig` with it |
-| `emergent_testing/node/module.f.mjs` | 54:48 | The read `data.name` in `log`, a prohibited property name | The computed key `file[cwd.length]` in `located`, no `Number(...)` |
 | `git/config/module.f.mjs` | 563:12 | Elision in `const [, list]` in `tryEntries` | Every read of the `sub` field, `acc.sub` in `subStep` first, a prohibited property name |
 | `media/rust/module.f.mjs` | 62:5 | `switch` in `character` | The loop in `exponentOf`: two `let` variables, an `if … else` assigning inside it, `Math.floor`; `Math.abs`; `Array(…).keys()`, a reserved word and a prohibited call; four forward references, `utf16Literal` to `utf16Units`, `f64Bits` to `bitsOf`, `u64Words` to `u64WordItems`, `u64WordItems` to `words` |
 | `nanvm/methods/module.f.mjs` | 113:20 | `Object.values` in `rows` | Nothing: the one refusal |
@@ -205,10 +218,9 @@ import { resolve } from './fjs/compiler/edag/module.f.mjs';
 import { runNodeEffect } from './fjs/effects/node/module.mjs';
 
 const leaves = [
-  'ci/package', 'emergent_testing/node', 'git/config', 'media/rust',
-  'nanvm/methods', 'types/list', 'types/map',
-  'types/object/structurally_same', 'types/ts', 'website/browser-source',
-  'website/demo/code',
+  'ci/package', 'git/config', 'media/rust', 'nanvm/methods', 'types/list',
+  'types/map', 'types/object/structurally_same', 'types/ts',
+  'website/browser-source', 'website/demo/code',
 ];
 for (const leaf of leaves) {
   const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
