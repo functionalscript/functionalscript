@@ -7,7 +7,7 @@
 
 import type { Vec } from '../../../types/bit_vec/types.ts'
 import type { Effect, IoChannel } from '../../types.ts'
-import type { Headers, IncomingMessage, Module, NodeOp, ServerResponse } from '../types.ts'
+import type { Headers, IncomingMessage, Module, NodeOp, Overrun, ServerResponse, Underrun } from '../types.ts'
 import type { MemoryState } from '../../memory/types.ts'
 import type { Nullable } from '../../../types/nullable/types.ts'
 import type { StringMap } from '../../../types/object/types.ts'
@@ -208,28 +208,6 @@ export type RecordedResponse = {
      */
     readonly failure: Nullable<IoChannel | Overrun | Underrun>
 }
-
-/**
- * A cell that would have carried the body past its declared length. None of that
- * chunk is recorded: a body exactly as long as it promised is a body every client
- * reads as whole, so the runner leaves it **short** over a socket no client can
- * read a whole body from rather than cutting the chunk to fit. The number is the
- * length that was declared.
- */
-export type Overrun = readonly['overrun', number]
-
-/**
- * A body that ended before the length it declared, which nothing on a host's
- * server side notices: `res.end()` raises nothing and the socket goes back into
- * the keep-alive pool, so what tells the client is the idle timeout — or, for a
- * pipelined connection, the next response's status line read as the tail of this
- * body. The record states it rather than a proof deriving it, because the
- * subtraction is wrong exactly where it would matter: a `HEAD` or a `304` declares
- * a length and records an empty body, and a proof comparing the two would fail the
- * responses the gates were written to let through. The number is the declared
- * length again.
- */
-export type Underrun = readonly['underrun', number]
 
 export type State = {
     readonly stdout: string
