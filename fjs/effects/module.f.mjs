@@ -323,7 +323,10 @@ const _matchWith = onMissing =>
  * A set is declared as a record so that it is checked for completeness, and
  * the list is derived from it so that the two cannot disagree. The cast is the
  * one `Object.keys` always needs: it answers `string[]` for a record whose keys
- * the type system knows exactly.
+ * the type system knows exactly. That holds for the record literal a set is
+ * declared as, which is what `set` must be: a record assigned to a narrower
+ * type, which structural typing admits, holds keys its type does not name, and
+ * the list carries them. Nothing here can check it, since `O` is erased.
  *
  * Generic over the set's own type `S` rather than the operation set `O`: a
  * `CommandSet<O>` mentions only `O[0]`, from which `O` cannot be inferred.
