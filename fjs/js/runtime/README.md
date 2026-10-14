@@ -149,10 +149,10 @@ sequenceDiagram
     L->>L: own property? none on an array
     L->>T: method(receiver, "map")
     T-->>L: None, once map has a body
-    L->>A: runtime_method("array", "map")
+    L->>A: runtime_method("Array", "map")
     A->>R: module::<A>()
     R-->>A: the export object
-    A-->>L: the closure under runtime.array.map
+    A-->>L: the closure under runtime.member.Array.map
     L->>L: body.call([receiver, ...args])
     L-->>M: the answer, or Err(thrown)
 ```
