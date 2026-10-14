@@ -1,6 +1,6 @@
 /**
- * The repository's `config` file, read for the one thing the readers
- * need from it: the id width. The file is Git's INI-like text — `[section]`
+ * Git's `config` file: its grammar, and the readers a key's assignments
+ * are read through. The file is Git's INI-like text — `[section]`
  * or `[section "subsection"]` headers, `key = value` under them, comments
  * from `#` or `;` — and {@link tryEntries} reads it as Git's own parser
  * reads it, which is a character at a time rather than a line at a time:
@@ -26,20 +26,29 @@
  * rather than misread: a `\` at the end of a line, which continues the
  * value on the next, and a NUL inside a quoted subsection, which truncates
  * the whole name Git assembles and leaves it with no key in it. Neither
- * comes out of a `git init`, and the key this module is for is a word in a
- * section with no subsection.
+ * comes out of a `git init`.
+ *
+ * What a key means is its reader's business, not the grammar's: the
+ * repository format and the id width it names are
+ * [`fjs/git/store`](../store/module.f.mjs)'s `tryOidBytes`. This module
+ * answers every assignment in the file, and the readers below take a key's
+ * from there the way Git takes them — {@link values} every one,
+ * {@link lastValue} the one that wins, and {@link lastInt} and
+ * {@link lastBool} the one that wins as Git's `int` and `bool`, each
+ * assignment judged as the reader reaches it.
  *
  * @module
  *
  * @import { StringMap } from '../../types/object/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
- * @import { OidBytes } from '../types.ts'
+ * @import { Result } from '../../types/result/types.ts'
  * @import { _SubState, _ValueState } from './private.ts'
  * @import { Entry } from './types.ts'
  */
 
 import { entry as objectEntry } from '../../types/object/entry/module.f.js'
 import { bigint } from '../../types/bigint/from_number/module.f.js'
+import { error, ok } from '../../types/result/module.f.js'
 
 /** The value Git gives a key written without one. */
 const bareValue = /** @type {const} */ ('true')
@@ -146,84 +155,19 @@ const keyAt = spanOf(isKeyChar)
 const sectionAt = spanOf(c => isKeyChar(c) || c === '.')
 
 /**
- * The extensions Git 2.43 reads whatever the version says, as it
- * lowercases them.
+ * The words Git reads as `true`, lowercased.
  *
  * @type {readonly string[]}
  */
-const v0Extensions = ['noop', 'preciousobjects', 'partialclone', 'worktreeconfig']
+const trueWords = ['true', 'yes', 'on']
 
 /**
- * The extensions Git 2.43 reads only under `repositoryformatversion = 1`.
- * Under version 0 a file holding one is refused — `repo version is 0, but
- * v1-only extension found` — and `objectformat`, the key this module is
- * for, is one of them.
+ * The words Git reads as `false`, lowercased, the empty value among them:
+ * `x =` is false where `x` alone is true.
  *
  * @type {readonly string[]}
  */
-const v1OnlyExtensions = ['noop-v1', 'objectformat']
-
-/**
- * The extensions Git 2.43 knows. Under `repositoryformatversion = 1` Git
- * refuses a repository whose `[extensions]` holds any other key —
- * `unknown repository extension found` — since an extension changes how
- * the repository is read and a reader that ignored one would read it
- * wrongly; {@link tryOidBytes} refuses it for the same reason.
- * `compatobjectformat` is not among them: Git 2.43 refuses it, a later Git
- * knows it, and a newer Git knowing more of them is what keeps this list a
- * version's. Under version 0 an unknown key is ignored, as Git ignores it.
- *
- * @type {readonly string[]}
- */
-const knownExtensions = [...v0Extensions, ...v1OnlyExtensions]
-
-/** The hash `extensions.objectFormat` names where the id is 32 bytes wide. */
-const sha256 = /** @type {const} */ ('sha256')
-
-/**
- * Whether a value names a hash Git knows, which is what
- * `extensions.objectFormat` must hold. A comparison and not a lookup in a
- * map of the two: a value is any text the file holds, and `toString` or
- * `__proto__` would find a key of `Object.prototype` in an ordinary object
- * and pass for a hash's name.
- *
- * @type {(value: string) => boolean}
- */
-const isFormat = value => value === 'sha1' || value === sha256
-
-/**
- * The version of a file that names none: what Git starts its
- * `repository_format` at and leaves there when no
- * `core.repositoryformatversion` sets it. It is no version rather than
- * version 0, and the difference shows — a file holding
- * `extensions.objectFormat` and no version at all is a SHA-1 repository
- * Git opens, where the same file saying `repositoryformatversion = 0` is
- * one it refuses.
- *
- * A file that spells this number is read as though it named no version at
- * all, since Git tells the two apart by the number and nothing else: on
- * reading `-1` it throws the format it read away and starts again, so
- * `repositoryformatversion = -1` beside `objectFormat = sha256` is a
- * SHA-1 repository where `-2` beside the same key is a SHA-256 one.
- */
-const noVersion = /** @type {const} */ (-1n)
-
-/**
- * The extensions whose value Git reads as a boolean, refusing a
- * repository whose value is none — `bad boolean config value`. The
- * others take a word: `objectformat` a hash's name, `partialclone` a
- * remote's, and `noop` and `noop-v1` anything, since Git reads neither.
- *
- * @type {readonly string[]}
- */
-const booleanExtensions = ['preciousobjects', 'worktreeconfig']
-
-/**
- * The words Git reads as a boolean, lowercased.
- *
- * @type {readonly string[]}
- */
-const booleans = ['true', 'false', 'yes', 'no', 'on', 'off', '']
+const falseWords = ['false', 'no', 'off', '']
 
 /**
  * The radix a letter after a leading `0` names, however cased, and none
@@ -355,12 +299,20 @@ const tryInt = value => {
 }
 
 /**
- * Whether a value is one Git reads as a boolean: one of {@link booleans},
- * however cased, or a number, which is true where it is not zero.
+ * The boolean a value spells as Git's parser reads one, or `null` where it
+ * spells none: one of {@link trueWords} or {@link falseWords}, however
+ * cased, or a number as {@link tryInt} reads one, which is true where it
+ * is not zero.
  *
- * @type {(value: string) => boolean}
+ * @type {(value: string) => Nullable<boolean>}
  */
-const isBoolean = value => booleans.includes(value.toLowerCase()) || tryInt(value) !== null
+const tryBool = value => {
+    const word = value.toLowerCase()
+    if (trueWords.includes(word)) { return true }
+    if (falseWords.includes(word)) { return false }
+    const n = tryInt(value)
+    return n === null ? null : n !== 0n
+}
 
 /**
  * What a `\` before it stands for, and nothing else is an escape.
@@ -573,151 +525,79 @@ export const tryEntries = raw => {
 const valueAt = (section, key) => ([s, k, value]) => s === section && k === key ? [value] : []
 
 /**
- * Every value a key is given in a section, in order. Git reads each of
- * them as it comes to it, so a reader that judged only the last would let
- * a value Git refuses pass behind a good one.
+ * Every value a key is given in a section, in file order. The section and
+ * the key are spelled as an entry holds them: lowercased, with a
+ * subsection after a dot as written — `core` and `repositoryformatversion`,
+ * `remote.origin` and `url`.
+ *
+ * Git reads each assignment as it comes to it, so a reader that judged
+ * only the last would let a value Git refuses pass behind a good one.
  *
  * @type {(entries: readonly Entry[], section: string, key: string) => readonly string[]}
  */
-const valuesOf = (entries, section, key) => entries.flatMap(valueAt(section, key))
+export const values = (entries, section, key) => entries.flatMap(valueAt(section, key))
 
 /**
- * The last of a list, or `null` where it has none: the value that wins,
- * as the last one wins for Git.
+ * The last of a list, or `null` where it has none.
  *
- * @type {(values: readonly string[]) => Nullable<string>}
+ * @type {(list: readonly string[]) => Nullable<string>}
  */
-const last = values => values.length === 0 ? null : values[Number(values.length - 1)]
-
-/** What every extension's name begins with, the dot included. */
-const extensionsPrefix = /** @type {const} */ ('extensions.')
+const last = list => list.length === 0 ? null : list[Number(list.length - 1)]
 
 /**
- * The extension an entry names, or `null` where it names none. Git reads
- * the name off the whole variable — `extensions.` and everything after it
- * — so a subsection is part of the name rather than a section of its own:
- * `[extensions "x"]` with `noop` names the extension `x.noop`, which is
- * none Git knows, and under version 1 Git refuses the repository for it.
+ * The value a key is last given in a section — the one that wins, as the
+ * last one wins for Git — or `null` where it is given none. The section and
+ * the key are spelled as for {@link values}.
  *
- * @type {(entry: Entry) => Nullable<string>}
+ * No value is judged on the way: a typed key read through this alone
+ * passes a file Git refuses for an earlier assignment, which is what
+ * {@link lastInt} and {@link lastBool} are for.
+ *
+ * @type {(entries: readonly Entry[], section: string, key: string) => Nullable<string>}
  */
-const extensionAt = ([section, key]) =>
-    section === 'extensions' ? key
-        : section.startsWith(extensionsPrefix) ? `${section.slice(extensionsPrefix.length)}.${key}`
-            : null
+export const lastValue = (entries, section, key) => last(values(entries, section, key))
 
 /**
- * Whether Git 2.43 knows an extension by this name.
+ * A reader of a typed key out of the parser of one value, which reads the
+ * key as Git reads one: each assignment parsed as the reader reaches it,
+ * the last one winning, and the first that spells nothing the parser reads
+ * refusing the file whatever stands after it. It answers `ok(null)` where
+ * the key is given no value, and `error` with the first value that spells
+ * none.
  *
- * @type {(ext: string) => boolean}
+ * @template T
+ * @param {(value: string) => Nullable<T>} parse
+ * @returns {(entries: readonly Entry[], section: string, key: string) => Result<Nullable<T>, string>}
  */
-const isKnownExtension = ext => knownExtensions.includes(ext)
-
-/**
- * Whether it is one Git reads only under `repositoryformatversion = 1`.
- *
- * @type {(ext: string) => boolean}
- */
-const isV1OnlyExtension = ext => v1OnlyExtensions.includes(ext)
-
-/**
- * Whether the value under an extension's name is one Git reads there: a
- * boolean where the extension takes one, a hash's name under
- * `objectFormat`, and anything at all under a name that is no extension.
- *
- * @type {(entry: Entry) => boolean}
- */
-const extensionValueRead = entry => {
-    const ext = extensionAt(entry)
-    if (ext === null) { return true }
-    const value = entry[2]
-    return booleanExtensions.includes(ext)
-        ? isBoolean(value)
-        : ext !== 'objectformat' || isFormat(value)
+const lastOf = parse => {
+    /** @type {(acc: Result<Nullable<T>, string>, value: string) => Result<Nullable<T>, string>} */
+    const step = (acc, value) => {
+        if (acc[0] === 'error') { return acc }
+        const v = parse(value)
+        return v === null ? error(value) : ok(v)
+    }
+    /** @type {Result<Nullable<T>, string>} */
+    const none = ok(null)
+    return (entries, section, key) => values(entries, section, key).reduce(step, none)
 }
 
 /**
- * One `repositoryformatversion` read into the version before it. The last
- * assignment wins, and one spelling no number refuses the file whatever
- * stands after it, since Git reads each as its parser reaches it.
+ * The value a key is last given, as Git's `int` — see {@link tryInt} for
+ * the spellings that read as one. `ok(null)` where the key is given no
+ * value, and `error` with the first value that spells no number, however
+ * good the ones after it: Git reads each as it comes to it and refuses the
+ * file at that one.
  *
- * @type {(acc: Nullable<bigint>, value: string) => Nullable<bigint>}
+ * @type {(entries: readonly Entry[], section: string, key: string) => Result<Nullable<bigint>, string>}
  */
-const versionStep = (acc, value) => acc === null ? null : tryInt(value)
+export const lastInt = lastOf(tryInt)
 
 /**
- * The extension an entry names, as a list of none or one, so a flatMap
- * over the entries is the extensions they name.
+ * The value a key is last given, as Git's `bool` — see {@link tryBool} for
+ * the spellings that read as one. `ok(null)` where the key is given no
+ * value, and `error` with the first value that spells no boolean, as for
+ * {@link lastInt}.
  *
- * @type {(entry: Entry) => readonly string[]}
+ * @type {(entries: readonly Entry[], section: string, key: string) => Result<Nullable<boolean>, string>}
  */
-const extensionsOf = entry => {
-    const ext = extensionAt(entry)
-    return ext === null ? [] : [ext]
-}
-
-/**
- * Whether every `[extensions]` value the file holds is one Git reads: a
- * boolean where the extension takes one, and a hash's name where the
- * extension is `objectFormat`, which is case-sensitive as Git reads it. An
- * extension under a subsection is a name Git knows none of, so it has no
- * value Git reads either and none is asked of it.
- *
- * @type {(entries: readonly Entry[]) => boolean}
- */
-const extensionValuesRead = entries => entries.every(extensionValueRead)
-
-/**
- * The id width the file names, or `null` where the file is one Git
- * refuses. 32 bytes needs `extensions.objectFormat = sha256` under
- * `repositoryformatversion = 1`, which is what `git init
- * --object-format=sha256` writes; everything else Git opens is 20, the
- * default `git init` writes with no `[extensions]` section at all.
- *
- * Git reads the file a line at a time and judges each value as it comes to
- * it, so these refusals are of any assignment and not only of the last:
- *
- * - A `repositoryformatversion` that spells no number, as `abc` does.
- * - An `objectFormat` naming a hash Git does not know, `SHA256` included,
- *   the value being case-sensitive.
- * - A boolean extension whose value is no boolean.
- *
- * The version that wins is the last, as the last value wins for Git, and
- * it is read as a number rather than as text: `01`, `+1` and `0x1` are
- * version 1, and `1k` is 1024. What the version then decides:
- *
- * - Over 1 refuses the file — `Expected git repo version <= 1`.
- * - 1 or more refuses an extension Git does not know — `unknown repository
- *   extension found`. A subsection is part of an extension's name rather
- *   than a section of its own, so `[extensions "x"]` names no extension
- *   Git knows whatever key it holds.
- * - 0 refuses a key Git reads only under version 1, `objectFormat` among
- *   them — `repo version is 0, but v1-only extension found`.
- * - {@link noVersion}, which a file naming no version has and a file
- *   spelling `-1` has too, refuses neither and gives up the format it
- *   read: SHA-1, whatever `objectFormat` said.
- * - Any other version below 0, which Git allows, refuses neither and keeps
- *   the format `objectFormat` named.
- *
- * @type {(text: string) => Nullable<OidBytes>}
- */
-export const tryOidBytes = text => {
-    const entries = tryEntries(text)
-    if (entries === null) { return null }
-    if (!extensionValuesRead(entries)) { return null }
-    // Each version spells a number or refuses the file, and the last one
-    // spells the version.
-    const version = valuesOf(entries, 'core', 'repositoryformatversion')
-        .reduce(versionStep, /** @type {Nullable<bigint>} */(noVersion))
-    if (version === null || version > 1n) { return null }
-    const exts = entries.flatMap(extensionsOf)
-    if (version >= 1n && !exts.every(isKnownExtension)) { return null }
-    if (version === 0n && exts.some(isV1OnlyExtension)) { return null }
-    // The hash is what the last `objectFormat` names whatever the version,
-    // since Git reads the key at every one — and nothing, where the format
-    // Git read was thrown away.
-    // Every `objectFormat` the file holds names a hash, or the file is
-    // already refused, so the last one is the repository's and 20 is both
-    // the other hash's width and what a file naming no format has.
-    return version !== noVersion && last(valuesOf(entries, 'extensions', 'objectformat')) === sha256 ? 32 : 20
-}
+export const lastBool = lastOf(tryBool)
