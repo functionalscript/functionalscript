@@ -18,20 +18,25 @@ that was meant.
 
 ## Reading the register
 
-**Scope.** A row is a construct that is valid JavaScript module syntax and
-that FunctionalScript refuses. JavaScript's own syntax errors (`1 +;`, a
-missing brace) are not here: no conforming engine accepts them either. A
-construct that is not listed is not thereby accepted; it is uncatalogued, and
-gets a row when found.
+**Scope.** A row is a construct that is valid in an ECMAScript module, in the
+syntax and in the early errors, and that FunctionalScript refuses. JavaScript's
+own errors are not here, since no conforming engine accepts them either: a
+missing brace, a duplicate declaration, `with` or a legacy octal literal in
+module code, `return` outside a function, a duplicate `export default`, a
+binding named as a keyword ([below](#not-on-this-register)). A construct that
+is not listed is not thereby accepted; it is uncatalogued, and gets a row when
+found.
 
 **Why** says whether the refusal is meant to last:
 
 - **design**: permanent. A record or the specification states the reason, and
   the row links it.
-- **planned**: a record or the roadmap will admit the construct. The refusal
-  ends when that lands.
-- **open**: nothing in the specification mentions it. The whitelist alone
-  refuses it, and a decision on whether it is permanent is owed.
+- **planned**: a record or the roadmap proposes admitting the construct, and the
+  row names it. The refusal ends when that lands. A record that only
+  investigates whether to admit it is not a plan, and the row is **open**.
+- **open**: no record or roadmap entry proposes admitting it, and none states
+  that it stays out. The whitelist alone refuses it, and a decision on whether
+  it is permanent is owed. A related record, where there is one, is named.
 
 **Diagnostic** is the compiler's message for the example, and *where* it is
 reported. `unexpected token` is the grammar finding no rule for the token, at
@@ -72,18 +77,15 @@ describes:
 | `op.in` | `"a" in o` | design ([in](./2346-in-operator.md)) | unexpected token | exact: parser `operators.proof`, `refusedByDesign` |
 | `op.instanceof` | `x instanceof Map` | design ([`instanceof`](../README.md#instanceof)) | the right operand of instanceof must be Array | exact: parser `operators.proof` |
 | `op.comma` | `(1, 2)` | planned ([operators](./2340-operators.md)) | unexpected token | exact: parser `grammar/proof` |
-| `op.assignment` | `a = 1` outside a loop's block | planned ([assignments](./3430-assignments.md)) | unexpected token | exact: parser `grammar/proof` |
+| `op.assignment` | `a = 1` outside a loop's block | planned ([let](./3220-let.md), "Later": a `let` outside a loop is a rebinding) | unexpected token | exact: parser `grammar/proof` |
 | `op.compound-assignment` | `a += 1`, `a **= 2`, `a &&= 2` | planned ([assignments](./3430-assignments.md)) | unexpected token | none |
 | `op.update` | `++a`, `a--` | planned ([assignments](./3430-assignments.md)) | unexpected token | none |
 | `op.delete` | `delete a.b` | open | unexpected token | none |
 | `op.void` | `void 0` | open | unexpected token | none |
 | `op.new` | `new Map()` | open | unexpected token | none |
 | `op.this` | `this` | design ([design principles](./design-principles.md)) | reserved word | none |
-| `op.super` | `super.x` | open | reserved word | none |
 | `op.arguments` | `arguments` | open | reserved word | none |
 | `op.eval` | `eval("1")` | open | reserved word | none |
-| `op.await` | `await a` | planned ([promise](./3380-promise.md)) | unexpected token | none |
-| `op.yield` | `yield a` | open | unexpected token | none |
 | `op.import-call` | `import("m")` | open | reserved word | none |
 | `op.import-meta` | `import.meta` | open | reserved word | none |
 | `op.regex` | `/a/g` | planned (roadmap, regular expressions) | unexpected token | none |
@@ -97,15 +99,12 @@ describes:
 | `acc.prototype-name` | `a.toString`, `a["push"]` | design ([property accessor](./2330-property-accessor.md)) | prohibited property name | exact: `language.proof` |
 | `acc.prototype-call` | `a.push(0)`, `a.hasOwnProperty(k)` | design ([built-ins](./2360-built-in.md)) | prohibited member function | exact: compiler `proof` |
 | `acc.proto-key` | `{ __proto__: 1 }` | design ([`__proto__`](../README.md#the-__proto__-key)) | `__proto__` requires the computed key form | exact: parser `proof` |
-| `acc.property-assignment` | `a.b = 1` | planned ([assignments](./3430-assignments.md)) | unexpected token | exact: parser `grammar/proof` (in a loop's block) |
+| `acc.property-assignment` | `a.b = 1` | open (related: [mutability](./mutability.md)) | unexpected token | exact: parser `grammar/proof` (in a loop's block) |
 | `acc.numeric-key` | `{ 0: 1 }` | planned (roadmap, property key as number) | unexpected token | none |
-| `name.keyword` | `const if = 1`, `const in = 1`, `export const default = 1` | design | reserved word | exact: parser `proof`, `operators.proof` |
 | `name.literal-word` | `const NaN = 1`, `const undefined = 1`, `const Infinity = 1` | design ([literal words](./2445-literal-words-as-references.md)) | reserved word | exact: parser `proof` |
 | `name.intrinsic` | `const String = 1`, `export default String` | design ([built-ins](./2360-built-in.md)) | reserved word | exact: `language.proof` |
 | `name.unbound` | `zzz`, `Math`, `JSON`, `Object`, `globalThis`, `Promise` | design for an unbound name; planned for the globals ([global names](./2365-global-names.md)) | const not found | exact for an unbound name; none for a global by name |
 | `name.forward-reference` | `export const a = b; export const b = 1;` | planned ([forward references](./3140-forward-references.md)) | const not found | exact for `const a = a`; loose for a later `const` |
-| `name.duplicate` | `const a = 1; const a = 2;`, a duplicate import, an import and a `const` of one name | design | duplicate id | exact: parser `proof` |
-| `name.duplicate-parameter` | `(a, a) => a`, a body `const` named as a parameter | design | duplicate id | none |
 | `name.reserved-export` | `export const then = 1` | design | reserved export name then | exact: parser `proof` |
 
 ## Statements
@@ -114,12 +113,12 @@ describes:
 |---|---|---|---|---|
 | `st.let-while` | a `let` or `while` outside the one-variable loop, or its block holding more than the rebinding | planned ([let](./3220-let.md)) | let without while, while without let, not the loop variable, … | exact: parser `proof`, `grammar/proof` |
 | `st.else` | `else`, an unbraced `if` | planned ([functions](../README.md#functions)) | unexpected token | exact: parser `grammar/proof` |
-| `st.for` | `for`, `for...of`, `for...in` | planned ([let](./3220-let.md)) | unexpected token | `for...in` exact: parser `operators.proof`; the rest none |
-| `st.do-while` | `do { } while (c)` | planned ([let](./3220-let.md)) | unexpected token | none |
-| `st.break-continue` | `break`, `continue` | planned ([let](./3220-let.md)) | unexpected token | none |
+| `st.for` | `for (;;) { }` | planned ([let](./3220-let.md), "Later") | unexpected token | none |
+| `st.for-in-of` | `for (k in o)`, `for (x of a)` | open | unexpected token | `for...in` exact: parser `operators.proof`; `for...of` none |
+| `st.do-while` | `do { } while (c)` | open | unexpected token | none |
+| `st.break-continue` | `break`, `continue` | planned ([let](./3220-let.md), "Later") | unexpected token | none |
 | `st.switch` | `switch` | open | unexpected token | none |
 | `st.try` | `try`, `catch`, `finally` | open | unexpected token | none |
-| `st.with` | `with` | open | unexpected token | none |
 | `st.debugger` | `debugger` | open | unexpected token | none |
 | `st.label` | `x: while (c) { }` | open | unexpected token | none |
 | `st.var` | `var a = 1` | design ([`let`](../README.md#loops), [let](./3220-let.md): `var` not at all) | unexpected token | none |
@@ -146,22 +145,20 @@ describes:
 | ID | Construct | Why | Diagnostic | Pin |
 |---|---|---|---|---|
 | `mod.no-export` | an empty module, `const a = 1;` alone | design ([module structure](../README.md#module-structure)) | unexpected end | exact: parser `proof` |
-| `mod.second-default` | `export default 1; export default 2;` | design | unexpected token | loose: parser `proof`, `errors` |
 | `mod.export-after-default` | `export default 1; export const a = 2;` | design | unexpected token | loose: parser `proof`, `errors` |
 | `mod.import-after-export` | `export const a = 1; import b from "m";` | design | unexpected token | exact: parser `grammar/proof` |
 | `mod.throw-position` | `throw 1; export default 2;`, `export default 2; throw 1;` | design ([module structure](../README.md#module-structure)) | unexpected token | exact: parser `proof` |
-| `mod.export-list` | `export { a };` | planned ([export lists](./export-lists.md)) | unexpected token | loose: parser `proof`, `errors` |
+| `mod.export-list` | `export { a };` | open (investigated in [export lists](./export-lists.md)) | unexpected token | loose: parser `proof`, `errors` |
 | `mod.export-let` | `export let a = 1;` | design (`let` only opens a loop, [let](./3220-let.md)) | unexpected token | loose: parser `proof`, `errors` |
-| `mod.reexport` | `export { a } from "m"`, `export * from "m"` | planned ([export lists](./export-lists.md), [namespace import](./2220-namespace-import.md)) | unexpected token | none |
+| `mod.reexport` | `export { a } from "m"`, `export * from "m"` | open (whether it belongs is a question in [export lists](./export-lists.md)) | unexpected token | none |
 | `mod.namespace-import` | `import * as ns from "m"` | planned ([namespace import](./2220-namespace-import.md)) | unexpected token | none |
-| `mod.top-level-await` | `await 1;` | planned ([promise](./3380-promise.md)) | unexpected token | none |
-| `mod.top-level-return` | `return 1;` | design | unexpected token | none |
+| `mod.top-level-await` | `await 1;` | open (related: [promise](./3380-promise.md)) | unexpected token | none |
 
 ## Literals
 
 | ID | Construct | Why | Diagnostic | Pin |
 |---|---|---|---|---|
-| `lit.octal` | `0o7`, `010`, `08` | design ([numbers](../README.md#numbers)) | unexpected token | none for the compiler; the DataJS reject vectors pin `0o10` for the DataJS reader |
+| `lit.octal` | `0o7` | design ([numbers](../README.md#numbers)) | unexpected token | none for the compiler; the DataJS reject vectors pin `0o10` for the DataJS reader |
 | `lit.decimal-form` | `.5`, `5.` | open | unexpected token | none |
 | `lit.array-hole` | `[,]`, `[1,,2]` | open | unexpected token | exact: parser `proof` |
 | `lit.string-escape` | `"\x41"`, `"\v"`, `"\0"`, `"\u{41}"`, a raw TAB | planned ([string literals](./2460-js-string-literals.md)) | unexpected token | none |
@@ -170,6 +167,15 @@ describes:
 
 ## Not on this register
 
+- JavaScript's own errors, which the compiler also diagnoses. They are
+  refusals of broken JavaScript and not of FunctionalScript: a duplicate
+  `const`, import or parameter name (`duplicate id`); a binding named as a
+  keyword (`const if = 1`, `const in = 1`, `export const default = 1`);
+  `with`, a legacy octal literal such as `010` or `08`, `return` outside a
+  function, `super` outside a method, and `await` or `yield` where they are
+  reserved; a second `export default`. A proof for one is welcome, and the
+  parser's module refusal table already holds several, but pinning them is not
+  the register's work.
 - Refusals of the other outputs, such as the `.json` output refusing
   `undefined` or the Rust output refusing a function it cannot name. They
   refuse a value the language accepts, and are specified with the outputs
