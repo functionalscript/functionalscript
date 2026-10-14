@@ -43,11 +43,11 @@ export type _Lexed = {
 /** A run of trivia not yet emitted: its kind so far, and where it is anchored. */
 export type _Trivia = { readonly kind: TriviaKind, readonly metadata: TokenMetadata } | null
 
-/** Where a string-literal decode is: plain text, after `\`, or inside `\uXXXX`. */
+/** Where a string-literal decode is: plain text, after `\`, or inside `\uXXXX` with the digits read so far. */
 export type _StringDecodeState =
     | { readonly kind: 'normal' }
     | { readonly kind: 'escape' }
-    | { readonly kind: 'unicode', readonly acc: number, readonly count: number }
+    | { readonly kind: 'unicode', readonly digits: readonly number[] }
 
 /** An active substitution, with braces nested inside it and its opening head. */
 export type _TemplateContext = {
@@ -55,10 +55,10 @@ export type _TemplateContext = {
     readonly start: TokenMetadata
 }
 
-/** The escape decoder's state inside one template chunk. */
+/** The escape decoder's state inside one template chunk, with the digits a fixed-width hex escape has read so far. */
 export type _TemplateDecodeState =
     | { readonly kind: 'normal' | 'escape' | 'unicodeStart' | 'zero' }
-    | { readonly kind: 'unicode' | 'hex', readonly acc: number, readonly count: number }
+    | { readonly kind: 'unicode' | 'hex', readonly digits: readonly number[] }
     | { readonly kind: 'codePoint', readonly acc: number }
 
 /** The cooked code points and the JavaScript escape's validity. */
