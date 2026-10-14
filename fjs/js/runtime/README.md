@@ -162,6 +162,18 @@ receiver's own property, the native table in `vm/lambda/method.rs`, the
 runtime, the `TypeError` for calling `undefined` — and the `?.()` guard
 asks the same lookup to decide whether a callee exists.
 
+**A static call has no receiver and no guard.** The EDAG spells
+`Object.is` as the callee `['static', ['Object', 'is']]`, and the Rust
+backend prints it as `static_binding::<A>(&["Object", "is"])?`:
+`nanvm-lib` asks `IVm::runtime_static` for the path, which `naive`
+answers by reading the compiled object's `static` section, and fails
+naming the path where nothing is bound. The parser admitted the path, so
+a missing binding is the VM's failure, never the `TypeError` of calling
+`undefined`; the represented interpreter fails with the same message,
+reading its context's runtime through `functionAt`. NaNVM keeps no native
+static table, and its completeness test checks every path
+[`../static`](../static/module.f.js) admits is bound.
+
 **The VM type binds the runtime.** `IVm::runtime_method` is a method on
 the type, with no instance and no argument carrying a runtime, so which
 runtime a VM has is decided by its `impl`: `naive` answers with
