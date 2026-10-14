@@ -31,10 +31,14 @@ impl<A: IVm> BigInt<A> {
     /// The exact `BigInt` of an integral, finite `n`, read from its binary64
     /// layout rather than any decimal round-trip: past `2^53` a `Number` is
     /// still an exact integer, one with known trailing zero bits. `-0` is
-    /// `0n`.
-    pub fn from_integral(n: Number) -> Self {
-        debug_assert_eq!(f64::from(n).fract(), 0.0, "an integral Number");
-        let (sign, significand, exponent) = n.decompose().expect("an integral Number is finite");
+    /// `0n`. A fraction, `NaN` or an infinity has no exact `BigInt` and is
+    /// refused with `None`, in every build: the type can't carry the
+    /// precondition, so the check is here rather than left to the caller.
+    pub(crate) fn from_integral(n: Number) -> Option<Self> {
+        if f64::from(n).fract() != 0.0 {
+            return None;
+        }
+        let (sign, significand, exponent) = n.decompose()?;
         let magnitude = if exponent >= 0 {
             (Self::from(significand) << Self::from(exponent as u64))
                 .expect("a binary64's exponent is far under BigInt's size limit")
@@ -47,11 +51,11 @@ impl<A: IVm> BigInt<A> {
                     .unwrap_or(0),
             )
         };
-        if sign == Sign::Negative {
+        Some(if sign == Sign::Negative {
             -magnitude
         } else {
             magnitude
-        }
+        })
     }
 
     /// `2^e`, for an `e` a binary64's exact arithmetic reaches: a few
@@ -71,7 +75,7 @@ mod test {
     };
 
     fn integral(v: f64) -> BigInt<Naive> {
-        BigInt::from_integral(Number::from(v))
+        BigInt::from_integral(Number::from(v)).expect("an integral, finite Number")
     }
 
     #[test]
@@ -95,6 +99,13 @@ mod test {
             integral(f64::MAX),
             BigInt::from((1u64 << 53) - 1).mul_bounded(BigInt::pow2(971))
         );
+    }
+
+    #[test]
+    fn from_integral_refuses() {
+        for v in [0.5, -1.5, f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+            assert_eq!(BigInt::<Naive>::from_integral(Number::from(v)), None);
+        }
     }
 
     #[test]

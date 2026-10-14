@@ -209,7 +209,9 @@ impl Number {
             return Err(error::fraction_radix());
         }
         Ok(signed(x, |x| {
-            BigInt::<A>::from_integral(x.into()).to_radix_string(radix)
+            BigInt::<A>::from_integral(x.into())
+                .expect("a finite Number without a fraction is integral")
+                .to_radix_string(radix)
         }))
     }
 }

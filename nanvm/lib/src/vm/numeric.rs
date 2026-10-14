@@ -240,7 +240,9 @@ fn partial_cmp_bigint_number<A: IVm>(bi: &BigInt<A>, f: Number) -> Option<Orderi
     }
     let f: f64 = f.into();
     let floor = f.floor();
-    Some(match bi.cmp(&BigInt::from_integral(floor.into())) {
+    let floor_bi =
+        BigInt::from_integral(floor.into()).expect("a finite Number's floor is integral");
+    Some(match bi.cmp(&floor_bi) {
         Ordering::Equal if f != floor => Ordering::Less,
         order => order,
     })
