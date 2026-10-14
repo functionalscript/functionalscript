@@ -129,7 +129,9 @@ must pass the whitelist, and protected operations cannot escape it.
 Outside the explicitly specified exceptions, rule 2 also decides what to do
 when JavaScript gives one text a meaning FunctionalScript cannot reproduce:
 the text is a compilation error, not an invitation to give it a second,
-more convenient meaning.
+more convenient meaning. The valid JavaScript the compiler refuses is
+catalogued in [refused constructs](./todo/refused-constructs.md), each marked
+as refused by design, planned or undecided.
 
 ### Function-source representation exception
 
