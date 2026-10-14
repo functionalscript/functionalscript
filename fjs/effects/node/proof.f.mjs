@@ -1,8 +1,8 @@
 /**
  * @import { Vec } from "../../types/bit_vec/types.ts"
- * @import { IoChannel, IoError, IoResult, NodeOp, ReadBytes, CreateExclusive, ReadFile, Rm, Stat, WriteBytes, WriteFile, _ChunkSource, _Gate } from "./types.ts"
+ * @import { IoChannel, IoError, IoResult, NodeOp, ReadBytes, CreateExclusive, ReadFile, Rm, Stat, WriteBytes, WriteFile, _ChunkSource, _Gate, _PumpStep } from "./types.ts"
  * @import { Result } from "../../types/result/types.ts"
- * @import { EffectList } from "../list/types.ts"
+ * @import { EffectList, Next } from "../list/types.ts"
  * @import { List } from "../../types/list/types.ts"
  * @import { Effect, OperationMap } from "../types.ts"
  * @import { MemOperationMap } from "../mock/types.ts"
@@ -12,7 +12,7 @@ import { byteLength, empty, isVec, maxLengthBytes, u8ListMsb, u8ListToVecMsb, ui
 import { utf8, utf8ToString } from "../../text/module.f.mjs"
 import { match } from "../module.f.mjs"
 import { mapStep, pureError, pureOk, step as ioStep } from "../module.f.mjs"
-import { badPortCode, badPortMessage, both, carriesNoBody, declaredLength, doubledLengthMessage, errorMessage, errorSummary, exitStep, fetch, framingHeaderMessage, headerValue, inflate, inflateTrailingMessage, ioError, isNotFound, isPort, maxPort, mkdir, now, readdir, readFile, readUtf8File, refusalMessage, refusedStatus, responseGate, rm, runnerResponse, sandbox, unframedBodyMessage, writeFile, writeChunks, writeUtf8File, writeExclusiveUtf8File, _pieces, _vecList, rename, readBytes, randomInt, writeFromStream, plainTextResponse, readWholeBytes, readChunks, windowRefusal, maxOffset, fileSizeRefusal } from "./module.f.mjs"
+import { badPortCode, badPortMessage, both, carriesNoBody, declaredLength, doubledLengthMessage, errorMessage, errorSummary, exitStep, fetch, framingHeaderMessage, headerValue, inflate, inflateTrailingMessage, ioError, isNotFound, isPort, maxPort, mkdir, now, readdir, readFile, readUtf8File, refusalMessage, refusedStatus, responseGate, rm, runnerResponse, sandbox, unframedBodyMessage, writeFile, writeChunks, writeUtf8File, writeExclusiveUtf8File, _pieces, _vecList, rename, readBytes, randomInt, writeFromStream, plainTextResponse, pumpCell, readWholeBytes, readChunks, windowRefusal, maxOffset, fileSizeRefusal } from "./module.f.mjs"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.mjs"
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.mjs"
 import { emptyState, virtual } from "./virtual/module.f.mjs"
@@ -1150,6 +1150,46 @@ export const proof = {
             assertEq(refusalMessage(['framingHeader']), framingHeaderMessage)
             assertEq(refusalMessage(['unframed']), unframedBodyMessage)
             assertEq(refusalMessage(['doubledLength']), doubledLengthMessage)
+        },
+        // The decision both pumps take each pulled cell by, at every edge of a
+        // declared length and with none declared.
+        pumpCell: () => {
+            /** @type {EffectList<NodeOp, Vec, IoChannel>} */
+            const tail = listEmpty()
+            /** @type {(first: Vec) => Result<Next<NodeOp, Vec, IoChannel>, IoChannel>} */
+            const cell = first => ok({ first, tail })
+            /** @type {Result<Next<NodeOp, Vec, IoChannel>, IoChannel>} */
+            const end = ok(undefined)
+            // A take's cell is the producer's own, so only its tag and count are
+            // compared by shape.
+            /** @type {(step: _PumpStep<NodeOp>) => unknown} */
+            const shape = step => step[0] === 'take' ? ['take', step[1]] : step
+            const two = vec(16n)(0x0102n)
+            // No length declared: every chunk is taken, and any end is clean.
+            assertStructurallySame(shape(pumpCell(null, 0, cell(two))), ['take', 2])
+            assertStructurallySame(shape(pumpCell(null, 5, end)), ['stop', null])
+            // A chunk that brings the count to the length exactly is taken, and the
+            // end after it is clean.
+            assertStructurallySame(shape(pumpCell(3, 1, cell(two))), ['take', 3])
+            assertStructurallySame(shape(pumpCell(3, 3, end)), ['stop', null])
+            // One byte past the length takes none of the chunk.
+            assertStructurallySame(shape(pumpCell(3, 2, cell(two))), ['stop', ['overrun', 3]])
+            // An end short of the length.
+            assertStructurallySame(shape(pumpCell(3, 2, end)), ['stop', ['underrun', 3]])
+            // The bytes counted are the bytes the host sends, partial ones padded:
+            // one bit is one byte, nine bits are two.
+            assertStructurallySame(shape(pumpCell(1, 0, cell(vec(1n)(1n)))), ['take', 1])
+            assertStructurallySame(shape(pumpCell(0, 0, cell(vec(1n)(1n)))), ['stop', ['overrun', 0]])
+            assertStructurallySame(shape(pumpCell(1, 0, cell(vec(9n)(1n)))), ['stop', ['overrun', 1]])
+            // An empty chunk adds nothing, so it never runs past a length.
+            assertStructurallySame(shape(pumpCell(0, 0, cell(empty))), ['take', 0])
+            // A failed cell stops on the producer's own failure.
+            const failure = ioError({ message: 'stream failed' })
+            assertStructurallySame(shape(pumpCell(3, 1, error(failure))), ['stop', failure])
+            // And a take hands back the cell it was given, tail and all.
+            const node = { first: two, tail }
+            const taken = pumpCell(null, 0, ok(node))
+            assert(taken[0] === 'take' && taken[2] === node)
         },
     },
 }

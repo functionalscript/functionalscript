@@ -42,7 +42,7 @@ import { memoryOperationMap } from './memory/module.mjs'
 import { commonOperationMap } from '../common/module.mjs'
 import {
     emptyHost, emptyHostCode, emptyHostMessage, exitCode, fileSizeRefusal, inflateTrailingCode, inflateTrailingMessage,
-    notAFileCode, notAFileMessage, refusalMessage, refusedStatus, requestBody, requestBodyOffsetMessage,
+    notAFileCode, notAFileMessage, pumpCell, refusalMessage, refusedStatus, requestBody, requestBodyOffsetMessage,
     responseGate, runnerResponse, toIoError, windowRefusal,
 } from './module.f.mjs'
 import { asBase, asNominal } from '../../types/nominal/module.f.js'
@@ -288,12 +288,11 @@ const park = (res, record) => new Promise(resolve => {
  * requests came back as one 131,342-byte stream whose second status line sat well
  * inside body 1's declared window.
  *
- * So a chunk that would carry the count past the declared length is a failed cell:
- * **none of it is written**, and the socket is destroyed. Writing its first
- * `bound − written` bytes and ending cleanly is the other choice and the wrong one,
- * because a body exactly as long as it promised is a body every client reads as
- * whole. A body that ends short of the length destroys for the same reason, and at
- * once rather than at the idle timeout.
+ * So each cell is {@link pumpCell}'s to decide, the same decision the virtual
+ * runner records by: a chunk that would carry the count past the declared length
+ * is a failed cell, **none of it is written**, and the socket is destroyed. A body
+ * that ends short of the length destroys for the same reason, and at once rather
+ * than at the idle timeout.
  *
  * @type {(res: _ServerResponse, record: _CloseRecord, bound: Nullable<number>, body: Effect<NodeOp, Next<NodeOp, Vec, IoChannel>, IoChannel>) => Promise<void>}
  */
@@ -305,33 +304,20 @@ const pumpBody = async (res, record, bound, body) => {
         // stops pulling, and the producer's reads stop with it. A client that
         // hangs up is the ordinary case — a cancelled download, a closed tab.
         if (record.closed) { return }
-        const cell = await runNodeEffect(e)
-        // A cell that fails after the headers are written must destroy the socket
-        // rather than end the response: measured, one 131,072-byte chunk written
-        // under chunked framing and then a failure, `res.end()` left the client a
-        // clean, complete 131,072-byte response with `res.complete` true and no
-        // error raised.
-        if (cell[0] === 'error') {
-            res.destroy()
+        const step = pumpCell(bound, written, await runNodeEffect(e))
+        if (step[0] === 'stop') {
+            // Any stop but a clean one must destroy the socket rather than end the
+            // response: measured, one 131,072-byte chunk written under chunked
+            // framing and then a failure, `res.end()` left the client a clean,
+            // complete 131,072-byte response with `res.complete` true and no error
+            // raised.
+            if (step[1] === null) { res.end(emptyBody) } else { res.destroy() }
             return
         }
-        const node = cell[1]
-        if (node === undefined) {
-            if (bound !== null && written !== bound) {
-                res.destroy()
-                return
-            }
-            res.end(emptyBody)
-            return
-        }
-        const chunk = fromVec(node.first)
-        if (bound !== null && written + chunk.length > bound) {
-            res.destroy()
-            return
-        }
-        written += chunk.length
-        e = node.tail
-        if (!res.write(chunk)) { await park(res, record) }
+        const [, sent, { first, tail }] = step
+        written = sent
+        e = tail
+        if (!res.write(fromVec(first))) { await park(res, record) }
     }
 }
 
