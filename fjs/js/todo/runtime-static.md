@@ -85,20 +85,20 @@ does and `Number(x)` does not. `member` is keyed by the same names —
 `Array`, `String`, `Number`, `Object`, `Boolean`, `BigInt`, `Function` —
 rather than the `typeof`-style `array` and `string` the first pull request
 used, so one global has both halves under one key: `static.Array.isArray`
-and `member.Array.map`. A VM maps a receiver's type to that name once,
-which is what NaNVM's `type_name` and `nanvm/methods`'s type column
-already do under the old spelling; renaming them is part of the first
-task. A static body takes the arguments as the call passed them,
+and `member.Array.map`. A VM maps a receiver's type to that name once:
+NaNVM's `type_name` and `nanvm/methods`'s type column did so under the
+old spelling, and the first task renamed both to the globals' names. A
+static body takes the arguments as the call passed them,
 positionally, `undefined` past the end, with a rest parameter where the
 algorithm tells an omitted argument from an explicit `undefined` or is
 variadic — `Math.max`'s values, `String.fromCharCode`'s units — exactly as
 a member body does minus the receiver. `static` is a reserved word in
 strict-mode binding positions and an ordinary property key, which the
 current compiler accepts; the shape above, `''` and the bare `isNaN`
-included, compiles today. The nesting and the rename are the first task,
-made before the static section exists so that `types.ts`, the executors
-and `vm/runtime.rs` read `runtime.member[type][name]` once and never move
-again.
+included, compiles today. The nesting and the rename were the first
+task, made before the static section existed, so `types.ts`, the
+executors and `vm/runtime.rs` read `runtime.member[type][name]` and the
+static section adds a key without moving them again.
 
 **Admission is a list of paths; the namespace is closed.** Which static
 names a module may call is a new list beside `js/prototype`, `js/static`'s
@@ -233,8 +233,9 @@ this proposal does not take.
 - Two admission lists where one might do; they stay separate because a
   prototype's names are open by default and a global's are closed, and
   one list cannot say both.
-- Nesting the member table under `member` and renaming its keys is a
-  shape change the bindings of #2880 pay once, before any consumer exists.
+- Nesting the member table under `member` and renaming its keys was a
+  shape change the bindings of #2880 paid once, in the first task, before
+  any consumer existed.
 
 ### Tasks
 
