@@ -9,7 +9,9 @@ import {
     listToString,
     stringToCodePointList,
     codePointListToString,
-    codePointToString
+    codePointToString,
+    floorCodePointBoundary,
+    isWellFormed,
 } from './module.f.mjs'
 import { stringify as jsonStringify } from '../../media/json/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
@@ -176,5 +178,45 @@ export const proof = {
         () => { assertEq(codePointToString(0xd800), '\ud800') },
         // above the maximum code point, the low 16 bits are kept
         () => { assertEq(codePointToString(0x11_0000), '\u0000') },
-    ]
+    ],
+    isWellFormed: () => {
+        assertEq(isWellFormed(''), true)
+        assertEq(isWellFormed('abc'), true)
+        // a pair is one code point, not two unpaired surrogates
+        assertEq(isWellFormed('a\u{1F600}b'), true)
+        assertEq(isWellFormed('\ud800'), false)
+        assertEq(isWellFormed('\udc00'), false)
+        assertEq(isWellFormed('a\ud800b'), false)
+        // reversed halves pair with nothing
+        assertEq(isWellFormed('\ude00\ud83d'), false)
+        // one paired, one not
+        assertEq(isWellFormed('\u{1F600}\ud800'), false)
+    },
+    floorCodePointBoundary: {
+        boundaries: () => {
+            const at = floorCodePointBoundary('a\u{1F600}b')
+            // between code points, the index itself
+            assertEq(at(0), 0)
+            assertEq(at(1), 1)
+            assertEq(at(3), 3)
+            // between the halves of a pair, the pair's start
+            assertEq(at(2), 1)
+            // the end, and past it
+            assertEq(at(4), 4)
+            assertEq(at(9), 4)
+            assertEq(floorCodePointBoundary('')(0), 0)
+            // an unpaired surrogate is a code point of its own
+            assertEq(floorCodePointBoundary('\ud800a')(1), 1)
+            assertEq(floorCodePointBoundary('a\udc00')(1), 1)
+            // reversed halves are two unpaired surrogates
+            assertEq(floorCodePointBoundary('\ude00\ud83d')(1), 1)
+        },
+        // an index that names no position between code units is refused
+        throw: {
+            fraction: () => floorCodePointBoundary('abc')(1.5),
+            negative: () => floorCodePointBoundary('abc')(-1),
+            notANumber: () => floorCodePointBoundary('abc')(NaN),
+            negativeZero: () => floorCodePointBoundary('abc')(-0),
+        },
+    },
 }
