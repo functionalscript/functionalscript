@@ -98,7 +98,7 @@ describes:
 | ID | Construct | Why | Diagnostic | Pin |
 |---|---|---|---|---|
 | `acc.runtime-key` | `a[i]` | design ([property accessor](./2330-property-accessor.md)) | computed key is not Number(...) | exact: `language.proof` |
-| `acc.prototype-name` | `a.toString`, `a["push"]` | design ([property accessor](./2330-property-accessor.md)) | prohibited property name | exact: `language.proof` |
+| `acc.prototype-name` | `a.toString`, `a["push"]` | design ([property accessor](./2330-property-accessor.md)) | prohibited property name | exact for `a.toString`: `language.proof`, and for `a["toString"]`: parser `proof`; none for `a["push"]` |
 | `acc.prototype-call` | `a.push(0)`, `a.hasOwnProperty(k)` | design ([built-ins](./2360-built-in.md)) | prohibited member function | exact for `a.push(0)`: compiler `proof`; none for the `hasOwnProperty` call (its detached read is pinned by parser `proof`) |
 | `acc.proto-key` | `{ __proto__: 1 }` | design ([`__proto__`](../README.md#the-__proto__-key)) | `__proto__` requires the computed key form | exact: parser `proof` |
 | `acc.property-assignment` | `a.b = 1` | open (related: [mutability](./mutability.md)) | unexpected token | exact: parser `grammar/proof` (in a loop's block) |
@@ -106,7 +106,7 @@ describes:
 | `name.literal-word` | `const NaN = 1`, `const undefined = 1`, `const Infinity = 1` | design ([literal words](./2445-literal-words-as-references.md)) | reserved word | exact for `NaN` and `undefined`: parser `proof`; for `Infinity` only as an import binding; none for `const Infinity` |
 | `name.intrinsic` | `const String = 1`, `export default String` | design ([built-ins](./2360-built-in.md)) | reserved word | exact: `language.proof` |
 | `name.unbound` | `zzz`, `Math`, `JSON`, `Object`, `globalThis`, `Promise` | design; a bare global stays refused after [global names](./2365-global-names.md), which only improves the diagnostic | const not found | exact for an unbound name; none for a global by name |
-| `name.forward-reference` | `export const a = b; export const b = 1;` | planned ([forward references](./3140-forward-references.md)) | const not found | exact for `const a = a`; loose for a later `const` |
+| `name.forward-reference` | `export const a = b; export const b = 1;` | open ([forward references](./3140-forward-references.md) resolves only the object grouping and keeps refusing a later `const`) | const not found | exact for `const a = a`; loose for a later `const` |
 | `name.reserved-export` | `export const then = 1` | design ([exporting a value](../README.md#exporting-a-value)) | reserved export name then | loose: parser `proof` asserts tag and column, not the message |
 
 ## Statements
