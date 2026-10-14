@@ -21,7 +21,8 @@
 
 import { rust } from '../../ci/config/module.f.js'
 import { rustdocHeadPath, rustdocFooterPath, rustdocHeaderPath, rustdocStylesheetPath } from '../cargo-doc/module.f.mjs'
-import { exitStep, writeFiles } from '../../effects/node/module.f.mjs'
+import { step } from '../../effects/module.f.mjs'
+import { exitStep, mkdir, writeUtf8File } from '../../effects/node/module.f.mjs'
 
 /**
  * The generated directory, beside `gen.nix/` at the repository root, where
@@ -83,7 +84,9 @@ npm run website
  *
  * @type {Effect<Mkdir | Rm | WriteBytes | WriteFile, void, IoChannel>}
  */
-export const cloudflare = writeFiles([[buildPath, buildText()]])
+export const cloudflare = step(
+    mkdir(generatedDirectory, { recursive: true }),
+    () => writeUtf8File(buildPath, buildText()))
 
 /** @type {NodeProgram} */
 export const main = _options => exitStep(cloudflare)

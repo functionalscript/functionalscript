@@ -104,6 +104,6 @@ never silent omissions or paths containing `null`.
   prefix rules.
 - [compile-output-parent-segments](../../compiler/todo/compile-output-parent-segments.md)
   — `outputDirectory`'s `..` handling, which a shared `parent` must keep.
-- [`writeFiles`](../../effects/node/module.f.mjs) in `fjs/effects/node` —
-  takes each output path's directory from `parent` rather than writing
-  another copy.
+- [write-files](../../effects/node/todo/write-files.md) — the proposed
+  `writeFiles` needs the parent of each output path; it should take it from
+  here rather than write another copy.

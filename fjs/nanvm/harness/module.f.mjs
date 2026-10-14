@@ -30,7 +30,7 @@
 import { compileFile, noRuntime } from '../../compiler/module.f.mjs'
 import { interpret } from '../../compiler/transpiler/module.f.mjs'
 import { forEachStep, history, historyStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../../effects/module.f.mjs'
-import { exitStep, mkdir, readdir, writeFiles, writeUtf8File } from '../../effects/node/module.f.mjs'
+import { exitStep, mkdir, readdir, writeUtf8File } from '../../effects/node/module.f.mjs'
 import { cmp } from '../../types/string/module.f.mjs'
 import { corpus, fixturesDirectory } from '../corpus/module.f.mjs'
 import { expectation } from '../expected/module.f.mjs'
@@ -107,9 +107,10 @@ export const expectedModules = names => [
 
 /**
  * Compiles every fixture into its `.rs`, in order, stopping at the first the
- * compiler refuses, then writes `mod.rs` naming them all. Each write creates
- * the output directory first — after `gen:clean` on a fresh checkout nothing
- * else does — so an empty fixture set still leaves a `mod.rs`.
+ * compiler refuses, then writes `mod.rs` naming them all. The output
+ * directory is created by the first compile — after `gen:clean` on a fresh
+ * checkout nothing else does — and again here, so an empty fixture set still
+ * leaves a `mod.rs`.
  *
  * @type {() => Effect<_CompileOp, void, IoChannel>}
  */
@@ -117,7 +118,8 @@ export const generateFixtures = () => step(fixtures(), names => {
     const compiled = forEachStep(
         pureOk(names),
         name => compileFile(noRuntime)(`${fixturesDirectory}/${name}`, `${directory}/${rustName(name)}.rs`))
-    return step(compiled, () => writeFiles([[modulesPath, modules(names.map(rustName))]]))
+    const directoryReady = step(compiled, () => mkdir(directory, { recursive: true }))
+    return step(directoryReady, () => writeUtf8File(modulesPath, modules(names.map(rustName))))
 })
 
 /** Where the corpus fixtures' expectations are: one `.rs` each, a `gen.` name `gen:clean` empties. */
