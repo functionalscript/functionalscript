@@ -57,6 +57,7 @@ import { errorExit, exitStep, mkdir, readFile, writeUtf8File } from '../../../..
 import { fromVec } from '../../../../text/utf8/module.f.mjs'
 import { tryParse } from '../../module.f.mjs'
 import { difference } from '../module.f.mjs'
+import { occurrences } from '../../../../types/array/module.f.mjs'
 import { cmp as strCmp } from '../../../../types/string/module.f.mjs'
 import { error, mapOk, ok, unwrap } from '../../../../types/result/module.f.js'
 import accept from '../../../../../spec/datajs/vectors/accept/data.f.js'
@@ -319,8 +320,10 @@ const unrenderable = ({ roles, notApplicable }) => [
  *
  * @type {(names: readonly string[], say: (n: string) => string) => readonly string[]}
  */
-const twiceNamed = (names, say) =>
-    names.flatMap((n, i) => i === names.indexOf(n) || i !== names.lastIndexOf(n) ? [] : [say(n)])
+const twiceNamed = (names, say) => {
+    const { indexOf, lastIndexOf } = occurrences(names)
+    return names.flatMap((n, i) => i === indexOf(n) || i !== lastIndexOf(n) ? [] : [say(n)])
+}
 
 /**
  * A corpus with no roles at all. The table is rows of classes against
