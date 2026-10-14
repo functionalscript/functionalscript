@@ -91,23 +91,24 @@ mod tests {
     #[test]
     fn starts_with() {
         let f = runtime_method::<A>("string", &"startsWith".into()).unwrap();
-        let call = |args: Vec<Any<A>>| f.clone().call(args.to_array().to_any());
-        assert_eq!(call(vec!["abc".into(), "ab".into()]), Ok(true.to_any()));
-        assert_eq!(call(vec!["abc".into(), "bc".into()]), Ok(false.to_any()));
+        fn call<const N: usize>(f: &Any<A>, args: [Any<A>; N]) -> Result<Any<A>, Any<A>> {
+            f.clone().call(args.to_array().to_any())
+        }
+        assert_eq!(call(&f, ["abc".into(), "ab".into()]), Ok(true.to_any()));
+        assert_eq!(call(&f, ["abc".into(), "bc".into()]), Ok(false.to_any()));
         assert_eq!(
-            call(vec!["abc".into(), "bc".into(), 1.0.to_any()]),
+            call(&f, ["abc".into(), "bc".into(), 1.0.to_any()]),
             Ok(true.to_any())
         );
         assert_eq!(
-            call(vec!["abc".into(), "".into(), 9.0.to_any()]),
+            call(&f, ["abc".into(), "".into(), 9.0.to_any()]),
             Ok(true.to_any())
         );
         assert!(
-            call(vec![
-                "abc".into(),
-                "a".into(),
-                BigInt::<A>::from(0i64).to_any()
-            ])
+            call(
+                &f,
+                ["abc".into(), "a".into(), BigInt::<A>::from(0i64).to_any()]
+            )
             .is_err()
         );
     }

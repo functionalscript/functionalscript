@@ -26,9 +26,9 @@ pub(crate) fn method<A: IVm>(receiver: &Any<A>, key: &Any<A>) -> Option<Method<A
         return Some(to_string);
     }
     match Unpacked::from(receiver.clone()) {
-        Unpacked::Array(_) => array(key),
-        Unpacked::String(_) => super::string::string(key),
-        Unpacked::Number(_) => super::number::number(key),
+        Unpacked::Array(_) => lookup(array(), key),
+        Unpacked::String(_) => lookup(super::string::string(), key),
+        Unpacked::Number(_) => lookup(super::number::number(), key),
         _ => None,
     }
 }
@@ -42,7 +42,7 @@ pub(crate) fn runtime<A: IVm>(receiver: &Any<A>, key: &Any<A>) -> Option<Any<A>>
 }
 
 /// The entry of `table` whose name is `key`.
-pub(super) fn lookup<A: IVm, const N: usize>(
+fn lookup<A: IVm, const N: usize>(
     table: [(&str, Method<A>); N],
     key: &Any<A>,
 ) -> Option<Method<A>> {
@@ -53,8 +53,8 @@ pub(super) fn lookup<A: IVm, const N: usize>(
 }
 
 /// `Array.prototype`'s.
-fn array<A: IVm>(key: &Any<A>) -> Option<Method<A>> {
-    let table: [(&str, Method<A>); 23] = [
+fn array<A: IVm>() -> [(&'static str, Method<A>); 23] {
+    [
         ("at", array_at),
         ("concat", array_concat),
         ("every", array_every),
@@ -78,8 +78,7 @@ fn array<A: IVm>(key: &Any<A>) -> Option<Method<A>> {
         ("toSorted", array_to_sorted),
         ("toSpliced", array_to_spliced),
         ("with", array_with),
-    ];
-    lookup(table, key)
+    ]
 }
 
 /// The `i`-th argument, or `undefined` past the end, as a built-in reads
@@ -550,10 +549,26 @@ mod tests {
     /// both ways: every answered pair has an entry, native or the runtime's
     /// body, no pending pair has one yet, so landing a built-in fails here
     /// until its pair leaves the pending list in `fjs/nanvm/methods`, and
-    /// no prohibited pair has one ever.
+    /// no prohibited pair has one ever. The four lists probe prototype
+    /// names, so the reverse direction walks every native table and asserts
+    /// each of its bindings is an answered pair of its type: an entry under
+    /// a name that is none, a typo, has no list to fail on and would answer
+    /// a call JavaScript throws on.
     #[test]
     fn completeness() {
         use super::super::methods_table::{ABSENT, ANSWERED, PENDING, PROHIBITED};
+        let answered = |type_: &str, name: &str| ANSWERED.contains(&(type_, name));
+        let bound = |type_: &str, table: &[(&str, super::Method<A>)]| {
+            for (name, _) in table {
+                assert!(
+                    answered(type_, name),
+                    "({type_:?}, {name:?}) is bound natively but not answered"
+                );
+            }
+        };
+        bound("array", &super::array::<A>());
+        bound("string", &super::super::string::string::<A>());
+        bound("number", &super::super::number::number::<A>());
         let has = |(type_, name): &(&str, &str)| {
             let r = receiver(type_);
             let key: Any<A> = (*name).into();

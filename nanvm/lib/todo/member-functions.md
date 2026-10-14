@@ -39,9 +39,17 @@ with its arguments untouched ([`vm/lambda`](../src/vm/lambda/mod.rs)):
    never a prototype name, so the two lookups never compete. The guard of
    `?.()` asks this same lookup, so `"a"[0]?.()` throws rather than skips,
    the character being no more nullish than `f.length` is.
-2. **The built-in**: the receiver type's built-in of that name, the
-   specification's algorithm over the receiver and the arguments.
-3. Otherwise the `TypeError` for calling `undefined`, as JavaScript throws
+2. **The native built-in**: the receiver type's entry of that name in the
+   native table ([`vm/lambda/method.rs`](../src/vm/lambda/method.rs)),
+   the specification's algorithm over the receiver and the arguments.
+3. **The runtime's body**: the function the generated runtime holds under
+   the receiver's type and the name, which
+   [`fjs/js/runtime`](../../../fjs/js/runtime/README.md) writes once in
+   FunctionalScript and `npm run gen` compiles to
+   [`vm/gen.runtime.rs`](../src/vm/gen.runtime.rs). The VM asks
+   `IVm::runtime_method(type_name, key)` for it and calls it with the
+   receiver as its first argument, `[receiver, ...args]`.
+4. Otherwise the `TypeError` for calling `undefined`, as JavaScript throws
    on a type without the method.
 
 The lookup may follow the arguments because nothing here mutates, so its
@@ -194,7 +202,8 @@ are [`vm/string/README.md`](../src/vm/string/README.md):
 - [x] `replaceAll` — `vm/string/patterns.rs`
 - [x] `slice` — `vm/string/building.rs`
 - [x] `split` — `vm/string/patterns.rs`
-- [x] `startsWith` — `vm/string/search.rs`
+- [x] `startsWith` — `fjs/js/runtime/module.f.js`, the runtime's body,
+      bound through `vm/runtime.rs`
 - [x] `substring` — `vm/string/building.rs`
 - [x] `toString`
 - [x] `toWellFormed` — `vm/string/reads.rs`
@@ -240,6 +249,9 @@ are [`vm/string/README.md`](../src/vm/string/README.md):
   — remove the obsolete Stage 7 placeholder exception and completion claim.
 - [`vm/array/README.md`](../src/vm/array/README.md) — the `Array`
   built-ins: what is out by design, and why.
+- [`fjs/js/runtime/README.md`](../../../fjs/js/runtime/README.md) — the
+  runtime: the bodies written once, how each VM binds them, and how NaNVM
+  reaches one from a call step.
 - [`fjs/js/prototype/README.md`](../../../fjs/js/prototype/README.md) — the
   table: both lists, one row per name with its reason.
 - [`fjs/edag/README.md`](../../../fjs/edag/README.md), Chains — the two bits

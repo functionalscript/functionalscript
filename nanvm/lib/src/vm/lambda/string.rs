@@ -5,12 +5,12 @@
 //! runtime defines — `startsWith` — has no entry here: the call step
 //! finds its body through `vm/runtime.rs`.
 
-use super::method::{Method, argument, index_or_minus_one, lookup, rest};
+use super::method::{Method, argument, index_or_minus_one, rest};
 use crate::vm::{Any, Array, IVm, Number, String, ToAny};
 
 /// `String.prototype`'s.
-pub(super) fn string<A: IVm>(key: &Any<A>) -> Option<Method<A>> {
-    let table: [(&str, Method<A>); 24] = [
+pub(super) fn string<A: IVm>() -> [(&'static str, Method<A>); 24] {
+    [
         ("at", at),
         ("charAt", char_at),
         ("charCodeAt", char_code_at),
@@ -35,8 +35,7 @@ pub(super) fn string<A: IVm>(key: &Any<A>) -> Option<Method<A>> {
         ("trim", trim),
         ("trimEnd", trim_end),
         ("trimStart", trim_start),
-    ];
-    lookup(table, key)
+    ]
 }
 
 /// The receiver `method` matched as a string, so the conversion cannot throw.
