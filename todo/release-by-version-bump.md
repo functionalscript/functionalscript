@@ -27,17 +27,20 @@ do not have to be written first.
 
 ### Proposal
 
-**A release is two pull requests to `main`: the bump, then the notes.**
+**A release is two pull requests: the bump, then the notes.**
 
-1. **The bump.** A pull request titled `Release X.Y.Z` changes `version` in
-   `package.json` and `package-lock.json` and nothing else. Merging it
-   publishes through the existing workflow. Whatever `main` holds at that
-   merge is the release by definition, and nobody has to have scanned it
-   first.
-2. **The notes.** Opened only once the bump has merged and the version has
-   published, because its window comes from what npm published (below). An AI
-   session writes `changelog/<version>.md` for every published version that
-   has no file yet, and lands it through a reviewed pull request. The reading,
+1. **The bump**, against its release line: `main` for a regular release, the
+   maintenance branch for an urgent fix. A pull request titled `Release X.Y.Z`
+   changes `version` in `package.json` and `package-lock.json` and nothing
+   else. Merging it publishes through the existing workflow. Whatever `main`
+   holds at that merge is the release by definition, and nobody has to have
+   scanned it first.
+2. **The notes**, always against `main`. Opened only once the bump has merged
+   and the version has published, because its window comes from what npm
+   published (below). An AI session writes `changelog/<version>.md` for every
+   published version above `0.55.0` that has no file yet, and lands it through
+   a reviewed pull request. Every published version from `0.30.0` through
+   `0.55.0` has its file; older gaps are history. The reading,
    grouping and writing steps of today's procedure stay as they are; only the
    window and the timing change.
 
@@ -57,10 +60,10 @@ recorded tip and up-to-date setting. It also stays right when the publish
 packed a later commit than the release merge (see the publish task below),
 because it names the commit that was actually packed.
 
-**Urgent fixes need no copy into `main`.** Their notes are written after they
-publish too, in a pull request to `main` like any other release's notes, so
-step 5's copy of `changelog/0.X.P.md` from the maintenance branch into `main`
-goes away.
+**Urgent fixes need no copy into `main`.** Their bump stays on the maintenance
+branch, but their notes are written after they publish too, in a pull request
+to `main` like any other release's notes, so step 5's copy of
+`changelog/0.X.P.md` from the maintenance branch into `main` goes away.
 
 **Rejected: a `changelog` branch.** Moving the released files to a branch of
 their own would keep one Markdown pull request per release out of `main`'s
@@ -90,7 +93,8 @@ The fixed window above removes the race wherever the files live.
 - [ ] Write the notes procedure:
       - list the published versions (`npm view functionalscript versions`)
         against the files in `changelog/`;
-      - for each version without a file, read the window between `gitHead`s;
+      - for each version above `0.55.0` without a file, read the window
+        between `gitHead`s;
       - group the changes by net effect and write the file;
       - open the pull request to `main`.
 
@@ -99,7 +103,10 @@ The fixed window above removes the race wherever the files live.
       - the title search and its confirmation in step 1;
       - the re-scan and the recorded tip in step 7;
       - the `changelog/unreleased/` source in step 3 and the "Transition"
-        section, since the directory is empty on `main`;
+        section. The directory is empty on `main`, and only a pull request
+        opened under the per-pull-request policy could recreate it; when this
+        was filed, every open pull request had been opened long after that
+        policy ended at `0.49.0`;
       - the up-to-date setting task in
         [commit-message-enforcement](./commit-message-enforcement.md), whose
         only stated reason is the release race.
