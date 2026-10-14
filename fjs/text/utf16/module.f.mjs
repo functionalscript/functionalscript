@@ -19,6 +19,7 @@ import {
     none,
 } from '../../types/list/module.f.mjs'
 
+import { assert } from '../../asserts/module.f.mjs'
 import { isUintUpTo } from '../../types/number/module.f.mjs'
 import { isNaN_ } from '../../types/number/is_nan/module.f.js'
 import { compose } from '../../types/function/module.f.js'
@@ -319,6 +320,11 @@ export const isWellFormed = s =>
  * `0` there is no unit before the index, which `charCodeAt` reads as `NaN`,
  * no surrogate.
  *
+ * The index is a non-negative integer, as `isUintUpTo` spells one. Anything
+ * else — a fraction, a negative number, `NaN`, `-0` — names no position
+ * between code units, so it is refused rather than handed back as if it were
+ * a boundary.
+ *
  * @example
  *
  * ```js
@@ -327,12 +333,16 @@ export const isWellFormed = s =>
  * floorCodePointBoundary('a😀')(9) // 3: past the end
  * ```
  *
+ * @throws If `index` is not a non-negative integer.
+ *
  * @type {(s: string) => (index: number) => number}
  */
-export const floorCodePointBoundary = s => index =>
-    index >= s.length ? s.length
-    : isHighSurrogate(s.charCodeAt(index - 1)) && isLowSurrogate(s.charCodeAt(index)) ? index - 1
-    : index
+export const floorCodePointBoundary = s => index => {
+    assert(isUintUpTo(Infinity)(index), ['not a code-unit index', index])
+    return index >= s.length ? s.length
+        : isHighSurrogate(s.charCodeAt(index - 1)) && isLowSurrogate(s.charCodeAt(index)) ? index - 1
+        : index
+}
 
 /**
  * Converts a list of UTF-16 code units (U16) to a string.

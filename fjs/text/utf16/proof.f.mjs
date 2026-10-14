@@ -192,22 +192,31 @@ export const proof = {
         // one paired, one not
         assertEq(isWellFormed('\u{1F600}\ud800'), false)
     },
-    floorCodePointBoundary: () => {
-        const at = floorCodePointBoundary('a\u{1F600}b')
-        // between code points, the index itself
-        assertEq(at(0), 0)
-        assertEq(at(1), 1)
-        assertEq(at(3), 3)
-        // between the halves of a pair, the pair's start
-        assertEq(at(2), 1)
-        // the end, and past it
-        assertEq(at(4), 4)
-        assertEq(at(9), 4)
-        assertEq(floorCodePointBoundary('')(0), 0)
-        // an unpaired surrogate is a code point of its own
-        assertEq(floorCodePointBoundary('\ud800a')(1), 1)
-        assertEq(floorCodePointBoundary('a\udc00')(1), 1)
-        // reversed halves are two unpaired surrogates
-        assertEq(floorCodePointBoundary('\ude00\ud83d')(1), 1)
+    floorCodePointBoundary: {
+        boundaries: () => {
+            const at = floorCodePointBoundary('a\u{1F600}b')
+            // between code points, the index itself
+            assertEq(at(0), 0)
+            assertEq(at(1), 1)
+            assertEq(at(3), 3)
+            // between the halves of a pair, the pair's start
+            assertEq(at(2), 1)
+            // the end, and past it
+            assertEq(at(4), 4)
+            assertEq(at(9), 4)
+            assertEq(floorCodePointBoundary('')(0), 0)
+            // an unpaired surrogate is a code point of its own
+            assertEq(floorCodePointBoundary('\ud800a')(1), 1)
+            assertEq(floorCodePointBoundary('a\udc00')(1), 1)
+            // reversed halves are two unpaired surrogates
+            assertEq(floorCodePointBoundary('\ude00\ud83d')(1), 1)
+        },
+        // an index that names no position between code units is refused
+        throw: {
+            fraction: () => floorCodePointBoundary('abc')(1.5),
+            negative: () => floorCodePointBoundary('abc')(-1),
+            notANumber: () => floorCodePointBoundary('abc')(NaN),
+            negativeZero: () => floorCodePointBoundary('abc')(-0),
+        },
     },
 }
