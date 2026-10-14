@@ -18,13 +18,13 @@ export const proof = {
     // entry, read back from each output; and the first compile failing
     // stops the second.
     generate: () => {
-        const text = 'export const runtime = { string: { x: 1 } };'
+        const text = 'export const runtime = { member: { String: { x: 1 } } };'
         const [state, result] = virtual(withRuntime(text))(generate())
         assertOk(result)
         const [, rust] = virtual(state)(readUtf8File(rustPath))
         assert(assertOk(rust).includes('string_key("x")'))
         const [, edag] = virtual(state)(readUtf8File(edagPath))
-        assertEq(assertOk(edag), 'export default ["{}",[[":","runtime",["{}",[[":","string",["{}",[[":","x",1]]]]]]]]];')
+        assertEq(assertOk(edag), 'export default ["{}",[[":","runtime",["{}",[[":","member",["{}",[[":","String",["{}",[[":","x",1]]]]]]]]]]]];')
         const [broken, failed] = virtual(withRuntime('export default ('))(step(generate(), () => readUtf8File(edagPath)))
         assertEq(failed[0], 'error')
         assertEq(Object.keys(broken.root).join(','), 'fjs')
@@ -32,8 +32,8 @@ export const proof = {
     // The `runtime` export as a value, or the reason there is none: a source
     // the interpreter cannot load, or an export that is no object.
     load: () => {
-        const [, result] = virtual(withRuntime('export const runtime = { string: { x: 1 } };'))(load())
-        assertStructurallySame(assertOk(result), ['{}', [[':', 'string', ['{}', [[':', 'x', 1]]]]]])
+        const [, result] = virtual(withRuntime('export const runtime = { member: { String: { x: 1 } } };'))(load())
+        assertStructurallySame(assertOk(result), ['{}', [[':', 'member', ['{}', [[':', 'String', ['{}', [[':', 'x', 1]]]]]]]]])
         const [, unreadable] = virtual(emptyState)(load())
         assertEq(unreadable[0], 'error')
         const [, notAnObject] = virtual(withRuntime('export const runtime = 1;'))(load())

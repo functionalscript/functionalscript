@@ -14,35 +14,43 @@ use crate::vm::{Any, IStaticFunction, IVm, Unpacked};
 #[path = "gen.runtime.rs"]
 mod compiled;
 
-/// The body the runtime holds under the receiver type and the key, if a
-/// function: `runtime[type_name][key]` of the compiled module's export
-/// object. `None` for a name the type's object lacks, for a type the
-/// runtime does not key, and for an entry that is no function. The module
-/// is evaluated on every call; a VM that measures the cost may hold the
-/// object instead.
-pub fn runtime_method<A: IStaticFunction>(type_name: &str, key: &Any<A>) -> Option<Any<A>> {
+/// The function value at a path of keys into the compiled runtime's
+/// export object, `None` where a key is missing, a step is no object, or
+/// the end is no function. The module is evaluated on every call; a VM
+/// that measures the cost may hold the object instead.
+fn at<A: IStaticFunction>(path: &[Any<A>]) -> Option<Any<A>> {
     let module = compiled::module::<A>().ok()?;
-    let table = Any::dot(module, "runtime".into()).end().ok()?;
-    let functions = Any::dot(table, type_name.into()).end().ok()?;
-    let entry = Any::dot(functions, key.clone()).end().ok()?;
-    match Unpacked::from(entry.clone()) {
-        Unpacked::Function(_) => Some(entry),
+    let mut value = Any::dot(module, "runtime".into()).end().ok()?;
+    for key in path {
+        value = Any::dot(value, key.clone()).end().ok()?;
+    }
+    match Unpacked::from(value.clone()) {
+        Unpacked::Function(_) => Some(value),
         _ => None,
     }
 }
 
-/// The receiver's type as the runtime keys it, `None` for a nullish
-/// receiver, which has no type there and no member function anywhere.
+/// The body the runtime holds under the receiver type and the key, if a
+/// function: `runtime.member[type_name][key]` of the compiled module's
+/// export object. `None` for a name the type's object lacks, for a type
+/// the section does not key, and for an entry that is no function.
+pub fn runtime_method<A: IStaticFunction>(type_name: &str, key: &Any<A>) -> Option<Any<A>> {
+    at(&["member".into(), type_name.into(), key.clone()])
+}
+
+/// The receiver's type as the runtime keys it, the name of its global;
+/// `None` for a nullish receiver, which has no type there and no member
+/// function anywhere.
 pub(crate) fn type_name<A: IVm>(receiver: &Any<A>) -> Option<&'static str> {
     Some(match Unpacked::from(receiver.clone()) {
         Unpacked::Nullish(_) => return None,
-        Unpacked::Boolean(_) => "boolean",
-        Unpacked::Number(_) => "number",
-        Unpacked::String(_) => "string",
-        Unpacked::BigInt(_) => "bigint",
-        Unpacked::Object(_) => "object",
-        Unpacked::Array(_) => "array",
-        Unpacked::Function(_) => "function",
+        Unpacked::Boolean(_) => "Boolean",
+        Unpacked::Number(_) => "Number",
+        Unpacked::String(_) => "String",
+        Unpacked::BigInt(_) => "BigInt",
+        Unpacked::Object(_) => "Object",
+        Unpacked::Array(_) => "Array",
+        Unpacked::Function(_) => "Function",
     })
 }
 
@@ -62,13 +70,13 @@ mod tests {
         let f: Any<A> =
             A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array(), None).to_any();
         let typed: [(Any<A>, &str); 7] = [
-            ([].to_object().to_any(), "object"),
-            ([].to_array().to_any(), "array"),
-            ("".into(), "string"),
-            (0.0.to_any(), "number"),
-            (true.to_any(), "boolean"),
-            (BigInt::<A>::from(0i64).to_any(), "bigint"),
-            (f, "function"),
+            ([].to_object().to_any(), "Object"),
+            ([].to_array().to_any(), "Array"),
+            ("".into(), "String"),
+            (0.0.to_any(), "Number"),
+            (true.to_any(), "Boolean"),
+            (BigInt::<A>::from(0i64).to_any(), "BigInt"),
+            (f, "Function"),
         ];
         for (receiver, name) in typed {
             assert_eq!(type_name(&receiver), Some(name));
@@ -80,17 +88,18 @@ mod tests {
     /// unknown name and an unknown type are not.
     #[test]
     fn lookup() {
-        assert!(runtime_method::<A>("string", &"startsWith".into()).is_some());
-        assert!(runtime_method::<A>("string", &"slice".into()).is_none());
-        assert!(runtime_method::<A>("string", &"nothing".into()).is_none());
-        assert!(runtime_method::<A>("symbol", &"startsWith".into()).is_none());
+        assert!(runtime_method::<A>("String", &"startsWith".into()).is_some());
+        assert!(runtime_method::<A>("String", &"slice".into()).is_none());
+        assert!(runtime_method::<A>("String", &"nothing".into()).is_none());
+        assert!(runtime_method::<A>("Symbol", &"startsWith".into()).is_none());
+        assert!(runtime_method::<A>("string", &"startsWith".into()).is_none());
     }
 
     /// The body called as a call step calls it, the receiver first: the
     /// compiled `startsWith`, on NaNVM.
     #[test]
     fn starts_with() {
-        let f = runtime_method::<A>("string", &"startsWith".into()).unwrap();
+        let f = runtime_method::<A>("String", &"startsWith".into()).unwrap();
         fn call<const N: usize>(f: &Any<A>, args: [Any<A>; N]) -> Result<Any<A>, Any<A>> {
             f.clone().call(args.to_array().to_any())
         }
