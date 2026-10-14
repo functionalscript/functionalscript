@@ -139,6 +139,23 @@ hand. The interpreter thereby stays independent of the compiler at run
 time, and the floor is explicit rather than discovered when the
 interpreter first meets a call inside the runtime.
 
+**Compiling needs no runtime; running does.** The shape is a bootstrap,
+and two invariants keep it from being a cycle. First, the compiler never
+needs a runtime to *compile*: parsing and lowering run no body, so the
+host engine runs the compiler as JavaScript with its own built-ins
+answering the compiler's `.map` and `.slice`, and `npm run gen` can delete
+every generated file and still write the runtime's EDAG and Rust from
+source. A runtime is needed only to *run*: an executor evaluating a module
+whose initialization calls a body's name, or the compiler itself once it
+is compiled and run on a VM, where the runtime the previous compiler
+wrote is the fixed point, as a Rust `core` is for `rustc`. Second, the
+runtime module's own initialization calls no member function, so it can
+always be interpreted from nothing. An optimizing pass that evaluated at
+compile time would be the one place the compiler runs bodies; it takes
+the runtime as an input as the executors do, folds only what the
+interpreter answers natively when given none, and so the runtime is
+always compiled with no runtime, whatever the pass does elsewhere.
+
 **The cost is accepted.** An interpreted `indexOf` is a loop where the
 host's was native. DESIGN prefers simplicity, the VM keeps its option to
 bind natively, and the measurement that would change the trade is one the
