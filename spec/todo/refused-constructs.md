@@ -105,7 +105,7 @@ describes:
 | `name.intrinsic` | `const String = 1`, `export default String` | design ([built-ins](./2360-built-in.md)) | reserved word | exact: `language.proof` |
 | `name.unbound` | `zzz`, `Math`, `JSON`, `Object`, `globalThis`, `Promise` | design; a bare global stays refused after [global names](./2365-global-names.md), which only improves the diagnostic | const not found | exact for an unbound name; none for a global by name |
 | `name.forward-reference` | `export const a = b; export const b = 1;` | planned ([forward references](./3140-forward-references.md)) | const not found | exact for `const a = a`; loose for a later `const` |
-| `name.reserved-export` | `export const then = 1` | design | reserved export name then | loose: parser `proof` asserts tag and column, not the message |
+| `name.reserved-export` | `export const then = 1` | design ([exporting a value](../README.md#exporting-a-value)) | reserved export name then | loose: parser `proof` asserts tag and column, not the message |
 
 ## Statements
 
@@ -121,7 +121,7 @@ describes:
 | `st.try` | `try`, `catch`, `finally` | open | unexpected token | none |
 | `st.debugger` | `debugger` | open | unexpected token | none |
 | `st.label` | `x: while (c) { }` | open | unexpected token | none |
-| `st.var` | `var a = 1` | design ([`let`](../README.md#loops), [let](./3220-let.md): `var` not at all) | unexpected token | none |
+| `st.var` | `var a = 1` | design ([constants](../README.md#shared-values-constants): `var` is not admitted; [let](./3220-let.md) adds only the loop variable) | unexpected token | none |
 | `st.empty` | `;;`, a stray `;` | design ([module structure](../README.md#module-structure)) | unexpected token | exact: parser `proof` |
 | `st.expression` | an expression statement (a body statement that is no `const`, `if`, `throw`, `return` or admitted `let`/`while` loop) | design ([functions](../README.md#functions)) | unexpected token | exact: parser `grammar/proof` |
 | `st.body-end` | a body that does not end in `return` or `throw`, `{}` | design ([functions](../README.md#functions)) | unexpected token | exact: parser `grammar/proof` |
@@ -145,8 +145,8 @@ describes:
 | ID | Construct | Why | Diagnostic | Pin |
 |---|---|---|---|---|
 | `mod.no-export` | an empty module, `const a = 1;` alone | design ([module structure](../README.md#module-structure)) | unexpected end | exact: parser `proof` |
-| `mod.export-after-default` | `export default 1; export const a = 2;` | design | unexpected token | loose: parser `proof`, `errors` |
-| `mod.import-after-export` | `export const a = 1; import b from "m";` | design | unexpected token | exact: parser `grammar/proof` |
+| `mod.export-after-default` | `export default 1; export const a = 2;` | design ([module structure](../README.md#module-structure)) | unexpected token | loose: parser `proof`, `errors` |
+| `mod.import-after-export` | `export const a = 1; import b from "m";` | design ([module structure](../README.md#module-structure)) | unexpected token | exact: parser `grammar/proof` |
 | `mod.throw-position` | `throw 1; export default 2;`, `export default 2; throw 1;` | design ([module structure](../README.md#module-structure)) | unexpected token | exact: parser `proof` |
 | `mod.export-list` | `export { a };` | open (investigated in [export lists](./export-lists.md)) | unexpected token | loose: parser `proof`, `errors` |
 | `mod.export-let` | `export let a = 1;` | design (`let` only opens a loop, [let](./3220-let.md)) | unexpected token | loose: parser `proof`, `errors` |
@@ -162,7 +162,7 @@ describes:
 | `lit.leading-dot` | `.5` | planned (with the optional-chain-before-digit work, [roadmap](./README.md)) | unexpected token | none |
 | `lit.trailing-dot` | `5.` | open | unexpected token | none |
 | `lit.array-hole` | `[,]`, `[1,,2]` | open | unexpected token | exact: parser `proof` |
-| `lit.string-escape` | `"\x41"`, `"\v"`, `"\0"`, `"\u{41}"`, a raw TAB | planned ([string literals](./2460-js-string-literals.md)) | unexpected token | none |
+| `lit.string-escape` | `"\x41"`, `"\v"`, `"\0"`, `"\u{41}"`, a raw TAB | planned ([string literals](./2460-js-string-literals.md)) | unexpected token | exact for `'\x41'`: `language.proof` `strings.refused`; none for the other escapes |
 | `lit.string-continuation` | a `\` before a line terminator in a string | planned ([string literals](./2460-js-string-literals.md)) | unexpected token | none |
 | `lit.template-escape` | `` `\x41` ``, `` `\v` ``, a raw TAB in a template | planned ([template literals](../README.md#template-literals)) | unexpected token | exact: compiler `tokenizer/proof`, `refusedEscapes` |
 
