@@ -1,7 +1,7 @@
 ## Surrogate predicates are copied outside `fjs/text`
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
