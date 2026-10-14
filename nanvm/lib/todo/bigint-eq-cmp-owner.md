@@ -1,7 +1,7 @@
 ## bigint-eq-cmp-owner. `BigInt` equality and ordering are decided by unrelated code paths
 
 **Priority:** P5
-**Status:** open
+**Status:** wip
 
 ### Problem
 
