@@ -1,7 +1,7 @@
 ## ivm-generic-eq-debug. A type generic over `A: IVm` gets `PartialEq` and `Debug` three ways, and one of them does not work
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
