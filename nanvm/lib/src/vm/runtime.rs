@@ -47,11 +47,11 @@ pub fn runtime_static<A: IStaticFunction>(path: &[&str]) -> Option<Any<A>> {
     at(["static"].iter().chain(path).map(|key| (*key).into()))
 }
 
-/// The function a compiled static call calls: the VM's binding for `path`,
-/// [`IVm::runtime_static`], or the failure naming the path, which the
-/// call propagates — the parser admitted the path, so a VM without a
-/// binding fails rather than answer the `TypeError` of calling
-/// `undefined`. The represented interpreter fails with the same message.
+/// The function a compiled read of a static function answers: the VM's
+/// binding for `path`, [`IVm::runtime_static`], or the failure naming the
+/// path, which the read propagates — the parser admitted the name, so a VM
+/// without a binding fails rather than answer `undefined`. The represented
+/// interpreter fails with the same message.
 pub fn static_binding<A: IVm>(path: &[&str]) -> Result<Any<A>, Any<A>> {
     A::runtime_static(path).ok_or_else(|| {
         format!("no binding for the static {}", path.join("."))
@@ -134,8 +134,8 @@ mod tests {
         assert!(runtime_static::<A>(&["Object", "keys"]).is_none());
         assert!(runtime_static::<A>(&["Object", "is", "x"]).is_none());
         assert!(runtime_static::<A>(&["Number", "is"]).is_none());
-        // a compiled static call's callee: the body, or the failure naming
-        // the path, as the represented interpreter's
+        // a compiled read of a static function: the body, or the failure
+        // naming the path, as the represented interpreter's
         assert!(static_binding::<A>(&["Object", "is"]).is_ok());
         assert_eq!(
             static_binding::<A>(&["Object", "keys"]),

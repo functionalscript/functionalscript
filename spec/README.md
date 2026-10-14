@@ -52,8 +52,8 @@ or JSON ([output](#output)).
   [template literals](#template-literals)
 - [Grouping](#grouping), [operators](#operators),
   [number conversion](#number-conversion) and [string conversion](#string-conversion)
-- [Property access](#property-access), [optional chaining](#optional-chaining)
-  and [computed entries](#reading-an-entry-at-run-time)
+- [Property access](#property-access), [built-in static functions](#built-in-static-functions),
+  [optional chaining](#optional-chaining) and [computed entries](#reading-an-entry-at-run-time)
 - [Functions](#functions)
 - [Command line](#command-line), [file types](#file-types) and [output](#output)
 - [Roadmap](#roadmap)
@@ -68,7 +68,7 @@ or JSON ([output](#output)).
 | Expressions | Grouping; arithmetic, strict comparison, bitwise and lazy operators; `?:`, `!`, `typeof`, `instanceof Array`, `Number(...)` and `String(...)` |
 | Properties | Own-property reads, numeric computed keys through `Number(...)`, optional reads/calls and the enumerable `entry` helper |
 | Functions | Arrow functions, 0–16 fixed parameters, optional rest, closures, self recursion, body constants, terminating `if` guards, `let`/`while` loops over one variable, `return`, `throw`, ordinary and method calls |
-| Built-ins | Pure array, string and numeric member functions, including callbacks and function text ([member functions](#built-in-member-functions)) |
+| Built-ins | Pure array, string and numeric member functions, including callbacks and function text ([member functions](#built-in-member-functions)); `Object.is` ([static functions](#built-in-static-functions)) |
 | Compiler | JSON/DataJS evaluation; FunctionalScript, EDAG and Rust graph output; import linking and the authored `.f.js` check |
 
 The sections below give the restrictions and executor-specific limits for
@@ -625,11 +625,12 @@ written.
   since any broken JavaScript program is a broken FunctionalScript program.
   `undefined`, `NaN` and `Infinity` are refused as well, although a
   JavaScript module may bind them, so that each denotes its value wherever a
-  value stands ([numbers](#numbers)). `Array`, `Number` and `String` are also
-  reserved under [global names](./todo/2365-global-names.md), with no standalone
-  values: `Array` stands in [instance checks](#instanceof), and `Number` and
-  `String` stand as [number](#number-conversion) and [string](#string-conversion)
-  conversions. A word that is a keyword only in some
+  value stands ([numbers](#numbers)). `Array`, `Number`, `Object` and `String`
+  are also reserved under [global names](./todo/2365-global-names.md), with no
+  standalone values: `Array` stands in [instance checks](#instanceof), `Number`
+  and `String` stand as [number](#number-conversion) and
+  [string](#string-conversion) conversions, and `Object` as the namespace of
+  [`Object.is`](#built-in-static-functions). A word that is a keyword only in some
   position — `async`, `of`, `get`, `set`, `from`, `as` — is an ordinary name,
   as in JavaScript, and so are `type` and `then`:
   `(from, then) => [from, then]` is a function, and `then` is refused only as
@@ -762,6 +763,12 @@ its conditional ([functions](#functions)).
 - A pattern names no function as its whole value, so no name in it is a
   function's own ([captures and self recursion](#captures-and-self-recursion)):
   `const { f } = { f: () => f };` is `const not found`.
+- An object pattern over the **`Object` namespace** reads its members
+  ([built-in static functions](#built-in-static-functions)), there being no
+  value to read them from: `const { is } = Object;` is
+  `const is = Object.is;`, one entry, and `const {} = Object;` reads
+  nothing, the namespace being never nullish. An array pattern over it,
+  and a key it does not admit, are refused at the word (`reserved word`).
 - A **parameter pattern** is one fixed parameter, its source the argument
   in its position: `([a, { b }], c) => …` binds `a` and `b` from the first
   argument as `const [a, { b }] = arg;` would, its reads the first entries
@@ -1671,7 +1678,8 @@ calling a number is worth. The FunctionalScript writer spells it back as it
 is written, the operand an argument, `Number(1+2)`.
 
 **`Number` is a reserved word**, one of the names
-[global names](./todo/2365-global-names.md) reserves, with `Array` and `String`
+[global names](./todo/2365-global-names.md) reserves, with `Array`, `Object`
+([built-in static functions](#built-in-static-functions)) and `String`
 ([string conversion](#string-conversion)) —
 [`fjs/js/keywords`](../fjs/js/keywords/module.f.js)' `reservedGlobals`, a
 list beside the keywords rather than among them, since JavaScript has no
@@ -1897,6 +1905,54 @@ The native [array](../nanvm/lib/src/vm/array/README.md) and
 [string/number](../nanvm/lib/src/vm/string/README.md) documentation gives the
 method-specific details and implementation-defined cases.
 
+### Built-in Static Functions
+
+```js
+const { is } = Object;
+export default [Object.is(0, -0), is(NaN, NaN), [1, 2].map(x => Object.is(x, 1))];
+```
+
+`Object.is` is the one static function the language admits: JavaScript's
+SameValue, which tells `0` from `-0` and holds `NaN` equal to itself, where
+`===` says the opposite of both. It is a value, as in JavaScript — passed,
+compared, read as `Object.is.length` — and one function however often it is
+read, so `Object.is === Object.is`. Every spelling of the read is that value:
+`Object.is` and `Object["is"]`, and the guarded `Object?.is` and
+`Object?.["is"]`, since `Object` is never nullish; a call of it, guarded or
+not, is a call of that value, and steps after a guarded read go on as they
+would after the plain one. Destructuring is sugar
+([destructuring](#destructuring)): `const { is } = Object;` is
+`const is = Object.is;`, and an object pattern over `Object` reads each of
+its keys as that access does, a nested pattern reading through the function
+as through any value.
+
+**`Object` is a reserved word**, under the same
+[global-name rule](./todo/2365-global-names.md) as `Number` and `String`,
+reserved together with the member it admits. A module cannot bind it as a
+`const`, parameter or import, and it is no value: the word alone,
+`const o = Object;`, an array pattern over it, a member the namespace does
+not admit — `Object.keys(o)` — and a computed key, `Object[k]`, are
+compilation errors (`reserved word`), a namespace being closed at compile
+time. It stands in one other place, the
+[`entry` helper](#reading-an-entry-at-run-time)'s
+`Object.getOwnPropertyDescriptor`. A key or a property name remains
+ordinary, `{ Object: 1 }.Object` being `1`. Each later member, such as
+`Number.isInteger`, is an admission of its own
+([built-ins](./todo/2360-built-in.md)).
+
+The read reaches the graph as the node `['Object.is']`, and a call of it as
+the ordinary call, `['()', ['Object.is'], [a, b]]`
+([`fjs/edag`](../fjs/edag/README.md)). Its body is written once, in the
+`static` section of [`fjs/js/runtime`](../fjs/js/runtime/README.md), as the
+helper [`fjs/types/object/is`](../fjs/types/object/is/module.f.js), which a
+module may import as well, and every executor answers the node from it; an
+executor with no binding for it fails, naming it, rather than answer. The
+graph outputs write the node back: the FunctionalScript one as `Object.is`,
+the Rust one as the binding the VM answers. NaNVM builds that binding afresh
+on each read for now, so two reads made in two invocations of a function are
+two functions there and `===` between them is `false`
+([runtime-static](../fjs/js/todo/runtime-static.md)).
+
 ## Optional Chaining
 
 The behavior below was added to the compiler and specification in
@@ -1979,17 +2035,12 @@ of one is, and so is a key whose conversion fails.
 The helper is exactly what it spells. The compiler recognizes the function
 whole — its two parameters, the `const` the descriptor binds and the
 `return`, under any three distinct names a module may bind, so no keyword
-and no `Array`, the keys in either spelling, the
-semicolons where JavaScript inserts them — where `Object` is the intrinsic,
-which it is wherever no scope binds the word; a function that departs from
-it by a step is an ordinary function, in which `Object` is a name nothing
-binds ([shared values](#shared-values-constants)), and a parameter, a
-`const` or a function's own name spelling `Object` is what JavaScript reads
-it as. A `const` of `Object` after the helper, in the module or in a body
-the helper is written in, is refused as a shadowed capture is
-([functions](#functions)): JavaScript would resolve the helper's `Object`
-to that `const`, and the helper would be no helper. It is a function like
-any other once recognized: a value, of
+and no reserved global, the keys in either spelling, the
+semicolons where JavaScript inserts them — where `Object` is the reserved
+global no scope binds ([built-in static functions](#built-in-static-functions));
+a function that departs from it by a step is an ordinary function, in which
+`Object` is refused at the word as everywhere but `Object.is`. It is a
+function like any other once recognized: a value, of
 `length` `2`, capturing nothing, a fresh identity wherever it is written as
 every arrow is, passed as a value — `[a, b].map(entry)` — and converting
 to its text as any function does
@@ -2002,8 +2053,8 @@ one as a function the VM answers natively. Value outputs can evaluate calls
 to the helper; selecting the helper itself is refused as a function value.
 
 The node is the language's one read of a property by a name it computes:
-`Object` is no value a module can name outside the helper
-([built-ins](./todo/2360-built-in.md)), and `a[i]` stays unread
+`Object` is no value a module can name, and its namespace admits `is` alone
+([built-in static functions](#built-in-static-functions)), and `a[i]` stays unread
 ([property access](#property-access)). Where a program knows its index to
 be a number, the spelling is `a[Number(i)]`
 ([property access](#property-access)); `a[+i]`, where no `bigint` can reach

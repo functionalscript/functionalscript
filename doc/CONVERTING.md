@@ -309,40 +309,31 @@ checked, not rewritten.
 
 ## 6. `Object.is`
 
-The `Object` namespace is not admitted outside the `entry` helper
-([reading an entry](../spec/README.md#reading-an-entry-at-run-time)), so
-`Object.is` is refused (`const not found`), and so is the destructuring
-`const { is } = Object`. The replacement is `is` from
-[`fjs/types/object/is`](../fjs/types/object/is/module.f.js):
+`Object.is` is admitted
+([built-in static functions](../spec/README.md#built-in-static-functions)),
+so a module keeps it as written: the call `Object.is(a, b)`, the function
+as a value, and the destructuring `const { is } = Object` alike, which is
+sugar for `const is = Object.is`. Nothing is converted.
 
-```js
-const same = (a, b) => Object.is(a, b) ? 0 : 1          // refused
-```
-
-```js
-import { is } from '../types/object/is/module.f.js'
-
-const same = (a, b) => is(a, b) ? 0 : 1                  // accepted
-```
-
-`is(a, b)` is SameValue, as `Object.is` is: `===`, except on the two
-values `===` reads the other way, and it is spelled from the two helpers
-that name them —
+Its body is [`fjs/types/object/is`](../fjs/types/object/is/module.f.js),
+which the runtime's `static` section imports rather than copies, and which
+a module may import too, answering alike by construction. `is(a, b)` is
+SameValue, as `Object.is` is: `===`, except on the two values `===` reads
+the other way, and it is spelled from the two helpers that name them —
 `a === b ? isNegativeZero(a) === isNegativeZero(b) : isNaN_(a) && isNaN_(b)`
 — with `isNaN_` from rule 3 and `isNegativeZero` from
 [`fjs/types/number/is_negative_zero`](../fjs/types/number/is_negative_zero/module.f.js),
 which is `n === 0 && 1 / n < 0`, the zeros told apart through `1 / n` as
 `min` and `max` tell them. Its proof compares every pair of a list spanning
 every type, the zeros, `NaN`, the bigint zero and two containers of one
-shape, against the built-in. A module that read `is` off the namespace
-with `const { is } = Object` imports the same function under the same
-name, and changes nothing else.
+shape, against the built-in.
 
 The test for `-0` alone, `Object.is(x, -0)`, is the built-in's most common
-use, and `isNegativeZero(x)` says it directly:
+use, and `isNegativeZero(x)` says it directly, where a module prefers the
+name to the comparison:
 
 ```js
-const sign = v => v < 0 || Object.is(v, -0) ? 1n : 0n        // refused
+const sign = v => v < 0 || Object.is(v, -0) ? 1n : 0n        // accepted
 ```
 
 ```js
@@ -351,11 +342,9 @@ import { isNegativeZero } from '../types/number/is_negative_zero/module.f.js'
 const sign = v => v < 0 || isNegativeZero(v) ? 1n : 0n       // accepted
 ```
 
-The EDAG has no node for it: the function is the one spelling, as the
-strategy above says, and the language may take `Object.is(a, b)` in as
-sugar for it later. Until then `Object` stands in a module only as the
-helper's descriptor, and every other member of it is a change the
-conversion makes by hand.
+Every other member of the namespace is refused at the word (`reserved
+word`) — `Object.keys`, `Object.entries`, `Object.fromEntries` — and is a
+change the conversion makes by hand until it is admitted on its own.
 
 ## 7. A body that ends without `return`
 

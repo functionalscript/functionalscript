@@ -72,6 +72,8 @@ second, reserved together with the one right operand of `instanceof` it
 admits ([`instanceof`](../README.md#instanceof)).
 `String` is the third, reserved with its conversion
 ([string conversion](../README.md#string-conversion)).
+`Object` is the fourth, reserved with `Object.is`, the one member of it
+admitted ([built-in static functions](../README.md#built-in-static-functions)).
 Every other name joins that list before 2360 admits any of it.
 
 ## Open questions
@@ -108,6 +110,8 @@ Every other name joins that list before 2360 admits any of it.
   reserved under this rule, in the same list.
 - [String conversion](../README.md#string-conversion) — `String`, the third
   name reserved under this rule, in the same list.
+- [Built-in static functions](../README.md#built-in-static-functions) —
+  `Object`, the fourth, reserved with `Object.is`, in the same list.
 - [`2360-built-in.md`](./2360-built-in.md) — which of these names become
   namespaces; each is reserved here no later than it is admitted there
   ([landing a name at a time](#landing-a-name-at-a-time)).

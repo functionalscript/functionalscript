@@ -270,11 +270,11 @@ this proposal does not take.
       naming the path as the interpreter does; the Rust backend emits the
       lookup; the completeness test checks every admitted path is bound.
       NaNVM keeps no native static table, so there is no reverse walk.
-- [ ] The node is a value, `['Object.is']`, an `op0`, in place of
+- [x] The node is a value, `['Object.is']`, an `op0`, in place of
       `['static', path]`: the schema, the analysis, the executors, the
       Rust backend and function text; the analysis's path and placement
       checks go.
-- [ ] The parser reserves `Object`, reads `Object.is`, `Object['is']`,
+- [x] The parser reserves `Object`, reads `Object.is`, `Object['is']`,
       `Object?.is` and `Object?.['is']` as `['Object.is']`, and
       `const { is } = Object` as `const is = Object.is`; it refuses every
       other member, a computed key and `Object` alone; the `entry`
