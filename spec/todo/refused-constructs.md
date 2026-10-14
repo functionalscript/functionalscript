@@ -103,9 +103,9 @@ describes:
 | `acc.numeric-key` | `{ 0: 1 }` | planned (roadmap, property key as number) | unexpected token | none |
 | `name.literal-word` | `const NaN = 1`, `const undefined = 1`, `const Infinity = 1` | design ([literal words](./2445-literal-words-as-references.md)) | reserved word | exact: parser `proof` |
 | `name.intrinsic` | `const String = 1`, `export default String` | design ([built-ins](./2360-built-in.md)) | reserved word | exact: `language.proof` |
-| `name.unbound` | `zzz`, `Math`, `JSON`, `Object`, `globalThis`, `Promise` | design for an unbound name; planned for the globals ([global names](./2365-global-names.md)) | const not found | exact for an unbound name; none for a global by name |
+| `name.unbound` | `zzz`, `Math`, `JSON`, `Object`, `globalThis`, `Promise` | design; a bare global stays refused after [global names](./2365-global-names.md), which only improves the diagnostic | const not found | exact for an unbound name; none for a global by name |
 | `name.forward-reference` | `export const a = b; export const b = 1;` | planned ([forward references](./3140-forward-references.md)) | const not found | exact for `const a = a`; loose for a later `const` |
-| `name.reserved-export` | `export const then = 1` | design | reserved export name then | exact: parser `proof` |
+| `name.reserved-export` | `export const then = 1` | design | reserved export name then | loose: parser `proof` asserts tag and column, not the message |
 
 ## Statements
 
@@ -123,7 +123,7 @@ describes:
 | `st.label` | `x: while (c) { }` | open | unexpected token | none |
 | `st.var` | `var a = 1` | design ([`let`](../README.md#loops), [let](./3220-let.md): `var` not at all) | unexpected token | none |
 | `st.empty` | `;;`, a stray `;` | design ([module structure](../README.md#module-structure)) | unexpected token | exact: parser `proof` |
-| `st.expression` | a body statement that is no `const`, `if`, `throw` or `return` | design ([functions](../README.md#functions)) | unexpected token | exact: parser `grammar/proof` |
+| `st.expression` | an expression statement (a body statement that is no `const`, `if`, `throw`, `return` or admitted `let`/`while` loop) | design ([functions](../README.md#functions)) | unexpected token | exact: parser `grammar/proof` |
 | `st.body-end` | a body that does not end in `return` or `throw`, `{}` | design ([functions](../README.md#functions)) | unexpected token | exact: parser `grammar/proof` |
 | `st.unreachable` | a statement after `return` or `throw` | design ([functions](../README.md#functions)) | unexpected token | exact: parser `grammar/proof` |
 
@@ -159,7 +159,8 @@ describes:
 | ID | Construct | Why | Diagnostic | Pin |
 |---|---|---|---|---|
 | `lit.octal` | `0o7` | design ([numbers](../README.md#numbers)) | unexpected token | none for the compiler; the DataJS reject vectors pin `0o10` for the DataJS reader |
-| `lit.decimal-form` | `.5`, `5.` | open | unexpected token | none |
+| `lit.leading-dot` | `.5` | planned (with the optional-chain-before-digit work, [roadmap](./README.md)) | unexpected token | none |
+| `lit.trailing-dot` | `5.` | open | unexpected token | none |
 | `lit.array-hole` | `[,]`, `[1,,2]` | open | unexpected token | exact: parser `proof` |
 | `lit.string-escape` | `"\x41"`, `"\v"`, `"\0"`, `"\u{41}"`, a raw TAB | planned ([string literals](./2460-js-string-literals.md)) | unexpected token | none |
 | `lit.string-continuation` | a `\` before a line terminator in a string | planned ([string literals](./2460-js-string-literals.md)) | unexpected token | none |
