@@ -1,7 +1,7 @@
 ## The codec owns `ok` but not `error`
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
