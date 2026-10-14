@@ -12,21 +12,12 @@ impl<A: IVm> Add for BigInt<A> {
     }
 }
 
-// TODO: The unit tests should not use `naive` or other VM implementations.
-//       We should move these tests into integration tests.
 #[cfg(test)]
 mod tests {
-    use crate::{
-        naive::Naive,
-        sign::Sign,
-        vm::{bigint::BigInt, error},
+    use crate::vm::{
+        bigint::test_util::{T, int, pos, pow2},
+        error,
     };
-
-    type T = BigInt<Naive>;
-
-    fn int(value: i64) -> T {
-        value.into()
-    }
 
     #[test]
     fn same_signs() {
@@ -56,11 +47,7 @@ mod tests {
     fn multi_word_carry() {
         let a: T = u64::MAX.into();
         let b: T = 1u64.into();
-        assert_eq!(a + b, Ok(T::unchecked_new(Sign::Positive, [0, 1])));
-    }
-
-    fn pow2(bit: i64) -> T {
-        (int(1) << int(bit)).unwrap()
+        assert_eq!(a + b, Ok(pos([0, 1])));
     }
 
     /// `2^1048575` is `MAX_WORDS` words; twice it is one word more.
