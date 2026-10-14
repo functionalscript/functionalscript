@@ -21,6 +21,7 @@ mod object_spread;
 mod position;
 mod primitive;
 mod primitive_coercion;
+mod runtime;
 mod string;
 mod string_coercion;
 mod unpacked;
@@ -38,6 +39,7 @@ pub use crate::vm::{
     number::Number,
     object::{Object, property::Property, to_object::ToObject},
     object_spread::ObjectSpread,
+    runtime::runtime_method,
     string::{String, to_string::ToString},
     unpacked::Unpacked,
 };

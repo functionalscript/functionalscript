@@ -55,6 +55,17 @@ const elements = v => /** @type {ValueArray} */ (v)[1]
 const fails = (e, expected = ['undefined']) => assertStructurallySame(result(e), ['error', expected])
 
 export const proof = {
+    // An invocation's runtime reaches a member call in the module and in
+    // every function it calls, as `amnesia`'s does.
+    runtime: () => {
+        /** @type {import('../value/types.ts').Runtime} */
+        const runtime = ['{}', [[':', 'string', ['{}', [[':', 'startsWith', ['=>', 1, [], ['arg', 0]]]]]]]]
+        /** @type {Exp} */
+        const nested = ['()', ['=>', 0, [], ['.', 'abc', 'startsWith', ['|()', ['b']]]], []]
+        const run = memo(assertOk(analysis(nested)))
+        assertEq(assertOk(run({ args: [], runtime })), 'abc')
+        assertStructurallySame(assertError(run({ args: [] })), ['undefined'])
+    },
     // `self` under memoization: the invoked function, the one node reused
     // across a body's shared reads, agreeing with the amnesia oracle
     self: () => {

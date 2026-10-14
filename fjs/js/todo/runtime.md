@@ -2,7 +2,9 @@
 
 **Priority:** P2
 **Status:** wip — the design is approved by `sergey-shandar` on
-[#2869](https://github.com/functionalscript/functionalscript/pull/2869#issuecomment-6141562332)
+[#2869](https://github.com/functionalscript/functionalscript/pull/2869#issuecomment-6141562332);
+the mechanism and the first body, `startsWith`, have landed
+([`../runtime/README.md`](../runtime/README.md))
 
 ### Problem
 
@@ -211,23 +213,29 @@ own `todo/` when its turn comes, and neither is designed here.
 
 ### Tasks
 
-- [ ] File this proposal.
-- [ ] `fjs/js/runtime/module.f.js` with the first batch of bodies: the
-      string searches and comparisons (`startsWith`, `endsWith`,
-      `includes`, `indexOf`, `lastIndexOf`), `at`, `charAt`, `codePointAt`,
-      `substring`, `padStart`, `padEnd`, `repeat`, `concat`, `trim`,
-      `trimStart`, `trimEnd`, `split`, `replace`, `replaceAll`,
-      `isWellFormed`; `proof.f.mjs` at full coverage; `npm start compile`
-      accepts it. One pull request per few functions, as
-      [SESSION.md](../../../doc/SESSION.md) asks.
+- [x] File this proposal.
+- [x] `fjs/js/runtime/module.f.js` with the first body, `startsWith`;
+      `proof.f.mjs` at full coverage; `npm start compile` accepts it;
+      `types.ts` pins every key an allowed name on its type's prototype.
+- [x] `edag/value/method` answers a body's name from the runtime its
+      executor is given and no longer calls the host engine for it; the
+      executors' contexts carry the runtime, the transpiler takes it as
+      `interpret(load)`, and the harness loads it for the expectations.
+- [x] NaNVM binds the compiled runtime through `IVm::runtime_method`,
+      after its native table; `npm run gen` compiles the module to
+      `vm/gen.runtime.rs`; the corpus runs the body; `starts_with` left
+      `vm/lambda/string.rs`; the four-row completeness test counts a
+      body as an answer.
+- [ ] The rest of the string batch, a few names per pull request as
+      [SESSION.md](../../../doc/SESSION.md) asks: `endsWith`, `includes`,
+      `indexOf`, `lastIndexOf`, `at`, `charAt`, `codePointAt`, `substring`,
+      `padStart`, `padEnd`, `repeat`, `concat`, `trim`, `trimStart`,
+      `trimEnd`, `split`, `replace`, `replaceAll`, `isWellFormed`.
 - [ ] The array batch: every admitted `array` name, `toString` as `join`.
-- [ ] `edag/value/method` answers derived names from the generated EDAG and
-      stops calling the host engine for them; `edag/value/array_method`
-      likewise.
-- [ ] NaNVM binds the compiled runtime's keys as each type's fallback
-      member functions; the corpus runs the bound runtime; a name whose
-      body lands leaves the hand tables unless a measurement keeps it,
-      in the same table, as an optimization.
+- [ ] NaNVM evaluates the compiled module on every call it answers from the
+      runtime; hold the object once a measurement asks for it.
+- [ ] A name whose body lands leaves NaNVM's hand tables unless a
+      measurement keeps it, in the same table, as an optimization.
 - [ ] File the static-function table and the operator step as their own
       `todo/`s when the first batch has landed.
 

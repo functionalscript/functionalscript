@@ -24,6 +24,8 @@ import { structurallySame } from '../types/object/structurally_same/module.f.mjs
 import { exp } from '../edag/module.f.mjs'
 import { vm, invoke } from '../edag/amnesia/module.f.mjs'
 import { call } from '../edag/value/call/module.f.mjs'
+import { read } from '../edag/value/property/module.f.mjs'
+import runtimeEdag from '../js/runtime/gen.edag.data.mjs'
 import { toData } from '../edag/value/to_unknown/module.f.mjs'
 import { ok } from '../types/result/module.f.js'
 import { validate } from '../rtti/validate/module.f.mjs'
@@ -140,14 +142,27 @@ const reference = key => {
 }
 
 /**
- * The evaluation context every lowered case runs `amnesia`'s `vm` under. No
- * lowered case ever contains a `frame` or `args` node — the corpus only
- * derives constant expressions — so both fields exist only to satisfy
- * {@link Context}, never to be read.
+ * The runtime, `fjs/js/runtime`, as the executor takes it: its EDAG, which
+ * `npm run gen` writes beside its source, evaluated to the module's export
+ * object and read for `runtime`. The member-function cases whose name the
+ * dispatcher has no native implementation of — `startsWith` — run the body
+ * it holds, against the host's own built-in.
+ *
+ * @type {import('../edag/value/types.ts').Runtime}
+ */
+const runtimeValue = /** @type {import('../edag/value/types.ts').Runtime} */ (assertOk(read(
+    vm({ frame: [], args: [] })(/** @type {Exp} */ (/** @type {unknown} */ (runtimeEdag))),
+    'runtime')))
+
+/**
+ * The evaluation context every lowered case runs `amnesia`'s `vm` under,
+ * with the runtime. No lowered case ever contains a `frame` or `args` node
+ * — the corpus only derives constant expressions — so both fields exist
+ * only to satisfy {@link Context}, never to be read.
  *
  * @type {Context}
  */
-const context = { frame: [], args: [] }
+const context = { frame: [], args: [], runtime: runtimeValue }
 
 /**
  * The shared nodes, established one value each, for `amnesia`'s `memo`.

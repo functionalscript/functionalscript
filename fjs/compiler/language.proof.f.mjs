@@ -10,13 +10,25 @@
 
 import { exitCode } from '../effects/node/module.f.mjs'
 import { compile } from './module.f.mjs'
-import { transpile } from './transpiler/module.f.mjs'
+import { noRuntime, transpile } from './transpiler/module.f.mjs'
 import { virtual, emptyState, nodeProgramOptions } from '../effects/node/virtual/module.f.mjs'
+/** @import { Dir } from '../effects/node/virtual/types.ts' */
+
 import { utf8 } from '../text/module.f.mjs'
 import { isObject } from '../types/object/module.f.mjs'
 import { tryParse as parseDataJs } from '../media/datajs/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
 import { compileSource, defaultValue, fjsRoundTrip, importing, jsonOf, jsonRefused, moduleRefused, protoValue, readOutput, runtime, stderrOf, withCfg, withSelected } from './proof.f.mjs'
+
+/**
+ * The package's runtime at its path beside a root's files: `fjs compile` interprets a data output under it, and the virtual root is the package.
+ *
+ * @type {(root: Dir) => Dir}
+ */
+const withRuntime = root => ({
+    ...root,
+    'fjs': { 'js': { 'runtime': { 'module.f.js': [utf8("export const runtime = { string: { startsWith: (self, s) => self.slice(0, s.length) === s } };")] } } },
+})
 
 const { getPrototypeOf, is, prototype: objectPrototype } = Object
 
@@ -159,7 +171,7 @@ export const proof = {
         // imported with it, is refused under both readers
         jsonImport: () => {
             const root = { 'input.f.js': [utf8('import d from "./d.json" with { type: "json" }; export default [d, 1];')], 'd.json': [utf8('{"a": [null]}')] }
-            const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.json'])))
+            const [state, code] = virtual({ ...emptyState, root: withRuntime(root) })(compile(nodeProgramOptions(['input.f.js', 'output.json'])))
             assertEq(exitCode(code), 0)
             assertEq(readOutput(state.root, 'output.json'), '[{"a":[null]},1]')
             const [edagState, edagCode] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.edag.data.js'])))
@@ -227,7 +239,7 @@ export const proof = {
     specialNumbers: {
         value: () => {
             const root = { 'input.f.js': [utf8('export default [NaN, Infinity, -Infinity];')] }
-            const [, result] = runtime({ ...emptyState, root })(transpile('input.f.js'))
+            const [, result] = runtime({ ...emptyState, root })(transpile(noRuntime)('input.f.js'))
             assert(result[0] === 'ok', result[1])
             const value = defaultValue(result[1])
             assert(value instanceof Array && value.length === 3, value)
@@ -567,7 +579,7 @@ export const proof = {
     negativeZero: {
         value: () => {
             const root = { 'input.f.js': [utf8('export default -0;')] }
-            const [, result] = runtime({ ...emptyState, root })(transpile('input.f.js'))
+            const [, result] = runtime({ ...emptyState, root })(transpile(noRuntime)('input.f.js'))
             assert(result[0] === 'ok', result[1])
             assert(is(defaultValue(result[1]), -0), result[1])
         },
@@ -661,7 +673,7 @@ export const proof = {
                 'main.f.js': [utf8('import a from "./a.json" with { type: "json" };\nexport default [a];')],
                 'a.json': [utf8('{"__proto__":{"a":42}}')],
             }
-            const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['main.f.js', 'out.json'])))
+            const [state, code] = virtual({ ...emptyState, root: withRuntime(root) })(compile(nodeProgramOptions(['main.f.js', 'out.json'])))
             assertEq(exitCode(code), 0, state.stderr)
             assertEq(readOutput(state.root, 'out.json'), '[{"__proto__":{"a":42}}]')
         },
@@ -689,7 +701,7 @@ export const proof = {
         // alone would also pass for a spelling that merely looks right.
         value: () => {
             const root = { 'input.f.js': [utf8('export default {["__proto__"]:{"a":42}};')] }
-            const [, result] = runtime({ ...emptyState, root })(transpile('input.f.js'))
+            const [, result] = runtime({ ...emptyState, root })(transpile(noRuntime)('input.f.js'))
             assert(result[0] === 'ok', result[1])
             const value = defaultValue(result[1])
             assert(isObject(value), value)
@@ -700,14 +712,14 @@ export const proof = {
         // compilation errors, not silently accepted properties.
         idKeyRejected: () => {
             const root = { 'input.f.js': [utf8('export default {__proto__:{"a":42}};')] }
-            const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.data.js'])))
+            const [state, code] = virtual({ ...emptyState, root: withRuntime(root) })(compile(nodeProgramOptions(['input.f.js', 'output.data.js'])))
             assertEq(exitCode(code), 1)
             assert(state.stderr.includes('__proto__ requires the computed key form'), state.stderr)
             assertEq(state.root['output.data.js'], undefined)
         },
         stringKeyRejected: () => {
             const root = { 'input.f.js': [utf8('export default {"__proto__":{"a":42}};')] }
-            const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.data.js'])))
+            const [state, code] = virtual({ ...emptyState, root: withRuntime(root) })(compile(nodeProgramOptions(['input.f.js', 'output.data.js'])))
             assertEq(exitCode(code), 1)
             assert(state.stderr.includes('__proto__ requires the computed key form'), state.stderr)
             assertEq(state.root['output.data.js'], undefined)
@@ -729,7 +741,7 @@ export const proof = {
             /** @type {(source: string) => string} */
             const compiled = source => {
                 const root = { 'input.f.js': [utf8(source)], 'm.f.js': [utf8('export default [1];')] }
-                const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.data.js'])))
+                const [state, code] = virtual({ ...emptyState, root: withRuntime(root) })(compile(nodeProgramOptions(['input.f.js', 'output.data.js'])))
                 assertEq(exitCode(code), 0, state.stderr)
                 return readOutput(state.root, 'output.data.js')
             }

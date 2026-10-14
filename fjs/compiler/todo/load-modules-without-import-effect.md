@@ -41,14 +41,16 @@ to direct Rust ahead of time. At runtime the compiled interpreter evaluates
 newly loaded EDAG as data. It needs no runtime Rust generation, Cargo invocation
 or handwritten Rust EDAG executor.
 
-`compiler/transpiler.interpret(path)` now supplies the host loader. It runs each
-module initializer through memo using represented dependency exports, preserving
-module identity and source paths. Its effect succeeds with the complete
+`compiler/transpiler.interpret(load)(path)` now supplies the host loader. It
+runs each module initializer through memo using represented dependency exports,
+under the runtime `load` answers (`packageRuntime(packageRoot)`,
+`pureOk(runtime)` or `noRuntime`), preserving module identity and source
+paths. Its effect succeeds with the complete
 `EdagValue`, and fails with either `ParseError` or an `InitializationError`
 retaining the original represented `thrown` value. The core evaluator still
 returns `Result<EdagValue, EdagValue>`; the loader adds source context.
-`transpile(path)` composes that loader with runtime compilation for callers
-needing ordinary values. It adds the target `CompileValue` effect for callable
+`transpile(load)(path)` composes that loader with runtime compilation for
+callers needing ordinary values. It adds the target `CompileValue` effect for callable
 results and returns `unknown`, with EDAG reflection erased.
 
 ### Native prerequisites

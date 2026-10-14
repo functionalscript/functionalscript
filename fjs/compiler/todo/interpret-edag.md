@@ -158,9 +158,14 @@ all but `length` — since such a graph is not one the compiler emits.
 ### Value-producing API integration
 
 [`compiler/transpiler`](../transpiler/module.f.mjs) now exposes
-`interpret(path)`: load each dependency once, compile each parsed module with
-`unresolved`, then run memo with the complete represented dependency exports as
-arguments. The existing module walk retains import ordering, missing-export
+`interpret(load)(path)`: load each dependency once, compile each parsed module
+with `unresolved`, then run memo with the complete represented dependency
+exports as arguments, under the runtime `load` answers — a `RuntimeLoad`, run
+once the root is known to be a module: `packageRuntime(packageRoot)` for the
+package's [`fjs/js/runtime`](../../js/runtime/README.md), `pureOk(runtime)` for
+one the caller holds, or `noRuntime`, under which a module whose
+initialization calls a member function only the runtime answers fails to
+initialize. The existing module walk retains import ordering, missing-export
 checks and source paths. This per-module boundary replaces the planned single
 final-graph evaluation because a linked EDAG alone no longer identifies the
 source of an initializer failure. It uses the same lowering and interpreter;
@@ -172,16 +177,16 @@ the latter has the source `path`, `metadata: null`, a diagnostic `message` and
 the original represented `thrown` payload. The VM still returns
 `Result<EdagValue, EdagValue>`; only the loader adds source context.
 
-`transpile` composes `interpret` with effectful `toUnknown`, returning the complete
-ordinary export object directly as `unknown`. Its operations are
+`transpile(load)` composes `interpret(load)` with effectful `toUnknown`,
+returning the complete ordinary export object directly as `unknown`. Its operations are
 `ReadWhole | ResolveFileModule | CompileValue` and its error channel is
 `SourceError | IoChannel`. The runner supplies the target compile/load operation
 for callable results; data-only results require none. Source failures keep their
 represented payload and path, while runtime compilation failures use `IoChannel`.
 The old nested output Result and `Denotation` wrapper are removed.
 
-For JSON/DataJS, `_transpileDefault` projects the represented default before
-`toData`, retaining an inner `Result<DataJS.Unknown, string>` for conversion
+For JSON/DataJS, `_transpileDefault(load)` projects the represented default
+before `toData`, retaining an inner `Result<DataJS.Unknown, string>` for conversion
 refusals; an unselected callable export needs no conversion. Every required
 initializer still runs. Direct JSON roots remain documents and bypass both
 wrapping and projection. Conversion and serialization refusals name the output

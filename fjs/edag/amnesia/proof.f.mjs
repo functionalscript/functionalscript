@@ -100,6 +100,27 @@ const methods = ['{}', [
 const constMethods = ['=>', 0, [], methods]
 
 export const proof = {
+    // A context's runtime reaches a member call in the expression and in
+    // every function it calls: the body under `string.startsWith`, which
+    // answers its receiver, is what `'abc'.startsWith('b')` calls at both
+    // depths; without a runtime the same call throws.
+    runtime: () => {
+        /** @type {import('../value/types.ts').Runtime} */
+        const runtime = ['{}', [[':', 'string', ['{}', [[':', 'startsWith', ['=>', 1, [], ['arg', 0]]]]]]]]
+        /** @type {Exp} */
+        const direct = ['.', 'abc', 'startsWith', ['|()', ['b']]]
+        /** @type {Exp} */
+        const nested = ['()', ['=>', 0, [], direct], []]
+        assertEq(assertOk(vm({ frame: [], args: [], runtime })(direct)), 'abc')
+        assertEq(assertOk(vm({ frame: [], args: [], runtime })(nested)), 'abc')
+        assertStructurallySame(assertError(vm({ frame: [], args: [] })(nested)), ['undefined'])
+        // an optional call sees the body as a callee only where one is
+        // bound: without a runtime it skips, its argument never evaluated
+        /** @type {Exp} */
+        const optional = ['.', 'abc', 'startsWith', ['|?.()', [['throw', 'evaluated']]]]
+        assertStructurallySame(assertOk(vm({ frame: [], args: [] })(optional)), ['undefined'])
+        assertStructurallySame(assertError(vm({ frame: [], args: [], runtime })(optional)), 'evaluated')
+    },
     // `self` is the invoked function itself, by identity, in every reading
     // of the body; at the module's scope there is none to read
     self: () => {
