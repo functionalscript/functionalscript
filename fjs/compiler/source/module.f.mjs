@@ -1,14 +1,14 @@
 /**
- * Shared source loading, parsing and import admission for the EDAG linker and
- * represented module interpreter. Resolution and initialization policy belong
- * to their callers.
+ * Shared source loading, parsing, import admission and the import walk for the
+ * EDAG linker and represented module interpreter. What a module becomes —
+ * lowering or initialization — belongs to their callers.
  *
  * @module
  * @import { Unknown as JsonUnknown } from '../../media/json/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { ParseError } from '../parser/types.ts'
  * @import { AstImport, AstModule } from '../ast/types.ts'
- * @import { _ImportSource, _Source } from './types.ts'
+ * @import { _Context, _ImportSource, _Load, _Source } from './types.ts'
  * @import { Operation, Effect } from '../../effects/types.ts'
  * @import { IoChannel, ReadWhole, ResolveFileModule } from '../../effects/node/types.ts'
  */
@@ -22,6 +22,8 @@ import { parse as jsonParse } from '../../media/json/module.f.mjs'
 import { catchStep, foldStep, mapStep, pure, pureError, pureOk, step } from '../../effects/module.f.mjs'
 import { errorMessage, isNotFound, readWholeBytes, resolveFileModule } from '../../effects/node/module.f.mjs'
 import { fromU8List } from '../../text/utf8/module.f.mjs'
+import { drop, includes } from '../../types/list/module.f.mjs'
+import { setReplace, at } from '../../types/ordered_map/module.f.mjs'
 
 /**
  * An error about a file rather than a token — not found, not UTF-8, a bad
@@ -174,3 +176,56 @@ export const _parseJson = path => step(
         const json = jsonParse(text)
         return pure(json[0] === 'error' ? error(_fileError(path)(json[1])) : json)
     })
+
+/**
+ * The walk both compiler paths load a program by, `load` deciding what a
+ * module becomes. A source's import attribute is checked before its file's
+ * state: a file met before is refused all the same when this import misspells
+ * it. A module met again while it is still being entered is a cycle; one
+ * already complete is reused as it was, so a diamond of imports joins at one
+ * module. Each import's selected export is required, even where nothing uses
+ * it, before the next import is loaded, and its absence is reported against
+ * the imported file.
+ *
+ * Exported for the represented interpreter in `../transpiler` and the EDAG
+ * linker in `../edag`; the `_` says linkage.
+ *
+ * @template T
+ * @template S
+ * @template E
+ * @param {_Load<T, S, E>} load
+ * @returns {(source: _Source) => (context: _Context<T>) => Effect<ReadWhole | ResolveFileModule, readonly [_Context<T>, T], ParseError | E>}
+ */
+export const _walk = load => {
+    /** @typedef {{ readonly context: _Context<T>, readonly imports: readonly S[] }} Imports the walk so far, and the bindings of the imports loaded so far, in their order */
+    /** @type {(id: string, context: _Context<T>) => (module: T) => readonly [_Context<T>, T]} */
+    const completed = (id, context) => module => [{
+        complete: setReplace(id)(module)(context.complete),
+        stack: drop(1)(context.stack),
+    }, module]
+    /** @type {(source: _ImportSource) => (state: Imports) => Effect<ReadWhole | ResolveFileModule, Imports, ParseError | E>} */
+    const walkImport = source => ({ context, imports }) => step(walk(source)(context), ([next, module]) => {
+        const selected = load.select(module, source.name)
+        return selected === undefined
+            ? pureError(_missingExport(source))
+            : pureOk({ context: next, imports: [...imports, selected] })
+    })
+    /** @type {(source: _Source, context: _Context<T>) => (module: AstModule) => Effect<ReadWhole | ResolveFileModule, readonly [_Context<T>, T], ParseError | E>} */
+    const walkModule = (source, context) => module => step(
+        foldStep(_importSources(source)(module[0]), { context, imports: [] }, walkImport),
+        ({ context: next, imports }) => mapStep(pure(load.module(source, imports, module)), completed(source.id, next)))
+    /** @type {(source: _Source) => (context: _Context<T>) => Effect<ReadWhole | ResolveFileModule, readonly [_Context<T>, T], ParseError | E>} */
+    const walk = source => context => {
+        const { id, path, json } = source
+        const mismatch = _attributeError(source)
+        if (mismatch !== null) { return pureError(mismatch) }
+        if (includes(id)(context.stack)) { return pureError(_fileError(path)('circular dependency')) }
+        const done = at(id)(context.complete)
+        if (done !== null) { return pureOk([context, done]) }
+        const entered = { ...context, stack: { first: id, tail: context.stack } }
+        return json
+            ? mapStep(_parseJson(path), value => completed(id, entered)(load.json(value)))
+            : step(_parseModule(path), walkModule(source, entered))
+    }
+    return walk
+}

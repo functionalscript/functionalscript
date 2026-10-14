@@ -57,6 +57,6 @@ and empty import lists must still retain required evaluation and failures.
 
 ### Related
 
-- [one-module-resolution-walk](./one-module-resolution-walk.md) — consolidation
-  must retain selected names and binding tables; shared traversal alone does
-  not establish validation before evaluation.
+- [`_walk`](../source/module.f.mjs) in `source` — the one walk both paths
+  load through, which checks each selection through its `select` hook; shared
+  traversal alone does not establish validation before evaluation.
