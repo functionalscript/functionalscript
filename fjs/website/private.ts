@@ -74,3 +74,18 @@ export type _Tree = OrderedMap<_Walked>
  * @internal
  */
 export type _Demos = OrderedMap<string>
+
+/**
+ * One kind of thing the reader did to a demo's field that a render must not
+ * take away — its size, its focus, its scroll — as the demo runtime keeps it.
+ *
+ * `capture` reads it off a field, `null` for a field that has nothing worth
+ * keeping; `restore` puts it back on the field of the same name after the
+ * render. Finding that field is the runtime's, once, for every kind.
+ *
+ * @internal
+ */
+export type _FieldMemory<V> = {
+    readonly capture: (el: HTMLElement) => V | null
+    readonly restore: (el: HTMLElement, v: V) => void
+}

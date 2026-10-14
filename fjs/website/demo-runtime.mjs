@@ -12,6 +12,7 @@
  * @import { Catch, Sandbox } from '../effects/common/types.ts'
  * @import { Demo, DemoEvent } from './demo/types.ts'
  * @import { Element as HtmlElement } from '../media/html/types.ts'
+ * @import { _FieldMemory as FieldMemory } from './private.ts'
  */
 
 import { asyncPartialRun } from '../effects/module.mjs'
@@ -95,7 +96,69 @@ const busy = (root, working, note = null) => {
 }
 
 /**
- * What the reader was doing, so re-rendering does not take it away.
+ * Every named field under the section — the only identity a demo gives its
+ * elements, and the same name its events come back under.
+ *
+ * @type {(root: Element) => readonly HTMLInputElement[]}
+ */
+const fields = root =>
+    /** @type {HTMLInputElement[]} */ (Array.from(root.querySelectorAll('[name]')))
+
+/**
+ * The first field under the section named `name`, or `null` for none.
+ *
+ * **By comparing the property, never by putting the name in a selector.** A
+ * demo names its fields freely, and a name holding a quote, a backslash or a
+ * line break is not a selector's text: interpolated into one, it finds
+ * nothing or makes the lookup throw, and a throw aborts the render. Comparing
+ * needs no escaping rule at all.
+ *
+ * @type {(root: Element, name: string) => HTMLInputElement | null}
+ */
+const byName = (root, name) => fields(root).find(el => el.name === name) ?? null
+
+/**
+ * Remembers one kind of the reader's doing across a render: captures it from
+ * every named field now, and answers what puts it back on the field of the
+ * same name afterwards. A field the next view no longer renders has nowhere
+ * to put it, and is skipped rather than thrown.
+ *
+ * @type {<V>(memory: FieldMemory<V>) => (root: Element) => () => void}
+ */
+const remember = ({ capture, restore }) => root => {
+    const kept = fields(root).flatMap(el => {
+        const v = capture(el)
+        return v === null ? [] : [{ name: el.name, v }]
+    })
+    return () => {
+        for (const { name, v } of kept) {
+            const next = byName(root, name)
+            if (next !== null) { restore(next, v) }
+        }
+    }
+}
+
+/**
+ * A field's manually-dragged size.
+ *
+ * **A drag sets an element's own inline style, which the next render does
+ * not carry any more than it carries the caret** — the same problem, the
+ * same fix, by the same identity. No demo writes a `style` attribute of its
+ * own, so an inline `width` or `height` found here is a reader's drag and
+ * nothing else.
+ *
+ * @type {FieldMemory<{ readonly width: string, readonly height: string }>}
+ */
+const size = {
+    capture: ({ style: { width, height } }) => width === '' && height === '' ? null : { width, height },
+    restore: (el, { width, height }) => {
+        el.style.width = width
+        el.style.height = height
+    },
+}
+
+/**
+ * What the reader was typing into, so re-rendering does not take it away.
  *
  * **A render keeps the elements it can, but not every one.** {@link render}
  * patches the section in place, so a field that stays is the node the reader
@@ -106,68 +169,28 @@ const busy = (root, working, note = null) => {
  * The caret is `null` on a control that has no text to put one in — a
  * checkbox, a range — and restoring it is skipped rather than guessed.
  *
- * @type {(root: Element) => { readonly name: string, readonly start: number | null, readonly end: number | null } | null}
+ * @type {FieldMemory<{ readonly start: number | null, readonly end: number | null }>}
  */
-const focused = root => {
-    const active = /** @type {HTMLInputElement | null} */ (root.ownerDocument.activeElement)
-    if (active === null || !root.contains(active) || active.name === undefined) { return null }
-    return { name: active.name, start: active.selectionStart, end: active.selectionEnd }
+const focus = {
+    capture: el => {
+        if (el !== el.ownerDocument.activeElement) { return null }
+        const { selectionStart, selectionEnd } = /** @type {HTMLInputElement} */ (el)
+        return { start: selectionStart, end: selectionEnd }
+    },
+    restore: (el, { start, end }) => {
+        // The reader's own element, still in place: its focus and selection are
+        // already theirs, and setting them again could only disturb them.
+        if (el === el.ownerDocument.activeElement) { return }
+        el.focus()
+        const input = /** @type {HTMLInputElement} */ (el)
+        if (start !== null && end !== null && input.setSelectionRange !== undefined) {
+            input.setSelectionRange(start, end)
+        }
+    },
 }
 
 /**
- * Puts the reader back where they were.
- *
- * By `name`, which is the only identity a demo gives its elements — the same
- * name its events come back under — so a view that keeps a field across a
- * state keeps the caret in it too.
- *
- * @type {(root: Element, was: ReturnType<typeof focused>) => void}
- */
-const refocus = (root, was) => {
-    if (was === null) { return }
-    const next = /** @type {HTMLInputElement | null} */ (
-        root.querySelector(`[name="${was.name}"]`))
-    // The reader's own element, still in place: its focus and selection are
-    // already theirs, and setting them again could only disturb them.
-    if (next === null || next === root.ownerDocument.activeElement) { return }
-    next.focus()
-    if (was.start !== null && was.end !== null && next.setSelectionRange !== undefined) {
-        next.setSelectionRange(was.start, was.end)
-    }
-}
-
-/**
- * Every field's manually-dragged size, by name.
- *
- * **A drag sets an element's own inline style, which the next render does
- * not carry any more than it carries the caret** — the same problem, the
- * same fix, by the same identity. No demo writes a `style` attribute of its
- * own, so an inline `width` or `height` found here is a reader's drag and
- * nothing else.
- *
- * @type {(root: Element) => readonly { readonly name: string, readonly width: string, readonly height: string }[]}
- */
-const resized = root => (
-    /** @type {HTMLInputElement[]} */ (Array.from(root.querySelectorAll('[name]')))
-).filter(el => el.style.width !== '' || el.style.height !== '')
-    .map(el => ({ name: el.name, width: el.style.width, height: el.style.height }))
-
-/**
- * Puts every resized field back to the size the reader left it at.
- *
- * @type {(root: Element, was: ReturnType<typeof resized>) => void}
- */
-const resize = (root, was) => {
-    for (const { name, width, height } of was) {
-        const next = /** @type {HTMLInputElement | null} */ (root.querySelector(`[name="${name}"]`))
-        if (next === null) { continue }
-        next.style.width = width
-        next.style.height = height
-    }
-}
-
-/**
- * Every field's scroll offset, by name.
+ * A field's scroll offset.
  *
  * **A fresh element starts scrolled to the top**, so without this a long
  * field jumps back to its first line on every render — and a render follows
@@ -175,26 +198,26 @@ const resize = (root, was) => {
  * reader's as surely as the caret and the size are, and they come back by the
  * same identity.
  *
- * @type {(root: Element) => readonly { readonly name: string, readonly top: number, readonly left: number }[]}
+ * @type {FieldMemory<{ readonly top: number, readonly left: number }>}
  */
-const scrolled = root => (
-    /** @type {HTMLInputElement[]} */ (Array.from(root.querySelectorAll('[name]')))
-).filter(el => el.scrollTop !== 0 || el.scrollLeft !== 0)
-    .map(el => ({ name: el.name, top: el.scrollTop, left: el.scrollLeft }))
+const scroll = {
+    capture: ({ scrollTop, scrollLeft }) => scrollTop === 0 && scrollLeft === 0 ? null : { top: scrollTop, left: scrollLeft },
+    restore: (el, { top, left }) => {
+        el.scrollTop = top
+        el.scrollLeft = left
+    },
+}
 
 /**
- * Scrolls every field back to where the reader left it.
+ * Everything a render puts back, in the order it puts it back.
  *
- * @type {(root: Element, was: ReturnType<typeof scrolled>) => void}
+ * The size comes back before the scroll offset, because the size bounds how
+ * far a field can scroll; and the offset comes back last, because focusing a
+ * field and setting its selection may scroll it on its own. A size comes
+ * back even to a field that stayed, because a patch removes the `style` a
+ * drag wrote, the view not naming it.
  */
-const rescroll = (root, was) => {
-    for (const { name, top, left } of was) {
-        const next = /** @type {HTMLInputElement | null} */ (root.querySelector(`[name="${name}"]`))
-        if (next === null) { continue }
-        next.scrollTop = top
-        next.scrollLeft = left
-    }
-}
+const memories = [remember(size), remember(focus), remember(scroll)]
 
 /**
  * The coloured copy of a highlighted field's text, or `null` for a field that
@@ -255,27 +278,21 @@ const echo = textarea => {
  * The section is rebuilt only when it holds something other than the
  * previous view — nothing yet, or a reported failure.
  *
- * The size comes back before the scroll offset, because the size bounds how
- * far a field can scroll; and the offset comes back last, because focusing a
- * field and setting its selection may scroll it on its own. A size comes
- * back even to a field that stayed, because a patch removes the `style` a
- * drag wrote, the view not naming it.
+ * What the reader did to the fields is captured before the patch and put back
+ * after it, one kind of {@link memories} at a time: size, then focus, then
+ * scroll.
  *
  * @type {(root: Element, view: HtmlElement) => void}
  */
 const render = (root, view) => {
-    const was = focused(root)
-    const sizes = resized(root)
-    const offsets = scrolled(root)
+    const restores = memories.map(kind => kind(root))
     const shown = root.firstElementChild
     if (shown !== null && root.childNodes.length === 1 && shown.localName === view[0]) {
         patch(shown, view)
     } else {
         root.replaceChildren(toDom(root.ownerDocument, view))
     }
-    resize(root, sizes)
-    refocus(root, was)
-    rescroll(root, offsets)
+    for (const restore of restores) { restore() }
     for (const area of Array.from(root.querySelectorAll(`[${editorMarker}] > textarea`))) { follow(area) }
 }
 
