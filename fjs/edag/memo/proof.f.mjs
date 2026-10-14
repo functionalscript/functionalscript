@@ -75,6 +75,35 @@ export const proof = {
         agrees(['()', ['=>', 0, [], ['===', ['self'], ['self']]], []])
         agrees(['()', ['=>', 1, [], ['?:', ['arg', 0], ['()', ['=>', 0, [['self']], ['()', ['frame', 0], [0]]], []], 'base']], [1]])
     },
+    // A call in tail position is made in the invocation's place rather than
+    // inside it, so a chain of them holds one set of host frames however
+    // long: the loop template runs more rounds than the host stack holds
+    // frames, which a recursion of host calls could not. Every tail
+    // position carries it — an arm, a comma's last operand, a logical
+    // operator's right operand — through a bare, an optional and a method
+    // call alike; a call a step continues is made where it stands.
+    tailCalls: () => {
+        /** @type {(n: number) => Exp} */
+        const rounds = n => ['()', ['=>', 1, [], ['?:', ['<', ['arg', 0], n], ['()', ['self'], [['+', ['arg', 0], 1]]], ['arg', 0]]], [0]]
+        eq(rounds(10_000), 10_000)
+        agrees(rounds(100))
+        // mutual recursion, each function the other's argument
+        /** @type {(base: boolean) => Exp} */
+        const parity = base => ['=>', 2, [], ['?:', ['===', ['arg', 0], 0], base, ['()', ['arg', 1], [['-', ['arg', 0], 1], ['self']]]]]
+        eq(['()', parity(true), [10_001, parity(false)]], false)
+        /** @type {Exp} */
+        const o = ['{}', [[':', 'step', ['=>', 2, [], ['?:', ['<', ['arg', 0], 1_000], ['.', ['arg', 1], 'step', ['|()', [['+', ['arg', 0], 1], ['arg', 1]]]], ['arg', 0]]]]]]
+        eq(['.', o, 'step', ['|()', [0, o]]], 1_000)
+        eq(['()', ['=>', 1, [], ['?:', ['<', ['arg', 0], 1_000], ['?.()', ['self'], [['+', ['arg', 0], 1]]], ['arg', 0]]], [0]], 1_000)
+        eq(['()', ['=>', 1, [], ['?:', ['<', ['arg', 0], 1_000], [',', [['arg', 0], ['()', ['self'], [['+', ['arg', 0], 1]]]]], ['arg', 0]]], [0]], 1_000)
+        eq(['()', ['=>', 1, [], ['&&', ['<', ['arg', 0], 1_000], ['||', false, ['??', null, ['()', ['self'], [['+', ['arg', 0], 1]]]]]]], [0]], false)
+        // the step after a call step continues from the call's value
+        eq(['?.', ['{}', [[':', 'f', ['=>', 0, [], ['{}', [[':', 'x', 7]]]]]]], 'f', ['|()', [], ['|.', 'x']]], 7)
+        // a tail call's failures are the call's: a callee that is not a
+        // function, and a body that throws
+        fails(['()', ['=>', 0, [], ['()', 1, []]], []])
+        fails(['()', ['=>', 0, [], ['()', ['=>', 0, [], ['throw', 'inner']], []]], []], 'inner')
+    },
     // The model: one node reached twice is one value. Amnesia gives two
     // arrays and `false`; this executor gives one and `true`, which is
     // JavaScript's answer for `const s = [1]; [s, s]`.

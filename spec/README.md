@@ -702,18 +702,19 @@ See
 ```js
 const { a, "%": [c, d], length } = { a: null, "%": [true, false] };
 export const { x, y } = { x: 1, y: [2] };
-export default [a, c, d, length, (...r) => { const [first] = r; return first; }];
+const f = ([first, { second }], ...r) => [first, second, r];
+export default [a, c, d, length, f];
 ```
 
-A `const`, a module's or a body's, exported or not, may bind a **pattern**
-in place of a name: an object pattern, `{ p, … }`, each property a
-shorthand name or a key and a target, `a: t`, `"a": t`, `["a"]: t`,
-`[3]: t`; or an array pattern, `[t, …]`, each item a target; a target a
-name or a pattern again, and a trailing comma allowed as the literals
-allow one. Each name is a
-binding by the rule above — reserved, refused twice, exported as `then`,
-or shadowing a capture, it is refused as a name alone is — and it names
-the part of the value its path reads, as in JavaScript. The initializer is
+A `const`, a module's or a body's, exported or not, and a fixed
+[parameter](#parameters) may bind a **pattern** in place of a name: an
+object pattern, `{ p, … }`, each property a shorthand name or a key and a
+target, `a: t`, `"a": t`, `["a"]: t`, `[3]: t`; or an array pattern,
+`[t, …]`, each item a target; a target a name or a pattern again, and a
+trailing comma allowed as the literals allow one. Each name is a binding
+by the rule above — reserved, refused twice, exported as `then`, or
+shadowing a capture, it is refused as a name alone is — and it names the
+part of the value its path reads, as in JavaScript. The initializer is
 evaluated once, however many names read it.
 
 A pattern is sugar over reads the language has, and that is its whole
@@ -761,19 +762,35 @@ its conditional ([functions](#functions)).
 - A pattern names no function as its whole value, so no name in it is a
   function's own ([captures and self recursion](#captures-and-self-recursion)):
   `const { f } = { f: () => f };` is `const not found`.
+- A **parameter pattern** is one fixed parameter, its source the argument
+  in its position: `([a, { b }], c) => …` binds `a` and `b` from the first
+  argument as `const [a, { b }] = arg;` would, its reads the first entries
+  of the function's body, so `(([]) => 0)({})` and `(({}) => 0)(null)`
+  fail as they fail in JavaScript, whether the body is a block or an
+  expression. It counts as one toward `length` and toward the limit of 16,
+  as JavaScript counts it: `(({ a, b }) => 0).length` is `1`. Its names
+  are parameters by every rule of one — refused twice across the list,
+  `({ a }, a) => 1`, and against a body declaration — and a nested
+  function captures them as it captures any parameter. The rest parameter
+  keeps a plain name: `(...[a]) => 1`, harmless JavaScript, is not read
+  yet and stops at its `[`. The head of a list is read as a value, one
+  symbol telling no list from a group before the `)`, so a head that is
+  no name and no pattern is refused for the list (`malformed parameter
+  list`, at its `(`) — `(1) => 2`, `(a.b) => 1`, `((a)) => 1` — where a
+  value inside the head's pattern is refused where it stands, as in a
+  `const`.
 
 Refused, each by name, and open in
 [destructuring](./todo/2450-destructuring.md): a **rest element**,
 `[a, ...r]` or `{ a, ...r }` (`rest element not supported`); a
 **default**, `{ a = 1 }` or `[a = 1]`, which is no literal and stops at
-its `=`; a **computed key**
+its `=`; and a **computed key**
 beyond a constant — a string or a number literal alone in the brackets,
 `{ ["a"]: t }` or `{ [3]: t }`, is the constant key an access admits in
 brackets ([property access](#property-access)), read by the literal's
 spelling as `"a": t` is, while `{ [k]: a }`, `{ [Number(i)]: a }` and a
 grouped literal, `{ [(3)]: a }`, are refused (`computed key in a binding
-pattern not supported`); and a pattern in a **parameter**, which is not
-read yet ([functions](#functions)). A value in a binding position —
+pattern not supported`). A value in a binding position —
 a literal, an access, a call, an operator, or a group, `[(a)]`, which
 JavaScript admits in an assignment and refuses in a binding — is the error
 JavaScript names (`invalid destructuring target`), at the token it begins
@@ -2019,9 +2036,10 @@ export default (a, b, c, ...x) => [a, b, c, x];
 ```
 
 Bare `a => a`, `(a) => a`, and a fixed list with a trailing comma are also
-accepted. No parameter or comma may follow rest. Defaults and destructuring
-parameters are not supported yet; a body `const` takes a pattern
-([destructuring](#destructuring)). A newline before `=>` is refused.
+accepted. No parameter or comma may follow rest. A fixed parameter takes a
+pattern, `({ a }, [b]) => [a, b]`, as a `const` does
+([destructuring](#destructuring)); a default is not supported yet. A
+newline before `=>` is refused.
 
 ### Parameters
 
@@ -2034,7 +2052,8 @@ parameters are not supported yet; a body `const` takes a pattern
   [binding rule](#shared-values-constants): `(eval) => 1` and
   `(...let) => 1` are refused, while `(from, then) => [from, then]` is a
   function.
-- `f.length` is the number of fixed parameters, including unused ones. Rest
+- `f.length` is the number of fixed parameters, including unused ones and
+  counting a pattern as one. Rest
   adds zero. A function has **at most 16** fixed parameters: a 17th is a
   compile error, and an EDAG function whose `length` is above 16 is refused by
   every writer. Wider data reads better as an array or an object, and a rest

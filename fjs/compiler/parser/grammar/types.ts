@@ -387,10 +387,14 @@ export type ArrowOrRest = {
     readonly rest: readonly [RepeatFrom<0, Access>, PowTail, ...Tail]
 }
 
-/** The named parameters after the first: each a name, listed as {@link Items} lists anything. */
+/**
+ * The parameters after the first: each fixed one a binding target,
+ * {@link BindingTarget}, listed as {@link Items} lists anything, and the
+ * rest parameter a name, ending the list.
+ */
 export type ParameterNames = () => readonly ['const', {
     readonly rest: readonly [number, typeof identifierName]
-    readonly fixed: readonly [typeof identifierName, Option<readonly [number, Option<ParameterNames>]>]
+    readonly fixed: readonly [BindingTarget, Option<readonly [number, Option<ParameterNames>]>]
 }]
 
 /**
@@ -455,9 +459,10 @@ export type LoopStatement = () => readonly ['const', {
 }]
 
 /**
- * What a `const` binds: a name, or an array or an object pattern, each
- * the literal's own rule — the same {@link Container} a value's branch
- * holds, since a pattern spells the literal the same text would.
+ * What a `const` or a fixed parameter binds: a name, or an array or an
+ * object pattern, each the literal's own rule — the same {@link Container}
+ * a value's branch holds, since a pattern spells the literal the same text
+ * would.
  *
  * Spelled here rather than inferred, as {@link Value} is and for the same
  * reason: a pattern holds values, a value's block holds statements, and a

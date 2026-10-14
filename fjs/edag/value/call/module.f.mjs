@@ -10,6 +10,12 @@
  * its captures and body — or the `entry` helper, whose body is the
  * invoker's own to perform — and its result returns unchanged.
  *
+ * A call in tail position is prepared and left for the executor, which
+ * makes it in the invocation's place: `invoker` turns a body evaluator into
+ * an `Invoke` that makes each call a body leaves, one after the other, so a
+ * chain of tail calls however long holds one set of host frames. `settle`
+ * makes the one call an outcome leaves where its value is needed at once.
+ *
  * The executor callback owns body evaluation and each new invocation's
  * state. This helper is stateless call preparation. Function metadata and
  * bindings satisfy the compiler/admission contract and are not revalidated.
@@ -18,15 +24,15 @@
  * @import { ItemsOver } from '../../types.ts'
  * @import { Values } from '../types.ts'
  * @import { ValueResult, ValueThunk } from '../control/types.ts'
- * @import { Invoke } from './types.ts'
+ * @import { Body, Invoke, Outcome } from './types.ts'
  */
 
 import { error } from '../../../types/result/module.f.js'
 import { array } from '../array/module.f.mjs'
 import { isFunction } from '../semantics/module.f.mjs'
 
-/** Bind arguments and delegate an ordinary bare call. @type {(callee: ValueResult, args: ItemsOver<ValueThunk>, invoke: Invoke) => ValueResult} */
-export const call = (callee, args, invoke) => {
+/** Bind arguments to a bare call without making it. @type {(callee: ValueResult, args: ItemsOver<ValueThunk>) => Outcome} */
+export const prepare = (callee, args) => {
     const [kind, fn] = callee
     if (kind === 'error') { return callee }
     const argumentsResult = array(args)
@@ -41,5 +47,18 @@ export const call = (callee, args, invoke) => {
     for (let i = 0; i < length; i += 1) {
         fixed = [...fixed, i < values.length ? values[i] : ['undefined']]
     }
-    return invoke(fn, fixed, ['[]', values.slice(length)])
+    return ['call', fn, fixed, ['[]', values.slice(length)]]
 }
+
+/** Make the call an outcome leaves, if one, where its value is needed now. @type {(invoke: Invoke) => (outcome: Outcome) => ValueResult} */
+export const settle = invoke => outcome => outcome[0] === 'call' ? invoke(outcome[1], outcome[2], outcome[3]) : outcome
+
+/** An invoker over a body evaluator: each call a body leaves in its place is made in the invocation's place. @type {(body: Body) => Invoke} */
+export const invoker = body => (fn, fixed, rest) => {
+    let outcome = body(fn, fixed, rest)
+    while (outcome[0] === 'call') { outcome = body(outcome[1], outcome[2], outcome[3]) }
+    return outcome
+}
+
+/** Bind arguments and make an ordinary bare call. @type {(callee: ValueResult, args: ItemsOver<ValueThunk>, invoke: Invoke) => ValueResult} */
+export const call = (callee, args, invoke) => settle(invoke)(prepare(callee, args))

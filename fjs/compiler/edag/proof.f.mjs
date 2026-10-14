@@ -990,11 +990,11 @@ export const proof = {
         assert(inner instanceof Array && inner[0] === '=>', nested)
         assert(inner[3] !== outer[1][1], nested)
     },
-    // A `const` of a binding pattern is sugar over reads the EDAG has: an
-    // object pattern's property an access of the source, an array pattern a
-    // spread of the source and accesses of the array it made, nested
-    // patterns reading through — no node of its own, and the written form
-    // is the lowered one (spec/README.md#destructuring).
+    // A `const` or a parameter of a binding pattern is sugar over reads the
+    // EDAG has: an object pattern's property an access of the source, an
+    // array pattern a spread of the source and accesses of the array it
+    // made, nested patterns reading through — no node of its own, and the
+    // written form is the lowered one (spec/README.md#destructuring).
     destructuring: {
         lowered: () => {
             /** @type {Exp} */
@@ -1017,6 +1017,15 @@ export const proof = {
                 ['[]', [['.', ['{}', [[':', 'a', ['[]', [1]]]]], 'a'], ['.', ['{}', [[':', 'a', ['[]', [1]]]]], 'a']]])
             assertStructurallySame(execute(compile('const x = [1, 2]; const [a, b] = x; export default [b, a];').edag), [2, 1])
             assertStructurallySame(execute(compile('const { length } = "a😀"; export default length;').edag), 3)
+            // a parameter pattern is the body `const` of the argument: the
+            // one graph, under an expression body as under a block
+            expectEdag(compile('export default ({ a: { b }, c }) => [b, c];').edag,
+                ['=>', 1, [], ['[]', [['.', ['.', ['arg', 0], 'a'], 'b'], ['.', ['arg', 0], 'c']]]])
+            expectEdag(compile('export default ({ a: { b }, c }) => { return [b, c]; };').edag,
+                ['=>', 1, [], ['[]', [['.', ['.', ['arg', 0], 'a'], 'b'], ['.', ['arg', 0], 'c']]]])
+            // and one fixed parameter, whatever it binds
+            expectEdag(compile('export default ([a], b, { c }) => [a, b, c];').edag,
+                ['=>', 3, [], ['[]', [['.', ['[]', [['...', ['arg', 0]]]], 0], ['arg', 1], ['.', ['arg', 2], 'c']]]])
         },
         written: () => {
             /** @type {(source: string, expected: string) => void} */
@@ -1026,6 +1035,12 @@ export const proof = {
                 'const $0={"a":null,"%":[true,false]};const $1=[...$0["%"]];export default [$0.a,$1[0],$1[1]];')
             writes('export default (...r) => { const [x, y] = r; return [y, x]; };', 'export default (...$0)=>{const $1=[...$0];return [$1[1],$1[0]];};')
             writes('const x = {}; const {} = x; const [] = x; export default 1;', 'const $0={};const $1=$0.length;const $2=[...$0];export default 1;')
+            // a parameter pattern's reads open the body, and an object
+            // pattern's are accesses of the argument, which need no entry
+            writes('export default ([a, b], c) => [b, a, c];', 'export default ($0,$1)=>{const $2=[...$0];return [$2[1],$2[0],$1];};')
+            writes('export default ({ a: { b }, c }) => [b, c];', 'export default ($0)=>[$0.a.b,$0.c];')
+            writes('export default ([]) => 0;', 'export default ($0)=>{const $1=[...$0];return 0;};')
+            writes('export default ({}) => 0;', 'export default ($0)=>{const $1=$0.length;return 0;};')
         },
         // JavaScript's own semantics, which the two reads give: an array
         // pattern runs through `GetIterator` as a spread does, so a string
@@ -1054,6 +1069,20 @@ export const proof = {
             assertStructurallySame(assertOk(toData(apply(chars, ['ab']))), ['b', 'a'])
             const swapped = value(compile('export default (o) => { const { a: { b }, c } = o; return [b, c]; };').edag)
             assertStructurallySame(assertOk(toData(apply(swapped, [['{}', [[':', 'a', ['{}', [[':', 'b', 1]]]], [':', 'c', 2]]]]))), [1, 2])
+            // a parameter's pattern, at every call, with the argument's
+            // failure — the check JavaScript gives a caller through an
+            // empty pattern included — and `undefined` for a missing argument's
+            // property as an access gives it, where a nullish one fails
+            const parameter = value(compile('export default ({ a: { b }, c }, [d]) => [b, c, d];').edag)
+            assertStructurallySame(assertOk(toData(apply(parameter, [['{}', [[':', 'a', ['{}', [[':', 'b', 1]]]], [':', 'c', 2]]], 'x']))), [1, 2, 'x'])
+            /** @type {(fn: EdagValue, args: Values) => void} */
+            const refuses = (fn, args) => { assertError(call(ok(fn), args.map(arg => () => ok(arg)), invoke)) }
+            refuses(parameter, [['{}', []], 'x'])
+            refuses(parameter, [['{}', [[':', 'a', ['{}', []]]]], ['{}', []]])
+            refuses(value(compile('export default ([]) => 0;').edag), [['{}', []]])
+            refuses(value(compile('export default ({}) => 0;').edag), [null])
+            assertStructurallySame(assertOk(toData(apply(value(compile('export default ({ a }, [b]) => [a, b];').edag), [1, '😀']))), [undefined, '😀'])
+            refuses(value(compile('export default ({ a }) => a;').edag), [])
         },
     },
     // The imports bound: the linked program is one EDAG, the imported

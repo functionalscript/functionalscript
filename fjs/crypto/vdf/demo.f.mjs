@@ -16,9 +16,11 @@
  * the page on every edit. As in the bigint demo, nothing is refused for being
  * slow: `wait` says how long a large verification will take before it starts.
  *
- * There is no timing yet. `sandbox` could measure it, as the bigint demo does,
- * but evaluation runs in `nextEvent` turns, whose contract asks for no
- * operations; timing it means revisiting that contract first.
+ * Each evaluation batch is timed by `sandbox`, whose host brackets the actual
+ * call with performance.now(). Their sum is active evaluation time, excluding
+ * hashing, rendering, scheduling and stopped time. Sloth has no separate proof:
+ * y is the value verified. Verify times one call to sloth.verify. Each
+ * duration appears below its result; no repeated runs or statistics are gathered.
  *
  * **Refusals belong to the input they block.** Oversized text and invalid
  * steps can each show a live refusal box. Evaluate and Verify controls stay
@@ -29,17 +31,21 @@
  *
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
  * @import { Element } from '../../media/html/types.ts'
- * @import { DemoState, DemoRun, DemoVerdict } from './types.ts'
+ * @import { DemoState, DemoRun } from './types.ts'
+ * @import { Effect } from '../../effects/types.ts'
+ * @import { Sandbox } from '../../effects/common/types.ts'
  */
 
 import { resultMarker } from '../../website/style/module.f.js'
 import { p, sloth } from './module.f.mjs'
 import { tryUtf8 } from '../../text/module.f.mjs'
 import { digitsValue, hexDigitsValue } from '../../text/ascii/module.f.mjs'
-import { pureOk } from '../../effects/module.f.mjs'
+import { pureOk, resultStep } from '../../effects/module.f.mjs'
 import { textField, inputField, caption, refusal } from '../../website/demo/module.f.mjs'
 import { codeBlock } from '../../website/demo/code/module.f.mjs'
 import { computeSync, sha256 } from '../sha2/module.f.mjs'
+import { sandbox } from '../../effects/common/module.f.mjs'
+import { _formatDuration, _validDuration } from './performance/module.f.mjs'
 import { maxLengthBytes, uint } from '../../types/bit_vec/module.f.mjs'
 
 /** Steps evaluated per browser turn: a few tens of milliseconds. */
@@ -76,29 +82,39 @@ export const parseHex = text => hexDigitsValue([...text].map(c => c.charCodeAt(0
  */
 export const hexOfY = y => y.toString(16).padStart(yDigits, '0')
 
-/** Evaluate the next batch; the last one publishes `y`.
- * @type {(state: DemoState, run: DemoRun) => DemoState}
+/** Time only the evaluation call, keeping Stop and input available between batches.
+ * @type {(state: DemoState, run: DemoRun) => Effect<Sandbox, DemoState, never>}
  */
 const advance = (state, run) => {
     const count = run.steps - run.done < batch ? run.steps - run.done : batch
-    const value = /** @type {bigint} */ (sloth.eval(count)(run.value))
-    const done = run.done + count
-    const running = done < run.steps
-    return { ...state, run: { ...run, done, value, running } }
+    /** @type {DemoState} */
+    const errorState = { ...state, run: null, verificationDuration: null, verdict: null, note: 'Evaluation error: no timing is available.' }
+    return resultStep(sandbox(() => sloth.eval(count)(run.value)), /** @returns {Effect<never, DemoState, never>} */ measured => {
+        const [tag, payload] = measured
+        if (tag === 'error') { return pureOk(errorState) }
+        const { result, duration } = payload
+        const [resultTag, value] = result
+        if (resultTag === 'error') { return pureOk(errorState) }
+        if (typeof value !== 'bigint' || !_validDuration(duration)) {
+            return pureOk({ ...state, run: null, verificationDuration: null, verdict: null, note: 'Evaluation did not produce a measurable result.' })
+        }
+        const done = run.done + count
+        return pureOk({ ...state, run: { ...run, done, value, running: done < run.steps, duration: run.duration + duration } })
+    })
 }
 
-/** Start, stop or resume the evaluation.
- * @type {(state: DemoState) => DemoState}
+/** Start, stop or resume evaluation. Starting a new run clears previous timings.
+ * @type {(state: DemoState) => Effect<Sandbox, DemoState, never>}
  */
 const toggle = state => {
     const { run } = state
     if (run !== null && run.done < run.steps) {
-        return { ...state, run: { ...run, running: !run.running } }
+        return pureOk({ ...state, run: { ...run, running: !run.running } })
     }
     const steps = parseSteps(state.steps)
     const x = xOf(state.text)
-    return steps === null || x === null ? state
-        : advance(state, { steps, done: 0n, value: x, running: true })
+    return steps === null || x === null ? pureOk(state)
+        : advance({ ...state, verdict: null, verificationDuration: null, note: null }, { steps, done: 0n, value: x, running: true, duration: 0 })
 }
 
 /** @type {(run: DemoRun | null) => readonly Element[]} */
@@ -108,24 +124,38 @@ const progress = run =>
             : run.done < run.steps ? [['p', { role: 'status' }, `Stopped at step ${run.done} of ${run.steps}.`]]
                 : [['p', { role: 'status' }, `Evaluated ${run.steps} sequential square roots.`]]
 
-/** What Verify finds for the claimed `y`, or null while steps are invalid.
- * @type {(state: DemoState) => DemoVerdict | null}
+/** Measure a verifier call; parse and hash outside the timed thunk.
+ * @type {(state: DemoState) => Effect<Sandbox, DemoState, never>}
  */
 const verify = state => {
     const steps = parseSteps(state.steps)
     const x = xOf(state.text)
-    if (steps === null || x === null) { return null }
-    // Length first: parsing a long paste into a bigint is itself slow.
-    if (state.claimed.length > yDigits) { return 'tooLong' }
+    const cleared = { ...state, verificationDuration: null, verdict: null }
+    if (steps === null || x === null) { return pureOk(cleared) }
+    if (state.claimed.length > yDigits) { return pureOk({ ...cleared, verdict: 'tooLong' }) }
     const y = parseHex(state.claimed)
-    return y === null ? 'notHex'
-        : y >= p ? 'notBelowP'
-            : sloth.verify(steps)(x)(y) ? 'verified' : 'rejected'
+    if (y === null) { return pureOk({ ...cleared, verdict: 'notHex' }) }
+    if (y >= p) { return pureOk({ ...cleared, verdict: 'notBelowP' }) }
+    const check = sloth.verify(steps)(x)
+    /** @type {DemoState} */
+    const errorState = { ...cleared, verdict: 'error' }
+    return resultStep(sandbox(() => check(y)), /** @returns {Effect<never, DemoState, never>} */ measured => {
+        const [tag, payload] = measured
+        if (tag === 'error') { return pureOk(errorState) }
+        const { result, duration } = payload
+        const [resultTag, valid] = result
+        if (resultTag === 'error') { return pureOk(errorState) }
+        if (typeof valid !== 'boolean' || !_validDuration(duration)) {
+            return pureOk(errorState)
+        }
+        return pureOk({ ...state, verdict: valid ? 'verified' : 'rejected', verificationDuration: duration })
+    })
 }
 
 /** @type {(state: DemoState) => readonly Element[]} */
 const verdictView = ({ verdict, steps }) =>
     verdict === null ? []
+        : verdict === 'error' ? [refusal('Verification error: no timing is available.')]
         : verdict === 'tooLong' ? [refusal(`Enter y with at most ${yDigits} hexadecimal digits.`)]
             : verdict === 'notHex' ? [refusal('Enter y as hexadecimal digits.')]
                 : verdict === 'notBelowP' ? [refusal('y must be less than the modulus p.')]
@@ -145,7 +175,8 @@ const xView = x => x === null
  */
 const result = run =>
     run === null || run.done < run.steps ? []
-        : [caption('Result y, hex:'), codeBlock(hexOfY(run.value), 'Copy y')]
+        : [caption('Result y, hex:'), codeBlock(hexOfY(run.value), 'Copy y'),
+            ['p', `Evaluation time (active computation): ${_formatDuration(run.duration)}`]]
 
 /**
  * How long a verification at this many steps takes, when it is long enough
@@ -167,25 +198,25 @@ const buttonLabel = ({ run }) =>
         : run.running ? 'Stop'
             : 'Resume'
 
-/** @type {Demo<DemoState, DemoEvent>} */
+/** @type {Demo<DemoState, DemoEvent, Sandbox>} */
 export const demo = {
-    init: { text: 'Hello, FunctionalScript!', steps: '1000', claimed: '', run: null, verdict: null },
+    init: { text: 'Hello, FunctionalScript!', steps: '1000', claimed: '', run: null, verdict: null, verificationDuration: null, note: null },
     nextEvent: state => state.run?.running ? { kind: 'click', name: 'evaluate-next' } : null,
     wait: waitNote,
     update: state => event => {
         if (event.kind === 'input') {
-            return pureOk(event.name === 'text' ? { ...state, text: event.value, run: null, verdict: null }
-                : event.name === 'steps' ? { ...state, steps: event.value, run: null, verdict: null }
-                    : event.name === 'claimed' ? { ...state, claimed: event.value, verdict: null }
+            return pureOk(event.name === 'text' ? { ...state, text: event.value, run: null, verdict: null, verificationDuration: null, note: null }
+                : event.name === 'steps' ? { ...state, steps: event.value, run: null, verdict: null, verificationDuration: null, note: null }
+                    : event.name === 'claimed' ? { ...state, claimed: event.value, verdict: null, verificationDuration: null }
                         : state)
         }
         if (event.kind !== 'click') { return pureOk(state) }
-        if (event.name === 'evaluate') { return pureOk(toggle(state)) }
+        if (event.name === 'evaluate') { return toggle(state) }
         // Not while evaluating: incremental turns must stay small, and the
         // runtime shows no `wait` note for them.
-        if (event.name === 'verify') { return pureOk(state.run?.running ? state : { ...state, verdict: verify(state) }) }
+        if (event.name === 'verify') { return state.run?.running ? pureOk(state) : verify(state) }
         const { run } = state
-        return pureOk(event.name === 'evaluate-next' && run !== null && run.running ? advance(state, run) : state)
+        return event.name === 'evaluate-next' && run !== null && run.running ? advance(state, run) : pureOk(state)
     },
     view: state => ['div',
         ['p', 'A verifiable delay function takes many sequential steps to evaluate, while anyone can check the result quickly. Sloth evaluates by repeated modular square roots; verification squares the result back. Evaluate, copy y into the verifier, and press Verify; change a digit to see it rejected.'],
@@ -204,6 +235,8 @@ export const demo = {
             textField({ name: 'claimed', label: 'Claimed y, hex', rows: 6 }, state.claimed),
             ['p', ['button', { type: 'button', name: 'verify', ...(state.run?.running ? { disabled: '' } : {}) }, 'Verify']],
             ...verdictView(state),
+            ...(state.verificationDuration === null ? [] : [/** @type {const} */ (['p', `Verification time: ${_formatDuration(state.verificationDuration)}`])]),
         ],
+        ...(state.note === null ? [] : [refusal(state.note)]),
     ],
 }

@@ -25,6 +25,12 @@ also the shape a `while` lowers to
 ([stage 1 discussion §11](../../../todo/edag-stage1-discussion.md#11-let-loops-and-tail-calls)),
 so the serializers must spell it as a loop before a `while` can land.
 
+The EDAG interpreters are not affected: memo and amnesia make every call
+in tail position in the invocation's place, under the general rule, whatever
+the callee ([values.md](../values.md#operations-and-failures)). The template
+below is the writers' concern, since their outputs run on hosts that
+implement no tail calls.
+
 ### Proposal
 
 **One template.** The first implementation recognizes one shape of function,
