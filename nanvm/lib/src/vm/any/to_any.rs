@@ -1,12 +1,13 @@
 use super::Any;
-use crate::vm::IVm;
+use crate::vm::{IVm, Unpacked};
 
 pub trait ToAny {
     fn to_any<A: IVm>(self) -> Any<A>
     where
-        Self: Into<A>,
+        Self: Into<Unpacked<A>>,
     {
-        Any(self.into())
+        let unpacked: Unpacked<A> = self.into();
+        Any(unpacked.into())
     }
 }
 
