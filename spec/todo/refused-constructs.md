@@ -77,7 +77,7 @@ describes:
 |---|---|---|---|---|
 | `op.loose-equality` | `a == b`, `a != b` | design ([operators](./2340-operators.md)) | unexpected token | exact: parser `operators.proof`, `refusedByDesign` |
 | `op.in` | `"a" in o` | design ([in](./2346-in-operator.md)) | unexpected token | exact: parser `operators.proof`, `refusedByDesign` |
-| `op.instanceof` | `x instanceof Map` | design ([`instanceof`](../README.md#instanceof)) | the right operand of instanceof must be Array | exact: parser `operators.proof` |
+| `op.instanceof` | `[] instanceof Map` | design ([`instanceof`](../README.md#instanceof)) | the right operand of instanceof must be Array | exact: parser `operators.proof` |
 | `op.comma` | `(1, 2)` | planned ([operators](./2340-operators.md)) | unexpected token | exact: parser `grammar/proof` |
 | `op.assignment` | `a = 1` outside a loop's block | planned ([let](./3220-let.md), "Later": a `let` outside a loop is a rebinding) | unexpected token | exact: parser `grammar/proof` |
 | `op.compound-assignment` | `a += 1`, `a **= 2`, `a &&= 2` | planned ([assignments](./3430-assignments.md)) | unexpected token | none |
