@@ -3,35 +3,21 @@ use std::collections::{BTreeMap, btree_map::Entry};
 use super::Object;
 use crate::{
     common::sized_index::SizedIndex,
-    vm::{IVm, Property, String},
+    vm::{IVm, Property, String, member_access::string_to_index},
 };
 
 /// The `u32` value of `k` if ECMAScript's own-property enumeration treats it
 /// as an "array index" — the keys `JSON.stringify` (via
 /// `[[OwnPropertyKeys]]`) lists first, ascending, ahead of every other key
-/// in insertion order: `ToString(ToUint32(key)) == key` and
-/// `ToUint32(key) != 2^32 - 1`. ASCII digits only, no leading zero unless the
-/// key is exactly `"0"`, and in range — `"01"` and `"4294967295"` are both
-/// excluded, the first because its canonical form is `"1"`, not itself, the
-/// second because it's the one `ToUint32` value the spec carves out.
+/// in insertion order: [`string_to_index`]'s canonical index, except
+/// `"4294967295"`, the one `ToUint32` value the spec carves out
+/// (`ToUint32(key) != 2^32 - 1`).
 ///
 /// [`Object::own_entries`] uses this to sort an object's array-index keys ahead
 /// of the rest, by this value rather than by the key's own text — `"10"`
 /// sorts after `"2"` numerically, the opposite of their lexicographic order.
 fn array_index_value<A: IVm>(k: &String<A>) -> Option<u32> {
-    let units: std::vec::Vec<u16> = k.clone().into_iter().collect();
-    let zero = b'0' as u16;
-    if units == [zero] {
-        return Some(0);
-    }
-    if units.is_empty()
-        || units[0] == zero
-        || !units.iter().all(|&u| (zero..=b'9' as u16).contains(&u))
-    {
-        return None;
-    }
-    let digits: std::string::String = units.iter().map(|&u| (u as u8) as char).collect();
-    digits.parse::<u32>().ok().filter(|&n| n != u32::MAX)
+    string_to_index(k).filter(|&n| n != u32::MAX)
 }
 
 impl<A: IVm> Object<A> {
@@ -94,10 +80,44 @@ impl<A: IVm> Object<A> {
 
 #[cfg(test)]
 mod tests {
+    use super::array_index_value;
     use crate::{
         naive::Naive,
-        vm::{Object, String, ToAny, ToObject},
+        vm::{Object, String, ToAny, ToObject, member_access::string_to_index},
     };
+
+    /// `array_index_value` is `string_to_index` but for one key,
+    /// `"4294967295"`: an element read's index, never an own-key ordering's.
+    #[test]
+    fn array_index_value_is_string_to_index_but_for_u32_max() {
+        let long = "1".repeat(40);
+        let cases: [(&str, Option<u32>); 14] = [
+            ("", None),
+            ("0", Some(0)),
+            ("00", None),
+            ("01", None),
+            ("7", Some(7)),
+            ("10", Some(10)),
+            ("a", None),
+            ("1a", None),
+            ("\u{0661}", None),
+            ("\u{FF11}", None),
+            ("4294967294", Some(u32::MAX - 1)),
+            ("4294967295", None),
+            ("4294967296", None),
+            (long.as_str(), None),
+        ];
+        for (key, expected) in cases {
+            let k: String<Naive> = key.into();
+            assert_eq!(array_index_value(&k), expected, "{key:?}");
+            let scanned = if key == "4294967295" {
+                Some(u32::MAX)
+            } else {
+                expected
+            };
+            assert_eq!(string_to_index(&k), scanned, "{key:?}");
+        }
+    }
 
     const SIZE: u32 = 100_000;
 

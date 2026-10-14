@@ -110,10 +110,11 @@ to order them: [RELEASE.md](./RELEASE.md).
   declaration-driven bumps add little value. SemVer §4 allows anything to
   change before 1.0. Consumers crossing a minor boundary should review the
   release notes.
-- **Urgent fixes start at `0.X.1`, from the corresponding `0.X.0` release
-  commit.** Include only the required fixes and release metadata, excluding
-  subsequent development on `main`. If another urgent fix is needed, branch
-  from the preceding fix release and increment the patch (`0.X.2`, `0.X.3`,
+- **Urgent fixes start at `0.X.1`, from the `gitHead` of the corresponding
+  `0.X.0` release**, the commit npm published it from. Include only the
+  required fixes and release metadata, excluding subsequent development on
+  `main`. If another urgent fix is needed, branch from the preceding fix
+  release's `gitHead` and increment the patch (`0.X.2`, `0.X.3`,
   etc.); never reuse a published version. The next regular release still
   advances the minor and resets the patch. See
   [RELEASE.md](./RELEASE.md#urgent-fixes-before-10) for publishing this branch.
@@ -124,9 +125,10 @@ to order them: [RELEASE.md](./RELEASE.md).
 - Releasing is two pull requests ([RELEASE.md](./RELEASE.md)). The first,
   titled `Release X.Y.Z`, changes the version in `package.json` (`"version"`)
   and `package-lock.json` and nothing else — `deno.json` holds tasks and
-  formatting only — and merging it publishes. The second, once the version has
-  published, collects the entries into `changelog/X.Y.Z.md`. Releases through
-  `0.44.0` were written under the older entry rules; leave them as they are.
+  formatting only — and merging it into `main` publishes. The second, once the
+  version has published, collects the entries into `changelog/X.Y.Z.md`.
+  Releases through `0.44.0` were written under the older entry rules; leave
+  them as they are.
 - **The release window is the published one.** npm records the commit it
   published a version from as its `gitHead`, and a release's notes cover the
   commits between the previous version's `gitHead` and its own. A pull request

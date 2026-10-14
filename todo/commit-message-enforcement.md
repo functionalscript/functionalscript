@@ -56,7 +56,7 @@ every API change. An API-surface diff could report candidates; behavior changes 
 escape it, so it would need its own proposal and could not replace review.
 
 A release-side check can validate regular pre-1.0 minor bumps and urgent patch
-progression from the corresponding release commit without parsing notices.
+progression from the corresponding release's `gitHead` without parsing notices.
 If a future policy adopts declaration-based checks, those would need an
 enforced-format window; unstructured historical descriptions can advise, never
 establish completeness.
@@ -76,7 +76,7 @@ it outright but require an Enterprise plan.
       present) as a self-hosted `fjs/ci` module
 - [ ] Release-side check: before 1.0 validate regular `0.X.0` releases and
       urgent fixes `0.X.1`, then successive patches from the prior fix release,
-      based on the corresponding release commit. Do not require or parse
+      based on the corresponding release's `gitHead`. Do not require or parse
       breaking-change notices to select a pre-1.0 bump. Use `origin/main` for
       regular windows and the maintenance tip for urgent windows
 - [ ] Defer checks for releases after 1.0 until the

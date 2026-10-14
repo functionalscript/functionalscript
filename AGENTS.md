@@ -290,7 +290,7 @@ version, and once that version has published, a notes PR writes its file
 Before 1.0, `Changelog:` sections and
 `**BREAKING CHANGES:**` notices are optional; regular releases are `0.X.0`,
 regardless of whether their changes break the API. Urgent fixes start at
-`0.X.1`, based on the corresponding `0.X.0` release commit; further fixes
+`0.X.1`, based on the `gitHead` of the corresponding `0.X.0` release; further fixes
 increment the patch from the previous fix release. A PR that changes no
 observable behavior omits the section. Breaking changes are welcome when they
 improve the API — explain them and update every importer in the same PR.

@@ -3,7 +3,7 @@
 //! `vm/string/README.md`'s and whose arithmetic is `vm/number/format.rs`'s.
 
 use super::method::{Method, argument};
-use crate::vm::{Any, Array, IVm, Nullish, Number, ToAny, Unpacked};
+use crate::vm::{Any, Array, IVm, Number, ToAny};
 
 /// `Number.prototype`'s.
 pub(super) fn number<A: IVm>() -> [(&'static str, Method<A>); 3] {
@@ -21,13 +21,7 @@ fn receiver<A: IVm>(receiver: Any<A>) -> Result<Number, Any<A>> {
 
 /// A digit count: `ToIntegerOrInfinity` of it, or `None` when `undefined`.
 fn digits<A: IVm>(v: Any<A>) -> Result<Option<f64>, Any<A>> {
-    if matches!(
-        Unpacked::from(v.clone()),
-        Unpacked::Nullish(Nullish::Undefined)
-    ) {
-        return Ok(None);
-    }
-    Ok(Some(v.to_integer_or_infinity()?))
+    v.defined().map(Any::to_integer_or_infinity).transpose()
 }
 
 /// An `undefined` count is `0`, which `ToIntegerOrInfinity` answers too.

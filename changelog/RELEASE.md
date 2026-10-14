@@ -2,9 +2,13 @@
 
 A release is **two pull requests**:
 
-1. **The bump** changes the version and nothing else. Merging it publishes. It
-   goes against its release line: `main` for a regular release, the
-   maintenance branch for an [urgent fix](#urgent-fixes-before-10).
+1. **The bump** changes the version and nothing else. It goes against its
+   release line: `main` for a regular release, the maintenance branch for an
+   [urgent fix](#urgent-fixes-before-10). Merging it into `main` publishes.
+   The publish workflow runs on `main` alone, so an urgent fix's bump publishes
+   nothing until
+   [maintenance release publishing](../fjs/ci/todo/maintenance-release-publishing.md)
+   is implemented.
 2. **The notes**, opened once the version has published, write
    `changelog/X.Y.Z.md` from the pull requests that shipped in it. They always
    go against `main`.
