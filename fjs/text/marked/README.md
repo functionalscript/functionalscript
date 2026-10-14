@@ -190,10 +190,13 @@ text is an addition beside it. The `_`-prefixed functions are linkage, not API.
 | extended JSON codec (`fjs/media/json/extended`) | `serialize`, `stringify` | — | its leaves are marked, and its `Codec` has `marked`, which the module does not export yet |
 | `.js` writer (`fjs/compiler/serializer`) | `tryStringify`, `tryModuleStringify`, `trySerialize`, `tryModuleSerialize` | `tryMarked`, `tryModuleMarked` | `_trySerialize`, `_tryModuleSerialize` |
 | Rust (`fjs/compiler/rust`) | `toRust`, `generate` | `toRustMarked` | `scopeTagged`, `useLinesTagged` in `fjs/edag/rust` |
-| The compiler (`fjs/compiler`) | the file `compileFile` writes | `_outputMarked(input, output)`, `_compileMarked(input, output)` | — |
+| The compiler (`fjs/compiler`) | the file `compileFile(load)` writes | `_outputMarked(load)(input, output)`, `_compileMarked(load)(input, output)` | — |
 
 `_outputMarked` is `compile` without its tail, creating the output's
-directory and writing the file. It answers the output the output name asks
+directory and writing the file. Its first argument is the `RuntimeLoad` a
+data output interprets the module under — `packageRuntime(packageRoot)`,
+or `noRuntime` for a caller whose outputs interpret nothing, as the
+generators pass. It answers the output the output name asks
 for as `Marked`, or a refusal as `[message, diagnostic]`: the producer's raw
 message for a demo pane and the diagnostic `fjs compile` would print.
 `_compileMarked` selects the diagnostic on refusal. `compileFile` is it followed

@@ -220,7 +220,7 @@ own `todo/` when its turn comes, and neither is designed here.
 - [x] `edag/value/method` answers a body's name from the runtime its
       executor is given and no longer calls the host engine for it; the
       executors' contexts carry the runtime, the transpiler takes it as
-      `interpretWith`, and the harness loads it for the expectations.
+      `interpret(load)`, and the harness loads it for the expectations.
 - [x] NaNVM binds the compiled runtime through `IVm::runtime_method`,
       after its native table; `npm run gen` compiles the module to
       `vm/gen.runtime.rs`; the corpus runs the body; `starts_with` left

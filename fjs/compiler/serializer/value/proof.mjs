@@ -11,7 +11,7 @@ import { throws } from 'node:assert/strict'
 import { Buffer } from 'node:buffer'
 
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.mjs'
-import { interpret } from '../../transpiler/module.f.mjs'
+import { interpret, noRuntime } from '../../transpiler/module.f.mjs'
 import { emptyState, virtual } from '../../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../../text/module.f.mjs'
 import { factoryStringify, stringify } from './module.f.mjs'
@@ -172,7 +172,7 @@ export const proof = {
             main: [utf8('import add from "./dep"; const f=add(2); export const call=f; export default [f,f];')],
             dep: [utf8('export default x=>y=>x+y;')],
         }
-        const [, result] = virtual({ ...emptyState, root })(interpret('main'))
+        const [, result] = virtual({ ...emptyState, root })(interpret(noRuntime)('main'))
         const exports = await compile(assertOk(result))
         assertEq(exports.call(3), 5)
         assertEq(exports.default[0], exports.call)
