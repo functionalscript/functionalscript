@@ -1,7 +1,7 @@
 ## `decode_string` rebuilds a conversion `nanvm-lib` provides
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
