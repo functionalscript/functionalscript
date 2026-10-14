@@ -29,7 +29,7 @@
  *
  * @module
  *
- * @import { Rule } from '../../../ebnf/types.ts'
+ * @import { Selection } from '../../../website/demo/railroad/types.ts'
  */
 
 import {
@@ -41,16 +41,10 @@ import {
     value, values,
 } from './module.f.mjs'
 import { eagerLayers } from '../../ast/module.f.mjs'
-import { toData } from '../../../ebnf/data/module.f.mjs'
 import { encoding } from '../../../ebnf/token_symbol/module.f.mjs'
-import { tokens, toDiagrams } from '../../../ebnf/railroad/module.f.mjs'
-import { railroadDemo } from '../../../website/demo/railroad/module.f.mjs'
+import { tokens } from '../../../ebnf/railroad/module.f.mjs'
+import { grammarDemo } from '../../../website/demo/railroad/module.f.mjs'
 import { assertNotNullish } from '../../../asserts/module.f.mjs'
-
-const [ruleSet, entryName, names] = toData(djsModule)
-
-/** @type {(rule: Rule) => string} */
-const nameOf = rule => assertNotNullish(names.get(rule))
 
 /**
  * One diagram per `eagerTail` layer, titled by the names of its operators
@@ -58,64 +52,64 @@ const nameOf = rule => assertNotNullish(names.get(rule))
  * from the table the layer is built from and moves with it. A title is an
  * anchor a box links to, so it is the operators' names, not their tokens.
  *
- * @type {readonly (readonly [string, string])[]}
+ * @type {readonly Selection[]}
  */
-const layers = eagerTail.map((rule, i) => [Object.keys(assertNotNullish(eagerLayers[i])).join('_'), nameOf(rule)])
+const layers = eagerTail.map((rule, i) => [Object.keys(assertNotNullish(eagerLayers[i])).join('_'), rule])
 
 /**
- * Each diagram's title and the lowered rule it draws, in the order the page
+ * Each diagram's title and the rule it draws, in the order the page
  * shows them: the module first, then its statements, then a value from the
  * outside in, and the words and lists everything reaches last.
  *
- * @type {readonly (readonly [string, string])[]}
+ * @type {readonly Selection[]}
  */
 export const diagrams = [
-    ['djsModule', entryName],
-    ['importStatement', nameOf(importStatement)],
-    ['importClause', nameOf(importClause)],
-    ['namedImports', nameOf(namedImports)],
-    ['importBindings', nameOf(importBindings)],
-    ['importBinding', nameOf(importBinding)],
-    ['attribute', nameOf(attribute)],
-    ['constStatement', nameOf(constStatement)],
-    ['bindingTarget', nameOf(bindingTarget)],
-    ['lastStatement', nameOf(lastStatement)],
-    ['end', nameOf(end)],
-    ['value', nameOf(value)],
-    ['body', nameOf(body)],
-    ['block', nameOf(block)],
-    ['statement', nameOf(statement)],
-    ['terminator', nameOf(terminator)],
-    ['paren', nameOf(paren)],
-    ['parenthesized', nameOf(parenthesized)],
-    ['func', nameOf(func)],
-    ['parameters', nameOf(parameters)],
-    ['afterValue', nameOf(afterValue)],
-    ['parameterNames', nameOf(parameterNames)],
-    ['arrowOrRest', nameOf(arrowOrRest)],
-    ['unary', nameOf(unary)],
-    ['unaryOperand', nameOf(unaryOperand)],
-    ['parenGroup', nameOf(parenGroup)],
-    ['group', nameOf(group)],
-    ['parenGroupOperand', nameOf(parenGroupOperand)],
-    ['groupOperand', nameOf(groupOperand)],
+    ['djsModule', djsModule],
+    ['importStatement', importStatement],
+    ['importClause', importClause],
+    ['namedImports', namedImports],
+    ['importBindings', importBindings],
+    ['importBinding', importBinding],
+    ['attribute', attribute],
+    ['constStatement', constStatement],
+    ['bindingTarget', bindingTarget],
+    ['lastStatement', lastStatement],
+    ['end', end],
+    ['value', value],
+    ['body', body],
+    ['block', block],
+    ['statement', statement],
+    ['terminator', terminator],
+    ['paren', paren],
+    ['parenthesized', parenthesized],
+    ['func', func],
+    ['parameters', parameters],
+    ['afterValue', afterValue],
+    ['parameterNames', parameterNames],
+    ['arrowOrRest', arrowOrRest],
+    ['unary', unary],
+    ['unaryOperand', unaryOperand],
+    ['parenGroup', parenGroup],
+    ['group', group],
+    ['parenGroupOperand', parenGroupOperand],
+    ['groupOperand', groupOperand],
     ...layers,
-    ['circuitTail', nameOf(circuitTail)],
-    ['conditionalTail', nameOf(conditionalTail)],
-    ['access', nameOf(access)],
-    ['optionalStep', nameOf(optionalStep)],
-    ['callArguments', nameOf(callArguments)],
-    ['template', nameOf(template)],
-    ['array', nameOf(array)],
-    ['values', nameOf(values)],
-    ['item', nameOf(item)],
-    ['object', nameOf(object)],
-    ['entries', nameOf(entries)],
-    ['entry', nameOf(entry)],
-    ['member', nameOf(member)],
-    ['primitive', nameOf(primitive)],
-    ['identifier', nameOf(identifier)],
-    ['identifierName', nameOf(identifierName)],
+    ['circuitTail', circuitTail],
+    ['conditionalTail', conditionalTail],
+    ['access', access],
+    ['optionalStep', optionalStep],
+    ['callArguments', callArguments],
+    ['template', template],
+    ['array', array],
+    ['values', values],
+    ['item', item],
+    ['object', object],
+    ['entries', entries],
+    ['entry', entry],
+    ['member', member],
+    ['primitive', primitive],
+    ['identifier', identifier],
+    ['identifierName', identifierName],
 ]
 
 /** The token kinds that stand for any token of their kind, not for their own text. */
@@ -124,4 +118,10 @@ const categories = /** @type {const} */ ([
     'noSubstitutionTemplate', 'templateHead', 'templateMiddle', 'templateTail',
 ])
 
-export const demo = railroadDemo('The FunctionalScript module grammar, drawn from the rules the parser reads a module with. Follow a track from left to right; a pill is a token, a grey one in italics any token of its kind, and a box is another diagram — select it to go there.')(toDiagrams(tokens(encoding(_ordinaryTokenNames), categories))(ruleSet)(diagrams))
+export const demo = grammarDemo({
+    grammar: djsModule,
+    alphabet: tokens(encoding(_ordinaryTokenNames), categories),
+    description: 'The FunctionalScript module grammar, drawn from the rules the parser reads a module with.',
+    guide: 'Follow a track from left to right; a pill is a token, a grey one in italics any token of its kind, and a box is another diagram — select it to go there.',
+    selections: diagrams,
+})

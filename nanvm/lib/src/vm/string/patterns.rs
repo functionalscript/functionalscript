@@ -1,7 +1,7 @@
 use super::{String, create::create};
 use crate::{
     common::sized_index::SizedIndex,
-    vm::{Any, Array, Function, IVm, Nullish, Number, ToAny, ToArray, ToString, Unpacked},
+    vm::{Any, Array, Function, IVm, Number, ToAny, ToArray, ToString, Unpacked},
 };
 
 /// What a match is replaced with: a function called for each match, or the
@@ -206,27 +206,25 @@ impl<A: IVm> String<A> {
     /// `[]`; an `undefined` separator answers `[receiver]`; an empty one
     /// splits into code units, so a surrogate pair is two pieces.
     pub(crate) fn split(&self, separator: Any<A>, limit: Any<A>) -> Result<Array<A>, Any<A>> {
-        let is_undefined = |v: &Any<A>| {
-            matches!(
-                Unpacked::from(v.clone()),
-                Unpacked::Nullish(Nullish::Undefined)
-            )
-        };
-        let limit = if is_undefined(&limit) {
-            u32::MAX
-        } else {
-            limit.to_number()?.to_uint32()
-        };
-        let separator_is_undefined = is_undefined(&separator);
+        let limit = limit
+            .defined()
+            .map(Any::to_number)
+            .transpose()?
+            .map_or(u32::MAX, Number::to_uint32);
+        // `undefined` converts to `"undefined"` without a throw, so skipping
+        // its conversion below changes nothing.
+        let separator = separator.defined();
         if limit == 0 {
             // Converted for its throws alone: no piece is ever cut.
-            separator.to_string_unused()?;
+            if let Some(separator) = separator {
+                separator.to_string_unused()?;
+            }
             return Ok([].to_array());
         }
-        let separator = separator.to_string()?;
-        if separator_is_undefined {
+        let Some(separator) = separator else {
             return Ok([self.clone().to_any()].to_array());
-        }
+        };
+        let separator = separator.to_string()?;
         let len = self.length();
         let piece =
             |from: u32, to: u32| -> Any<A> { (from..to).map(|i| self[i]).to_string().to_any() };

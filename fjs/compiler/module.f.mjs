@@ -43,8 +43,7 @@ import { concat } from '../types/string/module.f.mjs'
 import { serialize as bigintSerialize } from '../types/bigint/module.f.mjs'
 import { sort } from '../types/object/module.f.mjs'
 import { errorMessage, foldStep, ioError, mapStep, pureError, pureOk, resultMapStep, resultStep, step } from '../effects/module.f.mjs'
-import { error as errorLine, errorExit, exitStep, log, mkdir, writeUtf8File } from '../effects/node/module.f.mjs'
-import { concat as pathConcat } from '../path/module.f.mjs'
+import { error as errorLine, errorExit, exitStep, log, writeFiles } from '../effects/node/module.f.mjs'
 import { allFiles, sourceRoot } from '../dev/module.f.mjs'
 import { chunksText, toText } from '../text/marked/module.f.mjs'
 
@@ -233,17 +232,6 @@ export const _stringifyTree = value => chunksText(treeValue(value))
 // ── the command ───────────────────────────────────────────────────────────────
 
 /**
- * The directory an output file goes in: `a/b` for `a/b/x.rs`, and `.` for a
- * bare file name, whose parent folds to the empty path `mkdir` refuses.
- *
- * @type {(outputFileName: string) => string}
- */
-const outputDirectory = outputFileName => {
-    const directory = pathConcat(outputFileName)('..')
-    return directory === '' ? '.' : directory
-}
-
-/**
  * The `path:line:column - error: message` line a failed compile reports:
  * where the error is, as far as {@link errorLocation} knows it, then the
  * message. One spelling for the command and the check, so a diagnostic reads
@@ -408,9 +396,7 @@ export const compileFile = load => (inputFileName, outputFileName) => step(
     /** @type {(result: Result<Marked, string>) => Effect<_CompileOp, void, IoChannel>} */
     (result) => {
         const [tag, value] = result
-        if (tag === 'error') { return refused(value) }
-        const directoryReady = mkdir(outputDirectory(outputFileName), { recursive: true })
-        return step(directoryReady, () => writeUtf8File(outputFileName, toText(value)))
+        return tag === 'error' ? refused(value) : writeFiles([[outputFileName, toText(value)]])
     })
 
 /**

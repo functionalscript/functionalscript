@@ -60,8 +60,7 @@ pub fn decode_string<A: IVm>(any: Any<A>) -> Result<String, Malformed> {
     let Ok(string) = VmString::try_from(any) else {
         return malformed("not a string");
     };
-    let units: Vec<u16> = (0..string.length()).map(|i| string[i]).collect();
-    Ok(String::from_utf16_lossy(&units))
+    Ok(string.into())
 }
 
 /// A `Vec` as its bytes: the magnitude's bits, big-endian, with the stop bit
@@ -156,13 +155,7 @@ pub fn decode_optional<A: IVm, T>(
     any: Option<Any<A>>,
     f: impl FnOnce(Any<A>) -> Result<T, Malformed>,
 ) -> Result<Option<T>, Malformed> {
-    match any {
-        None => Ok(None),
-        Some(any) => match Unpacked::from(any.clone()) {
-            Unpacked::Nullish(Nullish::Undefined) => Ok(None),
-            _ => f(any).map(Some),
-        },
-    }
+    any.and_then(Any::defined).map(f).transpose()
 }
 
 /// A flag, `or(option, true)`: left out is `false`, `true` is `true`.

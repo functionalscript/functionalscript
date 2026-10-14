@@ -4,13 +4,12 @@
  * Runtime materialization happens only at the public value-output boundaries.
  *
  * @module
- * @import { AstModule } from '../ast/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { Unknown } from '../../media/datajs/types.ts'
  * @import { EdagValue, Object as ValueObject, Runtime } from '../../edag/value/types.ts'
  * @import { CompileValue } from '../../edag/value/to_unknown/types.ts'
- * @import { _ImportSource, _Source } from '../source/types.ts'
- * @import { SourceError, ParseContext } from './types.ts'
+ * @import { _Load, _Source } from '../source/types.ts'
+ * @import { InitializationError, SourceError } from './types.ts'
  * @import { RuntimeLoad } from '../types.ts'
  * @import { Effect, IoChannel } from '../../effects/types.ts'
  * @import { ReadWhole, ResolveFileModule } from '../../effects/node/types.ts'
@@ -18,69 +17,42 @@
 
 import { assertOk } from '../../asserts/module.f.mjs'
 import { isArray } from '../../types/array/module.f.mjs'
-import { ok } from '../../types/result/module.f.js'
-import { drop, includes } from '../../types/list/module.f.mjs'
-import { setReplace, at } from '../../types/ordered_map/module.f.mjs'
+import { error, ok } from '../../types/result/module.f.js'
 import { findProperty, read } from '../../edag/value/property/module.f.mjs'
 import { toData, toUnknown } from '../../edag/value/to_unknown/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
 import { memo } from '../../edag/memo/module.f.mjs'
 import { unresolved, jsonValue } from '../edag/module.f.mjs'
-import { _attributeError, _fileError, _importSources, _missingExport, _rootSource, _parseJson, _parseModule } from '../source/module.f.mjs'
-import { foldStep, history, historyStep, mapStep, pureError, pureOk, resultStep, step } from '../../effects/module.f.mjs'
+import { _fileError, _rootSource, _parseJson, _walk } from '../source/module.f.mjs'
+import { mapStep, pureError, pureOk, resultStep, step } from '../../effects/module.f.mjs'
 
 export { parse } from '../source/module.f.mjs'
 
-/** Read only a dependency already established by the loading walk. @type {(context: ParseContext) => (id: string) => ValueObject} */
-const moduleAt = context => id => /** @type {ValueObject} */ (at(id)(context.complete))
-
-/** @type {(id: string, value: ValueObject, context: ParseContext) => ParseContext} */
-const completed = (id, value, context) => ({
-    complete: setReplace(id)(value)(context.complete),
-    stack: drop(1)(context.stack),
-    runtime: context.runtime,
-})
-
-/** Check a selected export before loading the next dependency. @type {(source: _ImportSource) => (context: ParseContext) => Effect<ReadWhole | ResolveFileModule, ParseContext, SourceError>} */
-const foldImport = source => context => step(foldModule(source)(context), next =>
-    source.name !== null && findProperty(moduleAt(next)(source.id), source.name) === undefined
-        ? pureError(_missingExport(source))
-        : pureOk(next))
-
-/** @type {(source: _Source, module: AstModule, context: ParseContext) => Effect<ReadWhole | ResolveFileModule, ParseContext, SourceError>} */
-const interpretModule = (source, module, context) => {
-    const { id, path } = source
-    const sources = _importSources(source)(module[0])
-    const loaded = historyStep(history(sources), imports => foldStep(pureOk(imports), context, foldImport))
-    return step(loaded, ([next, imports]) => {
+/**
+ * What the interpreter makes of a module under `runtime`: its complete export
+ * object, initialized over its imports' complete export objects. A module's
+ * graph selects each import's export itself; `select` only requires it.
+ *
+ * @type {(runtime: Runtime | undefined) => _Load<ValueObject, ValueObject, InitializationError>}
+ */
+const interpreting = runtime => ({
+    json: value => ['{}', [[':', 'default', jsonValue(value)]]],
+    select: (module, name) => name === null || findProperty(module, name) !== undefined ? module : undefined,
+    module: ({ path }, imports, module) => {
         // An unresolved module selects its imports from complete export
         // objects. Shared imported values keep their established identities.
         const graph = unresolved(module).edag
-        const result = memo(assertOk(analysis(graph)))({ args: imports.map(({ id }) => moduleAt(next)(id)), runtime: context.runtime })
-        const [kind, value] = result
+        const [kind, value] = memo(assertOk(analysis(graph)))({ args: imports, runtime })
         return kind === 'error'
-            ? pureError({ ..._fileError(path)('module initialization failed'), thrown: value })
-            : pureOk(completed(id, /** @type {ValueObject} */ (value), next))
-    })
-}
-
-/** Initialize the next source unless this identity is already complete. @type {(source: _Source) => (context: ParseContext) => Effect<ReadWhole | ResolveFileModule, ParseContext, SourceError>} */
-const foldModule = source => context => {
-    const { id, path, json } = source
-    const mismatch = _attributeError(source)
-    if (mismatch !== null) { return pureError(mismatch) }
-    if (includes(id)(context.stack)) { return pureError(_fileError(path)('circular dependency')) }
-    if (at(id)(context.complete) !== null) { return pureOk(context) }
-    const entered = { ...context, stack: { first: id, tail: context.stack } }
-    return json
-        ? mapStep(_parseJson(path), value => completed(id, ['{}', [[':', 'default', jsonValue(value)]]], entered))
-        : step(_parseModule(path), module => interpretModule(source, module, entered))
-}
+            ? error({ message: 'module initialization failed', metadata: null, path, thrown: value })
+            : ok(/** @type {ValueObject} */ (value))
+    },
+})
 
 /** Direct JSON is a document; modules yield their complete export object. @type {(runtime: Runtime | undefined) => (source: _Source) => Effect<ReadWhole | ResolveFileModule, EdagValue, SourceError>} */
 const interpretSource = runtime => source => source.json
     ? mapStep(_parseJson(source.path), jsonValue)
-    : mapStep(foldModule(source)({ stack: null, complete: null, runtime }), context => moduleAt(context)(source.id))
+    : mapStep(_walk(interpreting(runtime))(source)({ stack: null, complete: null }), ([, value]) => value)
 
 /**
  * A source under the runtime `load` answers, run once the source is known

@@ -372,6 +372,52 @@ export const proof = {
             assertStructurallySame(listed(pageAt(root, [])), ['a.f.mjs'])
         },
         /**
+         * **A specifier means what `fjs/path/import`'s `resolve` reads it
+         * as** — the resolver the compiler and the virtual host share —
+         * which is percent-decoded, as a browser's request for it is.
+         * `./dep%20name.mjs` leads to `dep name.mjs`, so that module's
+         * blocker is the proof's too.
+         */
+        anEncodedSpecifierIsDecoded: () => {
+            const { root, output } = generate({
+                dir: {
+                    'main.f.mjs': file("import './dep%20name.mjs'\nexport const proof = []"),
+                    'dep name.mjs': file("import 'node:fs'\nexport const x = 1"),
+                },
+            })
+            assertStructurallySame(listed(pageAt(root, [])), [])
+            assert(output.includes('skipped dir/main.f.mjs: not linkable in a browser (node:fs)'), output)
+        },
+        /**
+         * **A relative specifier the resolver refuses is a blocker, as
+         * written** — not a dropped edge, and not a path with `null` in it.
+         * `./bad%` decodes to nothing, so no file is read for it: not even
+         * the one literally named `bad%` beside it, whose own blocker never
+         * shows. The page names the proof with the specifier, and loads
+         * nothing.
+         */
+        aRefusedSpecifierIsABlocker: () => {
+            const { root, output } = generate({
+                dir: {
+                    'main.f.mjs': file("import './bad%'\nexport const proof = []"),
+                    'bad%': file("import 'node:fs'\nexport const x = 1"),
+                },
+            })
+            const page = pageAt(root, ['dir'])
+            assert(page.includes('./main.f.mjs — not linkable in a browser: ./bad%'), page)
+            assertStructurallySame(listed(page), [])
+            assert(output.includes('skipped dir/main.f.mjs: not linkable in a browser (./bad%)\n'), output)
+        },
+        // Inherited through the import graph, like any other blocker.
+        aRefusedSpecifierIsInherited: () => {
+            const { root, output } = generate({
+                'a.f.mjs': file("import './dep.f.mjs'\nexport const proof = []"),
+                'dep.f.mjs': file("import './bad%'\nexport const x = 1"),
+            })
+            assertStructurallySame(listed(pageAt(root, [])), [])
+            assert(output.includes('skipped a.f.mjs: not linkable in a browser (./bad%)'), output)
+        },
+        /**
          * **A read that failed for any other reason stops the generator.** A
          * file over `readFile`'s 128 KiB cap is the one that matters: swallowed,
          * it reads as a module importing nothing, so its own blockers are
@@ -839,6 +885,14 @@ export const proof = {
             })
             assert(!pageAt(root, ['a']).includes('data-demo'), pageAt(root, ['a']))
             assert(output.includes('skipped a/demo.f.mjs: a demo must link in a browser (node:fs)'), output)
+        },
+        // A specifier the resolver refuses stops a demo as it stops a proof.
+        oneWithARefusedImportIsDropped: () => {
+            const { root, output } = generate({
+                a: { 'demo.f.mjs': file("import './bad%'\nexport const demo = {}") },
+            })
+            assert(!pageAt(root, ['a']).includes('data-demo'), pageAt(root, ['a']))
+            assert(output.includes('skipped a/demo.f.mjs: a demo must link in a browser (./bad%)'), output)
         },
         /**
          * **A demo at the repository root belongs to the root page.** Its

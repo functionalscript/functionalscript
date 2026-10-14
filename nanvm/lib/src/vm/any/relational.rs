@@ -1,9 +1,8 @@
 use core::cmp::Ordering;
 
 use crate::vm::{
-    Any, BigInt, IVm, ToAny, Unpacked, ecma_whitespace::is_ecma_whitespace, error,
-    numeric_coercion::to_numeric, primitive::Primitive,
-    primitive_coercion::ToPrimitivePreferredType,
+    Any, IVm, ToAny, Unpacked, error, numeric_coercion::to_numeric, primitive::Primitive,
+    primitive_coercion::ToPrimitivePreferredType, string_numeric_literal::string_to_bigint,
 };
 
 impl<A: IVm> Any<A> {
@@ -86,63 +85,6 @@ fn compare_primitives<A: IVm>(
         }
         (px, py) => Ok(to_numeric(px)?.compare(&to_numeric(py)?)),
     }
-}
-
-/// `StringToBigInt`: a decimal literal (optional leading sign), or a
-/// `0x`/`0o`/`0b` literal — those three take no sign, matching the grammar
-/// (`NonDecimalIntegerLiteral` has no `Sign` production, unlike
-/// `StrIntegerLiteral`'s decimal alternative). Surrounding whitespace is
-/// trimmed; `""` (or all whitespace) is `0n`, matching
-/// `StringToBigInt("")`. A literal that is not one is `None`; one longer than
-/// `BigInt`'s size limit is the `RangeError` the limit throws everywhere.
-fn string_to_bigint<A: IVm>(s: &str) -> Result<Option<BigInt<A>>, Any<A>> {
-    let trimmed = s.trim_matches(is_ecma_whitespace);
-    if trimmed.is_empty() {
-        return Ok(Some(BigInt::default()));
-    }
-    if let Some(digits) = trimmed
-        .strip_prefix("0x")
-        .or_else(|| trimmed.strip_prefix("0X"))
-    {
-        return parse_digits(digits, 16);
-    }
-    if let Some(digits) = trimmed
-        .strip_prefix("0o")
-        .or_else(|| trimmed.strip_prefix("0O"))
-    {
-        return parse_digits(digits, 8);
-    }
-    if let Some(digits) = trimmed
-        .strip_prefix("0b")
-        .or_else(|| trimmed.strip_prefix("0B"))
-    {
-        return parse_digits(digits, 2);
-    }
-    let (negative, digits) = match trimmed.strip_prefix('-') {
-        Some(rest) => (true, rest),
-        None => (false, trimmed.strip_prefix('+').unwrap_or(trimmed)),
-    };
-    Ok(parse_digits(digits, 10)?.map(|m| if negative { -m } else { m }))
-}
-
-/// Parses `digits` as an unsigned integer literal in `radix` (2, 8, 10, or
-/// 16 — whatever the caller's prefix implied). `None` if `digits` is empty
-/// or any byte is out of range for the radix; `char::to_digit` covers both
-/// checks (and both cases of hex `a`-`f`) at once. Every digit is checked in a
-/// first pass, before any is multiplied in in the second, so a literal that
-/// is both invalid and too long is invalid, not a throw, and nothing the
-/// size of the input is held besides the input.
-fn parse_digits<A: IVm>(digits: &str, radix: u32) -> Result<Option<BigInt<A>>, Any<A>> {
-    let digit = |byte: u8| (byte as char).to_digit(radix);
-    if digits.is_empty() || !digits.bytes().all(|byte| digit(byte).is_some()) {
-        return Ok(None);
-    }
-    let base: BigInt<A> = (radix as u64).into();
-    let mut magnitude = BigInt::default();
-    for value in digits.bytes().filter_map(digit) {
-        magnitude = magnitude.mul_add(base.clone(), u64::from(value))?;
-    }
-    Ok(Some(magnitude))
 }
 
 #[cfg(test)]
@@ -233,35 +175,5 @@ mod tests {
         assert!(bool_of(big(20).lt(s("30"))));
         assert!(!bool_of(s("abc").lt(big(20))));
         assert!(!bool_of(big(20).lt(s("abc"))));
-    }
-
-    #[test]
-    fn string_to_bigint_non_decimal_literals() {
-        let s = |v: &str| -> Any<A> { v.into() };
-        // "0x10" is 16n, "0o10" is 8n, "0b10" is 2n — StringToBigInt parses
-        // all three, not just decimal, so each compares as its value rather
-        // than falling through to "not a valid literal".
-        assert!(bool_of(s("0x10").lt(big(17))));
-        assert!(!bool_of(s("0x10").lt(big(16))));
-        assert!(bool_of(s("0o10").lt(big(9))));
-        assert!(bool_of(s("0b10").lt(big(3))));
-        assert!(bool_of(s("0X1A").lt(big(27))));
-        // The sign-less forms don't accept a sign; "-0x10" is not a valid
-        // literal at all, so the comparison is `false` in both directions.
-        assert!(!bool_of(s("-0x10").lt(big(100))));
-        assert!(!bool_of(big(-100).lt(s("-0x10"))));
-        // An empty digit run after the prefix is invalid too.
-        assert!(!bool_of(s("0x").lt(big(1))));
-    }
-
-    #[test]
-    fn string_to_bigint_ecma_whitespace() {
-        let s = |v: &str| -> Any<A> { v.into() };
-        // U+FEFF (BOM) is ECMA-262 `WhiteSpace` and gets trimmed; U+0085
-        // (NEL) is not, even though Rust's `str::trim()` disagrees both
-        // ways (it misses the former and trims the latter).
-        assert!(bool_of(s("\u{FEFF}1").lt(big(2))));
-        assert!(!bool_of(s("\u{0085}1").lt(big(2))));
-        assert!(!bool_of(big(0).lt(s("\u{0085}1"))));
     }
 }

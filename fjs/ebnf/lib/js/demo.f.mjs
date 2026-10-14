@@ -20,53 +20,46 @@
  *
  * @module
  *
- * @import { Rule } from '../../types.ts'
+ * @import { Selection } from '../../../website/demo/railroad/types.ts'
  */
 
 import { content, id, newLine, number, operator, slash, string, template, templateAfterDollar, templateContent, templateEscape, token, ws } from './module.f.mjs'
 import { escape, hex } from '../json/module.f.mjs'
-import { toData } from '../../data/module.f.mjs'
-import { branch, codePoints, toDiagrams } from '../../railroad/module.f.mjs'
-import { railroadDemo } from '../../../website/demo/railroad/module.f.mjs'
-import { assertNotNullish } from '../../../asserts/module.f.mjs'
-
-const [ruleSet, entry, names] = toData(token)
-
-/** @type {(rule: Rule) => string} */
-const nameOf = rule => assertNotNullish(names.get(rule))
-
-const branchOf = branch(ruleSet)
-
-const stringName = nameOf(string)
-
-const contentName = nameOf(content)
+import { codePoints } from '../../railroad/module.f.mjs'
+import { codePointGuide, grammarDemo } from '../../../website/demo/railroad/module.f.mjs'
 
 /**
- * Each diagram's title and the lowered rule it draws, in the order the page
+ * Each diagram's title and the rule it draws, in the order the page
  * shows them: the token, its kinds in the order `token` lists them, then
  * the rules shared with JSON.
  *
- * @type {readonly (readonly [string, string])[]}
+ * @type {readonly Selection[]}
  */
 export const diagrams = [
-    ['token', entry],
-    ['number', nameOf(number)],
-    ['string', stringName],
-    ['double', branchOf(stringName, 'double')],
-    ['single', branchOf(stringName, 'single')],
-    ['template', nameOf(template)],
-    ['templateContent', nameOf(templateContent)],
-    ['templateAfterDollar', nameOf(templateAfterDollar)],
-    ['templateEscape', nameOf(templateEscape)],
-    ['id', nameOf(id)],
-    ['slash', nameOf(slash)],
-    ['content', contentName],
-    ['star', branchOf(contentName, 'star')],
-    ['operator', nameOf(operator)],
-    ['ws', nameOf(ws)],
-    ['newLine', nameOf(newLine)],
-    ['escape', nameOf(escape)],
-    ['hex', nameOf(hex)],
+    ['token', token],
+    ['number', number],
+    ['string', string],
+    ['double', string, 'double'],
+    ['single', string, 'single'],
+    ['template', template],
+    ['templateContent', templateContent],
+    ['templateAfterDollar', templateAfterDollar],
+    ['templateEscape', templateEscape],
+    ['id', id],
+    ['slash', slash],
+    ['content', content],
+    ['star', content, 'star'],
+    ['operator', operator],
+    ['ws', ws],
+    ['newLine', newLine],
+    ['escape', escape],
+    ['hex', hex],
 ]
 
-export const demo = railroadDemo('The JavaScript token grammar of this module, drawn from its rules. Follow a track from left to right; a pill is text the input holds, and a box is another diagram — select it to go there.')(toDiagrams(codePoints)(ruleSet)(diagrams))
+export const demo = grammarDemo({
+    grammar: token,
+    alphabet: codePoints,
+    description: 'The JavaScript token grammar of this module, drawn from its rules.',
+    guide: codePointGuide,
+    selections: diagrams,
+})

@@ -25,12 +25,20 @@
  * element holding that diagram, and `railroadSection` is that element, so a
  * page and this module spell the id once.
  *
+ * **A grammar's page is `grammarDemo`.** A page names the grammar, the
+ * {@link Alphabet} its symbols are read in, the first clause of its intro,
+ * the guide that tells a reader how to read the pills, and the rules worth
+ * a diagram; lowering, naming and drawing are this module's. A page over
+ * text passes {@link codePointGuide}.
+ *
  * The geometry is the layout of json.org's diagrams, and of the railroad
  * diagrams a reader has met in any language specification.
  *
  * @module
  *
- * @import { BoxKind, Diagram } from './types.ts'
+ * @import { BoxKind, Diagram, GrammarPage, Selection } from './types.ts'
+ * @import { Alphabet } from '../../../ebnf/railroad/types.ts'
+ * @import { Rule } from '../../../ebnf/types.ts'
  * @import { Demo, DemoEvent } from '../types.ts'
  * @import { Element } from '../../../media/html/types.ts'
  * @import { _Size } from './private.ts'
@@ -39,6 +47,9 @@
 import { pureOk } from '../../../effects/module.f.mjs'
 import { railroadBoxMarker, railroadLabelMarker } from '../../style/module.f.js'
 import { max } from '../../../types/number/max/module.f.js'
+import { toData } from '../../../ebnf/data/module.f.mjs'
+import { branch, toDiagrams } from '../../../ebnf/railroad/module.f.mjs'
+import { assertNotNullish } from '../../../asserts/module.f.mjs'
 
 const boxHalf = 11
 const arc = 10
@@ -280,4 +291,34 @@ export const railroadDemo = intro => diagrams => {
     /** @type {Element} */
     const view = ['div', ['p', intro], ...diagrams.map(railroadSection)]
     return { init: null, update: state => () => pureOk(state), view: () => view }
+}
+
+/**
+ * How to read a diagram over text: the guide a page of a grammar over code
+ * points ends its intro with.
+ */
+export const codePointGuide = 'Follow a track from left to right; a pill is text the input holds, and a box is another diagram — select it to go there.'
+
+/**
+ * A grammar's page: its `description` and `guide`, joined by a space, as
+ * the intro, then a diagram per selection, in order, its symbols labelled by
+ * `alphabet`.
+ *
+ * A selection `[title, rule]` draws a source rule — the grammar itself, or
+ * any rule it reaches — and `[title, rule, tag]` the branch `tag` of the
+ * variant `rule`, a rule the grammar writes inline. A page names rules by
+ * identity and branches by tag, never by the names lowering makes up.
+ *
+ * @throws If a rule is not one the grammar reaches, if a branch's rule is
+ * not a variant or has no such tag, or if `toDiagrams` refuses the titles.
+ *
+ * @type {(page: GrammarPage) => Demo<null, DemoEvent>}
+ */
+export const grammarDemo = ({ grammar, alphabet, description, guide, selections }) => {
+    const [ruleSet, entry, names] = toData(grammar)
+    /** @type {(rule: Rule) => string} */
+    const nameOf = rule => rule === grammar ? entry : assertNotNullish(names.get(rule))
+    /** @type {(selection: Selection) => readonly [string, string]} */
+    const titled = ([title, rule, tag]) => [title, tag === undefined ? nameOf(rule) : branch(ruleSet)(nameOf(rule), tag)]
+    return railroadDemo(`${description} ${guide}`)(toDiagrams(alphabet)(ruleSet)(selections.map(titled)))
 }

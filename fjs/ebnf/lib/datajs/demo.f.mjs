@@ -16,48 +16,43 @@
  *
  * @module
  *
- * @import { Rule } from '../../types.ts'
+ * @import { Selection } from '../../../website/demo/railroad/types.ts'
  */
 
 import { constStatement, dataJs, exportStatement, id, number, property, value } from './module.f.mjs'
 import { character, escape, hex, string, uint, ws } from '../json/module.f.mjs'
-import { toData } from '../../data/module.f.mjs'
-import { branch, codePoints, toDiagrams } from '../../railroad/module.f.mjs'
-import { railroadDemo } from '../../../website/demo/railroad/module.f.mjs'
-import { assertNotNullish } from '../../../asserts/module.f.mjs'
-
-const [ruleSet, entry, names] = toData(dataJs)
-
-/** @type {(rule: Rule) => string} */
-const nameOf = rule => assertNotNullish(names.get(rule))
-
-const valueName = nameOf(value)
-
-const valueBranch = branch(ruleSet)
+import { codePoints } from '../../railroad/module.f.mjs'
+import { codePointGuide, grammarDemo } from '../../../website/demo/railroad/module.f.mjs'
 
 /**
- * Each diagram's title and the lowered rule it draws, in the order the page
+ * Each diagram's title and the rule it draws, in the order the page
  * shows them: the document and its statements, the values they hold, then
  * the rules shared with JSON.
  *
- * @type {readonly (readonly [string, string])[]}
+ * @type {readonly Selection[]}
  */
 export const diagrams = [
-    ['dataJs', entry],
-    ['constStatement', nameOf(constStatement)],
-    ['exportStatement', nameOf(exportStatement)],
-    ['value', valueName],
-    ['object', valueBranch(valueName, 'object')],
-    ['array', valueBranch(valueName, 'array')],
-    ['property', nameOf(property)],
-    ['id', nameOf(id)],
-    ['number', nameOf(number)],
-    ['string', nameOf(string)],
-    ['character', nameOf(character)],
-    ['escape', nameOf(escape)],
-    ['hex', nameOf(hex)],
-    ['uint', nameOf(uint)],
-    ['ws', nameOf(ws)],
+    ['dataJs', dataJs],
+    ['constStatement', constStatement],
+    ['exportStatement', exportStatement],
+    ['value', value],
+    ['object', value, 'object'],
+    ['array', value, 'array'],
+    ['property', property],
+    ['id', id],
+    ['number', number],
+    ['string', string],
+    ['character', character],
+    ['escape', escape],
+    ['hex', hex],
+    ['uint', uint],
+    ['ws', ws],
 ]
 
-export const demo = railroadDemo('The DataJS grammar of this module, drawn from its rules. Follow a track from left to right; a pill is text the input holds, and a box is another diagram — select it to go there.')(toDiagrams(codePoints)(ruleSet)(diagrams))
+export const demo = grammarDemo({
+    grammar: dataJs,
+    alphabet: codePoints,
+    description: 'The DataJS grammar of this module, drawn from its rules.',
+    guide: codePointGuide,
+    selections: diagrams,
+})

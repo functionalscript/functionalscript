@@ -1,10 +1,10 @@
 import { bunPin, bunSteps } from './module.f.mjs'
-import { toSteps } from '../common/module.f.mjs'
 import { bun, bunSources } from '../config/module.f.js'
-import { nixDevelop, nixSystem, runPath } from '../nix/module.f.mjs'
+import { nixDevelop, nixSystem } from '../nix/module.f.mjs'
+import { _migratedJobChecks, _runs } from '../nix/testlib.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 
-const runs = toSteps(bunSteps).flatMap(s => s.run !== undefined ? [s.run] : [])
+const runs = _runs(bunSteps)
 
 export const proof = {
     // The whole job, in order: the version check, then this repository's
@@ -18,23 +18,10 @@ export const proof = {
         nixDevelop('bun install --frozen-lockfile'),
         nixDevelop('bun test --coverage'),
     ]),
-    noPublishedPackage: () => assert(
-        !runs.some(run => run.includes('functionalscript@')),
-        'unexpected published-package step'),
-    // No `setup-bun` survives: the runtime comes from the flake, and the only
-    // action the job installs is Nix itself.
-    installsNixOnly: () => {
-        const used = toSteps(bunSteps).flatMap(s => s.uses !== undefined ? [s.uses] : [])
-        assert(!used.some(u => u.startsWith('oven-sh/setup-bun@')), 'unexpected setup-bun')
-        assert(used.some(u => u.startsWith('cachix/install-nix-action@')), 'expected the Nix installer')
-    },
-    // The job has no flake of its own: both commands name `bun`, so what else
-    // the shared shell carries cannot decide what runs them.
-    sharesTheShell: () => {
-        assert(
-            runs.every(run => run.includes(`${runPath()} `)),
-            'expected every command in the shared shell')
-    },
+    // The all-Nix migration's contract. The job has no flake of its own: every
+    // command names `bun`, so what else the shared shell carries cannot decide
+    // what runs them.
+    ..._migratedJobChecks({ steps: bunSteps, retiredAction: 'oven-sh/setup-bun' }),
     // The pin covers whatever systems it is asked for, and each entry names the
     // release the job checks for and the archive that system's packaging
     // expects. Both come from the configured table.

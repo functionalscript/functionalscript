@@ -25,6 +25,7 @@ mod primitive_coercion;
 mod runtime;
 mod string;
 mod string_coercion;
+mod string_numeric_literal;
 mod unpacked;
 pub mod unstable;
 
@@ -40,7 +41,7 @@ pub use crate::vm::{
     number::Number,
     object::{Object, property::Property, to_object::ToObject},
     object_spread::ObjectSpread,
-    runtime::{runtime_method, runtime_static, static_binding},
+    runtime::{runtime_method, runtime_object, runtime_static, static_binding},
     string::{String, to_string::ToString},
     unpacked::Unpacked,
 };
