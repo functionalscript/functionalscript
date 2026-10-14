@@ -34,7 +34,7 @@
  */
 
 import { htmlUtf8 } from '../../media/html/module.f.mjs'
-import { concat as pathConcat } from '../../path/module.f.mjs'
+import { ancestors, basename, concat as pathConcat } from '../../path/module.f.mjs'
 import { demoMarker, faviconLinks, logoPath, stylesheetLink } from '../style/module.f.js'
 import { intersperse, toArray } from '../../types/list/module.f.mjs'
 
@@ -445,14 +445,10 @@ export const directoryLayout = build => dir => main => ['div', { 'data-directory
  *
  * @type {(path: string) => readonly (readonly [string, string])[]}
  */
-const ancestors = path => {
-    const segments = path.split('/')
-    return [
-        /** @type {const} */ (['.', 'root']),
-        ...segments.slice(0, -1).map((name, at) =>
-            /** @type {const} */ ([segments.slice(0, at + 1).join('/'), name])),
-    ]
-}
+const breadcrumbs = path => [
+    /** @type {const} */ (['.', 'root']),
+    ...ancestors(path).map(a => /** @type {const} */ ([a, basename(a)])),
+]
 
 /**
  * The branch the published site is built from. Every other branch's build is
@@ -585,7 +581,7 @@ export const testsMain = (...nodes) => ['main', { 'data-browser-tests': '', 'dat
  * @type {(build: Build) => (dir: Dir) => Vec}
  */
 export const page = build => dir => shell(build)(pageTitle(dir.path))(directoryLayout(build)(dir)(testsMain(
-    ['nav', ...toArray(intersperse(' / ')(ancestors(dir.path).map(([path, name]) =>
+    ['nav', ...toArray(intersperse(' / ')(breadcrumbs(dir.path).map(([path, name]) =>
         /** @type {Element} */(['a', { href: pageHref(path) }, name]))))],
     ['h1', dir.path],
     ...(dir.api === null ? [] : [/** @type {Element} */ (['p', ['a', { href: dir.api }, 'API documentation']])]),

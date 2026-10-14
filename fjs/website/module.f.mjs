@@ -55,7 +55,8 @@ import { utf8 } from '../text/module.f.mjs'
 import { access, exitStep, isNotFound, mkdir, readdir, readUtf8File, readWhole, writeChunks, writeFile, writeUtf8File } from '../effects/node/module.f.mjs'
 import { foldStep, forEachStep, history, historyStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../effects/module.f.mjs'
 import { exportsDemo, exportsProof, local, specifiers } from './browser-source/module.f.mjs'
-import { concat as pathConcat } from '../path/module.f.mjs'
+import { basename, concat as pathConcat, parent } from '../path/module.f.mjs'
+import { resolve } from '../path/import/module.f.mjs'
 import { at, empty as emptyMap, entries, setReplace } from '../types/ordered_map/module.f.mjs'
 import { contains, empty as noPaths, set as addPath, values as paths } from '../types/string_set/module.f.mjs'
 import { toArray } from '../types/list/module.f.mjs'
@@ -173,28 +174,30 @@ const allFiles = tree => tree.flatMap(walked => walked.files.map(inDir(walked)))
 const authoredModules = tree => allFiles(tree).filter(authored).toSorted()
 
 /**
- * A specifier resolved against the module that wrote it: `./x.f.mjs` in
- * `fjs/a/module.f.mjs` is `fjs/a/x.f.mjs`.
+ * The module a specifier in `from` leads to, or `null` where a browser could
+ * not follow it: a bare package, a `node:` builtin, or a relative specifier
+ * [`fjs/path/import`](../path/import/module.f.mjs)'s `resolve` refuses.
  *
- * `${from}/..` is the module's directory said as a path — `concat` normalizes
- * its left side before joining, so the `..` cancels the file name.
+ * That `resolve` is the one the compiler and the virtual host read imports
+ * with, so a specifier means the same file here as there: `./x%20y.mjs` is
+ * `x y.mjs`, as a browser's request for it is, and `./bad%` names nothing.
  *
- * @type {(from: string) => (specifier: string) => string}
+ * @type {(from: string) => (specifier: string) => string | null}
  */
-const resolve = from => specifier => pathConcat(`${from}/..`)(specifier)
+const target = from => specifier => local(specifier) ? resolve(from)(specifier) : null
 
 /**
- * `path`'s own {@link _Imports} record: which of the specifiers `source`
- * names are local, resolved against `path`, and which are not and so would
- * stop a browser linking whatever reaches them.
+ * `path`'s own {@link _Imports} record: the modules the specifiers `source`
+ * names lead to, and, as written, those that lead nowhere a browser can
+ * follow and so would stop it linking whatever reaches them.
  *
  * @type {(path: string) => (source: string) => _Imports}
  */
 const importsOf = path => source => {
-    const found = specifiers(source)
+    const found = specifiers(source).map(specifier => /** @type {const} */ ([specifier, target(path)(specifier)]))
     return {
-        blockers: found.filter(specifier => !local(specifier)),
-        local: found.filter(local).map(resolve(path)),
+        blockers: found.flatMap(([specifier, to]) => to === null ? [specifier] : []),
+        local: found.flatMap(([, to]) => to === null ? [] : [to]),
     }
 }
 
@@ -420,17 +423,6 @@ const generatedName = name =>
     name === 'index.html' || name.startsWith('_') || name.startsWith('.')
 
 /**
- * The directory a module lives in: `fjs/crypto/sha2` for its `demo.f.mjs`,
- * and `.` for a module at the root.
- *
- * @type {(path: string) => string}
- */
-const dirOf = path => {
-    const at = path.lastIndexOf('/')
-    return at === -1 ? '.' : path.slice(0, at)
-}
-
-/**
  * Each directory's demo, by directory, and what was refused.
  *
  * **Discovery is by export, as it is for a proof**: a module is a demo module
@@ -460,7 +452,7 @@ const resolveDemos = demos => {
     /** @type {OrderedMap<readonly Proof[]>} */
     const byDir = demos.reduce(
         (map, demo) => {
-            const dir = dirOf(demo.name)
+            const dir = parent(demo.name)
             return setReplace(dir)(/** @type {readonly Proof[]} */ ([...(at(dir)(map) ?? []), demo]))(map)
         },
         /** @type {OrderedMap<readonly Proof[]>} */ (emptyMap))
@@ -680,9 +672,8 @@ const copyRustdocFile = from => to => name => step(
  * @type {(tree: readonly _Walked[]) => readonly string[]}
  */
 const cratesOf = tree => tree
-    .filter(dir => dir.files.includes('index.html')
-        && dir.path.lastIndexOf('/') === rustdocDir.length)
-    .map(dir => dir.path.slice(rustdocDir.length + 1))
+    .filter(dir => dir.files.includes('index.html') && parent(dir.path) === rustdocDir)
+    .map(dir => basename(dir.path))
 
 /** rustdoc's output walked, the walk kept for the steps after it. */
 const rustdocWalked = history(walk(rustdocDir))

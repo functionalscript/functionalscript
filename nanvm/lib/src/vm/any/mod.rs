@@ -35,10 +35,11 @@ use crate::vm::{
     IVm, Number, String, ToAny, Unpacked,
     boolean_coercion::BooleanCoercion,
     dispatch::Dispatch,
-    error,
+    member_access::{non_nullish_receiver, undefined_if_absent},
     nullish::Nullish,
     number_coercion::NumberCoercion,
     numeric::Numeric,
+    numeric_coercion,
     primitive::Primitive,
     primitive_coercion::{PrimitiveCoercionOp, ToPrimitivePreferredType},
     string_coercion::StringCoercion,
@@ -79,6 +80,13 @@ impl<A: IVm> Any<A> {
     /// it instead and keeps its single conversion.
     pub fn is_nullish(&self) -> bool {
         Unpacked::from(self.clone()).is_nullish()
+    }
+
+    /// `None` for `undefined`, `Some(self)` for every other value, `null`
+    /// included: the argument an optional parameter was passed, if it was
+    /// passed one. `Unpacked::is_undefined` over one unpack of a clone.
+    pub fn defined(self) -> Option<Self> {
+        (!Unpacked::from(self.clone()).is_undefined()).then_some(self)
     }
 
     /// Unary plus is nothing but coercion to number.
@@ -157,29 +165,25 @@ impl<A: IVm> Any<A> {
     /// property lookup — so this is a plain method, the same as
     /// `pow`/`bitwise_not`/`unsigned_right_shift`.
     ///
-    /// The receiver is checked before the key is converted: real `ToObject`
-    /// runs before `ToPropertyKey`
-    /// (<https://tc39.es/ecma262/#sec-object.getownpropertydescriptor>), so
-    /// a nullish receiver throws regardless of what the key is, and a key
-    /// whose conversion throws does so under a receiver that is not. The
-    /// key converts as `ToPropertyKey` converts it, which is `to_string`
-    /// here, the language having no symbols: `0` and `"0"` name one entry,
-    /// and an object converts through its own `toString`. A `Number`,
+    /// The receiver is checked before the key is converted
+    /// (`member_access::non_nullish_receiver`), so a nullish receiver
+    /// throws regardless of what the key is, and a key whose conversion
+    /// throws does so under a receiver that is not. The key converts as
+    /// `ToPropertyKey` converts it, which is `to_string` here, the language
+    /// having no symbols: `0` and `"0"` name one entry, and an object
+    /// converts through its own `toString`. A `Number`,
     /// `Boolean` or `BigInt` receiver owns no entry and answers
-    /// `undefined`, as every absent key does.
+    /// `undefined`, as every absent key does
+    /// (`member_access::undefined_if_absent`).
     pub fn entry(self, key: Self) -> Result<Self, Self> {
-        let unpacked: Unpacked<A> = self.into();
-        if unpacked.is_nullish() {
-            return Err(error::nullish_to_object());
-        }
+        let unpacked = non_nullish_receiver(self)?;
         let key = key.to_string()?;
-        Ok(match unpacked {
+        Ok(undefined_if_absent(match unpacked {
             Unpacked::Object(o) => o.own_property(&key),
             Unpacked::Array(a) => a.entry(&key),
             Unpacked::String(s) => s.entry(&key),
             _ => None,
-        }
-        .unwrap_or_else(Any::undefined))
+        }))
     }
 
     /// Same as `Number.isNaN` in ECMAScript.
@@ -227,11 +231,7 @@ impl<A: IVm> Any<A> {
         if let Unpacked::Function(_) = self.clone().into() {
             return Ok(Numeric::Number(self.to_number()?));
         }
-        let prim_value = self.to_primitive(Some(ToPrimitivePreferredType::Number))?;
-        match prim_value {
-            Primitive::BigInt(bi) => Ok(Numeric::BigInt(bi)),
-            other => Ok(Numeric::Number(Any::from(other).to_number()?)),
-        }
+        numeric_coercion::to_numeric(self.to_primitive(Some(ToPrimitivePreferredType::Number))?)
     }
 
     pub fn to_primitive(
@@ -250,7 +250,7 @@ impl<A: IVm> Any<A> {
 mod tests {
     use crate::{
         naive::Naive,
-        vm::{Any, Nullish, ToAny, ToArray, ToObject, error},
+        vm::{Any, Nullish, ToAny, ToArray, ToObject, Unpacked, error},
     };
 
     type A = Naive;
@@ -313,6 +313,26 @@ mod tests {
             [].to_object().to_any(),
         ] {
             assert!(!v.is_nullish());
+        }
+    }
+
+    /// `undefined` alone is absent: `null` and the falsy values are
+    /// arguments that were passed, and come back unchanged.
+    #[test]
+    fn defined() {
+        assert!(Unpacked::from(Any::<A>::undefined()).is_undefined());
+        assert!(!Unpacked::from(Nullish::Null.to_any::<A>()).is_undefined());
+        assert_eq!(Any::<A>::undefined().defined(), None);
+        for v in [
+            Nullish::Null.to_any::<A>(),
+            false.to_any(),
+            0.0.to_any(),
+            "".into(),
+            [].to_array().to_any(),
+            [].to_object().to_any(),
+        ] {
+            assert!(!Unpacked::from(v.clone()).is_undefined());
+            assert_eq!(v.clone().defined(), Some(v));
         }
     }
 }

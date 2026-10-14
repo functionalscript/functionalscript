@@ -12,10 +12,10 @@
  */
 
 import { resultStep } from '../effects/module.f.mjs'
-import { access, exitStep, mkdir, writeUtf8File } from '../effects/node/module.f.mjs'
-import { step as ioStep } from '../effects/module.f.mjs'
+import { access, exitStep, writeFiles } from '../effects/node/module.f.mjs'
 import { functionalscript, images, node } from './config/module.f.js'
 import {
+    _workflowsDirectory,
     architecture,
     install,
     job,
@@ -35,8 +35,8 @@ import {
     platformNodeSteps,
 } from './node/module.f.mjs'
 import {
+    _nixFlakeFiles,
     nixDevelop,
-    nixFlake,
     nixInstall,
     nixSteps,
 } from './nix/module.f.mjs'
@@ -45,15 +45,12 @@ import { devNixJob } from './dev/module.f.mjs'
 import { denoSteps } from './deno/module.f.mjs'
 import { npmPublishPath, npmPublishWorkflow } from './publish/module.f.mjs'
 
-/** The one directory GitHub reads workflows from. */
-const workflowsDirectory = /** @type {const} */ ('.github/workflows')
-
 /**
  * Where the pipeline writes the CI workflow. GitHub reads any `.yml` in
- * {@link workflowsDirectory}, so the file takes the `gen.` name every generated
+ * {@link _workflowsDirectory}, so the file takes the `gen.` name every generated
  * file has ([CONTRIBUTING.md](../../CONTRIBUTING.md#naming-generated-files)).
  */
-export const ciPath = /** @type {const} */ (`${workflowsDirectory}/gen.ci.yml`)
+export const ciPath = /** @type {const} */ (`${_workflowsDirectory}/gen.ci.yml`)
 
 /**
  * A workflow as the file the generator writes. JSON, which every YAML reader
@@ -273,58 +270,65 @@ const canonicalJobs = packageConsumer => ({
     ...nodeVersionJobs(packageConsumer),
 })
 
-/** @type {(setup: Setup) => Effect<NodeOp, 0, number>} */
-export const ci = ({ nodeExtra, packageConsumer, mergeQueueOnly = [] }) => resultStep(
-    access('Cargo.toml'),
-    result => {
-        const rust = result[0] === 'ok'
-        /** @type {Jobs} */
-        const jobs = {
-            ...Object.fromEntries(os.flatMap(o =>
-                architecture.map(platformJob(rust, nodeExtra(o), mergeQueueOnly.includes(o))(o)))),
-            ...canonicalJobs(packageConsumer),
-        }
-        /** @type {GitHubAction} */
-        const gha = {
-            name: 'CI',
-            on: {
-                pull_request: {},
-                merge_group: {},
-            },
-            // One run per pull request: a push cancels the run of the commit
-            // it supersedes, which would otherwise hold runners for a result
-            // nobody reads. The group is the ref — a pull request's,
-            // `refs/pull/<n>/merge`, is the same for every push to it, while
-            // a merge-queue entry's names its own commit, so no entry cancels
-            // another. The workflow name keeps the group apart from any a
-            // project's own workflows key on the ref.
-            concurrency: {
-                group: '${{ github.workflow }}-${{ github.ref }}',
-                'cancel-in-progress': true,
-            },
-            permissions: {
-                contents: 'read',
-            },
-            jobs,
-        }
-        // A generator creates its output directory: after `gen:clean` on a
-        // fresh checkout nothing else does.
-        const workflowWritten = ioStep(
-            mkdir(workflowsDirectory, { recursive: true }),
-            () => writeUtf8File(ciPath, workflowText(gha)))
+/**
+ * Every file `fjs ci` writes for `setup`, in order, given whether the project
+ * has Rust: the CI workflow, the publish workflow, and the shared shell.
+ *
+ * @type {(setup: Setup) => (rust: boolean) => readonly (readonly [path: string, text: string])[]}
+ */
+const ciFiles = ({ nodeExtra, packageConsumer, mergeQueueOnly = [] }) => rust => {
+    /** @type {Jobs} */
+    const jobs = {
+        ...Object.fromEntries(os.flatMap(o =>
+            architecture.map(platformJob(rust, nodeExtra(o), mergeQueueOnly.includes(o))(o)))),
+        ...canonicalJobs(packageConsumer),
+    }
+    /** @type {GitHubAction} */
+    const gha = {
+        name: 'CI',
+        on: {
+            pull_request: {},
+            merge_group: {},
+        },
+        // One run per pull request: a push cancels the run of the commit
+        // it supersedes, which would otherwise hold runners for a result
+        // nobody reads. The group is the ref — a pull request's,
+        // `refs/pull/<n>/merge`, is the same for every push to it, while
+        // a merge-queue entry's names its own commit, so no entry cancels
+        // another. The workflow name keeps the group apart from any a
+        // project's own workflows key on the ref.
+        concurrency: {
+            group: '${{ github.workflow }}-${{ github.ref }}',
+            'cancel-in-progress': true,
+        },
+        permissions: {
+            contents: 'read',
+        },
+        jobs,
+    }
+    return [
+        [ciPath, workflowText(gha)],
         // The publish workflow is a function of the configuration alone — no
         // job of it varies with the project's Rust, its compiler pin, or the
         // caller's `Setup` — so it is written rather than built here.
-        const publishWritten = ioStep(
-            workflowWritten,
-            () => writeUtf8File(npmPublishPath, workflowText(npmPublishWorkflow)))
+        [npmPublishPath, workflowText(npmPublishWorkflow)],
         // The shared environment is independent of the project's Rust: even
         // a project without Cargo.toml gets the complete selected toolset.
         // Six of the nine jobs enter it; Intel macOS, the two Windows jobs
         // and the packed-consumer steps use tools installed outside Nix.
-        const shellWritten = ioStep(publishWritten, () => nixFlake(devNixJob))
-        return exitStep(shellWritten)
-    })
+        ..._nixFlakeFiles(devNixJob),
+    ]
+}
+
+/**
+ * Writes {@link ciFiles}, once `Cargo.toml` has said whether the project has
+ * Rust.
+ *
+ * @type {(setup: Setup) => Effect<NodeOp, 0, number>}
+ */
+export const ci = setup => resultStep(
+    access('Cargo.toml'),
+    result => exitStep(writeFiles(ciFiles(setup)(result[0] === 'ok'))))
 
 /**
  * The built-in `fjs ci`, the generator any project gets: no extra platform

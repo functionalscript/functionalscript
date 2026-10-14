@@ -12,21 +12,12 @@ import { parser } from '../../ll1/module.f.mjs'
 import { content, id, isTrivia, mergeTrivia, newLine, number, operator, operators, slash, template, templateAfterDollar, templateContent, templateContinuation, templateEscape, token, ws } from './module.f.mjs'
 import { demo, diagrams } from './demo.f.mjs'
 import { diagramPage } from '../../testlib.f.mjs'
+import { items, unmapped, variant } from '../../ast/module.f.mjs'
 
 const cp = /**@type {const}*/({ id: 'cp' })
 
 /** @type {(s: string) => readonly Meta<typeof cp>[]} */
 const cps = s => toArray(stringToCodePointList(s)).map(symbol => ({ symbol, meta: cp }))
-
-/**
- * The node at a position no mapping filled: an array the machine built.
- *
- * @type {<T extends readonly unknown[]>(node: T | Meta<unknown>) => T}
- */
-const unmapped = node => {
-    assert(node instanceof Array)
-    return node
-}
 
 /**
  * The text under a node: its input symbols in order, a variant's tag
@@ -38,22 +29,6 @@ const symbols = node =>
     typeof node === 'string' ? [] :
     node instanceof Array ? node.flatMap(symbols) :
     [node.symbol]
-
-/**
- * A variant's node, read untyped: its tag and the branch's node.
- *
- * @type {(node: unknown) => readonly [string, unknown]}
- */
-const branch = node => {
-    assert(node instanceof Array && node.length === 2 && typeof node[0] === 'string')
-    return [node[0], node[1]]
-}
-
-/** @type {(node: unknown) => readonly unknown[]} */
-const items = node => {
-    assert(node instanceof Array)
-    return node
-}
 
 const parseToken = parser(token)
 
@@ -176,16 +151,16 @@ export const proof = {
             assertStructurallySame(read('/* x'), ['multiline', '/* x', 4])
             const [node] = unwrap(parseToken(cps('/* x *')))
             // `slash`, then its `multiline` branch: `*` and `content`.
-            const [, slashNode] = branch(node)
-            const [, multiline] = branch(items(slashNode)[1])
+            const [, slashNode] = variant(node)
+            const [, multiline] = variant(items(slashNode)[1])
             const [, c0] = items(multiline)
             // ` `, `x` and ` ` are `other`, each followed by more content;
             // `*` is `star`, and what follows it at the end of input is
             // `unterminated`.
-            const [t1, o1] = branch(c0)
-            const [t2, o2] = branch(items(o1)[1])
-            const [t3, o3] = branch(items(o2)[1])
-            const [t4, s] = branch(items(o3)[1])
+            const [t1, o1] = variant(c0)
+            const [t2, o2] = variant(items(o1)[1])
+            const [t3, o3] = variant(items(o2)[1])
+            const [t4, s] = variant(items(o3)[1])
             assertStructurallySame([t1, t2, t3, t4], ['other', 'other', 'other', 'star'])
             assertStructurallySame(items(s)[1], ['unterminated', []])
         },

@@ -17,7 +17,7 @@ spelling, so each module that needs it writes its own:
   continuous string, either case.
 - [`fjs/text/percent`](../../text/percent/module.f.mjs) — `escapeByte` reads
   the two digits after a `%`.
-- [`fjs/git/refstore`](../../git/refstore/module.f.mjs) — `nameForMessage`
+- [`fjs/git/refstore/name`](../../git/refstore/name/module.f.mjs) — `nameForMessage`
   spells a name's bytes with `toString(16).padStart(2, '0')`.
 - [`fjs/types/uint8array`](../../types/uint8array/module.f.mjs) —
   `hexOfByte` and `hexOf` spell bytes in lowercase, and `fromVec` reads a

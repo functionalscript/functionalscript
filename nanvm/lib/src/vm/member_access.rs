@@ -3,11 +3,31 @@
 //! by an in-bounds integer, given as a `Number` or its canonical decimal
 //! string, and both answer `"length"`, so the rule lives once here and each
 //! receiver supplies only how it reads an element.
+//!
+//! Around every receiver read, `Any::entry` and the `.` node's `Member`
+//! alike, sit the two policies they share: [`non_nullish_receiver`] opens
+//! the read and [`undefined_if_absent`] closes it.
 
 use crate::{
     common::sized_index::SizedIndex,
-    vm::{Any, IVm, Number, String, ToAny, Unpacked},
+    vm::{Any, IVm, Number, String, ToAny, Unpacked, error},
 };
+
+/// The receiver unpacked, or the `TypeError` a nullish receiver throws —
+/// before any key handling, as `ToObject` runs before `ToPropertyKey`
+/// (<https://tc39.es/ecma262/#sec-object.getownpropertydescriptor>).
+pub(crate) fn non_nullish_receiver<A: IVm>(v: Any<A>) -> Result<Unpacked<A>, Any<A>> {
+    let unpacked = Unpacked::from(v);
+    if unpacked.is_nullish() {
+        return Err(error::nullish_to_object());
+    }
+    Ok(unpacked)
+}
+
+/// The property read, `undefined` where the receiver has no such member.
+pub(crate) fn undefined_if_absent<A: IVm>(v: Option<Any<A>>) -> Any<A> {
+    v.unwrap_or_else(Any::undefined)
+}
 
 /// The one name every indexed receiver and a function answer besides their
 /// indices: `Array`'s, `String`'s and `Function`'s `.length`.

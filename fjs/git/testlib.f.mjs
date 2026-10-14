@@ -1,6 +1,7 @@
 /**
- * Fixtures shared by the proofs of the Git object readers: real objects,
- * captured once with `git cat-file` and checked in as bytes.
+ * Fixtures shared by the proofs of the Git readers: real objects, captured
+ * once with `git cat-file` and checked in as bytes, and the `config` files
+ * `git init` writes, as text.
  *
  * @module
  *
@@ -618,3 +619,28 @@ export const packMixedIdx = hexBytes([
     '0000020d00000221000001749a32788c2cd72bdef63b26b7320c2fc2729359bf50722a79',
     'f5b463023bd773589532083f2e852816',
 ].join(''))
+
+/**
+ * The `config` `git init` writes, on Git 2.43 and a case-insensitive
+ * filesystem.
+ */
+export const initConfig = [
+    '[core]',
+    '\trepositoryformatversion = 0',
+    '\tfilemode = true',
+    '\tbare = false',
+    '\tlogallrefupdates = true',
+    '\tignorecase = true',
+    '\tprecomposeunicode = true',
+].join('\n')
+
+/** The `config` `git init --object-format=sha256` writes. */
+export const initSha256Config = [
+    '[core]',
+    '\trepositoryformatversion = 1',
+    '\tfilemode = true',
+    '\tbare = false',
+    '\tlogallrefupdates = true',
+    '[extensions]',
+    '\tobjectformat = sha256',
+].join('\n')

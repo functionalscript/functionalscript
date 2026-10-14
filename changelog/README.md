@@ -7,9 +7,8 @@ and the pre-1.0 policy uses the latitude allowed by
 [Semantic Versioning §4](https://semver.org/spec/v2.0.0.html#spec-item-4).
 
 Entries are written **once per release**, from the pull requests that shipped in
-it. A pull request adds no changelog file. Release PRs write those files;
-forward-port or archival PRs may copy already-published urgent-release notes
-unchanged to `main`. Before 1.0, release-note material and
+it. A pull request adds no changelog file: a release's notes pull request writes
+it, after the version publishes. Before 1.0, release-note material and
 `**BREAKING CHANGES:**` notices in its description are optional. The release
 policy after 1.0 remains [undecided](../todo/post-1.0-release-policy.md).
 The release procedure is [RELEASE.md](./RELEASE.md).
@@ -19,26 +18,17 @@ The release procedure is [RELEASE.md](./RELEASE.md).
 ```
 changelog/
   README.md        this file
-  RELEASE.md       how a release collects its entries
+  RELEASE.md       how a release is published and its notes written
   <version>.md     one file per release — every release has one
-  unreleased/
-    <PR>.md        left over from the per-pull-request scheme; a release
-                   consumes it (RELEASE.md)
 ```
 
-A renderer reads **one released form**, and one transient directory that may
-reappear:
-
-- **`<version>.md`** — one file per release, holding that release's entries in
-  order of importance. Every release has one. **A renderer must handle two
-  reference styles, and both can appear in one file**: an inline
-  `[#NNN](url)` link, and a plain `(#NNN)` reference it turns into a link
-  itself. New entries use the plain form; the link survives where an entry was
-  published with one, and the oldest releases have neither.
-- **`unreleased/<PR>.md`** — one file per pull request, for work not yet
-  released. Nothing adds to it any more, but a pull request opened under the old
-  policy recreates it whenever it merges, so a release consumes it whenever it
-  is non-empty ([RELEASE.md](./RELEASE.md)).
+A renderer reads **one released form**: `<version>.md`, one file per release,
+holding that release's entries in order of importance. Every release has one
+once its notes pull request merges. **A renderer must handle two reference
+styles, and both can appear in one file**: an inline `[#NNN](url)` link, and a
+plain `(#NNN)` reference it turns into a link itself. New entries use the plain
+form; the link survives where an entry was published with one, and the oldest
+releases have neither.
 
 `0.45.0` through `0.48.0` were directories of per-pull-request files, rendered
 by joining them in descending pull-request-number order. They are single files
@@ -74,8 +64,9 @@ to order them: [RELEASE.md](./RELEASE.md).
   What is missing is the number, not necessarily the pull request: a direct push
   never had one, and a rebase merge drops the reference from a pull request that
   did exist. Either way the SHA is the reference the entry can carry.
-  `RELEASE.md` step 2 says why such commits exist and requires the release author
-  to read their diffs and collect notable changes for release notes. Mixing the
+  [RELEASE.md](./RELEASE.md#2-list-the-pull-requests-in-the-window) says why
+  such commits exist and requires the notes author to read their diffs and
+  collect notable changes for release notes. Mixing the
   two in one entry is fine. Do not link to, or
   name in plain text, an issue or a `todo/` file: issue files are deleted when
   the work is done, so those references rot and mean nothing to a reader of the
@@ -87,8 +78,8 @@ to order them: [RELEASE.md](./RELEASE.md).
 - **Before 1.0, breaking-change markers are optional in entries too.** Describe
   the old shape, the new one, and the one-line migration its pull request
   gave. Where that pull request gave none, the entry says what changed and
-  stops: a release author writes a migration down, never invents one
-  ([RELEASE.md](./RELEASE.md#6-write-changelogxyzmd)).
+  stops: a notes author writes a migration down, never invents one
+  ([RELEASE.md](./RELEASE.md#5-write-changelogxyzmd)).
 - **CI generation is not stable for third-party consumption.** `fjs/ci` and the
   `NixJob`, `MetaStep` and Nix-expression shapes it generates from are this
   repository's own build machinery, not published API anyone is invited to
@@ -119,10 +110,11 @@ to order them: [RELEASE.md](./RELEASE.md).
   declaration-driven bumps add little value. SemVer §4 allows anything to
   change before 1.0. Consumers crossing a minor boundary should review the
   release notes.
-- **Urgent fixes start at `0.X.1`, from the corresponding `0.X.0` release
-  commit.** Include only the required fixes and release metadata, excluding
-  subsequent development on `main`. If another urgent fix is needed, branch
-  from the preceding fix release and increment the patch (`0.X.2`, `0.X.3`,
+- **Urgent fixes start at `0.X.1`, from the `gitHead` of the corresponding
+  `0.X.0` release**, the commit npm published it from. Include only the
+  required fixes and release metadata, excluding subsequent development on
+  `main`. If another urgent fix is needed, branch from the preceding fix
+  release's `gitHead` and increment the patch (`0.X.2`, `0.X.3`,
   etc.); never reuse a published version. The next regular release still
   advances the minor and resets the patch. See
   [RELEASE.md](./RELEASE.md#urgent-fixes-before-10) for publishing this branch.
@@ -130,18 +122,19 @@ to order them: [RELEASE.md](./RELEASE.md).
   notices return, and how release branches and version bumps work at that stage,
   remain [open questions](../todo/post-1.0-release-policy.md).
   Existing published versions keep their numbers.
-- Releasing is its own pull request, titled `Release X.Y.Z`: the version lives in
-  `package.json` (`"version"`) — `deno.json` holds tasks and formatting only —
-  and the entries are collected into `changelog/X.Y.Z.md` by
-  [RELEASE.md](./RELEASE.md). Releases through `0.44.0` were written under the
-  older entry rules; leave them as they are.
-- **The release window is re-derived rather than assumed**, and when it is
-  re-derived, from which ref, and in what form are
-  [RELEASE.md](./RELEASE.md#7-open-the-release-pull-request)'s to state — this
-  file does not repeat them. For a regular release, a pull request that merges
-  to `main` while the release pull request is open belongs to the release, and
-  nothing on the release branch notices on its own.
+- Releasing is two pull requests ([RELEASE.md](./RELEASE.md)). The first,
+  titled `Release X.Y.Z`, changes the version in `package.json` (`"version"`)
+  and `package-lock.json` and nothing else — `deno.json` holds tasks and
+  formatting only — and merging it into `main` publishes. The second, once the
+  version has published, collects the entries into `changelog/X.Y.Z.md`.
+  Releases through `0.44.0` were written under the older entry rules; leave
+  them as they are.
+- **The release window is the published one.** npm records the commit it
+  published a version from as its `gitHead`, and a release's notes cover the
+  commits between the previous version's `gitHead` and its own. A pull request
+  that merges to `main` while a bump is open belongs to the release, and the
+  notes see it because they are written after the version publishes.
 - **The repository has no Git tags and is not going to get any.** A tag would be
-  a second copy of a fact the tree already carries — the release boundary is the
-  release commit itself, and what shipped in a release is its changelog file —
+  a second copy of a fact npm already records — the release boundary is the
+  version's `gitHead`, and what shipped in a release is its changelog file —
   and one a release could forget to write.

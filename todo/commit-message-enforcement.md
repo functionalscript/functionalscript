@@ -56,7 +56,7 @@ every API change. An API-surface diff could report candidates; behavior changes 
 escape it, so it would need its own proposal and could not replace review.
 
 A release-side check can validate regular pre-1.0 minor bumps and urgent patch
-progression from the corresponding release commit without parsing notices.
+progression from the corresponding release's `gitHead` without parsing notices.
 If a future policy adopts declaration-based checks, those would need an
 enforced-format window; unstructured historical descriptions can advise, never
 establish completeness.
@@ -76,7 +76,7 @@ it outright but require an Enterprise plan.
       present) as a self-hosted `fjs/ci` module
 - [ ] Release-side check: before 1.0 validate regular `0.X.0` releases and
       urgent fixes `0.X.1`, then successive patches from the prior fix release,
-      based on the corresponding release commit. Do not require or parse
+      based on the corresponding release's `gitHead`. Do not require or parse
       breaking-change notices to select a pre-1.0 bump. Use `origin/main` for
       regular windows and the maintenance tip for urgent windows
 - [ ] Defer checks for releases after 1.0 until the
@@ -94,13 +94,6 @@ it outright but require an Enterprise plan.
         and the "every commit is one reviewed pull request" property the release
         listing depends on comes from this rule alone
   - [ ] mark the lint a required status check
-  - [ ] **require branches to be up to date before merging.** This is what
-        closes the release's time-of-check/time-of-merge gap: a release pull
-        request scans `origin/main`, and anything merging between that scan and
-        the release merge ships unrecorded
-        ([changelog/RELEASE.md](../changelog/RELEASE.md#7-open-the-release-pull-request)).
-        The setting blocks the merge button once `main` advances, turning a race
-        into a forced re-scan
 - [ ] Post-merge audit: on `push` to `main`, verify the landed commit message
       matches the pull request title `(#NNN)` and description
 - [ ] File the API-surface diff separately if it is wanted; do not fold it into

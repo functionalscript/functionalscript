@@ -402,10 +402,9 @@ allowed in its network policy for that step.
 A pull request implements only one feature or improvement, with minimal code
 changes. Before submitting, ensure every check above passes and delete the
 `todo/` issue file it fixes, if there is one. It adds **no changelog file**: the
-changelog is written once per release from the pull requests that shipped in it
-([changelog/RELEASE.md](./changelog/RELEASE.md)). Release PRs write those files;
-forward-port or archival PRs may copy already-published urgent-release notes
-unchanged to `main`. Before 1.0, a pull request may
+changelog is written once per release from the pull requests that shipped in it,
+by the release's notes pull request after the version publishes
+([changelog/RELEASE.md](./changelog/RELEASE.md)). Before 1.0, a pull request may
 leave optional release-note material in its description, as described below.
 The everyday workflow around this is [AGENTS.md §1](./AGENTS.md#1-workflow).
 
@@ -442,8 +441,9 @@ messages are not working notes: write each one for a reader who meets it on
   `AGENTS.md`), the same topic the CHANGELOG entry starts with; the
   description is imperative, lower-case after the colon, and has no trailing
   period. Keep it within 72 characters **including** the ` (#NNN)` GitHub
-  appends, and never write a `(#NNN)` of your own. A release pull request's
-  title is `Release X.Y.Z`.
+  appends, and never write a `(#NNN)` of your own. A release's bump pull
+  request is titled `Release X.Y.Z`, and its notes pull request
+  `changelog: write the X.Y.Z notes`.
 - **Description.** Free prose — motivation, design, measurements, alternatives
   considered. A change worth a release note may add an optional `Changelog:`
   section, last before any trailer block (`Co-Authored-By:`, generated-with
@@ -463,7 +463,7 @@ messages are not working notes: write each one for a reader who meets it on
     fixed-length tuple; the `Repeat` type is gone
   ```
 
-  The section is raw material: the release author rewrites entries over the
+  The section is raw material: the notes pull request rewrites entries over the
   whole window, grouping related pull requests into one entry
   ([changelog/RELEASE.md](./changelog/RELEASE.md)). A pull request that changes
   no observable behavior omits the section entirely.

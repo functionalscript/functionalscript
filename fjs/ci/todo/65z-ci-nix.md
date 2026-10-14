@@ -624,7 +624,7 @@ they do not retain or restore Node 22/24 support.
       the runner-native generated-file drift check
       (`git add -A && git diff --cached --exit-code`,
       `fjs/ci/node/module.f.mjs:140`) deliberately stays outside the shell,
-      as [migrated-job-proof](./migrated-job-proof.md) records.
+      as [`../nix/testlib.f.mjs`](../nix/testlib.f.mjs) records.
 - [x] Validate each Node job independently with its existing commands and order.
 - [x] Keep tracked checkout state unchanged.
 - [x] Migrate jobs one at a time — Node 24, then Node 26, then Node 22, then `deno`.

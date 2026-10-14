@@ -22,6 +22,16 @@ grant, a provenance rejection, a registry outage and a genuinely broken package
 all end the same way: a green workflow and no package. The one failure mode this
 workflow exists to report is the one it cannot.
 
+It also hides which commit a version holds. Two pushes to `main` close together
+start two publish runs of the same version, and whichever reaches
+`npm publish` first decides the tree; the other's 403 is absorbed with the rest.
+The release procedure reads a release's window from the version's `gitHead`
+([changelog/RELEASE.md](../../../changelog/RELEASE.md)), so its notes stay
+right, but the release can then hold a pull request that merged after its bump.
+Asking the registry does not close that race, since both runs see the version
+unpublished. A `concurrency` group does not close it either, because GitHub
+cancels the older pending run of a group when a newer one queues.
+
 It is also the only `continue-on-error` in either generated workflow, which is
 why `fjs/ci/common/module.f.mjs` admits the field as the literal `true` rather
 than as a boolean — there is one step it is for.
@@ -45,6 +55,9 @@ absorbs, so every other failure stays red. Sketch, not a design:
 
 - ask the registry for the published versions of the package under test, and
   run the publish step only when `package.json`'s version is not among them;
+- or publish only from the commit that changed the version, the push whose
+  parent's `package.json` carries another one, which also closes the race
+  above;
 - drop `continue-on-error` once the publish only runs for a version that is new,
   and narrow `stepSchema` back if nothing else needs the field.
 
@@ -65,6 +78,8 @@ next) may be the cheaper answer, or may not.
 ### Tasks
 
 - [ ] Decide how the workflow learns whether the version is already published.
+- [ ] Publish a version only from the commit that changed it, so a later push
+      cannot publish the release's version with its own tree.
 - [ ] Run the publish only for a new version. When maintenance publishing is
       implemented, cover the selected release line as well as main; coordinate
       with [maintenance-release-publishing.md](./maintenance-release-publishing.md).

@@ -6,26 +6,24 @@
  * @module
  *
  * @import { Exp, Index, Op12, Op2, Spread, StepOver } from '../../edag/types.ts'
- * @import { AstAccess, AstBinary, AstBitnot, AstNot, AstTypeof, AstInstanceOf, AstNumber, AstString, AstKey, AstBody, AstCall, AstConditional, AstConst, AstEntry, AstFunction, AstGuardedCall, AstImport, AstItem, AstModule, AstNeg, AstSpread, AstStep, AstThrow } from '../ast/types.ts'
- * @import { _ImportSource, _Source } from '../source/types.ts'
+ * @import { AstAccess, AstBinary, AstInstanceOf, AstKey, AstBody, AstCall, AstConditional, AstConst, AstEntry, AstFunction, AstGuardedCall, AstImport, AstItem, AstModule, AstSpread, AstStep, AstThrow, AstUnary, UnaryTag } from '../ast/types.ts'
+ * @import { _Load } from '../source/types.ts'
  * @import { ParseError } from '../parser/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { ReadWhole, ResolveFileModule } from '../../effects/node/types.ts'
  * @import { EdagValue } from '../../edag/value/types.ts'
  * @import { Unknown as JsonUnknown } from '../../media/json/types.ts'
  * @import { Unresolved } from './types.ts'
- * @import { _Binding, _Entries, _Link, _Lowered, _LoweredEntry, _LoweredItem, _LoweredOver, _LowerResults, _LowerWork, _Nodes, _Resolved } from './private.ts'
+ * @import { _Entries, _Lowered, _LoweredEntry, _LoweredItem, _LoweredOver, _LowerResults, _LowerWork, _Nodes, _Resolved } from './private.ts'
  */
 
-import { anchors, isBinary, isInlinedCall, isLazy, isSpread, readCaptures } from '../ast/module.f.mjs'
+import { anchors, isBinary, isInlinedCall, isLazy, isSpread, isUnary, readCaptures } from '../ast/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
 import { fromValue } from '../../edag/module.f.mjs'
-import { _attributeError, _fileError, _importSources, _missingExport, _rootSource, _parseJson, _parseModule } from '../source/module.f.mjs'
-import { foldStep, mapStep, pureError, pureOk, step } from '../../effects/module.f.mjs'
-import { at, setReplace } from '../../types/ordered_map/module.f.mjs'
-import { drop, includes } from '../../types/list/module.f.mjs'
+import { _rootSource, _parseJson, _walk } from '../source/module.f.mjs'
+import { mapStep, step } from '../../effects/module.f.mjs'
 import { assertNotNullish, todo } from '../../asserts/module.f.mjs'
-import { unwrap } from '../../types/result/module.f.js'
+import { ok, unwrap } from '../../types/result/module.f.js'
 
 const args = /** @type {const} */ (['args'])
 
@@ -312,7 +310,7 @@ const slotKeys = nodes => {
  * length ({@link lower}'s own comment has why that one gets an explicit
  * stack instead).
  *
- * @type {(nodes: _Nodes) => (ast: Exclude<AstConst, AstNeg | AstBitnot | AstNot | AstTypeof | AstInstanceOf | AstNumber | AstString | AstBinary | AstConditional | AstThrow>) => _Lowered}
+ * @type {(nodes: _Nodes) => (ast: Exclude<AstConst, AstUnary | AstInstanceOf | AstBinary | AstConditional | AstThrow>) => _Lowered}
  */
 const lowerLeaf = nodes => ast => {
     if (ast === undefined) { return plain(undefinedNode()) }
@@ -340,6 +338,10 @@ const lowerLeaf = nodes => ast => {
         // the `entry` helper, the EDAG's own node for it — a fresh one per
         // helper written, as every arrow is a node of its own
         case 'entry': { return plain(['entry']) }
+        // `Object.is`, the EDAG's own node for it — a node per read, each
+        // answered by every executor with the one function its runtime
+        // holds, however often it is read
+        case 'Object.is': { return plain(['Object.is']) }
         case '()': { return call(nodes)(ast) }
         case '?.()': { return guardedCall(nodes)(ast) }
         // an access, plain or guarded: the EDAG's own form already, its key
@@ -350,6 +352,17 @@ const lowerLeaf = nodes => ast => {
         default: { return access(nodes)(ast) }
     }
 }
+
+/**
+ * A unary operator's or a `throw`'s EDAG over its lowered operand, the
+ * EDAG's own `op1` or one-operand `op12` under the same tag — but for a
+ * negation of a numeric literal, which folds to the number, {@link lower}.
+ * The fold reads the operand lowered, not as written, so `-a` over
+ * `const a = 1` folds as `-1` does, and `- -1` to `1`.
+ *
+ * @type {(tag: UnaryTag | 'throw', exp: Exp) => Exp}
+ */
+const unaryExp = (tag, exp) => tag === '-' && (typeof exp === 'number' || typeof exp === 'bigint') ? -exp : [tag, exp]
 
 /**
  * One entry's EDAG. A reference is the node it names — a `const` is one
@@ -413,14 +426,12 @@ const lower = nodes => root => {
                 work = { kind: 'expand', ast: ast[1], rest: { kind: 'expand', ast: ast[2], rest: { kind: 'binary', tag: ast[0], rest } } }
                 continue
             }
+            if (isUnary(ast) || ast[0] === 'throw') {
+                work = { kind: 'expand', ast: ast[1], rest: { kind: 'unary', tag: ast[0], rest } }
+                continue
+            }
             switch (ast[0]) {
-                case '-': { work = { kind: 'expand', ast: ast[1], rest: { kind: 'neg', rest } }; break }
-                case '~': { work = { kind: 'expand', ast: ast[1], rest: { kind: 'bitnot', rest } }; break }
-                case '!': { work = { kind: 'expand', ast: ast[1], rest: { kind: 'not', rest } }; break }
-                case 'typeof': { work = { kind: 'expand', ast: ast[1], rest: { kind: 'typeof', rest } }; break }
                 case 'instanceof': { work = { kind: 'expand', ast: ast[1], rest: { kind: 'instanceof', name: ast[2], rest } }; break }
-                case 'Number': case 'String': { work = { kind: 'expand', ast: ast[1], rest: { kind: ast[0], rest } }; break }
-                case 'throw': { work = { kind: 'expand', ast: ast[1], rest: { kind: 'throw', rest } }; break }
                 case '?:': {
                     work = { kind: 'expand', ast: ast[1], rest: { kind: 'expand', ast: ast[2], rest: { kind: 'expand', ast: ast[3], rest: { kind: 'ternary', rest } } } }
                     break
@@ -432,38 +443,12 @@ const lower = nodes => root => {
             }
             continue
         }
-        if (work.kind === 'neg') {
+        if (work.kind === 'unary') {
             /** @type {_LowerWork} */
             const rest = work.rest
-            const operand = assertNotNullish(results, ['no operand for a negation', root])
-            const { exp, anchors } = operand.top
-            /** @type {Exp} */
-            const value = typeof exp === 'number' || typeof exp === 'bigint' ? -exp : ['-', exp]
-            results = { top: { exp: value, anchors }, rest: operand.rest }
-            work = rest
-            continue
-        }
-        if (work.kind === 'bitnot') {
-            /** @type {_LowerWork} */
-            const rest = work.rest
-            const operand = assertNotNullish(results, ['no operand for a bitwise not', root])
-            results = { top: { exp: ['~', operand.top.exp], anchors: operand.top.anchors }, rest: operand.rest }
-            work = rest
-            continue
-        }
-        if (work.kind === 'not') {
-            /** @type {_LowerWork} */
-            const rest = work.rest
-            const operand = assertNotNullish(results, ['no operand for a logical not', root])
-            results = { top: { exp: ['!', operand.top.exp], anchors: operand.top.anchors }, rest: operand.rest }
-            work = rest
-            continue
-        }
-        if (work.kind === 'typeof') {
-            /** @type {_LowerWork} */
-            const rest = work.rest
-            const operand = assertNotNullish(results, ['no operand for a typeof', root])
-            results = { top: { exp: ['typeof', operand.top.exp], anchors: operand.top.anchors }, rest: operand.rest }
+            const tag = work.tag
+            const operand = assertNotNullish(results, ['no operand for', tag, root])
+            results = { top: { exp: unaryExp(tag, operand.top.exp), anchors: operand.top.anchors }, rest: operand.rest }
             work = rest
             continue
         }
@@ -474,22 +459,6 @@ const lower = nodes => root => {
             // the constructor name is carried across as it is: the EDAG's
             // own node names it, and nothing folds
             results = { top: { exp: ['instanceof', operand.top.exp, work.name], anchors: operand.top.anchors }, rest: operand.rest }
-            work = rest
-            continue
-        }
-        if (work.kind === 'Number' || work.kind === 'String') {
-            /** @type {_LowerWork} */
-            const rest = work.rest
-            const operand = assertNotNullish(results, ['no operand for a conversion', work.kind, root])
-            results = { top: { exp: [work.kind, operand.top.exp], anchors: operand.top.anchors }, rest: operand.rest }
-            work = rest
-            continue
-        }
-        if (work.kind === 'throw') {
-            /** @type {_LowerWork} */
-            const rest = work.rest
-            const operand = assertNotNullish(results, ['no value for a throw', root])
-            results = { top: { exp: ['throw', operand.top.exp], anchors: operand.top.anchors }, rest: operand.rest }
             work = rest
             continue
         }
@@ -680,74 +649,26 @@ const jsonLiteral = fromValue(todo)
  */
 export const jsonValue = value => /** @type {EdagValue} */ (jsonLiteral(value))
 
-/**
- * A module's EDAG recorded under its identity, and the chain of imports left as
- * it was before the module was entered.
- *
- * @type {(id: string) => (context: _Link) => (edag: Exp) => readonly [_Link, _Resolved]}
- */
-const completed = id => context => edag => {
-    /** @type {_Resolved} */
-    const resolved = {
-        exports: edag,
-        bindings: _moduleExports(edag).map(([, key]) => [key, key === 'default' ? _defaultExport(edag) : ['.', edag, key]]),
-    }
-    return [{
-        complete: setReplace(id)(resolved)(context.complete),
-        stack: drop(1)(context.stack),
-    }, resolved]
-}
-
-/** @type {(id: string) => (context: _Link) => (value: JsonUnknown) => readonly [_Link, _Resolved]} */
-const completedJson = id => context => value => completed(id)(context)(['{}', [[':', 'default', jsonValue(value)]]])
-
-/** Require the selected export even if its binding is unused. @type {(source: _ImportSource) => (binding: _Binding) => Effect<ReadWhole | ResolveFileModule, _Binding, ParseError>} */
-const linkImport = source => ({ context, bound }) => step(link(source)(context), ([linked, resolved]) => {
-    const selected = source.name === null ? resolved.exports : resolved.bindings.find(([key]) => key === source.name)?.[1]
-    return selected === undefined
-        ? pureError(_missingExport(source))
-        : pureOk({ context: linked, bound: [...bound, selected] })
+/** A module's EDAG and its bindings, each export selected as an import reads it. @type {(edag: Exp) => _Resolved} */
+const resolved = edag => ({
+    exports: edag,
+    bindings: _moduleExports(edag).map(([, key]) => [key, key === 'default' ? _defaultExport(edag) : ['.', edag, key]]),
 })
 
 /**
- * A parsed module linked: its imports resolved in source order, each to its
- * own EDAG, and the module lowered over them — the binding happens where a
- * reference is lowered, so the graph is built once, with the imported
- * module's node where its parameter would be.
+ * What the linker makes of a module: its EDAG, lowered over the EDAGs its
+ * imports select — the binding happens where a reference is lowered, so the
+ * graph is built once, with the imported module's node where its parameter
+ * would be, and a diamond of imports joins at one node. A JSON module is the
+ * tree its document denotes, under `default`.
  *
- * @type {(source: _Source) => (context: _Link) => (module: AstModule) => Effect<ReadWhole | ResolveFileModule, readonly [_Link, _Resolved], ParseError>}
+ * @type {_Load<_Resolved, Exp, never>}
  */
-const linkModule = source => context => module => mapStep(
-    foldStep(_importSources(source)(module[0]), { context, bound: [] }, linkImport),
-    ({ context: linked, bound }) => completed(source.id)(linked)(lowered(bound)(module)))
-
-/**
- * The source resolved to its EDAG within one link: a module identity met
- * again is the node it resolved to the first time, so a diamond of imports
- * joins at one node, and a module met again while it is still being entered
- * is a cycle. A JSON module is read as a document, as its import says with
- * `with { type: "json" }`; a `.json` file imported without it, or another
- * file imported with it, is refused as JavaScript refuses it.
- *
- * @type {(source: _Source) => (context: _Link) => Effect<ReadWhole | ResolveFileModule, readonly [_Link, _Resolved], ParseError>}
- */
-const link = source => context => {
-    const { id, path, json } = source
-    // the import's own contract, checked before the file's state: a file
-    // met before is refused all the same when this import misspells it
-    const mismatch = _attributeError(source)
-    if (mismatch !== null) { return pureError(mismatch) }
-    if (includes(id)(context.stack)) { return pureError(_fileError(path)('circular dependency')) }
-    const done = at(id)(context.complete)
-    if (done !== null) { return pureOk([context, done]) }
-    const entered = { ...context, stack: { first: id, tail: context.stack } }
-    return json
-        ? mapStep(_parseJson(path), completedJson(id)(entered))
-        : step(_parseModule(path), linkModule(source)(entered))
+const linking = {
+    json: value => resolved(['{}', [[':', 'default', jsonValue(value)]]]),
+    select: ({ exports, bindings }, name) => name === null ? exports : bindings.find(([key]) => key === name)?.[1],
+    module: (_, imports, module) => ok(resolved(lowered(imports)(module))),
 }
-
-/** @type {(linked: readonly [_Link, _Resolved]) => Exp} */
-const edagOf = ([, resolved]) => resolved.exports
 
 /**
  * The program at `path` as one EDAG: the module read and parsed, each of
@@ -769,4 +690,4 @@ export const resolve = path => step(_rootSource(path), source => source.json
     // The CLI extension selects JSON input even when realpath follows an alias
     // to a differently named file. Import attributes still use the target path.
     ? mapStep(_parseJson(source.path), jsonValue)
-    : mapStep(link(source)({ complete: null, stack: null }), edagOf))
+    : mapStep(_walk(linking)(source)({ complete: null, stack: null }), ([, { exports }]) => exports))

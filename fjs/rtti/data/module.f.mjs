@@ -30,7 +30,7 @@ import { strictEqual as strictEqualCurried } from '../../types/function/operator
 import { at, definedEntries, definedValues } from '../../types/object/module.f.mjs'
 import { ok } from '../../types/result/module.f.js'
 import { isNaN_ } from '../../types/number/is_nan/module.f.js'
-import { declaredTest, eachEntry, hasUndeclaredMember, isArray, undeclaredMembers, verror } from '../common/module.f.mjs'
+import { declaredTest, eachEntry, hasUndeclaredMember, isArray, noAccumulate, undeclaredMembers, verror } from '../common/module.f.mjs'
 
 /**
  * The unit kind's enumeration: bit `1 << i` of a {@link UnionSet}'s `unit`
@@ -1280,9 +1280,6 @@ const checkValue = (cond, value) => cond ? ok(value) : verror('unexpected value'
  */
 const kindHas = eq => (k, v) =>
     kindFold({ absent: () => false, whole: () => true, members: list => list.some(x => eq(x, v)) })(k)
-
-/** `validate` has nothing to collect from a successful entry — only pass/fail matters. */
-const noAccumulate = () => undefined
 
 /**
  * The first matching pattern wins; a single pattern's error is kept intact

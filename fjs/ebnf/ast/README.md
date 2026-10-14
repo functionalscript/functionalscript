@@ -8,7 +8,9 @@ type.
 
 - `types.ts` — `Meta`, `Ast`, `Children`; `Unmapped` and `JoinNode`, the
   shapes a reader of a combinator's scaffolding is typed by.
-- `module.f.mjs` — `unmapped`, `symbolAt`: the two tests a mapping makes.
+- `module.f.mjs` — `unmapped`, `symbolAt`: the two tests a mapping makes;
+  `items` and `variant`, the same test for an untyped reader, `variant`
+  at a variant's position.
 
 ## What it is
 

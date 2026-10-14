@@ -8,7 +8,7 @@
  */
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { analysis, checked, itemOperand, operandsOf } from './module.f.mjs'
+import { analysis, checked, itemOperand, operandsOf, scopeHolds } from './module.f.mjs'
 
 /**
  * What every table satisfies, checked on every case: an entry names only
@@ -107,29 +107,21 @@ export const proof = {
         assertEq(assertOk(checked(a)), a)
         assertEq(assertError(checked(an(['frame', 0]))), 'invalid frame slot index or scope')
     },
-    // A static function is admitted only as a call's callee, at a path
-    // `fjs/js/static` admits: anywhere else — the root, an argument, an
-    // element, a captured slot, a receiver — it would be a first-class
-    // value. Its identity is never observable, so twins merge into one
-    // entry, as any value no node mints does.
-    staticFunction: () => {
+    // `Object.is` is a value wherever one stands — a callee, the root, an
+    // argument, an element, a captured slot, a receiver — and one function
+    // on every read, so twins in one scope merge into one entry, as any
+    // value no node mints does.
+    objectIs: () => {
         /** @type {Exp} */
-        const is = ['static', ['Object', 'is']]
-        const callee = 'a static function outside a call'
-        assertOk(checked(an(['()', is, [-0, 0]])))
-        assertOk(checked(an(['=>', 0, [], ['()', is, [1, 1]]])))
-        const twice = an(['[]', [['()', is, [1]], ['()', ['static', ['Object', 'is']], [2]]]])
-        assertEq(twice.nodes.filter(node => node[0] === 'static').length, 1)
-        assertOk(checked(twice))
+        const is = ['Object.is']
         for (const e of /** @type {readonly Exp[]} */ ([
+            ['()', is, [-0, 0]], ['=>', 0, [], ['()', is, [1, 1]]],
             is, ['[]', [is]], ['()', ['=>', 1, [], ['arg', 0]], [is]], ['=>', 0, [is], 1],
             ['.', is, 'length'], ['()', ['=>', 0, [], is], []],
-        ])) { assertEq(assertError(checked(an(e))), callee) }
-        assertEq(assertError(checked(an(['()', ['static', ['Object', 'keys']], [1]]))), 'a static function not admitted')
-        assertEq(assertError(checked(an(['()', ['static', []], []]))), 'a static function not admitted')
-        // a check limited to one function sees a misplaced static inside it
-        const nested = an(['=>', 0, [], ['[]', [is]]])
-        assertEq(assertError(checked(nested, nested.nodes.findIndex(node => node[0] === '=>'))), callee)
+        ])) { assertOk(checked(an(e))) }
+        const twice = an(['[]', [['()', is, [1]], ['()', ['Object.is'], [2]]]])
+        assertEq(twice.nodes.filter(node => node[0] === 'Object.is').length, 1)
+        assertStructurallySame(operandsOf(is), [])
     },
     validation: () => {
         for (const e of /** @type {readonly Exp[]} */ ([
@@ -367,6 +359,17 @@ export const proof = {
         })
         // A body's primitive root is an operand of the `=>`, and no entry.
         table(['=>', 0, [], 5], { root: ['#', 0], nodes: [['=>', 0, [], 5]], scope: [-1], shared: [] })
+    },
+    // A function's own scope holds what its body reads, and not what a
+    // nested function's body reads: `(...a) => [a, () => self]`.
+    scopeHolds: () => {
+        const a = an(['=>', 0, [], ['[]', [['rest'], ['=>', 0, [], ['self']]]]])
+        assertStructurallySame(a.scope, [4, 2, 4, 4, -1])
+        assert(scopeHolds(a, 4, 'rest'))
+        assert(!scopeHolds(a, 4, 'self'))
+        assert(scopeHolds(a, 2, 'self'))
+        assert(!scopeHolds(a, 2, 'rest'))
+        assert(!scopeHolds(a, 4, 'arg'))
     },
     // Every node kind and every step, walked in written order — the shapes
     // `order`, `access`, `calls` and `scope` do not reach.

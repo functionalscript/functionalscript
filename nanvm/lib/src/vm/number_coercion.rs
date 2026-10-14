@@ -1,7 +1,12 @@
 use crate::vm::{
-    Array, BigInt, Function, IVm, Number, Object, String, ToAny, any::Any, dispatch::Dispatch,
-    ecma_whitespace::is_ecma_whitespace, error, nullish::Nullish, primitive::Primitive,
+    Array, BigInt, Function, IVm, Number, Object, String, ToAny,
+    any::Any,
+    dispatch::Dispatch,
+    error,
+    nullish::Nullish,
+    primitive::Primitive,
     primitive_coercion::ToPrimitivePreferredType,
+    string_numeric_literal::{StringNumericLiteral, scan},
 };
 
 /// Coerces the value to a `Number`, possibly producing an error result.
@@ -50,7 +55,7 @@ impl<A: IVm> Dispatch<A> for NumberCoercion {
 
     fn string(self, v: String<A>) -> Self::Result {
         let s: std::string::String = v.into();
-        Ok(string_to_number(s.trim_matches(is_ecma_whitespace)).into())
+        Ok(string_to_number(&s).into())
     }
 
     fn bigint(self, _: BigInt<A>) -> Self::Result {
@@ -74,49 +79,29 @@ impl<A: IVm> Dispatch<A> for NumberCoercion {
     }
 }
 
-/// `StringToNumber` on an already-trimmed string: `""` is `0`, `0x`/`0o`/`0b`
-/// are the unsigned non-decimal integer literals (same restriction
-/// `StringToBigInt` has — no `Sign` production), `Infinity` (with an
-/// optional leading sign) is an infinity, and anything else must match
-/// `StrDecimalLiteral`'s digits/`.`/exponent shape exactly. Everything else
-/// is `NaN`, including the Rust-only spellings (`"inf"`, `"nan"`, ...)
-/// `f64::from_str` would otherwise accept.
+/// `StringToNumber`: the literal [`scan`] finds, read as an `f64`. The
+/// non-decimal digits go to [`parse_non_decimal`]; the decimal alternative is
+/// `Infinity` or must match `StrDecimalLiteral`'s digits/`.`/exponent shape
+/// exactly. Everything else is `NaN`, including the Rust-only spellings
+/// (`"inf"`, `"nan"`, ...) `f64::from_str` would otherwise accept.
 /// <https://tc39.es/ecma262/#sec-stringtonumber>
-fn string_to_number(trimmed: &str) -> f64 {
-    if trimmed.is_empty() {
-        return 0.0;
+fn string_to_number(s: &str) -> f64 {
+    match scan(s) {
+        StringNumericLiteral::Zero => 0.0,
+        StringNumericLiteral::NonDecimal { radix, digits } => parse_non_decimal(digits, radix),
+        StringNumericLiteral::Decimal { negative, rest } => {
+            let magnitude = if rest == "Infinity" {
+                f64::INFINITY
+            } else if is_str_decimal_literal(rest) {
+                // `rest` is validated and Rust's own float grammar is a
+                // superset of it, so this cannot fail.
+                rest.parse::<f64>().unwrap_or(f64::NAN)
+            } else {
+                return f64::NAN;
+            };
+            if negative { -magnitude } else { magnitude }
+        }
     }
-    if let Some(digits) = trimmed
-        .strip_prefix("0x")
-        .or_else(|| trimmed.strip_prefix("0X"))
-    {
-        return parse_non_decimal(digits, 16);
-    }
-    if let Some(digits) = trimmed
-        .strip_prefix("0o")
-        .or_else(|| trimmed.strip_prefix("0O"))
-    {
-        return parse_non_decimal(digits, 8);
-    }
-    if let Some(digits) = trimmed
-        .strip_prefix("0b")
-        .or_else(|| trimmed.strip_prefix("0B"))
-    {
-        return parse_non_decimal(digits, 2);
-    }
-    let (sign, rest) = match trimmed.strip_prefix('-') {
-        Some(rest) => (-1.0, rest),
-        None => (1.0, trimmed.strip_prefix('+').unwrap_or(trimmed)),
-    };
-    if rest == "Infinity" {
-        return sign * f64::INFINITY;
-    }
-    if !is_str_decimal_literal(rest) {
-        return f64::NAN;
-    }
-    // `rest` is validated, and `trimmed` is `rest` with the same optional
-    // leading sign Rust's own float grammar accepts, so this cannot fail.
-    trimmed.parse::<f64>().unwrap_or(f64::NAN)
 }
 
 /// An unsigned integer literal in `radix` (16, 8, or 2 — whatever the
@@ -230,16 +215,19 @@ fn is_str_decimal_literal(s: &str) -> bool {
 
 #[cfg(test)]
 mod test {
-    use crate::vm::{ecma_whitespace::is_ecma_whitespace, number_coercion::string_to_number};
+    use crate::vm::number_coercion::string_to_number;
 
     #[test]
     fn empty_and_decimal() {
         assert_eq!(string_to_number(""), 0.0);
+        assert_eq!(string_to_number("  "), 0.0);
+        assert_eq!(string_to_number(" \u{FEFF}5\n"), 5.0);
         assert_eq!(string_to_number("5"), 5.0);
         assert_eq!(string_to_number("5."), 5.0);
         assert_eq!(string_to_number(".5"), 0.5);
         assert_eq!(string_to_number("-5.5e2"), -550.0);
         assert_eq!(string_to_number("+5"), 5.0);
+        assert!(string_to_number("-0").is_sign_negative());
     }
 
     #[test]
@@ -248,9 +236,6 @@ mod test {
         assert_eq!(string_to_number("0X1A"), 26.0);
         assert_eq!(string_to_number("0o10"), 8.0);
         assert_eq!(string_to_number("0b10"), 2.0);
-        // No `Sign` production for the non-decimal forms.
-        assert!(string_to_number("-0x10").is_nan());
-        assert!(string_to_number("0x").is_nan());
     }
 
     #[test]
@@ -314,11 +299,22 @@ mod test {
     }
 
     #[test]
-    fn trims_ecma_whitespace_not_nel() {
-        let trim = |s: &str| string_to_number(s.trim_matches(is_ecma_whitespace));
-        // U+FEFF (BOM) is ECMA-262 `WhiteSpace`; U+0085 (NEL) is not, even
-        // though Rust's `char::is_whitespace()` disagrees both ways.
-        assert_eq!(trim("\u{FEFF}1"), 1.0);
-        assert!(trim("\u{0085}1").is_nan());
+    fn rejects_non_literals() {
+        // A sign on a non-decimal literal, a lone sign, an empty digit run,
+        // and syntax only source code has.
+        for s in [
+            "-0x10",
+            "+0x10",
+            "-",
+            "+",
+            "0x",
+            "0b2",
+            "0o8",
+            "1n",
+            "1_0",
+            "\u{0085}1",
+        ] {
+            assert!(string_to_number(s).is_nan(), "{s}");
+        }
     }
 }

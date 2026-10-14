@@ -48,7 +48,6 @@ import type {
     property,
     propertyLambda,
     spread,
-    staticFunction,
 } from './module.f.mjs'
 
 // exp
@@ -71,7 +70,6 @@ export type Exp =
     | Function
     | Arg
     | Frame
-    | Static
 
 // primitive
 
@@ -238,7 +236,7 @@ export type Comma = readonly[',', Exps]
 // Op0Ids
 
 export type Op0Id =
-    | 'undefined' | 'args' | 'rest' | 'self' | 'entry'
+    | 'undefined' | 'args' | 'rest' | 'self' | 'entry' | 'Object.is'
 
 export type Op0 = readonly[Op0Id]
 
@@ -250,9 +248,6 @@ export type Arg = readonly ['arg', number]
 
 /** Constant index of a slot of the owning function's frame. */
 export type Frame = readonly ['frame', number]
-
-/** A static function at a path of keys into the runtime's `static` section; valid only as a `()` callee. */
-export type Static = readonly ['static', readonly string[]]
 
 // Op1Ids
 
@@ -412,9 +407,6 @@ type _ExpAssert = Assert<Check3<Exp, typeof _exp, typeof exp>>
 type _Function = Assert<Check<Function, typeof func>>
 type _Arg = Assert<Check<Arg, typeof arg>>
 type _Frame = Assert<Check<Frame, typeof frame>>
-type _Static = Assert<Check<Static, typeof staticFunction>>
-// The path survives translation as the metadata it is, not an operand.
-type _OverStatic = Assert<Equal<Over<Static, 0>, readonly ['static', readonly string[]]>>
 type _OverFunction = Assert<Equal<Over<Function, 0>, readonly ['=>', number, readonly 0[], 0]>>
 type _OverArg = Assert<Equal<Over<Arg, 0>, readonly ['arg', number]>>
 type _OverFrame = Assert<Equal<Over<Frame, 0>, readonly ['frame', number]>>

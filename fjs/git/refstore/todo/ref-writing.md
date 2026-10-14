@@ -415,7 +415,7 @@ wrong value, which is why it is recorded here, and it is still a namespace nobod
 asked for.
 
 Two ways out, and neither is free. **Honour it**: read `core.sharedRepository`
-(nothing in `fjs/git/config` reads any `core.*` key today) and give `mkdir` and
+(nothing reads it today; `fjs/git/config`'s readers are where one would) and give `mkdir` and
 the write a mode — `MakeDirectoryOptions` is `{ recursive: true }` and nothing
 else, so the effects grow. **Refuse it**: the config read alone, and then
 `tryWrite` is unusable on every shared repository, which is a wide refusal for a

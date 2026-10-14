@@ -17,10 +17,12 @@ import type { OrderedMap } from '../types/ordered_map/types.ts'
  * What one module's source says about linking it in a browser: the specifiers
  * that would stop it, and the sibling modules it reaches.
  *
- * The two are the same list read twice, split by {@link local}: a relative
- * specifier names a file this scan can follow, and anything else — a bare
- * package, a `node:` builtin — is a blocker, because a browser has nowhere to
- * resolve it from.
+ * The two are the same list read twice, split by where each specifier leads.
+ * A relative one that `fjs/path/import`'s `resolve` admits names a file this
+ * scan can follow, and is kept as the path it resolves to. Anything else is a
+ * blocker, kept as written: a bare package or a `node:` builtin, because a
+ * browser has nowhere to resolve it from, and a relative specifier `resolve`
+ * refuses, because it names no file — `./bad%` decodes to nothing.
  *
  * @internal
  */
@@ -74,3 +76,18 @@ export type _Tree = OrderedMap<_Walked>
  * @internal
  */
 export type _Demos = OrderedMap<string>
+
+/**
+ * One kind of thing the reader did to a demo's field that a render must not
+ * take away — its size, its focus, its scroll — as the demo runtime keeps it.
+ *
+ * `capture` reads it off a field, `null` for a field that has nothing worth
+ * keeping; `restore` puts it back on the field of the same name after the
+ * render. Finding that field is the runtime's, once, for every kind.
+ *
+ * @internal
+ */
+export type _FieldMemory<V> = {
+    readonly capture: (el: HTMLElement) => V | null
+    readonly restore: (el: HTMLElement, v: V) => void
+}

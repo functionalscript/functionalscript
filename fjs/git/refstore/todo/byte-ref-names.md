@@ -83,7 +83,7 @@ it into this module would mean guessing which of two files a lossy name meant.
 - [`fjs/path/todo/posix-backslash-names.md`](../../../path/todo/posix-backslash-names.md)
   — the same shape one layer down: a name a host allows and this module's
   spelling of a path cannot express.
-- [`fjs/git/refstore/module.f.mjs`](../module.f.mjs) — `nameText`, where the
+- [`fjs/git/refstore/name/module.f.mjs`](../name/module.f.mjs) — `nameText`, where the
   decision is made and measured.
 - [Paths as bytes](../../../effects/node/todo/byte-paths.md) — the effects change
   this waits on.

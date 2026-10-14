@@ -69,6 +69,13 @@ const dom = path => {
         return children.flatMap(walk)
     }
     /**
+     * The first element under the section named `name` — what a reader means
+     * by "that field", however the name is spelled.
+     *
+     * @type {(name: string) => any}
+     */
+    const named = name => descendants().find(node => node.name !== '' && node.name === name) ?? null
+    /**
      * The markup a node stands for, so a proof can say what was rendered in
      * the words a demo wrote it in. A field shows its current value, which is
      * what a reader sees.
@@ -242,8 +249,15 @@ const dom = path => {
             children = nodes.map(node => adopt(root, node))
             changed(root)
         },
-        querySelector: (/** @type {string} */ selector) =>
-            descendants().find(node => node.name !== '' && selector === `[name="${node.name}"]`) ?? null,
+        // A name holding a quote, a backslash or a line break is not a
+        // selector's text: a browser refuses such a selector, and so does this.
+        querySelector: (/** @type {string} */ selector) => {
+            const name = selector.slice('[name="'.length, -'"]'.length)
+            if (name.includes('"') || name.includes('\\') || name.includes('\n')) {
+                throw new SyntaxError(`'${selector}' is not a valid selector`)
+            }
+            return named(name)
+        },
         contains: (/** @type {any} */ node) => descendants().includes(node),
         querySelectorAll: (/** @type {string} */ selector) =>
             descendants().filter(node =>
@@ -283,6 +297,7 @@ const dom = path => {
         // What the section was given, every time — a runtime that rendered
         // twice has said two things, and the last one alone cannot show it.
         rendered,
+        named,
         activeName: () => active === null ? null : active.name,
         steps,
         /**
@@ -303,7 +318,7 @@ const dom = path => {
         disabled: () => root.querySelectorAll('button').map((/** @type {any} */ b) => b.disabled),
         caret: () => active === null ? null : active.selectionStart,
         focusOn: (/** @type {string} */ name, /** @type {number} */ caret) => {
-            const el = root.querySelector(`[name="${name}"]`)
+            const el = named(name)
             el.focus()
             el.setSelectionRange(caret, caret)
         },
@@ -314,7 +329,7 @@ const dom = path => {
          * @type {(name: string, value: string) => void}
          */
         input: (name, value) => {
-            const field = root.querySelector(`[name="${name}"]`)
+            const field = named(name)
             if (field !== null) { field.type(value) }
             for (const f of listeners) { f({ target: field ?? { name, value } }) }
         },
@@ -325,7 +340,7 @@ const dom = path => {
          * @type {(name: string) => void}
          */
         scroll: name => {
-            const field = root.querySelector(`[name="${name}"]`)
+            const field = named(name)
             for (const f of scrolls) { f({ target: field }) }
         },
         touched,
@@ -887,6 +902,46 @@ export const demo = {
         assert(after !== before, 'expected the field to be a new element')
         assertEq(d.activeName(), 'text')
         assertEq(d.caret(), 3)
+    },
+    /**
+     * **A field keeps its size, focus and scroll whatever its name holds.** A
+     * demo names its fields freely, and a quote or a line break in a name is
+     * not selector text — a lookup that put the name in a selector would find
+     * nothing, or throw and abort the render. The field here moves, so it is a
+     * new element, and every kind of memory has to find it again by name.
+     */
+    keepsAFieldWhoseNameIsNotSelectorText: async () => {
+        for (const name of ['say "hi"', 'two\nlines']) {
+            const d = dom(moduleUrl(`
+const name = ${JSON.stringify(name)}
+export const demo = {
+    init: '',
+    update: state => event => () => ['ok', event.kind === 'input' ? event.value : state],
+    view: text => text === 'shift'
+        ? ['div', ['p', 'moved'], ['input', { name, value: text }]]
+        : ['div', ['input', { name, value: text }], ['pre', text]],
+}
+`))
+            await startDemo(d.root)
+            await settle()
+            const before = d.named(name)
+            before.style.width = '600px'
+            before.style.height = '300px'
+            before.scrollTop = 120
+            before.scrollLeft = 30
+            d.focusOn(name, 3)
+            d.input(name, 'shift')
+            await settle()
+            assert(!d.root.textContent.startsWith('demo failed'), d.root.textContent)
+            const after = d.named(name)
+            assert(after !== before, 'expected the field to be a new element')
+            assertEq(after.style.width, '600px')
+            assertEq(after.style.height, '300px')
+            assertEq(d.activeName(), name)
+            assertEq(d.caret(), 3)
+            assertEq(after.scrollTop, 120)
+            assertEq(after.scrollLeft, 30)
+        }
     },
     /**
      * **A field shows the state, not only what was typed.** A demo that

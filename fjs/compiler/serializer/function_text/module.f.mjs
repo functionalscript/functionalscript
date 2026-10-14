@@ -21,24 +21,14 @@
 
 import { leafSerialize } from '../../../media/datajs/serializer/module.f.mjs'
 import { chunksText, keyword, literal } from '../../../text/marked/module.f.mjs'
-import { keepsRecursion, loopOf, reaches, readsRest } from '../../../edag/loop/module.f.mjs'
-import { operandsOf } from '../../../edag/analysis/module.f.mjs'
-import { _name as name, _binding as binding, _resolve as resolve } from '../names/module.f.mjs'
+import { keepsRecursion, loopOf, reaches } from '../../../edag/loop/module.f.mjs'
+import { scopeHolds } from '../../../edag/analysis/module.f.mjs'
+import { _name as name, _binding as binding, _resolve as resolve, _arg as argName, _rest as restName, _parameters as parameters } from '../names/module.f.mjs'
 
 /** The name of one invocation-local memo cell. @type {(_s: _Scope, k: number) => string} */
 const memoName = (s, k) => name(`${s.path}/memo${k}`)
 /** The name a function reading its own `['self']` is given in its rendering scope: a named function expression is the one JavaScript spelling of a function that names itself. @type {(path: string) => string} */
 const selfName = path => name(`${path}/self`)
-
-/**
- * A static function's path as the source calls it: `Object.is` for
- * `['Object', 'is']`, the global alone for `['isNaN']` and for the global
- * called as a function, `['Object', '']`. The keys are an admitted path's,
- * which the analysis checked: identifiers, the empty key last.
- *
- * @type {(path: readonly string[]) => string}
- */
-export const _staticText = path => path.filter(key => key !== '').join('.')
 
 /**
  * The `entry` helper's text, the one spelling of `['entry']` — the
@@ -62,8 +52,8 @@ export const _entryText = path => chunksText(_entryChunks(path))
  * @type {(path: string) => readonly Chunk[]}
  */
 export const _entryChunks = path => {
-    const a = name(`${path}/arg0`)
-    const b = name(`${path}/arg1`)
+    const a = argName(path, 0)
+    const b = argName(path, 1)
     const x = name(`${path}/descriptor`)
     return [
         `(${binding(a)},${binding(b)})=>{`,
@@ -104,12 +94,13 @@ const entry = (s, i) => {
     const n = /** @type {Exclude<Node, readonly ['args']>} */ (s.a.nodes[i])
     switch (n[0]) {
         case 'undefined': { return '(undefined)' }
-        case 'arg': { return `(${name(`${s.path}/arg${n[1]}`)})` }
-        case 'rest': { return `(${name(`${s.path}/rest`)})` }
+        case 'arg': { return `(${argName(s.path, n[1])})` }
+        case 'rest': { return `(${restName(s.path)})` }
         case 'frame': { return `(${s.frame[n[1]]})` }
         case 'self': { return `(${selfName(s.path)})` }
         case 'entry': { return `(${_entryText(`${s.path}/function${i}`)})` }
-        case 'static': { return `(${_staticText(n[1])})` }
+        // a static function is written as the source reads it, its tag
+        case 'Object.is': { return `(${n[0]})` }
         case '[]': { return `([${items(s, n[1])}])` }
         case '{}': { return `({${n[1].map(p => p[0] === '...'
             ? `...${operand(s, p[1])}` : `[${operand(s, p[1])}]:${operand(s, p[2])}`).join(',')}})` }
@@ -196,7 +187,7 @@ const asLoop = (a, i, shared, loop) => !keepsRecursion(a, i, loop) && !reaches(a
 const loopText = (s, cells, { condition, asserts, next }) => {
     const parameter = name(`${s.path}/parameter`)
     // the variable is what every read of the parameter is written as
-    const variable = name(`${s.path}/arg0`)
+    const variable = argName(s.path, 0)
     const step = isArg0(s.a, next) ? '' : `${variable}=${operand(s, next)};`
     return `(${binding(parameter)})=>{let ${binding(variable)}=${parameter};while(${operand(s, condition)}){${cells}${asserts.map(assert(s)).join('')}${step}}return ${variable};}`
 }
@@ -209,9 +200,7 @@ const lambda = (a, i, path, frame) => {
     // read it
     const shared = a.shared.filter(j => a.scope[j] === i && !isNameRead(a.nodes[j]))
     const s = { a, path, frame, shared }
-    const fixed = Array.from({ length }, (_, k) => binding(name(`${path}/arg${k}`)))
-    const rest = readsRest(a, i) ? [`...${binding(name(`${path}/rest`))}`] : []
-    const list = [...fixed, ...rest].join(',')
+    const list = parameters(a, path, i, length)
     const cells = shared.map((j, k) => memoCell(s, j, k)).join('')
     const loop = loopOf(a, i)
     if (loop !== null && asLoop(a, i, shared, loop)) { return loopText(s, cells, loop) }
@@ -219,7 +208,7 @@ const lambda = (a, i, path, frame) => {
     // a body reading its own `self` is a named function expression, the
     // name the body's `self` reads, since an arrow function cannot name
     // itself; its body is always a block
-    return a.nodes.some((n, j) => n[0] === 'self' && a.scope[j] === i)
+    return scopeHolds(a, i, 'self')
         ? `(function ${binding(selfName(path))}(${list}){${cells}return ${value};})`
         : `(${list})=>${cells === '' ? value : `{${cells}return ${value};}`}`
 }

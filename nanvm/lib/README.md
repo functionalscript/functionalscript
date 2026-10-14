@@ -94,6 +94,6 @@ This is VM and EDAG-printer support. The source parser still does not admit
 | To string      | [x]    | [`string_coercion.rs`](src/vm/string_coercion.rs) — `Number::toString`'s round-half-to-even tie-break (`round_tie_to_even`) is decided by exact `BigInt` comparison, not a floating-point heuristic |
 | To boolean     | [x]    | [`boolean_coercion.rs`](src/vm/boolean_coercion.rs) — never throws, unlike the others |
 | To primitive   | [x]    | [`primitive_coercion.rs`](src/vm/primitive_coercion.rs) |
-| To numeric     | [x]    | `Any::to_numeric()` |
+| To numeric     | [x]    | [`numeric_coercion.rs`](src/vm/numeric_coercion.rs) |
 | To int32       | [x]    | [`int32_coercion.rs`](src/vm/number/int32_coercion.rs) — `ToInt32`, operating on the already-coerced `f64` a `Number::` bitwise/shift op needs |
 | To uint32      | [x]    | [`int32_coercion.rs`](src/vm/number/int32_coercion.rs) — `ToUint32`, shares its `modulo 2^32` step with `ToInt32`; used for `<<`/`>>`'s shift-count operand and both of `>>>`'s operands |

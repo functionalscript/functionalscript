@@ -1,5 +1,6 @@
 /**
- * Type-level API shared by RTTI consumers (`validate`, `parse`).
+ * Type-level API shared by RTTI consumers: the schema-form readers `validate`
+ * and `parse`, and the data form.
  *
  * @module
  */
@@ -87,3 +88,24 @@ export type ResultE = CommonResult<Unknown, ValidationError>
 
 /** A `Validate`-shaped function with the payload type erased. */
 export type ValidateE = (value: Unknown) => ResultE
+
+/**
+ * What one schema-form reader brings to the container skeletons in
+ * `./module.f.mjs`: the recursion into a member's schema, and what it
+ * collects from the members it reads. `validate` collects nothing and `parse`
+ * the parsed members; the skeletons own the order the members are read in.
+ */
+export type Reader<A> = {
+    /** The reader of a member's schema: the recursive entry point. */
+    readonly read: (rtti: Type) => ValidateE
+    /** What is collected before any member is read. */
+    readonly empty: A
+    /** Collects a present member, as `read` answered it. */
+    readonly cons: (acc: A, k: string, v: Unknown) => A
+}
+
+/**
+ * What a container becomes once every member is checked: built from what the
+ * reader collected, or the container itself.
+ */
+export type Finish<C extends Unknown, A> = (acc: A, value: C) => Unknown

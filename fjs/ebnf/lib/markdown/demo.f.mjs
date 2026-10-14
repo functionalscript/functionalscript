@@ -14,33 +14,32 @@
  *
  * @module
  *
- * @import { Rule } from '../../types.ts'
+ * @import { Selection } from '../../../website/demo/railroad/types.ts'
  */
 
 import { code, emphasis, entry as markdown, link, span, text } from './module.f.mjs'
-import { toData } from '../../data/module.f.mjs'
-import { codePoints, toDiagrams } from '../../railroad/module.f.mjs'
-import { railroadDemo } from '../../../website/demo/railroad/module.f.mjs'
-import { assertNotNullish } from '../../../asserts/module.f.mjs'
-
-const [ruleSet, entry, names] = toData(markdown)
-
-/** @type {(rule: Rule) => string} */
-const nameOf = rule => assertNotNullish(names.get(rule))
+import { codePoints } from '../../railroad/module.f.mjs'
+import { codePointGuide, grammarDemo } from '../../../website/demo/railroad/module.f.mjs'
 
 /**
- * Each diagram's title and the lowered rule it draws, in the order the page
+ * Each diagram's title and the rule it draws, in the order the page
  * shows them: the entry, then the text and spans it alternates.
  *
- * @type {readonly (readonly [string, string])[]}
+ * @type {readonly Selection[]}
  */
 export const diagrams = [
-    ['entry', entry],
-    ['text', nameOf(text)],
-    ['span', nameOf(span)],
-    ['code', nameOf(code)],
-    ['emphasis', nameOf(emphasis)],
-    ['link', nameOf(link)],
+    ['entry', markdown],
+    ['text', text],
+    ['span', span],
+    ['code', code],
+    ['emphasis', emphasis],
+    ['link', link],
 ]
 
-export const demo = railroadDemo('The Markdown inline grammar of this module, drawn from its rules. Follow a track from left to right; a pill is text the input holds, and a box is another diagram — select it to go there.')(toDiagrams(codePoints)(ruleSet)(diagrams))
+export const demo = grammarDemo({
+    grammar: markdown,
+    alphabet: codePoints,
+    description: 'The Markdown inline grammar of this module, drawn from its rules.',
+    guide: codePointGuide,
+    selections: diagrams,
+})

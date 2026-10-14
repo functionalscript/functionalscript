@@ -14,7 +14,7 @@
  */
 
 import { typescript } from '../config/module.f.js'
-import { install, test, ubuntuArm } from '../common/module.f.mjs'
+import { _workflowsDirectory, install, test, ubuntuArm } from '../common/module.f.mjs'
 import { installNode } from '../node/module.f.mjs'
 
 /**
@@ -23,7 +23,7 @@ import { installNode } from '../node/module.f.mjs'
  * publishing project's npm settings as well, and a mismatch fails only at
  * publish time.
  */
-export const npmPublishPath = /** @type {const} */ ('.github/workflows/gen.npm-publish.yml')
+export const npmPublishPath = /** @type {const} */ (`${_workflowsDirectory}/gen.npm-publish.yml`)
 
 /**
  * The branch a publish follows. The version in `package.json` is the single

@@ -16,42 +16,37 @@
  *
  * @module
  *
- * @import { Rule } from '../../types.ts'
+ * @import { Selection } from '../../../website/demo/railroad/types.ts'
  */
 
 import { character, escape, hex, json, number, string, uint, value, ws } from './module.f.mjs'
-import { toData } from '../../data/module.f.mjs'
-import { branch, codePoints, toDiagrams } from '../../railroad/module.f.mjs'
-import { railroadDemo } from '../../../website/demo/railroad/module.f.mjs'
-import { assertNotNullish } from '../../../asserts/module.f.mjs'
-
-const [ruleSet, entry, names] = toData(json)
-
-/** @type {(rule: Rule) => string} */
-const nameOf = rule => assertNotNullish(names.get(rule))
-
-const valueName = nameOf(value)
-
-const valueBranch = branch(ruleSet)
+import { codePoints } from '../../railroad/module.f.mjs'
+import { codePointGuide, grammarDemo } from '../../../website/demo/railroad/module.f.mjs'
 
 /**
- * Each diagram's title and the lowered rule it draws, in the order the page
+ * Each diagram's title and the rule it draws, in the order the page
  * shows them: the document first, then json.org's order.
  *
- * @type {readonly (readonly [string, string])[]}
+ * @type {readonly Selection[]}
  */
 export const diagrams = [
-    ['json', entry],
-    ['value', valueName],
-    ['object', valueBranch(valueName, 'object')],
-    ['array', valueBranch(valueName, 'array')],
-    ['string', nameOf(string)],
-    ['character', nameOf(character)],
-    ['escape', nameOf(escape)],
-    ['hex', nameOf(hex)],
-    ['number', nameOf(number)],
-    ['uint', nameOf(uint)],
-    ['ws', nameOf(ws)],
+    ['json', json],
+    ['value', value],
+    ['object', value, 'object'],
+    ['array', value, 'array'],
+    ['string', string],
+    ['character', character],
+    ['escape', escape],
+    ['hex', hex],
+    ['number', number],
+    ['uint', uint],
+    ['ws', ws],
 ]
 
-export const demo = railroadDemo('The JSON grammar of this module, drawn from its rules. Follow a track from left to right; a pill is text the input holds, and a box is another diagram — select it to go there.')(toDiagrams(codePoints)(ruleSet)(diagrams))
+export const demo = grammarDemo({
+    grammar: json,
+    alphabet: codePoints,
+    description: 'The JSON grammar of this module, drawn from its rules.',
+    guide: codePointGuide,
+    selections: diagrams,
+})

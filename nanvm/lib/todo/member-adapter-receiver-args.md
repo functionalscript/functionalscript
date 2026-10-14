@@ -72,7 +72,7 @@ tables keep their shape; only the adapters' bodies change.
 
 - [member-functions](./member-functions.md) — every adapter it adds
   copies this shape; land this first or with its first batch.
-- [any-receiver-prologue](./any-receiver-prologue.md) — the receiver
+- [`non_nullish_receiver`](../src/vm/member_access.rs) — the receiver
   guard on the `Member` side, before the table is consulted.
 - [any-result-alias](./any-result-alias.md) — the error type every
   adapter signature names.
