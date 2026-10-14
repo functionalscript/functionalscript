@@ -27,40 +27,51 @@ import { toNumber, toString } from '../convert/module.f.mjs'
 import { arrayMethod } from '../array_method/module.f.mjs'
 import { max } from '../../../types/number/max/module.f.js'
 
-/** The prototype a call on each receiver type looks in, by the type's name as `fjs/js/runtime` keys it. */
+/** The prototype a call on each receiver type looks in, by the type's global's name, as `fjs/js/runtime` keys it. */
 const prototypes = {
-    object: objectPrototype,
-    array: arrayPrototype,
-    string: stringPrototype,
-    number: numberPrototype,
-    boolean: booleanPrototype,
-    bigint: bigintPrototype,
-    function: functionPrototype,
+    Object: objectPrototype,
+    Array: arrayPrototype,
+    String: stringPrototype,
+    Number: numberPrototype,
+    Boolean: booleanPrototype,
+    BigInt: bigintPrototype,
+    Function: functionPrototype,
 }
 
-/** A non-nullish receiver's type, as `fjs/js/runtime` keys it. @type {(receiver: EdagValue) => keyof typeof prototypes} */
-const typeName = receiver => typeof receiver === 'string' ? 'string'
-    : typeof receiver === 'number' ? 'number'
-    : typeof receiver === 'boolean' ? 'boolean'
-    : typeof receiver === 'bigint' ? 'bigint'
-    : isArray(receiver) && receiver[0] === '[]' ? 'array'
-    : isFunction(receiver) ? 'function'
-    : 'object'
+/** A non-nullish receiver's type, by its global's name, as `fjs/js/runtime` keys it. @type {(receiver: EdagValue) => keyof typeof prototypes} */
+const typeName = receiver => typeof receiver === 'string' ? 'String'
+    : typeof receiver === 'number' ? 'Number'
+    : typeof receiver === 'boolean' ? 'Boolean'
+    : typeof receiver === 'bigint' ? 'BigInt'
+    : isArray(receiver) && receiver[0] === '[]' ? 'Array'
+    : isFunction(receiver) ? 'Function'
+    : 'Object'
+
+/**
+ * The function value at a path of keys into an object, or `undefined`
+ * where a key is missing, a step is no object, or the end is no function:
+ * how an executor reads its runtime, `['member', type, key]` for a member
+ * function's body and `['static', ...path]` for a static function's.
+ *
+ * @type {(object: EdagValue | undefined, path: readonly string[]) => ValueFunction | undefined}
+ */
+export const functionAt = (object, path) => {
+    if (object === undefined) { return undefined }
+    if (path.length === 0) { return isFunction(object) ? /** @type {ValueFunction} */ (object) : undefined }
+    if (!isArray(object) || object[0] !== '{}') { return undefined }
+    const entry = findProperty(/** @type {Runtime} */ (object), path[0])
+    return entry === undefined ? undefined : functionAt(entry[2], path.slice(1))
+}
 
 /**
  * The runtime's body for a receiver type and a name: the function value
- * under the type's object, or `undefined` — a name or a type the runtime
+ * at `member[type][key]`, or `undefined` — a name or a type the runtime
  * lacks, an entry that is no function, or no runtime at all. The
- * runtime's shape is `fjs/js/runtime`'s, an object per type, which its
- * `types.ts` pins.
+ * runtime's shape is `fjs/js/runtime`'s, which its `types.ts` pins.
  *
  * @type {(runtime: Runtime | undefined, type: string, key: string) => ValueFunction | undefined}
  */
-const body = (runtime, type, key) => {
-    const table = runtime === undefined ? undefined : findProperty(runtime, type)
-    const entry = table === undefined ? undefined : findProperty(/** @type {Runtime} */ (table[2]), key)
-    return entry !== undefined && isFunction(entry[2]) ? /** @type {ValueFunction} */ (entry[2]) : undefined
-}
+const body = (runtime, type, key) => functionAt(runtime, ['member', type, key])
 
 /**
  * The admitted names this dispatcher has no native implementation of, by
@@ -68,7 +79,7 @@ const body = (runtime, type, key) => {
  * one. The list is what `native` below leaves out, named once so the
  * guard of an optional call can ask it.
  */
-const left = { string: ['startsWith'] }
+const left = { String: ['startsWith'] }
 
 /**
  * Whether a call of `key` on the receiver has an implementation bound, the
@@ -83,7 +94,7 @@ export const hasMethod = (receiver, key, runtime) => {
     if (receiver === null || typeOf(receiver) === 'undefined') { return false }
     const type = typeName(receiver)
     const admitted = prototypes[type].some(name => name === key) && allowedCalls.some(name => name === key)
-    const native = !(type === 'string' && left.string.some(name => name === key))
+    const native = !(type === 'String' && left.String.some(name => name === key))
     return admitted && (native || body(runtime, type, key) !== undefined)
 }
 

@@ -532,13 +532,13 @@ mod tests {
     /// A receiver of each type the completeness table names.
     fn receiver(type_: &str) -> Any<A> {
         match type_ {
-            "object" => [].to_object().to_any(),
-            "array" => [].to_array().to_any(),
-            "string" => "".into(),
-            "number" => 0.0.to_any(),
-            "boolean" => true.to_any(),
-            "bigint" => BigInt::<A>::from(0i64).to_any(),
-            "function" => {
+            "Object" => [].to_object().to_any(),
+            "Array" => [].to_array().to_any(),
+            "String" => "".into(),
+            "Number" => 0.0.to_any(),
+            "Boolean" => true.to_any(),
+            "BigInt" => BigInt::<A>::from(0i64).to_any(),
+            "Function" => {
                 A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array(), None).to_any()
             }
             _ => panic!("no receiver of type {type_}"),
@@ -566,9 +566,9 @@ mod tests {
                 );
             }
         };
-        bound("array", &super::array::<A>());
-        bound("string", &super::super::string::string::<A>());
-        bound("number", &super::super::number::number::<A>());
+        bound("Array", &super::array::<A>());
+        bound("String", &super::super::string::string::<A>());
+        bound("Number", &super::super::number::number::<A>());
         let has = |(type_, name): &(&str, &str)| {
             let r = receiver(type_);
             let key: Any<A> = (*name).into();
@@ -619,6 +619,20 @@ mod tests {
                 .end_call(|| Ok(["bc".into(), 1.0.to_any()].to_array().to_any())),
             Ok(true.to_any())
         );
+    }
+
+    /// Every static path the parser admits is bound, natively or by the
+    /// runtime: a static call never reaches a VM that cannot answer it.
+    /// NaNVM keeps no native static table, so there is no reverse walk.
+    #[test]
+    fn static_completeness() {
+        use super::super::methods_table::STATICS;
+        for path in STATICS {
+            assert!(
+                crate::vm::static_binding::<A>(path).is_ok(),
+                "{path:?} is admitted but has no binding"
+            );
+        }
     }
 
     /// A name is a method of its receiver's type alone: `at` is an

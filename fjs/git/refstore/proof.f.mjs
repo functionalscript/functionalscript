@@ -238,6 +238,34 @@ const refusesWith = code => (root, dirs, message) => {
 }
 
 /**
+ * The message a listing is refused with as {@link lossyNameCode} where a host
+ * answers `names` for `refs`, every entry a file.
+ *
+ * @type {(names: readonly string[]) => string}
+ */
+const lossyRefusal = names => {
+    /** @type {MemOperationMap<ReadWhole | ReadFile | Readdir | Stat, null>} */
+    const host = {
+        readFile: missing,
+        readWhole: missing,
+        // an entry the listing calls a file costs no `stat` either
+        stat: path => state => [state, error(ioError({ code: 'EIO', message: path }))],
+        readdir: path => state => [
+            state,
+            path === 'refs'
+                ? ok(names.map(name => dirent(name, path, true, false)))
+                : error(ioError({ code: 'ENOENT', message: path })),
+        ],
+    }
+    const [, r] = mockRun(host)(null)(tryRoots(one(''), 20))
+    assert(r[0] === 'error')
+    const e = r[1]
+    assert(e[0] === 'ioError')
+    assertEq(e[1].code, lossyNameCode)
+    return e[1].message
+}
+
+/**
  * A host that *reads* a directory instead of failing: `refs/heads` answers bytes
  * a listing of it might hold, `packed-refs` answers `packed`, and a `stat` of
  * anything answers `statted` — a kind, or the failure it comes back with.
@@ -639,34 +667,13 @@ export const proof = {
     // root missing, which is the answer this module must not give.
     //
     // The state cannot be built in the virtual filesystem, whose directory is a
-    // map from a name to a file and so cannot hold a name twice; the host below
-    // answers the listing node would.
+    // map from a name to a file and so cannot hold a name twice; the host
+    // `lossyRefusal` builds answers the listing node would.
     lossyNames: () => {
         const twice = '\uFFFD'
-        /** @type {MemOperationMap<ReadWhole | ReadFile | Readdir | Stat, null>} */
-        const host = {
-            readFile: missing,
-            readWhole: missing,
-            // an entry the listing calls a file costs no `stat` either
-            stat: path => state => [state, error(ioError({ code: 'EIO', message: path }))],
-            readdir: path => state => [
-                state,
-                path === 'refs'
-                    ? ok([twice, twice].map(name => ({
-                        name,
-                        parentPath: path,
-                        isFile: true,
-                        isDirectory: false,
-                    })))
-                    : error(ioError({ code: 'ENOENT', message: path })),
-            ],
-        }
-        const [, r] = mockRun(host)(null)(tryRoots(one(''), 20))
-        assert(r[0] === 'error')
-        const e = r[1]
-        assert(e[0] === 'ioError')
-        assertEq(e[1].code, lossyNameCode)
-        assertEq(e[1].message, lossyNameMessage('refs', twice))
+        assertEq(lossyRefusal([twice, twice]), lossyNameMessage('refs', twice))
+        // the name refused is the first one listed again later
+        assertEq(lossyRefusal(['a', 'b', 'b', 'a']), lossyNameMessage('refs', 'a'))
     },
     // A `HEAD` that is not a regular file is refused, which is the legacy
     // symlink spelling of a symbolic ref. Git still reads one that points under

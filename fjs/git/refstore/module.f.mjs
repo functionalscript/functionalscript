@@ -207,6 +207,7 @@ import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { under } from '../../path/module.f.mjs'
 import { fromVec, stringToU8List } from '../../text/utf8/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
+import { occurrences } from '../../types/array/module.f.mjs'
 import { length, maxLengthBytes, u8ListMsb, u8ListToVecMsb, uint } from '../../types/bit_vec/module.f.mjs'
 import { concat, sameItems, toArray } from '../../types/list/module.f.mjs'
 import { tryPacked, tryRef } from '../ref/module.f.mjs'
@@ -943,18 +944,18 @@ export const lossyNameMessage = (path, name) => `${path} lists two entries named
  * The name a listing carries twice, or `null` where every name in it is its
  * own.
  *
- * One pass and a map of last positions, as {@link combine} compares names: the
- * first name that is not the last of its own kind is a name that repeats. A
- * `refs/heads` of a busy repository holds tens of thousands of entries, so
- * comparing each against every other is not an option here for the same reason
- * it is not one there.
+ * The first name that is not the last of its own kind is a name that repeats,
+ * and {@link occurrences} answers the last of each from one pass, as it does
+ * for {@link combine}. A `refs/heads` of a busy repository holds tens of
+ * thousands of entries, so comparing each against every other is not an option
+ * here for the same reason it is not one there.
  *
  * @type {(entries: readonly Dirent[]) => Nullable<string>}
  */
 const twiceNamed = entries => {
     const names = entries.map(d => d.name)
-    const last = new Map(names.map((n, i) => [n, i]))
-    const twice = names.find((n, i) => last.get(n) !== i)
+    const { lastIndexOf } = occurrences(names)
+    const twice = names.find((n, i) => lastIndexOf(n) !== i)
     return twice === undefined ? null : twice
 }
 
@@ -1242,15 +1243,14 @@ const packedHeadCollision = (headFound, packed) =>
  */
 const combine = (found, packed) => {
     const shadowed = new Set(toArray(found.names).map(nameKey))
-    // The last line of each name, as one pass: the `Map` constructor keeps the
-    // later entry for a repeated key, which is the rule this needs.
-    const last = new Map(packed.map((p, i) => [nameKey(p.name), i]))
+    // The last line of each name, as one pass.
+    const { lastIndexOf } = occurrences(packed.map(p => nameKey(p.name)))
     return [
         ...toArray(found.roots),
         ...packed
             .filter((p, i) => {
                 const k = nameKey(p.name)
-                return !shadowed.has(k) && last.get(k) === i
+                return !shadowed.has(k) && lastIndexOf(k) === i
             })
             .map(p => ({ name: p.name, id: p.id })),
     ]

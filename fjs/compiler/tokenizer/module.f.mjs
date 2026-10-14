@@ -51,6 +51,7 @@
  * @import { DjsToken, DjsTokenWithMetadata } from './types.ts'
  */
 import { tokenize as tokenizeJs } from '../../js/tokenizer/module.f.mjs'
+import { isTrivia } from '../../ebnf/lib/js/module.f.mjs'
 import { isKeyword } from '../../js/keywords/module.f.js'
 import { escapeToCodePoint } from '../../js/string_escape/module.f.mjs'
 import { flat, stateScan } from '../../types/list/module.f.mjs'
@@ -124,9 +125,6 @@ const mapDjsToken = input =>
     : djsTokenKindSet.has(input.kind) ? /** @type {DjsToken} */ (input)
     : isKeyword(input.kind) ? { kind: 'id', value: input.kind }
     : { kind: 'error', message: 'invalid token' }
-
-/** Whether a token is trivia: what stands between two tokens without being one of them. @type {(kind: JsToken['kind']) => boolean} */
-const isTrivia = kind => kind === 'ws' || kind === 'nl' || kind === '//' || kind === '/*'
 
 /**
  * One JavaScript token as the stream has it: nothing, for trivia, which

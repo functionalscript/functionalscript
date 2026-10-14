@@ -21,7 +21,7 @@
  */
 
 import { concat } from '../../types/string/module.f.mjs'
-import { includes } from '../../types/array/module.f.mjs'
+import { includes, occurrences } from '../../types/array/module.f.mjs'
 import { error, mapOk, ok } from '../../types/result/module.f.js'
 import {
     digitRange,
@@ -189,13 +189,16 @@ const checkReference = ([, name]) =>
     isIdentifier(name) ? null : `reference root is not an identifier: ${quoted(name)}`
 
 /** @type {(pattern: _OpenSetPattern) => Nullable<string>} */
-const checkPattern = ([, ...names]) => firstReasonOf(
-    /** @type {(name: string, index: number) => Nullable<string>} */
-    (name, index) =>
-        !isIdentifier(name) ? `pattern name is not an identifier: ${quoted(name)}`
-        : names.indexOf(name) !== index ? `duplicate pattern name: ${name}`
-        : null)
-    (names)
+const checkPattern = ([, ...names]) => {
+    const { indexOf } = occurrences(names)
+    return firstReasonOf(
+        /** @type {(name: string, index: number) => Nullable<string>} */
+        (name, index) =>
+            !isIdentifier(name) ? `pattern name is not an identifier: ${quoted(name)}`
+            : indexOf(name) !== index ? `duplicate pattern name: ${name}`
+            : null)
+        (names)
+}
 
 /** @type {(prefix: _AttributePath, path: _AttributePath) => boolean} */
 const isPathPrefix = (prefix, path) =>
