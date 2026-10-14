@@ -56,8 +56,10 @@ column of the example is part of the pin and is not repeated here.
 A pin is found by searching the compiler's and tokenizer's proofs for a
 refusal naming the construct, and a search proves nothing about absence. A
 **none** is a lead to confirm, a **loose** or **exact** names the proof that
-was read. The survey ran at `b714c66b1`; the examples were compiled as the
-`default` export of a one-line module and the first error read back.
+was read. The survey ran at `b714c66b1`; the examples were compiled and the first
+error read back: an expression as the `default` export of a one-line module, a
+statement as the body of a function exported by default, and a module-order
+case as a whole module.
 
 **Keeping it true.** A row changes in the pull request that changes what it
 describes:
@@ -111,7 +113,7 @@ describes:
 
 | ID | Construct | Why | Diagnostic | Pin |
 |---|---|---|---|---|
-| `st.let-while` | a `let` or `while` outside the one-variable loop, or its block holding more than the rebinding | planned ([let](./3220-let.md)) | let without while, while without let, not the loop variable, … | exact: parser `proof`, `grammar/proof` |
+| `st.let-while` | a `let` or `while` outside the one-variable loop, or its block holding a statement that is no `const` and no assignment to the loop variable | planned ([let](./3220-let.md)) | let without while, while without let, not the loop variable, … | exact: parser `proof`, `grammar/proof` |
 | `st.else` | `else`, an unbraced `if` | planned ([functions](../README.md#functions)) | unexpected token | exact: parser `grammar/proof` |
 | `st.for` | `for (;;) { }` | planned ([let](./3220-let.md), "Later") | unexpected token | none |
 | `st.for-in-of` | `for (k in o)`, `for (x of a)` | open | unexpected token | `for...in` exact: parser `operators.proof`; `for...of` none |
@@ -158,7 +160,7 @@ describes:
 
 | ID | Construct | Why | Diagnostic | Pin |
 |---|---|---|---|---|
-| `lit.octal` | `0o7` | design ([numbers](../README.md#numbers)) | unexpected token | none for the compiler; the DataJS reject vectors pin `0o10` for the DataJS reader |
+| `lit.octal` | `0o7` | open ([numbers](../README.md#numbers) leaves it out; the [roadmap](./README.md) records no use case yet) | unexpected token | none for the compiler; the DataJS reject vectors pin `0o10` for the DataJS reader |
 | `lit.leading-dot` | `.5` | planned (with the optional-chain-before-digit work, [roadmap](./README.md)) | unexpected token | none |
 | `lit.trailing-dot` | `5.` | open | unexpected token | none |
 | `lit.array-hole` | `[,]`, `[1,,2]` | open | unexpected token | exact: parser `proof` |

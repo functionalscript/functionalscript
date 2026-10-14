@@ -50,9 +50,9 @@ behaviour, and a table of cases is one test.
       their **Why**.
 - [ ] Pin the **open** rows that are **none**.
 - [ ] Upgrade the **loose** rows to **exact**.
-- [ ] Settle the one possible gap the survey turned up: `0o7` is refused by
-      design for numbers while `0b` and `0x` are accepted. State the reason
-      in the specification if there is one
+- [ ] Settle the one possible gap the survey turned up: `0o7` is left out of the specification
+      without a stated reason, while `0b` and `0x` are accepted. State the
+      reason, or admit it, and then set its **Why**
       ([design principles §12](../../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)).
 
 ### Related
