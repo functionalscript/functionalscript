@@ -133,7 +133,7 @@ const forInterpreter = (interpret, invoke) => {
         refusals: () => {
             for (const params of [
                 '(a,a)', '(a,a,b)', '(a,...a)', '(a,...x,)', '(a,...x,b)', '(a,...x,...y)',
-                '(a,,b)', '(a=1)', '([a])', '({a})', '(a.b)', '((a))', '(a+b)',
+                '(a,,b)', '(a=1)', '([(a)])', '({a:1})', '(a.b)', '((a))', '(a+b)',
                 '(a,1)', '(a,(b))', '(a,await)', '(a,undefined)', '(a,return)',
                 '(a)\n', 'a\n', '(a)/*\n*/', '(a,...x)\n',
             ]) { assertEq(parse('bad.f.mjs')(`export default ${params}=>1;`)[0], 'error', params) }

@@ -467,17 +467,18 @@ const nullishOp = opOf({ nullish })
 export const parameters = option([sym('...'), identifierName])
 
 /**
- * The named parameters after the first and its comma: `b, c` in
- * `(a, b, c)`, none in `(a,)`. Each is a name, a trailing comma allowed as
- * {@link items} allows one everywhere. The first
- * parameter is not this rule's: it is read as a value, and
- * {@link afterValue} has why.
+ * The parameters after the first and its comma: `b, c` in `(a, b, c)`,
+ * none in `(a,)`. Each fixed one is a binding target, a name or a pattern,
+ * {@link bindingTarget}, a trailing comma allowed as {@link items} allows
+ * one everywhere; the rest parameter, `...r`, keeps a plain name and ends
+ * the list. The first parameter is not this rule's: it is read as a value,
+ * and {@link afterValue} has why.
  *
  * @type {ParameterNames}
  */
 export const parameterNames = () => ['const', {
     rest: [sym('...'), identifierName],
-    fixed: [identifierName, option([sym(','), option(parameterNames)])],
+    fixed: [bindingTarget, option([sym(','), option(parameterNames)])],
 }]
 
 /**
@@ -966,15 +967,18 @@ export const object = /** @type {const} */ ([sym('{'), option(entries), sym('}')
 export const end = option([sym(';')])
 
 /**
- * What a `const` binds: a name, or a binding pattern — an array or an
- * object, {@link array} and {@link object}, the value rules' own, since a
- * pattern spells the literal the same text would and JavaScript reads the
- * two apart by position alone
+ * What a `const` or a fixed parameter after the first binds: a name, or a
+ * binding pattern — an array or an object, {@link array} and
+ * {@link object}, the value rules' own, since a pattern spells the literal
+ * the same text would and JavaScript reads the two apart by position alone
  * ([spec: destructuring](../../../../spec/README.md#destructuring)). A
- * name's word, `[` and `{` begin nothing else here, so one symbol decides.
- * What the literal reads that no pattern may hold — a value in a binding
- * position, a spread, a computed key — is the reader's to record and the
- * fold's to refuse, as a parameter list's head is.
+ * name's word, `[` and `{` begin nothing else in either position, so one
+ * symbol decides. What the literal reads that no pattern may hold — a
+ * value in a binding position, a spread, a computed key — is the reader's
+ * to record and the fold's to refuse, as a parameter list's head is.
+ *
+ * Declared here, below the literals it holds, and reached from
+ * {@link parameterNames} above through that rule's thunk.
  *
  * @type {BindingTarget}
  */
