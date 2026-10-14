@@ -99,7 +99,8 @@ describes:
 |---|---|---|---|---|
 | `acc.runtime-key` | `a[i]` | design ([property accessor](./2330-property-accessor.md)) | computed key is not Number(...) | exact: `language.proof` |
 | `acc.prototype-name` | `a.toString`, `a["push"]` | design ([property accessor](./2330-property-accessor.md)) | prohibited property name | exact for `a.toString`: `language.proof`, and for `a["toString"]`: parser `proof`; none for `a["push"]` |
-| `acc.prototype-call` | `a.push(0)`, `a.hasOwnProperty(k)` | design ([built-ins](./2360-built-in.md)) | prohibited member function | exact for `a.push(0)`: compiler `proof`; none for the `hasOwnProperty` call (its detached read is pinned by parser `proof`) |
+| `acc.mutating-call` | `a.push(0)` | planned ([mutability](./mutability.md), "Local mutability") | prohibited member function | exact: compiler `proof` |
+| `acc.prototype-call` | `a.hasOwnProperty(k)` | design ([built-ins](./2360-built-in.md)) | prohibited member function | none (its detached read is pinned by parser `proof`) |
 | `acc.proto-key` | `{ __proto__: 1 }` | design ([`__proto__`](../README.md#the-__proto__-key)) | `__proto__` requires the computed key form | exact: parser `proof` |
 | `acc.property-assignment` | `a.b = 1` | open (related: [mutability](./mutability.md)) | unexpected token | exact: parser `grammar/proof` (in a loop's block) |
 | `acc.numeric-key` | `{ 0: 1 }` | planned (roadmap, property key as number) | unexpected token | exact: parser `grammar/proof` (fails on the `number` token) |
