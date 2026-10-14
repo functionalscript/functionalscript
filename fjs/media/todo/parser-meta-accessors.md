@@ -80,11 +80,9 @@ type _Member<O, Id extends string> = Extract<O, { readonly id: Id }>
 /**
  * The one field of `M` besides `id`, or `never` where `M` has none or more
  * than one — so a member `tagged` cannot build whole has no key to name.
+ * With none, the `Exclude` is itself `never`, whichever branch is taken.
  */
-type _OnlyKey<M> =
-    [Exclude<keyof M, 'id'>] extends [never] ? never :
-    _IsUnion<Exclude<keyof M, 'id'>> extends true ? never :
-    Exclude<keyof M, 'id'>
+type _OnlyKey<M> = _IsUnion<Exclude<keyof M, 'id'>> extends true ? never : Exclude<keyof M, 'id'>
 /** `true` for each member of `M` that could carry the id `Id` yet is not `T`: a collider the runtime tag test cannot tell from `T`. */
 type _Collides<Id extends string, T, M extends { readonly id: string }> =
     M extends unknown ? (Id extends M['id'] ? ([M] extends [T] ? never : true) : never) : never
@@ -116,19 +114,22 @@ names all three, so the three instances are
 
 ```js
 /** @type {Tagged<Text, 'text', 'value'>} */
-const text = tagged('text', 'value')
+const textTag = tagged('text', 'value')
 /** The string a `Text` node carries. */
-export const textAt = text.at
+export const textAt = textTag.at
 /** @type {<P>() => Tagged<Out<P>, 'json', 'result'>} */
-const json = () => tagged('json', 'result')
+const jsonTag = () => tagged('json', 'result')
 ```
 
 in `json/parser` — the JSON pair is generic in the numeric policy, so it
-is a thunk over `P`, instantiated where `P` is bound, which is exactly
-where `jsonSymbol`/`jsonAt` are used today (inside `mappings(policy)` and
-the value mapping) — and `/** @type {Tagged<Out, 'value', 'node'>} */
-const value = tagged('value', 'node')` in `datajs/parser`, whose `Out` is
-DataJS's alphabet. `Tagged` is public API because every instance names
+is a thunk over `P`, bound as `/** @type {Tagged<Out<P>, 'json',
+'result'>} */ const { symbol, at } = jsonTag()` in each generic function
+that used `jsonSymbol`/`jsonAt`: `entry`, the value mapping,
+`mappings(policy)` and `parse` — and `/** @type {Tagged<Out, 'value',
+'node'>} */ const valueTag = tagged('value', 'node')` in `datajs/parser`,
+whose `Out` is DataJS's alphabet. The `Tag` suffix is there because both
+readers import their grammar's `json` and `value` rules under those
+names. `Tagged` is public API because every instance names
 it; `_IsUnion`, `_NotSingleton`, `_LiteralId`, `_Member`, `_OnlyKey`,
 `_Collides` and `_Admits` are `_`-prefixed types beside it in
 `json/parser/types.ts` — **not** `private.ts`: `tagged` and `Tagged` are
@@ -215,7 +216,7 @@ Value` can carry `'json'` — where a parameter typed over the layer's own
 alphabet would have. The runtime reads `meta.id` and one field and is
 alphabet-agnostic already; the type now promises exactly what that read
 can be trusted for, and `textAt`, the one reader that crosses layers,
-needs precisely this. `text` (the constructor) stays JSON-local: DataJS
+needs precisely this. `textTag.symbol` (the constructor) stays JSON-local: DataJS
 reuses JSON's string mappings, which build `Text` symbols, so it never
 constructs one itself.
 
@@ -232,10 +233,11 @@ one-line follow-up rather than a design decision.
 
 ### Tasks
 
-- [ ] Export `textAt`, `tagged`, and the `Tagged` type from
+- [x] Export `textAt`, `tagged`, and the `Tagged` type from
       `json/parser`; drop `datajs/parser`'s copy; rewrite the four
       wrap/read functions as typed `const` instances; the proof imports
-      `_valueSymbol` instead of restating it.
+      `_valueSymbol` instead of restating it. What `Tagged` takes and
+      refuses is pinned at module scope in `json/parser/types.ts`.
 - [ ] `fjs/compiler/parser/syntax`: the twelve readers become typed `tagged`
       instances composed after `outAt`, which stays as the narrowing from
       input to output metadata.
