@@ -65,7 +65,13 @@ as one array, a body takes them positionally, as a function in the
 language must. So a VM does not treat a body as a `Method<A>`; it calls
 the body as it calls any function value, with `[receiver, ...args]`, the
 receiver prepended to the arguments the call spread, which `Member::call`
-in `vm/lambda/member.rs` does. The second level is keyed by name rather
+in `vm/lambda/member.rs` does. That call keeps the arguments' count, so a
+body whose algorithm tells an omitted argument from an explicit
+`undefined` — `lastIndexOf`'s position, `reduce`'s initial value,
+`toSpliced`'s count — takes a rest parameter, `(self, ...args)`, and reads
+`args.length`, as the native adapter reads its array's; a body that need
+not tell them apart names its parameters, and reads `undefined` past the
+end. The second level is keyed by name rather
 than closed over so that the table is data: a VM enumerates it, and a
 reader finds `string.startsWith` where `fjs/js/prototype`'s README has its
 row.
@@ -90,9 +96,14 @@ requires to reject a key on either list — a check that stays mandatory
 there, since it is the one place such a key could enter. Behind those two
 a native VM does not care. The completeness table `nanvm/methods`
 generates and its four rows (`gen.methods.rs`) stay, and count a body as
-an answer: every admitted pair is answered natively or by a body, no
-prohibited or absent pair is answered at all, and a stale native entry
-for a name a type does not have is caught there as it is today.
+an answer: every admitted pair is answered natively or by a body, and no
+prohibited or absent pair is answered at all. The four rows probe
+prototype names, so a native entry under a name that is none — a typo,
+`charAtt` on an array, which the parser admits as an own-property call
+and the native table would then answer ahead of the `TypeError` — escapes
+them; the native tables are Rust arrays, enumerable, and the same test
+walks each one and asserts every binding is an answered pair of its type,
+which is the reverse direction, over every actual binding.
 
 **The compiler is the generator.** The module is an authored `.f.js` the
 current compiler accepts, so `fjs compile` through the Rust backend
