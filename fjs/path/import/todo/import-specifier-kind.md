@@ -52,8 +52,11 @@ calls, so a reader can tell it from an oversight.
 
 ### Related
 
-- [import-root-split](../../todo/import-root-split.md) — this module's root
-  rule against `fjs/path`'s; the classification above is upstream of both.
+- [`decode`](../module.f.mjs) refuses a leading `//`, a network-path
+  reference rather than a path, so a `'rooted'` answer starts with one
+  slash or three and more, never exactly two; `specifier` in
+  `fjs/emergent_testing/browser` still resolves `//` against the page's URL,
+  which names another host.
 - [compile-modules-to-edag](../../../compiler/todo/compile-modules-to-edag.md)
   — the bare-specifier policy the compiler will need, which wants one place
   to ask what a bare specifier is.

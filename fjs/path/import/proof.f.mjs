@@ -33,6 +33,20 @@ export const proof = {
         assertEq(resolve('main.f.js')('./C:/../dep.f.js'), null)
         assertEq(resolve('main.f.js')('./bad%\\extra/../dep.f.js'), null)
     },
+    // A leading `//` is a network-path reference in URL terms and a UNC root
+    // to `fjs/path`, never the relative-looking path it spells, so it is
+    // refused like a colon. Three or more slashes are the ordinary root
+    // followed by empty segments, as `fjs/path` reads them.
+    importPathNetworkPath: () => {
+        for (const specifier of ['//', '//x', '//x/dep.f.js', '//a/../../x', '//%2e%2e/x', '//./x']) {
+            assertEq(decode(specifier), null, specifier)
+            assertEq(resolve('/a/main.f.js')(specifier), null, specifier)
+        }
+        assertEq(decode('///x'), '///x')
+        assertEq(resolve('/a/main.f.js')('///x'), '/x')
+        assertEq(decode('/'), '/')
+        assertEq(decode(''), '')
+    },
     importPathRefusals: () => {
         for (const specifier of [
             './bad%.f.js', './%ff.f.js', './a%2Fb.f.js', './a%5Cb.f.js', './a%00b.f.js',

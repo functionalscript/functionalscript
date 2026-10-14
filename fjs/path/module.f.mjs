@@ -59,8 +59,6 @@ const pathSegment = segment =>
     : segment === '..' ? 'up'
     : 'keep'
 
-const pathDotSegments = _dotSegmentFold(pathSegment)
-
 /**
  * Converts Windows separators (`\`) to POSIX separators (`/`).
  *
@@ -137,8 +135,17 @@ const parts = path => split(toPosix(path))
  */
 const isRooted = ([r]) => r !== ''
 
-/** @type {(rooted: boolean) => (rest: string) => readonly string[]} */
-const posixSegments = rooted => rest => toArray(fold(pathDotSegments(rooted))([])(rest.split('/')))
+/**
+ * The segments of the text after a root, folded by `classify`'s dot rule.
+ *
+ * @type {(classify: (segment: string) => 'skip' | 'up' | 'keep') => (rooted: boolean) => (rest: string) => readonly string[]}
+ */
+const foldSegments = classify => {
+    const dotSegments = _dotSegmentFold(classify)
+    return rooted => rest => toArray(fold(dotSegments(rooted))([])(rest.split('/')))
+}
+
+const posixSegments = foldSegments(pathSegment)
 
 /**
  * The normalized segments of a decoded path, folded against its own root.
@@ -156,6 +163,32 @@ const spell = r => segments => stringConcat([r, listJoin('/')(segments)])
 
 /** @type {(p: readonly [root: string, rest: string]) => string} */
 const rejoin = p => spell(p[0])(segmentsOf(p))
+
+/**
+ * This module's root rule with another spelling's segments: the path is read
+ * as {@link split} reads it — `/`, `//`, `C:/` or none — the text after the
+ * root folds by `classify` against that root, and each surviving segment goes
+ * through `decodeSegment` before the root and the segments are put back
+ * together. A segment `decodeSegment` refuses with `null` refuses the path.
+ *
+ * It is for a spelling whose segments are not this module's, such as
+ * `fjs/path/import`'s URL paths, so that the root those spellings stand on is
+ * this module's and not a second copy of it. `path` is already POSIX: no `\`
+ * is converted here, because such a spelling reads one as its own business.
+ *
+ * Folding runs before decoding, so `classify` reads segments as written and
+ * `decodeSegment` sees only the ones that survive.
+ *
+ * @type {(classify: (segment: string) => 'skip' | 'up' | 'keep') => (decodeSegment: (segment: string) => string | null) => (path: string) => string | null}
+ */
+export const _foldRejoin = classify => {
+    const segmentsBy = foldSegments(classify)
+    return decodeSegment => path => {
+        const p = split(path)
+        const segments = segmentsBy(isRooted(p))(p[1]).map(decodeSegment)
+        return segments.every(segment => segment !== null) ? spell(p[0])(segments) : null
+    }
+}
 
 /**
  * The root of a path, carrying its trailing separator: `'/'` for a POSIX
