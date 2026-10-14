@@ -400,16 +400,20 @@ export const proof = {
                 chunkedResponse: true,
             })
             assertEq(credentialed.status, 400)
-            // So is any authority that names no host: the target is malformed
-            // whatever the header says.
-            const unreadable = answerRequest(site)({
+            // So is any authority that names no host. Such a target names no
+            // host to check, so the check reads the `Host` header instead: a
+            // served one lets the target through to its `400`, and an unserved
+            // one — a proxy repeating the authority there — is `403`.
+            /** @type {(host: string) => number} */
+            const unreadable = host => answerRequest(site)({
                 method: 'GET',
                 url: 'http://localhost:bad/index.html',
-                headers: { host: 'localhost:8080' },
+                headers: { host },
                 body: [],
                 chunkedResponse: true,
-            })
-            assertEq(unreadable.status, 400)
+            }).status
+            assertEq(unreadable('localhost:8080'), 400)
+            assertEq(unreadable('localhost:bad'), 403)
             const spoofed = answerRequest(site)({
                 method: 'GET',
                 url: 'http://attacker.example/index.html',

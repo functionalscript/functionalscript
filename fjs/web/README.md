@@ -388,7 +388,10 @@ absolute-form target whose authority names no host. The authority is read by
 the same grammar as a `Host` header
 ([below](#binding-loopback-is-not-the-whole-check)), so
 `http://localhost:bad/x` is refused as a target for the reason `Host:
-localhost:bad` is refused as a header.
+localhost:bad` is refused as a header. A target that does not parse names no
+host to check, so the host check falls back to the `Host` header, as it does for
+every malformed target: the request is `400` when that header names a served
+host, and `403` when it does not — `Host: localhost:bad` included.
 
 ### Request bodies
 
@@ -513,8 +516,7 @@ root and no host in it, so `http://./x` is `400` too, and `Host: .` is `403`.
 
 What may follow a name is a **port and nothing else**, and a port is digits
 **below 65536**: `localhost:bad`, `localhost:8080:999` and `localhost:65536` are
-all `403` as a `Host` and `400` as a target's authority, the last because a URL
-parser refuses the same authority
+all `403` as a `Host`, the last because a URL parser refuses the same authority
 (`new URL('http://localhost:65536/')` throws). The digits are read as a number
 rather than counted, since a parser reads `:00008080` as port 8080 and a length
 test would not. Reading a name and discarding whatever follows it is not a
