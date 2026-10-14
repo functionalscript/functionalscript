@@ -73,5 +73,5 @@ place.
 
 - [`src/vm/error.rs`](../src/vm/error.rs) — the message side; this
   issue is the guard-and-fallback skeleton around it.
-- [indexed-member-access-skeleton.md](./indexed-member-access-skeleton.md) —
-  the same pair of operators one layer down.
+- [`indexed_member_access`](../src/vm/member_access.rs) — the same pair of
+  operators one layer down, already one skeleton.

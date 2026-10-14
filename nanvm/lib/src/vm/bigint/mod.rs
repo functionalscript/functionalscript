@@ -19,6 +19,8 @@ mod shl;
 mod shr;
 mod sized_index;
 mod sub;
+#[cfg(test)]
+mod test_util;
 mod to_f64;
 
 use core::{cmp::Ordering, iter::once};
@@ -469,34 +471,29 @@ fn assert_slice_normalized<I: Uint, T: SizedIndex<I, Output = u64> + ?Sized>(v: 
     }
 }
 
-// TODO: move these tests to integration tests.
 #[cfg(test)]
 mod tests {
-    use crate::naive::Naive;
-
-    use super::*;
+    use super::test_util::{T, int, pos};
     use core::cmp::Ordering;
-
-    type TestBigInt = BigInt<Naive>;
 
     #[test]
     fn test_abs_cmp_vec_equal_numbers() {
-        let a: TestBigInt = 12_345u64.into();
-        let b: TestBigInt = 12_345u64.into();
+        let a: T = 12_345u64.into();
+        let b: T = 12_345u64.into();
         assert_eq!(a.abs_cmp_vec(b), Ordering::Equal);
     }
 
     #[test]
     fn test_abs_cmp_vec_equal_zero() {
-        let a: TestBigInt = 0u64.into();
-        let b: TestBigInt = 0u64.into();
+        let a: T = 0u64.into();
+        let b: T = 0u64.into();
         assert_eq!(a.abs_cmp_vec(b), Ordering::Equal);
     }
 
     #[test]
     fn test_abs_cmp_vec_simple_different_lengths() {
-        let one_digit = TestBigInt::unchecked_new(Sign::Positive, [100u64]);
-        let two_digits = TestBigInt::unchecked_new(Sign::Positive, [100u64, 1u64]);
+        let one_digit = pos([100u64]);
+        let two_digits = pos([100u64, 1u64]);
         assert_eq!(
             two_digits.clone().abs_cmp_vec(one_digit.clone()),
             Ordering::Greater
@@ -506,48 +503,48 @@ mod tests {
 
     #[test]
     fn test_abs_cmp_vec_same_length_first_greater() {
-        let a: TestBigInt = 12_346u64.into();
-        let b: TestBigInt = 12_345u64.into();
+        let a: T = 12_346u64.into();
+        let b: T = 12_345u64.into();
         assert_eq!(a.abs_cmp_vec(b), Ordering::Greater);
     }
 
     #[test]
     fn test_abs_cmp_vec_same_length_first_less() {
-        let a: TestBigInt = 12_344u64.into();
-        let b: TestBigInt = 12_345u64.into();
+        let a: T = 12_344u64.into();
+        let b: T = 12_345u64.into();
         assert_eq!(a.abs_cmp_vec(b), Ordering::Less);
     }
 
     #[test]
     fn test_abs_cmp_vec_most_significant_digit_differs() {
-        let a: TestBigInt = 0x8000_0000_0000_0000u64.into();
-        let b: TestBigInt = 0x7FFF_FFFF_FFFF_FFFFu64.into();
+        let a: T = 0x8000_0000_0000_0000u64.into();
+        let b: T = 0x7FFF_FFFF_FFFF_FFFFu64.into();
         assert_eq!(a.abs_cmp_vec(b), Ordering::Greater);
     }
 
     #[test]
     fn test_abs_cmp_vec_least_significant_digit_differs() {
-        let a: TestBigInt = 0x1000_0000_0000_0001u64.into();
-        let b: TestBigInt = 0x1000_0000_0000_0000u64.into();
+        let a: T = 0x1000_0000_0000_0001u64.into();
+        let b: T = 0x1000_0000_0000_0000u64.into();
         assert_eq!(a.abs_cmp_vec(b), Ordering::Greater);
     }
 
     #[test]
     fn test_abs_cmp_vec_zero_vs_nonzero() {
-        let a: TestBigInt = 0u64.into();
-        let b: TestBigInt = 1u64.into();
+        let a: T = 0u64.into();
+        let b: T = 1u64.into();
         assert_eq!(a.abs_cmp_vec(b), Ordering::Less);
 
-        let a: TestBigInt = 1u64.into();
-        let b: TestBigInt = 0u64.into();
+        let a: T = 1u64.into();
+        let b: T = 0u64.into();
         assert_eq!(a.abs_cmp_vec(b), Ordering::Greater);
     }
 
     #[test]
     fn test_abs_cmp_vec_simple_large_numbers() {
         // Test with large u64 numbers instead of multi-digit
-        let large1: TestBigInt = 0xFFFF_FFFF_FFFF_FFFFu64.into();
-        let large2: TestBigInt = 0xFFFF_FFFF_FFFF_FFFEu64.into();
+        let large1: T = 0xFFFF_FFFF_FFFF_FFFFu64.into();
+        let large2: T = 0xFFFF_FFFF_FFFF_FFFEu64.into();
 
         assert_eq!(
             large1.clone().abs_cmp_vec(large2.clone()),
@@ -559,8 +556,8 @@ mod tests {
 
     #[test]
     fn test_abs_cmp_vec_simple_equal() {
-        let large1: TestBigInt = 0x1234_5678_9ABC_DEF0u64.into();
-        let large2: TestBigInt = 0x1234_5678_9ABC_DEF0u64.into();
+        let large1: T = 0x1234_5678_9ABC_DEF0u64.into();
+        let large2: T = 0x1234_5678_9ABC_DEF0u64.into();
 
         assert_eq!(large1.abs_cmp_vec(large2), Ordering::Equal);
     }
@@ -568,8 +565,8 @@ mod tests {
     #[test]
     fn test_abs_cmp_vec_simple_digit_difference() {
         // Test simple cases where we know the expected result
-        let large1: TestBigInt = 0x8000_0000_0000_0000u64.into();
-        let large2: TestBigInt = 0x7FFF_FFFF_FFFF_FFFFu64.into();
+        let large1: T = 0x8000_0000_0000_0000u64.into();
+        let large2: T = 0x7FFF_FFFF_FFFF_FFFFu64.into();
 
         assert_eq!(large1.abs_cmp_vec(large2), Ordering::Greater);
     }
@@ -580,15 +577,14 @@ mod tests {
         // self = [5, 10] represents 10 * 2^64 + 5
         // rhs = [20, 9] represents 9 * 2^64 + 20
         // Since higher word is more significant, self should be greater despite lower word being smaller
-        let self_val = TestBigInt::unchecked_new(Sign::Positive, [5u64, 10u64]);
-        let rhs_val = TestBigInt::unchecked_new(Sign::Positive, [20u64, 9u64]);
+        let self_val = pos([5u64, 10u64]);
+        let rhs_val = pos([20u64, 9u64]);
 
         assert_eq!(self_val.abs_cmp_vec(rhs_val), Ordering::Greater);
     }
 
     #[test]
     fn test_div_mod_pairs_quotient_and_remainder() {
-        let int = |value: i64| -> TestBigInt { value.into() };
         for (a, b, q, r) in [
             (10, 3, 3, 1),
             (-10, 3, -3, -1),
@@ -612,41 +608,41 @@ mod tests {
 
     #[test]
     fn test_div_mod_zero_divisor_throws() {
-        let a: TestBigInt = 5u64.into();
-        assert!(a.div_mod(TestBigInt::default()).is_err());
+        let a: T = 5u64.into();
+        assert!(a.div_mod(T::default()).is_err());
     }
 
     // Tests for abs_add_vec
 
     #[test]
     fn test_abs_add_vec_basic() {
-        let a: TestBigInt = 123u64.into();
-        let b: TestBigInt = 456u64.into();
+        let a: T = 123u64.into();
+        let b: T = 456u64.into();
         let result = a.abs_add_vec(b);
-        let expected = TestBigInt::unchecked_new(Sign::Positive, result);
-        let expected_value: TestBigInt = 579u64.into();
+        let expected = pos(result);
+        let expected_value: T = 579u64.into();
         assert_eq!(expected.abs_cmp_vec(expected_value), Ordering::Equal);
     }
 
     #[test]
     fn test_abs_add_vec_zero() {
-        let a: TestBigInt = 42u64.into();
-        let b: TestBigInt = 0u64.into();
+        let a: T = 42u64.into();
+        let b: T = 0u64.into();
         let result = a.clone().abs_add_vec(b);
-        let result_bigint = TestBigInt::unchecked_new(Sign::Positive, result);
+        let result_bigint = pos(result);
         assert_eq!(result_bigint.abs_cmp_vec(a), Ordering::Equal);
 
-        let c: TestBigInt = 0u64.into();
-        let d: TestBigInt = 17u64.into();
+        let c: T = 0u64.into();
+        let d: T = 17u64.into();
         let result2 = c.abs_add_vec(d.clone());
-        let result2_bigint = TestBigInt::unchecked_new(Sign::Positive, result2);
+        let result2_bigint = pos(result2);
         assert_eq!(result2_bigint.abs_cmp_vec(d), Ordering::Equal);
     }
 
     #[test]
     fn test_abs_add_vec_carry() {
-        let a: TestBigInt = u64::MAX.into();
-        let b: TestBigInt = 1u64.into();
+        let a: T = u64::MAX.into();
+        let b: T = 1u64.into();
         let result = a.abs_add_vec(b);
 
         // u64::MAX + 1 should produce [0, 1] (carry to next digit)
@@ -657,8 +653,8 @@ mod tests {
 
     #[test]
     fn test_abs_add_vec_different_lengths() {
-        let small = TestBigInt::unchecked_new(Sign::Positive, [100u64]);
-        let large = TestBigInt::unchecked_new(Sign::Positive, [200u64, 1u64]);
+        let small = pos([100u64]);
+        let large = pos([200u64, 1u64]);
 
         let result1 = small.clone().abs_add_vec(large.clone());
         let result2 = large.abs_add_vec(small);
@@ -676,8 +672,8 @@ mod tests {
 
     #[test]
     fn test_abs_add_vec_multiple_carries() {
-        let a = TestBigInt::unchecked_new(Sign::Positive, [u64::MAX, u64::MAX]);
-        let b: TestBigInt = 1u64.into();
+        let a = pos([u64::MAX, u64::MAX]);
+        let b: T = 1u64.into();
 
         let result = a.abs_add_vec(b);
 
@@ -690,18 +686,18 @@ mod tests {
 
     #[test]
     fn test_abs_add_vec_same_large_numbers() {
-        let large: TestBigInt = 0x7FFF_FFFF_FFFF_FFFFu64.into();
+        let large: T = 0x7FFF_FFFF_FFFF_FFFFu64.into();
         let result = large.clone().abs_add_vec(large);
-        let result_bigint = TestBigInt::unchecked_new(Sign::Positive, result);
+        let result_bigint = pos(result);
 
-        let expected: TestBigInt = 0xFFFF_FFFF_FFFF_FFFEu64.into();
+        let expected: T = 0xFFFF_FFFF_FFFF_FFFEu64.into();
         assert_eq!(result_bigint.abs_cmp_vec(expected), Ordering::Equal);
     }
 
     #[test]
     fn test_abs_add_vec_no_carry() {
-        let a: TestBigInt = 1_000u64.into();
-        let b: TestBigInt = 2_000u64.into();
+        let a: T = 1_000u64.into();
+        let b: T = 2_000u64.into();
         let result = a.abs_add_vec(b);
 
         assert_eq!(result.len(), 1);
@@ -710,8 +706,8 @@ mod tests {
 
     #[test]
     fn test_abs_add_vec_both_zero() {
-        let a: TestBigInt = 0u64.into();
-        let b: TestBigInt = 0u64.into();
+        let a: T = 0u64.into();
+        let b: T = 0u64.into();
         let result = a.abs_add_vec(b);
 
         // Zero might be represented as empty vector in this implementation
@@ -722,17 +718,17 @@ mod tests {
 
     #[test]
     fn test_abs_sub_vec_basic() {
-        let a: TestBigInt = 456u64.into();
-        let b: TestBigInt = 123u64.into();
+        let a: T = 456u64.into();
+        let b: T = 123u64.into();
         let result = a.abs_sub_vec(b);
-        let result_bigint = TestBigInt::unchecked_new(Sign::Positive, result);
-        let expected: TestBigInt = 333u64.into();
+        let result_bigint = pos(result);
+        let expected: T = 333u64.into();
         assert_eq!(result_bigint.abs_cmp_vec(expected), Ordering::Equal);
     }
 
     #[test]
     fn test_abs_sub_vec_same_numbers() {
-        let a: TestBigInt = 12_345u64.into();
+        let a: T = 12_345u64.into();
         let result = a.clone().abs_sub_vec(a);
 
         // Result should be zero (empty vec or [0])
@@ -741,17 +737,17 @@ mod tests {
 
     #[test]
     fn test_abs_sub_vec_subtract_zero() {
-        let a: TestBigInt = 42u64.into();
-        let b: TestBigInt = 0u64.into();
+        let a: T = 42u64.into();
+        let b: T = 0u64.into();
         let result = a.clone().abs_sub_vec(b);
-        let result_bigint = TestBigInt::unchecked_new(Sign::Positive, result);
+        let result_bigint = pos(result);
         assert_eq!(result_bigint.abs_cmp_vec(a), Ordering::Equal);
     }
 
     #[test]
     fn test_abs_sub_vec_with_borrow() {
-        let a: TestBigInt = 1_000u64.into();
-        let b: TestBigInt = 1u64.into();
+        let a: T = 1_000u64.into();
+        let b: T = 1u64.into();
         let result = a.abs_sub_vec(b);
 
         assert_eq!(result.len(), 1);
@@ -760,8 +756,8 @@ mod tests {
 
     #[test]
     fn test_abs_sub_vec_different_lengths() {
-        let large = TestBigInt::unchecked_new(Sign::Positive, [300u64, 2u64]);
-        let small = TestBigInt::unchecked_new(Sign::Positive, [100u64]);
+        let large = pos([300u64, 2u64]);
+        let small = pos([100u64]);
 
         let result = large.abs_sub_vec(small);
 
@@ -773,8 +769,8 @@ mod tests {
 
     #[test]
     fn test_abs_sub_vec_borrow_propagation() {
-        let a = TestBigInt::unchecked_new(Sign::Positive, [0u64, 1u64]); // 2^64
-        let b: TestBigInt = 1u64.into();
+        let a = pos([0u64, 1u64]); // 2^64
+        let b: T = 1u64.into();
 
         let result = a.abs_sub_vec(b);
 
@@ -785,8 +781,8 @@ mod tests {
 
     #[test]
     fn test_abs_sub_vec_leading_zero_trim() {
-        let a = TestBigInt::unchecked_new(Sign::Positive, [100u64, 1u64]);
-        let b = TestBigInt::unchecked_new(Sign::Positive, [100u64, 1u64]);
+        let a = pos([100u64, 1u64]);
+        let b = pos([100u64, 1u64]);
 
         let result = a.abs_sub_vec(b);
 
@@ -796,8 +792,8 @@ mod tests {
 
     #[test]
     fn test_abs_sub_vec_large_numbers() {
-        let a: TestBigInt = u64::MAX.into();
-        let b: TestBigInt = (u64::MAX - 1_000u64).into();
+        let a: T = u64::MAX.into();
+        let b: T = (u64::MAX - 1_000u64).into();
         let result = a.abs_sub_vec(b);
 
         assert_eq!(result.len(), 1);
@@ -806,8 +802,8 @@ mod tests {
 
     #[test]
     fn test_abs_sub_vec_no_borrow() {
-        let a: TestBigInt = 5_000u64.into();
-        let b: TestBigInt = 2_000u64.into();
+        let a: T = 5_000u64.into();
+        let b: T = 2_000u64.into();
         let result = a.abs_sub_vec(b);
 
         assert_eq!(result.len(), 1);
@@ -817,16 +813,16 @@ mod tests {
     #[test]
     #[should_panic(expected = "abs_sub_vec: rhs is greater than self")]
     fn test_abs_sub_vec_panic_rhs_greater() {
-        let a: TestBigInt = 100u64.into();
-        let b: TestBigInt = 200u64.into();
+        let a: T = 100u64.into();
+        let b: T = 200u64.into();
         let _ = a.abs_sub_vec(b); // Should panic
     }
 
     #[test]
     #[should_panic(expected = "abs_sub_vec: rhs is greater than self")]
     fn test_abs_sub_vec_panic_different_lengths() {
-        let small = TestBigInt::unchecked_new(Sign::Positive, [100u64]);
-        let large = TestBigInt::unchecked_new(Sign::Positive, [100u64, 1u64]);
+        let small = pos([100u64]);
+        let large = pos([100u64, 1u64]);
         let _ = small.abs_sub_vec(large); // Should panic - small < large
     }
 }

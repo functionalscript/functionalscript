@@ -16,7 +16,7 @@ import { unwrap } from '../types/result/module.f.js'
 import { mapStep, pureOk, step } from '../effects/module.f.mjs'
 import { join, relativize, toPosix } from '../path/module.f.mjs'
 import { assert, assertEq } from '../asserts/module.f.mjs'
-import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
+import { virtualAt } from '../effects/node/virtual/module.f.mjs'
 
 /**
  * Returns `true` if the file should be loaded for proof discovery.
@@ -177,7 +177,7 @@ export const proof = {
             'c.f.mts': [],
             'd.mjs': [],
         }
-        const [, result] = virtual({ ...emptyState, root })(allFiles('.', shouldLoad))
+        const [, result] = virtualAt(root)(allFiles('.', shouldLoad))
         assertEq(unwrap(result).join(','), './a.f.ts,./b.f.mjs,./c.f.mts')
     },
     allFilesSkipsNodeModules: () => {
@@ -188,7 +188,7 @@ export const proof = {
             'node_modules': { 'pkg.f.ts': [] },
             'a.f.ts': [],
         }
-        const [, result] = virtual({ ...emptyState, root })(allFiles('.', shouldLoad))
+        const [, result] = virtualAt(root)(allFiles('.', shouldLoad))
         assertEq(unwrap(result).join(','), './a.f.ts')
     },
     loadModuleMapDefaultsToCwdWhenInitCwdUnset: () => {
@@ -197,7 +197,7 @@ export const proof = {
         // every path keeps its own `./`-prefix instead of having one stripped.
         /** @type {Dir} */
         const root = { 'a.f.ts': () => ({}) }
-        const [, result] = virtual({ ...emptyState, root })(loadModuleMap({}))
+        const [, result] = virtualAt(root)(loadModuleMap({}))
         assertEq(Object.keys(unwrap(result)).join(','), './a.f.ts')
     },
     loadModuleMapReportsUnreadableRoot: () => {
@@ -205,7 +205,7 @@ export const proof = {
         // hands the failure back, and the program that asked for the map is
         // the one that decides what a source tree it cannot read means — for
         // `fjs t` that is a message on `stderr` and exit `1`.
-        const [, result] = virtual({ ...emptyState, root: {} })(loadModuleMap({ INIT_CWD: 'missing' }))
+        const [, result] = virtualAt({})(loadModuleMap({ INIT_CWD: 'missing' }))
         assert(result[0] === 'error', result)
     },
     loadModuleMapReportsUnimportableModule: () => {
@@ -215,7 +215,7 @@ export const proof = {
         // virtual runner's `import` refuses it. Without this, a `loadFile`
         // that turned every import failure into a success would still pass
         // every other proof here.
-        const [, result] = virtual({ ...emptyState, root: { 'a.f.ts': [] } })(loadModuleMap({}))
+        const [, result] = virtualAt({ 'a.f.ts': [] })(loadModuleMap({}))
         assert(result[0] === 'error', result)
     },
     loadModuleMapStripsInitCwdPrefix: () => {
@@ -224,7 +224,7 @@ export const proof = {
         // keys are still `./`-relative to `INIT_CWD` rather than carrying it.
         /** @type {Dir} */
         const root = { 'sub': { 'a.f.ts': () => ({}) } }
-        const [, result] = virtual({ ...emptyState, root })(loadModuleMap({ INIT_CWD: 'sub' }))
+        const [, result] = virtualAt(root)(loadModuleMap({ INIT_CWD: 'sub' }))
         assertEq(Object.keys(unwrap(result)).join(','), './a.f.ts')
     },
 }

@@ -11,17 +11,9 @@ impl<A: IVm> Rem for BigInt<A> {
     }
 }
 
-// TODO: The unit tests should not use `naive` or other VM implementations.
-//       We should move these tests into integration tests.
 #[cfg(test)]
 mod tests {
-    use crate::{naive::Naive, sign::Sign, vm::bigint::BigInt};
-
-    type T = BigInt<Naive>;
-
-    fn int(value: i64) -> T {
-        value.into()
-    }
+    use crate::vm::bigint::test_util::{T, int, pos};
 
     #[test]
     fn sign_follows_dividend() {
@@ -54,7 +46,7 @@ mod tests {
     #[test]
     fn multi_word_remainder() {
         // 2^64 % (2^64 - 1) = 1
-        let a = T::unchecked_new(Sign::Positive, [0, 1]);
+        let a = pos([0, 1]);
         let b: T = u64::MAX.into();
         assert_eq!((a % b).unwrap(), int(1));
     }
@@ -63,7 +55,7 @@ mod tests {
     fn multi_word_dividend_single_word_divisor() {
         // (3 * 2^64 + 7) % 5 = (3*2^64 mod 5 + 7) mod 5; 2^64 mod 5 == 1, so
         // this is (3 + 7) mod 5 == 0.
-        let a = T::unchecked_new(Sign::Positive, [7, 3]);
+        let a = pos([7, 3]);
         let b: T = 5u64.into();
         assert_eq!((a % b).unwrap(), T::default());
     }

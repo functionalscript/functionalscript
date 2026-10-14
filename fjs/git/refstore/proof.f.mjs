@@ -12,7 +12,7 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { ioError } from '../../effects/module.f.mjs'
 import { run as mockRun } from '../../effects/mock/module.f.mjs'
-import { emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'
+import { virtualAt } from '../../effects/node/virtual/module.f.mjs'
 import { fromCodePointList, fromVec } from '../../text/utf8/module.f.mjs'
 import { codePointListToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { maxLengthBytes, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
@@ -218,7 +218,7 @@ const linkedHeadHost = bytes => headIsFile => ({
  * @type {(root: Dir, dirs: Dirs) => IoErrorInfo}
  */
 const rootsRefusal = (root, dirs) => {
-    const [, r] = virtual({ ...emptyState, root })(tryRoots(dirs, 20))
+    const [, r] = virtualAt(root)(tryRoots(dirs, 20))
     assert(r[0] === 'error')
     const e = r[1]
     assert(e[0] === 'ioError')

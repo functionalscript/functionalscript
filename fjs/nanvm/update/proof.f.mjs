@@ -3,6 +3,7 @@
  *
  * @import { IoChannel, ReadFile } from '../../effects/node/types.ts'
  * @import { Effect } from '../../effects/types.ts'
+ * @import { Dir } from '../../effects/node/virtual/types.ts'
  */
 
 import { exitCode } from '../../effects/node/module.f.mjs'
@@ -13,6 +14,7 @@ import {
     defaultNodeProgramOptions,
     emptyState,
     virtual,
+    virtualAt,
 } from '../../effects/node/virtual/module.f.mjs'
 import { data } from '../module.f.mjs'
 import { directory, generate } from '../rust/module.f.mjs'
@@ -23,8 +25,8 @@ import { edagPath, rustPath } from '../runtime/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { generateRustTests, main } from './module.f.mjs'
 
-/** A stand-in for `fjs/js/runtime` at its path, for the compiles the writer ends with. @type {typeof emptyState} */
-const state = { ...emptyState, root: { 'fjs': { 'js': { 'runtime': { 'module.f.js': [utf8('export const runtime = {};')] } } } } }
+/** A stand-in for `fjs/js/runtime` at its path, for the compiles the writer ends with. @type {Dir} */
+const root = { 'fjs': { 'js': { 'runtime': { 'module.f.js': [utf8('export const runtime = {};')] } } } }
 
 export const proof = {
     generateRustTests: () => {
@@ -37,12 +39,12 @@ export const proof = {
             (/** @type {Effect<ReadFile, readonly string[], IoChannel>} */ e, [name]) =>
                 ioStep(e, read => ioStep(readUtf8File(`${directory}/${name}`), c => pureOk([...read, c]))),
             pureOk([]))
-        const [written, [tag, result]] = virtual(state)(ioStep(generateRustTests(), () => readAll))
+        const [written, [tag, result]] = virtualAt(root)(ioStep(generateRustTests(), () => readAll))
         assert(tag === 'ok', result)
         assertEq(result.length, files.length)
         files.forEach(([, content], i) => { assertEq(result[i], content) })
         const table = ioStep(generateRustTests(), () => readUtf8File(methodsPath))
-        const [, [tableTag, tableResult]] = virtual(state)(table)
+        const [, [tableTag, tableResult]] = virtualAt(root)(table)
         assert(tableTag === 'ok', tableResult)
         assertEq(tableResult, generateMethods())
         const [, valuesResult] = virtual(written)(readUtf8File(valuesPath))
@@ -61,7 +63,7 @@ export const proof = {
         assertEq(result[0], 'error')
     },
     main: () => {
-        const [, result] = virtual(state)(main(defaultNodeProgramOptions))
+        const [, result] = virtualAt(root)(main(defaultNodeProgramOptions))
         assertEq(exitCode(result), 0)
     },
 }
