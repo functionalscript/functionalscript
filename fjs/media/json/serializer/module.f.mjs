@@ -10,8 +10,8 @@
  * `serialize`/`stringify` pair.
  *
  * `stringSerialize` is FunctionalScript, not the host's `JSON.stringify`: it
- * escapes over this repository's own UTF-16 decoder and reproduces the
- * ECMAScript `QuoteJSONString` result exactly, lone surrogates included.
+ * quotes through `fjs/js/string_escape`'s `stringLiteral`, which reproduces
+ * the ECMAScript `QuoteJSONString` result exactly, lone surrogates included.
  *
  * **A leaf says what it is.** A leaf is a `[text, kind]` run, not a bare
  * string: a string is a `string`, a number a `number`, `null`, `true` and
@@ -25,22 +25,16 @@
  *
  * @import { List } from '../../../types/list/types.ts'
  * @import { Reduce } from '../../../types/function/operator/types.ts'
- * @import { CodePoint } from '../../../text/code_point/types.ts'
  * @import { Tree, TreeObject, TreeArray, TreeEntry, TreeEntries, TreeMapEntries } from '../types.ts'
  * @import { Codec, LeafSerializer, _ExtraLeaves, _Leaves } from './types.ts'
  * @import { Chunk } from '../../../text/marked/types.ts'
  */
 
 import { flat, map, reduce, empty } from '../../../types/list/module.f.mjs'
-import { concat } from '../../../types/string/module.f.mjs'
 import { chunkStrings, chunksMarked, chunksText } from '../../../text/marked/module.f.mjs'
-import { codePointToString, stringToCodePointList } from '../../../text/utf16/module.f.mjs'
-import { errorMask } from '../../../text/code_point/module.f.mjs'
 import { definedEntries, isObject } from '../../../types/object/module.f.mjs'
 import { compose, fn } from '../../../types/function/module.f.js'
-import { hexDigitCodePoint, space } from '../../../text/ascii/module.f.mjs'
-import { codePointToEscape } from '../../../js/string_escape/module.f.mjs'
-import { map as nullableMap } from '../../../types/nullable/module.f.mjs'
+import { stringLiteral } from '../../../js/string_escape/module.f.mjs'
 import { assertNotNullish } from '../../../asserts/module.f.mjs'
 import { isFinite_ } from '../../../types/number/is_finite/module.f.js'
 
@@ -48,50 +42,14 @@ const jsonStringify = JSON.stringify
 
 const { is } = Object
 
-const { fromCharCode } = String
-
-/** @type {(value: number) => string} */
-const hexDigit = value => fromCharCode(hexDigitCodePoint(value))
-
 /**
- * `\uXXXX` with lowercase hex digits, matching ECMAScript's `UnicodeEscape`.
- *
- * @type {(unit: number) => string}
- */
-const unicodeEscape = unit =>
-    `\\u${hexDigit(unit >> 12 & 0xf)}${hexDigit(unit >> 8 & 0xf)}${hexDigit(unit >> 4 & 0xf)}${hexDigit(unit & 0xf)}`
-
-/**
- * The two-character escape a letter spells, projected over the lookup's
- * `null`. Bound here rather than inside `escapeCodePoint`: it depends on
- * nothing that varies per code point, and `escapeCodePoint` runs once per
- * character of every string serialized.
- *
- * @type {(letter: number | null) => string | null}
- */
-const simpleEscape = nullableMap(letter => `\\${codePointToString(letter)}`)
-
-/**
- * Escapes one decoded code point. A code point tagged with `errorMask` is an
- * unpaired surrogate, which well-formed JSON stringification (ES2019) emits as
- * its `\uXXXX` escape rather than as a code unit; everything else is either a
- * named escape, a `\u00XX` control escape, or the character itself.
- *
- * @type {(codePoint: CodePoint) => string}
- */
-const escapeCodePoint = codePoint =>
-    (codePoint & errorMask) !== 0
-        ? unicodeEscape(codePoint & 0xffff)
-        : simpleEscape(codePointToEscape(codePoint))
-            ?? (codePoint < space ? unicodeEscape(codePoint) : codePointToString(codePoint))
-
-/**
- * Serializes a string as a JSON string literal.
+ * Serializes a string as a JSON string literal: `stringLiteral`'s text, as
+ * one `string` run.
  *
  * @type {(_: string) => List<Chunk>}
  */
 export const stringSerialize
-    = input => [[`"${concat(map(escapeCodePoint)(stringToCodePointList(input)))}"`, 'string']]
+    = input => [[stringLiteral(input), 'string']]
 
 /**
  * Serializes a number as a JSON number literal.

@@ -81,8 +81,9 @@ then imports it.
 
 ### Related
 
-- [`../../../types/ts/todo/66c-emit-literals-via-owner-modules.md`](../../../types/ts/todo/66c-emit-literals-via-owner-modules.md) —
-  the same principle for literals; this is the item layer.
+- [`fjs/js/string_escape`](../../../js/string_escape/module.f.mjs)'s
+  `stringLiteral` — the same principle for string literals, done; this is
+  the item layer.
 - [rust-item-helpers](../../../nanvm/todo/rust-item-helpers.md) — owns
   `indent` and the string-only `skipFn` wrapper if retained.
 - [generated-rust-module-rustfmt-skip](../../../../nanvm/lib/todo/generated-rust-module-rustfmt-skip.md)
