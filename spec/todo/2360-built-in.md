@@ -79,6 +79,44 @@ name not yet decided, or, where it says so, never admitted.
       [operator-based predicate](../../fjs/types/number/is_integer/module.f.js),
       without admitting `Number.isInteger`. Remaining global-member users
       are not `.f.js`, the files the compiler holds to the reserved word today
+
+#### Number predicates proposal and approval
+
+**Problem.** Four `Number` members are pure predicates a module reaches for
+by name — `Number.isInteger`, `Number.isSafeInteger`, `Number.isNaN` and
+`Number.isFinite` — and the compiler refuses each (`reserved word`), so a
+module imports a helper in its place
+([`doc/CONVERTING.md`](../../doc/CONVERTING.md) §2–§4) and an `.f.mjs` that
+reads the member cannot be renamed `.f.js` as written.
+
+**Proposal.** Admit the four as static functions, as `Object.is` is
+([built-in static functions](../README.md#built-in-static-functions)): each
+a value in every spelling of the read, `Number.isInteger`,
+`Number["isInteger"]` and the guarded forms, and through
+`const { isInteger } = Number`; each the EDAG node of its name,
+`['Number.isInteger']`; each body the existing helper the runtime's `static`
+section imports — `isInteger`, `isSafeInteger`, `isNaN_` and `isFinite_` of
+`fjs/types/number` — which answer as the built-ins do for every kind of
+value, none converting its argument. `Number` is reserved already, for the
+conversion; it becomes a namespace beside it, `Number(x)` unchanged. The
+global `isNaN` and `isFinite`, which convert, are not these and stay
+undecided.
+
+**Benefits.** The JavaScript spelling for what modules write today through
+imported helpers, with one body per predicate shared by the runtime and the
+modules that import it, so the two answer alike by construction. A module
+reading one of the four needs no rewrite to compile.
+
+**Drawbacks.** Four more EDAG node kinds, each an arm of every executor and
+writer, unless the arms share one table of static names. The namespace
+grows to a member that is a number, `Number.MAX_SAFE_INTEGER`, which stays
+refused: a value property is a different admission from a function.
+
+**Language-design approval.** **sergey-shandar** chose "all four Number
+predicates" when asked which function to admit next, in the working session
+of [#2914](https://github.com/functionalscript/functionalscript/pull/2914)'s
+stacked follow-up, before implementation began.
+
 - [ ] `BigInt` — not decided. `BigInt(n)` on an integral number is the
       importable function
       [`bigint`](../../fjs/types/bigint/from_number/module.f.js)

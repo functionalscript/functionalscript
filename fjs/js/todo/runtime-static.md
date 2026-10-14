@@ -295,9 +295,15 @@ this proposal does not take.
 - [ ] Decide `String.fromCharCode` in `2360-built-in.md`; admitted, it is
       the native primitive, and the casing pair follows as bodies over a
       generated casing table.
-- [ ] Decide `isNaN`, `Number.isInteger`, `Number.isNaN` and
-      `Number.isFinite` there; admitted, their bodies are the helpers, and
-      the helper importers `2360-built-in.md` counts are rewritten.
+- [ ] Admit `Number.isInteger`, `Number.isSafeInteger`, `Number.isNaN`
+      and `Number.isFinite`, decided in `2360-built-in.md`: their paths in
+      `statics`, their bodies the helpers in the `static` section, each the
+      EDAG node of its name, `['Number.isInteger']`, read in every spelling
+      `Object.is` is and through `const { isInteger } = Number`; the arms
+      that name `Object.is` alone become one table of static names; the
+      spec, `doc/CONVERTING.md` §2–§4 and a harness fixture say so.
+- [ ] Decide the global `isNaN` and `isFinite` there, which convert their
+      argument as the `Number` predicates do not.
 
 ### Related
 
