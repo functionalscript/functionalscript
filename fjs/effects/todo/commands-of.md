@@ -1,7 +1,7 @@
 ## Consumers repeat the `Commands` cast over `Object.keys`
 
 **Priority:** P5
-**Status:** open
+**Status:** wip
 
 ### Problem
 
