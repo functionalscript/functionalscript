@@ -1,7 +1,7 @@
 ## import-root-split. `path/import` re-derives the root `fjs/path` already splits, and the two disagree on `//`
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
