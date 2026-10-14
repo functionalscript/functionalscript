@@ -99,11 +99,11 @@ describes:
 |---|---|---|---|---|
 | `acc.runtime-key` | `a[i]` | design ([property accessor](./2330-property-accessor.md)) | computed key is not Number(...) | exact: `language.proof` |
 | `acc.prototype-name` | `a.toString`, `a["push"]` | design ([property accessor](./2330-property-accessor.md)) | prohibited property name | exact: `language.proof` |
-| `acc.prototype-call` | `a.push(0)`, `a.hasOwnProperty(k)` | design ([built-ins](./2360-built-in.md)) | prohibited member function | exact: compiler `proof` |
+| `acc.prototype-call` | `a.push(0)`, `a.hasOwnProperty(k)` | design ([built-ins](./2360-built-in.md)) | prohibited member function | exact for `a.push(0)`: compiler `proof`; none for the `hasOwnProperty` call (its detached read is pinned by parser `proof`) |
 | `acc.proto-key` | `{ __proto__: 1 }` | design ([`__proto__`](../README.md#the-__proto__-key)) | `__proto__` requires the computed key form | exact: parser `proof` |
 | `acc.property-assignment` | `a.b = 1` | open (related: [mutability](./mutability.md)) | unexpected token | exact: parser `grammar/proof` (in a loop's block) |
 | `acc.numeric-key` | `{ 0: 1 }` | planned (roadmap, property key as number) | unexpected token | none |
-| `name.literal-word` | `const NaN = 1`, `const undefined = 1`, `const Infinity = 1` | design ([literal words](./2445-literal-words-as-references.md)) | reserved word | exact: parser `proof` |
+| `name.literal-word` | `const NaN = 1`, `const undefined = 1`, `const Infinity = 1` | design ([literal words](./2445-literal-words-as-references.md)) | reserved word | exact for `NaN` and `undefined`: parser `proof`; for `Infinity` only as an import binding; none for `const Infinity` |
 | `name.intrinsic` | `const String = 1`, `export default String` | design ([built-ins](./2360-built-in.md)) | reserved word | exact: `language.proof` |
 | `name.unbound` | `zzz`, `Math`, `JSON`, `Object`, `globalThis`, `Promise` | design; a bare global stays refused after [global names](./2365-global-names.md), which only improves the diagnostic | const not found | exact for an unbound name; none for a global by name |
 | `name.forward-reference` | `export const a = b; export const b = 1;` | planned ([forward references](./3140-forward-references.md)) | const not found | exact for `const a = a`; loose for a later `const` |
@@ -164,9 +164,9 @@ describes:
 | `lit.leading-dot` | `.5` | planned (with the optional-chain-before-digit work, [roadmap](./README.md)) | unexpected token | none |
 | `lit.trailing-dot` | `5.` | open | unexpected token | none |
 | `lit.array-hole` | `[,]`, `[1,,2]` | open | unexpected token | exact: parser `proof` |
-| `lit.string-escape` | `"\x41"`, `"\v"`, `"\0"`, `"\u{41}"`, a raw TAB | planned ([string literals](./2460-js-string-literals.md)) | unexpected token | exact for `'\x41'`: `language.proof` `strings.refused`; none for the other escapes |
+| `lit.string-escape` | `"\x41"`, `"\v"`, `"\0"`, `"\u{41}"`, a raw TAB | planned ([string literals](./2460-js-string-literals.md)) | unexpected token | exact for `'\x41'`: `language.proof` `strings.refused`; loose for `"\x41"`: parser `proof` asserts the message, not the position; none for the other escapes |
 | `lit.string-continuation` | a `\` before a line terminator in a string | planned ([string literals](./2460-js-string-literals.md)) | unexpected token | none |
-| `lit.template-escape` | `` `\x41` ``, `` `\v` ``, a raw TAB in a template | planned ([template literals](../README.md#template-literals)) | unexpected token | exact: compiler `tokenizer/proof`, `refusedEscapes` |
+| `lit.template-escape` | `` `\x41` ``, `` `\v` ``, a raw TAB in a template | open ([template literals](../README.md#template-literals) calls them deferred; no roadmap item admits them) | unexpected token | exact: compiler `tokenizer/proof`, `refusedEscapes` |
 
 ## Not on this register
 
