@@ -12,7 +12,7 @@ import { byteLength, empty, isVec, maxLengthBytes, u8ListMsb, u8ListToVecMsb, ui
 import { utf8, utf8ToString } from "../../text/module.f.mjs"
 import { match } from "../module.f.mjs"
 import { mapStep, pureError, pureOk, step as ioStep } from "../module.f.mjs"
-import { badPortCode, badPortMessage, both, carriesNoBody, declaredLength, doubledLengthMessage, errorMessage, errorSummary, exitStep, fetch, framingHeaderMessage, headerValue, inflate, inflateTrailingMessage, ioError, isNotFound, isPort, maxPort, mkdir, now, readdir, readFile, readUtf8File, refusalMessage, refusedStatus, responseGate, rm, runnerResponse, sandbox, unframedBodyMessage, writeFile, writeChunks, writeUtf8File, writeExclusiveUtf8File, _pieces, _vecList, rename, readBytes, randomInt, writeFromStream, plainTextResponse, readWholeBytes, readChunks, windowRefusal, maxOffset, fileSizeRefusal } from "./module.f.mjs"
+import { badPortCode, badPortMessage, both, carriesNoBody, declaredLength, doubledLengthMessage, errorMessage, errorSummary, exitStep, fetch, framingHeaderMessage, headerValue, inflate, inflateTrailingMessage, ioError, isNotFound, isPort, maxPort, mkdir, now, readdir, readFile, readUtf8File, refusalMessage, refusedStatus, responseGate, rm, runnerResponse, sandbox, unframedBodyMessage, writeFile, writeChunks, writeFiles, writeUtf8File, writeExclusiveUtf8File, _pieces, _vecList, rename, readBytes, randomInt, writeFromStream, plainTextResponse, readWholeBytes, readChunks, windowRefusal, maxOffset, fileSizeRefusal } from "./module.f.mjs"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.mjs"
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.mjs"
 import { emptyState, virtual } from "./virtual/module.f.mjs"
@@ -548,6 +548,34 @@ export const proof = {
             assert(tag === 'error', r)
             assertIoMessage(failure, 'disk full')
             assertStructurallySame(removed, ['big'])
+        },
+    },
+    writeFiles: {
+        // Each file after its directory: a nested one, one a file before made,
+        // and `.` for a bare name.
+        several: () => {
+            /** @type {readonly (readonly [string, string])[]} */
+            const files = [['a/b/x.txt', 'x'], ['a/b/y.txt', 'y'], ['z.txt', 'z']]
+            const [state, [t, result]] = virtual(emptyState)(writeFiles(files))
+            assert(t === 'ok', result)
+            for (const [path, text] of files) {
+                const [, read] = virtual(state)(readUtf8File(path))
+                assertStructurallySame(read, ok(text))
+            }
+        },
+        none: () => {
+            const [state, [t, result]] = virtual(emptyState)(writeFiles([]))
+            assert(t === 'ok', result)
+            assertStructurallySame(state.root, emptyState.root)
+        },
+        // The first failure is the answer, and nothing after it is written:
+        // here a directory that is a file.
+        stops: () => {
+            const root = { a: [utf8('file')] }
+            const [state, [t, result]] = virtual({ ...emptyState, root })(
+                writeFiles([['a/x.txt', 'x'], ['b.txt', 'b']]))
+            assert(t === 'error', result)
+            assertStructurallySame(state.root, root)
         },
     },
     // The text form of `writeExclusive`: a free name is created holding the

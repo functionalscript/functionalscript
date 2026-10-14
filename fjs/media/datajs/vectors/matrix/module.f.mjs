@@ -53,7 +53,7 @@
 
 import { assertNotNullish } from '../../../../asserts/module.f.mjs'
 import { errorMessage, foldStep, mapStep, pureOk, resultMapStep, step } from '../../../../effects/module.f.mjs'
-import { errorExit, exitStep, mkdir, readFile, writeUtf8File } from '../../../../effects/node/module.f.mjs'
+import { errorExit, exitStep, readFile, writeFiles } from '../../../../effects/node/module.f.mjs'
 import { fromVec } from '../../../../text/utf8/module.f.mjs'
 import { tryParse } from '../../module.f.mjs'
 import { difference } from '../module.f.mjs'
@@ -595,12 +595,11 @@ const table = ({ roles, notApplicable }) => rows => {
 export const matrix = (corpus, also = []) => mapOk(table(corpus))(cells(corpus, also))
 
 /**
- * Writes the matrix at `path`, one write over a directory the corpus
- * already has.
+ * Writes the matrix at `path`, in a directory the corpus already has.
  *
  * @type {(text: string) => Effect<Mkdir | Rm | WriteBytes | WriteFile, void, IoChannel>}
  */
-export const write = text => step(mkdir(directory, { recursive: true }), () => writeUtf8File(path, text))
+export const write = text => writeFiles([[path, text]])
 
 /**
  * Every data module the corpus is made of, under the name its directory

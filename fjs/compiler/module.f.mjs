@@ -43,8 +43,7 @@ import { concat } from '../types/string/module.f.mjs'
 import { serialize as bigintSerialize } from '../types/bigint/module.f.mjs'
 import { sort } from '../types/object/module.f.mjs'
 import { errorMessage, foldStep, ioError, mapStep, pureError, pureOk, resultMapStep, resultStep, step } from '../effects/module.f.mjs'
-import { error as errorLine, errorExit, exitStep, log, mkdir, writeUtf8File } from '../effects/node/module.f.mjs'
-import { parent } from '../path/module.f.mjs'
+import { error as errorLine, errorExit, exitStep, log, writeFiles } from '../effects/node/module.f.mjs'
 import { allFiles, sourceRoot } from '../dev/module.f.mjs'
 import { chunksText, toText } from '../text/marked/module.f.mjs'
 
@@ -397,9 +396,7 @@ export const compileFile = load => (inputFileName, outputFileName) => step(
     /** @type {(result: Result<Marked, string>) => Effect<_CompileOp, void, IoChannel>} */
     (result) => {
         const [tag, value] = result
-        if (tag === 'error') { return refused(value) }
-        const directoryReady = mkdir(parent(outputFileName), { recursive: true })
-        return step(directoryReady, () => writeUtf8File(outputFileName, toText(value)))
+        return tag === 'error' ? refused(value) : writeFiles([[outputFileName, toText(value)]])
     })
 
 /**

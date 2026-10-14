@@ -18,6 +18,14 @@ export const os = /** @type {const} */ (['ubuntu', 'macos', 'windows'])
 
 export const architecture = /** @type {const} */ (['intel', 'arm'])
 
+/**
+ * The one directory GitHub reads workflows from. It lives here, below both
+ * modules that write a workflow, because `fjs/ci` imports `fjs/ci/publish` and
+ * so neither can hold it for the other. The `_` says it is linkage, not API:
+ * the paths built on it, `ciPath` and `npmPublishPath`, are the public names.
+ */
+export const _workflowsDirectory = /** @type {const} */ ('.github/workflows')
+
 // These three are **closed**, which is the bare form's meaning and the right
 // one here: `parseGitHubAction` reads back a workflow this repo generates, so
 // a key the schema does not name is generator drift rather than a field a

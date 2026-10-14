@@ -19,8 +19,7 @@
  * @import { _ShellValues } from './private.ts'
  */
 
-import { mkdir, writeUtf8File } from '../../effects/node/module.f.mjs'
-import { step } from '../../effects/module.f.mjs'
+import { writeFiles } from '../../effects/node/module.f.mjs'
 import { nixToString } from '../../media/nix/module.f.mjs'
 import { fromUndefined, unwrap as unwrapNullable } from '../../types/nullable/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
@@ -640,48 +639,43 @@ exec nix develop ${experimentalFeatures} --no-update-lock-file --quiet ${flakePa
 `
 
 /**
- * Writes the shared flake and the `run` script beside it, stopping at the first
- * failure.
+ * The shared environment as files: the flake, the `run` script beside it, and
+ * `lock-update.sh`.
  *
  * The script carries no executable bit, and nothing depends on one: a step
  * runs it through `sh` (see {@link nixDevelop}). Nothing in `fjs/effects/node`
  * can set a file mode, and every regeneration starts from nothing, so a mode
  * the file had would not survive `gen:clean` anyway.
  *
- * @type {(job: NixJob) => Effect<Mkdir | Rm | WriteBytes | WriteFile, void, IoChannel>}
+ * `flake.lock` is deliberately not one of them — see {@link lockUpdateText} —
+ * so whatever lock is already committed is left alone. The lock is the
+ * script's, and `npm run gen` runs it after this, through `sh` like every
+ * `run`.
+ *
+ * `fjs/ci` writes these beside its workflows, as one set, which is the whole
+ * of why this is exported: the `_` says it is linkage, not API.
+ *
+ * @type {(job: NixJob) => readonly (readonly [path: string, text: string])[]}
  */
-const writeShell = job => {
+export const _nixFlakeFiles = job => {
     // `flakePath` is what a workflow step names, so it is relative; the effects
     // layer writes from the repository root, so the `./` comes off here rather
     // than being a second opinion about where these files go.
     const directory = flakePath().slice('./'.length)
-    const created = mkdir(directory, { recursive: true })
-    const flakeWritten = step(
-        created,
-        () => writeUtf8File(`${directory}/flake.nix`, flakeText(job)))
-    return step(
-        flakeWritten,
-        () => writeUtf8File(`${directory}/run`, runText()))
+    return [
+        [`${directory}/flake.nix`, flakeText(job)],
+        [`${directory}/run`, runText()],
+        [lockUpdatePath.slice('./'.length), lockUpdateText()],
+    ]
 }
 
 /**
- * Writes the shared environment and its `lock-update.sh` script, stopping at
- * the first failure.
- *
- * `flake.lock` is deliberately not written here — see {@link lockUpdateText}
- * — so this leaves whatever lock is already committed alone; only
- * `gen.nix/lock-update.sh` itself and the shared `flake.nix`/`run` pair are this
- * function's output. The lock is the script's, and
- * `npm run gen` runs it after this, through `sh` like every `run`.
+ * Writes the shared environment, {@link _nixFlakeFiles}, stopping at the
+ * first failure.
  *
  * @type {(job: NixJob) => Effect<Mkdir | Rm | WriteBytes | WriteFile, void, IoChannel>}
  */
-export const nixFlake = job => {
-    const written = writeShell(job)
-    return step(
-        written,
-        () => writeUtf8File(lockUpdatePath.slice('./'.length), lockUpdateText()))
-}
+export const nixFlake = job => writeFiles(_nixFlakeFiles(job))
 
 /**
  * Directory holding the shared flake and `run` script.
