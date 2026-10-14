@@ -638,6 +638,70 @@ export const u8List = bo =>
 export const u8ListMsb = u8List(msb)
 
 /**
+ * `v` cut for padding to a multiple of `block` bits with a terminator — a `1`
+ * then zeros, most significant first: the whole blocks of `v`, and its last
+ * block completed with the terminator, exactly `block` bits. Their
+ * concatenation is the padded `v`, which is never built: it can be up to
+ * `block` bits longer than `v`, so for a `v` near {@link maxLength} it would be
+ * past what some runtimes' `bigint` can hold.
+ *
+ * The terminator is always there, so {@link unpadMsb} can find it: a `v`
+ * already a multiple of `block` bits gets a whole block of it, `1` and
+ * `block - 1` zeros.
+ *
+ * This is the bit padding of Merkle–Damgård hashes without their length field.
+ *
+ * @example
+ *
+ * ```js
+ * padLastBlockMsb(5n)(vec(7n)(0x5An)) // [vec(5n)(0x16n), vec(5n)(0x14n)]: 10110 10|100
+ * padLastBlockMsb(5n)(empty)          // [empty, vec(5n)(0x10n)]: |10000
+ * ```
+ *
+ * @throws On a `block` that is not positive.
+ *
+ * @type {(block: bigint) => (v: Vec) => readonly [Vec, Vec]}
+ */
+export const padLastBlockMsb = block => {
+    assert(block > 0n, ['non-positive block', block])
+    return v => {
+        const len = length(v)
+        const wholeLen = len - len % block
+        const [whole, rest] = msb.popFront(wholeLen)(v)
+        const fill = block - (len - wholeLen)
+        return [vec(wholeLen)(whole), msb.concat(rest)(vec(fill)(1n << (fill - 1n)))]
+    }
+}
+
+/**
+ * `v` without its terminator, the last `1` and the zeros after it, most
+ * significant first; `null` when `v` has no `1`. It inverts
+ * {@link padLastBlockMsb} on its last block, and needs no block size: the
+ * terminator is found from the end.
+ *
+ * A caller that holds the padded vector in pieces, such as a decoder reading
+ * a character at a time, gives it the last piece that is not all zeros and
+ * concatenates the pieces before it: the padded whole is never built.
+ *
+ * @example
+ *
+ * ```js
+ * unpadMsb(vec(5n)(0x14n)) // vec(2n)(0x2n): 10|100
+ * unpadMsb(vec(5n)(0x10n)) // empty: |10000
+ * unpadMsb(vec(5n)(0n))    // null
+ * ```
+ *
+ * @type {(v: Vec) => Nullable<Vec>}
+ */
+export const unpadMsb = v => {
+    const { length: n, uint: u } = unpack(v)
+    if (u === 0n) { return null }
+    // The lowest `1` and the zeros after it: one past its trailing zeros.
+    const cut = bitLength(u & -u)
+    return vec(n - cut)(u >> cut)
+}
+
+/**
  * Repeats a vector to create a padded block of the desired length.
  *
  * @type {Fold<bigint, Vec>}

@@ -7,7 +7,7 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { mask } from '../bigint/module.f.mjs'
 import { asBase, asNominal } from '../nominal/module.f.js'
-import { length, empty, uint, vec, lsb, msb, repeat, vec8, maxLength, maxLengthBytes, u8ListToVec, tryU8ListToVec, tryU8ListToVecMsb, u8List, u8ListToVecMsb, u8ListMsb, chunkList, tailPaddedUintChunkList, fromSentinel, bytesIn, bitsIn, wholeBytes, isWholeBytesIn, byteLength, isWholeBytes } from './module.f.mjs'
+import { length, empty, uint, vec, lsb, msb, repeat, vec8, maxLength, maxLengthBytes, u8ListToVec, tryU8ListToVec, tryU8ListToVecMsb, u8List, u8ListToVecMsb, u8ListMsb, chunkList, tailPaddedUintChunkList, fromSentinel, padLastBlockMsb, unpadMsb, bytesIn, bitsIn, wholeBytes, isWholeBytesIn, byteLength, isWholeBytes } from './module.f.mjs'
 import { repeat as listRepeat, toArray } from '../list/module.f.mjs'
 
 /** @type {(a: bigint) => Vec} */
@@ -23,9 +23,10 @@ const unsafeVec = a => asNominal(a)
 // 0xF = 0b1111 = 7 + 8
 
 /**
+ * @template F
  * @template T
- * @param {readonly [bigint, T]} a
- * @param {readonly [bigint, T]} b
+ * @param {readonly [F, T]} a
+ * @param {readonly [F, T]} b
  */
 const assertEq2 = ([a0, a1], [b0, b1]) => {
     assertEq(a0, b0)
@@ -605,6 +606,59 @@ export const proof = {
             assert(!(length(chunks[0]) !== 4n || uint(chunks[0]) !== 6n), chunks[0])
             assert(!(length(chunks[1]) !== 4n || uint(chunks[1]) !== 0xDn), chunks[1])
             assert(!(length(chunks[2]) !== 2n || uint(chunks[2]) !== 1n), chunks[2])
+        },
+    },
+    /**
+     * **The terminator is a `1` then zeros, completing the last block**, and
+     * `unpadMsb` strips it again. The padded vector itself is never built.
+     */
+    padLastBlockMsb: {
+        examples: () => {
+            const pad5 = padLastBlockMsb(5n)
+            assertEq2(pad5(vec(7n)(0x5An)), [vec(5n)(0x16n), vec(5n)(0x14n)])
+            assertEq2(pad5(vec(4n)(0n)), [empty, vec(5n)(1n)])
+            assertEq2(pad5(vec(12n)(0xFFFn)), [vec(10n)(0x3FFn), vec(5n)(0x1Cn)])
+        },
+        // An aligned `v` gets a whole block of terminator, never none.
+        aligned: () => {
+            assertEq2(padLastBlockMsb(5n)(empty), [empty, vec(5n)(0x10n)])
+            assertEq2(padLastBlockMsb(5n)(vec(10n)(0x3FFn)), [vec(10n)(0x3FFn), vec(5n)(0x10n)])
+            assertEq2(padLastBlockMsb(1n)(vec(3n)(5n)), [vec(3n)(5n), vec(1n)(1n)])
+        },
+        // `maxLength` is not a multiple of five, so its last block is one
+        // data bit and the terminator, and nothing longer than `v` is built.
+        maxLength: () => {
+            const [whole, last] = padLastBlockMsb(5n)(vec(maxLength)(0n))
+            assertEq(whole, vec(maxLength - 1n)(0n))
+            assertEq(last, vec(5n)(0b01000n))
+        },
+        roundtrip: () => {
+            for (const len of [0n, 1n, 4n, 5n, 6n, 9n, 10n, 64n]) {
+                const v = vec(len)(0x5A5A_5A5A_5A5A_5A5An)
+                const [whole, last] = padLastBlockMsb(8n)(v)
+                assertEq(length(whole) % 8n, 0n)
+                assertEq(length(last), 8n)
+                const tail = unpadMsb(last)
+                assert(tail !== null, 'the last block keeps its terminator')
+                assertEq(msb.concat(whole)(tail), v)
+            }
+        },
+        throw: {
+            zero: () => padLastBlockMsb(0n),
+            negative: () => padLastBlockMsb(-5n),
+        },
+    },
+    unpadMsb: {
+        examples: () => {
+            assertEq(unpadMsb(vec(5n)(0x14n)), vec(2n)(2n))
+            assertEq(unpadMsb(vec(5n)(0x10n)), empty)
+            assertEq(unpadMsb(vec(5n)(1n)), vec(4n)(0n))
+            assertEq(unpadMsb(vec(1n)(1n)), empty)
+        },
+        // No `1` is no terminator.
+        null: () => {
+            assertEq(unpadMsb(empty), null)
+            assertEq(unpadMsb(vec(5n)(0n)), null)
         },
     },
     // 10-bit vector 0x1B5 = 0b01_1011_0101 in 4-bit chunks: the 2-bit trailing
