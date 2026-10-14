@@ -9,7 +9,7 @@
  */
 
 import { assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { operation } from './module.f.mjs'
+import { noStatic, operation } from './module.f.mjs'
 import { invoke, vm } from '../amnesia/module.f.mjs'
 import { settle } from '../value/call/module.f.mjs'
 
@@ -126,6 +126,20 @@ export const proof = {
         eq(['()', ['entry'], [object, 1]], ['undefined'])
         failure(['()', ['entry'], [null, 'a']])
         failure(['.', null, 'a', ['|()', []]])
+    },
+    // A static node is the body the runtime's `static` section holds at its
+    // path, called as the callee it stands as; with no runtime, or none at
+    // the path, the dispatcher fails naming the path.
+    static: () => {
+        failure(['()', ['static', ['Object', 'is']], [1, 1]], noStatic(['Object', 'is']))
+        failure(['static', ['Object', 'is']], 'no binding for the static Object.is')
+        /** @type {Context} */
+        const withRuntime = {
+            ...context,
+            runtime: ['{}', [[':', 'static', ['{}', [[':', 'Object', ['{}', [[':', 'is', ['=>', 2, [], ['===', ['arg', 0], ['arg', 1]]]]]]]]]]]],
+        }
+        const bound = operation({ ...evaluator, context: withRuntime, operand: (e, state) => [[...state, e], vm(withRuntime)(e)] })
+        assertStructurallySame(settle(invoke)(bound(['()', ['static', ['Object', 'is']], ['a', 'a']], [])[1]), ['ok', true])
     },
     calls: () => {
         const at = /** @type {const} */ (['[]', [42]])

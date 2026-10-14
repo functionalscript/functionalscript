@@ -58,6 +58,7 @@ import {
  *  typeof func,
  *  typeof arg,
  *  typeof frame,
+ *  typeof staticFunction,
  * ]}
  */
 export const _exp = () => (['or',
@@ -78,6 +79,7 @@ export const _exp = () => (['or',
     func,
     arg,
     frame,
+    staticFunction,
 ])
 
 /** @type {Phantom<typeof _exp, Exp>} */
@@ -147,6 +149,18 @@ export const arg = /** @type {const} */ (['arg', number])
  * value the body can name.
  */
 export const frame = /** @type {const} */ (['frame', number])
+/**
+ * A static function, as a value: the function the runtime's `static`
+ * section holds at `path`, the keys `../js/static` admits it under —
+ * `['static', ['Object', 'is']]` is `Object.is`. The path is metadata, as
+ * `arg`'s index is, not an operand. It captures nothing and is fresh where
+ * it is established, as `entry` is, and it is valid only as the callee of
+ * a `()` node: no graph makes a static a first-class value. The analysis
+ * checks the path is admitted and the placement; this schema checks the
+ * tuple's shape. An executor answers it from its own native binding or
+ * from the runtime its context carries, and with neither it fails.
+ */
+export const staticFunction = /** @type {const} */ (['static', rttiArray(string)])
 
 // Spread
 
