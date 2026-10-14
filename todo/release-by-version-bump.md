@@ -27,16 +27,22 @@ do not have to be written first.
 
 ### Proposal
 
-**A release is a version bump.** A pull request titled `Release X.Y.Z` changes
-`version` in `package.json` and `package-lock.json` and nothing else. Merging it
-publishes through the existing workflow. Whatever `main` holds at that merge is
-the release by definition, and nobody has to have scanned it first.
+**A release is two pull requests: the bump, then the notes.**
 
-**The notes are written afterwards, by an AI session.** After a version
-publishes, a session writes `changelog/<version>.md` for every published version
-that has no file yet, and lands it through a reviewed pull request. The reading,
-grouping and writing steps of today's procedure stay as they are; only the
-window and the timing change.
+1. **The bump.** A pull request titled `Release X.Y.Z` changes `version` in
+   `package.json` and `package-lock.json` and nothing else. Merging it
+   publishes through the existing workflow. Whatever `main` holds at that
+   merge is the release by definition, and nobody has to have scanned it
+   first.
+2. **The notes.** Opened only once the bump has merged and the version has
+   published, because its window comes from what npm published (below). An AI
+   session writes `changelog/<version>.md` for every published version that
+   has no file yet, and lands it through a reviewed pull request. The reading,
+   grouping and writing steps of today's procedure stay as they are; only the
+   window and the timing change.
+
+Under both options for where the notes land (below), these are the same two
+pull requests; only the second one's base differs.
 
 **A release's window comes from npm, not from a commit title.** npm records the
 commit it published from as the version's `gitHead`:
