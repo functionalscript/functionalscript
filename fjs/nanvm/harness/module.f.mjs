@@ -151,6 +151,14 @@ const writeExpectation = runtime => name => resultStep(
  * and the runtime is loaded once, from its source, for every fixture to
  * initialize under.
  *
+ * It makes the directory and writes each file itself, where
+ * {@link generateFixtures} hands its `mod.rs` to `writeFiles`. An
+ * expectation is known only once its fixture is interpreted, so there is no
+ * file set to hand over before the writes begin. And the directory is made
+ * before the runtime loads, so a run whose runtime fails to load still leaves
+ * it, empty, as the proof pins; `writeFiles` would make it only at the first
+ * write.
+ *
  * @type {() => Effect<_CompileOp, void, IoChannel>}
  */
 export const generateExpected = () => {
