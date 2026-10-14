@@ -197,7 +197,7 @@ prediction for the current four-job alternative.
   question stays open.
 - [ci-package-aware-deno-and-bun-steps](./ci-package-aware-deno-and-bun-steps.md)
   — omits the `deno` and `bun` job keys; after this, it omits their steps.
-- [migrated-job-proof](./migrated-job-proof.md) — its checks read each tool's
+- [`_migratedJobChecks`](../nix/testlib.f.mjs) — its checks read each tool's
   step list, which survives the split; `installsNixOnly` goes with the
   per-tool `nixInstall`, and the rest apply to the split command lists.
 - [ci-generator-audience](./ci-generator-audience.md) — this changes what
