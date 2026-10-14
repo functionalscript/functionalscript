@@ -457,6 +457,7 @@ export const proof = {
     // read is the value: no `const` is needed to keep it one.
     objectIs: () => {
         writes(['Object.is'], 'export default Object.is;')
+        writes(['[]', [['Number.isInteger'], ['()', ['Number.isFinite'], [1]]]], 'export default [Number.isInteger,Number.isFinite(1)];')
         writes(['()', ['Object.is'], [0, -0]], 'export default Object.is(0,-0);')
         writes(['[]', [['Object.is'], ['.', ['Object.is'], 'length']]], 'export default [Object.is,Object.is.length];')
         writes(['===', ['Object.is'], ['Object.is']], 'export default Object.is===Object.is;')

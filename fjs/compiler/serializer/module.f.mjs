@@ -1050,7 +1050,7 @@ const entry = (s0, path) => i => {
         // function's own as every function's parameters are
         case 'entry': { return ok(entryChunks(`${path}/function${i}`)) }
         // a static function, as the source reads it, its tag
-        case 'Object.is': { return ok([node[0]]) }
+        case 'Object.is': case 'Number.isInteger': case 'Number.isSafeInteger': case 'Number.isNaN': case 'Number.isFinite': { return ok([node[0]]) }
         case 'arg': case 'rest': { return ok([assertNotNullish(parameterName(s.param, node))]) }
         case '[]': { return mapOk(arrayWrap)(okList(node[1].map((v, k) => item(s, `${path}/item${k}`)(v)))) }
         case '{}': { return mapOk(objectWrap)(okList(node[1].map((p, k) => property(s, `${path}/property${k}`)(p)))) }

@@ -254,7 +254,13 @@ const handlers = {
     rest: o0,
     self: o0,
     entry: o0,
+    // the static functions, a row each, so a new one is a `tsc` error here
+    // until it has its row
     'Object.is': o0,
+    'Number.isInteger': o0,
+    'Number.isSafeInteger': o0,
+    'Number.isNaN': o0,
+    'Number.isFinite': o0,
     arg: indexed,
     frame: indexed,
     '!': o1,
@@ -371,7 +377,8 @@ const propertyOperands = p => p[0] === ':' ? [p[1], p[2]] : [p[1]]
  */
 export const operandsOf = node => {
     switch (node[0]) {
-        case 'undefined': case 'args': case 'frame': case 'rest': case 'arg': case 'self': case 'entry': case 'Object.is': { return [] }
+        case 'undefined': case 'args': case 'frame': case 'rest': case 'arg': case 'self': case 'entry':
+        case 'Object.is': case 'Number.isInteger': case 'Number.isSafeInteger': case 'Number.isNaN': case 'Number.isFinite': { return [] }
         case '[]': { return node[1].map(itemOperand) }
         case '{}': { return node[1].flatMap(propertyOperands) }
         case ',': { return node[1] }

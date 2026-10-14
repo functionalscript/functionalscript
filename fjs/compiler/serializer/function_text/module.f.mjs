@@ -100,7 +100,7 @@ const entry = (s, i) => {
         case 'self': { return `(${selfName(s.path)})` }
         case 'entry': { return `(${_entryText(`${s.path}/function${i}`)})` }
         // a static function is written as the source reads it, its tag
-        case 'Object.is': { return `(${n[0]})` }
+        case 'Object.is': case 'Number.isInteger': case 'Number.isSafeInteger': case 'Number.isNaN': case 'Number.isFinite': { return `(${n[0]})` }
         case '[]': { return `([${items(s, n[1])}])` }
         case '{}': { return `({${n[1].map(p => p[0] === '...'
             ? `...${operand(s, p[1])}` : `[${operand(s, p[1])}]:${operand(s, p[2])}`).join(',')}})` }

@@ -340,10 +340,10 @@ const lowerLeaf = nodes => ast => {
         // the `entry` helper, the EDAG's own node for it — a fresh one per
         // helper written, as every arrow is a node of its own
         case 'entry': { return plain(['entry']) }
-        // `Object.is`, the EDAG's own node for it — a node per read, each
-        // answered by every executor with the one function its runtime
+        // a static function, the EDAG's own node for it — a node per read,
+        // each answered by every executor with the one function its runtime
         // holds, however often it is read
-        case 'Object.is': { return plain(['Object.is']) }
+        case 'Object.is': case 'Number.isInteger': case 'Number.isSafeInteger': case 'Number.isNaN': case 'Number.isFinite': { return plain([ast[0]]) }
         case '()': { return call(nodes)(ast) }
         case '?.()': { return guardedCall(nodes)(ast) }
         // an access, plain or guarded: the EDAG's own form already, its key

@@ -605,6 +605,12 @@ export const proof = {
         assertStructurallySame(scoped(['Object.is']), ['static_binding::<A>(&["Object", "is"])'])
         assertStructurallySame(scoped(['=>', 0, [], ['Object.is']]), ['Ok(A::static_function(|_self, _args| { static_binding::<A>(&["Object", "is"]) }, 0, Array::default(), Some("()=>Object.is")).to_any())'])
         assertStructurallySame(scoped(['&&', true, ['Object.is']]), ['let c0 = || static_binding::<A>(&["Object", "is"]);', 'Any::logical_and(true.to_any(), c0)'])
+        // every static is its path's binding, the keys each a `&str`
+        assertEq(printed(['Number.isSafeInteger']), 'static_binding::<A>(&["Number", "isSafeInteger"])')
+        assertStructurallySame(scoped(['()', ['Number.isInteger'], [1]]), [
+            'let c0: Any<A> = static_binding::<A>(&["Number", "isInteger"])?;',
+            'Any::call(c0, [f64_any(0x3ff0000000000000)].to_array().to_any())',
+        ])
     },
     /** A module scope and each nested body construct their own functions. */
     undefinedFunction: () => {

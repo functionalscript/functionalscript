@@ -98,6 +98,7 @@ export const proof = {
             // a static function is written as the source reads it
             [['()', ['Object.is'], [1, 2]], '((0,(Object.is))((1),(2)))'],
             [['Object.is'], '(Object.is)'],
+            [['()', ['Number.isInteger'], [1]], '((0,(Number.isInteger))((1)))'],
         ]
         for (const [body, expected] of cases) { assertEq(text(body), `()=>${expected}`) }
         for (const op of /** @type {readonly Op2Id[]} */ ([

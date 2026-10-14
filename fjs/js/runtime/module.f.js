@@ -5,8 +5,8 @@
  * FunctionalScript function of the receiver and then the arguments as the
  * call passed them, `undefined` past the end. `static` holds the static
  * functions by the path [`../static`](../static/module.f.js) admits them
- * under, `Object.is` at `static.Object.is`, each a function of the
- * arguments alone. A name without a body is absent — a primitive no body
+ * under, `Object.is` at `static.Object.is` and `Number.isInteger` at
+ * `static.Number.isInteger`, each a function of the arguments alone. A name without a body is absent — a primitive no body
  * can define in terms of the rest, or a name whose body waits on a
  * primitive the language has not admitted yet, [`README.md`](./README.md)
  * says which — and each VM answers it from its own native table.
@@ -22,7 +22,10 @@
  * @module
  */
 
+import { isFinite_ } from '../../types/number/is_finite/module.f.js'
+import { isInteger } from '../../types/number/is_integer/module.f.js'
 import { isNaN_ } from '../../types/number/is_nan/module.f.js'
+import { isSafeInteger } from '../../types/number/is_safe_integer/module.f.js'
 import { is } from '../../types/object/is/module.f.js'
 
 /**
@@ -74,6 +77,22 @@ export const runtime = {
              * and one importing `is` answer alike by construction.
              */
             is,
+        },
+        /**
+         * The four `Number` predicates, none of which converts its
+         * argument: each body is the helper of `fjs/types/number` a module
+         * may import too, imported rather than copied, and each answers as
+         * the built-in does for every kind of value.
+         */
+        Number: {
+            /** [`Number.isInteger`](https://tc39.es/ecma262/#sec-number.isinteger) */
+            isInteger,
+            /** [`Number.isSafeInteger`](https://tc39.es/ecma262/#sec-number.issafeinteger) */
+            isSafeInteger,
+            /** [`Number.isNaN`](https://tc39.es/ecma262/#sec-number.isnan) */
+            isNaN: isNaN_,
+            /** [`Number.isFinite`](https://tc39.es/ecma262/#sec-number.isfinite) */
+            isFinite: isFinite_,
         },
     },
     member: {

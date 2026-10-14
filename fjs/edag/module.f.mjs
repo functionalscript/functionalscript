@@ -1,7 +1,7 @@
 /**
  * @module
  *
- * @import { Exp, OptionLambda, OptionPropertyLambda, Plain } from './types.ts'
+ * @import { Exp, OptionLambda, OptionPropertyLambda, Plain, StaticId } from './types.ts'
  * @import { Phantom } from '../types/phantom/types.ts'
  */
 
@@ -534,11 +534,49 @@ export const comma = /** @type {const} */ ([',', exps])
 // No-Args Operations
 
 /**
+ * The static functions' tags: each a path `../js/static` admits, its keys
+ * joined by `.`, which `./types.ts` pins to that list — `Object.is` for
+ * `['Object', 'is']`, `Number.isInteger` for `['Number', 'isInteger']`.
+ */
+export const staticIds = /** @type {const} */ (['Object.is', 'Number.isInteger', 'Number.isSafeInteger', 'Number.isNaN', 'Number.isFinite'])
+
+/**
+ * A static function as a value, `['Object.is']`: the function the
+ * runtime's `static` section holds at its path, {@link staticPath},
+ * capturing nothing and called as any function is,
+ * `['()', ['Object.is'], [a, b]]`. Unlike `entry` it is one function, not
+ * fresh where it is established — `Object.is === Object.is` holds in
+ * JavaScript — so two occurrences merge, and an executor answers the same
+ * function on every read: its own native binding, or the body the runtime
+ * its context carries holds, and with neither it fails naming it rather
+ * than answer.
+ */
+export const staticId = or(...staticIds)
+
+/**
+ * Whether a node's tag is a static function's, {@link staticIds}: the one
+ * test every executor and writer dispatches a static on, so a new static
+ * is a row of the list and no new arm.
+ *
+ * @type {(tag: unknown) => boolean}
+ */
+export const isStaticId = tag => staticIds.some(id => id === tag)
+
+/**
+ * A static function's path into the runtime's `static` section, its tag's
+ * keys: `['Number', 'isInteger']` for `Number.isInteger`.
+ *
+ * @type {(id: StaticId) => readonly string[]}
+ */
+export const staticPath = id => id.split('.')
+
+
+/**
  * `op0`/`op1`/`op2` group operation nodes by their `exp`-operand count —
  * zero, one, or two. `undefined`, module imports (`args`), invocation
  * rest (`rest`), the owning function itself (`self`), the `entry`
- * helper (`entry`) and the static function `Object.is` (`Object.is`) have
- * no expression operands. `self` is the function whose body holds it, as a value — the
+ * helper (`entry`) and the static functions ({@link staticId}) have no
+ * expression operands. `self` is the function whose body holds it, as a value — the
  * same value every read, so recursion is `['()', ['self'], args]` and a
  * nested function captures its parent's `self` as a slot — and it is what
  * keeps a recursive function an acyclic graph: without it a function would
@@ -570,17 +608,10 @@ export const comma = /** @type {const} */ ([',', exps])
  * helper and no other way: the source has no other spelling of a key
  * computed at run time.
  *
- * `Object.is` is the static function of that name, as a value: the
- * function the runtime's `static` section holds at `['Object', 'is']`,
- * the path `../js/static` admits it under, capturing nothing and called
- * as any function is, `['()', ['Object.is'], [a, b]]`. Unlike `entry` it
- * is one function, not fresh where it is established — `Object.is ===
- * Object.is` holds in JavaScript — so two occurrences merge, and an
- * executor answers the same function on every read: its own native
- * binding, or the body the runtime its context carries holds, and with
- * neither it fails naming the path rather than answer.
+ * The rest are the static functions, {@link staticId}.
  */
-export const op0Id = or('undefined', 'args', 'rest', 'self', 'entry', 'Object.is')
+export const op0Id = or('undefined', 'args', 'rest', 'self', 'entry', staticId)
+
 
 export const op0 = /** @type {const} */ ([op0Id])
 

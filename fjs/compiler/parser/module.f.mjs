@@ -27,8 +27,9 @@
  * referenced, since the tokenizer hands every keyword over as an
  * identifier and a key or the name after `.` may be one, a reserved global
  * — `Number` and `String`, spelled only as their conversions,
- * {@link conversion}, and `Object`, only as the namespace of `Object.is`,
- * {@link objectIsRead} — bound or referenced anywhere else, and a bare or
+ * {@link conversion}, and `Object` and `Number` as the namespaces of the
+ * static functions, {@link staticRead} — bound or referenced anywhere
+ * else, and a bare or
  * string `__proto__` key, which JavaScript reads as an instruction to
  * replace the prototype; the computed spelling `{ ["__proto__"]: v }` and
  * the shorthand `{ __proto__ }` denote an ordinary property and are
@@ -50,10 +51,11 @@
  * the one place `Object` stands but `Object.is` — outside the two the fold
  * refuses the word, as it refuses every reserved global.
  *
- * `Object.is` is a value, the AST's `['Object.is']`, in every spelling
- * JavaScript reads it in, {@link objectIsRead}; and a destructuring is
- * sugar, so an object pattern over `Object` reads each of its keys as
- * that read, `const { is } = Object` being `const is = Object.is`,
+ * A static function — `Object.is`, and the four `Number` predicates,
+ * `Number.isInteger` — is a value, the AST's `['Object.is']`, in every
+ * spelling JavaScript reads it in, {@link staticRead}; and a destructuring
+ * is sugar, so an object pattern over a namespace reads each of its keys
+ * as that read, `const { is } = Object` being `const is = Object.is`,
  * {@link namespaceOf}.
  *
  * A guard, `if (c) block`, is the fold's to shape as well as to check: it
@@ -83,7 +85,7 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
- * @import { AstAccess, AstArray, AstBinary, AstInstanceOf, AstKey, AstSelf, AstCall, AstConditional, AstConst, AstEntryFunction, AstFrameRef, AstEntry, AstFunction, AstItem, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstObjectIs, AstRest, AstSpread, AstStep, AstThrow, AstUnary } from '../ast/types.ts'
+ * @import { AstAccess, AstArray, AstBinary, AstInstanceOf, AstKey, AstSelf, AstCall, AstConditional, AstConst, AstEntryFunction, AstFrameRef, AstEntry, AstFunction, AstItem, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstStatic, AstRest, AstSpread, AstStep, AstThrow, AstUnary } from '../ast/types.ts'
  * @import { ParseError } from './types.ts'
  * @import { BindingElement, BindingProperty, BindingTarget, Block, Chain, ComputedKey, ConstantMember, Container, Entry, If, Import, Item, Key, Module, Node, ParameterList, Statement, Step, ValueStatement, While } from './syntax/types.ts'
  * @import { _AccessFrame, _BodyFrame, _Bound, _CallFrame, _ChainFrame, _ChainPart, _ConditionalFrame, _IndexFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _LoopBodyFrame, _Lowered, _Parameter, _Pending, _PendingStack, _Plan, _Read, _Ref, _Scope, _Source, _Stack, _State } from './private.ts'
@@ -99,6 +101,7 @@ import { isKeyword, isReservedGlobal } from '../../js/keywords/module.f.js'
 import { prohibitedCalls, prototypeNames } from '../../js/prototype/module.f.js'
 import { nameOf, parseSyntax, textOf } from './syntax/module.f.mjs'
 import { isBinary, isUnary } from '../ast/module.f.mjs'
+import { staticIds, staticPath } from '../../edag/module.f.mjs'
 
 // -- resolving the names ------------------------------------------------------
 
@@ -215,11 +218,11 @@ const captureShadowed = foldError('capture shadowed')
 /**
  * A keyword where JavaScript wants an identifier, at the word — or a
  * reserved global, `Number` or `String`, bound or read anywhere but as the
- * callee of the conversion, {@link conversion}, or `Object` anywhere but
- * as the namespace of `Object.is`, {@link objectIsRead}: never a module's
- * to bind, under
+ * callee of the conversion, {@link conversion}, or `Object` or `Number`
+ * anywhere but as the namespace of an admitted static function,
+ * {@link staticRead}: never a module's to bind, under
  * [spec: global names](../../../spec/todo/2365-global-names.md)' rule, and
- * no value, so `Number.isFinite`, `Object.keys` and a bare `Number` are
+ * no value, so `Number.MAX_VALUE`, `Object.keys` and a bare `Number` are
  * refused at the word as `typeof.x` would be.
  */
 const reservedWord = foldError('reserved word')
@@ -310,8 +313,8 @@ const restBinding = ['rest']
  * `String` name no binding and no value, and the places each stands are
  * read before the word reaches here — `instanceof`'s right operand, which
  * the fold checks for the word itself, the conversion's callee,
- * {@link conversion}, and the namespace of `Object.is`,
- * {@link objectIsRead}, and of the `entry` helper, {@link entryFunction}.
+ * {@link conversion}, the namespace of a static function,
+ * {@link staticRead}, and that of the `entry` helper, {@link entryFunction}.
  *
  * @type {(name: DjsTokenWithMetadata) => Result<string, ParseError>}
  */
@@ -500,10 +503,10 @@ const pushed = (stack, item) => ({ top: item, rest: stack })
  * lists and the words bound so far as an environment, so a pattern as wide
  * as the input allows costs its width and not its square.
  *
- * An object pattern over the `Object` namespace, `namespace` its word,
- * {@link namespaceOf}, reads no source: the namespace is no value, and
- * each of its properties reads the member its key names, the static
- * function itself, {@link objectMember}, as the access `Object.is` does —
+ * An object pattern over a namespace, `Object` or `Number`, `namespace` its
+ * word, {@link namespaceOf}, reads no source: the namespace is no value,
+ * and each of its properties reads the member its key names, the static
+ * function itself, {@link staticMember}, as the access `Object.is` does —
  * so `const { is } = Object` makes the one entry `const is = Object.is`
  * makes, and a key the namespace does not admit is refused at the word,
  * as `Object.keys` is — once {@link checkedKey} has passed it, so a key
@@ -586,15 +589,15 @@ const planned = check => (target, namespace) => {
 
 /**
  * Where a property of an object pattern reads from: the key of the entry
- * its pattern's source is, or, over the `Object` namespace, the member the
- * key names, {@link objectMember} — a key the namespace does not admit
- * refused at the word, as `Object.keys` is.
+ * its pattern's source is, or, over a namespace, the member the key names,
+ * {@link staticMember} — a key the namespace does not admit refused at the
+ * word, as `Object.keys` is.
  *
  * @type {(parent: number | DjsTokenWithMetadata, named: string | number) => Result<_Source, ParseError>}
  */
 const propertySource = (parent, named) => {
     if (typeof parent === 'number') { return ok([parent, named]) }
-    const member = objectMember(named)
+    const member = staticMember(nameOf(parent), named)
     return member === null ? error(reservedWord(parent)) : ok(member)
 }
 
@@ -631,10 +634,10 @@ const properties = (pending, list, parent) => list.reduceRight(
  * `const { a: { b } } = {};` fails as it fails in JavaScript, and an empty
  * pattern's one read keeps its failure.
  *
- * A member of the `Object` namespace is read as the static function
- * itself, `Object.is`, the entry the access makes; a pattern over the
- * namespace reads nothing else, so `value` is read by no entry and a
- * caller passes none, `undefined`, {@link namespaceOf}.
+ * A member of a namespace is read as the static function itself,
+ * `Object.is`, the entry the access makes; a pattern over the namespace
+ * reads nothing else, so `value` is read by no entry and a caller passes
+ * none, `undefined`, {@link namespaceOf}.
  *
  * @type {(plan: _Plan, value: AstConst, base: number) => _Lowered}
  */
@@ -644,7 +647,7 @@ const lowered = ({ reads, names }, value, base) => ({
         (({ source, spread }) => {
             /** @type {AstConst} */
             const read = source === null ? value
-                : source[0] === 'Object.is' ? source
+                : source.length === 1 ? source
                 : ['.', ['cref', base + source[0]], source[1]]
             return spread ? ['array', [['...', read]]] : read
         })),
@@ -1191,7 +1194,8 @@ const enter = (stack, scope, node) => {
             return [stack, noted ? { ...found[0], loopReads: [...reads, [word, loopVariableCaptured(node[1])]] } : found[0], ok(found[1])]
         }
         case '.': case '?.': {
-            if (isRef(node[1], 'Object') && isKeyNamed(node[2], 'is')) { return objectIsRead(stack, scope, node) }
+            const member = staticOf(node)
+            if (member !== null) { return staticRead(stack, scope, node, member) }
             return node[0] === '.' && node.length === 3
                 ? [{ top: { key: node[2], method: isCallee(stack) }, rest: stack }, scope, ['enter', node[1]]]
                 : chainRound(stack, scope, { chain: node, parts: chainParts(node), index: 0, done: null })
@@ -1246,37 +1250,54 @@ const conversion = (stack, scope, [, callee, args]) => {
  */
 const isKeyNamed = (key, name) => !(key instanceof Array) && keyNamed(key) === name
 
-/** `Object.is`, the one static function the language admits, as the AST holds it. @type {AstObjectIs} */
-const objectIs = ['Object.is']
-
 /**
- * The member of the `Object` namespace a key names, or `null` where the
- * language admits none: `is` alone
+ * The static function the key `named` names in the namespace `global`, as
+ * the AST holds it, `['Number.isInteger']`, or `null` where the language
+ * admits none: `is` of `Object` and the four predicates of `Number`
  * ([spec: built-in static functions](../../../spec/README.md#built-in-static-functions)),
- * each later name a decision of its own.
+ * each a tag of the EDAG's `staticIds`, where a later name is a row of
+ * its own decision.
  *
- * @type {(named: string | number) => AstObjectIs | null}
+ * @type {(global: string, named: string | number) => AstStatic | null}
  */
-const objectMember = named => named === 'is' ? objectIs : null
+const staticMember = (global, named) => {
+    const id = staticIds.find(id => id === `${global}.${named}`)
+    if (id === undefined) { return null }
+    /** @type {AstStatic} */
+    const member = [id]
+    return member
+}
 
 /**
- * A read of `Object.is` entered: `Object.is` or `Object['is']`, guarded or
- * not, since a reserved global is never nullish — the AST's `['Object.is']`,
- * {@link objectIs}. The steps a chain goes on with are written over the
- * read as the nodes they are where nothing before them short-circuits,
- * and entered: `Object?.is(a, b)` is `Object.is(a, b)`, and a guarded call
- * among the steps keeps the steps after it as its own chain, which its
- * guard is still the head of. Over an explicit loop, so a chain as long as
- * the input allows costs no call stack.
+ * The static function an access reads, where its base is the bare word
+ * of a namespace and its key a constant naming an admitted member, in
+ * either spelling, {@link staticMember}; `null` for every other access,
+ * which is resolved as any is — so `Object.keys` and `Number.MAX_VALUE`
+ * enter the word and are refused at it. The word is a reserved global,
+ * which no scope binds, so it alone decides.
  *
- * @type {(stack: _Stack, scope: _Scope, node: Extract<Node, readonly ['.' | '?.', Node, Key, ...unknown[]]>) => _State}
+ * @type {(node: Extract<Node, readonly ['.' | '?.', Node, Key, ...unknown[]]>) => AstStatic | null}
  */
-const objectIsRead = (stack, scope, node) => {
+const staticOf = ([, base, key]) => base[0] !== 'ref' || key instanceof Array ? null : staticMember(nameOf(base[1]), keyNamed(key))
+
+/**
+ * A read of a static function entered, `member`: `Object.is` or
+ * `Object['is']`, guarded or not, since a reserved global is never nullish
+ * — the AST's `['Object.is']`. The steps a chain goes on with are written
+ * over the read as the nodes they are where nothing before them
+ * short-circuits, and entered: `Object?.is(a, b)` is `Object.is(a, b)`,
+ * and a guarded call among the steps keeps the steps after it as its own
+ * chain, which its guard is still the head of. Over an explicit loop, so a
+ * chain as long as the input allows costs no call stack.
+ *
+ * @type {(stack: _Stack, scope: _Scope, node: Extract<Node, readonly ['.' | '?.', Node, Key, ...unknown[]]>, member: AstStatic) => _State}
+ */
+const staticRead = (stack, scope, node, member) => {
     /** @type {Node} */
     let read = ['.', node[1], node[2]]
     /** @type {Step | undefined} */
     let step = node[3]
-    if (step === undefined) { return [stack, scope, ok(objectIs)] }
+    if (step === undefined) { return [stack, scope, ok(member)] }
     while (step !== undefined) {
         const [tag, x] = step
         const next = stepAfter(step)
@@ -1291,17 +1312,25 @@ const objectIsRead = (stack, scope, node) => {
 const stepAfter = ([, , next]) => next
 
 /**
- * The word `Object` where a `const`'s pattern destructures the namespace
- * — an object pattern whose value is the bare word — and `null` otherwise.
- * Destructuring is sugar: the pattern reads each of its keys as the
- * access does, {@link planned}, so `const { is } = Object` is
+ * Whether a word is a namespace an admitted static function is a member
+ * of: `Object`, `Number`.
+ *
+ * @type {(word: string) => boolean}
+ */
+const isNamespace = word => staticIds.some(id => staticPath(id)[0] === word)
+
+/**
+ * The namespace's word where a `const`'s pattern destructures one — an
+ * object pattern whose value is the bare word, `Object` or `Number` — and
+ * `null` otherwise. Destructuring is sugar: the pattern reads each of its
+ * keys as the access does, {@link planned}, so `const { is } = Object` is
  * `const is = Object.is`, and the namespace, which is no value, is never
  * entered. Any other pattern over the word, and the word alone, is
  * entered and refused as every reserved global is.
  *
  * @type {(target: BindingTarget, value: Node) => DjsTokenWithMetadata | null}
  */
-const namespaceOf = (target, value) => target[0] === 'object' && value[0] === 'ref' && nameOf(value[1]) === 'Object' ? value[1] : null
+const namespaceOf = (target, value) => target[0] === 'object' && value[0] === 'ref' && isNamespace(nameOf(value[1])) ? value[1] : null
 
 /**
  * Whether a node is `Object.getOwnPropertyDescriptor(a, b)`, the helper's

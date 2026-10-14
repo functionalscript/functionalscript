@@ -21,8 +21,18 @@
  * @module
  */
 
-/** Every admitted static path. */
-export const statics = /** @type {const} */ ([['Object', 'is']])
+/**
+ * Every admitted static path: `Object.is`, and the four `Number`
+ * predicates, none of which converts its argument
+ * ([`2360-built-in.md`](../../../spec/todo/2360-built-in.md#number-predicates-proposal-and-approval)).
+ */
+export const statics = /** @type {const} */ ([
+    ['Object', 'is'],
+    ['Number', 'isInteger'],
+    ['Number', 'isSafeInteger'],
+    ['Number', 'isNaN'],
+    ['Number', 'isFinite'],
+])
 
 /**
  * Whether `path` is admitted: one of {@link statics}, key for key.
