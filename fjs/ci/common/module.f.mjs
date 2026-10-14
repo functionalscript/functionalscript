@@ -1,13 +1,13 @@
 /**
  * Shared CI types and helpers: GitHub Actions step/job RTTI schemas, the
  * `MetaStep` representation used by tool-specific modules, and assemblers like
- * `install`, `test`, `ubuntu`, and `toSteps`. See `./types.ts` for the
+ * `install`, `test`, `job`, `ubuntu`, and `toSteps`. See `./types.ts` for the
  * `Os`/`Architecture`/`Image`/`Step`/`Job`/`Jobs`/`GitHubAction`/`StepType`/
  * `MetaStep` type-level API.
  *
  * @module
  *
- * @import { Step, Job, MetaStep, StepType } from './types.ts'
+ * @import { Image, Step, Job, MetaStep, StepType } from './types.ts'
  */
 
 import { actions, images, jobTimeout } from '../config/module.f.js'
@@ -121,16 +121,21 @@ export const toSteps = m => {
     ]
 }
 
-/** @type {(ms: readonly MetaStep[]) => Job} */
-export const ubuntu = ms => ({
-    'runs-on': images.ubuntu.intel,
+/**
+ * A job on the `image` runner, run only under `condition` when one is given,
+ * holding the runner for at most `jobTimeout` minutes.
+ *
+ * @type {(image: Image, condition?: string) => (ms: readonly MetaStep[]) => Job}
+ */
+export const job = (image, condition) => ms => ({
+    'runs-on': image,
+    ...(condition === undefined ? {} : { if: condition }),
     'timeout-minutes': jobTimeout,
     steps: toSteps(ms)
 })
 
 /** @type {(ms: readonly MetaStep[]) => Job} */
-export const ubuntuArm = ms => ({
-    'runs-on': images.ubuntu.arm,
-    'timeout-minutes': jobTimeout,
-    steps: toSteps(ms)
-})
+export const ubuntu = job(images.ubuntu.intel)
+
+/** @type {(ms: readonly MetaStep[]) => Job} */
+export const ubuntuArm = job(images.ubuntu.arm)
