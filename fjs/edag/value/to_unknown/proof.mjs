@@ -12,7 +12,7 @@ import { throws } from 'node:assert/strict'
 import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.mjs'
 import { interpret, noRuntime } from '../../../compiler/transpiler/module.f.mjs'
 import { _unreadableThrownValue, asyncPartialRun, asyncRun } from '../../../effects/module.mjs'
-import { emptyState, virtual } from '../../../effects/node/virtual/module.f.mjs'
+import { virtualAt } from '../../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../../text/module.f.mjs'
 import { isObject } from '../../../types/object/module.f.mjs'
 import { compileCommands, toUnknown } from './module.f.mjs'
@@ -44,7 +44,7 @@ export const proof = {
             main: [utf8('import add from "./dep"; const f=add(2); export const call=f; export default [f,f];')],
             dep: [utf8('export default x=>y=>x+y;')],
         }
-        const [, result] = virtual({ ...emptyState, root })(interpret(noRuntime)('main'))
+        const [, result] = virtualAt(root)(interpret(noRuntime)('main'))
         const exports = assertOk(await run(toUnknown(assertOk(result))))
         const call = callable(field(exports, 'call'))
         const repeated = elements(field(exports, 'default'))
@@ -114,7 +114,7 @@ export const proof = {
     },
     interpretedThrownValue: async () => {
         const root = { main: [utf8('const shared=[]; const get=()=>shared; throw [shared,get,get];')] }
-        const [, result] = virtual({ ...emptyState, root })(interpret(noRuntime)('main'))
+        const [, result] = virtualAt(root)(interpret(noRuntime)('main'))
         const failure = assertError(result)
         assert('thrown' in failure)
         const [shared, get, repeated] = elements(assertOk(await run(toUnknown(failure.thrown))))
@@ -124,7 +124,7 @@ export const proof = {
     },
     ordinaryThenProperty: async () => {
         const root = { main: [utf8('export default {then:()=>{throw "must not run";},value:7};')] }
-        const [, result] = virtual({ ...emptyState, root })(interpret(noRuntime)('main'))
+        const [, result] = virtualAt(root)(interpret(noRuntime)('main'))
         const represented = assertOk(result)
         assert(Array.isArray(represented) && represented[0] === '{}')
         const value = represented[1][0][2]

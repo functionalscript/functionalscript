@@ -1567,6 +1567,14 @@ export const virtualOperationMap = {
  */
 export const virtual = partialRun(nodeCommands)(virtualOperationMap)
 
+/**
+ * The virtual runner over {@link emptyState} with `root` as its filesystem: the
+ * state a proof starts from when all it supplies is a tree of files.
+ *
+ * @type {(root: Dir) => ReturnType<RunInstance<NodeOp, State>>}
+ */
+export const virtualAt = root => virtual({ ...emptyState, root })
+
 const testContext = { test: todo }
 
 /**

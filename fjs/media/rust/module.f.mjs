@@ -33,6 +33,8 @@
  */
 
 import { error, ok } from '../../types/result/module.f.js'
+import { map, toArray } from '../../types/list/module.f.mjs'
+import { isWellFormed, stringToList } from '../../text/utf16/module.f.mjs'
 import { isNaN_ } from '../../types/number/is_nan/module.f.js'
 import { isNegativeZero } from '../../types/number/is_negative_zero/module.f.js'
 import { bigint } from '../../types/bigint/from_number/module.f.js'
@@ -70,15 +72,6 @@ const character = c => {
 }
 
 /**
- * A lone surrogate: one code unit of a pair standing without its partner.
- * Iterating a string yields a paired surrogate as one two-unit character,
- * so a surrogate that arrives alone is the unpaired one.
- *
- * @type {(c: string) => boolean}
- */
-const loneSurrogate = c => c.length === 1 && c >= '\ud800' && c <= '\udfff'
-
-/**
  * A double-quoted Rust string literal, or the refusal of a string holding a
  * lone surrogate: a Rust `&str` is UTF-8 and cannot hold one, and no escape
  * spells it — `"\u{d800}"` is refused by `rustc` — so the string has no
@@ -87,10 +80,8 @@ const loneSurrogate = c => c.length === 1 && c >= '\ud800' && c <= '\udfff'
  *
  * @type {(v: string) => Result<string, unknown>}
  */
-export const stringLiteral = v => {
-    const chars = [...v]
-    return chars.some(loneSurrogate) ? error(v) : ok(`"${chars.map(character).join('')}"`)
-}
+export const stringLiteral = v =>
+    isWellFormed(v) ? ok(`"${[...v].map(character).join('')}"`) : error(v)
 
 /**
  * A non-negative integer as a Rust hexadecimal literal, zero-padded to
@@ -129,7 +120,7 @@ export const utf16Literal = v => sliceLiteral(utf16Units(v))
  *
  * @type {(v: string) => readonly string[]}
  */
-export const utf16Units = v => [...Array(v.length).keys()].map(i => u16Hex(v.charCodeAt(i)))
+export const utf16Units = v => toArray(map(u16Hex)(stringToList(v)))
 
 /**
  * The exponent of a normal number: the `e` with `2 ** e <= a < 2 ** (e + 1)`,

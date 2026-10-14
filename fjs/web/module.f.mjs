@@ -84,6 +84,101 @@ const userInfoMark = '@'
  */
 const portMark = ':'
 
+/** Whether `s` is a decimal number, and a non-empty one.
+ *
+ * @type {(s: string) => boolean}
+ */
+const isDigits = s => s !== '' && [...s].every(c => c >= '0' && c <= '9')
+
+/**
+ * Whether `s` names a port.
+ *
+ * Digits **in range**: `65536` is a number and not a port, and a URL parser
+ * agrees — `new URL('http://localhost:65536/')` throws where
+ * `http://localhost:8099/` does not. The digits are read as a number rather
+ * than counted, because a parser reads `00008099` as `8099` and a length test
+ * would not. Past what a number can hold the read is `Infinity`, which is out
+ * of range like every other value that large.
+ *
+ * **Not `fjs/effects/node`'s `isPort`, which reads a number a runner binds.**
+ * This one reads the text of an authority, and only the bound is shared: `:0`
+ * is a valid authority and stays one, while `main` refusing a `0` on the
+ * command line is a binding policy of its own.
+ *
+ * @type {(s: string) => boolean}
+ */
+const isPort = s => isDigits(s) && Number(s) <= maxPort
+
+/** Whether what follows a host name is nothing, or a port.
+ *
+ * @type {(rest: string) => boolean}
+ */
+const isPortSuffix = rest =>
+    rest === '' || (rest.startsWith(portMark) && isPort(rest.slice(portMark.length)))
+
+/**
+ * The host a lower-cased authority starts with and what follows it, or `null`
+ * for an IPv6 literal whose bracket is never closed. A literal's brackets are
+ * part of its host, and the colons inside them are not a port mark.
+ *
+ * @type {(lower: string) => Nullable<readonly [string, string]>}
+ */
+const splitHost = lower => {
+    if (lower.startsWith('[')) {
+        const close = lower.indexOf(']')
+        return close < 0 ? null : [lower.slice(0, close + 1), lower.slice(close + 1)]
+    }
+    const colon = lower.indexOf(portMark)
+    return colon < 0 ? [lower, ''] : [lower.slice(0, colon), lower.slice(colon)]
+}
+
+/**
+ * Reads an authority — the one an absolute-form target carries, or a `Host`
+ * header — as the host name it names and the port written after it, or `null`
+ * if it names no host.
+ *
+ * **One grammar for both.** The two are the same text in two places, so they
+ * are read by the same rules: `http://[::1/x` is refused as a target for the
+ * reason `Host: [::1` is refused as a header.
+ *
+ * The name is lower case, because a host name is case-insensitive and
+ * `LOCALHOST` is not a different machine, and carries no trailing root dot,
+ * because `localhost.` is not one either.
+ *
+ * **Userinfo is refused, not parsed past.** `127.0.0.1:8080@attacker.example`
+ * is an authority whose host is `attacker.example` — the part before the `@` is
+ * a credential, not a name — and reading it left-to-right finds a loopback
+ * address that was never the host at all. RFC 9110 §4.2.4 deprecates userinfo
+ * in an `http` URI and says a sender must not generate one, so refusing is both
+ * correct and the only reading that cannot be walked backwards into.
+ *
+ * **An empty name is refused.** RFC 9110 §4.2.1 says a recipient must reject
+ * an `http` URI with an empty host as invalid, and the reason is visible in a
+ * target: `http:///index.html` reads as an empty authority and the path
+ * `/index.html` to {@link parseTarget}, and as the host `index.html` and the
+ * path `/` to a URL parser. Two readings, neither of them the client's, so
+ * neither is answered. `http://:80/x` is the same target wearing a port, and
+ * `new URL` refuses that one outright. A lone `.` is the DNS root and no host
+ * in it, so it is empty once its root dot is dropped.
+ *
+ * **And nothing after the name is discarded.** Reading the prefix and dropping
+ * the rest made `localhost:bad`, `localhost:8080:999` and `[::1]evil` all read
+ * as names this server answers for — a check that ignores what it does not
+ * understand is not a check. What may follow a name is a port and nothing else;
+ * an IPv6 literal is bracketed, and its brackets are part of the name.
+ *
+ * @type {(authority: string) => Nullable<{ readonly name: string, readonly port: Nullable<string> }>}
+ */
+const parseAuthority = authority => {
+    if (authority.includes(userInfoMark)) { return null }
+    const split = splitHost(authority.toLowerCase())
+    if (split === null) { return null }
+    const [host, rest] = split
+    const name = host.endsWith('.') ? host.slice(0, -1) : host
+    if (name === '' || !isPortSuffix(rest)) { return null }
+    return { name, port: rest === '' ? null : rest.slice(portMark.length) }
+}
+
 /**
  * Reads a request target, or `null` if it is not one this server can act on.
  *
@@ -97,8 +192,8 @@ const portMark = ':'
  * inside it, and answered `404` for the wrong reason.
  *
  * Anything else — the asterisk-form `*`, an authority-form `host:port` from a
- * `CONNECT`, an empty target, an authority carrying userinfo — names nothing
- * this server serves.
+ * `CONNECT`, an empty target, an authority {@link parseAuthority} cannot read —
+ * names nothing this server serves.
  *
  * The fragment is stripped although a client keeps it to itself; a `respond`
  * called directly might still be given one, and it costs one `split`.
@@ -118,18 +213,9 @@ const parseTarget = target => {
     const afterScheme = withoutQuery.slice(mark + schemeMark.length)
     const slash = afterScheme.indexOf('/')
     const authority = slash < 0 ? afterScheme : afterScheme.slice(0, slash)
-    // Userinfo names a credential, not a host, and an authority carrying one
-    // reads as a different host depending on which end you start from — which
-    // is what makes it worth refusing outright rather than parsing past.
-    if (authority.includes(userInfoMark)) { return null }
-    // An `http` URI with an **empty host** is one RFC 9110 §4.2.1 says a
-    // recipient must reject as invalid, and the reason is visible here:
-    // `http:///index.html` reads as an empty authority and the path
-    // `/index.html` to this parser, and as the host `index.html` and the path
-    // `/` to a URL parser. Two readings, neither of them the client's, so
-    // neither is answered. `http://:80/x` is the same target wearing a port,
-    // and `new URL` refuses that one outright.
-    if (authority === '' || authority.startsWith(portMark)) { return null }
+    // Read by the grammar a `Host` header is: an authority that names no host
+    // is no target either.
+    if (parseAuthority(authority) === null) { return null }
     return { authority, path: slash < 0 ? '/' : afterScheme.slice(slash) }
 }
 
@@ -334,86 +420,20 @@ const allow = 'GET, HEAD'
  */
 const servedHosts = ['localhost', '127.0.0.1', '[::1]']
 
-/** Whether `s` is a decimal number, and a non-empty one.
- *
- * @type {(s: string) => boolean}
- */
-const isDigits = s => s !== '' && [...s].every(c => c >= '0' && c <= '9')
-
 /**
- * Whether `s` names a port.
- *
- * Digits **in range**: `65536` is a number and not a port, and a URL parser
- * agrees — `new URL('http://localhost:65536/')` throws where
- * `http://localhost:8099/` does not. The digits are read as a number rather
- * than counted, because a parser reads `00008099` as `8099` and a length test
- * would not. Past what a number can hold the read is `Infinity`, which is out
- * of range like every other value that large.
- *
- * **Not `fjs/effects/node`'s `isPort`, which reads a number a runner binds.**
- * This one reads the text of an authority, and only the bound is shared: `:0`
- * is a valid authority and stays one, while `main` refusing a `0` on the
- * command line is a binding policy of its own.
- *
- * @type {(s: string) => boolean}
- */
-const isPort = s => isDigits(s) && Number(s) <= maxPort
-
-/** Whether what follows a host name is nothing, or a port.
- *
- * @type {(rest: string) => boolean}
- */
-const isPortSuffix = rest =>
-    rest === '' || (rest.startsWith(portMark) && isPort(rest.slice(portMark.length)))
-
-/**
- * The name an authority names, or `null` if it does not name one.
- *
- * Lower case, because a host name is case-insensitive and `LOCALHOST` is not a
- * different machine. Without a trailing root dot, because `localhost.` is not
- * one either.
- *
- * **And nothing after the name is discarded.** Reading the prefix and dropping
- * the rest made `localhost:bad`, `localhost:8080:999` and `[::1]evil` all read
- * as names this server answers for — a check that ignores what it does not
- * understand is not a check. What may follow a name is a port and nothing else;
- * an IPv6 literal is bracketed, and its brackets are part of the name.
- *
- * @type {(host: string) => Nullable<string>}
- */
-const hostName = host => {
-    const lower = host.toLowerCase()
-    if (lower.startsWith('[')) {
-        const end = lower.indexOf(']')
-        if (end < 0 || !isPortSuffix(lower.slice(end + 1))) { return null }
-        return lower.slice(0, end + 1)
-    }
-    const colon = lower.indexOf(':')
-    if (colon >= 0 && !isPortSuffix(lower.slice(colon))) { return null }
-    const name = colon < 0 ? lower : lower.slice(0, colon)
-    return name.endsWith('.') ? name.slice(0, -1) : name
-}
-
-/**
- * Whether this server answers for `host`.
+ * Whether this server answers for `host`: whether the name
+ * {@link parseAuthority} reads from it is one of the {@link servedHosts}.
  *
  * An absent `Host` is not served: HTTP/1.1 requires one, every browser sends
  * one, and accepting the absence would leave the check with a hole shaped
  * exactly like a client that omits it deliberately.
  *
- * Neither is one carrying **userinfo**. `127.0.0.1:8080@attacker.example` is an
- * authority whose host is `attacker.example` — the part before the `@` is a
- * credential, not a name — and reading it left-to-right finds a loopback
- * address that was never the host at all. RFC 9110 §4.2.4 deprecates userinfo in
- * an `http` URI and says a sender must not generate one, so refusing is both
- * correct and the only reading that cannot be walked backwards into.
- *
  * @type {(host: string | undefined) => boolean}
  */
 const isServedHost = host => {
-    if (host === undefined || host.includes(userInfoMark)) { return false }
-    const name = hostName(host)
-    return name !== null && servedHosts.includes(name)
+    if (host === undefined) { return false }
+    const authority = parseAuthority(host)
+    return authority !== null && servedHosts.includes(authority.name)
 }
 
 /**

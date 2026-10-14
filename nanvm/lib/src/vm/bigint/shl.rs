@@ -79,25 +79,12 @@ impl<A: IVm> Shl for BigInt<A> {
     }
 }
 
-// TODO: The unit tests should not use `naive` or other VM implementations.
-//       We should move these tests into integration tests.
 #[cfg(test)]
 mod tests {
-    use crate::{
-        naive::Naive,
-        sign::Sign,
-        vm::{bigint::BigInt, error},
+    use crate::vm::{
+        bigint::test_util::{T, neg, pos},
+        error,
     };
-
-    type T = BigInt<Naive>;
-
-    fn pos(items: Vec<u64>) -> T {
-        T::unchecked_new(Sign::Positive, items)
-    }
-
-    fn neg(items: Vec<u64>) -> T {
-        T::unchecked_new(Sign::Negative, items)
-    }
 
     #[test]
     fn zero_shl_zero() {

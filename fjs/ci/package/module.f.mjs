@@ -9,6 +9,7 @@
  */
 
 import { typescript } from '../config/module.f.js'
+import { stringLiteral } from '../../js/string_escape/module.f.mjs'
 
 /**
  * The runner's temporary directory, which GitHub empties at the start and at
@@ -104,21 +105,11 @@ const tsconfig = /** @type {const} */ ({
 })
 
 /**
- * A string as a TypeScript string literal: JSON's spelling, which TypeScript
- * reads. The encoding is what keeps the negative control honest: a value
- * interpolated raw could make `bad.mts` a syntax error, which the negated
- * compile would count as the type refusing it.
- *
- * @type {(s: string) => string}
- */
-const literal = s => JSON.stringify(s)
-
-/**
  * A string as one single-quoted shell word. Nothing inside single quotes is
  * special to the shell but the quote itself, so `'` is written as the quote
  * closed, the character escaped, and the quote reopened. Every consumer
  * string reaches its command through this, the identifiers included, which
- * {@link literal} cannot cover: so a `value` of `x'; printf PWNED; #` is an
+ * `stringLiteral` cannot cover: so a `value` of `x'; printf PWNED; #` is an
  * import the compiler refuses, not a command the runner executes. An
  * unsupported consumer fails the check; it never runs.
  *
@@ -130,8 +121,11 @@ const shellWord = s => `'${s.replaceAll("'", "'\\''")}'`
  * The two consumer files, as one `echo` each writes them. `good.mts` imports
  * the runtime export and a declared type from the installed package and
  * gives the type a value it accepts; `bad.mts` gives it one it does not.
- * Every string is a {@link literal}; the export and the type are written
- * bare, as the identifiers they are, and one that is not an identifier
+ * Every string is a `stringLiteral`, JSON's spelling, which TypeScript
+ * reads. The encoding is what keeps the negative control honest: a value
+ * interpolated raw could make `bad.mts` a syntax error, which the negated
+ * compile would count as the type refusing it. The export and the type are
+ * written bare, as the identifiers they are, and one that is not an identifier
  * fails `good.mts`, which is not negated. The shell sees none of it raw:
  * {@link consumerCommands} writes each file as one {@link shellWord}. `.mts`
  * rather than `.ts` because
@@ -140,16 +134,16 @@ const shellWord = s => `'${s.replaceAll("'", "'\\''")}'`
  * @type {(consumer: PackageConsumer) => string}
  */
 const goodConsumer = consumer => [
-    `import { ${consumer.value} } from ${literal(`${alias}/${consumer.module}`)};`,
-    `import type { ${consumer.type} } from ${literal(`${alias}/${consumer.types}`)};`,
-    `const accepted: ${consumer.type} = ${literal(consumer.accepted)};`,
-    `if (${consumer.value} === undefined) { throw new Error(${literal(`${consumer.value} did not load`)}); }`,
+    `import { ${consumer.value} } from ${stringLiteral(`${alias}/${consumer.module}`)};`,
+    `import type { ${consumer.type} } from ${stringLiteral(`${alias}/${consumer.types}`)};`,
+    `const accepted: ${consumer.type} = ${stringLiteral(consumer.accepted)};`,
+    `if (${consumer.value} === undefined) { throw new Error(${stringLiteral(`${consumer.value} did not load`)}); }`,
 ].join('\n')
 
 /** @type {(consumer: PackageConsumer) => string} */
 const badConsumer = consumer => [
-    `import type { ${consumer.type} } from ${literal(`${alias}/${consumer.types}`)};`,
-    `const refused: ${consumer.type} = ${literal(consumer.refused)};`,
+    `import type { ${consumer.type} } from ${stringLiteral(`${alias}/${consumer.types}`)};`,
+    `const refused: ${consumer.type} = ${stringLiteral(consumer.refused)};`,
 ].join('\n')
 
 /**

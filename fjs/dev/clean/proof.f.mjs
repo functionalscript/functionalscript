@@ -2,7 +2,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { exitCode } from '../../effects/node/module.f.mjs'
-import { emptyState, nodeProgramOptions, virtual } from '../../effects/node/virtual/module.f.mjs'
+import { nodeProgramOptions, virtualAt } from '../../effects/node/virtual/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
 import { clean, generatedFiles, isGenerated, main } from './module.f.mjs'
 
@@ -29,7 +29,7 @@ export const proof = {
         for (const name of ['gen', 'generate', 'generated.rs', 'regen.x', 'gen_x', 'x.gen.y']) { assert(!isGenerated(name), name) }
     },
     generatedFiles: () => {
-        const [, result] = virtual({ ...emptyState, root })(generatedFiles('.'))
+        const [, result] = virtualAt(root)(generatedFiles('.'))
         assertEq(unwrap(result).toSorted().join(','), [
             './.github/workflows/gen.ci.yml',
             './gen.matrix.md',
@@ -44,11 +44,11 @@ export const proof = {
     rootUnderGenerated: () => {
         /** @type {Dir} */
         const nested = { 'gen.workspace': { 'repo': { 'main.rs': [], 'gen.x.md': [], 'src': { 'a.rs': [] } } } }
-        const [, result] = virtual({ ...emptyState, root: nested })(generatedFiles('gen.workspace/repo'))
+        const [, result] = virtualAt(nested)(generatedFiles('gen.workspace/repo'))
         assertEq(unwrap(result).join(','), 'gen.workspace/repo/gen.x.md')
     },
     clean: () => {
-        const [state, result] = virtual({ ...emptyState, root })(clean('.'))
+        const [state, result] = virtualAt(root)(clean('.'))
         assertEq(result[0], 'ok')
         assertStructurallySame(state.root, {
             'matrix.md': [],
@@ -62,7 +62,7 @@ export const proof = {
         })
     },
     main: () => {
-        const [state, code] = virtual({ ...emptyState, root })(main(nodeProgramOptions([])))
+        const [state, code] = virtualAt(root)(main(nodeProgramOptions([])))
         assertEq(exitCode(code), 0)
         assertEq(Object.keys(state.root).includes('gen.matrix.md'), false)
     },

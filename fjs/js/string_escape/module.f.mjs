@@ -1,28 +1,42 @@
 /**
- * The simple string escapes — one source of truth.
+ * The string escapes — one source of truth — and the one writer of a quoted
+ * string built on them.
  *
- * `\"`, `\\`, `\/`, `\b`, `\f`, `\n`, `\r`, `\t`: every escape sequence whose
- * meaning is one fixed code point. `\uXXXX` is not one of them — its meaning
- * is computed from the digits that follow rather than looked up — and neither
- * are JavaScript's `\0`, `\v`, `\xXX`, or a line continuation, which
- * FunctionalScript does not accept.
+ * `\"`, `\\`, `\/`, `\b`, `\f`, `\n`, `\r`, `\t`: the simple escapes, every
+ * escape sequence whose meaning is one fixed code point. `\uXXXX` is not one
+ * of them — its meaning is computed from the digits that follow rather than
+ * looked up — and neither are JavaScript's `\0`, `\v`, `\xXX`, or a line
+ * continuation, which FunctionalScript does not accept.
  *
  * The set is JSON's `char` production's, so everything that reads or writes
  * one derives its view from this one list rather than keeping a copy: the
  * JSON grammar (`../../ebnf/lib/json`) admits its letters, the JSON reader
- * and the JavaScript tokenizer decode through it, and the JSON serializer
+ * and the JavaScript tokenizer decode through it, and {@link stringLiteral}
  * encodes through it, so none of them can drift apart. A
  * single-quoted string adds `\'`, which is not JSON's, so the JavaScript
  * tokenizer decodes it above this table: a row here would make the encode
  * view write `\'` into JSON.
  *
+ * `stringLiteral` writes a string as a double-quoted literal, which is JSON
+ * and JavaScript alike. Every writer of a quoted string in source text — the
+ * JSON serializer among them — goes through it rather than through the
+ * host's `JSON.stringify`.
+ *
  * @module
+ *
+ * @import { CodePoint } from '../../text/code_point/types.ts'
  */
 
+import { map } from '../../types/list/module.f.mjs'
+import { concat } from '../../types/string/module.f.mjs'
+import { map as nullableMap } from '../../types/nullable/module.f.mjs'
+import { codePointToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
+import { errorMask } from '../../text/code_point/module.f.mjs'
 import {
     backspace,
     cr,
     ff,
+    hexDigitCodePoint,
     ht,
     latinSmallLetterB,
     latinSmallLetterF,
@@ -33,6 +47,7 @@ import {
     quotationMark,
     reverseSolidus,
     solidus,
+    space,
 } from '../../text/ascii/module.f.mjs'
 
 /**
@@ -97,3 +112,53 @@ export const escapeToCodePoint = lookup(simpleEscapes)
  */
 export const codePointToEscape = lookup(simpleEscapes.flatMap(([letter, codePoint]) =>
     codePoint === optionalEscape ? [] : [/** @type {const} */([codePoint, letter])]))
+
+const { fromCharCode } = String
+
+/** @type {(value: number) => string} */
+const hexDigit = value => fromCharCode(hexDigitCodePoint(value))
+
+/**
+ * `\uXXXX` with lowercase hex digits, matching ECMAScript's `UnicodeEscape`.
+ *
+ * @type {(unit: number) => string}
+ */
+const unicodeEscape = unit =>
+    `\\u${hexDigit(unit >> 12 & 0xf)}${hexDigit(unit >> 8 & 0xf)}${hexDigit(unit >> 4 & 0xf)}${hexDigit(unit & 0xf)}`
+
+/**
+ * The two-character escape a letter spells, projected over the lookup's
+ * `null`. Bound here rather than inside `escapeCodePoint`: it depends on
+ * nothing that varies per code point, and `escapeCodePoint` runs once per
+ * character of every string written.
+ *
+ * @type {(letter: number | null) => string | null}
+ */
+const simpleEscape = nullableMap(letter => `\\${codePointToString(letter)}`)
+
+/**
+ * Escapes one decoded code point. A code point tagged with `errorMask` is an
+ * unpaired surrogate, which well-formed JSON stringification (ES2019) emits as
+ * its `\uXXXX` escape rather than as a code unit; everything else is either a
+ * simple escape, a `\u00XX` control escape, or the character itself.
+ *
+ * @type {(codePoint: CodePoint) => string}
+ */
+const escapeCodePoint = codePoint =>
+    (codePoint & errorMask) !== 0
+        ? unicodeEscape(codePoint & 0xffff)
+        : simpleEscape(codePointToEscape(codePoint))
+            ?? (codePoint < space ? unicodeEscape(codePoint) : codePointToString(codePoint))
+
+/**
+ * A string as a double-quoted literal: the ECMAScript `QuoteJSONString`
+ * result, reproduced exactly, lone surrogates included, over this
+ * repository's own UTF-16 decoder rather than the host's `JSON.stringify`.
+ *
+ * The text is a JSON string, and a JavaScript string literal with the same
+ * value.
+ *
+ * @type {(input: string) => string}
+ */
+export const stringLiteral = input =>
+    `"${concat(map(escapeCodePoint)(stringToCodePointList(input)))}"`
