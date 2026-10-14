@@ -178,6 +178,20 @@ export const _parseJson = path => step(
     })
 
 /**
+ * A module recorded complete under its identity, and the import chain left as
+ * it was before the module was entered.
+ *
+ * @template T
+ * @param {string} id
+ * @param {_Context<T>} context
+ * @returns {(module: T) => readonly [_Context<T>, T]}
+ */
+const completed = (id, context) => module => [{
+    complete: setReplace(id)(module)(context.complete),
+    stack: drop(1)(context.stack),
+}, module]
+
+/**
  * The walk both compiler paths load a program by, `load` deciding what a
  * module becomes. A source's import attribute is checked before its file's
  * state: a file met before is refused all the same when this import misspells
@@ -198,11 +212,6 @@ export const _parseJson = path => step(
  */
 export const _walk = load => {
     /** @typedef {{ readonly context: _Context<T>, readonly imports: readonly S[] }} Imports the walk so far, and the bindings of the imports loaded so far, in their order */
-    /** @type {(id: string, context: _Context<T>) => (module: T) => readonly [_Context<T>, T]} */
-    const completed = (id, context) => module => [{
-        complete: setReplace(id)(module)(context.complete),
-        stack: drop(1)(context.stack),
-    }, module]
     /** @type {(source: _ImportSource) => (state: Imports) => Effect<ReadWhole | ResolveFileModule, Imports, ParseError | E>} */
     const walkImport = source => ({ context, imports }) => step(walk(source)(context), ([next, module]) => {
         const selected = load.select(module, source.name)
