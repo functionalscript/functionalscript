@@ -1,9 +1,9 @@
 /**
  * Node.js effect operations: filesystem (`mkdir`, `readFile`, `readdir`,
  * `writeFile`, `rm`, `access`, plus the `readUtf8File`/`writeUtf8File` text
- * helpers), networking (`fetch`, `createServer`, `listen`),
- * subprocess `exec`, `inflate`, `now` and `forever`; defines the `NodeOp`/`NodeProgram`
- * types used by the Node runner.
+ * helpers and `writeFiles`, a generator's output), networking (`fetch`,
+ * `createServer`, `listen`), subprocess `exec`, `inflate`, `now` and
+ * `forever`; defines the `NodeOp`/`NodeProgram` types used by the Node runner.
  *
  * The console family — `write`, `log`, `error`, `errorExit`, `read`,
  * `readLine` — together with `sandbox`, `catch_`, `import_` and the
@@ -40,8 +40,9 @@ import {
     all, allOk, both, catch_, error, errorExit, import_, log, read, readLine, sandbox, write,
 } from '../common/module.f.mjs'
 import {
-    catchStep, mapStep as ioMapStep, pureError, pureOk, resultMapStep, resultStep, step as ioStep,
+    catchStep, forEachStep, mapStep as ioMapStep, pureError, pureOk, resultMapStep, resultStep, step as ioStep,
 } from '../module.f.mjs'
+import { parent } from '../../path/module.f.mjs'
 
 /**
  * `errorMessage`, `ioError` and `toIoError` are declared in
@@ -586,6 +587,27 @@ export const writeUtf8File = (path, content) => {
         ? writeFile(path, whole)
         : writeChunks(path, _pieces(chunkUnits)(content).map(utf8))
 }
+
+/**
+ * Writes each `[path, text]` of `files` as UTF-8 after creating the directory
+ * it goes in, in order, stopping at the first failure: how a generator's files
+ * reach a disk, so that the generator only has to say what they are.
+ *
+ * The directory is `fjs/path`'s `parent` of the path, made with
+ * `recursive: true`, so one that exists already — or that a file before this
+ * one made — is no failure. That is one `mkdir` per file even where files
+ * share a directory: simpler than grouping them, and a recursive `mkdir` of a
+ * directory that exists changes nothing. Each write is a
+ * {@link writeUtf8File}, so a long text is written in chunks and a failed
+ * write leaves no partial file.
+ *
+ * @type {(files: readonly (readonly [path: string, text: string])[]) => Effect<Mkdir | WriteFile | WriteBytes | Rm, void, IoChannel>}
+ */
+export const writeFiles = files => forEachStep(
+    pureOk(files),
+    ([path, text]) => ioStep(
+        mkdir(parent(path), { recursive: true }),
+        () => writeUtf8File(path, text)))
 
 /**
  * The read mirror of {@link writeFromStream}: a byte stream from a chunk

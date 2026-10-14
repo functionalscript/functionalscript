@@ -1,9 +1,14 @@
 ## write-files. Every generator writes its own "create the directory, then write the files" chain
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
+
+> **Progress:** `writeFiles` is in `fjs/effects/node`, and the five
+> generators listed below write through it. Two generators of the same
+> shape remain: `fjs/nanvm/harness`'s fixture `mod.rs` and
+> `fjs/website/cloudflare`'s build script.
 
 A generator ends the same way each time: make the output directory, then
 write one or more files into it, stopping at the first failure. Each one
@@ -77,10 +82,15 @@ names.
 
 ### Tasks
 
-- [ ] `writeFiles`, proved against the mock host.
-- [ ] `fjs/ci`, `fjs/ci/nix`, `fjs/nanvm/update`, `fjs/media/datajs/vectors/matrix`
+- [x] `writeFiles`, proved against the mock host.
+- [x] `fjs/ci`, `fjs/ci/nix`, `fjs/nanvm/update`, `fjs/media/datajs/vectors/matrix`
       and `fjs/compiler`'s output through it; each generator's file set
       as a pure function, behind the exports it has today.
+- [ ] `fjs/nanvm/harness`'s `generateFixtures` writes its `mod.rs`, and
+      `fjs/website/cloudflare` its build script, through it.
+      `generateExpected` keeps its own chain: it interprets each fixture
+      between writes, so it has no file set to hand over, and its proof
+      pins that the directory exists before the runtime loads.
 - [ ] `tsc`, `fjs test`, `npm run gen` leaves the tree unchanged.
 
 ### Related
@@ -89,8 +99,9 @@ names.
   — the same layer, one encoding up; on hold for want of a second
   consumer, which this has five of.
 - [`fjs/nanvm/harness`](../../../nanvm/harness/module.f.mjs) — a generator
-  of the same shape, the sixth: one `writeUtf8File` per compiled fixture and
-  one for `mod.rs`.
+  of the same shape, the sixth: its compiled fixtures already go through
+  `compileFile`, and so through `writeFiles`; its `mod.rs` is still written
+  by hand.
 - [`fjs/media/datajs/vectors/matrix`](../../../media/datajs/vectors/matrix/module.f.mjs)
   — the matrix generator, already split into `check` and `matrix`, whose
   `write` is one of the sites.

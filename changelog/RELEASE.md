@@ -1,10 +1,13 @@
 # Releasing
 
-A release is **two pull requests to `main`**:
+A release is **two pull requests**:
 
-1. **The bump** changes the version and nothing else. Merging it publishes.
+1. **The bump** changes the version and nothing else. Merging it publishes. It
+   goes against its release line: `main` for a regular release, the
+   maintenance branch for an [urgent fix](#urgent-fixes-before-10).
 2. **The notes**, opened once the version has published, write
-   `changelog/X.Y.Z.md` from the pull requests that shipped in it.
+   `changelog/X.Y.Z.md` from the pull requests that shipped in it. They always
+   go against `main`.
 
 [README.md](./README.md) is the format the notes are written in and the
 versioning rule the bump follows.
@@ -317,7 +320,9 @@ deliberately uses a different branch and window:
 5. Once it publishes, write its notes like any other release's: a notes pull
    request to `main` adding `changelog/0.X.P.md`, over the window from the
    previous version on its line. The file lives on `main` for the website's
-   history, even if the maintenance branch is deleted.
+   history. **Keep the maintenance branch**: its releases' `gitHead`s are
+   reachable from nothing else, and a later session filling in skipped notes
+   fetches that window from it.
 6. Carry every fix forward to `main` through a separate PR **before the next
    regular release**, adapting it to current code if needed so upgrading retains
    the fix. Leave urgent `package.json` and `package-lock.json` version changes
@@ -338,11 +343,18 @@ an entry no one had the context to write well, and because the duplication rule
 did not hold in practice — in the last full window, 17 of 29 entry files had no
 matching section in the merge commit.
 
+`0.49.0` read the files that scheme left as raw material and deleted the
+directory. A pull request opened under the old scheme could recreate it by
+merging later, so releases kept reading `changelog/unreleased/` until this
+procedure. It dropped the source once the directory was empty and every open
+pull request had been opened long after `0.49.0`.
+
 From `0.49.0` until this procedure, one release pull request carried both the
-bump and the notes. The notes were written before the merge, so the window ended at
-whatever `main` held when the release merged, and keeping them complete took a
-re-scan immediately before merging, a recorded tip compared after a fresh
-fetch, and a repository setting to block the merge once `main` moved. Writing
+bump and the notes. The notes were written before the merge, so the window
+ended at whatever `main` held when the release merged, and keeping them
+complete took a re-scan immediately before merging, a recorded tip compared
+after a fresh fetch, and a repository setting to block the merge once `main`
+moved. Writing
 the notes after the version publishes, over the `gitHead` window, removes the
 race those steps managed.
 

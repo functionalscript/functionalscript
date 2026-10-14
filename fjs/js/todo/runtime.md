@@ -241,8 +241,11 @@ the example, the third, which gets its own `todo/` when its turn comes.
       `padStart`, `padEnd`, `repeat`, `concat`, `trim`, `trimStart`,
       `trimEnd`, `split`, `replace`, `replaceAll`, `isWellFormed`.
 - [ ] The array batch: every admitted `array` name, `toString` as `join`.
-- [ ] NaNVM evaluates the compiled module on every call it answers from the
-      runtime; hold the object once a measurement asks for it.
+- [x] NaNVM evaluates the compiled module on every call it answers from the
+      runtime; hold the object once a measurement asks for it. Identity
+      asked first: `Object.is` is a value a module compares, so `naive`
+      holds the object per thread
+      ([`runtime-static.md`](./runtime-static.md)).
 - [ ] A name whose body lands leaves NaNVM's hand tables unless a
       measurement keeps it, in the same table, as an optimization.
 - [x] File the static-function table as its own `todo/`:

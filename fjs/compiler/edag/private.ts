@@ -6,8 +6,6 @@
  */
 
 import type { ConstructorId, Exp, Items, Properties } from '../../edag/types.ts'
-import type { List } from '../../types/list/types.ts'
-import type { OrderedMap } from '../../types/ordered_map/types.ts'
 import type { AstConst, BinaryTag, UnaryTag } from '../ast/types.ts'
 
 /** The nodes a reference can name: one per import, one per entry lowered so far, the arguments of the function being lowered, and a read of each slot of its frame. */
@@ -16,22 +14,6 @@ export type _Nodes = {
     readonly consts: readonly Exp[]
     readonly args: Exp
     readonly frame: readonly Exp[]
-}
-
-/**
- * One link operation in progress: the modules resolved so far under their
- * identities, and the chain being followed, in which a repeated identity is
- * a cycle.
- */
-export type _Link = {
-    readonly complete: OrderedMap<_Resolved>
-    readonly stack: List<string>
-}
-
-/** A module's imports being resolved: the link so far, and the EDAGs bound to the imports resolved so far, in their order. */
-export type _Binding = {
-    readonly context: _Link
-    readonly bound: readonly Exp[]
 }
 
 /**

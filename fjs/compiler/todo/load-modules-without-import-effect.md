@@ -32,9 +32,9 @@ Module evaluation needs no `sandbox` capture or host test adapter.
 Source-level `import` remains part of the language. This workflow needs neither
 a host `import` effect nor an effect that converts EDAG into a native function.
 It accepts the compiler-supported FJS subset, not arbitrary JavaScript or host
-modules. Reuse the existing resolution rules and readers; the
-[shared module walk](./one-module-resolution-walk.md) owns their consolidation.
-Do not introduce a third resolution walk.
+modules. Reuse the existing resolution rules, readers and the one module walk,
+`_walk` in [`source`](../source/module.f.mjs).
+Do not introduce a second resolution walk.
 
 For the native executable, compile this FJS pipeline, including its interpreter,
 to direct Rust ahead of time. At runtime the compiled interpreter evaluates

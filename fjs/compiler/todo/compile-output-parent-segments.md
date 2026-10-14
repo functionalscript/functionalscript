@@ -6,10 +6,12 @@
 ### Problem
 
 `fjs compile` creates its output's directory before writing, so it can write
-into a `gen.*` directory that does not exist yet. `outputDirectory` in
-[`../module.f.mjs`](../module.f.mjs) finds that directory by normalizing the
-output path's parent, and normalizing folds `..` away. The file itself is then
-opened at the path as given.
+into a `gen.*` directory that does not exist yet. `compileFile` in
+[`../module.f.mjs`](../module.f.mjs) writes its output through
+[`fjs/effects/node`](../../effects/node/module.f.mjs)'s `writeFiles`, which
+finds that directory with [`fjs/path`](../../path/module.f.mjs)'s `parent`.
+`parent` normalizes the output path, and normalizing folds `..` away. The
+file itself is then opened at the path as given.
 
 For an output such as `a/../b/out.json` with no `a/` on disk, `compile`
 creates `b/`, then fails to open `a/../b/out.json` with `ENOENT` and exits
@@ -19,6 +21,8 @@ applies `..`, so `a` has to exist as well. Found in review of
 
 It fails loudly, not with a wrong result, and it failed before #2308 too, so
 it is not a regression. No generator in this repository writes such a path.
+`writeFiles` serves other generators too, so each of them would fail the same
+way on such a path, and a fix there covers them all.
 
 ### Proposal
 
@@ -30,4 +34,4 @@ choice unless a caller turns up that needs such a path.
 ### Tasks
 
 - [ ] Decide between creating the traversed directories and refusing the path.
-- [ ] Implement it in `compile`, with a proof for `a/../b/out.json`.
+- [ ] Implement it in `writeFiles`, with a proof for `a/../b/out.json`.

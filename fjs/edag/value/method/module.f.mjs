@@ -51,7 +51,7 @@ const typeName = receiver => typeof receiver === 'string' ? 'String'
  * The function value at a path of keys into an object, or `undefined`
  * where a key is missing, a step is no object, or the end is no function:
  * how an executor reads its runtime, `['member', type, key]` for a member
- * function's body and `['static', ...path]` for a static function's.
+ * function's body and `['static', 'Object', 'is']` for `Object.is`'s.
  *
  * @type {(object: EdagValue | undefined, path: readonly string[]) => ValueFunction | undefined}
  */

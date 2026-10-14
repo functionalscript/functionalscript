@@ -65,12 +65,12 @@ export const entryCall = ([receiver, key], invoke) =>
     nullish(receiver) ? error(['undefined']) : okThen(name => entry(receiver, name))(toString(key, invoke))
 
 /**
- * The failure of a static call no binding answers, naming the path:
+ * The failure of a static function no binding answers, by its name:
  * the parser admitted it, so the binding is the executor's to supply.
  *
- * @type {(path: readonly string[]) => string}
+ * @type {(name: string) => string}
  */
-export const noStatic = path => `no binding for the static ${path.join('.')}`
+export const noStatic = name => `no binding for the static ${name}`
 
 /** A node in tail position: its value, or the call it leaves for the executor.
  * @template E, S
@@ -189,13 +189,14 @@ export const operation = evaluator => {
             case 'self': { return [state, self === undefined ? error(['undefined']) : ok(self)] }
             // the helper as a value: a fresh function each time, as `=>` makes one
             case 'entry': { return [state, ok(['entry'])] }
-            // a static function, the body the runtime's `static` section
-            // holds at the path; with none — no runtime, or one without the
-            // path — the executor fails naming the path, never the `TypeError`
-            // of calling `undefined` and never a plausible value
-            case 'static': {
-                const fn = functionAt(runtime, ['static', ...node[1]])
-                return [state, fn === undefined ? error(noStatic(node[1])) : ok(fn)]
+            // a static function as a value, the body the runtime's `static`
+            // section holds at its path — the same node every read, so the
+            // same function; with none — no runtime, or one without the
+            // path — the executor fails naming it, never `undefined` and
+            // never a plausible value
+            case 'Object.is': {
+                const fn = functionAt(runtime, ['static', 'Object', 'is'])
+                return [state, fn === undefined ? error(noStatic('Object.is')) : ok(fn)]
             }
             case '[]': { return items(node[1], state) }
             case '{}': { return properties(node[1], state) }
