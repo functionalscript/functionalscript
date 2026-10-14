@@ -84,10 +84,10 @@ describes:
 | `op.update` | `++a`, `a--` | planned ([assignments](./3430-assignments.md)) | unexpected token | none |
 | `op.delete` | `delete a.b` | open | unexpected token | none |
 | `op.void` | `void 0` | open | unexpected token | none |
-| `op.new` | `new Map()` | open | unexpected token | none |
+| `op.new` | `new Map()` | planned ([mutability](./mutability.md), [object identity](./object-identity.md)) | unexpected token | none |
 | `op.this` | `this` | design ([design principles](./design-principles.md)) | reserved word | none |
 | `op.arguments` | `arguments` | open | reserved word | none |
-| `op.eval` | `eval("1")` | open | reserved word | none |
+| `op.eval` | `eval("1")` | design ([built-ins](./2360-built-in.md): never admitted, it runs source at run time) | reserved word | none |
 | `op.import-call` | `import("m")` | open | reserved word | none |
 | `op.import-meta` | `import.meta` | open | reserved word | none |
 | `op.regex` | `/a/g` | planned (roadmap, regular expressions) | unexpected token | none |
