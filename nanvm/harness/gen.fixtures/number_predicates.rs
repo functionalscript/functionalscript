@@ -7,7 +7,7 @@ use nanvm_lib::vm::{
 
 #[rustfmt::skip]
 pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
-    let c0: Any<A> = [f64_any(0x0000000000000000), f64_any(0x8000000000000000), f64_any(0x3ff0000000000000), f64_any(0x3ff8000000000000), f64_any(0x433fffffffffffff), f64_any(0x4340000000000000), f64_any(0x7ff8000000000000), f64_any(0x7ff0000000000000), f64_any(0xfff0000000000000), bigint_any(1), string_any("1"), string_any("NaN"), true.to_any(), Nullish::Null.to_any(), Nullish::Undefined.to_any(), Array::default().to_any(), Object::default().to_any()].to_array().to_any();
+    let c0: Any<A> = [f64_any(0x0000000000000000), f64_any(0x8000000000000000), f64_any(0x3ff0000000000000), f64_any(0x3ff8000000000000), f64_any(0x433fffffffffffff), f64_any(0x4340000000000000), f64_any(0xc33fffffffffffff), f64_any(0xc340000000000000), f64_any(0x7ff8000000000000), f64_any(0x7ff0000000000000), f64_any(0xfff0000000000000), bigint_any(1), string_any("1"), string_any("NaN"), true.to_any(), Nullish::Null.to_any(), Nullish::Undefined.to_any(), Array::default().to_any(), Object::default().to_any()].to_array().to_any();
     let c1: Any<A> = static_binding::<A>(&["Number", "isInteger"])?;
     let c2 = || {
         let c3: Any<A> = A::static_function(|self_, args| { Any::call(A::frame(self_)[0].clone(), [args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any())].to_array().to_any()) }, 1, [c1.clone()].to_array(), Some("($1)=>$0($1)")).to_any();
