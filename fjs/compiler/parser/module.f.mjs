@@ -27,7 +27,8 @@
  * referenced, since the tokenizer hands every keyword over as an
  * identifier and a key or the name after `.` may be one, a reserved global
  * — `Number` and `String`, spelled only as their conversions,
- * {@link conversion} — bound or referenced anywhere else, and a bare or
+ * {@link conversion}, and `Object`, only as the namespace of `Object.is`,
+ * {@link objectIsRead} — bound or referenced anywhere else, and a bare or
  * string `__proto__` key, which JavaScript reads as an instruction to
  * replace the prototype; the computed spelling `{ ["__proto__"]: v }` and
  * the shorthand `{ __proto__ }` denote an ordinary property and are
@@ -46,8 +47,14 @@
  * The `entry` helper is the fold's to recognize, {@link entryFunction}: the
  * one function whose body names a property at run time, matched whole on
  * the syntax tree with its names resolved as every other body's are, and
- * the one place the `Object` namespace stands — outside it the fold
- * refuses the `Object` nothing binds, as it refuses any unbound word.
+ * the one place `Object` stands but `Object.is` — outside the two the fold
+ * refuses the word, as it refuses every reserved global.
+ *
+ * `Object.is` is a value, the AST's `['Object.is']`, in every spelling
+ * JavaScript reads it in, {@link objectIsRead}; and a destructuring is
+ * sugar, so an object pattern over `Object` reads each of its keys as
+ * that read, `const { is } = Object` being `const is = Object.is`,
+ * {@link namespaceOf}.
  *
  * A guard, `if (c) block`, is the fold's to shape as well as to check: it
  * is syntactic sugar, and the fold writes what it is sugar for. The
@@ -76,10 +83,10 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
- * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstNot, AstTypeof, AstInstanceOf, AstNumber, AstString, AstKey, AstSelf, AstCall, AstConditional, AstConst, AstEntryFunction, AstFrameRef, AstEntry, AstFunction, AstItem, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstRest, AstSpread, AstStep, AstThrow } from '../ast/types.ts'
+ * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstNot, AstTypeof, AstInstanceOf, AstNumber, AstString, AstKey, AstSelf, AstCall, AstConditional, AstConst, AstEntryFunction, AstFrameRef, AstEntry, AstFunction, AstItem, AstNeg, AstObjectIs, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstRest, AstSpread, AstStep, AstThrow } from '../ast/types.ts'
  * @import { ParseError } from './types.ts'
  * @import { BindingElement, BindingProperty, BindingTarget, Block, Chain, ComputedKey, ConstantMember, Container, Entry, If, Import, Item, Key, Module, Node, ParameterList, Statement, Step, ValueStatement, While } from './syntax/types.ts'
- * @import { _AccessFrame, _BodyFrame, _Bound, _CallFrame, _ChainFrame, _ChainPart, _ConditionalFrame, _IndexFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _Intrinsic, _LoopBodyFrame, _Lowered, _Parameter, _Pending, _PendingStack, _Plan, _Read, _Ref, _Scope, _Stack, _State } from './private.ts'
+ * @import { _AccessFrame, _BodyFrame, _Bound, _CallFrame, _ChainFrame, _ChainPart, _ConditionalFrame, _IndexFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _LoopBodyFrame, _Lowered, _Parameter, _Pending, _PendingStack, _Plan, _Read, _Ref, _Scope, _Source, _Stack, _State } from './private.ts'
  */
 
 import { error, mapOk, ok } from '../../types/result/module.f.js'
@@ -208,10 +215,12 @@ const captureShadowed = foldError('capture shadowed')
 /**
  * A keyword where JavaScript wants an identifier, at the word — or a
  * reserved global, `Number` or `String`, bound or read anywhere but as the
- * callee of the conversion, {@link conversion}: never a module's to bind, under
+ * callee of the conversion, {@link conversion}, or `Object` anywhere but
+ * as the namespace of `Object.is`, {@link objectIsRead}: never a module's
+ * to bind, under
  * [spec: global names](../../../spec/todo/2365-global-names.md)' rule, and
- * no value, so `Number.isFinite` and a bare `Number` are refused at the
- * word as `typeof.x` would be.
+ * no value, so `Number.isFinite`, `Object.keys` and a bare `Number` are
+ * refused at the word as `typeof.x` would be.
  */
 const reservedWord = foldError('reserved word')
 
@@ -297,10 +306,12 @@ const restBinding = ['rest']
  * demotes them all to `id`, so that a key or the name after `.` may be one,
  * and here is where the distinction is made. `const if = 1;` is a syntax
  * error in JavaScript, so it is an error here. A reserved global is refused
- * the same way, {@link reservedWord}: `Array`, `Number` and `String` name no binding
- * and no value, and the one place each stands is read before the word
- * reaches here — `instanceof`'s right operand, which the fold checks for
- * the word itself, and the conversion's callee, {@link conversion}.
+ * the same way, {@link reservedWord}: `Array`, `Number`, `Object` and
+ * `String` name no binding and no value, and the places each stands are
+ * read before the word reaches here — `instanceof`'s right operand, which
+ * the fold checks for the word itself, the conversion's callee,
+ * {@link conversion}, and the namespace of `Object.is`,
+ * {@link objectIsRead}, and of the `entry` helper, {@link entryFunction}.
  *
  * @type {(name: DjsTokenWithMetadata) => Result<string, ParseError>}
  */
@@ -489,11 +500,21 @@ const pushed = (stack, item) => ({ top: item, rest: stack })
  * lists and the words bound so far as an environment, so a pattern as wide
  * as the input allows costs its width and not its square.
  *
- * @type {(check: (name: DjsTokenWithMetadata) => Result<string, ParseError>) => (target: BindingTarget) => Result<_Plan, ParseError>}
+ * An object pattern over the `Object` namespace, `namespace` its word,
+ * {@link namespaceOf}, reads no source: the namespace is no value, and
+ * each of its properties reads the member its key names, the static
+ * function itself, {@link objectMember}, as the access `Object.is` does —
+ * so `const { is } = Object` makes the one entry `const is = Object.is`
+ * makes, and a key the namespace does not admit is refused at the word,
+ * as `Object.keys` is.
+ *
+ * @type {(check: (name: DjsTokenWithMetadata) => Result<string, ParseError>) => (target: BindingTarget, namespace: DjsTokenWithMetadata | null) => Result<_Plan, ParseError>}
  */
-const planned = check => target => {
+const planned = check => (target, namespace) => {
     /** @type {_PendingStack} */
-    let pending = pushed(null, { target, source: null })
+    let pending = namespace === null || target[0] !== 'object'
+        ? pushed(null, { target, source: null })
+        : properties(null, target[2], namespace)
     /** The reads so far, the last first. @type {List<_Read>} */
     let reads = null
     /** The names so far, the last first, each with its read's position. @type {List<readonly [DjsTokenWithMetadata, number]>} */
@@ -512,7 +533,9 @@ const planned = check => target => {
             if (key instanceof Array) { return error(computedPatternKey(key[2])) }
             const [tag, named] = checkedKey(key, false)
             if (tag === 'error') { return error(named) }
-            pending = pushed(pending, { target: element, source: [parent, named] })
+            const [found, source] = propertySource(parent, named)
+            if (found === 'error') { return error(source) }
+            pending = pushed(pending, { target: element, source })
         } else if ('element' in item) {
             const { element, source } = item
             if (element[0] === '...') { return error(restTarget(element[1])) }
@@ -550,10 +573,7 @@ const planned = check => target => {
                         reads = { first: { source: [parent, 'length'], spread: false }, tail: reads }
                         count += 1
                     }
-                    pending = t[2].reduceRight(
-                        /** @type {(after: _PendingStack, property: BindingProperty) => _PendingStack} */
-                        ((after, property) => pushed(after, { property, parent })),
-                        pending)
+                    pending = properties(pending, t[2], parent)
                     break
                 }
             }
@@ -561,6 +581,32 @@ const planned = check => target => {
     }
     return ok({ reads: toArray(reverse(reads)), names: toArray(reverse(names)) })
 }
+
+/**
+ * Where a property of an object pattern reads from: the key of the entry
+ * its pattern's source is, or, over the `Object` namespace, the member the
+ * key names, {@link objectMember} — a key the namespace does not admit
+ * refused at the word, as `Object.keys` is.
+ *
+ * @type {(parent: number | DjsTokenWithMetadata, named: string | number) => Result<_Source, ParseError>}
+ */
+const propertySource = (parent, named) => {
+    if (typeof parent === 'number') { return ok([parent, named]) }
+    const member = objectMember(named)
+    return member === null ? error(reservedWord(parent)) : ok(member)
+}
+
+/**
+ * The pending stack with an object pattern's properties on top, the first
+ * written first, each with the entry its source is read from — or the
+ * namespace's word, {@link planned}.
+ *
+ * @type {(pending: _PendingStack, list: readonly BindingProperty[], parent: number | DjsTokenWithMetadata) => _PendingStack}
+ */
+const properties = (pending, list, parent) => list.reduceRight(
+    /** @type {(after: _PendingStack, property: BindingProperty) => _PendingStack} */
+    ((after, property) => pushed(after, { property, parent })),
+    pending)
 
 /**
  * The entries a checked pattern makes of its source, numbered from `base`
@@ -583,6 +629,11 @@ const planned = check => target => {
  * `const { a: { b } } = {};` fails as it fails in JavaScript, and an empty
  * pattern's one read keeps its failure.
  *
+ * A member of the `Object` namespace is read as the static function
+ * itself, `Object.is`, the entry the access makes; a pattern over the
+ * namespace reads nothing else, so `value` is read by no entry and a
+ * caller passes none, `undefined`, {@link namespaceOf}.
+ *
  * @type {(plan: _Plan, value: AstConst, base: number) => _Lowered}
  */
 const lowered = ({ reads, names }, value, base) => ({
@@ -590,7 +641,9 @@ const lowered = ({ reads, names }, value, base) => ({
         /** @type {(read: _Read) => AstConst} */
         (({ source, spread }) => {
             /** @type {AstConst} */
-            const read = source === null ? value : ['.', ['cref', base + source[0]], source[1]]
+            const read = source === null ? value
+                : source[0] === 'Object.is' ? source
+                : ['.', ['cref', base + source[0]], source[1]]
             return spread ? ['array', [['...', read]]] : read
         })),
     bound: names.map(
@@ -893,14 +946,13 @@ const conditionalRound = (stack, scope, frame) => {
 }
 
 /**
- * What `word` names in `scope` itself: a name it binds — a value, or the
- * intrinsic the word was read as, {@link intrinsicRead} — or, where it
+ * What `word` names in `scope` itself: a name it binds, or, where it
  * binds none and the word is the function's own, {@link entered}, the
  * function itself, `['self']`. The name comes after the bindings as it
  * does in JavaScript, where a parameter or a body `const` of the same
  * word shadows the `const` the function is the value of.
  *
- * @type {(scope: _Scope, word: string) => _Ref | _Intrinsic | null}
+ * @type {(scope: _Scope, word: string) => _Ref | null}
  */
 const bound = (scope, word) => {
     const ref = at(word)(scope.names)
@@ -935,15 +987,6 @@ const bound = (scope, word) => {
  * `const`, before its initializer ran — while a `const` of a name the
  * body has not read shadows the function's name, as it does there.
  *
- * `Object` read as the intrinsic namespace, by the `entry` helper, is
- * bound the same way in every body out to the module — to the intrinsic
- * rather than to a slot, {@link intrinsicRead} — and resolves to nothing
- * still: the word is no value, so a plain read of it is `const not found`
- * as it is where nothing binds it, and a helper after the first reads it
- * as the first did, while a `const` of the word after the read is refused
- * as a capture shadowed is — in JavaScript the helper would have named
- * that `const`, and been no helper.
- *
  * @type {(scope: _Scope, word: string) => readonly [_Scope, _Ref] | null}
  */
 const resolve = (scope, word) => {
@@ -957,9 +1000,6 @@ const resolve = (scope, word) => {
         binder = binder.outer
         ref = bound(binder, word)
     }
-    // the intrinsic is no value: the word resolves to nothing, as it does
-    // where nothing binds it, and no body captures it
-    if (ref[0] === 'intrinsic') { return null }
     /** @type {readonly [_Scope, _Ref]} */
     let result = [ref[0] === 'self' ? { ...binder, names: extended(binder.names)(word, ref) } : binder, ref]
     for (const body of toArray(through)) {
@@ -989,37 +1029,6 @@ const captured = (body, word, [outer, ref]) => {
         // shadowed
         names: extended(body.names)(word, slot),
     }, slot]
-}
-
-/** The intrinsic `Object` namespace, as a word's binding: no value, {@link resolve}. @type {_Intrinsic} */
-const intrinsic = ['intrinsic']
-
-/**
- * The scope chain with `Object` read as the intrinsic namespace through
- * it, by the `entry` helper: the word bound to the intrinsic in `scope`
- * and in every scope around it, out to the module's, since a read nothing
- * binds stops at none of them — so that a `const` of the word after the
- * read, in any of them, is refused as a capture shadowed is,
- * {@link bodyBindable} and {@link bindable}: in JavaScript the helper
- * would have named that `const`, and been no helper. Rebuilt inward from
- * the module's scope, as {@link captured} rebuilds a chain; binding the
- * word where it is bound already changes nothing.
- *
- * @type {(scope: _Scope) => _Scope}
- */
-const intrinsicRead = scope => {
-    /** The scopes inside the module's, the one just inside it on top. @type {List<_Scope>} */
-    let through = null
-    let outermost = scope
-    while (outermost.outer !== null) {
-        through = { first: outermost, tail: through }
-        outermost = outermost.outer
-    }
-    let result = { ...outermost, names: extended(outermost.names)('Object', intrinsic) }
-    for (const body of toArray(through)) {
-        result = { ...body, outer: result, names: extended(body.names)('Object', intrinsic) }
-    }
-    return result
 }
 
 /**
@@ -1069,7 +1078,7 @@ const functionScope = list => {
             bound = { ...bound, names: extended(bound.names)(word, arg) }
             continue
         }
-        const [tag, plan] = planned(bindable(bound.names))(target)
+        const [tag, plan] = planned(bindable(bound.names))(target, null)
         if (tag === 'error') { return error(plan) }
         const { entries, bound: names } = lowered(plan, arg, bound.entries.length)
         bound = {
@@ -1127,13 +1136,25 @@ const bodyRound = (stack, scope, frame) => {
             ? [stack, scope, error(unexpectedToken(statement.first))]
             : [{ top: frame, rest: stack }, scope, ['enter', statement.value]]
     }
-    const { target } = statement
-    const [tag, plan] = planned(bodyBindable(scope))(target)
+    const { target, value } = statement
+    const namespace = namespaceOf(target, value)
+    const [tag, plan] = planned(bodyBindable(scope))(target, namespace)
     if (tag === 'error') { return [stack, scope, error(plan)] }
-    // a function that is the whole value of a `const` of one name is
-    // entered under that name, its `self`; a pattern names no function
-    return [{ top: { ...frame, plan }, rest: stack }, scope, target[0] === 'name' ? ['define', statement.value, nameOf(target[1])] : ['enter', statement.value]]
+    return [{ top: { ...frame, plan }, rest: stack }, scope, constValue(target, value, namespace)]
 }
+
+/**
+ * What a body's `const` resolves before its names land: its value — a
+ * function that is the whole value of a `const` of one name entered under
+ * that name, its `self`, since a pattern names no function — or, for a
+ * pattern over the `Object` namespace, nothing: the plan reads the
+ * namespace's members alone, and the value it is lowered over is
+ * `undefined`, read by no entry, {@link lowered}.
+ *
+ * @type {(target: BindingTarget, value: Node, namespace: DjsTokenWithMetadata | null) => _State[2]}
+ */
+const constValue = (target, value, namespace) => namespace !== null ? ok(undefined)
+    : target[0] === 'name' ? ['define', value, nameOf(target[1])] : ['enter', value]
 
 /**
  * Enters a node: a primitive is its value, a reference what `scope`
@@ -1166,12 +1187,13 @@ const enter = (stack, scope, node) => {
             const noted = capturedLoopVariable(scope, word) && !readsOf(reads, word)
             return [stack, noted ? { ...found[0], loopReads: [...reads, [word, loopVariableCaptured(node[1])]] } : found[0], ok(found[1])]
         }
-        case '.': {
-            return node.length === 3
+        case '.': case '?.': {
+            if (isRef(node[1], 'Object') && isKeyNamed(node[2], 'is')) { return objectIsRead(stack, scope, node) }
+            return node[0] === '.' && node.length === 3
                 ? [{ top: { key: node[2], method: isCallee(stack) }, rest: stack }, scope, ['enter', node[1]]]
                 : chainRound(stack, scope, { chain: node, parts: chainParts(node), index: 0, done: null })
         }
-        case '?.': case '?.()': { return chainRound(stack, scope, { chain: node, parts: chainParts(node), index: 0, done: null }) }
+        case '?.()': { return chainRound(stack, scope, { chain: node, parts: chainParts(node), index: 0, done: null }) }
         case '()': { return conversion(stack, scope, node) ?? callRound(stack, scope, { call: node, index: 0, done: null }) }
         case '-': { return [{ top: { neg: true }, rest: stack }, scope, ['enter', node[1]]] }
         case '~': { return [{ top: { bitnot: true }, rest: stack }, scope, ['enter', node[1]]] }
@@ -1226,6 +1248,63 @@ const conversion = (stack, scope, [, callee, args]) => {
  */
 const isKeyNamed = (key, name) => !(key instanceof Array) && keyNamed(key) === name
 
+/** `Object.is`, the one static function the language admits, as the AST holds it. @type {AstObjectIs} */
+const objectIs = ['Object.is']
+
+/**
+ * The member of the `Object` namespace a key names, or `null` where the
+ * language admits none: `is` alone
+ * ([spec: built-in static functions](../../../spec/README.md#built-in-static-functions)),
+ * each later name a decision of its own.
+ *
+ * @type {(named: string | number) => AstObjectIs | null}
+ */
+const objectMember = named => named === 'is' ? objectIs : null
+
+/**
+ * A read of `Object.is` entered: `Object.is` or `Object['is']`, guarded or
+ * not, since a reserved global is never nullish — the AST's `['Object.is']`,
+ * {@link objectIs}. The steps a chain goes on with are written over the
+ * read as the nodes they are where nothing before them short-circuits,
+ * and entered: `Object?.is(a, b)` is `Object.is(a, b)`, and a guarded call
+ * among the steps keeps the steps after it as its own chain, which its
+ * guard is still the head of. Over an explicit loop, so a chain as long as
+ * the input allows costs no call stack.
+ *
+ * @type {(stack: _Stack, scope: _Scope, node: Extract<Node, readonly ['.' | '?.', Node, Key, ...unknown[]]>) => _State}
+ */
+const objectIsRead = (stack, scope, node) => {
+    /** @type {Node} */
+    let read = ['.', node[1], node[2]]
+    /** @type {Step | undefined} */
+    let step = node[3]
+    if (step === undefined) { return [stack, scope, ok(objectIs)] }
+    while (step !== undefined) {
+        const [tag, x] = step
+        const next = stepAfter(step)
+        if (tag === '|?.()') { return [stack, scope, ['enter', next === undefined ? ['?.()', read, x] : ['?.()', read, x, next]]] }
+        read = tag === '|.' ? ['.', read, x] : ['()', read, x]
+        step = next
+    }
+    return [stack, scope, ['enter', read]]
+}
+
+/** The steps a chain goes on with after `step`, where it has any. @type {(step: Step) => Step | undefined} */
+const stepAfter = ([, , next]) => next
+
+/**
+ * The word `Object` where a `const`'s pattern destructures the namespace
+ * — an object pattern whose value is the bare word — and `null` otherwise.
+ * Destructuring is sugar: the pattern reads each of its keys as the
+ * access does, {@link planned}, so `const { is } = Object` is
+ * `const is = Object.is`, and the namespace, which is no value, is never
+ * entered. Any other pattern over the word, and the word alone, is
+ * entered and refused as every reserved global is.
+ *
+ * @type {(target: BindingTarget, value: Node) => DjsTokenWithMetadata | null}
+ */
+const namespaceOf = (target, value) => target[0] === 'object' && value[0] === 'ref' && nameOf(value[1]) === 'Object' ? value[1] : null
+
 /**
  * Whether a node is `Object.getOwnPropertyDescriptor(a, b)`, the helper's
  * descriptor, `a` and `b` the words its parameters bind: a plain call of
@@ -1269,23 +1348,21 @@ const isEntryOf = (node, x) => {
  *
  * under any three distinct names — the AST's `['entry']`, the one function
  * whose body reads a property named at run time, and the one place the
- * `Object` namespace stands. It is matched on the syntax tree with its
- * names resolved by the rules every other body follows: the two
- * parameters and the body's `const` are what the body reads back, and
- * `Object` is the intrinsic only where no scope binds the word — a
- * parameter, a `const` or the function's own name spelling `Object` is
- * JavaScript's own reading, and no helper. `null` where the function is
- * not the helper, by shape or by binding, and the ordinary resolution
- * takes it from there, refusing the `Object` it cannot name; a keyword, a
- * reserved global such as `Array` or `Number`, or a repeated name among
- * the three is left to it the same way, to refuse as it refuses every
- * other. An error where the helper's two statements
+ * `Object` namespace stands but `Object.is`. It is matched on the syntax
+ * tree with its names resolved by the rules every other body follows: the
+ * two parameters and the body's `const` are what the body reads back, and
+ * `Object` is a reserved global, which no scope binds. `null` where the
+ * function is not the helper, by shape or by binding, and the ordinary
+ * resolution takes it from there, refusing the `Object` it cannot name; a
+ * keyword, a reserved global such as `Array` or `Object`, or a repeated
+ * name among the three is left to it the same way, to refuse as it
+ * refuses every other. An error where the helper's two statements
  * break the line rules every block's statements keep, {@link unterminated}
  * and {@link brokenLine}, which the shape alone cannot see.
  *
- * @type {(scope: _Scope, self: string | null, node: Extract<Node, readonly ['=>', ParameterList, Node]>) => Result<AstEntryFunction, ParseError> | null}
+ * @type {(node: Extract<Node, readonly ['=>', ParameterList, Node]>) => Result<AstEntryFunction, ParseError> | null}
  */
-const entryFunction = (scope, self, [, list, body]) => {
+const entryFunction = ([, list, body]) => {
     if (!('fixed' in list) || list.fixed.length !== 2 || list.rest !== null || body[0] !== 'block' || body[1].length !== 2) { return null }
     const [p, q] = list.fixed
     const first = body[1][0]
@@ -1301,8 +1378,8 @@ const entryFunction = (scope, self, [, list, body]) => {
     const b = nameOf(q[1])
     const x = nameOf(declaration.target[1])
     const names = [a, b, x]
-    if (new Set(names).size !== names.length || names.some(word => isKeyword(word) || isReservedGlobal(word) || word === 'Object')) { return null }
-    if (!isDescriptorOf(declaration.value, a, b) || !isEntryOf(returned.value, x) || self === 'Object' || resolve(scope, 'Object') !== null) { return null }
+    if (new Set(names).size !== names.length || names.some(word => isKeyword(word) || isReservedGlobal(word))) { return null }
+    if (!isDescriptorOf(declaration.value, a, b) || !isEntryOf(returned.value, x)) { return null }
     if (unterminated(declaration, returned)) { return error(unexpectedToken(returned.start)) }
     if (brokenLine(returned)) { return error(unexpectedToken(returned.first)) }
     /** @type {AstEntryFunction} */
@@ -1312,8 +1389,7 @@ const entryFunction = (scope, self, [, list, body]) => {
 
 /**
  * A function entered: the `entry` helper where it is one,
- * {@link entryFunction}, its read of `Object` recorded in the scopes
- * around it, {@link intrinsicRead}, and otherwise its body in a scope of
+ * {@link entryFunction}, and otherwise its body in a scope of
  * its own inside `scope`, under
  * its parameters and, where the function is the whole initializer of a
  * `const`, with that `const`'s name as its `self` — so a read of the name
@@ -1332,10 +1408,9 @@ const entryFunction = (scope, self, [, list, body]) => {
  */
 const entered = (stack, scope, node, self) => {
     // the helper first, whole: a function that is one has no body to
-    // resolve, and its read of the intrinsic `Object` is remembered in
-    // every scope around it, {@link intrinsicRead}
-    const entry = entryFunction(scope, self, node)
-    if (entry !== null) { return [stack, intrinsicRead(scope), entry] }
+    // resolve
+    const entry = entryFunction(node)
+    if (entry !== null) { return [stack, scope, entry] }
     const [tag, bound] = functionScope(node[1])
     if (tag === 'error') { return [stack, scope, error(bound)] }
     const { names, count, entries } = bound
@@ -1577,12 +1652,13 @@ const loopRound = (stack, scope, frame) => {
         return [stack, scope, error(unexpectedToken(statement.start))]
     }
     if (kind === 'const') {
-        const { target } = statement
-        const [tag, plan] = planned(bodyBindable(scope))(target)
+        const { target, value } = statement
+        const namespace = namespaceOf(target, value)
+        const [tag, plan] = planned(bodyBindable(scope))(target, namespace)
         if (tag === 'error') { return [stack, scope, error(plan)] }
         const shadowing = plan.names.find(([name]) => nameOf(name) === word)
         if (shadowing !== undefined) { return [stack, scope, error(loopVariableShadowed(shadowing[0]))] }
-        return [{ top: { ...frame, plan }, rest: stack }, scope, target[0] === 'name' ? ['define', statement.value, nameOf(target[1])] : ['enter', statement.value]]
+        return [{ top: { ...frame, plan }, rest: stack }, scope, constValue(target, value, namespace)]
     }
     const [tag, bound] = identifierOf(statement.name)
     if (tag === 'error') { return [stack, scope, error(bound)] }
@@ -1661,12 +1737,7 @@ const readsOf = (reads, word) => reads.some(([read]) => read === word)
  * that is no `const`'s: a function that is the whole value is entered with
  * the word bound to itself, {@link entered}, as a body `const`'s is.
  *
- * The value comes with the module's names as the resolution leaves them:
- * `env`, with `Object` bound to the intrinsic where an `entry` helper in
- * the value read it, {@link intrinsicRead}, so that the module refuses a
- * `const` of the word after the value as a body refuses one after a read.
- *
- * @type {(env: _Env, self: string | null) => (root: Node) => Result<readonly [_Env, AstConst], ParseError>}
+ * @type {(env: _Env, self: string | null) => (root: Node) => Result<AstConst, ParseError>}
  */
 const evaluate = (env, self) => root => {
     /** @type {_State} */
@@ -1682,8 +1753,8 @@ const evaluate = (env, self) => root => {
         } else if (tag === 'error') {
             return error(payload)
         } else if (stack === null) {
-            // the root's value, every body closed: `scope` is the module's
-            return ok([scope.names, payload])
+            // the root's value, every body closed
+            return ok(payload)
         } else {
             state = returned(stack.rest, scope, stack.top, payload)
         }
@@ -1693,10 +1764,7 @@ const evaluate = (env, self) => root => {
 /**
  * The word a binding may take: an identifier, refusing a keyword, and one
  * the environment does not hold — `import` and `const` share the one map,
- * so a name taken by either is taken for both, `duplicate id`, and
- * `Object` read as the intrinsic by an `entry` helper before,
- * {@link intrinsicRead}, holds the word too, which a binding of it would
- * shadow: `capture shadowed`, as in a body.
+ * so a name taken by either is taken for both, `duplicate id`.
  *
  * Separate from the binding itself because a `const` asks the two questions
  * at different moments: its name is refused before its value is read, so
@@ -1709,9 +1777,7 @@ const evaluate = (env, self) => root => {
 const bindable = env => name => {
     const [tag, word] = identifierOf(name)
     if (tag === 'error') { return error(word) }
-    const ref = at(word)(env)
-    if (ref === null) { return ok(word) }
-    return error((ref[0] === 'intrinsic' ? captureShadowed : duplicateId)(name))
+    return at(word)(env) === null ? ok(word) : error(duplicateId(name))
 }
 
 /**
@@ -1719,10 +1785,10 @@ const bindable = env => name => {
  * the body's own names and of the names of the block it continues, the
  * statements after a guard being JavaScript's one block with the ones
  * before it. A name any of them binds is `duplicate id`; one none binds
- * but one has read from outside — bound to a slot of its frame, to the
- * function itself, {@link bound}, or to the intrinsic `Object`,
- * {@link intrinsicRead} — is `capture shadowed`, and the binding wins where both hold, as it does in
- * JavaScript, where the read named the block's own binding. A name the
+ * but one has read from outside — bound to a slot of its frame, or to the
+ * function itself, {@link bound} — is `capture shadowed`, and the binding
+ * wins where both hold, as it does in JavaScript, where the read named the
+ * block's own binding. A name the
  * body's own initializer reads is refused once it has been, in
  * {@link returned}.
  *
@@ -1735,11 +1801,11 @@ const bodyBindable = scope => name => {
         const ref = at(word)(env)
         return ref === null ? [] : [ref]
     })
-    if (refs.some(ref => ref[0] !== 'fref' && ref[0] !== 'self' && ref[0] !== 'intrinsic')) { return error(duplicateId(name)) }
+    if (refs.some(ref => ref[0] !== 'fref' && ref[0] !== 'self')) { return error(duplicateId(name)) }
     return refs.length === 0 ? ok(word) : error(captureShadowed(name))
 }
 
-/** The environment with a word bound to a reference, or to the intrinsic, its two questions already answered. @type {(env: _Env) => (word: string, ref: _Ref | _Intrinsic) => _Env} */
+/** The environment with a word bound to a reference, its two questions already answered. @type {(env: _Env) => (word: string, ref: _Ref) => _Env} */
 const extended = env => (word, ref) => setReplace(word)(ref)(env)
 
 /** An export as the module's result object holds it: a member of its name and node. @type {(e: readonly [string, AstConst]) => AstMember} */
@@ -1749,9 +1815,7 @@ const exportMember = ([name, value]) => [':', name, value]
  * The statements of a module, in order: each imported binding names
  * the next argument, each `const` resolves its value against the names
  * bound so far — itself not among them, so a `cref` always names an earlier
- * entry — and then binds its name, unless the value read the name as the
- * intrinsic `Object`, {@link intrinsicRead}, which the binding would
- * shadow. The default export is resolved against
+ * entry — and then binds its name. The default export is resolved against
  * them all and placed in the module's result object; a `throw` in its
  * place is resolved the same way and is the body's last entry instead of
  * that object, the module being a function whose body ends in it — its
@@ -1799,21 +1863,19 @@ const foldModule = ({ imports, consts, exported, thrown: failing }) => {
         // first
         if (unterminated(previous, declaration)) { return error(unexpectedToken(declaration.start)) }
         previous = declaration
-        const [tag, plan] = planned(bindable(env))(target)
+        const namespace = namespaceOf(target, node)
+        const [tag, plan] = planned(bindable(env))(target, namespace)
         if (tag === 'error') { return error(plan) }
         const then = named ? plan.names.find(([name]) => nameOf(name) === 'then') : undefined
         if (then !== undefined) { return error({ message: 'reserved export name then', metadata: then[0].metadata }) }
         // a function that is the whole value of a `const` of one name is
-        // entered under that name, its `self`; a pattern names no function
-        const [resolved, evaluated] = evaluate(env, target[0] === 'name' ? nameOf(target[1]) : null)(node)
-        if (resolved === 'error') { return error(evaluated) }
-        const [read, value] = evaluated
-        // a name its own initializer read as the intrinsic: unbound when the
-        // statement began, bound now only by that read
-        const shadowed = plan.names.find(([name]) => at(nameOf(name))(read) !== null)
-        if (shadowed !== undefined) { return error(captureShadowed(shadowed[0])) }
+        // entered under that name, its `self`; a pattern names no function,
+        // and a pattern over the `Object` namespace enters nothing,
+        // {@link constValue}
+        const [resolved, value] = namespace !== null ? ok(undefined) : evaluate(env, target[0] === 'name' ? nameOf(target[1]) : null)(node)
+        if (resolved === 'error') { return error(value) }
         const { entries, bound } = lowered(plan, value, body.length)
-        env = bound.reduce((names, [word, ref]) => extended(names)(word, ref), read)
+        env = bound.reduce((names, [word, ref]) => extended(names)(word, ref), env)
         if (named) { exports = [...exports, ...bound] }
         body = [...body, ...entries]
     }
@@ -1823,14 +1885,14 @@ const foldModule = ({ imports, consts, exported, thrown: failing }) => {
         const [resolved, last] = evaluate(env, null)(failing.value)
         if (resolved === 'error') { return error(last) }
         /** @type {AstModule} */
-        const failingModule = [modules, [...body, thrown(last[1])]]
+        const failingModule = [modules, [...body, thrown(last)]]
         return ok(failingModule)
     }
     if (exported !== null) {
         if (unterminated(previous, exported)) { return error(unexpectedToken(exported.start)) }
         const [resolved, last] = evaluate(env, null)(exported.value)
         if (resolved === 'error') { return error(last) }
-        exports = [...exports, ['default', last[1]]]
+        exports = [...exports, ['default', last]]
     }
     // an exported pattern binding no name exports nothing, and the grammar
     // saw only the `export`: the module is refused where a name was owed

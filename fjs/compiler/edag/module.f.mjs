@@ -340,6 +340,9 @@ const lowerLeaf = nodes => ast => {
         // the `entry` helper, the EDAG's own node for it — a fresh one per
         // helper written, as every arrow is a node of its own
         case 'entry': { return plain(['entry']) }
+        // `Object.is`, the EDAG's own node for it — one function, which
+        // the analysis merges however often it is read
+        case 'Object.is': { return plain(['Object.is']) }
         case '()': { return call(nodes)(ast) }
         case '?.()': { return guardedCall(nodes)(ast) }
         // an access, plain or guarded: the EDAG's own form already, its key

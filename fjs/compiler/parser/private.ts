@@ -10,7 +10,7 @@
 import type { List } from '../../types/list/types.ts'
 import type { OrderedMap } from '../../types/ordered_map/types.ts'
 import type { Result } from '../../types/result/types.ts'
-import type { AstConst, AstFrameRef, AstItem, AstMember, AstModuleRef, AstRest, AstSelf, BinaryTag } from '../ast/types.ts'
+import type { AstConst, AstFrameRef, AstItem, AstMember, AstModuleRef, AstObjectIs, AstRest, AstSelf, BinaryTag } from '../ast/types.ts'
 import type { DjsTokenWithMetadata } from '../tokenizer/types.ts'
 import type { ParseError } from './types.ts'
 import type { BindingElement, BindingProperty, BindingTarget, Block, Chain, Container, If, Item, Key, Let, LoopBlock, Node, While } from './syntax/types.ts'
@@ -18,21 +18,20 @@ import type { BindingElement, BindingProperty, BindingTarget, Block, Chain, Cont
 /** A named parameter, `i` of the function whose body names it: what the body reads it as, the `i`th argument. */
 export type _Parameter = readonly ['arg', number]
 
-/** The intrinsic `Object` namespace a word was read as, where nothing binds it: no value a module can name, and a binding that refuses a `const` of the word after the read, which in JavaScript the read would have named. */
-export type _Intrinsic = readonly ['intrinsic']
-
-/** The names bound so far, each to the reference that names it: a module's import or entry, a function's rest array or one of its fixed parameters — or a slot of a function's frame, for a word its body has read from the scopes around it and remembers, so that a later read of it stops at the body and a `const` of it in the body is refused — or the intrinsic, for `Object` read as the namespace the `entry` helper names where nothing binds the word, remembered in every scope out to the module's so that a `const` of the word after the read is refused the same way. */
-export type _Env = OrderedMap<_Ref | _Intrinsic>
+/** The names bound so far, each to the reference that names it: a module's import or entry, a function's rest array or one of its fixed parameters — or a slot of a function's frame, for a word its body has read from the scopes around it and remembers, so that a later read of it stops at the body and a `const` of it in the body is refused. */
+export type _Env = OrderedMap<_Ref>
 
 /** What a name resolves to where it is written: a name bound in its own scope, or a slot of the function's frame. */
 export type _Ref = AstModuleRef | AstRest | _Parameter | AstFrameRef | AstSelf
 
 /**
- * Where an entry of a pattern reads from: the source value itself, `null`,
- * or a property of an earlier entry of the same pattern — its position
- * among the pattern's entries, and the key, a constant an access admits.
+ * Where an entry of a pattern reads from: the source value itself, `null`;
+ * a property of an earlier entry of the same pattern — its position among
+ * the pattern's entries, and the key, a constant an access admits; or a
+ * member of the `Object` namespace, the static function it is, which a
+ * pattern over the namespace reads in place of a property of a value.
  */
-export type _Source = null | readonly [number, string | number]
+export type _Source = null | readonly [number, string | number] | AstObjectIs
 
 /**
  * One entry a checked pattern makes: what it reads, {@link _Source}, and
@@ -63,12 +62,13 @@ export type _Plan = {
  * with the read it is the target of; an element of an array pattern, a
  * rest element refused where it stands; or a property of an object
  * pattern, its key judged before its target, with the entry its source
- * is read from.
+ * is read from — or the word `Object`, where the pattern is over the
+ * namespace and the key names a member of it.
  */
 export type _Pending =
     | { readonly target: BindingTarget, readonly source: _Source }
     | { readonly element: BindingElement, readonly source: _Source }
-    | { readonly property: BindingProperty, readonly parent: number }
+    | { readonly property: BindingProperty, readonly parent: number | DjsTokenWithMetadata }
 
 /** What the plan's walk has still to judge, the next on top, as {@link _Stack} holds the frames of a resolution. */
 export type _PendingStack = { readonly top: _Pending, readonly rest: _PendingStack } | null

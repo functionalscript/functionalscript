@@ -451,6 +451,20 @@ export const proof = {
         const a = assertOk(analysis(['[]', [['entry'], 1]]))
         assertEq(functionText(a, 0), text)
     },
+    // `Object.is` is written as the source reads it, a value wherever it
+    // stands — a callee, an operand, an item — and, one function however
+    // often it is read, written in place where it is shared, since the
+    // read is the value: no `const` is needed to keep it one.
+    objectIs: () => {
+        writes(['Object.is'], 'export default Object.is;')
+        writes(['()', ['Object.is'], [0, -0]], 'export default Object.is(0,-0);')
+        writes(['[]', [['Object.is'], ['.', ['Object.is'], 'length']]], 'export default [Object.is,Object.is.length];')
+        writes(['===', ['Object.is'], ['Object.is']], 'export default Object.is===Object.is;')
+        writes(['=>', 1, [], ['()', ['Object.is'], [['arg', 0], ['arg', 0]]]], 'export default ($0)=>Object.is($0,$0);')
+        /** @type {Exp} */
+        const is = ['Object.is']
+        writes(['[]', [['()', is, [1, 1]], ['()', is, [2, 2]]]], 'export default [Object.is(1,1),Object.is(2,2)];')
+    },
     // A function's `length` is at most 16: 16 reads back, and a larger one,
     // top-level or nested, is an error from every entry point, not a throw
     // out of allocating its parameter names.
