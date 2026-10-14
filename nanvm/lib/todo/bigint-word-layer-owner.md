@@ -1,7 +1,7 @@
 ## bigint-word-layer-owner. BigInt magnitude algorithms exist twice: on `BigInt` and on raw words
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
