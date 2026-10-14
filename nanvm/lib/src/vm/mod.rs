@@ -39,7 +39,7 @@ pub use crate::vm::{
     number::Number,
     object::{Object, property::Property, to_object::ToObject},
     object_spread::ObjectSpread,
-    runtime::runtime_method,
+    runtime::{runtime_method, runtime_static},
     string::{String, to_string::ToString},
     unpacked::Unpacked,
 };

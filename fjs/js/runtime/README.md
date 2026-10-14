@@ -1,13 +1,17 @@
 # The runtime
 
-The built-in member functions, defined once. [`module.f.js`](./module.f.js)
-exports `runtime`, whose `member` section holds, for a receiver's type
-keyed by the name of its global — `String`, `Array`, `Number` — the names
-whose **body** is written, each a FunctionalScript function of the
-receiver and then the arguments as the call passed them, `undefined` past
-the end. The section's name leaves room for a `static` one, keyed the
-same way, which [`../todo/runtime-static.md`](../todo/runtime-static.md)
-proposes. A name
+The built-in functions, defined once. [`module.f.js`](./module.f.js)
+exports `runtime`, in two sections keyed by the name of a global. Its
+`member` section holds, for a receiver's type — `String`, `Array`,
+`Number` — the names whose **body** is written, each a FunctionalScript
+function of the receiver and then the arguments as the call passed them,
+`undefined` past the end. Its `static` section holds the static
+functions at the path [`../static`](../static/module.f.js) admits each
+under — `Object.is` at `static.Object.is` — each a function of the
+arguments alone; a body is the existing helper where one exists,
+imported rather than copied, as `Object.is` is
+[`is`](../../types/object/is/module.f.js). The design of the static
+section is [`../todo/runtime-static.md`](../todo/runtime-static.md). A name
 without a body is absent, and each VM answers it from its own native
 table. The proposal and the steps still to take are
 [`../todo/runtime.md`](../todo/runtime.md).

@@ -1,7 +1,8 @@
 //! The runtime, `fjs/js/runtime`, bound: the module `npm run gen` compiles
 //! from it into `gen.runtime.rs` beside this file, through the compiler's
-//! Rust backend, and [`runtime_method`], which reads the compiled object's
-//! entry for a receiver type and a key. A VM with static functions, which
+//! Rust backend, [`runtime_method`], which reads the compiled object's
+//! entry for a receiver type and a key, and [`runtime_static`], which reads
+//! its `static` section at a path. A VM with static functions, which
 //! every compiled function is, answers [`IVm::runtime_method`] with it; the
 //! native tables in `vm/lambda` keep every name without a body, and may
 //! keep a name that has one where a measurement justifies the second
@@ -18,11 +19,11 @@ mod compiled;
 /// export object, `None` where a key is missing, a step is no object, or
 /// the end is no function. The module is evaluated on every call; a VM
 /// that measures the cost may hold the object instead.
-fn at<A: IStaticFunction>(path: &[Any<A>]) -> Option<Any<A>> {
+fn at<A: IStaticFunction>(path: impl IntoIterator<Item = Any<A>>) -> Option<Any<A>> {
     let module = compiled::module::<A>().ok()?;
     let mut value = Any::dot(module, "runtime".into()).end().ok()?;
     for key in path {
-        value = Any::dot(value, key.clone()).end().ok()?;
+        value = Any::dot(value, key).end().ok()?;
     }
     match Unpacked::from(value.clone()) {
         Unpacked::Function(_) => Some(value),
@@ -35,7 +36,15 @@ fn at<A: IStaticFunction>(path: &[Any<A>]) -> Option<Any<A>> {
 /// export object. `None` for a name the type's object lacks, for a type
 /// the section does not key, and for an entry that is no function.
 pub fn runtime_method<A: IStaticFunction>(type_name: &str, key: &Any<A>) -> Option<Any<A>> {
-    at(&["member".into(), type_name.into(), key.clone()])
+    at(["member".into(), type_name.into(), key.clone()])
+}
+
+/// The body the runtime's `static` section holds at `path`, if a function:
+/// `runtime.static.Object.is` for `["Object", "is"]`, the path
+/// `fjs/js/static` admits the static under. `None` for a path the section
+/// lacks, a step that is no object, and an entry that is no function.
+pub fn runtime_static<A: IStaticFunction>(path: &[&str]) -> Option<Any<A>> {
+    at(["static"].iter().chain(path).map(|key| (*key).into()))
 }
 
 /// The receiver's type as the runtime keys it, the name of its global;
@@ -56,7 +65,7 @@ pub(crate) fn type_name<A: IVm>(receiver: &Any<A>) -> Option<&'static str> {
 
 #[cfg(test)]
 mod tests {
-    use super::{runtime_method, type_name};
+    use super::{runtime_method, runtime_static, type_name};
     use crate::{
         naive::Naive,
         vm::{Any, BigInt, IStaticFunction, ToAny, ToArray, ToObject},
@@ -93,6 +102,25 @@ mod tests {
         assert!(runtime_method::<A>("String", &"nothing".into()).is_none());
         assert!(runtime_method::<A>("Symbol", &"startsWith".into()).is_none());
         assert!(runtime_method::<A>("string", &"startsWith".into()).is_none());
+    }
+
+    /// A static body is found at its path; a path the section lacks, a
+    /// namespace that is no function and a path past a function are not.
+    /// The body found is the compiled `Object.is`, SameValue.
+    #[test]
+    fn static_lookup() {
+        let is = runtime_static::<A>(&["Object", "is"]).unwrap();
+        let call = |a: Any<A>, b: Any<A>| is.clone().call([a, b].to_array().to_any());
+        assert_eq!(call((-0.0).to_any(), 0.0.to_any()), Ok(false.to_any()));
+        assert_eq!(
+            call(f64::NAN.to_any(), f64::NAN.to_any()),
+            Ok(true.to_any())
+        );
+        assert_eq!(call("a".into(), "a".into()), Ok(true.to_any()));
+        assert!(runtime_static::<A>(&["Object"]).is_none());
+        assert!(runtime_static::<A>(&["Object", "keys"]).is_none());
+        assert!(runtime_static::<A>(&["Object", "is", "x"]).is_none());
+        assert!(runtime_static::<A>(&["Number", "is"]).is_none());
     }
 
     /// The body called as a call step calls it, the receiver first: the
