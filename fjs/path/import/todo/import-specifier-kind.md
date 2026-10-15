@@ -1,7 +1,7 @@
 ## Consumers each decide whether a specifier is a path
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
