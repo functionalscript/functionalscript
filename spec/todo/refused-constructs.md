@@ -61,7 +61,7 @@ describes:
 |---|---|---|
 | `lex.trivia` | VT, FF, U+FEFF (a leading byte order mark included), NBSP and the other space separators such as U+3000; U+2028 or U+2029 outside a string | open (the [roadmap](./README.md) asks that each be recognized or its refusal justified; [whitespace](../README.md#whitespace-and-line-terminators)) |
 | `lex.hashbang` | `#!` at the start of the file | planned ([hash comments](../../fjs/compiler/todo/083-compiler-hash-comments.md)) |
-| `lex.unicode-name` | `const é = 1`, `{ π: 1 }`, `o.é`, U+200C or U+200D in a name, `const a = 1` | planned ([roadmap](./README.md), names beyond ASCII; [identifiers](../README.md#identifiers)) |
+| `lex.unicode-name` | `const é = 1`, `{ π: 1 }`, `o.é`, U+200C or U+200D in a name, `const \u0061 = 1` | planned ([roadmap](./README.md), names beyond ASCII; [identifiers](../README.md#identifiers)) |
 
 ## Operators and expressions
 
@@ -82,6 +82,7 @@ describes:
 | `op.eval` | `eval("1")` | design ([built-ins](./2360-built-in.md): never admitted, it runs source at run time) |
 | `op.number-spread` | `Number(...a)`, `Number(1, 2)` | planned ([number-spread](./2363-number-spread.md), roadmap) |
 | `op.string-call-shape` | `String(1, 2)`, `String(...[1])`, `String(...[])` | open (the specification leaves them unrecognized; no record plans them) |
+| `op.guarded-conversion` | `Number?.(x)`, `String?.(x)` | open ([number](../README.md#number-conversion) and [string](../README.md#string-conversion) conversion refuse the guard at the word; no record plans reading it away) |
 | `op.unary-plus` | `+1`, `+a` | open ([operators](./2340-operators.md) leaves unary `+` on the other side of the line; no record plans it) |
 | `op.import-call` | `import("m")` | open |
 | `op.import-meta` | `import.meta` | open |
