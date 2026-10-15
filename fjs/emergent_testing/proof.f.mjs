@@ -148,6 +148,25 @@ export const throwKey = () => {
     assertEq(fail, 0)
 }
 
+// A throw-test's thrown value is never walked as a sub-tree, even when it is
+// shaped like one: the run path reads what a leaf *returned*, and a throw
+// returned nothing.
+export const throwKeyTreeShapedErrorNotWalked = () => {
+    const thrown = () => ({ result: /** @type {const} */ (['error', { inner: ok0 }]), duration: 0 })
+    const [events, exit] = run({
+        't.proof.f.ts': () => ({ proof: { throw: { a: thrown } } }),
+    })
+    assertEq(exit, 0)
+    assertEq(events.length, 3)
+    const [e0, e1, e2] = events
+    assert(e0[0] === 'start' && e0[2] === '.throw.a')
+    assert(e1[0] === 'result' && e1[2] === '.throw.a')
+    assert(e2[0] === 'summary')
+    const [, pass, fail] = e2
+    assertEq(pass, 1)
+    assertEq(fail, 0)
+}
+
 // throw key fails when test does not throw (returns ok in throw context)
 export const throwKeyFail = () => {
     const [events, exit] = run({
@@ -973,6 +992,7 @@ export const proof = {
     flat,
     nested,
     throwKey,
+    throwKeyTreeShapedErrorNotWalked,
     throwKeyFail,
     mixedPassFail,
     returnValueSubTree,

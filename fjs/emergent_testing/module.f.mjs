@@ -93,8 +93,8 @@ export const addLeaf = (state, t, r) => ({
 })
 
 /**
- * The empty entry list, named so the three places that mean "this leaf has no
- * sub-tree" share one value rather than three literals.
+ * The empty entry list, named so the places that mean "this leaf has no
+ * sub-tree" share one value rather than one literal each.
  *
  * @type {readonly _TestAndPath[]}
  */
@@ -172,6 +172,26 @@ export const collectTests = (path, throws, v) => {
 }
 
 /**
+ * The leaves of the tree a leaf's call returned: `value` walked the same way
+ * as the static export tree, under the leaf's own path.
+ *
+ * This is the one rule both runners follow for a return value, and its caller
+ * owes it a single precondition: the call succeeded. A leaf expected to throw
+ * has nothing to read — its call answering normally is its failure, not a
+ * tree — so it answers no leaves. Otherwise `null` marks the call boundary, so
+ * paths render as `outer().inner`, and `throws` resets to `false` inside the
+ * value: a `throw` key above the call does not reach into what it returned.
+ *
+ * Enumerating the value may run user code — a getter, a proxy trap — which is
+ * why `runEntries` guards the call and `registerModule` lets its framework
+ * report what escapes.
+ *
+ * @type {(entry: _TestAndPath, value: unknown) => readonly _TestAndPath[]}
+ */
+const returnedTests = ([path, { throws }], value) =>
+    throws ? emptyEntries : collectTests([...path, null], false, value)
+
+/**
  * Registers all tests reachable from module export `v` (keyed by `k`) with
  * the given `TestContext`.
  *
@@ -185,7 +205,8 @@ export const collectTests = (path, throws, v) => {
  */
 export const registerModule = (ctx, k, v) => {
     /** @type {(ctx: TestContext, entry: _TestAndPath) => Effect<Test | All | Await, void, NotImplemented>} */
-    const registerOne = (ctx, [path, { fn, throws }]) => {
+    const registerOne = (ctx, entry) => {
+        const [path, { fn, throws }] = entry
         const name = fmtImport(k, path)
         // The registered callback panics on failure, deliberately. `Test` hands
         // it to an external framework (node `--test`, Bun, Deno) that takes a
@@ -205,10 +226,7 @@ export const registerModule = (ctx, k, v) => {
         /** @type {(t: TestContext) => Effect<Test | All | Await, void, never>} */
         const body = t =>
             catchStep(step(awaitIfPromise(fn()), resolved => {
-                if (throws) {
-                    return pureOk(undefined)
-                }
-                const sub = collectTests([...path, null], false, resolved)
+                const sub = returnedTests(entry, resolved)
                 if (sub.length === 0) {
                     return pureOk(undefined)
                 }
@@ -251,11 +269,12 @@ export const runEntries = ({ result, start, test }) => (k, entries) => state => 
      *     (acc: RunState) =>
      *         Effect<O | Catch, readonly[RunState, readonly _TestAndPath[]], never>}
      */
-    const one = ([testPath, set]) => acc => {
+    const one = entry => acc => {
+        const [testPath, set] = entry
         // Nothing runs after the run has been abandoned. The walk cannot simply
         // stop — the state it collected has to reach the summary, which is why
         // the failure is carried in `acc` rather than thrown — so every
-        // remaining leaf answers the state unchanged instead. `collectTests` is
+        // remaining leaf answers the state unchanged instead. `returnedTests` is
         // not reached either, so no further proof export is enumerated: the run
         // is over, and enumerating one runs user code.
         if (acc.aborted !== null) { return pureOk(/** @type {const} */ ([acc, emptyEntries])) }
@@ -274,7 +293,7 @@ export const runEntries = ({ result, start, test }) => (k, entries) => state => 
         // rather than running a leaf it has failed to announce.
         //
         // **Reading the returned sub-tree is guarded, because reading it runs
-        // user code.** `collectTests` enumerates what the leaf returned, so an
+        // user code.** `returnedTests` enumerates what the leaf returned, so an
         // enumerable getter or a proxy trap in that value throws *here* — and
         // that is a failure of the leaf which produced it, not of the run.
         // Unguarded it unwinds the whole traversal, taking with it the results
@@ -283,13 +302,11 @@ export const runEntries = ({ result, start, test }) => (k, entries) => state => 
         // than a correction issued after the fact.
         const evaluated = step(step(start(id), () => test(k, testPath, set)), sr => {
             const t = resultOf(id, sr)
-            if (t.status !== 'passed' || set.throws) {
+            if (t.status !== 'passed') {
                 return pureOk(/** @type {const} */ ([t, sr, emptyEntries]))
             }
-            // null marks the call boundary, so paths render as
-            // `outer().inner`; `throws` resets to false inside a return value.
             const read = /** @type {Effect<Catch, Result<readonly _TestAndPath[], unknown>, NotImplemented>} */ (
-                catch_(() => collectTests([...testPath, null], false, sr.result[1])))
+                catch_(() => returnedTests(entry, sr.result[1])))
             return mapStep(
                 read,
                 r => r[0] === 'ok'
