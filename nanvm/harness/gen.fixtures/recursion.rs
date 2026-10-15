@@ -15,7 +15,7 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
         Any::conditional(c0, || Ok(f64_any(0x3ff0000000000000)), c1)
     }, 1, Array::default(), Some("(function $0($1){return ((($1)<(2))?(1):(($1)*((0,($0))((($1)-(1))))));})")).to_any();
     let c1: Any<A> = Any::call(c0, [f64_any(0x4014000000000000)].to_array().to_any())?;
-    let c2: Any<A> = A::static_function(|self_, _args| { strict_eq(Function::new(self_.clone()).to_any(), Function::new(self_.clone()).to_any()) }, 0, Array::default(), Some("(function $0(){const $1=(()=>{let $2,$3=false;return()=>{if(!$3){$2=($0);$3=true;}return $2;};})();return (($1())===($1()));})")).to_any();
+    let c2: Any<A> = A::static_function(|self_, _args| { strict_eq(Function::new(self_.clone()).to_any(), Function::new(self_.clone()).to_any()) }, 0, Array::default(), Some("(function $0(){return (($0)===($0));})")).to_any();
     let c3: Any<A> = Any::call(c2, Array::default().to_any())?;
     let c4: Any<A> = A::static_function(|self_, args| { Ok(A::static_function(|self_, _args| {
         let c0: Any<A> = A::frame(self_)[0].clone();

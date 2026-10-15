@@ -12,7 +12,7 @@
 import { assertOk } from '../../../asserts/module.f.mjs'
 import { isArray } from '../../../types/array/module.f.mjs'
 import { ok } from '../../../types/result/module.f.js'
-import { analysis } from '../../analysis/module.f.mjs'
+import { identityAnalysis } from '../../analysis/module.f.mjs'
 import { functionText } from '../../../compiler/serializer/module.f.mjs'
 import { join } from '../array/module.f.mjs'
 import { objectToPrimitive, primitiveToString, primitiveToNumber } from '../coercion/module.f.mjs'
@@ -24,9 +24,11 @@ export const toPrimitive = (value, hint, invoke) => {
         case '{}': { return objectToPrimitive(value, hint, invoke) }
         case '[]': { return join(value, ',', element => toString(element, invoke)) }
         default: {
-            // Analysis constructs the writer's index table. Captures are
-            // represented by slot names and do not enter the rendered text.
-            const table = assertOk(analysis(value))
+            // The writer's table, by node identity, so that a node the body
+            // shares is one `const` and two equal nodes are two. Captures
+            // are represented by slot names and do not enter the rendered
+            // text.
+            const table = assertOk(identityAnalysis(value))
             return ok(functionText(table, /** @type {readonly ['#', number]} */ (table.root)[1]))
         }
     }

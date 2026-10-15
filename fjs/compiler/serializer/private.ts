@@ -18,8 +18,9 @@ export type _Hoisted = readonly ['entry', number] | readonly ['leaf', number | b
 
 /**
  * What each statement written so far named, in one scope: a hoisted value,
- * or nothing where the statement was an anchor's `const`, which holds a
- * value the scope does not reach. Each slot also carries its generated name. The document allocator skips reserved export names.
+ * or nothing where no statement after reads the `const` by what it holds —
+ * a primitive anchor's, or a body's alias of a frame slot, read as the
+ * slot. Each slot also carries its generated name. The document allocator skips reserved export names.
  *
  * A function body starts a list of its own, since it reads only its own
  * names — a reference out of a body reads its frame.
@@ -35,8 +36,9 @@ export type _Names = readonly (readonly [_Hoisted | null, string])[]
  * which a read of the arguments uses, the entries the scope's root
  * reaches eagerly, which are the ones this scope's statements hoist — an
  * entry reached only under a lazy operand is that operand's block's — and
- * the entries written at more than one place under the scope's root, the
- * analysis's for a module or a body and a block's own for a block.
+ * the entries reached from more than one place, by node identity: the
+ * identity table's `shared` for a module or a body, and for a block those
+ * reached from more than one place under its root.
  */
 export type _Scope = {
     readonly a: Analysis

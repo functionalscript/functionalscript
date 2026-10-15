@@ -583,10 +583,11 @@ export const proof = {
         const alias = compile('const c = [1]; const d = c; export default (...a) => [d, c];').edag
         expectEdag(alias, ['=>', 0, [['[]', [1]]], ['[]', [['frame', 0], ['frame', 0]]]])
         assert(alias instanceof Array && alias[0] === '=>' && alias[3] instanceof Array && alias[3][0] === '[]' && alias[3][1][0] === alias[3][1][1], alias)
-        // and so are two nodes the analysis merges: one read spelled twice
-        const merged = compile('const o = [1]; const x = o[0]; const y = o[0]; export default (...a) => [x, y];').edag
-        expectEdag(merged, ['=>', 0, [['.', ['[]', [1]], 0]], ['[]', [['frame', 0], ['frame', 0]]]])
-        assert(merged instanceof Array && merged[0] === '=>' && merged[3] instanceof Array && merged[3][0] === '[]' && merged[3][1][0] === merged[3][1][1], merged)
+        // where one read spelled twice is two nodes, so two slots: sharing
+        // is node identity, as the writers and the executors see it
+        const twins = compile('const o = [1]; const x = o[0]; const y = o[0]; export default (...a) => [x, y];').edag
+        expectEdag(twins, ['=>', 0, [['.', ['[]', [1]], 0], ['.', ['[]', [1]], 0]], ['[]', [['frame', 0], ['frame', 1]]]])
+        assert(twins instanceof Array && twins[0] === '=>' && twins[2][0] !== twins[2][1], twins)
         // a nested function captures through its parent: the middle
         // function's frame holds the outer arguments, the innermost's a
         // read of the middle frame and the middle arguments

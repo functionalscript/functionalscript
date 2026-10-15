@@ -144,14 +144,19 @@ export const reaches = (a, shared) => {
  * an entry of the function's own scope both reach — which the recursion
  * establishes once a round, where a loop tests the condition before the
  * block and would establish it twice, two values where the graph has
- * one. A shared entry that merges, a read the condition and the block
+ * one. A value that merges, a read the condition and the block
  * repeat, `r[0]`, is one value however many times it is evaluated, and
  * loops. A writer may keep the recursion for more, for a reason of its
  * own spelling, and never for less.
  *
+ * What both reach is asked of the graph, not of the table's count of
+ * sharing, so a table that merges twins and one that keeps every node its
+ * own (`identityAnalysis`) give one answer: two reaches of one value that
+ * mints meet at a node reached from both, whatever counts it as shared.
+ *
  * @type {(a: Analysis, i: number, loop: Loop) => boolean}
  */
 export const keepsRecursion = (a, i, { before, condition, arm }) => {
-    const minted = a.shared.filter(j => a.scope[j] === i && !mergeable(a.nodes[j]))
+    const minted = a.nodes.flatMap((n, j) => a.scope[j] === i && !mergeable(n) ? [j] : [])
     return before.length !== 0 || scopeHolds(a, i, 'rest') || minted.some(j => reaches(a, [j])(condition) && reaches(a, [j])(arm))
 }

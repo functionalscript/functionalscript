@@ -184,17 +184,22 @@ const graphOf = source => {
 /**
  * The `.f.js` output of a module, once compiling that output again gives the
  * same graph the module itself compiles to — the tables compared whole:
- * root, nodes, scopes and shared. That equality is the writer's whole claim
- * at the command level: the text is FunctionalScript the compiler reads back,
- * and it denotes the program it was written from. The names and the places a
- * value is written are the writer's to choose, which is why the tables are
- * compared and not the texts.
+ * root, nodes, scopes and shared — and the same output again. That is the
+ * writer's whole claim at the command level: the text is FunctionalScript
+ * the compiler reads back, it denotes the program it was written from, and
+ * it shares what the program shares. The names and the places a value is
+ * written are the writer's to choose, which is why the tables are compared
+ * and not the source's text with the output's; the table merges equal
+ * nodes, so the output's own text, which names each shared node and writes
+ * every other in place, is what keeps one shared node from reading back as
+ * two.
  *
  * @type {(source: string) => string}
  */
 export const fjsRoundTrip = source => {
     const output = compileSource(source)('output.f.js')
     assertStructurallySame(graphOf(output), graphOf(source), output)
+    assertEq(compileSource(output)('output.f.js'), output)
     return output
 }
 
@@ -670,6 +675,29 @@ export const proof = {
             assertEq(fjsRoundTrip('const c = null.x; export default (...a) => (() => { const x = c; return 1; })();'), 'const $0=null.x;export default ()=>1;')
             assertEq(fjsRoundTrip('const c = [1]; export default (...a) => { const x = c; return [x, c]; };'), 'const $0=[1];export default ()=>[$0,$0];')
             assertEq(fjsRoundTrip('export const f = (...a) => a[0] ? (() => { const x = [1]; return [x, x]; })() : 4; export default 1;'), 'const $0=(...$1)=>$1[0]?(()=>{const $2=[1];return [$2,$2];})():4;export const f=$0;export default 1;')
+        },
+        // A node the graph shares is one `const`, whatever its kind, and a
+        // node it does not is written where it stands: one node read twice
+        // and two equal nodes are two graphs and two texts, and the text
+        // grows with the nodes, not with the paths to them. A node shared
+        // within one lazy operand is a `const` of the block the operand
+        // opens; a source `const` read only lazily is anchored, so the
+        // scope reaches it and names it.
+        sharing: () => {
+            assertEq(fjsRoundTrip('export default a => { const x = a + a; return x + x; };'), 'export default ($0)=>{const $1=$0+$0;return $1+$1;};')
+            assertEq(fjsRoundTrip('export default a => (a + a) + (a + a);'), 'export default ($0)=>$0+$0+($0+$0);')
+            assertEq(fjsRoundTrip('export default a => { const x = a + a; return [x, x, a + a]; };'), 'export default ($0)=>{const $1=$0+$0;return [$1,$1,$0+$0];};')
+            assertEq(
+                fjsRoundTrip('export default (x) => { const a = x + 1; const b = a * a; const c = b * b; const d = c * c; return d * d; };'),
+                'export default ($0)=>{const $1=$0+1;const $2=$1*$1;const $3=$2*$2;const $4=$3*$3;return $4*$4;};')
+            assertEq(fjsRoundTrip('export default a => a ? (() => { const x = a + 1; return [x, x]; })() : 0;'), 'export default ($0)=>$0?(()=>{const $1=$0+1;return [$1,$1];})():0;')
+            assertEq(fjsRoundTrip('export default (f, a) => f?.((() => { const x = a + 1; return [x, x]; })());'), 'export default ($0,$1)=>$0?.((()=>{const $2=$1+1;return [$2,$2];})());')
+            assertEq(fjsRoundTrip('export default (f, x) => { const t = x + 1; return f?.(t, t); };'), 'export default ($0,$1)=>{const $2=$1+1;return $0?.($2,$2);};')
+            assertEq(fjsRoundTrip('export default (o) => { const x = o.y; return [x, x]; };'), 'export default ($0)=>{const $1=$0.y;return [$1,$1];};')
+            // a shared node the scope reaches eagerly is named where its
+            // `const` stands, before an item the source wrote first: which
+            // failure comes first is no observation
+            assertEq(fjsRoundTrip('export default (f) => { const y = f.x; return [f(), y, y]; };'), 'export default ($0)=>{const $1=$0.x;return [$0(),$1,$1];};')
         },
         // Stage A's operators, with the parentheses JavaScript's own
         // precedence and associativity ask for and no more, so that the

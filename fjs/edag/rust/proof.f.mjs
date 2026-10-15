@@ -1165,7 +1165,7 @@ export const proof = {
             const first = ['.', ['rest'], 0]
             assertEq(
                 printed(['=>', 0, [], ['[]', [first, first]]]),
-                'A::static_function(|_self, args| {\n    let rest = args.clone().into_iter().to_array();\n    let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;\n    Ok([c0.clone(), c0.clone()].to_array().to_any())\n}, 0, Array::default(), Some("(...$0)=>[$0[0],$0[0]]")).to_any()')
+                'A::static_function(|_self, args| {\n    let rest = args.clone().into_iter().to_array();\n    let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;\n    Ok([c0.clone(), c0.clone()].to_array().to_any())\n}, 0, Array::default(), Some("(...$0)=>{const $1=$0[0];return [$1,$1];}")).to_any()')
             assertStructurallySame(
                 scoped(['=>', 0, [], ['[]', [['.', ['rest'], 0], ['.', ['rest'], 1]]]]),
                 [

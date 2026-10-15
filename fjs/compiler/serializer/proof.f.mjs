@@ -41,8 +41,13 @@ const path = '/proof.f.js'
 
 /**
  * The text the writer writes for a graph, once the front end has read it
- * back to the same table. A module of the writer's own making imports
- * nothing, so `unresolved` needs no resolution to hand back its graph.
+ * back to the same table, and the graph read back is written as the same
+ * text again: the table, which merges equal nodes, says the program is
+ * the one written, and the text, which names each shared node and writes
+ * every other in place, says it shares what it shared — a node read back
+ * as two, or two as one, would be written another way. A module of the
+ * writer's own making imports nothing, so `unresolved` needs no resolution
+ * to hand back its graph.
  *
  * @type {(e: Exp) => string}
  */
@@ -51,6 +56,7 @@ const reads = e => {
     const { imports, edag } = unresolved(unwrap(parse(path)(text)))
     assertEq(imports.length, 0, text)
     assertStructurallySame(assertOk(analysis(_defaultExport(edag))), assertOk(analysis(e)), text)
+    assertEq(unwrap(tryStringify(_defaultExport(edag))), text)
     // and what it marks is what the tokenizer finds, in every case that reads
     assertEq(disagreement(unwrap(tryMarked(e))), null, text)
     return text
@@ -453,9 +459,9 @@ export const proof = {
         assertEq(functionText(a, 0), text)
     },
     // `Object.is` is written as the source reads it, a value wherever it
-    // stands — a callee, an operand, an item — and, one function however
-    // often it is read, written in place where it is shared, since the
-    // read is the value: no `const` is needed to keep it one.
+    // stands — a callee, an operand, an item — and, where one node is
+    // read from two places, a `const`, as every shared node is: the front
+    // end reads each `Object.is` written as a node of its own.
     objectIs: () => {
         writes(['Object.is'], 'export default Object.is;')
         writes(['[]', [['Number.isInteger'], ['()', ['Number.isFinite'], [1]]]], 'export default [Number.isInteger,Number.isFinite(1)];')
@@ -465,7 +471,8 @@ export const proof = {
         writes(['=>', 1, [], ['()', ['Object.is'], [['arg', 0], ['arg', 0]]]], 'export default ($0)=>Object.is($0,$0);')
         /** @type {Exp} */
         const is = ['Object.is']
-        writes(['[]', [['()', is, [1, 1]], ['()', is, [2, 2]]]], 'export default [Object.is(1,1),Object.is(2,2)];')
+        writes(['[]', [['()', is, [1, 1]], ['()', is, [2, 2]]]], 'const $0=Object.is;export default [$0(1,1),$0(2,2)];')
+        writes(['[]', [['()', ['Object.is'], [1, 1]], ['()', ['Object.is'], [2, 2]]]], 'export default [Object.is(1,1),Object.is(2,2)];')
         // every static, each its own tag, with no case of its own to miss
         for (const id of staticIds) { writes([id], `export default ${id};`) }
     },
@@ -638,11 +645,10 @@ export const proof = {
             ['=>', 0, [], ['=>', 0, [['.', ['rest'], 0]], ['[]', [slot(0), slot(0)]]]],
             'export default (...$0)=>{const $1=$0[0];return ()=>[$1,$1];};')
         // what the compiler builds is written, two `const`s reading one
-        // value among it: the lowering gives them the one slot the
-        // analysis sees
+        // value among it: two nodes, which the lowering gives a slot each
         assertEq(
             reads(_defaultExport(moduleGraph('const o=[1]; const x=o[0]; const y=o[0]; export default (...a)=>[x,y];'))),
-            'const $0=[1][0];export default ()=>[$0,$0];')
+            'const $0=[1];const $1=$0[0];const $2=$0[0];export default ()=>[$1,$2];')
         // where the writer's own order would read the slots in another —
         // here the body's text is the frame's order backwards, and a shared
         // function hoisted above the `return` reads the later slot first —
@@ -1061,14 +1067,15 @@ export const proof = {
     // function that reaches itself, so it takes a `const` even where
     // nothing else shares it; a nested function captures that name.
     unifiedNames: () => {
-        // Sibling functions and repeated merged operands still allocate distinct
-        // bindings, even when their declarations occur in separate scopes.
+        // Sibling functions and the blocks of a shared node's arms still
+        // allocate distinct bindings, even when their declarations occur in
+        // separate scopes.
         writes(['=>', 0, [], ['[]', [['=>', 1, [], ['arg', 0]], ['=>', 1, [], ['arg', 0]]]]],
             'export default ()=>[($0)=>$0,($1)=>$1];')
         const numeric = /** @type {const} */ (['.', 1, 'x'])
         const lazy = /** @type {const} */ (['?:', true, numeric, numeric])
         writes(['=>', 0, [], ['[]', [lazy, lazy]]],
-            'export default ()=>[true?(()=>{const $0=1;return $0.x;})():(()=>{const $1=1;return $1.x;})(),true?(()=>{const $2=1;return $2.x;})():(()=>{const $3=1;return $3.x;})()];')
+            'export default ()=>{const $0=true?(()=>{const $1=1;return $1.x;})():(()=>{const $2=1;return $2.x;})();return [$0,$0];};')
         // Reserved names are skipped throughout the module, including parameters.
         const exported = moduleGraph('export const $0=(x)=>x;export const $2=[];')
         const text = unwrap(tryModuleStringify(exported))
@@ -1361,6 +1368,13 @@ export const proof = {
         writes(fn(['?.', ['rest'], ['Number', r0]]), 'export default (...$0)=>$0?.[Number($0[0])];')
         writes(fn(['?.', ['rest'], 'b', ['|.', ['Number', r0]]]), 'export default (...$0)=>$0?.b[Number($0[0])];')
         writes(['?.', null, 'b', ['|.', ['Number', [',', [['.', null, 'y'], 0]]]]], 'export default null?.b[Number((()=>{const $0=null.y;return 0;})())];')
+        // a key is read back from its text alone, a node of its own, so a
+        // key node anything else reaches too has no text that keeps it one;
+        // two equal keys are two nodes, and are written
+        const k = /** @type {const} */ (['Number', r0])
+        refuses(fn(['[]', [['.', ['rest'], k], ['.', ['rest'], k]]]), 'a shared computed key')
+        refuses(fn(['[]', [['.', ['rest'], k], k]]), 'a shared computed key')
+        writes(fn(['[]', [['.', ['rest'], ['Number', r0]], ['.', ['rest'], ['Number', r0]]]]), 'export default (...$0)=>{const $1=$0[0];return [$0[Number($1)],$0[Number($1)]];};')
         // and an operator an access base only in a group, where an access
         // is a prefix's operand bare
         writes(['.', ['+', 1, 2], 'x'], 'export default (1+2).x;')
@@ -1368,20 +1382,20 @@ export const proof = {
         writes(['~', ['.', ['[]', [1]], 0]], 'export default ~[1][0];')
         writes(['.', ['!', ['[]', []]], 0], 'export default (![])[0];')
         writes(['.', ['typeof', ['[]', []]], 0], 'export default (typeof [])[0];')
-        // a shared operator over values is written in place at each
-        // occurrence, its minting operand hoisted, and merges again when
-        // read; one holding a minting node through a lazy edge takes a
-        // `const`, as the lazy operators' proof has
+        // a shared operator takes a `const`, as every shared node does,
+        // what it holds written in it once; two equal ones are two, each
+        // written in place, and a minting operand they share hoisted
         /** @type {Exp} */
         const o = ['[]', []]
         /** @type {Exp} */
         const sum = ['+', o, 1]
-        writes(['[]', [sum, sum]], 'const $0=[];export default [$0+1,$0+1];')
+        writes(['[]', [sum, sum]], 'const $0=[]+1;export default [$0,$0];')
+        writes(['[]', [['+', o, 1], ['+', o, 1]]], 'const $0=[];export default [$0+1,$0+1];')
         /** @type {Exp} */
         const held = ['+', ['?:', true, o, 1], 1]
-        writes(['[]', [held, held]], 'const $0=true?[]:1;const $1=$0+1;export default [$1,$1];')
+        writes(['[]', [held, held]], 'const $0=(true?[]:1)+1;export default [$0,$0];')
         // in a body, the same
-        writes(fn(['[]', [sum, sum]]), 'export default ()=>{const $0=[];return [$0+1,$0+1];};')
+        writes(fn(['[]', [sum, sum]]), 'export default ()=>{const $0=[]+1;return [$0,$0];};')
     },
     // The lazy operators and the conditional. Each operand of `&&`, `||`
     // and `??` after the first, and each arm of `?:`, is a block root: a
@@ -1474,23 +1488,26 @@ export const proof = {
             // anchored for the same reason
             writes([',', [c, ['[]', [['&&', 1, c], ['&&', 2, c]]]]], 'const $0=[1];export default [1&&$0,2&&$0];')
             writes([',', [['[]', [2]], c, ['[]', [['&&', 1, ['[]', [c, c]]], ['&&', 2, ['[]', [2]]]]]]], 'const $0=[2];const $1=[1];export default [1&&[$1,$1],2&&[2]];')
-            // a shared node that holds a value minting identity through a
-            // lazy edge takes a `const` as the value would: written twice
-            // it would mint twice. One reached eagerly by the scope is the
-            // scope's; one holding only values is written in place, as an
-            // access is, and merges again when read
+            // a shared node takes a `const`, whatever it holds: a value
+            // minting identity through a lazy edge, which written twice
+            // would mint twice, or values alone, which written twice would
+            // read back as two nodes
             /** @type {Exp} */
             const y = ['?:', r0, ['[]', []], 1]
             writes(fn(['[]', [y, y]]), 'export default (...$0)=>{const $1=$0[0]?[]:1;return [$1,$1];};')
             /** @type {Exp} */
             const w = ['.', ['?:', r0, ['[]', []], 1], 'k']
-            writes(fn(['[]', [w, w]]), 'export default (...$0)=>{const $1=$0[0]?[]:1;const $2=$1.k;return [$2,$2];};')
+            writes(fn(['[]', [w, w]]), 'export default (...$0)=>{const $1=($0[0]?[]:1).k;return [$1,$1];};')
             /** @type {Exp} */
             const n = ['-', ['?:', r0, ['[]', []], 1]]
-            writes(fn(['[]', [n, n]]), 'export default (...$0)=>{const $1=$0[0]?[]:1;const $2=-$1;return [$2,$2];};')
+            writes(fn(['[]', [n, n]]), 'export default (...$0)=>{const $1=-($0[0]?[]:1);return [$1,$1];};')
             /** @type {Exp} */
             const z = ['??', r0, r1]
-            writes(fn(['[]', [z, z]]), 'export default (...$0)=>[$0[0]??$0[1],$0[0]??$0[1]];')
+            writes(fn(['[]', [z, z]]), 'export default (...$0)=>{const $1=$0[0]??$0[1];return [$1,$1];};')
+            // and two equal nodes are two, each written where it stands
+            /** @type {() => Exp} */
+            const twin = () => ['??', ['.', ['rest'], 0], ['.', ['rest'], 1]]
+            writes(fn(['[]', [twin(), twin()]]), 'export default (...$0)=>[$0[0]??$0[1],$0[0]??$0[1]];')
             /** @type {Exp} */
             const m = ['?:', r0, c, 1]
             writes(fn([',', [c, ['[]', [m, m]]]]), 'export default (...$0)=>{const $1=[1];const $2=$0[0]?$1:1;return [$2,$2];};')
@@ -1531,11 +1548,11 @@ export const proof = {
             writes([',', [nest, ['?:', true, nestLength, nestLength]]], 'const $0=[[1]];export default true?$0.length:$0.length;')
             /** @type {Exp} */
             const call = ['()', ['rest'], []]
-            /** @type {Exp} */
-            const field = ['.', call, 'a']
-            writes(fn(['||', ['===', field, 1], ['===', field, 2]]), 'export default (...$0)=>{const $1=$0();return $1.a===1||$1.a===2;};')
-            writes(fn(['[]', [field, ['?:', r0, field, 0]]]), 'export default (...$0)=>{const $1=$0();return [$1.a,$0[0]?$1.a:0];};')
-            writes(fn([',', [call, ['?:', r0, field, field]]]), 'export default (...$0)=>{const $1=$0();return $0[0]?$1.a:$1.a;};')
+            /** @type {() => Exp} */
+            const field = () => ['.', call, 'a']
+            writes(fn(['||', ['===', field(), 1], ['===', field(), 2]]), 'export default (...$0)=>{const $1=$0();return $1.a===1||$1.a===2;};')
+            writes(fn(['[]', [field(), ['?:', r0, field(), 0]]]), 'export default (...$0)=>{const $1=$0();return [$1.a,$0[0]?$1.a:0];};')
+            writes(fn([',', [call, ['?:', r0, field(), field()]]]), 'export default (...$0)=>{const $1=$0();return $0[0]?$1.a:$1.a;};')
             // and so is what the value holds under a lazy operand of its
             // own: an array in an arm, or an object after a `??` in a
             // call's arguments

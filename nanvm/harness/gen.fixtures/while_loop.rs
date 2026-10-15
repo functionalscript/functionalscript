@@ -32,7 +32,7 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
             c2 = c8;
         }
         Ok(c2)
-    }, 1, Array::default(), Some("($0)=>{let $1=[0,0];while($1[0]<$0){$1=[$1[0]+1,$1[1]+($1[0]+1)];}return $1;}")).to_any();
+    }, 1, Array::default(), Some("($0)=>{let $1=[0,0];while($1[0]<$0){const $2=$1[0]+1;$1=[$2,$1[1]+$2];}return $1;}")).to_any();
     let c3: Any<A> = Any::call(c2.clone(), [f64_any(0x4024000000000000)].to_array().to_any())?;
     let c4: Any<A> = A::static_function(|_self, args| {
         let c0: Any<A> = args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any());

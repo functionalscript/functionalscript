@@ -246,7 +246,11 @@ memo with represented dependency exports.
 a graph into one table — every operation node once, in walk order, its
 operands by index, its scope, and which entries are shared — so that a
 writer can hoist what is shared and an executor can cache it without a
-structure keyed by node identity. It returns `Result<Analysis, string>`:
+structure keyed by node identity. `analysis` merges two equal nodes of one
+scope into one entry; `identityAnalysis` keeps every node its own, its
+shared entries the ones [`sharing`](sharing/module.f.mjs) counts by node
+identity, which is the table the FunctionalScript writer writes from and
+the compiler evaluates by. It returns `Result<Analysis, string>`:
 structural failures, such as a node shared across function scopes or a
 noncanonical function length, return a diagnostic. Complete executable
 graphs compose the result with `checked` to check their invocation bindings.

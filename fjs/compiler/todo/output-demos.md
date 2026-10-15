@@ -101,11 +101,11 @@ which outputs accept which example.
   when available, a source position.
   `.js`, the EDAG and Rust preserve the computation; `undefined` is refused by
   `.json` alone.
-- A shared node is one node in the EDAG and one temporary cloned at each
-  reference in Rust. In `.js`, one that mints identity — an array, an
-  object, a function, a call — is one `const`, and a shared access or
-  operator over values is written in place at each reference
-  ([write a shared node once](../serializer/todo/write-shared-nodes-once.md)).
+- A shared node is one node in the EDAG, one temporary cloned at each
+  reference in Rust, and one `const` in `.js`, whatever it is — an array, a
+  call, an access, an operator — while two equal nodes are two, each
+  written where it stands
+  ([`fjs/edag/sharing`](../../edag/sharing/module.f.mjs)).
   The value outputs write what the program computes, not the graph: in
   `.data.js` a shared array or object is one `const`, a call's result among
   them, and a call answering a primitive is that primitive at each

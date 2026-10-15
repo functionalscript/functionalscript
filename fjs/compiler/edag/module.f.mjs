@@ -18,12 +18,11 @@
  */
 
 import { anchors, isBinary, isInlinedCall, isLazy, isSpread, isUnary, readCaptures } from '../ast/module.f.mjs'
-import { analysis } from '../../edag/analysis/module.f.mjs'
 import { fromValue, isStatic } from '../../edag/module.f.mjs'
 import { _rootSource, _parseJson, _walk } from '../source/module.f.mjs'
 import { mapStep, step } from '../../effects/module.f.mjs'
 import { assertNotNullish, todo } from '../../asserts/module.f.mjs'
-import { ok, unwrap } from '../../types/result/module.f.js'
+import { ok } from '../../types/result/module.f.js'
 
 const args = /** @type {const} */ (['args'])
 
@@ -252,8 +251,10 @@ const lowerEntry = nodes => entry => {
  *
  * The frame holds each distinct node among them once, in the order the body
  * first names them — two bindings reaching one node, a `const` and its
- * alias, are one value and so one slot, and so are two nodes the EDAG
- * analysis merges, `o[0]` read by two `const`s ({@link slotKeys}) — and a
+ * alias, are one value and so one slot, where two nodes spelled alike,
+ * `o[0]` read by two `const`s, are two, as a writer and an executor see
+ * them: sharing is node identity
+ * ([`fjs/edag/sharing`](../../edag/sharing/module.f.mjs)) — and a
  * capture whose node is a
  * primitive is no slot at all: the primitive is written into the body where
  * the capture is read, as it is wherever a `const` holding one is read,
@@ -273,32 +274,11 @@ const fn = nodes => (length, body, captures) => {
     const read = readCaptures(['=>', length, body, captures])
     const outer = captures.map(c => lower(nodes)(c).exp)
     const candidates = outer.filter((n, i) => n instanceof Array && read.includes(i))
-    const keys = slotKeys(candidates)
-    /** Each candidate's first twin: the candidate whose slot it reads. */
-    const firsts = keys.map(k => keys.indexOf(k))
-    const slots = candidates.filter((_, i) => firsts[i] === i)
+    const slots = candidates.filter((n, i) => candidates.indexOf(n) === i)
     /** @type {readonly Exp[]} */
     const reads = slots.map((_, i) => ['frame', i])
-    /** @type {(n: typeof candidates[number]) => Exp} */
-    const slotRead = n => reads[slots.indexOf(candidates[firsts[candidates.indexOf(n)]])]
-    const inner = outer.map(n => candidates.includes(n) ? slotRead(n) : n)
+    const inner = outer.map(n => candidates.includes(n) ? reads[slots.indexOf(n)] : n)
     return ['=>', length, slots, scope(body, inner)]
-}
-
-/**
- * Which of `nodes` are one value: the entry the EDAG analysis gives each —
- * one entry for one node reached twice, and for two nodes it merges, a
- * read spelled the same over the same inputs — so that a frame holds no two
- * slots a writer or an executor would see as one. The analysis owns that
- * rule, so it is asked rather than restated; a lone node is its own.
- *
- * @type {(nodes: readonly Exp[]) => readonly unknown[]}
- */
-const slotKeys = nodes => {
-    if (nodes.length < 2) { return nodes }
-    const { root, nodes: table } = unwrap(analysis(['[]', /** @type {readonly Exp[]} */ (nodes)]))
-    const items = /** @type {readonly (readonly [string, number])[]} */ (table[/** @type {readonly [string, number]} */ (root)[1]][1])
-    return items.map(([, i]) => i)
 }
 
 /**

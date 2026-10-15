@@ -10,7 +10,7 @@
  * @import { EdagValue } from '../../edag/value/types.ts'
  */
 
-import { analysis } from '../../edag/analysis/module.f.mjs'
+import { identityAnalysis } from '../../edag/analysis/module.f.mjs'
 import { memo } from '../../edag/memo/module.f.mjs'
 import { generate as generateRust } from '../../compiler/rust/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
@@ -55,7 +55,7 @@ export const value = () => {
         [':', 'call', call], [':', 'again', call], [':', 'other', make()],
         [':', 'make', factory],
     ]]
-    return unwrap(memo(unwrap(analysis(expression)))({ args: [] }))
+    return unwrap(memo(unwrap(identityAnalysis(expression)))({ args: [] }))
 }
 
 /** Emit the interpreted value through the existing Rust backend. @type {() => string} */

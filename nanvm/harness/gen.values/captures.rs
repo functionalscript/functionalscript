@@ -19,10 +19,9 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
     let c4: Any<A> = A::static_function(|self_, args| {
         let c0: Any<A> = [args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any())].to_array().to_any();
         Ok(A::static_function(|self_, args| {
-            let c0: Any<A> = A::frame(self_)[1].clone();
-            let c1 = || Ok([A::frame(self_)[0].clone(), c0.clone(), c0.clone()].to_array().to_any());
-            let c2 = || Err(c0.clone());
-            Any::conditional(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), c1, c2)
+            let c0 = || Ok([A::frame(self_)[0].clone(), A::frame(self_)[1].clone(), A::frame(self_)[1].clone()].to_array().to_any());
+            let c1 = || Err(A::frame(self_)[1].clone());
+            Any::conditional(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), c0, c1)
         }, 1, [A::frame(self_)[0].clone(), c0].to_array(), Some("($2)=>$2?[$0,$1,$1]:(()=>{throw $1;})()")).to_any())
     }, 1, [c0.clone()].to_array(), Some("($1)=>{const $2=[$1];return ($3)=>$3?[$0,$2,$2]:(()=>{throw $2;})();}")).to_any();
     Ok([(string_key("shared"), c0.clone()), (string_key("alias"), c0.clone()), (string_key("call"), c2.clone()), (string_key("again"), c2.clone()), (string_key("other"), c3), (string_key("make"), c4)].to_object().to_any())

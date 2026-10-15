@@ -8,7 +8,8 @@
  */
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { analysis, checked, itemOperand, operandsOf, scopeHolds } from './module.f.mjs'
+import { analysis, checked, identityAnalysis, itemOperand, operandsOf, scopeHolds } from './module.f.mjs'
+import { sharedNodesOf } from '../sharing/module.f.mjs'
 
 /**
  * What every table satisfies, checked on every case: an entry names only
@@ -43,6 +44,9 @@ const refs = x => !(x instanceof Array) ? []
 
 /** @type {(e: Exp) => Analysis} */
 const an = e => sound(assertOk(analysis(e)))
+
+/** The identity table, checked as every table is. @type {(e: Exp) => Analysis} */
+const identity = e => sound(assertOk(identityAnalysis(e)))
 
 /** @type {(e: Exp, expected: Analysis) => void} */
 const table = (e, expected) => { assertStructurallySame(an(e), expected) }
@@ -400,6 +404,56 @@ export const proof = {
             [['args'], ['Number', ['#', 0]], ['?.', ['#', 0], 'b', ['|.', ['#', 1], ['|()', [['...', ['#', 0]]]]]]])
         // `a?.(...a).b`
         assertStructurallySame(nodesOf(['?.()', a, [['...', a]], ['|.', 'b']]), [['args'], ['?.()', ['#', 0], [['...', ['#', 0]]], ['|.', 'b']]])
+    },
+    // The identity table merges nothing: one node read twice and two equal
+    // nodes are two tables, where the merged table gives both one, and
+    // `shared` is the nodes reached from more than one place — exactly
+    // what `../sharing` lists in each scope, the module's and each body's.
+    identity: {
+        sharedNode: () => {
+            /** @type {Exp} */
+            const x = ['+', ['arg', 0], ['arg', 0]]
+            /** @type {Exp} */
+            const e = ['=>', 1, [], ['+', x, x]]
+            assertStructurallySame(identity(e), {
+                root: ['#', 4],
+                nodes: [['arg', 0], ['arg', 0], ['+', ['#', 0], ['#', 1]], ['+', ['#', 2], ['#', 2]], ['=>', 1, [], ['#', 3]]],
+                scope: [4, 4, 4, 4, -1],
+                shared: [2],
+            })
+            /** @type {() => Exp} */
+            const twin = () => ['+', ['arg', 0], ['arg', 0]]
+            /** @type {Exp} */
+            const twins = ['=>', 1, [], ['+', twin(), twin()]]
+            assertEq(identity(twins).nodes.length, 8)
+            assertStructurallySame(identity(twins).shared, [])
+            // the merged table gives both one
+            assertStructurallySame(an(e), an(twins))
+        },
+        // A node met again by identity is its entry, and a twin is not.
+        constructor: () => {
+            assertStructurallySame(identity(['[]', [empty, empty]]).shared, [0])
+            assertEq(identity(['[]', [['.', ['args'], 'a'], ['.', ['args'], 'a']]]).nodes.length, 5)
+        },
+        primitive: () => {
+            assertStructurallySame(identity(1), { root: 1, nodes: [], scope: [], shared: [] })
+        },
+        // the count is `../sharing`'s, scope by scope: a frame's slot the
+        // scope around the body's, and what the body shares the body's
+        sharing: () => {
+            /** @type {Exp} */
+            const x = ['[]', []]
+            /** @type {Exp} */
+            const y = ['.', ['rest'], 0]
+            /** @type {Exp} */
+            const body = ['[]', [['frame', 0], y, y]]
+            /** @type {Exp} */
+            const e = ['[]', [x, ['=>', 0, [x], body]]]
+            const a = identity(e)
+            assertStructurallySame(a.shared.map(i => a.nodes[i]), [['[]', []], ['.', ['#', 2], 0]])
+            assertEq(a.shared.length, sharedNodesOf(e).length + sharedNodesOf(body).length)
+            assertEq(assertError(identityAnalysis(['[]', [x, ['=>', 0, [], x]]])), 'a node shared across a function boundary')
+        },
     },
     // A node reached from two scopes is not a graph the compiler emits, and
     // the EDAG's scope rule forbids it: refused where it is met, from either
