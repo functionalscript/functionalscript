@@ -8,10 +8,11 @@ import { find as btreeFind } from './module.f.mjs'
 import { map, toArray } from '../../list/module.f.mjs'
 import { cmp } from '../../string/module.f.mjs'
 import { assertEq } from '../../../asserts/module.f.mjs'
-import { jsonStr, squares } from '../testlib.f.mjs'
+import { stringifySorted } from '../../../media/json/module.f.mjs'
+import { squares } from '../testlib.f.mjs'
 
 /** @type {(r: Result<Unknown>) => string} */
-const str = r => jsonStr(toArray(map((/** @type {any} */ x) => x[0])(r)))
+const str = r => stringifySorted(toArray(map((/** @type {any} */ x) => x[0])(r)))
 
 /** @type {(i: string) => (m: TNode<string>) => string} */
 const find = i => m => str(btreeFind(cmp(i))(m))

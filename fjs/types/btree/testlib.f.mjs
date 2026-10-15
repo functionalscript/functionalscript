@@ -5,21 +5,11 @@
  *
  * @module
  *
- * @import { Unknown } from '../../media/json/types.ts'
  * @import { TNode } from './types/types.ts'
  */
 
-import { stringify } from '../../media/json/module.f.mjs'
-import { sort } from '../object/module.f.mjs'
 import { cmp } from '../string/module.f.mjs'
 import { set as setSet } from './set/module.f.mjs'
-
-/**
- * Serializes a tree canonically, so a proof compares its shape as a string.
- *
- * @type {(value: Unknown) => string}
- */
-export const jsonStr = stringify(sort)
 
 /**
  * Inserts `value` into a string B-tree ordered by `cmp`, the shape every
@@ -38,7 +28,7 @@ export const set = node => value => setSet(cmp(value))(() => value)(node)
 export const squares = n => n <= 1 ? ['1'] : set(squares(n - 1))((n * n).toString())
 
 /**
- * `jsonStr(squares(38))`, the tree `remove`'s proof starts its removals from.
+ * `stringifySorted(squares(38))`, the tree `remove`'s proof starts its removals from.
  *
  * @type {string}
  */
@@ -52,7 +42,7 @@ export const expectedSquares38 =
     '[[["529"],"576",["625"]],"64",[["676"],"729",["784"]],"81",[["841"],"9",["900","961"]]]]]'
 
 /**
- * `jsonStr(squares(n))` per row, as `[n, expected]`: how the tree reshapes as
+ * `stringifySorted(squares(n))` per row, as `[n, expected]`: how the tree reshapes as
  * it grows.
  *
  * @type {readonly (readonly [number, string])[]}

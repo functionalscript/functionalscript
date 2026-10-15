@@ -58,11 +58,11 @@
 
 import { fromVec } from '../text/utf8/module.f.mjs'
 import { detectVec } from './type/module.f.mjs'
-import { parse, stringify } from './json/module.f.mjs'
+import { parse, stringifySorted } from './json/module.f.mjs'
 import { assert, assertNotNullish } from '../asserts/module.f.mjs'
 import { parse as rttiParse } from '../rtti/parse/module.f.mjs'
 import { toData, unionFold } from '../rtti/data/module.f.mjs'
-import { definedEntries, definedValues, isObject, sort } from '../types/object/module.f.mjs'
+import { definedEntries, definedValues, isObject } from '../types/object/module.f.mjs'
 import { find, map } from '../types/list/module.f.mjs'
 import { error, ok, okThen } from '../types/result/module.f.js'
 
@@ -255,8 +255,6 @@ const inexactNumber = refusedLeaf(x => typeof x !== 'number' || jsonExact(x))([]
 const unencodableLeaf = refusedLeaf(x =>
     x === null || typeof x === 'boolean' || typeof x === 'string'
     || (typeof x === 'number' && jsonExact(x)))([])
-
-const stringifySorted = stringify(sort)
 
 /**
  * Everything a JSON dialect derives from its schema and its optional semantic
