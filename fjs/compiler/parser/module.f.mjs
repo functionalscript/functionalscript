@@ -88,7 +88,7 @@
  * @import { AstAccess, AstArray, AstBinary, AstInstanceOf, AstKey, AstSelf, AstCall, AstConditional, AstConst, AstEntryFunction, AstFrameRef, AstEntry, AstFunction, AstItem, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstStatic, AstRest, AstSpread, AstStep, AstThrow, AstUnary } from '../ast/types.ts'
  * @import { ParseError } from './types.ts'
  * @import { BindingElement, BindingProperty, BindingTarget, Block, Chain, ComputedKey, ConstantMember, Container, Entry, If, Import, Item, Key, Module, Node, ParameterList, Statement, Step, ValueStatement, While } from './syntax/types.ts'
- * @import { _AccessFrame, _BodyFrame, _Bound, _CallFrame, _ChainFrame, _ChainPart, _ConditionalFrame, _IndexFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _LoopBodyFrame, _Lowered, _Parameter, _Pending, _PendingStack, _Plan, _Read, _Ref, _Scope, _Source, _Stack, _State } from './private.ts'
+ * @import { _AccessFrame, _BodyFrame, _Bound, _CallFrame, _ChainFrame, _ChainPart, _ConditionalFrame, _Counted, _IndexFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _LoopBodyFrame, _Lowered, _Parameter, _Pending, _PendingStack, _Plan, _Read, _Ref, _Scope, _Source, _Stack, _State } from './private.ts'
  */
 
 import { error, mapOk, ok } from '../../types/result/module.f.js'
@@ -382,23 +382,36 @@ const prohibitedCall = foldError('prohibited member function')
  * a value, `fjs/js/prototype`, but `length` — an own property of an array,
  * a string and a function, which the two languages read alike.
  *
- * Exported for the writer in [`../serializer`](../serializer/module.f.mjs),
- * which refuses the same names rather than write an access the parser here
- * would not read back: the rule is the language's, and it has one owner.
- * The `_` says that export is linkage rather than API, as it does for
- * `_tokenKindNames` in [`./grammar`](./grammar/module.f.mjs).
- *
  * @type {ReadonlySet<string>}
  */
-export const _prohibitedNames = new Set(prototypeNames.filter(name => name !== 'length'))
+const prohibitedNames = new Set(prototypeNames.filter(name => name !== 'length'))
 
 /**
  * The names a method call may not call: `prohibitedCalls`, as a set.
- * Exported for the writer, as {@link _prohibitedNames} is.
  *
  * @type {ReadonlySet<string>}
  */
-export const _prohibitedCallNames = new Set(prohibitedCalls)
+const prohibitedCallNames = new Set(prohibitedCalls)
+
+/**
+ * Why an access of the name is refused, or `null` when it is allowed: a
+ * member function a module may not call where the access is a method
+ * call's callee, `method`, and a name of the prototype chain where it is
+ * read — the two rules of `fjs/js/prototype`'s two lists.
+ *
+ * Exported for the writer in [`../serializer`](../serializer/module.f.mjs),
+ * which refuses the same accesses rather than write one the parser here
+ * would not read back: the rule is the language's, and it has one owner,
+ * each consumer wrapping the answer in its own error. The `_` says that
+ * export is linkage rather than API, as it does for `_tokenKindNames` in
+ * [`./grammar`](./grammar/module.f.mjs).
+ *
+ * @type {(method: boolean) => (name: string) => 'member function' | 'property name' | null}
+ */
+export const _prohibitedAccess = method => name =>
+    method
+        ? (prohibitedCallNames.has(name) ? 'member function' : null)
+        : (prohibitedNames.has(name) ? 'property name' : null)
 
 /** What an access's key token names: a name's word, the string's text, or the number. @type {(t: DjsTokenWithMetadata) => string | number} */
 const keyNamed = t => {
@@ -462,15 +475,16 @@ const keyEntered = (stack, scope, [, node, first], frame) => isConversion(node)
 /**
  * A key's name, or its refusal: a name of the prototype chain where the
  * key is read, and a member function a module may not call where it is
- * called, `method` — the two rules of `fjs/js/prototype`'s two lists.
+ * called, `method`, as {@link _prohibitedAccess} answers.
  *
  * @type {(key: DjsTokenWithMetadata, method: boolean) => Result<string | number, ParseError>}
  */
 const checkedKey = (key, method) => {
     const named = keyNamed(key)
     if (typeof named === 'string') {
-        if (method && _prohibitedCallNames.has(named)) { return error(prohibitedCall(key)) }
-        if (!method && _prohibitedNames.has(named)) { return error(prohibitedKey(key)) }
+        const why = _prohibitedAccess(method)(named)
+        if (why === 'member function') { return error(prohibitedCall(key)) }
+        if (why === 'property name') { return error(prohibitedKey(key)) }
     }
     return ok(named)
 }
@@ -656,6 +670,15 @@ const lowered = ({ reads, names }, value, base) => ({
         (([token, i]) => [nameOf(token), ['cref', base + i]])),
 })
 
+/**
+ * A counting frame past its operand: the next one's position, and what
+ * the operand made appended to the ones before it — one value, or the
+ * entries a block body's statement lowers to.
+ *
+ * @type {<T, F>(frame: F & _Counted<T>, made: readonly NoInfer<T>[]) => F}
+ */
+const advanced = (frame, made) => ({ ...frame, index: frame.index + 1, done: concat(frame.done)(made) })
+
 /** Whether the step after a key makes the key a call's: any step but a property. @type {(step: Step | undefined) => boolean} */
 const isCallStep = step => step !== undefined && step[0] !== '|.'
 
@@ -731,7 +754,7 @@ const chainRound = (stack, scope, frame) => {
     if (key instanceof Array) { return keyEntered(stack, scope, key, frame) }
     const [tag, named] = checkedKey(key, part.method)
     if (tag === 'error') { return [stack, scope, error(named)] }
-    return chainRound(stack, scope, { ...frame, index: index + 1, done: concat(frame.done)([named]) })
+    return chainRound(stack, scope, advanced(frame, [named]))
 }
 
 /**
@@ -875,10 +898,10 @@ const round = (stack, scope, frame) => {
  * @type {(stack: _Stack, scope: _Scope, frame: _ContainerFrame, value: AstConst) => _State}
  */
 const containerReturned = (stack, scope, frame, value) => {
-    const { container, index, done, key } = frame
+    const { container, index, key } = frame
     return computedKeyAt(container, index) !== null && key === null
         ? round(stack, scope, { ...frame, key: [value] })
-        : round(stack, scope, { ...frame, index: index + 1, done: concat(done)([containerValue(container, index, key, value)]), key: null })
+        : round(stack, scope, { ...advanced(frame, [containerValue(container, index, key, value)]), key: null })
 }
 
 /**
@@ -1458,8 +1481,8 @@ const entered = (stack, scope, node, self) => {
  */
 const returned = (stack, scope, frame, value) => {
     if ('container' in frame) { return containerReturned(stack, scope, frame, value) }
-    if ('call' in frame) { return callRound(stack, scope, { ...frame, index: frame.index + 1, done: concat(frame.done)([callValue(frame.call, frame.index, value)]) }) }
-    if ('conditional' in frame) { return conditionalRound(stack, scope, { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) }) }
+    if ('call' in frame) { return callRound(stack, scope, advanced(frame, [callValue(frame.call, frame.index, value)])) }
+    if ('conditional' in frame) { return conditionalRound(stack, scope, advanced(frame, [value])) }
     if ('key' in frame) {
         const { key, method } = frame
         return key instanceof Array ? keyEntered(stack, scope, key, { indexed: value }) : [stack, scope, accessClosed(key, method, value)]
@@ -1469,7 +1492,7 @@ const returned = (stack, scope, frame, value) => {
         const access = ['.', frame.indexed, /** @type {AstKey} */ (value)]
         return [stack, scope, ok(access)]
     }
-    if ('chain' in frame) { return chainRound(stack, scope, { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) }) }
+    if ('chain' in frame) { return chainRound(stack, scope, advanced(frame, [value])) }
     if ('unary' in frame) {
         /** @type {AstUnary} */
         const applied = [frame.unary, value]
@@ -1537,14 +1560,14 @@ const returned = (stack, scope, frame, value) => {
             return loopRound(
                 stack,
                 { ...scope, names: bound.reduce((names, [word, ref]) => extended(names)(word, ref), scope.names) },
-                { ...frame, index: frame.index + 1, entries: frame.entries + entries.length, done: concat(frame.done)(entries) })
+                { ...advanced(frame, entries), entries: frame.entries + entries.length })
         }
         // an assignment rebinds the loop's variable, which the block may
         // have read already: a new entry the word names from here on
         return loopRound(
             stack,
             { ...scope, names: extended(scope.names)(frame.word, ['cref', frame.entries]) },
-            { ...frame, index: frame.index + 1, entries: frame.entries + 1, done: concat(frame.done)([value]) })
+            { ...advanced(frame, [value]), entries: frame.entries + 1 })
     }
     if ('statements' in frame) {
         const [kind, statement] = frame.statements[frame.index]
@@ -1561,7 +1584,7 @@ const returned = (stack, scope, frame, value) => {
             return bodyRound(
                 stack,
                 { ...scope, names: bound.reduce((names, [word, ref]) => extended(names)(word, ref), scope.names) },
-                { ...frame, index: frame.index + 1, entries: frame.entries + entries.length, done: concat(frame.done)(entries) })
+                { ...advanced(frame, entries), entries: frame.entries + entries.length })
         }
         // a guard's condition: its block is the first arm, a block of
         // JavaScript's own, so it may bind what the body has bound or read

@@ -74,9 +74,36 @@ and `_BodyFrame` share one base with the payload that differs.
 
 ### Tasks
 
-- [ ] `_Operands` for the four kinds; `advance`; `round`/`callRound`/
-      `conditionalRound`/`bodyRound` collapse into one round over it.
-- [ ] `tsc`, `fjs test`; the parser proofs pass unchanged.
+- [x] `advanced` — the step past an operand — written once, over a shared
+      `_Counted<T>` base (`index`, `done`) that `_ContainerFrame`,
+      `_CallFrame`, `_ChainFrame`, `_ConditionalFrame`, `_BodyFrame` and
+      `_LoopBodyFrame` extend; every site that spelled the step uses it.
+- [ ] `_Operands` for the kinds; `round`/`callRound`/`conditionalRound`/
+      `bodyRound` collapse into one round over it.
+- [x] `tsc`, `fjs test`; the parser proofs pass unchanged.
+
+### What remains, and why it waited
+
+The rounds have drifted from the sketch since it was written, and the
+table no longer fits them as data:
+
+- a container enters a computed key and then the value at the same
+  `index`, holding the key in `key` between them, so its step is not one
+  operand per round;
+- a chain judges a constant key in the round itself and steps past it
+  without entering anything;
+- a block body's round chooses among six statement kinds, and a `let`
+  pushes a `_LetFrame` rather than the body's own frame; a body (and a
+  loop's block) closes through `closed`, which rewrites the stack and the
+  scope, not by building a node; and a statement's step appends the
+  several entries it lowers to and counts them in `entries`.
+
+`enter`/`close` hooks wide enough for all of that return a whole
+`_State`, at which point the table is the four rounds behind one more
+indirection. Calls and conditionals are the two kinds the table fits
+as written; collapsing only those two is the smallest next step, and a
+new counting frame ([statement-aware-intrinsics](./statement-aware-intrinsics.md))
+is the point to decide whether the table pays for itself.
 
 ### Related
 

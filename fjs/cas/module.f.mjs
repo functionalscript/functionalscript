@@ -141,6 +141,15 @@ const stageName = (deadline, rnd) =>
  */
 const deadlineOf = name => Number(name.slice(0, name.indexOf('-')))
 
+/** A staging path whose embedded deadline is `leaseDelta` ms in the future:
+ * the one place a lease is (re)issued, whether by the initial create or by a
+ * renewal.
+ *
+ * @type {(stageDir: string) => (rnd: string) => Effect<Now, string>}
+ */
+const freshStagePath = stageDir => rnd =>
+    ioMapStep(now(), t => join(stageDir, stageName(t + leaseDelta, rnd)))
+
 /**
  * Reclaims expired staging files: any `_stage/<deadline>-<rand>` whose deadline
  * is already in the past. Lazy and piggy-backed on `write`. Best-effort — a
@@ -222,7 +231,7 @@ const writeImpl = (sha2, path, stageDir, payload) => {
         resultMapStep(rm(curPath), () => error(e))
     const rndEffect = ioStep(gcStage(stageDir), () => random256)
     return ioStep(rndEffect, rnd => {
-        const rndStr = vecToCBase32(rnd)
+        const freshPath = freshStagePath(stageDir)(vecToCBase32(rnd))
         /** @type {(state: Sha2State, offset: number, curPath: string) => (stream: EffectList<O1, Vec, IoChannel>) => Effect<O1 | FileCasOperation, Vec, IoChannel>} */
         const loop = (state, offset, curPath) =>
             stream =>
@@ -247,11 +256,8 @@ const writeImpl = (sha2, path, stageDir, payload) => {
                         // Renew the lease: rename to a fresh deadline (keeps `delta` constant).
                         // The new path is still needed after the rename, to recurse with,
                         // so the rename captures it rather than closing over it.
-                        const nextPath = ioMapStep(
-                            now(),
-                            t => join(stageDir, stageName(t + leaseDelta, rndStr)))
                         const renamed = historyStep(
-                            history(nextPath),
+                            history(freshPath),
                             next => rename(curPath, next))
                         return resultStep(
                             renamed,
@@ -262,13 +268,9 @@ const writeImpl = (sha2, path, stageDir, payload) => {
                             })
                     })
                 })
-        const started = ioStep(mkdir(stageDir, { recursive: true }), () => now())
-        return ioStep(started, t0 => {
-            const path0 = join(stageDir, stageName(t0 + leaseDelta, rndStr))
-            return ioStep(
-                createExclusive(path0),
-                () => loop(sha2.init, 0, path0)(payload))
-        })
+        const started = ioStep(mkdir(stageDir, { recursive: true }), () => freshPath)
+        const created = historyStep(history(started), path0 => createExclusive(path0))
+        return ioStep(created, ([, path0]) => loop(sha2.init, 0, path0)(payload))
     })
 }
 

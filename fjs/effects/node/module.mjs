@@ -35,7 +35,7 @@ import zlib from 'node:zlib'
 import { once } from 'node:events'
 import * as testContext from 'node:test'
 
-import { concat, normalize, toPosix } from '../../path/module.f.mjs'
+import { normalize, toPosix } from '../../path/module.f.mjs'
 import { decode as decodeImportPath } from '../../path/import/module.f.mjs'
 import { _describeThrown, asyncRun } from '../module.mjs'
 import { memoryOperationMap } from './memory/module.mjs'
@@ -551,13 +551,17 @@ const textEncoder = new TextEncoder()
 
 const emptyBody = new Uint8Array()
 
-const prefix = /** @type {const} */ ('file:///')
-
-/** @type {(v: string) => Promise<Module>} */
+/**
+ * What `import()` loads for the `import` operation's argument: a `file:` URL
+ * as it is, escapes, query and fragment kept, and anything else as a
+ * filesystem path, relative ones against the working directory. Only `file:`
+ * is a URL here, so a drive letter or a relative name holding `:` stays a path.
+ *
+ * @type {(v: string) => Promise<Module>}
+ */
 const asyncImport = v => {
-    const s0 = v.includes(':') ? v : concat(process.cwd())(v)
-    const s1 = s0.startsWith(prefix) ? s0 : `${prefix}${s0}`
-    return import(s1)
+    const url = URL.parse(v)
+    return import((url?.protocol === 'file:' ? url : pathToFileURL(v)).href)
 }
 
 

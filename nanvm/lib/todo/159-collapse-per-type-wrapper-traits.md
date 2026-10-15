@@ -60,39 +60,7 @@ fn eq(&self, other: &Self) -> bool { self.0.items_eq(&other.0) }
 helper trait would carry. `BigInt` additionally implements `Eq`
 (`bigint/partial_eq.rs`), so the structural arm must allow that.
 
-### 3. `ordinary_to_primitive` — plain function dedup (no macro)
-
-`vm/primitive_coercion.rs` has three structurally identical functions —
-`obj_to_primitive`, `arr_to_primitive`, `fn_to_primitive` — differing only in
-the operand type and which `*_to_string` helper the `None` branch uses.
-`value_of` is already generic over `T`,
-so only the to-string side needs threading:
-
-```rust
-fn ordinary_to_primitive<A: IVm, T: Clone>(
-    v: T,
-    preferred: ToPrimitivePreferredType,
-    to_string: impl FnOnce(T) -> Option<Result<Primitive<A>, Any<A>>>,
-) -> Result<Primitive<A>, Any<A>> { /* shared number/string-first dispatch */ }
-```
-
-`FnOnce`, not `Fn`: each branch calls `to_string` at most once, so the
-weaker bound admits every caller. The three public functions become
-one-line wrappers passing `obj_to_string` / `arr_to_string` /
-`fn_to_string`. This is the lowest-risk item — no macro, just a generic
-helper — and the timing matters more than the size: when user-defined
-`valueOf`/`toString` lands (the `TODO`s in `value_of` and the three
-`*_to_string` helpers of `primitive_coercion.rs`), the spec's
-method-ordering rule must otherwise change in three places in lockstep, and
-a divergence is a silent spec bug for one reference type only.
-
-The three `Dispatch` arms calling these (`object`, `array` and `function` of
-`PrimitiveCoercionOp`) also each re-spell
-`self.0.unwrap_or(ToPrimitivePreferredType::Number)` with the same
-spec-reference comment; hoist that default into one accessor on
-`PrimitiveCoercionOp` in the same change.
-
-### 4. `IntoIterator`, `Default`, and the `ToX` constructor traits — same axis, missing from the inventory
+### 3. `IntoIterator`, `Default`, and the `ToX` constructor traits — same axis, missing from the inventory
 
 Three more trait families follow the exact "one impl per nominal newtype,
 byte-identical modulo names" shape and must ride whatever mechanism items
@@ -136,9 +104,8 @@ shared table), or accepting the duplication (rung 3).
 - Already-correct abstractions to leave alone: `IContainer` defaults,
   `ContainerFmt`, the bigint `abs_*_vec` helpers, and the `Dispatch` visitor
   (`vm/dispatch.rs`).
-- The hand-written primitive-coercion dispatch matches are filed separately
-  as [primitive-coercion-dispatch](./primitive-coercion-dispatch.md) — they
-  are plain-code fixes, independent of the trait-boilerplate mechanism here.
+- The hand-written primitive-coercion dispatch matches are gone: the coercions
+  implement `PrimitiveDispatch` (`vm/primitive_dispatch.rs`).
 
 ### Related
 
@@ -152,5 +119,3 @@ shared table), or accepting the duplication (rung 3).
   rather than on the VM traits.
 - [65Y-nanvm-conversion-macros](./65y-nanvm-conversion-macros.md) — the
   `From`/`TryFrom` families on the same axis, and the no-macro constraint.
-- [primitive-coercion-dispatch](./primitive-coercion-dispatch.md) — the
-  coercion dispatch note previously in this file's Notes section.

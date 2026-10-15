@@ -1,13 +1,10 @@
 import { at, first, last, head, tail, splitFirst, splitLast, empty, includes, repeat, dedup, assoc, occurrences } from './module.f.mjs'
-import { stringify as jsonStringify } from '../../media/json/module.f.mjs'
-import { sort } from '../object/module.f.mjs'
+import { stringifySorted } from '../../media/json/module.f.mjs'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
-
-const stringify = jsonStringify(sort)
 
 export const proof = {
     stringify: () => {
-        const result = stringify([1, 20, 300])
+        const result = stringifySorted([1, 20, 300])
         assertEq(result, '[1,20,300]')
     },
     at: [
@@ -44,7 +41,7 @@ export const proof = {
     head: [
         () => {
             const result = assertNotNullish(head([1, 20, 300]))
-            const str = stringify(result)
+            const str = stringifySorted(result)
             assertEq(str, '[1,20]')
         },
         () => {
@@ -55,7 +52,7 @@ export const proof = {
     tail: [
         () => {
             const result = tail([1, 20, 300])
-            const str = stringify(result)
+            const str = stringifySorted(result)
             assertEq(str, '[20,300]')
         },
         () => {
@@ -67,7 +64,7 @@ export const proof = {
     splitFirst: [
         () => {
             const result = splitFirst([1, 20, 300])
-            const str = stringify(result)
+            const str = stringifySorted(result)
             assertEq(str, '[1,[20,300]]')
         },
         () => {
@@ -92,7 +89,7 @@ export const proof = {
     splitLast: [
         () => {
             const result = splitLast([1, 20, 300])
-            const str = stringify(result)
+            const str = stringifySorted(result)
             assertEq(str, '[[1,20],300]')
         },
         () => {

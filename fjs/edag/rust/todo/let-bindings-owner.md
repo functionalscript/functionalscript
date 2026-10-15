@@ -8,8 +8,10 @@
 [`module.f.mjs`](../module.f.mjs)'s doc says the binding mechanism — "a
 `let` per node, one line, one expression, each referenced by name where it
 is used" — "lives here once rather than drifting between two copies". It
-owns the temporaries a scope binds, `letLine` in `printer`, and the
-`indent` both callers import; the line that spells a *caller's* binding —
+owns the temporaries a scope binds, `letLine` in `printer`, and imports
+the `indent` both callers use from
+[`fjs/media/rust/item`](../../../media/rust/item/module.f.mjs); the line
+that spells a *caller's* binding —
 the corpus's named shared value, whose initializer is printed against the
 bindings before it — is still written by `fjs/nanvm/rust`:
 
@@ -21,12 +23,12 @@ bindings before it — is still written by `fjs/nanvm/rust`:
 ```
 
 Both callers also emit `'#[rustfmt::skip]'` immediately before a
-`fn …<A: IVm>` line and document at length why, and both join a
-`// @generated` header over the lines. `fjs/media/rust` deliberately stops
-at literals. The binding mechanism takes an `Exp` and belongs here;
-string-only item wrappers and headers belong in
-[rust-item-helpers](../../../nanvm/todo/rust-item-helpers.md)'s EDAG-free
-item module.
+`fn …<A: IVm>` line and document at length why, and both open with the
+`generatedHeader` of
+[`fjs/media/rust/item`](../../../media/rust/item/module.f.mjs).
+`fjs/media/rust` deliberately stops at literals. The binding mechanism
+takes an `Exp` and belongs here; string-only item wrappers and headers
+belong in that EDAG-free item module.
 
 ### Proposal
 
@@ -59,15 +61,14 @@ in `nanvm/lib/tests/test/main.rs` covers the generated file. If that lands,
 `fjs/compiler/rust`'s module alone may not justify a `skipFn` helper.
 Which policy the corpus follows is undecided. The retained helper's owner
 is settled: it consumes strings and already-rendered lines, so it belongs
-in [rust-item-helpers](../../../nanvm/todo/rust-item-helpers.md)'s item
-module. That issue also moves `indent` there, below this printer, which
-then imports it.
+in the item module, `fjs/media/rust/item`, which already owns `indent`
+below this printer.
 
 ### Tasks
 
 - [ ] `letBindings` in `fjs/edag/rust` with proofs; move `nanvm/rust`'s
-      named bindings onto it. Import `indent` from the item module
-      rust-item-helpers adds; both printers use that indentation.
+      named bindings onto it, keeping the item module's `indent`, which
+      both printers use.
 - [ ] Preserve `scopeTagged`'s temporary-binding marks and existing
       `toRustMarked` proofs: `let` is a keyword, initializer strings,
       numbers and literal words keep their kinds, the marked text equals
@@ -84,8 +85,8 @@ then imports it.
 - [`fjs/js/string_escape`](../../../js/string_escape/module.f.mjs)'s
   `stringLiteral` — the same principle for string literals, done; this is
   the item layer.
-- [rust-item-helpers](../../../nanvm/todo/rust-item-helpers.md) — owns
-  `indent` and the string-only `skipFn` wrapper if retained.
+- [`fjs/media/rust/item`](../../../media/rust/item/module.f.mjs) — owns
+  `indent`, and the string-only `skipFn` wrapper if retained.
 - [generated-rust-module-rustfmt-skip](../../../../nanvm/lib/todo/generated-rust-module-rustfmt-skip.md)
   — proposes the corpus stop emitting `#[rustfmt::skip]` per function, which
   `skipFn` would keep; see the open question above.

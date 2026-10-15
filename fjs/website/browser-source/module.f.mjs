@@ -11,6 +11,8 @@
  * @module
  */
 
+import { specifierKind } from '../../path/import/module.f.mjs'
+
 /**
  * The characters a name is spelled with. A name outside this set — a Unicode
  * identifier, a quoted export name — reads as punctuation and so never matches
@@ -229,5 +231,16 @@ export const specifiers = source => {
     })
 }
 
-/** @type {(specifier: string) => boolean} */
-export const local = specifier => specifier.startsWith('./') || specifier.startsWith('../')
+/**
+ * Whether a specifier names a module in the graph the generator scans: one
+ * {@link specifierKind} calls `'relative'`.
+ *
+ * **A rooted specifier is not local, by choice.** The graph is keyed by
+ * repository-relative paths, and `/dep.mjs` names a location under the
+ * browser's origin that the scan cannot map to a file. Following it would
+ * point an edge at a path the graph never reads — a silent omission — where
+ * leaving it out keeps it a listed blocker.
+ *
+ * @type {(specifier: string) => boolean}
+ */
+export const local = specifier => specifierKind(specifier) === 'relative'

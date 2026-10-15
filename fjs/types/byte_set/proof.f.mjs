@@ -1,15 +1,7 @@
-/**
- * @import { Unknown } from '../../media/json/types.ts'
- */
-
 import { has, empty, set, setRange, unset, universe, complement, toRangeMap } from './module.f.mjs'
 import { every, countdown, map, toArray } from '../list/module.f.mjs'
-import { stringify as jsonStringify } from '../../media/json/module.f.mjs'
-import { sort } from '../object/module.f.mjs'
+import { stringifySorted } from '../../media/json/module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
-
-/** @type {(a: readonly Unknown[]) => string} */
-const stringify = jsonStringify(sort)
 
 export const proof = {
     has: [
@@ -77,21 +69,21 @@ export const proof = {
     },
     toRangeMap: [
         () => {
-            const result = stringify(toArray(toRangeMap(empty)))
+            const result = stringifySorted(toArray(toRangeMap(empty)))
             assertEq(result, '[]')
         },
         () => {
             const s = set(0)(empty)
-            const result = stringify(toArray(toRangeMap(s)))
+            const result = stringifySorted(toArray(toRangeMap(s)))
             assertEq(result, '[[true,0]]')
         },
         () => {
             const s = setRange([1, 2])(empty)
-            const result = stringify(toArray(toRangeMap(s)))
+            const result = stringifySorted(toArray(toRangeMap(s)))
             assertEq(result, '[[false,0],[true,2]]')
         },
         () => {
-            const result = stringify(toArray(toRangeMap(universe)))
+            const result = stringifySorted(toArray(toRangeMap(universe)))
             assertEq(result, '[[true,255]]')
         },
     ]

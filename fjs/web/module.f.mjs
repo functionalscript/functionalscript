@@ -253,7 +253,10 @@ const served = root => root === '' ? '.' : root
 const notFoundMessage = 'not found'
 
 /**
- * Maps a request URL to a path under `root`, or explains why none exists.
+ * Maps a parsed request target to a path under `root`, or explains why none
+ * exists. `null` is the malformed-URL refusal: a target that did not parse
+ * names no path. {@link resolve} and {@link respond} both reach this, so that
+ * refusal is stated once, and {@link respond} parses its target once.
  *
  * A directory request — a path ending in `/`, including the bare `/` — is
  * answered with its `index.html`, which is what makes a generated site browsable
@@ -298,24 +301,38 @@ const notFoundMessage = 'not found'
  * it became expressible once `normalize` began keeping roots, and is still not
  * what is done.
  *
+ * @type {(root: string) => (target: Nullable<{ readonly path: string }>) => Result<Resolved, Refusal>}
+ */
+const resolveParsed = root => {
+    const base = served(root)
+    return target => {
+        if (target === null) { return refuse(400)('malformed request URL') }
+        const decoded = percentDecode(target.path)
+        if (decoded === null || decoded.includes(nul)) { return refuse(400)('malformed request URL') }
+        const segments = parse(decoded)
+        // `escapes`, not a `..` among `segments` — see the traversal note above.
+        // `/a/../b` collapses and is served; `/../b` escapes and is not.
+        if (escapes(decoded)) { return refuse(400)('request path escapes the served root') }
+        if (segments.some(isHidden)) { return refuse(404)(notFoundMessage) }
+        const isDirectory = segments.length === 0 || decoded.endsWith('/')
+        if (!isDirectory) { return ok({ path: join(base, ...segments), notFound: notFoundMessage }) }
+        // `percentDecode` accepted this path above, so the encoder does too.
+        const echo = unwrap(percentEncodePath(target.path))
+        return ok({ path: join(base, ...segments, 'index.html'), notFound: `no index.html in ${echo}` })
+    }
+}
+
+/**
+ * Maps a request URL to a path under `root`, or explains why none exists —
+ * {@link resolveParsed} over the URL as {@link parseTarget} reads it. This is
+ * the published entry point: `parseTarget` is private, so a caller holding a
+ * URL string has no other way to reach the parser `respond` uses.
+ *
  * @type {Resolve}
  */
-export const resolve = root => url => {
-    const base = served(root)
-    const target = parseTarget(url)
-    if (target === null) { return refuse(400)('malformed request URL') }
-    const decoded = percentDecode(target.path)
-    if (decoded === null || decoded.includes(nul)) { return refuse(400)('malformed request URL') }
-    const segments = parse(decoded)
-    // `escapes`, not a `..` among `segments` — see the traversal note above.
-    // `/a/../b` collapses and is served; `/../b` escapes and is not.
-    if (escapes(decoded)) { return refuse(400)('request path escapes the served root') }
-    if (segments.some(isHidden)) { return refuse(404)(notFoundMessage) }
-    const isDirectory = segments.length === 0 || decoded.endsWith('/')
-    if (!isDirectory) { return ok({ path: join(base, ...segments), notFound: notFoundMessage }) }
-    // `percentDecode` accepted this path above, so the encoder does too.
-    const echo = unwrap(percentEncodePath(target.path))
-    return ok({ path: join(base, ...segments, 'index.html'), notFound: `no index.html in ${echo}` })
+export const resolve = root => {
+    const r = resolveParsed(root)
+    return url => r(parseTarget(url))
 }
 
 // ── Answering ─────────────────────────────────────────────────────────────────
@@ -663,29 +680,35 @@ const answer = root => ({ path, notFound }) => e => {
  *
  * @type {Respond}
  */
-export const respond = root => ({ method, url, headers }) => {
-    // Before anything else, including what method it is: a request for a name
-    // this server does not answer for is not a request to be interpreted.
-    //
-    // An absolute-form target carries the name itself, and RFC 9112 §3.2.2 says
-    // an origin server must believe *it* over the `Host` header — a proxy
-    // rewrites one and not the other, so the target is the one the client meant.
-    const target = parseTarget(url)
-    const host = target === null || target.authority === null ? headers.host : target.authority
-    if (!isServedHost(host)) { return pureOk(plainText(403)('host not served')) }
-    if (method !== 'GET' && method !== 'HEAD') { return pureOk(methodNotAllowed()) }
-    const resolved = resolve(root)(url)
-    if (resolved[0] === 'error') {
-        const { status, message } = resolved[1]
-        return pureOk(plainText(status)(message))
+export const respond = root => {
+    const resolveTarget = resolveParsed(root)
+    const answerFailure = answer(root)
+    return ({ method, url, headers }) => {
+        // Before anything else, including what method it is: a request for a name
+        // this server does not answer for is not a request to be interpreted.
+        //
+        // An absolute-form target carries the name itself, and RFC 9112 §3.2.2 says
+        // an origin server must believe *it* over the `Host` header — a proxy
+        // rewrites one and not the other, so the target is the one the client meant.
+        const target = parseTarget(url)
+        const host = target === null || target.authority === null ? headers.host : target.authority
+        if (!isServedHost(host)) { return pureOk(plainText(403)('host not served')) }
+        if (method !== 'GET' && method !== 'HEAD') { return pureOk(methodNotAllowed()) }
+        // A `null` target reaches the resolver too: it is the malformed-URL
+        // `400` there, and here only the reason to read the `Host` header.
+        const resolved = resolveTarget(target)
+        if (resolved[0] === 'error') {
+            const { status, message } = resolved[1]
+            return pureOk(plainText(status)(message))
+        }
+        // One `open`, and every question after it is asked of what that open
+        // resolved — see {@link openResponse}. Its failure is the only one this chain
+        // carries, and {@link answer} is where it becomes a status. Every `404` on
+        // the way carries the one sentence `resolve` chose, so no two kinds of
+        // absence answer differently.
+        const described = step(open(resolved[1].path), openResponse(resolved[1]))
+        return catchStep(described, answerFailure(resolved[1]))
     }
-    // One `open`, and every question after it is asked of what that open
-    // resolved — see {@link openResponse}. Its failure is the only one this chain
-    // carries, and {@link answer} is where it becomes a status. Every `404` on
-    // the way carries the one sentence `resolve` chose, so no two kinds of
-    // absence answer differently.
-    const described = step(open(resolved[1].path), openResponse(resolved[1]))
-    return catchStep(described, answer(root)(resolved[1]))
 }
 
 // ── The program ───────────────────────────────────────────────────────────────

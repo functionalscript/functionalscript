@@ -22,6 +22,7 @@ mod object_spread;
 mod position;
 mod primitive;
 mod primitive_coercion;
+mod primitive_dispatch;
 mod runtime;
 mod string;
 mod string_coercion;

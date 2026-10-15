@@ -42,6 +42,7 @@ use crate::vm::{
     numeric_coercion,
     primitive::Primitive,
     primitive_coercion::{PrimitiveCoercionOp, ToPrimitivePreferredType},
+    primitive_dispatch::ViaPrimitive,
     string_coercion::StringCoercion,
 };
 
@@ -196,7 +197,7 @@ impl<A: IVm> Any<A> {
     }
 
     pub fn to_string(self) -> Result<String<A>, Any<A>> {
-        self.dispatch(StringCoercion)
+        self.dispatch(ViaPrimitive(StringCoercion))
     }
 
     /// `ToString` where the algorithm discards the result: its throws still
@@ -215,7 +216,7 @@ impl<A: IVm> Any<A> {
     }
 
     pub fn to_number(self) -> Result<Number, Any<A>> {
-        self.dispatch(NumberCoercion)
+        self.dispatch(ViaPrimitive(NumberCoercion))
     }
 
     /// Never fails, unlike `to_number`/`to_string`/`to_numeric` — `ToBoolean`

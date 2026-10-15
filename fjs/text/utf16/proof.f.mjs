@@ -13,14 +13,13 @@ import {
     floorCodePointBoundary,
     isWellFormed,
 } from './module.f.mjs'
-import { stringify as jsonStringify } from '../../media/json/module.f.mjs'
-import { sort } from '../../types/object/module.f.mjs'
+import { stringifySorted } from '../../media/json/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
 
 /** @type {(a: readonly Unknown[]) => string} */
 const stringify = a =>
-    jsonStringify(sort)(a)
+    stringifySorted(a)
 
 export const proof = {
     toCodePointList: [

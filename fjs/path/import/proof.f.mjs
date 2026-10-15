@@ -1,7 +1,20 @@
-import { resolve, decode } from './module.f.mjs'
+import { resolve, decode, specifierKind } from './module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
 
 export const proof = {
+    // The kind is read from the spelling alone; `//` is rooted here and
+    // refused by `decode`, and a dot that does not start `./` or `../` is bare.
+    specifierKind: () => {
+        for (const specifier of ['./dep.f.js', '../dep.f.js', './', '../', '.././x']) {
+            assertEq(specifierKind(specifier), 'relative', specifier)
+        }
+        for (const specifier of ['/dep.f.js', '/', '//x/dep.f.js', '///x']) {
+            assertEq(specifierKind(specifier), 'rooted', specifier)
+        }
+        for (const specifier of ['dep.f.js', '', '.', '..', '.dep', '...', '..dep/x', 'node:fs', 'https://x/dep.f.js', '\\x\\dep.f.js']) {
+            assertEq(specifierKind(specifier), 'bare', specifier)
+        }
+    },
     decode: () => assertEq(decode('./%64ep.f.js'), 'dep.f.js'),
     // Only the specifier is decoded, once; the importer's filesystem root stays put.
     importPath: () => {

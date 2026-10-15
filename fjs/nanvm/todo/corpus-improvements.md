@@ -28,10 +28,6 @@ an item that needs a decision says so.
   `memo` and the native interpreter:
   [corpus-as-conformance-vectors](./corpus-as-conformance-vectors.md).
 - The `#[should_panic]` set: [should-panic-per-vm](./should-panic-per-vm.md).
-- Refactoring the generators' shared Rust item text, which includes
-  `expectedModules`: the `rust-item-helpers` issue that
-  [pull request 2797](https://github.com/functionalscript/functionalscript/pull/2797)
-  files, once it lands.
 - Default function text (the `function-text` exception): the "default-text
   observations" task of `callable-function-objects.md`.
 - Host resource failures such as an oversized BigInt shift:

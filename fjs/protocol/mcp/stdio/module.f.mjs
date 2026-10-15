@@ -39,11 +39,8 @@
 import { pureError, pureOk, resultStep, step } from '../../../effects/module.f.mjs'
 import { ioError, readLine, write } from '../../../effects/node/module.f.mjs'
 import { tryUtf8 } from '../../../text/module.f.mjs'
-import { parse, stringify } from '../../../media/json/module.f.mjs'
-import { sort } from '../../../types/object/module.f.mjs'
+import { parse, stringifySorted } from '../../../media/json/module.f.mjs'
 import { errorResponseOf, internalError, parseError } from '../../json_rpc/module.f.mjs'
-
-const stringifyJson = stringify(sort)
 
 /** The parse-error response (`-32700`, `id: null`) for a malformed input line. */
 const parseErrorResponse = errorResponseOf(null)(parseError)
@@ -57,7 +54,7 @@ const internalErrorResponse = id => errorResponseOf(id)(internalError)
  * @type {(resp: Response) => Effect<Write, void, IoChannel>}
  */
 const writeResponse = resp => {
-    const v = tryUtf8(stringifyJson(resp) + '\n')
+    const v = tryUtf8(stringifySorted(resp) + '\n')
     return v === null
         ? pureError(ioError({ message: 'response does not encode as UTF-8' }))
         : write('stdout', v)

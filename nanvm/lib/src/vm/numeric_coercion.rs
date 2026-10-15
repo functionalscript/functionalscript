@@ -1,6 +1,6 @@
 use crate::vm::{
-    Any, IVm, dispatch::Dispatch, number_coercion::NumberCoercion, numeric::Numeric,
-    primitive::Primitive,
+    Any, IVm, number_coercion::NumberCoercion, numeric::Numeric, primitive::Primitive,
+    primitive_dispatch::PrimitiveDispatch,
 };
 
 /// `ToNumeric` of a value already known to be primitive: a `BigInt` stays one,
