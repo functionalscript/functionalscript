@@ -159,7 +159,7 @@ import { arrayWrap, colon, objectWrap, wrap } from '../../media/json/serializer/
 import { first, flat, toArray } from '../../types/list/module.f.mjs'
 import { definedValues } from '../../types/object/module.f.mjs'
 import { eagerLayers, lazyLayers } from '../ast/module.f.mjs'
-import { _prohibitedCallNames, _prohibitedNames } from '../parser/module.f.mjs'
+import { _prohibitedAccess } from '../parser/module.f.mjs'
 import { isIdentifier } from '../../js/identifier/module.f.mjs'
 import { chunkStrings, chunksMarked, chunkText, chunksText, keyword, literal, withNames } from '../../text/marked/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
@@ -679,8 +679,8 @@ const conversion = (s, path, lazy, tag) => v => mapOk(
  */
 const key = (s, path, lazy) => method => k => {
     if (typeof k === 'string') {
-        if (method && _prohibitedCallNames.has(k)) { return error('a prohibited member function') }
-        if (!method && _prohibitedNames.has(k)) { return error('a prohibited property name') }
+        const why = _prohibitedAccess(method)(k)
+        if (why !== null) { return error(`a prohibited ${why}`) }
         return isIdentifier(k) ? ok([`.${k}`]) : bracketed(k)
     }
     if (typeof k === 'number') {
