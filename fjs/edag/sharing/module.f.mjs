@@ -96,10 +96,10 @@ export const members = list => list.flatMap(x => isMember(x) ? /** @type {readon
  * ordinary expressions over immutable arrays.
  *
  * `operands` says which of a node's items the walk descends into: a
- * scope's own, {@link operandsOf}, or more, as a caller asks. Every
- * question asked of a graph is asked of this one walk — sharing, an `args`
- * read, a function held — since any other walk over a shared graph pays
- * that exponential.
+ * scope's own, {@link operandsOf}, or more, as a caller asks. The Rust
+ * printer asks every question of a graph of this one walk — sharing, an
+ * `args` read, a function held — since a walk with no memo of the nodes it
+ * has met pays that exponential.
  *
  * @type {(operands: (node: readonly unknown[]) => readonly unknown[]) => (visited: readonly (readonly [node: Exp, count: number])[]) => (root: unknown) => readonly (readonly [node: Exp, count: number])[]}
  */
