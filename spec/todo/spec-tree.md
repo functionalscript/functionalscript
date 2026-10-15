@@ -38,6 +38,49 @@ cross-cutting index and links the pages.
 `todo/` and the example that will show it. The tree is then the roadmap as
 well: the gaps are visible as empty pages.
 
+### What a page holds
+
+**No page says "allowed unless forbidden".** FunctionalScript is a whitelist
+([principles](../README.md#principles)), so every JavaScript feature gets a
+page that says which side of the line it is on, and the tree's coverage is
+checked against the ECMAScript feature list: a feature with no page is a gap,
+not a default. A page is one of two kinds.
+
+**An included feature** (JavaScript that FunctionalScript keeps):
+
+1. What the feature is and the exact form accepted, with the restrictions that
+   narrow JavaScript's.
+2. Examples, each shown with the compiler's real output for every output
+   (`.json`, `.data.js`, `.js`, EDAG, Rust), including the outputs that refuse
+   it and why.
+3. A status line. If the feature is **not implemented yet**, the page says so in
+   its text, and its examples show what the compiler does *today* — a refusal
+   or a wrong output — not what it will do. The proof pins that output, so the
+   day the feature lands the proof fails and the page is updated with it,
+   never silently out of date.
+
+**A refused feature** (valid JavaScript that FunctionalScript rejects):
+
+1. What is refused, as a program that fails, shown with the compiler's own
+   refusal.
+2. **Why** — the rationale, tied to a principle (purity, determinism, a
+   single way to do it, the graph model) so that a restriction is
+   justified rather than merely stated
+   ([DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)).
+3. **What to write instead** — the recommended replacement and a
+   before/after pair: the refused program and the FunctionalScript program
+   that does the same job, as two examples, the second one accepted. This is
+   the page a reader lands on when porting JavaScript, so it is written for
+   them.
+4. **The friendly error**: the message the compiler *should* print, with the
+   rewrite hint and a link to this page. Until that is implemented, the page
+   gives the intended text beside the real one, marked planned. Its
+   implementation is a `todo/` in the compiler; the page is its specification.
+
+An included feature that is refused in one context (for example `a.toString`,
+which is refused as a read but accepted as a call) is an included page with a
+*refused forms* section that follows the refused-feature layout.
+
 ### The tree
 
 `●` has examples in the compiler demo today; `○` is specified but has none;
@@ -127,6 +170,17 @@ Each step is one pull request and leaves the specification complete:
   ([compiler proof](../../fjs/compiler/proof.f.mjs)); the tree should keep
   names unique, or a name becomes `area/page/name`, which touches every proof
   that mentions one.
+- **Status in the data.** The page text says "not implemented yet", but the
+  example list could carry it too (`[name, source, status]`) so the demo can
+  badge a pane whose output is not final, and a proof can list the examples
+  that are waiting for a feature.
+- **Friendly errors.** A refusal today is a message from the parser or the
+  evaluator. Whether the friendly text is a separate table keyed by refusal
+  (the page's *friendly error* section assembled into the compiler) or lives
+  only in the page until the compiler grows it is open.
+- **The coverage list.** Which ECMAScript feature list the tree is checked
+  against (the specification's grammar productions, or a feature inventory),
+  and who owns keeping it current.
 - **One program on two pages.** `Overview` shows several features; it belongs
   to *Principles*, and other pages link to it rather than repeat it.
 - **Planned examples.** A program a feature cannot compile yet is a refusal
