@@ -399,8 +399,10 @@ const sweep = (lazy, imports, value) => body => {
     const step = (acc, e, i) => {
         const valued = value && i === body.length - 1
         const whole = valued || (!isAlias(e) && ((acc.read & bit(i)) !== 0n || inlinedCall(e) === null))
-        const made = map(resolve)(whole ? refsOf(lazy)(e) : sideRefs(lazy)(e))
-        return { read: toArray(made).reduce(reachStep, acc.read), refs: concat(made)(acc.refs) }
+        // forced once: a reference list is lazy, and forcing it again sweeps
+        // every body nested in the entry again
+        const made = toArray(map(resolve)(whole ? refsOf(lazy)(e) : sideRefs(lazy)(e)))
+        return { read: made.reduce(reachStep, acc.read), refs: concat(made)(acc.refs) }
     }
     return body.reduceRight(step, { read: value ? bit(body.length - 1) : 0n, refs: empty })
 }

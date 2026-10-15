@@ -2258,7 +2258,9 @@ newline before `=>` is refused.
   `(() => [1, 2])()` is `[1, 2]`, and a module holding either hashes the
   same. A call inlined whose body's value is a name it captures — `(() =>
   c)()`, directly or through the body's own aliases — is an alias of what
-  the name holds, as `const x = c;` is: it evaluates nothing of its own. A
+  the name holds, as `const x = c;` is: its value is that node, made by no
+  one but the `const` it names, and what else its body holds is
+  established where the call stands. A
   capture a body names only through an unused alias, `const x = c;` or
   `const x = (() => c)();` and nothing more, is no slot of its frame, in a
   body or in a call inlined into one: the alias is dropped, so nothing reads

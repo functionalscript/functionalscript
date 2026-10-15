@@ -35,11 +35,18 @@ two readings agree on every outcome: the access is eager wherever the
 `.` node is, so either it throws, a failure whatever `t` does, or the
 arguments run.
 
-At `2ca692ba`, a dead `const w = (() => t)();` beside the same program
-made `t` an anchor, which the printer binds before the root, so that
-program printed. The front end now reads such a call as the alias it is,
-as `const w = t;` is, so the printer refuses that program as it refuses
-the one above.
+Two programs `2ca692ba` printed now meet the same refusal, each because a
+node once anchored before the root no longer is:
+
+- A dead `const w = (() => t)();` beside the program above made `t` an
+  anchor. The front end now reads such a call as the alias it is, as
+  `const w = t;` is.
+- An unread import that another import's node reaches is no anchor
+  (`fjs/compiler/edag`'s `anchoredImports`), its module established by that
+  import. Where that import reaches it only through method-call arguments,
+  `import a from "./m0.f.js"; import b from "./m2.f.js";` beside
+  `export default [o.f(a), o.f(a)];` in `m2.f.js`, the printer reads it as
+  reached only lazily.
 
 ### Proposal
 

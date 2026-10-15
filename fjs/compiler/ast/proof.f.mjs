@@ -158,6 +158,19 @@ export const proof = {
         assertEq(anchorsOf([[], [['Object.is'], 1]]), 'consts 0; imports ')
         assertEq(anchorsOf([[a], [['array', []], ['()', ['Number.isNaN'], [['cref', 0]]]]]), 'consts ; imports 0')
     },
+    // A sweep reads each entry's references once, so nesting costs what it
+    // nests: forty calls inlined one inside another, and forty functions
+    // curried, where reading each entry twice doubled the work per level.
+    depth: () => {
+        /** @type {import('./types.ts').AstConst} */
+        let inlined = ['array', []]
+        for (let i = 0; i < 40; i++) { inlined = ['()', ['=>', 0, [inlined]], []] }
+        assertEq(anchorsOf([[], [inlined]]), 'consts ; imports ')
+        /** @type {import('./types.ts').AstConst} */
+        let curried = ['array', [['arg', 0]]]
+        for (let i = 0; i < 40; i++) { curried = ['=>', 1, [curried]] }
+        assertEq(anchorsOf([[], [['array', []], curried]]), 'consts 0; imports ')
+    },
     // The captures a body reads, by index, each once in first-use order:
     // the slots of the function's frame. A capture the body names only
     // through an unused alias is not read, so a function names only what

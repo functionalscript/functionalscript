@@ -1061,16 +1061,30 @@ export const proof = {
             }
             expectEdag(program(deep)('input.f.js'), [',', [[',', [['.', null, 'x'], 2]], 3]])
         },
-        // an unread import of a module an import the export reaches selects
-        // from is established by that import, whichever export each
-        // selects; and of two unread imports of one module, the first is
-        // anchored, which establishes it all
+        // an anchor is dropped only where another import's node reaches its
+        // node: an empty import beside a binding of the same module, which
+        // reaches the whole module; but a binding beside another binding of
+        // its module stays, each a node the other does not reach, read
+        // lazily or not at all
         sameModule: () => {
             const m = file('export const a = null.x; export const b = [2];')
             /** @type {Exp} */
             const exports = ['{}', [[':', 'a', ['.', null, 'x']], [':', 'b', ['[]', [2]]]]]
             expectEdag(program({ 'm.f.js': m, 'input.f.js': file('import {} from "./m.f.js"; import { b } from "./m.f.js"; export default b;') })('input.f.js'), ['.', exports, 'b'])
-            expectEdag(program({ 'm.f.js': m, 'input.f.js': file('import { a } from "./m.f.js"; import { b } from "./m.f.js"; export default 1;') })('input.f.js'), [',', [['.', exports, 'a'], 1]])
+            expectEdag(program({ 'm.f.js': m, 'input.f.js': file('import {} from "./m.f.js"; import { a } from "./m.f.js"; export default 1;') })('input.f.js'), [',', [['.', exports, 'a'], 1]])
+            expectEdag(program({ 'm.f.js': m, 'input.f.js': file('import { a } from "./m.f.js"; import { b } from "./m.f.js"; export default 1;') })('input.f.js'), [',', [['.', exports, 'a'], ['.', exports, 'b'], 1]])
+            expectEdag(program({ 'm.f.js': m, 'input.f.js': file('import { a, b } from "./m.f.js"; export default [b, true && a];') })('input.f.js'), [',', [['.', exports, 'a'], ['[]', [['.', exports, 'b'], ['&&', true, ['.', exports, 'a']]]]]])
+        },
+        // a module re-exporting another's default is that import's node, so
+        // the two imports are one, which establishes nothing for itself: the
+        // module it names is anchored all the same
+        reExport: () => {
+            const root = {
+                'm.f.js': file('export default null.x;'),
+                'a.f.js': file('import x from "./m.f.js"; export default x;'),
+                'input.f.js': file('import m from "./m.f.js"; import a from "./a.f.js"; export default 1;'),
+            }
+            expectEdag(program(root)('input.f.js'), [',', [['.', null, 'x'], 1]])
         },
         // the path is resolved against the importer's, so a module in a
         // directory imports its sibling and its parent's file by name

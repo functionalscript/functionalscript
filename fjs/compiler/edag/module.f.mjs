@@ -588,28 +588,24 @@ const lowered = (imports, links = []) => module => {
 
 /**
  * The imports the export does not reach, `unbound`, that a module anchors:
- * each whose module no other import establishes already. Once bound, an
- * import establishes the module it selects from, all of it — whichever
- * export it selects is a node of that module's graph, whose anchors carry
- * the rest — and every module that module imports, at any depth. So an
- * unreached import adds nothing where the export reaches an import of the
- * same module, or any import reaches one of a module importing it — the
- * diamond linking joins at one node, which an anchor would establish again
- * — and of two unreached imports of one module, the first is anchored.
- * Before binding, `links` is empty and every import a parameter of its own.
+ * each whose node no other import's node reaches already. Once bound, an
+ * import's node reaches the module it selects from, all of it — whichever
+ * export it selects, the module's anchors come with it — and the node each
+ * of that module's imports was bound to, at any depth, `links`. An anchor
+ * one of them reaches is the diamond linking joins at one node, which no
+ * text can hold as an anchor and a reach both. A link counts once per node:
+ * two imports bound to one node, a module and one re-exporting it, are one
+ * import, which establishes nothing for itself. What a link reaches is
+ * counted per module, so an empty import, which nothing reads, is also
+ * dropped where a binding of its module reaches less than the whole of it —
+ * the module is established either way. Before binding, `links` is empty
+ * and every import a parameter of its own.
  *
  * @type {(imports: readonly Exp[], links: readonly _Bound[], unbound: readonly number[]) => readonly number[]}
  */
 const anchoredImports = (imports, links, unbound) => {
-    if (links.length === 0) { return unbound }
-    const below = links.flatMap(link => link.modules)
-    const reached = links.flatMap((link, k) => unbound.includes(k) || imports.indexOf(imports[k]) !== k ? [] : [link.module])
-    /** @type {(k: number, n: number) => boolean} */
-    const own = (k, n) => {
-        const { module } = links[k]
-        return !below.includes(module) && !reached.includes(module) && unbound.findIndex(j => links[j].module === module) === n
-    }
-    return unbound.filter(own)
+    const first = links.filter((_, k) => imports.indexOf(imports[k]) === k)
+    return unbound.filter(k => !first.some(link => link.node !== imports[k] && link.reached.includes(imports[k])))
 }
 
 /** @type {(imports: readonly AstImport[]) => (edag: Exp) => Unresolved} */
@@ -694,15 +690,21 @@ export const jsonValue = value => /** @type {EdagValue} */ (jsonLiteral(value))
 
 /**
  * A module's EDAG and its bindings, each export selected as an import reads
- * it, beside the modules its imports establish, each once.
+ * it, beside what any binding of it reaches that an importer may bind too:
+ * the EDAG, its default value where it is the one export, and `held`, what
+ * the module's own imports were bound to, each once.
  *
- * @type {(edag: Exp, modules: readonly Exp[]) => _Resolved}
+ * @type {(edag: Exp, held: readonly Exp[]) => _Resolved}
  */
-const resolved = (edag, modules) => ({
-    exports: edag,
-    bindings: _moduleExports(edag).map(([, key]) => [key, key === 'default' ? _defaultExport(edag) : ['.', edag, key]]),
-    modules: modules.filter((m, i) => modules.indexOf(m) === i),
-})
+const resolved = (edag, held) => {
+    const members = _moduleExports(edag)
+    const reached = [edag, ...(members.length === 1 && members[0][1] === 'default' ? [members[0][2]] : []), ...held]
+    return {
+        exports: edag,
+        bindings: members.map(([, key]) => [key, key === 'default' ? _defaultExport(edag) : ['.', edag, key]]),
+        reached: reached.filter((n, i) => reached.indexOf(n) === i),
+    }
+}
 
 /**
  * What the linker makes of a module: its EDAG, lowered over the EDAGs its
@@ -715,11 +717,16 @@ const resolved = (edag, modules) => ({
  */
 const linking = {
     json: value => resolved(['{}', [[':', 'default', jsonValue(value)]]], []),
-    select: ({ exports, bindings, modules }, name) => {
+    select: ({ exports, bindings, reached }, name) => {
         const node = name === null ? exports : bindings.find(([key]) => key === name)?.[1]
-        return node === undefined ? undefined : { node, module: exports, modules }
+        return node === undefined ? undefined : { node, reached }
     },
-    module: (_, imports, module) => ok(resolved(lowered(imports.map(link => link.node), imports)(module), imports.flatMap(link => [link.module, ...link.modules]))),
+    // what each module reaches counted once, however many imports select
+    // from it: they share one list
+    module: (_, imports, module) => ok(resolved(lowered(imports.map(link => link.node), imports)(module), [
+        ...imports.map(link => link.node),
+        ...imports.map(link => link.reached).filter((r, i, all) => all.indexOf(r) === i).flat(),
+    ])),
 }
 
 /**
