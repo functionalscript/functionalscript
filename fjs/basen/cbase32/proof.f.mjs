@@ -86,6 +86,13 @@ export const proof = {
     trailingZeroSymbols: () => {
         assertEq(cBase32ToVec('g0'), empty)
         assertEq(cBase32ToVec('80'), vec(1n)(0n))
+        // Any number of them, in any of their spellings, after an aligned
+        // payload's whole terminator character too.
+        assertEq(cBase32ToVec('g00'), empty)
+        assertEq(cBase32ToVec('8oO'), vec(1n)(0n))
+        assertEq(cBase32ToVec('2g0'), vec(5n)(2n))
+        assertEq(cBase32ToVec('01o'), vec(9n)(0n))
+        assertEq(cBase32ToVec('u80'), null)
     },
     canonical: {
         // Case, the `i`/`l`/`o` aliases and trailing zero symbols all
@@ -99,13 +106,18 @@ export const proof = {
         canonicalIsUnchanged: () => assertEq(canonicalCBase32('d31tk'), 'd31tk'),
         invalidIsNull: () => assertEq(canonicalCBase32('u'), null),
     },
-    decodeAtMaxLengthSucceeds: () => {
-        const value = vec(maxLength)(0n)
-        // Construct the boundary encoding directly. Encoding a `maxLength`
-        // vector exceeds Bun's own BigInt size limit while adding the stop
-        // bit, independently of this decoder regression.
-        const encoded = '0'.repeat(209_715) + '8'
-        assertEq(cBase32ToVec(encoded), value)
+    /**
+     * **The largest bit vector encodes, on every runtime**: its last
+     * character is encoded apart from the rest, so no vector past it is
+     * built.
+     */
+    maxLength: {
+        encode: () => assertEq(vecToCBase32(vec(maxLength)(0n)), '0'.repeat(209_715) + '8'),
+        decode: () => assertEq(cBase32ToVec('0'.repeat(209_715) + '8'), vec(maxLength)(0n)),
+        canonical: () => {
+            const s = '0'.repeat(209_715) + '8'
+            assertEq(canonicalCBase32(s), s)
+        },
     },
     decodeOverflow: () => {
         // Reject both an independently oversized head and a valid head whose
@@ -136,15 +148,12 @@ export const proof = {
             assertEq(encoded('hé').encoded, 'd31tk')
         },
         /**
-         * **The demo stops one byte short of the largest bit vector**, since
-         * `vecToCBase32` appends the stop bit before encoding and a vector
-         * past the largest throws on JavaScriptCore
-         * ([encode-at-max-length](./todo/encode-at-max-length.md)). One byte
-         * less encodes, on every engine.
+         * **The demo takes text up to the largest bit vector**, stop bit
+         * and all, and refuses one byte more.
          */
         maxLength: () => {
-            assertEq(groupsOf('a'.repeat(Number(maxLengthBytes)))[0], 'error')
-            assertEq(groupsOf('a'.repeat(Number(maxLengthBytes) - 1))[0], 'ok')
+            assertEq(groupsOf('a'.repeat(Number(maxLengthBytes)))[0], 'ok')
+            assertEq(groupsOf('a'.repeat(Number(maxLengthBytes) + 1))[0], 'error')
         },
         view: () => {
             const html = htmlToString(demo.view(demo.init))

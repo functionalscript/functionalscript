@@ -7,15 +7,15 @@
  * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
-import { msb, lsb, length, vec, empty } from '../../types/bit_vec/module.f.mjs'
+import { msb, padLastBlockMsb, unpadMsb } from '../../types/bit_vec/module.f.mjs'
 import { baseN } from '../module.f.mjs'
 
 //                         0123456789abcdef
 const m = '0123456789abcdefghjkmnpqrstvwxyz'
 
-const { concat, tryConcat } = msb
+const { tryConcat } = msb
 
-const popBack1 = lsb.popFront(1n)
+const pad5 = padLastBlockMsb(5n)
 
 /** @type {(c: string) => string} */
 const normalizeChar = c => {
@@ -36,30 +36,40 @@ export const vec5xToCBase32 = codec.vecToString
 /** @type {(s: string) => Nullable<Vec>} */
 export const cBase32ToVec5x = codec.stringToVec
 
-/** @type {(v: Vec) => string} */
+/**
+ * `v` in CBase32: its bits, a terminator — a `1`, then zeros to a whole
+ * character — and five bits a character. Every `v` gets a terminator, so an
+ * empty one is `g` and a multiple of five bits ends with `g` too.
+ *
+ * The whole characters and the last are encoded apart, so no vector past `v`
+ * is built and the largest bit vector encodes on every runtime.
+ *
+ * @type {(v: Vec) => string}
+ */
 export const vecToCBase32 = v => {
-    const len = length(v)
-    const extraLen = 5n - len % 5n
-    const last = 1n << (extraLen - 1n)
-    const padded = concat(v)(vec(extraLen)(last))
-    return vec5xToCBase32(padded)
+    const [whole, last] = pad5(v)
+    return vec5xToCBase32(whole) + vec5xToCBase32(last)
 }
 
-/** @type {(s: string) => Nullable<Vec>} */
+/**
+ * The bits `s` encodes, or `null` when it does not decode: a character not in
+ * the alphabet, no terminator, or more than the largest bit vector. Zero
+ * characters after the terminator are accepted, so `g0` decodes as `g`
+ * does.
+ *
+ * @type {(s: string) => Nullable<Vec>}
+ */
 export const cBase32ToVec = s => {
-    // Locate the sentinel from the end one character at a time. This preserves
-    // accepted non-canonical spellings with trailing zero characters without
-    // ever materialising their padded body as one oversized vector.
+    // Locate the terminator from the end one character at a time. This
+    // preserves accepted non-canonical spellings with trailing zero characters
+    // without ever materialising their padded body as one oversized vector.
     for (let i = s.length - 1; i >= 0; i--) {
-        let tail = cBase32ToVec5x(s[i])
-        if (tail === null) { return null }
-        while (tail !== empty) {
-            const [last, rest] = popBack1(tail)
-            tail = rest
-            if (last === 1n) {
-                const head = cBase32ToVec5x(s.slice(0, i))
-                return head === null ? null : tryConcat(head)(rest)
-            }
+        const last = cBase32ToVec5x(s[i])
+        if (last === null) { return null }
+        const tail = unpadMsb(last)
+        if (tail !== null) {
+            const head = cBase32ToVec5x(s.slice(0, i))
+            return head === null ? null : tryConcat(head)(tail)
         }
     }
     return null
@@ -70,10 +80,6 @@ export const cBase32ToVec = s => {
  * decode. {@link cBase32ToVec} accepts more than one spelling of the same
  * value — any case, and the `i`/`l`/`o` aliases — so two spellings compare
  * equal as strings only once both are re-encoded through this.
- *
- * It re-encodes through {@link vecToCBase32}, so it throws where that does:
- * on JavaScriptCore, for an encoding of the largest bit vector
- * ([encode-at-max-length](./todo/encode-at-max-length.md)).
  *
  * @type {(s: string) => Nullable<string>}
  */
