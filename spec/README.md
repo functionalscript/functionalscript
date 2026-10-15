@@ -2908,13 +2908,24 @@ module boundary, from which a default import selects the document.
 
   A module whose only export is `default` is written in the same normalized
   form, unless a module it loads holds a `const` or an import nothing reads.
-  In that form a function referenced more than once is hoisted as an object
-  is, and a `const` the value never reaches stays a statement, since loading
-  the module evaluates it. Any other module — one with a named export, or
-  one loading such a module — gives every array, object, function, access
-  and operation outside a function body a `const` of its own, however many
-  references reach it, in graph order with dependencies first, while a body
-  keeps what it holds in place. Only a leaf stays inline, and `undefined` is
+  In that form a node referenced more than once is hoisted, whatever it is —
+  an object, a function, an access, an operation — and a node referenced
+  once is written where it stands, so `const a = 1 + 2; const b = 1 + 2;
+  export default [a, a, b];` is `const $0=1+2;export default [$0,$0,1+2];`:
+  the text shares what the graph shares, and two equal nodes are two. The
+  one exception is a node that mints nothing and that two lazy operands
+  reach with no eager path, a loop's condition and block among them: no
+  block holds both uses, so it is written in each, two equal nodes, and the
+  one value. A `const` the value never reaches stays a statement, since
+  loading the module evaluates it. Any other module — one with a named
+  export, or one loading such a module — gives every array, object,
+  function, access and operation outside a function body a `const` of its
+  own, however many references reach it, in graph order with dependencies
+  first, while a function body is written in the normalized form above: a
+  node it shares is a `const` of its block, and the rest stands in place —
+  `export const a = 1; export default x => { const t = x + 1; return t * t;
+  };` is `const $0=($1)=>{const $2=$1+1;return $2*$2;};export const
+  a=1;export default $0;`. Only a leaf stays inline, and `undefined` is
   not one there: it lowers to the node `["undefined"]`, so it gets a `const`
   as a node does — `export const a = 1; export default undefined;` is
   `const $0=undefined;export const a=1;export default $0;`. Each export names

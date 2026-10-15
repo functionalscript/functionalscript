@@ -7,8 +7,8 @@
  */
 
 import { assertEq, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { analysis } from '../analysis/module.f.mjs'
-import { keepsRecursion, loopOf } from './module.f.mjs'
+import { analysis, identityAnalysis } from '../analysis/module.f.mjs'
+import { keepsRecursion, loopOf, reaches } from './module.f.mjs'
 
 /** The parts of a function at the root of its own table, or `null`. @type {(e: FunctionExp) => Loop | null} */
 const parts = e => {
@@ -25,11 +25,24 @@ const loop = (condition, step) => ['=>', 1, [], ['?:', condition, step, ['arg', 
 /** `r => r < 10 ? self(r + 1) : r`, the loop. @type {FunctionExp} */
 const counting = loop(['<', ['arg', 0], 10], call(['+', ['arg', 0], 1]))
 
-/** Whether every writer keeps the recursion for a function at the root of its own table, which is a loop. @type {(e: FunctionExp) => boolean} */
-const kept = e => {
-    const a = assertOk(analysis(e))
+/** Whether a table's writer keeps the recursion for a function at the table's root, which is a loop. @type {(table: typeof analysis) => (e: FunctionExp) => boolean} */
+const keptIn = table => e => {
+    const a = assertOk(table(e))
     const i = /** @type {readonly ['#', number]} */ (a.root)[1]
     return keepsRecursion(a, i, assertNotNullish(loopOf(a, i), ['no loop', e]))
+}
+
+/**
+ * Whether every writer keeps the recursion for a function at the root of
+ * its own table, which is a loop — one answer from the table that merges
+ * twins and the one that merges nothing.
+ *
+ * @type {(e: FunctionExp) => boolean}
+ */
+const kept = e => {
+    const merged = keptIn(analysis)(e)
+    assertEq(keptIn(identityAnalysis)(e), merged, JSON.stringify(e))
+    return merged
 }
 
 export const proof = {
@@ -82,6 +95,22 @@ export const proof = {
         for (const e of cases) { assertEq(parts(e), null, JSON.stringify(e)) }
     },
     /**
+     * Whether an operand reaches an entry among those given, in its own
+     * scope: through any operand, a function's slots and not its body,
+     * each entry walked once however many paths lead to it.
+     */
+    reaches: () => {
+        /** @type {Exp} */
+        const c = ['[]', []]
+        // entries in walk order: 0 `c`, 1 `[c, c]`, 2 `[1]` and 3 the body
+        // `[[1]]`, 4 the function, 5 the root
+        const a = assertOk(analysis(['[]', [['[]', [c, c]], ['=>', 0, [c], ['[]', [['[]', [1]]]]], 2]]))
+        assertEq(reaches(a, [0])(['#', 1]), true)
+        assertEq(reaches(a, [0])(['#', 4]), true)
+        assertEq(reaches(a, [2])(['#', 4]), false)
+        assertEq(reaches(a, [0])(2), false)
+    },
+    /**
      * The shapes every writer keeps the recursion for, though they match:
      * an assert before the condition, a read of the rest array, and a
      * value minting identity that the condition shares with the block.
@@ -94,12 +123,19 @@ export const proof = {
         /** @type {Exp} */
         const merged = ['.', a0, 0]
         /** @type {Exp} */
+        const sharedRead = ['.', minted, 0]
+        /** @type {Exp} */
         const inner = ['[]', [1]]
         for (const e of /** @type {readonly FunctionExp[]} */ ([
             ['=>', 1, [], [',', [['[]', []], ['?:', true, call(0), a0]]]],
             loop(['.', ['rest'], 'length'], call(a0)),
             loop(['.', minted, 0], call(['.', minted, 'length'])),
             loop(['()', minted, []], call(['[]', [minted]])),
+            // a minted value both reach under two equal reads, or under
+            // one read they share, which only the merged table counts as
+            // shared itself
+            loop(['<', ['.', minted, 0], 9], call(['+', ['.', minted, 0], 1])),
+            loop(['<', sharedRead, 9], call(['+', sharedRead, 1])),
         ])) { assertEq(kept(e), true, JSON.stringify(e)) }
         for (const e of /** @type {readonly FunctionExp[]} */ ([
             counting,

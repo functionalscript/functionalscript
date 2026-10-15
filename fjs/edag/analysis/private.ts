@@ -25,6 +25,8 @@ export type _State = {
     readonly entries: readonly _Entry[]
     /** First structural failure; an errored walk never yields a public table. */
     readonly problem: string | null
+    /** Whether an entry that may merge does so with its twin, or every node is its own entry. */
+    readonly merges: boolean
 }
 
 /** A walker: given the scope, threads the state through `e` and yields what stands for it in the table. */

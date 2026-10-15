@@ -894,7 +894,7 @@ export const proof = {
     // Code outputs preserve throws; data outputs execute module initialization.
     throws: () => {
         assertEq(compileSource('export default () => { throw 1; };')('output.js'), 'export default ()=>{throw 1;};')
-        assertEq(compileSource('export default (...a) => { const x = a[0]; throw [x, x]; };')('output.js'), 'export default (...$0)=>{throw [$0[0],$0[0]];};')
+        assertEq(compileSource('export default (...a) => { const x = a[0]; throw [x, x]; };')('output.js'), 'export default (...$0)=>{const $1=$0[0];throw [$1,$1];};')
         assertEq(compileSource('export default () => { throw 1; };')('output.edag.data.js'), 'export default ["{}",[[":","default",["=>",0,[],["throw",1]]]]];')
         assertEq(moduleRefused('export default () => { throw 1; };'), 'output.data.js - error: callable materialization requires a target compile/load boundary')
         assertEq(compileSource('throw "boom";')('output.js'), 'throw "boom";')

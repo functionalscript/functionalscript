@@ -7,13 +7,13 @@
  * convenience — the ordinary FunctionalScript panic `fjs/AGENTS.md` §1.5
  * describes, exactly what the `throw` cases below need.
  *
- * @import { Exp, Property, PropertyLambda, Spread } from '../types.ts'
+ * @import { Exp, Property, Spread } from '../types.ts'
  * @import { Uses } from './types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
-import { braced, eagerNodesOf, expExpr, expExprTagged, holdsFunction, nestsOperation, nodeExpr, readsArgs, readsFrame, scope, scopeTagged, sharedNodesOf, statementsOf, useLines, useLinesTagged } from './module.f.mjs'
+import { braced, eagerNodesOf, expExpr, expExprTagged, holdsFunction, nestsOperation, nodeExpr, readsArgs, readsFrame, scope, scopeTagged, statementsOf, useLines, useLinesTagged } from './module.f.mjs'
 import { fromTagged, toText } from '../../text/marked/module.f.mjs'
 import { unmarkedWords } from './unmarked/module.f.js'
 
@@ -883,62 +883,6 @@ export const proof = {
             printed(['[]', [comma, ['&&', true, comma]]]),
             '[{ let _: Any<A> = f64_any(0x3ff0000000000000); f64_any(0x4000000000000000) }, Any::logical_and(true.to_any(), || Ok({ let _: Any<A> = f64_any(0x3ff0000000000000); f64_any(0x4000000000000000) }))].to_array().to_any()')
     },
-    sharedNodesOf: {
-        /** A node reached from only one place is never a binding candidate. */
-        none: () => {
-            assertEq(sharedNodesOf(['[]', [1, 2]]).length, 0)
-        },
-        /**
-         * Two references to the same node, by identity, is exactly what a
-         * `const` referenced twice looks like once lowered to an EDAG — see
-         * `fjs/compiler/edag/module.f.mjs`'s `lower`.
-         */
-        shared: () => {
-            /** @type {Exp} */
-            const base = ['[]', []]
-            /** @type {Exp} */
-            const root = ['[]', [base, base]]
-            const found = sharedNodesOf(root)
-            assertEq(found.length, 1)
-            assert(found[0] === base, found)
-        },
-        /**
-         * Dependency order: a shared node nested inside another shared node
-         * comes first, since the outer one's `let` initializer needs to clone
-         * the inner one's binding.
-         */
-        order: () => {
-            /** @type {Exp} */
-            const inner = ['[]', []]
-            /** @type {Exp} */
-            const outer = ['[]', [inner]]
-            /** @type {Exp} */
-            const root = ['[]', [outer, outer, inner, inner]]
-            const found = sharedNodesOf(root)
-            assertEq(found.length, 2)
-            assert(found[0] === inner, found)
-            assert(found[1] === outer, found)
-        },
-        /** The root itself is never reported, however the graph is shaped. */
-        excludesRoot: () => {
-            /** @type {Exp} */
-            const root = ['[]', [1]]
-            assert(!sharedNodesOf(root).includes(root), sharedNodesOf(root))
-        },
-        /**
-         * A function's body is a scope of its own: nothing inside it is
-         * shared at the scope around it — `scope` walks the body afresh
-         * — while its frame is that scope's.
-         */
-        stopsAtAFunctionBody: () => {
-            /** @type {Exp} */
-            const x = ['[]', []]
-            assertEq(sharedNodesOf(['=>', 0, [], ['[]', [x, x]]]).length, 0)
-            const found = sharedNodesOf(['[]', [['=>', 0, [x], 1], x]])
-            assertEq(found.length, 1)
-            assert(found[0] === x, found)
-        },
-    },
     /**
      * The lines of one scope: a `let` per temporary — every node with
      * operands, one line, one expression — then the root as the `Result`
@@ -1221,7 +1165,7 @@ export const proof = {
             const first = ['.', ['rest'], 0]
             assertEq(
                 printed(['=>', 0, [], ['[]', [first, first]]]),
-                'A::static_function(|_self, args| {\n    let rest = args.clone().into_iter().to_array();\n    let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;\n    Ok([c0.clone(), c0.clone()].to_array().to_any())\n}, 0, Array::default(), Some("(...$0)=>[$0[0],$0[0]]")).to_any()')
+                'A::static_function(|_self, args| {\n    let rest = args.clone().into_iter().to_array();\n    let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;\n    Ok([c0.clone(), c0.clone()].to_array().to_any())\n}, 0, Array::default(), Some("(...$0)=>{const $1=$0[0];return [$1,$1];}")).to_any()')
             assertStructurallySame(
                 scoped(['=>', 0, [], ['[]', [['.', ['rest'], 0], ['.', ['rest'], 1]]]]),
                 [
@@ -1342,7 +1286,6 @@ export const proof = {
             assertEq(readsFrame(chain(40, ['frame', 0])), true)
             assertEq(holdsFunction(deep), false)
             assertEq(holdsFunction(chain(40, ['=>', 0, [], 1])), true)
-            assertEq(sharedNodesOf(deep).length, 40)
         },
     },
     /**
@@ -1682,11 +1625,6 @@ export const proof = {
             assertEq(eagerNodesOf(['.', ['{}', []], 'a', ['|()', [c]]]).includes(c), false)
             assertEq(eagerNodesOf(['?.()', ['undefined'], [c]]).includes(c), false)
             assertEq(eagerNodesOf(['?.', ['{}', []], 'a', ['|.', 'b', ['|()', [c]]]]).includes(c), false)
-            // A continuation is not a node: the walk lists what it holds
-            // and never the tuple itself.
-            /** @type {PropertyLambda} */
-            const k = ['|()', [c]]
-            assertEq(sharedNodesOf(['[]', [['.', ['{}', []], 'a', k], ['.', ['{}', []], 'b', k]]]).includes(c), true)
         },
         /**
          * A terminal step handed a continuation: the schema spells none,

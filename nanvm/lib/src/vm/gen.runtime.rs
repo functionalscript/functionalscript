@@ -74,7 +74,7 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
             strict_eq(c6, args.clone().into_iter().nth(1).unwrap_or_else(|| Nullish::Undefined.to_any()))
         };
         Any::conditional(c3, || Ok(false.to_any()), c4)
-    }, 3, Array::default(), Some("($0,$1,$2)=>$2+$1.length>$0.length?false:$0.slice($2,$2+$1.length)===$1")).to_any();
+    }, 3, Array::default(), Some("($0,$1,$2)=>{const $3=$2+$1.length;return $3>$0.length?false:$0.slice($2,$3)===$1;}")).to_any();
     let c12: Any<A> = A::static_function(|_self, args| { args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()) - f64_any(0x0000000000000000) }, 1, Array::default(), Some("($0)=>$0-0")).to_any();
     let c13: Any<A> = A::static_function(|self_, args| {
         let c0: Any<A> = Any::call(A::frame(self_)[0].clone(), [args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any())].to_array().to_any())?;
@@ -90,7 +90,7 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
             Any::conditional(c5, || Ok(args.clone().into_iter().nth(1).unwrap_or_else(|| Nullish::Undefined.to_any())), c6)
         };
         Any::conditional(c3, || Ok(f64_any(0x0000000000000000)), c4)
-    }, 2, [c12, c3.clone()].to_array(), Some("($2,$3)=>{const $4=$0($2);const $5=$1($4);const $6=$5?0:$4;return $6<0?0:$6>$3?$3:$6-$6%1;}")).to_any();
+    }, 2, [c12, c3.clone()].to_array(), Some("($2,$3)=>{const $4=$0($2);const $5=$1($4)?0:$4;return $5<0?0:$5>$3?$3:$5-$5%1;}")).to_any();
     let c14: Any<A> = A::static_function(|self_, args| {
         let c0: Any<A> = (args.clone().into_iter().nth(1).unwrap_or_else(|| Nullish::Undefined.to_any()).to_string().map(|v| v.to_any()))?;
         let c1: Any<A> = Any::dot(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), string_any("length")).end()?;

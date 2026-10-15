@@ -58,7 +58,9 @@ export type Node = Over<ExpOp, Operand, IndexOperand>
  * more than one place, in index order: reached by more than one edge, or
  * through an entry that is itself written at more than one place, since an
  * entry that merges is written wherever it is reached — see `analysis` in
- * [`module.f.mjs`](./module.f.mjs).
+ * [`module.f.mjs`](./module.f.mjs). In the table that merges nothing,
+ * `identityAnalysis`, every node is its own entry and `shared` is every
+ * entry reached by more than one edge, as `fjs/edag/sharing` counts them.
  */
 export type Analysis = {
     readonly root: Operand
