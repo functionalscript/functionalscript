@@ -5,7 +5,7 @@
  *
  * @import { List } from '../../types/list/types.ts'
  * @import { AstBinary, AstInstanceOf, AstKey, AstCall, AstConditional, AstConst, AstBody, AstEntry, AstFunction, AstItem, AstModule, AstModuleRef, AstNeg, AstSpread, AstStep, AstThrow, AstUnary, BinaryTag, UnaryTag, Anchors } from './types.ts'
- * @import { _Lazy, _OperandStack, _Reach, _RefNode } from './private.ts'
+ * @import { _Lazy, _OperandStack, _RefNode, _Sweep } from './private.ts'
  */
 
 import { concat, empty, flat, map, toArray } from '../../types/list/module.f.mjs'
@@ -374,29 +374,48 @@ const operandReadsRest = ast => {
 }
 
 /**
- * The references a body makes, read as `lazy` says: every entry of the
+ * The references a body makes, read as `lazy` says, each entry's in the
+ * body's order, and which entries a reference reaches: every entry of the
  * body is established — the value, and the ones the value does not reach,
- * which the lowering anchors — so each entry's references count, but a
- * bare alias's, which is the node it names and no code of its own, unless
- * the alias is the value. A reference to a body `const` is resolved to the
- * node it names, so a slot of the body's frame reached through an alias is
+ * which the lowering anchors — so each entry's references count, but for
+ * one established only by what it anchors, which counts only that,
+ * {@link sideRefs}: an alias, which is the node it names and no code of
+ * its own, unless the alias is the value read; and a call inlined that no
+ * reference reaches, whose value nothing reads, so its body anchors
+ * what it must with no value to reach. `value` says whether the value is
+ * read. A reference is resolved to the node it names, `imports` resolving
+ * an import's, so a slot of the body's frame reached through an alias is
  * that slot.
  *
- * @type {(lazy: _Lazy) => (body: AstBody) => List<_RefNode>}
+ * The sweep runs from the value back: a reference names an earlier entry
+ * — the parser refuses a `const` naming itself or a later one — so by the
+ * time it arrives at an entry every reference to it has been seen.
+ *
+ * @type {(lazy: _Lazy, imports: readonly unknown[], value: boolean) => (body: AstBody) => _Sweep}
  */
-const bodyRefs = lazy => body => {
-    const nodes = body.reduce(nodeEntry([]), [])
-    return map(resolved([], nodes))(flat(body.filter((e, i) => i === body.length - 1 || !isAlias(e)).map(refsOf(lazy))))
+const sweep = (lazy, imports, value) => body => {
+    const resolve = resolved(imports, body.reduce(nodeEntry(imports), []))
+    /** @type {(acc: _Sweep, e: AstConst, i: number) => _Sweep} */
+    const step = (acc, e, i) => {
+        const valued = value && i === body.length - 1
+        const whole = valued || (!isAlias(e) && ((acc.read & bit(i)) !== 0n || inlinedCall(e) === null))
+        const made = map(resolve)(whole ? refsOf(lazy)(e) : sideRefs(lazy)(e))
+        return { read: toArray(made).reduce(reachStep, acc.read), refs: concat(made)(acc.refs) }
+    }
+    return body.reduceRight(step, { read: value ? bit(body.length - 1) : 0n, refs: empty })
 }
+
+/** The references a body makes, {@link sweep}, resolved through its own entries. @type {(lazy: _Lazy, value?: boolean) => (body: AstBody) => List<_RefNode>} */
+const bodyRefs = (lazy, value = true) => body => sweep(lazy, [], value)(body).refs
 
 /**
  * The captures a function's body reads, by index into its captures, each
  * once in the order the body first names them: the slots of its frame. A
  * capture the parser listed that the body names only through an unused
- * alias, `const x = c;` and nothing more, is not among them — the alias
- * is dropped, so nothing reads the slot, and the enclosing scope's `const`
- * is anchored there as one nothing reaches. Read anywhere counts: a lazy
- * position, and a nested function's captures.
+ * alias, `const x = c;` or `const x = (() => c)();` and nothing more, is
+ * not among them — the alias is dropped, so nothing reads the slot, and the
+ * enclosing scope's `const` is anchored there as one nothing reaches. Read
+ * anywhere counts: a lazy position, and a nested function's captures.
  *
  * @type {(ast: AstFunction) => readonly number[]}
  */
@@ -406,43 +425,35 @@ export const readCaptures = ([, , body]) =>
 /**
  * The references a call the lowering inlines makes, read as `lazy` says:
  * the body's, {@link bodyRefs}, with a slot of the body's frame followed
- * into the capture it holds.
+ * into the capture it holds — its value's among them where `value` says
+ * the value is read.
  *
- * @type {(lazy: _Lazy) => (ast: AstCall) => List<_RefNode>}
+ * @type {(lazy: _Lazy, value?: boolean) => (ast: AstCall) => List<_RefNode>}
  */
-const inlinedRefs = lazy => ([, callee]) => {
+const inlinedRefs = (lazy, value = true) => ([, callee]) => {
     const [, , body, captures = []] = /** @type {AstFunction} */ (callee)
     /** @type {(ref: _RefNode) => List<_RefNode>} */
     const captured = ref => ref[0] === 'fref' ? refsOf(lazy)(captures[ref[1]]) : empty
-    return flat(map(captured)(bodyRefs(lazy)(body)))
+    return flat(map(captured)(bodyRefs(lazy, value)(body)))
+}
+
+/**
+ * What an entry establishes that nothing reads, beside any node it names:
+ * nothing for a bare reference, and for a call inlined, what its body
+ * anchors as one whose value nothing reads — the `const`s nothing reaches,
+ * the value among them, which the lowering floats out of the call where it
+ * stands. A call that answers a reference, {@link answered}, anchors only
+ * what its body holds beside it.
+ *
+ * @type {(lazy: _Lazy) => (ast: AstConst) => List<_RefNode>}
+ */
+const sideRefs = lazy => ast => {
+    const call = inlinedCall(ast)
+    return call === null ? empty : inlinedRefs(lazy, false)(call)
 }
 
 /** @type {(reachable: bigint, ref: _RefNode) => bigint} */
 const reachStep = (reachable, [kind, i]) => kind === 'cref' ? reachable | bit(i) : reachable
-
-/**
- * One entry of the sweep from the export downwards: an entry a reference
- * reaches is reachable, and a reachable entry's own references count and
- * make their targets reachable. A `cref` names an earlier entry — the
- * parser refuses a `const` naming itself or a later one — so by the time
- * the sweep arrives at an entry every reference to it has been seen.
- *
- * @type {(refs: (ast: AstConst) => List<_RefNode>) => (reach: _Reach, ast: AstConst, i: number) => _Reach}
- */
-const reachEntry = refs => (reach, ast, i) => {
-    if ((reach.reachable & bit(i)) === 0n) { return reach }
-    const made = toArray(refs(ast))
-    return { reachable: made.reduce(reachStep, reach.reachable), refs: concat(reach.refs)(made) }
-}
-
-/**
- * The sweep from the export downwards over a whole body: which entries it
- * reaches, and every reference those entries make, read as `lazy` says.
- *
- * @type {(lazy: _Lazy) => (body: AstBody) => _Reach}
- */
-const reach = lazy => body =>
-    body.reduceRight(reachEntry(refsOf(lazy)), { reachable: bit(body.length - 1), refs: empty })
 
 /** @type {(args: bigint, ref: _RefNode) => bigint} */
 const argStep = (args, [kind, i]) => kind === 'aref' ? args | bit(i) : args
@@ -450,31 +461,77 @@ const argStep = (args, [kind, i]) => kind === 'aref' ? args | bit(i) : args
 /** The indices a set of `n` leaves out. @type {(set: bigint) => (n: number) => readonly number[]} */
 const missing = set => n => Array.from({ length: n }, (_, i) => i).filter(i => (set & bit(i)) === 0n)
 
+/** The tags of a bare reference: an entry, an import, a slot of the frame, the arguments, a parameter, the function itself. @type {readonly string[]} */
+const references = ['cref', 'aref', 'fref', 'rest', 'arg', 'self']
+
+/** `ast` where it is a call the lowering inlines, {@link isInlinedCall}, and `null` for any other entry. @type {(ast: AstConst) => AstCall | null} */
+const inlinedCall = ast => ast !== null && typeof ast === 'object' && ast[0] === '()' && isInlinedCall(ast) ? ast : null
+
 /**
- * Whether an entry is a bare reference: a `const` naming another entry, an
- * import, a slot of its frame, the arguments or the function itself is that
- * node, not a node of its own.
+ * The reference a call inlined answers, where its body's value is a node
+ * the body does not make: a slot of its frame, read directly, through the
+ * body's own aliases, or through a call inlined in the body — followed into
+ * the capture it holds, a reference of the scope around the call. `null`
+ * where the body makes its value.
  *
- * @type {(ast: AstConst) => boolean}
+ * @type {(ast: AstCall) => AstConst | null}
  */
-const isAlias = ast => ast !== null && typeof ast === 'object' && ['cref', 'aref', 'fref', 'rest', 'arg', 'self'].includes(ast[0])
+const answered = ([, callee]) => {
+    const [, , body, captures = []] = /** @type {AstFunction} */ (callee)
+    /** @type {(v: AstConst) => AstConst | null} */
+    const follow = v => {
+        if (v === null || typeof v !== 'object') { return null }
+        switch (v[0]) {
+            case 'cref': { return follow(body[v[1]]) }
+            case 'fref': { return captures[v[1]] }
+            case '()': {
+                const inner = isInlinedCall(v) ? answered(v) : null
+                return inner === null ? null : follow(inner)
+            }
+            default: { return null }
+        }
+    }
+    return follow(body[body.length - 1])
+}
+
+/**
+ * The reference an entry is, where it names a node rather than making one:
+ * the entry itself, a bare reference — a `const` naming another entry, an
+ * import, a slot of its frame, the arguments or the function itself is that
+ * node — or the reference a call inlined answers, {@link answered}: `const
+ * u = (() => t)();` is `t`, as `const u = t;` is, and evaluates nothing of
+ * its own. `null` for every other entry.
+ *
+ * @type {(ast: AstConst) => AstConst | null}
+ */
+const named = ast => {
+    if (ast === null || typeof ast !== 'object') { return null }
+    if (references.includes(ast[0])) { return ast }
+    const call = inlinedCall(ast)
+    const inner = call === null ? null : answered(call)
+    return inner === null ? null : named(inner)
+}
+
+/** Whether an entry is an alias: the node it names, not a node of its own, {@link named}. @type {(ast: AstConst) => boolean} */
+const isAlias = ast => named(ast) !== null
 
 /** The first import standing for the same node as import `k`, which `imports` says by identity. @type {(imports: readonly unknown[]) => (k: number) => AstModuleRef} */
 const importNode = imports => k => ['aref', imports.indexOf(imports[k])]
 
 /**
  * One entry's node as a reference: the entry itself, or through an alias
- * the node it names — an alias names an earlier entry, so its node is known
- * by the time the fold arrives at it.
+ * the node it names, {@link named} — an alias names an earlier entry, so
+ * its node is known by the time the fold arrives at it.
  *
  * @type {(imports: readonly unknown[]) => (ast: AstConst, i: number, nodes: readonly _RefNode[]) => _RefNode}
  */
 const nodeOf = imports => (ast, i, nodes) => {
-    if (ast === null || typeof ast !== 'object') { return ['cref', i] }
-    switch (ast[0]) {
-        case 'cref': { return nodes[ast[1]] }
-        case 'aref': { return importNode(imports)(ast[1]) }
-        case 'fref': { return ast }
+    const target = named(ast)
+    if (target === null || typeof target !== 'object') { return ['cref', i] }
+    switch (target[0]) {
+        case 'cref': { return nodes[target[1]] }
+        case 'aref': { return importNode(imports)(target[1]) }
+        case 'fref': { return target }
         default: { return ['cref', i] }
     }
 }
@@ -512,27 +569,35 @@ const resolved = (imports, nodes) => ref =>
  * subtraction, the comma's to generalize.
  *
  * Counted by node, not by entry, since it is the graph that holds or lacks
- * a node: a `const` that is a bare reference is the node it names and is
- * no code of its own, and two imports are one node where `imports` holds
- * one value for both — as the linker binds two imports of one module — so
- * `const b = a; export default a;` anchors nothing, and `const c = [a]`
- * beside the alias anchors `c` alone.
+ * a node: a `const` that is an alias, {@link named} — a bare reference, or
+ * a call inlined that answers one — is the node it names and is no code of
+ * its own, and two imports are one node where `imports` holds one value
+ * for both — as the linker binds two imports of one module — so `const b =
+ * a; export default a;` anchors nothing, `const c = [a]` beside the alias
+ * anchors `c` alone, and `const t = n.x; const u = (() => t)(); export
+ * default 1;` anchors `t`, where it stands. What a call inlined anchors
+ * beside the node it answers is established all the same, so what that
+ * reaches is reached ({@link sideRefs}).
  *
  * A member a later duplicate shadows counts: the value drops it, but an
  * EDAG's object constructor applies every member written and evaluates
  * each, so what its reference names is in the graph, not dropped.
  *
- * @type {(module: AstModule) => (imports: readonly unknown[]) => Anchors}
+ * A call inlined that nothing reaches anchors no node of its own: whatever
+ * node it answers is its body's, so its body anchors what it must as one
+ * whose value nothing reads, `calls`, the value among it unless the body's
+ * other anchors reach it. `value` false reads the body that way: its last
+ * entry is one more `const` nothing reaches.
+ *
+ * @type {(module: AstModule, value?: boolean) => (imports: readonly unknown[]) => Anchors}
  */
-export const anchors = ([specifiers, body]) => imports => {
-    const nodes = body.reduce(nodeEntry(imports), [])
-    const { reachable, refs } = reach(established)(body)
-    const unreached = missing(reachable)(body.length).filter(i => !isAlias(body[i]))
-    const within = map(resolved(imports, nodes))(flat(unreached.map(i => refsOf(established)(body[i]))))
-    const reachedWithin = toArray(within).reduce(reachStep, 0n)
-    const reachedImports = toArray(concat(map(resolved(imports, nodes))(refs))(within)).reduce(argStep, 0n)
+export const anchors = ([specifiers, body], value = true) => imports => {
+    const { read, refs } = sweep(established, imports, value)(body)
+    const unread = missing(read)(body.length).filter(i => !isAlias(body[i]))
+    const reachedImports = toArray(refs).reduce(argStep, 0n)
     return {
-        consts: unreached.filter(i => (reachedWithin & bit(i)) === 0n),
+        consts: unread.filter(i => inlinedCall(body[i]) === null),
+        calls: unread.filter(i => inlinedCall(body[i]) !== null),
         imports: missing(reachedImports)(specifiers.length).filter(k => imports.indexOf(imports[k]) === k),
     }
 }

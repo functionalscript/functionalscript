@@ -452,5 +452,12 @@ export type AstBody = readonly AstConst[]
  */
 export type Anchors = {
     readonly consts: readonly number[]
+    /**
+     * The entries that are calls the lowering inlines, read by nothing: no
+     * node of their own is anchored — whatever node the call answers is its
+     * body's — and each body anchors what it must as one whose value nothing
+     * reads.
+     */
+    readonly calls: readonly number[]
     readonly imports: readonly number[]
 }

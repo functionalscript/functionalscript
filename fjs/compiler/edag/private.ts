@@ -71,6 +71,19 @@ export type _Entries = {
 export type _Resolved = {
     readonly exports: Exp
     readonly bindings: readonly (readonly [string, Exp])[]
+    /** Every module its EDAG establishes through its imports, at any depth, each named by its own EDAG. */
+    readonly modules: readonly Exp[]
+}
+
+/**
+ * What an import binds, as the linker hands it to the importer: the node it
+ * selects, the EDAG of the module it selects from, and the modules that
+ * EDAG establishes in turn, `_Resolved`'s.
+ */
+export type _Bound = {
+    readonly node: Exp
+    readonly module: Exp
+    readonly modules: readonly Exp[]
 }
 
 /** An edge of `demo.f.mjs`'s drawing: a port's label, the value it reaches, and `lazy` where the position is one the node may never evaluate. */

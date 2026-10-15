@@ -13,6 +13,9 @@ const anchorsOf = module => {
     return `consts ${consts.join()}; imports ${imports.join()}`
 }
 
+/** The calls inlined nothing reads, which anchor through their bodies. @type {(module: import('./types.ts').AstModule) => readonly number[]} */
+const callsOf = module => anchors(module)(module[0]).calls
+
 export const proof = {
     // Function bodies and their references belong to their own scope.
     func: () => {
@@ -103,6 +106,35 @@ export const proof = {
         // an import is a capture like any other
         assertEq(anchorsOf([[a], [['()', ['=>', 0, [['&&', 1, ['fref', 0]]], [['aref', 0]]], []]]]), 'consts ; imports 0')
         assertEq(anchorsOf([[a], [['()', ['=>', 0, [['fref', 0]], [['aref', 0]]], []]]]), 'consts ; imports ')
+        // A call inlined whose value is a capture — read directly, through
+        // the body's own alias, or through a call inlined in the body — is
+        // an alias of what the capture names, `(() => t)()` being `t`: an
+        // unused one reaches nothing and anchors nothing, so the `const` it
+        // names is anchored where it stands; read, it reads that `const`
+        /** @type {(body: import('./types.ts').AstBody) => import('./types.ts').AstConst} */
+        const call = body => ['()', ['=>', 0, body, [['cref', 0]]], []]
+        assertEq(anchorsOf([[a], [['array', []], call([['fref', 0]]), 1]]), 'consts 0; imports 0')
+        assertEq(anchorsOf([[a], [['array', []], call([['fref', 0], ['cref', 0]]), 1]]), 'consts 0; imports 0')
+        assertEq(anchorsOf([[a], [['array', []], call([['()', ['=>', 0, [['fref', 0]], [['fref', 0]]], []]]), 1]]), 'consts 0; imports 0')
+        assertEq(anchorsOf([[a], [['array', []], call([['fref', 0]]), ['cref', 1]]]), 'consts ; imports 0')
+        assertEq(anchorsOf([[a], [['()', ['=>', 0, [['fref', 0]], [['aref', 0]]], []], 1]]), 'consts ; imports 0')
+        // what its body anchors beside the node it answers is established
+        // where the call stands, so what that reaches is reached
+        assertEq(anchorsOf([[a], [['array', []], call([['array', [['fref', 0]]], ['fref', 0]]), 1]]), 'consts ; imports 0')
+        // and a call whose body makes its value is no alias: a primitive, a
+        // `const` of its own, a call that is not inlined, or one inlined
+        // that makes its own. Read by nothing, it anchors no node of its
+        // own: its body anchors what it must with no value to reach, the
+        // value among it where nothing else reaches that, so what the body
+        // reads is reached
+        assertEq(anchorsOf([[a], [['array', []], call([['array', [['fref', 0]]], ['cref', 0]]), 1]]), 'consts ; imports 0')
+        assertEq(anchorsOf([[a], [['array', []], call([1]), 1]]), 'consts 0; imports 0')
+        assertEq(anchorsOf([[a], [['array', []], call([['()', ['fref', 0], []]]), 1]]), 'consts ; imports 0')
+        assertEq(anchorsOf([[a], [['array', []], call([['()', ['=>', 0, [['array', []]]], []]]), 1]]), 'consts 0; imports 0')
+        assertStructurallySame(callsOf([[a], [['array', []], call([1]), 1]]), [1])
+        // where a reference reaches it, its value is read, and the call is
+        // none of these
+        assertStructurallySame(callsOf([[a], [['array', []], call([1]), ['array', [['cref', 1]]], 1]]), [])
         // a call that is not inlined still reaches what its function
         // captures, whatever position the body reads it in
         assertEq(anchorsOf([[a], [['array', []], ['()', ['=>', 0, [['&&', 1, ['fref', 0]]], [['cref', 0]]], [1]]]]), 'consts ; imports 0')
@@ -114,6 +146,13 @@ export const proof = {
         assertEq(anchorsOf([[], [['fref', 0], 1]]), 'consts ; imports ')
         assertEq(anchorsOf([[], [['rest'], 1]]), 'consts ; imports ')
         assertEq(anchorsOf([[], [['arg', 0], 1]]), 'consts ; imports ')
+        // an access's key, constant or computed, and an object's spread
+        // member are read as written; a parameter, the rest array, the function itself and
+        // the `entry` helper read in a literal name nothing to anchor
+        assertEq(anchorsOf([[a], [['array', []], ['.', ['cref', 0], 'b'], 1]]), 'consts 1; imports 0')
+        assertEq(anchorsOf([[a], [['array', []], ['.', 1, ['Number', ['cref', 0]]], 1]]), 'consts 1; imports 0')
+        assertEq(anchorsOf([[a], [['array', []], ['object', [['...', ['cref', 0]]]], 1]]), 'consts 1; imports 0')
+        assertEq(anchorsOf([[], [['array', [['arg', 0], ['rest'], ['self'], ['entry']]], 1]]), 'consts 0; imports ')
         // a static function is a value, anchored unused as a value is, and
         // names nothing: a call of it reaches its arguments alone
         assertEq(anchorsOf([[], [['Object.is'], 1]]), 'consts 0; imports ')
@@ -135,8 +174,14 @@ export const proof = {
         assertStructurallySame(readCaptures(['=>', 0, [['=>', 0, [['fref', 0]], [['fref', 0]]]], [['cref', 0]]]), [0])
         assertStructurallySame(readCaptures(['=>', 0, [['()', ['=>', 0, [['fref', 0]], [['fref', 0]]], []]], [['cref', 0]]]), [0])
         assertStructurallySame(readCaptures(['=>', 0, [['()', ['=>', 0, [['fref', 0], 1], [['fref', 0]]], []]], [['cref', 0]]]), [])
+        // an unused call inlined that answers a capture is an alias of it,
+        // and reads only what its body anchors beside it
+        assertStructurallySame(readCaptures(['=>', 0, [['()', ['=>', 0, [['fref', 0]], [['fref', 0]]], []], 1], [['cref', 0]]]), [])
+        assertStructurallySame(readCaptures(['=>', 0, [['()', ['=>', 0, [['fref', 0]], [['fref', 0]]], []], ['cref', 0]], [['cref', 0]]]), [0])
+        assertStructurallySame(readCaptures(['=>', 0, [['()', ['=>', 0, [['array', [['fref', 0]]], ['fref', 1]], [['fref', 0], ['fref', 1]]], []], 1], [['cref', 0], ['cref', 1]]]), [0])
         assertStructurallySame(readCaptures(['=>', 0, [['-', ['fref', 0]]], [['cref', 0]]]), [0])
         assertStructurallySame(readCaptures(['=>', 0, [1]]), [])
+        assertStructurallySame(readCaptures(['=>', 0, [['array', []], ['cref', 0]]]), [])
         // the sweep names only what the body reads
         assertEq(anchorsOf([[a], [['array', []], ['=>', 0, [['fref', 0], 1], [['cref', 0]]]]]), 'consts 0; imports 0')
         assertEq(anchorsOf([[a], [['array', []], ['=>', 0, [['fref', 0], ['cref', 0]], [['cref', 0]]]]]), 'consts ; imports 0')

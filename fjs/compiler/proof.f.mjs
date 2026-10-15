@@ -711,10 +711,19 @@ export const proof = {
             assertEq(fjsRoundTrip('export default (a, b) => { const t = b + 1; const u = (() => t)(); return [t, a && u]; };'), 'export default ($0,$1)=>{const $2=$1+1;return [$2,$0&&$2];};')
             assertEq(fjsRoundTrip('export default (a, b) => { const t = b.x; return [t, a ? (() => { const u = (() => t)(); return 1; })() : 0]; };'), 'export default ($0,$1)=>[$1.x,$0?1:0];')
             assertEq(fjsRoundTrip('export default (a, b) => { const t = b.x; return a ? (() => { const u = (() => t)(); return 1; })() : 0; };'), 'export default ($0,$1)=>{const $2=$1.x;return $0?1:0;};')
-            // and the anchor that establishes the node where nothing else
-            // does: the scope counts the node read through the call inlined
-            // in its body, so a failing `const` fails, in a function, a
-            // loop's block and a module
+            // a call inlined that answers a `const` is an alias of it, so a
+            // `const` read only through one is anchored where it stands, by
+            // the scope that makes it, before what reads it lazily — and a
+            // failing `const` fails, in a function, a loop's block and a
+            // module
+            assertEq(fjsRoundTrip('export default a => { const t = a.x; const u = a && t; const w = (() => t)(); return a && u; };'), 'export default ($0)=>{const $1=$0.x;const $2=$0&&$1;return $0&&$2;};')
+            assertEq(fjsRoundTrip('const t = [1].length; const a = [].length ? t : 0; const u = (() => t)(); export default 1;'), 'const $0=[1].length;const $1=[].length?$0:0;export default 1;')
+            assertEq(fjsRoundTrip('const o = { f: x => [x] }; export default (a) => { const t = a.k; return [(() => { const w = (() => t)(); return 1; })(), o.f(t)]; };'), 'const $0={"f":($1)=>[$1]};export default ($2)=>[1,$0.f($2.k)];')
+            assertEq(compileSource('const t = [1]; const f = () => { const u = (() => t)(); return 1; }; export default String(f);')('output.json'), '"()=>1"')
+            // a call nothing reads anchors its value where its body makes it,
+            // and not where something its body anchors reaches it
+            assertEq(fjsRoundTrip('export default (z, c) => { const u = (() => { const v0 = c.x; const v1 = z && v0; return v0; })(); return z ? u : 0; };'), 'export default ($0,$1)=>{const $2=$1.x;const $3=$0&&$2;return $0?$2:0;};')
+            assertEq(fjsRoundTrip('export default (z, c) => { const u = (() => { const v0 = c.x; const v1 = [v0]; return v0; })(); return z ? u : 0; };'), 'export default ($0,$1)=>{const $2=$1.x;const $3=[$2];return $0?$2:0;};')
             assertEq(fjsRoundTrip('export default (a, b) => { const t = b.x.y; return (() => { const u = (() => t)(); return 1; })(); };'), 'export default ($0,$1)=>{const $2=$1.x.y;return 1;};')
             assertEq(jsonRefused('const f = (b) => { const t = b.x.y; return (() => { const u = (() => t)(); return 1; })(); }; export default f({});'), 'input.f.js - error: module initialization failed')
             assertEq(

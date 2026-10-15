@@ -31,11 +31,13 @@ export type _RefNode = AstModuleRef | AstFrameRef
 export type _OperandStack = { readonly top: AstConst, readonly rest: _OperandStack } | null
 
 /**
- * The sweep from the export downwards: which entries it has reached, as a
- * set of indices spelled as a bigint, and every reference those entries
- * make.
+ * The sweep of a body from its value back: which entries a reference has
+ * reached, as a set of indices spelled as a bigint, and every reference the
+ * entries make.
  */
-export type _Reach = {
-    readonly reachable: bigint
+export type _Sweep = {
+    /** The entries a reference reaches, by bit: the value's among them where the value is read. */
+    readonly read: bigint
+    /** Every reference the body makes, each entry's in the body's order, resolved to the node it names. */
     readonly refs: List<_RefNode>
 }

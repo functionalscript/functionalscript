@@ -84,11 +84,7 @@ recurses in the compiler before this walk is ever reached, which
 [deep-nesting-recursion](../../compiler/todo/deep-nesting-recursion.md) tracks.
 This issue is the same fix, one layer further down, in code shared by
 every EDAG consumer rather than one compiler stage — a bigger, more
-central rewrite, out of Stage A's own scope. One walk of the shared
-code already has it: `fjs/edag/sharing`'s `reach`, which the lowering
-asks what a comma's operands establish, keeps a stack of its own, so
-the front end stays off the recursive walks and `.edag.data.js` and
-`.data.js` still never reach them.
+central rewrite, out of Stage A's own scope.
 
 Confirmed reachable through the Rust backend (`fjs/compiler/rust/module.f.mjs`'s
 `bodyLines`, added by Stage A): at the time it called `analysis(root)` to

@@ -103,29 +103,36 @@ export const proof = {
             // into, and stop at its function
             expectEdag(compile('export default (() => (() => { const x = null.x; return 1; })())();').edag, [',', [x, 1]])
             expectEdag(compile('export default (...a) => (() => { const x = null.x; return 1; })();').edag, ['=>', 0, [], [',', [x, 1]]])
-            // a `const` of the scope around, read in the body only through a
-            // call inlined there, is the body's anchor: the scope counts it
-            // read through that call, so nothing else establishes it, at
-            // any depth of inlining
+            // a call inlined that answers a `const` of the scope around,
+            // `(() => t)()`, is an alias of it, as `const u = t;` is: unused,
+            // it anchors nothing in the body and reads nothing, so the scope
+            // that makes `t` anchors it where nothing else reaches it, at any
+            // depth of inlining
             /** @type {Exp} */
             const bxy = ['.', ['.', ['arg', 1], 'x'], 'y']
             expectEdag(compile('export default (a, b) => { const t = b.x.y; return (() => { const u = (() => t)(); return 1; })(); };').edag, ['=>', 2, [], [',', [bxy, 1]]])
             expectEdag(compile('const t = null.x; export default [(() => { const u = (() => t)(); return 1; })()];').edag, [',', [x, ['[]', [1]]]])
             expectEdag(compile('export default (a, b) => { const t = b.x.y; return (() => { const v = (() => { const u = (() => t)(); return 1; })(); return 2; })(); };').edag, ['=>', 2, [], [',', [bxy, 1, 2]]])
-            // and no anchor where something else establishes the node: the
-            // value, which is the node or reaches it, or the node anchored
-            // already
+            // and none where something else reaches it: the value, which is
+            // the node or holds it, or nothing more for a second alias
             expectEdag(compile('export default (n) => { const t = [n]; const u = (() => t)(); return t; };').edag, ['=>', 1, [], ['[]', [['arg', 0]]]])
             expectEdag(compile('export default (n) => { const t = [n]; const u = (() => t)(); return [t]; };').edag, ['=>', 1, [], ['[]', [['[]', [['arg', 0]]]]]])
             expectEdag(compile('export default (b) => { const t = b.x; const u = (() => t)(); const v = (() => t)(); return 1; };').edag, ['=>', 1, [], [',', [['.', ['arg', 0], 'x'], 1]]])
-            // nor, under a lazy operand, for a node of the scope around it: a
-            // read there reaches nothing for that scope, which anchors the
-            // node itself where nothing reaches it eagerly; a node the
-            // operand makes stays its anchor however deep the call that
-            // floats it
+            // nor under a lazy operand, where a read reaches nothing for the
+            // scope around it, which anchors the node itself where nothing
+            // reaches it eagerly; a node the operand makes is anchored under
+            // it however deep the call that floats it
             expectEdag(compile('export default (a, b) => { const t = b.x; return a ? (() => { const u = (() => t)(); return 1; })() : 0; };').edag, ['=>', 2, [], [',', [['.', ['arg', 1], 'x'], ['?:', ['arg', 0], 1, 0]]]])
             expectEdag(compile('export default (a, b) => a ? (() => { const t = b.x; const v = (() => { const u = (() => t)(); return 1; })(); return 2; })() : 0;').edag, ['=>', 2, [], ['?:', ['arg', 0], [',', [['.', ['arg', 1], 'x'], 1, 2]], 0]])
-            // nor for a read of a binding, which establishes nothing
+            // a call nothing reads anchors no node of its own: its value is
+            // one more `const` of its body that nothing reads, anchored where
+            // it stands there — before what reads it lazily — or not at all
+            // where what the body anchors reaches it
+            /** @type {Exp} */
+            const cx = ['.', ['arg', 1], 'x']
+            expectEdag(compile('export default (z, c) => { const u = (() => { const v0 = c.x; const v1 = z && v0; return v0; })(); return z ? u : 0; };').edag, ['=>', 2, [], [',', [cx, ['&&', ['arg', 0], cx], ['?:', ['arg', 0], cx, 0]]]])
+            expectEdag(compile('export default (z, c) => { const u = (() => { const v0 = c.x; const v1 = [v0]; return v0; })(); return z ? u : 0; };').edag, ['=>', 2, [], [',', [['[]', [cx]], ['?:', ['arg', 0], cx, 0]]]])
+            // nor for an alias of a parameter, which names a binding
             expectEdag(compile('export default (a) => (() => { const u = (() => a)(); return 1; })();').edag, ['=>', 1, [], 1])
             // a body `const` its own lazy positions alone reach is anchored
             // by the body's rule, so it stands eagerly under the block root
