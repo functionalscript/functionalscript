@@ -32,7 +32,7 @@ for ordinary runtime exports; the
 
 ## Host runtime values
 
-The [function-source exception](../../spec/README.md#function-source-representation-exception)
+The [function-source exception](../../spec/principles/README.md#function-source-representation-exception)
 allows ordinary JavaScript execution to retain its host's function text.
 Converting an EDAG function to a runtime callable intentionally loses EDAG
 reflection; that boundary remains subject to the host exception.
@@ -61,7 +61,7 @@ so the function needs no name. V8 implements no tail calls, so
 this runs a million rounds where the named function expression below
 overflows after some thousands. It is the one loop spelling every writer
 has: a body holding such a loop called where it stands is spelled by the
-source writer as `let` and `while` ([spec: loops](../../spec/README.md#loops)),
+source writer as `let` and `while` ([spec: loops](../../spec/control-flow/loops.md)),
 the same text in both outputs, and the same shapes keep the recursion in
 every writer — a root assert, a condition reaching a value a memo cell
 establishes, a read of the rest array

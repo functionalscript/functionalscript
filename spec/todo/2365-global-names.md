@@ -66,14 +66,14 @@ name's, not the list's. What it protects is that a name 2360 admits is one
 no module could have bound, so each name is reserved no later than any of it
 is admitted, and the list may land whole or a name at a time. `Number` is
 the first, reserved together with the conversion it admits
-([number conversion](../README.md#number-conversion)), and it brought the
+([number conversion](../conversions/number.md)), and it brought the
 list beside the keywords that open question 3 asks for. `Array` is the
 second, reserved together with the one right operand of `instanceof` it
-admits ([`instanceof`](../README.md#instanceof)).
+admits ([`instanceof`](../operators/instanceof.md)).
 `String` is the third, reserved with its conversion
-([string conversion](../README.md#string-conversion)).
+([string conversion](../conversions/string.md)).
 `Object` is the fourth, reserved with `Object.is`, the one member of it
-admitted ([built-in static functions](../README.md#built-in-static-functions)).
+admitted ([built-in static functions](../built-ins/static-functions.md)).
 Every other name joins that list before 2360 admits any of it.
 
 ## Open questions
@@ -102,15 +102,15 @@ Every other name joins that list before 2360 admits any of it.
 
 ## Related
 
-- [Number conversion](../README.md#number-conversion) — `Number`, the
+- [Number conversion](../conversions/number.md) — `Number`, the
   first name reserved under this rule, in
   [`fjs/js/keywords`](../../fjs/js/keywords/module.f.js)' `reservedGlobals`:
   the list beside the keywords that open question 3 asks for.
-- [`instanceof`](../README.md#instanceof) — `Array`, the second name
+- [`instanceof`](../operators/instanceof.md) — `Array`, the second name
   reserved under this rule, in the same list.
-- [String conversion](../README.md#string-conversion) — `String`, the third
+- [String conversion](../conversions/string.md) — `String`, the third
   name reserved under this rule, in the same list.
-- [Built-in static functions](../README.md#built-in-static-functions) —
+- [Built-in static functions](../built-ins/static-functions.md) —
   `Object`, the fourth, reserved with `Object.is`, in the same list.
 - [`2360-built-in.md`](./2360-built-in.md) — which of these names become
   namespaces; each is reserved here no later than it is admitted there

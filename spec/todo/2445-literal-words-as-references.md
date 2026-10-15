@@ -7,7 +7,7 @@
 
 FunctionalScript reserves `undefined`, `NaN` and `Infinity`: a module may
 not bind or shadow them, so each denotes its value wherever a value stands
-([numbers](../README.md#numbers)). JavaScript does not reserve them. There
+([numbers](../values/numbers.md)). JavaScript does not reserve them. There
 they are globals — properties of the global object, `NaN` and `Infinity`
 non-writable — so an `IdentifierReference` may name them, and a module may
 shadow `undefined` with a binding of its own.

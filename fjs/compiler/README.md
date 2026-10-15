@@ -156,7 +156,7 @@ remain the boundary for a direct JSON document, emitting it as a default export.
 Named exports use existing `const` binding rules and form the result object in
 lexicographic key order. Source initializers remain ordered in the AST; the EDAG
 preserves dependencies and required evaluations under the specification's
-[failure-equivalence rule](../../spec/README.md#failure-is-one-outcome).
+[failure-equivalence rule](../../spec/principles/README.md#failure-is-one-outcome).
 
 See [examples/input.f.js](./examples/input.f.js).
 
@@ -219,7 +219,7 @@ operation of one operand that always fails, in place of the value returned.
 A guard, `if (c) { … }`, is sugar the parser unfolds: its block and the
 statements after it are each a parameterless function called where it
 stands, inlined as below, and the guard the `?:` of the two
-([spec: functions](../../spec/README.md#functions)). A body
+([spec: functions](../../spec/functions/README.md)). A body
 `const` is an entry of the function's own body, as a module `const` is of the
 module — one node however many references reach it, and what the returned
 value does not reach anchored by the comma rather than dropped, which is the
@@ -275,7 +275,7 @@ lazy position is anchored, since its own statement runs at load whatever
 the operator later decides, so `const c = null.x; export default [a && c,
 b && c];` throws at load in both languages. The writer spells both stages, with the
 parentheses their precedence and associativity ask for and no more
-([spec: operators](../../spec/README.md#operators)).
+([spec: operators](../../spec/operators/README.md)).
 
 `!` and `typeof` came after both stages, the third and fourth prefixes
 beside `-` and `~`: the grammar gives each `unaryOperand` as the other two
@@ -311,7 +311,7 @@ at the call and called with no arguments, `(() => { const x = f(); return
 scope's own nodes and what its value does not reach anchored at the nearest
 block root, a scope's root or a lazy operand — `isInlinedCall` in
 [`ast`](ast/module.f.mjs) names the conditions and the argument, and
-[spec: functions](../../spec/README.md#functions) the rule. The writer
+[spec: functions](../../spec/functions/README.md) the rule. The writer
 spells the same idiom back where a lazy operand shares a value nothing else
 reaches. [`serializer`](serializer/module.f.mjs) writes both ordinary and method
 calls, including chained calls, spreads and calls shared through a `const`.
@@ -340,7 +340,7 @@ the AST or the graph, and nothing downstream can tell one was written — the
 steps after the `)` read the value inside, which is why `(a.b)(c)` is the node
 `a.b(c)` is, and the sharing a module spells survives the parentheses. A group
 closes an optional-chain region, so `(a?.b).c` and `a?.b.c` are distinct programs
-([optional chaining](../../spec/README.md#optional-chaining)). What ordinary
+([optional chaining](../../spec/property-access/optional-chaining.md)). What ordinary
 grouping adds is spelling:
 a function returning an object, `(...a) => ({ x: 1 })`, an access or a call
 on a value written in place, `([1]).length`, and the two the prefix cannot
@@ -374,7 +374,7 @@ closed with them.
 | tokenizer | the `token` variant: `comment`, `['/', { oneline, multiline }]`, beside `operator`, which holds `/` and `/=` | first/first on `/` | grammar: left-factor the `/`, the shape of the `*` above. Not removed by the prefix tree — checked with the operator's first set kept whole — and masking a rule by replacement erased `/` from that set, which is how a first count missed it |
 | tokenizer | `number`: `digits0`, then the `option({ bigint, frac })` | first/follow on the digits, and on `e`, `E`, `n` | the `numError` poison: `[idChar]` follows every optional part of a number, and `idChar` holds digits and letters. The number boundary is decided one layer up, over the token stream |
 | tokenizer | `jsGrammar = repeat0Plus(token)`: the `idChar` repeat of `id`, the body of a `//` comment, its `option(newLine)`, the number's `{ numError: [idChar], ok: none }` itself, its `fracPart` on `.`, the exponent's sign option on `+` and `-`, and `multilineContent` | first/follow on the next token's first set | inherent to a whole-file grammar: a greedy token against the token after it. With the entry a single `token` the seven vanish — verified on the bridged set and on a two-rule grammar. The poison is the row above seen from outside the number: nullable, so its follow set is the next token's |
-| parser | `statementEnd`: `[trivia, ';', …]` beside `[lineTrivia, 'nl', …]` | first/first on the trivia symbols | trivia leads both branches. Trivia follows every token instead, and `;` ends every statement — the newline terminator is gone. The `;` later became optional, `end ::= [ ';' t ]`, and the grammar stayed LL(1): `;` begins no statement and no statement's continuation, and whether a newline preceded the token after an omitted `;` is a fact the token carries, which the fold reads — the rule [`spec/README.md`](../../spec/README.md#module-structure) states now. Later still, trivia left the alphabet altogether: the tokenizer drops it and marks each token with whether a newline preceded it, so no rule spells a `t` |
+| parser | `statementEnd`: `[trivia, ';', …]` beside `[lineTrivia, 'nl', …]` | first/first on the trivia symbols | trivia leads both branches. Trivia follows every token instead, and `;` ends every statement — the newline terminator is gone. The `;` later became optional, `end ::= [ ';' t ]`, and the grammar stayed LL(1): `;` begins no statement and no statement's continuation, and whether a newline preceded the token after an omitted `;` is a fact the token carries, which the fold reads — the rule [`spec/README.md`](../../spec/modules/README.md) states now. Later still, trivia left the alphabet altogether: the tokenizer drops it and marks each token with whether a newline preceded it, so no rule spells a `t` |
 | parser | `delimited`: `repeat0Plus([',', trivia, element, trivia])` then `option([',', trivia])`, once for arrays and once for objects | first/follow on `,` | the trailing comma, which rested on a failed round rewinding; spelled right-recursively, `item t [ ',' t [ items ] ]`; with trivia out of the alphabet it is `item [ ',' [ items ] ]` |
 | parser | the module's final `{ semicolon: [trivia, ';'], none: [] }`, then `trivia` | first/follow on the trivia symbols | trivia leads the option and follows it; gone with the `;` after every statement. The option returned as `end`, trivia *inside* it rather than after: `[ ';' t ]` is followed by a statement's first token or `eof`, never by trivia, so nothing leads and follows it at once; with trivia out of the alphabet it is `[ ';' ]` |
 
@@ -393,9 +393,9 @@ first/follow check, found three of the eight.
 - [x] identifiers `{a:5}`
 - [x] computed keys `{["a"]:5}`, the only keyed spelling of a `__proto__` key;
   the short form `{ __proto__ }` below is the other
-  ([spec: the `__proto__` key](../../spec/README.md#the-__proto__-key)) —
+  ([spec: the `__proto__` key](../../spec/values/objects.md#the-__proto__-key)) —
   and `{[k]:5}`, a key computed from any value
-  ([spec: property keys](../../spec/README.md#property-keys))
+  ([spec: property keys](../../spec/values/objects.md#property-keys))
 - [x] big int
 - [x] `export default ...`
 - [x] constants
@@ -447,7 +447,7 @@ FunctionalScript compiler.
 |---|---|
 | `.f.ts` | Authored FunctionalScript-intent TypeScript implementation/proof source. **No longer used**: stage 1 removed the last one, and new source must not use this extension. It appears below only to describe that completed migration. |
 | `.f.mjs` | Authored FunctionalScript-intent ESM JavaScript with JSDoc types. It may use FunctionalScript features the current parser/compiler does not support yet. |
-| `.f.js` | Authored FunctionalScript that the parser/compiler in the same revision accepts: the stage-2 compatibility marker ([below](#stage-2-mark-compiler-compatible-functionalscript)). Its proof stays `proof.f.mjs`, because a proof fails through `assert`, whose bare `if` and default parameter the compiler does not accept yet. Every repository module the compiler accepts whole is one, [`fjs/js/prototype`](../js/prototype/module.f.js) and [`fjs/types/range`](../types/range/module.f.js) among them, and none of them imports an `.f.mjs`; the packed-package check closing the `node26` CI job imports one from a clean consumer of the packed package ([`fjs/ci/package`](../ci/package/module.f.mjs)). No build or packaging step produces one: stage 1's TypeScript runtime emission did, and that pass is gone ([#1520](https://github.com/functionalscript/functionalscript/pull/1520)). `fjs compile <input> <output>.f.js` does still write one, to a path the caller names — that is the compiler's output for a user, not repository source. `fjs compile` with no arguments checks every authored one against this compiler, and CI runs it ([spec: checking every `.f.js`](../../spec/README.md#checking-every-fjs)). |
+| `.f.js` | Authored FunctionalScript that the parser/compiler in the same revision accepts: the stage-2 compatibility marker ([below](#stage-2-mark-compiler-compatible-functionalscript)). Its proof stays `proof.f.mjs`, because a proof fails through `assert`, whose bare `if` and default parameter the compiler does not accept yet. Every repository module the compiler accepts whole is one, [`fjs/js/prototype`](../js/prototype/module.f.js) and [`fjs/types/range`](../types/range/module.f.js) among them, and none of them imports an `.f.mjs`; the packed-package check closing the `node26` CI job imports one from a clean consumer of the packed package ([`fjs/ci/package`](../ci/package/module.f.mjs)). No build or packaging step produces one: stage 1's TypeScript runtime emission did, and that pass is gone ([#1520](https://github.com/functionalscript/functionalscript/pull/1520)). `fjs compile <input> <output>.f.js` does still write one, to a path the caller names — that is the compiler's output for a user, not repository source. `fjs compile` with no arguments checks every authored one against this compiler, and CI runs it ([spec: checking every `.f.js`](../../spec/command-line/checking.md)). |
 | `types.ts` | Authored TypeScript source for a type-level API. It may coexist with `.f.mjs` or later `.f.js` and holds no runtime implementation. |
 | `.d.ts`, `.d.mts` | Generated TypeScript declarations. |
 

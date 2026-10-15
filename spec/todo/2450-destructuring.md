@@ -2,7 +2,7 @@
 
 **Priority:** P2
 **Status:** wip — the design approved, and `const` and parameter
-destructuring implemented ([destructuring](../README.md#destructuring));
+destructuring implemented ([destructuring](../bindings/destructuring.md));
 the rest element and the elision remain
 
 ```js
@@ -41,7 +41,7 @@ compilable `.f.js`.
 
 A **binding target** is one of
 
-- a name, under the [binding rule](../README.md#shared-values-constants) a
+- a name, under the [binding rule](../bindings/constants.md) a
   `const` and a parameter already follow;
 - an **object pattern**, `{ p, … }`, each property a shorthand name `a`, or
   a key and a target, `a: t`, `"a": t`, `["a"]: t`, `[3]: t`, with the
@@ -71,7 +71,7 @@ read partially ([DESIGN.md §10](../../doc/DESIGN.md#10-refuse-what-you-cannot-h
   iteration — a read the spread lowering gives for free, the element after
   it taking the next index, `$0[1]`, so nothing is a hole. What it costs
   is the grammar: an array literal has no elision, since an array of this
-  language has no hole ([arrays](../README.md#arrays)), and the pattern is
+  language has no hole ([arrays](../values/arrays.md)), and the pattern is
   read as the literal is, so the literal rule would have to admit the
   elision for the fold to refuse it in a value and read it in a pattern.
   That is the next stage with rest, and no rule of the language: an
@@ -91,7 +91,7 @@ read partially ([DESIGN.md §10](../../doc/DESIGN.md#10-refuse-what-you-cannot-h
 - a **computed key** beyond a constant. A string or a number literal
   standing alone in the brackets, `{ ["a"]: t }` and `{ [3]: t }`, is the
   constant key an access admits in brackets, `o["a"]` and `o[3]`
-  ([property access](../README.md#property-access)), and is read as
+  ([property access](../property-access/README.md)), and is read as
   `"a": t` is — by the literal's spelling, so `{ [1.0]: t }` names `"1"`
   as `o[1.0]` does, and a grouped literal, `{ [(3)]: t }`, is no constant
   as `o[(3)]` is none. Every other computed key is refused for now
@@ -101,7 +101,7 @@ read partially ([DESIGN.md §10](../../doc/DESIGN.md#10-refuse-what-you-cannot-h
   value to resolve inside the statement, at every nesting of the pattern —
   machinery a conversion key, rare in a pattern, does not yet earn. A key
   of any type is the `entry` helper's to read
-  ([reading an entry at run time](../README.md#reading-an-entry-at-run-time)).
+  ([reading an entry at run time](../property-access/entries.md)).
 
 Until then an elision stops at its second comma, as it does in an array
 literal.
@@ -117,7 +117,7 @@ is the property of the read it lowers to:
   pattern is a read of that one value.
 - **An object pattern's property is a property access**, `{ k: t }` of a
   source `s` binding `t` to `s.k`, under every rule of
-  [property access](../README.md#property-access): a `null` or `undefined`
+  [property access](../property-access/README.md): a `null` or `undefined`
   source throws as JavaScript's `RequireObjectCoercible` throws, a
   primitive source yields `undefined` for a property it does not own, as
   `GetV` does through `ToObject`, and a key a built-in prototype gives a
@@ -130,7 +130,7 @@ is the property of the read it lowers to:
   hidden `const` to `[...s]`, and `t0` and `t1` to its elements `0` and
   `1`. This is JavaScript's own semantics, which run array destructuring
   through `GetIterator` as they run a spread
-  ([spread](../README.md#spread)): a source that is not iterable throws
+  ([spread](../values/arrays.md#spread)): a source that is not iterable throws
   the same `TypeError` (`const [a] = {};` fails, as it does in
   JavaScript), and a string yields its code points, so `const [a] = '😀';`
   binds the two-unit string. The spread reads every element where
@@ -143,10 +143,10 @@ is the property of the read it lowers to:
   throws in JavaScript whether or not `b` is used, so each hidden
   intermediate and each bound name is an entry of the body, kept by the
   comma node as an unread `const` already is
-  ([shared values](../README.md#shared-values-constants)). The order among
+  ([shared values](../bindings/constants.md)). The order among
   the reads of one pattern is no promise, since all are pure and only
   which failure fires first could tell them apart
-  ([failure is one outcome](../README.md#failure-is-one-outcome)).
+  ([failure is one outcome](../principles/README.md#failure-is-one-outcome)).
 - **An empty pattern binds nothing and keeps its failure**, the check
   `([]) => 0` and `({}) => 0` give a caller in JavaScript, which is a use
   and not a mistake, so [DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
@@ -176,7 +176,7 @@ spread they already answer; nothing changes below the compiler.
 - **An array pattern as index reads**, `s[0]`, `s[1]`, with no spread: a
   plausible wrong value for a string with an astral character and a silent
   success on an object JavaScript refuses. Rule 2 of the
-  [principles](../README.md#principles) and DESIGN.md §10 both forbid it.
+  [principles](../principles/README.md) and DESIGN.md §10 both forbid it.
 - **A destructuring node in the EDAG**: a schema change, two interpreters,
   the analysis, the Rust writer, NaNVM and both serializers, for a reading
   the spread and the access give exactly. It stays open as an optimization
@@ -238,10 +238,10 @@ of; and two familiar spellings — rest and defaults — are refused for now, ea
       as [DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
       asks.
 - [x] `const` destructuring: syntax tree, grammar, binding, proofs, and the
-      specification's [destructuring](../README.md#destructuring) section.
+      specification's [destructuring](../bindings/destructuring.md) section.
 - [x] Parameter destructuring: the parameter grammar and the `length` rule,
       over the same converter and binder; the specification's
-      [functions](../README.md#functions) section loses "destructuring is
+      [functions](../functions/README.md) section loses "destructuring is
       not supported yet".
 - [ ] Array rest, `[a, ...r]`, as a slice of the spread array, and
       elisions, `[, b]`, the element after one taking the next index, the
@@ -253,8 +253,8 @@ of; and two familiar spellings — rest and defaults — are refused for now, ea
 
 - [Named and rest parameters](./3120-parameters.md) — the parameter list
   this extends; defaults are its follow-up and this one's.
-- [Spread](../README.md#spread) and
-  [property access](../README.md#property-access) — the two reads a
+- [Spread](../values/arrays.md#spread) and
+  [property access](../property-access/README.md) — the two reads a
   pattern lowers to.
 - [Statement-aware intrinsics](../../fjs/compiler/parser/todo/statement-aware-intrinsics.md)
   — the `entry` helper is recognized whole, so a pattern in its parameter

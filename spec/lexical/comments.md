@@ -6,7 +6,7 @@ Comments are [trivia](./whitespace.md). Their text does not
 become an AST value, but the parser preserves line-terminator information
 needed by JavaScript's grammar. A line break inside a block comment counts at
 a restricted boundary too, such as after `return` or `throw`, or before `=>`
-([functions](../README.md#functions)).
+([functions](../functions/README.md)).
 
 ```js
 // a line comment runs to the end of the line
@@ -35,7 +35,7 @@ how it says what its types are.
 A comment can separate tokens where whitespace can, which is between any two
 ([trivia](./whitespace.md)). At unrestricted boundaries, the
 `;` that ends a statement may follow a comment on the same line or a later
-one ([module structure](../README.md#module-structure)), as any other token may. This
+one ([module structure](../modules/README.md)), as any other token may. This
 does not make newlines interchangeable with spaces at restricted boundaries,
 nor a comment with a newline: where a statement omits its `;`, the next one
 begins a new line only if a newline stands between them — inside a block

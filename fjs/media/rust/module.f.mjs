@@ -151,7 +151,7 @@ const canonicalNan = 0x7ff8_0000_0000_0000n
  * rather than approximated, a normal number's exponent being
  * {@link exponentOf}'s. Every `NaN` is {@link canonicalNan}, whatever sign
  * or payload an engine holds it with: FunctionalScript has one `NaN`
- * ([spec](../../../spec/README.md#numbers)), a `NaN`'s bits being no
+ * ([spec](../../../spec/values/numbers.md)), a `NaN`'s bits being no
  * observation the language admits, so one spelling is the whole of what
  * the value means.
  *

@@ -49,7 +49,7 @@ at the site's own view, and GitHub can stay as a second link.
   escape: `'\x41'` still stops the grammar at an `invalid token`. Template
   chunks and their nested substitutions are now recognised with escape
   provenance so the compiler can keep its
-  [FJS escape subset](../../../spec/README.md#template-literals). Many authored
+  [FJS escape subset](../../../spec/values/template-literals.md). Many authored
   modules use the remaining spellings, so the views would show nothing past
   them or highlight garbage, and the doc extractor would read string contents as
   declarations. Widening the grammar is the

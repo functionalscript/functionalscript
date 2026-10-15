@@ -8,7 +8,7 @@
 JavaScript lets a nested function bind a name an enclosing scope already
 binds, and the inner binding hides the outer one in the body. The parser
 accepts it today: a parameter may shadow a module name, as the specification
-says ([functions](../README.md#functions)), and a nested function may shadow
+says ([functions](../functions/README.md)), and a nested function may shadow
 the parameter of the function around it.
 
 ```js
@@ -35,7 +35,7 @@ linking being application. So there is one rule, for a module and a nested
 function alike: a binding must not reuse a name bound in an enclosing
 function. A parameter must not repeat an import, a constant, or an
 enclosing function's parameter, and neither must a body constant
-([functions](../README.md#functions)), which the language has and which may
+([functions](../functions/README.md)), which the language has and which may
 take a module's name today — one of the spellings this issue would
 refuse. A body that reads the name from outside before its `const` binds it
 is refused for now (`capture shadowed`), since JavaScript would read the
@@ -80,7 +80,7 @@ error is the default to implement, since it needs nothing new.
 
 - [function-frame](./3111-function-frame.md) — captures, which make the
   binding a name reads a question of scope.
-- [functions](../README.md#functions) — the body constant, the second kind
+- [functions](../functions/README.md) — the body constant, the second kind
   of binding a body has.
 - [parameters](./3120-parameters.md) — named parameters, more names to
   shadow with.

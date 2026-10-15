@@ -7,7 +7,7 @@ number of those or the digits `0`–`9`. `a`, `_x`, `$0` and `a_$1` are
 identifiers, and `1a` is not. Every word is spelled this way — a `const`,
 `import` or parameter name, an identifier key, the name after `.`, and the
 keywords — and which words may name a binding is the reserved-word rule of
-[shared values](../README.md#shared-values-constants): a reserved word may still be a key
+[shared values](../bindings/constants.md): a reserved word may still be a key
 or a property name, `{ if: 1 }` and `a.default` included.
 
 The rest of JavaScript's identifier grammar is not recognized yet

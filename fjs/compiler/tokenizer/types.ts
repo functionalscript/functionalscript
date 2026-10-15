@@ -66,7 +66,7 @@ type _KindsAreComplete = Assert<Equal<(typeof _djsTokenKinds)[number], DjsToken[
  * a rule reads, the trivia itself being left out of the stream: JavaScript
  * ends a statement written without its `;` at a newline, so the parser
  * asks it of the token after such a statement
- * ([spec: module structure](../../../spec/README.md#module-structure)),
+ * ([spec: module structure](../../../spec/modules/README.md)),
  * and forbids one before `=>` and after `return`, so it asks it there too.
  * A token after leading trivia carries the newline that trivia holds, the
  * stream's first token included.

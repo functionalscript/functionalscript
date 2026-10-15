@@ -97,7 +97,7 @@ sharing",
   `y` a shared `null.x` fails at `y` before the call — and that is no
   observation: the first failing operation is not one, and reordering a
   failing computation to fail earlier is what the
-  [failure contract](../../../../spec/README.md#failure-is-one-outcome)
+  [failure contract](../../../../spec/principles/README.md#failure-is-one-outcome)
   allows. A successful run evaluates the node anyway. The writer already does
   it for a shared call.
 

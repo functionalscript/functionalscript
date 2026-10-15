@@ -7,9 +7,9 @@ Amnesia, global memoization and CAVM use the distinct models below. None grants
 an unspecified exception merely because an executor is not content-addressable.
 
 The table describes **identity compatibility**. The
-[language principles](../../spec/README.md#principles) separately define
+[language principles](../../spec/principles/README.md) separately define
 indistinguishable failures and the adopted
-[function-text exception](../../spec/README.md#function-source-representation-exception).
+[function-text exception](../../spec/principles/README.md#function-source-representation-exception).
 Within the same declared identity and rendering contract, successful observations
 must agree. Resource limits may differ; A2's interruption freedom in the stage-1
 discussion does not authorize a different successful answer.

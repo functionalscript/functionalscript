@@ -132,7 +132,7 @@ under [Open](#open).
 
 The cost is stated plainly: the text carries no code, where JavaScript's
 carries the source. That is inside the adopted
-[exception](../README.md#function-source-representation-exception) — the
+[exception](../principles/README.md#function-source-representation-exception) — the
 EDAG-derived text was never going to be JavaScript's — but it is the far
 end of it, and a profile that wants readable bodies wants the decompiler
 above, not a different `toString`.

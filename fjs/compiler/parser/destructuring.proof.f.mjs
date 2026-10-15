@@ -26,7 +26,7 @@ export const proof = {
     // writes the reads the pattern is sugar for — a hidden entry per source,
     // the initializer first, and one entry per name, each a `cref` of it —
     // and binds every name as a `const`'s
-    // (spec/README.md#destructuring).
+    // (spec/bindings/destructuring.md).
     destructuring: {
         module: () => {
             // an object pattern's property is an access of the hidden entry,
@@ -77,7 +77,7 @@ export const proof = {
         // name — under an expression body and a block body alike, whose
         // own entries count from after them; and a pattern counts as one
         // parameter toward the function's `length`
-        // (spec/README.md#destructuring).
+        // (spec/bindings/destructuring.md).
         parameters: () => {
             expectModule('export default ({ a }) => a;', '[[],[["object",[[":","default",["=>",1,[["arg",0],[".",["cref",0],"a"],["cref",1]]]]]]]]')
             expectModule('export default ({ a }, [b, c], ...r) => [a, b, c, r];',

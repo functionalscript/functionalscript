@@ -41,7 +41,7 @@ well: the gaps are visible as empty pages.
 ### What a page holds
 
 **No page says "allowed unless forbidden".** FunctionalScript is a whitelist
-([principles](../README.md#principles)), so every JavaScript feature gets a
+([principles](../principles/README.md)), so every JavaScript feature gets a
 page that says which side of the line it is on, and the tree's coverage is
 checked against the ECMAScript feature list: a feature with no page is a gap,
 not a default. A page is one of two kinds.
@@ -148,31 +148,48 @@ which is refused as a read but accepted as a call) is an included page with a
 
 ### Migration
 
-**Pilot: lexical grammar** (done in this pull request). `spec/lexical/` holds
-an index and the pages `whitespace`, `comments`, `identifiers` and
-`string-escapes`, each with a status line, a Reference and an Examples section;
-`module.f.js` there holds one example list per page, and the compiler's list
-spreads them into its second area. Two choices the pilot made: the lists are
-one module per *area*, not one file per page, which keeps the proof count
-down; and `Hex escape` moved with `String escapes`, since it is the refusal of
-that page's rule — the tree's *Refused JavaScript* area keeps the cross-cutting
-register. `whitespace` and `identifiers` have no programs yet, so their
-accepted/refused examples are a follow-up.
+**Done in the conversion pull request.** `spec/README.md` is the index, the
+contents tree and the roadmap; the text moved into twelve areas, each a directory
+of pages with a status line, an Examples section and a Reference
+(ECMA-262 and MDN):
 
-Each step is one pull request and leaves the specification complete:
+| Area | Pages |
+| --- | --- |
+| `principles/` | principles, failure |
+| `lexical/` | whitespace, comments, identifiers, string escapes |
+| `values/` | numbers, bigints, strings, template literals, arrays, objects |
+| `modules/` | structure, exports, imports |
+| `bindings/` | constants, destructuring |
+| `operators/` | operators, grouping, `instanceof`, `in` |
+| `conversions/` | `Number`, `String` |
+| `property-access/` | access, optional chaining, entries |
+| `functions/` | functions, parameters, captures, calls, names and identity, outputs |
+| `control-flow/` | guards, loops |
+| `built-ins/` | member functions, static functions |
+| `command-line/` | command line, checking, source text, file types, JSON input, output |
 
-1. Add `examples.f.js` beside nothing yet: define the page-owned example shape
-   (name, source, optional refusal note) and the group in `Examples`, and have
-   the picker draw `<optgroup>`. The demo list is still the current one.
-2. Move one area — the smallest, *Lexical grammar* — into `spec/lexical/`: its
-   pages, its examples, a link from the index. The demo list now takes that
-   area from the tree.
-3. Repeat per area; each move deletes the matching section of `spec/README.md`
-   and re-points the links that named it. The numbered `todo/` entries above
-   link to pages instead of anchors as they move.
-4. When the last area has moved, `spec/README.md` is the index and the
-   principles, and the compiler's examples file is only the assembly.
-5. Each `◌` or `○` row gets its example when the feature lands, or a refusal
+Each area with programs has a `module.f.js` that exports one example list per
+page, and a proof that the lists build a valid drop-down; the compiler's
+`examples/module.f.js` is only the assembly, in tree order. Choices made along
+the way: one module per *area*, not per page, to keep the proof count down; a
+refusal's example lives on the page it shows (`Hex escape` with string escapes,
+`An import` with imports, `A failure at run time` and `Parse error` with the
+principles' failure rules), so the *Refused JavaScript* area is not a directory
+but the register [refused-constructs](./refused-constructs.md); subsections
+stayed headings inside their page, so every old anchor still exists, now on its
+page. Pages whose programs are not written yet say so under *Examples*; they
+and the rewrite of moved text into the included/refused layout above are the
+remaining work.
+
+What is left, each its own pull request:
+
+1. The picker draws `<optgroup>` per area, which needs `Examples` to carry the
+   group (today the area is only a comment in the assembly).
+2. Rewrite each moved page into the included or refused layout above: *why*,
+   *what to write instead*, the friendly error, the not-implemented status.
+3. Programs for the pages that have none, and a page for every ECMAScript
+   feature that has none (the coverage list below).
+4. Each `◌` or `○` row gets its example when the feature lands, or a refusal
    example when it is refused by design.
 
 ### Open questions

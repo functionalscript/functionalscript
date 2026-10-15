@@ -30,7 +30,7 @@
  * **A scope writes its own `const`s.** A module and a function body are the
  * same thing here — statements, then a value, introduced by `export default`
  * or by `return` — so a body hoists what it needs into a block of its own
- * ([spec: functions](../../../spec/README.md#functions)):
+ * ([spec: functions](../../../spec/functions/README.md)):
  *
  * ```js
  * export default ()=>{const $0=[1];return [$0,$0];};
@@ -97,7 +97,7 @@
  * `(()=>{throw v;})()`: JavaScript's one spelling of an expression that
  * fails, and FunctionalScript itself — the call the front end inlines, so
  * the text reads back as the node it was written from
- * ([spec: functions](../../../spec/README.md#functions)).
+ * ([spec: functions](../../../spec/functions/README.md)).
  *
  * **One line, normalized**, as the DataJS output is, and its leaves are the
  * DataJS serializer's, which owns their spelling.
@@ -323,7 +323,7 @@ const arrowKind = kind => kind === '=>' || kind === 'entry'
 
 /**
  * The operators by level, loosest first, JavaScript's own ladder
- * ([spec: operators](../../../spec/README.md#operators)): the conditional;
+ * ([spec: operators](../../../spec/operators/README.md)): the conditional;
  * the lazy layers, `||` and `??` — one level, though the two never mix
  * bare — and `&&`; under them the eager layers, Stage A, `|` down to
  * `* / %`, both read loosest first from `eagerLayers` and `lazyLayers` in
@@ -400,7 +400,7 @@ const operandGrouped = (op, right) => node => node !== null && (
  * A text opening with a prefix, `-` or `~` — a prefix operator's, or a
  * negative number's — is grouped before `**`, `(-2)**2`: JavaScript reads
  * `-2 ** 2` as neither of its two parenthesizations and refuses it, and so
- * does the grammar ([spec: operators](../../../spec/README.md#operators)).
+ * does the grammar ([spec: operators](../../../spec/operators/README.md)).
  *
  * @type {(s: _Scope, path: string, op: string) => (v: Operand) => Document}
  */
@@ -910,7 +910,7 @@ const moduleScope = (a, names) => ({ a, allowUnusedCaptures: false, outer: [], n
  * A body needing one is a block, `=> {const $n=…;return v;}`, which is
  * where a shared constructor inside a body, a numeric or function access
  * base, and a body's anchors are all written
- * ([spec: functions](../../../spec/README.md#functions)) — and so is a body
+ * ([spec: functions](../../../spec/functions/README.md)) — and so is a body
  * that throws, `=> {throw v;}`, the statement having no expression form.
  *
  * @type {(a: Analysis, path: string, frame: readonly string[], allowUnusedCaptures: boolean, self: string | null) => (b: Operand) => Document}
@@ -1344,7 +1344,7 @@ const hoistedText = (s, path) => h => h[0] === 'leaf'
  * then the operand itself — an anchor as a `const` of its own, and the last
  * operand as the export or the `return` — or, where that operand is a
  * `throw` node, as the `throw` statement it came from, the value after the
- * keyword ([spec: functions](../../../spec/README.md#functions)).
+ * keyword ([spec: functions](../../../spec/functions/README.md)).
  *
  * An anchor that is itself a value the statement's own hoists named — a
  * shared constructor the scope reaches only lazily, `const c = [];
@@ -1446,7 +1446,7 @@ const scope = (s, path, start, returns = null, yields = true) => all => {
 
 /**
  * Whether entry `i` is a loop the scope spells as `let` and `while`
- * ([spec: loops](../../../spec/README.md#loops)): a call, with one plain
+ * ([spec: loops](../../../spec/control-flow/loops.md)): a call, with one plain
  * argument, of a function written in place — reached by this one edge —
  * that is the template `fjs/edag/loop` recognizes and no shape every
  * writer keeps the recursion for (`keepsRecursion` there: an assert
@@ -1490,7 +1490,7 @@ const capturesParameter = (a, i) => a.nodes.some((n, j) => n[0] === '=>' && a.sc
  * variable and the initial value; `while`, the condition and the block of
  * the asserts, as `const`s, and the assignment of the next value, omitted
  * where that value is the variable itself — the text that reads back as
- * the template the loop is ([spec: loops](../../../spec/README.md#loops)).
+ * the template the loop is ([spec: loops](../../../spec/control-flow/loops.md)).
  * The variable is the loop's function's parameter, written as its name
  * wherever the function reads it, and from the loop on the name of the
  * call, a `const` of the scope.
@@ -1656,7 +1656,7 @@ export const functionText = (a, i) => {
  * A function's text: the function node written as one expression — what
  * `String(f)` answers for a function the compiler built, and the one
  * spelling every executor shares
- * ([spec: function source](../../../spec/README.md#function-source-representation-exception)).
+ * ([spec: function source](../../../spec/principles/README.md#function-source-representation-exception)).
  *
  * ```js
  * ()=>1

@@ -10,7 +10,7 @@
 > Existing compiler and native-VM components do not make those goals shipped
 > features. The [execution models](../../fjs/edag/execution-models.md) distinguish
 > CAVM from JS-compatible execution, which preserves observable allocation and
-> sharing. This vision does not override the [language principles](../../spec/README.md#principles).
+> sharing. This vision does not override the [language principles](../../spec/principles/README.md).
 
 ## Why content-addressable programming languages are the future
 

@@ -60,7 +60,7 @@ key an **object literal defines**, `{ [k]: v }`, and a key an **access reads**,
 
 An object literal takes any value between its brackets, converted as
 JavaScript converts it
-([property keys](../spec/README.md#property-keys)): `{ [k]: 1 }`,
+([property keys](../spec/values/objects.md#property-keys)): `{ [k]: 1 }`,
 `{ [k + 'b']: 2 }` and `{ [i]: 3 }` are all in the language and need no
 change. A constant string in brackets is the constant key, `{ ["a"]: 1 }` is
 `{ a: 1 }`, and `{ [0]: 1 }` is `{ "0": 1 }`.
@@ -94,7 +94,7 @@ the check but names a key the FunctionalScript output refuses to write
 A key the module computes, `a[i]`, is refused (`computed key is not Number(...)`),
 because the compiler does not know the key's type, and the type decides what
 JavaScript would find
-([property access](../spec/README.md#property-access)). The rewrite says
+([property access](../spec/property-access/README.md)). The rewrite says
 which it is.
 
 **A number — an element of an array, a code unit of a string:** convert the
@@ -114,7 +114,7 @@ name, so a converted key is never refused as one.
 
 **Anything else — a member of an object by a string, or a key of unknown
 type:** read it with the `entry` helper
-([reading an entry at run time](../spec/README.md#reading-an-entry-at-run-time)).
+([reading an entry at run time](../spec/property-access/entries.md)).
 Its implementation is
 [`fjs/types/object/entry`](../fjs/types/object/entry/module.f.js), an
 authored `.f.js` the compiler accepts, and the import below is the whole of
@@ -151,7 +151,7 @@ past the own properties, and a conversion checks that the module never did:
   not a rewrite.
 - `entry(f, "name")` is `undefined` on a function, whose `name` JavaScript
   gives and the language keeps unobservable
-  ([functions](../spec/README.md#functions)); `f.name` is refused outright.
+  ([functions](../spec/functions/README.md)); `f.name` is refused outright.
   A module that read a function's name was never FunctionalScript either,
   and has no rewrite.
 - `entry(a, k)` with a `null` or `undefined` `a` is an error, as `a[k]` is.
@@ -165,7 +165,7 @@ source text: `a[-0]` is `a["0"]`, since `-0` converts to `"0"`, and
 refused too; drop the group.
 
 The `Number(...)` form applies to an optional access alike, `a?.[Number(i)]`
-([optional chaining](../spec/README.md#optional-chaining)), and to a call
+([optional chaining](../spec/property-access/optional-chaining.md)), and to a call
 through the access, `a[Number(i)](x)`, which calls what it reads with `a` as
 the receiver, as `a[0](x)` does. The `entry` form has no optional spelling:
 `a?.[k]` is `undefined` where `a` is `null` or `undefined`, and `entry(a, k)`
@@ -198,7 +198,7 @@ on `undefined` where the chain read nothing, and throw where it returned.
 
 `Number.isInteger` is admitted, with `Number.isSafeInteger`,
 `Number.isNaN` and `Number.isFinite`
-([built-in static functions](../spec/README.md#built-in-static-functions)),
+([built-in static functions](../spec/built-ins/static-functions.md)),
 so a module keeps each as written: the call, the function as a value, and
 the destructuring `const { isInteger } = Number` alike. Nothing is
 converted, and nothing is imported in its place: each body is the
@@ -279,7 +279,7 @@ checked, not rewritten.
 ## 6. `Object.is`
 
 `Object.is` is admitted
-([built-in static functions](../spec/README.md#built-in-static-functions)),
+([built-in static functions](../spec/built-ins/static-functions.md)),
 so a module keeps it as written: the call `Object.is(a, b)`, the function
 as a value, and the destructuring `const { is } = Object` alike, which is
 sugar for `const is = Object.is`. Nothing is converted.
@@ -317,7 +317,7 @@ change the conversion makes by hand until it is admitted on its own.
 
 A block body ends in a terminating statement, a `return` or a `throw`, and
 every statement before it is a `const` or a guard
-([bodies and guards](../spec/README.md#bodies-and-guards)). JavaScript lets
+([bodies and guards](../spec/control-flow/guards.md)). JavaScript lets
 a body run off its closing brace and answers `undefined`; the compiler
 refuses to infer that return, and reports the brace (`unexpected token`).
 The rewrite spells the value JavaScript supplied:
@@ -372,11 +372,11 @@ const twoPow = exp => 1n << bigint(exp)   // accepted
 `bigint(n)` is the bigint with the value of `n`, exact at every magnitude:
 the lowest bit of an integral double is `n % 2`, the bits above it are
 those of `(n - n % 2) / 2`, both exact, and a `let`/`while` loop over one
-variable ([loops](../spec/README.md#loops)) reads them one per round, at
+variable ([loops](../spec/control-flow/loops.md)) reads them one per round, at
 most 1024 for the largest double. `-0` gives `0n`, as
 `BigInt(-0)` does. A fraction, `NaN` or an infinity has no bigint:
 `BigInt` throws a `RangeError` on it, and `bigint` throws too
-([failure is one outcome](../spec/README.md#failure-is-one-outcome)), so
+([failure is one outcome](../spec/principles/README.md#failure-is-one-outcome)), so
 the rewrite preserves the failure with the value. It is a function the
 compiler compiles, with no node of its own, as the strategy above says;
 the language may take `BigInt(n)` in as sugar for it later, beside

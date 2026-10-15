@@ -153,7 +153,7 @@ const lazyItem = nodes => item => {
  * floats floating with it, as an eager operand's does: the key of a plain
  * access is evaluated wherever the access is, and what it floats may be
  * established ahead of the base, an order failure equivalence leaves free
- * ([spec](../../../spec/README.md#failure-is-one-outcome)).
+ * ([spec](../../../spec/principles/README.md#failure-is-one-outcome)).
  *
  * @type {(nodes: _Nodes) => (key: AstKey) => _LoweredOver<Index>}
  */
@@ -584,7 +584,7 @@ export const unresolved = module => over(module[0])(lowered(module[0].map(parame
 /**
  * Whether a module's computation ends in a `throw`, past its evaluation
  * sequence: a module whose body ends in the statement in place of its
- * exports ([spec: module structure](../../../spec/README.md#module-structure)).
+ * exports ([spec: module structure](../../../spec/modules/README.md)).
  * Such a module fails at every load and exports nothing.
  *
  * @type {(module: Exp) => boolean}

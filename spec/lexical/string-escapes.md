@@ -23,7 +23,7 @@ double-quoted string is always a JSON string. JavaScript's other spellings —
 the `\v`, `\0`, `\xHH` and `\u{…}` escapes, a raw TAB or other C0 control
 character, a line continuation — are refused in both quotes; see
 [js-string-literals](../todo/2460-js-string-literals.md). Backtick-delimited
-[template literals](../README.md#template-literals) have their own expression syntax.
+[template literals](../values/template-literals.md) have their own expression syntax.
 
 This holds at every string position of a module: a value, an object key,
 plain or in brackets, the key of a property access in brackets (`o['k']`),

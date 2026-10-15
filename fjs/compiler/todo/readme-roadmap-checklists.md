@@ -18,7 +18,7 @@ compiler. They leave unticked features that parse and compile today:
   compiles to `.rs` and `.edag.data.js`.
 
 The last open box, "short form" `{ a }`, is in the language now
-([objects](../../../spec/README.md#objects)). The spec roadmap,
+([objects](../../../spec/values/objects.md)). The spec roadmap,
 [`spec/todo/README.md`](../../../spec/todo/README.md), is where these items
 are tracked; the README keeps a second, drifting copy.
 

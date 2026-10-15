@@ -1347,7 +1347,7 @@ repository-owned dependencies follow these source rules:
   targets a FunctionalScript module, `.f.mjs` or `.f.js`; one from `.f.js`
   targets `.f.js` alone, since the compiler links a module's imports with it
   and `fjs compile` with no arguments holds every `.f.js` to that
-  ([spec: checking every `.f.js`](../spec/README.md#checking-every-fjs));
+  ([spec: checking every `.f.js`](../spec/command-line/checking.md));
 - `types.ts` is authored type-only TypeScript source and carries no runtime
   implementation;
 - `.f.mjs` — and later `.f.js` — consumes `types.ts` through JSDoc `@import`,
