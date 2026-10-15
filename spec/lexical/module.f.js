@@ -15,10 +15,16 @@ const comments = [
 ]
 
 /** @type {Examples} */
-const whitespace = []
+const whitespace = [
+    ['Whitespace', 'export default [\n\t1,\n\t2 +\n\t\t3,\n];'],
+    ['Non-breaking space', 'export default\u00a01;'],
+]
 
 /** @type {Examples} */
-const identifiers = []
+const identifiers = [
+    ['Identifiers', 'const $_a1 = 1;\nconst a_$1 = [$_a1];\nexport default { $_a1, a_$1 };'],
+    ['Non-ASCII identifier', 'const é = 1;\nexport default é;'],
+]
 
 /** @type {Examples} */
 const stringEscapes = [

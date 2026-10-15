@@ -2027,7 +2027,7 @@ export const proof = {
         examples: () => {
             for (const [name, source] of examples) {
                 const [tag, value] = _astOf(source)
-                assertEq(tag, ['Hex escape', 'Parse error'].includes(name) ? 'error' : 'ok')
+                assertEq(tag, ['Hex escape', 'Non-breaking space', 'Non-ASCII identifier', 'Parse error'].includes(name) ? 'error' : 'ok')
                 // what the pane marks, the tokenizer agrees with
                 if (tag === 'ok') { assertEq(disagreement(value), null, name) }
             }

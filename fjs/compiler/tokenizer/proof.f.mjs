@@ -212,11 +212,12 @@ export const proof = {
             assertEq(_tokensOf('"bad').split('\n')[0], '1:1  error  invalid token (to 1:5)')
         },
         examples: () => {
-            // a hex escape is what the tokenizer cannot read; every other example ends at `eof`
+            // a hex escape, a non-breaking space and a non-ASCII name are what the tokenizer cannot read; every other example ends at `eof`
             for (const [name, source] of examples) {
                 const tokens = _tokensOf(source)
-                assertEq(tokens.includes('  error  '), name === 'Hex escape', name)
-                assertEq(tokens.endsWith('eof'), name !== 'Hex escape', name)
+                const unreadable = ['Hex escape', 'Non-breaking space', 'Non-ASCII identifier'].includes(name)
+                assertEq(tokens.includes('  error  '), unreadable, name)
+                assertEq(tokens.endsWith('eof'), !unreadable, name)
             }
             assertEq(_tokensOf('"a\\u0041"').split('\n')[0], '1:1  string  "aA"')
         },

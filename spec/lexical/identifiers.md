@@ -20,7 +20,7 @@ written as one: `{ "é": 1 }`, `o["é"]`.
 
 ## Examples
 
-None yet: `identifiers` in [`module.f.js`](./module.f.js) is empty, and its first programs — one accepted, one refused with the compiler's own message — are a follow-up.
+The compiler demo offers the programs `identifiers` in [`module.f.js`](./module.f.js), each with its real output: one accepted, one refused with the compiler's own message.
 
 ## Reference
 

@@ -1585,7 +1585,7 @@ export const proof = {
         examples: () => {
             for (const [name, source] of examples) {
                 const [tag, value] = _sourceOf(source)
-                assertEq(tag, ['An import', 'A named import and a call', 'Hex escape', 'Parse error'].includes(name) ? 'error' : 'ok', name)
+                assertEq(tag, ['An import', 'A named import and a call', 'Hex escape', 'Non-breaking space', 'Non-ASCII identifier', 'Parse error'].includes(name) ? 'error' : 'ok', name)
                 if (tag === 'ok') { assertEq(disagreement(value), null, name) }
             }
             assertEq(textOfResult(_sourceOf('const a = [1];\nexport default [a, a];')), 'const $0=[1];export default [$0,$0];')

@@ -37,7 +37,7 @@ error, as it is in JavaScript.
 
 ## Examples
 
-None yet: `whitespace` in [`module.f.js`](./module.f.js) is empty, and its first programs — one accepted, one refused with the compiler's own message — are a follow-up.
+The compiler demo offers the programs `whitespace` in [`module.f.js`](./module.f.js), each with its real output: one accepted, one refused with the compiler's own message.
 
 ## Reference
 
