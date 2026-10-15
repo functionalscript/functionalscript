@@ -88,7 +88,7 @@
  * @import { AstAccess, AstArray, AstBinary, AstInstanceOf, AstKey, AstSelf, AstCall, AstConditional, AstConst, AstEntryFunction, AstFrameRef, AstEntry, AstFunction, AstItem, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstStatic, AstRest, AstSpread, AstStep, AstThrow, AstUnary } from '../ast/types.ts'
  * @import { ParseError } from './types.ts'
  * @import { BindingElement, BindingProperty, BindingTarget, Block, Chain, ComputedKey, ConstantMember, Container, Entry, If, Import, Item, Key, Module, Node, ParameterList, Statement, Step, ValueStatement, While } from './syntax/types.ts'
- * @import { _AccessFrame, _BodyFrame, _Bound, _CallFrame, _ChainFrame, _ChainPart, _ConditionalFrame, _IndexFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _LoopBodyFrame, _Lowered, _Parameter, _Pending, _PendingStack, _Plan, _Read, _Ref, _Scope, _Source, _Stack, _State } from './private.ts'
+ * @import { _AccessFrame, _BodyFrame, _Bound, _CallFrame, _ChainFrame, _ChainPart, _ConditionalFrame, _Counted, _IndexFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _LoopBodyFrame, _Lowered, _Parameter, _Pending, _PendingStack, _Plan, _Read, _Ref, _Scope, _Source, _Stack, _State } from './private.ts'
  */
 
 import { error, mapOk, ok } from '../../types/result/module.f.js'
@@ -670,6 +670,15 @@ const lowered = ({ reads, names }, value, base) => ({
         (([token, i]) => [nameOf(token), ['cref', base + i]])),
 })
 
+/**
+ * A counting frame past its operand: the next one's position, and what
+ * the operand made appended to the ones before it — one value, or the
+ * entries a block body's statement lowers to.
+ *
+ * @type {<T, F>(frame: F & _Counted<T>, made: readonly NoInfer<T>[]) => F}
+ */
+const advanced = (frame, made) => ({ ...frame, index: frame.index + 1, done: concat(frame.done)(made) })
+
 /** Whether the step after a key makes the key a call's: any step but a property. @type {(step: Step | undefined) => boolean} */
 const isCallStep = step => step !== undefined && step[0] !== '|.'
 
@@ -745,7 +754,7 @@ const chainRound = (stack, scope, frame) => {
     if (key instanceof Array) { return keyEntered(stack, scope, key, frame) }
     const [tag, named] = checkedKey(key, part.method)
     if (tag === 'error') { return [stack, scope, error(named)] }
-    return chainRound(stack, scope, { ...frame, index: index + 1, done: concat(frame.done)([named]) })
+    return chainRound(stack, scope, advanced(frame, [named]))
 }
 
 /**
@@ -889,10 +898,10 @@ const round = (stack, scope, frame) => {
  * @type {(stack: _Stack, scope: _Scope, frame: _ContainerFrame, value: AstConst) => _State}
  */
 const containerReturned = (stack, scope, frame, value) => {
-    const { container, index, done, key } = frame
+    const { container, index, key } = frame
     return computedKeyAt(container, index) !== null && key === null
         ? round(stack, scope, { ...frame, key: [value] })
-        : round(stack, scope, { ...frame, index: index + 1, done: concat(done)([containerValue(container, index, key, value)]), key: null })
+        : round(stack, scope, { ...advanced(frame, [containerValue(container, index, key, value)]), key: null })
 }
 
 /**
@@ -1472,8 +1481,8 @@ const entered = (stack, scope, node, self) => {
  */
 const returned = (stack, scope, frame, value) => {
     if ('container' in frame) { return containerReturned(stack, scope, frame, value) }
-    if ('call' in frame) { return callRound(stack, scope, { ...frame, index: frame.index + 1, done: concat(frame.done)([callValue(frame.call, frame.index, value)]) }) }
-    if ('conditional' in frame) { return conditionalRound(stack, scope, { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) }) }
+    if ('call' in frame) { return callRound(stack, scope, advanced(frame, [callValue(frame.call, frame.index, value)])) }
+    if ('conditional' in frame) { return conditionalRound(stack, scope, advanced(frame, [value])) }
     if ('key' in frame) {
         const { key, method } = frame
         return key instanceof Array ? keyEntered(stack, scope, key, { indexed: value }) : [stack, scope, accessClosed(key, method, value)]
@@ -1483,7 +1492,7 @@ const returned = (stack, scope, frame, value) => {
         const access = ['.', frame.indexed, /** @type {AstKey} */ (value)]
         return [stack, scope, ok(access)]
     }
-    if ('chain' in frame) { return chainRound(stack, scope, { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) }) }
+    if ('chain' in frame) { return chainRound(stack, scope, advanced(frame, [value])) }
     if ('unary' in frame) {
         /** @type {AstUnary} */
         const applied = [frame.unary, value]
@@ -1551,14 +1560,14 @@ const returned = (stack, scope, frame, value) => {
             return loopRound(
                 stack,
                 { ...scope, names: bound.reduce((names, [word, ref]) => extended(names)(word, ref), scope.names) },
-                { ...frame, index: frame.index + 1, entries: frame.entries + entries.length, done: concat(frame.done)(entries) })
+                { ...advanced(frame, entries), entries: frame.entries + entries.length })
         }
         // an assignment rebinds the loop's variable, which the block may
         // have read already: a new entry the word names from here on
         return loopRound(
             stack,
             { ...scope, names: extended(scope.names)(frame.word, ['cref', frame.entries]) },
-            { ...frame, index: frame.index + 1, entries: frame.entries + 1, done: concat(frame.done)([value]) })
+            { ...advanced(frame, [value]), entries: frame.entries + 1 })
     }
     if ('statements' in frame) {
         const [kind, statement] = frame.statements[frame.index]
@@ -1575,7 +1584,7 @@ const returned = (stack, scope, frame, value) => {
             return bodyRound(
                 stack,
                 { ...scope, names: bound.reduce((names, [word, ref]) => extended(names)(word, ref), scope.names) },
-                { ...frame, index: frame.index + 1, entries: frame.entries + entries.length, done: concat(frame.done)(entries) })
+                { ...advanced(frame, entries), entries: frame.entries + entries.length })
         }
         // a guard's condition: its block is the first arm, a block of
         // JavaScript's own, so it may bind what the body has bound or read

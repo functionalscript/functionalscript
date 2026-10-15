@@ -139,20 +139,28 @@ export type _Scope = {
     readonly loopReads: readonly (readonly [word: string, refusal: ParseError])[]
 }
 
+/**
+ * What a frame that works through its operands in order holds besides its
+ * own payload: the position of the operand being evaluated, and what the
+ * ones before it made, a list since appending to an array per operand
+ * would copy the whole prefix each time. One operand makes one value, or,
+ * for a statement of a block body, the entries it lowers to.
+ */
+export type _Counted<T> = {
+    readonly index: number
+    readonly done: List<T>
+}
 
 /**
  * A container being built: `container[1][index]` is being evaluated, and
  * `done` holds the items before it as the AST has them — an array's items,
- * or an object's members and spreads — a list, since appending to an array
- * per item would copy the whole prefix each time. A member with a computed
+ * or an object's members and spreads, {@link _Counted}. A member with a computed
  * key is evaluated in two rounds, the key's and then the value's: `key`
  * holds the key's value between them, boxed since `null` and `undefined`
  * are values too, and is `null` otherwise.
  */
-export type _ContainerFrame = {
+export type _ContainerFrame = _Counted<AstItem | AstMember> & {
     readonly container: Container
-    readonly index: number
-    readonly done: List<AstItem | AstMember>
     readonly key: readonly [AstConst] | null
 }
 
@@ -161,10 +169,8 @@ export type _ContainerFrame = {
  * holds the values before it — the callee first and then each argument, in
  * the order written, which is the order they are evaluated in.
  */
-export type _CallFrame = {
+export type _CallFrame = _Counted<AstItem> & {
     readonly call: readonly ['()', Node, readonly Item[]]
-    readonly index: number
-    readonly done: List<AstItem>
 }
 
 /**
@@ -203,15 +209,13 @@ export type _ChainPart =
 /**
  * A chain being built: `parts[index]` is being evaluated or judged, and
  * `done` holds what came before it — each value's, and each key's name,
- * in document order — a list, for the reason a container's is. The chain
+ * in document order, {@link _Counted}. The chain
  * itself gives the shape the values are put back into once every part is
  * done.
  */
-export type _ChainFrame = {
+export type _ChainFrame = _Counted<AstConst> & {
     readonly chain: Chain
     readonly parts: readonly _ChainPart[]
-    readonly index: number
-    readonly done: List<AstConst>
 }
 
 /**
@@ -243,8 +247,7 @@ export type _Bound = {
  * `plan` what it binds, checked before its value was entered so that a
  * statement wrong in both halves answers for the half a reader meets first,
  * `null` under a guard's condition or the terminator, which bind nothing;
- * `done` holds the entries before it, a list for the reason a container's
- * is, and `entries` how many, which is where the next statement's land —
+ * `done` holds the entries before it, {@link _Counted}, and `entries` how many, which is where the next statement's land —
  * a `const` of one name makes one entry, a pattern several.
  *
  * The body begins at `first`: `0` for a function's body, and for the
@@ -252,14 +255,12 @@ export type _Bound = {
  * the continuation shares with the body it continues rather than copies —
  * a body of many guards would otherwise copy its tail once per guard.
  */
-export type _BodyFrame = {
+export type _BodyFrame = _Counted<AstConst> & {
     /** The statements of the block, the grammar's list, the terminator last. */
     readonly statements: Block[1]
     readonly first: number
-    readonly index: number
     readonly plan: _Plan | null
     readonly entries: number
-    readonly done: List<AstConst>
 }
 
 /**
@@ -307,13 +308,11 @@ export type _LoopCallFrame = {
  * `done` the entries before it, and `entries` how many, which is where the
  * next statement's land.
  */
-export type _LoopBodyFrame = {
+export type _LoopBodyFrame = _Counted<AstConst> & {
     readonly block: LoopBlock[1]
-    readonly index: number
     readonly word: string
     readonly plan: _Plan | null
     readonly entries: number
-    readonly done: List<AstConst>
 }
 
 /**
@@ -355,13 +354,11 @@ export type _BinaryRightFrame = { readonly tag: BinaryTag, readonly left: AstCon
 
 /**
  * A conditional being built: its operand at `index` — the condition, then
- * each arm — is being evaluated, and `done` holds the values before it, a
- * list for the reason a container's is.
+ * each arm — is being evaluated, and `done` holds the values before it,
+ * {@link _Counted}.
  */
-export type _ConditionalFrame = {
+export type _ConditionalFrame = _Counted<AstConst> & {
     readonly conditional: readonly ['?:', Node, Node, Node]
-    readonly index: number
-    readonly done: List<AstConst>
 }
 
 export type _Frame =
