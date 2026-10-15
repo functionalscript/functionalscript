@@ -30,7 +30,9 @@ Five nodes, written as sixteen copies of `$0+1`; `n` such `const`s write
 $1=["*",$0,$0];…`), and the Rust writer binds each once. Reading the written
 text back merges the copies again, so the round trip holds; what it does not
 hold is the size, and the `.js` output run as JavaScript evaluates each copy,
-so the run time grows the same way.
+so the run time grows the same way: the text evaluates the graph as
+[Amnesia](../../../edag/amnesia/README.md) does, every incoming edge
+evaluating its target again, where the graph has one node.
 
 Nothing about the source decides it: `(x) => { const a = x ? 1 : 2; return
 a + a; }` is written `($0)=>($0?1:2)+($0?1:2)`. A default parameter, as
@@ -42,39 +44,59 @@ it is no cause of it.
 
 ### Proposal
 
-In `hoists`, give a `const` to a shared node the scope's root reaches
-eagerly, whatever its kind. The reason given for writing such a node in
-place holds only where an occurrence is lazy: a node the root reaches
-eagerly is evaluated where the scope runs whether or not it is named, so
-naming it evaluates nothing the source did not, and reads back as the same
-node. The examples above would be written
+**A shared node is named in the block that shares it, whatever its kind.**
+Decided by the owner
+([comment](https://github.com/functionalscript/functionalscript/pull/2964#issuecomment-6185308972)):
+"It is not about shorter or longer; it's about sharing. Correctness is
+paramount!" — so `$0.y` and `-$0` take a `const` as `$0+1` does, and the
+text stays linear in the graph.
+
+- **The scope.** In `hoists`, a shared node the scope's root reaches
+  eagerly takes a `const` of the scope. The reason given for writing such a
+  node in place holds only where an occurrence is lazy: a node the root
+  reaches eagerly is evaluated on every successful run of the scope whether
+  or not it is named, so naming it skips no failure a successful run skips,
+  and reads back as the same node. What it can move is *which* failure
+  comes first — in `[(() => { throw 1 })(), null.x, null.x]` the hoisted
+  `null.x` fails before the call — and that is no observation: the first
+  failing operation is not one, and reordering a failing computation to fail
+  earlier is what the
+  [failure contract](../../../../spec/README.md#failure-is-one-outcome)
+  allows, in so many words. The writer already does it for a shared call.
+- **A lazy operand's block.** "Lazy cases are not shareable outside their
+  own blocks" (the owner, same comment). The right operand of `&&`, `||`
+  and `??` and an arm of `?:` is a block of its own, which the writer
+  already opens for a minting node shared within it,
+  `$0?(()=>{const $1=[$0];return [$1,$1];})():0`
+  ([the writer's header](../module.f.mjs)); a node shared within one such
+  operand takes a `const` of that block the same way, whatever its kind. A
+  node two lazy operands reach with no eager path is shared by neither: a
+  mergeable one is written in each operand's block, as `x + 1` is in
+  `$0?$0+1:($0+1)*2`, and a minting one stays refused, as today.
+
+The examples above would be written
 
 ```js
 export default ($0)=>{const $1=$0+1;const $2=$1*$1;const $3=$2*$2;const $4=$3*$3;return $4*$4;};
 export default ($0)=>{const $1=$0?1:2;return $1+$1;};
 ```
 
-linear in the graph. A shared mergeable node reached only through lazy
-operands stays in place for now: naming it in the scope would evaluate it
-where the source did not, and the block a lazy operand opens for a minting
-node ([the writer's header](../module.f.mjs)) is the mechanism that could
-name it there, at the cost of an IIFE.
-
-Open for the owner:
-
-- whether every eagerly shared node takes a `const`, or a node whose text is
-  shorter than its name and a read of it — `$0.y`, `-$0` — stays in place.
-  The proposal is every one: one rule, and the text is linear either way;
-- whether the lazy case is worth its block, as a step after this one.
+and the same chain under a lazy arm, written today
+`$0?($0+1)*($0+1)*(($0+1)*($0+1)):0`, as
+`$0?(()=>{const $1=$0+1;const $2=$1*$1;return $2*$2;})():0`.
 
 ### Tasks
 
 - [ ] `hoists`: a `const` for a shared node the scope's root reaches
-      eagerly; the module's header and `hoistedKind`'s comment say why.
+      eagerly; the module's header and `hoistedKind`'s comment say why, the
+      failure contract included.
+- [ ] A lazy operand's block: a `const` of the block for a node shared
+      within one lazy operand, whatever its kind; a mergeable node two lazy
+      operands reach written in each.
 - [ ] Proofs: the serializer's own, `../../language.proof.f.mjs` and
       `../../proof.f.mjs`'s `fjsRoundTrip` expectations that pin in-place
       text, and a proof that a chain of nested shared operators is written
-      in text linear in its length.
+      in text linear in its length, in a scope and under a lazy operand.
 - [ ] `tsc`, `npm start test` under `fjs/compiler`, scoped proof coverage at
       100%.
 
