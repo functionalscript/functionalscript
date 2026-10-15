@@ -37,13 +37,19 @@ way, and so does an unread import of such a module. The compact writer
 where the comma stands among the module's own operands. It predates writing
 a shared node once, which writes it the same way.
 
-Where no module operand holds the comma, both writers refuse it. An unread
-import is no anchor where another import's node reaches it
-(`fjs/compiler/edag`'s `anchoredImports`), so a module importing `m` both
-directly, unread, and through a module that reads `m` only inside a
-function's captures, `const c = () => m;`, holds `m`'s comma only in that
-capture, and its `.f.js` output is refused. `2ca692ba` anchored the unread
-import at the root and wrote text that reads back as another graph.
+Where no module operand holds the comma — it stands only in an item, a
+lazy operand or a function's captures — both writers refuse it.
+`2ca692ba` held it as a module operand in more programs, so wrote text
+that reads back as another graph where they now refuse:
+
+- An unread import is no anchor where another import's node reaches it
+  (`fjs/compiler/edag`'s `anchoredImports`), so a module importing `m` both
+  directly, unread, and through a module that reads `m` only inside a
+  function's captures, `const c = () => m;`, holds `m`'s comma only in
+  that capture.
+- A dead `const w = (() => m)();` is the alias it is, as `const w = m;`
+  is, and anchors nothing, so `const c = (() => { const w = (() => m)();
+  return [false, m]; })();` holds `m`'s comma only in the array.
 
 ### Proposal
 
