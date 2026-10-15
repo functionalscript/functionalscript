@@ -60,10 +60,15 @@ below.
 
 - **The scope.** In `hoists`, a shared node the scope always evaluates
   takes a `const` of the scope. *Always evaluates* is what a successful run
-  of the scope cannot skip: what its root reaches through no lazy operand,
-  and also a node that the condition of a `?:` so reached evaluates, or that
-  *every* arm of it does — a `?:` runs one arm whenever it runs, so a node
-  both arms reach is the block's around it, not either arm's. The reason
+  of a block cannot skip, defined over the graph: the block's root; each
+  eager operand of a node the block always evaluates — the condition of a
+  `?:` and the left operand of `&&`, `||` and `??` among them, never an arm
+  or a right operand; and a node that *every* arm of a `?:` the block always
+  evaluates itself always evaluates, by this same definition, since a `?:`
+  runs one arm whenever it runs. Reaching a node is not enough: in
+  `c ? (d && t) : t` both arms reach `t`, the first only behind `d &&`, so
+  `c` true and `d` false skips it — `t` is not the outer block's, and naming
+  it there would make that successful run fail where `t` fails. The reason
   given for writing such a node in place holds only where an occurrence can
   be skipped: a node the scope always evaluates is evaluated on every
   successful run whether or not it is named, so naming it skips no failure a
@@ -82,23 +87,27 @@ below.
   ([the writer's header](../module.f.mjs)); a node shared within one such
   operand takes a `const` of that block the same way, whatever its kind. A
   node two lazy operands reach that no block around them always evaluates
-  is shared by neither: a mergeable one is written in each operand's block,
-  as `x + 1` is in `$0?$0+1:($0+1)*2`, and a minting one stays refused, as
-  today.
+  is shared by neither. A minting one stays refused, as today; a mergeable
+  one is written in each operand's block by today's writer, as `x + 1` is
+  in `$0?$0+1:($0+1)*2`, and whether it stays so is the one question below
+  this record leaves open.
 
 **The case left: it can still double.** A mergeable node that only some of
 several lazy operands reach, none of which is sure to run, is written in
-each — `(c ? t : 0) + (d ? t : 1)` — and a chain of them doubles per level.
+each by today's writer — `(c ? t : 0) + (d ? t : 1)` — and a chain of them
+doubles per level.
 A module the front end reads cannot build one but by writing the text out
 in full, or by naming it with a `const`, which the comma anchors and the
 writer names, so its output is as long as its source at most. A graph built
 otherwise — an EDAG document, a value — can: at `c20968d4` the chain
 `t0 = x + 1`, `tk+1 = c ? tk : tk * 2`, built with no anchor, three levels
 deep, writes `$1+1` eight times. The `?:` rule above makes that chain
-linear, both arms reaching each `tk`; the `(c ? t : 0) + (d ? t : 1)` chain
-stays exponential. Open for the owner: write it in each block, as the rule
-says, or refuse a graph whose text that rule would make longer than its
-nodes — as a minting node two lazy operands reach is refused today.
+linear, both arms always evaluating each `tk`; the
+`(c ? t : 0) + (d ? t : 1)` chain stays exponential. Open for the owner:
+keep writing such a node in each block, or refuse a graph whose text that
+would make longer than its nodes — as a minting node two lazy operands
+reach is refused today. Until that is decided, the implementation keeps
+today's behavior for this case alone.
 
 The examples above would be written
 
@@ -113,11 +122,13 @@ and the same chain under a lazy arm, written today
 
 ### Tasks
 
-- [ ] `hoists`: a `const` for a shared node the scope's root reaches
-      eagerly; the module's header and `hoistedKind`'s comment say why, the
-      failure contract included.
-- [ ] *Always evaluates*: a node every arm of a `?:` reaches, or its
-      condition does, belongs to the block around the `?:`.
+- [ ] `hoists`: a `const` for a shared node the scope always evaluates;
+      the module's header and `hoistedKind`'s comment say why, the failure
+      contract included.
+- [ ] *Always evaluates*, by its recursive definition: the condition of a
+      `?:` the block always evaluates, and a node every arm of it always
+      evaluates — not one an arm reaches only behind a lazy operand of its
+      own.
 - [ ] A lazy operand's block: a `const` of the block for a node shared
       within one lazy operand, whatever its kind; a mergeable node two lazy
       operands reach written in each, or refused, as the owner decides.
@@ -125,8 +136,9 @@ and the same chain under a lazy arm, written today
       `../../proof.f.mjs`'s `fjsRoundTrip` expectations that pin in-place
       text, and a proof that a chain of nested shared operators is written
       in text linear in its length — in a scope, under a lazy operand, and
-      as the built `tk+1 = c ? tk : tk * 2` chain with no anchor — and one
-      that pins what the `(c ? t : 0) + (d ? t : 1)` chain does.
+      as the built `tk+1 = c ? tk : tk * 2` chain with no anchor — one that
+      `c ? (d && t) : t` keeps `t` out of the outer block, and one that pins
+      what the `(c ? t : 0) + (d ? t : 1)` chain does.
 - [ ] `tsc`, `npm start test` under `fjs/compiler`, scoped proof coverage at
       100%.
 
