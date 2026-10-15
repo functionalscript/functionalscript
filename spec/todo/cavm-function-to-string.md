@@ -98,7 +98,7 @@ what makes it right:
   expansion is one level and finite — is a CAVM inspection operation,
   a decompiler, and not `toString`.
 - **Legal spelling.** The characters an
-  [identifier](../README.md#identifiers) may continue with — `A`–`Z`,
+  [identifier](../lexical/identifiers.md) may continue with — `A`–`Z`,
   `a`–`z`, `0`–`9`, `_` and `$` — are exactly sixty-four, so a hash spells
   as base64 over that alphabet with no character outside it: a 255-bit
   hash is forty-three characters, against sixty-four in hex. Standard

@@ -114,12 +114,12 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
    Octal has no use case yet; `.5` lands with
    [`?.` before a digit](../../fjs/js/tokenizer/todo/optional-chain-before-digit.md),
 5. [ ] names beyond ASCII — Unicode identifier characters and `\u` escapes
-   in a name, `const é = 1` ([identifiers](../README.md#identifiers)),
+   in a name, `const é = 1` ([identifiers](../lexical/identifiers.md)),
 6. [ ] the rest of JavaScript's trivia — VT, FF, NBSP and the other `Zs`,
    U+FEFF (a leading BOM too), U+2028/U+2029 outside a string, a leading
    hashbang line — each recognized, or its refusal justified as
    [DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
-   asks ([whitespace](../README.md#whitespace-and-line-terminators)),
+   asks ([whitespace](../lexical/whitespace.md)),
 7. [ ] import attribute spellings — a string key, `with { "type": "json" }`,
    a trailing comma and an empty `with {}`
    ([importing](../README.md#importing-other-modules)).
