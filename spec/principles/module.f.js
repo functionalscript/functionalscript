@@ -20,4 +20,4 @@ const failure = [
     ['Parse error', 'export default {bad'],
 ]
 
-export default { overview, failure }
+export default { overview, failure, all: [...overview, ...failure] }

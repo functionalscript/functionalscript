@@ -20,4 +20,4 @@ const destructuring = [
     ['Destructuring', 'const { a, "b": [c, d] } = { a: 1, b: [2, 3] };\nconst [e] = "hi";\nconst f = ([x, { y }], z) => [x, y, z];\nexport default [a, c, d, e, f([4, { y: 5 }], 6)];'],
 ]
 
-export default { constants, destructuring }
+export default { constants, destructuring, all: [...constants, ...destructuring] }

@@ -32,4 +32,4 @@ const stringEscapes = [
     ['Hex escape', 'export default "\\x41";'],
 ]
 
-export default { comments, whitespace, identifiers, stringEscapes }
+export default { comments, whitespace, identifiers, stringEscapes, all: [...comments, ...whitespace, ...identifiers, ...stringEscapes] }

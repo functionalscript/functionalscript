@@ -26,4 +26,4 @@ const objects = [
     ['Shorthand members', 'const x = 1;\nconst y = [x];\nexport default { x, y };'],
 ]
 
-export default { index, templateLiterals, objects }
+export default { index, templateLiterals, objects, all: [...index, ...templateLiterals, ...objects] }

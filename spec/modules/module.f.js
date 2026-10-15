@@ -20,4 +20,4 @@ const imports = [
     ['A named import and a call', 'import m from "./m.f.js";\nimport { x } from "./n.f.js";\nexport default m(x);'],
 ]
 
-export default { exports, imports }
+export default { exports, imports, all: [...exports, ...imports] }

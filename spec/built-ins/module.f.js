@@ -14,4 +14,4 @@ const staticFunctions = [
     ['Static functions', 'const { isInteger } = Number;\nexport default [Object.is(0, -0), Object.is(NaN, NaN), Object.is === Object.is, isInteger(5), Number.isSafeInteger(2 ** 53), Number.isNaN("NaN"), Number.isFinite(1 / 0)];'],
 ]
 
-export default { staticFunctions }
+export default { staticFunctions, all: [...staticFunctions] }

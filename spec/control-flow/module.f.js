@@ -20,4 +20,4 @@ const loops = [
     ['Loop', 'export default n => {\n    let r = 1;\n    while (r < n) {\n        r = r * 2;\n    }\n    return r;\n};'],
 ]
 
-export default { guards, loops }
+export default { guards, loops, all: [...guards, ...loops] }

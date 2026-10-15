@@ -25,4 +25,4 @@ const captures = [
     ['Recursion', 'const fact = n => n < 2 ? 1 : n * fact(n - 1);\nexport default fact(5);'],
 ]
 
-export default { index, parameters, captures }
+export default { index, parameters, captures, all: [...index, ...parameters, ...captures] }

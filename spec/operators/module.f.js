@@ -28,4 +28,4 @@ const instanceOf = [
     ['instanceof', 'export default [[1] instanceof Array, [] instanceof (Array), null instanceof Array, !1 instanceof Array];'],
 ]
 
-export default { grouping, index, instanceOf }
+export default { grouping, index, instanceOf, all: [...grouping, ...index, ...instanceOf] }

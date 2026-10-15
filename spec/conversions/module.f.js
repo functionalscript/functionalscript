@@ -14,4 +14,4 @@ const number = [
     ['Number conversion', 'const xs = [10, 20, 30];\nexport default [Number("0x10"), Number(" 4 "), Number(1n), Number([7]), Number(null), xs[Number("2")]];'],
 ]
 
-export default { number }
+export default { number, all: [...number] }

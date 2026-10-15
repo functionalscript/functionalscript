@@ -45,31 +45,28 @@ import functions from '../../../spec/functions/module.f.js'
 import controlFlow from '../../../spec/control-flow/module.f.js'
 import builtIns from '../../../spec/built-ins/module.f.js'
 
-/** The programs an area's pages own, in page order. @type {(area: Readonly<Record<string, Examples>>) => Examples} */
-const own = area => Object.values(area).flat()
-
 /** @type {Examples} */
 export const examples = [
     // 1. Principles
-    ...own(principles),
+    ...principles.all,
     // 2. Lexical Grammar
-    ...own(lexical),
+    ...lexical.all,
     // 3. Values
-    ...own(values),
+    ...values.all,
     // 4. Modules
-    ...own(modules),
+    ...modules.all,
     // 5. Bindings
-    ...own(bindings),
+    ...bindings.all,
     // 6. Operators
-    ...own(operators),
+    ...operators.all,
     // 7. Conversions
-    ...own(conversions),
+    ...conversions.all,
     // 8. Property Access
-    ...own(propertyAccess),
+    ...propertyAccess.all,
     // 9. Functions
-    ...own(functions),
+    ...functions.all,
     // 10. Control Flow
-    ...own(controlFlow),
+    ...controlFlow.all,
     // 11. Built-ins
-    ...own(builtIns),
+    ...builtIns.all,
 ]

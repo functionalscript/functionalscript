@@ -24,4 +24,4 @@ const entries = [
     ['The entry helper', 'const entry = (a, b) => {\n    const x = Object.getOwnPropertyDescriptor(a, b);\n    return x?.enumerable ? x.value : undefined;\n};\nexport default [entry({ k: 1 }, "k"), entry([7, 8], 1), entry("ab", 1), typeof entry];'],
 ]
 
-export default { index, optionalChaining, entries }
+export default { index, optionalChaining, entries, all: [...index, ...optionalChaining, ...entries] }
