@@ -22,30 +22,14 @@ body, `ContainerFmt` centralizes `Debug`, and bigint
 (`vm/bigint/mod.rs`). The remaining repetition is in the thin
 *wrapper* impls that delegate to those internals.
 
-### 1. `SizedIndex<u32>`, `Index<u32>`
+The first rung has landed for `SizedIndex<u32>`: `ContainerWrapper`
+(`vm/impls/sized_index.rs`, sealed by being unnameable outside the crate)
+carries each wrapper's VM and internal container, a single blanket
+`impl<W: ContainerWrapper> SizedIndex<u32> for W` supplies `length`, and each
+wrapper's foreign `Index<u32>` impl is a one-line delegation to
+`ContainerWrapper::item`. The items below can ride the same trait.
 
-These two traits are declared in lockstep across the per-type directories
-and are byte-identical except for the wrapper and its output/associated type:
-
-```rust
-// string/sized_index.rs  (array/object/bigint: body verbatim identical)
-impl<A: IVm> SizedIndex<u32> for String<A> {
-    fn length(&self) -> u32 { self.0.items().length() as u32 }
-}
-
-// string/index.rs  (array/object/bigint: identical except `type Output`)
-impl<A: IVm> Index<u32> for String<A> {
-    type Output = u16;
-    fn index(&self, index: u32) -> &Self::Output { self.0.items().index(index as usize) }
-}
-```
-
-Instances: four of each, for `String`, `Array`, `Object` and `BigInt`, whose
-`Output` is `u16`, `Any<A>`, `Property<A>` and `u64`. `Function` keeps its
-bespoke `length` accessor in `function/mod.rs` and is excluded. A sealed
-helper trait carrying the wrapper's item type is the first rung to try.
-
-### 2. `PartialEq` — two semantic arms
+### 1. `PartialEq` — two semantic arms
 
 The wrapper `PartialEq` bodies fall into two classes:
 
@@ -60,12 +44,12 @@ fn eq(&self, other: &Self) -> bool { self.0.items_eq(&other.0) }
 helper trait would carry. `BigInt` additionally implements `Eq`
 (`bigint/partial_eq.rs`), so the structural arm must allow that.
 
-### 3. `IntoIterator`, `Default`, and the `ToX` constructor traits — same axis, missing from the inventory
+### 2. `IntoIterator`, `Default`, and the `ToX` constructor traits — same axis, missing from the inventory
 
 Three more trait families follow the exact "one impl per nominal newtype,
-byte-identical modulo names" shape and must ride whatever mechanism items
-1–2 land, or they stay a lockstep-edit hazard when a wrapper/variant is
-added:
+byte-identical modulo names" shape and must ride whatever mechanism item 1
+lands (and `ContainerWrapper`), or they stay a lockstep-edit hazard when a
+wrapper/variant is added:
 
 ```rust
 // vm/impls/into_iterator.rs — three impls differing only in `Item`
@@ -86,7 +70,8 @@ and the constructor traits themselves — `ToObject` (`vm/object/to_object.rs`),
 
 Since the `into_iter`/`default` bodies are already trait-method
 delegations, a sealed helper trait carrying `Internal`/`Item` (the same
-source-of-truth-table axis as items 1–2) centralizes the knowledge — but
+source-of-truth-table axis as item 1; `ContainerWrapper` already carries
+`Internal`) centralizes the knowledge — but
 **not through a blanket impl**: `IntoIterator` and `Default` are foreign
 traits, and Rust's orphan rules reject `impl<A: IVm, W: Sealed> Default
 for W` (the self type is an uncovered type parameter, E0210), so "zero
