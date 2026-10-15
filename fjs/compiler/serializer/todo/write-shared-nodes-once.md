@@ -5,18 +5,40 @@
 
 ### Problem
 
-The FunctionalScript writer gives a shared node a `const` only when the node
-mints identity — `[]`, `{}`, `=>`, a call — or holds one through a lazy
-edge (`hoistedKind`). Every other shared node, an access or an operator over
-values, is written in place at each occurrence, as the module's own header
-says: the occurrences merge again when the output is read, and hoisting one
-"would evaluate it where the source did not".
+A node the EDAG shares — one node, reached from more than one place — is one
+value, computed once. The FunctionalScript writer writes some shared nodes as
+a `const` and others in place at every reference, so its text loses sharing
+the graph has. At `f9b71749`:
 
-The values are right — a merged node is pure and mints nothing, so each
-copy answers what the one node answers — but the text is not the graph. A
-copy repeats every shared node under it too, so the text grows with the
-number of *paths* to a node rather than the number of nodes: each level of
-sharing doubles it. At `f9b71749`:
+```js
+// two different EDAGs
+export default a => { const x = a + a; return x + x; };   // `x` is one node, shared
+export default a => (a + a) + (a + a);                     // two equal nodes
+// one text for both
+export default ($0)=>$0+$0+($0+$0);
+```
+
+The EDAG document keeps them apart — `const $0=["+",["arg",0],["arg",0]];…["+",$0,$0]`
+for the first, two `["+",["arg",0],["arg",0]]` for the second — and so does
+the Rust writer: one `let` for `x`, read twice, in the first; two in the
+second. The FunctionalScript writer writes them alike, and its text is also
+what `String(f)` answers and what the Rust output embeds as each function's
+text (`tryFunctionText`).
+
+The cause is where the writer reads sharing from. It writes from
+`fjs/edag/analysis`'s table, which merges equal nodes (`mergeable`): both
+programs above are one table, the inner `+` counted as shared in each. The
+writer cannot tell one shared node from two equal ones, so it gives a `const`
+only to a node that mints identity — `[]`, `{}`, `=>`, a call — which the
+table never merges (`hoistedKind`), and writes every other node in place:
+right for two equal nodes, wrong for one shared node. The Rust writer reads
+sharing from the graph itself, by node identity (`sharedNodesOf` in
+[`fjs/edag/rust`](../../../edag/rust/module.f.mjs)). Two writers, two answers
+to one question.
+
+The cost is more than duplicated text. A copy repeats the shared nodes under
+it, so the text grows with the number of paths to a node, not the number of
+nodes:
 
 ```js
 // source
@@ -25,148 +47,79 @@ export default (x) => { const a = x + 1; const b = a * a; const c = b * b; const
 export default ($0)=>($0+1)*($0+1)*(($0+1)*($0+1))*(($0+1)*($0+1)*(($0+1)*($0+1)))*(($0+1)*($0+1)*(($0+1)*($0+1))*(($0+1)*($0+1)*(($0+1)*($0+1))));
 ```
 
-Five nodes, written as sixteen copies of `$0+1`; `n` such `const`s write
-`2^n`. The EDAG document keeps the five (`const $0=["+",["arg",0],1];const
-$1=["*",$0,$0];…`), and the Rust writer binds each once. Reading the written
-text back merges the copies again, so the round trip holds; what it does not
-hold is the size, and the `.js` output run as JavaScript evaluates each copy,
-so the run time grows the same way: the text evaluates the graph as
+Five nodes, sixteen copies of `$0+1`; `n` such `const`s write `2^n`. The
+`.js` output run as JavaScript evaluates every copy, so the run time grows the
+same way: the text evaluates the graph as
 [Amnesia](../../../edag/amnesia/README.md) does, every incoming edge
-evaluating its target again, where the graph has one node.
-
-Nothing about the source decides it: `(x) => { const a = x ? 1 : 2; return
-a + a; }` is written `($0)=>($0?1:2)+($0?1:2)`. A `const` the source reaches
-only lazily is written once already: every `const` is established, so the
-front end anchors such a one with the body's comma, and the writer writes
-the anchor as a `const` of its own — `const t0 = x + 1; const t1 = c ? t0 :
-t0 * 2; …` comes out as `{const $2=$1+1;const $3=$0?$2:$2*2;…}`, linear. It
-is the shared node a block reaches *eagerly* that is written in place. A default parameter, as
-[#2961](https://github.com/functionalscript/functionalscript/pull/2961)
-proposes it, would make the case common, since every read of a defaulted
-parameter is such a
-conditional — `(a = 42) => a + a` would be written with its test twice — but
-it is no cause of it.
+evaluating its target again, where the graph has one node. A default
+parameter ([#2963](https://github.com/functionalscript/functionalscript/pull/2963))
+makes the case common, since every read of a defaulted parameter is one
+shared conditional — `(a = 42) => a + a` writes the test twice — but it is no
+cause of it.
 
 ### Proposal
 
-**A shared node is named in the block that shares it, whatever its kind.**
-Decided by the owner
-([comment](https://github.com/functionalscript/functionalscript/pull/2964#issuecomment-6185308972)):
-"It is not about shorter or longer; it's about sharing. Correctness is
-paramount!" — so `$0.y` and `-$0` take a `const` as `$0+1` does. The text is
-then linear in the graph for every node a block always evaluates, which, for
-a module the front end reads, is every shared node: the one case left is
-below.
+**One sharing analysis, by node identity, for both writers.** Decided by the
+owner: "If expression is shared, it means it must be `const`!" — whatever its
+kind, `$0.y` as `$0+1` ("it is not about shorter or longer; it's about
+sharing",
+[comment](https://github.com/functionalscript/functionalscript/pull/2964#issuecomment-6185308972)).
 
-- **The scope.** In `hoists`, a shared node the scope always evaluates
-  takes a `const` of the scope. *Always evaluates* is what a successful run
-  of a block cannot skip, defined over the graph: the block's root; each
-  eager operand of a node the block always evaluates — the condition of a
-  `?:` and the left operand of `&&`, `||` and `??` among them, never an arm
-  or a right operand; and a node that *every* arm of a `?:` the block always
-  evaluates itself always evaluates, by this same definition, since a `?:`
-  runs one arm whenever it runs. Reaching a node is not enough: in
-  `c ? (d && t) : t` both arms reach `t`, the first only behind `d &&`, so
-  `c` true and `d` false skips it — `t` is not the outer block's, and naming
-  it there would make that successful run fail where `t` fails. The reason
-  given for writing such a node in place holds only where an occurrence can
-  be skipped: a node the scope always evaluates is evaluated on every
-  successful run whether or not it is named, so naming it skips no failure a
-  successful run skips, and reads back as the same node. What it can move is *which* failure
-  comes first — in `[(() => { throw 1 })(), null.x, null.x]` the hoisted
-  `null.x` fails before the call — and that is no observation: the first
-  failing operation is not one, and reordering a failing computation to fail
-  earlier is what the
+- **Shared is the EDAG's word.** A node is shared when the EDAG reaches that
+  one node from more than one place — what the Rust writer's `sharedNodesOf`
+  counts today. The walk moves where both writers import it (export it, do
+  not copy it), and the FunctionalScript writer takes its shared nodes from
+  it rather than from the merged table.
+- **A shared node is a `const`; an unshared one is written where it
+  stands.** `a => { const x = a + a; return x + x; }` is written
+  `($0)=>{const $1=$0+$0;return $1+$1;}`, and `(a + a) + (a + a)` stays
+  `$0+$0+($0+$0)`. The writer merges nothing: two equal nodes are two nodes,
+  as the source wrote them — `a => { const x = a + a; return [x, x, a + a]; }`
+  is `($0)=>{const $1=$0+$0;return [$1,$1,$0+$0];}`, where today it is
+  `[$0+$0,$0+$0,$0+$0]`.
+- **Where the `const` goes** is unchanged: the block that holds the node's
+  uses, as the writer already places a minting node's. A node shared within
+  one lazy operand — the right operand of `&&`, `||` and `??`, an arm of
+  `?:` — takes a `const` of the block the writer opens there,
+  `$0?(()=>{const $1=[$0];return [$1,$1];})():0` ("lazy cases are not
+  shareable outside their own blocks", the owner, same comment). A source
+  `const` read only in lazy operands is anchored by the body's comma, so the
+  scope reaches it eagerly and names it, as today. A node two lazy operands
+  reach with no eager path stays as today, owner's choice: a mergeable one
+  written in each operand's block, a minting one refused.
+- **Evaluation order.** Naming a shared node the scope reaches eagerly can
+  change which failure comes first — `[(() => { throw 1 })(), y, y]` with
+  `y` a shared `null.x` fails at `y` before the call — and that is no
+  observation: the first failing operation is not one, and reordering a
+  failing computation to fail earlier is what the
   [failure contract](../../../../spec/README.md#failure-is-one-outcome)
-  allows, in so many words. The writer already does it for a shared call.
-- **One definition, the front end's too.** What the writer names, the front
-  end must read back as the same graph, and it decides which `const`s the
-  body's comma holds by what the body *reaches* through eager positions —
-  `anchors` in [`fjs/compiler/ast`](../../ast/module.f.mjs), an arm of `?:`
-  never among them. So `const a = [1]; if (m) { return a; } return a;` is
-  anchored today, `[',', [a, ['?:', m, a, a]]]`
-  ([`guards.graphs`](../../edag/proof.f.mjs)), though both arms evaluate
-  `a`; and a graph with no anchor, `['?:', c, t, ['*', t, 2]]`, written with
-  `t` named by the `?:` rule above, reads back with a comma it did not have,
-  so the round trip breaks. The proposal is one *always evaluates*, exported
-  where both ask it: `anchors` stops anchoring a `const` every arm of a `?:`
-  always evaluates — the comma there establishes nothing a successful run
-  does not, the failure contract again — and `hoists` names by the same
-  answer. The alternative, keeping `anchors` as it is, drops the `?:` rule
-  from the writer and leaves the built `tk+1 = c ? tk : tk * 2` chain to the
-  case left below.
-- **A lazy operand's block.** "Lazy cases are not shareable outside their
-  own blocks" (the owner, same comment). The right operand of `&&`, `||`
-  and `??` and an arm of `?:` is a block of its own, which the writer
-  already opens for a minting node shared within it,
-  `$0?(()=>{const $1=[$0];return [$1,$1];})():0`
-  ([the writer's header](../module.f.mjs)); a node shared within one such
-  operand takes a `const` of that block the same way, whatever its kind. A
-  node two lazy operands reach that no block around them always evaluates
-  is shared by neither. A minting one stays refused, as today; a mergeable
-  one is written in each operand's block by today's writer, as `x + 1` is
-  in `$0?$0+1:($0+1)*2`, and whether it stays so is the one question below
-  this record leaves open.
+  allows. A successful run evaluates the node anyway. The writer already does
+  it for a shared call.
 
-**The case left: it can still double.** A mergeable node that only some of
-several lazy operands reach, none of which is sure to run, is written in
-each by today's writer — `(c ? t : 0) + (d ? t : 1)` — and a chain of them
-doubles per level.
-A module the front end reads cannot build one but by writing the text out
-in full, or by naming it with a `const`, which the comma anchors and the
-writer names, so its output is as long as its source at most. A graph built
-otherwise — an EDAG document, a value — can: at `c20968d4` the chain
-`t0 = x + 1`, `tk+1 = c ? tk : tk * 2`, built with no anchor, three levels
-deep, writes `$1+1` eight times. The `?:` rule above makes that chain
-linear, both arms always evaluating each `tk`; the
-`(c ? t : 0) + (d ? t : 1)` chain stays exponential. Open for the owner:
-keep writing such a node in each block, or refuse a graph whose text that
-would make longer than its nodes — as a minting node two lazy operands
-reach is refused today. Until that is decided, the implementation keeps
-today's behavior for this case alone.
-
-The examples above would be written
-
-```js
-export default ($0)=>{const $1=$0+1;const $2=$1*$1;const $3=$2*$2;const $4=$3*$3;return $4*$4;};
-export default ($0)=>{const $1=$0?1:2;return $1+$1;};
-```
-
-and the same chain under a lazy arm, written today
-`$0?($0+1)*($0+1)*(($0+1)*($0+1)):0`, as
-`$0?(()=>{const $1=$0+1;const $2=$1*$1;return $2*$2;})():0`.
+The chain above is then linear:
+`($0)=>{const $1=$0+1;const $2=$1*$1;const $3=$2*$2;const $4=$3*$3;return $4*$4;}`.
 
 ### Tasks
 
-- [ ] `hoists`: a `const` for a shared node the scope always evaluates;
-      the module's header and `hoistedKind`'s comment say why, the failure
-      contract included.
-- [ ] *Always evaluates*, by its recursive definition: the condition of a
-      `?:` the block always evaluates, and a node every arm of it always
-      evaluates — not one an arm reaches only behind a lazy operand of its
-      own — exported from one module and asked by both the front end's
-      `anchors` and the writer's `hoists`; `anchors` stops anchoring a
-      `const` every arm of a `?:` always evaluates, and the EDAG proofs that
-      pin such an anchor, `../../edag/proof.f.mjs`'s `guards.graphs` among
-      them, follow. Or, if the owner keeps `anchors` as it is, no `?:` rule
-      in the writer.
-- [ ] A lazy operand's block: a `const` of the block for a node shared
-      within one lazy operand, whatever its kind; a mergeable node two lazy
-      operands reach written in each, or refused, as the owner decides.
-- [ ] Proofs: the serializer's own, `../../language.proof.f.mjs` and
-      `../../proof.f.mjs`'s `fjsRoundTrip` expectations that pin in-place
-      text, and a proof that a chain of nested shared operators is written
-      in text linear in its length — in a scope, under a lazy operand, and
-      as the built `tk+1 = c ? tk : tk * 2` chain with no anchor — one that
-      `c ? (d && t) : t` keeps `t` out of the outer block, and one that pins
-      what the `(c ? t : 0) + (d ? t : 1)` chain does.
-- [ ] `tsc`, `npm start test` under `fjs/compiler`, scoped proof coverage at
-      100%.
+- [ ] Move the identity walk (`visit`, `sharedNodesOf`) out of
+      `fjs/edag/rust` to a module both writers import.
+- [ ] The FunctionalScript writer: shared nodes by identity, each a `const`
+      of the block holding its uses, whatever its kind; equal nodes not
+      merged into one; `hoistedKind` and the header's "What a `const` is
+      for" say so.
+- [ ] Proofs: the two programs above written apart, the `[x, x, a + a]`
+      case, the chain linear, a node shared within one lazy operand, and the
+      expectations
+      in the serializer's own proof, `../../language.proof.f.mjs` and
+      `../../proof.f.mjs`'s `fjsRoundTrip` that pin in-place text.
+- [ ] `tsc`, `npm start test` under `fjs/compiler` and `fjs/edag`, scoped
+      proof coverage at 100%.
 
 ### Related
 
 - [`../module.f.mjs`](../module.f.mjs) — `hoists`, `hoistedKind`, and the
   header's "What a `const` is for".
+- [`../../../edag/rust/module.f.mjs`](../../../edag/rust/module.f.mjs) —
+  `sharedNodesOf`, sharing by identity.
 - [`../../../edag/analysis/module.f.mjs`](../../../edag/analysis/module.f.mjs)
-  — `mergeable`, the nodes the analysis merges and the writer writes in
-  place.
+  — `mergeable`, the merging the writer's table does.
