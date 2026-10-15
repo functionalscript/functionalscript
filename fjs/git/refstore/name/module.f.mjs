@@ -18,7 +18,7 @@
  * Nothing here runs an effect. The store asks these of every name before it
  * opens a file, and [`../write`](../write/module.f.mjs) before it writes one;
  * which of the two directories a name's file sits in is
- * [`../scope`](../scope/module.f.mjs)'s question, not this module's.
+ * [`../scope`](../scope/module.f.js)'s question, not this module's.
  *
  * @module
  *
