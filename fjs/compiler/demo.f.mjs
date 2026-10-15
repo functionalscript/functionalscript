@@ -48,6 +48,8 @@ import { refusal } from '../website/demo/module.f.mjs'
 import { render } from '../website/demo/highlight/module.f.mjs'
 import { stageDemo } from './stage_demo/module.f.mjs'
 import { _outputMarked, compileFile } from './module.f.mjs'
+import { _graphOf } from './edag/demo.f.mjs'
+import { graphSvg } from '../website/demo/graph/module.f.mjs'
 import { vm } from '../edag/amnesia/module.f.mjs'
 import { read } from '../edag/value/property/module.f.mjs'
 import { errorMessage, pureOk } from '../effects/module.f.mjs'
@@ -114,10 +116,27 @@ export const _written = text => outputFileName => {
         : error(result[0] === 'error' ? errorMessage(result[1]) : '')
 }
 
+/**
+ * The EDAG diagram of `text`, drawn where the `.edag.data.js` output is
+ * produced and otherwise refused in that output's own words. It is a
+ * collapsed disclosure, since the diagram of a large module is large.
+ *
+ * @type {(text: string) => (edag: Result<Marked, string>) => import('../media/html/types.ts').Node}
+ */
+const diagram = text => edag => {
+    const [kind, value] = edag
+    const graph = kind === 'ok' ? _graphOf(text) : edag
+    return ['details', ['summary', 'EDAG diagram'], graph[0] === 'ok' ? graphSvg(/** @type {import('../website/demo/graph/types.ts').Graph} */ (graph[1])) : refusal(graph[1])]
+}
+
 export const demo = stageDemo({
     intro: 'Compiles a FunctionalScript module into JSON, DataJS, JavaScript, an expression graph and Rust, with each output under its file extension. Compare the output with fjs compile for a module without imports.',
     name: 'compiler',
-})(text => outputs.map(([label, outputFileName]) => {
-    const [kind, value] = _compiled(text)(outputFileName)
-    return ['section', ['h3', label], kind === 'ok' ? codeBlock(toText(value), `Copy ${label} output`, render(value)) : refusal(value)]
+})(text => outputs.flatMap(([label, outputFileName]) => {
+    const compiled = _compiled(text)(outputFileName)
+    const [kind, value] = compiled
+    return [
+        /** @type {import('../media/html/types.ts').Node} */ (['section', ['h3', label], kind === 'ok' ? codeBlock(toText(value), `Copy ${label} output`, render(value)) : refusal(value)]),
+        ...(label === '.edag.data.js' ? [diagram(text)(compiled)] : []),
+    ]
 }))
