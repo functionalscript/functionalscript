@@ -382,23 +382,36 @@ const prohibitedCall = foldError('prohibited member function')
  * a value, `fjs/js/prototype`, but `length` — an own property of an array,
  * a string and a function, which the two languages read alike.
  *
- * Exported for the writer in [`../serializer`](../serializer/module.f.mjs),
- * which refuses the same names rather than write an access the parser here
- * would not read back: the rule is the language's, and it has one owner.
- * The `_` says that export is linkage rather than API, as it does for
- * `_tokenKindNames` in [`./grammar`](./grammar/module.f.mjs).
- *
  * @type {ReadonlySet<string>}
  */
-export const _prohibitedNames = new Set(prototypeNames.filter(name => name !== 'length'))
+const prohibitedNames = new Set(prototypeNames.filter(name => name !== 'length'))
 
 /**
  * The names a method call may not call: `prohibitedCalls`, as a set.
- * Exported for the writer, as {@link _prohibitedNames} is.
  *
  * @type {ReadonlySet<string>}
  */
-export const _prohibitedCallNames = new Set(prohibitedCalls)
+const prohibitedCallNames = new Set(prohibitedCalls)
+
+/**
+ * Why an access of the name is refused, or `null` when it is allowed: a
+ * member function a module may not call where the access is a method
+ * call's callee, `method`, and a name of the prototype chain where it is
+ * read — the two rules of `fjs/js/prototype`'s two lists.
+ *
+ * Exported for the writer in [`../serializer`](../serializer/module.f.mjs),
+ * which refuses the same accesses rather than write one the parser here
+ * would not read back: the rule is the language's, and it has one owner,
+ * each consumer wrapping the answer in its own error. The `_` says that
+ * export is linkage rather than API, as it does for `_tokenKindNames` in
+ * [`./grammar`](./grammar/module.f.mjs).
+ *
+ * @type {(method: boolean) => (name: string) => 'member function' | 'property name' | null}
+ */
+export const _prohibitedAccess = method => name =>
+    method
+        ? (prohibitedCallNames.has(name) ? 'member function' : null)
+        : (prohibitedNames.has(name) ? 'property name' : null)
 
 /** What an access's key token names: a name's word, the string's text, or the number. @type {(t: DjsTokenWithMetadata) => string | number} */
 const keyNamed = t => {
@@ -462,15 +475,16 @@ const keyEntered = (stack, scope, [, node, first], frame) => isConversion(node)
 /**
  * A key's name, or its refusal: a name of the prototype chain where the
  * key is read, and a member function a module may not call where it is
- * called, `method` — the two rules of `fjs/js/prototype`'s two lists.
+ * called, `method`, as {@link _prohibitedAccess} answers.
  *
  * @type {(key: DjsTokenWithMetadata, method: boolean) => Result<string | number, ParseError>}
  */
 const checkedKey = (key, method) => {
     const named = keyNamed(key)
     if (typeof named === 'string') {
-        if (method && _prohibitedCallNames.has(named)) { return error(prohibitedCall(key)) }
-        if (!method && _prohibitedNames.has(named)) { return error(prohibitedKey(key)) }
+        const why = _prohibitedAccess(method)(named)
+        if (why === 'member function') { return error(prohibitedCall(key)) }
+        if (why === 'property name') { return error(prohibitedKey(key)) }
     }
     return ok(named)
 }
