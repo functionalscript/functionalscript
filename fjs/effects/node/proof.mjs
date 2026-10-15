@@ -712,17 +712,21 @@ export const proof = {
                 })
             }
         }),
-        // A relative name holding `:` is a path, not a URL with a scheme. No
-        // Windows file name holds `:`.
-        colon: () => withTemporary('fjs-import-colon-', async root => {
+        // A relative name whose first segment holds `:` is a path, not a URL
+        // with a scheme (`URL.parse` reads `a:` as one): its file is looked
+        // for under the working directory, and the refusal names that path.
+        // No file is written there; the name is one nothing holds. No Windows
+        // file name holds `:`.
+        colon: async () => {
             if (process.platform === 'win32') { return }
-            const path = join(root, 'a:b.mjs')
-            await writeFile(path, 'export default 42')
-            await hostCheck(import_(relative(process.cwd(), path)), result => {
-                assert(result[0] === 'ok')
-                assertEq(result[1].default, 42)
+            const name = 'a:fjs-import-colon-missing.mjs'
+            await hostCheck(import_(name), result => {
+                assert(result[0] === 'error')
+                assert(result[1][0] === 'ioError')
+                const { message } = result[1][1]
+                assert(message.includes(join(process.cwd(), name)), message)
             })
-        }),
+        },
         thrown: () => withTemporary('fjs-import-thrown-', async root => {
             /** @type {readonly (readonly [string, string, string | undefined])[]} */
             const cases = [
