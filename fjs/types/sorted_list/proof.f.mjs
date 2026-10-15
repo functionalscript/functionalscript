@@ -1,28 +1,20 @@
-/**
- * @import { Unknown } from '../../media/json/types.ts'
- */
-
 import { find, merge } from './module.f.mjs'
-import { stringify } from '../../media/json/module.f.mjs'
-import { sort } from '../object/module.f.mjs'
+import { stringifySorted } from '../../media/json/module.f.mjs'
 import { toArray, countdown, length } from '../list/module.f.mjs'
 import { flip } from '../function/module.f.js'
 import { cmp } from '../number/module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
-
-/** @type {(a: readonly Unknown[]) => string} */
-const str = stringify(sort)
 
 const reverseCmp = flip(cmp)
 
 export const proof = {
     sortedMergre: [
         () => {
-            const result = str(toArray(merge(cmp)([2, 3, 4])([1, 3, 5])))
+            const result = stringifySorted(toArray(merge(cmp)([2, 3, 4])([1, 3, 5])))
             assertEq(result, '[1,2,3,4,5]')
         },
         () => {
-            const result = str(toArray(merge(cmp)([1, 2, 3])([])))
+            const result = stringifySorted(toArray(merge(cmp)([1, 2, 3])([])))
             assertEq(result, '[1,2,3]')
         },
         () => {

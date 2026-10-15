@@ -292,7 +292,7 @@ const boundaryBase64Chunk = repeat(90_000n)(vec8(0xffn))
 
 // 33,000 `"` bytes (0x22): valid UTF-8, so `cas_get` classifies it as text and
 // takes the double-JSON-escaping path (`toJson` builds the inner CAS JSON, then
-// the outer `stringifyJson` embeds that as the `text` field). Each quote costs
+// the outer `stringifySorted` embeds that as the `text` field). Each quote costs
 // 4 final bytes (2 on each escaping pass), so 33,000 of them alone push the
 // encoded line past `maxLength` (131,072 bytes) — well above the strict 32,769
 // minimum needed, without approaching any other size-related edge case.

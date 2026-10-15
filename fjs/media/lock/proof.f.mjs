@@ -10,8 +10,7 @@ import {
     encodeText as revisionEncodeText,
     validate as revisionValidate,
 } from '../revision/module.f.mjs'
-import { stringify } from '../json/module.f.mjs'
-import { sort } from '../../types/object/module.f.mjs'
+import { stringifySorted } from '../json/module.f.mjs'
 
 // Valid cbase32 hashes (round-tripped in fjs/basen/cbase32/proof.f.mjs): single
 // cbase32 symbols, cheap to write inline here.
@@ -29,9 +28,6 @@ const lockOf = lock => ({ dialect, lock })
  * @type {LockMap}
  */
 const sharedMap = { C: { D: h2, C: h1 }, B: { D: h1 } }
-
-/** The canonical rendering of a lock map on its own, independent of either blob. */
-const canonicalMap = stringify(sort)
 
 export const proof = {
     dialectAndMediaType: () => {
@@ -178,7 +174,7 @@ export const proof = {
     // surrounding bytes differ — the map's do not, and a resolver reading
     // either form sees the identical bytes under `lock`.
     inlineAndSharedSerializeIdentically: () => {
-        const fragment = `"lock":${canonicalMap(sharedMap)}`
+        const fragment = `"lock":${stringifySorted(sharedMap)}`
         const shared = validate(lockOf(sharedMap))
         assert(shared[0] === 'ok', ['expected ok', shared])
         const inline = revisionValidate({

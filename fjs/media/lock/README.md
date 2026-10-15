@@ -87,7 +87,7 @@ nobody has asked for.
 
 Identical to the revision dialect's: sort every object's property names
 lexicographically, recursively, comparing names as strings (`"10"` precedes
-`"2"`). Both dialects encode through the same `stringify(sort)`, so blobs
+`"2"`). Both dialects encode through the same `stringifySorted`, so blobs
 differing only in whitespace or property order converge to one CAS address —
 which is the whole point of sharing one.
 

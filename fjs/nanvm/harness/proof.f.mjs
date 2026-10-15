@@ -5,7 +5,7 @@
  * @import { Dir } from '../../effects/node/virtual/types.ts'
  */
 
-import { assert, assertEq, assertOk } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { exitCode, readUtf8File } from '../../effects/node/module.f.mjs'
 import { step } from '../../effects/module.f.mjs'
 import { defaultNodeProgramOptions, emptyState, virtual, virtualAt } from '../../effects/node/virtual/module.f.mjs'
@@ -61,6 +61,11 @@ export const proof = {
         assertEq(fixturesDirectory, corpusDirectory)
         assertEq(fixturesDirectory, 'nanvm/harness/fixtures')
     },
+    throw: {
+        // A lone surrogate has no Rust string literal: the string API throws
+        // rather than write a row that does not compile.
+        expectedModules: () => expectedModules(['at', 'a\ud800']),
+    },
     rustName: () => {
         assertEq(rustName('function-scope.mjs'), 'function_scope')
         assertEq(rustName('named-imports-throws.mjs'), 'named_imports_throws')
@@ -89,6 +94,10 @@ export const proof = {
             '    crate::Case { name: "at", fixture: crate::fixtures::at::module::<Naive>, expected: at::module::<Naive>, json: at::JSON, throws: at::THROWS },\n'))
         assert(text.endsWith('];\n'))
         assert(expectedModules([]).endsWith('&[crate::Case] = &[\n];\n'))
+        // The name is a string literal, escaped; the modules of that name are
+        // code, never quoted.
+        assert(expectedModules(['a\u202a']).includes(
+            '    crate::Case { name: "a\\u{202a}", fixture: crate::fixtures::a\u202a::module::<Naive>, expected: a\u202a::module::<Naive>, json: a\u202a::JSON, throws: a\u202a::THROWS },\n'))
     },
     generateFixtures: () => {
         const [state, result] = virtualAt(root)(generateFixtures())
@@ -159,6 +168,16 @@ export const proof = {
         assertEq(result[0], 'error')
         const written = into(state.root, expectedDirectory.split('/'))
         assertEq(Object.keys(written).join(','), 'a.rs')
+    },
+    // A fixture name Rust cannot spell as a string is the generator's
+    // failure, naming the fixture, and `mod.rs` is never written: the
+    // expectations before it may stay, as for any later failure.
+    generateExpectedRefusesAnUnspellableName: () => {
+        const unspellable = withRuntime({ 'a.mjs': [utf8('export default 1;')], 'b\ud800.mjs': [utf8('export default 2;')] })
+        const [state, result] = virtualAt(unspellable)(generateExpected())
+        assertStructurallySame(assertError(result), ['ioError', { message: 'no Rust string literal for the fixture name b\ud800' }])
+        const written = into(state.root, expectedDirectory.split('/'))
+        assertEq(Object.keys(written).join(','), 'a.rs,b\ud800.rs')
     },
     // No corpus fixtures at all still leaves a `mod.rs`.
     generateExpectedWithNoCorpus: () => {

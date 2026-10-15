@@ -16,7 +16,7 @@
 import { error } from '../../types/result/module.f.js'
 import { tokenize } from '../tokenizer/module.f.mjs'
 import { stringToList } from '../../text/utf16/module.f.mjs'
-import { decode as decodeImportPath } from '../../path/import/module.f.mjs'
+import { decode as decodeImportPath, specifierKind } from '../../path/import/module.f.mjs'
 import { parseFromTokens } from '../parser/module.f.mjs'
 import { parse as jsonParse } from '../../media/json/module.f.mjs'
 import { catchStep, foldStep, history, historyStep, mapStep, pure, pureError, pureOk, step } from '../../effects/module.f.mjs'
@@ -124,8 +124,7 @@ const importSource = ({ id, path }) => ({ specifier, json, name }) => sources =>
  */
 export const _importSources = source => imports => {
     const { path } = source
-    const unsupported = imports.find(({ specifier }) =>
-        !specifier.startsWith('./') && !specifier.startsWith('../') && !specifier.startsWith('/'))
+    const unsupported = imports.find(({ specifier }) => specifierKind(specifier) === 'bare')
     if (unsupported !== undefined) {
         return pureError(_fileError(path)(`unsupported import specifier "${unsupported.specifier}": expected ./, ../, or /`))
     }

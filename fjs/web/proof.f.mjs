@@ -403,17 +403,21 @@ export const proof = {
             // So is any authority that names no host. Such a target names no
             // host to check, so the check reads the `Host` header instead: a
             // served one lets the target through to its `400`, and an unserved
-            // one — a proxy repeating the authority there — is `403`.
-            /** @type {(host: string) => number} */
+            // one — a proxy repeating the authority there — is `403`. The served
+            // case is the one request that reaches the resolver with no parsed
+            // target, so its sentence is pinned as well as its status.
+            /** @type {(host: string) => RecordedResponse} */
             const unreadable = host => answerRequest(site)({
                 method: 'GET',
                 url: 'http://localhost:bad/index.html',
                 headers: { host },
                 body: [],
                 chunkedResponse: true,
-            }).status
-            assertEq(unreadable('localhost:8080'), 400)
-            assertEq(unreadable('localhost:bad'), 403)
+            })
+            const unreadableServed = unreadable('localhost:8080')
+            assertEq(unreadableServed.status, 400)
+            assertEq(body(unreadableServed), 'malformed request URL\n')
+            assertEq(unreadable('localhost:bad').status, 403)
             const spoofed = answerRequest(site)({
                 method: 'GET',
                 url: 'http://attacker.example/index.html',
