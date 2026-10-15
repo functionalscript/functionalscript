@@ -25,7 +25,7 @@
 
 import { next } from '../../types/list/module.f.mjs'
 import { parse as parseWith } from './parser/module.f.mjs'
-import { at } from '../../types/object/module.f.mjs'
+import { at, sort } from '../../types/object/module.f.mjs'
 import { ok } from '../../types/result/module.f.js'
 import { codec, leafSerialize, numberSerialize } from './serializer/module.f.mjs'
 
@@ -63,6 +63,15 @@ export const setProperty = value => {
  * @type {Codec<Primitive>}
  */
 export const { serialize, stringify, marked } = codec(leafSerialize(numberSerialize)({}))
+
+/**
+ * `stringify` with object keys sorted: the canonical, order-independent
+ * serialization, so two values that differ only in key order serialize to
+ * the same text.
+ *
+ * @type {(value: Unknown) => string}
+ */
+export const stringifySorted = stringify(sort)
 
 /**
  * The standard codec's numeric policy: every JSON number becomes a

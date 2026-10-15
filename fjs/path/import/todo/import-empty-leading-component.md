@@ -48,6 +48,6 @@ keeping it is what roots the path.
 
 ### Related
 
-- [import-specifier-kind](./import-specifier-kind.md) explains why a
-  specifier's kind should come from one classifier. This issue is a case
+- [`specifierKind`](../module.f.mjs) is the one classifier a
+  specifier's kind comes from. This issue is a case
   where the kind changes after folding.

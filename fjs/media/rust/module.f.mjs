@@ -5,8 +5,10 @@
  * MVP roadmap's `fjs compile <input>.rs` backend and `nanvm-lib`'s generated
  * operator tests both need the same escaping and the same spelling of the
  * numeric edge cases. This module owns that layer — the syntax of a literal —
- * and nothing above it. Expressions, items, and whatever API a generator
- * targets stay with the generator.
+ * and nothing above it. The items several generators write over strings — a
+ * `const` table, the `@generated` header — are its sibling
+ * [`./item`](./item/module.f.mjs)'s; expressions, other items, and whatever
+ * API a generator targets stay with the generator.
  *
  * The sibling of `fjs/media/nix`, which does the same for Nix expressions.
  *

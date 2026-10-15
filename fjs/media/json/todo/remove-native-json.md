@@ -51,10 +51,9 @@ phase starts.
 
 Three semantic differences to respect while migrating, none of them blocking:
 
-- **Key order.** `stringify(sort)` sorts keys; native uses insertion order. Use
+- **Key order.** `stringifySorted` sorts keys; native uses insertion order. Use
   `stringify(identity)` where an expected literal encodes native order, or
-  re-sort the literal where order-independence is what the test wants (see
-  `stringify-sorted-canonical.md`).
+  re-sort the literal where order-independence is what the test wants.
 - **`undefined` and `bigint`.** Native drops `undefined` object fields, turns
   them into `null` inside arrays, and throws on `bigint`. `serialize` takes
   `Unknown`, which excludes `undefined` outright, and `definedEntries` does the
@@ -162,8 +161,9 @@ Consider a guard so it does not come back — the cheapest is a proof in
   those are not phase-2 work either way.
 - [`fjs/effects/node/todo/readjsonfile-writejsonfile-helpers.md`](../../../effects/node/todo/readjsonfile-writejsonfile-helpers.md)
   — an on-hold design whose `writeJsonFile` half waits on phase 4.
-- [stringify-sorted-canonical](./stringify-sorted-canonical.md) — the key-order
-  question phase 3 meets at every comparison site.
+- `stringifySorted` in [`../module.f.mjs`](../module.f.mjs) — the canonical,
+  key-sorted serializer, for the key-order question phase 3 meets at every
+  comparison site.
 - `parse`'s per-container call-stack cost was found while migrating the reading
   sites — it panicked past ~5000 containers, which is why one proof compares a
   serialized dump as text rather than round-tripping it. Fixed in

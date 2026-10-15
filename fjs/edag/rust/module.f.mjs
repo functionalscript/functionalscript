@@ -46,6 +46,7 @@
  */
 
 import { f64Bits, i64Literal, stringLiteral, u64WordItems, utf16Units } from '../../media/rust/module.f.mjs'
+import { indent } from '../../media/rust/item/module.f.mjs'
 import { error, mapOk, ok, okList, okThen, unwrap } from '../../types/result/module.f.js'
 import { isStatic, lazyOp2Id, staticPath } from '../module.f.mjs'
 import { analysis } from '../analysis/module.f.mjs'
@@ -455,12 +456,6 @@ const literalKey = stringCall('string_key')
  * @type {(index: string | number) => Printed<string>}
  */
 const literalIndex = index => typeof index === 'string' ? stringCall('string_any')(index) : numberExpr(index)
-
-/**
- * The indentation of one level of generated Rust: a scope's statements
- * inside their function, a block's lines inside its braces.
- */
-export const indent = '    '
 
 /**
  * A block's statements as one Rust block expression: `{ … }` around a

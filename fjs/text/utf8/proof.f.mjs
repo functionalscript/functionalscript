@@ -3,8 +3,7 @@
  */
 
 import { toCodePointList, fromCodePointList, fromU8List, fromVec, utf8ByteToCodePointOp, vecToCodePointList, stringToU8List, u8ListToString } from './module.f.mjs'
-import { stringify as jsonStringify } from '../../media/json/module.f.mjs'
-import { sort } from '../../types/object/module.f.mjs'
+import { stringifySorted } from '../../media/json/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { u8ListToVecMsb, vec } from '../../types/bit_vec/module.f.mjs'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
@@ -13,82 +12,80 @@ import { htmlToString } from '../../media/html/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
 import { runPure } from '../../effects/module.f.mjs'
 
-const stringify = jsonStringify(sort)
-
 export const proof = {
     toCodePoint: [
         () => {
-            const result = stringify(toArray(toCodePointList([-1, 0x100])))
+            const result = stringifySorted(toArray(toCodePointList([-1, 0x100])))
             assertEq(result, '[2147483648,2147483648]')
         },
         () => {
-            const result = stringify(toArray(toCodePointList([0x80, 0xc1, 0xf5, 0xff])))
+            const result = stringifySorted(toArray(toCodePointList([0x80, 0xc1, 0xf5, 0xff])))
             assertEq(result, '[-2147483520,-2147483455,-2147483403,-2147483393]')
         },
         () => {
-            const result = stringify(toArray(toCodePointList([0, 1, 0x7f])))
+            const result = stringifySorted(toArray(toCodePointList([0, 1, 0x7f])))
             assertEq(result, '[0,1,127]')
         },
         () => {
-            const result = stringify(toArray(toCodePointList([0xc2, 0x80, 0xc2, 0xa9, 0xdf, 0xbf])))
+            const result = stringifySorted(toArray(toCodePointList([0xc2, 0x80, 0xc2, 0xa9, 0xdf, 0xbf])))
             assertEq(result, '[128,169,2047]')
         },
         () => {
-            const result = stringify(toArray(toCodePointList([0xc2, 0xc2, 0x7f, 0xc2, 0xc0, 0xc2])))
+            const result = stringifySorted(toArray(toCodePointList([0xc2, 0xc2, 0x7f, 0xc2, 0xc0, 0xc2])))
             assertEq(result, '[-2147483454,-2147483454,127,-2147483454,-2147483456,-2147483454]')
         },
         () => {
-            const result = stringify(toArray(toCodePointList([0xe0, 0xa0, 0x80, 0xe0, 0xa0, 0x81, 0xef, 0xbf, 0xbf])))
+            const result = stringifySorted(toArray(toCodePointList([0xe0, 0xa0, 0x80, 0xe0, 0xa0, 0x81, 0xef, 0xbf, 0xbf])))
             assertEq(result, '[2048,2049,65535]')
         },
         () => {
-            const result = stringify(toArray(toCodePointList([0xe0, 0xe0, 0xa0, 0x7f, 0xef, 0xbf])))
+            const result = stringifySorted(toArray(toCodePointList([0xe0, 0xe0, 0xa0, 0x7f, 0xef, 0xbf])))
             assertEq(result, '[-2147483424,-2147482592,127,-2147481601]')
         },
         () => {
-            const result = stringify(toArray(toCodePointList([0xf0, 0x90, 0x80, 0x80, 0xf0, 0x90, 0x80, 0x81, 0xf4, 0x8f, 0xbf, 0xbf])))
+            const result = stringifySorted(toArray(toCodePointList([0xf0, 0x90, 0x80, 0x80, 0xf0, 0x90, 0x80, 0x81, 0xf4, 0x8f, 0xbf, 0xbf])))
             assertEq(result, '[65536,65537,1114111]')
         },
         () => {
-            const result = stringify(toArray(toCodePointList([0xf0, 0xf0, 0xa0, 0x7f, 0xf4, 0xbf])))
+            const result = stringifySorted(toArray(toCodePointList([0xf0, 0xf0, 0xa0, 0x7f, 0xf4, 0xbf])))
             assertEq(result, '[-2147483408,-2147483104,127,-2147482817]')
         },
         () => {
-            const result = stringify(toArray(toCodePointList([0xf0, 0xa0, 0xa0, 0xf4, 0xa0, 0xa0])))
+            const result = stringifySorted(toArray(toCodePointList([0xf0, 0xa0, 0xa0, 0xf4, 0xa0, 0xa0])))
             assertEq(result, '[-2147448800,-2147432416]')
         },
         // Overlong 3-byte encodings (E0 80..9F ..) are rejected, not decoded.
         () => {
-            const result = stringify(toArray(toCodePointList([0xe0, 0x80, 0x80])))
+            const result = stringifySorted(toArray(toCodePointList([0xe0, 0x80, 0x80])))
             assertEq(result, '[-2147483424,-2147483520,-2147483520]')
         },
         () => {
-            const result = stringify(toArray(toCodePointList([0xe0, 0x9f, 0xbf])))
+            const result = stringifySorted(toArray(toCodePointList([0xe0, 0x9f, 0xbf])))
             assertEq(result, '[-2147483424,-2147483489,-2147483457]')
         },
         // Overlong 4-byte encodings (F0 80..8F .. ..) are rejected, not decoded.
         () => {
-            const result = stringify(toArray(toCodePointList([0xf0, 0x80, 0x80, 0x80])))
+            const result = stringifySorted(toArray(toCodePointList([0xf0, 0x80, 0x80, 0x80])))
             assertEq(result, '[-2147483408,-2147483520,-2147483520,-2147483520]')
         },
         () => {
-            const result = stringify(toArray(toCodePointList([0xf0, 0x8f, 0xbf, 0xbf])))
+            const result = stringifySorted(toArray(toCodePointList([0xf0, 0x8f, 0xbf, 0xbf])))
             assertEq(result, '[-2147483408,-2147483505,-2147483457,-2147483457]')
         },
         // Valid boundary cases still decode: E0 A0 80 -> U+0800, F0 90 80 80 -> U+10000.
         () => {
-            const result = stringify(toArray(toCodePointList([0xe0, 0xa0, 0x80])))
+            const result = stringifySorted(toArray(toCodePointList([0xe0, 0xa0, 0x80])))
             assertEq(result, '[2048]')
         },
         () => {
-            const result = stringify(toArray(toCodePointList([0xf0, 0x90, 0x80, 0x80])))
+            const result = stringifySorted(toArray(toCodePointList([0xf0, 0x90, 0x80, 0x80])))
             assertEq(result, '[65536]')
         },
         // A byte stream never accumulates a 2-byte state whose lead is >= F8
         // (isLeadByte caps leads at F4), so this defensive fallthrough is
         // only reachable by calling the scan op directly with such a state.
         () => {
-            const result = stringify(utf8ByteToCodePointOp(0x80, [0xf8, 0x80]))
+            const result = stringifySorted(utf8ByteToCodePointOp(0x80, [0xf8, 0x80]))
             assertEq(result, '[[-2147483136,-2147483520],null]')
         },
         // `U8` is just `number`, so a non-integer in [0x00, 0xff] is a
@@ -97,11 +94,11 @@ export const proof = {
         // than misclassified: below `contTag` it would otherwise be emitted as
         // a code point, and above it tagged with a fractional payload.
         () => {
-            const result = stringify(toArray(toCodePointList([1.5])))
+            const result = stringifySorted(toArray(toCodePointList([1.5])))
             assertEq(result, '[2147483648]')
         },
         () => {
-            const result = stringify(toArray(toCodePointList([200.5])))
+            const result = stringifySorted(toArray(toCodePointList([200.5])))
             assertEq(result, '[2147483648]')
         },
         // `NaN` is flagged either way — the old guard let it past and the
@@ -109,12 +106,12 @@ export const proof = {
         // the spelling: rejecting it up front gives the canonical `errorMask`
         // rather than its `| 0` form.
         () => {
-            const result = stringify(toArray(toCodePointList([NaN])))
+            const result = stringifySorted(toArray(toCodePointList([NaN])))
             assertEq(result, '[2147483648]')
         },
         // `-0` is not a second spelling of the byte `0`.
         () => {
-            const result = stringify(toArray(toCodePointList([-0])))
+            const result = stringifySorted(toArray(toCodePointList([-0])))
             assertEq(result, '[2147483648]')
         },
         // A fractional continuation byte is the case that hides: the bitwise
@@ -122,94 +119,94 @@ export const proof = {
         // the same character `C3 A9` spells — with nothing reported. It is now
         // invalid on its own, and the pending lead is flagged incomplete.
         () => {
-            const result = stringify(toArray(toCodePointList([0xc3, 0xa9])))
+            const result = stringifySorted(toArray(toCodePointList([0xc3, 0xa9])))
             assertEq(result, '[233]')
         },
         () => {
-            const result = stringify(toArray(toCodePointList([0xc3, 169.5])))
+            const result = stringifySorted(toArray(toCodePointList([0xc3, 169.5])))
             assertEq(result, '[2147483648,-2147483453]')
         },
         () => {
-            const result = stringify(toArray(toCodePointList([0xf0, 0x90, 128.5])))
+            const result = stringifySorted(toArray(toCodePointList([0xf0, 0x90, 128.5])))
             assertEq(result, '[2147483648,-2147483120]')
         }
     ],
     fromCodePointList: [
         () => {
-            const result = stringify(toArray(fromCodePointList([0, 1, 0x7F])))
+            const result = stringifySorted(toArray(fromCodePointList([0, 1, 0x7F])))
             assertEq(result, '[0,1,127]')
         },
         () => {
-            const result = stringify(toArray(fromCodePointList([0x80])))
+            const result = stringifySorted(toArray(fromCodePointList([0x80])))
             assertEq(result, '[194,128]')
         },
         () => {
-            const result = stringify(toArray(fromCodePointList([0xa9])))
+            const result = stringifySorted(toArray(fromCodePointList([0xa9])))
             assertEq(result, '[194,169]')
         },
         () => {
-            const result = stringify(toArray(fromCodePointList([0x7ff])))
+            const result = stringifySorted(toArray(fromCodePointList([0x7ff])))
             assertEq(result, '[223,191]')
         },
         () => {
-            const result = stringify(toArray(fromCodePointList([0x800])))
+            const result = stringifySorted(toArray(fromCodePointList([0x800])))
             assertEq(result, '[224,160,128]')
         },
         () => {
-            const result = stringify(toArray(fromCodePointList([0x801])))
+            const result = stringifySorted(toArray(fromCodePointList([0x801])))
             assertEq(result, '[224,160,129]')
         },
         () => {
-            const result = stringify(toArray(fromCodePointList([0xffff])))
+            const result = stringifySorted(toArray(fromCodePointList([0xffff])))
             assertEq(result, '[239,191,191]')
         },
         () => {
-            const result = stringify(toArray(fromCodePointList([0x1_0000])))
+            const result = stringifySorted(toArray(fromCodePointList([0x1_0000])))
             assertEq(result, '[240,144,128,128]')
         },
         () => {
-            const result = stringify(toArray(fromCodePointList([0x1_0001])))
+            const result = stringifySorted(toArray(fromCodePointList([0x1_0001])))
             assertEq(result, '[240,144,128,129]')
         },
         () => {
-            const result = stringify(toArray(fromCodePointList([0x10_FFFF])))
+            const result = stringifySorted(toArray(fromCodePointList([0x10_FFFF])))
             assertEq(result, '[244,143,191,191]')
         },
         () => {
-            const result = stringify(toArray(fromCodePointList([0x11_0000, 0x8000_0000])))
+            const result = stringifySorted(toArray(fromCodePointList([0x11_0000, 0x8000_0000])))
             assertEq(result, '[2147483648,2147483648]')
         }
     ],
     toFrom: [
         () => {
             const codePointList = toCodePointList([0x80, 0xc1, 0xf5, 0xff])
-            const result = stringify(toArray(fromCodePointList(codePointList)))
+            const result = stringifySorted(toArray(fromCodePointList(codePointList)))
             assertEq(result, '[128,193,245,255]')
         },
         () => {
             const codePointList = toCodePointList([0xc2, 0xc2, 0x7f, 0xc2, 0xc0, 0xc2])
-            const result = stringify(toArray(fromCodePointList(codePointList)))
+            const result = stringifySorted(toArray(fromCodePointList(codePointList)))
             assertEq(result, '[194,194,127,194,192,194]')
         },
         () => {
             const codePointList = toCodePointList([0xe0, 0xe0, 0xa0, 0x7f, 0xef, 0xbf])
-            const result = stringify(toArray(fromCodePointList(codePointList)))
+            const result = stringifySorted(toArray(fromCodePointList(codePointList)))
             assertEq(result, '[224,224,160,127,239,191]')
         },
         () => {
             const codePointList = toCodePointList([0xf0, 0xf0, 0xa0, 0x7f, 0xf4, 0xbf])
-            const result = stringify(toArray(fromCodePointList(codePointList)))
+            const result = stringifySorted(toArray(fromCodePointList(codePointList)))
             assertEq(result, '[240,240,160,127,244,191]')
         },
         () => {
             const codePointList = toCodePointList([0xf0, 0xa0, 0xa0, 0xf4, 0xa0, 0xa0])
-            const result = stringify(toArray(fromCodePointList(codePointList)))
+            const result = stringifySorted(toArray(fromCodePointList(codePointList)))
             assertEq(result, '[240,160,160,244,160,160]')
         }
     ],
     stringToU8List: () => {
         // ASCII, a 2-byte, a 3-byte and a 4-byte (surrogate pair) character
-        assertEq(stringify(toArray(stringToU8List('h©中😀'))), '[104,194,169,228,184,173,240,159,152,128]')
+        assertEq(stringifySorted(toArray(stringToU8List('h©中😀'))), '[104,194,169,228,184,173,240,159,152,128]')
         // and round-trips through `fromU8List`
         assertEq(fromU8List(stringToU8List('h©中😀')), 'h©中😀')
     },
@@ -223,17 +220,17 @@ export const proof = {
         // Valid bytes → their code points
         () => {
             const v = u8ListToVecMsb([0x68, 0xc2, 0xa9])
-            assertEq(stringify(toArray(vecToCodePointList(v))), '[104,169]')
+            assertEq(stringifySorted(toArray(vecToCodePointList(v))), '[104,169]')
         },
         // Unchecked: a lone continuation byte becomes an error-tagged code point
         () => {
             const v = u8ListToVecMsb([0x80])
-            assertEq(stringify(toArray(vecToCodePointList(v))), '[-2147483520]')
+            assertEq(stringifySorted(toArray(vecToCodePointList(v))), '[-2147483520]')
         },
         // Unchecked: a surrogate and a value above U+10FFFF come back untagged
         () => {
             const v = u8ListToVecMsb([0xed, 0xa0, 0x80, 0xf4, 0x90, 0x80, 0x80])
-            assertEq(stringify(toArray(vecToCodePointList(v))), '[55296,1114112]')
+            assertEq(stringifySorted(toArray(vecToCodePointList(v))), '[55296,1114112]')
         },
     ],
     fromU8List: [

@@ -13,10 +13,9 @@ import { toData } from '../../edag/value/to_unknown/module.f.mjs'
 import { read } from '../../edag/value/property/module.f.mjs'
 import { tokenize } from '../tokenizer/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
-import { sort } from '../../types/object/module.f.mjs'
 import { stringToList } from '../../text/utf16/module.f.mjs'
 import { _stringifyTree } from '../module.f.mjs'
-import { stringify } from '../../media/json/module.f.mjs'
+import { stringifySorted } from '../../media/json/module.f.mjs'
 import { ok, unwrap } from '../../types/result/module.f.js'
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { _astOf, demo } from './demo.f.mjs'
@@ -661,7 +660,7 @@ export const proof = {
             /** @type {any} */
             let arm = /** @type {any} */ (value[1][0])[1][0][2][2][0]
             for (let depth = 1; depth < 5_000; depth += 1) { arm = arm[3][1][2][0] }
-            assertEq(stringify(sort)(arm[3]), '["()",["=>",0,[0]],[]]')
+            assertEq(stringifySorted(arm[3]), '["()",["=>",0,[0]],[]]')
         },
     ],
     // A syntax error is reported ahead of a semantic one, wherever each sits.
@@ -1687,7 +1686,7 @@ export const proof = {
             const tokenList = tokenizeString('export default [,]')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
-            const errorString = stringify(sort)(obj[1])
+            const errorString = stringifySorted(obj[1])
             if (errorString !== '{"message":"unexpected token","metadata":{"column":17,"line":1,"path":""}}') { throw errorString }
         },
     ],
@@ -1987,9 +1986,9 @@ export const proof = {
             // module's `x`, every one inside it its parent's slot
             /** @type {any} */
             let fn = /** @type {any} */ (value[1][1])[1][0][2]
-            assertEq(stringify(sort)(fn[3]), '[["cref",0]]')
+            assertEq(stringifySorted(fn[3]), '[["cref",0]]')
             for (let depth = 1; depth < 20_000; depth += 1) { fn = fn[2][0] }
-            assertEq(stringify(sort)(fn), '["=>",0,[["fref",0]],[["fref",0]]]')
+            assertEq(stringifySorted(fn), '["=>",0,[["fref",0]],[["fref",0]]]')
         },
         () => {
             // primitives never touched the stack — the baseline that always passed

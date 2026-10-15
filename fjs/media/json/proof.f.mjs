@@ -2,7 +2,7 @@
  * @import { DemoEvent } from '../../website/demo/types.ts'
  */
 
-import { marked, parse, serialize, setProperty, stringify } from './module.f.mjs'
+import { marked, parse, serialize, setProperty, stringify, stringifySorted } from './module.f.mjs'
 import { _roundTripMarked, demo, roundTrip } from './demo.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
 import { identity } from '../../types/function/module.f.js'
@@ -26,24 +26,24 @@ export const proof = {
         },
         () => {
             // src === null: should treat as empty object
-            const x = stringify(sort)(setProperty("Hello")(['a'])(null))
+            const x = stringifySorted(setProperty("Hello")(['a'])(null))
             if (x !== '{"a":"Hello"}') { throw x }
         },
         () => {
             // typeof src !== 'object': primitive src treated as empty object
-            const x = stringify(sort)(setProperty("Hello")(['a'])(/** @type {null} */ (/** @type {unknown} */ (42))))
+            const x = stringifySorted(setProperty("Hello")(['a'])(/** @type {null} */ (/** @type {unknown} */ (42))))
             if (x !== '{"a":"Hello"}') { throw x }
         },
         () => {
             // src instanceof Array: array src treated as empty object
-            const x = stringify(sort)(setProperty("Hello")(['a'])(/** @type {null} */ (/** @type {unknown} */ ([1, 2]))))
+            const x = stringifySorted(setProperty("Hello")(['a'])(/** @type {null} */ (/** @type {unknown} */ ([1, 2]))))
             if (x !== '{"a":"Hello"}') { throw x }
         },
     ],
     // `marked` is `stringify` as runs: the same text, with the leaves' kinds
     marked: () => {
         const value = { b: null, a: 'x', c: [1, true] }
-        assertEq(toText(marked(sort)(value)), stringify(sort)(value))
+        assertEq(toText(marked(sort)(value)), stringifySorted(value))
         assertEq(
             JSON.stringify(marked(sort)(value).filter(([, kind]) => kind !== undefined)),
             '[["\\"a\\"","string"],["\\"x\\"","string"],["\\"b\\"","string"],["null","literal"],["\\"c\\"","string"],["1","number"],["true","literal"]]')
@@ -85,8 +85,15 @@ export const proof = {
             }
         }
     ],
+    // `stringifySorted` is `stringify(sort)`: the canonical form, so values
+    // that differ only in key order, at any depth, write the same text.
+    stringifySorted: () => {
+        const text = '{"a":{"x":1,"y":[{"p":true,"q":null}]},"b":"z"}'
+        assertEq(stringifySorted({ b: 'z', a: { y: [{ q: null, p: true }], x: 1 } }), text)
+        assertEq(stringifySorted({ a: { x: 1, y: [{ p: true, q: null }] }, b: 'z' }), text)
+    },
     undefined: () => {
-        assertEq(stringify(sort)({ x: undefined }), '{}')
+        assertEq(stringifySorted({ x: undefined }), '{}')
     },
     /**
      * **`-0` survives a round trip.** It is valid JSON, and this codec writes
@@ -101,10 +108,10 @@ export const proof = {
             assertEq(concat(serialize(sort)([-0, 0])), '[-0,0]')
         },
         stringify: () => {
-            assertEq(stringify(sort)(-0), '-0')
-            assertEq(stringify(sort)(0), '0')
-            assertEq(stringify(sort)([-0, 0, [-0]]), '[-0,0,[-0]]')
-            assertEq(stringify(sort)({ b: 0, a: { c: -0 } }), '{"a":{"c":-0},"b":0}')
+            assertEq(stringifySorted(-0), '-0')
+            assertEq(stringifySorted(0), '0')
+            assertEq(stringifySorted([-0, 0, [-0]]), '[-0,0,[-0]]')
+            assertEq(stringifySorted({ b: 0, a: { c: -0 } }), '{"a":{"c":-0},"b":0}')
         },
         // every spelling of a negative zero the grammar admits, a negative
         // underflow, and their unsigned counterparts
@@ -121,17 +128,17 @@ export const proof = {
         },
         roundTrip: () => {
             for (const value of [-0, 0]) {
-                assert(is(parsed(stringify(sort)(value)), value))
+                assert(is(parsed(stringifySorted(value)), value))
             }
             const nested = { a: [-0, 0, { b: -0 }], c: 0 }
-            assertStructurallySame(parsed(stringify(sort)(nested)), nested)
+            assertStructurallySame(parsed(stringifySorted(nested)), nested)
         },
     },
     parse: {
         ok: () => {
             const [t, v] = parse('{"a":[1,true,null],"b":"x"}')
             assertEq(t, 'ok')
-            assertEq(stringify(sort)(v), '{"a":[1,true,null],"b":"x"}')
+            assertEq(stringifySorted(v), '{"a":[1,true,null],"b":"x"}')
         },
         // Malformed input is an error value, not a throw.
         error: () => {

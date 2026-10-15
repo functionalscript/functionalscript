@@ -1,9 +1,6 @@
 import { digitsValue, hexDigitCodePoint, hexDigitValue, hexDigitsValue, isCanonicalDigits, lowerHexDigitValue, one, range } from './module.f.mjs'
-import { stringify as jsonStringify } from '../../media/json/module.f.mjs'
-import { sort } from '../../types/object/module.f.mjs'
+import { stringifySorted } from '../../media/json/module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
-
-const stringify = jsonStringify(sort)
 
 /** The code points of a string. @type {(s: string) => readonly number[]} */
 const codePoints = s => [...s].map(one)
@@ -12,7 +9,7 @@ const values = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
 
 export const proof = {
     range: () => {
-        const r = stringify(range("A"))
+        const r = stringifySorted(range("A"))
         assertEq(r, '[65,65]')
     },
     hexDigitValue: {
@@ -67,7 +64,7 @@ export const proof = {
             assertEq(lowerHexDigitValue(NaN), null)
         },
         roundTrip: () => {
-            assertEq(stringify(values.map(v => lowerHexDigitValue(hexDigitCodePoint(v)))), stringify(values))
+            assertEq(stringifySorted(values.map(v => lowerHexDigitValue(hexDigitCodePoint(v)))), stringifySorted(values))
         },
     },
     hexDigitCodePoint: {
@@ -75,7 +72,7 @@ export const proof = {
             assertEq(String.fromCodePoint(...values.map(v => hexDigitCodePoint(v))), '0123456789abcdef')
         },
         roundTrip: () => {
-            assertEq(stringify(values.map(v => hexDigitValue(hexDigitCodePoint(v)))), stringify(values))
+            assertEq(stringifySorted(values.map(v => hexDigitValue(hexDigitCodePoint(v)))), stringifySorted(values))
         },
     },
     isCanonicalDigits: {
