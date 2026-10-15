@@ -88,7 +88,7 @@
  * @import { AstAccess, AstArray, AstBinary, AstInstanceOf, AstKey, AstSelf, AstCall, AstConditional, AstConst, AstEntryFunction, AstFrameRef, AstEntry, AstFunction, AstItem, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstStatic, AstRest, AstSpread, AstStep, AstThrow, AstUnary } from '../ast/types.ts'
  * @import { ParseError } from './types.ts'
  * @import { BindingElement, BindingProperty, BindingTarget, Block, Chain, ComputedKey, ConstantMember, Container, Entry, If, Import, Item, Key, Module, Node, ParameterList, Statement, Step, ValueStatement, While } from './syntax/types.ts'
- * @import { _AccessFrame, _BodyFrame, _Bound, _CallFrame, _ChainFrame, _ChainPart, _ConditionalFrame, _Counted, _IndexFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _LoopBodyFrame, _Lowered, _Parameter, _Pending, _PendingStack, _Plan, _Read, _Ref, _Scope, _Source, _Stack, _State } from './private.ts'
+ * @import { _AccessFrame, _BodyFrame, _Bound, _CallFrame, _ChainFrame, _ChainPart, _ConditionalFrame, _Counted, _IndexFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _LateFrame, _LoopBodyFrame, _Lowered, _Parameter, _Pending, _PendingStack, _Plan, _Read, _Ref, _Scope, _Source, _Stack, _State } from './private.ts'
  */
 
 import { error, mapOk, ok } from '../../types/result/module.f.js'
@@ -1073,6 +1073,18 @@ const captured = (body, word, [outer, ref]) => {
  * {@link resolve}. The `length` is what JavaScript gives the function, the
  * fixed parameters counted, a pattern as one, the rest parameter not.
  *
+ * A default ends that count, as it ends JavaScript's: a fixed parameter
+ * from the first with a default on, `= value`, is *late*, {@link _Late}
+ * — read from the rest array at its position past the count, and the rest
+ * parameter after it the slice of that array past them — and binds
+ * nothing here. Each lands in the function's own scope once the defaults
+ * before it have been resolved there, {@link lateRound}, so a default
+ * reads the scopes around the function and the parameters before it, and
+ * never a later one or the body
+ * ([default parameters](../../../spec/todo/3125-default-parameters.md)).
+ * Every name of the list is checked here all the same, the late ones'
+ * included, so one bound twice is the list's to refuse.
+ *
  * An empty parameter list binds nothing, so a body under it starts from no
  * names of its own: the arguments are unreachable, having no name, and
  * every other word is a capture or `const not found` exactly as it is
@@ -1094,20 +1106,35 @@ const captured = (body, word, [outer, ref]) => {
 const functionScope = list => {
     if ('invalid' in list) { return error(malformedParameters(list.invalid)) }
     if ('arrow' in list) { return error(unexpectedToken(list.arrow)) }
+    const defaulted = list.fixed.findIndex(parameter => parameter[0] === '=')
+    const count = defaulted === -1 ? list.fixed.length : defaulted
     /** @type {_Bound} */
-    let bound = { names: empty, count: list.fixed.length, entries: [] }
-    for (const [i, target] of list.fixed.entries()) {
+    let bound = { names: empty, count, entries: [], late: [] }
+    // every word the list binds, a late parameter's included, each to a
+    // reference no read sees: what a name is checked against
+    /** @type {_Env} */
+    let seen = empty
+    for (const [i, parameter] of list.fixed.entries()) {
+        const target = parameter[0] === '=' ? parameter[1] : parameter
         if (i === maxLength) { return error(tooManyParameters(target[1])) }
+        const [tag, plan] = planned(bindable(seen))(target, null)
+        if (tag === 'error') { return error(plan) }
+        seen = plan.names.reduce(
+            /** @type {(env: _Env, name: readonly [DjsTokenWithMetadata, number]) => _Env} */
+            ((env, [name]) => extended(env)(nameOf(name), restBinding)),
+            seen)
+        if (i >= count) {
+            /** @type {AstAccess} */
+            const source = ['.', restBinding, i - count]
+            bound = { ...bound, late: [...bound.late, { plan, init: parameter[0] === '=' ? parameter[3] : null, source }] }
+            continue
+        }
         /** @type {_Parameter} */
         const arg = ['arg', i]
         if (target[0] === 'name') {
-            const [tag, word] = bindable(bound.names)(target[1])
-            if (tag === 'error') { return error(word) }
-            bound = { ...bound, names: extended(bound.names)(word, arg) }
+            bound = { ...bound, names: extended(bound.names)(nameOf(target[1]), arg) }
             continue
         }
-        const [tag, plan] = planned(bindable(bound.names))(target, null)
-        if (tag === 'error') { return error(plan) }
         const { entries, bound: names } = lowered(plan, arg, bound.entries.length)
         bound = {
             ...bound,
@@ -1116,8 +1143,12 @@ const functionScope = list => {
         }
     }
     if (list.rest === null) { return ok(bound) }
-    const [tag, word] = bindable(bound.names)(list.rest)
-    return tag === 'error' ? error(word) : ok({ ...bound, names: extended(bound.names)(word, restBinding) })
+    const [tag, plan] = planned(bindable(seen))(['name', list.rest], null)
+    if (tag === 'error') { return error(plan) }
+    if (bound.late.length === 0) { return ok({ ...bound, names: extended(bound.names)(nameOf(list.rest), restBinding) }) }
+    /** @type {AstCall} */
+    const slice = ['()', ['.', restBinding, 'slice'], [bound.late.length]]
+    return ok({ ...bound, late: [...bound.late, { plan, init: null, source: slice }] })
 }
 
 /**
@@ -1463,13 +1494,54 @@ const entered = (stack, scope, node, self) => {
     if (entry !== null) { return [stack, scope, entry] }
     const [tag, bound] = functionScope(node[1])
     if (tag === 'error') { return [stack, scope, error(bound)] }
-    const { names, count, entries } = bound
+    const { names, count, entries, late } = bound
     /** @type {_Scope} */
     const inner = { names, count, captures: [], enclosing: null, outer: scope, self, loop: null, loopReads: [] }
-    const body = node[2]
-    return body[0] === 'block'
-        ? bodyRound(stack, inner, { statements: body[1], first: 0, index: 0, plan: null, entries: entries.length, done: entries })
-        : [{ top: { function: entries }, rest: stack }, inner, ['enter', body]]
+    return lateRound(stack, inner, { late, index: 0, entries: entries.length, done: entries, body: node[2] })
+}
+
+/**
+ * The next late parameter of a function, {@link _Late}, in the function's
+ * own scope: its default entered there, where it has one — never as the
+ * parameter's `self`, which a function written as a default is not, the
+ * parameter being whatever the caller passed — or its source landed
+ * outright, {@link lateLanded}. Once the last has landed, the body: a
+ * block body's statements count from after every entry the parameters
+ * made, and an expression body's value follows them as the last entry.
+ *
+ * @type {(stack: _Stack, scope: _Scope, frame: _LateFrame) => _State}
+ */
+const lateRound = (stack, scope, frame) => {
+    const { late, index, body } = frame
+    if (index === late.length) {
+        return body[0] === 'block'
+            ? bodyRound(stack, scope, { statements: body[1], first: 0, index: 0, plan: null, entries: frame.entries, done: frame.done })
+            : [{ top: { function: toArray(frame.done) }, rest: stack }, scope, ['enter', body]]
+    }
+    const { init, source } = late[index]
+    return init === null ? lateLanded(stack, scope, frame, source) : [{ top: frame, rest: stack }, scope, ['enter', init]]
+}
+
+/**
+ * A late parameter's value landed, as a body `const`'s is: its entries
+ * after the ones before it, and its names bound to them for what follows.
+ * A name a default before it read from outside — unbound then, bound now
+ * only by the capture that read took — is refused, `capture shadowed`: in
+ * JavaScript that read named this parameter, before it was initialized,
+ * which throws, where this compiler would have read the capture
+ * ([default parameters](../../../spec/todo/3125-default-parameters.md)).
+ *
+ * @type {(stack: _Stack, scope: _Scope, frame: _LateFrame, value: AstConst) => _State}
+ */
+const lateLanded = (stack, scope, frame, value) => {
+    const { plan } = frame.late[frame.index]
+    const shadowed = plan.names.find(([name]) => at(nameOf(name))(scope.names) !== null)
+    if (shadowed !== undefined) { return [stack, scope, error(captureShadowed(shadowed[0]))] }
+    const { entries, bound } = lowered(plan, value, frame.entries)
+    return lateRound(
+        stack,
+        { ...scope, names: bound.reduce((names, [word, ref]) => extended(names)(word, ref), scope.names) },
+        { ...advanced(frame, entries), entries: frame.entries + entries.length })
 }
 
 /**
@@ -1604,8 +1676,16 @@ const returned = (stack, scope, frame, value) => {
         const conditional = ['?:', frame.condition, frame.then, call]
         return closed(stack, scope, [...toArray(frame.body.done), conditional])
     }
+    if ('late' in frame) {
+        // a default resolved: the value where the argument read is
+        // `undefined`, in the arm alone, and the argument where it is not
+        const { source } = frame.late[frame.index]
+        /** @type {AstConditional} */
+        const defaulted = ['?:', ['===', source, undefined], value, source]
+        return lateLanded(stack, scope, frame, defaulted)
+    }
     // an expression body: its value is the last entry, after the ones the
-    // function's parameter patterns made
+    // function's parameters made
     return closed(stack, scope, [...frame.function, value])
 }
 

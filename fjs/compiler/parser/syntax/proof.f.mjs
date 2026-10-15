@@ -226,15 +226,42 @@ export const proof = {
         const bare = listOf('export default a => 1;')
         assert('fixed' in bare && bare.rest === null)
         assertStructurallySame(bare.fixed.map(t => t[0]), ['name'])
-        assertEq(bare.fixed[0][1].metadata.column, 16)
+        const [head] = bare.fixed
+        assert(head[0] === 'name')
+        assertEq(head[1].metadata.column, 16)
         const rest = listOf('export default (...r) => 1;')
         assert('fixed' in rest && rest.rest !== null)
         assertStructurallySame(rest.fixed, [])
         assertEq(rest.rest.metadata.column, 20)
-        for (const source of ['export default (1) => 1;', 'export default ((a)) => 1;', 'export default (a.b, c) => 1;']) {
+        for (const source of ['export default (1) => 1;', 'export default ((a)) => 1;', 'export default (a.b, c) => 1;', 'export default ((a) = 1) => 1;', 'export default (1 = 2) => 1;']) {
             const list = listOf(source)
             assert('invalid' in list && list.invalid.metadata.column === 16, source)
         }
+    },
+    // A fixed parameter with a default is `['=', target, token, value]`:
+    // its target as a bare parameter's, the `=` it is anchored at, and the
+    // value as written — the head's, read after the value the grammar read
+    // as a group's, and every other's alike; one without keeps its target
+    // alone, and the rest parameter takes none.
+    defaults: () => {
+        const { exported } = unwrap(parseSyntax(tokenizeString(
+            'export default (a = 1, { b } = {}, c, d = x => x, ...e) => 1;')))
+        assert(exported !== null && exported.value[0] === '=>')
+        const list = exported.value[1]
+        assert('fixed' in list && list.rest !== null)
+        assertStructurallySame(list.fixed.map(t => t[0]), ['=', '=', 'name', '='])
+        const [a, b, , d] = list.fixed
+        assert(a[0] === '=' && b[0] === '=' && d[0] === '=')
+        assertStructurallySame([a[1][0], b[1][0], d[1][0]], ['name', 'object', 'name'])
+        assertStructurallySame([a[2].metadata.column, b[2].metadata.column, d[2].metadata.column], [19, 30, 41])
+        assertStructurallySame(a[3], ['primitive', 1])
+        assertStructurallySame([b[3][0], d[3][0]], ['object', '=>'])
+        assertStructurallySame(list.rest.token, { kind: 'id', value: 'e' })
+        const { exported: alone } = unwrap(parseSyntax(tokenizeString('export default (a = 1) => a;')))
+        assert(alone !== null && alone.value[0] === '=>')
+        const single = alone.value[1]
+        assert('fixed' in single && single.rest === null)
+        assertStructurallySame(single.fixed.map(t => t[0]), ['='])
     },
     namedExports: {
         syntax: () => {

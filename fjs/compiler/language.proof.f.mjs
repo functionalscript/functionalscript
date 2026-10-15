@@ -891,6 +891,59 @@ export const proof = {
             assertEq(compileSource('const x = {}; const a = [x]; export default [{ ...a }, x];')('output.json'), '[{"0":{}},{}]')
         },
     },
+    // A default parameter (spec/todo/3125-default-parameters.md) is the
+    // argument where it is not `undefined` and the default where it is, the
+    // default evaluated in that arm alone, at each call; the parameters from
+    // the first default on are read from the rest array, so `length` is
+    // JavaScript's. Every value below is what Node answers for the same
+    // module.
+    defaults: {
+        values: () => {
+            assertEq(compileSource([
+                'const f = (a = 5) => a;',
+                'const g = (a, b = a, ...r) => [a, b, r];',
+                'const m = (a = 1, b) => [a, b === undefined];',
+                'const p = ({ c, d } = { c: 1, d: 2 }, [e] = [3]) => [c, d, e];',
+                'const q = (a, b = a + 1) => { const c = a + b; return [a, b, c]; };',
+                'export default [f.length, f(), f(undefined), f(null), f(7), g.length, g(1), g(1, 2, 3, 4), m.length, m(), m(2, 3), p.length, p(), p({ c: 4, d: 5 }, [6]), q.length, q(1)];',
+            ].join(' '))('output.json'), '[0,5,5,null,7,1,[1,1,[]],[1,2,[3,4]],0,[1,true],[2,false],0,[1,2,3],[4,5,6],1,[1,2,3]]')
+        },
+        // a default reads the scopes around the function through the
+        // function's frame, the enclosing call's included, and the function
+        // itself; a container written as the default is a fresh one at each
+        // call, and one captured is the same one every time
+        identity: () => {
+            assertEq(compileSource([
+                'const x = {};',
+                'const cap = (a = x) => a;',
+                'const fresh = (a = {}) => a;',
+                'const h = y => (a = y) => a;',
+                'const k = h([]);',
+                'const s = (a = s) => a;',
+                'export default [cap() === x, cap() === cap(), fresh() === fresh(), k() === k(), h(1)() === h(1)(), s() === s];',
+            ].join(' '))('output.json'), '[true,true,false,true,true,true]')
+        },
+        // the default is evaluated only where it is taken, and where it is
+        // taken, at the call: the parameter is an entry of the body,
+        // established whether or not the body goes on to read it, so
+        // `f(6)` fails below as JavaScript's does
+        lazy: () => {
+            assertEq(compileSource('const f = (a = null.x) => a; export default f(1);')('output.json'), '1')
+            assertEq(moduleRefused('const f = (a = null.x) => a; export default f();'), 'input.f.js - error: module initialization failed')
+            assertEq(moduleRefused('const f = (a, b = null.x) => a === 5 ? b : a; export default f(6);'), 'input.f.js - error: module initialization failed')
+            assertEq(compileSource('const f = (a, b = null.x) => a === 5 ? b : a; export default f(6, 1);')('output.json'), '6')
+            assertEq(compileSource('export default (a, b = null.x) => a === 5 ? b : a;')('output.js'), 'export default ($0,...$1)=>{const $2=$1[0]===undefined?null.x:$1[0];return $0===5?$2:$0;};')
+        },
+        outputs: () => {
+            const source = 'export default (a, b = a, ...r) => [a, b, r];'
+            assertEq(compileSource(source)('output.js'), 'export default ($0,...$1)=>[$0,$1[0]===undefined?$0:$1[0],$1.slice(1)];')
+            assertEq(compileSource(source)('output.edag.data.js'),
+                'const $0=["rest"];export default ["{}",[[":","default",["=>",1,[],["[]",[["arg",0],["?:",["===",[".",$0,0],["undefined"]],["arg",0],[".",$0,0]],[".",$0,"slice",["|()",[1]]]]]]]]];')
+            assert(compileSource(source)('output.rs').includes('Any::conditional(c2, || Ok(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any())), c3)'))
+            assertEq(compileSource('export default (a = 1) => { const b = [a]; return [b, b]; };')('output.js'), 'export default (...$0)=>{const $1=[$0[0]===undefined?1:$0[0]];return [$1,$1];};')
+            assertEq(fjsRoundTrip('const x = {}; export default (a, b = x, ...r) => [a, b, r];'), 'const $0={};export default ($1,...$2)=>[$1,$2[0]===undefined?$0:$2[0],$2.slice(1)];')
+        },
+    },
     // Code outputs preserve throws; data outputs execute module initialization.
     throws: () => {
         assertEq(compileSource('export default () => { throw 1; };')('output.js'), 'export default ()=>{throw 1;};')
