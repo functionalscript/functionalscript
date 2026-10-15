@@ -701,41 +701,18 @@ export const proof = {
             assertEq(fjsRoundTrip('export default (a) => { const b = a; return () => [a, b]; };'), 'export default ($0)=>()=>[$0,$0];')
             assertEq(fjsRoundTrip('const f = (n) => { const g = f; return () => [f, g]; }; export default f;'), 'const $0=($1)=>()=>[$0,$0];export default $0;')
             assertEq(compileSource('const f = (a) => { const b = a; return () => [a, b]; }; export default [String(f), String(f(1))];')('output.json'), '["($0)=>()=>[$0,$0]","()=>[$0,$0]"]')
-            // a `const` read only through an inlined call is the node the
-            // call answers, and no anchor where the scope reaches that node
-            // anyway — by the value, by another operand of the comma, or
-            // around the block it stands in
-            assertEq(fjsRoundTrip('export default n => { const t = n + 1; const u = (() => t)(); return t * 2; };'), 'export default ($0)=>($0+1)*2;')
-            assertEq(fjsRoundTrip('export default n => { const t = n + 1; const u = (() => t)(); return t; };'), 'export default ($0)=>$0+1;')
-            assertEq(compileSource('const g = n => { const t = n + 1; const u = (() => t)(); return t; }; export default String(g);')('output.json'), '"($0)=>$0+1"')
-            assertEq(fjsRoundTrip('export default (a, b) => { const t = b + 1; const u = (() => t)(); return [t, a && u]; };'), 'export default ($0,$1)=>{const $2=$1+1;return [$2,$0&&$2];};')
-            assertEq(fjsRoundTrip('export default (a, b) => { const t = b.x; return [t, a ? (() => { const u = (() => t)(); return 1; })() : 0]; };'), 'export default ($0,$1)=>[$1.x,$0?1:0];')
-            assertEq(fjsRoundTrip('export default (a, b) => { const t = b.x; return a ? (() => { const u = (() => t)(); return 1; })() : 0; };'), 'export default ($0,$1)=>{const $2=$1.x;return $0?1:0;};')
-            // a call inlined that answers a `const` is an alias of it, so a
-            // `const` read only through one is anchored where it stands, by
-            // the scope that makes it, before what reads it lazily — and a
-            // failing `const` fails, in a function, a loop's block and a
-            // module
-            assertEq(fjsRoundTrip('export default a => { const t = a.x; const u = a && t; const w = (() => t)(); return a && u; };'), 'export default ($0)=>{const $1=$0.x;const $2=$0&&$1;return $0&&$2;};')
-            assertEq(fjsRoundTrip('const t = [1].length; const a = [].length ? t : 0; const u = (() => t)(); export default 1;'), 'const $0=[1].length;const $1=[].length?$0:0;export default 1;')
-            assertEq(fjsRoundTrip('const o = { f: x => [x] }; export default (a) => { const t = a.k; return [(() => { const w = (() => t)(); return 1; })(), o.f(t)]; };'), 'const $0={"f":($1)=>[$1]};export default ($2)=>[1,$0.f($2.k)];')
-            assertEq(compileSource('const t = [1]; const f = () => { const u = (() => t)(); return 1; }; export default String(f);')('output.json'), '"()=>1"')
-            // a call nothing reads anchors its value where its body makes it,
-            // and not where something its body anchors reaches it
-            assertEq(fjsRoundTrip('export default (z, c) => { const u = (() => { const v0 = c.x; const v1 = z && v0; return v0; })(); return z ? u : 0; };'), 'export default ($0,$1)=>{const $2=$1.x;const $3=$0&&$2;return $0?$2:0;};')
-            assertEq(fjsRoundTrip('export default (z, c) => { const u = (() => { const v0 = c.x; const v1 = [v0]; return v0; })(); return z ? u : 0; };'), 'export default ($0,$1)=>{const $2=$1.x;const $3=[$2];return $0?$2:0;};')
-            assertEq(fjsRoundTrip('export default (a, b) => { const t = b.x.y; return (() => { const u = (() => t)(); return 1; })(); };'), 'export default ($0,$1)=>{const $2=$1.x.y;return 1;};')
-            assertEq(jsonRefused('const f = (b) => { const t = b.x.y; return (() => { const u = (() => t)(); return 1; })(); }; export default f({});'), 'input.f.js - error: module initialization failed')
-            assertEq(
-                fjsRoundTrip('export default (b, f) => { let w = 0; while (w < 3) { const c = b.x; const z = (() => { const u = (() => c)(); return 1; })(); w = w + f(z); } return w; };'),
-                'export default ($0,$1)=>{let $2=0;while($2<3){const $3=$0.x;$2=$2+$1(1);}return $2;};')
-            assertEq(moduleRefused('const t = null.x; export default [(() => { const u = (() => t)(); return 1; })()];'), 'input.f.js - error: module initialization failed')
             // a loop's block whose `const`s read the captures in another
             // order than the source named them opens by naming them in its
             // order, which reads back as the same frame
             assertEq(
                 fjsRoundTrip('export default (b, f) => { let w = 0; while (w < 3) { const u0 = f(b); const u1 = b + u0; const u2 = f?.(u1); w = w + 1; } return 0; };'),
                 'export default ($0,$1)=>{let $2=0;while($2<3){const $3=$1;const $4=$0;const $5=$4+$3($4);const $6=$3?.($5);$2=$2+1;}return 0;};')
+            // an anchor on a node the scope reaches anyway, a `const` read
+            // only through a call inlined beside it, is refused in a body and
+            // written as a statement of its own in a module, which reads back
+            // without the anchor: `serializer/todo/anchor-repeats-a-hoisted-value.md`
+            assertEq(fjsRefused({ 'input.f.js': [utf8('export default n => { const t = n + 1; const u = (() => t)(); return t * 2; };')] }), 'output.f.js - error: an anchor that repeats a hoisted value')
+            assertEq(compileSource('const b = [1]; const t = b[0] + 1; const u = (() => t)(); export default t * 2;')('output.f.js'), 'const $0=[1];const $1=$0[0];const $2=$1+1;const $3=$2*2;export default $3;')
             // a shared node the scope reaches eagerly is named where its
             // `const` stands, before an item the source wrote first: which
             // failure comes first is no observation

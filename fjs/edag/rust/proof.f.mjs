@@ -13,7 +13,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
-import { braced, expExpr, expExprTagged, holdsFunction, nestsOperation, nodeExpr, readsArgs, readsFrame, scope, scopeTagged, statementsOf, useLines, useLinesTagged } from './module.f.mjs'
+import { braced, eagerNodesOf, expExpr, expExprTagged, holdsFunction, nestsOperation, nodeExpr, readsArgs, readsFrame, scope, scopeTagged, statementsOf, useLines, useLinesTagged } from './module.f.mjs'
 import { fromTagged, toText } from '../../text/marked/module.f.mjs'
 import { unmarkedWords } from './unmarked/module.f.js'
 
@@ -1295,6 +1295,41 @@ export const proof = {
      * stands: a primitive, an object key, an index.
      */
     /**
+     * The nodes a root establishes unconditionally: through every eager
+     * position, and a lazy operation's first operand, never its others —
+     * however a node is also reached lazily.
+     */
+    eagerNodesOf: () => {
+        /** @type {Exp} */
+        const c = ['[]', []]
+        // Through an array item, an object value, a comma operand, an eager
+        // operator's operands, a `.` base, and a lazy operation's first
+        // operand.
+        assertEq(eagerNodesOf(['[]', [c]]).includes(c), true)
+        assertEq(eagerNodesOf(['{}', [[':', 'k', c]]]).includes(c), true)
+        assertEq(eagerNodesOf([',', [c, 1]]).includes(c), true)
+        assertEq(eagerNodesOf(['*', 1, c]).includes(c), true)
+        assertEq(eagerNodesOf(['.', c, 'length']).includes(c), true)
+        assertEq(eagerNodesOf(['&&', c, 1]).includes(c), true)
+        assertEq(eagerNodesOf(['?:', c, 1, 2]).includes(c), true)
+        // Not through a function's body, established only when it is called.
+        assertEq(eagerNodesOf(['=>', 0, [], ['[]', [c]]]).includes(c), false)
+        // Not through a lazy operand, at any depth below it.
+        assertEq(eagerNodesOf(['&&', true, c]).includes(c), false)
+        assertEq(eagerNodesOf(['||', true, c]).includes(c), false)
+        assertEq(eagerNodesOf(['??', true, c]).includes(c), false)
+        assertEq(eagerNodesOf(['?:', true, c, 2]).includes(c), false)
+        assertEq(eagerNodesOf(['?:', true, 1, ['[]', [c, c]]]).includes(c), false)
+        // One eager reach is enough, wherever the lazy ones are.
+        assertEq(eagerNodesOf(['[]', [['&&', true, c], c]]).includes(c), true)
+        // A list whose first item spells a lazy tag is a list: both `c`s
+        // are items, reached.
+        assertEq(eagerNodesOf(['[]', ['&&', c, ['&&', true, c]]]).includes(c), true)
+        // The root comes first, and a primitive root reaches nothing.
+        assertStructurallySame(eagerNodesOf(c), [c])
+        assertStructurallySame(eagerNodesOf(1), [])
+    },
+    /**
      * A string with a lone surrogate, which no `&str` can hold, is spelled by
      * its code units, as a value, a key and an index alike; a paired one
      * stays a literal.
@@ -1575,6 +1610,21 @@ export const proof = {
                     'let c2: Any<A> = Any::option_call(Nullish::Undefined.to_any(), c1).end()?;',
                     'Ok([c0.clone(), c2].to_array().to_any())',
                 ])
+        },
+        /**
+         * The eager positions per tag: a `.` node's receiver and key, a
+         * `?.` or `?.()` node's first operand; nothing inside a
+         * continuation, at any depth, nor a `?.()` node's arguments.
+         */
+        eagerNodesOf: () => {
+            /** @type {Exp} */
+            const c = ['[]', []]
+            assertEq(eagerNodesOf(['.', c, 'a', ['|()', []]]).includes(c), true)
+            assertEq(eagerNodesOf(['?.', c, 'a']).includes(c), true)
+            assertEq(eagerNodesOf(['?.()', c, []]).includes(c), true)
+            assertEq(eagerNodesOf(['.', ['{}', []], 'a', ['|()', [c]]]).includes(c), false)
+            assertEq(eagerNodesOf(['?.()', ['undefined'], [c]]).includes(c), false)
+            assertEq(eagerNodesOf(['?.', ['{}', []], 'a', ['|.', 'b', ['|()', [c]]]]).includes(c), false)
         },
         /**
          * A terminal step handed a continuation: the schema spells none,

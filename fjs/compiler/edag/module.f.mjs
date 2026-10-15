@@ -14,7 +14,7 @@
  * @import { EdagValue } from '../../edag/value/types.ts'
  * @import { Unknown as JsonUnknown } from '../../media/json/types.ts'
  * @import { Unresolved } from './types.ts'
- * @import { _Bound, _Entries, _Lowered, _LoweredEntry, _LoweredItem, _LoweredOver, _LowerResults, _LowerWork, _Nodes, _Resolved } from './private.ts'
+ * @import { _Entries, _Lowered, _LoweredEntry, _LoweredItem, _LoweredOver, _LowerResults, _LowerWork, _Nodes, _Resolved } from './private.ts'
  */
 
 import { anchors, isBinary, isInlinedCall, isLazy, isSpread, isUnary, readCaptures } from '../ast/module.f.mjs'
@@ -60,12 +60,7 @@ const floated = xs => xs.flatMap(x => x.anchors)
  * A value under what it floats: the value alone where nothing is floated,
  * and otherwise the comma establishing the floated roots first — the form
  * a scope's root takes, and a lazy operand's, the two positions that open a
- * block ({@link parts}). An anchor is a node nothing else establishes, which
- * `../ast/module.f.mjs`'s `anchors` decides from the source: a `const` the
- * value does not reach, and never an alias, the node it names —
- * `const u = (() => t)();` is `t`, as `const u = t;` is — so what floats is
- * always a node the body that anchors it made, and nothing else in the
- * comma reaches it eagerly.
+ * block ({@link parts}).
  *
  * @type {(x: _Lowered) => Exp}
  */
@@ -84,10 +79,7 @@ const anchoring = ({ exp, anchors }) => anchors.length === 0 ? exp : [',', [...a
  * ({@link parts}); nothing else changes, and nothing observes the function
  * that was written — `isInlinedCall` has the argument. `(() => [1, 2])()`
  * is the array, and the module holding it hashes as the module holding the
- * array does. Where nothing reads the call, `value` is false: its value is
- * one more `const` of the body that nothing reads, anchored where it
- * stands in the body unless what else the body anchors reaches it — the
- * body's order, which is JavaScript's, and no anchor of the call's own.
+ * array does.
  *
  * A callee that is a property access is a **method call**: `a.b(c)` passes
  * `a` as the receiver, so the access owns the call and the two are one node,
@@ -107,13 +99,13 @@ const anchoring = ({ exp, anchors }) => anchors.length === 0 ? exp : [',', [...a
  * The arguments are an item list in both, the list `[]` would hold, which
  * is no node of its own: `f(a, b)` is `['()', f, [a, b]]`.
  *
- * @type {(nodes: _Nodes) => (ast: AstCall, value?: boolean) => _Lowered}
+ * @type {(nodes: _Nodes) => (ast: AstCall) => _Lowered}
  */
-const call = nodes => (ast, value = true) => {
+const call = nodes => ast => {
     const [, callee, args] = ast
     if (isInlinedCall(ast)) {
         const [, , body, captures] = /** @type {AstFunction} */ (callee)
-        return parts(body, (captures ?? []).map(c => lower(nodes)(c).exp), value)
+        return parts(body, (captures ?? []).map(c => lower(nodes)(c).exp))
     }
     const items = args.map(lowerItem(nodes))
     const list = items.map(x => x.exp)
@@ -270,11 +262,10 @@ const lowerEntry = nodes => entry => {
  * the capture is read, as it is wherever a `const` holding one is read,
  * since it has nothing to share and nothing to compute. Nor is a capture
  * the body never reads, `readCaptures`: one the parser listed for an
- * unused alias, `const x = c;` or `const x = (() => c)();`, which the body
- * drops — whether written in the body or in a call inlined into it — so
- * that no slot is left that nothing reads, and the enclosing scope anchors
- * the `const` instead. A function whose frame is left with nothing has no
- * slots.
+ * unused alias, `const x = c;`, which the body drops — whether written in
+ * the body or in a call inlined into it — so that no slot is left that
+ * nothing reads, and the enclosing scope anchors the `const` instead. A
+ * function whose frame is left with nothing has no slots.
  *
  * Inside the body a slot is one node, `['frame', i]`, however many
  * references reach it — the node `rest` is, for the rest arguments.
@@ -486,13 +477,16 @@ const lower = nodes => root => {
         const tag = work.tag
         const right = assertNotNullish(results, ['no right operand for', tag, root])
         const left = assertNotNullish(right.rest, ['no left operand for', tag, root])
-        const lazy = isLazy(tag)
         // named as the two node kinds a binary tag makes, since the EDAG
         // union also holds a three-tuple whose last position is a name
         /** @type {Op2 | Op12} */
-        const exp = [tag, left.top.exp, lazy ? anchoring(right.top) : right.top.exp]
+        const lazyExp = [tag, left.top.exp, anchoring(right.top)]
+        /** @type {Op2 | Op12} */
+        const eager = [tag, left.top.exp, right.top.exp]
         results = {
-            top: { exp, anchors: lazy ? left.top.anchors : [...left.top.anchors, ...right.top.anchors] },
+            top: isLazy(tag)
+                ? { exp: lazyExp, anchors: left.top.anchors }
+                : { exp: eager, anchors: [...left.top.anchors, ...right.top.anchors] },
             rest: left.rest,
         }
         work = rest
@@ -504,19 +498,14 @@ const lower = nodes => root => {
  * The entries of a body, each lowered over the entries before it, under
  * the arguments node that body names: a fresh one per function, since a
  * node belongs to one scope and two bodies naming one `['args']` is no
- * EDAG. Beside each entry's node, what lowering it floated. An entry
- * `calls` names is a call inlined whose value nothing reads
- * (`../ast/module.f.mjs`'s `anchors`), so its body anchors what it must
- * with no value to reach, {@link call}.
+ * EDAG. Beside each entry's node, what lowering it floated.
  *
- * @type {(parameters: readonly Exp[], args: Exp, frame: readonly Exp[], calls?: readonly number[]) => (body: AstBody) => _Entries}
+ * @type {(parameters: readonly Exp[], args: Exp, frame: readonly Exp[]) => (body: AstBody) => _Entries}
  */
-const entries = (parameters, args, frame, calls = []) => body => body.reduce(
-    /** @type {(acc: _Entries, ast: AstConst, i: number) => _Entries} */
-    ((acc, ast, i) => {
-        /** @type {_Nodes} */
-        const nodes = { parameters, consts: acc.nodes, args, frame }
-        const { exp, anchors } = calls.includes(i) && ast !== null && typeof ast === 'object' && ast[0] === '()' ? call(nodes)(ast, false) : lower(nodes)(ast)
+const entries = (parameters, args, frame) => body => body.reduce(
+    /** @type {(acc: _Entries, ast: AstConst) => _Entries} */
+    ((acc, ast) => {
+        const { exp, anchors } = lower({ parameters, consts: acc.nodes, args, frame })(ast)
         return { nodes: [...acc.nodes, exp], floated: [...acc.floated, anchors] }
     }),
     { nodes: [], floated: [] })
@@ -541,17 +530,13 @@ const anchored = ({ nodes, floated }, consts) => nodes.flatMap((node, i) => [...
  * `anchors` reads a body out of a module, so the body is handed over as one
  * that imports nothing: a function names no import, a reference out of it
  * being a capture, read through its frame — or, for a body a call inlines,
- * the enclosing scope's node itself. Such a node is no anchor of the body:
- * an entry naming it is an alias, `const u = (() => t)();` as much as
- * `const u = t;`, so the scope that makes the node anchors it, and what
- * floats out of the body is always a node the body made ({@link anchoring}).
- * `value` says whether anything reads the value, {@link call}.
+ * the enclosing scope's node itself.
  *
- * @type {(body: AstBody, frame: readonly Exp[], value?: boolean) => _Lowered}
+ * @type {(body: AstBody, frame: readonly Exp[]) => _Lowered}
  */
-const parts = (body, frame, value = true) => {
-    const { consts, calls } = anchors([[], body], value)([])
-    const e = entries([], ['rest'], frame, calls)(body)
+const parts = (body, frame) => {
+    const e = entries([], ['rest'], frame)(body)
+    const { consts } = anchors([[], body])([])
     return { exp: e.nodes[e.nodes.length - 1], anchors: anchored(e, consts) }
 }
 
@@ -575,37 +560,13 @@ const scope = (body, frame) => anchoring(parts(body, frame))
  * node, which `imports` says by identity;
  * nothing decides here whether an anchored part could fail, only whether it
  * is reached. A module the export reaches entirely is its export's node.
- * `links` says, once the imports are bound, what each establishes,
- * {@link anchoredImports}.
  *
- * @type {(imports: readonly Exp[], links?: readonly _Bound[]) => (module: AstModule) => Exp}
+ * @type {(imports: readonly Exp[]) => (module: AstModule) => Exp}
  */
-const lowered = (imports, links = []) => module => {
-    const { consts, calls, imports: unbound } = anchors(module)(imports)
-    const e = entries(imports, args, [], calls)(module[1])
-    return anchoring({ exp: e.nodes[e.nodes.length - 1], anchors: [...anchoredImports(imports, links, unbound).map(i => imports[i]), ...anchored(e, consts)] })
-}
-
-/**
- * The imports the export does not reach, `unbound`, that a module anchors:
- * each whose node no other import's node reaches already. Once bound, an
- * import's node reaches the module it selects from, all of it — whichever
- * export it selects, the module's anchors come with it — and the node each
- * of that module's imports was bound to, at any depth, `links`. An anchor
- * one of them reaches is the diamond linking joins at one node, which no
- * text can hold as an anchor and a reach both. A link counts once per node:
- * two imports bound to one node, a module and one re-exporting it, are one
- * import, which establishes nothing for itself. What a link reaches is
- * counted per module, so an empty import, which nothing reads, is also
- * dropped where a binding of its module reaches less than the whole of it —
- * the module is established either way. Before binding, `links` is empty
- * and every import a parameter of its own.
- *
- * @type {(imports: readonly Exp[], links: readonly _Bound[], unbound: readonly number[]) => readonly number[]}
- */
-const anchoredImports = (imports, links, unbound) => {
-    const first = links.filter((_, k) => imports.indexOf(imports[k]) === k)
-    return unbound.filter(k => !first.some(link => link.node !== imports[k] && link.reached.includes(imports[k])))
+const lowered = imports => module => {
+    const e = entries(imports, args, [])(module[1])
+    const { consts, imports: unbound } = anchors(module)(imports)
+    return anchoring({ exp: e.nodes[e.nodes.length - 1], anchors: [...unbound.map(i => imports[i]), ...anchored(e, consts)] })
 }
 
 /** @type {(imports: readonly AstImport[]) => (edag: Exp) => Unresolved} */
@@ -688,23 +649,11 @@ const jsonLiteral = fromValue(todo)
  */
 export const jsonValue = value => /** @type {EdagValue} */ (jsonLiteral(value))
 
-/**
- * A module's EDAG and its bindings, each export selected as an import reads
- * it, beside what any binding of it reaches that an importer may bind too:
- * the EDAG, its default value where it is the one export, and `held`, what
- * the module's own imports were bound to, each once.
- *
- * @type {(edag: Exp, held: readonly Exp[]) => _Resolved}
- */
-const resolved = (edag, held) => {
-    const members = _moduleExports(edag)
-    const reached = [edag, ...(members.length === 1 && members[0][1] === 'default' ? [members[0][2]] : []), ...held]
-    return {
-        exports: edag,
-        bindings: members.map(([, key]) => [key, key === 'default' ? _defaultExport(edag) : ['.', edag, key]]),
-        reached: reached.filter((n, i) => reached.indexOf(n) === i),
-    }
-}
+/** A module's EDAG and its bindings, each export selected as an import reads it. @type {(edag: Exp) => _Resolved} */
+const resolved = edag => ({
+    exports: edag,
+    bindings: _moduleExports(edag).map(([, key]) => [key, key === 'default' ? _defaultExport(edag) : ['.', edag, key]]),
+})
 
 /**
  * What the linker makes of a module: its EDAG, lowered over the EDAGs its
@@ -713,20 +662,12 @@ const resolved = (edag, held) => {
  * would be, and a diamond of imports joins at one node. A JSON module is the
  * tree its document denotes, under `default`.
  *
- * @type {_Load<_Resolved, _Bound, never>}
+ * @type {_Load<_Resolved, Exp, never>}
  */
 const linking = {
-    json: value => resolved(['{}', [[':', 'default', jsonValue(value)]]], []),
-    select: ({ exports, bindings, reached }, name) => {
-        const node = name === null ? exports : bindings.find(([key]) => key === name)?.[1]
-        return node === undefined ? undefined : { node, reached }
-    },
-    // what each module reaches counted once, however many imports select
-    // from it: they share one list
-    module: (_, imports, module) => ok(resolved(lowered(imports.map(link => link.node), imports)(module), [
-        ...imports.map(link => link.node),
-        ...imports.map(link => link.reached).filter((r, i, all) => all.indexOf(r) === i).flat(),
-    ])),
+    json: value => resolved(['{}', [[':', 'default', jsonValue(value)]]]),
+    select: ({ exports, bindings }, name) => name === null ? exports : bindings.find(([key]) => key === name)?.[1],
+    module: (_, imports, module) => ok(resolved(lowered(imports)(module))),
 }
 
 /**

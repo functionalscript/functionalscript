@@ -6,7 +6,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { chainLazy, eagerNodesOf, eagerOperandsOf, isChain, lazy, members, one, operandsOf, sharedNodesOf, visit } from './module.f.mjs'
+import { chainLazy, eagerOperandsOf, isChain, lazy, members, one, operandsOf, sharedNodesOf, visit } from './module.f.mjs'
 
 /** @type {Exp} */
 const c = ['[]', []]
@@ -65,54 +65,6 @@ export const proof = {
         const root = ['[]', [c, c]]
         assertStructurallySame(visit(operandsOf)([])(root), [[c, 2], [root, 1]])
         assertStructurallySame(visit(operandsOf)([])(1), [])
-    },
-    /**
-     * The nodes a root establishes unconditionally: through every eager
-     * position, and a lazy operation's first operand, never its others —
-     * however a node is also reached lazily.
-     */
-    eagerNodesOf: () => {
-        /** @type {Exp} */
-        const c = ['[]', []]
-        // Through an array item, an object value, a comma operand, an eager
-        // operator's operands, a `.` base, and a lazy operation's first
-        // operand.
-        assertEq(eagerNodesOf(['[]', [c]]).includes(c), true)
-        assertEq(eagerNodesOf(['{}', [[':', 'k', c]]]).includes(c), true)
-        assertEq(eagerNodesOf([',', [c, 1]]).includes(c), true)
-        assertEq(eagerNodesOf(['*', 1, c]).includes(c), true)
-        assertEq(eagerNodesOf(['.', c, 'length']).includes(c), true)
-        assertEq(eagerNodesOf(['&&', c, 1]).includes(c), true)
-        assertEq(eagerNodesOf(['?:', c, 1, 2]).includes(c), true)
-        // Not through a function's body, established only when it is called.
-        assertEq(eagerNodesOf(['=>', 0, [], ['[]', [c]]]).includes(c), false)
-        // Not through a lazy operand, at any depth below it.
-        assertEq(eagerNodesOf(['&&', true, c]).includes(c), false)
-        assertEq(eagerNodesOf(['||', true, c]).includes(c), false)
-        assertEq(eagerNodesOf(['??', true, c]).includes(c), false)
-        assertEq(eagerNodesOf(['?:', true, c, 2]).includes(c), false)
-        assertEq(eagerNodesOf(['?:', true, 1, ['[]', [c, c]]]).includes(c), false)
-        // One eager reach is enough, wherever the lazy ones are.
-        assertEq(eagerNodesOf(['[]', [['&&', true, c], c]]).includes(c), true)
-        // A list whose first item spells a lazy tag is a list: both `c`s
-        // are items, reached.
-        assertEq(eagerNodesOf(['[]', ['&&', c, ['&&', true, c]]]).includes(c), true)
-        // The root comes first, and a primitive root reaches nothing.
-        assertStructurallySame(eagerNodesOf(c), [c])
-        assertStructurallySame(eagerNodesOf(1), [])
-        // and a node reached twice is listed once
-        /** @type {Exp} */
-        const twice = ['[]', [c, c]]
-        assertStructurallySame(eagerNodesOf(twice), [twice, c])
-        // The eager positions per chain tag: a `.` node's receiver and key,
-        // a `?.` or `?.()` node's first operand; nothing inside a
-        // continuation, at any depth, nor a `?.()` node's arguments.
-        assertEq(eagerNodesOf(['.', c, 'a', ['|()', []]]).includes(c), true)
-        assertEq(eagerNodesOf(['?.', c, 'a']).includes(c), true)
-        assertEq(eagerNodesOf(['?.()', c, []]).includes(c), true)
-        assertEq(eagerNodesOf(['.', ['{}', []], 'a', ['|()', [c]]]).includes(c), false)
-        assertEq(eagerNodesOf(['?.()', ['undefined'], [c]]).includes(c), false)
-        assertEq(eagerNodesOf(['?.', ['{}', []], 'a', ['|.', 'b', ['|()', [c]]]]).includes(c), false)
     },
     sharedNodesOf: {
         /** A node reached from only one place is never a binding candidate. */

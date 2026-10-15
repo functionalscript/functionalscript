@@ -200,32 +200,6 @@ export const eagerOperandsOf = node => {
 }
 
 /**
- * `seen` with every node `root` establishes unconditionally folded in: the
- * nodes reached without passing through a lazy position — every operand
- * after the first of a {@link lazy} operation, and a chain's lazy
- * positions, {@link eagerOperandsOf}. A node is walked once, by identity,
- * as {@link visit} walks it.
- *
- * @type {(seen: readonly Exp[], root: unknown) => readonly Exp[]}
- */
-export const reach = (seen, root) => {
-    if (!(root instanceof Array)) { return seen }
-    const self = /** @type {Exp} */ (/** @type {unknown} */ (root))
-    if (seen.includes(self)) { return seen }
-    return eagerOperandsOf(root).reduce(reach, [...seen, self])
-}
-
-/**
- * The nodes an EDAG establishes unconditionally — reached from `root`
- * through eager positions alone — in walk order, `root` first: what is
- * established whatever any operator decides, and so what an anchor of the
- * same scope would establish again.
- *
- * @type {(root: Exp) => readonly Exp[]}
- */
-export const eagerNodesOf = root => reach([], root)
-
-/**
  * The distinct nodes an EDAG reaches from more than one place, in dependency
  * order — the generalization of a corpus's explicit, named `data.shared` to
  * a linked EDAG, where sharing is implicit: two references to one `const`

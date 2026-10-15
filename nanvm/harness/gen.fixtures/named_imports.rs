@@ -5,31 +5,31 @@ use nanvm_lib::vm::{Any, Array, IStaticFunction, Nullish, ToAny, ToArray, ToObje
 
 #[rustfmt::skip]
 pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
-    let c0: Any<A> = [f64_any(0x4014000000000000)].to_array().to_any();
-    let c1: Any<A> = [(string_key("a"), c0.clone()), (string_key("default"), c0.clone()), (string_key("z"), c0.clone())].to_object().to_any();
-    let c2: Any<A> = Any::dot(c1.clone(), string_any("a")).end()?;
-    let c3: Any<A> = A::static_function(|self_, _args| { Ok(A::static_function(|self_, _args| { Ok(A::frame(self_)[0].clone()) }, 0, [A::frame(self_)[0].clone()].to_array(), Some("()=>$0")).to_any()) }, 0, [c2.clone()].to_array(), Some("()=>()=>$0")).to_any();
-    let c4: Any<A> = Any::dot(c1.clone(), string_any("default")).end()?;
-    let c5: Any<A> = (strict_eq(c4.clone(), c2.clone()))?;
-    let c6: Any<A> = Any::dot(c1.clone(), string_any("z")).end()?;
-    let c7: Any<A> = (strict_eq(c2.clone(), c6))?;
-    let c8: Any<A> = (strict_eq(c4.clone(), c4.clone()))?;
-    let c9: Any<A> = (strict_eq(c2.clone(), c2.clone()))?;
-    let c10: Any<A> = Any::call(c3.clone(), Array::default().to_any())?;
-    let c11: Any<A> = Any::call(c10, Array::default().to_any())?;
-    let c12: Any<A> = (strict_eq(c11, c2.clone()))?;
-    let c13: Any<A> = A::static_function(|_self, args| {
+    let c0: Any<A> = A::static_function(|_self, args| {
         let rest = args.clone().into_iter().to_array();
         let c0: Any<A> = rest.clone().to_any();
         let c1: Any<A> = Any::dot(c0.clone(), f64_any(0x0000000000000000)).end()?;
         let c2: Any<A> = Any::dot(c0.clone(), f64_any(0x3ff0000000000000)).end()?;
         c1 + c2
     }, 0, Array::default(), Some("(...$0)=>$0[0]+$0[1]")).to_any();
-    let c14: Any<A> = [(string_key("absent"), Nullish::Undefined.to_any()), (string_key("add"), c13)].to_object().to_any();
-    let c15: Any<A> = Any::dot(c14.clone(), string_any("absent")).end()?;
+    let c1: Any<A> = [(string_key("absent"), Nullish::Undefined.to_any()), (string_key("add"), c0)].to_object().to_any();
+    let c2: Any<A> = [f64_any(0x4014000000000000)].to_array().to_any();
+    let c3: Any<A> = [(string_key("a"), c2.clone()), (string_key("default"), c2.clone()), (string_key("z"), c2.clone())].to_object().to_any();
+    let c4: Any<A> = Any::dot(c3.clone(), string_any("a")).end()?;
+    let c5: Any<A> = A::static_function(|self_, _args| { Ok(A::static_function(|self_, _args| { Ok(A::frame(self_)[0].clone()) }, 0, [A::frame(self_)[0].clone()].to_array(), Some("()=>$0")).to_any()) }, 0, [c4.clone()].to_array(), Some("()=>()=>$0")).to_any();
+    let c6: Any<A> = Any::dot(c3.clone(), string_any("default")).end()?;
+    let c7: Any<A> = (strict_eq(c6.clone(), c4.clone()))?;
+    let c8: Any<A> = Any::dot(c3.clone(), string_any("z")).end()?;
+    let c9: Any<A> = (strict_eq(c4.clone(), c8))?;
+    let c10: Any<A> = (strict_eq(c6.clone(), c6.clone()))?;
+    let c11: Any<A> = (strict_eq(c4.clone(), c4.clone()))?;
+    let c12: Any<A> = Any::call(c5.clone(), Array::default().to_any())?;
+    let c13: Any<A> = Any::call(c12, Array::default().to_any())?;
+    let c14: Any<A> = (strict_eq(c13, c4.clone()))?;
+    let c15: Any<A> = Any::dot(c1.clone(), string_any("absent")).end()?;
     let c16: Any<A> = (strict_eq(c15, Nullish::Undefined.to_any()))?;
-    let c17: Any<A> = [c5, c7, c8, c9, c12, c16].to_array().to_any();
-    let c18: Any<A> = Any::dot(c14.clone(), string_any("add")).end()?;
+    let c17: Any<A> = [c7, c9, c10, c11, c14, c16].to_array().to_any();
+    let c18: Any<A> = Any::dot(c1.clone(), string_any("add")).end()?;
     let c19: Any<A> = A::static_function(|self_, _args| { Any::call(A::frame(self_)[0].clone(), [f64_any(0x4034000000000000), f64_any(0x4036000000000000)].to_array().to_any()) }, 0, [c18].to_array(), Some("()=>$0(20,22)")).to_any();
-    Ok([(string_key("captured"), c3.clone()), (string_key("checks"), c17.clone()), (string_key("default"), c17.clone()), (string_key("main"), c19)].to_object().to_any())
+    Ok([(string_key("captured"), c5.clone()), (string_key("checks"), c17.clone()), (string_key("default"), c17.clone()), (string_key("main"), c19)].to_object().to_any())
 }

@@ -35,26 +35,13 @@ two readings agree on every outcome: the access is eager wherever the
 `.` node is, so either it throws, a failure whatever `t` does, or the
 arguments run.
 
-Two programs `2ca692ba` printed now meet the same refusal, each because a
-node once anchored before the root no longer is:
-
-- A dead `const w = (() => t)();` beside the program above made `t` an
-  anchor. The front end now reads such a call as the alias it is, as
-  `const w = t;` is.
-- An unread import that another import's node reaches is no anchor
-  (`fjs/compiler/edag`'s `anchoredImports`), its module established by that
-  import. Where that import reaches it only through method-call arguments,
-  `import a from "./m0.f.js"; import b from "./m2.f.js";` beside
-  `export default [o.f(a), o.f(a)];` in `m2.f.js`, the printer reads it as
-  reached only lazily.
-
 ### Proposal
 
 Read a `.` node's continuation as eager up to its first guarded step,
 `|?.` or `|?.()`, where the printer decides what is established. A
 nullish value there stops the chain without a failure, so the operands
 after it stay lazy. Regenerate the Rust fixtures that change, and prove
-both programs above against the interpreter.
+the program above against the interpreter.
 
 ### Related
 

@@ -1,4 +1,4 @@
-## A linked module whose export is a comma
+## A module read twice whose export is a comma
 
 **Priority:** P3
 **Status:** open
@@ -7,11 +7,11 @@
 
 Linking gives a module that anchors a `const` one comma node — the anchors,
 then the export — and gives every import of it that one node
-(`fjs/compiler/edag`'s `_defaultExport`). Wherever such an import stands —
-read twice, read once, read lazily, or not read and anchored — the
-multi-export writer (`moduleOperand` in [`../module.f.mjs`](../module.f.mjs))
-writes the comma's anchors as the module's own statements and the comma as
-an alias of its last operand. At `7de6ddd5`, over
+(`fjs/compiler/edag`'s `_defaultExport`). A module that reads such an import
+twice shares the comma, and the multi-export writer (`moduleOperand` in
+[`../module.f.mjs`](../module.f.mjs)) writes the comma's anchors as the
+module's own statements and the comma as an alias of its last operand. At
+`7de6ddd5`, over
 
 ```js
 // m.f.js
@@ -29,27 +29,10 @@ const $0=[0];const $1=5;const $2=[$1,$1];export default $2;
 which reads back as another graph: the anchor is the module's own comma
 around the export, where the original graph has a comma inside the array,
 reached from both items. The value is the same; the graph, which the
-writer's round trip promises, is not. `import m from "./m.f.js"; export
-default [m];`, the comma read once, reads back as another graph in the same
-way, and so does an unread import of such a module. The compact writer
-(`_trySerialize`) refuses the comma, `a comma outside a scope`, and
-`_tryModuleSerialize` falls back to the multi-export writer, which answers
-where the comma stands among the module's own operands. It predates writing
-a shared node once, which writes it the same way.
-
-Where no module operand holds the comma — it stands only in an item, a
-lazy operand or a function's captures — both writers refuse it.
-`2ca692ba` held it as a module operand in more programs, so wrote text
-that reads back as another graph where they now refuse:
-
-- An unread import is no anchor where another import's node reaches it
-  (`fjs/compiler/edag`'s `anchoredImports`), so a module importing `m` both
-  directly, unread, and through a module that reads `m` only inside a
-  function's captures, `const c = () => m;`, holds `m`'s comma only in
-  that capture.
-- A dead `const w = (() => m)();` is the alias it is, as `const w = m;`
-  is, and anchors nothing, so `const c = (() => { const w = (() => m)();
-  return [false, m]; })();` holds `m`'s comma only in the array.
+writer's round trip promises, is not. The compact writer (`_trySerialize`)
+refuses the shared comma, `a comma outside a scope`, and `_tryModuleSerialize`
+falls back to the multi-export writer, which answers. It predates writing a
+shared node once, which writes it the same way.
 
 ### Proposal
 
@@ -60,10 +43,8 @@ as. Whichever, the round trip states which.
 
 ### Tasks
 
-- [ ] Decide between refusing and spelling the linked comma, wherever it
-      stands: a module operand, an item, a lazy operand, a capture.
-- [ ] Prove the cases through `fjsRoundTrip` over two files, or their
-      refusals.
+- [ ] Decide between refusing and spelling the shared comma.
+- [ ] Prove the case through `fjsRoundTrip` over two files, or its refusal.
 
 ### Related
 
