@@ -36,7 +36,7 @@ const reduceX = ms => ([i, n]) => a => {
         case 4: { return [n[0], n[1], ...m2(a)([n[2], n[3], n[4]])] }
     }
 }
-const reduce = fold(reduceX([reduceValue0, reduceValue2]))
+const reduce = fold(reduceX([reduceValue(left), reduceValue(right)]))
 // …
 return collapseRoot(reduce(initReduce(tf)(first))(tt))
 ```
@@ -86,5 +86,6 @@ ones. The single-child root collapse at the end is already shared:
 - [uncurry-accumulator-types](../../function/todo/uncurry-accumulator-types.md)
   (the retired `i164`, still open under a slug) — uncurrying these same `fold`
   accumulators; complementary to extracting the fold itself.
-- [66F-btree-remove-mirror-merge](./66f-btree-remove-mirror-merge.md) — the
-  orthogonal, *within-`remove`* left/right mirror collapse.
+- 66F-btree-remove-mirror-merge (retired; shipped as the `_Side`-parameterized
+  `reduceValue`/`initValue` in `btree/remove`) — the orthogonal,
+  *within-`remove`* left/right mirror collapse.

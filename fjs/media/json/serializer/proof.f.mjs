@@ -47,15 +47,15 @@ export const proof = {
     objectWrap: [
         () => {
             const result = JSON.stringify(toArray(objectWrap(null)))
-            if (result !== '["{","}"]') { throw result }
+            assertEq(result, '["{","}"]')
         },
         () => {
             const result = JSON.stringify(toArray(objectWrap([['a','b']])))
-            if (result !== '["{","a","b","}"]') { throw result }
+            assertEq(result, '["{","a","b","}"]')
         },
         () => {
             const result = JSON.stringify(toArray(objectWrap([['a'],['b']])))
-            if (result !== '["{","a",",","b","}"]') { throw result }
+            assertEq(result, '["{","a",",","b","}"]')
         }
     ],
     // The escaping itself is `stringLiteral`'s, proven in `fjs/js/string_escape`.

@@ -36,9 +36,9 @@ const pop8 = pop(8n)
 const check = (tag, v, rest) => {
     const s = encodeRaw([tag, v])
     const [[t0, v0], r] = decodeRaw(concat(s)(rest))
-    if (t0 !== tag) { throw `t0: ${t0}` }
-    if (v0 !== v) { throw `v0: ${asBase(v0)}` }
-    if (r !== rest) { throw `r: ${asBase(r)}` }
+    assertEq(t0, tag)
+    assertEq(v0, v)
+    assertEq(r, rest)
 }
 
 /**
@@ -47,7 +47,7 @@ const check = (tag, v, rest) => {
  */
 const integerValueCheck = (i, v) => {
     const v0 = encodeInteger(i)
-    if (v !== v0) { throw `encode: ${asBase(v)}, ${asBase(v0)}` }
+    assertEq(v, v0)
     const i0 = decodeInteger(v)
     assertEq(i, i0, [i, i0])
 }
@@ -59,11 +59,11 @@ const integerValueCheck = (i, v) => {
  */
 const ch0 = (r, v, rest) => {
     const [r0, rest0] = decode(concat(v)(rest))
-    if (rest0 !== rest) { throw `rest: ${asBase(rest0)}` }
+    assertEq(rest0, rest)
     const v0 = encode(r)
     const v1 = encode(r0)
-    if (v !== v0) { throw `encode: ${asBase(v)}, ${asBase(v0)}` }
-    if (v !== v1) { throw `encode: ${asBase(v)}, ${asBase(v1)}` }
+    assertEq(v, v0)
+    assertEq(v, v1)
 }
 
 /**
@@ -128,7 +128,7 @@ export const proof = {
         const v = vec(valueLen)(value)
         const x = encodeRaw([integer, v])
         const lx = length(x)
-        if (lx !== valueLen + (3n << 3n)) { throw `lx: ${lx}` }
+        assertEq(lx, valueLen + (3n << 3n))
         const [tag, x1] = pop8(x)
         assertEq(tag, BigInt(integer))
         const [lenLen, x2] = pop8(x1)
@@ -145,7 +145,7 @@ export const proof = {
         const v = vec(valueLen)(value)
         const x = encodeRaw([integer, v])
         const lx = length(x)
-        if (lx !== valueLen + (4n << 3n)) { throw `lx: ${lx}` }
+        assertEq(lx, valueLen + (4n << 3n))
         const [tag, x1] = pop8(x)
         assertEq(tag, BigInt(integer))
         const [lenLen, x2] = pop8(x1)
@@ -316,11 +316,11 @@ export const proof = {
     raw: [
         () => {
             const e = encodeRaw([0x00n, vec8(0x23n)])
-            if (e !== listToVec([vec8(0x00n), vec8(1n), vec8(0x23n)])) { throw `encode: ${length(e)}: ${uint(e).toString(2)}` }
+            assertEq(e, listToVec([vec8(0x00n), vec8(1n), vec8(0x23n)]))
             const [[tag, value], rest] = decodeRaw(e)
-            if (rest !== empty) { throw `rest: ${asBase(rest)}` }
-            if (tag !== 0x00n) { throw `tag: ${tag}` }
-            if (value !== vec8(0x23n)) { throw `value: ${asBase(value)}` }
+            assertEq(rest, empty)
+            assertEq(tag, 0x00n)
+            assertEq(value, vec8(0x23n))
         },
         () => {
             const e = encodeRaw([0x1F20n, vec(16n)(0x1234n)])
@@ -330,9 +330,9 @@ export const proof = {
                 throw `encode: ${l}: ${u.toString(16)}`
             }
             const [[tag, value], rest] = decodeRaw(e)
-            if (rest !== empty) { throw `rest: ${asBase(rest)}` }
-            if (tag !== 0x1F20n) { throw `tag: ${tag}` }
-            if (value !== vec(16n)(0x1234n)) { throw `value: ${asBase(value)}` }
+            assertEq(rest, empty)
+            assertEq(tag, 0x1F20n)
+            assertEq(value, vec(16n)(0x1234n))
         }
     ]
 }

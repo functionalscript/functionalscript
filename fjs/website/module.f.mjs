@@ -13,7 +13,7 @@
  * and reading a `git diff`.
  *
  * **It cost 42 s where the script it replaced took 1.65 s; it costs about
- * 13 s now.** Reading a file through the operation decodes it with `text`'s
+ * 13 s now.** Reading a file through the operation decodes it with `text/utf8`'s
  * `utf8ToString`, at ~23 ms per module against ~1 ms for a native read — the
  * walk itself is 0.14 s and a bare read 0.1 s, so decode count was always the
  * whole story. It is recorded where it belongs, in
@@ -67,7 +67,7 @@ import { stylesheet } from './style/module.f.js'
 import { changelogDir, cliDir, demoSection, directoryLayout, page, pagePath, prsDir, shell, siteName, subtree, testSection, testsMain } from './page/module.f.mjs'
 import { prsPage } from './prs/module.f.mjs'
 import { cliPage } from './cli/module.f.mjs'
-import { toHex, tryFromHexOf } from '../git/oid/module.f.mjs'
+import { hexText, tryFromHexOf } from '../git/oid/module.f.mjs'
 import { fundingPath, parse as parseFunding } from './funding/module.f.mjs'
 import { isThirdParty } from '../dev/module.f.mjs'
 import { cargoDocDir, cargoDocHref, cargoDocPage, crateHref, crateOf, rustdocDir } from './cargo-doc/module.f.mjs'
@@ -779,7 +779,7 @@ const commitOf = env => {
     // there.
     if (units.some(u => u > 0x7f)) { return null }
     const id = tryFromHexOf(20)(units)
-    return id === null ? null : String.fromCharCode(...toArray(toHex(id)))
+    return id === null ? null : hexText(id)
 }
 
 /**

@@ -4,7 +4,7 @@
 
 import { htmlToString, htmlUtf8, isRawText, isVoidTag, parseElement, rawTextContent } from "./module.f.mjs"
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { utf8ToString } from '../../text/module.f.mjs'
+import { utf8ToString } from '../../text/utf8/module.f.mjs'
 
 export const proof = {
     // A document names its language on the root element, which is the only
@@ -16,7 +16,7 @@ export const proof = {
             + '<title>Сторінка</title></head><body><h1>Привіт</h1></body></html>'),
     empty: () => {
         const r = htmlToString(['html'])
-        if (r !== '<!DOCTYPE html><html></html>') { throw `empty: ${r}` }
+        assertEq(r, '<!DOCTYPE html><html></html>')
     },
     empty2: () => {
         const r = htmlToString(['html'])

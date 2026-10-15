@@ -137,7 +137,7 @@ const referenceOf = g => 'method' in g ? methodReference(g.method) : js[groupKey
  */
 const reference = key => {
     const f = js[key]
-    if (f === undefined) { throw ['no JavaScript for', key] }
+    assert(f !== undefined, ['no JavaScript for', key])
     return f
 }
 

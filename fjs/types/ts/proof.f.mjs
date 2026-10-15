@@ -61,12 +61,12 @@ export const printerReadonlyTuple = () => {
 
 export const printerReadonlyStruct = () => {
     const r = ro.struct([['x', 'number'], ['y', 'string']])
-    if (r !== '{readonly"x":number,readonly"y":string}') { throw r }
+    assertEq(r, '{readonly"x":number,readonly"y":string}')
 }
 
 export const printerOptionalField = () => {
     const r = ro.struct([['x', 'number', true], ['y', 'string']])
-    if (r !== '{readonly"x"?:number,readonly"y":string}') { throw r }
+    assertEq(r, '{readonly"x"?:number,readonly"y":string}')
 }
 
 export const printerReadonlyArray = () => {
@@ -76,7 +76,7 @@ export const printerReadonlyArray = () => {
 
 export const printerReadonlyRecord = () => {
     const r = ro.record('number')
-    if (r !== '{readonly[k in string]?:number}') { throw r }
+    assertEq(r, '{readonly[k in string]?:number}')
 }
 
 export const printerMutableTuple = () => {
@@ -86,7 +86,7 @@ export const printerMutableTuple = () => {
 
 export const printerMutableStruct = () => {
     const r = mut.struct([['x', 'number']])
-    if (r !== '{"x":number}') { throw r }
+    assertEq(r, '{"x":number}')
 }
 
 export const printerMutableArray = () => {
@@ -96,7 +96,7 @@ export const printerMutableArray = () => {
 
 export const printerMutableRecord = () => {
     const r = mut.record('number')
-    if (r !== '{[k in string]?:number}') { throw r }
+    assertEq(r, '{[k in string]?:number}')
 }
 
 export const proof = { primitiveNull,primitiveBigint,primitiveString,primitiveNumberFinite,primitiveNumberInfinite,primitiveUndefined,primitiveBoolean,unionEmpty,unionSingle,unionMulti,printerReadonlyTuple,printerReadonlyStruct,printerOptionalField,printerReadonlyArray,printerReadonlyRecord,printerMutableTuple,printerMutableStruct,printerMutableArray,printerMutableRecord }

@@ -49,8 +49,9 @@ Design first, then migrate. The design should settle:
   CLI parsing and help the same way. Whether that struct should be shared
   across transports is evaluated in
   [fjs/cas command-architecture](../../cas/todo/command-architecture.md);
-- coordination with [positional-arity-check](./positional-arity-check.md)
-  (arity validation is subsumed by declared positionals).
+- coordination with `exactArgs` in [`../module.f.mjs`](../module.f.mjs),
+  the arity combinator `cas add`/`cas get` use today (arity validation is
+  subsumed by declared positionals).
 
 ### Tasks
 
@@ -58,14 +59,14 @@ Design first, then migrate. The design should settle:
       in this file or `fjs/cli/README.md`.
 - [ ] Implement parsing, validation, and help rendering in `fjs/cli` with
       proof coverage.
-- [ ] Migrate existing commands; retire the hand-rolled arity checks
-      ([positional-arity-check](./positional-arity-check.md)).
+- [ ] Migrate existing commands; retire the `exactArgs` combinator
+      once declared positionals replace it.
 - [ ] `tsc`, `fjs t`.
 
 ### Related
 
-- [positional-arity-check](./positional-arity-check.md) — subsumed by
-  declared positional parameters.
+- `exactArgs` in [`../module.f.mjs`](../module.f.mjs) — positional arity
+  validation, subsumed by declared positional parameters.
 - dispatch-help-rendering (retired; shipped as `renderHelp` in
   [`../module.f.mjs`](../module.f.mjs)) — the help rendering that declared
   options must plug into.

@@ -1,5 +1,5 @@
 import { assert, assertEq } from '../../asserts/module.f.mjs'
-import { utf8ToString } from '../../text/module.f.mjs'
+import { utf8ToString } from '../../text/utf8/module.f.mjs'
 import { cargoDocHref, cargoDocPage, crateHref, crateOf, rustdocHead, rustdocHeadPath, rustdocFooter, rustdocHeader } from './module.f.mjs'
 
 const local = /** @type {const} */ ({ commit: null, branch: null, funding: [] })

@@ -23,19 +23,15 @@ spelling, so each module that needs it writes its own:
   `hexOfByte` and `hexOf` spell bytes in lowercase, and `fromVec` reads a
   pair back with ``Number(`0x…`)``; it works a bigint at a time for a
   reason its doc gives, which the codec's design must respect.
-- [`fjs/git/refstore/testlib.f.mjs`](../../git/refstore/testlib.f.mjs) —
-  `hexOf` is `codePointListToString(toHex(i))`, the body of `fjs/git/oid`'s
-  `hexText` written again.
-- [`fjs/website`](../../website/module.f.mjs) — `commitOf` spells an id as
-  `String.fromCharCode(...toArray(toHex(id)))`, which is `hexText` written
-  again. It also turns the environment's string into code units and screens
-  out anything above `0x7f` by hand, because the only hex reader it can reach
-  takes bytes.
+- [`fjs/website`](../../website/module.f.mjs) — `commitOf` turns the
+  environment's string into code units and screens out anything above `0x7f`
+  by hand, because the only hex reader it can reach takes bytes. It spells
+  the id back with `fjs/git/oid`'s `hexText`.
 
 The list holds modules and test libraries, not proof files. Several
 `proof.f.mjs` under `fjs/git` spell the same conversion at their
-assertion sites, `refstore`'s many times over, and `oid`'s spells it in
-`commitOf`'s form; those are fixtures, not consumers with an API of
+assertion sites, `refstore`'s many times over, and `oid`'s spells it as
+`String.fromCharCode(...toArray(toHex(id)))`; those are fixtures, not consumers with an API of
 their own, and once the codec exists each proof can call it where it
 helps, in the same PR or any later one, with nothing to declare.
 
@@ -86,8 +82,7 @@ unit, surrogates included.
 
 - [ ] Decide the codec's home and which spellings it accepts.
 - [ ] Implement it with a proof at 100%, and move every byte-list
-      consumer listed above onto it, `fjs/types/uint8array` included;
-      `fjs/website`'s `commitOf` uses `hexText` at the least.
+      consumer listed above onto it, `fjs/types/uint8array` included.
 - [x] The radix-16 digit-run reader: `hexDigitsValue` in `text/ascii`,
       landed by [#2787](https://github.com/functionalscript/functionalscript/pull/2787)
       with the `vdf` demo on it.

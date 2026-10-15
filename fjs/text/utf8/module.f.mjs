@@ -328,25 +328,13 @@ export const stringToU8List = s => fromCodePointList(stringToCodePointList(s))
  * Decodes UTF-8 bytes into a string, unchecked: a malformed sequence, a
  * surrogate, or a value above `U+10FFFF` is not refused, and comes out as
  * whatever `codePointListToString` makes of it. {@link fromU8List} is the
- * checked sibling.
+ * checked sibling, and {@link utf8ToString} the same decode over one `Vec`.
  *
  * @type {(bytes: List<U8>) => string}
  */
 export const u8ListToString = bytes =>
     codePointListToString(toCodePointList(bytes))
 
-/**
- * Decodes an MSB-first UTF-8 bit vector into a list of code points,
- * unchecked, exactly as {@link toCodePointList} does for its bytes. A
- * structurally malformed sequence becomes an error-tagged code point, but a
- * well-formed one that encodes no Unicode scalar value — a surrogate
- * (`ED A0 80`) or a value above `U+10FFFF` (`F4 90 80 80`) — comes back as
- * that plain number; {@link fromU8List}'s `isValidCodePoint` pass is what rejects
- * those. {@link fromVec} is the checked decode of the same bytes.
- *
- * @type {(v: Vec) => List<CodePoint>}
- */
-export const vecToCodePointList = v => toCodePointList(u8ListMsb(v))
 
 /**
  * Returns the decoded string if `input` is valid UTF-8, or `null` otherwise.
@@ -371,3 +359,13 @@ export const fromU8List = input => {
  * @type {(v: Vec) => string | null}
  */
 export const fromVec = v => isWholeBytes(v) ? fromU8List(u8ListMsb(v)) : null
+
+/**
+ * Decodes an MSB-first UTF-8 bit vector into a string, unchecked: the
+ * {@link u8ListToString} decode of its bytes. Nothing is refused; a malformed
+ * sequence, a surrogate, or a value above `U+10FFFF` comes out as whatever
+ * `codePointListToString` makes of it. {@link fromVec} is the checked sibling.
+ *
+ * @type {(v: Vec) => string}
+ */
+export const utf8ToString = v => u8ListToString(u8ListMsb(v))

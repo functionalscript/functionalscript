@@ -17,7 +17,6 @@ mod radix;
 mod rem;
 mod shl;
 mod shr;
-mod sized_index;
 mod sub;
 #[cfg(test)]
 mod test_util;

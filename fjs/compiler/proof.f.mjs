@@ -22,8 +22,8 @@ import { tryParse as parseDataJs, tryStringify } from '../media/datajs/module.f.
 import { bytes, difference } from '../media/datajs/vectors/module.f.mjs'
 import { virtual, virtualAt, virtualOperationMap, emptyState, nodeProgramOptions } from '../effects/node/virtual/module.f.mjs'
 import { partialRun } from '../effects/mock/module.f.mjs'
-import { utf8, utf8ToString } from '../text/module.f.mjs'
-import { fromVec } from '../text/utf8/module.f.mjs'
+import { utf8 } from '../text/module.f.mjs'
+import { fromVec, utf8ToString } from '../text/utf8/module.f.mjs'
 import { unwrap } from '../types/result/module.f.js'
 import { fromEntries, isObject } from '../types/object/module.f.mjs'
 import { toVec } from '../types/uint8array/module.f.mjs'
@@ -100,7 +100,7 @@ export const defaultValue = value => {
 /** @type {(root: typeof emptyState.root, path: string) => string} */
 export const readOutput = (root, path) => {
     const file = root[path]
-    if (!Array.isArray(file) || file.length === 0) { throw `${path} is not a file` }
+    assert(Array.isArray(file) && file.length !== 0, `${path} is not a file`)
     return utf8ToString(file[0])
 }
 

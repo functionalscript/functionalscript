@@ -15,23 +15,20 @@ if (cmp('apple')('banana') !== -1) { throw 3 }
 if (uint(s) !== 0x68656C6C_6F20776F_726C64n) { throw s }
 ```
 
-Counts at `36c8d4a`:
+Counts after the 56 sites outside `fjs/compiler/parser/` were converted:
 
-- 66 one-line `if (...) { throw ... }` sites remain across `**/proof.f.mjs` —
-  down from 425 when the hand-written JS scanner's proof and the JSON
-  tokenizer's went and the JS tokenizer's moved proof was converted.
-- 174 of 185 tracked `proof.f.mjs` files use `assertEq`. The 11 holdouts:
-  `fjs/basen/base128/proof.f.mjs`, `fjs/ebnf/proof.f.mjs`,
-  `fjs/ebnf/lib/markdown/proof.f.mjs`,
-  `fjs/git/refname/proof.f.mjs`, `fjs/media/json/number/proof.f.mjs`,
-  `fjs/rtti/proof.f.mjs`, `fjs/website/browser-source/proof.f.mjs`,
-  `fjs/types/nominal/proof.f.mjs`,
-  `fjs/types/object/structurally_same/proof.f.mjs`,
-  `fjs/types/range_set/proof.f.mjs`, `todo/proof.f.mjs`.
-- A number of files already using `assertEq` still carry leftover
-  manual `if (...) { throw ... }` sites alongside it (the count above is not
-  confined to the holdout files) — full adoption within an already-migrated
-  file is still incomplete in places.
+- 10 one-line `if (...) { throw ... }` sites remain across `**/proof.f.mjs`,
+  all in `fjs/compiler/parser/proof.f.mjs` (each one compares a
+  `JSON.stringify`-ed parse result or error against a string literal). They
+  were left out only because another open pull request owns that directory;
+  each converts as `assertEq(result, '...')`. Other matches of the pattern in
+  `fjs/compiler/parser/grammar/proof.f.mjs` and `fjs/compiler/edag/proof.f.mjs`
+  sit inside FunctionalScript source strings under test and are not sites.
+- Every tracked `proof.f.mjs` except `fjs/asserts/proof.f.mjs` (which tests
+  the helpers themselves) now imports from `fjs/asserts/module.f.mjs`.
+- Two multi-line sites are out of this issue's one-line scope: the `bool`
+  case in `todo/proof.f.mjs` and the second `raw` case in
+  `fjs/asn.1/proof.f.mjs`, whose message is computed in its own block.
 
 The mechanical translation is one-to-one:
 
@@ -47,18 +44,10 @@ message.
 
 ### Proposal
 
-A migration that proceeds folder-by-folder, not all at once:
-
-1. **Pilot** — pick one moderately-sized `proof.f.mjs` (e.g.
-   `fjs/types/string/proof.f.mjs` or `fjs/types/array/proof.f.mjs`) and
-   rewrite every `if (x !== expected) { throw x }` to `assertEq(x, expected)`.
-2. **Validate** — run `tsc` and `fjs test` from
-   that folder. Confirm test output is at least as useful on
-   intentional failures (intentionally break one assertion to read
-   the failure message).
-3. **Expand** — propagate to the rest of `fjs/types/*`, then `fjs/text/*`,
-   `fjs/media/json/*`, `fjs/compiler/*`, etc., one folder per PR. No mixing the
-   refactor with behaviour changes.
+Once the pull request that owns `fjs/compiler/parser/` lands, rewrite the
+10 remaining sites in `fjs/compiler/parser/proof.f.mjs` to `assertEq`, run
+`tsc` and `npm start test` from that folder, and delete this issue. No mixing
+the refactor with behaviour changes.
 
 Optional second helper for the remaining shapes:
 

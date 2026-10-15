@@ -47,6 +47,8 @@ pub use crate::vm::{
     unpacked::Unpacked,
 };
 
+pub(crate) use crate::vm::impls::ContainerWrapper;
+
 #[cfg(test)]
 mod test {
     pub(super) mod deep;

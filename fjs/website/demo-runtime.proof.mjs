@@ -160,7 +160,13 @@ const dom = path => {
             matches: (/** @type {string} */ selector) =>
                 selector === '[data-editor] > textarea' && self.localName === 'textarea'
                     && self.parent !== null && self.parent.attributes !== undefined && self.parent.attributes.has('data-editor'),
-            // As a DOM does: the contents become one text node.
+            // As a DOM does: the text of everything under it, and, set, one
+            // text node in its place.
+            get textContent() {
+                /** @type {(node: any) => string} */
+                const textOf = node => node.nodeType === 3 ? node.data : node.childNodes.map(textOf).join('')
+                return self.childNodes.map(textOf).join('')
+            },
             set textContent(/** @type {string} */ value) {
                 self.childNodes = [adopt(self, value)]
                 changed(self)
@@ -197,9 +203,16 @@ const dom = path => {
             get defaultValue() { return self.attributes.get('value') ?? '' },
             get value() { return dirty ?? self.defaultValue },
             set value(/** @type {string} */ value) { dirty = value; changed(self) },
-            // The reader's keystroke: what the field shows changes, and that
-            // is not a render.
-            type: (/** @type {string} */ value) => { dirty = value },
+            // The reader's keystroke: what the field shows changes, and, when
+            // the proof says, the caret is where the edit ended; that is not a
+            // render.
+            type: (/** @type {string} */ value, /** @type {number | undefined} */ caret) => {
+                dirty = value
+                if (caret !== undefined) {
+                    self.selectionStart = caret
+                    self.selectionEnd = caret
+                }
+            },
             selectionStart: 0,
             selectionEnd: 0,
             style: { width: '', height: '' },
@@ -326,11 +339,11 @@ const dom = path => {
          * The reader typing `value` into the field named `name`: the field
          * shows it, then says so.
          *
-         * @type {(name: string, value: string) => void}
+         * @type {(name: string, value: string, caret?: number) => void}
          */
-        input: (name, value) => {
+        input: (name, value, caret) => {
             const field = named(name)
-            if (field !== null) { field.type(value) }
+            if (field !== null) { field.type(value, caret) }
             for (const f of listeners) { f({ target: field ?? { name, value } }) }
         },
         /**
@@ -421,15 +434,23 @@ export const demo = {
  */
 const highlighted = moduleUrl(`
 export const demo = {
-    init: 'a',
+    init: 'a b',
     update: state => event => () => ['ok', event.kind === 'input' ? event.value : event.kind === 'click' ? state + 'x' : state],
-    // the copy is a \`span\` or a \`div\` by the text's length, so a click that
-    // changes the length builds the copy anew, as a patch does when a view's
-    // element changes its place
-    view: text => ['div', ['span', { 'data-editor': '' },
-        [text.length % 2 === 0 ? 'div' : 'span', { 'data-mirror': '' }, ['span', { 'data-token': 'keyword' }, text], '\\u200b'],
-        ['textarea', { name: 'text' }, text]],
-        ['button', { name: 'more' }, 'more']],
+    // the first character is a keyword and the rest plain, so the copy has two
+    // text nodes and the terminator; the copy is a \`span\` or a \`div\` by the
+    // text's length, so a click that changes the length builds it anew, as a
+    // patch does when a view's element changes its place
+    view: text => {
+        const head = text.slice(0, 1)
+        const tail = text.slice(1)
+        return ['div', ['span', { 'data-editor': '' },
+            [text.length % 2 === 0 ? 'div' : 'span', { 'data-mirror': '' },
+                ...(head === '' ? [] : [['span', { 'data-token': 'keyword' }, head]]),
+                ...(tail === '' ? [] : [tail]),
+                '\\u200b'],
+            ['textarea', { name: 'text' }, text]],
+            ['button', { name: 'more' }, 'more']]
+    },
 }
 `)
 
@@ -750,26 +771,97 @@ export const demo = {
         assertEq(after.scrollLeft, 30)
     },
     /**
-     * **A keystroke shows in a highlighted field at once.** The textarea's own
-     * text is transparent, so its coloured copy is the only text the reader
-     * sees, and the render that colours it comes after the demo's work and the
-     * inputs queued before it. The copy holds the typed text, uncoloured, in
-     * the turn of the event, and the render replaces it.
+     * **A keystroke shows in a highlighted field at once, and the colours
+     * around it stay.** The textarea's own text is transparent, so its
+     * coloured copy is the only text the reader sees, and the render that
+     * colours it comes after the demo's work and the inputs queued before it.
+     * The edit is made in the one text node it falls in, in the turn of the
+     * event; the render then recolours it for what it is.
      */
     echoesATypedValue: async () => {
         const d = dom(highlighted)
         await startDemo(d.root)
         await settle()
         const mirror = () => d.root.firstElementChild.childNodes[0].childNodes[0]
-        assertEq(mirror().childNodes.length, 2)
-        d.input('text', 'abc')
-        // before any render: the typed text, and no colour
-        assertEq(mirror().childNodes.length, 1)
-        assertEq(mirror().childNodes[0].data, 'abc\u200b')
+        assertEq(mirror().childNodes.length, 3)
+        const [keyword, tail] = mirror().childNodes
+        // typed inside the keyword: the keyword's own node takes it, and
+        // nothing else is touched
+        d.input('text', 'aX b', 2)
+        assertEq(mirror().textContent, 'aX b\u200b')
+        assert(mirror().childNodes[0] === keyword && mirror().childNodes[1] === tail, 'the nodes are the same')
+        assertEq(keyword.childNodes[0].data, 'aX')
+        assertEq(tail.data, ' b')
+        // typed in the plain tail: the tail takes it, and the keyword is untouched
+        d.input('text', 'aX bc', 5)
+        assertEq(mirror().textContent, 'aX bc\u200b')
+        assertEq(mirror().childNodes[0].childNodes[0].data, 'aX')
+        assertEq(mirror().childNodes[1].data, ' bc')
         await settle()
-        // after it: coloured
-        assertEq(mirror().childNodes.length, 2)
+        // after the render: coloured for what it is
+        assertEq(mirror().textContent, 'aX bc\u200b')
         assertEq(mirror().childNodes[0].localName, 'span')
+    },
+    /**
+     * **The caret says which of equal characters is new.** Typing `a` before
+     * the `a`s of `aaa` leaves `aaaa`, and the new `a` could be any of them,
+     * across the border between the keyword and the plain text. It is the one
+     * the caret is after.
+     */
+    echoesIntoARunOfEqualCharacters: async () => {
+        const d = dom(highlighted)
+        await startDemo(d.root)
+        await settle()
+        const mirror = () => d.root.firstElementChild.childNodes[0].childNodes[0]
+        d.input('text', 'aaa', 3)
+        await settle()
+        assertEq(mirror().childNodes[0].childNodes[0].data, 'a')
+        assertEq(mirror().childNodes[1].data, 'aa')
+        d.input('text', 'aaaa', 1)
+        assertEq(mirror().childNodes[0].childNodes[0].data, 'aa')
+        assertEq(mirror().childNodes[1].data, 'aa')
+    },
+    // A deletion inside one node is made there too.
+    echoesADeletion: async () => {
+        const d = dom(highlighted)
+        await startDemo(d.root)
+        await settle()
+        const mirror = () => d.root.firstElementChild.childNodes[0].childNodes[0]
+        const tail = mirror().childNodes[1]
+        d.input('text', 'ab', 1)
+        assertEq(mirror().textContent, 'ab\u200b')
+        assert(mirror().childNodes[1] === tail && tail.data === 'b', 'the tail lost its space')
+    },
+    /**
+     * **An edit across tokens is shown as plain text**, and an edit into an
+     * empty copy is made in its terminator: no colour is right for what
+     * replaces text that spans two tokens, and the render colours it.
+     */
+    echoesAnEditAcrossTokens: async () => {
+        const d = dom(highlighted)
+        await startDemo(d.root)
+        await settle()
+        const mirror = () => d.root.firstElementChild.childNodes[0].childNodes[0]
+        d.input('text', '', 0)
+        assertEq(mirror().childNodes.length, 1)
+        assertEq(mirror().textContent, '\u200b')
+        // into the empty copy: its one node takes the text
+        const only = mirror().childNodes[0]
+        d.input('text', 'x', 1)
+        assertEq(mirror().textContent, 'x\u200b')
+        assert(mirror().childNodes[0] === only, 'the terminator took it')
+    },
+    // A copy that does not end in its terminator is not trusted: it is
+    // written again as plain text.
+    echoesIntoACopyWithoutItsTerminator: async () => {
+        const d = dom(highlighted)
+        await startDemo(d.root)
+        await settle()
+        const mirror = () => d.root.firstElementChild.childNodes[0].childNodes[0]
+        mirror().childNodes[2].data = 'Q'
+        d.input('text', 'aX b', 2)
+        assertEq(mirror().childNodes.length, 1)
+        assertEq(mirror().textContent, 'aX b\u200b')
     },
     /**
      * **The copy follows the textarea's scroll**, as the reader scrolls and
