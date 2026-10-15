@@ -55,7 +55,7 @@ order the hint sets. That part is already right:
 | `Object.prototype.valueOf` answers the object, not a primitive, so the next method runs | ✔ | ✔ `VALUE_OF`'s stock answer is `None` |
 | `Object.prototype.toString` answers `"[object Object]"` | ✔ | ✔ `TO_STRING`'s stock answer |
 | `Array.prototype.toString` is `join(",")` | ✔ | ✔ `arr_to_string`, through `Array::join` |
-| the `number` hint tries `valueOf` first, `string` tries `toString` first, no hint means `number` | ✔ | ✔ `obj_to_primitive` |
+| the `number` hint tries `valueOf` first, `string` tries `toString` first, no hint means `number` | ✔ | ✔ `ordinary_to_primitive`, shared by objects and arrays |
 | `Function.prototype.toString` answers the function's text | ✔ | ✔ associated EDAG-derived text; `error::function_text` when text is absent |
 
 A plain object, `{ a: 1 }`, converts exactly as in JavaScript, and so does
@@ -178,7 +178,7 @@ wrong value now throw a `TypeError`. It is not a break of `fjs`'s API.
 
 ### Stage 2: an object's own methods (done)
 
-`obj_to_primitive` follows
+An object's conversion (`ordinary_to_primitive` over `obj_method`) follows
 [`OrdinaryToPrimitive`](https://tc39.es/ecma262/#sec-ordinarytoprimitive)
 in full:
 

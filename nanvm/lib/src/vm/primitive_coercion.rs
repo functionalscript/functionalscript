@@ -16,18 +16,22 @@ pub enum ToPrimitivePreferredType {
     String,
 }
 
-fn value_of<A: IVm>(_: Array<A>) -> Option<Result<Primitive<A>, Any<A>>> {
+/// What one method of `OrdinaryToPrimitive` answers: its primitive result,
+/// or `None` to move on to the next method.
+type MethodResult<A> = Result<Option<Primitive<A>>, Any<A>>;
+
+fn value_of<A: IVm>(_: &Array<A>) -> MethodResult<A> {
     // https://tc39.es/ecma262/#sec-object.prototype.valueof
     // The stock method answers the array itself, which is not a primitive.
-    None
+    Ok(None)
 }
 
-fn arr_to_string<A: IVm>(a: Array<A>) -> Option<Result<Primitive<A>, Any<A>>> {
+fn arr_to_string<A: IVm>(a: &Array<A>) -> MethodResult<A> {
     // https://tc39.es/ecma262/#sec-array.prototype.tostring
     // https://tc39.es/ecma262/#sec-array.prototype.join
     // The stock method: an array owns only its elements and `length`, never a "toString" or a
     // "join", so this is the built-in `join` with its default separator.
-    Some(a.join(",".into()).map(Primitive::String))
+    a.join(",".into()).map(|s| Some(Primitive::String(s)))
 }
 
 /// A method `OrdinaryToPrimitive` tries: its name, and what the stock
@@ -42,26 +46,27 @@ const VALUE_OF: ConversionMethod = ("valueOf", None);
 const TO_STRING: ConversionMethod = ("toString", Some("[object Object]"));
 
 /// <https://tc39.es/ecma262/#sec-ordinarytoprimitive>: the hint picks the
-/// order of the two methods, and the first to answer a primitive is the
-/// result.
-fn obj_to_primitive<A: IVm>(
-    o: Object<A>,
+/// order of the two methods, `[value_of, to_string]`, and the first to
+/// answer a primitive is the result. `call` runs one method on the operand,
+/// so an object and an array share the one ordering rule.
+fn ordinary_to_primitive<A: IVm, M>(
     preferred_type: ToPrimitivePreferredType,
+    [value_of, to_string]: [M; 2],
+    mut call: impl FnMut(M) -> MethodResult<A>,
 ) -> Result<Primitive<A>, Any<A>> {
     let order = match preferred_type {
-        ToPrimitivePreferredType::Number => [VALUE_OF, TO_STRING],
-        ToPrimitivePreferredType::String => [TO_STRING, VALUE_OF],
+        ToPrimitivePreferredType::Number => [value_of, to_string],
+        ToPrimitivePreferredType::String => [to_string, value_of],
     };
     for method in order {
-        if let Some(p) = obj_method(&o, method)? {
+        if let Some(p) = call(method)? {
             return Ok(p);
         }
     }
     Err(error::cannot_convert_to_primitive())
 }
 
-/// One method of `OrdinaryToPrimitive`: its primitive result, or `None` to
-/// move on to the next method.
+/// One method of `OrdinaryToPrimitive` on an object.
 ///
 /// An own property shadows the stock method, as it does for an explicit
 /// call (`Member`). One that is no function is skipped. A function is
@@ -69,10 +74,7 @@ fn obj_to_primitive<A: IVm>(
 /// no FunctionalScript function reads `this`. Its throw propagates, and a
 /// result that is not a primitive moves on, unconverted, so the conversion
 /// never recurses through a result.
-fn obj_method<A: IVm>(
-    o: &Object<A>,
-    (name, stock): ConversionMethod,
-) -> Result<Option<Primitive<A>>, Any<A>> {
+fn obj_method<A: IVm>(o: &Object<A>, (name, stock): ConversionMethod) -> MethodResult<A> {
     match o.own_property(&name.into()) {
         Some(m) => match Function::try_from(m) {
             Ok(f) => f.call(Array::default()).map(to_primitive_value),
@@ -94,32 +96,18 @@ fn to_primitive_value<A: IVm>(v: Any<A>) -> Option<Primitive<A>> {
     }
 }
 
-fn arr_to_primitive<A: IVm>(
-    a: Array<A>,
-    preferred_type: ToPrimitivePreferredType,
-) -> Result<Primitive<A>, Any<A>> {
-    match preferred_type {
-        ToPrimitivePreferredType::Number => match value_of(a.clone()) {
-            Some(res) => res,
-            None => match arr_to_string(a) {
-                Some(res) => res,
-                None => Err(error::cannot_convert_to_primitive()),
-            },
-        },
-        ToPrimitivePreferredType::String => match arr_to_string(a.clone()) {
-            Some(res) => res,
-            None => match value_of(a) {
-                Some(res) => res,
-                None => Err(error::cannot_convert_to_primitive()),
-            },
-        },
-    }
-}
-
 /// Coerces the value to a primitive type `Primitive<A>`, possibly producing an error result.
 /// <https://tc39.es/ecma262/#sec-toprimitive>
 #[allow(dead_code)]
 pub struct PrimitiveCoercionOp(pub Option<ToPrimitivePreferredType>);
+
+impl PrimitiveCoercionOp {
+    /// The hint `OrdinaryToPrimitive` gets.
+    fn preferred_type(&self) -> ToPrimitivePreferredType {
+        // https://tc39.es/ecma262/#sec-ordinarytoprimitive - point 2 defaults to number preference
+        self.0.unwrap_or(ToPrimitivePreferredType::Number)
+    }
+}
 
 impl<A: IVm> Dispatch<A> for PrimitiveCoercionOp {
     type Result = std::result::Result<Primitive<A>, Any<A>>;
@@ -145,13 +133,13 @@ impl<A: IVm> Dispatch<A> for PrimitiveCoercionOp {
     }
 
     fn object(self, o: Object<A>) -> Self::Result {
-        // https://tc39.es/ecma262/#sec-ordinarytoprimitive - point 2 defaults to number preference
-        obj_to_primitive(o, self.0.unwrap_or(ToPrimitivePreferredType::Number))
+        ordinary_to_primitive(self.preferred_type(), [VALUE_OF, TO_STRING], |m| {
+            obj_method(&o, m)
+        })
     }
 
     fn array(self, a: Array<A>) -> Self::Result {
-        // https://tc39.es/ecma262/#sec-ordinarytoprimitive - point 2 defaults to number preference
-        arr_to_primitive(a, self.0.unwrap_or(ToPrimitivePreferredType::Number))
+        ordinary_to_primitive(self.preferred_type(), [value_of, arr_to_string], |m| m(&a))
     }
 
     fn function(self, f: Function<A>) -> Self::Result {
