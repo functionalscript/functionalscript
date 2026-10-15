@@ -1,3 +1,5 @@
+import { assertEq } from '../fjs/asserts/module.f.mjs'
+
 /** @type {(a: unknown) => (i: any) => unknown} */
 const at = a => i => Object.getOwnPropertyDescriptor(a, i)?.value
 
@@ -28,30 +30,30 @@ export const proof = {
             const a = ['42']
             {
                 const v = at(a)('0')
-                if (v !== '42') { throw v }
+                assertEq(v, '42')
             }
             {
                 const v = at(a)(0)
-                if (v !== '42') { throw v }
+                assertEq(v, '42')
             }
         },
         object: {
             null: () => {
                 const o = { null: 'hello' }
                 const v = at(o)(null)
-                if (v !== 'hello') { throw v }
+                assertEq(v, 'hello')
             },
             undefined: () => {
                 const o = { undefined: 'hello' }
                 const v = at(o)(undefined)
-                if (v !== 'hello') { throw v }
+                assertEq(v, 'hello')
             }
         },
         string: {
             number: () => {
                 const o = 'hello'
                 const v = at(o)(1)
-                if (v !== 'e') { throw v }
+                assertEq(v, 'e')
             }
         }
     }

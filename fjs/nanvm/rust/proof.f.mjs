@@ -142,7 +142,7 @@ pub fn run<A: IStaticFunction>() {
  */
 const file = name => files => {
     const found = files.find(([n]) => n === name)
-    if (found === undefined) { throw ['no file', name] }
+    assert(found !== undefined, ['no file', name])
     return found[1]
 }
 

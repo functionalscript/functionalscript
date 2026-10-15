@@ -3,7 +3,7 @@
  */
 
 import { empty, vec, vec8 } from '../../types/bit_vec/module.f.mjs'
-import { asBase } from '../../types/nominal/module.f.js'
+import { assertEq } from '../../asserts/module.f.mjs'
 import { encode, decode } from './module.f.mjs'
 
 //
@@ -14,10 +14,10 @@ import { encode, decode } from './module.f.mjs'
  */
 const test = (a, b) => {
     const encoded = encode(a)
-    if (encoded !== b) { throw `encoded: ${asBase(encoded).toString(16)}, expected: ${asBase(b).toString(16)}` }
+    assertEq(encoded, b)
     const [decoded, rest] = decode(b)
-    if (decoded !== a) { throw `decoded: ${decoded.toString(16)}, expected: ${a.toString(16)}` }
-    if (rest !== empty) { throw `rest: ${asBase(rest).toString(16)}, expected: ${asBase(empty).toString(16)}` }
+    assertEq(decoded, a)
+    assertEq(rest, empty)
 }
 
 export const proof = () => {
