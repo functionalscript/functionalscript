@@ -14,8 +14,11 @@ fn shift_count(rhs: Number) -> u32 {
 
 /// <https://tc39.es/ecma262/#sec-tonumeric>
 /// Represents ECMAScript numeric types, i.e. `Number` or `BigInt`, as defined by ToNumeric.
+///
+/// `Debug` and `PartialEq` go through `Unpacked` (`vm/impls/`): deriving
+/// them would bound `A` itself, which no VM promises.
 #[allow(dead_code)]
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Clone)]
 pub enum Numeric<A: IVm> {
     Number(Number),
     BigInt(BigInt<A>),
@@ -272,6 +275,27 @@ mod tests {
         let order = a.compare(b);
         assert_eq!(b.compare(a), order.map(Ordering::reverse));
         order
+    }
+
+    /// `PartialEq` is the variant's own: `Number`'s IEEE equality, so `NaN`
+    /// is unequal to itself and `-0` equals `0`, and a `Number` never equals
+    /// a `BigInt`, whatever their values.
+    #[test]
+    fn eq() {
+        assert_eq!(n(1.0), n(1.0));
+        assert_ne!(n(1.0), n(2.0));
+        assert_ne!(n(f64::NAN), n(f64::NAN));
+        assert_eq!(n(-0.0), n(0.0));
+        assert_eq!(big(1), big(1));
+        assert_ne!(big(1), big(2));
+        assert_ne!(n(1.0), big(1));
+        assert_ne!(big(1), n(1.0));
+    }
+
+    #[test]
+    fn debug() {
+        assert_eq!(format!("{:?}", n(1.5)), "1.5");
+        assert_eq!(format!("{:?}", big(-3)), "-0x3n");
     }
 
     #[test]
