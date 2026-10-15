@@ -18,7 +18,7 @@
 import { assert, todo } from '../../../asserts/module.f.mjs'
 import { isProperPrefix, join, normalize, parse } from '../../../path/module.f.mjs'
 import { resolve as resolveImportPath } from '../../../path/import/module.f.mjs'
-import { utf8ToString } from '../../../text/module.f.mjs'
+import { utf8ToString } from '../../../text/utf8/module.f.mjs'
 import { divUp8 } from '../../../types/bigint/module.f.mjs'
 import { byteLength, empty, isWholeBytes, length, msb, vec } from '../../../types/bit_vec/module.f.mjs'
 import { error, ok, unwrap } from '../../../types/result/module.f.js'

@@ -4,7 +4,7 @@
 
 import { htmlToString, htmlUtf8, isRawText, isVoidTag, parseElement, rawTextContent } from "./module.f.mjs"
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { utf8ToString } from '../../text/module.f.mjs'
+import { utf8ToString } from '../../text/utf8/module.f.mjs'
 
 export const proof = {
     // A document names its language on the root element, which is the only

@@ -83,11 +83,13 @@ proof. `git/refstore/name` still imports `utf16`'s `codePointListToString` for
 
 - [x] Add `vecToCodePointList` to `fjs/text/utf8/module.f.mjs`; rewrite
       `fromVec` and `utf8ToString` through it.
-- [ ] Decide whether `utf8ToString` moves next to `fromVec`; update importers
-      if so.
-- [ ] Decide whether `vecToCodePointList` is removed, now that nothing calls
-      it. Explain the API removal in the PR and update every importer; a
-      breaking notice is optional before 1.0; policy after 1.0 remains undecided.
+- [x] Decide whether `utf8ToString` moves next to `fromVec`; update importers
+      if so. It moved under its existing name: `fjs/text/utf8/module.f.mjs`
+      exports `utf8ToString` beside `fromVec`, delegating to
+      `u8ListToString` after `u8ListMsb`, and
+      `fjs/text/module.f.mjs` keeps only the encoders `utf8`/`tryUtf8`.
+- [x] Decide whether `vecToCodePointList` is removed, now that nothing calls
+      it. Removed, with its proof.
 - [x] Export the byte-list helpers in both directions, beside `fromVec`:
       the decoder pair (unchecked and code-point-validated
       `bytes → string`) replaces `fjs/text/percent`'s `utf8String` and
@@ -103,7 +105,9 @@ proof. `git/refstore/name` still imports `utf16`'s `codePointListToString` for
       `fromVec` and `tryUtf8` build on them.
 - [ ] Name the UTF-8 boundary in one direction: the decoder and encoder in
       `text/utf8` say which way they go, and `types/uint8array`'s `fromVec`
-      stops sharing a name with a decoder. A renamed export changes the public
+      stops sharing a name with a decoder. The `Vec` decoders are now the
+      pair `utf8ToString` (unchecked) and `fromVec` (checked), whose names
+      share no pattern. A renamed export changes the public
       API: explain it and update every importer in the same PR. Breaking
       notices are optional before 1.0.
 - [x] Drop the two unused imports in `fjs/effects/node/module.f.mjs`.

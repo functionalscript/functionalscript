@@ -28,7 +28,8 @@ import { tryStringify } from '../../media/datajs/module.f.mjs'
 import { error, ok, unwrap } from '../../types/result/module.f.js'
 import { virtual, virtualAt, virtualOperationMap, emptyState, nodeProgramOptions } from '../../effects/node/virtual/module.f.mjs'
 import { partialRun } from '../../effects/mock/module.f.mjs'
-import { utf8, utf8ToString } from '../../text/module.f.mjs'
+import { utf8 } from '../../text/module.f.mjs'
+import { utf8ToString } from '../../text/utf8/module.f.mjs'
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
 
 /**
