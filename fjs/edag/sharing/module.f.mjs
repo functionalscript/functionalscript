@@ -204,15 +204,35 @@ export const eagerOperandsOf = node => {
  * nodes reached without passing through a lazy position — every operand
  * after the first of a {@link lazy} operation, and a chain's lazy
  * positions, {@link eagerOperandsOf}. A node is walked once, by identity,
- * as {@link visit} walks it.
+ * as {@link visit} walks it, and a node already in `seen` is not walked at
+ * all: a caller that knows what reaches nothing it asks about stops there.
+ *
+ * The walk keeps its own stack of the nodes still to walk rather than
+ * recursing: an operator chain nests as deep as the source is long, and
+ * the front end, which asks this of a scope it has just lowered, walks one
+ * at no cost to the call stack, as its lowering does.
  *
  * @type {(seen: readonly Exp[], root: unknown) => readonly Exp[]}
  */
 export const reach = (seen, root) => {
-    if (!(root instanceof Array)) { return seen }
-    const self = /** @type {Exp} */ (/** @type {unknown} */ (root))
-    if (seen.includes(self)) { return seen }
-    return eagerOperandsOf(root).reduce(reach, [...seen, self])
+    /** @typedef {{ readonly node: unknown, readonly rest: Todo } | null} Todo */
+    let found = seen
+    /** @type {Todo} */
+    let todo = { node: root, rest: null }
+    while (todo !== null) {
+        /** @type {unknown} */
+        const node = todo.node
+        /** @type {Todo} */
+        const rest = todo.rest
+        const self = /** @type {Exp} */ (node)
+        if (!(node instanceof Array) || found.includes(self)) {
+            todo = rest
+            continue
+        }
+        found = [...found, self]
+        todo = eagerOperandsOf(node).reduceRight((/** @type {Todo} */ t, x) => ({ node: x, rest: t }), rest)
+    }
+    return found
 }
 
 /**

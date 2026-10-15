@@ -19,7 +19,7 @@
 
 import { anchors, isBinary, isInlinedCall, isLazy, isSpread, isUnary, readCaptures } from '../ast/module.f.mjs'
 import { fromValue, isStatic } from '../../edag/module.f.mjs'
-import { eagerNodesOf } from '../../edag/sharing/module.f.mjs'
+import { eagerOperandsOf, reach } from '../../edag/sharing/module.f.mjs'
 import { _rootSource, _parseJson, _walk } from '../source/module.f.mjs'
 import { mapStep, step } from '../../effects/module.f.mjs'
 import { assertNotNullish, todo } from '../../asserts/module.f.mjs'
@@ -61,23 +61,51 @@ const floated = xs => xs.flatMap(x => x.anchors)
  * A value under what it floats: the value alone where nothing is floated,
  * and otherwise the comma establishing the floated roots first — the form
  * a scope's root takes, and a lazy operand's, the two positions that open a
- * block ({@link parts}).
+ * block ({@link parts}). `outer` is what the scope around the block holds,
+ * {@link held}: nothing for a scope's root.
  *
- * An anchor is a node nothing else establishes, so one another operand of
- * the comma reaches eagerly is no anchor, and neither is a node anchored
- * twice: a `const` read only through a call inlined here, which is the
- * node the call answers, `const u = (() => t)();` beside a value reading
- * `t`, and an import a module anchors that another import reaches, the
- * two joined at one node by linking. Each is established anyway, by node
- * identity, and the comma holds only what it alone establishes.
+ * An anchor is a node nothing else establishes, so a floated node is no
+ * anchor where something else does: the value itself, or a node another
+ * operand of the comma reaches eagerly, or one anchored twice — a `const`
+ * read only through a call inlined here, which is the node the call
+ * answers, `const u = (() => t)();` beside a value reading `t`, and an
+ * import a module anchors that another import reaches, the two joined at
+ * one node by linking. Nor is a node the scope around a block holds: the
+ * scope that makes it establishes it, reaching it eagerly or anchoring it,
+ * since a read inside a lazy operand reaches nothing for any scope around
+ * the operand (`../ast/module.f.mjs`'s `anchors`) — so `const u = (() =>
+ * t)();` inside an arm leaves `t` to the scope that makes it. Nor is a read
+ * of a binding, a parameter or a slot of the frame, which establishes
+ * nothing.
+ * Each is established anyway, by node identity, and the comma holds only
+ * what it alone establishes.
  *
- * @type {(x: _Lowered) => Exp}
+ * What the operands reach is walked once, from all of them together, and
+ * stops at `outer`: a node made before the block was lowered reaches
+ * nothing the block made, so what the scope around holds is never walked
+ * again for each block in it. A primitive is anchored as it floated: it is
+ * established by nothing and reached by no walk.
+ *
+ * @type {(outer: readonly Exp[]) => (x: _Lowered) => Exp}
  */
-const anchoring = ({ exp, anchors }) => {
-    const unique = anchors.filter((x, i) => !(x instanceof Array) || anchors.indexOf(x) === i)
-    const kept = unique.filter(x => ![...unique, exp].some(y => y !== x && eagerNodesOf(y).includes(x)))
+const anchoring = outer => ({ exp, anchors }) => {
+    const unique = anchors.filter((x, i) => !(x instanceof Array) || (!bindingReads.includes(x[0]) && anchors.indexOf(x) === i))
+    const reached = unique.some(x => x instanceof Array) ? [...unique, exp].flatMap(x => x instanceof Array ? eagerOperandsOf(x) : []).reduce(reach, outer) : []
+    const kept = unique.filter(x => !(x instanceof Array) || (x !== exp && !reached.includes(x)))
     return kept.length === 0 ? exp : [',', [...kept, exp]]
 }
+
+/**
+ * What the scope a block stands in holds: its `const`s lowered so far, its
+ * frame — for a body a call inlines, the enclosing scope's nodes — and its
+ * imports, the nodes a lazy operand's anchoring stops at ({@link anchoring}).
+ *
+ * @type {(nodes: _Nodes) => readonly Exp[]}
+ */
+const held = ({ consts, frame, parameters }) => [...consts, ...frame, ...parameters].filter(x => x instanceof Array)
+
+/** A lazy operand: a block root under the scope `nodes` names. @type {(nodes: _Nodes) => (x: _Lowered) => Exp} */
+const block = nodes => anchoring(held(nodes))
 
 /**
  * A call's EDAG, by what it calls.
@@ -156,7 +184,7 @@ const lowerItem = nodes => item => isSpread(item) ? lowerSpread(nodes)(item) : l
  */
 const lazyItem = nodes => item => {
     const { exp, anchors } = lowerItem(nodes)(item)
-    return exp instanceof Array && exp[0] === '...' ? ['...', anchoring({ exp: exp[1], anchors })] : anchoring({ exp, anchors })
+    return exp instanceof Array && exp[0] === '...' ? ['...', block(nodes)({ exp: exp[1], anchors })] : block(nodes)({ exp, anchors })
 }
 
 /**
@@ -185,7 +213,7 @@ const lowerKey = nodes => key => {
  */
 const lazyKey = nodes => key => {
     if (!(key instanceof Array)) { return key }
-    return ['Number', anchoring(lower(nodes)(key[1]))]
+    return ['Number', block(nodes)(lower(nodes)(key[1]))]
 }
 
 /**
@@ -481,7 +509,7 @@ const lower = nodes => root => {
             const otherwise = assertNotNullish(results, ['no else arm for a conditional', root])
             const then = assertNotNullish(otherwise.rest, ['no then arm for a conditional', root])
             const condition = assertNotNullish(then.rest, ['no condition for a conditional', root])
-            results = { top: { exp: ['?:', condition.top.exp, anchoring(then.top), anchoring(otherwise.top)], anchors: condition.top.anchors }, rest: condition.rest }
+            results = { top: { exp: ['?:', condition.top.exp, block(nodes)(then.top), block(nodes)(otherwise.top)], anchors: condition.top.anchors }, rest: condition.rest }
             work = rest
             continue
         }
@@ -490,16 +518,13 @@ const lower = nodes => root => {
         const tag = work.tag
         const right = assertNotNullish(results, ['no right operand for', tag, root])
         const left = assertNotNullish(right.rest, ['no left operand for', tag, root])
+        const lazy = isLazy(tag)
         // named as the two node kinds a binary tag makes, since the EDAG
         // union also holds a three-tuple whose last position is a name
         /** @type {Op2 | Op12} */
-        const lazyExp = [tag, left.top.exp, anchoring(right.top)]
-        /** @type {Op2 | Op12} */
-        const eager = [tag, left.top.exp, right.top.exp]
+        const exp = [tag, left.top.exp, lazy ? block(nodes)(right.top) : right.top.exp]
         results = {
-            top: isLazy(tag)
-                ? { exp: lazyExp, anchors: left.top.anchors }
-                : { exp: eager, anchors: [...left.top.anchors, ...right.top.anchors] },
+            top: { exp, anchors: lazy ? left.top.anchors : [...left.top.anchors, ...right.top.anchors] },
             rest: left.rest,
         }
         work = rest
@@ -543,21 +568,23 @@ const anchored = ({ nodes, floated }, consts) => nodes.flatMap((node, i) => [...
  * `anchors` reads a body out of a module, so the body is handed over as one
  * that imports nothing: a function names no import, a reference out of it
  * being a capture, read through its frame — or, for a body a call inlines,
- * the enclosing scope's node itself. Such a node is no anchor of the body,
- * `const u = (() => t)();` unread in it: the enclosing scope establishes
- * every node of its own, reached eagerly or anchored there, so the body
- * would establish it again.
+ * the enclosing scope's node itself. Such a node floats out of the body
+ * as any anchor does, `const u = (() => t)();` unread in it: the
+ * enclosing scope counts `t` as read there, through the call inlined
+ * where it stands, so the body's anchor may be all that establishes it,
+ * and the block root it floats to decides whether something else does
+ * ({@link anchoring}).
  *
  * @type {(body: AstBody, frame: readonly Exp[]) => _Lowered}
  */
 const parts = (body, frame) => {
     const e = entries([], ['rest'], frame)(body)
     const { consts } = anchors([[], body])([])
-    return { exp: e.nodes[e.nodes.length - 1], anchors: anchored(e, consts).filter(x => !frame.includes(x)) }
+    return { exp: e.nodes[e.nodes.length - 1], anchors: anchored(e, consts) }
 }
 
 /** A body as one node: its value under its anchors, {@link parts}. @type {(body: AstBody, frame: readonly Exp[]) => Exp} */
-const scope = (body, frame) => anchoring(parts(body, frame))
+const scope = (body, frame) => anchoring([])(parts(body, frame))
 
 /**
  * The module as an EDAG over the nodes given for its imports. The body is
@@ -582,7 +609,7 @@ const scope = (body, frame) => anchoring(parts(body, frame))
 const lowered = imports => module => {
     const e = entries(imports, args, [])(module[1])
     const { consts, imports: unbound } = anchors(module)(imports)
-    return anchoring({ exp: e.nodes[e.nodes.length - 1], anchors: [...unbound.map(i => imports[i]), ...anchored(e, consts)] })
+    return anchoring([])({ exp: e.nodes[e.nodes.length - 1], anchors: [...unbound.map(i => imports[i]), ...anchored(e, consts)] })
 }
 
 /** @type {(imports: readonly AstImport[]) => (edag: Exp) => Unresolved} */

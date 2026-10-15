@@ -745,6 +745,30 @@ export const proof = {
             // into, and stop at its function
             expectEdag(compile('export default (() => (() => { const x = null.x; return 1; })())();').edag, [',', [x, 1]])
             expectEdag(compile('export default (...a) => (() => { const x = null.x; return 1; })();').edag, ['=>', 0, [], [',', [x, 1]]])
+            // a `const` of the scope around, read in the body only through a
+            // call inlined there, is the body's anchor: the scope counts it
+            // read through that call, so nothing else establishes it, at
+            // any depth of inlining
+            /** @type {Exp} */
+            const bxy = ['.', ['.', ['arg', 1], 'x'], 'y']
+            expectEdag(compile('export default (a, b) => { const t = b.x.y; return (() => { const u = (() => t)(); return 1; })(); };').edag, ['=>', 2, [], [',', [bxy, 1]]])
+            expectEdag(compile('const t = null.x; export default [(() => { const u = (() => t)(); return 1; })()];').edag, [',', [x, ['[]', [1]]]])
+            expectEdag(compile('export default (a, b) => { const t = b.x.y; return (() => { const v = (() => { const u = (() => t)(); return 1; })(); return 2; })(); };').edag, ['=>', 2, [], [',', [bxy, 1, 2]]])
+            // and no anchor where something else establishes the node: the
+            // value, which is the node or reaches it, or the node anchored
+            // already
+            expectEdag(compile('export default (n) => { const t = [n]; const u = (() => t)(); return t; };').edag, ['=>', 1, [], ['[]', [['arg', 0]]]])
+            expectEdag(compile('export default (n) => { const t = [n]; const u = (() => t)(); return [t]; };').edag, ['=>', 1, [], ['[]', [['[]', [['arg', 0]]]]]])
+            expectEdag(compile('export default (b) => { const t = b.x; const u = (() => t)(); const v = (() => t)(); return 1; };').edag, ['=>', 1, [], [',', [['.', ['arg', 0], 'x'], 1]]])
+            // nor, under a lazy operand, for a node of the scope around it: a
+            // read there reaches nothing for that scope, which anchors the
+            // node itself where nothing reaches it eagerly; a node the
+            // operand makes stays its anchor however deep the call that
+            // floats it
+            expectEdag(compile('export default (a, b) => { const t = b.x; return a ? (() => { const u = (() => t)(); return 1; })() : 0; };').edag, ['=>', 2, [], [',', [['.', ['arg', 1], 'x'], ['?:', ['arg', 0], 1, 0]]]])
+            expectEdag(compile('export default (a, b) => a ? (() => { const t = b.x; const v = (() => { const u = (() => t)(); return 1; })(); return 2; })() : 0;').edag, ['=>', 2, [], ['?:', ['arg', 0], [',', [['.', ['arg', 1], 'x'], 1, 2]], 0]])
+            // nor for a read of a binding, which establishes nothing
+            expectEdag(compile('export default (a) => (() => { const u = (() => a)(); return 1; })();').edag, ['=>', 1, [], 1])
             // a body `const` its own lazy positions alone reach is anchored
             // by the body's rule, so it stands eagerly under the block root
             const shared = compile('export default (...a) => a[0] ? (() => { const x = [1]; return [a[1] && x, a[2] && x]; })() : 4;').edag
@@ -1225,6 +1249,13 @@ export const proof = {
     stackSafety: () => {
         const plus = `1${' + 1'.repeat(5000)}`
         expectPlusChain(5_000)(compile(`export default ${plus};`).edag)
+        // under an anchor too: what the comma's operands reach is walked
+        // with a stack of its own, the module's `anchoring` asking it of
+        // `fjs/edag/sharing`'s `reach`
+        const under = compile(`const u = [2]; export default ${plus};`).edag
+        assert(under instanceof Array && under[0] === ',', under)
+        expectEdag(under[1][0], ['[]', [2]])
+        expectPlusChain(5_000)(under[1][1])
         const neg = `${'- '.repeat(5000)}1`
         expectEdag(compile(`export default ${neg};`).edag, 1)
         // conversions use the same iterative lowering as prefixes

@@ -703,12 +703,24 @@ export const proof = {
             assertEq(compileSource('const f = (a) => { const b = a; return () => [a, b]; }; export default [String(f), String(f(1))];')('output.json'), '["($0)=>()=>[$0,$0]","()=>[$0,$0]"]')
             // a `const` read only through an inlined call is the node the
             // call answers, and no anchor where the scope reaches that node
-            // anyway — by another operand of the comma, or around the block
-            // it stands in
+            // anyway — by the value, by another operand of the comma, or
+            // around the block it stands in
             assertEq(fjsRoundTrip('export default n => { const t = n + 1; const u = (() => t)(); return t * 2; };'), 'export default ($0)=>($0+1)*2;')
+            assertEq(fjsRoundTrip('export default n => { const t = n + 1; const u = (() => t)(); return t; };'), 'export default ($0)=>$0+1;')
+            assertEq(compileSource('const g = n => { const t = n + 1; const u = (() => t)(); return t; }; export default String(g);')('output.json'), '"($0)=>$0+1"')
             assertEq(fjsRoundTrip('export default (a, b) => { const t = b + 1; const u = (() => t)(); return [t, a && u]; };'), 'export default ($0,$1)=>{const $2=$1+1;return [$2,$0&&$2];};')
             assertEq(fjsRoundTrip('export default (a, b) => { const t = b.x; return [t, a ? (() => { const u = (() => t)(); return 1; })() : 0]; };'), 'export default ($0,$1)=>[$1.x,$0?1:0];')
             assertEq(fjsRoundTrip('export default (a, b) => { const t = b.x; return a ? (() => { const u = (() => t)(); return 1; })() : 0; };'), 'export default ($0,$1)=>{const $2=$1.x;return $0?1:0;};')
+            // and the anchor that establishes the node where nothing else
+            // does: the scope counts the node read through the call inlined
+            // in its body, so a failing `const` fails, in a function, a
+            // loop's block and a module
+            assertEq(fjsRoundTrip('export default (a, b) => { const t = b.x.y; return (() => { const u = (() => t)(); return 1; })(); };'), 'export default ($0,$1)=>{const $2=$1.x.y;return 1;};')
+            assertEq(jsonRefused('const f = (b) => { const t = b.x.y; return (() => { const u = (() => t)(); return 1; })(); }; export default f({});'), 'input.f.js - error: module initialization failed')
+            assertEq(
+                fjsRoundTrip('export default (b, f) => { let w = 0; while (w < 3) { const c = b.x; const z = (() => { const u = (() => c)(); return 1; })(); w = w + f(z); } return w; };'),
+                'export default ($0,$1)=>{let $2=0;while($2<3){const $3=$0.x;$2=$2+$1(1);}return $2;};')
+            assertEq(moduleRefused('const t = null.x; export default [(() => { const u = (() => t)(); return 1; })()];'), 'input.f.js - error: module initialization failed')
             // a loop's block whose `const`s read the captures in another
             // order than the source named them opens by naming them in its
             // order, which reads back as the same frame

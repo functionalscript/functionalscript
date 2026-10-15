@@ -6,7 +6,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { chainLazy, eagerNodesOf, eagerOperandsOf, isChain, lazy, members, one, operandsOf, sharedNodesOf, visit } from './module.f.mjs'
+import { chainLazy, eagerNodesOf, eagerOperandsOf, isChain, lazy, members, one, operandsOf, reach, sharedNodesOf, visit } from './module.f.mjs'
 
 /** @type {Exp} */
 const c = ['[]', []]
@@ -113,6 +113,24 @@ export const proof = {
         assertEq(eagerNodesOf(['.', ['{}', []], 'a', ['|()', [c]]]).includes(c), false)
         assertEq(eagerNodesOf(['?.()', ['undefined'], [c]]).includes(c), false)
         assertEq(eagerNodesOf(['?.', ['{}', []], 'a', ['|.', 'b', ['|()', [c]]]]).includes(c), false)
+    },
+    /**
+     * A walk folds what it reaches into what it was handed, and stops at a
+     * node handed to it: what it walks below there was walked already.
+     * It keeps its own stack, so a chain deeper than the call stack's
+     * frames is walked as a short one is.
+     */
+    reach: () => {
+        /** @type {Exp} */
+        const inner = ['[]', [c]]
+        /** @type {Exp} */
+        const outer = ['[]', [inner]]
+        assertStructurallySame(reach([inner], outer), [inner, outer])
+        assertStructurallySame(reach([c], 1), [c])
+        /** @type {Exp} */
+        let deep = c
+        for (let i = 0; i < 10_000; i++) { deep = ['[]', [deep]] }
+        assertEq(eagerNodesOf(deep).length, 10_001)
     },
     sharedNodesOf: {
         /** A node reached from only one place is never a binding candidate. */
