@@ -1,7 +1,7 @@
 ## The Rust generators spell their own tables, headers and quotes
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
