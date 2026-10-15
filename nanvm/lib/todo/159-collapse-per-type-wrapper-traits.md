@@ -136,9 +136,8 @@ shared table), or accepting the duplication (rung 3).
 - Already-correct abstractions to leave alone: `IContainer` defaults,
   `ContainerFmt`, the bigint `abs_*_vec` helpers, and the `Dispatch` visitor
   (`vm/dispatch.rs`).
-- The hand-written primitive-coercion dispatch matches are filed separately
-  as [primitive-coercion-dispatch](./primitive-coercion-dispatch.md) — they
-  are plain-code fixes, independent of the trait-boilerplate mechanism here.
+- The hand-written primitive-coercion dispatch matches are gone: the coercions
+  implement `PrimitiveDispatch` (`vm/primitive_dispatch.rs`).
 
 ### Related
 
@@ -152,5 +151,3 @@ shared table), or accepting the duplication (rung 3).
   rather than on the VM traits.
 - [65Y-nanvm-conversion-macros](./65y-nanvm-conversion-macros.md) — the
   `From`/`TryFrom` families on the same axis, and the no-macro constraint.
-- [primitive-coercion-dispatch](./primitive-coercion-dispatch.md) — the
-  coercion dispatch note previously in this file's Notes section.

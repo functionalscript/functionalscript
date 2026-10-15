@@ -1,13 +1,12 @@
 use crate::{
     sign::Sign,
     vm::{
-        Array, BigInt, Function, IVm, Number, Object, String, ToAny,
+        BigInt, Function, IVm, Number, String,
         any::Any,
-        dispatch::Dispatch,
         error,
         nullish::Nullish,
-        primitive::Primitive,
         primitive_coercion::ToPrimitivePreferredType,
+        primitive_dispatch::PrimitiveDispatch,
         string_numeric_literal::{StringNumericLiteral, scan},
     },
 };
@@ -21,59 +20,36 @@ use crate::{
 /// Note: the function can return an error (JS throw). For example, `+(7n)`.
 pub struct NumberCoercion;
 
-fn any_to_number<A: IVm>(a: Any<A>) -> Result<Number, Any<A>> {
-    // https://tc39.es/ecma262/#sec-tonumber - starting from point 8:
-    // 8. Let primValue be ? ToPrimitive(argument, number).
-    // (here we call to_primitive with preferred type Number)
-    // 9. Assert: primValue is not an Object.
-    // (handled by to_primitive)
-    // 10. Return ? ToNumber(primValue).
-    // (handled by calls to relevant methods of NumberCoercion)
-    match a.to_primitive(Some(ToPrimitivePreferredType::Number))? {
-        Primitive::Nullish(n) => NumberCoercion.nullish(n),
-        Primitive::Boolean(b) => NumberCoercion.bool(b),
-        Primitive::Number(n) => NumberCoercion.number(n),
-        Primitive::String(s) => NumberCoercion.string(s),
-        Primitive::BigInt(bi) => NumberCoercion.bigint(bi),
-    }
-}
+impl<A: IVm> PrimitiveDispatch<A> for NumberCoercion {
+    type Ok = Number;
+    // https://tc39.es/ecma262/#sec-tonumber step 8: `ToPrimitive(argument, number)`.
+    const PREFERRED: ToPrimitivePreferredType = ToPrimitivePreferredType::Number;
 
-impl<A: IVm> Dispatch<A> for NumberCoercion {
-    type Result = Result<Number, Any<A>>;
-
-    fn nullish(self, v: Nullish) -> Self::Result {
+    fn nullish(self, v: Nullish) -> Result<Number, Any<A>> {
         Ok(match v {
             Nullish::Null => 0.into(),
             Nullish::Undefined => Number::NAN,
         })
     }
 
-    fn bool(self, v: bool) -> Self::Result {
+    fn bool(self, v: bool) -> Result<Number, Any<A>> {
         Ok(v.into())
     }
 
-    fn number(self, v: Number) -> Self::Result {
+    fn number(self, v: Number) -> Result<Number, Any<A>> {
         Ok(v)
     }
 
-    fn string(self, v: String<A>) -> Self::Result {
+    fn string(self, v: String<A>) -> Result<Number, Any<A>> {
         let s: std::string::String = v.into();
         Ok(string_to_number(&s).into())
     }
 
-    fn bigint(self, _: BigInt<A>) -> Self::Result {
+    fn bigint(self, _: BigInt<A>) -> Result<Number, Any<A>> {
         Err(error::bigint_to_number())
     }
 
-    fn object(self, v: Object<A>) -> Self::Result {
-        any_to_number(v.to_any())
-    }
-
-    fn array(self, v: Array<A>) -> Self::Result {
-        any_to_number(v.to_any())
-    }
-
-    fn function(self, _: Function<A>) -> Self::Result {
+    fn function(self, _: Function<A>) -> Result<Number, Any<A>> {
         // `ToPrimitive` of a function is its text, which is not implemented
         // (`error::function_text`). No text converts to a number — it starts with
         // `(`, `function`, `async` or a name — so the answer is `NaN`
