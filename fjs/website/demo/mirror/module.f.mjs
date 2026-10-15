@@ -18,10 +18,14 @@
  * falls back to the plain text until the render colours it.
  *
  * **The caret says where.** What differs between the old text and the new is
- * ambiguous in a run of equal characters: typing `a` into `aaa` leaves four
- * and any of them could be the new one. An edit ends at the caret — typed text
- * is before it, and a deletion leaves it at the place deleted — so the change
- * is not taken to start after the caret.
+ * ambiguous in a run of equal characters: typing `a` into `aaa` leaves four,
+ * and pasting `aa` before the `aa` of `aa` leaves `aaaa`, and any of them could
+ * be the new ones. An edit ends at the caret — typed or pasted text is before
+ * it, a deletion leaves it at the place deleted — so **what follows the caret
+ * is what the edit did not touch**, and the change is the rest of the text,
+ * from the longest start the old and new texts share. Where the old text does
+ * not end as the new one does after the caret, as after an undo that leaves the
+ * caret elsewhere, the longest end they share is taken instead.
  *
  * Offsets are UTF-16 units, as a DOM's are.
  *
@@ -74,8 +78,10 @@ const nodeOf = (lengths, at, removed) => {
  * @type {(question: EditQuestion) => Edit | null}
  */
 export const editOf = ({ was, now, caret, lengths }) => {
-    const at = Math.min(commonPrefix(was, now), caret)
-    const suffix = commonSuffix(was, now, Math.min(was.length, now.length) - at)
+    const afterCaret = now.length - caret
+    const caretIsAfterTheEdit = caret >= 0 && afterCaret >= 0 && was.endsWith(now.slice(caret))
+    const suffix = caretIsAfterTheEdit ? afterCaret : commonSuffix(was, now, Math.min(was.length, now.length))
+    const at = commonPrefix(was.slice(0, was.length - suffix), now.slice(0, now.length - suffix))
     const removed = was.length - at - suffix
     const node = nodeOf(lengths, at, removed)
     return node === null ? null : { index: node.index, at: at - node.start, removed, inserted: now.slice(at, now.length - suffix) }
