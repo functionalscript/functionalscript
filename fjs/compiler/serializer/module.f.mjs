@@ -1623,6 +1623,9 @@ export const tryStringify = e => mapOk(
  * caller supplies a function index with valid length and body bindings,
  * including nested body scopes. Analysis and admission belong to the caller;
  * this renderer trusts those invariants and renders every admitted body.
+ * The table is the identity table, `identityAnalysis`, as every caller in
+ * the tree passes: from one that merges twins, two equal nodes would be
+ * written as one shared node.
  *
  * Captures are named by position, `$0`, `$1`, …, without rendering their
  * values. Primitive, repeated and unused evaluated captures are allowed.

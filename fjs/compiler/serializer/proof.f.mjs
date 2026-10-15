@@ -25,7 +25,7 @@ import { invoke, memo } from '../../edag/memo/module.f.mjs'
 import { call } from '../../edag/value/call/module.f.mjs'
 import { read } from '../../edag/value/property/module.f.mjs'
 import { toData } from '../../edag/value/to_unknown/module.f.mjs'
-import { analysis } from '../../edag/analysis/module.f.mjs'
+import { analysis, identityAnalysis } from '../../edag/analysis/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { invert, ok, unwrap } from '../../types/result/module.f.js'
 import { _defaultExport, unresolved } from '../edag/module.f.mjs'
@@ -166,11 +166,11 @@ const generated = (() => {
 const moduleGraph = source => unresolved(unwrap(parse(path)(source))).edag
 
 /** @type {(graph: Exp) => unknown} */
-const moduleValue = graph => assertOk(toData(unwrap(memo(assertOk(analysis(graph)))({ args: [] }))))
+const moduleValue = graph => assertOk(toData(unwrap(memo(assertOk(identityAnalysis(graph)))({ args: [] }))))
 
 /** Render an already analyzed function root. @type {(e: Exp) => string} */
 const analyzedFunction = e => {
-    const a = assertOk(analysis(e))
+    const a = assertOk(identityAnalysis(e))
     assert(a.root instanceof Array)
     return functionText(a, a.root[1])
 }
@@ -220,7 +220,7 @@ export const proof = {
         },
         functions: () => {
             const text = unwrap(tryModuleStringify(moduleGraph('export const f=(...a)=>a; export default f;')))
-            const result = memo(assertOk(analysis(moduleGraph(text))))({ args: [] })
+            const result = memo(assertOk(identityAnalysis(moduleGraph(text))))({ args: [] })
             const fn = assertOk(read(result, 'f'))
             assertEq(fn, assertOk(read(result, 'default')))
             const called = assertOk(call(ok(fn), [() => ok(1), () => ok(2)], invoke))
@@ -455,7 +455,7 @@ export const proof = {
         writes(['?:', 1, ['entry'], 2], `export default 1?${text}:2;`)
         writes(['()', ['=>', 0, [], 1], [['entry']]], `const $0=()=>1;export default $0(${named});`)
         assertEq(unwrap(tryFunctionText(['entry'])), text)
-        const a = assertOk(analysis(['[]', [['entry'], 1]]))
+        const a = assertOk(identityAnalysis(['[]', [['entry'], 1]]))
         assertEq(functionText(a, 0), text)
     },
     // `Object.is` is written as the source reads it, a value wherever it
@@ -835,7 +835,7 @@ export const proof = {
             const inner = /** @type {const} */ (['=>', 2, [['arg', 0]],
                 ['[]', [['frame', 0], ['arg', 1], ['rest'], shared, shared]]])
             const outer = /** @type {const} */ (['=>', 1, [], inner])
-            const a = assertOk(analysis(['[]', [['[]', [9]], outer, ['=>', 0, [], ['rest']]]]))
+            const a = assertOk(identityAnalysis(['[]', [['[]', [9]], outer, ['=>', 0, [], ['rest']]]]))
             /** @type {readonly (readonly [Exp, number, string])[]} */
             const cases = [
                 [inner, 2, '($1,$2,...$3)=>{const $4=[];return [$0,$2,$3,$4,$4];}'],
@@ -851,7 +851,7 @@ export const proof = {
         selectedUnusedFunction: () => {
             const inner = /** @type {const} */ (['=>', 1, [['arg', 0], ['arg', 1]], ['frame', 1]])
             const outer = /** @type {const} */ (['=>', 2, [], inner])
-            const a = assertOk(analysis(['[]', [['[]', [9]], outer]]))
+            const a = assertOk(identityAnalysis(['[]', [['[]', [9]], outer]]))
             const i = a.nodes.findIndex(node => node[0] === '=>' && node[1] === 1)
             assert(i >= 0)
             assertEq(functionText(a, i), '($2)=>$1')
@@ -915,7 +915,7 @@ export const proof = {
         // the call a nested `throw` is written as fails where the node does
         nested: () => {
             const { edag } = unresolved(unwrap(parse(path)(unwrap(tryStringify(['[]', [['throw', 1]]])))))
-            unwrap(memo(assertOk(analysis(_defaultExport(edag))))({ args: [] }))
+            unwrap(memo(assertOk(identityAnalysis(_defaultExport(edag))))({ args: [] }))
         },
     },
     // The optional chains, `fjs/edag/README.md`'s Chains: one spelling per
