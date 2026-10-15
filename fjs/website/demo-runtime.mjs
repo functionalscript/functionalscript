@@ -292,7 +292,7 @@ const echo = textarea => {
     const shown = nodes.map(node => node.data).join('')
     if (shown !== wanted) {
         const edit = shown.endsWith(terminator)
-            ? editOf({ was: shown.slice(0, -terminator.length), now: value, caret: selectionStart ?? value.length, lengths: nodes.map(node => node.data.length) })
+            ? editOf({ was: shown.slice(0, -terminator.length), now: value, caret: selectionStart, lengths: nodes.map(node => node.data.length) })
             : null
         if (edit !== null) {
             const node = nodes[edit.index]

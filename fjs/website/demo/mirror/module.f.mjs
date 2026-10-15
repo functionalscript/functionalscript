@@ -28,7 +28,10 @@
  * @module
  *
  * @import { Edit, EditQuestion } from './types.ts'
+ * @import { Scan } from '../../../types/function/operator/types.ts'
  */
+
+import { scan, toArray } from '../../../types/list/module.f.mjs'
 
 /** @type {(a: string, b: string) => number} */
 const commonPrefix = (a, b) => {
@@ -44,6 +47,13 @@ const commonSuffix = (a, b, max) => {
 }
 
 /**
+ * Where each node starts, in one pass over their lengths.
+ *
+ * @type {(at: number) => Scan<number, number>}
+ */
+const startsFrom = at => length => [at, startsFrom(at + length)]
+
+/**
  * The first node that holds an edit of `removed` units at `at` whole, which
  * is the node before the place where the place is a boundary: the edit takes
  * the colour of the text before it.
@@ -51,11 +61,8 @@ const commonSuffix = (a, b, max) => {
  * @type {(lengths: readonly number[], at: number, removed: number) => { readonly index: number, readonly start: number } | null}
  */
 const nodeOf = (lengths, at, removed) => {
-    const found = lengths
-        .map((length, index) => {
-            const start = lengths.slice(0, index).reduce((sum, l) => sum + l, 0)
-            return { index, start, end: start + length }
-        })
+    const found = toArray(scan(startsFrom(0))(lengths))
+        .map((start, index) => ({ index, start, end: start + lengths[index] }))
         .find(({ start, end }) => start <= at && at + removed <= end)
     return found === undefined ? null : { index: found.index, start: found.start }
 }
