@@ -235,7 +235,7 @@ export const proof = {
         const ab = lsb.concat(a)(b)
         assertEq(ab, unsafeVec(0x8945n))
         const s = length(ab)
-        if (s !== 16n) { throw `appendBack: ${s}` }
+        assertEq(s, 16n)
     },
     removeBack: () => {
         const v = vec(17n)(0x1_2345n)
@@ -342,7 +342,7 @@ export const proof = {
         const c = (/** @type {bigint} */ len) => (/** @type {bigint} */ ui) => (/** @type {bigint} */ raw) => {
             const v = vec(len)(ui)
             const x = asBase(v)
-            if (x !== raw) { throw `x: ${x}, raw: ${raw}` }
+            assertEq(x, raw)
             const len2 = length(v)
             assertEq(len2, len)
             const u = uint(v)
@@ -410,7 +410,7 @@ export const proof = {
     lsbCmp: () => {
         const c = (/** @type {Vec} */ a) => (/** @type {Vec} */ b) => (/** @type {Sign} */ r) => {
             const result = lsb.cmp(a)(b)
-            if (result !== r) { throw `result: ${result}, expected: ${r}` }
+            assertEq(result, r)
         }
         c(vec(4n)(0x5n))(vec(4n)(0x5n))(0)   // [1,0,1,0] == [1,0,1,0]
         c(vec(4n)(0x5n))(vec(4n)(0x6n))(1)   // bit0: 1 > 0
@@ -422,7 +422,7 @@ export const proof = {
     msbCmp: () => {
         const c = (/** @type {Vec} */ a) => (/** @type {Vec} */ b) => (/** @type {Sign} */ r) => {
             const result = msb.cmp(a)(b)
-            if (result !== r) { throw `result: ${result}, expected: ${r}` }
+            assertEq(result, r)
         }
         c(vec(4n)(0x5n))(vec(4n)(0x5n))(0)  // 0b0101 == 0b0101
         c(vec(4n)(0x5n))(vec(4n)(0x6n))(-1) // 0b0101 < 0b0110

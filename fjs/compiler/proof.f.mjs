@@ -100,7 +100,7 @@ export const defaultValue = value => {
 /** @type {(root: typeof emptyState.root, path: string) => string} */
 export const readOutput = (root, path) => {
     const file = root[path]
-    if (!Array.isArray(file) || file.length === 0) { throw `${path} is not a file` }
+    assert(Array.isArray(file) && file.length !== 0, `${path} is not a file`)
     return utf8ToString(file[0])
 }
 

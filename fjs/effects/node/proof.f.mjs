@@ -279,9 +279,9 @@ export const proof = {
             })(readdir('', { recursive: true }))
             assert(t === 'ok', result)
             const file = result.find(x => x.name === 'file')
-            if (file === undefined || file.parentPath !== '' || !file.isFile) { throw `file: ${file}` }
+            assert(file !== undefined && file.parentPath === '' && file.isFile, `file: ${file}`)
             const dirA = result.find(x => x.name === 'a')
-            if (dirA === undefined || dirA.parentPath !== '/dir') { throw `dirA: ${dirA?.parentPath}` }
+            assert(dirA !== undefined && dirA.parentPath === '/dir', `dirA: ${dirA?.parentPath}`)
         },
         nonRecursive: () => {
             const [_, [t, result]] = virtualAt({

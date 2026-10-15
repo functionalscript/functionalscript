@@ -249,7 +249,7 @@ export const proof = {
         // Valid 4-byte UTF-8 (U+1F600 GRINNING FACE)
         () => {
             const v = u8ListToVecMsb([0xf0, 0x9f, 0x98, 0x80])
-            if (fromVec(v) !== '\u{1f600}') { throw 'expected emoji' }
+            assertEq(fromVec(v), '\u{1f600}', 'expected emoji')
         },
         // Invalid byte sequence → null
         () => {

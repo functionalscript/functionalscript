@@ -16,7 +16,7 @@ export const proof = {
             + '<title>Сторінка</title></head><body><h1>Привіт</h1></body></html>'),
     empty: () => {
         const r = htmlToString(['html'])
-        if (r !== '<!DOCTYPE html><html></html>') { throw `empty: ${r}` }
+        assertEq(r, '<!DOCTYPE html><html></html>')
     },
     empty2: () => {
         const r = htmlToString(['html'])
