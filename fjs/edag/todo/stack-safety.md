@@ -91,7 +91,7 @@ Confirmed reachable through the Rust backend (`fjs/compiler/rust/module.f.mjs`'s
 find every operator node *before* it could report the clean refusal Stage
 A's PR description promised, so a chain of a few thousand terms crashed
 there rather than reaching that refusal. That refusal is gone — every operator prints
-now — and the backend's remaining walk, `fjs/edag/rust`'s `sharedNodesOf`,
+now — and the backend's remaining walk, `fjs/edag/sharing`'s `visit`,
 recurses the same way. Raised again,
 independently, as a Stage A PR review finding
 ([functionalscript/functionalscript#2106, discussion_r4053431594](https://github.com/functionalscript/functionalscript/pull/2106#discussion_r4053431594))
@@ -138,8 +138,8 @@ the way to a graph output: past it, the FunctionalScript writer —
 `operand`, `entry` and, since the writer spells every operator, `binary`
 and its operand helpers in
 [`../../compiler/serializer/module.f.mjs`](../../compiler/serializer/module.f.mjs),
-one frame set per level of a chain or a container — `fjs/edag/rust`'s
-`sharedNodesOf` and the Rust printer each descend the same depth, and a
+one frame set per level of a chain or a container — `fjs/edag/sharing`'s
+`visit` and the Rust printer each descend the same depth, and a
 walk made iterative here only moves the overflow to the next one. The
 investigation lists every walk between the front end and the `.js` and
 `.rs` outputs, says for each whether an explicit stack or the trampoline
