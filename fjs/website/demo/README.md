@@ -72,6 +72,16 @@ The lead is plain prose, not a caption: no trailing colon, no bold.
   a fixed set is a `<select>`, as SHA-2's algorithm is. For two short
   alternatives, inline radio buttons keep both choices visible, as secp's
   graph target and geometric branches do.
+- **A field that holds code is highlighted: `textDemo` takes `highlight`**,
+  the function that draws its text as nodes, as the compiler demos pass
+  [`highlight`](./highlight/module.f.mjs). The textarea is laid over a
+  coloured copy of its text, with its own text transparent, so the reader types
+  into the colours and the caret, selection and undo stay the browser's. The
+  runtime keeps the copy where the textarea is scrolled, and makes each
+  keystroke's edit in the copy at once, in the one text node it falls in
+  ([`mirror`](./mirror/module.f.mjs)), so that the colours around it do not
+  blink while the render that colours the edit is still to come. A text the
+  tokenizer refuses stays plain.
 - **Every independent field or radio group has a unique `name`.** Radios
   within a group share that name and each option has a unique `id`. The runtime finds a field by its
   `name` to keep the reader's focus and the field's size across a render, a
