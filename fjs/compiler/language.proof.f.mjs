@@ -923,10 +923,16 @@ export const proof = {
                 'export default [cap() === x, cap() === cap(), fresh() === fresh(), k() === k(), h(1)() === h(1)(), s() === s];',
             ].join(' '))('output.json'), '[true,true,false,true,true,true]')
         },
-        // the default is evaluated only where it is taken
+        // the default is evaluated only where it is taken, and where it is
+        // taken, at the call: the parameter is an entry of the body,
+        // established whether or not the body goes on to read it, so
+        // `f(6)` fails below as JavaScript's does
         lazy: () => {
             assertEq(compileSource('const f = (a = null.x) => a; export default f(1);')('output.json'), '1')
             assertEq(moduleRefused('const f = (a = null.x) => a; export default f();'), 'input.f.js - error: module initialization failed')
+            assertEq(moduleRefused('const f = (a, b = null.x) => a === 5 ? b : a; export default f(6);'), 'input.f.js - error: module initialization failed')
+            assertEq(compileSource('const f = (a, b = null.x) => a === 5 ? b : a; export default f(6, 1);')('output.json'), '6')
+            assertEq(compileSource('export default (a, b = null.x) => a === 5 ? b : a;')('output.js'), 'export default ($0,...$1)=>{const $2=$1[0]===undefined?null.x:$1[0];return $0===5?$2:$0;};')
         },
         outputs: () => {
             const source = 'export default (a, b = a, ...r) => [a, b, r];'

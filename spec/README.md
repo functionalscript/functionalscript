@@ -2131,7 +2131,11 @@ refused.
   passed as `undefined` — and the argument where it is anything else,
   `null` included. The default is evaluated only where it is taken, at
   each call: `(a = {}) => a` answers a fresh object at each call, and
-  `(a = null.x) => a` throws only when called without `a`. It is resolved
+  `(a = null.x) => a` throws only when called without `a`. Where it is
+  taken, it is evaluated at the call, before the body, whether or not the
+  body goes on to read the parameter: `(a, b = null.x) => a === 5 ? b : a`
+  throws when called without `b`, `f(6)` included, as JavaScript's does,
+  the parameter being an entry of the body as a `const` is. It is resolved
   in the function's own scope, before the body: it reads the scopes
   around the function, through the function's frame as the body does,
   the function itself, and the parameters before it, `(a, b = a) => b`.

@@ -80,7 +80,11 @@ sentence that says so:
   at each call, while `(a = x) => a` answers the one `x` it captured. The
   default is written in the arm itself and never as a hidden `const` of
   the body, which would be evaluated whether or not the arm is chosen, as
-  a `const` reached only through a lazy position is.
+  a `const` reached only through a lazy position is. The parameter itself,
+  the conditional, *is* such an entry, and so is evaluated at the call
+  whether or not the body reads it — `(a, b = null.x) => a === 5 ? b : a`
+  fails as `f(6)`, as JavaScript's does, which evaluates every default at
+  the call, before the body.
 - **`length` stops before the first parameter with a default**, as
   JavaScript's does: `((a, b = 1, c) => 0).length` is `1` and
   `((a = 1, ...r) => 0).length` is `0`. A pattern parameter with a
