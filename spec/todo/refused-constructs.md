@@ -137,10 +137,10 @@ describes:
 | `decl.generator` | `function* g() {}` | open |
 | `decl.accessor` | `{ get a() { return 1 } }`, `{ set a(v) {} }` | open |
 | `decl.method` | `{ f() { return 1 } }` | open |
-| `decl.parameter-default` | `(a = 1) => a` | open ([parameters](./3120-parameters.md) mentions defaults only as a later possibility) |
+| `decl.parameter-default` | `(a = 1) => a` | planned ([default parameters](./3125-default-parameters.md)) |
 | `decl.pattern-array-rest` | `[a, ...r]` in a pattern or a parameter | planned ([destructuring](./2450-destructuring.md), the next task) |
 | `decl.pattern-object-rest` | `{ a, ...r }` in a pattern or a parameter | open ([destructuring](./2450-destructuring.md) files it as a follow-up) |
-| `decl.pattern-default` | `{ a = 1 }`, `[a = 1]` in a pattern | open ([destructuring](./2450-destructuring.md)) |
+| `decl.pattern-default` | `{ a = 1 }`, `[a = 1]` in a pattern | planned ([default parameters](./3125-default-parameters.md)) |
 | `decl.pattern-computed-key` | `{ [k]: a }`, `{ [Number(i)]: a }`, `{ [(3)]: a }` | open ([destructuring](./2450-destructuring.md)) |
 | `decl.pattern-elision` | `[, b]`, `[a, , b]` | planned ([destructuring](./2450-destructuring.md), the next task, with the array rest) |
 | `decl.parameter-limit` | 17 fixed parameters | design ([functions](../README.md#functions)) |
