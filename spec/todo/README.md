@@ -20,6 +20,9 @@ successful-result agreement, purity and indistinguishable execution failures.
 tracks the current and proposed P1 violations and their root-cause corrections.
 These rules apply at every stage, regardless of a feature's priority below.
 
+[Refused constructs](./refused-constructs.md) lists the valid JavaScript the
+compiler refuses, and why.
+
 [Statement-aware intrinsics](../../fjs/compiler/parser/todo/statement-aware-intrinsics.md)
 requires every instruction pattern to match already-recognized statements and
 expressions, never raw token sequences. JavaScript-compatible statement
