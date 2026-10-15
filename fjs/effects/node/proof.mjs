@@ -687,24 +687,31 @@ export const proof = {
         // A path, relative or absolute, loads the file it names, its URL built
         // by the host so that ` `, `#` and `%` are escaped. A `file:` URL loads
         // as written: its escapes are not escaped again, and a query and
-        // fragment do not stop it loading. Whether they reach
-        // `import.meta.url` is the host's: Node keeps them, Bun drops them,
-        // so only the URL without them is compared.
+        // fragment do not stop it loading. Every spelling must load the module
+        // the plain URL loads; the URL the host reports for it is the host's
+        // (macOS resolves `/var` to `/private/var`, Windows keeps a short
+        // name, Bun drops a query), so it is compared without query and
+        // fragment against the one the plain URL reports.
         spellings: () => withTemporary('fjs-import-spellings-', async root => {
             const path = join(root, 'dep #%.mjs')
             await writeFile(path, 'export const url = import.meta.url')
-            // The module's URL names the file's real path, so on macOS a
-            // temporary directory under `/var` loads from `/private/var`.
-            const href = pathToFileURL(await realpath(path)).href
-            const cases = [path, relative(process.cwd(), path), href, `${href}?q=%20#f%23`]
-            for (const name of cases) {
+            const href = pathToFileURL(path).href
+            /** @type {(name: string) => Promise<string>} */
+            const loaded = async name => {
+                /** @type {string} */
+                let url = ''
                 await hostCheck(import_(name), result => {
                     assert(result[0] === 'ok')
-                    const url = new URL(/** @type {string} */ (result[1].url))
-                    url.search = ''
-                    url.hash = ''
-                    assertEq(url.href, href)
+                    const u = new URL(/** @type {string} */ (result[1].url))
+                    u.search = ''
+                    u.hash = ''
+                    url = u.href
                 })
+                return url
+            }
+            const expected = await loaded(href)
+            for (const name of [path, relative(process.cwd(), path), `${href}?q=%20#f%23`]) {
+                assertEq(await loaded(name), expected, name)
             }
         }),
         // A relative name holding `:` is a path, not a URL with a scheme. No
