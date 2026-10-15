@@ -42,7 +42,8 @@ twenty thousand calls, `const f = (i, acc) => i === 0 ? acc : f(i - 1, acc + i);
 compiled to `.data.js` at `7de6ddd5`, took about a fifth to a third longer
 than at `2ca692ba`, about 0.6 s against 0.45 s. `identityAnalysis` takes its
 `shared` from a `sharedNodesOf` walk of its own, where the table's in-degree
-gives the same set (the `analysis` proof shows they agree).
+would give the same set: it did on the samples checked, and no proof says so
+yet.
 
 ### Proposal
 
@@ -59,6 +60,8 @@ Investigate, then improve:
 ### Tasks
 
 - [ ] Profile the programs above and say where the time goes.
+- [ ] Prove that the table's in-degree gives `identityAnalysis`'s `shared`,
+      if the improvement takes it from there.
 - [ ] Improve it, with a proof or a benchmark that pins the cost.
 
 ### Related

@@ -112,5 +112,12 @@ Two directions, to investigate:
   `parts`, the linker.
 - [`shared-linked-comma.md`](./shared-linked-comma.md) — the multi-export
   writer's fallback for a linked comma.
-- [`../../../edag/rust/todo/method-call-arguments.md`](../../../edag/rust/todo/method-call-arguments.md)
+- [`../../../edag/todo/operand-classification-owner.md`](../../../edag/todo/operand-classification-owner.md)
   — what is eager in a method call.
+- [`../../../edag/README.md`](../../../edag/README.md) — the `,` contract:
+  each operand before the result a true root, which no other operand of the
+  same `,` reaches. The redundant anchor breaks it; the lowering is what
+  keeps it.
+- [`../../../../spec/README.md`](../../../../spec/README.md) — "A module
+  whose only export is `default` is written in the same normalized form",
+  which the module texts above are not.
