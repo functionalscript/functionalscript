@@ -12,7 +12,6 @@ mod partial_eq;
 mod patterns;
 mod reads;
 mod search;
-mod sized_index;
 
 pub mod to_string;
 
