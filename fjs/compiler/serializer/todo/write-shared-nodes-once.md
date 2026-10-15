@@ -1,7 +1,7 @@
 ## Write a shared node once
 
 **Priority:** P2
-**Status:** open
+**Status:** wip
 
 ### Problem
 
