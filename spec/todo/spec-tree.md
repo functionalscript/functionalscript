@@ -99,7 +99,7 @@ which is refused as a read but accepted as a call) is an included page with a
    - `●` Primitives: `null`, booleans, `undefined`
    - `●` Numbers; `●` bigints
    - `●` Strings; `●` template literals
-   - `●` Arrays; `●` objects (repeated key, shorthand, computed key)
+   - `●` Arrays; `●` objects (repeated key, shorthand); `○` computed key
    - `○` Spread (array, call, object)
 4. **Modules**
    - `●` Module structure; a module is a function
