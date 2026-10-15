@@ -84,8 +84,9 @@ proof. `git/refstore/name` still imports `utf16`'s `codePointListToString` for
 - [x] Add `vecToCodePointList` to `fjs/text/utf8/module.f.mjs`; rewrite
       `fromVec` and `utf8ToString` through it.
 - [x] Decide whether `utf8ToString` moves next to `fromVec`; update importers
-      if so. It moved: `fjs/text/utf8/module.f.mjs` exports it as
-      `u8ListToString` after `u8ListMsb`, beside `fromVec`, and
+      if so. It moved under its existing name: `fjs/text/utf8/module.f.mjs`
+      exports `utf8ToString` beside `fromVec`, delegating to
+      `u8ListToString` after `u8ListMsb`, and
       `fjs/text/module.f.mjs` keeps only the encoders `utf8`/`tryUtf8`.
 - [x] Decide whether `vecToCodePointList` is removed, now that nothing calls
       it. Removed, with its proof.
