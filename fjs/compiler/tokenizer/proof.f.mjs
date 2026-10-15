@@ -5,11 +5,6 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { _tokensOf, demo } from './demo.f.mjs'
 import { examples } from '../examples/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
-import { _stringifyTree } from '../module.f.mjs'
-
-// DjsTokenWithMetadata carries bigint fields that JSON.stringify cannot
-// serialize — the compiler's proof dump can.
-const stringify = _stringifyTree
 
 export const proof = {
     templates: {
@@ -41,7 +36,10 @@ export const proof = {
             // `;` is a token of its own — the statement terminator DataJS
             // requires and the module grammar accepts — not an error
             const result = toArray(tokenize(stringToList(';'))(''))
-            assertEq(stringify(result), '[{"metadata":{"column":1,"line":1,"path":""},"newline":false,"token":{"kind":";"}},{"metadata":{"column":2,"line":1,"path":""},"newline":false,"token":{"kind":"eof"}}]')
+            assertStructurallySame(result, [
+                { metadata: { column: 1, line: 1, path: '' }, newline: false, token: { kind: ';' } },
+                { metadata: { column: 2, line: 1, path: '' }, newline: false, token: { kind: 'eof' } },
+            ])
         },
         () => {
             // the four tokens a function is written with are tokens of their
@@ -54,19 +52,30 @@ export const proof = {
         () => {
             // keywords other than the literals become plain ids
             const result = toArray(tokenize(stringToList('break'))(''))
-            assertEq(stringify(result), '[{"metadata":{"column":1,"line":1,"path":""},"newline":false,"token":{"kind":"id","value":"break"}},{"metadata":{"column":6,"line":1,"path":""},"newline":false,"token":{"kind":"eof"}}]')
+            assertStructurallySame(result, [
+                { metadata: { column: 1, line: 1, path: '' }, newline: false, token: { kind: 'id', value: 'break' } },
+                { metadata: { column: 6, line: 1, path: '' }, newline: false, token: { kind: 'eof' } },
+            ])
         },
         () => {
             // `NaN` and `Infinity` are literals, kept as keywords like `undefined`
             const result = toArray(tokenize(stringToList('NaN Infinity'))(''))
-            assertEq(stringify(result), '[{"metadata":{"column":1,"line":1,"path":""},"newline":false,"token":{"kind":"NaN"}},{"metadata":{"column":5,"line":1,"path":""},"newline":false,"token":{"kind":"Infinity"}},{"metadata":{"column":13,"line":1,"path":""},"newline":false,"token":{"kind":"eof"}}]')
+            assertStructurallySame(result, [
+                { metadata: { column: 1, line: 1, path: '' }, newline: false, token: { kind: 'NaN' } },
+                { metadata: { column: 5, line: 1, path: '' }, newline: false, token: { kind: 'Infinity' } },
+                { metadata: { column: 13, line: 1, path: '' }, newline: false, token: { kind: 'eof' } },
+            ])
         },
         () => {
             // `-` is a token of its own, and folds into nothing: `-Infinity`
             // is the prefix and the word, where it was one word, and the
             // position it reports is the `-`'s rather than what followed it
             const result = toArray(tokenize(stringToList('-Infinity'))(''))
-            assertEq(stringify(result), '[{"metadata":{"column":1,"line":1,"path":""},"newline":false,"token":{"kind":"-"}},{"metadata":{"column":2,"line":1,"path":""},"newline":false,"token":{"kind":"Infinity"}},{"metadata":{"column":10,"line":1,"path":""},"newline":false,"token":{"kind":"eof"}}]')
+            assertStructurallySame(result, [
+                { metadata: { column: 1, line: 1, path: '' }, newline: false, token: { kind: '-' } },
+                { metadata: { column: 2, line: 1, path: '' }, newline: false, token: { kind: 'Infinity' } },
+                { metadata: { column: 10, line: 1, path: '' }, newline: false, token: { kind: 'eof' } },
+            ])
         },
         () => {
             // `-NaN` is two tokens like any other prefix, where the fold made
@@ -78,25 +87,40 @@ export const proof = {
             // a number keeps its own text and the sign stands before it, so
             // `-10` is two tokens and the number is `10`
             const result = toArray(tokenize(stringToList('-10'))(''))
-            assertEq(stringify(result), '[{"metadata":{"column":1,"line":1,"path":""},"newline":false,"token":{"kind":"-"}},{"metadata":{"column":2,"line":1,"path":""},"newline":false,"token":{"kind":"number","value":"10"}},{"metadata":{"column":4,"line":1,"path":""},"newline":false,"token":{"kind":"eof"}}]')
+            assertStructurallySame(result, [
+                { metadata: { column: 1, line: 1, path: '' }, newline: false, token: { kind: '-' } },
+                { metadata: { column: 2, line: 1, path: '' }, newline: false, token: { kind: 'number', value: '10' } },
+                { metadata: { column: 4, line: 1, path: '' }, newline: false, token: { kind: 'eof' } },
+            ])
         },
         () => {
             // `-0` likewise: the sign is no longer part of the lexeme, and
             // what `-0` is worth the reader works out
             const result = toArray(tokenize(stringToList('-0'))(''))
-            assertEq(stringify(result), '[{"metadata":{"column":1,"line":1,"path":""},"newline":false,"token":{"kind":"-"}},{"metadata":{"column":2,"line":1,"path":""},"newline":false,"token":{"kind":"number","value":"0"}},{"metadata":{"column":3,"line":1,"path":""},"newline":false,"token":{"kind":"eof"}}]')
+            assertStructurallySame(result, [
+                { metadata: { column: 1, line: 1, path: '' }, newline: false, token: { kind: '-' } },
+                { metadata: { column: 2, line: 1, path: '' }, newline: false, token: { kind: 'number', value: '0' } },
+                { metadata: { column: 3, line: 1, path: '' }, newline: false, token: { kind: 'eof' } },
+            ])
         },
         () => {
             // and a bigint keeps its own value, unnegated
             const result = toArray(tokenize(stringToList('-1234567890n'))(''))
-            assertEq(stringify(result), '[{"metadata":{"column":1,"line":1,"path":""},"newline":false,"token":{"kind":"-"}},{"metadata":{"column":2,"line":1,"path":""},"newline":false,"token":{"kind":"bigint","value":1234567890n}},{"metadata":{"column":13,"line":1,"path":""},"newline":false,"token":{"kind":"eof"}}]')
+            assertStructurallySame(result, [
+                { metadata: { column: 1, line: 1, path: '' }, newline: false, token: { kind: '-' } },
+                { metadata: { column: 2, line: 1, path: '' }, newline: false, token: { kind: 'bigint', value: 1234567890n } },
+                { metadata: { column: 13, line: 1, path: '' }, newline: false, token: { kind: 'eof' } },
+            ])
         },
         () => {
             // `js/tokenizer` merges '--' into one decrement-operator token,
             // which this language has no rule for: one error, and no state
             // here for a second '-' to enter
             const result = toArray(tokenize(stringToList('--'))(''))
-            assertEq(stringify(result), '[{"metadata":{"column":1,"line":1,"path":""},"newline":false,"token":{"kind":"error","message":"invalid token"}},{"metadata":{"column":3,"line":1,"path":""},"newline":false,"token":{"kind":"eof"}}]')
+            assertStructurallySame(result, [
+                { metadata: { column: 1, line: 1, path: '' }, newline: false, token: { kind: 'error', message: 'invalid token' } },
+                { metadata: { column: 3, line: 1, path: '' }, newline: false, token: { kind: 'eof' } },
+            ])
         },
         () => {
             // so `---` is that error and then a prefix
@@ -106,7 +130,10 @@ export const proof = {
         () => {
             // a lone '-' is a token, where the fold made it an error at eof
             const result = toArray(tokenize(stringToList('-'))(''))
-            assertEq(stringify(result), '[{"metadata":{"column":1,"line":1,"path":""},"newline":false,"token":{"kind":"-"}},{"metadata":{"column":2,"line":1,"path":""},"newline":false,"token":{"kind":"eof"}}]')
+            assertStructurallySame(result, [
+                { metadata: { column: 1, line: 1, path: '' }, newline: false, token: { kind: '-' } },
+                { metadata: { column: 2, line: 1, path: '' }, newline: false, token: { kind: 'eof' } },
+            ])
         },
         () => {
             // and a '-' before anything else is a token too: `-{` is the
@@ -138,7 +165,9 @@ export const proof = {
         () => {
             // grammar-level tokenizer error position flows through the module wrapper unchanged
             const result = toArray(tokenize(stringToList('00'))(''))
-            assertEq(stringify(result), '[{"metadata":{"column":2,"line":1,"path":""},"newline":false,"token":{"kind":"error","message":"invalid number"}}]')
+            assertStructurallySame(result, [
+                { metadata: { column: 2, line: 1, path: '' }, newline: false, token: { kind: 'error', message: 'invalid number' } },
+            ])
         },
     ],
     // Trivia is not in the stream; whether a newline stood before a token
