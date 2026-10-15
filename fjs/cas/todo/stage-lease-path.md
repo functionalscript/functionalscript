@@ -1,7 +1,7 @@
 ## stage-lease-path. Fresh staging-path combinator for the lease-deadline rule
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
