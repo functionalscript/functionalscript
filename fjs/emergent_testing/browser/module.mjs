@@ -44,6 +44,7 @@ import { commonOperationMap } from '../../effects/common/module.mjs'
 import { ioError, toIoError } from '../../effects/module.f.mjs'
 import { concat, toArray } from '../../types/list/module.f.mjs'
 import { error, ok, unwrap } from '../../types/result/module.f.js'
+import { specifierKind } from '../../path/import/module.f.mjs'
 
 /**
  * The shared {@link failureOf}, run.
@@ -188,7 +189,8 @@ export const runBrowserProofs = _runBrowserProofsWith(map => map)
 /**
  * What a page hands `import()` for one of its sources.
  *
- * **Only a relative specifier is rebased.** A page names its sources relative
+ * **Only a relative or rooted specifier is rebased** — what
+ * {@link specifierKind} calls a path. A page names its sources relative
  * to itself (`./proof.f.mjs`, and `./fjs/…` from the root), and a bare
  * `import(source)` inside this module would resolve those against *this
  * module's* URL — two directories deep, every load 404.
@@ -209,9 +211,7 @@ export const runBrowserProofs = _runBrowserProofsWith(map => map)
  * @type {(base: string, source: string) => string}
  */
 const specifier = (base, source) =>
-    source.startsWith('./') || source.startsWith('../') || source.startsWith('/')
-        ? new URL(source, base).href
-        : source
+    specifierKind(source) === 'bare' ? source : new URL(source, base).href
 
 /** @type {(root: Element) => (Window & { fjsBrowserTestReport?: Promise<BrowserTestReport> }) | null} */
 const viewOf = root => root.ownerDocument.defaultView

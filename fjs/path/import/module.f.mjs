@@ -50,6 +50,25 @@ const importSegmentKind = segment => {
 const importFoldRejoin = _foldRejoin(importSegmentKind)(importSegment)
 
 /**
+ * Whether a specifier names a file path, and from where: `'relative'` for
+ * `./` and `../`, resolved against the importing file; `'rooted'` for a
+ * leading `/`, resolved against the root; `'bare'` for everything else — a
+ * package name, `node:fs`, `https:…` — which is not a path at all.
+ *
+ * This is the question every consumer asks before treating a specifier as a
+ * path, answered once; each consumer still decides what a kind means to it.
+ * It reads the spelling only, as a URL does: a leading `//` is `'rooted'`
+ * here and is refused by {@link decode}, so a rooted specifier that decodes
+ * starts with one slash or three and more, never exactly two.
+ *
+ * @type {(specifier: string) => 'relative' | 'rooted' | 'bare'}
+ */
+export const specifierKind = specifier =>
+    specifier.startsWith('./') || specifier.startsWith('../') ? 'relative'
+    : specifier.startsWith('/') ? 'rooted'
+    : 'bare'
+
+/**
  * Resolve an import's URL-path spelling against its importing file, or return
  * null for unsupported syntax or a surviving unsupported segment. URL dot
  * processing precedes decoding and filesystem validation, so `bad%/../dep`
