@@ -53,6 +53,6 @@ PR. A breaking notice is optional before 1.0.
 
 ### Related
 
-- [`fjs/types/btree/todo/66f-btree-remove-mirror-merge.md`](../types/btree/todo/66f-btree-remove-mirror-merge.md)
-  — reshapes `reduceValue0`/`reduceValue2`, the helpers two of the btree cases
-  reach into.
+- 66F-btree-remove-mirror-merge (retired; shipped as the side-parameterized
+  `reduceValue`/`initValue` in `btree/remove`) — the btree cases now reach into
+  these two helpers, one `default` arm each, instead of four mirror images.

@@ -424,7 +424,7 @@ const test2 = () => {
  */
 const sequential = n => n <= 1 ? ['1'] : set(sequential(n - 1))(n.toString())
 
-// Exercises the branch-merge-into-Branch5-sibling path in reduceValue0
+// Exercises the branch-merge-into-Branch5-sibling path in reduceValue(left)
 // (removing an underflowed left leaf merges into a 5-wide right branch).
 const test3 = () => {
     /** @type {TNode<string> | null} */
