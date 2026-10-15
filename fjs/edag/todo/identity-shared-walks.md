@@ -10,15 +10,18 @@ structurally equal identity-free nodes within each scope. The Rust printer
 in [`edag/rust`](../rust/module.f.mjs) works with source-node identity and
 uses its parameterized `visit` for counts and graph queries.
 
-**The writers' part is decided.** Which nodes a writer names is one answer
-for both writers, counted by source identity:
+**The writers' part is decided.** Which nodes are shared is one count for
+both writers, by source identity:
 [write-shared-nodes-once](../../compiler/serializer/todo/write-shared-nodes-once.md)
 moves `visit` and `sharedNodesOf` out of `edag/rust` to a module both
 import, and puts the FunctionalScript writer on them in place of the merged
 table. The owner's call: "we have to fix a bug in shared serializer code,
-that must be used by both `JS` and `Rust`". Whether more traversal machinery
-can be shared without complicating its consumers remains an optional
-investigation.
+that must be used by both `JS` and `Rust`". What a writer names stays its
+own: the Rust printer gives an unshared operation a `let` too —
+`a => (a + a) + (a + a)` binds each `a + a` — where the FunctionalScript
+writer names a shared node and writes an unshared one in place. Whether
+more traversal machinery can be shared without complicating its consumers
+remains an optional investigation.
 
 The Rust printer's private `operandsOf` walks source `Exp` operands and
 includes only function captures, while `analysis.operandsOf` walks analyzed
