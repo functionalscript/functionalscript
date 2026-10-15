@@ -79,6 +79,22 @@ below.
   earlier is what the
   [failure contract](../../../../spec/README.md#failure-is-one-outcome)
   allows, in so many words. The writer already does it for a shared call.
+- **One definition, the front end's too.** What the writer names, the front
+  end must read back as the same graph, and it decides which `const`s the
+  body's comma holds by what the body *reaches* through eager positions —
+  `anchors` in [`fjs/compiler/ast`](../../ast/module.f.mjs), an arm of `?:`
+  never among them. So `const a = [1]; if (m) { return a; } return a;` is
+  anchored today, `[',', [a, ['?:', m, a, a]]]`
+  ([`guards.graphs`](../../edag/proof.f.mjs)), though both arms evaluate
+  `a`; and a graph with no anchor, `['?:', c, t, ['*', t, 2]]`, written with
+  `t` named by the `?:` rule above, reads back with a comma it did not have,
+  so the round trip breaks. The proposal is one *always evaluates*, exported
+  where both ask it: `anchors` stops anchoring a `const` every arm of a `?:`
+  always evaluates — the comma there establishes nothing a successful run
+  does not, the failure contract again — and `hoists` names by the same
+  answer. The alternative, keeping `anchors` as it is, drops the `?:` rule
+  from the writer and leaves the built `tk+1 = c ? tk : tk * 2` chain to the
+  case left below.
 - **A lazy operand's block.** "Lazy cases are not shareable outside their
   own blocks" (the owner, same comment). The right operand of `&&`, `||`
   and `??` and an arm of `?:` is a block of its own, which the writer
@@ -128,7 +144,12 @@ and the same chain under a lazy arm, written today
 - [ ] *Always evaluates*, by its recursive definition: the condition of a
       `?:` the block always evaluates, and a node every arm of it always
       evaluates — not one an arm reaches only behind a lazy operand of its
-      own.
+      own — exported from one module and asked by both the front end's
+      `anchors` and the writer's `hoists`; `anchors` stops anchoring a
+      `const` every arm of a `?:` always evaluates, and the EDAG proofs that
+      pin such an anchor, `../../edag/proof.f.mjs`'s `guards.graphs` among
+      them, follow. Or, if the owner keeps `anchors` as it is, no `?:` rule
+      in the writer.
 - [ ] A lazy operand's block: a `const` of the block for a node shared
       within one lazy operand, whatever its kind; a mergeable node two lazy
       operands reach written in each, or refused, as the owner decides.
