@@ -15,6 +15,7 @@ import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
 import { errorExit, exitStep, log, writeFromStream } from '../../effects/node/module.f.mjs'
 import { forEachStep, step as ioStep } from '../../effects/module.f.mjs'
 import { casAddFile, fileCas } from '../module.f.mjs'
+import { exactArgs } from '../../cli/module.f.mjs'
 
 /** @type {DocumentedCommands<FileCasOperation | WriteFile | Write | All | MemOp | Read>} */
 export const commands = [
@@ -25,15 +26,12 @@ export const commands = [
         examples: ['fjs cas add ./README.md'],
         note: 'Store an existing file and print its hash; this example uses a repository checkout.',
         docs: 'fjs/cas/cli/module.f.mjs',
-        handler: ({ home, args: [path, ...rest] }) => {
-            if (path === undefined || rest.length !== 0) {
-                return errorExit("'cas add' expects one parameter")
-            }
+        handler: exactArgs('cas add', 1)(({ home, args: [path] }) => {
             const c = fileCas(sha256)(home)
             const added = casAddFile(c)(path)
             const logged = ioStep(added, hash => log(vecToCBase32(hash)))
             return exitStep(logged)
-        },
+        }),
     },
     {
         names: ['get'],
@@ -42,10 +40,7 @@ export const commands = [
         examples: ['hash=$(fjs cas add ./README.md)\nfjs cas get "$hash" ./restored-README.md'],
         note: 'Restore a stored hash to a file. This POSIX shell example requires a repository checkout and writes restored-README.md.',
         docs: 'fjs/cas/cli/module.f.mjs',
-        handler: ({ home, args: [hashCBase32, path, ...rest] }) => {
-            if (hashCBase32 === undefined || path === undefined || rest.length !== 0) {
-                return errorExit("'cas get' expects two parameters")
-            }
+        handler: exactArgs('cas get', 2)(({ home, args: [hashCBase32, path] }) => {
             const hash = cBase32ToVec(hashCBase32)
             if (hash === null) {
                 return errorExit(`invalid hash format: ${hashCBase32}`)
@@ -53,7 +48,7 @@ export const commands = [
             const c = fileCas(sha256)(home)
             const x = c.read(hash)
             return exitStep(writeFromStream(path, x))
-        },
+        }),
     },
     {
         names: ['list'],
