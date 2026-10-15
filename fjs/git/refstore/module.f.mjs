@@ -9,7 +9,7 @@
  * when a symbolic ref stops being followed, and which names a target may take.
  * The two such rules that need no filesystem are its private siblings: how a
  * name and a path spell each other is [`./name`](./name/module.f.mjs), and
- * which directory a name's file sits in is [`./scope`](./scope/module.f.mjs).
+ * which directory a name's file sits in is [`./scope`](./scope/module.f.js).
  *
  * Every rule below was measured against Git 2.43.0 rather than read off a
  * manual page.
@@ -208,7 +208,7 @@ import { concat, sameItems, toArray } from '../../types/list/module.f.mjs'
 import { tryPacked, tryRef } from '../ref/module.f.mjs'
 import { hasRefComponents, isWholeName } from '../refname/module.f.mjs'
 import { askable, head, headName, isUnderRefs, nameBytes, nameForMessage, nameKey } from './name/module.f.mjs'
-import { dirOf, sharedScope, worktreeScope } from './scope/module.f.mjs'
+import { dirOf, sharedScope, worktreeScope } from './scope/module.f.js'
 
 /**
  * The bytes of a file, or `null` where there is no loose *file* at that name.
@@ -912,7 +912,7 @@ const statted = (readRef, name, item, found) => step(
  * neither lists one twice. In a main worktree both walks read the same
  * directory, and the division is still exactly one walk per name. Its `descend`
  * is the same division asked of a *directory*, which is a prefix rather than a
- * name: see `holdsPerWorktreeOnly` in [`./scope`](./scope/module.f.mjs) for why
+ * name: see `holdsPerWorktreeOnly` in [`./scope`](./scope/module.f.js) for why
  * that is a second rule and not the same one.
  *
  * @type {(oidBytes: OidBytes, scope: _Scope) => (item: _Entry) => (state: Nullable<_Found>) => Effect<Stat | Readdir | ReadFile, _Walked, IoChannel>}
