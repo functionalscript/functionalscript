@@ -15,6 +15,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
 import { startDemo } from './demo-runtime.mjs'
+import { toDom } from '../media/html/module.mjs'
 
 /**
  * The DOM this runtime needs, and nothing else. A factory rather than
@@ -674,17 +675,32 @@ export const demo = {
         assert(d.root.textContent.includes('copy control has no window'))
     },
     /**
-     * **The build's first view is inert until the runtime takes it over**,
-     * whether the demo starts or fails to: a page left inert could not be
-     * typed into, nor its failure selected.
+     * **The build's first view is taken over as it is**, with what the reader
+     * typed into it while the runtime loaded: the field keeps its element and
+     * its text, and the demo hears the text after `start`, as if typed then.
+     * Rendering `init` again would have put the field back to its markup.
      */
-    liftsInert: async () => {
-        for (const path of [echo, moduleUrl('export const x = 1')]) {
-            const d = dom(path)
-            d.root.setAttribute('inert', '')
-            await startDemo(d.root)
-            assertEq(d.root.getAttribute('inert'), null)
-        }
+    takesOverThePrerenderedView: async () => {
+        const d = dom(echo)
+        d.root.replaceChildren(toDom(d.root.ownerDocument,
+            ['div', ['input', { name: 'text', value: '' }], ['pre', '']]))
+        const field = d.named('text')
+        field.type('typed early')
+        await startDemo(d.root)
+        assertEq(d.named('text').value, 'typed early')
+        await settle()
+        assertEq(d.named('text'), field)
+        assertEq(field.value, 'typed early')
+        assert(d.root.innerHTML.includes('<pre>typed early</pre>'), d.root.innerHTML)
+    },
+    // A field the reader left alone is not an event, and nor is a button.
+    takesOverWithoutEdits: async () => {
+        const d = dom(echo)
+        d.root.replaceChildren(toDom(d.root.ownerDocument,
+            ['div', ['input', { name: 'text', value: 'kept' }], ['button', { name: 'go' }, 'go'], ['pre', 'kept']]))
+        await startDemo(d.root)
+        await settle()
+        assert(d.root.innerHTML.includes('<pre></pre>'), d.root.innerHTML)
     },
     /**
      * **The first render is the demo's own `init`**, before any event, so a

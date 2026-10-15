@@ -488,10 +488,14 @@ and writes `view(init)` into its section, so the demo appears with the page.
 Before this, it appeared only once the runtime and the demo's whole module
 graph had loaded, one import after another: nine levels deep for the runtime,
 then as many as twenty-six for `fjs/compiler`'s demo. That was a visible lag
-on every demo page. The runtime's first render is the same view, and it
-patches the prerendered elements in place. Until then the section is `inert`.
-A keystroke typed into a field nothing listens to yet would be reset when the
-runtime takes the field over, so the field does not accept one. A demo the
+on every demo page. The view is readable, selectable and editable at once,
+and the runtime takes it over as it finds it rather than rendering it again:
+a render would put every field back to its markup, and lose what the reader
+typed while the modules loaded. What the reader changed is handed to the demo
+as input events after `start`, as if typed then. Marking the section `inert`
+until then was the other way to keep that input, and it hid the view from
+screen readers, selection and find-in-page for as long as it lasted, and for
+good without JavaScript. A demo the
 build cannot render (one that will not import, or whose `view` throws) is
 named on the build's console, and its page keeps an empty section for the
 runtime to fill. A page is written as a string, chunked as it is encoded,

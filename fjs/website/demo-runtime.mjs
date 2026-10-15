@@ -313,10 +313,8 @@ const echo = textarea => {
  * its undo history, so Ctrl+Z did nothing in a demo field, and any
  * composition in progress. A patch keeps every element whose place
  * in the view is unchanged.
- * The section is rebuilt only when it holds something other than a view —
- * nothing yet, or a reported failure. The first view the build wrote into the
- * page is patched like any other, so the elements a reader sees before the
- * runtime loads are the ones it takes over.
+ * The section is rebuilt only when it holds something other than the
+ * previous view — nothing yet, or a reported failure.
  *
  * What the reader did to the fields is captured before the patch and put back
  * after it, one kind of {@link memories} at a time: size, then focus, then
@@ -334,6 +332,32 @@ const render = (root, view) => {
     }
     for (const restore of restores) { restore() }
     for (const area of Array.from(root.querySelectorAll(`[${editorMarker}] > textarea`))) { follow(area) }
+}
+
+/**
+ * Whether the reader changed a field from what its markup says, which is
+ * what a reader can do to the build's first view before the runtime is there
+ * to hear it.
+ *
+ * The same reading of a form control a patch makes when it puts one back to
+ * its markup (`showDefault` in `media/html`): a radio button counts once it
+ * is the one checked, as the browser reports the input on it and not on the
+ * one it unchecked, and a file input is the reader's own business. Anything
+ * else under the section with a name, a button above all, holds no input.
+ *
+ * @type {(field: HTMLInputElement) => boolean}
+ */
+const edited = field => {
+    if (field.localName === 'textarea') { return field.value !== field.defaultValue }
+    if (field.localName === 'select') {
+        return Array.from(/** @type {HTMLSelectElement} */ (/** @type {unknown} */ (field)).options)
+            .some(option => option.selected !== option.defaultSelected)
+    }
+    if (field.localName !== 'input') { return false }
+    const type = (field.getAttribute('type') ?? '').toLowerCase()
+    if (type === 'radio') { return field.checked && !field.defaultChecked }
+    if (type === 'checkbox') { return field.checked !== field.defaultChecked }
+    return type !== 'file' && field.value !== field.defaultValue
 }
 
 /**
@@ -467,7 +491,15 @@ export const startDemo = async root => {
         const demo = /** @type {Demo<any, DemoEvent, never>} */ (module.demo)
         if (demo === undefined) { throw new Error(`${path} exports no demo`) }
         const step = stepper(root, demo)
-        render(root, demo.view(demo.init))
+        // **The build already rendered `view(init)` into the section**, and
+        // the reader may have typed into it while this module loaded. Rendering
+        // it again would put every field back to its markup and lose that, so
+        // the section is taken over as it is, and what the reader changed is
+        // heard below, as if typed now. An empty section is a page the build
+        // could not render the demo into.
+        const prerendered = root.firstElementChild !== null
+        const edits = prerendered ? fields(root).filter(edited) : []
+        if (!prerendered) { render(root, demo.view(demo.init)) }
         // A scroll does not bubble, so it is heard in the capture phase.
         root.addEventListener('scroll', e => {
             const target = /** @type {Element} */ (e.target)
@@ -557,11 +589,11 @@ export const startDemo = async root => {
         // can show anything has somewhere to ask without `init` becoming an
         // effect.
         step({ kind: 'start' })
+        for (const field of edits) {
+            echo(field)
+            step({ kind: 'input', name: field.name, value: field.value })
+        }
     } catch (cause) {
         fail(root, cause)
     }
-    // The build's first view was inert so that nothing typed into it before
-    // now is lost; the section is the runtime's from here, whether it holds
-    // the demo or the reason it failed.
-    root.removeAttribute('inert')
 }

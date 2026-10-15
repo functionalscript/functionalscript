@@ -347,11 +347,11 @@ export const proof = {
             assert(html.includes('<div data-demo="/a/demo.f.mjs"></div>'), html)
             assert(html.includes("import { startDemo } from '/fjs/website/demo-runtime.mjs'"), html)
         },
-        // The build's first view is in the root, inert until the runtime
-        // takes it over, so the demo shows before its modules have loaded.
+        // The build's first view is in the root, so the demo shows before its
+        // modules have loaded.
         holdsTheFirstView: () => {
             const html = concat(element(['body', ...demoSection({ path: '/a/demo.f.mjs', view: ['p', 'hi'] })]))
-            assert(html.includes('<div data-demo="/a/demo.f.mjs" inert=""><p>hi</p></div>'), html)
+            assert(html.includes('<div data-demo="/a/demo.f.mjs"><p>hi</p></div>'), html)
         },
     },
     directoryLayout: {

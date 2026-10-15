@@ -206,19 +206,16 @@ const summary = heading => (...rest) => ['summary', ['h2', heading], ...rest]
  * **The root already holds the demo's first view**, rendered by the build, so
  * the demo shows with the page rather than after the runtime and the demo's
  * whole module graph have loaded — a chain of imports twenty-six deep for
- * `fjs/compiler`'s. The runtime's first render patches that view in place.
- * Until then the root is `inert`: a keystroke typed into a field nothing
- * listens to yet would be lost when the runtime takes it over, so the field
- * does not take one. A demo the build could not render keeps an empty root,
- * which the runtime fills as before.
+ * `fjs/compiler`'s. It is readable, selectable and editable at once; the
+ * runtime takes it over as it finds it, with whatever the reader typed in the
+ * meantime. A demo the build could not render keeps an empty root, which the
+ * runtime fills as before.
  *
  * @type {(demo: PageDemo) => readonly Node[]}
  */
 export const demoSection = ({ path, view }) => [['details', { 'data-section': '', open: '' },
     summary('Demo')(),
-    view === null
-        ? ['div', { [demoMarker]: path }]
-        : ['div', { [demoMarker]: path, inert: '' }, view],
+    ['div', { [demoMarker]: path }, ...(view === null ? [] : [view])],
     ['script', { type: 'module' },
         `import { startDemo } from '/fjs/website/demo-runtime.mjs'
 

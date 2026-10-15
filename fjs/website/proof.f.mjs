@@ -857,7 +857,7 @@ export const proof = {
                 { a: { 'demo.f.mjs': file('export const demo = {}') } },
                 { 'a/demo.f.mjs': { init: 'hi', view: (/** @type {string} */ s) => ['p', s] } })
             const page = pageAt(root, ['a'])
-            assert(page.includes('<div data-demo="/a/demo.f.mjs" inert=""><p>hi</p></div>'), page)
+            assert(page.includes('<div data-demo="/a/demo.f.mjs"><p>hi</p></div>'), page)
         },
         /**
          * **A demo the build cannot render keeps its page**, with the empty
