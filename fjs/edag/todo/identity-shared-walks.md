@@ -8,9 +8,17 @@
 [`analysis`](../analysis/module.f.mjs) builds a table that merges
 structurally equal identity-free nodes within each scope. The Rust printer
 in [`edag/rust`](../rust/module.f.mjs) works with source-node identity and
-uses its parameterized `visit` for counts and graph queries. Whether some
-traversal machinery can be shared without complicating either consumer
-remains an optional investigation.
+uses its parameterized `visit` for counts and graph queries.
+
+**The writers' part is decided.** Which nodes a writer names is one answer
+for both writers, counted by source identity:
+[write-shared-nodes-once](../../compiler/serializer/todo/write-shared-nodes-once.md)
+moves `visit` and `sharedNodesOf` out of `edag/rust` to a module both
+import, and puts the FunctionalScript writer on them in place of the merged
+table. The owner's call: "we have to fix a bug in shared serializer code,
+that must be used by both `JS` and `Rust`". Whether more traversal machinery
+can be shared without complicating its consumers remains an optional
+investigation.
 
 The Rust printer's private `operandsOf` walks source `Exp` operands and
 includes only function captures, while `analysis.operandsOf` walks analyzed
@@ -41,10 +49,11 @@ binding even when reached once; this is not a repeated-edge count.
 
 ### Tasks
 
-- [ ] Identify whether a common traversal contract would simplify the
-      current consumers. Preserve source identity, repeated edges,
-      dependencies before dependents, scope boundaries, caller-supplied
-      bindings, and eager/lazy ownership. No shared API is chosen yet.
+- [ ] Identify whether the shared walk would simplify the other
+      consumers — `analysis`'s `Node` walk, the printer's other queries,
+      `fjs/nanvm/rust`'s `reaches`. Preserve source identity, repeated
+      edges, dependencies before dependents, scope boundaries,
+      caller-supplied bindings, and eager/lazy ownership.
 - [ ] If a simpler implementation emerges, prove those contracts against
       the existing Rust sharing and lazy-block cases, including distinct
       structural-twin parents of one constructor. Regenerate and verify
@@ -54,6 +63,8 @@ binding even when reached once; this is not a repeated-edge count.
 
 ### Related
 
+- [write-shared-nodes-once](../../compiler/serializer/todo/write-shared-nodes-once.md)
+  — the writers' shared sharing count, decided.
 - [analysis.md](./analysis.md) — the merged table's sharing contract.
 - [`../rust/proof.f.mjs`](../rust/proof.f.mjs) — source-identity counts,
   dependency order, function scopes and lazy-block ownership.

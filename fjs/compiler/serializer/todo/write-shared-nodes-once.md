@@ -80,13 +80,18 @@ sharing",
 - **Where the `const` goes** is unchanged: the block that holds the node's
   uses, as the writer already places a minting node's. A node shared within
   one lazy operand — the right operand of `&&`, `||` and `??`, an arm of
-  `?:` — takes a `const` of the block the writer opens there,
-  `$0?(()=>{const $1=[$0];return [$1,$1];})():0` ("lazy cases are not
+  `?:`, a key, argument or step an optional chain guards — takes a `const`
+  of the block the writer opens there,
+  `$0?(()=>{const $1=[$0];return [$1,$1];})():0` or
+  `$0?.((()=>{const $2=[$1];return [$2,$2];})())` ("lazy cases are not
   shareable outside their own blocks", the owner, same comment). A source
   `const` read only in lazy operands is anchored by the body's comma, so the
-  scope reaches it eagerly and names it, as today. A node two lazy operands
-  reach with no eager path stays as today, owner's choice: a mergeable one
-  written in each operand's block, a minting one refused.
+  scope reaches it eagerly and names it, as today:
+  `(f, x) => { const t = x + 1; return f?.(t, t); }` is
+  `($0,$1)=>{const $2=$1+1;return $0?.($2,$2);}`. A node two lazy operands
+  reach with no eager path — two arms of `?:`, two arguments of one `?.()` —
+  stays as today, owner's choice: a mergeable one written in each operand's
+  block, a minting one refused.
 - **Evaluation order.** Naming a shared node the scope reaches eagerly can
   change which failure comes first — `[(() => { throw 1 })(), y, y]` with
   `y` a shared `null.x` fails at `y` before the call — and that is no
@@ -102,14 +107,16 @@ The chain above is then linear:
 ### Tasks
 
 - [ ] Move the identity walk (`visit`, `sharedNodesOf`) out of
-      `fjs/edag/rust` to a module both writers import.
+      `fjs/edag/rust` to a module both writers import, and record in
+      [identity-shared-walks](../../../edag/todo/identity-shared-walks.md)
+      that the writers' part of it is done.
 - [ ] The FunctionalScript writer: shared nodes by identity, each a `const`
       of the block holding its uses, whatever its kind; equal nodes not
       merged into one; `hoistedKind` and the header's "What a `const` is
       for" say so.
 - [ ] Proofs: the two programs above written apart, the `[x, x, a + a]`
-      case, the chain linear, a node shared within one lazy operand, and the
-      expectations
+      case, the chain linear, a node shared within one lazy operand (a
+      guarded argument among them), and the expectations
       in the serializer's own proof, `../../language.proof.f.mjs` and
       `../../proof.f.mjs`'s `fjsRoundTrip` that pin in-place text.
 - [ ] `tsc`, `npm start test` under `fjs/compiler` and `fjs/edag`, scoped
@@ -123,3 +130,6 @@ The chain above is then linear:
   `sharedNodesOf`, sharing by identity.
 - [`../../../edag/analysis/module.f.mjs`](../../../edag/analysis/module.f.mjs)
   — `mergeable`, the merging the writer's table does.
+- [`../../../edag/todo/identity-shared-walks.md`](../../../edag/todo/identity-shared-walks.md)
+  — whether more than the sharing count can share the walk; the writers'
+  part is decided here.
