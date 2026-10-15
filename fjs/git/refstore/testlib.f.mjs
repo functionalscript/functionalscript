@@ -25,10 +25,9 @@
 import { assert } from '../../asserts/module.f.mjs'
 import { ioError } from '../../effects/module.f.mjs'
 import { virtualAt } from '../../effects/node/virtual/module.f.mjs'
-import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { error } from '../../types/result/module.f.js'
-import { toHex } from '../oid/module.f.mjs'
+import { hexText } from '../oid/module.f.mjs'
 import { latin1 } from '../testlib.f.mjs'
 import { tryResolve } from './module.f.mjs'
 
@@ -98,7 +97,7 @@ export const resolved = (root, name) => run(root, tryResolve(one(''), 20)(latin1
 export const hexOf = (root, name) => {
     const i = resolved(root, name)
     assert(i !== null, name)
-    return codePointListToString(toHex(i))
+    return hexText(i)
 }
 
 /**
