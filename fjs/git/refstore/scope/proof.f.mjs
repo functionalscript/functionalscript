@@ -9,7 +9,7 @@
  */
 
 import { assertEq } from '../../../asserts/module.f.mjs'
-import { dirOf, sharedScope, worktreeScope } from './module.f.mjs'
+import { dirOf, sharedScope, worktreeScope } from './module.f.js'
 
 /** @type {Dirs} */
 const dirs = { gitdir: 'wt', common: 'repo' }

@@ -78,7 +78,7 @@ read partially ([DESIGN.md §10](../../doc/DESIGN.md#10-refuse-what-you-cannot-h
   elision in a pattern is harmless JavaScript
   ([DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions));
 - a **default**, `{ a = 1 }` and `[a = 1]`, deferred with default
-  parameters ([named and rest parameters](./3120-parameters.md)), since
+  parameters ([default parameters](./3125-default-parameters.md)), since
   both lower to the same `undefined` test and are best designed once. The
   two differ on `length`, and the follow-up must keep them apart: a
   default on a parameter itself ends JavaScript's count, so

@@ -14,7 +14,7 @@ module that owns the question was the only one nobody could use:
 |[`fjs/text/ascii`](../../../text/ascii/module.f.mjs)|`isDigit`, `isLatinSmallLetter`, `isLatinCapitalLetter`, `isLatinLetter`, over its own ranges, and `isCanonicalDigits`, a decimal run without a leading zero — **the owner**|
 |[`fjs/git/config`](../../../git/config/module.f.mjs)|`isAlpha`, `isDigit`, over string comparisons|
 |[`fjs/git/alternates`](../../../git/alternates/module.f.mjs)|`isOctal` over string comparisons, and `parseInt(…, 8)` for the value, where `fjs/git/tree` reads octal with `text/ascii`'s `digitsValue(8n)`|
-|[`fjs/git/refstore/scope`](../../../git/refstore/scope/module.f.mjs)|`isPseudoref`, the capital letters as `'A'`..`'Z'`|
+|[`fjs/git/refstore/scope`](../../../git/refstore/scope/module.f.js)|`isPseudoref`, the capital letters as `'A'`..`'Z'`|
 |[`fjs/git/tree`](../../../git/tree/module.f.mjs)|`lower`, the capital letters as `0x41`..`0x5A`|
 |[`fjs/rtti/ts`](../../../rtti/ts/module.f.mjs)|`isIdStart` and `isIdPart`, JavaScript's identifier rule over string comparisons, which `isTypeName` reads|
 |[`fjs/web`](../../../web/module.f.mjs)|`isDigits`, the digit range again|
