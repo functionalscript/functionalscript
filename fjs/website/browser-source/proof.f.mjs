@@ -158,5 +158,7 @@ export const proof = {
         assert(local('../x.mjs'))
         assert(!local('node:fs'))
         assert(!local('functionalscript/x.mjs'))
+        // Rooted is a path, but not one the scan can map to a file.
+        assert(!local('/dep.mjs'))
     },
 }
