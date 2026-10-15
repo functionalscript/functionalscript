@@ -4,13 +4,12 @@
  */
 
 import { length, concat, countdown, cycle, drop, dropWhile, entries, every, filter, find, flat, flatMap, map, next, reduce, reverse, scan, some, someBy, none, includes, take, takeWhile, toArray, zip, first, filterMap, isEmpty, sameItems, tryFold, intersperse, mergeAdjacent } from './module.f.mjs'
-import { stringify } from '../../media/json/module.f.mjs'
-import { sort } from '../object/module.f.mjs'
+import { stringifySorted } from '../../media/json/module.f.mjs'
 import { addition, reduceToScan } from '../function/operator/module.f.js'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 
 /** @type {(sequence: List<Unknown>) => string} */
-const str = sequence => stringify(sort)(toArray(sequence))
+const str = sequence => stringifySorted(toArray(sequence))
 
 const stringifyTest = () => {
     const s = str([1, 2, 3])

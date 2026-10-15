@@ -332,7 +332,7 @@ export const proof = {
                 `{"dialect":"${dialect}","generation":0,"lock":{"10":"${h1}","2":"${h2}"},"parents":[],"snapshot":"${h2}","subject":"${h1}"}`,
             )
         },
-        // The one `stringify(sort)` rule already reaches every depth, so a
+        // The one `stringifySorted` rule already reaches every depth, so a
         // nested lock map needs no serialization special case: its keys sort
         // as strings like every other object's ("10" before "2").
         sortsNestedLockKeys: () => {

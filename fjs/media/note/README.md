@@ -157,7 +157,7 @@ established.
 
 Identical to the sibling dialects': sort every object's property names
 lexicographically, recursively, comparing names as strings. All three dialects
-encode through the same `stringify(sort)`, so blobs differing only in
+encode through the same `stringifySorted`, so blobs differing only in
 whitespace or property order converge to one CAS address.
 
 ## Media type and dialect tag

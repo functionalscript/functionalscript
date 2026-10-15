@@ -15,11 +15,12 @@ import { _census, _graphOf, _load, _press, demo, presets } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
 import { unwrap } from '../result/module.f.js'
-import { jsonStr, set, squares } from './testlib.f.mjs'
+import { stringifySorted } from '../../media/json/module.f.mjs'
+import { set, squares } from './testlib.f.mjs'
 import { max } from '../number/max/module.f.js'
 
 /** @type {(sequence: List<Unknown>) => string} */
-const stringify = sequence => jsonStr(toArray(sequence))
+const stringify = sequence => stringifySorted(toArray(sequence))
 
 const valueTest1 =() => {
     /** @type {TNode<string>} */

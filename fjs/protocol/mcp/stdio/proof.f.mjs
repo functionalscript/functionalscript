@@ -10,17 +10,14 @@ import { assert, assertEq } from '../../../asserts/module.f.mjs'
 import { pure } from '../../../effects/module.f.mjs'
 import { pureOk } from '../../../effects/module.f.mjs'
 import { emptyState, virtual } from '../../../effects/node/virtual/module.f.mjs'
-import { stringify } from '../../../media/json/module.f.mjs'
+import { stringifySorted } from '../../../media/json/module.f.mjs'
 import { utf8 } from '../../../text/module.f.mjs'
 import { fromVec } from '../../../types/uint8array/module.f.mjs'
 import { maxLengthBytes } from '../../../types/bit_vec/module.f.mjs'
-import { sort } from '../../../types/object/module.f.mjs'
 import { internalError, jsonrpc, parseError } from '../../json_rpc/module.f.mjs'
 import { stdioTransport } from './module.f.mjs'
 import { run as mockRun } from '../../../effects/mock/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.js'
-
-const stringifyJson = stringify(sort)
 
 // Extracts the request `id` (a request has one; a notification does not).
 /** @type {(value: Unknown) => Id | undefined} */
@@ -54,15 +51,15 @@ const run = runStep(echoStep)
 
 /** @type {(id: Id) => string} */
 const okResponse = id =>
-    stringifyJson({ jsonrpc, result: { ok: true }, id }) + '\n'
+    stringifySorted({ jsonrpc, result: { ok: true }, id }) + '\n'
 
 /** @type {string} */
 const parseErrorLine =
-    stringifyJson({ jsonrpc, error: parseError, id: null }) + '\n'
+    stringifySorted({ jsonrpc, error: parseError, id: null }) + '\n'
 
 /** @type {(id: Id) => string} */
 const internalErrorLine = id =>
-    stringifyJson({ jsonrpc, error: internalError, id }) + '\n'
+    stringifySorted({ jsonrpc, error: internalError, id }) + '\n'
 
 /** @type {(id: number) => string} */
 const ping = id => `{"jsonrpc":"2.0","method":"ping","id":${id}}`
