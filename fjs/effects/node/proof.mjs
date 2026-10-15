@@ -684,6 +684,39 @@ export const proof = {
     // operation answers an `IoError` with a string message rather than
     // rejecting.
     import: {
+        // A path, relative or absolute, loads the file it names, its URL built
+        // by the host so that ` `, `#` and `%` are escaped. A `file:` URL loads
+        // as written: its escapes are not escaped again, and its query and
+        // fragment reach the module.
+        spellings: () => withTemporary('fjs-import-spellings-', async root => {
+            const path = join(root, 'dep #%.mjs')
+            await writeFile(path, 'export const url = import.meta.url')
+            const href = pathToFileURL(path).href
+            /** @type {readonly (readonly [string, string])[]} */
+            const cases = [
+                [path, href],
+                [relative(process.cwd(), path), href],
+                [href, href],
+                [`${href}?q=%20#f%23`, `${href}?q=%20#f%23`],
+            ]
+            for (const [name, url] of cases) {
+                await hostCheck(import_(name), result => {
+                    assert(result[0] === 'ok')
+                    assertEq(result[1].url, url)
+                })
+            }
+        }),
+        // A relative name holding `:` is a path, not a URL with a scheme. No
+        // Windows file name holds `:`.
+        colon: () => withTemporary('fjs-import-colon-', async root => {
+            if (process.platform === 'win32') { return }
+            const path = join(root, 'a:b.mjs')
+            await writeFile(path, 'export default 42')
+            await hostCheck(import_(relative(process.cwd(), path)), result => {
+                assert(result[0] === 'ok')
+                assertEq(result[1].default, 42)
+            })
+        }),
         thrown: () => withTemporary('fjs-import-thrown-', async root => {
             /** @type {readonly (readonly [string, string, string | undefined])[]} */
             const cases = [
