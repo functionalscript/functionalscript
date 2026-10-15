@@ -51,4 +51,4 @@ The compiler demo offers the programs `captures` in [`module.f.js`](./module.f.j
 ## Reference
 
 - ECMA-262: [Function objects](https://tc39.es/ecma262/#sec-function-objects)
-- MDN: <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Closures>
+- MDN: <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Closures>

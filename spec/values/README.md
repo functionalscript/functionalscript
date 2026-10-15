@@ -55,4 +55,4 @@ The compiler demo offers the programs `index` in [`module.f.js`](./module.f.js),
 ## Reference
 
 - ECMA-262: [ECMAScript language types](https://tc39.es/ecma262/#sec-ecmascript-language-types)
-- MDN: <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Data_structures>
+- MDN: <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Data_structures>

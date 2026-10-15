@@ -41,4 +41,4 @@ No programs yet: this page's accepted and refused examples are a follow-up.
 ## Reference
 
 - ECMA-262: [Function calls](https://tc39.es/ecma262/#sec-function-calls)
-- MDN: <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Function_calls>
+- MDN: <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions>
