@@ -9,7 +9,7 @@ import { commands } from '../../module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
 import { element } from '../../media/html/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'
-import { utf8ToString } from '../../text/module.f.mjs'
+import { utf8ToString } from '../../text/utf8/module.f.mjs'
 import { anchor, catalogue, cliPage, commandSection } from './module.f.mjs'
 
 const reference = { usage: 'fjs example', examples: ['fjs example'], note: 'Example note', docs: 'fjs/example/README.md' }

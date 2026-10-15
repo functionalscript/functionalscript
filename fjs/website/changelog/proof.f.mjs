@@ -11,7 +11,7 @@ import { runPure } from '../../effects/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
 import { tryParse } from '../../media/markdown/module.f.mjs'
 import { demo } from './demo.f.mjs'
-import { utf8ToString } from '../../text/module.f.mjs'
+import { utf8ToString } from '../../text/utf8/module.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { _group, _linked, _reference, descending, isVersion, entryNode, indexPage, linked, releaseHref, releasePage, releases, spanNode } from './module.f.mjs'
 

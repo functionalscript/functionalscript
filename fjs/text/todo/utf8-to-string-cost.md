@@ -5,7 +5,7 @@
 
 ### Problem
 
-[`../module.f.mjs`](../module.f.mjs)'s `utf8ToString` is the slow half of
+[`../utf8/module.f.mjs`](../utf8/module.f.mjs)'s `utf8ToString` is the slow half of
 reading text through the effect system, by more than an order of magnitude over
 the read itself. Measured in
 [#1827](https://github.com/functionalscript/functionalscript/pull/1827), at its
@@ -30,7 +30,7 @@ would put back the concurrency the proof runners
 
 ### Where it goes
 
-`utf8ToString` is `codePointListToString(toCodePointList(u8ListMsb(msbV)))`:
+`utf8ToString` is `codePointListToString(toCodePointList(u8ListMsb(v)))`:
 a bit vector becomes a lazy byte list, the bytes become a code-point list
 through a state machine one byte at a time, and the code points become a string.
 Every byte of a 30 KB module travels that path as an individual `List` cell and
