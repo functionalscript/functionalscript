@@ -684,6 +684,49 @@ export const proof = {
     // operation answers an `IoError` with a string message rather than
     // rejecting.
     import: {
+        // A path, relative or absolute, loads the file it names, its URL built
+        // by the host so that ` `, `#` and `%` are escaped. A `file:` URL loads
+        // as written: its escapes are not escaped again, and its query and
+        // fragment reach the module. Each spelling must load exactly what the
+        // host's own `import()` loads for the URL it means; the URL that
+        // module reports is the host's to spell (macOS resolves `/var` to
+        // `/private/var`, Windows keeps a short name, Bun drops a query), so
+        // the expectation comes from the host, not from the path.
+        spellings: () => withTemporary('fjs-import-spellings-', async root => {
+            const path = join(root, 'dep #%.mjs')
+            await writeFile(path, 'export const url = import.meta.url')
+            const href = pathToFileURL(path).href
+            const query = `${href}?q=%20#f%23`
+            /** @type {readonly (readonly [string, string])[]} */
+            const cases = [
+                [path, href],
+                [relative(process.cwd(), path), href],
+                [href, href],
+                [query, query],
+            ]
+            for (const [name, url] of cases) {
+                const { url: expected } = await import(url)
+                await hostCheck(import_(name), result => {
+                    assert(result[0] === 'ok')
+                    assertEq(result[1].url, expected, name)
+                })
+            }
+        }),
+        // A relative name whose first segment holds `:` is a path, not a URL
+        // with a scheme (`URL.parse` reads `a:` as one): its file is looked
+        // for under the working directory, and the refusal names that path.
+        // No file is written there; the name is one nothing holds. No Windows
+        // file name holds `:`.
+        colon: async () => {
+            if (process.platform === 'win32') { return }
+            const name = 'a:fjs-import-colon-missing.mjs'
+            await hostCheck(import_(name), result => {
+                assert(result[0] === 'error')
+                assert(result[1][0] === 'ioError')
+                const { message } = result[1][1]
+                assert(message.includes(join(process.cwd(), name)), message)
+            })
+        },
         thrown: () => withTemporary('fjs-import-thrown-', async root => {
             /** @type {readonly (readonly [string, string, string | undefined])[]} */
             const cases = [
