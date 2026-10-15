@@ -12,23 +12,24 @@
 
 - **The run path.** `runModule` is a one-line wrapper over `runEntries`. Its
   per-leaf `one` announces the leaf, runs it through `test` (the sandbox),
-  and — on success without `throws` — reads the returned value with
-  `collectTests([...testPath, null], false, …)`, guarded by `catch_` because the
-  read runs user code. It then reports the leaf and *answers* the children:
+  and — on success — reads the returned value with `returnedTests`, guarded by
+  `catch_` because the read runs user code. It then reports the leaf and *answers* the children:
   `walkEntries` is `walkStep(pureOk(entries), state, one)`, which puts them in
   front of the siblings that remain. There is no recursion — one flat loop,
   sequential, threading `RunState`.
 - **The registration path.** `registerModule`'s `registerOne` hands each leaf to
   the external framework through `test(ctx, name, throws, body)`. Inside the
   body it awaits `fn()`, reads the returned value with the same
-  `collectTests([...path, null], false, …)` (unguarded), and *recurses* into
+  `returnedTests` (unguarded), and *recurses* into
   `registerOne(t, e)` for each child under the child context `t`, fanned out
   with `allOk(...)`.
 
-What the two still share is the rule for a returned value: it is read only after
-a leaf succeeds without `throws`, walked the same way as the static export tree,
-with `throws` reset to `false` and a `null` marker appended to the path. Each
-path spells that rule itself. What they no longer share is the shape around it:
+What the two share is the rule for a returned value: it is read only after a
+leaf succeeds without `throws`, walked the same way as the static export tree,
+with `throws` reset to `false` and a `null` marker appended to the path. That
+rule now has one owner, the module-private `returnedTests(entry, value)`, which
+both paths call; each caller owes it only that the leaf's call succeeded. What
+they do not share is the shape around it:
 a flat `walkStep` loop that answers children as items, against a recursion
 nested inside the framework's callback.
 
@@ -120,9 +121,9 @@ shares the semantics rather than the obsolete Playwright registration path.
   sketch. Today all three are entangled inside two near-identical functions.
 - **Documents the contract.** The "function-return sub-tree is walked the
   same way as the static export tree, with `throws` reset to `false` and a
-  `null` marker appended to the path" rule is currently a comment in
-  `runEntries`'s `one`. Lifting it into a shared `walkTests` makes
-  the rule the API, not a convention to be reproduced.
+  `null` marker appended to the path" rule already has one owner,
+  `returnedTests`. A shared `walkTests` would do the same for the recursion
+  shape around it.
 - **Keeps browser semantics aligned.** The browser application can validate itself against
   the same tree-walking contract without making Playwright a proof-registration framework.
 
@@ -148,6 +149,9 @@ shares the semantics rather than the obsolete Playwright registration path.
 
 ### Tasks
 
+- [x] Give the return-value rule (read only after success without `throws`,
+      `null` appended to the path, `throws` reset) one owner both paths call:
+      `returnedTests` in `module.f.mjs`.
 - [ ] Spike a `walkTests` shape against `runEntries` and the surviving
       process-adapter `registerModule`, with the sibling combination as a
       parameter, per the note under the sketch. The
