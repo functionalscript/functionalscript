@@ -11,7 +11,7 @@ export const proof = {
         const shown = htmlToString(demo.view('export default 1;'))
         assert(shown.includes('<p>Shows the source.</p>'), shown)
         assert(shown.includes('<label for="stage">Source </label>'), shown)
-        assert(shown.includes('<textarea id="stage" name="stage" rows="8">export default 1;</textarea>'), shown)
+        assert(shown.includes('<textarea id="stage" name="stage" rows="8" spellcheck="false" autocomplete="off" autocapitalize="off" autocorrect="off">export default 1;</textarea>'), shown)
         assertEq(shown.split('<option value=').length - 1, examples.length)
         assert(shown.includes('<span data-token="keyword">export</span>'), shown)
         assert(shown.endsWith('<p>seen export default 1;</p></div>'), shown)
