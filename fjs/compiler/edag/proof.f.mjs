@@ -583,6 +583,10 @@ export const proof = {
         const alias = compile('const c = [1]; const d = c; export default (...a) => [d, c];').edag
         expectEdag(alias, ['=>', 0, [['[]', [1]]], ['[]', [['frame', 0], ['frame', 0]]]])
         assert(alias instanceof Array && alias[0] === '=>' && alias[3] instanceof Array && alias[3][0] === '[]' && alias[3][1][0] === alias[3][1][1], alias)
+        // and so are a parameter, or the function itself, and a `const`
+        // alias of it: two reads of one binding, one value
+        expectEdag(compile('export default (a) => { const b = a; return () => [a, b]; };').edag, ['=>', 1, [], ['=>', 0, [['arg', 0]], ['[]', [['frame', 0], ['frame', 0]]]]])
+        expectEdag(compile('const f = (n) => { const g = f; return () => [f, g]; }; export default f;').edag, ['=>', 1, [], ['=>', 0, [['self']], ['[]', [['frame', 0], ['frame', 0]]]]])
         // where one read spelled twice is two nodes, so two slots: sharing
         // is node identity, as the writers and the executors see it
         const twins = compile('const o = [1]; const x = o[0]; const y = o[0]; export default (...a) => [x, y];').edag
@@ -1138,6 +1142,19 @@ export const proof = {
             const [bd] = b[1]
             const [cd] = c[1]
             assert(bd instanceof Array && bd[0] === ':' && cd instanceof Array && cd[0] === ':' && bd[2] === cd[2], edag)
+        },
+        // an import a module anchors, unread, is no anchor where another
+        // import reaches its node eagerly: the diamond joins there, and the
+        // link establishes it once, through the import that reads it
+        anchoredDiamond: () => {
+            const root = {
+                'a.f.js': file('export default [1].length;'),
+                'b.f.js': file('import a from "./a.f.js"; export default [a];'),
+                'input.f.js': file('import a from "./a.f.js"; import b from "./b.f.js"; export default b;'),
+            }
+            const edag = program(root)('input.f.js')
+            expectEdag(edag, ['[]', [['.', ['[]', [1]], 'length']]])
+            assertEq(unwrap(tryModuleStringify(unwrap(linked(root)('input.f.js')))), 'export default [[1].length];')
         },
         // the path is resolved against the importer's, so a module in a
         // directory imports its sibling and its parent's file by name

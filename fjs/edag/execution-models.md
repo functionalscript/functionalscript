@@ -219,7 +219,9 @@ requirements say what a transformation may change.
    one ([`todo/analysis.md`](./todo/analysis.md)); the writer does not, so
    that a round trip keeps the graph's sharing too: one node read twice
    and two equal nodes stay apart, by node identity
-   ([`sharing`](./sharing/module.f.mjs)).
+   ([`sharing`](./sharing/module.f.mjs)), but for a pure node two lazy
+   operands reach with no eager path, a loop's condition and block among
+   them, which no one block holds and which is written in each.
 
 2. **A CAVM-optimized EDAG need not be expressible in `.f.js`.** A CAVM may
    reduce many calls of one content to a few in the EDAG. `.f.js` shares a

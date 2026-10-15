@@ -8,7 +8,7 @@
 
 import { assertEq, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { analysis, identityAnalysis } from '../analysis/module.f.mjs'
-import { keepsRecursion, loopOf } from './module.f.mjs'
+import { keepsRecursion, loopOf, reaches } from './module.f.mjs'
 
 /** The parts of a function at the root of its own table, or `null`. @type {(e: FunctionExp) => Loop | null} */
 const parts = e => {
@@ -93,6 +93,22 @@ export const proof = {
             loop(true, call(['=>', 0, [['self']], 1])),
         ]
         for (const e of cases) { assertEq(parts(e), null, JSON.stringify(e)) }
+    },
+    /**
+     * Whether an operand reaches an entry among those given, in its own
+     * scope: through any operand, a function's slots and not its body,
+     * each entry walked once however many paths lead to it.
+     */
+    reaches: () => {
+        /** @type {Exp} */
+        const c = ['[]', []]
+        // entries in walk order: 0 `c`, 1 `[c, c]`, 2 `[1]` and 3 the body
+        // `[[1]]`, 4 the function, 5 the root
+        const a = assertOk(analysis(['[]', [['[]', [c, c]], ['=>', 0, [c], ['[]', [['[]', [1]]]]], 2]]))
+        assertEq(reaches(a, [0])(['#', 1]), true)
+        assertEq(reaches(a, [0])(['#', 4]), true)
+        assertEq(reaches(a, [2])(['#', 4]), false)
+        assertEq(reaches(a, [0])(2), false)
     },
     /**
      * The shapes every writer keeps the recursion for, though they match:

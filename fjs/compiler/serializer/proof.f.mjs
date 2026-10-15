@@ -44,10 +44,13 @@ const path = '/proof.f.js'
  * back to the same table, and the graph read back is written as the same
  * text again: the table, which merges equal nodes, says the program is
  * the one written, and the text, which names each shared node and writes
- * every other in place, says it shares what it shared — a node read back
- * as two, or two as one, would be written another way. A module of the
- * writer's own making imports nothing, so `unresolved` needs no resolution
- * to hand back its graph.
+ * every other in place, says the graph read back shares what the text
+ * does. That is what the source shared, but for the one node the writer
+ * writes in each of two blocks — one two lazy operands reach with no
+ * eager path, a loop's condition and block among them — which reads back
+ * as two equal nodes; only the pinned text records that split. A module
+ * of the writer's own making imports nothing, so `unresolved` needs no
+ * resolution to hand back its graph.
  *
  * @type {(e: Exp) => string}
  */
@@ -1212,8 +1215,16 @@ export const proof = {
             'export default ()=>{const $0=($1)=>{const $2=[1];return $2[0]?$0($2[1]):$1;};return $0(0);};')
         writes(['=>', 0, [], ['()', loop([], ['.', shared, 0], call(['.', shared, 1])), [0]]],
             'export default ()=>{const $0=($1)=>{const $2=[$1];return $2[0]?$0($2[1]):$1;};return $0(0);};')
-        // the one shape refused rather than written as recursion: captures
-        // read out of order
+        // a block reading the captures in another order than the frame
+        // holds them opens by naming the ones the condition does not read,
+        // in the frame's order, as a body would
+        writes(['=>', 1, [], ['()', loop([['arg', 0], ['[]', []]], true, call(['[]', [['frame', 1], ['frame', 0]]])), [0]]],
+            'export default ($0)=>{const $1=[];let $2=0;while(true){const $3=$0;const $4=$1;$2=[$4,$3];}return $2;};')
+        writes(['=>', 1, [], ['()', loop([['arg', 0], ['[]', []], ['{}', []]], ['frame', 0], call(['[]', [['frame', 2], ['frame', 1]]])), [0]]],
+            'export default ($0)=>{const $1=[];const $2={};let $3=0;while($0){const $4=$1;const $5=$2;$3=[$5,$4];}return $3;};')
+        // the one shape refused rather than written as recursion: a
+        // condition reading the captures out of order, which no block can
+        // name before
         refuses(['=>', 1, [], ['()', loop([['arg', 0], ['[]', []]], ['frame', 1], call(['frame', 0])), [0]]], 'a loop reading its captures out of order')
         // code-only text spells a loop the same way inside a body, and a
         // loop function on its own as the loop `function_text` spells

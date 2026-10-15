@@ -16,7 +16,8 @@
  * names beyond the shared nodes is its own: the Rust printer binds an
  * unshared operation too, where the FunctionalScript writer writes it in
  * place, and the FunctionalScript writer reads a shared parameter, rest
- * array or frame slot by its name.
+ * array or frame slot by its name, and writes a pure node two lazy operands
+ * reach with no eager path in each.
  *
  * Whether more of the two writers' walks can share this one is
  * [`../todo/identity-shared-walks.md`](../todo/identity-shared-walks.md).
@@ -197,6 +198,32 @@ export const eagerOperandsOf = node => {
         : id === '?.' || id === '?.()' ? [node[1]]
         : operandsOf(node)
 }
+
+/**
+ * `seen` with every node `root` establishes unconditionally folded in: the
+ * nodes reached without passing through a lazy position — every operand
+ * after the first of a {@link lazy} operation, and a chain's lazy
+ * positions, {@link eagerOperandsOf}. A node is walked once, by identity,
+ * as {@link visit} walks it.
+ *
+ * @type {(seen: readonly Exp[], root: unknown) => readonly Exp[]}
+ */
+export const reach = (seen, root) => {
+    if (!(root instanceof Array)) { return seen }
+    const self = /** @type {Exp} */ (/** @type {unknown} */ (root))
+    if (seen.includes(self)) { return seen }
+    return eagerOperandsOf(root).reduce(reach, [...seen, self])
+}
+
+/**
+ * The nodes an EDAG establishes unconditionally — reached from `root`
+ * through eager positions alone — in walk order, `root` first: what is
+ * established whatever any operator decides, and so what an anchor of the
+ * same scope would establish again.
+ *
+ * @type {(root: Exp) => readonly Exp[]}
+ */
+export const eagerNodesOf = root => reach([], root)
 
 /**
  * The distinct nodes an EDAG reaches from more than one place, in dependency

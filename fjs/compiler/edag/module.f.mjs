@@ -5,7 +5,7 @@
  *
  * @module
  *
- * @import { Exp, Index, Op12, Op2, Spread, StepOver } from '../../edag/types.ts'
+ * @import { Exp, ExpOp, Index, Op12, Op2, Spread, StepOver } from '../../edag/types.ts'
  * @import { AstAccess, AstBinary, AstInstanceOf, AstKey, AstBody, AstCall, AstConditional, AstConst, AstEntry, AstFunction, AstGuardedCall, AstImport, AstItem, AstModule, AstSpread, AstStep, AstThrow, AstUnary, UnaryTag } from '../ast/types.ts'
  * @import { _Load } from '../source/types.ts'
  * @import { ParseError } from '../parser/types.ts'
@@ -19,6 +19,7 @@
 
 import { anchors, isBinary, isInlinedCall, isLazy, isSpread, isUnary, readCaptures } from '../ast/module.f.mjs'
 import { fromValue, isStatic } from '../../edag/module.f.mjs'
+import { eagerNodesOf } from '../../edag/sharing/module.f.mjs'
 import { _rootSource, _parseJson, _walk } from '../source/module.f.mjs'
 import { mapStep, step } from '../../effects/module.f.mjs'
 import { assertNotNullish, todo } from '../../asserts/module.f.mjs'
@@ -62,9 +63,21 @@ const floated = xs => xs.flatMap(x => x.anchors)
  * a scope's root takes, and a lazy operand's, the two positions that open a
  * block ({@link parts}).
  *
+ * An anchor is a node nothing else establishes, so one another operand of
+ * the comma reaches eagerly is no anchor, and neither is a node anchored
+ * twice: a `const` read only through a call inlined here, which is the
+ * node the call answers, `const u = (() => t)();` beside a value reading
+ * `t`, and an import a module anchors that another import reaches, the
+ * two joined at one node by linking. Each is established anyway, by node
+ * identity, and the comma holds only what it alone establishes.
+ *
  * @type {(x: _Lowered) => Exp}
  */
-const anchoring = ({ exp, anchors }) => anchors.length === 0 ? exp : [',', [...anchors, exp]]
+const anchoring = ({ exp, anchors }) => {
+    const unique = anchors.filter((x, i) => !(x instanceof Array) || anchors.indexOf(x) === i)
+    const kept = unique.filter(x => ![...unique, exp].some(y => y !== x && eagerNodesOf(y).includes(x)))
+    return kept.length === 0 ? exp : [',', [...kept, exp]]
+}
 
 /**
  * A call's EDAG, by what it calls.
@@ -254,7 +267,9 @@ const lowerEntry = nodes => entry => {
  * alias, are one value and so one slot, where two nodes spelled alike,
  * `o[0]` read by two `const`s, are two, as a writer and an executor see
  * them: sharing is node identity
- * ([`fjs/edag/sharing`](../../edag/sharing/module.f.mjs)) — and a
+ * ([`fjs/edag/sharing`](../../edag/sharing/module.f.mjs)). A read of a
+ * binding is the exception, {@link oneSlot}: a parameter and a const alias
+ * of it are one slot — and a
  * capture whose node is a
  * primitive is no slot at all: the primitive is written into the body where
  * the capture is read, as it is wherever a `const` holding one is read,
@@ -273,13 +288,31 @@ const lowerEntry = nodes => entry => {
 const fn = nodes => (length, body, captures) => {
     const read = readCaptures(['=>', length, body, captures])
     const outer = captures.map(c => lower(nodes)(c).exp)
-    const candidates = outer.filter((n, i) => n instanceof Array && read.includes(i))
-    const slots = candidates.filter((n, i) => candidates.indexOf(n) === i)
+    const candidates = outer.flatMap((n, i) => n instanceof Array && read.includes(i) ? [n] : [])
+    const slots = candidates.filter((n, i) => candidates.findIndex(m => oneSlot(m, n)) === i)
     /** @type {readonly Exp[]} */
     const reads = slots.map((_, i) => ['frame', i])
-    const inner = outer.map(n => candidates.includes(n) ? reads[slots.indexOf(n)] : n)
+    const inner = outer.map(n => {
+        const k = candidates.findIndex(m => m === n)
+        return k === -1 ? n : reads[slots.findIndex(m => oneSlot(m, candidates[k]))]
+    })
     return ['=>', length, slots, scope(body, inner)]
 }
+
+/**
+ * Whether two captures are one slot: one node, or two reads of one binding
+ * — a parameter, the rest array, a frame slot, the function itself. The
+ * lowering builds a parameter's and the function's read afresh where each
+ * is named, so a parameter and a `const` alias of it are two nodes, which
+ * are one value wherever they are read, and which a writer reads by one
+ * name.
+ *
+ * @type {(m: ExpOp, n: ExpOp) => boolean}
+ */
+const oneSlot = (m, n) => m === n || (bindingReads.includes(m[0]) && m.length === n.length && m.every((x, k) => x === n[k]))
+
+/** The reads of a binding: `['arg', i]`, `['rest']`, `['frame', i]` and `['self']`. @type {readonly string[]} */
+const bindingReads = ['arg', 'rest', 'frame', 'self']
 
 /**
  * One entry's EDAG, its own operator/negation/bitwise-not chain excepted —
@@ -510,14 +543,17 @@ const anchored = ({ nodes, floated }, consts) => nodes.flatMap((node, i) => [...
  * `anchors` reads a body out of a module, so the body is handed over as one
  * that imports nothing: a function names no import, a reference out of it
  * being a capture, read through its frame — or, for a body a call inlines,
- * the enclosing scope's node itself.
+ * the enclosing scope's node itself. Such a node is no anchor of the body,
+ * `const u = (() => t)();` unread in it: the enclosing scope establishes
+ * every node of its own, reached eagerly or anchored there, so the body
+ * would establish it again.
  *
  * @type {(body: AstBody, frame: readonly Exp[]) => _Lowered}
  */
 const parts = (body, frame) => {
     const e = entries([], ['rest'], frame)(body)
     const { consts } = anchors([[], body])([])
-    return { exp: e.nodes[e.nodes.length - 1], anchors: anchored(e, consts) }
+    return { exp: e.nodes[e.nodes.length - 1], anchors: anchored(e, consts).filter(x => !frame.includes(x)) }
 }
 
 /** A body as one node: its value under its anchors, {@link parts}. @type {(body: AstBody, frame: readonly Exp[]) => Exp} */

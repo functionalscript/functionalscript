@@ -40,8 +40,9 @@
  * shared entries are the nodes reached from more than one place — what
  * [`../sharing`](../sharing/module.f.mjs) counts for both writers, read here
  * through the table. That is the FunctionalScript writer's table, which
- * writes every shared node as one `const` and every other node where it
- * stands, so that the text keeps the sharing the graph has and adds none;
+ * writes a shared node as one `const` and every other node where it
+ * stands, so that the text keeps the sharing the graph has and adds none
+ * (but for a pure node no one block holds, which it writes in each block);
  * and the one the compiler evaluates a module and every invoked body by
  * ([`../memo`](../memo/module.f.mjs)), so that a function value holds its
  * body as the graph has it, and its text is the writer's.

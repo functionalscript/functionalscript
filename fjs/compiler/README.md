@@ -205,8 +205,10 @@ reads the invocation's rest array. Repeated rest reads share that array.
 body. A function's frame is evaluated in the enclosing scope. A reference to a `const`, an import, an enclosing function's
 parameter or an enclosing body's `const` is a capture: the slots are
 `['=>', length, slots, body]`'s array operand, each slot the enclosing
-scope's own node for a captured value, one per value — nodes the EDAG
-analysis merges, `o[0]` read by two `const`s, being one — in the order the
+scope's own node for a captured value, one per node — a `const` and its
+alias, or a parameter read twice, being one, and two nodes spelled alike,
+`o[0]` read by two `const`s, two, since sharing is node identity
+([`fjs/edag/sharing`](../edag/sharing/module.f.mjs)) — in the order the
 body first names them, and the body reads slot `i` as `['frame', i]` — so
 no outside node is ever shared into a body, only read through its frame. A
 captured primitive is written into the body rather than captured, and a

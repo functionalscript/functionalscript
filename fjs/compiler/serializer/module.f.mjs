@@ -555,8 +555,10 @@ const lazyScope = s => v => {
     // names each shared value there, and what it holds lazily, or shares
     // past the block that names it, went through this test before the
     // name was given.
+    const within = placesWithin(s.a)(v)
+    const anywhere = placesAnywhere(s.a)
     const outside = reachableFrom(s.a)(v).find(w => unnamed(w)
-        && references(s.a, w) > referencesWithin(s.a, v, w)
+        && count(anywhere, w) > count(within, w)
         && reachableThrough(s.a, unnamed)(['#', w]).some(i => minting(s.a.nodes[i]) || s.a.nodes[i][0] === ','))
     if (outside !== undefined) { return error('a shared node reached from outside the lazy operand that establishes it') }
     return ok(inner)
@@ -1137,24 +1139,27 @@ const entry = (s0, path) => i => {
  * @type {(s: _Scope) => (v: Operand) => readonly _Hoisted[]}
  */
 const hoists = s => {
+    /** @typedef {{ readonly names: readonly _Hoisted[], readonly seen: readonly number[] }} Walked */
     /** @type {(i: number) => boolean} */
     const own = i => s.eager.includes(i)
-    /** @type {(found: readonly _Hoisted[], v: Operand) => readonly _Hoisted[]} */
-    const found = (names, v) => {
-        /** @type {(ns: readonly _Hoisted[], h: _Hoisted) => readonly _Hoisted[]} */
-        const add = (ns, h) =>
-            slotOf(visible(s), h) === null && !ns.some(n => sameHoisted(n, h)) ? [...ns, h] : ns
-        if (!(v instanceof Array)) { return names }
+    /** @type {(w: Walked, h: _Hoisted) => Walked} */
+    const add = (w, h) =>
+        slotOf(visible(s), h) === null && !w.names.some(n => sameHoisted(n, h)) ? { ...w, names: [...w.names, h] } : w
+    /** @type {(acc: Walked, v: Operand) => Walked} */
+    const found = (acc, v) => {
+        // an entry met again added all it adds the first time
+        if (!(v instanceof Array) || acc.seen.includes(v[1])) { return acc }
         const i = v[1]
-        if (slotOf(visible(s), ['entry', i]) !== null) { return names }
+        const visited = { ...acc, seen: [...acc.seen, i] }
+        if (slotOf(visible(s), ['entry', i]) !== null) { return visited }
         const node = s.a.nodes[i]
         // every slot but a parameter and a read of this scope's own frame
         // takes a `const`, after what it reaches and before the function: a
         // capture is a name, and those two have one
-        /** @type {(ns: readonly _Hoisted[], slots: readonly Operand[]) => readonly _Hoisted[]} */
-        const slotHoists = (ns, slots) => slots
+        /** @type {(w: Walked, slots: readonly Operand[]) => Walked} */
+        const slotHoists = (w, slots) => slots
             .filter(x => x instanceof Array && !isName(s.a, x))
-            .reduce((ns, x) => own(/** @type {Ref} */(x)[1]) ? add(found(ns, /** @type {Ref} */(x)), ['entry', /** @type {Ref} */(x)[1]]) : found(ns, /** @type {Ref} */(x)), ns)
+            .reduce((w, x) => own(/** @type {Ref} */(x)[1]) ? add(found(w, /** @type {Ref} */(x)), ['entry', /** @type {Ref} */(x)[1]]) : found(w, /** @type {Ref} */(x)), w)
         // a loop written as `let` and `while` names its function nowhere:
         // what takes a `const` before it is what its function's slots and
         // its initial value reach, and the loop itself is the `let`,
@@ -1162,10 +1167,10 @@ const hoists = s => {
         if (isLoopCall(s, i)) {
             const [, callee, args] = /** @type {Extract<Node, readonly ['()', Operand, readonly ItemOperand[]]>} */ (node)
             const slots = /** @type {Extract<Node, readonly ['=>', number, readonly Operand[], Operand]>} */ (s.a.nodes[/** @type {Ref} */ (callee)[1]])[2]
-            const inner = slotHoists([...slots, ...args.map(itemOperand)].reduce(found, names), slots)
+            const inner = slotHoists([...slots, ...args.map(itemOperand)].reduce(found, visited), slots)
             return own(i) ? add(inner, ['entry', i]) : inner
         }
-        const inner = slotHoists([...operands(node), ...lazyOperands(node)].reduce(found, names), node[0] === '=>' ? node[2] : [])
+        const inner = slotHoists([...operands(node), ...lazyOperands(node)].reduce(found, visited), node[0] === '=>' ? node[2] : [])
         // a base or a callee that takes a `const` takes it before the node
         // does, since a call is shared by its own `const`, which reads it
         const named = ((node[0] === '.' || node[0] === '?.') && basedHoisted(s.a, node[1])) || ((node[0] === '()' || node[0] === '?.()') && calleeHoisted(s.a, node[1]))
@@ -1178,7 +1183,7 @@ const hoists = s => {
         // only a name gives its body a way to reach it
         return ((s.shared.includes(i) && !isName(s.a, ['#', i])) || (node[0] === '=>' && scopeHolds(s.a, i, 'self'))) && own(i) ? add(based, ['entry', i]) : based
     }
-    return v => found(/** @type {readonly _Hoisted[]} */([]), v)
+    return v => found({ names: [], seen: [] }, v).names
 }
 
 /**
@@ -1282,21 +1287,29 @@ const reachableThrough = (a, through) => root => {
 const reachableFrom = a => reachableThrough(a, () => true)
 
 /**
- * How many places under `root`, in its own scope, hold the entry `i` —
- * the root's own place where it is `i`, and every edge into it under the
- * root, eager or lazy, counted once per place.
+ * The entry each place under `root`, in its own scope, holds: the root's
+ * own place, and every edge from an entry the root reaches, eager or lazy,
+ * one per place — so an entry held at more than one place appears more
+ * than once.
  *
- * @type {(a: Analysis, root: Operand, i: number) => number}
+ * @type {(a: Analysis) => (root: Operand) => readonly number[]}
  */
-const referencesWithin = (a, root, i) => {
-    /** @type {(state: readonly [readonly number[], number], v: Operand) => readonly [readonly number[], number]} */
-    const count = ([seen, n], v) => {
-        if (!(v instanceof Array) || seen.includes(v[1])) { return [seen, n] }
-        const held = allOperands(a.nodes[v[1]])
-        return held.reduce(count, [[...seen, v[1]], n + held.filter(x => x instanceof Array && x[1] === i).length])
-    }
-    return count([[], root instanceof Array && root[1] === i ? 1 : 0], root)[1]
-}
+const placesWithin = a => root => indices([root, ...reachableFrom(a)(root).flatMap(p => allOperands(a.nodes[p]))])
+
+/**
+ * The entry each place in the whole table holds as an operand. The root's
+ * own place is not among them, and need not be: what is asked about is a
+ * value under a lazy operand ({@link block}), which the root never is.
+ *
+ * @type {(a: Analysis) => readonly number[]}
+ */
+const placesAnywhere = a => indices(a.nodes.flatMap(allOperands))
+
+/** The entries a list of operands names, one per operand that is an entry. @type {(vs: readonly Operand[]) => readonly number[]} */
+const indices = vs => vs.flatMap(v => v instanceof Array ? [v[1]] : [])
+
+/** How many of `places` hold the entry `i`. @type {(places: readonly number[], i: number) => number} */
+const count = (places, i) => places.filter(j => j === i).length
 
 /**
  * The entries an operand shares within itself: reached by more than one
@@ -1307,17 +1320,10 @@ const referencesWithin = (a, root, i) => {
  *
  * @type {(a: Analysis) => (root: Operand) => readonly number[]}
  */
-const sharedWithin = a => root => reachableFrom(a)(root).filter(i => referencesWithin(a, root, i) >= 2)
-
-/**
- * How many places in the whole table hold the entry `i` as an operand. The
- * root's own place is not among them, and need not be: what is asked
- * about is a value under a lazy operand ({@link block}), which the root
- * never is.
- *
- * @type {(a: Analysis, i: number) => number}
- */
-const references = (a, i) => a.nodes.flatMap(allOperands).filter(x => x instanceof Array && x[1] === i).length
+const sharedWithin = a => root => {
+    const places = placesWithin(a)(root)
+    return reachableFrom(a)(root).filter(i => count(places, i) >= 2)
+}
 
 /** The text a hoisted value's `const` holds, in the scope at `path`. @type {(s: _Scope, path: string) => (h: _Hoisted) => Document} */
 const hoistedText = (s, path) => h => h[0] === 'leaf'
@@ -1489,14 +1495,17 @@ const capturesParameter = (a, i) => a.nodes.some((n, j) => n[0] === '=>' && a.sc
  * {@link block}: in place where it hoists nothing, and otherwise as the
  * applied function whose `const`s establish what it shares afresh at
  * every test, `while((()=>{const $2=[1];return $2===$2;})())`, which
- * reads back as the condition again. Two shapes the template admits have
- * no text here, and are refused rather than written as the recursion they
+ * reads back as the condition again. A block whose text reads the slots
+ * in another order than the frame holds them — a `const` it names reading
+ * a later slot first — opens by naming the slots the condition does not
+ * read, in the frame's order, as {@link aliasedBody} opens a body, which
+ * reads back as the same frame. Two shapes the template admits have no
+ * text here, and are refused rather than written as the recursion they
  * would read back as: a condition that shares a value the block hoists,
- * which {@link lazyScope} refuses as it refuses any lazy operand's
- * block, since a `const` before the `while` would establish it once, and
- * a function whose slots the text reads in another order than its frame
- * holds them, which reads back as another frame — neither a shape the
- * front end produces from a loop.
+ * which {@link lazyScope} refuses as it refuses any lazy operand's block,
+ * since a `const` before the `while` would establish it once — no shape
+ * the front end produces from a loop — and a condition whose own text
+ * reads the slots out of order, which nothing before it can name.
  *
  * A node the condition shares with the block that mints nothing is
  * written in both, as one two lazy operands reach is, two nodes where the
@@ -1520,29 +1529,46 @@ const loopStatement = (s, path, before) => i => {
     // a block leaving the variable as it is: the next value the parameter
     // itself, which the lowering gives a block assigning nothing
     const unchanged = next instanceof Array && s.a.nodes[next[1]][0] === 'arg'
+    const blockPath = `${loopPath}/block`
     return okThen(
         /** @type {(names: readonly string[]) => Result<_Statement, string>} */
         (names => {
             const inner = bodyScope(s.a, loopPath, names, body, s.allowUnusedCaptures, null)
+            /** @type {(frame: readonly string[], start: _Statement) => Result<_Statement, string>} */
+            const blockOver = (frame, start) => okThen(
+                /** @type {(block: _Scope) => Result<_Statement, string>} */
+                (block => unchanged
+                    ? scope({ ...block, frame, loopBlock: true }, blockPath, start, null, false)(asserts)
+                    : scope({ ...block, frame, loopBlock: true }, blockPath, start, [variable, '='])([...asserts, next])),
+            )(lazyScope(inner)(arm))
+            /** @type {(initial: List<Chunk>, cond: List<Chunk>) => (st: _Statement) => Result<_Statement, string>} */
+            const written = (initial, cond) => st => ok({
+                text: flat([before.text, [keyword('let'), ` ${binding(variable)}=`], initial, [';', keyword('while'), '('], cond, ['){'], st.text, ['}']]),
+                names: [...before.names, [['entry', i], variable]],
+            })
             return okThen(
                 /** @type {(parts: readonly [List<Chunk>, List<Chunk>, _Statement]) => Result<_Statement, string>} */
                 (([initial, cond, st]) => {
                     const order = firstUse(names, flat([cond, st.text]))
-                    if (order.length !== names.length || order.some((x, j) => x !== j)) { return error('a loop reading its captures out of order') }
-                    return ok({
-                        text: flat([before.text, [keyword('let'), ` ${binding(variable)}=`], initial, [';', keyword('while'), '('], cond, ['){'], st.text, ['}']]),
-                        names: [...before.names, [['entry', i], variable]],
-                    })
+                    const read = firstUse(names, cond)
+                    if (order.length !== names.length || read.some((x, j) => x !== j)) { return error('a loop reading its captures out of order') }
+                    if (order.every((x, j) => x === j)) { return written(initial, cond)(st) }
+                    // the block opens by naming the slots the condition does
+                    // not read, in slot order, as a body whose text reads
+                    // them in another order does ({@link aliasedBody})
+                    const rest = names.slice(read.length)
+                    const aliases = rest.map((_, j) => hoistName(blockPath, j))
+                    /** @type {_Statement} */
+                    const start = {
+                        text: flat(rest.map((name, j) => [keyword('const'), ` ${binding(aliases[j])}=`, name, ';'])),
+                        names: aliases.map(alias => /** @type {const} */ ([null, alias])),
+                    }
+                    return okThen(written(initial, cond))(blockOver([...names.slice(0, read.length), ...aliases], start))
                 }),
             )(okList3(
                 operand(s, `${loopPath}/init`)(/** @type {Operand} */ (init)),
                 mapOk((/** @type {_Written} */ w) => w.text)(block(inner, `${loopPath}/condition`)(condition)),
-                okThen(
-                    /** @type {(block: _Scope) => Result<_Statement, string>} */
-                    (block => unchanged
-                        ? scope({ ...block, loopBlock: true }, `${loopPath}/block`, nothing, null, false)(asserts)
-                        : scope({ ...block, loopBlock: true }, `${loopPath}/block`, nothing, [variable, '='])([...asserts, next])),
-                )(lazyScope(inner)(arm)),
+                blockOver(names, nothing),
             ))
         }),
     )(frameNames(s)(slots))

@@ -52,7 +52,7 @@ import { f64Bits, i64Literal, stringLiteral, u64WordItems, utf16Units } from '..
 import { indent } from '../../media/rust/item/module.f.mjs'
 import { error, mapOk, ok, okList, okThen, unwrap } from '../../types/result/module.f.js'
 import { isStatic, staticPath } from '../module.f.mjs'
-import { chainLazy, eagerOperandsOf, isChain, lazy, members, one, operandsOf, visit } from '../sharing/module.f.mjs'
+import { chainLazy, eagerNodesOf, isChain, lazy, members, one, operandsOf, reach, visit } from '../sharing/module.f.mjs'
 import { analysis } from '../analysis/module.f.mjs'
 import { keepsRecursion, loopOf } from '../loop/module.f.mjs'
 import { isIndex, maxLength } from '../../types/function/length/module.f.mjs'
@@ -602,6 +602,11 @@ const printer = (nested, arg = argRead, frame = frameRead, base = 0) => shared =
     /** @type {(node: readonly unknown[]) => readonly unknown[]} */
     const children = node => isBound(/** @type {Exp} */ (/** @type {unknown} */ (node))) ? [] : operandsOf(node)
     const order = visit(children)([])(root).filter(([n]) => !isBound(n))
+    // A shared node not among these is reached only through lazy operands,
+    // and a `let` binding for it before the root would establish what the
+    // program may not: it binds in the block of the one thunk that owns
+    // it, or the shape is refused, an {@link atomic} node excepted, whose
+    // binding establishes nothing.
     const eager = eagerNodesOf(root)
     /** The argument lists the nodes under `root` hold, each a thunk's root ({@link argListsOf}). */
     const argLists = order.flatMap(([n]) => argListsOf(/** @type {readonly unknown[]} */ (/** @type {unknown} */ (n))))
@@ -1440,22 +1445,6 @@ const none = () => []
 const argListsOf = chainLazy(none, one)
 
 /**
- * `seen` with every node `root` establishes unconditionally folded in: the
- * nodes reached without passing through a lazy position — every operand
- * after the first of a {@link lazy} operation, and a chain's lazy
- * positions, {@link eagerOperandsOf}. A node is walked once, by identity,
- * as {@link visit} walks it.
- *
- * @type {(seen: readonly Exp[], root: unknown) => readonly Exp[]}
- */
-const reach = (seen, root) => {
-    if (!(root instanceof Array)) { return seen }
-    const self = /** @type {Exp} */ (/** @type {unknown} */ (root))
-    if (seen.includes(self)) { return seen }
-    return eagerOperandsOf(root).reduce(reach, [...seen, self])
-}
-
-/**
  * The operands a node establishes only conditionally, the ones its thunks
  * establish: a lazy operation's operands after the first, and a chain's
  * lazy positions, {@link chainLazy}, an argument list as one operand —
@@ -1469,18 +1458,6 @@ const lazyOperandsOf = n => {
     const node = /** @type {readonly any[]} */ (n)
     return /** @type {readonly Exp[]} */ (lazy.includes(node[0]) ? node.slice(2) : chainLazy(one, one)(node))
 }
-
-/**
- * The nodes an EDAG establishes unconditionally — reached from `root`
- * through eager positions alone — in walk order, `root` first. A shared
- * node that is not among these is reached only through lazy operands, and a `let` binding for it before the root would
- * establish what the program may not: it binds in the block of the one
- * thunk that owns it, or the shape is refused, an {@link atomic} node
- * excepted, whose binding establishes nothing ({@link printer}).
- *
- * @type {(root: Exp) => readonly Exp[]}
- */
-export const eagerNodesOf = root => reach([], root)
 
 /**
  * The statements of one scope over the caller's own bindings, with the

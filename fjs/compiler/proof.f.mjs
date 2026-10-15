@@ -187,12 +187,14 @@ const graphOf = source => {
  * root, nodes, scopes and shared — and the same output again. That is the
  * writer's whole claim at the command level: the text is FunctionalScript
  * the compiler reads back, it denotes the program it was written from, and
- * it shares what the program shares. The names and the places a value is
- * written are the writer's to choose, which is why the tables are compared
- * and not the source's text with the output's; the table merges equal
- * nodes, so the output's own text, which names each shared node and writes
- * every other in place, is what keeps one shared node from reading back as
- * two.
+ * the program read back shares what the text does. The names and the
+ * places a value is written are the writer's to choose, which is why the
+ * tables are compared and not the source's text with the output's; the
+ * table merges equal nodes, so the output's own text, which names each
+ * shared node and writes every other in place, is what tells one shared
+ * node from two. A node two lazy operands reach with no eager path, a
+ * loop's condition and block among them, is written in each, two equal
+ * nodes; the pinned text is what records that.
  *
  * @type {(source: string) => string}
  */
@@ -694,6 +696,25 @@ export const proof = {
             assertEq(fjsRoundTrip('export default (f, a) => f?.((() => { const x = a + 1; return [x, x]; })());'), 'export default ($0,$1)=>$0?.((()=>{const $2=$1+1;return [$2,$2];})());')
             assertEq(fjsRoundTrip('export default (f, x) => { const t = x + 1; return f?.(t, t); };'), 'export default ($0,$1)=>{const $2=$1+1;return $0?.($2,$2);};')
             assertEq(fjsRoundTrip('export default (o) => { const x = o.y; return [x, x]; };'), 'export default ($0)=>{const $1=$0.y;return [$1,$1];};')
+            // a parameter and a `const` alias of it are one capture, read by
+            // one name, in the source and in `String(f)`
+            assertEq(fjsRoundTrip('export default (a) => { const b = a; return () => [a, b]; };'), 'export default ($0)=>()=>[$0,$0];')
+            assertEq(fjsRoundTrip('const f = (n) => { const g = f; return () => [f, g]; }; export default f;'), 'const $0=($1)=>()=>[$0,$0];export default $0;')
+            assertEq(compileSource('const f = (a) => { const b = a; return () => [a, b]; }; export default [String(f), String(f(1))];')('output.json'), '["($0)=>()=>[$0,$0]","()=>[$0,$0]"]')
+            // a `const` read only through an inlined call is the node the
+            // call answers, and no anchor where the scope reaches that node
+            // anyway — by another operand of the comma, or around the block
+            // it stands in
+            assertEq(fjsRoundTrip('export default n => { const t = n + 1; const u = (() => t)(); return t * 2; };'), 'export default ($0)=>($0+1)*2;')
+            assertEq(fjsRoundTrip('export default (a, b) => { const t = b + 1; const u = (() => t)(); return [t, a && u]; };'), 'export default ($0,$1)=>{const $2=$1+1;return [$2,$0&&$2];};')
+            assertEq(fjsRoundTrip('export default (a, b) => { const t = b.x; return [t, a ? (() => { const u = (() => t)(); return 1; })() : 0]; };'), 'export default ($0,$1)=>[$1.x,$0?1:0];')
+            assertEq(fjsRoundTrip('export default (a, b) => { const t = b.x; return a ? (() => { const u = (() => t)(); return 1; })() : 0; };'), 'export default ($0,$1)=>{const $2=$1.x;return $0?1:0;};')
+            // a loop's block whose `const`s read the captures in another
+            // order than the source named them opens by naming them in its
+            // order, which reads back as the same frame
+            assertEq(
+                fjsRoundTrip('export default (b, f) => { let w = 0; while (w < 3) { const u0 = f(b); const u1 = b + u0; const u2 = f?.(u1); w = w + 1; } return 0; };'),
+                'export default ($0,$1)=>{let $2=0;while($2<3){const $3=$1;const $4=$0;const $5=$4+$3($4);const $6=$3?.($5);$2=$2+1;}return 0;};')
             // a shared node the scope reaches eagerly is named where its
             // `const` stands, before an item the source wrote first: which
             // failure comes first is no observation

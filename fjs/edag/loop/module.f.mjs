@@ -117,20 +117,25 @@ export const loopOf = (a, i) => {
 }
 
 /**
- * Whether an operand reaches an entry among `shared` in its own scope — a
- * nested function's body is that function's own, its slots this scope's.
+ * The entries an operand reaches in its own scope — a nested function's
+ * body is that function's own, its slots this scope's — each walked once,
+ * so a heavily shared graph costs its entries and not its paths.
+ *
+ * @type {(a: Analysis) => (v: Operand) => readonly number[]}
+ */
+const reached = a => v => {
+    /** @type {(seen: readonly number[], v: Operand) => readonly number[]} */
+    const go = (seen, v) => !(v instanceof Array) || seen.includes(v[1]) ? seen : own(a.nodes[v[1]]).reduce(go, [...seen, v[1]])
+    return go([], v)
+}
+
+/**
+ * Whether an operand reaches an entry among `shared` in its own scope, as
+ * {@link reached} walks it.
  *
  * @type {(a: Analysis, shared: readonly number[]) => (v: Operand) => boolean}
  */
-export const reaches = (a, shared) => {
-    /** @type {(v: Operand) => boolean} */
-    const go = v => {
-        if (!(v instanceof Array)) { return false }
-        const [, i] = v
-        return shared.includes(i) || own(a.nodes[i]).some(go)
-    }
-    return go
-}
+export const reaches = (a, shared) => v => reached(a)(v).some(i => shared.includes(i))
 
 /**
  * Whether every writer keeps the recursion for function `i`, a loop by
@@ -157,6 +162,8 @@ export const reaches = (a, shared) => {
  * @type {(a: Analysis, i: number, loop: Loop) => boolean}
  */
 export const keepsRecursion = (a, i, { before, condition, arm }) => {
-    const minted = a.nodes.flatMap((n, j) => a.scope[j] === i && !mergeable(n) ? [j] : [])
-    return before.length !== 0 || scopeHolds(a, i, 'rest') || minted.some(j => reaches(a, [j])(condition) && reaches(a, [j])(arm))
+    const fromCondition = reached(a)(condition)
+    const fromArm = reached(a)(arm)
+    return before.length !== 0 || scopeHolds(a, i, 'rest')
+        || a.nodes.some((n, j) => a.scope[j] === i && !mergeable(n) && fromCondition.includes(j) && fromArm.includes(j))
 }
