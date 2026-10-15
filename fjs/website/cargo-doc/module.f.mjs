@@ -17,7 +17,6 @@
  * @module
  *
  * @import { Element } from '../../media/html/types.ts'
- * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Build } from '../page/types.ts'
  * @import { Funding } from '../funding/types.ts'
  */
@@ -63,7 +62,7 @@ export const cargoDocHref = `/${cargoDocDir}/index.html`
 /**
  * The index of the Rust API reference: one link per documented crate.
  *
- * @type {(build: Build) => (crates: readonly string[]) => Vec}
+ * @type {(build: Build) => (crates: readonly string[]) => string}
  */
 export const cargoDocPage = build => crates => shell(build)(pageTitle('Rust API'))(['main',
     ['h1', 'Rust API'],

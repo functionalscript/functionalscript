@@ -161,6 +161,21 @@ const commonHead = /** @type {const} */ ([
 ])
 
 /**
+ * Renders a complete HTML document as a string: what {@link htmlUtf8} encodes.
+ *
+ * **A string, for a document larger than one `Vec`.** A `Vec` holds at most
+ * `maxLengthBytes`, and a page can be larger — a demo's first view written
+ * into it is one way — so a caller writing it chunks the string as it encodes
+ * it, as `writeUtf8File` does.
+ *
+ * @type {(lang: string) => (...head: readonly Node[]) => (...body: readonly Node[]) => string}
+ */
+export const htmlDocument = lang => (...head) => (...body) =>
+    htmlToString(['html', { lang },
+        ['head', ...commonHead, ...head],
+        ['body', ...body]])
+
+/**
  * Renders a complete UTF-8 encoded HTML document as a `Vec`.
  *
  * Produces a full page with `<!DOCTYPE html>`, an `<html lang>` naming the
@@ -185,7 +200,4 @@ const commonHead = /** @type {const} */ ([
  * @type {(lang: string) => (...head: readonly Node[]) => (...body: readonly Node[]) => Vec}
  */
 export const htmlUtf8 = lang => (...head) => (...body) =>
-    utf8(htmlToString(['html', { lang },
-        ['head', ...commonHead, ...head],
-        ['body', ...body]]
-    ))
+    utf8(htmlDocument(lang)(...head)(...body))

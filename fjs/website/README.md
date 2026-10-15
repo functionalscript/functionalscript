@@ -483,6 +483,21 @@ vocabulary and a handler map are two different things, which is why the
 runtime declares both. The first browser-only operation — a fetch, a file the
 reader picks — is where `fjs/effects/browser/` becomes necessary.
 
+**A page already shows its demo's first view.** The build imports each demo
+and writes `view(init)` into its section, so the demo appears with the page.
+Before this, it appeared only once the runtime and the demo's whole module
+graph had loaded, one import after another: nine levels deep for the runtime,
+then as many as twenty-six for `fjs/compiler`'s demo. That was a visible lag
+on every demo page. The runtime's first render is the same view, and it
+patches the prerendered elements in place. Until then the section is `inert`.
+A keystroke typed into a field nothing listens to yet would be reset when the
+runtime takes the field over, so the field does not accept one. A demo the
+build cannot render (one that will not import, or whose `view` throws) is
+named on the build's console, and its page keeps an empty section for the
+runtime to fill. A page is written as a string, chunked as it is encoded,
+because a demo's first view can be larger than one `Vec`: the module
+grammar's railroad diagram is about 250 KiB.
+
 Outside incremental work, an update (including the initial `start` event)
 marks the section and disables its buttons, and the stylesheet writes
 `Working…` under the demo. Only the runtime can say this: a demo renders once, after its effect has finished, so it cannot

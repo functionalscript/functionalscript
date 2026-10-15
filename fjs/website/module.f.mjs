@@ -41,26 +41,27 @@
  *
  * @module
  *
- * @import { Access, All, Env, Mkdir, NodeProgramOptions, ReadFile, ReadWhole, Readdir, Rm, Write, WriteBytes, WriteFile } from '../effects/node/types.ts'
+ * @import { Access, All, Catch, Env, Import, Mkdir, NodeProgramOptions, ReadFile, ReadWhole, Readdir, Rm, Write, WriteBytes, WriteFile } from '../effects/node/types.ts'
  * @import { Effect, IoChannel, IoResult } from '../effects/types.ts'
  * @import { StringSet } from '../types/string_set/types.ts'
- * @import { Vec } from '../types/bit_vec/types.ts'
- * @import { _Demos, _Graph, _Imports, _Tree, _Walked } from './private.ts'
+ * @import { _DemoPaths, _Demos, _Graph, _Imports, _Tree, _Walked } from './private.ts'
  * @import { OrderedMap } from '../types/ordered_map/types.ts'
- * @import { Build, Dir, Proof } from './page/types.ts'
+ * @import { Build, Dir, PageDemo, Proof } from './page/types.ts'
+ * @import { Element } from '../media/html/types.ts'
+ * @import { Demo, DemoEvent } from './demo/types.ts'
  * @import { Funding } from './funding/types.ts'
  */
 
 import { utf8 } from '../text/module.f.mjs'
 import { access, exitStep, isNotFound, mkdir, readdir, readUtf8File, readWhole, writeChunks, writeFile, writeUtf8File } from '../effects/node/module.f.mjs'
-import { foldStep, forEachStep, history, historyStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../effects/module.f.mjs'
+import { errorMessage, foldStep, forEachStep, history, historyStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../effects/module.f.mjs'
 import { exportsDemo, exportsProof, local, specifiers } from './browser-source/module.f.mjs'
 import { basename, concat as pathConcat, parent } from '../path/module.f.mjs'
 import { resolve } from '../path/import/module.f.mjs'
 import { at, empty as emptyMap, entries, setReplace } from '../types/ordered_map/module.f.mjs'
 import { contains, empty as noPaths, set as addPath, values as paths } from '../types/string_set/module.f.mjs'
 import { toArray } from '../types/list/module.f.mjs'
-import { log } from '../effects/common/module.f.mjs'
+import { catch_, import_, log } from '../effects/common/module.f.mjs'
 import { indexPage, isVersion, releasePage, releasePath, releases } from './changelog/module.f.mjs'
 import { tryParse } from '../media/markdown/module.f.mjs'
 import { stylesheet } from './style/module.f.js'
@@ -91,7 +92,7 @@ import { cargoDocDir, cargoDocHref, cargoDocPage, crateHref, crateOf, rustdocDir
  * The repository and the releases are linked from the header every page
  * carries ({@link shell}), not from this page's own frame.
  *
- * @type {(build: Build) => (dir: Dir) => Vec}
+ * @type {(build: Build) => (dir: Dir) => string}
  */
 const rootPage = build => dir => shell(build)(siteName)(directoryLayout(build)(dir)(testsMain(
     ['h1', 'FunctionalScript'],
@@ -446,7 +447,7 @@ const generatedName = name =>
  * page to be listed with its blocker, so it is dropped and said on the console
  * instead.
  *
- * @type {(demos: readonly Proof[]) => readonly [_Demos, readonly string[]]}
+ * @type {(demos: readonly Proof[]) => readonly [_DemoPaths, readonly string[]]}
  */
 const resolveDemos = demos => {
     /** @type {OrderedMap<readonly Proof[]>} */
@@ -470,8 +471,51 @@ const resolveDemos = demos => {
             }
             return /** @type {const} */ ([setReplace(dir)(`/${only.name}`)(found), refused])
         },
-        /** @type {readonly [_Demos, readonly string[]]} */ ([emptyMap, []]))
+        /** @type {readonly [_DemoPaths, readonly string[]]} */ ([emptyMap, []]))
 }
+
+/**
+ * A demo with the first view the build rendered for it — `view(init)`, which
+ * the page shows until the runtime has loaded the demo and takes it over.
+ *
+ * **The demo is imported, not read.** Rendering it means running it, and
+ * `import` is the operation that loads a module's exports; the page's own
+ * runtime imports the very same module.
+ *
+ * **A demo that cannot be rendered keeps its page.** One that will not import,
+ * exports no `demo`, or whose `view` throws is said on the console, and its page
+ * gets an empty root, which is what every page had before demos were
+ * rendered: the runtime fills it, or shows why it cannot. The build does not
+ * stop for one demo, and the reason is not lost.
+ *
+ * @type {(path: string) => Effect<Import | Catch | Write, PageDemo, IoChannel>}
+ */
+const prerender = path => {
+    /** @type {(reason: string) => Effect<Write, PageDemo, IoChannel>} */
+    const skip = reason => mapStep(
+        log(`skipped prerendering ${path.slice(1)}: ${reason}`),
+        () => ({ path, view: null }))
+    return resultStep(import_(path.slice(1)), imported => {
+        if (imported[0] === 'error') { return skip(errorMessage(imported[1])) }
+        const demo = /** @type {Demo<unknown, DemoEvent>} */ (imported[1].demo)
+        // `catch_` is generic, and the generic is lost on the way through
+        // `do_`, so what `view` answers comes back as `unknown`.
+        return step(catch_(() => demo.view(demo.init)), viewed =>
+            viewed[0] === 'error'
+                ? skip(String(viewed[1]))
+                : pureOk({ path, view: /** @type {Element} */ (viewed[1]) }))
+    })
+}
+
+/**
+ * Every demo, with its first view: {@link prerender}, one directory at a time.
+ *
+ * @type {(paths: _DemoPaths) => Effect<Import | Catch | Write, _Demos, IoChannel>}
+ */
+const prerenderDemos = paths => foldStep(
+    pureOk(entries(paths)),
+    /** @type {_Demos} */ (emptyMap),
+    ([dir, path]) => demos => mapStep(prerender(path), demo => setReplace(dir)(demo)(demos)))
 
 /**
  * Whether a name in a `todo/` directory is an issue.
@@ -624,10 +668,10 @@ const writeChangelog = build => tree => {
                     // prints the message and exits 1, as it does for a file
                     // that could not be read.
                     ? pureError(ioError({ message: `changelog/${release.version}.md: ${document[1]}` }))
-                    : writeFile(releasePath(release.version), releasePage(build)(release)(document[1]))
+                    : writeUtf8File(releasePath(release.version), releasePage(build)(release)(document[1]))
             })),
         () => step(
-            writeFile(pagePath(changelogDir), indexPage(build)(versions)),
+            writeUtf8File(pagePath(changelogDir), indexPage(build)(versions)),
             () => log(`releases: ${versions.length}`)))
 }
 
@@ -726,7 +770,7 @@ const writeCargoDoc = build => step(copyRustdoc, crates =>
  * @type {(build: Build) => (crates: readonly string[]) => Effect<Rm | WriteBytes | WriteFile | Write, readonly string[], IoChannel>}
  */
 const writeCargoDocIndex = build => crates => {
-    const written = writeFile(pagePath(cargoDocDir), cargoDocPage(build)(crates))
+    const written = writeUtf8File(pagePath(cargoDocDir), cargoDocPage(build)(crates))
     const logged = step(written, () => log(`rust crates: ${crates.length}`))
     return mapStep(logged, () => crates)
 }
@@ -748,7 +792,7 @@ const writePages = build => tree => crates => proofs => demos => {
         .filter(walked => !isTodoDir(walked.path) && walked.path !== changelogDir)
         .map(toDir(byPath)(crateDirs(tree)(crates))(proofs)(demos))
     return step(
-        forEachStep(pureOk(dirs), dir => writeFile(
+        forEachStep(pureOk(dirs), dir => writeUtf8File(
             pagePath(dir.path),
             dir.path === '.' ? rootPage(build)(dir) : page(build)(dir))),
         () => log(`directory pages: ${dirs.length}`))
@@ -857,7 +901,7 @@ export const _readBuild = env => mapStep(readFunding, funding => ({ commit: comm
  * branch — and the funding channels are added once the tree has been read,
  * so every page builder receives one whole {@link Build}.
  *
- * @type {(env: Omit<Build, 'funding'>) => (note: string) => Effect<Access | Readdir | ReadFile | ReadWhole | Rm | WriteBytes | WriteFile | Write | All | Mkdir, 0, number>}
+ * @type {(env: Omit<Build, 'funding'>) => (note: string) => Effect<Access | Readdir | ReadFile | ReadWhole | Rm | WriteBytes | WriteFile | Write | All | Mkdir | Import | Catch, 0, number>}
  */
 const program = env => note => exitStep(mapStep(
     step(log(note), () => step(walk('.'), tree => step(readFunding, funding => {
@@ -870,21 +914,22 @@ const program = env => note => exitStep(mapStep(
         return step(scanned, ([[foundProofs, foundDemos, graph], crates]) =>
             step(classify([...foundProofs, ...browserProofOf(tree)], foundDemos)(graph),
                 ([proofs, demoProofs]) => {
-                    const [demos, refused] = resolveDemos(demoProofs)
+                    const [demoPaths, refused] = resolveDemos(demoProofs)
                     const reported = step(reportClassification(proofs), () =>
                         forEachStep(pureOk(refused), log))
-                    const pages = step(reported, () => writePages(build)(tree)(crates)(proofs)(demos))
+                    const prerendered = step(reported, () => prerenderDemos(demoPaths))
+                    const pages = step(prerendered, demos => writePages(build)(tree)(crates)(proofs)(demos))
                     const changelog = step(pages, () => writeChangelog(build)(tree))
                     const prDirectory = step(changelog, () => mkdir(prsDir, { recursive: true }))
-                    const prPage = step(prDirectory, () => writeFile(pagePath(prsDir), prsPage(build)))
+                    const prPage = step(prDirectory, () => writeUtf8File(pagePath(prsDir), prsPage(build)))
                     const cliDirectory = step(prPage, () => mkdir(cliDir, { recursive: true }))
-                    const reference = step(cliDirectory, () => writeFile(pagePath(cliDir), cliPage(build)))
+                    const reference = step(cliDirectory, () => writeUtf8File(pagePath(cliDir), cliPage(build)))
                     return step(reference, () => writeUtf8File('_main.css', stylesheet))
                 }))
     }))),
     () => undefined))
 
-/** @type {(options: NodeProgramOptions) => Effect<Access | Readdir | ReadFile | ReadWhole | Rm | WriteBytes | WriteFile | Write | All | Mkdir, 0, number>} */
+/** @type {(options: NodeProgramOptions) => Effect<Access | Readdir | ReadFile | ReadWhole | Rm | WriteBytes | WriteFile | Write | All | Mkdir | Import | Catch, 0, number>} */
 export const main = ({ env }) => {
     const commit = commitOf(env)
     return program({ commit, branch: branchOf(env) })(linksNote(env)(commit))

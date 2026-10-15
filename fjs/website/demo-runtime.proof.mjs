@@ -674,6 +674,19 @@ export const demo = {
         assert(d.root.textContent.includes('copy control has no window'))
     },
     /**
+     * **The build's first view is inert until the runtime takes it over**,
+     * whether the demo starts or fails to: a page left inert could not be
+     * typed into, nor its failure selected.
+     */
+    liftsInert: async () => {
+        for (const path of [echo, moduleUrl('export const x = 1')]) {
+            const d = dom(path)
+            d.root.setAttribute('inert', '')
+            await startDemo(d.root)
+            assertEq(d.root.getAttribute('inert'), null)
+        }
+    },
+    /**
      * **The first render is the demo's own `init`**, before any event, so a
      * page shows what a demo is before it shows what it does.
      */

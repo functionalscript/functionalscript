@@ -313,8 +313,10 @@ const echo = textarea => {
  * its undo history, so Ctrl+Z did nothing in a demo field, and any
  * composition in progress. A patch keeps every element whose place
  * in the view is unchanged.
- * The section is rebuilt only when it holds something other than the
- * previous view — nothing yet, or a reported failure.
+ * The section is rebuilt only when it holds something other than a view —
+ * nothing yet, or a reported failure. The first view the build wrote into the
+ * page is patched like any other, so the elements a reader sees before the
+ * runtime loads are the ones it takes over.
  *
  * What the reader did to the fields is captured before the patch and put back
  * after it, one kind of {@link memories} at a time: size, then focus, then
@@ -558,4 +560,8 @@ export const startDemo = async root => {
     } catch (cause) {
         fail(root, cause)
     }
+    // The build's first view was inert so that nothing typed into it before
+    // now is lost; the section is the runtime's from here, whether it holds
+    // the demo or the reason it failed.
+    root.removeAttribute('inert')
 }

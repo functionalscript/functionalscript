@@ -28,12 +28,11 @@
  * @module
  *
  * @import { Element, Node } from '../../media/html/types.ts'
- * @import { Vec } from '../../types/bit_vec/types.ts'
- * @import { Build, Dir, Kind, Proof } from './types.ts'
+ * @import { Build, Dir, Kind, PageDemo, Proof } from './types.ts'
  * @import { Funding } from '../funding/types.ts'
  */
 
-import { htmlUtf8 } from '../../media/html/module.f.mjs'
+import { htmlDocument } from '../../media/html/module.f.mjs'
 import { ancestors, basename, concat as pathConcat } from '../../path/module.f.mjs'
 import { demoMarker, faviconLinks, logoPath, stylesheetLink } from '../style/module.f.js'
 import { intersperse, toArray } from '../../types/list/module.f.mjs'
@@ -199,16 +198,27 @@ const summary = heading => (...rest) => ['summary', ['h2', heading], ...rest]
 /**
  * The demo section: what this module *does*, if it says.
  *
- * Two elements and nothing else. The section is the demo's own root, so the
- * runtime replaces its contents wholesale on every state; the script is the
- * page's half of the wiring, naming the module in `demoMarker` so the runtime
- * never guesses a filename.
+ * Two elements and nothing else. The section is the demo's own root, which the
+ * runtime renders every state into; the script is the page's half of the
+ * wiring, naming the module in `demoMarker` so the runtime never guesses a
+ * filename.
  *
- * @type {(path: string) => readonly Node[]}
+ * **The root already holds the demo's first view**, rendered by the build, so
+ * the demo shows with the page rather than after the runtime and the demo's
+ * whole module graph have loaded — a chain of imports twenty-six deep for
+ * `fjs/compiler`'s. The runtime's first render patches that view in place.
+ * Until then the root is `inert`: a keystroke typed into a field nothing
+ * listens to yet would be lost when the runtime takes it over, so the field
+ * does not take one. A demo the build could not render keeps an empty root,
+ * which the runtime fills as before.
+ *
+ * @type {(demo: PageDemo) => readonly Node[]}
  */
-export const demoSection = path => [['details', { 'data-section': '', open: '' },
+export const demoSection = ({ path, view }) => [['details', { 'data-section': '', open: '' },
     summary('Demo')(),
-    ['div', { [demoMarker]: path }],
+    view === null
+        ? ['div', { [demoMarker]: path }]
+        : ['div', { [demoMarker]: path, inert: '' }, view],
     ['script', { type: 'module' },
         `import { startDemo } from '/fjs/website/demo-runtime.mjs'
 
@@ -551,9 +561,9 @@ export const footer = funding => funding.length === 0 ? [] : [['footer', { 'data
  * purpose: one that runs a suite marks it for the runtime — see
  * {@link testsMain} — and a changelog page does not.
  *
- * @type {(build: Build) => (title: string) => (content: Element) => Vec}
+ * @type {(build: Build) => (title: string) => (content: Element) => string}
  */
-export const shell = build => title => content => htmlUtf8(lang)(
+export const shell = build => title => content => htmlDocument(lang)(
     ['title', title],
     // OAuth callback parameters must not become subresource referrers.
     ['meta', { name: 'referrer', content: 'no-referrer' }],
@@ -578,7 +588,7 @@ export const testsMain = (...nodes) => ['main', { 'data-browser-tests': '', 'dat
  * The whole page for a directory below the root: where it sits, what it
  * holds, and what is open against it.
  *
- * @type {(build: Build) => (dir: Dir) => Vec}
+ * @type {(build: Build) => (dir: Dir) => string}
  */
 export const page = build => dir => shell(build)(pageTitle(dir.path))(directoryLayout(build)(dir)(testsMain(
     ['nav', ...toArray(intersperse(' / ')(breadcrumbs(dir.path).map(([path, name]) =>
