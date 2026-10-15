@@ -54,7 +54,7 @@ export const proof = {
     // is hidden from assistive technology, which reads the textarea.
     textFieldHighlighted: () => assertEq(
         htmlToString(textField({ name: 'text', label: 'Text', highlight: text => [['span', { 'data-token': 'keyword' }, text]] }, 'a\nb')),
-        '<!DOCTYPE html><p><label for="text">Text </label><span data-editor=""><span data-mirror="" aria-hidden="true"><span data-token="keyword">a\nb</span>\u200b</span><textarea id="text" name="text" rows="8" spellcheck="false" autocomplete="off" autocapitalize="off" autocorrect="off">a\nb</textarea></span></p>'),
+        '<!DOCTYPE html><p><label for="text">Text </label><span data-editor=""><span data-mirror="" aria-hidden="true"><span data-token="keyword">a\nb</span>\u200b</span><textarea id="text" name="text" rows="8">a\nb</textarea></span></p>'),
     textDemoHighlighted: () => {
         const h = htmlToString(textDemo({ intro: 'x', name: 'src', label: 'Source', init: '', highlight: text => [text] })(() => []).view('q'))
         assertEq(h.includes('<span data-editor="">'), true)

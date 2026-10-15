@@ -60,22 +60,13 @@ export const textDemo = ({ intro, name, label, rows, init, examples, highlight }
 }
 
 /**
- * What a field that holds code asks of the browser: no spell checking, which
- * underlines every keyword it does not know — and the textarea's own text is
- * transparent, so the reader sees a squiggle with no word under it — and no
- * completion, capitalization or correction of what is typed.
- */
-const notProse = { spellcheck: 'false', autocomplete: 'off', autocapitalize: 'off', autocorrect: 'off' }
-
-/**
  * The labelled multiline field shared by textDemo and demos with more state.
  *
  * **With `highlight`, the textarea is drawn over a coloured copy of its text**:
  * a `span` the stylesheet marks as the field's mirror (a `span`, so the label's
  * `p` stays valid HTML), laid under a textarea
  * whose own text is transparent, so the reader types into the colours and the
- * caret, selection and undo stay the browser's, and a field that holds code
- * is not prose for the browser: {@link notProse}. The mirror ends in a zero-width
+ * caret, selection and undo stay the browser's. The mirror ends in a zero-width
  * space, so a final empty line takes the room it takes in the textarea. It is
  * hidden from assistive technology, which reads the textarea.
  *
@@ -83,7 +74,7 @@ const notProse = { spellcheck: 'false', autocomplete: 'off', autocapitalize: 'of
  */
 export const textField = ({ name, label, rows = 8, highlight }, text) => {
     /** @type {Element} */
-    const area = ['textarea', { id: name, name, rows: String(rows), ...(highlight === undefined ? {} : notProse) }, text]
+    const area = ['textarea', { id: name, name, rows: String(rows) }, text]
     /** @type {Element} */
     const field = highlight === undefined ? area : ['span', { [editorMarker]: '' },
         ['span', { [mirrorMarker]: '', 'aria-hidden': 'true' }, ...highlight(text), '\u200b'],
