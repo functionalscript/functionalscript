@@ -40,7 +40,7 @@ export const proof = {
     mainAddWrongArgs: () => {
         const [finalState, code] = virtual(emptyState)(main(nodeProgramOptions(['add'])))
         assertEq(exitCode(code), 1)
-        assert(finalState.stderr.length !== 0)
+        assertEq(finalState.stderr, "'cas add' expects one parameter\n", finalState.stderr)
     },
     mainAddMissingFile: () => {
         // The source path doesn't exist, so `streamFile`'s first read comes back as a
@@ -74,7 +74,7 @@ export const proof = {
     mainGetWrongArgs: () => {
         const [finalState, code] = virtual(emptyState)(main(nodeProgramOptions(['get'])))
         assertEq(exitCode(code), 1, ['expected exit 1', code])
-        assert(finalState.stderr.length !== 0, 'expected error in stderr')
+        assertEq(finalState.stderr, "'cas get' expects two parameters\n", finalState.stderr)
     },
     mainGetInvalidHash: () => {
         const [finalState, code] = virtual(emptyState)(main(nodeProgramOptions(['get', 'not-a-valid-hash', 'output'])))

@@ -6,7 +6,7 @@
 import { exitCode } from '../effects/node/module.f.mjs'
 import { pureError, pureOk } from '../effects/module.f.mjs'
 import { emptyState, nodeProgramOptions, virtual } from '../effects/node/virtual/module.f.mjs'
-import { dispatch, helpReference, isMain } from './module.f.mjs'
+import { dispatch, exactArgs, helpReference, isMain } from './module.f.mjs'
 import { assert, assertEq } from '../asserts/module.f.mjs'
 
 /** @type {Commands<NodeOp>} */
@@ -21,7 +21,38 @@ const echoCommands = [
 const run = (/** @type {Commands<NodeOp>} */ commands) => (/** @type {readonly string[]} */ args) =>
     virtual(emptyState)(dispatch(commands)(nodeProgramOptions(args)))
 
+/** Runs `exactArgs('t', n)` around a program that exits with ten plus its argument count. */
+const runExact = (/** @type {number} */ n) => (/** @type {readonly string[]} */ args) =>
+    virtual(emptyState)(exactArgs('t', n)(({ args }) => pureError(args.length + 10))(nodeProgramOptions(args)))
+
 export const proof = {
+    // `exactArgs` runs the program only on exactly `n` arguments; any other
+    // count is an error naming the command and the count it expects.
+    exactArgs: {
+        match: () => {
+            const [state, code] = runExact(2)(['a', 'b'])
+            assertEq(exitCode(code), 12, ['expected the program to run', code])
+            assertEq(state.stderr, '')
+        },
+        tooFew: () => {
+            const [state, code] = runExact(1)([])
+            assertEq(exitCode(code), 1, ['expected exit 1', code])
+            assertEq(state.stderr, "'t' expects one parameter\n")
+        },
+        tooMany: () => {
+            const [state, code] = runExact(2)(['a', 'b', 'c'])
+            assertEq(exitCode(code), 1, ['expected exit 1', code])
+            assertEq(state.stderr, "'t' expects two parameters\n")
+        },
+        none: () => {
+            const [state] = runExact(0)(['a'])
+            assertEq(state.stderr, "'t' expects no parameters\n")
+        },
+        digits: () => {
+            const [state] = runExact(10)([])
+            assertEq(state.stderr, "'t' expects 10 parameters\n")
+        },
+    },
     helpReference: () => {
         const root = helpReference([])
         const nested = helpReference(['cas'])

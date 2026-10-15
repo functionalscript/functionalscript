@@ -71,6 +71,22 @@ const isCommand = value => {
         && isMain(handler)
 }
 
+/** Spelled-out counts for arity messages; larger counts fall back to digits. */
+const countWords = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine']
+
+/**
+ * Wraps a `Program` that takes exactly `n` positional arguments: any other
+ * count exits with `'<name>' expects <n> parameter(s)` and never runs it, so
+ * the program can destructure `args` as a known-length list.
+ *
+ * @type {(name: string, n: number) => <O extends NodeOp>(program: Program<O>) => Program<O | Write>}
+ */
+export const exactArgs = (name, n) => program => options => {
+    if (options.args.length === n) { return program(options) }
+    const count = n < countWords.length ? countWords[n] : `${n}`
+    return errorExit(`'${name}' expects ${count} parameter${n === 1 ? '' : 's'}`)
+}
+
 /** @type {<O extends NodeOp>(commands: Commands<O>) => Program<O | Write>} */
 const dispatchCommands = commands => options => {
     const [cmd, ...rest] = options.args
