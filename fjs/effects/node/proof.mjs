@@ -693,7 +693,9 @@ export const proof = {
         spellings: () => withTemporary('fjs-import-spellings-', async root => {
             const path = join(root, 'dep #%.mjs')
             await writeFile(path, 'export const url = import.meta.url')
-            const href = pathToFileURL(path).href
+            // The module's URL names the file's real path, so on macOS a
+            // temporary directory under `/var` loads from `/private/var`.
+            const href = pathToFileURL(await realpath(path)).href
             const cases = [path, relative(process.cwd(), path), href, `${href}?q=%20#f%23`]
             for (const name of cases) {
                 await hostCheck(import_(name), result => {
