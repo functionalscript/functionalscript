@@ -33,6 +33,7 @@ import { parse } from '../transpiler/module.f.mjs'
 import { _tryModuleSerialize, _trySerialize, functionText, tryFunctionText, trySerialize, tryStringify, tryModuleSerialize, tryModuleStringify, tryMarked, tryModuleMarked } from './module.f.mjs'
 import { keywords } from '../../js/keywords/module.f.js'
 import { staticIds } from '../../edag/module.f.mjs'
+import { operandsOf, visit } from '../../edag/sharing/module.f.mjs'
 import { disagreement } from '../../website/demo/highlight/module.f.mjs'
 import { textOfResult, toText } from '../../text/marked/module.f.mjs'
 
@@ -62,6 +63,42 @@ const reads = e => {
     assertEq(unwrap(tryStringify(_defaultExport(edag))), text)
     // and what it marks is what the tokenizer finds, in every case that reads
     assertEq(disagreement(unwrap(tryMarked(e))), null, text)
+    return text
+}
+
+/**
+ * Whether a comma in a graph anchors a node another of its operands
+ * reaches: an anchor the graph did not need, which breaks the `,` contract
+ * ([`fjs/edag`](../../edag/README.md)). The writer writes it as the graph
+ * says, the node's `const`, and the text reads back without it.
+ *
+ * @type {(e: Exp) => boolean}
+ */
+const redundantAnchor = e => {
+    /** @type {(n: readonly unknown[]) => readonly unknown[]} */
+    const everything = n => n[0] === '=>' ? [...operandsOf(n), n[3]] : operandsOf(n)
+    /** @type {(root: unknown) => readonly unknown[]} */
+    const reached = root => visit(operandsOf)([])(root).map(([n]) => n)
+    return visit(everything)([])(e).some(([n]) => {
+        if (!(n instanceof Array) || n[0] !== ',') { return false }
+        /** @type {readonly unknown[]} */
+        const all = n[1]
+        return all.some((x, i) => i < all.length - 1 && all.some((y, j) => j !== i && reached(y).includes(x)))
+    })
+}
+
+/**
+ * The text the writer writes for a graph holding a redundant anchor
+ * ({@link redundantAnchor}): read back, without the anchor, it is a graph
+ * the writer writes and reads back to the same table ({@link reads}).
+ *
+ * @type {(e: Exp) => string}
+ */
+const rewrites = e => {
+    const text = unwrap(tryStringify(e))
+    const { imports, edag } = unresolved(unwrap(parse(path)(text)))
+    assertEq(imports.length, 0, text)
+    reads(_defaultExport(edag))
     return text
 }
 
@@ -1040,21 +1077,29 @@ export const proof = {
         refuses([',', []], 'a comma with fewer than two operands')
         refuses(['=>', 0, [], [',', [1]]], 'a comma with fewer than two operands')
         refuses(['=>', 0, [], [',', []]], 'a comma with fewer than two operands')
-        // An anchor whose operand already has a name: its statement would be
-        // the alias `const $1=$0;`, which the front end reads back as
-        // nothing — an alias to a reached `const` is not an anchored
-        // computation — and the comma would go with it. Linking emits no
-        // such graph: `const a = []; const b = a; export default a;` drops
-        // the alias and is the array alone.
-        refuses(
-            (() => {
+        // An anchor whose node already has a `const` is that `const`, which
+        // evaluates it there: the text is what the graph says. Another
+        // operand reaching the node too makes the anchor one the graph did
+        // not need, and the text reads back without it, the same value
+        assertEq(
+            rewrites((() => {
                 /** @type {Exp} */
                 const o = ['[]', []]
                 return [',', [o, o]]
-            })(),
-            'an anchor that repeats a hoisted value')
-        // and one that is a name the scope binds without a `const`: the
-        // front end reads `const $1=$0;` as an alias, no anchor at all
+            })()),
+            'const $0=[];export default $0;')
+        assertEq(
+            rewrites((() => {
+                /** @type {Exp} */
+                const t = ['+', ['arg', 0], 1]
+                return ['=>', 1, [], [',', [t, ['*', t, 2]]]]
+            })()),
+            'export default ($0)=>{const $1=$0+1;return $1*2;};')
+        // and a comma whose anchor no other operand reaches holds none
+        assertEq(redundantAnchor([',', [['[]', []], 1]]), false)
+        // An anchor that is a name the scope binds without a `const` is
+        // refused: the front end reads `const $1=$0;` as an alias, no
+        // anchor at all
         refuses(['=>', 0, [], [',', [['rest'], 1]]], 'an anchor that is a name')
         refuses(['=>', 1, [], [',', [['arg', 0], 1]]], 'an anchor that is a name')
         refuses(['[]', [['[]', []], ['=>', 0, [['[]', []]], [',', [['frame', 0], 1]]]]], 'an anchor that is a name')
@@ -1586,9 +1631,10 @@ export const proof = {
     // is answered with a plausible wrong value
     // ([DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)),
     // which is what a writer whose contract is the round trip may not do,
-    // and which four hand-picked accept sets in a row did not catch — and
-    // which caught, when the lazy operators landed, a shared anchor the
-    // export reached eagerly, whose `const` read back as no anchor at all.
+    // and which four hand-picked accept sets in a row did not catch. A
+    // graph holding a redundant anchor, which the `,` contract excludes, is
+    // written as it says and reads back without the anchor: its text reads
+    // back to a graph the law holds for ({@link rewrites}).
     //
     // The graphs are every shape over every shape over the atoms, some
     // thousands of them, of which about half have a text and the rest are
@@ -1601,7 +1647,7 @@ export const proof = {
         () => generated.filter((_, i) => i % lawParts === k).forEach(e => {
             const written = tryStringify(e)
             if (written[0] === 'error') { return }
-            reads(e)
+            if (redundantAnchor(e)) { rewrites(e) } else { reads(e) }
         }),
     ])),
     /**

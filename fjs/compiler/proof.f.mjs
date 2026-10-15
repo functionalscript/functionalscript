@@ -708,11 +708,12 @@ export const proof = {
                 fjsRoundTrip('export default (b, f) => { let w = 0; while (w < 3) { const u0 = f(b); const u1 = b + u0; const u2 = f?.(u1); w = w + 1; } return 0; };'),
                 'export default ($0,$1)=>{let $2=0;while($2<3){const $3=$1;const $4=$0;const $5=$4+$3($4);const $6=$3?.($5);$2=$2+1;}return 0;};')
             // an anchor on a node the scope reaches anyway, a `const` read
-            // only through a call inlined beside it, is refused in a body and
-            // written as a statement of its own in a module, which reads back
-            // without the anchor: `serializer/todo/anchor-repeats-a-hoisted-value.md`
-            assertEq(fjsRefused({ 'input.f.js': [utf8('export default n => { const t = n + 1; const u = (() => t)(); return t * 2; };')] }), 'output.f.js - error: an anchor that repeats a hoisted value')
-            assertEq(compileSource('const b = [1]; const t = b[0] + 1; const u = (() => t)(); export default t * 2;')('output.f.js'), 'const $0=[1];const $1=$0[0];const $2=$1+1;const $3=$2*2;export default $3;')
+            // only through a call inlined beside it, is that node's `const`,
+            // in a body and in a module: the text is what the graph says, and
+            // reads back without the anchor the graph did not need
+            // (`edag/todo/redundant-anchor.md`)
+            assertEq(compileSource('export default n => { const t = n + 1; const u = (() => t)(); return t * 2; };')('output.f.js'), 'export default ($0)=>{const $1=$0+1;return $1*2;};')
+            assertEq(compileSource('const b = [1]; const t = b[0] + 1; const u = (() => t)(); export default t * 2;')('output.f.js'), 'const $0=[1][0]+1;export default $0*2;')
             // a shared node the scope reaches eagerly is named where its
             // `const` stands, before an item the source wrote first: which
             // failure comes first is no observation

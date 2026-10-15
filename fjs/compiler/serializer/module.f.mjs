@@ -1337,20 +1337,19 @@ const hoistedText = (s, path) => h => h[0] === 'leaf'
  * `throw` node, as the `throw` statement it came from, the value after the
  * keyword ([spec: functions](../../../spec/README.md#functions)).
  *
- * An anchor that is itself a value the statement's own hoists named — a
- * shared node the scope reaches only lazily, `const c = [];
- * export default [a && c, b && c];` — is that `const`, which the front end
- * reads back as anchored exactly because no other operand of the comma
- * reaches it eagerly, `elsewhere`, so the statement writes nothing more.
- * Where one does, the `const` reads back as reached and the anchor is
- * lost, so the anchor is refused, as one whose operand had a name already
- * is, and one that is a name of the scope's own — the arguments, a
- * parameter, a slot of the frame. Its statement would be a bare alias,
- * `const $1=$0;`, which the front end reads back as nothing at all — an
- * alias is the node it names, not an anchored computation — and the comma
- * would be lost with it. Linking emits no such graph: it anchors nothing
- * another operand establishes, and drops the alias where the source
- * writes one.
+ * An anchor whose node already has a `const` — one the statement's own
+ * hoists named, or an earlier statement did — is that `const`, which
+ * evaluates the node where the anchor stands or before it, so the statement
+ * writes nothing more: `const c = []; export default [a && c, b && c];`.
+ * The text is what the graph says. Where another operand of the comma
+ * reaches the node too, the anchor is one the graph did not need, and the
+ * text reads back without it, as the same value with the same failures;
+ * removing such an anchor is the graph's to do
+ * ([`../edag/todo/redundant-anchor.md`](../edag/todo/redundant-anchor.md)),
+ * not the writer's. An anchor that is a name of the scope's own — the
+ * arguments, a parameter, a slot of the frame — is refused: its statement
+ * would be a bare alias, `const $1=$0;`, which the front end reads back as
+ * nothing at all, and linking emits no such graph.
  *
  * An anchor's `const` names its node for the statements after it, though
  * none reads it there: a node another place reaches too is shared, which
@@ -1362,9 +1361,9 @@ const hoistedText = (s, path) => h => h[0] === 'leaf'
  * `returns` is what the last operand is introduced by where the scope's
  * own `return` is not it ({@link scope}).
  *
- * @type {(s0: _Scope, path: string, last: boolean, elsewhere: readonly number[], returns?: readonly Chunk[] | null) => (before: _Statement, v: Operand) => Result<_Statement, string>}
+ * @type {(s0: _Scope, path: string, last: boolean, returns?: readonly Chunk[] | null) => (before: _Statement, v: Operand) => Result<_Statement, string>}
  */
-const statement = (s0, path, last, elsewhere, returns = null) => ({ text, names }, v) => {
+const statement = (s0, path, last, returns = null) => ({ text, names }, v) => {
     /** @type {(acc: Result<_Statement, string>, h: _Hoisted) => Result<_Statement, string>} */
     const emit = (acc, h) => {
         if (acc[0] === 'error') { return acc }
@@ -1379,14 +1378,11 @@ const statement = (s0, path, last, elsewhere, returns = null) => ({ text, names 
             })),
         )(hoistedText(s, `${path}/statement${before.names.length}`)(h))
     }
-    const namedBefore = v instanceof Array && slotOf(visible({ ...s0, names }), ['entry', v[1]]) !== null
     const hoisted = hoists({ ...s0, names })(v).reduce(emit, ok({ text, names }))
     if (hoisted[0] === 'error') { return hoisted }
     const before = hoisted[1]
     const s = { ...s0, names: before.names }
-    if (!last && v instanceof Array && slotOf(visible(s), ['entry', v[1]]) !== null) {
-        return namedBefore || elsewhere.includes(v[1]) ? error('an anchor that repeats a hoisted value') : ok(before)
-    }
+    if (!last && v instanceof Array && slotOf(visible(s), ['entry', v[1]]) !== null) { return ok(before) }
     if (!last && isName(s.a, v)) { return error('an anchor that is a name') }
     // a scope's own last `throw` is the statement; a value a loop's block
     // assigns is assigned whatever it is, a throw as the applied function
@@ -1414,9 +1410,7 @@ const statement = (s0, path, last, elsewhere, returns = null) => ({ text, names 
  * each slot.
  *
  * `start` is what the scope has written before them: nothing, or a body's
- * aliases of its frame ({@link aliasedBody}). Each statement is told what
- * the other operands reach eagerly, which decides whether an anchor that
- * is a shared value survives reading back ({@link statement}).
+ * aliases of its frame ({@link aliasedBody}).
  *
  * `returns` is what the last operand is introduced by in place of the
  * scope's own: a loop's block assigns its variable, {@link loopStatement}
@@ -1429,7 +1423,7 @@ const scope = (s, path, start, returns = null, yields = true) => all => {
     /** @type {(acc: Result<_Statement, string>, v: Operand, i: number) => Result<_Statement, string>} */
     const step = (acc, v, i) => acc[0] === 'error'
         ? acc
-        : statement(s, path, yields && i === all.length - 1, all.flatMap((w, j) => j === i ? [] : eagerFrom(s.a)(w)), returns)(acc[1], v)
+        : statement(s, path, yields && i === all.length - 1, returns)(acc[1], v)
     return all.reduce(step, ok(start))
 }
 
