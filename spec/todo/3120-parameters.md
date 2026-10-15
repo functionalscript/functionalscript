@@ -351,6 +351,7 @@ first parameter with a top-level default. `['rest']` can still mean the raw
 tail starting at that length; later fixed bindings and the source's named
 rest binding must then be derived from it. Do not equate EDAG rest with the
 source rest binding in that future case or silently admit initializers now.
+[Default parameters](./3125-default-parameters.md) proposes that lowering.
 
 ### Tasks
 

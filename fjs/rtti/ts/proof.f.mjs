@@ -15,13 +15,13 @@ const toTsMut = printer(true)
 /** @type {(rtti: Type, expected: string) => void} */
 const eqMut = (rtti, expected) => {
     const result = toTsMut(rtti)
-    if (result !== expected) { throw `expected ${JSON.stringify(expected)}, got ${JSON.stringify(result)}` }
+    assertEq(result, expected)
 }
 
 /** @type {(rtti: Type, expected: string) => void} */
 const eq = (rtti, expected) => {
     const result = toTs(rtti)
-    if (result !== expected) { throw `expected ${JSON.stringify(expected)}, got ${JSON.stringify(result)}` }
+    assertEq(result, expected)
 }
 
 /** @type {(data: Data, expected: unknown) => void} */

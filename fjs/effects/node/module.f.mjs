@@ -25,7 +25,8 @@
  * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
-import { tryUtf8, utf8, utf8ToString } from '../../text/module.f.mjs'
+import { tryUtf8, utf8 } from '../../text/module.f.mjs'
+import { utf8ToString } from '../../text/utf8/module.f.mjs'
 import { floorCodePointBoundary } from '../../text/utf16/module.f.mjs'
 import { concat } from '../../types/list/module.f.mjs'
 import { definedEntries } from '../../types/object/module.f.mjs'

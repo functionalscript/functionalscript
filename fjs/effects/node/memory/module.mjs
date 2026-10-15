@@ -10,11 +10,17 @@
 import { randomUUID } from 'node:crypto'
 import { asyncRun } from '../../module.mjs'
 import { ok } from '../../../types/result/module.f.js'
-import { asBase, asNominal } from '../../memory/module.f.mjs'
+import { asNominal, slotId } from '../../memory/module.f.mjs'
 
-/** @type {(id: string) => Error} */
-const missingKey = id =>
-    new Error(`memory key not found: ${id}`)
+/**
+ * `slotId` over `store`, throwing its not-found message as an `Error`.
+ * @type {(store: Map<string, unknown>) => (key: Key<unknown>) => string}
+ */
+const storeId = store => key => {
+    const r = slotId(id => store.has(id))(key)
+    if (r[0] === 'error') { throw new Error(r[1]) }
+    return r[1]
+}
 
 /**
  * Creates a stateful operation map backed by an immutable `Map` snapshot.
@@ -25,9 +31,10 @@ const missingKey = id =>
  * by default.
  * @type {(uuid?: Uuid) => MemoryOperationMap}
  */
-export const memoryOperationMap = (uuid = randomUUID) => {
+export const asyncMemoryOperationMap = (uuid = randomUUID) => {
     /** @type {Map<string, unknown>} */
     const store = new Map()
+    const slot = storeId(store)
     return {
         memCreate: async value => {
             const id = uuid()
@@ -36,15 +43,9 @@ export const memoryOperationMap = (uuid = randomUUID) => {
             store.set(id, value)
             return ok(key)
         },
-        memRead: async key => {
-            const id = asBase(key)
-            if (!store.has(id)) { throw missingKey(id) }
-            return ok(store.get(id))
-        },
+        memRead: async key => ok(store.get(slot(key))),
         memWrite: async (key, value) => {
-            const id = asBase(key)
-            if (!store.has(id)) { throw missingKey(id) }
-            store.set(id, value)
+            store.set(slot(key), value)
             return ok(undefined)
         },
     }
@@ -65,7 +66,7 @@ export const memoryOperationMap = (uuid = randomUUID) => {
  *
  * **What that check is worth here is narrow, so it is worth stating exactly.**
  * Each handler is already checked against `MemOp` by
- * {@link memoryOperationMap}'s own annotation, and was before this call was
+ * {@link asyncMemoryOperationMap}'s own annotation, and was before this call was
  * written — a drifted handler is reported there, at the factory, either way.
  * What the runner adds is agreement between the *declared map type* and
  * `MemOp`: give `MemoryOperationMap` a narrower operation set and this line
@@ -76,7 +77,7 @@ export const memoryOperationMap = (uuid = randomUUID) => {
  * passes an already-annotated result.
  * @type {(uuid?: Uuid) => MemoryRun}
  */
-export const memoryRun = (uuid = randomUUID) => asyncRun(memoryOperationMap(uuid))
+export const memoryRun = (uuid = randomUUID) => asyncRun(asyncMemoryOperationMap(uuid))
 
 /**
  * Runs a memory-only effect using a fresh memory store — a store per call, so

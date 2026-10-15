@@ -1,6 +1,6 @@
 /**
- * UTF-8 helpers: `utf8`/`tryUtf8`/`utf8ToString` convert between strings and
- * MSB-first UTF-8 bit vectors.
+ * UTF-8 helpers: `utf8`/`tryUtf8` encode a string as an MSB-first UTF-8 bit
+ * vector. The decode direction is `utf8ToString`/`fromVec` in `./utf8`.
  *
  * @module
  *
@@ -8,8 +8,8 @@
  * @import { Utf8 } from './types.ts'
  */
 
-import { tryU8ListToVecMsb, u8ListMsb } from '../types/bit_vec/module.f.mjs'
-import { stringToU8List, u8ListToString } from './utf8/module.f.mjs'
+import { tryU8ListToVecMsb } from '../types/bit_vec/module.f.mjs'
+import { stringToU8List } from './utf8/module.f.mjs'
 import { mapUnwrap } from '../types/nullable/module.f.mjs'
 
 /**
@@ -33,12 +33,3 @@ export const tryUtf8 = s =>
  */
 export const utf8 =
     mapUnwrap(tryUtf8)
-
-/**
- * Converts a UTF-8 bit vector with MSB first encoding to a string.
- *
- * @param {Utf8} msbV The UTF-8 bit vector with MSB first encoding.
- * @returns {string} The resulting string.
- */
-export const utf8ToString = msbV =>
-    u8ListToString(u8ListMsb(msbV))

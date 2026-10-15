@@ -43,7 +43,7 @@ phase starts.
 | Shape | Where | Replacement |
 | --- | --- | --- |
 | **Leaf serializer** | `fjs/media/json/serializer`'s `numberSerialize` | FunctionalScript number formatting — blocks everything below |
-| Expected-output comparison | the proofs of `fjs/media/json/serializer`, `fjs/js/tokenizer`, `fjs/rtti/data`, `fjs/rtti/ts`, `fjs/text/code_point`; `fjs/media/revision` and `fjs/media/lock` build test input with it | `stringify(identity)` |
+| Expected-output comparison | the proofs of `fjs/media/json/serializer`, `fjs/rtti/data`, `fjs/rtti/ts`, `fjs/text/code_point`; `fjs/media/revision` and `fjs/media/lock` build test input with it | `stringify(identity)` |
 | Assertion messages | `fjs/rtti/ts`'s proof; `fjs/media/datajs/vectors` and its `matrix` quote values in their reports | pass the value, or `fjs/compiler`'s `_stringifyTree` |
 | Source-text quoting | done: `fjs/types/ts`, `fjs/emergent_testing` and `fjs/ci/package` | `fjs/js/string_escape`'s `stringLiteral`, which `stringSerialize` also wraps |
 | JSON line framing | `fjs/emergent_testing/proof.f.mjs`'s `writeEvent`, `fjs/mcp/proof.f.mjs`, `fjs/ci/package`'s `tsconfig.json` line | `stringify(identity)` |
@@ -155,10 +155,9 @@ Consider a guard so it does not come back — the cheapest is a proof in
   source-text-quoting row's replacement.
 - [`fjs/types/object/structurally_same/README.md`](../../../types/object/structurally_same/README.md)
   — done: `fjs/cas/evo/proof.f.mjs` stringified two values only to compare
-  them, and now uses `assertStructurallySame`. The proofs that still compare a
-  `JSON.stringify` result against a JSON *string literal* are tracked in
-  [`fjs/compiler/tokenizer/todo/serialized-proof-expectations.md`](../../../compiler/tokenizer/todo/serialized-proof-expectations.md);
-  those are not phase-2 work either way.
+  them, and now uses `assertStructurallySame`, as do the `fjs/js/tokenizer`
+  and `fjs/compiler/tokenizer` proofs, which compared a serialized token
+  stream against a JSON *string literal*.
 - [`fjs/effects/node/todo/readjsonfile-writejsonfile-helpers.md`](../../../effects/node/todo/readjsonfile-writejsonfile-helpers.md)
   — an on-hold design whose `writeJsonFile` half waits on phase 4.
 - `stringifySorted` in [`../module.f.mjs`](../module.f.mjs) — the canonical,

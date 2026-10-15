@@ -6,7 +6,7 @@
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { element } from '../../media/html/module.f.mjs'
 import { parse } from '../../rtti/parse/module.f.mjs'
-import { utf8ToString } from '../../text/module.f.mjs'
+import { utf8ToString } from '../../text/utf8/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'
 import { checkSummary, checksSchema, prsPage, pullsSchema, row, statusesSchema } from './module.f.mjs'
 

@@ -38,7 +38,7 @@ import * as testContext from 'node:test'
 import { normalize, toPosix } from '../../path/module.f.mjs'
 import { decode as decodeImportPath } from '../../path/import/module.f.mjs'
 import { _describeThrown, asyncRun } from '../module.mjs'
-import { memoryOperationMap } from './memory/module.mjs'
+import { asyncMemoryOperationMap } from './memory/module.mjs'
 import { commonOperationMap } from '../common/module.mjs'
 import {
     emptyHost, emptyHostCode, emptyHostMessage, exitCode, fileSizeRefusal, inflateTrailingCode, inflateTrailingMessage,
@@ -739,7 +739,7 @@ const { randomInt } = crypto
 
 /** @type {<T, E>(effect: Effect<NodeOp, T, E>) => Promise<Result<T, E>>} */
 export const runNodeEffect = asyncRun({
-    ...memoryOperationMap(),
+    ...asyncMemoryOperationMap(),
     all: async (...effects) => ok(await Promise.all(effects.map(runNodeEffect))),
     fetch: url => io(async () => {
         const response = await fetch(url)

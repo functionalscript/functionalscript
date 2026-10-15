@@ -443,6 +443,6 @@ export const proof = {
     constInference,
     demo: demoProof,
     typeof: Object.fromEntries(Object.entries(tests).map(([k, a]) => [k, assertNotNullish(a).map(v => () => {
-        if (typeof v !== k) { throw `typeof ${v} !== ${k}` }
+        assertEq(typeof v, k)
     })])),
 }

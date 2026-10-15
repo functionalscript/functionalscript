@@ -11,7 +11,7 @@ export const join = separator => value => prior =>
     prior + separator + value
 
 /** @type {Reduce<string>} */
-export const concat = i => acc => acc + i
+export const concat = join('')
 
 /** @type {Unary<boolean, boolean>} */
 export const logicalNot = v => !v

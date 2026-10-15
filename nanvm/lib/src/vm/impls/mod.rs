@@ -3,7 +3,10 @@ mod default;
 mod from;
 mod into_iterator;
 mod partial_eq;
+mod sized_index;
 mod try_from;
+
+pub use sized_index::ContainerWrapper;
 
 use crate::vm::{IVm, Unpacked};
 

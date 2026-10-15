@@ -144,6 +144,99 @@ contract and migration strategy.
 
 #### Current leaf migration fixed point
 
+Measured at `0c9ddf8`, the head of `main` at the 0.56.0 release. A leaf is
+as defined in the `5dcd94b` audit below, and the embedded-proof fixture is
+`example.f.js`, converted, so there is none to report separately. The leaves
+were rediscovered by loading every authored non-proof module through Node
+with a resolve hook recording each runtime import, so a JSDoc `@import` is
+never one.
+
+| Pass | Implementation leaves checked | Converted to `.f.js` |
+| --- | ---: | --- |
+| 1 | 7 | `git/refstore/scope` |
+| 2 | 0 | None: no `.f.mjs` waits on `git/refstore/scope` alone |
+
+There are seven leaves where the `e40fa58` table below left ten, because
+four of its rows are no longer leaves and one leaf is new. `ci/package` and
+`types/ts` import `js/string_escape`'s quoted-string writer since
+[#2902](https://github.com/functionalscript/functionalscript/pull/2902),
+`types/ts` `types/bigint`'s `serialize` besides, `git/config` imports
+`text/ascii`'s digit runs since
+[#2938](https://github.com/functionalscript/functionalscript/pull/2938), and
+`media/rust` imports `types/list` and `text/utf16` since
+[#2892](https://github.com/functionalscript/functionalscript/pull/2892): each
+now waits on an `.f.mjs` it imports, whatever it refuses itself.
+`git/refstore/scope`, split out of `git/refstore` in
+[#2907](https://github.com/functionalscript/functionalscript/pull/2907),
+imports nothing at run time and compiles whole, so it is converted with only
+its extension and its references changed: its two importers,
+`git/refstore` and `git/refstore/write`, its proof, which stays
+`proof.f.mjs`, and the links to it from `git/refstore/name` and
+[`fjs/js/identifier`'s lexical-predicates `todo/`](../fjs/js/identifier/todo/lexical-predicates-from-text-ascii.md).
+Both importers import other `.f.mjs` modules, so the rename exposes no new
+leaf and the second pass has nothing to check.
+
+The authored `.f.js` population under `fjs/` grows from 31 to 32, and
+`npm start compile` checks 38 with the specification's vectors. It is 31,
+not the 34 the `e40fa58` text counted, because `js/runtime` and `js/static`
+were added as `.f.js` since, and
+[#2936](https://github.com/functionalscript/functionalscript/pull/2936)
+deleted five: `types/number/is_finite`, `is_integer`, `is_nan`,
+`is_safe_integer` and `types/object/is`, whose bodies moved into the
+runtime.
+
+`nanvm/methods` and `website/demo/code` still hold one refusal each.
+`types/object/structurally_same` calls `Object.is` now, in place of the
+deleted `types/object/is`, and the compiler accepts the call; its first
+refusal is the one before. Behind it, the `e40fa58` row read the `Object`
+global as the prohibited property name in `const { entries } = Object`; the
+compiler names the key, `entries`, which a pattern refuses before it reads
+the namespace ([spec: destructuring](../spec/README.md#destructuring)).
+`types/list` adds what the earlier row did not reach in `next`: its two
+`return` guards inside the loop and the body that ends at `while (true)`.
+
+Each row is the first actual refusal from the `resolve()` pipeline, and
+the last column what else the compiler does not accept in the module. The
+last column was measured, not read: each refusal was removed on a scratch
+copy, in turn, until the copy was accepted, so a construct is listed only
+where the compiler reported it. Locations are `line:column`; paths are
+relative to `fjs/`.
+
+| Leaf file | Location | First refused construct | Behind it |
+| --- | ---: | --- | --- |
+| `nanvm/methods/module.f.mjs` | 115:20 | `Object.values` in `rows` | Nothing: the one refusal |
+| `types/list/module.f.mjs` | 51:9 | `if … else if` assigning to the parameter `head` inside the loop in `next` | In `next`, the tuple assignments, `continue`, `'head' in head`, two `return` guards inside the loop, the assignment to `head`, not the loop's variable, and no `return` after `while (true)`; `while` over a parameter, with no `let`, in `trampoline`; the generator, `Symbol` and `yield` in `iterable`; a `return` guard inside the loop in `last`; `for…of` in `tryFold`; `'first' in notLazy` in `lengthList`; `const { from } = Array`, `Array` a reserved word there; nine forward references, each `…Step` to the export after it |
+| `types/map/module.f.mjs` | 10:42 | `new Map(...)` in `mapSet` | `new Map(...)` in `mapDelete`; `Map` is not a language type |
+| `types/object/structurally_same/module.f.mjs` | 56:20 | `new Map(entries(b))` in `structurallySame` | `const { entries } = Object`: `entries` is a prohibited property name, `Array.prototype`'s, and spelled `Object.entries` it is refused at `Object`, whose one admitted member is `is`; the language enumerates no keys |
+| `website/browser-source/module.f.mjs` | 63:9 | Guard with `break` inside the loop in `read` | All in `read`: two loop variables and a `let` inside the loop, `continue`, `+=`, nested loops, and an `if` whose body neither returns nor throws |
+| `website/demo/code/module.f.mjs` | 12:48 | Default parameter in `codeBlock` | Nothing: the one refusal |
+
+To recheck the current table without writing generated output, run this from
+the repository root inside `./dev.sh node --input-type=module`:
+
+```js
+import { resolve as absolute } from 'node:path';
+import { resolve } from './fjs/compiler/edag/module.f.mjs';
+import { runNodeEffect } from './fjs/effects/node/module.mjs';
+
+const leaves = [
+  'nanvm/methods', 'types/list', 'types/map',
+  'types/object/structurally_same', 'website/browser-source',
+  'website/demo/code',
+];
+for (const leaf of leaves) {
+  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
+  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
+}
+```
+
+After a compiler feature lands, rediscover the runtime dependency leaves,
+compile every candidate, rename accepted modules and update their references,
+then rediscover and repeat until a pass accepts none. Update this table with
+the remaining refusals.
+
+#### Leaf migration fixed point at `e40fa58` (historical)
+
 Measured at `e40fa58`, the head of `main` after
 [#2878](https://github.com/functionalscript/functionalscript/pull/2878)
 admitted destructuring in parameters. A leaf is as defined in the `5dcd94b`

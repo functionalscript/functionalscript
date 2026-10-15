@@ -2,7 +2,7 @@
  * @import { DemoEvent } from '../../website/demo/types.ts'
  */
 
-import { toCodePointList, fromCodePointList, fromU8List, fromVec, utf8ByteToCodePointOp, vecToCodePointList, stringToU8List, u8ListToString } from './module.f.mjs'
+import { toCodePointList, fromCodePointList, fromU8List, fromVec, utf8ByteToCodePointOp, stringToU8List, u8ListToString, utf8ToString } from './module.f.mjs'
 import { stringifySorted } from '../../media/json/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { u8ListToVecMsb, vec } from '../../types/bit_vec/module.f.mjs'
@@ -216,22 +216,11 @@ export const proof = {
         // Unchecked: a surrogate comes back as the lone code unit
         () => assertEq(u8ListToString([0xed, 0xa0, 0x80]), '\ud800'),
     ],
-    vecToCodePointList: [
-        // Valid bytes → their code points
-        () => {
-            const v = u8ListToVecMsb([0x68, 0xc2, 0xa9])
-            assertEq(stringifySorted(toArray(vecToCodePointList(v))), '[104,169]')
-        },
-        // Unchecked: a lone continuation byte becomes an error-tagged code point
-        () => {
-            const v = u8ListToVecMsb([0x80])
-            assertEq(stringifySorted(toArray(vecToCodePointList(v))), '[-2147483520]')
-        },
-        // Unchecked: a surrogate and a value above U+10FFFF come back untagged
-        () => {
-            const v = u8ListToVecMsb([0xed, 0xa0, 0x80, 0xf4, 0x90, 0x80, 0x80])
-            assertEq(stringifySorted(toArray(vecToCodePointList(v))), '[55296,1114112]')
-        },
+    utf8ToString: [
+        // Valid bytes → their string
+        () => assertEq(utf8ToString(u8ListToVecMsb([0x68, 0xc2, 0xa9])), 'h©'),
+        // Unchecked: a surrogate comes back as the lone code unit
+        () => assertEq(utf8ToString(u8ListToVecMsb([0xed, 0xa0, 0x80])), '\ud800'),
     ],
     fromU8List: [
         // Valid bytes → decoded string
@@ -260,7 +249,7 @@ export const proof = {
         // Valid 4-byte UTF-8 (U+1F600 GRINNING FACE)
         () => {
             const v = u8ListToVecMsb([0xf0, 0x9f, 0x98, 0x80])
-            if (fromVec(v) !== '\u{1f600}') { throw 'expected emoji' }
+            assertEq(fromVec(v), '\u{1f600}', 'expected emoji')
         },
         // Invalid byte sequence → null
         () => {

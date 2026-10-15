@@ -1,5 +1,6 @@
 /**
  * @import { Meta } from '../../ebnf/ast/types.ts'
+ * @import { JsToken } from '../../ebnf/lib/js/types.ts'
  */
 
 import { stringToCodePointList, stringToList } from '../../text/utf16/module.f.mjs'
@@ -8,24 +9,19 @@ import { parser } from '../../ebnf/ll1/module.f.mjs'
 import { token as ebnfToken } from '../../ebnf/lib/js/module.f.mjs'
 import { _positions, tokenize } from './module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { _stringifyTree } from '../../compiler/module.f.mjs'
-
-// JsTokenWithMetadata carries bigint fields that JSON.stringify cannot
-// serialize — the compiler's proof dump can.
-const stringify = _stringifyTree
 
 /**
- * The tokens of a text as one string, positions left out — `error` where
- * the text does not tokenize. Proof-local: it exists to make an expectation
- * one readable string.
+ * The tokens of a text, positions left out — `error` where the text does not
+ * tokenize. Proof-local: it exists so an expectation states the token values
+ * alone, compared with `assertStructurallySame`.
  *
- * @type {(s: string) => string}
+ * @type {(s: string) => readonly JsToken[] | 'error'}
  */
 const tokenizeString = s => {
     const tokens = toArray(tokenize(stringToCodePointList(s))(''))
     return tokens.some(({ token }) => token.kind === 'error')
         ? 'error'
-        : stringify(tokens.map(({ token }) => token))
+        : tokens.map(({ token }) => token)
 }
 
 // 'line:column' of the error token `s` tokenizes to — 'line:column..line:column'
@@ -82,32 +78,38 @@ const covers = s => {
 export const proof = {
     templates: {
         chunks: () => {
-            assertEq(tokenizeString('``'), stringify([{ kind: 'noSubstitutionTemplate', value: '', source: '' }, { kind: 'eof' }]))
-            assertEq(tokenizeString('`é😀$ $$ $a { }`'), stringify([{ kind: 'noSubstitutionTemplate', value: 'é😀$ $$ $a { }', source: 'é😀$ $$ $a { }' }, { kind: 'eof' }]))
-            assertEq(tokenizeString('`a${x}b${y}c`'), stringify([
+            assertStructurallySame(tokenizeString('``'), [
+                { kind: 'noSubstitutionTemplate', value: '', source: '' },
+                { kind: 'eof' },
+            ])
+            assertStructurallySame(tokenizeString('`é😀$ $$ $a { }`'), [
+                { kind: 'noSubstitutionTemplate', value: 'é😀$ $$ $a { }', source: 'é😀$ $$ $a { }' },
+                { kind: 'eof' },
+            ])
+            assertStructurallySame(tokenizeString('`a${x}b${y}c`'), [
                 { kind: 'templateHead', value: 'a', source: 'a' }, { kind: 'id', value: 'x' },
                 { kind: 'templateMiddle', value: 'b', source: 'b' }, { kind: 'id', value: 'y' },
                 { kind: 'templateTail', value: 'c', source: 'c' }, { kind: 'eof' },
-            ]))
-            assertEq(tokenizeString('`${x}${y}`'), stringify([
+            ])
+            assertStructurallySame(tokenizeString('`${x}${y}`'), [
                 { kind: 'templateHead', value: '', source: '' }, { kind: 'id', value: 'x' },
                 { kind: 'templateMiddle', value: '', source: '' }, { kind: 'id', value: 'y' },
                 { kind: 'templateTail', value: '', source: '' }, { kind: 'eof' },
-            ]))
+            ])
         },
         escapes: () => {
-            assertEq(tokenizeString('`A`'), stringify([
+            assertStructurallySame(tokenizeString('`A`'), [
                 { kind: 'noSubstitutionTemplate', value: 'A', source: 'A' }, { kind: 'eof' },
-            ]))
-            assertEq(tokenizeString('`\\"\\\\\\/\\b\\f\\n\\r\\t\\u0041\\`\\${`'), stringify([
+            ])
+            assertStructurallySame(tokenizeString('`\\"\\\\\\/\\b\\f\\n\\r\\t\\u0041\\`\\${`'), [
                 { kind: 'noSubstitutionTemplate', value: '"\\/\b\f\n\r\tA`${', source: '\\"\\\\\\/\\b\\f\\n\\r\\t\\u0041\\`\\${' }, { kind: 'eof' },
-            ]))
-            assertEq(tokenizeString('`a\rb\r\nc\nd\u2028e\u2029f`'), stringify([
+            ])
+            assertStructurallySame(tokenizeString('`a\rb\r\nc\nd\u2028e\u2029f`'), [
                 { kind: 'noSubstitutionTemplate', value: 'a\nb\nc\nd\u2028e\u2029f', source: 'a\rb\r\nc\nd\u2028e\u2029f' }, { kind: 'eof' },
-            ]))
-            assertEq(tokenizeString('`\\u000D\r\n`'), stringify([
+            ])
+            assertStructurallySame(tokenizeString('`\\u000D\r\n`'), [
                 { kind: 'noSubstitutionTemplate', value: '\r\n', source: '\\u000D\r\n' }, { kind: 'eof' },
-            ]))
+            ])
             // Each JavaScript spelling cooks correctly, while the exact source
             // stays distinct from the value for consumers' spelling policies.
             const cases = /** @type {const} */ ([
@@ -120,18 +122,18 @@ export const proof = {
                 ['\0', '\0'], ['\t', '\t'], ['\x1f', '\x1f'],
             ])
             for (const [source, value] of cases) {
-                assertEq(tokenizeString('`' + source + '`'), stringify([
+                assertStructurallySame(tokenizeString('`' + source + '`'), [
                     { kind: 'noSubstitutionTemplate', value, source }, { kind: 'eof' },
-                ]), source)
+                ], source)
             }
-            assertEq(tokenizeString('`a${x}\\x41${y}\\v`'), stringify([
+            assertStructurallySame(tokenizeString('`a${x}\\x41${y}\\v`'), [
                 { kind: 'templateHead', value: 'a', source: 'a' }, { kind: 'id', value: 'x' },
                 { kind: 'templateMiddle', value: 'A', source: '\\x41' }, { kind: 'id', value: 'y' },
                 { kind: 'templateTail', value: '\v', source: '\\v' }, { kind: 'eof' },
-            ]))
+            ])
         },
         nesting: () => {
-            assertEq(tokenizeString('`a${{value:"}"}.value}b${`c${x}d`}e`'), stringify([
+            assertStructurallySame(tokenizeString('`a${{value:"}"}.value}b${`c${x}d`}e`'), [
                 { kind: 'templateHead', value: 'a', source: 'a' },
                 { kind: '{' }, { kind: 'id', value: 'value' }, { kind: ':' }, { kind: 'string', value: '}' }, { kind: '}' },
                 { kind: '.' }, { kind: 'id', value: 'value' },
@@ -139,7 +141,7 @@ export const proof = {
                 { kind: 'templateHead', value: 'c', source: 'c' }, { kind: 'id', value: 'x' },
                 { kind: 'templateTail', value: 'd', source: 'd' },
                 { kind: 'templateTail', value: 'e', source: 'e' }, { kind: 'eof' },
-            ]))
+            ])
             /** @type {(source: string) => readonly string[]} */
             const kinds = source => toArray(tokenize(stringToCodePointList(source))('')).map(({ token }) => token.kind)
                 .filter(kind => kind !== 'ws' && kind !== 'nl' && kind !== '/*' && kind !== '//')
@@ -219,31 +221,31 @@ export const proof = {
     djs: [
         () => {
             const result = tokenizeString('')
-            assertEq(result, '[{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('{')
-            assertEq(result, '[{"kind":"{"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: '{' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('}')
-            assertEq(result, '[{"kind":"}"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: '}' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString(':')
-            assertEq(result, '[{"kind":":"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: ':' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString(',')
-            assertEq(result, '[{"kind":","},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: ',' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('[')
-            assertEq(result, '[{"kind":"["},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: '[' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString(']')
-            assertEq(result, '[{"kind":"]"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: ']' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('ᄑ')
@@ -251,15 +253,15 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('{ \t\n\r}')
-            assertEq(result, '[{"kind":"{"},{"kind":"nl"},{"kind":"}"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: '{' }, { kind: 'nl' }, { kind: '}' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('""')
-            assertEq(result, '[{"kind":"string","value":""},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'string', value: '' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('"value"')
-            assertEq(result, '[{"kind":"string","value":"value"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'string', value: 'value' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('"value')
@@ -267,7 +269,12 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('"value1" "value2"')
-            assertEq(result, '[{"kind":"string","value":"value1"},{"kind":"ws"},{"kind":"string","value":"value2"},{"kind":"eof"}]')
+            assertStructurallySame(result, [
+                { kind: 'string', value: 'value1' },
+                { kind: 'ws' },
+                { kind: 'string', value: 'value2' },
+                { kind: 'eof' },
+            ])
         },
         () => {
             const result = tokenizeString('"')
@@ -275,15 +282,15 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('"\\\\"')
-            assertEq(result, '[{"kind":"string","value":"\\\\"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'string', value: '\\' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('"\\""')
-            assertEq(result, '[{"kind":"string","value":"\\""},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'string', value: '"' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('"\\/"')
-            assertEq(result, '[{"kind":"string","value":"/"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'string', value: '/' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('"\\x"')
@@ -303,15 +310,15 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('"\\b\\f\\n\\r\\t"')
-            assertEq(result, '[{"kind":"string","value":"\\b\\f\\n\\r\\t"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'string', value: '\b\f\n\r\t' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('"\\u1234"')
-            assertEq(result, '[{"kind":"string","value":"ሴ"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'string', value: 'ሴ' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('"\\uaBcDEeFf"')
-            assertEq(result, '[{"kind":"string","value":"ꯍEeFf"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'string', value: 'ꯍEeFf' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('"\\uEeFg"')
@@ -319,15 +326,20 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('"\\u0000\\uFFFF\\uD83D\\uDE00"')
-            assertEq(result, '[{"kind":"string","value":"\\u0000\uffff😀"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'string', value: '\u0000\uffff😀' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('0')
-            assertEq(result, '[{"kind":"number","value":"0"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'number', value: '0' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('[0]')
-            assertEq(result, '[{"kind":"["},{"kind":"number","value":"0"},{"kind":"]"},{"kind":"eof"}]')
+            assertStructurallySame(result, [
+                { kind: '[' },
+                { kind: 'number', value: '0' },
+                { kind: ']' },
+                { kind: 'eof' },
+            ])
         },
         () => {
             const result = tokenizeString('00')
@@ -339,15 +351,28 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('123456789012345678901234567890')
-            assertEq(result, '[{"kind":"number","value":"123456789012345678901234567890"},{"kind":"eof"}]')
+            assertStructurallySame(result, [
+                { kind: 'number', value: '123456789012345678901234567890' },
+                { kind: 'eof' },
+            ])
         },
         () => {
             const result = tokenizeString('{90}')
-            assertEq(result, '[{"kind":"{"},{"kind":"number","value":"90"},{"kind":"}"},{"kind":"eof"}]')
+            assertStructurallySame(result, [
+                { kind: '{' },
+                { kind: 'number', value: '90' },
+                { kind: '}' },
+                { kind: 'eof' },
+            ])
         },
         () => {
             const result = tokenizeString('1 2')
-            assertEq(result, '[{"kind":"number","value":"1"},{"kind":"ws"},{"kind":"number","value":"2"},{"kind":"eof"}]')
+            assertStructurallySame(result, [
+                { kind: 'number', value: '1' },
+                { kind: 'ws' },
+                { kind: 'number', value: '2' },
+                { kind: 'eof' },
+            ])
         },
         () => {
             const result = tokenizeString('0. 2')
@@ -355,7 +380,12 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('10-0')
-            assertEq(result, '[{"kind":"number","value":"10"},{"kind":"-"},{"kind":"number","value":"0"},{"kind":"eof"}]')
+            assertStructurallySame(result, [
+                { kind: 'number', value: '10' },
+                { kind: '-' },
+                { kind: 'number', value: '0' },
+                { kind: 'eof' },
+            ])
         },
         () => {
             const result = tokenizeString('9a:')
@@ -363,11 +393,11 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('-10')
-            assertEq(result, '[{"kind":"-"},{"kind":"number","value":"10"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: '-' }, { kind: 'number', value: '10' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('-0')
-            assertEq(result, '[{"kind":"-"},{"kind":"number","value":"0"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: '-' }, { kind: 'number', value: '0' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('-00')
@@ -375,15 +405,20 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('-.123')
-            assertEq(result, '[{"kind":"-"},{"kind":"."},{"kind":"number","value":"123"},{"kind":"eof"}]')
+            assertStructurallySame(result, [
+                { kind: '-' },
+                { kind: '.' },
+                { kind: 'number', value: '123' },
+                { kind: 'eof' },
+            ])
         },
         () => {
             const result = tokenizeString('0.01')
-            assertEq(result, '[{"kind":"number","value":"0.01"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'number', value: '0.01' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('-0.9')
-            assertEq(result, '[{"kind":"-"},{"kind":"number","value":"0.9"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: '-' }, { kind: 'number', value: '0.9' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('-0.')
@@ -395,11 +430,11 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('12.34')
-            assertEq(result, '[{"kind":"number","value":"12.34"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'number', value: '12.34' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('-12.00')
-            assertEq(result, '[{"kind":"-"},{"kind":"number","value":"12.00"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: '-' }, { kind: 'number', value: '12.00' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('-12.')
@@ -411,27 +446,27 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('0e1')
-            assertEq(result, '[{"kind":"number","value":"0e1"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'number', value: '0e1' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('0e+2')
-            assertEq(result, '[{"kind":"number","value":"0e+2"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'number', value: '0e+2' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('0e-0')
-            assertEq(result, '[{"kind":"number","value":"0e-0"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'number', value: '0e-0' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('12e0000')
-            assertEq(result, '[{"kind":"number","value":"12e0000"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'number', value: '12e0000' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('-12e-0001')
-            assertEq(result, '[{"kind":"-"},{"kind":"number","value":"12e-0001"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: '-' }, { kind: 'number', value: '12e-0001' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('-12.34e1234')
-            assertEq(result, '[{"kind":"-"},{"kind":"number","value":"12.34e1234"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: '-' }, { kind: 'number', value: '12.34e1234' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('0e')
@@ -443,23 +478,38 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('ABCdef1234567890$_')
-            assertEq(result, '[{"kind":"id","value":"ABCdef1234567890$_"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'id', value: 'ABCdef1234567890$_' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('{ABCdef1234567890$_}')
-            assertEq(result, '[{"kind":"{"},{"kind":"id","value":"ABCdef1234567890$_"},{"kind":"}"},{"kind":"eof"}]')
+            assertStructurallySame(result, [
+                { kind: '{' },
+                { kind: 'id', value: 'ABCdef1234567890$_' },
+                { kind: '}' },
+                { kind: 'eof' },
+            ])
         },
         () => {
             const result = tokenizeString('123 _123')
-            assertEq(result, '[{"kind":"number","value":"123"},{"kind":"ws"},{"kind":"id","value":"_123"},{"kind":"eof"}]')
+            assertStructurallySame(result, [
+                { kind: 'number', value: '123' },
+                { kind: 'ws' },
+                { kind: 'id', value: '_123' },
+                { kind: 'eof' },
+            ])
         },
         () => {
             const result = tokenizeString('123 $123')
-            assertEq(result, '[{"kind":"number","value":"123"},{"kind":"ws"},{"kind":"id","value":"$123"},{"kind":"eof"}]')
+            assertStructurallySame(result, [
+                { kind: 'number', value: '123' },
+                { kind: 'ws' },
+                { kind: 'id', value: '$123' },
+                { kind: 'eof' },
+            ])
         },
         () => {
             const result = tokenizeString('123_123')
-            assertEq(result, '[{"kind":"number","value":"123_123"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'number', value: '123_123' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('123$123')
@@ -467,16 +517,21 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('1234567890n')
-            assertEq(result, '[{"kind":"bigint","value":1234567890n},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'bigint', value: 1234567890n }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('0n')
-            assertEq(result, '[{"kind":"bigint","value":0n},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'bigint', value: 0n }, { kind: 'eof' }])
         },
         () => {
             // hexadecimal: the number keeps its spelling, the bigint is its value
             const result = tokenizeString('0xFF 0XaBn')
-            assertEq(result, '[{"kind":"number","value":"0xFF"},{"kind":"ws"},{"kind":"bigint","value":171n},{"kind":"eof"}]')
+            assertStructurallySame(result, [
+                { kind: 'number', value: '0xFF' },
+                { kind: 'ws' },
+                { kind: 'bigint', value: 171n },
+                { kind: 'eof' },
+            ])
         },
         () => {
             assertEq(tokenizeString('0x'), 'error')
@@ -487,16 +542,34 @@ export const proof = {
             assertEq(tokenizeString('0b102'), 'error')
             assertEq(tokenizeString('0b1e2'), 'error')
             assertEq(tokenizeString('0b1n2'), 'error')
-            assertEq(tokenizeString('0b1_0'), '[{"kind":"number","value":"0b1_0"},{"kind":"eof"}]')
-            assertEq(tokenizeString('1_000 0xF_Fn 0B1_0n'), '[{"kind":"number","value":"1_000"},{"kind":"ws"},{"kind":"bigint","value":255n},{"kind":"ws"},{"kind":"bigint","value":2n},{"kind":"eof"}]')
+            assertStructurallySame(tokenizeString('0b1_0'), [{ kind: 'number', value: '0b1_0' }, { kind: 'eof' }])
+            assertStructurallySame(tokenizeString('1_000 0xF_Fn 0B1_0n'), [
+                { kind: 'number', value: '1_000' },
+                { kind: 'ws' },
+                { kind: 'bigint', value: 255n },
+                { kind: 'ws' },
+                { kind: 'bigint', value: 2n },
+                { kind: 'eof' },
+            ])
             for (const source of ['1_', '1__0', '0_1', '0x_FF', '0b_1', '1_.0', '1._0', '1e_2', '1e+_2', '1_n', '0x1_n', '0b1_n']) {
                 assertEq(tokenizeString(source), 'error')
             }
-            assertEq(tokenizeString('0b101 0B01n'), '[{"kind":"number","value":"0b101"},{"kind":"ws"},{"kind":"bigint","value":1n},{"kind":"eof"}]')
+            assertStructurallySame(tokenizeString('0b101 0B01n'), [
+                { kind: 'number', value: '0b101' },
+                { kind: 'ws' },
+                { kind: 'bigint', value: 1n },
+                { kind: 'eof' },
+            ])
         },
         () => {
             const result = tokenizeString('[-1234567890n]')
-            assertEq(result, '[{"kind":"["},{"kind":"-"},{"kind":"bigint","value":1234567890n},{"kind":"]"},{"kind":"eof"}]')
+            assertStructurallySame(result, [
+                { kind: '[' },
+                { kind: '-' },
+                { kind: 'bigint', value: 1234567890n },
+                { kind: ']' },
+                { kind: 'eof' },
+            ])
         },
         () => {
             const result = tokenizeString('123.456n')
@@ -521,26 +594,29 @@ export const proof = {
     // it adds, and everything else JSON refuses still refused.
     singleQuoted: {
         sameValue: () => {
-            assertEq(tokenizeString("'value'"), tokenizeString('"value"'))
-            assertEq(tokenizeString("''"), tokenizeString('""'))
-            assertEq(tokenizeString("'\\u0041\\n\\t\\/\\\\'"), tokenizeString('"\\u0041\\n\\t\\/\\\\"'))
-            assertEq(tokenizeString("'é😀'"), tokenizeString('"é😀"'))
+            assertStructurallySame(tokenizeString("'value'"), tokenizeString('"value"'))
+            assertStructurallySame(tokenizeString("''"), tokenizeString('""'))
+            assertStructurallySame(tokenizeString("'\\u0041\\n\\t\\/\\\\'"), tokenizeString('"\\u0041\\n\\t\\/\\\\"'))
+            assertStructurallySame(tokenizeString("'é😀'"), tokenizeString('"é😀"'))
         },
         // U+2028 and U+2029 are line terminators to JavaScript but not
         // control characters, so JSON admits them raw in a string, and so
         // does either quote here; a line feed or carriage return does not
         separators: () => {
-            assertEq(tokenizeString("'\u2028\u2029'"), '[{"kind":"string","value":"\u2028\u2029"},{"kind":"eof"}]')
-            assertEq(tokenizeString("'\u2028\u2029'"), tokenizeString('"\u2028\u2029"'))
+            assertStructurallySame(tokenizeString("'\u2028\u2029'"), [
+                { kind: 'string', value: '\u2028\u2029' },
+                { kind: 'eof' },
+            ])
+            assertStructurallySame(tokenizeString("'\u2028\u2029'"), tokenizeString('"\u2028\u2029"'))
             assertEq(tokenizeString("'a\rb'"), 'error')
         },
         otherQuote: () => {
-            assertEq(tokenizeString("'a\"b'"), '[{"kind":"string","value":"a\\"b"},{"kind":"eof"}]')
-            assertEq(tokenizeString("'a\\\"b'"), '[{"kind":"string","value":"a\\"b"},{"kind":"eof"}]')
-            assertEq(tokenizeString('"it\'s"'), '[{"kind":"string","value":"it\'s"},{"kind":"eof"}]')
+            assertStructurallySame(tokenizeString("'a\"b'"), [{ kind: 'string', value: 'a"b' }, { kind: 'eof' }])
+            assertStructurallySame(tokenizeString("'a\\\"b'"), [{ kind: 'string', value: 'a"b' }, { kind: 'eof' }])
+            assertStructurallySame(tokenizeString('"it\'s"'), [{ kind: 'string', value: 'it\'s' }, { kind: 'eof' }])
         },
         escapedQuote: () => {
-            assertEq(tokenizeString("'can\\'t'"), '[{"kind":"string","value":"can\'t"},{"kind":"eof"}]')
+            assertStructurallySame(tokenizeString("'can\\'t'"), [{ kind: 'string', value: 'can\'t' }, { kind: 'eof' }])
         },
         refused: () => {
             // `\'` is not JSON's, so a double-quoted string keeps refusing it
@@ -556,94 +632,213 @@ export const proof = {
             assertEq(tokenizeString("'"), 'error')
         },
         twoStrings: () => {
-            assertEq(tokenizeString("'a' \"b\""), '[{"kind":"string","value":"a"},{"kind":"ws"},{"kind":"string","value":"b"},{"kind":"eof"}]')
+            assertStructurallySame(tokenizeString("'a' \"b\""), [
+                { kind: 'string', value: 'a' },
+                { kind: 'ws' },
+                { kind: 'string', value: 'b' },
+                { kind: 'eof' },
+            ])
         },
     },
     operators:
     [
         () => {
             const result = tokenizeString('=')
-            assertEq(result, '[{"kind":"="},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: '=' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('=a')
-            assertEq(result, '[{"kind":"="},{"kind":"id","value":"a"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: '=' }, { kind: 'id', value: 'a' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('-')
-            assertEq(result, '[{"kind":"-"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: '-' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('1*2')
-            assertEq(result, '[{"kind":"number","value":"1"},{"kind":"*"},{"kind":"number","value":"2"},{"kind":"eof"}]')
+            assertStructurallySame(result, [
+                { kind: 'number', value: '1' },
+                { kind: '*' },
+                { kind: 'number', value: '2' },
+                { kind: 'eof' },
+            ])
         },
         () => {
             const result = tokenizeString('( )')
-            assertEq(result, '[{"kind":"("},{"kind":"ws"},{"kind":")"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: '(' }, { kind: 'ws' }, { kind: ')' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('== != === !== > >= < <=')
-            assertEq(result, '[{"kind":"=="},{"kind":"ws"},{"kind":"!="},{"kind":"ws"},{"kind":"==="},{"kind":"ws"},{"kind":"!=="},{"kind":"ws"},{"kind":">"},{"kind":"ws"},{"kind":">="},{"kind":"ws"},{"kind":"<"},{"kind":"ws"},{"kind":"<="},{"kind":"eof"}]')
+            assertStructurallySame(result, [
+                { kind: '==' },
+                { kind: 'ws' },
+                { kind: '!=' },
+                { kind: 'ws' },
+                { kind: '===' },
+                { kind: 'ws' },
+                { kind: '!==' },
+                { kind: 'ws' },
+                { kind: '>' },
+                { kind: 'ws' },
+                { kind: '>=' },
+                { kind: 'ws' },
+                { kind: '<' },
+                { kind: 'ws' },
+                { kind: '<=' },
+                { kind: 'eof' },
+            ])
         },
         () => {
             const result = tokenizeString('+ - * / % ++ -- **')
-            assertEq(result, '[{"kind":"+"},{"kind":"ws"},{"kind":"-"},{"kind":"ws"},{"kind":"*"},{"kind":"ws"},{"kind":"/"},{"kind":"ws"},{"kind":"%"},{"kind":"ws"},{"kind":"++"},{"kind":"ws"},{"kind":"--"},{"kind":"ws"},{"kind":"**"},{"kind":"eof"}]')
+            assertStructurallySame(result, [
+                { kind: '+' },
+                { kind: 'ws' },
+                { kind: '-' },
+                { kind: 'ws' },
+                { kind: '*' },
+                { kind: 'ws' },
+                { kind: '/' },
+                { kind: 'ws' },
+                { kind: '%' },
+                { kind: 'ws' },
+                { kind: '++' },
+                { kind: 'ws' },
+                { kind: '--' },
+                { kind: 'ws' },
+                { kind: '**' },
+                { kind: 'eof' },
+            ])
         },
         () => {
             const result = tokenizeString('= += -= *= /= %= **=')
-            assertEq(result, '[{"kind":"="},{"kind":"ws"},{"kind":"+="},{"kind":"ws"},{"kind":"-="},{"kind":"ws"},{"kind":"*="},{"kind":"ws"},{"kind":"/="},{"kind":"ws"},{"kind":"%="},{"kind":"ws"},{"kind":"**="},{"kind":"eof"}]')
+            assertStructurallySame(result, [
+                { kind: '=' },
+                { kind: 'ws' },
+                { kind: '+=' },
+                { kind: 'ws' },
+                { kind: '-=' },
+                { kind: 'ws' },
+                { kind: '*=' },
+                { kind: 'ws' },
+                { kind: '/=' },
+                { kind: 'ws' },
+                { kind: '%=' },
+                { kind: 'ws' },
+                { kind: '**=' },
+                { kind: 'eof' },
+            ])
         },
         () => {
             const result = tokenizeString('& | ^ ~ << >> >>>')
-            assertEq(result, '[{"kind":"&"},{"kind":"ws"},{"kind":"|"},{"kind":"ws"},{"kind":"^"},{"kind":"ws"},{"kind":"~"},{"kind":"ws"},{"kind":"<<"},{"kind":"ws"},{"kind":">>"},{"kind":"ws"},{"kind":">>>"},{"kind":"eof"}]')
+            assertStructurallySame(result, [
+                { kind: '&' },
+                { kind: 'ws' },
+                { kind: '|' },
+                { kind: 'ws' },
+                { kind: '^' },
+                { kind: 'ws' },
+                { kind: '~' },
+                { kind: 'ws' },
+                { kind: '<<' },
+                { kind: 'ws' },
+                { kind: '>>' },
+                { kind: 'ws' },
+                { kind: '>>>' },
+                { kind: 'eof' },
+            ])
         },
         () => {
             const result = tokenizeString('&= |= ^= <<= >>= >>>=')
-            assertEq(result, '[{"kind":"&="},{"kind":"ws"},{"kind":"|="},{"kind":"ws"},{"kind":"^="},{"kind":"ws"},{"kind":"<<="},{"kind":"ws"},{"kind":">>="},{"kind":"ws"},{"kind":">>>="},{"kind":"eof"}]')
+            assertStructurallySame(result, [
+                { kind: '&=' },
+                { kind: 'ws' },
+                { kind: '|=' },
+                { kind: 'ws' },
+                { kind: '^=' },
+                { kind: 'ws' },
+                { kind: '<<=' },
+                { kind: 'ws' },
+                { kind: '>>=' },
+                { kind: 'ws' },
+                { kind: '>>>=' },
+                { kind: 'eof' },
+            ])
         },
         () => {
             // '<<<' and '<<<=' are not JS operators; maximal munch tokenizes them
             // as '<<' followed by '<' / '<=', matching the old tokenizer's behavior.
             const result = tokenizeString('<<< <<<=')
-            assertEq(result, '[{"kind":"<<"},{"kind":"<"},{"kind":"ws"},{"kind":"<<"},{"kind":"<="},{"kind":"eof"}]')
+            assertStructurallySame(result, [
+                { kind: '<<' },
+                { kind: '<' },
+                { kind: 'ws' },
+                { kind: '<<' },
+                { kind: '<=' },
+                { kind: 'eof' },
+            ])
         },
         () => {
             const result = tokenizeString('&& || ! ??')
-            assertEq(result, '[{"kind":"&&"},{"kind":"ws"},{"kind":"||"},{"kind":"ws"},{"kind":"!"},{"kind":"ws"},{"kind":"??"},{"kind":"eof"}]')
+            assertStructurallySame(result, [
+                { kind: '&&' },
+                { kind: 'ws' },
+                { kind: '||' },
+                { kind: 'ws' },
+                { kind: '!' },
+                { kind: 'ws' },
+                { kind: '??' },
+                { kind: 'eof' },
+            ])
         },
         () => {
             const result = tokenizeString('&&= ||= ??=')
-            assertEq(result, '[{"kind":"&&="},{"kind":"ws"},{"kind":"||="},{"kind":"ws"},{"kind":"??="},{"kind":"eof"}]')
+            assertStructurallySame(result, [
+                { kind: '&&=' },
+                { kind: 'ws' },
+                { kind: '||=' },
+                { kind: 'ws' },
+                { kind: '??=' },
+                { kind: 'eof' },
+            ])
         },
         () => {
             const result = tokenizeString('? ?. . =>')
-            assertEq(result, '[{"kind":"?"},{"kind":"ws"},{"kind":"?."},{"kind":"ws"},{"kind":"."},{"kind":"ws"},{"kind":"=>"},{"kind":"eof"}]')
+            assertStructurallySame(result, [
+                { kind: '?' },
+                { kind: 'ws' },
+                { kind: '?.' },
+                { kind: 'ws' },
+                { kind: '.' },
+                { kind: 'ws' },
+                { kind: '=>' },
+                { kind: 'eof' },
+            ])
         },
     ],
     ws: [
         () => {
             const result = tokenizeString(' ')
-            assertEq(result, '[{"kind":"ws"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'ws' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('\t')
-            assertEq(result, '[{"kind":"ws"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'ws' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString(' \t')
-            assertEq(result, '[{"kind":"ws"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'ws' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('\n')
-            assertEq(result, '[{"kind":"nl"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'nl' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('\r')
-            assertEq(result, '[{"kind":"nl"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'nl' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString(' \t\n\r ')
-            assertEq(result, '[{"kind":"nl"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'nl' }, { kind: 'eof' }])
         },
         () => {
             // the Unicode line and paragraph separators are no token outside a
@@ -655,243 +850,255 @@ export const proof = {
             assertEq(tokenizeString('/* a\u2029b */'), 'error')
             assertEq(tokenizeString('// a\u2028b'), 'error')
             assertEq(tokenizeString('// a\u2029b'), 'error')
-            assertEq(tokenizeString('"a\u2028b"'), '[{"kind":"string","value":"a\u2028b"},{"kind":"eof"}]')
-            assertEq(tokenizeString('"a\u2029b"'), '[{"kind":"string","value":"a\u2029b"},{"kind":"eof"}]')
+            assertStructurallySame(tokenizeString('"a\u2028b"'), [
+                { kind: 'string', value: 'a\u2028b' },
+                { kind: 'eof' },
+            ])
+            assertStructurallySame(tokenizeString('"a\u2029b"'), [
+                { kind: 'string', value: 'a\u2029b' },
+                { kind: 'eof' },
+            ])
         },
     ],
     id: [
         () => {
             const result = tokenizeString('err')
-            assertEq(result, '[{"kind":"id","value":"err"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'id', value: 'err' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('{e}')
-            assertEq(result, '[{"kind":"{"},{"kind":"id","value":"e"},{"kind":"}"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: '{' }, { kind: 'id', value: 'e' }, { kind: '}' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('tru')
-            assertEq(result, '[{"kind":"id","value":"tru"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'id', value: 'tru' }, { kind: 'eof' }])
         },
     ],
     keywords: [
         () => {
             const result = tokenizeString('true')
-            assertEq(result, '[{"kind":"true"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'true' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('false')
-            assertEq(result, '[{"kind":"false"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'false' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('null')
-            assertEq(result, '[{"kind":"null"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'null' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('undefined')
-            assertEq(result, '[{"kind":"undefined"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'undefined' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('[null]')
-            assertEq(result, '[{"kind":"["},{"kind":"null"},{"kind":"]"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: '[' }, { kind: 'null' }, { kind: ']' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('arguments')
-            assertEq(result, '[{"kind":"arguments"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'arguments' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('await')
-            assertEq(result, '[{"kind":"await"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'await' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('break')
-            assertEq(result, '[{"kind":"break"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'break' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('case')
-            assertEq(result, '[{"kind":"case"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'case' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('catch')
-            assertEq(result, '[{"kind":"catch"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'catch' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('class')
-            assertEq(result, '[{"kind":"class"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'class' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('const')
-            assertEq(result, '[{"kind":"const"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'const' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('continue')
-            assertEq(result, '[{"kind":"continue"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'continue' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('debugger')
-            assertEq(result, '[{"kind":"debugger"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'debugger' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('default')
-            assertEq(result, '[{"kind":"default"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'default' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('delete')
-            assertEq(result, '[{"kind":"delete"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'delete' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('do')
-            assertEq(result, '[{"kind":"do"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'do' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('else')
-            assertEq(result, '[{"kind":"else"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'else' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('enum')
-            assertEq(result, '[{"kind":"enum"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'enum' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('eval')
-            assertEq(result, '[{"kind":"eval"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'eval' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('export')
-            assertEq(result, '[{"kind":"export"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'export' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('extends')
-            assertEq(result, '[{"kind":"extends"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'extends' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('finally')
-            assertEq(result, '[{"kind":"finally"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'finally' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('for')
-            assertEq(result, '[{"kind":"for"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'for' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('function')
-            assertEq(result, '[{"kind":"function"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'function' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('if')
-            assertEq(result, '[{"kind":"if"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'if' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('implements')
-            assertEq(result, '[{"kind":"implements"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'implements' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('import')
-            assertEq(result, '[{"kind":"import"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'import' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('in')
-            assertEq(result, '[{"kind":"in"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'in' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('instanceof')
-            assertEq(result, '[{"kind":"instanceof"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'instanceof' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('interface')
-            assertEq(result, '[{"kind":"interface"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'interface' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('let')
-            assertEq(result, '[{"kind":"let"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'let' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('new')
-            assertEq(result, '[{"kind":"new"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'new' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('package')
-            assertEq(result, '[{"kind":"package"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'package' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('private')
-            assertEq(result, '[{"kind":"private"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'private' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('protected')
-            assertEq(result, '[{"kind":"protected"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'protected' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('public')
-            assertEq(result, '[{"kind":"public"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'public' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('return')
-            assertEq(result, '[{"kind":"return"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'return' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('static')
-            assertEq(result, '[{"kind":"static"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'static' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('super')
-            assertEq(result, '[{"kind":"super"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'super' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('switch')
-            assertEq(result, '[{"kind":"switch"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'switch' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('this')
-            assertEq(result, '[{"kind":"this"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'this' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('throw')
-            assertEq(result, '[{"kind":"throw"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'throw' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('try')
-            assertEq(result, '[{"kind":"try"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'try' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('typeof')
-            assertEq(result, '[{"kind":"typeof"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'typeof' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('var')
-            assertEq(result, '[{"kind":"var"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'var' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('void')
-            assertEq(result, '[{"kind":"void"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'void' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('while')
-            assertEq(result, '[{"kind":"while"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'while' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('with')
-            assertEq(result, '[{"kind":"with"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'with' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('yield')
-            assertEq(result, '[{"kind":"yield"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'yield' }, { kind: 'eof' }])
         },
     ],
     comments: [
         () => {
             const result = tokenizeString('//singleline comment')
-            assertEq(result, '[{"kind":"//","value":"singleline comment"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: '//', value: 'singleline comment' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('true//singleline comment\nfalse')
-            assertEq(result, '[{"kind":"true"},{"kind":"//","value":"singleline comment"},{"kind":"nl"},{"kind":"false"},{"kind":"eof"}]')
+            assertStructurallySame(result, [
+                { kind: 'true' },
+                { kind: '//', value: 'singleline comment' },
+                { kind: 'nl' },
+                { kind: 'false' },
+                { kind: 'eof' },
+            ])
         },
         () => {
             const result = tokenizeString('/* multiline comment */')
-            assertEq(result, '[{"kind":"/*","value":" multiline comment "},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: '/*', value: ' multiline comment ' }, { kind: 'eof' }])
         },
         () => {
             // a `/` inside the body is content: only `*/` ends the comment
             const result = tokenizeString('/* a/b ../../x.ts */')
-            assertEq(result, '[{"kind":"/*","value":" a/b ../../x.ts "},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: '/*', value: ' a/b ../../x.ts ' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('/* multiline comment *')
@@ -903,11 +1110,19 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('/* multiline comment \n * **/')
-            assertEq(result, '[{"kind":"/*","value":" multiline comment \\n * *"},{"kind":"nl"},{"kind":"eof"}]')
+            assertStructurallySame(result, [
+                { kind: '/*', value: ' multiline comment \n * *' },
+                { kind: 'nl' },
+                { kind: 'eof' },
+            ])
         },
         () => {
             const result = tokenizeString('/* multiline comment *\n * **/')
-            assertEq(result, '[{"kind":"/*","value":" multiline comment *\\n * *"},{"kind":"nl"},{"kind":"eof"}]')
+            assertStructurallySame(result, [
+                { kind: '/*', value: ' multiline comment *\n * *' },
+                { kind: 'nl' },
+                { kind: 'eof' },
+            ])
         },
         // `'/'` is an `operatorTags` member for division, so a line comment's own
         // slashes must be consumed by the comment rule before the tag reaches
@@ -916,55 +1131,88 @@ export const proof = {
         // operator.
         () => {
             const result = tokenizeString('//ab\n')
-            assertEq(result, '[{"kind":"//","value":"ab"},{"kind":"nl"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: '//', value: 'ab' }, { kind: 'nl' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('//a//b\n')
-            assertEq(result, '[{"kind":"//","value":"a//b"},{"kind":"nl"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: '//', value: 'a//b' }, { kind: 'nl' }, { kind: 'eof' }])
         },
         () => {
             const result = tokenizeString('a/b')
-            assertEq(result, '[{"kind":"id","value":"a"},{"kind":"/"},{"kind":"id","value":"b"},{"kind":"eof"}]')
+            assertStructurallySame(result, [
+                { kind: 'id', value: 'a' },
+                { kind: '/' },
+                { kind: 'id', value: 'b' },
+                { kind: 'eof' },
+            ])
         },
     ],
     metadata: [
         () => {
             const result = toArray(tokenize(stringToList(''))('a.js'))
-            assertEq(JSON.stringify(result), '[{"token":{"kind":"eof"},"metadata":{"path":"a.js","line":1,"column":1}}]')
+            assertStructurallySame(result, [{ token: { kind: 'eof' }, metadata: { path: 'a.js', line: 1, column: 1 } }])
         },
         () => {
             const result = toArray(tokenize(stringToList('true'))('a.js'))
-            assertEq(JSON.stringify(result), '[{"token":{"kind":"true"},"metadata":{"path":"a.js","line":1,"column":1}},{"token":{"kind":"eof"},"metadata":{"path":"a.js","line":1,"column":5}}]')
+            assertStructurallySame(result, [
+                { token: { kind: 'true' }, metadata: { path: 'a.js', line: 1, column: 1 } },
+                { token: { kind: 'eof' }, metadata: { path: 'a.js', line: 1, column: 5 } },
+            ])
         },
         () => {
             const result = toArray(tokenize(stringToList('true false'))('a.js'))
-            assertEq(JSON.stringify(result), '[{"token":{"kind":"true"},"metadata":{"path":"a.js","line":1,"column":1}},{"token":{"kind":"ws"},"metadata":{"path":"a.js","line":1,"column":5}},{"token":{"kind":"false"},"metadata":{"path":"a.js","line":1,"column":6}},{"token":{"kind":"eof"},"metadata":{"path":"a.js","line":1,"column":11}}]')
+            assertStructurallySame(result, [
+                { token: { kind: 'true' }, metadata: { path: 'a.js', line: 1, column: 1 } },
+                { token: { kind: 'ws' }, metadata: { path: 'a.js', line: 1, column: 5 } },
+                { token: { kind: 'false' }, metadata: { path: 'a.js', line: 1, column: 6 } },
+                { token: { kind: 'eof' }, metadata: { path: 'a.js', line: 1, column: 11 } },
+            ])
         },
         () => {
             // a lone \n collapses into a single nl token, but line/column still advance
             // correctly for whatever comes after it
             const result = toArray(tokenize(stringToList('a\nb'))('a.js'))
-            assertEq(JSON.stringify(result), '[{"token":{"kind":"id","value":"a"},"metadata":{"path":"a.js","line":1,"column":1}},{"token":{"kind":"nl"},"metadata":{"path":"a.js","line":1,"column":2}},{"token":{"kind":"id","value":"b"},"metadata":{"path":"a.js","line":2,"column":1}},{"token":{"kind":"eof"},"metadata":{"path":"a.js","line":2,"column":2}}]')
+            assertStructurallySame(result, [
+                { token: { kind: 'id', value: 'a' }, metadata: { path: 'a.js', line: 1, column: 1 } },
+                { token: { kind: 'nl' }, metadata: { path: 'a.js', line: 1, column: 2 } },
+                { token: { kind: 'id', value: 'b' }, metadata: { path: 'a.js', line: 2, column: 1 } },
+                { token: { kind: 'eof' }, metadata: { path: 'a.js', line: 2, column: 2 } },
+            ])
         },
         () => {
             // two consecutive newlines still collapse into one nl token, but line still
             // advances by two for the token after them
             const result = toArray(tokenize(stringToList('a\n\nb'))('a.js'))
-            assertEq(JSON.stringify(result), '[{"token":{"kind":"id","value":"a"},"metadata":{"path":"a.js","line":1,"column":1}},{"token":{"kind":"nl"},"metadata":{"path":"a.js","line":1,"column":2}},{"token":{"kind":"id","value":"b"},"metadata":{"path":"a.js","line":3,"column":1}},{"token":{"kind":"eof"},"metadata":{"path":"a.js","line":3,"column":2}}]')
+            assertStructurallySame(result, [
+                { token: { kind: 'id', value: 'a' }, metadata: { path: 'a.js', line: 1, column: 1 } },
+                { token: { kind: 'nl' }, metadata: { path: 'a.js', line: 1, column: 2 } },
+                { token: { kind: 'id', value: 'b' }, metadata: { path: 'a.js', line: 3, column: 1 } },
+                { token: { kind: 'eof' }, metadata: { path: 'a.js', line: 3, column: 2 } },
+            ])
         },
         () => {
             // position after a multi-line block comment resumes on the comment's closing line
             const result = toArray(tokenize(stringToList('/* c\n */ x'))('a.js'))
-            assertEq(JSON.stringify(result), '[{"token":{"kind":"/*","value":" c\\n "},"metadata":{"path":"a.js","line":1,"column":1}},{"token":{"kind":"nl"},"metadata":{"path":"a.js","line":1,"column":1}},{"token":{"kind":"ws"},"metadata":{"path":"a.js","line":2,"column":4}},{"token":{"kind":"id","value":"x"},"metadata":{"path":"a.js","line":2,"column":5}},{"token":{"kind":"eof"},"metadata":{"path":"a.js","line":2,"column":6}}]')
+            assertStructurallySame(result, [
+                { token: { kind: '/*', value: ' c\n ' }, metadata: { path: 'a.js', line: 1, column: 1 } },
+                { token: { kind: 'nl' }, metadata: { path: 'a.js', line: 1, column: 1 } },
+                { token: { kind: 'ws' }, metadata: { path: 'a.js', line: 2, column: 4 } },
+                { token: { kind: 'id', value: 'x' }, metadata: { path: 'a.js', line: 2, column: 5 } },
+                { token: { kind: 'eof' }, metadata: { path: 'a.js', line: 2, column: 6 } },
+            ])
         },
         () => {
             const result = toArray(tokenize(stringToList('"unterminated'))('a.js'))
-            assertEq(JSON.stringify(result), '[{"token":{"kind":"error","message":"invalid token","end":{"line":1,"column":14}},"metadata":{"path":"a.js","line":1,"column":1}}]')
+            assertStructurallySame(result, [
+                { token: { kind: 'error', message: 'invalid token', end: { line: 1, column: 14 } }, metadata: { path: 'a.js', line: 1, column: 1 } },
+            ])
         },
         () => {
             // position points at the poisoning trailing char ('0'), not the start of input
             const result = toArray(tokenize(stringToList('00'))('a.js'))
-            assertEq(JSON.stringify(result), '[{"token":{"kind":"error","message":"invalid number"},"metadata":{"path":"a.js","line":1,"column":2}}]')
+            assertStructurallySame(result, [
+                { token: { kind: 'error', message: 'invalid number' }, metadata: { path: 'a.js', line: 1, column: 2 } },
+            ])
         },
     ],
     // Where an error token is reported. The `tokenizer` group above checks that
@@ -1121,24 +1369,21 @@ export const proof = {
         () => {
             // many short whitespace tokens: the reported repro (`' '.repeat(5000)`)
             const result = tokenizeString(' '.repeat(5_000))
-            assertEq(result, '[{"kind":"ws"},{"kind":"eof"}]')
+            assertStructurallySame(result, [{ kind: 'ws' }, { kind: 'eof' }])
         },
         () => {
             // many distinct short tokens, well past the ~1000-1500 token crash threshold
             // the old whole-file recursive match hit for this shape
             const ids = Array.from({ length: 3_000 }, (_, i) => `a${i % 10}`)
             const src = ids.join(' ')
-            const result = tokenizeString(src)
-            assert(result !== 'error', result)
-            // `tokenizeString` runs its own pipeline (`getTokensFromAstRule` +
-            // filter/scan + `stringify`), not `tokenize`'s, so only its dump
-            // covers it. Compared whole rather than counted: at this size the
-            // count was the only thing the old JSON round-trip could check,
-            // while the reconstructed literal also pins every token's content.
-            assertEq(
-                result,
-                `[${ids.map(v => `{"kind":"id","value":"${v}"}`).join(',{"kind":"ws"},')},{"kind":"eof"}]`)
-            // The token list must agree with the dump: 3000 ids + 2999
+            // Compared whole rather than counted: at this size the count was
+            // the only thing the old JSON round-trip could check, while the
+            // expected list also pins every token's content.
+            assertStructurallySame(tokenizeString(src), [
+                ...ids.flatMap((value, i) => i === 0 ? [{ kind: 'id', value }] : [{ kind: 'ws' }, { kind: 'id', value }]),
+                { kind: 'eof' },
+            ])
+            // The token list with positions agrees: 3000 ids + 2999
             // separating ws + a trailing eof token.
             assertEq(toArray(tokenize(stringToList(src))('a.js')).length, 3_000 + 2_999 + 1)
         },
@@ -1153,20 +1398,20 @@ export const proof = {
             // matcher itself is iterative
             const value = 'a'.repeat(5_000)
             const result = tokenizeString(`"${value}"`)
-            assertEq(result, `[{"kind":"string","value":"${value}"},{"kind":"eof"}]`)
+            assertStructurallySame(result, [{ kind: 'string', value }, { kind: 'eof' }])
         },
         () => {
             // a single long token via the hand-written recursive multilineContent rule:
             // a 20 KB block comment (the size the pre-grammar tokenizer handled)
             const value = 'x'.repeat(20_000)
             const result = tokenizeString(`/*${value}*/`)
-            assertEq(result, `[{"kind":"/*","value":"${value}"},{"kind":"eof"}]`)
+            assertStructurallySame(result, [{ kind: '/*', value }, { kind: 'eof' }])
         },
         () => {
             // a single long identifier (repeat0Plus(idChar) inside one token match)
             const value = 'x'.repeat(10_000)
             const result = tokenizeString(value)
-            assertEq(result, `[{"kind":"id","value":"${value}"},{"kind":"eof"}]`)
+            assertStructurallySame(result, [{ kind: 'id', value }, { kind: 'eof' }])
         },
     ],
 }

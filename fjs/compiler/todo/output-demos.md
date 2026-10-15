@@ -101,9 +101,16 @@ which outputs accept which example.
   when available, a source position.
   `.js`, the EDAG and Rust preserve the computation; `undefined` is refused by
   `.json` alone.
-- A shared node is one `const` in `.data.js`, `.js` and the EDAG and one
-  temporary cloned at each reference in Rust, and is written where each
-  reference reaches it in `.json`, which carries no identity.
+- A shared node is one node in the EDAG and one temporary cloned at each
+  reference in Rust. In `.js`, one that mints identity — an array, an
+  object, a function, a call — is one `const`, and a shared access or
+  operator over values is written in place at each reference
+  ([write a shared node once](../serializer/todo/write-shared-nodes-once.md)).
+  The value outputs write what the program computes, not the graph: in
+  `.data.js` a shared array or object is one `const`, a call's result among
+  them, and a call answering a primitive is that primitive at each
+  reference; `.json`, which carries no identity, writes every value where
+  each reference reaches it.
 - A repeated object key keeps its last value in `.json` and `.data.js` and both
   entries in `.js`, the EDAG and Rust.
 - An import parses and draws in the EDAG demo as unresolved dependency reads.

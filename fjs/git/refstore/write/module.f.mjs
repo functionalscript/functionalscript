@@ -4,7 +4,7 @@
  *
  * [`fjs/git/refstore`](../module.f.mjs) is the reading half, and the rules both
  * halves must agree on live beside it — which directory a name belongs to in
- * [`../scope`](../scope/module.f.mjs), how a name and a path spell each other in
+ * [`../scope`](../scope/module.f.js), how a name and a path spell each other in
  * [`../name`](../name/module.f.mjs), which names are refused in the store — so a
  * name this writes is one those readers find. Every rule below was measured
  * against Git 2.43.0 rather than read off a manual page.
@@ -58,7 +58,7 @@ import { tryPackedWithout, tryRef, writeLoose } from '../../ref/module.f.mjs'
 import { isWholeName, lockSuffix } from '../../refname/module.f.mjs'
 import { badNameCode, badNameMessage, isDirectoryAt, packedRefs, tryBytes, tryPackedRefs, tryWholeBytes, zeroId, zeroIdCode } from '../module.f.mjs'
 import { nameForMessage, nameText, refsPrefix } from '../name/module.f.mjs'
-import { dirOf } from '../scope/module.f.mjs'
+import { dirOf } from '../scope/module.f.js'
 
 /** Refuses with {@link zeroIdCode}. */
 const refuseZeroId = refuse(zeroIdCode)
