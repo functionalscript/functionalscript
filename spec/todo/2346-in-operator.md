@@ -149,7 +149,7 @@ question two spellings with different answers.
   inherited or non-enumerable names (`"toString" in o`, `"length" in a`),
   neither replacement is equivalent, and it needs a rewrite that states what
   it really wants to know.
-- The word `in` stays reserved ([lexical grammar](../lexical/identifiers.md)).
+- The word `in` stays reserved ([lexical grammar](../README.md#identifiers)).
 
 ## When to revisit
 

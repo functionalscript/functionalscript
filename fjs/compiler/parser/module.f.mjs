@@ -252,7 +252,7 @@ const conversionArity = name => foldError(`${name} takes one argument`)
  * ([spec: module structure](../../../spec/README.md#module-structure)) —
  * and the tokens JavaScript forbids a newline before, an `=>` and the
  * value after `return` or `throw`
- * ([spec: line terminators](../../../spec/lexical/whitespace.md)).
+ * ([spec: line terminators](../../../spec/README.md#whitespace-and-line-terminators)).
  */
 const unexpectedToken = foldError('unexpected token')
 

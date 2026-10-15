@@ -44,7 +44,7 @@ or JSON ([output](#output)).
 ## Contents
 
 - [Principles](#principles)
-- [Lexical grammar](./lexical/README.md) and [comments](./lexical/comments.md)
+- [Lexical grammar](#lexical-grammar) and [comments](#comments)
 - [Module structure](#module-structure), [exports](#exporting-a-value),
   [imports](#importing-other-modules), [constants](#shared-values-constants)
   and [destructuring](#destructuring)
@@ -200,12 +200,121 @@ not a guessed result.
 When we implement features of FunctionalScript, the first priority is a
 simplification of the VM, subject to these requirements.
 
+## Comments
+
+Comments are [trivia](#whitespace-and-line-terminators). Their text does not
+become an AST value, but the parser preserves line-terminator information
+needed by JavaScript's grammar. A line break inside a block comment counts at
+a restricted boundary too, such as after `return` or `throw`, or before `=>`
+([functions](#functions)).
+
+```js
+// a line comment runs to the end of the line
+
+/** @type {number} */
+export default -42.5;
+```
+
+|Form|Syntax|
+|----|------|
+|line comment|`// ...`|
+|block comment|`/* ... */`|
+
+A line comment runs to the next newline or to the end of the file. A block
+comment runs to the first `*/`, may span lines, and is an error if the file
+ends first. Their text may be any characters, non-ASCII included, except
+U+2028 and U+2029, which are refused in a comment as everywhere outside a
+string ([line terminators](#whitespace-and-line-terminators)): JavaScript
+ends a line comment at either, so what follows one is code there and never
+comment text here, and reads either inside a block comment as a line break.
+
+Block comments carry JSDoc/TypeScript type declarations, which is why the
+language has them: a `.f.js` file is type-checked as JavaScript, and JSDoc is
+how it says what its types are.
+
+A comment can separate tokens where whitespace can, which is between any two
+([trivia](#whitespace-and-line-terminators)). At unrestricted boundaries, the
+`;` that ends a statement may follow a comment on the same line or a later
+one ([module structure](#module-structure)), as any other token may. This
+does not make newlines interchangeable with spaces at restricted boundaries,
+nor a comment with a newline: where a statement omits its `;`, the next one
+begins a new line only if a newline stands between them — inside a block
+comment, or ending a line comment — as JavaScript counts it.
+
+Comments belong to the module language. A `.json` input containing one is an
+error, because JSON has no comments.
+
+See
+<https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar#comments>.
+
 ## Lexical Grammar
 
-The characters between tokens, comments, the spelling of a word and of a string
-are specified in [lexical grammar](./lexical/README.md): [whitespace and line
-terminators](./lexical/whitespace.md), [comments](./lexical/comments.md),
-[identifiers](./lexical/identifiers.md) and [string escapes](./lexical/string-escapes.md).
+A module is a sequence of tokens — words, numbers, strings and punctuators —
+with trivia between them: whitespace, newlines and [comments](#comments).
+Trivia only separates tokens, and at a boundary JavaScript restricts it also
+says whether a line break stands there. The literal tokens are specified with
+their values — [numbers](#numbers), [bigints](#bigints), [strings](#strings)
+— and this section gives the characters between tokens and the spelling of a
+word.
+
+### Whitespace and Line Terminators
+
+Whitespace is a space (U+0020) or a tab (U+0009). A newline is a line feed
+(LF, U+000A), a carriage return (CR, U+000D), or CR followed by LF, which is
+one line break. Those are JSON's four whitespace characters, the same four
+[DataJS](./datajs/README.md#whitespace) admits.
+
+Trivia may stand between any two tokens, before the first and after the last,
+and it is insignificant there, newlines included, but for one: a statement
+written without its `;` ends at the newline before the next statement
+([module structure](#module-structure)). Inside an expression a line break
+reads as a space does, exactly as JavaScript reads it: `a` followed by
+`.length`, `[0]` or `+ 2` on the next line is `a.length`, `a[0]` or `a + 2`,
+and `f` followed by `(1)` is the call `f(1)`. Trivia is needed only where two
+tokens would otherwise read as one: `const a`, not `consta`
+([module structure](#module-structure)); `1 .x`, not `1.x`
+([property access](#property-access)).
+
+The exceptions are the boundaries JavaScript restricts, before `=>` and after
+`return` and `throw`, where a line break is refused ([functions](#functions)). There the
+trivia is a line break if a newline of any of the three forms stands in it,
+inside a block comment or not ([comments](#comments)).
+
+Nothing else is trivia. JavaScript's other whitespace — VT (U+000B), FF
+(U+000C), U+FEFF, and the Unicode space separators such as NBSP (U+00A0) and
+U+3000 — is refused, although JavaScript accepts it, a byte order mark at the
+start of the file included ([source text](#source-text)). JavaScript's other
+two line terminators, U+2028 and U+2029, may stand raw only inside a
+[string](#strings), as in JSON; anywhere else, a comment included, they are
+refused, since an invisible line break is no line break here. A hashbang
+comment, `#!` at the start of the file, is refused too, although JavaScript
+admits one ([hash comments](../fjs/compiler/todo/083-compiler-hash-comments.md)). Any
+other character outside a string or a comment is part of a token or an
+error, as it is in JavaScript.
+
+See
+<https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar#white_space>.
+
+### Identifiers
+
+An identifier is ASCII: a letter `A`–`Z` or `a`–`z`, `_` or `$`, then any
+number of those or the digits `0`–`9`. `a`, `_x`, `$0` and `a_$1` are
+identifiers, and `1a` is not. Every word is spelled this way — a `const`,
+`import` or parameter name, an identifier key, the name after `.`, and the
+keywords — and which words may name a binding is the reserved-word rule of
+[shared values](#shared-values-constants): a reserved word may still be a key
+or a property name, `{ if: 1 }` and `a.default` included.
+
+The rest of JavaScript's identifier grammar is not recognized yet
+([roadmap](./todo/README.md)), and each of its other spellings is a
+compilation error: a non-ASCII character in a name, a letter
+(`const é = 1;`, `{ π: 1 }`, `o.é`) or U+200C or U+200D (ZWNJ, ZWJ)
+included, and a Unicode escape in a name (`const \u0061 = 1;`, `\u{61}`,
+`{ \u0069f: 1 }`). Non-ASCII text is fine inside a string, so such a key is
+written as one: `{ "é": 1 }`, `o["é"]`.
+
+See
+<https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar#identifiers>.
 
 ## Module Structure
 
@@ -229,7 +338,7 @@ followed by `(7)` on the next line is the call `f(7)`, and `[1]` followed by
 `[0]` is an index — a `;` is inserted only where the parser cannot continue
 the statement, never at a newline as such — except at the two boundaries of
 this language where JavaScript forbids one, before `=>` and after `return`
-or `throw` ([line terminators](./lexical/whitespace.md)).
+or `throw` ([line terminators](#whitespace-and-line-terminators)).
 
 [DataJS](./datajs/README.md) *requires* the `;` after every statement, and
 every DataJS document must be a valid FunctionalScript module —
@@ -354,7 +463,7 @@ pattern exports each name it binds ([destructuring](#destructuring)), so a
 module whose only exports bind no name is refused at its last `export`.
 A named-only module needs no default:
 `export const a = 5;` returns `{ a: 5 }`. When present, `export default` is
-**last**; only [trivia](./lexical/whitespace.md) — whitespace,
+**last**; only [trivia](#whitespace-and-line-terminators) — whitespace,
 newlines and comments — may follow it. Ordinary and exported
 constants may appear together after all imports.
 
@@ -508,7 +617,7 @@ the author had in mind. In FunctionalScript the sharing *is* the language:
 JavaScript engine loading the module rebuilds exactly the graph that was
 written.
 
-- A name is an [identifier](./lexical/identifiers.md), and one rule says which
+- A name is an [identifier](#identifiers), and one rule says which
   identifiers a binding may take — a `const`, a body `const`, a parameter,
   fixed or rest, and an import's local name alike. A word JavaScript reserves
   in a module is refused: `const if = 1;`, `const export = 1;`,
@@ -923,8 +1032,27 @@ A string is JSON's, between double quotes or between single quotes:
 export default ["hello!", 'hello!'];
 ```
 
-The escapes, the quotes and where a string may stand are specified in
-[string escapes and quotes](./lexical/string-escapes.md).
+Between double quotes it is exactly JSON's string: JSON's escapes — `\"`,
+`\\`, `\/`, `\b`, `\f`, `\n`, `\r`, `\t`, and `\uXXXX` — and no unescaped `"`,
+`\` or C0 control character (U+0000 through U+001F). Between single quotes it
+is the same with the delimiters swapped: a `"` stands for itself, and `\'` is
+the one escape it adds, so `'it\'s'` and `"it's"` are one string. Every other
+code point may stand raw in either quote, as in JSON: DEL (U+007F), the C1
+controls (U+0080 through U+009F), U+FEFF, U+2028 and U+2029, and a code point
+above U+FFFF included. The quote is a spelling, not part of the value, and
+every output writes the string between double quotes.
+
+`\'` stays refused between double quotes, where JavaScript accepts it, so a
+double-quoted string is always a JSON string. JavaScript's other spellings —
+the `\v`, `\0`, `\xHH` and `\u{…}` escapes, a raw TAB or other C0 control
+character, a line continuation — are refused in both quotes; see
+[js-string-literals](./todo/2460-js-string-literals.md). Backtick-delimited
+[template literals](#template-literals) have their own expression syntax below.
+
+This holds at every string position of a module: a value, an object key,
+plain or in brackets, the key of a property access in brackets (`o['k']`),
+the path of an `import` statement and the value of its attribute —
+`with { type: 'json' }` is the attribute `with { type: "json" }` is.
 
 ### Template Literals
 
@@ -1183,7 +1311,7 @@ A key is written in one of three ways:
 The first two spell a constant key. The brackets of a computed key hold any
 value, as an index's do: a string literal there is the same constant key by
 a third spelling, and the three spellings mix freely inside one object. An
-identifier key is an [identifier](./lexical/identifiers.md) — ASCII letters, digits, `_`
+identifier key is an [identifier](#identifiers) — ASCII letters, digits, `_`
 and `$`, not starting with a digit — and may be a reserved word, `{ if: 1 }`,
 as it may in JavaScript. A key no identifier spells is written as a string:
 `{ "é": 1 }`, `{ "a-b": 1 }`.
@@ -1674,7 +1802,7 @@ as it does in JavaScript, so `-1 .x` is `-(1 .x)`, `-1n.x` is `-(1n.x)`,
 which is `NaN`, and `const n = 1;` followed by `n.x` is `undefined` in both
 languages.
 
-The key is a constant — an [identifier](./lexical/identifiers.md) after `.`, or a directly
+The key is a constant — an [identifier](#identifiers) after `.`, or a directly
 written string or unsigned numeric literal in brackets — and `0` and `"0"` name the same element,
 as in JavaScript. A numeric literal names the string JavaScript's `String`
 gives its number, which is the number's
@@ -1708,7 +1836,7 @@ are written as strings instead, `a["-1"]` and `a["NaN"]`. A grouped literal
 key, `a[(0)]` or `a[("x")]`, is also refused; a grouped conversion,
 `a[(Number(i))]`, is accepted. Trivia, a line break included, may stand on either side of the
 `.` or the `[` and inside the brackets, as between any two tokens
-([trivia](./lexical/whitespace.md)): `a . b`, `a./* c */b` and `a`
+([trivia](#whitespace-and-line-terminators)): `a . b`, `a./* c */b` and `a`
 with `.b` on the next line are each `a.b`, as JavaScript reads them.
 
 FunctionalScript has no prototype chains, so a name a built-in prototype
@@ -2505,7 +2633,7 @@ across lines. A file holding only `export default @;` is reported at
 malformed number points at the character that spoils it: `08` at its `8`.
 Lines and columns count from 1, and a column counts UTF-16 code units, so a
 tab is one and a character beyond U+FFFF two. A line ends where JavaScript
-ends one: at a newline ([whitespace](./lexical/whitespace.md)), and
+ends one: at a newline ([whitespace](#whitespace-and-line-terminators)), and
 at a U+2028 or U+2029 inside a string. A CRLF ends one line, not two.
 
 The JSON reader tracks no lines. A malformed `.json` document, the input or an
@@ -2550,11 +2678,11 @@ Every file `fjs compile` reads — the input and every module or document it
 imports, directly or not — is UTF-8 text, as a JavaScript host reads a module
 or a JSON import, and every output is written in UTF-8. Any character beyond
 ASCII, one beyond U+FFFF included, may stand raw in a string, and any but
-U+2028 and U+2029 in a comment ([comments](./lexical/comments.md)); it is the code point
+U+2028 and U+2029 in a comment ([comments](#comments)); it is the code point
 its bytes encode, exactly as JavaScript reads it: `export default "é中😀";`
 is a string of three code points, four UTF-16 code units. Everywhere else the
-text is ASCII ([identifiers](./lexical/identifiers.md),
-[whitespace](./lexical/whitespace.md)).
+text is ASCII ([identifiers](#identifiers),
+[whitespace](#whitespace-and-line-terminators)).
 
 A byte order mark is refused, although a JavaScript host strips it:
 `EF BB BF` decodes to U+FEFF, which is not whitespace here, so a module or a
@@ -2819,7 +2947,7 @@ module boundary, from which a default import selects the document.
   ([the `__proto__` key](#the-__proto__-key)).
 - An access in a FunctionalScript document is written from its constant key
   ([property access](#property-access)): a string key that is an
-  [identifier](./lexical/identifiers.md), a reserved word included, follows a `.`, and
+  [identifier](#identifiers), a reserved word included, follows a `.`, and
   any other string key is a normalized string in brackets — with the object
   named `$0`, `a["if"]` and `a['c']` are `$0.if` and `$0.c`, while
   `a["a-b"]`, `a["é"]` and `a["1"]` stay bracketed. A number key stays a
