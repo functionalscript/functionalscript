@@ -1,7 +1,7 @@
 ## prohibited-access-rule. The parser exports two sets so the serializer can rebuild the rule they encode
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
