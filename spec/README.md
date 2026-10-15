@@ -44,8 +44,10 @@ or JSON ([output](./command-line/output.md)).
 ## Contents
 
 The specification is a tree of small pages, one per feature. Each page says
-what is accepted and what is refused, shows programs with the compiler's real
-output, and cites the ECMAScript section it narrows.
+what is accepted and what is refused and cites the ECMAScript section it
+narrows. Pages that have example programs show them with the compiler's real
+output; the others say under *Examples* that theirs are still to come
+([the plan](./todo/spec-tree.md)).
 
 - [Principles](./principles/README.md): compatibility, purity, failure
 - [Lexical grammar](./lexical/README.md): [whitespace](./lexical/whitespace.md),
