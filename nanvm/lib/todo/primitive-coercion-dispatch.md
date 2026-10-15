@@ -1,7 +1,7 @@
 ## primitive-coercion-dispatch. A primitive-dispatch layer for the coercion visitors
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 > **Extended 2026-07:** the original issue targeted only the inner 5-arm
 > `Primitive` match inside `any_to_number`/`any_to_string`. A fresh read shows
