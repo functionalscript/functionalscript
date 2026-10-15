@@ -33,13 +33,17 @@
  * @import { Examples } from './types.ts'
  */
 
+import lexical from '../../../spec/lexical/module.f.js'
+
 /** @type {Examples} */
 export const examples = [
     // 1. Principles
     ['Overview', 'const a = 1 + 2;\nconst checked = a.x;\nexport default [a, a, a * 3, a < 4 && a, (...x) => x, undefined];'],
-    // 2. Lexical grammar
-    ['Comments', '// a line comment\nconst a = 1; /* a block\n   comment */\nexport default a;'],
-    ['String escapes', 'export default ["a\\nb", "\\u0041", "q\\"q", "back\\\\slash"];'],
+    // 2. Lexical grammar: the pages in spec/lexical own these
+    ...lexical.comments,
+    ...lexical.whitespace,
+    ...lexical.identifiers,
+    ...lexical.stringEscapes,
     // 3. Values
     ['Primitives', 'export default [1, "hi", true, null, undefined, 1n, -0, 0xFF, 0x10n];'],
     ['Template literals', 'const name = "world";\nexport default [`Hello, ${name}!`, `${1}${2}`, `literal \\${name}`];'],
@@ -81,6 +85,5 @@ export const examples = [
     ['A failure at run time', 'export default [1, 2][5].x;'],
     ['An import', 'import m from "./m.f.js";\nexport default m;'],
     ['A named import and a call', 'import m from "./m.f.js";\nimport { x } from "./n.f.js";\nexport default m(x);'],
-    ['Hex escape', 'export default "\\x41";'],
     ['Parse error', 'export default {bad'],
 ]

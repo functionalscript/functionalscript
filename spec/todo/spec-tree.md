@@ -50,10 +50,13 @@ not a default. A page is one of two kinds.
 
 1. What the feature is and the exact form accepted, with the restrictions that
    narrow JavaScript's.
-2. Examples, each shown with the compiler's real output for every output
+2. **Reference**: the ECMA-262 section that defines the feature, and its MDN
+   page. Every page has one, an included or a refused feature alike, so a
+   reader can check FunctionalScript's rule against the standard's.
+3. Examples, each shown with the compiler's real output for every output
    (`.json`, `.data.js`, `.js`, EDAG, Rust), including the outputs that refuse
    it and why.
-3. A status line. If the feature is **not implemented yet**, the page says so in
+4. A status line. If the feature is **not implemented yet**, the page says so in
    its text, and its examples show what the compiler does *today* — a refusal
    or a wrong output — not what it will do. The proof pins that output, so the
    day the feature lands the proof fails and the page is updated with it,
@@ -62,7 +65,7 @@ not a default. A page is one of two kinds.
 **A refused feature** (valid JavaScript that FunctionalScript rejects):
 
 1. What is refused, as a program that fails, shown with the compiler's own
-   refusal.
+   refusal, and the ECMA-262 and MDN **Reference** as above.
 2. **Why** — the rationale, tied to a principle (purity, determinism, a
    single way to do it, the graph model) so that a restriction is
    justified rather than merely stated
@@ -144,6 +147,17 @@ which is refused as a read but accepted as a call) is an included page with a
       `.data.js`, `.js`, EDAG and Rust each write or refuse)
 
 ### Migration
+
+**Pilot: lexical grammar** (done in this pull request). `spec/lexical/` holds
+an index and the pages `whitespace`, `comments`, `identifiers` and
+`string-escapes`, each with a status line, a Reference and an Examples section;
+`module.f.js` there holds one example list per page, and the compiler's list
+spreads them into its second area. Two choices the pilot made: the lists are
+one module per *area*, not one file per page, which keeps the proof count
+down; and `Hex escape` moved with `String escapes`, since it is the refusal of
+that page's rule — the tree's *Refused JavaScript* area keeps the cross-cutting
+register. `whitespace` and `identifiers` have no programs yet, so their
+accepted/refused examples are a follow-up.
 
 Each step is one pull request and leaves the specification complete:
 
