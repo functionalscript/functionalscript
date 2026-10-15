@@ -369,11 +369,14 @@ export type Parenthesized = {
 /**
  * What follows the value a `(` opened: `,`, the names after the first,
  * `)`, `=>` and the body — a named parameter list — or `)` and
- * {@link ArrowOrRest}.
+ * {@link ArrowOrRest}; or `=` and the first parameter's default, then the
+ * rest of a named list: the names after a `,`, if any, `)`, `=>` and the
+ * body.
  */
 export type AfterValue = {
     readonly list: readonly [number, Option<ParameterNames>, number, number, Body]
     readonly closed: readonly [number, ArrowOrRest]
+    readonly default: readonly [number, Value, Option<readonly [number, Option<ParameterNames>]>, number, number, Body]
 }
 
 /**
@@ -389,12 +392,13 @@ export type ArrowOrRest = {
 
 /**
  * The parameters after the first: each fixed one a binding target,
- * {@link BindingTarget}, listed as {@link Items} lists anything, and the
- * rest parameter a name, ending the list.
+ * {@link BindingTarget}, with its default, `= value`, where it has one,
+ * listed as {@link Items} lists anything, and the rest parameter a name,
+ * ending the list.
  */
 export type ParameterNames = () => readonly ['const', {
     readonly rest: readonly [number, typeof identifierName]
-    readonly fixed: readonly [BindingTarget, Option<readonly [number, Option<ParameterNames>]>]
+    readonly fixed: readonly [BindingTarget, Option<readonly [number, Value]>, Option<readonly [number, Option<ParameterNames>]>]
 }]
 
 /**

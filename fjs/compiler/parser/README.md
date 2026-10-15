@@ -62,8 +62,9 @@ loopBlock ::= '{' loopStatement* '}'
 loopStatement ::= const | id '=' value end
 func   ::= [ '...' id ] ')' '=>' body
 afterValue ::= ',' [ names ] ')' '=>' body | ')' arrowOrRest
+             | '=' value [ ',' [ names ] ] ')' '=>' body
 arrowOrRest ::= '=>' body | access* powTail tail
-names  ::= '...' id | target [ ',' [ names ] ]
+names  ::= '...' id | target [ '=' value ] [ ',' [ names ] ]
 group  ::= value ')' access* powTail
 groupOperand ::= value ')' access*
 powTail ::= [ '**' unary ]
@@ -94,13 +95,18 @@ It is LL(1): one symbol of lookahead decides every choice, and the backend
 refuses a grammar where it would not, before any input.
 
 A `(` opens an empty/rest-only function or a shared expression/parameter
-prefix. `afterValue` factors the comma and closing parenthesis; `arrowOrRest`
-then selects the arrow or the ordinary expression continuation. The binding
+prefix. `afterValue` factors the comma, the closing parenthesis and the `=`
+of the first parameter's default; `arrowOrRest` then selects the arrow or
+the ordinary expression continuation after the parenthesis. The binding
 pass requires a binding target — a name, or a pattern — where that prefix
 becomes a parameter, rejecting `(a + b) => 1` while preserving `(a + b)`.
 Bare `a => a` uses the same arrow continuation. The fixed parameters after
-the first are targets outright, and a final rest name is allowed after
-them; it cannot be followed by another parameter or a comma. The
+the first are targets outright, each with an optional default, `= value`,
+and a final rest name is allowed after them; it takes no default and
+cannot be followed by another parameter or a comma. The parameters from
+the first default on are the fold's to read from the rest array, landing
+in the function's own scope before its body
+([spec: functions](../../../spec/README.md#functions)). The
 no-newline rule before `=>` is the fold's, not the grammar's: trivia is no
 symbol of the grammar, and the `=>` token says whether a line break stood
 before it, a line comment's end or a block comment holding one included.

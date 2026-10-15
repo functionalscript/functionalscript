@@ -202,8 +202,9 @@ information — see [serialization](./serialization.md) and
 4. [ ] [default parameters](./3125-default-parameters.md) — `(a = 1) => …`
    and `{ a = 1 }` in a pattern, lowered to an `undefined` test, the
    parameters from the first default on read from the rest array so that
-   `length` is JavaScript's; no new EDAG node; proposed, awaiting designer
-   approval.
+   `length` is JavaScript's; no new EDAG node. Parameter defaults are
+   implemented ([functions](../README.md#functions)); pattern defaults and
+   the designer approval remain open.
 
 ### 3.5. Priority 4
 

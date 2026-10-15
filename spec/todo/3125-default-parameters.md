@@ -1,7 +1,9 @@
 ## Default parameters
 
 **Priority:** P2
-**Status:** open — proposed, awaiting language-design approval
+**Status:** wip — parameter defaults implemented
+([functions](../README.md#functions)); the language-design approval is still
+to be recorded, and pattern defaults remain
 
 ```js
 const x = {}
@@ -18,9 +20,9 @@ is read from the rest array, which keeps the function's `length`.
 
 ### Problem
 
-The compiler refuses `(a = 1) => a` and `{ a = 1 }`
-([refused constructs](./refused-constructs.md): `decl.parameter-default`,
-`decl.pattern-default`). The refusal protects nothing: a default is a
+The compiler refused `(a = 1) => a`, and refuses `{ a = 1 }`
+([refused constructs](./refused-constructs.md): `decl.pattern-default`). The
+refusal protects nothing: a default is a
 familiar JavaScript convention with a lowering to a conditional and reads
 the language already performs, so keeping it out is the kind of
 restriction [DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
@@ -224,10 +226,14 @@ default reads — each a refusal rather than another value.
       the limit and the stage boundary above, recorded here with its link,
       as [DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
       asks.
-- [ ] Parameter defaults: syntax tree, grammar, binding, proofs, the
+- [x] Parameter defaults: syntax tree, grammar, binding, proofs, the
       specification's [functions](../README.md#functions) section, and the
       `decl.parameter-default` row of the
-      [register](./refused-constructs.md) deleted.
+      [register](./refused-constructs.md) deleted. The parameters from the
+      first default on are *late*, landed in the function's own scope
+      before its body, so the existing `const not found` and `capture
+      shadowed` refusals are the ones a later parameter, the parameter
+      itself and a shadowing body `const` meet.
 - [ ] Pattern defaults, in `const` and parameter patterns, over the same
       test: the specification's [destructuring](../README.md#destructuring)
       section, and the `decl.pattern-default` row deleted.

@@ -367,19 +367,28 @@ export type ParameterList =
 
 /**
  * The fixed parameters in order, each a binding target — a name, or a
- * pattern, {@link BindingTarget} — and the rest parameter's token, or
- * `null` where the list has none. A rest parameter keeps a plain name
+ * pattern, {@link BindingTarget} — with its default where it has one,
+ * {@link Parameter}, and the rest parameter's token, or `null` where the
+ * list has none. A rest parameter keeps a plain name and takes no default
  * ([spec: destructuring](../../../../spec/README.md#destructuring)).
  */
 export type Parameters = {
-    readonly fixed: readonly BindingTarget[]
+    readonly fixed: readonly Parameter[]
     readonly rest: DjsTokenWithMetadata | null
 }
 
 /**
+ * A fixed parameter as written: its binding target, or the target and its
+ * default, `target = value`, by its `=`, which a refusal of the parameter
+ * is anchored at, and the value as written
+ * ([default parameters](../../../../spec/todo/3125-default-parameters.md)).
+ */
+export type Parameter = BindingTarget | readonly ['=', BindingTarget, DjsTokenWithMetadata, Node]
+
+/**
  * The output alphabet: what the mappings return, each tagged by the rule it
  * came from. A `parameters` symbol is the list after a named list's first
- * parameter, its fixed targets and its rest parameter's token, which the
+ * parameter, its fixed parameters and its rest parameter's token, which the
  * list's reader puts the first before. The input alphabet's metadata is
  * the token itself, which has no `id`, and that is what tells the two
  * apart at a position typed as either.
@@ -401,7 +410,7 @@ export type Parameters = {
 export type Out =
     | { readonly id: 'value', readonly node: Node, readonly first: DjsTokenWithMetadata, readonly target: BindingTarget }
     | { readonly id: 'paren', readonly node: Node, readonly first: DjsTokenWithMetadata }
-    | { readonly id: 'parameters', readonly fixed: List<BindingTarget>, readonly rest: DjsTokenWithMetadata | null }
+    | { readonly id: 'parameters', readonly fixed: List<Parameter>, readonly rest: DjsTokenWithMetadata | null }
     | { readonly id: 'item', readonly item: Item, readonly target: BindingElement }
     | { readonly id: 'values', readonly items: List<Item>, readonly targets: List<BindingElement> }
     | { readonly id: 'member', readonly member: Member, readonly target: BindingProperty }

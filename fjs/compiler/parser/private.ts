@@ -227,14 +227,47 @@ export type _FunctionFrame = {
 
 /**
  * A parameter list bound: the names the function's body begins with, the
- * function's `length`, and the entries its patterns make — the reads of
- * the fixed arguments a pattern is sugar for, which the body's own entries
- * follow — none for a list of names alone.
+ * function's `length`, the entries its patterns make — the reads of the
+ * fixed arguments a pattern is sugar for, which the body's own entries
+ * follow — none for a list of names alone, and the parameters from the
+ * first default on, {@link _Late}, which land after those entries and
+ * before the body's own.
  */
 export type _Bound = {
     readonly names: _Env
     readonly count: number
     readonly entries: readonly AstConst[]
+    readonly late: readonly _Late[]
+}
+
+/**
+ * A parameter from the first default on, read from the rest array rather
+ * than as an argument so that the function's `length` stops before it, as
+ * JavaScript's does
+ * ([default parameters](../../../spec/todo/3125-default-parameters.md)):
+ * what it binds, checked with the whole list; its default as written, or
+ * `null`; and its source — the read of the rest array at its position, or,
+ * for the rest parameter after such parameters, the slice past them.
+ */
+export type _Late = {
+    readonly plan: _Plan
+    readonly init: Node | null
+    readonly source: AstConst
+}
+
+/**
+ * A function whose late parameters, {@link _Late}, are landing before its
+ * body: `late[index]` is the one whose default is being evaluated, in the
+ * function's own scope; `done` holds the entries before it, a list for the
+ * reason a container's is, and `entries` how many; and `body` is the
+ * function's body, entered once the last has landed.
+ */
+export type _LateFrame = {
+    readonly late: readonly _Late[]
+    readonly index: number
+    readonly entries: number
+    readonly done: List<AstConst>
+    readonly body: Node
 }
 
 /**
@@ -376,6 +409,7 @@ export type _Frame =
     | _BinaryRightFrame
     | _ConditionalFrame
     | _FunctionFrame
+    | _LateFrame
     | _BodyFrame
     | _GuardFrame
     | _LetFrame
