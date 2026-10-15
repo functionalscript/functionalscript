@@ -1,7 +1,7 @@
 ## Canonical `stringifySorted` export
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
