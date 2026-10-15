@@ -21,6 +21,7 @@ import { commonOperationMap } from '../effects/common/module.mjs'
 import { macrotask, patch, toDom } from '../media/html/module.mjs'
 import { copy } from './copy-runtime.mjs'
 import { demoMarker, editorMarker, mirrorMarker } from './style/module.f.js'
+import { editOf } from './demo/mirror/module.f.mjs'
 
 /**
  * What a demo may ask this page for.
@@ -248,20 +249,57 @@ const follow = textarea => {
 }
 
 /**
- * Shows what the reader typed in a highlighted field's coloured copy at once,
- * uncoloured.
+ * The text nodes under a node, in order.
+ *
+ * @type {(node: Node) => readonly Text[]}
+ */
+const textNodes = node => node.nodeType === 3
+    ? [/** @type {Text} */ (node)]
+    : Array.from(node.childNodes).flatMap(textNodes)
+
+/**
+ * The terminator a highlighted field's copy ends in, which keeps a final empty
+ * line as tall as the textarea's.
+ */
+const terminator = '\u200b'
+
+/**
+ * Shows what the reader typed in a highlighted field's coloured copy at once.
  *
  * The textarea's own text is transparent, so the copy is the only text the
  * reader sees, and the render that colours it comes later — after the demo's
  * work, and after every input queued before it. Until then a keystroke would
- * paint the old text. The render replaces this with the coloured one.
+ * paint the old text.
+ *
+ * **The edit is made in the copy, and the colours around it stay.** Redrawing
+ * the copy as plain text would blink the whole field on every keystroke, for
+ * as long as the render takes. `editOf` finds the one text node the edit falls
+ * in, and only that node changes: what is typed takes the colour of the text
+ * it is typed in, until the render colours it for what it is.
+ *
+ * An edit across several nodes, or in a copy that does not end as a copy
+ * does, is shown as plain text instead — nothing is ever left that is not what
+ * the reader typed. The render replaces either with the coloured copy.
  *
  * @type {(textarea: Element) => void}
  */
 const echo = textarea => {
     const mirror = mirrorOf(textarea)
     if (mirror === null) { return }
-    mirror.textContent = `${/** @type {HTMLTextAreaElement} */ (textarea).value}\u200b`
+    const { value, selectionStart } = /** @type {HTMLTextAreaElement} */ (textarea)
+    const wanted = `${value}${terminator}`
+    const nodes = textNodes(mirror)
+    const shown = nodes.map(node => node.data).join('')
+    if (shown !== wanted) {
+        const edit = shown.endsWith(terminator)
+            ? editOf({ was: shown.slice(0, -terminator.length), now: value, caret: selectionStart ?? value.length, lengths: nodes.map(node => node.data.length) })
+            : null
+        if (edit !== null) {
+            const node = nodes[edit.index]
+            node.data = `${node.data.slice(0, edit.at)}${edit.inserted}${node.data.slice(edit.at + edit.removed)}`
+        }
+        if (edit === null) { mirror.textContent = wanted }
+    }
     follow(textarea)
 }
 
