@@ -37,6 +37,13 @@ against `2ca692ba`:
 The value is the same. Each level doubles the body and multiplies the time
 by more than three.
 
+Every call pays a smaller share of the same cost. A tail-recursive loop of
+twenty thousand calls, `const f = (i, acc) => i === 0 ? acc : f(i - 1, acc + i);`,
+compiled to `.data.js` at `7de6ddd5`, took about a fifth to a third longer
+than at `2ca692ba`, about 0.6 s against 0.45 s. `identityAnalysis` takes its
+`shared` from a `sharedNodesOf` walk of its own, where the table's in-degree
+gives the same set (the `analysis` proof shows they agree).
+
 ### Proposal
 
 Investigate, then improve:
@@ -46,11 +53,12 @@ Investigate, then improve:
 - analysing a body once per function value, or once per body node, rather
   than at every call, keeping the cache immutable
   ([`immutable-cache.md`](./immutable-cache.md));
-- whether `identityAnalysis` can be linear in the nodes it walks.
+- whether `identityAnalysis` can be linear in the nodes it walks, taking
+  `shared` from the table's in-degree.
 
 ### Tasks
 
-- [ ] Profile the program above and say where the time goes.
+- [ ] Profile the programs above and say where the time goes.
 - [ ] Improve it, with a proof or a benchmark that pins the cost.
 
 ### Related
