@@ -394,11 +394,15 @@ const operandReadsRest = ast => {
  * @type {(lazy: _Lazy, imports: readonly unknown[], value: boolean) => (body: AstBody) => _Sweep}
  */
 const sweep = (lazy, imports, value) => body => {
-    const resolve = resolved(imports, body.reduce(nodeEntry(imports), []))
+    // the last entry is no reference's: a reference names an earlier entry
+    const resolve = resolved(imports, body.slice(0, -1).reduce(nodeEntry(imports), []))
     /** @type {(acc: _Sweep, e: AstConst, i: number) => _Sweep} */
     const step = (acc, e, i) => {
         const valued = value && i === body.length - 1
-        const whole = valued || (!isAlias(e) && ((acc.read & bit(i)) !== 0n || inlinedCall(e) === null))
+        // an unread call is read for what it anchors, alias or not, so only
+        // an entry something reads is asked whether it is one
+        const unreadCall = (acc.read & bit(i)) === 0n && inlinedCall(e) !== null
+        const whole = valued || (!unreadCall && !isAlias(e))
         // forced once: a reference list is lazy, and forcing it again sweeps
         // every body nested in the entry again
         const made = toArray(map(resolve)(whole ? refsOf(lazy)(e) : sideRefs(lazy)(e)))
@@ -595,10 +599,10 @@ const resolved = (imports, nodes) => ref =>
  */
 export const anchors = ([specifiers, body], value = true) => imports => {
     const { read, refs } = sweep(established, imports, value)(body)
-    const unread = missing(read)(body.length).filter(i => !isAlias(body[i]))
+    const unread = missing(read)(body.length)
     const reachedImports = toArray(refs).reduce(argStep, 0n)
     return {
-        consts: unread.filter(i => inlinedCall(body[i]) === null),
+        consts: unread.filter(i => inlinedCall(body[i]) === null && !isAlias(body[i])),
         calls: unread.filter(i => inlinedCall(body[i]) !== null),
         imports: missing(reachedImports)(specifiers.length).filter(k => imports.indexOf(imports[k]) === k),
     }

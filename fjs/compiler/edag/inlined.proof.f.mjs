@@ -144,6 +144,20 @@ export const proof = {
             assertStructurallySame(execute(compile('export default 0 && (() => { const x = null.x; return 2; })();').edag), 0)
             assertStructurallySame(execute(compile('export default 1 && (() => { const x = [1]; return 2; })();').edag), 2)
         },
+        // A chain of calls inlined, each the next one's value, a hundred and
+        // fifty deep, unread and read: the `const` the last one names is
+        // the node of all of them. Lowering it asks no call nothing reads,
+        // and no body's value, whether it names one, so the chain costs
+        // what its bodies do, where asking walked it again at every level.
+        depth: () => {
+            /** @type {(inner: string) => string} */
+            const wrap = inner => `(() => ${inner})()`
+            const chain = Array.from({ length: 150 }).reduce(wrap, 't')
+            /** @type {Exp} */
+            const x = ['.', ['arg', 0], 'x']
+            expectEdag(compile(`export default (a) => { const t = a.x; const u = ${chain}; return 1; };`).edag, ['=>', 1, [], [',', [x, 1]]])
+            expectEdag(compile(`export default (a) => { const t = a.x; const u = ${chain}; return [u]; };`).edag, ['=>', 1, [], ['[]', [x]]])
+        },
         // every other call stays a call
         stays: () => {
             expectEdag(compile('export default (() => 1)(2);').edag, ['()', ['=>', 0, [], 1], [2]])
