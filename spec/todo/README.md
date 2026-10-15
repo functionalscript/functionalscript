@@ -236,6 +236,11 @@ Wish list:
 1. [ ] Utf8 String. Something like `u8"Hello, world"`
    ([blocked](../../todo/blocked/utf8-strings.md)).
 
+## Specification structure
+
+1. [ ] [spec-tree](./spec-tree.md) — split the specification into a tree of small
+   per-feature pages, each owning the examples the compiler demos offer.
+
 ## Design documents
 
 Design decisions and sketches for the unimplemented parts of the system. The
