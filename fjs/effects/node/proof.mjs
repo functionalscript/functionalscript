@@ -686,23 +686,22 @@ export const proof = {
     import: {
         // A path, relative or absolute, loads the file it names, its URL built
         // by the host so that ` `, `#` and `%` are escaped. A `file:` URL loads
-        // as written: its escapes are not escaped again, and its query and
-        // fragment reach the module.
+        // as written: its escapes are not escaped again, and a query and
+        // fragment do not stop it loading. Whether they reach
+        // `import.meta.url` is the host's: Node keeps them, Bun drops them,
+        // so only the URL without them is compared.
         spellings: () => withTemporary('fjs-import-spellings-', async root => {
             const path = join(root, 'dep #%.mjs')
             await writeFile(path, 'export const url = import.meta.url')
             const href = pathToFileURL(path).href
-            /** @type {readonly (readonly [string, string])[]} */
-            const cases = [
-                [path, href],
-                [relative(process.cwd(), path), href],
-                [href, href],
-                [`${href}?q=%20#f%23`, `${href}?q=%20#f%23`],
-            ]
-            for (const [name, url] of cases) {
+            const cases = [path, relative(process.cwd(), path), href, `${href}?q=%20#f%23`]
+            for (const name of cases) {
                 await hostCheck(import_(name), result => {
                     assert(result[0] === 'ok')
-                    assertEq(result[1].url, url)
+                    const url = new URL(/** @type {string} */ (result[1].url))
+                    url.search = ''
+                    url.hash = ''
+                    assertEq(url.href, href)
                 })
             }
         }),
