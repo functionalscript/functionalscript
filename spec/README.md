@@ -2908,9 +2908,13 @@ module boundary, from which a default import selects the document.
 
   A module whose only export is `default` is written in the same normalized
   form, unless a module it loads holds a `const` or an import nothing reads.
-  In that form a function referenced more than once is hoisted as an object
-  is, and a `const` the value never reaches stays a statement, since loading
-  the module evaluates it. Any other module — one with a named export, or
+  In that form a node referenced more than once is hoisted, whatever it is —
+  an object, a function, an access, an operation — and a node referenced
+  once is written where it stands, so `const a = 1 + 2; const b = 1 + 2;
+  export default [a, a, b];` is `const $0=1+2;export default [$0,$0,1+2];`:
+  the text shares what the graph shares, and two equal nodes are two. A
+  `const` the value never reaches stays a statement, since loading the
+  module evaluates it. Any other module — one with a named export, or
   one loading such a module — gives every array, object, function, access
   and operation outside a function body a `const` of its own, however many
   references reach it, in graph order with dependencies first, while a body
