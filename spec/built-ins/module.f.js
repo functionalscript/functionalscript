@@ -12,6 +12,7 @@
 /** @type {Examples} */
 const staticFunctions = [
     ['Static functions', 'const { isInteger } = Number;\nexport default [Object.is(0, -0), Object.is(NaN, NaN), Object.is === Object.is, isInteger(5), Number.isSafeInteger(2 ** 53), Number.isNaN("NaN"), Number.isFinite(1 / 0)];'],
+    ['Object.entries', 'const { entries } = Object;\nexport default [entries({ b: 1, "1": 2 }), Object.entries([7]), Object.entries("ab"), entries === Object.entries];'],
 ]
 
 export default { staticFunctions, all: [...staticFunctions] }

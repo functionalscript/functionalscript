@@ -1331,6 +1331,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
                 'Destructuring': 'ooooo',
                 'Methods and properties': 'ooooo',
                 'Static functions': 'ooooo',
+                'Object.entries': 'ooooo',
                 'Optional chaining': 'xoooo',
                 'The entry helper': 'ooooo',
                 'Named exports': 'ooooo',

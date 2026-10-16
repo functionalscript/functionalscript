@@ -24,11 +24,12 @@ export const untagUndefined = value => isArray(value) && value[0] === 'undefined
 export const truthy = value => Boolean(untagUndefined(value))
 
 /**
- * Whether a value is a function: a closure, or the `entry` helper.
+ * Whether a value is a function: a closure, the `entry` helper, or a
+ * native static function, `Object.entries`.
  *
  * @type {(value: EdagValue) => value is ValueFunction}
  */
-export const isFunction = value => isArray(value) && (value[0] === '=>' || value[0] === 'entry')
+export const isFunction = value => isArray(value) && (value[0] === '=>' || value[0] === 'entry' || value[0] === 'Object.entries')
 
 /** JavaScript typeof of the represented value. @type {(value: EdagValue) => string} */
 export const typeOf = value => isFunction(value) ? 'function' : typeof untagUndefined(value)

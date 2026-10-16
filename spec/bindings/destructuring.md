@@ -70,10 +70,13 @@ its conditional ([functions](../functions/README.md)).
   being no value to read them from: `const { is } = Object;` is
   `const is = Object.is;`, one entry, `const { isInteger } = Number;` is
   `const isInteger = Number.isInteger;`, and `const {} = Object;` reads
-  nothing, the namespace being never nullish. An array pattern over it,
-  and a key it does not admit, are refused at the word (`reserved word`) —
-  but a key that is a prototype name, `keys` or `toString`, is refused
-  first, at the key, as in any pattern (`prohibited property name`).
+  nothing, the namespace being never nullish. A key the namespace admits
+  is read whatever it spells, so `const { entries } = Object;` is
+  `const entries = Object.entries;` though `entries` is a prototype name.
+  An array pattern over it, and a key it does not admit, are refused at
+  the word (`reserved word`) — but a key it does not admit that is a
+  prototype name, `keys` or `toString`, is refused first, at the key, as
+  in any pattern (`prohibited property name`).
 - A **parameter pattern** is one fixed parameter, its source the argument
   in its position: `([a, { b }], c) => …` binds `a` and `b` from the first
   argument as `const [a, { b }] = arg;` would, its reads the first entries

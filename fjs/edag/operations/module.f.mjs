@@ -13,7 +13,7 @@
  *
  * @module
  * @import { ExpOp, StepOver, ItemsOver, Over } from '../types.ts'
- * @import { EdagValue, Values, Property, Array as ValueArray } from '../value/types.ts'
+ * @import { EdagValue, Values, Property, Array as ValueArray, EntryFunction, NativeStatic } from '../value/types.ts'
  * @import { ValueResult } from '../value/control/types.ts'
  * @import { Invoke } from '../value/call/types.ts'
  * @import { Evaluation, Evaluator, Tail } from './types.ts'
@@ -32,6 +32,7 @@ import { unary as numericUnary, binary as numericBinary } from '../value/numeric
 import { binary as relational } from '../value/relational/module.f.mjs'
 import { toPrimitive, toString } from '../value/convert/module.f.mjs'
 import { functionAt, hasMethod, method } from '../value/method/module.f.mjs'
+import { objectEntries, ownEntries } from '../value/entries/module.f.mjs'
 import { staticPath } from '../module.f.mjs'
 
 /** Propagate failures without running the continuation.
@@ -62,8 +63,18 @@ const nullish = value => value === null || typeOf(value) === 'undefined'
  *
  * @type {(fixed: Values, invoke: Invoke) => ValueResult}
  */
-export const entryCall = ([receiver, key], invoke) =>
+const entryCall = ([receiver, key], invoke) =>
     nullish(receiver) ? error(['undefined']) : okThen(name => entry(receiver, name))(toString(key, invoke))
+
+/**
+ * A function with no body to interpret called, for the executors that
+ * invoke one: the `entry` helper, {@link entryCall}, and `Object.entries`
+ * on its one fixed argument, `ownEntries`. Each executor answers every
+ * other function by walking its body.
+ *
+ * @type {(fn: EntryFunction | NativeStatic, fixed: Values, invoke: Invoke) => ValueResult}
+ */
+export const nativeCall = (fn, fixed, invoke) => fn[0] === 'entry' ? entryCall(fixed, invoke) : ownEntries(fixed[0])
 
 /**
  * The failure of a static function no binding answers, by its name:
@@ -190,6 +201,9 @@ export const operation = evaluator => {
             case 'self': { return [state, self === undefined ? error(['undefined']) : ok(self)] }
             // the helper as a value: a fresh function each time, as `=>` makes one
             case 'entry': { return [state, ok(['entry'])] }
+            // the static function no body defines, bound here and not by
+            // the runtime: one value, so the same function every read
+            case 'Object.entries': { return [state, ok(objectEntries)] }
             // a static function as a value, the body the runtime's `static`
             // section holds at its path — the same node every read, so the
             // same function; with none — no runtime, or one without the

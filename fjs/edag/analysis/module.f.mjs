@@ -271,6 +271,7 @@ const handlers = {
     // the static functions, a row each, so a new one is a `tsc` error here
     // until it has its row
     'Object.is': o0,
+    'Object.entries': o0,
     'Number.isInteger': o0,
     'Number.isSafeInteger': o0,
     'Number.isNaN': o0,

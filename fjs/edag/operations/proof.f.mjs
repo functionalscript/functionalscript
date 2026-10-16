@@ -10,7 +10,8 @@
 
 import { assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { noStatic, operation } from './module.f.mjs'
-import { staticIds } from '../module.f.mjs'
+import { staticIds, staticPath } from '../module.f.mjs'
+import { isNative } from '../../js/static/module.f.js'
 import { invoke, vm } from '../amnesia/module.f.mjs'
 import { settle } from '../value/call/module.f.mjs'
 
@@ -130,11 +131,12 @@ export const proof = {
     },
     // A static function is the body the runtime's `static` section holds
     // at its path, a value whether called or not; with no runtime, or none
-    // at the path, the dispatcher fails naming it — every static alike.
+    // at the path, the dispatcher fails naming it — every static with a
+    // body alike.
     objectIs: () => {
         failure(['()', ['Object.is'], [1, 1]], noStatic('Object.is'))
         failure(['Object.is'], 'no binding for the static Object.is')
-        for (const id of staticIds) { failure([id], noStatic(id)) }
+        for (const id of staticIds.filter(id => !isNative(staticPath(id)))) { failure([id], noStatic(id)) }
         /** @type {Context} */
         const withRuntime = {
             ...context,
@@ -142,6 +144,14 @@ export const proof = {
         }
         const bound = operation({ ...evaluator, context: withRuntime, operand: (e, state) => [[...state, e], vm(withRuntime)(e)] })
         assertStructurallySame(settle(invoke)(bound(['()', ['Object.is'], ['a', 'a']], [])[1]), ['ok', true])
+    },
+    // A native static is the dispatcher's own, with no runtime: one value
+    // every read, called as any function is.
+    objectEntries: () => {
+        eq(['Object.entries'], ['Object.entries'])
+        eq(['===', ['Object.entries'], ['Object.entries']], true)
+        eq(['()', ['Object.entries'], [['{}', [[':', 'b', 1], [':', '0', 2]]]]], ['[]', [['[]', ['0', 2]], ['[]', ['b', 1]]]])
+        failure(['()', ['Object.entries'], [null]])
     },
     calls: () => {
         const at = /** @type {const} */ (['[]', [42]])

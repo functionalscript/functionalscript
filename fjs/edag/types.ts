@@ -241,7 +241,7 @@ export type Op0Id =
     | 'undefined' | 'args' | 'rest' | 'self' | 'entry' | StaticId
 
 /** A static function's tag, its path's keys joined by `.`: `'Object.is'`, `'Number.isInteger'`. */
-export type StaticId = 'Object.is' | 'Number.isInteger' | 'Number.isSafeInteger' | 'Number.isNaN' | 'Number.isFinite'
+export type StaticId = 'Object.is' | 'Object.entries' | 'Number.isInteger' | 'Number.isSafeInteger' | 'Number.isNaN' | 'Number.isFinite'
 
 /** A path's keys joined by `.`, the tag a static node carries for it. */
 type Joined<P> = P extends readonly [infer G extends string, infer N extends string] ? `${G}.${N}`

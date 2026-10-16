@@ -637,8 +637,8 @@ mod tests {
 
     /// Every static path the parser admits is bound, natively or by the
     /// runtime: a static function is never read on a VM that cannot answer
-    /// it.
-    /// NaNVM keeps no native static table, so there is no reverse walk.
+    /// it. `Object.entries`, the one native, has no body beside it
+    /// (`vm::runtime`'s `native_entries`), so there is no reverse walk.
     #[test]
     fn static_completeness() {
         use super::super::methods_table::STATICS;

@@ -146,9 +146,7 @@ impl<A: IVm> Dispatch<A> for PrimitiveCoercionOp {
         // https://tc39.es/ecma262/#sec-function.prototype.tostring: the
         // stock `valueOf` answers the function itself, so every hint ends at
         // the function's text, and one without a text is refused.
-        f.text()
-            .map(|text| Primitive::String(text.into()))
-            .ok_or_else(error::function_text)
+        f.text().map(Primitive::String)
     }
 }
 

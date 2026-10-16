@@ -85,7 +85,7 @@ export const deno = '2.8.3'
 // engine, package-lock.json's root engine and .node-version synchronized with
 // this exact pin; an accepted update replaces the supported Node version.
 // https://nodejs.org/en/download
-export const node = /** @type {const} */ ('26.11.1')
+export const node = /** @type {const} */ ('26.12.0')
 
 // The TypeScript this repository type-checks with, and the one the
 // packed-package check installs from npm to check the declarations the packed
@@ -120,7 +120,7 @@ export const typescript = /** @type {const} */({
 // `dtolnay/rust-toolchain` installs; the two are the same constant so they
 // cannot drift.
 // https://rust-lang.org/
-export const rust = '1.99.0'
+export const rust = '1.99.1'
 
 // How long, in minutes, a job may run once a runner has picked it up. GitHub's
 // default is six hours, and a job that hangs holds its runner for all of them:
@@ -149,7 +149,7 @@ export const nixpkgs = /** @type {const} */({
     owner: 'NixOS',
     repo: 'nixpkgs',
     ref: 'nixpkgs-26.05-darwin',
-    commit: '5b00df4a0973895c8023f2b0227c7942c963d065',
+    commit: '7529d323f8f9926b38df356da2483c2a4e759d00',
 })
 
 // `rust-overlay`, the second input of the shared flake. Nixpkgs builds
@@ -163,7 +163,7 @@ export const rustOverlay = /** @type {const} */({
     owner: 'oxalica',
     repo: 'rust-overlay',
     ref: 'master',
-    commit: '404b7a5537f0adc6e5c558a1b94612e683dec504',
+    commit: 'ec07af44be2e0ce4e1a17e00a97d44232607c1ec',
 })
 
 // Moving either `commit` above needs `npm run lock-update` (real Nix) to

@@ -8,4 +8,5 @@ export type _ValueNode =
     | readonly ['[]', readonly Operand[]]
     | readonly ['{}', readonly (readonly [':', string, Operand])[]]
     | readonly ['entry']
+    | readonly ['Object.entries']
     | Extract<Node, readonly ['=>', ...readonly unknown[]]>

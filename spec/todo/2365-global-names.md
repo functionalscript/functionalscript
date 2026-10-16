@@ -72,8 +72,9 @@ second, reserved together with the one right operand of `instanceof` it
 admits ([`instanceof`](../operators/instanceof.md)).
 `String` is the third, reserved with its conversion
 ([string conversion](../conversions/string.md)).
-`Object` is the fourth, reserved with `Object.is`, the one member of it
-admitted ([built-in static functions](../built-ins/static-functions.md)).
+`Object` is the fourth, reserved with `Object.is`, the first member of it
+admitted, `Object.entries` the second
+([built-in static functions](../built-ins/static-functions.md)).
 Every other name joins that list before 2360 admits any of it.
 
 ## Open questions
