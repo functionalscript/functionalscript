@@ -393,7 +393,7 @@ export const proof = {
             expect('export default { in: 1 };', '[[],[["object",[[":","default",["object",[[":","in",1]]]]]]]]')
         },
         // `==` and `!=` are refused too, since neither language reads them
-        // the same way twice (`spec/README.md#operators`), at the operator
+        // the same way twice (`spec/operators/README.md`), at the operator
         looseEquality: () => {
             /** @type {(source: string, column: number) => void} */
             const expect = (source, column) => {

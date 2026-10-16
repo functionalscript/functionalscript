@@ -20,7 +20,7 @@ compile time:
   a value owns, is a call of what the value holds. An own property of the
   name on an object shadows the built-in, a type without the built-in throws
   the `TypeError` JavaScript throws. An unguarded nullish receiver throws before
-  its arguments are evaluated; [optional chaining](../../../spec/README.md#optional-chaining)
+  its arguments are evaluated; [optional chaining](../../../spec/property-access/optional-chaining.md)
   short-circuits the remaining chain, including arguments, at a nullish receiver
   or callee guarded by `?.`.
 
@@ -70,7 +70,7 @@ native implementation.
 | `fontcolor` | ❌ | ❌ | String. Annex B. Legacy HTML wrapper. |
 | `fontsize` | ❌ | ❌ | String. Annex B. Legacy HTML wrapper. |
 | `forEach` | ❌ | ❌ | Array. Answers `undefined`, exists for side effects. |
-| `hasOwnProperty` | ❌ | ❌ | Object. Reflection, superseded by the [`entry` pattern](../../../spec/README.md#reading-an-entry-at-run-time). |
+| `hasOwnProperty` | ❌ | ❌ | Object. Reflection, superseded by the [`entry` pattern](../../../spec/property-access/entries.md). |
 | `includes` | ❌ | ✅ | Array, String. Pure, SameValueZero so `NaN` is found. |
 | `indexOf` | ❌ | ✅ | Array, String. Pure, strict equality so `NaN` is not found. |
 | `isPrototypeOf` | ❌ | ❌ | Object. Prototype reflection. |
@@ -155,7 +155,7 @@ library and asserts the version at compile time
 so a build whose library carries another version does not build; the pin
 moves only with the toolchain. A host engine on another Unicode version is an
 engine-defined edge the spec documents
-([built-in member functions](../../../spec/README.md#built-in-member-functions)),
+([built-in member functions](../../../spec/built-ins/member-functions.md)),
 reachable through text the module does not control, such as a search query.
 `normalize` stays refused: nothing pins the engine's normalization tables.
 
@@ -176,7 +176,7 @@ functions. Captures appear as slot names, without their values. The
 cover direct and indirect conversion. Ordinary JavaScript execution and
 callables produced by [runtime compilation](../../edag/values.md#runtime-compilation)
 retain their host's function text under the
-[function-source exception](../../../spec/README.md#function-source-representation-exception).
+[function-source exception](../../../spec/principles/README.md#function-source-representation-exception).
 [Native semantic EDAG association](../../compiler/todo/associate-edag-with-functions.md)
 for hashing or retrieval remains separate work: stored text is not a
 retrievable code graph, and current text rendering does not wait for that

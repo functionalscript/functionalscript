@@ -7,7 +7,7 @@
  * numeric edge cases. This module owns that layer — the syntax of a literal —
  * and nothing above it. The items several generators write over strings — a
  * `const` table, the `@generated` header — are its sibling
- * [`./item`](./item/module.f.mjs)'s; expressions, other items, and whatever
+ * [`./item`](./item/module.f.js)'s; expressions, other items, and whatever
  * API a generator targets stay with the generator.
  *
  * The sibling of `fjs/media/nix`, which does the same for Nix expressions.
@@ -151,7 +151,7 @@ const canonicalNan = 0x7ff8_0000_0000_0000n
  * rather than approximated, a normal number's exponent being
  * {@link exponentOf}'s. Every `NaN` is {@link canonicalNan}, whatever sign
  * or payload an engine holds it with: FunctionalScript has one `NaN`
- * ([spec](../../../spec/README.md#numbers)), a `NaN`'s bits being no
+ * ([spec](../../../spec/values/numbers.md)), a `NaN`'s bits being no
  * observation the language admits, so one spelling is the whole of what
  * the value means.
  *

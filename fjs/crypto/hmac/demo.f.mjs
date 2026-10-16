@@ -14,7 +14,7 @@ import { hmac } from './module.f.mjs'
 import { hexOf, hashAlgorithms, algorithmOf, algorithmOption, opensslVerification } from '../../website/demo/hash/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { textField, inputField, fieldUpdate, caption } from '../../website/demo/module.f.mjs'
-import { codeBlock } from '../../website/demo/code/module.f.mjs'
+import { codeBlock } from '../../website/demo/code/module.f.js'
 
 /** Bind the hash and its formatter once for each HMAC choice.
  * @type {<S>(a: HashDemoAlgorithm<S>) => { readonly name: string, readonly openssl: string, readonly digest: (key: string, text: string) => string }}

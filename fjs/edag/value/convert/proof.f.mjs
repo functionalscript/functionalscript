@@ -34,6 +34,13 @@ export const proof = {
         assertEq(assertOk(toNumber(['[]', [7]], skipped)), 7)
         assertEq(assertOk(toString(['[]', []], skipped)), '')
     },
+    // `Object.entries` has no body to render, and answers the text
+    // ECMAScript requires of a built-in, which no conversion reads as a
+    // number.
+    nativeStatic: () => {
+        assertEq(assertOk(toString(['Object.entries'], skipped)), 'function entries() { [native code] }')
+        assertEq(Object.is(assertOk(toNumber(['Object.entries'], skipped)), NaN), true)
+    },
     objects: () => {
         const own = /** @type {const} */ (['{}', [[':', 'toString', fn], [':', 'valueOf', fn]]])
         assertEq(assertOk(toString(['{}', []], skipped)), '[object Object]')

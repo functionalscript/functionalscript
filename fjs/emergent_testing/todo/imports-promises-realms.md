@@ -29,7 +29,7 @@ what nobody has stated:
 **A module namespace object is a thenable.** `import()` resolves by *adopting*
 what a module exports, so a module exporting a function named `then` corrupts
 its own dynamic import. That is why exporting `then` from a proof module is
-forbidden ([`spec/README.md#exporting-a-value`](../../../spec/README.md#exporting-a-value)) —
+forbidden ([`spec/modules/exports.md`](../../../spec/modules/exports.md)) —
 The compiler now enforces this for compiled modules. Proof discovery in
 `../../dev/module.f.mjs` still imports authored `.f.mjs` directly without that
 compiler check.
@@ -461,5 +461,5 @@ Three things to consider first, if the day comes:
   the guarded reads of user values, which share a cause with the cross-realm
   exposure this file measures.
 - [Browser testing](browser-testing.md) — iframes and workers.
-- [`spec/README.md#exporting-a-value`](../../../spec/README.md#exporting-a-value) — the `then`
+- [`spec/modules/exports.md`](../../../spec/modules/exports.md) — the `then`
   export ban.

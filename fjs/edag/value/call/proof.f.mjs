@@ -146,6 +146,10 @@ export const proof = {
         const failure = error(record)
         assertEq(prepare(failure, [skipped]), failure)
         assertStructurallySame(prepare(ok(data), []), ['error', ['undefined']])
+        // a function with no body binds its `length`: two for the `entry`
+        // helper, one for `Object.entries`
+        assertStructurallySame(prepare(ok(['entry']), [() => ok(data)]), ['call', ['entry'], [data, ['undefined']], ['[]', []]])
+        assertStructurallySame(prepare(ok(['Object.entries']), [() => ok(data), () => ok(record)]), ['call', ['Object.entries'], [data], ['[]', [record]]])
     },
     // `settle` makes the one call an outcome leaves and passes a value or a
     // throw through; `invoker` makes every call a body leaves, one after

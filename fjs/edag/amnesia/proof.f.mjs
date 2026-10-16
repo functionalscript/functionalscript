@@ -282,6 +282,17 @@ export const proof = {
         // and nullish receivers fail before the key is read at all
         fails(entry(null, 'a'))
         fails(entry(['undefined'], boom))
+        // `Object.entries`, called: every enumerable own property, in
+        // order, a `length` and a stock method never among them; one
+        // function every read; a nullish receiver failing
+        const entries = /** @type {(a: Exp) => Exp} */ (a => ['()', ['Object.entries'], [a]])
+        same(entries(['{}', [[':', 'b', 1], [':', '1', 2]]]), [['1', 2], ['b', 1]])
+        same(entries(['[]', [5]]), [['0', 5]])
+        same(entries('a'), [['0', 'a']])
+        same(entries(true), [])
+        eq(['.', ['Object.entries'], 'length'], 1)
+        eq(['===', ['Object.entries'], ['Object.entries']], true)
+        fails(entries(null))
     },
     // `o2lazy` — the right operand is a thunk, so these three short-circuit
     // — and `?:`, which establishes its condition and then one arm. Each

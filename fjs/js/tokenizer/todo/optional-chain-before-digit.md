@@ -14,9 +14,9 @@ conditional whose middle arm is `.5`. `tokenize` in
 then the number `5`.
 
 Nothing is wrong yet. A leading-dot number is not recognized
-([numbers](../../../../spec/README.md#numbers)), so the JavaScript reading is
+([numbers](../../../../spec/values/numbers.md)), so the JavaScript reading is
 refused anyway: the parser reads `a?.b` as the optional chain it is
-([optional chaining](../../../../spec/README.md#optional-chaining)) and wants
+([optional chaining](../../../../spec/property-access/optional-chaining.md)) and wants
 a name, `[` or `(` after the `?.`, so `export default a?.5:1;` fails, as it
 should, at the `5` rather than at the `.5`. The day `.5` is recognized,
 `a?.5:1` is a valid conditional, and a tokenizer that still reads `?.` there

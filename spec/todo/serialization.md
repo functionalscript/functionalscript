@@ -4,14 +4,14 @@ Formerly §9 of the main [spec README](../README.md).
 
 **Decision:** the stable, canonical representation of functions is the **EDAG**, expressed as an
 FJS value (`Any`). The code description is independent of its execution strategy
-(see [functions](../README.md#functions); the exact shape is the RTTI schema in
+(see [functions](../functions/README.md); the exact shape is the RTTI schema in
 [`fjs/edag`](../../fjs/edag/README.md)). It does not require every VM to implement
 a native EDAG representation or interpreter. The reasons:
 
 1. We need a canonical data representation of functions in FunctionalScript — and in the future
    content-addressable VM ([CAVM](./content-addressable-vm.md)) — to compute a hash.
 2. The EDAG can be transformed back to source code. The adopted
-   [function-source exception](../README.md#function-source-representation-exception)
+   [function-source exception](../principles/README.md#function-source-representation-exception)
    uses EDAG-derived code-only text for default function string conversion.
    Current source and runtime-value serializers have distinct contracts;
    broader callable interchange serialization remains open below.
@@ -74,7 +74,7 @@ without excessive copying / slot allocations.
 
 **Decision:** adopt EDAG-derived default function text as an explicit exception
 to JavaScript result compatibility, as defined in the
-[language principles](../README.md#function-source-representation-exception).
+[language principles](../principles/README.md#function-source-representation-exception).
 This is a shared conversion rule, not a special case for `String(entry)`.
 Explicit `String(f)`, array/string conversion and property-key conversion use
 it whenever their normal conversion path reaches the default representation

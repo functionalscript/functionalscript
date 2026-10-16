@@ -49,7 +49,7 @@ without running module initialization, including functions, calls and
 operators within each output's supported profile. The `.js` writer supports
 ordinary and method calls, spreads and operators, but remains partial: it
 refuses graph shapes it cannot reconstruct as FunctionalScript source. See
-the [output contracts and limits](./spec/README.md#output).
+the [output contracts and limits](spec/command-line/output.md).
 
 ```js
 // m.f.js
@@ -86,7 +86,7 @@ where each reference reaches it, as `JSON.stringify` does:
 ```
 
 [The specification](./spec/README.md) is the reference for what the compiler
-accepts, and its [Output](./spec/README.md#output) section says what each
+accepts, and its [Output](spec/command-line/output.md) section says what each
 output writes or refuses.
 
 ### The `fjs` CLI

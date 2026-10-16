@@ -123,6 +123,79 @@ export const isVoidTag = includes(voidTagList)
 export const isRawText = includes(rawText)
 
 /**
+ * Why a `script` element is refused wherever a tree is built into a page: a
+ * browser runs it. `module.mjs` throws it from the DOM builders, and a caller
+ * serializing a tree it did not write says it in its own refusal.
+ */
+/** @type {string} */
+export const scriptRefusal = 'media/html: a `script` element is refused: built into a page, it would run'
+
+/** @type {(c: number) => boolean} */
+const isAsciiLetter = c => (c >= 0x41 && c <= 0x5a) || (c >= 0x61 && c <= 0x7a)
+
+/** @type {(c: number) => boolean} */
+const tagUnit = c => isAsciiLetter(c) || (c >= 0x30 && c <= 0x39) || c === 0x2d
+
+/** @type {(c: number) => boolean} */
+const attributeUnit = c => tagUnit(c) || c === 0x5f || c === 0x2e || c === 0x3a
+
+/**
+ * Whether `name` is an ASCII letter followed by code units `rest` accepts.
+ *
+ * @type {(rest: (c: number) => boolean) => (name: string) => boolean}
+ */
+const plainName = rest => name => name.length > 0 && isAsciiLetter(name.charCodeAt(0))
+    && name.split('').every((_, i) => i === 0 || rest(name.charCodeAt(i)))
+
+/** A tag a parser reads as written: an ASCII letter, then letters, digits and `-`. */
+const plainTag = plainName(tagUnit)
+
+/** An attribute name a parser reads as written: a tag's units, and `_`, `.` and `:`. */
+const plainAttribute = plainName(attributeUnit)
+
+/**
+ * Why `e` cannot be written into a page, or `null` when it can: the refusal a
+ * caller serializing a tree it did not write makes, as the DOM builders in
+ * `module.mjs` make theirs.
+ *
+ * **The page must read the tree the serializer was given.** The serializer
+ * writes a tag or an attribute name as it is, and a parser reading the page
+ * ends a name at whitespace, `/`, `>` or `=`. `['script ', …]` is written as
+ * `<script >`, a script, and an attribute name holding `><script>` writes a
+ * script element of its own. The DOM builders refuse such names, because the
+ * DOM throws on them. So a name here is plain: a tag is an ASCII letter, then
+ * letters, digits and `-`; an attribute name may also hold `_`, `.` and `:`,
+ * which `xlink:href` needs. The parser reads such a name as it is written.
+ *
+ * **A `script` is refused in any case.** A browser reads a tag name ignoring
+ * ASCII case, so `<SCRIPT>` written into a page runs as surely as `<script>`,
+ * inside an `svg` too.
+ *
+ * **The children it looks under are the ones that are written.** A void
+ * element's children and a raw-text one's elements are dropped, by the
+ * serializer and the DOM builders alike, so they are never in the page. Which
+ * elements those are is decided by the exact tag, as the serializer decides
+ * it: a `BR` is not void to it, and its children are written.
+ *
+ * @type {(e: Element) => string | null}
+ */
+export const pageRefusal = e => {
+    const [tag, attributes, children] = parseElement(e)
+    if (!plainTag(tag)) {
+        return `media/html: the tag '${tag}' is not a plain name: a page would read other markup`
+    }
+    if (tag.toLowerCase() === 'script') { return scriptRefusal }
+    const name = definedEntries(attributes).map(([n]) => n).find(n => !plainAttribute(n))
+    if (name !== undefined) {
+        return `media/html: the attribute '${name}' is not a plain name: a page would read other markup`
+    }
+    if (isVoidTag(tag) || isRawText(tag)) { return null }
+    return children.reduce(
+        (/** @type {string | null} */ found, child) => found ?? (typeof child === 'string' ? null : pageRefusal(child)),
+        null)
+}
+
+/**
  * Converts a FunctionalScript element into a list of HTML string chunks.
  *
  * Chunks are returned instead of a single string to support composition with
@@ -161,6 +234,21 @@ const commonHead = /** @type {const} */ ([
 ])
 
 /**
+ * Renders a complete HTML document as a string: what {@link htmlUtf8} encodes.
+ *
+ * **A string, for a document larger than one `Vec`.** A `Vec` holds at most
+ * `maxLengthBytes`, and a page can be larger — a demo's first view written
+ * into it is one way — so a caller writing it chunks the string as it encodes
+ * it, as `writeUtf8File` does.
+ *
+ * @type {(lang: string) => (...head: readonly Node[]) => (...body: readonly Node[]) => string}
+ */
+export const htmlDocument = lang => (...head) => (...body) =>
+    htmlToString(['html', { lang },
+        ['head', ...commonHead, ...head],
+        ['body', ...body]])
+
+/**
  * Renders a complete UTF-8 encoded HTML document as a `Vec`.
  *
  * Produces a full page with `<!DOCTYPE html>`, an `<html lang>` naming the
@@ -185,7 +273,4 @@ const commonHead = /** @type {const} */ ([
  * @type {(lang: string) => (...head: readonly Node[]) => (...body: readonly Node[]) => Vec}
  */
 export const htmlUtf8 = lang => (...head) => (...body) =>
-    utf8(htmlToString(['html', { lang },
-        ['head', ...commonHead, ...head],
-        ['body', ...body]]
-    ))
+    utf8(htmlDocument(lang)(...head)(...body))

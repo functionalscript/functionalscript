@@ -38,7 +38,7 @@
  */
 
 import { toText } from '../text/marked/module.f.mjs'
-import { codeBlock } from '../website/demo/code/module.f.mjs'
+import { codeBlock } from '../website/demo/code/module.f.js'
 import { exitCode } from '../effects/node/module.f.mjs'
 import { virtualAt } from '../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../text/module.f.mjs'

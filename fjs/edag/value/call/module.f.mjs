@@ -7,8 +7,9 @@
  * Missing fixed arguments bind to tagged undefined; supplied values retain
  * their identities. Each successful call receives a fresh rest array after
  * the fixed prefix. The invoker receives the original function, including
- * its captures and body — or the `entry` helper, whose body is the
- * invoker's own to perform — and its result returns unchanged.
+ * its captures and body — or the `entry` helper or `Object.entries`,
+ * whose body is the invoker's own to perform — and its result returns
+ * unchanged.
  *
  * A call in tail position is prepared and left for the executor, which
  * makes it in the invocation's place: `invoker` turns a body evaluator into
@@ -39,8 +40,9 @@ export const prepare = (callee, args) => {
     const [argumentKind, argumentsArray] = argumentsResult
     if (argumentKind === 'error') { return argumentsResult }
     if (!isFunction(fn)) { return error(['undefined']) }
-    // the `entry` helper takes its two, as its `length` says
-    const length = fn[0] === 'entry' ? 2 : fn[1]
+    // the `entry` helper takes its two and `Object.entries` its one, as
+    // each one's `length` says
+    const length = fn[0] === 'entry' ? 2 : fn[0] === 'Object.entries' ? 1 : fn[1]
     const [, values] = argumentsArray
     /** @type {Values} */
     let fixed = []

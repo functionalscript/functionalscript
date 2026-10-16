@@ -29,9 +29,8 @@ name, each key under it an allowed name on that type's prototype — so a
 body for a name the language does not admit, or
 on the wrong type, fails `tsc`, and [`proof.f.mjs`](./proof.f.mjs) checks
 the same at run time. The keys are not the admitted set and need not be:
-nothing in a `.f.js` enumerates an object's keys, so a list could not be
-derived from them, and a table keying every admitted name with a marker
-in place of a body would only duplicate the parser's list.
+a table keying every admitted name with a marker in place of a body would
+only duplicate the parser's list.
 
 ## The names without a body
 
@@ -39,8 +38,11 @@ Two kinds, and both are each VM's to bind natively:
 
 - the **primitives**, which no body can define in terms of the rest — for
   a string, the code-unit read `charCodeAt` and the substring `slice`;
-  `length` is a property each value owns and is on no list, and an array
-  element is read by a runtime number index, which the language has;
+  among the static functions, `Object.entries`, since enumerating keys is
+  what no body can do otherwise, which [`../static`](../static/module.f.js)
+  lists as `natives`; `length` is a property each value owns and is on no
+  list, and an array element is read by a runtime number index, which the
+  language has;
 - the names whose body **waits on a primitive the language has not
   admitted** — `toLowerCase` and `toUpperCase` on a string from a code
   unit, `String.fromCharCode`, over which the Unicode case tables are
@@ -178,25 +180,31 @@ with the same message, reading its context's runtime through
 one invocation or two, which `nanvm/harness/fixtures/object-is.mjs`
 checks on NaNVM against the interpreter, and
 `nanvm/harness/fixtures/number-predicates.mjs` for the `Number`
-predicates over every kind of value. NaNVM keeps no native static
-table, and its completeness test checks every path
-[`../static`](../static/module.f.js) admits is bound.
+predicates over every kind of value. `Object.entries` has no body: the
+represented interpreter answers it with a function value of its own,
+`edag/value/entries`, and NaNVM's runtime creates it, `vm::object_entries`,
+beside the compiled object, so `IVm::runtime_static` answers it as it
+answers a body and it too is one function every read
+(`nanvm/harness/fixtures/object-entries.mjs`). The completeness test
+checks every path [`../static`](../static/module.f.js) admits is bound.
 
 **The VM type binds the runtime.** `IVm::runtime_method` is a method on
 the type, with no instance and no argument carrying a runtime, so which
 runtime a VM has is decided by its `impl`: `naive` answers with
-`vm/runtime.rs`, whose `runtime_object` evaluates `gen.runtime.rs` —
-included into the crate by `#[path]`, which is why the generated file says
-`use nanvm_lib::…` and the crate declares `extern crate self as nanvm_lib`
-— and whose lookups read the entry for the type and the key from that
-object; a VM that leaves the default binds nothing, and answers a body's
-name with the `TypeError` a VM that binds nothing should. Linked in at
-build time, then, but not a Rust `static`: a value is an `Rc`, which no
-`static` can hold, so `naive` evaluates the object on a thread's first
-lookup and holds it in a `thread_local` from then on. Holding it is what
-makes a body one function, however often it is read — `Object.is` is a
-value a module compares — and it costs one evaluation per thread, where
-evaluating per lookup cost one per call. An index from type and key to the
+`vm/runtime.rs`'s `Runtime`, which holds the compiled object —
+`runtime_object` evaluates `gen.runtime.rs`, included into the crate by
+`#[path]`, which is why the generated file says `use nanvm_lib::…` and the
+crate declares `extern crate self as nanvm_lib` — and every function no
+body defines, created beside it, `Object.entries`; its lookups read the
+entry for the type and the key, or the path, from those. A VM that leaves
+the default binds nothing, and answers a body's name with the
+`TypeError` a VM that binds nothing should. Linked in at build time, then,
+but not a Rust `static`: a value is an `Rc`, which no `static` can hold,
+so `naive` initializes the runtime on a thread's first lookup and holds it
+in a `thread_local` from then on. Holding it is what makes each runtime
+function, generated or created, one function however often it is read —
+`Object.is` is a value a module compares — and it costs one evaluation
+per thread, where evaluating per lookup cost one per call. An index from type and key to the
 closures would change nothing generated and nothing in the trait.
 
 Three places the binding could have lived, and why this one:

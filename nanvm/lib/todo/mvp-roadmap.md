@@ -270,7 +270,7 @@ tracked in [fjs-nanvm-integration](../../../todo/fjs-nanvm-integration.md#tasks)
       by the corpus as a `Group3`; the operator table in
       [`nanvm/lib/README.md`](../README.md) has the record.
 - [x] **Nested functions** (function frame) (Rust).
-      See [functions](../../../spec/README.md#functions),
+      See [functions](../../../spec/functions/README.md),
       [function-frame](../../../spec/todo/3111-function-frame.md). The staged
       plan for making generated Rust function bodies callable — arguments,
       captured-frame, and self-reference representation — is

@@ -12,7 +12,7 @@ language surface, during construction, or only during a lookup? The old
 Its replacement asks about descriptor enumerability through an explicit pattern.
 
 A representation choice cannot answer that source pattern differently merely
-because the VM calls a property absent. The [compatibility principles](../README.md#principles)
+because the VM calls a property absent. The [compatibility principles](../principles/README.md)
 fix successful observations; the representation is an implementation choice
 within that constraint, not a competing source semantics.
 

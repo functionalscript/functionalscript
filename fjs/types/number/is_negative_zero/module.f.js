@@ -1,7 +1,7 @@
 /**
  * The negative-zero predicate: `Object.is(n, -0)` written with the
  * language's own operators, the name for the test a module would otherwise
- * spell as the comparison ([`doc/CONVERTING.md`](../../../../doc/CONVERTING.md#6-objectis)).
+ * spell as the comparison ([`doc/CONVERTING.md`](../../../../doc/CONVERTING.md#6-objectis-and-objectentries)).
  *
  * @module
  */

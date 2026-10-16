@@ -20,14 +20,14 @@ no later than this file admits any of it, a name at a time
 
 A ticked box below marks a name the language is to admit, not one it admits
 today. Implemented reserved globals are `Infinity`, `NaN` and `undefined`
-([numbers](../README.md#numbers)), `Number` and `String`, as the
+([numbers](../values/numbers.md)), `Number` and `String`, as the
 conversions `Number(exp)` and `String(exp)` — `String`'s alone — their
-words reserved ([number conversion](../README.md#number-conversion),
-[string conversion](../README.md#string-conversion)), and `Array`, as the
-right operand of [`instanceof`](../README.md#instanceof), and `Object` and
+words reserved ([number conversion](../conversions/number.md),
+[string conversion](../conversions/string.md)), and `Array`, as the
+right operand of [`instanceof`](../operators/instanceof.md), and `Object` and
 `Number`, as the namespaces of the static functions `Object.is` and the
 four `Number` predicates, each a value
-([built-in static functions](../README.md#built-in-static-functions)). Other global uses need
+([built-in static functions](../built-ins/static-functions.md)). Other global uses need
 a complete recognized pattern; an unrecognized global is refused as an
 unbound name (`const not found`), so
 `export default isFinite(1);` does not compile yet. An unticked box is a
@@ -58,21 +58,114 @@ name not yet decided, or, where it says so, never admitted.
 - [x] `Object` — `Object.is` is implemented, the first static function: a
       value, read in every spelling of the access and through
       `const { is } = Object`, its body in the runtime, the word reserved
-      ([built-in static functions](../README.md#built-in-static-functions),
+      ([built-in static functions](../built-ins/static-functions.md),
       [`fjs/js/todo/runtime-static.md`](../../fjs/js/todo/runtime-static.md)).
       The namespace's other members stay unticked, each an admission of
-      its own
+      its own. `Object.entries` is admitted too, native in every executor
+      (the record below)
 - [ ] `Function`
 - [ ] `Boolean`
 - [ ] `Symbol`
 
+#### `Object.entries` proposal and approval
+
+**Problem.** The language enumerates no keys. The
+[`entry` helper](../property-access/entries.md) reads a key a program
+already holds, never the keys it does not, so a module that walks an
+object — `structurallySame`, `definedEntries`, every `.f.mjs` that writes
+`const { entries } = Object` — cannot be written in the language, and an
+`.f.mjs` that does so cannot be renamed `.f.js`.
+
+**Proposal.** Admit `Object.entries` as a static function beside
+`Object.is`: a value in every spelling of the read, `Object.entries`,
+`Object["entries"]` and the guarded forms, and through
+`const { entries } = Object`; the EDAG node `['Object.entries']`; `length`
+`1`; one function however often it is read. Its answer is JavaScript's: a
+fresh array of fresh `[key, value]` pairs, one per enumerable own
+string-keyed property, in JavaScript's own-key order — array-index keys
+ascending, then every other key in insertion order — an array's elements
+and a string's code units under their index strings, nothing for a number,
+a boolean, a `bigint` or a function, and a failure on `null` and
+`undefined`, as `ToObject` fails. An entry holding `undefined` is listed,
+as JavaScript lists it.
+
+**No body: every executor binds it natively.** The runtime's `static`
+section holds bodies written in FunctionalScript, and no body can write
+this one: enumerating keys is exactly what the language lacks, so
+`Object.entries` is a primitive, as `String.fromCharCode` is
+([runtime-static](../../fjs/js/todo/runtime-static.md)). The runtime
+holds nothing at its path, and each executor answers the node itself: the
+represented interpreter with a function value of its own,
+`['Object.entries']`, called natively as `['entry']` is; NaNVM with a
+function its runtime creates beside the compiled bodies, initialized once
+and held per thread with them, so every read is one function.
+
+**Destructuring.** `entries` is a prototype name, `Array.prototype`'s,
+which every pattern refuses at the key. Over a namespace the namespace's
+own list decides first, so `const { entries } = Object` is
+`const entries = Object.entries`, destructuring being sugar; a key the
+namespace does not admit is refused as before, a prototype name at the
+key and any other name at the word.
+
+**Text.** `String(Object.entries)` has no EDAG to render, so every
+executor answers `function entries() { [native code] }`: what ECMA-262
+requires of a built-in function
+([`Function.prototype.toString`](https://tc39.es/ecma262/#sec-function.prototype.tostring)),
+a string with the syntax of a NativeFunction whose name is the built-in's
+[[InitialName]], `entries`. The grammar admits parameters; the text has
+none, as most engines print it, V8's text exactly. The interpreter spells
+it, `entriesText`; NaNVM's function holds no text, and `String(f)` forms
+it from the name on each call, `runtime_to_string("entries")`, for every
+VM. A text keeps
+every conversion that never reads it, `Number` and the relational
+operators, answering alike in the represented interpreter, which renders a
+text before it converts, and NaNVM, which answers those without one, so
+refusing it, as NaNVM refuses a native function with no text, was not
+taken. `a => Object.entries(a)` was considered: a working implementation,
+which `eval` or the `Function` constructor makes a function of, where a
+NativeFunction does not parse, and its parameter shows the `length`; but
+ECMAScript requires the NativeFunction of a built-in, and
+**sergey-shandar** chose the standard's text in the session. JavaScript run
+directly answers its own host's text, a NativeFunction too, which an engine
+may spell otherwise, as JavaScriptCore breaks the line. The other runtime
+functions are to answer the same, `function is() { [native code] }`, in
+place of their body's EDAG text
+([runtime-static](../../fjs/js/todo/runtime-static.md)).
+
+**Benefits.** The JavaScript spelling for what modules already do on the
+host, and the one enumeration from which the rest — keys, values, a
+filtered copy — are FunctionalScript over arrays. Modules that enumerate
+an object compile as written.
+
+**Drawbacks.** The first static with no body: one more function value in
+the represented interpreter and one more binding in NaNVM, kept in
+agreement by the harness rather than by one body. Enumeration observes an
+`undefined`-valued entry and key order in one more place
+([undefined properties](./1010-undefined-property.md)), which object
+spread already observes. A namespace key in a pattern may now be a
+prototype name.
+
+**Language-design approval.** **sergey-shandar** directed "Implement
+`Object.entries` in FJS. Note, it can't be a runtime function." in
+[the LLM working session](https://claude.ai/code/session_01R1c6kasjVwXAdm69VAd5oU),
+before implementation began. The destructuring and text decisions above
+are that session's reading of the direction, open to the owner's review.
+
+**Implemented** as proposed: `fjs/js/static`'s `natives` lists the path,
+the represented interpreter answers it from `fjs/edag/value/entries`, and
+NaNVM with `vm::object_entries`, which `vm::Runtime` creates once beside
+the compiled object and `IVm::runtime_static` answers as it answers a
+body, `naive` holding the one runtime per thread;
+`nanvm/harness/fixtures/object-entries.mjs` and
+`object-entries-throws.mjs` hold the executors to Node.
+
 ### Number and Math
 
 - [x] `Number` — the call `Number(exp)`, the conversion
-      ([number conversion](../README.md#number-conversion)), and the four
+      ([number conversion](../conversions/number.md)), and the four
       predicates `Number.isInteger`, `Number.isSafeInteger`, `Number.isNaN`
       and `Number.isFinite`, static functions
-      ([built-in static functions](../README.md#built-in-static-functions),
+      ([built-in static functions](../built-ins/static-functions.md),
       the record below); the namespace's other members, its value
       properties `Number.MAX_SAFE_INTEGER` among them, stay unticked, each
       an admission of its own. A module reading one of the four, through
@@ -96,7 +189,7 @@ module imports a helper in its place
 reads the member cannot be renamed `.f.js` as written.
 
 **Proposal.** Admit the four as static functions, as `Object.is` is
-([built-in static functions](../README.md#built-in-static-functions)): each
+([built-in static functions](../built-ins/static-functions.md)): each
 a value in every spelling of the read, `Number.isInteger`,
 `Number["isInteger"]` and the guarded forms, and through
 `const { isInteger } = Number`; each the EDAG node of its name,
@@ -135,7 +228,7 @@ the move in the same session, after the admission.
 
 - [x] `String` — implemented as `String(exp)`, the string conversion,
       and `String()`, the empty-string literal; the word is reserved
-      ([string conversion](../README.md#string-conversion)). Namespace
+      ([string conversion](../conversions/string.md)). Namespace
       members, spreads, multiple arguments and guarded global calls remain
       unrecognized
 - [ ] `RegExp`
@@ -151,7 +244,7 @@ familiar JavaScript spelling for that operation.
 it, as [global-names](./2365-global-names.md) requires. Namespace members and
 other call shapes remain separate admissions; computed property keys retain
 their existing `Number(...)` requirement. The implemented semantics are in
-[String Conversion](../README.md#string-conversion).
+[String Conversion](../conversions/string.md).
 
 **Benefits.** This preserves familiar JavaScript syntax and conversion behavior
 for supported values, makes the existing operation available to source modules,
@@ -250,7 +343,7 @@ their JavaScript meanings; do not redefine them over enumerable properties.
 `obj.hasOwnProperty(...)` is not a replacement source spelling.
 
 Use explicit enumerable-entry patterns instead:
-[`entry`](../README.md#reading-an-entry-at-run-time) reads a data value, and
+[`entry`](../property-access/entries.md) reads a data value, and
 [enumerable presence](./2345-has-own-property.md) proposes a separate
 `hasEntity` pattern. `Object.getOwnPropertyDescriptor` is permitted only as
 part of a complete approved AST pattern, never as an exposed descriptor API.

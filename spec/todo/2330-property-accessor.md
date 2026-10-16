@@ -1,7 +1,7 @@
 # Property Accessor
 
 **Status:** the constant-key read is in the language
-([spec: property access](../README.md#property-access)): an own-property
+([spec: property access](../property-access/README.md)): an own-property
 read, with every built-in prototype name but `length` a compilation error,
 the names held by [`fjs/js/prototype`](../../fjs/js/prototype/module.f.js),
 and an access on a numeric literal read as JavaScript reads it — `-1 .x` is
@@ -10,10 +10,10 @@ computed key, `a[Number(b)]`, the EDAG's `['.', a, ['Number', b]]`, in an
 access, a method call and an optional chain; every other value in brackets
 is refused at its first token, and a negative constant is written as the
 string it names. Method calls follow the
-[current function specification](../README.md#functions).
+[current function specification](../functions/README.md).
 
 The runtime key is `entry`, in the language
-([spec: entry](../README.md#reading-an-entry-at-run-time)): the explicit
+([spec: entry](../property-access/entries.md)): the explicit
 enumerable-entry helper, recognized whole and lowered to the EDAG's
 `['entry']`. It superseded the old descriptor-value-only source pattern and
 the `Object.hasOwn`-based alternative. `Object.hasOwn` and
@@ -103,7 +103,7 @@ select the enumerable-entry operation.
 | `a[0]` | `['.', A, 0]` | Current |
 | `a[Number(i)]` | `['.', A, ['Number', I]]` | Current |
 | `a.foo(x)` | `['.', A, 'foo', ['\|()', Args]]` | Current receiver-preserving lowering, for permitted names |
-| The `entry` helper, recognized whole | `['entry']` | Current ([spec: entry](../README.md#reading-an-entry-at-run-time)) |
+| The `entry` helper, recognized whole | `['entry']` | Current ([spec: entry](../property-access/entries.md)) |
 | `entry(a, key)` | `['()', E, [A, K]]` | Current, an ordinary call of that helper |
 
 `A`, `K` and `E` denote lowered receiver, key and helper expressions;
@@ -348,7 +348,7 @@ obj[Number(index)]
 
 Constant numeric indices use EDAG `.` too, and so does the `Number(...)`
 form, `['.', O, ['Number', I]]`, in the language
-([spec: property access](../README.md#property-access)); `at` is only a
+([spec: property access](../property-access/README.md)); `at` is only a
 possible backend specialization, not a separate EDAG tag or an
 enumerable-entry read.
 

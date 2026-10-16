@@ -6,25 +6,25 @@ use std::cell::OnceCell;
 use crate::{
     naive::{container::Container, function::Function},
     sign::Sign,
-    vm::{Any, Array, IStaticFunction, IVm, Property, StaticCode, Unpacked},
+    vm::{Any, Array, IStaticFunction, IVm, Property, Runtime, StaticCode, Unpacked},
 };
 
 thread_local! {
-    /// The compiled runtime's object, evaluated on this thread's first
-    /// lookup and held from then on, so every lookup answers a clone of one
-    /// function and a body read twice is one function, as JavaScript's
-    /// built-ins are. Per thread, since a value is an `Rc` and never leaves
-    /// its thread; `None` where the module fails, which no lookup answers.
-    /// `thread_local!` is the one stable spelling of a thread's own value.
-    static RUNTIME: OnceCell<Option<Any<Naive>>> = const { OnceCell::new() };
+    /// The runtime, initialized on this thread's first lookup and held
+    /// from then on, so every lookup answers a clone of one function and a
+    /// runtime function read twice, generated or created, is one function,
+    /// as JavaScript's built-ins are. Per thread, since a value is an `Rc`
+    /// and never leaves its thread. `thread_local!` is the one stable
+    /// spelling of a thread's own value.
+    static RUNTIME: OnceCell<Runtime<Naive>> = const { OnceCell::new() };
 }
 
-/// The runtime object this thread holds, cloned out, since a reference
-/// into a `thread_local` cannot leave `with`. Evaluating it runs no body
-/// and asks for no binding, so its initialization never reaches back here,
-/// which `get_or_init` would refuse with a panic.
-fn runtime() -> Option<Any<Naive>> {
-    RUNTIME.with(|cell| cell.get_or_init(crate::vm::runtime_object).clone())
+/// A lookup in the runtime this thread holds, since a reference into a
+/// `thread_local` cannot leave `with`. Initializing it runs no body and
+/// asks for no binding, so it never reaches back here, which `get_or_init`
+/// would refuse with a panic.
+fn runtime<T>(lookup: impl FnOnce(&Runtime<Naive>) -> T) -> T {
+    RUNTIME.with(|cell| lookup(cell.get_or_init(Runtime::new)))
 }
 
 /// Note: we can't use `type InternalAny = Unpacked<InternalAny>;` because Rust doesn't support
@@ -49,16 +49,17 @@ impl IVm for Naive {
         self.0
     }
 
-    /// The compiled runtime's entry: `naive` makes a function out of a Rust
-    /// static function, which every compiled body is, and holds the
-    /// runtime object it reads, `runtime()`.
+    /// The runtime's entry: `naive` makes a function out of a Rust static
+    /// function, which every compiled body is, and holds the runtime it
+    /// reads, `runtime`.
     fn runtime_method(type_name: &str, key: &Any<Naive>) -> Option<Any<Naive>> {
-        crate::vm::runtime_method(runtime()?, type_name, key)
+        runtime(|r| r.method(type_name, key))
     }
 
-    /// The compiled runtime's static entry, for the same reasons.
+    /// The runtime's static function, for the same reasons: a body, or
+    /// `Object.entries`, which the runtime creates.
     fn runtime_static(path: &[&str]) -> Option<Any<Naive>> {
-        crate::vm::runtime_static(runtime()?, path)
+        runtime(|r| r.static_function(path))
     }
 }
 

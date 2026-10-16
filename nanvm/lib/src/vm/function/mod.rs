@@ -2,7 +2,7 @@ mod debug;
 mod member_access;
 mod partial_eq;
 
-use crate::vm::{Any, Array, IFunction, IVm};
+use crate::vm::{Any, Array, IFunction, IVm, String, runtime::runtime_text};
 
 /// A function value: it can be called, it has a `length`, and it has an
 /// identity — `PartialEq` compares by reference. Nothing else: the internal
@@ -25,7 +25,14 @@ impl<A: IVm> Function<A> {
     pub fn length(&self) -> u32 {
         self.0.length()
     }
-    pub fn text(&self) -> Option<&'static str> {
-        self.0.text()
+    /// The function's text, `String(f)`: the text the VM holds for it, or,
+    /// for a runtime function, which holds none, the text formed from its
+    /// name ([`runtime_to_string`](crate::vm::runtime_to_string)); refused
+    /// for any other function without one.
+    pub fn text(&self) -> Result<String<A>, Any<A>> {
+        match self.0.text() {
+            Some(text) => Ok(text.into()),
+            None => runtime_text(self),
+        }
     }
 }

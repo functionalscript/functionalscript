@@ -92,10 +92,9 @@ lists and `prohibitedCalls` for the parser, `allowedCalls` for every
 executor — and the runtime's `types.ts` pins, at the type level, that
 every key is an allowed name on its type's prototype, so a body for a name
 the language does not admit, or on the wrong type, fails `tsc`. The keys
-are not the admitted set, and need not be: nothing in a `.f.js`
-enumerates an object's keys, so a list could not be derived from them, and
-a table that keyed every admitted name with a marker in place of a body
-would only duplicate the list the parser already has. A VM never sees a
+are not the admitted set, and need not be: a table that keyed every
+admitted name with a marker in place of a body would only duplicate the
+list the parser already has. A VM never sees a
 prohibited name, because two boundaries refuse it before any VM runs: the
 parser, for source, and for EDAG supplied as data, which no parser made,
 the admission `validate`
@@ -129,7 +128,7 @@ README names them: `length` stays a property each value owns and is on no
 list; the string primitives are a code-unit read (`charCodeAt`) and a
 substring (`slice`), and for arrays an element read by a runtime number
 index, which the language has
-([spec: property access](../../../spec/README.md#property-access)). A
+([spec: property access](../../../spec/property-access/README.md)). A
 name with no body yet — the ones waiting on a static function, below — is
 absent from the table for the same reason a primitive is, and a VM has the
 same duty towards both: bind it natively. The README says which is which,
@@ -271,7 +270,7 @@ the example, the third, which gets its own `todo/` when its turn comes.
   to Rust; the runtime is part of that closure.
 - [`nanvm/lib/todo/callable-function-objects.md`](../../../nanvm/lib/todo/callable-function-objects.md)
   — the `static function` tag a VM binding static functions needs.
-- [spec: built-in member functions](../../../spec/README.md#built-in-member-functions)
+- [spec: built-in member functions](../../../spec/built-ins/member-functions.md)
   — the admitted set and the native-execution limits this design narrows.
 - [#2864](https://github.com/functionalscript/functionalscript/pull/2864)
   — the measurement.

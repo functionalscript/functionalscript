@@ -4,9 +4,9 @@
  * sections; every type `member` keys is a receiver type by its global's
  * name, every key under a type is a name `allowedCalls` admits on that
  * type's prototype; every path `static` holds is one `fjs/js/static`
- * admits — and every entry a body. A compile-time claim about exports
- * lives here, at module scope, where `tsc` checks it whatever a proof body
- * does.
+ * admits, and none it binds natively — and every entry a body. A
+ * compile-time claim about exports lives here, at module scope, where
+ * `tsc` checks it whatever a proof body does.
  *
  * @module
  */
@@ -14,7 +14,7 @@
 import type { Assert } from '../../asserts/types.ts'
 import type { Equal } from '../../types/ts/types.ts'
 import type { AllowedCall } from '../prototype/types.ts'
-import type { StaticPath } from '../static/types.ts'
+import type { NativePath, StaticPath } from '../static/types.ts'
 import type {
     arrayPrototype,
     bigintPrototype,
@@ -90,6 +90,9 @@ export type StaticBody = (...args: never[]) => unknown
  * a VM binds natively, a primitive, has no body.
  */
 type _StaticAdmitted = Assert<Equal<StaticBodyPath extends StaticPath ? true : false, true>>
+
+/** No native path has a body: a primitive is every executor's, and a body beside it would be a second implementation. */
+type _NativeBodiless = Assert<Equal<Extract<StaticBodyPath, NativePath>, never>>
 
 /** Every entry of the static section. */
 type StaticEntry = {
