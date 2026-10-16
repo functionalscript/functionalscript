@@ -640,16 +640,16 @@ mod tests {
         );
     }
 
-    /// Every static path the parser admits is bound, natively or by the
-    /// runtime: a static function is never read on a VM that cannot answer
-    /// it. `Object.entries`, the one native, has no body beside it
-    /// (`vm::runtime`'s `native_entries`), so there is no reverse walk.
+    /// Every static path the parser admits is in the compiled table, as a
+    /// body or as the native written by hand, `Object.entries`: a compiled
+    /// read names its accessor, so a path the table lacked would not
+    /// compile, and this checks the names agree.
     #[test]
     fn static_completeness() {
         use super::super::methods_table::STATICS;
         for path in STATICS {
             assert!(
-                crate::vm::static_binding::<A>(path).is_ok(),
+                crate::vm::runtime_static::<A>(&path.join(".")).is_some(),
                 "{path:?} is admitted but has no binding"
             );
         }

@@ -4,7 +4,7 @@
 
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
-import { f64Bits, i64Literal, snakeCase, stringLiteral, u64WordItems, u64Words, utf16Literal, utf16Units } from './module.f.mjs'
+import { builtInIdentifier, f64Bits, i64Literal, snakeCase, stringLiteral, u64WordItems, u64Words, utf16Literal, utf16Units } from './module.f.mjs'
 
 export const proof = {
     // the items the literals list, for a printer that marks each one
@@ -95,6 +95,17 @@ export const proof = {
             u64Words(123_456_789_012_345_678_901_234_567_890n),
             '&[0xc373e0ee4e3f0ad2, 0x000000018ee90ff6]')
         assertEq(u64Words(2n ** 128n + 5n), '&[0x0000000000000005, 0x0000000000000000, 0x0000000000000001]')
+    },
+    builtInIdentifier: () => {
+        assertEq(builtInIdentifier('Object.is'), 'object_is')
+        assertEq(builtInIdentifier('String.prototype.startsWith'), 'string_prototype_starts_with')
+        assertEq(builtInIdentifier('Number.isNaN'), 'number_is_nan')
+        assertEq(builtInIdentifier('Number.isSafeInteger'), 'number_is_safe_integer')
+        assertEq(builtInIdentifier('toJSON'), 'tojson')
+        assertEq(builtInIdentifier('NaN'), 'nan')
+        assertEq(builtInIdentifier('x'), 'x')
+        // a digit is neither case, so no word starts after it
+        assertEq(builtInIdentifier('x2Y'), 'x2y')
     },
     snakeCase: () => {
         assertEq(snakeCase('emptyArray'), 'empty_array')

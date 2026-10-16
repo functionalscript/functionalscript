@@ -216,3 +216,25 @@ export const snakeCase = v => [...v].map(c => {
     const lower = c.toLowerCase()
     return c === lower ? c : `_${lower}`
 }).join('')
+
+/**
+ * The Rust identifier of a built-in's name — `object_is` for `Object.is`,
+ * `string_prototype_starts_with` for `String.prototype.startsWith` — the
+ * one spelling the static runtime's accessors are printed under and
+ * compiled code reads them by. Each part of the name is in snake case,
+ * the parts joined by one underscore. A word starts at a capital between
+ * a lowercase letter and a lowercase letter, so that `isNaN` is `is_nan`
+ * as Rust spells it, where {@link snakeCase}, a word at every capital,
+ * would make `is_na_n` of it; a capital first, or beside another, starts
+ * no word, so `toJSON` is `tojson`.
+ *
+ * @type {(name: string) => string}
+ */
+export const builtInIdentifier = name => name.split('.').map(part => [...part].map((c, i) => {
+    const lower = c.toLowerCase()
+    const starts = c !== lower && i > 0 && isLower(part[i - 1]) && i + 1 < part.length && isLower(part[i + 1])
+    return starts ? `_${lower}` : lower
+}).join('')).join('_')
+
+/** Whether `c` is a lowercase letter: a digit or a mark is neither case. @type {(c: string) => boolean} */
+const isLower = c => c === c.toLowerCase() && c !== c.toUpperCase()

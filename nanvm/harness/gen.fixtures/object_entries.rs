@@ -2,7 +2,8 @@
 
 use nanvm_lib::vm::unstable::{bigint_any, f64_any, strict_eq, string_any, string_key};
 use nanvm_lib::vm::{
-    Any, Array, IStaticFunction, Nullish, Object, ToAny, ToArray, ToObject, static_binding,
+    Any, Array, Function, IStaticFunction, Nullish, Object, ToAny, ToArray, ToObject,
+    object_entries,
 };
 
 #[rustfmt::skip]
@@ -12,7 +13,7 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
     let c2: Any<A> = [f64_any(0x401c000000000000), c1].to_array().to_any();
     let c3: Any<A> = A::static_function(|_self, _args| { Ok(f64_any(0x0000000000000000)) }, 0, Array::default(), Some("()=>0")).to_any();
     let c4: Any<A> = [c0, c2, string_any("a😀"), string_any(""), f64_any(0x3ff0000000000000), true.to_any(), bigint_any(1), c3, Object::default().to_any()].to_array().to_any();
-    let c5: Any<A> = static_binding::<A>(&["Object", "entries"])?;
+    let c5: Any<A> = Function::from(object_entries::<A>()).to_any();
     let c6 = || {
         let c7: Any<A> = A::static_function(|self_, args| { Any::call(A::frame(self_)[0].clone(), [args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any())].to_array().to_any()) }, 1, [c5.clone()].to_array(), Some("($1)=>$0($1)")).to_any();
         Ok([c7].to_array().to_any())
@@ -20,19 +21,19 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
     let c8: Any<A> = Any::dot(c4.clone(), string_any("map")).end_call(c6)?;
     let c9 = || Ok([c5.clone()].to_array().to_any());
     let c10: Any<A> = Any::dot(c4.clone(), string_any("map")).end_call(c9)?;
-    let c11: Any<A> = A::static_function(|_self, _args| { static_binding::<A>(&["Object", "entries"]) }, 0, Array::default(), Some("()=>Object.entries")).to_any();
+    let c11: Any<A> = A::static_function(|_self, _args| { Ok(Function::from(object_entries::<A>()).to_any()) }, 0, Array::default(), Some("()=>Object.entries")).to_any();
     let c12: Any<A> = Any::call(c11.clone(), Array::default().to_any())?;
     let c13: Any<A> = Any::call(c11.clone(), Array::default().to_any())?;
     let c14: Any<A> = (strict_eq(c12, c13))?;
-    let c15: Any<A> = static_binding::<A>(&["Object", "entries"])?;
+    let c15: Any<A> = Function::from(object_entries::<A>()).to_any();
     let c16: Any<A> = (strict_eq(c5.clone(), c15))?;
-    let c17: Any<A> = static_binding::<A>(&["Object", "entries"])?;
+    let c17: Any<A> = Function::from(object_entries::<A>()).to_any();
     let c18: Any<A> = (strict_eq(c5.clone(), c17))?;
-    let c19: Any<A> = static_binding::<A>(&["Object", "entries"])?;
+    let c19: Any<A> = Function::from(object_entries::<A>()).to_any();
     let c20: Any<A> = (Any::typeof_(c19))?;
-    let c21: Any<A> = static_binding::<A>(&["Object", "entries"])?;
+    let c21: Any<A> = Function::from(object_entries::<A>()).to_any();
     let c22: Any<A> = Any::dot(c21, string_any("length")).end()?;
-    let c23: Any<A> = static_binding::<A>(&["Object", "entries"])?;
+    let c23: Any<A> = Function::from(object_entries::<A>()).to_any();
     let c24: Any<A> = (c23.to_string().map(|v| v.to_any()))?;
     let c25: Any<A> = [c14, c16, c18, c20, c22, c24].to_array().to_any();
     let c26: Any<A> = [(string_key("a"), f64_any(0x3ff0000000000000))].to_object().to_any();

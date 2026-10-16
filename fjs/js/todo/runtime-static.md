@@ -178,12 +178,11 @@ and a call calls the body with the arguments. A path with neither is the
 executor's error, not the module's: the parser admitted it, so an executor
 given no runtime, or one without the body, reports a missing binding the
 way the transpiler reports a package without a runtime (`no runtime
-export`), never a `TypeError` and never a plausible value. NaNVM answers
-`runtime_static(name)` from the compiled `statics` table, a static
-function per body
-([`static-runtime.md`](../../../nanvm/lib/todo/static-runtime.md)); the
-Rust backend emits the lookup for the node; and a body bound this way is
-exactly the non-capturing function
+export`), never a `TypeError` and never a plausible value. NaNVM's
+runtime is static: a static function per body, with an accessor the Rust
+backend reads the node as
+([`fjs/js/runtime/README.md`](../runtime/README.md), "How NaNVM finds
+it"); and a body bound this way is exactly the non-capturing function
 [`callable-function-objects.md`](../../../nanvm/lib/todo/callable-function-objects.md)'s
 `static function` tag anticipates. The native static table, if NaNVM keeps
 one, is an enumerable Rust array of paths like the member tables, and the
@@ -272,10 +271,11 @@ this proposal does not take.
       executors resolve a `static` node from the runtime, through
       `functionAt`, and fail naming the path without a binding; function
       text spells the node as the source calls it.
-- [x] NaNVM: `runtime_static` and `static_binding`, which fails naming
-      the path as the interpreter does; the Rust backend emits the lookup;
-      the completeness test checks every admitted path is bound. NaNVM
-      keeps no native static table, so there is no reverse walk;
+- [x] NaNVM: a static function is a built-in of the compiled runtime,
+      which the Rust backend reads by its accessor, `object_is::<A>()`, so
+      a path without a binding does not compile; the completeness test
+      checks the admitted paths and the compiled table agree. NaNVM keeps
+      no native static table, so there is no reverse walk;
       `Object.entries`, its one native, is a built-in written by hand and
       listed in the compiled table beside the bodies.
 - [x] The node is a value, `['Object.is']`, an `op0`, in place of

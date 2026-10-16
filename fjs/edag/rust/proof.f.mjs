@@ -612,33 +612,33 @@ export const proof = {
         assertEq(printed(['()', ['entry'], [1, 2]]), 'Any::call(A::static_function(|_self, args| Any::entry(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), args.clone().into_iter().nth(1).unwrap_or_else(|| Nullish::Undefined.to_any())), 2, Array::default(), Some("($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}")).to_any(), [f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any())')
     },
     /**
-     * `Object.is`: `static_binding` of its path, the VM's binding or the
-     * failure naming it, which the `?` its read takes propagates — as a
-     * callee and as any other value; the item is spelled from
-     * `nanvm_lib::vm`.
+     * A static function as a value — `Object.is` — is its accessor's,
+     * `Function::from(object_is::<A>()).to_any()`: an item of
+     * `nanvm_lib::vm` the compiled runtime defines, spelled by
+     * `builtInIdentifier`, one function by its name however often it is
+     * read. A value, not an operation: no `?`, and a thunk over it is
+     * `|| Ok(…)`; shared, it is one temporary.
      */
     objectIs: () => {
-        assertEq(printed(['Object.is']), 'static_binding::<A>(&["Object", "is"])')
+        assertEq(printed(['Object.is']), 'Function::from(object_is::<A>()).to_any()')
         assertStructurallySame(scoped(['()', ['Object.is'], [1, 2]]), [
-            'let c0: Any<A> = static_binding::<A>(&["Object", "is"])?;',
+            'let c0: Any<A> = Function::from(object_is::<A>()).to_any();',
             'Any::call(c0, [f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any())',
         ])
         /** @type {Exp} */
         const is = ['Object.is']
         assertStructurallySame(scoped(['[]', [is, is]]), [
-            'let c0: Any<A> = static_binding::<A>(&["Object", "is"])?;',
+            'let c0: Any<A> = Function::from(object_is::<A>()).to_any();',
             'Ok([c0.clone(), c0.clone()].to_array().to_any())',
         ])
-        assertStructurallySame(usedBy(['()', ['Object.is'], [1, 2]]), { vm: ['ToAny', 'ToArray', 'static_binding'], unstable: ['f64_any'] })
-        // the answer of a block — the root, a function's body, a lazy
-        // operand's thunk — is the binding's `Result` itself
-        assertStructurallySame(scoped(['Object.is']), ['static_binding::<A>(&["Object", "is"])'])
-        assertStructurallySame(scoped(['=>', 0, [], ['Object.is']]), ['Ok(A::static_function(|_self, _args| { static_binding::<A>(&["Object", "is"]) }, 0, Array::default(), Some("()=>Object.is")).to_any())'])
-        assertStructurallySame(scoped(['&&', true, ['Object.is']]), ['let c0 = || static_binding::<A>(&["Object", "is"]);', 'Any::logical_and(true.to_any(), c0)'])
-        // every static is its path's binding, the keys each a `&str`
-        assertEq(printed(['Number.isSafeInteger']), 'static_binding::<A>(&["Number", "isSafeInteger"])')
+        assertStructurallySame(usedBy(['()', ['Object.is'], [1, 2]]), { vm: ['Function', 'ToAny', 'ToArray', 'object_is'], unstable: ['f64_any'] })
+        assertStructurallySame(scoped(['Object.is']), ['Ok(Function::from(object_is::<A>()).to_any())'])
+        assertStructurallySame(scoped(['=>', 0, [], ['Object.is']]), ['Ok(A::static_function(|_self, _args| { Ok(Function::from(object_is::<A>()).to_any()) }, 0, Array::default(), Some("()=>Object.is")).to_any())'])
+        assertStructurallySame(scoped(['&&', true, ['Object.is']]), ['let c0 = || Ok(Function::from(object_is::<A>()).to_any());', 'Any::logical_and(true.to_any(), c0)'])
+        // every static is its accessor, named as Rust spells the name
+        assertEq(printed(['Number.isSafeInteger']), 'Function::from(number_is_safe_integer::<A>()).to_any()')
         assertStructurallySame(scoped(['()', ['Number.isInteger'], [1]]), [
-            'let c0: Any<A> = static_binding::<A>(&["Number", "isInteger"])?;',
+            'let c0: Any<A> = Function::from(number_is_integer::<A>()).to_any();',
             'Any::call(c0, [f64_any(0x3ff0000000000000)].to_array().to_any())',
         ])
     },

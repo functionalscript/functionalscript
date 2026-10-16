@@ -42,10 +42,14 @@ pub use crate::vm::{
     number::Number,
     object::{Object, property::Property, to_object::ToObject},
     object_spread::ObjectSpread,
-    runtime::{ENTRIES_TEXT, object_entries, runtime_method, runtime_static, static_binding},
+    runtime::{ENTRIES_TEXT, object_entries, runtime_method, runtime_static},
     string::{String, to_string::ToString},
     unpacked::Unpacked,
 };
+
+/// The compiled runtime's accessors, `object_is` for `Object.is`: what a
+/// compiled read of a static function spells, an item of this module.
+pub use crate::vm::runtime::compiled::*;
 
 pub(crate) use crate::vm::impls::ContainerWrapper;
 
