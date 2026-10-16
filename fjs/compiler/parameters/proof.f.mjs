@@ -160,5 +160,6 @@ export const proof = {
         arg: () => interpret(['=>',1,[],['arg',1]]),
         moduleRest: () => interpret(['rest']),
         functionArgs: () => interpret(['=>',1,[],['args']]),
+        functionArgsZeroArity: () => interpret(['=>',0,[],['args']]),
     },
 }
