@@ -182,6 +182,16 @@ export const wasmtime = '45.0.2'
 // https://github.com/wasmerio/wasmer/releases
 export const wasmer = '7.1.0'
 
+// The SpiderMonkey shell the pinned Nixpkgs snapshot provides. The attribute
+// names only the major version, so the `ubuntu-arm` job asserts the whole of
+// `version` from inside its shell, as it does the WASM runtimes. Bump the
+// snapshot first and copy what it offers; a new major is a new attribute.
+// https://spidermonkey.dev/
+export const spidermonkey = /** @type {const} */ ({
+    version: '140.14.0',
+    attribute: 'spidermonkey_140',
+})
+
 // GitHub Action versions used by CI step builders. The key is the action
 // `owner/name`; call sites compose the full ref as
 // `` `${name}@${actions[name]}` ``.

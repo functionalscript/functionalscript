@@ -6,7 +6,7 @@
 
 import { exitCode } from '../effects/node/module.f.mjs'
 import { ci, ciPath, main } from './module.f.mjs'
-import { actions, bun, deno, functionalscript, images, jobTimeout, node, typescript, wasmer, wasmtime } from './config/module.f.js'
+import { actions, bun, deno, functionalscript, images, jobTimeout, node, spidermonkey, typescript, wasmer, wasmtime } from './config/module.f.js'
 import { main as ownMain, packageConsumer } from './self/module.f.mjs'
 import { installNode, major, packageJobId } from './node/module.f.mjs'
 import { devNixJob } from './dev/module.f.mjs'
@@ -637,11 +637,13 @@ export const proof = {
             ['ubuntu-intel', [['node --version', `v${node}`]]],
             // `ubuntu-arm` runs the WASM checks, so it asserts the two
             // runtimes `cargo` hands their binaries to as well — unversioned
-            // attributes of the shell, unlike its Rust.
+            // attributes of the shell, unlike its Rust. It runs the suite on
+            // SpiderMonkey too, whose attribute names only the major version.
             ['ubuntu-arm', [
                 ['node --version', `v${node}`],
                 ['wasmtime --version', `wasmtime ${wasmtime}`],
                 ['wasmer --version', `wasmer ${wasmer}`],
+                ['js --version', `JavaScript-C${spidermonkey.version}`],
             ]],
             ['macos-arm', [['node --version', `v${node}`]]],
         ]
