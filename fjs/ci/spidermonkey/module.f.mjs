@@ -1,6 +1,6 @@
 /**
  * CI step builder for SpiderMonkey: runs `fjs t` in the SpiderMonkey shell the
- * shared flake provides, through its partial Node host, as `npm run sm-test` —
+ * shared flake provides, through its partial Node host, as `npm run sm t` —
  * the command a developer runs.
  *
  * The steps are not a job of their own. They are part of the `ubuntu-arm`
@@ -42,4 +42,4 @@ export const shellSpiderMonkeyVersionSteps = (v, a) =>
  * @type {(v: Os, a: Architecture) => readonly string[]}
  */
 export const shellSpiderMonkeyCommands = (v, a) =>
-    spiderMonkeyPlatform(v, a) ? ['npm run sm-test'] : []
+    spiderMonkeyPlatform(v, a) ? ['npm run sm t'] : []

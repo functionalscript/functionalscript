@@ -11,7 +11,7 @@ export const proof = {
         assertStructurallySame(
             _runs(shellSpiderMonkeyVersionSteps('ubuntu', 'arm')),
             [`test "$(${nixDevelop('js --version')})" = "JavaScript-C${spidermonkey.version}"`])
-        assertStructurallySame(shellSpiderMonkeyCommands('ubuntu', 'arm'), ['npm run sm-test'])
+        assertStructurallySame(shellSpiderMonkeyCommands('ubuntu', 'arm'), ['npm run sm t'])
     },
     // Every other platform runs nothing for SpiderMonkey: one job is enough,
     // and jobs, not their time, are what CI waits on.
