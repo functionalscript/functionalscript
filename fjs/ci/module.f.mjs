@@ -105,8 +105,9 @@ const workflowText = gha => JSON.stringify(gha, null, '  ')
  * first. Each was a job of its own — `ubuntu-intel32` until that shell had the
  * target, `wasm` until it was one more runner doing this job's setup again.
  * `../rust/module.f.mjs` decides which platforms those are. ARM Linux also
- * runs the suite on SpiderMonkey, Rust or not, asserting the shell's version
- * first; `../spidermonkey/module.f.mjs` decides that. Everything else about
+ * checks every `.f.js` and runs the suite on SpiderMonkey, Rust or not,
+ * asserting the shell's version first; `../spidermonkey/module.f.mjs` decides
+ * that. Everything else about
  * these jobs is still identical across the three.
  *
  * @type {(rust: boolean, o: Os, a: Architecture) => readonly MetaStep[]}
