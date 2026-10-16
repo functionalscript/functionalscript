@@ -188,7 +188,7 @@ Where a feature lives today, and where the vocabulary places it:
 | Feature | Today | Layer |
 | --- | --- | --- |
 | Destructuring, a `const`'s or a parameter's | The fold: `planned` and `lowered`, `functionScope` for a parameter | Desugaring |
-| Default parameters | The fold: `lateRound` | Desugaring |
+| Default parameters | The fold: `functionScope` and `lateRound`, one conditional entry reading the rest array twice | Desugaring, two fresh entries |
 | Guards, `if` | The fold: `bodyRound` | Desugaring |
 | The `let`/`while` loop | The fold: `loopRound`, to self recursion | FAST keeps it; `from_fast` lowers it, `to_fast` reconstructs it |
 | A pattern over `Object` or `Number` | The fold: `namespaceOf` | Desugaring, over binding's static read |
@@ -207,6 +207,27 @@ syntax tree, and the compiler's `AstModule` is nearer FAST, its names
 already indices. Under the vocabulary, binding checks the words a pattern
 binds and `desugar` writes the reads, after it; the fold keeps what reads a
 word or a line.
+
+**A default parameter is the fold's today and desugars to two entries.**
+`functionScope` reads a parameter from the first default on from the rest
+array, `['.', ['rest'], i]`, and the fold lands it as one entry, the
+conditional `r[0] === undefined ? 5 : r[0]` with the read spelled twice,
+which is the form the outputs write
+([spec: parameters](../../spec/functions/parameters.md)). Desugaring writes
+it as two fresh bindings of the body, the read once:
+
+```js
+const c0 = rest[0];
+const c1 = c0 === undefined ? 5 : c0;
+```
+
+`c0` and `c1` stand for entries the body's own references name, as a
+pattern's hidden entries are, so the initializer is evaluated once and
+nothing after desugaring knows a default was written; the function's
+`length` still stops at the first default, as the
+[example below](#examples-the-design-must-explain) requires. A default
+inside a pattern, `{ a = 1 }`, refused today, is the same two entries over
+the pattern's read, so it lands in desugaring with the rest.
 
 **A module becomes a function in two places and belongs to one.**
 [Spec: modules](../../spec/modules/README.md#a-module-is-a-function) says a
