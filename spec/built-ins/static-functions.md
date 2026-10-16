@@ -74,8 +74,9 @@ being no EDAG to render
 ([function source](../principles/README.md#function-source-representation-exception)).
 The graph outputs write the node back: the FunctionalScript one as its
 name, `Object.is`, the Rust one as the binding the VM answers, which NaNVM
-reads from the one runtime object it holds, or holds natively beside it,
-so every read there is one function too.
+reads from the one runtime it holds — the compiled bodies and
+`Object.entries`, created beside them — so every read there is one
+function too.
 
 ## Examples
 

@@ -320,7 +320,8 @@ this proposal does not take.
       static with no body: its path in `statics`, the node
       `['Object.entries']`, answered natively by the represented
       interpreter, as a function value of its own, and by NaNVM, as a
-      binding `static_binding` asks before the runtime, held per thread;
+      function the runtime creates beside the compiled bodies, held per
+      thread with them;
       `const { entries } = Object` admitted over the prototype-name rule;
       the spec, the docs that say the language enumerates no keys, and a
       harness fixture.

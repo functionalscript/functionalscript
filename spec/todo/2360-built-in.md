@@ -97,8 +97,8 @@ this one: enumerating keys is exactly what the language lacks, so
 holds nothing at its path, and each executor answers the node itself: the
 represented interpreter with a function value of its own,
 `['Object.entries']`, called natively as `['entry']` is; NaNVM with a
-native binding `static_binding` asks before the runtime, held per thread
-so every read is one function.
+function its runtime creates beside the compiled bodies, initialized once
+and held per thread with them, so every read is one function.
 
 **Destructuring.** `entries` is a prototype name, `Array.prototype`'s,
 which every pattern refuses at the key. Over a namespace the namespace's
@@ -143,8 +143,9 @@ are that session's reading of the direction, open to the owner's review.
 
 **Implemented** as proposed: `fjs/js/static`'s `natives` lists the path,
 the represented interpreter answers it from `fjs/edag/value/entries`, and
-NaNVM with `vm::object_entries` through `IVm::native_static`, which
-`static_binding` asks before the runtime;
+NaNVM with `vm::object_entries`, which `vm::Runtime` creates once beside
+the compiled object and `IVm::runtime_static` answers as it answers a
+body, `naive` holding the one runtime per thread;
 `nanvm/harness/fixtures/object-entries.mjs` and
 `object-entries-throws.mjs` hold the executors to Node.
 

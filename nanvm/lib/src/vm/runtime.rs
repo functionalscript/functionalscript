@@ -7,9 +7,9 @@
 //! holds the object and answers [`IVm::runtime_method`] and
 //! [`IVm::runtime_static`] from it; the native tables in `vm/lambda` keep
 //! every name without a body, and may keep a name that has one where a
-//! measurement justifies the second implementation. The one static
-//! function no body can define is [`object_entries`], which such a VM
-//! holds too and answers [`IVm::native_static`] with.
+//! measurement justifies the second implementation. [`Runtime`] is what
+//! such a VM holds: that object and the one static function no body can
+//! define, [`object_entries`], each initialized once.
 
 use crate::vm::{Any, IStaticFunction, IVm, ToAny, ToArray, Unpacked};
 
@@ -70,10 +70,10 @@ const ENTRIES_TEXT: &str = "function entries() { [native code] }";
 
 /// `Object.entries` as a function, the one static function no body can
 /// define, enumerating keys being what the language has no other way to do
-/// ([`Any::entries`]): a VM binds it natively, where every other static is
-/// a body of the runtime's `static` section (`fjs/js/static`'s `natives`).
-/// Each call makes a new function, so a VM holds what it answers, as
-/// `naive` holds the runtime object, and every read is one function.
+/// ([`Any::entries`]): created here, where every other static is a body of
+/// the runtime's `static` section (`fjs/js/static`'s `natives`). Each call
+/// makes a new function, so a VM holds the one [`Runtime`] creates, and
+/// every read is one function.
 pub fn object_entries<A: IStaticFunction>() -> Any<A> {
     A::static_function(
         |_, args| {
@@ -89,20 +89,67 @@ pub fn object_entries<A: IStaticFunction>() -> Any<A> {
     .to_any()
 }
 
+/// The runtime a VM holds, initialized once, from which it answers every
+/// runtime function: the compiled module's `runtime` export,
+/// [`runtime_object`], which holds every generated body, and the functions
+/// no body defines, created beside it — [`object_entries`]. Every lookup
+/// reads it, so each runtime function, generated or created, is one
+/// function however often it is read, as JavaScript's built-ins are.
+pub struct Runtime<A: IVm> {
+    /// The compiled module's `runtime` export, `None` where the module
+    /// fails, which no body lookup answers.
+    object: Option<Any<A>>,
+    /// `Object.entries`, created once.
+    object_entries: Any<A>,
+}
+
+impl<A: IStaticFunction> Runtime<A> {
+    /// The runtime initialized: the compiled module evaluated and every
+    /// function no body defines created. Neither runs a body or asks the VM
+    /// for a binding, so a VM may initialize it inside its first lookup.
+    pub fn new() -> Self {
+        Runtime {
+            object: runtime_object(),
+            object_entries: object_entries(),
+        }
+    }
+}
+
+impl<A: IStaticFunction> Default for Runtime<A> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<A: IVm> Runtime<A> {
+    /// The member function for the receiver type and the key, a body of the
+    /// compiled object, [`runtime_method`].
+    pub fn method(&self, type_name: &str, key: &Any<A>) -> Option<Any<A>> {
+        runtime_method(self.object.clone()?, type_name, key)
+    }
+
+    /// The static function at `path`: the one this runtime created where no
+    /// body defines it, else a body of the compiled object,
+    /// [`runtime_static`].
+    pub fn static_function(&self, path: &[&str]) -> Option<Any<A>> {
+        match path {
+            ["Object", "entries"] => Some(self.object_entries.clone()),
+            _ => runtime_static(self.object.clone()?, path),
+        }
+    }
+}
+
 /// The function a compiled read of a static function answers: the VM's
-/// native binding for `path`, [`IVm::native_static`], else its runtime's,
-/// [`IVm::runtime_static`], or the failure naming the path, which the read
-/// propagates — the parser admitted the name, so a VM without a binding
-/// fails rather than answer `undefined`. The represented interpreter fails
-/// with the same message.
+/// binding for `path`, [`IVm::runtime_static`], or the failure naming the
+/// path, which the read propagates — the parser admitted the name, so a VM
+/// without a binding fails rather than answer `undefined`. The represented
+/// interpreter fails with the same message.
 pub fn static_binding<A: IVm>(path: &[&str]) -> Result<Any<A>, Any<A>> {
-    A::native_static(path)
-        .or_else(|| A::runtime_static(path))
-        .ok_or_else(|| {
-            format!("no binding for the static {}", path.join("."))
-                .as_str()
-                .into()
-        })
+    A::runtime_static(path).ok_or_else(|| {
+        format!("no binding for the static {}", path.join("."))
+            .as_str()
+            .into()
+    })
 }
 
 /// The receiver's type as the runtime keys it, the name of its global;
@@ -123,7 +170,9 @@ pub(crate) fn type_name<A: IVm>(receiver: &Any<A>) -> Option<&'static str> {
 
 #[cfg(test)]
 mod tests {
-    use super::{object_entries, runtime_object, runtime_static, static_binding, type_name};
+    use super::{
+        Runtime, object_entries, runtime_object, runtime_static, static_binding, type_name,
+    };
     use crate::{
         naive::Naive,
         vm::{Any, BigInt, IStaticFunction, IVm, ToAny, ToArray, ToObject},
@@ -205,18 +254,18 @@ mod tests {
         assert_ne!(fresh(runtime_object::<A>()), fresh(runtime_object::<A>()));
     }
 
-    /// `Object.entries` is native: no runtime body at its path, and every
-    /// read is one function, of `length` `1` and the host's text, whose
-    /// call lists the entries — where two makings of it are two functions,
-    /// so the VM must hold what it answers.
+    /// `Object.entries` is created, not generated: the compiled object has
+    /// no body at its path, and the runtime the VM holds creates it once,
+    /// so every read is one function, of `length` `1` and the host's text,
+    /// whose call lists the entries — where two creations are two
+    /// functions, and two runtimes two `Object.entries`.
     #[test]
-    fn native_entries() {
+    fn created_entries() {
         let path = ["Object", "entries"];
-        assert!(A::runtime_static(&path).is_none());
+        assert!(runtime_static(runtime_object::<A>().unwrap(), &path).is_none());
         let entries = static_binding::<A>(&path).unwrap();
         assert_eq!(entries, static_binding::<A>(&path).unwrap());
-        assert_eq!(entries, A::native_static(&path).unwrap());
-        assert!(A::native_static(&["Object", "is"]).is_none());
+        assert_eq!(entries, A::runtime_static(&path).unwrap());
         assert_eq!(
             Any::dot(entries.clone(), "length".into()).end(),
             Ok(1.0.to_any())
@@ -232,6 +281,18 @@ mod tests {
         assert_eq!(pairs.to_json(), Ok(r#"[["0","a"],["1","b"]]"#.into()));
         assert!(entries.call([].to_array().to_any()).is_err());
         assert_ne!(object_entries::<A>(), object_entries::<A>());
+        let runtime = Runtime::<A>::new();
+        assert_eq!(
+            runtime.static_function(&path),
+            runtime.static_function(&path)
+        );
+        assert_ne!(
+            runtime.static_function(&path),
+            Runtime::<A>::new().static_function(&path)
+        );
+        assert!(runtime.static_function(&["Object", "is"]).is_some());
+        assert!(runtime.static_function(&["Object", "keys"]).is_none());
+        assert!(runtime.method("String", &"startsWith".into()).is_some());
     }
 
     /// The body called as a call step calls it, the receiver first: the
