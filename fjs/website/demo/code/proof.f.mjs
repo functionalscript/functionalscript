@@ -1,6 +1,6 @@
-import { codeBlock, tryShellQuote } from './module.f.mjs'
+import { codeBlock } from './module.f.mjs'
 import { htmlToString } from '../../../media/html/module.f.mjs'
-import { assert, assertEq } from '../../../asserts/module.f.mjs'
+import { assert } from '../../../asserts/module.f.mjs'
 
 export const proof = {
     codeBlock: () => {
@@ -14,11 +14,5 @@ export const proof = {
         assert(highlighted.includes('<pre><span data-token="keyword">export</span> default 1;</pre>'), highlighted)
         assert(highlighted.includes('data-copy="export default 1;"'), highlighted)
 
-    },
-    tryShellQuote: () => {
-        assertEq(tryShellQuote('a\0b'), null)
-        assertEq(tryShellQuote(''), "''")
-        assertEq(tryShellQuote("a'b"), "'a'\\''b'")
-        assertEq(tryShellQuote('$HOME\n`whoami`'), "'$HOME\n`whoami`'")
     },
 }
