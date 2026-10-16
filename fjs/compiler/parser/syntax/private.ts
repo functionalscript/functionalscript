@@ -10,7 +10,7 @@ import type { List } from '../../../types/list/types.ts'
 import type { Meta, Unmapped } from '../../../ebnf/ast/types.ts'
 import type { TokenMetadata } from '../../../ebnf/lib/js/types.ts'
 import type { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
-import type { BindingTarget, Item, Key, Out } from './types.ts'
+import type { Item, Key, Out, Parameter } from './types.ts'
 
 /**
  * The ordinary token stream the grammar reads, with the tokenizer's one
@@ -84,17 +84,30 @@ export type _ListNode = readonly [
  */
 export type _ParameterNode = Unmapped<readonly [] | readonly [Unmapped<readonly [unknown, Unmapped<readonly [unknown, _Leaf]>]>]>
 
+/**
+ * The node of what may follow a parameter, `[ ',' [ parameters ] ]`: no
+ * round, or the one holding the comma's leaf and the optional list after
+ * it.
+ */
+export type _ParametersAfterNode = Unmapped<readonly [] | readonly [Unmapped<readonly [unknown, _OptionalList]>]>
+
+/**
+ * The node of a parameter's default, `[ '=' value ]`: no round, or the
+ * one holding the `=`'s leaf and the value's.
+ */
+export type _DefaultNode = Unmapped<readonly [] | readonly [Unmapped<readonly [_Leaf, _Leaf]>]>
+
 /** The node of a name's own alternative, `id`: the name's token one level in, under the alternative its word matched, as a `const`'s name is. */
 export type _NameNode = Unmapped<readonly [unknown, _Leaf]>
 
 /**
  * The parameters after a named list's first, as their mapping returns
- * them: the fixed targets, a list, and the rest parameter's token or
+ * them: the fixed parameters, a list, and the rest parameter's token or
  * `null` — what the `parameters` symbol of `Out` carries, which the
  * list's reader puts the first parameter before.
  */
 export type _ParameterTail = {
-    readonly fixed: List<BindingTarget>
+    readonly fixed: List<Parameter>
     readonly rest: DjsTokenWithMetadata | null
 }
 

@@ -117,20 +117,25 @@ export const loopOf = (a, i) => {
 }
 
 /**
- * Whether an operand reaches an entry among `shared` in its own scope — a
- * nested function's body is that function's own, its slots this scope's.
+ * The entries an operand reaches in its own scope — a nested function's
+ * body is that function's own, its slots this scope's — each walked once,
+ * so a heavily shared graph costs its entries and not its paths.
+ *
+ * @type {(a: Analysis) => (v: Operand) => readonly number[]}
+ */
+const reached = a => v => {
+    /** @type {(seen: readonly number[], v: Operand) => readonly number[]} */
+    const go = (seen, v) => !(v instanceof Array) || seen.includes(v[1]) ? seen : own(a.nodes[v[1]]).reduce(go, [...seen, v[1]])
+    return go([], v)
+}
+
+/**
+ * Whether an operand reaches an entry among `shared` in its own scope, as
+ * {@link reached} walks it.
  *
  * @type {(a: Analysis, shared: readonly number[]) => (v: Operand) => boolean}
  */
-export const reaches = (a, shared) => {
-    /** @type {(v: Operand) => boolean} */
-    const go = v => {
-        if (!(v instanceof Array)) { return false }
-        const [, i] = v
-        return shared.includes(i) || own(a.nodes[i]).some(go)
-    }
-    return go
-}
+export const reaches = (a, shared) => v => reached(a)(v).some(i => shared.includes(i))
 
 /**
  * Whether every writer keeps the recursion for function `i`, a loop by
@@ -144,14 +149,21 @@ export const reaches = (a, shared) => {
  * an entry of the function's own scope both reach — which the recursion
  * establishes once a round, where a loop tests the condition before the
  * block and would establish it twice, two values where the graph has
- * one. A shared entry that merges, a read the condition and the block
+ * one. A value that merges, a read the condition and the block
  * repeat, `r[0]`, is one value however many times it is evaluated, and
  * loops. A writer may keep the recursion for more, for a reason of its
  * own spelling, and never for less.
  *
+ * What both reach is asked of the graph, not of the table's count of
+ * sharing, so a table that merges twins and one that keeps every node its
+ * own (`identityAnalysis`) give one answer: two reaches of one value that
+ * mints meet at a node reached from both, whatever counts it as shared.
+ *
  * @type {(a: Analysis, i: number, loop: Loop) => boolean}
  */
 export const keepsRecursion = (a, i, { before, condition, arm }) => {
-    const minted = a.shared.filter(j => a.scope[j] === i && !mergeable(a.nodes[j]))
-    return before.length !== 0 || scopeHolds(a, i, 'rest') || minted.some(j => reaches(a, [j])(condition) && reaches(a, [j])(arm))
+    const fromCondition = reached(a)(condition)
+    const fromArm = reached(a)(arm)
+    return before.length !== 0 || scopeHolds(a, i, 'rest')
+        || a.nodes.some((n, j) => a.scope[j] === i && !mergeable(n) && fromCondition.includes(j) && fromArm.includes(j))
 }

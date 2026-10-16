@@ -28,8 +28,9 @@ export default (a, b, c, ...x) => [a, b, c, x];
 Bare `a => a`, `(a) => a`, and a fixed list with a trailing comma are also
 accepted. No parameter or comma may follow rest. A fixed parameter takes a
 pattern, `({ a }, [b]) => [a, b]`, as a `const` does
-([destructuring](../bindings/destructuring.md)); a default is not supported yet. A
-newline before `=>` is refused.
+([destructuring](../bindings/destructuring.md)), and a default, `(a, b = a) => [a, b]`
+(below); the rest parameter takes neither. A newline before `=>` is
+refused.
 
 ## Pages
 

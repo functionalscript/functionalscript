@@ -36,10 +36,10 @@
  * @import { Primitive } from '../../../media/datajs/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { ParseError } from '../types.ts'
- * @import { BindingElement, BindingProperty, BindingTarget, Block, BlockStatement, Chain, Const, Entry, Import, ImportBinding, Item, Key, Let, LoopBlock, LoopStatement, Member, Module, ModuleConst, Node, Out, ParameterList, Parameters, Step, ValueStatement } from './types.ts'
+ * @import { BindingElement, BindingProperty, BindingTarget, Block, BlockStatement, Chain, Const, Entry, Import, ImportBinding, Item, Key, Let, LoopBlock, LoopStatement, Member, Module, ModuleConst, Node, Out, Parameter, ParameterList, Parameters, Step, ValueStatement } from './types.ts'
  * @import { ArrowOrRest, BindingTarget as BindingTargetRule, Block as BlockRule, Body, ConstStatement, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, LetStatement, LoopBlock as LoopBlockRule, LoopStatement as LoopStatementRule, Member as MemberRule, ParameterNames, Parenthesized, Statement, Template, Unary, UnaryOperand, Value } from '../grammar/types.ts'
  * @import { namedImports, primitive, terminator } from '../grammar/module.f.mjs'
- * @import { _AccessNode, _AttributeNode, _CallBranch, _ChainState, _CircuitNode, _ConditionalNode, _EndNode, _IndexBranch, _NameNode, _KeyBranch, _Leaf, _ListNode, _OptionalBranch, _OptionalList, _ParameterNode, _ParameterTail, _PowTailNode, _StepRead, _TailRound, _TokenStream } from './private.ts'
+ * @import { _AccessNode, _AttributeNode, _CallBranch, _ChainState, _CircuitNode, _ConditionalNode, _DefaultNode, _EndNode, _IndexBranch, _NameNode, _KeyBranch, _Leaf, _ListNode, _OptionalBranch, _OptionalList, _ParameterNode, _ParametersAfterNode, _ParameterTail, _PowTailNode, _StepRead, _TailRound, _TokenStream } from './private.ts'
  */
 
 import { error, ok } from '../../../types/result/module.f.js'
@@ -433,6 +433,27 @@ const parameterItems = node => {
     return rounds.length === 0 ? noParameters : parametersAt(rounds[0])
 }
 
+/** The parameters after a parameter, `[ ',' [ parameters ] ]`: none where no comma follows it. @type {(node: _ParametersAfterNode) => _ParameterTail} */
+const parametersAfter = node => {
+    const rounds = unmapped(node)
+    // no round, or the one holding the comma and the optional rest of the list
+    return rounds.length === 0 ? noParameters : parameterItems(unmapped(rounds[0])[1])
+}
+
+/**
+ * A fixed parameter from its target and its default, `[ '=' value ]`: the
+ * target alone where it has none, and otherwise the target with the `=`
+ * and the value, {@link Parameter}.
+ *
+ * @type {(target: BindingTarget, init: _DefaultNode) => Parameter}
+ */
+const parameterWith = (target, init) => {
+    const rounds = unmapped(init)
+    if (rounds.length === 0) { return target }
+    const [eq, v] = unmapped(rounds[0])
+    return ['=', target, tokenAt(eq), nodeAt(v)]
+}
+
 /** The entries of a list of entries, its tail already mapped. */
 const entriesOf = listOf(entryAt, entriesAt)
 
@@ -487,22 +508,25 @@ const parameterOf = node => {
 }
 
 /**
- * A named parameter list from the value at its head and the parameters
- * after it: the head is a parameter where it is a binding target — a
- * name, or a pattern, read off the value as a `const`'s is, and not one a
- * `(` opened again, `((a)) => 1` being a syntax error in JavaScript — and
- * otherwise the list is malformed, anchored at the `(` that opened it for
- * the fold to refuse. A value that is no target inside a pattern,
- * `([(a)]) => 1`, is the pattern's to carry and the fold's to refuse where
- * it stands, as it is in a `const`.
+ * A named parameter list from the value at its head, the head's default
+ * where it has one, and the parameters after it: the head is a parameter
+ * where it is a binding target — a name, or a pattern, read off the value
+ * as a `const`'s is, and not one a `(` opened again, `((a)) => 1` being a
+ * syntax error in JavaScript — and otherwise the list is malformed,
+ * anchored at the `(` that opened it for the fold to refuse. A value that
+ * is no target inside a pattern, `([(a)]) => 1`, is the pattern's to carry
+ * and the fold's to refuse where it stands, as it is in a `const`.
  *
- * @type {(open: DjsTokenWithMetadata, head: _Leaf, more: _ParameterTail) => ParameterList}
+ * @type {(open: DjsTokenWithMetadata, head: _Leaf, init: (target: BindingTarget) => Parameter, more: _ParameterTail) => ParameterList}
  */
-const namedList = (open, head, more) => {
+const namedList = (open, head, init, more) => {
     const out = outAt(head)
     if (out.id !== 'value' || out.target[0] === 'invalid') { return { invalid: open } }
-    return { fixed: [out.target, ...toArray(more.fixed)], rest: more.rest }
+    return { fixed: [init(out.target), ...toArray(more.fixed)], rest: more.rest }
 }
+
+/** A head with no default: the target itself. @type {(target: BindingTarget) => Parameter} */
+const bare = target => target
 
 /**
  * One step as written: a property by the token its key is read from, or a
@@ -855,9 +879,13 @@ const continued = (list, base, closed, node) => {
  * position of `[ ... id ] ) => body`, its `=>` at the third and its body
  * at the fourth — or a value and what follows it: `,`, the names after the
  * value, the `=>` and the body at the fifth position of
- * `, [ names ] ) => body`, the value heading a named list; or `)` and then
- * {@link continued}, the value the one parameter or a group. Each `=>` is
- * checked against its line, {@link arrowed}.
+ * `, [ names ] ) => body`, the value heading a named list; `=`, the
+ * value's default at the second position of
+ * `= value [ , [ names ] ] ) => body`, the names after it, the `=>` at the
+ * fifth and the body at the sixth, the value heading a named list with
+ * that default; or `)` and then {@link continued}, the value the one
+ * parameter or a group. Each `=>` is checked against its line,
+ * {@link arrowed}.
  *
  * A group is no node of its own: `(x)` is whatever `x` is, and the steps
  * after the `)` apply to that same node, so nothing downstream can tell a
@@ -878,10 +906,16 @@ const parenNode = (open, [tag, branch]) => {
     const [kind, rest] = unmapped(after)
     if (kind === 'list') {
         const [, names, , arrow, b] = unmapped(rest)
-        return ['=>', arrowed(namedList(open, v, parameterItems(names)), tokenAt(arrow)), nodeAt(b)]
+        return ['=>', arrowed(namedList(open, v, bare, parameterItems(names)), tokenAt(arrow)), nodeAt(b)]
+    }
+    if (kind === 'default') {
+        const [eq, d, more, , arrow, b] = unmapped(rest)
+        /** @type {(target: BindingTarget) => Parameter} */
+        const init = target => ['=', target, tokenAt(eq), nodeAt(d)]
+        return ['=>', arrowed(namedList(open, v, init, parametersAfter(more)), tokenAt(arrow)), nodeAt(b)]
     }
     const [, next] = unmapped(rest)
-    return continued(namedList(open, v, noParameters), nodeAt(v), true, next)
+    return continued(namedList(open, v, bare, noParameters), nodeAt(v), true, next)
 }
 
 /**
@@ -1310,8 +1344,9 @@ const toEntries = node => symbol({ id: 'entries', items: entriesOf(node), target
 
 /**
  * The parameters after a named list's first, from `parameterNames`'s
- * branch: a fixed parameter's target, {@link targetOf}, before the
- * parameters its tail's mapping already returned, `target [ ',' [
+ * branch: a fixed parameter — its target, {@link targetOf}, with its
+ * default where it has one, {@link parameterWith} — before the parameters
+ * its tail's mapping already returned, `target [ '=' value ] [ ',' [
  * parameters ] ]` — so a list of any length costs one step at each of its
  * nodes, as an array's items do — or the rest parameter's token, which
  * ends the list.
@@ -1323,11 +1358,9 @@ const toParameterNames = ([tag, branch]) => {
         const [, name] = unmapped(branch)
         return symbol({ id: 'parameters', fixed: null, rest: tokenAt(unmapped(name)[1]) })
     }
-    const [target, more] = unmapped(branch)
-    const rounds = unmapped(more)
-    // no round, or the one holding the comma and the optional rest of the list
-    const tail = rounds.length === 0 ? noParameters : parameterItems(unmapped(rounds[0])[1])
-    return symbol({ id: 'parameters', fixed: { first: targetOf(unmapped(target)), tail: tail.fixed }, rest: tail.rest })
+    const [target, init, more] = unmapped(branch)
+    const tail = parametersAfter(more)
+    return symbol({ id: 'parameters', fixed: { first: parameterWith(targetOf(unmapped(target)), init), tail: tail.fixed }, rest: tail.rest })
 }
 
 /**

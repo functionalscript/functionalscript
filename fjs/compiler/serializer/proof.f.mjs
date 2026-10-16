@@ -25,7 +25,7 @@ import { invoke, memo } from '../../edag/memo/module.f.mjs'
 import { call } from '../../edag/value/call/module.f.mjs'
 import { read } from '../../edag/value/property/module.f.mjs'
 import { toData } from '../../edag/value/to_unknown/module.f.mjs'
-import { analysis } from '../../edag/analysis/module.f.mjs'
+import { analysis, identityAnalysis } from '../../edag/analysis/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { invert, ok, unwrap } from '../../types/result/module.f.js'
 import { _defaultExport, unresolved } from '../edag/module.f.mjs'
@@ -33,6 +33,7 @@ import { parse } from '../transpiler/module.f.mjs'
 import { _tryModuleSerialize, _trySerialize, functionText, tryFunctionText, trySerialize, tryStringify, tryModuleSerialize, tryModuleStringify, tryMarked, tryModuleMarked } from './module.f.mjs'
 import { keywords } from '../../js/keywords/module.f.js'
 import { staticIds } from '../../edag/module.f.mjs'
+import { operandsOf, visit } from '../../edag/sharing/module.f.mjs'
 import { disagreement } from '../../website/demo/highlight/module.f.mjs'
 import { textOfResult, toText } from '../../text/marked/module.f.mjs'
 
@@ -41,8 +42,16 @@ const path = '/proof.f.js'
 
 /**
  * The text the writer writes for a graph, once the front end has read it
- * back to the same table. A module of the writer's own making imports
- * nothing, so `unresolved` needs no resolution to hand back its graph.
+ * back to the same table, and the graph read back is written as the same
+ * text again: the table, which merges equal nodes, says the program is
+ * the one written, and the text, which names each shared node and writes
+ * every other in place, says the graph read back shares what the text
+ * does. That is what the source shared, but for the one node the writer
+ * writes in each of two blocks — one two lazy operands reach with no
+ * eager path, a loop's condition and block among them — which reads back
+ * as two equal nodes; only the pinned text records that split. A module
+ * of the writer's own making imports nothing, so `unresolved` needs no
+ * resolution to hand back its graph.
  *
  * @type {(e: Exp) => string}
  */
@@ -51,8 +60,45 @@ const reads = e => {
     const { imports, edag } = unresolved(unwrap(parse(path)(text)))
     assertEq(imports.length, 0, text)
     assertStructurallySame(assertOk(analysis(_defaultExport(edag))), assertOk(analysis(e)), text)
+    assertEq(unwrap(tryStringify(_defaultExport(edag))), text)
     // and what it marks is what the tokenizer finds, in every case that reads
     assertEq(disagreement(unwrap(tryMarked(e))), null, text)
+    return text
+}
+
+/**
+ * Whether a comma in a graph anchors a node another of its operands
+ * reaches: an anchor the graph did not need, which breaks the `,` contract
+ * ([`fjs/edag`](../../edag/README.md)). The writer writes it as the graph
+ * says, the node's `const`, and the text reads back without it.
+ *
+ * @type {(e: Exp) => boolean}
+ */
+const redundantAnchor = e => {
+    /** @type {(n: readonly unknown[]) => readonly unknown[]} */
+    const everything = n => n[0] === '=>' ? [...operandsOf(n), n[3]] : operandsOf(n)
+    /** @type {(root: unknown) => readonly unknown[]} */
+    const reached = root => visit(operandsOf)([])(root).map(([n]) => n)
+    return visit(everything)([])(e).some(([n]) => {
+        if (!(n instanceof Array) || n[0] !== ',') { return false }
+        /** @type {readonly unknown[]} */
+        const all = n[1]
+        return all.some((x, i) => i < all.length - 1 && all.some((y, j) => j !== i && reached(y).includes(x)))
+    })
+}
+
+/**
+ * The text the writer writes for a graph holding a redundant anchor
+ * ({@link redundantAnchor}): read back, without the anchor, it is a graph
+ * the writer writes and reads back to the same table ({@link reads}).
+ *
+ * @type {(e: Exp) => string}
+ */
+const rewrites = e => {
+    const text = unwrap(tryStringify(e))
+    const { imports, edag } = unresolved(unwrap(parse(path)(text)))
+    assertEq(imports.length, 0, text)
+    reads(_defaultExport(edag))
     return text
 }
 
@@ -160,11 +206,11 @@ const generated = (() => {
 const moduleGraph = source => unresolved(unwrap(parse(path)(source))).edag
 
 /** @type {(graph: Exp) => unknown} */
-const moduleValue = graph => assertOk(toData(unwrap(memo(assertOk(analysis(graph)))({ args: [] }))))
+const moduleValue = graph => assertOk(toData(unwrap(memo(assertOk(identityAnalysis(graph)))({ args: [] }))))
 
 /** Render an already analyzed function root. @type {(e: Exp) => string} */
 const analyzedFunction = e => {
-    const a = assertOk(analysis(e))
+    const a = assertOk(identityAnalysis(e))
     assert(a.root instanceof Array)
     return functionText(a, a.root[1])
 }
@@ -214,7 +260,7 @@ export const proof = {
         },
         functions: () => {
             const text = unwrap(tryModuleStringify(moduleGraph('export const f=(...a)=>a; export default f;')))
-            const result = memo(assertOk(analysis(moduleGraph(text))))({ args: [] })
+            const result = memo(assertOk(identityAnalysis(moduleGraph(text))))({ args: [] })
             const fn = assertOk(read(result, 'f'))
             assertEq(fn, assertOk(read(result, 'default')))
             const called = assertOk(call(ok(fn), [() => ok(1), () => ok(2)], invoke))
@@ -449,13 +495,13 @@ export const proof = {
         writes(['?:', 1, ['entry'], 2], `export default 1?${text}:2;`)
         writes(['()', ['=>', 0, [], 1], [['entry']]], `const $0=()=>1;export default $0(${named});`)
         assertEq(unwrap(tryFunctionText(['entry'])), text)
-        const a = assertOk(analysis(['[]', [['entry'], 1]]))
+        const a = assertOk(identityAnalysis(['[]', [['entry'], 1]]))
         assertEq(functionText(a, 0), text)
     },
     // `Object.is` is written as the source reads it, a value wherever it
-    // stands — a callee, an operand, an item — and, one function however
-    // often it is read, written in place where it is shared, since the
-    // read is the value: no `const` is needed to keep it one.
+    // stands — a callee, an operand, an item — and, where one node is
+    // read from two places, a `const`, as every shared node is: the front
+    // end reads each `Object.is` written as a node of its own.
     objectIs: () => {
         writes(['Object.is'], 'export default Object.is;')
         writes(['[]', [['Number.isInteger'], ['()', ['Number.isFinite'], [1]]]], 'export default [Number.isInteger,Number.isFinite(1)];')
@@ -465,7 +511,8 @@ export const proof = {
         writes(['=>', 1, [], ['()', ['Object.is'], [['arg', 0], ['arg', 0]]]], 'export default ($0)=>Object.is($0,$0);')
         /** @type {Exp} */
         const is = ['Object.is']
-        writes(['[]', [['()', is, [1, 1]], ['()', is, [2, 2]]]], 'export default [Object.is(1,1),Object.is(2,2)];')
+        writes(['[]', [['()', is, [1, 1]], ['()', is, [2, 2]]]], 'const $0=Object.is;export default [$0(1,1),$0(2,2)];')
+        writes(['[]', [['()', ['Object.is'], [1, 1]], ['()', ['Object.is'], [2, 2]]]], 'export default [Object.is(1,1),Object.is(2,2)];')
         // every static, each its own tag, with no case of its own to miss
         for (const id of staticIds) { writes([id], `export default ${id};`) }
     },
@@ -638,11 +685,10 @@ export const proof = {
             ['=>', 0, [], ['=>', 0, [['.', ['rest'], 0]], ['[]', [slot(0), slot(0)]]]],
             'export default (...$0)=>{const $1=$0[0];return ()=>[$1,$1];};')
         // what the compiler builds is written, two `const`s reading one
-        // value among it: the lowering gives them the one slot the
-        // analysis sees
+        // value among it: two nodes, which the lowering gives a slot each
         assertEq(
             reads(_defaultExport(moduleGraph('const o=[1]; const x=o[0]; const y=o[0]; export default (...a)=>[x,y];'))),
-            'const $0=[1][0];export default ()=>[$0,$0];')
+            'const $0=[1];const $1=$0[0];const $2=$0[0];export default ()=>[$1,$2];')
         // where the writer's own order would read the slots in another —
         // here the body's text is the frame's order backwards, and a shared
         // function hoisted above the `return` reads the later slot first —
@@ -829,7 +875,7 @@ export const proof = {
             const inner = /** @type {const} */ (['=>', 2, [['arg', 0]],
                 ['[]', [['frame', 0], ['arg', 1], ['rest'], shared, shared]]])
             const outer = /** @type {const} */ (['=>', 1, [], inner])
-            const a = assertOk(analysis(['[]', [['[]', [9]], outer, ['=>', 0, [], ['rest']]]]))
+            const a = assertOk(identityAnalysis(['[]', [['[]', [9]], outer, ['=>', 0, [], ['rest']]]]))
             /** @type {readonly (readonly [Exp, number, string])[]} */
             const cases = [
                 [inner, 2, '($1,$2,...$3)=>{const $4=[];return [$0,$2,$3,$4,$4];}'],
@@ -845,7 +891,7 @@ export const proof = {
         selectedUnusedFunction: () => {
             const inner = /** @type {const} */ (['=>', 1, [['arg', 0], ['arg', 1]], ['frame', 1]])
             const outer = /** @type {const} */ (['=>', 2, [], inner])
-            const a = assertOk(analysis(['[]', [['[]', [9]], outer]]))
+            const a = assertOk(identityAnalysis(['[]', [['[]', [9]], outer]]))
             const i = a.nodes.findIndex(node => node[0] === '=>' && node[1] === 1)
             assert(i >= 0)
             assertEq(functionText(a, i), '($2)=>$1')
@@ -909,7 +955,7 @@ export const proof = {
         // the call a nested `throw` is written as fails where the node does
         nested: () => {
             const { edag } = unresolved(unwrap(parse(path)(unwrap(tryStringify(['[]', [['throw', 1]]])))))
-            unwrap(memo(assertOk(analysis(_defaultExport(edag))))({ args: [] }))
+            unwrap(memo(assertOk(identityAnalysis(_defaultExport(edag))))({ args: [] }))
         },
     },
     // The optional chains, `fjs/edag/README.md`'s Chains: one spelling per
@@ -1031,21 +1077,29 @@ export const proof = {
         refuses([',', []], 'a comma with fewer than two operands')
         refuses(['=>', 0, [], [',', [1]]], 'a comma with fewer than two operands')
         refuses(['=>', 0, [], [',', []]], 'a comma with fewer than two operands')
-        // An anchor whose operand already has a name: its statement would be
-        // the alias `const $1=$0;`, which the front end reads back as
-        // nothing — an alias to a reached `const` is not an anchored
-        // computation — and the comma would go with it. Linking emits no
-        // such graph: `const a = []; const b = a; export default a;` drops
-        // the alias and is the array alone.
-        refuses(
-            (() => {
+        // An anchor whose node already has a `const` is that `const`, which
+        // evaluates it there: the text is what the graph says. Another
+        // operand reaching the node too makes the anchor one the graph did
+        // not need, and the text reads back without it, the same value
+        assertEq(
+            rewrites((() => {
                 /** @type {Exp} */
                 const o = ['[]', []]
                 return [',', [o, o]]
-            })(),
-            'an anchor that repeats a hoisted value')
-        // and one that is a name the scope binds without a `const`: the
-        // front end reads `const $1=$0;` as an alias, no anchor at all
+            })()),
+            'const $0=[];export default $0;')
+        assertEq(
+            rewrites((() => {
+                /** @type {Exp} */
+                const t = ['+', ['arg', 0], 1]
+                return ['=>', 1, [], [',', [t, ['*', t, 2]]]]
+            })()),
+            'export default ($0)=>{const $1=$0+1;return $1*2;};')
+        // and a comma whose anchor no other operand reaches holds none
+        assertEq(redundantAnchor([',', [['[]', []], 1]]), false)
+        // An anchor that is a name the scope binds without a `const` is
+        // refused: the front end reads `const $1=$0;` as an alias, no
+        // anchor at all
         refuses(['=>', 0, [], [',', [['rest'], 1]]], 'an anchor that is a name')
         refuses(['=>', 1, [], [',', [['arg', 0], 1]]], 'an anchor that is a name')
         refuses(['[]', [['[]', []], ['=>', 0, [['[]', []]], [',', [['frame', 0], 1]]]]], 'an anchor that is a name')
@@ -1061,14 +1115,15 @@ export const proof = {
     // function that reaches itself, so it takes a `const` even where
     // nothing else shares it; a nested function captures that name.
     unifiedNames: () => {
-        // Sibling functions and repeated merged operands still allocate distinct
-        // bindings, even when their declarations occur in separate scopes.
+        // Sibling functions and the blocks of a shared node's arms still
+        // allocate distinct bindings, even when their declarations occur in
+        // separate scopes.
         writes(['=>', 0, [], ['[]', [['=>', 1, [], ['arg', 0]], ['=>', 1, [], ['arg', 0]]]]],
             'export default ()=>[($0)=>$0,($1)=>$1];')
         const numeric = /** @type {const} */ (['.', 1, 'x'])
         const lazy = /** @type {const} */ (['?:', true, numeric, numeric])
         writes(['=>', 0, [], ['[]', [lazy, lazy]]],
-            'export default ()=>[true?(()=>{const $0=1;return $0.x;})():(()=>{const $1=1;return $1.x;})(),true?(()=>{const $2=1;return $2.x;})():(()=>{const $3=1;return $3.x;})()];')
+            'export default ()=>{const $0=true?(()=>{const $1=1;return $1.x;})():(()=>{const $2=1;return $2.x;})();return [$0,$0];};')
         // Reserved names are skipped throughout the module, including parameters.
         const exported = moduleGraph('export const $0=(x)=>x;export const $2=[];')
         const text = unwrap(tryModuleStringify(exported))
@@ -1205,8 +1260,16 @@ export const proof = {
             'export default ()=>{const $0=($1)=>{const $2=[1];return $2[0]?$0($2[1]):$1;};return $0(0);};')
         writes(['=>', 0, [], ['()', loop([], ['.', shared, 0], call(['.', shared, 1])), [0]]],
             'export default ()=>{const $0=($1)=>{const $2=[$1];return $2[0]?$0($2[1]):$1;};return $0(0);};')
-        // the one shape refused rather than written as recursion: captures
-        // read out of order
+        // a block reading the captures in another order than the frame
+        // holds them opens by naming the ones the condition does not read,
+        // in the frame's order, as a body would
+        writes(['=>', 1, [], ['()', loop([['arg', 0], ['[]', []]], true, call(['[]', [['frame', 1], ['frame', 0]]])), [0]]],
+            'export default ($0)=>{const $1=[];let $2=0;while(true){const $3=$0;const $4=$1;$2=[$4,$3];}return $2;};')
+        writes(['=>', 1, [], ['()', loop([['arg', 0], ['[]', []], ['{}', []]], ['frame', 0], call(['[]', [['frame', 2], ['frame', 1]]])), [0]]],
+            'export default ($0)=>{const $1=[];const $2={};let $3=0;while($0){const $4=$1;const $5=$2;$3=[$5,$4];}return $3;};')
+        // the one shape refused rather than written as recursion: a
+        // condition reading the captures out of order, which no block can
+        // name before
         refuses(['=>', 1, [], ['()', loop([['arg', 0], ['[]', []]], ['frame', 1], call(['frame', 0])), [0]]], 'a loop reading its captures out of order')
         // code-only text spells a loop the same way inside a body, and a
         // loop function on its own as the loop `function_text` spells
@@ -1361,6 +1424,13 @@ export const proof = {
         writes(fn(['?.', ['rest'], ['Number', r0]]), 'export default (...$0)=>$0?.[Number($0[0])];')
         writes(fn(['?.', ['rest'], 'b', ['|.', ['Number', r0]]]), 'export default (...$0)=>$0?.b[Number($0[0])];')
         writes(['?.', null, 'b', ['|.', ['Number', [',', [['.', null, 'y'], 0]]]]], 'export default null?.b[Number((()=>{const $0=null.y;return 0;})())];')
+        // a key is read back from its text alone, a node of its own, so a
+        // key node anything else reaches too has no text that keeps it one;
+        // two equal keys are two nodes, and are written
+        const k = /** @type {const} */ (['Number', r0])
+        refuses(fn(['[]', [['.', ['rest'], k], ['.', ['rest'], k]]]), 'a shared computed key')
+        refuses(fn(['[]', [['.', ['rest'], k], k]]), 'a shared computed key')
+        writes(fn(['[]', [['.', ['rest'], ['Number', r0]], ['.', ['rest'], ['Number', r0]]]]), 'export default (...$0)=>{const $1=$0[0];return [$0[Number($1)],$0[Number($1)]];};')
         // and an operator an access base only in a group, where an access
         // is a prefix's operand bare
         writes(['.', ['+', 1, 2], 'x'], 'export default (1+2).x;')
@@ -1368,20 +1438,20 @@ export const proof = {
         writes(['~', ['.', ['[]', [1]], 0]], 'export default ~[1][0];')
         writes(['.', ['!', ['[]', []]], 0], 'export default (![])[0];')
         writes(['.', ['typeof', ['[]', []]], 0], 'export default (typeof [])[0];')
-        // a shared operator over values is written in place at each
-        // occurrence, its minting operand hoisted, and merges again when
-        // read; one holding a minting node through a lazy edge takes a
-        // `const`, as the lazy operators' proof has
+        // a shared operator takes a `const`, as every shared node does,
+        // what it holds written in it once; two equal ones are two, each
+        // written in place, and a minting operand they share hoisted
         /** @type {Exp} */
         const o = ['[]', []]
         /** @type {Exp} */
         const sum = ['+', o, 1]
-        writes(['[]', [sum, sum]], 'const $0=[];export default [$0+1,$0+1];')
+        writes(['[]', [sum, sum]], 'const $0=[]+1;export default [$0,$0];')
+        writes(['[]', [['+', o, 1], ['+', o, 1]]], 'const $0=[];export default [$0+1,$0+1];')
         /** @type {Exp} */
         const held = ['+', ['?:', true, o, 1], 1]
-        writes(['[]', [held, held]], 'const $0=true?[]:1;const $1=$0+1;export default [$1,$1];')
+        writes(['[]', [held, held]], 'const $0=(true?[]:1)+1;export default [$0,$0];')
         // in a body, the same
-        writes(fn(['[]', [sum, sum]]), 'export default ()=>{const $0=[];return [$0+1,$0+1];};')
+        writes(fn(['[]', [sum, sum]]), 'export default ()=>{const $0=[]+1;return [$0,$0];};')
     },
     // The lazy operators and the conditional. Each operand of `&&`, `||`
     // and `??` after the first, and each arm of `?:`, is a block root: a
@@ -1474,23 +1544,26 @@ export const proof = {
             // anchored for the same reason
             writes([',', [c, ['[]', [['&&', 1, c], ['&&', 2, c]]]]], 'const $0=[1];export default [1&&$0,2&&$0];')
             writes([',', [['[]', [2]], c, ['[]', [['&&', 1, ['[]', [c, c]]], ['&&', 2, ['[]', [2]]]]]]], 'const $0=[2];const $1=[1];export default [1&&[$1,$1],2&&[2]];')
-            // a shared node that holds a value minting identity through a
-            // lazy edge takes a `const` as the value would: written twice
-            // it would mint twice. One reached eagerly by the scope is the
-            // scope's; one holding only values is written in place, as an
-            // access is, and merges again when read
+            // a shared node takes a `const`, whatever it holds: a value
+            // minting identity through a lazy edge, which written twice
+            // would mint twice, or values alone, which written twice would
+            // read back as two nodes
             /** @type {Exp} */
             const y = ['?:', r0, ['[]', []], 1]
             writes(fn(['[]', [y, y]]), 'export default (...$0)=>{const $1=$0[0]?[]:1;return [$1,$1];};')
             /** @type {Exp} */
             const w = ['.', ['?:', r0, ['[]', []], 1], 'k']
-            writes(fn(['[]', [w, w]]), 'export default (...$0)=>{const $1=$0[0]?[]:1;const $2=$1.k;return [$2,$2];};')
+            writes(fn(['[]', [w, w]]), 'export default (...$0)=>{const $1=($0[0]?[]:1).k;return [$1,$1];};')
             /** @type {Exp} */
             const n = ['-', ['?:', r0, ['[]', []], 1]]
-            writes(fn(['[]', [n, n]]), 'export default (...$0)=>{const $1=$0[0]?[]:1;const $2=-$1;return [$2,$2];};')
+            writes(fn(['[]', [n, n]]), 'export default (...$0)=>{const $1=-($0[0]?[]:1);return [$1,$1];};')
             /** @type {Exp} */
             const z = ['??', r0, r1]
-            writes(fn(['[]', [z, z]]), 'export default (...$0)=>[$0[0]??$0[1],$0[0]??$0[1]];')
+            writes(fn(['[]', [z, z]]), 'export default (...$0)=>{const $1=$0[0]??$0[1];return [$1,$1];};')
+            // and two equal nodes are two, each written where it stands
+            /** @type {() => Exp} */
+            const twin = () => ['??', ['.', ['rest'], 0], ['.', ['rest'], 1]]
+            writes(fn(['[]', [twin(), twin()]]), 'export default (...$0)=>[$0[0]??$0[1],$0[0]??$0[1]];')
             /** @type {Exp} */
             const m = ['?:', r0, c, 1]
             writes(fn([',', [c, ['[]', [m, m]]]]), 'export default (...$0)=>{const $1=[1];const $2=$0[0]?$1:1;return [$2,$2];};')
@@ -1531,11 +1604,11 @@ export const proof = {
             writes([',', [nest, ['?:', true, nestLength, nestLength]]], 'const $0=[[1]];export default true?$0.length:$0.length;')
             /** @type {Exp} */
             const call = ['()', ['rest'], []]
-            /** @type {Exp} */
-            const field = ['.', call, 'a']
-            writes(fn(['||', ['===', field, 1], ['===', field, 2]]), 'export default (...$0)=>{const $1=$0();return $1.a===1||$1.a===2;};')
-            writes(fn(['[]', [field, ['?:', r0, field, 0]]]), 'export default (...$0)=>{const $1=$0();return [$1.a,$0[0]?$1.a:0];};')
-            writes(fn([',', [call, ['?:', r0, field, field]]]), 'export default (...$0)=>{const $1=$0();return $0[0]?$1.a:$1.a;};')
+            /** @type {() => Exp} */
+            const field = () => ['.', call, 'a']
+            writes(fn(['||', ['===', field(), 1], ['===', field(), 2]]), 'export default (...$0)=>{const $1=$0();return $1.a===1||$1.a===2;};')
+            writes(fn(['[]', [field(), ['?:', r0, field(), 0]]]), 'export default (...$0)=>{const $1=$0();return [$1.a,$0[0]?$1.a:0];};')
+            writes(fn([',', [call, ['?:', r0, field(), field()]]]), 'export default (...$0)=>{const $1=$0();return $0[0]?$1.a:$1.a;};')
             // and so is what the value holds under a lazy operand of its
             // own: an array in an arm, or an object after a `??` in a
             // call's arguments
@@ -1558,9 +1631,10 @@ export const proof = {
     // is answered with a plausible wrong value
     // ([DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)),
     // which is what a writer whose contract is the round trip may not do,
-    // and which four hand-picked accept sets in a row did not catch — and
-    // which caught, when the lazy operators landed, a shared anchor the
-    // export reached eagerly, whose `const` read back as no anchor at all.
+    // and which four hand-picked accept sets in a row did not catch. A
+    // graph holding a redundant anchor, which the `,` contract excludes, is
+    // written as it says and reads back without the anchor: its text reads
+    // back to a graph the law holds for ({@link rewrites}).
     //
     // The graphs are every shape over every shape over the atoms, some
     // thousands of them, of which about half have a text and the rest are
@@ -1573,7 +1647,7 @@ export const proof = {
         () => generated.filter((_, i) => i % lawParts === k).forEach(e => {
             const written = tryStringify(e)
             if (written[0] === 'error') { return }
-            reads(e)
+            if (redundantAnchor(e)) { rewrites(e) } else { reads(e) }
         }),
     ])),
     /**

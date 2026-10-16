@@ -12,14 +12,15 @@ that consumer's own representation:
 - [`fjs/compiler/serializer`](../../compiler/serializer/module.f.mjs)
   keeps private `operands`, `lazyOperands`, `allOperands`,
   `eagerOperands`, `eagerFrom`, `reachableThrough`, `reachableFrom`,
-  `referencesWithin` and `sharedWithin` — all over
+  `placesWithin`, `placesAnywhere` and `sharedWithin` — all over
   [`analysis`](../analysis/module.f.mjs)'s `Node`, the representation that
   module owns, beside the `operandsOf`, `stepOperands` and `itemOperand` it
   already imports from there. `sharedWithin` restates the analysis's own
   `shared` rule over a subgraph.
-- [`edag/rust`](../rust/module.f.mjs) keeps `eagerOperandsOf`,
-  `lazyOperandsOf`, `chainLazy` and a `stepOperands` of its own, over the
-  linked `Exp`.
+- [`edag/sharing`](../sharing/module.f.mjs) keeps `eagerOperandsOf`,
+  `chainLazy` and a `stepOperands` of its own, over the linked `Exp`, and
+  [`edag/rust`](../rust/module.f.mjs), which imports them, keeps
+  `lazyOperandsOf`.
 - [`fjs/compiler/ast`](../../compiler/ast/module.f.mjs) keeps `chainEager`,
   `chainOperands` and its own `stepOperands`, over the AST.
 
@@ -52,6 +53,21 @@ serializer ordering defect, not an unresolved language decision. It is the
 drift [DESIGN.md §4](../../../doc/DESIGN.md#4-reuse-dry-and-separation-of-concerns)
 describes: a rule with several owners has no owner.
 
+The Rust printer meets the other side of the same split. A node that two
+plain call steps' arguments share, and nothing else reaches eagerly, has no
+block for the printer to bind it in:
+
+```js
+const o = { f: x => [x] }
+export default a => { const t = a.k.m; return [o.f(t), o.f(t)] }
+```
+
+`fjs compile` to `.rs` fails with ``no Rust for a shared node reached only
+through lazy operands; a `let` binding would establish what the program
+may not``, at `2ca692ba` as at `9142e83e`. The `.js`, `.f.js` and
+`.edag.data.js` outputs compile it. Whatever the owner of the rule decides
+for the arguments decides this program's Rust too.
+
 ### Proposal
 
 `analysis` owns the classification over `Node`: it exports eager and lazy
@@ -81,6 +97,8 @@ argument is demanded, as well as skipping it when the read fails.
       a throwing `|()` argument: only receiver and key are demanded.
       Also prove that a successful read of a non-callable value demands
       that argument and propagates its failure before the call fails.
+- [ ] Prove the Rust printer's answer for the method-call program above,
+      written or refused for the reason the rule gives.
 - [ ] Add a serializer regression for the shared throwing constructor
       above, checking emitted text and evaluation after parsing it: the
       access fails before the argument runs. Add a successful-access case

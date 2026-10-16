@@ -137,7 +137,6 @@ describes:
 | `decl.generator` | `function* g() {}` | open |
 | `decl.accessor` | `{ get a() { return 1 } }`, `{ set a(v) {} }` | open |
 | `decl.method` | `{ f() { return 1 } }` | open |
-| `decl.parameter-default` | `(a = 1) => a` | planned ([default parameters](./3125-default-parameters.md)) |
 | `decl.pattern-array-rest` | `[a, ...r]` in a pattern or a parameter | planned ([destructuring](./2450-destructuring.md), the next task) |
 | `decl.pattern-object-rest` | `{ a, ...r }` in a pattern or a parameter | open ([destructuring](./2450-destructuring.md) files it as a follow-up) |
 | `decl.pattern-default` | `{ a = 1 }`, `[a = 1]` in a pattern | planned ([default parameters](./3125-default-parameters.md)) |

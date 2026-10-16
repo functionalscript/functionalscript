@@ -4,6 +4,13 @@
  * A call in tail position of a body is made in the invocation's place, so a
  * chain of tail calls holds one cache and one set of host frames at a time.
  *
+ * A function value's body is restored from the table it was evaluated
+ * from, so it holds the sharing that table has. An invoked body is read
+ * into the identity table (`identityAnalysis`), as the compiler's
+ * evaluation reads a module, so a function value holds its body's nodes
+ * as the graph has them — one shared node one node, two equal nodes two —
+ * and its text, `String(f)`, is the one every other executor writes.
+ *
  * @module
  * @import { Exp, ExpOp, StepOver, ItemsOver, Over } from '../types.ts'
  * @import { Analysis, Node, Operand, Step } from '../analysis/types.ts'
@@ -18,7 +25,7 @@
 import { assertOk } from '../../asserts/module.f.mjs'
 import { isArray } from '../../types/array/module.f.mjs'
 import { ok, unwrap } from '../../types/result/module.f.js'
-import { analysis, checked } from '../analysis/module.f.mjs'
+import { checked, identityAnalysis } from '../analysis/module.f.mjs'
 import { entryCall, operation } from '../operations/module.f.mjs'
 import { invoker, settle } from '../value/call/module.f.mjs'
 
@@ -135,7 +142,7 @@ export const invokeWith = runtime => {
     /** @type {Body} */
     const body = (fn, fixed, rest) => {
         if (fn[0] === 'entry') { return entryCall(fixed, invoke) }
-        const a = assertOk(analysis(fn))
+        const a = assertOk(identityAnalysis(fn))
         const [, index] = /** @type {import('../analysis/types.ts').Ref} */ (a.root)
         const [, , , root] = /** @type {Over<import('../types.ts').Function, Operand>} */ (a.nodes[index])
         return evaluate(a, { frame: fn[2], args: [], fixed, rest, self: fn, runtime }, root)

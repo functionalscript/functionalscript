@@ -205,8 +205,10 @@ reads the invocation's rest array. Repeated rest reads share that array.
 body. A function's frame is evaluated in the enclosing scope. A reference to a `const`, an import, an enclosing function's
 parameter or an enclosing body's `const` is a capture: the slots are
 `['=>', length, slots, body]`'s array operand, each slot the enclosing
-scope's own node for a captured value, one per value — nodes the EDAG
-analysis merges, `o[0]` read by two `const`s, being one — in the order the
+scope's own node for a captured value, one per node — a `const` and its
+alias, or a parameter read twice, being one, and two nodes spelled alike,
+`o[0]` read by two `const`s, two, since sharing is node identity
+([`fjs/edag/sharing`](../edag/sharing/module.f.mjs)) — in the order the
 body first names them, and the body reads slot `i` as `['frame', i]` — so
 no outside node is ever shared into a body, only read through its frame. A
 captured primitive is written into the body rather than captured, and a
@@ -447,7 +449,7 @@ FunctionalScript compiler.
 |---|---|
 | `.f.ts` | Authored FunctionalScript-intent TypeScript implementation/proof source. **No longer used**: stage 1 removed the last one, and new source must not use this extension. It appears below only to describe that completed migration. |
 | `.f.mjs` | Authored FunctionalScript-intent ESM JavaScript with JSDoc types. It may use FunctionalScript features the current parser/compiler does not support yet. |
-| `.f.js` | Authored FunctionalScript that the parser/compiler in the same revision accepts: the stage-2 compatibility marker ([below](#stage-2-mark-compiler-compatible-functionalscript)). Its proof stays `proof.f.mjs`, because a proof fails through `assert`, whose bare `if` and default parameter the compiler does not accept yet. Every repository module the compiler accepts whole is one, [`fjs/js/prototype`](../js/prototype/module.f.js) and [`fjs/types/range`](../types/range/module.f.js) among them, and none of them imports an `.f.mjs`; the packed-package check closing the `node26` CI job imports one from a clean consumer of the packed package ([`fjs/ci/package`](../ci/package/module.f.mjs)). No build or packaging step produces one: stage 1's TypeScript runtime emission did, and that pass is gone ([#1520](https://github.com/functionalscript/functionalscript/pull/1520)). `fjs compile <input> <output>.f.js` does still write one, to a path the caller names — that is the compiler's output for a user, not repository source. `fjs compile` with no arguments checks every authored one against this compiler, and CI runs it ([spec: checking every `.f.js`](../../spec/command-line/checking.md)). |
+| `.f.js` | Authored FunctionalScript that the parser/compiler in the same revision accepts: the stage-2 compatibility marker ([below](#stage-2-mark-compiler-compatible-functionalscript)). Its proof stays `proof.f.mjs`, because a proof fails through `assert`, whose bare `if` the compiler does not accept yet. Every repository module the compiler accepts whole is one, [`fjs/js/prototype`](../js/prototype/module.f.js) and [`fjs/types/range`](../types/range/module.f.js) among them, and none of them imports an `.f.mjs`; the packed-package check closing the `node26` CI job imports one from a clean consumer of the packed package ([`fjs/ci/package`](../ci/package/module.f.mjs)). No build or packaging step produces one: stage 1's TypeScript runtime emission did, and that pass is gone ([#1520](https://github.com/functionalscript/functionalscript/pull/1520)). `fjs compile <input> <output>.f.js` does still write one, to a path the caller names — that is the compiler's output for a user, not repository source. `fjs compile` with no arguments checks every authored one against this compiler, and CI runs it ([spec: checking every `.f.js`](../../spec/command-line/checking.md)). |
 | `types.ts` | Authored TypeScript source for a type-level API. It may coexist with `.f.mjs` or later `.f.js` and holds no runtime implementation. |
 | `.d.ts`, `.d.mts` | Generated TypeScript declarations. |
 

@@ -41,8 +41,9 @@
  * loopStatement ::= const | id '=' value end
  * func   ::= [ '...' id ] ')' '=>' body
  * afterValue ::= ',' [ names ] ')' '=>' body | ')' arrowOrRest
+ *              | '=' value [ ',' [ names ] ] ')' '=>' body
  * arrowOrRest ::= '=>' body | access* powTail tail
- * names  ::= '...' id | id [ ',' [ names ] ]
+ * names  ::= '...' id | target [ '=' value ] [ ',' [ names ] ]
  * group  ::= value ')' access* powTail
  * groupOperand ::= value ')' access*
  * powTail ::= [ '**' unary ]
@@ -469,16 +470,19 @@ export const parameters = option([sym('...'), identifierName])
 /**
  * The parameters after the first and its comma: `b, c` in `(a, b, c)`,
  * none in `(a,)`. Each fixed one is a binding target, a name or a pattern,
- * {@link bindingTarget}, a trailing comma allowed as {@link items} allows
- * one everywhere; the rest parameter, `...r`, keeps a plain name and ends
+ * {@link bindingTarget}, with its default, `= value`, where it has one,
+ * and a trailing comma allowed as {@link items} allows one everywhere; the
+ * rest parameter, `...r`, keeps a plain name, takes no default, and ends
  * the list. The first parameter is not this rule's: it is read as a value,
- * and {@link afterValue} has why.
+ * and {@link afterValue} has why. `=` follows a target nowhere else, so one
+ * symbol decides the default
+ * ([spec: default parameters](../../../../spec/todo/3125-default-parameters.md)).
  *
  * @type {ParameterNames}
  */
 export const parameterNames = () => ['const', {
     rest: [sym('...'), identifierName],
-    fixed: [bindingTarget, option([sym(','), option(parameterNames)])],
+    fixed: [bindingTarget, option([sym('='), value]), option([sym(','), option(parameterNames)])],
 }]
 
 /**
@@ -803,7 +807,11 @@ export const arrowOrRest = {
  * What follows the value a `(` opened: `,` — the value is the first of a
  * named parameter list, and the names after it, the `)`, `=>` on the same
  * line and the body follow — or `)`, after which {@link arrowOrRest} tells
- * the one-parameter function `(a) => 1` from the group `(a)`.
+ * the one-parameter function `(a) => 1` from the group `(a)` — or `=`,
+ * the value being the first parameter and what follows the `=` its
+ * default, after which only a list goes on: the names after a `,`, if
+ * any, the `)`, `=>` and the body. `(a = 1)` is no group, an assignment
+ * being no value of the language, so the `)` there is followed by `=>`.
  *
  * The first parameter is read as a value because one symbol cannot tell it
  * from a group's: `(a) => 1` and `(a).b` agree up to the `)`, and
@@ -820,6 +828,7 @@ export const arrowOrRest = {
 export const afterValue = {
     list: [sym(','), option(parameterNames), sym(')'), sym('=>'), body],
     closed: [sym(')'), arrowOrRest],
+    default: [sym('='), value, option([sym(','), option(parameterNames)]), sym(')'), sym('=>'), body],
 }
 
 /**
