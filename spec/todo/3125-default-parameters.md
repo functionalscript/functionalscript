@@ -34,11 +34,11 @@ defaults in 14 files, and 7 defaults inside binding patterns, 4 of them in
 parameters; the proofs hold at least as many again. Several read a name of
 the module around them, `extraValidate = always` and
 `checkReferences = ok` in [`fjs/media`](../../fjs/media/module.f.mjs)'s
-`dialectEntry` and `jsonDialect`. A default parameter is the one refusal
-of [`fjs/website/demo/code`](../../fjs/website/demo/code/module.f.mjs)'s
+`dialectEntry` and `jsonDialect`. A default parameter was the one refusal
+of [`fjs/website/demo/code`](../../fjs/website/demo/code/module.f.js)'s
 `codeBlock`, a leaf of the
-[migration](../../todo/fjs-nanvm-integration.md#current-leaf-migration-fixed-point),
-and `msg = 'assertion failed'` in
+[migration](../../todo/fjs-nanvm-integration.md#current-leaf-migration-fixed-point)
+converted once parameter defaults landed, and `msg = 'assertion failed'` in
 [`fjs/asserts`](../../fjs/asserts/module.f.mjs)'s `assert` is one of the
 two constructs that keep every proof `proof.f.mjs`
 ([`fjs/compiler`](../../fjs/compiler/README.md)), the bare `if` being the
@@ -241,7 +241,7 @@ default reads — each a refusal rather than another value.
 - [ ] Pattern defaults, in `const` and parameter patterns, over the same
       test: the specification's [destructuring](../bindings/destructuring.md)
       section, and the `decl.pattern-default` row deleted.
-- [ ] Convert `fjs/website/demo/code` to `.f.js`, and rerun the
+- [x] Convert `fjs/website/demo/code` to `.f.js`, and rerun the
       [leaf migration](../../todo/fjs-nanvm-integration.md#current-leaf-migration-fixed-point).
 - [ ] File the parameter scope as a scope of its own, admitting a body
       `const` that shadows a name a default reads, as a follow-up.

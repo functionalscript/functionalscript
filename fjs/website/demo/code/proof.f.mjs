@@ -1,4 +1,4 @@
-import { codeBlock } from './module.f.mjs'
+import { codeBlock } from './module.f.js'
 import { htmlToString } from '../../../media/html/module.f.mjs'
 import { assert } from '../../../asserts/module.f.mjs'
 
