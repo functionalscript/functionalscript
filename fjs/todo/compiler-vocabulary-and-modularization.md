@@ -16,9 +16,9 @@ The JS and Rust writers illustrate the boundary we need to make explicit.
 Their shared-node counting has already been consolidated:
 [identity-shared-walks](../edag/todo/identity-shared-walks.md) records the completed
 work. Binding and block-placement decisions still live in the writers. A
-common graph-to-FAST conversion should own semantic sharing and evaluation
-regions for every target. Serializers may still introduce target-local
-temporaries within those regions.
+common graph-to-FAST conversion should own sharing, bindings and evaluation
+regions for every MVP target. The MVP prioritizes minimal implementation code
+and consistent behavior across languages through one shared conversion.
 
 This issue defines the target vocabulary and module organization, followed by
 incremental implementation. It spans JS syntax infrastructure, EDAG, Rust
@@ -114,20 +114,19 @@ owners; this proposal does not require a Rust input parser.
   be removed when the remaining computation already guarantees evaluation of
   the same node in the same invocation/evaluation region. Merely finding it
   behind a conditional or inside another function is insufficient.
-- **Graph-to-FAST owns semantic placement.** Shared computations become
-  explicit bindings in the appropriate function or conditional block.
-  Preserve captures and eager/lazy boundaries. Target serializers consume
-  the same placed FAST; they do not rediscover graph sharing, merge distinct
-  computations or move them across conditional or function boundaries.
-- **Backends own target spelling, runtime mapping and local temporaries.**
-  A serializer may introduce a fresh, single-use temporary for an unshared
-  expression within its existing evaluation region. Preserve its dependency
-  relationships, conditional evaluation and identities; do not duplicate
-  its evaluation or hoist it out of a lazy operand. Rust may therefore bind
-  each unshared operation where JS emits it inline. These temporary names
-  express the placed FAST and require no separate graph-sharing analysis.
-  Preserve the existing failure contract: successful paths and required
-  failures matter; the first failing operation is not a language observation.
+- **Graph-to-FAST owns placement and binding decisions.** Shared computations
+  become explicit bindings in the appropriate function or conditional block.
+  Preserve captures and eager/lazy boundaries. Every MVP target consumes the
+  same placed FAST. Any additional expression-to-binding normalization needed
+  for emission belongs in common FAST processing used by all targets, rather
+  than a separate binding policy in the Rust serializer.
+- **MVP backends own target spelling and runtime mapping.** Serializers render
+  the bindings and computations already expressed in FAST, using the target's
+  syntax and runtime operations. They do not traverse EDAG, rediscover graph
+  sharing, merge distinct computations or move them across conditional or
+  function boundaries. Preserve the existing failure contract: successful
+  paths and required failures matter; the first failing operation is not a
+  language observation.
 - **Graph identity is explicit.** Record whether an optimization changes the
   graph used for content identity and function text, or only an execution
   representation. Equivalent results alone do not settle that contract.
@@ -183,6 +182,20 @@ branch when the EDAG becomes FAST.
 
 #### Scope and migration
 
+**The MVP output path is EDAG → FAST → target serialization for every target.**
+Its goal is minimal code, one implementation of shared compiler decisions and
+consistent behavior across languages. An optimized Rust or other backend may
+benefit from consuming EDAG directly in the future; such a backend is outside
+the MVP and is not a reason to retain parallel placement or binding algorithms
+now.
+
+This supersedes preserving the current per-writer binding policy: the Rust
+writer's extra bindings for unshared operations are not an MVP compatibility
+requirement. During migration, use the common FAST policy for both JS and Rust,
+updating output expectations while preserving semantics. The earlier proposal
+to retain target-local expression-to-binding decisions is replaced by this
+shared policy.
+
 The first deliverable is a short architecture document in the compiler
 documentation, with the vocabulary, paired directions, module map and
 contracts above. Link it from the compiler README and agent/contributor
@@ -215,15 +228,15 @@ The architecture also adds no source-language feature by itself.
       existing token and marked-text machinery.
 - [ ] Expose FAST-to-EDAG construction with explicit sharing, scope and
       anchoring contracts; keep graph optimization a separate operation.
-- [ ] Extract EDAG-to-FAST semantic binding and block placement once and move
-      JS and Rust output onto it, reusing existing sharing analysis and target
-      helpers. Keep target-local temporary bindings within the assigned
-      evaluation regions.
+- [ ] Extract EDAG-to-FAST binding and block placement once and move every MVP
+      target, including JS and Rust, onto it. Reuse existing sharing analysis
+      and target helpers, move any necessary binding normalization into common
+      FAST processing, and retire parallel backend placement/binding policies.
 - [ ] Prove the boundaries as their implementations move: shared versus equal
       nodes, invocation/capture scopes, eager and lazy computations, unused
-      failing initializers, applicable desugaring and arity cases, target-local
-      temporaries, and semantic round trips for FJS-admitted input. Verify
-      plain output equals demarked output and keep affected
+      failing initializers, applicable desugaring and arity cases, common
+      binding decisions across targets, and semantic round trips for
+      FJS-admitted input. Verify plain output equals demarked output and keep affected
       compiler demos working. Run the checks required by each implementation
       diff.
 - [ ] Reconcile related TODOs and retired paths, retain the final design in
