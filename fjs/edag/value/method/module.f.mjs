@@ -20,7 +20,7 @@ import { isArray } from '../../../types/array/module.f.mjs'
 import { ok, error } from '../../../types/result/module.f.js'
 import { allowedCalls, arrayPrototype, stringPrototype, numberPrototype, booleanPrototype, bigintPrototype, functionPrototype, objectPrototype } from '../../../js/prototype/module.f.js'
 import { call } from '../call/module.f.mjs'
-import { findProperty } from '../property/module.f.mjs'
+import { findProperty, functionAt } from '../property/module.f.mjs'
 import { isFunction, typeOf } from '../semantics/module.f.mjs'
 import { toNumber, toString } from '../convert/module.f.mjs'
 import { arrayMethod } from '../array_method/module.f.mjs'
@@ -45,22 +45,6 @@ const typeName = receiver => typeof receiver === 'string' ? 'String'
     : isArray(receiver) && receiver[0] === '[]' ? 'Array'
     : isFunction(receiver) ? 'Function'
     : 'Object'
-
-/**
- * The function value at a path of keys into an object, or `undefined`
- * where a key is missing, a step is no object, or the end is no function:
- * how an executor reads its runtime, `['member', type, key]` for a member
- * function's body and `['static', 'Object', 'is']` for `Object.is`'s.
- *
- * @type {(object: EdagValue | undefined, path: readonly string[]) => ValueFunction | undefined}
- */
-export const functionAt = (object, path) => {
-    if (object === undefined) { return undefined }
-    if (path.length === 0) { return isFunction(object) ? /** @type {ValueFunction} */ (object) : undefined }
-    if (!isArray(object) || object[0] !== '{}') { return undefined }
-    const entry = findProperty(/** @type {Runtime} */ (object), path[0])
-    return entry === undefined ? undefined : functionAt(entry[2], path.slice(1))
-}
 
 /**
  * The runtime's body for a receiver type and a name: the function value

@@ -106,7 +106,9 @@ admission. Memo connects these reads to chains and to the helper's calls;
 [`value/method`](value/method/module.f.mjs) dispatches admitted built-ins, with
 represented array callbacks in [`value/array_method`](value/array_method/module.f.mjs).
 [`value/convert`](value/convert/module.f.mjs) supplies primitive conversion for
-objects, arrays and functions, using the shared function-text renderer in both interpreters.
+objects, arrays and functions, using the shared function-text renderer in both
+interpreters; a static function, the built-in and not its body, answers the
+NativeFunction text of its name.
 [`compiler/transpiler.interpret`](../compiler/transpiler/module.f.mjs) uses memo
 to evaluate each module with represented dependency exports. The AST value
 evaluator is retired; both FJS EDAG VMs and compiler initialization use this

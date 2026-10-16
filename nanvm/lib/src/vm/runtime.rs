@@ -58,14 +58,6 @@ fn entries_code<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>> {
         .entries()
 }
 
-/// The text of `Object.entries`, `String(f)`: what ECMA-262 requires of a
-/// built-in function, NativeFunction syntax naming its [[InitialName]],
-/// with no parameters, as most engines print it. The represented
-/// interpreter spells the same text, `entriesText` in
-/// `fjs/edag/value/entries`; `nanvm/harness/fixtures/object-entries.mjs`
-/// checks the two agree.
-pub const ENTRIES_TEXT: &str = "function entries() { [native code] }";
-
 /// `Object.entries`, the one static function no body can define,
 /// enumerating keys being what the language has no other way to do
 /// ([`Any::entries`]): a built-in written here, where every other static
@@ -78,7 +70,6 @@ pub fn object_entries<A: IVm>() -> &'static RuntimeFunction<A> {
         name: "Object.entries",
         code: entries_code::<A>,
         length: 1,
-        text: ENTRIES_TEXT,
     }
 }
 
@@ -101,8 +92,7 @@ pub(crate) fn type_name<A: IVm>(receiver: &Any<A>) -> Option<&'static str> {
 #[cfg(test)]
 mod tests {
     use super::{
-        ENTRIES_TEXT, RuntimeCode, compiled::object_is, object_entries, runtime_method,
-        runtime_static, type_name,
+        RuntimeCode, compiled::object_is, object_entries, runtime_method, runtime_static, type_name,
     };
     use crate::{
         naive::Naive,
@@ -150,11 +140,16 @@ mod tests {
     /// A static body is found by its name, and is the one its accessor
     /// answers; a name the section lacks, a namespace that is no function
     /// and a name past a function are not. The body found is the compiled
-    /// `Object.is`, SameValue.
+    /// `Object.is`, SameValue, whose text is the NativeFunction text of its
+    /// name, never its body's.
     #[test]
     fn static_lookup() {
         let is: Any<A> = Function::from(runtime_static::<A>("Object.is").unwrap()).to_any();
         assert_eq!(is, Function::from(object_is::<A>()).to_any());
+        assert_eq!(
+            is.clone().to_string(),
+            Ok("function is() { [native code] }".into())
+        );
         let call = |a: Any<A>, b: Any<A>| is.clone().call([a, b].to_array().to_any());
         assert_eq!(call((-0.0).to_any(), 0.0.to_any()), Ok(false.to_any()));
         assert_eq!(
@@ -186,7 +181,8 @@ mod tests {
 
     /// `Object.entries` is written here, not generated, and listed in the
     /// compiled table beside the bodies: every read answers one function by
-    /// name, of `length` `1` and its text, whose call lists the entries.
+    /// name, of `length` `1` and the text of its name, whose call lists the
+    /// entries.
     #[test]
     fn built_in_entries() {
         let entries: Any<A> = Function::from(object_entries::<A>()).to_any();
@@ -200,7 +196,10 @@ mod tests {
             Any::dot(entries.clone(), "length".into()).end(),
             Ok(1.0.to_any())
         );
-        assert_eq!(entries.clone().to_string(), Ok(ENTRIES_TEXT.into()));
+        assert_eq!(
+            entries.clone().to_string(),
+            Ok("function entries() { [native code] }".into())
+        );
         let pairs = entries
             .clone()
             .call(["ab".into()].to_array().to_any())

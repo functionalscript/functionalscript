@@ -215,10 +215,13 @@ another body, through a member call or by reading it as a value — `is`
 reads `isNaN_` — and both resolve to static functions. `gen.runtime.rs`
 is included into the crate by `#[path]`, which is why it says
 `use nanvm_lib::…` and the crate declares `extern crate self as nanvm_lib`.
-A built-in's text, `String(f)`, is the compiler's rendering of its body,
-as the interpreter answers it; the NativeFunction text ECMA-262 requires
-is [`../todo/runtime-static.md`](../todo/runtime-static.md)'s open task
-for both executors, and one line in the printer when it is taken.
+A built-in's text, `String(f)`, is the NativeFunction text ECMA-262
+requires of one, `function is() { [native code] }`, never its body's: a
+runtime function is the built-in, not its body. NaNVM forms it from the
+descriptor's name, `Function::text`, so no descriptor carries a text, and
+the represented interpreter from the static node, `staticText` in
+`fjs/edag`; `nanvm/harness/fixtures/object-is.mjs` and
+`number-predicates.mjs` hold the two to one text.
 
 Nothing is held, so nothing is initialized and no VM binds anything: a
 VM is a value representation, and the runtime reaches it as library code

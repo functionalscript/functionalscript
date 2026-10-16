@@ -81,6 +81,9 @@ export const proof = {
         const f = ['=>', 0, [], ['Object.is']]
         const twice = memo(assertOk(analysis(['===', ['()', f, []], ['()', f, []]])))
         assertEq(assertOk(twice({ args: [], runtime })), true)
+        // the built-in, not its body: its name's text, the body's length
+        const text = memo(assertOk(analysis(['[]', [['String', ['Object.is']], ['.', ['Object.is'], 'length']]])))
+        assertStructurallySame(assertOk(toData(assertOk(text({ args: [], runtime })))), ['function is() { [native code] }', 2])
     },
     // `self` under memoization: the invoked function, the one node reused
     // across a body's shared reads, agreeing with the amnesia oracle

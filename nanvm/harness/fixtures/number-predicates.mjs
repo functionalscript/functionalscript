@@ -16,5 +16,5 @@ export default [
     values.map(v => isSafeInteger(v)),
     values.map(v => Number.isNaN(v)),
     values.map(v => Number?.isFinite(v)),
-    [isInteger === Number.isInteger, read() === read(), typeof Number.isNaN, Number.isInteger.length],
+    [isInteger === Number.isInteger, read() === read(), typeof Number.isNaN, Number.isInteger.length, String(Number.isNaN), String(isSafeInteger), String(read())],
 ];

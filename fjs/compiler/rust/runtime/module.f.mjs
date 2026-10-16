@@ -9,8 +9,8 @@
  * items. Every module-level function is a static `fn` of its arguments
  * alone. A static built-in, `Object.is`, and a helper a body reads as a
  * value get an accessor answering a descriptor, a
- * `&'static RuntimeFunction<A>` holding the built-in's name, code, length
- * and text, since a read of one is a `Function`; a member built-in,
+ * `&'static RuntimeFunction<A>` holding the built-in's name, code and
+ * length, since a read of one is a `Function`; a member built-in,
  * `String.prototype.startsWith`, is the `fn` alone, the receiver its first
  * argument, since the language never reads a member as a value and a call
  * step calls the code. A frame slot is resolved here, to a function's
@@ -43,11 +43,10 @@
  * @import { _BuiltIn, _Item, _Resolved } from './private.ts'
  */
 
-import { error, mapOk, ok, okList, okThen, unwrap } from '../../../types/result/module.f.js'
+import { error, mapOk, ok, okList, okThen } from '../../../types/result/module.f.js'
 import { atomExpr, holdsFunction, readsArgs, readsRest, restLine, statementsWith, useLinesTagged } from '../../../edag/rust/module.f.mjs'
 import { operandsOf, visit } from '../../../edag/sharing/module.f.mjs'
-import { tryFunctionText } from '../../serializer/module.f.mjs'
-import { builtInIdentifier, stringLiteral } from '../../../media/rust/module.f.mjs'
+import { builtInIdentifier } from '../../../media/rust/module.f.mjs'
 import { generatedHeader, indent } from '../../../media/rust/item/module.f.js'
 import { tagged, untagged } from '../../../text/marked/module.f.mjs'
 import { isNative, natives } from '../../../js/static/module.f.js'
@@ -272,35 +271,26 @@ const itemLines = all => ({ node, name, ident, kind }) => {
         ]
         /** @type {readonly Use[]} */
         const codeUses = [...uses, ...rest.flatMap(([, u]) => u), ['vm', 'Array']]
-        return kind === 'member'
-            ? ok(/** @type {Printed<readonly string[]>} */ ([code, codeUses]))
-            : mapOk((/** @type {readonly string[]} */ accessor) =>
-                /** @type {Printed<readonly string[]>} */ ([[...code, '', ...accessor], [...codeUses, ['vm', 'RuntimeFunction']]]))(
-                accessorLines(node, name, ident, kind === 'static'))
+        return ok(/** @type {Printed<readonly string[]>} */ (kind === 'member'
+            ? [code, codeUses]
+            : [[...code, '', ...accessorLines(name, ident, length, kind === 'static')], [...codeUses, ['vm', 'RuntimeFunction']]]))
     })(statementsWith(frame, () => itemReference(node))(body))
 }
 
 /**
  * The accessor of an item a body may read as a value, a static or a
  * helper: `fn` answering the descriptor as a promoted constant, `pub` for
- * a static, since compiled code reads it. Refused: a body the text writer
- * has no spelling for, since a built-in carries its text.
+ * a static, since compiled code reads it. A built-in's text is formed
+ * from its name where it is read, so the descriptor carries none.
  *
- * @type {(node: readonly unknown[], name: string, ident: string, exported: boolean) => Result<readonly string[], readonly unknown[]>}
+ * @type {(name: string, ident: string, length: number, exported: boolean) => readonly string[]}
  */
-const accessorLines = (node, name, ident, exported) => {
-    const text = tryFunctionText(/** @type {Exp} */ (node))
-    if (text[0] === 'error') { return error(['no text for a built-in', name, text[1]]) }
-    // always a `&str`: the writer escapes a lone surrogate, as `textExpr`
-    // in `fjs/edag/rust` relies on too
-    const literal = unwrap(stringLiteral(text[1]))
-    return ok([
-        '#[rustfmt::skip]',
-        `${exported ? `${kw('pub')} ` : ''}${kw('fn')} ${ident}<A: ${bound}>() -> &'static RuntimeFunction<A> {`,
-        `${indent}&RuntimeFunction { name: ${lit(stringText(name))}, code: ${ident}_code::<A>, length: ${lit(`${node[1]}`)}, text: ${lit(literal)} }`,
-        '}',
-    ])
-}
+const accessorLines = (name, ident, length, exported) => [
+    '#[rustfmt::skip]',
+    `${exported ? `${kw('pub')} ` : ''}${kw('fn')} ${ident}<A: ${bound}>() -> &'static RuntimeFunction<A> {`,
+    `${indent}&RuntimeFunction { name: ${lit(stringText(name))}, code: ${ident}_code::<A>, length: ${lit(`${length}`)} }`,
+    '}',
+]
 
 /**
  * A name as a Rust string literal: identifiers and dots, which the literal

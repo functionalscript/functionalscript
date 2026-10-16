@@ -1,7 +1,9 @@
 /**
  * Property lookup over evaluated EDAG values. Objects expose their stored
  * fields, arrays their elements and length, strings their UTF-16 code units
- * and length, and functions their declared length. Missing properties are
+ * and length, and functions their declared length — a static function's
+ * the length of the body the runtime holds at its path, which is why a
+ * read takes the runtime. Missing properties are
  * tagged undefined; nullish receivers fail with tagged undefined. Stored
  * values and receiver failures retain their identities.
  *
@@ -15,13 +17,15 @@
  * compiler/admission contract and are not revalidated.
  *
  * @module
- * @import { EdagValue, Values, Object as ValueObject, Property } from '../types.ts'
+ * @import { EdagValue, Values, Object as ValueObject, Property, Runtime, Function as ValueFunction, Static } from '../types.ts'
  * @import { ValueResult } from '../control/types.ts'
  */
 
 import { arrayIndex } from '../../../js/array_index/module.f.js'
 import { isArray } from '../../../types/array/module.f.mjs'
 import { ok, error } from '../../../types/result/module.f.js'
+import { isStatic, noStatic, staticPath } from '../../module.f.mjs'
+import { isFunction } from '../semantics/module.f.mjs'
 
 /**
  * Find a stored object property, retaining its tuple identity. An absent
@@ -46,21 +50,51 @@ const field = (value, key) => {
     return ok(property === undefined ? ['undefined'] : property[2])
 }
 
-/** Read a resolved property, preserving a failed receiver unchanged. @type {(receiver: ValueResult, key: string) => ValueResult} */
-export const read = (receiver, key) => {
+/**
+ * The function value at a path of keys into an object, or `undefined`
+ * where a key is missing, a step is no object, or the end is no function:
+ * how an executor reads its runtime, `['member', type, key]` for a member
+ * function's body and `['static', 'Object', 'is']` for `Object.is`'s.
+ *
+ * @type {(object: EdagValue | undefined, path: readonly string[]) => ValueFunction | undefined}
+ */
+export const functionAt = (object, path) => {
+    if (object === undefined) { return undefined }
+    if (path.length === 0) { return isFunction(object) ? /** @type {ValueFunction} */ (object) : undefined }
+    if (!isArray(object) || object[0] !== '{}') { return undefined }
+    const entry = findProperty(/** @type {Runtime} */ (object), path[0])
+    return entry === undefined ? undefined : functionAt(entry[2], path.slice(1))
+}
+
+/**
+ * The `length` of a static function, a property every function owns: the
+ * length of the body the runtime's `static` section holds at its path,
+ * `2` for `Object.is`; `1` for `Object.entries`, which no body defines
+ * and every executor answers natively; and, with no runtime or none at
+ * the path, the failure naming the static, as its call would fail.
+ *
+ * @type {(fn: Static, runtime: Runtime | undefined) => ValueResult}
+ */
+const staticLength = (fn, runtime) => {
+    if (fn[0] === 'Object.entries') { return ok(1) }
+    const body = functionAt(runtime, ['static', ...staticPath(fn[0])])
+    return body === undefined ? error(noStatic(fn[0])) : ok(/** @type {readonly any[]} */ (body)[1])
+}
+
+/** Read a resolved property, preserving a failed receiver unchanged; the runtime, where the reader has one, answers a static function's `length`. @type {(receiver: ValueResult, key: string, runtime?: Runtime) => ValueResult} */
+export const read = (receiver, key, runtime) => {
     const [kind, value] = receiver
     if (kind === 'error') { return receiver }
     if (value === null) { return error(['undefined']) }
     if (typeof value === 'string') { return indexed(value, key) }
     if (!isArray(value)) { return ok(['undefined']) }
+    if (isStatic(value)) { return key === 'length' ? staticLength(value, runtime) : ok(['undefined']) }
     switch (value[0]) {
         case '[]': { return indexed(value[1], key) }
         case '{}': { return field(value, key) }
         case '=>': { return ok(key === 'length' ? value[1] : ['undefined']) }
-        // the `entry` helper owns the `length` every function does, `2`,
-        // and `Object.entries` its `1`
+        // the `entry` helper owns the `length` every function does, `2`
         case 'entry': { return ok(key === 'length' ? 2 : ['undefined']) }
-        case 'Object.entries': { return ok(key === 'length' ? 1 : ['undefined']) }
         default: { return error(['undefined']) }
     }
 }
@@ -80,11 +114,11 @@ export const read = (receiver, key) => {
 export const entry = (receiver, key) => {
     if (receiver === null) { return error(['undefined']) }
     if (typeof receiver === 'string') { return element(receiver, key) }
-    if (!isArray(receiver)) { return ok(['undefined']) }
+    if (!isArray(receiver) || isStatic(receiver)) { return ok(['undefined']) }
     switch (receiver[0]) {
         case '[]': { return element(receiver[1], key) }
         case '{}': { return field(receiver, key) }
-        case '=>': case 'entry': case 'Object.entries': { return ok(['undefined']) }
+        case '=>': case 'entry': { return ok(['undefined']) }
         default: { return error(['undefined']) }
     }
 }

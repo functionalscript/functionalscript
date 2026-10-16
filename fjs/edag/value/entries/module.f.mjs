@@ -1,12 +1,14 @@
 /**
- * `Object.entries` over evaluated EDAG values: the static function as a
- * value, its text, and its call. No body in the runtime can define it —
- * enumerating keys is exactly what the language has no other way to do —
- * so every executor answers it natively, the represented ones from here
+ * `Object.entries` over evaluated EDAG values: the one static function's
+ * call no body in the runtime can define — enumerating keys is exactly
+ * what the language has no other way to do — so every executor answers it
+ * natively, the represented ones from here
  * ([`spec/todo/2360-built-in.md`](../../../../spec/todo/2360-built-in.md#objectentries-proposal-and-approval)).
+ * As a value it is a static function like every other, the node
+ * `['Object.entries']`, with its name's text.
  *
  * @module
- * @import { EdagValue, NativeStatic } from '../types.ts'
+ * @import { EdagValue } from '../types.ts'
  * @import { ValueResult } from '../control/types.ts'
  */
 
@@ -14,22 +16,6 @@ import { isArray } from '../../../types/array/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.js'
 
 const { entries } = Object
-
-/**
- * `Object.entries` as a value: one array, so every read is one function,
- * `Object.entries === Object.entries`, as JavaScript has it — where the
- * `entry` helper, a written arrow, is fresh wherever it stands.
- */
-export const objectEntries = /** @type {NativeStatic} */ (['Object.entries'])
-
-/**
- * `String(Object.entries)`, since no EDAG holds a body to render: the text
- * ECMA-262 requires of a built-in function
- * ([`Function.prototype.toString`](https://tc39.es/ecma262/#sec-function.prototype.tostring)),
- * NativeFunction syntax naming its [[InitialName]], with no parameters, as
- * most engines print it, and as NaNVM's `object_entries` answers.
- */
-export const entriesText = 'function entries() { [native code] }'
 
 /** Each `[key, value]` pair as a fresh array, in a fresh array. @type {(pairs: readonly (readonly [string, EdagValue])[]) => EdagValue} */
 const pairsOf = pairs => ['[]', pairs.map(([key, value]) => ['[]', [key, value]])]
