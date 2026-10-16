@@ -880,6 +880,20 @@ export const proof = {
             assert(page.includes('<div data-demo="/a/demo.f.mjs"></div>'), page)
             assert(output.includes('skipped prerendering a/demo.f.mjs: broken'), output)
         },
+        /**
+         * **A view holding a `script` is not written into the page.** The
+         * runtime's builders refuse one because it would run, and a page
+         * would run it too.
+         */
+        scriptKeepsAnEmptyRoot: () => {
+            const { root, output } = generateWith(
+                { a: { 'demo.f.mjs': file('export const demo = {}') } },
+                { 'a/demo.f.mjs': { init: null, view: () => ['div', ['script', 'alert(1)']] } })
+            const page = pageAt(root, ['a'])
+            assert(page.includes('<div data-demo="/a/demo.f.mjs"></div>'), page)
+            assert(!page.includes('alert(1)'), page)
+            assert(output.includes('skipped prerendering a/demo.f.mjs: media/html: a `script` element is refused'), output)
+        },
         // A directory with no demo module has no demo section, like every
         // other empty section.
         omittedWithoutOne: () => {

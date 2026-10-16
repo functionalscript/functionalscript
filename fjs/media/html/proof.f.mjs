@@ -2,11 +2,20 @@
  * @import { Element } from './types.ts'
  */
 
-import { htmlToString, htmlUtf8, isRawText, isVoidTag, parseElement, rawTextContent } from "./module.f.mjs"
+import { holdsScript, htmlToString, htmlUtf8, isRawText, isVoidTag, parseElement, rawTextContent } from "./module.f.mjs"
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { utf8ToString } from '../../text/utf8/module.f.mjs'
 
 export const proof = {
+    // A `script` anywhere a page would build it is found; one under a void or
+    // raw-text element is dropped by every builder, so it is not.
+    holdsScript: {
+        itself: () => assertEq(holdsScript(['script', 'x']), true),
+        nested: () => assertEq(holdsScript(['div', { id: 'a' }, 'text', ['p', ['script']]]), true),
+        none: () => assertEq(holdsScript(['div', 'text', ['p', 'x']]), false),
+        underVoid: () => assertEq(holdsScript(/** @type {Element} */ (['br', ['script']])), false),
+        underRawText: () => assertEq(holdsScript(['style', ['script']]), false),
+    },
     // A document names its language on the root element, which is the only
     // place WCAG 3.1.1 looks for it.
     document: () => assertEq(

@@ -138,6 +138,10 @@ const dom = path => {
         let off = false
         /** @type {string | null} */
         let dirty = null
+        /** @type {boolean | null} */
+        let checked = null
+        /** @type {boolean | null} */
+        let selected = null
         /** @type {any} */
         const self = {
             nodeType: 1,
@@ -202,7 +206,13 @@ const dom = path => {
             // A field shows its markup's default until the reader types, as
             // a browser's does — so a patch has something to leave alone.
             get defaultValue() { return self.attributes.get('value') ?? '' },
-            get value() { return dirty ?? self.defaultValue },
+            // A select's value is its selected option's, the first one when
+            // none is, as a browser answers it.
+            get value() {
+                if (self.localName !== 'select') { return dirty ?? self.defaultValue }
+                const option = self.options.find((/** @type {any} */ o) => o.selected) ?? self.options[0]
+                return option?.getAttribute('value') ?? ''
+            },
             set value(/** @type {string} */ value) { dirty = value; changed(self) },
             // The reader's keystroke: what the field shows changes, and, when
             // the proof says, the caret is where the edit ended; that is not a
@@ -214,6 +224,15 @@ const dom = path => {
                     self.selectionEnd = caret
                 }
             },
+            // A checkable control and an option show their markup's default
+            // until the reader picks, as a browser's do.
+            get defaultChecked() { return self.attributes.has('checked') },
+            get checked() { return checked ?? self.defaultChecked },
+            set checked(/** @type {boolean} */ value) { checked = value },
+            get defaultSelected() { return self.attributes.has('selected') },
+            get selected() { return selected ?? self.defaultSelected },
+            set selected(/** @type {boolean} */ value) { selected = value },
+            get options() { return self.childNodes.filter((/** @type {any} */ c) => c.localName === 'option') },
             selectionStart: 0,
             selectionEnd: 0,
             style: { width: '', height: '' },
@@ -456,6 +475,26 @@ export const demo = {
 `)
 
 /**
+ * A demo over `controls` that shows the last input it heard as
+ * `name=value`, and its section with that view already built into it, as the
+ * build writes it.
+ *
+ * @type {(controls: readonly any[]) => { readonly d: ReturnType<typeof dom>, readonly fields: () => readonly any[] }}
+ */
+const prerendered = controls => {
+    const d = dom(moduleUrl(`
+const controls = ${JSON.stringify(controls)}
+export const demo = {
+    init: '',
+    update: state => event => () => ['ok', event.kind === 'input' ? event.name + '=' + event.value : state],
+    view: state => ['div', ...controls, ['pre', state]],
+}
+`))
+    d.root.replaceChildren(toDom(d.root.ownerDocument, ['div', ...controls, ['pre', '']]))
+    return { d, fields: () => d.root.querySelectorAll('[name]') }
+}
+
+/**
  * Lets a queued update settle.
  *
  * Two turns, not one: the runtime yields to the event loop after raising its
@@ -692,6 +731,43 @@ export const demo = {
         assertEq(d.named('text'), field)
         assertEq(field.value, 'typed early')
         assert(d.root.innerHTML.includes('<pre>typed early</pre>'), d.root.innerHTML)
+    },
+    /**
+     * **A radio counts once it is the one checked**, not the one the reader
+     * unchecked: fields are taken in document order, so a choice written
+     * before the default would otherwise be followed by the default's value,
+     * and the demo would end on the old choice.
+     */
+    takesOverARadioBeforeTheDefault: async () => {
+        const { d, fields } = prerendered([
+            ['input', { type: 'radio', name: 'r', value: 'a' }],
+            ['input', { type: 'radio', name: 'r', value: 'b', checked: '' }]])
+        const [a, b] = fields()
+        a.checked = true
+        b.checked = false
+        await startDemo(d.root)
+        await settle()
+        assert(d.root.innerHTML.includes('<pre>r=a</pre>'), d.root.innerHTML)
+    },
+    // A select the reader changed is heard with its selected option's value.
+    takesOverASelect: async () => {
+        const { d } = prerendered([['select', { name: 's' },
+            ['option', { value: 'x', selected: '' }, 'x'],
+            ['option', { value: 'y' }, 'y']]])
+        const [x, y] = d.named('s').options
+        x.selected = false
+        y.selected = true
+        await startDemo(d.root)
+        await settle()
+        assert(d.root.innerHTML.includes('<pre>s=y</pre>'), d.root.innerHTML)
+    },
+    // A file input's value is the reader's pick, never a demo's input.
+    takesOverWithoutAFile: async () => {
+        const { d } = prerendered([['input', { type: 'file', name: 'f' }]])
+        d.named('f').type('C:\\fakepath\\a.txt')
+        await startDemo(d.root)
+        await settle()
+        assert(d.root.innerHTML.includes('<pre></pre>'), d.root.innerHTML)
     },
     // A field the reader left alone is not an event, and nor is a button.
     takesOverWithoutEdits: async () => {

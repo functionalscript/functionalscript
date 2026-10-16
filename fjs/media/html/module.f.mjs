@@ -123,6 +123,31 @@ export const isVoidTag = includes(voidTagList)
 export const isRawText = includes(rawText)
 
 /**
+ * Why a `script` element is refused wherever a tree is built into a page: a
+ * browser runs it. `module.mjs` throws it from the DOM builders, and a caller
+ * serializing a tree it did not write says it in its own refusal.
+ */
+export const scriptRefusal = 'media/html: a `script` element is refused: built into a page, it would run'
+
+/**
+ * Whether `e` holds a `script` element, itself included: what a caller
+ * serializing a tree it did not write refuses, as the DOM builders in
+ * `module.mjs` refuse it.
+ *
+ * **The children it looks under are the ones that are built.** A void
+ * element's children and a raw-text one's elements are dropped, by the
+ * serializer and the DOM builders alike, so a `script` there is never in the
+ * page and is not counted.
+ *
+ * @type {(e: Element) => boolean}
+ */
+export const holdsScript = e => {
+    const [tag, , children] = parseElement(e)
+    return tag === 'script' || (!isVoidTag(tag) && !isRawText(tag)
+        && children.some(child => typeof child !== 'string' && holdsScript(child)))
+}
+
+/**
  * Converts a FunctionalScript element into a list of HTML string chunks.
  *
  * Chunks are returned instead of a single string to support composition with

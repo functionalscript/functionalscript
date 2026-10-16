@@ -495,10 +495,10 @@ typed while the modules loaded. What the reader changed is handed to the demo
 as input events after `start`, as if typed then. Marking the section `inert`
 until then was the other way to keep that input, and it hid the view from
 screen readers, selection and find-in-page for as long as it lasted, and for
-good without JavaScript. A demo the
-build cannot render (one that will not import, or whose `view` throws) is
-named on the build's console, and its page keeps an empty section for the
-runtime to fill. A page is written as a string, chunked as it is encoded,
+good without JavaScript. A demo the build cannot render is named on the
+build's console, and its page keeps an empty section for the runtime to fill:
+one that will not import, whose `view` throws, or whose view holds a
+`script`, which the runtime's builders refuse because it would run. A page is written as a string, chunked as it is encoded,
 because a demo's first view can be larger than one `Vec`: the module
 grammar's railroad diagram is about 250 KiB.
 
