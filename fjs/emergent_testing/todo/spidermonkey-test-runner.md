@@ -196,16 +196,19 @@ it.**
    program's exit code. Other `fjs` commands answer `NotImplemented` for
    operations the host lacks.
 
-   **`npm run sm-test` runs it,** a `package.json` script for
-   `js --module <host> -- t`. It works as `npm start test` does. npm runs the
-   script from the package root and passes the directory it was invoked from
-   as `INIT_CWD`; the host passes that on to `fjs t`, so
-   `cd fjs/types && npm run sm-test` tests that subtree. `INIT_CWD` is an
-   absolute path, so every path discovery hands `import` is absolute too, and
-   the host never needs the working directory the shell cannot read. `js`
-   comes from the Nix shell, so outside it the script fails with
-   `js: not found`. Only `npm test` and `npm start` work without `run`, and
-   `npm sm-test` is `Unknown command`.
+   **`npm run sm` runs it,** a `package.json` script for
+   `js --module <host> --`, the SpiderMonkey counterpart of `npm start`: npm
+   appends what follows the script name, so `npm run sm t` runs `fjs t` as
+   `npm start test` does on Node, and `npm run sm c` tries `fjs compile`,
+   which answers `NotImplemented` for the operations the host still lacks.
+   An argument starting with `-` needs `npm run sm -- …`, since npm takes it
+   for its own. npm runs the script from the package root and passes the
+   directory it was invoked from as `INIT_CWD`; the host passes that on to
+   `fjs t`, so `cd fjs/types && npm run sm t` tests that subtree. `INIT_CWD`
+   is an absolute path, so every path discovery hands `import` is absolute
+   too, and the host never needs the working directory the shell cannot
+   read. `js` comes from the Nix shell, so outside it the script fails with
+   `js: not found`. Only `npm test` and `npm start` work without `run`.
 
    The host is a boundary — shell globals, `import()`, and the `try`/`catch`
    that turns a host failure into an `IoResult` — so it is a plain `.mjs`, and
@@ -249,7 +252,7 @@ it.**
    ([AGENTS.md §7](../../../AGENTS.md#7-continuous-integration)): assert the
    pinned version with `js --version` against a pin in
    `../../ci/config/module.f.js`, as `bunSteps` asserts Bun's, then
-   `npm run sm-test`, the same command a developer runs. The version check
+   `npm run sm t`, the same command a developer runs. The version check
    joins the job's other version
    checks, which come before any other command (`nixVersionChecks` in
    `../../ci/proof.f.mjs`). `fjs t` writes nothing to the tree, so the step
@@ -277,15 +280,15 @@ it.**
 - [ ] Add the engine to `NodeProgramOptions`, set by every host, and have
       `fjs t` load only authored modules when the engine is not Node, Deno, or
       Bun.
-- [ ] Add the host and the `sm-test` script, and run `npm run sm-test` on the
+- [ ] Add the host and the `sm` script, and run `npm run sm t` on the
       whole tree with no hidden modules, and from a subdirectory. Check in the
       shell that a failing proof exits `1`, and that a module that fails to
       import fails the run.
 - [ ] Add `spidermonkey_140` to `devNixJob` and its version pin to
       `../../ci/config/module.f.js`, then add the version check and
-      `npm run sm-test` steps to the `ubuntu-arm` platform job. Run
+      `npm run sm t` steps to the `ubuntu-arm` platform job. Run
       `npm run gen` and commit the regenerated workflow. Add the
-      `npm run sm-test` row to the runtime table in
+      `npm run sm t` row to the runtime table in
       [CONTRIBUTING.md](../../../CONTRIBUTING.md).
 - [ ] Document every engine divergence the run finds next to the code it
       constrains, starting with the two in [Findings](#findings).
