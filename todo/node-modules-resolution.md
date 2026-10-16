@@ -34,8 +34,8 @@ Every FJS host follows one convention, written once. The package lookup is
 FunctionalScript, shared the way [`fjs/path/import`](../fjs/path/import/module.f.mjs)'s
 specifier rules are, and composed over the file effects the hosts already have.
 No host implements package logic, and `resolveFileModule` stays a file-path
-effect. Native runs the shared resolver compiled into Rust, never a handwritten
-copy.
+effect. Native's resolver is generated from that FJS source, never a
+handwritten copy.
 
 #### Stage 1: refuse
 
@@ -84,16 +84,32 @@ Refuse the specifiers Node answers with something other than that lookup:
 - **Package root.** A specifier with no subpath (`functionalscript`), which Node
   resolves through `main`.
 
-#### Stage 3: native
+#### Stage 3: generate the native resolver
 
-Native gets stage 2 by running the shared resolver compiled into Rust, and
-proves it against Node on the same fixtures.
+`npm run gen` compiles the shared resolver through the compiler's Rust output
+into a `gen.*` module beside `resolve.rs`, as the harness fixtures are compiled
+now. It is a unit of its own and does not wait for the whole
+[loader's native prerequisites](../fjs/compiler/todo/load-modules-without-import-effect.md#native-prerequisites).
+What it generates is the shared logic: the specifier rules `decode_specifier`
+copies by hand today, stage 1's refusal and the package lookup. The
+`resolveFileModule` effect stays handwritten Rust, because the URL-to-path
+conversion and the real path are the host's.
+
+The compiler does not accept that source yet. At `3e1d1a09` it refuses
+`fjs/path/import` first at the `'\0'` in `importSegment` (strings take JSON's
+escapes, so `'\u0000'`), then at the `switch` in `importSegmentKind`
+(`st.switch` is a refused construct), then at `resolve` naming `decode` before
+its declaration. With those three fixed, it refuses `next` in `fjs/types/list`,
+reached through the resolver's dependency closure, whose `let` and `while` the
+language does not admit yet. Until the source compiles, native keeps the
+handwritten resolver with stage 1's refusal, so it refuses packages rather than
+resolving them differently.
 
 ### Questions
 
-- Whether native compiles the shared resolver on its own, ahead of the
-  [loader's native prerequisites](../fjs/compiler/todo/load-modules-without-import-effect.md#native-prerequisites),
-  or with the whole loader.
+- Whether the resolver's closure avoids `fjs/types/list`, using only constructs
+  the compiler accepts, or the generation waits for the compiler to cover `let`
+  and loops.
 
 ### Tasks
 
@@ -121,7 +137,10 @@ Stage 2:
 
 Stage 3:
 
-- [ ] Run the shared resolver natively, compiled into Rust, and compare the
+- [ ] Bring the shared resolver's dependency closure within what the compiler's
+      Rust output accepts, starting with the refusals above.
+- [ ] Generate the native resolver from it with `npm run gen`, replacing
+      `decode_specifier` and stage 1's handwritten check, and compare the
       stage 2 fixtures with the Node runner.
 
 ### Related
