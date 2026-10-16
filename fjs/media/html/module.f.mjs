@@ -129,28 +129,63 @@ export const isRawText = includes(rawText)
  */
 export const scriptRefusal = 'media/html: a `script` element is refused: built into a page, it would run'
 
+/** @type {(c: number) => boolean} */
+const isAsciiLetter = c => (c >= 0x41 && c <= 0x5a) || (c >= 0x61 && c <= 0x7a)
+
+/** @type {(c: number) => boolean} */
+const tagUnit = c => isAsciiLetter(c) || (c >= 0x30 && c <= 0x39) || c === 0x2d
+
+/** @type {(c: number) => boolean} */
+const attributeUnit = c => tagUnit(c) || c === 0x5f || c === 0x2e || c === 0x3a
+
 /**
- * Whether `e` holds a `script` element, itself included: what a caller
- * serializing a tree it did not write refuses, as the DOM builders in
- * `module.mjs` refuse it.
+ * Whether `name` is an ASCII letter followed by code units `rest` accepts.
  *
- * **A `script` is found in any case.** A browser reads a tag name ignoring
+ * @type {(rest: (c: number) => boolean) => (name: string) => boolean}
+ */
+const plainName = rest => name => name.length > 0 && isAsciiLetter(name.charCodeAt(0))
+    && name.split('').every((_, i) => i === 0 || rest(name.charCodeAt(i)))
+
+/**
+ * Why `e` cannot be written into a page, or `null` when it can: the refusal a
+ * caller serializing a tree it did not write makes, as the DOM builders in
+ * `module.mjs` make theirs.
+ *
+ * **The page must read the tree the serializer was given.** The serializer
+ * writes a tag or an attribute name as it is, and a parser reading the page
+ * ends a name at whitespace, `/`, `>` or `=`. `['script ', …]` is written as
+ * `<script >`, a script, and an attribute name holding `><script>` writes a
+ * script element of its own. The DOM builders refuse such names, because the
+ * DOM throws on them. So a name here is plain: a tag is an ASCII letter, then
+ * letters, digits and `-`; an attribute name may also hold `_`, `.` and `:`,
+ * which `xlink:href` needs. The parser reads such a name as it is written.
+ *
+ * **A `script` is refused in any case.** A browser reads a tag name ignoring
  * ASCII case, so `<SCRIPT>` written into a page runs as surely as `<script>`,
  * inside an `svg` too.
  *
- * **The children it looks under are the ones that are built.** A void
+ * **The children it looks under are the ones that are written.** A void
  * element's children and a raw-text one's elements are dropped, by the
- * serializer and the DOM builders alike, so a `script` there is never in the
- * page and is not counted. Which elements those are is decided by the exact
- * tag, as the serializer decides it: a `BR` is not void to it, and its
- * children are written.
+ * serializer and the DOM builders alike, so they are never in the page. Which
+ * elements those are is decided by the exact tag, as the serializer decides
+ * it: a `BR` is not void to it, and its children are written.
  *
- * @type {(e: Element) => boolean}
+ * @type {(e: Element) => string | null}
  */
-export const holdsScript = e => {
-    const [tag, , children] = parseElement(e)
-    return tag.toLowerCase() === 'script' || (!isVoidTag(tag) && !isRawText(tag)
-        && children.some(child => typeof child !== 'string' && holdsScript(child)))
+export const pageRefusal = e => {
+    const [tag, attributes, children] = parseElement(e)
+    if (!plainName(tagUnit)(tag)) {
+        return `media/html: the tag '${tag}' is not a plain name: a page would read other markup`
+    }
+    if (tag.toLowerCase() === 'script') { return scriptRefusal }
+    const name = definedEntries(attributes).map(([n]) => n).find(n => !plainName(attributeUnit)(n))
+    if (name !== undefined) {
+        return `media/html: the attribute '${name}' is not a plain name: a page would read other markup`
+    }
+    if (isVoidTag(tag) || isRawText(tag)) { return null }
+    return children.reduce(
+        (/** @type {string | null} */ found, child) => found ?? (typeof child === 'string' ? null : pageRefusal(child)),
+        null)
 }
 
 /**

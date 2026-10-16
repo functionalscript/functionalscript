@@ -786,6 +786,17 @@ export const demo = {
         await settle()
         assertStructurallySame(d.disabled(), [false])
     },
+    // A pointer control the build marked `aria-disabled` loses the mark the
+    // same way, which is what lets the stylesheet give it the pointer back.
+    unmarksThePrerenderedPointerActions: async () => {
+        const { d } = prerendered(
+            [['span', { 'data-demo-click': 'p' }, 'p']],
+            [['span', { 'data-demo-click': 'p', 'aria-disabled': 'true' }, 'p']])
+        assert(d.root.innerHTML.includes('aria-disabled="true"'), d.root.innerHTML)
+        await startDemo(d.root)
+        await settle()
+        assert(!d.root.innerHTML.includes('aria-disabled'), d.root.innerHTML)
+    },
     // A field the reader left alone is not an event, and nor is a button.
     takesOverWithoutEdits: async () => {
         const d = dom(echo)

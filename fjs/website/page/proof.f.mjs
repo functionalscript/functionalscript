@@ -368,6 +368,16 @@ export const proof = {
             assert(html.includes('<input type="Button" name="b" disabled="">'), html)
             assert(html.includes('<input name="t"><input type="checkbox" name="c">'), html)
         },
+        // An SVG control has no `disabled`, so it is marked `aria-disabled`.
+        marksItsSvgActions: () => {
+            const html = concat(element(['body', ...demoSection({ path: '/a/demo.f.mjs', view: ['svg',
+                ['circle', { 'data-demo-click': 'p', tabindex: '0' }],
+                ['circle', { 'data-demo-drag': 'x' }],
+                ['circle', { r: '1' }]] })]))
+            assert(html.includes('<circle data-demo-click="p" tabindex="0" aria-disabled="true"></circle>'), html)
+            assert(html.includes('<circle data-demo-drag="x" aria-disabled="true"></circle>'), html)
+            assert(html.includes('<circle r="1"></circle>'), html)
+        },
     },
     directoryLayout: {
         catalogueBesideMain: () => {

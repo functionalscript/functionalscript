@@ -493,15 +493,18 @@ and the runtime takes it over as it finds it rather than rendering it again:
 a render would put every field back to its markup, and lose what the reader
 typed while the modules loaded. What the reader changed is handed to the demo
 as input events after `start`, as if typed then. A click leaves nothing to
-read back, so the build disables every control the runtime hears a click on,
-and the first render after `start` enables them: a button that is not ready
+read back, so the build disables every control the runtime hears a click on:
+`disabled` on a button, and `aria-disabled` on an SVG control marked
+`data-demo-click` or `data-demo-drag`, which the stylesheet then keeps from
+taking a pointer. The first render after `start` enables them: a button that is not ready
 says so, rather than taking a click and dropping it. Marking the section `inert`
 until then was the other way to keep that input, and it hid the view from
 screen readers, selection and find-in-page for as long as it lasted, and for
 good without JavaScript. A demo the build cannot render is named on the
 build's console, and its page keeps an empty section for the runtime to fill:
-one that will not import, whose `view` throws, or whose view holds a
-`script`, which the runtime's builders refuse because it would run. A page is written as a string, chunked as it is encoded,
+one that will not import, whose `view` throws, or whose view a page cannot
+hold (`pageRefusal` in `media/html`): a `script`, which would run, or a tag or
+attribute name a parser would read as other markup. A page is written as a string, chunked as it is encoded,
 because a demo's first view can be larger than one `Vec`: the module
 grammar's railroad diagram is about 250 KiB.
 

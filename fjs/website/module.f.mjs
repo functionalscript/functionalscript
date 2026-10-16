@@ -64,7 +64,7 @@ import { toArray } from '../types/list/module.f.mjs'
 import { catch_, import_, log } from '../effects/common/module.f.mjs'
 import { indexPage, isVersion, releasePage, releasePath, releases } from './changelog/module.f.mjs'
 import { tryParse } from '../media/markdown/module.f.mjs'
-import { holdsScript, scriptRefusal } from '../media/html/module.f.mjs'
+import { pageRefusal } from '../media/html/module.f.mjs'
 import { stylesheet } from './style/module.f.js'
 import { changelogDir, cliDir, demoSection, directoryLayout, page, pagePath, prsDir, shell, siteName, subtree, testSection, testsMain } from './page/module.f.mjs'
 import { prsPage } from './prs/module.f.mjs'
@@ -484,8 +484,8 @@ const resolveDemos = demos => {
  * runtime imports the very same module.
  *
  * **A demo that cannot be rendered keeps its page.** One that will not import,
- * exports no `demo`, whose `view` throws, or whose view holds a `script` is said
- * on the console, and its page
+ * exports no `demo`, whose `view` throws, or whose view a page cannot hold
+ * ({@link pageRefusal}) is said on the console, and its page
  * gets an empty root, which is what every page had before demos were
  * rendered: the runtime fills it, or shows why it cannot. The build does not
  * stop for one demo, and the reason is not lost.
@@ -505,9 +505,10 @@ const prerender = path => {
         return step(catch_(() => demo.view(demo.init)), viewed => {
             if (viewed[0] === 'error') { return skip(String(viewed[1])) }
             const view = /** @type {Element} */ (viewed[1])
-            // The runtime's builders refuse a `script`, which would run; the
-            // page's serializer has no such check, so the refusal is made here.
-            return holdsScript(view) ? skip(scriptRefusal) : pureOk({ path, view })
+            // The runtime's builders refuse what a page would read otherwise,
+            // or run; the page's serializer has no such check, so it is made here.
+            const refused = pageRefusal(view)
+            return refused === null ? pureOk({ path, view }) : skip(refused)
         })
     })
 }

@@ -197,13 +197,19 @@ const summary = heading => (...rest) => ['summary', ['h2', heading], ...rest]
 
 /**
  * A demo's first view with every action control disabled: each `button`, and
- * each `input` of type `button` — the controls the runtime hears a click on.
+ * each `input` of type `button`, which the runtime hears a click on, and each
+ * element marked `data-demo-click` or `data-demo-drag`, which it hears a click
+ * or a drag on.
  *
- * **Until the runtime has loaded, a click on one goes nowhere.** A field's
- * edit can be read back when the runtime arrives; a click leaves nothing
- * behind, so it would be lost without a word. Disabled, the control says it
- * is not ready. The runtime's first render after `start` patches the
+ * **Until the runtime has loaded, an action on one goes nowhere.** A field's
+ * edit can be read back when the runtime arrives; a click or a drag leaves
+ * nothing behind, so it would be lost without a word. Disabled, the control
+ * says it is not ready. The runtime's first render after `start` patches the
  * attributes to the demo's own view, which enables them.
+ *
+ * **An SVG control has no `disabled`**, so it is marked `aria-disabled`, which
+ * says so to assistive technology, and the stylesheet stops it taking a
+ * pointer while it is.
  *
  * A tag and a type are read ignoring ASCII case, as the browser reads them.
  *
@@ -213,7 +219,9 @@ const inactive = view => {
     const [tag, attributes, children] = parseElement(view)
     const name = tag.toLowerCase()
     const action = name === 'button' || (name === 'input' && attributes.type?.toLowerCase() === 'button')
-    return [tag, action ? { ...attributes, disabled: '' } : attributes,
+    const pointed = attributes['data-demo-click'] !== undefined || attributes['data-demo-drag'] !== undefined
+    return [tag,
+        action ? { ...attributes, disabled: '' } : pointed ? { ...attributes, 'aria-disabled': 'true' } : attributes,
         ...children.map(child => typeof child === 'string' ? child : inactive(child))]
 }
 

@@ -2,24 +2,38 @@
  * @import { Element } from './types.ts'
  */
 
-import { holdsScript, htmlToString, htmlUtf8, isRawText, isVoidTag, parseElement, rawTextContent } from "./module.f.mjs"
+import { htmlToString, htmlUtf8, isRawText, isVoidTag, pageRefusal, parseElement, rawTextContent, scriptRefusal } from "./module.f.mjs"
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { utf8ToString } from '../../text/utf8/module.f.mjs'
 
 export const proof = {
-    // A `script` anywhere a page would build it is found; one under a void or
-    // raw-text element is dropped by every builder, so it is not.
-    holdsScript: {
-        itself: () => assertEq(holdsScript(['script', 'x']), true),
-        nested: () => assertEq(holdsScript(['div', { id: 'a' }, 'text', ['p', ['script']]]), true),
-        none: () => assertEq(holdsScript(['div', 'text', ['p', 'x']]), false),
+    // What a page could not read as written, or would run, is refused with
+    // its reason; anything else is not.
+    pageRefusal: {
+        plain: () => assertEq(pageRefusal(['div', { 'data-x': 'a', 'xlink:href': '#', 'aria-label': 'b' }, 'text', ['svg', ['foreignObject', ['p', 'x']]]]), null),
+        script: () => assertEq(pageRefusal(['script', 'x']), scriptRefusal),
+        nested: () => assertEq(pageRefusal(['div', { id: 'a' }, 'text', ['p', ['script']]]), scriptRefusal),
         // A browser reads a tag name in any case, in an `svg` as well.
-        anyCase: () => assertEq(holdsScript(['SCRIPT', 'x']), true),
-        anyCaseInSvg: () => assertEq(holdsScript(['svg', ['ScRiPt', 'x']]), true),
+        anyCase: () => assertEq(pageRefusal(['SCRIPT', 'x']), scriptRefusal),
+        anyCaseInSvg: () => assertEq(pageRefusal(['svg', ['ScRiPt', 'x']]), scriptRefusal),
+        // A parser ends a tag name at whitespace, `/` and `>`.
+        tagWithSpace: () => assertEq(pageRefusal(['script ', 'x']),
+            "media/html: the tag 'script ' is not a plain name: a page would read other markup"),
+        tagWithSlash: () => assertEq(pageRefusal(['div', ['script/x']]),
+            "media/html: the tag 'script/x' is not a plain name: a page would read other markup"),
+        emptyTag: () => assertEq(pageRefusal(['']),
+            "media/html: the tag '' is not a plain name: a page would read other markup"),
+        tagStartingWithDigit: () => assertEq(pageRefusal(['1a']),
+            "media/html: the tag '1a' is not a plain name: a page would read other markup"),
+        // An attribute name that would close the tag and open a script.
+        attribute: () => assertEq(pageRefusal(['div', { 'x><script>alert(1)</script': '' }]),
+            "media/html: the attribute 'x><script>alert(1)</script' is not a plain name: a page would read other markup"),
+        // An attribute left undefined is not written, so its name is not read.
+        undefinedAttribute: () => assertEq(pageRefusal(['div', { 'a b': undefined }]), null),
         // The serializer writes an uppercase `BR`'s children, so they count.
-        underUppercaseVoid: () => assertEq(holdsScript(/** @type {Element} */ (['BR', ['script']])), true),
-        underVoid: () => assertEq(holdsScript(/** @type {Element} */ (['br', ['script']])), false),
-        underRawText: () => assertEq(holdsScript(['style', ['script']]), false),
+        underUppercaseVoid: () => assertEq(pageRefusal(/** @type {Element} */ (['BR', ['script']])), scriptRefusal),
+        underVoid: () => assertEq(pageRefusal(/** @type {Element} */ (['br', ['script']])), null),
+        underRawText: () => assertEq(pageRefusal(['style', ['script']]), null),
     },
     // A document names its language on the root element, which is the only
     // place WCAG 3.1.1 looks for it.
