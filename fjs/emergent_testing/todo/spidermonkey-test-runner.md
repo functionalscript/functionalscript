@@ -193,8 +193,19 @@ it.**
    `asyncPartialRun(nodeCommands)`. It has `commonOperationMap` and the four
    handlers in [Findings](#findings), and nothing else until a command needs
    it. It builds the program options from the shell and `quit`s with the
-   program's exit code. It runs as `js --module <host> -- t`, and other
-   commands answer `NotImplemented` for operations the host lacks.
+   program's exit code. Other `fjs` commands answer `NotImplemented` for
+   operations the host lacks.
+
+   **`npm run sm-test` runs it,** a `package.json` script for
+   `js --module <host> -- t`. It works as `npm start test` does. npm runs the
+   script from the package root and passes the directory it was invoked from
+   as `INIT_CWD`; the host passes that on to `fjs t`, so
+   `cd fjs/types && npm run sm-test` tests that subtree. `INIT_CWD` is an
+   absolute path, so every path discovery hands `import` is absolute too, and
+   the host never needs the working directory the shell cannot read. `js`
+   comes from the Nix shell, so outside it the script fails with
+   `js: not found`. Only `npm test` and `npm start` work without `run`, and
+   `npm sm-test` is `Unknown command`.
 
    The host is a boundary — shell globals, `import()`, and the `try`/`catch`
    that turns a host failure into an `IoResult` — so it is a plain `.mjs`, and
@@ -237,8 +248,13 @@ it.**
    The steps are the ones every Nix job has, one command each
    ([AGENTS.md §7](../../../AGENTS.md#7-continuous-integration)): assert the
    pinned version with `js --version` against a pin in
-   `../../ci/config/module.f.js`, as `bunSteps` asserts Bun's, then run
-   `fjs t` through the host. The version check joins the job's other version
+   `../../ci/config/module.f.js`, as `bunSteps` asserts Bun's, then
+   `npm run sm-test`, the same command a developer runs. `fjs ci` writes that
+   step for every project it serves, and the script lives in each project's
+   own `package.json`, as `deno task cov` in the `deno` job relies on the
+   project's `deno.json`; what other projects should run is
+   [ci-generator-audience](../../ci/todo/ci-generator-audience.md)'s
+   question. The version check joins the job's other version
    checks, which come before any other command (`nixVersionChecks` in
    `../../ci/proof.f.mjs`). `fjs t` writes nothing to the tree, so the step
    order six-ci-jobs sets for steps that write does not constrain it.
@@ -265,14 +281,16 @@ it.**
 - [ ] Add the engine to `NodeProgramOptions`, set by every host, and have
       `fjs t` load only authored modules when the engine is not Node, Deno, or
       Bun.
-- [ ] Add the host, and run `fjs t` on the whole tree through it with no
-      hidden modules. Check in the shell that a failing proof exits `1`, and
-      that a module that fails to import fails the run.
+- [ ] Add the host and the `sm-test` script, and run `npm run sm-test` on the
+      whole tree with no hidden modules, and from a subdirectory. Check in the
+      shell that a failing proof exits `1`, and that a module that fails to
+      import fails the run.
 - [ ] Add `spidermonkey_140` to `devNixJob` and its version pin to
-      `../../ci/config/module.f.js`, then add the version and `fjs t` steps to
-      the `ubuntu-arm` platform job.
-      Run `npm run gen` and commit the regenerated workflow. Add the row to
-      the runtime table in [CONTRIBUTING.md](../../../CONTRIBUTING.md).
+      `../../ci/config/module.f.js`, then add the version check and
+      `npm run sm-test` steps to the `ubuntu-arm` platform job. Run
+      `npm run gen` and commit the regenerated workflow. Add the
+      `npm run sm-test` row to the runtime table in
+      [CONTRIBUTING.md](../../../CONTRIBUTING.md).
 - [ ] Document every engine divergence the run finds next to the code it
       constrains, starting with the two in [Findings](#findings).
 
