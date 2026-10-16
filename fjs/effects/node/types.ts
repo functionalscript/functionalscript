@@ -975,8 +975,8 @@ export type Env = StringMap<string>
  *
  * Node, Deno, and Bun run the whole Node host, `fjs/effects/node/module.mjs`.
  * Any other engine has a partial host that implements only the operations its
- * programs need, and its `import` loads authored FunctionalScript, not the
- * impure modules an impure proof reaches.
+ * programs need, and its `import` loads at most authored FunctionalScript, not
+ * the impure modules an impure proof reaches.
  */
 export type Engine = 'node' | 'deno' | 'bun' | 'spidermonkey'
 
