@@ -12,6 +12,15 @@ runtime data conversion on Node 24/26, Bun and Deno. This preserves the former d
 baseline; it does not make these walks iterative or promise unbounded depth.
 The measurements below describe the earlier implementation, before that change.
 
+The corpus's `array-nested-deep` vector has since been cut to 500 levels, so
+that SpiderMonkey can parse it: SpiderMonkey 140's module parser refuses a
+literal nested deeper than about 870 levels
+([spidermonkey-test-runner](../../emergent_testing/todo/spidermonkey-test-runner.md)).
+The thousand-level figures below measure the vector as it was. The same shell
+also reaches about 40% fewer nested calls than Node 26 with default stacks —
+5,998 against 9,627 for a one-line recursive arrow function — so any margin
+measured on Node is smaller there.
+
 How much of the stack that corpus leaves, measured after `9789544` on x64
 Node 26.10 with the default stack, each depth in a fresh process: the path
 `subsetLaw` in [`../../compiler/proof.f.mjs`](../../compiler/proof.f.mjs)
@@ -57,9 +66,9 @@ and `item` or `property` — so at `0802ecda` a plain nested array,
 `export default [[[…1…]]];`, compiles to `.js` and `.rs` at six hundred
 levels and overflows at six hundred and fifty, and a nested object,
 `{"a":{"a":…}}`, at the same depths. The repository's own DataJS
-vectors cross that line: `spec/datajs/vectors/accept/data.f.js`, whose
-`array-nested-deep` graph is a thousand levels deep, compiles to
-`.edag.data.js` and `.data.js`, which never reach this walk, and fails
+vectors crossed that line: `spec/datajs/vectors/accept/data.f.js`, whose
+`array-nested-deep` graph was a thousand levels deep then, compiled to
+`.edag.data.js` and `.data.js`, which never reach this walk, and failed
 with this `RangeError` to `.js` and `.rs`. Its `object-nested-deep`
 graph is three hundred levels deep and compiles to every output; a
 thousand-level object would fail the same way. No proof sends that
