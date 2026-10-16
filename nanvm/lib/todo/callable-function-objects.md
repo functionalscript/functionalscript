@@ -1,7 +1,7 @@
 ## Callable function objects (Rust-generated bodies)
 
 **Priority:** P2
-**Status:** open — callable bodies, fixed/rest lowering, default-text
+**Status:** wip — callable bodies, fixed/rest lowering, default-text
 integration and the Node/interpreter/direct-AOT corpus comparisons are
 implemented; semantic EDAG association and remaining migration/coverage
 work are unfinished, and native interpreter corpus execution is blocked.
