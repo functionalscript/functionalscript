@@ -1,7 +1,7 @@
 ## spidermonkey-test-runner. Run FunctionalScript proofs on SpiderMonkey
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
