@@ -21,8 +21,13 @@
  * spells an import as and which folds to `f`. Anything else a body would
  * capture — an object, an array, an operation — is refused, naming the
  * node, as is a function a body makes at call time, which would need the
- * VM's `IStaticFunction` where every item is bound on `IVm` alone
+ * VM's `IStaticFunction` where every item is bound on `IVm` alone, and as
+ * is a module exporting anything beside `runtime`, whose initializer the
+ * lifting would drop, and a function no built-in reaches, which a property
+ * written twice leaves behind
  * ([DESIGN.md §10](../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)).
+ * A literal written twice under one key is its last value, as the EDAG
+ * means it.
  *
  * @module
  *
@@ -73,8 +78,9 @@ const refused = node => error(['no static Rust for a module-level node; the runt
 
 /**
  * The properties of an object literal written out, each `[':', key, value]`
- * with a literal key, or `null` for any other node, a spread or a computed
- * key among them. A member of an object literal is a property or a spread,
+ * with a literal key, a key written twice kept at its last writing, as the
+ * EDAG means it; or `null` for any other node, a spread or a computed key
+ * among them. A member of an object literal is a property or a spread,
  * each an array, so its tag is read as one.
  *
  * @type {(node: unknown) => readonly (readonly any[])[] | null}
@@ -82,7 +88,9 @@ const refused = node => error(['no static Rust for a module-level node; the runt
 const literalProperties = node => {
     if (!(node instanceof Array) || node[0] !== '{}') { return null }
     const properties = /** @type {readonly (readonly any[])[]} */ (node[1])
-    return properties.every(p => p[0] === ':' && typeof p[1] === 'string') ? properties : null
+    return properties.every(p => p[0] === ':' && typeof p[1] === 'string')
+        ? properties.filter((p, i) => properties.findLastIndex(q => q[1] === p[1]) === i)
+        : null
 }
 
 /**
@@ -109,13 +117,18 @@ const builtIns = (name, member) => section => {
 /**
  * Every built-in the module's `runtime` export names, the `static` section's
  * then the `member` section's, either section absent for none; or the
- * refusal of a module without the export, or of a section that is not
- * objects of functions.
+ * refusal of a module without the export or with another beside it, whose
+ * initializer the lifting would drop, or of a section that is not objects
+ * of functions.
  *
  * @type {(root: Exp) => Result<readonly _BuiltIn[], readonly unknown[]>}
  */
 const table = root => {
-    const runtime = literalProperties(root)?.find(p => p[1] === 'runtime')
+    const exports = literalProperties(root)
+    if (exports === null) { return error(['no `runtime` export of objects', root]) }
+    const others = exports.filter(p => p[1] !== 'runtime').map(p => p[1])
+    if (others.length !== 0) { return error(['the runtime module exports `runtime` alone; the lifting would drop an export', others]) }
+    const runtime = exports.find(p => p[1] === 'runtime')
     const sections = runtime === undefined ? null : literalProperties(runtime[2])
     if (sections === null) { return error(['no `runtime` export of objects', root]) }
     /** @type {(name: string) => unknown} */
@@ -153,17 +166,47 @@ const isLower = c => c === c.toLowerCase() && c !== c.toUpperCase()
  * The items of a module: every module-level function, the walk of one scope
  * stopping at each function's body, named by the table where a built-in
  * resolves to it and `f` with its index among the helpers otherwise.
+ * Refused: a module-level node that is no function, no object, no import's
+ * read and no `undefined` — an operation the lifting would drop
+ * unevaluated — and a function no built-in reaches through its slots,
+ * which a property written twice leaves behind, since nothing would print
+ * it and the module would mean something else.
  *
- * @type {(root: Exp, builtIns: readonly _BuiltIn[]) => readonly _Item[]}
+ * @type {(root: Exp, builtIns: readonly _BuiltIn[]) => Result<readonly _Item[], readonly unknown[]>}
  */
 const items = (root, builtIns) => {
-    const functions = visit(operandsOf)([])(root).map(([n]) => n).filter(n => n instanceof Array && n[0] === '=>')
+    const nodes = visit(operandsOf)([])(root).map(([n]) => n).filter(n => n instanceof Array)
+    const stray = nodes.find(n => !['=>', '{}', '.', 'undefined'].includes(n[0]))
+    if (stray !== undefined) { return refused(/** @type {Exp} */ (stray)) }
+    const functions = nodes.filter(n => n[0] === '=>')
+    const reached = reach(builtIns.map(b => b.node), [])
+    const dropped = functions.find(n => !reached.includes(n))
+    if (dropped !== undefined) { return error(['a function no built-in reaches; a property written twice keeps its last value', dropped]) }
     const helpers = functions.filter(n => !builtIns.some(b => b.node === n))
-    return functions.map(node => {
+    return ok(functions.map(node => {
         const named = builtIns.find(b => b.node === node)
         const name = named === undefined ? `f${helpers.indexOf(node)}` : named.name
         return { node, name, ident: identifier(name) }
+    }))
+}
+
+/**
+ * The functions `pending` and every function they reach through their
+ * slots, transitively, each once: the items a module's built-ins need. A
+ * slot that resolves to nothing an item may hold is left to `itemLines`
+ * to refuse, naming it.
+ *
+ * @type {(pending: readonly (readonly unknown[])[], seen: readonly (readonly unknown[])[]) => readonly (readonly unknown[])[]}
+ */
+const reach = (pending, seen) => {
+    if (pending.length === 0) { return seen }
+    const [fn, ...rest] = pending
+    if (seen.includes(fn)) { return reach(rest, seen) }
+    const slots = /** @type {readonly Exp[]} */ (/** @type {readonly any[]} */ (fn)[2]).flatMap(slot => {
+        const resolved = resolve(slot)
+        return resolved[0] === 'ok' && resolved[1][0] === 'function' ? [resolved[1][1]] : []
     })
+    return reach([...rest, ...slots], [...seen, fn])
 }
 
 /**
@@ -266,9 +309,8 @@ const tables = (builtIns, all) => {
  *
  * @type {(root: Exp) => Result<string, readonly unknown[]>}
  */
-export const generateRuntimeTagged = root => okThen((/** @type {readonly _BuiltIn[]} */ builtIns) => {
-    const all = items(root, builtIns)
-    return mapOk((/** @type {readonly Printed<readonly string[]>[]} */ printed) => {
+export const generateRuntimeTagged = root => okThen((/** @type {readonly _BuiltIn[]} */ builtIns) => okThen((/** @type {readonly _Item[]} */ all) =>
+    mapOk((/** @type {readonly Printed<readonly string[]>[]} */ printed) => {
         const [tableLines, tableUses] = tables(builtIns, all)
         const uses = [...printed.flatMap(([, u]) => u), ...tableUses, ...skeletonUses]
         return [
@@ -280,8 +322,7 @@ export const generateRuntimeTagged = root => okThen((/** @type {readonly _BuiltI
             ...tableLines,
             '',
         ].join('\n')
-    })(okList(all.map(itemLines(all))))
-})(table(root))
+    })(okList(all.map(itemLines(all)))))(items(root, builtIns)))(table(root))
 
 /** The names the skeleton of every item and table spells. @type {readonly Use[]} */
 const skeletonUses = [['vm', 'Any'], ['vm', 'Array'], ['vm', 'RuntimeFunction'], ['vm', 'Accessor']]

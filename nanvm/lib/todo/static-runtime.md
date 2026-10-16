@@ -217,11 +217,6 @@ is `Sync`.
   same shape prints as a `loop`. Correct, and a round per stack frame;
   the runtime has no such function, and the loop printing joins the items
   when one does.
-- **Helpers are named by index.** A module-level function no section
-  names, `isNegativeZero` or `found`, is `f0`, `f1`, … in the walk's
-  order, since the EDAG keeps no names. Its descriptor's `name` is that,
-  unique and observable only through `===` between helpers, which no body
-  writes.
 - **`IStaticFunction` for closures only.** `static_function` stays the
   VM's capability to make a closure out of a Rust static function; a
   built-in needs no VM to be made. A VM that cannot run a body cannot run

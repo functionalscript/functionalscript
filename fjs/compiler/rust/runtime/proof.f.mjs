@@ -193,11 +193,28 @@ pub fn members<A: IVm>() -> [(&'static str, &'static str, Accessor<A>); 1] {
         assert(capturing(['.', ['{}', [[':', ['+', 1, 2], 1]]], 'x']).startsWith(prefix))
         // a fold: the key found, its value resolved in turn
         assert(assertOk(generateRuntime(module([['static', object([['Object', object([['f', fn(0, [['.', object([['x', 7]]), 'x']], ['frame', 0])]])]])]]))).includes('Ok(f64_any(0x401c000000000000))'))
+        // a literal written twice under one key is its last value
+        assert(assertOk(generateRuntime(module([['static', object([['Object', object([['f', fn(0, [['.', object([['x', 1], ['x', 7]]), 'x']], ['frame', 0])]])]])]]))).includes('Ok(f64_any(0x401c000000000000))'))
+        // a function written over, in a section or in a namespace, is one
+        // no built-in reaches, and an operation at module level is dropped
+        // unevaluated: both refused rather than a module meaning something
+        // else
+        const unreached = 'a function no built-in reaches; a property written twice keeps its last value: '
+        assert(refusal(module([
+            ['static', object([['Object', object([['f', fn(0, [], 1)]])]])],
+            ['static', object([['Object', object([['g', fn(0, [], 7)]])]])],
+        ])).startsWith(unreached))
+        assert(refusal(module([['static', object([['Object', object([['g', fn(0, [], 1)], ['g', fn(0, [], 7)]])]])]])).startsWith(unreached))
+        assert(refusal(module([['static', object([['Object', object([['g', ['+', 1, 2]], ['g', fn(0, [], 7)]])]])]])).startsWith(prefix))
+        // a helper reached through a helper is an item, once
+        const chain = assertOk(generateRuntime(module([['static', object([['Object', object([['f', fn(0, [fn(0, [fn(0, [], 1)], ['frame', 0])], ['frame', 0])]])]])]])))
+        assert(chain.includes('fn f0<A') && chain.includes('fn f1<A') && !chain.includes('fn f2<A'))
         assertEq(refusal(module([['static', 1]])), 'a section of the runtime that is no object: 1')
         assertEq(refusal(module([['member', object([['String', 1]])]])), 'a namespace of the runtime that is no object: String')
         assertEq(refusal(module([['static', object([['Object', object([['x', 1]])]])]])), 'a built-in that is no function: Object.x')
         assertEq(refusal(module([['member', object([['String', object([['x', ['.', object([['x', 1]]), 'x']]])]])]])), 'a built-in that is no function: String.prototype.x')
         assert(refusal(['{}', []]).startsWith('no `runtime` export of objects: '))
+        assertEq(refusal(['{}', [[':', 'runtime', object([])], [':', 'x', 1], [':', 'y', ['.', ['undefined'], 'z']]]]), 'the runtime module exports `runtime` alone; the lifting would drop an export: x,y')
         assert(refusal(['{}', [[':', 'runtime', 1]]]).startsWith('no `runtime` export of objects: '))
         assert(refusal(['[]', []]).startsWith('no `runtime` export of objects: '))
     },
