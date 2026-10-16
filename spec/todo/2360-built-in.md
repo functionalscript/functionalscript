@@ -97,8 +97,9 @@ this one: enumerating keys is exactly what the language lacks, so
 holds nothing at its path, and each executor answers the node itself: the
 represented interpreter with a function value of its own,
 `['Object.entries']`, called natively as `['entry']` is; NaNVM with a
-function its runtime creates beside the compiled bodies, initialized once
-and held per thread with them, so every read is one function.
+built-in written in `vm/runtime.rs`, `vm::object_entries`, a static
+function identified by its name, so every read is a handle to one
+function and nothing is created or held.
 
 **Destructuring.** `entries` is a prototype name, `Array.prototype`'s,
 which every pattern refuses at the key. Over a namespace the namespace's

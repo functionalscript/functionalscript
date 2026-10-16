@@ -35,10 +35,13 @@ pub struct RuntimeFunction<A: IVm> {
 }
 
 /// A function value: it can be called, it has a `length`, it has a text,
-/// and it has an identity. Nothing else: the internal value stays private,
-/// and the one way in for a closure is [`Function::new`], from a VM's own
-/// value, which a VM constructs through its own capability, such as
-/// [`IStaticFunction`](crate::vm::IStaticFunction).
+/// and it has an identity. Nothing else. The two kinds below are the
+/// type's whole meaning, laid out as [`Unpacked`](crate::vm::Unpacked)
+/// lays out every value: a closure holds a VM's own value, which the VM
+/// constructs through its own capability, such as
+/// [`IStaticFunction`](crate::vm::IStaticFunction), and [`Function::new`]
+/// wraps; a built-in holds a descriptor only an accessor of the compiled
+/// runtime answers, its fields being the crate's.
 ///
 /// One of two kinds. A **closure** is the VM's own value, an `Rc` in
 /// `naive`, compared by identity: every construction is a new function,
