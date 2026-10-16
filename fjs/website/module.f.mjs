@@ -41,8 +41,9 @@
  *
  * @module
  *
- * @import { Access, All, Catch, Env, Import, Mkdir, NodeProgramOptions, ReadFile, ReadWhole, Readdir, Rm, Write, WriteBytes, WriteFile } from '../effects/node/types.ts'
+ * @import { Access, All, Catch, Env, Import, Mkdir, Module, NodeProgramOptions, ReadFile, ReadWhole, Readdir, Rm, Write, WriteBytes, WriteFile } from '../effects/node/types.ts'
  * @import { Effect, IoChannel, IoResult } from '../effects/types.ts'
+ * @import { Result } from '../types/result/types.ts'
  * @import { StringSet } from '../types/string_set/types.ts'
  * @import { _DemoPaths, _Demos, _Graph, _Imports, _Tree, _Walked } from './private.ts'
  * @import { OrderedMap } from '../types/ordered_map/types.ts'
@@ -65,6 +66,7 @@ import { catch_, import_, log } from '../effects/common/module.f.mjs'
 import { indexPage, isVersion, releasePage, releasePath, releases } from './changelog/module.f.mjs'
 import { tryParse } from '../media/markdown/module.f.mjs'
 import { pageRefusal } from '../media/html/module.f.mjs'
+import { error, ok } from '../types/result/module.f.js'
 import { stylesheet } from './style/module.f.js'
 import { changelogDir, cliDir, demoSection, directoryLayout, page, pagePath, prsDir, shell, siteName, subtree, testSection, testsMain } from './page/module.f.mjs'
 import { prsPage } from './prs/module.f.mjs'
@@ -476,6 +478,17 @@ const resolveDemos = demos => {
 }
 
 /**
+ * A demo module's first view, `view(init)`, as a thunk for `catch_`: a module
+ * that exports no `demo`, or a `view` that throws, is a throw here.
+ *
+ * @type {(module: Module) => () => unknown}
+ */
+const firstView = module => () => {
+    const demo = /** @type {Demo<unknown, DemoEvent>} */ (module.demo)
+    return demo.view(demo.init)
+}
+
+/**
  * A demo with the first view the build rendered for it — `view(init)`, which
  * the page shows until the runtime has loaded the demo and takes it over.
  *
@@ -497,19 +510,25 @@ const prerender = path => {
     const skip = reason => mapStep(
         log(`skipped prerendering ${path.slice(1)}: ${reason}`),
         () => ({ path, view: null }))
-    return resultStep(import_(path.slice(1)), imported => {
-        if (imported[0] === 'error') { return skip(errorMessage(imported[1])) }
-        const demo = /** @type {Demo<unknown, DemoEvent>} */ (imported[1].demo)
-        // `catch_` is generic, and the generic is lost on the way through
-        // `do_`, so what `view` answers comes back as `unknown`.
-        return step(catch_(() => demo.view(demo.init)), viewed => {
-            if (viewed[0] === 'error') { return skip(String(viewed[1])) }
-            const view = /** @type {Element} */ (viewed[1])
-            // The runtime's builders refuse what a page would read otherwise,
-            // or run; the page's serializer has no such check, so it is made here.
-            const refused = pageRefusal(view)
-            return refused === null ? pureOk({ path, view }) : skip(refused)
-        })
+    // Each link answers the view so far, or the reason there is none, so a
+    // failure is carried down the chain rather than branching out of it.
+    /** @type {Effect<Import, Result<Module, string>, IoChannel>} */
+    const loaded = resultStep(import_(path.slice(1)), imported =>
+        pureOk(imported[0] === 'error' ? error(errorMessage(imported[1])) : imported))
+    /** @type {Effect<Import | Catch, Result<Element, string>, IoChannel>} */
+    const viewed = step(loaded, imported => imported[0] === 'error'
+        ? pureOk(imported)
+        : mapStep(catch_(firstView(imported[1])), thrown => thrown[0] === 'error'
+            ? error(String(thrown[1]))
+            // `catch_` is generic, and the generic is lost on the way through
+            // `do_`, so what `view` answers comes back as `unknown`.
+            : ok(/** @type {Element} */ (thrown[1]))))
+    return step(viewed, view => {
+        if (view[0] === 'error') { return skip(view[1]) }
+        // The runtime's builders refuse what a page would read otherwise, or
+        // run; the page's serializer has no such check, so it is made here.
+        const refused = pageRefusal(view[1])
+        return refused === null ? pureOk({ path, view: view[1] }) : skip(refused)
     })
 }
 

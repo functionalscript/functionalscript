@@ -127,6 +127,7 @@ export const isRawText = includes(rawText)
  * browser runs it. `module.mjs` throws it from the DOM builders, and a caller
  * serializing a tree it did not write says it in its own refusal.
  */
+/** @type {string} */
 export const scriptRefusal = 'media/html: a `script` element is refused: built into a page, it would run'
 
 /** @type {(c: number) => boolean} */
@@ -145,6 +146,12 @@ const attributeUnit = c => tagUnit(c) || c === 0x5f || c === 0x2e || c === 0x3a
  */
 const plainName = rest => name => name.length > 0 && isAsciiLetter(name.charCodeAt(0))
     && name.split('').every((_, i) => i === 0 || rest(name.charCodeAt(i)))
+
+/** A tag a parser reads as written: an ASCII letter, then letters, digits and `-`. */
+const plainTag = plainName(tagUnit)
+
+/** An attribute name a parser reads as written: a tag's units, and `_`, `.` and `:`. */
+const plainAttribute = plainName(attributeUnit)
 
 /**
  * Why `e` cannot be written into a page, or `null` when it can: the refusal a
@@ -174,11 +181,11 @@ const plainName = rest => name => name.length > 0 && isAsciiLetter(name.charCode
  */
 export const pageRefusal = e => {
     const [tag, attributes, children] = parseElement(e)
-    if (!plainName(tagUnit)(tag)) {
+    if (!plainTag(tag)) {
         return `media/html: the tag '${tag}' is not a plain name: a page would read other markup`
     }
     if (tag.toLowerCase() === 'script') { return scriptRefusal }
-    const name = definedEntries(attributes).map(([n]) => n).find(n => !plainName(attributeUnit)(n))
+    const name = definedEntries(attributes).map(([n]) => n).find(n => !plainAttribute(n))
     if (name !== undefined) {
         return `media/html: the attribute '${name}' is not a plain name: a page would read other markup`
     }
