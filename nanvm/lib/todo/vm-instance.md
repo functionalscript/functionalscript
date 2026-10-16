@@ -45,7 +45,8 @@ pub trait IAny<V: IVm>: Sized + Clone + From<Unpacked<V>> {
 }
 
 /// A VM: an instance, holding its runtime, and the types its values use.
-pub trait IVm: Sized {
+/// A cheap handle, an `Rc` or an `Arc` over its runtime, passed by value.
+pub trait IVm: Sized + Clone {
     type InternalAny: IAny<Self>;
     type InternalString: IContainer<Self, Header = (), Item = u16>;
     type InternalBigInt: IContainer<Self, Header = Sign, Item = u64>;
@@ -55,15 +56,15 @@ pub trait IVm: Sized {
     /// A member call, dispatched: the receiver's own property, a native
     /// implementation, the runtime's body, or the `TypeError` for calling
     /// `undefined` — what `Member::call` resolves today.
-    fn call(&self, receiver: Any<Self>, key: Any<Self>, args: Array<Self>)
+    fn call(self, receiver: Any<Self>, key: Any<Self>, args: Array<Self>)
         -> Result<Any<Self>, Any<Self>>;
     /// The static function at `path`, one function per runtime, or the
     /// failure naming the path — what `static_binding` answers today.
-    fn static_function(&self, path: &[&str]) -> Result<Any<Self>, Any<Self>>;
+    fn static_function(self, path: &[&str]) -> Result<Any<Self>, Any<Self>>;
 }
 
 // generated: every module takes the VM it runs on
-pub fn module<V: IStaticFunction>(v: &V) -> Result<Any<V>, Any<V>> { … }
+pub fn module<V: IStaticFunction>(v: V) -> Result<Any<V>, Any<V>> { … }
 ```
 
 `Any<V>` wraps a `V::InternalAny`. `IAny::to_unpacked` is today's
@@ -79,7 +80,7 @@ inside its first lookup.
 - **`v` reaches every call, not only the module.** A compiled closure that
   calls a member function, or reads a static, needs the VM. `StaticCode`
   is `fn(self_, args)` today, so either it gains the VM,
-  `fn(v: &V, self_, args)`, with `IFunction::call(&self, v, args)` and
+  `fn(v: V, self_, args)`, with `IFunction::call(&self, v, args)` and
   every call site passing it on, or a closure captures the VM where the
   module is evaluated, which a frame of values cannot hold. The first
   is simpler, and it is the handle threaded through every call step that
@@ -96,9 +97,9 @@ inside its first lookup.
   name, and forms `runtime_to_string(name)` from it, keeps conversion free
   of the VM. That is a change to how a VM represents a function, so it
   belongs to this redesign.
-- **`&V` or `V`.** The proposal passes `v: &V`. A VM that is a cheap
-  handle, an `Rc` or an `Arc` over its runtime, could pass `V` by value,
-  but a reference costs nothing either way.
+- **`V`, by value.** `IVm::call` takes `self` (**sergey-shandar**), so a
+  VM is a cheap handle, an `Rc` or an `Arc` over its runtime, cloned where
+  a call needs it, and generated code takes `v: V`.
 - **`IVm::call` beside `IFunction::call`.** The name is overloaded: one
   calls a function value, the other dispatches a member call by key.
   `call_member` would read better.
@@ -117,7 +118,7 @@ inside its first lookup.
 - [ ] Give the VM instance its runtime, and `call` and `static_function`.
       Remove `IVm::runtime_method`, `IVm::runtime_static`,
       `static_binding` and `naive`'s `thread_local!`.
-- [ ] Make the Rust backend emit `module(v: &V)` and pass `v` on, then
+- [ ] Make the Rust backend emit `module(v: V)` and pass `v` on, then
       run `npm run gen`.
 - [ ] Build an `Arc`-based VM that shares one runtime across threads.
 - [ ] Update `fjs/js/runtime/README.md`: "How NaNVM finds it" and "Three
