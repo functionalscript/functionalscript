@@ -45,12 +45,13 @@ fit it. This follows the 128 KiB `bigint` cap that Bun set
 **The engine decides what `fjs t` loads, not a flag.** On Node, Deno, and Bun,
 `fjs t` loads every proof `shouldLoad` accepts, as it does today. On any other
 engine it loads only the pure proofs, the authored `.f.mjs` and `.f.js`
-modules. An engine `fjs t` does not know is "any other", so a new host gets
-the safe set without a change to `fjs t`. SpiderMonkey is the first such host;
-the runner compiled to Rust is the next, because its `import` loads
-FunctionalScript and cannot load impure JavaScript
-([load-proofs-through-fjs](load-proofs-through-fjs.md)). No new `fjs t` flag is
-added for this.
+modules. An engine `fjs t` does not know is "any other", so a new host starts
+with the authored set rather than with proofs it cannot import. SpiderMonkey is
+the first such host. The authored set is the most a host without the Node host
+can load, not always what it can: the runner compiled to Rust loads only what
+the compiler supports, which an authored `.f.mjs` does not promise
+([load-proofs-through-fjs](load-proofs-through-fjs.md)), so it will narrow the
+set further with a predicate of its own. No new `fjs t` flag is added for this.
 
 The host passes the engine as a field of `NodeProgramOptions`, not through an
 `engine` effect. It is a fixed fact about the host, like `args`, `env`, `home`,
@@ -316,6 +317,7 @@ it.**
   the runtime-agnostic operations out of `fjs/effects/node` is what lets a
   non-Node host implement a subset without depending on the Node module.
 - [load-proofs-through-fjs](load-proofs-through-fjs.md) — the runner compiled
-  to Rust, the next engine that loads only pure proofs.
+  to Rust, which loads less than the authored set: only what the compiler
+  supports.
 - [run a subset of proofs](run-subset-of-tests.md) — selection by `fjs t`
   arguments; both selections end in the predicate `allFiles` takes.
