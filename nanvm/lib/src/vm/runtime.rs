@@ -11,7 +11,7 @@
 //! such a VM holds: that object and the one static function no body can
 //! define, [`object_entries`], each initialized once.
 
-use crate::vm::{Any, IStaticFunction, IVm, ToAny, ToArray, Unpacked};
+use crate::vm::{Any, Function, IStaticFunction, IVm, String, ToAny, ToArray, Unpacked, error};
 
 /// The compiled runtime: a `#[path]`, since a `gen.` name is not a Rust
 /// identifier.
@@ -66,10 +66,10 @@ pub fn runtime_static<A: IVm>(runtime: Any<A>, path: &[&str]) -> Option<Any<A>> 
 /// `Object.entries` as a function, the one static function no body can
 /// define, enumerating keys being what the language has no other way to do
 /// ([`Any::entries`]): created here, where every other static is a body of
-/// the runtime's `static` section (`fjs/js/static`'s `natives`). Its text
-/// is what ECMA-262 requires of a built-in, a NativeFunction naming it. Each
-/// call makes a new function, so a VM holds the one [`Runtime`] creates,
-/// and every read is one function.
+/// the runtime's `static` section (`fjs/js/static`'s `natives`). It holds
+/// no text: `String(f)` forms it from the name, `runtime_text`. Each call
+/// makes a new function, so a VM holds the one [`Runtime`] creates, and
+/// every read is one function.
 pub fn object_entries<A: IStaticFunction>() -> Any<A> {
     A::static_function(
         |_, args| {
@@ -80,9 +80,29 @@ pub fn object_entries<A: IStaticFunction>() -> Any<A> {
         },
         1,
         [].to_array(),
-        Some("function entries() { [native code] }"),
+        None,
     )
     .to_any()
+}
+
+/// A runtime function's text, `String(f)`, formed on each conversion from
+/// its name: what ECMA-262 requires of a built-in function, NativeFunction
+/// syntax naming it, with no parameters, as most engines print it —
+/// `function entries() { [native code] }`.
+pub fn runtime_to_string<A: IVm>(name: &str) -> Result<String<A>, Any<A>> {
+    Ok(format!("function {name}() {{ [native code] }}")
+        .as_str()
+        .into())
+}
+
+/// The text of a function that holds none: a runtime function's,
+/// `Object.entries` passing its name to [`runtime_to_string`], and the
+/// refusal of any other.
+pub(crate) fn runtime_text<A: IVm>(f: &Function<A>) -> Result<String<A>, Any<A>> {
+    if A::runtime_static(&["Object", "entries"]) == Some(f.clone().to_any()) {
+        return runtime_to_string("entries");
+    }
+    Err(error::function_text())
 }
 
 /// The runtime a VM holds, initialized once, from which it answers every
@@ -277,6 +297,10 @@ mod tests {
         assert_eq!(pairs.to_json(), Ok(r#"[["0","a"],["1","b"]]"#.into()));
         assert!(entries.call([].to_array().to_any()).is_err());
         assert_ne!(object_entries::<A>(), object_entries::<A>());
+        assert_eq!(
+            super::runtime_to_string::<A>("is"),
+            Ok("function is() { [native code] }".into())
+        );
         let runtime = Runtime::<A>::new();
         assert_eq!(
             runtime.static_function(&path),
