@@ -149,7 +149,8 @@ const runShellEffect = asyncPartialRun(nodeCommands)({
     }),
     // In `Vec` windows of the most bytes one holds, as the Node host reads. A
     // directory is refused first: the shell reads one as "too large for a
-    // Uint8Array".
+    // Uint8Array". Nothing else can be: without `stat`, a FIFO passes, and one
+    // no process writes to blocks the read (./todo/unlistable-directory.md).
     readWhole: path => io(async () => {
         if (isDirectory(path)) { throw new Error(`${path} is not a file`) }
         const bytes = shell.os.file.readFile(path, 'binary')
