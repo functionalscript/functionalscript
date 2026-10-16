@@ -183,12 +183,12 @@ checks on NaNVM against the interpreter, and
 predicates over every kind of value. `Object.entries` has no body: the
 represented interpreter answers it with a function value of its own,
 `edag/value/entries`, and NaNVM with a binding `static_binding` asks
-for first, `IVm::native_static`, which `naive` answers from
-`vm::native_statics` and holds per thread as it holds the runtime object,
+for first, `IVm::native_static`, which `naive` answers with
+`vm::object_entries` and holds per thread as it holds the runtime object,
 so it too is one function every read
-(`nanvm/harness/fixtures/object-entries.mjs`). The completeness test
-checks every path [`../static`](../static/module.f.js) admits is bound,
-and every native one is admitted and has no body beside it.
+(`nanvm/harness/fixtures/object-entries.mjs`). NaNVM keeps no table of
+natives for one function. The completeness test checks every path
+[`../static`](../static/module.f.js) admits is bound.
 
 **The VM type binds the runtime.** `IVm::runtime_method` is a method on
 the type, with no instance and no argument carrying a runtime, so which

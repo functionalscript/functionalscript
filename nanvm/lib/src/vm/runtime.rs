@@ -7,9 +7,9 @@
 //! holds the object and answers [`IVm::runtime_method`] and
 //! [`IVm::runtime_static`] from it; the native tables in `vm/lambda` keep
 //! every name without a body, and may keep a name that has one where a
-//! measurement justifies the second implementation. The static functions
-//! no body can define are [`native_statics`], which such a VM holds too and
-//! answers [`IVm::native_static`] from.
+//! measurement justifies the second implementation. The one static
+//! function no body can define is [`object_entries`], which such a VM
+//! holds too and answers [`IVm::native_static`] with.
 
 use crate::vm::{Any, IStaticFunction, IVm, ToAny, ToArray, Unpacked};
 
@@ -68,34 +68,26 @@ pub fn runtime_static<A: IVm>(runtime: Any<A>, path: &[&str]) -> Option<Any<A>> 
 /// interpreter answers the same text.
 const ENTRIES_TEXT: &str = "function entries() { [native code] }";
 
-/// The static functions no body can define, each by its path, each a
-/// primitive a VM binds natively, where every other static is a body of the
-/// runtime's `static` section: `Object.entries` alone, enumerating keys
-/// being what the language has no other way to do ([`Any::entries`]),
-/// `fjs/js/static`'s `natives`. Each call makes them afresh, so a VM holds
-/// what it answers, as `naive` holds the runtime object, and every read of
-/// one is one function.
-pub fn native_statics<A: IStaticFunction>() -> NativeStatics<A> {
-    [(
-        &["Object", "entries"],
-        A::static_function(
-            |_, args| {
-                args.into_iter()
-                    .next()
-                    .unwrap_or_else(Any::undefined)
-                    .entries()
-            },
-            1,
-            [].to_array(),
-            Some(ENTRIES_TEXT),
-        )
-        .to_any(),
-    )]
+/// `Object.entries` as a function, the one static function no body can
+/// define, enumerating keys being what the language has no other way to do
+/// ([`Any::entries`]): a VM binds it natively, where every other static is
+/// a body of the runtime's `static` section (`fjs/js/static`'s `natives`).
+/// Each call makes a new function, so a VM holds what it answers, as
+/// `naive` holds the runtime object, and every read is one function.
+pub fn object_entries<A: IStaticFunction>() -> Any<A> {
+    A::static_function(
+        |_, args| {
+            args.into_iter()
+                .next()
+                .unwrap_or_else(Any::undefined)
+                .entries()
+        },
+        1,
+        [].to_array(),
+        Some(ENTRIES_TEXT),
+    )
+    .to_any()
 }
-
-/// What [`native_statics`] makes: each native static function by its path,
-/// a fixed array, its length the number of natives.
-pub type NativeStatics<A> = [(&'static [&'static str], Any<A>); 1];
 
 /// The function a compiled read of a static function answers: the VM's
 /// native binding for `path`, [`IVm::native_static`], else its runtime's,
@@ -131,7 +123,7 @@ pub(crate) fn type_name<A: IVm>(receiver: &Any<A>) -> Option<&'static str> {
 
 #[cfg(test)]
 mod tests {
-    use super::{native_statics, runtime_object, runtime_static, static_binding, type_name};
+    use super::{object_entries, runtime_object, runtime_static, static_binding, type_name};
     use crate::{
         naive::Naive,
         vm::{Any, BigInt, IStaticFunction, IVm, ToAny, ToArray, ToObject},
@@ -215,8 +207,8 @@ mod tests {
 
     /// `Object.entries` is native: no runtime body at its path, and every
     /// read is one function, of `length` `1` and the host's text, whose
-    /// call lists the entries — where two makings of the table are two
-    /// functions, so the VM must hold what it answers.
+    /// call lists the entries — where two makings of it are two functions,
+    /// so the VM must hold what it answers.
     #[test]
     fn native_entries() {
         let path = ["Object", "entries"];
@@ -239,8 +231,7 @@ mod tests {
             .unwrap();
         assert_eq!(pairs.to_json(), Ok(r#"[["0","a"],["1","b"]]"#.into()));
         assert!(entries.call([].to_array().to_any()).is_err());
-        let fresh = || native_statics::<A>().into_iter().next().unwrap().1;
-        assert_ne!(fresh(), fresh());
+        assert_ne!(object_entries::<A>(), object_entries::<A>());
     }
 
     /// The body called as a call step calls it, the receiver first: the

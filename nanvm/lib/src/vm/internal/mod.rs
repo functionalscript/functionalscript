@@ -61,10 +61,10 @@ pub trait IVm: Sized + Clone + From<Unpacked<Self>> {
     /// The static function the VM binds natively at `path`, one no runtime
     /// body defines — `["Object", "entries"]` — or `None`. A read of one
     /// asks it before [`IVm::runtime_static`]. The default binds nothing; a
-    /// VM that makes functions out of Rust static functions answers it from
-    /// [`native_statics`](crate::vm::native_statics), holding what it
-    /// answers, as `naive` does: one function a path, so every read of a
-    /// static function is one function.
+    /// VM that makes functions out of Rust static functions answers it with
+    /// [`object_entries`](crate::vm::object_entries), holding what it
+    /// answers, as `naive` does, so every read of a static function is one
+    /// function.
     fn native_static(path: &[&str]) -> Option<Any<Self>> {
         let _ = path;
         None

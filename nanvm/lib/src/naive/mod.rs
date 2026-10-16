@@ -6,7 +6,7 @@ use std::cell::OnceCell;
 use crate::{
     naive::{container::Container, function::Function},
     sign::Sign,
-    vm::{Any, Array, IStaticFunction, IVm, NativeStatics, Property, StaticCode, Unpacked},
+    vm::{Any, Array, IStaticFunction, IVm, Property, StaticCode, Unpacked},
 };
 
 thread_local! {
@@ -17,10 +17,10 @@ thread_local! {
     /// its thread; `None` where the module fails, which no lookup answers.
     /// `thread_local!` is the one stable spelling of a thread's own value.
     static RUNTIME: OnceCell<Option<Any<Naive>>> = const { OnceCell::new() };
-    /// The native static functions, made on this thread's first read of
-    /// one and held from then on, for the runtime object's reason: every
-    /// read of `Object.entries` is one function.
-    static NATIVE: OnceCell<NativeStatics<Naive>> = const { OnceCell::new() };
+    /// `Object.entries`, made on this thread's first read of it and held
+    /// from then on, for the runtime object's reason: every read is one
+    /// function.
+    static ENTRIES: OnceCell<Any<Naive>> = const { OnceCell::new() };
 }
 
 /// The runtime object this thread holds, cloned out, since a reference
@@ -65,14 +65,15 @@ impl IVm for Naive {
         crate::vm::runtime_static(runtime()?, path)
     }
 
-    /// The native static function at `path`, of the ones this thread holds.
+    /// `Object.entries`, the one native static function, as this thread
+    /// holds it.
     fn native_static(path: &[&str]) -> Option<Any<Naive>> {
-        NATIVE.with(|cell| {
-            cell.get_or_init(crate::vm::native_statics)
-                .iter()
-                .find(|(p, _)| *p == path)
-                .map(|(_, f)| f.clone())
-        })
+        match path {
+            ["Object", "entries"] => {
+                Some(ENTRIES.with(|cell| cell.get_or_init(crate::vm::object_entries).clone()))
+            }
+            _ => None,
+        }
     }
 }
 
