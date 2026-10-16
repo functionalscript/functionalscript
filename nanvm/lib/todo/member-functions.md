@@ -3,8 +3,8 @@
 **Priority:** P2
 **Status:** wip — every call [`fjs/js/prototype`](../../../fjs/js/prototype/module.f.js)
 allows is answered (`vm/lambda/gen.methods.rs` has no pending pair) and has
-a corpus case; the property-key conversion of a function remains, as the
-unchecked box below
+a corpus case, and a function as a property key is proven; every box below is
+checked, and the file stays as the design record the code and specs cite
 
 ### Problem
 
@@ -231,13 +231,14 @@ are [`vm/string/README.md`](../src/vm/string/README.md):
 
 - [x] `toString` — the function's text, the writer's rendering of its
       EDAG (`nanvm/lib/todo/to-primitive.md`, Stage 3).
-- [ ] Prove direct and indirect default conversions. Done: `f.toString()`,
+- [x] Prove direct and indirect default conversions. Done: `f.toString()`,
       `String(f)`, `+`, function elements in arrays (`join` / `toString`),
       a string method's argument, returned, exported and nested functions,
       and identity, which the text leaves unchanged (the corpus's `host` and
       `===` cases and `nanvm/harness/fixtures/function-text.mjs`). A
-      call-only export consumer is the harness's `Action::Call`. Left:
-      property keys.
+      call-only export consumer is the harness's `Action::Call`; and a
+      property key, read by the `entry` helper in
+      `nanvm/harness/fixtures/function-text.mjs`.
 
 ### Related
 

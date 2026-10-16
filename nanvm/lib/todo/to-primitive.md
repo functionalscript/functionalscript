@@ -435,5 +435,5 @@ key syntax.
       represented conversion and the separate host-callable exception.
 - [x] Place the property-key conversion: it is
       [`entry`](../../../spec/property-access/entries.md)'s key conversion.
-- [ ] Finish native function-key corpus coverage in
+- [x] Finish native function-key corpus coverage in
       [member-functions](./member-functions.md)'s `Function` checklist.
