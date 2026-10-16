@@ -1,7 +1,7 @@
 ## mkdir. Make directories in the SpiderMonkey shell
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
