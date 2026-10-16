@@ -4,21 +4,21 @@
  * It runs a `NodeProgram` through {@link asyncPartialRun} over
  * `nodeCommands` with the operations `fjs t` and `fjs compile` need and no
  * others: `sandbox` and `catch` from `commonOperationMap`, and `all`,
- * `readdir`, `import`, `resolveFileModule`, `readWhole`, `mkdir`,
- * `writeFile`, and `write` here. Every other Node operation answers
- * `NotImplemented`, so another `fjs` command fails naming what this host
- * lacks. The program sees
- * `engine: 'spidermonkey'`, which is how `fjs t` knows to load authored
- * proofs only. `npm run sm <command>` runs an `fjs` command through it, and
- * `npm run sm t` runs `fjs t`.
+ * `readdir`, `import`, `resolveFileModule`, `readWhole`, `mkdir`, `rm`,
+ * `writeFile`, `writeBytes`, and `write` here. Every other Node operation
+ * answers `NotImplemented`, so another `fjs` command fails naming what this
+ * host lacks. The program sees `engine: 'spidermonkey'`, which is how `fjs t`
+ * knows to load authored proofs only. `npm run sm <command>` runs an `fjs`
+ * command through it, and `npm run sm t` runs `fjs t`.
  *
  * The shell is not a browser and not Node. It has `print`, `putstr`,
- * `printErr`, `quit`, `scriptArgs`, `os.getenv`, `os.file.listDir`, and
- * `import()` of an absolute path; it has no `URL`, `TextEncoder`,
- * `TextDecoder`, `setTimeout`, `stat`, or way to read the working directory.
- * Each handler below says which of those it works around. Its command line
- * passes arguments after `--` only: `js --module run.mjs a b` runs `a` as a
- * second script.
+ * `printErr`, `quit`, `scriptArgs`, `os.getenv`, `os.system`,
+ * `os.file.listDir`, `os.file.readFile`, `os.file.writeTypedArrayToFile`, and
+ * `import()` of an absolute path. It has no `URL`, `TextEncoder`,
+ * `TextDecoder`, `setTimeout`, `stat`, `mkdir`, `rm`, positional write, or
+ * way to read the working directory. Each handler below says which of those
+ * it works around. Its command line passes arguments after `--` only:
+ * `js --module run.mjs a b` runs `a` as a second script.
  *
  * @module
  *
@@ -37,6 +37,7 @@ import { concat, normalize } from '../../path/module.f.mjs'
 import { resolve as resolveImportPath } from '../../path/import/module.f.mjs'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
 import { fromVec, toVec } from '../../types/uint8array/module.f.mjs'
+import { tryShellQuote } from '../../text/shell/module.f.js'
 import { utf8ToString } from '../../text/utf8/module.f.mjs'
 import { ok } from '../../types/result/module.f.js'
 
@@ -78,6 +79,29 @@ const absolute = path => {
     if (path.startsWith('/')) { return path }
     if (cwd === undefined) { throw new Error(`PWD is not set, so ${path} has no directory to resolve against`) }
     return concat(cwd)(path)
+}
+
+/**
+ * Runs `command` on one path through the shell's `os.system`, which hands a
+ * command line to the system shell and answers its raw wait status: the
+ * shell has no other way to make a directory or remove a file. The path goes
+ * after `--` as one quoted word, so no character of it is the shell's and a
+ * name that looks like an option is still a name. A status other than `0` is
+ * a failure, named with the status. The tool's own complaint goes nowhere:
+ * the failure is the program's to report, as the Node host's are, and
+ * `writeChunks` discards a failed cleanup on purpose.
+ *
+ * Calling an external tool from our code waits on approval
+ * ([AGENTS.md §6](../../../AGENTS.md#6-external-tools)); the owner approved
+ * `mkdir` and `rm` for this host. It is POSIX, as the rest of the host is.
+ *
+ * @type {(command: string, path: string) => void}
+ */
+const onPath = (command, path) => {
+    const word = tryShellQuote(path)
+    if (word === null) { throw new Error(`a path holding NUL cannot reach a shell: ${JSON.stringify(path)}`) }
+    const status = shell.os.system(`${command} -- ${word} 2>/dev/null`)
+    if (status !== 0) { throw new Error(`\`${command}\` failed with wait status ${status}: ${path}`) }
 }
 
 /**
@@ -135,16 +159,35 @@ const runShellEffect = asyncPartialRun(nodeCommands)({
             (_, i) => bytes.subarray(i * maxFileSizeBytes, (i + 1) * maxFileSizeBytes))
         return windows.map(toVec)
     }),
-    // The shell cannot make a directory. A program asks for one to be sure
-    // its output's directory exists — `writeFiles` makes the parent with
-    // `recursive: true` — and for a directory that exists Node answers that
-    // with success and changes nothing, which `listDir` lets this host answer
-    // too. Anything else is refused: see ./todo/mkdir.md.
-    mkdir: (path, options) => io(async () => {
-        if (options?.recursive === true && isDirectory(path)) { return }
-        throw new Error(`the SpiderMonkey shell cannot make a directory: ${path}`)
-    }),
+    mkdir: (path, options) => io(async () => { onPath(options?.recursive === true ? 'mkdir -p' : 'mkdir', path) }),
+    rm: path => io(async () => { onPath('rm', path) }),
     writeFile: (path, data) => io(async () => { shell.os.file.writeTypedArrayToFile(path, fromVec(data)) }),
+    // The shell replaces a file whole and has no positional write, so the file
+    // is read, the bytes laid over it at `offset`, and the result written
+    // back. It costs the file's size per call, which `writeChunks` pays once
+    // per 128 KiB chunk. The `offset` and size were checked before the host
+    // was asked.
+    writeBytes: (path, offset, data) => io(async () => {
+        // A directory reads as "too large for a Uint8Array"; a missing file
+        // fails the read, as `writeBytes` never creates one.
+        if (isDirectory(path)) { throw new Error(`${path} is not a file`) }
+        const before = shell.os.file.readFile(path, 'binary')
+        const bytes = fromVec(data)
+        // Writing nothing changes nothing, at any offset: laying no bytes
+        // past the end would still grow the file.
+        if (bytes.length === 0) { return }
+        // Where Node leaves a hole, this would hold the whole gap in memory,
+        // gigabytes for a far offset, so a write must start inside the file or
+        // at its end, which is where every caller writes
+        // (./todo/sparse-write.md).
+        if (offset > before.length) {
+            throw new Error(`the SpiderMonkey shell cannot write past the end of a file: offset ${offset}, size ${before.length}: ${path}`)
+        }
+        const after = new Uint8Array(Math.max(before.length, offset + bytes.length))
+        after.set(before)
+        after.set(bytes, offset)
+        shell.os.file.writeTypedArrayToFile(path, after)
+    }),
     write: async (stream, data) => {
         // `utf8ToString` because the shell has no `TextDecoder`.
         writeText(stream, utf8ToString(data))

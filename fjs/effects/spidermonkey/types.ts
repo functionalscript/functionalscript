@@ -20,6 +20,8 @@ export type Shell = {
     readonly os: {
         /** One environment variable by name; the shell cannot list them. */
         readonly getenv: (name: string) => string | undefined
+        /** Runs a command line through the system shell; answers its raw wait status. */
+        readonly system: (command: string) => number
         readonly file: {
             /** The names in a directory, `.` and `..` among them; throws for anything that is not one. */
             readonly listDir: (path: string) => readonly string[]
