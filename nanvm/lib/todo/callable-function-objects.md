@@ -449,7 +449,7 @@ convention — every static function receives `self_` already — only the
 generator reading `["self"]` as that parameter,
 `Function::new(self_.clone()).to_any()`, which a call to `self` then goes
 through as any call does, and the language rule that resolves a function's
-own `const` name to the node ([functions](../../../spec/README.md#functions)).
+own `const` name to the node ([functions](../../../spec/functions/README.md)).
 The proof surface is the [`recursion` harness
 fixture](../../harness/fixtures/recursion.mjs): a function calling
 itself, `self === self` across two separate reads, and an enclosing
@@ -558,7 +558,7 @@ disagreement of semantics:
 
 | fixture | why it is not compared |
 |---|---|
-| `function-text` | the specified [function-text exception](../../../spec/README.md#function-source-representation-exception) |
+| `function-text` | the specified [function-text exception](../../../spec/principles/README.md#function-source-representation-exception) |
 | `function`, `rest-function` | the default export is a function, which only the harness's own call action observes; see decision 2 |
 | `parity`, `console` | export programs for a host to perform, not values: [`nanvm/harness/tests/parity.rs`](../../harness/tests/parity.rs), [`nanvm/harness/tests/console.rs`](../../harness/tests/console.rs) and the proofs in [`fjs/nanvm/parity`](../../../fjs/nanvm/parity/proof.mjs) compare the hosts through them |
 | `effect` | exports effect programs for a host to perform: [`nanvm/harness/tests/effects.rs`](../../harness/tests/effects.rs) runs them through `nanvm-effects-node` |

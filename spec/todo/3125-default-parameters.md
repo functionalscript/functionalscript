@@ -2,7 +2,7 @@
 
 **Priority:** P2
 **Status:** wip — parameter defaults implemented
-([functions](../README.md#functions)); the language-design approval is still
+([functions](../functions/README.md)); the language-design approval is still
 to be recorded, and pattern defaults remain
 
 ```js
@@ -56,7 +56,7 @@ other.
 - A **pattern default**: a name or a nested pattern inside a binding
   pattern may be followed by `= value`, `{ a = 1 }`, `{ k: a = 1 }`,
   `[a = 1]` and `{ a: { b } = {} }`, in a `const` and in a parameter, as
-  [destructuring](../README.md#destructuring) takes patterns.
+  [destructuring](../bindings/destructuring.md) takes patterns.
 
 `value` is any value the language reads where a `const` takes its
 initializer. Everything else about a target is unchanged: a defaulted name
@@ -75,7 +75,7 @@ sentence that says so:
   name bound to `t === undefined ? value : t`.
 - **The default is evaluated only when taken, and at each call.** It is the
   arm of `?:`, which every executor evaluates only when chosen
-  ([lazy operators](../README.md#operators)): `(a = null.x) => a` throws
+  ([lazy operators](../operators/README.md)): `(a = null.x) => a` throws
   only when called without `a`, and `(a = {}) => a` answers a fresh object
   at each call, while `(a = x) => a` answers the one `x` it captured. The
   default is written in the arm itself and never as a hidden `const` of
@@ -109,7 +109,7 @@ sentence that says so:
     `const` or a parameter of an enclosing call alike, and the default
     reads the same value at every call: `const h = y => (a = y) => a`.
     `const f = (a = f) => a` reads the function itself, as its body may
-    ([functions](../README.md#functions)).
+    ([functions](../functions/README.md)).
   - A parameter before it is read as the body would read it:
     `(a, b = a) => …`.
   - A later parameter, or the parameter itself, `(a = b, b) => …` and
@@ -129,7 +129,7 @@ sentence that says so:
     the default's `x` is a capture and the body's `x` a body entry, two
     nodes. Resolved as the body's leading entries, which is the simple
     implementation, the body's `const x` then meets the
-    [existing rule](../README.md#functions) that refuses a `const` shadowing
+    [existing rule](../functions/README.md) that refuses a `const` shadowing
     a name its body has already read from outside (`capture shadowed`) —
     a refusal, not another value. Admitting it needs the parameter scope
     as a scope of its own, which is a follow-up below. The default must
@@ -161,7 +161,7 @@ enclosing call's frame, and the function itself.
 #### The limit of 16
 
 A function has at most 16 fixed parameters
-([functions](../README.md#functions)). With defaults, the EDAG's `length`
+([functions](../functions/README.md)). With defaults, the EDAG's `length`
 counts fewer parameters than the list holds. The limit is proposed to count
 every parameter before the rest, defaulted or not: it is a rule about the
 list a reader sees — "wider data reads better as an array or an object" —
@@ -171,7 +171,7 @@ and the EDAG function stays well under it either way.
 
 - **The parameter kept fixed, `a => a === undefined ? 5 : a`**: `length`
   `1` where JavaScript answers `0`, a plausible wrong value that rule 2 of
-  the [principles](../README.md#principles) and
+  the [principles](../principles/README.md) and
   [DESIGN.md §10](../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
   forbid. `length` is part of the language.
 - **A default in the EDAG**, a fifth element of the function node or a
@@ -231,7 +231,7 @@ default reads — each a refusal rather than another value.
       as [DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
       asks.
 - [x] Parameter defaults: syntax tree, grammar, binding, proofs, the
-      specification's [functions](../README.md#functions) section, and the
+      specification's [functions](../functions/README.md) section, and the
       `decl.parameter-default` row of the
       [register](./refused-constructs.md) deleted. The parameters from the
       first default on are *late*, landed in the function's own scope
@@ -239,7 +239,7 @@ default reads — each a refusal rather than another value.
       shadowed` refusals are the ones a later parameter, the parameter
       itself and a shadowing body `const` meet.
 - [ ] Pattern defaults, in `const` and parameter patterns, over the same
-      test: the specification's [destructuring](../README.md#destructuring)
+      test: the specification's [destructuring](../bindings/destructuring.md)
       section, and the `decl.pattern-default` row deleted.
 - [ ] Convert `fjs/website/demo/code` to `.f.js`, and rerun the
       [leaf migration](../../todo/fjs-nanvm-integration.md#current-leaf-migration-fixed-point).

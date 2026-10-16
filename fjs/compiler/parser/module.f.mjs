@@ -65,13 +65,13 @@
  * inlines, {@link bodyRound} — and the guard is the conditional of the
  * two, `c ? (() => { …block… })() : (() => { …rest… })()`, so a `const` of
  * either arm is the arm's alone and the graph is the one that spelling
- * has ([spec: functions](../../../spec/README.md#functions)). No node is
+ * has ([spec: functions](../../../spec/functions/README.md)). No node is
  * added to the AST for it. A loop, `let r = init; while (c) block`, is
  * the fold's the same way: the two statements are one entry, the call of
  * the function `r => c ? (() => { …block…; return self(next); })() : r`
  * with `init`, the block the body of a parameterless function as a
  * guard's arm is, {@link loopRound}, and the variable names the call from
- * the loop on ([spec: loops](../../../spec/README.md#loops)).
+ * the loop on ([spec: loops](../../../spec/control-flow/loops.md)).
  *
  * The resolution walks a value over an explicit stack of frames, so
  * nesting depth stays the input's.
@@ -111,7 +111,7 @@ import { staticIds, staticPath } from '../../edag/module.f.mjs'
  * property, so FunctionalScript rejects them and accepts only the computed
  * spelling `{ ["__proto__"]: v }` and the shorthand `{ __proto__ }`, which
  * denote an ordinary property, as they do in JavaScript.
- * See [spec: the `__proto__` key](../../../spec/README.md#the-__proto__-key).
+ * See [spec: the `__proto__` key](../../../spec/values/objects.md#the-__proto__-key).
  */
 const protoKey = '__proto__'
 
@@ -130,7 +130,7 @@ const duplicateId = foldError('duplicate id')
 /**
  * A `let` the statement after it is not a `while`, at the `let`: the two
  * are one loop, and the language has no `let` on its own
- * ([spec: loops](../../../spec/README.md#loops)).
+ * ([spec: loops](../../../spec/control-flow/loops.md)).
  */
 const letWithoutWhile = foldError('let without while')
 
@@ -231,7 +231,7 @@ const reservedWord = foldError('reserved word')
  * The call of `Number` or `String` with more than one argument, or a spread,
  * at the word: `Number(a, b)` and `Number(...a)`, JavaScript's and not recognized
  * yet, for want of a representation
- * ([spec: number conversion](../../../spec/README.md#number-conversion)):
+ * ([spec: number conversion](../../../spec/conversions/number.md)):
  * `Number(a, b)` is the comma's `(a, b, Number(a))`, which the
  * FunctionalScript writer cannot spell until the comma operator lands, and
  * `Number(...a)` converts the first value a spread yields, which no node
@@ -249,10 +249,10 @@ const conversionArity = name => foldError(`${name} takes one argument`)
  * without its `;` — the error the grammar reported there when the `;` was
  * required, and the one JavaScript reports, which inserts a `;` before a
  * token only where a newline does
- * ([spec: module structure](../../../spec/README.md#module-structure)) —
+ * ([spec: module structure](../../../spec/modules/README.md)) —
  * and the tokens JavaScript forbids a newline before, an `=>` and the
  * value after `return` or `throw`
- * ([spec: line terminators](../../../spec/README.md#whitespace-and-line-terminators)).
+ * ([spec: line terminators](../../../spec/lexical/whitespace.md)).
  */
 const unexpectedToken = foldError('unexpected token')
 
@@ -260,7 +260,7 @@ const unexpectedToken = foldError('unexpected token')
  * A module that neither throws nor exports a name, at its last `export`:
  * every exported `const` was a pattern binding no name, `export const {} = o;`,
  * and no `export default` followed. A module that does not throw exports at
- * least one name ([spec: exports](../../../spec/README.md#exporting-a-value)),
+ * least one name ([spec: exports](../../../spec/modules/exports.md)),
  * which the grammar asked of the `export` keyword while a `const` always
  * bound one.
  */
@@ -269,7 +269,7 @@ const noExport = foldError('module exports nothing')
 /**
  * The entry a `throw` statement makes of its value: a body's last, in a
  * function or the module, in place of what it would return
- * ([spec: functions](../../../spec/README.md#functions)).
+ * ([spec: functions](../../../spec/functions/README.md)).
  *
  * @type {(value: AstConst) => AstThrow}
  */
@@ -443,7 +443,7 @@ const accessClosed = (key, method, base) => mapOk(
  * A key computed at run time that is no conversion, at the token it begins
  * with: `a[i]`, `a[-1]`, `a[NaN]`. An index is a constant — a string or a
  * number literal — or `Number(i)`, the conversion
- * ([spec: property access](../../../spec/README.md#property-access)); a key
+ * ([spec: property access](../../../spec/property-access/README.md)); a key
  * of any type is read by the `entry` helper, and a negative or a special
  * number is written as the string it names, `a["-1"]`.
  */
@@ -506,7 +506,7 @@ const pushed = (stack, item) => ({ top: item, rest: stack })
  * its source, its `length`, the one name every kind of value may own —
  * the read that fails on `null` and `undefined` as `RequireObjectCoercible`
  * fails, and whose value is no observation
- * ([spec: destructuring](../../../spec/README.md#destructuring)).
+ * ([spec: destructuring](../../../spec/bindings/destructuring.md)).
  *
  * One walk over an explicit stack of what is pending, {@link _Pending}, in
  * document order — an element or a property is judged where it is read,
@@ -631,7 +631,7 @@ const properties = (pending, list, parent) => list.reduceRight(
  * The entries a checked pattern makes of its source, numbered from `base`
  * — the position the first takes in the body being built — and the words
  * it binds, each to the entry holding its value, in the order written
- * ([spec: destructuring](../../../spec/README.md#destructuring)): one
+ * ([spec: destructuring](../../../spec/bindings/destructuring.md)): one
  * entry per read of the plan, one binding per name, linear in both.
  *
  * A name's one entry is the source itself, which is what a `const` of a
@@ -1068,7 +1068,7 @@ const captured = (body, word, [outer, ref]) => {
  * {@link planned} and {@link lowered}, its source the argument, so that
  * its reads are the first entries of the body and each name it binds is
  * bound to the entry holding its value
- * ([spec: destructuring](../../../spec/README.md#destructuring)). Nothing
+ * ([spec: destructuring](../../../spec/bindings/destructuring.md)). Nothing
  * else is the body's own; a name bound outside is a capture,
  * {@link resolve}. The `length` is what JavaScript gives the function, the
  * fixed parameters counted, a pattern as one, the rest parameter not.
@@ -1308,7 +1308,7 @@ const isKeyNamed = (key, name) => !(key instanceof Array) && keyNamed(key) === n
  * The static function the key `named` names in the namespace `global`, as
  * the AST holds it, `['Number.isInteger']`, or `null` where the language
  * admits none: `is` of `Object` and the four predicates of `Number`
- * ([spec: built-in static functions](../../../spec/README.md#built-in-static-functions)),
+ * ([spec: built-in static functions](../../../spec/built-ins/static-functions.md)),
  * each a tag of the EDAG's `staticIds`, where a later name is a row of
  * its own decision.
  *
@@ -1418,7 +1418,7 @@ const isEntryOf = (node, x) => {
 
 /**
  * The `entry` helper, recognized whole
- * ([spec: entry](../../../spec/README.md#reading-an-entry-at-run-time)):
+ * ([spec: entry](../../../spec/property-access/entries.md)):
  *
  * ```js
  * (a, b) => {
@@ -1716,7 +1716,7 @@ const arm = (stack, scope, frame, statements, first, enclosing) =>
  * of the function the loop lowers to — its one parameter the variable,
  * bound to the first argument, the function itself under {@link loopSelf},
  * and the variable marked, {@link capturedLoopVariable}
- * ([spec: loops](../../../spec/README.md#loops)). A `let` whose initializer
+ * ([spec: loops](../../../spec/control-flow/loops.md)). A `let` whose initializer
  * read the word from outside is refused as a `const`'s is.
  *
  * @type {(stack: _Stack, scope: _Scope, frame: Extract<_Frame, { readonly let: unknown }>, init: AstConst) => _State}
@@ -2027,7 +2027,7 @@ const foldModule = ({ imports, consts, exported, thrown: failing }) => {
  *
  * This is the only language the parser reads. A JSON document is data, not a
  * module, and `fjs/media/json` is its reader
- * ([spec: JSON input](../../../spec/README.md#json-input)).
+ * ([spec: JSON input](../../../spec/command-line/json-input.md)).
  *
  * The grammar it accepts is written down in `./grammar`, read by
  * `./syntax`, and what the grammar accepts and this refuses is the fold's:

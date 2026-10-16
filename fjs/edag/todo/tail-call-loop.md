@@ -110,7 +110,7 @@ for the same shapes, which no loop written as `let`/`while` produces:
   recursion in Rust, as in every writer;
 - a read of the rest array: each round of the recursion is a call of one
   argument, so from the second round on the array is empty
-  ([spec: parameters](../../../spec/README.md#parameters)), and a loop
+  ([spec: parameters](../../../spec/functions/parameters.md)), and a loop
   that kept the first call's array would answer differently where that
   array had members;
 - a spread or a second argument as the next value. A next value that
@@ -174,7 +174,7 @@ of it survives:
 That text is program-visible: `String(f)`, `f.toString()` and every
 conversion that reaches the default function representation answer with
 it, in the EDAG interpreters and in the Rust VM alike
-([spec: function source](../../../spec/README.md#function-source-representation-exception)).
+([spec: function source](../../../spec/principles/README.md#function-source-representation-exception)).
 Today the same function answers with a named function expression, which
 the specification and the function-text contract promise for a body
 reading its `self`. The loop changes that answer for every function of the
@@ -254,7 +254,7 @@ written for the template, so it is a later step, taken with the grammar for
       the graph again.
 - [x] `fjs/compiler/serializer`: the `let`/`while` spelling in call context,
       a rest-reading function left as recursion, with the grammar
-      ([spec: loops](../../../spec/README.md#loops)), its proposal
+      ([spec: loops](../../../spec/control-flow/loops.md)), its proposal
       approved, proven by the round trip.
 
 ### Related
@@ -263,7 +263,7 @@ written for the template, so it is a later step, taken with the grammar for
   — why a loop is a tail call and not a node.
 - [spec: let](../../../spec/todo/3220-let.md) — the grammar half, a
   language proposal of its own.
-- [spec: function source](../../../spec/README.md#function-source-representation-exception)
+- [spec: function source](../../../spec/principles/README.md#function-source-representation-exception)
   — the contract the function text changes under.
 - [`function-text.md`](../function-text.md) — the text contract the
   JavaScript form lives under.

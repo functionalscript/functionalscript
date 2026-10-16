@@ -96,7 +96,7 @@ and a string method's argument all reach the one text. A function without
 text — a host or hand-written one — is refused (`error::function_text`), never
 answered with a placeholder. What remains is the property key, which no
 module can compute but through the
-[`entry`](../../../spec/README.md#reading-an-entry-at-run-time) helper, whose
+[`entry`](../../../spec/property-access/entries.md) helper, whose
 key conversion reaches a function's text. And the host evaluator's own rendering, which the
 corpus's `host` marker skips until it has one.
 

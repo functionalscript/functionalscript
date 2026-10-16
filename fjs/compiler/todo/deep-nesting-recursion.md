@@ -32,7 +32,7 @@ fold's `refsOf`, `lower`, the writer's — recurses once per step. At
 `06ad1e3`, `const a = {}; export default a.x` followed by `.x` two
 thousand times fails with the same `RangeError`, on every output. An
 optional chain, which the parser folds into one node with a continuation
-of steps ([optional chaining](../../../spec/README.md#optional-chaining)),
+of steps ([optional chaining](../../../spec/property-access/optional-chaining.md)),
 holds out longer and fails the same way at five thousand: the walks over a
 continuation — `after`, `continuedSteps` and `stateOf` in
 [`../parser/syntax/module.f.mjs`](../parser/syntax/module.f.mjs),

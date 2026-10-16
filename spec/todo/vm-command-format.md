@@ -22,10 +22,10 @@ only on previous commands.
 
 |format|any                     |          |Notes                                           |
 |------|------------------------|----------|------------------------------------------------|
-|DJS   |const_ref               |u32       |[const](../README.md#shared-values-constants)                       |
-|      |bigint_plus             |Array<u64>|[bigint](../README.md#supported-value-types)                     |
-|      |bigint_minus            |Array<u64>|[bigint](../README.md#supported-value-types)                     |
-|      |undefined               |          |[undefined](../README.md#supported-value-types)               |
+|DJS   |const_ref               |u32       |[const](../bindings/constants.md)                       |
+|      |bigint_plus             |Array<u64>|[bigint](../values/README.md)                     |
+|      |bigint_minus            |Array<u64>|[bigint](../values/README.md)                     |
+|      |undefined               |          |[undefined](../values/README.md)               |
 |      |own_property            |          |[property-accessor](./2330-property-accessor.md)|
 |      |instance_property       |          |[property-accessor](./2330-property-accessor.md)|
 |      |instance_method_call    |          |[property-accessor](./2330-property-accessor.md)|
@@ -36,7 +36,7 @@ only on previous commands.
 
 |format|any     |    |Notes                          |
 |------|--------|----|-------------------------------|
-|FJS   |function|Func|[functions](../README.md#functions)|
+|FJS   |function|Func|[functions](../functions/README.md)|
 
 ## NPN (Normal Polish Notation)
 

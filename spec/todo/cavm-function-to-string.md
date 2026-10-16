@@ -98,7 +98,7 @@ what makes it right:
   expansion is one level and finite — is a CAVM inspection operation,
   a decompiler, and not `toString`.
 - **Legal spelling.** The characters an
-  [identifier](../README.md#identifiers) may continue with — `A`–`Z`,
+  [identifier](../lexical/identifiers.md) may continue with — `A`–`Z`,
   `a`–`z`, `0`–`9`, `_` and `$` — are exactly sixty-four, so a hash spells
   as base64 over that alphabet with no character outside it: a 255-bit
   hash is forty-three characters, against sixty-four in hex. Standard
@@ -132,7 +132,7 @@ under [Open](#open).
 
 The cost is stated plainly: the text carries no code, where JavaScript's
 carries the source. That is inside the adopted
-[exception](../README.md#function-source-representation-exception) — the
+[exception](../principles/README.md#function-source-representation-exception) — the
 EDAG-derived text was never going to be JavaScript's — but it is the far
 end of it, and a profile that wants readable bodies wants the decompiler
 above, not a different `toString`.

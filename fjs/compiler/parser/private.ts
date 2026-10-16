@@ -123,7 +123,7 @@ export type _Scope = {
      * the word from a function nested in either is refused unless the
      * function is called where it is written, since JavaScript's closure
      * would see the variable's last value where the function's capture
-     * holds the round's ([spec: loops](../../../spec/README.md#loops)).
+     * holds the round's ([spec: loops](../../../spec/control-flow/loops.md)).
      */
     readonly loop: string | null
     /**

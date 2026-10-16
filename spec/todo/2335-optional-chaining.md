@@ -8,7 +8,7 @@ name/key checks, EDAG lowering and FunctionalScript writer were merged in
 [#2660](https://github.com/functionalscript/functionalscript/pull/2660),
 [commit `5774062e6`](https://github.com/functionalscript/functionalscript/commit/5774062e61f7d4f4bb9b9047a5efa53ca7e6281a).
 That change also added the current rules to the
-[language specification](../README.md#optional-chaining), with proofs in
+[language specification](../property-access/optional-chaining.md), with proofs in
 [`parser`](../../fjs/compiler/parser/proof.f.mjs) (`optional`),
 [`edag`](../../fjs/compiler/edag/proof.f.mjs) (`chains`) and
 [`serializer`](../../fjs/compiler/serializer/proof.f.mjs) (`chains`).
@@ -31,7 +31,7 @@ counted it among what held two leaves). The implemented feature follows ECMAScri
 
 - `a?.b` and `a?.[k]` — a property access whose key is what `a.b` and `a[k]`
   take, a name, a constant or the conversion `a?.[Number(i)]`
-  ([property access](../README.md#property-access));
+  ([property access](../property-access/README.md));
 - `a?.(…)` — a call;
 - the steps after one — `.c`, `[k]`, `(…)`, `?.c`, `?.(…)` — read as
   JavaScript reads a chain: when the value before `?.` is `null` or
@@ -110,7 +110,7 @@ neither the implementation request nor the merge supplies the missing record.
       `fjs/compiler/examples/module.f.js`, and the EDAG page draws a chain
       as the one node it is, its region on the edges, `fjs/compiler/edag/demo.f.mjs`.
 - [x] The specification describes the feature
-      ([optional chaining](../README.md#optional-chaining)); the roadmap's
+      ([optional chaining](../property-access/optional-chaining.md)); the roadmap's
       entry and the survey's rows are reread.
 - [ ] Locate and link explicit pre-implementation language-design approval from
       `sergey-shandar`; if no such record exists, obtain and record the

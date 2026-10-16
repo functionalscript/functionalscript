@@ -49,7 +49,7 @@ limits `length` to 16.
 
 ### Related
 
-- [Functions](../README.md#functions) — a function has at most 16 fixed
+- [Functions](../functions/README.md) — a function has at most 16 fixed
   parameters, which retired the `withLength` pattern's unrestricted `length`.
 - [Review finding](https://github.com/functionalscript/functionalscript/pull/2133#discussion_r4054015547)
   — the complete-list writer obstruction that motivated the earlier task.

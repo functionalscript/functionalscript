@@ -23,7 +23,9 @@ the moves waits on the others
 ([AGENTS.md §1](../../AGENTS.md#1-workflow)).
 
 **A page owns its examples.** A page ends with the programs that show it, as a
-list of `[name, source]` pairs in a sibling `examples.f.js`. The compiler demos'
+list of `[name, source]` pairs, one list per page, exported by the area's
+`module.f.js` beside its pages (pages are files of the area's directory, so a
+file per page would share one path). The compiler demos'
 list is *assembled from the tree*, never spelled a second time, so an example
 lives next to the text it illustrates and a change to one is a change to the
 other. The picker groups the assembled list by area (`<optgroup>`), which
@@ -41,7 +43,7 @@ well: the gaps are visible as empty pages.
 ### What a page holds
 
 **No page says "allowed unless forbidden".** FunctionalScript is a whitelist
-([principles](../README.md#principles)), so every JavaScript feature gets a
+([principles](../principles/README.md)), so every JavaScript feature gets a
 page that says which side of the line it is on, and the tree's coverage is
 checked against the ECMAScript feature list: a feature with no page is a gap,
 not a default. A page is one of two kinds.
@@ -50,10 +52,13 @@ not a default. A page is one of two kinds.
 
 1. What the feature is and the exact form accepted, with the restrictions that
    narrow JavaScript's.
-2. Examples, each shown with the compiler's real output for every output
+2. **Reference**: the ECMA-262 section that defines the feature, and its MDN
+   page. Every page has one, an included or a refused feature alike, so a
+   reader can check FunctionalScript's rule against the standard's.
+3. Examples, each shown with the compiler's real output for every output
    (`.json`, `.data.js`, `.js`, EDAG, Rust), including the outputs that refuse
    it and why.
-3. A status line. If the feature is **not implemented yet**, the page says so in
+4. A status line. If the feature is **not implemented yet**, the page says so in
    its text, and its examples show what the compiler does *today* — a refusal
    or a wrong output — not what it will do. The proof pins that output, so the
    day the feature lands the proof fails and the page is updated with it,
@@ -62,7 +67,7 @@ not a default. A page is one of two kinds.
 **A refused feature** (valid JavaScript that FunctionalScript rejects):
 
 1. What is refused, as a program that fails, shown with the compiler's own
-   refusal.
+   refusal, and the ECMA-262 and MDN **Reference** as above.
 2. **Why** — the rationale, tied to a principle (purity, determinism, a
    single way to do it, the graph model) so that a restriction is
    justified rather than merely stated
@@ -145,20 +150,48 @@ which is refused as a read but accepted as a call) is an included page with a
 
 ### Migration
 
-Each step is one pull request and leaves the specification complete:
+**Done in the conversion pull request.** `spec/README.md` is the index, the
+contents tree and the roadmap; the text moved into twelve areas, each a directory
+of pages with a status line, an Examples section and a Reference
+(ECMA-262 and MDN):
 
-1. Add `examples.f.js` beside nothing yet: define the page-owned example shape
-   (name, source, optional refusal note) and the group in `Examples`, and have
-   the picker draw `<optgroup>`. The demo list is still the current one.
-2. Move one area — the smallest, *Lexical grammar* — into `spec/lexical/`: its
-   pages, its examples, a link from the index. The demo list now takes that
-   area from the tree.
-3. Repeat per area; each move deletes the matching section of `spec/README.md`
-   and re-points the links that named it. The numbered `todo/` entries above
-   link to pages instead of anchors as they move.
-4. When the last area has moved, `spec/README.md` is the index and the
-   principles, and the compiler's examples file is only the assembly.
-5. Each `◌` or `○` row gets its example when the feature lands, or a refusal
+| Area | Pages |
+| --- | --- |
+| `principles/` | principles, failure |
+| `lexical/` | whitespace, comments, identifiers, string escapes |
+| `values/` | numbers, bigints, strings, template literals, arrays, objects |
+| `modules/` | structure, exports, imports |
+| `bindings/` | constants, destructuring |
+| `operators/` | operators, grouping, `instanceof`, `in` |
+| `conversions/` | `Number`, `String` |
+| `property-access/` | access, optional chaining, entries |
+| `functions/` | functions, parameters, captures, calls, names and identity, outputs |
+| `control-flow/` | guards, loops |
+| `built-ins/` | member functions, static functions |
+| `command-line/` | command line, checking, source text, file types, JSON input, output |
+
+Each area with programs has a `module.f.js` that exports one example list per
+page, and a proof that the lists build a valid drop-down; the compiler's
+`examples/module.f.js` is only the assembly, in tree order. Choices made along
+the way: one module per *area*, not per page, to keep the proof count down; a
+refusal's example lives on the page it shows (`Hex escape` with string escapes,
+`An import` with imports, `A failure at run time` and `Parse error` with the
+principles' failure rules), so the *Refused JavaScript* area is not a directory
+but the register [refused-constructs](./refused-constructs.md); subsections
+stayed headings inside their page, so every old anchor still exists, now on its
+page. Pages whose programs are not written yet say so under *Examples*; they
+and the rewrite of moved text into the included/refused layout above are the
+remaining work.
+
+What is left, each its own pull request:
+
+1. The picker draws `<optgroup>` per area, which needs `Examples` to carry the
+   group (today the area is only a comment in the assembly).
+2. Rewrite each moved page into the included or refused layout above: *why*,
+   *what to write instead*, the friendly error, the not-implemented status.
+3. Programs for the pages that have none, and a page for every ECMAScript
+   feature that has none (the coverage list below).
+4. Each `◌` or `○` row gets its example when the feature lands, or a refusal
    example when it is refused by design.
 
 ### Open questions

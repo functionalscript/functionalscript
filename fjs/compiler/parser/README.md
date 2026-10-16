@@ -106,7 +106,7 @@ and a final rest name is allowed after them; it takes no default and
 cannot be followed by another parameter or a comma. The parameters from
 the first default on are the fold's to read from the rest array, landing
 in the function's own scope before its body
-([spec: functions](../../../spec/README.md#functions)). The
+([spec: functions](../../../spec/functions/README.md)). The
 no-newline rule before `=>` is the fold's, not the grammar's: trivia is no
 symbol of the grammar, and the `=>` token says whether a line break stood
 before it, a line comment's end or a block comment holding one included.
@@ -185,7 +185,7 @@ the backtracking grammar this replaced had
   grammar's: the grammar reads `const a = 1 export default a;`, and
   `foldModule` answers `unexpected token` at the `export`, as the grammar
   did when the `;` was required
-  ([`spec/README.md`](../../../spec/README.md#module-structure)). DataJS
+  ([`spec/README.md`](../../../spec/modules/README.md)). DataJS
   still requires the `;`, in its own reader.
 - **A list is right-recursive.** After an item and its comma, the lookahead says
   whether an item or the closing bracket follows, so a trailing comma is a comma
@@ -228,8 +228,8 @@ the fold's:
   reaches the fold, and `{ typeof: 1 }` and `a.typeof` stay members;
 - a reserved conversion global, `Number` or `String`, bound or referenced
   anywhere but as the callee of `Number(x)` or `String(x)`
-  ([spec: number conversion](../../../spec/README.md#number-conversion),
-  [string conversion](../../../spec/README.md#string-conversion)) —
+  ([spec: number conversion](../../../spec/conversions/number.md),
+  [string conversion](../../../spec/conversions/string.md)) —
   [`fjs/js/keywords`](../../js/keywords/module.f.js)' `reservedGlobals`, a
   list beside the keywords rather than among them, since JavaScript has no
   such keyword and its tokenizer keeps the word an `id`. The fold reads the
@@ -244,7 +244,7 @@ the fold's:
   but as the namespace of a static function — `Object.is` and the four
   `Number` predicates, `Number.isInteger` — beside `Number`'s conversion
   and `Object` in the `entry` helper below
-  ([spec: built-in static functions](../../../spec/README.md#built-in-static-functions)).
+  ([spec: built-in static functions](../../../spec/built-ins/static-functions.md)).
   The read of a static function, in either key spelling and guarded or
   not, is the AST's value of its name, `['Object.is']`, a chain's steps
   after it going on over that value; an object pattern over the bare word
@@ -268,7 +268,7 @@ the fold's:
   replace the prototype. The computed spelling `{ ["__proto__"]: v }` denotes an
   ordinary property and is accepted, so this is not a lexical rule either;
 - a binding pattern, `const { a, b: [c] } = v;` or `({ a, b: [c] }) => a`
-  ([spec: destructuring](../../../spec/README.md#destructuring)): the
+  ([spec: destructuring](../../../spec/bindings/destructuring.md)): the
   grammar reads the array or object literal the same text spells, and the
   reader keeps the pattern reading of it beside the node, so the fold is
   what refuses a value in a binding position (`invalid destructuring
@@ -303,7 +303,7 @@ the fold's:
   like any other while `a.at` stays a refused read: a detached built-in is a
   function that only fails;
 - the `entry` helper, which is matched whole rather than resolved
-  ([spec: entry](../../../spec/README.md#reading-an-entry-at-run-time)): a
+  ([spec: entry](../../../spec/property-access/entries.md)): a
   function of two parameters whose block body binds the descriptor
   `Object.getOwnPropertyDescriptor` answers for them and returns the value
   an enumerable one holds — under any three distinct names, the keys in
@@ -360,7 +360,7 @@ them to the same executable body, a `throw` to one whose value is the
 `['throw', v]` node, and a guard to the conditional of two calls of
 parameterless functions, one of its block and one of the statements after
 it, which the lowering inlines
-([spec: functions](../../../spec/README.md#functions)). The grammar still
+([spec: functions](../../../spec/functions/README.md)). The grammar still
 requires zero or more statements followed by one terminating statement, and a
 module ends in an export or a `throw` the same way. This representation
 change adds no ASI.

@@ -7,7 +7,7 @@
 
 A module `const` cannot read a `const` declared after it: the compiler answers
 `const not found`, so a function cannot call a later function
-([shared values](../README.md#shared-values-constants)). A function calling
+([shared values](../bindings/constants.md)). A function calling
 itself is resolved, the `e` case below: a `const` whose whole value is a
 function has the name in that function's body, the EDAG's `["self"]`. Only
 forward objects should be visible. Example:

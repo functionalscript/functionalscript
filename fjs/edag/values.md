@@ -83,7 +83,7 @@ or bigint division by zero, returns `error(['undefined'])`. Explicit `throw`
 returns its evaluated operand as the payload. Operand and callback failures
 propagate unchanged, including container and function identities. Lazy
 operations demand only selected operands. This is the evaluator protocol,
-consistent with [failure equivalence](../../spec/README.md#failure-is-one-outcome);
+consistent with [failure equivalence](../../spec/principles/README.md#failure-is-one-outcome);
 it adds no source-level catch or throw-inspection feature.
 
 A call in tail position of an invocation — a bare `()` or `?.()`, or the

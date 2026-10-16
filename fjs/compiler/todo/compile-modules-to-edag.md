@@ -56,7 +56,7 @@ rules are developed in
 method-access safety is owned by
 [`2330-property-accessor.md`](../../../spec/todo/2330-property-accessor.md), source
 functions are in the language
-([functions](../../../spec/README.md#functions)) and capture semantics are tracked by
+([functions](../../../spec/functions/README.md)) and capture semantics are tracked by
 [`3111-function-frame.md`](../../../spec/todo/3111-function-frame.md), and VM-internal
 call lowering belongs to
 [`9100-call-like-instructions.md`](../../../spec/todo/9100-call-like-instructions.md).
@@ -160,7 +160,7 @@ written and whether the import carries `with { type: "json" }` — see
 resolver/loader to validate under the host contract, even on cache hits. Its order
 defines the import parameter positions in `edag`. `edag` is the parameterized computation for the module,
 with the complete module export object as its root/result
-([named and default exports](../../../spec/README.md#exporting-a-value)).
+([named and default exports](../../../spec/modules/exports.md)).
 
 `Unresolved` is a compiler/loading structure only. It is **not part of EDAG**, and
 import specifiers and resolved loading locations must not be embedded into EDAG
@@ -743,7 +743,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [x] `-0`, `NaN`, `Infinity` and `-Infinity` round-trip through DataJS, and the JSON
       writer refuses what JSON cannot spell rather than approximating. Pinned in
       [`fjs/compiler/language.proof.f.mjs`](../language.proof.f.mjs) (`specialNumbers`, the `jsonRefused`
-      cases) and [`spec/README.md`](../../../spec/README.md#output).
+      cases) and [`spec/README.md`](../../../spec/command-line/output.md).
 
 ### Related
 
@@ -789,7 +789,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [`fjs/edag/README.md`](../../edag/README.md) — the canonical EDAG schema.
 - [`spec/todo/2330-property-accessor.md`](../../../spec/todo/2330-property-accessor.md)
   — property/method-access safety rules reused by `.` and the property chain steps.
-- [`spec/README.md`](../../../spec/README.md#functions) — source-level
+- [`spec/README.md`](../../../spec/functions/README.md) — source-level
   function support, which is in the language.
 - [`spec/todo/3111-function-frame.md`](../../../spec/todo/3111-function-frame.md) —
   captured-frame semantics; the original non-capturing Stage 2 restriction is historical.

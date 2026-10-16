@@ -40,7 +40,7 @@ chain**, enumerable or not:
 **1. Only one way to implement it breaks the language's first rule; the other
 two are compatible and not worth their cost.** Successful FunctionalScript and
 JavaScript executions have the same observable result
-([principles](../README.md#principles)), and a text JavaScript gives a meaning
+([principles](../principles/README.md)), and a text JavaScript gives a meaning
 FunctionalScript cannot reproduce "is a compilation error, not an invitation to
 give it a second, more convenient meaning." There are three ways to implement
 `in`:
@@ -52,8 +52,8 @@ give it a second, more convenient meaning." There are three ways to implement
 - *Answer as JavaScript does, with a prototype chain.* This is compatible, at
   the price of the chain, so that `"toString" in {}` can be `true`. It is
   rejected because the language was built without one: "FunctionalScript has no prototype chains"
-  ([specification](../README.md#property-access)), and a name a prototype would
-  give a value reads as absent, as the [`entry` helper](../README.md#reading-an-entry-at-run-time)
+  ([specification](../property-access/README.md)), and a name a prototype would
+  give a value reads as absent, as the [`entry` helper](../property-access/entries.md)
   states. A chain that exists only to answer `in` is the whole feature
   smuggled back for one operator, and every VM would have to carry it.
 - *Answer by receiver-type dispatch.* This is compatible, within the
@@ -69,7 +69,7 @@ give it a second, more convenient meaning." There are three ways to implement
     compilation error, `o.toString` and `o["toString"]` alike, because
     "JavaScript would find a function there and this language nothing, and a
     module must mean one thing in both"
-    ([property access](../README.md#property-access)). `in` would answer the
+    ([property access](../property-access/README.md)). `in` would answer the
     same question about the same name as data, `true` for `"toString"` and
     `"push"` where the read of that name is refused, and the dynamic key
     `k in o` cannot be refused at compile time as the literal read can.
@@ -92,7 +92,7 @@ ask. The operator is refused rather than approximated.
 
 **2. It does not match any pattern the language whitelists.** The language is a
 whitelist of *complete semantic patterns*, not of operations in isolation
-([principles](../README.md#principles)). The question programs actually ask is
+([principles](../principles/README.md)). The question programs actually ask is
 "does this object hold an enumerable data entry under this key?", and that has
 a pattern: `Object.getOwnPropertyDescriptor(a, b)?.enumerable`, spelled with
 JavaScript's own names, answering `true`, `false` or `undefined`
@@ -149,7 +149,7 @@ question two spellings with different answers.
   inherited or non-enumerable names (`"toString" in o`, `"length" in a`),
   neither replacement is equivalent, and it needs a rewrite that states what
   it really wants to know.
-- The word `in` stays reserved ([lexical grammar](../README.md#identifiers)).
+- The word `in` stays reserved ([lexical grammar](../lexical/identifiers.md)).
 
 ## When to revisit
 
@@ -174,5 +174,5 @@ questions it adds.
 
 - [Enumerable property presence](./2345-has-own-property.md) — `hasEntity`.
 - [Undefined-valued properties](./1010-undefined-property.md).
-- [Reading an entry at run time](../README.md#reading-an-entry-at-run-time).
+- [Reading an entry at run time](../property-access/entries.md).
 - [Operators](./2340-operators.md).

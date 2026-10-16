@@ -1,6 +1,6 @@
 /**
  * The `entry` helper, the language's one read of a property named at run
- * time ([spec: entry](../../../../spec/README.md#reading-an-entry-at-run-time)):
+ * time ([spec: entry](../../../../spec/property-access/entries.md)):
  * the enumerable own property `b` names of `a` — an object's field, an
  * array's or a string's element, and nothing a value owns without
  * enumerating it, a `length` or anything of a function — the key converted

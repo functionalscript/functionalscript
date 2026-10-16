@@ -16,7 +16,7 @@ That request also authorized the original pre-generated
 
 Parsing, binding, fixed/rest EDAG, source output and Rust output are
 implemented, and the accepted syntax is in the
-[specification](../README.md#functions). A function's `length` is at most 16,
+[specification](../functions/README.md). A function's `length` is at most 16,
 the approved language limit. The old three-element function tuple is a
 breaking format change: recompile source, or migrate zero-arity
 function-owned `args` to `rest`, retaining module import bindings.
@@ -86,7 +86,7 @@ runtime compilation boundary.
 This replaces this TODO's earlier positive-arity/full-`['args']` design and
 its restricted writer boundary. The implementation request and original
 factory-table authorization are recorded above. The language limits
-`length` to 16 ([functions](../README.md#functions)).
+`length` to 16 ([functions](../functions/README.md)).
 
 **Benefits:** familiar JavaScript syntax, preserved arity, and a shared
 argument representation for the compiler, writers and FJS interpreters.
@@ -293,7 +293,7 @@ it is not a missing prerequisite for the compiled text already supplied.
 
 Ordinary JavaScript source execution and ordinary runtime callables created
 by `toUnknown` use the host's function text under the
-[function-source exception](../README.md#function-source-representation-exception).
+[function-source exception](../principles/README.md#function-source-representation-exception).
 The historical host-closure ruling on
 [#2469](https://github.com/functionalscript/functionalscript/pull/2469) does
 not exempt the represented EDAG interpreters from their current canonical
@@ -310,7 +310,7 @@ they do not reopen the implemented code-only default representation.
 ### Length limit and migration
 
 A function has at most 16 fixed parameters
-([functions](../README.md#functions)), approved as a language limit
+([functions](../functions/README.md)), approved as a language limit
 ([approval](https://github.com/functionalscript/functionalscript/pull/2295#issuecomment-5831266299)) so
 that every valid function is materializable, with the right `length`, by every
 backend. A 17th fixed name is a compile error, and `checked` refuses an
@@ -423,7 +423,7 @@ source rest binding in that future case or silently admit initializers now.
 
 ### Related
 
-- [Current functions](../README.md#functions) — accepted syntax today.
+- [Current functions](../functions/README.md) — accepted syntax today.
 - [Arity-cap review](https://github.com/functionalscript/functionalscript/pull/2220#discussion_r4094327220)
   — distinguish executor capacity from language validity; superseded by the
   language's limit on `length`.

@@ -16,7 +16,7 @@ have landed; the operation tables retain their rollout history separately from
 current support. This document owns the EDAG semantics,
 not parser scheduling. Property/method-access safety is shared with
 [property-accessor](../spec/todo/2330-property-accessor.md); source functions
-are in the language ([functions](../spec/README.md#functions)), capturing
+are in the language ([functions](../spec/functions/README.md)), capturing
 ones included — the frame
 [function-frame](../spec/todo/3111-function-frame.md) describes, built by the
 compiler and printed to Rust; VM-internal call
@@ -25,7 +25,7 @@ lowering belongs to
 
 **P1 source/writer reconciliation:** the direct descriptor-value source plan
 is superseded by `entry`, the language's helper
-([spec: entry](../spec/README.md#reading-an-entry-at-run-time)), and the
+([spec: entry](../spec/property-access/entries.md)), and the
 EDAG's `['entry']` node it lowers to, the helper as a value: the helper is
 the one source spelling of the node, and a key computed at run time is read
 by calling it. The affected sections below follow that decision;
@@ -136,7 +136,7 @@ export default [",",
 **An EDAG validated for a declared execution profile must obey that profile's
 semantics.** The baseline below uses the
 [JS-compatible identity model](../fjs/edag/execution-models.md#2-js-compatible-execution)
-and the [language principles](../spec/README.md#principles), including their
+and the [language principles](../spec/principles/README.md), including their
 explicit failure and function-text exceptions. Other identity models are
 separate contracts, not alternative implementations of this baseline.
 
@@ -183,7 +183,7 @@ The function representation is the EDAG, not that source tree.
 - the same successful observations under the declared identity model (A1).
   JS-compatible execution preserves JavaScript allocation and sharing;
   being non-CA grants no exemption. The separately adopted
-  [function-text exception](../spec/README.md#function-source-representation-exception)
+  [function-text exception](../spec/principles/README.md#function-source-representation-exception)
   covers EDAG-derived text and its consequences, not arbitrary identity changes;
 - required failures are preserved (A3), subject to the explicit semantic
   exceptions; a runner may also interrupt at its own resource limits (A2);
@@ -284,11 +284,11 @@ limits still apply, including no unary `+` or authored comma expressions.
 |`["?.()", callee, args]`, `["?.()", callee, args, k]`|`f?.(...args)`, and the rest of its optional region|later|implemented optional call|
 |`["\|()", args]`, `["\|()", args, k]`|one chain step, `(...args)`|2|not an `exp` node — only valid as the continuation `k` of a chain node or another step (subject 6); this is the implemented step a method call's `.` node carries, introduced in Stage 2|
 |`["\|.", property, k?]`, `["\|?.()", args, k?]`, `["\|!()", args]`|one chain step|later|implemented steps: a property access inside an optional region, a guarded call, and the call a group puts outside the region|
-|`["entry"]`|the `entry` helper|entry rollout|implemented helper as a value, a function of two parameters called as any function is, `["()", ["entry"], [a, b]]`; the helper is its one source spelling ([spec: entry](../spec/README.md#reading-an-entry-at-run-time))|
+|`["entry"]`|the `entry` helper|entry rollout|implemented helper as a value, a function of two parameters called as any function is, `["()", ["entry"], [a, b]]`; the helper is its one source spelling ([spec: entry](../spec/property-access/entries.md))|
 |`["Number", node]`|`Number(x)`|later|implemented numeric coercion that accepts bigints, unlike unary `+`|
 |`["String", node]`|`String(x)`|later|implemented string coercion|
 |`[",", nodes]`|`(a, b)`|later|implemented sequence node (subject 8); `nodes` is one array operand, taking the last value or `undefined` when empty; the partial source writer refuses fewer than two operands; emitted for anchors and inlined blocks, while authored comma expressions remain unparsed|
-|`["=>", length, slots, body]`|`(…) => …`|2|implemented function and captures; `length` is integer metadata (subject 7); `slots` is the array of captured values, an array operand of `exp`s evaluated in the enclosing scope, `[]` where there is none, each read in the body as `["frame", i]`; the initial Stage 2 used a placeholder before captures landed ([functions](../spec/README.md#functions))|
+|`["=>", length, slots, body]`|`(…) => …`|2|implemented function and captures; `length` is integer metadata (subject 7); `slots` is the array of captured values, an array operand of `exp`s evaluated in the enclosing scope, `[]` where there is none, each read in the body as `["frame", i]`; the initial Stage 2 used a placeholder before captures landed ([functions](../spec/functions/README.md))|
 
 `["{}", [...entry]]` is an ordered object-construction operation. The original
 Stage 1 used `[":", key, value]` entries; current construction also accepts
@@ -354,7 +354,7 @@ operands and nothing else — and unary `+` is.
 `Object.getOwnPropertyDescriptor(object, key)?.value` to an internal
 `["own", object, key]` node is gone with the node. It would have exposed
 non-enumerable properties as well as data entries, and it had no source
-spelling. What landed is [`entry`](../spec/README.md#reading-an-entry-at-run-time):
+spelling. What landed is [`entry`](../spec/property-access/entries.md):
 the complete parsed enumerable-entry helper is recognized and lowered to
 `['entry']`, the helper as a value, and read through ordinary calls, whose
 receiver/key conversion and function observations the spec states; the
@@ -404,7 +404,7 @@ arity by membership alone.
 |-------|-----|--|----|-----|
 |`+` `-`|1|`+a`, `-a`|no|unary plus and negation — the arithmetic tags below at one operand (see above); unary `+` is not FunctionalScript syntax ([operators](../spec/todo/2340-operators.md)), and [property-accessor](../spec/todo/2330-property-accessor.md)'s run-time-index coercion is `"Number"`, not an operator|
 |`!` `~`|1|`!a`, `~a`|no|unary only|
-|`typeof`|1|`typeof a`|no|implemented FunctionalScript syntax; returns the value's JavaScript type string ([spec: operators](../spec/README.md#operators))|
+|`typeof`|1|`typeof a`|no|implemented FunctionalScript syntax; returns the value's JavaScript type string ([spec: operators](../spec/operators/README.md))|
 |`+` `-` `*` `/` `%` `**`|2|`a + b`|no|arithmetic|
 |`===` `!==` `<` `<=` `>` `>=`|2|`a === b`|no|`==` and `!=` are not allowed by [operators](../spec/todo/2340-operators.md)|
 |`&` `\|` `^` `<<` `>>` `>>>`|2|`a & b`|no|bitwise|
@@ -606,7 +606,7 @@ Resource limits are a property of the **engine**, not of the function.
 Where one executor interrupts, another may complete. A2 permits different
 resource limits and interruption points, not different successful results
 under the same semantic contract. An interruption is the same opaque failure
-as any other under [the failure rule](../spec/README.md#failure-is-one-outcome);
+as any other under [the failure rule](../spec/principles/README.md#failure-is-one-outcome);
 a stopped run must not invent a successful value or be cached as proof of a
 semantics-mandated failure.
 
@@ -628,7 +628,7 @@ Within a specified model and version of its identity/rendering contract,
 executors must agree on successful observations. In particular, CAVMs using
 the same content-identity and serialization version must agree; that requirement
 does not weaken JS-compatible executors' allocation and sharing guarantees.
-The [function-text exception](../spec/README.md#function-source-representation-exception)
+The [function-text exception](../spec/principles/README.md#function-source-representation-exception)
 is independent of identity: FJS VMs use EDAG-derived default text, while direct
 JavaScript execution retains its host representation. The
 [serialization record](../spec/todo/serialization.md#function-text-and-serialization)
@@ -984,7 +984,7 @@ spelling `{ ["__proto__"]: … }`, the only object-literal form that
 reproduces that value. The identifier and string spellings assign a prototype
 instead and lose the property. This is the rule the DJS parser and serializer
 already follow —
-[spec: the `__proto__` key](../spec/README.md#the-__proto__-key).
+[spec: the `__proto__` key](../spec/values/objects.md#the-__proto__-key).
 
 #### 5. Validation
 
@@ -1012,7 +1012,7 @@ To validate:
 
 - constants: function values in constant position are a validation error —
   a function is a `"=>"` node, never a constant
-  ([functions](../spec/README.md#functions));
+  ([functions](../spec/functions/README.md));
 - the body: a single operation node;
 - `","` (when introduced): at least two operands — a single-operand
   `","` is the identity and non-canonical; an assert operand reachable
@@ -1043,7 +1043,7 @@ To validate:
 - object-constructor key `"__proto__"`: **not** a validation error — it
   denotes an ordinary own property (subject 4) — but it constrains
   printing, since `{ "__proto__": v }` as JS assigns a prototype instead
-  ([spec: the `__proto__` key](../spec/README.md#the-__proto__-key),
+  ([spec: the `__proto__` key](../spec/values/objects.md#the-__proto__-key),
   subject 12);
 - **acyclicity**: immutable FJS/DJS container construction and const-before-use
   guarantee this; the FJS entry needs no cycle check. A separately requested
@@ -1074,7 +1074,7 @@ Every admitted constant-key read is `.`. A method call is a property step
 owning a call continuation, not a detached `()` over a completed read.
 Backends may specialize these operations or share lookup helpers where their
 semantics agree. Such reuse changes neither the source operation nor its
-EDAG representation. [`entry`](../spec/README.md#reading-an-entry-at-run-time)
+EDAG representation. [`entry`](../spec/property-access/entries.md)
 is the runtime helper, not a static-name fallback.
 
 An earlier draft added: "consequence — the EDAG interpreter carries the
@@ -1126,7 +1126,7 @@ a backend lookup routine does not make the operations interchangeable.
 |---|---|---|
 |`[".", o, p]`|permitted constant-key or numeric read|includes non-enumerable `length`; not an entry filter|
 |`[".", o, p, ["\|()", args]]`|the same access with a receiver-preserving call|subject to the call admission, `fjs/js/prototype`'s `prohibitedCalls`: a built-in member function the read refuses may be called|
-|`['entry']`, used through ordinary `()`|enumerable-entry helper function|only the complete helper, per [entry](../spec/README.md#reading-an-entry-at-run-time)|
+|`['entry']`, used through ordinary `()`|enumerable-entry helper function|only the complete helper, per [entry](../spec/property-access/entries.md)|
 
 Every permitted static name stays on the `.` path, whether or not a built-in
 table lists it. A backend can specialize a known read without changing the
@@ -1393,8 +1393,8 @@ and `["frame", i]` in a function, the import `["args"]` in a module (subject 2).
 Nothing references a name the function did not compute itself:
 
 - a module-level `const` or `import` the body uses
-  ([const](../spec/README.md#shared-values-constants),
-  [default-import](../spec/README.md#importing-other-modules));
+  ([const](../spec/bindings/constants.md),
+  [default-import](../spec/modules/imports.md));
 - a captured const — the implemented frame
   [function-frame](../spec/todo/3111-function-frame.md) designs;
 - a built-in namespace such as `Object` or `JSON`
@@ -1524,7 +1524,7 @@ The requirements below retain the historical self-contained serializer
 discussion within each serializer's declared profile; they are not a pending
 contract for `String(f)`.
 
-The [function-source exception](../spec/README.md#function-source-representation-exception)
+The [function-source exception](../spec/principles/README.md#function-source-representation-exception)
 **is adopted**: default FJS function text comes from associated EDAG, not
 original spelling. This permits direct, indirect and exported source-text
 observations to differ from a JavaScript host. The exception does not require a
@@ -1543,7 +1543,7 @@ environment, the following constraints apply within its supported domain:
   unsupported graph. Rendering JavaScript beyond FJS does not admit that syntax
   in FJS or permit `eval` inside it.
 - **No alternate API.** The direct descriptor-value spelling remains
-  retired. [`entry`](../spec/README.md#reading-an-entry-at-run-time) prints
+  retired. [`entry`](../spec/property-access/entries.md) prints
   the complete helper and ordinary calls of it. Its exact spelling follows
   the adopted function-text exception and current renderer, not a
   requirement to recover authored text. A printed helper's intrinsic `Object`
@@ -1583,7 +1583,7 @@ environment, the following constraints apply within its supported domain:
   discussion applies; it does not require `String(f)` to materialize frames.
 - **Data keys keep their meaning.** In an object literal, an own `__proto__`
   data key needs the computed spelling `{ ["__proto__"]: value }`, not a
-  prototype-setting property definition ([spec](../spec/README.md#the-__proto__-key)).
+  prototype-setting property definition ([spec](../spec/values/objects.md#the-__proto__-key)).
 
 A callable round trip must reconstruct the promised behavior under its declared
 profile, including captured sharing and `self` where supported. Structural FJS

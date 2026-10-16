@@ -76,9 +76,9 @@ the intended intrinsic, not a shadowing binding. Parsed descriptor operations
 outside an approved pattern remain refused by FJS admission.
 
 Share receiver/key-conversion semantics with the descriptor read used by
-[`entry`](../README.md#reading-an-entry-at-run-time). Preserve the selected source pattern's
+[`entry`](../property-access/entries.md). Preserve the selected source pattern's
 semantics, including primitive boxing and property-key conversion, subject to
-the adopted [function-source exception](../README.md#function-source-representation-exception).
+the adopted [function-source exception](../principles/README.md#function-source-representation-exception).
 A function-derived key may differ from the host's key; ordinary string-key
 presence and the raw-flag/boolean distinction do not change. A receiver or
 conversion not yet supported is refused, not answered with an invented value.
@@ -107,7 +107,7 @@ refused while the feature is developed.
 
 ## Related
 
-- [Entry](../README.md#reading-an-entry-at-run-time) — reading an enumerable data entry, in the language.
+- [Entry](../property-access/entries.md) — reading an enumerable data entry, in the language.
 - [Built-ins](./2360-built-in.md) — prohibited reflection and pattern-only access.
 - [Undefined-property representation](./1015-undefined-property-vm-layer.md)
   — representation choices cannot override the source pattern's observations.

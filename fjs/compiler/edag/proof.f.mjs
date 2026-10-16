@@ -1021,7 +1021,7 @@ export const proof = {
     // EDAG has: an object pattern's property an access of the source, an
     // array pattern a spread of the source and accesses of the array it
     // made, nested patterns reading through — no node of its own, and the
-    // written form is the lowered one (spec/README.md#destructuring).
+    // written form is the lowered one (spec/bindings/destructuring.md).
     destructuring: {
         lowered: () => {
             /** @type {Exp} */
@@ -1853,12 +1853,12 @@ export const proof = {
         examples: {
             // The demo opens on the first, which is its overview.
             init: () => assertEq(demo.init, examples[0][1]),
-            // Every example draws, except the two the front end refuses —
+            // Every example draws, except those the front end refuses —
             // and none of them draws a node the demo cannot describe, since
             // an example exists to show what it can.
             draw: () => {
                 for (const [name, source] of examples) {
-                    assertEq(_graphOf(source)[0] === 'ok', !['Hex escape', 'Parse error'].includes(name), name)
+                    assertEq(_graphOf(source)[0] === 'ok', !['Hex escape', 'Non-breaking space', 'Non-ASCII identifier', 'Parse error'].includes(name), name)
                     assert(!htmlToString(demo.view(source)).includes('not yet drawn'), name)
                 }
             },

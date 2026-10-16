@@ -253,7 +253,7 @@ export const proof = {
     // the block the body of a parameterless function, as a guard's arm is,
     // ending in the call of the loop's function with the variable's last
     // binding — and the variable names the entry from the loop on
-    // ([spec: loops](../../../spec/README.md#loops)).
+    // ([spec: loops](../../../spec/control-flow/loops.md)).
     loops: {
         shape: () => {
             const [tag, value] = parseFromTokens(tokenizeString('export default n => { let r = 0; while (r < n) { const d = [2]; r = r + d[0]; } return [r, r]; };'))
@@ -2027,7 +2027,7 @@ export const proof = {
         examples: () => {
             for (const [name, source] of examples) {
                 const [tag, value] = _astOf(source)
-                assertEq(tag, ['Hex escape', 'Parse error'].includes(name) ? 'error' : 'ok')
+                assertEq(tag, ['Hex escape', 'Non-breaking space', 'Non-ASCII identifier', 'Parse error'].includes(name) ? 'error' : 'ok')
                 // what the pane marks, the tokenizer agrees with
                 if (tag === 'ok') { assertEq(disagreement(value), null, name) }
             }
