@@ -1,7 +1,7 @@
 ## A VM as an instance that holds its runtime
 
 **Priority:** P3
-**Status:** open — an idea of **sergey-shandar**'s, from the
+**Status:** wip — an idea of **sergey-shandar**'s, from the
 `Object.entries` session
 ([#2984](https://github.com/functionalscript/functionalscript/pull/2984)).
 The static read, `get`, and its contract are **sergey-shandar**'s
@@ -140,13 +140,13 @@ contract:
   receiver's type, known only when it runs, so `IVm::call` keeps asking
   the runtime by type and key, as `Runtime::method` does today. `get`
   covers what is known when the module is compiled: the statics.
-- **A created function gets its text at creation.** `Function::text` now
-  finds `Object.entries`'s text by comparing identities through the
-  runtime (`vm::runtime_text`, over `IVm::runtime_static`), which an
-  instance would make need `v`. The VM creates the function, so it gives
-  it its text, `Some("function entries() { [native code] }")`, a
-  `&'static str` as every other text is; `runtime_text` goes, and
-  `String(f)` needs no VM. A generated body's text stays the compiler's,
+- **A created function gets its text at creation.** `Function::text`
+  used to find `Object.entries`'s text by comparing identities through
+  the runtime, `runtime_text` over `IVm::runtime_static`, which an
+  instance would have made need `v`. The VM creates the function, so it
+  gives it its text, `vm::ENTRIES_TEXT`, a `&'static str` as every other
+  text is, and `String(f)` needs no VM. Done; the first step of the
+  stack. A generated body's text stays the compiler's,
   as today; giving the bodies NativeFunction text is
   [`runtime-static.md`](../../../fjs/js/todo/runtime-static.md)'s open
   task, not this one.
@@ -197,9 +197,9 @@ contract:
       `Any<V>` wraps `V::InternalAny`.
 - [ ] Give the VM instance its runtime, built once by a constructor that
       answers a `Result`, with `call` and `get`. Remove
-      `IVm::runtime_method`, `IVm::runtime_static`, `static_binding`,
-      `runtime_text` and `naive`'s `thread_local!`.
-- [ ] Give `Object.entries` its text at creation, and drop the identity
+      `IVm::runtime_method`, `IVm::runtime_static`, `static_binding` and
+      `naive`'s `thread_local!`.
+- [x] Give `Object.entries` its text at creation, and drop the identity
       comparison in `Function::text`.
 - [ ] Test `get`'s contract on every VM: the same instance answers the
       same function by reference, and two instances answer two.
@@ -221,6 +221,6 @@ contract:
 - [`src/vm/internal/mod.rs`](../src/vm/internal/mod.rs): `IVm` today.
 - [`src/naive/mod.rs`](../src/naive/mod.rs): the thread-local.
 - [`src/vm/runtime.rs`](../src/vm/runtime.rs): `Runtime`,
-  `static_binding`, `runtime_text`.
+  `static_binding`, `ENTRIES_TEXT`.
 - [`callable-function-objects.md`](./callable-function-objects.md): the
   function representation this redesign touches.

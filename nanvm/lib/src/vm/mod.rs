@@ -43,7 +43,7 @@ pub use crate::vm::{
     object::{Object, property::Property, to_object::ToObject},
     object_spread::ObjectSpread,
     runtime::{
-        Runtime, object_entries, runtime_method, runtime_object, runtime_static, runtime_to_string,
+        ENTRIES_TEXT, Runtime, object_entries, runtime_method, runtime_object, runtime_static,
         static_binding,
     },
     string::{String, to_string::ToString},
