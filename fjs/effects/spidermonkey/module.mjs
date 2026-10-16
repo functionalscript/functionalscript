@@ -2,10 +2,12 @@
  * The SpiderMonkey shell's host for `fjs` programs: a partial Node host.
  *
  * It runs a `NodeProgram` through {@link asyncPartialRun} over
- * `nodeCommands` with the operations `fjs t` needs and no others: `sandbox`
- * and `catch` from `commonOperationMap`, and `all`, `readdir`, `import`, and
- * `write` here. Every other Node operation answers `NotImplemented`, so
- * another `fjs` command fails naming what this host lacks. The program sees
+ * `nodeCommands` with the operations `fjs t` and `fjs compile`'s check need
+ * and no others: `sandbox` and `catch` from `commonOperationMap`, and `all`,
+ * `readdir`, `import`, `resolveFileModule`, `readWhole`, and `write` here.
+ * Every other Node operation answers `NotImplemented`, so another `fjs`
+ * command fails naming what this host lacks — compiling a file to an output
+ * stops at `mkdir`, which the shell has no way to do. The program sees
  * `engine: 'spidermonkey'`, which is how `fjs t` knows to load authored
  * proofs only. `npm run sm <command>` runs an `fjs` command through it, and
  * `npm run sm t` runs `fjs t`.
@@ -32,6 +34,11 @@ import { commonOperationMap } from '../common/module.mjs'
 import { exitCode, nodeCommands } from '../node/module.f.mjs'
 import { _orderDirents } from '../node/virtual/readdir/module.f.mjs'
 import { concat, normalize } from '../../path/module.f.mjs'
+import { resolve as resolveImportPath } from '../../path/import/module.f.mjs'
+import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
+import { toVec } from '../../types/uint8array/module.f.mjs'
+
+const maxFileSizeBytes = Number(maxLengthBytes)
 import { utf8ToString } from '../../text/utf8/module.f.mjs'
 import { ok } from '../../types/result/module.f.js'
 
@@ -106,6 +113,26 @@ const runShellEffect = asyncPartialRun(nodeCommands)({
             () => [])
     }),
     import: path => io(() => import(absolute(path))),
+    // Lexical, as the virtual host resolves: the shell has neither `URL` nor
+    // `realpath`, so a module's identity is its normalized absolute path, and
+    // a module reached through two symbolic links would be two modules. The
+    // repository tracks no links.
+    resolveFileModule: (name, parent) => io(async () => {
+        const path = parent === null ? absolute(name) : resolveImportPath(parent)(name)
+        if (path === null) { throw new Error('invalid module specifier') }
+        return { id: normalize(path), path }
+    }),
+    // In `Vec` windows of the most bytes one holds, as the Node host reads. A
+    // directory is refused first: the shell reads one as "too large for a
+    // Uint8Array".
+    readWhole: path => io(async () => {
+        if (isDirectory(path)) { throw new Error(`${path} is not a file`) }
+        const bytes = shell.os.file.readFile(path, 'binary')
+        /** @type {readonly Uint8Array[]} */
+        const windows = Array.from({ length: Math.ceil(bytes.length / maxFileSizeBytes) },
+            (_, i) => bytes.subarray(i * maxFileSizeBytes, (i + 1) * maxFileSizeBytes))
+        return windows.map(toVec)
+    }),
     write: async (stream, data) => {
         // `utf8ToString` because the shell has no `TextDecoder`.
         writeText(stream, utf8ToString(data))

@@ -203,10 +203,11 @@ and pinned runtime versions.
 
 `npm run sm` is the SpiderMonkey counterpart of `npm start`: it runs an `fjs`
 command in the SpiderMonkey shell the Nix shell carries, through a host that
-implements only what `fjs t` needs
+implements only what `fjs t` and `fjs compile`'s check need
 ([`fjs/effects/spidermonkey/module.mjs`](./fjs/effects/spidermonkey/module.mjs)),
-so `npm run sm t` runs the suite and another command answers
-`NotImplemented` for the operations the host lacks. Off Node, Deno, and Bun,
+so `npm run sm t` runs the suite, `npm run sm c` checks every authored `.f.js`,
+and another command answers `NotImplemented` for the operations the host
+lacks. Off Node, Deno, and Bun,
 `fjs t` loads authored `.f.mjs` and `.f.js` proofs only: the impure
 `proof.mjs` ones need the Node host. It scopes to a subtree like
 `npm start test` does, and an argument starting with `-` needs
