@@ -249,10 +249,13 @@ The architecture also adds no source-language feature by itself.
 - [EDAG](../edag/README.md) — graph identity, scopes and operations.
 - [Shared identity traversal](../edag/todo/identity-shared-walks.md) — shared
   counting already completed and remaining traversal questions.
+- [Rust binding emission](../edag/rust/todo/let-bindings-owner.md) — compiler
+  and corpus bindings migrate to the common FAST path; supersedes the earlier
+  separate EDAG-aware emission proposal.
 - [Operand classification ownership](../edag/todo/operand-classification-owner.md)
   — existing eager/lazy analysis work to reconcile with common placement.
 - [Marked text](../text/marked/README.md) — existing representation and demarking.
-- [Failure contract](../../spec/README.md#failure-is-one-outcome) — permitted
+- [Failure contract](../../spec/principles/README.md#failure-is-one-outcome) — permitted
   reordering and preservation of successful paths.
 - [Group modules by concern](./group-fjs-subdirectories-by-concern.md) — related
   directory organization.
