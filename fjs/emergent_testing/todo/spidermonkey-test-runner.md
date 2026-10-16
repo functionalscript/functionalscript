@@ -249,12 +249,8 @@ it.**
    ([AGENTS.md §7](../../../AGENTS.md#7-continuous-integration)): assert the
    pinned version with `js --version` against a pin in
    `../../ci/config/module.f.js`, as `bunSteps` asserts Bun's, then
-   `npm run sm-test`, the same command a developer runs. `fjs ci` writes that
-   step for every project it serves, and the script lives in each project's
-   own `package.json`, as `deno task cov` in the `deno` job relies on the
-   project's `deno.json`; what other projects should run is
-   [ci-generator-audience](../../ci/todo/ci-generator-audience.md)'s
-   question. The version check joins the job's other version
+   `npm run sm-test`, the same command a developer runs. The version check
+   joins the job's other version
    checks, which come before any other command (`nixVersionChecks` in
    `../../ci/proof.f.mjs`). `fjs t` writes nothing to the tree, so the step
    order six-ci-jobs sets for steps that write does not constrain it.
