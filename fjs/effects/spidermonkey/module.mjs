@@ -2,12 +2,15 @@
  * The SpiderMonkey shell's host for `fjs` programs: a partial Node host.
  *
  * It runs a `NodeProgram` through {@link asyncPartialRun} over
- * `nodeCommands` with the operations `fjs t` needs and no others: `sandbox`
- * and `catch` from `commonOperationMap`, and `all`, `readdir`, `import`, and
- * `write` here. Every other Node operation answers `NotImplemented`, so
- * another `fjs` command fails naming what this host lacks. The program sees
+ * `nodeCommands` with the operations `fjs t` and `fjs compile` need and no
+ * others: `sandbox` and `catch` from `commonOperationMap`, and `all`,
+ * `readdir`, `import`, `resolveFileModule`, `readWhole`, `mkdir`,
+ * `writeFile`, and `write` here. Every other Node operation answers
+ * `NotImplemented`, so another `fjs` command fails naming what this host
+ * lacks. The program sees
  * `engine: 'spidermonkey'`, which is how `fjs t` knows to load authored
- * proofs only. `npm run sm-test` runs `fjs t` through it.
+ * proofs only. `npm run sm <command>` runs an `fjs` command through it, and
+ * `npm run sm t` runs `fjs t`.
  *
  * The shell is not a browser and not Node. It has `print`, `putstr`,
  * `printErr`, `quit`, `scriptArgs`, `os.getenv`, `os.file.listDir`, and
@@ -31,8 +34,14 @@ import { commonOperationMap } from '../common/module.mjs'
 import { exitCode, nodeCommands } from '../node/module.f.mjs'
 import { _orderDirents } from '../node/virtual/readdir/module.f.mjs'
 import { concat, normalize } from '../../path/module.f.mjs'
+import { resolve as resolveImportPath } from '../../path/import/module.f.mjs'
+import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
+import { fromVec, toVec } from '../../types/uint8array/module.f.mjs'
 import { utf8ToString } from '../../text/utf8/module.f.mjs'
 import { ok } from '../../types/result/module.f.js'
+
+/** The most bytes one `Vec` holds: the window `readWhole` reads in. */
+const maxFileSizeBytes = Number(maxLengthBytes)
 
 const shell = /** @type {Shell} */ (/** @type {unknown} */ (globalThis))
 const { getenv } = shell.os
@@ -105,6 +114,37 @@ const runShellEffect = asyncPartialRun(nodeCommands)({
             () => [])
     }),
     import: path => io(() => import(absolute(path))),
+    // Lexical, as the virtual host resolves: the shell has neither `URL` nor
+    // `realpath`, so a module's identity is its normalized absolute path, and
+    // a module reached through two symbolic links would be two modules. The
+    // repository tracks no links.
+    resolveFileModule: (name, parent) => io(async () => {
+        const path = parent === null ? absolute(name) : resolveImportPath(parent)(name)
+        if (path === null) { throw new Error('invalid module specifier') }
+        return { id: normalize(path), path }
+    }),
+    // In `Vec` windows of the most bytes one holds, as the Node host reads. A
+    // directory is refused first: the shell reads one as "too large for a
+    // Uint8Array". Nothing else can be: without `stat`, a FIFO passes, and one
+    // no process writes to blocks the read (./todo/unlistable-directory.md).
+    readWhole: path => io(async () => {
+        if (isDirectory(path)) { throw new Error(`${path} is not a file`) }
+        const bytes = shell.os.file.readFile(path, 'binary')
+        /** @type {readonly Uint8Array[]} */
+        const windows = Array.from({ length: Math.ceil(bytes.length / maxFileSizeBytes) },
+            (_, i) => bytes.subarray(i * maxFileSizeBytes, (i + 1) * maxFileSizeBytes))
+        return windows.map(toVec)
+    }),
+    // The shell cannot make a directory. A program asks for one to be sure
+    // its output's directory exists — `writeFiles` makes the parent with
+    // `recursive: true` — and for a directory that exists Node answers that
+    // with success and changes nothing, which `listDir` lets this host answer
+    // too. Anything else is refused: see ./todo/mkdir.md.
+    mkdir: (path, options) => io(async () => {
+        if (options?.recursive === true && isDirectory(path)) { return }
+        throw new Error(`the SpiderMonkey shell cannot make a directory: ${path}`)
+    }),
+    writeFile: (path, data) => io(async () => { shell.os.file.writeTypedArrayToFile(path, fromVec(data)) }),
     write: async (stream, data) => {
         // `utf8ToString` because the shell has no `TextDecoder`.
         writeText(stream, utf8ToString(data))

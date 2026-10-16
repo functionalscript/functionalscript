@@ -1,7 +1,9 @@
 /**
- * CI step builder for SpiderMonkey: runs `fjs t` in the SpiderMonkey shell the
- * shared flake provides, through its partial Node host, as `npm run sm-test` —
- * the command a developer runs.
+ * CI step builder for SpiderMonkey: runs `fjs compile` and `fjs t` in the
+ * SpiderMonkey shell the shared flake provides, through its partial Node host,
+ * as `npm run sm c` and `npm run sm t` — the commands a developer runs. Each
+ * reaches host operations the other does not: the compile check reads and
+ * resolves every `.f.js`, and the suite imports every authored proof.
  *
  * The steps are not a job of their own. They are part of the `ubuntu-arm`
  * platform job, as the WASM checks are, because the number of jobs rather than
@@ -37,9 +39,10 @@ export const shellSpiderMonkeyVersionSteps = (v, a) =>
 
 /**
  * What a platform job runs in the shell for SpiderMonkey: on
- * {@link spiderMonkeyPlatform}, the suite.
+ * {@link spiderMonkeyPlatform}, the compile check, then the suite — the order
+ * the Node jobs run them in, the seconds-long check failing first.
  *
  * @type {(v: Os, a: Architecture) => readonly string[]}
  */
 export const shellSpiderMonkeyCommands = (v, a) =>
-    spiderMonkeyPlatform(v, a) ? ['npm run sm-test'] : []
+    spiderMonkeyPlatform(v, a) ? ['npm run sm c', 'npm run sm t'] : []

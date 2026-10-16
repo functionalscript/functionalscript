@@ -23,6 +23,10 @@ export type Shell = {
         readonly file: {
             /** The names in a directory, `.` and `..` among them; throws for anything that is not one. */
             readonly listDir: (path: string) => readonly string[]
+            /** A file's bytes; a directory reads as "too large", so check first. */
+            readonly readFile: (path: string, mode: 'binary') => Uint8Array
+            /** Replaces a file's bytes, creating it; the shell writes no other way. */
+            readonly writeTypedArrayToFile: (path: string, data: Uint8Array) => void
         }
     }
 }

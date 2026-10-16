@@ -400,7 +400,7 @@ or read a passing corpus as more than it is.
 ## What a vector may not do
 
 - **Nest deeper than every engine parses.** A set is a module, and the suite
-  imports it on Node, Deno, Bun, and SpiderMonkey (`npm run sm-test`).
+  imports it on Node, Deno, Bun, and SpiderMonkey (`npm run sm t`).
   SpiderMonkey 140's module parser refuses a literal nested deeper than about
   870 levels, and a set one engine cannot parse fails every module importing
   it, so the deep vectors stay well under that: `array-nested-deep` is 500
