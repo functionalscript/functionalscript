@@ -205,8 +205,9 @@ owns every other sugar the language has, the table's rows above, so there is
 no desugaring stage to point a page at: the AST of the vocabulary is that
 syntax tree, and the compiler's `AstModule` is nearer FAST, its names
 already indices. Under the vocabulary, binding checks the words a pattern
-binds and `desugar` writes the reads, after it; the fold keeps what reads a
-word or a line.
+binds and `desugar` writes the reads, after it, the
+[example below](#examples-the-design-must-explain); the fold keeps what
+reads a word or a line.
 
 **A default parameter is the fold's today and desugars to two entries.**
 `functionScope` reads a parameter from the first default on from the rest
@@ -214,20 +215,12 @@ array, `['.', ['rest'], i]`, and the fold lands it as one entry, the
 conditional `r[0] === undefined ? 5 : r[0]` with the read spelled twice,
 which is the form the outputs write
 ([spec: parameters](../../spec/functions/parameters.md)). Desugaring writes
-it as two fresh bindings of the body, the read once:
-
-```js
-const c0 = rest[0];
-const c1 = c0 === undefined ? 5 : c0;
-```
-
-`c0` and `c1` stand for entries the body's own references name, as a
-pattern's hidden entries are, so the initializer is evaluated once and
-nothing after desugaring knows a default was written; the function's
-`length` still stops at the first default, as the
-[example below](#examples-the-design-must-explain) requires. A default
-inside a pattern, `{ a = 1 }`, refused today, is the same two entries over
-the pattern's read, so it lands in desugaring with the rest.
+it as two fresh bindings of the body, the read once, the
+[example below](#examples-the-design-must-explain): the initializer is
+evaluated once, nothing after desugaring knows a default was written, and
+the function's `length` still stops at the first default. A default inside
+a pattern, `{ a = 1 }`, refused today, is the same two entries over the
+pattern's read, so it lands in desugaring with the rest.
 
 **A module becomes a function in two places and belongs to one.**
 [Spec: modules](../../spec/modules/README.md#a-module-is-a-function) says a
@@ -238,48 +231,94 @@ import list beside it; `unresolved` in
 `['.', ['.', ['args'], i], name]` and wraps the graph as `Unresolved`,
 `{ imports, edag }`, the specifiers riding beside it for `resolve` to link.
 Under the vocabulary, desugaring makes the module an ordinary FAST function
-whose parameters are its imports, with the metadata resolution needs beside
-it — each import's specifier, selected export and `json` attribute — and
-nothing in FAST is module-specific: `from_fast` compiles a function, and
-linking applies it to the export objects of the modules the metadata names.
-Whether the unresolved EDAG keeps the `['args']` root or is the function
-node applied at link is settled in the architecture increment; `AstModule`
-and `Unresolved` are then the two representations to retire.
+over the modules it imports, with the record resolution needs beside it,
+the [example below](#examples-the-design-must-explain), and nothing in
+FAST is module-specific: `from_fast` compiles a function, and linking
+applies it to the export objects the record names. Whether the unresolved
+EDAG keeps the `['args']` root or is the function node applied at link is
+settled in the architecture increment; `AstModule` and `Unresolved` are
+then the two representations to retire.
 
 #### Examples the design must explain
 
-Destructuring a computed initializer reads it once:
+Three desugarings, each the program and what it becomes conceptually;
+generated names stand for fresh bindings, entries of the body as a
+pattern's hidden entries are. **Destructuring** of a computed initializer
+reads it once:
 
 ```js
 const { a, b } = makeObject();
 ```
 
-becomes conceptually:
+becomes
 
 ```js
-const temporary = makeObject();
-const a = temporary.a;
-const b = temporary.b;
+const c0 = makeObject();
+const a = c0.a;
+const b = c0.b;
 ```
 
-For default parameters, the conditional is
-`a_ === undefined ? 5 : a_`. Removing the default syntax must also preserve
-function length. For `const f = (a = 5) => a`, a conceptual lowering is:
+A **default parameter** reads its argument once and tests it, and removing
+the default syntax preserves the function's `length`, which stops at the
+first default: `const f = (a = 5) => a` becomes
 
 ```js
-const f = (...args) => {
-    const a_ = args[0];
-    const a = a_ === undefined ? 5 : a_;
-    return a;
+const f = (...rest) => {
+    const c0 = rest[0];
+    const c1 = c0 === undefined ? 5 : c0;
+    return c1;
 };
 ```
 
-Generated names stand for fresh bindings. The
-[default-parameter proposal](../../spec/todo/3125-default-parameters.md) owns
-the feature's detailed semantics and admission; this architecture issue does
-not independently enable it.
+The [default-parameter proposal](../../spec/todo/3125-default-parameters.md)
+owns the feature's detailed semantics and admission; this architecture
+issue does not independently enable it.
 
-A conditional reference does not make an eager anchor redundant:
+A **module** is a function over the modules it imports, with the
+information resolution needs to load them beside it:
+
+```js
+import a from "./a.f.js";
+import { b, c } from "./b.f.js";
+import d from "./d.json" with { type: "json" };
+export const e = [a, b, c, d];
+export default e;
+```
+
+becomes
+
+```js
+const imports = [
+    { specifier: "./a.f.js", json: false, names: ["default"] },
+    { specifier: "./b.f.js", json: false, names: ["b", "c"] },
+    { specifier: "./d.json", json: true, names: ["default"] },
+];
+const module = (m0, m1, m2) => {
+    const a = m0.default;
+    const b = m1.b;
+    const c = m1.c;
+    const d = m2.default;
+    const e = [a, b, c, d];
+    return { default: e, e };
+};
+```
+
+One parameter per imported module, in the order first imported, so two
+bindings from one module read one parameter and the sharing is in the
+function; a selected export is an ordinary read of it. The record beside
+the function holds what the function cannot say: the specifier and the
+`json` attribute, which decide what is loaded, and the names selected,
+which link checks against the module's exports as it does today, refusing
+an export the module does not have. Linking applies the function to the
+export objects the records name, one per module identity, and the linked
+program has no parameter left
+([spec: a module is a function](../../spec/modules/README.md#a-module-is-a-function)).
+Whether the selected names stay in the record, or a parameter per binding
+leaves the selection to link as `AstImport` has it today, is settled in the
+architecture increment.
+
+Beyond desugaring, one rule of the graph: a conditional reference does not
+make an eager anchor redundant:
 
 ```js
 const f = flag => {
