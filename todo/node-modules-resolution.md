@@ -58,13 +58,14 @@ within this subset, in the shared resolver both compiler paths use:
   first `node_modules/<name>/` that is a directory is the package. A subpath it
   lacks is not found: Node stops at that directory, and so does this.
 - **Spelling.** Each step is a relative specifier from the importer, through
-  `resolveFileModule`: the probe `../node_modules/<name>/`, which every host
-  answers as a directory or as `ENOENT` or `ENOTDIR`, then
-  `../node_modules/<name>/<subpath>`. The identity is therefore the real path's
-  `file:` URL, as for any relative import. A symlinked package (`npm link`,
-  workspaces) takes its target's identity, and a file reached through two
-  spellings is one module. At `3e1d1a09` the virtual runner answers a missing
-  file without error, so it checks existence first.
+  `resolveFileModule`: the probes `./node_modules/<name>/`,
+  `../node_modules/<name>/` and so on up, which every host answers as a
+  directory or as `ENOENT` or `ENOTDIR`, then the winner followed by the
+  subpath. The identity is therefore the real path's `file:` URL, as for any
+  relative import. A symlinked package (`npm link`, workspaces) takes its
+  target's identity, and a file reached through two spellings is one module.
+  At `3e1d1a09` the virtual runner answers a missing file without error, so
+  this stage first makes it check existence.
 
 Refuse the specifiers Node answers with something other than that lookup:
 
