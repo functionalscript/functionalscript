@@ -49,7 +49,7 @@
  */
 
 import { f64Bits, i64Literal, stringLiteral, u64WordItems, utf16Units } from '../../media/rust/module.f.mjs'
-import { indent } from '../../media/rust/item/module.f.mjs'
+import { indent } from '../../media/rust/item/module.f.js'
 import { error, mapOk, ok, okList, okThen, unwrap } from '../../types/result/module.f.js'
 import { isStatic, staticPath } from '../module.f.mjs'
 import { chainLazy, eagerOperandsOf, isChain, lazy, members, one, operandsOf, visit } from '../sharing/module.f.mjs'

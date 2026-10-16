@@ -48,7 +48,7 @@ import { stringToCodePointList } from '../../../text/utf16/module.f.mjs'
 import { fromSpans, toText } from '../../../text/marked/module.f.mjs'
 import { scan, stateScan, toArray } from '../../../types/list/module.f.mjs'
 import { unwrap } from '../../../types/result/module.f.js'
-import { codeBlock } from '../code/module.f.mjs'
+import { codeBlock } from '../code/module.f.js'
 import { caption, refusal } from '../module.f.mjs'
 
 /**
