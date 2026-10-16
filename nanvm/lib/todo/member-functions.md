@@ -1,7 +1,7 @@
 ## Member functions of the built-in types
 
 **Priority:** P2
-**Status:** wip — — every call [`fjs/js/prototype`](../../../fjs/js/prototype/module.f.js)
+**Status:** wip — every call [`fjs/js/prototype`](../../../fjs/js/prototype/module.f.js)
 allows is answered (`vm/lambda/gen.methods.rs` has no pending pair) and has
 a corpus case; the property-key conversion of a function remains, as the
 unchecked box below
