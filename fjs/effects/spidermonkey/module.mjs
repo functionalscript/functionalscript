@@ -37,7 +37,7 @@ import { concat, normalize } from '../../path/module.f.mjs'
 import { resolve as resolveImportPath } from '../../path/import/module.f.mjs'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
 import { fromVec, toVec } from '../../types/uint8array/module.f.mjs'
-import { tryShellQuote } from '../../text/shell/module.f.mjs'
+import { tryShellQuote } from '../../text/shell/module.f.js'
 import { utf8ToString } from '../../text/utf8/module.f.mjs'
 import { ok } from '../../types/result/module.f.js'
 

@@ -1,4 +1,4 @@
-import { tryShellQuote } from './module.f.mjs'
+import { tryShellQuote } from './module.f.js'
 import { assertEq } from '../../asserts/module.f.mjs'
 
 export const proof = {

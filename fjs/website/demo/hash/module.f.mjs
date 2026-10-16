@@ -13,7 +13,7 @@ import { sha1 } from '../../../crypto/sha1/module.f.mjs'
 import { uint } from '../../../types/bit_vec/module.f.mjs'
 import { utf8 } from '../../../text/module.f.mjs'
 import { codeBlock } from '../code/module.f.js'
-import { tryShellQuote } from '../../../text/shell/module.f.mjs'
+import { tryShellQuote } from '../../../text/shell/module.f.js'
 import { caption } from '../module.f.mjs'
 
 /** Format a hash's bits as hex, preserving its complete width.
