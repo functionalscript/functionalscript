@@ -49,7 +49,9 @@ const { listDir } = shell.os.file
 /**
  * Whether `path` is a directory. The shell has no `stat`, so a directory is
  * whatever `listDir` can list. A symbolic link to a directory reads as one,
- * where Node's `Dirent` says it is neither; the repository tracks no links.
+ * where Node's `Dirent` says it is neither; the repository tracks no links. A
+ * directory `listDir` may not list reads as a file, so discovery skips it
+ * where Node fails: see ./todo/unlistable-directory.md.
  *
  * @type {(path: string) => boolean}
  */
