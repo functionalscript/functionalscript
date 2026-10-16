@@ -102,7 +102,9 @@ const runShellEffect = asyncPartialRun(nodeCommands)({
         if (recursive === true) { throw new Error('a recursive readdir is not implemented in the SpiderMonkey shell') }
         const parentPath = normalize(path)
         return _orderDirents(
-            listDir(path).map(name => {
+            // `listDir` lists `.` and `..` too, which Node's `readdir` never
+            // does: a walk taking them for subdirectories would not end.
+            listDir(path).filter(name => name !== '.' && name !== '..').map(name => {
                 const directory = isDirectory(concat(path)(name))
                 return { name, parentPath, isFile: !directory, isDirectory: directory }
             }),
