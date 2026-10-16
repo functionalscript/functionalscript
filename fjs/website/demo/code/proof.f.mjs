@@ -1,4 +1,4 @@
-import { codeBlock, tryShellQuote } from './module.f.mjs'
+import { codeBlock, tryShellQuote } from './module.f.js'
 import { htmlToString } from '../../../media/html/module.f.mjs'
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
 

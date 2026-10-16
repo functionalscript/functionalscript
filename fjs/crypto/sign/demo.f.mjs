@@ -20,7 +20,7 @@ import { secp192r1, secp256k1, secp256r1, secp384r1, secp521r1 } from '../secp/m
 import { computeK, fromCurve, sign, verify } from './module.f.mjs'
 import { algorithmOf, algorithmOption, sha2Algorithms } from '../../website/demo/hash/module.f.mjs'
 import { caption, inputField, refusal, textField } from '../../website/demo/module.f.mjs'
-import { codeBlock } from '../../website/demo/code/module.f.mjs'
+import { codeBlock } from '../../website/demo/code/module.f.js'
 import {
     resultMarker,
     signCardMarker,

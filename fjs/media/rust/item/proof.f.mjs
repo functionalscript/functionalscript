@@ -5,7 +5,7 @@
 import { assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.js'
 import { stringLiteral } from '../module.f.mjs'
-import { constSlice, generatedHeader, indent } from './module.f.mjs'
+import { constSlice, generatedHeader, indent } from './module.f.js'
 
 export const proof = {
     indent: () => assertEq(indent, '    '),
