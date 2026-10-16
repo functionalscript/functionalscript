@@ -9,8 +9,13 @@ use crate::vm::{Any, Array, IFunction, IVm, String, error};
 /// value stays private, and the one way in is [`Function::new`], from a VM's
 /// own value, which a VM constructs through its own capability, such as
 /// [`IStaticFunction`](crate::vm::IStaticFunction).
-#[derive(Clone)]
 pub struct Function<A: IVm>(A::InternalFunction);
+
+impl<A: IVm> Clone for Function<A> {
+    fn clone(&self) -> Self {
+        Function(self.0.clone())
+    }
+}
 
 impl<A: IVm> Function<A> {
     /// An inherent constructor rather than `From<A::InternalFunction>`: that

@@ -9,8 +9,9 @@ intentional, lasting part of its scope.
 
 The implementation uses ordinary Rust types and reference counting:
 
-- [`Naive`](./mod.rs) wraps `Unpacked<Naive>` and implements `IVm`'s
-  conversions and internal types.
+- [`Naive`](./mod.rs) is the VM, a type with no instance yet
+  ([vm-instance](../../todo/vm-instance.md)), and names its internal types;
+  its value, `Value`, wraps `Unpacked<Naive>` and implements `IAny`.
 - [`Container`](./container.rs) stores a header and an `Rc` of its items,
   covering strings, bigints, arrays, and objects.
 - [`Function`](./function.rs) holds static Rust code and its captured frame

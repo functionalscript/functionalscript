@@ -169,8 +169,13 @@ fn magnitude_from_twos_complement(mut words: Vec<u64>) -> Vec<u64> {
 ///
 /// bigint_test::<Naive>();
 /// ```
-#[derive(Clone)]
 pub struct BigInt<A: IVm>(A::InternalBigInt);
+
+impl<A: IVm> Clone for BigInt<A> {
+    fn clone(&self) -> Self {
+        BigInt(self.0.clone())
+    }
+}
 
 impl<A: IVm> BigInt<A> {
     /// `self`, or the `RangeError` of a `BigInt` longer than `MAX_WORDS`

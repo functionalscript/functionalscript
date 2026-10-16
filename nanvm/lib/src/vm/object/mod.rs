@@ -23,5 +23,10 @@ use crate::vm::IVm;
 ///
 /// object_test::<Naive>();
 /// ```
-#[derive(Clone)]
 pub struct Object<A: IVm>(A::InternalObject);
+
+impl<A: IVm> Clone for Object<A> {
+    fn clone(&self) -> Self {
+        Object(self.0.clone())
+    }
+}

@@ -52,5 +52,10 @@ use crate::vm::IVm;
 ///
 /// array_test::<Naive>();
 /// ```
-#[derive(Clone)]
 pub struct Array<A: IVm>(A::InternalArray);
+
+impl<A: IVm> Clone for Array<A> {
+    fn clone(&self) -> Self {
+        Array(self.0.clone())
+    }
+}

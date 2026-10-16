@@ -2,7 +2,6 @@ use crate::vm::{
     Array, BigInt, Function, IVm, Number, Object, String, dispatch::Dispatch, nullish::Nullish,
 };
 
-#[derive(Clone)]
 pub enum Unpacked<A: IVm> {
     Nullish(Nullish),
     Boolean(bool),
@@ -12,6 +11,21 @@ pub enum Unpacked<A: IVm> {
     Object(Object<A>),
     Array(Array<A>),
     Function(Function<A>),
+}
+
+impl<A: IVm> Clone for Unpacked<A> {
+    fn clone(&self) -> Self {
+        match self {
+            Unpacked::Nullish(v) => Unpacked::Nullish(*v),
+            Unpacked::Boolean(v) => Unpacked::Boolean(*v),
+            Unpacked::Number(v) => Unpacked::Number(*v),
+            Unpacked::String(v) => Unpacked::String(v.clone()),
+            Unpacked::BigInt(v) => Unpacked::BigInt(v.clone()),
+            Unpacked::Object(v) => Unpacked::Object(v.clone()),
+            Unpacked::Array(v) => Unpacked::Array(v.clone()),
+            Unpacked::Function(v) => Unpacked::Function(v.clone()),
+        }
+    }
 }
 
 impl<A: IVm> Unpacked<A> {

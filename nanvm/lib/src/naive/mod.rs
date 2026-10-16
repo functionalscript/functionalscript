@@ -6,7 +6,7 @@ use std::cell::OnceCell;
 use crate::{
     naive::{container::Container, function::Function},
     sign::Sign,
-    vm::{Any, Array, IStaticFunction, IVm, Property, Runtime, StaticCode, Unpacked},
+    vm::{Any, Array, IAny, IStaticFunction, IVm, Property, Runtime, StaticCode, Unpacked},
 };
 
 thread_local! {
@@ -27,27 +27,36 @@ fn runtime<T>(lookup: impl FnOnce(&Runtime<Naive>) -> T) -> T {
     RUNTIME.with(|cell| lookup(cell.get_or_init(Runtime::new)))
 }
 
-/// Note: we can't use `type InternalAny = Unpacked<InternalAny>;` because Rust doesn't support
+/// The VM: a type, with no instance yet
+/// ([`vm-instance.md`](../../todo/vm-instance.md)), whose values are
+/// [`Value`]s.
+pub struct Naive;
+
+/// `naive`'s value: an `Unpacked<Naive>`, as is. Note: we can't use
+/// `type InternalAny = Unpacked<Naive>;` because Rust doesn't support
 /// recursive type aliases.
 #[derive(Clone)]
-pub struct Naive(Unpacked<Naive>);
+pub struct Value(Unpacked<Naive>);
 
-impl<T: Into<Unpacked<Naive>>> From<T> for Naive {
+impl<T: Into<Unpacked<Naive>>> From<T> for Value {
     fn from(value: T) -> Self {
-        Naive(value.into())
+        Value(value.into())
+    }
+}
+
+impl IAny<Naive> for Value {
+    fn to_unpacked(self) -> Unpacked<Naive> {
+        self.0
     }
 }
 
 impl IVm for Naive {
+    type InternalAny = Value;
     type InternalString = Container<(), u16>;
     type InternalBigInt = Container<Sign, u64>;
     type InternalObject = Container<(), Property<Naive>>;
     type InternalArray = Container<(), Any<Naive>>;
     type InternalFunction = Function;
-
-    fn to_unpacked(self) -> Unpacked<Self> {
-        self.0
-    }
 
     /// The runtime's entry: `naive` makes a function out of a Rust static
     /// function, which every compiled body is, and holds the runtime it

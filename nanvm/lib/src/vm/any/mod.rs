@@ -32,7 +32,7 @@ pub use instanceof_::Constructor;
 pub use to_json::JsonError;
 
 use crate::vm::{
-    IVm, Number, String, ToAny, Unpacked,
+    IAny, IVm, Number, String, ToAny, Unpacked,
     boolean_coercion::BooleanCoercion,
     dispatch::Dispatch,
     member_access::{non_nullish_receiver, undefined_if_absent},
@@ -67,8 +67,13 @@ use crate::vm::{
 ///
 /// any_test::<Naive>();
 /// ```
-#[derive(Clone)]
-pub struct Any<A: IVm>(A);
+pub struct Any<A: IVm>(A::InternalAny);
+
+impl<A: IVm> Clone for Any<A> {
+    fn clone(&self) -> Self {
+        Any(self.0.clone())
+    }
+}
 
 impl<A: IVm> Any<A> {
     /// `undefined`.

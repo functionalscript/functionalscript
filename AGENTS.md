@@ -271,10 +271,10 @@ Testing, documentation, and the full coding style: [fjs/AGENTS.md](./fjs/AGENTS.
 `macro_rules!` — declarative macros hide types from tooling and contradict this
 repository's preference for explicit, locally-readable code.
 
-On a type generic over `A: IVm`, in any crate of the workspace, derive nothing
-`IVm` does not itself require (`Clone` is the one it does): a derive bounds `A`
-itself, and no VM is `Debug` or `PartialEq`. Write the impl by hand over fields
-that have it for every VM, `Any<A>` and its wrappers; a subset of `Unpacked<A>`
+On a type generic over `A: IVm`, in any crate of the workspace, derive
+nothing: a derive bounds `A` itself, and `IVm` promises nothing of `A` — no VM
+is `Clone`, `Debug` or `PartialEq`. Write the impl by hand over fields that
+have it for every VM, `Any<A>` and its wrappers; a subset of `Unpacked<A>`
 converts into it and uses `Unpacked`'s.
 
 Commands and Rust coding style: [nanvm/lib/AGENTS.md](./nanvm/lib/AGENTS.md).

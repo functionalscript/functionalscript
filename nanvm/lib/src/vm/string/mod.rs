@@ -42,5 +42,10 @@ use crate::vm::IVm;
 ///
 /// string_test::<Naive>();
 /// ```
-#[derive(Clone)]
 pub struct String<A: IVm>(A::InternalString);
+
+impl<A: IVm> Clone for String<A> {
+    fn clone(&self) -> Self {
+        String(self.0.clone())
+    }
+}

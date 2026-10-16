@@ -9,7 +9,10 @@ trait IComplex;
 trait IContainer: IComplex;
 /// A function: `call`, `length`, and nothing a program cannot observe.
 trait IFunction: IComplex;
+/// A VM's value: what `Any` wraps, built from an `Unpacked`.
+trait IAny: Clone + From<Unpacked>;
 trait IVm {
+    type InternalAny: IAny;
     type InternalString: IContainer;
     type InternalFunction: IFunction;
     // ...

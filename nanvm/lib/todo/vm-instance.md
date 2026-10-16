@@ -9,10 +9,10 @@ decisions, below; how `v` reaches a compiled closure is still open.
 
 ### Problem
 
-`IVm` is implemented by the value type itself: `naive`'s `Naive` is a
-value, an `Unpacked<Naive>`, and `Any<A>` wraps an `A`. A VM is therefore a
-type, never an instance, and its runtime cannot be anything a caller holds
-or passes. `naive` keeps its runtime, `vm::Runtime` (the compiled
+`IVm` was implemented by the value type itself: `naive`'s `Naive` was a
+value, an `Unpacked<Naive>`, and `Any<A>` wrapped an `A`. The two are
+split now, `IAny` below, but a VM is still a type, never an instance, and
+its runtime cannot be anything a caller holds or passes. `naive` keeps its runtime, `vm::Runtime` (the compiled
 `fjs/js/runtime` object, and `Object.entries` created beside it), in a
 `thread_local!` `OnceCell`, and answers `IVm::runtime_method` and
 `IVm::runtime_static`, associated functions with no instance, from it.
@@ -193,7 +193,7 @@ contract:
 ### Tasks
 
 - [ ] Settle how `v` reaches compiled closures, above.
-- [ ] Introduce `IAny`, and split `naive`'s value type from its VM type;
+- [x] Introduce `IAny`, and split `naive`'s value type from its VM type;
       `Any<V>` wraps `V::InternalAny`.
 - [ ] Give the VM instance its runtime, built once by a constructor that
       answers a `Result`, with `call` and `get`. Remove

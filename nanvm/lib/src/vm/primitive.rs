@@ -3,16 +3,28 @@ use crate::vm::{Any, BigInt, IVm, Number, String, Unpacked, nullish::Nullish};
 /// <https://developer.mozilla.org/en-US/docs/Glossary/Primitive>
 /// A primitive value is a subset of Unpacked that excludes Object, Array, and Function.
 ///
-/// `Debug` and `PartialEq` go through `Unpacked` (`vm/impls/`): deriving
-/// them would bound `A` itself, which no VM promises.
+/// `Debug` and `PartialEq` go through `Unpacked` (`vm/impls/`), and
+/// `Clone` is written out: deriving any would bound `A` itself, which no
+/// VM promises.
 #[allow(dead_code)]
-#[derive(Clone)]
 pub enum Primitive<A: IVm> {
     Nullish(Nullish),
     Boolean(bool),
     Number(Number),
     String(String<A>),
     BigInt(BigInt<A>),
+}
+
+impl<A: IVm> Clone for Primitive<A> {
+    fn clone(&self) -> Self {
+        match self {
+            Primitive::Nullish(v) => Primitive::Nullish(*v),
+            Primitive::Boolean(v) => Primitive::Boolean(*v),
+            Primitive::Number(v) => Primitive::Number(*v),
+            Primitive::String(v) => Primitive::String(v.clone()),
+            Primitive::BigInt(v) => Primitive::BigInt(v.clone()),
+        }
+    }
 }
 
 impl<A: IVm> From<Primitive<A>> for Unpacked<A> {

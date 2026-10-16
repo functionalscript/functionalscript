@@ -1,4 +1,4 @@
-use crate::vm::{Any, IVm, Unpacked};
+use crate::vm::{Any, IAny, IVm, Unpacked};
 
 /// Same as `===` in ECMAScript.
 impl<A: IVm> PartialEq for Any<A> {

@@ -15,13 +15,22 @@ fn shift_count(rhs: Number) -> u32 {
 /// <https://tc39.es/ecma262/#sec-tonumeric>
 /// Represents ECMAScript numeric types, i.e. `Number` or `BigInt`, as defined by ToNumeric.
 ///
-/// `Debug` and `PartialEq` go through `Unpacked` (`vm/impls/`): deriving
-/// them would bound `A` itself, which no VM promises.
+/// `Debug` and `PartialEq` go through `Unpacked` (`vm/impls/`), and
+/// `Clone` is written out: deriving any would bound `A` itself, which no
+/// VM promises.
 #[allow(dead_code)]
-#[derive(Clone)]
 pub enum Numeric<A: IVm> {
     Number(Number),
     BigInt(BigInt<A>),
+}
+
+impl<A: IVm> Clone for Numeric<A> {
+    fn clone(&self) -> Self {
+        match self {
+            Numeric::Number(v) => Numeric::Number(*v),
+            Numeric::BigInt(v) => Numeric::BigInt(v.clone()),
+        }
+    }
 }
 
 impl<A: IVm> From<Numeric<A>> for Unpacked<A> {

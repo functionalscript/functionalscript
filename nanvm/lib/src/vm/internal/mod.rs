@@ -1,8 +1,10 @@
+mod iany;
 mod icomplex;
 mod icontainer;
 mod ifunction;
 mod istatic_function;
 
+pub use iany::IAny;
 pub use icomplex::IComplex;
 pub use icontainer::IContainer;
 pub use ifunction::IFunction;
@@ -10,25 +12,25 @@ pub use istatic_function::{IStaticFunction, StaticCode};
 
 use crate::{
     sign::Sign,
-    vm::{Any, Property, Unpacked},
+    vm::{Any, Property},
 };
 
-/// A VM's value representation.
+/// A VM: the types its values are made of, and what it binds.
 ///
-/// A VM is built from an [`Unpacked`] value alone, so a number reaches it
-/// only as a [`Number`](crate::vm::Number), which holds one `NaN` by
-/// construction — there is no `From<f64>` here on purpose — so a NaN-boxing
-/// VM, which reads a negative quiet `NaN` as a boxed value, can store its
-/// bits as they are.
-pub trait IVm: Sized + Clone + From<Unpacked<Self>> {
+/// A VM is a type, with no instance yet: nothing here takes `self`. Its
+/// values are its [`InternalAny`](IVm::InternalAny), an [`IAny`], which is
+/// what [`Any<A>`](crate::vm::Any) wraps; `IVm` itself promises nothing of
+/// `A`, not even `Clone`, so a type generic over `A: IVm` derives nothing
+/// and writes its impls by hand over the fields that have them.
+pub trait IVm: Sized {
     // types
+    type InternalAny: IAny<Self>;
     type InternalString: IContainer<Self, Header = (), Item = u16>;
     type InternalBigInt: IContainer<Self, Header = Sign, Item = u64>;
     type InternalObject: IContainer<Self, Header = (), Item = Property<Self>>;
     type InternalArray: IContainer<Self, Header = (), Item = Any<Self>>;
     type InternalFunction: IFunction<Self>;
     // functions
-    fn to_unpacked(self) -> Unpacked<Self>;
     /// The member function the VM's runtime binds for a receiver of the
     /// type `type_name` names — `Object`, `Array`, `String`, `Number`,
     /// `Boolean`, `BigInt` or `Function`, the globals' names, as the

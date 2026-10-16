@@ -1,5 +1,5 @@
 use super::Any;
-use crate::vm::{IVm, Unpacked};
+use crate::vm::{IAny, IVm, Unpacked};
 
 impl<A: IVm> From<Any<A>> for Unpacked<A> {
     fn from(v: Any<A>) -> Self {
