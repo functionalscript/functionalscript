@@ -18,12 +18,25 @@ both writers, by source identity: `visit` and `sharedNodesOf` live in
 the FunctionalScript writer writes from `identityAnalysis`, whose shared
 entries are what `sharedNodesOf` lists in each scope. The owner's call:
 "we have to fix a bug in shared serializer code, that must be used by both
-`JS` and `Rust`". What a writer names stays its own: the Rust printer
-gives an unshared operation a `let` too — `a => (a + a) + (a + a)` binds
-each `a + a` — where the FunctionalScript writer names a shared node and
-writes an unshared one in place. Whether more traversal machinery can be
-shared without complicating its consumers remains an optional
-investigation.
+`JS` and `Rust`". Current emission differs: the Rust printer gives an
+unshared operation a `let` too — `a => (a + a) + (a + a)` binds each
+`a + a` — where the FunctionalScript writer names a shared node and writes
+an unshared one in place.
+
+The [compiler modularization proposal](../../todo/compiler-vocabulary-and-modularization.md)
+separates semantic placement from target-local temporary bindings. Its common
+`to_fast` conversion owns graph sharing, required bindings and evaluation
+regions for every backend. A serializer may introduce a fresh, single-use
+temporary for an unshared expression within its assigned region, preserving
+dependencies, conditional evaluation and identities, without duplicating its
+evaluation. This preserves Rust's local `let` versus JS's inline spelling;
+it does not grant a backend a separate sharing analysis or permission to
+merge computations or move them across conditional or function boundaries.
+This is the proposed ownership after migration; the current writers below
+still perform placement themselves.
+
+Whether more traversal machinery can be shared without complicating its
+consumers remains an optional investigation.
 
 `sharing`'s `operandsOf` walks source `Exp` operands and includes only
 function captures, while `analysis.operandsOf` walks analyzed `Node`

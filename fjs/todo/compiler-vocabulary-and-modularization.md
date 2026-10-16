@@ -16,7 +16,9 @@ The JS and Rust writers illustrate the boundary we need to make explicit.
 Their shared-node counting has already been consolidated:
 [identity-shared-walks](../edag/todo/identity-shared-walks.md) records the completed
 work. Binding and block-placement decisions still live in the writers. A
-common graph-to-BAST conversion should own those decisions for every target.
+common graph-to-FAST conversion should own semantic sharing and evaluation
+regions for every target. Serializers may still introduce target-local
+temporaries within those regions.
 
 This issue defines the target vocabulary and module organization, followed by
 incremental implementation. It spans JS syntax infrastructure, EDAG, Rust
@@ -30,31 +32,37 @@ output and compiler orchestration, so it lives in `fjs/todo/`.
 | --- | --- |
 | JS tokens | Lexical tokens with the metadata needed to parse JS, including relevant line boundaries and source locations. |
 | AST | The syntax representation of a supported subset of JavaScript. That subset may be larger than FunctionalScript. It does not promise support for all JavaScript. |
-| BAST | Basic AST: the explicitly defined subset of AST after syntax sugar has been removed. The same representation is used before EDAG construction and after EDAG-to-BAST conversion. |
-| Desugaring | AST-to-BAST rewriting that preserves the supported source semantics while expressing sugar through basic constructs. |
+| FAST | Foundation AST: the desugared subset of the supported JavaScript AST, with explicit bindings and blocks. The same representation is used before EDAG construction and after EDAG-to-FAST conversion. Representability in FAST does not by itself establish FJS acceptance. |
+| Desugaring | AST-to-FAST rewriting that preserves the supported source semantics while expressing sugar through basic constructs. |
 | EDAG | Expression DAG: operations and their references, with explicit sharing, invocation scopes and required evaluation. One shared node is different from distinct equal nodes. |
 | Anchor | A required computation retained through a comma node even when the returned value does not otherwise require it. |
 | Graph optimization / EDAG-eval | EDAG-to-EDAG transformation. The output remains a graph; this is distinct from runtime execution that produces a value or failure. |
-| Graph-to-BAST conversion | Recovery of explicit bindings and blocks from the graph, including placement of shared computations in their correct evaluation regions. |
-| Serialization | Conversion of BAST to a target language's tokens or marked text. |
+| Graph-to-FAST conversion | Recovery of explicit bindings and blocks from the graph, including placement of shared computations in their correct evaluation regions. |
+| Serialization | Conversion of FAST to a target language's tokens or marked text. |
 | Marked text | Text accompanied by token-category marks for presentation, using the existing `fjs/text/marked` representation. It is distinct from a parser's token stream. |
 | Demarking | Removing presentation marks without changing the text, using the existing `toText` operation. |
+
+FAST names this foundation representation without implying FJS admission.
+The older [demo document](../../todo/demo/README.md), explicitly marked stale,
+uses BAST for a different concept, "Binary Abstract Syntax Tree". That
+historical meaning is not renamed or adopted by this proposal.
 
 The symmetry is in the conversion boundaries:
 
 | Layer | Parse direction | Serialize direction |
 | --- | --- | --- |
 | Lexical | JS text → JS tokens | Target tokens → marked text → text |
-| Syntax | JS tokens → AST; AST → BAST through desugaring | BAST → JS or Rust tokens |
-| Graph | BAST → EDAG | EDAG → BAST |
+| Syntax | JS tokens → AST; AST → FAST through desugaring | FAST → JS or Rust tokens |
+| Graph | FJS-admitted FAST → EDAG | EDAG → FAST |
 
 EDAG optimization is a separate graph-to-graph step. Parsing, desugaring,
 graph construction and optimization remain explicit operations even when
 neighboring operations share a module. A convenience API may compose them.
 
 These are complementary conversions, not promises to recover original
-formatting or identifier spelling. BAST-to-EDAG-to-BAST must preserve the
-defined semantics, sharing and conditional evaluation. Any stronger graph
+formatting or identifier spelling. For FJS-admitted input,
+FAST-to-EDAG-to-FAST must preserve the defined semantics, sharing and
+conditional evaluation. Any stronger graph
 round-trip guarantee must state its supported domain and permitted
 normalizations.
 
@@ -63,24 +71,24 @@ normalizations.
 | Module | Responsibility |
 | --- | --- |
 | `fjs/js/tokenizer` | JS text to tokens, and token rendering back to marked/plain text. Own lexical spelling, escaping and separation. Reuse the existing tokenizer. |
-| `fjs/js/ast` | AST and BAST definitions, with an explicit list of basic constructs and their invariants. |
-| `fjs/js/ast/sugar` | The `desugar` function: AST → BAST. |
-| `fjs/js/ast/serializer` | BAST → JS tokens; marked-text output composes this with token rendering. |
+| `fjs/js/ast` | AST and FAST definitions, with an explicit list of basic constructs and their invariants. |
+| `fjs/js/ast/sugar` | The `desugar` function: AST → FAST. |
+| `fjs/js/ast/serializer` | FAST → JS tokens; marked-text output composes this with token rendering. |
 | `fjs/js/ast/parser` | A stream of JS tokens → AST. |
 | `fjs/edag` | EDAG definitions, operation shapes and invariants, independent of a particular producer or backend. |
-| `fjs/edag/from_bast` | BAST → EDAG, preserving bindings as graph references and required evaluation as anchors. |
+| `fjs/edag/from_fast` | FJS-admitted FAST → EDAG, preserving bindings as graph references and required evaluation as anchors. |
 | `fjs/edag/optimizer` | Explicit EDAG → EDAG transformations. |
-| `fjs/edag/to_bast` | EDAG → BAST; one shared implementation of binding and block placement for all backends. |
-| `fjs/rust/serializer` | BAST → Rust tokens or marked text, with Rust-specific syntax and runtime operation spelling. |
+| `fjs/edag/to_fast` | EDAG → FAST; one shared implementation of semantic bindings and evaluation-region placement for all backends. |
+| `fjs/rust/serializer` | FAST → Rust tokens or marked text, with Rust-specific syntax and runtime operation spelling. |
 
 The module map is a proposal, not a description of the current directories.
 The initially proposed names `fjs/edag/parser` and `fjs/edag/serializer` remain
-alternatives to `from_bast` and `to_bast`. Prefer the explicit names because
-they identify the basic-AST boundary and avoid confusion with reading or
+alternatives to `from_fast` and `to_fast`. Prefer the explicit names because
+they identify the Foundation AST boundary and avoid confusion with reading or
 writing an EDAG document as data. Settle the names in the architecture
 increment before moving modules.
 
-Token rendering owns target-specific lexical rules; the BAST serializers own
+Token rendering owns target-specific lexical rules; the FAST serializers own
 syntactic structure and precedence. Marked-text representation and demarking
 stay language-independent in `fjs/text/marked`. A marked-text convenience
 function composes the stages rather than implementing another renderer.
@@ -94,7 +102,7 @@ owners; this proposal does not require a Rust input parser.
   and orchestration. Run source-level checks before desugaring erases the
   constructs those checks inspect. Document where binding resolution and
   capture discovery occur.
-- **Desugaring owns syntax sugar.** Later stages receive BAST and do not
+- **Desugaring owns syntax sugar.** Later stages receive FAST and do not
   reinterpret destructuring or defaults. Preserve one evaluation of an
   initializer, use fresh bindings, retain relevant source origins, and
   preserve scope, conditional evaluation and observable function arity.
@@ -106,12 +114,18 @@ owners; this proposal does not require a Rust input parser.
   be removed when the remaining computation already guarantees evaluation of
   the same node in the same invocation/evaluation region. Merely finding it
   behind a conditional or inside another function is insufficient.
-- **Graph-to-BAST owns placement.** Shared computations become explicit
-  bindings in the appropriate function or conditional block. Preserve
-  captures and eager/lazy boundaries. Target serializers consume that
-  placement; they do not each rediscover sharing or move computations.
-- **Backends own target spelling and runtime mapping.** JS and Rust may need
-  different syntax and runtime helpers while consuming the same placed BAST.
+- **Graph-to-FAST owns semantic placement.** Shared computations become
+  explicit bindings in the appropriate function or conditional block.
+  Preserve captures and eager/lazy boundaries. Target serializers consume
+  the same placed FAST; they do not rediscover graph sharing, merge distinct
+  computations or move them across conditional or function boundaries.
+- **Backends own target spelling, runtime mapping and local temporaries.**
+  A serializer may introduce a fresh, single-use temporary for an unshared
+  expression within its existing evaluation region. Preserve its dependency
+  relationships, conditional evaluation and identities; do not duplicate
+  its evaluation or hoist it out of a lazy operand. Rust may therefore bind
+  each unshared operation where JS emits it inline. These temporary names
+  express the placed FAST and require no separate graph-sharing analysis.
   Preserve the existing failure contract: successful paths and required
   failures matter; the first failing operation is not a language observation.
 - **Graph identity is explicit.** Record whether an optimization changes the
@@ -165,7 +179,7 @@ const f = flag => {
 
 The initializer remains required when `flag` is false. Conversely, a
 computation originating only inside a lazy branch must stay inside that
-branch when the EDAG becomes BAST.
+branch when the EDAG becomes FAST.
 
 #### Scope and migration
 
@@ -191,22 +205,25 @@ The architecture also adds no source-language feature by itself.
 ### Tasks
 
 - [ ] Publish the compiler architecture and vocabulary, settle conversion
-      names, define BAST's supported constructs and invariants, and record
+      names, define FAST's supported constructs and invariants, and record
       current versus proposed ownership. Link the document from contributor
       and agent entry points.
 - [ ] Separate reusable JS AST parsing and desugaring from FJS admission,
       recording binding/capture and source-location responsibilities; migrate
       the relevant APIs and their consumers.
-- [ ] Establish the paired lexical APIs and BAST-to-JS serialization, reusing
+- [ ] Establish the paired lexical APIs and FAST-to-JS serialization, reusing
       existing token and marked-text machinery.
-- [ ] Expose BAST-to-EDAG construction with explicit sharing, scope and
+- [ ] Expose FAST-to-EDAG construction with explicit sharing, scope and
       anchoring contracts; keep graph optimization a separate operation.
-- [ ] Extract EDAG-to-BAST binding and block placement once and move JS and
-      Rust output onto it, reusing existing sharing analysis and target helpers.
+- [ ] Extract EDAG-to-FAST semantic binding and block placement once and move
+      JS and Rust output onto it, reusing existing sharing analysis and target
+      helpers. Keep target-local temporary bindings within the assigned
+      evaluation regions.
 - [ ] Prove the boundaries as their implementations move: shared versus equal
       nodes, invocation/capture scopes, eager and lazy computations, unused
-      failing initializers, applicable desugaring and arity cases, and semantic
-      round trips. Verify plain output equals demarked output and keep affected
+      failing initializers, applicable desugaring and arity cases, target-local
+      temporaries, and semantic round trips for FJS-admitted input. Verify
+      plain output equals demarked output and keep affected
       compiler demos working. Run the checks required by each implementation
       diff.
 - [ ] Reconcile related TODOs and retired paths, retain the final design in
