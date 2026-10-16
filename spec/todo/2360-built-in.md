@@ -114,9 +114,8 @@ requires of a built-in function
 a string with the syntax of a NativeFunction whose name is the built-in's
 [[InitialName]], `entries`. The grammar admits parameters; the text has
 none, as most engines print it, V8's text exactly. The interpreter spells
-it, `entriesText`; NaNVM's function holds no text, and `String(f)` forms
-it from the name on each call, `runtime_to_string("entries")`, for every
-VM. A text keeps
+it, `entriesText`, and NaNVM's built-in carries the same text,
+`vm::ENTRIES_TEXT`. A text keeps
 every conversion that never reads it, `Number` and the relational
 operators, answering alike in the represented interpreter, which renders a
 text before it converts, and NaNVM, which answers those without one, so

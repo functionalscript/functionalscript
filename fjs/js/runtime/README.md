@@ -182,10 +182,11 @@ checks on NaNVM against the interpreter, and
 `nanvm/harness/fixtures/number-predicates.mjs` for the `Number`
 predicates over every kind of value. `Object.entries` has no body: the
 represented interpreter answers it with a function value of its own,
-`edag/value/entries`, and NaNVM's runtime creates it, `vm::object_entries`,
-beside the compiled object, so `IVm::runtime_static` answers it as it
-answers a body and it too is one function every read
-(`nanvm/harness/fixtures/object-entries.mjs`). The completeness test
+`edag/value/entries`, and NaNVM's is a built-in, `vm::object_entries`: a
+static function identified by its name, so every read is a new handle to
+one function and `===` compares the names
+(`nanvm/lib/todo/static-runtime.md`,
+`nanvm/harness/fixtures/object-entries.mjs`). The completeness test
 checks every path [`../static`](../static/module.f.js) admits is bound.
 
 **The VM type binds the runtime.** `IVm::runtime_method` is a method on

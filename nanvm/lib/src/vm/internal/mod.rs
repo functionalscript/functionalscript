@@ -20,7 +20,11 @@ use crate::{
 /// construction — there is no `From<f64>` here on purpose — so a NaN-boxing
 /// VM, which reads a negative quiet `NaN` as a boxed value, can store its
 /// bits as they are.
-pub trait IVm: Sized + Clone + From<Unpacked<Self>> {
+///
+/// A VM is `'static`: a type with no lifetime, which a built-in's
+/// descriptor names behind a `'static` reference
+/// ([`RuntimeFunction`](crate::vm::RuntimeFunction)).
+pub trait IVm: Sized + Clone + From<Unpacked<Self>> + 'static {
     // types
     type InternalString: IContainer<Self, Header = (), Item = u16>;
     type InternalBigInt: IContainer<Self, Header = Sign, Item = u64>;
