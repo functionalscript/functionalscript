@@ -37,23 +37,21 @@ pub trait IVm: Sized + Clone + From<Unpacked<Self>> {
     /// property and the native table ([`method`](crate::vm::lambda) in
     /// `vm/lambda/method.rs`), and before the `TypeError` for calling
     /// `undefined`. The default binds nothing: a VM that makes functions
-    /// out of Rust static functions answers it with
-    /// [`runtime_method`](crate::vm::runtime_method), the compiled
-    /// runtime's entry, over the [`runtime_object`](crate::vm::runtime_object)
-    /// it holds, as `naive` does; a VM that cannot run a body leaves the
-    /// default.
+    /// out of Rust static functions answers it with the compiled runtime's
+    /// entry, from the [`Runtime`](crate::vm::Runtime) it holds, as `naive`
+    /// does; a VM that cannot run a body leaves the default.
     fn runtime_method(type_name: &str, key: &Any<Self>) -> Option<Any<Self>> {
         let _ = (type_name, key);
         None
     }
     /// The static function the VM's runtime binds at `path`, the keys
     /// `fjs/js/static` admits it under — `["Object", "is"]` for
-    /// `Object.is` — or `None`. A read of one asks it after the VM's own
-    /// native binding of the path, if any. The default binds nothing; a VM
-    /// that makes functions out of Rust static functions answers it with
-    /// [`runtime_static`](crate::vm::runtime_static) over the runtime
-    /// object it holds, as `naive` does: one object, so every read of a
-    /// static function is one function.
+    /// `Object.is` — or `None`: a generated body, or a function no body
+    /// defines, `Object.entries`, which the runtime creates. The default
+    /// binds nothing; a VM that makes functions out of Rust static
+    /// functions answers it from the [`Runtime`](crate::vm::Runtime) it
+    /// holds, as `naive` does: one runtime, so every read of a static
+    /// function is one function.
     fn runtime_static(path: &[&str]) -> Option<Any<Self>> {
         let _ = path;
         None

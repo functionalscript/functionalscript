@@ -50,6 +50,12 @@ export const proof = {
         const helper = /** @type {const} */ (['entry'])
         assertEq(stringify(['[]', [helper, helper]]), `const $0=${text};const $4=[$0,$0];export default $4;`)
     },
+    // `Object.entries` has no body to write: the module reads the host's
+    // own built-in, one function however often the value holds it.
+    objectEntries: () => {
+        assertEq(stringify(['Object.entries']), 'const $0=Object.entries;export default $0;')
+        assertEq(stringify(['[]', [['Object.entries'], ['Object.entries']]]), 'const $0=Object.entries;const $1=[$0,$0];export default $1;')
+    },
     functions: () => {
         assertEq(stringify(['=>', 0, [], 1]), 'const $0=()=>(1);export default $0;')
         assertEq(stringify(['=>', 1, [2], ['+', ['frame', 0], ['arg', 0]]]),

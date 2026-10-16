@@ -1,4 +1,6 @@
-use crate::vm::{Any, IVm, ObjectSpread, Unpacked};
+use crate::vm::{
+    Any, IVm, ObjectSpread, ToAny, ToArray, Unpacked, member_access::non_nullish_receiver,
+};
 
 impl<A: IVm> Any<A> {
     /// What `{...self}` copies: the source side of ECMAScript's
@@ -21,6 +23,25 @@ impl<A: IVm> Any<A> {
             Unpacked::String(string) => ObjectSpread::String { string, next: 0 },
             _ => ObjectSpread::Empty,
         }
+    }
+
+    /// `Object.entries(self)`: what [`Any::object_spread`] copies, each
+    /// entry a fresh `[key, value]` array, in a fresh array — an object's
+    /// entries, an array's elements and a string's code units under their
+    /// index strings, nothing for a number, a `bigint`, a boolean or a
+    /// function. Unlike the spread it throws on `null` and `undefined`,
+    /// as `ToObject` does (`member_access::non_nullish_receiver`).
+    ///
+    /// The body of the static function no FunctionalScript body defines,
+    /// enumerating keys being what the language has no other way to do:
+    /// [`object_entries`](crate::vm::object_entries) creates it.
+    pub fn entries(self) -> Result<Self, Self> {
+        non_nullish_receiver(self.clone())?;
+        Ok(self
+            .object_spread()
+            .map(|(key, value)| [key.to_any(), value].to_array().to_any())
+            .to_array()
+            .to_any())
     }
 }
 
@@ -104,6 +125,38 @@ mod tests {
         for v in values {
             assert!(spread(v).is_empty());
         }
+    }
+
+    fn entries(v: Any<A>) -> std::string::String {
+        v.entries().unwrap().to_json().unwrap()
+    }
+
+    /// `Object.entries` lists what the spread copies, in its order, each
+    /// entry a `[key, value]` pair; a value with no own enumerable
+    /// property lists none.
+    #[test]
+    fn entries_pairs() {
+        let o: Any<A> = [(key("b"), s("1")), (key("1"), s("2")), (key("b"), s("3"))]
+            .to_object()
+            .to_any();
+        assert_eq!(entries(o), r#"[["1","2"],["b","3"]]"#);
+        assert_eq!(entries([s("x")].to_array().to_any()), r#"[["0","x"]]"#);
+        assert_eq!(entries(s("ab")), r#"[["0","a"],["1","b"]]"#);
+        let f: Any<A> =
+            A::static_function(|_, _| Ok(Any::undefined()), 0, [].to_array(), None).to_any();
+        for v in [true.to_any(), bigint_any(1), [].to_object().to_any(), f] {
+            assert_eq!(entries(v), "[]");
+        }
+    }
+
+    /// Every call answers fresh arrays, and a nullish receiver throws, as
+    /// `ToObject` does, where `{...null}` is `{}`.
+    #[test]
+    fn entries_fresh_and_nullish() {
+        let a: Any<A> = [s("x")].to_array().to_any();
+        assert_ne!(a.clone().entries(), a.entries());
+        assert!(Nullish::Null.to_any::<A>().entries().is_err());
+        assert!(Any::<A>::undefined().entries().is_err());
     }
 
     #[test]

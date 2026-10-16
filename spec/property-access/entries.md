@@ -47,7 +47,8 @@ one as a function the VM answers natively. Value outputs can evaluate calls
 to the helper; selecting the helper itself is refused as a function value.
 
 The node is the language's one read of a property by a name it computes:
-`Object` is no value a module can name, and its namespace admits `is` alone
+`Object` is no value a module can name, and its namespace admits `is` and
+`entries` alone, the second listing every entry rather than reading one
 ([built-in static functions](../built-ins/static-functions.md)), and `a[i]` stays unread
 ([property access](README.md)). Where a program knows its index to
 be a number, the spelling is `a[Number(i)]`

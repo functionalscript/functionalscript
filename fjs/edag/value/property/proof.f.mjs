@@ -123,7 +123,7 @@ export const proof = {
         assertEq(assertOk(entry('ab', '1')), 'b')
         for (const key of ['length', '2', '01']) { assertStructurallySame(assertOk(entry('ab', key)), ['undefined']) }
         /** @type {readonly EdagValue[]} */
-        const entryless = [functionValue, ['entry'], true, 0, 1n]
+        const entryless = [functionValue, ['entry'], ['Object.entries'], true, 0, 1n]
         for (const receiver of entryless) {
             for (const key of ['length', '0', 'name']) { assertStructurallySame(assertOk(entry(receiver, key)), ['undefined']) }
         }
@@ -133,6 +133,9 @@ export const proof = {
         // the helper owns the `length` every function does, read as a property
         expectValue(['entry'], 'length', 2)
         missing(['entry'], '0')
+        // and `Object.entries` its `1`
+        expectValue(['Object.entries'], 'length', 1)
+        missing(['Object.entries'], 'name')
     },
     receiverFailures: () => {
         for (const failure of [error(null), error(undefinedValue), error(data), error(record), error(functionValue), error(NaN)]) {

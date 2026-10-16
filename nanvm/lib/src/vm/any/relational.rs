@@ -62,7 +62,7 @@ fn compare<A: IVm>(x: Any<A>, y: Any<A>) -> Result<Option<Ordering>, Any<A>> {
 /// against a string.
 fn to_primitive_or_text<A: IVm>(v: Any<A>) -> Result<Option<Primitive<A>>, Any<A>> {
     match v.clone().into() {
-        Unpacked::Function(f) => Ok(f.text().map(|t| Primitive::String(t.into()))),
+        Unpacked::Function(f) => Ok(f.text().ok().map(Primitive::String)),
         _ => v
             .to_primitive(Some(ToPrimitivePreferredType::Number))
             .map(Some),

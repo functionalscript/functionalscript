@@ -1,9 +1,9 @@
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import {
     allowedCalls, arrayPrototype, bigintPrototype, booleanPrototype, functionPrototype, numberPrototype,
     objectPrototype, stringPrototype,
 } from '../prototype/module.f.js'
-import { isStatic, statics } from '../static/module.f.js'
+import { isNative, isStatic, statics } from '../static/module.f.js'
 import { runtime } from './module.f.js'
 
 const { entries, values } = Object
@@ -69,24 +69,25 @@ export const proof = {
         }
         assert(values(tables).length > 0)
     },
-    // Every path the static section holds is admitted, and every entry is
-    // a body: a namespace's members, or the function a global is.
+    // Every path the static section holds is admitted and none is native,
+    // and every entry is a body: a namespace's members, or the function a
+    // global is.
     staticPaths: () => {
         /** @type {Readonly<Record<string, unknown>>} */
         const section = runtime.static
         for (const [global, value] of entries(section)) {
             if (typeof value === 'function') {
-                assert(isStatic([global]), global)
+                assert(isStatic([global]) && !isNative([global]), global)
                 continue
             }
             for (const [name, entry] of entries(/** @type {Readonly<Record<string, unknown>>} */ (value))) {
-                assert(isStatic([global, name]), `${global}.${name}`)
+                assert(isStatic([global, name]) && !isNative([global, name]), `${global}.${name}`)
                 assertEq(typeof entry, 'function')
             }
         }
     },
-    // Every admitted static is bound, and each body answers as the host's
-    // own built-in at the same path — its `length`, and its answer on every
+    // Every admitted static but a native is bound, and each body answers as
+    // the host's own built-in at the same path — its `length`, and its answer on every
     // pair of values — so a body is the built-in, value for value, and not
     // only on the cases written out for it. The built-in is called both
     // ways JavaScript calls it: as a method of its namespace, `Object.is(a,
@@ -96,7 +97,7 @@ export const proof = {
     // (`../static/module.f.js`), and a built-in that reads `this` throws
     // here on every engine the suite runs on.
     host: () => {
-        for (const [global, name] of statics) {
+        for (const [global, name] of statics.filter(path => !isNative(path))) {
             const body = section[global][name]
             const namespace = host[global]
             const detached = namespace[name]
@@ -107,6 +108,23 @@ export const proof = {
                     assertEq(namespace[name](a, b), expected, [global, name, 'method', a, b])
                     assertEq(detached(a, b), expected, [global, name, 'detached', a, b])
                 }
+            }
+        }
+    },
+    // A native static has no body here, every executor binding it itself,
+    // and the host's own built-in answers alike detached and on its
+    // namespace, as `host` checks a body's: `Object.entries` reads no
+    // `this`. On every sample but the two nullish ones, on which both
+    // calls throw.
+    natives: () => {
+        /** @type {Readonly<Record<string, Readonly<Record<string, unknown>>>>} */
+        const bodies = runtime.static
+        for (const [global, name] of statics.filter(isNative)) {
+            assertEq(bodies[global]?.[name], undefined, [global, name])
+            const namespace = /** @type {Readonly<Record<string, (a: unknown) => unknown>>} */ (host[global])
+            const detached = namespace[name]
+            for (const a of samples.filter(a => a !== null && a !== undefined)) {
+                assertStructurallySame(detached(a), namespace[name](a), [global, name, a])
             }
         }
     },

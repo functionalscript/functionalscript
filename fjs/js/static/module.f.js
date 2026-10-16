@@ -34,12 +34,13 @@
  */
 
 /**
- * Every admitted static path: `Object.is`, and the four `Number`
- * predicates, none of which converts its argument
+ * Every admitted static path: `Object.is` and `Object.entries`, and the
+ * four `Number` predicates, none of which converts its argument
  * ([`2360-built-in.md`](../../../spec/todo/2360-built-in.md#number-predicates-proposal-and-approval)).
  */
 export const statics = /** @type {const} */ ([
     ['Object', 'is'],
+    ['Object', 'entries'],
     ['Number', 'isInteger'],
     ['Number', 'isSafeInteger'],
     ['Number', 'isNaN'],
@@ -47,8 +48,29 @@ export const statics = /** @type {const} */ ([
 ])
 
 /**
+ * The admitted paths no body can define, each a primitive every executor
+ * binds natively and the runtime holds nothing at: `Object.entries`, since
+ * enumerating keys is exactly what the language has no other way to do
+ * ([`2360-built-in.md`](../../../spec/todo/2360-built-in.md#objectentries-proposal-and-approval)).
+ * Every other path of {@link statics} has its body in the runtime.
+ */
+export const natives = /** @type {const} */ ([
+    ['Object', 'entries'],
+])
+
+/** Whether `path` is `p`, key for key. @type {(path: readonly string[]) => (p: readonly string[]) => boolean} */
+const same = path => p => p.length === path.length && p.every((key, i) => key === path.at(i))
+
+/**
  * Whether `path` is admitted: one of {@link statics}, key for key.
  *
  * @type {(path: readonly string[]) => boolean}
  */
-export const isStatic = path => statics.some(p => p.length === path.length && p.every((key, i) => key === path.at(i)))
+export const isStatic = path => statics.some(same(path))
+
+/**
+ * Whether `path` is bound natively: one of {@link natives}, key for key.
+ *
+ * @type {(path: readonly string[]) => boolean}
+ */
+export const isNative = path => natives.some(same(path))

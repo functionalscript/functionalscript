@@ -92,10 +92,9 @@ lists and `prohibitedCalls` for the parser, `allowedCalls` for every
 executor — and the runtime's `types.ts` pins, at the type level, that
 every key is an allowed name on its type's prototype, so a body for a name
 the language does not admit, or on the wrong type, fails `tsc`. The keys
-are not the admitted set, and need not be: nothing in a `.f.js`
-enumerates an object's keys, so a list could not be derived from them, and
-a table that keyed every admitted name with a marker in place of a body
-would only duplicate the list the parser already has. A VM never sees a
+are not the admitted set, and need not be: a table that keyed every
+admitted name with a marker in place of a body would only duplicate the
+list the parser already has. A VM never sees a
 prohibited name, because two boundaries refuse it before any VM runs: the
 parser, for source, and for EDAG supplied as data, which no parser made,
 the admission `validate`

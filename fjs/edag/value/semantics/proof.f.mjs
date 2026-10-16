@@ -23,6 +23,8 @@ const classifications = [
     [['[]', []], true, 'object'],
     [['{}', []], true, 'object'],
     [['=>', 0, [], 0], true, 'function'],
+    [['entry'], true, 'function'],
+    [['Object.entries'], true, 'function'],
 ]
 
 /** @type {(a: EdagValue, b: EdagValue, equal: boolean, same: boolean) => void} */

@@ -276,7 +276,7 @@ identity being what `Math.max()` with no arguments is, and `Infinity` for
 `1`, where `min` and `max` take numbers: a call on anything else is
 checked, not rewritten.
 
-## 6. `Object.is`
+## 6. `Object.is` and `Object.entries`
 
 `Object.is` is admitted
 ([built-in static functions](../spec/built-ins/static-functions.md)),
@@ -309,9 +309,14 @@ import { isNegativeZero } from '../types/number/is_negative_zero/module.f.js'
 const sign = v => v < 0 || isNegativeZero(v) ? 1n : 0n       // accepted
 ```
 
-Every other member of the namespace is refused at the word (`reserved
-word`) — `Object.keys`, `Object.entries`, `Object.fromEntries` — and is a
-change the conversion makes by hand until it is admitted on its own.
+`Object.entries` is admitted as well, and kept as written the same way,
+`const { entries } = Object` included: what a module wrote on the host,
+enumerating an object, compiles. Every other member of the namespace is
+refused at the word (`reserved word`) — `Object.keys`, `Object.values`,
+`Object.fromEntries` — and is a change the conversion makes by hand until
+it is admitted on its own; `Object.keys(o)` is
+`Object.entries(o).map(([k]) => k)`, and `Object.values(o)` the second of
+each pair.
 
 ## 7. A body that ends without `return`
 

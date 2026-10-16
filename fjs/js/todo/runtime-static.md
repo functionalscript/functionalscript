@@ -274,7 +274,8 @@ this proposal does not take.
 - [x] NaNVM: `IVm::runtime_static` and `static_binding`, which fails
       naming the path as the interpreter does; the Rust backend emits the
       lookup; the completeness test checks every admitted path is bound.
-      NaNVM keeps no native static table, so there is no reverse walk.
+      NaNVM keeps no native static table, so there is no reverse walk;
+      `Object.entries`, its one native, is a held function, not a table.
 - [x] The node is a value, `['Object.is']`, an `op0`, in place of
       `['static', path]`: the schema, the analysis, the executors, the
       Rust backend and function text; the analysis's path and placement
@@ -315,6 +316,23 @@ this proposal does not take.
       the host's on every pair of a list spanning every type.
 - [ ] Decide the global `isNaN` and `isFinite` there, which convert their
       argument as the `Number` predicates do not.
+- [x] Admit `Object.entries`, decided in `2360-built-in.md`, the first
+      static with no body: its path in `statics`, the node
+      `['Object.entries']`, answered natively by the represented
+      interpreter, as a function value of its own, and by NaNVM, as a
+      function the runtime creates beside the compiled bodies, held per
+      thread with them;
+      `const { entries } = Object` admitted over the prototype-name rule;
+      the spec, the docs that say the language enumerates no keys, and a
+      harness fixture.
+- [ ] Give every runtime function the text ECMA-262 requires of a
+      built-in, a NativeFunction naming its [[InitialName]] with no
+      parameters — `function is() { [native code] }`,
+      `function isInteger() { [native code] }` — as `Object.entries`
+      answers `function entries() { [native code] }`, in place of its
+      body's EDAG text, in the interpreter and NaNVM alike: a runtime
+      function is the built-in, not its body (**sergey-shandar**, in the
+      `Object.entries` session).
 
 ### Related
 
