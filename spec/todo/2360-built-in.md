@@ -61,10 +61,74 @@ name not yet decided, or, where it says so, never admitted.
       ([built-in static functions](../built-ins/static-functions.md),
       [`fjs/js/todo/runtime-static.md`](../../fjs/js/todo/runtime-static.md)).
       The namespace's other members stay unticked, each an admission of
-      its own
+      its own. `Object.entries` is being admitted, native in every
+      executor (the record below)
 - [ ] `Function`
 - [ ] `Boolean`
 - [ ] `Symbol`
+
+#### `Object.entries` proposal and approval
+
+**Problem.** The language enumerates no keys. The
+[`entry` helper](../property-access/entries.md) reads a key a program
+already holds, never the keys it does not, so a module that walks an
+object — `structurallySame`, `definedEntries`, every `.f.mjs` that writes
+`const { entries } = Object` — cannot be written in the language, and an
+`.f.mjs` that does so cannot be renamed `.f.js`.
+
+**Proposal.** Admit `Object.entries` as a static function beside
+`Object.is`: a value in every spelling of the read, `Object.entries`,
+`Object["entries"]` and the guarded forms, and through
+`const { entries } = Object`; the EDAG node `['Object.entries']`; `length`
+`1`; one function however often it is read. Its answer is JavaScript's: a
+fresh array of fresh `[key, value]` pairs, one per enumerable own
+string-keyed property, in JavaScript's own-key order — array-index keys
+ascending, then every other key in insertion order — an array's elements
+and a string's code units under their index strings, nothing for a number,
+a boolean, a `bigint` or a function, and a failure on `null` and
+`undefined`, as `ToObject` fails. An entry holding `undefined` is listed,
+as JavaScript lists it.
+
+**No body: every executor binds it natively.** The runtime's `static`
+section holds bodies written in FunctionalScript, and no body can write
+this one: enumerating keys is exactly what the language lacks, so
+`Object.entries` is a primitive, as `String.fromCharCode` is
+([runtime-static](../../fjs/js/todo/runtime-static.md)). The runtime
+holds nothing at its path, and each executor answers the node itself: the
+represented interpreter with a function value of its own,
+`['Object.entries']`, called natively as `['entry']` is; NaNVM with a
+native binding `static_binding` asks before the runtime, held per thread
+so every read is one function.
+
+**Destructuring.** `entries` is a prototype name, `Array.prototype`'s,
+which every pattern refuses at the key. Over a namespace the namespace's
+own list decides first, so `const { entries } = Object` is
+`const entries = Object.entries`, destructuring being sugar; a key the
+namespace does not admit is refused as before, a prototype name at the
+key and any other name at the word.
+
+**Text.** `String(Object.entries)` has no EDAG to render, so every
+executor refuses it, as NaNVM refuses a native function without text
+([function source](../principles/README.md#function-source-representation-exception)).
+
+**Benefits.** The JavaScript spelling for what modules already do on the
+host, and the one enumeration from which the rest — keys, values, a
+filtered copy — are FunctionalScript over arrays. Modules that enumerate
+an object compile as written.
+
+**Drawbacks.** The first static with no body: one more function value in
+the represented interpreter and one more binding in NaNVM, kept in
+agreement by the harness rather than by one body. Enumeration observes an
+`undefined`-valued entry and key order in one more place
+([undefined properties](./1010-undefined-property.md)), which object
+spread already observes. A namespace key in a pattern may now be a
+prototype name.
+
+**Language-design approval.** **sergey-shandar** directed "Implement
+`Object.entries` in FJS. Note, it can't be a runtime function." in
+[the LLM working session](https://claude.ai/code/session_01R1c6kasjVwXAdm69VAd5oU),
+before implementation began. The destructuring and text decisions above
+are that session's reading of the direction, open to the owner's review.
 
 ### Number and Math
 

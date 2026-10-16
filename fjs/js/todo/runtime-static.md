@@ -315,6 +315,14 @@ this proposal does not take.
       the host's on every pair of a list spanning every type.
 - [ ] Decide the global `isNaN` and `isFinite` there, which convert their
       argument as the `Number` predicates do not.
+- [ ] Admit `Object.entries`, decided in `2360-built-in.md`, the first
+      static with no body: its path in `statics`, the node
+      `['Object.entries']`, answered natively by the represented
+      interpreter, as a function value of its own, and by NaNVM, as a
+      binding `static_binding` asks before the runtime, held per thread;
+      `const { entries } = Object` admitted over the prototype-name rule;
+      the spec, the docs that say the language enumerates no keys, and a
+      harness fixture.
 
 ### Related
 
