@@ -40,6 +40,8 @@ pub mod number_limits;
 pub mod number_methods;
 pub mod number_predicates;
 pub mod object;
+pub mod object_entries;
+pub mod object_entries_throws;
 pub mod object_is;
 pub mod object_spread;
 pub mod operators;

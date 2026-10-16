@@ -10,7 +10,7 @@ import type { Exp, Primitive as EdagPrimitive } from '../types.ts'
 import type { Assert } from '../../asserts/types.ts'
 import type { Equal } from '../../types/ts/types.ts'
 import type { Check, Check3 } from '../../rtti/ts/types.ts'
-import type { _value, value, values, array, property, object, func, entryFunction } from './module.f.mjs'
+import type { _value, value, values, array, property, object, func, entryFunction, nativeStatic } from './module.f.mjs'
 
 /** Evaluated primitives include EDAG's tagged undefined. */
 export type Primitive = EdagPrimitive | readonly ['undefined']
@@ -31,7 +31,10 @@ export type Closure = readonly ['=>', number, Values, Exp]
 /** The `entry` helper as a value: a function of `length` `2` the executor calls natively, fresh where the node is established. */
 export type EntryFunction = readonly ['entry']
 
-export type Function = Closure | EntryFunction
+/** A static function every executor binds natively, as a value: `Object.entries`, of `length` `1`, one function however often read. */
+export type NativeStatic = readonly ['Object.entries']
+
+export type Function = Closure | EntryFunction | NativeStatic
 
 /**
  * The runtime an executor answers member and static functions from: the
@@ -51,5 +54,6 @@ type _Property = Assert<Check<Property, typeof property>>
 type _Object = Assert<Check<Object, typeof object>>
 type _Closure = Assert<Check<Closure, typeof func>>
 type _EntryFunction = Assert<Check<EntryFunction, typeof entryFunction>>
+type _NativeStatic = Assert<Check<NativeStatic, typeof nativeStatic>>
 type _Subset = Assert<Equal<EdagValue extends Exp ? true : false, true>>
 type _ProperSubset = Assert<Equal<Exp extends EdagValue ? true : false, false>>

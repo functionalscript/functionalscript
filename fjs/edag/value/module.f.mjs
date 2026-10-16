@@ -1,7 +1,7 @@
 /**
  * Shape schemas for evaluated EDAG values: data and functions whose captures
- * are values while their bodies remain expressions, and the `entry` helper,
- * a function with neither. Every form uses EDAG's existing vocabulary;
+ * are values while their bodies remain expressions, and the `entry` helper
+ * and the native static function `Object.entries`, functions with neither. Every form uses EDAG's existing vocabulary;
  * computation nodes occur only inside function bodies.
  *
  * Shape checks do not establish closed-graph validity or canonical metadata.
@@ -25,9 +25,9 @@ import { array as rttiArray, number, string } from '../../rtti/module.f.mjs'
  * The raw recursive schema, pinned separately from its phantom annotation.
  * Undefined is tagged just as in EDAG, rather than a bare missing position.
  * @type {() => readonly ['or', typeof primitive, readonly ['undefined'],
- *  typeof array, typeof object, typeof func, typeof entryFunction]}
+ *  typeof array, typeof object, typeof func, typeof entryFunction, typeof nativeStatic]}
  */
-export const _value = () => ['or', primitive, ['undefined'], array, object, func, entryFunction]
+export const _value = () => ['or', primitive, ['undefined'], array, object, func, entryFunction, nativeStatic]
 
 /** Shape of an evaluated value, excluding computation outside function bodies. @type {Phantom<typeof _value, EdagValue>} */
 export const value = _value
@@ -54,3 +54,13 @@ export const func = /** @type {const} */ (['=>', number, values, exp])
  * established, as a closure is.
  */
 export const entryFunction = /** @type {const} */ (['entry'])
+
+/**
+ * A static function no body can define, as a value, the EDAG's
+ * `['Object.entries']` established: a function of `length` `1` with no
+ * captures and no body to interpret — the executor answers its call
+ * itself, as it answers `entry`'s — and, unlike `entry`, one function
+ * however often it is read, `Object.entries === Object.entries`
+ * (`./entries/module.f.mjs`).
+ */
+export const nativeStatic = /** @type {const} */ (['Object.entries'])

@@ -17,6 +17,10 @@ thread_local! {
     /// its thread; `None` where the module fails, which no lookup answers.
     /// `thread_local!` is the one stable spelling of a thread's own value.
     static RUNTIME: OnceCell<Option<Any<Naive>>> = const { OnceCell::new() };
+    /// The native static functions, made on this thread's first read of
+    /// one and held from then on, for the runtime object's reason: every
+    /// read of `Object.entries` is one function.
+    static NATIVE: OnceCell<Vec<(&'static [&'static str], Any<Naive>)>> = const { OnceCell::new() };
 }
 
 /// The runtime object this thread holds, cloned out, since a reference
@@ -59,6 +63,16 @@ impl IVm for Naive {
     /// The compiled runtime's static entry, for the same reasons.
     fn runtime_static(path: &[&str]) -> Option<Any<Naive>> {
         crate::vm::runtime_static(runtime()?, path)
+    }
+
+    /// The native static function at `path`, of the ones this thread holds.
+    fn native_static(path: &[&str]) -> Option<Any<Naive>> {
+        NATIVE.with(|cell| {
+            cell.get_or_init(crate::vm::native_statics)
+                .iter()
+                .find(|(p, _)| *p == path)
+                .map(|(_, f)| f.clone())
+        })
     }
 }
 

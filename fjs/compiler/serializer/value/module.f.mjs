@@ -43,6 +43,8 @@ const entry = (a, i, n) => {
         case '[]': { return `[${n[1].map(operand).join(',')}]` }
         case '{}': { return `{${n[1].map(([, key, value]) => `[${operand(key)}]:${operand(value)}`).join(',')}}` }
         case 'entry': { return _entryText(`value${i}/function`) }
+        // no body to write: the host's own built-in
+        case 'Object.entries': { return 'Object.entries' }
         default: {
             const slots = n[2]
             const frame = slots.map((_, k) => symbol(`value${i}/frame${k}`))

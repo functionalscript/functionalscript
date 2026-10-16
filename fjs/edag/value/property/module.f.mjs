@@ -57,8 +57,10 @@ export const read = (receiver, key) => {
         case '[]': { return indexed(value[1], key) }
         case '{}': { return field(value, key) }
         case '=>': { return ok(key === 'length' ? value[1] : ['undefined']) }
-        // the `entry` helper owns the `length` every function does, `2`
+        // the `entry` helper owns the `length` every function does, `2`,
+        // and `Object.entries` its `1`
         case 'entry': { return ok(key === 'length' ? 2 : ['undefined']) }
+        case 'Object.entries': { return ok(key === 'length' ? 1 : ['undefined']) }
         default: { return error(['undefined']) }
     }
 }
@@ -82,7 +84,7 @@ export const entry = (receiver, key) => {
     switch (receiver[0]) {
         case '[]': { return element(receiver[1], key) }
         case '{}': { return field(receiver, key) }
-        case '=>': case 'entry': { return ok(['undefined']) }
+        case '=>': case 'entry': case 'Object.entries': { return ok(['undefined']) }
         default: { return error(['undefined']) }
     }
 }
