@@ -166,8 +166,9 @@ const runShellEffect = asyncPartialRun(nodeCommands)({
     // is read, the bytes laid over it at `offset`, and the result written
     // back: a write past the end leaves zeros, as a positional write leaves a
     // hole that reads as zeros. It costs the file's size per call, which
-    // `writeChunks` pays once per 128 KiB chunk. The `offset` and size were
-    // checked before the host was asked.
+    // `writeChunks` pays once per 128 KiB chunk, and a write far past the end
+    // holds the whole gap in memory (./todo/sparse-write.md). The `offset` and
+    // size were checked before the host was asked.
     writeBytes: (path, offset, data) => io(async () => {
         // A directory reads as "too large for a Uint8Array"; a missing file
         // fails the read, as `writeBytes` never creates one.
