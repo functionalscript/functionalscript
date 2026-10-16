@@ -56,7 +56,7 @@ import {
 import { snakeCase, stringLiteral } from '../../media/rust/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
 import { generatedHeader, indent } from '../../media/rust/item/module.f.js'
-import { braced, expExpr as sharedExpExpr, nestsOperation, statementsOf } from '../../edag/rust/module.f.mjs'
+import { braced, expExpr as sharedExpExpr, nestsOperation, statementsOf, usesVm } from '../../edag/rust/module.f.mjs'
 
 /**
  * The shared printer as a throwing convenience, for this module's own use:
@@ -256,7 +256,10 @@ const groupFile = shared => g => {
         'use crate::harness::*;',
         '',
         '#[rustfmt::skip]',
-        'pub fn run<A: IStaticFunction>() {',
+        // `v` where a case or a shared value reaches the VM — a member
+        // call, or a function — and `_v` otherwise, since an unused
+        // parameter is an error under `-D warnings`.
+        `pub fn run<A: IStaticFunction>(${used.some(([, node]) => usesVm(node)) || casesOf(g).some(c => orders(g)(c).some(([, args]) => usesVm(caseExp(shared)(g)(args)))) ? 'v' : '_v'}: &A) {`,
         // An initializer is printed against the bindings established before
         // it, so a `ref` to an earlier shared value clones that binding
         // rather than constructing a second object. Printed without them the
@@ -287,8 +290,8 @@ const modFile = data => {
         '',
         'use crate::harness::*;',
         '',
-        'pub fn all<A: IStaticFunction>() {',
-        ...names.map(n => `${indent}${n}::run::<A>();`),
+        'pub fn all<A: IStaticFunction>(v: &A) {',
+        ...names.map(n => `${indent}${n}::run::<A>(v);`),
         '}',
         '',
     ].join('\n')

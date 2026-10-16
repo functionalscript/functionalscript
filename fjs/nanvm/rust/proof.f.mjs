@@ -128,8 +128,8 @@ pub fn run<A: IStaticFunction>() {
 
 #[rustfmt::skip]
 pub fn run<A: IStaticFunction>() {
-    check::<A>("last", Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("at")).end_call(|| Ok([f64_any(0xbff0000000000000)].to_array().to_any())), f64_any(0x4000000000000000));
-    check::<A>("noArgument", Any::dot(Array::default().to_any(), string_any("at")).end_call(|| Ok(Array::default().to_any())), Nullish::Undefined.to_any());
+    check::<A>("last", Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("at")).end_call(v, || Ok([f64_any(0xbff0000000000000)].to_array().to_any())), f64_any(0x4000000000000000));
+    check::<A>("noArgument", Any::dot(Array::default().to_any(), string_any("at")).end_call(v, || Ok(Array::default().to_any())), Nullish::Undefined.to_any());
 }
 `],
 ]
@@ -164,18 +164,18 @@ export const proof = {
         assertEq(
             valueExpr({ k: null }),
             '[(string_key("k"), Nullish::Null.to_any())].to_object().to_any()')
-        assertEq(valueExpr(functionValue), 'function_any()')
+        assertEq(valueExpr(functionValue), 'function_any(v)')
         // Nested, a function is the same node inside its container's.
-        assertEq(valueExpr([functionValue]), '[function_any()].to_array().to_any()')
+        assertEq(valueExpr([functionValue]), '[function_any(v)].to_array().to_any()')
         // A function answering a value is a closure that ignores its
         // arguments.
-        assertEq(valueExpr(returns('a')), 'A::static_function(|_self, _args| { Ok(string_any("a")) }, 0, Array::default(), Some("()=>\\"a\\"")).to_any()')
+        assertEq(valueExpr(returns('a')), 'v.static_function(|_self, _args| { Ok(string_any("a")) }, 0, Array::default(), Some("()=>\\"a\\"")).to_any()')
         // An `unreached` is the throwing operation it lowers to: where it
         // belongs, a lazy position, this is the thunk's own answer — see
         // `generate`'s `skip` case.
         assertEq(valueExpr(unreached), 'bigint_any(1) / bigint_any(0)')
         // A callback is a closure with its body, one `static_function`.
-        assertEq(valueExpr(callback('args')), "A::static_function(|_self, args| {\n    let rest = args.clone().into_iter().to_array();\n    Ok(rest.clone().to_any())\n}, 0, Array::default(), Some(\"(...$0)=>$0\")).to_any()")
+        assertEq(valueExpr(callback('args')), "v.static_function(|_self, args| {\n    let rest = args.clone().into_iter().to_array();\n    Ok(rest.clone().to_any())\n}, 0, Array::default(), Some(\"(...$0)=>$0\")).to_any()")
     },
     /**
      * The operation nodes, printed straight from the EDAG rather than through
@@ -191,8 +191,8 @@ export const proof = {
             'Any::conditional(true.to_any(), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000)))')
         // The one `=>` with a spelling: the corpus's function value, printed
         // as the harness's stand-in, and atomic as an operand.
-        assertEq(nodeExpr(lambdaExp()), 'function_any()')
-        assertEq(nodeExpr(['-', lambdaExp()]), '-(function_any())')
+        assertEq(nodeExpr(lambdaExp()), 'function_any(v)')
+        assertEq(nodeExpr(['-', lambdaExp()]), '-(function_any(v))')
         assertEq(
             nodeExpr(['String', 'a']),
             'string_any("a").to_string().map(|v| v.to_any())')

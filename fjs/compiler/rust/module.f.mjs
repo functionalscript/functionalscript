@@ -11,7 +11,8 @@
  * [`fjs/nanvm/rust`](../../nanvm/rust/module.f.mjs), which prints the
  * operator conformance corpus the same way. What is specific to this module:
  * laying a module's scope out as the body of the
- * `pub fn module<A: IVm>() -> Result<Any<A>, Any<A>>` a harness can call —
+ * `pub fn module<A: IVm>(v: &A) -> Result<Any<A>, Any<A>>` a harness calls
+ * with the VM the module runs on, `_v` where the module never reaches it —
  * `A: IStaticFunction` once the module holds a function, the capability its
  * closures bind through — and importing exactly the `nanvm_lib` names the
  * printer reports its text spells (`scope`'s `uses`, `useLines`) — the
@@ -36,7 +37,7 @@
 
 import { error, mapOk, okThen, unwrap } from '../../types/result/module.f.js'
 import { analysis, checked } from '../../edag/analysis/module.f.mjs'
-import { holdsFunction, readsArgs, scopeTagged, useLinesTagged } from '../../edag/rust/module.f.mjs'
+import { holdsFunction, readsArgs, scopeTagged, useLinesTagged, usesVm } from '../../edag/rust/module.f.mjs'
 import { generatedHeader, indent } from '../../media/rust/item/module.f.js'
 import { fromTagged, tagged, untagged, withNames } from '../../text/marked/module.f.mjs'
 
@@ -100,7 +101,7 @@ const generateTagged = root => mapOk((/** @type {Scope} */ { lines, uses }) => {
         ...useLinesTagged(uses, bound),
         '',
         '#[rustfmt::skip]',
-        `${tagged('keyword')('pub')} ${tagged('keyword')('fn')} module<A: ${bound}>() -> Result<Any<A>, Any<A>> {`,
+        `${tagged('keyword')('pub')} ${tagged('keyword')('fn')} module<A: ${bound}>(${usesVm(root) ? 'v' : '_v'}: &A) -> Result<Any<A>, Any<A>> {`,
         ...lines,
         '}',
         '',

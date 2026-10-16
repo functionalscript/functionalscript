@@ -16,8 +16,8 @@
  *
  * What stays with each caller: the corpus's own names for the nodes it
  * shares, via `data.shared`, and everything about *why* a printer is invoked
- * — a test case, a whole module's `pub fn module<A: IVm>() -> Result<Any<A>,
- * Any<A>>`, whose statements {@link scope} prints.
+ * — a test case, a whole module's `pub fn module<A: IVm>(v: &A) ->
+ * Result<Any<A>, Any<A>>`, whose statements {@link scope} prints.
  *
  * The printer is also the one module that knows which `nanvm_lib` names its
  * text spells: every piece it prints carries them ({@link Printed}), each
@@ -51,7 +51,7 @@
 import { f64Bits, i64Literal, stringLiteral, u64WordItems, utf16Units } from '../../media/rust/module.f.mjs'
 import { indent } from '../../media/rust/item/module.f.js'
 import { error, mapOk, ok, okList, okThen, unwrap } from '../../types/result/module.f.js'
-import { isStatic, staticPath } from '../module.f.mjs'
+import { isStatic } from '../module.f.mjs'
 import { chainLazy, eagerOperandsOf, isChain, lazy, members, one, operandsOf, visit } from '../sharing/module.f.mjs'
 import { analysis } from '../analysis/module.f.mjs'
 import { keepsRecursion, loopOf } from '../loop/module.f.mjs'
@@ -485,11 +485,12 @@ const hasSpread = items => items.some(x => x instanceof Array && x[0] === '...')
  * `true` for a node that prints through an operation's `nanvm-lib` call,
  * answering a `Result`: a `.` read, a call, an operator node, or an array
  * holding a spread — every node but the value shapes, which construct an
- * `Any` directly.
+ * `Any` directly, and a static function, which the VM holds and a read
+ * cannot fail on.
  *
  * @type {(e: Exp) => boolean}
  */
-const isOperation = e => e instanceof Array
+const isOperation = e => e instanceof Array && !isStatic(e)
     && (!['undefined', 'args', 'frame', 'arg', 'rest', 'self', 'entry', '[]', '{}', '=>', ',', ':', '...'].includes(e[0])
         || (e[0] === '[]' && hasSpread(/** @type {readonly unknown[]} */ (e[1]))))
 
@@ -510,6 +511,16 @@ const last = e => {
  * @type {(length: number) => Printed<string>}
  */
 const restLine = length => cat([`${kw('let')} rest = args.clone().into_iter()${length === 0 ? '' : `.skip(${num(`${length}`)})`}`, toArray, ';'])
+
+/**
+ * The first line of a body that reaches the VM ({@link usesVm}): the VM
+ * that made the function, `IStaticFunction::vm`, read through the
+ * closure's `self_` as the frame is. A closure coerces to a `fn` pointer
+ * and captures nothing, so the module's `v` is out of its reach, and the
+ * body names its own under the same name, which every line after it then
+ * spells alike wherever it stands.
+ */
+const vmLine = cat([`${kw('let')} v = A::vm(self_);`])
 
 /**
  * The printer for the EDAG under `root`, or the refusal of a shape this
@@ -837,6 +848,12 @@ const printer = (nested, arg = argRead, frame = frameRead, base = 0) => shared =
     const node = e => {
         const [id, a, b, c] = /** @type {readonly any[]} */ (e)
         if (id === 'undefined') { return ok(undefinedAny) }
+        // A static function as a value: the VM's, `IVm::get` under the
+        // node's own spelling, `Object.is` — one function on every read,
+        // the contract `get` keeps (`nanvm/lib/todo/vm-instance.md`). A
+        // value, not an operation: the VM holds it, so the read cannot
+        // fail, and the parser admitted the name, so the VM binds it.
+        if (isStatic(e)) { return plain(`v.get("${id}")`) }
         // The arguments a function was called with: the `args` parameter of
         // the closure {@link closure} prints, an `Array<A>` — as a value, an
         // `Rc`-cheap clone of it. An indexed read, `a[0]` or `a.length`, is
@@ -845,14 +862,14 @@ const printer = (nested, arg = argRead, frame = frameRead, base = 0) => shared =
         if (id === 'args') { return ok(cat(['args.clone()', toAny])) }
         if (id === 'rest') { return ok(cat(['rest.clone()', toAny])) }
         if (id === 'arg') { return ok(arg(a)) }
-        // The `entry` helper as a value: the closure `A::static_function`
+        // The `entry` helper as a value: the closure `v.static_function`
         // binds, as {@link closure} binds every function, answering
         // `Any::entry` of its two fixed arguments — `nanvm-lib`'s own
         // implementation of the helper's body — under the text the writer
         // gives the helper, {@link textExpr}, the one every function's
         // `ToPrimitive` answers with.
         if (id === 'entry') {
-            return ok(cat(['A::static_function(|_self, args| Any::entry(', argRead(0), ', ', argRead(1), '), ', num('2'), ', ', vm('Array'), `::default(), ${textExpr(e)})`, toAny]))
+            return ok(cat(['v.static_function(|_self, args| Any::entry(', argRead(0), ', ', argRead(1), '), ', num('2'), ', ', vm('Array'), `::default(), ${textExpr(e)})`, toAny]))
         }
         // Slot `i` of the frame the function was built with, `frame`:
         // {@link frameRead} unless the scope is a loop in place's round.
@@ -906,7 +923,7 @@ const printer = (nested, arg = argRead, frame = frameRead, base = 0) => shared =
             // Only the corpus's expression mode has the `function_any`
             // harness helper. A module scope constructs every function
             // through the VM, including `() => undefined`.
-            if (nested && a === 0 && isSmallestLambda(b, c)) { return plain('function_any()') }
+            if (nested && a === 0 && isSmallestLambda(b, c)) { return plain('function_any(v)') }
             const parts = loopParts(/** @type {readonly unknown[]} */ (e))
             return parts === null ? closure(a, c, textExpr(e))(frameExpr(b)) : loopClosure(parts, c, textExpr(e))(frameExpr(b))
         }
@@ -950,11 +967,12 @@ const printer = (nested, arg = argRead, frame = frameRead, base = 0) => shared =
     const spreadArray = a => flat(map1(x => cat([unstable('spread_array'), `(${x})`]))(itemsExpr(a)))
     /**
      * A function, `['=>', length, slots, body]`, as a function value: a closure
-     * bound through `IStaticFunction`, the `StaticCode<A>` signature's two
-     * parameters, the EDAG's fixed parameter count, and its frame, the
-     * `Array<A>` {@link frameExpr} prints from the slots in the scope around
-     * it. Rest is
-     * materialized once per invocation, after that fixed prefix. A
+     * the VM `v` binds through `IStaticFunction::static_function`, the
+     * `StaticCode<A>` signature's two parameters, the EDAG's fixed
+     * parameter count, and its frame, the `Array<A>` {@link frameExpr}
+     * prints from the slots in the scope around it. Rest is materialized
+     * once per invocation, after that fixed prefix, and a body that
+     * reaches the VM opens with {@link vmLine}, {@link prelude}. A
      * closure that captures nothing of Rust's coerces to the `fn` pointer
      * `StaticCode<A>` is, and rustc infers its parameters from it, so the
      * text declares no types.
@@ -980,8 +998,19 @@ const printer = (nested, arg = argRead, frame = frameRead, base = 0) => shared =
      * @type {(length: number, body: Exp, text: string) => (frame: Result<Printed<string>, readonly unknown[]>) => Result<Printed<string>, readonly unknown[]>}
      */
     const closure = (length, body, text) => frame => flat(map2((/** @type {readonly string[]} */ lines, /** @type {string} */ fr) =>
-        cat([`A::static_function(|${readsFrame(body) || readsSelf(body) ? 'self_' : '_self'}, ${readsArgs(body) ? 'args' : '_args'}| ${braced(lines)}, ${num(`${length}`)}, ${fr}, ${text})`, toAny])
-    )(reads('rest')(body) ? map2((/** @type {string} */ rest, /** @type {readonly string[]} */ s) => [rest, ...s])(ok(restLine(length)), statements(body)) : statements(body), frame))
+        cat([`v.static_function(|${readsFrame(body) || readsSelf(body) || usesVm(body) ? 'self_' : '_self'}, ${readsArgs(body) ? 'args' : '_args'}| ${braced(lines)}, ${num(`${length}`)}, ${fr}, ${text})`, toAny])
+    )(prelude(body, length)(statements(body)), frame))
+    /**
+     * A body's statements after the lines that open it: the VM's,
+     * {@link vmLine}, where the body reaches the VM, then `rest`'s,
+     * {@link restLine}, where it reads `rest`.
+     *
+     * @type {(body: Exp, length: number) => (statements: Result<Printed<readonly string[]>, readonly unknown[]>) => Result<Printed<readonly string[]>, readonly unknown[]>}
+     */
+    const prelude = (body, length) => statements => {
+        const withRest = reads('rest')(body) ? map2((/** @type {string} */ rest, /** @type {readonly string[]} */ s) => [rest, ...s])(ok(restLine(length)), statements) : statements
+        return usesVm(body) ? map2((/** @type {string} */ line, /** @type {readonly string[]} */ s) => [line, ...s])(ok(vmLine), withRest) : withRest
+    }
     /**
      * A loop function held as a value, `r => COND ? self(NEXT) : r`
      * ({@link loopParts}), as the closure whose body is the loop it is,
@@ -1001,7 +1030,7 @@ const printer = (nested, arg = argRead, frame = frameRead, base = 0) => shared =
         const variable = k => k === 0 ? code('r.clone()') : argRead(k)
         const init = cat([`${kw('let')} ${mutable(parts.next)}r: Any<A> = `, argRead(0), ';'])
         return flat(map3((/** @type {readonly string[]} */ round, /** @type {string} */ fr, /** @type {string} */ first) => cat([
-            `A::static_function(|${readsFrame(body) ? 'self_' : '_self'}, args| ${braced([first, `${kw('loop')} ${braced(round)}`, 'Ok(r)'])}, ${num('1')}, ${fr}, ${text})`,
+            `v.static_function(|${readsFrame(body) || usesVm(body) ? 'self_' : '_self'}, args| ${braced([...(usesVm(body) ? [vmLine[0]] : []), first, `${kw('loop')} ${braced(round)}`, 'Ok(r)'])}, ${num('1')}, ${fr}, ${text})`,
             toAny,
         ]))(loopLines(parts, 'r', variable, frameRead, 0), frame, ok(init)))
     }
@@ -1047,13 +1076,6 @@ const printer = (nested, arg = argRead, frame = frameRead, base = 0) => shared =
      */
     const bare = e => {
         const [id, a, b, c] = e
-        // A static function as a value: `nanvm-lib`'s `static_binding`,
-        // the VM's binding for its path — `IVm::runtime_static`, the
-        // compiled runtime's body — or the failure naming it, a `Result`
-        // as every operation's is, here where a block answers it as well
-        // as where a `let` reads it. A path's keys are identifiers, so
-        // each is its own `&str` literal.
-        if (isStatic(e)) { return ok(cat([vm('static_binding'), `::<A>(&[${staticPath(e[0]).map(key => `"${key}"`).join(', ')}])`])) }
         // A chain: the node's entry point, then its continuation's steps,
         // then the exit — `Any::dot(a, key).end()` for a bare `a.b`, one
         // spelling whether or not a continuation follows. What the read
@@ -1062,7 +1084,7 @@ const printer = (nested, arg = argRead, frame = frameRead, base = 0) => shared =
         if (isChain(id)) {
             const open = id === '.' ? map2((fa, k) => `Any::dot(${fa}, ${k})`)(f(a), index(b))
                 : id === '?.' ? map2((fa, k) => `Any::option_dot(${fa}, ${k})`)(f(a), keyThunk(b))
-                : map2((fa, t) => `Any::option_call(${fa}, ${t})`)(f(a), lazyOperand(b))
+                : map2((fa, t) => `Any::option_call(${fa}, v, ${t})`)(f(a), lazyOperand(b))
             return map2((o, rest) => `${o}${rest}`)(open, steps(id === '.')(c))
         }
         // A call, `['()', callee, args]`: `Any::call`, the callee a value
@@ -1107,7 +1129,9 @@ const printer = (nested, arg = argRead, frame = frameRead, base = 0) => shared =
      * hands on. Which steps a state admits is the lambda type's method set
      * in `nanvm-lib`, so a step the README does not allow does not compile;
      * this printer only spells, and refuses a tag that is none of the four
-     * rather than read it as one of them. A step's key is a thunk over a
+     * rather than read it as one of them. A call step takes the VM, `v`,
+     * whose runtime holds the member functions a callee may be, then its
+     * arguments. A step's key is a thunk over a
      * literal or `Number(…)` cast, {@link keyThunk}, and its arguments a
      * {@link lazyOperand}:
      * both are inside the region, or after an access that may throw first.
@@ -1122,7 +1146,7 @@ const printer = (nested, arg = argRead, frame = frameRead, base = 0) => shared =
         const terminal = step === '|!()' || (step === '|()' && property)
         if (terminal && next !== undefined) { return error(['a terminal step with a continuation', k]) }
         const method = terminal ? 'end_call' : step === '|()' ? 'call' : 'option_call'
-        return map2((t, rest) => `.${method}(${t})${rest}`)(lazyOperand(x), terminal ? plain('') : steps(false)(next))
+        return map2((t, rest) => `.${method}(v, ${t})${rest}`)(lazyOperand(x), terminal ? plain('') : steps(false)(next))
     }
     /**
      * A `.` node's index as the key `Any::dot` takes: a literal's
@@ -1224,7 +1248,7 @@ const printer = (nested, arg = argRead, frame = frameRead, base = 0) => shared =
      *
      * @type {(n: Exp) => (s: string) => string}
      */
-    const checked = n => s => isChain(tagOf(n)) || tagOf(n) === '()' || tagOf(n) === '[]' || isStatic(n) ? `${s}?` : `(${s})?`
+    const checked = n => s => isChain(tagOf(n)) || tagOf(n) === '()' || tagOf(n) === '[]' ? `${s}?` : `(${s})?`
     /**
      * The `Result` an argument list's thunk answers: the array it builds,
      * `Ok(…)`, or `spread_array`'s own, which may throw, where it holds a
@@ -1382,6 +1406,38 @@ export const readsFrame = root => reads('frame')(root)
  * @type {(root: Exp) => boolean}
  */
 export const readsSelf = root => reads('self')(root)
+
+/**
+ * Whether a scope reaches the VM, `v`: it calls a member function — a
+ * chain with a call step, or a `?.()` node — whose callee may be a body
+ * the VM's runtime holds; it reads a static function, `IVm::get`; or it
+ * makes a function, `IStaticFunction::static_function`, a nested `=>` or
+ * the `entry` helper. A nested function's body is left out as in
+ * {@link readsArgs}: that body reaches the VM through its own `self_`.
+ * What decides whether a module takes its VM as `v` or `_v`, and whether
+ * a body opens with `vmLine`.
+ *
+ * @type {(root: Exp) => boolean}
+ */
+export const usesVm = root => visit(operandsOf)([])(root).some(([node]) => reachesVm(node))
+
+/**
+ * Whether one node reaches the VM, {@link usesVm}.
+ *
+ * @type {(node: Exp) => boolean}
+ */
+const reachesVm = node => {
+    const [id, , , k] = /** @type {readonly any[]} */ (/** @type {unknown} */ (node))
+    return id === '=>' || id === 'entry' || id === '?.()' || isStatic(node) || (isChain(id) && hasCallStep(k))
+}
+
+/**
+ * Whether a continuation holds a call step, `|()`, `|?.()` or `|!()`,
+ * after any `|.` steps before it.
+ *
+ * @type {(k: unknown) => boolean}
+ */
+const hasCallStep = k => k !== undefined && (/** @type {readonly any[]} */ (k)[0] !== '|.' || hasCallStep(/** @type {readonly any[]} */ (k)[2]))
 
 /**
  * The indices a scope reads of its frame, one per distinct `['frame', i]`
