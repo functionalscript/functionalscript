@@ -115,7 +115,7 @@ A built-in's `name` is JavaScript's own spelling of it: `Object.is` and
 `String.prototype.startsWith` for the `member` section. Its `text` is the
 compiler's rendering of the body, as every compiled function's text is
 today; `Object.entries`, the one native no body defines, is a hand-written
-`RuntimeFunction` in `vm/runtime.rs` over [`Any::entries`] with
+`RuntimeFunction` in `vm/runtime.rs` over `Any::entries` with
 `ENTRIES_TEXT`, no longer created per VM.
 
 #### Generated code reads a built-in as a value
@@ -156,9 +156,11 @@ mode prints items:
   module level, an object or array a body would capture, is **refused**:
   the runtime's module scope holds functions and literals. The refusal
   names the node, and the runtime is written within the rule.
-- **A function a body makes at call time stays a closure**,
-  `A::static_function` as today, with the body bounded on
-  `IStaticFunction`; a built-in it reads is the accessor.
+- **A function a body makes at call time is refused.** It would be a
+  closure the VM makes, `A::static_function`, which bounds the item on
+  `IStaticFunction` where every item, and so the tables and the lookups
+  for any `A: IVm`, is bound on `IVm` alone. No body of the runtime makes
+  one; the day one needs to, the bound is the question to answer.
 - **The `runtime` export object is the table**, read at compile time:
   its `static` section gives the accessors their names and the generated
   user-code spelling, its `member` section gives `member`'s match. The
@@ -186,6 +188,13 @@ is `Sync`.
   accessor, through the generic call path, as every call does. A direct
   `found_code::<A>(args)` would skip the dispatch and is the obvious
   optimization; it waits for a measurement, as the design principles ask.
+- **Helpers are named by index.** A module-level function no section
+  names, `found`, `position`, `toNumber` or the imported `isNegativeZero`,
+  is an item too, since a body reads it, and its descriptor needs a name:
+  `f0`, `f1`, … in the module walk's order, since the EDAG keeps no
+  source names. The name is unique against the sections' dotted names and
+  observable only through `===` between two helpers, which no body
+  writes; its accessor is the module's own, not exported.
 - **Lifting's reach.** The rule "functions and literals" is what today's
   runtime needs. A future body wanting a module-level table, an array of
   code points say, meets the refusal; the answer then is a per-use
