@@ -171,7 +171,7 @@ falls back to interpreting an unsupported host's specifiers as paths.
       targets cannot be loaded, raw spelling is classified before decoding,
       and explicit relative controls still work; retain package resolution
       as separate work requiring a concrete use case
-      ([node-modules-resolution](../../../nanvm/effects-node/todo/node-modules-resolution.md)).
+      ([node-modules-resolution](../../../todo/node-modules-resolution.md)).
 - [x] Compare Node adapter identities with native ESM for escaped filenames,
       equivalent spellings and diamond sharing. Prove both compiler paths'
       identity handling separately through synchronous effect hosts.
