@@ -7,12 +7,11 @@ import { entriesText, objectEntries, ownEntries } from './module.f.mjs'
 const eq = (receiver, expected) => { assertStructurallySame(ownEntries(receiver), ['ok', expected]) }
 
 export const proof = {
-    // The function as a value, its tag, and its text, V8's for the
-    // built-in: an engine that spells a built-in another way, as
-    // JavaScriptCore breaks the line, is no reference for it.
+    // The function as a value, its tag, and its text: the function over
+    // the built-in, with no name.
     value: () => {
         assertStructurallySame(objectEntries, ['Object.entries'])
-        assertEq(entriesText, 'function entries() { [native code] }')
+        assertEq(entriesText, 'a => Object.entries(a)')
     },
     // An object's fields in the order it holds them, which construction
     // makes JavaScript's own-key order, an `undefined` one listed.

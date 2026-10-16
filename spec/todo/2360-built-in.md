@@ -108,19 +108,23 @@ namespace does not admit is refused as before, a prototype name at the
 key and any other name at the word.
 
 **Text.** `String(Object.entries)` has no EDAG to render, so every
-executor answers the host's own text for the built-in, V8's,
-`function entries() { [native code] }`
+executor answers one constant, `a => Object.entries(a)`: the function as
+FunctionalScript writes it over the built-in, its one parameter its
+`length`, and no name, which the language keeps unobservable
 ([function source](../principles/README.md#function-source-representation-exception)).
-Refusing it, as NaNVM refuses a native function with no text, was the
-first draft; the text keeps every conversion that never reads it, `Number`
-and the relational operators, answering alike in the represented
-interpreter, which renders a text before it converts, and NaNVM, which
-answers those without one. JavaScript run directly answers its own host's
-text, JavaScriptCore's broken over three lines, as it does for every
-function under that exception: `String(Object.is)` is the host's
-`function is() { [native code] }` there and the runtime body's text on
-the FunctionalScript VMs. No fixed text agrees with every host, refusing
-included, so the VMs agree with each other and with V8.
+The interpreter holds it, `entriesText`, and NaNVM's copy is generated
+from it. **sergey-shandar** chose the text in the session. Refusing it, as
+NaNVM refuses a native function with no text, was the first draft, and
+V8's `function entries() { [native code] }` the second: a text keeps every
+conversion that never reads it, `Number` and the relational operators,
+answering alike in the represented interpreter, which renders a text
+before it converts, and NaNVM, which answers those without one, and V8's
+names the function. JavaScript run directly answers its own host's text,
+as it does for every function under that exception: `String(Object.is)`
+is the host's there and the runtime body's text on the FunctionalScript
+VMs. The other runtime functions are to answer a text of the same form,
+`(a, b) => Object.is(a, b)`, in place of their body's
+([runtime-static](../../fjs/js/todo/runtime-static.md)).
 
 **Benefits.** The JavaScript spelling for what modules already do on the
 host, and the one enumeration from which the rest — keys, values, a

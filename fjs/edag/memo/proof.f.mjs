@@ -284,7 +284,7 @@ export const proof = {
         eq(['===', ['Object.entries'], ['Object.entries']], true)
         eq(['()', ['=>', 0, [], ['===', ['Object.entries'], ['Object.entries']]], []], true)
         eq(['===', entries(['[]', []]), entries(['[]', []])], false)
-        eq(['String', ['Object.entries']], 'function entries() { [native code] }')
+        eq(['String', ['Object.entries']], 'a => Object.entries(a)')
         fails(entries(null))
         fails(['()', ['Object.entries'], []])
     },

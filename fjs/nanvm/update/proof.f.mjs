@@ -20,6 +20,7 @@ import { data } from '../module.f.mjs'
 import { directory, generate } from '../rust/module.f.mjs'
 import { generate as generateCommands, path as commandsPath } from '../commands/module.f.mjs'
 import { generate as generateMethods, path as methodsPath } from '../methods/module.f.mjs'
+import { generate as generateNative, path as nativePath } from '../native/module.f.mjs'
 import { generate as generateValues, path as valuesPath } from '../values/module.f.mjs'
 import { edagPath, rustPath } from '../runtime/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
@@ -47,6 +48,8 @@ export const proof = {
         const [, [tableTag, tableResult]] = virtualAt(root)(table)
         assert(tableTag === 'ok', tableResult)
         assertEq(tableResult, generateMethods())
+        const [, nativeResult] = virtual(written)(readUtf8File(nativePath))
+        assertEq(assertOk(nativeResult), generateNative())
         const [, valuesResult] = virtual(written)(readUtf8File(valuesPath))
         assertEq(assertOk(valuesResult), generateValues())
         const [, commandsResult] = virtual(written)(readUtf8File(commandsPath))

@@ -2,7 +2,7 @@
  * Primitive conversion of evaluated values. Objects invoke their represented
  * coercion methods; arrays join recursively; functions use the shared source
  * renderer, but `Object.entries`, which has no body to render and answers
- * the host's own text. Values stay represented throughout conversion.
+ * one constant text, `a => Object.entries(a)`. Values stay represented throughout conversion.
  *
  * @module
  * @import { EdagValue, Primitive } from '../types.ts'

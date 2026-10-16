@@ -18,6 +18,11 @@ use crate::vm::{Any, IStaticFunction, IVm, ToAny, ToArray, Unpacked};
 #[path = "gen.runtime.rs"]
 mod compiled;
 
+/// The native statics' text, the constant the represented interpreter
+/// answers too, generated from it by `fjs/nanvm/native`.
+#[path = "gen.native.rs"]
+mod native;
+
 /// The compiled module's `runtime` export, evaluated, or `None` where the
 /// module fails: the object a VM holds and reads every body from. Its
 /// evaluation builds closures and runs no body, so it never asks the VM
@@ -63,11 +68,6 @@ pub fn runtime_static<A: IVm>(runtime: Any<A>, path: &[&str]) -> Option<Any<A>> 
     )
 }
 
-/// `String(Object.entries)`: the host's own text for a built-in, as V8
-/// answers it, since no EDAG holds a body to render. The represented
-/// interpreter answers the same text.
-const ENTRIES_TEXT: &str = "function entries() { [native code] }";
-
 /// `Object.entries` as a function, the one static function no body can
 /// define, enumerating keys being what the language has no other way to do
 /// ([`Any::entries`]): created here, where every other static is a body of
@@ -84,7 +84,7 @@ pub fn object_entries<A: IStaticFunction>() -> Any<A> {
         },
         1,
         [].to_array(),
-        Some(ENTRIES_TEXT),
+        Some(native::ENTRIES_TEXT),
     )
     .to_any()
 }
@@ -256,7 +256,7 @@ mod tests {
 
     /// `Object.entries` is created, not generated: the compiled object has
     /// no body at its path, and the runtime the VM holds creates it once,
-    /// so every read is one function, of `length` `1` and the host's text,
+    /// so every read is one function, of `length` `1` and its text,
     /// whose call lists the entries — where two creations are two
     /// functions, and two runtimes two `Object.entries`.
     #[test]
@@ -272,7 +272,7 @@ mod tests {
         );
         assert_eq!(
             entries.clone().to_string(),
-            Ok("function entries() { [native code] }".into())
+            Ok("a => Object.entries(a)".into())
         );
         let pairs = entries
             .clone()

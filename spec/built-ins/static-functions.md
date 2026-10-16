@@ -69,8 +69,8 @@ every executor answers the node from it, and an executor with no binding
 for it fails, naming it, rather than answer. `Object.entries` alone has no
 body, since enumerating keys is what no body can do otherwise: every
 executor binds it natively, and its text, `String(Object.entries)`, is
-the host's for a built-in, `function entries() { [native code] }`, there
-being no EDAG to render
+`a => Object.entries(a)`, the function over the built-in, there being no
+EDAG to render, and no name, which the language keeps unobservable
 ([function source](../principles/README.md#function-source-representation-exception)).
 The graph outputs write the node back: the FunctionalScript one as its
 name, `Object.is`, the Rust one as the binding the VM answers, which NaNVM
