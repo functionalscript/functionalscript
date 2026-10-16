@@ -24,6 +24,18 @@ directory its user cannot read.
 an unlistable directory falls through to `os.file.readFile`, which fails too —
 a failure either way, with a less exact message.
 
+**A FIFO reads as a file too, and reading one can hang.** `listDir` refuses a
+FIFO, so `readdir` reports it as a file, where Node's `Dirent` says it is
+neither and discovery skips it. `npm run sm c` then hands a FIFO named
+`*.f.js` to `readWhole`, as it does a FIFO named as the input. Measured on
+SpiderMonkey 140.14.0: `os.file.readFile` blocks in its `open` while no process
+has the FIFO open for writing, and once one does it fails with `can't seek
+end of …`. So `npm run sm c <(…) out.js` is refused, and only a FIFO nothing
+writes to hangs. Node's `readWhole` refuses both before opening, because
+`stat` says neither is a regular file. Raised in review of
+[#2990](https://github.com/functionalscript/functionalscript/pull/2990#discussion_r4297513555).
+No FIFO is in the repository.
+
 ### Proposal
 
 **Ask `test` when `listDir` fails.** One `os.system` call per such entry — a
@@ -62,6 +74,10 @@ cases; matching the text would answer with confidence it has no basis for
 
 - [ ] Classify an entry `listDir` refuses with one `os.system` call to
       `test`, and report a directory, a file, or neither from its exit code.
+- [ ] Refuse in `readWhole`, and in `writeBytes` where the host has it, a path
+      that `test -f` says is not a regular file, before `readFile` opens it,
+      as Node's `stat` check does: a FIFO no process writes to then fails
+      rather than hangs.
 - [ ] Check in the shell, as a user without read permission: an unlistable
       directory fails the run, a dangling symbolic link is skipped, and a
       whole-tree SpiderMonkey run stays within a few seconds of today's.
