@@ -108,27 +108,26 @@ namespace does not admit is refused as before, a prototype name at the
 key and any other name at the word.
 
 **Text.** `String(Object.entries)` has no EDAG to render, so every
-executor answers one constant, `a => Object.entries(a)`: the function as
-FunctionalScript writes it over the built-in, its one parameter its
-`length`, and no name, which the language keeps unobservable
-([function source](../principles/README.md#function-source-representation-exception)).
-It is better than what JavaScript engines answer for a built-in: it is a
-working implementation, so the `Function` constructor or `eval` makes a
-function of it that answers as `Object.entries` does, where an engine's
-`[native code]` does not parse; and its parameters say how many arguments
-the function requires, its `length`. The interpreter holds it,
-`entriesText`, and NaNVM's copy is generated from it. **sergey-shandar**
-chose the text, and gave both reasons, in the session. Refusing it, as
-NaNVM refuses a native function with no text, was the first draft, and
-V8's `function entries() { [native code] }` the second: a text keeps every
-conversion that never reads it, `Number` and the relational operators,
-answering alike in the represented interpreter, which renders a text
-before it converts, and NaNVM, which answers those without one, and V8's
-names the function. JavaScript run directly answers its own host's text,
-as it does for every function under that exception: `String(Object.is)`
-is the host's there and the runtime body's text on the FunctionalScript
-VMs. The other runtime functions are to answer a text of the same form,
-`(a, b) => Object.is(a, b)`, in place of their body's
+executor answers one constant, `function entries() { [native code] }`:
+what ECMA-262 requires of a built-in function
+([`Function.prototype.toString`](https://tc39.es/ecma262/#sec-function.prototype.tostring)),
+a string with the syntax of a NativeFunction whose name is the built-in's
+[[InitialName]], `entries`. The grammar admits parameters; the text has
+none, as most engines print it, V8's text exactly. The interpreter holds
+it, `entriesText`, and NaNVM's copy is generated from it. A text keeps
+every conversion that never reads it, `Number` and the relational
+operators, answering alike in the represented interpreter, which renders a
+text before it converts, and NaNVM, which answers those without one, so
+refusing it, as NaNVM refuses a native function with no text, was not
+taken. `a => Object.entries(a)` was considered: a working implementation,
+which `eval` or the `Function` constructor makes a function of, where a
+NativeFunction does not parse, and its parameter shows the `length`; but
+ECMAScript requires the NativeFunction of a built-in, and
+**sergey-shandar** chose the standard's text in the session. JavaScript run
+directly answers its own host's text, a NativeFunction too, which an engine
+may spell otherwise, as JavaScriptCore breaks the line. The other runtime
+functions are to answer the same, `function is() { [native code] }`, in
+place of their body's EDAG text
 ([runtime-static](../../fjs/js/todo/runtime-static.md)).
 
 **Benefits.** The JavaScript spelling for what modules already do on the

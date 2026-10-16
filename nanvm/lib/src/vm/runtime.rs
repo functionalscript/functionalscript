@@ -272,7 +272,7 @@ mod tests {
         );
         assert_eq!(
             entries.clone().to_string(),
-            Ok("a => Object.entries(a)".into())
+            Ok("function entries() { [native code] }".into())
         );
         let pairs = entries
             .clone()

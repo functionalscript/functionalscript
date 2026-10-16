@@ -23,18 +23,14 @@ const { entries } = Object
 export const objectEntries = /** @type {NativeStatic} */ (['Object.entries'])
 
 /**
- * `String(Object.entries)`, since no EDAG holds a body to render: the
- * function as FunctionalScript writes it over the built-in, its one
- * parameter its `length`, and no name, which the language keeps
- * unobservable. Unlike an engine's `[native code]`, it is a working
- * implementation, which `eval` or the `Function` constructor makes a
- * function of
- * ([spec: function source](../../../../spec/principles/README.md#function-source-representation-exception)).
- * NaNVM answers this constant too, printed into its `gen.native.rs` by
- * `fjs/nanvm/native`. JavaScript run directly answers its host's own text,
- * as it does for every function under that exception.
+ * `String(Object.entries)`, since no EDAG holds a body to render: the text
+ * ECMA-262 requires of a built-in function
+ * ([`Function.prototype.toString`](https://tc39.es/ecma262/#sec-function.prototype.tostring)),
+ * NativeFunction syntax naming its [[InitialName]], `entries`, and, as
+ * engines print it, no parameters. NaNVM answers this constant too,
+ * printed into its `gen.native.rs` by `fjs/nanvm/native`.
  */
-export const entriesText = 'a => Object.entries(a)'
+export const entriesText = 'function entries() { [native code] }'
 
 /** Each `[key, value]` pair as a fresh array, in a fresh array. @type {(pairs: readonly (readonly [string, EdagValue])[]) => EdagValue} */
 const pairsOf = pairs => ['[]', pairs.map(([key, value]) => ['[]', [key, value]])]

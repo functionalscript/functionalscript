@@ -325,15 +325,15 @@ this proposal does not take.
       `const { entries } = Object` admitted over the prototype-name rule;
       the spec, the docs that say the language enumerates no keys, and a
       harness fixture.
-- [ ] Give every runtime function the text of the function over its
-      built-in, `(a, b) => Object.is(a, b)` and `a => Number.isInteger(a)`,
-      as `Object.entries` answers `a => Object.entries(a)`, in place of its
+- [ ] Give every runtime function the text ECMA-262 requires of a
+      built-in, a NativeFunction naming its [[InitialName]] with no
+      parameters — `function is() { [native code] }`,
+      `function isInteger() { [native code] }` — as `Object.entries`
+      answers `function entries() { [native code] }`, in place of its
       body's EDAG text, in the interpreter and NaNVM alike, each text one
       constant NaNVM's copy is generated from: a runtime function is the
-      built-in, not its body, and its name stays unobservable; the text is
-      a working implementation, as an engine's `[native code]` is not,
-      and its parameters show its `length`
-      (**sergey-shandar**, in the `Object.entries` session).
+      built-in, not its body (**sergey-shandar**, in the `Object.entries`
+      session).
 
 ### Related
 
