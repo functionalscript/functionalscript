@@ -206,6 +206,9 @@ pub fn members<A: IVm>() -> [(&'static str, &'static str, Accessor<A>); 1] {
         ])).startsWith(unreached))
         assert(refusal(module([['static', object([['Object', object([['g', fn(0, [], 1)], ['g', fn(0, [], 7)]])]])]])).startsWith(unreached))
         assert(refusal(module([['static', object([['Object', object([['g', ['+', 1, 2]], ['g', fn(0, [], 7)]])]])]])).startsWith(prefix))
+        // an import's read written over is checked all the same: one that
+        // would throw is refused, not dropped
+        assert(refusal(module([['static', object([['Object', object([['g', ['.', ['undefined'], 'x']], ['g', fn(0, [], 7)]])]])]])).startsWith(prefix))
         // a helper reached through a helper is an item, once
         const chain = assertOk(generateRuntime(module([['static', object([['Object', object([['f', fn(0, [fn(0, [fn(0, [], 1)], ['frame', 0])], ['frame', 0])]])]])]])))
         assert(chain.includes('fn f0<A') && chain.includes('fn f1<A') && !chain.includes('fn f2<A'))

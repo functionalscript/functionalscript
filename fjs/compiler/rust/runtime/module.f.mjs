@@ -168,9 +168,11 @@ const isLower = c => c === c.toLowerCase() && c !== c.toUpperCase()
  * resolves to it and `f` with its index among the helpers otherwise.
  * Refused: a module-level node that is no function, no object, no import's
  * read and no `undefined` — an operation the lifting would drop
- * unevaluated — and a function no built-in reaches through its slots,
- * which a property written twice leaves behind, since nothing would print
- * it and the module would mean something else.
+ * unevaluated; an import's read that resolves to nothing an item may hold,
+ * wherever it stands, since one a property written twice left behind would
+ * otherwise go unchecked; and a function no built-in reaches through its
+ * slots, which such a property leaves behind too, since nothing would
+ * print it and the module would mean something else.
  *
  * @type {(root: Exp, builtIns: readonly _BuiltIn[]) => Result<readonly _Item[], readonly unknown[]>}
  */
@@ -178,16 +180,18 @@ const items = (root, builtIns) => {
     const nodes = visit(operandsOf)([])(root).map(([n]) => n).filter(n => n instanceof Array)
     const stray = nodes.find(n => !['=>', '{}', '.', 'undefined'].includes(n[0]))
     if (stray !== undefined) { return refused(/** @type {Exp} */ (stray)) }
-    const functions = nodes.filter(n => n[0] === '=>')
-    const reached = reach(builtIns.map(b => b.node), [])
-    const dropped = functions.find(n => !reached.includes(n))
-    if (dropped !== undefined) { return error(['a function no built-in reaches; a property written twice keeps its last value', dropped]) }
-    const helpers = functions.filter(n => !builtIns.some(b => b.node === n))
-    return ok(functions.map(node => {
-        const named = builtIns.find(b => b.node === node)
-        const name = named === undefined ? `f${helpers.indexOf(node)}` : named.name
-        return { node, name, ident: identifier(name) }
-    }))
+    return okThen(() => {
+        const functions = nodes.filter(n => n[0] === '=>')
+        const reached = reach(builtIns.map(b => b.node), [])
+        const dropped = functions.find(n => !reached.includes(n))
+        if (dropped !== undefined) { return error(['a function no built-in reaches; a property written twice keeps its last value', dropped]) }
+        const helpers = functions.filter(n => !builtIns.some(b => b.node === n))
+        return ok(functions.map(node => {
+            const named = builtIns.find(b => b.node === node)
+            const name = named === undefined ? `f${helpers.indexOf(node)}` : named.name
+            return { node, name, ident: identifier(name) }
+        }))
+    })(okList(nodes.filter(n => n[0] === '.').map(n => resolve(/** @type {Exp} */ (n)))))
 }
 
 /**
