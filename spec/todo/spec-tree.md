@@ -23,7 +23,9 @@ the moves waits on the others
 ([AGENTS.md §1](../../AGENTS.md#1-workflow)).
 
 **A page owns its examples.** A page ends with the programs that show it, as a
-list of `[name, source]` pairs in a sibling `examples.f.js`. The compiler demos'
+list of `[name, source]` pairs, one list per page, exported by the area's
+`module.f.js` beside its pages (pages are files of the area's directory, so a
+file per page would share one path). The compiler demos'
 list is *assembled from the tree*, never spelled a second time, so an example
 lives next to the text it illustrates and a change to one is a change to the
 other. The picker groups the assembled list by area (`<optgroup>`), which
