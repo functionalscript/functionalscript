@@ -52,6 +52,15 @@ FunctionalScript and cannot load impure JavaScript
 ([load-proofs-through-fjs](load-proofs-through-fjs.md)). No new `fjs t` flag is
 added for this.
 
+The host passes the engine as a field of `NodeProgramOptions`, not through an
+`engine` effect. It is a fixed fact about the host, like `args`, `env`, `home`,
+and `packageRoot`, which are options; the effects are for IO and
+nondeterminism. As a field, `tsc` makes every host set it. The effect's one
+advantage would be a free default — a host without the handler answers
+`NotImplemented`, read as "pure only" — but that same default lets a Node host
+whose handler broke run only the pure proofs and pass, a suite that shrinks
+without saying so.
+
 ### Findings
 
 Measured on x86-64 Linux with SpiderMonkey 140.14.0, the `spidermonkey_140`
