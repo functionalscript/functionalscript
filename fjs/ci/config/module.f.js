@@ -25,7 +25,7 @@ export const images = /** @type {const} */({
 // published FunctionalScript release; do not tie it to package.json's current
 // in-repo version.
 // https://www.npmjs.com/package/functionalscript
-export const functionalscript = /** @type {const} */ '0.55.0'
+export const functionalscript = /** @type {const} */ '0.56.0'
 
 // The one runtime a generated flake takes from outside the pinned snapshot.
 // Nixpkgs ships 1.3.13 — on the pin and on `master` — and two of this
@@ -149,7 +149,7 @@ export const nixpkgs = /** @type {const} */({
     owner: 'NixOS',
     repo: 'nixpkgs',
     ref: 'nixpkgs-26.05-darwin',
-    commit: '240fddad86d7a0520319f21d8be1b43db426b18d',
+    commit: '5b00df4a0973895c8023f2b0227c7942c963d065',
 })
 
 // `rust-overlay`, the second input of the shared flake. Nixpkgs builds
@@ -195,7 +195,7 @@ export const actions = /** @type {const} */({
     'actions/cache': 'v6.1.0',
     // https://github.com/marketplace/actions/install-nix
     // Enables the `nix-command` and `flakes` experimental features by default.
-    'cachix/install-nix-action': 'v31.11.1',
+    'cachix/install-nix-action': 'v31.11.2',
     // https://rust-lang.org/ - value is Rust version, not action version
     'dtolnay/rust-toolchain': rust,
 })

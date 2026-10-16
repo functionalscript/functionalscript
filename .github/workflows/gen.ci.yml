@@ -17,7 +17,7 @@
       "timeout-minutes": 15,
       "steps": [
         {
-          "uses": "cachix/install-nix-action@v31.11.1"
+          "uses": "cachix/install-nix-action@v31.11.2"
         },
         {
           "uses": "actions/checkout@v7.0.1"
@@ -62,7 +62,7 @@
       "timeout-minutes": 15,
       "steps": [
         {
-          "uses": "cachix/install-nix-action@v31.11.1"
+          "uses": "cachix/install-nix-action@v31.11.2"
         },
         {
           "uses": "actions/checkout@v7.0.1"
@@ -212,7 +212,7 @@
       "timeout-minutes": 15,
       "steps": [
         {
-          "uses": "cachix/install-nix-action@v31.11.1"
+          "uses": "cachix/install-nix-action@v31.11.2"
         },
         {
           "uses": "actions/checkout@v7.0.1"
@@ -258,7 +258,7 @@
           }
         },
         {
-          "run": "npm install -g functionalscript@0.55.0"
+          "run": "npm install -g functionalscript@0.56.0"
         },
         {
           "uses": "actions/checkout@v7.0.1"
@@ -309,7 +309,7 @@
           }
         },
         {
-          "run": "npm install -g functionalscript@0.55.0"
+          "run": "npm install -g functionalscript@0.56.0"
         },
         {
           "uses": "actions/checkout@v7.0.1"
@@ -336,7 +336,7 @@
       "timeout-minutes": 15,
       "steps": [
         {
-          "uses": "cachix/install-nix-action@v31.11.1"
+          "uses": "cachix/install-nix-action@v31.11.2"
         },
         {
           "uses": "actions/checkout@v7.0.1"
@@ -357,7 +357,7 @@
       "timeout-minutes": 15,
       "steps": [
         {
-          "uses": "cachix/install-nix-action@v31.11.1"
+          "uses": "cachix/install-nix-action@v31.11.2"
         },
         {
           "uses": "actions/checkout@v7.0.1"
@@ -378,7 +378,7 @@
       "timeout-minutes": 15,
       "steps": [
         {
-          "uses": "cachix/install-nix-action@v31.11.1"
+          "uses": "cachix/install-nix-action@v31.11.2"
         },
         {
           "uses": "actions/checkout@v7.0.1"
