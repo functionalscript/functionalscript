@@ -101,8 +101,11 @@ const runShellEffect = asyncPartialRun(nodeCommands)({
             () => [])
     }),
     import: path => io(() => import(absolute(path))),
-    // `utf8ToString` because the shell has no `TextDecoder`.
-    write: async (stream, data) => ok(writeText(stream, utf8ToString(data))),
+    write: async (stream, data) => {
+        // `utf8ToString` because the shell has no `TextDecoder`.
+        writeText(stream, utf8ToString(data))
+        return ok(undefined)
+    },
 })
 
 /** @type {(name: string) => string} */
