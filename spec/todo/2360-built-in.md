@@ -108,13 +108,15 @@ namespace does not admit is refused as before, a prototype name at the
 key and any other name at the word.
 
 **Text.** `String(Object.entries)` has no EDAG to render, so every
-executor answers one constant, `function entries() { [native code] }`:
-what ECMA-262 requires of a built-in function
+executor answers `function entries() { [native code] }`: what ECMA-262
+requires of a built-in function
 ([`Function.prototype.toString`](https://tc39.es/ecma262/#sec-function.prototype.tostring)),
 a string with the syntax of a NativeFunction whose name is the built-in's
 [[InitialName]], `entries`. The grammar admits parameters; the text has
-none, as most engines print it, V8's text exactly. The interpreter holds
-it, `entriesText`, and NaNVM's copy is generated from it. A text keeps
+none, as most engines print it, V8's text exactly. Only the name varies,
+so each executor builds the text from it by that rule, the interpreter's
+`nativeText` and NaNVM's runtime's `native_text`, rather than carry a text
+per function or generate one executor's from the other's. A text keeps
 every conversion that never reads it, `Number` and the relational
 operators, answering alike in the represented interpreter, which renders a
 text before it converts, and NaNVM, which answers those without one, so

@@ -20,21 +20,19 @@ import { data } from '../module.f.mjs'
 import { directory, generate } from '../rust/module.f.mjs'
 import { generate as generateCommands, path as commandsPath } from '../commands/module.f.mjs'
 import { generate as generateMethods, path as methodsPath } from '../methods/module.f.mjs'
-import { generate as generateNative, path as nativePath } from '../native/module.f.mjs'
 import { generate as generateValues, path as valuesPath } from '../values/module.f.mjs'
 import { generate as generateRuntime } from '../runtime/module.f.mjs'
 
 /**
  * The Rust files {@link generateRustTests} writes before the runtime, in
  * order: the corpus, one file per group, then the completeness table, the
- * native statics' text, the interpreted value fixture and the command set.
+ * interpreted value fixture and the command set.
  *
  * @type {() => readonly (readonly [path: string, text: string])[]}
  */
 const rustFiles = () => [
     ...generate(data).map(([name, content]) => /** @type {const} */ ([`${directory}/${name}`, content])),
     [methodsPath, generateMethods()],
-    [nativePath, generateNative()],
     [valuesPath, generateValues()],
     [commandsPath, generateCommands()],
 ]
@@ -42,9 +40,8 @@ const rustFiles = () => [
 /**
  * Regenerates `nanvm/lib/tests/test/gen.corpus/` from the shared test data,
  * one file at a time, stopping at the first that fails, and then the
- * completeness table `nanvm/lib/src/vm/lambda/gen.methods.rs`, the native
- * statics' text `nanvm/lib/src/vm/gen.native.rs`, the interpreted value
- * fixture `nanvm/harness/gen.values/captures.rs`, the command set
+ * completeness table `nanvm/lib/src/vm/lambda/gen.methods.rs` and interpreted
+ * value fixture `nanvm/harness/gen.values/captures.rs`, the command set
  * `nanvm/effects-node/src/gen.commands.rs`, and the runtime compiled for
  * `nanvm-lib` and as EDAG ([`../runtime`](../runtime/module.f.mjs)).
  *
