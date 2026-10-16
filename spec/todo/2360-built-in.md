@@ -61,8 +61,8 @@ name not yet decided, or, where it says so, never admitted.
       ([built-in static functions](../built-ins/static-functions.md),
       [`fjs/js/todo/runtime-static.md`](../../fjs/js/todo/runtime-static.md)).
       The namespace's other members stay unticked, each an admission of
-      its own. `Object.entries` is being admitted, native in every
-      executor (the record below)
+      its own. `Object.entries` is admitted too, native in every executor
+      (the record below)
 - [ ] `Function`
 - [ ] `Boolean`
 - [ ] `Symbol`
@@ -108,8 +108,14 @@ namespace does not admit is refused as before, a prototype name at the
 key and any other name at the word.
 
 **Text.** `String(Object.entries)` has no EDAG to render, so every
-executor refuses it, as NaNVM refuses a native function without text
+executor answers the host's own text for the built-in, V8's,
+`function entries() { [native code] }`
 ([function source](../principles/README.md#function-source-representation-exception)).
+Refusing it, as NaNVM refuses a native function with no text, was the
+first draft; the text keeps every conversion that never reads it, `Number`
+and the relational operators, answering alike in the represented
+interpreter, which renders a text before it converts, and NaNVM, which
+answers those without one.
 
 **Benefits.** The JavaScript spelling for what modules already do on the
 host, and the one enumeration from which the rest — keys, values, a
@@ -129,6 +135,13 @@ prototype name.
 [the LLM working session](https://claude.ai/code/session_01R1c6kasjVwXAdm69VAd5oU),
 before implementation began. The destructuring and text decisions above
 are that session's reading of the direction, open to the owner's review.
+
+**Implemented** as proposed: `fjs/js/static`'s `natives` lists the path,
+the represented interpreter answers it from `fjs/edag/value/entries`, and
+NaNVM from `vm::native_statics` through `IVm::native_static`, which
+`static_binding` asks before the runtime;
+`nanvm/harness/fixtures/object-entries.mjs` and
+`object-entries-throws.mjs` hold the executors to Node.
 
 ### Number and Math
 

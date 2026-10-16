@@ -29,9 +29,8 @@ name, each key under it an allowed name on that type's prototype — so a
 body for a name the language does not admit, or
 on the wrong type, fails `tsc`, and [`proof.f.mjs`](./proof.f.mjs) checks
 the same at run time. The keys are not the admitted set and need not be:
-nothing in a `.f.js` enumerates an object's keys, so a list could not be
-derived from them, and a table keying every admitted name with a marker
-in place of a body would only duplicate the parser's list.
+a table keying every admitted name with a marker in place of a body would
+only duplicate the parser's list.
 
 ## The names without a body
 
@@ -39,8 +38,11 @@ Two kinds, and both are each VM's to bind natively:
 
 - the **primitives**, which no body can define in terms of the rest — for
   a string, the code-unit read `charCodeAt` and the substring `slice`;
-  `length` is a property each value owns and is on no list, and an array
-  element is read by a runtime number index, which the language has;
+  among the static functions, `Object.entries`, since enumerating keys is
+  what no body can do otherwise, which [`../static`](../static/module.f.js)
+  lists as `natives`; `length` is a property each value owns and is on no
+  list, and an array element is read by a runtime number index, which the
+  language has;
 - the names whose body **waits on a primitive the language has not
   admitted** — `toLowerCase` and `toUpperCase` on a string from a code
   unit, `String.fromCharCode`, over which the Unicode case tables are
@@ -178,9 +180,15 @@ with the same message, reading its context's runtime through
 one invocation or two, which `nanvm/harness/fixtures/object-is.mjs`
 checks on NaNVM against the interpreter, and
 `nanvm/harness/fixtures/number-predicates.mjs` for the `Number`
-predicates over every kind of value. NaNVM keeps no native static
-table, and its completeness test checks every path
-[`../static`](../static/module.f.js) admits is bound.
+predicates over every kind of value. `Object.entries` has no body: the
+represented interpreter answers it with a function value of its own,
+`edag/value/entries`, and NaNVM with a binding `static_binding` asks
+for first, `IVm::native_static`, which `naive` answers from
+`vm::native_statics` and holds per thread as it holds the runtime object,
+so it too is one function every read
+(`nanvm/harness/fixtures/object-entries.mjs`). The completeness test
+checks every path [`../static`](../static/module.f.js) admits is bound,
+and every native one is admitted and has no body beside it.
 
 **The VM type binds the runtime.** `IVm::runtime_method` is a method on
 the type, with no instance and no argument carrying a runtime, so which

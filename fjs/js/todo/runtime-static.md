@@ -274,7 +274,8 @@ this proposal does not take.
 - [x] NaNVM: `IVm::runtime_static` and `static_binding`, which fails
       naming the path as the interpreter does; the Rust backend emits the
       lookup; the completeness test checks every admitted path is bound.
-      NaNVM keeps no native static table, so there is no reverse walk.
+      NaNVM kept no native static table then, so there was no reverse
+      walk; `Object.entries` added both.
 - [x] The node is a value, `['Object.is']`, an `op0`, in place of
       `['static', path]`: the schema, the analysis, the executors, the
       Rust backend and function text; the analysis's path and placement
@@ -315,7 +316,7 @@ this proposal does not take.
       the host's on every pair of a list spanning every type.
 - [ ] Decide the global `isNaN` and `isFinite` there, which convert their
       argument as the `Number` predicates do not.
-- [ ] Admit `Object.entries`, decided in `2360-built-in.md`, the first
+- [x] Admit `Object.entries`, decided in `2360-built-in.md`, the first
       static with no body: its path in `statics`, the node
       `['Object.entries']`, answered natively by the represented
       interpreter, as a function value of its own, and by NaNVM, as a

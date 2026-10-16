@@ -190,8 +190,11 @@ runtime.
 deleted `types/object/is`, and the compiler accepts the call; its first
 refusal is the one before. Behind it, the `e40fa58` row read the `Object`
 global as the prohibited property name in `const { entries } = Object`; the
-compiler names the key, `entries`, which a pattern refuses before it reads
-the namespace ([spec: destructuring](../spec/bindings/destructuring.md)).
+compiler then named the key, `entries`, which a pattern refused before it
+read the namespace. Since `Object.entries` was admitted
+([2360](../spec/todo/2360-built-in.md#objectentries-proposal-and-approval)),
+the namespace's list decides first, and a copy with `new Map` replaced
+compiles whole, measured after the table's commit.
 `types/list` adds what the earlier row did not reach in `next`: its two
 `return` guards inside the loop and the body that ends at `while (true)`.
 
@@ -207,7 +210,7 @@ relative to `fjs/`.
 | `nanvm/methods/module.f.mjs` | 115:20 | `Object.values` in `rows` | Nothing: the one refusal |
 | `types/list/module.f.mjs` | 51:9 | `if … else if` assigning to the parameter `head` inside the loop in `next` | In `next`, the tuple assignments, `continue`, `'head' in head`, two `return` guards inside the loop, the assignment to `head`, not the loop's variable, and no `return` after `while (true)`; `while` over a parameter, with no `let`, in `trampoline`; the generator, `Symbol` and `yield` in `iterable`; a `return` guard inside the loop in `last`; `for…of` in `tryFold`; `'first' in notLazy` in `lengthList`; `const { from } = Array`, `Array` a reserved word there; nine forward references, each `…Step` to the export after it |
 | `types/map/module.f.mjs` | 10:42 | `new Map(...)` in `mapSet` | `new Map(...)` in `mapDelete`; `Map` is not a language type |
-| `types/object/structurally_same/module.f.mjs` | 56:20 | `new Map(entries(b))` in `structurallySame` | `const { entries } = Object`: `entries` is a prohibited property name, `Array.prototype`'s, and spelled `Object.entries` it is refused at `Object`, whose one admitted member is `is`; the language enumerates no keys |
+| `types/object/structurally_same/module.f.mjs` | 56:20 | `new Map(entries(b))` in `structurallySame` | Nothing: the one refusal, since `Object.entries` is admitted, `const { entries } = Object` with it |
 | `website/browser-source/module.f.mjs` | 63:9 | Guard with `break` inside the loop in `read` | All in `read`: two loop variables and a `let` inside the loop, `continue`, `+=`, nested loops, and an `if` whose body neither returns nor throws |
 | `website/demo/code/module.f.mjs` | 12:48 | Default parameter in `codeBlock` | Nothing: the one refusal |
 
