@@ -15,7 +15,7 @@ The measurements below describe the earlier implementation, before that change.
 The corpus's `array-nested-deep` vector has since been cut to 500 levels, so
 that SpiderMonkey can parse it: SpiderMonkey 140's module parser refuses a
 literal nested deeper than about 870 levels
-([spidermonkey-test-runner](../../emergent_testing/todo/spidermonkey-test-runner.md)).
+([the vectors' depth rule](../../../spec/datajs/vectors/README.md#what-a-vector-may-not-do)).
 The thousand-level figures below measure the vector as it was. The same shell
 also reaches about 40% fewer nested calls than Node 26 with default stacks —
 5,998 against 9,627 for a one-line recursive arrow function — so any margin
