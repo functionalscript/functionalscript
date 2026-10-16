@@ -7,7 +7,7 @@
  * numeric edge cases. This module owns that layer — the syntax of a literal —
  * and nothing above it. The items several generators write over strings — a
  * `const` table, the `@generated` header — are its sibling
- * [`./item`](./item/module.f.mjs)'s; expressions, other items, and whatever
+ * [`./item`](./item/module.f.js)'s; expressions, other items, and whatever
  * API a generator targets stay with the generator.
  *
  * The sibling of `fjs/media/nix`, which does the same for Nix expressions.
