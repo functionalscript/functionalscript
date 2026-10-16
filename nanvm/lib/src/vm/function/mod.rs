@@ -20,11 +20,18 @@ pub type RuntimeCode<A> = fn(Array<A>) -> Result<Any<A>, Any<A>>;
 /// Rust compiles once per crate that instantiates it, so two handles to
 /// one built-in may be two addresses. `code` is called directly,
 /// [`RuntimeCode`]. `length` and `text` answer `f.length` and `String(f)`.
+///
+/// The fields are the crate's: a descriptor is written by the compiled
+/// runtime, which the crate includes, and by `vm/runtime.rs` for the one
+/// native no body defines, so the names are theirs to keep unique, and no
+/// other crate can write a second descriptor under a name and have it
+/// compare equal to the first. A `Function::Runtime` outside the crate
+/// holds a descriptor an accessor answered.
 pub struct RuntimeFunction<A: IVm> {
-    pub name: &'static str,
-    pub code: RuntimeCode<A>,
-    pub length: u32,
-    pub text: &'static str,
+    pub(crate) name: &'static str,
+    pub(crate) code: RuntimeCode<A>,
+    pub(crate) length: u32,
+    pub(crate) text: &'static str,
 }
 
 /// A function value: it can be called, it has a `length`, it has a text,

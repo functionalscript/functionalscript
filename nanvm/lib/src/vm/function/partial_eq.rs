@@ -25,6 +25,23 @@ mod tests {
         Ok(Any::undefined())
     }
 
+    fn seven(_: Array<A>) -> Result<Any<A>, Any<A>> {
+        Ok(7.0.to_any())
+    }
+
+    /// A second descriptor under the name `a`, differing in everything
+    /// else: what a comparison of the references would tell apart and the
+    /// name does not. No generator writes one; it is here to watch the
+    /// equality.
+    fn other_a() -> Function<A> {
+        Function::Runtime(&RuntimeFunction {
+            name: "a",
+            code: seven,
+            length: 7,
+            text: "seven",
+        })
+    }
+
     /// A built-in by name, as the generated accessors answer one: a new
     /// handle on every read.
     fn built_in(name: &'static str) -> Function<A> {
@@ -50,12 +67,17 @@ mod tests {
 
     /// Two reads of one built-in are equal, and `same_value`, as
     /// `Object.entries === Object.entries` is; two built-ins of two names
-    /// are not.
+    /// are not. The name alone decides: two descriptors under one name,
+    /// at two addresses and differing in code, length and text, are equal,
+    /// which a comparison of the references would deny.
     #[test]
     fn built_ins_by_name() {
         assert_eq!(built_in("a"), built_in("a"));
         assert!(built_in("a").to_any().same_value(&built_in("a").to_any()));
         assert_ne!(built_in("a"), built_in("b"));
+        assert_eq!(built_in("a"), other_a());
+        assert!(built_in("a").to_any().same_value(&other_a().to_any()));
+        assert_ne!(built_in("a").length(), other_a().length());
     }
 
     /// Two closures from one code are two functions, and a clone is the

@@ -32,17 +32,19 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
     let c20: Any<A> = (Any::typeof_(c19))?;
     let c21: Any<A> = static_binding::<A>(&["Object", "entries"])?;
     let c22: Any<A> = Any::dot(c21, string_any("length")).end()?;
-    let c23: Any<A> = [c14, c16, c18, c20, c22].to_array().to_any();
-    let c24: Any<A> = [(string_key("a"), f64_any(0x3ff0000000000000))].to_object().to_any();
-    let c25: Any<A> = Any::call(c5.clone(), [c24.clone()].to_array().to_any())?;
-    let c26: Any<A> = Any::call(c5.clone(), [c24.clone()].to_array().to_any())?;
-    let c27: Any<A> = (strict_eq(c25, c26))?;
-    let c28: Any<A> = Any::call(c5.clone(), [c24.clone()].to_array().to_any())?;
-    let c29: Any<A> = Any::dot(c28, f64_any(0x0000000000000000)).end()?;
-    let c30: Any<A> = Any::call(c5.clone(), [c24.clone()].to_array().to_any())?;
+    let c23: Any<A> = static_binding::<A>(&["Object", "entries"])?;
+    let c24: Any<A> = (c23.to_string().map(|v| v.to_any()))?;
+    let c25: Any<A> = [c14, c16, c18, c20, c22, c24].to_array().to_any();
+    let c26: Any<A> = [(string_key("a"), f64_any(0x3ff0000000000000))].to_object().to_any();
+    let c27: Any<A> = Any::call(c5.clone(), [c26.clone()].to_array().to_any())?;
+    let c28: Any<A> = Any::call(c5.clone(), [c26.clone()].to_array().to_any())?;
+    let c29: Any<A> = (strict_eq(c27, c28))?;
+    let c30: Any<A> = Any::call(c5.clone(), [c26.clone()].to_array().to_any())?;
     let c31: Any<A> = Any::dot(c30, f64_any(0x0000000000000000)).end()?;
-    let c32: Any<A> = (strict_eq(c29, c31))?;
-    let c33: Any<A> = [c27, c32].to_array().to_any();
-    let c34: Any<A> = [c8, c10, c23, c33].to_array().to_any();
-    Ok([(string_key("default"), c34)].to_object().to_any())
+    let c32: Any<A> = Any::call(c5.clone(), [c26.clone()].to_array().to_any())?;
+    let c33: Any<A> = Any::dot(c32, f64_any(0x0000000000000000)).end()?;
+    let c34: Any<A> = (strict_eq(c31, c33))?;
+    let c35: Any<A> = [c29, c34].to_array().to_any();
+    let c36: Any<A> = [c8, c10, c25, c35].to_array().to_any();
+    Ok([(string_key("default"), c36)].to_object().to_any())
 }
