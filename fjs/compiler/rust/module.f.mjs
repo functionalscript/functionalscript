@@ -37,7 +37,7 @@
 import { error, mapOk, okThen, unwrap } from '../../types/result/module.f.js'
 import { analysis, checked } from '../../edag/analysis/module.f.mjs'
 import { holdsFunction, readsArgs, scopeTagged, useLinesTagged } from '../../edag/rust/module.f.mjs'
-import { generatedHeader, indent } from '../../media/rust/item/module.f.mjs'
+import { generatedHeader, indent } from '../../media/rust/item/module.f.js'
 import { fromTagged, tagged, untagged, withNames } from '../../text/marked/module.f.mjs'
 
 /**

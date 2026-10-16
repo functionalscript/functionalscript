@@ -12,7 +12,7 @@ import { computeSync, sha224, sha256, sha384, sha512, sha512x224, sha512x256 } f
 import { sha1 } from '../../../crypto/sha1/module.f.mjs'
 import { uint } from '../../../types/bit_vec/module.f.mjs'
 import { utf8 } from '../../../text/module.f.mjs'
-import { codeBlock, tryShellQuote } from '../code/module.f.mjs'
+import { codeBlock, tryShellQuote } from '../code/module.f.js'
 import { caption } from '../module.f.mjs'
 
 /** Format a hash's bits as hex, preserving its complete width.

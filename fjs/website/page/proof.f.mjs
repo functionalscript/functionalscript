@@ -5,7 +5,6 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { element } from '../../media/html/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'
-import { utf8ToString } from '../../text/utf8/module.f.mjs'
 import { demoSection, directoryLayout, footer, header, page, pageHref, pagePath, repository, sections, subtree, testSection } from './module.f.mjs'
 
 /** @type {(dir: Dir) => string} */
@@ -15,7 +14,7 @@ const sectionsHtml = dir => concat(element(['body', ...sections(null)(dir)]))
 const local = { commit: null, branch: null, funding: [] }
 
 /** @type {(dir: Dir) => string} */
-const pageHtml = dir => utf8ToString(page(local)(dir))
+const pageHtml = dir => page(local)(dir)
 
 /** A commit id in the shape the generator hands the builder: 40 lowercase hex. */
 const commit = '0123456789abcdef0123456789abcdef01234567'
@@ -64,7 +63,7 @@ export const proof = {
         none: () => assertStructurallySame(footer([]), []),
         // The footer is the frame's, so a directory's page carries it.
         onEveryPage: () => {
-            const html = utf8ToString(page({ ...local, funding: [{ description: 'Patreon', address: 'https://patreon.com/x' }] })(empty))
+            const html = page({ ...local, funding: [{ description: 'Patreon', address: 'https://patreon.com/x' }] })(empty)
             assert(html.endsWith('</main></div><footer data-funding="">Support FunctionalScript: <a href="https://patreon.com/x">Patreon<span aria-hidden="true"> ↗</span></a></footer></body></html>'), html)
         },
     },
@@ -343,10 +342,41 @@ export const proof = {
         // contents on every state — and the script names the module rather
         // than letting the runtime guess a filename.
         namesTheModuleAndStartsIt: () => {
-            const html = concat(element(['body', ...demoSection('/a/demo.f.mjs')]))
+            const html = concat(element(['body', ...demoSection({ path: '/a/demo.f.mjs', view: null })]))
             assert(html.includes('<summary><h2>Demo</h2></summary>'), html)
-            assert(html.includes('<div data-demo="/a/demo.f.mjs">'), html)
+            assert(html.includes('<div data-demo="/a/demo.f.mjs"></div>'), html)
             assert(html.includes("import { startDemo } from '/fjs/website/demo-runtime.mjs'"), html)
+        },
+        // The build's first view is in the root, so the demo shows before its
+        // modules have loaded.
+        holdsTheFirstView: () => {
+            const html = concat(element(['body', ...demoSection({ path: '/a/demo.f.mjs', view: ['p', 'hi'] })]))
+            assert(html.includes('<div data-demo="/a/demo.f.mjs"><p>hi</p></div>'), html)
+        },
+        // A click before the runtime loads would go nowhere, so every control
+        // the runtime hears a click on is disabled, in any case; fields and
+        // other inputs are left as they are.
+        disablesItsActions: () => {
+            const html = concat(element(['body', ...demoSection({ path: '/a/demo.f.mjs', view: ['div',
+                ['button', { name: 'go' }, 'Go'],
+                ['p', ['BUTTON', 'nested']],
+                ['input', { type: 'Button', name: 'b' }],
+                ['input', { name: 't' }],
+                ['input', { type: 'checkbox', name: 'c' }]] })]))
+            assert(html.includes('<button name="go" disabled="">Go</button>'), html)
+            assert(html.includes('<p><BUTTON disabled="">nested</BUTTON></p>'), html)
+            assert(html.includes('<input type="Button" name="b" disabled="">'), html)
+            assert(html.includes('<input name="t"><input type="checkbox" name="c">'), html)
+        },
+        // An SVG control has no `disabled`, so it is marked `aria-disabled`.
+        marksItsSvgActions: () => {
+            const html = concat(element(['body', ...demoSection({ path: '/a/demo.f.mjs', view: ['svg',
+                ['circle', { 'data-demo-click': 'p', tabindex: '0' }],
+                ['circle', { 'data-demo-drag': 'x' }],
+                ['circle', { r: '1' }]] })]))
+            assert(html.includes('<circle data-demo-click="p" tabindex="0" aria-disabled="true"></circle>'), html)
+            assert(html.includes('<circle data-demo-drag="x" aria-disabled="true"></circle>'), html)
+            assert(html.includes('<circle r="1"></circle>'), html)
         },
     },
     directoryLayout: {
@@ -403,7 +433,7 @@ export const proof = {
         },
         // A demo stays in main while the catalogue lives beside it.
         carriesADemo: () => {
-            const html = pageHtml({ ...empty, path: 'a', files: ['demo.f.mjs'], demo: '/a/demo.f.mjs' })
+            const html = pageHtml({ ...empty, path: 'a', files: ['demo.f.mjs'], demo: { path: '/a/demo.f.mjs', view: null } })
             assert(html.includes('data-demo="/a/demo.f.mjs"'), html)
             assert(html.indexOf('<h2>Contents</h2>') < html.indexOf('</aside>'), html)
             assert(html.indexOf('<h2>Demo</h2>') > html.indexOf('<main'), html)
