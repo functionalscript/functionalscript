@@ -6,7 +6,11 @@
 
 import { exitCode } from '../effects/node/module.f.mjs'
 import { main } from './module.f.mjs'
-import { defaultNodeProgramOptions, virtualAt } from '../effects/node/virtual/module.f.mjs'
+import { defaultNodeProgramOptions, emptyState, virtualAt, virtualOperationMap } from '../effects/node/virtual/module.f.mjs'
+import { nodeCommands } from '../effects/node/module.f.mjs'
+import { partialRun } from '../effects/mock/module.f.mjs'
+import { error, ok } from '../types/result/module.f.js'
+import { ioError } from '../effects/module.f.mjs'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../asserts/module.f.mjs'
 import { utf8 } from '../text/module.f.mjs'
 import { utf8ToString } from '../text/utf8/module.f.mjs'
@@ -50,6 +54,32 @@ const run = (tree, env = {}) => {
 const generate = (tree, env = {}) => {
     const [generated, code] = run(tree, env)
     assertEq(code, 0)
+    return { root: generated.root, output: generated.stdout }
+}
+
+/**
+ * {@link generate}, with `modules` as what `import` loads, by path.
+ *
+ * The virtual file system holds a file as either source or a module, and the
+ * build needs both of a demo: the source to find it, the module to render it.
+ * So the source stays in the tree and the module is answered here. A path
+ * with no module fails as the virtual runner's own `import` would; `thrown`
+ * is what this runner's `catch` answers instead of running its thunk, because
+ * a pure runner cannot catch a throw.
+ *
+ * @type {(tree: Dir, modules: { readonly [path in string]?: unknown }, thrown?: unknown) => { readonly root: Dir, readonly output: string }}
+ */
+const generateWith = (tree, modules, thrown) => {
+    const run = partialRun(nodeCommands)({
+        ...virtualOperationMap,
+        import: path => state => {
+            const module = modules[path]
+            return [state, module === undefined ? error(ioError({ message: `no module ${path}` })) : ok({ demo: module })]
+        },
+        catch: f => state => [state, ok(thrown === undefined ? ok(f()) : error(thrown))],
+    })
+    const [generated, result] = run({ ...emptyState, root: tree })(main(defaultNodeProgramOptions))
+    assertEq(exitCode(result), 0)
     return { root: generated.root, output: generated.stdout }
 }
 
@@ -816,6 +846,53 @@ export const proof = {
             })
             assert(pageAt(root, ['a']).includes('data-demo="/a/demo.f.mjs"'), pageAt(root, ['a']))
             assert(pageAt(root, ['b']).includes('data-demo="/b/module.f.mjs"'), pageAt(root, ['b']))
+        },
+        /**
+         * **The page holds the demo's first view**, so the demo shows before
+         * the runtime has loaded it: the build imports the demo and renders
+         * `view(init)` into its root.
+         */
+        prerendered: () => {
+            const { root } = generateWith(
+                { a: { 'demo.f.mjs': file('export const demo = {}') } },
+                { 'a/demo.f.mjs': { init: 'hi', view: (/** @type {string} */ s) => ['p', s] } })
+            const page = pageAt(root, ['a'])
+            assert(page.includes('<div data-demo="/a/demo.f.mjs"><p>hi</p></div>'), page)
+        },
+        /**
+         * **A demo the build cannot render keeps its page**, with the empty
+         * root the runtime fills, and the build says why. Here it will not
+         * import: the virtual tree holds its source, not a module.
+         */
+        notImportedKeepsAnEmptyRoot: () => {
+            const { root, output } = generate({ a: { 'demo.f.mjs': file('export const demo = {}') } })
+            const page = pageAt(root, ['a'])
+            assert(page.includes('<div data-demo="/a/demo.f.mjs"></div>'), page)
+            assert(output.includes("skipped prerendering a/demo.f.mjs: 'demo.f.mjs' is not a JsModule"), output)
+        },
+        // A `view` that throws is the same: an empty root, and the reason.
+        throwingViewKeepsAnEmptyRoot: () => {
+            const { root, output } = generateWith(
+                { a: { 'demo.f.mjs': file('export const demo = {}') } },
+                { 'a/demo.f.mjs': {} },
+                'broken')
+            const page = pageAt(root, ['a'])
+            assert(page.includes('<div data-demo="/a/demo.f.mjs"></div>'), page)
+            assert(output.includes('skipped prerendering a/demo.f.mjs: broken'), output)
+        },
+        /**
+         * **A view holding a `script` is not written into the page.** The
+         * runtime's builders refuse one because it would run, and a page
+         * would run it too.
+         */
+        scriptKeepsAnEmptyRoot: () => {
+            const { root, output } = generateWith(
+                { a: { 'demo.f.mjs': file('export const demo = {}') } },
+                { 'a/demo.f.mjs': { init: null, view: () => ['div', ['script', 'alert(1)']] } })
+            const page = pageAt(root, ['a'])
+            assert(page.includes('<div data-demo="/a/demo.f.mjs"></div>'), page)
+            assert(!page.includes('alert(1)'), page)
+            assert(output.includes('skipped prerendering a/demo.f.mjs: media/html: a `script` element is refused'), output)
         },
         // A directory with no demo module has no demo section, like every
         // other empty section.

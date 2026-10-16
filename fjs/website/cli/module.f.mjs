@@ -8,7 +8,6 @@
  * @import { DocumentedCommands } from '../../cli/types.ts'
  * @import { NodeOp } from '../../effects/node/types.ts'
  * @import { Element } from '../../media/html/types.ts'
- * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Build } from '../page/types.ts'
  * @import { Entry } from './types.ts'
  */
@@ -68,7 +67,7 @@ const commandLink = entry => ['li',
 
 /** The page is readable without JavaScript; search, selection and copy controls are enhanced.
  * The built-in command table requires all reference fields at the type level.
- * @type {(build: Build) => Vec}
+ * @type {(build: Build) => string}
  */
 export const cliPage = build => {
     const entries = catalogue(commands)

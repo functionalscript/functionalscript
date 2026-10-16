@@ -483,6 +483,31 @@ vocabulary and a handler map are two different things, which is why the
 runtime declares both. The first browser-only operation — a fetch, a file the
 reader picks — is where `fjs/effects/browser/` becomes necessary.
 
+**A page already shows its demo's first view.** The build imports each demo
+and writes `view(init)` into its section, so the demo appears with the page.
+Before this, it appeared only once the runtime and the demo's whole module
+graph had loaded, one import after another: nine levels deep for the runtime,
+then as many as twenty-six for `fjs/compiler`'s demo. That was a visible lag
+on every demo page. The view is readable, selectable and editable at once,
+and the runtime takes it over as it finds it rather than rendering it again:
+a render would put every field back to its markup, and lose what the reader
+typed while the modules loaded. What the reader changed is handed to the demo
+as input events after `start`, as if typed then. A click leaves nothing to
+read back, so the build disables every control the runtime hears a click on:
+`disabled` on a button, and `aria-disabled` on an SVG control marked
+`data-demo-click` or `data-demo-drag`, which the stylesheet then keeps from
+taking a pointer. The first render after `start` enables them: a button that is not ready
+says so, rather than taking a click and dropping it. Marking the section `inert`
+until then was the other way to keep that input, and it hid the view from
+screen readers, selection and find-in-page for as long as it lasted, and for
+good without JavaScript. A demo the build cannot render is named on the
+build's console, and its page keeps an empty section for the runtime to fill:
+one that will not import, whose `view` throws, or whose view a page cannot
+hold (`pageRefusal` in `media/html`): a `script`, which would run, or a tag or
+attribute name a parser would read as other markup. A page is written as a string, chunked as it is encoded,
+because a demo's first view can be larger than one `Vec`: the module
+grammar's railroad diagram is about 250 KiB.
+
 Outside incremental work, an update (including the initial `start` event)
 marks the section and disables its buttons, and the stylesheet writes
 `Working…` under the demo. Only the runtime can say this: a demo renders once, after its effect has finished, so it cannot

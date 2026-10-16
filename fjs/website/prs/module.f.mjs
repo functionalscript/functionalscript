@@ -9,7 +9,6 @@
  * @module
  *
  * @import { Element } from '../../media/html/types.ts'
- * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Build } from '../page/types.ts'
  * @import { CheckLabel, CheckRun, CheckSummary, CommitStatus, Pull } from './types.ts'
  */
@@ -105,7 +104,7 @@ export const row = ({ number: prNumber, user, draft }, checks) => ['tr',
  * The dedicated page, with a GitHub fallback and a browser adapter that reads
  * only when the reader clicks Refresh. Opening makes no PR or check requests.
  *
- * @type {(build: Build) => Vec}
+ * @type {(build: Build) => string}
  */
 export const prsPage = build => shell(build)(pageTitle('Pull requests'))(['main', { 'data-prs': '' },
     ['h1', 'Pull requests'],
