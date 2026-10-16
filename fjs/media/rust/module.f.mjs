@@ -222,17 +222,21 @@ export const snakeCase = v => [...v].map(c => {
  * `string_prototype_starts_with` for `String.prototype.startsWith` — the
  * one spelling the static runtime's accessors are printed under and
  * compiled code reads them by. Each part of the name is in snake case,
- * the parts joined by one underscore. A word starts at a capital between
- * a lowercase letter and a lowercase letter, so that `isNaN` is `is_nan`
- * as Rust spells it, where {@link snakeCase}, a word at every capital,
- * would make `is_na_n` of it; a capital first, or beside another, starts
- * no word, so `toJSON` is `tojson`.
+ * the parts joined by one underscore. A word starts at a capital after a
+ * lowercase letter, so `toJSON` is `to_json` and `startsWith` is
+ * `starts_with` — except a capital that ends the part after one lowercase
+ * letter that itself follows a capital, the shape of `NaN`, so that
+ * `isNaN` is `is_nan` as Rust spells it, where {@link snakeCase}, a word
+ * at every capital, would make `is_na_n` of it. A capital first, or after
+ * another capital or a digit, starts no word.
  *
  * @type {(name: string) => string}
  */
 export const builtInIdentifier = name => name.split('.').map(part => [...part].map((c, i) => {
     const lower = c.toLowerCase()
-    const starts = c !== lower && i > 0 && isLower(part[i - 1]) && i + 1 < part.length && isLower(part[i + 1])
+    const last = i === part.length - 1
+    const nan = last && i >= 2 && !isLower(part[i - 2])
+    const starts = c !== lower && i > 0 && isLower(part[i - 1]) && !nan
     return starts ? `_${lower}` : lower
 }).join('')).join('_')
 

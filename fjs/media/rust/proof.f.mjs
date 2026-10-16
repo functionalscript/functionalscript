@@ -101,9 +101,15 @@ export const proof = {
         assertEq(builtInIdentifier('String.prototype.startsWith'), 'string_prototype_starts_with')
         assertEq(builtInIdentifier('Number.isNaN'), 'number_is_nan')
         assertEq(builtInIdentifier('Number.isSafeInteger'), 'number_is_safe_integer')
-        assertEq(builtInIdentifier('toJSON'), 'tojson')
+        assertEq(builtInIdentifier('toJSON'), 'to_json')
+        assertEq(builtInIdentifier('toUTF8'), 'to_utf8')
+        assertEq(builtInIdentifier('codePointAt'), 'code_point_at')
         assertEq(builtInIdentifier('NaN'), 'nan')
         assertEq(builtInIdentifier('x'), 'x')
+        // a lone final capital after a lowercase run is a word, `NaN`'s
+        // shape is not
+        assertEq(builtInIdentifier('getX'), 'get_x')
+        assertEq(builtInIdentifier('aB'), 'a_b')
         // a digit is neither case, so no word starts after it
         assertEq(builtInIdentifier('x2Y'), 'x2y')
     },
