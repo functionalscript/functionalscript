@@ -183,10 +183,10 @@ shadow in `runPromise` are for. They are not decoration.
 
 **FunctionalScript as specified has no promises, and nothing enforces that.** A
 conforming `.f.mjs` proof is pure: no `async`, no `await`, nothing that
-constructs a `Promise`. But selection is by filename —
-`website/module.f.mjs`'s `authored` is a bare extension check, `.f.mjs` or
-`.f.js`, with no content check — so a module that does not conform is loaded
-anyway. Verified: a `.f.mjs` returning `Promise.resolve(...)` is selected
+constructs a `Promise`. But selection is by filename — `isAuthored`
+(`../../dev/module.f.mjs`), which `website/module.f.mjs` selects with, is a
+bare extension check, `.f.mjs` or `.f.js`, with no content check — so a
+module that does not conform is loaded anyway. Verified: a `.f.mjs` returning `Promise.resolve(...)` is selected
 (138 of 138) and awaited correctly. Treat what follows as a statement about
 the *convention*, which is why proofs are scarce, not as a guarantee the
 toolchain provides. So every promise this runner has ever awaited comes from a
@@ -210,9 +210,9 @@ own fixtures**, and deleting both leaves nothing uncovered.
 
 **In the browser it is stronger than that: by convention a promise does not
 occur.** The browser suite runs authored FunctionalScript and nothing else —
-`website/module.f.mjs`'s `authored` matches `.f.mjs` and `.f.js`, and the
-proof list a page carries holds those and the one browser-realm proof the
-website ships, nothing else. Impure
+`isAuthored` (`../../dev/module.f.mjs`), which `website/module.f.mjs` selects
+with, matches `.f.mjs` and `.f.js`, and the proof list a page carries holds
+those and the one browser-realm proof the website ships, nothing else. Impure
 `.mjs` proofs are excluded by construction, and rightly so: a browser has no
 business running Node tests, and a promise is only the first thing that would go
 wrong. So every leaf the browser runner executes is pure FunctionalScript, and

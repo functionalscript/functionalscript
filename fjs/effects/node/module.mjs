@@ -37,7 +37,7 @@ import * as testContext from 'node:test'
 
 import { normalize, toPosix } from '../../path/module.f.mjs'
 import { decode as decodeImportPath } from '../../path/import/module.f.mjs'
-import { _describeThrown, asyncRun } from '../module.mjs'
+import { asyncRun, io } from '../module.mjs'
 import { asyncMemoryOperationMap } from './memory/module.mjs'
 import { commonOperationMap } from '../common/module.mjs'
 import {
@@ -61,22 +61,6 @@ import { _orderDirents } from './virtual/readdir/module.f.mjs'
  * @type {(listener: _RequestListener) => _Server}
  */
 const createServer = http.createServer
-
-/**
- * Performs host IO, reporting a thrown failure as an {@link IoResult} error.
- *
- * Every filesystem, network, and subprocess handler below goes through it, so
- * the `catch` that turns an exception into effect data — and the normalization
- * that keeps the channel serializable — happens in exactly one place.
- *
- * @template T
- * @param {() => Promise<T>} f
- * @returns {Promise<IoResult<T>>}
- */
-const io = async f => {
-    const r = await asyncTryCatch(f)
-    return r[0] === 'ok' ? r : error(_describeThrown(r[1]))
-}
 
 /**
  * One request body's cursor: the chunks the client sent, handed out one pull at
@@ -1154,6 +1138,7 @@ const options = {
     testContext: isBun ? _wrapInlineTest(testContext.test) : testContext,
     // this file is `fjs/effects/node/module.mjs` of the package it runs from
     packageRoot: toPosix(fileURLToPath(new URL('../../..', import.meta.url))),
+    engine: isBun ? 'bun' : 'Deno' in globalThis ? 'deno' : 'node',
 }
 
 /**

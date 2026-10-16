@@ -30,7 +30,7 @@
  * @import { NixJob } from '../nix/types.ts'
  */
 
-import { node, typescript } from '../config/module.f.js'
+import { node, spidermonkey, typescript } from '../config/module.f.js'
 import { bunPin } from '../bun/module.f.mjs'
 import { major } from '../node/module.f.mjs'
 import { i686PerSystem, wasmPackages, wasmRust } from '../rust/module.f.mjs'
@@ -54,9 +54,9 @@ export const devSystems = [
 ]
 
 /**
- * The declaration itself: Node, Deno, the WASM runtimes, `git`, the compiler,
- * the pinned Bun and the Rust toolchain — and, on Intel Linux, the 32-bit
- * target and linker that platform's job needs.
+ * The declaration itself: Node, Deno, the WASM runtimes, the SpiderMonkey
+ * shell, `git`, the compiler, the pinned Bun and the Rust toolchain — and, on
+ * Intel Linux, the 32-bit target and linker that platform's job needs.
  *
  * The Node here is the selected release, which is what the canonical Node job
  * and every platform job checks.
@@ -79,6 +79,7 @@ export const devNixJob = {
         'deno',
         typescript.attribute,
         ...wasmPackages,
+        spidermonkey.attribute,
         'git',
     ],
     rust: wasmRust,

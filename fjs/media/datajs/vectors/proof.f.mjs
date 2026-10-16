@@ -39,7 +39,10 @@ const read = (id, document) => {
  */
 const accepted = ({ id, document, graph }) => {
     const [tag, result] = read(id, document)
-    assert(tag === 'ok', `${id}: refused: ${result}`)
+    // The message is built on a refusal only, where `result` is the reader's
+    // message. On success it is the graph, and SpiderMonkey's
+    // `Array.prototype.join` overflows stringifying arrays nested 410 deep.
+    if (tag === 'error') { assert(false, `${id}: refused: ${result}`) }
     const d = difference(graph)(/** @type {Unknown} */ (result))
     assert(d === null, `${id}: ${d}`)
 }
