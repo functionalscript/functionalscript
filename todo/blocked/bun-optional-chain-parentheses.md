@@ -94,5 +94,5 @@ parse half, filed for the `new` sibling.
 - [interpret-edag.md](../../fjs/compiler/todo/interpret-edag.md) and
   [compile-modules-to-edag.md](../../fjs/compiler/todo/compile-modules-to-edag.md) —
   executing and lowering `|!()`; neither may take the host's answer for it.
-- [spidermonkey-test-runner.md](../../fjs/emergent_testing/todo/spidermonkey-test-runner.md)
-  — a third engine, and the task to document every divergence a run finds.
+- [`fjs/effects/spidermonkey/module.mjs`](../../fjs/effects/spidermonkey/module.mjs)
+  — a third engine: `npm run sm-test` runs the authored proofs on SpiderMonkey.

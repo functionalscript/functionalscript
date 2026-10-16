@@ -77,6 +77,9 @@
           "run": "test \"$(sh ./gen.nix/run wasmer --version)\" = \"wasmer 7.1.0\""
         },
         {
+          "run": "test \"$(sh ./gen.nix/run js --version)\" = \"JavaScript-C140.14.0\""
+        },
+        {
           "run": "sh ./gen.nix/run npm ci"
         },
         {
@@ -162,6 +165,9 @@
         },
         {
           "run": "sh ./gen.nix/run node --test"
+        },
+        {
+          "run": "sh ./gen.nix/run npm run sm-test"
         }
       ]
     },

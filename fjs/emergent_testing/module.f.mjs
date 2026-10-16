@@ -508,7 +508,7 @@ const exitCodeStep = e =>
  * @returns {Program<O | Catch | LoadModuleOperations | Write>}
  */
 export const testAll = reporter => options =>
-    exitCodeStep(step(loadModuleMap(options.env), runModuleMap(reporter)))
+    exitCodeStep(step(loadModuleMap(options), runModuleMap(reporter)))
 
 /**
  * Registers all modules in `moduleMap` that export a `proof` property with
@@ -771,7 +771,7 @@ export const main =
  * @type {NodeProgram}
  */
 export const register = o => {
-    const registered = step(loadModuleMap(o.env), registerModuleMap(o.testContext))
+    const registered = step(loadModuleMap(o), registerModuleMap(o.testContext))
     // `exitStep`, not `mapStep(…, () => 0)`: registering is the whole job here,
     // so "registered nothing, exit 0" is the answer this used to give and the
     // one it must not. A success has no code of its own, which is exactly the

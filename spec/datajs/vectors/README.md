@@ -399,6 +399,13 @@ or read a passing corpus as more than it is.
 
 ## What a vector may not do
 
+- **Nest deeper than every engine parses.** A set is a module, and the suite
+  imports it on Node, Deno, Bun, and SpiderMonkey (`npm run sm-test`).
+  SpiderMonkey 140's module parser refuses a literal nested deeper than about
+  870 levels, and a set one engine cannot parse fails every module importing
+  it, so the deep vectors stay well under that: `array-nested-deep` is 500
+  levels and `object-nested-deep` 300. Depth past that tests a reader's stack
+  rather than DataJS, and belongs in a reader's own proof.
 - **Assert more than its role requires.** A reader vector owes the graph, a
   serializer vector any valid document denoting it, a normalize vector
   exact bytes; a spelling asserted anywhere but the last fails conforming
