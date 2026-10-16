@@ -173,6 +173,9 @@ const runShellEffect = asyncPartialRun(nodeCommands)({
         if (isDirectory(path)) { throw new Error(`${path} is not a file`) }
         const before = shell.os.file.readFile(path, 'binary')
         const bytes = fromVec(data)
+        // Writing nothing changes nothing, at any offset: laying no bytes
+        // past the end would still grow the file.
+        if (bytes.length === 0) { return }
         const after = new Uint8Array(Math.max(before.length, offset + bytes.length))
         after.set(before)
         after.set(bytes, offset)
