@@ -139,8 +139,14 @@ Stage 2:
 - [ ] Implement the lookup in the shared resolver, admitted by `_importSources`
       for both compiler paths, with the built-in names and their host proof.
       Prove it on the virtual runner in FJS proofs, and on the Node runner
-      against native ESM's `import.meta.resolve`: the nearest `node_modules`, a
-      subpath missing from it, a symlinked package and each refused case.
+      against native ESM: identities against `import.meta.resolve` for the
+      nearest `node_modules` and a symlinked package, and the failure against
+      `import()` for a subpath missing from the nearest package:
+      `import.meta.resolve` does not check that the file exists, and at
+      `3e1d1a09`, on Node v26.11.1, it answers the nearest package's missing
+      path where `import()` fails with `ERR_MODULE_NOT_FOUND`. Assert each
+      refused case's refusal directly: Node answers all of them, which is why
+      they are refused.
 
 Stage 3:
 
