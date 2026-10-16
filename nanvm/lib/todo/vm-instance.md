@@ -3,8 +3,9 @@
 **Priority:** P3
 **Status:** open — an idea of **sergey-shandar**'s, from the
 `Object.entries` session
-([#2984](https://github.com/functionalscript/functionalscript/pull/2984)),
-to be adjusted before any code
+([#2984](https://github.com/functionalscript/functionalscript/pull/2984)).
+The static read, `get`, and its contract are **sergey-shandar**'s
+decisions, below; how `v` reaches a compiled closure is still open.
 
 ### Problem
 
@@ -29,6 +30,11 @@ The costs:
   needs it, which works only because evaluating it asks for no binding, an
   invariant [`fjs/js/runtime/README.md`](../../../fjs/js/runtime/README.md)
   has to state and every runtime change has to keep.
+- **Every read may fail.** `static_binding` answers a `Result` on each
+  read of a static function, for a runtime that failed to evaluate or a
+  VM that binds nothing. Neither is the read's failure: the parser
+  admitted the name, so a VM that cannot answer it cannot run the
+  program, and should have failed when it was built.
 - **The two executors disagree.** The represented interpreter already
   passes its runtime explicitly, in the `runtime` field of an `amnesia` or
   `memo` context ([`fjs/edag/operations`](../../../fjs/edag/operations/module.f.mjs)).
@@ -58,13 +64,20 @@ pub trait IVm: Sized {
     /// `undefined` — what `Member::call` resolves today.
     fn call(&self, receiver: Any<Self>, key: Any<Self>, args: Array<Self>)
         -> Result<Any<Self>, Any<Self>>;
-    /// The static function at `path`, one function per runtime, or the
-    /// failure naming the path — what `static_binding` answers today.
-    fn static_function(&self, path: &[&str]) -> Result<Any<Self>, Any<Self>>;
+    /// The static function the VM holds under `name`, the EDAG's spelling
+    /// of it, `Object.is`. The same `&self` and the same `name` answer the
+    /// same `Any`: the VM creates each function once, when it is built,
+    /// and `get` reads it.
+    fn get(&self, name: &str) -> Any<Self>;
 }
 
-// generated: every module takes the VM it runs on
-pub fn module<V: IStaticFunction>(v: &V) -> Result<Any<V>, Any<V>> { … }
+// generated: every module takes the VM it runs on, and reads a static
+// function from it
+pub fn module<V: IStaticFunction>(v: &V) -> Result<Any<V>, Any<V>> {
+    …
+    let c4: Any<V> = v.get("Object.is");
+    …
+}
 ```
 
 `Any<V>` wraps a `V::InternalAny`. `IAny::to_unpacked` is today's
@@ -72,31 +85,91 @@ pub fn module<V: IStaticFunction>(v: &V) -> Result<Any<V>, Any<V>> { … }
 `naive` becomes a VM struct that holds its `Runtime`, beside a value type
 that holds an `Unpacked`. `IVm::runtime_method`, `IVm::runtime_static`,
 `static_binding` and the `thread_local!` all go: a VM instance answers
-from the runtime it holds, initialized when it is built rather than
-inside its first lookup.
+from the runtime it holds, built when the VM is built rather than inside
+its first lookup.
+
+#### The static read, `get`
+
+**The VM creates every function; generated code only consumes them.**
+That is what `Runtime` already is — the compiled object evaluated once and
+`Object.entries` created once beside it — held in the wrong place, a
+thread-local on the type. The instance design moves the holder to `&self`
+and gives the read one shape, `get`, whose whole reason to exist is this
+contract:
+
+- **The same `&self` and the same `name` answer the same `Any`.** `get`
+  is a read, never a creation: it answers a clone of a value the instance
+  holds, which in `naive` is an `Rc` clone, so `v.get("Object.is") ==
+  v.get("Object.is")` holds by reference — JavaScript's `Object.is ===
+  Object.is`, and what the interpreter gets from holding one runtime in
+  its context. A created function, `Object.entries`, is stored by the
+  constructor, as `Runtime::new` stores it today, never built inside
+  `get`. Each VM's tests assert the contract: one instance answers one
+  function however often it is asked.
+- **Two instances are two runtimes.** `a.get(x) != b.get(x)` is allowed
+  and wanted; it is what lets two runtimes run side by side. `Runtime`'s
+  `created_entries` test asserts it already.
+- **No `Result`.** The failure moves from every read to the one place it
+  belongs, construction: `Runtime::new` answers a `Result`, the runtime
+  evaluated once, and so does the constructor of a VM that holds one. A
+  read of a static function cannot fail, since the parser admits a name
+  only from [`fjs/js/static`](../../../fjs/js/static/module.f.js) and
+  every executor must answer it. The default that binds nothing goes
+  with it: a VM that answers no static function can run no compiled
+  program, and the API is not shaped around it. A `name` the VM does not
+  know is a toolchain bug — generated code and the library built from
+  different lists — and is a panic, which the completeness test over
+  `STATICS` in `vm/lambda` keeps guarding.
+- **The name is the EDAG's spelling.** The EDAG spells the node
+  `['Object.is']`; splitting it into keys exists only to walk the
+  JavaScript runtime object, `functionAt`. In Rust the walk is not needed:
+  `Runtime` holds each function built at construction and matches the
+  name, so the Rust backend prints `v.get("Object.is")`, the node one for
+  one, where it prints `static_binding::<A>(&["Object", "is"])?` today. The
+  compare over a handful of arms per read is not worth a thought until
+  measured.
+- **Alternatives considered.** One typed method per static,
+  `fn object_is(&self) -> Any<Self>`, makes an unknown name a compile
+  error, but puts the admitted list into `IVm`, so the core trait changes
+  and must be generated with every built-in admitted, where `get` keeps
+  the trait handwritten and the names in `Runtime`, the generated side. A
+  generated `enum Static` as the key would give an exhaustive match with
+  one method; it is kept in reserve for the day a mismatch bites, which
+  the completeness test is there to prevent.
+- **Members stay a key lookup.** A member call dispatches on the
+  receiver's type, known only when it runs, so `IVm::call` keeps asking
+  the runtime by type and key, as `Runtime::method` does today. `get`
+  covers what is known when the module is compiled: the statics.
+- **A created function gets its text at creation.** `Function::text` now
+  finds `Object.entries`'s text by comparing identities through the
+  runtime (`vm::runtime_text`, over `IVm::runtime_static`), which an
+  instance would make need `v`. The VM creates the function, so it gives
+  it its text, `Some("function entries() { [native code] }")`, a
+  `&'static str` as every other text is; `runtime_text` goes, and
+  `String(f)` needs no VM. A generated body's text stays the compiler's,
+  as today; giving the bodies NativeFunction text is
+  [`runtime-static.md`](../../../fjs/js/todo/runtime-static.md)'s open
+  task, not this one.
 
 ### Critique and open questions
 
 - **`v` reaches every call, not only the module.** A compiled closure that
-  calls a member function, or reads a static, needs the VM. `StaticCode`
-  is `fn(self_, args)` today, so either it gains the VM,
-  `fn(v: &V, self_, args)`, with `IFunction::call(&self, v, args)` and
-  every call site passing it on, or a closure captures the VM where the
-  module is evaluated, which a frame of values cannot hold. The first
-  is simpler, and it is the handle threaded through every call step that
-  the runtime README's "Three places the binding could have lived"
-  rejected. That trade has to be decided here.
+  calls a member function, or reads a static, needs the VM, and `get`
+  does not change that: `nanvm/harness/fixtures/object-is.mjs` reads
+  `Object.is` inside `read = () => Object.is`, so the read is inside the
+  closure's body. `StaticCode` is `fn(self_, args)` today, so either it
+  gains the VM, `fn(v: &V, self_, args)`, with `IFunction::call(&self, v,
+  args)` and every call site passing it on, or a closure captures the VM
+  where the module is evaluated, which a frame of values cannot hold. The
+  first is simpler, and member calls inside closure bodies, `.map` and
+  `.startsWith`, need it whatever the statics do; it is the handle
+  threaded through every call step that the runtime README's "Three
+  places the binding could have lived" rejected. That trade has to be
+  decided here; the leaning is the first.
 - **Conversions call functions too.** `ToPrimitive` calls an object's own
   `toString` or `valueOf`, and array methods call their callbacks, so the
   coercions and the native member tables need `v` as well, not only the
   call step. The pure operators, arithmetic on numbers and strings, do not.
-- **A runtime function's text should not need the VM.** `Function::text`
-  now finds `Object.entries`'s text through the runtime
-  (`vm::runtime_text`, over `IVm::runtime_static`). With a VM instance,
-  that would make `String(f)` need `v`. A function that keeps its own
-  name, and forms `runtime_to_string(name)` from it, keeps conversion free
-  of the VM. That is a change to how a VM represents a function, so it
-  belongs to this redesign.
 - **`&V`, borrowed.** `IVm::call` takes `&self`, and generated code
   `v: &V` (**sergey-shandar**, agreeing after `self` was first written
   here). A module and every call inside it run within the caller's stack,
@@ -119,15 +192,19 @@ inside its first lookup.
 
 ### Tasks
 
-- [ ] Settle the open questions above: how `v` reaches compiled closures,
-      and how a runtime function keeps its name.
+- [ ] Settle how `v` reaches compiled closures, above.
 - [ ] Introduce `IAny`, and split `naive`'s value type from its VM type;
       `Any<V>` wraps `V::InternalAny`.
-- [ ] Give the VM instance its runtime, and `call` and `static_function`.
-      Remove `IVm::runtime_method`, `IVm::runtime_static`,
-      `static_binding` and `naive`'s `thread_local!`.
-- [ ] Make the Rust backend emit `module(v: &V)` and pass `v` on, then
-      run `npm run gen`.
+- [ ] Give the VM instance its runtime, built once by a constructor that
+      answers a `Result`, with `call` and `get`. Remove
+      `IVm::runtime_method`, `IVm::runtime_static`, `static_binding`,
+      `runtime_text` and `naive`'s `thread_local!`.
+- [ ] Give `Object.entries` its text at creation, and drop the identity
+      comparison in `Function::text`.
+- [ ] Test `get`'s contract on every VM: the same instance answers the
+      same function by reference, and two instances answer two.
+- [ ] Make the Rust backend emit `module(v: &V)`, print a static read as
+      `v.get("Object.is")`, and pass `v` on; then run `npm run gen`.
 - [ ] Build an `Arc`-based VM that shares one runtime across threads.
 - [ ] Update `fjs/js/runtime/README.md`: "How NaNVM finds it" and "Three
       places the binding could have lived".
@@ -137,9 +214,13 @@ inside its first lookup.
 
 - [`fjs/js/runtime/README.md`](../../../fjs/js/runtime/README.md): how
   each VM binds the runtime today, and the trade-off this reopens.
+- [`fjs/js/static/module.f.js`](../../../fjs/js/static/module.f.js): the
+  admitted statics, the names `get` answers.
+- [`fjs/edag/rust/module.f.mjs`](../../../fjs/edag/rust/module.f.mjs): the
+  Rust backend, which prints a static read.
 - [`src/vm/internal/mod.rs`](../src/vm/internal/mod.rs): `IVm` today.
 - [`src/naive/mod.rs`](../src/naive/mod.rs): the thread-local.
 - [`src/vm/runtime.rs`](../src/vm/runtime.rs): `Runtime`,
   `static_binding`, `runtime_text`.
 - [`callable-function-objects.md`](./callable-function-objects.md): the
-  function representation a runtime function's name would join.
+  function representation this redesign touches.
