@@ -164,11 +164,9 @@ const runShellEffect = asyncPartialRun(nodeCommands)({
     writeFile: (path, data) => io(async () => { shell.os.file.writeTypedArrayToFile(path, fromVec(data)) }),
     // The shell replaces a file whole and has no positional write, so the file
     // is read, the bytes laid over it at `offset`, and the result written
-    // back: a write past the end leaves zeros, as a positional write leaves a
-    // hole that reads as zeros. It costs the file's size per call, which
-    // `writeChunks` pays once per 128 KiB chunk, and a write far past the end
-    // holds the whole gap in memory (./todo/sparse-write.md). The `offset` and
-    // size were checked before the host was asked.
+    // back. It costs the file's size per call, which `writeChunks` pays once
+    // per 128 KiB chunk. The `offset` and size were checked before the host
+    // was asked.
     writeBytes: (path, offset, data) => io(async () => {
         // A directory reads as "too large for a Uint8Array"; a missing file
         // fails the read, as `writeBytes` never creates one.
@@ -178,6 +176,13 @@ const runShellEffect = asyncPartialRun(nodeCommands)({
         // Writing nothing changes nothing, at any offset: laying no bytes
         // past the end would still grow the file.
         if (bytes.length === 0) { return }
+        // Where Node leaves a hole, this would hold the whole gap in memory,
+        // gigabytes for a far offset, so a write must start inside the file or
+        // at its end, which is where every caller writes
+        // (./todo/sparse-write.md).
+        if (offset > before.length) {
+            throw new Error(`the SpiderMonkey shell cannot write past the end of a file: offset ${offset}, size ${before.length}: ${path}`)
+        }
         const after = new Uint8Array(Math.max(before.length, offset + bytes.length))
         after.set(before)
         after.set(bytes, offset)

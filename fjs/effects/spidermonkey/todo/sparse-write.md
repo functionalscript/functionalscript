@@ -1,44 +1,36 @@
-## sparse-write. Write past the end of a file without filling the gap
+## sparse-write. Write past the end of a file
 
 **Priority:** P3
 **Status:** open
 
 ### Problem
 
-The shell replaces a file whole, so the host's `writeBytes` (`../module.mjs`)
-reads the file, builds `offset + data.length` bytes in memory with zeros
-between the old end and `offset`, and writes them all back. Node's positional
-write leaves a hole instead, which a filesystem with sparse files stores
-without blocks. The bytes that read back are the same; the cost is not.
-Measured on SpiderMonkey 140.14.0:
+The host's `writeBytes` (`../module.mjs`) refuses a write that starts past the
+end of a file, where Node's positional write leaves a hole that reads as zeros.
+The shell replaces a file whole, so the host writes by reading the file, laying
+the bytes over it, and writing it all back. Filling a gap that way would hold
+the whole gap in memory. Measured on SpiderMonkey 140.14.0:
 
-- `new Uint8Array(n)` allocates up to 2³³ bytes (8 GiB), so a write at an
-  offset of several GiB takes that much memory and writes that much to disk.
-- Past 2³³ it throws `RangeError: invalid array length`, which the host
-  returns as the write's failure, where Node succeeds.
+- A typed array holds up to 2³³ bytes (8 GiB). So a write several GiB past the
+  end would take that much memory, and write that much to disk.
+- Past 8 GiB, the allocation throws `RangeError: invalid array length`.
 
-Every write also costs the file's size, past the end or not, which
-`writeChunks` pays once per 128 KiB chunk.
-
-No caller writes past the end: `writeChunks` and `fjs/cas` each write a chunk
-at the offset where the last one ended. Raised in review of
+No caller needs a write past the end: `writeChunks` and `fjs/cas` each write a
+chunk at the offset where the last one ended. An empty write succeeds at any
+offset and changes nothing, as Node's does. Raised in review of
 [#2991](https://github.com/functionalscript/functionalscript/pull/2991#discussion_r4297433661).
 
 ### Proposal
 
-Wait for a program that needs a write past the end, then choose:
-
-- **Write in place with a tool that seeks**, such as `dd` with `seek=` and
-  `conv=notrunc` through `os.system`. That leaves a hole as Node does, and
-  stops rewriting the whole file on every write. It is an external tool,
-  waiting on approval as `mkdir` and `rm` did
-  ([AGENTS.md §6](../../../../AGENTS.md#6-external-tools)), and it needs the
-  bytes passed through a file or a pipe.
-- **Refuse a write that starts past the end.** No caller needs one, and a
-  refusal is loud, but it refuses what the host answers as Node does today, at
-  every size the machine can hold.
+When a program needs one, write in place with a tool that seeks, such as `dd`
+with `seek=` and `conv=notrunc` through `os.system`. That leaves a hole as Node
+does, and stops rewriting the whole file on every write. It is an external
+tool, waiting on approval as `mkdir` and `rm` did
+([AGENTS.md §6](../../../../AGENTS.md#6-external-tools)), and the bytes would
+reach it through a file or a pipe.
 
 ### Tasks
 
-- [ ] Pick one of the two when a program writes past the end of a file, and
-      check it against the Node host with a write several GiB past the end.
+- [ ] Write in place through a seeking tool, once approved.
+- [ ] Check it against the Node host: a write past the end, and one several GiB
+      past it.
