@@ -32,12 +32,12 @@ output and compiler orchestration, so it lives in `fjs/todo/`.
 | --- | --- |
 | JS tokens | Lexical tokens with the metadata needed to parse JS, including relevant line boundaries and source locations. |
 | AST | The syntax representation of a supported subset of JavaScript. That subset may be larger than FunctionalScript. It does not promise support for all JavaScript. |
-| FAST | Foundation AST: the desugared subset of the supported JavaScript AST, with explicit bindings and blocks. The same representation is used before EDAG construction and after EDAG-to-FAST conversion. Representability in FAST does not by itself establish FJS acceptance. |
+| FAST | Foundation AST: the desugared subset of the supported JavaScript AST, with explicit bindings, blocks and core loop forms. The same representation is used before EDAG construction and after EDAG-to-FAST conversion. Representability in FAST does not by itself establish FJS acceptance. |
 | Desugaring | AST-to-FAST rewriting that preserves the supported source semantics while expressing sugar through basic constructs. |
 | EDAG | Expression DAG: operations and their references, with explicit sharing, invocation scopes and required evaluation. One shared node is different from distinct equal nodes. |
 | Anchor | A required computation retained through a comma node even when the returned value does not otherwise require it. |
 | Graph optimization / EDAG-eval | EDAG-to-EDAG transformation. The output remains a graph; this is distinct from runtime execution that produces a value or failure. |
-| Graph-to-FAST conversion | Recovery of explicit bindings and blocks from the graph, including placement of shared computations in their correct evaluation regions. |
+| Graph-to-FAST conversion | Recovery of explicit bindings, blocks and eligible tail loops from the graph, including placement of shared computations in their correct evaluation regions. |
 | Serialization | Conversion of FAST to a target language's tokens or marked text. |
 | Marked text | Text accompanied by token-category marks for presentation, using the existing `fjs/text/marked` representation. It is distinct from a parser's token stream. |
 | Demarking | Removing presentation marks without changing the text, using the existing `toText` operation. |
@@ -46,6 +46,11 @@ FAST names this foundation representation without implying FJS admission.
 The older [demo document](../../todo/demo/README.md), explicitly marked stale,
 uses BAST for a different concept, "Binary Abstract Syntax Tree". That
 historical meaning is not renamed or adopted by this proposal.
+
+FAST retains core `let`, `while` and assignment forms for structured loop
+emission. `from_fast` lowers these forms to the existing tail-call EDAG;
+`to_fast` reconstructs eligible loops. This adds no EDAG loop node or new
+source-language syntax.
 
 The symmetry is in the conversion boundaries:
 
@@ -78,7 +83,7 @@ normalizations.
 | `fjs/edag` | EDAG definitions, operation shapes and invariants, independent of a particular producer or backend. |
 | `fjs/edag/from_fast` | FJS-admitted FAST → EDAG, preserving bindings as graph references and required evaluation as anchors. |
 | `fjs/edag/optimizer` | Explicit EDAG → EDAG transformations. |
-| `fjs/edag/to_fast` | EDAG → FAST; one shared implementation of semantic bindings and evaluation-region placement for all backends. |
+| `fjs/edag/to_fast` | EDAG → FAST; one shared implementation of semantic bindings, evaluation-region placement and tail-loop lowering for all backends. |
 | `fjs/rust/serializer` | FAST → Rust tokens or marked text, with Rust-specific syntax and runtime operation spelling. |
 
 The module map is a proposal, not a description of the current directories.
@@ -120,6 +125,16 @@ owners; this proposal does not require a Rust input parser.
   same placed FAST. Any additional expression-to-binding normalization needed
   for emission belongs in common FAST processing used by all targets, rather
   than a separate binding policy in the Rust serializer.
+- **Graph-to-FAST owns tail-loop lowering.** Reuse `edag/loop`'s `loopOf`
+  and `keepsRecursion` in the common conversion. It decides whether to keep
+  recursion, emit a loop within a function, or replace an eligible immediate
+  call with a loop in its enclosing block. Make per-iteration bindings and
+  value captures explicit in FAST before serialization; removing a call or
+  function boundary must preserve its capture and evaluation semantics.
+  The [tail-loop migration](../edag/todo/tail-call-loop.md#fast-migration)
+  supersedes writer-specific decisions and records the closure, lazy-sharing
+  and stack-safety requirements. Every target renders the same decision;
+  none recognizes or lowers tail calls itself.
 - **MVP backends own target spelling and runtime mapping.** Serializers render
   the bindings and computations already expressed in FAST, using the target's
   syntax and runtime operations. They do not traverse EDAG, rediscover graph
@@ -204,7 +219,8 @@ guidance. Keep detailed operation semantics in their existing owners.
 Map current modules to the proposed responsibilities before moving them:
 `fjs/js/tokenizer`, the compiler's tokenizer adapter, parser/syntax tree,
 `compiler/ast`, `compiler/edag`, the JS serializer, `edag/sharing`,
-`edag/analysis`, `edag/rust`, `compiler/rust`, and the Rust media helpers.
+`edag/analysis`, `edag/loop`, `compiler/serializer/function_text`, `edag/rust`,
+`compiler/rust`, and the Rust media helpers.
 Distinguish responsibilities already shared from those still to extract.
 
 Implement small, complete changes with their consumers and documentation
@@ -232,6 +248,11 @@ The architecture also adds no source-language feature by itself.
       target, including JS and Rust, onto it. Reuse existing sharing analysis
       and target helpers, move any necessary binding normalization into common
       FAST processing, and retire parallel backend placement/binding policies.
+- [ ] Move tail-loop recognition, recursion decisions and eligible call
+      elimination into `to_fast`, representing per-iteration scope and value
+      captures in FAST. Migrate source, Rust and function-text consumers with
+      the [tail-loop requirements](../edag/todo/tail-call-loop.md#fast-migration),
+      preserving existing stack-safe cases and the function-text contract.
 - [ ] Prove the boundaries as their implementations move: shared versus equal
       nodes, invocation/capture scopes, eager and lazy computations, unused
       failing initializers, applicable desugaring and arity cases, common
@@ -252,6 +273,8 @@ The architecture also adds no source-language feature by itself.
 - [Rust binding emission](../edag/rust/todo/let-bindings-owner.md) — compiler
   and corpus bindings migrate to the common FAST path; supersedes the earlier
   separate EDAG-aware emission proposal.
+- [Tail-call loops](../edag/todo/tail-call-loop.md#fast-migration) — existing
+  loop emission and its migration from writers into common FAST conversion.
 - [Operand classification ownership](../edag/todo/operand-classification-owner.md)
   — existing eager/lazy analysis work to reconcile with common placement.
 - [Marked text](../text/marked/README.md) — existing representation and demarking.
