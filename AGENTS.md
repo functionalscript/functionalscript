@@ -228,7 +228,7 @@ from [`.claude/hooks/session-start.sh`](./.claude/hooks/session-start.sh).
 Inside the shell, `npm ci` installs Node dependencies and `cargo fetch` the
 Rust ones. `npm test` runs `tsc` plus the FunctionalScript suite,
 `npm start test` the suite alone, the Deno, Bun, and published-CLI
-equivalents the same suite, and `npm run sm-test` its authored proofs on
+equivalents the same suite, and `npm run sm t` its authored proofs on
 SpiderMonkey. Run from a directory, the runner tests that
 directory alone
 ([CONTRIBUTING.md](./CONTRIBUTING.md#running-tests-under-a-subtree)).

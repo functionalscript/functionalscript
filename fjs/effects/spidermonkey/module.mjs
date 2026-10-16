@@ -7,7 +7,8 @@
  * `write` here. Every other Node operation answers `NotImplemented`, so
  * another `fjs` command fails naming what this host lacks. The program sees
  * `engine: 'spidermonkey'`, which is how `fjs t` knows to load authored
- * proofs only. `npm run sm-test` runs `fjs t` through it.
+ * proofs only. `npm run sm <command>` runs an `fjs` command through it, and
+ * `npm run sm t` runs `fjs t`.
  *
  * The shell is not a browser and not Node. It has `print`, `putstr`,
  * `printErr`, `quit`, `scriptArgs`, `os.getenv`, `os.file.listDir`, and
