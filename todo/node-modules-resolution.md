@@ -39,9 +39,11 @@ handwritten copy.
 
 #### Stage 1: refuse
 
-`resolveFileModule` refuses every specifier `specifierKind` calls `'bare'`,
-packages and the empty specifier alike, on all three hosts, with the
-`invalid module specifier` refusal each already gives. The effect then keeps
+`resolveFileModule` refuses every import specifier `specifierKind` calls
+`'bare'`, packages and the empty specifier alike, on all three hosts, with the
+`invalid module specifier` refusal each already gives. An import is a request
+with an importer: an entry path (`parent: null`) stays a literal filesystem
+path, so `main.f.js` is still an entry. The effect then keeps
 its contract without the compiler's guard. The refusal is permanent: stage 2
 resolves packages above the effect, not inside it.
 
@@ -50,10 +52,13 @@ resolves packages above the effect, not inside it.
 Follow Node's [`PACKAGE_RESOLVE`](https://nodejs.org/api/esm.html#resolution-algorithm-specification)
 within this subset, in the shared resolver both compiler paths use:
 
-- **Name.** The package name is the first segment, or `@scope/name`; the rest
-  is the subpath, read under the existing portable path rules. A name Node
-  calls invalid — a leading `.`, a `\` or `%`, a scope with no name — is an
-  invalid specifier.
+- **Name.** The whole specifier first passes the existing grammar, which
+  refuses a `:`, `\`, `?` or `#` anywhere in it. `node:` imports, and `#`
+  imports, which Node resolves through `PACKAGE_IMPORTS_RESOLVE` before any
+  package lookup, never reach this one. The package name is then the first
+  segment, or `@scope/name`, and the rest is the subpath, read under the
+  existing portable path rules. A name Node calls invalid — a leading `.`, a
+  `%`, a scope with no name — is an invalid specifier.
 - **Lookup.** From the importer's real directory up to the filesystem root, the
   first `node_modules/<name>/` that is a directory is the package. A subpath it
   lacks is not found: Node stops at that directory, and so does this.
@@ -116,9 +121,10 @@ resolving them differently.
 
 Stage 1:
 
-- [ ] Refuse bare specifiers in `resolveFileModule` on the Node runner, the
-      virtual runner and native. Pin the sibling and empty cases in each host's
-      proofs, and add a parity case to the
+- [ ] Refuse bare import specifiers in `resolveFileModule` on the Node runner,
+      the virtual runner and native. Pin the sibling and empty cases in each
+      host's proofs, with a bare entry path such as `main.f.js` still resolving,
+      and add a parity case to the
       [corpus](../nanvm/harness/fixtures/parity.mjs) whose importer is the
       identity the host answered for its entry, so no file URL is spelled per
       platform.
