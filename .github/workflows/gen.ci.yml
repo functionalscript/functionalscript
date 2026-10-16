@@ -167,6 +167,9 @@
           "run": "sh ./gen.nix/run node --test"
         },
         {
+          "run": "sh ./gen.nix/run npm run sm c"
+        },
+        {
           "run": "sh ./gen.nix/run npm run sm t"
         }
       ]
