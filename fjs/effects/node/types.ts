@@ -997,7 +997,10 @@ export type Engine = 'node' | 'deno' | 'bun' | 'spidermonkey'
  *   data output under.
  * - `engine`: the engine the host runs on, a fixed fact like the others, so
  *   a program can ask what its host can load. `fjs t` asks: off Node, Deno,
- *   and Bun it discovers authored proofs only.
+ *   and Bun it discovers authored proofs only. It is a field rather than an
+ *   `engine` operation so that `tsc` makes every host set it; a host lacking
+ *   an operation answers `NotImplemented`, and reading that as "pure only"
+ *   would let a broken Node host skip the impure proofs and still pass.
  */
 export type NodeProgramOptions = {
     readonly args: readonly string[]
