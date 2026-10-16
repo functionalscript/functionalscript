@@ -3,7 +3,7 @@
  *
  * @module
  *
- * @import { Access, All, Dirent, Env, Import, IoChannel, Readdir } from '../effects/node/types.ts'
+ * @import { Access, All, Dirent, Engine, Env, Import, IoChannel, NodeProgramOptions, Readdir } from '../effects/node/types.ts'
  * @import { Effect } from '../effects/types.ts'
  * @import { Dir } from '../effects/node/virtual/types.ts'
  * @import { Module, ModuleMap, LoadModuleOperations } from './types.ts'
@@ -47,6 +47,31 @@ export const shouldLoad = s =>
     s.endsWith('.f.js')    || s.endsWith('.f.mjs')   ||
     s.endsWith('proof.ts') || s.endsWith('proof.mts')||
     s.endsWith('proof.js') || s.endsWith('proof.mjs')
+
+/**
+ * Authored FunctionalScript source, `.f.mjs` or `.f.js`
+ * ([`fjs/compiler/README.md`](../compiler/README.md) defines both). It is
+ * pure, so it runs on any engine: this is what a browser page can run, and
+ * what proof discovery loads on an engine with a partial host.
+ *
+ * @type {(path: string) => boolean}
+ */
+export const isAuthored = path => path.endsWith('.f.mjs') || path.endsWith('.f.js')
+
+/**
+ * Which files proof discovery loads on `engine`.
+ *
+ * Node, Deno, and Bun run the whole Node host, so discovery loads everything
+ * {@link shouldLoad} accepts, the impure proofs included. Any other engine
+ * runs a partial host whose `import` cannot load what an impure proof
+ * imports — one such proof would fail the whole run — so discovery loads
+ * {@link isAuthored} modules only. The rule names the engines that can load
+ * everything, so an engine added later starts with the set it can run.
+ *
+ * @type {(engine: Engine) => (path: string) => boolean}
+ */
+export const shouldLoadOn = engine =>
+    engine === 'node' || engine === 'deno' || engine === 'bun' ? shouldLoad : isAuthored
 
 /**
  * Whether a directory holds other people's files, so that no walk over this
@@ -127,10 +152,11 @@ export const sourceRoot = env => {
 }
 
 /**
- * Discovers every file {@link shouldLoad} accepts under {@link sourceRoot},
- * imports them, and returns a map from relative path to module exports.
+ * Discovers every file {@link shouldLoadOn} accepts for the host's engine
+ * under {@link sourceRoot}, imports them, and returns a map from relative
+ * path to module exports.
  *
- * `shouldLoad` is applied during the walk by {@link allFiles}, so a file it
+ * The predicate is applied during the walk by {@link allFiles}, so a file it
  * rejects is excluded before any `import()` is attempted — no wasted I/O.
  *
  * The result is sorted by path key using `string.cmp` so the order is
@@ -142,9 +168,9 @@ export const sourceRoot = env => {
  * the whole tree, and a map missing the file it was asked about is worse than
  * no map at all.
  *
- * @type {(env: Env) => Effect<LoadModuleOperations, ModuleMap, IoChannel>}
+ * @type {(options: Pick<NodeProgramOptions, 'env' | 'engine'>) => Effect<LoadModuleOperations, ModuleMap, IoChannel>}
  */
-export const loadModuleMap = env => {
+export const loadModuleMap = ({ env, engine }) => {
     const s = sourceRoot(env)
     const prefix = s === '.' ? '' : s
     // TODO: there are multiple `all` effects here,
@@ -152,7 +178,7 @@ export const loadModuleMap = env => {
     //       For example, we should be able to write it like `allFiles(s).flatMap(loadFile)`,
     //       then an effect runner can batch all file loading operations together.
     const loaded = step(
-        allFiles(s, shouldLoad),
+        allFiles(s, shouldLoadOn(engine)),
         files => allOk(...files.map(loadFile)))
     return mapStep(
         loaded,
@@ -197,7 +223,7 @@ export const proof = {
         // every path keeps its own `./`-prefix instead of having one stripped.
         /** @type {Dir} */
         const root = { 'a.f.ts': () => ({}) }
-        const [, result] = virtualAt(root)(loadModuleMap({}))
+        const [, result] = virtualAt(root)(loadModuleMap({ env: {}, engine: 'node' }))
         assertEq(Object.keys(unwrap(result)).join(','), './a.f.ts')
     },
     loadModuleMapReportsUnreadableRoot: () => {
@@ -205,7 +231,7 @@ export const proof = {
         // hands the failure back, and the program that asked for the map is
         // the one that decides what a source tree it cannot read means — for
         // `fjs t` that is a message on `stderr` and exit `1`.
-        const [, result] = virtualAt({})(loadModuleMap({ INIT_CWD: 'missing' }))
+        const [, result] = virtualAt({})(loadModuleMap({ env: { INIT_CWD: 'missing' }, engine: 'node' }))
         assert(result[0] === 'error', result)
     },
     loadModuleMapReportsUnimportableModule: () => {
@@ -215,7 +241,7 @@ export const proof = {
         // virtual runner's `import` refuses it. Without this, a `loadFile`
         // that turned every import failure into a success would still pass
         // every other proof here.
-        const [, result] = virtualAt({ 'a.f.ts': [] })(loadModuleMap({}))
+        const [, result] = virtualAt({ 'a.f.ts': [] })(loadModuleMap({ env: {}, engine: 'node' }))
         assert(result[0] === 'error', result)
     },
     loadModuleMapStripsInitCwdPrefix: () => {
@@ -224,7 +250,30 @@ export const proof = {
         // keys are still `./`-relative to `INIT_CWD` rather than carrying it.
         /** @type {Dir} */
         const root = { 'sub': { 'a.f.ts': () => ({}) } }
-        const [, result] = virtualAt(root)(loadModuleMap({ INIT_CWD: 'sub' }))
+        const [, result] = virtualAt(root)(loadModuleMap({ env: { INIT_CWD: 'sub' }, engine: 'node' }))
         assertEq(Object.keys(unwrap(result)).join(','), './a.f.ts')
+    },
+    shouldLoadOn: () => {
+        // The engines running the whole Node host load the impure proofs; any
+        // other loads authored modules only.
+        for (const engine of /** @type {const} */ (['node', 'deno', 'bun'])) {
+            assert(shouldLoadOn(engine)('proof.mjs'), engine)
+        }
+        assert(!shouldLoadOn('spidermonkey')('proof.mjs'))
+        assert(shouldLoadOn('spidermonkey')('a.f.mjs'))
+        assert(shouldLoadOn('spidermonkey')('a.f.js'))
+        // A retired spelling is FunctionalScript, but not what an engine
+        // without TypeScript can load.
+        assert(!shouldLoadOn('spidermonkey')('a.f.ts'))
+    },
+    loadModuleMapLoadsAuthoredOnlyOffTheNodeHost: () => {
+        // Off Node, Deno, and Bun the impure proof is never imported, so it
+        // cannot fail the run; on Node it is loaded as before.
+        /** @type {Dir} */
+        const root = { 'a.f.mjs': () => ({}), 'proof.mjs': () => ({}) }
+        const keys = (/** @type {Engine} */ engine) =>
+            Object.keys(unwrap(virtualAt(root)(loadModuleMap({ env: {}, engine }))[1])).join(',')
+        assertEq(keys('spidermonkey'), './a.f.mjs')
+        assertEq(keys('node'), './a.f.mjs,./proof.mjs')
     },
 }

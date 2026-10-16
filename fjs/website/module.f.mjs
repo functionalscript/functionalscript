@@ -27,7 +27,7 @@
  * read the same module again just for its specifiers. {@link scan} asks
  * both export questions of one read and keeps the specifiers as a byproduct,
  * and {@link readGraph} is seeded with that, so it reads only what a
- * scan of the {@link authored} modules alone could not already have answered
+ * scan of the {@link isAuthored} modules alone could not already have answered
  * — a non-authored dependency, most often.
  *
  * **An empty page is probably a directory that no longer exists.** The
@@ -69,7 +69,7 @@ import { prsPage } from './prs/module.f.mjs'
 import { cliPage } from './cli/module.f.mjs'
 import { hexText, tryFromHexOf } from '../git/oid/module.f.mjs'
 import { fundingPath, parse as parseFunding } from './funding/module.f.mjs'
-import { isThirdParty } from '../dev/module.f.mjs'
+import { isAuthored, isThirdParty } from '../dev/module.f.mjs'
 import { cargoDocDir, cargoDocHref, cargoDocPage, crateHref, crateOf, rustdocDir } from './cargo-doc/module.f.mjs'
 
 /**
@@ -107,15 +107,6 @@ const rootPage = build => dir => shell(build)(siteName)(directoryLayout(build)(d
         ],
     ]),
 )))
-
-/**
- * Authored FunctionalScript source, `.f.mjs` or `.f.js`
- * ([`fjs/compiler/README.md`](../compiler/README.md) defines both); a proof
- * or a demo lives in nothing else a browser could run.
- *
- * @type {(path: string) => boolean}
- */
-const authored = path => path.endsWith('.f.mjs') || path.endsWith('.f.js')
 
 /**
  * Every directory under `dir`, itself first, with everything each one holds;
@@ -171,7 +162,7 @@ const allFiles = tree => tree.flatMap(walked => walked.files.map(inDir(walked)))
  *
  * @type {(tree: readonly _Walked[]) => readonly string[]}
  */
-const authoredModules = tree => allFiles(tree).filter(authored).toSorted()
+const authoredModules = tree => allFiles(tree).filter(isAuthored).toSorted()
 
 /**
  * The module a specifier in `from` leads to, or `null` where a browser could
@@ -350,7 +341,7 @@ const browserProofOf = tree =>
  * thing seeding skips. A seeded root's own imports would otherwise never
  * reach the frontier at all: `readGraph` sees it is already in the graph,
  * stops there, and a `.mjs` dependency two hops from a proof — outside
- * `scan`'s reach over the {@link authored} modules — is never read, never
+ * `scan`'s reach over the {@link isAuthored} modules — is never read, never
  * refused if it cannot be, and never counted as a blocker either. Widening this to every
  * module `scan` touched, not just the selected roots, would pull in a
  * module that is neither a proof nor a demo nor reachable from one; if

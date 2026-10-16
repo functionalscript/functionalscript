@@ -1154,6 +1154,7 @@ const options = {
     testContext: isBun ? _wrapInlineTest(testContext.test) : testContext,
     // this file is `fjs/effects/node/module.mjs` of the package it runs from
     packageRoot: toPosix(fileURLToPath(new URL('../../..', import.meta.url))),
+    engine: isBun ? 'bun' : 'Deno' in globalThis ? 'deno' : 'node',
 }
 
 /**

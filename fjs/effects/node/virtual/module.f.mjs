@@ -1564,6 +1564,9 @@ export const defaultNodeProgramOptions = {
     // the virtual root is the package: a proof that compiles a data output
     // puts `fjs/js/runtime/module.f.js` there
     packageRoot: '.',
+    // the virtual runner stands in for the Node host, so a program sees the
+    // engine that host would report
+    engine: 'node',
 }
 
 /**

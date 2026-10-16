@@ -971,6 +971,16 @@ export type NodeOperationMap = ToAsyncOperationMap<NodeOp>
 export type Env = StringMap<string>
 
 /**
+ * The JavaScript engine a host runs a program on.
+ *
+ * Node, Deno, and Bun run the whole Node host, `fjs/effects/node/module.mjs`.
+ * Any other engine has a partial host that implements only the operations its
+ * programs need, and its `import` loads authored FunctionalScript, not the
+ * impure modules an impure proof reaches.
+ */
+export type Engine = 'node' | 'deno' | 'bun' | 'spidermonkey'
+
+/**
  * Runtime options passed to every `NodeProgram`.
  *
  * - `args`: command-line arguments (equivalent to `process.argv.slice(2)`).
@@ -985,6 +995,9 @@ export type Env = StringMap<string>
  *   the installed package — where the program's own sources are, among
  *   them `fjs/js/runtime/module.f.js`, which `fjs compile` interprets a
  *   data output under.
+ * - `engine`: the engine the host runs on, a fixed fact like the others, so
+ *   a program can ask what its host can load. `fjs t` asks: off Node, Deno,
+ *   and Bun it discovers authored proofs only.
  */
 export type NodeProgramOptions = {
     readonly args: readonly string[]
@@ -993,6 +1006,7 @@ export type NodeProgramOptions = {
     readonly std: Std
     readonly testContext: TestContext
     readonly packageRoot: string
+    readonly engine: Engine
 }
 
 /**
