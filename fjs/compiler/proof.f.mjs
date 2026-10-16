@@ -91,6 +91,20 @@ const evaluate = source => {
     return result[0] === 'error' ? ['error', 'module initialization failed'] : toData(result[1])
 }
 
+/**
+ * The graph {@link evaluate} makes of a vector's document, failing the proof
+ * with the front end's message if it refuses. The message is built on a
+ * refusal only: on success the value is the graph, and SpiderMonkey's
+ * `Array.prototype.join` overflows stringifying arrays nested 410 deep.
+ *
+ * @type {(id: string, source: string) => Unknown}
+ */
+const evaluated = (id, source) => {
+    const [tag, value] = evaluate(source)
+    if (tag === 'error') { assert(false, `${id}: the front end refused the document: ${value}`) }
+    return value
+}
+
 /** The complete module result has an own default export. @type {(value: unknown) => unknown} */
 export const defaultValue = value => {
     assert(isObject(value))
@@ -1256,8 +1270,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
     subsetLaw: acceptSet.map(({ id, document, graph }) => () => {
         const source = documentText(document)
         assert(source !== null, `${id}: the document is not UTF-8`)
-        const [tag, value] = evaluate(source)
-        assert(tag === 'ok', `${id}: the front end refused the document: ${value}`)
+        const value = evaluated(id, source)
         const d = difference(graph)(value)
         assert(d === null, `${id}: the front end's graph is not the vector's: ${d}`)
     }),
@@ -1271,8 +1284,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
     normalizeLoop: acceptSet.map(({ id, document, graph }) => () => {
         const source = documentText(document)
         assert(source !== null, `${id}: the document is not UTF-8`)
-        const [tag, value] = evaluate(source)
-        assert(tag === 'ok', `${id}: the front end refused the document: ${value}`)
+        const value = evaluated(id, source)
         const normalized = unwrap(tryStringify(value))
         const d = difference(graph)(unwrap(parseDataJs(normalized)))
         assert(d === null, `${id}: the normalized document does not denote the vector's graph: ${d}`)

@@ -4,11 +4,12 @@
  *
  * @module
  *
- * @import { Commands, Effect, IoError, MatchResult, Operation, PartialAsyncOperationMap, ToAsyncOperationMap } from './types.ts'
+ * @import { Commands, Effect, IoError, IoResult, MatchResult, Operation, PartialAsyncOperationMap, ToAsyncOperationMap } from './types.ts'
  * @import { Result } from '../types/result/types.ts'
  */
 
 import { ioError, match, notImplemented, partialMatch, toIoError } from './module.f.mjs'
+import { asyncTryCatch } from '../types/result/module.mjs'
 import { error } from '../types/result/module.f.js'
 
 /**
@@ -60,6 +61,23 @@ export const _describeThrown = e => {
     } catch {
         return ioError({ message: _unreadableThrownValue })
     }
+}
+
+/**
+ * Performs host IO, reporting a thrown failure as an {@link IoResult} error.
+ *
+ * Every filesystem, network, and subprocess handler of a host goes through
+ * it, so the `catch` that turns an exception into effect data — and the
+ * normalization that keeps the channel serializable — happens in exactly one
+ * place, shared by the Node host and the SpiderMonkey host.
+ *
+ * @template T
+ * @param {() => Promise<T>} f
+ * @returns {Promise<IoResult<T>>}
+ */
+export const io = async f => {
+    const r = await asyncTryCatch(f)
+    return r[0] === 'ok' ? r : error(_describeThrown(r[1]))
 }
 
 /**

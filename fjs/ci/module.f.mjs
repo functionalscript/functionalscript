@@ -43,6 +43,7 @@ import {
 import { bunSteps } from './bun/module.f.mjs'
 import { devNixJob } from './dev/module.f.mjs'
 import { denoSteps } from './deno/module.f.mjs'
+import { shellSpiderMonkeyCommands, shellSpiderMonkeyVersionSteps } from './spidermonkey/module.f.mjs'
 import { npmPublishPath, npmPublishWorkflow } from './publish/module.f.mjs'
 
 /**
@@ -103,8 +104,11 @@ const workflowText = gha => JSON.stringify(gha, null, '  ')
  * Linux checks formatting and every WASM target, asserting both WASM runtimes
  * first. Each was a job of its own — `ubuntu-intel32` until that shell had the
  * target, `wasm` until it was one more runner doing this job's setup again.
- * `../rust/module.f.mjs` decides which platforms those are; everything else
- * about these jobs is still identical across the three.
+ * `../rust/module.f.mjs` decides which platforms those are. ARM Linux also
+ * checks every `.f.js` and runs the suite on SpiderMonkey, Rust or not,
+ * asserting the shell's version first; `../spidermonkey/module.f.mjs` decides
+ * that. Everything else about
+ * these jobs is still identical across the three.
  *
  * @type {(rust: boolean, o: Os, a: Architecture) => readonly MetaStep[]}
  */
@@ -112,10 +116,12 @@ const shellPlatformSteps = (rust, o, a) => [
     nixInstall,
     nodeVersionStep(),
     ...(rust ? shellRustVersionSteps(o, a) : []),
+    ...shellSpiderMonkeyVersionSteps(o, a),
     ...nixSteps([
         'npm ci',
         ...(rust ? shellRustCommands(o, a) : []),
         'node --test',
+        ...shellSpiderMonkeyCommands(o, a),
     ]),
 ]
 
