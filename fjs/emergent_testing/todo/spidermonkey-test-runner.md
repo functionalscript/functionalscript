@@ -232,16 +232,16 @@ it.**
    `../../ci/config/module.f.js`, as `bunSteps` asserts Bun's, then run
    `fjs t` through the host.
 
-   The `bun` job (`../../ci/bun/module.f.mjs`) is the candidate. It is the
-   shortest job — 3 minutes 29 seconds on this issue's own pull request, where
-   `deno` took 7 minutes 24 seconds and `node26` and the Intel platform jobs
-   ran longer — so the spike's 3 minutes 40 seconds should fit without making
-   the run slower. It already runs inside the Nix shell on the ARM Linux
-   runner, and it already checks the suite on an engine that is not V8. The
-   alternative is the `ubuntu-arm` platform job, which took in the `wasm` job
-   the same way (`../../ci/module.f.mjs`, `shellPlatformSteps`), at about
-   5 minutes before the addition. Measure the step on the runner before
-   choosing; the spike's time is from a different machine.
+   **The job is `ubuntu-arm`.** That platform job already took in the `wasm`
+   job the same way: `shellPlatformSteps` (`../../ci/module.f.mjs`) adds the
+   WASM runtimes' version checks and targets on ARM Linux only, chosen by
+   `wasmPlatform` (`../../ci/rust/module.f.mjs`). The SpiderMonkey steps are
+   chosen for the same platform, but they do not depend on the project having
+   Rust, as the WASM steps do. On this issue's own pull request the job took
+   about 5 minutes, against 7 minutes 24 seconds for `deno` and longer for
+   `node26` and the Intel platform jobs. With the spike's 3 minutes 40
+   seconds added, it may become one of the longer jobs; the spike's time is
+   from a different machine, so measure the step on the runner.
 
 ### Tasks
 
@@ -263,7 +263,7 @@ it.**
       that a module that fails to import fails the run.
 - [ ] Add `spidermonkey_140` to `devNixJob` and its version pin to
       `../../ci/config/module.f.js`, then add the version and `fjs t` steps to
-      an existing job — the `bun` job unless the measured step says otherwise.
+      the `ubuntu-arm` platform job.
       Run `npm run gen` and commit the regenerated workflow. Add the row to
       the runtime table in [CONTRIBUTING.md](../../../CONTRIBUTING.md).
 - [ ] Document every engine divergence the run finds next to the code it
