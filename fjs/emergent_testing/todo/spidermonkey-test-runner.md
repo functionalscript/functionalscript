@@ -224,24 +224,31 @@ it.**
    runtime. A separate flake would need a concrete reason and a newly scoped
    design.
 
-4. **CI runs it in an existing job, not a new one.** A new job repeats the
-   Nix install and the checkout for two steps of work. The steps are the ones
-   every Nix job has, one command each
+4. **CI runs it in the `ubuntu-arm` job, not a new one.** The bottleneck is
+   the number of jobs, not their time: each job waits for its own runner, the
+   ARM pool is congested, and merging many pull requests queues this
+   repository's own jobs behind each other
+   ([six-ci-jobs](../../ci/todo/six-ci-jobs.md)). That issue makes
+   `ubuntu-arm` the primary job, and moves `node26`, `deno`, and `bun` into it,
+   so these steps go where the other runtimes are heading. The job grows by
+   about the spike's 3 minutes 40 seconds — measured on a different machine,
+   so measure it on the runner — which is the trade that issue accepts.
+
+   The steps are the ones every Nix job has, one command each
    ([AGENTS.md §7](../../../AGENTS.md#7-continuous-integration)): assert the
    pinned version with `js --version` against a pin in
    `../../ci/config/module.f.js`, as `bunSteps` asserts Bun's, then run
-   `fjs t` through the host.
+   `fjs t` through the host. The version check joins the job's other version
+   checks, which come before any other command (`nixVersionChecks` in
+   `../../ci/proof.f.mjs`). `fjs t` writes nothing to the tree, so the step
+   order six-ci-jobs sets for steps that write does not constrain it.
 
-   **The job is `ubuntu-arm`.** That platform job already took in the `wasm`
-   job the same way: `shellPlatformSteps` (`../../ci/module.f.mjs`) adds the
-   WASM runtimes' version checks and targets on ARM Linux only, chosen by
-   `wasmPlatform` (`../../ci/rust/module.f.mjs`). The SpiderMonkey steps are
-   chosen for the same platform, but they do not depend on the project having
-   Rust, as the WASM steps do. On this issue's own pull request the job took
-   about 5 minutes, against 7 minutes 24 seconds for `deno` and longer for
-   `node26` and the Intel platform jobs. With the spike's 3 minutes 40
-   seconds added, it may become one of the longer jobs; the spike's time is
-   from a different machine, so measure the step on the runner.
+   `ubuntu-arm` already took in the `wasm` job the same way:
+   `shellPlatformSteps` (`../../ci/module.f.mjs`) adds the WASM runtimes'
+   version checks and targets on ARM Linux only, chosen by `wasmPlatform`
+   (`../../ci/rust/module.f.mjs`). The SpiderMonkey steps are chosen for the
+   same platform, but they do not depend on the project having Rust, as the
+   WASM steps do.
 
 ### Tasks
 
@@ -289,6 +296,8 @@ it.**
   authored proofs; its scope rule is the one this host selects by.
 - [stack-safety](../../edag/todo/stack-safety.md) — the thousand-level vector
   is a stack margin there too, and the shell's smaller call depth shrinks it.
+- [six-ci-jobs](../../ci/todo/six-ci-jobs.md) — makes `ubuntu-arm` the one
+  primary job, which is why SpiderMonkey's steps go there.
 - [node-module-layering](../../effects/todo/node-module-layering.md) — lowering
   the runtime-agnostic operations out of `fjs/effects/node` is what lets a
   non-Node host implement a subset without depending on the Node module.
