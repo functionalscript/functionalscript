@@ -85,9 +85,10 @@ body, and no other pair is.
 - **NaNVM** — `npm run gen` compiles this module to
   `nanvm/lib/src/vm/gen.runtime.rs` through the compiler's static-runtime
   printer, the compiler being the generator: every body a static Rust
-  function with an accessor answering its descriptor, and two tables,
-  which `nanvm-lib`'s `runtime_method` and `runtime_static` search for
-  every VM. Nothing is evaluated and no VM holds a runtime. The native
+  function, a static built-in's with an accessor answering its descriptor
+  and a member's the code alone, and two tables, which `nanvm-lib`'s
+  `runtime_method` and `runtime_static` search for every VM. Nothing is
+  evaluated and no VM holds a runtime. The native
   tables in `vm/lambda` keep every name without a body.
 
 The generator also writes the module's EDAG as
@@ -152,9 +153,9 @@ sequenceDiagram
     L->>L: own property? none on an array
     L->>T: method(receiver, "map")
     T-->>L: None, once map has a body
-    L->>R: members(): ("Array", "map", accessor)
-    R-->>L: the body's descriptor, a static function
-    L->>L: body.call([receiver, ...args])
+    L->>R: members(): ("Array", "map", code)
+    R-->>L: the body, a static function
+    L->>L: code([receiver, ...args])
     L-->>M: the answer, or Err(thrown)
 ```
 
@@ -162,7 +163,10 @@ sequenceDiagram
 receiver's own property, the native table in `vm/lambda/method.rs`, the
 runtime's body through `runtime_method`, the `TypeError` for calling
 `undefined` — and the `?.()` guard asks the same lookup to decide whether
-a callee exists.
+a callee exists. A member's body is a Rust function of the receiver and
+the arguments and nothing more: the language never reads a member as a
+value, so none has a descriptor, a `length` or a text, and a call step
+calls the code the table holds.
 
 **A static function is a value with no receiver.** The EDAG spells
 `Object.is` as the value `['Object.is']`, and `Number.isInteger` as
@@ -195,9 +199,11 @@ admits is bound.
 [`fjs/compiler/rust/runtime`](../../compiler/rust/runtime/module.f.mjs),
 reads this module at compile time rather than printing a scope that
 evaluates it: every module-level function becomes a static `fn` of its
-arguments alone, with an accessor answering its descriptor — the
-built-in's name, code, length and text — as a promoted constant; a frame
-slot resolves to another function's accessor or to an inlined literal; an
+arguments alone — a static built-in and a helper a body reads as a value
+with an accessor answering its descriptor, the built-in's name, code,
+length and text, as a promoted constant; a member the `fn` alone, which a
+body may not read as a value — a frame slot resolves to another
+function's accessor or to an inlined literal; an
 import's read of its export object, `{ isNegativeZero }.isNegativeZero`,
 folds to the function it holds; and the `runtime` export object is read as
 the table of built-ins, a static one named `Object.is` and a member one

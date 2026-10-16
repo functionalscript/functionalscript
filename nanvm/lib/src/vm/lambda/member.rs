@@ -1,6 +1,6 @@
 use super::method::{method, runtime};
 use crate::vm::{
-    Any, Array, IVm, ToAny, ToArray, Unpacked,
+    Any, Array, IVm, ToArray, Unpacked,
     member_access::{non_nullish_receiver, undefined_if_absent},
 };
 
@@ -84,7 +84,7 @@ impl<A: IVm> Member<A> {
     /// The call, its arguments already evaluated: the own property or
     /// element if there is one — `Any::call` throwing for a value that is
     /// no function — else the receiver type's native built-in of the name
-    /// with the receiver, else the runtime's body with the receiver as its
+    /// with the receiver, else the runtime's code with the receiver as its
     /// first argument, else the `TypeError` for calling `undefined`, as
     /// JavaScript throws on a type without the method. The arguments are
     /// the array a call spreads, and a value that is no array throws on
@@ -96,9 +96,9 @@ impl<A: IVm> Member<A> {
             None => match method(&self.receiver, &self.key) {
                 Some(f) => f(self.receiver, Array::try_from(args)?),
                 None => match runtime(&self.receiver, &self.key) {
-                    Some(body) => {
+                    Some(code) => {
                         let args = Array::try_from(args)?;
-                        body.call([self.receiver].into_iter().chain(args).to_array().to_any())
+                        code([self.receiver].into_iter().chain(args).to_array())
                     }
                     None => Any::undefined().call(args),
                 },

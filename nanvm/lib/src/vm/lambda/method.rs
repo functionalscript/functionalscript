@@ -1,7 +1,7 @@
 use crate::{
     common::sized_index::SizedIndex,
     vm::{
-        Any, Array, Function, IVm, Number, String, ToAny, ToArray, Unpacked,
+        Any, Array, Function, IVm, Number, RuntimeCode, String, ToAny, ToArray, Unpacked,
         array::callback::callback,
         error,
         runtime::{runtime_method, type_name},
@@ -37,15 +37,13 @@ pub(crate) fn method<A: IVm>(receiver: &Any<A>, key: &Any<A>) -> Option<Method<A
     }
 }
 
-/// The runtime's body for the receiver's type and the key,
+/// The runtime's code for the receiver's type and the key,
 /// [`runtime_method`](crate::vm::runtime_method): what a call step calls
-/// after the native table has no entry, with the receiver as the body's
+/// after the native table has no entry, with the receiver as the code's
 /// first argument. `None` for a nullish receiver, which has no type the
 /// runtime keys.
-pub(crate) fn runtime<A: IVm>(receiver: &Any<A>, key: &Any<A>) -> Option<Any<A>> {
-    type_name(receiver)
-        .and_then(|name| runtime_method::<A>(name, key))
-        .map(|body| Function::from(body).to_any())
+pub(crate) fn runtime<A: IVm>(receiver: &Any<A>, key: &Any<A>) -> Option<RuntimeCode<A>> {
+    type_name(receiver).and_then(|name| runtime_method::<A>(name, key))
 }
 
 /// The entry of `table` whose name is `key`.

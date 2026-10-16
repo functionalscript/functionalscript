@@ -24,12 +24,12 @@ const refusal = root => assertError(generateRuntime(root))
 export const proof = {
     /**
      * The runtime itself, as `npm run gen` prints it: a static function per
-     * body, named by its section — a static by its namespace and key, a
-     * member by its receiver type's prototype and key — the helpers no
-     * section names by their index, an import's export object folded to
-     * the function it holds, every frame slot a reference to an item, and
-     * the two tables, the natives `nanvm-lib` writes listed beside the
-     * bodies.
+     * body, named by its section — a static by its namespace and key, with
+     * its accessor; a member by its receiver type and key, the code alone —
+     * the helpers no section names by their index, an import's export
+     * object folded to the function it holds, every frame slot a reference
+     * to an item, and the two tables, the natives `nanvm-lib` writes listed
+     * beside the bodies.
      */
     runtime: () => {
         const rust = assertOk(generateRuntime(/** @type {Exp} */ (/** @type {unknown} */ (runtime))))
@@ -38,8 +38,7 @@ export const proof = {
             // a helper is the module's own
             '\nfn f0<A: IVm>() -> &\'static RuntimeFunction<A> {',
             '    &RuntimeFunction { name: "Object.is", code: object_is_code::<A>, length: 2, text: "($2,$3)=>$2===$3?$0($2)===$0($3):$1($2)&&$1($3)" }',
-            'fn string_prototype_starts_with_code<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>> {',
-            'name: "String.prototype.startsWith"',
+            '/// `String.prototype.startsWith`\n#[rustfmt::skip]\nfn string_starts_with<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>> {',
             'name: "Number.isNaN", code: number_is_nan_code::<A>',
             // `isNegativeZero`, imported and captured by `is`: a helper, read
             // off its module's export object and referenced by its item
@@ -47,21 +46,23 @@ export const proof = {
             '        ("Object.is", object_is),',
             '        ("Number.isNaN", number_is_nan),',
             '        ("Object.entries", object_entries),',
-            '        ("String", "startsWith", string_prototype_starts_with),',
+            '        ("String", "startsWith", string_starts_with),',
             'use nanvm_lib::vm::unstable::{f64_any, strict_eq, strict_ne, string_any};',
         ]) {
             assert(rust.includes(line), line)
         }
-        // nothing is evaluated, and no frame is read
+        // nothing is evaluated, no frame is read, and a member has no
+        // descriptor
         assert(!rust.includes('static_function'))
         assert(!rust.includes('A::frame'))
         assert(!rust.includes('self_'))
+        assert(!rust.includes('String.prototype.startsWith"'))
     },
     /**
      * A small module, whole: a helper the static captures, an argument
      * read, a literal in every atom kind inlined where the slot is read,
-     * `self` as the item itself, and a member reading `rest`. The two
-     * tables list the natives after the sections'.
+     * `self` as the item itself, and a member reading `rest`, the code
+     * alone. The two tables list the natives after the sections'.
      */
     small: () => {
         const helper = fn(1, [], ['+', ['arg', 0], 1])
@@ -74,7 +75,8 @@ export const proof = {
 
 use nanvm_lib::vm::unstable::{f64_any, string_any};
 use nanvm_lib::vm::{
-    Accessor, Any, Array, Function, IVm, Nullish, RuntimeFunction, ToAny, ToArray, object_entries,
+    Accessor, Any, Array, Function, IVm, Nullish, RuntimeCode, RuntimeFunction, ToAny, ToArray,
+    object_entries,
 };
 
 /// \`f0\`
@@ -102,14 +104,9 @@ pub fn object_inc<A: IVm>() -> &'static RuntimeFunction<A> {
 
 /// \`String.prototype.rest\`
 #[rustfmt::skip]
-fn string_prototype_rest_code<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>> {
+fn string_rest<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>> {
     let rest = args.clone().into_iter().skip(1).to_array();
     Ok(rest.clone().to_any())
-}
-
-#[rustfmt::skip]
-pub fn string_prototype_rest<A: IVm>() -> &'static RuntimeFunction<A> {
-    &RuntimeFunction { name: "String.prototype.rest", code: string_prototype_rest_code::<A>, length: 1, text: "($0,...$1)=>$1" }
 }
 
 #[rustfmt::skip]
@@ -121,9 +118,9 @@ pub(crate) fn statics<A: IVm>() -> [(&'static str, Accessor<A>); 2] {
 }
 
 #[rustfmt::skip]
-pub(crate) fn members<A: IVm>() -> [(&'static str, &'static str, Accessor<A>); 1] {
+pub(crate) fn members<A: IVm>() -> [(&'static str, &'static str, RuntimeCode<A>); 1] {
     [
-        ("String", "rest", string_prototype_rest),
+        ("String", "rest", string_rest),
     ]
 }
 `)
@@ -140,12 +137,13 @@ pub(crate) fn members<A: IVm>() -> [(&'static str, &'static str, Accessor<A>); 1
         const one = fn(0, [], 1)
         const statics = assertOk(generateRuntime(module([['static', object([['Number', object([['one', one]])]])]])))
         assert(statics.includes('fn number_one_code<A: IVm>(_args: Array<A>) -> Result<Any<A>, Any<A>> {'))
-        assert(statics.includes('pub(crate) fn members<A: IVm>() -> [(&\'static str, &\'static str, Accessor<A>); 0] {\n    []\n}'))
+        assert(statics.includes('pub(crate) fn members<A: IVm>() -> [(&\'static str, &\'static str, RuntimeCode<A>); 0] {\n    []\n}'))
         const members = assertOk(generateRuntime(module([['member', object([['Array', object([['one', one]])]])]])))
         assert(members.includes('pub(crate) fn statics<A: IVm>() -> [(&\'static str, Accessor<A>); 1] {\n    [\n        ("Object.entries", object_entries),\n    ]\n}'))
-        assert(members.includes('("Array", "one", array_prototype_one)'))
+        assert(members.includes('("Array", "one", array_one)'))
+        assert(!members.includes('RuntimeFunction'))
         const none = assertOk(generateRuntime(module([])))
-        assert(none.includes('Accessor<A>); 1]') && none.includes('Accessor<A>); 0]'))
+        assert(none.includes('Accessor<A>); 1]') && none.includes('RuntimeCode<A>); 0]'))
         const lazy = assertOk(generateRuntime(module([['static', object([['Number', object([['f', fn(1, [], ['&&', ['arg', 0], ['+', ['arg', 0], 1]])]])]])]])))
         assert(lazy.includes('    let c0 = || args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()) + f64_any(0x3ff0000000000000);\n    Any::logical_and(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), c0)\n'))
     },
@@ -195,6 +193,15 @@ pub(crate) fn members<A: IVm>() -> [(&'static str, &'static str, Accessor<A>); 1
         // an import's read written over is checked all the same: one that
         // would throw is refused, not dropped
         assert(refusal(module([['static', object([['Object', object([['g', ['.', ['undefined'], 'x']], ['g', fn(0, [], 7)]])]])]])).startsWith(prefix))
+        // one function under two names is two functions in JavaScript,
+        // `isNaN` and `Number.isNaN`; and a static and a member of one
+        // type and key are one Rust identifier
+        const shared = fn(0, [], 1)
+        assertEq(refusal(module([['static', object([['Number', object([['isNaN', shared]])], ['Global', object([['isNaN', shared]])]])]])), 'a function two built-ins name; JavaScript keeps them apart: Global.isNaN')
+        assertEq(refusal(module([
+            ['static', object([['String', object([['startsWith', fn(0, [], 1)]])]])],
+            ['member', object([['String', object([['startsWith', fn(0, [], 2)]])]])],
+        ])), 'two items of one Rust identifier: String.prototype.startsWith')
         // a helper reached through a helper is an item, once
         const chain = assertOk(generateRuntime(module([['static', object([['Object', object([['f', fn(0, [fn(0, [fn(0, [], 1)], ['frame', 0])], ['frame', 0])]])]])]])))
         assert(chain.includes('fn f0<A') && chain.includes('fn f1<A') && !chain.includes('fn f2<A'))
@@ -213,10 +220,27 @@ pub(crate) fn members<A: IVm>() -> [(&'static str, &'static str, Accessor<A>); 1
     /**
      * A body is refused where it makes a function at call time, since an
      * item is bound on `IVm` alone, and where the text writer has no
-     * spelling for it, since a built-in carries its text.
+     * spelling for it, since a built-in carries its text — a member
+     * carries none, so it is printed all the same.
      */
     bodies: () => {
         assertEq(refusal(module([['static', object([['Object', object([['f', fn(0, [], fn(0, [], 1))]])]])]])), 'no static Rust for a function a body makes at call time: Object.f')
-        assert(refusal(module([['static', object([['Object', object([['f', fn(0, [], ['arg', 0])]])]])]])).startsWith('no text for a built-in: Object.f: '))
+        const unspelled = fn(0, [], ['arg', 0])
+        assert(refusal(module([['static', object([['Object', object([['f', unspelled]])]])]])).startsWith('no text for a built-in: Object.f: '))
+        assert(assertOk(generateRuntime(module([['member', object([['Object', object([['f', unspelled]])]])]]))).includes('fn object_f<A: IVm>(args: Array<A>)'))
+    },
+    /**
+     * A member is the code a call step calls, with no descriptor to read:
+     * a static reading one as a value is refused, and so is a member
+     * reading itself.
+     */
+    members: () => {
+        const member = fn(1, [], 1)
+        const read = 'a member read as a value; a member is the code a call step calls: String.prototype.m'
+        assertEq(refusal(module([
+            ['static', object([['Object', object([['f', fn(0, [member], ['frame', 0])]])]])],
+            ['member', object([['String', object([['m', member]])]])],
+        ])), read)
+        assertEq(refusal(module([['member', object([['String', object([['m', fn(1, [], ['self'])]])]])]])), read)
     },
 }
