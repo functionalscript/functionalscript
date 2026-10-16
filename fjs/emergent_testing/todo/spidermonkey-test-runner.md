@@ -42,6 +42,16 @@ possible on every engine, so a fixture that one engine cannot parse is cut to
 fit it. This follows the 128 KiB `bigint` cap that Bun set
 (`fjs/effects/node/types.ts`).
 
+**The engine decides what `fjs t` loads, not a flag.** On Node, Deno, and Bun,
+`fjs t` loads every proof `shouldLoad` accepts, as it does today. On any other
+engine it loads only the pure proofs, the authored `.f.mjs` and `.f.js`
+modules. An engine `fjs t` does not know is "any other", so a new host gets
+the safe set without a change to `fjs t`. SpiderMonkey is the first such host;
+the runner compiled to Rust is the next, because its `import` loads
+FunctionalScript and cannot load impure JavaScript
+([load-proofs-through-fjs](load-proofs-through-fjs.md)). No new `fjs t` flag is
+added for this.
+
 ### Findings
 
 Measured on x86-64 Linux with SpiderMonkey 140.14.0, the `spidermonkey_140`
@@ -121,6 +131,12 @@ The program options came from the shell:
 (`proof.mjs` and the like). `loadModuleMap` propagates an import failure, so
 one proof that reaches `node:` fails the whole run.
 
+**The program is not told its engine.** `NodeProgramOptions` carries `args`,
+`env`, `home`, `std`, `testContext`, and `packageRoot`, and none of them names
+the engine. Only the hosts detect it: `isBun` (`../../effects/node/module.mjs`)
+picks Bun's `testContext` wrapper, and `isNode`
+(`../../effects/node/testlib.mjs`) is for impure proofs.
+
 **Divergence: module nesting.** SpiderMonkey's parser rejects a literal nested
 deeper than about 870 levels with `InternalError: too much recursion`:
 
@@ -177,13 +193,15 @@ it.**
    rule it grows beyond the host calls belongs in a `.f.mjs` module with its
    proof.
 
-2. **Discovery loads authored modules only on this host.** That is the same
-   scope the browser suite has ([README](../README.md#scope)): authored
-   FunctionalScript does not reach `node:` or a package, and the impure proofs
-   are the ones `fjs t` runs on Node because they need a Node host. How the
-   host asks for that is open — for example a discovery predicate passed
-   through the program options, or an `fjs t` option. Whatever the shape, an
-   authored module that fails to import still fails the run.
+2. **Every host tells the program its engine, and `fjs t` selects by it.**
+   `NodeProgramOptions` gains a field naming the engine — for example
+   `engine: 'node' | 'deno' | 'bun' | 'spidermonkey'`. The Node host sets it
+   from what it already detects, and the SpiderMonkey host sets its own name.
+   The options describe the host; the rule that turns the engine into a
+   selection is `fjs t`'s, so it lives in FunctionalScript with its proof.
+   Outside Node, Deno, and Bun, `fjs t` loads authored modules only — the same
+   scope the browser suite has ([README](../README.md#scope)). An authored
+   module that fails to import still fails the run.
 
 3. **Nix is how the shell gets installed.** Add `spidermonkey_140` to
    `devNixJob`'s shared package list (`../../ci/dev/module.f.mjs`,
@@ -206,7 +224,9 @@ it.**
       other fixture against the same limit. Update the prose that cites the
       thousand levels ([stack-safety](../../edag/todo/stack-safety.md)), and
       run `npm run gen` in case the change reaches a generated file.
-- [ ] Let discovery load authored modules only, and have the host ask for it.
+- [ ] Add the engine to `NodeProgramOptions`, set by every host, and have
+      `fjs t` load only authored modules when the engine is not Node, Deno, or
+      Bun.
 - [ ] Add the host, and run `fjs t` on the whole tree through it with no
       hidden modules. Check in the shell that a failing proof exits `1`, and
       that a module that fails to import fails the run.
@@ -220,6 +240,9 @@ it.**
 
 - Operations `fjs t` does not use. Another `fjs` command on SpiderMonkey
   answers `NotImplemented` until something concrete needs it there.
+- New `fjs t` flags. Selection by argument is
+  [run-subset-of-tests](run-subset-of-tests.md)'s; this issue selects by
+  engine.
 - Making SpiderMonkey a supported runtime for the `fjs` CLI as a whole.
 - The impure `.mjs` proofs, and integration tests that need real IO (`http`,
   `childProcess`, filesystem writes).
@@ -236,5 +259,7 @@ it.**
 - [node-module-layering](../../effects/todo/node-module-layering.md) — lowering
   the runtime-agnostic operations out of `fjs/effects/node` is what lets a
   non-Node host implement a subset without depending on the Node module.
-- [run a subset of proofs](run-subset-of-tests.md) — selecting the authored
-  modules is a kind of subset, and may share its mechanism.
+- [load-proofs-through-fjs](load-proofs-through-fjs.md) — the runner compiled
+  to Rust, the next engine that loads only pure proofs.
+- [run a subset of proofs](run-subset-of-tests.md) — selection by `fjs t`
+  arguments; both selections end in the predicate `allFiles` takes.
