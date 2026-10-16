@@ -134,16 +134,22 @@ export const scriptRefusal = 'media/html: a `script` element is refused: built i
  * serializing a tree it did not write refuses, as the DOM builders in
  * `module.mjs` refuse it.
  *
+ * **A `script` is found in any case.** A browser reads a tag name ignoring
+ * ASCII case, so `<SCRIPT>` written into a page runs as surely as `<script>`,
+ * inside an `svg` too.
+ *
  * **The children it looks under are the ones that are built.** A void
  * element's children and a raw-text one's elements are dropped, by the
  * serializer and the DOM builders alike, so a `script` there is never in the
- * page and is not counted.
+ * page and is not counted. Which elements those are is decided by the exact
+ * tag, as the serializer decides it: a `BR` is not void to it, and its
+ * children are written.
  *
  * @type {(e: Element) => boolean}
  */
 export const holdsScript = e => {
     const [tag, , children] = parseElement(e)
-    return tag === 'script' || (!isVoidTag(tag) && !isRawText(tag)
+    return tag.toLowerCase() === 'script' || (!isVoidTag(tag) && !isRawText(tag)
         && children.some(child => typeof child !== 'string' && holdsScript(child)))
 }
 

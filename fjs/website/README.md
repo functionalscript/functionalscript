@@ -492,7 +492,10 @@ on every demo page. The view is readable, selectable and editable at once,
 and the runtime takes it over as it finds it rather than rendering it again:
 a render would put every field back to its markup, and lose what the reader
 typed while the modules loaded. What the reader changed is handed to the demo
-as input events after `start`, as if typed then. Marking the section `inert`
+as input events after `start`, as if typed then. A click leaves nothing to
+read back, so the build disables every control the runtime hears a click on,
+and the first render after `start` enables them: a button that is not ready
+says so, rather than taking a click and dropping it. Marking the section `inert`
 until then was the other way to keep that input, and it hid the view from
 screen readers, selection and find-in-page for as long as it lasted, and for
 good without JavaScript. A demo the build cannot render is named on the

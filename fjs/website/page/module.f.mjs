@@ -32,7 +32,7 @@
  * @import { Funding } from '../funding/types.ts'
  */
 
-import { htmlDocument } from '../../media/html/module.f.mjs'
+import { htmlDocument, parseElement } from '../../media/html/module.f.mjs'
 import { ancestors, basename, concat as pathConcat } from '../../path/module.f.mjs'
 import { demoMarker, faviconLinks, logoPath, stylesheetLink } from '../style/module.f.js'
 import { intersperse, toArray } from '../../types/list/module.f.mjs'
@@ -196,6 +196,28 @@ const proofItem = proof => proof.blockers.length === 0
 const summary = heading => (...rest) => ['summary', ['h2', heading], ...rest]
 
 /**
+ * A demo's first view with every action control disabled: each `button`, and
+ * each `input` of type `button` — the controls the runtime hears a click on.
+ *
+ * **Until the runtime has loaded, a click on one goes nowhere.** A field's
+ * edit can be read back when the runtime arrives; a click leaves nothing
+ * behind, so it would be lost without a word. Disabled, the control says it
+ * is not ready. The runtime's first render after `start` patches the
+ * attributes to the demo's own view, which enables them.
+ *
+ * A tag and a type are read ignoring ASCII case, as the browser reads them.
+ *
+ * @type {(view: Element) => Element}
+ */
+const inactive = view => {
+    const [tag, attributes, children] = parseElement(view)
+    const name = tag.toLowerCase()
+    const action = name === 'button' || (name === 'input' && attributes.type?.toLowerCase() === 'button')
+    return [tag, action ? { ...attributes, disabled: '' } : attributes,
+        ...children.map(child => typeof child === 'string' ? child : inactive(child))]
+}
+
+/**
  * The demo section: what this module *does*, if it says.
  *
  * Two elements and nothing else. The section is the demo's own root, which the
@@ -208,14 +230,15 @@ const summary = heading => (...rest) => ['summary', ['h2', heading], ...rest]
  * whole module graph have loaded — a chain of imports twenty-six deep for
  * `fjs/compiler`'s. It is readable, selectable and editable at once; the
  * runtime takes it over as it finds it, with whatever the reader typed in the
- * meantime. A demo the build could not render keeps an empty root, which the
- * runtime fills as before.
+ * meantime. Its action controls are disabled until then ({@link inactive}). A
+ * demo the build could not render keeps an empty root, which the runtime
+ * fills as before.
  *
  * @type {(demo: PageDemo) => readonly Node[]}
  */
 export const demoSection = ({ path, view }) => [['details', { 'data-section': '', open: '' },
     summary('Demo')(),
-    ['div', { [demoMarker]: path }, ...(view === null ? [] : [view])],
+    ['div', { [demoMarker]: path }, ...(view === null ? [] : [inactive(view)])],
     ['script', { type: 'module' },
         `import { startDemo } from '/fjs/website/demo-runtime.mjs'
 

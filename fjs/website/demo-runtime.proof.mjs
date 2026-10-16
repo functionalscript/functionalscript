@@ -135,7 +135,8 @@ const dom = path => {
     }
     /** @type {(tag: string) => any} */
     const element = tag => {
-        let off = false
+        /** @type {boolean | null} */
+        let off = null
         /** @type {string | null} */
         let dirty = null
         /** @type {boolean | null} */
@@ -247,9 +248,10 @@ const dom = path => {
             // The same sequence the flag and the render write to: a control
             // that goes unavailable and back inside one turn cannot be caught
             // by looking afterwards either.
-            get disabled() { return off },
+            // Until set, it is what the markup says, as a browser's is.
+            get disabled() { return off ?? self.attributes.has('disabled') },
             set disabled(/** @type {boolean} */ value) {
-                if (value !== off) { steps.push(value ? 'disabled' : 'enabled') }
+                if (value !== self.disabled) { steps.push(value ? 'disabled' : 'enabled') }
                 off = value
             },
         }
@@ -477,11 +479,12 @@ export const demo = {
 /**
  * A demo over `controls` that shows the last input it heard as
  * `name=value`, and its section with that view already built into it, as the
- * build writes it.
+ * build writes it — with `built` in place of `controls` where the build writes
+ * them differently.
  *
- * @type {(controls: readonly any[]) => { readonly d: ReturnType<typeof dom>, readonly fields: () => readonly any[] }}
+ * @type {(controls: readonly any[], built?: readonly any[]) => { readonly d: ReturnType<typeof dom>, readonly fields: () => readonly any[] }}
  */
-const prerendered = controls => {
+const prerendered = (controls, built = controls) => {
     const d = dom(moduleUrl(`
 const controls = ${JSON.stringify(controls)}
 export const demo = {
@@ -490,7 +493,7 @@ export const demo = {
     view: state => ['div', ...controls, ['pre', state]],
 }
 `))
-    d.root.replaceChildren(toDom(d.root.ownerDocument, ['div', ...controls, ['pre', '']]))
+    d.root.replaceChildren(toDom(d.root.ownerDocument, ['div', ...built, ['pre', '']]))
     return { d, fields: () => d.root.querySelectorAll('[name]') }
 }
 
@@ -768,6 +771,20 @@ export const demo = {
         await startDemo(d.root)
         await settle()
         assert(d.root.innerHTML.includes('<pre></pre>'), d.root.innerHTML)
+    },
+    /**
+     * **The build's disabled buttons come alive with the first render.** The
+     * build disables them because a click before the runtime loads goes
+     * nowhere; the render after `start` makes the attributes the demo's own.
+     */
+    enablesThePrerenderedActions: async () => {
+        const { d } = prerendered(
+            [['button', { type: 'button', name: 'go' }, 'go']],
+            [['button', { type: 'button', name: 'go', disabled: '' }, 'go']])
+        assertStructurallySame(d.disabled(), [true])
+        await startDemo(d.root)
+        await settle()
+        assertStructurallySame(d.disabled(), [false])
     },
     // A field the reader left alone is not an event, and nor is a button.
     takesOverWithoutEdits: async () => {

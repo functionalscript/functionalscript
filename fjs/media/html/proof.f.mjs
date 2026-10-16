@@ -13,6 +13,11 @@ export const proof = {
         itself: () => assertEq(holdsScript(['script', 'x']), true),
         nested: () => assertEq(holdsScript(['div', { id: 'a' }, 'text', ['p', ['script']]]), true),
         none: () => assertEq(holdsScript(['div', 'text', ['p', 'x']]), false),
+        // A browser reads a tag name in any case, in an `svg` as well.
+        anyCase: () => assertEq(holdsScript(['SCRIPT', 'x']), true),
+        anyCaseInSvg: () => assertEq(holdsScript(['svg', ['ScRiPt', 'x']]), true),
+        // The serializer writes an uppercase `BR`'s children, so they count.
+        underUppercaseVoid: () => assertEq(holdsScript(/** @type {Element} */ (['BR', ['script']])), true),
         underVoid: () => assertEq(holdsScript(/** @type {Element} */ (['br', ['script']])), false),
         underRawText: () => assertEq(holdsScript(['style', ['script']]), false),
     },

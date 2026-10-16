@@ -353,6 +353,21 @@ export const proof = {
             const html = concat(element(['body', ...demoSection({ path: '/a/demo.f.mjs', view: ['p', 'hi'] })]))
             assert(html.includes('<div data-demo="/a/demo.f.mjs"><p>hi</p></div>'), html)
         },
+        // A click before the runtime loads would go nowhere, so every control
+        // the runtime hears a click on is disabled, in any case; fields and
+        // other inputs are left as they are.
+        disablesItsActions: () => {
+            const html = concat(element(['body', ...demoSection({ path: '/a/demo.f.mjs', view: ['div',
+                ['button', { name: 'go' }, 'Go'],
+                ['p', ['BUTTON', 'nested']],
+                ['input', { type: 'Button', name: 'b' }],
+                ['input', { name: 't' }],
+                ['input', { type: 'checkbox', name: 'c' }]] })]))
+            assert(html.includes('<button name="go" disabled="">Go</button>'), html)
+            assert(html.includes('<p><BUTTON disabled="">nested</BUTTON></p>'), html)
+            assert(html.includes('<input type="Button" name="b" disabled="">'), html)
+            assert(html.includes('<input name="t"><input type="checkbox" name="c">'), html)
+        },
     },
     directoryLayout: {
         catalogueBesideMain: () => {
