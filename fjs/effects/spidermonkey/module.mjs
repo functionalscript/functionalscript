@@ -2,12 +2,12 @@
  * The SpiderMonkey shell's host for `fjs` programs: a partial Node host.
  *
  * It runs a `NodeProgram` through {@link asyncPartialRun} over
- * `nodeCommands` with the operations `fjs t` and `fjs compile`'s check need
- * and no others: `sandbox` and `catch` from `commonOperationMap`, and `all`,
- * `readdir`, `import`, `resolveFileModule`, `readWhole`, and `write` here.
- * Every other Node operation answers `NotImplemented`, so another `fjs`
- * command fails naming what this host lacks — compiling a file to an output
- * stops at `mkdir`, which the shell has no way to do. The program sees
+ * `nodeCommands` with the operations `fjs t` and `fjs compile` need and no
+ * others: `sandbox` and `catch` from `commonOperationMap`, and `all`,
+ * `readdir`, `import`, `resolveFileModule`, `readWhole`, `mkdir`,
+ * `writeFile`, and `write` here. Every other Node operation answers
+ * `NotImplemented`, so another `fjs` command fails naming what this host
+ * lacks. The program sees
  * `engine: 'spidermonkey'`, which is how `fjs t` knows to load authored
  * proofs only. `npm run sm <command>` runs an `fjs` command through it, and
  * `npm run sm t` runs `fjs t`.
@@ -36,7 +36,7 @@ import { _orderDirents } from '../node/virtual/readdir/module.f.mjs'
 import { concat, normalize } from '../../path/module.f.mjs'
 import { resolve as resolveImportPath } from '../../path/import/module.f.mjs'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
-import { toVec } from '../../types/uint8array/module.f.mjs'
+import { fromVec, toVec } from '../../types/uint8array/module.f.mjs'
 
 const maxFileSizeBytes = Number(maxLengthBytes)
 import { utf8ToString } from '../../text/utf8/module.f.mjs'
@@ -131,6 +131,16 @@ const runShellEffect = asyncPartialRun(nodeCommands)({
             (_, i) => bytes.subarray(i * maxFileSizeBytes, (i + 1) * maxFileSizeBytes))
         return windows.map(toVec)
     }),
+    // The shell cannot make a directory. A program asks for one to be sure
+    // its output's directory exists — `writeFiles` makes the parent with
+    // `recursive: true` — and for a directory that exists Node answers that
+    // with success and changes nothing, which `listDir` lets this host answer
+    // too. Anything else is refused: see ./todo/mkdir.md.
+    mkdir: (path, options) => io(async () => {
+        if (options?.recursive === true && isDirectory(path)) { return }
+        throw new Error(`the SpiderMonkey shell cannot make a directory: ${path}`)
+    }),
+    writeFile: (path, data) => io(async () => { shell.os.file.writeTypedArrayToFile(path, fromVec(data)) }),
     write: async (stream, data) => {
         // `utf8ToString` because the shell has no `TextDecoder`.
         writeText(stream, utf8ToString(data))
