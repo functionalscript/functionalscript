@@ -11,8 +11,6 @@
 //! such a VM holds: that object and the one static function no body can
 //! define, [`object_entries`], each initialized once.
 
-use std::sync::OnceLock;
-
 use crate::vm::{Any, IStaticFunction, IVm, ToAny, ToArray, Unpacked};
 
 /// The compiled runtime: a `#[path]`, since a `gen.` name is not a Rust
@@ -68,9 +66,10 @@ pub fn runtime_static<A: IVm>(runtime: Any<A>, path: &[&str]) -> Option<Any<A>> 
 /// `Object.entries` as a function, the one static function no body can
 /// define, enumerating keys being what the language has no other way to do
 /// ([`Any::entries`]): created here, where every other static is a body of
-/// the runtime's `static` section (`fjs/js/static`'s `natives`). Each call
-/// makes a new function, so a VM holds the one [`Runtime`] creates, and
-/// every read is one function.
+/// the runtime's `static` section (`fjs/js/static`'s `natives`). Its text
+/// is what ECMA-262 requires of a built-in, a NativeFunction naming it. Each
+/// call makes a new function, so a VM holds the one [`Runtime`] creates,
+/// and every read is one function.
 pub fn object_entries<A: IStaticFunction>() -> Any<A> {
     A::static_function(
         |_, args| {
@@ -81,25 +80,9 @@ pub fn object_entries<A: IStaticFunction>() -> Any<A> {
         },
         1,
         [].to_array(),
-        Some(entries_text()),
+        Some("function entries() { [native code] }"),
     )
     .to_any()
-}
-
-/// The text ECMA-262 requires of a built-in function, `String(f)`: the
-/// syntax of a NativeFunction naming it, with no parameters, as most
-/// engines print it — `function entries() { [native code] }`. A runtime
-/// function's text is its name's, so the runtime builds it rather than
-/// carry one per function.
-fn native_text(name: &str) -> std::string::String {
-    format!("function {name}() {{ [native code] }}")
-}
-
-/// `Object.entries`'s text, built once from its name and held for the
-/// process, since a function's text is `'static`.
-fn entries_text() -> &'static str {
-    static TEXT: OnceLock<std::string::String> = OnceLock::new();
-    TEXT.get_or_init(|| native_text("entries"))
 }
 
 /// The runtime a VM holds, initialized once, from which it answers every
@@ -184,8 +167,7 @@ pub(crate) fn type_name<A: IVm>(receiver: &Any<A>) -> Option<&'static str> {
 #[cfg(test)]
 mod tests {
     use super::{
-        Runtime, native_text, object_entries, runtime_object, runtime_static, static_binding,
-        type_name,
+        Runtime, object_entries, runtime_object, runtime_static, static_binding, type_name,
     };
     use crate::{
         naive::Naive,
@@ -295,7 +277,6 @@ mod tests {
         assert_eq!(pairs.to_json(), Ok(r#"[["0","a"],["1","b"]]"#.into()));
         assert!(entries.call([].to_array().to_any()).is_err());
         assert_ne!(object_entries::<A>(), object_entries::<A>());
-        assert_eq!(native_text("is"), "function is() { [native code] }");
         let runtime = Runtime::<A>::new();
         assert_eq!(
             runtime.static_function(&path),

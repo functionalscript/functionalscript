@@ -23,18 +23,13 @@ const { entries } = Object
 export const objectEntries = /** @type {NativeStatic} */ (['Object.entries'])
 
 /**
- * The text ECMA-262 requires of a built-in function named `name`
- * ([`Function.prototype.toString`](https://tc39.es/ecma262/#sec-function.prototype.tostring)):
+ * `String(Object.entries)`, since no EDAG holds a body to render: the text
+ * ECMA-262 requires of a built-in function
+ * ([`Function.prototype.toString`](https://tc39.es/ecma262/#sec-function.prototype.tostring)),
  * NativeFunction syntax naming its [[InitialName]], with no parameters, as
- * most engines print it. A runtime function's text is its name's, so every
- * executor builds it by this rule, NaNVM's runtime as `native_text`.
- *
- * @type {(name: string) => string}
+ * most engines print it, and as NaNVM's `object_entries` answers.
  */
-export const nativeText = name => `function ${name}() { [native code] }`
-
-/** `String(Object.entries)`, since no EDAG holds a body to render. */
-export const entriesText = nativeText('entries')
+export const entriesText = 'function entries() { [native code] }'
 
 /** Each `[key, value]` pair as a fresh array, in a fresh array. @type {(pairs: readonly (readonly [string, EdagValue])[]) => EdagValue} */
 const pairsOf = pairs => ['[]', pairs.map(([key, value]) => ['[]', [key, value]])]

@@ -330,10 +330,9 @@ this proposal does not take.
       parameters — `function is() { [native code] }`,
       `function isInteger() { [native code] }` — as `Object.entries`
       answers `function entries() { [native code] }`, in place of its
-      body's EDAG text, in the interpreter and NaNVM alike, each executor
-      building it from the name by that rule, `nativeText` and
-      `native_text`: a runtime function is the built-in, not its body
-      (**sergey-shandar**, in the `Object.entries` session).
+      body's EDAG text, in the interpreter and NaNVM alike: a runtime
+      function is the built-in, not its body (**sergey-shandar**, in the
+      `Object.entries` session).
 
 ### Related
 
