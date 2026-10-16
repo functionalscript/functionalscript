@@ -8,13 +8,14 @@
  * describes, exactly what the `throw` cases below need.
  *
  * @import { Exp, Property, Spread } from '../types.ts'
- * @import { Uses } from './types.ts'
+ * @import { Printed, Uses } from './types.ts'
+ * @import { Result } from '../../types/result/types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { unwrap } from '../../types/result/module.f.js'
-import { braced, eagerNodesOf, expExpr, expExprTagged, holdsFunction, nestsOperation, nodeExpr, readsArgs, readsFrame, scope, scopeTagged, statementsOf, useLines, useLinesTagged } from './module.f.mjs'
-import { fromTagged, toText } from '../../text/marked/module.f.mjs'
+import { ok, unwrap } from '../../types/result/module.f.js'
+import { atomExpr, braced, eagerNodesOf, expExpr, expExprTagged, holdsFunction, nestsOperation, nodeExpr, readsArgs, readsFrame, readsRest, scope, scopeTagged, statementsOf, statementsWith, useLines, useLinesTagged } from './module.f.mjs'
+import { fromTagged, toText, untagged } from '../../text/marked/module.f.mjs'
 import { unmarkedWords } from './unmarked/module.f.js'
 
 /** @type {(e: Exp) => string} */
@@ -74,6 +75,35 @@ const refusalReason = e => {
 }
 
 export const proof = {
+    /**
+     * A body whose frame and self the caller resolves, the static runtime's
+     * item (`fjs/compiler/rust/runtime`): slot `i` and `self` print as the
+     * caller says, with the names the caller spells, where a closure would
+     * read `A::frame(self_)[i]` and wrap `self_` — a nested function's body
+     * keeps its own frame. The lines are split as `scope`'s are, and
+     * `atomExpr` prints what a slot resolved to a literal is: `undefined`,
+     * or the primitive's literal. `readsRest` is a scope's own read of
+     * `rest`, a nested body's left out.
+     */
+    statementsWith: () => {
+        /** @type {(i: number) => Result<Printed<string>, readonly unknown[]>} */
+        const frame = i => ok([`SLOT${i}`, [['vm', 'Slot']]])
+        /** @type {() => Result<Printed<string>, readonly unknown[]>} */
+        const self_ = () => ok(['SELF', []])
+        const [lines, uses] = unwrap(statementsWith(frame, self_)(['[]', [['frame', 0], ['frame', 1], ['self'], ['&&', true, ['frame', 0]], ['=>', 0, [['frame', 1]], ['frame', 0]]]]))
+        assertStructurallySame(lines.map(untagged), [
+            'let c0: Any<A> = (Any::logical_and(true.to_any(), || Ok(SLOT0)))?;',
+            'let c1: Any<A> = A::static_function(|self_, _args| { Ok(A::frame(self_)[0].clone()) }, 0, [SLOT1].to_array(), Some("()=>$0")).to_any();',
+            'Ok([SLOT0, SLOT1, SELF, c0, c1].to_array().to_any())',
+        ])
+        assert(uses.some(([m, n]) => m === 'vm' && n === 'Slot'))
+        assertEq(untagged(unwrap(atomExpr(['undefined']))[0]), 'Nullish::Undefined.to_any()')
+        assertEq(untagged(unwrap(atomExpr(1))[0]), 'f64_any(0x3ff0000000000000)')
+        assertEq(untagged(unwrap(atomExpr('s'))[0]), 'string_any("s")')
+        assertEq(readsRest(['rest']), true)
+        assertEq(readsRest(['=>', 0, [], ['rest']]), false)
+        assertEq(readsRest(['args']), false)
+    },
     // `self` is the closure's `self_` parameter as the `Function` it is,
     // so a body reading it names that parameter, as a frame read does
     self: () => {

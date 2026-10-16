@@ -1,32 +1,11 @@
 mod container;
 mod function;
 
-use std::cell::OnceCell;
-
 use crate::{
     naive::{container::Container, function::Function},
     sign::Sign,
-    vm::{Any, Array, IStaticFunction, IVm, Property, Runtime, StaticCode, Unpacked},
+    vm::{Any, Array, IStaticFunction, IVm, Property, StaticCode, Unpacked},
 };
-
-thread_local! {
-    /// The runtime, initialized on this thread's first lookup and held
-    /// from then on, so every lookup answers a clone of one function and a
-    /// generated body read twice is one function, as JavaScript's
-    /// built-ins are; a built-in no body defines, `Object.entries`, needs
-    /// no holding, its name being its identity. Per thread, since a value
-    /// is an `Rc` and never leaves its thread. `thread_local!` is the one
-    /// stable spelling of a thread's own value.
-    static RUNTIME: OnceCell<Runtime<Naive>> = const { OnceCell::new() };
-}
-
-/// A lookup in the runtime this thread holds, since a reference into a
-/// `thread_local` cannot leave `with`. Initializing it runs no body and
-/// asks for no binding, so it never reaches back here, which `get_or_init`
-/// would refuse with a panic.
-fn runtime<T>(lookup: impl FnOnce(&Runtime<Naive>) -> T) -> T {
-    RUNTIME.with(|cell| lookup(cell.get_or_init(Runtime::new)))
-}
 
 /// Note: we can't use `type InternalAny = Unpacked<InternalAny>;` because Rust doesn't support
 /// recursive type aliases.
@@ -48,20 +27,6 @@ impl IVm for Naive {
 
     fn to_unpacked(self) -> Unpacked<Self> {
         self.0
-    }
-
-    /// The runtime's entry: `naive` makes a function out of a Rust static
-    /// function, which every compiled body is, and holds the runtime it
-    /// reads, `runtime`.
-    fn runtime_method(type_name: &str, key: &Any<Naive>) -> Option<Any<Naive>> {
-        runtime(|r| r.method(type_name, key))
-    }
-
-    /// The runtime's static function, for the same reasons: a body, or
-    /// `Object.entries`, the built-in by its name, which the runtime
-    /// answers a handle to and holds nowhere.
-    fn runtime_static(path: &[&str]) -> Option<Any<Naive>> {
-        runtime(|r| r.static_function(path))
     }
 }
 
