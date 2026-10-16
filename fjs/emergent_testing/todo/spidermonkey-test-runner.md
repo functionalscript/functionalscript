@@ -15,7 +15,7 @@ recursion depth — is unverified on the third major engine.
 The obstacle is the host, not the language. `fjs t` is
 `testAll` (`../module.f.mjs`): `loadModuleMap` walks the tree with the
 `readdir` and `import` operations, and `runModuleMap` needs `sandbox`, `write`,
-and `await`, plus an exit code and the `env` its options carry — `env` is a
+and `catch`, plus an exit code and the `env` its options carry — `env` is a
 field of `NodeProgramOptions` (`../../effects/node/types.ts`), not an
 operation. The only runner that backs them with real
 host IO is `../../effects/node/module.mjs`, which imports `node:fs`,
@@ -25,8 +25,22 @@ second interpreter, `../../effects/node/virtual/module.f.mjs`, and it is
 it cannot discover the real tree, which is what discovery needs. The
 SpiderMonkey shell (`js`) has none of the Node APIs — no `node:` namespace and
 no package resolution — so loading that runner in the shell fails before any
-proof is reached. What the shell does have is enough to discover and load the
-tree itself ([Findings](#findings)).
+proof is reached. What the shell does have is enough to back the few
+operations `fjs t` uses ([Findings](#findings)).
+
+### Decided
+
+**`fjs t` itself runs on SpiderMonkey, through a partial Node effects host.**
+There is no separate SpiderMonkey test runner. A runner of its own would be a
+second implementation of what `fjs t` already does: discovery, the `throw`
+inversion, walking return values, naming, reporting, the exit code. A second
+implementation drifts. The host implements only the operations `fjs t` uses,
+and every other Node operation answers `NotImplemented`.
+
+**The deep fixture gets shallower.** The suite should run as much of itself as
+possible on every engine, so a fixture that one engine cannot parse is cut to
+fit it. This follows the 128 KiB `bigint` cap that Bun set
+(`fjs/effects/node/types.ts`).
 
 ### Findings
 
@@ -46,31 +60,66 @@ nix shell --inputs-from ./gen.nix nixpkgs#spidermonkey_140 -c js --version
 ```
 
 **API surface.** By default, with no flags, the shell has `print`, `putstr`,
-`quit`, `scriptArgs`, `os.getenv`, `os.file.listDir`, `read`, `snarf`,
-`readline`, `drainJobQueue`, and `console`. Dynamic `import()` takes an absolute
-path, and the imported module's relative imports resolve from its own file.
-`quit(n)` exits with `n`; an uncaught error exits with `3`. Promise jobs still
-queued when the main module finishes run before the shell exits, without a call
-to `drainJobQueue`.
+`printErr`, `quit`, `scriptArgs`, `os.getenv`, `os.file.listDir`, `read`,
+`snarf`, `readline`, `drainJobQueue`, `console`, and `performance.now`. It has
+no `URL`, `TextEncoder`, `TextDecoder`, `setTimeout`, `queueMicrotask`, or
+`structuredClone`, and no way to read the working directory or stat a file.
+Dynamic `import()` takes an absolute path, and the imported module's relative
+imports resolve from its own file. `import.meta.url` is a plain path, not a
+`file:` URL. `quit(n)` exits with `n`; an uncaught error exits with `3`.
+Promise jobs still queued when the main module finishes run before the shell
+exits, without a call to `drainJobQueue`.
 
 **Arguments.** The first positional argument is the main script even with
 `--module`: `js --module run.mjs a b` runs `a` as a second script and leaves
 `scriptArgs` as `["b"]`. `js --module run.mjs -- a b` gives `["a", "b"]`.
 
-**A spike ran the suite.** It was a throwaway shell-side runner of about thirty
-lines:
+**`fjs t` runs.** A throwaway host of about fifty lines ran the `main` of
+`fjs/module.f.mjs` with `t` over the whole repository. 9,828 tests passed, none
+failed, the exit code was `0`, and the output was the same reporter output
+Node prints. It took about 3 minutes 40 seconds of wall time.
 
-- it walked the tree with `os.file.listDir`, skipping what `isThirdParty`
-  (`../../dev/module.f.mjs`) names;
-- it loaded each `.f.mjs` and `.f.js` module with its own dynamic `import()`;
-- it collected the `proof` export's leaves with `collectTests` and named them
-  with `fmtImport`, both imported from `../module.f.mjs`;
-- it called each leaf inside `try`/`catch`, inverted the `throw`-tagged
-  leaves, and walked the return values.
+The spike had two hacks that the real host must not copy. Its `readdir` hid
+the non-authored proofs (see the selection task below), and it hid the nine
+modules that the deep fixture breaks.
 
-Over `fjs/` and `spec/`, 289 modules export a `proof`. Their 9,820 leaves all
-passed. Nine modules failed to load, all for one reason, the module nesting
-limit below. The `fjs/` half took about 3 minutes 40 seconds of wall time.
+The host was `asyncPartialRun(nodeCommands)` (`../../effects/module.mjs`) over
+`commonOperationMap` (`../../effects/common/module.mjs`), which supplies
+`sandbox` and `catch`, plus four handlers. Everything it imports loads in the
+shell.
+
+- **`all`** — `Promise.all` over the runner itself, as Node's is.
+- **`readdir`** — `os.file.listDir` answers names only, so an entry's kind is
+  whether `listDir` accepts it as a directory. The repository tracks no
+  symbolic links; a link to a directory would read as a directory, where
+  Node's `Dirent` says it is neither. Entries go through `_orderDirents`, as
+  on Node.
+- **`import`** — a relative path is resolved from the host's own file, not the
+  working directory. The shell cannot read the working directory, so the spike
+  made each path absolute against `PWD`.
+- **`write`** — `putstr` writes stdout without a newline. Stderr has only
+  `printErr`, which appends one, so the spike buffered stderr to line ends.
+  `os.file.writeTypedArrayToFile('/dev/stdout', …)` lost its output when
+  stdout was redirected to a file, so it is not an option. Without
+  `TextDecoder`, the host decodes UTF-8 itself; the real host should use
+  `fjs/text/utf8`, not the spike's `escape` trick.
+
+`access` is in `LoadModuleOperations`, but discovery does not call it.
+
+The program options came from the shell:
+
+- `args` from `scriptArgs`;
+- `env` built by name, because `os.getenv` cannot list variables — `fjs t`
+  reads `INIT_CWD` and `GITHUB_ACTIONS`;
+- `std` as not a TTY;
+- `home` from `HOME`;
+- `packageRoot` from the host's path;
+- a `testContext` that refuses, since `register` is not reachable from `fjs t`.
+
+**Discovery takes impure proofs too.** `fjs t` discovers with `shouldLoad`
+(`../../dev/module.f.mjs`), which also accepts the 21 impure proofs
+(`proof.mjs` and the like). `loadModuleMap` propagates an import failure, so
+one proof that reaches `node:` fails the whole run.
 
 **Divergence: module nesting.** SpiderMonkey's parser rejects a literal nested
 deeper than about 870 levels with `InternalError: too much recursion`:
@@ -95,128 +144,82 @@ every module that imports it:
 - `fjs/dev/gen/module.f.mjs` and its `proof.f.mjs`;
 - `fjs/compiler/proof.f.mjs` and `fjs/compiler/language.proof.f.mjs`.
 
-**Decided: the fixture gets shallower.** The suite should run as much of
-itself as possible on every engine, so a fixture that one engine cannot parse
-is cut to fit it. This follows the 128 KiB `bigint` cap that Bun set
-(`fjs/effects/node/types.ts`). The vector's `document` is a string that the
-DataJS parser reads, but its `graph` is a literal that the engine parses, so
-the graph is what has to fit under the limit, with a margin.
+The vector's `document` is a string that the DataJS parser reads, but its
+`graph` is a literal that the engine parses, so the graph is what has to fit
+under the limit, with a margin.
 
 **Divergence: call depth.** A recursive one-line arrow function reaches 5,998
 calls in the shell and 9,627 in Node 26.11.1, both with their default stacks.
 [stack-safety](../../edag/todo/stack-safety.md) measures its stack margin on
 Node; with about 40% fewer frames available here, that margin is likely
-smaller in the shell. No proof hit the call-depth limit in the spike.
+smaller in the shell. No proof hit the call-depth limit in either spike.
 
 ### Proposal
 
-**Take the simplest thing that runs proofs on SpiderMonkey, and keep taking it.**
-Everything below is the simplest path found so far, not a design to defend: if
-the shell can run the suite with less machinery, that is the solution, and this
-issue should shrink to it. Nothing here is worth building for its own sake.
+**Take the simplest thing that runs `fjs t` on SpiderMonkey, and keep taking
+it.**
 
-The [Findings](#findings) made the earlier plan unnecessary. That plan
-generated, on Node, one entry file that statically imported every accepted
-proof module. The shell lists directories and imports modules by path itself,
-so it discovers the tree at run time and needs no generated file.
+1. **A partial Node effects host for the shell,** a sibling of
+   `../../effects/node/module.mjs` with no `node:` imports. It runs the `main`
+   of `fjs/module.f.mjs`, the same program the `fjs` CLI runs, through
+   `asyncPartialRun(nodeCommands)`. It has `commonOperationMap` and the four
+   handlers in [Findings](#findings), and nothing else until a command needs
+   it. It builds the program options from the shell and `quit`s with the
+   program's exit code. It runs as `js --module <host> -- t`, and other
+   commands answer `NotImplemented` for operations the host lacks.
 
-1. **A shell-side runner,** run with
-   `js --module <runner> -- <root> [<subdir>]`. It walks the tree under the
-   root (or the subdirectory), selects the authored modules, imports each with
-   its own `import()`, runs every leaf of its `proof` export, `print`s the
-   failures and a summary, and `quit`s with `1` if anything failed or failed to
-   load.
-
-   The runner is a host boundary — `print`, `quit`, `os.file.listDir`,
-   `import()`, and the `try`/`catch` the leaves need — so it is a plain
-   `.mjs`, and it is kept thin
+   The host is a boundary — shell globals, `import()`, and the `try`/`catch`
+   that turns a host failure into an `IoResult` — so it is a plain `.mjs`, and
+   it is kept thin
    ([AGENTS.md §3](../../../AGENTS.md#3-functionalscript-and-typescript-fjs)).
-   It reuses what exists instead of copying it: `isThirdParty` for the
-   directories it skips, `collectTests` for the leaves, and `fmtImport` for
-   their names. Any rule that grows beyond those belongs in a `.f.mjs` module
-   with its proof.
+   It reuses what exists rather than copying it: `asyncPartialRun`,
+   `commonOperationMap`, `_orderDirents`, `fromVec`, and `fjs/text/utf8`. Any
+   rule it grows beyond the host calls belongs in a `.f.mjs` module with its
+   proof.
 
-   Four details are not optional, because the existing suite depends on each.
+2. **Discovery loads authored modules only on this host.** That is the same
+   scope the browser suite has ([README](../README.md#scope)): authored
+   FunctionalScript does not reach `node:` or a package, and the impure proofs
+   are the ones `fjs t` runs on Node because they need a Node host. How the
+   host asks for that is open — for example a discovery predicate passed
+   through the program options, or an `fjs t` option. Whatever the shape, an
+   authored module that fails to import still fails the run.
 
-   **Select authored FunctionalScript only.** Selecting `.f.mjs` and `.f.js`
-   is the same rule the browser suite follows
-   ([README](../README.md#scope)). Authored modules do not reach `node:` or a
-   package, so nothing needs to be excluded ahead of time. The spike loaded
-   every one except the modules that import the deep fixture.
-
-   **Import each module separately, and report a failed import as a
-   failure.** An import that fails, as the deep fixture's do, fails that one
-   module, not the run. It is counted and named in the output, and it fails
-   the exit code. A module silently missing from the count is a suite that
-   shrinks without saying so.
-
-   **Invert the `throw`-tagged calls.** FunctionalScript has no `try`/`catch`,
-   so a test that a call throws is written by nesting it under a `throw` key
-   ([fjs/AGENTS.md §1.5](../../AGENTS.md#15-never-use-trycatch-test-throwing-with-the-throw-key)),
-   and `collectTests` carries that down as `throws`. The runner has to read the
-   flag and invert: a throw is the pass and a clean return is the failure, as
-   `defaultTest` (`../module.f.mjs`) does. A walker that only counts thrown
-   errors as failures reports every expected throw in `fjs/asserts/proof.f.mjs`
-   as broken, and passes a `throw` test that quietly stopped throwing. That
-   second failure is the worse one, because it reads as green.
-
-   **Walk return values, not just the exported tree.** A test function may
-   return a further sub-tree of test functions, and the suite uses it —
-   `fjs/crypto/sha2/proof.f.mjs` returns its `s256` and `s224` cases from
-   `base.b32`. A walker that calls the outer function and stops counts one pass
-   and silently skips the assertions inside. Recurse into each non-`throw`
-   call's return value, with `null` marking the call boundary so paths render
-   as `outer().inner`, as `runModule` and `registerModule` (`../module.f.mjs`)
-   already do. `collectTests` itself walks only the static tree and calls
-   nothing; those two hand it each `[...path, null]` after a call returns.
-
-2. **Nix is how the shell gets installed.** Add `spidermonkey_140` to
+3. **Nix is how the shell gets installed.** Add `spidermonkey_140` to
    `devNixJob`'s shared package list (`../../ci/dev/module.f.mjs`,
-   [fjs/ci/nix/README.md](../../ci/nix/README.md)) once the runner works, so
+   [fjs/ci/nix/README.md](../../ci/nix/README.md)) once the host works, so
    local runs and CI use the same binary at the version the accepted Nixpkgs
    pin decides. The generator writes only the shared flake. Do not restore
    `nodeNixJobs`, `nixJobs`, `nixFlakes`, or per-job path selectors to add this
    runtime. A separate flake would need a concrete reason and a newly scoped
    design.
 
-That is the whole first version. It deliberately does **not** port the effects
-layer: no `Effect` runner, no `ModuleMap`, no `sandbox`/`write`/`await`
-operations, no `Reporter`. `runModuleMap` and the operations behind it are the
-Node runner's business, and reaching for them means writing a second host
-runner (a sibling of `../../effects/node/module.mjs` with no `node:` imports)
-before knowing whether a `print`-and-`quit` script would have done. Do that
-only when something concrete demands it, such as the shared reporter output,
-and only for the operations that demand it.
-
 ### Tasks
 
 - [x] Confirm a SpiderMonkey package on the accepted Nixpkgs commit: see
       [Findings](#findings).
 - [x] Check what the shell provides — output, exit code, arguments,
-      environment, job queue, module loading — and whether a generated entry
-      file is needed. It is not.
+      environment, job queue, module loading.
+- [x] Run `fjs t` through a throwaway partial host.
 - [ ] Make `array-nested-deep` in `spec/datajs/vectors/accept/data.f.js`
       shallow enough to parse in SpiderMonkey with a margin, and check every
       other fixture against the same limit. Update the prose that cites the
       thousand levels ([stack-safety](../../edag/todo/stack-safety.md)), and
       run `npm run gen` in case the change reaches a generated file.
-- [ ] Add the shell-side runner and wire it to an `fjs` command.
-- [ ] Fixtures, each verified to run in the shell, not just to load:
-      - a passing proof;
-      - a failing proof;
-      - a `throw`-tagged proof in both directions (throwing passes, returning
-        normally fails);
-      - a proof whose test returns a sub-tree;
-      - a module that fails to import and must be reported, not skipped.
+- [ ] Let discovery load authored modules only, and have the host ask for it.
+- [ ] Add the host, and run `fjs t` on the whole tree through it with no
+      hidden modules. Check in the shell that a failing proof exits `1`, and
+      that a module that fails to import fails the run.
 - [ ] Add `spidermonkey_140` to `devNixJob`, then a CI job (`../../ci/`) that
-      runs the runner. Add the row to the runtime table in
+      runs `fjs t` through the host. Add the row to the runtime table in
       [CONTRIBUTING.md](../../../CONTRIBUTING.md).
 - [ ] Document every engine divergence the run finds next to the code it
       constrains, starting with the two in [Findings](#findings).
 
 ### Out of scope
 
-- A SpiderMonkey effects runner, until the simple script proves insufficient.
+- Operations `fjs t` does not use. Another `fjs` command on SpiderMonkey
+  answers `NotImplemented` until something concrete needs it there.
 - Making SpiderMonkey a supported runtime for the `fjs` CLI as a whole.
 - The impure `.mjs` proofs, and integration tests that need real IO (`http`,
   `childProcess`, filesystem writes).
@@ -227,11 +230,11 @@ and only for the operations that demand it.
 ### Related
 
 - [browser-testing](browser-testing.md) — another host that runs only
-  authored proofs; its scope rule is the one this runner selects by.
+  authored proofs; its scope rule is the one this host selects by.
 - [stack-safety](../../edag/todo/stack-safety.md) — the thousand-level vector
   is a stack margin there too, and the shell's smaller call depth shrinks it.
 - [node-module-layering](../../effects/todo/node-module-layering.md) — lowering
   the runtime-agnostic operations out of `fjs/effects/node` is what lets a
-  non-Node runner implement a subset without depending on the Node module.
-- [run a subset of proofs](run-subset-of-tests.md) — the runner's
-  subdirectory argument is the coarse version of selection.
+  non-Node host implement a subset without depending on the Node module.
+- [run a subset of proofs](run-subset-of-tests.md) — selecting the authored
+  modules is a kind of subset, and may share its mechanism.
