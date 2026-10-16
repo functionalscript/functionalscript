@@ -115,7 +115,12 @@ Refusing it, as NaNVM refuses a native function with no text, was the
 first draft; the text keeps every conversion that never reads it, `Number`
 and the relational operators, answering alike in the represented
 interpreter, which renders a text before it converts, and NaNVM, which
-answers those without one.
+answers those without one. JavaScript run directly answers its own host's
+text, JavaScriptCore's broken over three lines, as it does for every
+function under that exception: `String(Object.is)` is the host's
+`function is() { [native code] }` there and the runtime body's text on
+the FunctionalScript VMs. No fixed text agrees with every host, refusing
+included, so the VMs agree with each other and with V8.
 
 **Benefits.** The JavaScript spelling for what modules already do on the
 host, and the one enumeration from which the rest — keys, values, a

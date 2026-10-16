@@ -6,7 +6,7 @@ use std::cell::OnceCell;
 use crate::{
     naive::{container::Container, function::Function},
     sign::Sign,
-    vm::{Any, Array, IStaticFunction, IVm, Property, StaticCode, Unpacked},
+    vm::{Any, Array, IStaticFunction, IVm, NativeStatics, Property, StaticCode, Unpacked},
 };
 
 thread_local! {
@@ -20,7 +20,7 @@ thread_local! {
     /// The native static functions, made on this thread's first read of
     /// one and held from then on, for the runtime object's reason: every
     /// read of `Object.entries` is one function.
-    static NATIVE: OnceCell<Vec<(&'static [&'static str], Any<Naive>)>> = const { OnceCell::new() };
+    static NATIVE: OnceCell<NativeStatics<Naive>> = const { OnceCell::new() };
 }
 
 /// The runtime object this thread holds, cloned out, since a reference

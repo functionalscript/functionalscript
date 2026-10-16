@@ -75,8 +75,8 @@ const ENTRIES_TEXT: &str = "function entries() { [native code] }";
 /// `fjs/js/static`'s `natives`. Each call makes them afresh, so a VM holds
 /// what it answers, as `naive` holds the runtime object, and every read of
 /// one is one function.
-pub fn native_statics<A: IStaticFunction>() -> Vec<(&'static [&'static str], Any<A>)> {
-    vec![(
+pub fn native_statics<A: IStaticFunction>() -> NativeStatics<A> {
+    [(
         &["Object", "entries"],
         A::static_function(
             |_, args| {
@@ -92,6 +92,10 @@ pub fn native_statics<A: IStaticFunction>() -> Vec<(&'static [&'static str], Any
         .to_any(),
     )]
 }
+
+/// What [`native_statics`] makes: each native static function by its path,
+/// a fixed array, its length the number of natives.
+pub type NativeStatics<A> = [(&'static [&'static str], Any<A>); 1];
 
 /// The function a compiled read of a static function answers: the VM's
 /// native binding for `path`, [`IVm::native_static`], else its runtime's,

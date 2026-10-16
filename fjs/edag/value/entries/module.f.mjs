@@ -26,7 +26,9 @@ export const objectEntries = /** @type {NativeStatic} */ (['Object.entries'])
  * `String(Object.entries)`: the host's own text for a built-in, as V8
  * answers it, since no EDAG holds a body to render
  * ([spec: function source](../../../../spec/principles/README.md#function-source-representation-exception)).
- * NaNVM gives its native binding the same text.
+ * NaNVM gives its native binding the same text. JavaScript run directly
+ * answers its host's, which another engine spells otherwise, as it does
+ * for every function under that exception.
  */
 export const entriesText = 'function entries() { [native code] }'
 
