@@ -51,10 +51,10 @@ needed once the runtime is static.
 /// identity, unique by construction; `code` is called directly;
 /// `length` and `text` answer `f.length` and `String(f)`.
 pub struct RuntimeFunction<A: IVm> {
-    pub name: &'static str,
-    pub code: fn(Array<A>) -> Result<Any<A>, Any<A>>,
-    pub length: u32,
-    pub text: &'static str,
+    pub(crate) name: &'static str,
+    pub(crate) code: fn(Array<A>) -> Result<Any<A>, Any<A>>,
+    pub(crate) length: u32,
+    pub(crate) text: &'static str,
 }
 
 pub enum Function<A: IVm> {
@@ -72,6 +72,12 @@ untouched; `call`, `length`, `text`, `PartialEq` and `Debug` in
 `vm/function` branch on the kind, and a closure is never equal to a
 built-in. The alternative, a second `Unpacked` variant beside `Function`,
 is the same model with every one of those sites changed, and is not taken.
+
+The fields are the crate's: a descriptor is written by the compiled
+runtime, which the crate includes through `#[path]`, and by `vm/runtime.rs`
+for the one native no body defines, so the names are theirs to keep unique,
+and no other crate can write a second descriptor under a name and have it
+compare equal to the first.
 
 **Equality compares `name`, never the reference.** A closure keeps
 JavaScript's identity: `(() => 1) === (() => 1)` is `false`, and
@@ -114,7 +120,13 @@ A built-in's `name` is JavaScript's own spelling of it: `Object.is` and
 `Number.isInteger` for the `static` section,
 `String.prototype.startsWith` for the `member` section. Its `text` is the
 compiler's rendering of the body, as every compiled function's text is
-today; `Object.entries`, the one native no body defines, is a hand-written
+today, as the interpreter answers it. Giving every runtime function the
+NativeFunction text ECMA-262 requires of a built-in,
+`function is() { [native code] }`, is
+[`runtime-static.md`](../../../fjs/js/todo/runtime-static.md)'s open task,
+decided for both executors alike; the static runtime makes NaNVM's side
+one line, the descriptor's `text` formed from the name's last segment,
+taken when the interpreter answers the same; `Object.entries`, the one native no body defines, is a hand-written
 `RuntimeFunction` in `vm/runtime.rs` over `Any::entries` with
 `ENTRIES_TEXT`, no longer created per VM.
 
