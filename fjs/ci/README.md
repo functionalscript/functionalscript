@@ -230,7 +230,7 @@ version, so unlike `pkgs.nodejs_26` they cannot be checked against the configura
 without evaluating them.
 
 The one runtime with no check is the shared shell's Rust, and for the reason that makes
-the others worth checking: its flake says `rust-bin.stable."1.99.0"`, naming the
+the others worth checking: its flake says `rust-bin.stable."1.99.1"`, naming the
 release in full rather than a major or nothing at all, so a check could only restate
 the flake it was meant to test.
 
