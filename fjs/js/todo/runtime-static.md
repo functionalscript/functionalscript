@@ -330,7 +330,9 @@ this proposal does not take.
       as `Object.entries` answers `a => Object.entries(a)`, in place of its
       body's EDAG text, in the interpreter and NaNVM alike, each text one
       constant NaNVM's copy is generated from: a runtime function is the
-      built-in, not its body, and its name stays unobservable
+      built-in, not its body, and its name stays unobservable; the text is
+      a working implementation, as an engine's `[native code]` is not,
+      and its parameters show its `length`
       (**sergey-shandar**, in the `Object.entries` session).
 
 ### Related

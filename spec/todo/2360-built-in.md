@@ -112,8 +112,13 @@ executor answers one constant, `a => Object.entries(a)`: the function as
 FunctionalScript writes it over the built-in, its one parameter its
 `length`, and no name, which the language keeps unobservable
 ([function source](../principles/README.md#function-source-representation-exception)).
-The interpreter holds it, `entriesText`, and NaNVM's copy is generated
-from it. **sergey-shandar** chose the text in the session. Refusing it, as
+It is better than what JavaScript engines answer for a built-in: it is a
+working implementation, so the `Function` constructor or `eval` makes a
+function of it that answers as `Object.entries` does, where an engine's
+`[native code]` does not parse; and its parameters say how many arguments
+the function requires, its `length`. The interpreter holds it,
+`entriesText`, and NaNVM's copy is generated from it. **sergey-shandar**
+chose the text, and gave both reasons, in the session. Refusing it, as
 NaNVM refuses a native function with no text, was the first draft, and
 V8's `function entries() { [native code] }` the second: a text keeps every
 conversion that never reads it, `Number` and the relational operators,

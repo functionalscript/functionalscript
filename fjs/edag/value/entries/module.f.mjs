@@ -26,7 +26,9 @@ export const objectEntries = /** @type {NativeStatic} */ (['Object.entries'])
  * `String(Object.entries)`, since no EDAG holds a body to render: the
  * function as FunctionalScript writes it over the built-in, its one
  * parameter its `length`, and no name, which the language keeps
- * unobservable
+ * unobservable. Unlike an engine's `[native code]`, it is a working
+ * implementation, which `eval` or the `Function` constructor makes a
+ * function of
  * ([spec: function source](../../../../spec/principles/README.md#function-source-representation-exception)).
  * NaNVM answers this constant too, printed into its `gen.native.rs` by
  * `fjs/nanvm/native`. JavaScript run directly answers its host's own text,
