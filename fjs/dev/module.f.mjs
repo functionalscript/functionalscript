@@ -66,7 +66,10 @@ export const isAuthored = path => path.endsWith('.f.mjs') || path.endsWith('.f.j
  * runs a partial host whose `import` cannot load what an impure proof
  * imports — one such proof would fail the whole run — so discovery loads
  * {@link isAuthored} modules only. The rule names the engines that can load
- * everything, so an engine added later starts with the set it can run.
+ * everything, so an engine added later starts with the authored set rather
+ * than with proofs it cannot import. That is the most such a host can load,
+ * not always what it can: the runner compiled to Rust loads only what the
+ * compiler supports, and will narrow the set further.
  *
  * @type {(engine: Engine) => (path: string) => boolean}
  */
