@@ -63,6 +63,13 @@ not a default. A page is one of two kinds.
    or a wrong output — not what it will do. The proof pins that output, so the
    day the feature lands the proof fails and the page is updated with it,
    never silently out of date.
+5. **Where it is implemented**: the compiler layer that owns the feature —
+   tokenizer, grammar, binding, desugaring, graph construction, graph-to-FAST,
+   serialization or evaluation — in the vocabulary of
+   [compiler vocabulary and modularization](../../fjs/todo/compiler-vocabulary-and-modularization.md#where-a-feature-is-implemented),
+   which records where a feature lives today where that differs. The page
+   names the layer; the module's own documentation says how. A refused
+   feature names the layer that refuses it the same way.
 
 **A refused feature** (valid JavaScript that FunctionalScript rejects):
 

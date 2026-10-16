@@ -20,6 +20,15 @@ common graph-to-FAST conversion should own sharing, bindings and evaluation
 regions for every MVP target. The MVP prioritizes minimal implementation code
 and consistent behavior across languages through one shared conversion.
 
+The specification has the same gap from the reader's side. A page says what
+a feature accepts and, for sugar, what it lowers to — a pattern "is sugar
+over reads the language has", a guard "adds no node" — but not which stage
+does it, so the website that will show the pages cannot say where a feature
+is implemented, and a contributor cannot tell a placement that follows the
+design from one that drifted. Today the parser's fold desugars while it
+resolves names, and a module becomes a function in two places;
+[below](#where-a-feature-is-implemented) records both.
+
 This issue defines the target vocabulary and module organization, followed by
 incremental implementation. It spans JS syntax infrastructure, EDAG, Rust
 output and compiler orchestration, so it lives in `fjs/todo/`.
@@ -149,6 +158,73 @@ owners; this proposal does not require a Rust input parser.
   representation invariants. Separately supplied EDAG data is validated at
   its admission boundary, as today.
 
+#### Where a feature is implemented
+
+Every feature the specification describes names the layer that implements
+it, in the vocabulary above, beside its status line: the page the website
+shows then says what a feature compiles to *and* where that is decided, and
+a contributor opens the module the layer maps to. The layer is where the
+feature's decision is made, not every stage it passes through — a pattern
+is in the AST and gone from FAST, so it is desugaring's, and the reads it
+lowers to are graph construction's as any access is. The
+[specification tree](../../spec/todo/spec-tree.md) owns the page layout;
+this issue owns the vocabulary the line uses and the placements below.
+
+| Layer | Decides |
+| --- | --- |
+| Tokenizer | Spelling: what is a token, escapes, line boundaries. |
+| Grammar | Shape: which token sequences are a module, a statement, a value. |
+| Binding | Names: what a word resolves to, captures, and the early errors that read a word — a duplicate, a reserved word, a prototype name — checked before desugaring erases what they inspect. |
+| Desugaring | Sugar: a construct expressed through FAST's basic constructs. |
+| Admission | What FunctionalScript keeps of the supported JavaScript subset; `fjs/compiler` owns it. |
+| Graph construction (`from_fast`) | Sharing, scopes, anchors, and the lowering of FAST's loop forms to tail calls. |
+| Graph optimization | An EDAG-to-EDAG rewrite, recorded as one. |
+| Graph-to-FAST (`to_fast`) | Bindings, blocks, placement and tail loops in output. |
+| Serialization | A target's spelling of FAST and of its runtime operations. |
+| Evaluation | What a value converts to, what fails, what a built-in answers: the interpreter's and the VM's. |
+
+Where a feature lives today, and where the vocabulary places it:
+
+| Feature | Today | Layer |
+| --- | --- | --- |
+| Destructuring, a `const`'s or a parameter's | The fold: `planned` and `lowered`, `functionScope` for a parameter | Desugaring |
+| Default parameters | The fold: `lateRound` | Desugaring |
+| Guards, `if` | The fold: `bodyRound` | Desugaring |
+| The `let`/`while` loop | The fold: `loopRound`, to self recursion | FAST keeps it; `from_fast` lowers it, `to_fast` reconstructs it |
+| A pattern over `Object` or `Number` | The fold: `namespaceOf` | Desugaring, over binding's static read |
+| A module as a function over its imports | The fold's `AstModule`, then `unresolved` and `Unresolved` in `compiler/edag` | Desugaring, with the import metadata beside the function |
+| Resolution, captures, early errors | The fold | Binding, before desugaring |
+
+**Destructuring is the fold's today and belongs to desugaring.** The syntax
+tree, [`parser/syntax`](../compiler/parser/syntax/types.ts)'s
+`BindingTarget`, is the last representation that holds a pattern: the fold
+in [`parser`](../compiler/parser/module.f.mjs) writes the reads the pattern
+is sugar for while it resolves names, and `AstModule` has no node for it
+([spec: destructuring](../../spec/bindings/destructuring.md)). The same fold
+owns every other sugar the language has, the table's rows above, so there is
+no desugaring stage to point a page at: the AST of the vocabulary is that
+syntax tree, and the compiler's `AstModule` is nearer FAST, its names
+already indices. Under the vocabulary, binding checks the words a pattern
+binds and `desugar` writes the reads, after it; the fold keeps what reads a
+word or a line.
+
+**A module becomes a function in two places and belongs to one.**
+[Spec: modules](../../spec/modules/README.md#a-module-is-a-function) says a
+module is one function over its imports. The fold writes it as `AstModule`,
+`[imports, body]`, the body reading import `i` as `['aref', i]` with the
+import list beside it; `unresolved` in
+[`compiler/edag`](../compiler/edag/module.f.mjs) then spells the read as
+`['.', ['.', ['args'], i], name]` and wraps the graph as `Unresolved`,
+`{ imports, edag }`, the specifiers riding beside it for `resolve` to link.
+Under the vocabulary, desugaring makes the module an ordinary FAST function
+whose parameters are its imports, with the metadata resolution needs beside
+it — each import's specifier, selected export and `json` attribute — and
+nothing in FAST is module-specific: `from_fast` compiles a function, and
+linking applies it to the export objects of the modules the metadata names.
+Whether the unresolved EDAG keeps the `['args']` root or is the function
+node applied at link is settled in the architecture increment; `AstModule`
+and `Unresolved` are then the two representations to retire.
+
 #### Examples the design must explain
 
 Destructuring a computed initializer reads it once:
@@ -237,6 +313,10 @@ The architecture also adds no source-language feature by itself.
       names, define FAST's supported constructs and invariants, and record
       current versus proposed ownership. Link the document from contributor
       and agent entry points.
+- [ ] Name on every specification page the layer that implements its
+      feature, in this vocabulary, and move the placements the table records
+      — destructuring and the module function first — as their modules move,
+      each page updated with the code that moves.
 - [ ] Separate reusable JS AST parsing and desugaring from FJS admission,
       recording binding/capture and source-location responsibilities; migrate
       the relevant APIs and their consumers.
@@ -282,5 +362,10 @@ The architecture also adds no source-language feature by itself.
   reordering and preservation of successful paths.
 - [Group modules by concern](./group-fjs-subdirectories-by-concern.md) — related
   directory organization.
+- [Specification tree](../../spec/todo/spec-tree.md) — the page layout the
+  layer line joins.
+- [A module is a function](../../spec/modules/README.md#a-module-is-a-function)
+  and [destructuring](../../spec/bindings/destructuring.md) — the two
+  features placed above.
 - [Design principles](../../doc/DESIGN.md) — simplicity, reuse and incremental
   design.
