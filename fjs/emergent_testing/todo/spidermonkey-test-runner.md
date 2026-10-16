@@ -70,8 +70,11 @@ tree at `3e1d1a09`.
 **Install.** The pinned Nixpkgs carries `spidermonkey_91`, `spidermonkey_115`,
 `spidermonkey_128`, and `spidermonkey_140`. `cache.nixos.org` has
 `spidermonkey_140` prebuilt — 34.2 MiB to download, 88.3 MiB unpacked with
-its `icu4c` and `nspr` — so nothing is compiled from source. The package puts
-both `js` and `js140` on `PATH`. Until it is in the shared shell, this runs it
+its `icu4c` and `nspr` — so nothing is compiled from source. The cache has it
+for every system the shared flake builds a shell for (`x86_64-linux`,
+`aarch64-linux`, `aarch64-darwin`), so adding it to that shell builds nothing
+anywhere. The package puts both `js` and `js140` on `PATH`, and
+`js --version` prints `JavaScript-C140.14.0`. Until it is in the shared shell, this runs it
 at the pinned version without a separate download:
 
 ```sh
@@ -221,6 +224,25 @@ it.**
    runtime. A separate flake would need a concrete reason and a newly scoped
    design.
 
+4. **CI runs it in an existing job, not a new one.** A new job repeats the
+   Nix install and the checkout for two steps of work. The steps are the ones
+   every Nix job has, one command each
+   ([AGENTS.md §7](../../../AGENTS.md#7-continuous-integration)): assert the
+   pinned version with `js --version` against a pin in
+   `../../ci/config/module.f.js`, as `bunSteps` asserts Bun's, then run
+   `fjs t` through the host.
+
+   The `bun` job (`../../ci/bun/module.f.mjs`) is the candidate. It is the
+   shortest job — 3 minutes 29 seconds on this issue's own pull request, where
+   `deno` took 7 minutes 24 seconds and `node26` and the Intel platform jobs
+   ran longer — so the spike's 3 minutes 40 seconds should fit without making
+   the run slower. It already runs inside the Nix shell on the ARM Linux
+   runner, and it already checks the suite on an engine that is not V8. The
+   alternative is the `ubuntu-arm` platform job, which took in the `wasm` job
+   the same way (`../../ci/module.f.mjs`, `shellPlatformSteps`), at about
+   5 minutes before the addition. Measure the step on the runner before
+   choosing; the spike's time is from a different machine.
+
 ### Tasks
 
 - [x] Confirm a SpiderMonkey package on the accepted Nixpkgs commit: see
@@ -239,9 +261,11 @@ it.**
 - [ ] Add the host, and run `fjs t` on the whole tree through it with no
       hidden modules. Check in the shell that a failing proof exits `1`, and
       that a module that fails to import fails the run.
-- [ ] Add `spidermonkey_140` to `devNixJob`, then a CI job (`../../ci/`) that
-      runs `fjs t` through the host. Add the row to the runtime table in
-      [CONTRIBUTING.md](../../../CONTRIBUTING.md).
+- [ ] Add `spidermonkey_140` to `devNixJob` and its version pin to
+      `../../ci/config/module.f.js`, then add the version and `fjs t` steps to
+      an existing job — the `bun` job unless the measured step says otherwise.
+      Run `npm run gen` and commit the regenerated workflow. Add the row to
+      the runtime table in [CONTRIBUTING.md](../../../CONTRIBUTING.md).
 - [ ] Document every engine divergence the run finds next to the code it
       constrains, starting with the two in [Findings](#findings).
 
