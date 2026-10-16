@@ -21,7 +21,7 @@ export type Shell = {
         /** One environment variable by name; the shell cannot list them. */
         readonly getenv: (name: string) => string | undefined
         readonly file: {
-            /** The names in a directory; throws for anything that is not one. */
+            /** The names in a directory, `.` and `..` among them; throws for anything that is not one. */
             readonly listDir: (path: string) => readonly string[]
         }
     }
