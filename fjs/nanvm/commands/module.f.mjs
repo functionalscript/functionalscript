@@ -12,7 +12,7 @@
 
 import { nodeCommands } from '../../effects/node/module.f.mjs'
 import { stringLiteral } from '../../media/rust/module.f.mjs'
-import { constSlice, generatedHeader } from '../../media/rust/item/module.f.mjs'
+import { constSlice, generatedHeader } from '../../media/rust/item/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 
 /**

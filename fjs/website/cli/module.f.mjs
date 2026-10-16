@@ -16,7 +16,7 @@
 import { commands } from '../../module.f.mjs'
 import { helpMeta, helpReference } from '../../cli/module.f.mjs'
 import { fileHref, shell } from '../page/module.f.mjs'
-import { codeBlock } from '../demo/code/module.f.mjs'
+import { codeBlock } from '../demo/code/module.f.js'
 
 /**
  * Preorder command catalogue, including help at every declared table level.

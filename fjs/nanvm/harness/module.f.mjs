@@ -35,7 +35,7 @@ import { exitStep, mkdir, readdir, writeFiles, writeUtf8File } from '../../effec
 import { cmp } from '../../types/string/module.f.mjs'
 import { error, ok, unwrap } from '../../types/result/module.f.js'
 import { stringLiteral } from '../../media/rust/module.f.mjs'
-import { constSlice, generatedHeader } from '../../media/rust/item/module.f.mjs'
+import { constSlice, generatedHeader } from '../../media/rust/item/module.f.js'
 import { corpus, fixturesDirectory } from '../corpus/module.f.mjs'
 import { expectation } from '../expected/module.f.mjs'
 import { load as loadRuntime } from '../runtime/module.f.mjs'

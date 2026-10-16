@@ -10,7 +10,7 @@
 is used" — "lives here once rather than drifting between two copies". It
 owns the temporaries a scope binds, `letLine` in `printer`, and imports
 the `indent` both callers use from
-[`fjs/media/rust/item`](../../../media/rust/item/module.f.mjs); the line
+[`fjs/media/rust/item`](../../../media/rust/item/module.f.js); the line
 that spells a *caller's* binding —
 the corpus's named shared value, whose initializer is printed against the
 bindings before it — is still written by `fjs/nanvm/rust`:
@@ -25,7 +25,7 @@ bindings before it — is still written by `fjs/nanvm/rust`:
 Both callers also emit `'#[rustfmt::skip]'` immediately before a
 `fn …<A: IVm>` line and document at length why, and both open with the
 `generatedHeader` of
-[`fjs/media/rust/item`](../../../media/rust/item/module.f.mjs).
+[`fjs/media/rust/item`](../../../media/rust/item/module.f.js).
 `fjs/media/rust` deliberately stops at literals. The binding mechanism
 takes an `Exp` and belongs here; string-only item wrappers and headers
 belong in that EDAG-free item module.
@@ -85,7 +85,7 @@ below this printer.
 - [`fjs/js/string_escape`](../../../js/string_escape/module.f.mjs)'s
   `stringLiteral` — the same principle for string literals, done; this is
   the item layer.
-- [`fjs/media/rust/item`](../../../media/rust/item/module.f.mjs) — owns
+- [`fjs/media/rust/item`](../../../media/rust/item/module.f.js) — owns
   `indent`, and the string-only `skipFn` wrapper if retained.
 - [generated-rust-module-rustfmt-skip](../../../../nanvm/lib/todo/generated-rust-module-rustfmt-skip.md)
   — proposes the corpus stop emitting `#[rustfmt::skip]` per function, which

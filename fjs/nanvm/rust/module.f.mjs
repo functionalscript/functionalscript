@@ -55,7 +55,7 @@ import {
 } from '../module.f.mjs'
 import { snakeCase, stringLiteral } from '../../media/rust/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
-import { generatedHeader, indent } from '../../media/rust/item/module.f.mjs'
+import { generatedHeader, indent } from '../../media/rust/item/module.f.js'
 import { braced, expExpr as sharedExpExpr, nestsOperation, statementsOf } from '../../edag/rust/module.f.mjs'
 
 /**
