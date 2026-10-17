@@ -31,7 +31,7 @@ import { truthy, typeOf, instanceOf, unary as semanticUnary, binary as semanticB
 import { unary as numericUnary, binary as numericBinary } from '../value/numeric/module.f.mjs'
 import { binary as relational } from '../value/relational/module.f.mjs'
 import { toPrimitive, toString } from '../value/convert/module.f.mjs'
-import { hasMethod, method } from '../value/method/module.f.mjs'
+import { admits, hasMethod, method } from '../value/method/module.f.mjs'
 import { ownEntries } from '../value/entries/module.f.mjs'
 import { noStatic, staticPath } from '../module.f.mjs'
 
@@ -151,17 +151,24 @@ export const operation = evaluator => {
         const [tag, arg, continuation] = step
         if (tag === '|.') { return then([state, value], (v, next) => continueValue(v, step, next)) }
         const own = isArray(receiver) && receiver[0] === '{}' && findProperty(receiver, name) !== undefined
-        const builtin = !own && hasMethod(receiver, name, runtime)
+        const builtin = !own && admits(receiver, name)
+        /** The call, after its arguments. @type {(callee: EdagValue, state: S) => Tail<S>} */
+        const proceed = (callee, next) => then(items(arg, next), (args, afterArgs) => {
+            const values = /** @type {ValueArray} */ (args)[1]
+            // a built-in method is answered as a value; a represented
+            // function's call is left for the executor
+            const result = builtin ? method(receiver, name, values, invoke, runtime)
+                : prepare(ok(callee), values.map(v => () => ok(v)))
+            return continued([afterArgs, result], continuation)
+        })
         return then([state, value], (callee, next) => {
-            if (tag === '|?.()' && !builtin && nullish(callee)) { return skip(continuation, next) }
-            return then(items(arg, next), (args, afterArgs) => {
-                const values = /** @type {ValueArray} */ (args)[1]
-                // a built-in method is answered as a value; a represented
-                // function's call is left for the executor
-                const result = builtin ? method(receiver, name, values, invoke, runtime)
-                    : prepare(ok(callee), values.map(v => () => ok(v)))
-                return continued([afterArgs, result], continuation)
-            })
+            if (tag !== '|?.()') { return proceed(callee, next) }
+            // the guard, before the arguments: an own property that is
+            // nullish skips, and so does a built-in no implementation is
+            // bound for, which the runtime's body decides for its receiver
+            // and may throw deciding
+            const guard = builtin ? hasMethod(receiver, name, runtime, invoke) : ok(!nullish(callee))
+            return then([next, guard], (has, after) => has ? proceed(callee, after) : skip(continuation, after))
         })
     }
 

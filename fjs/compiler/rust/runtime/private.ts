@@ -13,15 +13,15 @@ import type { Exp } from '../../../edag/types.ts'
 export type _Resolved = readonly ['function', readonly unknown[]] | readonly ['literal', Exp]
 
 /**
- * A built-in the `runtime` export names: its name, JavaScript's own spelling
- * — `Object.is` for the `static` section, `String.prototype.startsWith` for
- * the `member` section, with the receiver type and the key the member is
- * dispatched by — and the function node the name resolves to.
+ * A built-in the `runtime` export names: its name — `Object.is` for the
+ * `static` section, `startsWith` for the `member` section, the key a call
+ * step dispatches by — the function node the name resolves to, and
+ * whether it is the `member` section's.
  */
 export type _BuiltIn = {
     readonly name: string
     readonly node: readonly unknown[]
-    readonly member: readonly [type: string, key: string] | null
+    readonly member: boolean
 }
 
 /**

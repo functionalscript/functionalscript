@@ -52,8 +52,10 @@ pub(crate) use member::Member;
 pub(crate) trait Live<A: IVm>: Sized {
     /// The chain's current value: the value itself, or the property read.
     fn value(self) -> Any<A>;
-    /// The guard of a `?.()` step: whether what the call would call is nullish.
-    fn is_nullish(&self) -> bool;
+    /// The guard of a `?.()` step: whether what the call would call is
+    /// nullish, or the throw of deciding, a member's body deciding for its
+    /// receiver.
+    fn is_nullish(&self) -> Result<bool, Any<A>>;
     /// The call, its arguments evaluated: `Any::call` of a value, and a
     /// member's own-property-first resolution.
     fn call(self, args: Any<A>) -> Result<Any<A>, Any<A>>;
@@ -63,8 +65,8 @@ impl<A: IVm> Live<A> for Any<A> {
     fn value(self) -> Any<A> {
         self
     }
-    fn is_nullish(&self) -> bool {
-        Any::is_nullish(self)
+    fn is_nullish(&self) -> Result<bool, Any<A>> {
+        Ok(Any::is_nullish(self))
     }
     fn call(self, args: Any<A>) -> Result<Any<A>, Any<A>> {
         Any::call(self, args)
@@ -75,7 +77,7 @@ impl<A: IVm> Live<A> for Member<A> {
     fn value(self) -> Any<A> {
         self.read()
     }
-    fn is_nullish(&self) -> bool {
+    fn is_nullish(&self) -> Result<bool, Any<A>> {
         Member::is_nullish(self)
     }
     fn call(self, args: Any<A>) -> Result<Any<A>, Any<A>> {
@@ -129,16 +131,27 @@ impl<A: IVm, T: Live<A>> Region<A, T> {
     pub(crate) fn dot(self, key: impl FnOnce() -> Result<Any<A>, Any<A>>) -> Region<A, Member<A>> {
         self.step(|v| key().and_then(|k| Member::new(v.value(), k)))
     }
+    /// A guard: the region skipped where the live state is nullish, thrown
+    /// where deciding throws, and otherwise `step` over it; nothing for a
+    /// region already skipped or thrown.
+    fn guarded<U: Live<A>>(self, step: impl FnOnce(Self) -> Region<A, U>) -> Region<A, U> {
+        match self {
+            Region::Live(v) => match v.is_nullish() {
+                Err(e) => Region::Thrown(e),
+                Ok(true) => Region::Skipped,
+                Ok(false) => step(Region::Live(v)),
+            },
+            Region::Skipped => Region::Skipped,
+            Region::Thrown(e) => Region::Thrown(e),
+        }
+    }
     /// The `?.` node's own step: a nullish receiver skips the key and the
     /// rest of the chain; any other takes the step `|.` takes.
     pub(crate) fn option_dot(
         self,
         key: impl FnOnce() -> Result<Any<A>, Any<A>>,
     ) -> Region<A, Member<A>> {
-        match self {
-            Region::Live(v) if v.is_nullish() => Region::Skipped,
-            other => other.dot(key),
-        }
+        self.guarded(|live| live.dot(key))
     }
     /// `|?.()`: a nullish callee skips the rest of the chain, its
     /// arguments untouched; any other is called.
@@ -146,10 +159,7 @@ impl<A: IVm, T: Live<A>> Region<A, T> {
         self,
         args: impl FnOnce() -> Result<Any<A>, Any<A>>,
     ) -> Region<A, Any<A>> {
-        match self {
-            Region::Live(v) if v.is_nullish() => Region::Skipped,
-            other => other.call(args),
-        }
+        self.guarded(|live| live.call(args))
     }
 }
 
@@ -248,7 +258,7 @@ impl<A: IVm> OptionPropertyLambda<A> {
 mod tests {
     use crate::{
         naive::Naive,
-        vm::{Any, IStaticFunction, ToAny, ToArray, ToObject, error},
+        vm::{Any, IVm, ToAny, ToArray, ToObject, error},
     };
 
     type A = Naive;

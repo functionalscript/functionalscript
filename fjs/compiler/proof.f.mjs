@@ -47,7 +47,7 @@ import normalize from '../../spec/datajs/vectors/normalize/data.f.js'
  */
 const withRuntime = root => ({
     ...root,
-    'fjs': { 'js': { 'runtime': { 'module.f.js': [utf8("export const runtime = { member: { String: { startsWith: (self, s) => self.slice(0, s.length) === s } } };")] } } },
+    'fjs': { 'js': { 'runtime': { 'module.f.js': [utf8("export const runtime = { member: { startsWith: self => s => self.slice(0, s.length) === s } };")] } } },
 })
 
 /** @type {Commands<NodeOp | CompileValue>} */

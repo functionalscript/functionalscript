@@ -16,7 +16,7 @@ impl<A: IVm> PartialEq for Function<A> {
 mod tests {
     use crate::{
         naive::Naive,
-        vm::{Any, Array, Function, IStaticFunction, RuntimeFunction, ToAny, ToArray},
+        vm::{Any, Array, Function, IVm, RuntimeFunction, ToAny, ToArray},
     };
 
     type A = Naive;

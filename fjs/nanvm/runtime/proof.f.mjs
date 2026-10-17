@@ -22,24 +22,24 @@ export const proof = {
     // linker refuses, and a module the static printer refuses, a body that
     // is no function.
     generate: () => {
-        const text = 'export const runtime = { member: { String: { x: () => 1 } } };'
+        const text = 'export const runtime = { member: { x: () => 1 } };'
         const [state, result] = virtualAt(withRuntime(text))(generate())
         assertOk(result)
         const [, rust] = virtual(state)(readUtf8File(rustPath))
-        assert(assertOk(rust).includes('("String", "x", string_x)'))
+        assert(assertOk(rust).includes('("x", x)'))
         const [, edag] = virtual(state)(readUtf8File(edagPath))
-        assertEq(assertOk(edag), 'export default ["{}",[[":","runtime",["{}",[[":","member",["{}",[[":","String",["{}",[[":","x",["=>",0,[],1]]]]]]]]]]]]];')
+        assertEq(assertOk(edag), 'export default ["{}",[[":","runtime",["{}",[[":","member",["{}",[[":","x",["=>",0,[],1]]]]]]]]]];')
         const [broken, failed] = virtualAt(withRuntime('export default ('))(step(generate(), () => readUtf8File(edagPath)))
         assertEq(failed[0], 'error')
         assertEq(Object.keys(broken.root).join(','), 'fjs')
-        const [, refused] = virtualAt(withRuntime('export const runtime = { member: { String: { x: 1 } } };'))(generate())
-        assert(JSON.stringify(assertError(refused)).includes('a built-in that is no function: String.prototype.x'))
+        const [, refused] = virtualAt(withRuntime('export const runtime = { member: { x: 1 } };'))(generate())
+        assert(JSON.stringify(assertError(refused)).includes('a built-in that is no function: x'))
     },
     // The `runtime` export as a value, or the reason there is none: a source
     // the interpreter cannot load, or an export that is no object.
     load: () => {
-        const [, result] = virtualAt(withRuntime('export const runtime = { member: { String: { x: 1 } } };'))(load())
-        assertStructurallySame(assertOk(result), ['{}', [[':', 'member', ['{}', [[':', 'String', ['{}', [[':', 'x', 1]]]]]]]]])
+        const [, result] = virtualAt(withRuntime('export const runtime = { member: { x: 1 } };'))(load())
+        assertStructurallySame(assertOk(result), ['{}', [[':', 'member', ['{}', [[':', 'x', 1]]]]]])
         const [, unreadable] = virtual(emptyState)(load())
         assertEq(unreadable[0], 'error')
         const [, notAnObject] = virtualAt(withRuntime('export const runtime = 1;'))(load())

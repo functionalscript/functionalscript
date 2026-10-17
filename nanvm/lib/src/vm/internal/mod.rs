@@ -10,7 +10,7 @@ pub use istatic_function::{IStaticFunction, StaticCode};
 
 use crate::{
     sign::Sign,
-    vm::{Any, Property, Unpacked},
+    vm::{Any, Array, Function, Property, Unpacked},
 };
 
 /// A VM's value representation.
@@ -37,4 +37,23 @@ pub trait IVm: Sized + Clone + From<Unpacked<Self>> + 'static {
     type InternalFunction: IFunction<Self>;
     // functions
     fn to_unpacked(self) -> Unpacked<Self>;
+    /// A function made out of a Rust static function, [`StaticCode`], over
+    /// the frame it captures: what every closure of a compiled module is,
+    /// and what the runtime's member functions answer, a closure over the
+    /// receiver, which is why the capability is every VM's and not a
+    /// capability apart ([`IStaticFunction`] names it). `text` is the
+    /// function's text, what `String(f)` answers: the compiler renders it
+    /// from the function's EDAG, one `&'static str` per arrow in the source,
+    /// shared by every function the arrow makes. `None` is a function with
+    /// no text — a host or hand-written one, with no EDAG, or one whose body
+    /// the renderer cannot spell yet — whose conversion to a string is
+    /// refused.
+    fn static_function(
+        code: StaticCode<Self>,
+        length: u32,
+        frame: Array<Self>,
+        text: Option<&'static str>,
+    ) -> Function<Self>;
+    /// The frame `static_function` was given, read by the code through its `self_`.
+    fn frame(self_: &Self::InternalFunction) -> &Array<Self>;
 }

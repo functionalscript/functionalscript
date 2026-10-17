@@ -1,10 +1,8 @@
 use crate::{
     common::sized_index::SizedIndex,
     vm::{
-        Any, Array, Function, IVm, Number, RuntimeCode, String, ToAny, ToArray, Unpacked,
-        array::callback::callback,
-        error,
-        runtime::{runtime_method, type_name},
+        Any, Array, Function, IVm, Number, String, ToAny, ToArray, Unpacked,
+        array::callback::callback, error, runtime::runtime_method,
     },
 };
 
@@ -37,13 +35,22 @@ pub(crate) fn method<A: IVm>(receiver: &Any<A>, key: &Any<A>) -> Option<Method<A
     }
 }
 
-/// The runtime's code for the receiver's type and the key,
-/// [`runtime_method`](crate::vm::runtime_method): what a call step calls
-/// after the native table has no entry, with the receiver as the code's
-/// first argument. `None` for a nullish receiver, which has no type the
-/// runtime keys.
-pub(crate) fn runtime<A: IVm>(receiver: &Any<A>, key: &Any<A>) -> Option<RuntimeCode<A>> {
-    type_name(receiver).and_then(|name| runtime_method::<A>(name, key))
+/// The runtime's member function under the key, asked for the receiver:
+/// the function of the arguments the body answers for a receiver the name
+/// is a member of, `None` for one it is not or for a name the runtime has
+/// no body for, and the body's throw where its first step throws
+/// ([`runtime_method`](crate::vm::runtime_method)). What a call step calls
+/// after the native table has no entry, and what the guard of `?.()` asks
+/// before any argument exists; the body is pure, so asking twice costs and
+/// changes nothing.
+pub(crate) fn runtime<A: IVm>(receiver: &Any<A>, key: &Any<A>) -> Result<Option<Any<A>>, Any<A>> {
+    match runtime_method::<A>(key) {
+        None => Ok(None),
+        Some(code) => {
+            let f = code([receiver.clone()].to_array())?;
+            Ok(if f.is_nullish() { None } else { Some(f) })
+        }
+    }
 }
 
 /// The entry of `table` whose name is `key`.
@@ -357,7 +364,7 @@ fn array_last_index_of<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A
 mod tests {
     use crate::{
         naive::Naive,
-        vm::{Any, BigInt, IStaticFunction, ToAny, ToArray, ToObject, error},
+        vm::{Any, BigInt, IVm, ToAny, ToArray, ToObject, error},
     };
 
     type A = Naive;
@@ -589,7 +596,8 @@ mod tests {
         let has = |(type_, name): &(&str, &str)| {
             let r = receiver(type_);
             let key: Any<A> = (*name).into();
-            super::method::<A>(&r, &key).is_some() || super::runtime::<A>(&r, &key).is_some()
+            super::method::<A>(&r, &key).is_some()
+                || super::runtime::<A>(&r, &key).unwrap().is_some()
         };
         for pair in ANSWERED {
             assert!(has(pair), "{pair:?} is answered but has no entry");
@@ -612,15 +620,34 @@ mod tests {
     }
 
     /// The runtime answers `startsWith` on a string and nothing on a
-    /// nullish receiver, and a call step reaches the body: through the
-    /// native table first, which has no entry, then the runtime, with the
-    /// receiver first; and `?.()` sees the body as a callee.
+    /// receiver that is no string, the body deciding, and a call step
+    /// reaches the body: through the native table first, which has no
+    /// entry, then the runtime, the receiver alone first and then the
+    /// arguments; `?.()` sees the body's function as a callee on a string
+    /// and nothing on a number.
     #[test]
     fn runtime_starts_with() {
         let key: Any<A> = "startsWith".into();
         assert!(super::method::<A>(&"abc".into(), &key).is_none());
-        assert!(super::runtime::<A>(&"abc".into(), &key).is_some());
-        assert!(super::runtime::<A>(&Any::undefined(), &key).is_none());
+        assert!(super::runtime::<A>(&"abc".into(), &key).unwrap().is_some());
+        assert!(super::runtime::<A>(&1.0.to_any(), &key).unwrap().is_none());
+        assert!(
+            super::runtime::<A>(&Any::undefined(), &key)
+                .unwrap()
+                .is_none()
+        );
+        assert!(
+            super::runtime::<A>(&"abc".into(), &"slice".into())
+                .unwrap()
+                .is_none()
+        );
+        assert_eq!(
+            1.0.to_any()
+                .dot(key.clone())
+                .option_call(|| panic!("the arguments of a skipped call"))
+                .end(),
+            Ok(Any::undefined())
+        );
         let abc: Any<A> = "abc".into();
         let args = || Ok(["ab".into()].to_array().to_any());
         assert_eq!(
