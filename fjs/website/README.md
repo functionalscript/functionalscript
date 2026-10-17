@@ -241,6 +241,18 @@ does not parse already gets. Reading them costs the build about two seconds
 for the few hundred issues the tree holds (at `6d511a0`, 366 issues: 17 s
 against 15 s).
 
+**An issue shows its status as its icon and its priority as a badge**, and
+the list is ordered by priority, then status, then name — the P1s, the issues
+that block everything else, first rather than wherever their names sort.
+Status is ordered as [`issue`](./issue/module.f.mjs)'s `statuses` lists it:
+work in progress, then work not started, then work waiting or deferred, then
+the record, then what will not be done. The status is `data-issue-status` on
+the link, beside `data-kind`, so its icon's text alternative — "blocked
+issue" — is part of the link's name; not `data-status`, which the test
+runner's report already gives `passed` and `failed`. The badge is text after
+the link, `data-priority`, so it is read without changing what the link is
+called; P1 and P2 take the value colour and the rest are outlined.
+
 ## A page runs the proofs under it
 
 A page is the browser test runner with a shorter list, never a second runner.
