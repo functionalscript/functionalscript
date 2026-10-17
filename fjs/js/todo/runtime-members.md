@@ -1,8 +1,8 @@
 ## One member function per name, dispatching on its receiver itself
 
 **Priority:** P3
-**Status:** open — a design **sergey-shandar** gave in the static-runtime
-session; take it after a measurement, with the two decisions below made
+**Status:** wip — the member shape has landed, **sergey-shandar**'s
+decisions below taken; the direct call and the natives remain
 
 ### Problem
 
@@ -26,45 +26,77 @@ the function dispatches on its receiver itself:
 ```js
 export const runtime = {
     member: {
-        map: (self, f) => {
-            if (self instanceof Array) { return /* the array's map */ }
-            const { map } = self
-            return map(f)
-        },
+        map: self => self instanceof Array
+            ? f => /* the array's map */
+            : undefined,
     },
 }
 ```
 
-- The `member` section is keyed by name alone. The native implementations
-  become branches of the bodies, so the native table, `runtime_method`'s
-  search by type and key, the `members` table and `type_name` go, and the
-  interpreter's dispatcher with them: one rule, in one place, for both
-  executors.
-- A compiled `a.map(b)` calls the body directly, `map(a, b)` on NaNVM and
-  the runtime's body in the interpreter, skipping the key string and both
-  scans. A call of a name not in `allowedCalls` stays as it is: a property
-  read, then a call of what it holds.
-- The fallback is the own-property path as it already is: destructuring
-  reads the own property or `undefined`, the bare call calls it with no
-  receiver, as an own property is called today, and calling `undefined`
-  throws the `TypeError` JavaScript throws on a type without the method.
+- The `member` section is keyed by name alone, and a body is a function
+  of the receiver alone: `undefined` for a receiver the name is no member
+  of, else the function of the arguments as the call passed them, a
+  closure over the receiver. An executor asks the body in two steps — the
+  first before any argument exists, which is what the guard of
+  `a.map?.(b)` needs, the second with the arguments, whose failure is a
+  throw — and the body is pure, so a guard and a call ask the first step
+  twice at no cost but the call.
+- The executor keeps the own-property path and the `TypeError` for
+  calling `undefined` around the body, once for every name: the receiver's
+  own property shadows a built-in, and a body answering `undefined` is the
+  `TypeError`, or a skip under `?.()`. The body never falls back itself,
+  so no prototype name is destructured anywhere.
+- The native implementations become branches of the bodies, so the native
+  table, the interpreter's dispatcher and `runtime_method`'s search by type
+  go: one rule, in one place, for both executors.
+- A compiled `a.map(b)` calls the body directly, `map(a)` and then the
+  function it answers on NaNVM, the runtime's body in the interpreter,
+  skipping the key string and the scans. A call of a name not in
+  `allowedCalls` stays as it is: a property read, then a call of what it
+  holds.
 
 ### Decisions
 
-- **Admit a prototype name at a destructuring key in the runtime module.**
-  The parser refuses `const { map } = self` by name alone
-  ([`../prototype/README.md`](../prototype/README.md)), since on the host
-  the pattern would reach the prototype where FunctionalScript reads an own
-  property or nothing. Inside a member body the refusal loses its reason:
-  the body handles every type whose prototype has the name before it falls
-  back, so by the fallback the host and FunctionalScript agree. Whether the
-  admission is the runtime module's alone or a rule for every module is
-  the decision.
-- **The optional call.** `({}).map?.()` skips today because the call step
-  finds no own property and no built-in for an object. With one `map` for
-  every receiver the callee always exists, so either the body answers
-  "nothing to call here" for the guard, or the fallback reads the property
-  and skips on nullish itself, keeping the rule in the body.
+**sergey-shandar**, in the session:
+
+- A body is `(self) => undefined | ((...args) => value)`, the inner
+  function throwing on error as a body throws today, rather than a single
+  body of the receiver and the arguments answering a tagged result or
+  `undefined`: the guard of an optional call must decide before the
+  arguments exist, and the staged body gives it the step it needs.
+- On NaNVM the body makes a `Function` with the receiver in its frame, so
+  a member is bound on `IStaticFunction`, which is now the capability of
+  every VM, `IVm::static_function`, rather than the printer inlining the
+  shape without a closure; a measurement may move it later.
+- The body's Rust signature is the receiver itself,
+  `fn starts_with<A: IStaticFunction>(self_: Any<A>)`, a `MemberCode<A>`,
+  rather than the statics' `args: Array<A>` with the receiver as its one
+  element: a member is a function of exactly its receiver, and the call
+  step passes it with nothing built around it.
+- The direct call of a known name, `a.map(b)` with `map` in
+  `allowedCalls`, looks for an own property only when the receiver is an
+  object: an array, a string, a number, a boolean, a bigint or a function
+  cannot carry an own property under an admitted name, since nothing
+  mutates and their literals have none, so only an object literal can
+  shadow a built-in. Every other receiver goes straight to the body, or
+  to the native while the name has none.
+
+### Tasks
+
+- [x] The member shape: `member` keyed by name, bodies of the receiver,
+      `startsWith` the first; the static-runtime printer printing a member
+      bound on `IStaticFunction`; `runtime_method` by name, the two-step
+      call and guard in `Member` and in the interpreter's dispatcher;
+      `static_function` on `IVm`.
+- [ ] The direct call: the Rust backend and the interpreter calling a
+      body by its name where a call's name is in `allowedCalls`, with no
+      key string and no scan, the own property checked first as the
+      executors check it today.
+- [ ] The natives, one body at a time: each native implementation a
+      branch of its body, the native table and the interpreter's
+      dispatcher shrinking as they move, with the corpus in
+      `nanvm/member` as the oracle; the primitives no body can define
+      stay native and listed, as the statics' are.
 
 ### Related
 

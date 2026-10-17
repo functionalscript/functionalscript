@@ -8,6 +8,12 @@ use crate::vm::{Any, Array, IFunction, IVm, String, error};
 /// frame and no `self`, answering the value or the throw.
 pub type RuntimeCode<A> = fn(Array<A>) -> Result<Any<A>, Any<A>>;
 
+/// The code of a member built-in: a function of its receiver alone,
+/// answering the function of the arguments for a receiver the name is a
+/// member of, `undefined` for one it is not, or the throw
+/// (`fjs/js/runtime/README.md`, "How NaNVM finds it").
+pub type MemberCode<A> = fn(Any<A>) -> Result<Any<A>, Any<A>>;
+
 /// The accessor of a built-in, as the compiled runtime's tables hold one:
 /// a function answering the descriptor.
 pub type Accessor<A> = fn() -> &'static RuntimeFunction<A>;

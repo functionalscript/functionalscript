@@ -34,7 +34,7 @@ pub use crate::vm::{
     any::{Any, Constructor, JsonError, to_any::ToAny},
     array::{Array, to_array::ToArray},
     bigint::BigInt,
-    function::{Accessor, Function, RuntimeCode, RuntimeFunction},
+    function::{Accessor, Function, MemberCode, RuntimeCode, RuntimeFunction},
     internal::{IComplex, IContainer, IFunction, IStaticFunction, IVm, StaticCode},
     iterator_record::IteratorRecord,
     lambda::{OptionLambda, OptionPropertyLambda, PropertyLambda},

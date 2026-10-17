@@ -252,7 +252,7 @@ impl<A: IVm> String<A> {
 mod tests {
     use crate::{
         naive::Naive,
-        vm::{Any, Array, IStaticFunction, String, ToAny, ToArray, error},
+        vm::{Any, Array, IVm, String, ToAny, ToArray, error},
     };
 
     type A = Naive;

@@ -218,7 +218,7 @@ impl<A: IVm> Any<A> {
 mod tests {
     use crate::{
         naive::Naive,
-        vm::{Any, Function, IStaticFunction, Nullish, String, ToAny, ToArray, ToObject, ToString},
+        vm::{Any, Function, IVm, Nullish, String, ToAny, ToArray, ToObject, ToString},
     };
 
     type A = Naive;

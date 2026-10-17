@@ -161,7 +161,7 @@ mod tests {
     use crate::{
         naive::Naive,
         vm::{
-            Any, BigInt, IStaticFunction, Nullish, Number, ToAny, ToArray, ToObject, error,
+            Any, BigInt, IVm, Nullish, Number, ToAny, ToArray, ToObject, error,
             primitive::Primitive,
         },
     };

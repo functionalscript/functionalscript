@@ -4,7 +4,7 @@ mod function;
 use crate::{
     naive::{container::Container, function::Function},
     sign::Sign,
-    vm::{Any, Array, IStaticFunction, IVm, Property, StaticCode, Unpacked},
+    vm::{Any, Array, IVm, Property, StaticCode, Unpacked},
 };
 
 /// Note: we can't use `type InternalAny = Unpacked<InternalAny>;` because Rust doesn't support
@@ -28,10 +28,8 @@ impl IVm for Naive {
     fn to_unpacked(self) -> Unpacked<Self> {
         self.0
     }
-}
 
-/// `naive` holds a static function, and makes a function no other way.
-impl IStaticFunction for Naive {
+    /// `naive` holds a static function, and makes a function no other way.
     fn static_function(
         code: StaticCode<Naive>,
         length: u32,

@@ -2,8 +2,8 @@
 
 use nanvm_lib::vm::unstable::{f64_any, strict_eq, strict_ne, string_any};
 use nanvm_lib::vm::{
-    Accessor, Any, Array, Function, IVm, Nullish, RuntimeCode, RuntimeFunction, ToAny, ToArray,
-    object_entries,
+    Accessor, Any, Array, Function, IStaticFunction, IVm, MemberCode, Nullish, RuntimeFunction,
+    ToAny, ToArray, object_entries,
 };
 
 /// `f0`
@@ -163,13 +163,19 @@ fn f3<A: IVm>() -> &'static RuntimeFunction<A> {
     &RuntimeFunction { name: "f3", code: f3_code::<A>, length: 2 }
 }
 
-/// `String.prototype.startsWith`
+/// `startsWith`
 #[rustfmt::skip]
-fn string_starts_with<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>> {
-    let c0: Any<A> = (args.clone().into_iter().nth(1).unwrap_or_else(|| Nullish::Undefined.to_any()).to_string().map(|v| v.to_any()))?;
-    let c1: Any<A> = Any::dot(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), string_any("length")).end()?;
-    let c2: Any<A> = Any::call(Function::from(f3::<A>()).to_any(), [args.clone().into_iter().nth(2).unwrap_or_else(|| Nullish::Undefined.to_any()), c1].to_array().to_any())?;
-    Any::call(Function::from(f1::<A>()).to_any(), [args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), c0, c2].to_array().to_any())
+fn starts_with<A: IStaticFunction>(self_: Any<A>) -> Result<Any<A>, Any<A>> {
+    let c0: Any<A> = (Any::typeof_(self_.clone()))?;
+    let c1: Any<A> = (strict_ne(c0, string_any("string")))?;
+    let c2 = || Ok(A::static_function(|self_, args| {
+        let c0: Any<A> = A::frame(self_)[1].clone();
+        let c1: Any<A> = (args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()).to_string().map(|v| v.to_any()))?;
+        let c2: Any<A> = Any::dot(c0.clone(), string_any("length")).end()?;
+        let c3: Any<A> = Any::call(A::frame(self_)[2].clone(), [args.clone().into_iter().nth(1).unwrap_or_else(|| Nullish::Undefined.to_any()), c2].to_array().to_any())?;
+        Any::call(A::frame(self_)[0].clone(), [c0.clone(), c1, c3].to_array().to_any())
+    }, 2, [Function::from(f1::<A>()).to_any(), self_.clone(), Function::from(f3::<A>()).to_any()].to_array(), Some("($3,$4)=>$0($1,String($3),$2($4,$1.length))")).to_any());
+    Any::conditional(c1, || Ok(Nullish::Undefined.to_any()), c2)
 }
 
 #[rustfmt::skip]
@@ -185,8 +191,8 @@ pub(crate) fn statics<A: IVm>() -> [(&'static str, Accessor<A>); 6] {
 }
 
 #[rustfmt::skip]
-pub(crate) fn members<A: IVm>() -> [(&'static str, &'static str, RuntimeCode<A>); 1] {
+pub(crate) fn members<A: IStaticFunction>() -> [(&'static str, MemberCode<A>); 1] {
     [
-        ("String", "startsWith", string_starts_with),
+        ("startsWith", starts_with),
     ]
 }

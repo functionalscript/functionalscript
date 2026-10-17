@@ -14,7 +14,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { ok, unwrap } from '../../types/result/module.f.js'
-import { atomExpr, braced, eagerNodesOf, expExpr, expExprTagged, holdsFunction, nestsOperation, nodeExpr, readsArgs, readsFrame, readsRest, scope, scopeTagged, statementsOf, statementsWith, useLines, useLinesTagged } from './module.f.mjs'
+import { argNamed, atomExpr, braced, eagerNodesOf, expExpr, expExprTagged, holdsFunction, nestsOperation, nodeExpr, readsArgs, readsBeyondFirst, readsFrame, readsRest, scope, scopeTagged, statementsOf, statementsWith, useLines, useLinesTagged } from './module.f.mjs'
 import { fromTagged, toText, untagged } from '../../text/marked/module.f.mjs'
 import { unmarkedWords } from './unmarked/module.f.js'
 
@@ -83,7 +83,10 @@ export const proof = {
      * keeps its own frame. The lines are split as `scope`'s are, and
      * `atomExpr` prints what a slot resolved to a literal is: `undefined`,
      * or the primitive's literal. `readsRest` is a scope's own read of
-     * `rest`, a nested body's left out.
+     * `rest`, a nested body's left out. With `arg`, a fixed argument prints
+     * as the caller says — `argNamed`, the first by a name of its own and
+     * the rest from `args` — and `readsBeyondFirst` is a scope's own read
+     * of any argument but the first.
      */
     statementsWith: () => {
         /** @type {(i: number) => Result<Printed<string>, readonly unknown[]>} */
@@ -103,6 +106,16 @@ export const proof = {
         assertEq(readsRest(['rest']), true)
         assertEq(readsRest(['=>', 0, [], ['rest']]), false)
         assertEq(readsRest(['args']), false)
+        const [named] = unwrap(statementsWith(frame, self_, argNamed('self_'))(['[]', [['arg', 0], ['arg', 1], ['=>', 1, [], ['arg', 0]]]]))
+        assertStructurallySame(named.map(untagged), [
+            'let c0: Any<A> = A::static_function(|_self, args| { Ok(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any())) }, 1, Array::default(), Some("($0)=>$0")).to_any();',
+            'Ok([self_.clone(), args.clone().into_iter().nth(1).unwrap_or_else(|| Nullish::Undefined.to_any()), c0].to_array().to_any())',
+        ])
+        assertEq(readsBeyondFirst(['arg', 0]), false)
+        assertEq(readsBeyondFirst(['[]', [['arg', 0], ['arg', 1]]]), true)
+        assertEq(readsBeyondFirst(['args']), true)
+        assertEq(readsBeyondFirst(['rest']), true)
+        assertEq(readsBeyondFirst(['=>', 2, [], ['[]', [['args'], ['rest'], ['arg', 1]]]]), false)
     },
     // `self` is the closure's `self_` parameter as the `Function` it is,
     // so a body reading it names that parameter, as a frame read does

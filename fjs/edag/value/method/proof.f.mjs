@@ -21,21 +21,29 @@ const skipped = () => { assert(false, 'unexpected callback') }
 const check = (receiver, key, args, expected) => assertStructurallySame(assertOk(method(receiver, key, args, skipped, undefined)), expected)
 /** @type {(receiver: EdagValue, key: string, args: Values) => void} */
 const refuses = (receiver, key, args) => assertStructurallySame(assertError(method(receiver, key, args, skipped, undefined)), undefinedValue)
-/** A body answering its second argument, the search a `startsWith` call passes. @type {ValueFunction} */
-const second = ['=>', 2, [], ['arg', 1]]
+/**
+ * A member body: for the receiver `'no'` it answers `undefined`, the name
+ * no member of that receiver; for every other, the function answering its
+ * first argument, the search a `startsWith` call passes.
+ *
+ * @type {ValueFunction}
+ */
+const body = ['=>', 1, [], ['?:', ['===', ['arg', 0], 'no'], ['undefined'], ['=>', 1, [], ['arg', 0]]]]
 /** @type {(entries: readonly (readonly [string, EdagValue])[]) => import('../types.ts').Runtime} */
 const table = entries => ['{}', entries.map(([name, value]) => [':', name, value])]
 
 export const proof = {
     availability: () => {
-        for (const receiver of [null, undefinedValue]) { assertEq(hasMethod(receiver, 'toString', undefined), false) }
+        /** @type {(receiver: EdagValue, key: string) => boolean} */
+        const has = (receiver, key) => assertOk(hasMethod(receiver, key, undefined, skipped))
+        for (const receiver of [null, undefinedValue]) { assertEq(has(receiver, 'toString'), false) }
         for (const receiver of [1, 'x', true, 1n, fn, ['[]', []], ['{}', []]]) {
-            assertEq(hasMethod(/** @type {EdagValue} */ (receiver), 'toString', undefined), true)
-            assertEq(hasMethod(/** @type {EdagValue} */ (receiver), 'valueOf', undefined), false)
-            assertEq(hasMethod(/** @type {EdagValue} */ (receiver), 'missing', undefined), false)
+            assertEq(has(/** @type {EdagValue} */ (receiver), 'toString'), true)
+            assertEq(has(/** @type {EdagValue} */ (receiver), 'valueOf'), false)
+            assertEq(has(/** @type {EdagValue} */ (receiver), 'missing'), false)
         }
-        assertEq(hasMethod(['[]', []], 'map', undefined), true)
-        assertEq(hasMethod('x', 'map', undefined), false)
+        assertEq(has(['[]', []], 'map'), true)
+        assertEq(has('x', 'map'), false)
         refuses(null, 'toString', [])
         refuses(1n, 'toFixed', [])
         refuses(1, 'missing', [])
@@ -130,25 +138,36 @@ export const proof = {
             assertEq(method('abc', key, ['x', coercible], () => failure, undefined), failure)
         }
     },
-    // `startsWith` has no native case: the runtime's body answers it, called
-    // with the receiver first, and without a body the call is the
-    // `TypeError` of a VM that binds nothing — no runtime at all, one
+    // `startsWith` has no native case: the runtime's body answers it, asked
+    // for the receiver first — the function of the arguments, or
+    // `undefined` for a receiver the name is no member of — and the
+    // function called with the arguments. Without a body the call is the
+    // `TypeError` of a VM that binds nothing: no runtime at all, one
     // without a `member` section, one whose section is no object, one
-    // without the type, one whose type lacks the name, or an entry that is
-    // no function.
+    // without the name, or an entry that is no function; and so is a body
+    // answering `undefined`. A body whose first step throws is that throw,
+    // in the guard and in the call alike.
     runtime: () => {
-        const runtime = table([['member', table([['String', table([['slice', 'x'], ['startsWith', second]])]])]])
-        // bound only where a body is: the guard of `'abc'.startsWith?.()`
-        assertEq(hasMethod('abc', 'startsWith', runtime), true)
-        assertEq(hasMethod('abc', 'startsWith', undefined), false)
-        assertEq(hasMethod('abc', 'slice', undefined), true)
+        const runtime = table([['member', table([['slice', 'x'], ['startsWith', body]])]])
+        // bound only where a body answers a function: the guard of
+        // `'abc'.startsWith?.()`, asked before any argument
+        assertEq(assertOk(hasMethod('abc', 'startsWith', runtime, invoke)), true)
+        assertEq(assertOk(hasMethod('no', 'startsWith', runtime, invoke)), false)
+        assertEq(assertOk(hasMethod('abc', 'startsWith', undefined, invoke)), false)
+        assertEq(assertOk(hasMethod('abc', 'slice', undefined, skipped)), true)
+        assertEq(assertOk(hasMethod(1, 'startsWith', runtime, skipped)), false)
         assertEq(assertOk(method('abc', 'startsWith', ['ab'], invoke, runtime)), 'ab')
         assertStructurallySame(assertOk(method('abc', 'startsWith', [], invoke, runtime)), undefinedValue)
+        assertStructurallySame(assertError(method('no', 'startsWith', ['ab'], invoke, runtime)), undefinedValue)
         refuses('abc', 'startsWith', ['ab'])
-        const members = [table([]), table([['String', table([])]]), table([['String', table([['startsWith', 'x']])]])]
+        refuses(1, 'startsWith', ['ab'])
+        const members = [table([]), table([['startsWith', 'x']])]
         for (const missing of [table([]), table([['member', 'x']]), ...members.map(member => table([['member', member]]))]) {
             assertStructurallySame(assertError(method('abc', 'startsWith', ['ab'], invoke, missing)), undefinedValue)
         }
+        const throwing = table([['member', table([['startsWith', ['=>', 1, [], ['throw', 'boom']]]])]])
+        assertEq(assertError(hasMethod('abc', 'startsWith', throwing, invoke)), 'boom')
+        assertEq(assertError(method('abc', 'startsWith', ['ab'], invoke, throwing)), 'boom')
         // a native name is answered natively whatever the runtime holds
         assertEq(assertOk(method('abc', 'slice', [1], invoke, runtime)), 'bc')
     },

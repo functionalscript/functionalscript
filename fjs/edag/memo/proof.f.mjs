@@ -59,7 +59,7 @@ export const proof = {
     // every function it calls, as `amnesia`'s does.
     runtime: () => {
         /** @type {import('../value/types.ts').Runtime} */
-        const runtime = ['{}', [[':', 'member', ['{}', [[':', 'String', ['{}', [[':', 'startsWith', ['=>', 1, [], ['arg', 0]]]]]]]]]]]
+        const runtime = ['{}', [[':', 'member', ['{}', [[':', 'startsWith', ['=>', 1, [], ['=>', 0, [['arg', 0]], ['frame', 0]]]]]]]]]
         /** @type {Exp} */
         const nested = ['()', ['=>', 0, [], ['.', 'abc', 'startsWith', ['|()', ['b']]]], []]
         const run = memo(assertOk(analysis(nested)))

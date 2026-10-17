@@ -39,7 +39,7 @@ import { assert, assertEq, assertError, assertOk, assertStructurallySame } from 
  */
 const withRuntime = root => ({
     ...root,
-    'fjs': { 'js': { 'runtime': { 'module.f.js': [utf8("export const runtime = { member: { String: { startsWith: (self, s) => self.slice(0, s.length) === s } } };")] } } },
+    'fjs': { 'js': { 'runtime': { 'module.f.js': [utf8("export const runtime = { member: { startsWith: self => s => self.slice(0, s.length) === s } };")] } } },
 })
 
 // The virtual host declares lexical path identities; native URL behavior has host proofs.
@@ -80,12 +80,13 @@ const refusedSpecifier = (specifier, source, root) => {
 
 export const proof = {
     // The runtime an interpretation is given reaches every module it loads:
-    // a body under `member.String.startsWith` answering its receiver is what the
-    // importer's and the dependency's initializations call, and without a
-    // runtime the same call fails the dependency's initialization.
+    // a body under `member.startsWith`, a function of the receiver answering
+    // the function that answers the receiver, is what the importer's and
+    // the dependency's initializations call, and without a runtime the same
+    // call fails the dependency's initialization.
     interpret: () => {
         /** @type {Runtime} */
-        const runtime = ['{}', [[':', 'member', ['{}', [[':', 'String', ['{}', [[':', 'startsWith', ['=>', 1, [], ['arg', 0]]]]]]]]]]]
+        const runtime = ['{}', [[':', 'member', ['{}', [[':', 'startsWith', ['=>', 1, [], ['=>', 0, [['arg', 0]], ['frame', 0]]]]]]]]]
         const root = {
             'main.f.js': [utf8("import d from './dep.f.js'; export default [d, 'xy'.startsWith('x')];")],
             'dep.f.js': [utf8("export default 'abc'.startsWith('b');")],
