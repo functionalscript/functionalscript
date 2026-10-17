@@ -57,7 +57,8 @@ impl IVm for Naive {
     }
 
     /// The runtime's static function, for the same reasons: a body, or
-    /// `Object.entries`, which the runtime creates.
+    /// `Object.entries`, the built-in by its name, which the runtime
+    /// answers a handle to and holds nowhere.
     fn runtime_static(path: &[&str]) -> Option<Any<Naive>> {
         runtime(|r| r.static_function(path))
     }

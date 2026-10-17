@@ -320,8 +320,8 @@ this proposal does not take.
       static with no body: its path in `statics`, the node
       `['Object.entries']`, answered natively by the represented
       interpreter, as a function value of its own, and by NaNVM, as a
-      function the runtime creates beside the compiled bodies, held per
-      thread with them;
+      built-in written by hand and identified by its name, which nothing
+      creates or holds;
       `const { entries } = Object` admitted over the prototype-name rule;
       the spec, the docs that say the language enumerates no keys, and a
       harness fixture.

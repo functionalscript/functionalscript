@@ -51,11 +51,13 @@ pub trait IVm: Sized + Clone + From<Unpacked<Self>> + 'static {
     /// The static function the VM's runtime binds at `path`, the keys
     /// `fjs/js/static` admits it under — `["Object", "is"]` for
     /// `Object.is` — or `None`: a generated body, or a function no body
-    /// defines, `Object.entries`, which the runtime creates. The default
-    /// binds nothing; a VM that makes functions out of Rust static
-    /// functions answers it from the [`Runtime`](crate::vm::Runtime) it
-    /// holds, as `naive` does: one runtime, so every read of a static
-    /// function is one function.
+    /// defines, `Object.entries`, a built-in identified by its name
+    /// ([`object_entries`](crate::vm::object_entries)), which nothing
+    /// creates or holds. The default binds nothing; a VM that makes
+    /// functions out of Rust static functions answers a body from the
+    /// [`Runtime`](crate::vm::Runtime) it holds, as `naive` does: one
+    /// runtime, so every read of a body is one function, and every read
+    /// of a built-in a handle equal to every other.
     fn runtime_static(path: &[&str]) -> Option<Any<Self>> {
         let _ = path;
         None
