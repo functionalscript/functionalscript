@@ -201,9 +201,13 @@ export const proof = {
             const named = { main: [utf8('export const callback=x=>x;')] }
             assertStructurallySame(virtualAt(named)(_transpileDefault(noRuntime)('main'))[1], ok(ok(undefined)))
             // a static function exported is the host's own built-in in the
-            // emitted module, whichever static it is
-            const statics = { main: [utf8('export default [Object.entries, Object.is, Number.isNaN];')] }
-            const exported = unwrap(unwrap(runtime({ ...emptyState, root: withRuntime(statics) })(_transpileDefault(noRuntime)('main'))[1]))
+            // emitted module, whichever static it is, under a runtime whose
+            // `static` section binds the ones with a body
+            const statics = {
+                main: [utf8('export default [Object.entries, Object.is, Number.isNaN];')],
+                'r.f.js': [utf8('export const runtime = { static: { Object: { is: (a, b) => a === b }, Number: { isNaN: x => x !== x } } };')],
+            }
+            const exported = unwrap(unwrap(virtualAt(statics)(_transpileDefault(runtimeAt('r.f.js'))('main'))[1]))
             assert(Array.isArray(exported) && exported[0] === Object.entries && exported[1] === Object.is && exported[2] === Number.isNaN)
         },
         initializationPayload: () => {
