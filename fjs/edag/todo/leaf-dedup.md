@@ -99,5 +99,5 @@ Whether the format admits it is part of question 1.
   key that is the computed-key precedent.
 - [`../../compiler/serializer`](../../compiler/serializer/module.f.mjs) — the writer
   that would follow whichever rule is chosen.
-- [`../../../spec/todo/content-addressable-vm.md`](../../../spec/todo/content-addressable-vm.md)
+- [`../../../spec/design/content-addressable-vm.md`](../../../spec/design/content-addressable-vm.md)
   — where a value is its content, deduplication is the storage, not a pass.

@@ -122,8 +122,8 @@ See [architecture.md §Human-readable paths](./architecture.md).
    and [proof loading](../../fjs/emergent_testing/todo/load-proofs-through-fjs.md)
    through the parser/linker and FJS interpreter. For native self-hosting,
    compile that FJS pipeline to direct Rust, with low-level effects supplied by
-   [native Node effects](../nanvm-effects-node-operations.md). The optional
-   [Rust EDAG library](../rust-edag.md) is on hold, outside MVP and self-hosting
+   [native Node effects](../../todo/nanvm-effects-node-operations.md). The optional
+   [Rust EDAG library](../../todo/rust-edag.md) is on hold, outside MVP and self-hosting
    prerequisites.
 5. Generic `Any` serialization (CBOR) in `nanvm-lib` — covers code as data; needed for CAS/CAVM
 
@@ -144,7 +144,7 @@ coverage. Its stage-1 issue is complete and deleted; the contract it left is
    decided whether a Stage-1 source or proof file migrated.
 3. Stage 2 migrates compiler-supported dependency-closed groups from `.f.mjs` to
    `.f.js`. The first renames have landed —
-   [`fjs-nanvm-integration.md`](../fjs-nanvm-integration.md) performs them — on
+   [`fjs-nanvm-integration.md`](../../todo/fjs-nanvm-integration.md) performs them — on
    two checks that run in CI: `fjs compile` with no arguments holds every
    `.f.js` to the compiler, and the packed-package check closing the `node26`
    job ([`fjs/ci/package`](../../fjs/ci/package/module.f.mjs)) imports a published
@@ -160,7 +160,7 @@ This lets TypeScript removal and compiler implementation proceed independently
 without either one blocking unrelated progress. The authoritative extension
 contract and detailed workflow are documented in
 [`fjs/compiler/README.md`](../../fjs/compiler/README.md), and the Stage-2 compiler migration
-is tracked in [`todo/fjs-nanvm-integration.md`](../fjs-nanvm-integration.md).
+is tracked in [`todo/fjs-nanvm-integration.md`](../../todo/fjs-nanvm-integration.md).
 
 This is the longest dependency chain. Everything after it depends on it.
 

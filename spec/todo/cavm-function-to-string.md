@@ -7,7 +7,7 @@
 
 Current represented VMs already use EDAG-derived, code-only default function
 text. The earlier direction treating the three
-[serialization questions](./serialization.md#open-questions) as open for these
+[serialization questions](../design/serialization.md#open-questions) as open for these
 APIs is superseded: `String(f)` does not serialize captured values, capture
 slots have generated names, and `self` renders as a finite named function
 expression. The shared renderer covers every admitted body; the separate FJS
@@ -18,7 +18,7 @@ materializes captures with EDAG reflection erased. See
 [runtime compilation](../../fjs/edag/values.md#runtime-compilation).
 
 This TODO proposes a future
-[content-addressable VM](./content-addressable-vm.md) profile. It adds a
+[content-addressable VM](../design/content-addressable-vm.md) profile. It adds a
 different constraint: two functions with the same content are **one value**
 ([execution models](../../fjs/edag/execution-models.md#4-content-addressable-vm)),
 and one value has one text. So
@@ -37,7 +37,7 @@ has a finite answer: captured functions stay slot references, and named `self`
 does not recursively expand its own body. It does not provide a content hash
 or a self-contained callable interchange format. Eagerly inlining an entire
 captured dependency graph is a different operation, subject to the
-[conditional lazy frame rendering](./serialization.md#conditional-requirement-lazy-frame-rendering)
+[conditional lazy frame rendering](../design/serialization.md#conditional-requirement-lazy-frame-rendering)
 discussion for future serializers that include frames.
 
 ### Proposal
@@ -84,7 +84,7 @@ what makes it right:
 - **Finite and canonical.** One identifier however deep the dependency
   graph; the same on every run of one CAVM version; and equal text means
   equal value, which a JS-compatible profile cannot promise
-  ([serialization](./serialization.md), code identity versus allocation
+  ([serialization](../design/serialization.md), code identity versus allocation
   identity) and a CAVM can, since it deliberately replaces allocation
   identity with content identity. The promise stops at the version: the
   hash is a function of the hash algorithm and of the normalizer that
@@ -125,7 +125,7 @@ then rest, in order and unchanged, `(a0, ..., aL_1, ...rest) =>
 h(a0, ..., aL_1, ...rest)` for every `L`, `(...rest) => h(...rest)` at
 `L` zero, reduces to `h` when `h`'s `length` is `L`. Whether it does is a
 normalizer choice
-the [content-addressable VM](./content-addressable-vm.md) design has not
+the [content-addressable VM](../design/content-addressable-vm.md) design has not
 made and this proposal does not make; without it, `String(f)` is a
 reference to `f`, not a round trip, and round trip is a separate question
 under [Open](#open).
@@ -145,7 +145,7 @@ CAVM-specific branch would be future work, not a change already present in it.
 ### Open
 
 - **Length.** The full hash is 255 bits
-  ([content-addressable-vm](./content-addressable-vm.md)), forty-three
+  ([content-addressable-vm](../design/content-addressable-vm.md)), forty-three
   base64 characters: correct, and still long for a name. A prefix is
   readable but reintroduces collisions; the CAVM design already weighs a
   48-bit prefix against a full hash for its *value* representation, and the
@@ -174,7 +174,7 @@ CAVM-specific branch would be future work, not a change already present in it.
 
 ### Tasks
 
-- [ ] Record in [content-addressable-vm](./content-addressable-vm.md) the
+- [ ] Record in [content-addressable-vm](../design/content-addressable-vm.md) the
       identity this relies on: a function's content is its EDAG *with* its
       captured frame, reduced, so a captured constant and a literal are one
       content and `a === b(2)` above holds.
@@ -184,7 +184,7 @@ CAVM-specific branch would be future work, not a change already present in it.
       [identifier-safe base64](../../fjs/basen/todo/various-basen-encodings.md)
       codec with this proposal as its named consumer; the renderer imports
       it.
-- [ ] Record the proposed CAVM rule in [serialization](./serialization.md),
+- [ ] Record the proposed CAVM rule in [serialization](../design/serialization.md),
       distinct from the implemented code-only, source and runtime-value APIs.
 - [ ] Add this profile-dependent branch to the existing shared default renderer
       after the CAVM contract is selected
@@ -192,9 +192,9 @@ CAVM-specific branch would be future work, not a change already present in it.
 
 ### Related
 
-- [content-addressable-vm](./content-addressable-vm.md) — the hash this
+- [content-addressable-vm](../design/content-addressable-vm.md) — the hash this
   proposal names by, and its size trade-off.
-- [serialization](./serialization.md#open-questions) — implemented current API
+- [serialization](../design/serialization.md#open-questions) — implemented current API
   answers and future callable interchange/profile questions.
 - [3120-parameters](./3120-parameters.md#default-function-text-render-or-refuse)
   — the renderer this rule plugs into.

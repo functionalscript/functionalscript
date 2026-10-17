@@ -185,7 +185,7 @@ AT Protocol already has useful ideas around DID identity, signed repositories, a
 
 ## Related Work
 
-- [Git name resolution](../../git-name-resolution.md)
-- [Git trusted timestamp signatures](../../git-trusted-timestamp-signatures.md)
+- [Git name resolution](../../../todo/git-name-resolution.md)
+- [Git trusted timestamp signatures](../../../todo/git-trusted-timestamp-signatures.md)
 - [DISOT CLI epic](../../../fjs/todo/disot-cli-epic.md)
-- [Git SHA-1 collisions](../../git-sha1-collisions.md)
+- [Git SHA-1 collisions](../../../todo/git-sha1-collisions.md)

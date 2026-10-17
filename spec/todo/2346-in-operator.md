@@ -117,7 +117,7 @@ convention".
 
 **4. Simplicity and one way to do it.** The language prefers simplicity and
 safety to ease of use
-([design principles](./design-principles.md),
+([design principles](../design/design-principles.md),
 [§1](../../doc/DESIGN.md#1-simplicity-first)). Presence will have one spelling
 (`hasEntity`, once admitted), reads have one (`entry`), and neither needs a chain, a
 `TypeError` branch or a second meaning. Adding `in` would give the same

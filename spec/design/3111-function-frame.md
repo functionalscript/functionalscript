@@ -10,7 +10,7 @@ metadata that it needs to generate correct call site bytecode.
 **Argument-model boundary:** slots and argument arrays in the sketches below
 are VM-internal storage, not a requirement to expose a complete-arguments EDAG
 node. The former zero-arity format used `['args']`; the implemented
-[named-and-rest plan](./3120-parameters.md) replaces it with
+[named-and-rest plan](../todo/3120-parameters.md) replaces it with
 `['=>', length, slots, body]`, constant `['arg', N]` and one per-invocation
 `['rest']` array. Validate canonical integer metadata (positive zero, never
 `-0`) and `0 <= N < length`; missing fixed values are `undefined`, and rest
@@ -120,7 +120,7 @@ fn b(frame: Array<Any>, param: Array<Any>) {
 
 The named parameter and the conditional are in the language; `a` reaching
 `b`, declared after it, is not yet
-([forward-references](./3140-forward-references.md)). These are illustrative
+([forward-references](../todo/3140-forward-references.md)). These are illustrative
 mutual-recursion/slot sketches, not implemented source or permission to
 expose a complete `args` binding. Ordinary captures are implemented: the
 compiler's frame is described under [EDAG](../../fjs/compiler/README.md#edag), and

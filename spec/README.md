@@ -105,8 +105,9 @@ language.
 ## Roadmap
 
 Unimplemented language features and remaining design work — ECMAScript
-proposals, I/O effects, the content-addressable VM, object identity,
-mutability and serialization — are tracked in [`spec/todo/`](./todo/README.md).
+proposals and the like — are tracked in [`spec/todo/`](./todo/README.md). The
+designs for I/O effects, the content-addressable VM, object identity,
+mutability and serialization are in [`spec/design/`](./design/README.md).
 Implemented behavior belongs in this document; a design record may remain
 open for approval, proofs or follow-up work after its syntax has landed.
 

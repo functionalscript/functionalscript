@@ -8,7 +8,7 @@
 A trusted timestamp (TTS, RFC 3161) proves that a digest existed at a time.
 DISOT (Decentralized Immutable Source of Truth:
 [what it is](https://medium.com/@sergeyshandar/digital-space-how-it-should-be-done-4c2f3bd3cf9e),
-[architecture](./plan/architecture.md)) wants that proof to be about Git
+[architecture](../doc/plan/architecture.md)) wants that proof to be about Git
 content, and to name *which* content, not one of a colliding pair. A SHA-1
 name cannot do that ([git-sha1-collisions](./git-sha1-collisions.md)); the
 digest has to be SHA-256 over the content. Git can name objects by SHA-256,

@@ -176,7 +176,7 @@ consumer of that output sees different text, as adopted. Function-name
 observations about rewritten output are addressed below; they are not
 source-program compatibility results.
 
-[Function text and serialization](../spec/todo/serialization.md#function-text-and-serialization)
+[Function text and serialization](../spec/design/serialization.md#function-text-and-serialization)
 records the current API answers. Memo and Amnesia use the shared total renderer
 for code-only function text: captured values appear as generated slot names,
 and `self` renders as a finite named function expression. They retain represented

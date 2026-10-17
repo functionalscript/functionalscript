@@ -342,7 +342,7 @@ authority evidence, timestamp evidence, and ancestry. If the directory points to
 a commit that does not validate for the requested name, the mapping does not win.
 
 This proposal therefore supersedes the old directory-to-hash final-binding rule
-**only for Git-backed named entities**. `todo/plan/architecture.md` should be
+**only for Git-backed named entities**. `doc/plan/architecture.md` should be
 updated when this design is adopted so both documents describe the same model.
 
 ### Relative references
@@ -643,7 +643,7 @@ files with those basenames remain ordinary content.
 - [ ] Define Git-backed final-name authority as root `.disot.*` + accepted
       authority/timestamp evidence + ancestry; signed directories are discovery,
       alias/trust-path, or non-Git naming mechanisms and cannot override it.
-- [ ] Update `todo/plan/architecture.md` when this model is adopted so the old
+- [ ] Update `doc/plan/architecture.md` when this model is adopted so the old
       directory-to-hash final-binding rule excludes Git-backed named entities.
 - [ ] Implement relative-reference resolution from the effective absolute name,
       with exact lock bindings as terminal overrides.
@@ -675,10 +675,10 @@ files with those basenames remain ordinary content.
 
 ### Related
 
-- [DISOT architecture](./plan/architecture.md) — global hashes, trust-relative
+- [DISOT architecture](../doc/plan/architecture.md) — global hashes, trust-relative
   human-readable paths, signed/timestamped trust, and the older signed-directory
   final-binding model that this Git-specific design partially supersedes.
-- [DISOT vision](./plan/vision.md) — detached CAS provenance/signature blocks and
+- [DISOT vision](../doc/plan/vision.md) — detached CAS provenance/signature blocks and
   the `~/Alice/...` web-of-trust namespace.
 - [git-sha1-collisions](./git-sha1-collisions.md) — a name resolves to an
   id, and in a SHA-1 repository what that id is trusted to mean is decided
