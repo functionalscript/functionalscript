@@ -157,8 +157,9 @@ mode prints a scope of temporaries and closures with frames, the static
 mode prints items:
 
 - **Every module-level function is a static `fn`**, with no `self_` and
-  no frame. Recursion through `self` is recursion of the `fn`; a loop
-  function is a loop in place as it is today.
+  no frame. Recursion through `self` is recursion of the `fn`, a loop
+  function included, which prints as recursion for now (the open point
+  below).
 - **A frame slot is resolved at compile time.** A body's `['frame', i]`
   names a module-level node. One that is a function prints as that
   function's accessor, `is_nan::<A>().to_any()`; one that is a literal is
