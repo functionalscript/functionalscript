@@ -15,8 +15,9 @@
  * solid box, so a demo with more than one kind of container is one CSS rule
  * away from telling them apart too.
  *
- * An empty `label` draws no title row on a node with edges, for a demo
- * whose rows already say what the node is.
+ * A node with edges draws its `label` as a column left of its rows. An
+ * empty `label` draws no column, for a demo whose rows already say what
+ * the node is.
  */
 export type Node = {
     readonly id: number
@@ -30,8 +31,8 @@ export type Ranked = Node & { readonly rank: number }
 /**
  * One edge, from a node's id to another's, labeled with the index or key
  * that reaches it. The label is drawn in a port of the source node — a
- * row of its own under the node's label, which the edge leaves from — and
- * a node's ports follow the order its edges are given in.
+ * row of its own right of the node's label, which the edge leaves from —
+ * and a node's ports follow the order its edges are given in.
  *
  * `kind` is the demo's own vocabulary, as a {@link Node}'s is, and is
  * absent where a demo draws one kind of edge. `"lazy"` draws dashed by the
@@ -58,7 +59,10 @@ export type Edge = {
  * the bottom corner of its right side, or the middle of it. For a node
  * whose children are ordered and need no names — a tree's left and right,
  * and a B-tree's middle — the corner says which child it is. Such an edge
- * ends at a node, not a value, and has no label.
+ * ends at a node, not a value, and has no label. A node whose arrows leave
+ * from its corners has rows for values only: an arrow from a row beside
+ * them is refused, since a `middle` corner starts where the middle of an
+ * odd number of rows does.
  */
 export type Corner = 'top' | 'middle' | 'bottom'
 

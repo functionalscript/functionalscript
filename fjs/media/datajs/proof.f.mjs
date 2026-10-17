@@ -110,25 +110,25 @@ export const proof = {
                 assert(html.includes('>-0<'), html)
             },
             // An index sits in a port of the array's own box, not on the
-            // line: the header is 26px and the row under it 20px, so the
-            // label is centred at y=46 and the edge leaves the row's right
-            // end at (60,46). The document is a tree, so the inner array is
-            // centred on the outer one, and the edge ends level with its
-            // label, at (100,33).
+            // line: the row is right of the 33px `[ ]` label column, so the
+            // index is centred at x=55 and the edge leaves the row's right
+            // end at (67,23). The document is a tree, so the outer array is
+            // centred on the inner one, and the edge runs level into the
+            // middle of its left side, at (107,23).
             edgeLabelPosition: () => {
                 const html = htmlToString(demo.view('export default [[]];'))
-                assert(html.includes('<text x="35" y="46" text-anchor="middle" data-graph-edge-label="">0<'), html)
-                assert(html.includes('d="M60,46 L100,33"'), html)
+                assert(html.includes('<text x="55" y="23" text-anchor="middle" data-graph-edge-label="">0<'), html)
+                assert(html.includes('d="M67,23 L107,23"'), html)
             },
             // A leaf inside a container is no node of its own: its value
             // sits in the port's row, in a cell right of the index, and no
             // line leaves for it.
             inlineLeaf: () => {
                 const html = htmlToString(demo.view('export default [1];'))
-                assert(html.includes('<rect x="10" y="10" width="50" height="46" rx="4" data-graph-node=""'), html)
-                assert(html.includes('<rect x="10" y="36" width="24" height="20" data-graph-port="">'), html)
-                assert(html.includes('<rect x="34" y="36" width="26" height="20" data-graph-value="">'), html)
-                assert(html.includes('<text x="47" y="46" text-anchor="middle" data-graph-value-label="">1<'), html)
+                assert(html.includes('<rect x="10" y="10" width="81" height="20" rx="4" data-graph-node=""'), html)
+                assert(html.includes('<rect x="43" y="10" width="24" height="20" data-graph-port="">'), html)
+                assert(html.includes('<rect x="67" y="10" width="24" height="20" data-graph-value="">'), html)
+                assert(html.includes('<text x="79" y="20" text-anchor="middle" data-graph-value-label="">1<'), html)
                 assert(!html.includes('data-graph-edge=""'), html)
             },
             // Two equal numbers are two values, not one shared like a
@@ -163,8 +163,8 @@ export const proof = {
             skipLevelLane: () => {
                 const html = htmlToString(
                     demo.view('const $0=[9];\nconst $1={"y":$0};\nexport default {"p":$1,"r":$0};'))
-                assert(html.includes('d="M60,66 L100,15 L150,15 L190,23"'), html)
-                assert(html.includes('d="M60,46 L100,47"'), html)
+                assert(html.includes('d="M76,40 L116,15 L182,15 L222,20"'), html)
+                assert(html.includes('d="M76,20 L116,44"'), html)
             },
             // The one case the first version of this demo got wrong: `$0` is
             // reached at rank 1 via `"a"`, then again at rank 3 via
@@ -176,10 +176,10 @@ export const proof = {
             longestPathWins: () => {
                 const html = htmlToString(demo.view(
                     'const $0=[1];\nexport default {"a":$0,"b":{"c":{"d":$0}}};'))
-                assert(html.includes('d="M60,46 L100,15 L150,15 L190,15 L240,15 L280,23"'), html)
-                assert(html.includes('d="M60,66 L100,47"'), html)
-                assert(html.includes('d="M150,70 L190,47"'), html)
-                assert(html.includes('d="M240,70 L280,23"'), html)
+                assert(html.includes('d="M76,20 L116,15 L182,15 L222,15 L288,15 L328,20"'), html)
+                assert(html.includes('d="M76,40 L116,44"'), html)
+                assert(html.includes('d="M182,44 L222,44"'), html)
+                assert(html.includes('d="M288,44 L328,20"'), html)
             },
             // No edge of the initial document, or of the two skip-level
             // documents above, passes through a node's box.
@@ -227,14 +227,14 @@ export const proof = {
             // The demo opens on the first, which is its overview.
             init: () => assertEq(demo.init, examples[0][1]),
             // A tree draws each container centred beside the ones it holds:
-            // the object under "d", 66px tall, sits halfway down the span
-            // of its two arrays, 210 to 336, at (210 + 336 - 66) / 2 = 240.
+            // the object under "d", 40px tall, sits halfway down the span
+            // of its two arrays, 132 to 206, at (132 + 206 - 40) / 2 = 149.
             nestedTree: () => {
                 const source = assertNotNullish(examples.find(([name]) => name === 'Nested tree'))[1]
                 const html = htmlToString(demo.view(source))
-                assert(html.includes('<rect x="280" y="210" width="50" height="66" rx="4" data-graph-node=""'), html)
-                assert(html.includes('<rect x="280" y="290" width="50" height="46" rx="4" data-graph-node=""'), html)
-                assert(html.includes('<rect x="190" y="240" width="50" height="66" rx="4" data-graph-node=""'), html)
+                assert(html.includes('<rect x="358" y="132" width="81" height="40" rx="4" data-graph-node=""'), html)
+                assert(html.includes('<rect x="358" y="186" width="81" height="20" rx="4" data-graph-node=""'), html)
+                assert(html.includes('<rect x="237" y="149" width="66" height="40" rx="4" data-graph-node=""'), html)
             },
             // Every example's view agrees with the graph API. The malformed
             // source is checked separately above, without depending on labels.
