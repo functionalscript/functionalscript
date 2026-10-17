@@ -1,6 +1,10 @@
 ## Property Accessor
 
-**Status:** the constant-key read is in the language
+**Priority:** P2
+**Status:** blocked — only `a[+i]` remains
+**Blocked by:** [Operators](./2340-operators.md)
+
+The constant-key read is in the language
 ([spec: property access](../property-access/README.md)): an own-property
 read, with every built-in prototype name but `length` a compilation error,
 the names held by [`fjs/js/prototype`](../../fjs/js/prototype/module.f.js),

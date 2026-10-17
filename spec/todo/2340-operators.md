@@ -1,5 +1,8 @@
 ## Operators
 
+**Priority:** P2
+**Status:** open
+
 |Type       |Operator |Priority   |
 |-----------|---------|-----------|
 |Comparison |`==`     |not allowed|

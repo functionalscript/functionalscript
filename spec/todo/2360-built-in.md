@@ -1,5 +1,8 @@
 ## Built-in Objects and Functions
 
+**Priority:** P2
+**Status:** open
+
 The built-in objects are special. We can call a permitted function, but cannot
 use its global namespace as an ordinary value. Some operations are permitted
 only inside a complete recognized pattern, not as independent calls.

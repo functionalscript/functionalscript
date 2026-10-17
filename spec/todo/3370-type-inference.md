@@ -1,5 +1,8 @@
 ## Type Inference
 
+**Priority:** P3
+**Status:** open
+
 We need type inference to prove that specific values have specific types. Type annotations can help, but we can't trust them.
 
 See [type-annotations](./3360-type-annotations.md) for the annotation form those

@@ -1,5 +1,8 @@
 ## Promise
 
+**Priority:** P3
+**Status:** open
+
 **Not required for I/O.** I/O is done with effects
 ([io-effects](./io-effects.md), [`fjs/effects`](../../fjs/effects/module.f.mjs)):
 an effect is plain data, and the promises a real runner uses live in the runner

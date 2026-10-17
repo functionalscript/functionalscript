@@ -1,5 +1,8 @@
 ## Type Annotations
 
+**Priority:** P3
+**Status:** open
+
 ```js
 import { number, or, string } from 'functionalscript/fjs/rtti/module.f.mjs'
 
