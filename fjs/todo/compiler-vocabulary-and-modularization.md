@@ -282,6 +282,7 @@ resolution needs to load them beside it:
 import a from "./a.f.js";
 import { b, c } from "./b.f.js";
 import d from "./d.json" with { type: "json" };
+import {} from "./e.f.js";
 export const e = [a, b, c, d];
 export default e;
 ```
@@ -294,22 +295,29 @@ const imports = [
     { specifier: "./b.f.js", json: false, name: "b" },
     { specifier: "./b.f.js", json: false, name: "c" },
     { specifier: "./d.json", json: true, name: "default" },
+    { specifier: "./e.f.js", json: false, name: null },
 ];
-const module = (a, b, c, d) => {
+const module = (a, b, c, d, m4) => {
     const e = [a, b, c, d];
     return { default: e, e };
 };
 ```
 
-One parameter per import binding, in source order, and beside the function
-what the function cannot say: the specifier and the `json` attribute, which
-decide what is loaded, and the export selected, which link checks against
-the module's exports as it does today, refusing one the module does not
-have. Module identity is the host's to establish and not desugaring's — two
-specifiers may resolve to one identity, and each import carries its own
-attribute and selected-export checks — so the records stay one per
-syntactic import, and link passes one module's export to every parameter
-that selects from it, which is the sharing the specification requires
+One parameter per import record, in source order: a record per binding,
+and one for an import list that binds no name, `import {} from "./e.f.js"`,
+its `name` `null` and its parameter the module's export object, which the
+body never reads and link loads all the same, so the dependency is
+evaluated and a failure in it kept, as the specification requires
+([imports](../../spec/modules/imports.md)) and as `AstImport`'s own `null`
+has it. Beside the function is what the function cannot say: the specifier
+and the `json` attribute, which decide what is loaded, and the export
+selected, which link checks against the module's exports as it does today,
+refusing one the module does not have. Module identity is the host's to
+establish and not desugaring's — two specifiers may resolve to one
+identity, and each import carries its own attribute and selected-export
+checks — so the records stay one per syntactic import, and link passes one
+module's export to every parameter that selects from it, which is the
+sharing the specification requires
 ([imports](../../spec/modules/imports.md)). This is the shape `AstImport`
 already has, an `aref` being that parameter; what changes is that the
 function is an ordinary one, which `from_fast` compiles as any other, and
