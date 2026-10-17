@@ -157,8 +157,9 @@ mode prints a scope of temporaries and closures with frames, the static
 mode prints items:
 
 - **Every module-level function is a static `fn`**, with no `self_` and
-  no frame. Recursion through `self` is recursion of the `fn`; a loop
-  function is a loop in place as it is today.
+  no frame. Recursion through `self` is recursion of the `fn`, a loop
+  function included, which prints as recursion for now (the open point
+  below).
 - **A frame slot is resolved at compile time.** A body's `['frame', i]`
   names a module-level node. One that is a function prints as that
   function's accessor, `is_nan::<A>().to_any()`; one that is a literal is
@@ -212,6 +213,11 @@ is `Sync`.
   code points say, meets the refusal; the answer then is a per-use
   construction, an `Rc` allocation per call, or a `static` of plain Rust
   data, decided when a body asks.
+- **A loop function at module level** prints as an item that calls
+  itself, through `Any::call` of its own accessor, where a closure of the
+  same shape prints as a `loop`. Correct, and a round per stack frame;
+  the runtime has no such function, and the loop printing joins the items
+  when one does.
 - **`IStaticFunction` for closures only.** `static_function` stays the
   VM's capability to make a closure out of a Rust static function; a
   built-in needs no VM to be made. A VM that cannot run a body cannot run
@@ -228,15 +234,16 @@ is `Sync`.
       hand-written `RuntimeFunction`. Tests: two reads of a built-in are
       equal and `same_value`; two closures from one arrow are not; a
       closure and a built-in are not.
-- [ ] The static-module mode of the Rust backend and the compiler's
+- [x] The static-module mode of the Rust backend and the compiler's
       printer: items for module-level functions, frame slots resolved and
       folded, the refusal, accessors with names from the `static` and
-      `member` sections, and `member`'s match. `fjs/nanvm/runtime` uses
-      it for `gen.runtime.rs`.
-- [ ] Generated user code prints a static read as the accessor's value.
-      Remove `static_binding`, `IVm::runtime_static`,
-      `IVm::runtime_method`, `Runtime`, `runtime_object` and `naive`'s
-      `thread_local!`. `npm run gen`.
+      `member` sections, and the two tables. `fjs/nanvm/runtime` uses it
+      for `gen.runtime.rs`. `IVm::runtime_static`, `IVm::runtime_method`,
+      `Runtime`, `runtime_object` and `naive`'s `thread_local!` removed;
+      `runtime_static(name)` and `runtime_method(type_name, key)` search
+      the tables for any VM.
+- [ ] Generated user code prints a static read as the accessor's value,
+      and `static_binding` goes. `npm run gen`.
 - [ ] Update `fjs/js/runtime/README.md`: "How NaNVM finds it", "Three
       places the binding could have lived", "Two invariants".
 - [ ] `cargo test`, `cargo clippy -- -D warnings`, `cargo fmt -- --check`.

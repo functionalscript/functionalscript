@@ -34,7 +34,7 @@ pub use crate::vm::{
     any::{Any, Constructor, JsonError, to_any::ToAny},
     array::{Array, to_array::ToArray},
     bigint::BigInt,
-    function::{Function, RuntimeCode, RuntimeFunction},
+    function::{Accessor, Function, RuntimeCode, RuntimeFunction},
     internal::{IComplex, IContainer, IFunction, IStaticFunction, IVm, StaticCode},
     iterator_record::IteratorRecord,
     lambda::{OptionLambda, OptionPropertyLambda, PropertyLambda},
@@ -42,10 +42,7 @@ pub use crate::vm::{
     number::Number,
     object::{Object, property::Property, to_object::ToObject},
     object_spread::ObjectSpread,
-    runtime::{
-        ENTRIES_TEXT, Runtime, object_entries, runtime_method, runtime_object, runtime_static,
-        static_binding,
-    },
+    runtime::{ENTRIES_TEXT, object_entries, runtime_method, runtime_static, static_binding},
     string::{String, to_string::ToString},
     unpacked::Unpacked,
 };
