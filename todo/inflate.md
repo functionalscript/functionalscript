@@ -1,7 +1,7 @@
 ## A FunctionalScript inflater
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
