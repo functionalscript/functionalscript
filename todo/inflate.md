@@ -112,13 +112,16 @@ input to a whole output:
 **The 32 KiB window is a short reversed list and a few frozen arrays.** A
 back-reference reads up to 32 KiB behind the output, and a persistent structure
 cannot append to an array. The recent output is a reversed cons list, whose
-append is constant, flushed into a frozen array of 4,096 bytes when it fills,
-and only the arrays the window still reaches are kept. A reference to the
-near past walks the list, and one further back indexes an array. A prototype in
-plain JavaScript (not committed, and not FunctionalScript) decoded
-4 MB of output with matches at 5.7 MB/s with the heap flat at 4 MB, so the
-shape is workable; its speed is no promise for the FunctionalScript version,
-which is measured in step 3.
+append is constant, frozen into an array of 256 bytes when it fills, and the
+last 128 such blocks are kept. A reference of a block or more reaches into the
+blocks by index; a nearer one takes the bytes once and repeats them
+([`fjs/zlib/window`](../fjs/zlib/window/module.f.mjs)). Measured at the end of
+step 3, on this machine: 0.3 to 0.7 MB of output a second, a 168 KB blob in
+about a third of a second. The profile is flat, with the garbage collector and
+the list-based `Vec` conversions at the boundary ahead of the window; there is
+no one hot spot to fix, and a faster `Vec` ↔ bytes conversion in `bit_vec` is
+where it would come from. The native decoder of `nanvm-effects-node` stays the
+fast path.
 
 **Where it lives.** `fjs/zlib/`: `adler32/` (this step), then `inflate/`.
 
@@ -130,12 +133,15 @@ which is measured in step 3.
       trailer of Node's `zlib.deflateSync`.
 - [x] [`fjs/zlib/inflate`](../fjs/zlib/inflate/module.f.mjs): the zlib framing
       and the stored blocks, fed chunks (`init`, `append`, `end`); a malformed
-      stream is `null`, and a block of Huffman codes is refused until the next
-      step. The Adler-32 is a lazy fold per byte, about 8 µs a byte, which the
-      measurement of the whole decoder in the next step decides how to speed up.
-- [ ] Fixed and dynamic Huffman blocks with the 32 KiB window, proven against
-      Node's `zlib` and the native decoder of `nanvm-effects-node` on corrupted
-      streams, as that decoder was.
+      stream is `null`.
+- [x] Fixed and dynamic Huffman blocks with the 32 KiB window
+      ([`fjs/zlib/inflate`](../fjs/zlib/inflate/module.f.mjs), over
+      [`bits`](../fjs/zlib/bits/module.f.mjs),
+      [`huffman`](../fjs/zlib/huffman/module.f.mjs) and
+      [`window`](../fjs/zlib/window/module.f.mjs)): proven against Node's `zlib`
+      streams and by hand, and checked on some 21,000 streams of every level,
+      strategy and window size, corrupted and cut into pieces, for the same
+      answer as Node's on each. The Adler-32 is a loop over the bytes now.
 - [ ] `fjs/git/loose` and `fjs/git/packstore` read through it together, with
       `readBytes` windows in; lift the delta ceiling in `fjs/git/pack`.
 

@@ -6,13 +6,17 @@
  */
 
 import type { Vec } from '../../types/bit_vec/types.ts'
+import type { Nullable } from '../../types/nullable/types.ts'
+import type { Codes } from '../huffman/types.ts'
+import type { Window } from '../window/types.ts'
 
 /**
  * Where a stream is: the two header bytes, the three bits that open a block,
- * a stored block's `LEN` and `NLEN`, its bytes, the checksum that closes the
- * stream, or past it.
+ * a stored block's `LEN` and `NLEN` and its bytes, a dynamic block's table
+ * description and the symbols of a block of codes, the checksum that closes
+ * the stream, or past it.
  */
-export type Phase = 'header' | 'block' | 'lengths' | 'stored' | 'trailer' | 'done'
+export type Phase = 'header' | 'block' | 'lengths' | 'stored' | 'dynamic' | 'codes' | 'trailer' | 'done'
 
 /**
  * A zlib stream being read. It is data and nothing else, so a state can be kept,
@@ -30,6 +34,10 @@ export type State = {
     readonly left: number
     /** The Adler-32 of the output so far. */
     readonly adler: number
+    /** The last 32 KiB of the output, which a back-reference reads. */
+    readonly window: Window
+    /** The codes of the block of codes being read, in the phase `codes`. */
+    readonly codes: Nullable<Codes>
 }
 
 /** What one chunk of input gave: the next state, and the output it made. */
