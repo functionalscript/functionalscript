@@ -1,0 +1,70 @@
+## The hosts copy what `effects` already shares: `all`, `io`, the window size
+
+**Priority:** P3
+**Status:** open
+
+### Problem
+
+[`common/module.mjs`](../common/module.mjs) is "host implementations of the
+operations more than one host implements", kept there so that "the second
+host [does not write] a second copy"; [`module.mjs`](../module.mjs)'s `io` is
+"shared by the Node host and the SpiderMonkey host". Three hosts still carry
+copies of what those two own.
+
+**`all`.** `All` is declared in `common/types.ts`, but its handler is not in
+`commonOperationMap`, because it needs the runner it is part of. So
+[`node/module.mjs`](../node/module.mjs) and
+[`spidermonkey/module.mjs`](../spidermonkey/module.mjs) each write it:
+
+```js
+all: async (...effects) => ok(await Promise.all(effects.map(runNodeEffect))),
+all: async (...effects) => ok(await Promise.all(effects.map(runShellEffect))),
+```
+
+**`io`, by hand, with a second phrase.** The browser runner's `import`
+handler in
+[`fjs/emergent_testing/browser/module.mjs`](../../emergent_testing/browser/module.mjs)
+writes `io`'s two-level `try`/`catch` out — importing `_readThrown`,
+`toIoError` and `ioError` to do it — and names the unreadable value
+`unknownValue`, "Unknown thrown value", where every operation on the other
+two hosts says `_unreadableThrownValue`, "thrown value could not be read".
+One fact, two spellings in the reports, which is what `unknownValue`'s own
+doc says it exists to prevent.
+
+**The window.** Both hosts define `const maxFileSizeBytes =
+Number(maxLengthBytes)` and window `readWhole` into it, one with a `fill`
+loop and one with `Array.from`; the Node host builds the `FileStat` literal
+`{ size, isFile, isDirectory }` in `stat` and again in `fstat`.
+
+### Proposal
+
+- `commonOperationMapFor(run)` in `common/module.mjs`: the common map plus
+  `all` over the runner given, spread by each host as
+  `...commonOperationMapFor(runNodeEffect)`. The browser runner, which
+  [node-module-layering](./node-module-layering.md) names as the next host,
+  then gets `all` rather than a third copy.
+- The browser `import` handler is `io(() => import(specifier(…)))`, and one
+  phrase: either `_unreadableThrownValue` loses its underscore and
+  `unknownValue` is it, or `io` takes the phrase as an argument. The owner's
+  call; the first is simpler.
+- `maxFileSizeBytes` exported from [`node/module.f.mjs`](../node/module.f.mjs),
+  which already builds `fileSizeRefusal` on the same number, and the
+  `readWhole` windowing as one function beside it; a `fileStat` helper in the
+  Node host for `stat` and `fstat`.
+
+node-module-layering moves the declarations; this is the handlers, which it
+does not mention.
+
+### Tasks
+
+- [ ] `commonOperationMapFor`; both hosts spread it and drop their `all`.
+- [ ] The browser `import` through `io`; one phrase for the unreadable value,
+      pinned on all three hosts' reports.
+- [ ] `maxFileSizeBytes` and the windowing shared; `fileStat` in the Node host.
+
+### Related
+
+- [node-module-layering](./node-module-layering.md) — the declarations' side
+  of the same boundary.
+- [allvoid-combinator](./allvoid-combinator.md) — why `All` sits where it
+  does.

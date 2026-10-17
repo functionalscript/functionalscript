@@ -1,0 +1,30 @@
+## `IoError` is built by two private helpers and three literals
+
+**Priority:** P5
+**Status:** open
+
+### Problem
+
+`files.rs` has `fn refusal(code: &str, message: String)`, `resolve.rs` has
+`fn refusal(code: Option<&str>, message: &str)` with a different signature,
+and `read_file`, `read_bounded` and `check_window` in `files.rs` write
+`IoError { code: None, message }` inline. `files.rs` also builds `Stat {
+size, is_file, is_directory }` from a `Metadata` identically in `stat` and
+`fstat`.
+
+### Proposal
+
+Two constructors on `IoError` in `files.rs` — `refusal(code, message)` and
+`message(message)` — replacing both helpers and the literals; `From<fs::Metadata>
+for Stat` for `stat` and `fstat`. `failure` stays the one `io::Error`
+translator.
+
+### Tasks
+
+- [ ] `IoError::refusal` and `IoError::message`; the helpers and literals go.
+- [ ] `From<fs::Metadata> for Stat`.
+
+### Related
+
+- [filesystem-error-codes](./filesystem-error-codes.md) — which codes are
+  translated; this is how the value is built.
