@@ -215,6 +215,9 @@ pub fn members<A: IVm>() -> [(&'static str, &'static str, Accessor<A>); 1] {
         assertEq(refusal(module([['static', 1]])), 'a section of the runtime that is no object: 1')
         assertEq(refusal(module([['member', object([['String', 1]])]])), 'a namespace of the runtime that is no object: String')
         assertEq(refusal(module([['static', object([['Object', object([['x', 1]])]])]])), 'a built-in that is no function: Object.x')
+        // a body under a native path would be NaNVM's alone, the
+        // represented executors answering the path natively first
+        assertEq(refusal(module([['static', object([['Object', object([['entries', fn(1, [], 1)]])]])]])), 'a body for a static every executor binds natively: Object.entries')
         assertEq(refusal(module([['member', object([['String', object([['x', ['.', object([['x', 1]]), 'x']]])]])]])), 'a built-in that is no function: String.prototype.x')
         assert(refusal(['{}', []]).startsWith('no `runtime` export of objects: '))
         assertEq(refusal(['{}', [[':', 'runtime', object([])], [':', 'x', 1], [':', 'y', ['.', ['undefined'], 'z']]]]), 'the runtime module exports `runtime` alone; the lifting would drop an export: x,y')

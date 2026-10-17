@@ -44,7 +44,7 @@ import { tryFunctionText } from '../../serializer/module.f.mjs'
 import { stringLiteral } from '../../../media/rust/module.f.mjs'
 import { generatedHeader, indent } from '../../../media/rust/item/module.f.js'
 import { tagged, untagged } from '../../../text/marked/module.f.mjs'
-import { natives } from '../../../js/static/module.f.js'
+import { isNative, natives } from '../../../js/static/module.f.js'
 
 const kw = tagged('keyword')
 const lit = tagged('literal')
@@ -118,8 +118,11 @@ const builtIns = (name, member) => section => {
  * Every built-in the module's `runtime` export names, the `static` section's
  * then the `member` section's, either section absent for none; or the
  * refusal of a module without the export or with another beside it, whose
- * initializer the lifting would drop, or of a section that is not objects
- * of functions.
+ * initializer the lifting would drop, of a section that is not objects
+ * of functions, or of a body under a path `nanvm-lib` binds natively,
+ * `Object.entries`: the represented executors answer such a path
+ * natively before they ask the runtime, so a body there would be NaNVM's
+ * alone, and the two would answer apart.
  *
  * @type {(root: Exp) => Result<readonly _BuiltIn[], readonly unknown[]>}
  */
@@ -133,10 +136,12 @@ const table = root => {
     if (sections === null) { return error(['no `runtime` export of objects', root]) }
     /** @type {(name: string) => unknown} */
     const section = name => sections.find(p => p[1] === name)?.[2] ?? ['{}', []]
-    return okThen((/** @type {readonly _BuiltIn[]} */ statics) =>
-        mapOk((/** @type {readonly _BuiltIn[]} */ members) => [...statics, ...members])(
-            builtIns((type, key) => `${type}.prototype.${key}`, true)(section('member'))))(
-        builtIns((namespace, key) => `${namespace}.${key}`, false)(section('static')))
+    return okThen((/** @type {readonly _BuiltIn[]} */ statics) => {
+        const native = statics.find(b => isNative(b.name.split('.')))
+        if (native !== undefined) { return error(['a body for a static every executor binds natively', native.name]) }
+        return mapOk((/** @type {readonly _BuiltIn[]} */ members) => [...statics, ...members])(
+            builtIns((type, key) => `${type}.prototype.${key}`, true)(section('member')))
+    })(builtIns((namespace, key) => `${namespace}.${key}`, false)(section('static')))
 }
 
 /**
