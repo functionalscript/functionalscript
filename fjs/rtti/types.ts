@@ -51,6 +51,7 @@
 import type { Assert } from '../asserts/types.ts'
 import type { Equal } from '../types/ts/types.ts'
 import type { StringMap } from '../types/object/types.ts'
+import type { Marked } from '../text/marked/types.ts'
 import type { _primitive0List, _tag1List, tag0List } from './module.f.mjs'
 
 /** A constant schema: a primitive literal, a struct object, or a tuple. */
@@ -224,13 +225,18 @@ export type DemoExample = {
     readonly value: string
 }
 
-/** One reader's answer in the rtti demo: whether it succeeded, and the value it succeeded with or where and why it failed. */
-export type _Answer = {
-    readonly ok: boolean
-    readonly text: string
-    /** Where a failure is, as the reader's error path; absent on success. */
-    readonly path?: readonly (string | number)[]
-}
+/**
+ * One reader's answer in the rtti demo: the value it succeeded with, as the
+ * marked DataJS document that denotes it, or where and why it failed.
+ */
+export type _Answer =
+    | { readonly ok: true, readonly marked: Marked }
+    | {
+        readonly ok: false
+        readonly text: string
+        /** Where the failure is, as the reader's error path. */
+        readonly path: readonly (string | number)[]
+    }
 
 /**
  * The rtti demo's state: the example picked by name, which of its schemas is
