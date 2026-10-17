@@ -3,7 +3,7 @@
 **Priority:** P2
 **Status:** open — proposal
 
-#### Problem
+### Problem
 
 [The specification](../README.md) is one document of about three thousand
 lines. A reader looking for one feature — optional chaining, `let`, a
@@ -13,7 +13,7 @@ file as everyone else; and the examples the compiler demos offer
 second list, grouped by what a program shows, not by what the specification
 says. The two drift apart.
 
-#### Design
+### Design
 
 **A tree of small pages, one per feature.** A directory per area, a page per
 feature, each page short enough to read at once: what the feature accepts, what
@@ -40,7 +40,7 @@ cross-cutting index and links the pages.
 `todo/` and the example that will show it. The tree is then the roadmap as
 well: the gaps are visible as empty pages.
 
-#### What a page holds
+### What a page holds
 
 **No page says "allowed unless forbidden".** FunctionalScript is a whitelist
 ([principles](../principles/README.md)), so every JavaScript feature gets a
@@ -86,7 +86,7 @@ An included feature that is refused in one context (for example `a.toString`,
 which is refused as a read but accepted as a call) is an included page with a
 *refused forms* section that follows the refused-feature layout.
 
-#### The tree
+### The tree
 
 `●` has examples in the compiler demo today; `○` is specified but has none;
 `◌` is planned or refused-by-design and has a `todo/`.
@@ -148,7 +148,7 @@ which is refused as a read but accepted as a call) is an included page with a
     - `○` File types; `○` JSON input; `●` per-output behavior (what `.json`,
       `.data.js`, `.js`, EDAG and Rust each write or refuse)
 
-#### Migration
+### Migration
 
 **Done in the conversion pull request.** `spec/README.md` is the index, the
 contents tree and the roadmap; the text moved into twelve areas, each a directory
@@ -194,7 +194,7 @@ What is left, each its own pull request:
 4. Each `◌` or `○` row gets its example when the feature lands, or a refusal
    example when it is refused by design.
 
-#### Open questions
+### Open questions
 
 - **Where the examples file lives.** Beside its page keeps text and programs
   together; a single `spec/examples/` mirrors the tree for tooling. Beside the
