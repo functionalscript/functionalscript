@@ -5,11 +5,13 @@
 
 ### Problem
 
-The rtti demo colours every block it prints except one: the TypeScript type
-that `dataToTs` writes. Its JSON Schema and canonical form come from writers
-that mark their own runs ([`fjs/text/marked`](../../../text/marked/README.md)),
-and the schema's source and the comparison calls are JavaScript the
-highlighter's tokenizer fallback reads. TypeScript has neither: `dataToTs`
+The rtti demo colours the code it prints, except the TypeScript type that
+`dataToTs` writes. Its JSON Schema and canonical form come from writers that
+mark their own runs ([`fjs/text/marked`](../../../text/marked/README.md)),
+and the schema's source is JavaScript the highlighter's tokenizer fallback
+reads. (The comparison block is plain too, but it is not code: its lines,
+`equal → true`, are a summary the tokenizer refuses.) TypeScript has neither:
+`dataToTs`
 answers plain strings, and the fallback reads JavaScript tokens, so `type`,
 `readonly`, `string` and `number` — the words a TypeScript reader looks for —
 would draw as plain identifiers, and a syntax the JavaScript tokenizer does

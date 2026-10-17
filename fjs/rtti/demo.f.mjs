@@ -44,7 +44,8 @@
  * schema's source and the value a reader types have no writer behind them,
  * so they go through the highlighter's tokenizer. The TypeScript type stays
  * plain until its printer marks it
- * ([`ts/todo/marked-output.md`](./ts/todo/marked-output.md)).
+ * ([`ts/todo/marked-output.md`](./ts/todo/marked-output.md)), and so do
+ * the comparison's lines, `equal → true`, a summary rather than code.
  *
  * **A schema compares with any other.** The shown schema is compared with one
  * the reader picks, through the data form's `equal` and `subset`, so "two
