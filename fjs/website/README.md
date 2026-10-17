@@ -731,6 +731,9 @@ marked `aria-current="page"`. It is `breadcrumb` in
   screen reader's list of headings, a search engine and a reader mode take the
   page's topic from it, and a page with none would give them nothing. An `h1`
   may sit in a `nav`, not the other way round, so the `nav` is outside.
+  Browsers that still apply the old rule shrinking an `h1` inside a `nav`
+  show it smaller; current ones no longer do, so the stylesheet does not set
+  its size.
 - **Every part is heading-sized.** A variant setting the ancestors at body
   size, so the page's own name stood out, was rendered beside it, and the
   plain heading won.
