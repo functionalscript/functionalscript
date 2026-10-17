@@ -174,9 +174,9 @@ this issue owns the vocabulary the line uses and the placements below.
 | --- | --- |
 | Tokenizer | Spelling: what is a token, escapes, line boundaries. |
 | Grammar | Shape: which token sequences are a module, a statement, a value. |
-| Binding | Names: what a word resolves to, captures, and the early errors that read a word — a duplicate, a reserved word, a prototype name — checked before desugaring erases what they inspect. |
+| Binding | Names: what a word resolves to, captures, and JavaScript's own early errors that read a word — a name bound twice, a reserved word bound — checked before desugaring erases what they inspect. |
 | Desugaring | Sugar: a construct expressed through FAST's basic constructs. |
-| Admission | What FunctionalScript keeps of the supported JavaScript subset; `fjs/compiler` owns it. |
+| Admission | What FunctionalScript keeps of the supported JavaScript subset, and the refusals that are its own and no early error of JavaScript's — a prototype name as a key, `o.toString`, a reserved global, a bare `__proto__` key, a prohibited member call — run before desugaring erases what they inspect; `fjs/compiler` owns it. |
 | Graph construction (`from_fast`) | Sharing, scopes, anchors, and the lowering of FAST's loop forms to tail calls. |
 | Graph optimization | An EDAG-to-EDAG rewrite, recorded as one. |
 | Graph-to-FAST (`to_fast`) | Bindings, blocks, placement and tail loops in output. |
@@ -193,7 +193,8 @@ Where a feature lives today, and where the vocabulary places it:
 | The `let`/`while` loop | The fold: `loopRound`, to self recursion | FAST keeps it; `from_fast` lowers it, `to_fast` reconstructs it |
 | A pattern over `Object` or `Number` | The fold: `namespaceOf` | Desugaring, over binding's static read |
 | A module as a function over its imports | The fold's `AstModule`, then `unresolved` and `Unresolved` in `compiler/edag` | Desugaring, with the import metadata beside the function |
-| Resolution, captures, early errors | The fold | Binding, before desugaring |
+| Resolution, captures, JavaScript's early errors | The fold | Binding, before desugaring |
+| FunctionalScript's own refusals: a prototype name, a reserved global, `__proto__`, a prohibited call | The fold | Admission, before desugaring |
 
 **Destructuring is the fold's today and belongs to desugaring.** The syntax
 tree, [`parser/syntax`](../compiler/parser/syntax/types.ts)'s
@@ -205,7 +206,7 @@ owns every other sugar the language has, the table's rows above, so there is
 no desugaring stage to point a page at: the AST of the vocabulary is that
 syntax tree, and the compiler's `AstModule` is nearer FAST, its names
 already indices. Under the vocabulary, binding checks the words a pattern
-binds and `desugar` writes the reads, after it, the
+binds, admission its keys, and `desugar` writes the reads after both, the
 [example below](#examples-the-design-must-explain); the fold keeps what
 reads a word or a line.
 
