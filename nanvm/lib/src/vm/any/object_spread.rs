@@ -32,9 +32,10 @@ impl<A: IVm> Any<A> {
     /// function. Unlike the spread it throws on `null` and `undefined`,
     /// as `ToObject` does (`member_access::non_nullish_receiver`).
     ///
-    /// The body of the static function no FunctionalScript body defines,
+    /// The code of the static function no FunctionalScript body defines,
     /// enumerating keys being what the language has no other way to do:
-    /// [`object_entries`](crate::vm::object_entries) creates it.
+    /// [`object_entries`](crate::vm::object_entries), the built-in
+    /// identified by its name, calls it.
     pub fn entries(self) -> Result<Self, Self> {
         non_nullish_receiver(self.clone())?;
         Ok(self
