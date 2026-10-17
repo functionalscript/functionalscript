@@ -81,6 +81,15 @@ export const runtime = {
   shadow a built-in. Every other receiver goes straight to the body, or
   to the native while the name has none.
 
+- The inventory comes first, as one table by type: `fjs/js/members`
+  holds every built-in type, then every name its prototype has and
+  `allowedCalls` admits, then the function of the receiver and the
+  arguments, `(self, ...args)`, the receiver typed as the type it is
+  under, which a body over `unknown` cannot be; `todo` stands where no
+  body is written. `types.ts` pins each type's keys to exactly the
+  admitted names. Which names stay native, and how the executors are
+  generated from the table, is decided once it is filled.
+
 ### Tasks
 
 - [x] The member shape: `member` keyed by name, bodies of the receiver,
