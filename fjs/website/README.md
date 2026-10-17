@@ -717,6 +717,26 @@ and no other page had either.
   `WORKERS_CI_COMMIT_SHA`. The published site is built from `main` and a local
   build names no branch, so neither shows the strip.
 
+## The breadcrumb is the page's heading
+
+A directory's page, a release's page and the release index open with one
+line, `root / fjs / rtti`: each ancestor a link, the page itself as text
+marked `aria-current="page"`. It is `breadcrumb` in
+[`page/module.f.mjs`](./page/module.f.mjs), a `nav` holding the page's `h1`.
+
+- **One line, not two.** The page used to carry a breadcrumb, `root / fjs`,
+  and under it an `h1`, `fjs/rtti` — the same path twice, the second time
+  without its root.
+- **It is still the `h1`.** Only the duplicate is gone, not the heading: a
+  screen reader's list of headings, a search engine and a reader mode take the
+  page's topic from it, and a page with none would give them nothing. An `h1`
+  may sit in a `nav`, not the other way round, so the `nav` is outside.
+- **Every part is heading-sized.** A variant setting the ancestors at body
+  size, so the page's own name stood out, was rendered beside it, and the
+  plain heading won.
+- **A page with no ancestors keeps a plain `h1`**: the root page, the pull
+  requests and the CLI reference have no path to show.
+
 ## Every page closes with the funding links
 
 One line under a rule at the bottom of every page — `Support FunctionalScript:`
