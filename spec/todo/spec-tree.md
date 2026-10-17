@@ -65,8 +65,8 @@ not a default. A page is one of two kinds.
    never silently out of date.
 5. **Where it is implemented**: the compiler layer that owns the feature —
    tokenizer, grammar, binding, desugaring, admission, graph construction,
-   graph optimization, graph-to-FAST, serialization or evaluation — in the
-   vocabulary of
+   linking, graph optimization, graph-to-FAST, serialization or evaluation —
+   in the vocabulary of
    [compiler vocabulary and modularization](../../fjs/todo/compiler-vocabulary-and-modularization.md#where-a-feature-is-implemented),
    which records where a feature lives today where that differs. The page
    names the layer; the module's own documentation says how. A refused

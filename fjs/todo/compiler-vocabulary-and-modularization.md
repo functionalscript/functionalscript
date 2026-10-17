@@ -178,6 +178,7 @@ this issue owns the vocabulary the line uses and the placements below.
 | Desugaring | Sugar: a construct expressed through FAST's basic constructs. |
 | Admission | What FunctionalScript keeps of the supported JavaScript subset, and the refusals that are its own and no early error of JavaScript's — a prototype name as a key, `o.toString`, a reserved global, a bare `__proto__` key, a prohibited member call — run before desugaring erases what they inspect; `fjs/compiler` owns it. |
 | Graph construction (`from_fast`) | Sharing, scopes, anchors, and the lowering of FAST's loop forms to tail calls. |
+| Linking | Loading and linking, what the records beside a module function ask of the host and of the modules loaded: a specifier resolved to a module identity, one load and one evaluation per identity, a cycle refused, the attribute's agreement with the file, the selected export's existence; and the module function applied to what was loaded. `fjs/compiler` owns it, `_walk` in `source` and `resolve` in `edag` today. |
 | Graph optimization | An EDAG-to-EDAG rewrite, recorded as one. |
 | Graph-to-FAST (`to_fast`) | Bindings, blocks, placement and tail loops in output. |
 | Serialization | A target's spelling of FAST and of its runtime operations. |
@@ -193,6 +194,7 @@ Where a feature lives today, and where the vocabulary places it:
 | The `let`/`while` loop | The fold: `loopRound`, to self recursion | FAST keeps it; `from_fast` lowers it, `to_fast` reconstructs it |
 | A pattern over `Object` or `Number` | The fold: `namespaceOf` | Desugaring, over binding's static read |
 | A module as a function over its imports | The fold's `AstModule`, then `unresolved` and `Unresolved` in `compiler/edag` | Desugaring, with the import metadata beside the function |
+| Module resolution, identity, cycles, the attribute's and the selected export's checks | `_walk` in `compiler/source`, `resolve` in `compiler/edag` | Linking |
 | Resolution, captures, JavaScript's early errors | The fold | Binding, before desugaring |
 | FunctionalScript's own refusals: a prototype name, a reserved global, `__proto__`, a prohibited call | The fold | Admission, before desugaring |
 
@@ -236,10 +238,11 @@ over its imports, with the record resolution needs beside it,
 the [example below](#examples-the-design-must-explain), and nothing in
 FAST is module-specific: `from_fast` compiles a function, and linking
 applies it to the exports the records select, a module's whole export
-object only where a record names none. Whether the unresolved EDAG keeps
-the `['args']` root or is the function node applied at link is settled in
-the architecture increment; `AstModule` and `Unresolved` are then the two
-representations to retire.
+object only where a record names none. The imports are that function's
+rest array, so the EDAG's `['args']` root is already its shape; whether
+the root keeps its own tag or is the function's `['rest']` applied at
+link is settled in the architecture increment, and `AstModule` and
+`Unresolved` are then the two representations to retire.
 
 #### Examples the design must explain
 
@@ -298,32 +301,41 @@ const imports = [
     { specifier: "./d.json", json: true, name: "default" },
     { specifier: "./e.f.js", json: false, name: null },
 ];
-const module = (a, b, c, d, m4) => {
+const module = (...args) => {
+    const a = args[0];
+    const b = args[1];
+    const c = args[2];
+    const d = args[3];
     const e = [a, b, c, d];
     return { default: e, e };
 };
 ```
 
-One parameter per import record, in source order: a record per binding,
-and one for an import list that binds no name, `import {} from "./e.f.js"`,
-its `name` `null` and its parameter the module's export object, which the
-body never reads and link loads all the same, so the dependency is
-evaluated and a failure in it kept, as the specification requires
-([imports](../../spec/modules/imports.md)) and as `AstImport`'s own `null`
-has it. Beside the function is what the function cannot say: the specifier
-and the `json` attribute, which decide what is loaded, and the export
+The imports are the function's rest array, one slot per import record in
+source order: a record per binding, and one for an import list that binds
+no name, `import {} from "./e.f.js"`, its `name` `null` and its slot the
+module's export object, which the body never reads and link loads all the
+same, so the dependency is evaluated and a failure in it kept, as the
+specification requires ([imports](../../spec/modules/imports.md)) and as
+`AstImport`'s own `null` has it. The body reads slot `i` as a late
+parameter reads `rest[i]`, so the function's `length` is `0` and the limit
+of 16 fixed parameters, a rule on the parameters a source function writes,
+never reaches a module's imports
+([parameters](../../spec/functions/parameters.md),
+[module import bindings](../../spec/todo/3120-parameters.md#module-import-bindings-are-unchanged)).
+Beside the function is what the function cannot say: the specifier and
+the `json` attribute, which decide what is loaded, and the export
 selected, which link checks against the module's exports as it does today,
 refusing one the module does not have. Module identity is the host's to
 establish and not desugaring's — two specifiers may resolve to one
 identity, and each import carries its own attribute and selected-export
 checks — so the records stay one per syntactic import, and link passes one
-module's export to every parameter that selects from it, which is the
-sharing the specification requires
-([imports](../../spec/modules/imports.md)). This is the shape `AstImport`
-already has, an `aref` being that parameter; what changes is that the
-function is an ordinary one, which `from_fast` compiles as any other, and
-that linking applies it to the selected exports, so the linked program has
-no parameter left
+module's export to every slot that selects from it, which is the sharing
+the specification requires. This is the shape `AstImport` and the EDAG's
+`['args']` already have, the slot read being `['.', ['args'], i]`; what
+changes is that the function is an ordinary one, which `from_fast`
+compiles as any other, and that linking applies it to the selected
+exports, so the linked program has no parameter left
 ([spec: a module is a function](../../spec/modules/README.md#a-module-is-a-function)).
 
 Beyond desugaring, one rule of the graph: a conditional reference does not
