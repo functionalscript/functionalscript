@@ -1,8 +1,8 @@
 use crate::{
     common::sized_index::SizedIndex,
     vm::{
-        Any, Array, Function, IVm, Number, String, ToAny, ToArray, Unpacked,
-        array::callback::callback, error, runtime::runtime_method,
+        Any, Array, Function, IVm, Number, String, ToAny, Unpacked, array::callback::callback,
+        error, runtime::runtime_method,
     },
 };
 
@@ -93,29 +93,12 @@ fn array<A: IVm>() -> [(&'static str, Method<A>); 23] {
     ]
 }
 
-/// The `i`-th argument, or `undefined` past the end, as a built-in reads
-/// a parameter the call left out.
-pub(super) fn argument<A: IVm>(args: &Array<A>, i: u32) -> Any<A> {
-    if i < args.length() {
-        args[i].clone()
-    } else {
-        Any::undefined()
-    }
-}
-
 /// The `i`-th argument if the call passed one, `undefined` included, and
 /// `None` if it did not: for the few built-ins whose answer depends on
 /// whether an argument is there, not only on its value — `lastIndexOf(x)`
 /// searches from the end, `lastIndexOf(x, undefined)` from `0`.
 pub(super) fn present<A: IVm>(args: &Array<A>, i: u32) -> Option<Any<A>> {
     (i < args.length()).then(|| args[i].clone())
-}
-
-/// The arguments from the `i`-th on, as a rest parameter reads them.
-pub(super) fn rest<A: IVm>(args: &Array<A>, i: u32) -> Array<A> {
-    (i..args.length().max(i))
-        .map(|k| args[k].clone())
-        .to_array()
 }
 
 /// A search's position as JavaScript answers it: the index, or `-1`.
@@ -149,7 +132,7 @@ where
 /// arguments, as JavaScript's does.
 fn to_string<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     let radix = match Unpacked::from(receiver.clone()) {
-        Unpacked::Number(_) | Unpacked::BigInt(_) => radix(argument(&args, 0))?,
+        Unpacked::Number(_) | Unpacked::BigInt(_) => radix(args.argument(0))?,
         _ => 10,
     };
     if radix == 10 {
@@ -179,19 +162,19 @@ fn radix<A: IVm>(radix: Any<A>) -> Result<u32, Any<A>> {
 
 /// `Array.prototype.at`, `vm/array/at.rs`.
 fn array_at<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
-    Array::try_from(receiver)?.at(argument(&args, 0))
+    Array::try_from(receiver)?.at(args.argument(0))
 }
 
 /// `Array.prototype.includes`, `vm/array/includes.rs`.
 fn array_includes<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     Array::try_from(receiver)?
-        .includes(&argument(&args, 0), argument(&args, 1))
+        .includes(&args.argument(0), args.argument(1))
         .to_any_result()
 }
 
 /// `Array.prototype.indexOf`, `vm/array/index_of.rs`.
 fn array_index_of<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
-    let found = Array::try_from(receiver)?.index_of(&argument(&args, 0), argument(&args, 1))?;
+    let found = Array::try_from(receiver)?.index_of(&args.argument(0), args.argument(1))?;
     Ok(index_or_minus_one(found))
 }
 
@@ -203,7 +186,7 @@ fn array_concat<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<
 /// `Array.prototype.slice`, `vm/array/slice.rs`.
 fn array_slice<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     Array::try_from(receiver)?
-        .slice(argument(&args, 0), argument(&args, 1))
+        .slice(args.argument(0), args.argument(1))
         .to_any_result()
 }
 
@@ -217,14 +200,14 @@ fn array_to_reversed<A: IVm>(receiver: Any<A>, _: Array<A>) -> Result<Any<A>, An
 /// as present or not.
 fn array_to_spliced<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     Array::try_from(receiver)?
-        .to_spliced(present(&args, 0), present(&args, 1), rest(&args, 2))
+        .to_spliced(present(&args, 0), present(&args, 1), args.rest(2))
         .to_any_result()
 }
 
 /// `Array.prototype.with`, `vm/array/with.rs`.
 fn array_with<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     Array::try_from(receiver)?
-        .with(argument(&args, 0), argument(&args, 1))
+        .with(args.argument(0), args.argument(1))
         .to_any_result()
 }
 
@@ -235,7 +218,7 @@ fn with_callback<A: IVm>(
     receiver: Any<A>,
     args: &Array<A>,
 ) -> Result<(Array<A>, Function<A>), Any<A>> {
-    Ok((Array::try_from(receiver)?, callback(argument(args, 0))?))
+    Ok((Array::try_from(receiver)?, callback(args.argument(0))?))
 }
 
 /// `Array.prototype.every`, `vm/array/every.rs`.
@@ -305,7 +288,8 @@ fn array_reduce_right<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>
 /// included.
 fn array_flat<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     let a = Array::try_from(receiver)?;
-    let depth = argument(&args, 0)
+    let depth = args
+        .argument(0)
         .defined()
         .map_or(Ok(1.0), Any::to_integer_or_infinity)?;
     a.flat(depth).to_any_result()
@@ -321,7 +305,8 @@ fn array_flat_map<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, An
 /// `undefined`, passed or not, or a function, and anything else — `null`
 /// included — the `TypeError` JavaScript throws before any element is read.
 fn array_to_sorted<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
-    let compare = argument(&args, 0)
+    let compare = args
+        .argument(0)
         .defined()
         .map(|c| match Unpacked::from(c) {
             Unpacked::Function(f) => Ok(f),
@@ -338,7 +323,7 @@ fn array_to_sorted<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, A
 /// with `"null"`.
 fn array_join<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     let a = Array::try_from(receiver)?;
-    let separator = match argument(&args, 0).defined() {
+    let separator = match args.argument(0).defined() {
         None => ",".into(),
         // Fewer than two elements never place the separator, so it is
         // converted for its throws alone.
@@ -356,7 +341,7 @@ fn array_join<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>
 /// `Array.prototype.lastIndexOf`, `vm/array/last_index_of.rs`: the one of
 /// the three whose position is read only when passed.
 fn array_last_index_of<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
-    let found = Array::try_from(receiver)?.last_index_of(&argument(&args, 0), present(&args, 1))?;
+    let found = Array::try_from(receiver)?.last_index_of(&args.argument(0), present(&args, 1))?;
     Ok(index_or_minus_one(found))
 }
 

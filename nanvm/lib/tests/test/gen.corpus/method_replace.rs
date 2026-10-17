@@ -14,14 +14,14 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("noCaptures", Any::dot(string_any("aXb"), string_any("replace")).end_call(|| Ok([string_any("X"), string_any("$1$<n>$")].to_array().to_any())), string_any("a$1$<n>$b"));
     check::<A>("function", Any::dot(string_any("aXbX"), string_any("replace")).end_call(|| {
         let c0: Any<A> = A::static_function(|_self, args| {
-            let rest = args.clone().into_iter().to_array();
+            let rest = args.rest(0);
             Ok(rest.clone().to_any())
         }, 0, Array::default(), Some("(...$0)=>$0")).to_any();
         Ok([string_any("X"), c0].to_array().to_any())
     }), string_any("aX,1,aXbXbX"));
     check::<A>("functionMatch", Any::dot(string_any("aXb"), string_any("replace")).end_call(|| {
         let c0: Any<A> = A::static_function(|_self, args| {
-            let rest = args.clone().into_iter().to_array();
+            let rest = args.rest(0);
             Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()
         }, 0, Array::default(), Some("(...$0)=>$0[0]")).to_any();
         Ok([string_any("X"), c0].to_array().to_any())
@@ -31,7 +31,7 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("noReplacement", Any::dot(string_any("aXb"), string_any("replace")).end_call(|| Ok([string_any("X")].to_array().to_any())), string_any("aundefinedb"));
     check::<A>("undefinedAnswer", Any::dot(string_any("aXb"), string_any("replace")).end_call(|| {
         let c0: Any<A> = A::static_function(|_self, args| {
-            let rest = args.clone().into_iter().to_array();
+            let rest = args.rest(0);
             let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
             Any::dot(c0, string_any("x")).end()
         }, 0, Array::default(), Some("(...$0)=>$0[0].x")).to_any();

@@ -304,12 +304,13 @@ const stringCall = name => v => {
 
 /**
  * Fixed argument `k` of the function being called, read from the `args`
- * parameter of the closure {@link closure} prints: `undefined` past the end
- * of a short call, as JavaScript binds a missing argument.
+ * parameter of the closure {@link closure} prints: `nanvm-lib`'s
+ * `Array::argument`, `undefined` past the end of a short call, as
+ * JavaScript binds a missing argument — one bounds check and one clone.
  *
  * @type {(k: number) => Printed<string>}
  */
-const argRead = k => cat([`args.clone().into_iter().${k === 0 ? 'next()' : `nth(${num(`${k}`)})`}.unwrap_or_else(|| `, undefinedAny, ')'])
+const argRead = k => cat(['args.argument(', num(`${k}`), ')'])
 
 /**
  * Slot `i` of the frame the function was built with, read through the
@@ -526,11 +527,13 @@ const last = e => {
 
 /**
  * The line binding a function's rest parameters, the arguments after its
- * `length` fixed ones, as the `Array<A>` a `['rest']` read clones.
+ * `length` fixed ones, as the `Array<A>` a `['rest']` read clones:
+ * `nanvm-lib`'s `Array::rest`, the arguments themselves after no fixed
+ * ones, a new array of the ones past `length` otherwise.
  *
  * @type {(length: number) => Printed<string>}
  */
-export const restLine = length => cat([`${kw('let')} rest = args.clone().into_iter()${length === 0 ? '' : `.skip(${num(`${length}`)})`}`, toArray, ';'])
+export const restLine = length => cat([`${kw('let')} rest = args.rest(`, num(`${length}`), ');'])
 
 /**
  * The printer for the EDAG under `root`, or the refusal of a shape this
