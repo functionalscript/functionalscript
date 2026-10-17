@@ -97,8 +97,9 @@ this one: enumerating keys is exactly what the language lacks, so
 holds nothing at its path, and each executor answers the node itself: the
 represented interpreter with a function value of its own,
 `['Object.entries']`, called natively as `['entry']` is; NaNVM with a
-function its runtime creates beside the compiled bodies, initialized once
-and held per thread with them, so every read is one function.
+built-in written in `vm/runtime.rs`, `vm::object_entries`, a static
+function identified by its name, so every read is a handle to one
+function and nothing is created or held.
 
 **Destructuring.** `entries` is a prototype name, `Array.prototype`'s,
 which every pattern refuses at the key. Over a namespace the namespace's
@@ -114,9 +115,8 @@ requires of a built-in function
 a string with the syntax of a NativeFunction whose name is the built-in's
 [[InitialName]], `entries`. The grammar admits parameters; the text has
 none, as most engines print it, V8's text exactly. The interpreter spells
-it, `entriesText`; NaNVM's function holds no text, and `String(f)` forms
-it from the name on each call, `runtime_to_string("entries")`, for every
-VM. A text keeps
+it, `entriesText`, and NaNVM's built-in carries the same text,
+`vm::ENTRIES_TEXT`. A text keeps
 every conversion that never reads it, `Number` and the relational
 operators, answering alike in the represented interpreter, which renders a
 text before it converts, and NaNVM, which answers those without one, so
@@ -153,9 +153,8 @@ are that session's reading of the direction, open to the owner's review.
 
 **Implemented** as proposed: `fjs/js/static`'s `natives` lists the path,
 the represented interpreter answers it from `fjs/edag/value/entries`, and
-NaNVM with `vm::object_entries`, which `vm::Runtime` creates once beside
-the compiled object and `IVm::runtime_static` answers as it answers a
-body, `naive` holding the one runtime per thread;
+NaNVM with `vm::object_entries`, a built-in identified by its name, which
+`runtime_static` answers from the compiled table as it answers a body;
 `nanvm/harness/fixtures/object-entries.mjs` and
 `object-entries-throws.mjs` hold the executors to Node.
 

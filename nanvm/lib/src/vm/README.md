@@ -22,7 +22,11 @@ What a function *is* — a Rust static function, an EDAG the VM interprets,
 or both — is each VM's own choice, and nothing in the core depends on it:
 `IFunction` has no constructor, and a holder of a `Function<A>` can only call
 it, read its `length`, and compare it by identity. A VM that binds static
-functions says so through `IStaticFunction`; `naive` does, and no more.
+functions says so through `IStaticFunction`; `naive` does, and no more. A
+built-in is the other kind of `Function<A>`, a `RuntimeFunction` the VM
+does not represent: a static function held by reference and identified by
+its name ([the runtime README](../../../../fjs/js/runtime/README.md), "How
+NaNVM finds it").
 
 ## Types
 
