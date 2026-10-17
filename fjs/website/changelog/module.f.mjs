@@ -245,12 +245,12 @@ export const releasePath = version => `${changelogDir}/_${version}.html`
 export const releaseHref = version => `/${releasePath(version)}`
 
 /** The breadcrumb every changelog page carries. @type {(tail: readonly Node[]) => Element} */
-const nav = tail => ['nav',
+const nav = tail => ['nav', { 'aria-label': 'Breadcrumb' }, ['h1',
     ['a', { href: pageHref('.') }, 'root'],
     ' / ',
     ['a', { href: pageHref(changelogDir) }, 'changelog'],
     ...tail,
-]
+]]
 
 /**
  * One neighbour as a link, its arrow hidden from a screen reader, which would
@@ -297,8 +297,7 @@ const neighbours = ({ previous, next }) => {
  * @type {(build: Build) => (release: Release) => (document: Document) => string}
  */
 export const releasePage = build => release => document => shell(build)(pageTitle(release.version))(['main',
-    nav([' / ', release.version]),
-    ['h1', release.version],
+    nav([' / ', ['span', { 'aria-current': 'page' }, release.version]]),
     ...neighbours(release),
     ...(document.length === 0
         ? [/** @type {Element} */(['p', 'This release shipped no notable change.'])]
@@ -316,8 +315,11 @@ export const releasePage = build => release => document => shell(build)(pageTitl
  * @type {(build: Build) => (versions: readonly string[]) => string}
  */
 export const indexPage = build => versions => shell(build)(pageTitle('Releases'))(['main',
-    nav([]),
-    ['h1', 'Releases'],
+    ['nav', { 'aria-label': 'Breadcrumb' }, ['h1',
+        ['a', { href: pageHref('.') }, 'root'],
+        ' / ',
+        ['span', { 'aria-current': 'page' }, 'changelog'],
+    ]],
     // One link per line, so marked for the stylesheet's tap-target rule.
     ['ul', { 'data-links': '' }, ...descending(versions).map(version =>
         /** @type {Element} */(['li', ['a', { href: releaseHref(version) }, version]]))],

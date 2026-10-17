@@ -619,9 +619,11 @@ export const testsMain = (...nodes) => ['main', { 'data-browser-tests': '', 'dat
  * @type {(build: Build) => (dir: Dir) => string}
  */
 export const page = build => dir => shell(build)(pageTitle(dir.path))(directoryLayout(build)(dir)(testsMain(
-    ['nav', ...toArray(intersperse(' / ')(breadcrumbs(dir.path).map(([path, name]) =>
-        /** @type {Element} */(['a', { href: pageHref(path) }, name]))))],
-    ['h1', dir.path],
+    ['nav', { 'aria-label': 'Breadcrumb' }, ['h1', ...toArray(intersperse(/** @type {Node} */ (' / '))([
+        ...breadcrumbs(dir.path).map(([path, name]) =>
+            /** @type {Node} */(['a', { href: pageHref(path) }, name])),
+        /** @type {Node} */ (['span', { 'aria-current': 'page' }, basename(dir.path)]),
+    ]))]],
     ...(dir.api === null ? [] : [/** @type {Element} */ (['p', ['a', { href: dir.api }, 'API documentation']])]),
     ...(dir.apiIndex === null ? [] : [/** @type {Element} */ (['p', ['a', { href: dir.apiIndex }, 'Rust API documentation']])]),
     ...(dir.demo === null ? [] : demoSection(dir.demo)),
