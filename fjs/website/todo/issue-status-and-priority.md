@@ -1,7 +1,7 @@
 ## Show issue status and priority
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
