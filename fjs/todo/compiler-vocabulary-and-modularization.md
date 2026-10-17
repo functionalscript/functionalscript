@@ -231,7 +231,7 @@ import list beside it; `unresolved` in
 `['.', ['.', ['args'], i], name]` and wraps the graph as `Unresolved`,
 `{ imports, edag }`, the specifiers riding beside it for `resolve` to link.
 Under the vocabulary, desugaring makes the module an ordinary FAST function
-over the modules it imports, with the record resolution needs beside it,
+over its imports, with the record resolution needs beside it,
 the [example below](#examples-the-design-must-explain), and nothing in
 FAST is module-specific: `from_fast` compiles a function, and linking
 applies it to the export objects the record names. Whether the unresolved
@@ -274,8 +274,8 @@ The [default-parameter proposal](../../spec/todo/3125-default-parameters.md)
 owns the feature's detailed semantics and admission; this architecture
 issue does not independently enable it.
 
-A **module** is a function over the modules it imports, with the
-information resolution needs to load them beside it:
+A **module** is a function over its imports, with the information
+resolution needs to load them beside it:
 
 ```js
 import a from "./a.f.js";
@@ -289,33 +289,32 @@ becomes
 
 ```js
 const imports = [
-    { specifier: "./a.f.js", json: false, names: ["default"] },
-    { specifier: "./b.f.js", json: false, names: ["b", "c"] },
-    { specifier: "./d.json", json: true, names: ["default"] },
+    { specifier: "./a.f.js", json: false, name: "default" },
+    { specifier: "./b.f.js", json: false, name: "b" },
+    { specifier: "./b.f.js", json: false, name: "c" },
+    { specifier: "./d.json", json: true, name: "default" },
 ];
-const module = (m0, m1, m2) => {
-    const a = m0.default;
-    const b = m1.b;
-    const c = m1.c;
-    const d = m2.default;
+const module = (a, b, c, d) => {
     const e = [a, b, c, d];
     return { default: e, e };
 };
 ```
 
-One parameter per imported module, in the order first imported, so two
-bindings from one module read one parameter and the sharing is in the
-function; a selected export is an ordinary read of it. The record beside
-the function holds what the function cannot say: the specifier and the
-`json` attribute, which decide what is loaded, and the names selected,
-which link checks against the module's exports as it does today, refusing
-an export the module does not have. Linking applies the function to the
-export objects the records name, one per module identity, and the linked
-program has no parameter left
+One parameter per import binding, in source order, and beside the function
+what the function cannot say: the specifier and the `json` attribute, which
+decide what is loaded, and the export selected, which link checks against
+the module's exports as it does today, refusing one the module does not
+have. Module identity is the host's to establish and not desugaring's — two
+specifiers may resolve to one identity, and each import carries its own
+attribute and selected-export checks — so the records stay one per
+syntactic import, and link passes one module's export to every parameter
+that selects from it, which is the sharing the specification requires
+([imports](../../spec/modules/imports.md)). This is the shape `AstImport`
+already has, an `aref` being that parameter; what changes is that the
+function is an ordinary one, which `from_fast` compiles as any other, and
+that linking applies it to the selected exports, so the linked program has
+no parameter left
 ([spec: a module is a function](../../spec/modules/README.md#a-module-is-a-function)).
-Whether the selected names stay in the record, or a parameter per binding
-leaves the selection to link as `AstImport` has it today, is settled in the
-architecture increment.
 
 Beyond desugaring, one rule of the graph: a conditional reference does not
 make an eager anchor redundant:
