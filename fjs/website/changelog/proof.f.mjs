@@ -159,7 +159,10 @@ const render = {
         page: () => {
             const html = releasePage(local)(alone('0.41.0'))([[['code', 'a']]])
             assert(html.includes('<title>0.41.0 · FunctionalScript</title>'), html)
-            assert(html.includes('<h1>0.41.0</h1>'), html)
+            assert(html.includes(
+                '<nav aria-label="Breadcrumb"><h1><a href="/index.html">root</a>'
+                + ' / <a href="/changelog/index.html">changelog</a>'
+                + ' / <span aria-current="page">0.41.0</span></h1></nav>'), html)
             assert(html.includes('<li><code>a</code></li>'), html)
             // Every page of the site carries the same language, stylesheet
             // and icons.
@@ -201,7 +204,7 @@ const render = {
             const html = releasePage(local)(
                 { version: '0.47.0', previous: '0.46.0', next: '0.48.0' })([[['text', 'x']]])
             assert(html.includes(
-                '<h1>0.47.0</h1><nav aria-label="Releases">'
+                '<span aria-current="page">0.47.0</span></h1></nav><nav aria-label="Releases">'
                 + '<a href="/changelog/_0.46.0.html" rel="prev"><span aria-hidden="true">← </span>Previous: 0.46.0</a>'
                 + ' · '
                 + '<a href="/changelog/_0.48.0.html" rel="next">Next: 0.48.0<span aria-hidden="true"> →</span></a>'
@@ -238,6 +241,9 @@ const render = {
         title: () => {
             const html = indexPage(local)([])
             assert(html.includes('<title>Releases · FunctionalScript</title>'), html)
+            // The changelog is the page itself, so it is the breadcrumb's text.
+            assert(html.includes(
+                '<h1><a href="/index.html">root</a> / <span aria-current="page">changelog</span></h1>'), html)
         },
         // The header says which build a preview is on every page, the
         // release index included.
