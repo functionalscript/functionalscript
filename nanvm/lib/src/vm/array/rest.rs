@@ -9,6 +9,14 @@ impl<A: IVm> Array<A> {
     /// whose arguments this array holds reads them: the array itself for
     /// `i == 0`, since nothing is skipped, and a new array of the items
     /// from `i` otherwise — empty when `i` is past the end.
+    ///
+    /// The array is the call's own: a call step builds it from the
+    /// argument list, a spread iterated, so no program holds it but the
+    /// callee, and answering it as the rest shares nothing a program can
+    /// see (`fjs/edag/README.md`, "An engine may form the arguments the
+    /// way the callee reads them"). A host calling [`Any::call`](crate::vm::Any::call) with an
+    /// array it keeps is handing the callee that array, and reads it back
+    /// as the rest.
     pub fn rest(&self, i: u32) -> Array<A> {
         if i == 0 {
             return self.clone();
