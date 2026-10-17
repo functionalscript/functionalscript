@@ -42,7 +42,13 @@ implementation details remain unspecified here.
   - [x] `sandbox`, `catch`, `now`.
   - [x] `randomInt`, from `std`'s `RandomState`, not cryptographically secure
         ([doc](../nanvm/effects-node/doc/random-int.md)).
-  - [ ] `inflate`: [todo](../nanvm/effects-node/todo/inflate.md).
+  - [x] `inflate`: a decoder with no dependency
+        ([`inflate.rs`](../nanvm/effects-node/src/inflate.rs)), which answers
+        zlib's own codes and messages, the 128 KiB bound as a refusal and
+        `ERR_TRAILING_BYTES`. It was checked against Node's `zlib` on some
+        80,000 corrupted streams, and the `inflates` case of the parity corpus
+        keeps the two hosts together. A decoder in FunctionalScript is
+        [its own issue](./inflate.md).
   - [ ] `test`: proposed to stay unimplemented natively, which has no test framework
         to register with ([todo](../nanvm/effects-node/todo/test-effect.md)).
   - [x] The descriptor handles `open`, `fstat`, `pread`, `close`: a handle is an
