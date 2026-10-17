@@ -12,10 +12,11 @@ use crate::{
 thread_local! {
     /// The runtime, initialized on this thread's first lookup and held
     /// from then on, so every lookup answers a clone of one function and a
-    /// runtime function read twice, generated or created, is one function,
-    /// as JavaScript's built-ins are. Per thread, since a value is an `Rc`
-    /// and never leaves its thread. `thread_local!` is the one stable
-    /// spelling of a thread's own value.
+    /// generated body read twice is one function, as JavaScript's
+    /// built-ins are; a built-in no body defines, `Object.entries`, needs
+    /// no holding, its name being its identity. Per thread, since a value
+    /// is an `Rc` and never leaves its thread. `thread_local!` is the one
+    /// stable spelling of a thread's own value.
     static RUNTIME: OnceCell<Runtime<Naive>> = const { OnceCell::new() };
 }
 

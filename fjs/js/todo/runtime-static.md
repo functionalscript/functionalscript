@@ -275,7 +275,8 @@ this proposal does not take.
       naming the path as the interpreter does; the Rust backend emits the
       lookup; the completeness test checks every admitted path is bound.
       NaNVM keeps no native static table, so there is no reverse walk;
-      `Object.entries`, its one native, is a held function, not a table.
+      `Object.entries`, its one native, is a built-in identified by its
+      name, held nowhere, not a table.
 - [x] The node is a value, `['Object.is']`, an `op0`, in place of
       `['static', path]`: the schema, the analysis, the executors, the
       Rust backend and function text; the analysis's path and placement
