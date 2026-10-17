@@ -42,7 +42,7 @@ implementation details remain unspecified here.
   - [x] `sandbox`, `catch`, `now`.
   - [x] `randomInt`, from `std`'s `RandomState`, not cryptographically secure
         ([doc](../nanvm/effects-node/doc/random-int.md)).
-  - [ ] `inflate`.
+  - [ ] `inflate`: [todo](../nanvm/effects-node/todo/inflate.md).
   - [ ] `test`: proposed to stay unimplemented natively, which has no test framework
         to register with ([todo](../nanvm/effects-node/todo/test-effect.md)).
   - [x] The descriptor handles `open`, `fstat`, `pread`, `close`: a handle is an
