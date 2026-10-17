@@ -1,4 +1,4 @@
-# Specification Tree
+## Specification Tree
 
 **Priority:** P2
 **Status:** open — proposal

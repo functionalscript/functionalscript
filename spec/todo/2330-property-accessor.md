@@ -1,6 +1,10 @@
-# Property Accessor
+## Property Accessor
 
-**Status:** the constant-key read is in the language
+**Priority:** P2
+**Status:** on-hold — only `a[+i]` remains, and unary `+` is outside the
+language with no plan to admit it
+
+The constant-key read is in the language
 ([spec: property access](../property-access/README.md)): an own-property
 read, with every built-in prototype name but `length` a compilation error,
 the names held by [`fjs/js/prototype`](../../fjs/js/prototype/module.f.js),
@@ -24,8 +28,9 @@ separate `hasEntity` pattern. All such instructions follow
 
 What this file still owns is `a[+i]`, beside the numeric index
 `a[Number(i)]` that is in the language, where the program knows no `bigint`
-reaches the index — unary `+` waits on the
-[operators](./2340-operators.md) admitting it. Where a program knows its
+reaches the index — but unary `+` is outside the language:
+[operators](./2340-operators.md) leaves it on the other side of the line, and
+no record plans it ([refused constructs](./refused-constructs.md)). Where a program knows its
 index to be a number, `a[Number(i)]` is the spelling to write, `entry`
 being the read for a key of any type.
 
@@ -89,7 +94,7 @@ helper's calls are ordinary calls, and no internal operation stands beside
 the node ([`fjs/edag`](../../fjs/edag/README.md)). None is a fallback for
 ordinary static access.
 
-## Source-to-EDAG mapping
+### Source-to-EDAG mapping
 
 **P1 reconciliation:** source operations, EDAG nodes and bytecode
 specializations are different layers. The former rule that non-built-in
@@ -121,7 +126,7 @@ went with the helper's arrival: `.` represents ordinary reads, the key a
 constant or a number converted at run time, `a[Number(i)]`, and `['entry']`
 the one read of a key of any type.
 
-## Instance Property
+### Instance Property
 
 ```js
 obj.property
@@ -198,7 +203,7 @@ for the sake of supporting JS legacy in cases when that is FJS-safe.
 |------|-----------|
 |`size`|no         |
 
-## Instance Method Call
+### Instance Method Call
 
 Syntax examples:
 
@@ -339,7 +344,7 @@ f(i) // returns 0 thanks to side effects!
 |`set`    |yes         |mutate|
 |`values` |no          |      |
 
-## At
+### At
 
 ```js
 obj[42]
@@ -367,7 +372,7 @@ In `obj[index]`, `index` has to be a `number`. If we don't know what `index` is,
 or a string literal (excluding the prototype names); anything else is refused at its first
 token. FJS may try deeper analyses in the future, and type inference can help a lot.
 
-## Regression requirements
+### Regression requirements
 
 - Preserve static `.` lowering for ordinary and missing fields, numeric
   indices and non-enumerable `length`; reject prohibited names during
@@ -377,7 +382,7 @@ token. FJS may try deeper analyses in the future, and type inference can help a 
   including the `length` distinction above. Keep unmatched descriptor uses
   refused. Backend helper reuse must not merge these semantic contracts.
 
-## Iterators
+### Iterators
 
 Direct access to an object with the [`Iterator` protocol](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols)
 is not allowed in FJS.

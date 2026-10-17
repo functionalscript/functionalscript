@@ -1,9 +1,9 @@
-# Undefined Properties: Representation and Observations
+## Undefined Properties: Representation and Observations
 
 **Priority:** P1
 **Status:** open
 
-## Problem
+### Problem
 
 This question arose in [PR #1888](https://github.com/functionalscript/functionalscript/pull/1888)
 while designing `hasOwn`: should undefined-valued properties disappear in the
@@ -16,7 +16,7 @@ because the VM calls a property absent. The [compatibility principles](../princi
 fix successful observations; the representation is an implementation choice
 within that constraint, not a competing source semantics.
 
-## Constraints
+### Constraints
 
 The duplicate-key constraint does not depend on a presence instruction:
 
@@ -56,7 +56,7 @@ insertion-order counterexamples. Only a normalization proven equivalent for
 all admitted observations is allowed. No particular storage layout is required;
 retaining enough information to reproduce those observations is required.
 
-## Implementation evidence and remaining work
+### Implementation evidence and remaining work
 
 Existing object-construction paths are useful evidence, not definitions of the
 language. When implementing a normalization, inspect the shared EDAG object
@@ -66,7 +66,7 @@ undefined-valued entries, not a completed universal-removal feature. Do not
 infer a new language rule from one backend or use a proof executor as the
 sole authority.
 
-## Tasks
+### Tasks
 
 - [x] Remove the alternative that an internally defined absence can justify a
       different successful result for an admitted JavaScript pattern.
@@ -79,7 +79,7 @@ sole authority.
 - [ ] Specify a normalization only with its observation domain and proof;
       leave physical representation open otherwise.
 
-## Related
+### Related
 
 - [Undefined properties](./1010-undefined-property.md) — observation constraints.
 - [Enumerable presence](./2345-has-own-property.md) — the replacement pattern;

@@ -1,4 +1,7 @@
-# Type Inference
+## Type Inference
+
+**Priority:** P3
+**Status:** open
 
 We need type inference to prove that specific values have specific types. Type annotations can help, but we can't trust them.
 
@@ -6,7 +9,7 @@ See [type-annotations](./3360-type-annotations.md) for the annotation form those
 would take: an RTTI schema named by an ordinary expression, checked against the
 annotated value at compile time.
 
-## Level 1
+### Level 1
 
 ```rust
 enum Type {
@@ -24,7 +27,7 @@ enum Type {
 }
 ```
 
-## Level 2
+### Level 2
 
 It is a set. For example,
 
@@ -68,11 +71,11 @@ enum Type {
 
 The set is finite and can be implemented using a bit-set.
 
-### Level 3
+#### Level 3
 
 Compared to level 2, this level contains dynamic information about subsets of the type.
 
-## The inference domain: decide before designing
+### The inference domain: decide before designing
 
 Nothing else in stage 6 can be specified until this is settled, and once
 [668](../../fjs/rtti/todo/668-rtti-function-types.md) lands 7a there is
@@ -112,7 +115,7 @@ otherwise no task anyone can pick up to unblock 7b.
       fixpoint for a call to an unannotated function, which is inference's own
       recursion rather than a dependency on 668.
 
-## Related
+### Related
 
 - [rtti-type-system](../../todo/rtti-type-system.md) — the epic; this document
   is its stage 6, and most of its work.

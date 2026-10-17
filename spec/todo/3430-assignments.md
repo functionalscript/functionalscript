@@ -1,4 +1,7 @@
-# Additional Assignment Operators
+## Additional Assignment Operators
+
+**Priority:** P4
+**Status:** open
 
 These operators can be transformed into two operations in VM byte code.
 

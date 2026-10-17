@@ -1,4 +1,7 @@
-# Built-in Objects and Functions
+## Built-in Objects and Functions
+
+**Priority:** P2
+**Status:** open
 
 The built-in objects are special. We can call a permitted function, but cannot
 use its global namespace as an ordinary value. Some operations are permitted
@@ -8,7 +11,7 @@ https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
 
 Some of the JS built-in objects and functions are "not allowed" in FJS. It means, an FJS compiler rejects code that contains "not allowed" objects and functions.
 
-## Global Scope
+### Global Scope
 
 Global objects can't be assigned to a variable (`const r = Object`). They can only be used as namespaces (`Object.entries()`).
 
@@ -33,14 +36,14 @@ unbound name (`const not found`), so
 `export default isFinite(1);` does not compile yet. An unticked box is a
 name not yet decided, or, where it says so, never admitted.
 
-### Value Properties
+#### Value Properties
 
 - [x] `Infinity`
 - [x] `NaN`
 - [x] `undefined` — a literal global like the two above it
 - [ ] `globalThis` — never, not not-yet: it is the global object itself
 
-### Function Properties
+#### Function Properties
 
 - [ ] `eval` — never, not not-yet: it runs source at run time. Binding the
       word is refused already, and by JavaScript rather than by us
@@ -53,7 +56,7 @@ name not yet decided, or, where it says so, never admitted.
 - [ ] `decodeURI()`
 - [ ] `decodeURIComponent()`
 
-### Fundamental Objects
+#### Fundamental Objects
 
 - [x] `Object` — `Object.is` is implemented, the first static function: a
       value, read in every spelling of the access and through
@@ -67,7 +70,7 @@ name not yet decided, or, where it says so, never admitted.
 - [ ] `Boolean`
 - [ ] `Symbol`
 
-#### `Object.entries` proposal and approval
+##### `Object.entries` proposal and approval
 
 **Problem.** The language enumerates no keys. The
 [`entry` helper](../property-access/entries.md) reads a key a program
@@ -158,7 +161,7 @@ NaNVM with `vm::object_entries`, a built-in identified by its name, which
 `nanvm/harness/fixtures/object-entries.mjs` and
 `object-entries-throws.mjs` hold the executors to Node.
 
-### Number and Math
+#### Number and Math
 
 - [x] `Number` — the call `Number(exp)`, the conversion
       ([number conversion](../conversions/number.md)), and the four
@@ -178,7 +181,7 @@ NaNVM with `vm::object_entries`, a built-in identified by its name, which
 - [ ] `Math`
 - [ ] `Date`
 
-#### Number predicates proposal and approval
+##### Number predicates proposal and approval
 
 **Problem.** Four `Number` members are pure predicates a module reaches for
 by name — `Number.isInteger`, `Number.isSafeInteger`, `Number.isNaN` and
@@ -223,7 +226,7 @@ spelling of one function, so modules call the built-in, and the runtime's
 proof checks each body against the host's. **sergey-shandar** proposed
 the move in the same session, after the admission.
 
-### Text Processing
+#### Text Processing
 
 - [x] `String` — implemented as `String(exp)`, the string conversion,
       and `String()`, the empty-string literal; the word is reserved
@@ -232,7 +235,7 @@ the move in the same session, after the admission.
       unrecognized
 - [ ] `RegExp`
 
-#### String conversion proposal and approval
+##### String conversion proposal and approval
 
 **Problem.** The compiler refused `String(x)` even though the EDAG already
 represented string conversion, so authored `.f.js` modules could not use the
@@ -270,7 +273,7 @@ during PR review. That ordering deviated from the
 Implementation followed the language designer's explicit instruction above;
 the chronology and the prior approval are retained here for review.
 
-### Indexed Collections
+#### Indexed Collections
 
 - [x] `Array`
 - [ ] `Int8Array`
@@ -285,14 +288,14 @@ the chronology and the prior approval are retained here for review.
 - [ ] `BigInt64Array`
 - [ ] `BigUint64Array`
 
-### Keyed Collections
+#### Keyed Collections
 
 - [ ] `Map`
 - [ ] `Set`
 - [ ] `WeakMap`
 - [ ] `WeakSet`
 
-### Structured Data
+#### Structured Data
 
 - [ ] `ArrayBuffer`
 - [ ] `SharedArrayBuffer`
@@ -300,7 +303,7 @@ the chronology and the prior approval are retained here for review.
 - [ ] `DataView`
 - [x] `JSON`
 
-### Control Abstraction Objects
+#### Control Abstraction Objects
 
 - [ ] `Promise`
 
@@ -310,16 +313,16 @@ the chronology and the prior approval are retained here for review.
 mean inventing a global JavaScript does not have. `AsyncIterator` and
 `AsyncGenerator` are the same case.
 
-### Reflection
+#### Reflection
 
 - [ ] `Reflect`
 - [ ] `Proxy`
 
-### Internalization
+#### Internalization
 
 - [ ] `Intl`
 
-### WebAssembly
+#### WebAssembly
 
 - [ ] `WebAssembly`
 - [ ] `WebAssembly.Module`
@@ -330,11 +333,11 @@ mean inventing a global JavaScript does not have. `AsyncIterator` and
 - [ ] `WebAssembly.LinkError`
 - [ ] `WebAssembly.RuntimeError`
 
-## Object
+### Object
 
 https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object
 
-### Reflection boundary
+#### Reflection boundary
 
 `Object.hasOwn`, `Object.getOwnPropertyNames` and
 `Object.getOwnPropertyDescriptors` are prohibited in FJS source. They keep
@@ -382,7 +385,7 @@ the reflection restrictions nor changes host-side implementation helpers.
 |setPrototypeOf           |mutate                     |
 |values                   |no                         |
 
-## Array
+### Array
 
 https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array
 
@@ -393,14 +396,14 @@ https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
 |isArray                  |no         |
 |of                       |no         |
 
-## BigInt
+### BigInt
 
 |Function                 |side-effect|
 |-------------------------|-----------|
 |asIntN                   |no         |
 |asUintN                  |no         |
 
-## JSON
+### JSON
 
 |Function    |side-effect|
 |------------|-----------|
@@ -409,7 +412,7 @@ https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
 |`rawJSON`   |no         |
 |`stringify` |no         |
 
-## Others
+### Others
 
 |Function                 |side-effect|
 |-------------------------|-----------|
@@ -428,7 +431,7 @@ https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
 |`Infinity`  |no         |
 |`NaN`       |no         |
 
-## Prohibited Properties
+### Prohibited Properties
 
 The two lists that decide this today — every prototype name refused as a
 property read, `length` excepted, and the member functions refused as a
@@ -437,7 +440,7 @@ call — are [`fjs/js/prototype`](../../fjs/js/prototype/module.f.js)'s
 in [its README](../../fjs/js/prototype/README.md). The notes below predate
 them and are kept as the record of the reasoning.
 
-### Object
+#### Object
 
 https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object
 
@@ -448,7 +451,7 @@ https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
 - [ ] deprecated `__lookupGetter__`
 - [ ] deprecated `__lookupSetter__`
 
-### Array
+#### Array
 
 These instance methods mutate an array:
 

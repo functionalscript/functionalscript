@@ -1,9 +1,9 @@
-# Enumerable Property Presence
+## Enumerable Property Presence
 
 **Priority:** P2
 **Status:** open
 
-## Decision
+### Decision
 
 Prohibit `Object.hasOwn` in FunctionalScript source. Do not change that standard
 operation's meaning to enumerate entries. The `in` operator remains prohibited
@@ -17,7 +17,7 @@ The decision is now to expose enumerable data properties through an explicit
 pattern instead. This is a source-language plan, not a ban on host-side
 implementation helpers or a claim that the new instruction ships today.
 
-## Proposed pattern
+### Proposed pattern
 
 Working name: `hasEntity`. The candidate source spells exactly what it asks:
 
@@ -45,7 +45,7 @@ An enumerable property's value does not decide its presence. In particular,
 `undefined` is a value an enumerable entry can hold, not an instruction to
 remove the entry. This constrains the [undefined-property plan](./1010-undefined-property.md).
 
-### Boolean or descriptor flag?
+#### Boolean or descriptor flag?
 
 The candidate above returns `boolean | undefined`, not only `boolean`.
 It still distinguishes a missing property from a non-enumerable own property.
@@ -62,7 +62,7 @@ encoding, confirm whether the instruction returns the raw flag or the boolean
 predicate, and confirm the working name (`hasEntry` would align with `entry`).
 The prohibition of `Object.hasOwn` does not depend on this remaining API choice.
 
-## Recognition and execution
+### Recognition and execution
 
 Follow [statement-aware AST recognition](../../fjs/compiler/parser/todo/statement-aware-intrinsics.md).
 The parser produces a JavaScript-subset AST, not an already-valid FJS program.
@@ -86,7 +86,7 @@ The implemented [default-text contract](./serialization.md#function-text-and-ser
 also applies to this helper's key conversion. It must use the same code-only
 renderer; broader callable serialization does not select a different conversion.
 
-## Tasks
+### Tasks
 
 - [x] Withdraw direct `Object.hasOwn` recognition and its proposed enumerability
       reinterpretation; record the source prohibition and new pattern direction.
@@ -105,7 +105,7 @@ The feature implementation is P2. Any accepted pattern that violates source
 inclusion or successful-result agreement is P1; unsupported syntax may remain
 refused while the feature is developed.
 
-## Related
+### Related
 
 - [Entry](../property-access/entries.md) — reading an enumerable data entry, in the language.
 - [Built-ins](./2360-built-in.md) — prohibited reflection and pattern-only access.

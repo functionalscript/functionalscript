@@ -1,9 +1,9 @@
-# No Shadowing
+## No Shadowing
 
 **Priority:** P4
 **Status:** open — a warning or an error, undecided
 
-## Problem
+### Problem
 
 JavaScript lets a nested function bind a name an enclosing scope already
 binds, and the inner binding hides the outer one in the body. The parser
@@ -26,7 +26,7 @@ nearest binding *and* the only binding of that name. A refactoring that
 moves an expression out of a body, or into one, changes its meaning exactly
 when a name is shadowed, and silently.
 
-## Proposal
+### Proposal
 
 A module is a function: its imports are its parameters, its constants are
 its body constants, and `export default` is its `return` — which is how the
@@ -65,7 +65,7 @@ Whether the rule is a warning or an error is open:
 The choice waits on whether any other rule wants a warning. Until then the
 error is the default to implement, since it needs nothing new.
 
-## Tasks
+### Tasks
 
 - [ ] Decide warning or error, per the above.
 - [ ] The parser refuses (or reports) a parameter that repeats a module name
@@ -76,7 +76,7 @@ error is the default to implement, since it needs nothing new.
       replaced by the rule.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
 
-## Related
+### Related
 
 - [function-frame](./3111-function-frame.md) — captures, which make the
   binding a name reads a question of scope.

@@ -68,17 +68,19 @@ are not Markdown, and nothing that lists issues needs an exception.
 
 ### Tasks
 
-- [ ] Replace the paragraph in `2330-property-accessor`'s status with a value
+- [x] Replace the paragraph in `2330-property-accessor`'s status with a value
       from the table, keeping the paragraph as body text.
-- [ ] Change `effect-list-fold`'s `wip.` to `wip —`.
-- [ ] Add priority and status to the `spec/todo/` feature drafts without them.
-- [ ] Change `# Title` to `## Title` wherever an issue opens with it.
+- [x] Change `effect-list-fold`'s `wip.` to `wip —`.
+- [x] Add priority and status to the `spec/todo/` feature drafts without them,
+      the priority taken from where `spec/todo/README.md` lists each.
+- [x] Change `# Title` to `## Title` wherever an issue opens with it.
 - [ ] Add a title to the files that have none, or move them out with their
       group.
-- [ ] Move or header the `spec/todo/` design documents.
-- [ ] Move `todo/plan/` out of `todo/`, re-basing links.
-- [ ] Agree with its owner and move `todo/sergey/` out of `todo/`,
-      re-basing links.
+- [ ] Move the `spec/todo/` design documents to `spec/design/`, with their
+      table from `spec/todo/README.md`.
+- [ ] Move `todo/plan/` to `doc/plan/`, re-basing links.
+- [ ] Move `todo/sergey/` to `doc/sergey/`, re-basing links, in a pull request
+      its owner reviews.
 - [ ] State in [README.md](./README.md#issue-format) that every `.md` file in
       a `todo/` directory but `README.md` carries the header, and that each
       header field is a value, optionally followed by ` — ` and a note.
