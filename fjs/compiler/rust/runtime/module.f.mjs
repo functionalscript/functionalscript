@@ -47,7 +47,7 @@
  */
 
 import { error, mapOk, ok, okList, okThen } from '../../../types/result/module.f.js'
-import { atomExpr, holdsFunction, readsArgs, readsRest, restLine, statementsWith, useLinesTagged } from '../../../edag/rust/module.f.mjs'
+import { argNamed, atomExpr, holdsFunction, readsArgs, readsBeyondFirst, readsRest, restLine, statementsWith, useLinesTagged } from '../../../edag/rust/module.f.mjs'
 import { operandsOf, visit } from '../../../edag/sharing/module.f.mjs'
 import { builtInIdentifier } from '../../../media/rust/module.f.mjs'
 import { generatedHeader, indent } from '../../../media/rust/item/module.f.js'
@@ -256,10 +256,13 @@ const reference = ident => [`Function::from(${ident}::<A>()).to_any()`, [['vm', 
  * `fn` of the arguments alone whose body is the function's scope with its
  * frame slots resolved — a function's accessor, or a literal inlined — and
  * its `self` the item itself; and, for a static or a helper, the accessor
- * after it, {@link accessorLines}. A member is its code alone, named by its
- * identifier and bound on `IStaticFunction`, since a call step asks the
- * code for the function of the arguments, a closure over the receiver, and
- * nothing reads a member as a value. Refused: a function a static's or a
+ * after it, {@link accessorLines}. A member is its code alone, a `fn` of
+ * its receiver, named by its identifier and bound on `IStaticFunction`,
+ * since a call step asks the code for the function of the arguments, a
+ * closure over the receiver, and nothing reads a member as a value.
+ * Refused: a member body reading past its receiver — the arguments as a
+ * list, the rest, or a second fixed argument — which a function of the
+ * receiver alone has no spelling for; a function a static's or a
  * helper's body makes at call time, since those are bound on `IVm` alone;
  * a member read as a value, which has no descriptor to read; and a slot
  * that resolves to nothing an item may hold. A slot that resolves to a
@@ -270,6 +273,7 @@ const reference = ident => [`Function::from(${ident}::<A>()).to_any()`, [['vm', 
 const itemLines = all => ({ node, name, ident, kind }) => {
     const [, length, slots, body] = /** @type {readonly any[]} */ (node)
     if (kind !== 'member' && holdsFunction(body)) { return error(['no static Rust for a function a body makes at call time', name]) }
+    if (kind === 'member' && readsBeyondFirst(body)) { return error(['a member body reading past its receiver; a member is a function of its receiver alone', name]) }
     /** @type {(fn: readonly unknown[]) => Result<Printed<string>, readonly unknown[]>} */
     const itemReference = fn => {
         const read = all.filter(i => i.node === fn)[0]
@@ -284,17 +288,29 @@ const itemLines = all => ({ node, name, ident, kind }) => {
         const code = [
             tagged('comment')(`/// \`${name}\``),
             '#[rustfmt::skip]',
-            `${kw('fn')} ${kind === 'member' ? ident : `${ident}_code`}<A: ${bound(kind)}>(${readsArgs(body) ? 'args' : '_args'}: Array<A>) -> Result<Any<A>, Any<A>> {`,
+            `${kw('fn')} ${kind === 'member' ? ident : `${ident}_code`}<A: ${bound(kind)}>(${parameter(kind, body)}) -> Result<Any<A>, Any<A>> {`,
             ...[...rest.map(([line]) => line), ...statements].map(line => `${indent}${line}`),
             '}',
         ]
         /** @type {readonly Use[]} */
-        const codeUses = [...uses, ...rest.flatMap(([, u]) => u), ['vm', 'Array'], ['vm', bound(kind)]]
+        const codeUses = [...uses, ...rest.flatMap(([, u]) => u), ['vm', bound(kind)]]
         return ok(/** @type {Printed<readonly string[]>} */ (kind === 'member'
             ? [code, codeUses]
-            : [[...code, '', ...accessorLines(name, ident, length, kind === 'static')], [...codeUses, ['vm', 'RuntimeFunction']]]))
-    })(statementsWith(frame, () => itemReference(node))(body))
+            : [[...code, '', ...accessorLines(name, ident, length, kind === 'static')], [...codeUses, ['vm', 'Array'], ['vm', 'RuntimeFunction']]]))
+    })(statementsWith(frame, () => itemReference(node), kind === 'member' ? argNamed('self_') : undefined)(body))
 }
+
+/**
+ * The parameter of an item's function: a member takes its receiver,
+ * `self_: Any<A>`, the one argument a body of the receiver has, and a
+ * static or a helper the arguments of the call, `args: Array<A>`; either
+ * underscored where the body never reads it.
+ *
+ * @type {(kind: _Item['kind'], body: Exp) => string}
+ */
+const parameter = (kind, body) => kind === 'member'
+    ? `${readsArgs(body) ? 'self_' : '_self'}: Any<A>`
+    : `${readsArgs(body) ? 'args' : '_args'}: Array<A>`
 
 /**
  * The accessor of an item a body may read as a value, a static or a
@@ -324,7 +340,8 @@ const stringText = name => `"${name}"`
  * the sections' and, from [`fjs/js/static`](../../../js/static/module.f.js),
  * the natives `nanvm-lib` writes by hand, `Object.entries` — each row an
  * accessor, and `members`, every member built-in by its name, each row
- * the code itself, bound on `IStaticFunction` as the code is; the arrays
+ * the code itself, a `MemberCode` bound on `IStaticFunction` as the code
+ * is; the arrays
  * `nanvm-lib`'s lookups search, and the crate's own, where the accessors
  * are every compiled module's.
  *
@@ -346,7 +363,7 @@ const tables = (builtIns, all) => {
         '}',
     ]
     return [
-        [...fn('statics', 'static', "&'static str, Accessor<A>", statics), '', ...fn('members', 'member', "&'static str, RuntimeCode<A>", members)],
+        [...fn('statics', 'static', "&'static str, Accessor<A>", statics), '', ...fn('members', 'member', "&'static str, MemberCode<A>", members)],
         natives.map(path => /** @type {Use} */ (['vm', builtInIdentifier(path.join('.'))])),
     ]
 }
@@ -374,7 +391,7 @@ export const generateRuntimeTagged = root => okThen((/** @type {readonly _BuiltI
     })(okList(all.map(itemLines(all)))))(items(root, builtIns)))(table(root))
 
 /** The names the two tables spell: their rows' types and the members' bound. @type {readonly Use[]} */
-const skeletonUses = [['vm', 'Accessor'], ['vm', 'RuntimeCode'], ['vm', bound('member')]]
+const skeletonUses = [['vm', 'Accessor'], ['vm', 'MemberCode'], ['vm', bound('member')]]
 
 /**
  * The names spelled from `module`, each once, sorted.

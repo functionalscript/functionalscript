@@ -17,7 +17,7 @@
 //! can define, written here and listed in the compiled table beside the
 //! bodies. The design: `fjs/js/runtime/README.md`, "How NaNVM finds it".
 
-use crate::vm::{Any, Array, IVm, RuntimeCode, RuntimeFunction};
+use crate::vm::{Any, Array, IVm, MemberCode, RuntimeFunction};
 
 /// The compiled runtime: a `#[path]`, since a `gen.` name is not a Rust
 /// identifier. Its accessors are every compiled module's, re-exported from
@@ -44,7 +44,7 @@ pub fn runtime_static<A: IVm>(name: &str) -> Option<&'static RuntimeFunction<A>>
 /// ([`method`](crate::vm::lambda) in `vm/lambda/method.rs`), and before
 /// the `TypeError` for calling `undefined`; the guard of `?.()` asks the
 /// first step alone, before any argument exists.
-pub fn runtime_method<A: IVm>(key: &Any<A>) -> Option<RuntimeCode<A>> {
+pub fn runtime_method<A: IVm>(key: &Any<A>) -> Option<MemberCode<A>> {
     compiled::members::<A>()
         .into_iter()
         .find(|(k, _)| key.is_str(k))
@@ -77,7 +77,7 @@ pub fn object_entries<A: IVm>() -> &'static RuntimeFunction<A> {
 
 #[cfg(test)]
 mod tests {
-    use super::{RuntimeCode, compiled::object_is, object_entries, runtime_method, runtime_static};
+    use super::{MemberCode, compiled::object_is, object_entries, runtime_method, runtime_static};
     use crate::{
         naive::Naive,
         vm::{Any, BigInt, Function, IVm, ToAny, ToArray, ToObject},
@@ -86,7 +86,7 @@ mod tests {
     type A = Naive;
 
     /// A member's code.
-    fn member(key: &str) -> Option<RuntimeCode<A>> {
+    fn member(key: &str) -> Option<MemberCode<A>> {
         runtime_method::<A>(&key.into())
     }
 
@@ -179,7 +179,7 @@ mod tests {
     #[test]
     fn starts_with() {
         let code = member("startsWith").unwrap();
-        let stage = |receiver: Any<A>| code([receiver].to_array());
+        let stage = code;
         for receiver in [
             1.0.to_any(),
             true.to_any(),

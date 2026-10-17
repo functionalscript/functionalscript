@@ -68,6 +68,11 @@ export const runtime = {
   a member is bound on `IStaticFunction`, which is now the capability of
   every VM, `IVm::static_function`, rather than the printer inlining the
   shape without a closure; a measurement may move it later.
+- The body's Rust signature is the receiver itself,
+  `fn starts_with<A: IStaticFunction>(self_: Any<A>)`, a `MemberCode<A>`,
+  rather than the statics' `args: Array<A>` with the receiver as its one
+  element: a member is a function of exactly its receiver, and the call
+  step passes it with nothing built around it.
 
 ### Tasks
 

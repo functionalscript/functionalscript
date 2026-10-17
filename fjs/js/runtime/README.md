@@ -163,7 +163,7 @@ sequenceDiagram
     T-->>L: None, once map has a body
     L->>R: members(): ("map", code)
     R-->>L: the body, a static function
-    L->>R: code([receiver])
+    L->>R: code(receiver)
     R-->>L: the function of the arguments, or undefined
     L->>L: f.call(args), or the TypeError
     L-->>M: the answer, or Err(thrown)

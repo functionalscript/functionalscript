@@ -47,7 +47,7 @@ pub(crate) fn runtime<A: IVm>(receiver: &Any<A>, key: &Any<A>) -> Result<Option<
     match runtime_method::<A>(key) {
         None => Ok(None),
         Some(code) => {
-            let f = code([receiver.clone()].to_array())?;
+            let f = code(receiver.clone())?;
             Ok(if f.is_nullish() { None } else { Some(f) })
         }
     }
