@@ -24,6 +24,13 @@ import { repository } from './page/module.f.mjs'
  */
 const file = text => [utf8(text)]
 
+/**
+ * An issue in the virtual tree: a title and the header every issue carries.
+ *
+ * @type {(title: string) => readonly Vec[]}
+ */
+const issue = title => file(`## ${title}\n\n**Priority:** P3\n**Status:** open\n`)
+
 /** @type {(entity: _Entity | undefined, name: string) => string} */
 const textOf = (entity, name) => {
     assert(entity instanceof Array, `expected ${name} to be a file`)
@@ -121,7 +128,7 @@ export const proof = {
         },
     },
     rootCatalogue: () => {
-        const { root } = generate({ a: {}, todo: { 'a.md': file('# issue') } })
+        const { root } = generate({ a: {}, todo: { 'a.md': issue('issue') } })
         const html = pageAt(root, [])
         const asideStart = html.indexOf('<aside data-catalogue=""')
         const asideEnd = html.indexOf('</aside>')
@@ -253,7 +260,7 @@ export const proof = {
             const sha = '0123456789ABCDEF0123456789ABCDEF01234567'
             const lower = sha.toLowerCase()
             const { root, output } = generate(
-                { a: { 'x.md': file('# x'), todo: { 'open.md': file('# open') } } },
+                { a: { 'x.md': file('# x'), todo: { 'open.md': issue('open') } } },
                 { WORKERS_CI_COMMIT_SHA: sha })
             const page = pageAt(root, ['a'])
             assert(page.includes(`<a href="${repository}/blob/${lower}/a/x.md" data-kind="file">x.md</a>`), page)
@@ -594,7 +601,7 @@ export const proof = {
             const [generated] = run({
                 a: {
                     'module.f.mjs': file('export const x = 1'),
-                    todo: { 'open.md': file('## open') },
+                    todo: { 'open.md': issue('open') },
                 },
             })
             const dir = /** @type {Dir} */ (generated.root['a'])
@@ -612,7 +619,7 @@ export const proof = {
             const [generated] = run({
                 a: {
                     'module.f.mjs': file('export const x = 1'),
-                    todo: { 'open.md': file('## open'), 'proof.f.mjs': file('export const proof = []') },
+                    todo: { 'open.md': issue('open'), 'proof.f.mjs': file('export const proof = []') },
                 },
             })
             const page = textOf(/** @type {Dir} */ (generated.root['a'])['index.html'], 'the page')
@@ -630,8 +637,8 @@ export const proof = {
         todoSubdirectoriesAreSkippedToo: () => {
             const [generated] = run({
                 todo: {
-                    'open.md': file('## open'),
-                    plan: { 'later.md': file('## later'), deep: { 'x.md': file('## x') } },
+                    'open.md': issue('open'),
+                    plan: { 'later.md': issue('later'), deep: { 'x.md': issue('x') } },
                 },
             })
             const todo = /** @type {Dir} */ (generated.root['todo'])
@@ -640,6 +647,49 @@ export const proof = {
             assert(!('index.html' in plan), 'expected no page for todo/plan/')
             assert(!('index.html' in /** @type {Dir} */ (plan['deep'])),
                 'expected no page for todo/plan/deep/')
+        },
+        /**
+         * **A subfolder's issues are its `todo/`'s.** They are listed with
+         * the rest, under the directory that owns the `todo/`, named by
+         * their path inside it — `todo/blocked/` is issues like the rest.
+         */
+        subfolderIssuesAreListed: () => {
+            const { root, output } = generate({
+                todo: {
+                    'open.md': issue('open'),
+                    blocked: { 'later.md': issue('later'), deep: { 'x.md': issue('x') } },
+                },
+            })
+            const page = pageAt(root, [])
+            assert(page.includes('<a href="/todo/open.md" data-kind="issue">open.md</a>'), page)
+            assert(page.includes('<a href="/todo/blocked/later.md" data-kind="issue">blocked/later.md</a>'), page)
+            assert(page.includes('<a href="/todo/blocked/deep/x.md" data-kind="issue">blocked/deep/x.md</a>'), page)
+            assert(output.includes('issues: 3'), output)
+        },
+        /**
+         * **A `README.md` documents its directory**, at any depth, and is
+         * not listed as an issue — nor read as one, so it needs no header.
+         */
+        readmeIsNotAnIssue: () => {
+            const { root } = generate({
+                todo: {
+                    'README.md': file('# Issues'),
+                    'open.md': issue('open'),
+                    demo: { 'README.md': file('# Demo') },
+                },
+            })
+            const page = pageAt(root, [])
+            assert(page.includes('>open.md</a>'), page)
+            assert(!page.includes('README.md</a>'), page)
+        },
+        /**
+         * **An issue whose header cannot be read stops the build**, naming
+         * the file, rather than being listed with a guess.
+         */
+        anUnreadableHeaderStopsTheBuild: () => {
+            const [generated, code] = run({ a: { todo: { 'typo.md': file('## typo\n\n**Priority:** P3\n**Status:** opne\n') } } })
+            assertEq(code, 1)
+            assert(generated.stderr.includes('a/todo/typo.md: unknown status `opne`'), generated.stderr)
         },
         // The breadcrumb walks back to the root through pages that exist.
         breadcrumbReachesTheRoot: () => {
