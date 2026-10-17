@@ -165,8 +165,10 @@ it, in the vocabulary above, beside its status line: the page the website
 shows then says what a feature compiles to *and* where that is decided, and
 a contributor opens the module the layer maps to. The layer is where the
 feature's decision is made, not every stage it passes through — a pattern
-is in the AST and gone from FAST, so it is desugaring's, and the reads it
-lowers to are graph construction's as any access is. The
+is in the AST and gone from FAST, so it is desugaring's, the reads it
+lowers to are graph construction's as any access is, and the serialize
+direction's reverse of a decision, `to_fast` rebuilding a loop from a
+tail call, is the output's and no second owner. The
 [specification tree](../../spec/todo/spec-tree.md) owns the page layout;
 this issue owns the vocabulary the line uses and the placements below.
 
@@ -192,7 +194,7 @@ Where a feature lives today, and where the vocabulary places it:
 | Destructuring, a `const`'s or a parameter's | The fold: `planned` and `lowered`, `functionScope` for a parameter | Desugaring |
 | Default parameters | The fold: `functionScope` and `lateRound`, one conditional entry reading the rest array twice | Desugaring, two fresh entries |
 | Guards, `if` | The fold: `bodyRound` | Desugaring |
-| The `let`/`while` loop | The fold: `loopRound`, to self recursion | FAST keeps it; `from_fast` lowers it, `to_fast` reconstructs it |
+| The `let`/`while` loop | The fold: `loopRound`, to self recursion | Graph construction: FAST keeps the loop and `from_fast` lowers it to a tail call; `to_fast` rebuilding one for output is no second owner |
 | A pattern over `Object` or `Number` | The fold: `namespaceOf` | Desugaring, over binding's static read |
 | A module as a function over its imports | The fold's `AstModule`, then `unresolved` and `Unresolved` in `compiler/edag` | Desugaring, with the import metadata beside the function |
 | Module resolution, identity, cycles, the attribute's and the selected export's checks | `_walk` in `compiler/source`, `resolve` in `compiler/edag` | Linking |
@@ -239,8 +241,9 @@ Under the vocabulary, desugaring makes the module an ordinary FAST function
 over its imports, with the record resolution needs beside it,
 the [example below](#examples-the-design-must-explain), and nothing in
 FAST is module-specific: `from_fast` compiles a function, and linking
-applies it to the exports the records select, a module's whole export
-object only where a record names none. The imports are that function's
+applies it to the export objects of the modules the records name, the
+same object for two records of one module, the body selecting each
+binding's export from its slot. The imports are that function's
 rest array in FAST; in the EDAG they stay the module scope's own
 `['args']`, which `from_fast` writes for the module function's array
 where it writes `['rest']` for an invocation's, since a module is applied
@@ -310,26 +313,27 @@ const imports = [
     { specifier: "./e.f.js", json: false, name: null },
 ];
 const module = (...args) => {
-    const a = args[0];
-    const b = args[1];
-    const c = args[2];
-    const d = args[3];
+    const a = args[0].default;
+    const b = args[1].b;
+    const c = args[2].c;
+    const d = args[3].default;
     const e = [a, b, c, d];
     return { default: e, e };
 };
 ```
 
 The imports are the function's rest array, one slot per import record in
-source order: a record per binding, and one for an import list that binds
-no name, `import {} from "./e.f.js"`, its `name` `null` and its slot the
-module's export object, which the body never reads and link loads all the
-same, so the dependency is evaluated and a failure in it kept, as the
-specification requires ([imports](../../spec/modules/imports.md)) and as
-`AstImport`'s own `null` has it. The body reads slot `i` as a late
-parameter reads `rest[i]`, so the function's `length` is `0` and the limit
-of 16 fixed parameters, a rule on the parameters a source function writes,
-never reaches a module's imports
-([parameters](../../spec/functions/parameters.md),
+source order, each slot the export object of the module its record names:
+a record per binding, whose export the body selects from the slot,
+`args[1].b`, and one for an import list that binds no name,
+`import {} from "./e.f.js"`, its `name` `null` and its slot unread, which
+link loads all the same, so the dependency is evaluated and a failure in
+it kept, as the specification requires
+([imports](../../spec/modules/imports.md)) and as `AstImport`'s own `null`
+has it. The body reads slot `i` as a late parameter reads `rest[i]`, so
+the function's `length` is `0` and the limit of 16 fixed parameters, a
+rule on the parameters a source function writes, never reaches a module's
+imports ([parameters](../../spec/functions/parameters.md),
 [module import bindings](../../spec/todo/3120-parameters.md#module-import-bindings-are-unchanged)).
 Beside the function is what the function cannot say: the specifier and
 the `json` attribute, which decide what is loaded, and the export
@@ -338,15 +342,15 @@ refusing one the module does not have. Module identity is the host's to
 establish and not desugaring's — two specifiers may resolve to one
 identity, and each import carries its own attribute and selected-export
 checks — so the records stay one per syntactic import, and link passes one
-module's export to every slot that selects from it, which is the sharing
-the specification requires. This is the shape `AstImport` and the EDAG's
-`['args']` already have, the slot read being `['.', ['args'], i]`; what
-changes is that the function is an ordinary FAST function, which
-`from_fast` compiles as it compiles any body, spelling its import array as
-the module scope's `['args']` rather than an invocation's `['rest']`
-([module import bindings](../../spec/todo/3120-parameters.md#module-import-bindings-are-unchanged)),
-and that linking applies it to the selected exports, so the linked
-program has no parameter left
+module's export object to every slot whose record names it, which is the
+sharing the specification requires. This is the shape `AstImport` and the
+EDAG's `['args']` already have, the slot its module's export object and
+the binding's read `['.', ['.', ['args'], i], name]`, as the parameter
+plan keeps them; what changes is that the function is an ordinary FAST
+function, which `from_fast` compiles as it compiles any body, spelling its
+import array as the module scope's `['args']` rather than an invocation's
+`['rest']`, and that linking applies it to the export objects of the
+modules loaded, so the linked program has no parameter left
 ([spec: a module is a function](../../spec/modules/README.md#a-module-is-a-function)).
 
 Beyond desugaring, one rule of the graph: a conditional reference does not
