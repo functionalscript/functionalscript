@@ -14,9 +14,12 @@ wants to show each issue's status and priority and order the list by them.
 
 What is wrong, at `4f44c5d`:
 
-- **A status that is not a value.** `spec/todo/2330-property-accessor.md`
-  writes a paragraph after `**Status:**` — "the constant-key read is in the
-  language …" — where the table allows one word.
+- **A status that is not a value.** A status line is a value from the table,
+  optionally followed by ` — ` and a note, and most annotated lines already
+  read that way. Two do not: `spec/todo/2330-property-accessor.md` writes a
+  paragraph — "the constant-key read is in the language …" — with no value,
+  and `fjs/effects/todo/effect-list-fold.md` separates its note with a period,
+  `wip. Unaffected …`.
 - **No header.** About a dozen and a half files have neither line. In
   `spec/todo/` they are feature drafts — `2340-operators`, `2360-built-in`,
   `3360-type-annotations`, `3370-type-inference`, `3380-promise`,
@@ -32,11 +35,16 @@ What is wrong, at `4f44c5d`:
   the plan in `todo/plan/` and the personal notes in `todo/sergey/` live where
   issues live, so anything that lists issues lists them too, and has no
   header to read from them.
+- **READMEs.** A `todo/` directory may carry a `README.md` — this one,
+  `spec/todo/`, `todo/plan/`, `todo/demo/`, `todo/sergey/` and
+  `todo/sergey/disot/` do — and the website lists it as an issue, since it
+  takes every `.md` file in a `todo/` to be one.
 
 ### Proposal
 
-Every file in a `todo/` directory is an issue with a full header, or it moves
-out of `todo/`. Decide per group:
+A `README.md` documents its directory and is never an issue. Every other file
+in a `todo/` directory is an issue with a full header, or it moves out of
+`todo/`. Decide per group:
 
 - Feature drafts in `spec/todo/` are issues: give them a priority and a
   status, and fix their heading level.
@@ -53,6 +61,7 @@ out of `todo/`. Decide per group:
 
 - [ ] Replace the paragraph in `2330-property-accessor`'s status with a value
       from the table, keeping the paragraph as body text.
+- [ ] Change `effect-list-fold`'s `wip.` to `wip —`.
 - [ ] Add priority and status to the `spec/todo/` feature drafts without them.
 - [ ] Change `# Title` to `## Title` wherever an issue opens with it.
 - [ ] Add a title to the files that have none, or move them out with their
@@ -60,7 +69,8 @@ out of `todo/`. Decide per group:
 - [ ] Decide and apply the placement of the design documents, `todo/plan/`
       and `todo/sergey/`.
 - [ ] State in [README.md](./README.md#issue-format) that every file in a
-      `todo/` directory carries the header.
+      `todo/` directory but `README.md` carries the header, and that a status
+      line is a value, optionally followed by ` — ` and a note.
 
 ### Related
 
