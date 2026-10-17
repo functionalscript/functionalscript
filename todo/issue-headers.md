@@ -34,9 +34,9 @@ What is wrong, at `4f44c5d`:
 - **Documents that are not issues.** The design documents in `spec/todo/`,
   the plan in `todo/plan/` and the personal notes in `todo/sergey/` live where
   issues live, so a reader of the folder takes them for issues, and anything
-  that lists issues has no header to read from them. The website does not
-  list the last two yet only because it reads no subfolder of a `todo/` —
-  which also hides real issues, such as those in `todo/blocked/`.
+  that lists issues has no header to read from them. (The website reads no
+  subfolder of a `todo/` yet, which also hides the real issues in
+  `todo/blocked/`.)
 - **READMEs.** A `todo/` directory may carry a `README.md` — this one,
   `spec/todo/`, `todo/plan/`, `todo/demo/`, `todo/sergey/` and
   `todo/sergey/disot/` do — and the website lists it as an issue, since it
@@ -52,14 +52,19 @@ group:
 
 - Feature drafts in `spec/todo/` are issues: give them a priority and a
   status, and fix their heading level.
-- Design documents in `spec/todo/` and `todo/plan/` are not open work: move
-  them next to what they design (`spec/design/`, `doc/plan/`, or similar),
-  re-basing every link to them, or give them a header and accept them as
-  issues.
-- `todo/sergey/` is kept by its owner's request
-  ([its README](./sergey/README.md)): it stays, as a named exception like
-  [the research exception](./README.md#research-exception), and whatever
-  lists issues skips it — unless its owner prefers to move it.
+- Design documents in `spec/todo/` are not open work: move them next to what
+  they design (`spec/design/` or similar), re-basing every link to them, or
+  give them a header and accept them as issues.
+- `todo/blocked/` holds issues and stays.
+- `todo/demo/` holds a `README.md` and data, no issues, and stays.
+- `todo/plan/` is a plan, not issues: move it, e.g. to `doc/plan/`.
+- `todo/sergey/` is its owner's personal notes
+  ([its README](./sergey/README.md)), not issues: move it, e.g. to
+  `doc/sergey/`, which keeps it in the repository as the README asks —
+  with its owner's agreement, since it is his directory.
+
+Then every subfolder of a `todo/` holds issues, a `README.md` or files that
+are not Markdown, and nothing that lists issues needs an exception.
 
 ### Tasks
 
@@ -70,8 +75,10 @@ group:
 - [ ] Change `# Title` to `## Title` wherever an issue opens with it.
 - [ ] Add a title to the files that have none, or move them out with their
       group.
-- [ ] Decide and apply the placement of the design documents, `todo/plan/`
-      and `todo/sergey/`.
+- [ ] Move or header the `spec/todo/` design documents.
+- [ ] Move `todo/plan/` out of `todo/`, re-basing links.
+- [ ] Agree with its owner and move `todo/sergey/` out of `todo/`,
+      re-basing links.
 - [ ] State in [README.md](./README.md#issue-format) that every `.md` file in
       a `todo/` directory but `README.md` carries the header, and that each
       header field is a value, optionally followed by ` — ` and a note.

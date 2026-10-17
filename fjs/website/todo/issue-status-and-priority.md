@@ -34,9 +34,10 @@ show them:
 issue in a subfolder — `todo/blocked/undefined-removes-property.md` — is
 listed with the rest of its `todo/`, under the directory that owns it, not
 under a page of its own: today the site reads only the top level of a `todo/`,
-so `todo/blocked/` never appears. A subfolder that holds no issues — the
-personal notes in `todo/sergey/` — is skipped by name
-([issue-headers](../../../todo/issue-headers.md)).
+so `todo/blocked/` never appears. No subfolder is named: once
+[issue-headers](../../../todo/issue-headers.md) has moved the documents that
+are not issues out of `todo/`, every `.md` but `README.md` under a `todo/` is
+an issue.
 
 A header field is a value, optionally followed by ` — ` and a note; the note —
 to the end of the line and any lines continuing it, up to the next header
@@ -65,7 +66,7 @@ Epics and issue titles are left for later.
       priority.
 - [ ] Stop listing `README.md` as an issue (`isIssue` in `module.f.mjs`).
 - [ ] List the issues in a `todo/`'s subfolders with the rest of it (`toDir`
-      reads only the top level), skipping `todo/sergey/`.
+      reads only the top level).
 - [ ] `data-status`, `data-priority`, the badge and the order in
       `page/module.f.mjs`; the six new icons in `style/module.f.js`.
 - [ ] Update the website proofs and [README.md](../README.md).
