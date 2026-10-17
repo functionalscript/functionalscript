@@ -718,6 +718,18 @@ export const proof = {
                 nodes: [{ id: 0, kind: 'a', label: 'n', rank: 0 }],
                 edges: [{ from: 0, to: { inline: '1' }, label: '', corner: 'top' }],
             }),
+            // A node's arrows leave from its corners or from its rows: a
+            // `middle` corner and the middle of three rows, both to `t`,
+            // would be one line.
+            cornerBesideARowArrow: () => graphSvg({
+                nodes: [{ id: 0, kind: 'a', label: 'n', rank: 0 }, { id: 1, kind: 'a', label: 't', rank: 1 }],
+                edges: [
+                    { from: 0, to: { inline: '1' }, label: 'a' },
+                    { from: 0, to: 1, label: 'b' },
+                    { from: 0, to: { inline: '2' }, label: 'c' },
+                    { from: 0, to: 1, label: '', corner: 'middle' },
+                ],
+            }),
             // And two entries into one node would be drawn as one.
             twoEntriesIntoOneNode: () => graphSvg({ nodes: [{ id: 0, kind: 'a', label: 'n', rank: 0 }], edges: [], entries: [{ to: 0 }, { to: 0, kind: 'old' }] }),
             // The crossing count lays the graph out the same way, and

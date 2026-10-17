@@ -530,6 +530,13 @@ export const _crossesBox = box => ([x0, y0]) => ([x1, y1]) => {
  * other, which reads as one. **A value's parts must spell it**, and an
  * edge from a corner, which has no row, must have no label or value.
  *
+ * **A node's arrows leave from its corners or from its rows, never both.**
+ * The middle of a node with an odd number of rows is its middle row's, so
+ * a `middle` corner and that row's arrow would start at one point, and to
+ * one target they would be one line: two edges drawn as one. No demo mixes
+ * the two — a child of a tree is a corner and a row is a value — so the
+ * graph is refused rather than given room for both.
+ *
  * @type {(g: Graph) => _Placed}
  */
 const placedOf = ({ nodes, edges, entries = [] }) => {
@@ -545,6 +552,9 @@ const placedOf = ({ nodes, edges, entries = [] }) => {
     // An edge leaving from a corner has no row to hold a label or a value.
     const cornered = edges.findIndex(({ corner, to, label }) => corner !== undefined && (typeof to !== 'number' || label !== ''))
     if (cornered !== -1) { throw `graph: edge ${cornered} leaves from a corner, so it must end at a node and have no label` }
+    const fromCorners = new Set(edges.flatMap(({ from, corner }) => corner === undefined ? [] : [from]))
+    const mixed = edges.findIndex(({ from, to, corner }) => corner === undefined && typeof to === 'number' && fromCorners.has(from))
+    if (mixed !== -1) { throw `graph: edge ${mixed} leaves a row of node ${edges[mixed].from}, whose other arrows leave from its corners` }
     return layout(margin + (entries.length === 0 ? 0 : entryLength))(nodes)(edges)
 }
 
