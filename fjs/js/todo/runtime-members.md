@@ -73,6 +73,13 @@ export const runtime = {
   rather than the statics' `args: Array<A>` with the receiver as its one
   element: a member is a function of exactly its receiver, and the call
   step passes it with nothing built around it.
+- The direct call of a known name, `a.map(b)` with `map` in
+  `allowedCalls`, looks for an own property only when the receiver is an
+  object: an array, a string, a number, a boolean, a bigint or a function
+  cannot carry an own property under an admitted name, since nothing
+  mutates and their literals have none, so only an object literal can
+  shadow a built-in. Every other receiver goes straight to the body, or
+  to the native while the name has none.
 
 ### Tasks
 
