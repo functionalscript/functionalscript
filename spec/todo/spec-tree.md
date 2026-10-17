@@ -65,13 +65,16 @@ not a default. A page is one of two kinds.
    never silently out of date.
 5. **Where it is implemented**: the compiler layer that owns the feature —
    tokenizer, grammar, binding, desugaring, admission, graph construction,
-   linking, graph optimization, graph-to-FAST, serialization or evaluation —
-   in the vocabulary of
+   linking, graph optimization, graph-to-FAST, serialization, evaluation or
+   orchestration — in the vocabulary of
    [compiler vocabulary and modularization](../../fjs/todo/compiler-vocabulary-and-modularization.md#where-a-feature-is-implemented),
-   which records where a feature lives today where that differs. The page
-   names the layer; the module's own documentation says how. A refused
-   feature names the layer that refuses it the same way, admission where
-   the whitelist does.
+   which records where a feature lives today where that differs. One layer
+   per page, the one whose decision the feature is: a command-line page's,
+   file types or output, is orchestration's, and what each output writes
+   or refuses for a feature is on that feature's page, under its examples.
+   The page names the layer; the module's own documentation says how. A
+   refused feature names the layer that refuses it the same way, admission
+   where the whitelist does.
 
 **A refused feature** (valid JavaScript that FunctionalScript rejects):
 

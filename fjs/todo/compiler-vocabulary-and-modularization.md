@@ -179,6 +179,7 @@ this issue owns the vocabulary the line uses and the placements below.
 | Admission | What FunctionalScript keeps of the supported JavaScript subset, and the refusals that are its own and no early error of JavaScript's — a prototype name as a key, `o.toString`, a reserved global, a bare `__proto__` key, a prohibited member call — run before desugaring erases what they inspect; `fjs/compiler` owns it. |
 | Graph construction (`from_fast`) | Sharing, scopes, anchors, and the lowering of FAST's loop forms to tail calls. |
 | Linking | Loading and linking, what the records beside a module function ask of the host and of the modules loaded: a specifier resolved to a module identity, one load and one evaluation per identity, a cycle refused, the attribute's agreement with the file, the selected export's existence; and the module function applied to what was loaded. `fjs/compiler` owns it, `_walk` in `source` and `resolve` in `edag` today. |
+| Orchestration | Which steps run for an input and an output name: `fjs compile`'s dispatch by file type, a `.json` document against a module, which output evaluates and which writes a graph, the diagnostics' paths — the command-line pages' layer. `fjs/compiler`'s `module.f.mjs` and `fjs/cli` own it. |
 | Graph optimization | An EDAG-to-EDAG rewrite, recorded as one. |
 | Graph-to-FAST (`to_fast`) | Bindings, blocks, placement and tail loops in output. |
 | Serialization | A target's spelling of FAST and of its runtime operations. |
@@ -195,6 +196,7 @@ Where a feature lives today, and where the vocabulary places it:
 | A pattern over `Object` or `Number` | The fold: `namespaceOf` | Desugaring, over binding's static read |
 | A module as a function over its imports | The fold's `AstModule`, then `unresolved` and `Unresolved` in `compiler/edag` | Desugaring, with the import metadata beside the function |
 | Module resolution, identity, cycles, the attribute's and the selected export's checks | `_walk` in `compiler/source`, `resolve` in `compiler/edag` | Linking |
+| Dispatch by file type and output name, the authored `.f.js` check | `fjs/compiler/module.f.mjs`, `fjs/cli` | Orchestration |
 | Resolution, captures, JavaScript's early errors | The fold | Binding, before desugaring |
 | FunctionalScript's own refusals: a prototype name, a reserved global, `__proto__`, a prohibited call | The fold | Admission, before desugaring |
 
@@ -239,10 +241,16 @@ the [example below](#examples-the-design-must-explain), and nothing in
 FAST is module-specific: `from_fast` compiles a function, and linking
 applies it to the exports the records select, a module's whole export
 object only where a record names none. The imports are that function's
-rest array, so the EDAG's `['args']` root is already its shape; whether
-the root keeps its own tag or is the function's `['rest']` applied at
-link is settled in the architecture increment, and `AstModule` and
-`Unresolved` are then the two representations to retire.
+rest array in FAST; in the EDAG they stay the module scope's own
+`['args']`, which `from_fast` writes for the module function's array
+where it writes `['rest']` for an invocation's, since a module is applied
+by link and never called: the
+[parameter plan](../../spec/todo/3120-parameters.md#module-import-bindings-are-unchanged)
+keeps `['args']` the import binding, valid in an unresolved module's scope
+alone, and `['rest']` invalid there, and this proposal keeps that
+contract. `AstModule` and its `aref` are then the representation to
+retire; `Unresolved`, the graph with its records beside it, is the same
+pair at the EDAG stage.
 
 #### Examples the design must explain
 
@@ -333,9 +341,12 @@ checks — so the records stay one per syntactic import, and link passes one
 module's export to every slot that selects from it, which is the sharing
 the specification requires. This is the shape `AstImport` and the EDAG's
 `['args']` already have, the slot read being `['.', ['args'], i]`; what
-changes is that the function is an ordinary one, which `from_fast`
-compiles as any other, and that linking applies it to the selected
-exports, so the linked program has no parameter left
+changes is that the function is an ordinary FAST function, which
+`from_fast` compiles as it compiles any body, spelling its import array as
+the module scope's `['args']` rather than an invocation's `['rest']`
+([module import bindings](../../spec/todo/3120-parameters.md#module-import-bindings-are-unchanged)),
+and that linking applies it to the selected exports, so the linked
+program has no parameter left
 ([spec: a module is a function](../../spec/modules/README.md#a-module-is-a-function)).
 
 Beyond desugaring, one rule of the graph: a conditional reference does not
