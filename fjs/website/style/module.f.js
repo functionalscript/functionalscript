@@ -515,6 +515,29 @@ li:has(> [data-kind]) { list-style: none }
 [data-kind="file"]::before { content: "" / "file" }
 [data-kind="issue"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 1.5a5.5 5.5 0 1 1 0 11 5.5 5.5 0 0 1 0-11zM8 6a2 2 0 1 0 0 4 2 2 0 0 0 0-4z'/%3E%3C/svg%3E") }
 [data-kind="issue"]::before { content: "" / "issue" }
+/* An issue's icon is its status. Open keeps the issue icon above, and each
+   other status draws its own over the same ring — a half-filled circle for
+   work in progress, a bar for blocked, a pause for on hold, a check for done,
+   a cross for won't fix — but irrelevant, the one status that no longer
+   applies, which is the ring alone, dashed. Each spoken alternative names the
+   status and the kind, so a link reads "blocked issue a.md". */
+[data-kind="issue"][data-issue-status="open"]::before { content: "" / "open issue" }
+[data-kind="issue"][data-issue-status="wip"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 1.5a5.5 5.5 0 1 1 0 11 5.5 5.5 0 0 1 0-11z'/%3E%3Cpath d='M8 4a4 4 0 0 0 0 8z'/%3E%3C/svg%3E") }
+[data-kind="issue"][data-issue-status="wip"]::before { content: "" / "wip issue" }
+[data-kind="issue"][data-issue-status="blocked"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 1.5a5.5 5.5 0 1 1 0 11 5.5 5.5 0 0 1 0-11z'/%3E%3Crect x='4.5' y='7.25' width='7' height='1.5' rx='.5'/%3E%3C/svg%3E") }
+[data-kind="issue"][data-issue-status="blocked"]::before { content: "" / "blocked issue" }
+[data-kind="issue"][data-issue-status="on-hold"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 1.5a5.5 5.5 0 1 1 0 11 5.5 5.5 0 0 1 0-11z'/%3E%3Crect x='5.5' y='5' width='1.5' height='6' rx='.5'/%3E%3Crect x='9' y='5' width='1.5' height='6' rx='.5'/%3E%3C/svg%3E") }
+[data-kind="issue"][data-issue-status="on-hold"]::before { content: "" / "on-hold issue" }
+[data-kind="issue"][data-issue-status="done"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 1.5a5.5 5.5 0 1 1 0 11 5.5 5.5 0 0 1 0-11z'/%3E%3Cpath fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M5.25 8.25l1.9 1.9 3.6-3.9'/%3E%3C/svg%3E") }
+[data-kind="issue"][data-issue-status="done"]::before { content: "" / "done issue" }
+[data-kind="issue"][data-issue-status="irrelevant"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='6.25' fill='none' stroke='black' stroke-width='1.5' stroke-dasharray='2.45 2.45'/%3E%3C/svg%3E") }
+[data-kind="issue"][data-issue-status="irrelevant"]::before { content: "" / "irrelevant issue" }
+[data-kind="issue"][data-issue-status="won't fix"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 1.5a5.5 5.5 0 1 1 0 11 5.5 5.5 0 0 1 0-11z'/%3E%3Cpath fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M5.75 5.75l4.5 4.5M10.25 5.75l-4.5 4.5'/%3E%3C/svg%3E") }
+[data-kind="issue"][data-issue-status="won't fix"]::before { content: "" / "won't fix issue" }
+/* An issue's priority is a badge after its link. P1 and P2 take the value
+   colour, so the urgent issues stand out of a list; P3 to P5 are outlined. */
+[data-priority] { border: 1px solid var(--border); border-radius: 3px; color: var(--muted); font-size: .75em; padding: 0 .35em; white-space: nowrap }
+[data-priority="P1"], [data-priority="P2"] { background-color: var(--value-bg); border-color: transparent; color: var(--value) }
 /* A directory with a demo anywhere under it carries a play mark after its
    name, so the marks are a trail from any page down to every demo below it.
    After the name rather than before: the icon in front is what the entry is,
