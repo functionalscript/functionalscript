@@ -554,7 +554,7 @@ export const proof = {
         const text = scoped(['=>', 3, [], ['[]', [['arg', 0], ['arg', 2], ['rest']]]]).join('\n')
         assert(text.includes('args.argument(0)'))
         assert(text.includes('args.argument(2)'))
-        assert(text.includes('let rest = args.clone().into_iter().skip(3).to_array();'))
+        assert(text.includes('let rest = args.rest(3);'))
         assert(text.includes('}, 3, Array::default(), Some("($0,$1,$2,...$3)=>[$0,$2,$3]")).to_any()'))
     },
     /**
@@ -1181,7 +1181,7 @@ export const proof = {
         closure: () => {
             assertEq(
                 printed(['=>', 0, [], ['rest']]),
-                'A::static_function(|_self, args| {\n    let rest = args.clone().into_iter().to_array();\n    Ok(rest.clone().to_any())\n}, 0, Array::default(), Some("(...$0)=>$0")).to_any()')
+                'A::static_function(|_self, args| {\n    let rest = args.rest(0);\n    Ok(rest.clone().to_any())\n}, 0, Array::default(), Some("(...$0)=>$0")).to_any()')
             assertEq(
                 printed(['=>', 0, [], 1]),
                 'A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 0, Array::default(), Some("()=>1")).to_any()')
@@ -1190,13 +1190,13 @@ export const proof = {
         nested: () => {
             assertEq(
                 printed(['=>', 0, [], ['=>', 0, [], ['rest']]]),
-                'A::static_function(|_self, _args| { Ok(A::static_function(|_self, args| {\n    let rest = args.clone().into_iter().to_array();\n    Ok(rest.clone().to_any())\n}, 0, Array::default(), Some("(...$0)=>$0")).to_any()) }, 0, Array::default(), Some("()=>(...$0)=>$0")).to_any()')
+                'A::static_function(|_self, _args| { Ok(A::static_function(|_self, args| {\n    let rest = args.rest(0);\n    Ok(rest.clone().to_any())\n}, 0, Array::default(), Some("(...$0)=>$0")).to_any()) }, 0, Array::default(), Some("()=>(...$0)=>$0")).to_any()')
         },
         /** A body whose root is an operation answers that operation's own `Result`, as a thunk does. */
         operationBody: () => {
             assertEq(
                 printed(['=>', 0, [], ['.', ['rest'], 0]]),
-                'A::static_function(|_self, args| {\n    let rest = args.clone().into_iter().to_array();\n    Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()\n}, 0, Array::default(), Some("(...$0)=>$0[0]")).to_any()')
+                'A::static_function(|_self, args| {\n    let rest = args.rest(0);\n    Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()\n}, 0, Array::default(), Some("(...$0)=>$0[0]")).to_any()')
         },
         /**
          * A body's temporaries are the body's own: bound in the closure,
@@ -1208,12 +1208,12 @@ export const proof = {
             const first = ['.', ['rest'], 0]
             assertEq(
                 printed(['=>', 0, [], ['[]', [first, first]]]),
-                'A::static_function(|_self, args| {\n    let rest = args.clone().into_iter().to_array();\n    let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;\n    Ok([c0.clone(), c0.clone()].to_array().to_any())\n}, 0, Array::default(), Some("(...$0)=>{const $1=$0[0];return [$1,$1];}")).to_any()')
+                'A::static_function(|_self, args| {\n    let rest = args.rest(0);\n    let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;\n    Ok([c0.clone(), c0.clone()].to_array().to_any())\n}, 0, Array::default(), Some("(...$0)=>{const $1=$0[0];return [$1,$1];}")).to_any()')
             assertStructurallySame(
                 scoped(['=>', 0, [], ['[]', [['.', ['rest'], 0], ['.', ['rest'], 1]]]]),
                 [
                     'Ok(A::static_function(|_self, args| {',
-                    '    let rest = args.clone().into_iter().to_array();',
+                    '    let rest = args.rest(0);',
                     '    let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;',
                     '    let c1: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x3ff0000000000000)).end()?;',
                     '    Ok([c0, c1].to_array().to_any())',

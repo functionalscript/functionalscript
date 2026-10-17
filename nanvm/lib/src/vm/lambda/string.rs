@@ -5,7 +5,7 @@
 //! runtime defines — `startsWith` — has no entry here: the call step
 //! finds its body through `vm/runtime.rs`.
 
-use super::method::{Method, ToAnyResult, index_or_minus_one, rest};
+use super::method::{Method, ToAnyResult, index_or_minus_one};
 use crate::vm::{Any, Array, IVm, Number, String, ToAny};
 
 /// `String.prototype`'s.
@@ -116,7 +116,7 @@ fn substring<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
 
 /// Every argument a part.
 fn concat<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
-    String::try_from(s)?.concat(rest(&args, 0)).to_any_result()
+    String::try_from(s)?.concat(args.rest(0)).to_any_result()
 }
 
 fn repeat<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {

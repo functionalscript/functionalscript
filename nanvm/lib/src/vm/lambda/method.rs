@@ -1,8 +1,8 @@
 use crate::{
     common::sized_index::SizedIndex,
     vm::{
-        Any, Array, Function, IVm, Number, String, ToAny, ToArray, Unpacked,
-        array::callback::callback, error, runtime::runtime_method,
+        Any, Array, Function, IVm, Number, String, ToAny, Unpacked, array::callback::callback,
+        error, runtime::runtime_method,
     },
 };
 
@@ -99,13 +99,6 @@ fn array<A: IVm>() -> [(&'static str, Method<A>); 23] {
 /// searches from the end, `lastIndexOf(x, undefined)` from `0`.
 pub(super) fn present<A: IVm>(args: &Array<A>, i: u32) -> Option<Any<A>> {
     (i < args.length()).then(|| args[i].clone())
-}
-
-/// The arguments from the `i`-th on, as a rest parameter reads them.
-pub(super) fn rest<A: IVm>(args: &Array<A>, i: u32) -> Array<A> {
-    (i..args.length().max(i))
-        .map(|k| args[k].clone())
-        .to_array()
 }
 
 /// A search's position as JavaScript answers it: the index, or `-1`.
@@ -207,7 +200,7 @@ fn array_to_reversed<A: IVm>(receiver: Any<A>, _: Array<A>) -> Result<Any<A>, An
 /// as present or not.
 fn array_to_spliced<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     Array::try_from(receiver)?
-        .to_spliced(present(&args, 0), present(&args, 1), rest(&args, 2))
+        .to_spliced(present(&args, 0), present(&args, 1), args.rest(2))
         .to_any_result()
 }
 

@@ -527,11 +527,13 @@ const last = e => {
 
 /**
  * The line binding a function's rest parameters, the arguments after its
- * `length` fixed ones, as the `Array<A>` a `['rest']` read clones.
+ * `length` fixed ones, as the `Array<A>` a `['rest']` read clones:
+ * `nanvm-lib`'s `Array::rest`, the arguments themselves after no fixed
+ * ones, a new array of the ones past `length` otherwise.
  *
  * @type {(length: number) => Printed<string>}
  */
-export const restLine = length => cat([`${kw('let')} rest = args.clone().into_iter()${length === 0 ? '' : `.skip(${num(`${length}`)})`}`, toArray, ';'])
+export const restLine = length => cat([`${kw('let')} rest = args.rest(`, num(`${length}`), ');'])
 
 /**
  * The printer for the EDAG under `root`, or the refusal of a shape this

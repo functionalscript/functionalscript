@@ -148,7 +148,7 @@ pub(crate) fn members<A: IStaticFunction>() -> [(&'static str, MemberCode<A>); 1
         assert(members.includes('fn one<A: IStaticFunction>(_self: Any<A>)') && members.includes('("one", one)'))
         assert(!members.includes('RuntimeFunction'))
         const tail = assertOk(generateRuntime(module([['static', object([['Object', object([['tail', fn(1, [], ['rest'])]])]])]])))
-        assert(tail.includes('fn object_tail_code<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>> {\n    let rest = args.clone().into_iter().skip(1).to_array();\n    Ok(rest.clone().to_any())\n}'))
+        assert(tail.includes('fn object_tail_code<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>> {\n    let rest = args.rest(1);\n    Ok(rest.clone().to_any())\n}'))
         const none = assertOk(generateRuntime(module([])))
         assert(none.includes('Accessor<A>); 1]') && none.includes('MemberCode<A>); 0]'))
         const lazy = assertOk(generateRuntime(module([['static', object([['Number', object([['f', fn(1, [], ['&&', ['arg', 0], ['+', ['arg', 0], 1]])]])]])]])))

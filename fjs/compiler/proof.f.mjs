@@ -1130,7 +1130,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             // the body binds it once and each thunk clones it
             assertStructurallySame(body('export default (...a) => true ? a : a;'), [
                 '    let c0: Any<A> = A::static_function(|_self, args| {',
-                '        let rest = args.clone().into_iter().to_array();',
+                '        let rest = args.rest(0);',
                 '        let c0 = || Ok(rest.clone().to_any());',
                 '        Any::conditional(true.to_any(), c0, c0)',
                 '    }, 0, Array::default(), Some("(...$0)=>true?$0:$0")).to_any();',
@@ -1138,7 +1138,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             ])
             assertStructurallySame(body('export default (...a) => true ? [a] : [a, a];'), [
                 '    let c0: Any<A> = A::static_function(|_self, args| {',
-                '        let rest = args.clone().into_iter().to_array();',
+                '        let rest = args.rest(0);',
                 '        let c0: Any<A> = rest.clone().to_any();',
                 '        let c1 = || Ok([c0.clone()].to_array().to_any());',
                 '        let c2 = || Ok([c0.clone(), c0.clone()].to_array().to_any());',

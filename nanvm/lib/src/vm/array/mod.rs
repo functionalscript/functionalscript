@@ -18,6 +18,7 @@ mod map;
 mod member_access;
 mod partial_eq;
 mod reduce;
+mod rest;
 mod slice;
 mod some;
 mod to_reversed;
