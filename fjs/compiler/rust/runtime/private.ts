@@ -26,10 +26,13 @@ export type _BuiltIn = {
 
 /**
  * A module-level function as an item: the node, the built-in's name, which
- * a helper no section names gets as `f0`, `f1`, …, and the identifier.
+ * a helper no section names gets as `f0`, `f1`, …, the identifier, and
+ * whether the item is exported — a built-in a section names, read by
+ * compiled code; a helper is the module's own.
  */
 export type _Item = {
     readonly node: readonly unknown[]
     readonly name: string
     readonly ident: string
+    readonly exported: boolean
 }

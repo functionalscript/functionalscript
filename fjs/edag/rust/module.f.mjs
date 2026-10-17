@@ -48,10 +48,10 @@
  * @import { Result } from '../../types/result/types.ts'
  */
 
-import { f64Bits, i64Literal, stringLiteral, u64WordItems, utf16Units } from '../../media/rust/module.f.mjs'
+import { builtInIdentifier, f64Bits, i64Literal, stringLiteral, u64WordItems, utf16Units } from '../../media/rust/module.f.mjs'
 import { indent } from '../../media/rust/item/module.f.js'
 import { error, mapOk, ok, okList, okThen, unwrap } from '../../types/result/module.f.js'
-import { isStatic, staticPath } from '../module.f.mjs'
+import { isStatic } from '../module.f.mjs'
 import { chainLazy, eagerOperandsOf, isChain, lazy, members, one, operandsOf, visit } from '../sharing/module.f.mjs'
 import { analysis } from '../analysis/module.f.mjs'
 import { keepsRecursion, loopOf } from '../loop/module.f.mjs'
@@ -505,11 +505,12 @@ const hasSpread = items => items.some(x => x instanceof Array && x[0] === '...')
  * `true` for a node that prints through an operation's `nanvm-lib` call,
  * answering a `Result`: a `.` read, a call, an operator node, or an array
  * holding a spread — every node but the value shapes, which construct an
- * `Any` directly.
+ * `Any` directly, and a static function, a built-in the runtime holds,
+ * whose read cannot fail.
  *
  * @type {(e: Exp) => boolean}
  */
-const isOperation = e => e instanceof Array
+const isOperation = e => e instanceof Array && !isStatic(e)
     && (!['undefined', 'args', 'frame', 'arg', 'rest', 'self', 'entry', '[]', '{}', '=>', ',', ':', '...'].includes(e[0])
         || (e[0] === '[]' && hasSpread(/** @type {readonly unknown[]} */ (e[1]))))
 
@@ -859,6 +860,17 @@ const printer = (nested, arg = argRead, frame = frameRead, base = 0, self_ = sel
     const node = e => {
         const [id, a, b, c] = /** @type {readonly any[]} */ (e)
         if (id === 'undefined') { return ok(undefinedAny) }
+        // A static function as a value: the built-in's accessor,
+        // `object_is::<A>()` for `Object.is`, its descriptor wrapped as the
+        // `Function` it is — a static function of the compiled runtime,
+        // one function by its name however often it is read, which is the
+        // identity JavaScript gives a built-in (`fjs/js/runtime/README.md`,
+        // "How NaNVM finds it"). A value, not an operation: the parser
+        // admitted the name and the runtime defines it, so a module naming
+        // a static the runtime lacks does not compile, where nothing fails
+        // when it runs. The accessor is an item of `nanvm_lib::vm`, spelled
+        // by `builtInIdentifier`.
+        if (isStatic(e)) { return ok(cat([vm('Function'), '::from(', vm(builtInIdentifier(id)), '::<A>())', toAny])) }
         // The arguments a function was called with: the `args` parameter of
         // the closure {@link closure} prints, an `Array<A>` — as a value, an
         // `Rc`-cheap clone of it. An indexed read, `a[0]` or `a.length`, is
@@ -1067,13 +1079,6 @@ const printer = (nested, arg = argRead, frame = frameRead, base = 0, self_ = sel
      */
     const bare = e => {
         const [id, a, b, c] = e
-        // A static function as a value: `nanvm-lib`'s `static_binding`,
-        // the VM's binding for its path — `IVm::runtime_static`, the
-        // compiled runtime's body — or the failure naming it, a `Result`
-        // as every operation's is, here where a block answers it as well
-        // as where a `let` reads it. A path's keys are identifiers, so
-        // each is its own `&str` literal.
-        if (isStatic(e)) { return ok(cat([vm('static_binding'), `::<A>(&[${staticPath(e[0]).map(key => `"${key}"`).join(', ')}])`])) }
         // A chain: the node's entry point, then its continuation's steps,
         // then the exit — `Any::dot(a, key).end()` for a bare `a.b`, one
         // spelling whether or not a continuation follows. What the read
@@ -1244,7 +1249,7 @@ const printer = (nested, arg = argRead, frame = frameRead, base = 0, self_ = sel
      *
      * @type {(n: Exp) => (s: string) => string}
      */
-    const checked = n => s => isChain(tagOf(n)) || tagOf(n) === '()' || tagOf(n) === '[]' || isStatic(n) ? `${s}?` : `(${s})?`
+    const checked = n => s => isChain(tagOf(n)) || tagOf(n) === '()' || tagOf(n) === '[]' ? `${s}?` : `(${s})?`
     /**
      * The `Result` an argument list's thunk answers: the array it builds,
      * `Ok(…)`, or `spread_array`'s own, which may throw, where it holds a

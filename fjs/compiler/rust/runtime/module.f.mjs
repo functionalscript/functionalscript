@@ -1,7 +1,7 @@
 /**
- * The static runtime: `fjs/js/runtime` printed as static Rust functions,
- * the design of
- * [`nanvm/lib/todo/static-runtime.md`](../../../../nanvm/lib/todo/static-runtime.md).
+ * The static runtime: `fjs/js/runtime` printed as static Rust functions
+ * ([`fjs/js/runtime/README.md`](../../../js/runtime/README.md), "How NaNVM
+ * finds it").
  *
  * Where [`../module.f.mjs`](../module.f.mjs) prints a module as a scope
  * that *evaluates* — temporaries, and a closure with a frame for every
@@ -41,7 +41,7 @@ import { error, mapOk, ok, okList, okThen, unwrap } from '../../../types/result/
 import { atomExpr, holdsFunction, readsArgs, readsRest, restLine, statementsWith, useLinesTagged } from '../../../edag/rust/module.f.mjs'
 import { operandsOf, visit } from '../../../edag/sharing/module.f.mjs'
 import { tryFunctionText } from '../../serializer/module.f.mjs'
-import { stringLiteral } from '../../../media/rust/module.f.mjs'
+import { builtInIdentifier, stringLiteral } from '../../../media/rust/module.f.mjs'
 import { generatedHeader, indent } from '../../../media/rust/item/module.f.js'
 import { tagged, untagged } from '../../../text/marked/module.f.mjs'
 import { isNative, natives } from '../../../js/static/module.f.js'
@@ -145,34 +145,12 @@ const table = root => {
 }
 
 /**
- * The Rust identifier of a built-in's name, `object_is` for `Object.is` and
- * `string_prototype_starts_with` for `String.prototype.startsWith`: each
- * part in snake case, the parts joined by one underscore. A word starts at
- * a capital between a lowercase letter and a lowercase letter, so that
- * `isNaN` is `is_nan` as Rust spells it and not `is_na_n`, which
- * `snakeCase` in `fjs/media/rust`, a word at every capital, would make of
- * it; the corpus keeps that spelling for its file names.
- *
- * @type {(name: string) => string}
- */
-const identifier = name => name.split('.').map(snake).join('_')
-
-/** @type {(part: string) => string} */
-const snake = part => [...part].map((c, i) => {
-    const lower = c.toLowerCase()
-    const starts = c !== lower && i > 0 && isLower(part[i - 1]) && i + 1 < part.length && isLower(part[i + 1])
-    return starts ? `_${lower}` : lower
-}).join('')
-
-/** @type {(c: string) => boolean} */
-const isLower = c => c === c.toLowerCase() && c !== c.toUpperCase()
-
-/**
  * The items of a module: every module-level function, the walk of one scope
  * stopping at each function's body, named by the table where a built-in
- * resolves to it and `f` with its index among the helpers otherwise.
- * Refused: a module-level node that is no function, no object, no import's
- * read and no `undefined` — an operation the lifting would drop
+ * resolves to it, and exported, since compiled code reads it by its
+ * accessor; `f` with its index among the helpers otherwise, the module's
+ * own. Refused: a module-level node that is no function, no object, no
+ * import's read and no `undefined` — an operation the lifting would drop
  * unevaluated; an import's read that resolves to nothing an item may hold,
  * wherever it stands, since one a property written twice left behind would
  * otherwise go unchecked; and a function no built-in reaches through its
@@ -194,7 +172,7 @@ const items = (root, builtIns) => {
         return ok(functions.map(node => {
             const named = builtIns.find(b => b.node === node)
             const name = named === undefined ? `f${helpers.indexOf(node)}` : named.name
-            return { node, name, ident: identifier(name) }
+            return { node, name, ident: builtInIdentifier(name), exported: named !== undefined }
         }))
     })(okList(nodes.filter(n => n[0] === '.').map(n => resolve(/** @type {Exp} */ (n)))))
 }
@@ -240,7 +218,7 @@ const reference = ident => [`Function::from(${ident}::<A>()).to_any()`, [['vm', 
  *
  * @type {(all: readonly _Item[]) => (item: _Item) => Result<Printed<readonly string[]>, readonly unknown[]>}
  */
-const itemLines = all => ({ node, name, ident }) => {
+const itemLines = all => ({ node, name, ident, exported }) => {
     const [, length, slots, body] = /** @type {readonly any[]} */ (node)
     if (holdsFunction(body)) { return error(['no static Rust for a function a body makes at call time', name]) }
     const text = tryFunctionText(/** @type {Exp} */ (node))
@@ -265,7 +243,7 @@ const itemLines = all => ({ node, name, ident }) => {
             '}',
             '',
             '#[rustfmt::skip]',
-            `${kw('pub')} ${kw('fn')} ${ident}<A: ${bound}>() -> &'static RuntimeFunction<A> {`,
+            `${exported ? `${kw('pub')} ` : ''}${kw('fn')} ${ident}<A: ${bound}>() -> &'static RuntimeFunction<A> {`,
             `${indent}&RuntimeFunction { name: ${lit(stringText(name))}, code: ${code}::<A>, length: ${lit(`${length}`)}, text: ${lit(literal)} }`,
             '}',
         ]
@@ -286,7 +264,8 @@ const stringText = name => `"${name}"`
  * the sections' and, from [`fjs/js/static`](../../../js/static/module.f.js),
  * the natives `nanvm-lib` writes by hand, `Object.entries` — and
  * `members`, every member built-in by its receiver type and key, each row
- * an accessor; the arrays `nanvm-lib`'s lookups search.
+ * an accessor; the arrays `nanvm-lib`'s lookups search, and the crate's
+ * own, where the accessors are every compiled module's.
  *
  * @type {(builtIns: readonly _BuiltIn[], all: readonly _Item[]) => Printed<readonly string[]>}
  */
@@ -295,19 +274,19 @@ const tables = (builtIns, all) => {
     const accessor = b => all.filter(i => i.node === b.node)[0].ident
     const statics = [
         ...builtIns.filter(b => b.member === null).map(b => `(${lit(stringText(b.name))}, ${accessor(b)})`),
-        ...natives.map(path => `(${lit(stringText(path.join('.')))}, ${identifier(path.join('.'))})`),
+        ...natives.map(path => `(${lit(stringText(path.join('.')))}, ${builtInIdentifier(path.join('.'))})`),
     ]
     const members = builtIns.flatMap(b => b.member === null ? [] : [`(${lit(stringText(b.member[0]))}, ${lit(stringText(b.member[1]))}, ${accessor(b)})`])
     /** @type {(name: string, row: string, rows: readonly string[]) => readonly string[]} */
     const fn = (name, row, rows) => [
         '#[rustfmt::skip]',
-        `${kw('pub')} ${kw('fn')} ${name}<A: ${bound}>() -> [(${row}, Accessor<A>); ${lit(`${rows.length}`)}] {`,
+        `${kw('pub')}(${kw('crate')}) ${kw('fn')} ${name}<A: ${bound}>() -> [(${row}, Accessor<A>); ${lit(`${rows.length}`)}] {`,
         ...(rows.length === 0 ? [`${indent}[]`] : [`${indent}[`, ...rows.map(r => `${indent}${indent}${r},`), `${indent}]`]),
         '}',
     ]
     return [
         [...fn('statics', "&'static str", statics), '', ...fn('members', "&'static str, &'static str", members)],
-        natives.map(path => /** @type {Use} */ (['vm', identifier(path.join('.'))])),
+        natives.map(path => /** @type {Use} */ (['vm', builtInIdentifier(path.join('.'))])),
     ]
 }
 

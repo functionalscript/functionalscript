@@ -6,19 +6,20 @@
 //! receiver type and key, are what [`runtime_static`] and
 //! [`runtime_method`] search. No VM holds a runtime, and nothing is
 //! evaluated: a built-in is one function by its name however often it is
-//! read, for every VM (`nanvm/lib/todo/static-runtime.md`). The native
+//! read, for every VM. The native
 //! tables in `vm/lambda` keep every name without a body, and may keep a
 //! name that has one where a measurement justifies the second
 //! implementation. [`object_entries`] is the one static function no body
 //! can define, written here and listed in the compiled table beside the
-//! bodies.
+//! bodies. The design: `fjs/js/runtime/README.md`, "How NaNVM finds it".
 
-use crate::vm::{Any, Array, Function, IVm, RuntimeFunction, ToAny, Unpacked};
+use crate::vm::{Any, Array, IVm, RuntimeFunction, Unpacked};
 
 /// The compiled runtime: a `#[path]`, since a `gen.` name is not a Rust
-/// identifier.
+/// identifier. Its accessors are every compiled module's, re-exported from
+/// `vm`; its tables are this module's to search.
 #[path = "gen.runtime.rs"]
-mod compiled;
+pub(super) mod compiled;
 
 /// The static function `name` names, JavaScript's own spelling of it,
 /// `Object.is`: a body of the runtime's `static` section, or a native
@@ -80,18 +81,6 @@ pub fn object_entries<A: IVm>() -> &'static RuntimeFunction<A> {
     }
 }
 
-/// The function a compiled read of a static function answers: the built-in
-/// at `path`, the keys `fjs/js/static` admits it under, as a value, or the
-/// failure naming the path, which the read propagates — the parser admitted
-/// the name, so a runtime without the function fails rather than answer
-/// `undefined`. The represented interpreter fails with the same message.
-pub fn static_binding<A: IVm>(path: &[&str]) -> Result<Any<A>, Any<A>> {
-    let name = path.join(".");
-    runtime_static(&name)
-        .map(|built_in| Function::from(built_in).to_any())
-        .ok_or_else(|| format!("no binding for the static {name}").as_str().into())
-}
-
 /// The receiver's type as the runtime keys it, the name of its global;
 /// `None` for a nullish receiver, which has no type there and no member
 /// function anywhere.
@@ -111,7 +100,8 @@ pub(crate) fn type_name<A: IVm>(receiver: &Any<A>) -> Option<&'static str> {
 #[cfg(test)]
 mod tests {
     use super::{
-        ENTRIES_TEXT, object_entries, runtime_method, runtime_static, static_binding, type_name,
+        ENTRIES_TEXT, compiled::object_is, object_entries, runtime_method, runtime_static,
+        type_name,
     };
     use crate::{
         naive::Naive,
@@ -161,12 +151,14 @@ mod tests {
         );
     }
 
-    /// A static body is found by its name; a name the section lacks, a
-    /// namespace that is no function and a name past a function are not.
-    /// The body found is the compiled `Object.is`, SameValue.
+    /// A static body is found by its name, and is the one its accessor
+    /// answers; a name the section lacks, a namespace that is no function
+    /// and a name past a function are not. The body found is the compiled
+    /// `Object.is`, SameValue.
     #[test]
     fn static_lookup() {
         let is: Any<A> = Function::from(runtime_static::<A>("Object.is").unwrap()).to_any();
+        assert_eq!(is, Function::from(object_is::<A>()).to_any());
         let call = |a: Any<A>, b: Any<A>| is.clone().call([a, b].to_array().to_any());
         assert_eq!(call((-0.0).to_any(), 0.0.to_any()), Ok(false.to_any()));
         assert_eq!(
@@ -178,25 +170,22 @@ mod tests {
         assert!(runtime_static::<A>("Object.keys").is_none());
         assert!(runtime_static::<A>("Object.is.x").is_none());
         assert!(runtime_static::<A>("Number.is").is_none());
-        // a compiled read of a static function: the body, or the failure
-        // naming the path, as the represented interpreter's
-        assert!(static_binding::<A>(&["Object", "is"]).is_ok());
-        assert_eq!(
-            static_binding::<A>(&["Object", "keys"]),
-            Err("no binding for the static Object.keys".into())
-        );
     }
 
     /// Two reads of a static function are one function, as `Object.is ===
     /// Object.is` is in JavaScript: a built-in, equal by its name, with
-    /// nothing held anywhere.
+    /// nothing held anywhere — what a compiled read answers, the accessor's
+    /// value.
     #[test]
     fn static_identity() {
-        let first = static_binding::<A>(&["Object", "is"]).unwrap();
-        let second = static_binding::<A>(&["Object", "is"]).unwrap();
+        let first: Any<A> = Function::from(object_is::<A>()).to_any();
+        let second: Any<A> = Function::from(object_is::<A>()).to_any();
         assert_eq!(first, second);
         assert!(first.same_value(&second));
-        assert_ne!(first, static_binding::<A>(&["Number", "isNaN"]).unwrap());
+        assert_ne!(
+            first,
+            Function::from(runtime_static::<A>("Number.isNaN").unwrap()).to_any()
+        );
     }
 
     /// `Object.entries` is written here, not generated, and listed in the
@@ -204,9 +193,11 @@ mod tests {
     /// name, of `length` `1` and its text, whose call lists the entries.
     #[test]
     fn built_in_entries() {
-        let path = ["Object", "entries"];
-        let entries = static_binding::<A>(&path).unwrap();
-        assert_eq!(entries, static_binding::<A>(&path).unwrap());
+        let entries: Any<A> = Function::from(object_entries::<A>()).to_any();
+        assert_eq!(
+            entries,
+            Function::from(runtime_static::<A>("Object.entries").unwrap()).to_any()
+        );
         assert_eq!(entries, Function::from(object_entries::<A>()).to_any());
         assert!(entries.same_value(&Function::from(object_entries::<A>()).to_any()));
         assert_eq!(

@@ -17,7 +17,7 @@ fn f0_code<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>> {
 }
 
 #[rustfmt::skip]
-pub fn f0<A: IVm>() -> &'static RuntimeFunction<A> {
+fn f0<A: IVm>() -> &'static RuntimeFunction<A> {
     &RuntimeFunction { name: "f0", code: f0_code::<A>, length: 1, text: "($0)=>$0===0&&1/$0<0" }
 }
 
@@ -124,7 +124,7 @@ fn f1_code<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>> {
 }
 
 #[rustfmt::skip]
-pub fn f1<A: IVm>() -> &'static RuntimeFunction<A> {
+fn f1<A: IVm>() -> &'static RuntimeFunction<A> {
     &RuntimeFunction { name: "f1", code: f1_code::<A>, length: 3, text: "($0,$1,$2)=>{const $3=$2+$1.length;return $3>$0.length?false:$0.slice($2,$3)===$1;}" }
 }
 
@@ -135,7 +135,7 @@ fn f2_code<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>> {
 }
 
 #[rustfmt::skip]
-pub fn f2<A: IVm>() -> &'static RuntimeFunction<A> {
+fn f2<A: IVm>() -> &'static RuntimeFunction<A> {
     &RuntimeFunction { name: "f2", code: f2_code::<A>, length: 1, text: "($0)=>$0-0" }
 }
 
@@ -158,7 +158,7 @@ fn f3_code<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>> {
 }
 
 #[rustfmt::skip]
-pub fn f3<A: IVm>() -> &'static RuntimeFunction<A> {
+fn f3<A: IVm>() -> &'static RuntimeFunction<A> {
     &RuntimeFunction { name: "f3", code: f3_code::<A>, length: 2, text: "($2,$3)=>{const $4=$0($2);const $5=$1($4)?0:$4;return $5<0?0:$5>$3?$3:$5-$5%1;}" }
 }
 
@@ -177,7 +177,7 @@ pub fn string_prototype_starts_with<A: IVm>() -> &'static RuntimeFunction<A> {
 }
 
 #[rustfmt::skip]
-pub fn statics<A: IVm>() -> [(&'static str, Accessor<A>); 6] {
+pub(crate) fn statics<A: IVm>() -> [(&'static str, Accessor<A>); 6] {
     [
         ("Object.is", object_is),
         ("Number.isInteger", number_is_integer),
@@ -189,7 +189,7 @@ pub fn statics<A: IVm>() -> [(&'static str, Accessor<A>); 6] {
 }
 
 #[rustfmt::skip]
-pub fn members<A: IVm>() -> [(&'static str, &'static str, Accessor<A>); 1] {
+pub(crate) fn members<A: IVm>() -> [(&'static str, &'static str, Accessor<A>); 1] {
     [
         ("String", "startsWith", string_prototype_starts_with),
     ]

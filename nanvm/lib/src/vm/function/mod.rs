@@ -13,8 +13,8 @@ pub type RuntimeCode<A> = fn(Array<A>) -> Result<Any<A>, Any<A>>;
 pub type Accessor<A> = fn() -> &'static RuntimeFunction<A>;
 
 /// A built-in: a static function the runtime defines, generic over the VM,
-/// described once and held by reference
-/// ([`static-runtime.md`](../../../todo/static-runtime.md)).
+/// described once and held by reference (`fjs/js/runtime/README.md`, "How
+/// NaNVM finds it").
 ///
 /// `name` is the built-in's identity, JavaScript's own spelling of it,
 /// `Object.entries`, unique by construction: two [`Function::Runtime`]s

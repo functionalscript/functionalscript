@@ -166,17 +166,21 @@ a callee exists.
 
 **A static function is a value with no receiver.** The EDAG spells
 `Object.is` as the value `['Object.is']`, and `Number.isInteger` as
-`['Number.isInteger']`, and the Rust backend prints each as the binding
-of its path, `static_binding::<A>(&["Object", "is"])?`: `nanvm-lib` asks
-`runtime_static` for the name, `Object.is`, which the compiled `statics`
-table answers, and fails naming the path where nothing is bound. The
-parser admitted the name, so a missing binding is the runtime's failure,
-never `undefined`; the represented interpreter fails with the same
-message, reading its context's runtime through `functionAt`. Every read
-answers one function, as in JavaScript: a built-in is a static function
-identified by its name, so two reads are two handles to one function and
-`===` compares the names
-([`nanvm/lib/todo/static-runtime.md`](../../../nanvm/lib/todo/static-runtime.md)),
+`['Number.isInteger']`, and the Rust backend prints each as its accessor's
+value, `Function::from(object_is::<A>()).to_any()`, an item of
+`nanvm_lib::vm` the compiled runtime defines: no lookup, no `Result`, and
+a module naming a static the runtime lacks does not compile. The parser
+admits a static only from [`../static`](../static/module.f.js), and the
+represented interpreter, reading its context's runtime through
+`functionAt`, fails naming the path where a runtime lacks it, never
+answering `undefined`. Every read answers one function, as in JavaScript:
+a built-in is a static function identified by its name, so two reads are
+two handles to one function and `===` compares the names — not the
+handles, since a descriptor is a promoted constant, which Rust compiles
+once per crate that instantiates it and once per codegen unit where it is
+inlined, so two handles to one built-in may be two addresses, and a pointer
+comparison would hold in a debug build, which shares instantiations across
+crates, and fail in a release build, which does not —
 which `nanvm/harness/fixtures/object-is.mjs` checks on NaNVM against the
 interpreter, and `nanvm/harness/fixtures/number-predicates.mjs` for the
 `Number` predicates over every kind of value. `Object.entries` has no

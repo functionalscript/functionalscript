@@ -35,6 +35,8 @@ export const proof = {
         const rust = assertOk(generateRuntime(/** @type {Exp} */ (/** @type {unknown} */ (runtime))))
         for (const line of [
             'pub fn object_is<A: IVm>() -> &\'static RuntimeFunction<A> {',
+            // a helper is the module's own
+            '\nfn f0<A: IVm>() -> &\'static RuntimeFunction<A> {',
             '    &RuntimeFunction { name: "Object.is", code: object_is_code::<A>, length: 2, text: "($2,$3)=>$2===$3?$0($2)===$0($3):$1($2)&&$1($3)" }',
             'fn string_prototype_starts_with_code<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>> {',
             'name: "String.prototype.startsWith"',
@@ -82,7 +84,7 @@ fn f0_code<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>> {
 }
 
 #[rustfmt::skip]
-pub fn f0<A: IVm>() -> &'static RuntimeFunction<A> {
+fn f0<A: IVm>() -> &'static RuntimeFunction<A> {
     &RuntimeFunction { name: "f0", code: f0_code::<A>, length: 1, text: "($0)=>$0+1" }
 }
 
@@ -111,7 +113,7 @@ pub fn string_prototype_rest<A: IVm>() -> &'static RuntimeFunction<A> {
 }
 
 #[rustfmt::skip]
-pub fn statics<A: IVm>() -> [(&'static str, Accessor<A>); 2] {
+pub(crate) fn statics<A: IVm>() -> [(&'static str, Accessor<A>); 2] {
     [
         ("Object.inc", object_inc),
         ("Object.entries", object_entries),
@@ -119,7 +121,7 @@ pub fn statics<A: IVm>() -> [(&'static str, Accessor<A>); 2] {
 }
 
 #[rustfmt::skip]
-pub fn members<A: IVm>() -> [(&'static str, &'static str, Accessor<A>); 1] {
+pub(crate) fn members<A: IVm>() -> [(&'static str, &'static str, Accessor<A>); 1] {
     [
         ("String", "rest", string_prototype_rest),
     ]
@@ -138,35 +140,19 @@ pub fn members<A: IVm>() -> [(&'static str, &'static str, Accessor<A>); 1] {
         const one = fn(0, [], 1)
         const statics = assertOk(generateRuntime(module([['static', object([['Number', object([['one', one]])]])]])))
         assert(statics.includes('fn number_one_code<A: IVm>(_args: Array<A>) -> Result<Any<A>, Any<A>> {'))
-        assert(statics.includes('pub fn members<A: IVm>() -> [(&\'static str, &\'static str, Accessor<A>); 0] {\n    []\n}'))
+        assert(statics.includes('pub(crate) fn members<A: IVm>() -> [(&\'static str, &\'static str, Accessor<A>); 0] {\n    []\n}'))
         const members = assertOk(generateRuntime(module([['member', object([['Array', object([['one', one]])]])]])))
-        assert(members.includes('pub fn statics<A: IVm>() -> [(&\'static str, Accessor<A>); 1] {\n    [\n        ("Object.entries", object_entries),\n    ]\n}'))
+        assert(members.includes('pub(crate) fn statics<A: IVm>() -> [(&\'static str, Accessor<A>); 1] {\n    [\n        ("Object.entries", object_entries),\n    ]\n}'))
         assert(members.includes('("Array", "one", array_prototype_one)'))
         const none = assertOk(generateRuntime(module([])))
         assert(none.includes('Accessor<A>); 1]') && none.includes('Accessor<A>); 0]'))
         const lazy = assertOk(generateRuntime(module([['static', object([['Number', object([['f', fn(1, [], ['&&', ['arg', 0], ['+', ['arg', 0], 1]])]])]])]])))
         assert(lazy.includes('    let c0 = || args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()) + f64_any(0x3ff0000000000000);\n    Any::logical_and(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), c0)\n'))
     },
-    /**
-     * A built-in's identifier: each part of its name in snake case, a word
-     * starting at a capital between lowercase letters, so `isNaN` is
-     * `is_nan`; a capital first or beside another is no word start, so
-     * `toJSON` is `tojson`.
-     */
+    /** A built-in's identifier is `builtInIdentifier`'s, `isNaN` as `is_nan`. */
     identifiers: () => {
-        /** @type {(key: string) => string} */
-        const ident = key => {
-            const rust = assertOk(generateRuntime(module([['static', object([['Number', object([[key, fn(0, [], 1)]])]])]])))
-            const line = rust.split('\n').find(l => l.startsWith('pub fn number_'))
-            return /** @type {string} */ (line).slice('pub fn '.length).split('<')[0]
-        }
-        assertEq(ident('isNaN'), 'number_is_nan')
-        assertEq(ident('isSafeInteger'), 'number_is_safe_integer')
-        assertEq(ident('toJSON'), 'number_tojson')
-        assertEq(ident('NaN'), 'number_nan')
-        assertEq(ident('x'), 'number_x')
-        // a digit is neither case, so no word starts after it
-        assertEq(ident('x2Y'), 'number_x2y')
+        const rust = assertOk(generateRuntime(module([['static', object([['Number', object([['isNaN', fn(0, [], 1)]])]])]])))
+        assert(rust.includes('pub fn number_is_nan<A: IVm>()'))
     },
     /**
      * A module-level value a body captures that is neither a function nor
