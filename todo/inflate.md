@@ -80,6 +80,61 @@ The inverse, a deflater, is not needed to read a repository and is not
 part of this issue: a writer that must produce a stream can emit stored
 blocks, which is a framing and not a compression.
 
+### Design (proposed; the representation is the question for review)
+
+**The bytes are `Vec` chunks, in and out.** A `Vec` is a bigint, about a byte
+per byte, where a list of numbers is eight (the measurement above). One `Vec`
+is the bound this issue lifts, but a *list* of them has none, and it is already
+the shape the repository's byte consumers take: a hash is a `Fold<Vec, S>`
+(`computeSync(hash)(list)` in [`fjs/crypto/sha2`](../fjs/crypto/sha2/module.f.mjs)),
+the object reader parses `u8ListMsb(v)`, and `readBytes` hands back a `Vec` a
+window at a time. Rejected: a `List<number>` per byte, for its cost; one `Vec`,
+for its bound.
+
+**A decoder is a machine fed chunks, as a hash is.** `init`, `append` of an
+input chunk and `end`, in the shape of `sha2`, and not a function from a whole
+input to a whole output:
+
+- a lazy list of output chunks cannot report a stream that goes bad *after* it
+  has yielded some, and a `null` for the whole answer would force the whole
+  output to be held before any of it is read, which is the heap this avoids.
+  `append` answers the output chunks it can now give and the next state, or
+  `null` for a stream that is malformed, so the refusal comes where the bad
+  byte is;
+- the input is pushed a window at a time, as the host's `readBytes` gives it, so
+  nothing asks for the whole compressed stream at once;
+- `end` answers what is left of the last chunk once the stream has closed, and
+  that is what removes the exact-window rule of
+  [`fjs/git/packstore`](../fjs/git/packstore/module.f.mjs): the decoder knows
+  where a stream ends, so a generous window is read to its end and the rest
+  handed back, where `inflate` refuses the bytes after it.
+
+**The 32 KiB window is a short reversed list and a few frozen arrays.** A
+back-reference reads up to 32 KiB behind the output, and a persistent structure
+cannot append to an array. The recent output is a reversed cons list, whose
+append is constant, flushed into a frozen array of 4,096 bytes when it fills,
+and only the arrays the window still reaches are kept. A reference to the
+near past walks the list, and one further back indexes an array. A prototype in
+plain JavaScript (not committed, and not FunctionalScript) decoded
+4 MB of output with matches at 5.7 MB/s with the heap flat at 4 MB, so the
+shape is workable; its speed is no promise for the FunctionalScript version,
+which is measured in step 3.
+
+**Where it lives.** `fjs/zlib/`: `adler32/` (this step), then `inflate/`.
+
+### Tasks
+
+- [x] The design above, for review; the representation is the decision.
+- [x] [`fjs/zlib/adler32`](../fjs/zlib/adler32/module.f.mjs): the checksum that
+      closes a stream, in the shape of a hash, with its proof against the
+      trailer of Node's `zlib.deflateSync`.
+- [ ] The zlib framing and the stored blocks; a malformed stream is `null`.
+- [ ] Fixed and dynamic Huffman blocks with the 32 KiB window, proven against
+      Node's `zlib` and the native decoder of `nanvm-effects-node` on corrupted
+      streams, as that decoder was.
+- [ ] `fjs/git/loose` and `fjs/git/packstore` read through it together, with
+      `readBytes` windows in; lift the delta ceiling in `fjs/git/pack`.
+
 ### Related
 
 - [`fjs/git/README.md`](../fjs/git/README.md), the design this serves,
