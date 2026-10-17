@@ -891,7 +891,7 @@ level.
       EDAG renderer, retain it with native callable templates and refuse
       conversions requiring text where none is associated. The `function-text`
       fixture covers direct/indirect conversions and exported callables.
-- [ ] Complete the remaining default-text corpus coverage, including native
+- [x] Complete the remaining default-text corpus coverage, including native
       property-key conversion of a function, tracked in
       [member-functions](./member-functions.md). This is coverage work,
       separate from the implemented renderer and Stage 7 association.
