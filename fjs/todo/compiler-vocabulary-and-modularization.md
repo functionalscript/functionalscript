@@ -235,10 +235,11 @@ Under the vocabulary, desugaring makes the module an ordinary FAST function
 over its imports, with the record resolution needs beside it,
 the [example below](#examples-the-design-must-explain), and nothing in
 FAST is module-specific: `from_fast` compiles a function, and linking
-applies it to the export objects the record names. Whether the unresolved
-EDAG keeps the `['args']` root or is the function node applied at link is
-settled in the architecture increment; `AstModule` and `Unresolved` are
-then the two representations to retire.
+applies it to the exports the records select, a module's whole export
+object only where a record names none. Whether the unresolved EDAG keeps
+the `['args']` root or is the function node applied at link is settled in
+the architecture increment; `AstModule` and `Unresolved` are then the two
+representations to retire.
 
 #### Examples the design must explain
 
