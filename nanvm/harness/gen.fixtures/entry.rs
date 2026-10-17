@@ -40,5 +40,5 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
     let c32: Any<A> = Any::dot(c31, f64_any(0x3ff0000000000000)).end()?;
     let c33: Any<A> = (strict_eq(c32, Nullish::Undefined.to_any()))?;
     let c34: Any<A> = [c2, c3, c5, c7, c9, c12, c15, c16, c18, c20, c21, c22, c24, c26, c28, c33].to_array().to_any();
-    Ok([(string_key("default"), c34)].to_object().to_any())
+    Ok([(string_key("default"), c34), (string_key("entry"), c0.clone())].to_object().to_any())
 }

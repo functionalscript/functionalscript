@@ -10,11 +10,7 @@
  * key a function is its text too, read by the `entry` helper: the field the
  * text names, and nothing where no field has it.
  */
-/** @type {(a: unknown, b: any) => unknown} */
-const entry = (a, b) => {
-    const x = Object.getOwnPropertyDescriptor(a, b);
-    return x?.enumerable ? x.value : undefined;
-};
+import { entry } from "./entry.mjs";
 /** @type {(...a: readonly number[]) => (...b: readonly number[]) => number} */
 const add = (...a) => (...b) => a[0] + b[0];
 const one = () => 1;

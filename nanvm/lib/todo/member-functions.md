@@ -1,10 +1,11 @@
 ## Member functions of the built-in types
 
 **Priority:** P2
-**Status:** wip — every call [`fjs/js/prototype`](../../../fjs/js/prototype/module.f.js)
-allows is answered (`vm/lambda/gen.methods.rs` has no pending pair) and has
-a corpus case, and a function as a property key is proven; every box below is
-checked, and the file stays as the design record the code and specs cite
+**Status:** done — kept as the record; cited by `nanvm/lib/src/vm/lambda/mod.rs`
+and `method.rs` (the dispatch algorithm), `fjs/nanvm/methods/module.f.mjs`,
+`nanvm/lib/README.md`, `spec/built-ins/member-functions.md`,
+`spec/todo/{cavm-function-to-string,serialization}.md`, `spread-operations.md`
+and `fjs/nanvm/todo/corpus-improvements.md`
 
 ### Problem
 
