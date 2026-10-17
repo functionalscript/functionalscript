@@ -33,8 +33,10 @@ What is wrong, at `4f44c5d`:
   `todo/sergey/disot/doc-def.md` start with their content.
 - **Documents that are not issues.** The design documents in `spec/todo/`,
   the plan in `todo/plan/` and the personal notes in `todo/sergey/` live where
-  issues live, so anything that lists issues lists them too, and has no
-  header to read from them.
+  issues live, so a reader of the folder takes them for issues, and anything
+  that lists issues has no header to read from them. The website does not
+  list the last two yet only because it reads no subfolder of a `todo/` —
+  which also hides real issues, such as those in `todo/blocked/`.
 - **READMEs.** A `todo/` directory may carry a `README.md` — this one,
   `spec/todo/`, `todo/plan/`, `todo/demo/`, `todo/sergey/` and
   `todo/sergey/disot/` do — and the website lists it as an issue, since it
@@ -42,9 +44,11 @@ What is wrong, at `4f44c5d`:
 
 ### Proposal
 
-A `README.md` documents its directory and is never an issue. Every other file
-in a `todo/` directory is an issue with a full header, or it moves out of
-`todo/`. Decide per group:
+A `README.md` documents its directory and is never an issue. Every other `.md`
+file in a `todo/` directory is an issue with a full header, or it moves out of
+`todo/`; files of other kinds — `todo/proof.f.mjs`,
+`todo/demo/data/tree.json` — are not issues and keep their place. Decide per
+group:
 
 - Feature drafts in `spec/todo/` are issues: give them a priority and a
   status, and fix their heading level.
@@ -68,9 +72,9 @@ in a `todo/` directory is an issue with a full header, or it moves out of
       group.
 - [ ] Decide and apply the placement of the design documents, `todo/plan/`
       and `todo/sergey/`.
-- [ ] State in [README.md](./README.md#issue-format) that every file in a
-      `todo/` directory but `README.md` carries the header, and that a status
-      line is a value, optionally followed by ` — ` and a note.
+- [ ] State in [README.md](./README.md#issue-format) that every `.md` file in
+      a `todo/` directory but `README.md` carries the header, and that each
+      header field is a value, optionally followed by ` — ` and a note.
 
 ### Related
 

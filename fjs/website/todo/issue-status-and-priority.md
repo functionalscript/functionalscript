@@ -29,12 +29,20 @@ show them:
   work in progress first, then work not started, then work waiting or
   deferred, then the record, then what will not be done.
 
-**What is read.** Only `todo/` files other than `README.md`, which documents
-its directory rather than being an issue. A status line is a value, optionally
-followed by ` — ` and a note; the note — to the end of the line and any lines
-continuing it, up to the next header field or blank line — is not read. So
-`open — needs a decision` is `open`, and the documented `done — kept as the
-record; cited by …` is `done`.
+**What is read.** Every `.md` file in a directory's `todo/` subtree but
+`README.md`, which documents its directory rather than being an issue. An
+issue in a subfolder — `todo/blocked/undefined-removes-property.md` — is
+listed with the rest of its `todo/`, under the directory that owns it, not
+under a page of its own: today the site reads only the top level of a `todo/`,
+so `todo/blocked/` never appears. A subfolder that holds no issues — the
+personal notes in `todo/sergey/` — is skipped by name
+([issue-headers](../../../todo/issue-headers.md)).
+
+A header field is a value, optionally followed by ` — ` and a note; the note —
+to the end of the line and any lines continuing it, up to the next header
+field or blank line — is not read. The rule is the same for both fields: `open
+— needs a decision` is `open`, the documented `done — kept as the record;
+cited by …` is `done`, and `P2 — shipped .f.mjs code …` is `P2`.
 
 **Strictly.** A missing or unknown status or priority fails the build, naming
 the file, rather than showing a guess
@@ -56,6 +64,8 @@ Epics and issue titles are left for later.
 - [ ] Read every issue in the build; `Dir.todo` carries name, status and
       priority.
 - [ ] Stop listing `README.md` as an issue (`isIssue` in `module.f.mjs`).
+- [ ] List the issues in a `todo/`'s subfolders with the rest of it (`toDir`
+      reads only the top level), skipping `todo/sergey/`.
 - [ ] `data-status`, `data-priority`, the badge and the order in
       `page/module.f.mjs`; the six new icons in `style/module.f.js`.
 - [ ] Update the website proofs and [README.md](../README.md).
