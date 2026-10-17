@@ -138,6 +138,13 @@ export const proof = {
         assertEq(assertOk(ev(['()', ['=>', 1, [], ['()', ['arg', 0], ['a', 'b']]], [['Object.is']]])), false)
         assertEq(assertOk(ev(['===', ['Object.is'], ['Object.is']])), true)
         assertEq(assertOk(ev(['===', read, read])), true)
+        // the built-in, not its body: its name's text, the body's length,
+        // and the body's `self` the built-in
+        assertEq(assertOk(ev(['String', ['Object.is']])), 'function is() { [native code] }')
+        assertEq(assertOk(ev(['.', ['Object.is'], 'length'])), 2)
+        /** @type {import('../value/types.ts').Runtime} */
+        const selfRuntime = ['{}', [[':', 'static', ['{}', [[':', 'Object', ['{}', [[':', 'is', ['=>', 0, [], ['===', ['self'], ['Object.is']]]]]]]]]]]]
+        assertEq(assertOk(vm({ frame: [], args: [], runtime: selfRuntime })(['()', ['Object.is'], []])), true)
         const missing = 'no binding for the static Object.is'
         assertEq(assertError(vm({ frame: [], args: [] })(direct)), missing)
         assertEq(assertError(vm({ frame: [], args: [], runtime: ['{}', [[':', 'static', ['{}', []]]]] })(['Object.is'])), missing)

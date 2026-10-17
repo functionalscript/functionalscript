@@ -23,7 +23,8 @@ pub type Accessor<A> = fn() -> &'static RuntimeFunction<A>;
 /// through, never an identity — a descriptor is a promoted constant, which
 /// Rust compiles once per crate that instantiates it, so two handles to
 /// one built-in may be two addresses. `code` is called directly,
-/// [`RuntimeCode`]. `length` and `text` answer `f.length` and `String(f)`.
+/// [`RuntimeCode`]. `length` answers `f.length`, and `String(f)` is formed
+/// from the name ([`Function::text`]).
 ///
 /// The fields are the crate's: a descriptor is written by the compiled
 /// runtime, which the crate includes, and by `vm/runtime.rs` for the one
@@ -35,7 +36,17 @@ pub struct RuntimeFunction<A: IVm> {
     pub(crate) name: &'static str,
     pub(crate) code: RuntimeCode<A>,
     pub(crate) length: u32,
-    pub(crate) text: &'static str,
+}
+
+/// The text of a built-in, `String(f)`: what ECMA-262 requires of one
+/// ([`Function.prototype.toString`](https://tc39.es/ecma262/#sec-function.prototype.tostring)),
+/// NativeFunction syntax naming its [[InitialName]] — the last segment of
+/// the name, `entries` of `Object.entries` — with no parameters, as most
+/// engines print it. The represented interpreter spells the same text,
+/// `staticText` in `fjs/edag`, which the harness fixtures hold the two to.
+fn native_text(name: &str) -> std::string::String {
+    let initial = name.rsplit('.').next().unwrap_or(name);
+    format!("function {initial}() {{ [native code] }}")
 }
 
 /// A function value: it can be called, it has a `length`, it has a text,
@@ -83,12 +94,12 @@ impl<A: IVm> Function<A> {
     }
     /// The function's text, `String(f)`: the text the VM holds for a
     /// closure, given when it was made, or the refusal of one without a
-    /// text ([`IStaticFunction`](crate::vm::IStaticFunction)); a built-in
-    /// always has its text.
+    /// text ([`IStaticFunction`](crate::vm::IStaticFunction)); a built-in's
+    /// NativeFunction text, formed from its name.
     pub fn text(&self) -> Result<String<A>, Any<A>> {
         match self {
             Function::Closure(f) => f.text().map(Into::into).ok_or_else(error::function_text),
-            Function::Runtime(r) => Ok(r.text.into()),
+            Function::Runtime(r) => Ok(native_text(r.name).as_str().into()),
         }
     }
 }

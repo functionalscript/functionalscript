@@ -38,7 +38,6 @@ mod tests {
             name: "a",
             code: seven,
             length: 7,
-            text: "seven",
         })
     }
 
@@ -50,13 +49,11 @@ mod tests {
                 name: "a",
                 code: undefined,
                 length: 0,
-                text: "a",
             },
             _ => &RuntimeFunction {
                 name: "b",
                 code: undefined,
                 length: 0,
-                text: "b",
             },
         })
     }

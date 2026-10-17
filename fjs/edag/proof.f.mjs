@@ -43,7 +43,7 @@ import { validate } from '../rtti/validate/module.f.mjs'
 import { assert, assertEq, assertError, assertErrorPath, assertOk, assertStructurallySame, todo } from '../asserts/module.f.mjs'
 import {
     exp, fromValue, isStatic, op0Id, op1Id, op12Id, op2Id, op3Id,
-    optionLambda, optionPropertyLambda, propertyLambda, staticIds, staticPath,
+    noStatic, optionLambda, optionPropertyLambda, propertyLambda, staticIds, staticPath, staticText,
 } from './module.f.mjs'
 
 /**
@@ -234,6 +234,8 @@ export const proof = {
     // list: a tag's own spelling and nothing near it, alone.
     staticIds: () => {
         assertStructurallySame(staticIds.map(staticPath), [['Object', 'is'], ['Object', 'entries'], ['Number', 'isInteger'], ['Number', 'isSafeInteger'], ['Number', 'isNaN'], ['Number', 'isFinite']])
+        assertStructurallySame(staticIds.map(staticText), ['function is() { [native code] }', 'function entries() { [native code] }', 'function isInteger() { [native code] }', 'function isSafeInteger() { [native code] }', 'function isNaN() { [native code] }', 'function isFinite() { [native code] }'])
+        assertEq(noStatic('Object.is'), 'no binding for the static Object.is')
         for (const id of staticIds) { assert(isStatic([id]), id) }
         for (const node of [['Object'], ['Number.is'], ['Number.isinteger'], ['entry'], ['Object.is', 0], [], [['Object.is']], 'Object.is', undefined]) {
             assert(!isStatic(node), JSON.stringify(node))

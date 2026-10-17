@@ -19,7 +19,7 @@ fn f0_code<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>> {
 
 #[rustfmt::skip]
 fn f0<A: IVm>() -> &'static RuntimeFunction<A> {
-    &RuntimeFunction { name: "f0", code: f0_code::<A>, length: 1, text: "($0)=>$0===0&&1/$0<0" }
+    &RuntimeFunction { name: "f0", code: f0_code::<A>, length: 1 }
 }
 
 /// `Number.isNaN`
@@ -30,7 +30,7 @@ fn number_is_nan_code<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>> {
 
 #[rustfmt::skip]
 pub fn number_is_nan<A: IVm>() -> &'static RuntimeFunction<A> {
-    &RuntimeFunction { name: "Number.isNaN", code: number_is_nan_code::<A>, length: 1, text: "($0)=>$0!==$0" }
+    &RuntimeFunction { name: "Number.isNaN", code: number_is_nan_code::<A>, length: 1 }
 }
 
 /// `Object.is`
@@ -54,7 +54,7 @@ fn object_is_code<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>> {
 
 #[rustfmt::skip]
 pub fn object_is<A: IVm>() -> &'static RuntimeFunction<A> {
-    &RuntimeFunction { name: "Object.is", code: object_is_code::<A>, length: 2, text: "($2,$3)=>$2===$3?$0($2)===$0($3):$1($2)&&$1($3)" }
+    &RuntimeFunction { name: "Object.is", code: object_is_code::<A>, length: 2 }
 }
 
 /// `Number.isInteger`
@@ -71,7 +71,7 @@ fn number_is_integer_code<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>> {
 
 #[rustfmt::skip]
 pub fn number_is_integer<A: IVm>() -> &'static RuntimeFunction<A> {
-    &RuntimeFunction { name: "Number.isInteger", code: number_is_integer_code::<A>, length: 1, text: "($0)=>typeof $0===\"number\"&&$0%1===0" }
+    &RuntimeFunction { name: "Number.isInteger", code: number_is_integer_code::<A>, length: 1 }
 }
 
 /// `Number.isSafeInteger`
@@ -89,7 +89,7 @@ fn number_is_safe_integer_code<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>>
 
 #[rustfmt::skip]
 pub fn number_is_safe_integer<A: IVm>() -> &'static RuntimeFunction<A> {
-    &RuntimeFunction { name: "Number.isSafeInteger", code: number_is_safe_integer_code::<A>, length: 1, text: "($1)=>typeof $1===\"number\"&&$0($1)&&-9007199254740991<=$1&&$1<=9007199254740991" }
+    &RuntimeFunction { name: "Number.isSafeInteger", code: number_is_safe_integer_code::<A>, length: 1 }
 }
 
 /// `Number.isFinite`
@@ -106,7 +106,7 @@ fn number_is_finite_code<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>> {
 
 #[rustfmt::skip]
 pub fn number_is_finite<A: IVm>() -> &'static RuntimeFunction<A> {
-    &RuntimeFunction { name: "Number.isFinite", code: number_is_finite_code::<A>, length: 1, text: "($0)=>typeof $0===\"number\"&&$0*0===0" }
+    &RuntimeFunction { name: "Number.isFinite", code: number_is_finite_code::<A>, length: 1 }
 }
 
 /// `f1`
@@ -126,7 +126,7 @@ fn f1_code<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>> {
 
 #[rustfmt::skip]
 fn f1<A: IVm>() -> &'static RuntimeFunction<A> {
-    &RuntimeFunction { name: "f1", code: f1_code::<A>, length: 3, text: "($0,$1,$2)=>{const $3=$2+$1.length;return $3>$0.length?false:$0.slice($2,$3)===$1;}" }
+    &RuntimeFunction { name: "f1", code: f1_code::<A>, length: 3 }
 }
 
 /// `f2`
@@ -137,7 +137,7 @@ fn f2_code<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>> {
 
 #[rustfmt::skip]
 fn f2<A: IVm>() -> &'static RuntimeFunction<A> {
-    &RuntimeFunction { name: "f2", code: f2_code::<A>, length: 1, text: "($0)=>$0-0" }
+    &RuntimeFunction { name: "f2", code: f2_code::<A>, length: 1 }
 }
 
 /// `f3`
@@ -160,7 +160,7 @@ fn f3_code<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>> {
 
 #[rustfmt::skip]
 fn f3<A: IVm>() -> &'static RuntimeFunction<A> {
-    &RuntimeFunction { name: "f3", code: f3_code::<A>, length: 2, text: "($2,$3)=>{const $4=$0($2);const $5=$1($4)?0:$4;return $5<0?0:$5>$3?$3:$5-$5%1;}" }
+    &RuntimeFunction { name: "f3", code: f3_code::<A>, length: 2 }
 }
 
 /// `String.prototype.startsWith`

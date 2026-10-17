@@ -50,11 +50,15 @@ export const proof = {
         const helper = /** @type {const} */ (['entry'])
         assertEq(stringify(['[]', [helper, helper]]), `const $0=${text};const $4=[$0,$0];export default $4;`)
     },
-    // `Object.entries` has no body to write: the module reads the host's
-    // own built-in, one function however often the value holds it.
-    objectEntries: () => {
+    // A static function is the built-in, not its body, so there is none
+    // to write: the module reads the host's own, one function however
+    // often the value holds it.
+    statics: () => {
         assertEq(stringify(['Object.entries']), 'const $0=Object.entries;export default $0;')
+        assertEq(stringify(['Object.is']), 'const $0=Object.is;export default $0;')
+        assertEq(stringify(['Number.isNaN']), 'const $0=Number.isNaN;export default $0;')
         assertEq(stringify(['[]', [['Object.entries'], ['Object.entries']]]), 'const $0=Object.entries;const $1=[$0,$0];export default $1;')
+        assertEq(factoryStringify(['[]', [['Object.is'], ['Number.isFinite']]]), 'export default()=>{const $0=Object.is;const $1=Number.isFinite;const $2=[$0,$1];return $2;};')
     },
     functions: () => {
         assertEq(stringify(['=>', 0, [], 1]), 'const $0=()=>(1);export default $0;')

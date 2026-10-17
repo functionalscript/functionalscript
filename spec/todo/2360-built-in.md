@@ -118,8 +118,8 @@ requires of a built-in function
 a string with the syntax of a NativeFunction whose name is the built-in's
 [[InitialName]], `entries`. The grammar admits parameters; the text has
 none, as most engines print it, V8's text exactly. The interpreter spells
-it, `entriesText`, and NaNVM's built-in carries the same text,
-`vm::ENTRIES_TEXT`. A text keeps
+it, `staticText` in `fjs/edag`, from the static node, and NaNVM forms the
+same text from the built-in's name, `Function::text`. A text keeps
 every conversion that never reads it, `Number` and the relational
 operators, answering alike in the represented interpreter, which renders a
 text before it converts, and NaNVM, which answers those without one, so
@@ -130,10 +130,10 @@ NativeFunction does not parse, and its parameter shows the `length`; but
 ECMAScript requires the NativeFunction of a built-in, and
 **sergey-shandar** chose the standard's text in the session. JavaScript run
 directly answers its own host's text, a NativeFunction too, which an engine
-may spell otherwise, as JavaScriptCore breaks the line. The other runtime
-functions are to answer the same, `function is() { [native code] }`, in
-place of their body's EDAG text
-([runtime-static](../../fjs/js/todo/runtime-static.md)).
+may spell otherwise, as JavaScriptCore breaks the line. Every other
+runtime function answers the same, `function is() { [native code] }`, in
+place of its body's EDAG text: a runtime function is the built-in, not
+its body ([runtime-static](../../fjs/js/todo/runtime-static.md)).
 
 **Benefits.** The JavaScript spelling for what modules already do on the
 host, and the one enumeration from which the rest — keys, values, a

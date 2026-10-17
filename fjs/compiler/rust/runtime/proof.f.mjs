@@ -37,7 +37,7 @@ export const proof = {
             'pub fn object_is<A: IVm>() -> &\'static RuntimeFunction<A> {',
             // a helper is the module's own
             '\nfn f0<A: IVm>() -> &\'static RuntimeFunction<A> {',
-            '    &RuntimeFunction { name: "Object.is", code: object_is_code::<A>, length: 2, text: "($2,$3)=>$2===$3?$0($2)===$0($3):$1($2)&&$1($3)" }',
+            '    &RuntimeFunction { name: "Object.is", code: object_is_code::<A>, length: 2 }',
             '/// `String.prototype.startsWith`\n#[rustfmt::skip]\nfn string_starts_with<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>> {',
             'name: "Number.isNaN", code: number_is_nan_code::<A>',
             // `isNegativeZero`, imported and captured by `is`: a helper, read
@@ -87,7 +87,7 @@ fn f0_code<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>> {
 
 #[rustfmt::skip]
 fn f0<A: IVm>() -> &'static RuntimeFunction<A> {
-    &RuntimeFunction { name: "f0", code: f0_code::<A>, length: 1, text: "($0)=>$0+1" }
+    &RuntimeFunction { name: "f0", code: f0_code::<A>, length: 1 }
 }
 
 /// \`Object.inc\`
@@ -99,7 +99,7 @@ fn object_inc_code<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>> {
 
 #[rustfmt::skip]
 pub fn object_inc<A: IVm>() -> &'static RuntimeFunction<A> {
-    &RuntimeFunction { name: "Object.inc", code: object_inc_code::<A>, length: 1, text: "(function $4($5){return ([((0,($0))(($5))),($1),($2),($3),($4)]);})" }
+    &RuntimeFunction { name: "Object.inc", code: object_inc_code::<A>, length: 1 }
 }
 
 /// \`String.prototype.rest\`
@@ -227,14 +227,14 @@ pub(crate) fn members<A: IVm>() -> [(&'static str, &'static str, RuntimeCode<A>)
     },
     /**
      * A body is refused where it makes a function at call time, since an
-     * item is bound on `IVm` alone, and where the text writer has no
-     * spelling for it, since a built-in carries its text — a member
-     * carries none, so it is printed all the same.
+     * item is bound on `IVm` alone. A body the text writer has no spelling
+     * for is printed all the same: a built-in's text is its name's, not
+     * its body's, so the descriptor carries none.
      */
     bodies: () => {
         assertEq(refusal(module([['static', object([['Object', object([['f', fn(0, [], fn(0, [], 1))]])]])]])), 'no static Rust for a function a body makes at call time: Object.f')
         const unspelled = fn(0, [], ['arg', 0])
-        assert(refusal(module([['static', object([['Object', object([['f', unspelled]])]])]])).startsWith('no text for a built-in: Object.f: '))
+        assert(assertOk(generateRuntime(module([['static', object([['Object', object([['f', unspelled]])]])]]))).includes('fn object_f_code<A: IVm>(args: Array<A>)'))
         assert(assertOk(generateRuntime(module([['member', object([['Object', object([['f', unspelled]])]])]]))).includes('fn object_f<A: IVm>(args: Array<A>)'))
     },
     /**
