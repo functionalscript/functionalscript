@@ -19,7 +19,7 @@ export default (...a) => (...a) => a;   // three `a`s, the innermost read
 A duplicate in one scope, `const a = 1; const a = 2;`, is already refused
 (`duplicate id`). Across scopes nothing is, and the reader has to count
 arrows to know which `a` a body reads. The cost grows with the language:
-now that a function can capture ([function-frame](./3111-function-frame.md)), a
+now that a function can capture ([function-frame](../design/3111-function-frame.md)), a
 name in a body may read its own parameter, an enclosing function's, or a
 module constant, and only the absence of shadowing makes the answer the
 nearest binding *and* the only binding of that name. A refactoring that
@@ -78,7 +78,7 @@ error is the default to implement, since it needs nothing new.
 
 ### Related
 
-- [function-frame](./3111-function-frame.md) — captures, which make the
+- [function-frame](../design/3111-function-frame.md) — captures, which make the
   binding a name reads a question of scope.
 - [functions](../functions/README.md) — the body constant, the second kind
   of binding a body has.

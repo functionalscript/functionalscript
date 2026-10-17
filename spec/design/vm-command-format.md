@@ -26,11 +26,11 @@ only on previous commands.
 |      |bigint_plus             |Array<u64>|[bigint](../values/README.md)                     |
 |      |bigint_minus            |Array<u64>|[bigint](../values/README.md)                     |
 |      |undefined               |          |[undefined](../values/README.md)               |
-|      |own_property            |          |[property-accessor](./2330-property-accessor.md)|
-|      |instance_property       |          |[property-accessor](./2330-property-accessor.md)|
-|      |instance_method_call    |          |[property-accessor](./2330-property-accessor.md)|
-|      |at                      |          |[property-accessor](./2330-property-accessor.md)|
-|      |operators               |          |[operators](./2340-operators.md)                |
+|      |own_property            |          |[property-accessor](../todo/2330-property-accessor.md)|
+|      |instance_property       |          |[property-accessor](../todo/2330-property-accessor.md)|
+|      |instance_method_call    |          |[property-accessor](../todo/2330-property-accessor.md)|
+|      |at                      |          |[property-accessor](../todo/2330-property-accessor.md)|
+|      |operators               |          |[operators](../todo/2340-operators.md)                |
 
 ## FJS commands
 

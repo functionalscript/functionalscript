@@ -76,7 +76,7 @@ an explicit call: `{ toString: f }.toString()` calls `f` (`Member`). Stage 2
 also calls it during implicit conversion, in the order the hint selects.
 
 A function's text uses the stock method and the shared EDAG default rendering in
-[`spec/todo/serialization.md`](../../../spec/todo/serialization.md#function-text-and-serialization)
+[`spec/design/serialization.md`](../../../spec/design/serialization.md#function-text-and-serialization)
 and
 [`spec/todo/3120-parameters.md`](../../../spec/todo/3120-parameters.md#default-function-text-render-or-refuse),
 and `member-functions.md` tracks its remaining corpus coverage. Native
@@ -287,7 +287,7 @@ The Rust printer passes it to the function value as an `Option<&'static str>`:
 - The template belongs to the code, not to each function value. It is
   static data in the binary, shared by every value from that code, without
   a per-value text allocation. This does not implement or require the
-  [lazy frame rendering](../../../spec/todo/serialization.md#conditional-requirement-lazy-frame-rendering)
+  [lazy frame rendering](../../../spec/design/serialization.md#conditional-requirement-lazy-frame-rendering)
   requirement, which applies if a future profile renders captured values.
 - **An empty frame:** the template is the text.
 - **A non-empty frame:** a slot is its generated name, and `make(0)` and

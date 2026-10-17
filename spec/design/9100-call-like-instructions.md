@@ -6,7 +6,7 @@
 > This document describes a possible internal bytecode design.
 
 **Parameter model:** sections 5 and 6 follow the fixed/rest EDAG that the
-[named-and-rest parameter plan](./3120-parameters.md) shipped in
+[named-and-rest parameter plan](../todo/3120-parameters.md) shipped in
 [#2237](https://github.com/functionalscript/functionalscript/pull/2237):
 `['=>', length, slots, body]`, `['arg', N]` and `['rest']`. They replace the
 older either-fixed-or-complete-array call-frame sketch; no bytecode implements
@@ -349,7 +349,7 @@ implementation decisions are possible for the same bytecode specification.
 
 ## Related
 
-- [Named and rest parameters](./3120-parameters.md) — syntax, canonical metadata,
+- [Named and rest parameters](../todo/3120-parameters.md) — syntax, canonical metadata,
   fixed/rest semantics, executor limits and the coordinated migration.
 - [Function frames](./3111-function-frame.md) — private slots and capture lifetime.
 - [Native callables](../../nanvm/lib/todo/callable-function-objects.md) — the same

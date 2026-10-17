@@ -119,7 +119,7 @@ them: it is what `step` *is*, rather than an adapter placed around something
 blind to it.
 
 Sequencing is thus ordinary function composition. `async`/`await`
-([§3.4 of the roadmap](./README.md#34-syntactic-sugar)) is sugar for a
+([§3.4 of the roadmap](../todo/README.md#34-syntactic-sugar)) is sugar for a
 different mechanism and is not required to write, or to run, an effectful
 program.
 
@@ -155,7 +155,7 @@ the Node runner and executed synchronously by the virtual one.
    code, ever performs one.
 2. **No promises.** The old §5.2 required them; effects do not. Promises appear
    inside `asyncRun` and the Node runner because Node's API is promise-based,
-   and nowhere in the effect values themselves. [promise](./3380-promise.md)
+   and nowhere in the effect values themselves. [promise](../todo/3380-promise.md)
    is therefore wanted for JavaScript interop, not for I/O, and is not a
    blocker for it.
 3. **No mutable I/O state in the language.** A `mock` runner threads its state

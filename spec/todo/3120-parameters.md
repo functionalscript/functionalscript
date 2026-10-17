@@ -263,7 +263,7 @@ This removes the earlier arity/complete-argument writer obstruction for the
 new nodes. It does not promise that unrelated unsupported EDAG capabilities
 can be serialized. Preserve captured sharing, scope and the selected identity
 profile. Callable serialization and default function conversion follow the
-existing [function-text contract](./serialization.md#function-text-and-serialization);
+existing [function-text contract](../design/serialization.md#function-text-and-serialization);
 their output contracts are not automatically identical.
 
 ### Default function text: render or refuse
@@ -304,7 +304,7 @@ Function creation, calls, returns, exports, arity and captured identity
 retain their existing contracts in each profile. A data output may refuse
 a selected callable, but rendering is not a reason to ban callable exports.
 Broader callable interchange serialization and conditional streaming frame
-production remain in the [serialization design](./serialization.md#open-questions);
+production remain in the [serialization design](../design/serialization.md#open-questions);
 they do not reopen the implemented code-only default representation.
 
 ### Length limit and migration
@@ -332,7 +332,7 @@ Reconcile pending design documents in this proposal, before implementation:
 [stage-1 subjects 2 and 7](../../todo/edag-stage1-discussion.md#2-arguments-reference),
 the [native callable plan](../../nanvm/lib/todo/callable-function-objects.md),
 which also covers captured frames in Rust,
-and the [function-frame plan](./3111-function-frame.md) follow this
+and the [function-frame plan](../design/3111-function-frame.md) follow this
 `length` / `arg` / `rest` contract, not a count-only extension of complete
 `['args']`. This addresses the
 [argument-model review](https://github.com/functionalscript/functionalscript/pull/2220#discussion_r4094709899)
@@ -436,7 +436,7 @@ source rest binding in that future case or silently admit initializers now.
 - [Statement-aware compilation](../../fjs/compiler/parser/todo/statement-aware-intrinsics.md)
   — preserve JavaScript syntax and bindings before EDAG admission/lowering.
 - [Destructuring](./2450-destructuring.md) — separate binding-pattern work.
-- [Function frame](./3111-function-frame.md) — capture semantics.
+- [Function frame](../design/3111-function-frame.md) — capture semantics.
 - [ECMAScript arrow functions](https://tc39.es/ecma262/multipage/ecmascript-language-functions-and-classes.html#sec-arrow-function-definitions)
   — parameter syntax, early errors and function creation.
 - [ECMAScript parameter binding](https://tc39.es/ecma262/multipage/syntax-directed-operations.html#sec-runtime-semantics-iteratorbindinginitialization)

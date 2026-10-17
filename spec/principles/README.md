@@ -89,7 +89,7 @@ renderer and the structural source serializer have separate contracts
 ([function text](../../fjs/edag/function-text.md)). The Rust VM also answers
 `String(f)`, `f.toString()`, `'' + f` and `[f].toString()` with the compiled
 function's EDAG-derived text, and refuses a native function without associated text.
-[Function text and serialization](../todo/serialization.md#function-text-and-serialization)
+[Function text and serialization](../design/serialization.md#function-text-and-serialization)
 tracks the broader serialization design.
 
 ## Failure is one outcome

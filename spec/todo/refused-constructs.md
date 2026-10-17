@@ -76,8 +76,8 @@ describes:
 | `op.update` | `++a`, `a--` | planned ([assignments](./3430-assignments.md)) |
 | `op.delete` | `delete a.b` | open |
 | `op.void` | `void 0` | open |
-| `op.new` | `new Map()` | planned ([mutability](./mutability.md), [object identity](./object-identity.md)) |
-| `op.this` | `this` | design ([design principles](./design-principles.md)) |
+| `op.new` | `new Map()` | planned ([mutability](../design/mutability.md), [object identity](../design/object-identity.md)) |
+| `op.this` | `this` | design ([design principles](../design/design-principles.md)) |
 | `op.arguments` | `arguments` | open |
 | `op.eval` | `eval("1")` | design ([built-ins](./2360-built-in.md): never admitted, it runs source at run time) |
 | `op.number-spread` | `Number(...a)`, `Number(1, 2)` | planned ([number-spread](./2363-number-spread.md), roadmap) |
@@ -95,10 +95,10 @@ describes:
 |---|---|---|
 | `acc.runtime-key` | `a[i]` | design ([property accessor](./2330-property-accessor.md)) |
 | `acc.prototype-name` | `a.toString`, `a["push"]` | design ([property accessor](./2330-property-accessor.md)) |
-| `acc.mutating-call` | `a.push(0)` | planned ([mutability](./mutability.md), "Local mutability") |
+| `acc.mutating-call` | `a.push(0)` | planned ([mutability](../design/mutability.md), "Local mutability") |
 | `acc.prototype-call` | `a.hasOwnProperty(k)` | design ([built-ins](./2360-built-in.md)) |
 | `acc.proto-key` | `{ __proto__: 1 }` | design ([`__proto__`](../values/objects.md#the-__proto__-key)) |
-| `acc.property-assignment` | `a.b = 1` | open (related: [mutability](./mutability.md)) |
+| `acc.property-assignment` | `a.b = 1` | open (related: [mutability](../design/mutability.md)) |
 | `acc.numeric-key` | `{ 0: 1 }` | planned (roadmap, property key as number) |
 | `name.literal-word` | `const NaN = 1`, `const undefined = 1`, `const Infinity = 1` | design ([literal words](./2445-literal-words-as-references.md)) |
 | `name.intrinsic` | `const String = 1`, `export default String`, `export default Object` | design ([built-ins](./2360-built-in.md); [global names](./2365-global-names.md) reserves `Array`, `Number`, `Object` and `String` with no standalone value) |

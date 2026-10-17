@@ -241,7 +241,7 @@ are [`vm/string/README.md`](../src/vm/string/README.md):
 
 ### Related
 
-- [Default function text](../../../spec/todo/serialization.md#function-text-and-serialization)
+- [Default function text](../../../spec/design/serialization.md#function-text-and-serialization)
   — adopted rendering contract and the remaining rendering choices.
 - [Named/rest rendering requirements](../../../spec/todo/3120-parameters.md#default-function-text-render-or-refuse)
   — shared rendering without regressing supported calls, returns or exports.
