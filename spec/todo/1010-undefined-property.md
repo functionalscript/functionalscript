@@ -1,9 +1,9 @@
-# Undefined-Valued Properties
+## Undefined-Valued Properties
 
 **Priority:** P1
 **Status:** open
 
-## Compatibility correction
+### Compatibility correction
 
 The former unconditional rule `{ x: undefined } ≡ {}` is withdrawn. It was
 based on direct reads and filtered serialization, which do not establish
@@ -21,7 +21,7 @@ The proposed [enumerable-presence pattern](./2345-has-own-property.md) exposes
 that distinction. Prohibiting `Object.hasOwn` or `in` does not remove it, and
 an internal VM definition cannot change the successful answer to the pattern.
 
-## Explicit filtering
+### Explicit filtering
 
 The existing proposed filtering patterns remain useful projections:
 
@@ -38,7 +38,7 @@ admitted. The important correction is that equal filtered outputs do not
 make the inputs universally equivalent. `JSON.stringify`'s omission of a property is likewise an output
 choice, not permission to erase it before arbitrary computation.
 
-## Construction and composition
+### Construction and composition
 
 ```js
 export default { x: 1, x: undefined }.x; // undefined, not 1
@@ -61,14 +61,14 @@ These are constraints on proposed features, not claims of current spread
 support or a current stripping bug. Preserve overwrites and observable order;
 normalize only where equivalence holds for every admitted observation.
 
-## Tasks
+### Tasks
 
 - [x] Remove the unconditional equivalence and reconcile enumerable presence.
 - [ ] Define and test any permitted normalization at its actual observation
       boundary, together with construction, composition and enumeration.
 - [ ] Recheck that equivalence when adding a new operation or execution path.
 
-## Related
+### Related
 
 - [VM-layer question](./1015-undefined-property-vm-layer.md).
 - [Compatibility epic](../../todo/fjs-javascript-compatibility.md).

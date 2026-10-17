@@ -1,4 +1,4 @@
-# Type Annotations
+## Type Annotations
 
 ```js
 import { number, or, string } from 'functionalscript/fjs/rtti/module.f.mjs'
@@ -45,7 +45,7 @@ Not to be confused with the TC39
 opposite: no new syntax beyond a comment, and a checker that is an ordinary
 library.
 
-## Why not a type language
+### Why not a type language
 
 TypeScript's answer to typing is a superset of JavaScript with its own type
 grammar. JSDoc's answer is the same grammar again, only noisier. Neither is
@@ -57,7 +57,7 @@ an ordinary **expression** naming one.
 much of the burden as possible so annotations stay rare. `/*: … */` and JSDoc's
 `/** … */` coexist while the tree migrates.
 
-## What this settles about the parser
+### What this settles about the parser
 
 There is no type grammar to write. A JSDoc-shaped design would need one — a
 block grammar, and underneath it a grammar for a subset of TypeScript's type
@@ -82,7 +82,7 @@ which is exactly why the two annotation forms can coexist during the
 transition. A distinct token kind would be cleaner than inspecting the first
 character, but no new grammar is involved either way.
 
-## What already exists
+### What already exists
 
 More than half of this is built:
 
@@ -99,7 +99,7 @@ as a decidable operation on the canonical form — the primitive a checker needs
 And `ts/module.f.mjs` is already the `.d.ts` generator: schemas in, canonical
 TypeScript aliases out.
 
-## Open questions
+### Open questions
 
 1. **Compile-time evaluation and staging.** Checking `a /*: myType */` requires
    evaluating `myType`, which requires evaluating its imports. Which expressions
@@ -157,7 +157,7 @@ TypeScript aliases out.
    a nominal wrapper carrying a brand, or nominal types stay a TypeScript-era
    construct.
 
-## Sketch of an order, when the time comes
+### Sketch of an order, when the time comes
 
 1. Recognize `/*: … */` in the compiler's parser and read its body as a
    **single identifier** — not as an expression handed to the expression
@@ -200,7 +200,7 @@ by anything short of re-reading the source it paraphrases.
 Steps 1 and 2 stay because they are this document's own subject — the
 annotation form and how a name resolves — rather than a paraphrase of a stage.
 
-## Depends on
+### Depends on
 
 - [compile-modules-to-edag](../../fjs/compiler/todo/compile-modules-to-edag.md) —
   the `,` anchoring operation for a non-resulting computation, which the
@@ -220,7 +220,7 @@ annotation form and how a name resolves — rather than a paraphrase of a stage.
   [stage-2](../../fjs/compiler/README.md#stage-2-mark-compiler-compatible-functionalscript)
   rename, not a tokenizer defect.
 
-## Consequences for the TypeScript-era work
+### Consequences for the TypeScript-era work
 
 - [inline-type-casts.md](../../todo/inline-type-casts.md) is **implemented** —
   its header records 273 of 357 sites removed or converted, with 84 remaining
@@ -240,7 +240,7 @@ annotation form and how a name resolves — rather than a paraphrase of a stage.
   are the near-term work. `tsc` and the standard toolchain remain the
   checker until all of the above exists.
 
-## Related
+### Related
 
 - [rtti-type-system](../../todo/rtti-type-system.md) — the epic this
   document supports: RTTI as the sole source of truth for compile-time and
