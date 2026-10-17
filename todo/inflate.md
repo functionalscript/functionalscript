@@ -128,7 +128,11 @@ which is measured in step 3.
 - [x] [`fjs/zlib/adler32`](../fjs/zlib/adler32/module.f.mjs): the checksum that
       closes a stream, in the shape of a hash, with its proof against the
       trailer of Node's `zlib.deflateSync`.
-- [ ] The zlib framing and the stored blocks; a malformed stream is `null`.
+- [x] [`fjs/zlib/inflate`](../fjs/zlib/inflate/module.f.mjs): the zlib framing
+      and the stored blocks, fed chunks (`init`, `append`, `end`); a malformed
+      stream is `null`, and a block of Huffman codes is refused until the next
+      step. The Adler-32 is a lazy fold per byte, about 8 µs a byte, which the
+      measurement of the whole decoder in the next step decides how to speed up.
 - [ ] Fixed and dynamic Huffman blocks with the 32 KiB window, proven against
       Node's `zlib` and the native decoder of `nanvm-effects-node` on corrupted
       streams, as that decoder was.
