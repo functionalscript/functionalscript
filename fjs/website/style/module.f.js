@@ -109,6 +109,12 @@ export const mirrorMarker = 'data-mirror'
  */
 export const resultMarker = 'data-result'
 
+/** The attribute of a verdict word inside a caption — `ok` or `error` —
+ * coloured as the result block under it is tinted.
+ * @type {string}
+ */
+export const verdictMarker = 'data-verdict'
+
 /** The attribute shared by the PoW verdict row and its layout rules.
  * @type {string}
  */
@@ -701,6 +707,16 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
 }
 [${resultMarker}="ok"] { background: var(--pass-bg); border-color: color-mix(in srgb, var(--pass) 40%, transparent); color: var(--pass) }
 [${resultMarker}="error"] { background: var(--fail-bg); border-color: color-mix(in srgb, var(--fail) 40%, transparent); color: var(--fail) }
+/* A result that holds code — the rtti demo's answers — keeps the verdict's
+   tint and border and adds an edge in its colour, while its text takes the
+   text colour, so the token colours inside read as code and green is not
+   both "accepted" and "string". The caption's verdict word carries the
+   colour too. */
+[${codeMarker}][${resultMarker}] { color: var(--text) }
+[${codeMarker}][${resultMarker}="ok"] { border-left: 4px solid var(--pass) }
+[${codeMarker}][${resultMarker}="error"] { border-left: 4px solid var(--fail) }
+[${verdictMarker}="ok"] { color: var(--pass) }
+[${verdictMarker}="error"] { color: var(--fail) }
 /* A choice between code blocks — the rtti demo's pair of schemas — shows
    every block, one above another, each a button with a radio dot. The one
    picked is outlined and tinted in the value colour with its dot filled; the
@@ -712,6 +728,8 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
 [data-pick-dot] { border: 2px solid var(--muted); border-radius: 50%; flex: none; height: .95rem; margin-top: .2rem; width: .95rem }
 [aria-pressed="true"] > [data-pick-dot] { background: var(--value); border-color: var(--value); box-shadow: inset 0 0 0 2px var(--value-bg) }
 [data-pick-code] { min-width: 0; overflow-wrap: anywhere; white-space: pre-wrap }
+/* The schema not picked keeps receding: its tokens take its muted colour. */
+[data-pick] > button[aria-pressed="false"]:not(:hover) [data-token] { color: inherit }
 /* Syntax highlighting inside a code block, from website/demo/highlight:
    the token classes only: punctuation and blanks keep the text colour. */
 [data-token="keyword"], [data-token="literal"] { color: var(--value) }

@@ -228,8 +228,10 @@ followed by the number or literal word. Keep the producer's run intact.
 oracle, so it establishes agreement modulo that boundary, not identical rendered
 spans. The highlighter's `signedLeaves` proof pins both renderings explicitly.
 
-The compiler (side-by-side), parser, serializer and Rust demos render their
-producers' runs. How a demo's code blocks look is
+The compiler (side-by-side), parser, serializer, Rust and rtti demos render
+their producers' runs; the rtti demo's TypeScript block is the one it leaves
+plain, until the printer marks it
+([`rtti/ts/todo/marked-output.md`](../../rtti/ts/todo/marked-output.md)). How a demo's code blocks look is
 [`website/demo/README.md`](../../website/demo/README.md#output).
 
 ## 7. The fallback for text with no producer
