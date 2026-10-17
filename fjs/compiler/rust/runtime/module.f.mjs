@@ -30,7 +30,7 @@
  * lifting would drop, a function no built-in reaches, which a property
  * written twice leaves behind, a function two built-ins name, which
  * JavaScript keeps apart, a member read as a value, which has no
- * descriptor to read, and two items of one Rust identifier
+ * descriptor to read, and two items printing one Rust name
  * ([DESIGN.md §10](../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)).
  * A literal written twice under one key is its last value, as the EDAG
  * means it.
@@ -163,8 +163,9 @@ const table = root => {
  * function no built-in reaches through its slots, which such a property
  * leaves behind too, since nothing would print it and the module would
  * mean something else; a function two built-ins name, since JavaScript
- * keeps `isNaN` and `Number.isNaN` apart however alike; and two items of
- * one identifier, a static and a member of one type and key, say.
+ * keeps `isNaN` and `Number.isNaN` apart however alike; and two items
+ * printing one Rust name, {@link printedNames} — a static and a member of
+ * one type and key, or a member whose key ends in `Code`, say.
  *
  * @type {(root: Exp, builtIns: readonly _BuiltIn[]) => Result<readonly _Item[], readonly unknown[]>}
  */
@@ -187,13 +188,23 @@ const items = (root, builtIns) => {
                 ? item(node, named.name, named.name, 'static')
                 : item(node, named.name, named.member.join('.'), 'member')
         })
-        const clash = all.find((i, index) => all.findIndex(j => j.ident === i.ident) !== index)
-        return clash === undefined ? ok(all) : error(['two items of one Rust identifier', clash.name])
+        const names = all.flatMap(i => printedNames(i).map(n => /** @type {const} */ ([n, i])))
+        const clash = names.find(([n], index) => names.findIndex(([m]) => m === n) !== index)
+        return clash === undefined ? ok(all) : error(['two items of one Rust name', `${clash[0]} of ${clash[1].name}`])
     })(okList(nodes.filter(n => n[0] === '.').map(n => resolve(/** @type {Exp} */ (n)))))
 }
 
 /** An item, its identifier `builtInIdentifier`'s of `spelled`. @type {(node: readonly unknown[], name: string, spelled: string, kind: _Item['kind']) => _Item} */
 const item = (node, name, spelled, kind) => ({ node, name, ident: builtInIdentifier(spelled), kind })
+
+/**
+ * The Rust names an item prints, which no two items may share: a member
+ * its code's alone, its identifier; a static or a helper its accessor's,
+ * the identifier, and its code's, `_code` after it.
+ *
+ * @type {(item: _Item) => readonly string[]}
+ */
+const printedNames = ({ ident, kind }) => kind === 'member' ? [ident] : [ident, `${ident}_code`]
 
 /**
  * The functions `pending` and every function they reach through their

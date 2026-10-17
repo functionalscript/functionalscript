@@ -194,14 +194,22 @@ pub(crate) fn members<A: IVm>() -> [(&'static str, &'static str, RuntimeCode<A>)
         // would throw is refused, not dropped
         assert(refusal(module([['static', object([['Object', object([['g', ['.', ['undefined'], 'x']], ['g', fn(0, [], 7)]])]])]])).startsWith(prefix))
         // one function under two names is two functions in JavaScript,
-        // `isNaN` and `Number.isNaN`; and a static and a member of one
-        // type and key are one Rust identifier
+        // `isNaN` and `Number.isNaN`; a static and a member of one type
+        // and key print one Rust name, and so do a static and a member
+        // whose key is the static's with `Code` after it, the static's
+        // code being `_code` after its identifier
         const shared = fn(0, [], 1)
         assertEq(refusal(module([['static', object([['Number', object([['isNaN', shared]])], ['Global', object([['isNaN', shared]])]])]])), 'a function two built-ins name; JavaScript keeps them apart: Global.isNaN')
         assertEq(refusal(module([
             ['static', object([['String', object([['startsWith', fn(0, [], 1)]])]])],
             ['member', object([['String', object([['startsWith', fn(0, [], 2)]])]])],
-        ])), 'two items of one Rust identifier: String.prototype.startsWith')
+        ])), 'two items of one Rust name: string_starts_with of String.prototype.startsWith')
+        assertEq(refusal(module([
+            ['static', object([['Object', object([['is', fn(0, [], 1)]])]])],
+            ['member', object([['Object', object([['isCode', fn(0, [], 2)]])]])],
+        ])), 'two items of one Rust name: object_is_code of Object.prototype.isCode')
+        // and so do two statics, one's key the other's with `Code` after it
+        assertEq(refusal(module([['static', object([['Object', object([['is', fn(0, [], 1)], ['isCode', fn(0, [], 2)]])]])]])), 'two items of one Rust name: object_is_code of Object.isCode')
         // a helper reached through a helper is an item, once
         const chain = assertOk(generateRuntime(module([['static', object([['Object', object([['f', fn(0, [fn(0, [fn(0, [], 1)], ['frame', 0])], ['frame', 0])]])]])]])))
         assert(chain.includes('fn f0<A') && chain.includes('fn f1<A') && !chain.includes('fn f2<A'))
