@@ -1,8 +1,8 @@
 ## Property Accessor
 
 **Priority:** P2
-**Status:** blocked — only `a[+i]` remains
-**Blocked by:** [Operators](./2340-operators.md)
+**Status:** on-hold — only `a[+i]` remains, and unary `+` is outside the
+language with no plan to admit it
 
 The constant-key read is in the language
 ([spec: property access](../property-access/README.md)): an own-property
@@ -28,8 +28,9 @@ separate `hasEntity` pattern. All such instructions follow
 
 What this file still owns is `a[+i]`, beside the numeric index
 `a[Number(i)]` that is in the language, where the program knows no `bigint`
-reaches the index — unary `+` waits on the
-[operators](./2340-operators.md) admitting it. Where a program knows its
+reaches the index — but unary `+` is outside the language:
+[operators](./2340-operators.md) leaves it on the other side of the line, and
+no record plans it ([refused constructs](./refused-constructs.md)). Where a program knows its
 index to be a number, `a[Number(i)]` is the spelling to write, `entry`
 being the read for a key of any type.
 
