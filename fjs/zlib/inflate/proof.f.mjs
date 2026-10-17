@@ -1,5 +1,5 @@
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { u8ListMsb, u8ListToVecMsb, uint, vec } from '../../types/bit_vec/module.f.mjs'
+import { u8ListMsb, u8ListToVecMsb, vec } from '../../types/bit_vec/module.f.mjs'
 import { fold, toArray } from '../../types/list/module.f.mjs'
 import { append as adlerAppend, init as adlerInit } from '../adler32/module.f.mjs'
 import { append, end, init } from './module.f.mjs'
