@@ -1,8 +1,10 @@
 //! The runtime, `fjs/js/runtime`, bound: the static runtime `npm run gen`
 //! compiles from it into `gen.runtime.rs` beside this file, through the
 //! compiler's static-runtime printer (`fjs/compiler/rust/runtime`). Every
-//! body is a static function with an accessor answering its
-//! [`RuntimeFunction`], and two tables, `statics` by name and `members` by
+//! body is a static function: a static built-in's with an accessor
+//! answering its [`RuntimeFunction`], since a read of one is a value, a
+//! member's the code alone, since nothing reads a member as a value and a
+//! call step calls it. Two tables, `statics` by name and `members` by
 //! receiver type and key, are what [`runtime_static`] and
 //! [`runtime_method`] search. No VM holds a runtime, and nothing is
 //! evaluated: a built-in is one function by its name however often it is
@@ -13,7 +15,7 @@
 //! can define, written here and listed in the compiled table beside the
 //! bodies. The design: `fjs/js/runtime/README.md`, "How NaNVM finds it".
 
-use crate::vm::{Any, Array, IVm, RuntimeFunction, Unpacked};
+use crate::vm::{Any, Array, IVm, RuntimeCode, RuntimeFunction, Unpacked};
 
 /// The compiled runtime: a `#[path]`, since a `gen.` name is not a Rust
 /// identifier. Its accessors are every compiled module's, re-exported from
@@ -31,21 +33,20 @@ pub fn runtime_static<A: IVm>(name: &str) -> Option<&'static RuntimeFunction<A>>
         .map(|(_, accessor)| accessor())
 }
 
-/// The body the runtime's `member` section holds for the receiver type
+/// The code the runtime's `member` section holds for the receiver type
 /// `type_name` names — `Object`, `Array`, `String`, `Number`, `Boolean`,
 /// `BigInt` or `Function`, the globals' names, as the section keys them —
-/// and the key, or `None`. A call step asks it after the receiver's own
+/// and the key, or `None`: a function of the receiver and the arguments,
+/// the receiver first, with no descriptor, since the language never reads
+/// a member as a value. A call step asks it after the receiver's own
 /// property and the native table ([`method`](crate::vm::lambda) in
 /// `vm/lambda/method.rs`), and before the `TypeError` for calling
 /// `undefined`.
-pub fn runtime_method<A: IVm>(
-    type_name: &str,
-    key: &Any<A>,
-) -> Option<&'static RuntimeFunction<A>> {
+pub fn runtime_method<A: IVm>(type_name: &str, key: &Any<A>) -> Option<RuntimeCode<A>> {
     compiled::members::<A>()
         .into_iter()
         .find(|(t, k, _)| *t == type_name && key.is_str(k))
-        .map(|(_, _, accessor)| accessor())
+        .map(|(_, _, code)| code)
 }
 
 /// The code of `Object.entries`: the entries of its first argument,
@@ -100,8 +101,8 @@ pub(crate) fn type_name<A: IVm>(receiver: &Any<A>) -> Option<&'static str> {
 #[cfg(test)]
 mod tests {
     use super::{
-        ENTRIES_TEXT, compiled::object_is, object_entries, runtime_method, runtime_static,
-        type_name,
+        ENTRIES_TEXT, RuntimeCode, compiled::object_is, object_entries, runtime_method,
+        runtime_static, type_name,
     };
     use crate::{
         naive::Naive,
@@ -110,9 +111,9 @@ mod tests {
 
     type A = Naive;
 
-    /// A member body as a value.
-    fn member(type_name: &str, key: &str) -> Option<Any<A>> {
-        runtime_method::<A>(type_name, &key.into()).map(|f| Function::from(f).to_any())
+    /// A member's code.
+    fn member(type_name: &str, key: &str) -> Option<RuntimeCode<A>> {
+        runtime_method::<A>(type_name, &key.into())
     }
 
     /// Every type the runtime keys, and the nullish values it does not.
@@ -136,8 +137,7 @@ mod tests {
     }
 
     /// A body is found by its type and name; a name without a body, an
-    /// unknown name and an unknown type are not. Read twice, a body is one
-    /// function: a built-in, by its name.
+    /// unknown name and an unknown type are not.
     #[test]
     fn lookup() {
         assert!(member("String", "startsWith").is_some());
@@ -145,10 +145,6 @@ mod tests {
         assert!(member("String", "nothing").is_none());
         assert!(member("Symbol", "startsWith").is_none());
         assert!(member("string", "startsWith").is_none());
-        assert_eq!(
-            member("String", "startsWith"),
-            member("String", "startsWith")
-        );
     }
 
     /// A static body is found by its name, and is the one its accessor
@@ -213,13 +209,13 @@ mod tests {
         assert!(entries.call([].to_array().to_any()).is_err());
     }
 
-    /// The body called as a call step calls it, the receiver first: the
+    /// The code called as a call step calls it, the receiver first: the
     /// compiled `startsWith`, on NaNVM.
     #[test]
     fn starts_with() {
         let f = member("String", "startsWith").unwrap();
-        fn call<const N: usize>(f: &Any<A>, args: [Any<A>; N]) -> Result<Any<A>, Any<A>> {
-            f.clone().call(args.to_array().to_any())
+        fn call<const N: usize>(f: &RuntimeCode<A>, args: [Any<A>; N]) -> Result<Any<A>, Any<A>> {
+            f(args.to_array())
         }
         assert_eq!(call(&f, ["abc".into(), "ab".into()]), Ok(true.to_any()));
         assert_eq!(call(&f, ["abc".into(), "bc".into()]), Ok(false.to_any()));

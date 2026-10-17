@@ -46,9 +46,9 @@ with its arguments untouched ([`vm/lambda`](../src/vm/lambda/mod.rs)):
    the receiver's type and the name, which
    [`fjs/js/runtime`](../../../fjs/js/runtime/README.md) writes once in
    FunctionalScript and `npm run gen` compiles to
-   [`vm/gen.runtime.rs`](../src/vm/gen.runtime.rs). The VM asks
-   `IVm::runtime_method(type_name, key)` for it and calls it with the
-   receiver as its first argument, `[receiver, ...args]`.
+   [`vm/gen.runtime.rs`](../src/vm/gen.runtime.rs). The call step asks
+   `runtime_method(type_name, key)` in `vm/runtime.rs` for its code and
+   calls it with the receiver as its first argument, `[receiver, ...args]`.
 4. Otherwise the `TypeError` for calling `undefined`, as JavaScript throws
    on a type without the method.
 
