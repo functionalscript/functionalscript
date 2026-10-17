@@ -108,8 +108,8 @@ export const proof = {
         assertEq(readsRest(['args']), false)
         const [named] = unwrap(statementsWith(frame, self_, argNamed('self_'))(['[]', [['arg', 0], ['arg', 1], ['=>', 1, [], ['arg', 0]]]]))
         assertStructurallySame(named.map(untagged), [
-            'let c0: Any<A> = A::static_function(|_self, args| { Ok(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any())) }, 1, Array::default(), Some("($0)=>$0")).to_any();',
-            'Ok([self_.clone(), args.clone().into_iter().nth(1).unwrap_or_else(|| Nullish::Undefined.to_any()), c0].to_array().to_any())',
+            'let c0: Any<A> = A::static_function(|_self, args| { Ok(args.argument(0)) }, 1, Array::default(), Some("($0)=>$0")).to_any();',
+            'Ok([self_.clone(), args.argument(1), c0].to_array().to_any())',
         ])
         assertEq(readsBeyondFirst(['arg', 0]), false)
         assertEq(readsBeyondFirst(['[]', [['arg', 0], ['arg', 1]]]), true)
@@ -139,7 +139,7 @@ export const proof = {
         counting: () => {
             assertStructurallySame(scoped(counting), [
                 'Ok(A::static_function(|_self, args| {',
-                '    let mut r: Any<A> = args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any());',
+                '    let mut r: Any<A> = args.argument(0);',
                 '    loop {',
                 '        if !(Any::lt(r.clone(), f64_any(0x4024000000000000)))?.to_boolean() { break }',
                 '        let c0: Any<A> = (r.clone() + f64_any(0x3ff0000000000000))?;',
@@ -148,7 +148,7 @@ export const proof = {
                 '    Ok(r)',
                 '}, 1, Array::default(), Some("($0)=>{let $1=$0;while((($1)<(10))){$1=(($1)+(1));}return $1;}")).to_any())',
             ])
-            assertStructurallySame(usedBy(counting), { vm: ['Array', 'Nullish', 'ToAny'], unstable: ['f64_any'] })
+            assertStructurallySame(usedBy(counting), { vm: ['Array', 'ToAny'], unstable: ['f64_any'] })
             // the same closure where it stands as an expression
             assertEq(printed(counting).split('\n')[2], '    loop {')
         },
@@ -158,7 +158,7 @@ export const proof = {
         // the test, a comma's included
         asserts: () => {
             assertStructurallySame(scoped(loop(true, [',', [['+', 1, 2], ['[]', [['arg', 0]]], call(['arg', 0])]])).slice(1, 7), [
-                '    let r: Any<A> = args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any());',
+                '    let r: Any<A> = args.argument(0);',
                 '    loop {',
                 '        if !true.to_any().to_boolean() { break }',
                 '        let _: Any<A> = (f64_any(0x3ff0000000000000) + f64_any(0x4000000000000000))?;',
@@ -187,12 +187,12 @@ export const proof = {
         // past the length is read as any argument is
         reads: () => {
             assertStructurallySame(scoped(['=>', 1, [], ['?:', ['arg', 1], call(['arg', 1]), ['arg', 0]]]).slice(3, 5), [
-                '        if !args.clone().into_iter().nth(1).unwrap_or_else(|| Nullish::Undefined.to_any()).to_boolean() { break }',
-                '        r = args.clone().into_iter().nth(1).unwrap_or_else(|| Nullish::Undefined.to_any());',
+                '        if !args.argument(1).to_boolean() { break }',
+                '        r = args.argument(1);',
             ])
             assertStructurallySame(scoped(['=>', 1, [1, 2], ['?:', ['frame', 0], call(['frame', 1]), ['arg', 0]]]).slice(0, 6), [
                 'Ok(A::static_function(|self_, args| {',
-                '    let mut r: Any<A> = args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any());',
+                '    let mut r: Any<A> = args.argument(0);',
                 '    loop {',
                 '        if !A::frame(self_)[0].clone().to_boolean() { break }',
                 '        r = A::frame(self_)[1].clone();',
@@ -287,7 +287,7 @@ export const proof = {
             body: () => {
                 assertStructurallySame(scoped(['=>', 1, [], ['()', ['=>', 1, [['arg', 0]], ['?:', ['<', ['arg', 0], ['frame', 0]], call(['+', ['arg', 0], 1]), ['arg', 0]]], [0]]]), [
                     'Ok(A::static_function(|_self, args| {',
-                    '    let c0: Any<A> = args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any());',
+                    '    let c0: Any<A> = args.argument(0);',
                     '    let mut c1: Any<A> = f64_any(0x0000000000000000);',
                     '    loop {',
                     '        if !(Any::lt(c1.clone(), c0.clone()))?.to_boolean() { break }',
@@ -385,13 +385,13 @@ export const proof = {
             const minted = ['[]', [['arg', 0]]]
             assertStructurallySame(scoped(loop(['.', minted, 0], call(['.', minted, 'length']))), [
                 'Ok(A::static_function(|self_, args| {',
-                '    let c0: Any<A> = [args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any())].to_array().to_any();',
+                '    let c0: Any<A> = [args.argument(0)].to_array().to_any();',
                 '    let c1: Any<A> = Any::dot(c0.clone(), f64_any(0x0000000000000000)).end()?;',
                 '    let c2 = || {',
                 '        let c3: Any<A> = Any::dot(c0.clone(), string_any("length")).end()?;',
                 '        Any::call(Function::new(self_.clone()).to_any(), [c3].to_array().to_any())',
                 '    };',
-                '    Any::conditional(c1, c2, || Ok(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any())))',
+                '    Any::conditional(c1, c2, || Ok(args.argument(0)))',
                 '}, 1, Array::default(), Some("(function $0($1){const $2=(()=>{let $3,$4=false;return()=>{if(!$4){$3=([($1)]);$4=true;}return $3;};})();return ((($2())[(0)])?((0,($0))((($2())[(\\"length\\")]))):($1));})")).to_any())',
             ])
             /** @type {Exp} */
@@ -482,7 +482,7 @@ export const proof = {
             assertStructurallySame(usedBy(['=>', 0, [], ['undefined']]), { vm: ['Array', 'Nullish', 'ToAny'], unstable: [] })
             assertStructurallySame(usedBy(['=>', 0, [1], ['frame', 0]]), { vm: ['ToAny', 'ToArray'], unstable: ['f64_any'] })
             assertStructurallySame(usedBy(['=>', 1, [], ['[]', [['arg', 0], ['args'], ['rest']]]]), {
-                vm: ['Array', 'Nullish', 'ToAny', 'ToArray'],
+                vm: ['Array', 'ToAny', 'ToArray'],
                 unstable: [],
             })
         },
@@ -547,13 +547,13 @@ export const proof = {
         // a discarded operand is bound by a `let`
         assertEq(runs([',', [1, 2]]), '[["let","keyword"],["0x3ff0000000000000","number"],["0x4000000000000000","number"]]')
         // an index read and a function's length are numbers too
-        assertEq(JSON.stringify(unwrap(fromTagged(unwrap(scopeTagged(['=>', 1, [], ['arg', 0]])).lines.join('\n'))).filter(([, kind]) => kind === 'number')), '[["1","number"]]')
+        assertEq(JSON.stringify(unwrap(fromTagged(unwrap(scopeTagged(['=>', 1, [], ['arg', 0]])).lines.join('\n'))).filter(([, kind]) => kind === 'number')), '[["0","number"],["1","number"]]')
         assertEq(JSON.stringify(unwrap(fromTagged(unwrap(scopeTagged(['=>', 0, [['[]', [1]]], ['frame', 0]])).lines.join('\n'))).filter(([, kind]) => kind === 'number').map(([text]) => text)), '["0x3ff0000000000000","0","0"]')
     },
     fixedAndRest: () => {
         const text = scoped(['=>', 3, [], ['[]', [['arg', 0], ['arg', 2], ['rest']]]]).join('\n')
-        assert(text.includes('next().unwrap_or_else(|| Nullish::Undefined.to_any())'))
-        assert(text.includes('nth(2).unwrap_or_else(|| Nullish::Undefined.to_any())'))
+        assert(text.includes('args.argument(0)'))
+        assert(text.includes('args.argument(2)'))
         assert(text.includes('let rest = args.clone().into_iter().skip(3).to_array();'))
         assert(text.includes('}, 3, Array::default(), Some("($0,$1,$2,...$3)=>[$0,$2,$3]")).to_any()'))
     },
@@ -621,8 +621,8 @@ export const proof = {
      * the writer gives the helper.
      */
     entry: () => {
-        assertEq(printed(['entry']), 'A::static_function(|_self, args| Any::entry(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), args.clone().into_iter().nth(1).unwrap_or_else(|| Nullish::Undefined.to_any())), 2, Array::default(), Some("($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}")).to_any()')
-        assertEq(printed(['()', ['entry'], [1, 2]]), 'Any::call(A::static_function(|_self, args| Any::entry(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), args.clone().into_iter().nth(1).unwrap_or_else(|| Nullish::Undefined.to_any())), 2, Array::default(), Some("($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}")).to_any(), [f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any())')
+        assertEq(printed(['entry']), 'A::static_function(|_self, args| Any::entry(args.argument(0), args.argument(1)), 2, Array::default(), Some("($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}")).to_any()')
+        assertEq(printed(['()', ['entry'], [1, 2]]), 'Any::call(A::static_function(|_self, args| Any::entry(args.argument(0), args.argument(1)), 2, Array::default(), Some("($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}")).to_any(), [f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any())')
     },
     /**
      * A static function as a value — `Object.is` — is its accessor's,

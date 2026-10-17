@@ -5,7 +5,7 @@
 //! runtime defines — `startsWith` — has no entry here: the call step
 //! finds its body through `vm/runtime.rs`.
 
-use super::method::{Method, ToAnyResult, argument, index_or_minus_one, rest};
+use super::method::{Method, ToAnyResult, index_or_minus_one, rest};
 use crate::vm::{Any, Array, IVm, Number, String, ToAny};
 
 /// `String.prototype`'s.
@@ -39,25 +39,25 @@ pub(super) fn string<A: IVm>() -> [(&'static str, Method<A>); 24] {
 }
 
 fn at<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
-    String::try_from(s)?.at(argument(&args, 0))
+    String::try_from(s)?.at(args.argument(0))
 }
 
 fn char_at<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     String::try_from(s)?
-        .char_at(argument(&args, 0))
+        .char_at(args.argument(0))
         .to_any_result()
 }
 
 fn char_code_at<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     String::try_from(s)?
-        .char_code_at(argument(&args, 0))
+        .char_code_at(args.argument(0))
         .to_any_result()
 }
 
 /// The code point as a number, or `undefined` out of range.
 fn code_point_at<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     Ok(String::try_from(s)?
-        .code_point_at(argument(&args, 0))?
+        .code_point_at(args.argument(0))?
         .map_or_else(
             || crate::vm::Any::undefined(),
             |c| Number::from(f64::from(c)).to_any(),
@@ -82,35 +82,35 @@ fn to_upper_case<A: IVm>(s: Any<A>, _: Array<A>) -> Result<Any<A>, Any<A>> {
 
 fn includes<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     String::try_from(s)?
-        .includes(argument(&args, 0), argument(&args, 1))
+        .includes(args.argument(0), args.argument(1))
         .to_any_result()
 }
 
 fn index_of<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
-    let found = String::try_from(s)?.index_of(argument(&args, 0), argument(&args, 1))?;
+    let found = String::try_from(s)?.index_of(args.argument(0), args.argument(1))?;
     Ok(index_or_minus_one(found))
 }
 
 fn last_index_of<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
-    let found = String::try_from(s)?.last_index_of(argument(&args, 0), argument(&args, 1))?;
+    let found = String::try_from(s)?.last_index_of(args.argument(0), args.argument(1))?;
     Ok(index_or_minus_one(found))
 }
 
 fn ends_with<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     String::try_from(s)?
-        .ends_with(argument(&args, 0), argument(&args, 1))
+        .ends_with(args.argument(0), args.argument(1))
         .to_any_result()
 }
 
 fn slice<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     String::try_from(s)?
-        .slice(argument(&args, 0), argument(&args, 1))
+        .slice(args.argument(0), args.argument(1))
         .to_any_result()
 }
 
 fn substring<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     String::try_from(s)?
-        .substring(argument(&args, 0), argument(&args, 1))
+        .substring(args.argument(0), args.argument(1))
         .to_any_result()
 }
 
@@ -121,19 +121,19 @@ fn concat<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
 
 fn repeat<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     String::try_from(s)?
-        .repeat(argument(&args, 0))
+        .repeat(args.argument(0))
         .to_any_result()
 }
 
 fn pad_start<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     String::try_from(s)?
-        .pad(argument(&args, 0), argument(&args, 1), true)
+        .pad(args.argument(0), args.argument(1), true)
         .to_any_result()
 }
 
 fn pad_end<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     String::try_from(s)?
-        .pad(argument(&args, 0), argument(&args, 1), false)
+        .pad(args.argument(0), args.argument(1), false)
         .to_any_result()
 }
 
@@ -151,18 +151,18 @@ fn trim_end<A: IVm>(s: Any<A>, _: Array<A>) -> Result<Any<A>, Any<A>> {
 
 fn replace<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     String::try_from(s)?
-        .replace(argument(&args, 0), argument(&args, 1))
+        .replace(args.argument(0), args.argument(1))
         .to_any_result()
 }
 
 fn replace_all<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     String::try_from(s)?
-        .replace_all(argument(&args, 0), argument(&args, 1))
+        .replace_all(args.argument(0), args.argument(1))
         .to_any_result()
 }
 
 fn split<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     String::try_from(s)?
-        .split(argument(&args, 0), argument(&args, 1))
+        .split(args.argument(0), args.argument(1))
         .to_any_result()
 }

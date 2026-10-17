@@ -7,9 +7,9 @@ use nanvm_lib::vm::{Any, Array, IStaticFunction, Nullish, ToAny, ToArray, ToObje
 
 #[rustfmt::skip]
 pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
-    let c0: Any<A> = A::static_function(|_self, args| { Ok(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any())) }, 2, Array::default(), Some("($0,$1)=>$0")).to_any();
+    let c0: Any<A> = A::static_function(|_self, args| { Ok(args.argument(0)) }, 2, Array::default(), Some("($0,$1)=>$0")).to_any();
     let c1: Any<A> = Any::dot(c0.clone(), string_any("length")).end()?;
-    let c2: Any<A> = A::static_function(|_self, args| { Ok(args.clone().into_iter().nth(1).unwrap_or_else(|| Nullish::Undefined.to_any())) }, 2, Array::default(), Some("($0,$1)=>$1")).to_any();
+    let c2: Any<A> = A::static_function(|_self, args| { Ok(args.argument(1)) }, 2, Array::default(), Some("($0,$1)=>$1")).to_any();
     let c3: Any<A> = Any::dot(c2.clone(), string_any("length")).end()?;
     let c4: Any<A> = A::static_function(|_self, _args| { Ok(f64_any(0x401c000000000000)) }, 0, Array::default(), Some("()=>7")).to_any();
     let c5: Any<A> = Any::dot(c4.clone(), string_any("length")).end()?;

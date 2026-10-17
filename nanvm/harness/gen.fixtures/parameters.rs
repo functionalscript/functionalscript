@@ -7,7 +7,7 @@ use nanvm_lib::vm::{Any, Array, IStaticFunction, Nullish, ToAny, ToArray, ToObje
 pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
     let c0: Any<A> = A::static_function(|_self, args| {
         let rest = args.clone().into_iter().skip(3).to_array();
-        Ok([args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), args.clone().into_iter().nth(1).unwrap_or_else(|| Nullish::Undefined.to_any()), args.clone().into_iter().nth(2).unwrap_or_else(|| Nullish::Undefined.to_any()), rest.clone().to_any()].to_array().to_any())
+        Ok([args.argument(0), args.argument(1), args.argument(2), rest.clone().to_any()].to_array().to_any())
     }, 3, Array::default(), Some("($0,$1,$2,...$3)=>[$0,$1,$2,$3]")).to_any();
     let c1: Any<A> = Any::dot(c0.clone(), string_any("length")).end()?;
     let c2: Any<A> = Any::call(c0.clone(), [f64_any(0x3ff0000000000000), f64_any(0x4000000000000000), f64_any(0x4008000000000000), f64_any(0x4010000000000000), f64_any(0x4014000000000000)].to_array().to_any())?;
@@ -30,8 +30,8 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
             let rest = args.clone().into_iter().skip(1).to_array();
             let c0: Any<A> = A::frame(self_)[1].clone();
             let c1: Any<A> = rest.clone().to_any();
-            Ok([A::frame(self_)[0].clone(), c0.clone(), args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), c1.clone(), c0.clone(), c1.clone()].to_array().to_any())
-        }, 1, [args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), rest.clone().to_any()].to_array(), Some("($2,...$3)=>[$0,$1,$2,$3,$1,$3]")).to_any())
+            Ok([A::frame(self_)[0].clone(), c0.clone(), args.argument(0), c1.clone(), c0.clone(), c1.clone()].to_array().to_any())
+        }, 1, [args.argument(0), rest.clone().to_any()].to_array(), Some("($2,...$3)=>[$0,$1,$2,$3,$1,$3]")).to_any())
     }, 1, Array::default(), Some("($0,...$1)=>($2,...$3)=>[$0,$1,$2,$3,$1,$3]")).to_any();
     let c17: Any<A> = Any::call(c16, [f64_any(0x3ff0000000000000), f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any())?;
     let c18: Any<A> = Any::dot(c17.clone(), string_any("length")).end()?;

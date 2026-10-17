@@ -304,12 +304,13 @@ const stringCall = name => v => {
 
 /**
  * Fixed argument `k` of the function being called, read from the `args`
- * parameter of the closure {@link closure} prints: `undefined` past the end
- * of a short call, as JavaScript binds a missing argument.
+ * parameter of the closure {@link closure} prints: `nanvm-lib`'s
+ * `Array::argument`, `undefined` past the end of a short call, as
+ * JavaScript binds a missing argument — one bounds check and one clone.
  *
  * @type {(k: number) => Printed<string>}
  */
-const argRead = k => cat([`args.clone().into_iter().${k === 0 ? 'next()' : `nth(${num(`${k}`)})`}.unwrap_or_else(|| `, undefinedAny, ')'])
+const argRead = k => cat(['args.argument(', num(`${k}`), ')'])
 
 /**
  * Slot `i` of the frame the function was built with, read through the

@@ -11,20 +11,20 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
     let c0: Any<A> = [f64_any(0x0000000000000000), f64_any(0x8000000000000000), f64_any(0x3ff0000000000000), f64_any(0x3ff8000000000000), f64_any(0x433fffffffffffff), f64_any(0x4340000000000000), f64_any(0xc33fffffffffffff), f64_any(0xc340000000000000), f64_any(0x7ff8000000000000), f64_any(0x7ff0000000000000), f64_any(0xfff0000000000000), bigint_any(1), string_any("1"), string_any("NaN"), true.to_any(), Nullish::Null.to_any(), Nullish::Undefined.to_any(), Array::default().to_any(), Object::default().to_any()].to_array().to_any();
     let c1: Any<A> = Function::from(number_is_integer::<A>()).to_any();
     let c2 = || {
-        let c3: Any<A> = A::static_function(|self_, args| { Any::call(A::frame(self_)[0].clone(), [args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any())].to_array().to_any()) }, 1, [c1.clone()].to_array(), Some("($1)=>$0($1)")).to_any();
+        let c3: Any<A> = A::static_function(|self_, args| { Any::call(A::frame(self_)[0].clone(), [args.argument(0)].to_array().to_any()) }, 1, [c1.clone()].to_array(), Some("($1)=>$0($1)")).to_any();
         Ok([c3].to_array().to_any())
     };
     let c4: Any<A> = Any::dot(c0.clone(), string_any("map")).end_call(c2)?;
     let c5: Any<A> = Function::from(number_is_safe_integer::<A>()).to_any();
     let c6 = || {
-        let c7: Any<A> = A::static_function(|self_, args| { Any::call(A::frame(self_)[0].clone(), [args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any())].to_array().to_any()) }, 1, [c5.clone()].to_array(), Some("($1)=>$0($1)")).to_any();
+        let c7: Any<A> = A::static_function(|self_, args| { Any::call(A::frame(self_)[0].clone(), [args.argument(0)].to_array().to_any()) }, 1, [c5.clone()].to_array(), Some("($1)=>$0($1)")).to_any();
         Ok([c7].to_array().to_any())
     };
     let c8: Any<A> = Any::dot(c0.clone(), string_any("map")).end_call(c6)?;
     let c9 = || {
         let c10: Any<A> = A::static_function(|_self, args| {
             let c0: Any<A> = Function::from(number_is_nan::<A>()).to_any();
-            Any::call(c0, [args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any())].to_array().to_any())
+            Any::call(c0, [args.argument(0)].to_array().to_any())
         }, 1, Array::default(), Some("($0)=>Number.isNaN($0)")).to_any();
         Ok([c10].to_array().to_any())
     };
@@ -32,7 +32,7 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
     let c12 = || {
         let c13: Any<A> = A::static_function(|_self, args| {
             let c0: Any<A> = Function::from(number_is_finite::<A>()).to_any();
-            Any::call(c0, [args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any())].to_array().to_any())
+            Any::call(c0, [args.argument(0)].to_array().to_any())
         }, 1, Array::default(), Some("($0)=>Number.isFinite($0)")).to_any();
         Ok([c13].to_array().to_any())
     };
