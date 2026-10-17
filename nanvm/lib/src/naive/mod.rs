@@ -12,10 +12,11 @@ use crate::{
 thread_local! {
     /// The runtime, initialized on this thread's first lookup and held
     /// from then on, so every lookup answers a clone of one function and a
-    /// runtime function read twice, generated or created, is one function,
-    /// as JavaScript's built-ins are. Per thread, since a value is an `Rc`
-    /// and never leaves its thread. `thread_local!` is the one stable
-    /// spelling of a thread's own value.
+    /// generated body read twice is one function, as JavaScript's
+    /// built-ins are; a built-in no body defines, `Object.entries`, needs
+    /// no holding, its name being its identity. Per thread, since a value
+    /// is an `Rc` and never leaves its thread. `thread_local!` is the one
+    /// stable spelling of a thread's own value.
     static RUNTIME: OnceCell<Runtime<Naive>> = const { OnceCell::new() };
 }
 
@@ -57,7 +58,8 @@ impl IVm for Naive {
     }
 
     /// The runtime's static function, for the same reasons: a body, or
-    /// `Object.entries`, which the runtime creates.
+    /// `Object.entries`, the built-in by its name, which the runtime
+    /// answers a handle to and holds nowhere.
     fn runtime_static(path: &[&str]) -> Option<Any<Naive>> {
         runtime(|r| r.static_function(path))
     }

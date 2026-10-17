@@ -33,7 +33,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
     let c25: Any<A> = [string_any("2"), string_any_utf16(&[0xde00])].to_array().to_any();
     let c26: Any<A> = [c23, c24, c25].to_array().to_any();
     let c27: Any<A> = [c19, c22, c26, Array::default().to_any(), Array::default().to_any(), Array::default().to_any(), Array::default().to_any(), Array::default().to_any(), Array::default().to_any()].to_array().to_any();
-    let c28: Any<A> = [true.to_any(), true.to_any(), true.to_any(), string_any("function"), f64_any(0x3ff0000000000000)].to_array().to_any();
+    let c28: Any<A> = [true.to_any(), true.to_any(), true.to_any(), string_any("function"), f64_any(0x3ff0000000000000), string_any("function entries() { [native code] }")].to_array().to_any();
     let c29: Any<A> = [false.to_any(), false.to_any()].to_array().to_any();
     let c30: Any<A> = [c14, c27, c28, c29].to_array().to_any();
     Ok([(string_key("default"), c30)].to_object().to_any())

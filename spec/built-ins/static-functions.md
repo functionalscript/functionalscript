@@ -73,10 +73,10 @@ executor binds it natively, and its text, `String(Object.entries)`, is
 ECMAScript requires of a built-in, there being no EDAG to render
 ([function source](../principles/README.md#function-source-representation-exception)).
 The graph outputs write the node back: the FunctionalScript one as its
-name, `Object.is`, the Rust one as the binding the VM answers, which NaNVM
-reads from the one runtime it holds — the compiled bodies and
-`Object.entries`, created beside them — so every read there is one
-function too.
+name, `Object.is`, the Rust one as the binding the VM answers — a body
+from the one runtime NaNVM holds, `Object.entries` as a built-in
+identified by its name, which nothing creates or holds — so every read
+there is one function too.
 
 ## Examples
 

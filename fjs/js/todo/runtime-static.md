@@ -275,7 +275,8 @@ this proposal does not take.
       naming the path as the interpreter does; the Rust backend emits the
       lookup; the completeness test checks every admitted path is bound.
       NaNVM keeps no native static table, so there is no reverse walk;
-      `Object.entries`, its one native, is a held function, not a table.
+      `Object.entries`, its one native, is a built-in identified by its
+      name, held nowhere, not a table.
 - [x] The node is a value, `['Object.is']`, an `op0`, in place of
       `['static', path]`: the schema, the analysis, the executors, the
       Rust backend and function text; the analysis's path and placement
@@ -320,8 +321,8 @@ this proposal does not take.
       static with no body: its path in `statics`, the node
       `['Object.entries']`, answered natively by the represented
       interpreter, as a function value of its own, and by NaNVM, as a
-      function the runtime creates beside the compiled bodies, held per
-      thread with them;
+      built-in written by hand and identified by its name, which nothing
+      creates or holds;
       `const { entries } = Object` admitted over the prototype-name rule;
       the spec, the docs that say the language enumerates no keys, and a
       harness fixture.

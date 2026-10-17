@@ -1,7 +1,7 @@
 ## A static runtime: built-ins as static functions, identified by name
 
 **Priority:** P2
-**Status:** open — **sergey-shandar**'s design, from the `Object.entries`
+**Status:** wip — **sergey-shandar**'s design, from the `Object.entries`
 session ([#2984](https://github.com/functionalscript/functionalscript/pull/2984))
 and the review of the instance design this file first recorded, which it
 supersedes.
@@ -223,7 +223,7 @@ is `Sync`.
 
 ### Tasks
 
-- [ ] `RuntimeFunction<A>`, and `Function<A>` as its two kinds: `call`,
+- [x] `RuntimeFunction<A>`, and `Function<A>` as its two kinds: `call`,
       `length`, `text`, equality by name, `Debug`. `Object.entries` as a
       hand-written `RuntimeFunction`. Tests: two reads of a built-in are
       equal and `same_value`; two closures from one arrow are not; a
