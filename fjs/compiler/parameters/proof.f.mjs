@@ -141,6 +141,7 @@ const forInterpreter = (interpret, invoke) => {
         },
         writerRefusesModuleBinding: () => {
             assertEq(tryModuleStringify(['{}', [[':', 'f', ['=>', 1, [], ['args']]]]])[0], 'error')
+            assertEq(tryModuleStringify(['{}', [[':', 'f', ['=>', 0, [], ['args']]]]])[0], 'error')
         },
         invalidLengthMetadata: () => {
             for (const length of [-0,-1,0.5,Infinity,NaN]) {
@@ -160,5 +161,6 @@ export const proof = {
         arg: () => interpret(['=>',1,[],['arg',1]]),
         moduleRest: () => interpret(['rest']),
         functionArgs: () => interpret(['=>',1,[],['args']]),
+        functionArgsZeroArity: () => interpret(['=>',0,[],['args']]),
     },
 }

@@ -1,7 +1,7 @@
 ## Callable function objects (Rust-generated bodies)
 
 **Priority:** P2
-**Status:** open — callable bodies, fixed/rest lowering, default-text
+**Status:** wip — callable bodies, fixed/rest lowering, default-text
 integration and the Node/interpreter/direct-AOT corpus comparisons are
 implemented; semantic EDAG association and remaining migration/coverage
 work are unfinished, and native interpreter corpus execution is blocked.
@@ -862,7 +862,7 @@ level.
       constant `arg` indices, preserve the declared length, supply missing
       fixed values as `undefined` and bind rest once per invocation. The
       `parameters` harness fixture and Rust module proofs cover this path.
-- [ ] Stage 6 follow-through: complete migration and regression coverage
+- [x] Stage 6 follow-through: complete migration and regression coverage
       beyond the implemented cases above. Compare with native
       JavaScript and the evaluator for omitted, explicit `undefined` and
       extra arguments, unused fixed parameters, returning/forwarding rest,
@@ -880,10 +880,16 @@ level.
       a fixed-only function, a fixed parameter nothing reads, zero arity
       called with arguments, and a rest array returned, forwarded and
       spread, which is a new array and not the spread source. Native
-      JavaScript, the evaluator and the generated Rust agree on it. What
-      stays open is the refusal of the legacy positive-arity/full-list
-      graphs, a check of EDAG validation and not of calls, and the
-      migration of zero-arity graphs by scope.
+      JavaScript, the evaluator and the generated Rust agree on it. The
+      refusal of the legacy positive-arity/full-list graphs is EDAG
+      validation and not a call: `checked` (`fjs/edag/analysis`) refuses
+      a function-owned `['args']` at every arity, and the memo executor,
+      the Rust printer and the source writer refuse it through it, at
+      arity 0 and above (`fjs/compiler/parameters/proof.f.mjs`,
+      `fjs/compiler/rust/proof.f.mjs`). A zero-arity graph migrates by
+      scope: its complete list is `['rest']`, which a module scope
+      refuses. The amnesia executor trusts the graph it is given, as its
+      dispatcher does.
       The [interpreted-value native proofs](../../harness/tests/values.rs)
       additionally pin evaluated and nested captures. Shared direct-AOT
       comparison with reference expectations is implemented in Stage 8 step 2.
