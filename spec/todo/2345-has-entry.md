@@ -1,10 +1,10 @@
 ## `entry` Answers the Value, `hasEntry` the Presence
 
 **Priority:** P2
-**Status:** approved — the language designer, **sergey-shandar**, approved
-the design in the session that wrote this record
+**Status:** wip — the design is approved by the language designer,
+**sergey-shandar**, in the session that wrote this record
 ([approval](https://claude.ai/code/session_01L4xPteqjBToqCN3aycb8Su),
-"Do it, I approve"); implementation open
+"Do it, I approve"); the tasks below are in progress
 
 ### Decision
 
